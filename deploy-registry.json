@@ -24,17 +24,17 @@
         "forge",
         "deal"
       ],
-      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. Live wings: /puzz — seeded, certified-unique logic puzzles (binairo + nonogram), a real solver certifying uniqueness, fairness, and grading from deduction techniques; /knack — canvas minigames, one composable discrete-move engine -> six genres, each certified solvable by a BFS solver that finds optimal par; /flux — continuous-space physics puzzles (no grid): aim one launch through gravity wells/magnets/goo/bumpers, a solver sweeps the 2D launch space to map winning basins, grading by shot precision; /gyre — flux in 3D: the ball constrained to a torus surface (intrinsic-coordinate geodesic integration + tangent-projected forces, hand-rolled 3D canvas in the torus-pack style), winding numbers of the winning shot are part of the interest battery. flux JS engine is mirrored in fable/flux/engine-rs (Rust) and cross-checked in CI by build-flux-catalog.yml, which commits fable/flux/data/catalog.json. /morph — a generator of puzzle GENERATORS (one level up): samples a game GENOME (substrate/topology incl. torus/Möbius/Klein/hex × law × goal × aesthetic) and instantiates a concrete puzzle a single invariant BFS oracle certifies solvable; two knobs (new game = new genome, new puzzle = new instance). /drift — puzzles in MEANING-space (tier-4 substrate): the board is a committed kNN graph over 7k MiniLM word embeddings (built by scripts/build-drift-graph.mjs, cult-basis pattern; regenerate ONLY via manual build-drift-graph.yml — it re-rolls every permalink); Ladder = BFS-certified semantic crossings with measured par, Fold = margin-certified word families. /forge — the rung above morph: a FOUNDRY that mints new LAWS OF MOTION from a closed rule-DSL, fingerprints each by behaviour (state-space/branching/irreversibility/mutation/stride/drift), and admits only laws measurably novel vs the hand-written ones AND certifiable into playable puzzles by the one BFS oracle (novelty-search / MAP-Elites lineage). The generator-generator then runs on a law no one wrote. /deal — generated 2-player CARD GAMES certified by a TRIBUNAL of simulated opponents (the adversarial/hidden-info oracle family: seeded bot-vs-bot playouts prove terminates + rewards-skill + fair before shipping); the engine is a pure reducer (init/legalMoves/apply) so any game lifts into the games.mino.mobi DO rooms / hoop / ar transports for human-vs-human later — the certifying bot is also your opponent. Planned: /city (extends mappa), /character (sci-fi NPC systems)."
+      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. Live wings: /puzz \u2014 seeded, certified-unique logic puzzles (binairo + nonogram), a real solver certifying uniqueness, fairness, and grading from deduction techniques; /knack \u2014 canvas minigames, one composable discrete-move engine -> six genres, each certified solvable by a BFS solver that finds optimal par; /flux \u2014 continuous-space physics puzzles (no grid): aim one launch through gravity wells/magnets/goo/bumpers, a solver sweeps the 2D launch space to map winning basins, grading by shot precision; /gyre \u2014 flux in 3D: the ball constrained to a torus surface (intrinsic-coordinate geodesic integration + tangent-projected forces, hand-rolled 3D canvas in the torus-pack style), winding numbers of the winning shot are part of the interest battery. flux JS engine is mirrored in fable/flux/engine-rs (Rust) and cross-checked in CI by build-flux-catalog.yml, which commits fable/flux/data/catalog.json. /morph \u2014 a generator of puzzle GENERATORS (one level up): samples a game GENOME (substrate/topology incl. torus/M\u00f6bius/Klein/hex \u00d7 law \u00d7 goal \u00d7 aesthetic) and instantiates a concrete puzzle a single invariant BFS oracle certifies solvable; two knobs (new game = new genome, new puzzle = new instance). /drift \u2014 puzzles in MEANING-space (tier-4 substrate): the board is a committed kNN graph over 7k MiniLM word embeddings (built by scripts/build-drift-graph.mjs, cult-basis pattern; regenerate ONLY via manual build-drift-graph.yml \u2014 it re-rolls every permalink); Ladder = BFS-certified semantic crossings with measured par, Fold = margin-certified word families. /forge \u2014 the rung above morph: a FOUNDRY that mints new LAWS OF MOTION from a closed rule-DSL, fingerprints each by behaviour (state-space/branching/irreversibility/mutation/stride/drift), and admits only laws measurably novel vs the hand-written ones AND certifiable into playable puzzles by the one BFS oracle (novelty-search / MAP-Elites lineage). The generator-generator then runs on a law no one wrote. /deal \u2014 generated 2-player CARD GAMES certified by a TRIBUNAL of simulated opponents (the adversarial/hidden-info oracle family: seeded bot-vs-bot playouts prove terminates + rewards-skill + fair before shipping); the engine is a pure reducer (init/legalMoves/apply) so any game lifts into the games.mino.mobi DO rooms / hoop / ar transports for human-vs-human later \u2014 the certifying bot is also your opponent. Planned: /city (extends mappa), /character (sci-fi NPC systems)."
     },
     {
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/merge-candidate-docs-update-8e2nns",
+      "branch": "claude/feature-merge-candidate-l4dkwq",
       "uses": [],
       "provides": "landing",
-      "status": "MANAGED — verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
+      "status": "MANAGED \u2014 verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
       "serves": [
         "(landing index)",
         "cluster",
@@ -53,7 +53,7 @@
         "wiki",
         "mappa"
       ],
-      "note": "Assets worker `minomobi` serving directory '.'. Bundles the landing page + ~19 pure-static subsites into ONE deploy. Currently Cloudflare git-autodeploy from main (no Action). Target: explicit deploy-root.yml. WARNING: the bundled static subsites cannot be deployed independently of each other — see tension note in the chat.",
+      "note": "Assets worker `minomobi` serving directory '.'. Bundles the landing page + ~19 pure-static subsites into ONE deploy. Currently Cloudflare git-autodeploy from main (no Action). Target: explicit deploy-root.yml. WARNING: the bundled static subsites cannot be deployed independently of each other \u2014 see tension note in the chat.",
       "paths": [
         "index.html",
         "styles.css",
@@ -108,14 +108,14 @@
         "spark",
         "dyad"
       ],
-      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), and dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts — likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions). All permissionless, client-side over public ATProto records. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired — detach in dashboard + delete the mino-atmosphere worker)."
+      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), and dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts \u2014 likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions). All permissionless, client-side over public ATProto records. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired \u2014 detach in dashboard + delete the mino-atmosphere worker)."
     },
     {
       "surface": "auth",
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/npc-sprite-generation-aeh9e1",
+      "branch": "claude/feature-merge-candidate-l4dkwq",
       "uses": [
         "mino-auth-db"
       ],
@@ -167,10 +167,10 @@
       "dir": "biome",
       "endpoint": "biome.mino.mobi",
       "type": "frontend",
-      "branch": "claude/gacha-species-expansion-elfpxb",
+      "branch": "claude/feature-merge-candidate-l4dkwq",
       "uses": [],
       "provides": null,
-      "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Pure static — model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
+      "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Pure static \u2014 model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
       "paths": [
         "biome/**"
       ]
@@ -183,7 +183,7 @@
       "branch": "claude/foam-spiral-ramp-wayfinding-hkgcw2",
       "uses": [],
       "provides": null,
-      "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam + wayfinding: drivable spiral-ramp / azimuthal-road routes through the chamber graph), walk.html (walk a planar cut through the foam). Geometry generated in JS (foam.js/foam3d.js/wayfind.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static — no D1/DO/secrets.",
+      "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam + wayfinding: drivable spiral-ramp / azimuthal-road routes through the chamber graph), walk.html (walk a planar cut through the foam). Geometry generated in JS (foam.js/foam3d.js/wayfind.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static \u2014 no D1/DO/secrets.",
       "paths": [
         "rind/**",
         ".github/workflows/deploy-rind.yml"
@@ -197,7 +197,7 @@
       "branch": "claude/oneill-cylinder-solver-djdpdm",
       "uses": [],
       "provides": null,
-      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: profile/ (the centrifugal barometer — radial gravity g(r)=ω²r + isothermal pressure P(r)=P_axis·e^{S(r/R)²} from radius/spin/non-spinning-pressure), atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",
+      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: profile/ (the centrifugal barometer \u2014 radial gravity g(r)=\u03c9\u00b2r + isothermal pressure P(r)=P_axis\u00b7e^{S(r/R)\u00b2} from radius/spin/non-spinning-pressure), atmosphere/ (1-D radial column \u2014 temp/humidity/CO\u2082 vs altitude, Mie fog optics), fountain/ (azimuthal cross-section \u2014 rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger \u2014 reactors\u2192light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static \u2014 every model runs client-side, no D1/DO/secrets.",
       "paths": [
         "tide/**",
         ".github/workflows/deploy-tide.yml"
@@ -211,7 +211,7 @@
       "branch": "claude/oneill-cylinder-solver-djdpdm",
       "uses": [],
       "provides": null,
-      "note": "The END-ON cross-section view of an O'Neill cylinder — looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'. One coupled steady-state solve (iris/sim/section.mjs): the lights are the only heat in, the radiator skin the only heat out, the habitat's heat carried there through the floor's water reservoirs + heat pipes — that balance pins every temperature. Switchable gradient views over the circle (temperature / pressure / humidity / wind), toggleable fog (RH≥1) and fountain jets, the inner-rim ratchet topography (iris/sim/ratchet.mjs). Companion to the tide thermodynamics wing; its own geometry (iris/shared/geometry.mjs), not tide's. Pure static — every model runs client-side, no D1/DO/secrets.",
+      "note": "The END-ON cross-section view of an O'Neill cylinder \u2014 looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'. One coupled steady-state solve (iris/sim/section.mjs): the lights are the only heat in, the radiator skin the only heat out, the habitat's heat carried there through the floor's water reservoirs + heat pipes \u2014 that balance pins every temperature. Switchable gradient views over the circle (temperature / pressure / humidity / wind), toggleable fog (RH\u22651) and fountain jets, the inner-rim ratchet topography (iris/sim/ratchet.mjs). Companion to the tide thermodynamics wing; its own geometry (iris/shared/geometry.mjs), not tide's. Pure static \u2014 every model runs client-side, no D1/DO/secrets.",
       "paths": [
         "iris/**",
         ".github/workflows/deploy-iris.yml"
@@ -234,13 +234,13 @@
       "dir": "duck",
       "endpoint": "duck.mino.mobi",
       "type": "frontend",
-      "branch": "claude/duck-flight-simulator-webgpu-2jcwj4",
+      "branch": "claude/feature-merge-candidate-l4dkwq",
       "uses": [],
       "provides": null,
       "paths": [
         "duck/**"
       ],
-      "note": "Spin-gravity duck flight simulator (worker `duck`, custom_domain duck.mino.mobi). Pure-static WebGPU game, no build, no secrets. Flies one aerodynamic duck under two reference frames — uniform Earth gravity vs. the co-rotating frame of an O'Neill cylinder (centrifugal ω²r + Coriolis −2Ω×v), using hoop's canonical 8 km/0.8 g hull. Physics kernel is pure + node-tested (duck/test/physics.selftest.mjs proves the rotating-frame integrator by transforming a free trajectory back to a straight inertial line)."
+      "note": "Spin-gravity duck flight simulator (worker `duck`, custom_domain duck.mino.mobi). Pure-static WebGPU game, no build, no secrets. Flies one aerodynamic duck under two reference frames \u2014 uniform Earth gravity vs. the co-rotating frame of an O'Neill cylinder (centrifugal \u03c9\u00b2r + Coriolis \u22122\u03a9\u00d7v), using hoop's canonical 8 km/0.8 g hull. Physics kernel is pure + node-tested (duck/test/physics.selftest.mjs proves the rotating-frame integrator by transforming a free trajectory back to a straight inertial line)."
     },
     {
       "surface": "bounty",
@@ -264,7 +264,7 @@
       "branch": "claude/cable-definition-website-yrwv41",
       "uses": [],
       "provides": null,
-      "note": "Progressive cable-drawing solver for custom instrument cabling. Walks the 7-layer stack (component → connector → pin set → cable → pin → connector → board), propagating constraints across layers. Pure static (vanilla JS, no build): catalog.js → solver.js → drawing.js → app.js, attached to globalThis so the solver unit-tests in node. Worker `cable` owns cable.mino.mobi; 2nd custom_domain route cable.ascential.work (alias; separate ascential.work zone — shared CLOUDFLARE_API_TOKEN already has Routes:Edit there, per ocr/ai-edu).",
+      "note": "Progressive cable-drawing solver for custom instrument cabling. Walks the 7-layer stack (component \u2192 connector \u2192 pin set \u2192 cable \u2192 pin \u2192 connector \u2192 board), propagating constraints across layers. Pure static (vanilla JS, no build): catalog.js \u2192 solver.js \u2192 drawing.js \u2192 app.js, attached to globalThis so the solver unit-tests in node. Worker `cable` owns cable.mino.mobi; 2nd custom_domain route cable.ascential.work (alias; separate ascential.work zone \u2014 shared CLOUDFLARE_API_TOKEN already has Routes:Edit there, per ocr/ai-edu).",
       "paths": [
         "cable/**"
       ]
@@ -375,7 +375,7 @@
       "paths": [
         "fluoddity/**"
       ],
-      "status": "MANAGED — FIXED: added custom_domain route (fluoddity.mino.mobi) to make the binding declarative. Name kept (fluoddity-minomobi); no twin worker found, so it was already deploying the right worker."
+      "status": "MANAGED \u2014 FIXED: added custom_domain route (fluoddity.mino.mobi) to make the binding declarative. Name kept (fluoddity-minomobi); no twin worker found, so it was already deploying the right worker."
     },
     {
       "surface": "fred-proxy",
@@ -399,7 +399,7 @@
         "auth.mino.mobi"
       ],
       "provides": null,
-      "note": "Two things live here: the Jackbox-style party platform at / (phone+TV, OAuth rooms, RoomCoordinator DO) AND The Ludographer at /gen/ — a borges-shaped procedural board-game catalogue (seed n -> a complete, coherent, deterministic board game: theme, board, mechanics, components, rulebook, win condition, twist). /gen/ is pure static (no worker/DO changes); it serves through the existing assets fallback in games/worker.js.",
+      "note": "Two things live here: the Jackbox-style party platform at / (phone+TV, OAuth rooms, RoomCoordinator DO) AND The Ludographer at /gen/ \u2014 a borges-shaped procedural board-game catalogue (seed n -> a complete, coherent, deterministic board game: theme, board, mechanics, components, rulebook, win condition, twist). /gen/ is pure static (no worker/DO changes); it serves through the existing assets fallback in games/worker.js.",
       "paths": [
         "games/**",
         "packages/oauth-client/**"
@@ -442,7 +442,7 @@
       "dir": "photo",
       "endpoint": "photo.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/feature-merge-candidate-l4dkwq",
       "uses": [
         "auth.mino.mobi"
       ],
@@ -473,7 +473,7 @@
       "branch": "claude/image-text-extraction-gH8UH",
       "uses": [],
       "provides": null,
-      "note": "Standalone client-side OCR (pull text / activation codes off an image). Vanilla HTML/JS + pure-Rust wasm (os/crates/codescan-ocr, artifact committed to ocr/wasm/). Worker `ocr` owns ocr.mino.mobi; /api/model proxies the ocrs models (S3, no CORS). 2nd custom_domain route ocr.ascential.work added (alias; same worker, separate ascential.work zone — shared CLOUDFLARE_API_TOKEN already has Routes:Edit there, per ai-edu).",
+      "note": "Standalone client-side OCR (pull text / activation codes off an image). Vanilla HTML/JS + pure-Rust wasm (os/crates/codescan-ocr, artifact committed to ocr/wasm/). Worker `ocr` owns ocr.mino.mobi; /api/model proxies the ocrs models (S3, no CORS). 2nd custom_domain route ocr.ascential.work added (alias; same worker, separate ascential.work zone \u2014 shared CLOUDFLARE_API_TOKEN already has Routes:Edit there, per ai-edu).",
       "paths": [
         "ocr/**"
       ]
@@ -532,13 +532,13 @@
       "branch": "claude/podcast-studio-architecture-711cke",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (domain pending) — scaffold onboarded to Actions (deploy-pod.yml). First deploy stands up worker `pod` at workers.dev; attach pod.mino.mobi in the dashboard to launch.",
+      "status": "MANAGED (domain pending) \u2014 scaffold onboarded to Actions (deploy-pod.yml). First deploy stands up worker `pod` at workers.dev; attach pod.mino.mobi in the dashboard to launch.",
       "paths": [
         "pod/**",
         ".github/workflows/deploy-pod.yml"
       ],
       "cohesion": "self-contained",
-      "note": "Podcast studio. No central index, no editorial surface — the worker only constructs RSS and serves blobs. /room (WebRTC recording lobby) + /prod (multitrack clip editor → publish) + /listen?handle= (per-show viewer) + /app (general RSS podcast client). Per-publisher feeds at /u/<handle>/feed.xml are built live from each author's PDS; /enclosure stitches an episode's chunked blobs into one streamable URL. Everything (tracks/episodes/subscriptions) is a record+blobs on the author's own PDS — no D1. RoomCoordinator DO does signaling only."
+      "note": "Podcast studio. No central index, no editorial surface \u2014 the worker only constructs RSS and serves blobs. /room (WebRTC recording lobby) + /prod (multitrack clip editor \u2192 publish) + /listen?handle= (per-show viewer) + /app (general RSS podcast client). Per-publisher feeds at /u/<handle>/feed.xml are built live from each author's PDS; /enclosure stitches an episode's chunked blobs into one streamable URL. Everything (tracks/episodes/subscriptions) is a record+blobs on the author's own PDS \u2014 no D1. RoomCoordinator DO does signaling only."
     },
     {
       "surface": "hoop",
@@ -548,7 +548,7 @@
       "branch": "claude/hoop-feature-pr-00evd0",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface.",
+      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface.",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
@@ -595,7 +595,7 @@
       "paths": [
         "zoom/**"
       ],
-      "status": "MANAGED — FIXED: config name corrected mino-zoom -> zoom so `wrangler deploy` updates the WORKER that owns zoom.mino.mobi (was deploying a separate stray Worker `mino-zoom` on workers.dev; the live `zoom` Worker languished ~2mo). custom_domain route now declared in config. CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
+      "status": "MANAGED \u2014 FIXED: config name corrected mino-zoom -> zoom so `wrangler deploy` updates the WORKER that owns zoom.mino.mobi (was deploying a separate stray Worker `mino-zoom` on workers.dev; the live `zoom` Worker languished ~2mo). custom_domain route now declared in config. CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
       "note": "Vite/React build -> ./dist, Worker `zoom` with custom_domain zoom.mino.mobi (canvas/math/g/torus pattern). NB: zoom is a Worker, not a Pages project (verified: no Pages project named zoom)."
     },
     {
@@ -620,9 +620,9 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
+      "status": "MANAGED \u2014 additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
       "op": "encapsulation",
-      "note": "Math/explainer pack (grows beyond geometry): hub geometry/ + scattered top-level explainer dirs + elements/. DEFERRED on-split work: members cross-link by ABSOLUTE https://mino.mobi/<x>/ URLs — rewrite those to relative in all members + the hub, THEN carve these dirs out of root.serves + deploy-root.yml paths so root stops shipping them.",
+      "note": "Math/explainer pack (grows beyond geometry): hub geometry/ + scattered top-level explainer dirs + elements/. DEFERRED on-split work: members cross-link by ABSOLUTE https://mino.mobi/<x>/ URLs \u2014 rewrite those to relative in all members + the hub, THEN carve these dirs out of root.serves + deploy-root.yml paths so root stops shipping them.",
       "paths": [
         "geometry/**",
         "erdos/**",
@@ -657,9 +657,9 @@
         "auth.mino.mobi"
       ],
       "provides": null,
-      "status": "MANAGED — additive launch via deploy-canvas.yml (Worker `canvas`, custom_domain canvas.mino.mobi + thin canvas/index.html hub). Members STAGED from root, not moved; backends untouched (absolute origins). Root still serves canonical mino.mobi/<x>/.",
+      "status": "MANAGED \u2014 additive launch via deploy-canvas.yml (Worker `canvas`, custom_domain canvas.mino.mobi + thin canvas/index.html hub). Members STAGED from root, not moved; backends untouched (absolute origins). Root still serves canonical mino.mobi/<x>/.",
       "op": "encapsulation",
-      "note": "draw+paint+mmo frontends are backed by poll worker /api/{draw,mmo}; curve+pizza submit to scores — all ABSOLUTE origins, so the frontends move cleanly. One deploy unit; backends stay in poll/scores. pizza is a standalone static canvas game (no backend beyond the shared scores+auth workers). DEFERRED: carve these dirs out of root once canvas.mino.mobi is the home.",
+      "note": "draw+paint+mmo frontends are backed by poll worker /api/{draw,mmo}; curve+pizza submit to scores \u2014 all ABSOLUTE origins, so the frontends move cleanly. One deploy unit; backends stay in poll/scores. pizza is a standalone static canvas game (no backend beyond the shared scores+auth workers). DEFERRED: carve these dirs out of root once canvas.mino.mobi is the home.",
       "paths": [
         "draw/**",
         "curve/**",
@@ -676,9 +676,9 @@
       "branch": "claude/geomancy-mobile-scroll-layout-SWfD9",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — additive launch via deploy-g.yml (Worker `g`). Mirrors clock/ into dist at build time; successor to the deprecated clock.mino.mobi. Sources stay in clock/.",
+      "status": "MANAGED \u2014 additive launch via deploy-g.yml (Worker `g`). Mirrors clock/ into dist at build time; successor to the deprecated clock.mino.mobi. Sources stay in clock/.",
       "op": "encapsulation",
-      "note": "g.mino.mobi is the renamed clock gallery (clock/index.html = “G — WebGPU Gallery”) + all toys; reads from clock/ source. SUPERSEDES the retired `clock` surface (deploy-clock.yml removed — it only ever updated a stray `clock-minomobi` worker, never the live clock worker). DEFERRED dashboard steps: redirect clock.mino.mobi → g.mino.mobi then delete the stale `clock` worker; delete the `clock-minomobi` stray now; partition torus games out of the gallery tiles; reconcile clock/fluoddity+garden into the fluoddity surface.",
+      "note": "g.mino.mobi is the renamed clock gallery (clock/index.html = \u201cG \u2014 WebGPU Gallery\u201d) + all toys; reads from clock/ source. SUPERSEDES the retired `clock` surface (deploy-clock.yml removed \u2014 it only ever updated a stray `clock-minomobi` worker, never the live clock worker). DEFERRED dashboard steps: redirect clock.mino.mobi \u2192 g.mino.mobi then delete the stale `clock` worker; delete the `clock-minomobi` stray now; partition torus games out of the gallery tiles; reconcile clock/fluoddity+garden into the fluoddity surface.",
       "paths": [
         "clock/**",
         "g/**"
@@ -701,7 +701,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — additive launch via deploy-torus.yml (Worker `torus`). The toroidal games staged from clock/<toy>, not moved; g + clock still serve them.",
+      "status": "MANAGED \u2014 additive launch via deploy-torus.yml (Worker `torus`). The toroidal games staged from clock/<toy>, not moved; g + clock still serve them.",
       "op": "encapsulation",
       "note": "Toroidal game family split out of the deprecated clock surface: corn, emsim, inpac, knotpac, pac, torpac, toruschess + a torus/index.html hub.",
       "paths": [
@@ -723,8 +723,8 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-labglass.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
-      "note": "DuckDB + Pyodide biotech data workbench. Static worker-assets (Worker `glass`). Needs COOP/COEP headers (labglass/_headers). Different registrable domain (minomobi.com) — outside the .mino.mobi SSO cookie.",
+      "status": "MANAGED \u2014 onboarded to Actions (deploy-labglass.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "note": "DuckDB + Pyodide biotech data workbench. Static worker-assets (Worker `glass`). Needs COOP/COEP headers (labglass/_headers). Different registrable domain (minomobi.com) \u2014 outside the .mino.mobi SSO cookie.",
       "paths": [
         "labglass/**"
       ]
@@ -737,8 +737,8 @@
       "branch": "claude/feature-merge-candidate-l4dkwq",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — owned by claude/feature-merge-candidate-l4dkwq (merge candidate integrating both /sprite wings). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
-      "note": "Static worker-assets (Worker `mega`, directory '.'). Wings: `/` — megaproject dashboard (global infrastructure tracker, MapLibre + Deck.gl); `/sprite` — procedural NPC Sprite Lab (seed-deterministic, atproto-persistable engine breeding NPC sprites for the hoop O'Neill-cylinder game); `/sprite/item` — item genome + characteristics engine (phylogeny, trait dials, breeding); `/sprite/fixture` — chamber fixtures grown from hoop v3's voronoi tiling. Client-side renderers; no D1/DO/secrets.",
+      "status": "MANAGED \u2014 owned by claude/feature-merge-candidate-l4dkwq (merge candidate integrating both /sprite wings). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
+      "note": "Static worker-assets (Worker `mega`, directory '.'). Wings: `/` \u2014 megaproject dashboard (global infrastructure tracker, MapLibre + Deck.gl); `/sprite` \u2014 procedural NPC Sprite Lab (seed-deterministic, atproto-persistable engine breeding NPC sprites for the hoop O'Neill-cylinder game); `/sprite/item` \u2014 item genome + characteristics engine (phylogeny, trait dials, breeding); `/sprite/fixture` \u2014 chamber fixtures grown from hoop v3's voronoi tiling. Client-side renderers; no D1/DO/secrets.",
       "paths": [
         "mega/**"
       ]
@@ -751,8 +751,8 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-pm.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
-      "note": "Mino PM — earned-value project management. Static worker-assets (Worker `pm`).",
+      "status": "MANAGED \u2014 onboarded to Actions (deploy-pm.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "note": "Mino PM \u2014 earned-value project management. Static worker-assets (Worker `pm`).",
       "paths": [
         "pm/**"
       ]
@@ -765,8 +765,8 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — FIXED (zoom-bucket): config renamed mino-poke -> poke + custom_domain route, so wrangler deploy updates the worker that owns poke.mino.mobi. Was deploying stray worker mino-poke. CLEANUP: delete the orphan `mino-poke` worker in the dashboard.",
-      "note": "Critter Red — Pokemon-style game. Static worker-assets (Worker `mino-poke`).",
+      "status": "MANAGED \u2014 FIXED (zoom-bucket): config renamed mino-poke -> poke + custom_domain route, so wrangler deploy updates the worker that owns poke.mino.mobi. Was deploying stray worker mino-poke. CLEANUP: delete the orphan `mino-poke` worker in the dashboard.",
+      "note": "Critter Red \u2014 Pokemon-style game. Static worker-assets (Worker `mino-poke`).",
       "paths": [
         "pokemon/**"
       ]
@@ -779,7 +779,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-finance.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "MANAGED \u2014 onboarded to Actions (deploy-finance.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
       "note": "Personal finance planning SPA (Vite -> ./dist, Worker `fin`). SPA fallback enabled.",
       "paths": [
         "finance/**"
@@ -793,7 +793,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "MANAGED \u2014 onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
       "note": "Org SPA (Vite + tsc -> ./dist, Worker `org`). Has inline OAuth in org/src/pds.ts (migration to shared oauth-client pending).",
       "paths": [
         "org/**"
@@ -809,7 +809,7 @@
         "auth.mino.mobi"
       ],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-wave.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "MANAGED \u2014 onboarded to Actions (deploy-wave.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
       "note": "Wave SPA (Vite + tsc -> ./dist, Worker `wave`). Uses shared oauth-client wrapper (wave/src/lib/auth.ts) -> auth.mino.mobi.",
       "paths": [
         "wave/**"
@@ -823,8 +823,8 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — FIXED (zoom-bucket): config renamed wars-minomobi -> war + custom_domain route (war.mino.mobi). Was deploying stray worker wars-minomobi. CLEANUP: delete the orphan `wars-minomobi` worker.",
-      "note": "War Factor Analysis — Correlates of War dataset explorer. Static worker-assets (Worker `wars-minomobi`). Live at war.mino.mobi (probe-verified); also bundled at mino.mobi/wars.",
+      "status": "MANAGED \u2014 FIXED (zoom-bucket): config renamed wars-minomobi -> war + custom_domain route (war.mino.mobi). Was deploying stray worker wars-minomobi. CLEANUP: delete the orphan `wars-minomobi` worker.",
+      "note": "War Factor Analysis \u2014 Correlates of War dataset explorer. Static worker-assets (Worker `wars-minomobi`). Live at war.mino.mobi (probe-verified); also bundled at mino.mobi/wars.",
       "paths": [
         "wars/**"
       ]
@@ -837,8 +837,8 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — FIXED (zoom-bucket): the answers/ site is live at ask.mino.mobi via a worker named `ask` (not answers.mino.mobi). Config renamed mino-answers -> ask + custom_domain route, so the Action now updates the live worker (was deploying stray mino-answers; ask sat ~45 days). CLEANUP: delete the orphan `mino-answers` worker.",
-      "note": "\"Answers — powered by ATProto\". Static worker-assets. Live subdomain is ask.mino.mobi (worker `ask`); also bundled at mino.mobi/answers/. Has inline OAuth (answers/assets/answers.js) — migrate to shared oauth-client later.",
+      "status": "MANAGED \u2014 FIXED (zoom-bucket): the answers/ site is live at ask.mino.mobi via a worker named `ask` (not answers.mino.mobi). Config renamed mino-answers -> ask + custom_domain route, so the Action now updates the live worker (was deploying stray mino-answers; ask sat ~45 days). CLEANUP: delete the orphan `mino-answers` worker.",
+      "note": "\"Answers \u2014 powered by ATProto\". Static worker-assets. Live subdomain is ask.mino.mobi (worker `ask`); also bundled at mino.mobi/answers/. Has inline OAuth (answers/assets/answers.js) \u2014 migrate to shared oauth-client later.",
       "paths": [
         "answers/**"
       ]
@@ -851,7 +851,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-crm.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
+      "status": "MANAGED (domain pending) \u2014 onboarded to Actions (deploy-crm.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
       "note": "Vault CRM SPA (Vite + tsc -> ./dist, Worker `crm`). Currently served via root bundle at mino.mobi/crm/; own subdomain not attached.",
       "paths": [
         "crm/**"
@@ -865,8 +865,8 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-audio.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
-      "note": "Audio Rooms — voice-room app. Vite monorepo (apps/web -> audio/dist) + Worker `audio-rooms-api` with Durable Object RoomCoordinator. Domain audio.mino.mobi not yet attached; first deploy stands up the worker+DO at workers.dev. Attach domain in dashboard to launch.",
+      "status": "MANAGED (domain pending) \u2014 onboarded to Actions (deploy-audio.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
+      "note": "Audio Rooms \u2014 voice-room app. Vite monorepo (apps/web -> audio/dist) + Worker `audio-rooms-api` with Durable Object RoomCoordinator. Domain audio.mino.mobi not yet attached; first deploy stands up the worker+DO at workers.dev. Attach domain in dashboard to launch.",
       "paths": [
         "audio/**"
       ]
@@ -879,7 +879,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (frontend) — FIXED (zoom-bucket): config renamed pds-os -> os + custom_domain route (os.mino.mobi). Was deploying stray worker pds-os. CLEANUP: delete the orphan `pds-os` worker. (os/api container worker unaffected — still manual via deploy-os-api.yml.)",
+      "status": "MANAGED (frontend) \u2014 FIXED (zoom-bucket): config renamed pds-os -> os + custom_domain route (os.mino.mobi). Was deploying stray worker pds-os. CLEANUP: delete the orphan `pds-os` worker. (os/api container worker unaffected \u2014 still manual via deploy-os-api.yml.)",
       "note": "React + Vite + xterm.js terminal UI; talks to os-api (Cloudflare Containers backend) at runtime via SYNC_URL. Workflow paths exclude os/api/** so frontend deploys do not fire on backend changes.",
       "paths": [
         "os/**",
@@ -888,7 +888,7 @@
     }
   ],
   "unmanaged": {
-    "$comment": "Have a wrangler config but NO deploy workflow. `sites` here are all currently BUNDLED into the root Pages project (served at mino.mobi/<name>/) — their own-subdomain workers are not attached. Each needs a CARVE-OUT (own worker deploy + domain attach + drop from root bundle), not just a workflow. `in_progress` + `reference_workers` as before.",
+    "$comment": "Have a wrangler config but NO deploy workflow. `sites` here are all currently BUNDLED into the root Pages project (served at mino.mobi/<name>/) \u2014 their own-subdomain workers are not attached. Each needs a CARVE-OUT (own worker deploy + domain attach + drop from root bundle), not just a workflow. `in_progress` + `reference_workers` as before.",
     "sites": [],
     "in_progress": [
       "os/api (Cloudflare Containers worker os-mino-api; deploy-os-api.yml is READY but dispatch-only; pending: enable CF Containers, set SYNC_TOKEN+GITHUB_TOKEN secrets, create R2 bucket os-workspace, attach os-api.minomobi.com)"

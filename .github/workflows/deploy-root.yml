@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/merge-candidate-docs-update-8e2nns']
+    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
     paths:
       - 'index.html'
       - 'styles.css'

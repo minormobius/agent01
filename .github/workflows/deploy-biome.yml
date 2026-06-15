@@ -2,7 +2,7 @@ name: Deploy Biome
 
 on:
   push:
-    branches: [main, 'claude/gacha-species-expansion-elfpxb']
+    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
     paths:
       - 'biome/**'
       - '.github/workflows/deploy-biome.yml'

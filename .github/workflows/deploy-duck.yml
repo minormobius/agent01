@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/duck-flight-simulator-webgpu-2jcwj4'
+      - 'claude/feature-merge-candidate-l4dkwq'
     paths:
       - 'duck/**'
       - '.github/workflows/deploy-duck.yml'
