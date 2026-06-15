@@ -1,0 +1,49 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.sprite.set",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A portable set of procedurally-generated NPC sprites. A sprite is fully described by its genome (seed + generation options), so a set is a tiny, regenerable asset — no pixels are stored. Authored by the Sprite Lab at mega.mino.mobi/sprite.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "createdAt", "sprites"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 200, "description": "Human label for the set." },
+          "createdAt": { "type": "string", "format": "datetime" },
+          "base": { "type": "string", "maxLength": 200, "description": "The street/seed base the set was rolled from." },
+          "opts": {
+            "type": "object",
+            "description": "Generation options shared by the set (size, density, archetype, frames, anatomy toggles).",
+            "properties": {
+              "size": { "type": "integer", "minimum": 9, "maximum": 49 },
+              "dens": { "type": "string", "description": "Density as a string-encoded number, 0..1." },
+              "arch": { "type": "string", "enum": ["balanced", "dormitory", "company", "commons"] },
+              "frames": { "type": "integer", "minimum": 1, "maximum": 12 },
+              "sym": { "type": "boolean" },
+              "head": { "type": "boolean" },
+              "legs": { "type": "boolean" },
+              "eyes": { "type": "boolean" },
+              "item": { "type": "boolean" }
+            }
+          },
+          "sprites": {
+            "type": "array",
+            "maxLength": 500,
+            "description": "The set's sprites, each a genome reference (regenerated deterministically on load).",
+            "items": {
+              "type": "object",
+              "required": ["seed"],
+              "properties": {
+                "seed": { "type": "string", "maxLength": 200, "description": "Full seed, e.g. hoop:0:0#3." },
+                "label": { "type": "string", "maxLength": 200 },
+                "dir": { "type": "string", "enum": ["S", "SE", "E", "NE", "N", "NW", "W", "SW"] }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

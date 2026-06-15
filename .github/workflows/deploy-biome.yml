@@ -2,7 +2,7 @@ name: Deploy Biome
 
 on:
   push:
-    branches: [main, 'claude/biome-trophic-web-graph-u7ha55']
+    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
     paths:
       - 'biome/**'
       - '.github/workflows/deploy-biome.yml'

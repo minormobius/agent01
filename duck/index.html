@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Duck · spin-gravity flight simulator</title>
+<meta name="description" content="Fly a duck under two reference frames — Earth gravity and the co-rotating frame of an O'Neill cylinder (centrifugal + Coriolis). WebGPU." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<!-- steering reference (visible while a finger/cursor is down) + tap ping -->
+<div id="crosshair" aria-hidden="true">
+  <span class="ch-dot"></span>
+  <span class="ch-up">▲ nose up</span>
+  <span class="ch-down">▼ nose down</span>
+  <span class="ch-left">bank ◀</span>
+  <span class="ch-right">▶ bank</span>
+</div>
+<div id="tapdot" aria-hidden="true"></div>
+<div id="toast" class="toast" aria-live="polite"></div>
+
+<!-- top-left: live readout -->
+<div id="hud" class="panel tl">
+  <div id="mode" class="mode cylinder">O’NEILL CYLINDER</div>
+  <div class="row"><span class="k">course</span><span id="course" class="v">—</span></div>
+  <div class="row"><span class="k">craft</span><span id="preset" class="v">—</span></div>
+  <div class="row"><span class="k">airspeed</span><span id="speed" class="v">—</span></div>
+  <div class="row"><span class="k">altitude</span><span id="alt" class="v">—</span></div>
+  <div class="row"><span class="k">local g</span><span id="glocal" class="v">—</span></div>
+  <div class="row" id="coriolisRow"><span class="k">Coriolis</span><span id="coriolis" class="v">—</span></div>
+  <div class="row" id="shipRow"><span class="k">spin</span><span id="ship" class="v">—</span></div>
+  <div class="row"><span class="k">throttle</span><span id="throttle" class="v">—</span></div>
+</div>
+
+<!-- top-right: buttons -->
+<div class="panel tr btns">
+  <button id="btnMode">⇄ Earth / Cylinder <kbd>G</kbd></button>
+  <button id="btnPreset">◷ cycle cylinder <kbd>C</kbd></button>
+  <button id="btnCrumb">🍞 hold: breadcrumbs <kbd>Space</kbd></button>
+  <button id="btnReset">⟲ reset <kbd>R</kbd></button>
+  <button id="btnHelp" onclick="document.getElementById('help').classList.toggle('hidden')">? controls <kbd>H</kbd></button>
+</div>
+
+<!-- zen toggle: hides the stat block + controls (stays visible itself) -->
+<button id="btnZen" class="zen-toggle" title="hide UI">⤢ hide UI</button>
+
+<!-- controls overlay (opt-in via the ? button — never auto-opens) -->
+<div id="help" class="overlay hidden">
+  <div class="card">
+    <h1>🦆 spin-gravity duck</h1>
+    <p>You're flying the <b>same duck</b> under two reference frames. The aerodynamics never
+    change — only the <b>body force</b> does:</p>
+    <ul>
+      <li><b>Earth</b> — a uniform 1 g pulling straight down.</li>
+      <li><b>O'Neill cylinder</b> — you sit in the hull's <b>co-rotating frame</b>, so the
+      landscape curves up and over your head. "Gravity" is <b>centrifugal</b> (ω²r, outward) and
+      <b>weakens as you climb toward the axis</b>; every motion also feels the <b>Coriolis</b>
+      force (−2Ω×v). Fly spinward and you get heavier; fly toward the axis and you're deflected.</li>
+    </ul>
+    <p>The default cylinder is <b>hoop</b> — the 8 km / 0.8 g hull from the
+    <a href="https://hoop.mino.mobi" target="_blank" rel="noopener">hoop</a> O'Neill model
+    (ω ≈ 0.031 rad/s). Press <kbd>C</kbd> to cycle to tighter rings where Coriolis is wild.</p>
+    <p><b>The course.</b> A procedurally generated run of 8 gates winds through each world —
+    over the ground on Earth, spiralling down the curved interior in the cylinder. Fly through the
+    <b>gold</b> (next) gate, follow the bearing in the HUD, clear them all, then <b>set down gently
+    on the landing pad</b> — touchdowns are graded on descent rate and how level you are. <kbd>N</kbd>
+    rolls a new course.</p>
+    <p><b>Touch / mouse:</b> <b>tap to flap</b> (a wingbeat — forward + up), and where you tap
+    relative to the centre <b>steers</b> — above centre pitches the nose up, the sides bank you into
+    a turn. Hold to keep flapping and climb.</p>
+    <table>
+      <tr><td>tap / drag</td><td>flap + steer (touch &amp; mouse)</td></tr>
+      <tr><td><kbd>W</kbd>/<kbd>S</kbd></td><td>pitch (nose up / down)</td></tr>
+      <tr><td><kbd>A</kbd>/<kbd>D</kbd></td><td>roll (bank to turn)</td></tr>
+      <tr><td><kbd>Q</kbd>/<kbd>E</kbd></td><td>yaw (rudder)</td></tr>
+      <tr><td><kbd>Shift</kbd>/<kbd>Ctrl</kbd></td><td>throttle up / down</td></tr>
+      <tr><td><kbd>Space</kbd></td><td>drop breadcrumbs</td></tr>
+      <tr><td><kbd>G</kbd></td><td>toggle Earth ⇄ cylinder</td></tr>
+      <tr><td><kbd>C</kbd></td><td>cycle cylinder size</td></tr>
+      <tr><td><kbd>N</kbd></td><td>new procedural course</td></tr>
+      <tr><td><kbd>U</kbd></td><td>hide UI (zen — just the game)</td></tr>
+      <tr><td><kbd>R</kbd> · <kbd>P</kbd></td><td>reset · pause</td></tr>
+    </table>
+    <button onclick="document.getElementById('help').classList.add('hidden')">fly →</button>
+  </div>
+</div>
+
+<!-- WebGPU gate -->
+<div id="nogpu" class="overlay hidden">
+  <div class="card">
+    <h1>WebGPU required</h1>
+    <p id="nogpu-msg">This duck renders with WebGPU, which your browser didn't hand us.</p>
+    <p>Try the latest <b>Chrome</b>, <b>Edge</b>, or <b>Safari 18+</b> on desktop (or Chrome on
+    Android). On Linux/Chrome you may need to enable <code>chrome://flags/#enable-unsafe-webgpu</code>.</p>
+  </div>
+</div>
+
+<script type="module">
+  import { start } from './js/game.js';
+  const canvas = document.getElementById('view');
+  const id = (x) => document.getElementById(x);
+  const hud = {
+    mode: id('mode'), preset: id('preset'), speed: id('speed'), alt: id('alt'),
+    glocal: id('glocal'), coriolis: id('coriolis'), ship: id('ship'),
+    shipRow: id('shipRow'), coriolisRow: id('coriolisRow'), throttle: id('throttle'),
+    help: id('help'), btnMode: id('btnMode'), btnPreset: id('btnPreset'), btnReset: id('btnReset'),
+    btnCrumb: id('btnCrumb'), tapdot: id('tapdot'),
+    course: id('course'), toast: id('toast'), btnZen: id('btnZen'),
+  };
+  start(canvas, hud).catch((err) => {
+    console.error(err);
+    id('nogpu').classList.remove('hidden');
+    id('nogpu-msg').textContent = String(err && err.message || err);
+  });
+</script>
+</body>
+</html>
