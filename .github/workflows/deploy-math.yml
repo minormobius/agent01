@@ -11,7 +11,7 @@ name: Deploy Math (explainer pack)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/propagators-playground-3a24d8']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'geometry/**'
       - 'prop/**'
