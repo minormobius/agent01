@@ -72,13 +72,24 @@ export function genChunk({ seed = 1, i = 0, j = 0, G = DEFAULTS.G, jit = DEFAULT
   const inside = (x, y) => pointInPoly(poly, x, y) && polyClearance(poly, x, y) > margin * 0.5;
   // ports on each adjacent edge
   for (const B of ring(seed, i, j, G, jit, 1)) { if (B.i === i && B.j === j) continue; if (!adjacent(seed, A, B, G, jit)) continue; for (const p of edgePortsFor(seed, A, B, G)) portNodes.push({ node: add(p.x, p.y, true), B }); }
-  // hub at the chunk seed; spokes hub→(midpoint)→port — the midpoints are budding sites along the halls
-  const hub = add(A.x, A.y), corridorNodes = [hub];
-  for (const pn of portNodes) {
-    const mx = A.x + (nodes[pn.node].x - A.x) * 0.55 + (rng() - 0.5) * hallSeg * 0.4;
-    const my = A.y + (nodes[pn.node].y - A.y) * 0.55 + (rng() - 0.5) * hallSeg * 0.4;
-    if (inside(mx, my)) { const mid = add(mx, my); link(hub, mid); link(mid, pn.node); corridorNodes.push(mid); }
-    else link(hub, pn.node);
+  // CONNECT THE PORTS as an organic MEANDERING NETWORK — NO central hub (a hub-at-the-centre is the
+  // crossroads we're banishing; one per chunk reads as a grid of crossroads). Terminals = the ports +
+  // a few jittered INTERIOR junctions; an MST over them links every port (so chunks still stitch) with
+  // OFF-CENTRE junctions, each corridor bent at a jittered midpoint. Varied per chunk ⇒ no rhythm.
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity; for (const p of poly) { bx0 = Math.min(bx0, p[0]); by0 = Math.min(by0, p[1]); bx1 = Math.max(bx1, p[0]); by1 = Math.max(by1, p[1]); }
+  const terminals = portNodes.map((p) => p.node);
+  const nInterior = (portNodes.length < 2 ? 2 : 1) + Math.floor(rng() * 3);
+  for (let t = 0; t < nInterior; t++) { let ix, iy, ok = false; for (let tr = 0; tr < 24 && !ok; tr++) { ix = bx0 + rng() * (bx1 - bx0); iy = by0 + rng() * (by1 - by0); if (inside(ix, iy)) ok = true; } if (ok) terminals.push(add(ix, iy)); }
+  const corridorNodes = terminals.slice();
+  if (terminals.length > 1) {
+    const inTree = new Set([terminals[0]]);
+    while (inTree.size < terminals.length) {
+      let ba = -1, bb = -1, bd = Infinity;
+      for (const a of inTree) for (const b of terminals) { if (inTree.has(b)) continue; const d = (nodes[a].x - nodes[b].x) ** 2 + (nodes[a].y - nodes[b].y) ** 2; if (d < bd) { bd = d; ba = a; bb = b; } }
+      if (bb < 0) break; inTree.add(bb);
+      const mx = (nodes[ba].x + nodes[bb].x) / 2 + (rng() - 0.5) * hallSeg * 0.8, my = (nodes[ba].y + nodes[bb].y) / 2 + (rng() - 0.5) * hallSeg * 0.8;
+      if (inside(mx, my)) { const mid = add(mx, my); link(ba, mid); link(mid, bb); corridorNodes.push(mid); } else link(ba, bb);
+    }
   }
   // capillaries off the corridors, kept inside the polygon (retry the initial heading a few times)
   function sprout(fromId, depth) {
