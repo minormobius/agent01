@@ -64,6 +64,10 @@
 
     function bboxOf(poly) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const v of poly) { x0 = Math.min(x0, v.x); y0 = Math.min(y0, v.y); x1 = Math.max(x1, v.x); y1 = Math.max(y1, v.y); } return { x0, y0, x1, y1 }; }
     function centroidOf(poly) { let x = 0, y = 0; for (const v of poly) { x += v.x; y += v.y; } return { x: x / poly.length, y: y / poly.length }; }
+    // a chunk's seed is derived from its POSITION (centroid), not the load order — so a chunk is the
+    // same wherever you approach it from, and preloading several at once can't collide on a seed.
+    const hash2 = (a, b) => { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + 0x9e3779b1) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; };
+    const chunkSeedFor = (poly) => { const c = centroidOf(poly); return (hash2(Math.round(c.x), Math.round(c.y)) ^ seed) >>> 0; };
     const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, skin: SKIN, ...extra });
 
     function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); }
@@ -73,16 +77,25 @@
     function rebakeFog() { if (!walk) return; for (const ch of world.chunks) { const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i)); } }
     function reveal() { if (player < 0) return; for (const g of sightBall(walk, player, OPTS.sight)) seen.add(g); inView = sightBall(walk, player, OPTS.sight); rebakeFog(); }
 
-    // ── streaming: when the VIEW reaches across a free chunk edge, generate + paint that neighbour ──
+    // ── streaming: PRELOAD the frontier — generate any free chunk edge within ~one chunk of the player ──
+    // (so from the central chunk the whole 6-neighbour ring loads ahead of you, and the frontier stays a
+    // chunk ahead as you explore). Serial by design: each neighbour inherits its predecessors' ports, so
+    // the seams stay shared — but a chunk takes ~3s to cross and ~0.5s to make, so one worker keeps ahead.
     async function maybeStream() {
       if (!world || busyN > 0) return;
-      const vp = { x0: WX(0), y0: WY(0), x1: WX(W), y1: WY(H) }, m = OPTS.cellSize * 5;
+      const LOOK = chunkSpan * 1.0;                 // start a full chunk early — "less than one chunk away"
       let best = null, bd = Infinity;
-      for (const ch of world.chunks) { const ctr = centroidOf(ch.poly); for (let ei = 0; ei < ch.poly.length; ei++) { if (!edgeFree(world, ch, ei)) continue; const a = ch.poly[ei], b = ch.poly[(ei + 1) % ch.poly.length], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; const nx = mid.x - ctr.x, ny = mid.y - ctr.y, n = Math.hypot(nx, ny) || 1; const pt = { x: mid.x + nx / n * m, y: mid.y + ny / n * m }; if (pt.x < vp.x0 || pt.x > vp.x1 || pt.y < vp.y0 || pt.y > vp.y1) continue; const d = (mid.x - px()) ** 2 + (mid.y - py()) ** 2; if (d < bd) { bd = d; best = { ch, ei }; } } }
+      for (const ch of world.chunks) for (let ei = 0; ei < ch.poly.length; ei++) {
+        if (!edgeFree(world, ch, ei)) continue;
+        const a = ch.poly[ei], b = ch.poly[(ei + 1) % ch.poly.length], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const d = Math.hypot(mx - px(), my - py());
+        if (d > LOOK) continue;
+        if (d < bd) { bd = d; best = { ch, ei }; }
+      }
       if (!best) return;
       busy(true);
       const spec = neighbourSpec(world, best.ch.id, best.ei);
-      const nseed = (seed ^ Math.imul(world.chunks.length + 1, 0x9e3779b1)) >>> 0;
+      const nseed = chunkSeedFor(spec.poly);
       const { rec, painted } = await generate(opts({ seed: nseed, poly: spec.poly, inherit: spec.inherit }));
       rec.painted = painted; addChunk(world, rec); restitch(); reveal();
       busy(false); status(); draw();
