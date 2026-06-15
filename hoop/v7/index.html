@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0c10" />
+  <meta name="description" content="hoop v7 — the chunking demo. A planar cut through a 3D Voronoi foam, agglomerated into rooms, clipped to a chunk, and solved into concourse + rooms with one door each. One tap per computational layer." />
+  <title>hoop v7 — chunking demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#0a0c10; --ink:#dfe7e2; --dim:#7d8a84; --line:#1a2128; --gold:#d9b24a; --teal:#3bb0c9; --orange:#e0772f; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--ink); font-family: "JetBrains Mono", ui-monospace, monospace; display: flex; overflow: hidden; }
+    #rail { width: 270px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; }
+    #stage { flex: 1; min-width: 0; position: relative; }
+    canvas { width: 100%; height: 100%; display: block; }
+    @media (max-width: 720px) { body { flex-direction: column; } #rail { width: auto; height: 46vh; border-right: 0; border-bottom: 1px solid var(--line); } }
+    .top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .logo { color: var(--orange); font-weight: 600; font-size: 15px; }
+    .tag { color: var(--dim); font-size: 11px; }
+    a.back { margin-left: auto; color: var(--teal); text-decoration: none; font-size: 11px; border: 1px solid var(--line); padding: 2px 7px; }
+    label.fld { display: block; font-size: 12px; }
+    label.fld .v { float: right; color: var(--gold); }
+    input[type=range] { width: 100%; accent-color: #5aa845; }
+    .steps { display: flex; flex-direction: column; gap: 3px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 9px 0; }
+    .step { font-size: 12px; color: var(--dim); display: flex; gap: 7px; align-items: baseline; padding: 1px 0; cursor: pointer; }
+    .step .mk { width: 14px; display: inline-block; text-align: center; color: #3a4650; }
+    .step.done { color: var(--ink); } .step.done .mk { color: #5aa845; }
+    .step.next { color: var(--gold); } .step.next .mk { color: var(--gold); }
+    .step .sub { color: #5a6a64; font-size: 10.5px; }
+    button { width: 100%; background: #11161c; color: var(--ink); border: 1px solid var(--line); padding: 9px; font: inherit; font-size: 12px; cursor: pointer; }
+    button:hover { border-color: var(--orange); color: var(--orange); }
+    button.go { background: linear-gradient(180deg,#2a2410,#191407); border-color:#5a431f; color: var(--gold); font-weight: 600; }
+    button:disabled { opacity: .4; cursor: default; border-color: var(--line); color: var(--dim); }
+    .row { display: flex; gap: 6px; }
+    .read { font-size: 11.5px; color: var(--dim); }
+    .read b { color: var(--ink); } .read .hl { color: var(--gold); }
+    .legend { border-top: 1px solid var(--line); padding-top: 9px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; font-size: 11px; }
+    .legend .sw { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+    .legend .n { color: var(--dim); }
+    #busy { position: absolute; top: 8px; left: 10px; font-size: 11px; color: var(--gold); background: rgba(10,12,16,.7); padding: 2px 7px; opacity: 0; transition: opacity .12s; }
+    #busy.on { opacity: 1; }
+    .toggles { display: flex; gap: 10px; font-size: 11px; color: var(--dim); flex-wrap: wrap; }
+    .toggles label { cursor: pointer; } .toggles input { accent-color: var(--teal); vertical-align: -1px; }
+  </style>
+</head>
+<body>
+  <div id="rail">
+    <div class="top"><span class="logo">⬡ hoop v7</span><span class="tag">chunking demo</span><a class="back" href="/">◍ hoop</a></div>
+    <div class="read">A chunk, built one layer at a time. Each tap runs <b>one computational step</b>. <span class="hl">Reseed</span> rolls a fresh chunk.</div>
+
+    <label class="fld">cell size <span class="v" id="v-cell">26</span><input type="range" id="cell" min="14" max="46" step="2" value="26"></label>
+    <label class="fld">size variance (slab depth) <span class="v" id="v-depth">2.4</span><input type="range" id="depth" min="1.2" max="4" step="0.2" value="2.4"></label>
+    <label class="fld">room size (cells/room) <span class="v" id="v-room">10</span><input type="range" id="room" min="1" max="30" step="1" value="10"></label>
+    <label class="fld">concourse width (cells) <span class="v" id="v-conc">3</span><input type="range" id="conc" min="1" max="10" step="1" value="3"></label>
+
+    <div class="steps" id="steps"></div>
+
+    <button class="go" id="go">▸ run step 1 · base foam</button>
+    <div class="row">
+      <button id="reseed" style="flex:1">⟲ reseed</button>
+      <button id="auto" style="flex:1">⏩ run all</button>
+    </div>
+    <div class="toggles" id="toggles">
+      <label><input type="checkbox" id="t-cells" checked> cells</label>
+      <label><input type="checkbox" id="t-graph"> graph</label>
+      <label><input type="checkbox" id="t-ghost" checked> ghost</label>
+      <label><input type="checkbox" id="t-glyph" checked> glyphs</label>
+    </div>
+
+    <div class="read" id="readout">seed — · step 0/6</div>
+    <div class="read" id="inspect" style="border-top:1px solid var(--line);padding-top:9px">tap to begin · then click a room (step 6)</div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas><div id="busy">solving…</div></div>
+
+  <script type="module">
+    import { baseFoam, growRooms, concourseGrain, defineChunk, solveChunk, castCharacter } from './foam.js';
+    import { ROLES } from '../econ/econ.js';
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
+
+    const STEPS = [
+      { name: 'base foam', sub: 'planar cut through a 3D Voronoi foam' },
+      { name: 'rooms', sub: 'agglomerate cells into room clumps' },
+      { name: 'concourse grain', sub: 'the narrower road grain + solve params' },
+      { name: 'chunk', sub: 'shape · ghost perimeter · edge ports' },
+      { name: 'solve', sub: 'grow concourse → seed rooms → one door each' },
+      { name: 'character', sub: 'roles + NPCs onto the rooms' },
+    ];
+    let seed = 7, step = 0, W = 0, H = 0, dpr = 1;
+    let foam = null, rooms = null, grain = null, chunk = null, sol = null, cast = null;
+
+    // deterministic colour per integer (rooms get stable hues)
+    const hueOf = (i) => { let x = (i * 2654435761) >>> 0; return x % 360; };
+    function poly(p) { if (p.length < 3) return; ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i].x, p[i].y); ctx.closePath(); }
+
+    function draw() {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#0a0c10'; ctx.fillRect(0, 0, W, H);
+      if (!foam) return;
+      const showCells = $('t-cells').checked, showGhost = $('t-ghost').checked;
+
+      // ── base substrate: cells shaded by area (step 1) or by room (step ≥2) ──
+      if (showCells) {
+        for (const c of foam.cells) {
+          if (c.poly.length < 3) continue;
+          if (chunk && chunk.ghost[c.id]) { if (!showGhost) continue; ctx.fillStyle = '#0c0f13'; poly(c.poly); ctx.fill(); continue; }
+          ctx.fillStyle = cellFill(c); poly(c.poly); ctx.fill();
+        }
+        // cell texture
+        ctx.lineWidth = 0.35; ctx.strokeStyle = 'rgba(10,12,16,0.6)';
+        for (const c of foam.cells) { if (c.poly.length < 3) continue; if (chunk && chunk.ghost[c.id] && !showGhost) continue; poly(c.poly); ctx.stroke(); }
+      }
+
+      // ── adjacency graph (debug toggle) ──
+      if ($('t-graph').checked) {
+        ctx.lineWidth = 0.4; ctx.strokeStyle = 'rgba(123,176,201,0.25)'; ctx.beginPath();
+        for (const e of foam.edges) { ctx.moveTo(foam.cells[e.a].x, foam.cells[e.a].y); ctx.lineTo(foam.cells[e.b].x, foam.cells[e.b].y); }
+        ctx.stroke();
+      }
+
+      // ── step 3: concourse grain overlay (the finer grain, dashed) ──
+      if (step === 3 && grain) {
+        ctx.lineWidth = 0.6; ctx.strokeStyle = 'rgba(224,119,47,0.5)';
+        drawClumpEdges(grain.grainOf);
+      }
+      // room clump edges (step ≥ 2 before solve)
+      if (step >= 2 && step < 5 && rooms) { ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(217,178,74,0.55)'; drawClumpEdges(rooms.roomOf); }
+
+      // ── step 4+: chunk boundary + ports ──
+      if (chunk) {
+        ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(123,176,201,0.85)'; poly(chunk.poly); ctx.stroke();
+        for (const p of chunk.ports) {
+          ctx.fillStyle = '#e0772f'; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 7); ctx.fill();
+          if (sol) { const c = foam.cells[p.cell]; ctx.strokeStyle = 'rgba(224,119,47,0.7)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(c.x, c.y); ctx.stroke(); }
+        }
+      }
+
+      // ── step 5/6: the solved chunk — concourse, walls, doors ──
+      if (sol) drawSolve();
+    }
+
+    function cellFill(c) {
+      if (step >= 5 && sol) {
+        if (sol.isRoad[c.id]) return '#39433d';                       // concourse (open floor)
+        const rid = sol.roomOf[c.id]; if (rid < 0) return '#11151a';
+        if (step === 6 && cast) { const r = cast.rooms[rid]; return r ? r.color : '#222'; }
+        return `hsl(${hueOf(rid)} 30% 26%)`;
+      }
+      if (step >= 2 && rooms) { const z = rooms.roomOf[c.id]; return z >= 0 ? `hsl(${hueOf(z)} 32% ${22 + (c.area % 9)}%)` : '#11151a'; }
+      // step 1: shade by area (size reads)
+      const t = Math.min(1, c.area / (foam.cellSize * foam.cellSize * 2.2));
+      return `hsl(${(205 - t * 60).toFixed(0)} ${(18 + t * 22).toFixed(0)}% ${(13 + t * 26).toFixed(0)}%)`;
+    }
+
+    // draw the boundaries between adjacent cells that belong to DIFFERENT clumps (walls)
+    function drawClumpEdges(ownerOf) {
+      ctx.beginPath();
+      for (const e of foam.edges) {
+        const oa = ownerOf[e.a], ob = ownerOf[e.b]; if (oa === ob) continue;
+        // draw the shared Voronoi edge: the segment of a's poly labelled b (approx via midpoint span)
+        const A = foam.cells[e.a]; const seg = sharedEdge(A, e.b); if (seg) { ctx.moveTo(seg[0].x, seg[0].y); ctx.lineTo(seg[1].x, seg[1].y); }
+      }
+      ctx.stroke();
+    }
+    function sharedEdge(cell, nbrSrc) {
+      const v = cell.poly; const want = foam.cells[nbrSrc] ? foam.cells[nbrSrc].src : -1;
+      for (let i = 0; i < v.length; i++) if (v[i].s === want) return [v[i], v[(i + 1) % v.length]];
+      return null;
+    }
+
+    function drawSolve() {
+      // walls: cell boundaries between different rooms (or room vs concourse handled by fill)
+      ctx.lineWidth = 1.1; ctx.strokeStyle = 'rgba(20,26,32,0.95)';
+      ctx.beginPath();
+      for (const e of foam.edges) {
+        if (chunk.ghost[e.a] && chunk.ghost[e.b]) continue;
+        const ra = sol.isRoad[e.a] ? -2 : sol.roomOf[e.a], rb = sol.isRoad[e.b] ? -2 : sol.roomOf[e.b];
+        if (ra === rb) continue;                                       // same room → no wall
+        if (ra === -2 && rb === -2) continue;                          // both concourse → open
+        const seg = sharedEdge(foam.cells[e.a], e.b); if (seg) { ctx.moveTo(seg[0].x, seg[0].y); ctx.lineTo(seg[1].x, seg[1].y); }
+      }
+      ctx.stroke();
+      // doors: the room cell → road cell gap, marked gold
+      ctx.fillStyle = '#d9b24a';
+      for (const r of sol.rooms) { if (r.door < 0 || r.doorRoad < 0) continue; const a = foam.cells[r.door], b = foam.cells[r.doorRoad]; ctx.beginPath(); ctx.arc((a.x + b.x) / 2, (a.y + b.y) / 2, 2.4, 0, 7); ctx.fill(); }
+      // glyphs (step 6)
+      if (step === 6 && cast && $('t-glyph').checked) {
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        for (const r of cast.rooms) {
+          const sz = Math.min(20, Math.max(8, Math.sqrt(r.cells.length) * foam.cellSize * 0.34));
+          if (sz < 9) continue; ctx.font = Math.floor(sz) + 'px "JetBrains Mono", monospace';
+          ctx.fillStyle = 'rgba(10,12,16,0.85)'; ctx.fillText(r.glyph || '', r.x, r.y);
+        }
+      }
+    }
+
+    // ── run the next computational step ──
+    function runStep() {
+      $('busy').classList.add('on');
+      requestAnimationFrame(() => {
+        const cell = +$('cell').value, depth = +$('depth').value, roomSize = +$('room').value, conc = +$('conc').value;
+        if (step === 0) { foam = baseFoam({ W, H, cellSize: cell, depth, seed }); rooms = null; grain = null; chunk = null; sol = null; cast = null; }
+        else if (step === 1) rooms = growRooms(foam, { roomSize, seed });
+        else if (step === 2) grain = concourseGrain(foam, { roomSize, concourseWidth: conc, seed });
+        else if (step === 3) chunk = defineChunk(foam, { seed });
+        else if (step === 4) sol = solveChunk(foam, chunk, grain, { roomSize, seed });
+        else if (step === 5) cast = castCharacter(sol.rooms, { seed });
+        if (step < 6) step++;
+        refresh();
+        $('busy').classList.remove('on');
+      });
+    }
+    function refresh() { renderSteps(); draw(); readout(); renderLegend(); }
+
+    function renderSteps() {
+      $('steps').innerHTML = STEPS.map((s, i) => {
+        const cls = i < step ? 'done' : i === step ? 'next' : '';
+        const mk = i < step ? '✓' : i === step ? '▸' : (i + 1);
+        return `<div class="step ${cls}" data-i="${i}"><span class="mk">${mk}</span><span>${s.name} <span class="sub">— ${s.sub}</span></span></div>`;
+      }).join('');
+      const go = $('go');
+      if (step >= 6) { go.disabled = true; go.textContent = '✓ chunk complete'; }
+      else { go.disabled = false; go.textContent = `▸ run step ${step + 1} · ${STEPS[step].name}`; }
+    }
+    function readout() {
+      let s = `seed <b>${seed}</b> · step <b>${step}/6</b>`;
+      if (foam) s += `<br>foam <b>${foam.cells.length}</b> cells · <span class="hl">${foam.nucleiCount}</span> 3D nuclei sliced`;
+      if (rooms && step >= 2) s += `<br>rooms <b>${rooms.rooms.length}</b> · ⌀ <span class="hl">${rooms.avgCells.toFixed(1)}</span> cells/room`;
+      if (grain && step >= 3) s += `<br>concourse grain <b>${grain.concourseWidth}</b> cells (${(grain.ratio * 100).toFixed(0)}% of a room) · roadFrac ${grain.roadFrac.toFixed(2)} · μ ${grain.mu.toFixed(2)}`;
+      if (chunk && step >= 4) s += `<br>chunk <b>${chunk.shape}</b> · <b>${chunk.ports.length}</b> ports · ${chunk.interior.length} interior cells`;
+      if (sol && step >= 5) s += `<br>solve · <b>${sol.stats.roadCells}</b> concourse cells (${(sol.stats.roadFrac * 100).toFixed(0)}%) · <b>${sol.stats.rooms}</b> rooms · <span class="hl">${sol.stats.doored}</span> doored`;
+      $('readout').innerHTML = s;
+    }
+    function renderLegend() {
+      if (step < 6 || !cast) { $('legend').innerHTML = ''; return; }
+      $('legend').innerHTML = Object.keys(ROLES).filter((r) => cast.counts[r]).map((r) => `<span><span class="sw" style="background:${ROLES[r].color}"></span>${ROLES[r].glyph} ${r} <span class="n">${cast.counts[r]}</span></span>`).join('');
+    }
+
+    cv.addEventListener('click', (e) => {
+      if (step < 6 || !cast) return;
+      const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      let best = null, bd = Infinity; for (const rm of cast.rooms) { const d = (rm.x - x) ** 2 + (rm.y - y) ** 2; if (d < bd) { bd = d; best = rm; } }
+      if (!best) return;
+      const head = `${best.glyph} ${best.role}${best.domain ? '·' + best.domain : ''} — ${best.cells.length} cells`;
+      const ppl = best.people && best.people.length ? '<br>' + best.people.join(', ') : '<br>a quiet place';
+      $('inspect').innerHTML = `<b>${head}</b>${ppl}`;
+    });
+
+    function reseed() { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; step = 0; foam = rooms = grain = chunk = sol = cast = null; refresh(); }
+    $('go').addEventListener('click', runStep);
+    $('reseed').addEventListener('click', reseed);
+    $('auto').addEventListener('click', () => { reseed(); const tick = () => { if (step < 6) { runStep(); setTimeout(tick, 90); } }; setTimeout(tick, 60); });
+    for (const id of ['cell', 'depth', 'room', 'conc']) $(id).addEventListener('input', () => {
+      $('v-' + ({ cell: 'cell', depth: 'depth', room: 'room', conc: 'conc' })[id]).textContent = $(id).value;
+      step = 0; foam = rooms = grain = chunk = sol = cast = null; refresh();   // a knob change resets the pipeline
+    });
+    for (const id of ['t-cells', 't-graph', 't-ghost', 't-glyph']) $(id).addEventListener('change', draw);
+
+    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); const r = cv.parentElement.getBoundingClientRect(); W = Math.max(160, Math.floor(r.width)); H = Math.max(160, Math.floor(r.height)); cv.width = W * dpr; cv.height = H * dpr; step = 0; foam = rooms = grain = chunk = sol = cast = null; refresh(); }
+    let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
+    resize();
+  </script>
+</body>
+</html>
