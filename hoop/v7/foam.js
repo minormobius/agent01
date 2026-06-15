@@ -123,16 +123,17 @@ export function centroid(cells, list) { let x = 0, y = 0; for (const i of list) 
 // OUTSIDE it becomes a GHOST — not shown as a room, but kept to bound the edge-cells and woken
 // wholesale when the neighbour chunk loads. Each chunk edge gets 1–4 CONCOURSE PORTS at Monte-Carlo
 // positions — the cross-chunk movement points the solve must connect and perfuse from.
-export function defineChunk(foam, { seed = 1, poly = null, inherit = [] } = {}) {
+export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: want = null } = {}) {
   const rng = mulberry32((seed ^ 0xc40c) >>> 0);
   let shape;
   if (!poly) {
     const { W, H } = foam, cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.43, k = R * Math.sqrt(3) / 2;
-    shape = rng() < 0.5 ? 'square' : 'triangle';
+    shape = want || (rng() < 0.5 ? 'square' : 'triangle');
     if (shape === 'square') { const h = R * 0.92; poly = [{ x: cx - h, y: cy - h }, { x: cx + h, y: cy - h }, { x: cx + h, y: cy + h }, { x: cx - h, y: cy + h }]; }
-    else if (rng() < 0.5) poly = [{ x: cx, y: cy - R }, { x: cx + k, y: cy + R / 2 }, { x: cx - k, y: cy + R / 2 }];   // point-up
-    else poly = [{ x: cx, y: cy + R }, { x: cx - k, y: cy - R / 2 }, { x: cx + k, y: cy - R / 2 }];                    // point-down
-  } else shape = poly.length === 4 ? 'square' : 'triangle';
+    else if (shape === 'hex') { const Rh = Math.min(W, H) * 0.46; poly = []; for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; poly.push({ x: cx + Rh * Math.cos(a), y: cy + Rh * Math.sin(a) }); } }   // flat-top regular hexagon — its gentler 120° corners mean fewer skinny edge rooms, and it still tiles by reflection
+    else if (rng() < 0.5) poly = [{ x: cx, y: cy - R }, { x: cx + k, y: cy + R / 2 }, { x: cx - k, y: cy + R / 2 }];   // point-up triangle
+    else poly = [{ x: cx, y: cy + R }, { x: cx - k, y: cy - R / 2 }, { x: cx + k, y: cy - R / 2 }];                    // point-down triangle
+  } else shape = poly.length === 4 ? 'square' : poly.length === 6 ? 'hex' : 'triangle';
   const inside = (x, y) => pointInPoly(x, y, poly);
   const ghost = new Uint8Array(foam.cells.length);
   for (const c of foam.cells) if (!inside(c.x, c.y)) ghost[c.id] = 1;

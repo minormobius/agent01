@@ -106,5 +106,16 @@ const filled = defineChunk(wf2, { seed: 999, poly: C.poly, inherit });
 const inheritedEdges = new Set(filled.ports.filter((p) => p.inherited).map((p) => p.edge));
 ok(inheritedEdges.size === 4 && filled.ports.every((p) => p.inherited), 'the filled centre inherits ports on all 4 edges (no fresh ports — fully surrounded)');
 
+// ── HEX chunks: a 6-edge chunk solves, and a reflected hex neighbour shares the edge ───────────
+const hf = buildFoam({ regions: [{ x0: -200, y0: -200, x1: 1100, y1: 800 }], cellSize: 26, depth: 2.4, seed: 3, W, H });
+const hx = defineChunk(hf, { seed: 3, shape: 'hex' });
+ok(hx.shape === 'hex' && hx.poly.length === 6, 'hex chunk has 6 edges');
+const hsol = seize(hf, hx, { oxygenReach: 3, seed: 3 }), hrm = paintRooms(hf, hx, hsol, { roomSize: 10, seed: 3 });
+ok(hrm.rooms.length > 6 && hrm.stats.doored === hrm.rooms.length, `hex solves into ${hrm.rooms.length} rooms, all doored`);
+const hN = reflectPolyAcrossEdge(hx.poly, 0);   // reflect across an edge → the honeycomb neighbour
+const mk = (poly, e) => { const a = poly[e], b = poly[(e + 1) % poly.length]; return Math.round((a.x + b.x) / 2) + ',' + Math.round((a.y + b.y) / 2); };
+const shares = hN.some((_, e) => mk(hN, e) === mk(hx.poly, 0));
+ok(shares && hN.length === 6, 'reflected hex neighbour is a hex that shares the edge (honeycomb tiles)');
+
 console.log(`\nv7 kernel: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

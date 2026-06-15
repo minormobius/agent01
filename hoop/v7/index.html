@@ -46,6 +46,9 @@
     #hint.on { opacity: 1; }
     .toggles { display: flex; gap: 10px; font-size: 11px; color: var(--dim); flex-wrap: wrap; }
     .toggles label { cursor: pointer; } .toggles input { accent-color: var(--teal); vertical-align: -1px; }
+    button.shp { padding: 6px 4px; font-size: 12px; } button.shp.on { border-color: var(--gold); color: var(--gold); }
+    button.lock { background: linear-gradient(180deg,#241a2a,#150f19); border-color:#4a3a5a; color:#c9a0e0; font-weight:600; }
+    button.lock.on { background: linear-gradient(180deg,#10242a,#0a1417); border-color:#235; color:var(--teal); }
   </style>
 </head>
 <body>
@@ -58,6 +61,12 @@
     <label class="fld">oxygen reach (diffusion depth) <span class="v" id="v-oxy">3</span><input type="range" id="oxy" min="1" max="7" step="1" value="3"></label>
     <label class="fld">concourse width (cells) <span class="v" id="v-conc">2</span><input type="range" id="conc" min="1" max="4" step="1" value="2"></label>
     <label class="fld">room size (cells/room) <span class="v" id="v-room">10</span><input type="range" id="room" min="2" max="40" step="1" value="10"></label>
+    <div class="row" id="shapes" style="gap:5px">
+      <button class="shp on" data-shape="auto" style="flex:1.4">⬚ auto</button>
+      <button class="shp" data-shape="square" style="flex:1" title="square">◻</button>
+      <button class="shp" data-shape="triangle" style="flex:1" title="equilateral triangle">△</button>
+      <button class="shp" data-shape="hex" style="flex:1" title="hexagon">⬡</button>
+    </div>
 
     <div class="steps" id="steps"></div>
 
@@ -66,6 +75,7 @@
       <button id="reseed" style="flex:1">⟲ reset world</button>
       <button id="auto" style="flex:1">⏩ build #0</button>
     </div>
+    <button class="lock" id="lock" style="display:none">🔒 lock map &amp; drop probes</button>
     <div class="toggles" id="toggles">
       <label><input type="checkbox" id="t-heat" checked> oxygenation</label>
       <label><input type="checkbox" id="t-glyph" checked> glyphs</label>
@@ -98,6 +108,7 @@
     let anim = null, revealK = 0; // seize reveal animation
     let cam = { scale: 1, ox: 0, oy: 0 };
     let roadAll = new Set(), gidRoom = new Map(), roomMeta = new Map();   // render maps over frozen chunks
+    let shapePref = 'auto', mode = 'build', walk = null, probes = [], pathCells = [];   // chunk shape + path mode
 
     const knob = (id) => +$(id).value;
     const hueOf = (i) => ((i * 2654435761) >>> 0) % 360;
@@ -148,6 +159,9 @@
 
       // the active build (chunk under construction), with its step overlays / seize animation
       if (building && building.def) drawActive();
+
+      // pathfinding: the route between two probes (mode = path)
+      if (mode === 'path') drawPath();
 
       // chunk boundaries + glowing free edges (expansion handles)
       for (const ch of chunks) drawBoundary(ch, true);
@@ -233,7 +247,7 @@
       requestAnimationFrame(() => {
         const oxy = knob('oxy');
         if (step === 0) { foam = buildFoam({ regions: [{ x0: 0, y0: 0, x1: W, y1: H }], cellSize: knob('cell'), depth: knob('depth'), seed, W, H }); building = {}; fitCamera(); }
-        else if (step === 1) { building.def = defineChunk(foam, { seed }); fitCamera(); }
+        else if (step === 1) { building.def = defineChunk(foam, { seed, shape: shapePref === 'auto' ? null : shapePref }); fitCamera(); }
         else if (step === 2) building.per = perfuse(foam, building.def, { oxygenReach: oxy });
         else if (step === 3) building.sol = seize(foam, building.def, { oxygenReach: oxy, concourseWidth: knob('conc'), seed });
         else if (step === 4) building.rm = paintRooms(foam, building.def, building.sol, { roomSize: knob('room'), seed });
@@ -304,8 +318,9 @@
     function renderSteps() {
       $('steps').innerHTML = STEPS.map((s, i) => { const cls = i < step ? 'done' : i === step ? 'next' : ''; const mk = i < step ? '✓' : i === step ? '▸' : (i + 1); return `<div class="step ${cls}"><span class="mk">${mk}</span><span>${s.name} <span class="sub">— ${s.sub}</span></span></div>`; }).join('');
       const go = $('go');
-      if (step >= 6) { go.disabled = false; go.className = 'expand'; go.textContent = chunks.length ? `✓ ${chunks.length} chunk${chunks.length > 1 ? 's' : ''} · click an edge` : '✓ chunk #0 · click an edge'; }
+      if (step >= 6) { go.disabled = false; go.className = 'expand'; go.textContent = mode === 'path' ? `🔒 locked · drop probes` : (chunks.length ? `✓ ${chunks.length} chunk${chunks.length > 1 ? 's' : ''} · click an edge` : '✓ chunk #0 · click an edge'); }
       else { go.disabled = false; go.className = 'go'; go.textContent = `▸ run step ${step + 1} · ${STEPS[step].name}`; }
+      $('lock').style.display = step >= 6 ? 'block' : 'none';
     }
     function readout() {
       let s = `seed <b>${seed}</b> · step <b>${Math.min(step, 6)}/6</b> · chunks <b>${chunks.length}</b>`;
@@ -316,15 +331,21 @@
       if (b && b.sol && step >= 4) s += `<br>seize · <span class="hl">${(b.sol.servedFrac * 100) | 0}%</span> oxygenated · ${b.sol.sprouts} capillaries · ${(b.sol.stats.roadFrac * 100) | 0}% floor`;
       if (b && b.rm && step >= 5) s += `<br>rooms <b>${b.rm.stats.rooms}</b> · ⌀ <span class="hl">${b.rm.stats.avgCells.toFixed(1)}</span> cells · ${b.rm.stats.doored} doored`;
       if (!b && chunks.length) { const rms = chunks.reduce((a, c) => a + c.rooms.length, 0); s += `<br>world · <b>${chunks.length}</b> chunks · <b>${rms}</b> rooms total`; }
+      if (mode === 'path') { if (pathCells.length > 1) { let L = 0; for (let i = 1; i < pathCells.length; i++) L += Math.hypot(foam.cells[pathCells[i]].x - foam.cells[pathCells[i - 1]].x, foam.cells[pathCells[i]].y - foam.cells[pathCells[i - 1]].y); s += `<br><span class="hl">path</span> A→B · <b>${pathCells.length}</b> cells · ${(L / foam.cellSize).toFixed(0)} cell-lengths`; } else if (probes.length === 2) s += `<br><span style="color:#cf3b3b">no path</span> between the probes`; else s += `<br>drop probe ${probes.length === 0 ? 'A' : 'B'}`; }
       $('readout').innerHTML = s;
     }
     function renderLegend() { const counts = {}; for (const ch of chunks) for (const r of ch.rooms) counts[r.role] = (counts[r.role] || 0) + 1; if (building && building.cast) for (const r of building.cast.rooms) counts[r.role] = (counts[r.role] || 0) + 1; const ks = Object.keys(ROLES).filter((r) => counts[r]); $('legend').innerHTML = ks.length ? ks.map((r) => `<span><span class="sw" style="background:${ROLES[r].color}"></span>${ROLES[r].glyph} ${r} <span class="n">${counts[r]}</span></span>`).join('') : ''; }
-    function updateHint() { $('hint').classList.toggle('on', step >= 6 && !anim); }
+    function updateHint() {
+      const h = $('hint');
+      if (mode === 'path') { h.textContent = probes.length === 0 ? 'click to drop probe A' : probes.length === 1 ? 'click to drop probe B' : 'click to drop a new pair'; h.classList.add('on'); }
+      else { h.textContent = 'click a glowing edge to seed the next chunk'; h.classList.toggle('on', step >= 6 && !anim); }
+    }
 
     // ── interaction: click a room (inspect) or a free chunk edge (expand) ──
     cv.addEventListener('click', (e) => {
       if (!foam || anim) return;
       const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
+      if (mode === 'path') { dropProbe(wx, wy); return; }
       if (step >= 6 && chunks.length) {
         // nearest free edge within reach?
         let best = null, bd = (foam.cellSize) * 1.4;
@@ -337,19 +358,62 @@
       if (bestR) $('inspect').innerHTML = `<b>${bestR.glyph} ${bestR.role}${bestR.domain ? '·' + bestR.domain : ''}</b> <span class="n">(chunk ${host.id})</span> — ${bestR.cellGids.length} cells${bestR.people && bestR.people.length ? '<br>' + bestR.people.join(', ') : ''}`;
     });
     cv.addEventListener('mousemove', (e) => {
+      if (mode === 'path') { cv.style.cursor = 'crosshair'; return; }
       if (!foam || step < 6 || anim) { cv.style.cursor = 'default'; return; }
       const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
       let over = false; for (const ch of chunks) for (let ei = 0; ei < ch.poly.length; ei++) { if (occupied.has(midKey(ch.poly, ei))) continue; if (ptSeg(wx, wy, ch.poly[ei], ch.poly[(ei + 1) % ch.poly.length]) < foam.cellSize * 1.4) over = true; }
       cv.style.cursor = over ? 'pointer' : 'default';
     });
 
-    function reset() { stopAnim(); step = 0; foam = null; chunks = []; occupied = new Set(); building = null; roadAll = new Set(); gidRoom = new Map(); roomMeta = new Map(); renderSteps(); readout(); renderLegend(); draw(); updateHint(); }
+    // ── pathfinding: a walkable graph where you move freely WITHIN a room and WITHIN the concourse,
+    //    but cross between them ONLY at a room's single door — so the route falls out of the solve. ──
+    function buildWalk() {
+      walk = foam.cells.map(() => []);
+      for (const e of foam.edges) {
+        const la = labelOf(foam.cells[e.a].gid), lb = labelOf(foam.cells[e.b].gid);
+        if (!la || !lb) continue;
+        if ((la === 'R' && lb === 'R') || la === lb) { walk[e.a].push(e.b); walk[e.b].push(e.a); }   // concourse↔concourse (incl. across seams) or same-room
+      }
+      for (const ch of chunks) for (const r of ch.rooms) { if (!r.doorGid || !r.doorRoadGid) continue; const a = foam.cellByGid.get(r.doorGid), b = foam.cellByGid.get(r.doorRoadGid); if (a != null && b != null) { walk[a].push(b); walk[b].push(a); } }   // the one door
+    }
+    function pathFind(src, dst) {
+      const N = foam.cells.length, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N), heap = [[0, src]];
+      const push = (d, c) => { heap.push([d, c]); let k = heap.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break;[heap[p], heap[k]] = [heap[k], heap[p]]; k = p; } };
+      const pop = () => { const t = heap[0], l = heap.pop(); if (heap.length) { heap[0] = l; let k = 0; for (;;) { const L = 2 * k + 1, R = L + 1; let m = k; if (L < heap.length && heap[L][0] < heap[m][0]) m = L; if (R < heap.length && heap[R][0] < heap[m][0]) m = R; if (m === k) break;[heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } } return t; };
+      dist[src] = 0;
+      while (heap.length) { const [d, u] = pop(); if (done[u]) continue; done[u] = 1; if (u === dst) break; for (const v of walk[u]) { const nd = d + Math.hypot(foam.cells[u].x - foam.cells[v].x, foam.cells[u].y - foam.cells[v].y); if (nd < dist[v]) { dist[v] = nd; prev[v] = u; push(nd, v); } } }
+      if (!done[dst]) return null;
+      const path = []; for (let u = dst; u !== -1; u = prev[u]) path.push(u); return path.reverse();
+    }
+    function nearestWalkable(wx, wy) { let best = -1, bd = Infinity; for (const c of foam.cells) { if (labelOf(c.gid) == null) continue; const d = (c.x - wx) ** 2 + (c.y - wy) ** 2; if (d < bd) { bd = d; best = c.id; } } return best; }
+    function dropProbe(wx, wy) {
+      if (probes.length >= 2) { probes = []; pathCells = []; }
+      const c = nearestWalkable(wx, wy); if (c < 0) return; probes.push(c);
+      if (probes.length === 2) pathCells = pathFind(probes[0], probes[1]) || [];
+      readout(); updateHint(); draw();
+    }
+    function drawPath() {
+      for (let i = 0; i < probes.length; i++) { const c = foam.cells[probes[i]]; ctx.fillStyle = i === 0 ? '#5aa845' : '#cf3b3b'; ctx.beginPath(); ctx.arc(SX(c.x), SY(c.y), 6, 0, 7); ctx.fill(); ctx.fillStyle = '#0a0c10'; ctx.font = 'bold 9px "JetBrains Mono"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(i === 0 ? 'A' : 'B', SX(c.x), SY(c.y) + 0.5); }
+      if (pathCells.length < 2) return;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 9; strokePath();
+      ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 3; strokePath();
+    }
+    function strokePath() { ctx.beginPath(); for (let i = 0; i < pathCells.length; i++) { const c = foam.cells[pathCells[i]]; if (i) ctx.lineTo(SX(c.x), SY(c.y)); else ctx.moveTo(SX(c.x), SY(c.y)); } ctx.stroke(); }
+
+    function reset() { stopAnim(); step = 0; foam = null; chunks = []; occupied = new Set(); building = null; roadAll = new Set(); gidRoom = new Map(); roomMeta = new Map(); mode = 'build'; walk = null; probes = []; pathCells = []; $('lock').classList.remove('on'); $('lock').textContent = '🔒 lock map & drop probes'; renderSteps(); readout(); renderLegend(); draw(); updateHint(); }
     function reseed() { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; reset(); }
     $('go').addEventListener('click', () => { if (step < 6) runStep(); });
     $('reseed').addEventListener('click', reseed);
     $('auto').addEventListener('click', () => { reseed(); const t = () => { if (step < 6) { runStep(); setTimeout(t, step === 4 ? 1600 : 120); } }; setTimeout(t, 60); });
     for (const id of ['cell', 'depth', 'oxy', 'conc', 'room']) $(id).addEventListener('input', () => { $('v-' + id).textContent = $(id).value; reset(); });
     for (const id of ['t-heat', 't-glyph', 't-foam']) $(id).addEventListener('change', draw);
+    document.querySelectorAll('#shapes .shp').forEach((btn) => btn.addEventListener('click', () => { shapePref = btn.dataset.shape; document.querySelectorAll('#shapes .shp').forEach((b) => b.classList.toggle('on', b === btn)); reset(); }));
+    $('lock').addEventListener('click', () => {
+      if (mode === 'build') { if (!chunks.length) return; mode = 'path'; buildWalk(); probes = []; pathCells = []; $('lock').classList.add('on'); $('lock').textContent = '🔓 unlock · keep building'; }
+      else { mode = 'build'; probes = []; pathCells = []; $('lock').classList.remove('on'); $('lock').textContent = '🔒 lock map & drop probes'; }
+      renderSteps(); readout(); updateHint(); draw();
+    });
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); const r = cv.parentElement.getBoundingClientRect(); W = Math.max(160, Math.floor(r.width)); H = Math.max(160, Math.floor(r.height)); cv.width = W * dpr; cv.height = H * dpr; if (foam) fitCamera(); draw(); }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(() => { resize(); }, 150); });
