@@ -2,7 +2,7 @@ name: Deploy ATPhoto
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/photo-deploy-surface-hwkjhf']
     paths:
       - 'photo/**'
       - '.github/workflows/deploy-photo.yml'
@@ -33,3 +33,15 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Push the morphyx DM app password onto the worker as a runtime secret.
+      # GitHub secrets aren't visible to the Worker at runtime — only during
+      # this deploy — so we forward it via `wrangler secret put`. Must run after
+      # deploy (the Worker has to exist). Skipped if the secret isn't set.
+      - name: Set morphyx DM secret
+        if: ${{ env.BLUESKY_MORPHYX_APP_PASSWORD != '' }}
+        run: printf '%s' "$BLUESKY_MORPHYX_APP_PASSWORD" | npx wrangler secret put MORPHYX_APP_PASSWORD
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}

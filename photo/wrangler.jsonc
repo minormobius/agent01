@@ -6,5 +6,13 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
+  },
+  // /dm posts uploaded pictures as the morphyx service account and DMs them
+  // into the group chats the signed-in user shares with morphyx. The
+  // MORPHYX_APP_PASSWORD runtime secret (a DM-enabled app password) is pushed
+  // onto the worker by deploy-photo.yml from the BLUESKY_MORPHYX_APP_PASSWORD
+  // GitHub Actions secret.
+  "vars": {
+    "MORPHYX_HANDLE": "morphyxmino.bsky.social"
   }
 }
