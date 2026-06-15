@@ -258,16 +258,16 @@
       stopAnim(); $('busy').classList.add('on');
       requestAnimationFrame(() => {
         const Bpoly = reflectPolyAcrossEdge(ch.poly, ei);
-        occupied.add(midKey(ch.poly, ei));
         // rebuild foam over all chunk bboxes + the new one (deterministic → frozen chunks reproduce)
         const regions = chunks.map(bboxOf); regions.push(bboxOf({ poly: Bpoly }));
         foam = buildFoam({ regions, cellSize: knob('cell'), depth: knob('depth'), seed, W, H });
         rebuildMaps();
         const nseed = (seed ^ Math.imul(chunks.length + 1, 0x9e3779b1)) >>> 0;
-        const inherit = ch.ports.filter((p) => p.edge === ei).map((p) => ({ x: p.x, y: p.y }));
+        // INHERIT ports from EVERY edge of the new chunk that meets an existing chunk (not just the
+        // clicked one) — so filling a gap surrounded by neighbours reuses all their crossings
+        const inherit = [];
+        for (let be = 0; be < Bpoly.length; be++) { const mk = midKey(Bpoly, be); for (const ec of chunks) for (let e = 0; e < ec.poly.length; e++) if (midKey(ec.poly, e) === mk) { for (const p of ec.ports) if (p.edge === e) inherit.push({ x: p.x, y: p.y }); occupied.add(mk); } }
         const def = defineChunk(foam, { seed: nseed, poly: Bpoly, inherit });
-        // mark the shared edge occupied on the new chunk too
-        for (let e = 0; e < def.poly.length; e++) if (midKey(def.poly, e) === midKey(ch.poly, ei)) occupied.add(midKey(def.poly, e));
         const oxy = knob('oxy');
         const per = perfuse(foam, def, { oxygenReach: oxy });
         const sol = seize(foam, def, { oxygenReach: oxy, concourseWidth: knob('conc'), seed: nseed });

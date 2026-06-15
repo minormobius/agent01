@@ -150,8 +150,15 @@ export function defineChunk(foam, { seed = 1, poly = null, inherit = [] } = {}) 
     const a = poly[e], b = poly[(e + 1) % poly.length], n = 1 + Math.floor(rng() * 4);
     for (let i = 0; i < n; i++) { const t = (i + 0.5 + (rng() - 0.5) * 0.6) / n, px = a.x + (b.x - a.x) * t, py = a.y + (b.y - a.y) * t, cell = nearestInterior(px, py); if (cell >= 0 && !ports.some((p) => p.cell === cell)) ports.push({ edge: e, x: px, y: py, cell }); }
   }
-  return { shape, poly, ghost, ports, interior, interiorCount: interior.length };
+  // rim = interior cells touching the chunk boundary (adjacent to a ghost). The concourse is kept
+  // OFF the rim except at port cells, so chunk-to-chunk crossing happens ONLY at the ports — the
+  // concourse is forced inward instead of riding the seam.
+  const rim = new Uint8Array(foam.cells.length), portCells = new Set(ports.map((p) => p.cell));
+  for (const cid of interior) if (foam.adj[cid].some((v) => ghost[v])) rim[cid] = 1;
+  return { shape, poly, ghost, ports, interior, interiorCount: interior.length, rim, portCells };
 }
+// may a cell carry concourse? everywhere interior except the boundary rim — but always at a port.
+function canRoad(chunk, cid) { return !chunk.rim || !chunk.rim[cid] || (chunk.portCells && chunk.portCells.has(cid)); }
 // reflect a polygon across one of its edges → the adjacent chunk that shares that edge (squares beget
 // squares, equilateral triangles beget their flipped neighbour — both tile the plane).
 export function reflectPolyAcrossEdge(poly, ei) {
@@ -193,12 +200,16 @@ export function perfuse(foam, chunk, { oxygenReach = 3 } = {}) {
   const ports = chunk.ports.map((p) => p.cell).filter((c) => !chunk.ghost[c]);
   if (ports.length) {
     road[ports[0]] = 1;
-    for (let i = 1; i < ports.length; i++) {
-      // nearest current-concourse cell to this port, by BFS from the port
-      const from = new Map([[ports[i], -1]]), q = [ports[i]]; let hit = -1;
-      for (let h = 0; h < q.length && hit < 0; h++) { const u = q[h]; if (road[u]) { hit = u; break; } for (const v of foam.adj[u]) { if (chunk.ghost[v] || from.has(v)) continue; from.set(v, u); q.push(v); } }
-      if (hit < 0) { road[ports[i]] = 1; continue; }
-      for (let u = hit; u !== -1; u = from.get(u)) road[u] = 1;   // walk from the hit BACK to the port (from[] points portward)
+    const RIMPEN = 8;                       // connect ports by a path that PENALISES the rim, so the
+    for (let i = 1; i < ports.length; i++) {  // skeleton dives inward instead of riding the seam — yet a
+      const src = ports[i];                   // port buried behind a thick rim can still escape (at cost)
+      const dist = new Map([[src, 0]]), from = new Map([[src, -1]]), done = new Set(), heap = [[0, src]];
+      const push = (d, c) => { heap.push([d, c]); let k = heap.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break;[heap[p], heap[k]] = [heap[k], heap[p]]; k = p; } };
+      const pop = () => { const t = heap[0], l = heap.pop(); if (heap.length) { heap[0] = l; let k = 0; for (;;) { const L = 2 * k + 1, R = L + 1; let m = k; if (L < heap.length && heap[L][0] < heap[m][0]) m = L; if (R < heap.length && heap[R][0] < heap[m][0]) m = R; if (m === k) break;[heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } } return t; };
+      let hit = -1;
+      while (heap.length) { const [d, u] = pop(); if (done.has(u)) continue; done.add(u); if (road[u]) { hit = u; break; } for (const v of foam.adj[u]) { if (chunk.ghost[v] || done.has(v)) continue; const nd = d + (canRoad(chunk, v) ? 1 : RIMPEN); if (!dist.has(v) || nd < dist.get(v)) { dist.set(v, nd); from.set(v, u); push(nd, v); } } }
+      if (hit < 0) { road[src] = 1; continue; }
+      for (let u = hit; u !== -1; u = from.get(u)) road[u] = 1;
     }
   }
   const { dist } = perfuseField(foam, chunk, road);
@@ -224,22 +235,27 @@ function measure(foam, chunk, road, dist, reach, addOrder) {
 export function seize(foam, chunk, { oxygenReach = 3, concourseWidth = 1, maxFrac = 0.5, seed = 1 } = {}) {
   const per = perfuse(foam, chunk, { oxygenReach });
   const road = per.road.slice();
-  let { dist, from } = perfuseField(foam, chunk, road);
-  const reach = oxygenReach, addOrder = [], sprouts = [];
+  let { dist } = perfuseField(foam, chunk, road);
+  const reach = oxygenReach, addOrder = [], sprouts = [], blocked = new Set();
   let roadCells = per.stats.roadCells, guard = 0;
   const maxRoad = maxFrac * chunk.interiorCount;
-  while (guard++ < 600) {
-    // deepest hypoxia: the interior tissue cell with the largest distance-to-concourse
+  while (guard++ < 800) {
+    // deepest hypoxia: the interior tissue cell with the largest distance-to-concourse (rim included —
+    // rim tissue still needs oxygen; it just gets it from an interior capillary, not from rim road)
     let u = -1, md = reach;
-    for (const i of chunk.interior) { if (road[i]) continue; const d = dist[i]; if (d > md) { md = d; u = i; } }
+    for (const i of chunk.interior) { if (road[i] || blocked.has(i)) continue; const d = dist[i]; if (d > md) { md = d; u = i; } }
     if (u < 0 || roadCells >= maxRoad) break;
-    // sprout toward it; pave the road-side of the path, leaving a `reach`-deep stub of tissue near u
-    const path = []; for (let c = u; c >= 0 && !road[c]; c = from[c]) path.push(c);
+    // grow a capillary toward u over CANROAD cells only (so the whole sprout is pavable and stays
+    // connected to the body), leaving a `reach`-deep stub of tissue near u for the diffusion ball.
+    const par = new Map([[u, -1]]), q = [u]; let roadHit = -1;
+    for (let h = 0; h < q.length && roadHit < 0; h++) { const c = q[h]; if (road[c]) { roadHit = c; break; } for (const v of foam.adj[c]) { if (chunk.ghost[v] || par.has(v) || (!canRoad(chunk, v) && v !== u)) continue; par.set(v, c); q.push(v); } }
+    if (roadHit < 0) { blocked.add(u); continue; }
+    const path = []; for (let c = roadHit; c !== -1; c = par.get(c)) path.push(c);   // path[0]=road … path[end]=u
     const added = [];
-    for (let k = reach; k < path.length; k++) { if (!road[path[k]]) { road[path[k]] = 1; roadCells++; added.push(path[k]); } }
-    if (!added.length) { road[path[Math.max(0, path.length - 1)]] = 1; roadCells++; }   // safety: never spin
+    for (let k = 1; k < path.length - reach; k++) { const c = path[k]; if (!road[c] && canRoad(chunk, c)) { road[c] = 1; roadCells++; added.push(c); } }
+    if (!added.length) { blocked.add(u); continue; }
     addOrder.push(...added); sprouts.push(added);
-    ({ dist, from } = perfuseField(foam, chunk, road));
+    ({ dist } = perfuseField(foam, chunk, road));
   }
   // a SINGLE connected concourse is a core need — stitch any stray capillary back to the main body
   // before widening (the bare hypoxia growth always attaches sprouts to existing road, but isolated
@@ -265,7 +281,7 @@ function stitchConcourse(foam, chunk, road) {
     const main = sizes.indexOf(Math.max(...sizes));
     const dist = new Int32Array(foam.cells.length).fill(-1), from = new Int32Array(foam.cells.length).fill(-1), q = [];
     for (const i of chunk.interior) if (road[i] && comp[i] === main) { dist[i] = 0; q.push(i); }
-    for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || dist[v] >= 0) continue; dist[v] = dist[u] + 1; from[v] = u; q.push(v); } }
+    for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || dist[v] >= 0 || !canRoad(chunk, v)) continue; dist[v] = dist[u] + 1; from[v] = u; q.push(v); } }
     const reps = new Map();   // nearest cell of each non-main fragment to the main body
     for (const i of chunk.interior) if (road[i] && comp[i] !== main && dist[i] >= 0) { const r = reps.get(comp[i]); if (!r || dist[i] < r.d) reps.set(comp[i], { cell: i, d: dist[i] }); }
     if (!reps.size) return;
@@ -283,7 +299,7 @@ function widenOneSided(foam, chunk, road, layers) {
     for (const r of chunk.interior) {
       if (!road[r]) continue;
       const t = roadTangent(foam, road, r), nx = -t.y, ny = t.x;
-      for (const f of foam.adj[r]) { if (road[f] || chunk.ghost[f]) continue; const dx = foam.cells[f].x - foam.cells[r].x, dy = foam.cells[f].y - foam.cells[r].y; if (dx * nx + dy * ny > 0) adds.push(f); }
+      for (const f of foam.adj[r]) { if (road[f] || chunk.ghost[f] || !canRoad(chunk, f)) continue; const dx = foam.cells[f].x - foam.cells[r].x, dy = foam.cells[f].y - foam.cells[r].y; if (dx * nx + dy * ny > 0) adds.push(f); }
     }
     for (const f of adds) if (!road[f]) { road[f] = 1; added.push(f); }
   }

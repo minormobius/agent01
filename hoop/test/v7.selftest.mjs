@@ -33,8 +33,11 @@ ok(per.stats.hypoxic > 0, `the bare skeleton leaves tissue hypoxic (${per.stats.
 
 // 4. seize — hypoxia growth lifts oxygenation hard while staying a minority of the floor
 const sol = seize(foam, chunk, { oxygenReach: 3, seed: 7 });
-ok(sol.servedFrac > per.servedFrac + 0.1, `seize raises oxygenation (${(per.servedFrac * 100) | 0}% → ${(sol.servedFrac * 100) | 0}%)`);
-ok(sol.servedFrac > 0.9, `well perfused after seize (${(sol.servedFrac * 100) | 0}%)`);
+ok(sol.servedFrac >= per.servedFrac && sol.servedFrac > 0.95, `seize perfuses the chunk (${(per.servedFrac * 100) | 0}% → ${(sol.servedFrac * 100) | 0}%)`);
+// the concourse is forced INWARD: it touches the boundary rim only at ports (so chunk-to-chunk
+// crossing happens only at ports, never by riding the seam)
+let rimRoadBeyondPorts = 0; for (const i of chunk.interior) if (sol.road[i] && chunk.rim[i] && !chunk.portCells.has(i)) rimRoadBeyondPorts++;
+ok(rimRoadBeyondPorts <= chunk.portCells.size, `concourse stays off the rim except at ports (${rimRoadBeyondPorts} stray vs ${chunk.portCells.size} ports)`);
 ok(sol.stats.roadFrac < 0.5, `concourse is a minority of the floor (${(sol.stats.roadFrac * 100) | 0}%) — not big blocks`);
 ok(sol.sprouts > 3, `capillaries actually branched (${sol.sprouts} sprouts)`);
 // the concourse must be a SINGLE connected component (walkable end to end) — a core need
@@ -88,6 +91,20 @@ ok(cross, 'each inherited port crosses the seam (A-cell adjacent to B-cell)');
 const solA = seize(wf, A, { oxygenReach: 3, seed: 7 }), solB = seize(wf, B, { oxygenReach: 3, seed: 31 });
 const comp1 = (ch, road) => { const seen = new Set(); let c = 0; for (const i of ch.interior) { if (!road[i] || seen.has(i)) continue; c++; const q = [i]; seen.add(i); while (q.length) { const u = q.pop(); for (const v of wf.adj[u]) if (road[v] && !seen.has(v)) { seen.add(v); q.push(v); } } } return c; };
 ok(comp1(A, solA.road) === 1 && comp1(B, solB.road) === 1, 'both chunks solve to one concourse each');
+
+// ── FILL-THE-MIDDLE: a chunk surrounded by neighbours inherits ports on EVERY shared edge ───────
+const wf2 = buildFoam({ regions: [{ x0: -600, y0: -400, x1: 1500, y1: 1000 }], cellSize: 26, depth: 2.4, seed: 11, W, H });
+const C = defineChunk(wf2, { seed: 11, poly: [{ x: 380, y: 220 }, { x: 620, y: 220 }, { x: 620, y: 460 }, { x: 380, y: 460 }] });   // a centred square
+ok(C.shape === 'square', 'centre is a square');
+const neighbours = C.poly.map((_, ei) => { const np = reflectPolyAcrossEdge(C.poly, ei); return defineChunk(wf2, { seed: 50 + ei, poly: np }); });   // the four around it
+// now gather inherited ports the way the page does: every edge of C that coincides with a neighbour
+const midKey = (poly, e) => { const a = poly[e], b = poly[(e + 1) % poly.length]; return Math.round((a.x + b.x) / 2) + ',' + Math.round((a.y + b.y) / 2); };
+const inherit = []; const edgesCovered = new Set();
+for (let ce = 0; ce < C.poly.length; ce++) { const mk = midKey(C.poly, ce); for (const nb of neighbours) for (let e = 0; e < nb.poly.length; e++) if (midKey(nb.poly, e) === mk) { for (const p of nb.ports) if (p.edge === e) { inherit.push({ x: p.x, y: p.y }); edgesCovered.add(ce); } } }
+ok(edgesCovered.size === 4, `all 4 edges of the centre meet a neighbour (covered ${edgesCovered.size})`);
+const filled = defineChunk(wf2, { seed: 999, poly: C.poly, inherit });
+const inheritedEdges = new Set(filled.ports.filter((p) => p.inherited).map((p) => p.edge));
+ok(inheritedEdges.size === 4 && filled.ports.every((p) => p.inherited), 'the filled centre inherits ports on all 4 edges (no fresh ports — fully surrounded)');
 
 console.log(`\nv7 kernel: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
