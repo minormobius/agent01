@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>prop — growing graphs by local rules</title>
-<meta name="description" content="A playground for graph-rewriting systems: a force-directed graph that grows itself by repeatedly applying a local rule, spawning new nodes and links down the chain. Wolfram-model hypergraph rewriting, with notes on the wider field — propagator networks, graph grammars, interaction nets.">
+<meta name="description" content="A playground for graph systems where local rules fire across a force-directed graph: pure growth (Wolfram-model rewriting), sandpile avalanches (cascading topples), and interaction nets (rewrites that rewire). With notes on the wider field.">
 
 <style>
 :root {
@@ -44,12 +44,7 @@ html, body {
   font-family: var(--serif);
   -webkit-font-smoothing: antialiased;
 }
-body {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 2rem 1.4rem 4rem;
-  line-height: 1.55;
-}
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
 header { margin-bottom: 1.5rem; }
 .crumb {
   font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
@@ -57,10 +52,7 @@ header { margin-bottom: 1.5rem; }
   display: inline-block; margin-bottom: 0.8rem;
 }
 .crumb:hover { color: var(--accent); }
-h1 {
-  margin: 0; font-family: var(--serif); font-size: 2.4rem;
-  letter-spacing: -0.01em; font-weight: 600;
-}
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
 .subtitle {
   font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em;
   text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0;
@@ -72,7 +64,6 @@ h1 {
 .crossref a { color: var(--accent); text-decoration: none; }
 .crossref a:hover { text-decoration: underline; }
 
-/* ── Tabs ── */
 nav.tabs {
   display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem;
   border-bottom: 1px solid var(--rule); flex-wrap: wrap;
@@ -87,7 +78,6 @@ nav.tabs {
 .tab:hover { color: var(--fg); }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-/* ── Format bar ── */
 .format-bar {
   display: flex; align-items: center; gap: 0.4rem;
   margin: 0.8rem 0 1.1rem; font-family: var(--mono); font-size: 0.6rem;
@@ -104,20 +94,12 @@ nav.tabs {
   color: var(--accent); border-color: var(--accent); background: var(--accent-faint);
 }
 .fmt-spacer { flex: 1; }
-.fmt-label {
-  letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
-  margin-right: 0.2rem; font-size: 0.55rem;
-}
+.fmt-label { letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-right: 0.2rem; font-size: 0.55rem; }
 
-/* ── Panes ── */
 .pane { display: none; }
 .pane.active { display: block; }
 
-/* ── Play pane ── */
-.play-wrap {
-  display: grid; grid-template-columns: minmax(0, 1fr) 250px;
-  gap: 1.4rem; align-items: start;
-}
+.play-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 1.4rem; align-items: start; }
 @media (max-width: 760px) { .play-wrap { grid-template-columns: minmax(0, 1fr); } }
 #graph-canvas {
   width: 100%; aspect-ratio: 4 / 3; display: block;
@@ -126,20 +108,13 @@ nav.tabs {
 }
 #graph-canvas.dragging { cursor: grabbing; }
 
-.controls {
-  font-family: var(--mono); font-size: 0.78rem;
-  display: flex; flex-direction: column; gap: 0.9rem;
-}
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
 .ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
-.ctrl-label {
-  font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
-}
+.ctrl-group.hidden { display: none; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
 .ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
 .ctrl-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
-.ctrl-row .ctrl-val {
-  font-family: var(--mono); font-size: 0.78rem; color: var(--accent);
-  min-width: 3.2em; text-align: right;
-}
+.ctrl-row .ctrl-val { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); min-width: 3.2em; text-align: right; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .btn {
   font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.04em;
@@ -160,109 +135,59 @@ nav.tabs {
 .preset.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
 
 .seg { display: flex; border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+.seg.hidden { display: none; }
 .seg button {
-  flex: 1; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em;
+  flex: 1; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.05em;
   text-transform: uppercase; background: transparent; border: none; color: var(--muted);
   padding: 0.4rem 0.3rem; cursor: pointer; transition: all 0.15s;
 }
 .seg button.active { color: var(--accent); background: var(--accent-faint); }
 
-.stats {
-  border-top: 1px solid var(--rule); padding-top: 0.9rem;
-  font-family: var(--mono); font-size: 0.7rem; line-height: 1.7;
-}
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
 .stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row.hidden { display: none; }
 .stat-row .k { color: var(--muted); }
 .stat-row .v { color: var(--fg); text-align: right; }
 .stat-row .v.hot { color: var(--accent); }
-.rule-show {
-  font-family: var(--mono); font-size: 0.66rem; color: var(--accent);
-  word-break: break-all; line-height: 1.5;
-}
-.hint {
-  font-size: 0.62rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.5;
-  font-family: var(--mono);
-}
+.rule-show { font-family: var(--mono); font-size: 0.64rem; color: var(--accent); word-break: break-all; line-height: 1.5; margin-top: 0.4rem; }
+.legend { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.7; }
+.legend .sw { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 50%; margin-right: 0.35em; vertical-align: -0.05em; }
+.hint { font-size: 0.62rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.5; font-family: var(--mono); }
 
-/* ── Rules pane ── */
 .rules-body { font-size: 0.96rem; }
-.rules-body h2 {
-  font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--accent); margin: 1.8rem 0 0.6rem;
-}
+.rules-body h2 { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 1.8rem 0 0.6rem; }
 .rules-body p { margin: 0.7rem 0; }
 .rules-body code, .mono-inline {
   font-family: var(--mono); font-size: 0.86em; background: var(--tag-bg);
   color: var(--tag-text); padding: 0.06em 0.35em; border-radius: 2px;
 }
-.rule-card {
-  border: 1px solid var(--rule); border-radius: 3px; padding: 0.8rem 1rem;
-  margin: 0.7rem 0; display: flex; flex-direction: column; gap: 0.35rem;
-}
-.rule-card .name {
-  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--accent);
-}
+.rule-card { border: 1px solid var(--rule); border-radius: 3px; padding: 0.8rem 1rem; margin: 0.7rem 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.rule-card .name { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
 .rule-card .notation { font-family: var(--mono); font-size: 0.8rem; word-break: break-all; }
 .rule-card .desc { font-size: 0.88rem; color: var(--muted); }
 .editor-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: stretch; margin: 0.8rem 0; }
-#rule-input {
-  flex: 1; min-width: 240px; font-family: var(--mono); font-size: 0.82rem;
-  padding: 0.55rem 0.7rem; background: var(--canvas-bg); border: 1px solid var(--rule);
-  border-radius: 2px; color: var(--fg);
-}
+#rule-input { flex: 1; min-width: 240px; font-family: var(--mono); font-size: 0.82rem; padding: 0.55rem 0.7rem; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; color: var(--fg); }
 #rule-input.bad { border-color: #c0392b; }
 .parse-msg { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); min-height: 1em; }
 .parse-msg.bad { color: #c0392b; }
 
-/* ── Docs pane ── */
 .docs { font-size: 0.98rem; }
-.docs h2 {
-  font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--accent); margin: 2rem 0 0.7rem;
-  padding-bottom: 0.3rem; border-bottom: 1px solid var(--rule);
-}
-.docs h3 {
-  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--fg); margin: 1.4rem 0 0.4rem;
-}
+.docs h2 { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 0.7rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--rule); }
+.docs h3 { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg); margin: 1.4rem 0 0.4rem; }
 .docs p { margin: 0.7rem 0; }
 .docs ul { margin: 0.6rem 0; padding-left: 1.2rem; }
 .docs li { margin: 0.45rem 0; }
 .docs a { color: var(--accent); text-decoration: none; }
 .docs a:hover { text-decoration: underline; }
-.docs code {
-  font-family: var(--mono); font-size: 0.86em; background: var(--tag-bg);
-  color: var(--tag-text); padding: 0.06em 0.35em; border-radius: 2px;
-}
-.docs blockquote {
-  margin: 0.9rem 0; padding: 0.4rem 0 0.4rem 1rem;
-  border-left: 2px solid var(--accent); color: var(--muted); font-style: italic;
-}
-.field-table {
-  width: 100%; border-collapse: collapse; margin: 1rem 0;
-  font-size: 0.84rem;
-}
-.field-table th, .field-table td {
-  text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--rule);
-  vertical-align: top;
-}
-.field-table th {
-  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--muted); font-weight: normal;
-}
+.docs code { font-family: var(--mono); font-size: 0.86em; background: var(--tag-bg); color: var(--tag-text); padding: 0.06em 0.35em; border-radius: 2px; }
+.docs blockquote { margin: 0.9rem 0; padding: 0.4rem 0 0.4rem 1rem; border-left: 2px solid var(--accent); color: var(--muted); font-style: italic; }
+.field-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.84rem; }
+.field-table th, .field-table td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.field-table th { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: normal; }
 .field-table td.name { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); white-space: nowrap; }
-.meta-stamp {
-  font-family: var(--mono); font-size: 0.62rem; color: var(--muted);
-  margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule); line-height: 1.8;
-}
+.meta-stamp { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule); line-height: 1.8; }
 
-footer {
-  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--muted); margin-top: 3rem;
-  padding-top: 1rem; border-top: 1px solid var(--rule);
-  display: flex; gap: 1rem; flex-wrap: wrap;
-}
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
 footer a { color: var(--muted); text-decoration: none; }
 footer a:hover { color: var(--accent); }
 </style>
@@ -272,7 +197,7 @@ footer a:hover { color: var(--accent); }
 <header>
   <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
   <h1>prop</h1>
-  <p class="subtitle">growing graphs by local rules · graph rewriting</p>
+  <p class="subtitle">growing graphs by local rules · growth · sandpile · interaction nets</p>
   <p class="crossref">↑ <a href="https://mino.mobi/geometry/">math pack</a> · <a href="https://mino.mobi/elements/">elements</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/capset/">capset</a></p>
 </header>
 
@@ -295,11 +220,20 @@ footer a:hover { color: var(--accent); }
   <div class="play-wrap">
     <div>
       <canvas id="graph-canvas" width="800" height="600"></canvas>
-      <p class="hint" id="play-hint">click <b>play</b> to start · drag a node to perturb · the graph keeps the rule firing, growing itself node by node</p>
+      <p class="hint" id="play-hint">pick a mode, hit <b>play</b>, drag a node to perturb</p>
     </div>
     <div class="controls">
       <div class="ctrl-group">
-        <span class="ctrl-label">rule</span>
+        <span class="ctrl-label">mode</span>
+        <div class="seg" id="mode-seg">
+          <button data-mode="growth" class="active">growth</button>
+          <button data-mode="sandpile">sandpile</button>
+          <button data-mode="inet">interaction</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label" id="preset-label">rule</span>
         <div class="preset-row" id="preset-row"></div>
       </div>
 
@@ -310,14 +244,14 @@ footer a:hover { color: var(--accent); }
       </div>
 
       <div class="ctrl-group">
-        <span class="ctrl-label">events / sec</span>
+        <span class="ctrl-label" id="rate-label">events / sec</span>
         <div class="ctrl-row">
           <input id="rate-slider" type="range" min="0.5" max="40" value="6" step="0.5">
           <span class="ctrl-val" id="rate-val">6</span>
         </div>
       </div>
 
-      <div class="ctrl-group">
+      <div class="ctrl-group" id="scheme-group">
         <span class="ctrl-label">update scheme</span>
         <div class="seg" id="scheme-seg">
           <button data-scheme="seq" class="active">sequential</button>
@@ -326,7 +260,7 @@ footer a:hover { color: var(--accent); }
       </div>
 
       <div class="ctrl-group">
-        <span class="ctrl-label">node cap</span>
+        <span class="ctrl-label" id="cap-label">node cap</span>
         <div class="ctrl-row">
           <input id="cap-slider" type="range" min="20" max="600" value="220" step="10">
           <span class="ctrl-val" id="cap-val">220</span>
@@ -349,14 +283,8 @@ footer a:hover { color: var(--accent); }
         </div>
       </div>
 
-      <div class="stats">
-        <div class="stat-row"><span class="k">rule</span><span class="v" id="s-rule">—</span></div>
-        <div class="stat-row"><span class="k">nodes</span><span class="v hot" id="s-nodes">1</span></div>
-        <div class="stat-row"><span class="k">links</span><span class="v" id="s-edges">1</span></div>
-        <div class="stat-row"><span class="k">events</span><span class="v" id="s-events">0</span></div>
-        <div class="stat-row"><span class="k">generation</span><span class="v" id="s-gen">0</span></div>
-        <div class="rule-show" id="s-notation"></div>
-      </div>
+      <div class="stats" id="stats"></div>
+      <div class="legend" id="legend"></div>
     </div>
   </div>
 </section>
@@ -364,77 +292,82 @@ footer a:hover { color: var(--accent); }
 <!-- ─────────── RULES PANE ─────────── -->
 <section class="pane" data-pane="rules">
   <div class="rules-body">
-    <p>A <b>rule</b> rewrites the graph. It says: <i>wherever this little pattern of links appears, delete it and put this other pattern there instead</i> — minting fresh nodes for any variable on the right that wasn't on the left. Fire the rule again and again and the graph builds itself.</p>
+    <p>The <b>growth</b> mode rewrites the graph with a rule you can write yourself. (The <b>sandpile</b> and <b>interaction</b> modes carry their own fixed rule-sets — pick a preset in the play tab; the <b>docs</b> tab explains them.)</p>
+    <p>A growth rule says: <i>wherever this little pattern of links appears, delete it and put this other pattern there instead</i> — minting fresh nodes for any variable on the right that wasn't on the left. Fire it again and again and the graph builds itself.</p>
 
     <h2>notation</h2>
     <p>A link is a tuple of nodes in braces; a pattern is a set of links; lowercase letters are variables. The left of <code>→</code> is what to match, the right is what to leave behind.</p>
-    <p><span class="mono-inline">{{x,y}} → {{x,z},{z,y}}</span> reads: <i>find any link <code>x–y</code>; replace it with two links through a brand-new node <code>z</code>.</i> That single rule subdivides — every link it touches becomes a longer chain.</p>
-    <p>Variables only on the right (<code>z</code>, <code>w</code>) are <b>fresh nodes</b> — this is how the graph grows. Variables on both sides are <b>re-used</b>, stitching the new structure onto the old. A self-link <span class="mono-inline">{x,x}</span> is allowed (it renders as a small loop) and is a handy seed.</p>
+    <p><span class="mono-inline">{{x,y}} → {{x,z},{z,y}}</span> reads: <i>find any link <code>x–y</code>; replace it with two links through a brand-new node <code>z</code>.</i> Variables only on the right (<code>z</code>, <code>w</code>) are <b>fresh nodes</b> — this is how the graph grows. Variables on both sides are <b>re-used</b>, stitching new onto old. A self-link <span class="mono-inline">{x,x}</span> is allowed (renders as a loop) and makes a handy seed.</p>
 
-    <h2>the built-in rules</h2>
+    <h2>the built-in growth rules</h2>
     <div id="rule-cards"></div>
 
     <h2>write your own</h2>
-    <p>Type a rule below and load it into the playground. Binary links only (each tuple has two nodes); use lowercase variables.</p>
+    <p>Type a rule below and load it into the playground (switches to growth mode). Binary links only; lowercase variables.</p>
     <div class="editor-row">
       <input id="rule-input" type="text" spellcheck="false" value="{{x,y},{x,z}} -> {{x,z},{x,w},{y,w},{z,w}}">
       <button class="btn primary" id="load-rule-btn">load → play</button>
     </div>
     <p class="parse-msg" id="parse-msg">&nbsp;</p>
-    <p style="font-size:0.86rem;color:var(--muted)">Tips: keep the right-hand side small (1–4 links) or the graph explodes; include at least one re-used variable so new structure connects to old; one fresh variable per event is the classic “one new node at a time” feel.</p>
+    <p style="font-size:0.86rem;color:var(--muted)">Tips: keep the right-hand side small (1–4 links) or the graph explodes; include at least one re-used variable so new structure connects to old.</p>
   </div>
 </section>
 
 <!-- ─────────── DOCS PANE ─────────── -->
 <section class="pane" data-pane="docs">
   <div class="docs">
-    <p>You described a force-directed graph that periodically sprouts a new node, which then “interacts down the chain” Game-of-Life-style, sometimes spawning more nodes and links. That’s a real and well-studied idea — but it travels under several names, and the word <i>propagator</i> points at a slightly different one. Here’s the lay of the land.</p>
+    <p>You described a force-directed graph that periodically sprouts a new node, which then “interacts down the chain” Game-of-Life-style, sometimes spawning more nodes and links. That’s a real and well-studied idea — but it travels under several names, and the word <i>propagator</i> points at a slightly different one. The three play-tab modes are three points on that map.</p>
 
-    <h2>what you most likely saw</h2>
-    <p>The viral “growing graph” videos are almost always <b>hypergraph rewriting</b>, popularised by the <a href="https://www.wolframphysics.org/" target="_blank" rel="noopener">Wolfram Physics Project</a> (2020). The whole state of the world is a graph; a fixed <b>local rewrite rule</b> says “wherever this small sub-pattern occurs, replace it with that one.” Applying it over and over makes the graph grow and fold, and with a force-directed layout it looks like a living, branching organism. That is exactly the engine in the <b>play</b> tab.</p>
-    <p>It is genuinely Game-of-Life-like: Conway’s Life is a rewrite rule on a fixed grid; this is a rewrite rule on a graph whose <i>shape itself changes</i> as the rule fires. Same spirit — local rule, global emergent behaviour — but the substrate grows.</p>
+    <h2>mode 1 — growth (what the viral videos show)</h2>
+    <p>The “growing graph” videos are almost always <b>hypergraph rewriting</b>, popularised by the <a href="https://www.wolframphysics.org/" target="_blank" rel="noopener">Wolfram Physics Project</a> (2020): a fixed <b>local rewrite rule</b> says “wherever this small sub-pattern occurs, replace it with that one,” and applying it over and over makes the graph grow and fold. It’s Conway’s Life with a substrate that itself changes shape. But — as you noticed — a pure growth rule is <i>inert</i>: new nodes don’t feed back, they just take up space. The next two modes fix exactly that.</p>
 
-    <h2>but “propagators” is its own field</h2>
-    <p>The literal term <b>propagator networks</b> comes from Gerald Sussman and Alexey Radul’s <a href="https://groups.csail.mit.edu/mac/users/gjs/propagators/" target="_blank" rel="noopener">“The Art of the Propagator”</a> (2009) and Radul’s MIT thesis <a href="https://dspace.mit.edu/handle/1721.1/54635" target="_blank" rel="noopener">“Propagation Networks”</a>. It is a <i>computation</i> model, not a growth model:</p>
-    <blockquote>Cells accumulate information; propagators are stateless machines wired between cells that wake up whenever a neighbouring cell learns something new, compute, and push refined information back out — in any direction.</blockquote>
-    <p>So a propagator network is a fixed graph where <b>information</b> flows and merges (it underlies constraint solving, truth-maintenance, and spreadsheet-like reactive systems), whereas the growing-graph videos are about <b>structure</b> being rewritten. They’re cousins — both are “local machines firing on local changes, chained across a network” — which is probably why the same video gets called by either name. This playground builds the structural-growth kind, since that’s what you described visually; the table below places both.</p>
+    <h2>mode 2 — sandpile (cascading topples)</h2>
+    <p>The canonical “one addition triggers an avalanche” math is the <b>abelian sandpile</b> (Bak–Tang–Wiesenfeld 1987; Dhar). Each node holds grains; when a node’s pile reaches its degree it <b>topples</b>, shedding one grain to each neighbour — which can push <i>them</i> over, and so on. Drop a single grain and you might trigger an avalanche of any size. Grey hollow nodes are <b>sinks</b> (the open boundary) where grains fall off, so the system always settles. This is the textbook example of <b>self-organised criticality</b>: avalanche sizes follow a power law, with no tuning. Here the topology is fixed and only <i>state</i> cascades.</p>
 
-    <h2>the family of related fields</h2>
+    <h2>mode 3 — interaction nets (rewrites that rewire)</h2>
+    <p>The richest case — a cascade that also <b>reshapes the graph</b> — is <b>interaction nets</b> (Lafont 1990; interaction combinators 1997). Agents carry a symbol and meet at their <i>principal port</i>; a connected pair is a <b>redex</b> that fires:</p>
+    <ul>
+      <li><b>annihilate</b> — two like agents (C·C or D·D, or E·E) wired principal-to-principal vanish, splicing their other wires straight through.</li>
+      <li><b>commute / duplicate</b> — an unlike pair (C·D) each copies the other: two agents in, <i>four</i> out. This is the growth engine.</li>
+      <li><b>erase</b> — an eraser (E) meeting any agent deletes it and sends fresh erasers down its wires, which annihilate onward.</li>
+    </ul>
+    <p>Because firing rewires the graph, each reduction can create <i>new</i> redexes — so one collision sets off a chain that grows, prunes, and reshapes the whole net. And it’s <b>confluent</b>: the final normal form doesn’t depend on the order you fire. This is almost exactly “a new node’s presence makes a change that propagates and rewires.” (Symbols here: <b>C</b> = constructor γ, <b>D</b> = duplicator δ, <b>E</b> = eraser ε.)</p>
+
+    <h2>the family, and where these sit</h2>
     <table class="field-table">
-      <thead><tr><th>field</th><th>what fires</th><th>what it’s for</th></tr></thead>
+      <thead><tr><th>field</th><th>what fires</th><th>cascade?</th></tr></thead>
       <tbody>
-        <tr><td class="name">hypergraph rewriting</td><td>a local sub-pattern → replacement; the graph grows</td><td>Wolfram model of physics; emergent space &amp; causality</td></tr>
-        <tr><td class="name">graph grammars</td><td>productions rewrite a host graph (DPO/SPO algebraic theory)</td><td>the rigorous CS foundation — model transformation, software architecture, biology</td></tr>
-        <tr><td class="name">interaction nets</td><td>two wired agents meet → reduce to a new local net</td><td>Lafont’s confluent model of computation; optimal λ-reduction</td></tr>
-        <tr><td class="name">L-systems</td><td>parallel string/graph rewriting each tick</td><td>Lindenmayer’s model of plant growth &amp; fractals</td></tr>
-        <tr><td class="name">network / graph automata</td><td>cellular-automaton rules on a graph’s nodes</td><td>CA generalised off the grid</td></tr>
-        <tr><td class="name">propagator networks</td><td>cells gain info → propagators recompute &amp; push back</td><td>constraint/relational computation, reactive systems</td></tr>
+        <tr><td class="name">hypergraph rewriting</td><td>local sub-pattern → replacement; graph grows</td><td>structure grows, no feedback</td></tr>
+        <tr><td class="name">sandpile / chip-firing</td><td>over-full node topples to neighbours</td><td>state avalanches (fixed graph)</td></tr>
+        <tr><td class="name">interaction nets</td><td>principal-port pair reduces &amp; rewires</td><td>structure cascades — confluent</td></tr>
+        <tr><td class="name">bootstrap percolation / CA</td><td>node activates from active neighbours</td><td>state avalanches</td></tr>
+        <tr><td class="name">algorithmic chemistry</td><td>objects collide, react, produce new objects</td><td>open-ended self-construction</td></tr>
+        <tr><td class="name">propagator networks</td><td>cells gain info → propagators recompute</td><td>information flow (Sussman &amp; Radul)</td></tr>
       </tbody>
     </table>
+    <p>The literal term <b>propagator networks</b> is Sussman &amp; Radul’s <a href="https://groups.csail.mit.edu/mac/users/gjs/propagators/" target="_blank" rel="noopener">“The Art of the Propagator”</a> — a <i>computation</i> model where information (not structure) flows across a fixed network of cells. A cousin to all of the above, which is why the same video gets called by either name.</p>
 
-    <h2>best practices (yes, there are some)</h2>
-    <p>Building one of these well comes down to a handful of decisions the literature has converged on:</p>
+    <h2>best practices baked in</h2>
     <ul>
-      <li><b>The updating scheme is a real choice.</b> When several matches overlap, which fire? Wolfram’s standard is a maximal non-overlapping set per “generation”; the alternative is one random match at a time. The <b>play</b> tab exposes both (<code>sequential</code> vs <code>generations</code>) because they produce visibly different geometry from the <i>same</i> rule.</li>
-      <li><b>Confluence &amp; causal invariance.</b> If the final result doesn’t depend on the order matches fire, the system is <i>confluent</i> (Wolfram calls the graph version <i>causal invariance</i>). Interaction nets are confluent by construction — a celebrated property. Most interesting rules aren’t, which is exactly why order matters above.</li>
-      <li><b>Subgraph matching is the bottleneck.</b> Finding where a rule applies is subgraph isomorphism — NP-hard in general. Real engines index by node degree/labels and match incrementally; a playground just caps the graph size (the <code>node cap</code> slider) and randomises match order for variety.</li>
-      <li><b>Layout is a separate problem from rewriting.</b> The standard answer is a <b>force-directed</b> simulation — links are springs, all nodes repel (Fruchterman–Reingold / Barnes–Hut for big graphs). New nodes are dropped near their parents so growth looks organic rather than teleporting. Re-layout continuously; don’t freeze.</li>
-      <li><b>Determinism where you can get it.</b> Seed the RNG so a given rule + seed replays identically — essential for sharing and debugging. (Here, “random match” is the one deliberate exception.)</li>
-      <li><b>Termination.</b> Most growth rules never halt, so you bound them: a node cap, a generation count, or an energy threshold. Without a bound the tab would happily melt your laptop.</li>
+      <li><b>The updating scheme is a real choice</b> — growth mode exposes <code>sequential</code> vs <code>generations</code> (one random match vs a maximal non-overlapping set); same rule, different geometry.</li>
+      <li><b>Cascade = relax-to-quiescence before the next input.</b> Sandpile drops one grain, then topples until stable; that relaxation loop <i>is</i> the avalanche. Interaction nets reduce until no redex remains.</li>
+      <li><b>Confluence / causal invariance</b> — interaction nets are confluent by construction; most growth rules aren’t, which is why firing order matters.</li>
+      <li><b>Layout is separate from rewriting</b> — a force-directed sim (springs + repulsion); new nodes spawn near their parents so growth looks organic.</li>
+      <li><b>Termination</b> — growth and duplication never halt on their own, so a node cap bounds them.</li>
     </ul>
 
     <h2>going deeper</h2>
     <ul>
-      <li>Wolfram, <a href="https://writings.stephenwolfram.com/2020/04/finally-we-may-have-a-path-to-the-fundamental-theory-of-physics-and-its-beautiful/" target="_blank" rel="noopener">“A Path to the Fundamental Theory of Physics”</a> (2020) — the readable long-form intro to hypergraph rewriting.</li>
-      <li>Sussman &amp; Radul, <a href="https://groups.csail.mit.edu/mac/users/gjs/propagators/" target="_blank" rel="noopener">“The Art of the Propagator”</a> — the canonical propagator-network paper.</li>
-      <li>Lafont, “Interaction Nets” (POPL 1990) — the confluent graph-reduction model.</li>
-      <li>Ehrig et al., <i>Fundamentals of Algebraic Graph Transformation</i> — the DPO graph-grammar bible.</li>
-      <li>Prusinkiewicz &amp; Lindenmayer, <i>The Algorithmic Beauty of Plants</i> — L-systems, free online.</li>
+      <li>Wolfram, <a href="https://writings.stephenwolfram.com/2020/04/finally-we-may-have-a-path-to-the-fundamental-theory-of-physics-and-its-beautiful/" target="_blank" rel="noopener">“A Path to the Fundamental Theory of Physics”</a> (2020).</li>
+      <li>Bak, Tang &amp; Wiesenfeld, “Self-organized criticality” (1987); Dhar, “Self-organized critical state of sandpile automaton models” (1990).</li>
+      <li>Lafont, “Interaction Nets” (POPL 1990) &amp; “Interaction Combinators” (1997).</li>
+      <li>Sussman &amp; Radul, <a href="https://groups.csail.mit.edu/mac/users/gjs/propagators/" target="_blank" rel="noopener">“The Art of the Propagator.”</a></li>
+      <li>Fontana &amp; Buss, “‘The arrival of the fittest’: λ-AlChemy” — algorithmic chemistry.</li>
     </ul>
 
     <div class="meta-stamp">
-      prop · a mino.mobi math-pack playground · engine: hypergraph rewriting + force-directed layout, pure canvas, no deps<br>
-      the structural-growth model (what the videos show); propagator networks proper are the information-flow cousin noted above
+      prop · a mino.mobi math-pack playground · three engines (rewriting · sandpile · interaction nets) over one force-directed layout, pure canvas, no deps<br>
+      the interaction-net reducer is unit-tested for closed-net invariants
     </div>
   </div>
 </section>
@@ -450,493 +383,626 @@ footer a:hover { color: var(--accent); }
 <script>
 "use strict";
 // ════════════════════════════════════════════════════════════════════
-// prop — a graph-rewriting playground
-//   state  : a multiset of links (each link = ordered array of node ids)
-//   rule   : { lhs:[[i,j],...], rhs:[[i,j],...], nLhsVars, nRhsFresh }
-//            variables are integers 0..n-1; rhs vars >= nLhsVars are fresh
-//   layout : force-directed (repel-all + spring-links + gravity), continuous
+// prop — three local-rule engines over one force-directed layout
+//   growth   : hypergraph rewriting (inert growth)
+//   sandpile : abelian sandpile / chip-firing (state cascades)
+//   inet     : interaction combinators (structure cascades & rewires)
 // ════════════════════════════════════════════════════════════════════
 
-// ── format state (theme + labels) ──
+const NEW = 26; // frames a node/link stays "fresh"/flashed
+
+// ── format state ──
 const THEMES = {
-  default: {
-    node: '#1a1a1a', nodeNew: '#6d28d9', edge: 'rgba(40,40,40,0.30)',
-    edgeNew: 'rgba(109,40,217,0.95)', hyper: 'rgba(109,40,217,0.10)',
-    label: '#666', glow: false,
-  },
-  neon: {
-    node: '#7dd3fc', nodeNew: '#fef08a', edge: 'rgba(125,211,252,0.35)',
-    edgeNew: 'rgba(254,240,138,0.95)', hyper: 'rgba(167,139,250,0.14)',
-    label: '#9ca3af', glow: true,
-  },
+  default: { edge: 'rgba(40,40,40,0.28)', hot: '#6d28d9', label: '#666', glow: false },
+  neon:    { edge: 'rgba(125,211,252,0.32)', hot: '#fef08a', label: '#9ca3af', glow: true },
 };
 const fmt = { theme: 'default', labels: false };
 function TH() { return THEMES[fmt.theme]; }
 
-// ── rule presets ──
-// notation parsed by parseRule(); seed is an explicit small graph.
-const PRESETS = [
-  { id: 'subdivide', name: 'subdivide', notation: '{{x,y}} -> {{x,z},{z,y}}',
-    seed: [[0, 1]],
-    blurb: 'Every link it touches becomes a longer chain — a growing, wandering thread.' },
-  { id: 'sprout', name: 'sprout', notation: '{{x,y}} -> {{x,y},{y,z}}',
-    seed: [[0, 1]],
-    blurb: 'Keeps the link, hangs a fresh node off one end. Grows a branching tree.' },
-  { id: 'triangle', name: 'triangle', notation: '{{x,y}} -> {{x,z},{z,y},{x,y}}',
-    seed: [[0, 1]],
-    blurb: 'Caps each link with a new apex — a spreading triangulated frill.' },
-  { id: 'wolfram', name: 'wolfram mesh', notation: '{{x,y},{x,z}} -> {{x,z},{x,w},{y,w},{z,w}}',
-    seed: [[0, 0], [0, 0]],
-    blurb: "Wolfram's famous rule: two links sharing a node bloom into a little mesh. Grows surface-like balls." },
-  { id: 'tendril', name: 'tendril', notation: '{{x,y},{x,z}} -> {{y,z},{z,w},{x,w}}',
-    seed: [[0, 0], [0, 0]],
-    blurb: 'Reweaves a shared corner into a longer reaching strand. Lacy, tendrilled growth.' },
-  { id: 'loop', name: 'loops', notation: '{{x,y},{y,z}} -> {{x,y},{y,z},{z,x}}',
-    seed: [[0, 1], [1, 2]],
-    blurb: 'Closes paths of length two into triangles — folds the graph back on itself.' },
-];
+// ── shared graph state (render model used by every mode) ──
+const G = {
+  nodes: new Map(),  // id -> node {id,x,y,vx,vy,pinned,flash, ...modeData}
+  links: [],         // {a,b,flash}  (a,b are node ids)
+  nextId: 0,
+  frame: 0,
+  cap: 220,
+  events: 0,
+};
+function rnd() { return Math.random(); }
+function newNode(x, y, extra) {
+  const id = G.nextId++;
+  const n = Object.assign({ id, x, y, vx: 0, vy: 0, pinned: false, flash: NEW }, extra || {});
+  G.nodes.set(id, n);
+  return n;
+}
+function clearGraph() { G.nodes = new Map(); G.links = []; G.nextId = 0; G.events = 0; G.frame = 0; }
 
-// ── rule parsing ──────────────────────────────────────────────────────
-// "{{x,y},{x,z}} -> {{x,z},{x,w},{y,w},{z,w}}"  →  internal rule
+// ════════════════════════════════════════════════════════════════════
+// MODE 1 — GROWTH (hypergraph rewriting)
+// ════════════════════════════════════════════════════════════════════
+const GROWTH_PRESETS = [
+  { id: 'subdivide', name: 'subdivide', notation: '{{x,y}} -> {{x,z},{z,y}}', seed: [[0, 1]], blurb: 'Every link becomes a longer chain — a growing, wandering thread.' },
+  { id: 'sprout', name: 'sprout', notation: '{{x,y}} -> {{x,y},{y,z}}', seed: [[0, 1]], blurb: 'Keeps the link, hangs a fresh node off one end. Grows a branching tree.' },
+  { id: 'triangle', name: 'triangle', notation: '{{x,y}} -> {{x,z},{z,y},{x,y}}', seed: [[0, 1]], blurb: 'Caps each link with a new apex — a spreading triangulated frill.' },
+  { id: 'wolfram', name: 'wolfram mesh', notation: '{{x,y},{x,z}} -> {{x,z},{x,w},{y,w},{z,w}}', seed: [[0, 0], [0, 0]], blurb: "Wolfram's famous rule: two links sharing a node bloom into a mesh." },
+  { id: 'tendril', name: 'tendril', notation: '{{x,y},{x,z}} -> {{y,z},{z,w},{x,w}}', seed: [[0, 0], [0, 0]], blurb: 'Reweaves a shared corner into a longer strand. Lacy, tendrilled growth.' },
+  { id: 'loop', name: 'loops', notation: '{{x,y},{y,z}} -> {{x,y},{y,z},{z,x}}', seed: [[0, 1], [1, 2]], blurb: 'Closes paths of length two into triangles — folds the graph back.' },
+];
+let growthRule = null, growthScheme = 'seq', growthGen = 0, currentGrowthName = '';
+
 function parseRule(text) {
   const parts = text.split(/-+>|→/);
   if (parts.length !== 2) throw new Error('need exactly one  ->  arrow');
   const grab = (s, side) => {
-    const links = [];
-    const re = /\{\s*([a-zA-Z][\w]*)\s*,\s*([a-zA-Z][\w]*)\s*\}/g;
-    let m;
+    const links = []; const re = /\{\s*([a-zA-Z][\w]*)\s*,\s*([a-zA-Z][\w]*)\s*\}/g; let m;
     while ((m = re.exec(s)) !== null) links.push([m[1], m[2]]);
     if (links.length === 0) throw new Error(side + ' side has no {a,b} links');
     return links;
   };
-  const lhsRaw = grab(parts[0], 'left');
-  const rhsRaw = grab(parts[1], 'right');
-
-  // index variables: lhs vars first (these are matched), then fresh rhs-only vars
+  const lhsRaw = grab(parts[0], 'left'), rhsRaw = grab(parts[1], 'right');
   const idx = new Map();
   for (const [a, b] of lhsRaw) { if (!idx.has(a)) idx.set(a, idx.size); if (!idx.has(b)) idx.set(b, idx.size); }
   const nLhsVars = idx.size;
   for (const [a, b] of rhsRaw) { if (!idx.has(a)) idx.set(a, idx.size); if (!idx.has(b)) idx.set(b, idx.size); }
   const lhs = lhsRaw.map(([a, b]) => [idx.get(a), idx.get(b)]);
   const rhs = rhsRaw.map(([a, b]) => [idx.get(a), idx.get(b)]);
-  if (lhs.length > 3) throw new Error('keep the left side to ≤ 3 links (matching gets slow)');
+  if (lhs.length > 3) throw new Error('keep the left side to ≤ 3 links');
   return { lhs, rhs, nLhsVars, nVars: idx.size, notation: text.trim() };
 }
-
-// ════════════════════════════════════════════════════════════════════
-// the rewrite engine
-// ════════════════════════════════════════════════════════════════════
-const G = {
-  rule: null,
-  links: [],            // [{a, b, born}]  a,b = node ids
-  nodes: new Map(),     // id -> {x, y, vx, vy, born, pinned}
-  nextId: 0,
-  events: 0,
-  generation: 0,
-  scheme: 'seq',
-  cap: 220,
-  frame: 0,
-};
-
-function rand() { return Math.random(); }
-
-function freshNode(nx, ny) {
-  const id = G.nextId++;
-  G.nodes.set(id, { x: nx, y: ny, vx: 0, vy: 0, born: G.frame, pinned: false });
-  return id;
+function seedGrowth(preset) {
+  clearGraph(); growthRule = parseRule(preset.notation); growthGen = 0; currentGrowthName = preset.name;
+  const seedMap = new Map(), J = 40;
+  for (const [a, b] of preset.seed) for (const v of [a, b])
+    if (!seedMap.has(v)) seedMap.set(v, newNode((rnd() - 0.5) * J, (rnd() - 0.5) * J).id);
+  for (const [a, b] of preset.seed) G.links.push({ a: seedMap.get(a), b: seedMap.get(b), flash: 0 });
 }
-
-function resetGraph(preset) {
-  G.rule = parseRule(preset.notation);
-  G.links = [];
-  G.nodes = new Map();
-  G.nextId = 0;
-  G.events = 0;
-  G.generation = 0;
-  G.frame = 0;
-  // build seed: map seed's small node ids to fresh nodes, near centre with jitter
-  const seedMap = new Map();
-  const J = 40;
-  for (const [a, b] of preset.seed) {
-    for (const v of [a, b]) {
-      if (!seedMap.has(v)) seedMap.set(v, freshNode((rand() - 0.5) * J, (rand() - 0.5) * J));
-    }
-  }
-  for (const [a, b] of preset.seed) {
-    G.links.push({ a: seedMap.get(a), b: seedMap.get(b), born: 0 });
-  }
-  updateStats();
-}
-
-// try to bind a link-pattern array against a concrete link, extending `binding`.
-// binding maps varIndex -> nodeId.  links are undirected: try both orientations.
 function bindLink(pat, link, binding) {
   for (const [pa, pb] of [[link.a, link.b], [link.b, link.a]]) {
-    const nb = binding.slice();
-    let ok = true;
-    const trial = [[pat[0], pa], [pat[1], pb]];
-    for (const [v, id] of trial) {
-      if (nb[v] === undefined || nb[v] === null) nb[v] = id;
-      else if (nb[v] !== id) { ok = false; break; }
+    const nb = binding.slice(); let ok = true;
+    for (const [v, id] of [[pat[0], pa], [pat[1], pb]]) {
+      if (nb[v] == null) nb[v] = id; else if (nb[v] !== id) { ok = false; break; }
     }
     if (ok) return nb;
   }
   return null;
 }
-
-// find ALL matches of the lhs. each = {binding, used:[linkIdx...]}.  capped.
-function findMatches(limit) {
-  const lhs = G.rule.lhs, L = G.links.length, out = [];
+function growthMatches(limit) {
+  const lhs = growthRule.lhs, L = G.links.length, out = [];
   const order = [...Array(L).keys()];
-  // randomise so single-match (sequential) picks vary, and gen-mode varies too
-  for (let i = L - 1; i > 0; i--) { const j = (rand() * (i + 1)) | 0; [order[i], order[j]] = [order[j], order[i]]; }
-  const blank = new Array(G.rule.nVars).fill(null);
-  function rec(pi, binding, used) {
+  for (let i = L - 1; i > 0; i--) { const j = (rnd() * (i + 1)) | 0; [order[i], order[j]] = [order[j], order[i]]; }
+  const blank = new Array(growthRule.nVars).fill(null);
+  (function rec(pi, binding, used) {
     if (out.length >= limit) return;
     if (pi === lhs.length) { out.push({ binding: binding.slice(), used: used.slice() }); return; }
-    const pat = lhs[pi];
     for (const e of order) {
       if (used.includes(e)) continue;
-      const nb = bindLink(pat, G.links[e], binding);
+      const nb = bindLink(lhs[pi], G.links[e], binding);
       if (nb) { used.push(e); rec(pi + 1, nb, used); used.pop(); if (out.length >= limit) return; }
     }
-  }
-  rec(0, blank, []);
+  })(0, blank, []);
   return out;
 }
-
-// apply one match: remove its links, add rhs (minting fresh nodes near parents)
-function applyMatch(match) {
-  const b = match.binding.slice();
-  // spawn point = centroid of matched (existing) nodes
-  let cx = 0, cy = 0, n = 0;
-  for (let v = 0; v < G.rule.nLhsVars; v++) {
-    const nd = G.nodes.get(b[v]); if (nd) { cx += nd.x; cy += nd.y; n++; }
-  }
-  if (n) { cx /= n; cy /= n; }
-  for (let v = G.rule.nLhsVars; v < G.rule.nVars; v++) {
-    if (b[v] === null || b[v] === undefined) {
-      b[v] = freshNode(cx + (rand() - 0.5) * 30, cy + (rand() - 0.5) * 30);
-    }
-  }
-  // remove matched links (high→low index)
-  const rm = match.used.slice().sort((p, q) => q - p);
-  for (const e of rm) G.links.splice(e, 1);
-  // add rhs links
-  for (const [i, j] of G.rule.rhs) G.links.push({ a: b[i], b: b[j], born: G.frame });
-  G.events++;
-  garbageCollect();
-}
-
-function garbageCollect() {
-  const live = new Set();
-  for (const l of G.links) { live.add(l.a); live.add(l.b); }
-  for (const id of G.nodes.keys()) if (!live.has(id)) G.nodes.delete(id);
-}
-
-// one tick of rewriting (respecting scheme + cap)
-function rewriteTick() {
-  if (G.nodes.size >= G.cap) { setPlaying(false); flashHint('node cap reached — bump the cap or reset'); return false; }
-  if (G.scheme === 'seq') {
-    const m = findMatches(1);
-    if (m.length === 0) { setPlaying(false); flashHint('no matches left — this rule has run dry'); return false; }
-    applyMatch(m[0]);
-  } else {
-    // generations: a maximal non-overlapping set, applied "simultaneously"
-    const all = findMatches(2000);
-    if (all.length === 0) { setPlaying(false); flashHint('no matches left — this rule has run dry'); return false; }
-    const usedLinks = new Set();
-    const chosen = [];
-    for (const m of all) {
-      if (m.used.some(e => usedLinks.has(e))) continue;
-      m.used.forEach(e => usedLinks.add(e));
-      chosen.push(m);
-    }
-    // apply in one pass — collect rewrites against the SAME old link indices,
-    // so resolve by removing all chosen links then adding all rhs.
-    applyGeneration(chosen);
-    G.generation++;
-  }
-  updateStats();
-  return true;
-}
-
-// simultaneous application of a non-overlapping match set
-function applyGeneration(matches) {
-  const toRemove = new Set();
-  const additions = [];
+function growthApply(matches) {
+  const remove = new Set(), additions = [];
   for (const match of matches) {
     const b = match.binding.slice();
     let cx = 0, cy = 0, n = 0;
-    for (let v = 0; v < G.rule.nLhsVars; v++) {
-      const nd = G.nodes.get(b[v]); if (nd) { cx += nd.x; cy += nd.y; n++; }
-    }
+    for (let v = 0; v < growthRule.nLhsVars; v++) { const nd = G.nodes.get(b[v]); if (nd) { cx += nd.x; cy += nd.y; n++; } }
     if (n) { cx /= n; cy /= n; }
-    for (let v = G.rule.nLhsVars; v < G.rule.nVars; v++) {
-      if (b[v] === null || b[v] === undefined) b[v] = freshNode(cx + (rand() - 0.5) * 30, cy + (rand() - 0.5) * 30);
-    }
-    match.used.forEach(e => toRemove.add(e));
-    for (const [i, j] of G.rule.rhs) additions.push({ a: b[i], b: b[j], born: G.frame });
+    for (let v = growthRule.nLhsVars; v < growthRule.nVars; v++)
+      if (b[v] == null) b[v] = newNode(cx + (rnd() - 0.5) * 30, cy + (rnd() - 0.5) * 30).id;
+    match.used.forEach(e => remove.add(e));
+    for (const [i, j] of growthRule.rhs) additions.push({ a: b[i], b: b[j], flash: NEW });
     G.events++;
   }
-  G.links = G.links.filter((_, e) => !toRemove.has(e));
+  G.links = G.links.filter((_, e) => !remove.has(e));
   for (const a of additions) G.links.push(a);
   garbageCollect();
 }
+function growthTick() {
+  if (G.nodes.size >= G.cap) { stop('node cap reached — bump the cap or reset'); return false; }
+  if (growthScheme === 'seq') {
+    const m = growthMatches(1);
+    if (!m.length) { stop('no matches left — this rule ran dry'); return false; }
+    growthApply(m);
+  } else {
+    const all = growthMatches(3000); if (!all.length) { stop('no matches left — this rule ran dry'); return false; }
+    const used = new Set(), chosen = [];
+    for (const m of all) { if (m.used.some(e => used.has(e))) continue; m.used.forEach(e => used.add(e)); chosen.push(m); }
+    growthApply(chosen); growthGen++;
+  }
+  return true;
+}
+function garbageCollect() {
+  const live = new Set();
+  for (const l of G.links) { live.add(l.a); live.add(l.b); }
+  for (const id of [...G.nodes.keys()]) if (!live.has(id)) G.nodes.delete(id);
+}
 
 // ════════════════════════════════════════════════════════════════════
-// force-directed layout
+// MODE 2 — SANDPILE (abelian chip-firing)
+// ════════════════════════════════════════════════════════════════════
+const SAND_PRESETS = [
+  { id: 'random', name: 'random net', size: 110, m: 1.6, sink: 0.09, blurb: 'A grown random network.' },
+  { id: 'dense', name: 'dense', size: 130, m: 2.6, sink: 0.07, blurb: 'More links per node — fatter avalanches.' },
+  { id: 'sparse', name: 'sparse', size: 90, m: 1.05, sink: 0.12, blurb: 'Nearly a tree — long thin cascades.' },
+];
+let sandRelaxing = false, sandAval = 0, sandLastAval = 0, sandMaxAval = 0, sandGrains = 0, currentSandName = '';
+let sandSize = 110, sandM = 1.6, sandSinkFrac = 0.09;
+
+function seedSandpile(preset) {
+  clearGraph();
+  currentSandName = preset.name; sandSize = preset.size; sandM = preset.m; sandSinkFrac = preset.sink;
+  sandRelaxing = false; sandAval = 0; sandLastAval = 0; sandMaxAval = 0; sandGrains = 0;
+  const N = Math.min(preset.size, G.cap), R = 26 * Math.sqrt(N);
+  const ids = [];
+  const first = newNode((rnd() - 0.5) * R, (rnd() - 0.5) * R, { chips: 0, sink: false, neigh: [] });
+  ids.push(first.id);
+  for (let i = 1; i < N; i++) {
+    const node = newNode((rnd() - 0.5) * R, (rnd() - 0.5) * R, { chips: 0, sink: false, neigh: [] });
+    const m = 1 + ((rnd() < (preset.m - 1)) ? 1 : 0);
+    const picks = new Set();
+    for (let k = 0; k < m; k++) {
+      // preferential-ish: bias toward higher-degree existing nodes
+      let pick;
+      for (let tries = 0; tries < 8; tries++) {
+        const cand = ids[(rnd() * ids.length) | 0];
+        const c = G.nodes.get(cand);
+        if (rnd() < (1 + c.neigh.length) / 6 || tries === 7) { pick = cand; break; }
+      }
+      if (pick !== node.id) picks.add(pick);
+    }
+    for (const p of picks) { G.links.push({ a: node.id, b: p, flash: 0 }); G.nodes.get(p).neigh.push(node.id); node.neigh.push(p); }
+    ids.push(node.id);
+  }
+  // sinks: a fraction, preferring low-degree nodes (the boundary)
+  const sorted = ids.map(id => G.nodes.get(id)).sort((u, v) => u.neigh.length - v.neigh.length);
+  const nSink = Math.max(1, Math.floor(N * preset.sink));
+  for (let i = 0; i < nSink && i < sorted.length; i++) sorted[i].sink = true;
+  // start subcritical
+  for (const id of ids) { const n = G.nodes.get(id); n.flash = 0; if (!n.sink && n.neigh.length > 0) n.chips = (rnd() * n.neigh.length) | 0; }
+}
+function sandThreshold(n) { return Math.max(1, n.neigh.length); }
+function sandDrop() {
+  const cands = [...G.nodes.values()].filter(n => !n.sink && n.neigh.length > 0);
+  if (!cands.length) return;
+  const n = cands[(rnd() * cands.length) | 0];
+  n.chips++; n.flash = NEW; sandGrains++;
+  if (n.chips >= sandThreshold(n)) { sandRelaxing = true; sandAval = 0; }
+}
+function sandWave() {
+  // one parallel topple wave (abelian — order-independent)
+  const unstable = [...G.nodes.values()].filter(n => !n.sink && n.chips >= sandThreshold(n));
+  if (!unstable.length) {
+    sandRelaxing = false; sandLastAval = sandAval; if (sandAval > sandMaxAval) sandMaxAval = sandAval;
+    return;
+  }
+  for (const n of unstable) {
+    const th = sandThreshold(n);
+    n.chips -= th; n.flash = NEW; sandAval++;
+    for (const nb of n.neigh) { const m = G.nodes.get(nb); if (!m.sink) m.chips++; } // sinks dissipate
+  }
+  // flash incident links of toppled nodes
+  const fired = new Set(unstable.map(n => n.id));
+  for (const l of G.links) if (fired.has(l.a) || fired.has(l.b)) l.flash = NEW;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MODE 3 — INTERACTION NETS  (interaction combinators C=γ, D=δ, E=ε)
+//   Pure engine below the marker is unit-tested in Node (prop.test.mjs).
+// ════════════════════════════════════════════════════════════════════
+// >>> INET_ENGINE_START
+// A node: { id, sym:'C'|'D'|'E', ports:[peer,peer,peer] }  peer = {node, port} | null
+// port 0 = principal; ports 1,2 = auxiliary (E uses only port 0).
+function inetConnect(n1, p1, n2, p2) { n1.ports[p1] = { node: n2, port: p2 }; n2.ports[p2] = { node: n1, port: p1 }; }
+function inetArity(sym) { return sym === 'E' ? 1 : 3; }
+
+// find one active pair (two agents joined principal-to-principal). api.nodes = iterable of nodes
+function inetFindActive(nodes) {
+  for (const a of nodes) {
+    const p = a.ports[0];
+    if (p && p.port === 0 && p.node !== a) {
+      const b = p.node;
+      if (b.ports[0] && b.ports[0].node === a && b.ports[0].port === 0) return [a, b];
+    }
+  }
+  return null;
+}
+
+// reduce active pair (a,b). api: { make(sym, near)->node, del(node) }.
+// Returns the list of newly created nodes (for layout placement / flashing).
+function inetReduce(a, b, api) {
+  const created = [];
+  // classify
+  const ann = (a.sym === b.sym && a.sym !== 'E' && b.sym !== 'E') || (a.sym === 'E' && b.sym === 'E');
+  const era = (a.sym === 'E') !== (b.sym === 'E'); // exactly one eraser
+  // collect redex aux ports as "slots"
+  const redex = new Set([a, b]);
+  const slots = [];
+  for (const nd of [a, b]) if (nd.sym !== 'E') { slots.push({ node: nd, port: 1 }); slots.push({ node: nd, port: 2 }); }
+  // snapshot peers of every slot BEFORE mutation
+  const peer = new Map();
+  for (const s of slots) peer.set(s.node.id + ':' + s.port, s.node.ports[s.port]);
+
+  // build the replacement's "wires": each wire is [endA, endB], endpoints are
+  // either {slot:{node,port}} (a redex aux port) or {real:{node,port}} (a new-node port).
+  const wires = [];
+  const S = (node, port) => ({ slot: { node, port } });
+  const Rn = (node, port) => ({ real: { node, port } });
+
+  if (ann) {
+    if (a.sym === 'E') { /* E-E: nothing, just delete */ }
+    else { wires.push([S(a, 1), S(b, 1)], [S(a, 2), S(b, 2)]); }
+  } else if (era) {
+    const g = a.sym === 'E' ? b : a;            // the non-eraser
+    const e1 = api.make('E', g), e2 = api.make('E', g); created.push(e1, e2);
+    wires.push([S(g, 1), Rn(e1, 0)], [S(g, 2), Rn(e2, 0)]);
+  } else {
+    // commutation C·D: 2 in -> 4 out
+    const G_ = a, D_ = b;                        // generic names; both non-E
+    const c1 = api.make(G_.sym, a), c2 = api.make(G_.sym, a);
+    const d1 = api.make(D_.sym, b), d2 = api.make(D_.sym, b);
+    created.push(c1, c2, d1, d2);
+    wires.push(
+      [S(G_, 1), Rn(c1, 0)], [S(G_, 2), Rn(c2, 0)],
+      [S(D_, 1), Rn(d1, 0)], [S(D_, 2), Rn(d2, 0)],
+      [Rn(c1, 1), Rn(d1, 1)], [Rn(c1, 2), Rn(d2, 1)],
+      [Rn(c2, 1), Rn(d1, 2)], [Rn(c2, 2), Rn(d2, 2)],
+    );
+  }
+
+  // Build an adjacency over endpoints: rule wires + the existing peer wires of
+  // each slot. Slots are degree-2 pass-throughs; contract them so we connect
+  // real endpoints (new ports & true externals) to each other.
+  const key = ep => ep.node.id + ':' + ep.port + (ep.__new ? 'n' : '');
+  const adj = new Map(); const store = new Map();
+  const add = (u, v) => {
+    const ku = key(u), kv = key(v);
+    store.set(ku, u); store.set(kv, v);
+    (adj.get(ku) || adj.set(ku, []).get(ku)).push(kv);
+    (adj.get(kv) || adj.set(kv, []).get(kv)).push(ku);
+  };
+  const epOf = end => end.slot ? end.slot : Object.assign({}, end.real, { __new: created.includes(end.real.node) });
+  for (const [u, v] of wires) add(epOf(u), epOf(v));
+  for (const s of slots) { const pe = peer.get(s.node.id + ':' + s.port); if (pe) add({ node: s.node, port: s.port }, { node: pe.node, port: pe.port }); }
+
+  const isSlot = ep => redex.has(ep.node);
+  const visited = new Set();
+  const conns = [];
+  for (const [k, ep] of store) {
+    if (isSlot(ep) || visited.has(k)) continue;       // start only from real endpoints
+    // walk through slots to the other real endpoint
+    let prev = k, cur = (adj.get(k) || [])[0];
+    let guard = 0, end = null;
+    while (cur != null && guard++ < 64) {
+      const cep = store.get(cur);
+      if (!isSlot(cep)) { end = cur; break; }
+      const nbrs = adj.get(cur) || [];
+      const nxt = nbrs.find(x => x !== prev);
+      prev = cur; cur = nxt;
+    }
+    if (end != null && !visited.has(end)) {
+      visited.add(k); visited.add(end);
+      conns.push([ep, store.get(end)]);
+    }
+  }
+  // tear down redex, then realize connections
+  api.del(a); api.del(b);
+  for (const [u, v] of conns) inetConnect(u.node, u.port, v.node, v.port);
+  return created;
+}
+// <<< INET_ENGINE_END
+
+const INET_PRESETS = [
+  { id: 'soup', name: 'soup', size: 14, ratio: { C: 0.4, D: 0.4, E: 0.2 }, blurb: 'A mixed broth — grows and prunes.' },
+  { id: 'dup', name: 'duplication', size: 12, ratio: { C: 0.5, D: 0.45, E: 0.05 }, blurb: 'C·D heavy — commutation makes it bloom.' },
+  { id: 'erase', name: 'erasure', size: 16, ratio: { C: 0.35, D: 0.3, E: 0.35 }, blurb: 'Erasers eat the net in chain reactions.' },
+];
+const INET_COL = { C: '#2563eb', D: '#ea580c', E: '#64748b' };
+let currentInetName = '', inetActiveCount = 0, inetReductions = 0;
+
+const inetApi = {
+  make(sym, near) {
+    const x = (near ? near.x : 0) + (rnd() - 0.5) * 28, y = (near ? near.y : 0) + (rnd() - 0.5) * 28;
+    return newNode(x, y, { sym, ports: new Array(inetArity(sym)).fill(null) });
+  },
+  del(node) { G.nodes.delete(node.id); },
+};
+function seedInet(preset) {
+  clearGraph(); currentInetName = preset.name; inetReductions = 0;
+  const N = preset.size, R = 150;
+  const nodes = [];
+  for (let i = 0; i < N; i++) {
+    const r = rnd(); const sym = r < preset.ratio.C ? 'C' : r < preset.ratio.C + preset.ratio.D ? 'D' : 'E';
+    nodes.push(inetApi.make(sym, { x: (rnd() - 0.5) * R, y: (rnd() - 0.5) * R }));
+  }
+  // collect all ports, random perfect matching (ensure even count)
+  const ports = [];
+  for (const n of nodes) for (let p = 0; p < n.ports.length; p++) ports.push({ node: n, port: p });
+  for (let i = ports.length - 1; i > 0; i--) { const j = (rnd() * (i + 1)) | 0; [ports[i], ports[j]] = [ports[j], ports[i]]; }
+  if (ports.length % 2 === 1) { const e = inetApi.make('E', { x: (rnd() - 0.5) * R, y: (rnd() - 0.5) * R }); nodes.push(e); ports.push({ node: e, port: 0 }); }
+  for (let i = 0; i + 1 < ports.length; i += 2) {
+    const u = ports[i], v = ports[i + 1];
+    if (u.node === v.node) { // avoid a port pairing within the same node where possible
+      const w = ports[(i + 2) % ports.length]; if (w && w.node !== u.node) { ports[i + 1] = w; ports[(i + 2) % ports.length] = v; }
+    }
+    inetConnect(ports[i].node, ports[i].port, ports[i + 1].node, ports[i + 1].port);
+  }
+  for (const n of G.nodes.values()) n.flash = 0;
+  rebuildInetLinks();
+}
+function rebuildInetLinks() {
+  const seen = new Set(), links = [];
+  for (const n of G.nodes.values()) {
+    for (let p = 0; p < n.ports.length; p++) {
+      const pe = n.ports[p]; if (!pe) continue;
+      const ka = n.id * 4 + p, kb = pe.node.id * 4 + pe.port;
+      const k = Math.min(ka, kb) + '-' + Math.max(ka, kb);
+      if (seen.has(k)) continue; seen.add(k);
+      const prev = G.links.find(l => (l.a === n.id && l.b === pe.node.id) || (l.a === pe.node.id && l.b === n.id));
+      links.push({ a: n.id, b: pe.node.id, flash: prev ? prev.flash : 0, principal: p === 0 && pe.port === 0 });
+    }
+  }
+  G.links = links;
+}
+function inetTick() {
+  if (G.nodes.size >= G.cap) { stop('agent cap reached — bump the cap or reset'); return false; }
+  const pair = inetFindActive(G.nodes.values());
+  if (!pair) { stop('normal form — no active pairs left'); return false; }
+  const made = inetReduce(pair[0], pair[1], inetApi);
+  for (const n of made) n.flash = NEW;
+  inetReductions++; G.events++;
+  rebuildInetLinks();
+  return true;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// FORCE-DIRECTED LAYOUT (shared)
 // ════════════════════════════════════════════════════════════════════
 const LAYOUT = { rep: 1, len: 1 };
 function physicsStep(dt) {
-  const ids = [...G.nodes.keys()];
-  const N = ids.length;
-  if (N === 0) return;
-  const nd = ids.map(id => G.nodes.get(id));
-  const baseLen = 46 * LAYOUT.len;
-  const kRep = 2400 * LAYOUT.rep;
-  // repulsion (O(n^2); fine within the node cap)
+  const nd = [...G.nodes.values()], N = nd.length; if (!N) return;
+  const baseLen = 46 * LAYOUT.len, kRep = 2400 * LAYOUT.rep;
   for (let i = 0; i < N; i++) {
     const a = nd[i];
     for (let j = i + 1; j < N; j++) {
       const b = nd[j];
-      let dx = a.x - b.x, dy = a.y - b.y;
-      let d2 = dx * dx + dy * dy;
-      if (d2 < 0.01) { dx = (rand() - 0.5); dy = (rand() - 0.5); d2 = 0.25; }
-      const inv = 1 / d2;
-      const f = kRep * inv;
-      const d = Math.sqrt(d2);
-      const fx = f * dx / d, fy = f * dy / d;
+      let dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
+      if (d2 < 0.01) { dx = rnd() - 0.5; dy = rnd() - 0.5; d2 = 0.25; }
+      const d = Math.sqrt(d2), f = kRep / d2, fx = f * dx / d, fy = f * dy / d;
       a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
     }
   }
-  // springs along links
   const kSpring = 0.06;
   for (const l of G.links) {
     if (l.a === l.b) continue;
-    const a = G.nodes.get(l.a), b = G.nodes.get(l.b);
-    if (!a || !b) continue;
-    let dx = b.x - a.x, dy = b.y - a.y;
-    let d = Math.sqrt(dx * dx + dy * dy) || 0.01;
-    const f = kSpring * (d - baseLen);
-    const fx = f * dx / d, fy = f * dy / d;
+    const a = G.nodes.get(l.a), b = G.nodes.get(l.b); if (!a || !b) continue;
+    let dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+    const f = kSpring * (d - baseLen), fx = f * dx / d, fy = f * dy / d;
     a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
   }
-  // gravity to centre + integrate + damp
   const damp = 0.86, gravity = 0.012;
   for (const n of nd) {
     if (n.pinned) { n.vx = 0; n.vy = 0; continue; }
-    n.vx -= n.x * gravity; n.vy -= n.y * gravity;
-    n.vx *= damp; n.vy *= damp;
-    const sp = Math.hypot(n.vx, n.vy), MAX = 40;
-    if (sp > MAX) { n.vx *= MAX / sp; n.vy *= MAX / sp; }
+    n.vx -= n.x * gravity; n.vy -= n.y * gravity; n.vx *= damp; n.vy *= damp;
+    const sp = Math.hypot(n.vx, n.vy); if (sp > 40) { n.vx *= 40 / sp; n.vy *= 40 / sp; }
     n.x += n.vx * dt; n.y += n.vy * dt;
   }
 }
 
 // ════════════════════════════════════════════════════════════════════
-// rendering (auto-fit world → canvas)
+// RENDER (auto-fit)
 // ════════════════════════════════════════════════════════════════════
 const canvas = document.getElementById('graph-canvas');
 const ctx = canvas.getContext('2d');
 let DPR = Math.min(window.devicePixelRatio || 1, 2);
-const view = { cx: 0, cy: 0, scale: 1 };  // smoothed
-
+const view = { cx: 0, cy: 0, scale: 1 };
 function resizeCanvas() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   const r = canvas.getBoundingClientRect();
-  canvas.width = Math.round(r.width * DPR);
-  canvas.height = Math.round(r.height * DPR);
+  canvas.width = Math.round(r.width * DPR); canvas.height = Math.round(r.height * DPR);
 }
-
 function fitView() {
-  const ids = [...G.nodes.keys()];
-  if (ids.length === 0) return;
+  const ns = [...G.nodes.values()]; if (!ns.length) return;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const id of ids) { const n = G.nodes.get(id); minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x); minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y); }
-  const w = canvas.width, h = canvas.height, pad = 46 * DPR;
-  const gw = Math.max(maxX - minX, 60), gh = Math.max(maxY - minY, 60);
-  const targetScale = Math.min((w - 2 * pad) / gw, (h - 2 * pad) / gh, 6 * DPR);
-  const tcx = (minX + maxX) / 2, tcy = (minY + maxY) / 2;
+  for (const n of ns) { minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x); minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y); }
+  const pad = 46 * DPR, gw = Math.max(maxX - minX, 60), gh = Math.max(maxY - minY, 60);
+  const targetScale = Math.min((canvas.width - 2 * pad) / gw, (canvas.height - 2 * pad) / gh, 6 * DPR);
   const k = 0.08;
   view.scale += (targetScale - view.scale) * k;
-  view.cx += (tcx - view.cx) * k;
-  view.cy += (tcy - view.cy) * k;
+  view.cx += ((minX + maxX) / 2 - view.cx) * k; view.cy += ((minY + maxY) / 2 - view.cy) * k;
 }
+function w2s(x, y) { return [canvas.width / 2 + (x - view.cx) * view.scale, canvas.height / 2 + (y - view.cy) * view.scale]; }
+function s2w(px, py) { return [(px - canvas.width / 2) / view.scale + view.cx, (py - canvas.height / 2) / view.scale + view.cy]; }
 
-function worldToScreen(x, y) {
-  return [canvas.width / 2 + (x - view.cx) * view.scale, canvas.height / 2 + (y - view.cy) * view.scale];
+function sandColor(n) {
+  if (n.sink) return null; // hollow
+  const ratio = n.neigh.length ? Math.min(1, n.chips / sandThreshold(n)) : 0;
+  const hue = 210 - 210 * ratio; // blue -> red
+  return `hsl(${hue}, 75%, ${fmt.theme === 'neon' ? 60 : 48}%)`;
 }
-function screenToWorld(px, py) {
-  return [(px - canvas.width / 2) / view.scale + view.cx, (py - canvas.height / 2) / view.scale + view.cy];
+function nodeColor(n) {
+  if (MODE === 'inet') return INET_COL[n.sym] || '#888';
+  if (MODE === 'sandpile') return sandColor(n) || (fmt.theme === 'neon' ? '#334' : '#bbb');
+  return fmt.theme === 'neon' ? '#7dd3fc' : '#1a1a1a'; // growth
 }
+function nodeRadius(n) {
+  if (MODE === 'inet') return (n.sym === 'E' ? 2.6 : 3.6) * DPR;
+  if (MODE === 'sandpile') return (n.sink ? 3 : 2.6 + Math.min(n.chips, 6) * 0.45) * DPR;
+  return (2.6 + Math.min(degOf(n.id), 8) * 0.5) * DPR; // growth
+}
+const _deg = new Map();
+function degOf(id) { return _deg.get(id) || 0; }
+function recomputeDegrees() { _deg.clear(); for (const l of G.links) { _deg.set(l.a, (_deg.get(l.a) || 0) + 1); _deg.set(l.b, (_deg.get(l.b) || 0) + 1); } }
 
 function render() {
   const th = TH();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  const NEW = 26; // frames a link/node stays "new"-coloured
-
-  // links
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (const l of G.links) {
-    const a = G.nodes.get(l.a), b = G.nodes.get(l.b);
-    if (!a || !b) continue;
-    const age = G.frame - l.born;
-    const fresh = age < NEW;
-    const t = fresh ? (1 - age / NEW) : 0;
-    if (l.a === l.b) { drawSelfLoop(a, fresh, t, th); continue; }
-    const [ax, ay] = worldToScreen(a.x, a.y);
-    const [bx, by] = worldToScreen(b.x, b.y);
-    ctx.strokeStyle = fresh ? th.edgeNew : th.edge;
-    ctx.lineWidth = (fresh ? 2.4 : 1.2) * DPR;
-    if (th.glow && fresh) { ctx.shadowColor = th.edgeNew; ctx.shadowBlur = 8 * t * DPR; }
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-    ctx.shadowBlur = 0;
+    const a = G.nodes.get(l.a), b = G.nodes.get(l.b); if (!a || !b) continue;
+    if (l.a === l.b) { drawLoop(a, l.flash > 0, th); continue; }
+    const [ax, ay] = w2s(a.x, a.y), [bx, by] = w2s(b.x, b.y);
+    const hot = l.flash > 0;
+    ctx.strokeStyle = hot ? th.hot : th.edge;
+    ctx.lineWidth = (hot ? 2.4 : (MODE === 'inet' && l.principal ? 1.7 : 1.1)) * DPR;
+    if (th.glow && hot) { ctx.shadowColor = th.hot; ctx.shadowBlur = 7 * DPR; }
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.shadowBlur = 0;
   }
-
-  // nodes
-  for (const [id, n] of G.nodes) {
-    const [sx, sy] = worldToScreen(n.x, n.y);
-    const age = G.frame - n.born;
-    const fresh = age < NEW;
-    const deg = nodeDegree(id);
-    const r = (2.6 + Math.min(deg, 8) * 0.5) * DPR;
-    ctx.fillStyle = fresh ? th.nodeNew : th.node;
-    if (th.glow) { ctx.shadowColor = fresh ? th.nodeNew : th.node; ctx.shadowBlur = (fresh ? 10 : 4) * DPR; }
-    ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
+  for (const n of G.nodes.values()) {
+    const [sx, sy] = w2s(n.x, n.y), r = nodeRadius(n), hot = n.flash > 0;
+    const hollow = MODE === 'sandpile' && n.sink;
+    if (hollow) {
+      ctx.strokeStyle = fmt.theme === 'neon' ? '#556' : '#999'; ctx.lineWidth = 1.2 * DPR;
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.2832); ctx.stroke();
+    } else {
+      ctx.fillStyle = hot ? th.hot : nodeColor(n);
+      if (th.glow) { ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = (hot ? 10 : 4) * DPR; }
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.2832); ctx.fill(); ctx.shadowBlur = 0;
+    }
     if (fmt.labels) {
-      ctx.fillStyle = th.label;
-      ctx.font = `${9 * DPR}px ui-monospace, monospace`;
+      ctx.fillStyle = th.label; ctx.font = `${9 * DPR}px ui-monospace, monospace`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(id, sx, sy - r - 6 * DPR);
+      const txt = MODE === 'inet' ? n.sym : MODE === 'sandpile' ? (n.sink ? '' : n.chips) : n.id;
+      ctx.fillText(txt, sx, sy - r - 6 * DPR);
     }
   }
 }
-
-const _deg = new Map();
-function nodeDegree(id) { return _deg.get(id) || 0; }
-function recomputeDegrees() {
-  _deg.clear();
-  for (const l of G.links) { _deg.set(l.a, (_deg.get(l.a) || 0) + 1); _deg.set(l.b, (_deg.get(l.b) || 0) + 1); }
-}
-
-function drawSelfLoop(n, fresh, t, th) {
-  const [sx, sy] = worldToScreen(n.x, n.y);
-  const r = 9 * DPR;
-  ctx.strokeStyle = fresh ? th.edgeNew : th.edge;
-  ctx.lineWidth = (fresh ? 2.2 : 1.1) * DPR;
-  ctx.beginPath(); ctx.arc(sx + r, sy, r, 0, Math.PI * 2); ctx.stroke();
+function drawLoop(n, hot, th) {
+  const [sx, sy] = w2s(n.x, n.y), r = 9 * DPR;
+  ctx.strokeStyle = hot ? th.hot : th.edge; ctx.lineWidth = (hot ? 2.2 : 1.1) * DPR;
+  ctx.beginPath(); ctx.arc(sx + r, sy, r, 0, 6.2832); ctx.stroke();
 }
 
 // ════════════════════════════════════════════════════════════════════
-// main loop
+// MAIN LOOP
 // ════════════════════════════════════════════════════════════════════
-let playing = false;
-let rateEPS = 6;      // events per second
-let eventAcc = 0;
-let lastT = performance.now();
-
+let MODE = 'growth', playing = false, rateEPS = 6, eventAcc = 0, lastT = performance.now();
 function loop(now) {
-  const realDt = Math.min((now - lastT) / 1000, 0.05);
-  lastT = now;
-  G.frame++;
+  const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now; G.frame++;
+  for (const n of G.nodes.values()) if (n.flash > 0) n.flash--;
+  for (const l of G.links) if (l.flash > 0) l.flash--;
 
-  if (playing) {
-    eventAcc += realDt * rateEPS;
-    let guard = 0;
-    while (eventAcc >= 1 && guard < 8) { eventAcc -= 1; if (!rewriteTick()) { eventAcc = 0; break; } guard++; }
+  if (MODE === 'sandpile') {
+    if (sandRelaxing) sandWave();                 // avalanche animates to quiescence
+    else if (playing) { eventAcc += dt * rateEPS; while (eventAcc >= 1) { eventAcc -= 1; sandDrop(); if (sandRelaxing) break; } }
+  } else if (playing) {
+    eventAcc += dt * rateEPS; let guard = 0;
+    while (eventAcc >= 1 && guard < 8) { eventAcc -= 1; if (!(MODE === 'growth' ? growthTick() : inetTick())) { eventAcc = 0; break; } guard++; }
   }
+  if (MODE === 'inet') inetActiveCount = countActive();
   recomputeDegrees();
-  // a few physics sub-steps per frame for stability
   for (let s = 0; s < 2; s++) physicsStep(1);
-  fitView();
-  render();
+  fitView(); render(); updateStats();
   requestAnimationFrame(loop);
 }
-
-// ── stats / hint ──
-function updateStats() {
-  document.getElementById('s-rule').textContent = currentPresetName;
-  document.getElementById('s-nodes').textContent = G.nodes.size;
-  document.getElementById('s-edges').textContent = G.links.length;
-  document.getElementById('s-events').textContent = G.events;
-  document.getElementById('s-gen').textContent = G.scheme === 'gen' ? G.generation : '—';
-  document.getElementById('s-notation').textContent = G.rule ? G.rule.notation : '';
-}
-let hintTimer = null;
-function flashHint(msg) {
-  const el = document.getElementById('play-hint');
-  el.innerHTML = msg;
-  el.style.color = 'var(--accent)';
-  clearTimeout(hintTimer);
-  hintTimer = setTimeout(() => { el.style.color = ''; }, 2600);
-}
+function countActive() { let c = 0; const seen = new Set(); for (const a of G.nodes.values()) { const p = a.ports && a.ports[0]; if (p && p.port === 0 && p.node !== a && p.node.ports[0] && p.node.ports[0].node === a) { const k = Math.min(a.id, p.node.id) + '-' + Math.max(a.id, p.node.id); if (!seen.has(k)) { seen.add(k); c++; } } } return c; }
 
 // ════════════════════════════════════════════════════════════════════
-// UI wiring
+// UI
 // ════════════════════════════════════════════════════════════════════
-let currentPresetName = PRESETS[0].name;
-
 function setPlaying(on) {
   playing = on;
   const btn = document.getElementById('play-btn');
-  btn.textContent = on ? 'pause' : 'play';
-  btn.classList.toggle('primary', !on);
+  btn.textContent = on ? 'pause' : 'play'; btn.classList.toggle('primary', !on);
   if (on) { lastT = performance.now(); eventAcc = 0; }
 }
-
-function loadPreset(p, makeActive) {
-  resetGraph(p);
-  currentPresetName = p.name;
-  document.getElementById('rule-input').value = p.notation;
-  if (makeActive) {
-    document.querySelectorAll('#preset-row .preset').forEach(b =>
-      b.classList.toggle('active', b.dataset.id === p.id));
-  }
-  updateStats();
+function stop(msg) { setPlaying(false); if (msg) flashHint(msg); }
+let hintTimer = null;
+function flashHint(msg) {
+  const el = document.getElementById('play-hint'); el.innerHTML = msg; el.style.color = 'var(--accent)';
+  clearTimeout(hintTimer); hintTimer = setTimeout(() => { el.style.color = ''; }, 2600);
 }
 
-// build preset buttons
-const presetRow = document.getElementById('preset-row');
-PRESETS.forEach((p, i) => {
-  const b = document.createElement('button');
-  b.className = 'preset' + (i === 0 ? ' active' : '');
-  b.textContent = p.name;
-  b.dataset.id = p.id;
-  b.title = p.blurb;
-  b.addEventListener('click', () => { setPlaying(false); loadPreset(p, true); });
-  presetRow.appendChild(b);
-});
+const PRESETS = { growth: GROWTH_PRESETS, sandpile: SAND_PRESETS, inet: INET_PRESETS };
+let currentPresetId = {};
+function seedFor(mode, preset) {
+  if (mode === 'growth') seedGrowth(preset);
+  else if (mode === 'sandpile') seedSandpile(preset);
+  else seedInet(preset);
+  view.scale = 1; view.cx = 0; view.cy = 0;
+}
+function buildPresetRow() {
+  const row = document.getElementById('preset-row'); row.innerHTML = '';
+  PRESETS[MODE].forEach((p, i) => {
+    const b = document.createElement('button');
+    b.className = 'preset' + (p.id === currentPresetId[MODE] ? ' active' : (i === 0 && !currentPresetId[MODE] ? ' active' : ''));
+    b.textContent = p.name; b.title = p.blurb;
+    b.addEventListener('click', () => { setPlaying(false); currentPresetId[MODE] = p.id; seedFor(MODE, p); document.querySelectorAll('#preset-row .preset').forEach(x => x.classList.toggle('active', x === b)); });
+    row.appendChild(b);
+  });
+}
+function relabel() {
+  const cap = document.getElementById('cap-label'), rate = document.getElementById('rate-label'), preset = document.getElementById('preset-label');
+  document.getElementById('scheme-group').classList.toggle('hidden', MODE !== 'growth');
+  if (MODE === 'growth') { cap.textContent = 'node cap'; rate.textContent = 'births / sec'; preset.textContent = 'rule'; }
+  else if (MODE === 'sandpile') { cap.textContent = 'max nodes'; rate.textContent = 'grains / sec'; preset.textContent = 'network'; }
+  else { cap.textContent = 'agent cap'; rate.textContent = 'reductions / sec'; preset.textContent = 'starting net'; }
+}
+function switchMode(mode) {
+  setPlaying(false); MODE = mode;
+  document.querySelectorAll('#mode-seg button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  relabel(); buildPresetRow();
+  const p = PRESETS[mode].find(x => x.id === currentPresetId[mode]) || PRESETS[mode][0];
+  currentPresetId[mode] = p.id; seedFor(mode, p);
+  document.getElementById('play-hint').style.color = '';
+  document.getElementById('play-hint').innerHTML =
+    mode === 'growth' ? 'a rule rewrites the graph; new nodes are inert except for layout — pure growth' :
+    mode === 'sandpile' ? 'drop grains; when a node fills past its degree it topples — watch the avalanche cascade. grey rings are sinks' :
+    'agents collide at their principal port and reduce — each reduction rewires the net and can trigger more. C=γ build, D=δ copy, E=ε erase';
+  updateLegend();
+}
+function updateLegend() {
+  const el = document.getElementById('legend');
+  if (MODE === 'inet') el.innerHTML =
+    `<span class="sw" style="background:${INET_COL.C}"></span>C constructor (γ)<br>` +
+    `<span class="sw" style="background:${INET_COL.D}"></span>D duplicator (δ)<br>` +
+    `<span class="sw" style="background:${INET_COL.E}"></span>E eraser (ε) · thick link = active pair`;
+  else if (MODE === 'sandpile') el.innerHTML = 'node colour = fill (blue→red as it nears toppling) · hollow ring = sink';
+  else el.innerHTML = 'node size = degree · violet = just born';
+}
 
-// build rule cards in the rules tab
+function updateStats() {
+  const el = document.getElementById('stats'); const rows = [];
+  if (MODE === 'growth') {
+    rows.push(['rule', currentGrowthName, false], ['nodes', G.nodes.size, true], ['links', G.links.length, false], ['events', G.events, false]);
+    if (growthScheme === 'gen') rows.push(['generation', growthGen, false]);
+  } else if (MODE === 'sandpile') {
+    rows.push(['network', currentSandName, false], ['nodes', G.nodes.size, false], ['grains dropped', sandGrains, false],
+      ['last avalanche', sandRelaxing ? '…' + sandAval : sandLastAval, true], ['max avalanche', sandMaxAval, false]);
+  } else {
+    rows.push(['net', currentInetName, false], ['agents', G.nodes.size, true], ['active pairs', inetActiveCount, false], ['reductions', inetReductions, false]);
+  }
+  let html = '';
+  for (const [k, v, hot] of rows) html += `<div class="stat-row"><span class="k">${k}</span><span class="v${hot ? ' hot' : ''}">${v}</span></div>`;
+  if (MODE === 'growth' && growthRule) html += `<div class="rule-show">${growthRule.notation}</div>`;
+  el.innerHTML = html;
+}
+
+// growth rule cards
 const ruleCards = document.getElementById('rule-cards');
-PRESETS.forEach(p => {
-  const card = document.createElement('div');
-  card.className = 'rule-card';
-  card.innerHTML = `<span class="name">${p.name}</span>
-    <span class="notation">${p.notation.replace('->', '→')}</span>
-    <span class="desc">${p.blurb}</span>`;
-  const go = document.createElement('button');
-  go.className = 'btn'; go.textContent = 'try it →';
-  go.style.alignSelf = 'flex-start';
-  go.addEventListener('click', () => { setPlaying(false); loadPreset(p, true); showTab('play'); });
-  card.appendChild(go);
-  ruleCards.appendChild(card);
+GROWTH_PRESETS.forEach(p => {
+  const card = document.createElement('div'); card.className = 'rule-card';
+  card.innerHTML = `<span class="name">${p.name}</span><span class="notation">${p.notation.replace('->', '→')}</span><span class="desc">${p.blurb}</span>`;
+  const go = document.createElement('button'); go.className = 'btn'; go.textContent = 'try it →'; go.style.alignSelf = 'flex-start';
+  go.addEventListener('click', () => { switchMode('growth'); currentPresetId.growth = p.id; seedFor('growth', p); buildPresetRow(); showTab('play'); });
+  card.appendChild(go); ruleCards.appendChild(card);
 });
 
 // controls
+document.getElementById('mode-seg').addEventListener('click', e => { if (e.target.dataset.mode) switchMode(e.target.dataset.mode); });
 document.getElementById('play-btn').addEventListener('click', () => setPlaying(!playing));
-document.getElementById('step-btn').addEventListener('click', () => { setPlaying(false); rewriteTick(); });
+document.getElementById('step-btn').addEventListener('click', () => {
+  setPlaying(false);
+  if (MODE === 'growth') growthTick();
+  else if (MODE === 'inet') inetTick();
+  else { if (!sandRelaxing) sandDrop(); }
+});
 document.getElementById('reset-btn').addEventListener('click', () => {
   setPlaying(false);
-  const active = PRESETS.find(p => p.name === currentPresetName) || PRESETS[0];
-  loadPreset(active, false);
-  document.getElementById('play-hint').style.color = '';
-  document.getElementById('play-hint').innerHTML = 'click <b>play</b> to start · drag a node to perturb · the graph keeps the rule firing, growing itself node by node';
+  const p = PRESETS[MODE].find(x => x.id === currentPresetId[MODE]) || PRESETS[MODE][0];
+  seedFor(MODE, p); document.getElementById('play-hint').style.color = '';
 });
-
 function bindSlider(id, valId, fn, fmtFn) {
   const s = document.getElementById(id), v = document.getElementById(valId);
   const apply = () => { const x = parseFloat(s.value); v.textContent = fmtFn ? fmtFn(x) : x; fn(x); };
@@ -946,52 +1012,35 @@ bindSlider('rate-slider', 'rate-val', x => rateEPS = x, x => x);
 bindSlider('cap-slider', 'cap-val', x => G.cap = x, x => x);
 bindSlider('rep-slider', 'rep-val', x => LAYOUT.rep = x, x => x.toFixed(1));
 bindSlider('len-slider', 'len-val', x => LAYOUT.len = x, x => x.toFixed(1));
+document.querySelectorAll('#scheme-seg button').forEach(b => b.addEventListener('click', () => {
+  growthScheme = b.dataset.scheme;
+  document.querySelectorAll('#scheme-seg button').forEach(x => x.classList.toggle('active', x === b));
+}));
 
-// scheme toggle
-document.querySelectorAll('#scheme-seg button').forEach(b => {
-  b.addEventListener('click', () => {
-    G.scheme = b.dataset.scheme;
-    document.querySelectorAll('#scheme-seg button').forEach(x => x.classList.toggle('active', x === b));
-    updateStats();
-  });
-});
-
-// custom rule load
+// custom growth rule
 document.getElementById('load-rule-btn').addEventListener('click', loadCustomRule);
 document.getElementById('rule-input').addEventListener('keydown', e => { if (e.key === 'Enter') loadCustomRule(); });
 function loadCustomRule() {
-  const input = document.getElementById('rule-input');
-  const msg = document.getElementById('parse-msg');
+  const input = document.getElementById('rule-input'), msg = document.getElementById('parse-msg');
   try {
     const rule = parseRule(input.value);
-    // pick a seed: a couple of links over the lhs's used node-ids, or self-loops
     const seed = rule.lhs.length >= 2 ? [[0, 0], [0, 0]] : [[0, 1]];
-    const custom = { id: 'custom', name: 'custom', notation: rule.notation, seed, blurb: 'your rule' };
-    setPlaying(false);
-    loadPreset(custom, false);
-    document.querySelectorAll('#preset-row .preset').forEach(b => b.classList.remove('active'));
-    input.classList.remove('bad'); msg.className = 'parse-msg'; msg.textContent = 'loaded ✓ — switch to the play tab and hit play';
+    switchMode('growth');
+    seedGrowth({ notation: rule.notation, seed, name: 'custom' });
+    currentPresetId.growth = null; document.querySelectorAll('#preset-row .preset').forEach(b => b.classList.remove('active'));
+    input.classList.remove('bad'); msg.className = 'parse-msg'; msg.textContent = 'loaded ✓ — switch to play and hit play';
     showTab('play');
-  } catch (err) {
-    input.classList.add('bad'); msg.className = 'parse-msg bad'; msg.textContent = '✗ ' + err.message;
-  }
+  } catch (err) { input.classList.add('bad'); msg.className = 'parse-msg bad'; msg.textContent = '✗ ' + err.message; }
 }
 
 // format bar
-document.getElementById('labels-btn').addEventListener('click', function () {
-  fmt.labels = !fmt.labels; this.classList.toggle('active', fmt.labels);
-});
-document.querySelectorAll('.fmt-style').forEach(b => {
-  b.addEventListener('click', () => {
-    fmt.theme = b.dataset.theme;
-    document.querySelectorAll('.fmt-style').forEach(x => x.classList.toggle('active', x.dataset.theme === fmt.theme));
-  });
-});
+document.getElementById('labels-btn').addEventListener('click', function () { fmt.labels = !fmt.labels; this.classList.toggle('active', fmt.labels); });
+document.querySelectorAll('.fmt-style').forEach(b => b.addEventListener('click', () => {
+  fmt.theme = b.dataset.theme; document.querySelectorAll('.fmt-style').forEach(x => x.classList.toggle('active', x.dataset.theme === fmt.theme));
+}));
 
 // tabs
-const tabs = document.querySelectorAll('.tab');
-const panes = document.querySelectorAll('.pane');
-const formatBar = document.getElementById('format-bar');
+const tabs = document.querySelectorAll('.tab'), panes = document.querySelectorAll('.pane'), formatBar = document.getElementById('format-bar');
 function showTab(name) {
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
@@ -999,40 +1048,25 @@ function showTab(name) {
 }
 tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
-// drag interaction (pin a node to the pointer)
+// drag
 let dragId = null;
 function pickNode(px, py) {
-  const [wx, wy] = screenToWorld(px * DPR, py * DPR);
-  let best = null, bestD = (18 / view.scale) ** 2;
-  for (const [id, n] of G.nodes) {
-    const d = (n.x - wx) ** 2 + (n.y - wy) ** 2;
-    if (d < bestD) { bestD = d; best = id; }
-  }
+  const [wx, wy] = s2w(px * DPR, py * DPR); let best = null, bestD = (18 / view.scale) ** 2;
+  for (const n of G.nodes.values()) { const d = (n.x - wx) ** 2 + (n.y - wy) ** 2; if (d < bestD) { bestD = d; best = n.id; } }
   return best;
 }
 canvas.addEventListener('pointerdown', e => {
-  const r = canvas.getBoundingClientRect();
-  const id = pickNode(e.clientX - r.left, e.clientY - r.top);
-  if (id !== null) {
-    dragId = id; G.nodes.get(id).pinned = true;
-    canvas.classList.add('dragging'); canvas.setPointerCapture(e.pointerId);
-  }
+  const r = canvas.getBoundingClientRect(), id = pickNode(e.clientX - r.left, e.clientY - r.top);
+  if (id !== null) { dragId = id; G.nodes.get(id).pinned = true; canvas.classList.add('dragging'); canvas.setPointerCapture(e.pointerId); }
 });
 canvas.addEventListener('pointermove', e => {
-  if (dragId === null) return;
-  const r = canvas.getBoundingClientRect();
-  const [wx, wy] = screenToWorld((e.clientX - r.left) * DPR, (e.clientY - r.top) * DPR);
-  const n = G.nodes.get(dragId);
-  if (n) { n.x = wx; n.y = wy; n.vx = 0; n.vy = 0; }
+  if (dragId === null) return; const r = canvas.getBoundingClientRect();
+  const [wx, wy] = s2w((e.clientX - r.left) * DPR, (e.clientY - r.top) * DPR);
+  const n = G.nodes.get(dragId); if (n) { n.x = wx; n.y = wy; n.vx = 0; n.vy = 0; }
 });
-function endDrag(e) {
-  if (dragId !== null) { const n = G.nodes.get(dragId); if (n) n.pinned = false; }
-  dragId = null; canvas.classList.remove('dragging');
-}
-canvas.addEventListener('pointerup', endDrag);
-canvas.addEventListener('pointercancel', endDrag);
+function endDrag() { if (dragId !== null) { const n = G.nodes.get(dragId); if (n) n.pinned = false; } dragId = null; canvas.classList.remove('dragging'); }
+canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
 
-// keyboard: space = play/pause, s = step, r = reset (when on play tab)
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   if (!document.querySelector('.pane[data-pane="play"]').classList.contains('active')) return;
@@ -1041,11 +1075,9 @@ window.addEventListener('keydown', e => {
   else if (e.key === 'r') document.getElementById('reset-btn').click();
 });
 
-// ── boot ──
+// boot
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-loadPreset(PRESETS[0], true);
-requestAnimationFrame(loop);
+resizeCanvas(); switchMode('growth'); requestAnimationFrame(loop);
 </script>
 </body>
 </html>
