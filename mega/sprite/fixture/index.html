@@ -103,6 +103,16 @@ function fromURL() {
 function toURL() { const p = new URLSearchParams(); p.set('seed', state.seed); p.set('den', state.den); p.set('reach', state.reach); p.set('sat', Math.round(state.sat * 100)); p.set('size', Math.round(state.size * 100)); p.set('voc', state.voc); history.replaceState({}, '', location.pathname + '?' + p.toString()); }
 const roleOf = (scene, room) => ROLES[(((scene.zoneOf[room] || 0) * 4 + 2) % ROLES.length + ROLES.length) % ROLES.length];
 
+// a distance-to-wall field (multi-source BFS over the occlusion grid): the walls' "say" in the
+// force-directed placement — every object is repelled by walls, not just by other objects.
+function wallDistField(occ) {
+  const { nx, ny, wall, step } = occ, dist = new Float32Array(nx * ny).fill(Infinity), q = [];
+  for (let i = 0; i < wall.length; i++) if (wall[i]) { dist[i] = 0; q.push(i); }
+  for (let h = 0; h < q.length; h++) { const i = q[h], gx = i % nx, gy = (i / nx) | 0, d = dist[i] + step; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const x = gx + dx, y = gy + dy; if (x < 0 || y < 0 || x >= nx || y >= ny) continue; const j = y * nx + x; if (dist[j] > d) { dist[j] = d; q.push(j); } } }
+  return { nx, ny, step, dist };
+}
+const wallDistAt = (wd, x, y) => { const gx = Math.round(x / wd.step), gy = Math.round(y / wd.step); if (gx < 0 || gy < 0 || gx >= wd.nx || gy >= wd.ny) return 0; const d = wd.dist[gy * wd.nx + gx]; return isFinite(d) ? d : wd.step * 60; };
+
 // build the chamber: foam → roles → wall lights → occlusion → RAY-TRACED colour bake
 function build() {
   const scene = buildScene({ W: SW, H: SH, wallSpacing: 14, roomSpacing: 66, roomSize: 400, loops: 0.1, zoneSize: 2, seed: state.seed >>> 0 });
@@ -115,13 +125,18 @@ function build() {
   // the SECOND wall fixture — grown FROM the tiling, away from the lights
   const consoles = growWallFixtures(scene, mulberry32((state.seed * 40503 + 7) >>> 0), { avoid: tips, kindOf: (room) => ROLE_CONSOLE[roleOf(scene, room)] });
   for (const c of consoles) c.accent = ROLE[roleOf(scene, c.room)];
-  // central component placed LAST: at the floor cell FARTHEST from every placed object (max spacing)
+  // central component placed LAST, by a force field where WALLS also repel: settle at the floor cell
+  // of maximum clearance (min of wall-distance and every fixture-distance), then SIZE it to fit that
+  // clearance so it can never cross a wall into the next room.
+  const wd = wallDistField(occ);
   const occBy = {}; for (const L of lights) (occBy[L.room] = occBy[L.room] || []).push(L.tip);
   for (const C of consoles) { (occBy[C.room] = occBy[C.room] || []).push(C.tip, C.anchor); }
+  const desiredR = state.size * 280;
   const comps = scene.roomSeeds.map((s) => {
-    const op = occBy[s.id] || []; let bp = null, bd = -1;
-    for (const c of scene.paintCells) { if (c.wall || c.room !== s.id || c.poly.length < 3) continue; let d = op.length ? Infinity : 1; for (const p of op) d = Math.min(d, (p.x - c.x) ** 2 + (p.y - c.y) ** 2); if (d > bd) { bd = d; bp = c; } }
-    return { cx: bp ? bp.x : s.x, cy: bp ? bp.y : s.y, accent: ROLE[roleOf(scene, s.id)], g: deviceGenome(mulberry32((s.id * 733 + 13) >>> 0), { sharp: true }) };
+    const op = occBy[s.id] || []; let bp = null, best = -1;
+    for (const c of scene.paintCells) { if (c.wall || c.room !== s.id || c.poly.length < 3) continue; let fd = Infinity; for (const p of op) fd = Math.min(fd, Math.hypot(p.x - c.x, p.y - c.y)); const clear = Math.min(wallDistAt(wd, c.x, c.y), fd); if (clear > best) { best = clear; bp = c; } }
+    const r = Math.max(state.size * 110, Math.min(desiredR, best * 0.82));
+    return { cx: bp ? bp.x : s.x, cy: bp ? bp.y : s.y, r, accent: ROLE[roleOf(scene, s.id)], g: deviceGenome(mulberry32((s.id * 733 + 13) >>> 0), { sharp: true }) };
   });
   state.built = { scene, lights, occ, baked, comps, consoles };
 }
@@ -147,7 +162,7 @@ function render() {
   const litLum = (x, y) => { const rgb = lightAtRGB(lights, occ, x, y, { ambient: 0.04, strength: 1, reach: state.reach / 10 }); return 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; };
   for (const C of consoles) drawWallFixture(ctx, scene, C, { accent: C.accent, hue: hexHue(C.accent), litAt: litLum });
   // components (lit by the field's luminance — value contrast)
-  for (const cp of comps) { const rgb = lightAtRGB(lights, occ, cp.cx, cp.cy, { ambient: 0.04, strength: 1, reach: state.reach / 10 }); const lum = 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; drawDevice(ctx, cp.cx, cp.cy, state.size * 280, cp.g, { lit: Math.max(0.38, Math.min(1.2, lum * 1.25 + 0.18)), accent: cp.accent }); }
+  for (const cp of comps) { const rgb = lightAtRGB(lights, occ, cp.cx, cp.cy, { ambient: 0.04, strength: 1, reach: state.reach / 10 }); const lum = 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; drawDevice(ctx, cp.cx, cp.cy, cp.r, cp.g, { lit: Math.max(0.38, Math.min(1.2, lum * 1.25 + 0.18)), accent: cp.accent }); }
   // wall lights last so the glows overlay
   for (const L of lights) { const rgb = lightAtRGB(lights, occ, L.tip.x, L.tip.y, { ambient: 0.1, strength: 1, reach: state.reach / 10 }); drawWallLight(ctx, L, { hue: L.hue, lit: Math.max(0.7, Math.min(1.15, 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2] + 0.5)) }); }
   $('seedtag').textContent = 'seed ' + state.seed;
