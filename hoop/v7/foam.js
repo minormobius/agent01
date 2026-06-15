@@ -59,34 +59,58 @@ export function clipPowerCell(A, neighbours, R) {
   return poly;
 }
 
-// Scatter 3D nuclei on a jittered lattice in a W×H×depth box, slice at z=0. `cellSize` is the 3D
-// lattice spacing; `depth` is the slab thickness in spacings — more layers ⇒ more off-plane nuclei
-// ⇒ more cell-size variance (the "size variance" knob). Keep only nuclei whose cell meets the plane.
-export function baseFoam({ W, H, cellSize = 26, depth = 2.4, seed = 1 }) {
-  const rng = mulberry32(seed >>> 0);
-  const s = Math.max(6, cellSize), D = s * Math.max(1, depth), jit = 0.62;
-  const nuclei = [];
-  for (let gz = -D / 2 + s / 2; gz < D / 2; gz += s)
-    for (let gy = s / 2; gy < H; gy += s)
-      for (let gx = s / 2; gx < W; gx += s) {
-        const x = gx + (rng() - 0.5) * jit * s, y = gy + (rng() - 0.5) * jit * s, z = gz + (rng() - 0.5) * jit * s;
-        nuclei.push({ x, y, z, w: z * z });
+// The 3D nuclei live on a GLOBAL jittered lattice in WORLD space — each lattice cell (ix,iy,iz)
+// gets a deterministic per-axis jitter from a hash of its index + the world seed. That's the whole
+// trick behind seamless chunking: wherever a chunk lands, it slices the SAME global foam, so two
+// chunks meeting at an edge see identical boundary cells (the "ghost perimeter used wholesale when
+// the neighbour wakes"). gid = the lattice index string is the cell's stable cross-chunk identity.
+function hashJit(ix, iy, iz, salt) {
+  let h = (salt ^ 0x9e3779b9) >>> 0;
+  h = Math.imul(h ^ (ix & 0x3ffff), 2654435761); h ^= h >>> 15;
+  h = Math.imul(h ^ (iy & 0x3ffff), 2246822519); h ^= h >>> 13;
+  h = Math.imul(h ^ (iz & 0x3ff), 3266489917); h ^= h >>> 16;
+  return ((h >>> 0) % 2048) / 2048 - 0.5;
+}
+export function genNuclei(region, s, D, seed) {
+  const jit = 0.62, nz = Math.max(0, Math.round(D / 2 / s)), out = [];
+  const ix0 = Math.floor(region.x0 / s) - 1, ix1 = Math.ceil(region.x1 / s) + 1;
+  const iy0 = Math.floor(region.y0 / s) - 1, iy1 = Math.ceil(region.y1 / s) + 1;
+  for (let iz = -nz; iz <= nz; iz++)
+    for (let iy = iy0; iy <= iy1; iy++)
+      for (let ix = ix0; ix <= ix1; ix++) {
+        const x = (ix + 0.5 + hashJit(ix, iy, iz, seed ^ 0x11) * jit) * s;
+        const y = (iy + 0.5 + hashJit(ix, iy, iz, seed ^ 0x22) * jit) * s;
+        const z = (iz + hashJit(ix, iy, iz, seed ^ 0x33) * jit) * s;
+        out.push({ x, y, z, w: z * z, gid: ix + '_' + iy + '_' + iz });
       }
+  return out;
+}
+
+// Build (or rebuild) the foam over a set of world REGIONS (AABBs), each grown by a clip margin so
+// every cell INSIDE a region is fully clipped (its neighbours are present) and therefore identical
+// no matter which chunk's rebuild produced it. `cellSize` = lattice spacing; `depth` = slab depth
+// in spacings (more layers ⇒ more off-plane nuclei ⇒ more cell-size variance). Cells carry a stable
+// `gid`; `cellByGid` maps it to the current array index so frozen per-chunk solves survive a rebuild.
+export function buildFoam({ regions, cellSize = 26, depth = 2.4, seed = 1, W, H } = {}) {
+  const s = Math.max(6, cellSize), D = s * Math.max(1, depth), margin = s * 4;
+  if (!regions) regions = [{ x0: 0, y0: 0, x1: W, y1: H }];
+  const byGid = new Map();
+  for (const r of regions) for (const nu of genNuclei({ x0: r.x0 - margin, y0: r.y0 - margin, x1: r.x1 + margin, y1: r.y1 + margin }, s, D, seed)) if (!byGid.has(nu.gid)) byGid.set(nu.gid, nu);
+  const nuclei = [...byGid.values()]; nuclei.forEach((nu, i) => { nu.id = i; });
   const grid = bucketGrid(nuclei, s * 1.7);
-  nuclei.forEach((nu, i) => { nu.id = i; });
-  const cells = [], keep = new Int32Array(nuclei.length).fill(-1);
-  for (const nu of nuclei) {
-    const poly = clipPowerCell(nu, grid.near(nu.x, nu.y), s * 3);
-    if (poly.length < 3) continue;
-    keep[nu.id] = cells.length;
-    cells.push({ id: cells.length, src: nu.id, x: nu.x, y: nu.y, z: nu.z, w: nu.w, poly, area: polyArea(poly) });
-  }
+  const cells = [], keep = new Map();
+  for (const nu of nuclei) { const poly = clipPowerCell(nu, grid.near(nu.x, nu.y), s * 3); if (poly.length < 3) continue; keep.set(nu.id, cells.length); cells.push({ id: cells.length, src: nu.id, gid: nu.gid, x: nu.x, y: nu.y, z: nu.z, w: nu.w, poly, area: polyArea(poly) }); }
   const adjSet = cells.map(() => new Set());
-  for (const c of cells) for (const v of c.poly) { if (v.s < 0) continue; const j = keep[v.s]; if (j < 0 || j === c.id) continue; adjSet[c.id].add(j); adjSet[j].add(c.id); }
+  for (const c of cells) for (const v of c.poly) { if (v.s < 0) continue; const j = keep.get(v.s); if (j == null || j === c.id) continue; adjSet[c.id].add(j); adjSet[j].add(c.id); }
   const edges = [], seenE = new Set();
   for (let i = 0; i < cells.length; i++) for (const j of adjSet[i]) { if (j <= i) continue; const k = i + ',' + j; if (seenE.has(k)) continue; seenE.add(k); edges.push({ a: i, b: j, len: Math.hypot(cells[i].x - cells[j].x, cells[i].y - cells[j].y) }); }
   const adj = cells.map((_, i) => [...adjSet[i]]);
-  return { W, H, cellSize: s, depth: D, seed, cells, edges, adj, nucleiCount: nuclei.length };
+  const cellByGid = new Map(cells.map((c) => [c.gid, c.id]));
+  return { regions, cellSize: s, depth: D, seed, cells, edges, adj, cellByGid, nucleiCount: nuclei.length, W, H };
+}
+// canvas-rooted convenience: one region covering [0,W]×[0,H] (the single-chunk demo + tests use this)
+export function baseFoam({ W, H, cellSize = 26, depth = 2.4, seed = 1 }) {
+  return buildFoam({ regions: [{ x0: 0, y0: 0, x1: W, y1: H }], cellSize, depth, seed, W, H });
 }
 
 function polyArea(p) { let a = 0; for (let i = 0; i < p.length; i++) { const q = p[(i + 1) % p.length]; a += p[i].x * q.y - q.x * p[i].y; } return Math.abs(a) / 2; }
@@ -99,30 +123,42 @@ export function centroid(cells, list) { let x = 0, y = 0; for (const i of list) 
 // OUTSIDE it becomes a GHOST — not shown as a room, but kept to bound the edge-cells and woken
 // wholesale when the neighbour chunk loads. Each chunk edge gets 1–4 CONCOURSE PORTS at Monte-Carlo
 // positions — the cross-chunk movement points the solve must connect and perfuse from.
-export function defineChunk(foam, { seed = 1 } = {}) {
+export function defineChunk(foam, { seed = 1, poly = null, inherit = [] } = {}) {
   const rng = mulberry32((seed ^ 0xc40c) >>> 0);
-  const { W, H } = foam, cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.43, k = R * Math.sqrt(3) / 2;
-  const shape = rng() < 0.5 ? 'square' : 'triangle';
-  let poly;
-  if (shape === 'square') { const h = R * 0.92; poly = [{ x: cx - h, y: cy - h }, { x: cx + h, y: cy - h }, { x: cx + h, y: cy + h }, { x: cx - h, y: cy + h }]; }
-  else if (rng() < 0.5) poly = [{ x: cx, y: cy - R }, { x: cx + k, y: cy + R / 2 }, { x: cx - k, y: cy + R / 2 }];   // point-up
-  else poly = [{ x: cx, y: cy + R }, { x: cx - k, y: cy - R / 2 }, { x: cx + k, y: cy - R / 2 }];                    // point-down
+  let shape;
+  if (!poly) {
+    const { W, H } = foam, cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.43, k = R * Math.sqrt(3) / 2;
+    shape = rng() < 0.5 ? 'square' : 'triangle';
+    if (shape === 'square') { const h = R * 0.92; poly = [{ x: cx - h, y: cy - h }, { x: cx + h, y: cy - h }, { x: cx + h, y: cy + h }, { x: cx - h, y: cy + h }]; }
+    else if (rng() < 0.5) poly = [{ x: cx, y: cy - R }, { x: cx + k, y: cy + R / 2 }, { x: cx - k, y: cy + R / 2 }];   // point-up
+    else poly = [{ x: cx, y: cy + R }, { x: cx - k, y: cy - R / 2 }, { x: cx + k, y: cy - R / 2 }];                    // point-down
+  } else shape = poly.length === 4 ? 'square' : 'triangle';
   const inside = (x, y) => pointInPoly(x, y, poly);
   const ghost = new Uint8Array(foam.cells.length);
   for (const c of foam.cells) if (!inside(c.x, c.y)) ghost[c.id] = 1;
   const interior = foam.cells.filter((c) => !ghost[c.id]).map((c) => c.id);
-  const grid = bucketGrid(interior.map((id) => foam.cells[id]), foam.cellSize * 2), ports = [];
+  const grid = bucketGrid(interior.map((id) => foam.cells[id]), foam.cellSize * 2);
+  const nearestInterior = (px, py) => { let best = -1, bd = Infinity; for (const c of grid.near(px, py)) { const d = (c.x - px) ** 2 + (c.y - py) ** 2; if (d < bd) { bd = d; best = c.id; } } return best; };
+  const nearestEdge = (px, py) => { let be = 0, bd = Infinity; for (let e = 0; e < poly.length; e++) { const d = ptSegDist(px, py, poly[e], poly[(e + 1) % poly.length]); if (d < bd) { bd = d; be = e; } } return be; };
+  const ports = [], edgeHasPort = new Set();
+  // INHERITED ports first — the shared edge's crossing points, reused from the neighbour so the
+  // concourse meets across the seam (each binds to THIS chunk's nearest cell, adjacent across the edge)
+  for (const ip of inherit) { const cell = nearestInterior(ip.x, ip.y); if (cell < 0) continue; const e = nearestEdge(ip.x, ip.y); ports.push({ edge: e, x: ip.x, y: ip.y, cell, inherited: true }); edgeHasPort.add(e); }
+  // fresh 1–4 Monte-Carlo ports on every edge that didn't inherit any
   for (let e = 0; e < poly.length; e++) {
+    if (edgeHasPort.has(e)) continue;
     const a = poly[e], b = poly[(e + 1) % poly.length], n = 1 + Math.floor(rng() * 4);
-    for (let i = 0; i < n; i++) {
-      const t = (i + 0.5 + (rng() - 0.5) * 0.6) / n, px = a.x + (b.x - a.x) * t, py = a.y + (b.y - a.y) * t;
-      let best = -1, bd = Infinity;
-      for (const c of grid.near(px, py)) { const d = (c.x - px) ** 2 + (c.y - py) ** 2; if (d < bd) { bd = d; best = c.id; } }
-      if (best >= 0 && !ports.some((p) => p.cell === best)) ports.push({ edge: e, x: px, y: py, cell: best });
-    }
+    for (let i = 0; i < n; i++) { const t = (i + 0.5 + (rng() - 0.5) * 0.6) / n, px = a.x + (b.x - a.x) * t, py = a.y + (b.y - a.y) * t, cell = nearestInterior(px, py); if (cell >= 0 && !ports.some((p) => p.cell === cell)) ports.push({ edge: e, x: px, y: py, cell }); }
   }
   return { shape, poly, ghost, ports, interior, interiorCount: interior.length };
 }
+// reflect a polygon across one of its edges → the adjacent chunk that shares that edge (squares beget
+// squares, equilateral triangles beget their flipped neighbour — both tile the plane).
+export function reflectPolyAcrossEdge(poly, ei) {
+  const a = poly[ei], b = poly[(ei + 1) % poly.length], dx = b.x - a.x, dy = b.y - a.y, dd = dx * dx + dy * dy || 1;
+  return poly.map((p) => { const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / dd, px = a.x + t * dx, py = a.y + t * dy; return { x: 2 * px - p.x, y: 2 * py - p.y }; });
+}
+function ptSegDist(px, py, a, b) { const dx = b.x - a.x, dy = b.y - a.y, dd = dx * dx + dy * dy || 1; let t = ((px - a.x) * dx + (py - a.y) * dy) / dd; t = Math.max(0, Math.min(1, t)); const cx = a.x + t * dx, cy = a.y + t * dy; return Math.hypot(px - cx, py - cy); }
 function pointInPoly(x, y, poly) {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {

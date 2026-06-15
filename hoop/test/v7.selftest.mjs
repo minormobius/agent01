@@ -1,6 +1,6 @@
 // v7.selftest.mjs — the chunking kernel: power-diagram slice, chunk, perfuse, hypoxia seize, rooms.
 // Run: node hoop/test/v7.selftest.mjs
-import { baseFoam, defineChunk, perfuse, seize, paintRooms, castCharacter } from '../v7/foam.js';
+import { baseFoam, buildFoam, defineChunk, reflectPolyAcrossEdge, perfuse, seize, paintRooms, castCharacter } from '../v7/foam.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' + m); } };
@@ -65,6 +65,29 @@ ok(rmBig.rooms.length < rm.rooms.length, `bigger room-size ⇒ fewer rooms (${rm
 const cast = castCharacter(rm.rooms, { seed: 7 });
 ok(cast.rooms.length === rm.rooms.length && cast.rooms.every((r) => r.role && r.glyph), 'every room got a role + glyph');
 ok((cast.counts.dwell || 0) > 0 && cast.rooms.some((r) => r.people && r.people.length), 'dwellings exist and hold NPCs');
+
+// ── EXPANSION: a reflected neighbour shares the edge cells + inherits the ports (the seam) ──────
+// foam over a region wide enough for two chunks, deterministic by gid
+const wf = buildFoam({ regions: [{ x0: -300, y0: -100, x1: 1200, y1: 700 }], cellSize: 26, depth: 2.4, seed: 7, W, H });
+const A = defineChunk(wf, { seed: 7 });
+const ei = A.shape === 'square' ? 1 : 0;                // a side that points into open foam
+const Bpoly = reflectPolyAcrossEdge(A.poly, ei);
+const sharedA = A.ports.filter((p) => p.edge === ei);
+const B = defineChunk(wf, { seed: 31, poly: Bpoly, inherit: sharedA.map((p) => ({ x: p.x, y: p.y })) });
+ok(A.shape === B.shape, `neighbour is the same shape (reflection): ${A.shape}`);
+const Aset = new Set(A.interior), Bset = new Set(B.interior);
+ok(![...Aset].some((c) => Bset.has(c)), 'A and B interiors are disjoint (chunks tile, no overlap)');
+// the two chunks ABUT: foam edges cross from an A-cell to a B-cell along the shared edge
+let crossing = 0; for (const e of wf.edges) { if ((Aset.has(e.a) && Bset.has(e.b)) || (Aset.has(e.b) && Bset.has(e.a))) crossing++; }
+ok(crossing > 2, `the chunks abut along the seam (${crossing} cell-adjacencies cross it)`);
+ok(B.ports.some((p) => p.inherited) && B.ports.filter((p) => p.inherited).length === sharedA.length, `B inherited the shared edge's ${sharedA.length} ports`);
+// each inherited B-port cell is foam-adjacent to the matching A-port cell → the concourse can cross
+const cross = sharedA.every((pa) => { const pb = B.ports.find((p) => p.inherited && Math.hypot(p.x - pa.x, p.y - pa.y) < 1); return pb && (wf.adj[pa.cell].includes(pb.cell) || pa.cell === pb.cell); });
+ok(cross, 'each inherited port crosses the seam (A-cell adjacent to B-cell)');
+// both solve to a single concourse, independently
+const solA = seize(wf, A, { oxygenReach: 3, seed: 7 }), solB = seize(wf, B, { oxygenReach: 3, seed: 31 });
+const comp1 = (ch, road) => { const seen = new Set(); let c = 0; for (const i of ch.interior) { if (!road[i] || seen.has(i)) continue; c++; const q = [i]; seen.add(i); while (q.length) { const u = q.pop(); for (const v of wf.adj[u]) if (road[v] && !seen.has(v)) { seen.add(v); q.push(v); } } } return c; };
+ok(comp1(A, solA.road) === 1 && comp1(B, solB.road) === 1, 'both chunks solve to one concourse each');
 
 console.log(`\nv7 kernel: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
