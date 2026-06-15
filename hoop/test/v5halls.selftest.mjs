@@ -1,10 +1,10 @@
 // halls.selftest.mjs — the halls-first layout + two-tier nav contract (the hoop v5 prototype).
 // Run: node hoop/test/halls.selftest.mjs
-import { genLayout, roomAt, genChunk, genRegion, edgePortsFor, chunkSeed, chunkPolygon } from '../halls/gen.js';
-import { route, buildNavGraph } from '../halls/nav.js';
+import { genLayout, roomAt, genChunk, genRegion, edgePortsFor, chunkSeed, chunkPolygon } from '../v5/gen.js';
+import { route, buildNavGraph } from '../v5/nav.js';
 import { buildSceneCustom } from '../paint/voronoi.js';
-import { mulberry32 } from '../halls/gen.js';
-import { assignOwners, roomGroups, placeRoomLights, growRoomConsole, roomComponent } from '../halls/fixtures.js';
+import { mulberry32 } from '../v5/gen.js';
+import { assignOwners, roomGroups, placeRoomLights, growRoomConsole, roomComponent } from '../v5/fixtures.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '✓' : '✗') + ' ' + m); };

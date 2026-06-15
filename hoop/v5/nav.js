@@ -8,7 +8,7 @@
 // crossings by construction (a room only touches the halls through its one door).
 //
 // Pure, deterministic, zero-dep. buildNavGraph(layout) → graph (cached on the layout); route(layout,
-// a, b) → { pts:[[x,y]…], hops }. Pinned by hoop/test/halls.selftest.mjs.
+// a, b) → { pts:[[x,y]…], hops }. Pinned by hoop/test/v5halls.selftest.mjs.
 
 import { roomAt } from './gen.js';
 

@@ -6,7 +6,7 @@
 // version: group paint cells by room owner, find the union's boundary membranes, and place fixtures
 // against them. The DRAW functions (drawWallLight / drawWallFixture / drawDevice) are reused unchanged.
 //
-// Pure, deterministic, zero-dep beyond the shared kernels. Pinned by hoop/test/halls.selftest.mjs.
+// Pure, deterministic, zero-dep beyond the shared kernels. Pinned by hoop/test/v5halls.selftest.mjs.
 
 import { bucketGrid, jitterGrid } from '../paint/voronoi.js';
 import { mulberry32 } from './gen.js';

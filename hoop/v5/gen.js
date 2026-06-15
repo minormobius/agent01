@@ -11,7 +11,7 @@
 // Nav is then clean HPA*: a coarse port graph over the chunk-adjacency graph + each chunk's hall graph.
 //
 // Pure, deterministic (seed + chunk coord → identical chunk), zero-dep beyond clipCell. node + browser.
-// Pinned by hoop/test/halls.selftest.mjs.
+// Pinned by hoop/test/v5halls.selftest.mjs.
 
 import { clipCell } from '../paint/voronoi.js';
 
