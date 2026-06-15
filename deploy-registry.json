@@ -613,7 +613,8 @@
         "viazovska",
         "capset",
         "borsuk",
-        "elements"
+        "elements",
+        "prop"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
@@ -635,7 +636,8 @@
         "viazovska/**",
         "capset/**",
         "borsuk/**",
-        "elements/**"
+        "elements/**",
+        "prop/**"
       ]
     },
     {
