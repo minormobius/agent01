@@ -240,7 +240,7 @@
       "paths": [
         "duck/**"
       ],
-      "note": "Spin-gravity duck flight simulator (worker `duck`, custom_domain duck.mino.mobi). Pure-static WebGPU game, no build, no secrets. Flies one aerodynamic duck under two reference frames \u2014 uniform Earth gravity vs. the co-rotating frame of an O'Neill cylinder (centrifugal \u03c9\u00b2r + Coriolis \u22122\u03a9\u00d7v), using hoop's canonical 8 km/0.8 g hull. Physics kernel is pure + node-tested (duck/test/physics.selftest.mjs proves the rotating-frame integrator by transforming a free trajectory back to a straight inertial line)."
+      "note": "O'Neill Links \u2014 Coriolis golf (worker `duck`, custom_domain duck.mino.mobi). Pure-static WebGPU twin-screen game, no build, no secrets. index.html is the COURSE DESIGNER (3D preview + 2D plan editor: drag tee/pin/hazards, pick the cylinder, share a permalink); play.html is the PLAY surface \u2014 hit a golf ball across the inside of an O'Neill cylinder where centrifugal gravity (\u03c9\u00b2r) + the Coriolis force (\u22122\u03a9\u00d7v) bend every shot and break every putt. Reuses hoop's canonical 8 km/0.8 g hull and the shared rotating-frame kernel; golf ballistics (drag + Magnus) reduce exactly to the proven free particle. Physics is node-tested (duck/test/physics.selftest.mjs + duck/test/golf.selftest.mjs gate the deploy). Built on the former duck flight sim's renderer + physics."
     },
     {
       "surface": "bounty",

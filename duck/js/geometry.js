@@ -123,38 +123,67 @@ function cylinderY(seg = 8) {
 
 const PRIM = { box: box(), sphere: sphere(), sphereHi: sphere(20), cone: cone(), cyl: cylinderY(7), blob: sphere(6) };
 
-// ── the duck ──  forward = −Z, up = +Y. A friendly low-poly mallard.
-export function buildDuck() {
+// ── golf props ──  Every builder is unit-ish; the instance scale sets metres,
+// and the instance tint recolours the white meshes (ball, disc, dots).
+
+// The ball: a clean white sphere. Vertex colour white so the per-instance tint
+// can flash it (e.g. gold when it drops in the cup).
+export function buildBall() {
   const mb = new MeshBuilder();
-  const BODY = [0.96, 0.83, 0.22], HEAD = [0.98, 0.86, 0.26], BEAK = [0.95, 0.5, 0.12];
-  const WING = [0.86, 0.72, 0.16], EYE = [0.05, 0.05, 0.06], CHEST = [0.99, 0.9, 0.45];
-  // body: stretched sphere along Z
-  mb.add(PRIM.sphereHi, { pos: [0, 0, 0.15], scale: [1.0, 0.9, 2.0], color: BODY });
-  mb.add(PRIM.sphereHi, { pos: [0, -0.15, 0.55], scale: [0.7, 0.6, 1.0], color: CHEST });
-  // neck + head up front (−Z)
-  mb.add(PRIM.sphere, { pos: [0, 0.45, -0.85], scale: [0.62, 0.7, 0.62], color: HEAD });
-  mb.add(PRIM.sphere, { pos: [0, 0.18, -0.55], scale: [0.42, 0.6, 0.5], color: HEAD });
-  // beak: cone pointing −Z (rotate +Y cone to −Z) → rotate −90° about X
-  const beakQ = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [1, 0, 0], -Math.PI / 2);
-  mb.add(PRIM.cone, { pos: [0, 0.42, -1.28], q: beakQ, scale: [0.34, 0.5, 0.22], color: BEAK });
-  // eyes
-  mb.add(PRIM.sphere, { pos: [0.22, 0.56, -1.02], scale: [0.12, 0.12, 0.12], color: EYE });
-  mb.add(PRIM.sphere, { pos: [-0.22, 0.56, -1.02], scale: [0.12, 0.12, 0.12], color: EYE });
-  // wings: thin angled boxes
-  const wq = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 1], 0.32);
-  const wqL = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 1], -0.32);
-  mb.add(PRIM.box, { pos: [0.78, 0.12, 0.2], q: wqL, scale: [0.9, 0.16, 1.5], color: WING });
-  mb.add(PRIM.box, { pos: [-0.78, 0.12, 0.2], q: wq, scale: [0.9, 0.16, 1.5], color: WING });
-  // tail: little wedge at +Z
-  const tq = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [1, 0, 0], 0.5);
-  mb.add(PRIM.box, { pos: [0, 0.28, 1.15], q: tq, scale: [0.7, 0.16, 0.7], color: WING });
-  return mb.build(); // unit-ish duck ~2.6 long; the instance scale sets metres
+  mb.add(PRIM.sphereHi, { color: [1, 1, 1] });
+  return mb.build();
 }
 
-// A breadcrumb / marker (small low sphere).
-export function buildCrumb() {
+// A small marker / trail / aim-tracer dot (low-poly sphere, white → tinted).
+export function buildDot() {
   const mb = new MeshBuilder();
-  mb.add(PRIM.sphere, { color: [1, 1, 1] });
+  mb.add(PRIM.blob, { color: [1, 1, 1] });
+  return mb.build();
+}
+
+// A flat unit disc in the XZ plane (radius 1, normal +Y), white. Used for the
+// green, the hazards and the cup — laid on the floor by orienting +Y onto `up`.
+export function buildDisc(seg = 40) {
+  const positions = [0, 0, 0], normals = [0, 1, 0], colors = [1, 1, 1], indices = [];
+  for (let i = 0; i <= seg; i++) {
+    const a = (i / seg) * Math.PI * 2;
+    positions.push(Math.cos(a), 0, Math.sin(a)); normals.push(0, 1, 0); colors.push(1, 1, 1);
+  }
+  for (let i = 1; i <= seg; i++) indices.push(0, i, i + 1);
+  return interleave(positions, normals, colors, indices);
+}
+
+// The flag-stick + pennant + cup rim. Built with up = +Y, base at y = 0; the
+// renderer orients +Y onto the local `up` and drops it on the floor at the pin.
+export function buildFlag() {
+  const mb = new MeshBuilder();
+  const POLE = [0.92, 0.92, 0.95], FLAG = [0.95, 0.25, 0.2], CUP = [0.05, 0.05, 0.06];
+  mb.add(PRIM.cyl, { pos: [0, 3.5, 0], scale: [0.12, 7, 0.12], color: POLE });   // 7 m stick
+  // a triangular pennant near the top, offset +X
+  const fq = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 1], -Math.PI / 2);
+  mb.add(PRIM.cone, { pos: [0.95, 6.4, 0], q: fq, scale: [1.0, 2.0, 0.05], color: FLAG });
+  mb.add(PRIM.cyl, { pos: [0, 0.05, 0], scale: [2.0, 0.1, 2.0], color: CUP });   // cup rim ring-ish
+  return mb.build();
+}
+
+// A tee box: a low pad with two flanking marker pegs. up = +Y, centred at y = 0.
+export function buildTee() {
+  const mb = new MeshBuilder();
+  const PAD = [0.5, 0.62, 0.32], PEG = [0.95, 0.95, 0.98];
+  mb.add(PRIM.cyl, { pos: [0, 0.15, 0], scale: [2.4, 0.3, 2.4], color: PAD });
+  mb.add(PRIM.cone, { pos: [1.6, 0.5, 0], scale: [0.4, 0.9, 0.4], color: PEG });
+  mb.add(PRIM.cone, { pos: [-1.6, 0.5, 0], scale: [0.4, 0.9, 0.4], color: PEG });
+  return mb.build();
+}
+
+// An aim arrow lying flat: it points +Z and its face-normal is +Y. The renderer
+// places it with a basis matrix (right→X, up→Y, aim→Z) so it lies on the floor
+// pointing along the chosen heading. White → tinted.
+export function buildArrow() {
+  const mb = new MeshBuilder();
+  mb.add(PRIM.box, { pos: [0, 0.1, 1.2], scale: [0.5, 0.2, 2.4], color: [1, 1, 1] });   // shaft +Z
+  const tipQ = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [1, 0, 0], Math.PI / 2);     // cone +Y → +Z
+  mb.add(PRIM.cone, { pos: [0, 0.1, 2.9], q: tipQ, scale: [1.4, 1.4, 0.25], color: [1, 1, 1] });
   return mb.build();
 }
 
@@ -413,6 +442,17 @@ export function scatterCylinder(R, len, seed = 7) {
     pylons.push({ pos: [Math.cos(th) * R, Math.sin(th) * R, z], q: orient(th), scale: [base, base, base] });
   }
   return { trees, pylons };
+}
+
+// Build a model matrix directly from an orthonormal basis: a mesh vertex (x,y,z)
+// maps to x·right + y·up + z·fwd + pos, scaled. Used to lay the aim arrow flat on
+// the floor pointing along a heading without juggling quaternions. Column-major.
+export function basisModel(out, right, up, fwd, pos, scale = [1, 1, 1]) {
+  out[0] = right[0] * scale[0]; out[1] = right[1] * scale[0]; out[2] = right[2] * scale[0]; out[3] = 0;
+  out[4] = up[0] * scale[1];    out[5] = up[1] * scale[1];    out[6] = up[2] * scale[1];    out[7] = 0;
+  out[8] = fwd[0] * scale[2];   out[9] = fwd[1] * scale[2];   out[10] = fwd[2] * scale[2];  out[11] = 0;
+  out[12] = pos[0]; out[13] = pos[1]; out[14] = pos[2]; out[15] = 1;
+  return out;
 }
 
 // transforms[] → Float32Array of column-major mat4 (16 floats each).
