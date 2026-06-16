@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#04050a" />
+  <meta name="description" content="mega v093 — the synthesis. v092's player systems (Voronoi-cylinder inventory, FLESH·CHASSIS·ANIMA stats, civic-tree character creation, technomagic arena combat) set inside v091's lived-in world: traffic-sized rooms (busy hubs claim more cells, big districts grow a grand civic centrepiece, micro-rooms bulldozed), voronoi-grown luminous wall consoles that block the way, self-emitting deco components, a bollard-lit concourse, and half-scale residents that separate instead of trampling. The environmental half meets the player-systems half." />
+  <title>mega v093 — the synthesis</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; } html, body { height: 100%; margin: 0; }
+    body { background: #04050a; color: #dfe7e2; font-family: "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+    .hud { position: fixed; font-size: 11px; color: #6b7872; pointer-events: none; user-select: none; }
+    #status { top: 8px; left: 10px; }
+    #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
+    #here b { color: #f4bf62; }
+    #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
+    #pack { position: fixed; bottom: 8px; right: 12px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #f4bf62; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #pack:hover { border-color: #f4bf62; color: #fff; }
+    #charbtn { position: fixed; bottom: 8px; right: 92px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #b39bd8; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #charbtn:hover { border-color: #b39bd8; color: #fff; }
+    #equipbtn { position: fixed; bottom: 8px; right: 185px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #7fd8d0; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #equipbtn:hover { border-color: #7fd8d0; color: #fff; }
+    #arenabtn { position: fixed; bottom: 8px; right: 270px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #cf6b6b; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; text-decoration: none; }
+    #arenabtn:hover { border-color: #cf3b3b; color: #fff; }
+    #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
+    #who b { color: #b39bd8; }
+    #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
+    /* the story panel — a click on a resident crystallizes their thread */
+    #story { position: fixed; top: 0; right: 0; width: min(360px, 86vw); height: 100%; background: linear-gradient(180deg, rgba(8,11,16,0.97), rgba(6,8,12,0.97)); border-left: 1px solid #1b2530; padding: 44px 18px 18px; overflow-y: auto; transform: translateX(102%); transition: transform .18s ease; pointer-events: auto; z-index: 5; }
+    #story.on { transform: translateX(0); }
+    #story .nm { font-size: 16px; font-weight: 600; color: #f4bf62; }
+    #story .rl { font-size: 11px; color: #6b7872; margin: 2px 0 14px; letter-spacing: .3px; }
+    #story .nmh { font-size: 12px; color: #7fd8d0; margin-bottom: 4px; }
+    #story .says { font-size: 13px; line-height: 1.55; color: #cfd8d2; white-space: pre-wrap; }
+    #story .ch { display: flex; flex-direction: column; gap: 7px; margin-top: 16px; }
+    #story .ch button { text-align: left; background: #0f141a; border: 1px solid #20303a; color: #dfe7e2; padding: 9px 11px; border-radius: 7px; font: inherit; font-size: 12.5px; cursor: pointer; transition: .12s; }
+    #story .ch button:hover { border-color: #7fd8d0; color: #fff; }
+    #story .cl { position: absolute; top: 12px; right: 14px; background: none; border: 0; color: #6b7872; font: inherit; font-size: 12px; cursor: pointer; }
+    #story .cl:hover { color: #f4bf62; }
+  </style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+  <div class="hud" id="status">…</div>
+  <div class="hud" id="here"></div>
+  <div class="hud" id="busy">generating…</div>
+  <a class="hud" id="back" href="/">◍ hoop</a>
+  <button id="charbtn" title="character (c)">☻ character</button>
+  <a id="arenabtn" href="./arena/" title="arena">⚔ arena</a>
+  <button id="equipbtn" title="equipped (e)">⛨ equip</button>
+  <button id="pack" title="open pack (i)">▣ pack</button>
+  <div class="hud" id="who"></div>
+  <div id="story"></div>
+
+  <script type="module">
+    import { solveChunk } from './v8/chunkgen.js';
+    import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
+    import { bakeFog } from './v8/bake.js';
+    import { paintChunk, SKIN_DEFAULTS } from './skin.js';
+    import { drawDevice } from './v5/deco.js';
+    import { drawWallLight } from './v5/lights.js';
+    import { drawWallFixture } from './consoles.js';
+    import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from './rooms.js';
+    import { buildSociety, buildResidents, stepResidents } from './npc.js';
+    import { frameRects, DIR_OF, DIR8, genomeFromParams } from './v3/sprite-core.js';
+    import { flattenPool, MemoryStore, interact, talk, choose } from './story/engine.js';
+    import { Inventory } from './inventory.js';
+    import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
+    import { CharacterCreator, loadCharacter } from './character.js';
+    import { deriveCombat, TRIAD, TRIAD_ORDER } from './stats.js';
+    import { crewSprite, crewStats } from './crew.js';
+    import { EquippedView } from './equipped.js';
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+    // read a tile's baked colour back into a 0..~1.2 luminance — used to light the voronoi-grown fixtures
+    const lumOfColor = (col) => { const m = /rgb\((\d+),(\d+),(\d+)\)/.exec(col || ''); return m ? (0.3 * +m[1] + 0.6 * +m[2] + 0.1 * +m[3]) / 190 : 0.6; };
+
+    const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
+    const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
+    const ZOOM = 5;                 // the look is locked at 5× — close enough that the painting reads, room-level play
+    let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
+    let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
+    let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
+    let residents = [], lastTs = 0;
+    const story = { store: null, ready: false, playerId: 'local', active: null };
+    const spriteCache = new Map();
+    const pp = { x: 0, y: 0 };   // the player's CONTINUOUS position (glides; not snapped to a cell centre)
+    const SX = (x) => (x - cam.ox) * cam.scale, SY = (y) => (y - cam.oy) * cam.scale;
+    const WX = (sx) => sx / cam.scale + cam.ox, WY = (sy) => sy / cam.scale + cam.oy;
+    const busy = (on) => { busyN += on ? 1 : -1; $('busy').classList.toggle('on', busyN > 0); };
+    const px = () => pp.x, py = () => pp.y;
+
+    // off-thread generation + paint (worker) with a synchronous fallback — identical contract either way
+    let worker = null, genId = 0;
+    try { worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }); } catch (e) { worker = null; }
+    function generate(opts) {
+      return new Promise((res) => {
+        if (!worker) { const rec = solveChunk(opts); rec.seed = opts.seed >>> 0; return res({ rec, painted: paintChunk(rec, SKIN) }); }
+        const id = ++genId, h = (e) => {
+          if (!e.data || e.data.id !== id) return; worker.removeEventListener('message', h);
+          if (e.data.error) { const rec = solveChunk(opts); rec.seed = opts.seed >>> 0; res({ rec, painted: paintChunk(rec, SKIN) }); }
+          else res({ rec: e.data.rec, painted: e.data.painted });
+        };
+        worker.addEventListener('message', h); worker.postMessage({ id, opts });
+      });
+    }
+
+    function bboxOf(poly) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const v of poly) { x0 = Math.min(x0, v.x); y0 = Math.min(y0, v.y); x1 = Math.max(x1, v.x); y1 = Math.max(y1, v.y); } return { x0, y0, x1, y1 }; }
+    function centroidOf(poly) { let x = 0, y = 0; for (const v of poly) { x += v.x; y += v.y; } return { x: x / poly.length, y: y / poly.length }; }
+    // a chunk's seed is derived from its POSITION (centroid), not the load order — so a chunk is the
+    // same wherever you approach it from, and preloading several at once can't collide on a seed.
+    const hash2 = (a, b) => { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + 0x9e3779b1) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; };
+    const chunkSeedFor = (poly) => { const c = centroidOf(poly); return (hash2(Math.round(c.x), Math.round(c.y)) ^ seed) >>> 0; };
+    const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
+
+    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); }
+    function setScale() { cam.scale = W / (chunkSpan * 1.15) * ZOOM; }   // base shows ~one chunk; ZOOM locks the close, painted view
+
+    // rebuild the walk graph + the social web, then re-cast residents — but PRESERVE the sim state of
+    // residents we already have (global node ids are stable as chunks append), so commuters don't reset
+    // every time a chunk streams in.
+    function restitch() {
+      walk = buildWalk(world, blockedOf); society = buildSociety(world, walk);
+      const fresh = buildResidents(world, walk, society), prev = new Map(residents.map((a) => [a.id, a]));
+      residents = fresh.map((a) => prev.get(a.id) || a);
+    }
+    // IMPASSABLE fixtures (v091): the bones cells under a room's floor fixture + its central component
+    // are non-navigable. Computed once per chunk from its painted result (the nearest bones cell to each
+    // claimed fixture tile / the component centre), skipping the concourse + the room's door cells.
+    function computeBlocked(ch) {
+      const set = new Set(), P = ch.painted, bones = ch.cells; if (!P || !bones) return set;
+      const doorSet = new Set(); for (const r of ch.rooms) { if (r.door >= 0) doorSet.add(r.door); if (r.doorRoad >= 0) doorSet.add(r.doorRoad); }
+      // blocker points = the fixture eruption tiles + component centres; a bones cell is impassable only
+      // if its CENTRE actually sits under one (within ~0.55·cellSize), so we don't over-block a bones cell
+      // the fixture merely grazes.
+      const pts = [];
+      for (const F of (P.fixtures || [])) for (const cl of F.cells) { if (cl.base) continue; const c = P.paintCells[cl.idx]; if (c) pts.push(c); }
+      for (const cp of (P.comps || [])) pts.push({ x: cp.cx, y: cp.cy });
+      if (!pts.length) return set;
+      const thr2 = ((ch.cellSize || 16) * 0.55) ** 2;
+      for (let i = 0; i < bones.length; i++) { if (doorSet.has(i) || ch.road[i]) continue; const bx = bones[i].x, by = bones[i].y; for (const p of pts) if ((p.x - bx) ** 2 + (p.y - by) ** 2 < thr2) { set.add(i); break; } }
+      return set;
+    }
+    const blockedOf = (chunkId, local) => { const ch = world.chunks[chunkId]; if (!ch) return false; if (!ch._blocked) ch._blocked = computeBlocked(ch); return ch._blocked.has(local); };
+    function rebakeFog() { if (!walk) return; for (const ch of world.chunks) { const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i)); } }
+    function reveal() { if (player < 0) return; for (const g of sightBall(walk, player, OPTS.sight)) seen.add(g); inView = sightBall(walk, player, OPTS.sight); rebakeFog(); }
+
+    // ── streaming: PRELOAD the frontier — generate any free chunk edge within ~one chunk of the player ──
+    // (so from the central chunk the whole 6-neighbour ring loads ahead of you, and the frontier stays a
+    // chunk ahead as you explore). Serial by design: each neighbour inherits its predecessors' ports, so
+    // the seams stay shared — but a chunk takes ~3s to cross and ~0.5s to make, so one worker keeps ahead.
+    async function maybeStream() {
+      if (!world || busyN > 0) return;
+      const LOOK = chunkSpan * 1.0;                 // start a full chunk early — "less than one chunk away"
+      let best = null, bd = Infinity;
+      for (const ch of world.chunks) for (let ei = 0; ei < ch.poly.length; ei++) {
+        if (!edgeFree(world, ch, ei)) continue;
+        const a = ch.poly[ei], b = ch.poly[(ei + 1) % ch.poly.length], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const d = Math.hypot(mx - px(), my - py());
+        if (d > LOOK) continue;
+        if (d < bd) { bd = d; best = { ch, ei }; }
+      }
+      if (!best) return;
+      busy(true);
+      const spec = neighbourSpec(world, best.ch.id, best.ei);
+      const nseed = chunkSeedFor(spec.poly);
+      const { rec, painted } = await generate(opts({ seed: nseed, poly: spec.poly, inherit: spec.inherit }));
+      rec.painted = painted; addChunk(world, rec); restitch(); reveal();
+      busy(false); status(); draw();
+      maybeStream();   // chain for any other neighbours the view already reaches
+    }
+
+    async function newWorld() {
+      busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const { rec, painted } = await generate(opts({ seed })); rec.painted = painted; addChunk(world, rec); restitch();
+      chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
+      setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal(); busy(false); status(); draw(); maybeStream();
+    }
+    function startNode() { if (!walk) return -1; const ch = world.chunks[0]; let cx = 0, cy = 0, n = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { cx += ch.cells[i].x; cy += ch.cells[i].y; n++; } if (n) { cx /= n; cy /= n; } let best = -1, bd = Infinity; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { const d = (ch.cells[i].x - cx) ** 2 + (ch.cells[i].y - cy) ** 2; if (d < bd) { bd = d; best = i; } } return best >= 0 ? globalOf(walk, 0, best) : nearestNode(walk, cx, cy); }
+
+    // corner-cutting (Chaikin) so the trajectory CURVES through cells instead of hopping centre→centre
+    function chaikin(pts, iters) { for (let it = 0; it < iters; it++) { if (pts.length < 3) break; const out = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } out.push(pts[pts.length - 1]); pts = out; } return pts; }
+    function walkTo(wx, wy) {
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const dst = nearestNode(walk, wx, wy, true); if (dst < 0 || player < 0) return;   // never target an impassable fixture tile
+      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+      route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm; let i = 0;
+      const tick = () => {
+        i++;
+        if (i >= sm.length) { walkTimer = null; player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+        const ox = pp.x, oy = pp.y; pp.x = sm[i][0]; pp.y = sm[i][1];
+        pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i;     // face the way you move; advance the walk cycle
+        const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
+        if (p[ni] !== player) { player = p[ni]; reveal(); }
+        followCam(); draw(); maybeStream();
+        walkTimer = setTimeout(tick, 24);
+      };
+      walkTimer = setTimeout(tick, 24);
+    }
+
+    const roomSeen = (o) => o.cellsG.some((g) => seen.has(g));
+
+    // ── render ── crisp painted vectors under a world transform, then fog + society + player on top ──
+    function worldXform() { const w = cam.scale * dpr; ctx.setTransform(w, 0, 0, w, -cam.ox * w, -cam.oy * w); }
+    function screenXform() { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    function fillPoly(poly) { ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]); ctx.closePath(); ctx.fill(); }
+
+    function drawPainted() {
+      worldXform();
+      const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
+      for (const ch of world.chunks) {
+        const P = ch.painted; if (!P) continue;
+        const bb = ch.bb || (ch.bb = bboxOf(ch.poly)); if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) continue;
+        const seamW = 0.7 / cam.scale;                       // the v4 plate-seam, ~0.7px regardless of zoom
+        for (const c of P.paintCells) {
+          if (c.x < vx0 || c.x > vx1 || c.y < vy0 || c.y > vy1 || c.poly.length < 3) continue;
+          ctx.fillStyle = c.color || '#05070b'; fillPoly(c.poly);
+          if (!c.wall) { ctx.strokeStyle = 'rgba(6,9,12,0.5)'; ctx.lineWidth = seamW; ctx.stroke(); }   // hand-inked floor seam
+        }
+        // v091 item #4: the voronoi-grown wall fixtures — repaint each fixture's claimed tiles as an
+        // erupted, gold-seamed structure. litAt is read back from the tiles' OWN baked colour (so the
+        // fixture is shaded by the same room light the floor got). Culled by tip like the other fixtures.
+        if (P.fixtures) for (const F of P.fixtures) {
+          if (F.tip.x < vx0 || F.tip.x > vx1 || F.tip.y < vy0 || F.tip.y > vy1) continue;
+          const lm = new Map();
+          for (const cl of F.cells) { const c = P.paintCells[cl.idx]; if (c) lm.set(Math.round(c.x) + ',' + Math.round(c.y), lumOfColor(c.color)); }
+          const litAt = (x, y) => lm.get(Math.round(x) + ',' + Math.round(y)) ?? 0.6;
+          drawWallFixture(ctx, P, F, { accent: F.accent, hue: F.hue, litAt });
+        }
+        for (const cp of P.comps) {
+          if (cp.cx < vx0 || cp.cx > vx1 || cp.cy < vy0 || cp.cy > vy1) continue;
+          drawDevice(ctx, cp.cx, cp.cy, cp.r, cp.g, { lit: Math.min(1.45, (cp.lit || 1) + 0.3), accent: cp.accent });
+          // v091: the component EMITS — an additive room-hued bloom whose brightness is set by `emit`
+          // (derived from the superformula's own symmetry/rosette/sunburst). Luminescence from the construct.
+          const er = cp.r * (1.8 + (cp.emit || 0.5) * 1.4), a = Math.min(0.6, 0.16 + (cp.emit || 0.5) * 0.4), hue = cp.hue == null ? 40 : cp.hue;
+          const gl = ctx.createRadialGradient(cp.cx, cp.cy, cp.r * 0.1, cp.cx, cp.cy, er);
+          gl.addColorStop(0, `hsla(${hue},90%,72%,${a})`); gl.addColorStop(0.45, `hsla(${hue},85%,58%,${a * 0.4})`); gl.addColorStop(1, `hsla(${hue},80%,50%,0)`);
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cp.cx, cp.cy, er, 0, 7); ctx.fill(); ctx.restore();
+        }
+        for (const L of P.lights) { if (L.tip.x < vx0 || L.tip.x > vx1 || L.tip.y < vy0 || L.tip.y > vy1) continue; if (L.concourse) drawBollard(ctx, L); else drawWallLight(ctx, L, { hue: L.hue, lit: L.lit }); }
+      }
+      screenXform();
+    }
+    // v091: a free-standing concourse lamp — a dark base ringed by a warm gold glow + a hot core (mirrors
+    // the wall-lamp glow). Drawn under the world transform, so it scales with the painted scene.
+    function drawBollard(ctx, L) {
+      const r = L.len * 0.16, lit = L.lit || 1, hue = L.hue == null ? 40 : L.hue;
+      ctx.fillStyle = 'rgba(6,9,12,0.92)'; ctx.beginPath(); ctx.arc(L.x, L.y, r * 1.25, 0, 7); ctx.fill();
+      for (let i = 4; i >= 1; i--) { ctx.beginPath(); ctx.arc(L.x, L.y, r * i / 1.6, 0, 7); ctx.fillStyle = `hsla(${hue},85%,62%,${(0.05 + (4 - i) * 0.05) * (0.6 + lit * 0.4)})`; ctx.fill(); }
+      ctx.beginPath(); ctx.arc(L.x, L.y, r * 0.5, 0, 7); ctx.fillStyle = `hsla(${hue},70%,88%,0.95)`; ctx.fill();
+    }
+
+    function draw() {
+      screenXform(); ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, W, H);
+      if (!world) return;
+      drawPainted();
+      drawResidents();                 // BEFORE the fog, so the fog hides residents in unseen rooms
+      // fog blitted with a blur so its frontier is soft (hides the per-cell reveal edge)
+      ctx.imageSmoothingEnabled = true;
+      ctx.filter = `blur(${Math.max(1, cam.scale * OPTS.cellSize * 0.35).toFixed(1)}px)`;
+      for (const ch of world.chunks) { const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); }
+      ctx.filter = 'none';
+      drawNPC(); drawPlayer(); whereAmI();
+    }
+    function strokeNodes(arr, gateSeen) { ctx.beginPath(); let pen = false; for (const g of arr) { if (gateSeen && !seen.has(g)) { pen = false; continue; } const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; if (pen) ctx.lineTo(SX(x), SY(y)); else { ctx.moveTo(SX(x), SY(y)); pen = true; } } ctx.stroke(); }
+    function drawNPC() {
+      if (!society || !walk) return;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      for (const rt of society.routes) { ctx.strokeStyle = `rgba(127,216,208,${Math.min(0.5, 0.13 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3, 0.7 + rt.w * 0.2); strokeNodes(rt.cells, true); }
+      ctx.lineWidth = 0.9; for (const e of society.edges) { if (!roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.34)' : 'rgba(180,120,216,0.32)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); }
+    }
+    // ── residents: seed-stable pixel sprites, rendered once per (genome,dir,frame) to a cache canvas ──
+    function spriteCanvas(genome, dir, frame) {
+      const key = genome.seed + '|' + dir + '|' + frame;
+      let c = spriteCache.get(key); if (c) return c;
+      if (spriteCache.size > 1800) spriteCache.clear();          // bound memory over a long session
+      const N = genome.size, S = 4, cvs = document.createElement('canvas'); cvs.width = N * S; cvs.height = N * S;
+      const g = cvs.getContext('2d');
+      for (const r of frameRects(genome, DIR_OF[dir] || DIR_OF.S, frame)) { g.fillStyle = r.c; g.fillRect(r.x * S, r.y * S, S, S); }
+      spriteCache.set(key, cvs); return c = cvs;
+    }
+    function drawResidents() {
+      if (!residents.length || !walk) return;
+      ctx.imageSmoothingEnabled = false;
+      const frames = 4, h = SKIN.playerW * 0.62 * cam.scale;   // v091: HALF-scale residents — small top-down figures that don't loom over the player
+      for (const a of residents) {
+        const sx = SX(a.x), sy = SY(a.y);
+        if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;   // viewport cull
+        const moving = !!a.pts && a.dwellLeft <= 0, frame = moving ? (a.phase | 0) % frames : null;
+        const cvs = spriteCanvas(a.genome, a.dir, frame), w = h * (cvs.width / cvs.height);
+        ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);     // ground point at the feet
+      }
+      ctx.imageSmoothingEnabled = true;
+    }
+    function strokePolyW(pts) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(SX(pts[i][0]), SY(pts[i][1])); else ctx.moveTo(SX(pts[i][0]), SY(pts[i][1])); } ctx.stroke(); }
+    // map a movement delta to one of the 8 sprite directions
+    function dirKey(dx, dy) { if (!dx && !dy) return pdir; let best = 'S', bd = -2; for (const d of DIR8) { const dot = (dx * d.dx + dy * d.dy) / (Math.hypot(dx, dy) * Math.hypot(d.dx, d.dy) || 1); if (dot > bd) { bd = dot; best = d.k; } } return best; }
+    function drawPlayer() {
+      if (player < 0 || !walk) return;
+      if (routePts.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 6; strokePolyW(routePts); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; strokePolyW(routePts); }
+      const x = px(), y = py(), rad = Math.max(2.5, SKIN.playerW * 0.5 * cam.scale);
+      // the lantern: the player's true-world-size glow (also grounds the sprite)
+      ctx.save(); ctx.shadowColor = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 3.2;
+      ctx.fillStyle = '#fff7e6'; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 1.4; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad * 0.55, 0, 7); ctx.fill(); ctx.restore();
+      // the embarked character, drawn as their own rolled sprite standing over the lantern
+      if (playerGenome) {
+        ctx.imageSmoothingEnabled = false;
+        const moving = !!walkTimer, frame = moving ? (pphase | 0) % 4 : null;
+        const cvs = spriteCanvas(playerGenome, pdir, frame), h = SKIN.playerW * 1.5 * cam.scale, w = h * (cvs.width / cvs.height);
+        ctx.drawImage(cvs, SX(x) - w / 2, SY(y) - h * 0.92, w, h);
+        ctx.imageSmoothingEnabled = true;
+      }
+    }
+
+    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${ZOOM}× locked`; }
+    function whereAmI() {
+      if (player < 0 || !walk) { $('here').textContent = ''; return; }
+      const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
+      if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
+      $('here').innerHTML = `<b>${label}</b>`;
+    }
+
+    // ── the story engine: a click on a resident crystallizes their thread (deterministic, no inference) ──
+    async function loadStory() {
+      try {
+        const res = await fetch(new URL('./story/pool.json', import.meta.url)); if (!res.ok) throw 0;
+        story.store = new MemoryStore(flattenPool(await res.json()), { features: [] });
+        const saved = localStorage.getItem('mega:v093:story'); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
+        story.ready = true;
+      } catch (e) { story.ready = false; }   // graceful: residents still live and walk, just no story panel
+    }
+    const saveStory = () => { if (story.ready) try { localStorage.setItem('mega:v093:story', JSON.stringify(story.store.snapshot())); } catch (e) {} };
+    function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of residents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
+    function openStory(a) {
+      if (!story.ready) return;
+      const s = story.store;
+      if (!s.featureByKey(a.featureKey)) s.addFeature({ key: a.featureKey, type: 'npc', label: a.name, tag: a.role });
+      const intro = interact(s, story.playerId, a.featureKey, '', { tag: a.role });
+      story.active = { agent: a, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      saveStory(); renderStory();
+    }
+    // every soul gets a cheap, deterministic FLESH·CHASSIS·ANIMA stat block (crewStats is O(1))
+    const npcStats = new Map();
+    function statBlockFor(agent) {
+      const k = (agent.genome && agent.genome.seed) || agent.id || agent.name;
+      let sb = npcStats.get(k); if (!sb) { sb = crewStats(k, agent.role); npcStats.set(k, sb); }
+      return sb;
+    }
+    function npcStatLine(agent) {
+      const c = statBlockFor(agent), cm = deriveCombat(c);
+      const tri = TRIAD_ORDER.map((d) => `<span style="color:${TRIAD[d].accent}">${TRIAD[d].glyph}${Math.round(c.triad[d] * 100)}</span>`).join(' ');
+      return `<div style="font-size:10.5px;color:#9aa8a0;margin:-6px 0 12px"><b style="color:#cfd8d2">${esc(c.cast.label)}</b> · ${tri} · <span title="combat">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def}</span></div>`;
+    }
+    function renderStory() {
+      const panel = $('story');
+      if (!story.active) { panel.classList.remove('on'); panel.innerHTML = ''; return; }
+      const { agent, npcId, intro } = story.active;
+      let head, body = '', choices = '';
+      if (npcId) {
+        const t = talk(story.store, story.playerId, npcId);
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)} · ${esc(t.npc || '')} · standing ${t.standing | 0}</div>${npcStatLine(agent)}`;
+        body = `<p class="says">${esc(t.says)}</p>`;
+        choices = (t.choices || []).map((c) => `<button data-cid="${esc(c.id)}">${esc(c.text)}</button>`).join('');
+      } else if (intro.item) {
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
+        body = `<p class="nmh">${esc(intro.item.name || '')}</p><p class="says">${esc(intro.item.description || '')}</p>`;
+      } else {
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
+        body = `<p class="says">They meet your eye, wary — there is nothing here for you yet.</p>`;
+      }
+      panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button>${head}${body}<div class="ch">${choices}</div>`;
+      panel.classList.add('on');
+    }
+    $('story').addEventListener('click', (e) => {
+      const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
+      if (cl) { story.active = null; renderStory(); return; }
+      if (ch && story.active && story.active.npcId) {
+        const r = choose(story.store, story.playerId, story.active.npcId, ch.dataset.cid);
+        // an NPC's give_items grant → real items in the Voronoi pack (a key becomes a key sprite)
+        for (const id of (r && r.gave_items) || []) {
+          const it = itemFromGrant(story.store.contentById(id)); if (!it) continue;
+          addToPack(pack.pack, it); pack.setPack(pack.pack); flashPickup(it);
+        }
+        saveStory(); if (r && r.ended) { story.active = null; } renderStory();
+      }
+    });
+    // a brief toast when something enters the pack
+    let _flashT = null;
+    function flashPickup(it) {
+      const el = $('busy'); el.textContent = `+ ${it.name} → pack (i)`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2200);
+    }
+    addEventListener('keydown', (e) => { if (e.key === 'Escape' && story.active) { story.active = null; renderStory(); } });
+
+    cv.addEventListener('click', (e) => {
+      if (!world || player < 0) return;
+      const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
+      const who = residentAt(wx, wy);
+      if (who) { openStory(who); walkTo(who.x, who.y); } else { if (story.active) { story.active = null; renderStory(); } walkTo(wx, wy); }
+    });
+
+    // the animation loop — step the residents' commute, then render (the painted world is otherwise static)
+    function frame(ts) {
+      const dt = lastTs ? ts - lastTs : 16; lastTs = ts;
+      if (world && walk && residents.length) stepResidents(residents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 1.5, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
+      draw();
+      requestAnimationFrame(frame);
+    }
+
+    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
+    let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
+    addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === 'R') { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world
+
+    // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
+    let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
+    function adoptCharacter(c) {
+      playerChar = c;
+      try { playerGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size }); } catch (e) { playerGenome = null; }
+      pack.setPack(packForCharacter(c, 9));
+      renderWho();
+    }
+    function renderWho() {
+      if (!playerChar) { $('who').innerHTML = ''; return; }
+      const cm = deriveCombat(playerChar);
+      $('who').innerHTML = `<b>${esc(playerChar.name)}</b> · ${esc(playerChar.cast.label)} ${esc(playerChar.vocTag)}<br><span style="color:#6b7872">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def} ✣${cm.fluxPool}</span>`;
+    }
+
+    // ── the pack: a Voronoi-cylinder inventory of genomed items ──
+    const pack = new Inventory({ pack: (playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)), title: 'pack' });
+    const togglePack = () => pack.toggle();
+    $('pack').addEventListener('click', togglePack);
+    addEventListener('keydown', (e) => { if ((e.key === 'i' || e.key === 'I') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); togglePack(); } });
+
+    // ── character creation ──
+    const creator = new CharacterCreator({ seed: (seed ^ 0x5a17) >>> 0, onEmbark: adoptCharacter });
+    $('charbtn').addEventListener('click', () => creator.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); creator.toggle(); } });
+
+    // ── the equipped page: stained-glass figure with the pack auto-fitted onto a body plan ──
+    const equip = new EquippedView({ getCharacter: () => playerChar, getPack: () => pack.pack });
+    $('equipbtn').addEventListener('click', () => equip.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); equip.toggle(); } });
+
+    if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
+    loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
