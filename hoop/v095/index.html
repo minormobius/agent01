@@ -96,7 +96,8 @@
     const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
     const TERMINAL_ROLES = new Set(['learn', 'govern', 'worship']);   // reading-room / record-hall consoles are Tabard terminals (Continuant rooms). Marked teal ▤; click to read Luna's mythograph. A chunk-0 fallback (_terminal) guarantees at least one.
     const isTerminal = (cp) => cp._terminal || TERMINAL_ROLES.has(cp.role);
-    const ZOOM = 5;                 // the look is locked at 5× — close enough that the painting reads, room-level play
+    const VFOV = 0.5;              // vertical field of view = this fraction of a chunk-span of world, DEVICE-INDEPENDENT:
+                                   // desktop sees the same world-HEIGHT the phone does (just wider), not a screen-size zoom
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
     let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
@@ -135,7 +136,7 @@
     const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
 
     function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter(); }
-    function setScale() { cam.scale = W / (chunkSpan * 1.15) * ZOOM; }   // base shows ~one chunk; ZOOM locks the close, painted view
+    function setScale() { cam.scale = H / (chunkSpan * VFOV); }   // pin the VERTICAL world span; width follows the aspect (mobile look retained on desktop)
 
     // rebuild the walk graph + the social web, then re-cast residents — but PRESERVE the sim state of
     // residents we already have (global node ids are stable as chunks append), so commuters don't reset
@@ -454,7 +455,7 @@
       ctx.restore();
     }
 
-    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${ZOOM}× locked`; }
+    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
