@@ -255,6 +255,7 @@ export class Inventory {
           <div style="font-size:10.5px;color:#6b7872;margin:2px 0 9px;letter-spacing:.3px">${esc(item.kingdom)} · ${esc(item.phylum)} · ${esc(item.material)} · <span style="color:${item.frame}">${esc(item.gradeLabel || item.grade)}</span> · worth ${item.worth}</div>
           ${bars}
           <div style="margin-top:7px">${spikes}</div>
+          ${item.lore ? `<div style="font-size:11px;color:#cbb6e6;margin-top:8px;line-height:1.5;border-left:2px solid ${item.frame};padding-left:8px">${esc(item.lore)}</div>` : ''}
           <div style="font-size:11px;color:#cfd8d2;margin-top:8px;line-height:1.5;font-style:italic">${esc(item.headline || '')}</div>
         </div>
       </div>`;

@@ -20,6 +20,8 @@
     #pack:hover { border-color: #f4bf62; color: #fff; }
     #charbtn { position: fixed; bottom: 8px; right: 92px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #b39bd8; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
     #charbtn:hover { border-color: #b39bd8; color: #fff; }
+    #equipbtn { position: fixed; bottom: 8px; right: 185px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #7fd8d0; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #equipbtn:hover { border-color: #7fd8d0; color: #fff; }
     #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
     #who b { color: #b39bd8; }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
@@ -44,6 +46,7 @@
   <div class="hud" id="busy">generating…</div>
   <a class="hud" id="back" href="/">◍ hoop</a>
   <button id="charbtn" title="character (c)">☻ character</button>
+  <button id="equipbtn" title="equipped (e)">⛨ equip</button>
   <button id="pack" title="open pack (i)">▣ pack</button>
   <div class="hud" id="who"></div>
   <div id="story"></div>
@@ -59,9 +62,11 @@
     import { frameRects, DIR_OF, DIR8, genomeFromParams } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose } from './story/engine.js';
     import { Inventory } from './inventory.js';
-    import { startingPack, packForCharacter } from './pack.js';
+    import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
-    import { deriveCombat } from './stats.js';
+    import { deriveCombat, TRIAD, TRIAD_ORDER } from './stats.js';
+    import { crewSprite, crewStats } from './crew.js';
+    import { EquippedView } from './equipped.js';
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 
@@ -285,6 +290,18 @@
       story.active = { agent: a, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       saveStory(); renderStory();
     }
+    // every soul gets a cheap, deterministic FLESH·CHASSIS·ANIMA stat block (crewStats is O(1))
+    const npcStats = new Map();
+    function statBlockFor(agent) {
+      const k = (agent.genome && agent.genome.seed) || agent.id || agent.name;
+      let sb = npcStats.get(k); if (!sb) { sb = crewStats(k, agent.role); npcStats.set(k, sb); }
+      return sb;
+    }
+    function npcStatLine(agent) {
+      const c = statBlockFor(agent), cm = deriveCombat(c);
+      const tri = TRIAD_ORDER.map((d) => `<span style="color:${TRIAD[d].accent}">${TRIAD[d].glyph}${Math.round(c.triad[d] * 100)}</span>`).join(' ');
+      return `<div style="font-size:10.5px;color:#9aa8a0;margin:-6px 0 12px"><b style="color:#cfd8d2">${esc(c.cast.label)}</b> · ${tri} · <span title="combat">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def}</span></div>`;
+    }
     function renderStory() {
       const panel = $('story');
       if (!story.active) { panel.classList.remove('on'); panel.innerHTML = ''; return; }
@@ -292,7 +309,7 @@
       let head, body = '', choices = '';
       if (npcId) {
         const t = talk(story.store, story.playerId, npcId);
-        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)} · ${esc(t.npc || '')} · standing ${t.standing | 0}</div>`;
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)} · ${esc(t.npc || '')} · standing ${t.standing | 0}</div>${npcStatLine(agent)}`;
         body = `<p class="says">${esc(t.says)}</p>`;
         choices = (t.choices || []).map((c) => `<button data-cid="${esc(c.id)}">${esc(c.text)}</button>`).join('');
       } else if (intro.item) {
@@ -308,8 +325,22 @@
     $('story').addEventListener('click', (e) => {
       const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
       if (cl) { story.active = null; renderStory(); return; }
-      if (ch && story.active && story.active.npcId) { const r = choose(story.store, story.playerId, story.active.npcId, ch.dataset.cid); saveStory(); if (r && r.ended) { story.active = null; } renderStory(); }
+      if (ch && story.active && story.active.npcId) {
+        const r = choose(story.store, story.playerId, story.active.npcId, ch.dataset.cid);
+        // an NPC's give_items grant → real items in the Voronoi pack (a key becomes a key sprite)
+        for (const id of (r && r.gave_items) || []) {
+          const it = itemFromGrant(story.store.contentById(id)); if (!it) continue;
+          addToPack(pack.pack, it); pack.setPack(pack.pack); flashPickup(it);
+        }
+        saveStory(); if (r && r.ended) { story.active = null; } renderStory();
+      }
     });
+    // a brief toast when something enters the pack
+    let _flashT = null;
+    function flashPickup(it) {
+      const el = $('busy'); el.textContent = `+ ${it.name} → pack (i)`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2200);
+    }
     addEventListener('keydown', (e) => { if (e.key === 'Escape' && story.active) { story.active = null; renderStory(); } });
 
     cv.addEventListener('click', (e) => {
@@ -335,7 +366,7 @@
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
     function adoptCharacter(c) {
       playerChar = c;
-      try { playerGenome = genomeFromParams({ seed: c.sprite.seed, role: c.vocation, arch: c.sprite.arch, size: c.sprite.size }); } catch (e) { playerGenome = null; }
+      try { playerGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size }); } catch (e) { playerGenome = null; }
       pack.setPack(packForCharacter(c, 9));
       renderWho();
     }
@@ -355,6 +386,11 @@
     const creator = new CharacterCreator({ seed: (seed ^ 0x5a17) >>> 0, onEmbark: adoptCharacter });
     $('charbtn').addEventListener('click', () => creator.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); creator.toggle(); } });
+
+    // ── the equipped page: stained-glass figure with the pack auto-fitted onto a body plan ──
+    const equip = new EquippedView({ getCharacter: () => playerChar, getPack: () => pack.pack });
+    $('equipbtn').addEventListener('click', () => equip.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); equip.toggle(); } });
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
     loadStory(); resize(); newWorld(); requestAnimationFrame(frame);

@@ -50,6 +50,7 @@ export const PHYLA = {
   open:      { kingdom: 'hold',   prim: 'vessel', p: { belly: 1.3, neck: 0, mouth: 1.4 },               mats: { clay: 12, glass: 10, bronze: 6, silver: 4, gold: 2 },          base: { mass: 0.9, durability: 34, potency: 18, value: 24 }, species: ['Bowl', 'Cup', 'Basin'] },
   necked:    { kingdom: 'hold',   prim: 'vessel', p: { belly: 1.0, neck: 1.2, mouth: 0.5 },             mats: { glass: 12, clay: 10, bronze: 6, silver: 4, gold: 2 },          base: { mass: 1.4, durability: 32, potency: 20, value: 30 }, species: ['Flask', 'Amphora', 'Ewer'] },
   chest:     { kingdom: 'hold',   prim: 'compound', p: { box: 1, lid: 1 },                              mats: { wood: 12, iron: 8, bronze: 6, leather: 6, steel: 3 },          base: { mass: 5.0, durability: 64, potency: 14, value: 40 }, species: ['Coffer', 'Casket', 'Crate'] },
+  key:       { kingdom: 'hold',   prim: 'key',    p: {},                                                mats: { alloy: 10, iron: 8, bronze: 6, silver: 4, glass: 3 },          base: { mass: 0.1, durability: 40, potency: 6,  value: 30 }, species: ['Key', 'Hatch-Key', 'Sigil-Key'], loot: false },   // access tokens — never random loot; minted by quests/NPCs
   // adorn
   pendant:   { kingdom: 'adorn',  prim: 'disc',   p: { small: 1, gem: 1, chain: 1 },                    mats: { silver: 10, gold: 10, crystal: 8, bone: 5, bronze: 3 },        base: { mass: 0.25, durability: 50, potency: 36, value: 64 }, species: ['Amulet', 'Locket', 'Talisman'] },
   band:      { kingdom: 'adorn',  prim: 'disc',   p: { ring: 1, gem: 0.6, small: 1 },                   mats: { gold: 12, silver: 10, bronze: 6, crystal: 6, iron: 3 },        base: { mass: 0.1, durability: 60, potency: 40, value: 70 }, species: ['Ring', 'Circlet', 'Torc'] },
@@ -76,7 +77,7 @@ export const PHYLA = {
   percussion:{ kingdom: 'sound',  prim: 'disc',   p: { drum: 1 },                                       mats: { wood: 8, leather: 10, bronze: 6, alloy: 3 },                  base: { mass: 1.6, durability: 50, potency: 40, value: 36 }, species: ['Drum', 'Gong', 'Bell'] },
 };
 export const PHYLUM_ORDER = Object.keys(PHYLA);
-export const phylaOf = (kingdom) => PHYLUM_ORDER.filter((p) => PHYLA[p].kingdom === kingdom);
+export const phylaOf = (kingdom) => PHYLUM_ORDER.filter((p) => PHYLA[p].kingdom === kingdom && PHYLA[p].loot !== false);
 
 // ── MATERIALS — the categorical trait, GATED BY TECH. `tech:[lo,hi]` is the era band in which the ──
 // material is available (stone is primitive; alloy is ship-grade), so the tech gene shapes what a
@@ -157,6 +158,7 @@ export const SF_SPECIES = {
   percussor: ['Driver', 'Servo-Mallet'], graver: ['Laser-Scribe', 'Bore', 'Etcher'], gauge: ['Caliper-Unit', 'Sense-Square', 'Micrometer'],
   worn: ['Coversuit', 'Field-Wrap', 'Underlayer'], plate: ['Carapace', 'Pauldron-Mk'], shield: ['Buckler-Field', 'Deflector', 'Kite-Screen'],
   open: ['Tray-Unit', 'Beaker', 'Basin-Unit'], necked: ['Canister', 'Flask-Unit', 'Decanter'], chest: ['Locker', 'Stasis-Case', 'Crate-Unit'],
+  key: ['Keycard', 'Access-Wafer', 'Cipher-Tab'],
   pendant: ['ID-Tag', 'Locket-Cell', 'Talis-Chip'], band: ['Band-Loop', 'Circlet-Mk', 'Torc-Ring'], gemset: ['Sensor-Brooch', 'Core-Jewel', 'Sigil-Chip'],
   codex: ['Dataslate', 'Codex-Drive', 'Ledger-Unit'], scroll: ['Filmreel', 'Map-Chip', 'Charter-Card'], tablet: ['Slate-Unit', 'Sigil-Plate'],
   rod: ['Conductor', 'Wand-Emitter', 'Scepter-Rod'], focus: ['Lens-Core', 'Optic', 'Prism-Cell'], sigil: ['Beacon-Chip', 'Charm-Cell', 'Ward-Key'],

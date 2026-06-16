@@ -9,8 +9,8 @@
 
 import { rollCharacter, rollTriad, rollCharacteristics, normTriad, deriveCombat, deriveAttrs, applyCharacteristics,
          TRIAD, TRIAD_ORDER, ATTRS, ATTR_ORDER, VOCATIONS, VOCATION_ORDER, castOf } from './stats.js';
-import { ROLES } from './v3/sprite-core.js';
-import { genomeFromParams, frameRects, DIR_OF } from './v3/sprite-core.js';
+import { ROLES, frameRects, DIR_OF } from './v3/sprite-core.js';
+import { crewSprite } from './crew.js';
 
 const STORE_KEY = 'mega:v092:character';
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -186,8 +186,9 @@ export class CharacterCreator {
   _drawSprite() {
     try {
       const c = this._c, dom = c.cast.dominant, accent = TRIAD[dom].accent;
-      const g = genomeFromParams({ seed: c.sprite.seed, role: c.vocation, arch: c.sprite.arch, size: c.sprite.size });
-      this._spriteGenome = g; this._spriteAccent = accent;
+      // profession-coloured per the style guide; the technomagic aura carries the dominant domain
+      this._spriteGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size });
+      this._spriteAccent = accent;
     } catch (e) { this._spriteGenome = null; }
   }
 

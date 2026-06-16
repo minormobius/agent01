@@ -48,6 +48,21 @@ seed-deterministic, breedable engine) plus weird characteristics. Sci-fi flavore
 little bit robot*, so the trait space can get wacky. The space must be **huge** to stay interesting —
 lean on the existing genome breeding (`splice`/`mutate`) for combinatorial depth.
 
+### Crossover & polish (shipped)
+- **Equipped page** (`equipped.js` + `bodyplan.js`, `e` key) — a **stained-glass Vitruvian figure**: each
+  body region is shattered into lead-came Voronoi shards tinted by the item equipped to its slot.
+  `bodyplan.js` is the **hook** for alternate body plans (two heads, wheels-for-legs, a shoulder cannon
+  = new regions/slots; the tiler + renderer consume any plan). `slotForItem` maps kingdom/phylum → slot;
+  `autoEquip` fits the best in-slot item from the pack. First pass: humanoid, auto-equipped.
+- **Keys** — the `key` phylum (`taxa.js`, `loot:false` so never random loot) + a `key` sprite primitive
+  (toothed key low-tech, eye-stamped access wafer high-tech). NPCs that `give_items` now drop real items
+  into the Voronoi pack via `itemFromGrant` (the Keeper's Key works end-to-end); items carry `lore`.
+- **Sci-fi slider** — the pack's `techMean` is 0.8 (generation-ship, not smithy): species names + sprite
+  cues read sci-fi (Vibroblade / Carapace / Dataslate) at the top two eras.
+- **Style guide** — `crew.js` `crewSprite` recolours the body to the **profession's canon hue** (per
+  NPC-SPRITES.md §4) so a figure reads as its vocation; the player uses it. `crewStats` mints a cheap,
+  deterministic FLESH·CHASSIS·ANIMA stat block for **any** soul — surfaced in the NPC story panel.
+
 ## Conventions
 - Self-contained under `mega/v092/`. Vendored hoop deps keep their internal `../v7|paint|econ/` refs
   (they resolve within `v092/`). The shared item & sprite engines are reached at `../sprite/...`.
