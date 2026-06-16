@@ -28,7 +28,7 @@ export function neighbourSpec(world, chunkId, ei) {
 
 // the unified walk graph over all loaded chunks. Global node id = base[chunkId] + localCell.
 const mem = (ch, i) => ch.road[i] ? 'R' : ('r' + ch.id + '_' + ch.roomOf[i]);
-export function buildWalk(world) {
+export function buildWalk(world, blockedOf) {
   const base = [], pos = [], nodeChunk = [], nodeLocal = []; let N = 0;
   for (const ch of world.chunks) { base[ch.id] = N; for (let i = 0; i < ch.cells.length; i++) { pos.push(ch.cells[i].x, ch.cells[i].y); nodeChunk.push(ch.id); nodeLocal.push(i); } N += ch.cells.length; }
   const adj = Array.from({ length: N }, () => []);
@@ -42,20 +42,26 @@ export function buildWalk(world) {
   const byLoc = new Map();
   for (const ch of world.chunks) for (const p of ch.ports) { if (p.cell == null || p.cell < 0) continue; const k = Math.round(p.x) + ',' + Math.round(p.y); let a = byLoc.get(k); if (!a) { a = []; byLoc.set(k, a); } a.push(base[ch.id] + p.cell); }
   for (const group of byLoc.values()) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) link(group[i], group[j]);
-  return { N, adj, pos: new Float32Array(pos), nodeChunk: new Int32Array(nodeChunk), nodeLocal: new Int32Array(nodeLocal), base };
+  // optional IMPASSABLE nodes (v091 fixtures): blockedOf(chunkId, localCell) → bool. Edges are LEFT
+  // INTACT (so the fog/sight ball still flows over a fixture and reveals it); pathFind + nearestNode
+  // consult walk.blocked so MOVEMENT routes around it. Omitted ⇒ nothing blocked (shared default).
+  let blocked = null;
+  if (blockedOf) { blocked = new Set(); for (const ch of world.chunks) { const b0 = base[ch.id]; for (let i = 0; i < ch.cells.length; i++) if (blockedOf(ch.id, i)) blocked.add(b0 + i); } }
+  return { N, adj, pos: new Float32Array(pos), nodeChunk: new Int32Array(nodeChunk), nodeLocal: new Int32Array(nodeLocal), base, blocked };
 }
 export const globalOf = (walk, chunkId, local) => walk.base[chunkId] + local;
 
 // nearest walkable global node to a world point
-export function nearestNode(walk, x, y) { let best = -1, bd = Infinity; for (let i = 0; i < walk.N; i++) { const d = (walk.pos[2 * i] - x) ** 2 + (walk.pos[2 * i + 1] - y) ** 2; if (d < bd) { bd = d; best = i; } } return best; }
+export function nearestNode(walk, x, y, avoidBlocked) { const blk = avoidBlocked && walk.blocked; let best = -1, bd = Infinity; for (let i = 0; i < walk.N; i++) { if (blk && blk.has(i)) continue; const d = (walk.pos[2 * i] - x) ** 2 + (walk.pos[2 * i + 1] - y) ** 2; if (d < bd) { bd = d; best = i; } } return best; }
 
 // shortest path (Dijkstra by euclidean) over the walk graph
 export function pathFind(walk, src, dst) {
   const { N, adj, pos } = walk, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N), heap = [[0, src]];
   const push = (d, c) => { heap.push([d, c]); let k = heap.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break;[heap[p], heap[k]] = [heap[k], heap[p]]; k = p; } };
   const pop = () => { const t = heap[0], l = heap.pop(); if (heap.length) { heap[0] = l; let k = 0; for (;;) { const L = 2 * k + 1, R = L + 1; let m = k; if (L < heap.length && heap[L][0] < heap[m][0]) m = L; if (R < heap.length && heap[R][0] < heap[m][0]) m = R; if (m === k) break;[heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } } return t; };
+  const blk = walk.blocked;   // impassable nodes (v091 fixtures) are never expanded into (except dst itself)
   dist[src] = 0;
-  while (heap.length) { const [d, u] = pop(); if (done[u]) continue; done[u] = 1; if (u === dst) break; for (const v of adj[u]) { const nd = d + Math.hypot(pos[2 * u] - pos[2 * v], pos[2 * u + 1] - pos[2 * v + 1]); if (nd < dist[v]) { dist[v] = nd; prev[v] = u; push(nd, v); } } }
+  while (heap.length) { const [d, u] = pop(); if (done[u]) continue; done[u] = 1; if (u === dst) break; for (const v of adj[u]) { if (blk && v !== dst && blk.has(v)) continue; const nd = d + Math.hypot(pos[2 * u] - pos[2 * v], pos[2 * u + 1] - pos[2 * v + 1]); if (nd < dist[v]) { dist[v] = nd; prev[v] = u; push(nd, v); } } }
   if (!done[dst]) return null;
   const path = []; for (let u = dst; u !== -1; u = prev[u]) path.push(u); return path.reverse();
 }

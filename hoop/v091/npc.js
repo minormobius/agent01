@@ -52,7 +52,8 @@ export function dirKey(dx, dy) { if (!dx && !dy) return 'S'; let k = Math.round(
 // room's own cells, so residents who share a room spread across its interior. The walk graph still
 // forces the path through the door; only the standing/dwell point moves inside. Falls back to the door.
 function anchorNode(id, room, walk) {
-  const cg = room.cellsG && room.cellsG.length ? room.cellsG.filter((g) => g != null && g >= 0 && g < walk.N) : null;
+  const blk = walk.blocked;   // never anchor a resident on an impassable fixture tile
+  const cg = room.cellsG && room.cellsG.length ? room.cellsG.filter((g) => g != null && g >= 0 && g < walk.N && !(blk && blk.has(g))) : null;
   if (!cg || !cg.length) return room.doorG;
   return cg[(rngFor('anchor:' + id + ':' + room.gid)() * cg.length) | 0];
 }

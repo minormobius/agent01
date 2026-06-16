@@ -185,16 +185,54 @@ export function paintChunk(rec, opts = {}) {
   }
   const concLights = concChosen.map((c) => { const g = lightGenome(rng); const len = pw * (1.0 + g.len * 0.5) * o.fixture; return { x: c.x, y: c.y, nx: 0, ny: -1, len, model: g, room: -1, concourse: true, hue: 40, rgb: hslToRgb(40, 0.5, 0.6), tip: { x: c.x, y: c.y } }; });
 
-  // ── 4c. the CENTRAL component per room, computed BEFORE the light bake so it can EMIT (v091). The
-  // deco medallion is now a real luminous source, and its emission is DERIVED FROM ITS CONSTRUCTION: a
-  // higher-symmetry, rosetted, sun-burst superformula reads as more "energised", so it glows brighter.
-  // We pick the anchor (clear of walls, near centre), mint its genome, derive an `emit` scalar from that
-  // genome, then plant a room-hued emitter at its core — the ray-trace below lights the room FROM it. ──
+  // ── 4c. VORONOI-GROWN WALL FIXTURES (grown BEFORE the component now, so the component can sit away
+  // from them and BOTH can feed the light bake). The fixture CLAIMS a cluster of a room's own cells at a
+  // corner/wall (off the door, away from the lamps, biased off the concourse) and erupts them into a
+  // gold-seamed structure. Grown in LOCAL coords; tip/anchor lifted to world in step 7. The claimed
+  // indices are into `cells`, 1:1 with `paintCells`, so the page repaints those exact tiles. ──
+  const fxAvoid = {};
+  rec.rooms.forEach((r, ri) => { if (r.door >= 0) fxAvoid[ri] = []; });
+  for (const L of lights) if (L.room >= 0 && fxAvoid[L.room]) fxAvoid[L.room].push({ x: L.tip.x, y: L.tip.y });
+  const roomSeeds = [], roomCells = [], doors = {};
+  rec.rooms.forEach((r, ri) => {
+    if (r.door < 0) return;
+    roomSeeds[ri] = { x: r.x - ox, y: r.y - oy }; roomCells.push({ id: ri });
+    // the door cells (room side + concourse side, incl. the widened pair) — kept clear; doors are
+    // non-navigable, so a fixture must never cover one.
+    const dp = r.doorPairs && r.doorPairs.length ? r.doorPairs : (r.doorRoad >= 0 ? [[r.door, r.doorRoad]] : []);
+    const pts = []; for (const pair of dp) for (const ci of pair) if (ci >= 0 && rec.cells[ci]) pts.push({ x: rec.cells[ci].x - ox, y: rec.cells[ci].y - oy });
+    doors[ri] = pts;
+  });
+  const fxScene = { W, H, wallSpacing: ws, roomSpacing: rs, roomSize: rs * 8, nuclei: cells, paintCells: cells, roomCells, roomSeeds };
+  const fixtures = growWallFixtures(fxScene, mulberry32((Math.imul(seed, 40503) + 7) >>> 0), { avoid: fxAvoid, doors, maxAreaFrac: o.fixtureArea, kindOf: (room) => ROLE_CONSOLE[rec.rooms[room] && rec.rooms[room].role] || 'storage' });
+  // a per-room map of the fixture's claimed-tile centres (LOCAL) — the central component biases away
+  // from these so the two fixtures never crowd; also the centroid for the fixture's own emitter.
+  const fxPts = {}, fxLights = [];
+  for (const F of fixtures) {
+    const r = rec.rooms[F.room]; F.accent = (r && r.color) || '#9b6b3a'; F.hue = hexHue(r && r.color);
+    const pts = []; for (const cl of F.cells) if (!cl.base) { const c = cells[cl.idx]; if (c) pts.push({ x: c.x, y: c.y }); }
+    (fxPts[F.room] = fxPts[F.room] || []).push(...pts);
+    // FLOOR FIXTURE IS LUMINOUS: a room-hued emitter at the eruption tip, so it lights its corner and
+    // joins the ray-traced field (on top of the gold seams + the emissive crown drawn in the page).
+    const len = rs * 0.95 * o.fixture;
+    fxLights.push({ x: F.tip.x, y: F.tip.y, nx: F.nx, ny: F.ny, len, model: null, room: F.room, fx: true, hue: F.hue, rgb: hslToRgb(F.hue, 0.72, 0.56), tip: { x: F.tip.x, y: F.tip.y } });
+  }
+
+  // ── 4d. the CENTRAL component per room, computed BEFORE the light bake so it can EMIT (v091). The
+  // deco medallion is a real luminous source, its emission DERIVED FROM ITS CONSTRUCTION: a higher-
+  // symmetry, rosetted, sun-burst superformula reads as more "energised", so it glows brighter. It
+  // anchors clear of walls, near centre, AND biased away from the room's floor fixture so the two don't
+  // crowd; then a room-hued emitter at its core lights the room FROM it. ──
   const compAnchors = [];
   rec.rooms.forEach((r, ri) => {
     if (r.door < 0) return;
-    const rx = r.x - ox, ry = r.y - oy; let bp = null, best = -Infinity;
-    for (const c of cells) { if (c.wall || c.region !== ri) continue; const score = wallDist(c.x, c.y) - 0.18 * Math.hypot(c.x - rx, c.y - ry); if (score > best) { best = score; bp = c; } }
+    const rx = r.x - ox, ry = r.y - oy, fp = fxPts[ri] || []; let bp = null, best = -Infinity;
+    for (const c of cells) {
+      if (c.wall || c.region !== ri) continue;
+      let fxNear = 0; if (fp.length) { let md = Infinity; for (const p of fp) md = Math.min(md, (p.x - c.x) ** 2 + (p.y - c.y) ** 2); fxNear = Math.min(Math.sqrt(md), rs * 2.5); }
+      const score = wallDist(c.x, c.y) - 0.18 * Math.hypot(c.x - rx, c.y - ry) + 0.5 * fxNear;   // away from the floor fixture
+      if (score > best) { best = score; bp = c; }
+    }
     if (!bp) return;
     const rr = clamp(wallDist(bp.x, bp.y) * 0.62, pw * 0.6, pw * 1.35) * o.fixture;
     const g = deviceGenome(mulberry32((Math.imul(ri * 733 + 13, 1 + seed)) >>> 0), { sharp: true });
@@ -204,9 +242,9 @@ export function paintChunk(rec, opts = {}) {
   });
   const compLights = compAnchors.map((a) => { const len = a.rr * (0.9 + a.emit * 0.6); return { x: a.x, y: a.y, nx: 0, ny: -1, len, model: null, room: a.ri, comp: true, hue: a.hue, rgb: hslToRgb(a.hue, 0.7, 0.5 + a.emit * 0.18), tip: { x: a.x, y: a.y } }; });
 
-  // the bake sees every emitter; only room + concourse lamps are returned for DRAWING (the component is
-  // drawn as its medallion + a bloom, not a wall light).
-  const lightsAll = lights.concat(concLights, compLights), drawLights = lights.concat(concLights);
+  // the bake sees every emitter (lamps + concourse + component + floor fixture); only room + concourse
+  // lamps are returned for DRAWING (component + fixture draw themselves).
+  const lightsAll = lights.concat(concLights, compLights, fxLights), drawLights = lights.concat(concLights);
 
   // ── 5. ray-trace EVERY tile (walls too, so they rim-light) → role/stone albedo × occluded light ──
   // v4's method: bake an OCCLUDED light field on a grid ONCE (splat each lamp through the walls), then
@@ -232,43 +270,14 @@ export function paintChunk(rec, opts = {}) {
   });
 
   // ── 6. build the central components from the precomputed anchors, now lit by the field they feed ──
-  // (lit is lifted toward the emit floor so a luminous medallion never reads as a dark silhouette).
   const comps = compAnchors.map((a) => ({
-    cx: a.x + ox, cy: a.y + oy, r: a.rr, accent: a.accent, glyph: a.glyph, role: a.role,
+    room: a.ri, cx: a.x + ox, cy: a.y + oy, r: a.rr, accent: a.accent, glyph: a.glyph, role: a.role,
     hue: a.hue, emit: a.emit, lit: clamp(floorLum(a.x, a.y) * 1.2 + 0.35 + a.emit * 0.25, 0.55, 1.4), g: a.g,
   }));
 
-  // ── 8. VORONOI-GROWN WALL FIXTURES (v091, item #4) — the second flavour from /sprite/fixture. Rather
-  // than a medallion seated on the floor, this CLAIMS a cluster of a room's OWN voronoi cells at a wall
-  // (away from the lamps + the central component) and RE-ATTRIBUTES them: the base cells stay continuous
-  // with the membrane, the room-side cells ERUPT into a gold-seamed, emissive structure extruded over
-  // the spanning tree of the claimed tiles. The fixture IS the tiling, re-painted — same cells, same
-  // ray-traced light, alternate attributes. Grown in LOCAL coords (cells/seeds are local), then the tip
-  // + anchor are lifted to world; the claimed indices are into `cells`, which is 1:1 with `paintCells`,
-  // so the page repaints those exact tiles. Light tips are still local here (step 7 lifts them after).
-  const avoid = {};
-  rec.rooms.forEach((r, ri) => { if (r.door >= 0) avoid[ri] = []; });
-  for (const L of lights) if (L.room >= 0 && avoid[L.room]) avoid[L.room].push({ x: L.tip.x, y: L.tip.y });
-  for (const a of compAnchors) if (avoid[a.ri]) avoid[a.ri].push({ x: a.x, y: a.y });   // sit opposite the central component too
-  const roomSeeds = [], roomCells = [], doors = {};
-  rec.rooms.forEach((r, ri) => {
-    if (r.door < 0) return;
-    roomSeeds[ri] = { x: r.x - ox, y: r.y - oy }; roomCells.push({ id: ri });
-    // the door cells (room side + concourse side, incl. the widened pair) — kept clear; doors will
-    // become non-navigable, so a fixture must never cover one.
-    const dp = r.doorPairs && r.doorPairs.length ? r.doorPairs : (r.doorRoad >= 0 ? [[r.door, r.doorRoad]] : []);
-    const pts = []; for (const pair of dp) for (const ci of pair) if (ci >= 0 && rec.cells[ci]) pts.push({ x: rec.cells[ci].x - ox, y: rec.cells[ci].y - oy });
-    doors[ri] = pts;
-  });
-  const fxScene = { W, H, wallSpacing: ws, roomSpacing: rs, roomSize: rs * 8, nuclei: cells, paintCells: cells, roomCells, roomSeeds };
-  const fixtures = growWallFixtures(fxScene, mulberry32((Math.imul(seed, 40503) + 7) >>> 0), { avoid, doors, maxAreaFrac: o.fixtureArea, kindOf: (room) => ROLE_CONSOLE[rec.rooms[room] && rec.rooms[room].role] || 'storage' });
-  for (const F of fixtures) {
-    const r = rec.rooms[F.room]; F.accent = (r && r.color) || '#9b6b3a'; F.hue = hexHue(r && r.color);
-    F.anchor.x += ox; F.anchor.y += oy; F.anchor.mx += ox; F.anchor.my += oy; F.tip.x += ox; F.tip.y += oy;   // lift to world (claimed indices unchanged)
-  }
-
   // ── 7. pre-light each DRAWN lamp + lift everything to world coordinates ──
   for (const L of drawLights) { L.lit = clamp(floorLum(L.tip.x, L.tip.y) + 0.55, 0.7, 1.15); L.x += ox; L.y += oy; L.tip.x += ox; L.tip.y += oy; }
+  for (const F of fixtures) { F.anchor.x += ox; F.anchor.y += oy; F.anchor.mx += ox; F.anchor.my += oy; F.tip.x += ox; F.tip.y += oy; }   // lift fixture geometry (claimed indices unchanged)
 
   return { paintCells, comps, lights: drawLights, fixtures, poly: rec.poly, ports: rec.ports, wallSpacing: ws, roomSpacing: rs, playerW: pw, cellCount: paintCells.length };
 }

@@ -5,7 +5,7 @@
 // sit in world coordinates, and are deterministic.
 // Run: node hoop/test/v091fixtures.selftest.mjs
 import { solveChunk } from '../v8/chunkgen.js';
-import { createWorld, addChunk, neighbourSpec } from '../v8/manager.js';
+import { createWorld, addChunk, neighbourSpec, buildWalk, pathFind, nearestNode } from '../v8/manager.js';
 import { paintChunk } from '../v091/skin.js';
 import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from '../v091/rooms.js';
 
@@ -45,10 +45,47 @@ const Q = paintChunk(rec);
 ok(Q.fixtures.length === P.fixtures.length && Q.fixtures.every((F, i) => F.room === P.fixtures[i].room && F.cells.length === P.fixtures[i].cells.length), 'fixtures are deterministic from the seed');
 
 // 5. a streamed neighbour grows them too
-const world = createWorld(); addChunk(world, rec);
+const world = createWorld(); rec.painted = P; addChunk(world, rec);
 const spec = neighbourSpec(world, 0, 0);
 const nb = solveChunk({ seed: 31, poly: spec.poly, inherit: spec.inherit, roomSize: 16, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM }); nb.seed = 31;
-ok(paintChunk(nb).fixtures.length > 0, 'a streamed neighbour grows voronoi fixtures too');
+nb.painted = paintChunk(nb); addChunk(world, nb);
+ok(nb.painted.fixtures.length > 0, 'a streamed neighbour grows voronoi fixtures too');
+
+// 6. the central component BIASES AWAY from the floor fixture — they don't crowd. For each room with
+// both, the component centre is well clear of the fixture's claimed tiles.
+let bothRooms = 0, clear = 0;
+for (const cp of P.comps) {
+  const F = P.fixtures.find((f) => f.room === cp.room); if (!F) continue; bothRooms++;
+  let md = Infinity; for (const cl of F.cells) { if (cl.base) continue; const c = P.paintCells[cl.idx]; if (c) md = Math.min(md, Math.hypot(c.x - cp.cx, c.y - cp.cy)); }
+  if (md > P.roomSpacing * 0.6) clear++;
+}
+ok(bothRooms > 5, `sampled ${bothRooms} rooms with both a component + a fixture`);
+ok(clear >= bothRooms * 0.85, `the component sits clear of the floor fixture in ${clear}/${bothRooms} rooms`);
+
+// 7. IMPASSABLE — the bones cells under fixtures + components are blocked for MOVEMENT, but edges stay
+// intact (so sight/fog still reveal them), and never block a door or the concourse.
+const blockedOf = (chunkId, local) => {
+  const ch = world.chunks[chunkId], Pn = ch.painted, bones = ch.cells; if (!Pn) return false;
+  const set = (ch._blk = ch._blk || (() => {
+    const s = new Set(), doorSet = new Set(); for (const r of ch.rooms) { if (r.door >= 0) doorSet.add(r.door); if (r.doorRoad >= 0) doorSet.add(r.doorRoad); }
+    const pts = []; for (const F of (Pn.fixtures || [])) for (const cl of F.cells) { if (cl.base) continue; const c = Pn.paintCells[cl.idx]; if (c) pts.push(c); } for (const cp of (Pn.comps || [])) pts.push({ x: cp.cx, y: cp.cy });
+    const thr2 = ((ch.cellSize || 16) * 0.55) ** 2;
+    for (let i = 0; i < bones.length; i++) { if (doorSet.has(i) || ch.road[i]) continue; const bx = bones[i].x, by = bones[i].y; for (const p of pts) if ((p.x - bx) ** 2 + (p.y - by) ** 2 < thr2) { s.add(i); break; } }
+    return s;
+  })());
+  return set.has(local);
+};
+const walk = buildWalk(world, blockedOf);
+ok(walk.blocked && walk.blocked.size > 0, `there are impassable fixture tiles (${walk.blocked.size})`);
+ok([...walk.blocked].every((g) => { const ch = world.chunks[walk.nodeChunk[g]], li = walk.nodeLocal[g]; return !ch.road[li]; }), 'no concourse cell is ever blocked');
+ok([...walk.blocked].every((g) => walk.adj[g].length > 0), 'blocked tiles keep their graph edges (sight/fog still reveal them)');
+// pathFind routes AROUND blocked tiles
+const freeNodes = []; for (let i = 0; i < walk.N && freeNodes.length < 2; i++) if (!walk.blocked.has(i) && walk.adj[i].length) freeNodes.push(i);
+const pth = pathFind(walk, freeNodes[0], freeNodes[1]);
+ok(!pth || pth.every((g) => !walk.blocked.has(g)), 'a path never traverses an impassable tile');
+// nearestNode(avoidBlocked) never returns a blocked tile, even when asked at a fixture tip
+const someF = P.fixtures[0];
+ok(!walk.blocked.has(nearestNode(walk, someF.tip.x, someF.tip.y, true)), 'targeting a fixture routes to the nearest navigable tile, not onto it');
 
 console.log(`\nv091 fixtures: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
