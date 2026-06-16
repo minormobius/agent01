@@ -73,7 +73,7 @@
     import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose, take } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
-    import { computeBoard, questLog } from './story/board.js';   // the storyboard kernel → the quest log (same source as /storyboard/)
+    import { computeBoard, questLog, activeMarkers } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -96,6 +96,8 @@
     let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
     let residents = [], lastTs = 0;
     const story = { store: null, ready: false, playerId: 'local', active: null };
+    let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
+    const storyBigKeys = new Set();     // resident featureKeys an active beat marks → embiggen (storyboard-relevant only)
     const spriteCache = new Map();
     const pp = { x: 0, y: 0 };   // the player's CONTINUOUS position (glides; not snapped to a cell centre)
     const SX = (x) => (x - cam.ox) * cam.scale, SY = (y) => (y - cam.oy) * cam.scale;
@@ -190,6 +192,7 @@
       chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
       setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal();
       placeAnchors(); ensureChunk0Terminal();   // the authored opening: principals at the cradle + margin, a guaranteed terminal
+      renderQuest();   // resolve the storyboard waypoint now that anchors + the terminal exist
       busy(false); status(); draw(); maybeStream();
     }
     function startNode() { if (!walk) return -1; const ch = world.chunks[0]; let cx = 0, cy = 0, n = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { cx += ch.cells[i].x; cy += ch.cells[i].y; n++; } if (n) { cx /= n; cy /= n; } let best = -1, bd = Infinity; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { const d = (ch.cells[i].x - cx) ** 2 + (ch.cells[i].y - cy) ** 2; if (d < bd) { bd = d; best = i; } } return best >= 0 ? globalOf(walk, 0, best) : nearestNode(walk, cx, cy); }
@@ -302,14 +305,15 @@
     function drawResidents() {
       if (!residents.length || !walk) return;
       ctx.imageSmoothingEnabled = false;
-      // ambient crowd stays lilliputian; an NPC of MERIT (one you've met → has a crystallized tale) stands
-      // near player scale, with a tracking ring, so you can pick them out and follow them through the crowd.
+      // ambient crowd stays lilliputian; a STORYBOARD-RELEVANT resident (an active beat points at them)
+      // stands near player scale with a tracking ring. storyBigKeys is refreshed from the board in
+      // renderQuest — today the beat markers point at the principals (drawn as anchors), so the crowd is
+      // uniform; a future beat marker {resident:key} embiggens exactly that crowd member.
       const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale;
-      const met = (a) => story.ready && !!story.store.getPlacement(story.playerId, a.featureKey);
       for (const a of residents) {
         const sx = SX(a.x), sy = SY(a.y);
         if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;   // viewport cull
-        const merit = met(a), h = merit ? meritH : baseH;
+        const merit = storyBigKeys.has(a.featureKey), h = merit ? meritH : baseH;
         const moving = !!a.pts && a.dwellLeft <= 0, frame = moving ? (a.phase | 0) % frames : null;
         const cvs = spriteCanvas(a.genome, a.dir, frame), w = h * (cvs.width / cvs.height);
         ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);     // ground point at the feet
@@ -342,12 +346,13 @@
     // player (the camera centres the player, so screen-centre ≈ player). The moment the waypoint rolls
     // into the viewport, the edge arrow gives way to the marker itself, drawn at its true world spot. ──
     function drawWaypoint() {
-      if (!waypoint || player < 0 || !walk) return;
-      const sx = SX(waypoint.x), sy = SY(waypoint.y), MARGIN = 46;
+      const wp = waypoint || storyWp;   // a manual waypoint overrides; otherwise the active beat's marker points the way
+      if (!wp || player < 0 || !walk) return;
+      const sx = SX(wp.x), sy = SY(wp.y), MARGIN = 46;
       if (onScreen(sx, sy, W, H, MARGIN)) { drawWaypointMarker(sx, sy); return; }   // in view → the marker
       // off-screen → the edge arrow on the bearing, clamped to an inset rect, with a distance read
       const e = edgePoint(sx - W / 2, sy - H / 2, W / 2 - MARGIN, H / 2 - MARGIN), ax = W / 2 + e.x, ay = H / 2 + e.y;
-      const dist = Math.hypot(waypoint.x - px(), waypoint.y - py());
+      const dist = Math.hypot(wp.x - px(), wp.y - py());
       ctx.save();
       ctx.translate(ax, ay);
       // a dark disc so the arrow reads over any background
@@ -397,6 +402,10 @@
       if (!story.ready || !story.sb) { el.innerHTML = ''; return; }
       const board = computeBoard(story.sb, story.store, story.playerId), log = questLog(board);
       const active = log.filter((l) => l.status === 'active'), done = log.filter((l) => l.status === 'done').length;
+      // refresh the storyboard-derived overlays: the waypoint target + which residents embiggen
+      const ams = activeMarkers(board);
+      storyBigKeys.clear(); for (const m of ams) if (m.resident) storyBigKeys.add(m.resident);
+      storyWp = ams.length ? resolveMarker(ams[0]) : null;
       let h = '<span class="lbl">❖ quest</span> ';
       if (active.length) { const a = active[0]; h += '<span class="o">' + esc(a.text) + '</span>'; if (a.marker && a.marker.hint) h += ' <span class="mk">⌖ ' + esc(a.marker.hint) + '</span>'; }
       else h += '<span class="o">— the way is open —</span>';
@@ -548,6 +557,19 @@
       if (comps.some(isTerminal)) return;
       let best = null, bd = Infinity; for (const cp of comps) { const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = cp; } }
       if (best) best._terminal = true;
+    }
+    // resolve a storyboard marker to a world position for the waypoint
+    function resolveMarker(m) {
+      if (!m) return null;
+      if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); return a ? { x: a.x, y: a.y } : null; }
+      if (m.terminal) {
+        let best = null, bd = Infinity;
+        for (const ch of (world ? world.chunks : [])) for (const cp of ((ch.painted && ch.painted.comps) || [])) {
+          if (!isTerminal(cp)) continue; const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = { x: cp.cx, y: cp.cy }; }
+        }
+        return best;
+      }
+      return null;
     }
     function anchorAt(wx, wy) {
       let best = null, bd = (SKIN.playerW * 3) ** 2;
