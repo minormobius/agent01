@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#04050a" />
-  <meta name="description" content="hoop v091 — the lived-in world. v090's painted ship, refined: half-scale NPCs that no longer trample (boids separation + per-agent in-room anchors), a central deco component that EMITS its own light (luminescence from the superformula construction), a luminous concourse with its own light fixtures, and traffic-sized rooms (busy hubs claim more cells than quiet dwellings; big districts grow a grand civic centrepiece; micro-rooms bulldozed) with a voronoi-wobbled chunk seam, and a second flavour of fixture grown straight from each room's own voronoi tiles (a wall cluster erupted into a gold-seamed, emissive console). Locked at 5×." />
+  <meta name="description" content="hoop v091 — the lived-in world. v090's painted ship, refined: half-scale NPCs that no longer trample (boids separation + per-agent in-room anchors), a central deco component that EMITS its own light (luminescence from the superformula construction), a luminous concourse with its own light fixtures, and traffic-sized rooms (busy hubs claim more cells than quiet dwellings; big districts grow a grand civic centrepiece; micro-rooms bulldozed) with a voronoi-wobbled chunk seam, and a second flavour of fixture grown straight from each room's own voronoi tiles (a cluster erupted into a gold-seamed, emissive console — cornered in oblong rooms, wall-hugging in rounder ones, clear of the door, capped at ~20% of the room). Locked at 5×." />
   <title>hoop v091 — the lived-in world</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <style>
@@ -46,9 +46,9 @@
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
     import { drawDevice } from '../v5/deco.js';
     import { drawWallLight } from '../v5/lights.js';
-    import { drawWallFixture } from '../v5/consoles.js';
+    import { drawWallFixture } from './consoles.js';
     import { buildSociety, buildResidents, stepResidents } from './npc.js';
-    import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM } from './rooms.js';
+    import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from './rooms.js';
     import { frameRects, DIR_OF } from '../v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose } from '../story/engine.js';
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
@@ -57,7 +57,7 @@
     const lumOfColor = (col) => { const m = /rgb\((\d+),(\d+),(\d+)\)/.exec(col || ''); return m ? (0.3 * +m[1] + 0.6 * +m[2] + 0.1 * +m[3]) / 190 : 0.6; };
 
     const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
-    const SKIN = { ...SKIN_DEFAULTS };
+    const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
     const ZOOM = 5;                 // the look is locked at 5× — close enough that the painting reads, room-level play
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;

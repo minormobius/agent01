@@ -7,7 +7,9 @@
 import { solveChunk } from '../v8/chunkgen.js';
 import { createWorld, addChunk, neighbourSpec } from '../v8/manager.js';
 import { paintChunk } from '../v091/skin.js';
-import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM } from '../v091/rooms.js';
+import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from '../v091/rooms.js';
+
+const polyArea = (p) => { let a = 0; for (let i = 0; i < p.length; i++) { const [x1, y1] = p[i], [x2, y2] = p[(i + 1) % p.length]; a += x1 * y2 - x2 * y1; } return Math.abs(a) / 2; };
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' + m); } };
@@ -30,6 +32,13 @@ ok(P.fixtures.every((F) => typeof F.hue === 'number' && typeof F.accent === 'str
 // 3. world coordinates (so the page draws the tip where the tiles are) + sane geometry
 const inRegion = (x, y) => x > rec.region.x0 - 60 && x < rec.region.x1 + 60 && y > rec.region.y0 - 60 && y < rec.region.y1 + 60;
 ok(P.fixtures.every((F) => inRegion(F.tip.x, F.tip.y) && inRegion(F.anchor.x, F.anchor.y)), 'fixture tip + anchor are in world coordinates');
+
+// 3b. AREA CAP — the eruption never exceeds ~MAX_FIXTURE_AREA of its room's floor area (+ one boundary
+// cell of slack, since growth stops just after crossing the budget). No more greedy consoles.
+ok(P.fixtures.every((F) => F.cells.filter((c) => !c.base).length >= 1), 'every fixture keeps at least one erupted tile');
+ok(P.fixtures.every((F) => F.roomArea > 0 && F.claimArea / F.roomArea <= MAX_FIXTURE_AREA + 0.15), `fixtures stay within ~${(MAX_FIXTURE_AREA * 100) | 0}% of room area (worst ${Math.max(...P.fixtures.map((F) => F.claimArea / F.roomArea)).toFixed(2)})`);
+// the claimed eruption also matches the claimed cells' actual polygon area (sanity on the report)
+ok(P.fixtures.every((F) => { const a = F.cells.filter((c) => !c.base).reduce((s, c) => s + polyArea(P.paintCells[c.idx].poly), 0); return Math.abs(a - F.claimArea) < a * 0.05 + 1; }), 'reported claimArea matches the claimed tiles');
 
 // 4. determinism
 const Q = paintChunk(rec);

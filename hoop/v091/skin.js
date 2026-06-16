@@ -20,10 +20,10 @@
 import { clipCell, bucketGrid, mulberry32 } from '../v5/voronoi.js';
 import { occlusionGrid, visible, tintLights, lightGenome, hslToRgb } from '../v5/lights.js';
 import { deviceGenome } from '../v5/deco.js';
-import { growWallFixtures, ROLE_CONSOLE } from '../v5/consoles.js';
+import { growWallFixtures, ROLE_CONSOLE } from './consoles.js';
 
 // Everything is keyed to the player. ws = ½·playerW (tight walls), rs = 2·playerW (big room centres).
-export const SKIN_DEFAULTS = { playerW: 6, perRoom: 2, reach: 3.4, ambient: 0.5, lgain: 1.05, wallAmb: 0.3, wallGain: 0.62, fixture: 1 };
+export const SKIN_DEFAULTS = { playerW: 6, perRoom: 2, reach: 3.4, ambient: 0.5, lgain: 1.05, wallAmb: 0.3, wallGain: 0.62, fixture: 1, fixtureArea: 0.2 };
 const ROAD_RGB = [44, 70, 60], DOOR_RGB = [120, 92, 50], VOID_RGB = [10, 13, 18], WALL_RGB = [27, 32, 41];
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
@@ -250,10 +250,18 @@ export function paintChunk(rec, opts = {}) {
   rec.rooms.forEach((r, ri) => { if (r.door >= 0) avoid[ri] = []; });
   for (const L of lights) if (L.room >= 0 && avoid[L.room]) avoid[L.room].push({ x: L.tip.x, y: L.tip.y });
   for (const a of compAnchors) if (avoid[a.ri]) avoid[a.ri].push({ x: a.x, y: a.y });   // sit opposite the central component too
-  const roomSeeds = [], roomCells = [];
-  rec.rooms.forEach((r, ri) => { if (r.door < 0) return; roomSeeds[ri] = { x: r.x - ox, y: r.y - oy }; roomCells.push({ id: ri }); });
+  const roomSeeds = [], roomCells = [], doors = {};
+  rec.rooms.forEach((r, ri) => {
+    if (r.door < 0) return;
+    roomSeeds[ri] = { x: r.x - ox, y: r.y - oy }; roomCells.push({ id: ri });
+    // the door cells (room side + concourse side, incl. the widened pair) — kept clear; doors will
+    // become non-navigable, so a fixture must never cover one.
+    const dp = r.doorPairs && r.doorPairs.length ? r.doorPairs : (r.doorRoad >= 0 ? [[r.door, r.doorRoad]] : []);
+    const pts = []; for (const pair of dp) for (const ci of pair) if (ci >= 0 && rec.cells[ci]) pts.push({ x: rec.cells[ci].x - ox, y: rec.cells[ci].y - oy });
+    doors[ri] = pts;
+  });
   const fxScene = { W, H, wallSpacing: ws, roomSpacing: rs, roomSize: rs * 8, nuclei: cells, paintCells: cells, roomCells, roomSeeds };
-  const fixtures = growWallFixtures(fxScene, mulberry32((Math.imul(seed, 40503) + 7) >>> 0), { avoid, kindOf: (room) => ROLE_CONSOLE[rec.rooms[room] && rec.rooms[room].role] || 'storage' });
+  const fixtures = growWallFixtures(fxScene, mulberry32((Math.imul(seed, 40503) + 7) >>> 0), { avoid, doors, maxAreaFrac: o.fixtureArea, kindOf: (room) => ROLE_CONSOLE[rec.rooms[room] && rec.rooms[room].role] || 'storage' });
   for (const F of fixtures) {
     const r = rec.rooms[F.room]; F.accent = (r && r.color) || '#9b6b3a'; F.hue = hexHue(r && r.color);
     F.anchor.x += ox; F.anchor.y += oy; F.anchor.mx += ox; F.anchor.my += oy; F.tip.x += ox; F.tip.y += oy;   // lift to world (claimed indices unchanged)

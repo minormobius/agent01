@@ -44,3 +44,8 @@ export const GRAND_MIN = 3;
 // MIN_ROOM — bulldoze any room under this many engine cells: too small to seat a fixture, so it gets
 // merged into its largest neighbour (or handed back to the concourse). Keeps the micro-room litter out.
 export const MIN_ROOM = 5;
+
+// MAX_FIXTURE_AREA — a voronoi-grown wall fixture may never claim more than this fraction of its room's
+// floor area. The fixture grows from an anchor (a corner in oblong rooms, a wall in rounder ones, away
+// from the door + concourse) until it hits this budget, so even modest rooms don't get a greedy console.
+export const MAX_FIXTURE_AREA = 0.2;
