@@ -22,6 +22,8 @@
     #charbtn:hover { border-color: #b39bd8; color: #fff; }
     #equipbtn { position: fixed; bottom: 8px; right: 185px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #7fd8d0; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
     #equipbtn:hover { border-color: #7fd8d0; color: #fff; }
+    #arenabtn { position: fixed; bottom: 8px; right: 270px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #cf6b6b; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; text-decoration: none; }
+    #arenabtn:hover { border-color: #cf3b3b; color: #fff; }
     #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
     #who b { color: #b39bd8; }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
@@ -46,6 +48,7 @@
   <div class="hud" id="busy">generating…</div>
   <a class="hud" id="back" href="/">◍ hoop</a>
   <button id="charbtn" title="character (c)">☻ character</button>
+  <a id="arenabtn" href="./arena/" title="arena">⚔ arena</a>
   <button id="equipbtn" title="equipped (e)">⛨ equip</button>
   <button id="pack" title="open pack (i)">▣ pack</button>
   <div class="hud" id="who"></div>

@@ -194,8 +194,8 @@ export function deriveCombat(character, { weapon = null, armour = null } = {}) {
   const wPot = weapon?.stats?.potency || 0, wMass = weapon?.stats?.mass || 0;
   const aDur = armour?.stats?.durability || 0, aMass = armour?.stats?.mass || 0;
   const hp = ri(BASE_HP + a.vitality * 1.6 + a.frame * 0.7);
-  const atk = ri(BASE_ATK + a.servo * 0.45 + wPot * 0.35 + a.nerve * 0.1);
-  const def = ri(BASE_DEF + a.frame * 0.5 + aDur * 0.18);
+  const atk = ri(BASE_ATK + a.servo * 0.45 + wPot * 0.12 + a.nerve * 0.1);   // weapon helps, doesn't dominate
+  const def = ri(BASE_DEF + a.frame * 0.5 + aDur * 0.1);
   const speed = +(1 + a.nerve * 0.03 - (wMass + aMass) * 0.04).toFixed(2);   // load slows you
   const accuracy = +(0.6 + a.cogit * 0.018).toFixed(2);                       // cognition → hit chance
   const crit = +(0.03 + a.nerve * 0.006).toFixed(3);                          // nerve → crit

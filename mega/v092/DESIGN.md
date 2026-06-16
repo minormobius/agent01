@@ -18,7 +18,7 @@ re-invent them. Determinism is load-bearing throughout (atproto-persistable, per
 | 1 | **Inventory** | `mega/sprite/item/` genome + `paint/voronoi.js` `clipCell` | **shipped** — `inventory.js` + `pack.js` |
 | 4 | **Character creation** | the **civic tree** (`v3/sprite-core.js` ROLES = civic verbs) + the stat spine + NPC sprite genome | **shipped** — `character.js` |
 | 2 | **Item lore engine** | `borges/js/generate.js` (spine generator) + `story/engine.js` (memory/gates) | design |
-| 3 | **Combat** | item `strike`/`ward` kingdoms + `potency`/`durability`/`mass`; the stat spine (`deriveCombat`) + `CONVERSIONS` for skills | next — spine ready |
+| 3 | **Combat** | the stat spine (`deriveCombat`) + `CONVERSIONS` (skills) + equipped weapon/armour | **shipped** — `arena/` (turn-based) |
 
 ### 1. Inventory (shipped)
 A rotating **Voronoi cylinder**: items tiled one-per-seed on an unrolled angle×height strip that
@@ -62,6 +62,16 @@ lean on the existing genome breeding (`splice`/`mutate`) for combinatorial depth
 - **Style guide** — `crew.js` `crewSprite` recolours the body to the **profession's canon hue** (per
   NPC-SPRITES.md §4) so a figure reads as its vocation; the player uses it. `crewStats` mints a cheap,
   deterministic FLESH·CHASSIS·ANIMA stat block for **any** soul — surfaced in the NPC story panel.
+
+### ③ Arena — turn-based combat (shipped)
+A wing at **`mega.mino.mobi/v092/arena/`** (linked from the world's ⚔ button). Your saved character's
+sprite — with its best weapon/armour auto-equipped from the pack feeding `deriveCombat` — fights 1–2
+NPC crew on an art-deco chamfered board. A turn = an optional **move** (tap a gold-ringed tile, range
+from Speed) + an optional **action**: **Strike**, or a Flux-fuelled technomagic move from the
+`CONVERSIONS` (**Overclock** power-strike, **Mend** heal, **Harden** guard). `arena/engine.js` is the
+pure, seeded, node-tested combat engine (hit/crit/variance, initiative by Speed, basic enemy AI that
+closes + strikes, win/lose). The page is a renderer + tap-input over it. Basic now; baroque later
+(no item-specific move-sets, single board, melee-only — all natural extensions of the engine).
 
 ## Conventions
 - Self-contained under `mega/v092/`. Vendored hoop deps keep their internal `../v7|paint|econ/` refs
