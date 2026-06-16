@@ -217,6 +217,7 @@ export class MemoryStore {
   getPlayerState(id) { let p = this.players.get(id); if (!p) { p = { id, revelation_tier: 1, narrative_tier: 1, power_tier: 1, xp: 0, seen_ids: [], hp_current: null, hp_max: null }; this.players.set(id, p); } return p; }
   markSeen(id, cid) { const p = this.getPlayerState(id); if (!p.seen_ids.includes(cid)) p.seen_ids.push(cid); }
   setPlayerXp(id, xp, powerTier) { const p = this.getPlayerState(id); p.xp = xp; p.power_tier = powerTier; }
+  setPlayerTier(id, axis, value) { if (axis !== 'revelation_tier' && axis !== 'narrative_tier') return; const p = this.getPlayerState(id); p[axis] = value; }   // advance.js: deterministic milestone advancement (a D1/repo store implements the same setter)
   setPlayerHp(id, hpMax, hpCur) { const p = this.getPlayerState(id); p.hp_max = hpMax; p.hp_current = hpCur; }
   // facts
   _f(id) { let m = this.facts.get(id); if (!m) { m = new Map(); this.facts.set(id, m); } return m; }
