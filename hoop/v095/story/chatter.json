@@ -3,7 +3,8 @@
   "phases": [
     { "id": "ordinary", "when": { "max_narrative": 1 } },
     { "id": "stirring", "when": { "items": ["notation"] } },
-    { "id": "opened",   "when": { "min_narrative": 2 } }
+    { "id": "opened",   "when": { "min_narrative": 2 } },
+    { "id": "curve",    "when": { "min_revelation": 2 } }
   ],
   "lines": {
     "continuant": {
@@ -21,6 +22,11 @@
         "You came up the rind side, didn't you. That gate isn't supposed to open.",
         "Whatever's down there — bring it to the Hall before the Drift, if you're wise.",
         "The air tastes different since the shaft opened. Don't tell me it doesn't."
+      ],
+      "curve": [
+        "You've felt it too. The farmland's overhead because the floor curves up to meet it. We don't say it.",
+        "Maintenance was never for a city. It's for a hull. Some of us have known a long time.",
+        "Don't make me say the word 'ship' on shift. But you know now, don't you."
       ]
     },
     "drift": {
@@ -38,6 +44,11 @@
         "Word travels the Braid faster than you walked it. The shaft's open.",
         "Passage rights into the rind just got dear. Funny, that.",
         "You're carrying something that isn't yours and isn't anyone's. Careful with it."
+      ],
+      "curve": [
+        "The Braid always knew the Nave moves. Why d'you think we never settle? Can't own a deck on a ship.",
+        "Everything moves because the whole hull's falling between two lights. Now you see it.",
+        "You've got the long view now — worth more than any route I could sell you."
       ]
     },
     "rindwalker": {
@@ -55,12 +66,18 @@
         "So the shaft's yours now. The walls down there are older than the Nave.",
         "The oldest layer of the mark runs all the way down. Follow it, if you dare.",
         "The temperature's wrong in the lower rind. That's not a malfunction."
+      ],
+      "curve": [
+        "The rind's the outside of the hull. Always has been. You're standing on the inside of a wheel that turns.",
+        "The walls run all the way round and meet themselves. That's how I knew, years back.",
+        "Now you've seen the curve, the deep tunnels will make a different kind of sense."
       ]
     },
     "_default": {
       "ordinary": [ "The sky-arc's at full today. Good light.", "Just passing through. Aren't we all." ],
       "stirring": [ "Something's off lately. Can't say what.", "People are quieter than they were." ],
-      "opened":   [ "The whole Nave's talking about the rind.", "Things are changing. You can feel it." ]
+      "opened":   [ "The whole Nave's talking about the rind.", "Things are changing. You can feel it." ],
+      "curve":    [ "Can't look at the sky-arc the same way now, can you.", "Inside something that moves. Who'd have thought." ]
     }
   }
 }

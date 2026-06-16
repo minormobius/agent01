@@ -25,7 +25,9 @@ export const MILESTONES = [
   // Sevin a reason she believes (the Bay-14 stencil). The opening chunk's "advance the ball".
   { id: 'nar2-orientation', axis: 'narrative_tier', to: 2,
     requires: { facts: { 'flag.met_olo': true, 'flag.read_terminal': true, 'flag.sevin_believes': true } } },
-  // (further rungs land as chapters are authored — e.g. revelation 1→2 "The Curve" on flag.saw_curve)
+  // Revelation 1→2 "The Curve": reached by lore-exposure (the informed beat b-curve sets flag.saw_curve
+  // once you've explored enough and the next NPC tells you). The XP→informed→deeper-lore loop.
+  { id: 'rev2-curve', axis: 'revelation_tier', to: 2, requires: { facts: { 'flag.saw_curve': true } } },
 ];
 
 // Evaluate milestones against the player's earned state; apply any tier floor the player has reached

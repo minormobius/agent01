@@ -200,7 +200,16 @@
       renderQuest();   // resolve the storyboard waypoint now that anchors + the terminal exist
       busy(false); status(); draw(); maybeStream();
     }
-    function startNode() { if (!walk) return -1; const ch = world.chunks[0]; let cx = 0, cy = 0, n = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { cx += ch.cells[i].x; cy += ch.cells[i].y; n++; } if (n) { cx /= n; cy /= n; } let best = -1, bd = Infinity; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { const d = (ch.cells[i].x - cx) ** 2 + (ch.cells[i].y - cy) ** 2; if (d < bd) { bd = d; best = i; } } return best >= 0 ? globalOf(walk, 0, best) : nearestNode(walk, cx, cy); }
+    function startNode() {
+      if (!walk) return -1; const ch = world.chunks[0];
+      // wake in a HEAL room — narratively Bay 14, the reconstruction bay. Spawn on a passable tile at its centre.
+      const heal = (ch.rooms || []).filter((r) => r.role === 'heal' && r.cells && r.cells.length);
+      if (heal.length) { const r = heal[0]; let rx = 0, ry = 0; for (const c of r.cells) { rx += ch.cells[c].x; ry += ch.cells[c].y; } const g = nearestNode(walk, rx / r.cells.length, ry / r.cells.length, true); if (g >= 0) return g; }
+      // fallback: the concourse cell nearest the chunk centre
+      let cx = 0, cy = 0, n = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { cx += ch.cells[i].x; cy += ch.cells[i].y; n++; } if (n) { cx /= n; cy /= n; }
+      let best = -1, bd = Infinity; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { const d = (ch.cells[i].x - cx) ** 2 + (ch.cells[i].y - cy) ** 2; if (d < bd) { bd = d; best = i; } }
+      return best >= 0 ? globalOf(walk, 0, best) : nearestNode(walk, cx, cy);
+    }
 
     // corner-cutting (Chaikin) so the trajectory CURVES through cells instead of hopping centre→centre
     function chaikin(pts, iters) { for (let it = 0; it < iters; it++) { if (pts.length < 3) break; const out = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } out.push(pts[pts.length - 1]); pts = out; } return pts; }
@@ -432,7 +441,20 @@
       if (!s.featureByKey(a.featureKey)) s.addFeature({ key: a.featureKey, type: 'npc', label: a.name, tag: a.role });
       const intro = interact(s, story.playerId, a.featureKey, '', { tag: a.role });
       story.active = { agent: a, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      story.active.informed = deliverInformed();   // the "next person you talk to" delivers any XP-unlocked beat
       saveStory(); renderStory();
+    }
+    // deliver a pending informed beat (an active beat carrying `informed` text, not yet delivered): mark it
+    // delivered, set its completes_when facts (so it closes → checkAdvance bumps the tier), return the line.
+    function deliverInformed() {
+      if (!story.ready || !story.sb) return null;
+      for (const b of computeBoard(story.sb, story.store, story.playerId)) {
+        if (b.status !== 'active' || !b.informed || story.store.getFact(story.playerId, 'delivered.' + b.id)) continue;
+        story.store.setFact(story.playerId, 'delivered.' + b.id, true);
+        for (const [k, v] of Object.entries((b.completes_when || {}).facts || {})) story.store.setFact(story.playerId, k, v);
+        return b.informed;
+      }
+      return null;
     }
     // every soul gets a cheap, deterministic FLESH·CHASSIS·ANIMA stat block (crewStats is O(1))
     const npcStats = new Map();
@@ -465,7 +487,8 @@
         // the crowd (tree-less NPCs) speaks faction×phase chatter that tracks the story; principals keep their authored tree
         const says = (t.no_tree && (chatterFor(npcId, agent) || t.says)) || t.says;
         head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)} · ${esc(t.npc || '')} · standing ${t.standing | 0}</div>${npcStatLine(agent)}`;
-        body = `<p class="says">${esc(says)}</p>`;
+        const inform = story.active.informed ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
+        body = inform + `<p class="says">${esc(says)}</p>`;
         choices = (t.choices || []).map((c) => `<button data-cid="${esc(c.id)}">${esc(c.text)}</button>`).join('');
       } else if (intro.item) {
         head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
@@ -599,6 +622,7 @@
       if (!s.featureByKey(a.key)) s.addFeature({ key: a.key, type: 'npc', label: a.name, content_id: a.content_id });
       const intro = interact(s, story.playerId, a.key);
       story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      story.active.informed = deliverInformed();   // a principal can also be the one who informs you
       saveStory(); renderStory();
     }
     function drawAnchors() {

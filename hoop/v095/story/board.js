@@ -14,15 +14,25 @@ import { meetsState, loadGateState } from './engine.js';
 
 const stateReq = (r) => ({ facts: r.facts, items: r.items, min_rep: r.min_rep });
 
+// progression gates: lore-XP level (min_power) + tier floors. This is how a beat becomes available by
+// EXPOSURE — explore enough lore and the beat unlocks, to be "informed" of by the next NPC.
+export function progressOk(p, req) {
+  if (req.min_power && (p.power_tier || 1) < req.min_power) return false;
+  if (req.min_narrative && (p.narrative_tier || 1) < req.min_narrative) return false;
+  if (req.min_revelation && (p.revelation_tier || 1) < req.min_revelation) return false;
+  return true;
+}
+
 export function computeBoard(sb, store, playerId) {
-  const g = loadGateState(store, playerId);
+  const g = loadGateState(store, playerId), p = store.getPlayerState(playerId);
   const beats = (sb && sb.beats) || [];
   const byId = new Map(beats.map((b) => [b.id, b]));
-  const isDone = (b) => meetsState(g, b.completes_when || {});
+  const meets = (req) => meetsState(g, stateReq(req || {})) && progressOk(p, req || {});
+  const isDone = (b) => meets(b.completes_when || {});
   const prereqMet = (b) => {
     const r = b.requires || {};
-    for (const pid of (r.beats || [])) { const p = byId.get(pid); if (!p || !isDone(p)) return false; }
-    return meetsState(g, stateReq(r));
+    for (const pid of (r.beats || [])) { const q = byId.get(pid); if (!q || !isDone(q)) return false; }
+    return meets(r);
   };
   return beats.map((b) => ({ ...b, status: isDone(b) ? 'done' : prereqMet(b) ? 'active' : 'locked' }));
 }
