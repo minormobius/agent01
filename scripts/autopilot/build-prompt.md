@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-06-15 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-06-16 by build-brief.mjs — do not edit by hand._
 
-**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, arena, ask, astro, atlas, atmosphere, atproto-data, audio, auto, aztec, b, bakery, basket, biome, bisk, bogo, borges, borsuk, bounty, branwen, breeder, cable, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, crucible, culhwch, cult, curve, data, density, descent, diffract, disk, docs, draw, duck, dyad, echo, econ, elements, empathy, emsim, erdos, fable, feedgen, finance, fixture, flights, flogame, flotorus, flow, flows, fluoddity, fodder, font, forest, fractal, functions, g, gacha, gallery, games, garden, gawain, gen, geomancy, geometry, globe, graph, grow, guthkatz, hadwiger, hand, heilbronn, helix, hoop, hoop-backend, horned, hotnot, iching, inpac, io, iris, ising, item, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, mappa, markov, math, meander, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, ocr, orb, orfeo, org, orrery, os, owain, pac, packages, paint, pds, pendragon, phasemap, photo, phylo, phylofiction, pizza, playground, pm, pod, pokemon, poll, post01, prism, proteus, pwyll, range, read, recipe, redact, rind, rite, runner, scope, scripts, seek, selection, ship, signal, soil, spark, splice, sprite, src, sticks, stocks, stretch, swarmclip, swarmread, swarmtext, sweat, szemeredi-trotter, tablet, tabletilt, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, thread, tide, time, torpac, torus, track, traffic, vault, viazovska, vitamerlini, voronoi, wars, wave, wc, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
+**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, arena, ask, astro, atlas, atmosphere, atproto-data, audio, auto, aztec, b, bakery, basket, biome, bisk, bogo, borges, borsuk, bounty, branwen, breeder, cable, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, crucible, culhwch, cult, curve, data, density, descent, diffract, disk, docs, draw, duck, dyad, echo, econ, elements, empathy, emsim, erdos, fable, feedgen, finance, fixture, flights, flogame, flotorus, flow, flows, fluoddity, fodder, font, forest, fractal, functions, g, gacha, gallery, games, garden, gawain, gen, geomancy, geometry, globe, graph, grow, guthkatz, hadwiger, hand, heilbronn, helix, hoop, hoop-backend, horned, hotnot, iching, inpac, io, iris, ising, item, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, mappa, markov, math, meander, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, ocr, orb, orfeo, org, orrery, os, owain, pac, packages, paint, pds, pendragon, phasemap, photo, phylo, phylofiction, pizza, playground, pm, pod, pokemon, poll, post01, prism, prop, proteus, pwyll, range, read, recipe, redact, rind, rite, runner, scope, scripts, seek, selection, ship, signal, soil, spark, splice, sprite, src, sticks, stocks, stretch, swarmclip, swarmread, swarmtext, sweat, szemeredi-trotter, tablet, tabletilt, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, thread, tide, time, torpac, torus, track, traffic, vault, viazovska, vitamerlini, voronoi, wars, wave, wc, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
 
-**Catalog saturation** (sites per category): games 57, bluesky 46, data 44, tools 30, work 7.
+**Catalog saturation** (sites per category): games 57, bluesky 46, data 45, tools 30, work 7.
 
-**Neighborhood spark** (bisk 2026-06-15, 100 members / 252 posts):
+**Neighborhood spark** (bisk 2026-06-16, 100 members / 273 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: gpu, fable, utau
-- Top post: "Nah I don't care I was enjoying Life" — @cameron.stream
+- Distinctive words: anthropic, fable, imo
+- Top post: "lmao holy shit are they actually doing yud's plan? this is yud's plan" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
