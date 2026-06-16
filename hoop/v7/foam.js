@@ -322,7 +322,14 @@ function roadTangent(foam, road, r) {
 // borders the concourse (that's what perfusion guarantees), so every room gets exactly ONE door —
 // the room cell touching the concourse nearest the room's centre; all its other concourse-borders
 // stay walls. Pathfinding is then trivial: every trip is room → its door → concourse → door → room.
-export function paintRooms(foam, chunk, solve, { roomSize = 10, seed = 1 } = {}) {
+// Draw a role from the canonical ROLE_MIX (module-level cousin of castCharacter's local pickRole),
+// used by the optional traffic-sizing path to weight a sub-room's footprint by its role.
+function drawRole(rng) { const tot = ROLE_MIX.reduce((s, m) => s + m[1], 0); let r = rng() * tot; for (const [k, w] of ROLE_MIX) { r -= w; if (r <= 0) return k; } return 'dwell'; }
+
+// `footprint` (optional, v091): a role→weight map. When given, a big pocket is split into rooms whose
+// CELL COUNTS are proportional to a per-role footprint (a traffic proxy) instead of being equal, and
+// each room carries the role it was sized for (castCharacter honours it). Omitted ⇒ identical to before.
+export function paintRooms(foam, chunk, solve, { roomSize = 10, seed = 1, footprint = null } = {}) {
   const road = solve.road, N = foam.cells.length;
   const comp = new Int32Array(N).fill(-1), rooms = [];
   // tissue = interior, non-concourse, and REACHABLE from the concourse. Excluding unreachable cells
@@ -336,14 +343,24 @@ export function paintRooms(foam, chunk, solve, { roomSize = 10, seed = 1 } = {})
     for (let h = 0; h < q.length; h++) { const u = q[h]; members.push(u); for (const v of foam.adj[u]) if (tissue(v) && comp[v] < 0) { comp[v] = cc; q.push(v); } }
     cc++;
     if (members.length > roomSize * 1.6) {
-      // subdivide this pocket into round(size/roomSize) rooms (graph-Voronoi within the pocket)
+      // subdivide this pocket into rooms (graph-Voronoi within the pocket)
       const idx = new Map(members.map((m, i) => [m, i])), subEdges = [];
       for (const m of members) for (const v of foam.adj[m]) if (idx.has(v) && v > m) subEdges.push({ a: idx.get(m), b: idx.get(v) });
-      const k = Math.max(1, Math.round(members.length / roomSize));
-      const sub = assignZones(members.length, subEdges, new Array(k).fill(1), (seed ^ (cc * 0x9e37)) >>> 0);
-      const buckets = Array.from({ length: k }, () => []);
-      sub.forEach((z, i) => { if (z >= 0 && z < k) buckets[z].push(members[i]); });
-      for (const mem of buckets) if (mem.length) rooms.push({ cells: mem });
+      let weights, roles = null;
+      if (footprint) {
+        // TRAFFIC SIZING (v091): draw a role per sub-room and weight its size by the role's footprint,
+        // so busy rooms claim more cells than quiet ones. Draw until the footprints fill the pocket
+        // (≈ members/roomSize "units"); carry each role onto its room for castCharacter to honour.
+        const rrng = mulberry32((seed ^ (cc * 0x9e37) ^ 0x5151) >>> 0), target = members.length / roomSize;
+        roles = []; weights = []; let acc = 0;
+        do { const role = drawRole(rrng), w = footprint[role] || 1; roles.push(role); weights.push(w); acc += w; } while (acc < target && roles.length < members.length);
+      } else {
+        const k = Math.max(1, Math.round(members.length / roomSize)); weights = new Array(k).fill(1);
+      }
+      const sub = assignZones(members.length, subEdges, weights, (seed ^ (cc * 0x9e37)) >>> 0);
+      const buckets = Array.from({ length: weights.length }, () => []);
+      sub.forEach((z, i) => { if (z >= 0 && z < weights.length) buckets[z].push(members[i]); });
+      buckets.forEach((mem, zi) => { if (mem.length) rooms.push(roles ? { cells: mem, role: roles[zi] } : { cells: mem }); });
     } else rooms.push({ cells: members });
   }
   // door pass: the room cell touching the concourse nearest the room centre (its only door)
@@ -382,7 +399,7 @@ export function castCharacter(rooms, { seed = 1, household = 3 } = {}) {
   const tot = ROLE_MIX.reduce((s, m) => s + m[1], 0);
   const pickRole = () => { let r = rng() * tot; for (const [k, w] of ROLE_MIX) { r -= w; if (r <= 0) return k; } return 'dwell'; };
   const out = rooms.map((room) => {
-    const role = pickRole(), R = ROLES[role], dom = R.dom ? DOMAINS[Math.floor(rng() * DOMAINS.length)] : null, pl = makePlace(room.id, role, dom);
+    const role = room.role || pickRole(), R = ROLES[role], dom = R.dom ? DOMAINS[Math.floor(rng() * DOMAINS.length)] : null, pl = makePlace(room.id, role, dom);
     const people = [];
     if (role === 'dwell') { const n = 1 + Math.floor(rng() * (2 * household - 1)); for (let k = 0; k < n; k++) people.push(NAMES[Math.floor(rng() * NAMES.length)]); }
     return { ...room, role, domain: pl.domain, glyph: pl.glyph, color: pl.color, tier: pl.tier, people };
