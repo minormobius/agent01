@@ -1,0 +1,54 @@
+{
+  "_note": "hoop/v095 STORYBOARD — the single declarative source of progression. Each BEAT pins a marginal story step to a change in world state: `requires` (entry gate: prior beats + facts/items/rep) → the player works it → `completes_when` (the world-state delta that closes it) → optional `advances` (tier floor) + `marker` (where to point them) + `log`/`done` (the quest-log lines). EVERYTHING derives from this: the quest log, the map markers, tier advancement (board.js#tierFloors agrees with advance.js), NPC line-state (completed beats set facts dialogue can branch on), and the /storyboard/ director's-board endpoint. THE GROWTH RULE: a new step is one appended beat with requires:{beats:[prior]} — the log, the board, and the markers pick it up with no other change. completes_when uses the same shape as the engine's meetsState (facts/items/min_rep).",
+  "chapter": 1,
+  "acts": [
+    { "id": "arrival",     "label": "I · Arrival",     "narrative_tier": 1, "revelation_tier": 1 },
+    { "id": "orientation", "label": "II · Orientation", "narrative_tier": 2, "revelation_tier": 1 },
+    { "id": "investigation","label": "III · Investigation","narrative_tier": 3, "revelation_tier": 2 }
+  ],
+  "beats": [
+    { "id": "b1-wake", "act": "arrival", "title": "Waking in Bay 14",
+      "log": "You woke in a reconstruction bay that isn't on any map. The Drift broker who found you is here — hear her out.",
+      "done": "Olo Vashti orientated you — and named Luna, who knows your name.",
+      "requires": {},
+      "completes_when": { "facts": { "flag.met_olo": true } },
+      "marker": { "anchor": "olo", "hint": "speak with Olo Vashti" },
+      "reveals": "Someone rebuilt you here, against a time they already knew. Luna knows your name; you don't." },
+
+    { "id": "b2-skeleton", "act": "arrival", "title": "The mythograph that names you",
+      "log": "Olo said a Tabard terminal is posting something the regulars can't parse. Find one and read it.",
+      "done": "You read Luna's mythograph — and saw your own name in a notation you can't read.",
+      "requires": { "beats": ["b1-wake"] },
+      "completes_when": { "facts": { "flag.read_terminal": true } },
+      "grants": ["it-stenciltrace"],
+      "marker": { "terminal": true, "hint": "read a Tabard terminal (the teal ▤ console)" },
+      "reveals": "The Seven post a story's skeleton before its telling. This one's hero is you, marked and recognised — by the name only Luna knows." },
+
+    { "id": "b3-reason", "act": "arrival", "title": "A reason Sevin believes",
+      "log": "You carry the notation now. Take it to Sevin at the industrial margin — she'll want a reason to open the rind.",
+      "done": "Sevin recognised the mark and opened the shaft. The way down — and on — is yours.",
+      "requires": { "beats": ["b2-skeleton"], "items": ["notation"] },
+      "completes_when": { "facts": { "flag.sevin_believes": true } },
+      "marker": { "anchor": "sevin", "hint": "bring the notation to Sevin at the margin" },
+      "advances": { "narrative_tier": 2 },
+      "unseals": true,
+      "reveals": "Orientation. The first chunk unseals — the Nave opens, and the rind waits below." },
+
+    { "id": "b4-descent", "act": "investigation", "title": "Into the rind", "future": true,
+      "log": "Follow Sevin down the access shaft into the tunnel-rind.",
+      "done": "You descended. The sun-strip gave out to hull-glow; the walls carry the oldest layer of the mark.",
+      "requires": { "beats": ["b3-reason"] },
+      "completes_when": { "facts": { "flag.entered_rind": true } },
+      "marker": { "anchor": "sevin", "hint": "descend with Sevin" },
+      "advances": { "revelation_tier": 2 },
+      "reveals": "The Curve. The infrastructure is continuous in a way a planet's wouldn't be. You are inside something." },
+
+    { "id": "b5-choice", "act": "investigation", "title": "The first reckoning", "future": true,
+      "log": "(to come) The Continuants' trail ends here. A faction choice will shape the full descent.",
+      "done": "(to come)",
+      "requires": { "beats": ["b4-descent"] },
+      "completes_when": { "facts": { "flag.first_choice": true } },
+      "marker": null,
+      "reveals": "Here player decisions begin to matter — the bible's Investigation tier." }
+  ]
+}

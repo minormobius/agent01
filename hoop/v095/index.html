@@ -16,6 +16,8 @@
     #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
     #here b { color: #f4bf62; }
     #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
+    #quest { bottom: 28px; left: 10px; max-width: 52vw; color: #cdd6cf; }
+    #quest .lbl { color: #7fd8d0; } #quest .o { color: #f4bf62; } #quest .mk { color: #b48a6a; } #quest a.sb { color: #6b7872; pointer-events: auto; }
     #pack { position: fixed; bottom: 8px; right: 12px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #f4bf62; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
     #pack:hover { border-color: #f4bf62; color: #fff; }
     #charbtn { position: fixed; bottom: 8px; right: 92px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #b39bd8; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
@@ -49,6 +51,7 @@
   <div class="hud" id="here"></div>
   <div class="hud" id="busy">generating…</div>
   <a class="hud" id="back" href="/">◍ hoop</a>
+  <div class="hud" id="quest"></div>
   <button id="charbtn" title="character (c)">☻ character</button>
   <a id="arenabtn" href="./arena/" title="arena">⚔ arena</a>
   <button id="equipbtn" title="equipped (e)">⛨ equip</button>
@@ -70,6 +73,7 @@
     import { frameRects, DIR_OF, DIR8, genomeFromParams } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose, take } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
+    import { computeBoard, questLog } from './story/board.js';   // the storyboard kernel → the quest log (same source as /storyboard/)
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -378,14 +382,26 @@
         const res = await fetch(new URL('./story/pool.json', import.meta.url)); if (!res.ok) throw 0;
         story.store = new MemoryStore(flattenPool(await res.json()), { features: [] });
         const saved = localStorage.getItem('hoop:v095:story'); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
-        story.ready = true;
+        try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; }
+        story.ready = true; renderQuest();
       } catch (e) { story.ready = false; }   // graceful: residents still live and walk, just no story panel
+    }
+    // the QUEST LOG — derived from the storyboard (board.js), the same source the /storyboard/ board reads
+    function renderQuest() {
+      const el = $('quest'); if (!el) return;
+      if (!story.ready || !story.sb) { el.innerHTML = ''; return; }
+      const board = computeBoard(story.sb, story.store, story.playerId), log = questLog(board);
+      const active = log.filter((l) => l.status === 'active'), done = log.filter((l) => l.status === 'done').length;
+      let h = '<span class="lbl">❖ quest</span> ';
+      if (active.length) { const a = active[0]; h += '<span class="o">' + esc(a.text) + '</span>'; if (a.marker && a.marker.hint) h += ' <span class="mk">⌖ ' + esc(a.marker.hint) + '</span>'; }
+      else h += '<span class="o">— the way is open —</span>';
+      el.innerHTML = h + ' <span style="color:#566">(' + done + ' done)</span> · <a class="sb" href="/v095/storyboard/">board ↗</a>';
     }
     const saveStory = () => {
       if (!story.ready) return;
       try { localStorage.setItem('hoop:v095:story', JSON.stringify(story.store.snapshot())); } catch (e) {}
       for (const a of checkAdvance(story.store, story.playerId)) if (a.axis === 'narrative_tier' || a.axis === 'revelation_tier') flashTier(a);
-      whereAmI();   // refresh the tier readout (advancement can fire mid-conversation, not just on a step)
+      whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
       if (introSolved()) maybeStream();   // the moment the opening is solved, the first chunk unseals and the world starts streaming
     };
     function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of residents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
