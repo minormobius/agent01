@@ -103,6 +103,14 @@ export function interact(store, playerId, featureKey, context = '', opts = {}) {
     return { feature_key: featureKey, label: feature.label, status: 'recalled',
              interaction_count: count + 1, retired: !ci || ci.status !== 'active', item: ci ? renderItem(ci) : null };
   }
+  if (feature.content_id) {                                  // AUTHORED placement: a hand-crafted scene PINS a specific content_item (vs procedural dispatch).
+    const ci = store.contentById(feature.content_id);        // The opening chunk needs Olo at the cradle, Sevin at the margin — not a tier-legal roll.
+    if (ci && ci.approved && ci.status === 'active') {        // Missing/retired pin falls through to dispatch (graceful — same discipline as recall of a retired item).
+      store.markSeen(playerId, ci.id);
+      const leveled = bindAndLevel(store, playerId, featureKey, ci);
+      return { feature_key: featureKey, label: feature.label, status: 'crystallized', item: renderItem(ci), leveled };
+    }
+  }
   const items = dispatch(store, playerId, feature.type, 1, { tag });   // FIRST TOUCH — crystallize (role/domain-biased)
   if (!items.length) return { feature_key: featureKey, label: feature.label, status: 'withheld', content_type: feature.type, item: null };
   const item = items[0], leveled = bindAndLevel(store, playerId, featureKey, item);

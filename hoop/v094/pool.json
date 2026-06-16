@@ -1,0 +1,66 @@
+{
+  "_note": "hoop/v094 — Chapter One OPENING pool, bent to the Tabard bible (hoop-backend/ingestion/chapter1_bible.md). Replaces the Keeper-derelict seed pool for this surface (canon decision: Tabard is truth). Every item tier-1, approved, active — the bible's Tier 1 'The Ordinary' / Narrative 'Arrival'. Shape matches hoop-backend content_items. The Tabard terminal (lo-terminal) carries a BORGES page reference (the Seven post mythographs to the intranet before each telling — the borges engine IS that intranet); the client renders borges.generate(71) — 'The Fixed Hour', told by Luna — with the hero's name overwritten in stencil notation (the name Luna knows; you can't read it yet). Voice: warm-but-withholding (Olo), per the collaborator's steer.",
+  "items": [
+    { "id": "it-stenciltrace", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["bay14", "notation"],
+      "content": { "name": "Stencil Trace", "description": "Your apparatus recorded the wall before you decided to. Three layers of a notation nobody in the Nave writes — the deepest older than any map. You carry it now, unread." } },
+    { "id": "it-credential", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["bay14", "access"],
+      "content": { "name": "Anomalous Credential", "description": "A wafer that came up out of your own hand, not a pocket. Doors sealed a very long time answer to it. None of them are civilian." } },
+    { "id": "it-cord", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["drift", "sign"],
+      "content": { "name": "Knotted Cord", "description": "Olo's, pressed into your hand 'for later.' The knots are a route history. She did not say whose." } }
+  ],
+  "lore_fragments": [
+    { "id": "lo-cradle", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["bay14", "system"],
+      "content": { "name": "The Reconstruction Cradle", "description": "Civilian androids are not rebuilt in rooms like this. The cradle's equipment is unusual, and patient, and it was waiting for exactly one body." } },
+    { "id": "lo-log", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["bay14", "mystery"],
+      "content": { "name": "The Access Log", "description": "One entry. Yours — coming out. There is no entry for going in. As if you were not brought here so much as left, against a time someone already knew." } },
+    { "id": "lo-terminal", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["tabard", "mythograph", "luna"],
+      "content": { "name": "A Tabard Terminal", "description": "A passive broadcast terminal, ship-original, a mythograph glowing on it — a story's blueprint posted before its telling. The regulars at the reading-room chairs are arguing about this one. They can read the moves and the motifs. They cannot read the hero's name: it is written in a notation you have seen once already, on a wall, an hour ago. The teller is Luna.",
+        "borges": { "n": 71, "permalink": "/t/71" },
+        "hero_stencil": "⟜⌖⟊⟁⌇",
+        "_render": "client crystallizes this lore → renders borges.generate(71)'s MYTHOGRAPH (propp moves + motifs + cast + actant; not the prose telling), overwriting the hero cast-node's name with hero_stencil. Reading it sets flag.read_terminal + flag.heard_luna (client on_read)." } }
+  ],
+  "npcs": [
+    { "id": "np-olo", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["drift", "broker", "orient"],
+      "content": { "name": "Olo Vashti", "description": "A Drift broker with a knotted cord at her wrist. Easy to talk to. Impossible to read. She has been sitting with you since before you opened your eyes, and she is not surprised by any of this.",
+        "dialogue": { "start": "wake", "nodes": {
+          "wake": { "says": "There you are. Easy — you've been under longer than the cradle's log will admit to. I'm Olo. I'm the one who found you. Sit a moment; the questions keep.", "choices": [
+            { "id": "where", "text": "Where is this?", "goto": "where" },
+            { "id": "who",   "text": "Who am I?", "goto": "who" },
+            { "id": "why",   "text": "Why aren't you surprised?", "goto": "why" },
+            { "id": "ready", "text": "(stand up)", "effects": { "set_facts": { "flag.met_olo": true }, "give_items": ["it-cord"], "adjust_rep": { "drift": 1 } }, "goto": "ready" } ] },
+          "where": { "says": "Bay 14. A reconstruction room that is on no schematic of the Nave I have ever bought, and I have bought most of them. The access log has a single entry. Yours, coming out.", "choices": [
+            { "id": "back", "text": "(take that in)", "goto": "wake" } ] },
+          "who": { "says": "I don't know who you were — that's the honest answer, and you'll learn I don't give many. But someone does. Luna knows your name. You don't. I'd find that funnier if it didn't frighten me a little.", "choices": [
+            { "id": "luna", "text": "Luna?", "effects": { "set_facts": { "flag.heard_luna": true } }, "goto": "luna" },
+            { "id": "back", "text": "(let it sit)", "goto": "wake" } ] },
+          "luna": { "says": "One of the Seven. The silver one — navigator, keeper of the dream-logs. No, I won't take you to her, and no, you can't ask her yet. She keeps a kind of time you haven't got the coin to spend. Read the terminal instead. Start there.", "choices": [
+            { "id": "back", "text": "(nod)", "goto": "wake" } ] },
+          "why": { "says": "Because I was told to be here, and I've been doing this long enough to know the difference between a question that pays and a question that costs. This one costs. Ask me something cheaper.", "choices": [
+            { "id": "back", "text": "(let her keep it)", "goto": "wake" } ] },
+          "ready": { "says": "Good. The Nave's through the gate — markets, three factions pretending not to watch each other, the ordinary noise of it. Read the terminal when you pass it; something's been posting that none of the regulars can parse. And if you mean to go down into the rind, find Sevin at the margin. She'll want a reason she believes. Give her the wall.", "effects": { "set_facts": { "flag.oriented": true } }, "choices": [
+            { "id": "go", "text": "(go)", "effects": { "end": true } } ] } } } } },
+    { "id": "np-sevin", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["rindwalker", "guide"],
+      "content": { "name": "Sevin", "description": "A Rind-walker with more arms than a person should have. She does not explain them and you learn not to look. She has worked the tunnels above Bay 14 for years, and she has seen its walls.",
+        "dialogue": { "start": "s0", "nodes": {
+          "s0": { "says": "You came up the rind side, not the city side. People who do that always want the same thing from me, and they never have a reason worth the air.", "choices": [
+            { "id": "down",  "text": "I need into the shaft.", "goto": "why" },
+            { "id": "leave", "text": "(not yet)", "effects": { "end": true } } ] },
+          "why": { "says": "Everyone needs into the shaft. The rind does not care what you need. Give me a reason I believe, or give me the gate.", "choices": [
+            { "id": "stencil", "text": "There's a mark in Bay 14 — three layers, the oldest older than any map. I carry the trace.", "requires": { "items": ["notation"] }, "effects": { "set_facts": { "flag.sevin_believes": true }, "adjust_rep": { "rindwalkers": 1 } }, "goto": "believe" },
+            { "id": "none",    "text": "(you have nothing she'd believe)", "effects": { "end": true } } ] },
+          "believe": { "says": "…Show me. — That hand. I've scraped that mark off three chambers and it came back twice. Older than the Nave, and it knows your apparatus the way a lock knows a key. All right. Stay close, do as I say, don't touch the warm walls. The shaft's open to you.", "choices": [
+            { "id": "ok", "text": "(follow her down)", "effects": { "end": true } } ] } } } } },
+    { "id": "np-solen", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["continuant", "govern", "authority"],
+      "content": { "name": "Factor Merid Solen", "description": "Pale blue and iron grey, copper trim at the collar for the formality of it. Third holder of her office, and the first to survive audits she wasn't meant to. Fair. Not warm. More frightened than she will ever let you see.",
+        "dialogue": { "start": "f0", "nodes": {
+          "f0": { "says": "Stop there. Your credentials lit my board the moment you crossed into the belt — and they answer to doors my registry says were welded shut before my grandmother held this office. So. What are you.", "choices": [
+            { "id": "explain", "text": "I don't know yet. I woke an hour ago.", "goto": "f1" },
+            { "id": "leave",   "text": "(say nothing)", "effects": { "end": true } } ] },
+          "f1": { "says": "No. I don't suppose you do. — I am not going to detain you. I am going to note you, and I am going to read what you do, and when you have an answer you will bring it to me before you bring it to the Drift. That is the whole of our arrangement, and you did not agree to it, and it is binding anyway.", "effects": { "set_facts": { "flag.met_solen": true } }, "choices": [
+            { "id": "done", "text": "(she's already turned away)", "effects": { "end": true } } ] } } } } }
+  ],
+  "plot_beats": [
+    { "id": "pb-shaft", "type": "plot_beat", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["rind", "turn"],
+      "content": { "name": "The Rind Access Shaft", "description": "Past the industrial margin the air changes and the sun-strip gives out to hull-glow and strung lights. The gate down is sealed — officially. Sevin knows the unofficial way, and the unofficial way is waiting on whether she believes you." } }
+  ]
+}
