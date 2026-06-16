@@ -71,9 +71,10 @@
     import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from './rooms.js';
     import { buildSociety, buildResidents, stepResidents } from './npc.js';
     import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
-    import { flattenPool, MemoryStore, interact, talk, choose, take } from './story/engine.js';
+    import { flattenPool, MemoryStore, interact, talk, choose, take, loadGateState } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
     import { computeBoard, questLog, activeMarkers } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
+    import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -393,6 +394,7 @@
         story.store = new MemoryStore(flattenPool(await res.json()), { features: [] });
         const saved = localStorage.getItem('hoop:v095:story'); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
         try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; }
+        try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
         story.ready = true; renderQuest();
       } catch (e) { story.ready = false; }   // graceful: residents still live and walk, just no story panel
     }
@@ -439,6 +441,14 @@
       const tri = TRIAD_ORDER.map((d) => `<span style="color:${TRIAD[d].accent}">${TRIAD[d].glyph}${Math.round(c.triad[d] * 100)}</span>`).join(' ');
       return `<div style="font-size:10.5px;color:#9aa8a0;margin:-6px 0 12px"><b style="color:#cfd8d2">${esc(c.cast.label)}</b> · ${tri} · <span title="combat">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def}</span></div>`;
     }
+    // an ambient NPC's line: faction (from its tags) × the active story phase, stable per NPC (no LLM)
+    function chatterFor(npcId, agent) {
+      if (!story.ready || !story.chatter) return null;
+      const ci = story.store.contentById(npcId); if (!ci) return null;
+      const p = story.store.getPlayerState(story.playerId);
+      const state = { facts: story.store.getFacts(story.playerId), narrative_tier: p.narrative_tier, revelation_tier: p.revelation_tier, items: loadGateState(story.store, story.playerId).items };
+      return pickChatter(story.chatter, factionOf(ci.tags), state, agent.featureKey || npcId);
+    }
     function renderStory() {
       const panel = $('story');
       if (story.active && story.active.terminal) return renderTerminalPanel(panel);
@@ -447,8 +457,10 @@
       let head, body = '', choices = '';
       if (npcId) {
         const t = talk(story.store, story.playerId, npcId);
+        // the crowd (tree-less NPCs) speaks faction×phase chatter that tracks the story; principals keep their authored tree
+        const says = (t.no_tree && (chatterFor(npcId, agent) || t.says)) || t.says;
         head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)} · ${esc(t.npc || '')} · standing ${t.standing | 0}</div>${npcStatLine(agent)}`;
-        body = `<p class="says">${esc(t.says)}</p>`;
+        body = `<p class="says">${esc(says)}</p>`;
         choices = (t.choices || []).map((c) => `<button data-cid="${esc(c.id)}">${esc(c.text)}</button>`).join('');
       } else if (intro.item) {
         head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;

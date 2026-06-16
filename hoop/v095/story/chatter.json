@@ -1,0 +1,66 @@
+{
+  "_note": "hoop/v095 CHATTER — faction × story-phase ambient lines for the procedural crowd. NOT hand-authored per NPC: every tree-less crowd NPC picks a line by (its faction tag, the active phase, a per-NPC seed), so the whole Nave reacts to the story with a few dozen lines. Deterministic, zero inference (the 'no LLM in the hot path' rule). The phase is the highest one whose `when` the player's state satisfies. This file is also the artifact the offline pregen lane can later grow (more lines / more phases) — the hot path (chatter.js) never changes. Principals (Olo/Sevin/Solen) are hand-authored with gated dialogue instead.",
+  "phases": [
+    { "id": "ordinary", "when": { "max_narrative": 1 } },
+    { "id": "stirring", "when": { "items": ["notation"] } },
+    { "id": "opened",   "when": { "min_narrative": 2 } }
+  ],
+  "lines": {
+    "continuant": {
+      "ordinary": [
+        "The recyclers held through the night. Praise the maintenance.",
+        "Mind the copper trim — the Factor's people are about.",
+        "A thing that breaks is a kind of heresy. We keep it whole."
+      ],
+      "stirring": [
+        "The terminal posts changed. We don't discuss it on shift.",
+        "The lower-rind teams stopped filing months ago. The Factor hasn't asked. Neither would I.",
+        "Keep your credentials to yourself. They've been lighting the board."
+      ],
+      "opened": [
+        "You came up the rind side, didn't you. That gate isn't supposed to open.",
+        "Whatever's down there — bring it to the Hall before the Drift, if you're wise.",
+        "The air tastes different since the shaft opened. Don't tell me it doesn't."
+      ]
+    },
+    "drift": {
+      "ordinary": [
+        "Nothing here is yours for long. Everything moves, eventually.",
+        "The Braid's quiet today. Quiet's worth more than noise, sometimes.",
+        "Knot at the wrist means I've been everywhere twice. Want a route?"
+      ],
+      "stirring": [
+        "The Braid's selling the same snag from a dozen directions. The posts changed.",
+        "Someone's buying silence about the lower rind. I'm not asking who.",
+        "Olo stayed too long in this Nave. We don't do that. Ask her why."
+      ],
+      "opened": [
+        "Word travels the Braid faster than you walked it. The shaft's open.",
+        "Passage rights into the rind just got dear. Funny, that.",
+        "You're carrying something that isn't yours and isn't anyone's. Careful with it."
+      ]
+    },
+    "rindwalker": {
+      "ordinary": [
+        "Mind which doors are warm. The hull tells you, if you listen.",
+        "Saturn left things in the deep. We keep them. We don't always understand them.",
+        "Years it takes, to read the chambers. You haven't got years."
+      ],
+      "stirring": [
+        "That mark you carry — I've scraped it off three walls and it came back.",
+        "The deep tunnels are louder than they were. Don't go alone.",
+        "Sevin's at the margin. If anyone takes you down, it's her."
+      ],
+      "opened": [
+        "So the shaft's yours now. The walls down there are older than the Nave.",
+        "The oldest layer of the mark runs all the way down. Follow it, if you dare.",
+        "The temperature's wrong in the lower rind. That's not a malfunction."
+      ]
+    },
+    "_default": {
+      "ordinary": [ "The sky-arc's at full today. Good light.", "Just passing through. Aren't we all." ],
+      "stirring": [ "Something's off lately. Can't say what.", "People are quieter than they were." ],
+      "opened":   [ "The whole Nave's talking about the rind.", "Things are changing. You can feel it." ]
+    }
+  }
+}

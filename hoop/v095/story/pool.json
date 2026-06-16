@@ -38,7 +38,10 @@
             { "id": "where", "text": "Where is this?", "goto": "where" },
             { "id": "who",   "text": "Who am I?", "goto": "who" },
             { "id": "why",   "text": "Why aren't you surprised?", "goto": "why" },
+            { "id": "mark",  "text": "There's a mark on my hand — the same one the terminal wrote my name in.", "requires": { "items": ["notation"] }, "goto": "mark" },
             { "id": "ready", "text": "(stand up)", "effects": { "set_facts": { "flag.met_olo": true }, "give_items": ["it-cord"], "adjust_rep": { "drift": 1 } }, "goto": "ready" } ] },
+          "mark": { "says": "…so you read it. Then you already know more than I do, and less than Luna. I don't touch notation that old — bad for the knots. Take it to Sevin; she reads walls for a living. And don't show it on the concourse.", "choices": [
+            { "id": "back", "text": "(close your hand)", "goto": "wake" } ] },
           "where": { "says": "Bay 14. A reconstruction room that is on no schematic of the Nave I have ever bought, and I have bought most of them. The access log has a single entry. Yours, coming out.", "choices": [
             { "id": "back", "text": "(take that in)", "goto": "wake" } ] },
           "who": { "says": "I don't know who you were — that's the honest answer, and you'll learn I don't give many. But someone does. Luna knows your name. You don't. I'd find that funnier if it didn't frighten me a little.", "choices": [
