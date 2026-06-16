@@ -39,6 +39,26 @@ So a soul you click is statted by v092's spine (`crewStats`→`deriveCombat`) wh
 v091 traffic-sized room beside a v091 impassable console. That cross-link — the same resident is both
 an environmental agent and a combat-able character — is the seam the synthesis closes.
 
+## The minimap + waypoint (alt-screen `m`)
+
+`minimap.js` adds a high-level **MAP** alt-screen (same overlay pattern as the pack/character/equip
+screens) plus the geometry the main map shares:
+
+- **Big picture** — every generated chunk's outline (the extent ahead) with the **seen** cells painted
+  in two tones (concourse brighter than rooms): *where you've been*. The explored raster is cached and
+  only rebuilt when the world grows or more is revealed.
+- **Quest interactions** — the civic/third-place rooms (`QUEST_ROLES`: govern/worship/learn/serve/
+  trade/heal/play/make) from `buildSociety`, drawn as diamonds: *where the interactions are supposed to
+  be*. Faint until discovered, solid + glyph once their cells have been seen.
+- **Waypoint** — click the minimap to drop one (click it again, or the header button, to clear). It
+  persists across reloads (`mega:v093:waypoint`).
+
+The main map then carries a **persistent direction indicator** (`drawWaypoint` in index.html):
+**direction only** while the waypoint is off-screen — an arrow pinned to the screen-edge inset on the
+bearing from the player, with a distance read — and the **marker itself** the moment the waypoint rolls
+into the viewport. The fit transform, the on-screen test, and the off-screen edge-clamp are pure,
+exported from `minimap.js`, shared by both surfaces, and pinned by `test/minimap.selftest.mjs`.
+
 ## Conventions (inherited from v092)
 - Self-contained under `mega/v093/`. Vendored world deps use internal `./v5|v7|v8|v3|paint/` refs; the
   shared item & sprite engines are reached at `../sprite/…`.

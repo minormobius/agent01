@@ -24,6 +24,8 @@
     #equipbtn:hover { border-color: #7fd8d0; color: #fff; }
     #arenabtn { position: fixed; bottom: 8px; right: 270px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #cf6b6b; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; text-decoration: none; }
     #arenabtn:hover { border-color: #cf3b3b; color: #fff; }
+    #mapbtn { position: fixed; bottom: 8px; right: 355px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #8fb89f; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #mapbtn:hover { border-color: #8fb89f; color: #fff; }
     #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
     #who b { color: #b39bd8; }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
@@ -50,6 +52,7 @@
   <button id="charbtn" title="character (c)">☻ character</button>
   <a id="arenabtn" href="./arena/" title="arena">⚔ arena</a>
   <button id="equipbtn" title="equipped (e)">⛨ equip</button>
+  <button id="mapbtn" title="minimap (m)">▦ map</button>
   <button id="pack" title="open pack (i)">▣ pack</button>
   <div class="hud" id="who"></div>
   <div id="story"></div>
@@ -72,6 +75,7 @@
     import { deriveCombat, TRIAD, TRIAD_ORDER } from './stats.js';
     import { crewSprite, crewStats } from './crew.js';
     import { EquippedView } from './equipped.js';
+    import { MiniMap, onScreen, edgePoint } from './minimap.js';
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
     // read a tile's baked colour back into a 0..~1.2 luminance — used to light the voronoi-grown fixtures
@@ -262,7 +266,7 @@
       ctx.filter = `blur(${Math.max(1, cam.scale * OPTS.cellSize * 0.35).toFixed(1)}px)`;
       for (const ch of world.chunks) { const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); }
       ctx.filter = 'none';
-      drawNPC(); drawPlayer(); whereAmI();
+      drawNPC(); drawPlayer(); drawWaypoint(); whereAmI();
     }
     function strokeNodes(arr, gateSeen) { ctx.beginPath(); let pen = false; for (const g of arr) { if (gateSeen && !seen.has(g)) { pen = false; continue; } const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; if (pen) ctx.lineTo(SX(x), SY(y)); else { ctx.moveTo(SX(x), SY(y)); pen = true; } } ctx.stroke(); }
     function drawNPC() {
@@ -313,6 +317,38 @@
         ctx.drawImage(cvs, SX(x) - w / 2, SY(y) - h * 0.92, w, h);
         ctx.imageSmoothingEnabled = true;
       }
+    }
+    // ── the WAYPOINT indicator — a persistent direction to the dropped point. While the waypoint is
+    // off-screen you get a DIRECTION ONLY: an arrow pinned to the screen edge on the bearing from the
+    // player (the camera centres the player, so screen-centre ≈ player). The moment the waypoint rolls
+    // into the viewport, the edge arrow gives way to the marker itself, drawn at its true world spot. ──
+    function drawWaypoint() {
+      if (!waypoint || player < 0 || !walk) return;
+      const sx = SX(waypoint.x), sy = SY(waypoint.y), MARGIN = 46;
+      if (onScreen(sx, sy, W, H, MARGIN)) { drawWaypointMarker(sx, sy); return; }   // in view → the marker
+      // off-screen → the edge arrow on the bearing, clamped to an inset rect, with a distance read
+      const e = edgePoint(sx - W / 2, sy - H / 2, W / 2 - MARGIN, H / 2 - MARGIN), ax = W / 2 + e.x, ay = H / 2 + e.y;
+      const dist = Math.hypot(waypoint.x - px(), waypoint.y - py());
+      ctx.save();
+      ctx.translate(ax, ay);
+      // a dark disc so the arrow reads over any background
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, 7); ctx.fillStyle = 'rgba(6,9,12,0.82)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(244,191,98,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.rotate(e.ang);             // +x points along the bearing
+      ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(-5, -7); ctx.lineTo(-5, 7); ctx.closePath();
+      ctx.fillStyle = '#f4bf62'; ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = 8; ctx.fill();
+      ctx.restore();
+      // distance label just inside the arrow (toward screen centre)
+      ctx.fillStyle = '#f4bf62'; ctx.font = '10px "JetBrains Mono",monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`${Math.round(dist)}m`, W / 2 + e.x * 0.86, H / 2 + e.y * 0.86);
+    }
+    function drawWaypointMarker(sx, sy) {
+      const t = (performance.now() % 1200) / 1200;
+      ctx.save();
+      ctx.strokeStyle = `rgba(244,191,98,${(1 - t) * 0.7})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, 10 + t * 9, 0, 7); ctx.stroke();
+      ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(sx, sy, 8, 0, 7); ctx.moveTo(sx - 13, sy); ctx.lineTo(sx + 13, sy); ctx.moveTo(sx, sy - 13); ctx.lineTo(sx, sy + 13); ctx.stroke();
+      ctx.restore();
     }
 
     function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${ZOOM}× locked`; }
@@ -443,6 +479,21 @@
     const equip = new EquippedView({ getCharacter: () => playerChar, getPack: () => pack.pack });
     $('equipbtn').addEventListener('click', () => equip.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); equip.toggle(); } });
+
+    // ── the minimap + waypoint ── a high-level map you drop a waypoint on; the main map then carries a
+    // persistent DIRECTION indicator to it (an edge arrow while it's off-screen → the marker itself once
+    // it rolls into the viewport). The waypoint persists across reloads. ──
+    let waypoint = (() => { try { const s = localStorage.getItem('mega:v093:waypoint'); const w = s ? JSON.parse(s) : null; return (w && Number.isFinite(w.x) && Number.isFinite(w.y)) ? w : null; } catch (e) { return null; } })();
+    function setWaypoint(wp) {
+      waypoint = (wp && Number.isFinite(wp.x) && Number.isFinite(wp.y)) ? { x: wp.x, y: wp.y } : null;
+      try { waypoint ? localStorage.setItem('mega:v093:waypoint', JSON.stringify(waypoint)) : localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+    }
+    const minimap = new MiniMap({
+      getState: () => ({ world, walk, seen, society, px: px(), py: py(), waypoint }),
+      onWaypoint: setWaypoint,
+    });
+    $('mapbtn').addEventListener('click', () => minimap.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
     loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
