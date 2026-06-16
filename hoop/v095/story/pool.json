@@ -1,0 +1,106 @@
+{
+  "_note": "hoop/v095 story pool — the Tabard, brought into v093's rich procedural world. Replaces the Keeper-derelict pool (canon: Tabard is truth). TWO populations in one pool: (1) the PROCEDURAL CROWD — faction-flavored NPCs tagged with v093's econ roles (the role→tag bridge in index.html dispatches by resident role), so every Continuant/Drift/Rind-walker building gets a fitting figure and the crowd stays rich; (2) the PRINCIPALS (Olo, Sevin, Solen) carry NO econ-role tag, so they never crystallize onto a random resident — they appear only where the authored Bay-14 prologue PINS them via content_id (engine.js authored-placement). The terminal carries borges page 71 (Luna's mythograph); the reader UI lands with the prologue. All tier-1 'The Ordinary / Arrival', approved, active.",
+
+  "items": [
+    { "id": "it-stenciltrace", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["bay14", "notation"],
+      "content": { "name": "Stencil Trace", "description": "Your apparatus recorded the wall before you decided to. Three layers of a notation nobody in the Nave writes — the deepest older than any map. You carry it now, unread." } },
+    { "id": "it-credential", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["bay14", "access"],
+      "content": { "name": "Anomalous Credential", "description": "A wafer that came up out of your own hand, not a pocket. Doors sealed a very long time answer to it. None of them are civilian.", "mechanics": { "slot": "kit", "stats": { "def": 1 } } } },
+    { "id": "it-cord", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["drift", "sign"],
+      "content": { "name": "Knotted Cord", "description": "Olo's, pressed into your hand 'for later.' The knots are a route history. She did not say whose." } },
+    { "id": "it-fieldkit", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["continuant", "supply", "medical"],
+      "content": { "name": "Continuant Field Kit", "description": "Pale-blue case, copper clasp, seals intact. Maintenance issue. Heavier than it looks.", "mechanics": { "slot": "kit", "stats": { "hp": 8 } } } },
+    { "id": "it-prybar", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["tool", "salvage", "rind"],
+      "content": { "name": "Rind-walker's Pry Bar", "description": "Cold forged steel, paint worn to bare metal at the grip. It has opened things that wanted to stay shut.", "mechanics": { "slot": "hand", "stats": { "atk": 3 } } } }
+  ],
+
+  "lore_fragments": [
+    { "id": "lo-cradle", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["bay14", "system"],
+      "content": { "name": "The Reconstruction Cradle", "description": "Civilian androids are not rebuilt in rooms like this. The cradle's equipment is unusual, and patient, and it was waiting for exactly one body." } },
+    { "id": "lo-log", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["bay14", "mystery"],
+      "content": { "name": "The Access Log", "description": "One entry. Yours — coming out. There is no entry for going in. As if you were not brought here so much as left, against a time someone already knew." } },
+    { "id": "lo-terminal", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["tabard", "mythograph", "luna"],
+      "content": { "name": "A Tabard Terminal", "description": "A passive broadcast terminal, ship-original, a mythograph glowing on it — a story's blueprint posted before its telling. The regulars argue the moves and the motifs. They cannot read the hero's name: it is written in a notation you have seen on a wall, an hour ago. The teller is Luna.",
+        "borges": { "n": 71, "permalink": "/t/71" },
+        "hero_stencil": "⟜⌖⟊⟁⌇",
+        "_render": "client crystallizes this lore → renders borges page 71's MYTHOGRAPH with the hero name overwritten in hero_stencil. Reading sets flag.read_terminal + flag.heard_luna (client). Reader UI lands with the prologue." } },
+    { "id": "lo-braid", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["drift", "rumor"],
+      "content": { "name": "A Thread of the Braid", "description": "The Drift's information net. Lately it carries the same snag from a dozen directions: the terminal posts have changed, and the lower-rind teams have gone quiet. Someone is selling the silence." } },
+    { "id": "lo-greendeck", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["venus", "green"],
+      "content": { "name": "On the Green Deck", "description": "Warm air, improbable vegetation, plants that don't keep any botanist's schedule. Venus is present the way a room is present — felt, not seen." } }
+  ],
+
+  "npcs": [
+    { "id": "np-olo", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["drift", "broker", "orient"],
+      "content": { "name": "Olo Vashti", "description": "A Drift broker with a knotted cord at her wrist. Easy to talk to. Impossible to read. She has been sitting with you since before you opened your eyes, and she is not surprised by any of this.",
+        "dialogue": { "start": "wake", "nodes": {
+          "wake": { "says": "There you are. Easy — you've been under longer than the cradle's log will admit to. I'm Olo. I'm the one who found you. Sit a moment; the questions keep.", "choices": [
+            { "id": "where", "text": "Where is this?", "goto": "where" },
+            { "id": "who",   "text": "Who am I?", "goto": "who" },
+            { "id": "why",   "text": "Why aren't you surprised?", "goto": "why" },
+            { "id": "ready", "text": "(stand up)", "effects": { "set_facts": { "flag.met_olo": true }, "give_items": ["it-cord"], "adjust_rep": { "drift": 1 } }, "goto": "ready" } ] },
+          "where": { "says": "Bay 14. A reconstruction room that is on no schematic of the Nave I have ever bought, and I have bought most of them. The access log has a single entry. Yours, coming out.", "choices": [
+            { "id": "back", "text": "(take that in)", "goto": "wake" } ] },
+          "who": { "says": "I don't know who you were — that's the honest answer, and you'll learn I don't give many. But someone does. Luna knows your name. You don't. I'd find that funnier if it didn't frighten me a little.", "choices": [
+            { "id": "luna", "text": "Luna?", "effects": { "set_facts": { "flag.heard_luna": true } }, "goto": "luna" },
+            { "id": "back", "text": "(let it sit)", "goto": "wake" } ] },
+          "luna": { "says": "One of the Seven. The silver one — navigator, keeper of the dream-logs. Don't go looking there yet. She keeps a kind of time you haven't got the coin to spend. Read the terminal instead. Start there.", "choices": [
+            { "id": "back", "text": "(nod)", "goto": "wake" } ] },
+          "why": { "says": "Because I was told to be here, and I've been doing this long enough to know the difference between a question that pays and one that costs. This one costs. Ask me something cheaper.", "choices": [
+            { "id": "back", "text": "(let her keep it)", "goto": "wake" } ] },
+          "ready": { "says": "Good. The Nave's through the gate — markets, three factions pretending not to watch each other. Read the terminal when you pass it; something's posting that none of the regulars can parse. And if you mean to go down into the rind, find Sevin at the margin. She'll want a reason she believes. Give her the wall.", "effects": { "set_facts": { "flag.oriented": true } }, "choices": [
+            { "id": "go", "text": "(go)", "effects": { "end": true } } ] } } } } },
+
+    { "id": "np-sevin", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["rindwalker", "guide"],
+      "content": { "name": "Sevin", "description": "A Rind-walker with more arms than a person should have. She does not explain them and you learn not to look. She has worked the tunnels above Bay 14 for years, and she has seen its walls.",
+        "dialogue": { "start": "s0", "nodes": {
+          "s0": { "says": "You came up the rind side, not the city side. People who do that always want the same thing from me, and they never have a reason worth the air.", "choices": [
+            { "id": "down",  "text": "I need into the shaft.", "goto": "why" },
+            { "id": "leave", "text": "(not yet)", "effects": { "end": true } } ] },
+          "why": { "says": "Everyone needs into the shaft. The rind does not care what you need. Give me a reason I believe, or give me the gate.", "choices": [
+            { "id": "stencil", "text": "There's a mark in Bay 14 — three layers, the oldest older than any map. I carry the trace.", "requires": { "items": ["notation"] }, "effects": { "set_facts": { "flag.sevin_believes": true }, "adjust_rep": { "rindwalkers": 1 } }, "goto": "believe" },
+            { "id": "none",    "text": "(you have nothing she'd believe)", "effects": { "end": true } } ] },
+          "believe": { "says": "…Show me. — That hand. I've scraped that mark off three chambers and it came back twice. Older than the Nave, and it knows your apparatus the way a lock knows a key. All right. Stay close, do as I say, don't touch the warm walls. The shaft's open to you.", "choices": [
+            { "id": "ok", "text": "(follow her down)", "effects": { "end": true } } ] } } } } },
+
+    { "id": "np-solen", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["continuant", "authority"],
+      "content": { "name": "Factor Merid Solen", "description": "Pale blue and iron grey, copper trim at the collar for the formality of it. Third holder of her office, and the first to survive audits she wasn't meant to. Fair. Not warm. More frightened than she will ever let you see.",
+        "dialogue": { "start": "f0", "nodes": {
+          "f0": { "says": "Stop there. Your credentials lit my board the moment you crossed into the belt — and they answer to doors my registry says were welded shut before my grandmother held this office. So. What are you.", "choices": [
+            { "id": "explain", "text": "I don't know yet. I woke an hour ago.", "goto": "f1" },
+            { "id": "leave",   "text": "(say nothing)", "effects": { "end": true } } ] },
+          "f1": { "says": "No. I don't suppose you do. I am not going to detain you. I am going to note you, and read what you do, and when you have an answer you will bring it to me before you bring it to the Drift. That is the whole of our arrangement, and you did not agree to it, and it is binding anyway.", "effects": { "set_facts": { "flag.met_solen": true } }, "choices": [
+            { "id": "done", "text": "(she's already turned away)", "effects": { "end": true } } ] } } } } },
+
+    { "id": "np-cont-overseer", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["continuant", "govern"],
+      "content": { "name": "a Continuant overseer", "description": "Pale-blue coat, a clipboard of maintenance orders, the careful look of someone who keeps a city running and is not paid to wonder what it runs toward." } },
+    { "id": "np-cont-steward", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["continuant", "serve"],
+      "content": { "name": "a Continuant steward", "description": "Iron-grey sleeves rolled, hands that know every valve on this corridor. They nod at you the way you nod at weather." } },
+    { "id": "np-cont-medic", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["continuant", "heal"],
+      "content": { "name": "a Continuant medic", "description": "Calm in the way of someone who long ago ran out of panic. 'You're walking, so it isn't urgent. Sit if you need to.'" } },
+    { "id": "np-cont-scholar", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["continuant", "learn", "worship"],
+      "content": { "name": "a terminal regular", "description": "One of the reading-room faithful, arguing motif indices like scripture. To the Continuants, maintenance IS theology: a thing that breaks is heresy." } },
+    { "id": "np-drift-trader", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["drift", "trade", "move"],
+      "content": { "name": "a Drift trader", "description": "A knotted cord at the wrist, a sled of goods and passage-rights, and the Drift conviction that nothing here is truly yours because everything eventually moves." } },
+    { "id": "np-drift-runner", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["drift", "play"],
+      "content": { "name": "a relay runner", "description": "Fast, young, between zones for a living. Carries the Braid's gossip and sells the good bits twice." } },
+    { "id": "np-rind-salvager", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["rindwalker", "store"],
+      "content": { "name": "a Rind-walker salvager", "description": "Hull-marks tattooed where they won't fade, a catalogue of tunnels in their head, a habit of keeping what Saturn left in the deep and arguing about it." } },
+    { "id": "np-maker", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["make", "mend"],
+      "content": { "name": "a maker at the bench", "description": "Sleeves rolled, hands scarred, a half-finished thing clamped in front of them. 'Nothing here was built to last forever, and it lasted anyway.'" } },
+    { "id": "np-tender", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["grow"],
+      "content": { "name": "a green-deck tender", "description": "Copper-warm, unhurried, soil under the nails. Tends a garden that grows on no schedule, in air a degree too kind to be accidental." } },
+    { "id": "np-neighbour", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["dwell"],
+      "content": { "name": "a Nave neighbour", "description": "Someone who lives here, paused on their own errand to take your measure. 'Don't think we've met. You lost, or just looking?'" } }
+  ],
+
+  "creatures": [
+    { "id": "cr-mote", "type": "creature", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["corridor", "ambient"],
+      "content": { "name": "Drift-Mote", "description": "A slow constellation of dust that turns, very deliberately, to follow you down a Nave corridor." } }
+  ],
+
+  "plot_beats": [
+    { "id": "pb-shaft", "type": "plot_beat", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["rind", "turn"],
+      "content": { "name": "The Rind Access Shaft", "description": "Past the industrial margin the air changes and the sun-strip gives out to hull-glow and strung lights. The gate down is sealed — officially. Sevin knows the unofficial way, and the unofficial way is waiting on whether she believes you." } }
+  ]
+}
