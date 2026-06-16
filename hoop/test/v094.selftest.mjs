@@ -106,6 +106,14 @@ ok('the Keeper canon is gone', !content.some((c) => (c.tags || []).includes('kee
   ok('page 71 carries Branding (the hero is marked)', moveNames.includes('Branding'));
   const motifCodes = (tale.motifs.list || []).map((m) => m.code);
   ok('page 71 carries the cradle-doom motif M341', motifCodes.includes('M341'));
+
+  // the FROZEN artifact the client renders must match the live engine (drift guard)
+  const baked = JSON.parse(readFileSync(join(HERE, '../v094/terminal-71.json'), 'utf8'));
+  const heroLive = (tale.characters.cast.find((c) => c.role === 'hero') || {}).name;
+  ok('baked terminal-71 is page 71', baked.n === 71 && baked.permalink === '/t/71');
+  ok('baked hero name matches the live engine', baked.heroName === heroLive);
+  ok('baked moves match the live engine', baked.propp.moves.map((m) => m.name).join('|') === moveNames.join('|'));
+  ok('baked motifs match the live engine', baked.motifs.list.map((m) => m.code).join('|') === motifCodes.join('|'));
 }
 
 console.log(`\n${fail ? '✗ FAIL' : '✓ PASS'} — ${pass} ok, ${fail} failed`);
