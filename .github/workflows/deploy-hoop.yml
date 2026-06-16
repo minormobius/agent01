@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/v090-voronoi-walls-paint-emuans']
+    branches: [main, 'claude/hoop-v091-improvements-16wk16']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'
