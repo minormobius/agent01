@@ -68,7 +68,7 @@
     import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from './rooms.js';
     import { buildSociety, buildResidents, stepResidents } from './npc.js';
     import { frameRects, DIR_OF, DIR8, genomeFromParams } from './v3/sprite-core.js';
-    import { flattenPool, MemoryStore, interact, talk, choose } from './story/engine.js';
+    import { flattenPool, MemoryStore, interact, talk, choose, take } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
@@ -84,7 +84,8 @@
 
     const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
     const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
-    const TERMINAL_ROLE = 'learn';   // the reading-room console IS the Tabard terminal (bible: the Nave's reading room). Marked teal ▤; click to read Luna's mythograph.
+    const TERMINAL_ROLES = new Set(['learn', 'govern', 'worship']);   // reading-room / record-hall consoles are Tabard terminals (Continuant rooms). Marked teal ▤; click to read Luna's mythograph. A chunk-0 fallback (_terminal) guarantees at least one.
+    const isTerminal = (cp) => cp._terminal || TERMINAL_ROLES.has(cp.role);
     const ZOOM = 5;                 // the look is locked at 5× — close enough that the painting reads, room-level play
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
@@ -159,6 +160,7 @@
     // the seams stay shared — but a chunk takes ~3s to cross and ~0.5s to make, so one worker keeps ahead.
     async function maybeStream() {
       if (!world || busyN > 0) return;
+      if (!introSolved()) return;   // the first chunk is sealed until the opening mystery is solved
       const LOOK = chunkSpan * 1.0;                 // start a full chunk early — "less than one chunk away"
       let best = null, bd = Infinity;
       for (const ch of world.chunks) for (let ei = 0; ei < ch.poly.length; ei++) {
@@ -182,7 +184,9 @@
       busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
       const { rec, painted } = await generate(opts({ seed })); rec.painted = painted; addChunk(world, rec); restitch();
       chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
-      setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal(); busy(false); status(); draw(); maybeStream();
+      setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal();
+      placeAnchors(); ensureChunk0Terminal();   // the authored opening: principals at the cradle + margin, a guaranteed terminal
+      busy(false); status(); draw(); maybeStream();
     }
     function startNode() { if (!walk) return -1; const ch = world.chunks[0]; let cx = 0, cy = 0, n = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { cx += ch.cells[i].x; cy += ch.cells[i].y; n++; } if (n) { cx /= n; cy /= n; } let best = -1, bd = Infinity; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { const d = (ch.cells[i].x - cx) ** 2 + (ch.cells[i].y - cy) ** 2; if (d < bd) { bd = d; best = i; } } return best >= 0 ? globalOf(walk, 0, best) : nearestNode(walk, cx, cy); }
 
@@ -244,7 +248,7 @@
           const gl = ctx.createRadialGradient(cp.cx, cp.cy, cp.r * 0.1, cp.cx, cp.cy, er);
           gl.addColorStop(0, `hsla(${hue},90%,72%,${a})`); gl.addColorStop(0.45, `hsla(${hue},85%,58%,${a * 0.4})`); gl.addColorStop(1, `hsla(${hue},80%,50%,0)`);
           ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cp.cx, cp.cy, er, 0, 7); ctx.fill(); ctx.restore();
-          if (cp.role === TERMINAL_ROLE) {   // mark the Tabard terminal so you can SEE which fixture to read
+          if (isTerminal(cp)) {   // mark the Tabard terminal so you can SEE which fixture to read
             ctx.save(); ctx.strokeStyle = '#7fd8d0'; ctx.lineWidth = 1.4 / cam.scale; ctx.beginPath(); ctx.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); ctx.stroke();
             ctx.fillStyle = '#7fd8d0'; ctx.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▤', cp.cx, cp.cy); ctx.restore();
           }
@@ -272,7 +276,7 @@
       ctx.filter = `blur(${Math.max(1, cam.scale * OPTS.cellSize * 0.35).toFixed(1)}px)`;
       for (const ch of world.chunks) { const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); }
       ctx.filter = 'none';
-      drawNPC(); drawPlayer(); drawWaypoint(); whereAmI();
+      drawNPC(); drawPlayer(); drawAnchors(); drawWaypoint(); whereAmI();
     }
     function strokeNodes(arr, gateSeen) { ctx.beginPath(); let pen = false; for (const g of arr) { if (gateSeen && !seen.has(g)) { pen = false; continue; } const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; if (pen) ctx.lineTo(SX(x), SY(y)); else { ctx.moveTo(SX(x), SY(y)); pen = true; } } ctx.stroke(); }
     function drawNPC() {
@@ -363,7 +367,8 @@
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
       let tierTag = '';
-      if (story.ready) { const p = story.store.getPlayerState(story.playerId); tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier}</span>`; }
+      if (story.ready) { const p = story.store.getPlayerState(story.playerId); tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier}</span>`;
+        if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="meet Olo, read the terminal, give Sevin a reason">⊘ the way on is sealed</span>`; }
       $('here').innerHTML = `<b>${label}</b>${tierTag}`;
     }
 
@@ -381,6 +386,7 @@
       try { localStorage.setItem('hoop:v095:story', JSON.stringify(story.store.snapshot())); } catch (e) {}
       for (const a of checkAdvance(story.store, story.playerId)) if (a.axis === 'narrative_tier' || a.axis === 'revelation_tier') flashTier(a);
       whereAmI();   // refresh the tier readout (advancement can fire mid-conversation, not just on a step)
+      if (introSolved()) maybeStream();   // the moment the opening is solved, the first chunk unseals and the world starts streaming
     };
     function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of residents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
     function openStory(a) {
@@ -456,7 +462,7 @@
       if (!world) return null;
       let best = null, bd = Infinity;
       for (const ch of world.chunks) { const P = ch.painted; if (!P) continue;
-        for (const cp of (P.comps || [])) { if (cp.role !== TERMINAL_ROLE) continue;
+        for (const cp of (P.comps || [])) { if (!isTerminal(cp)) continue;
           const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
           if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
       return best;
@@ -475,6 +481,8 @@
       interact(s, story.playerId, key);                              // crystallize lo-terminal (pinned) → XP + placement
       s.setFact(story.playerId, 'flag.read_terminal', true);
       s.setFact(story.playerId, 'flag.heard_luna', true);
+      // seeing your own name in the stencil = you now carry the notation (the reason Sevin believes)
+      if (!s.listInventoryRows(story.playerId).some((r) => r.content_item_id === 'it-stenciltrace')) take(s, story.playerId, 'it-stenciltrace');
       story.active = { terminal: true };
       saveStory(); renderStory();                                    // saveStory advances tiers if the chain has closed
     }
@@ -500,9 +508,59 @@
       panel.classList.add('on');
     }
 
+    // ── the authored opening: two PRINCIPALS pinned in chunk 0 (the bible's Arrival). Olo is at the
+    //    cradle where you wake; Sevin is at the far margin of the chunk — you explore to reach her. They
+    //    are beacons (named, ringed), distinct from the procedural crowd, and pinned via content_id. ──
+    let anchors = [];
+    function placeAnchors() {
+      anchors = [];
+      if (!society || player < 0) return;
+      anchors.push({ key: 'anchor:olo', content_id: 'np-olo', name: 'Olo Vashti', role: 'drift', glyph: '☻', color: '#7fd8d0', x: px(), y: py() });
+      const r0 = society.rooms.filter((o) => o.ch === 0);
+      let far = null, fd = -1; for (const o of r0) { const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d > fd) { fd = d; far = o; } }
+      if (far) anchors.push({ key: 'anchor:sevin', content_id: 'np-sevin', name: 'Sevin', role: 'rindwalker', glyph: '⩩', color: '#b48a6a', x: far.x, y: far.y });
+    }
+    // guarantee chunk 0 has at least one Tabard terminal (designate the most central component if no role matches)
+    function ensureChunk0Terminal() {
+      const ch = world && world.chunks[0]; if (!ch || !ch.painted) return;
+      const comps = ch.painted.comps || [];
+      if (comps.some(isTerminal)) return;
+      let best = null, bd = Infinity; for (const cp of comps) { const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = cp; } }
+      if (best) best._terminal = true;
+    }
+    function anchorAt(wx, wy) {
+      let best = null, bd = (SKIN.playerW * 3) ** 2;
+      for (const a of anchors) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } }
+      return best;
+    }
+    function openAnchor(a) {
+      if (!story.ready) return;
+      const s = story.store;
+      if (!s.featureByKey(a.key)) s.addFeature({ key: a.key, type: 'npc', label: a.name, content_id: a.content_id });
+      const intro = interact(s, story.playerId, a.key);
+      story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      saveStory(); renderStory();
+    }
+    function drawAnchors() {
+      for (const a of anchors) {
+        const sx = SX(a.x), sy = SY(a.y);
+        if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) continue;
+        ctx.save();
+        ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, 13, 0, 7); ctx.stroke();
+        ctx.fillStyle = a.color; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.glyph, sx, sy);
+        ctx.fillStyle = '#dfe7e2'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(a.name, sx, sy - 19);
+        ctx.restore();
+      }
+    }
+    // the first chunk is SEALED until the opening mystery is solved (narrative 1→2): meet Olo, read the
+    // terminal (Luna's skeleton + the stencil), give Sevin a reason she believes. Then the world opens.
+    const introSolved = () => story.ready && story.store.getPlayerState(story.playerId).narrative_tier >= 2;
+
     cv.addEventListener('click', (e) => {
       if (!world || player < 0) return;
       const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
+      const a = anchorAt(wx, wy);
+      if (a) { openAnchor(a); walkTo(a.x, a.y); return; }
       const who = residentAt(wx, wy);
       if (who) { openStory(who); walkTo(who.x, who.y); return; }
       const term = componentAt(wx, wy);
