@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>O'Neill Links · design — golf courses in a spin-gravity cylinder</title>
+<meta name="description" content="Design a golf hole on the inside of an O'Neill cylinder, then play it under centrifugal gravity + the Coriolis force. WebGPU twin-screen course designer + Coriolis golf." />
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body class="golf design">
+<canvas id="view"></canvas>
+
+<div id="toast" class="toast" aria-live="polite"></div>
+
+<!-- title / intro -->
+<div class="panel tl design-title">
+  <div class="mode cylinder">⛳ O’NEILL LINKS · DESIGN</div>
+  <p class="tagline">Lay out a hole inside a spin-gravity cylinder, then play it — where
+  the <b>Coriolis force</b> bends every shot.</p>
+</div>
+
+<!-- right: world + course controls -->
+<div class="panel tr design-panel">
+  <label class="ctl">habitat
+    <button id="preset" class="wide">—</button>
+  </label>
+  <label class="ctl">frame
+    <button id="mode" class="wide">O’Neill cylinder</button>
+  </label>
+  <div class="row2">
+    <button id="randomize">🎲 randomise</button>
+    <button id="resetCam">⟲ view</button>
+  </div>
+  <label class="ctl">name
+    <input id="cname" type="text" maxlength="28" value="Hole 1" />
+  </label>
+  <div class="stat"><span class="k">length</span><span id="length" class="v">—</span></div>
+  <div class="stat"><span class="k">par</span><span id="parv" class="v">—</span></div>
+
+  <div class="hazbar">
+    <span class="k">add hazard</span>
+    <button class="haz water" data-haz="water">water</button>
+    <button class="haz sand" data-haz="sand">sand</button>
+    <button class="haz rough" data-haz="rough">rough</button>
+  </div>
+  <div id="selpanel" class="selpanel" style="display:none">
+    <span class="k">selected hazard</span>
+    <input id="hazr" type="range" min="8" max="80" value="20" />
+    <button id="hazdel" class="mini">✕ delete</button>
+  </div>
+
+  <div class="row2 play">
+    <button id="play" class="hit">▶ play this hole</button>
+  </div>
+  <button id="share" class="wide ghosty">⧉ copy share link</button>
+</div>
+
+<!-- bottom-left: 2D plan editor -->
+<div class="panel plan-panel">
+  <div class="plan-head">plan view — drag <b>T</b> tee · <b>⚑</b> pin · hazards</div>
+  <canvas id="plan" width="320" height="280"></canvas>
+</div>
+
+<!-- WebGPU gate -->
+<div id="nogpu" class="overlay hidden">
+  <div class="card">
+    <h1>WebGPU required</h1>
+    <p id="nogpu-msg">The 3D preview renders with WebGPU, which your browser didn't hand us.</p>
+    <p>Try the latest <b>Chrome</b>, <b>Edge</b>, or <b>Safari 18+</b> on desktop (or Chrome on
+    Android). The plan editor still works without it.</p>
+  </div>
+</div>
+
+<script type="module">
+  import { start } from '../js/designer.js';
+  const id = (x) => document.getElementById(x);
+  start({
+    canvas: id('view'), plan: id('plan'),
+    preset: id('preset'), mode: id('mode'), randomize: id('randomize'), resetCam: id('resetCam'),
+    cname: id('cname'), length: id('length'), parv: id('parv'),
+    hazButtons: Array.from(document.querySelectorAll('button.haz')),
+    selpanel: id('selpanel'), hazr: id('hazr'), hazdel: id('hazdel'),
+    play: id('play'), share: id('share'), toast: id('toast'),
+  }).catch((err) => {
+    console.error(err);
+    id('nogpu').classList.remove('hidden');
+    id('nogpu-msg').textContent = String(err && err.message || err);
+  });
+</script>
+</body>
+</html>

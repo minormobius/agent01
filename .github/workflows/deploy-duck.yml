@@ -1,4 +1,4 @@
-name: Deploy Duck (O'Neill Links — Coriolis golf)
+name: Deploy Duck (spin-gravity flight sim + O'Neill Links golf)
 
 on:
   push:
@@ -22,9 +22,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Selftests (physics kernel + golf ballistics must stay honest)
+      - name: Selftests (rotating-frame kernel + gate course + golf ballistics must stay honest)
         run: |
           node test/physics.selftest.mjs
+          node test/course.selftest.mjs
           node test/golf.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
@@ -33,13 +34,13 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Verify the course designer is live
+      - name: Verify the duck is live
         continue-on-error: true
         run: |
           for attempt in 1 2 3 4 5; do
-            if curl -fsS https://duck.mino.mobi/ | grep -qi 'coriolis'; then
-              echo "✓ O'Neill Links is live"; exit 0
+            if curl -fsS https://duck.mino.mobi/ | grep -qi 'flight sim'; then
+              echo "✓ duck is live"; exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 4
           done
-          echo "⚠️ duck.mino.mobi didn't respond within 20s — edge propagation may be slow, continuing."
+          echo "⚠️ duck didn't respond within 20s — edge propagation may be slow, continuing."

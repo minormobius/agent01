@@ -123,8 +123,43 @@ function cylinderY(seg = 8) {
 
 const PRIM = { box: box(), sphere: sphere(), sphereHi: sphere(20), cone: cone(), cyl: cylinderY(7), blob: sphere(6) };
 
-// ── golf props ──  Every builder is unit-ish; the instance scale sets metres,
-// and the instance tint recolours the white meshes (ball, disc, dots).
+// ── the duck (flight sim at /) ──  forward = −Z, up = +Y. A friendly low-poly mallard.
+export function buildDuck() {
+  const mb = new MeshBuilder();
+  const BODY = [0.96, 0.83, 0.22], HEAD = [0.98, 0.86, 0.26], BEAK = [0.95, 0.5, 0.12];
+  const WING = [0.86, 0.72, 0.16], EYE = [0.05, 0.05, 0.06], CHEST = [0.99, 0.9, 0.45];
+  // body: stretched sphere along Z
+  mb.add(PRIM.sphereHi, { pos: [0, 0, 0.15], scale: [1.0, 0.9, 2.0], color: BODY });
+  mb.add(PRIM.sphereHi, { pos: [0, -0.15, 0.55], scale: [0.7, 0.6, 1.0], color: CHEST });
+  // neck + head up front (−Z)
+  mb.add(PRIM.sphere, { pos: [0, 0.45, -0.85], scale: [0.62, 0.7, 0.62], color: HEAD });
+  mb.add(PRIM.sphere, { pos: [0, 0.18, -0.55], scale: [0.42, 0.6, 0.5], color: HEAD });
+  // beak: cone pointing −Z (rotate +Y cone to −Z) → rotate −90° about X
+  const beakQ = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [1, 0, 0], -Math.PI / 2);
+  mb.add(PRIM.cone, { pos: [0, 0.42, -1.28], q: beakQ, scale: [0.34, 0.5, 0.22], color: BEAK });
+  // eyes
+  mb.add(PRIM.sphere, { pos: [0.22, 0.56, -1.02], scale: [0.12, 0.12, 0.12], color: EYE });
+  mb.add(PRIM.sphere, { pos: [-0.22, 0.56, -1.02], scale: [0.12, 0.12, 0.12], color: EYE });
+  // wings: thin angled boxes
+  const wq = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 1], 0.32);
+  const wqL = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 1], -0.32);
+  mb.add(PRIM.box, { pos: [0.78, 0.12, 0.2], q: wqL, scale: [0.9, 0.16, 1.5], color: WING });
+  mb.add(PRIM.box, { pos: [-0.78, 0.12, 0.2], q: wq, scale: [0.9, 0.16, 1.5], color: WING });
+  // tail: little wedge at +Z
+  const tq = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [1, 0, 0], 0.5);
+  mb.add(PRIM.box, { pos: [0, 0.28, 1.15], q: tq, scale: [0.7, 0.16, 0.7], color: WING });
+  return mb.build(); // unit-ish duck ~2.6 long; the instance scale sets metres
+}
+
+// A breadcrumb / marker (small low sphere) — the duck flight sim's ballistic markers.
+export function buildCrumb() {
+  const mb = new MeshBuilder();
+  mb.add(PRIM.sphere, { color: [1, 1, 1] });
+  return mb.build();
+}
+
+// ── golf props (O'Neill Links at /golf/) ──  Every builder is unit-ish; the
+// instance scale sets metres, and the instance tint recolours the white meshes.
 
 // The ball: a clean white sphere. Vertex colour white so the per-instance tint
 // can flash it (e.g. gold when it drops in the cup).

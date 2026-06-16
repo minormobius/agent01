@@ -333,7 +333,7 @@ export async function start(ui) {
   });
   ui.play.addEventListener('click', () => { location.href = 'play.html#' + shareCode(); });
   ui.share.addEventListener('click', async () => {
-    const url = location.origin + '/play.html#' + shareCode();
+    const url = new URL('play.html#' + shareCode(), location.href).href;
     try { await navigator.clipboard.writeText(url); toast('share link copied ✓'); }
     catch { prompt('copy this link:', url); }
   });

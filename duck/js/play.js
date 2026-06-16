@@ -367,8 +367,7 @@ export async function start(canvas, hud) {
     hud.strokes.textContent = `${state.strokes}${state.penalty ? ` (+${state.penalty} pen)` : ''} · ${total} total`;
     const dist = floorDistance(state.mode, state.R, ballFloor(), c.pin);
     hud.dist.textContent = `${dist.toFixed(0)} m to pin`;
-    hud.club.textContent = club().label;
-    hud.power.textContent = `${(state.power * 100) | 0}%`;
+    hud.club.textContent = `${club().label} · ${(state.power * 100) | 0}%`;
     if (hud.powerBar) hud.powerBar.style.width = `${state.power * 100}%`;
     hud.aimv.textContent = `${(state.aim / DEG).toFixed(1)}°  ${state.sidespin > 0.05 ? 'draw' : state.sidespin < -0.05 ? 'fade' : ''}`;
 
@@ -386,8 +385,11 @@ export async function start(canvas, hud) {
   }
 
   // ── loop ──
+  // Schedule the next frame FIRST so a stray exception in a single frame logs but
+  // never permanently freezes the game (and the swing input keeps working).
   let last = performance.now();
   function frame(now) {
+    requestAnimationFrame(frame);
     let dt = (now - last) / 1000; last = now;
     dt = Math.min(dt, 0.05);
     if (!state.paused) {
@@ -401,7 +403,6 @@ export async function start(canvas, hud) {
     const up = updateCamera(dt);
     draw(up);
     updateHud();
-    requestAnimationFrame(frame);
   }
 
   // ── input ──

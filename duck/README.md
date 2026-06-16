@@ -1,104 +1,103 @@
-# O'Neill Links — Coriolis golf
+# duck — a spin-gravity flight simulator
 
-**Live at:** `duck.mino.mobi` (designer) · `duck.mino.mobi/play.html` (play)
+**Live at:** `duck.mino.mobi`
 **Stack:** Cloudflare Worker (ASSETS binding) + vanilla ES modules + **WebGPU**. No build step.
 
-Golf on the inside of an **O'Neill cylinder**. There's no real gravity — the hull
-spins, so "down" is **centrifugal** (`ω²r`, radially outward) and the floor curves
-up and over your head. Every shot also feels the **Coriolis force** (`−2Ω×v`),
-which **bends the ball in the air and keeps breaking it as it rolls**. Aim straight
-at the pin and you miss; you have to read the spin of the world.
+> **Sibling game:** [**O'Neill Links** — Coriolis golf](golf/README.md) lives on the same
+> surface at [`duck.mino.mobi/golf/`](https://duck.mino.mobi/golf/), built on this sim's
+> renderer and rotating-frame physics kernel.
 
-This surface used to be a spin-gravity *duck* flight sim. It's now a golf game built
-on that sim's renderer and — crucially — its **proven rotating-frame physics
-kernel**. A golf ball is a near-pure ballistic projectile, which makes it the
-cleanest possible probe of the frame it flies in.
+Fly a duck under **two reference frames** and feel the difference. The duck's
+aerodynamics — thrust, lift, drag, banking turns — are identical in both. Only the
+**body force** changes:
 
-## Twin screens
-
-| Screen | URL | What it is |
+| Mode | Body force | What you feel |
 |---|---|---|
-| **Designer** | `/` (`index.html`) | Lay out a hole: a live **3D preview** of the cylinder interior beside a **2D plan editor**. Drag the tee, the pin and hazards; pick the habitat (8 km hoop → 120 m ring) and the frame; par is computed from the floor distance. "Play this hole" / "copy share link" encode the whole course into a URL. |
-| **Play** | `/play.html#<course>` | Hit the ball. Pick a club, aim, hold to charge power, release to swing. Watch the **cyan trail** peel off the **gold aim line** — that's the Coriolis bend. Land it, roll it, hole out; score against par. Press **G** to replay the exact shot under plain **Earth** gravity (the control) and feel the difference. |
+| **Earth** | uniform `g₀ = 9.81 m/s²` down | ordinary flight; breadcrumbs fall straight |
+| **O'Neill cylinder** | centrifugal `ω²r` (outward) + Coriolis `−2Ω×v` | "gravity" weakens as you climb toward the axis; every motion is deflected; breadcrumbs curve |
 
-The two screens share courses as a base64url-encoded blob in the URL hash, so a
-designed hole is a permalink.
+The cylinder is hoop's canonical hull (see `hoop/js/research.js`): floor radius
+**R = 8 km**, spun so the outer skin sees 1 g ⇒ **ω ≈ 0.0313 rad/s ⇒ 0.8 g at the
+floor**. Press **C** to cycle to tighter habitats (down to a 120 m ring) where the
+Coriolis force becomes wild and obvious.
 
-## The physics is honest (and proven)
+We sit in the hull's **co-rotating frame**: the landscape is stationary and curves
+up and over your head, the way an inhabitant experiences it. The headline demo is
+**breadcrumbs** (`Space`) — pure ballistic markers with no wings. On Earth the stream
+falls straight down behind you. In the cylinder, Coriolis bends the stream sideways
+and centrifugal drags it down to the floor.
 
-The field accelerations come straight from the shared kernel in `js/physics.js`
-(the canonical hoop hull: floor radius **R = 8 km**, spun for **0.8 g** at the
-floor, `ω ≈ 0.0313 rad/s`; press the habitat button down to a 120 m ring where the
-Coriolis force is wild). That kernel is pinned by `test/physics.selftest.mjs`, whose
-headline check integrates a **free** particle in the co-rotating frame and rotates
-the trajectory back into the **inertial** frame — it must come out a **straight
-line**, or a sign is wrong.
+## The course + landing
 
-On top of the field the ball carries two aerodynamic terms that make it a *golf*
-ball and not a cannonball (`js/golf.js`):
+Each world has a **procedurally generated 8-gate course** ("barriers" to navigate)
+plus a **landing pad** at the end. The course winds over the ground on Earth and
+**spirals down the curved interior** in the cylinder. Fly through the **gold** (next)
+gate — the HUD shows distance and a bearing arrow — then chase the **cyan** ones.
+Clear them all and **land gently on the pad**: touchdowns are graded on descent rate
+and how level the duck is (smooth / bumpy / rough), with a bonus for the pad. `N`
+rolls a fresh course; it's deterministic per seed.
 
-- **quadratic drag** — `a = −dragK·|v|·v`;
-- **Magnus** — `a = magnusK·(spin × v)`. Backspin → lift (carry); sidespin →
-  draw/fade. Being a cross product it's perpendicular to velocity, so it does no
-  work.
+## Controls
 
-With drag and spin switched off, `stepBall` reduces **exactly** to the proven free
-particle — `test/golf.selftest.mjs` asserts that reduction (and pins the Magnus
-no-work / lift-sign properties, the floor geometry, hole capture, par, and course
-encode/decode round-trips).
-
-```bash
-node duck/test/physics.selftest.mjs   # 22 checks (the rotating-frame kernel)
-node duck/test/golf.selftest.mjs      # 28 checks (golf ballistics + course model)
-```
-
-Both run in the deploy workflow before `wrangler deploy`.
-
-## Controls (play)
-
-**Touch / mouse:** drag the view to **aim**; the **HIT** button charges power (hold)
-and swings (release). Club ◀▶ and aim ◀▶ buttons below. **Keyboard:** `A`/`D` aim ·
-`1`–`5` or `[`/`]` club · `,`/`.` side-spin · hold `Space` to charge, release to
-swing · `G` Earth ⇄ cylinder · `R` replay · `P` pause · `H` help.
-
-Hazards: **water** costs a penalty stroke (re-drop), **sand** is slow, **rough**
-grabs. The green is the lighter disc around the flag.
+**Touch / mouse:** tap to **flap** (a wingbeat), where you tap **steers** (above
+center = nose up, sides = bank), hold to keep flapping; the 🍞 button holds-to-drop
+breadcrumbs. **Keyboard:** `W`/`S` pitch · `A`/`D` roll · `Q`/`E` yaw · `Shift`/`Ctrl`
+throttle · `Space` breadcrumbs · `G` toggle Earth⇄cylinder · `C` cycle cylinder size ·
+`N` new course · `R` reset · `P` pause · `H` help.
 
 ## Layout
 
 ```
 duck/
-├── index.html        # the COURSE DESIGNER (3D preview + 2D plan editor)
-├── play.html         # the PLAY surface
-├── css/style.css     # phosphor-on-ink HUD + golf controls
+├── index.html        # canvas + HUD + controls overlay + WebGPU gate
+├── css/style.css     # phosphor-on-ink HUD
 ├── js/
-│   ├── math.js       # vec3 / mat4 (perspectiveZO) / quat            (pure, shared)
-│   ├── physics.js    # THE TWO FRAMES — earthAccel, cylinderAccel    (pure, shared, proven)
-│   ├── golf.js       # ball ballistics (drag + Magnus) + course model + sharing (pure)
-│   ├── geometry.js   # procedural meshes: ball, flag, tee, disc, arrow, world + forest
+│   ├── math.js       # vec3 / mat4 (perspectiveZO for WebGPU's [0,1] depth) / quat
+│   ├── physics.js    # THE TWO FRAMES — earthAccel, cylinderAccel, invariants  (pure)
+│   ├── geometry.js   # procedural meshes: duck, ground, cylinder shell, gates, + a
+│   │                 #   seeded tree KIT (yarrow-style golden-angle recursion) + forest scatter
+│   ├── course.js     # procedural gate course + landing pad + pass detection      (pure)
 │   ├── webgpu.js     # the renderer: one instanced pipeline, hemi+sun light, fog
-│   ├── play.js       # the golf game: swing, flight, roll/putt, hazards, scoring, HUD
-│   └── designer.js   # the designer: 3D preview + draggable 2D plan editor
-├── test/physics.selftest.mjs   # rotating-frame integrator proof
-├── test/golf.selftest.mjs      # golf ballistics + course model
+│   └── game.js       # flight model, chase camera, breadcrumbs, course, landing, HUD, loop
+├── test/physics.selftest.mjs   # proves the rotating-frame integrator (see below)
+├── test/course.selftest.mjs    # course determinism + gate pass detection
 ├── worker.js         # thin asset server (deep-link fallback to index.html)
 └── wrangler.jsonc    # name=duck, custom_domain duck.mino.mobi
 ```
 
+## The physics is honest (and proven)
+
+`js/physics.js` is pure, deterministic, zero-dep and node-tested. The headline
+check in `test/physics.selftest.mjs`: integrate a **free** particle in the
+cylinder's co-rotating frame using only the centrifugal + Coriolis terms, then
+rotate the trajectory back into the **inertial** frame — and assert it comes out a
+**straight line at constant velocity**. A free body must travel straight in an
+inertial frame, so if any term or sign were wrong, the line would bend. The suite
+also pins the canonical hoop numbers (8 km → 0.8 g, ω ≈ 0.0313), centrifugal
+direction/vanishing-on-axis, Coriolis sign, and conservation of the **Jacobi
+integral** (rotating frame) and **specific energy** (Earth).
+
+```bash
+node duck/test/physics.selftest.mjs   # 22 checks
+node duck/test/course.selftest.mjs    # 21 checks (course determinism + gate crossing)
+```
+
 ## Deploy
 
-`.github/workflows/deploy-duck.yml` runs both selftests, then `npx wrangler deploy`
-from `duck/` on push to `main` or an owning branch touching `duck/**`. Pure-static
-Worker — no D1, no secrets beyond the shared Cloudflare credentials. Ownership is in
-`deploy-registry.json` (surface `duck`). The worker `name` is `duck` and it owns the
-`duck.mino.mobi` custom domain (the golden rule); verify the deploy log binds
-`duck.mino.mobi (custom domain)`.
+`.github/workflows/deploy-duck.yml` runs the physics selftest, then
+`npx wrangler deploy` from `duck/` on push to `main` or the owning branch touching
+`duck/**`. Pure-static Worker — no D1, no secrets beyond the shared Cloudflare
+credentials. Ownership is in `deploy-registry.json` (surface `duck`). Verify the
+deploy log binds `duck.mino.mobi (custom domain)` (the golden rule).
 
 ## Notes
 
-- **WebGPU only** for the 3D — Chrome/Edge/Safari 18+ desktop, or Chrome on Android.
-  The play surface shows a graceful "WebGPU required" card otherwise; the designer's
-  **plan editor still works without it** (only the 3D preview needs the GPU).
-- **Determinism.** Prop fields and procedural holes are seeded (mulberry32), so a
-  course is identical every load — the repo's reproducibility habit, and what makes
-  a shared permalink mean the same hole on every machine.
+- **WebGPU only.** Needs Chrome/Edge/Safari 18+ (desktop) or Chrome on Android. The
+  page shows a graceful "WebGPU required" card otherwise.
+- **Determinism.** Prop fields are seeded (mulberry32), so a world is identical every
+  load and stable across the mode toggle — the repo's reproducibility habit.
+- **Trees, the yarrow way.** After `clock/yarrow` (a plant grown from one number),
+  each species in the tree KIT is a seeded recursive growth — limbs placed around the
+  parent at the **golden angle** (137.5°), tapering each generation, with low-poly
+  foliage clumps at the tips. Six species (fir, spruce, oak, broadleaf, birch, bush)
+  are built once and instanced into clustered **groves** so the ground reads as forest.

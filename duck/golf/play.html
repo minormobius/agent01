@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>O'Neill Links · play — Coriolis golf in a spin-gravity cylinder</title>
 <meta name="description" content="Play a golf hole inside an O'Neill cylinder. Centrifugal gravity + the Coriolis force bend every shot and break every putt — aim off the pin. WebGPU." />
-<link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="../css/style.css" />
 </head>
 <body class="golf">
 <canvas id="view"></canvas>
@@ -86,7 +86,7 @@
 </div>
 
 <script type="module">
-  import { start } from './js/play.js';
+  import { start } from '../js/play.js';
   const canvas = document.getElementById('view');
   const id = (x) => document.getElementById(x);
   // keep the "design a course" link round-tripping the current hole
