@@ -67,6 +67,7 @@
   <script type="module">
     import { solveChunk } from './v8/chunkgen.js';
     import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
+    import { nearestConcourse, attachShaft, markRindDeck, playerDeckOf } from './descent.js';   // chutes: a deck link is a port
     import { bakeFog } from './v8/bake.js';
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
     import { drawDevice } from './v5/deco.js';
@@ -133,7 +134,7 @@
     const chunkSeedFor = (poly) => { const c = centroidOf(poly); return (hash2(Math.round(c.x), Math.round(c.y)) ^ seed) >>> 0; };
     const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
 
-    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); }
+    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter(); }
     function setScale() { cam.scale = W / (chunkSpan * 1.15) * ZOOM; }   // base shows ~one chunk; ZOOM locks the close, painted view
 
     // rebuild the walk graph + the social web, then re-cast residents — but PRESERVE the sim state of
@@ -164,6 +165,54 @@
     const blockedOf = (chunkId, local) => { const ch = world.chunks[chunkId]; if (!ch) return false; if (!ch._blocked) ch._blocked = computeBlocked(ch); return ch._blocked.has(local); };
     function rebakeFog() { if (!walk) return; for (const ch of world.chunks) { const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i)); } }
     function reveal() { if (player < 0) return; for (const g of sightBall(walk, player, OPTS.sight)) seen.add(g); inView = sightBall(walk, player, OPTS.sight); rebakeFog(); }
+
+    // ── DECKS (chutes & ladders): the rind is a lower deck linked to the concourse by a shaft PORT. The
+    // render draws only the player's current deck; crossing the shaft (same x,y) flips the deck seamlessly.
+    const playerDeck = () => playerDeckOf(world, walk, player);
+    let shaftXY = null, rindBuilt = false, shaftNodes = null;
+    // nearest walkable node ON THE CURRENT DECK (decks overlap in (x,y), so a click must not jump decks)
+    function nearestDeckNode(x, y) {
+      const pd = playerDeck(); let best = -1, bd = Infinity;
+      for (let i = 0; i < walk.N; i++) {
+        if (walk.blocked && walk.blocked.has(i)) continue;
+        if (((world.chunks[walk.nodeChunk[i]] || {}).deck || 0) !== pd) continue;
+        const d = (walk.pos[2 * i] - x) ** 2 + (walk.pos[2 * i + 1] - y) ** 2; if (d < bd) { bd = d; best = i; }
+      }
+      return best;
+    }
+    // use the chute: step onto the linked shaft cell on the other deck (a ladder). Only when near the shaft.
+    function crossShaft() {
+      if (!shaftNodes || player < 0) return false;
+      const to = shaftNodes[playerDeck() === 1 ? 0 : 1]; if (to == null || to < 0) return false;
+      player = to; pp.x = walk.pos[2 * to]; pp.y = walk.pos[2 * to + 1]; route = []; routePts = [];
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      followCam(); reveal(); draw(); maybeStream();
+      return true;
+    }
+    async function maybeBuildRind() {
+      if (rindBuilt || !world || !walk || !story.ready) return;
+      if (story.store.getFact(story.playerId, 'flag.sevin_believes') !== true) return;   // unsealed only
+      rindBuilt = true;
+      try {
+        const c0 = world.chunks[0];
+        const sevin = anchors.find((a) => a.key === 'anchor:sevin');
+        const sc = nearestConcourse(c0, sevin ? sevin.x : px(), sevin ? sevin.y : py());
+        if (!sc) { rindBuilt = false; return; }
+        shaftXY = { x: sc.x, y: sc.y };
+        attachShaft(c0, sc.x, sc.y, sc.cell);                       // sink the shaft on the concourse
+        const rseed = (seed ^ 0x9e3779b9) >>> 0;
+        const { rec, painted } = await generate(opts({ seed: rseed, poly: c0.poly, inherit: [{ x: sc.x, y: sc.y }] }));
+        rec.painted = painted; markRindDeck(rec, 1, shaftXY);        // lower deck, links ONLY at the shaft
+        addChunk(world, rec); restitch();
+        shaftNodes = { 0: globalOf(walk, 0, sc.cell), 1: globalOf(walk, rec.id, (rec.ports[0] || {}).cell) };   // the two ends of the chute
+        reveal(); draw();
+      } catch (e) { rindBuilt = false; /* leave the world intact if generation fails */ }
+    }
+    function checkDeckEnter() {
+      if (!story.ready || playerDeck() !== 1) return;
+      if (story.store.getFact(story.playerId, 'flag.entered_rind') === true) return;
+      story.store.setFact(story.playerId, 'flag.entered_rind', true); saveStory();   // completes b4-descent
+    }
 
     // ── streaming: PRELOAD the frontier — generate any free chunk edge within ~one chunk of the player ──
     // (so from the central chunk the whole 6-neighbour ring loads ahead of you, and the frontier stays a
@@ -215,7 +264,7 @@
     function chaikin(pts, iters) { for (let it = 0; it < iters; it++) { if (pts.length < 3) break; const out = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } out.push(pts[pts.length - 1]); pts = out; } return pts; }
     function walkTo(wx, wy) {
       if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
-      const dst = nearestNode(walk, wx, wy, true); if (dst < 0 || player < 0) return;   // never target an impassable fixture tile
+      const dst = nearestDeckNode(wx, wy); if (dst < 0 || player < 0) return;   // never target an impassable fixture tile — and stay on the current deck (decks share a footprint)
       const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
       route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm; let i = 0;
       const tick = () => {
@@ -241,7 +290,9 @@
     function drawPainted() {
       worldXform();
       const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
+      const pd = playerDeck();
       for (const ch of world.chunks) {
+        if ((ch.deck || 0) !== pd) continue;   // draw only the current deck (decks share a footprint)
         const P = ch.painted; if (!P) continue;
         const bb = ch.bb || (ch.bb = bboxOf(ch.poly)); if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) continue;
         const seamW = 0.7 / cam.scale;                       // the v4 plate-seam, ~0.7px regardless of zoom
@@ -295,16 +346,29 @@
       // fog blitted with a blur so its frontier is soft (hides the per-cell reveal edge)
       ctx.imageSmoothingEnabled = true;
       ctx.filter = `blur(${Math.max(1, cam.scale * OPTS.cellSize * 0.35).toFixed(1)}px)`;
-      for (const ch of world.chunks) { const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); }
+      { const pd = playerDeck(); for (const ch of world.chunks) { if ((ch.deck || 0) !== pd) continue; const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); } }
       ctx.filter = 'none';
-      drawNPC(); drawPlayer(); drawAnchors(); drawWaypoint(); whereAmI();
+      if (playerDeck() === 1) { ctx.fillStyle = 'rgba(30,70,90,0.22)'; ctx.fillRect(0, 0, W, H); }   // the rind: no sun-strip, cool hull-glow wash
+      drawNPC(); drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint(); whereAmI();
+    }
+    // the shaft: a chute marker at the (deck-shared) shaft cell — ▼ down to the rind, ▲ back up to the Nave
+    function drawShaft() {
+      if (!shaftXY || !rindBuilt) return;
+      const sx = SX(shaftXY.x), sy = SY(shaftXY.y), up = playerDeck() === 1;
+      ctx.save();
+      ctx.strokeStyle = '#7fd8d0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(8, SKIN.playerW * 0.55 * cam.scale), 0, 7); ctx.stroke();
+      ctx.fillStyle = '#7fd8d0'; ctx.font = `bold ${Math.max(12, SKIN.playerW * 0.95 * cam.scale) | 0}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(up ? '▲' : '▼', sx, sy);
+      ctx.fillStyle = '#dfe7e2'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(up ? 'up to the Nave' : 'down to the rind', sx, sy - Math.max(15, SKIN.playerW * 0.8 * cam.scale));
+      ctx.restore();
     }
     function strokeNodes(arr, gateSeen) { ctx.beginPath(); let pen = false; for (const g of arr) { if (gateSeen && !seen.has(g)) { pen = false; continue; } const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; if (pen) ctx.lineTo(SX(x), SY(y)); else { ctx.moveTo(SX(x), SY(y)); pen = true; } } ctx.stroke(); }
     function drawNPC() {
       if (!society || !walk) return;
+      const pd = playerDeck(), deckOf = (cid) => (world.chunks[cid] || {}).deck || 0;
       ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-      for (const rt of society.routes) { ctx.strokeStyle = `rgba(127,216,208,${Math.min(0.5, 0.13 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3, 0.7 + rt.w * 0.2); strokeNodes(rt.cells, true); }
-      ctx.lineWidth = 0.9; for (const e of society.edges) { if (!roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.34)' : 'rgba(180,120,216,0.32)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); }
+      for (const rt of society.routes) { if (rt.cells.length && deckOf(walk.nodeChunk[rt.cells[0]]) !== pd) continue; ctx.strokeStyle = `rgba(127,216,208,${Math.min(0.5, 0.13 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3, 0.7 + rt.w * 0.2); strokeNodes(rt.cells, true); }
+      ctx.lineWidth = 0.9; for (const e of society.edges) { if (deckOf(e.a.ch) !== pd || !roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.34)' : 'rgba(180,120,216,0.32)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); }
     }
     // ── residents: seed-stable pixel sprites, rendered once per (genome,dir,frame) to a cache canvas ──
     function spriteCanvas(genome, dir, frame) {
@@ -323,8 +387,9 @@
       // stands near player scale with a tracking ring. storyBigKeys is refreshed from the board in
       // renderQuest — today the beat markers point at the principals (drawn as anchors), so the crowd is
       // uniform; a future beat marker {resident:key} embiggens exactly that crowd member.
-      const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale;
+      const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale, pd = playerDeck();
       for (const a of residents) {
+        if (((world.chunks[a.homeKey && a.homeKey.ch] || {}).deck || 0) !== pd) continue;   // only this deck's residents
         const sx = SX(a.x), sy = SY(a.y);
         if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;   // viewport cull
         const merit = storyBigKeys.has(a.featureKey), h = merit ? meritH : baseH;
@@ -432,9 +497,9 @@
       try { localStorage.setItem('hoop:v095:story', JSON.stringify(story.store.snapshot())); } catch (e) {}
       for (const a of checkAdvance(story.store, story.playerId)) if (a.axis === 'narrative_tier' || a.axis === 'revelation_tier') flashTier(a);
       whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
-      if (introSolved()) maybeStream();   // the moment the opening is solved, the first chunk unseals and the world starts streaming
+      if (introSolved()) { maybeStream(); maybeBuildRind(); }   // unseal: stream the Nave + sink the rind shaft on the concourse
     };
-    function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of residents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
+    function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; const pd = playerDeck(); for (const a of residents) { if (((world.chunks[a.homeKey && a.homeKey.ch] || {}).deck || 0) !== pd) continue; const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
     function openStory(a) {
       if (!story.ready) return;
       const s = story.store;
@@ -530,8 +595,8 @@
     //    → the mythograph reader (Luna's frozen page 71, the hero's name overwritten in stencil). ──
     function componentAt(wx, wy) {
       if (!world) return null;
-      let best = null, bd = Infinity;
-      for (const ch of world.chunks) { const P = ch.painted; if (!P) continue;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
         for (const cp of (P.comps || [])) { if (!isTerminal(cp)) continue;
           const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
           if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
@@ -585,10 +650,10 @@
     function placeAnchors() {
       anchors = [];
       if (!society || player < 0) return;
-      anchors.push({ key: 'anchor:olo', content_id: 'np-olo', name: 'Olo Vashti', role: 'drift', color: '#7fd8d0', x: px(), y: py(), dir: 'S', genome: buildGenome('hoop-anchor:olo', { role: 'trade', size: 13 }) });
+      anchors.push({ key: 'anchor:olo', content_id: 'np-olo', name: 'Olo Vashti', role: 'drift', color: '#7fd8d0', x: px(), y: py(), deck: 0, dir: 'S', genome: buildGenome('hoop-anchor:olo', { role: 'trade', size: 13 }) });
       const r0 = society.rooms.filter((o) => o.ch === 0);
       let far = null, fd = -1; for (const o of r0) { const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d > fd) { fd = d; far = o; } }
-      if (far) anchors.push({ key: 'anchor:sevin', content_id: 'np-sevin', name: 'Sevin', role: 'rindwalker', color: '#b48a6a', x: far.x, y: far.y, dir: 'S', genome: buildGenome('hoop-anchor:sevin', { role: 'store', size: 13 }) });
+      if (far) anchors.push({ key: 'anchor:sevin', content_id: 'np-sevin', name: 'Sevin', role: 'rindwalker', color: '#b48a6a', x: far.x, y: far.y, deck: 0, dir: 'S', genome: buildGenome('hoop-anchor:sevin', { role: 'store', size: 13 }) });
     }
     // guarantee chunk 0 has at least one Tabard terminal (designate the most central component if no role matches)
     function ensureChunk0Terminal() {
@@ -613,7 +678,7 @@
     }
     function anchorAt(wx, wy) {
       let best = null, bd = (SKIN.playerW * 3) ** 2;
-      for (const a of anchors) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } }
+      for (const a of anchors) { if ((a.deck || 0) !== playerDeck()) continue; const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } }
       return best;
     }
     function openAnchor(a) {
@@ -628,6 +693,7 @@
     function drawAnchors() {
       const h = SKIN.playerW * 1.45 * cam.scale;   // principals stand at ~player scale (figures of merit, not map pins)
       for (const a of anchors) {
+        if ((a.deck || 0) !== playerDeck()) continue;   // principals belong to their deck
         const sx = SX(a.x), sy = SY(a.y);
         if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;
         a.dir = dirKey(px() - a.x, py() - a.y);   // turn to face the player — a sign of life, even standing their post
@@ -651,6 +717,13 @@
     cv.addEventListener('click', (e) => {
       if (!world || player < 0) return;
       const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
+      if (shaftXY && rindBuilt) {   // the chute: near it → use it (cross decks); else walk to it
+        const dsh = (shaftXY.x - wx) ** 2 + (shaftXY.y - wy) ** 2;
+        if (dsh < (SKIN.playerW * 1.8) ** 2) {
+          if ((shaftXY.x - px()) ** 2 + (shaftXY.y - py()) ** 2 < (SKIN.playerW * 2.4) ** 2) { crossShaft(); return; }
+          walkTo(shaftXY.x, shaftXY.y); return;
+        }
+      }
       const a = anchorAt(wx, wy);
       if (a) { openAnchor(a); walkTo(a.x, a.y); return; }
       const who = residentAt(wx, wy);
