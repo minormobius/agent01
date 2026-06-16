@@ -264,3 +264,35 @@ body.flying #crosshair { opacity: 1; }
   .legend { display: none; }
   .lockhint { bottom: 150px; }
 }
+
+/* ── mobile-friendly play surface ── thumb-reachable controls, compact readouts,
+   safe-area aware. Scoped to body.golf so the duck flight sim is untouched. */
+@media (max-width: 680px) {
+  body.golf .tl {
+    min-width: 0; max-width: 47vw; left: 6px; top: 6px; padding: 7px 8px; font-size: 11px;
+  }
+  body.golf .tl .mode { font-size: 10px; padding: 3px 5px; margin-bottom: 5px; }
+  body.golf .tl .row { gap: 8px; padding: 0; }
+  body.golf .tr.btns { top: 6px; right: 6px; gap: 5px; }
+  body.golf .tr.btns button, body.golf .tr.btns .btnlink {
+    padding: 9px 10px; font-size: 12px; min-height: 40px; display: flex; align-items: center;
+  }
+  body.golf .tr.btns kbd { display: none; }
+
+  /* the swing block: full-width, lifted above the home-bar, big targets */
+  body.golf .swing {
+    width: 96vw; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); gap: 11px; padding: 12px;
+  }
+  body.golf .swing .clubname { font-size: 17px; min-width: 110px; }
+  body.golf .swing .mini { padding: 12px 14px; min-width: 50px; font-size: 14px; }
+  body.golf .swing .powerwrap { height: 24px; }
+  body.golf .swing .hit { padding: 16px; font-size: 17px; min-height: 58px; }
+  body.golf .swing .hit kbd { display: none; }
+}
+
+/* landscape phones: keep the swing bar slim so it doesn't eat the view */
+@media (max-height: 480px) and (orientation: landscape) {
+  body.golf .swing { width: min(520px, 80vw); bottom: 6px; gap: 6px; padding: 8px; }
+  body.golf .swing .hit { padding: 10px; min-height: 42px; }
+  body.golf .tl { font-size: 10px; }
+}

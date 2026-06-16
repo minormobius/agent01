@@ -78,6 +78,25 @@ duck/js/              # shared with the flight sim
 duck/test/golf.selftest.mjs   # golf ballistics + course model (gates the deploy)
 ```
 
+## The sky, the axial sun, and the void
+
+Pitch the camera up (mouse / drag, or `↑`) and the gaze swings off the fairway and
+up the **spin axis**: the floor curls overhead and the **axial sun** comes into
+frame. That sun is **ray-traced** in a fullscreen background pass (`webgpu.js`
+`SKY_WGSL`): per pixel it unprojects the view ray (via the new `mat4.invert`) and
+glows by the ray's analytic distance to the axis line, with bloom. The pass writes
+no depth, so the land geometry occludes it correctly — which means the sun and the
+**pure-black void** only show where there's no land: straight up the axis and
+**out through the open end caps**. Looking out an end cap yields the only blackness
+in the world. (Earth mode draws a plain sky gradient instead.)
+
+## Mobile
+
+The play HUD is thumb-first: a full-width swing block lifted above the home-bar
+(`env(safe-area-inset-bottom)`), 50–58 px touch targets, a compact scorecard, and
+**drag-to-look** (no pointer lock needed on touch). Landscape keeps the swing bar
+slim so it doesn't eat the view.
+
 ## Notes
 
 - **WebGPU only** for the 3D. The play surface shows a "WebGPU required" card

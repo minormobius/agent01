@@ -50,8 +50,9 @@ export async function start(canvas, hud) {
     charging: false,
     strokes: 0, penalty: 0,
     trail: [], settle: 0,
-    // orbit camera: yaw IS the aim heading; pitch tilts the view; dist zooms
-    cam: { yaw: 0, pitch: 0.36, dist: 34, eye: [0, 0, 0], center: [0, 0, 0], set: false },
+    // free-look camera: yaw IS the aim heading; pitch swings the gaze from the
+    // fairway (down) all the way up the axis to the sun/curling sky; dist zooms
+    cam: { yaw: 0, pitch: -0.1, dist: 30, eye: [0, 0, 0], center: [0, 0, 0], set: false },
     locked: false,
     time: 0, paused: false,
   };
@@ -265,18 +266,24 @@ export async function start(canvas, hud) {
             fwd[1] * Math.cos(yaw) + right[1] * Math.sin(yaw),
             fwd[2] * Math.cos(yaw) + right[2] * Math.sin(yaw)];
   }
+  // The eye rides just above-and-behind the ball; the VIEW direction is what yaw +
+  // pitch steer, so pitching up swings the gaze off the fairway and up the axis —
+  // the floor curls overhead and the axial sun comes into frame. Eye stays above
+  // the floor (up·camHeight) so it never dips under the grass.
   function updateCamera(dt) {
     const b = state.ball;
     const up = vec3.scale([0, 0, 0], downDir([0, 0, 0], state.mode, b.pos), -1);
-    const look = lookDirAt(b.pos, state.cam.yaw);
-    const p = state.cam.pitch, dist = state.cam.dist;
+    const horiz = lookDirAt(b.pos, state.cam.yaw);
+    const dist = state.cam.dist, p = state.cam.pitch;
+    const back = dist * 0.55, high = clamp(dist * 0.42, 4, Math.max(6, state.R * 0.45));
     const eye = [
-      b.pos[0] - look[0] * dist * Math.cos(p) + up[0] * dist * Math.sin(p),
-      b.pos[1] - look[1] * dist * Math.cos(p) + up[1] * dist * Math.sin(p),
-      b.pos[2] - look[2] * dist * Math.cos(p) + up[2] * dist * Math.sin(p),
+      b.pos[0] - horiz[0] * back + up[0] * high,
+      b.pos[1] - horiz[1] * back + up[1] * high,
+      b.pos[2] - horiz[2] * back + up[2] * high,
     ];
-    const ahead = Math.max(6, dist * 0.18);
-    const center = [b.pos[0] + look[0] * ahead + up[0] * 1.5, b.pos[1] + look[1] * ahead + up[1] * 1.5, b.pos[2] + look[2] * ahead + up[2] * 1.5];
+    const cp = Math.cos(p), sp = Math.sin(p);
+    const viewDir = [horiz[0] * cp + up[0] * sp, horiz[1] * cp + up[1] * sp, horiz[2] * cp + up[2] * sp];
+    const center = [eye[0] + viewDir[0] * 50, eye[1] + viewDir[1] * 50, eye[2] + viewDir[2] * 50];
     if (!state.cam.set) { state.cam.eye = eye; state.cam.center = center; state.cam.set = true; }
     const t = Math.min(1, dt * (state.phase === 'flying' ? 6 : 12));
     vec3.lerp(state.cam.eye, state.cam.eye, eye, t);
@@ -297,6 +304,12 @@ export async function start(canvas, hud) {
       ? vec3.scale([0, 0, 0], downDir([0, 0, 0], 'cylinder', state.ball.pos), -1)
       : vec3.normalize([0, 0, 0], [0.4, 1.0, 0.35]);
     renderer.setFrame({ viewProj, camPos: state.cam.eye, lightDir: light, sky, fogFar });
+    // ray-traced backdrop: axial sun glow + end-cap void (cylinder), sky (earth)
+    renderer.setSky({
+      invViewProj: mat4.invert(mat4.create(), viewProj), camPos: state.cam.eye,
+      mode: state.mode === 'cylinder' ? 1 : 0, R: state.R, len: state.len,
+      sunGlow: state.R * 0.05, sunBright: 1.5, haze: sky,
+    });
 
     const bm = mat4.fromRTS(mat4.create(), [0, 0, 0, 1], state.ball.pos, [BALLR * 2, BALLR * 2, BALLR * 2]);
     renderer.setInstances(M.ball, instOne(bm, state.phase === 'holed' ? [1, 0.85, 0.3, 0.6] : [1, 1, 1, 0.12]));
@@ -453,7 +466,7 @@ export async function start(canvas, hud) {
     const a = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
     if (a) state.cam.yaw += a * 0.7 * DEG;
     const up = (keys.has('arrowup') ? 1 : 0) - (keys.has('arrowdown') ? 1 : 0);
-    if (up) state.cam.pitch = clamp(state.cam.pitch + up * 0.6 * DEG, 0.06, 1.45);
+    if (up) state.cam.pitch = clamp(state.cam.pitch + up * 0.9 * DEG, -0.55, 1.5);
     const ss = (keys.has('.') ? 1 : 0) - (keys.has(',') ? 1 : 0);
     if (ss) state.sidespin = clamp(state.sidespin + ss * 0.04, -1, 1);
   }, 16);
@@ -462,7 +475,7 @@ export async function start(canvas, hud) {
   const sens = 0.0026;
   function applyLook(dx, dy) {
     state.cam.yaw += dx * sens;
-    state.cam.pitch = clamp(state.cam.pitch - dy * sens, 0.06, 1.45);
+    state.cam.pitch = clamp(state.cam.pitch - dy * sens, -0.55, 1.5);   // up = look at the sky
   }
   document.addEventListener('pointerlockchange', () => {
     state.locked = document.pointerLockElement === canvas;

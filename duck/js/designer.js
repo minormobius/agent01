@@ -206,6 +206,11 @@ export async function start(ui) {
     const sky = state.mode === 'cylinder' ? [0.45, 0.55, 0.66] : [0.53, 0.72, 0.95];
     const light = state.mode === 'cylinder' ? up : vec3.normalize([0, 0, 0], [0.4, 1.0, 0.35]);
     renderer.setFrame({ viewProj, camPos: eye, lightDir: light, sky, fogFar });
+    renderer.setSky({
+      invViewProj: mat4.invert(mat4.create(), viewProj), camPos: eye,
+      mode: state.mode === 'cylinder' ? 1 : 0, R: state.R, len: state.len,
+      sunGlow: state.R * 0.05, sunBright: 1.4, haze: sky,
+    });
 
     placeProps();
     const list = state.mode === 'cylinder'
