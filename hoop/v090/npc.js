@@ -51,7 +51,7 @@ export function dirKey(dx, dy) { if (!dx && !dy) return 'S'; let k = Math.round(
 // the nearest work / third place per dwelling). One agent per named person; their route is the loop of
 // door nodes [home, work, third]; their sprite is roled to their JOB.
 export function buildResidents(world, walk, society, opts = {}) {
-  const size = opts.size || 13;
+  const size = opts.size || 13, density = opts.density != null ? opts.density : 0.5;   // ~half the dwellers walk
   const byHome = new Map();
   for (const e of society.edges) {
     if (!e.a || e.a.role !== 'dwell') continue;
@@ -66,6 +66,7 @@ export function buildResidents(world, walk, society, opts = {}) {
     const people = home.people && home.people.length ? home.people : ['someone'];
     people.forEach((name, i) => {
       const id = home.ch + '@' + Math.round(home.x) + ',' + Math.round(home.y) + '#' + i;
+      if (rngFor('keep:' + id)() >= density) return;          // a deterministic coin thins the crowd
       const role = (work && work.role) || home.role;
       const rng = rngFor('hoop:' + id);
       const g0 = route[0], x = walk.pos[2 * g0], y = walk.pos[2 * g0 + 1];

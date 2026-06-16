@@ -213,7 +213,7 @@
     function drawResidents() {
       if (!residents.length || !walk) return;
       ctx.imageSmoothingEnabled = false;
-      const frames = 4, h = SKIN.playerW * 2.7 * cam.scale;
+      const frames = 4, h = SKIN.playerW * 1.25 * cam.scale;   // roughly player-sized, a touch taller than the lantern
       for (const a of residents) {
         const sx = SX(a.x), sy = SY(a.y);
         if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;   // viewport cull
