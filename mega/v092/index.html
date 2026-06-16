@@ -16,6 +16,8 @@
     #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
     #here b { color: #f4bf62; }
     #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
+    #pack { position: fixed; bottom: 8px; right: 12px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #f4bf62; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #pack:hover { border-color: #f4bf62; color: #fff; }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
     /* the story panel — a click on a resident crystallizes their thread */
     #story { position: fixed; top: 0; right: 0; width: min(360px, 86vw); height: 100%; background: linear-gradient(180deg, rgba(8,11,16,0.97), rgba(6,8,12,0.97)); border-left: 1px solid #1b2530; padding: 44px 18px 18px; overflow-y: auto; transform: translateX(102%); transition: transform .18s ease; pointer-events: auto; z-index: 5; }
@@ -37,6 +39,7 @@
   <div class="hud" id="here"></div>
   <div class="hud" id="busy">generating…</div>
   <a class="hud" id="back" href="/">◍ hoop</a>
+  <button id="pack" title="open pack (i)">▣ pack</button>
   <div id="story"></div>
 
   <script type="module">
@@ -49,6 +52,8 @@
     import { buildSociety, buildResidents, stepResidents } from './npc.js';
     import { frameRects, DIR_OF } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose } from './story/engine.js';
+    import { Inventory } from './inventory.js';
+    import { startingPack } from './pack.js';
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 
@@ -305,7 +310,14 @@
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === 'R') { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world
+    addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === 'R') { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(startingPack(seed, 9)); } });   // R = new world (+ fresh kit)
+
+    // ── the pack: a Voronoi-cylinder inventory of genomed items, seeded off the world ──
+    const pack = new Inventory({ pack: startingPack(seed, 9), title: 'pack' });
+    const togglePack = () => pack.toggle();
+    $('pack').addEventListener('click', togglePack);
+    addEventListener('keydown', (e) => { if ((e.key === 'i' || e.key === 'I') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); togglePack(); } });
+
     loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
   </script>
 </body>
