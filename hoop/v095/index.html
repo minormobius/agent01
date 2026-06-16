@@ -70,7 +70,7 @@
     import { drawWallFixture } from './consoles.js';
     import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from './rooms.js';
     import { buildSociety, buildResidents, stepResidents } from './npc.js';
-    import { frameRects, DIR_OF, DIR8, genomeFromParams } from './v3/sprite-core.js';
+    import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose, take } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
     import { computeBoard, questLog } from './story/board.js';   // the storyboard kernel → the quest log (same source as /storyboard/)
@@ -302,13 +302,18 @@
     function drawResidents() {
       if (!residents.length || !walk) return;
       ctx.imageSmoothingEnabled = false;
-      const frames = 4, h = SKIN.playerW * 0.62 * cam.scale;   // v091: HALF-scale residents — small top-down figures that don't loom over the player
+      // ambient crowd stays lilliputian; an NPC of MERIT (one you've met → has a crystallized tale) stands
+      // near player scale, with a tracking ring, so you can pick them out and follow them through the crowd.
+      const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale;
+      const met = (a) => story.ready && !!story.store.getPlacement(story.playerId, a.featureKey);
       for (const a of residents) {
         const sx = SX(a.x), sy = SY(a.y);
         if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;   // viewport cull
+        const merit = met(a), h = merit ? meritH : baseH;
         const moving = !!a.pts && a.dwellLeft <= 0, frame = moving ? (a.phase | 0) % frames : null;
         const cvs = spriteCanvas(a.genome, a.dir, frame), w = h * (cvs.width / cvs.height);
         ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);     // ground point at the feet
+        if (merit) { ctx.imageSmoothingEnabled = true; ctx.strokeStyle = 'rgba(127,216,208,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx, sy, Math.max(6, SKIN.playerW * 0.42 * cam.scale), 0, 7); ctx.stroke(); ctx.imageSmoothingEnabled = false; }
       }
       ctx.imageSmoothingEnabled = true;
     }
@@ -531,10 +536,10 @@
     function placeAnchors() {
       anchors = [];
       if (!society || player < 0) return;
-      anchors.push({ key: 'anchor:olo', content_id: 'np-olo', name: 'Olo Vashti', role: 'drift', glyph: '☻', color: '#7fd8d0', x: px(), y: py() });
+      anchors.push({ key: 'anchor:olo', content_id: 'np-olo', name: 'Olo Vashti', role: 'drift', color: '#7fd8d0', x: px(), y: py(), dir: 'S', genome: buildGenome('hoop-anchor:olo', { role: 'trade', size: 13 }) });
       const r0 = society.rooms.filter((o) => o.ch === 0);
       let far = null, fd = -1; for (const o of r0) { const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d > fd) { fd = d; far = o; } }
-      if (far) anchors.push({ key: 'anchor:sevin', content_id: 'np-sevin', name: 'Sevin', role: 'rindwalker', glyph: '⩩', color: '#b48a6a', x: far.x, y: far.y });
+      if (far) anchors.push({ key: 'anchor:sevin', content_id: 'np-sevin', name: 'Sevin', role: 'rindwalker', color: '#b48a6a', x: far.x, y: far.y, dir: 'S', genome: buildGenome('hoop-anchor:sevin', { role: 'store', size: 13 }) });
     }
     // guarantee chunk 0 has at least one Tabard terminal (designate the most central component if no role matches)
     function ensureChunk0Terminal() {
@@ -558,13 +563,20 @@
       saveStory(); renderStory();
     }
     function drawAnchors() {
+      const h = SKIN.playerW * 1.45 * cam.scale;   // principals stand at ~player scale (figures of merit, not map pins)
       for (const a of anchors) {
         const sx = SX(a.x), sy = SY(a.y);
-        if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) continue;
+        if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;
         ctx.save();
-        ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, 13, 0, 7); ctx.stroke();
-        ctx.fillStyle = a.color; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.glyph, sx, sy);
-        ctx.fillStyle = '#dfe7e2'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(a.name, sx, sy - 19);
+        ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(7, SKIN.playerW * 0.5 * cam.scale), 0, 7); ctx.stroke();   // faction-coloured ground ring (trackable)
+        if (a.genome) {
+          ctx.imageSmoothingEnabled = false;
+          const cvs = spriteCanvas(a.genome, a.dir || 'S', null), w = h * (cvs.width / cvs.height);
+          ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);
+          ctx.imageSmoothingEnabled = true;
+        } else { ctx.fillStyle = a.color; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.glyph || '☻', sx, sy); }
+        ctx.fillStyle = a.color; ctx.font = 'bold 11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(a.name, sx, sy - h * 0.92 - 8);   // nameplate above the head
         ctx.restore();
       }
     }
