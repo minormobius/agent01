@@ -20,6 +20,7 @@
 import { clipCell, bucketGrid, mulberry32 } from '../v5/voronoi.js';
 import { occlusionGrid, visible, tintLights, lightGenome, hslToRgb } from '../v5/lights.js';
 import { deviceGenome } from '../v5/deco.js';
+import { growWallFixtures, ROLE_CONSOLE } from '../v5/consoles.js';
 
 // Everything is keyed to the player. ws = ½·playerW (tight walls), rs = 2·playerW (big room centres).
 export const SKIN_DEFAULTS = { playerW: 6, perRoom: 2, reach: 3.4, ambient: 0.5, lgain: 1.05, wallAmb: 0.3, wallGain: 0.62, fixture: 1 };
@@ -150,7 +151,9 @@ export function paintChunk(rec, opts = {}) {
   const paintGrid = bucketGrid(nuclei, Math.max(rs, ws) * 1.8);
   // clip every cell to the chunk polygon so NOTHING bleeds across the seam (no big strips, no overlap
   // that shifts when the neighbour streams in) — abutting chunks meet exactly on the shared edge line.
-  const cells = nuclei.map((nu) => ({ wall: nu.wall, region: nu.wall ? -3 : nu.region, door: !!nu.door, x: nu.x, y: nu.y, poly: clipToConvex(clipCell(nu, paintGrid.near(nu.x, nu.y), rs * 3), lpoly, lcx, lcy) })).filter((c) => c.poly.length >= 3);
+  // each cell carries its ROOM (a room id ≥ 0, or −1 for concourse/void/wall) so the voronoi-grown
+  // wall fixtures (step 8) can claim a cluster of a room's OWN cells and march to its membrane.
+  const cells = nuclei.map((nu) => ({ wall: nu.wall, region: nu.wall ? -3 : nu.region, room: nu.wall ? -1 : (nu.region >= 0 ? nu.region : -1), door: !!nu.door, x: nu.x, y: nu.y, poly: clipToConvex(clipCell(nu, paintGrid.near(nu.x, nu.y), rs * 3), lpoly, lcx, lcy) })).filter((c) => c.poly.length >= 3);
   const scene = { W, H, wallSpacing: ws, roomSpacing: rs, nuclei };
 
   // ── 4. small wall-grown lamps per ROOM — a small glyph (len), big REACH (len·reach) ──
@@ -235,8 +238,29 @@ export function paintChunk(rec, opts = {}) {
     hue: a.hue, emit: a.emit, lit: clamp(floorLum(a.x, a.y) * 1.2 + 0.35 + a.emit * 0.25, 0.55, 1.4), g: a.g,
   }));
 
+  // ── 8. VORONOI-GROWN WALL FIXTURES (v091, item #4) — the second flavour from /sprite/fixture. Rather
+  // than a medallion seated on the floor, this CLAIMS a cluster of a room's OWN voronoi cells at a wall
+  // (away from the lamps + the central component) and RE-ATTRIBUTES them: the base cells stay continuous
+  // with the membrane, the room-side cells ERUPT into a gold-seamed, emissive structure extruded over
+  // the spanning tree of the claimed tiles. The fixture IS the tiling, re-painted — same cells, same
+  // ray-traced light, alternate attributes. Grown in LOCAL coords (cells/seeds are local), then the tip
+  // + anchor are lifted to world; the claimed indices are into `cells`, which is 1:1 with `paintCells`,
+  // so the page repaints those exact tiles. Light tips are still local here (step 7 lifts them after).
+  const avoid = {};
+  rec.rooms.forEach((r, ri) => { if (r.door >= 0) avoid[ri] = []; });
+  for (const L of lights) if (L.room >= 0 && avoid[L.room]) avoid[L.room].push({ x: L.tip.x, y: L.tip.y });
+  for (const a of compAnchors) if (avoid[a.ri]) avoid[a.ri].push({ x: a.x, y: a.y });   // sit opposite the central component too
+  const roomSeeds = [], roomCells = [];
+  rec.rooms.forEach((r, ri) => { if (r.door < 0) return; roomSeeds[ri] = { x: r.x - ox, y: r.y - oy }; roomCells.push({ id: ri }); });
+  const fxScene = { W, H, wallSpacing: ws, roomSpacing: rs, roomSize: rs * 8, nuclei: cells, paintCells: cells, roomCells, roomSeeds };
+  const fixtures = growWallFixtures(fxScene, mulberry32((Math.imul(seed, 40503) + 7) >>> 0), { avoid, kindOf: (room) => ROLE_CONSOLE[rec.rooms[room] && rec.rooms[room].role] || 'storage' });
+  for (const F of fixtures) {
+    const r = rec.rooms[F.room]; F.accent = (r && r.color) || '#9b6b3a'; F.hue = hexHue(r && r.color);
+    F.anchor.x += ox; F.anchor.y += oy; F.anchor.mx += ox; F.anchor.my += oy; F.tip.x += ox; F.tip.y += oy;   // lift to world (claimed indices unchanged)
+  }
+
   // ── 7. pre-light each DRAWN lamp + lift everything to world coordinates ──
   for (const L of drawLights) { L.lit = clamp(floorLum(L.tip.x, L.tip.y) + 0.55, 0.7, 1.15); L.x += ox; L.y += oy; L.tip.x += ox; L.tip.y += oy; }
 
-  return { paintCells, comps, lights: drawLights, poly: rec.poly, ports: rec.ports, wallSpacing: ws, roomSpacing: rs, playerW: pw, cellCount: paintCells.length };
+  return { paintCells, comps, lights: drawLights, fixtures, poly: rec.poly, ports: rec.ports, wallSpacing: ws, roomSpacing: rs, playerW: pw, cellCount: paintCells.length };
 }
