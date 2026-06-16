@@ -34,3 +34,13 @@ export const TRAFFIC_FOOTPRINT = {
 // the hubs (footprint ≥ ~1.4) vs the quiet rooms (≤ ~0.8) — used by the self-test to assert the split.
 export const HUB_ROLES = Object.keys(TRAFFIC_FOOTPRINT).filter((r) => TRAFFIC_FOOTPRINT[r] >= 1.4);
 export const QUIET_ROLES = Object.keys(TRAFFIC_FOOTPRINT).filter((r) => TRAFFIC_FOOTPRINT[r] <= 0.8);
+
+// GRAND ROLES — the civic centrepieces. A big pocket (≥ GRAND_MIN room-units) is biased to plant one
+// of these as its anchor room (weighted toward the grandest by footprint), so a council hall / temple /
+// forum reliably reads as the heart of a large district instead of being a coin-flip away.
+export const GRAND_ROLES = ['serve', 'learn', 'play', 'worship', 'govern'];
+export const GRAND_MIN = 3;
+
+// MIN_ROOM — bulldoze any room under this many engine cells: too small to seat a fixture, so it gets
+// merged into its largest neighbour (or handed back to the concourse). Keeps the micro-room litter out.
+export const MIN_ROOM = 5;

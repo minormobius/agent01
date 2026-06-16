@@ -95,14 +95,31 @@ export function paintChunk(rec, opts = {}) {
       for (let t = 0; t <= n; t++) addWall(a[0] + (b[0] - a[0]) * t / n - ox, a[1] + (b[1] - a[1]) * t / n - oy, false);
     }
   }
-  // PERIMETER: seed wall nuclei along the chunk POLYGON edges at GLOBAL canonical positions (walk from
-  // the canonically-ordered endpoint), with gaps at ports. Two abutting chunks share that edge, so they
-  // lay BIT-IDENTICAL seam-wall nuclei — the seam looks the same from either side and never shifts.
+  // PERIMETER (v091 — the seam wobble): seed wall nuclei along the chunk POLYGON edges, walking from the
+  // canonically-ordered endpoint with gaps at ports. The CORNERS stay pinned to the shared polygon
+  // vertices (so the hull tessellates and neighbours meet at the same corners), but the in-between nuclei
+  // get a deterministic perpendicular-INWARD + along-edge jitter keyed to global position — a voronoi-
+  // flavoured wobble that breaks the ruler-straight wall band so the lit inner edge of the seam meanders
+  // instead of reading as a drawn line. Every cell is still clipped to the straight polygon, so coverage
+  // and no-overlap are untouched; the jitter is inward-only and ≤ the floor-exclusion band, so the hull
+  // stays sealed (a floor nucleus can't leak to the edge). Abutting chunks offset toward their own
+  // interiors — the seam reads naturally different from each side rather than mirror-symmetric.
+  let pcx = 0, pcy = 0; for (const p of rec.poly) { pcx += p.x; pcy += p.y; } pcx /= rec.poly.length; pcy /= rec.poly.length;
+  const wob = ws * 0.7, alongJit = ws * 0.45;
   for (let e = 0; e < rec.poly.length; e++) {
     const P = rec.poly[e], Q = rec.poly[(e + 1) % rec.poly.length];
     let S = P, E = Q; if (P.x > Q.x || (P.x === Q.x && P.y > Q.y)) { S = Q; E = P; }
-    const L = Math.hypot(E.x - S.x, E.y - S.y), n = Math.max(1, Math.round(L / ws));
-    for (let k = 0; k <= n; k++) addWall(S.x + (E.x - S.x) * k / n - ox, S.y + (E.y - S.y) * k / n - oy, true);
+    const evx = E.x - S.x, evy = E.y - S.y, L = Math.hypot(evx, evy) || 1, dx = evx / L, dy = evy / L, n = Math.max(1, Math.round(L / ws));
+    let nxp = -dy, nyp = dx; const mx = (S.x + E.x) / 2, my = (S.y + E.y) / 2; if (nxp * (pcx - mx) + nyp * (pcy - my) < 0) { nxp = -nxp; nyp = -nyp; }   // inward normal
+    for (let k = 0; k <= n; k++) {
+      let wx = S.x + evx * k / n, wy = S.y + evy * k / n;
+      if (k > 0 && k < n) {   // pin the corners; wobble the in-between
+        const al = (hsh(Math.round(wx * 3.1 + 11), Math.round(wy * 3.1 + 7)) - 0.5) * alongJit;   // along-edge
+        const pp = hsh(Math.round(wx), Math.round(wy)) * wob;                                       // perpendicular, inward
+        wx += dx * al + nxp * pp; wy += dy * al + nyp * pp;
+      }
+      addWall(wx - ox, wy - oy, true);
+    }
   }
   const wallGrid = bucketGrid(wallNuclei.length ? wallNuclei : [{ x: -1e9, y: -1e9 }], Math.max(rs, ws * 4));
   const wallDist = (x, y) => { let bd = Infinity; for (const q of wallGrid.near(x, y)) { const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) bd = d; } return Math.sqrt(bd); };
