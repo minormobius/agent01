@@ -17,6 +17,7 @@
     #here b { color: #f4bf62; }
     #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
     #board { bottom: 8px; left: 96px; color: #b48a6a; text-decoration: none; pointer-events: auto; }
+    #newgame { bottom: 8px; right: 10px; color: #e08a8a; text-decoration: none; pointer-events: auto; cursor: pointer; }
     #quest { bottom: 28px; left: 10px; max-width: 52vw; color: #cdd6cf; }
     #quest .lbl { color: #7fd8d0; } #quest .o { color: #f4bf62; } #quest .mk { color: #b48a6a; } #quest a.sb { color: #6b7872; pointer-events: auto; }
     #pack { position: fixed; bottom: 8px; right: 12px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #f4bf62; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
@@ -53,6 +54,7 @@
   <div class="hud" id="busy">generating…</div>
   <a class="hud" id="back" href="/">◍ hoop</a>
   <a class="hud" id="board" href="/v095/storyboard/">❖ storyboard</a>
+  <a class="hud" id="newgame" title="wipe story progress and start over">⟲ new game</a>
   <div class="hud" id="quest"></div>
   <button id="charbtn" title="character (c)">☻ character</button>
   <a id="arenabtn" href="./arena/" title="arena">⚔ arena</a>
@@ -384,7 +386,8 @@
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
       let tierTag = '';
-      if (story.ready) { const p = story.store.getPlayerState(story.playerId); tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier}</span>`;
+      if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length;
+        tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span>`;
         if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="meet Olo, read the terminal, give Sevin a reason">⊘ the way on is sealed</span>`; }
       $('here').innerHTML = `<b>${label}</b>${tierTag}`;
     }
@@ -692,6 +695,11 @@
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
+    $('newgame').addEventListener('click', () => {
+      if (!confirm('Start a new game? This wipes your story progress — facts, lore, inventory, tiers — and respawns you. The world (and your character) stay.')) return;
+      try { localStorage.removeItem('hoop:v095:story'); localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+      location.reload();
+    });
     loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
   </script>
 </body>
