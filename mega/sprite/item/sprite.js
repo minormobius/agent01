@@ -116,6 +116,22 @@ export const PRIMS = {
     poly(ctx, [[8, 14], [24, 14], [22, 9], [10, 9]]); fillStroke(ctx, shade(c, 0.1), lw);             // lid
     ctx.fillStyle = shade(c, -0.4); ctx.fillRect(15, 13, 2, 4); ctx.fillStyle = '#f4bf62'; circleFill(ctx, 16, 18, 1);   // hasp + lock
   },
+  // access token: low tech ⇒ a toothed key (bow ring + shaft + bit); high tech ⇒ a stamped keycard wafer
+  key(ctx, item, P, lw) {
+    const c = item.color, tech = g0(item, 'tech');
+    if (tech >= 0.5) {                                                  // sci-fi access wafer — "a grey wafer stamped with a closed eye"
+      poly(ctx, [[9, 5], [23, 5], [23, 27], [9, 27]]); fillStroke(ctx, shade(c, 0.05), lw);
+      ctx.strokeStyle = shade(c, -0.45); ctx.lineWidth = lw * 0.8;       // the closed eye
+      ctx.beginPath(); ctx.moveTo(12, 13); ctx.quadraticCurveTo(16, 17.5, 20, 13); ctx.stroke();
+      for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(13 + i * 3, 15.5); ctx.lineTo(12.6 + i * 3, 17.5); ctx.stroke(); }   // lashes
+      ctx.fillStyle = '#f4bf62'; ctx.globalAlpha = 0.8; ctx.fillRect(11, 22, 10, 2); ctx.globalAlpha = 1; // contact strip
+    } else {                                                            // medieval toothed key
+      circle(ctx, 16, 9, 4); fillStroke(ctx, shade(c, 0.05), lw);
+      ctx.fillStyle = OUTLINE; circleFill(ctx, 16, 9, 1.6);             // bow + ring hole
+      ctx.fillStyle = shade(c, -0.05); ctx.fillRect(15, 12, 2, 13); ctx.strokeStyle = OUTLINE; ctx.lineWidth = lw * 0.7; ctx.strokeRect(15, 12, 2, 13);   // shaft
+      poly(ctx, [[17, 21], [21, 21], [21, 23], [19, 23], [19, 25], [17, 25]]); fillStroke(ctx, shade(c, -0.05), lw * 0.7);   // bit teeth
+    }
+  },
 };
 function circleFill(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
 function drawHead(ctx, head, c, top, w, lw) {

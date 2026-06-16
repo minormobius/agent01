@@ -9,7 +9,7 @@ import {
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const PRIMS = new Set(['long', 'vessel', 'panel', 'disc', 'garment', 'compound']);
+const PRIMS = new Set(['long', 'vessel', 'panel', 'disc', 'garment', 'compound', 'key']);
 
 // ── the tree is well-formed ──
 {

@@ -736,11 +736,11 @@
       "dir": "mega",
       "endpoint": "mega.mino.mobi",
       "type": "frontend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/mega-v092-systems-llfwfb",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 owned by claude/feature-merge-candidate-l4dkwq (merge candidate integrating both /sprite wings). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
-      "note": "Static worker-assets (Worker `mega`, directory '.'). Wings: `/` \u2014 megaproject dashboard (global infrastructure tracker, MapLibre + Deck.gl); `/sprite` \u2014 procedural NPC Sprite Lab (seed-deterministic, atproto-persistable engine breeding NPC sprites for the hoop O'Neill-cylinder game); `/sprite/item` \u2014 item genome + characteristics engine (phylogeny, trait dials, breeding); `/sprite/fixture` \u2014 chamber fixtures grown from hoop v3's voronoi tiling. Client-side renderers; no D1/DO/secrets.",
+      "status": "MANAGED \u2014 owned by claude/mega-v092-systems-llfwfb (player-systems sprint: /v092). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
+      "note": "Static worker-assets (Worker `mega`, directory '.'). Wings: `/` \u2014 megaproject dashboard (global infrastructure tracker, MapLibre + Deck.gl); `/sprite` \u2014 procedural NPC Sprite Lab (seed-deterministic, atproto-persistable engine breeding NPC sprites for the hoop O'Neill-cylinder game); `/sprite/item` \u2014 item genome + characteristics engine (phylogeny, trait dials, breeding); `/sprite/fixture` \u2014 chamber fixtures grown from hoop v3's voronoi tiling; `/v092` \u2014 the playable world clone (hoop v090 streaming painted world) carrying the player systems: inventory (Voronoi-cylinder), item-lore engine, technomagic combat, civic-tree character creation. Client-side renderers; no D1/DO/secrets.",
       "paths": [
         "mega/**"
       ]
