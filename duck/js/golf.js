@@ -169,10 +169,15 @@ export function launch(mode, ballPos, params) {
 // Pure. b = { pos:[3], vel:[3], spin:[3] }. With dragK = magnusK = 0 and spin = 0
 // this is byte-for-byte the free particle of physics.js (proven straight-in-
 // inertial) — the selftest checks that reduction explicitly.
+// opts.coriolis === false drops ONLY the −2Ω×v term (keeping centrifugal, drag and
+// Magnus) — the trajectory preview uses this to draw the "without Coriolis" ghost
+// in the very same gravity, so the gap between the two lines IS the Coriolis bend.
 const _a = [0, 0, 0], _mag = [0, 0, 0];
-export function stepBall(b, mode, omega, dt) {
-  if (mode === 'cylinder') cylinderAccel(_a, b.pos, b.vel, omega);
-  else earthAccel(_a);
+export function stepBall(b, mode, omega, dt, opts = {}) {
+  if (mode === 'cylinder') {
+    if (opts.coriolis === false) { const w2 = omega * omega; _a[0] = w2 * b.pos[0]; _a[1] = w2 * b.pos[1]; _a[2] = 0; }
+    else cylinderAccel(_a, b.pos, b.vel, omega);
+  } else earthAccel(_a);
   const speed = vec3.len(b.vel);
   // quadratic air drag
   _a[0] -= BALL.dragK * speed * b.vel[0];
@@ -287,6 +292,7 @@ export function randomCourse(seed, presetIdx, geom) {
   return {
     name: 'Hole ' + (1 + (seed % 18)),
     preset: presetIdx, mode, tee, pin, par: par(dist), hazards,
+    terrain: { crest: 10 + (rnd() * 14 | 0), teeth: 5 + (rnd() * 6 | 0), seed: (seed % 97) + 1 },
   };
 }
 

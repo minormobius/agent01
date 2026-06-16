@@ -22,11 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Selftests (rotating-frame kernel + gate course + golf ballistics must stay honest)
+      - name: Selftests (rotating-frame kernel + gate course + golf ballistics + terrain grade)
         run: |
           node test/physics.selftest.mjs
           node test/course.selftest.mjs
           node test/golf.selftest.mjs
+          node test/terrain.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
       - name: Deploy worker + assets

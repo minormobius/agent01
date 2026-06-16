@@ -15,6 +15,7 @@
 import { vec3, mat4 } from './math.js';
 import { CYLINDERS, makeCylinder, downDir } from './physics.js';
 import * as geo from './geometry.js';
+import * as terrain from './terrain.mjs';
 import {
   floorToWorld, floorDistance, surfaceBasis, par, randomCourse,
   decodeCourse, encodeCourse,
@@ -47,8 +48,11 @@ export async function start(ui) {
 
   function loadCourse(c) {
     state.course = c;
+    if (!c.terrain) c.terrain = terrain.defaultTerrain();
     setWorld(c.preset ?? 0, c.mode || 'cylinder');
     state.sel = -1; ui.cname.value = c.name || 'Hole 1';
+    if (ui.crest) ui.crest.value = String(c.terrain.crest);
+    if (ui.teeth) ui.teeth.value = String(c.terrain.teeth);
     if (gpuReady) buildWorld();
     refresh();
   }
@@ -100,24 +104,39 @@ export async function start(ui) {
     requestAnimationFrame(loop);
   }
 
+  const terr = () => state.course.terrain;
+  // drop scattered props onto the carved terrain surface
+  function liftTransforms(list) {
+    const t = terr();
+    return list.map((tr) => {
+      const p = tr.pos, u = state.mode === 'cylinder' ? Math.atan2(p[1], p[0]) : p[0], v = p[2];
+      const e = terrain.height(t, state.mode, state.R, u, v);
+      const np = state.mode === 'cylinder' ? [Math.cos(u) * (state.R - e), Math.sin(u) * (state.R - e), v] : [p[0], e, p[2]];
+      return { pos: np, q: tr.q, scale: tr.scale };
+    });
+  }
+
   function buildWorld() {
     if (!gpuReady) return;
+    const t = terr();
     if (state.mode === 'cylinder') {
       const { R: rad, len } = state.cyl;
       if (M.shell) { M.shell.vbuf.destroy(); M.shell.ibuf.destroy(); }
       if (M.sun) { M.sun.vbuf.destroy(); M.sun.ibuf.destroy(); }
-      M.shell = renderer.mesh(geo.buildCylinderShell(rad, len), 1);
+      M.shell = renderer.mesh(geo.buildCylinderShell(rad, len, 160, 110, (th, z) => terrain.height(t, 'cylinder', rad, th, z)), 1);
       M.sun = renderer.mesh(geo.buildSunRod(len, Math.max(10, rad * 0.0025)), 1);
       renderer.setInstances(M.shell, instOne(mat4.create(), [1, 1, 1, 0]));
       renderer.setInstances(M.sun, instOne(mat4.create(), [1, 1, 1, 1]));
       const s = geo.scatterCylinder(rad, len);
-      s.trees.forEach((list, v) => renderer.setInstances(M.trees[v], instMany(list)));
-      renderer.setInstances(M.pylon, instMany(s.pylons));
+      s.trees.forEach((list, v) => renderer.setInstances(M.trees[v], instMany(liftTransforms(list))));
+      renderer.setInstances(M.pylon, instMany(liftTransforms(s.pylons)));
     } else {
+      if (M.ground.vbuf) { M.ground.vbuf.destroy(); M.ground.ibuf.destroy(); }
+      M.ground = renderer.mesh(geo.buildGround(9000, 140, (x, z) => terrain.height(t, 'earth', 0, x, z)), 1);
       renderer.setInstances(M.ground, instOne(mat4.create(), [1, 1, 1, 0]));
       const s = geo.scatterEarth();
-      s.trees.forEach((list, v) => renderer.setInstances(M.trees[v], instMany(list)));
-      renderer.setInstances(M.pylon, instMany(s.pylons));
+      s.trees.forEach((list, v) => renderer.setInstances(M.trees[v], instMany(liftTransforms(list))));
+      renderer.setInstances(M.pylon, instMany(liftTransforms(s.pylons)));
     }
   }
 
@@ -129,37 +148,35 @@ export async function start(ui) {
     return geo.basisModel(out, right, up, fwd, pos, [scale, scale, scale]);
   }
 
+  const liftOnto = (out, pt) => floorToWorld(out, state.mode, state.R, pt, terrain.height(terr(), state.mode, state.R, pt.u, pt.v));
+  const normOf = (pt) => terrain.normalAt([0, 0, 0], terr(), state.mode, state.R, pt.u, pt.v);
+
   function placeProps() {
-    const c = state.course;
-    const teeW = floorToWorld([0, 0, 0], state.mode, state.R, c.tee, 0);
-    const pinW = floorToWorld([0, 0, 0], state.mode, state.R, c.pin, 0);
-    const teeUp = vec3.scale([0, 0, 0], downDir([0, 0, 0], state.mode, teeW), -1);
-    const pinUp = vec3.scale([0, 0, 0], downDir([0, 0, 0], state.mode, pinW), -1);
-    renderer.setInstances(M.tee, instOne(yToUp(_m, teeUp, teeW, 1.6), [1, 1, 1, 0]));
-    renderer.setInstances(M.flag, instOne(yToUp(_m, pinUp, pinW, 1.6), [1, 1, 1, 0]));
+    const c = state.course, t = terr();
+    renderer.setInstances(M.tee, instOne(yToUp(_m, normOf(c.tee), liftOnto([0, 0, 0], c.tee), 1.6), [1, 1, 1, 0]));
+    renderer.setInstances(M.flag, instOne(yToUp(_m, normOf(c.pin), liftOnto([0, 0, 0], c.pin), 1.6), [1, 1, 1, 0]));
 
     const discs = [{ u: c.pin.u, v: c.pin.v, r: 24, col: [0.30, 0.62, 0.32] }]
       .concat((c.hazards || []).map((h) => ({ u: h.u, v: h.v, r: h.r, col: HAZARD_COLOR[h.kind] || [0.4, 0.4, 0.4] })));
     const data = new Float32Array(discs.length * 20);
     for (let i = 0; i < discs.length; i++) {
       const d = discs[i];
-      const w = floorToWorld([0, 0, 0], state.mode, state.R, { u: d.u, v: d.v }, -0.4);
-      const up = vec3.scale([0, 0, 0], downDir([0, 0, 0], state.mode, w), -1);
-      yToUp(_m, up, w, d.r);
-      data.set(_m, i * 20);
-      data[i * 20 + 16] = d.col[0]; data[i * 20 + 17] = d.col[1]; data[i * 20 + 18] = d.col[2]; data[i * 20 + 19] = 0.25;
+      const e = terrain.height(t, state.mode, state.R, d.u, d.v);
+      const w = floorToWorld([0, 0, 0], state.mode, state.R, { u: d.u, v: d.v }, e + 0.5);
+      yToUp(_m, normOf(d), w, d.r); data.set(_m, i * 20);
+      data[i * 20 + 16] = d.col[0]; data[i * 20 + 17] = d.col[1]; data[i * 20 + 18] = d.col[2]; data[i * 20 + 19] = 0.28;
     }
     renderer.setInstances(M.disc, data);
 
-    // a dotted guide line tee→pin (great-circle-ish on the floor)
-    const n = 24, dots = new Float32Array(n * 20);
+    // a dotted guide line tee→pin, riding the terrain surface
+    const n = 28, dots = new Float32Array(n * 20);
     for (let i = 0; i < n; i++) {
-      const t = i / (n - 1);
-      const u = state.mode === 'cylinder' ? c.tee.u + angDiff(c.pin.u, c.tee.u) * t : c.tee.u + (c.pin.u - c.tee.u) * t;
-      const v = c.tee.v + (c.pin.v - c.tee.v) * t;
-      const w = floorToWorld([0, 0, 0], state.mode, state.R, { u, v }, 0.6);
-      mat4.fromRTS(_m, [0, 0, 0, 1], w, [0.7, 0.7, 0.7]);
-      dots.set(_m, i * 20);
+      const f = i / (n - 1);
+      const u = state.mode === 'cylinder' ? c.tee.u + angDiff(c.pin.u, c.tee.u) * f : c.tee.u + (c.pin.u - c.tee.u) * f;
+      const v = c.tee.v + (c.pin.v - c.tee.v) * f;
+      const e = terrain.height(t, state.mode, state.R, u, v);
+      const w = floorToWorld([0, 0, 0], state.mode, state.R, { u, v }, e + 0.8);
+      mat4.fromRTS(_m, [0, 0, 0, 1], w, [0.7, 0.7, 0.7]); dots.set(_m, i * 20);
       dots[i * 20 + 16] = 0.95; dots[i * 20 + 17] = 0.85; dots[i * 20 + 18] = 0.35; dots[i * 20 + 19] = 0.8;
     }
     renderer.setInstances(M.dot, dots);
@@ -320,6 +337,8 @@ export async function start(ui) {
   ui.randomize.addEventListener('click', newRandom);
   ui.resetCam.addEventListener('click', () => { state.orbit = 0; });
   ui.cname.addEventListener('input', () => { state.course.name = ui.cname.value; });
+  ui.crest?.addEventListener('input', () => { state.course.terrain.crest = +ui.crest.value; buildWorld(); refresh(); });
+  ui.teeth?.addEventListener('input', () => { state.course.terrain.teeth = +ui.teeth.value; buildWorld(); refresh(); });
   ui.hazButtons.forEach((b) => b.addEventListener('click', () => {
     const k = b.dataset.haz;
     state.addKind = state.addKind === k ? null : k;

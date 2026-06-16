@@ -10,6 +10,17 @@
 <body class="golf">
 <canvas id="view"></canvas>
 
+<!-- centre reticle (where you're aiming) + free-look hint -->
+<div id="reticle" aria-hidden="true"></div>
+<div id="lockhint" class="lockhint">click to look around · drag on touch</div>
+
+<!-- trajectory-preview legend (edutainment: with vs without Coriolis) -->
+<div id="legend" class="panel legend">
+  <span class="lg gold">— predicted shot (with Coriolis)</span>
+  <span class="lg blue">— without Coriolis (the bend = the gap)</span>
+  <span class="lg cyan">— ball trail</span>
+</div>
+
 <div id="toast" class="toast" aria-live="polite"></div>
 
 <!-- top-left: scorecard + live physics readout -->
@@ -57,17 +68,20 @@
     the hull spins, so "down" is <b>centrifugal</b> (ω²r, outward) and the floor curves up and over
     your head. Every shot also feels the <b>Coriolis force</b> (−2Ω×v), which bends the ball
     sideways in the air <i>and</i> keeps breaking it as it rolls.</p>
-    <p>The <b>gold dotted line</b> is where you're aiming — straight. Watch the ball's <b>cyan
-    trail</b> peel away from it: that's the Coriolis bend. You have to aim <b>off</b> the pin to
-    hole out. Press <kbd>G</kbd> to replay the exact shot under plain <b>Earth</b> gravity (the
-    control) and feel the difference.</p>
+    <p>As you charge a shot, two preview arcs appear: the <b style="color:#e7c84a">gold</b> line is
+    where the ball will <i>really</i> go, and the <b style="color:#7fa0ff">blue</b> line is where it
+    would go <b>without</b> the Coriolis force. The gap between them is the bend you must aim off.
+    Press <kbd>G</kbd> to replay the exact shot under plain <b>Earth</b> gravity and feel it vanish.</p>
+    <p>The floor is real <b>terrain</b> (carved like iris's spinning-rim ratchet): the ball rolls
+    downhill and putts <b>break</b> across the grade.</p>
     <table>
-      <tr><td>drag / <kbd>A</kbd> <kbd>D</kbd></td><td>aim left / right</td></tr>
-      <tr><td>hold <kbd>Space</kbd> / HIT</td><td>charge power, release to swing</td></tr>
+      <tr><td>mouse / drag</td><td><b>look around</b> (click to lock the pointer); aim = where you face</td></tr>
+      <tr><td>hold click / <kbd>Space</kbd> / HIT</td><td>charge power, release to swing</td></tr>
+      <tr><td>scroll</td><td>zoom the camera in / out</td></tr>
+      <tr><td><kbd>A</kbd> <kbd>D</kbd> · <kbd>↑</kbd> <kbd>↓</kbd></td><td>fine aim · camera pitch</td></tr>
       <tr><td><kbd>1</kbd>–<kbd>5</kbd> / <kbd>[</kbd> <kbd>]</kbd></td><td>pick a club (driver → putter)</td></tr>
       <tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>side-spin (fade / draw)</td></tr>
-      <tr><td><kbd>G</kbd></td><td>toggle Earth ⇄ cylinder</td></tr>
-      <tr><td><kbd>R</kbd> · <kbd>P</kbd></td><td>replay hole · pause</td></tr>
+      <tr><td><kbd>G</kbd> · <kbd>R</kbd> · <kbd>P</kbd></td><td>Earth ⇄ cylinder · replay · pause</td></tr>
     </table>
     <p>Hazards: <b style="color:#6aa8e0">water</b> costs a penalty stroke, <b style="color:#d8bd6a">sand</b>
     is slow, <b style="color:#5a8a4a">rough</b> grabs. The green is the lighter patch around the flag.</p>
@@ -100,6 +114,7 @@
     btnHit: id('btnHit'), btnClubPrev: id('btnClubPrev'), btnClubNext: id('btnClubNext'),
     btnAimL: id('btnAimL'), btnAimR: id('btnAimR'), clubName: id('clubName'),
     powerBar: id('powerBar'), toast: id('toast'), again: id('again'),
+    reticle: id('reticle'), lockhint: id('lockhint'),
   };
   start(canvas, hud).catch((err) => {
     console.error(err);

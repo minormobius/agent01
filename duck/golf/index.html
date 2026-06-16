@@ -37,6 +37,12 @@
   <div class="stat"><span class="k">length</span><span id="length" class="v">—</span></div>
   <div class="stat"><span class="k">par</span><span id="parv" class="v">—</span></div>
 
+  <div class="terrain">
+    <span class="k">terrain grade <span class="hint">· iris ratchet</span></span>
+    <label class="trow">crest<input id="crest" type="range" min="0" max="60" value="16" /></label>
+    <label class="trow">humps<input id="teeth" type="range" min="2" max="18" value="7" /></label>
+  </div>
+
   <div class="hazbar">
     <span class="k">add hazard</span>
     <button class="haz water" data-haz="water">water</button>
@@ -78,6 +84,7 @@
     canvas: id('view'), plan: id('plan'),
     preset: id('preset'), mode: id('mode'), randomize: id('randomize'), resetCam: id('resetCam'),
     cname: id('cname'), length: id('length'), parv: id('parv'),
+    crest: id('crest'), teeth: id('teeth'),
     hazButtons: Array.from(document.querySelectorAll('button.haz')),
     selpanel: id('selpanel'), hazr: id('hazr'), hazdel: id('hazdel'),
     play: id('play'), share: id('share'), toast: id('toast'),

@@ -69,6 +69,18 @@ function check(name, cond, extra = '') {
   BALL.dragK = dragK0; BALL.magnusK = magK0;
   check('ball ≡ proven free particle when aerodynamics are off', maxDiff < 1e-9,
     `max position divergence = ${maxDiff.toExponential(2)} m over 3000 steps`);
+
+  // opts.coriolis:false drops only the −2Ω×v term: one step should change velocity
+  // by centrifugal·dt alone (the preview's "without Coriolis" ghost).
+  BALL.dragK = 0; BALL.magnusK = 0;
+  const g = { pos: [120, 40, 0], vel: [3, 5, 2], spin: [0, 0, 0] };
+  const v0 = vec3.clone(g.vel);
+  stepBall(g, 'cylinder', cyl.omega, dt, { coriolis: false });
+  const w2 = cyl.omega * cyl.omega;
+  const dvx = g.vel[0] - v0[0], dvy = g.vel[1] - v0[1];
+  check('coriolis:false ⇒ centrifugal-only Δv', approx(dvx, w2 * 120 * dt, 1e-9) && approx(dvy, w2 * 40 * dt, 1e-9),
+    `Δv=(${dvx.toExponential(2)},${dvy.toExponential(2)})`);
+  BALL.dragK = dragK0; BALL.magnusK = magK0;
 }
 
 // ── TEST 4 — drag dissipates: a dragged ball loses speed it would otherwise keep ──

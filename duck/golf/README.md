@@ -20,7 +20,17 @@ frame it flies in.
 | Screen | URL | What it is |
 |---|---|---|
 | **Designer** | `/golf/` (`index.html`) | Lay out a hole: a live **3D preview** of the cylinder interior beside a **2D plan editor**. Drag the tee, the pin and hazards; pick the habitat (8 km hoop → 120 m ring) and the frame; par is computed from the floor distance. "Play this hole" / "copy share link" encode the whole course into a URL. |
-| **Play** | `/golf/play.html#<course>` | Hit the ball. Pick a club, aim, hold to charge power, release to swing. Watch the **cyan trail** peel off the **gold aim line** — that's the Coriolis bend. Land it, roll it, hole out; score against par. Press **G** to replay the exact shot under plain **Earth** gravity (the control). |
+| **Play** | `/golf/play.html#<course>` | Hit the ball. A **free-look orbit camera** (mouse / pointer-lock on desktop, drag on touch; scroll to zoom) — where you face is where you aim. Hold to charge, release to swing. While charging, two **preview arcs** appear: **gold** = the real shot, **blue** = the same shot *without* Coriolis — the gap is the bend. The ball flies, bounces, and **rolls down the terrain grade**, putts **breaking** across the slope. Hole out; score against par. **G** replays the exact shot under plain **Earth** gravity. |
+
+## Terrain — vendored from iris
+
+The floor isn't flat. `js/terrain.mjs` is vendored from **`iris/sim/ratchet.mjs`**:
+on a spinning floor "level" means *constant radius*, so terrain elevation builds
+**inward** (surface radius `R − e(θ)`), carved as iris's asymmetric ratchet (a
+short steep scarp, a long gentle glide). We use it as gentle rolling grade — the
+designer's **crest / humps** sliders shape it, and in play the ball feels it: the
+contact handler strips only the surface-**normal** velocity, so the down-slope
+component of gravity survives and the ball rolls downhill and breaks on the green.
 
 The two screens share courses as a base64url-encoded blob in the URL hash, so a
 designed hole is a permalink.

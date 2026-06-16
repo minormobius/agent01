@@ -333,13 +333,21 @@ export function buildRing(tube = 0.09, ringSeg = 44, tubeSeg = 9) {
   return interleave(positions, normals, colors, indices);
 }
 
-// EARTH: a big checkered ground plane at y=0.
-export function buildGround(half = 9000, seg = 120) {
+// EARTH: a big checkered ground plane at y=0. An optional heightFn(x, z) → metres
+// displaces it into rolling terrain (golf); with no heightFn it's the flat floor
+// the duck flight sim expects. Normals are finite-differenced so the grade shades.
+export function buildGround(half = 9000, seg = 120, heightFn = null) {
   const positions = [], normals = [], colors = [], indices = [];
   const g1 = [0.13, 0.28, 0.14], g2 = [0.16, 0.34, 0.16];   // forest floor
+  const H = heightFn || (() => 0), d = 1.5;
   for (let j = 0; j <= seg; j++) for (let i = 0; i <= seg; i++) {
     const x = -half + (2 * half * i) / seg, z = -half + (2 * half * j) / seg;
-    positions.push(x, 0, z); normals.push(0, 1, 0);
+    const e = H(x, z);
+    positions.push(x, e, z);
+    // n = (∂P/∂x) × (∂P/∂z), P = (x, H, z)
+    const ex = (H(x + d, z) - H(x - d, z)) / (2 * d), ez = (H(x, z + d) - H(x, z - d)) / (2 * d);
+    const nl = Math.hypot(-ex, 1, -ez) || 1;
+    normals.push(-ex / nl, 1 / nl, -ez / nl);
     const c = ((i + j) & 1) ? g1 : g2; colors.push(c[0], c[1], c[2]);
   }
   const row = seg + 1;
@@ -351,18 +359,29 @@ export function buildGround(half = 9000, seg = 120) {
 }
 
 // CYLINDER: the inside surface of a tube along +Z, inward-facing normals, with
-// painted land/sea bands so the curving floor reads. Floor is at radius R.
-export function buildCylinderShell(R, len, radial = 120, axial = 80) {
+// painted land/sea bands so the curving floor reads. Floor is at radius R. An
+// optional heightFn(θ, z) → metres carves terrain INWARD (surface radius R − e,
+// the iris convention), with normals finite-differenced so the grade shades.
+export function buildCylinderShell(R, len, radial = 160, axial = 110, heightFn = null) {
   const positions = [], normals = [], colors = [], indices = [];
   const sea = [0.12, 0.34, 0.5], land = [0.22, 0.45, 0.22], land2 = [0.30, 0.42, 0.2], sand = [0.6, 0.56, 0.36];
+  const H = heightFn || (() => 0), dth = 1e-3, dz = 2;
+  const surf = (th, z) => { const rr = R - H(th, z); return [Math.cos(th) * rr, Math.sin(th) * rr, z]; };
   for (let a = 0; a <= axial; a++) {
     const z = (a / axial) * len;
     for (let r = 0; r <= radial; r++) {
       const th = (r / radial) * Math.PI * 2;
-      const x = Math.cos(th) * R, y = Math.sin(th) * R;
-      positions.push(x, y, z);
-      normals.push(-Math.cos(th), -Math.sin(th), 0); // inward
-      // three "continents" + sea between, plus shoreline sand
+      const e = H(th, z), rho = R - e;
+      positions.push(Math.cos(th) * rho, Math.sin(th) * rho, z);
+      // finite-difference normal of the carved surface, oriented inward
+      const p = surf(th, z), pt = surf(th + dth, z), pz = surf(th, z + dz);
+      const ax = pt[0] - p[0], ay = pt[1] - p[1], az = pt[2] - p[2];
+      const bx = pz[0] - p[0], by = pz[1] - p[1], bz = pz[2] - p[2];
+      let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+      const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+      if (nx * -Math.cos(th) + ny * -Math.sin(th) < 0) { nx = -nx; ny = -ny; nz = -nz; }
+      normals.push(nx, ny, nz);
+      // three "continents" + sea between, plus shoreline sand; basins read darker
       const band = (th / (Math.PI * 2)) * 3 % 1;
       let c = sea;
       if (band < 0.62) c = ((a >> 2) & 1) ? land : land2;

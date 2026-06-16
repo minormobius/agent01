@@ -207,6 +207,10 @@ body.flying #crosshair { opacity: 1; }
 .design-panel .stat { display: flex; justify-content: space-between; font-size: 12px; }
 .design-panel .stat .k { color: #6f8a90; }
 .design-panel .stat .v { color: var(--phos); font-variant-numeric: tabular-nums; }
+.terrain { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #6f8a90; }
+.terrain .hint { color: var(--gold); opacity: 0.8; }
+.trow { display: flex; align-items: center; gap: 8px; }
+.trow input[type=range] { flex: 1; accent-color: #6ad0a0; }
 .hazbar { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 11px; color: #6f8a90; }
 .hazbar .k { width: 100%; }
 .haz { padding: 4px 8px; font-size: 11px; }
@@ -229,4 +233,34 @@ body.flying #crosshair { opacity: 1; }
   .design-panel { top: auto; bottom: 8px; right: 8px; width: 150px; }
   .plan-panel { left: 8px; bottom: 8px; }
   #plan { width: 150px; height: 150px; }
+}
+
+/* play: centre reticle (aim), free-look hint, trajectory legend */
+#reticle {
+  position: fixed; z-index: 4; left: 50%; top: 50%; width: 26px; height: 26px;
+  margin: -13px 0 0 -13px; pointer-events: none;
+  border: 1px solid rgba(180, 240, 215, 0.5); border-radius: 50%;
+}
+#reticle::before, #reticle::after {
+  content: ''; position: absolute; background: rgba(180, 240, 215, 0.65);
+}
+#reticle::before { left: 50%; top: -7px; width: 1px; height: 7px; margin-left: -0.5px; }
+#reticle::after { top: 50%; left: -7px; height: 1px; width: 7px; margin-top: -0.5px; }
+.lockhint {
+  position: fixed; z-index: 6; left: 50%; bottom: 130px; transform: translateX(-50%);
+  font-size: 11px; color: var(--soft); opacity: 0.7; pointer-events: none; white-space: nowrap;
+  background: rgba(10, 14, 20, 0.5); padding: 4px 9px; border-radius: 6px;
+}
+.legend {
+  left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 2px;
+  font-size: 11px; line-height: 1.5;
+}
+.legend .lg { white-space: nowrap; }
+.legend .gold { color: #e7c84a; }
+.legend .blue { color: #7fa0ff; }
+.legend .cyan { color: #8fe8f0; }
+
+@media (max-width: 560px) {
+  .legend { display: none; }
+  .lockhint { bottom: 150px; }
 }
