@@ -68,6 +68,7 @@
     import { solveChunk } from './v8/chunkgen.js';
     import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
     import { nearestConcourse, attachShaft, markRindDeck, playerDeckOf } from './descent.js';   // chutes: a deck link is a port
+    import { STAMINA_MAX, clampStamina, drainStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf } from './sim.js';   // stamina + fixture-action registry + chest
     import { bakeFog } from './v8/bake.js';
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
     import { drawDevice } from './v5/deco.js';
@@ -215,6 +216,40 @@
       story.store.setFact(story.playerId, 'flag.entered_rind', true); saveStory();   // completes b4-descent
     }
 
+    // ── stamina (drains walking, restored by a bed) + chests (per-chamber persistent storage) ──
+    const getStam = () => clampStamina(story.ready ? story.store.getFact(story.playerId, 'sim.stamina') : STAMINA_MAX);
+    const setStam = (v) => { if (story.ready) story.store.setFact(story.playerId, 'sim.stamina', clampStamina(v)); };
+    const getChests = () => (story.ready && story.store.getFact(story.playerId, 'chests')) || {};
+    const setChests = (c) => { if (story.ready) story.store.setFact(story.playerId, 'chests', c); };
+
+    // a living-quarters fixture under a click: the central component is a BED, the grown wall fixture a CHEST
+    function livingFixtureAt(wx, wy) {
+      if (!world) return null; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (fixtureAction(cp.role, 'component') !== 'bed') continue;
+          if ((cp.cx - wx) ** 2 + (cp.cy - wy) ** 2 < (cp.r * 2.0) ** 2) return { action: 'bed', x: cp.cx, y: cp.cy }; }
+        for (const F of (P.fixtures || [])) { const role = (ch.rooms[F.room] || {}).role; if (fixtureAction(role, 'wall') !== 'chest' || !F.tip) continue;
+          if ((F.tip.x - wx) ** 2 + (F.tip.y - wy) ** 2 < (SKIN.playerW * 2.4) ** 2) return { action: 'chest', x: F.tip.x, y: F.tip.y, gid: 'ch' + ch.id + ':r' + F.room }; }
+      }
+      return null;
+    }
+    function useBed() {
+      setStam(STAMINA_MAX); saveStory(); whereAmI();
+      $('busy').textContent = '✚ rested — stamina restored'; $('busy').classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { $('busy').classList.remove('on'); $('busy').textContent = 'generating…'; }, 2400);
+    }
+    let chestGid = null;
+    function openChest(gid) { chestGid = gid; story.active = { chest: true }; renderChest(); }
+    function renderChest() {
+      const panel = $('story'), items = chestOf(getChests(), chestGid);
+      let h = '<button class="cl" data-close="1">close ⏎</button><div class="nm">a storage chest</div><div class="rl">▣ living quarters · ' + esc(chestGid) + '</div>';
+      h += '<div class="nmh">in the chest</div>';
+      h += items.length ? items.map((it, i) => '<div class="choice" data-withdraw="' + i + '">› ' + esc(it.name || 'a thing') + ' — take</div>').join('') : '<div class="end">empty</div>';
+      h += '<div class="nmh" style="margin-top:8px">your pack</div>';
+      h += pack.pack.length ? pack.pack.map((it, i) => '<div class="choice" data-deposit="' + i + '">› ' + esc(it.name || 'a thing') + ' — store</div>').join('') : '<div class="end">pack is empty</div>';
+      panel.innerHTML = h; panel.classList.add('on');
+    }
+
     // ── streaming: PRELOAD the frontier — generate any free chunk edge within ~one chunk of the player ──
     // (so from the central chunk the whole 6-neighbour ring loads ahead of you, and the frontier stays a
     // chunk ahead as you explore). Serial by design: each neighbour inherits its predecessors' ports, so
@@ -274,7 +309,7 @@
         const ox = pp.x, oy = pp.y; pp.x = sm[i][0]; pp.y = sm[i][1];
         pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i;     // face the way you move; advance the walk cycle
         const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
-        if (p[ni] !== player) { player = p[ni]; reveal(); }
+        if (p[ni] !== player) { player = p[ni]; reveal(); setStam(drainStamina(getStam(), 1)); }   // walking costs stamina
         followCam(); draw(); maybeStream();
         walkTimer = setTimeout(tick, 24);
       };
@@ -461,8 +496,8 @@
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
       let tierTag = '';
-      if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length;
-        tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span>`;
+      if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length, st = getStam() | 0;
+        tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span> · <span style="color:${st < 25 ? '#e08a8a' : '#9aa8a0'}" title="stamina — drains as you walk, restored by a bed">stam ${st}</span>`;
         if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="meet Olo, read the terminal, give Sevin a reason">⊘ the way on is sealed</span>`; }
       $('here').innerHTML = `<b>${label}</b>${tierTag}`;
     }
@@ -544,6 +579,7 @@
     }
     function renderStory() {
       const panel = $('story');
+      if (story.active && story.active.chest) return renderChest();
       if (story.active && story.active.terminal) return renderTerminalPanel(panel);
       if (!story.active) { panel.classList.remove('on'); panel.innerHTML = ''; return; }
       const { agent, npcId, intro } = story.active;
@@ -569,6 +605,9 @@
     $('story').addEventListener('click', (e) => {
       const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
       if (cl) { story.active = null; renderStory(); return; }
+      const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
+      if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); setChests(chestDeposit(getChests(), chestGid, it)); saveStory(); renderChest(); } return; }
+      if (wd && chestGid) { const i = +wd.dataset.withdraw, r = chestWithdraw(getChests(), chestGid, i); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); saveStory(); renderChest(); } return; }
       if (ch && story.active && story.active.npcId) {
         const r = choose(story.store, story.playerId, story.active.npcId, ch.dataset.cid);
         // an NPC's give_items grant → real items in the Voronoi pack (a key becomes a key sprite)
@@ -731,6 +770,8 @@
       if (who) { openStory(who); walkTo(who.x, who.y); return; }
       const term = componentAt(wx, wy);
       if (term) { openTerminal(term.cp, term.ch); walkTo(term.cp.cx, term.cp.cy); return; }
+      const lf = livingFixtureAt(wx, wy);
+      if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openChest(lf.gid); return; }
       if (story.active) { story.active = null; renderStory(); }
       walkTo(wx, wy);
     });
