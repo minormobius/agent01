@@ -160,6 +160,18 @@ function npcVisible(gstate, npcState, choice) {
   for (const [k, v] of Object.entries(req.npc_flags || {})) if ((npcState.flags || {})[k] !== v) return false;
   return true;
 }
+// state-gated ENTRY: a tree may declare `entries: [{when, node}]` — when the player is at the start/an
+// entry node (not mid-branch), talk opens at the LAST entry whose `when` the state satisfies, so a keystone
+// NPC greets differently as the story advances instead of repeating its intro. No entries → plain start.
+function entryNode(tree, st, gstate, start) {
+  const cur = st.current_node || start, entries = tree.entries;
+  if (!entries || !entries.length) return cur;
+  const entrySet = new Set(entries.map((e) => e.node));
+  if (cur && cur !== start && !entrySet.has(cur)) return cur;   // deep in a branch → stay put
+  let pick = start;
+  for (const e of entries) if (meetsState(gstate, e.when || {})) pick = e.node;
+  return pick;
+}
 export function talk(store, playerId, npcContentId) {
   const npc = store.contentById(npcContentId);
   if (!npc || npc.type !== 'npc') return { error: 'not an npc' };
@@ -167,8 +179,8 @@ export function talk(store, playerId, npcContentId) {
   if (!tree || !tree.nodes) return { npc: name, says: (npc.content || {}).description || 'They regard you in silence.', choices: [], no_tree: true };
   const start = tree.start || Object.keys(tree.nodes)[0];
   const st = store.getNpcState(playerId, npcContentId, start);
-  const nodeId = st.current_node || start, node = tree.nodes[nodeId] || tree.nodes[start];
   const gstate = loadGateState(store, playerId);
+  const nodeId = entryNode(tree, st, gstate, start), node = tree.nodes[nodeId] || tree.nodes[start];
   const choices = (node.choices || []).filter((c) => npcVisible(gstate, st, c)).map((c) => ({ id: c.id, text: c.text }));
   return { npc: name, standing: st.standing, says: node.says || '', node: nodeId, choices };
 }
@@ -178,8 +190,8 @@ export function choose(store, playerId, npcContentId, choiceId) {
   const tree = (npc.content || {}).dialogue || {}, nodes = tree.nodes || {};
   const start = tree.start || Object.keys(nodes)[0];
   const st = store.getNpcState(playerId, npcContentId, start);
-  const node = nodes[st.current_node || start] || {};
   const gstate = loadGateState(store, playerId);
+  const node = nodes[entryNode(tree, st, gstate, start)] || {};
   const choice = (node.choices || []).find((c) => c.id === choiceId && npcVisible(gstate, st, c));
   if (!choice) return { error: 'choice unavailable' };
   const eff = choice.effects || {};
@@ -188,7 +200,7 @@ export function choose(store, playerId, npcContentId, choiceId) {
   const flags = { ...(st.flags || {}), ...(eff.set_npc_flags || {}) };
   const given = [];
   for (const itemId of (eff.give_items || [])) { take(store, playerId, itemId); given.push(itemId); }
-  const goto = choice.goto || start;
+  const goto = eff.end ? start : (choice.goto || start);   // on end, reset to start so talk re-picks the state-gated entry next time
   store.setNpcState(playerId, npcContentId, { standing: st.standing + (eff.adjust_standing || 0), flags, current_node: goto });
   const result = talk(store, playerId, npcContentId);
   return { ...result, chose: choice.text, ended: !!eff.end, gave_items: given };

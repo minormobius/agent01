@@ -16,6 +16,7 @@
     #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
     #here b { color: #f4bf62; }
     #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
+    #board { bottom: 8px; left: 96px; color: #b48a6a; text-decoration: none; pointer-events: auto; }
     #quest { bottom: 28px; left: 10px; max-width: 52vw; color: #cdd6cf; }
     #quest .lbl { color: #7fd8d0; } #quest .o { color: #f4bf62; } #quest .mk { color: #b48a6a; } #quest a.sb { color: #6b7872; pointer-events: auto; }
     #pack { position: fixed; bottom: 8px; right: 12px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #f4bf62; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
@@ -51,6 +52,7 @@
   <div class="hud" id="here"></div>
   <div class="hud" id="busy">generating…</div>
   <a class="hud" id="back" href="/">◍ hoop</a>
+  <a class="hud" id="board" href="/v095/storyboard/">❖ storyboard</a>
   <div class="hud" id="quest"></div>
   <button id="charbtn" title="character (c)">☻ character</button>
   <a id="arenabtn" href="./arena/" title="arena">⚔ arena</a>
@@ -601,6 +603,7 @@
       for (const a of anchors) {
         const sx = SX(a.x), sy = SY(a.y);
         if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;
+        a.dir = dirKey(px() - a.x, py() - a.y);   // turn to face the player — a sign of life, even standing their post
         ctx.save();
         ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(7, SKIN.playerW * 0.5 * cam.scale), 0, 7); ctx.stroke();   // faction-coloured ground ring (trackable)
         if (a.genome) {

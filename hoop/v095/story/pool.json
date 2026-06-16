@@ -33,7 +33,13 @@
   "npcs": [
     { "id": "np-olo", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["drift", "broker", "orient"],
       "content": { "name": "Olo Vashti", "description": "A Drift broker with a knotted cord at her wrist. Easy to talk to. Impossible to read. She has been sitting with you since before you opened your eyes, and she is not surprised by any of this.",
-        "dialogue": { "start": "wake", "nodes": {
+        "dialogue": { "start": "wake", "entries": [ { "when": {}, "node": "wake" }, { "when": { "facts": { "flag.met_olo": true } }, "node": "again" }, { "when": { "facts": { "flag.sevin_believes": true } }, "node": "sent" } ], "nodes": {
+          "again": { "says": "Still here. The dark didn't take you — good. Ask again if you need to.", "choices": [
+            { "id": "who", "text": "Tell me about Luna again.", "goto": "who" },
+            { "id": "mark", "text": "About this mark on my hand —", "requires": { "items": ["notation"] }, "goto": "mark" },
+            { "id": "leave", "text": "(nothing for now)", "effects": { "end": true } } ] },
+          "sent": { "says": "So Sevin's taking you down. I'd say be careful, but you're past where careful helps. Go on — and keep the cord.", "choices": [
+            { "id": "leave", "text": "(go)", "effects": { "end": true } } ] },
           "wake": { "says": "There you are. Easy — you've been under longer than the cradle's log will admit to. I'm Olo. I'm the one who found you. Sit a moment; the questions keep.", "choices": [
             { "id": "where", "text": "Where is this?", "goto": "where" },
             { "id": "who",   "text": "Who am I?", "goto": "who" },
@@ -56,7 +62,7 @@
 
     { "id": "np-sevin", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["rindwalker", "guide"],
       "content": { "name": "Sevin", "description": "A Rind-walker with more arms than a person should have. She does not explain them and you learn not to look. She has worked the tunnels above Bay 14 for years, and she has seen its walls.",
-        "dialogue": { "start": "s0", "nodes": {
+        "dialogue": { "start": "s0", "entries": [ { "when": {}, "node": "s0" }, { "when": { "facts": { "flag.sevin_believes": true } }, "node": "open" } ], "nodes": {
           "s0": { "says": "You came up the rind side, not the city side. People who do that always want the same thing from me, and they never have a reason worth the air.", "choices": [
             { "id": "down",  "text": "I need into the shaft.", "goto": "why" },
             { "id": "leave", "text": "(not yet)", "effects": { "end": true } } ] },
@@ -64,11 +70,15 @@
             { "id": "stencil", "text": "There's a mark in Bay 14 — three layers, the oldest older than any map. I carry the trace.", "requires": { "items": ["notation"] }, "effects": { "set_facts": { "flag.sevin_believes": true }, "adjust_rep": { "rindwalkers": 1 } }, "goto": "believe" },
             { "id": "none",    "text": "(you have nothing she'd believe)", "effects": { "end": true } } ] },
           "believe": { "says": "…Show me. — That hand. I've scraped that mark off three chambers and it came back twice. Older than the Nave, and it knows your apparatus the way a lock knows a key. All right. Stay close, do as I say, don't touch the warm walls. The shaft's open to you.", "choices": [
-            { "id": "ok", "text": "(follow her down)", "effects": { "end": true } } ] } } } } },
+            { "id": "ok", "text": "(follow her down)", "effects": { "end": true } } ] },
+          "open": { "says": "You again. The shaft's still open to you — I don't offer that twice to most. Stay close and mind the warm walls; we go when you're ready.", "choices": [
+            { "id": "ok", "text": "(soon)", "effects": { "end": true } } ] } } } } },
 
     { "id": "np-solen", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["continuant", "authority"],
       "content": { "name": "Factor Merid Solen", "description": "Pale blue and iron grey, copper trim at the collar for the formality of it. Third holder of her office, and the first to survive audits she wasn't meant to. Fair. Not warm. More frightened than she will ever let you see.",
-        "dialogue": { "start": "f0", "nodes": {
+        "dialogue": { "start": "f0", "entries": [ { "when": {}, "node": "f0" }, { "when": { "facts": { "flag.met_solen": true } }, "node": "noted" } ], "nodes": {
+          "noted": { "says": "You're the credential that lit my board. I'm still reading you. Don't make me read faster than I'd like.", "choices": [
+            { "id": "done", "text": "(go)", "effects": { "end": true } } ] },
           "f0": { "says": "Stop there. Your credentials lit my board the moment you crossed into the belt — and they answer to doors my registry says were welded shut before my grandmother held this office. So. What are you.", "choices": [
             { "id": "explain", "text": "I don't know yet. I woke an hour ago.", "goto": "f1" },
             { "id": "leave",   "text": "(say nothing)", "effects": { "end": true } } ] },
