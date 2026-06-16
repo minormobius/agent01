@@ -2,7 +2,7 @@ name: Deploy Megaproject Dashboard
 
 on:
   push:
-    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
+    branches: [main, 'claude/mega-v092-systems-llfwfb']
     paths:
       - 'mega/**'
       - '.github/workflows/deploy-mega.yml'
