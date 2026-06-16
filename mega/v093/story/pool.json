@@ -1,0 +1,111 @@
+{
+  "_note": "Hand-authored seed pool for the inference-free story spike — NO LLM minted this. Every item is tier-1, approved, active. Shape matches hoop-backend content_items: {id,type,content,revelation_tier,narrative_tier,power_tier,tags,requires,approved,status}. The offline pregen lane would later GROW this pool; the hot-path engine doesn't care who authored it (INTEGRATION.md §5-B: source-agnostic).",
+  "items": [
+    { "id": "it-medkit", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["medical", "supply"],
+      "content": { "name": "Field Medkit", "description": "A scuffed white case, seals intact. Heavier than it looks.", "mechanics": { "slot": "kit", "stats": { "hp": 8 } } } },
+    { "id": "it-visor", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["optics", "crew"],
+      "content": { "name": "Cracked Visor", "description": "A crew visor, one lens starred. The HUD still flickers a tired amber.", "mechanics": { "slot": "head", "stats": { "def": 2 } } } },
+    { "id": "it-prybar", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["tool", "salvage"],
+      "content": { "name": "Pry Bar", "description": "Cold forged steel, paint worn to bare metal at the grip.", "mechanics": { "slot": "hand", "stats": { "atk": 3 } } } },
+    { "id": "it-rations", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["supply", "galley"],
+      "content": { "name": "Ration Tin", "description": "Unmarked, dented, still sealed. Someone hid it well.", "mechanics": { "stats": { "hp": 3 } } } },
+    { "id": "it-coolant", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["reactor", "hazard"],
+      "content": { "name": "Coolant Cell", "description": "A squat cylinder beaded with frost, label scoured off." } },
+    { "id": "it-keeperkey", "type": "item", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["keeper", "access", "keycard"],
+      "content": { "name": "Keeper Key", "description": "A grey wafer stamped with a closed eye. Warm, as if recently held." } }
+  ],
+  "lore_fragments": [
+    { "id": "lo-manifest", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["crew", "log"],
+      "content": { "name": "Crew Manifest", "description": "Forty-one names. Eleven struck through in the same hand, the rest simply… stopped being updated." } },
+    { "id": "lo-console", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["medical", "system"],
+      "content": { "name": "Triage Log", "description": "The med-console cycles one line: PROTOCOL SUSPENDED — DEFER TO KEEPERS. It will not clear." } },
+    { "id": "lo-cargo", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["cargo", "system"],
+      "content": { "name": "Cargo Terminal", "description": "Outbound holds emptied in a single eight-hour window. Destination field: blank." } },
+    { "id": "lo-window", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["observation", "void"],
+      "content": { "name": "Wrong Stars", "description": "Through the glass the constellations are subtly wrong — as if the ship is somewhere it was never meant to reach." } },
+    { "id": "lo-threshold", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["door", "keeper"],
+      "content": { "name": "A Mark on the Frame", "description": "A closed eye scratched into the hatch frame, then half scratched out again." } },
+    { "id": "lo-reactor", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["reactor", "secret"], "requires": { "items": ["keeper key"] },
+      "content": { "name": "Below the Floor", "description": "Behind the warm hatch: a second console, unlogged, still counting up. Only the Keepers' key opens the way below." } }
+  ],
+  "npcs": [
+    { "id": "np-keeper", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["govern", "keeper", "authority"],
+      "content": { "name": "The Keeper", "description": "Grey from collar to glove, a closed-eye sigil at the breast. Watches without blinking.",
+        "dialogue": { "start": "greet", "nodes": {
+          "greet": { "says": "You are not on my manifest. Speak, then — quickly.", "choices": [
+            { "id": "who", "text": "Who are you?", "goto": "who" },
+            { "id": "ask_help", "text": "I need to get below.", "requires": { "min_standing": 1 }, "goto": "help" },
+            { "id": "leave", "text": "(say nothing, leave)", "effects": { "end": true } }
+          ] },
+          "who": { "says": "A Keeper. We mind what the crew left, and what left the crew.", "choices": [
+            { "id": "kind", "text": "Then let me help you mind it.", "effects": { "adjust_standing": 1, "set_facts": { "flag.met_keeper": true }, "adjust_rep": { "keepers": 1 } }, "goto": "greet" },
+            { "id": "back", "text": "(step back)", "goto": "greet" }
+          ] },
+          "help": { "says": "Below is sealed for cause. But you have a steady look. Take this — the hatch is warm; mind it.", "choices": [
+            { "id": "take_key", "text": "(take the key)", "requires": { "npc_flags": { "gave_key": true } }, "goto": "greet" },
+            { "id": "accept", "text": "Thank you.", "effects": { "give_items": ["it-keeperkey"], "set_npc_flags": { "gave_key": true }, "adjust_rep": { "keepers": 1 } }, "goto": "greet" },
+            { "id": "back2", "text": "(not yet)", "goto": "greet" }
+          ] }
+        } } } },
+    { "id": "np-steward", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["serve", "crew", "survivor"],
+      "content": { "name": "The Steward", "description": "Faded blue coveralls, hands that won't stay still. The last of the galley shift.",
+        "dialogue": { "start": "s0", "nodes": {
+          "s0": { "says": "You're not grey. Thank the dark for that. What do you want?", "choices": [
+            { "id": "what_happened", "text": "What happened here?", "effects": { "set_facts": { "flag.heard_steward": true } }, "goto": "s1" },
+            { "id": "go", "text": "(leave them be)", "effects": { "end": true } }
+          ] },
+          "s1": { "says": "The Keepers said it was mercy. The holds emptied. The names stopped. I hid.", "choices": [
+            { "id": "done", "text": "(nod, and go)", "effects": { "end": true } }
+          ] }
+        } } } },
+    { "id": "np-glassfigure", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["learn", "observation", "void"],
+      "content": { "name": "Figure at the Glass", "description": "Standing at the observation window, back to you, watching the wrong stars." } },
+    { "id": "np-neighbour", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["dwell", "resident"],
+      "content": { "name": "A Neighbour", "description": "Someone who lives here, paused on their own errand to take your measure.",
+        "dialogue": { "start": "n0", "nodes": {
+          "n0": { "says": "Don't think we've met. You lost, or just looking?", "choices": [
+            { "id": "greet", "text": "Just looking. Who keeps this deck?", "effects": { "set_facts": { "flag.met_neighbour": true } }, "goto": "n1" },
+            { "id": "leave", "text": "(nod and move on)", "effects": { "end": true } }
+          ] },
+          "n1": { "says": "We keep ourselves. The Keepers keep the rest. Mind which doors are warm.", "choices": [
+            { "id": "done", "text": "(thank them)", "effects": { "end": true } }
+          ] }
+        } } } },
+    { "id": "np-maker", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["make", "forge"],
+      "content": { "name": "A Maker at the Bench", "description": "Sleeves rolled, hands scarred, a half-finished thing clamped in front of them.",
+        "dialogue": { "start": "m0", "nodes": {
+          "m0": { "says": "Mind the swarf. You here to watch or to carry?", "choices": [
+            { "id": "carry", "text": "To carry. What do you need?", "effects": { "adjust_rep": { "makers": 1 }, "set_facts": { "flag.helped_maker": true } }, "goto": "m1" },
+            { "id": "watch", "text": "Just to watch.", "goto": "m1" }
+          ] },
+          "m1": { "says": "Then learn this: nothing here was built to last forever, and it lasted anyway.", "choices": [
+            { "id": "done", "text": "(leave them to it)", "effects": { "end": true } }
+          ] }
+        } } } },
+    { "id": "np-medic", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["heal", "clinic"],
+      "content": { "name": "A Medic", "description": "White coat gone grey at the cuffs, calm in the way of someone who has run out of panic.",
+        "dialogue": { "start": "h0", "nodes": {
+          "h0": { "says": "You're walking, so it's not urgent. Sit if you need to.", "choices": [
+            { "id": "ask", "text": "What happened to the crew?", "effects": { "set_facts": { "flag.asked_medic": true } }, "goto": "h1" },
+            { "id": "leave", "text": "I'm fine. Thank you.", "effects": { "end": true } }
+          ] },
+          "h1": { "says": "Triage was suspended. Not by me. After that, I just kept the lights on in here.", "choices": [
+            { "id": "done", "text": "(let them rest)", "effects": { "end": true } }
+          ] }
+        } } } }
+  ],
+  "creatures": [
+    { "id": "cr-lurker", "type": "creature", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["storage", "hostile"],
+      "content": { "name": "Stack-Lurker", "description": "Low, many-jointed, the colour of shadow between crates. It does not like the light." } },
+    { "id": "cr-specimen", "type": "creature", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["lab", "hostile"],
+      "content": { "name": "Tank Specimen", "description": "Something pale presses a too-human palm against the cracked glass from the inside." } },
+    { "id": "cr-drift", "type": "creature", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["corridor", "ambient"],
+      "content": { "name": "Drift-Mote", "description": "A slow constellation of dust that turns, very deliberately, to follow you." } }
+  ],
+  "plot_beats": [
+    { "id": "pb-hatch", "type": "plot_beat", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["reactor", "turn"],
+      "content": { "name": "The Warm Hatch", "description": "The maintenance hatch radiates a low heat from below. Whatever the Keepers sealed, it is still running." } },
+    { "id": "pb-eye", "type": "plot_beat", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["keeper", "turn"],
+      "content": { "name": "The Closed Eye", "description": "Every Keeper mark is a closed eye. None of them are sleeping." } }
+  ]
+}

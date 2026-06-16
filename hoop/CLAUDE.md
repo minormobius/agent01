@@ -173,9 +173,10 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/oneill-cylinder-refactor-xjknww` → `deploy-hoop.yml`
-  runs `wrangler deploy` (worker + assets + the HoopRoom DO migration). The sandbox cannot
-  deploy; push and let the Action run. Verify the log binds `hoop.mino.mobi (custom domain)`.
+- Push `hoop/**` on `main` or `claude/hoop-v091-improvements-16wk16` (the current owning branch —
+  see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
+  HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
+  binds `hoop.mino.mobi (custom domain)`.
 - Ownership is in `deploy-registry.json` (surface `hoop`). Edit the registry, then
   `node scripts/gen-deploy-triggers.mjs --write` + `node scripts/lint-deploy-registry.mjs`.
 
