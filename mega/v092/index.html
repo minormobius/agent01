@@ -18,6 +18,10 @@
     #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
     #pack { position: fixed; bottom: 8px; right: 12px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #f4bf62; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
     #pack:hover { border-color: #f4bf62; color: #fff; }
+    #charbtn { position: fixed; bottom: 8px; right: 92px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #b39bd8; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #charbtn:hover { border-color: #b39bd8; color: #fff; }
+    #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
+    #who b { color: #b39bd8; }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
     /* the story panel — a click on a resident crystallizes their thread */
     #story { position: fixed; top: 0; right: 0; width: min(360px, 86vw); height: 100%; background: linear-gradient(180deg, rgba(8,11,16,0.97), rgba(6,8,12,0.97)); border-left: 1px solid #1b2530; padding: 44px 18px 18px; overflow-y: auto; transform: translateX(102%); transition: transform .18s ease; pointer-events: auto; z-index: 5; }
@@ -39,7 +43,9 @@
   <div class="hud" id="here"></div>
   <div class="hud" id="busy">generating…</div>
   <a class="hud" id="back" href="/">◍ hoop</a>
+  <button id="charbtn" title="character (c)">☻ character</button>
   <button id="pack" title="open pack (i)">▣ pack</button>
+  <div class="hud" id="who"></div>
   <div id="story"></div>
 
   <script type="module">
@@ -50,10 +56,12 @@
     import { drawDevice } from './v5/deco.js';
     import { drawWallLight } from './v5/lights.js';
     import { buildSociety, buildResidents, stepResidents } from './npc.js';
-    import { frameRects, DIR_OF } from './v3/sprite-core.js';
+    import { frameRects, DIR_OF, DIR8, genomeFromParams } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose } from './story/engine.js';
     import { Inventory } from './inventory.js';
-    import { startingPack } from './pack.js';
+    import { startingPack, packForCharacter } from './pack.js';
+    import { CharacterCreator, loadCharacter } from './character.js';
+    import { deriveCombat } from './stats.js';
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 
@@ -152,7 +160,8 @@
       const tick = () => {
         i++;
         if (i >= sm.length) { walkTimer = null; player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
-        pp.x = sm[i][0]; pp.y = sm[i][1];
+        const ox = pp.x, oy = pp.y; pp.x = sm[i][0]; pp.y = sm[i][1];
+        pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i;     // face the way you move; advance the walk cycle
         const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
         if (p[ni] !== player) { player = p[ni]; reveal(); }
         followCam(); draw(); maybeStream();
@@ -229,14 +238,24 @@
       ctx.imageSmoothingEnabled = true;
     }
     function strokePolyW(pts) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(SX(pts[i][0]), SY(pts[i][1])); else ctx.moveTo(SX(pts[i][0]), SY(pts[i][1])); } ctx.stroke(); }
+    // map a movement delta to one of the 8 sprite directions
+    function dirKey(dx, dy) { if (!dx && !dy) return pdir; let best = 'S', bd = -2; for (const d of DIR8) { const dot = (dx * d.dx + dy * d.dy) / (Math.hypot(dx, dy) * Math.hypot(d.dx, d.dy) || 1); if (dot > bd) { bd = dot; best = d.k; } } return best; }
     function drawPlayer() {
       if (player < 0 || !walk) return;
       if (routePts.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 6; strokePolyW(routePts); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; strokePolyW(routePts); }
-      // the player is small — a glowing lantern at its true world size (½·playerW), the mesh's unit
       const x = px(), y = py(), rad = Math.max(2.5, SKIN.playerW * 0.5 * cam.scale);
+      // the lantern: the player's true-world-size glow (also grounds the sprite)
       ctx.save(); ctx.shadowColor = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 3.2;
       ctx.fillStyle = '#fff7e6'; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad, 0, 7); ctx.fill();
       ctx.fillStyle = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 1.4; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad * 0.55, 0, 7); ctx.fill(); ctx.restore();
+      // the embarked character, drawn as their own rolled sprite standing over the lantern
+      if (playerGenome) {
+        ctx.imageSmoothingEnabled = false;
+        const moving = !!walkTimer, frame = moving ? (pphase | 0) % 4 : null;
+        const cvs = spriteCanvas(playerGenome, pdir, frame), h = SKIN.playerW * 1.5 * cam.scale, w = h * (cvs.width / cvs.height);
+        ctx.drawImage(cvs, SX(x) - w / 2, SY(y) - h * 0.92, w, h);
+        ctx.imageSmoothingEnabled = true;
+      }
     }
 
     function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${ZOOM}× locked`; }
@@ -310,14 +329,34 @@
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === 'R') { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(startingPack(seed, 9)); } });   // R = new world (+ fresh kit)
+    addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === 'R') { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world
 
-    // ── the pack: a Voronoi-cylinder inventory of genomed items, seeded off the world ──
-    const pack = new Inventory({ pack: startingPack(seed, 9), title: 'pack' });
+    // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
+    let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
+    function adoptCharacter(c) {
+      playerChar = c;
+      try { playerGenome = genomeFromParams({ seed: c.sprite.seed, role: c.vocation, arch: c.sprite.arch, size: c.sprite.size }); } catch (e) { playerGenome = null; }
+      pack.setPack(packForCharacter(c, 9));
+      renderWho();
+    }
+    function renderWho() {
+      if (!playerChar) { $('who').innerHTML = ''; return; }
+      const cm = deriveCombat(playerChar);
+      $('who').innerHTML = `<b>${esc(playerChar.name)}</b> · ${esc(playerChar.cast.label)} ${esc(playerChar.vocTag)}<br><span style="color:#6b7872">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def} ✣${cm.fluxPool}</span>`;
+    }
+
+    // ── the pack: a Voronoi-cylinder inventory of genomed items ──
+    const pack = new Inventory({ pack: (playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)), title: 'pack' });
     const togglePack = () => pack.toggle();
     $('pack').addEventListener('click', togglePack);
     addEventListener('keydown', (e) => { if ((e.key === 'i' || e.key === 'I') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); togglePack(); } });
 
+    // ── character creation ──
+    const creator = new CharacterCreator({ seed: (seed ^ 0x5a17) >>> 0, onEmbark: adoptCharacter });
+    $('charbtn').addEventListener('click', () => creator.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); creator.toggle(); } });
+
+    if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
     loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
   </script>
 </body>

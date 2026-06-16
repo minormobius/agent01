@@ -14,10 +14,11 @@ re-invent them. Determinism is load-bearing throughout (atproto-persistable, per
 
 | # | System | Stands on | Status |
 |---|--------|-----------|--------|
+| 0 | **Stat spine** (FLESH·CHASSIS·ANIMA) | new — `story/engine.js` `BASE_HP/ATK/DEF` baseline | **shipped** — `stats.js` |
 | 1 | **Inventory** | `mega/sprite/item/` genome + `paint/voronoi.js` `clipCell` | **shipped** — `inventory.js` + `pack.js` |
+| 4 | **Character creation** | the **civic tree** (`v3/sprite-core.js` ROLES = civic verbs) + the stat spine + NPC sprite genome | **shipped** — `character.js` |
 | 2 | **Item lore engine** | `borges/js/generate.js` (spine generator) + `story/engine.js` (memory/gates) | design |
-| 3 | **Combat** | item `strike`/`ward` kingdoms + `potency`/`durability`/`mass`; `story/engine.js` `BASE_ATK/DEF/HP` | design |
-| 4 | **Character creation** | the **civic tree** (`econ/econ.js` ROLES ↔ `sprite/item/bindings.js` CIVIC_ROLES) + NPC sprite genome (`mega/sprite/core.js`) | design |
+| 3 | **Combat** | item `strike`/`ward` kingdoms + `potency`/`durability`/`mass`; the stat spine (`deriveCombat`) + `CONVERSIONS` for skills | next — spine ready |
 
 ### 1. Inventory (shipped)
 A rotating **Voronoi cylinder**: items tiled one-per-seed on an unrolled angle×height strip that
