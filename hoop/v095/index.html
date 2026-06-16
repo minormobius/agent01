@@ -84,6 +84,7 @@
 
     const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
     const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
+    const TERMINAL_ROLE = 'learn';   // the reading-room console IS the Tabard terminal (bible: the Nave's reading room). Marked teal ▤; click to read Luna's mythograph.
     const ZOOM = 5;                 // the look is locked at 5× — close enough that the painting reads, room-level play
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
@@ -243,6 +244,10 @@
           const gl = ctx.createRadialGradient(cp.cx, cp.cy, cp.r * 0.1, cp.cx, cp.cy, er);
           gl.addColorStop(0, `hsla(${hue},90%,72%,${a})`); gl.addColorStop(0.45, `hsla(${hue},85%,58%,${a * 0.4})`); gl.addColorStop(1, `hsla(${hue},80%,50%,0)`);
           ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cp.cx, cp.cy, er, 0, 7); ctx.fill(); ctx.restore();
+          if (cp.role === TERMINAL_ROLE) {   // mark the Tabard terminal so you can SEE which fixture to read
+            ctx.save(); ctx.strokeStyle = '#7fd8d0'; ctx.lineWidth = 1.4 / cam.scale; ctx.beginPath(); ctx.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); ctx.stroke();
+            ctx.fillStyle = '#7fd8d0'; ctx.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▤', cp.cx, cp.cy); ctx.restore();
+          }
         }
         for (const L of P.lights) { if (L.tip.x < vx0 || L.tip.x > vx1 || L.tip.y < vy0 || L.tip.y > vy1) continue; if (L.concourse) drawBollard(ctx, L); else drawWallLight(ctx, L, { hue: L.hue, lit: L.lit }); }
       }
@@ -400,6 +405,7 @@
     }
     function renderStory() {
       const panel = $('story');
+      if (story.active && story.active.terminal) return renderTerminalPanel(panel);
       if (!story.active) { panel.classList.remove('on'); panel.innerHTML = ''; return; }
       const { agent, npcId, intro } = story.active;
       let head, body = '', choices = '';
@@ -444,11 +450,65 @@
     }
     addEventListener('keydown', (e) => { if (e.key === 'Escape' && story.active) { story.active = null; renderStory(); } });
 
+    // ── the Tabard terminal: a learn-role component is a TERMINAL (the reading-room console). Click → approach
+    //    → the mythograph reader (Luna's frozen page 71, the hero's name overwritten in stencil). ──
+    function componentAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity;
+      for (const ch of world.chunks) { const P = ch.painted; if (!P) continue;
+        for (const cp of (P.comps || [])) { if (cp.role !== TERMINAL_ROLE) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    let _pageP = null;
+    function ensureTerminalPage() {
+      if (story.page) return Promise.resolve(story.page);
+      if (!_pageP) _pageP = fetch(new URL('./story/terminal-71.json', import.meta.url)).then((r) => r.json()).then((p) => (story.page = p)).catch(() => null);
+      return _pageP;
+    }
+    async function openTerminal(cp, ch) {
+      if (!story.ready) return;
+      await ensureTerminalPage();
+      const key = 'term:' + ch.id + ':' + cp.room, s = story.store;
+      if (!s.featureByKey(key)) s.addFeature({ key, type: 'lore_fragment', label: 'a Tabard terminal', content_id: 'lo-terminal' });
+      interact(s, story.playerId, key);                              // crystallize lo-terminal (pinned) → XP + placement
+      s.setFact(story.playerId, 'flag.read_terminal', true);
+      s.setFact(story.playerId, 'flag.heard_luna', true);
+      story.active = { terminal: true };
+      saveStory(); renderStory();                                    // saveStory advances tiers if the chain has closed
+    }
+    function renderTerminalPanel(panel) {
+      const T = story.page;
+      if (!T) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The terminal is dark.</p>`; panel.classList.add('on'); return; }
+      const hero = T.heroName, stencil = ((story.store.contentById('lo-terminal') || {}).content || {}).hero_stencil || '⟜⌖⟊⟁⌇';
+      const STEN = `<span style="color:#b48a6a;letter-spacing:2px;background:rgba(180,138,106,.14);padding:0 4px;border-radius:3px" title="a notation you cannot read">${stencil}</span>`;
+      const ciph = (s) => { const e = esc(s); return hero ? e.split(esc(hero)).join(STEN) : e; };
+      const actC = {}; for (const a of T.propp.acts) actC[a.id] = a.color;
+      const ac = T.actant;
+      let spine = ''; for (const m of T.propp.moves) spine += `<span style="font-size:10.5px;padding:2px 6px;border:1px solid ${actC[m.act] || '#2a3340'};${m.inverted ? 'border-style:dashed;' : ''}border-radius:5px;margin:0 3px 4px 0;display:inline-block" title="${esc(m.gloss || '')}">${esc(m.sym)} ${esc(m.name)}</span>`;
+      let marked = ''; for (const m of T.propp.moves) if (m.name === 'Branding' || m.name === 'Recognition') marked += `<div style="color:#9aa8a0;margin:3px 0 3px 8px;border-left:1px solid #20303a;padding-left:7px"><b style="color:#cfd8d2">${esc(m.sym)} ${esc(m.name)}.</b> ${ciph(m.gloss)}</div>`;
+      let motifs = ''; for (const m of T.motifs.list) { const k = m.code === 'M341'; motifs += `<div style="margin:2px 0;${k ? 'color:#f4bf62' : ''}"><span style="color:#6b7872">${esc(m.code)}</span> ${esc(m.name)}${k ? ' — <i>' + esc(m.gloss) + '</i>' : ''}</div>`; }
+      panel.innerHTML =
+        `<button class="cl" data-close="1">close ⏎</button>` +
+        `<div class="nm">${ciph(T.title)}</div>` +
+        `<div class="rl">${esc(T.kicker)} · ${esc(T.cultureLabel)} · a mythograph, posted before its telling · ${esc(T.permalink)}</div>` +
+        `<p class="says" style="font-style:normal;border-left:2px solid #f4bf62;padding-left:9px"><b style="color:#f4bf62">The desire.</b> ${ciph(ac.subject)} wants <i>${esc(ac.object)}</i>, against <b>${esc(ac.opponent)}</b>${ac.unreachable ? ' — <span style="color:#7fd8d0">and the limit is never reached.</span>' : '.'}</p>` +
+        `<div class="nmh">the spine — Propp's functions</div><div style="margin:4px 0 6px">${spine}</div>${marked}` +
+        `<div class="nmh" style="margin-top:10px">the motifs — Thompson's index</div>${motifs}` +
+        `<p class="says" style="margin-top:11px">The reading-room regulars argue the moves and the motifs. None of them can read the hero's name. It is set in ${STEN} — the same three layers stencilled on the wall of the room you woke in. <span style="color:#7fd8d0">Luna posted this. The hero is you.</span></p>`;
+      panel.classList.add('on');
+    }
+
     cv.addEventListener('click', (e) => {
       if (!world || player < 0) return;
       const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
       const who = residentAt(wx, wy);
-      if (who) { openStory(who); walkTo(who.x, who.y); } else { if (story.active) { story.active = null; renderStory(); } walkTo(wx, wy); }
+      if (who) { openStory(who); walkTo(who.x, who.y); return; }
+      const term = componentAt(wx, wy);
+      if (term) { openTerminal(term.cp, term.ch); walkTo(term.cp.cx, term.cp.cy); return; }
+      if (story.active) { story.active = null; renderStory(); }
+      walkTo(wx, wy);
     });
 
     // the animation loop — step the residents' commute, then render (the painted world is otherwise static)
