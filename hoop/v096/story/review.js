@@ -13,7 +13,7 @@ import { validateTree, errors } from './validate.js';
 import { analyzePool, orphans } from './gates.js';
 
 export const TIER_MAX = { revelation_tier: 5, narrative_tier: 5, power_tier: 5 };   // the Tabard ladders (fixes the old 1..3 clamp)
-export const KNOWN_TYPES = new Set(['item', 'lore_fragment', 'npc', 'creature', 'plot_beat']);
+export const KNOWN_TYPES = new Set(['item', 'lore_fragment', 'npc', 'creature', 'plot_beat', 'rumor']);
 const REQUIRED = ['id', 'type', 'content'];
 
 function mergeContent(existing, candidates) {
@@ -23,7 +23,7 @@ function mergeContent(existing, candidates) {
 }
 function countByType(list) { const out = {}; for (const c of list) out[c.type] = (out[c.type] || 0) + 1; return out; }
 
-export function reviewBatch(existing, candidates, features = []) {
+export function reviewBatch(existing, candidates, features = [], opts = {}) {
   const existingById = new Map(existing.map((c) => [c.id, c]));
   const conflicts = [], warnings = [], adds = [], edits = [], seen = new Set();
   const bad = (id, code, msg) => conflicts.push({ id, code, msg });
@@ -48,9 +48,10 @@ export function reviewBatch(existing, candidates, features = []) {
     if (c.status && c.status !== 'active') warn(id, 'not_active', `status='${c.status}'`);
   }
 
-  // QUEST conflicts: only orphan gates the candidates INTRODUCE (diff against the existing pool)
-  const beforeKeys = new Set(orphans(analyzePool(existing, features)).map((o) => o.id + '|' + o.code + '|' + o.key));
-  for (const o of orphans(analyzePool(mergeContent(existing, candidates), features)))
+  // QUEST conflicts: only orphan gates the candidates INTRODUCE (diff against the existing pool).
+  // opts.external (world/runtime flags + intrinsic items) is the assumed-satisfiable boundary.
+  const beforeKeys = new Set(orphans(analyzePool(existing, features, opts)).map((o) => o.id + '|' + o.code + '|' + o.key));
+  for (const o of orphans(analyzePool(mergeContent(existing, candidates), features, opts)))
     if (!beforeKeys.has(o.id + '|' + o.code + '|' + o.key)) bad(o.id || '(pool)', 'orphan_gate', o.message);
 
   return { verdict: conflicts.length ? 'BLOCK' : 'PASS', adds, edits, conflicts, warnings, counts: countByType(candidates) };

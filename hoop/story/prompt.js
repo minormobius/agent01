@@ -12,10 +12,11 @@
 // The shape the model must emit, described compactly (also handed to the adapter as a JSON schema hint).
 export const SIDEQUEST_SCHEMA = {
   items: [{
-    id: 'sq-<short-stable-slug>', type: 'npc|item|lore_fragment|creature|plot_beat',
+    id: 'sq-<short-stable-slug>', type: 'npc|item|lore_fragment|creature|plot_beat|rumor',
     revelation_tier: '1..5', narrative_tier: '1..5', power_tier: '1..5',
     tags: ['world/role tags'], approved: true, status: 'active',
-    requires: { facts: {}, items: [], min_rep: {} },
+    refs: ['locations/entities this names'], revelation_hint: 'what it reveals',
+    requires: { facts: {}, items: [], min_rep: {} }, produces: { sets: ['flag.x'] },
     content: { name: 'string', description: 'string', mechanics: {}, dialogue: { start: 'n0', nodes: {} } },
   }],
   beats: [{
@@ -41,6 +42,9 @@ const SYSTEM = [
   '  is rejected. Prefer self-contained arcs.',
   '• MATCH THE THICKNESS: a thick chunk (many roles/domains/factions) needs a thick arc — multiple linked',
   '  items + beats, not a single lore line. Hit the requested item count.',
+  '• Match the house content model: every item may carry `refs` (locations/entities it names) and a',
+  '  `revelation_hint`; items/lore can gate on an EARLIER item (requires.items) so a quest chains; an NPC',
+  '  or beat may `produces.sets` the flags later steps gate on. `rumor` is a valid type (drift hearsay).',
 ].join('\n');
 
 function listExisting(existing) {

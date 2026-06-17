@@ -83,7 +83,8 @@
     import { computeBoard, questLog, activeMarkers } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
     import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
-    import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate diff
+    import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
+    import { importWorldExport } from './story/import.js';   // v096: hoopy's world_export → content_items (first-class) diff
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -539,8 +540,11 @@
     // ── the story engine: a click on a resident crystallizes their thread (deterministic, no inference) ──
     async function loadStory() {
       try {
-        const res = await fetch(new URL('./story/pool.json', import.meta.url)); if (!res.ok) throw 0;
-        story.store = new MemoryStore(flattenPool(await res.json()), { features: [] });
+        // v096 sources its pool from hoopy's world_export (first-class); the hand-authored pool.json is the fallback.
+        let content;
+        try { content = importWorldExport(await fetch(new URL('./story/world_export.json', import.meta.url)).then((r) => { if (!r.ok) throw 0; return r.json(); })).content; }
+        catch (e) { const res = await fetch(new URL('./story/pool.json', import.meta.url)); if (!res.ok) throw 0; content = flattenPool(await res.json()); }
+        story.store = new MemoryStore(content, { features: [] });
         const saved = localStorage.getItem('hoop:v096:story'); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
         try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; }
         try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }

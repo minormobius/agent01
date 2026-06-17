@@ -117,5 +117,19 @@ to the player's own repo.
 | **Steering** (phase 3): the worker reads the `pulse` (cached ~5min, guarded), `prompt.steerFromPulse()` biases the arc toward where the playerbase is | ✅ node-tested; live once the Director has written a pulse |
 | **Rich profile** (phase 3): `genquest.profileFromChunk()` — whole-chunk building programme + lived population + society edges → a thick `ChunkProfile` | ✅ node-tested; wired into `v096` `weaveHere` |
 
+### Hoopy's world_export — first-class content (the authoring tool's shape)
+
+His authoring tool emits a `world_export` (a `content_pool` of creature/item/lore_fragment/npc/plot_beat/**rumor** + a `story_bible`). It's now the canonical content model; v096 sources its pool from it.
+
+| Piece | State |
+|---|---|
+| `story/import.js` — `worldExport → content_item[]`: axis map (his r/n/p → revelation/narrative/power), tier-string→int, flat→`content`, requires gate-strings/`{flag,item}`→`{facts,items}`, carries `refs`/`revelation_hint`/`produces` | ✅ node-tested, 21 checks |
+| `rumor` first-class — `KNOWN_TYPES` (review.js) + lexicon enum + dispatch | ✅ |
+| `gates.js` reads `produces.sets` as declared producers + an `external` (world/runtime flags) **assumed-satisfiable boundary** | ✅ |
+| `WORLD_FACTS`/`worldExternal()` — the journey-flags his pool gates on, produced by the runtime/storyboard outside the pool | ✅ (migrates into storyboard producers as they're set) |
+| **His real 75-record export passes the full review/gates/validate gate** | ✅ (`import.selftest`: 0 conflicts with the manifest; correctly BLOCKs without it) |
+| `scripts/extract-hoopy-export.mjs` → `v096/story/world_export.json` (from his gallery, pending his machine export) | ✅ |
+| v096 sources its pool from `world_export.json` via the importer (`pool.json` fallback); generation emits the same enriched shape (`refs`/`revelation_hint`/`rumor`/chained-item `requires`) | ✅ |
+
 The procedural + localStorage path is the guaranteed fallback: with no service repo and no auth, the
 story tab still works fully. ATProto is additive truth, never a hard dependency (the borges discipline).

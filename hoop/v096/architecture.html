@@ -88,7 +88,7 @@ const N = {
   gate:    { x: 620, y: 250, lane:'gate',  t:'✅ the gate', s:'review · gates · validate',
     d:'Before anything is frozen: structural fields + tier range (1..5), every NPC dialogue tree clean (validate.js), no orphan quests introduced (gates.js reachability), no id-collision that orphans a player\'s crystallized saves (review.js). BLOCK ⇒ one repair pass. NOTHING is frozen unless the verdict is PASS.' },
   spineRepo:{ x: 900, y: 70, lane:'truth', t:'🗄 shared spine', s:'service repo · story.content (lane:spine)',
-    d:'The authored canon pool, in a service repo (morphyx). Read by anyone via public listRecords — permissionless to play. The offline seeder + the generation lane write here under one publisher key.' },
+    d:'The authored canon pool, in a service repo (morphyx). Read by anyone via public listRecords — permissionless to play. Sourced from hoopy\'s world_export (creature/item/lore/npc/plot_beat/rumor) via story/import.js — his 75-record canon passes the full gate. The offline seeder + the generation lane write here under one publisher key.' },
   saveRepo:{ x: 900, y: 250, lane:'truth', t:'👤 per-player', s:'player repo · story.save + story.content (lane:sidequest)',
     d:'A player\'s durable state + their personal live-generated side-quests, written to THEIR OWN repo (user-owned, $0 to us). The hybrid canon: shared spine + personal side-quests. localStorage buffers the hot path; atproto is the batched durable target.' },
   pulse:   { x: 900, y: 470, lane:'truth', t:'🌐 Director pulse', s:'service repo · story.pulse',

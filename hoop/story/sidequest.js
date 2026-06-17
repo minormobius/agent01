@@ -58,7 +58,7 @@ export async function generateSidequest(adapter, input = {}) {
     if (!out) return empty('no-output');
     items = stampAll(out.items, adapter.provider, genState);
     beats = Array.isArray(out.beats) ? out.beats : [];
-    report = reviewBatch(existing, items, features);
+    report = reviewBatch(existing, items, features, { external: input.external });   // world/runtime flags ⇒ no false orphans
     if (report.verdict === 'PASS') break;
     req = buildRepairPrompt(req, report);          // feed the conflicts back and try once more
   }

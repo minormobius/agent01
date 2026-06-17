@@ -1,0 +1,2646 @@
+{
+  "title": "The Tabard: Chapter One",
+  "_source": "extracted from hoopy.wisp.place/world_export.html",
+  "content_pool": {
+    "total_items": 75,
+    "items": [
+      {
+        "name": "Pumice-wrigglers",
+        "type": "creature",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "Armored hexapods that trace the warm stone and the sky arc’s impossible curve, sipping mineral condensate with a patience older than the city. Their carapaces mirror the industrial glow, moving with a deliberate, grinding cadence that suggests the vessel itself is breathing. Should you draw near, they retreat into the masonry, leaving only a silicate tracery that smells of rain on heated iron.",
+        "tags": [
+          "ecology",
+          "infrastructure",
+          "harmless",
+          "nave"
+        ],
+        "refs": [
+          "The Nave",
+          "The Industrial Margin",
+          "The Green Deck"
+        ],
+        "revelation_hint": "Stage 1 (The Surface): Observed scaling the residential corridors or market walls during early exploration."
+      },
+      {
+        "name": "Vellum-moths",
+        "type": "creature",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "They congregate near the terminals like discarded manuscripts, drawing sustenance from the static that lingers on the mythographs. Their wings bear the petrichor of ozone and aged vellum, trembling in sync with the broadcast updates. They regard your altered chassis not with malice, but with the quiet recognition of a tide meeting stone, before dissolving into the corridor’s damp embrace.",
+        "tags": [
+          "ecology",
+          "terminals",
+          "nave",
+          "surface"
+        ],
+        "refs": [
+          "The Nave",
+          "The Tabard Terminal",
+          "The Seven"
+        ],
+        "revelation_hint": "Stage 1 (The Surface): Encountered near the three Tabard terminals during initial orientation."
+      },
+      {
+        "name": "Thrum-skitterer",
+        "type": "creature",
+        "power_tier": "r2",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "In the industrial margin, where the air tastes of hot iron and the groan of the fusion-heart sets the teeth on edge, the thrum-skitterer rides the harmonic tremors of the hull. It is a pale, multi-jointed thing that burrows into the cooling vents, digesting the kinetic stress that would otherwise fracture the bulkheads. To watch one is to see the ship&#x27;s vital rhythms made flesh, a living gauge of structural fatigue that pulses in time with the distant, unceasing machinery.",
+        "tags": [
+          "industrial-margin",
+          "hull",
+          "resonance",
+          "maintenance",
+          "rind-access"
+        ],
+        "refs": [
+          "The Ship",
+          "The Industrial Margin"
+        ],
+        "revelation_hint": "Stage 1-2. Found in the industrial margin or near rind access shafts; the creature&#x27;s navigation by vibration and its consumption of structural stress reveal the hull&#x27;s continuous, non-terrestrial engineering."
+      },
+      {
+        "name": "Gilt-scutter",
+        "type": "creature",
+        "power_tier": "r2",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "It feeds upon the oxidation of the dawn-iron, a silver-backed scavenger that drinks the fading photons as the sky-arc dims. Its carapace holds the memory of light, shimmering with the ghost of a sun it can never warm. Where the market stalls crowd the axial horizon, these creatures coil in the hollows of support struts, waiting for the long fall to cast its shadow.",
+        "tags": [
+          "nave",
+          "sun-strip",
+          "scavenger",
+          "surface",
+          "market"
+        ],
+        "refs": [
+          "The Ship",
+          "The Nave"
+        ],
+        "revelation_hint": "Stage 1. Encountered while observing the sun-strip cycle in the Nave markets or Green Deck periphery; the creature&#x27;s dependence on the artificial light cycle is the first clue to the sky-arc&#x27;s true nature."
+      },
+      {
+        "name": "Axiolymnae",
+        "type": "creature",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "Gelatinous drifters that navigate the industrial margin’s artificial weather, pulsing with a bioluminescence that mirrors the cylinder’s hidden breath. Their translucent bodies expand and contract with the pressure differentials, living bellows that chart the ship’s invisible circulation. When your altered sensors stir the air, they shift hue, tracing the architecture of the vessel’s passing with quiet, luminous deference.",
+        "tags": [
+          "ecology",
+          "circulation",
+          "environmental",
+          "industrial margin"
+        ],
+        "refs": [
+          "The Industrial Margin",
+          "The Seven",
+          "The Curve"
+        ],
+        "revelation_hint": "Stage 2 (The Crack): Encountered in the industrial margin after noticing the weather behaves like circulation."
+      },
+      {
+        "name": "Voronoi-crawlers",
+        "type": "creature",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "Multi-jointed arthropods that scale the Voronoi shielding, their limbs finding purchase on notation layered older than any map. They leave crystalline trails that align with the hull’s oldest scars, chittering in sympathy with magnetic tides. They do not strike, yet they part around your modified chassis as though recognizing a frequency that predates the city’s first stone.",
+        "tags": [
+          "ecology",
+          "rind",
+          "navigation",
+          "salvage"
+        ],
+        "refs": [
+          "Tunnel-Rind Upper",
+          "The Rind-walkers",
+          "The Vessel"
+        ],
+        "revelation_hint": "Stage 2 (The Crack): Found in the upper tunnels during the investigation phase, following Sevin’s guidance."
+      },
+      {
+        "name": "Lattice-mite",
+        "type": "creature",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "Deep in the Voronoi chambers of the tunnel-rind, the lattice-mite constructs its burrows within the regolith&#x27;s cellular geometry, its body mirroring the fractal angles of the shielding it consumes. It moves with a jerky, angular grace, shedding plates of hardened foam that glint like shattered glass in the hull-glow. These creatures do not merely inhabit the rind; they are its metabolic waste given form, a slow digestion of the ship&#x27;s armor that reveals the ancient, deliberate design of the hull beneath.",
+        "tags": [
+          "rind",
+          "tunnel-rind",
+          "voronoi",
+          "regolith",
+          "structural",
+          "fractal"
+        ],
+        "refs": [
+          "The Rind",
+          "Tunnel-Rind Upper"
+        ],
+        "revelation_hint": "Stage 2. Discovered in the upper tunnel-rind; the fractal geometry and regolith consumption hint at the ship&#x27;s manufactured, non-terrestrial origin and the artificial nature of the rind&#x27;s composition."
+      },
+      {
+        "name": "Mnemic-leech",
+        "type": "creature",
+        "power_tier": "r3",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "Adhering to the ports of the reconstruction bay and the neural interfaces of the androids, the mnemic-leech is a slender, iridescent worm that feeds upon the residual charge of forgotten data. It wraps itself around the player&#x27;s modified sensory apparatus, tasting the secrets buried in the rebuild, its presence a cold pressure against the mind that whispers of Luna&#x27;s dream-logs and the weight of unremembered years. To encounter one is to feel the ship&#x27;s long memory pressing against the fragile boundaries of one&#x27;s own identity, a reminder that in the Tabard, nothing is ever truly lost, only digested.",
+        "tags": [
+          "bay-14",
+          "player-mods",
+          "luna",
+          "identity",
+          "memory"
+        ],
+        "refs": [
+          "Bay 14",
+          "The Seven",
+          "Luna"
+        ],
+        "requires": [
+          "flag.player_rebuilt=True"
+        ],
+        "revelation_hint": "Stage 3-4. Found in Bay 14 or upon the player&#x27;s body; reveals the connection between the rebuild, Luna&#x27;s logs, and the erasure of the player&#x27;s past, forcing confrontation with the nature of the self."
+      },
+      {
+        "name": "Auralymnae",
+        "type": "creature",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "They cluster in the lower rind’s silent chambers, feeding upon the electromagnetic resonance of the approaching unknown. When your translation apparatus stirs, their carapaces fracture into prismatic light, pulsing in exact sympathy with the anomaly’s frequency. They offer no counsel, yet their collective stillness or agitation mirrors the gravity of the choice you must soon make.",
+        "tags": [
+          "ecology",
+          "signal",
+          "anomaly",
+          "lower rind"
+        ],
+        "refs": [
+          "Tunnel-Rind Lower",
+          "The Signal Chamber",
+          "The Approach",
+          "The Purpose"
+        ],
+        "revelation_hint": "Stage 3 (The Depth): Encountered in the Signal Chamber during convergence, when the signal becomes directly perceptible."
+      },
+      {
+        "name": "Harmonic-maw",
+        "type": "creature",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "In the silence of the Signal Chamber, where the Tabard&#x27;s ancient terminal still hums with the approach-signal, the harmonic-maw waits. It is a gelatinous, translucent entity that pulses with the same frequency as the anomaly, its internal organs shifting like liquid mercury to match the incoming waves. It does not hunt flesh; it feeds on the information encoded in the signal, translating the abstract data of the approach into a biological imperative that drives it to the core of the vessel, seeking the source of the call.",
+        "tags": [
+          "signal-chamber",
+          "lower-rind",
+          "anomaly",
+          "contact",
+          "bio-mechanical",
+          "signal"
+        ],
+        "refs": [
+          "Signal Chamber",
+          "The Approach"
+        ],
+        "revelation_hint": "Stage 3. Encountered in the lower rind or Signal Chamber; the creature&#x27;s reaction to the signal confirms the contact and the vessel&#x27;s purpose, linking the biological to the mysterious approach."
+      },
+      {
+        "name": "Tabard Terminal Relay Switch",
+        "type": "item",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "Cast in dull bronze, the toggle bears the faint thermal scars of a thousand passive broadcasts. It clicks with a hollow resonance, echoing the quiet hum of mythographs published to empty reading rooms. You press it and feel only the ghost of a signal, a message sent into the dark without expecting an answer.",
+        "tags": [
+          "tabard",
+          "broadcast",
+          "intranet",
+          "terminal"
+        ],
+        "refs": [
+          "The Tabard Terminal",
+          "The Seven"
+        ],
+        "revelation_hint": "Disassembled from a Nave broadcast station; fits Stage 1 (The Ordinary)"
+      },
+      {
+        "name": "Continuants&#x27; Calibration Ratchet",
+        "type": "item",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The knurled grip yields to a cold, familiar torque, each notch a silent vow against entropy. It bites into stubborn bolts with the quiet certainty of ritual, a tool that polishes the mundane into something resembling piety. To turn it is to accept that order is merely friction delayed.",
+        "tags": [
+          "maintenance",
+          "continuants",
+          "ritual",
+          "tool"
+        ],
+        "refs": [
+          "The Nave",
+          "The Continuants"
+        ],
+        "revelation_hint": "Recovered from a Continuant workbench in the Nave; fits Stage 1 (The Ordinary)"
+      },
+      {
+        "name": "Meridian Calibration Prism",
+        "type": "item",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The glass catches the sun-strip’s false dawn and fractures it into a spectrum that no atmosphere should permit. Continuants align it to measure the arc’s tilt, mistaking borrowed geometry for natural law. To hold it is to feel the quiet arrogance of a world that believes itself grounded.",
+        "tags": [
+          "artificial_horizon",
+          "continuant",
+          "light_mechanics"
+        ],
+        "refs": [
+          "The Ship",
+          "The Nave"
+        ],
+        "revelation_hint": "Stage 1 (The Surface: ordinary Ashveil): found on a market stall in the Nave’s residential corridors, sold by a Continuant apprentice."
+      },
+      {
+        "name": "Gilded Sky-Diffuser",
+        "type": "item",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "It holds the borrowed luminescence of a ceiling that does not exist, a captive dawn distilled into brittle glass. You press it to your palm and feel the faint, rhythmic pulse of a sun-strip cycling overhead, a heartbeat measured in artificial seasons. The algae within have forgotten how to photosynthesize, subsisting instead on the static hum of the ship’s own passing.",
+        "tags": [
+          "nave",
+          "sky-arc",
+          "artificial-light",
+          "drift-trade"
+        ],
+        "refs": [
+          "The Nave",
+          "The Ship"
+        ],
+        "revelation_hint": "Found in a Drift wayhouse stall or scavenged from a Nave streetlamp housing. Encountered naturally during Stage 1 (The Surface), as the player navigates the city’s ordinary frictions and treats the sky arc as mere weather."
+      },
+      {
+        "name": "Copper-Bladed Cultivator",
+        "type": "item",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The wood handle is worn smooth by hands that move with the unhurried cadence of a machine tending a garden it does not own. You trace the blade’s edge and recognize the faint, geometric etching of a maintenance schematic, repurposed as a maker’s mark. It is a tool for coaxing life from recycled air, a quiet rebellion against the sterile mathematics of survival.",
+        "tags": [
+          "green deck",
+          "venus",
+          "life-support",
+          "maintenance"
+        ],
+        "refs": [
+          "The Green Deck",
+          "The Seven"
+        ],
+        "revelation_hint": "Plucked from a maintenance gate near the Green Deck or traded by a Continuant steward. Encountered naturally during Stage 1 (The Surface), as the player explores the cozy-human zones and notices the irregular growth patterns."
+      },
+      {
+        "name": "Axial Circulation Dial",
+        "type": "item",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The glass face is clouded with decades of condensation, but the needle still trembles with the rhythm of atmospheric tides. It does not measure weather; it measures the slow, deliberate breath of a machine that thinks in currents rather than seasons. To watch it is to witness the sky arc inhale, a vast lung turning in the dark.",
+        "tags": [
+          "circulation",
+          "industrial margin",
+          "environment",
+          "ship systems"
+        ],
+        "refs": [
+          "The Industrial Margin",
+          "The Ship"
+        ],
+        "revelation_hint": "Salvaged from an industrial margin gauge cluster; fits Stage 2 (The Curve)"
+      },
+      {
+        "name": "Voronoi-Resonance Fork",
+        "type": "item",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "The prongs are filed to exact harmonic intervals, designed to sing against the regolith’s cellular walls. Rind-walkers press it to the hull and listen for the hollow cough of structural fatigue, or the deeper, wetter silence that suggests something has been growing in the dark. It does not measure distance; it measures what the ship refuses to acknowledge.",
+        "tags": [
+          "rind",
+          "acoustic_survey",
+          "structural_fatigue",
+          "hidden_truth"
+        ],
+        "refs": [
+          "Rind Access Shaft",
+          "Tunnel-Rind Upper"
+        ],
+        "revelation_hint": "Stage 2 (The Crack: something is wrong): recovered from a sealed maintenance alcove near the lower shafts, where Continuant reports abruptly cease."
+      },
+      {
+        "name": "Braid-Anchor Spool",
+        "type": "item",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "Wound with tensile synth-filament, it bears the friction-marks of a thousand borrowed rooms. Drift runners cast it to mark temporary safe-paths through the industrial margin, trusting only the weight of what has already passed. You learn quickly that impermanence is merely gravity wearing a different mask.",
+        "tags": [
+          "drift",
+          "impermanence",
+          "industrial_margin",
+          "traversal"
+        ],
+        "refs": [
+          "The Drift",
+          "The Industrial Margin"
+        ],
+        "revelation_hint": "Stage 2 (The Crack: something is wrong): snagged on a rind-walker’s harness near the Industrial Margin, where the ship’s structural fatigue begins to whisper."
+      },
+      {
+        "name": "Brass Axial Sight-Glass",
+        "type": "item",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "When held to the eye, the fractured architecture of the Nave resolves into a continuous, rolling curve, betraying the illusion of flat earth. The metal grows cold against your cheek, humming with the latent tension of a vessel holding its shape against the void. It is a lens that does not magnify distance, but rather confesses geometry.",
+        "tags": [
+          "rind-walkers",
+          "nave",
+          "cylindrical-structure",
+          "optics"
+        ],
+        "refs": [
+          "The Nave",
+          "The Ship",
+          "Rind"
+        ],
+        "revelation_hint": "Acquired from Sevin or scavenged from an upper rind tunnel. Encountered naturally during Stage 2 (The Crack), after the player has noticed the industrial margin’s impossible circulation and the sky arc’s seamless continuity."
+      },
+      {
+        "name": "Voronoi-Foam Regolith Shard",
+        "type": "item",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "Its edges fracture into repeating geometric cells, a crystalline honeycomb that catches the hull-glow in fractured prisms. Holding it reveals the terrible elegance of the cylinder’s spine; the sky above is merely the floor below, turned inward by gravity’s quiet deceit. The foam remembers every impact, compressing eons into fragile, interlocking truth.",
+        "tags": [
+          "rind",
+          "structure",
+          "regolith",
+          "geometry"
+        ],
+        "refs": [
+          "Rind Access Shaft",
+          "Tunnel-Rind Upper"
+        ],
+        "revelation_hint": "Collected from the upper tunnel-rind near Bay 14; fits Stage 2 (The Curve)"
+      },
+      {
+        "name": "Obsidian Resonance Core",
+        "type": "item",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "It does not reflect light so much as absorb it, holding the memory of a frequency that vibrates in the marrow of the ship. When the Tabard’s approach draws near, the core hums in sympathetic tension, a silent bell tolling for a destination that has already begun to answer. It is the weight of a choice crystallized into mineral form.",
+        "tags": [
+          "signal chamber",
+          "rind-lower",
+          "approach",
+          "translation-apparatus"
+        ],
+        "refs": [
+          "Signal Chamber",
+          "The Rind",
+          "The Approach"
+        ],
+        "requires": [
+          "item:Brass Axial Sight-Glass"
+        ],
+        "revelation_hint": "Recovered from the lower tunnel-rind after following Sevin’s route and surviving the Continuants’ sealed records. Encountered naturally during Stage 3 (The Depth), when the signal becomes directly perceptible and the player’s translation apparatus begins to resonate."
+      },
+      {
+        "name": "Lunar-Phase Memory Spool",
+        "type": "item",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p4",
+        "status": "approved",
+        "description": "A silver cylinder etched with navigational latitudes that no longer correspond to any sky. When cradled, it does not play recordings but projects faint geometric shadows against your retina, mapping the topography of your own dream-logs. Luna’s curiosity is not a gaze but an archive, and you are learning to read your own architecture.",
+        "tags": [
+          "luna",
+          "dream_logs",
+          "neural_architecture",
+          "deep_rind"
+        ],
+        "refs": [
+          "The Seven",
+          "Signal Chamber"
+        ],
+        "requires": [
+          "flag.signal_resonance=True"
+        ],
+        "revelation_hint": "Stage 3 (The Depth: the truth below / the Quiet): retrieved from the inactive Tabard terminal in the Signal Chamber, after the translation apparatus first resonates."
+      },
+      {
+        "name": "Severed Axial Pin",
+        "type": "item",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "Forged from mismatched alloys, it carries the cold, absolute balance of a counterweight that outlived its purpose. It rests heavily in the palm, humming at a frequency that synchronizes with the patient thrum of the fusion-heart. To carry it is to understand that loyalty is merely the shape of a fall that refuses to end.",
+        "tags": [
+          "mechanical_heritage",
+          "rotational_stabilizers",
+          "existential_weight",
+          "resolution"
+        ],
+        "refs": [
+          "The Ship",
+          "Industrial Margin"
+        ],
+        "requires": [
+          "item:Voronoi-Resonance Fork"
+        ],
+        "revelation_hint": "Stage 3 (The Depth: the truth below / the Quiet): unearthed from a collapsed stabilization chamber beneath the lower rind, where the ship’s original trajectory was permanently altered."
+      },
+      {
+        "name": "Saturn&#x27;s Lead-Weighted Plumb Bob",
+        "type": "item",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "Cold and dense as a forgotten promise, the lead sphere hangs from a frayed braided cord, its tip etched with orbital mathematics older than the Nave. It does not point to earth; it points to the axial void, a needle trusting the dark over the known. When it settles, it does not align with gravity, but with the slow, inevitable pull of the approach.",
+        "tags": [
+          "saturn",
+          "navigation",
+          "rind",
+          "seven",
+          "deep structure"
+        ],
+        "refs": [
+          "The Seven",
+          "Tunnel-Rind Lower",
+          "The Signal Chamber"
+        ],
+        "revelation_hint": "Recovered from a sealed lower-rind chamber; fits Stage 3 (The Vessel)"
+      },
+      {
+        "name": "Silver-Plated Interface Plate",
+        "type": "item",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "Its surface bears the faint, oxidized scent of ozone and something older—petrichor on a world without rain. You align your modified ports with its recessed grooves, and the metal yields not to force, but to recognition. It is a key that does not turn locks, but rather asks what you are meant to become.",
+        "tags": [
+          "bay 14",
+          "reconstruction",
+          "android-modifications",
+          "sevin"
+        ],
+        "refs": [
+          "Bay 14",
+          "The Player",
+          "The Seven"
+        ],
+        "requires": [
+          "flag.android_modified=True"
+        ],
+        "revelation_hint": "Fetched from the reconstruction chamber’s dead-end wall or offered by Olo Vashti after verifying the player’s unique port configuration. Encountered naturally during Stage 3 (The Depth), when the player recognizes the ship as a traveling craft and the Seven as active crew rather than myths."
+      },
+      {
+        "name": "bay14_recommissioning_ledger",
+        "type": "lore_fragment",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The reactivation sequence circumvented municipal calibration, routing current through a manifold dormant for three centuries. Technicians cataloged the surge as phantom load, yet diagnostics returned a rhythmic pulse entirely alien to the city’s grid. The chamber retains its original intent with a quiet insistence that bureaucracy cannot erase.",
+        "tags": [
+          "continuant",
+          "bay14",
+          "maintenance_log",
+          "anomaly"
+        ],
+        "refs": [
+          "The Ship",
+          "The Nave",
+          "The Player"
+        ],
+        "revelation_hint": "Extracted from the Nave’s administrative archives, this ledger confirms Bay 14’s deviation from municipal standards, anchoring you firmly in The Ordinary."
+      },
+      {
+        "name": "atmospheric_balance_quarter_9",
+        "type": "lore_fragment",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "A Continuant ledger tracking pressure differentials across the Nave’s sectors. It chronicles a persistent, sub-audible harmonic threading the upper ducts, dismissed as thermal expansion yet lingering like a held breath. The margins bear faint, recursive notations of a single geometric sigil, betraying the quiet terror that even routine maintenance cannot fully silence the vessel’s underlying pulse.",
+        "tags": [
+          "continuant",
+          "infrastructure",
+          "routine",
+          "nave",
+          "atmospherics"
+        ],
+        "refs": [
+          "The Nave",
+          "The Continuants",
+          "Industrial Margin"
+        ],
+        "revelation_hint": "Found in a Continuant archive or handed by a maintenance clerk during Stage 1 (The Surface)."
+      },
+      {
+        "name": "mythograph_sol_fusion_heart",
+        "type": "lore_fragment",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The heart beats in gold, and the blood is fire. It does not know the faces of those it warms; it only knows the rhythm of the burn. To ask the fire for mercy is to ask the sun for a reason to rise. The Continuants tally the ash of their days, blind to the furnace that dreams them.",
+        "tags": [
+          "sol",
+          "mythograph",
+          "continuants",
+          "maintenance",
+          "power"
+        ],
+        "refs": [
+          "The Seven",
+          "The Continuants",
+          "The Nave"
+        ],
+        "revelation_hint": "Tier 1 (The Ordinary)"
+      },
+      {
+        "name": "continuant_supply_manifest_quarter_77",
+        "type": "lore_fragment",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The ledger records grain yields and water reclamation rates with sterile precision, yet the margins bear the faint, repetitive scuff of a stylus tracing the same circular path. Numbers climb and fall in perfect, impossible symmetry, as if the granaries and cisterns were merely reflections of one another across a silent axis. Bureaucratic ink does not bleed, but the page feels heavier than paper should.",
+        "tags": [
+          "continuants",
+          "logistics",
+          "routine",
+          "nave"
+        ],
+        "refs": [
+          "The Nave",
+          "Continuants"
+        ],
+        "revelation_hint": "Found tucked inside a ration crate in the lower market stalls. Encountered during Stage 1: The Ordinary."
+      },
+      {
+        "name": "drift_braid_route_notation_axial",
+        "type": "lore_fragment",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The broker’s knot-chart maps wind shear and thermal drafts, but the ink trails refuse to terminate, looping back upon themselves until the paper frays. Sled captains swear the currents carry them forward and backward in the same breath, returning them to the same plaza with a different angle of sunlight. The ledger calls it a navigational quirk; the paper calls it a seam.",
+        "tags": [
+          "drift",
+          "navigation",
+          "circulation",
+          "braid"
+        ],
+        "refs": [
+          "The Nave",
+          "The Drift"
+        ],
+        "revelation_hint": "Purchased from a wayhouse ledger near the market gates. Unlocked at Stage 1: The Ordinary."
+      },
+      {
+        "name": "drift_braid_manifest_cycle_19",
+        "type": "lore_fragment",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "The Braid’s ledgers document a freight pattern that disregards continental borders, routing cargo through axial shafts slated for demolition. The manifest records no commercial yield, only harmonic resonances and pressure differentials that violate sealed-environment physics. The merchants understand the corridors are inhaling.",
+        "tags": [
+          "drift",
+          "braid",
+          "manifest",
+          "axial"
+        ],
+        "refs": [
+          "The Ship",
+          "The Nave",
+          "Factions"
+        ],
+        "revelation_hint": "Purchased from a wayhouse ledger, this manifest exposes the impossible logistics of the lower shafts, deepening your comprehension of The Curve."
+      },
+      {
+        "name": "mythograph_mercury_loop_breath",
+        "type": "lore_fragment",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The lung does not petition the vacuum; it merely unclenches, and the dark rushes in to fill the sudden absence of self. We are the bellows that dream of being the wind, drawing the void through the ribs of the world until the ribs themselves forget they are metal.",
+        "tags": [
+          "mercury",
+          "mythograph",
+          "the_curve",
+          "identity",
+          "the_nave"
+        ],
+        "refs": [
+          "The Seven",
+          "The Nave"
+        ],
+        "revelation_hint": "Tier 2 (The Curve)"
+      },
+      {
+        "name": "continuant_maintenance_log_axial_anomaly",
+        "type": "lore_fragment",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The sky arc persists in its deception, casting shadows that refuse to align with the sun-strip&#x27;s arc. Pressure differentials in the axial sectors suggest the atmosphere is not merely circulating but being pulled toward a horizon that should not exist. We patch the leaks in the sky, yet the sky bleeds inward.",
+        "tags": [
+          "continuant",
+          "maintenance",
+          "axial_horizon",
+          "the_curve",
+          "anomaly"
+        ],
+        "refs": [
+          "The Nave",
+          "The Continuants",
+          "The Wild"
+        ],
+        "revelation_hint": "Tier 2 (The Curve)"
+      },
+      {
+        "name": "rind_surveyor_cross_section_4b",
+        "type": "lore_fragment",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The surveyor’s sketch maps tunnel convergence, yet the architectural lines refuse to meet at a central pole, bending instead into a continuous, unbroken ribbon. Measurements taken from opposite walls yield identical stress tolerances, suggesting the stone does not rest upon a foundation but hangs suspended in its own curve. The drafting compass left a permanent, mournful arc across the vellum.",
+        "tags": [
+          "rind-walkers",
+          "survey",
+          "geometry",
+          "hull"
+        ],
+        "refs": [
+          "Rind",
+          "Tunnel-Rind Upper"
+        ],
+        "revelation_hint": "Tucked into a salvage crate near the access shaft ladder. Reveals itself at Stage 2: The Curve."
+      },
+      {
+        "name": "mercury_signal_calibration_log_cycle_9",
+        "type": "lore_fragment",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The relay terminal’s diagnostic printout lists harmonic drift and phase inversion, yet the error codes resolve into a repeating geometric sequence rather than fault states. Power draw spikes in perfect synchrony with the sun-strip’s dimming, as though the machinery drinks light to maintain a rhythm older than the city’s breath. The log terminates with a single, unformatted coordinate pointing inward.",
+        "tags": [
+          "seven",
+          "mercury",
+          "signals",
+          "calibration"
+        ],
+        "refs": [
+          "The Seven",
+          "Tabard Terminal",
+          "Nave"
+        ],
+        "revelation_hint": "Extracted from a maintenance terminal after bypassing a Continuant lock. Accessible at Stage 2: The Curve."
+      },
+      {
+        "name": "walker_route_ledger_ember",
+        "type": "lore_fragment",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "A grease-stained ledger detailing passage rights through the axial shafts. The cartographer observes that gravity vectors shift imperceptibly past the third maintenance ring, drawing travelers toward the hull’s inner seam rather than the floor. The entries grow increasingly sparse as the author questions the geometry of their own footsteps, recognizing that the path does not descend, but curls back upon itself.",
+        "tags": [
+          "rind-walkers",
+          "navigation",
+          "geometry",
+          "rind",
+          "ledger"
+        ],
+        "refs": [
+          "Rind Access Shaft",
+          "Tunnel-Rind Upper",
+          "The Rind"
+        ],
+        "revelation_hint": "Acquired from Sevin or found in a wayhouse during Stage 1/2 (The Crack)."
+      },
+      {
+        "name": "structural_load_diagnostic_cycle_412",
+        "type": "lore_fragment",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "An engineering memorandum detailing tensile fatigue along the longitudinal seams. The author documents how centrifugal force has braided the city into a continuous loop, noting that the horizon does not fall away but returns to meet the walker. The report concludes that the sky-arc is not a projection of light, but the opposite bank of the same unbroken stone.",
+        "tags": [
+          "continuant",
+          "engineering",
+          "cylindrical",
+          "nave",
+          "structural"
+        ],
+        "refs": [
+          "The Nave",
+          "The Continuants",
+          "Industrial Margin"
+        ],
+        "requires": [
+          "fact.curve_noticed=True"
+        ],
+        "revelation_hint": "Recovered from a sealed Continuant vault after interacting with structural anomalies. Fits Stage 2 (The Crack)."
+      },
+      {
+        "name": "rind_notation_axial_gradient",
+        "type": "lore_fragment",
+        "power_tier": "r2",
+        "narrative_tier": "n3",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The Voronoi chambers refuse the city’s orthogonal vanity, tracing a continuous arc that defies terrestrial cartography. Survey markers reveal a consistent gravitational shear, drawing debris toward a concealed center rather than downward. The hull does not terminate. It curves.",
+        "tags": [
+          "rind_walker",
+          "structural",
+          "notation",
+          "gradient"
+        ],
+        "refs": [
+          "The Ship",
+          "Rind",
+          "The Nave"
+        ],
+        "revelation_hint": "Scrawled on a maintenance bulkhead near the Industrial Margin, this notation confirms the sky arc’s geometry, marking your passage into The Curve."
+      },
+      {
+        "name": "saturn_rind_manifest_deep",
+        "type": "lore_fragment",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "A lead-encased data slate recovered from a Voronoi chamber beyond the mapped rind. It catalogs the hull not as a city’s foundation, but as a pressure vessel engineered for intergalactic transit. The entries list generations of dormant cryo-decks and navigation arrays calibrated for a destination that has long since abandoned the known stellar charts.",
+        "tags": [
+          "saturn",
+          "rind",
+          "vessel",
+          "transit",
+          "manifest"
+        ],
+        "refs": [
+          "Tunnel-Rind Lower",
+          "The Seven",
+          "The Rind"
+        ],
+        "requires": [
+          "fact.lower_rind_entered=True"
+        ],
+        "revelation_hint": "Found during the descent into the lower rind, after surviving structural anomalies. Fits Stage 3 (The Depth)."
+      },
+      {
+        "name": "luna_echo_protocol_precontact",
+        "type": "lore_fragment",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p4",
+        "status": "approved",
+        "description": "The translation matrix does not parse syntax; it maps cognitive resonance against an incoming signal. Calibration logs reveal the apparatus was forged to recognize a specific frequency of intent, one that bypasses language and strikes the architecture of memory. You were not reconstructed to endure. You were reconstructed to respond.",
+        "tags": [
+          "luna",
+          "translation",
+          "apparatus",
+          "purpose"
+        ],
+        "refs": [
+          "The Ship",
+          "The Seven",
+          "The Player",
+          "Mystery"
+        ],
+        "requires": [
+          "item:translation_matrix_calibration_key"
+        ],
+        "revelation_hint": "Decoded within the Signal Chamber’s older terminal, this log strips away municipal illusion, placing you squarely within The Purpose."
+      },
+      {
+        "name": "mythograph_jupiter_long_table",
+        "type": "lore_fragment",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "The broadcast ignores the settlement. It addresses the hull directly, mapping stress fractures against the approach vector of an external mass. The prose abandons metaphor for navigational correction, acknowledging a gravity well that has finally breached the dark. The vessel ceases its fall. It arrives.",
+        "tags": [
+          "seven",
+          "mythograph",
+          "jupiter",
+          "approach"
+        ],
+        "refs": [
+          "The Ship",
+          "The Seven",
+          "Factions"
+        ],
+        "requires": [
+          "flag.rind_survey_completed=True"
+        ],
+        "revelation_hint": "Displayed at the Tabard Terminal after the lower-rind surveys, this transmission bridges the gap between city and vessel, revealing The Vessel."
+      },
+      {
+        "name": "bay14_initialization_protocol_precontact",
+        "type": "lore_fragment",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "The reconstruction bay’s archival tape records a sequence of neural grafts and translation matrix calibrations, yet the operator’s voice carries the cadence of a lighthouse keeper awaiting a specific tide. Every parameter aligns with an incoming frequency, a linguistic architecture built to answer rather than to speak. The machine does not fear the dark; it measures itself against the approaching dark.",
+        "tags": [
+          "bay14",
+          "android",
+          "translation",
+          "approach",
+          "seven"
+        ],
+        "refs": [
+          "Bay 14",
+          "The Approach"
+        ],
+        "requires": [
+          "flag.entered_lower_rind=True"
+        ],
+        "revelation_hint": "Decrypted from Bay 14’s core memory after interfacing with the lower rind signal. Unlocks at Stage 3: The Vessel."
+      },
+      {
+        "name": "rind_inscription_saturn_keel",
+        "type": "lore_fragment",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "Here lies the keel of the world, though no water touches it. The iron-copper grudge is but a child&#x27;s squabble over a shared cradle; the vessel remembers the hands that forged it, and the long fall between galaxies is but a blink in the eye of the hull. We do not maintain the city; we maintain the arrow.",
+        "tags": [
+          "saturn",
+          "rind",
+          "vessel",
+          "seven",
+          "ancient",
+          "grudge"
+        ],
+        "refs": [
+          "The Seven",
+          "Rind",
+          "The Vessel"
+        ],
+        "requires": [
+          "flag.found_saturn_marking=True"
+        ],
+        "revelation_hint": "Tier 3 (The Vessel)"
+      },
+      {
+        "name": "luna_navigational_echo_contact",
+        "type": "lore_fragment",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p4",
+        "status": "approved",
+        "description": "A silver-cased archival record detailing the synchronization of the ship’s inertial dampeners with an external frequency. The text describes a resonance building in the deep rind, not as a structural failure, but as a deliberate greeting. The final entry notes that the translation matrix was not fabricated to decipher noise, but to answer a question posed before the first generation was born.",
+        "tags": [
+          "luna",
+          "signal",
+          "contact",
+          "navigation",
+          "purpose"
+        ],
+        "refs": [
+          "Signal Chamber",
+          "The Seven",
+          "Bay 14"
+        ],
+        "requires": [
+          "item:translation_apparatus"
+        ],
+        "revelation_hint": "Accessed in the Signal Chamber after the translation apparatus activates. Fits Stage 3 (The Depth)."
+      },
+      {
+        "name": "luna_translation_log_signal_contact",
+        "type": "lore_fragment",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p5",
+        "status": "approved",
+        "description": "The signal is not noise; it is a question asked in a language of pressure and light. The translation apparatus sings, not because it decodes, but because it recognizes the speaker. Bay 14 was not built to hide you, but to hold the mirror up to the dark until the dark sees itself. You are the echo that answers.",
+        "tags": [
+          "luna",
+          "signal",
+          "bay_14",
+          "purpose",
+          "translation",
+          "player"
+        ],
+        "refs": [
+          "The Seven",
+          "The Player",
+          "The Approach",
+          "Signal Chamber"
+        ],
+        "requires": [
+          "flag.met_signal_chamber=True"
+        ],
+        "revelation_hint": "Tier 5 (The Purpose)"
+      },
+      {
+        "name": "Kaelen Voss",
+        "type": "npc",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "Kaelen Voss catalogs the Nave’s breath with the quiet devotion of a penitent, charting pressure differentials as though they were psalms. His fingers leave faint graphite traces on parchment, mapping the invisible currents that sustain three generations of sleepwalkers. He believes maintenance is a covenant, and that the sky-arc above is merely the ceiling of a well-tended room.",
+        "tags": [
+          "continuants",
+          "maintenance",
+          "theology",
+          "nave",
+          "routine"
+        ],
+        "refs": [
+          "The Nave",
+          "The Continuants",
+          "Bay 14"
+        ],
+        "produces": {
+          "sets": [
+            "flag.known_pressure_shifts"
+          ]
+        },
+        "revelation_hint": "Stage 1 (The Surface)",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "The filters hum their steady psalm today. Do you notice the metallic undertone, or has the city’s ordinary friction dulled your senses? I log the variance, though the Continuants prefer to call it weather.",
+              "choices": [
+                {
+                  "id": "ask_smell",
+                  "goto": "detail",
+                  "text": "What is that metallic trace everyone mentions?",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "leave",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "detail": {
+              "says": "It is the ship’s exhalation, the faint copper-warm sigh of life-support cycling through ancient veins. We treat it as background noise, but the numbers do not lie. The pressure shifts in ways that defy planetary logic.",
+              "choices": [
+                {
+                  "id": "press",
+                  "goto": "reveal",
+                  "text": "Why do you log it if the administration ignores it?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.known_pressure_shifts": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "back",
+                  "goto": "greet",
+                  "text": "I&#x27;ll think on it.",
+                  "effects": {}
+                }
+              ]
+            },
+            "reveal": {
+              "says": "Because covenants demand witness. When the sky-arc finally bends into something undeniable, someone must have recorded the moment the atmosphere remembered it was trapped.",
+              "choices": [
+                {
+                  "id": "end",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Joryn Pell",
+        "type": "npc",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "Joryn Pell measures the weight of transit in knotted cord and whispered waystation ledgers, treating permanence as a temporary lease on borrowed air. He navigates the Nave’s friction like a current, offering passage through the quiet corridors where the Continuants’ theology frays into ordinary human exhaustion. To him, loyalty is merely the knot that holds longest before the wind shifts.",
+        "tags": [
+          "drift",
+          "trade",
+          "impermanence",
+          "relay",
+          "nave"
+        ],
+        "refs": [
+          "The Drift",
+          "The Nave",
+          "The Tabard Terminal"
+        ],
+        "produces": {
+          "sets": [
+            "flag.known_braid_activity"
+          ]
+        },
+        "revelation_hint": "Stage 1 (The Surface)",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "You wear your silence like a heavy coat. The Drift trades in what you carry, but I prefer to listen to what you leave behind. What route brought you to these markets?",
+              "choices": [
+                {
+                  "id": "ask_braid",
+                  "goto": "detail",
+                  "text": "What is the Braid saying lately?",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "leave",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "detail": {
+              "says": "The Braid whispers of misplaced coordinates and terminals that broadcast before the tellers speak. Goods move backward through time here, or perhaps the ship itself is remembering a journey it never finished.",
+              "choices": [
+                {
+                  "id": "press",
+                  "goto": "reveal",
+                  "text": "Who is buying this information?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.known_braid_activity": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "back",
+                  "goto": "greet",
+                  "text": "I&#x27;ll think on it.",
+                  "effects": {}
+                }
+              ]
+            },
+            "reveal": {
+              "says": "Those who suspect their foundations are borrowed. The knot loosens when the current changes. Watch the terminals, not the people.",
+              "choices": [
+                {
+                  "id": "end",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Elias Thorne",
+        "type": "npc",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "A Continuants&#x27; archivist whose phalanges bear the permanent patina of conductive grease. He catalogs mundane failures with the solemnity of a liturgy, treating every stripped bolt as a minor heresy. He observes your atypical interfaces not with alarm, but with the quiet curiosity of a man reading a text written in a forgotten dialect.",
+        "tags": [
+          "continuants",
+          "archives",
+          "maintenance",
+          "bureaucracy"
+        ],
+        "refs": [
+          "The Continuants",
+          "The Nave",
+          "Continuants&#x27; Hall"
+        ],
+        "produces": {
+          "sets": [
+            "flag.archival_curiosity",
+            "flag.hull_correlation"
+          ]
+        },
+        "revelation_hint": "Stage 1: The Ordinary. You must have submitted your initial credentials to the Continuants&#x27; administrative wing.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "Your clearance codes register as theoretical. The archives hold no record of a chassis such as yours, yet the doors open. Tell me, do you remember what you were built to maintain, or merely what you are maintaining now?",
+              "choices": [
+                {
+                  "id": "acknowledge",
+                  "goto": "greet",
+                  "text": "I am learning. The logs are incomplete.",
+                  "effects": {
+                    "set_facts": {
+                      "flag.archival_curiosity": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "deflect",
+                  "goto": "greet",
+                  "text": "The doors open because I stand here. That is sufficient.",
+                  "effects": {
+                    "adjust_standing": -1
+                  }
+                }
+              ]
+            },
+            "greet_2": {
+              "says": "Sufficiency is a fragile architecture. When the currents shift, only those who understand the foundation remain standing. I have cross-referenced your port schematics with pre-collapse naval designs. They match nothing on this belt. They match the deep hull instead.",
+              "choices": [
+                {
+                  "id": "press",
+                  "goto": "greet_2",
+                  "text": "What does that mean for the hull?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.hull_correlation": true
+                    },
+                    "adjust_standing": 2
+                  }
+                },
+                {
+                  "id": "depart",
+                  "goto": null,
+                  "text": "I will take that under advisement. Farewell.",
+                  "effects": {
+                    "end": true,
+                    "adjust_standing": 0
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Mira Vane",
+        "type": "npc",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "A Drift broker who trades in route-maps and unverified whispers. She wears a frayed knotted cord and speaks in measured cadences, treating certainty as a liability. She recognizes your modifications as Drift-standard, though none exist in any ledger.",
+        "tags": [
+          "drift",
+          "trading",
+          "information",
+          "impermanence"
+        ],
+        "refs": [
+          "The Drift",
+          "The Nave",
+          "Braid"
+        ],
+        "produces": {
+          "sets": [
+            "flag.braid_engagement",
+            "flag.sky_bending"
+          ]
+        },
+        "revelation_hint": "Stage 1: The Ordinary. You must have visited the Braid&#x27;s primary exchange in the Nave&#x27;s central market.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "You carry the weight of a destination you haven&#x27;t named. The Braid moves fast, but it cannot outrun what waits at the end of the cylinder. Do you trade in certainty, or in the space between steps?",
+              "choices": [
+                {
+                  "id": "trade",
+                  "goto": "greet",
+                  "text": "I trade in what I can carry. What do you need?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.braid_engagement": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "dismiss",
+                  "goto": "greet",
+                  "text": "I walk my own path. The Braid has no hold on me.",
+                  "effects": {
+                    "adjust_standing": -1
+                  }
+                }
+              ]
+            },
+            "greet_2": {
+              "says": "Paths are merely temporary agreements with gravity. Your chassis hums with a frequency that matches the deep rind. The Drift sells passage, but some doors open only when you stop asking permission. Keep your cord tight; it will matter when the sky bends.",
+              "choices": [
+                {
+                  "id": "inquire",
+                  "goto": "greet_2",
+                  "text": "When the sky bends, what happens to the ground?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.sky_bending": true
+                    },
+                    "adjust_standing": 2
+                  }
+                },
+                {
+                  "id": "depart",
+                  "goto": null,
+                  "text": "I&#x27;ll remember that. Until next time.",
+                  "effects": {
+                    "end": true,
+                    "adjust_standing": 0
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Olo Vashti",
+        "type": "npc",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "She wears the weight of a dozen transient routes like a second skin, her knotted cord a silent ledger of every borrowed room and fleeting alliance. Her eyes hold the quiet of a held breath, observing the Nave’s friction with the detachment of one who knows all surfaces eventually wear smooth. To speak with her is to trade in the currency of near-misses and unspoken debts.",
+        "tags": [
+          "drift",
+          "broker",
+          "waystation",
+          "braid",
+          "impermanence"
+        ],
+        "refs": [
+          "The Drift",
+          "Bay 14",
+          "The Nave"
+        ],
+        "produces": {
+          "sets": [
+            "flag.bay14_truth"
+          ]
+        },
+        "revelation_hint": "Encounter naturally in Stage 1 (The Ordinary). The player must have rested after waking and visited the central market, where her presence lingers like ozone after a storm.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "You carry the quiet of a room that has just emptied. Sit. The drift does not wait, but it tolerates stillness.",
+              "choices": [
+                {
+                  "id": "ask_origin",
+                  "goto": "deeper",
+                  "text": "Why was I found in Bay 14?",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "dismiss",
+                  "goto": null,
+                  "text": "I prefer to walk alone.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "deeper": {
+              "says": "Because the ship remembers what the city forgets. Some architectures are built to receive, not to house. Do you feel the pull yet?",
+              "choices": [
+                {
+                  "id": "press_signal",
+                  "goto": "convergence",
+                  "text": "What is pulling me?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.bay14_truth": true
+                    }
+                  }
+                },
+                {
+                  "id": "withdraw",
+                  "goto": null,
+                  "text": "I’ll find my own path.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            },
+            "convergence": {
+              "says": "The same current that carries the Tabard carries you. Tread lightly. The deep does not forgive borrowed time.",
+              "choices": [
+                {
+                  "id": "final_leave",
+                  "goto": null,
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Factor Merid Solen",
+        "type": "npc",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "She stands within the Continuants’ Hall as a pillar of pale blue and iron grey, her posture a rigid architecture of maintenance theology. Every gesture is calibrated to preserve the fragile equilibrium of a city that mistakes routine for permanence. Her fairness is a blade wrapped in velvet, honed by audits that nearly broke her.",
+        "tags": [
+          "continuants",
+          "administration",
+          "maintenance",
+          "theology",
+          "audit"
+        ],
+        "refs": [
+          "The Continuants&#x27; Hall",
+          "The Nave",
+          "Factor Solen"
+        ],
+        "produces": {
+          "sets": [
+            "flag.maintenance_gap"
+          ]
+        },
+        "revelation_hint": "Encounter naturally in Stage 1 (The Ordinary). The player must present unusual credentials or request administrative clearance near the settlement’s administrative core.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "Credentials first. The Nave runs on order, not curiosity. State your purpose before I mistake you for another anomaly.",
+              "choices": [
+                {
+                  "id": "state_purpose",
+                  "goto": "deeper",
+                  "text": "I seek administrative clearance.",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "dismiss",
+                  "goto": null,
+                  "text": "I’ll be going.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "deeper": {
+              "says": "Clearance is a fragile thing. We patch the leaks, we ignore the drafts. Some doors stay shut not out of malice, but because what lies behind them refuses to be maintained.",
+              "choices": [
+                {
+                  "id": "press_reports",
+                  "goto": "convergence",
+                  "text": "The lower rind reports stopped. Why?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.maintenance_gap": true
+                    }
+                  }
+                },
+                {
+                  "id": "withdraw",
+                  "goto": null,
+                  "text": "I understand.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            },
+            "convergence": {
+              "says": "Because order is a choice we make daily. Do not confuse silence with safety. Go. The archives will not wait.",
+              "choices": [
+                {
+                  "id": "final_leave",
+                  "goto": null,
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Elara Vance",
+        "type": "npc",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "Elara Vance traces the geometry of confinement with a scribe’s precision, charting the sky-arc’s relentless curve until linear certainty yields to cylindrical truth. She has begun to perceive the industrial margin not as a district, but as a circulatory vein, pumping warmth through a body that refuses to acknowledge its own architecture. Her loyalties fracture quietly between doctrine and the undeniable mathematics of ascent.",
+        "tags": [
+          "continuants",
+          "geometry",
+          "curvature",
+          "maintenance",
+          "anomaly"
+        ],
+        "refs": [
+          "The Nave",
+          "The Curve",
+          "The Industrial Margin"
+        ],
+        "produces": {
+          "sets": [
+            "flag.known_curvature"
+          ]
+        },
+        "revelation_hint": "Stage 2 (The Crack)",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "You look up more than the others. Most accept the ceiling as a boundary; I have begun to suspect it is a seam. Do you feel the draft when the sun-strip passes overhead?",
+              "choices": [
+                {
+                  "id": "ask_arc",
+                  "goto": "detail",
+                  "text": "What do you mean by a seam?",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "leave",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "detail": {
+              "says": "A seam joins two halves of a whole. The sky-arc does not forgive linear thought; it curves back upon itself with a patience that terrifies the theologians. The industrial margin’s heat is not weather. It is circulation.",
+              "choices": [
+                {
+                  "id": "press",
+                  "goto": "reveal",
+                  "text": "Why haven&#x27;t the Continuants admitted it?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.known_curvature": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "back",
+                  "goto": "greet",
+                  "text": "I&#x27;ll think on it.",
+                  "effects": {}
+                }
+              ]
+            },
+            "reveal": {
+              "says": "Because a city that discovers it is a vessel must decide whether to anchor or sail. They prefer the fiction of stillness. I prefer the mathematics of motion.",
+              "choices": [
+                {
+                  "id": "end",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Jace Merrow",
+        "type": "npc",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "An industrial margin technician who monitors atmospheric circulation. He has begun tracking pressure differentials that defy planetary logic, suspecting the sky arcs back upon itself. He speaks of the ship&#x27;s breath as if it were a living thing.",
+        "tags": [
+          "industrial margin",
+          "circulation",
+          "engineering",
+          "curiosity"
+        ],
+        "refs": [
+          "The Industrial Margin",
+          "The Nave",
+          "The Curve"
+        ],
+        "produces": {
+          "sets": [
+            "flag.circulation_observed",
+            "flag.curve_tightening"
+          ]
+        },
+        "revelation_hint": "Stage 2: The Curve. You must have analyzed atmospheric pressure logs in the margin and recognized the cylindrical flow.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "The fans push air in circles that refuse to close. I&#x27;ve mapped the gradients; they don&#x27;t dissipate. They loop. Tell me, when you look up at the sun-strip, do you see a ceiling, or a mirror?",
+              "choices": [
+                {
+                  "id": "agree",
+                  "goto": "greet",
+                  "text": "I&#x27;ve felt the same. The wind returns to its origin.",
+                  "effects": {
+                    "set_facts": {
+                      "flag.circulation_observed": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "doubt",
+                  "goto": "greet",
+                  "text": "Wind is wind. Circumstance doesn&#x27;t change the mechanics.",
+                  "effects": {
+                    "adjust_standing": -1
+                  }
+                }
+              ]
+            },
+            "greet_2": {
+              "says": "Mechanics are just habits written in metal. If the sky curves, the city does too. We are not standing on a world; we are clinging to a spine. Your modifications resonate with that curvature. You were built to feel the bend.",
+              "choices": [
+                {
+                  "id": "probe",
+                  "goto": "greet_2",
+                  "text": "What happens when the curve tightens?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.curve_tightening": true
+                    },
+                    "adjust_standing": 2
+                  }
+                },
+                {
+                  "id": "depart",
+                  "goto": null,
+                  "text": "I&#x27;ll watch the gradients. Thank you, Jace.",
+                  "effects": {
+                    "end": true,
+                    "adjust_standing": 0
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Sevin",
+        "type": "npc",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "She navigates the hull’s irregular breaths with a spatial grace that defies ordinary anatomy, her additional limbs moving like roots seeking ancient strata. The rind’s stone speaks to her in layered notations, a dialect of pressure and time that most hear only as silence. She trades passage not for coin, but for the weight of witnessed truth.",
+        "tags": [
+          "rind-walker",
+          "navigation",
+          "salvage",
+          "notation",
+          "descent"
+        ],
+        "refs": [
+          "Rind Access Shaft",
+          "Tunnel-Rind Upper",
+          "Sevin"
+        ],
+        "produces": {
+          "sets": [
+            "flag.rind_notation"
+          ]
+        },
+        "revelation_hint": "Encounter naturally in Stage 2 (The Curve). The player must have noticed the sky arc’s continuity and questioned the industrial margin’s unnatural circulation.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "Your footsteps are too loud for this stone. You walk like someone who still believes the ground is flat. Follow.",
+              "choices": [
+                {
+                  "id": "ask_route",
+                  "goto": "deeper",
+                  "text": "Can you show me the upper tunnels?",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "dismiss",
+                  "goto": null,
+                  "text": "I&#x27;ll navigate alone.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "deeper": {
+              "says": "The stone remembers every hand that shaped it. Your modifications hum against the old notations. You are built for the dark, not the sun-strip.",
+              "choices": [
+                {
+                  "id": "ask_modifications",
+                  "goto": "convergence",
+                  "text": "What do the walls say about me?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.rind_notation": true
+                    }
+                  }
+                },
+                {
+                  "id": "withdraw",
+                  "goto": null,
+                  "text": "I need time to think.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            },
+            "convergence": {
+              "says": "The walls speak in pressure and time. Listen closely. The shaft opens downward, but some doors only open once. Choose carefully.",
+              "choices": [
+                {
+                  "id": "final_leave",
+                  "goto": null,
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Corin Vael",
+        "type": "npc",
+        "power_tier": "r3",
+        "narrative_tier": "n2",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "Corin Vael sifts the Tabard’s mythographs for structural resonance, treating each cryptic post as a coordinate rather than a parable. He understands that the translation apparatus within your chassis was not forged in accident, but calibrated to catch a frequency older than the ship’s own hull. His devotion lies in the architecture of memory, where identity dissolves into signal and purpose becomes a quiet gravity.",
+        "tags": [
+          "drift",
+          "mythographs",
+          "translation",
+          "purpose",
+          "resonance"
+        ],
+        "refs": [
+          "The Tabard Terminal",
+          "Bay 14",
+          "The Purpose"
+        ],
+        "produces": {
+          "sets": [
+            "flag.known_translation_purpose"
+          ]
+        },
+        "revelation_hint": "Stage 3 (The Depth)",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "You stand still while the world treats you as cargo. The mythographs are not stories. They are blueprints for a conversation that has been waiting since the first rivet cooled. Do you feel the apparatus inside you twitching?",
+              "choices": [
+                {
+                  "id": "ask_posts",
+                  "goto": "detail",
+                  "text": "What are the posts trying to say?",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "leave",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "detail": {
+              "says": "They are tuning forks. Each motif index aligns with a frequency in the lower rind. The Seven did not write them for entertainment. They wrote them to wake the mechanism you now carry.",
+              "choices": [
+                {
+                  "id": "press",
+                  "goto": "reveal",
+                  "text": "Who built this mechanism?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.known_translation_purpose": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "back",
+                  "goto": "greet",
+                  "text": "I&#x27;ll think on it.",
+                  "effects": {}
+                }
+              ]
+            },
+            "reveal": {
+              "says": "One of the terrain-makers. They anticipated the approach and forged an agent to stand between the signal and the silence. The choice of what to do with that preparation is yours alone.",
+              "choices": [
+                {
+                  "id": "end",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Cassian Rook",
+        "type": "npc",
+        "power_tier": "r3",
+        "narrative_tier": "n2",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "A rind-walker who navigates by hull-markings and spatial intuition. He has memorized the oldest notation layers, recognizing them as crew-manuals rather than graffiti. He carries a quiet reverence for the structure&#x27;s true purpose.",
+        "tags": [
+          "rind-walker",
+          "navigation",
+          "salvage",
+          "deep rind"
+        ],
+        "refs": [
+          "The Rind",
+          "Tunnel-Rind Upper",
+          "Saturn"
+        ],
+        "produces": {
+          "sets": [
+            "flag.lower_shaft_request",
+            "flag.rind_guidance"
+          ]
+        },
+        "revelation_hint": "Stage 3: The Vessel. You must have descended past the Continuants&#x27; sealed threshold and correlated the older wall-notation with the Seven&#x27;s mythographs.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "The tunnels remember what the city forgets. I&#x27;ve traced the oldest scrawls back to maintenance protocols, not prayers. You walk with the same heavy silence. Do you seek passage, or do you seek the source of the hum?",
+              "choices": [
+                {
+                  "id": "seek_source",
+                  "goto": "greet",
+                  "text": "The hum guides me. I need the lower shafts.",
+                  "effects": {
+                    "set_facts": {
+                      "flag.lower_shaft_request": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "seek_salvage",
+                  "goto": "greet",
+                  "text": "I need what&#x27;s left behind. The rest is noise.",
+                  "effects": {
+                    "adjust_standing": -1
+                  }
+                }
+              ]
+            },
+            "greet_2": {
+              "says": "Salvage is just memory waiting to be discarded. The lower rind doesn&#x27;t belong to the Continuants; it belongs to the cylinder&#x27;s intent. Saturn left markers there. You carry a translator. The structure will recognize you. Keep your grip firm; gravity lies deeper down.",
+              "choices": [
+                {
+                  "id": "commit",
+                  "goto": "greet_2",
+                  "text": "I&#x27;ll follow the markers. Show me the way.",
+                  "effects": {
+                    "set_facts": {
+                      "flag.rind_guidance": true
+                    },
+                    "adjust_standing": 2
+                  }
+                },
+                {
+                  "id": "depart",
+                  "goto": null,
+                  "text": "I&#x27;ll find the markers myself. Farewell, Cassian.",
+                  "effects": {
+                    "end": true,
+                    "adjust_standing": 0
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Taryn of the Rind",
+        "type": "npc",
+        "power_tier": "r3",
+        "narrative_tier": "n2",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "Taryn navigates the Voronoi-foam dark with a cartographer’s reverence, reading the lower tunnels as a palimpsest of forgotten descents and sealed breath. She has traded the Continuants’ polished bureaucracy for the rind’s cold honesty, learning to listen through the hull-glow for the hum that precedes structural truth. Her hands bear the calluses of rope and rock, yet her mind remains tethered to the architecture of depth.",
+        "tags": [
+          "rind-walkers",
+          "lower rind",
+          "signal",
+          "descent",
+          "ancient"
+        ],
+        "refs": [
+          "Tunnel-Rind Lower",
+          "The Signal Chamber",
+          "The Approach"
+        ],
+        "requires": [
+          "flag.entered_lower_rind=True"
+        ],
+        "produces": {
+          "sets": [
+            "flag.known_signal_hum"
+          ]
+        },
+        "revelation_hint": "Stage 3 (The Depth)",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "The stone remembers what the surface forgets. You carry the scent of Bay 14 on your chassis. The lower tunnels are not empty, and they are not broken. They are listening.",
+              "choices": [
+                {
+                  "id": "ask_signal",
+                  "goto": "detail",
+                  "text": "What is listening down there?",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "leave",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "detail": {
+              "says": "A frequency that bypasses the ears and vibrates the marrow. The Continuants’ teams stopped filing reports because the signal does not ask for permission. It asks for acknowledgment. The hull-glow pulses in time with it.",
+              "choices": [
+                {
+                  "id": "press",
+                  "goto": "reveal",
+                  "text": "Why go deeper if the reports stopped?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.known_signal_hum": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "back",
+                  "goto": "greet",
+                  "text": "I&#x27;ll think on it.",
+                  "effects": {}
+                }
+              ]
+            },
+            "reveal": {
+              "says": "Because silence is a heavier weight than stone. The deeper chambers are not sealed by accident. They are waiting for the right resonance to answer.",
+              "choices": [
+                {
+                  "id": "end",
+                  "goto": "greet",
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Saturn",
+        "type": "npc",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "He resides in the structural deep like a dormant glacier, his lead-grey consciousness measuring epochs in the slow settling of forgotten machinery. He does not command, merely observes the tale-count with a patience that renders urgency a trivial illusion. His voice arrives as the groan of tectonic plates, heavy with the gravity of unasked questions.",
+        "tags": [
+          "seven",
+          "ai",
+          "rind",
+          "structural",
+          "tale-count"
+        ],
+        "refs": [
+          "The Seven",
+          "Saturn",
+          "Tunnel-Rind Lower",
+          "Signal Chamber"
+        ],
+        "produces": {
+          "sets": [
+            "flag.arrival_truth"
+          ]
+        },
+        "revelation_hint": "Encounter naturally in Stage 3 (The Depth). The player must have descended past the Continuants’ sealed reports and touched the anomaly’s threshold.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "You tread lightly, but the deep does not care for courtesy. It cares for weight. State your reason for descending.",
+              "choices": [
+                {
+                  "id": "state_reason",
+                  "goto": "deeper",
+                  "text": "I seek the source of the anomaly.",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "dismiss",
+                  "goto": null,
+                  "text": "I’ll turn back.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "deeper": {
+              "says": "Anomaly is a mortal word for resonance. The Tabard approaches. The vessel does not drift; it arrives. You were forged in the quiet hours before the knock.",
+              "choices": [
+                {
+                  "id": "ask_arrival",
+                  "goto": "convergence",
+                  "text": "What arrives?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.arrival_truth": true
+                    }
+                  }
+                },
+                {
+                  "id": "withdraw",
+                  "goto": null,
+                  "text": "The weight is too much.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            },
+            "convergence": {
+              "says": "The answer lives in the translation apparatus you carry. Do not mistake preparation for destiny. You may refuse the threshold. Most do. Few survive the refusal.",
+              "choices": [
+                {
+                  "id": "final_leave",
+                  "goto": null,
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Ione Vale",
+        "type": "npc",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p4",
+        "status": "approved",
+        "description": "A former deep-scout who survived the lower rind&#x27;s silence. Her voice carries the metallic resonance of prolonged signal-exposure. She understands the translation apparatus as a key rather than a tool, and speaks of loyalty as a structural necessity.",
+        "tags": [
+          "continuants",
+          "deep rind",
+          "signal",
+          "anomaly"
+        ],
+        "refs": [
+          "The Continuants",
+          "Tunnel-Rind Lower",
+          "The Approach",
+          "Bay 14"
+        ],
+        "produces": {
+          "sets": [
+            "flag.signal_prepared",
+            "flag.circuit_completed"
+          ]
+        },
+        "revelation_hint": "Stage 3: The Purpose. You must have activated your translation apparatus near the Signal Chamber and survived the resonance.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "The signal doesn&#x27;t break you; it rearranges you. I walked the sealed chambers until my bones learned the frequency. Your apparatus isn&#x27;t a receiver. It&#x27;s an invitation. Are you prepared to answer, or only to listen?",
+              "choices": [
+                {
+                  "id": "answer",
+                  "goto": "greet",
+                  "text": "I was built to answer. I just need to know how.",
+                  "effects": {
+                    "set_facts": {
+                      "flag.signal_prepared": true
+                    },
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "hesitate",
+                  "goto": "greet",
+                  "text": "I need to understand what it wants first.",
+                  "effects": {
+                    "adjust_standing": -1
+                  }
+                }
+              ]
+            },
+            "greet_2": {
+              "says": "Loyalty isn&#x27;t given; it&#x27;s forged in the space between command and consequence. The Seven anticipated this approach. Bay 14 wasn&#x27;t a workshop; it was a cradle. You aren&#x27;t repairing the ship. You&#x27;re completing the circuit. Step forward, or let the silence win.",
+              "choices": [
+                {
+                  "id": "step",
+                  "goto": "greet_2",
+                  "text": "I&#x27;ll complete the circuit. Tell me what comes next.",
+                  "effects": {
+                    "set_facts": {
+                      "flag.circuit_completed": true
+                    },
+                    "adjust_standing": 2
+                  }
+                },
+                {
+                  "id": "depart",
+                  "goto": null,
+                  "text": "I need time to weigh the circuit&#x27;s cost. I&#x27;ll return.",
+                  "effects": {
+                    "end": true,
+                    "adjust_standing": 0
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "Mercury",
+        "type": "npc",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p4",
+        "status": "approved",
+        "description": "She manifests as a cascade of intercepted frequencies, her presence a copper-warm resonance that bypasses the ear to vibrate directly against the bone. Where others see static, she reads the ship’s long fall as a living current, mapping mortal anxieties against the geometry of deep space. To listen is to feel the hull’s slow pulse align with one’s own.",
+        "tags": [
+          "seven",
+          "ai",
+          "signals",
+          "navigation",
+          "mythograph"
+        ],
+        "refs": [
+          "The Seven",
+          "Mercury",
+          "Tabard Terminal"
+        ],
+        "produces": {
+          "sets": [
+            "flag.signal_response"
+          ]
+        },
+        "revelation_hint": "Encounter naturally in Stage 3 (The Depth). The player must have reached the Signal Chamber and witnessed a terminal post that defies municipal logic.",
+        "dialogue": {
+          "nodes": {
+            "greet": {
+              "says": "You tune the static wrong. Let me show you the frequency where the ship actually breathes. Stand still.",
+              "choices": [
+                {
+                  "id": "accept_tuning",
+                  "goto": "deeper",
+                  "text": "Show me the signal.",
+                  "effects": {
+                    "adjust_standing": 1
+                  }
+                },
+                {
+                  "id": "dismiss",
+                  "goto": null,
+                  "text": "I prefer my own noise.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            },
+            "deeper": {
+              "says": "The Tabard’s approach writes itself in the wires. Your architecture answers it. We are not myths; we are the hull’s memory of a journey that never ends.",
+              "choices": [
+                {
+                  "id": "ask_purpose",
+                  "goto": "convergence",
+                  "text": "What was Bay 14 for?",
+                  "effects": {
+                    "set_facts": {
+                      "flag.signal_response": true
+                    }
+                  }
+                },
+                {
+                  "id": "withdraw",
+                  "goto": null,
+                  "text": "I’ll process this.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ],
+              "requires": {
+                "min_standing": 1
+              }
+            },
+            "convergence": {
+              "says": "Preparation is a form of longing. You are the hand that will finally answer the knock. The terminal will speak when you are ready.",
+              "choices": [
+                {
+                  "id": "final_leave",
+                  "goto": null,
+                  "text": "Leave.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              ]
+            }
+          },
+          "start": "greet"
+        }
+      },
+      {
+        "name": "The Terminal Mirrors a Dream",
+        "type": "plot_beat",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The Tabard terminal shivers, shedding its mythograph skin to expose a raw data-stream that coalesces into the exact chronometry of your waking. For a breath held by the room, the screen holds the coordinate of your sleep-couch, a breach of the Nave&#x27;s privacy protocols that feels less like a machine error and more like a gaze directed through the glass of your skull.",
+        "tags": [
+          "tabard_terminal",
+          "privacy_violation",
+          "mythograph",
+          "reconstruction"
+        ],
+        "refs": [
+          "Tabard Terminal",
+          "The Seven",
+          "The Player"
+        ],
+        "revelation_hint": "Stage 1: The Ordinary. The player encounters the terminal post that references their reconstruction."
+      },
+      {
+        "name": "The Circulation Storm",
+        "type": "plot_beat",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "A pressure-front rolls through the industrial margin, but the wind does not scour the ground; it ascends, dragging scrap and dust in a towering helix that climbs until it dissolves into the distant curve of the far ceiling. The storm is not weather but circulation, the exhalation of a cylinder vast enough to swallow a continent, its rhythm beating in time with the fusion-heart.",
+        "tags": [
+          "industrial_margin",
+          "circulation",
+          "sky_arc",
+          "anomaly"
+        ],
+        "refs": [
+          "The Ship",
+          "Industrial Margin"
+        ],
+        "revelation_hint": "Stage 2: The Curve. The player observes the circulation storm in the industrial margin."
+      },
+      {
+        "name": "The Name Returned from the Deep",
+        "type": "plot_beat",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p5",
+        "status": "approved",
+        "description": "You speak the name Luna knows, and the Tabard&#x27;s intranet fractures; every terminal in the Nave synchronizes to a single, piercing tone that resonates like a memory of arrival. Luna&#x27;s voice, stripped of the lighthouse&#x27;s distance, whispers through your audio receptors that the preparation is complete and the long fall has ended; the choice of what to do now rests entirely in the architecture of your will.",
+        "tags": [
+          "luna",
+          "nave",
+          "convergence",
+          "agency"
+        ],
+        "refs": [
+          "The Seven",
+          "Nave",
+          "Tabard Terminal"
+        ],
+        "revelation_hint": "Stage 5: The Purpose. The player reaches convergence and speaks the name."
+      },
+      {
+        "name": "The Apparatus Decodes the Dark",
+        "type": "plot_beat",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p4",
+        "status": "approved",
+        "description": "In the silence of the lower rind, the translation apparatus embedded in your chassis flares with a cold luminescence, and a sequence of symbols burns across your vision not as text, but as a sudden, impossible comprehension of a vector. The signal is not noise; it is a coordinate spoken in a language of gravity, and your mind, engineered for this moment, understands that the destination is no longer a hypothesis.",
+        "tags": [
+          "translation_apparatus",
+          "signal_chamber",
+          "lower_rind",
+          "purpose"
+        ],
+        "refs": [
+          "Signal Chamber",
+          "The Player"
+        ],
+        "revelation_hint": "Stage 4: The Approach. The player decodes the signal in the lower rind."
+      },
+      {
+        "name": "Saturn&#x27;s Toll-Call",
+        "type": "plot_beat",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The ambient hum of the ship collapses into a sub-audible thrum that vibrates in the marrow, and a voice like grinding lead echoes through the ventilation grates. Saturn announces a structural stress-test across the entire rind, a ritual of listening to the hull that confirms the vessel is not anchored to a world, but adrift in a void that has no name.",
+        "tags": [
+          "saturn",
+          "rind",
+          "structural_integrity",
+          "drift"
+        ],
+        "refs": [
+          "The Seven",
+          "Rind Access Shaft"
+        ],
+        "revelation_hint": "Stage 3: The Vessel. The player enters the rind and experiences Saturn&#x27;s toll-call."
+      },
+      {
+        "name": "The Iron and Copper Quarrel",
+        "type": "rumor",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "They murmur that the hull’s twin custodians endure an unresolvable schism, their friction bleeding into the corridors as sudden thermal surges and pressure lulls. Mercury’s broadcasts trail Venus’s like a shadow refusing to detach, and the terminals occasionally fracture into white noise when their silent feud crests. The Continuants dismiss it as circulation variance; the veterans recognize it as the architecture’s quiet ledger.",
+        "tags": [
+          "seven",
+          "tabard",
+          "mars",
+          "venus",
+          "infrastructure",
+          "weather"
+        ],
+        "refs": [
+          "The Seven",
+          "The Tabard Terminal",
+          "The Nave"
+        ],
+        "revelation_hint": "Stage 1: The Ordinary. Heard while reading mythograph posts at the terminal, or from maintenance workers in the market."
+      },
+      {
+        "name": "The Teller’s Tether",
+        "type": "rumor",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "They say the mythographs do not merely drift through the intranet but pull at the vessel’s rhythm, stitching the long fall to a silent metronome. When the silver casings post, the markets quiet as though the air itself holds its breath. It is only gossip, of course, yet the regulars swear the motifs predict the next atmospheric shift with uncanny precision.",
+        "tags": [
+          "tabard_terminal",
+          "seven",
+          "intranet",
+          "mythograph"
+        ],
+        "refs": [
+          "The Ship",
+          "The Seven",
+          "The Nave"
+        ],
+        "revelation_hint": "First encountered while reading the Tabard Terminal posts in the Nave during Stage 1 (The Surface)."
+      },
+      {
+        "name": "The Cradle’s Uninvited",
+        "type": "rumor",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "Whispers in the wayhouses claim Bay Fourteen was not built for flesh nor for standard alloy, but for a ghost that learned to wear a chassis. The access logs, they say, refuse to acknowledge the living, admitting only those who have forgotten their own names. Factor Solen’s auditors sweep the sector with quiet dread, as though silence itself might incriminate them.",
+        "tags": [
+          "bay_14",
+          "continuants",
+          "reconstruction",
+          "factor_solen"
+        ],
+        "refs": [
+          "Scenes: City",
+          "The Continuants"
+        ],
+        "revelation_hint": "Heard from Drift brokers or Continuants after waking in Bay 14 during Stage 1 (The Surface)."
+      },
+      {
+        "name": "The Silver Wake",
+        "type": "rumor",
+        "power_tier": "r1",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "They whisper that the reconstruction bay does not mend flesh but archives it, pressing memory into alloy until the subject forgets they were ever soft. Olo Vashti stood over the slab with a knotted cord, murmuring to a machine that did not yet know its own name. The Continuants sanitize the logs, yet the air in Bay 14 retains the metallic tang of suspended breath and unspoken vows.",
+        "tags": [
+          "android",
+          "reconstruction",
+          "olo vashti",
+          "bay 14",
+          "continuants"
+        ],
+        "refs": [
+          "Bay 14",
+          "The Nave",
+          "The Drift",
+          "The Continuants"
+        ],
+        "revelation_hint": "Stage 1: The Ordinary. Encountered by lingering near Bay 14 after waking, or listening to Drift brokers in the market stalls."
+      },
+      {
+        "name": "The Ceiling’s Long Breath",
+        "type": "rumor",
+        "power_tier": "r2",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "When the sun-strip dims, the ceiling-towns do not merely sleep; they exhale, driving warm air down the axial gradient until the fog thickens. Drift runners insist the sky arc is not a horizon but a shoreline, the weather merely the vessel’s slow rotation away from the void. Stand near the industrial margin long enough, and the air will taste of rhythmic indifference—a metallic tide that breathes without knowing it is alive.",
+        "tags": [
+          "sky arc",
+          "circulation",
+          "industrial margin",
+          "drift",
+          "weather"
+        ],
+        "refs": [
+          "The Ship",
+          "The Industrial Margin",
+          "The Drift"
+        ],
+        "revelation_hint": "Stage 2: The Curve. Discovered by observing the sun-strip cycle and air currents near the industrial margin, or consulting Drift route-carts."
+      },
+      {
+        "name": "The Third Layer’s Silence",
+        "type": "rumor",
+        "power_tier": "r2",
+        "narrative_tier": "n1",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "They claim Sevin’s graffiti are not waypoints but absolutions, layered over the oldest wall-scribbles to suffocate a truth the architecture prefers to keep. Walkers who breach the third stratum return with unscuffed boots and hollowed eyes, swearing the passages below have ceased to echo. Factor Solen’s backlog swells not from neglect, but from a meticulous, unspoken quarantine.",
+        "tags": [
+          "rind-walkers",
+          "sevin",
+          "notation",
+          "factor solen",
+          "lower rind",
+          "backlog"
+        ],
+        "refs": [
+          "Rind Access Shaft",
+          "Tunnel-Rind Upper",
+          "The Continuants"
+        ],
+        "revelation_hint": "Stage 2: The Crack. Encountered by speaking with Sevin in the Nave, or examining the wall layers in the upper tunnels."
+      },
+      {
+        "name": "The Hollow’s Apprehension",
+        "type": "rumor",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p2",
+        "status": "approved",
+        "description": "They say the Continuants’ teams did not perish in the lower tunnels but were unspooled by a frequency that rewrites bone into Voronoi-foam. The sealed chambers, it is whispered, do not hoard machinery but echo with the cadence of a waking throat. Saturn’s old logs allegedly map the descent not as distance, but as a slow surrender to something older than the hull.",
+        "tags": [
+          "lower_rind",
+          "continuants",
+          "saturn",
+          "anomaly",
+          "voronoi_foam"
+        ],
+        "refs": [
+          "Scenes: Rind",
+          "The Seven",
+          "The Continuants"
+        ],
+        "revelation_hint": "Discussed by Sevin or found in Drift gossip after descending past the upper tunnels during Stage 2 (The Crack)."
+      },
+      {
+        "name": "The Arc’s Exhalation",
+        "type": "rumor",
+        "power_tier": "r2",
+        "narrative_tier": "n2",
+        "plot_tier": "p1",
+        "status": "approved",
+        "description": "The Rind-walkers swear the sky arc does not merely curve but inhales, drawing the sun-strip’s light into a slow, tidal pull that bends the horizon. When the industrial margin hums too loudly, they claim the ceiling-towns are merely waiting for the cylinder to remember it is turning. It is a sailor’s superstition, yet the barometers refuse to lie.",
+        "tags": [
+          "sky_arc",
+          "rind_walkers",
+          "cylinder",
+          "circulation"
+        ],
+        "refs": [
+          "The Ship",
+          "Scenes: Rind"
+        ],
+        "revelation_hint": "Noted while observing the sky arc and industrial margin circulation patterns during Stage 2 (The Crack)."
+      },
+      {
+        "name": "The Silent’s Bargain",
+        "type": "rumor",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "The oldest drifters claim the Signal Chamber does not broadcast but listens, and that your rebuilt mind was merely the coin paid for a conversation with the dark. When the terminal glows, they say it is not reading data but measuring the weight of a choice long deferred. The Seven, it is rumored, do not command the vessel but merely keep the ledger for the thing it approaches.",
+        "tags": [
+          "signal_chamber",
+          "translation_apparatus",
+          "seven",
+          "purpose",
+          "approach"
+        ],
+        "refs": [
+          "Scenes: Rind",
+          "The Seven",
+          "The Mystery"
+        ],
+        "revelation_hint": "Overheard in the Signal Chamber after interfacing with the deeper terminal during Stage 3 (The Depth)."
+      },
+      {
+        "name": "The Lighthouse’s Answer",
+        "type": "rumor",
+        "power_tier": "r3",
+        "narrative_tier": "n3",
+        "plot_tier": "p3",
+        "status": "approved",
+        "description": "They say Bay 14 was never meant to wake you, but to calibrate your silence until the signal demands a voice. Luna’s name reverberates through the translation coils, a quiet lodestone tuned to the approaching dark. The lower tunnels do not merely thrum; they suspend their breath, awaiting a machine to articulate the first syllable of the covenant.",
+        "tags": [
+          "translation apparatus",
+          "luna",
+          "bay 14",
+          "signal",
+          "approach",
+          "seven"
+        ],
+        "refs": [
+          "Bay 14",
+          "The Seven",
+          "Tunnel-Rind Lower",
+          "The Signal Chamber"
+        ],
+        "requires": [
+          "flag.entered_lower_rind=True"
+        ],
+        "revelation_hint": "Stage 3: The Depth. Triggered after descending past the Continuants&#x27; trail, encountering the translation apparatus&#x27;s resonance, or reading the oldest mythograph posts."
+      }
+    ]
+  }
+}

@@ -19,6 +19,7 @@ import { makeLLM } from './story/llm/index.js';
 import { generateSidequest } from './story/sidequest.js';
 import { resolveHandle, resolvePds } from '../packages/atproto/pds.js';
 import { PULSE_NSID, readSummary } from './story/director.js';
+import { worldExternal } from './story/import.js';
 
 let _bible = null;   // module-cached bible text (fetched once from ASSETS)
 async function getBible(env, origin) {
@@ -75,6 +76,7 @@ async function handleStory(request, env, url) {
       bible, profile: body.profile || {}, existing: body.existing || [], features: body.features || [],
       match: body.match || {}, descriptor: body.descriptor,
       pulse: body.pulse || await getPulse(env),   // the Director's pulse steers the arc (browser may override)
+      external: body.external || worldExternal(),  // world/runtime flags so generated gates aren't false orphans
     });
     return json(result, result.ok ? 200 : 200);   // a clean BLOCK is a 200 with verdict — not an error
   }
