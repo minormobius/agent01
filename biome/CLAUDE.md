@@ -91,6 +91,36 @@ it; non-quadrupeds classify honestly but `build()` refuses). Roadmap: Phase 2 = 
 Phase 3 = drop the skeletons into the gacha force graph as animated nodes (toggle vs the flat photo nodes).
 Known polish: stance-aware limb flexion for leapers (rabbit forelimb), felid/canid spine flexibility.
 
+### The muscular-system solver (`muscle.mjs` · `mechanics.mjs` · `myology.mjs`) — Phase 1: standing
+
+Given a skeleton, GROW a muscular system by mechanically modelling stability — and kill the failing
+arrangements. The endgame is mythical beasts (no reference exists), so the algorithm is tuned against
+real animals, where the answer is known. Same gacha/oracle shape: generate candidates → a physical
+scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG → one canonical musculature).
+
+- `muscle.mjs` — the MODEL (how muscles work) + candidate generation. A muscle spans two bones across a
+  joint via attachments `{bone, t, d}` (fraction along, perpendicular offset). Physics: muscles only
+  PULL (⇒ antagonist pairs); torque = force × MOMENT ARM (perp distance from joint to the line of action,
+  so attachments are offset — real tendons stand off the bone); cost = force × length ∝ volume.
+  `candidatesForJoint` generates a fixed grid both sides and **kills zero-lever** (degenerate) candidates.
+- `mechanics.mjs` — the ORACLE (2D sagittal statics, g=1, normalised mass). Segment masses → centre of
+  mass → ground-reaction forces split fore/aft by CoM. `standingDemand` gives each joint's raw **buckling
+  torque** (free-body the distal sub-chain: gravity + GRF of feet below it). `evaluateStanding` →
+  per-joint {held (capacity on the correct side ≥ |required|), antagonised (both sides)} + CoM-over-support.
+  `evaluateWalking` replays the gait clip quasi-statically (lifted feet drop out of support).
+- `myology.mjs` — `growMuscles(sprite)`: for each actuated joint (shoulder/elbow/carpus, hip/stifle/hock,
+  neck) grow an AGONIST opposing the buckling torque (largest moment arm = least force = least volume) +
+  a smaller ANTAGONIST (stability to perturbation). Sized past the evaluator threshold (SAFE factor) so
+  `held` clears robustly, not knife-edge.
+- `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG: faint bones, muscles coloured
+  agonist(warm)/antagonist(cool), width ∝ √force, CoM dot over the support line + stand/walk status.
+
+**Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints), grown one STANDS
+(13/13 across the deck), the set is MINIMAL (removing any one muscle breaks standing) and antagonised.
+Walking is a quasi-static first cut (46–71% gait coverage — muscles are sized for standing only). Next:
+size muscles for the gait (inverse dynamics over the cycle), bi-articular muscles emerging from
+volume-minimisation (like real hamstrings/gastrocnemius), and validation against real myology maps.
+
 ## The package it belongs to
 
 Four surfaces, one cylinder. **game → [hoop](../hoop)** · **structure → [rind](../rind)** ·
@@ -113,7 +143,8 @@ node biome/cycles/test/lake.selftest.mjs          # 20 checks: harvest conserves
 node biome/cycles/test/global.selftest.mjs        # 18 checks: union conserves, land↔lake coupling, interior closes, stable
 node biome/cycles/test/maximal.selftest.mjs       # 14 checks: intermingled web conserves, every species persists, couplers bridge containers
 node biome/gacha/test/gacha.selftest.mjs          # 13 checks: ECOSYSTEM GACHA engine — catalog, deterministic rolls, conservation, valid wiring, rarity spread
-node biome/sprite/test/sprite.selftest.mjs        # 17 checks: SPRITE engine — classifier total, deterministic build/pose, finite geometry, mass→size
+node biome/sprite/test/sprite.selftest.mjs        # 20 checks: SPRITE engine — classifier total, deterministic build/pose, finite geometry, mass→size
+node biome/sprite/test/muscle.selftest.mjs        # 9 checks: MUSCLE solver — bare collapses, grown stands, antagonised, minimal, deterministic
 node biome/cycles/test/builder.selftest.mjs       # 23 checks: presets compile/close/conserve/stable, validation, share codec, graceful failure
 ( cd biome/cycles/solver && cargo test )          # 6 checks: the Rust stability kernel
 # or all the node tests at once:
