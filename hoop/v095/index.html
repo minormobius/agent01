@@ -322,48 +322,56 @@
     function worldXform() { const w = cam.scale * dpr; ctx.setTransform(w, 0, 0, w, -cam.ox * w, -cam.oy * w); }
     function screenXform() { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
     function fillPoly(poly) { ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]); ctx.closePath(); ctx.fill(); }
+    function fillPolyG(g, poly) { g.beginPath(); g.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) g.lineTo(poly[i][0], poly[i][1]); g.closePath(); g.fill(); }
+    // ── PERF: a chunk's painting is STATIC, so bake it to an offscreen raster ONCE and blit it each frame
+    //    (instead of re-tracing thousands of cell polygons every frame). Fog/residents/player draw on top. ──
+    const RPX = 3;   // raster pixels per world unit (the painted look is soft; ample at the pinned VFOV)
+    function paintChunkInto(g, ch, P) {
+      const seamW = 0.7 / RPX;
+      for (const c of P.paintCells) { if (c.poly.length < 3) continue; g.fillStyle = c.color || '#05070b'; fillPolyG(g, c.poly); if (!c.wall) { g.strokeStyle = 'rgba(6,9,12,0.5)'; g.lineWidth = seamW; g.stroke(); } }
+      if (P.fixtures) for (const F of P.fixtures) {
+        const lm = new Map();
+        for (const cl of F.cells) { const c = P.paintCells[cl.idx]; if (c) lm.set(Math.round(c.x) + ',' + Math.round(c.y), lumOfColor(c.color)); }
+        const litAt = (x, y) => lm.get(Math.round(x) + ',' + Math.round(y)) ?? 0.6;
+        drawWallFixture(g, P, F, { accent: F.accent, hue: F.hue, litAt });
+      }
+      for (const cp of P.comps) {
+        drawDevice(g, cp.cx, cp.cy, cp.r, cp.g, { lit: Math.min(1.45, (cp.lit || 1) + 0.3), accent: cp.accent });
+        const er = cp.r * (1.8 + (cp.emit || 0.5) * 1.4), a = Math.min(0.6, 0.16 + (cp.emit || 0.5) * 0.4), hue = cp.hue == null ? 40 : cp.hue;
+        const gl = g.createRadialGradient(cp.cx, cp.cy, cp.r * 0.1, cp.cx, cp.cy, er);
+        gl.addColorStop(0, `hsla(${hue},90%,72%,${a})`); gl.addColorStop(0.45, `hsla(${hue},85%,58%,${a * 0.4})`); gl.addColorStop(1, `hsla(${hue},80%,50%,0)`);
+        g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gl; g.beginPath(); g.arc(cp.cx, cp.cy, er, 0, 7); g.fill(); g.restore();
+        if (isTerminal(cp)) { g.save(); g.strokeStyle = '#7fd8d0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#7fd8d0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('▤', cp.cx, cp.cy); g.restore(); }
+      }
+      for (const L of P.lights) { if (L.concourse) drawBollard(g, L); else drawWallLight(g, L, { hue: L.hue, lit: L.lit }); }
+    }
+    function chunkRaster(ch) {
+      if (ch._raster) return ch._raster;
+      const P = ch.painted; if (!P) return null;
+      try {
+        const bb = ch.bb || (ch.bb = bboxOf(ch.poly)), pad = OPTS.cellSize * 2;
+        const ox = bb.x0 - pad, oy = bb.y0 - pad, w = bb.x1 - bb.x0 + 2 * pad, h = bb.y1 - bb.y0 + 2 * pad;
+        const cvs = document.createElement('canvas'); cvs.width = Math.max(1, Math.ceil(w * RPX)); cvs.height = Math.max(1, Math.ceil(h * RPX));
+        const g = cvs.getContext('2d'); g.setTransform(RPX, 0, 0, RPX, -ox * RPX, -oy * RPX);
+        paintChunkInto(g, ch, P);
+        return (ch._raster = { canvas: cvs, ox, oy, w, h });
+      } catch (e) { return null; }
+    }
 
     function drawPainted() {
-      worldXform();
+      screenXform(); ctx.imageSmoothingEnabled = true;
       const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
-      const pd = playerDeck();
+      const pd = playerDeck(), far = chunkSpan * 2.4;
       for (const ch of world.chunks) {
         if ((ch.deck || 0) !== pd) continue;   // draw only the current deck (decks share a footprint)
-        const P = ch.painted; if (!P) continue;
-        const bb = ch.bb || (ch.bb = bboxOf(ch.poly)); if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) continue;
-        const seamW = 0.7 / cam.scale;                       // the v4 plate-seam, ~0.7px regardless of zoom
-        for (const c of P.paintCells) {
-          if (c.x < vx0 || c.x > vx1 || c.y < vy0 || c.y > vy1 || c.poly.length < 3) continue;
-          ctx.fillStyle = c.color || '#05070b'; fillPoly(c.poly);
-          if (!c.wall) { ctx.strokeStyle = 'rgba(6,9,12,0.5)'; ctx.lineWidth = seamW; ctx.stroke(); }   // hand-inked floor seam
+        const bb = ch.bb || (ch.bb = bboxOf(ch.poly));
+        if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) {   // off-screen: evict far rasters to bound memory
+          if (ch._raster && (Math.abs((bb.x0 + bb.x1) / 2 - px()) > far || Math.abs((bb.y0 + bb.y1) / 2 - py()) > far)) ch._raster = null;
+          continue;
         }
-        // v091 item #4: the voronoi-grown wall fixtures — repaint each fixture's claimed tiles as an
-        // erupted, gold-seamed structure. litAt is read back from the tiles' OWN baked colour (so the
-        // fixture is shaded by the same room light the floor got). Culled by tip like the other fixtures.
-        if (P.fixtures) for (const F of P.fixtures) {
-          if (F.tip.x < vx0 || F.tip.x > vx1 || F.tip.y < vy0 || F.tip.y > vy1) continue;
-          const lm = new Map();
-          for (const cl of F.cells) { const c = P.paintCells[cl.idx]; if (c) lm.set(Math.round(c.x) + ',' + Math.round(c.y), lumOfColor(c.color)); }
-          const litAt = (x, y) => lm.get(Math.round(x) + ',' + Math.round(y)) ?? 0.6;
-          drawWallFixture(ctx, P, F, { accent: F.accent, hue: F.hue, litAt });
-        }
-        for (const cp of P.comps) {
-          if (cp.cx < vx0 || cp.cx > vx1 || cp.cy < vy0 || cp.cy > vy1) continue;
-          drawDevice(ctx, cp.cx, cp.cy, cp.r, cp.g, { lit: Math.min(1.45, (cp.lit || 1) + 0.3), accent: cp.accent });
-          // v091: the component EMITS — an additive room-hued bloom whose brightness is set by `emit`
-          // (derived from the superformula's own symmetry/rosette/sunburst). Luminescence from the construct.
-          const er = cp.r * (1.8 + (cp.emit || 0.5) * 1.4), a = Math.min(0.6, 0.16 + (cp.emit || 0.5) * 0.4), hue = cp.hue == null ? 40 : cp.hue;
-          const gl = ctx.createRadialGradient(cp.cx, cp.cy, cp.r * 0.1, cp.cx, cp.cy, er);
-          gl.addColorStop(0, `hsla(${hue},90%,72%,${a})`); gl.addColorStop(0.45, `hsla(${hue},85%,58%,${a * 0.4})`); gl.addColorStop(1, `hsla(${hue},80%,50%,0)`);
-          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cp.cx, cp.cy, er, 0, 7); ctx.fill(); ctx.restore();
-          if (isTerminal(cp)) {   // mark the Tabard terminal so you can SEE which fixture to read
-            ctx.save(); ctx.strokeStyle = '#7fd8d0'; ctx.lineWidth = 1.4 / cam.scale; ctx.beginPath(); ctx.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); ctx.stroke();
-            ctx.fillStyle = '#7fd8d0'; ctx.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▤', cp.cx, cp.cy); ctx.restore();
-          }
-        }
-        for (const L of P.lights) { if (L.tip.x < vx0 || L.tip.x > vx1 || L.tip.y < vy0 || L.tip.y > vy1) continue; if (L.concourse) drawBollard(ctx, L); else drawWallLight(ctx, L, { hue: L.hue, lit: L.lit }); }
+        const R = chunkRaster(ch); if (!R) continue;
+        ctx.drawImage(R.canvas, SX(R.ox), SY(R.oy), R.w * cam.scale, R.h * cam.scale);   // blit the baked chunk (one drawImage vs thousands of fills)
       }
-      screenXform();
     }
     // v091: a free-standing concourse lamp — a dark base ringed by a warm gold glow + a hot core (mirrors
     // the wall-lamp glow). Drawn under the world transform, so it scales with the painted scene.
@@ -385,7 +393,7 @@
       { const pd = playerDeck(); for (const ch of world.chunks) { if ((ch.deck || 0) !== pd) continue; const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); } }
       ctx.filter = 'none';
       if (playerDeck() === 1) { ctx.fillStyle = 'rgba(30,70,90,0.22)'; ctx.fillRect(0, 0, W, H); }   // the rind: no sun-strip, cool hull-glow wash
-      drawNPC(); drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint(); whereAmI();
+      drawNPC(); drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint();
     }
     // the shaft: a chute marker at the (deck-shared) shaft cell — ▼ down to the rind, ▲ back up to the Nave
     function drawShaft() {
@@ -778,10 +786,11 @@
 
     // the animation loop — step the residents' commute, then render (the painted world is otherwise static)
     function frame(ts) {
+      requestAnimationFrame(frame);
+      if (ts - lastTs < 30) return;   // PERF: cap the loop to ~33fps (movement still redraws via walkTo's own tick)
       const dt = lastTs ? ts - lastTs : 16; lastTs = ts;
       if (world && walk && residents.length) stepResidents(residents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 1.5, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
       draw();
-      requestAnimationFrame(frame);
     }
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
