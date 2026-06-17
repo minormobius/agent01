@@ -24,7 +24,7 @@ const CLIPS = {
   walk(phase, sprite) {
     const angles = {};
     const legPhase = { FN: 0, BF: 0, FF: Math.PI, BN: Math.PI };
-    const swing = 0.42, flex = 0.5;
+    const swing = 0.30, flex = 0.42;
     for (const s of sprite.segs) {
       if (s.leg) {
         const t = phase + (legPhase[s.leg] ?? 0);

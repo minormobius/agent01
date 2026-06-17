@@ -66,9 +66,10 @@ export const FAMILIES = {
 
   // saltatorial: forelimb much shorter than the elongated hindlimb (low intermembral index), long
   // hind metatarsals, short visible tail. The leaper signature.
-  leporid: { stance:'plantigrade', vert:{cervical:7,thoracic:12,lumbar:7,sacral:4,caudal:14},
+  leporid: { stance:'plantigrade', foreStance:'plantigrade', hindStance:'saltatorial',
+    vert:{cervical:7,thoracic:12,lumbar:7,sacral:4,caudal:14},
     fore:{scapula:.26,humerus:.22,radioulna:.24,metacarpal:.10,phalanx:.06},
-    hind:{femur:.32,tibia:.46,metatarsal:.40,phalanx:.10},
+    hind:{femur:.32,tibia:.46,metatarsal:.40,phalanx:.10},                    // crural ~144, MT/F ~125 (saltatorial)
     digits:{fore:5,hind:4,type:'claw'}, skull:{snout:.46,cranium:.50,jaw:.4},
     neck:.3, rib:.42, robust:.55, trunkScale:1 },
 

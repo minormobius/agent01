@@ -12,18 +12,22 @@ const D = Math.PI / 180;
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 
-// Standing absolute angles for the stance-dependent distal bones (metapodial + phalanx). The proximal
-// bones (scapula/humerus/radioulna, pelvis/femur/tibia) are stance-independent and fixed below.
-const STANCE = {
-  plantigrade: { mp: 14, ph: 4 },   // flat foot — the long metapodial lies along the ground (bear, rat)
-  digitigrade: { mp: 70, ph: 32 },  // up on the toes (cat, dog)
-  unguligrade: { mp: 80, ph: 86 },  // up on the hoof-tip, near-vertical phalanx (horse, deer, cattle)
-  sprawling:   { mp: 24, ph: 10 },  // reptile — handled with extra splay on the proximal bones
+// Full standing pose per stance — the WHOLE limb chain, not just the foot, because stance changes the
+// posture of every joint. Each array is the absolute standing angle (deg) of, fore:
+// [scapula, humerus, radioulna, metacarpal, phalanx]; hind: [pelvis, femur, tibia, metatarsal, phalanx].
+//   unguligrade — columnar, up on the hoof-tip (near-vertical metapodial + phalanx)
+//   digitigrade — up on the toes: metapodial raised, phalanges angled down to the ground
+//   plantigrade — flat foot: wrist/ankle low, the long metapodial lies along the ground, leg more flexed
+//   saltatorial — the leaper's folded hindlimb: a deep Z (femur fwd-down, long tibia back-down, foot flat
+//                 under the body, hock raised) so the long bones read without the foot dangling
+//   sprawling   — reptile: proximal bones splayed out to the side before dropping
+const POSE = {
+  unguligrade: { fore: [80, 100, 88, 86, 84], hind: [104, 82, 100, 88, 84] },
+  digitigrade: { fore: [78, 104, 82, 60, 30], hind: [108, 74, 110, 58, 28] },
+  plantigrade: { fore: [76, 110, 72, 20, 8],  hind: [112, 70, 116, 20, 8] },
+  saltatorial: { fore: [78, 106, 74, 18, 6],  hind: [122, 50, 130, 24, 8] },
+  sprawling:   { fore: [55, 122, 66, 24, 10], hind: [120, 58, 120, 24, 10] },
 };
-// proximal limb angles (deg, absolute in the standing pose). Kept close to vertical so the limb is
-// columnar and the foot plants under its girdle — a moderate joint zigzag still reads as articulated.
-const FORE_ABS = { scapula: 80, humerus: 102, radioulna: 86 };
-const HIND_ABS = { pelvis: 106, femur: 82, tibia: 104 };
 
 export function buildSkeleton(org, profile, rand) {
   const rj = rand.fork('jitter');
@@ -36,7 +40,8 @@ export function buildSkeleton(org, profile, rand) {
   const presacral = V.thoracic + V.lumbar || 1;
   const vsp = L / presacral;                                                   // trunk vertebra spacing
   const csp = (profile.neck * L) / Math.max(1, V.cervical);                    // cervical spacing
-  const stance = STANCE[profile.stance] || STANCE.digitigrade;
+  const forePose = (POSE[profile.foreStance || profile.stance] || POSE.digitigrade).fore;
+  const hindPose = (POSE[profile.hindStance || profile.stance] || POSE.digitigrade).hind;
 
   const S = [];
   const push = (s) => { S.push(s); return s.id; };
@@ -95,27 +100,25 @@ export function buildSkeleton(org, profile, rand) {
   const witherId = thor[Math.max(0, thor.length - 3)];
   const lat = th * 0.7;
 
-  const foreBones = (s) => [
-    { name: 'scapula',   len: profile.fore.scapula * L, abs: FORE_ABS.scapula, shape: 'blade', role: 'scapula' },
-    { name: 'humerus',   len: profile.fore.humerus * L, abs: FORE_ABS.humerus, joint: 'upper', shape: 'bone' },
-    { name: 'radioulna', len: profile.fore.radioulna * L, abs: FORE_ABS.radioulna, joint: 'mid', shape: 'bone' },
-    { name: 'metacarpal',len: profile.fore.metacarpal * L, abs: s.mp, joint: 'lower', shape: 'bone' },
-    { name: 'phalanx',   len: profile.fore.phalanx * L, abs: s.ph, joint: 'foot', shape: 'bone', epi: th * 0.6 },
+  const foreBones = [
+    { name: 'scapula',   len: profile.fore.scapula * L, abs: forePose[0], shape: 'blade', role: 'scapula' },
+    { name: 'humerus',   len: profile.fore.humerus * L, abs: forePose[1], joint: 'upper', shape: 'bone' },
+    { name: 'radioulna', len: profile.fore.radioulna * L, abs: forePose[2], joint: 'mid', shape: 'bone' },
+    { name: 'metacarpal',len: profile.fore.metacarpal * L, abs: forePose[3], joint: 'lower', shape: 'bone' },
+    { name: 'phalanx',   len: profile.fore.phalanx * L, abs: forePose[4], joint: 'foot', shape: 'bone', epi: th * 0.6 },
   ];
-  const hindBones = (s) => [
-    { name: 'pelvis',    len: profile.hind.femur * 0.6 * L, abs: HIND_ABS.pelvis, shape: 'blade', role: 'pelvis' },
-    { name: 'femur',     len: profile.hind.femur * L, abs: HIND_ABS.femur, joint: 'upper', shape: 'bone' },
-    { name: 'tibia',     len: profile.hind.tibia * L, abs: HIND_ABS.tibia, joint: 'mid', shape: 'bone' },
-    { name: 'metatarsal',len: profile.hind.metatarsal * L, abs: s.mp, joint: 'lower', shape: 'bone' },
-    { name: 'phalanx',   len: profile.hind.phalanx * L, abs: s.ph, joint: 'foot', shape: 'bone', epi: th * 0.6 },
+  const hindBones = [
+    { name: 'pelvis',    len: profile.hind.femur * 0.6 * L, abs: hindPose[0], shape: 'blade', role: 'pelvis' },
+    { name: 'femur',     len: profile.hind.femur * L, abs: hindPose[1], joint: 'upper', shape: 'bone' },
+    { name: 'tibia',     len: profile.hind.tibia * L, abs: hindPose[2], joint: 'mid', shape: 'bone' },
+    { name: 'metatarsal',len: profile.hind.metatarsal * L, abs: hindPose[3], joint: 'lower', shape: 'bone' },
+    { name: 'phalanx',   len: profile.hind.phalanx * L, abs: hindPose[4], joint: 'foot', shape: 'bone', epi: th * 0.6 },
   ];
 
   const addLimb = (legTag, region, near) => {
     const z = near ? 9 : 1, role = near ? 'bone' : 'boneFar';
     const sideOff = (near ? 1 : -1) * lat;
-    const splay = profile.stance === 'sprawling' ? (region === 'fore' ? -22 : 22) : 0;
-    const bones = (region === 'fore' ? foreBones : hindBones)(stance).map((b, i) =>
-      ({ ...b, abs: b.abs + (i === 1 ? splay : 0) }));      // splay the proximal bone for reptiles
+    const bones = region === 'fore' ? foreBones : hindBones;
     let pid = region === 'fore' ? witherId : 'sacrum', pAbs = 0, first = true;
     for (const b of bones) {
       const id = legTag + '_' + b.name;
