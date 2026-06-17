@@ -1,400 +1,1676 @@
 {
-  "generated": "2026-06-17T22:14:33.992Z",
-  "metric": "commits",
-  "source": "git rev-list --count per endpoint pathspec (deploy-registry paths)",
+  "generated": "2026-06-17T22:46:16.089Z",
+  "metric": "commits-follow",
+  "source": "git log --follow per file, unioned per endpoint pathspec (rename-aware); churn = insertions+deletions",
   "status": "ok",
-  "history_commits": 489,
-  "total_commits": 478,
+  "history_commits": 510,
+  "total_commits_follow": 1201,
+  "total_hidden": 744,
   "sites": [
     {
       "name": "hoop",
       "url": "https://hoop.mino.mobi",
       "category": "bluesky",
-      "commits": 144
+      "parent": null,
+      "commits": 144,
+      "commitsFollow": 181,
+      "churn": 52668
     },
     {
       "name": "mega",
       "url": "https://mino.mobi/mega/",
       "category": "data",
-      "commits": 32
+      "parent": null,
+      "commits": 32,
+      "commitsFollow": 81,
+      "churn": 56944
     },
     {
-      "name": "sprite",
-      "url": "https://mega.mino.mobi/sprite/",
-      "category": "games",
-      "commits": 32
+      "name": "tabard",
+      "url": "https://hoop.mino.mobi/v095/",
+      "category": "bluesky",
+      "parent": "hoop",
+      "commits": 19,
+      "commitsFollow": 80,
+      "churn": 11030
     },
     {
       "name": "biome",
       "url": "https://biome.mino.mobi",
       "category": "data",
-      "commits": 30
+      "parent": null,
+      "commits": 30,
+      "commitsFollow": 42,
+      "churn": 16239
+    },
+    {
+      "name": "sprite",
+      "url": "https://mega.mino.mobi/sprite/",
+      "category": "games",
+      "parent": null,
+      "commits": 24,
+      "commitsFollow": 33,
+      "churn": 8768
     },
     {
       "name": "rite",
       "url": "https://rite.mino.mobi",
       "category": "bluesky",
-      "commits": 19
-    },
-    {
-      "name": "bisk",
-      "url": "https://bisk.mino.mobi",
-      "category": "bluesky",
-      "commits": 17
-    },
-    {
-      "name": "read",
-      "url": "https://mino.mobi/read/",
-      "category": "tools",
-      "commits": 16
-    },
-    {
-      "name": "disk",
-      "url": "https://b.mino.mobi/disk/",
-      "category": "bluesky",
-      "commits": 14
-    },
-    {
-      "name": "atmosphere",
-      "url": "https://b.mino.mobi",
-      "category": "bluesky",
-      "commits": 14
-    },
-    {
-      "name": "mappa",
-      "url": "https://mino.mobi/mappa/",
-      "category": "data",
-      "commits": 11
-    },
-    {
-      "name": "g",
-      "url": "https://g.mino.mobi/",
-      "category": "games",
-      "commits": 11
-    },
-    {
-      "name": "fable",
-      "url": "https://fable.mino.mobi",
-      "category": "games",
-      "commits": 11
-    },
-    {
-      "name": "duck",
-      "url": "https://duck.mino.mobi",
-      "category": "games",
-      "commits": 10
-    },
-    {
-      "name": "pod",
-      "url": "https://pod.mino.mobi",
-      "category": "bluesky",
-      "commits": 9
+      "parent": null,
+      "commits": 19,
+      "commitsFollow": 31,
+      "churn": 158816
     },
     {
       "name": "rind",
       "url": "https://rind.mino.mobi",
       "category": "data",
-      "commits": 9
+      "parent": null,
+      "commits": 9,
+      "commitsFollow": 31,
+      "churn": 5878
     },
     {
-      "name": "ocr",
-      "url": "https://ocr.mino.mobi",
-      "category": "tools",
-      "commits": 8
-    },
-    {
-      "name": "io",
-      "url": "https://io.mino.mobi",
-      "category": "work",
-      "commits": 7
-    },
-    {
-      "name": "iris",
-      "url": "https://iris.mino.mobi",
-      "category": "data",
-      "commits": 6
-    },
-    {
-      "name": "photo",
-      "url": "https://photo.mino.mobi",
+      "name": "econ",
+      "url": "https://hoop.mino.mobi/econ/",
       "category": "bluesky",
-      "commits": 5
+      "parent": "hoop",
+      "commits": 29,
+      "commitsFollow": 29,
+      "churn": 3869
     },
     {
-      "name": "phylofiction",
-      "url": "https://phylofiction.mino.mobi",
-      "category": "data",
-      "commits": 5
+      "name": "read",
+      "url": "https://mino.mobi/read/",
+      "category": "tools",
+      "parent": null,
+      "commits": 16,
+      "commitsFollow": 29,
+      "churn": 743745
+    },
+    {
+      "name": "bisk",
+      "url": "https://bisk.mino.mobi",
+      "category": "bluesky",
+      "parent": null,
+      "commits": 17,
+      "commitsFollow": 28,
+      "churn": 92195
+    },
+    {
+      "name": "atmosphere",
+      "url": "https://b.mino.mobi",
+      "category": "bluesky",
+      "parent": null,
+      "commits": 14,
+      "commitsFollow": 27,
+      "churn": 19775
     },
     {
       "name": "tide",
       "url": "https://tide.mino.mobi",
       "category": "data",
-      "commits": 5
+      "parent": null,
+      "commits": 5,
+      "commitsFollow": 24,
+      "churn": 4628
+    },
+    {
+      "name": "g",
+      "url": "https://g.mino.mobi/",
+      "category": "games",
+      "parent": null,
+      "commits": 11,
+      "commitsFollow": 23,
+      "churn": 362529
+    },
+    {
+      "name": "iris",
+      "url": "https://iris.mino.mobi",
+      "category": "data",
+      "parent": null,
+      "commits": 6,
+      "commitsFollow": 22,
+      "churn": 2807
+    },
+    {
+      "name": "fable",
+      "url": "https://fable.mino.mobi",
+      "category": "games",
+      "parent": null,
+      "commits": 11,
+      "commitsFollow": 22,
+      "churn": 14147
+    },
+    {
+      "name": "pod",
+      "url": "https://pod.mino.mobi",
+      "category": "bluesky",
+      "parent": null,
+      "commits": 9,
+      "commitsFollow": 21,
+      "churn": 10071
+    },
+    {
+      "name": "font",
+      "url": "https://rite.mino.mobi/font/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 16,
+      "commitsFollow": 18,
+      "churn": 6068
+    },
+    {
+      "name": "io",
+      "url": "https://io.mino.mobi",
+      "category": "work",
+      "parent": null,
+      "commits": 7,
+      "commitsFollow": 18,
+      "churn": 40546
+    },
+    {
+      "name": "alch",
+      "url": "https://mino.mobi/read/alch/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 16,
+      "commitsFollow": 17,
+      "churn": 9096
+    },
+    {
+      "name": "fixture",
+      "url": "https://mega.mino.mobi/sprite/fixture/",
+      "category": "games",
+      "parent": "sprite",
+      "commits": 11,
+      "commitsFollow": 17,
+      "churn": 2193
+    },
+    {
+      "name": "photo",
+      "url": "https://photo.mino.mobi",
+      "category": "bluesky",
+      "parent": null,
+      "commits": 5,
+      "commitsFollow": 16,
+      "churn": 217263
+    },
+    {
+      "name": "thread",
+      "url": "https://photo.mino.mobi/#/thread",
+      "category": "bluesky",
+      "parent": "photo",
+      "commits": 5,
+      "commitsFollow": 16,
+      "churn": 217263
+    },
+    {
+      "name": "phylofiction",
+      "url": "https://phylofiction.mino.mobi",
+      "category": "data",
+      "parent": null,
+      "commits": 5,
+      "commitsFollow": 16,
+      "churn": 2550
     },
     {
       "name": "geometry",
       "url": "https://mino.mobi/geometry/",
       "category": "data",
-      "commits": 4
-    },
-    {
-      "name": "prop",
-      "url": "https://mino.mobi/prop/",
-      "category": "data",
-      "commits": 4
+      "parent": null,
+      "commits": 4,
+      "commitsFollow": 15,
+      "churn": 9648
     },
     {
       "name": "games",
       "url": "https://games.mino.mobi",
       "category": "games",
-      "commits": 4
+      "parent": null,
+      "commits": 4,
+      "commitsFollow": 15,
+      "churn": 35935
     },
     {
       "name": "canvas",
       "url": "https://canvas.mino.mobi",
       "category": "tools",
-      "commits": 4
+      "parent": null,
+      "commits": 4,
+      "commitsFollow": 15,
+      "churn": 70786
     },
     {
-      "name": "ar",
-      "url": "https://ar.mino.mobi/",
-      "category": "data",
-      "commits": 3
+      "name": "disk",
+      "url": "https://b.mino.mobi/disk/",
+      "category": "bluesky",
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 14,
+      "churn": 4992
     },
     {
       "name": "answers",
       "url": "https://mino.mobi/answers/",
       "category": "bluesky",
-      "commits": 2
+      "parent": null,
+      "commits": 2,
+      "commitsFollow": 13,
+      "churn": 27231
     },
     {
       "name": "cards",
       "url": "https://mino.mobi/cards/",
       "category": "data",
-      "commits": 2
+      "parent": null,
+      "commits": 2,
+      "commitsFollow": 13,
+      "churn": 488776
+    },
+    {
+      "name": "ar",
+      "url": "https://ar.mino.mobi/",
+      "category": "data",
+      "parent": null,
+      "commits": 3,
+      "commitsFollow": 13,
+      "churn": 2722
     },
     {
       "name": "os",
       "url": "https://os.mino.mobi",
       "category": "tools",
-      "commits": 2
-    },
-    {
-      "name": "cable",
-      "url": "https://cable.mino.mobi",
-      "category": "tools",
-      "commits": 2
+      "parent": null,
+      "commits": 2,
+      "commitsFollow": 13,
+      "churn": 87931
     },
     {
       "name": "torus",
       "url": "https://torus.mino.mobi/",
       "category": "games",
-      "commits": 2
+      "parent": null,
+      "commits": 2,
+      "commitsFollow": 13,
+      "churn": 134300
     },
     {
       "name": "airchat",
       "url": "https://airchat.mino.mobi",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 58212
     },
     {
       "name": "zoom",
       "url": "https://zoom.mino.mobi",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 86409
     },
     {
       "name": "weft",
       "url": "https://mino.mobi/weft/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 11964
     },
     {
       "name": "empathy",
       "url": "https://empath.mino.mobi",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 10992
     },
     {
       "name": "ternary",
       "url": "https://mino.mobi/ternary/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 16152
     },
     {
       "name": "judge",
       "url": "https://mino.mobi/judge/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 13224
     },
     {
       "name": "novelty",
       "url": "https://mino.mobi/novelty/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 15837
     },
     {
       "name": "echo",
       "url": "https://mino.mobi/echo/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 13209
     },
     {
       "name": "density",
       "url": "https://mino.mobi/density/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 6309
     },
     {
       "name": "seek",
       "url": "https://mino.mobi/seek/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 6612
     },
     {
       "name": "cluster",
       "url": "https://mino.mobi/cluster/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 25788
     },
     {
       "name": "wild",
       "url": "https://mino.mobi/wild/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 6744
+    },
+    {
+      "name": "fodder",
+      "url": "https://rite.mino.mobi/fodder/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 7404
+    },
+    {
+      "name": "redact",
+      "url": "https://rite.mino.mobi/redact/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 13440
+    },
+    {
+      "name": "ask",
+      "url": "https://rite.mino.mobi/ask/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 13872
+    },
+    {
+      "name": "atlas",
+      "url": "https://rite.mino.mobi/atlas/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 11352
+    },
+    {
+      "name": "lexicon",
+      "url": "https://rite.mino.mobi/lexicon/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 21600
+    },
+    {
+      "name": "list",
+      "url": "https://rite.mino.mobi/list/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 10080
+    },
+    {
+      "name": "web",
+      "url": "https://rite.mino.mobi/web/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 12552
+    },
+    {
+      "name": "signal",
+      "url": "https://rite.mino.mobi/signal/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 8508
     },
     {
       "name": "cat",
       "url": "https://cat.mino.mobi",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 11172
     },
     {
       "name": "track",
       "url": "https://mino.mobi/track/",
       "category": "bluesky",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 14892
+    },
+    {
+      "name": "pm",
+      "url": "https://mino.mobi/pm/",
+      "category": "work",
+      "parent": "org",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 49884
+    },
+    {
+      "name": "wave",
+      "url": "https://wave.mino.mobi",
+      "category": "work",
+      "parent": "org",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 155664
+    },
+    {
+      "name": "wiki",
+      "url": "https://mino.mobi/wiki/",
+      "category": "work",
+      "parent": "org",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 39924
+    },
+    {
+      "name": "crm",
+      "url": "https://mino.mobi/crm/",
+      "category": "work",
+      "parent": "org",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 114348
     },
     {
       "name": "bounty",
       "url": "https://mino.mobi/bounty/",
       "category": "work",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 25536
     },
     {
       "name": "time",
       "url": "https://mino.mobi/time/",
       "category": "data",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 71856
     },
     {
       "name": "finance",
       "url": "https://mino.mobi/finance/",
       "category": "data",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 122940
+    },
+    {
+      "name": "bogo",
+      "url": "https://mino.mobi/finance/bogo/",
+      "category": "data",
+      "parent": "finance",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 122940
+    },
+    {
+      "name": "agimet",
+      "url": "https://mino.mobi/finance/agimet/",
+      "category": "data",
+      "parent": "finance",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 122940
+    },
+    {
+      "name": "stocks",
+      "url": "https://mino.mobi/finance/stocks/",
+      "category": "data",
+      "parent": "finance",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 122940
     },
     {
       "name": "wars",
       "url": "https://mino.mobi/wars/",
       "category": "data",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 48705
+    },
+    {
+      "name": "cult",
+      "url": "https://mino.mobi/wars/cult/",
+      "category": "data",
+      "parent": "wars",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 20196
     },
     {
       "name": "flows",
       "url": "https://mino.mobi/flows/",
       "category": "data",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 21000
     },
     {
       "name": "phylo",
       "url": "https://mino.mobi/phylo/",
       "category": "data",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 26880
     },
     {
-      "name": "crucible",
-      "url": "https://mino.mobi/crucible/",
+      "name": "mappa",
+      "url": "https://mino.mobi/mappa/",
       "category": "data",
-      "commits": 1
+      "parent": null,
+      "commits": 11,
+      "commitsFollow": 12,
+      "churn": 6896
+    },
+    {
+      "name": "erdos",
+      "url": "https://mino.mobi/erdos/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 17304
+    },
+    {
+      "name": "guthkatz",
+      "url": "https://mino.mobi/guthkatz/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 11472
+    },
+    {
+      "name": "hadwiger",
+      "url": "https://mino.mobi/hadwiger/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 18744
+    },
+    {
+      "name": "runner",
+      "url": "https://mino.mobi/runner/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 9528
+    },
+    {
+      "name": "kakeya",
+      "url": "https://mino.mobi/kakeya/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 9096
+    },
+    {
+      "name": "capset",
+      "url": "https://mino.mobi/capset/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 11412
+    },
+    {
+      "name": "szemeredi-trotter",
+      "url": "https://mino.mobi/szemeredi-trotter/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 11340
+    },
+    {
+      "name": "heilbronn",
+      "url": "https://mino.mobi/heilbronn/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 12900
+    },
+    {
+      "name": "borsuk",
+      "url": "https://mino.mobi/borsuk/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 11796
+    },
+    {
+      "name": "viazovska",
+      "url": "https://mino.mobi/viazovska/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 12432
     },
     {
       "name": "elements",
       "url": "https://mino.mobi/elements/",
       "category": "data",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 8400
+    },
+    {
+      "name": "techtree",
+      "url": "https://mino.mobi/cards/collection/techtree.html",
+      "category": "data",
+      "parent": "cards",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 684
+    },
+    {
+      "name": "grow",
+      "url": "https://mino.mobi/cards/collection/grow.html",
+      "category": "data",
+      "parent": "cards",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 14772
+    },
+    {
+      "name": "recipe",
+      "url": "https://mino.mobi/cards/games/recipe.html",
+      "category": "data",
+      "parent": "cards",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 1236
+    },
+    {
+      "name": "yum",
+      "url": "https://mino.mobi/cards/games/yum.html",
+      "category": "data",
+      "parent": "cards",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 864
     },
     {
       "name": "labglass",
       "url": "https://mino.mobi/labglass/",
       "category": "tools",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 77112
+    },
+    {
+      "name": "ocr",
+      "url": "https://ocr.mino.mobi",
+      "category": "tools",
+      "parent": null,
+      "commits": 8,
+      "commitsFollow": 12,
+      "churn": 10156
+    },
+    {
+      "name": "flow",
+      "url": "https://mino.mobi/read/flow/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 6876
+    },
+    {
+      "name": "post01",
+      "url": "https://mino.mobi/read/post01/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 39768
+    },
+    {
+      "name": "pendragon",
+      "url": "https://mino.mobi/read/pendragon/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 35106
+    },
+    {
+      "name": "pwyll",
+      "url": "https://mino.mobi/read/pwyll/",
+      "category": "tools",
+      "parent": "mabinogi",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 26787
+    },
+    {
+      "name": "gawain",
+      "url": "https://mino.mobi/read/gawain/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 89784
+    },
+    {
+      "name": "culhwch",
+      "url": "https://mino.mobi/read/culhwch/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 26526
+    },
+    {
+      "name": "orfeo",
+      "url": "https://mino.mobi/read/orfeo/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 30429
     },
     {
       "name": "noise",
       "url": "https://mino.mobi/noise/",
       "category": "tools",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 18780
     },
     {
       "name": "music",
       "url": "https://mino.mobi/music/",
       "category": "tools",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 23112
     },
     {
       "name": "bakery",
       "url": "https://bake.mino.mobi",
       "category": "tools",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 50544
     },
     {
       "name": "sweat",
       "url": "https://mino.mobi/sweat/",
       "category": "tools",
-      "commits": 1
-    },
-    {
-      "name": "j",
-      "url": "https://j.mino.mobi",
-      "category": "tools",
-      "commits": 1
-    },
-    {
-      "name": "borges",
-      "url": "https://borges.mino.mobi",
-      "category": "tools",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 19212
     },
     {
       "name": "ai-edu",
       "url": "https://ai.mino.mobi",
       "category": "tools",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 131872
+    },
+    {
+      "name": "emsim",
+      "url": "https://g.mino.mobi/emsim/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 9444
+    },
+    {
+      "name": "stretch",
+      "url": "https://g.mino.mobi/stretch/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 7452
+    },
+    {
+      "name": "globe",
+      "url": "https://g.mino.mobi/globe/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 8928
+    },
+    {
+      "name": "hand",
+      "url": "https://g.mino.mobi/hand/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 5100
+    },
+    {
+      "name": "scope",
+      "url": "https://g.mino.mobi/scope/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 4896
+    },
+    {
+      "name": "mole",
+      "url": "https://g.mino.mobi/mole/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 18600
+    },
+    {
+      "name": "ship",
+      "url": "https://g.mino.mobi/ship/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 14820
+    },
+    {
+      "name": "helix",
+      "url": "https://g.mino.mobi/helix/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 16332
+    },
+    {
+      "name": "corn",
+      "url": "https://g.mino.mobi/corn/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 7296
+    },
+    {
+      "name": "mol",
+      "url": "https://g.mino.mobi/mol/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 8472
+    },
+    {
+      "name": "garden",
+      "url": "https://g.mino.mobi/garden/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 17232
+    },
+    {
+      "name": "pac",
+      "url": "https://torus.mino.mobi/pac/",
+      "category": "games",
+      "parent": "torus",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 21420
+    },
+    {
+      "name": "torpac",
+      "url": "https://torus.mino.mobi/torpac/",
+      "category": "games",
+      "parent": "torus",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 31344
+    },
+    {
+      "name": "knotpac",
+      "url": "https://torus.mino.mobi/knotpac/",
+      "category": "games",
+      "parent": "torus",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 35328
+    },
+    {
+      "name": "inpac",
+      "url": "https://torus.mino.mobi/inpac/",
+      "category": "games",
+      "parent": "torus",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 21048
+    },
+    {
+      "name": "chess",
+      "url": "https://torus.mino.mobi/toruschess/",
+      "category": "games",
+      "parent": "torus",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 7932
     },
     {
       "name": "pokemon",
       "url": "https://mino.mobi/pokemon/",
       "category": "games",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 76550
+    },
+    {
+      "name": "proteus",
+      "url": "https://mino.mobi/pokemon/proteus/",
+      "category": "games",
+      "parent": "pokemon",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 23388
     },
     {
       "name": "mmo",
       "url": "https://mino.mobi/mmo/",
       "category": "games",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 20736
+    },
+    {
+      "name": "draw",
+      "url": "https://mino.mobi/draw/",
+      "category": "games",
+      "parent": "mmo",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 20952
+    },
+    {
+      "name": "paint",
+      "url": "https://mino.mobi/paint/",
+      "category": "games",
+      "parent": "mmo",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 16620
+    },
+    {
+      "name": "range",
+      "url": "https://mino.mobi/range/",
+      "category": "games",
+      "parent": "mmo",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 8640
+    },
+    {
+      "name": "curve",
+      "url": "https://mino.mobi/curve/",
+      "category": "games",
+      "parent": "mmo",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 8748
     },
     {
       "name": "splice",
       "url": "https://splice.mino.mobi",
       "category": "games",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 74586
+    },
+    {
+      "name": "gen",
+      "url": "https://games.mino.mobi/gen/",
+      "category": "games",
+      "parent": "games",
+      "commits": 3,
+      "commitsFollow": 12,
+      "churn": 10771
     },
     {
       "name": "fluoddity",
       "url": "https://fluoddity.mino.mobi",
       "category": "games",
-      "commits": 1
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 100674
+    },
+    {
+      "name": "playground",
+      "url": "https://fluoddity.mino.mobi/play/",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 23379
+    },
+    {
+      "name": "gallery",
+      "url": "https://fluoddity.mino.mobi/gallery.html",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 4083
+    },
+    {
+      "name": "phasemap",
+      "url": "https://fluoddity.mino.mobi/map.html",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 2295
+    },
+    {
+      "name": "forest",
+      "url": "https://fluoddity.mino.mobi/forest.html",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 3477
+    },
+    {
+      "name": "hotnot",
+      "url": "https://fluoddity.mino.mobi/hot.html",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 5397
+    },
+    {
+      "name": "selection",
+      "url": "https://fluoddity.mino.mobi/select.html",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 2946
+    },
+    {
+      "name": "arena",
+      "url": "https://fluoddity.mino.mobi/arena.html",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 2637
+    },
+    {
+      "name": "breeder",
+      "url": "https://fluoddity.mino.mobi/breed.html",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 5661
+    },
+    {
+      "name": "flotorus",
+      "url": "https://fluoddity.mino.mobi/torus.html",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 12,
+      "churn": 5169
+    },
+    {
+      "name": "ternary2",
+      "url": "https://mino.mobi/ternary2/",
+      "category": "bluesky",
+      "parent": "ternary",
+      "commits": 1,
+      "commitsFollow": 11,
+      "churn": 21126
+    },
+    {
+      "name": "voronoi",
+      "url": "https://hoop.mino.mobi/paint/",
+      "category": "bluesky",
+      "parent": "hoop",
+      "commits": 10,
+      "commitsFollow": 10,
+      "churn": 1129
+    },
+    {
+      "name": "duck",
+      "url": "https://duck.mino.mobi",
+      "category": "games",
+      "parent": null,
+      "commits": 10,
+      "commitsFollow": 10,
+      "churn": 7509
+    },
+    {
+      "name": "tetr",
+      "url": "https://b.mino.mobi/tetr/",
+      "category": "bluesky",
+      "parent": "atmosphere",
+      "commits": 6,
+      "commitsFollow": 9,
+      "churn": 1764
+    },
+    {
+      "name": "ternary3",
+      "url": "https://mino.mobi/ternary3/",
+      "category": "bluesky",
+      "parent": "ternary",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 13464
+    },
+    {
+      "name": "mabinogi",
+      "url": "https://mino.mobi/read/mabinogi/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 2475
+    },
+    {
+      "name": "branwen",
+      "url": "https://mino.mobi/read/branwen/",
+      "category": "tools",
+      "parent": "mabinogi",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 27441
+    },
+    {
+      "name": "manawydan",
+      "url": "https://mino.mobi/read/manawydan/",
+      "category": "tools",
+      "parent": "mabinogi",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 22338
+    },
+    {
+      "name": "math",
+      "url": "https://mino.mobi/read/math/",
+      "category": "tools",
+      "parent": "mabinogi",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 25452
+    },
+    {
+      "name": "owain",
+      "url": "https://mino.mobi/read/owain/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 36216
+    },
+    {
+      "name": "vitamerlini",
+      "url": "https://mino.mobi/read/vitamerlini/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 40347
+    },
+    {
+      "name": "j",
+      "url": "https://j.mino.mobi",
+      "category": "tools",
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 25191
+    },
+    {
+      "name": "borges",
+      "url": "https://borges.mino.mobi",
+      "category": "tools",
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 36945
+    },
+    {
+      "name": "antoine",
+      "url": "https://g.mino.mobi/antoine/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 5724
+    },
+    {
+      "name": "basket",
+      "url": "https://g.mino.mobi/basket/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 3339
+    },
+    {
+      "name": "horned",
+      "url": "https://g.mino.mobi/horned/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 6291
+    },
+    {
+      "name": "lattice",
+      "url": "https://g.mino.mobi/lattice/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 6273
+    },
+    {
+      "name": "golf",
+      "url": "https://duck.mino.mobi/golf/",
+      "category": "games",
+      "parent": "duck",
+      "commits": 3,
+      "commitsFollow": 9,
+      "churn": 560
+    },
+    {
+      "name": "flogame",
+      "url": "https://fluoddity.mino.mobi/game/",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 6354
+    },
+    {
+      "name": "swarmtext",
+      "url": "https://fluoddity.mino.mobi/text/",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 1386
+    },
+    {
+      "name": "swarmread",
+      "url": "https://fluoddity.mino.mobi/read/",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 2394
+    },
+    {
+      "name": "swarmclip",
+      "url": "https://fluoddity.mino.mobi/clip/",
+      "category": "games",
+      "parent": "fluoddity",
+      "commits": 1,
+      "commitsFollow": 9,
+      "churn": 3546
+    },
+    {
+      "name": "gacha",
+      "url": "https://biome.mino.mobi/gacha/",
+      "category": "data",
+      "parent": "biome",
+      "commits": 8,
+      "commitsFollow": 8,
+      "churn": 4893
+    },
+    {
+      "name": "tablet",
+      "url": "https://g.mino.mobi/tablet/",
+      "category": "games",
+      "parent": "g",
+      "commits": 5,
+      "commitsFollow": 8,
+      "churn": 1466
+    },
+    {
+      "name": "feedgen",
+      "url": "https://b.mino.mobi/feedgen/",
+      "category": "bluesky",
+      "parent": "atmosphere",
+      "commits": 3,
+      "commitsFollow": 6,
+      "churn": 4532
+    },
+    {
+      "name": "spark",
+      "url": "https://b.mino.mobi/spark/",
+      "category": "bluesky",
+      "parent": "atmosphere",
+      "commits": 5,
+      "commitsFollow": 6,
+      "churn": 844
+    },
+    {
+      "name": "graph",
+      "url": "https://biome.mino.mobi/graph/",
+      "category": "data",
+      "parent": "biome",
+      "commits": 6,
+      "commitsFollow": 6,
+      "churn": 1977
+    },
+    {
+      "name": "markov",
+      "url": "https://mino.mobi/markov/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 3,
+      "commitsFollow": 6,
+      "churn": 3592
+    },
+    {
+      "name": "descent",
+      "url": "https://mino.mobi/descent/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 3,
+      "commitsFollow": 6,
+      "churn": 2390
+    },
+    {
+      "name": "traffic",
+      "url": "https://mino.mobi/traffic/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 5,
+      "commitsFollow": 6,
+      "churn": 986
+    },
+    {
+      "name": "geomancy",
+      "url": "https://mino.mobi/read/geomancy/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 3,
+      "commitsFollow": 6,
+      "churn": 3692
+    },
+    {
+      "name": "pizza",
+      "url": "https://canvas.mino.mobi/pizza/",
+      "category": "tools",
+      "parent": "canvas",
+      "commits": 3,
+      "commitsFollow": 6,
+      "churn": 3730
+    },
+    {
+      "name": "meander",
+      "url": "https://mino.mobi/meander/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 4,
+      "churn": 4476
+    },
+    {
+      "name": "temperley-lieb",
+      "url": "https://mino.mobi/temperley-lieb/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 4,
+      "churn": 5848
+    },
+    {
+      "name": "aztec",
+      "url": "https://mino.mobi/aztec/",
+      "category": "data",
+      "parent": "geometry",
+      "commits": 1,
+      "commitsFollow": 4,
+      "churn": 1936
+    },
+    {
+      "name": "prop",
+      "url": "https://mino.mobi/prop/",
+      "category": "data",
+      "parent": null,
+      "commits": 4,
+      "commitsFollow": 4,
+      "churn": 2570
+    },
+    {
+      "name": "diffract",
+      "url": "https://mino.mobi/cards/collection/diffract.html",
+      "category": "data",
+      "parent": "cards",
+      "commits": 1,
+      "commitsFollow": 4,
+      "churn": 2420
+    },
+    {
+      "name": "iching",
+      "url": "https://mino.mobi/read/iching/",
+      "category": "tools",
+      "parent": "read",
+      "commits": 1,
+      "commitsFollow": 4,
+      "churn": 9292
+    },
+    {
+      "name": "sticks",
+      "url": "https://g.mino.mobi/sticks/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 4,
+      "churn": 1432
+    },
+    {
+      "name": "yarrow",
+      "url": "https://g.mino.mobi/yarrow/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 4,
+      "churn": 3276
+    },
+    {
+      "name": "yijing",
+      "url": "https://g.mino.mobi/yijing/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 4,
+      "churn": 3304
+    },
+    {
+      "name": "soil",
+      "url": "https://g.mino.mobi/soil/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 4,
+      "churn": 1272
+    },
+    {
+      "name": "item",
+      "url": "https://mega.mino.mobi/sprite/item/",
+      "category": "games",
+      "parent": "sprite",
+      "commits": 4,
+      "commitsFollow": 4,
+      "churn": 2099
+    },
+    {
+      "name": "cable",
+      "url": "https://cable.mino.mobi",
+      "category": "tools",
+      "parent": null,
+      "commits": 2,
+      "commitsFollow": 3,
+      "churn": 2328
+    },
+    {
+      "name": "dyad",
+      "url": "https://b.mino.mobi/dyad/",
+      "category": "bluesky",
+      "parent": "atmosphere",
+      "commits": 1,
+      "commitsFollow": 2,
+      "churn": 844
+    },
+    {
+      "name": "tabletilt",
+      "url": "https://g.mino.mobi/tabletilt/",
+      "category": "games",
+      "parent": "g",
+      "commits": 1,
+      "commitsFollow": 2,
+      "churn": 722
+    },
+    {
+      "name": "wc",
+      "url": "https://rite.mino.mobi/wc/",
+      "category": "bluesky",
+      "parent": "rite",
+      "commits": 1,
+      "commitsFollow": 1,
+      "churn": 284
+    },
+    {
+      "name": "crucible",
+      "url": "https://mino.mobi/crucible/",
+      "category": "data",
+      "parent": null,
+      "commits": 1,
+      "commitsFollow": 1,
+      "churn": 594
+    },
+    {
+      "name": "astro",
+      "url": "https://photo.mino.mobi/astro/",
+      "category": "bluesky",
+      "parent": "photo",
+      "commits": 0,
+      "commitsFollow": 0,
+      "churn": 0
+    },
+    {
+      "name": "prism",
+      "url": "https://photo.mino.mobi/prism/",
+      "category": "bluesky",
+      "parent": "photo",
+      "commits": 0,
+      "commitsFollow": 0,
+      "churn": 0
+    },
+    {
+      "name": "orb",
+      "url": "https://photo.mino.mobi/orb/",
+      "category": "bluesky",
+      "parent": "photo",
+      "commits": 0,
+      "commitsFollow": 0,
+      "churn": 0
+    },
+    {
+      "name": "fractal",
+      "url": "https://photo.mino.mobi/fractal/",
+      "category": "bluesky",
+      "parent": "photo",
+      "commits": 0,
+      "commitsFollow": 0,
+      "churn": 0
     }
   ]
 }
