@@ -145,6 +145,14 @@ scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG �
   progress (camera follows the body so it stays in view), muscles glow as they fire. `gait-proof.mjs` =
   headless walk strip. NB it *tracks* the kinematic gait (controller-driven), not learned/emergent; balance
   off the foot-lock (true free locomotion) is the next step.
+- `physics.mjs` + `walk.html` — **EXPERIMENTAL / WIP, not linked from the lab.** Real forward dynamics:
+  a 2D rigid-body model (trunk + thigh/shank legs), gravity, ground contact (feet UNLOCKED — they collide,
+  not foot-locked), joints driven by muscle torque. `makeWalker(sprite, muscles)` + `step(dt, control)` /
+  `walkStep`. The constraint solver is correct (proper 2×2 point-to-point); the verified result is that a
+  rigid muscle-held skeleton stands and **muscles-off → gravity collapses it**. But a STABLE controllable
+  gait is NOT solved — soft PD sags, stiff PD goes numerically unstable; it needs an implicit integrator
+  (or careful substepping) + a balance/posture controller (this is the research-grade part). `physics-proof.mjs`
+  renders the headless (currently tumbling) attempt. Do not present as working until it stands stably.
 - `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG contact sheet (headless).
 
 **Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints); grown one STANDS

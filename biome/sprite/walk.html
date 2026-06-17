@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · gait dynamics — gravity-solved walking, muscle-driven</title>
+<meta name="description" content="Real-time forward dynamics: a 2D rigid-body animal under gravity, feet contacting the ground, joints driven by muscle torque. The musculature holds it up and walks it forward — turn the muscles off and gravity wins." />
+<style>
+  :root{ --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da; --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace; }
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:radial-gradient(150% 130% at 50% -20%,#16261f,#0a110e 62%);color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px 0}.crumb a{color:var(--gold);text-decoration:none}
+  header{padding:10px 20px 12px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:18px;letter-spacing:.4px;color:var(--gold);font-weight:600}h1 small{color:var(--dim);font-weight:400;font-size:13px}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:96ch;line-height:1.55}.sub b{color:var(--txt)}
+  main{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:920px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .stage{position:relative;background:linear-gradient(180deg,#0e1814,#0b120f);border:1px solid var(--line);border-radius:10px}
+  canvas#cv{display:block;width:100%;height:auto;border-radius:10px}
+  button{font:600 13px/1 var(--mono);color:var(--txt);background:#0e1713;border:1px solid var(--line);border-radius:9px;padding:10px 12px;cursor:pointer;width:100%}
+  button:hover{border-color:#3c6a4c} button.on{border-color:var(--gold);color:var(--gold)}
+  button.go{background:linear-gradient(180deg,#1a3a28,#13241a);border-color:#2c5a3c;color:#dff3e6}
+  .row{display:flex;gap:8px;margin-top:9px}.row button{flex:1}
+  select{background:#0b1310;border:1px solid var(--line);border-radius:7px;color:var(--txt);font:inherit;padding:8px;width:100%;margin-top:6px}
+  .ctl{margin-top:12px}.ctl label{font-size:12px;color:var(--dim);display:block;margin-bottom:4px}input[type=range]{width:100%}
+  .stat{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:6px}.stat b{color:var(--txt)}
+  .legend{margin-top:12px;font-size:11.5px;color:var(--dim);line-height:1.7}.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:5px}
+  #err{display:none;position:absolute;left:10px;right:10px;top:10px;z-index:9;background:#2a1410;border:1px solid #5a342c;border-radius:8px;padding:10px 12px;color:#f0b8a8;font-size:12px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">biome</a> / <a href="/sprite/">sprite</a> / <a href="/sprite/muscle.html">myology</a> / gait dynamics</div>
+  <header>
+    <h1>gait dynamics <small>— gravity-solved, muscle-driven walking</small></h1>
+    <div class="sub"><b style="color:var(--warn)">EXPERIMENTAL / WIP.</b> Real <b>forward dynamics</b>: the body is
+      a rigid system in a gravity field, the feet <b>collide</b> with the ground (not locked), each joint is
+      driven by <b>muscle torque</b>. The engine is real and the constraint solve is correct — but a STABLE
+      controllable gait isn't solved yet (soft control sags, stiff control goes unstable; it needs an implicit
+      integrator + a balance controller). The reliable demo here: hit <b>muscles OFF</b> and watch gravity
+      collapse it. Press play to watch the (unstable) attempt.</div>
+  </header>
+  <main>
+    <section class="panel">
+      <label class="ctl" style="margin-top:0"><span style="font-size:12px;color:var(--dim)">subject</span><select id="sel"></select></label>
+      <div class="row"><button class="go" id="b-play">▶ play</button><button id="b-reset">↺ reset</button></div>
+      <div class="row"><button id="b-mus" class="on">muscles ON</button></div>
+      <div class="ctl"><label>muscle strength ×<span id="cv-v">1.0</span></label><input type="range" id="cap" min="0.3" max="3" step="0.1" value="1.0"></div>
+      <div class="ctl"><label>cadence <span id="cad-v">2.0</span></label><input type="range" id="cad" min="0.6" max="3.5" step="0.1" value="2.0"></div>
+      <div class="ctl"><label>zoom</label><div class="row" style="margin-top:0"><button id="z-out">－</button><button id="z-in">＋</button></div></div>
+      <div style="margin-top:14px">
+        <div class="stat"><span>forward travel</span><b id="s-x">0</b></div>
+        <div class="stat"><span>trunk height</span><b id="s-y">—</b></div>
+        <div class="stat"><span>feet on ground</span><b id="s-f">—</b></div>
+        <div class="stat"><span>fallen?</span><b id="s-fall">no</b></div>
+      </div>
+      <div class="legend">
+        <i style="background:#5b6b63"></i>bone &nbsp; <i style="background:var(--warn)"></i>joint firing (muscle effort) &nbsp; <i style="background:var(--gold)"></i>foot on ground
+      </div>
+    </section>
+    <section class="panel"><div class="stage"><canvas id="cv" width="1100" height="640"></canvas><div id="err"></div></div></section>
+  </main>
+
+<script type="module">
+import { build } from './bauplan.mjs';
+import { solve } from './render.mjs';
+import { growMuscles } from './myology.mjs';
+import { makeWalker } from './physics.mjs';
+
+const errEl=document.getElementById('err');
+const showErr=(w,e)=>{errEl.textContent=`⚠ ${w}: ${(e&&(e.stack||e.message))||e}`;errEl.style.display='block';console.error(w,e);};
+window.addEventListener('error',ev=>showErr('runtime',ev.error||ev.message));
+window.addEventListener('unhandledrejection',ev=>showErr('promise',ev.reason));
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d'), dpr=Math.min(2,window.devicePixelRatio||1);
+cv.width=1100*dpr; cv.height=640*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+const GY=520; // ground line, screen y
+
+let CAT=null, sprite=null, muscles=[], walker=null, nonLeg=[], scale=1, zoom=1;
+let playing=false, musclesOn=true, capMul=1, cadence=2.0, x0=0, anim=null; // start paused — WIP, not stable
+
+function setup(id){
+  if(anim) cancelAnimationFrame(anim);
+  sprite=build(CAT.organisms[id]); muscles=growMuscles(sprite).muscles;
+  const W=solve(sprite,0);
+  // precompute rest endpoints of the non-leg (trunk) segments for rendering the trunk skeleton
+  nonLeg=sprite.segs.filter(s=>!s.leg).map(s=>({base:{...W[s.id].base}, tip:{...W[s.id].tip}, w:((s.w0||1)+(s.w1||1))/2}));
+  rebuild();
+}
+function rebuild(){
+  walker=makeWalker(sprite,muscles,{capScale:1500*capMul});
+  x0=walker.trunkPos().x;
+  // fit scale: skeleton span vs canvas
+  let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9; for(const s of nonLeg) for(const p of [s.base,s.tip]){minx=Math.min(minx,p.x);maxx=Math.max(maxx,p.x);miny=Math.min(miny,p.y);maxy=Math.max(maxy,p.y);}
+  scale=Math.min(900/(maxx-minx||1), 360/((walker.groundY-miny)||1))*0.9;
+  draw();
+}
+const restT=()=>walker.restTrunk;
+function trunkXform(p,tp){ const dx=p.x-restT().x, dy=p.y-restT().y, c=Math.cos(tp.a), s=Math.sin(tp.a); return {x:tp.x+dx*c-dy*s, y:tp.y+dx*s+dy*c}; }
+
+let acts=new Map(), feet=[];
+function W2S(wx,wy){ const S=scale*zoom, camX=walker.trunkPos().x; return {x:(wx-camX)*S+550, y:(wy-walker.groundY)*S+GY}; }
+
+function draw(){ try{
+  const tp=walker.trunkPos(), S=scale*zoom; ctx.clearRect(0,0,1100,640);
+  // ground + world stripes scrolled by camera
+  ctx.fillStyle='#13201a'; ctx.fillRect(0,GY,1100,640-GY);
+  ctx.strokeStyle='#2c4438'; ctx.lineWidth=2; const SP=70/S, x0w=tp.x-580/S;
+  for(let wx=Math.ceil(x0w/SP)*SP; (wx-tp.x)*S+550<1140; wx+=SP){ const sx=(wx-tp.x)*S+550; ctx.beginPath();ctx.moveTo(sx,GY);ctx.lineTo(sx-26,GY+20);ctx.stroke(); }
+  ctx.beginPath();ctx.moveTo(0,GY);ctx.lineTo(1100,GY);ctx.strokeStyle='#3a5446';ctx.lineWidth=3;ctx.stroke();
+  // trunk skeleton (rides the trunk body)
+  for(const s of nonLeg){ const tb=trunkXform(s.base,tp), tt=trunkXform(s.tip,tp); const a=W2S(tb.x,tb.y), b=W2S(tt.x,tt.y);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineCap='round';ctx.lineWidth=Math.max(1,s.w*S*0.7);ctx.strokeStyle='#5b6b63';ctx.stroke(); }
+  // legs (thigh + shank rigid bodies)
+  const actByLeg={};
+  for(const j of walker.joints){ const a=acts.get(j)||0; actByLeg[j.leg.lp]=Math.max(actByLeg[j.leg.lp]||0,a); }
+  for(const L of walker.legs){ for(const bi of [L.thigh,L.shank]){ const b=walker.bodies[bi]; const dx=Math.cos(b.a)*b.len/2, dy=Math.sin(b.a)*b.len/2;
+      const p1=W2S(b.x-dx,b.y-dy), p2=W2S(b.x+dx,b.y+dy);
+      ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.lineCap='round';ctx.lineWidth=Math.max(2,5*S);ctx.strokeStyle='#7c8a82';ctx.stroke(); } }
+  // joints firing (muscle effort) — red discs at the hip/knee
+  for(const j of walker.joints){ const A=walker.bodies[j.a], la=rotp(j.la,A.a); const wp={x:A.x+la.x,y:A.y+la.y}; const sp=W2S(wp.x,wp.y); const a=acts.get(j)||0;
+    if(a>0.03){ ctx.beginPath();ctx.arc(sp.x,sp.y,Math.max(2.5,3+a*5),0,7);ctx.fillStyle=`rgba(225,${Math.round(120-a*60)},70,${0.4+0.5*a})`;ctx.fill(); } }
+  // feet
+  for(const f of feet){ const sp=W2S(f.x,f.y); ctx.beginPath();ctx.arc(sp.x,sp.y,4,0,7);ctx.fillStyle=f.contact?'#d8b25a':'#5a6b62';ctx.fill(); }
+}catch(e){ showErr('draw',e); } }
+function rotp(p,a){ return {x:p.x*Math.cos(a)-p.y*Math.sin(a), y:p.x*Math.sin(a)+p.y*Math.cos(a)}; }
+
+function frame(){ try{
+  if(playing){ for(let k=0;k<2;k++){ const r = musclesOn ? walker.walkStep(1/120,{cadence}) : walker.step(1/120,()=>0); acts=r.acts; if(r.feet)feet=r.feet; else feet=walker.feetContacts.map(c=>{const wp=walker.worldPoint(c.body,c.local);return{x:wp.x,y:wp.y,contact:wp.y>=walker.groundY-2};}); } }
+  draw();
+  const tp=walker.trunkPos(); const fallen=(tp.y-restT().y) > 80;
+  $('s-x').textContent=((tp.x-x0)).toFixed(0); $('s-y').textContent=(restT().y-tp.y).toFixed(0);
+  $('s-f').textContent=`${feet.filter(f=>f.contact).length}/4`; $('s-fall').textContent=fallen?'FELL':'no'; $('s-fall').style.color=fallen?'#e0795a':'#62b87a';
+}catch(e){ showErr('frame',e); return; } anim=requestAnimationFrame(frame); }
+
+$('b-play').onclick=()=>{ playing=!playing; $('b-play').textContent=playing?'⏸ pause':'▶ play'; };
+$('b-reset').onclick=()=>rebuild();
+$('b-mus').onclick=()=>{ musclesOn=!musclesOn; $('b-mus').textContent=musclesOn?'muscles ON':'muscles OFF'; $('b-mus').classList.toggle('on',musclesOn); };
+$('cap').oninput=e=>{ capMul=parseFloat(e.target.value); $('cv-v').textContent=capMul.toFixed(1); rebuild(); };
+$('cad').oninput=e=>{ cadence=parseFloat(e.target.value); $('cad-v').textContent=cadence.toFixed(1); };
+$('z-in').onclick=()=>{ zoom=Math.min(3,zoom*1.15); }; $('z-out').onclick=()=>{ zoom=Math.max(0.4,zoom/1.15); };
+cv.addEventListener('wheel',e=>{ e.preventDefault(); zoom=Math.max(0.4,Math.min(3,zoom*(e.deltaY<0?1.1:0.9))); },{passive:false});
+
+(async function boot(){ try{
+  const res=await fetch('../gacha/catalog.json'); if(!res.ok) throw new Error('catalog '+res.status); CAT=await res.json();
+  const quad=Object.values(CAT.organisms).filter(o=>{try{build(o);return true;}catch{return false;}}).sort((a,b)=>(b.mass_g||0)-(a.mass_g||0));
+  const sel=$('sel'); for(const o of quad){const op=document.createElement('option');op.value=o.id;op.textContent=`${o.common} · ${o.sciName}`;sel.appendChild(op);}
+  sel.onchange=()=>setup(sel.value); setup(quad[0].id); frame();
+}catch(e){ showErr('boot',e); } })();
+</script>
+</body>
+</html>
