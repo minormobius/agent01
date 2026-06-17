@@ -1,0 +1,9 @@
+{
+  "generated": null,
+  "window_days": 30,
+  "source": "cloudflare-graphql httpRequestsAdaptiveGroups (edge HTML page loads, sampling-adjusted)",
+  "status": "awaiting-ingest",
+  "total_pageviews": 0,
+  "sites": [],
+  "note": "Seeded empty. The traffic-ingest workflow (.github/workflows/traffic-ingest.yml) fills this from Cloudflare once CLOUDFLARE_API_TOKEN carries Zone Analytics: Read. Until then /iceberg/ shows every surface resting on the benthic floor."
+}

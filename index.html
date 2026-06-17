@@ -346,7 +346,7 @@ hr {
   border-color: var(--accent);
   background: var(--accent-faint);
 }
-.stumble-wrap { display: flex; justify-content: center; margin: 0.4rem 0 0.1rem; }
+.stumble-wrap { display: flex; justify-content: center; gap: 0.5rem; margin: 0.4rem 0 0.1rem; }
 #stumble-cta {
   display: inline-flex;
   align-items: center;
@@ -366,6 +366,16 @@ hr {
 }
 #stumble-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.28); filter: brightness(1.08); }
 #stumble-cta .die { font-size: 0.8rem; }
+#iceberg-cta {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.16em;
+  text-transform: uppercase; text-decoration: none;
+  background: transparent; color: var(--accent);
+  border: 1px solid var(--accent); padding: 0.4rem 0.95rem; border-radius: 999px;
+  cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+#iceberg-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.28); filter: brightness(1.08); }
+#iceberg-cta .berg { font-size: 0.8rem; }
 
 #vis-stage {
   position: relative;
@@ -950,7 +960,7 @@ footer a:hover {
 
 <h1>minomobi</h1>
 
-<div class="stumble-wrap"><a id="stumble-cta" href="https://io.mino.mobi/stumble" title="Jump to a random mino.mobi site"><span class="die">🎲</span> stumble</a></div>
+<div class="stumble-wrap"><a id="stumble-cta" href="https://io.mino.mobi/stumble" title="Jump to a random mino.mobi site"><span class="die">🎲</span> stumble</a><a id="iceberg-cta" href="https://mino.mobi/iceberg/" title="Every site ranked by page views, sunk into the ocean"><span class="berg">🧊</span> iceberg</a></div>
 
 <div class="vis-tabs" role="tablist">
   <button class="vis-tab active" data-mode="constellation" role="tab">constellation</button>

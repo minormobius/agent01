@@ -26,6 +26,9 @@ on:
       - 'styles.css'
       - 'functions/**'
       - 'scripts/generate-search-catalog.mjs'
+      # iceberg: sites ranked by page views (data/traffic.json filled by traffic-ingest.yml)
+      - 'iceberg/**'
+      - 'data/traffic.json'
       # geometry-pack page under active development on this branch — keep the
       # canonical mino.mobi/meander/ in sync with edits (also ships via
       # deploy-math to math.mino.mobi). Carve back out once it stabilizes.

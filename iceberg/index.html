@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iceberg — mino.mobi sites by page views</title>
+<meta name="description" content="Every mino.mobi site ranked by page views, sunk into the ocean: the most-visited float in the sunlight zone and the unseen fade into the benthic deep.">
+<style>
+  :root {
+    --ink: #eaf2f7;
+    --muted: #8aa0ad;
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+    --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    --sky: #cfe3ee;
+    --c-bluesky: #5aa9e6;
+    --c-games:   #e6a85a;
+    --c-tools:   #b98ce6;
+    --c-math:    #5ae6b0;
+    --c-other:   #9fb3bf;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #04070b; color: var(--ink); font-family: var(--serif); }
+  a { color: inherit; }
+  .top {
+    position: sticky; top: 0; z-index: 20; display: flex; align-items: baseline;
+    gap: 0.8rem; flex-wrap: wrap; padding: 0.7rem 1rem;
+    background: linear-gradient(#04070b, rgba(4,7,11,0.85)); border-bottom: 1px solid #142330;
+    font-family: var(--mono);
+  }
+  .top .brand { font-size: 1rem; text-decoration: none; letter-spacing: .02em; }
+  .top .brand b { color: #fff; }
+  .top h1 { font-family: var(--serif); font-size: 1.05rem; font-weight: 600; }
+  .top .meta { color: var(--muted); font-size: 0.72rem; }
+  .top .spacer { flex: 1; }
+  .banner {
+    margin: 0; padding: 0.6rem 1rem; font-family: var(--mono); font-size: 0.78rem;
+    background: #2a1d05; color: #f0c674; border-bottom: 1px solid #5c4a17;
+  }
+  .banner.hide { display: none; }
+  .stage { max-width: 1040px; margin: 0 auto; padding: 0 0.5rem 3rem; }
+  svg { width: 100%; height: auto; display: block; }
+  .znlabel { font-family: var(--mono); font-size: 11px; fill: rgba(255,255,255,0.5); }
+  .zndepth { font-family: var(--mono); font-size: 9px; fill: rgba(255,255,255,0.28); }
+  .node-label { font-family: var(--mono); fill: var(--ink); paint-order: stroke; stroke: rgba(0,0,0,0.55); stroke-width: 2.4px; }
+  .node-views { font-family: var(--mono); fill: var(--muted); }
+  .node:hover circle { stroke: #fff; stroke-width: 2; }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 1.2rem; padding: 1rem; max-width: 1040px;
+    margin: 0 auto; font-family: var(--mono); font-size: 0.74rem; color: var(--muted);
+  }
+  .legend b { color: var(--ink); font-weight: 600; }
+  .legend .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; }
+  .foot { max-width: 1040px; margin: 0 auto; padding: 0 1rem 3rem; color: var(--muted);
+    font-size: 0.82rem; line-height: 1.5; }
+  .foot code { font-family: var(--mono); color: var(--ink); }
+  #tip {
+    position: fixed; pointer-events: none; z-index: 30; display: none;
+    background: #0b1620; border: 1px solid #244; border-radius: 6px; padding: 0.4rem 0.6rem;
+    font-family: var(--mono); font-size: 0.74rem; color: var(--ink); max-width: 260px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  }
+  #tip .v { color: #7fd3ff; }
+</style>
+</head>
+<body>
+<div class="top">
+  <a class="brand" href="https://mino.mobi"><b>mino</b>.mobi</a>
+  <h1>iceberg</h1>
+  <span class="meta" id="meta">loading…</span>
+  <span class="spacer"></span>
+  <span class="meta">page views, last <span id="win">30</span>d</span>
+</div>
+<p class="banner hide" id="banner"></p>
+
+<div class="stage">
+  <svg id="sea" viewBox="0 0 1000 1500" preserveAspectRatio="xMidYMin meet" role="img"
+       aria-label="mino.mobi sites placed by page views, deepest = least visited"></svg>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="foot">
+  <p><b style="color:var(--ink)">How depth is read.</b> Each surface sinks to a depth set by its page
+  views on a logarithmic scale — the busiest sites float in the sunlit shallows, the quietest settle
+  on the benthic floor. A “page view” is an edge HTML document load
+  (<code>edgeResponseContentTypeName = "html"</code>), sampling-adjusted, pulled from Cloudflare’s
+  GraphQL analytics by <code>scripts/fetch-traffic.mjs</code> and refreshed daily by the
+  <code>traffic-ingest</code> workflow. Path-based sub-pages roll up into their host surface; only
+  top-level surfaces are plotted.</p>
+</div>
+
+<div id="tip"></div>
+
+<script>
+const SVG = 'http://www.w3.org/2000/svg';
+const W = 1000, H = 1500, WATER = 150, FLOOR = H - 40;
+const OCEAN = FLOOR - WATER;
+const sea = document.getElementById('sea');
+const tip = document.getElementById('tip');
+
+// Oceanic zones: [depthFrom, depthTo, name, subtitle, fill]
+const ZONES = [
+  [0.00, 0.12, 'Sunlight',  'epipelagic',     '#0d3b66'],
+  [0.12, 0.35, 'Twilight',  'mesopelagic',    '#0a2c4d'],
+  [0.35, 0.60, 'Midnight',  'bathypelagic',   '#071d33'],
+  [0.60, 0.85, 'Abyss',     'abyssopelagic',  '#04111e'],
+  [0.85, 1.00, 'Benthic',   'hadal',          '#02080f'],
+];
+const catColor = (c) => getComputedStyle(document.documentElement)
+  .getPropertyValue('--c-' + c).trim() || getComputedStyle(document.documentElement).getPropertyValue('--c-other').trim();
+
+// Same log mapping as scripts/fetch-traffic.mjs depthFor()
+function depthFor(v, minV, maxV) {
+  if (!(v > 0)) return 1;
+  const lo = Math.log10(Math.max(1, minV));
+  const hi = Math.log10(Math.max(10, maxV));
+  if (hi <= lo) return 0;
+  return Math.max(0, Math.min(1, 1 - (Math.log10(v) - lo) / (hi - lo)));
+}
+const el = (tag, attrs) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+const fmt = (n) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n);
+
+async function load() {
+  let roster = [], traffic = { status: 'awaiting-ingest', sites: [], window_days: 30 };
+  try {
+    const r = await fetch('/io/sites.json', { cache: 'no-store' });
+    const j = await r.json();
+    for (const c of j.constellations || [])
+      for (const s of c.sites || []) if (!s.parent)
+        roster.push({ name: s.name, url: s.url, category: (s.tags && s.tags[0]) || 'other' });
+  } catch (e) { /* roster stays empty → handled below */ }
+  try { traffic = await (await fetch('/data/traffic.json', { cache: 'no-store' })).json(); } catch (e) {}
+
+  const views = new Map((traffic.sites || []).map((s) => [s.url, s.views]));
+  document.getElementById('win').textContent = traffic.window_days || 30;
+  const live = traffic.status === 'ok' && (traffic.total_pageviews || 0) > 0;
+
+  document.getElementById('meta').textContent = live
+    ? `${roster.length} surfaces · ${Number(traffic.total_pageviews).toLocaleString()} views · ${(traffic.generated || '').slice(0, 10)}`
+    : `${roster.length} surfaces · awaiting first ingest`;
+  const banner = document.getElementById('banner');
+  if (!live) {
+    banner.classList.remove('hide');
+    banner.innerHTML = 'No traffic data yet — every surface is shown <b>at rest on the seafloor</b>. '
+      + 'Depth becomes meaningful once the <code>traffic-ingest</code> workflow runs with an '
+      + 'Analytics-scoped <code>CLOUDFLARE_API_TOKEN</code>.';
+  }
+
+  const vals = roster.map((s) => views.get(s.url) || 0).filter((v) => v > 0);
+  const maxV = vals.length ? Math.max(...vals) : 0;
+  const minV = vals.length ? Math.min(...vals) : 0;
+
+  draw(roster.map((s, i) => {
+    const v = views.get(s.url) || 0;
+    // Live: depth from views. No data: tile the abyss/hadal so nodes don't pile.
+    const depth = live ? depthFor(v, minV, maxV)
+                       : 0.80 + 0.18 * ((i % 17) / 16);
+    return { ...s, views: v, depth };
+  }), live);
+}
+
+function draw(nodes, live) {
+  sea.innerHTML = '';
+
+  // sky + water-column zone bands
+  sea.appendChild(el('rect', { x: 0, y: 0, width: W, height: WATER, fill: 'url(#sky)' }));
+  const defs = el('defs', {});
+  const sky = el('linearGradient', { id: 'sky', x1: 0, y1: 0, x2: 0, y2: 1 });
+  sky.appendChild(el('stop', { offset: 0, 'stop-color': '#9fc2d8' }));
+  sky.appendChild(el('stop', { offset: 1, 'stop-color': '#cfe3ee' }));
+  defs.appendChild(sky);
+  sea.appendChild(defs);
+
+  for (const [a, b, name, sub, fill] of ZONES) {
+    const y = WATER + a * OCEAN, h = (b - a) * OCEAN;
+    sea.appendChild(el('rect', { x: 0, y, width: W, height: h, fill }));
+    sea.appendChild(Object.assign(el('text', { class: 'znlabel', x: 14, y: y + 16 }), {})).textContent = name;
+    const d = sea.appendChild(el('text', { class: 'zndepth', x: 14, y: y + 28 })); d.textContent = sub;
+  }
+
+  // iceberg silhouette: small tip above the waterline, bulk below
+  const cx = W * 0.5;
+  const berg = el('polygon', {
+    points: `${cx-70},${WATER} ${cx-30},${WATER-46} ${cx+18},${WATER-58} ${cx+58},${WATER} `
+          + `${cx+150},${WATER+220} ${cx+60},${WATER+520} ${cx-90},${WATER+430} ${cx-170},${WATER+150}`,
+    fill: 'rgba(220,240,250,0.06)', stroke: 'rgba(200,230,245,0.18)', 'stroke-width': 1.5,
+  });
+  sea.appendChild(berg);
+  // waterline
+  sea.appendChild(el('line', { x1: 0, y1: WATER, x2: W, y2: WATER, stroke: 'rgba(255,255,255,0.55)', 'stroke-width': 1.5 }));
+  sea.appendChild(Object.assign(el('text', { class: 'znlabel', x: W - 90, y: WATER - 8 }))).textContent = '~ sea level ~';
+
+  // place nodes into horizontal shelves by quantized depth so they never overlap
+  const rowH = 40, margin = 70;
+  const shelves = new Map();
+  for (const n of nodes) {
+    const y = WATER + n.depth * OCEAN;
+    const row = Math.round(y / rowH);
+    if (!shelves.has(row)) shelves.set(row, []);
+    shelves.get(row).push(n);
+  }
+  for (const [row, arr] of shelves) {
+    arr.sort((a, b) => b.views - a.views);
+    const y = Math.min(FLOOR - 8, Math.max(WATER + 18, row * rowH));
+    const n = arr.length;
+    const usable = W - margin * 2;
+    const gap = usable / Math.max(1, n);
+    const showLabels = n <= 11;
+    arr.forEach((node, i) => {
+      const x = margin + gap * (i + 0.5);
+      const depthFade = 0.45 + 0.55 * (1 - node.depth); // dimmer the deeper it sits
+      const r = Math.max(4, Math.min(24, 4 + Math.sqrt(node.views) * 0.5));
+      const col = catColor(node.category);
+
+      const g = el('g', { class: 'node' });
+      g.appendChild(el('circle', {
+        cx: x, cy: y, r,
+        fill: col, 'fill-opacity': depthFade,
+        stroke: 'rgba(255,255,255,0.25)', 'stroke-width': 0.8,
+      }));
+      if (showLabels) {
+        const t = el('text', { class: 'node-label', x: x + r + 5, y: y + 3, 'font-size': 12, 'fill-opacity': depthFade + 0.2 });
+        t.textContent = node.name;
+        g.appendChild(t);
+        if (live && node.views > 0) {
+          const vt = el('text', { class: 'node-views', x: x + r + 5, y: y + 15, 'font-size': 9 });
+          vt.textContent = fmt(node.views);
+          g.appendChild(vt);
+        }
+      }
+      g.addEventListener('pointerenter', (e) => showTip(e, node, live));
+      g.addEventListener('pointermove', (e) => moveTip(e));
+      g.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+      g.addEventListener('click', () => window.open(node.url, '_blank', 'noopener'));
+      g.style.cursor = 'pointer';
+      sea.appendChild(g);
+    });
+  }
+}
+
+function showTip(e, node, live) {
+  tip.innerHTML = `<b>${node.name}</b> · ${node.category}<br>`
+    + (live ? `<span class="v">${node.views.toLocaleString()}</span> page views` : 'awaiting traffic data')
+    + `<br>${node.url.replace(/^https?:\/\//, '')}`;
+  tip.style.display = 'block';
+  moveTip(e);
+}
+function moveTip(e) {
+  const pad = 14;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  const r = tip.getBoundingClientRect();
+  if (x + r.width > innerWidth) x = e.clientX - r.width - pad;
+  if (y + r.height > innerHeight) y = e.clientY - r.height - pad;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+
+function buildLegend() {
+  const cats = [['bluesky', 'Bluesky / ATProto'], ['games', 'games'], ['tools', 'tools'], ['math', 'math'], ['other', 'other']];
+  const lg = document.getElementById('legend');
+  lg.innerHTML = '<span><b>depth</b> = page views (log) · surface = most visited</span>'
+    + cats.map(([c, label]) => `<span><span class="sw" style="background:${catColor(c)}"></span>${label}</span>`).join('');
+}
+
+buildLegend();
+load();
+</script>
+</body>
+</html>
