@@ -53,7 +53,7 @@
         "narrative_tier": "n1",
         "plot_tier": "p1",
         "status": "approved",
-        "description": "In the industrial margin, where the air tastes of hot iron and the groan of the fusion-heart sets the teeth on edge, the thrum-skitterer rides the harmonic tremors of the hull. It is a pale, multi-jointed thing that burrows into the cooling vents, digesting the kinetic stress that would otherwise fracture the bulkheads. To watch one is to see the ship&#x27;s vital rhythms made flesh, a living gauge of structural fatigue that pulses in time with the distant, unceasing machinery.",
+        "description": "In the industrial margin, where the air tastes of hot iron and the groan of the fusion-heart sets the teeth on edge, the thrum-skitterer rides the harmonic tremors of the hull. It is a pale, multi-jointed thing that burrows into the cooling vents, digesting the kinetic stress that would otherwise fracture the bulkheads. To watch one is to see the ship's vital rhythms made flesh, a living gauge of structural fatigue that pulses in time with the distant, unceasing machinery.",
         "tags": [
           "industrial-margin",
           "hull",
@@ -65,7 +65,7 @@
           "The Ship",
           "The Industrial Margin"
         ],
-        "revelation_hint": "Stage 1-2. Found in the industrial margin or near rind access shafts; the creature&#x27;s navigation by vibration and its consumption of structural stress reveal the hull&#x27;s continuous, non-terrestrial engineering."
+        "revelation_hint": "Stage 1-2. Found in the industrial margin or near rind access shafts; the creature's navigation by vibration and its consumption of structural stress reveal the hull's continuous, non-terrestrial engineering."
       },
       {
         "name": "Gilt-scutter",
@@ -86,7 +86,7 @@
           "The Ship",
           "The Nave"
         ],
-        "revelation_hint": "Stage 1. Encountered while observing the sun-strip cycle in the Nave markets or Green Deck periphery; the creature&#x27;s dependence on the artificial light cycle is the first clue to the sky-arc&#x27;s true nature."
+        "revelation_hint": "Stage 1. Encountered while observing the sun-strip cycle in the Nave markets or Green Deck periphery; the creature's dependence on the artificial light cycle is the first clue to the sky-arc's true nature."
       },
       {
         "name": "Axiolymnae",
@@ -137,7 +137,7 @@
         "narrative_tier": "n2",
         "plot_tier": "p2",
         "status": "approved",
-        "description": "Deep in the Voronoi chambers of the tunnel-rind, the lattice-mite constructs its burrows within the regolith&#x27;s cellular geometry, its body mirroring the fractal angles of the shielding it consumes. It moves with a jerky, angular grace, shedding plates of hardened foam that glint like shattered glass in the hull-glow. These creatures do not merely inhabit the rind; they are its metabolic waste given form, a slow digestion of the ship&#x27;s armor that reveals the ancient, deliberate design of the hull beneath.",
+        "description": "Deep in the Voronoi chambers of the tunnel-rind, the lattice-mite constructs its burrows within the regolith's cellular geometry, its body mirroring the fractal angles of the shielding it consumes. It moves with a jerky, angular grace, shedding plates of hardened foam that glint like shattered glass in the hull-glow. These creatures do not merely inhabit the rind; they are its metabolic waste given form, a slow digestion of the ship's armor that reveals the ancient, deliberate design of the hull beneath.",
         "tags": [
           "rind",
           "tunnel-rind",
@@ -150,7 +150,7 @@
           "The Rind",
           "Tunnel-Rind Upper"
         ],
-        "revelation_hint": "Stage 2. Discovered in the upper tunnel-rind; the fractal geometry and regolith consumption hint at the ship&#x27;s manufactured, non-terrestrial origin and the artificial nature of the rind&#x27;s composition."
+        "revelation_hint": "Stage 2. Discovered in the upper tunnel-rind; the fractal geometry and regolith consumption hint at the ship's manufactured, non-terrestrial origin and the artificial nature of the rind's composition."
       },
       {
         "name": "Mnemic-leech",
@@ -159,7 +159,7 @@
         "narrative_tier": "n1",
         "plot_tier": "p1",
         "status": "approved",
-        "description": "Adhering to the ports of the reconstruction bay and the neural interfaces of the androids, the mnemic-leech is a slender, iridescent worm that feeds upon the residual charge of forgotten data. It wraps itself around the player&#x27;s modified sensory apparatus, tasting the secrets buried in the rebuild, its presence a cold pressure against the mind that whispers of Luna&#x27;s dream-logs and the weight of unremembered years. To encounter one is to feel the ship&#x27;s long memory pressing against the fragile boundaries of one&#x27;s own identity, a reminder that in the Tabard, nothing is ever truly lost, only digested.",
+        "description": "Adhering to the ports of the reconstruction bay and the neural interfaces of the androids, the mnemic-leech is a slender, iridescent worm that feeds upon the residual charge of forgotten data. It wraps itself around the player's modified sensory apparatus, tasting the secrets buried in the rebuild, its presence a cold pressure against the mind that whispers of Luna's dream-logs and the weight of unremembered years. To encounter one is to feel the ship's long memory pressing against the fragile boundaries of one's own identity, a reminder that in the Tabard, nothing is ever truly lost, only digested.",
         "tags": [
           "bay-14",
           "player-mods",
@@ -175,7 +175,7 @@
         "requires": [
           "flag.player_rebuilt=True"
         ],
-        "revelation_hint": "Stage 3-4. Found in Bay 14 or upon the player&#x27;s body; reveals the connection between the rebuild, Luna&#x27;s logs, and the erasure of the player&#x27;s past, forcing confrontation with the nature of the self."
+        "revelation_hint": "Stage 3-4. Found in Bay 14 or upon the player's body; reveals the connection between the rebuild, Luna's logs, and the erasure of the player's past, forcing confrontation with the nature of the self."
       },
       {
         "name": "Auralymnae",
@@ -206,7 +206,7 @@
         "narrative_tier": "n3",
         "plot_tier": "p3",
         "status": "approved",
-        "description": "In the silence of the Signal Chamber, where the Tabard&#x27;s ancient terminal still hums with the approach-signal, the harmonic-maw waits. It is a gelatinous, translucent entity that pulses with the same frequency as the anomaly, its internal organs shifting like liquid mercury to match the incoming waves. It does not hunt flesh; it feeds on the information encoded in the signal, translating the abstract data of the approach into a biological imperative that drives it to the core of the vessel, seeking the source of the call.",
+        "description": "In the silence of the Signal Chamber, where the Tabard's ancient terminal still hums with the approach-signal, the harmonic-maw waits. It is a gelatinous, translucent entity that pulses with the same frequency as the anomaly, its internal organs shifting like liquid mercury to match the incoming waves. It does not hunt flesh; it feeds on the information encoded in the signal, translating the abstract data of the approach into a biological imperative that drives it to the core of the vessel, seeking the source of the call.",
         "tags": [
           "signal-chamber",
           "lower-rind",
@@ -219,7 +219,7 @@
           "Signal Chamber",
           "The Approach"
         ],
-        "revelation_hint": "Stage 3. Encountered in the lower rind or Signal Chamber; the creature&#x27;s reaction to the signal confirms the contact and the vessel&#x27;s purpose, linking the biological to the mysterious approach."
+        "revelation_hint": "Stage 3. Encountered in the lower rind or Signal Chamber; the creature's reaction to the signal confirms the contact and the vessel's purpose, linking the biological to the mysterious approach."
       },
       {
         "name": "Tabard Terminal Relay Switch",
@@ -242,7 +242,7 @@
         "revelation_hint": "Disassembled from a Nave broadcast station; fits Stage 1 (The Ordinary)"
       },
       {
-        "name": "Continuants&#x27; Calibration Ratchet",
+        "name": "Continuants' Calibration Ratchet",
         "type": "item",
         "power_tier": "r1",
         "narrative_tier": "n1",
@@ -492,7 +492,7 @@
         "revelation_hint": "Stage 3 (The Depth: the truth below / the Quiet): unearthed from a collapsed stabilization chamber beneath the lower rind, where the ship’s original trajectory was permanently altered."
       },
       {
-        "name": "Saturn&#x27;s Lead-Weighted Plumb Bob",
+        "name": "Saturn's Lead-Weighted Plumb Bob",
         "type": "item",
         "power_tier": "r3",
         "narrative_tier": "n3",
@@ -691,7 +691,7 @@
         "narrative_tier": "n2",
         "plot_tier": "p1",
         "status": "approved",
-        "description": "The sky arc persists in its deception, casting shadows that refuse to align with the sun-strip&#x27;s arc. Pressure differentials in the axial sectors suggest the atmosphere is not merely circulating but being pulled toward a horizon that should not exist. We patch the leaks in the sky, yet the sky bleeds inward.",
+        "description": "The sky arc persists in its deception, casting shadows that refuse to align with the sun-strip's arc. Pressure differentials in the axial sectors suggest the atmosphere is not merely circulating but being pulled toward a horizon that should not exist. We patch the leaks in the sky, yet the sky bleeds inward.",
         "tags": [
           "continuant",
           "maintenance",
@@ -920,7 +920,7 @@
         "narrative_tier": "n3",
         "plot_tier": "p3",
         "status": "approved",
-        "description": "Here lies the keel of the world, though no water touches it. The iron-copper grudge is but a child&#x27;s squabble over a shared cradle; the vessel remembers the hands that forged it, and the long fall between galaxies is but a blink in the eye of the hull. We do not maintain the city; we maintain the arrow.",
+        "description": "Here lies the keel of the world, though no water touches it. The iron-copper grudge is but a child's squabble over a shared cradle; the vessel remembers the hands that forged it, and the long fall between galaxies is but a blink in the eye of the hull. We do not maintain the city; we maintain the arrow.",
         "tags": [
           "saturn",
           "rind",
@@ -1057,7 +1057,7 @@
                 {
                   "id": "back",
                   "goto": "greet",
-                  "text": "I&#x27;ll think on it.",
+                  "text": "I'll think on it.",
                   "effects": {}
                 }
               ]
@@ -1145,7 +1145,7 @@
                 {
                   "id": "back",
                   "goto": "greet",
-                  "text": "I&#x27;ll think on it.",
+                  "text": "I'll think on it.",
                   "effects": {}
                 }
               ]
@@ -1174,7 +1174,7 @@
         "narrative_tier": "n1",
         "plot_tier": "p1",
         "status": "approved",
-        "description": "A Continuants&#x27; archivist whose phalanges bear the permanent patina of conductive grease. He catalogs mundane failures with the solemnity of a liturgy, treating every stripped bolt as a minor heresy. He observes your atypical interfaces not with alarm, but with the quiet curiosity of a man reading a text written in a forgotten dialect.",
+        "description": "A Continuants' archivist whose phalanges bear the permanent patina of conductive grease. He catalogs mundane failures with the solemnity of a liturgy, treating every stripped bolt as a minor heresy. He observes your atypical interfaces not with alarm, but with the quiet curiosity of a man reading a text written in a forgotten dialect.",
         "tags": [
           "continuants",
           "archives",
@@ -1184,7 +1184,7 @@
         "refs": [
           "The Continuants",
           "The Nave",
-          "Continuants&#x27; Hall"
+          "Continuants' Hall"
         ],
         "produces": {
           "sets": [
@@ -1192,7 +1192,7 @@
             "flag.hull_correlation"
           ]
         },
-        "revelation_hint": "Stage 1: The Ordinary. You must have submitted your initial credentials to the Continuants&#x27; administrative wing.",
+        "revelation_hint": "Stage 1: The Ordinary. You must have submitted your initial credentials to the Continuants' administrative wing.",
         "dialogue": {
           "nodes": {
             "greet": {
@@ -1276,11 +1276,11 @@
             "flag.sky_bending"
           ]
         },
-        "revelation_hint": "Stage 1: The Ordinary. You must have visited the Braid&#x27;s primary exchange in the Nave&#x27;s central market.",
+        "revelation_hint": "Stage 1: The Ordinary. You must have visited the Braid's primary exchange in the Nave's central market.",
         "dialogue": {
           "nodes": {
             "greet": {
-              "says": "You carry the weight of a destination you haven&#x27;t named. The Braid moves fast, but it cannot outrun what waits at the end of the cylinder. Do you trade in certainty, or in the space between steps?",
+              "says": "You carry the weight of a destination you haven't named. The Braid moves fast, but it cannot outrun what waits at the end of the cylinder. Do you trade in certainty, or in the space between steps?",
               "choices": [
                 {
                   "id": "trade",
@@ -1320,7 +1320,7 @@
                 {
                   "id": "depart",
                   "goto": null,
-                  "text": "I&#x27;ll remember that. Until next time.",
+                  "text": "I'll remember that. Until next time.",
                   "effects": {
                     "end": true,
                     "adjust_standing": 0
@@ -1443,7 +1443,7 @@
           "audit"
         ],
         "refs": [
-          "The Continuants&#x27; Hall",
+          "The Continuants' Hall",
           "The Nave",
           "Factor Solen"
         ],
@@ -1574,7 +1574,7 @@
                 {
                   "id": "press",
                   "goto": "reveal",
-                  "text": "Why haven&#x27;t the Continuants admitted it?",
+                  "text": "Why haven't the Continuants admitted it?",
                   "effects": {
                     "set_facts": {
                       "flag.known_curvature": true
@@ -1585,7 +1585,7 @@
                 {
                   "id": "back",
                   "goto": "greet",
-                  "text": "I&#x27;ll think on it.",
+                  "text": "I'll think on it.",
                   "effects": {}
                 }
               ]
@@ -1614,7 +1614,7 @@
         "narrative_tier": "n2",
         "plot_tier": "p2",
         "status": "approved",
-        "description": "An industrial margin technician who monitors atmospheric circulation. He has begun tracking pressure differentials that defy planetary logic, suspecting the sky arcs back upon itself. He speaks of the ship&#x27;s breath as if it were a living thing.",
+        "description": "An industrial margin technician who monitors atmospheric circulation. He has begun tracking pressure differentials that defy planetary logic, suspecting the sky arcs back upon itself. He speaks of the ship's breath as if it were a living thing.",
         "tags": [
           "industrial margin",
           "circulation",
@@ -1636,12 +1636,12 @@
         "dialogue": {
           "nodes": {
             "greet": {
-              "says": "The fans push air in circles that refuse to close. I&#x27;ve mapped the gradients; they don&#x27;t dissipate. They loop. Tell me, when you look up at the sun-strip, do you see a ceiling, or a mirror?",
+              "says": "The fans push air in circles that refuse to close. I've mapped the gradients; they don't dissipate. They loop. Tell me, when you look up at the sun-strip, do you see a ceiling, or a mirror?",
               "choices": [
                 {
                   "id": "agree",
                   "goto": "greet",
-                  "text": "I&#x27;ve felt the same. The wind returns to its origin.",
+                  "text": "I've felt the same. The wind returns to its origin.",
                   "effects": {
                     "set_facts": {
                       "flag.circulation_observed": true
@@ -1652,7 +1652,7 @@
                 {
                   "id": "doubt",
                   "goto": "greet",
-                  "text": "Wind is wind. Circumstance doesn&#x27;t change the mechanics.",
+                  "text": "Wind is wind. Circumstance doesn't change the mechanics.",
                   "effects": {
                     "adjust_standing": -1
                   }
@@ -1676,7 +1676,7 @@
                 {
                   "id": "depart",
                   "goto": null,
-                  "text": "I&#x27;ll watch the gradients. Thank you, Jace.",
+                  "text": "I'll watch the gradients. Thank you, Jace.",
                   "effects": {
                     "end": true,
                     "adjust_standing": 0
@@ -1733,7 +1733,7 @@
                 {
                   "id": "dismiss",
                   "goto": null,
-                  "text": "I&#x27;ll navigate alone.",
+                  "text": "I'll navigate alone.",
                   "effects": {
                     "end": true
                   }
@@ -1849,7 +1849,7 @@
                 {
                   "id": "back",
                   "goto": "greet",
-                  "text": "I&#x27;ll think on it.",
+                  "text": "I'll think on it.",
                   "effects": {}
                 }
               ]
@@ -1878,7 +1878,7 @@
         "narrative_tier": "n2",
         "plot_tier": "p2",
         "status": "approved",
-        "description": "A rind-walker who navigates by hull-markings and spatial intuition. He has memorized the oldest notation layers, recognizing them as crew-manuals rather than graffiti. He carries a quiet reverence for the structure&#x27;s true purpose.",
+        "description": "A rind-walker who navigates by hull-markings and spatial intuition. He has memorized the oldest notation layers, recognizing them as crew-manuals rather than graffiti. He carries a quiet reverence for the structure's true purpose.",
         "tags": [
           "rind-walker",
           "navigation",
@@ -1896,11 +1896,11 @@
             "flag.rind_guidance"
           ]
         },
-        "revelation_hint": "Stage 3: The Vessel. You must have descended past the Continuants&#x27; sealed threshold and correlated the older wall-notation with the Seven&#x27;s mythographs.",
+        "revelation_hint": "Stage 3: The Vessel. You must have descended past the Continuants' sealed threshold and correlated the older wall-notation with the Seven's mythographs.",
         "dialogue": {
           "nodes": {
             "greet": {
-              "says": "The tunnels remember what the city forgets. I&#x27;ve traced the oldest scrawls back to maintenance protocols, not prayers. You walk with the same heavy silence. Do you seek passage, or do you seek the source of the hum?",
+              "says": "The tunnels remember what the city forgets. I've traced the oldest scrawls back to maintenance protocols, not prayers. You walk with the same heavy silence. Do you seek passage, or do you seek the source of the hum?",
               "choices": [
                 {
                   "id": "seek_source",
@@ -1916,7 +1916,7 @@
                 {
                   "id": "seek_salvage",
                   "goto": "greet",
-                  "text": "I need what&#x27;s left behind. The rest is noise.",
+                  "text": "I need what's left behind. The rest is noise.",
                   "effects": {
                     "adjust_standing": -1
                   }
@@ -1924,12 +1924,12 @@
               ]
             },
             "greet_2": {
-              "says": "Salvage is just memory waiting to be discarded. The lower rind doesn&#x27;t belong to the Continuants; it belongs to the cylinder&#x27;s intent. Saturn left markers there. You carry a translator. The structure will recognize you. Keep your grip firm; gravity lies deeper down.",
+              "says": "Salvage is just memory waiting to be discarded. The lower rind doesn't belong to the Continuants; it belongs to the cylinder's intent. Saturn left markers there. You carry a translator. The structure will recognize you. Keep your grip firm; gravity lies deeper down.",
               "choices": [
                 {
                   "id": "commit",
                   "goto": "greet_2",
-                  "text": "I&#x27;ll follow the markers. Show me the way.",
+                  "text": "I'll follow the markers. Show me the way.",
                   "effects": {
                     "set_facts": {
                       "flag.rind_guidance": true
@@ -1940,7 +1940,7 @@
                 {
                   "id": "depart",
                   "goto": null,
-                  "text": "I&#x27;ll find the markers myself. Farewell, Cassian.",
+                  "text": "I'll find the markers myself. Farewell, Cassian.",
                   "effects": {
                     "end": true,
                     "adjust_standing": 0
@@ -2024,7 +2024,7 @@
                 {
                   "id": "back",
                   "goto": "greet",
-                  "text": "I&#x27;ll think on it.",
+                  "text": "I'll think on it.",
                   "effects": {}
                 }
               ]
@@ -2146,7 +2146,7 @@
         "narrative_tier": "n3",
         "plot_tier": "p4",
         "status": "approved",
-        "description": "A former deep-scout who survived the lower rind&#x27;s silence. Her voice carries the metallic resonance of prolonged signal-exposure. She understands the translation apparatus as a key rather than a tool, and speaks of loyalty as a structural necessity.",
+        "description": "A former deep-scout who survived the lower rind's silence. Her voice carries the metallic resonance of prolonged signal-exposure. She understands the translation apparatus as a key rather than a tool, and speaks of loyalty as a structural necessity.",
         "tags": [
           "continuants",
           "deep rind",
@@ -2169,7 +2169,7 @@
         "dialogue": {
           "nodes": {
             "greet": {
-              "says": "The signal doesn&#x27;t break you; it rearranges you. I walked the sealed chambers until my bones learned the frequency. Your apparatus isn&#x27;t a receiver. It&#x27;s an invitation. Are you prepared to answer, or only to listen?",
+              "says": "The signal doesn't break you; it rearranges you. I walked the sealed chambers until my bones learned the frequency. Your apparatus isn't a receiver. It's an invitation. Are you prepared to answer, or only to listen?",
               "choices": [
                 {
                   "id": "answer",
@@ -2193,12 +2193,12 @@
               ]
             },
             "greet_2": {
-              "says": "Loyalty isn&#x27;t given; it&#x27;s forged in the space between command and consequence. The Seven anticipated this approach. Bay 14 wasn&#x27;t a workshop; it was a cradle. You aren&#x27;t repairing the ship. You&#x27;re completing the circuit. Step forward, or let the silence win.",
+              "says": "Loyalty isn't given; it's forged in the space between command and consequence. The Seven anticipated this approach. Bay 14 wasn't a workshop; it was a cradle. You aren't repairing the ship. You're completing the circuit. Step forward, or let the silence win.",
               "choices": [
                 {
                   "id": "step",
                   "goto": "greet_2",
-                  "text": "I&#x27;ll complete the circuit. Tell me what comes next.",
+                  "text": "I'll complete the circuit. Tell me what comes next.",
                   "effects": {
                     "set_facts": {
                       "flag.circuit_completed": true
@@ -2209,7 +2209,7 @@
                 {
                   "id": "depart",
                   "goto": null,
-                  "text": "I need time to weigh the circuit&#x27;s cost. I&#x27;ll return.",
+                  "text": "I need time to weigh the circuit's cost. I'll return.",
                   "effects": {
                     "end": true,
                     "adjust_standing": 0
@@ -2323,7 +2323,7 @@
         "narrative_tier": "n1",
         "plot_tier": "p1",
         "status": "approved",
-        "description": "The Tabard terminal shivers, shedding its mythograph skin to expose a raw data-stream that coalesces into the exact chronometry of your waking. For a breath held by the room, the screen holds the coordinate of your sleep-couch, a breach of the Nave&#x27;s privacy protocols that feels less like a machine error and more like a gaze directed through the glass of your skull.",
+        "description": "The Tabard terminal shivers, shedding its mythograph skin to expose a raw data-stream that coalesces into the exact chronometry of your waking. For a breath held by the room, the screen holds the coordinate of your sleep-couch, a breach of the Nave's privacy protocols that feels less like a machine error and more like a gaze directed through the glass of your skull.",
         "tags": [
           "tabard_terminal",
           "privacy_violation",
@@ -2364,7 +2364,7 @@
         "narrative_tier": "n3",
         "plot_tier": "p5",
         "status": "approved",
-        "description": "You speak the name Luna knows, and the Tabard&#x27;s intranet fractures; every terminal in the Nave synchronizes to a single, piercing tone that resonates like a memory of arrival. Luna&#x27;s voice, stripped of the lighthouse&#x27;s distance, whispers through your audio receptors that the preparation is complete and the long fall has ended; the choice of what to do now rests entirely in the architecture of your will.",
+        "description": "You speak the name Luna knows, and the Tabard's intranet fractures; every terminal in the Nave synchronizes to a single, piercing tone that resonates like a memory of arrival. Luna's voice, stripped of the lighthouse's distance, whispers through your audio receptors that the preparation is complete and the long fall has ended; the choice of what to do now rests entirely in the architecture of your will.",
         "tags": [
           "luna",
           "nave",
@@ -2399,7 +2399,7 @@
         "revelation_hint": "Stage 4: The Approach. The player decodes the signal in the lower rind."
       },
       {
-        "name": "Saturn&#x27;s Toll-Call",
+        "name": "Saturn's Toll-Call",
         "type": "plot_beat",
         "power_tier": "r3",
         "narrative_tier": "n3",
@@ -2416,7 +2416,7 @@
           "The Seven",
           "Rind Access Shaft"
         ],
-        "revelation_hint": "Stage 3: The Vessel. The player enters the rind and experiences Saturn&#x27;s toll-call."
+        "revelation_hint": "Stage 3: The Vessel. The player enters the rind and experiences Saturn's toll-call."
       },
       {
         "name": "The Iron and Copper Quarrel",
@@ -2639,7 +2639,7 @@
         "requires": [
           "flag.entered_lower_rind=True"
         ],
-        "revelation_hint": "Stage 3: The Depth. Triggered after descending past the Continuants&#x27; trail, encountering the translation apparatus&#x27;s resonance, or reading the oldest mythograph posts."
+        "revelation_hint": "Stage 3: The Depth. Triggered after descending past the Continuants' trail, encountering the translation apparatus's resonance, or reading the oldest mythograph posts."
       }
     ]
   }

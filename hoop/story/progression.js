@@ -21,11 +21,17 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
 
 const flagsToFacts = (flags) => { const f = {}; for (const k of flags || []) f[String(k).split('=')[0].trim()] = true; return f; };
 
-// a beat's marker: resolve a ref to a named NPC in the pool (a waypoint anchor) else a text hint.
+// a beat's marker: pick the most NAVIGABLE of its refs (a named NPC → its anchor; a terminal; the
+// rind/shaft/signal-chamber → the descent; else a concrete place, skipping abstractions like "The Seven").
+// The surface (resolveMarker) turns {anchor|terminal|place} into a world position; the hint always shows.
+const ABSTRACT = /^the (seven|ship|player|drift|continuants|rind-?walkers)$/i;
 function deriveMarker(beat, npcNames) {
-  for (const r of beat.refs || []) { const id = npcNames.get(String(r).toLowerCase()); if (id) return { anchor: id, hint: 'find ' + r }; }
-  const ref = (beat.refs || [])[0];
-  return ref ? { hint: ref } : null;
+  const refs = beat.refs || [];
+  for (const r of refs) { const id = npcNames.get(String(r).toLowerCase()); if (id) return { anchor: id, hint: 'find ' + r }; }
+  for (const r of refs) if (/terminal/i.test(r)) return { terminal: true, hint: r };
+  for (const r of refs) if (/shaft|rind|signal|deep|lower/i.test(r)) return { place: 'rind', hint: r };
+  for (const r of refs) if (!ABSTRACT.test(String(r).trim())) return { place: r, hint: r };
+  return refs[0] ? { hint: refs[0] } : null;
 }
 
 // content[] → a storyboard {chapter, acts, beats} in the shape board.js already consumes. Beats are his

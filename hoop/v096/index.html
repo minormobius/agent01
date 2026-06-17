@@ -802,6 +802,17 @@
       if (best) best._terminal = true;
     }
     // resolve a storyboard marker to a world position for the waypoint
+    const PLACE_ROLE = [[/industrial|forge|works|margin/i, 'make'], [/garden|green|grow|deck/i, 'grow'], [/market|braid|trade|bazaar/i, 'trade'], [/hall|council|govern|court/i, 'govern'], [/heal|clinic|med|bay/i, 'heal'], [/learn|library|archive|school/i, 'learn'], [/worship|shrine|temple|nave/i, 'worship']];
+    function farMargin() {
+      if (!society) return null; let far = null, fd = -1;
+      for (const o of society.rooms) { if (o.ch !== 0) continue; const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d > fd) { fd = d; far = o; } }
+      return far ? { x: far.x, y: far.y } : null;
+    }
+    function nearestRoomOfRole(role) {
+      if (!society || !role) return null; let best = null, bd = Infinity;
+      for (const o of society.rooms) { if (o.role !== role) continue; const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d < bd) { bd = d; best = { x: o.x, y: o.y }; } }
+      return best;
+    }
     function resolveMarker(m) {
       if (!m) return null;
       if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); return a ? { x: a.x, y: a.y } : null; }
@@ -811,6 +822,11 @@
           if (!isTerminal(cp)) continue; const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = { x: cp.cx, y: cp.cy }; }
         }
         return best;
+      }
+      if (m.place) {   // a LOCATION ref from his plot_beats → a world position (the descent, or a role-matched room)
+        if (m.place === 'rind') return (shaftXY && { x: shaftXY.x, y: shaftXY.y }) || farMargin();
+        for (const [re, role] of PLACE_ROLE) if (re.test(m.place)) { const p = nearestRoomOfRole(role); if (p) return p; }
+        return null;   // unresolved → the hint text still shows in the quest log
       }
       return null;
     }

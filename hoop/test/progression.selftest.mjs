@@ -28,6 +28,13 @@ const { content } = importWorldExport(wx);
   ok(sb.beats.slice(1).every((b, i) => (b.requires.beats || [])[0] === sb.beats[i].id), 'beats chain sequentially (requires prior beat)');
   ok(sb.acts.length >= 1 && sb.acts[0].label.includes('Arrival'), 'acts carry the bible ladder names (Arrival…)');
 
+  // markers point at his locations (terminal / rind / named place), each with a hint
+  const markers = sb.beats.map((b) => b.marker).filter(Boolean);
+  ok(markers.some((m) => m.terminal), 'a beat marker resolves his "Tabard Terminal" ref → a terminal');
+  ok(markers.some((m) => m.place === 'rind'), 'a beat marker resolves his "Rind Access Shaft"/"Signal Chamber" → the rind');
+  ok(markers.some((m) => m.place && m.place !== 'rind'), 'a beat marker resolves a named place (his "Industrial Margin")');
+  ok(markers.every((m) => m.hint), 'every marker carries a hint for the quest log');
+
   // board.js consumes the derived storyboard unchanged
   const store = new MemoryStore(content, { features: [] });
   const board = computeBoard(sb, store, 'p1');

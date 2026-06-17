@@ -19,7 +19,9 @@ if (!inPath) { console.error('usage: extract-hoopy-export.mjs <world_export.html
 
 const html = readFileSync(inPath, 'utf8');
 const un = (s) => String(s == null ? '' : s)
-  .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').trim();
+  .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))   // hex entities (&#x27; → ')
+  .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))            // decimal entities
+  .replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
 const all = (re, s) => { const out = []; let m; while ((m = re.exec(s))) out.push(un(m[1])); return out; };
 const one = (re, s) => { const m = re.exec(s); return m ? un(m[1]) : ''; };
 
