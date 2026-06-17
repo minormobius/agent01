@@ -3,7 +3,7 @@
 // The adapter + persist client are MOCKED, so the whole policy is node-testable with no network/model.
 // Run: node hoop/test/sidequest.selftest.mjs
 import { generateSidequest, persistSidequest, beatIssues } from '../story/sidequest.js';
-import { buildSidequestPrompt, buildRepairPrompt } from '../story/prompt.js';
+import { buildSidequestPrompt, buildRepairPrompt, steerFromPulse } from '../story/prompt.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -80,6 +80,25 @@ ok(beatIssues([{ id: 'b2' }]).some((i) => i.code === 'beat_no_close'), 'a beat w
   const rep = buildRepairPrompt(p, { conflicts: [{ code: 'dup_in_batch', id: 'sq-a', msg: 'dup' }] });
   ok(rep.prompt.includes('REJECTED') && rep.prompt.includes('dup_in_batch'), 'repair prompt appends the conflict report');
 }
+
+// ── phase 3: the Director pulse STEERS generation ──
+{
+  ok(steerFromPulse(null) === '' && steerFromPulse({ travellers: 0 }) === '', 'no pulse / no travellers ⇒ empty steer (no-op)');
+  const s = steerFromPulse({ travellers: 7, tierDist: { '1': 1, '2': 5 }, topChambers: [['gidHot', 4], ['gidB', 2]] });
+  ok(/7 traveller/.test(s), 'steer reports the traveller count');
+  ok(/power tier 2/.test(s), 'steer names the dominant power tier (where the playerbase is)');
+  ok(/gidHot/.test(s), 'steer surfaces the hottest chamber');
+}
+await (async () => {
+  // a capturing adapter records the prompt it was handed, so we can prove the steer reached the model
+  let lastPrompt = '';
+  const cap = { provider: 'gemini-2.5-flash', enabled: true, async generate(req) { lastPrompt = req.prompt; return validArc; } };
+  await generateSidequest(cap, { ...input, pulse: { travellers: 7, tierDist: { '2': 5 }, topChambers: [['gidHot', 4]] } });
+  ok(/STEER/.test(lastPrompt) && /power tier 2/.test(lastPrompt) && /gidHot/.test(lastPrompt), 'the pulse steer is injected into the generation prompt');
+  lastPrompt = '';
+  await generateSidequest(cap, input);   // no pulse
+  ok(!/STEER/.test(lastPrompt), 'no pulse ⇒ no STEER section in the prompt');
+})();
 
 console.log(`sidequest.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

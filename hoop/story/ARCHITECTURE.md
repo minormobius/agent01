@@ -114,8 +114,8 @@ to the player's own repo.
 | `MemoryStore.addContent` (fold a generated item into the live pool) | ✅ in `story/engine.js` (canonical + v096) |
 | Persist: localStorage (v096 has no auth) + optional repo freeze via `freezeResult` when a session exists | ✅ guarded; repo freeze is additive |
 | **Data-flow website** `v096/architecture.html` — interactive SVG of the whole system (click-for-detail) | ✅ live at `hoop.mino.mobi/v096/architecture.html` |
-| Steering: feed the `pulse` + chunk profile into the generation prompt | ⏳ phase 3 |
-| Thin adapter: real econ society output → `ChunkProfile` for `spine.js` (the rich thick-chunk match) | ⏳ phase 3 |
+| **Steering** (phase 3): the worker reads the `pulse` (cached ~5min, guarded), `prompt.steerFromPulse()` biases the arc toward where the playerbase is | ✅ node-tested; live once the Director has written a pulse |
+| **Rich profile** (phase 3): `genquest.profileFromChunk()` — whole-chunk building programme + lived population + society edges → a thick `ChunkProfile` | ✅ node-tested; wired into `v096` `weaveHere` |
 
 The procedural + localStorage path is the guaranteed fallback: with no service repo and no auth, the
 story tab still works fully. ATProto is additive truth, never a hard dependency (the borges discipline).

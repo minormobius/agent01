@@ -9,7 +9,7 @@
 import { reviewBatch } from './review.js';
 import { stampProvenance } from './filter.js';
 import { chunkDescriptor } from './spine.js';
-import { buildSidequestPrompt, buildRepairPrompt } from './prompt.js';
+import { buildSidequestPrompt, buildRepairPrompt, steerFromPulse } from './prompt.js';
 import { putContent } from './atproto.js';
 
 // tiny stable digest (FNV-1a → hex) — the genState provenance key (what steered this generation).
@@ -47,8 +47,9 @@ export async function generateSidequest(adapter, input = {}) {
   const genState = digest(descriptor);
   const thicknessGap = match.thicknessGap != null ? match.thicknessGap
     : (match.candidates && match.candidates[0] ? match.candidates[0].thicknessGap : 0);
+  const steer = steerFromPulse(input.pulse);   // the Director's pulse biases the arc toward where the playerbase is
 
-  let req = buildSidequestPrompt({ bible, profile, descriptor, chunkThickness: cd.thickness, thicknessGap, existing });
+  let req = buildSidequestPrompt({ bible, profile, descriptor, chunkThickness: cd.thickness, thicknessGap, existing, steer });
   let attempts = 0, report = null, items = [], beats = [];
 
   for (let pass = 0; pass < 2; pass++) {            // attempt + one repair

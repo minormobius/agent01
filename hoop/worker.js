@@ -17,6 +17,8 @@
 
 import { makeLLM } from './story/llm/index.js';
 import { generateSidequest } from './story/sidequest.js';
+import { resolveHandle, resolvePds } from '../packages/atproto/pds.js';
+import { PULSE_NSID, readSummary } from './story/director.js';
 
 let _bible = null;   // module-cached bible text (fetched once from ASSETS)
 async function getBible(env, origin) {
@@ -26,6 +28,24 @@ async function getBible(env, origin) {
     _bible = r.ok ? await r.text() : '';
   } catch { _bible = ''; }
   return _bible;
+}
+
+// THE STEER (Director-steers, authoritative): read the world pulse from the service repo and cache it
+// ~5 min. Fully guarded — if the Director hasn't run yet (no record) or the service handle is unset,
+// this resolves null and generation simply proceeds with no steer. HOOP_SERVICE_HANDLE/_DID override
+// the morphyx default (where the seeder + director write).
+let _pulse = { at: 0, summary: null };
+async function getPulse(env) {
+  if (Date.now() - _pulse.at < 5 * 60 * 1000) return _pulse.summary;
+  _pulse.at = Date.now();
+  try {
+    const did = env.HOOP_SERVICE_DID || await resolveHandle(env.HOOP_SERVICE_HANDLE || 'morphyxmino.bsky.social');
+    const pds = await resolvePds(did);
+    const q = '?repo=' + encodeURIComponent(did) + '&collection=' + PULSE_NSID + '&rkey=self';
+    const r = await fetch(pds + '/xrpc/com.atproto.repo.getRecord' + q);
+    _pulse.summary = r.ok ? readSummary((await r.json()).value) : null;
+  } catch { _pulse.summary = null; }
+  return _pulse.summary;
 }
 
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS' };
@@ -54,6 +74,7 @@ async function handleStory(request, env, url) {
     const result = await generateSidequest(llm, {
       bible, profile: body.profile || {}, existing: body.existing || [], features: body.features || [],
       match: body.match || {}, descriptor: body.descriptor,
+      pulse: body.pulse || await getPulse(env),   // the Director's pulse steers the arc (browser may override)
     });
     return json(result, result.ok ? 200 : 200);   // a clean BLOCK is a 200 with verdict — not an error
   }

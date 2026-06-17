@@ -82,7 +82,7 @@
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
     import { computeBoard, questLog, activeMarkers } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
     import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
-    import { buildProfile, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
+    import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
     import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate diff
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
@@ -551,10 +551,18 @@
     // v096 — weave a NEW side-quest rooted in THIS place: build a chunk profile from the focal role + room,
     // ask the worker (Gemini, gated by review/gates/validate), fold an approved arc into the live pool, and
     // crystallize its principal onto a fresh feature. Fully guarded; a SKIP/BLOCK just toasts and changes nothing.
-    function currentRoomInfo() {
-      try { const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player];
-        if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; return { role: r.role, domain: r.domain }; } } catch (e) {}
-      return {};
+    // phase 3 — the RICH chunk profile: the whole building programme + lived population + civic web here,
+    // so the spine matches a story arc as THICK as the place. Falls back to the light profile if not ready.
+    function profileHere(agent) {
+      try {
+        const ci = walk.nodeChunk[player], chunk = world.chunks[ci], rooms = (chunk && chunk.rooms) || [];
+        const residentRoles = {}; for (const a of nearResidents) if (a.role) residentRoles[a.role] = (residentRoles[a.role] || 0) + 1;
+        if (agent && agent.role) residentRoles[agent.role] = (residentRoles[agent.role] || 0) + 1;
+        const edges = (society && society.edges) ? society.edges.filter((e) => (e.a && e.a.ch === ci) || (e.b && e.b.ch === ci)) : [];
+        const p = profileFromChunk({ rooms, residentRoles, edges });
+        if (p.roles && Object.keys(p.roles).length) return p;
+      } catch (e) {}
+      return buildProfile({ role: agent && agent.role });
     }
     async function weaveHere(agent) {
       if (!storyApi.enabled || !story.ready || story.weaving) return;
@@ -562,8 +570,7 @@
       const el = $('busy'); el.textContent = '✨ weaving a thread…'; el.classList.add('on');
       const done = (msg, ms = 2800) => { el.textContent = msg; clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); story.weaving = false; };
       try {
-        const ri = currentRoomInfo();
-        const profile = buildProfile({ role: agent.role, roomRole: ri.role, roomDomain: ri.domain });
+        const profile = profileHere(agent);   // phase 3: the rich chunk profile (building programme + population + civic web)
         const existing = poolFilter([...story.store.content.values()], { lane: 'spine' }).slice(0, 40);
         const result = await requestSidequest(postStory, { profile, existing });
         if (!result || result.verdict !== 'PASS') return done(result && result.verdict === 'BLOCK' ? '✨ the thread tangled — try again' : '✨ the weave is quiet');

@@ -49,7 +49,7 @@ function listExisting(existing) {
 }
 
 // want: { items: minItemCount } derived from thicknessGap by the caller.
-export function buildSidequestPrompt({ bible, profile = {}, descriptor = '', chunkThickness = 0, thicknessGap = 0, existing = [], want = {} } = {}) {
+export function buildSidequestPrompt({ bible, profile = {}, descriptor = '', chunkThickness = 0, thicknessGap = 0, existing = [], steer = '', want = {} } = {}) {
   const minItems = Math.max(want.items || 0, thicknessGap > 0 ? thicknessGap + 1 : 2);
   const prompt = [
     '=== BIBLE (canon — ground everything here) ===',
@@ -61,6 +61,9 @@ export function buildSidequestPrompt({ bible, profile = {}, descriptor = '', chu
     profile.factions ? `factions present: ${Object.keys(profile.factions).join(', ')}` : '',
     profile.roles ? `roles/programme: ${Object.keys(profile.roles).join(', ')}` : '',
     profile.tier ? `civic vitality: ${profile.tier}` : '',
+    steer ? '' : null,
+    steer ? '=== STEER (where the playerbase is — bias the arc this way) ===' : null,
+    steer || null,
     '',
     '=== EXISTING NEARBY CONTENT (extend it; never reuse these ids/names) ===',
     listExisting(existing),
@@ -69,7 +72,7 @@ export function buildSidequestPrompt({ bible, profile = {}, descriptor = '', chu
     `Write a self-contained side-quest arc rooted in THIS place. Emit at least ${minItems} items` +
       `${thicknessGap > 0 ? ` (the best existing match is ${thicknessGap} axes too thin — go richer)` : ''}` +
       ` plus 1–3 beats that chain them. Return ONLY the JSON object.`,
-  ].filter((l) => l !== '').join('\n');
+  ].filter((l) => l !== '' && l !== null).join('\n');
   return { system: SYSTEM, prompt, schema: SIDEQUEST_SCHEMA, minItems };
 }
 
@@ -82,4 +85,21 @@ export function buildRepairPrompt(base, report) {
     prompt: base.prompt + '\n\n=== YOUR PREVIOUS OUTPUT WAS REJECTED ===\n' + conflicts +
       '\n\nFix EVERY issue above and re-emit the COMPLETE corrected JSON object (all items + beats).',
   };
+}
+
+// THE STEER — the Director's pulse (story.pulse summary: {travellers, tierDist, topChambers, …}) → a
+// short directive that biases generation toward where the playerbase actually is. This is how the robot
+// steers the whole world from collective game-state: stuck en masse at a tier ⇒ write the bridge content;
+// a chamber runs hot ⇒ deepen there. Pure; '' when there's no pulse yet (no steer, still generates).
+export function steerFromPulse(summary) {
+  if (!summary || !summary.travellers) return '';
+  const parts = [`${summary.travellers} traveller(s) are abroad in this world.`];
+  const tiers = Object.entries(summary.tierDist || {}).sort((a, b) => b[1] - a[1]);
+  if (tiers.length) {
+    const [t, n] = tiers[0];
+    parts.push(`Most sit at power tier ${t} (${n} of them) — favour an arc that rewards reaching the NEXT rung, not more tier-1 filler.`);
+  }
+  const hot = (summary.topChambers || []).slice(0, 3).map((c) => Array.isArray(c) ? c[0] : c).filter(Boolean);
+  if (hot.length) parts.push(`Busy chambers right now: ${hot.join(', ')} — a thread that resonates with where people already gather lands harder.`);
+  return parts.join(' ');
 }

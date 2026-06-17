@@ -78,7 +78,7 @@ const N = {
   bible:   { x: 30,  y: 70,  lane:'src',   t:'📖 Tabard bible', s:'story/bible.md',
     d:'The canon. Vendored verbatim from hoop-backend/ingestion/chapter1_bible.md (re-sync, never fork). 15KB — small enough to stuff WHOLE into the prompt, so there is no RAG/vector infra. The Seven, the factions, Bay 14, the 1..5 revelation & narrative ladders.' },
   chunk:   { x: 30,  y: 470, lane:'src',   t:'🏙 chunk characteristics', s:'econ buildings + civ web',
-    d:'The world is procedurally THICK: each chunk has a building programme (roles × domains × footprints) and a multiplex civ web (bridges, third-places, vitality). buildProfile() distils that into a ChunkProfile. Phase 2b uses a lightweight profile; phase 3 feeds the real econ society output.' },
+    d:'The world is procedurally THICK: each chunk has a building programme (roles × domains × footprints) and a multiplex civ web (bridges, third-places, vitality). profileFromChunk() distils the WHOLE chunk — every room\'s role/domain + the lived population + the society edges touching it — into a rich ChunkProfile the spine matches against.' },
   adapter: { x: 320, y: 250, lane:'gen',   t:'🔌 segregated adapter', s:'story/llm/ (gemini · local · off)',
     d:'One interface, swappable providers, hard off-switch. Gemini 2.5 Flash is live (the borges hook); huwupy\'s local model drops into local.js (OpenAI-compatible serve + nomic embeddings). generate()/embed() never throw. \'off\' ⇒ procedural fallback. Rippable: delete the dir, the game still runs.' },
   prompt:  { x: 320, y: 70,  lane:'gen',   t:'📝 prompt builder', s:'story/prompt.js',
@@ -92,7 +92,7 @@ const N = {
   saveRepo:{ x: 900, y: 250, lane:'truth', t:'👤 per-player', s:'player repo · story.save + story.content (lane:sidequest)',
     d:'A player\'s durable state + their personal live-generated side-quests, written to THEIR OWN repo (user-owned, $0 to us). The hybrid canon: shared spine + personal side-quests. localStorage buffers the hot path; atproto is the batched durable target.' },
   pulse:   { x: 900, y: 470, lane:'truth', t:'🌐 Director pulse', s:'service repo · story.pulse',
-    d:'A disposable cross-player rollup — what the whole playerbase is doing — folded from the firehose of saves (Jetstream consumer). Rebuildable by replay; never a source of truth. The steering signal: feed it back into generation (phase 3).' },
+    d:'A disposable cross-player rollup — what the whole playerbase is doing — folded from the firehose of saves (Jetstream consumer). Rebuildable by replay; never a source of truth. THE STEER: the worker reads it (cached ~5min) and steerFromPulse() biases generation toward where the playerbase actually is — stuck at a tier ⇒ write the bridge; a chamber runs hot ⇒ deepen there.' },
   filter:  { x: 1180, y: 70, lane:'hot',   t:'🔎 filter projection', s:'story/filter.js',
     d:'The totally-filterable quasi-DB. Derives a VIEW of the pool: lane (spine/sidequest), provider (drop local:* wholesale), tier. Spine-wins merge. So an experimental/swappable model\'s output stays cleanly separable and rippable.' },
   engine:  { x: 1180, y: 250, lane:'hot',  t:'⚙️ engine — NO LLM', s:'story/engine.js',
@@ -109,7 +109,7 @@ const E = [
   ['gate','saveRepo','','PASS → freeze'], ['gate','prompt','dash','BLOCK → repair'],
   ['spineRepo','filter'], ['saveRepo','filter'], ['filter','engine'], ['engine','advance'],
   ['engine','client'], ['client','adapter','req','POST /api/story/sidequest'],
-  ['saveRepo','pulse','','fold'], ['pulse','prompt','dash','steer (phase 3)'],
+  ['saveRepo','pulse','','fold'], ['pulse','prompt','dash','steer'],
 ];
 const INV = {
   bible:['Stuffed whole — no RAG, no pgvector, no embeddings DB.'],

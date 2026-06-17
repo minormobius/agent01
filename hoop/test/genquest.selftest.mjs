@@ -2,11 +2,29 @@
 // building, the request shaping, and folding an approved arc back into the live store so the
 // inference-free engine crystallizes it. The worker POST + persist client are mocked (no network).
 // Run: node hoop/test/genquest.selftest.mjs
-import { buildProfile, requestSidequest, applyResult, freezeResult } from '../v096/story/genquest.js';
+import { buildProfile, profileFromChunk, requestSidequest, applyResult, freezeResult } from '../v096/story/genquest.js';
 import { MemoryStore, interact } from '../v096/story/engine.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
+
+// ── profileFromChunk: the RICH phase-3 profile from the live world (building programme + population + civic web) ──
+{
+  const rooms = [
+    { role: 'dwell' }, { role: 'dwell' }, { role: 'dwell' },
+    { role: 'make', domain: 'metal' }, { role: 'trade', domain: 'cloth' }, { role: 'worship' }, { role: 'learn' },
+  ];
+  const residentRoles = { make: 3, trade: 2 };
+  const edges = [{ kind: 'third', a: { ch: 0 } }, { kind: 'work', a: { ch: 0 } }];
+  const p = profileFromChunk({ rooms, residentRoles, edges });
+  ok(p.roles.make === 4 && p.roles.dwell === 3, 'rooms + population fold into one roles histogram (make: 1 room + 3 workers)');
+  ok(p.domains.metal === 1 && p.domains.cloth === 1, 'room domains form the domains histogram');
+  ok(p.factions.continuant >= 4 && p.factions.drift >= 2, 'civic roles map onto factions (make→continuant, trade→drift); dwell is neutral');
+  ok(p.thirdPlaces === 2, 'worship + learn counted as third-places');
+  ok(p.bridges > 0 && p.bridges <= 1, 'a third-place edge yields a bridging proxy in [0,1]');
+  ok(['Vibrant', 'Residential', 'Working'].includes(p.tier), 'a civic vitality tier label is derived');
+  ok(Object.keys(profileFromChunk({}).roles).length === 0, 'an empty world yields an empty (but valid) profile');
+}
 
 // ── buildProfile: live world signals → ChunkProfile ──
 {
