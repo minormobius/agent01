@@ -49,6 +49,36 @@ stocks and flows?* Everything lives under `cycles/`:
   instead of blanking the canvas; keep it that way. The worker normalises the no-slash `/graph` to `/graph/`
   — the only non-asset route, a rewrite to a page, not server compute.
 
+## The sprite lab (`sprite/`) — live at `biome.mino.mobi/sprite` (Phase 1)
+
+Deterministically generate a **rigged, animated sprite for any organism in the deck**. The insight
+(borrowed from "the guy", `mega/sprite/core.js`): a human is *one fixed body plan* you can hardcode a
+rig for; an arbitrary organism is not. So we DON'T draw any animal — we map the tree of life onto a
+**small finite set of rigged body-plans (Baupläne)** and parameterise one from each creature's seed.
+You author ~10 rigs, not 150 sprites. Two layers mirror mega/sprite's genome→phenotype split:
+
+- `sprite/bauplan.mjs` — the **genome**. `classify(org)` → `{clade, archetype}` (curated genus→clade
+  table now; Phase 2 swaps it for iNaturalist `ancestor_ids`). `build(org)` → a parameterised sprite:
+  skeleton sized from body mass (Kleiber-ish) + shaped by guild, palette seeded by clade, walk clip.
+  **Determinism is load-bearing** — the seed is the organism's stable iNaturalist taxon id, so a
+  creature has ONE canonical sprite for ever and `/sprite/?id=…` is a permalink. Reuses the shared
+  `Rand` from `gacha/prng.js`.
+- `sprite/render.mjs` — the **phenotype**. `solve()` (forward kinematics) + the clips (the walk clip
+  is the generalisation of the guy's one hardcoded gait — a pure function phase→per-bone Δangle) +
+  `bbox()` (both canvas-free, so the self-test runs headless) + `draw()` (the only browser-only fn).
+- `sprite/index.html` — the lab. A focused animated stage + a gallery of every rigged organism; same
+  `#err` overlay as `/graph` + `/gacha`. The worker normalises no-slash `/sprite` → `/sprite/`.
+- `sprite/proof.mjs` — dev tool: renders the SAME `solve()` geometry to an **SVG contact sheet** so the
+  rig can be eyeballed from the sandbox (no browser). `node biome/sprite/proof.mjs [ids…] > sheet.svg`.
+- `sprite/test/sprite.selftest.mjs` — 17 checks: classifier total over the deck, build/solve
+  deterministic, finite geometry across the walk cycle, mass→size monotonicity.
+
+**Phase 1 rigs the `quadruped` archetype deeply** (mammals + walking reptiles — `buildable(org)` gates
+it; non-quadrupeds classify honestly but `build()` refuses). Roadmap: Phase 2 = sister archetypes
+(avian · serpent · finned · hexapod · …) + palette **sampled from the iNat photo** at catalog-build
+time (the magic trick — a generic rig wearing the real animal's colours reads as that animal); Phase 3
+= drop the sprites into the gacha force graph as animated nodes (toggle vs the flat photo nodes).
+
 ## The package it belongs to
 
 Four surfaces, one cylinder. **game → [hoop](../hoop)** · **structure → [rind](../rind)** ·
@@ -71,6 +101,7 @@ node biome/cycles/test/lake.selftest.mjs          # 20 checks: harvest conserves
 node biome/cycles/test/global.selftest.mjs        # 18 checks: union conserves, land↔lake coupling, interior closes, stable
 node biome/cycles/test/maximal.selftest.mjs       # 14 checks: intermingled web conserves, every species persists, couplers bridge containers
 node biome/gacha/test/gacha.selftest.mjs          # 13 checks: ECOSYSTEM GACHA engine — catalog, deterministic rolls, conservation, valid wiring, rarity spread
+node biome/sprite/test/sprite.selftest.mjs        # 17 checks: SPRITE engine — classifier total, deterministic build/pose, finite geometry, mass→size
 node biome/cycles/test/builder.selftest.mjs       # 23 checks: presets compile/close/conserve/stable, validation, share codec, graceful failure
 ( cd biome/cycles/solver && cargo test )          # 6 checks: the Rust stability kernel
 # or all the node tests at once:
