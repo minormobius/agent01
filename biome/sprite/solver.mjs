@@ -58,19 +58,27 @@ export function solveForces(sprite, muscles, opt = {}) {
 }
 
 // One relaxation step of a COLLAPSE: each joint that its muscles can't hold rotates the way gravity
-// pushes it, by an amount ∝ how badly it's unsupported. Mutates seg.rest in place — the caller clones
-// the sprite (and sets clip 'static') and steps this each animation frame to play the crumble.
+// pushes it, by an amount ∝ how badly it's unsupported, CLAMPED to the joint's range of motion (so it
+// folds like a body, not coiling into a ball). Mutates seg.rest in place; returns the total motion this
+// step so the caller can stop when it settles.
 export function collapseStep(sprite, muscles, rate = 0.05) {
   const st = evaluateStanding(sprite, muscles);
+  let motion = 0;
   for (const j of st.joints) {
     const unbal = j.need - j.cap[j.holdSide];           // torque the muscles cannot supply
     if (unbal <= 1e-6) continue;
     const seg = sprite.segs.find((s) => s.id === j.id);
     if (!seg) continue;
     const dir = -Math.sign(j.required) || 1;            // gravity rotates opposite the muscle's needed torque
-    seg.rest = (seg.rest || 0) + rate * dir * Math.min(1, unbal / (j.need + 1e-6));
+    const before = seg.rest || 0;
+    let next = before + rate * dir * Math.min(1, unbal / (j.need + 1e-6));
+    if (seg.rom) {                                       // clamp to the joint's range of motion
+      const lo = (seg.rest0 || 0) + seg.rom[0], hi = (seg.rest0 || 0) + seg.rom[1];
+      next = next < lo ? lo : (next > hi ? hi : next);
+    }
+    seg.rest = next; motion += Math.abs(next - before);
   }
-  return st;
+  return motion;
 }
 
 export default { solveForces, collapseStep };

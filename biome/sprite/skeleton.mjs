@@ -159,7 +159,22 @@ export function buildSkeleton(org, profile, rand) {
 
   const sprite = { segs: S, clip: 'walk', meta: { palette: {} } };
   groundLevel(sprite);                 // tilt the body so fore & hind feet meet one ground line
+
+  // BOUNDARY CONDITIONS: record each bone's rest angle + its range of motion (Δ from rest). The collapse
+  // relaxation clamps to this so joints fold only as far as the anatomy allows — no coiling into a ball.
+  for (const s of S) { s.rest0 = s.rest || 0; s.rom = romFor(s); }
   return { segs: S, clip: sprite.clip };
+}
+
+// per-joint range of motion (radians, relative to rest). Vertebrae barely move (small intervertebral
+// range — many of them coiling is what made the "dead spider"); limb joints fold a lot; feet little.
+function romFor(s) {
+  if (s.id === 'skull') return [-0.6, 0.6];
+  if (s.shape === 'vertebra') return [-0.18, 0.18];
+  if (s.joint === 'upper') return [-1.0, 1.0];     // shoulder / hip
+  if (s.joint === 'mid') return [-1.5, 1.5];        // elbow / stifle
+  if (s.joint === 'lower') return [-1.1, 1.1];      // carpus / hock
+  return [-0.5, 0.5];
 }
 
 // Tilt the whole skeleton about the hip so the mean fore-foot and mean hind-foot land at the same

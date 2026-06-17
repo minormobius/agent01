@@ -98,7 +98,7 @@ cv.width=1080*dpr; cv.height=720*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
 
 let CATALOG=null, sprite=null, W=null, muscles=[], nodes=[], actuated=new Set();
 let mode='none', pending=null, mouse=null, tf={s:1,tx:0,ty:0}, force=2.0;
-let result=null, live=null, collapsing=false, anim=null;
+let result=null, live=null, collapsing=false, anim=null, groundY=null;
 const view={bones:1,muscles:1,nodes:1,forces:1,balance:1};
 
 function skeletonNodes(sp){
@@ -126,6 +126,7 @@ function curW(){ return collapsing&&live ? solve(live,0) : W; }
 
 function draw(){ try{
   const sp=curSprite(), Wc=curW(); ctx.clearRect(0,0,1080,720);
+  if(collapsing && groundY!=null){ const gy=toScreen({x:0,y:groundY}).y; ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(1080,gy);ctx.strokeStyle='#2a3a32';ctx.lineWidth=2;ctx.stroke(); }
   // joint balance markers (from last solve)
   const residMap = result ? new Map(result.residual.map(r=>[r.id,r.unbalanced])) : null;
   // bones
@@ -174,7 +175,10 @@ function runSolve(){
 }
 function startCollapse(){
   collapsing=true; live=structuredClone(sprite); live.clip='static';
-  let k=0; const tick=()=>{ if(!collapsing) return; collapseStep(live, muscles, 0.05); k++; draw(); if(k<90) anim=requestAnimationFrame(tick); else { anim=null; } };
+  groundY = result&&result.contacts.length ? Math.max(...result.contacts.map(c=>c.y)) : null;
+  let k=0, rate=0.07;
+  const tick=()=>{ if(!collapsing) return; const mv=collapseStep(live, muscles, rate); rate*=0.965; k++; draw();
+    if(k<130 && (mv>0.006 || k<25)) anim=requestAnimationFrame(tick); else anim=null; };
   anim=requestAnimationFrame(tick);
 }
 function stopAnim(){ if(anim){cancelAnimationFrame(anim);anim=null;} }
