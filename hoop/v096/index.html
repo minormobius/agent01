@@ -80,8 +80,8 @@
     import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose, take, loadGateState } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
-    import { deriveStoryboard, deriveMilestones } from './story/progression.js';   // v096: the storyboard + advancement are DERIVED FROM hoopy's content, not hand-authored
-    import { computeBoard, questLog, activeMarkers } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
+    import { deriveStoryboard, deriveMilestones, deriveOpeningCast } from './story/progression.js';   // v096: the storyboard + advancement + opening cast are DERIVED FROM hoopy's content, not hand-authored
+    import { computeBoard, questLog, activeMarkers, tierFloors } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
     import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
     import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
@@ -210,7 +210,7 @@
     }
     async function maybeBuildRind() {
       if (rindBuilt || !world || !walk || !story.ready) return;
-      if (story.store.getFact(story.playerId, 'flag.sevin_believes') !== true) return;   // unsealed only
+      if ((story.store.getPlayerState(story.playerId).narrative_tier || 1) < 3) return;   // the rind opens at his Investigation tier (the climb "down" is his ladder, not a hand-flag)
       rindBuilt = true;
       try {
         const c0 = world.chunks[0];
@@ -527,7 +527,7 @@
       let tierTag = '';
       if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length, st = getStam() | 0;
         tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span> · <span style="color:${st < 25 ? '#e08a8a' : '#9aa8a0'}" title="stamina — drains as you walk, restored by a bed">stam ${st}</span>`;
-        if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="meet Olo, read the terminal, give Sevin a reason">⊘ the way on is sealed</span>`; }
+        if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="understanding earns the way on — read the deep posts, meet the principals">⊘ the way on is sealed</span>`; }
       $('here').innerHTML = `<b>${label}</b>${tierTag}`;
     }
 
@@ -612,7 +612,14 @@
     const saveStory = () => {
       if (!story.ready) return;
       try { localStorage.setItem('hoop:v096:story', JSON.stringify(story.store.snapshot())); } catch (e) {}
+      // advancement is DRIVEN BY HIS STORY: flag-gated milestones (when his export wires triggers) PLUS
+      // board tier-floors — his tier-paced beats lift the tier as you gain exposure (XP) crystallizing his
+      // content. This is what unlocks the way "out" (seal at narrative 2) and "down" (rind at narrative 3).
       for (const a of checkAdvance(story.store, story.playerId, story.milestones || [])) if (a.axis === 'narrative_tier' || a.axis === 'revelation_tier') flashTier(a);
+      if (story.sb) {
+        const floors = tierFloors(computeBoard(story.sb, story.store, story.playerId)), p = story.store.getPlayerState(story.playerId);
+        for (const axis of ['narrative_tier', 'revelation_tier']) { const cur = p[axis] || 1; if ((floors[axis] || 1) > cur) { story.store.setPlayerTier(story.playerId, axis, floors[axis]); flashTier({ axis, from: cur, to: floors[axis] }); } }
+      }
       whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
       if (introSolved()) { maybeStream(); maybeBuildRind(); }   // unseal: stream the Nave + sink the rind shaft on the concourse
     };
@@ -769,17 +776,22 @@
       panel.classList.add('on');
     }
 
-    // ── the authored opening: two PRINCIPALS pinned in chunk 0 (the bible's Arrival). Olo is at the
-    //    cradle where you wake; Sevin is at the far margin of the chunk — you explore to reach her. They
-    //    are beacons (named, ringed), distinct from the procedural crowd, and pinned via content_id. ──
+    // ── the opening: PRINCIPALS pinned in chunk 0 are DERIVED FROM HIS STORY (his Arrival NPCs — Olo
+    //    Vashti / Sevin / Solen are all in his pool), not a hand-pinned fixture. The first wakes with you
+    //    at the cradle; the rest stand at progressively farther margins. Beacons, pinned via content_id. ──
     let anchors = [];
+    const ANCHOR_COLORS = ['#7fd8d0', '#b48a6a', '#c89ad0', '#d0c07f'];
     function placeAnchors() {
       anchors = [];
-      if (!society || player < 0) return;
-      anchors.push({ key: 'anchor:olo', content_id: 'np-olo', name: 'Olo Vashti', role: 'drift', color: '#7fd8d0', x: px(), y: py(), deck: 0, dir: 'S', genome: buildGenome('hoop-anchor:olo', { role: 'trade', size: 13 }) });
+      if (!society || player < 0 || !story.ready) return;
+      const cast = deriveOpeningCast([...story.store.content.values()], 3);   // his lowest-tier (Arrival) NPCs
       const r0 = society.rooms.filter((o) => o.ch === 0);
-      let far = null, fd = -1; for (const o of r0) { const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d > fd) { fd = d; far = o; } }
-      if (far) anchors.push({ key: 'anchor:sevin', content_id: 'np-sevin', name: 'Sevin', role: 'rindwalker', color: '#b48a6a', x: far.x, y: far.y, deck: 0, dir: 'S', genome: buildGenome('hoop-anchor:sevin', { role: 'store', size: 13 }) });
+      const byDist = r0.map((o) => ({ o, d: (o.x - px()) ** 2 + (o.y - py()) ** 2 })).sort((a, b) => a.d - b.d);
+      cast.forEach((npc, i) => {
+        const pos = i === 0 ? { x: px(), y: py() } : ((byDist[Math.min(byDist.length - 1, Math.round((i / Math.max(1, cast.length - 1)) * (byDist.length - 1)))] || {}).o) || { x: px(), y: py() };
+        anchors.push({ key: 'anchor:' + npc.id, content_id: npc.id, name: (npc.content || {}).name || npc.id, role: (npc.tags || [])[0] || 'drift',
+          color: ANCHOR_COLORS[i % ANCHOR_COLORS.length], x: pos.x, y: pos.y, deck: 0, dir: 'S', genome: buildGenome('hoop-anchor:' + npc.id, { role: 'trade', size: 13 }) });
+      });
     }
     // guarantee chunk 0 has at least one Tabard terminal (designate the most central component if no role matches)
     function ensureChunk0Terminal() {

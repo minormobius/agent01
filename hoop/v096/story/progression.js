@@ -44,7 +44,7 @@ export function deriveStoryboard(content, { chapter = 1 } = {}) {
     return {
       id: c.id, act: 'act-' + o.n, title: name, log: desc, done: desc,
       requires: i > 0 ? { beats: [ord[i - 1].c.id] } : {},                 // sequential chain
-      completes_when: trig.length ? { facts: flagsToFacts(trig) } : { min_narrative: o.n },   // flag-gated when his export wires it; tier-paced until then
+      completes_when: trig.length ? { facts: flagsToFacts(trig) } : { min_power: 1 + i },   // flag-gated when his export wires it; EXPOSURE-paced (XP from crystallizing his content) until then
       advances: { narrative_tier: o.n, revelation_tier: o.r },
       marker: deriveMarker(c, npcNames),
       reveals: c.revelation_hint || desc,
@@ -57,6 +57,15 @@ export function deriveStoryboard(content, { chapter = 1 } = {}) {
     narrative_tier: n, revelation_tier: Math.max(1, ...ord.filter((o) => o.n === n).map((o) => o.r)),
   }));
   return { chapter, acts, beats, _derived: true };
+}
+
+// The OPENING CAST: his Arrival NPCs (lowest narrative tier) — the principals pinned in the opening
+// chunk (replacing the hand-pinned Olo/Sevin fixture). His Olo Vashti / Sevin / Solen are all in his
+// pool, so the opening is authored by his story; placement is by the surface (spawn + far margins).
+export function deriveOpeningCast(content, n = 3) {
+  return content.filter((c) => c.type === 'npc')
+    .sort((a, b) => (a.narrative_tier || 1) - (b.narrative_tier || 1) || (a.power_tier || 1) - (b.power_tier || 1) || (a.id < b.id ? -1 : 1))
+    .slice(0, n);
 }
 
 // content[] → advance.js milestones: a beat that ADVANCES a tier and gates on real flags becomes a tier

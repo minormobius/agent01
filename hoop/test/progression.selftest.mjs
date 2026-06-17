@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { deriveStoryboard, deriveMilestones, deriveWorldFlags } from '../story/progression.js';
+import { deriveStoryboard, deriveMilestones, deriveWorldFlags, deriveOpeningCast } from '../story/progression.js';
 import { importWorldExport } from '../story/import.js';
 import { computeBoard, tierFloors } from '../v096/story/board.js';
 import { MemoryStore } from '../story/engine.js';
@@ -32,7 +32,23 @@ const { content } = importWorldExport(wx);
   const store = new MemoryStore(content, { features: [] });
   const board = computeBoard(sb, store, 'p1');
   ok(board.length === 5 && board[0].status, 'board.js computes the derived storyboard (status per beat)');
-  ok(board.some((b) => b.status === 'active'), 'the opening beat is active at tier 1');
+  ok(board.some((b) => b.status === 'active'), 'a beat is active');
+
+  // EXPOSURE drives the climb: tier-paced beats complete as power (XP from crystallizing his content)
+  // rises, and tierFloors lifts narrative/revelation — the way "out" (tier 2) and "down" (tier 3) open.
+  ok(tierFloors(computeBoard(sb, store, 'p1')).narrative_tier === 1, 'at power 1, only the opening tier holds');
+  store.setPlayerXp('p1', 300, 5);   // simulate exposure → power tier 5
+  const climbed = tierFloors(computeBoard(sb, store, 'p1'));
+  ok(climbed.narrative_tier === 3 && climbed.revelation_tier === 3, 'exposure (power↑) lifts narrative + revelation through his beats to tier 3');
+}
+
+// ── the opening cast is his Arrival NPCs (not the hand-pinned Olo/Sevin fixture) ──
+{
+  const cast = deriveOpeningCast(content, 3);
+  ok(cast.length === 3 && cast.every((c) => c.type === 'npc'), 'opening cast = 3 of his NPCs');
+  ok(cast.every((c) => (c.narrative_tier || 1) <= (cast[cast.length - 1].narrative_tier || 1)), 'cast ordered by narrative tier (Arrival first)');
+  ok(cast.every((c) => (c.content || {}).name && c.lane === 'spine'), 'cast are real imported NPCs from his pool (not the dead np-olo fixture)');
+  ok(cast.every((c) => (c.narrative_tier || 1) === 1), 'the opening cast are all his Arrival-tier (narrative 1) NPCs');
 }
 
 // ── world flags derived from his content (replaces the static manifest) ──
