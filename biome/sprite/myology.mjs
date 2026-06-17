@@ -76,9 +76,10 @@ function spineCandidates(sprite, D) {
   const W = D.W, anchor = ['sacrum', ...chain];
   const target = new Map();
   for (const id of chain) target.set(id, D.required[id] * (1 - passiveFraction(seg(id))));
-  const cands = [], dorsalFloor = 0.35 * D.scale;
+  const cands = [], dorsalFloor = 0.18 * D.scale;
   const addSpan = (i, j, side) => {
-    const off = (s) => side < 0 ? -(Math.max(s.spine || 0, dorsalFloor) + D.scale * 0.1) : (D.scale * 0.3);
+    // dorsal cord rides the NEURAL-SPINE TIPS (real bony processes); ventral at the centrum underside
+    const off = (s) => side < 0 ? -(Math.max(s.spine || 0, dorsalFloor) + D.scale * 0.05) : (D.scale * 0.16);
     const a = { bone: anchor[i], t: 0.5, d: off(seg(anchor[i])) };
     const b = { bone: anchor[j], t: 0.5, d: off(seg(anchor[j])) };
     const joints = anchor.slice(i + 1, j + 1), rOf = new Map();
@@ -135,19 +136,22 @@ const spineMuscle = (c, fmax, role, group) =>
 function repair(sprite, out, D, sc, { margin }) {
   const segOf = (id) => sprite.segs.find((s) => s.id === id);
   const givenUp = new Set();
-  for (let iter = 0; iter < 80; iter++) {
+  for (let iter = 0; iter < 120; iter++) {
     const st = evaluateStanding(sprite, out);
-    const bad = st.joints.filter((j) => !j.held && !givenUp.has(j.id))
-      .sort((a, b) => (b.need - b.cap[b.holdSide]) - (a.need - a.cap[a.holdSide]));
+    const bad = st.joints.filter((j) => !j.stable && !givenUp.has(j.id));
     if (!bad.length) break;
     const j = bad[0];
-    const deficit = j.need - j.cap[j.holdSide];
-    if (deficit <= 1e-6) { givenUp.add(j.id); continue; }
-    const wantSign = j.holdSide === 'pos' ? 1 : -1;
+    // a joint may be unheld (needs more agonist) OR held-but-not-antagonised (needs a little opposite tone)
+    let wantSign, needF;
+    if (!j.held) { wantSign = j.holdSide === 'pos' ? 1 : -1; needF = j.need - j.cap[j.holdSide]; }
+    else { const weak = j.cap.pos <= j.cap.neg ? 'pos' : 'neg'; wantSign = weak === 'pos' ? 1 : -1; needF = j.need * 0.12 + 1e-3; }
+    if (needF <= 1e-6) { givenUp.add(j.id); continue; }
+    const deficit = needF;
     let cand = null, rj = 0, spineJ = sc && sc.chain.includes(j.id);
+    const levThresh = j.held ? 0.015 * D.scale : 0.06 * D.scale; // antagonist only needs to exist; agonist needs real lever
     if (spineJ) {                                   // spine joint → shortest strong-leverage deep candidate
       const opts = sc.cands.filter((c) => c.joints.includes(j.id)
-        && Math.sign(c.rOf.get(j.id)) === wantSign && Math.abs(c.rOf.get(j.id)) > 0.12 * D.scale)
+        && Math.sign(c.rOf.get(j.id)) === wantSign && Math.abs(c.rOf.get(j.id)) > levThresh)
         .sort((a, b) => a.joints.length - b.joints.length || Math.abs(b.rOf.get(j.id)) - Math.abs(a.rOf.get(j.id)));
       if (opts.length) { cand = opts[0]; rj = cand.rOf.get(j.id); }
     } else {                                        // limb / head joint

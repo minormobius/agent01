@@ -45,6 +45,9 @@ const CLIPS = {
     }
     return { angles, bob: -1.4 * Math.abs(Math.sin(phase)) };
   },
+  // dead-still: the pose is exactly the rest angles. Used by the construction lab's collapse relaxation,
+  // which perturbs seg.rest directly and re-solves frame by frame.
+  static() { return { angles: {}, bob: 0 }; },
   // a gentle breathing stand; fallback for any clip we haven't written.
   idle(phase, sprite) {
     const angles = {};

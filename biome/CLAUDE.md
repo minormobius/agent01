@@ -117,9 +117,17 @@ scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG �
   many short ones). Then an oracle-driven REPAIR loop adds short deep muscles (multifidus) until
   `evaluateStanding` reports every joint held. Sized past the hold threshold (SAFE). Deterministic — NO RNG.
 - `muscle.mjs` also exports `crossedJoints` (which actuated joints a hand-drawn muscle spans) for the lab.
-- `muscle.html` — **the myology lab (construction interface)** at `/sprite/muscle.html`. Draw muscles onto
-  the skeleton (click two bone points; the offset sets the moment arm) and get a live FEM-like solve:
-  per-joint stable/held/buckling colouring, CoM over support, total volume, walk %. Or hit Auto-grow.
+- `solver.mjs` — **the structural force solve** (`solveForces`): given the muscles, find the pull-only
+  tensions (F ≥ 0, magnitude unbounded) that balance every joint — box-constrained least-squares by
+  projected coordinate descent (`min ‖A F − b‖²`, A = moment arms, b = buckling torques). Splits
+  `balanced` (the layout *can* hold — residual ≈ 0) from `feasible` (and the muscles are strong enough —
+  no force exceeds capacity). `collapseStep` relaxes an unsupported pose so the lab can animate the crumble.
+  This is the natural Rust/WASM kernel (cf. `cycles/solver`); kept JS-first so the lab works without wasm.
+- `muscle.html` — **the myology lab (construction interface)** at `/sprite/muscle.html`. Muscles attach to
+  real skeletal NODES (joint centres, bone ends, neural-spine tips — the dorsal/ventral side is just which
+  node). Click two nodes to add a muscle; press **SOLVE** → tensions drawn (brightness = how hard each
+  pulls), ground-reaction arrows, balanced/unbalanced joints; with too few muscles it **crumbles**
+  (animated collapse). View toggles (bones/muscles/nodes/forces/balance) + Auto-grow.
 - `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG contact sheet (headless).
 
 **Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints); grown one STANDS

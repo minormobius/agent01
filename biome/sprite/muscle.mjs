@@ -45,8 +45,8 @@ export function candidatesForJoint(W, seg, scale) {
   const parent = seg.parent;
   if (!parent) return [];
   const j = W[seg.id].base;
-  const standoffs = [0.16, 0.26, 0.38].map((f) => f * scale); // tendon offset from the joint
-  const rmin = 0.05 * scale;                                  // kill near-zero moment arms
+  const standoffs = [0.12, 0.20, 0.30].map((f) => f * scale); // tendon offsets — the largest rescues folded joints (rabbit)
+  const rmin = 0.025 * scale;                                 // kill near-zero moment arms
   const out = [];
   for (const side of [+1, -1]) {
     for (const so of standoffs) {

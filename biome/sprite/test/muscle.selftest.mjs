@@ -82,7 +82,7 @@ console.log('\nmuscle.selftest — muscular-system solver (Phase 1: standing sta
   let allLever = true;
   for (const seg of actuatedJoints(sp)) {
     const cands = candidatesForJoint(D.W, seg, D.scale);
-    if (cands.some((c) => Math.abs(c.r) < 0.04 * D.scale)) allLever = false;
+    if (cands.some((c) => Math.abs(c.r) < 0.025 * D.scale)) allLever = false;
   }
   ok('candidate generation kills zero-lever muscles (all survivors have a moment arm)', allLever);
 }
