@@ -1,10 +1,10 @@
 {
-  "generated": "2026-06-17T22:10:28.000Z",
+  "generated": "2026-06-17T22:14:33.992Z",
   "metric": "commits",
   "source": "git rev-list --count per endpoint pathspec (deploy-registry paths)",
   "status": "ok",
-  "history_commits": 485,
-  "total_commits": 477,
+  "history_commits": 489,
+  "total_commits": 478,
   "sites": [
     {
       "name": "hoop",
@@ -40,7 +40,7 @@
       "name": "bisk",
       "url": "https://bisk.mino.mobi",
       "category": "bluesky",
-      "commits": 16
+      "commits": 17
     },
     {
       "name": "read",
