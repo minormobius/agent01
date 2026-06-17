@@ -102,7 +102,7 @@
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
     let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
-    let residents = [], lastTs = 0;
+    let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0;
     const story = { store: null, ready: false, playerId: 'local', active: null };
     let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
     const storyBigKeys = new Set();     // resident featureKeys an active beat marks → embiggen (storyboard-relevant only)
@@ -136,7 +136,8 @@
     const chunkSeedFor = (poly) => { const c = centroidOf(poly); return (hash2(Math.round(c.x), Math.round(c.y)) ^ seed) >>> 0; };
     const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
 
-    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter(); }
+    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter();
+      const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); } }   // re-cull residents when you enter a new chunk
     function setScale() { cam.scale = H / (chunkSpan * VFOV); }   // pin the VERTICAL world span; width follows the aspect (mobile look retained on desktop)
 
     // rebuild the walk graph + the social web, then re-cast residents — but PRESERVE the sim state of
@@ -146,6 +147,16 @@
       walk = buildWalk(world, blockedOf); society = buildSociety(world, walk);
       const fresh = buildResidents(world, walk, society), prev = new Map(residents.map((a) => [a.id, a]));
       residents = fresh.map((a) => prev.get(a.id) || a);
+      cullResidents();
+    }
+    // PERF: only the residents whose HOME is near the player (and on the current deck) get stepped/drawn —
+    // no loading souls three blocks away. Recomputed on chunk-change + restitch, so per-frame cost is bounded.
+    function cullResidents() {
+      if (!walk || player < 0) { nearResidents = residents; return; }
+      const pd = playerDeck(), R = (chunkSpan * 1.4) ** 2, cx = px(), cy = py();
+      nearResidents = residents.filter((a) => { const hk = a.homeKey; if (!hk) return false;
+        if (((world.chunks[hk.ch] || {}).deck || 0) !== pd) return false;
+        return (hk.x - cx) ** 2 + (hk.y - cy) ** 2 < R; });
     }
     // IMPASSABLE fixtures (v091): the bones cells under a room's floor fixture + its central component
     // are non-navigable. Computed once per chunk from its painted result (the nearest bones cell to each
@@ -410,9 +421,14 @@
     function drawNPC() {
       if (!society || !walk) return;
       const pd = playerDeck(), deckOf = (cid) => (world.chunks[cid] || {}).deck || 0;
+      const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
+      const off = (x0, y0, x1, y1) => Math.max(x0, x1) < vx0 || Math.min(x0, x1) > vx1 || Math.max(y0, y1) < vy0 || Math.min(y0, y1) > vy1;   // viewport cull
       ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-      for (const rt of society.routes) { if (rt.cells.length && deckOf(walk.nodeChunk[rt.cells[0]]) !== pd) continue; ctx.strokeStyle = `rgba(127,216,208,${Math.min(0.5, 0.13 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3, 0.7 + rt.w * 0.2); strokeNodes(rt.cells, true); }
-      ctx.lineWidth = 0.9; for (const e of society.edges) { if (deckOf(e.a.ch) !== pd || !roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.34)' : 'rgba(180,120,216,0.32)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); }
+      for (const rt of society.routes) { if (!rt.cells.length || deckOf(walk.nodeChunk[rt.cells[0]]) !== pd) continue;
+        const c0 = rt.cells[0], cN = rt.cells[rt.cells.length - 1];
+        if (off(walk.pos[2 * c0], walk.pos[2 * c0 + 1], walk.pos[2 * cN], walk.pos[2 * cN + 1])) continue;
+        ctx.strokeStyle = `rgba(127,216,208,${Math.min(0.5, 0.13 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3, 0.7 + rt.w * 0.2); strokeNodes(rt.cells, true); }
+      ctx.lineWidth = 0.9; for (const e of society.edges) { if (deckOf(e.a.ch) !== pd || off(e.ax, e.ay, e.bx, e.by) || !roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.34)' : 'rgba(180,120,216,0.32)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); }
     }
     // ── residents: seed-stable pixel sprites, rendered once per (genome,dir,frame) to a cache canvas ──
     function spriteCanvas(genome, dir, frame) {
@@ -431,9 +447,8 @@
       // stands near player scale with a tracking ring. storyBigKeys is refreshed from the board in
       // renderQuest — today the beat markers point at the principals (drawn as anchors), so the crowd is
       // uniform; a future beat marker {resident:key} embiggens exactly that crowd member.
-      const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale, pd = playerDeck();
-      for (const a of residents) {
-        if (((world.chunks[a.homeKey && a.homeKey.ch] || {}).deck || 0) !== pd) continue;   // only this deck's residents
+      const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale;
+      for (const a of nearResidents) {   // near + current-deck set (culled in cullResidents)
         const sx = SX(a.x), sy = SY(a.y);
         if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;   // viewport cull
         const merit = storyBigKeys.has(a.featureKey), h = merit ? meritH : baseH;
@@ -543,7 +558,7 @@
       whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
       if (introSolved()) { maybeStream(); maybeBuildRind(); }   // unseal: stream the Nave + sink the rind shaft on the concourse
     };
-    function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; const pd = playerDeck(); for (const a of residents) { if (((world.chunks[a.homeKey && a.homeKey.ch] || {}).deck || 0) !== pd) continue; const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
+    function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of nearResidents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
     function openStory(a) {
       if (!story.ready) return;
       const s = story.store;
@@ -789,7 +804,7 @@
       requestAnimationFrame(frame);
       if (ts - lastTs < 30) return;   // PERF: cap the loop to ~33fps (movement still redraws via walkTo's own tick)
       const dt = lastTs ? ts - lastTs : 16; lastTs = ts;
-      if (world && walk && residents.length) stepResidents(residents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 1.5, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
+      if (world && walk && nearResidents.length) stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
       draw();
     }
 
