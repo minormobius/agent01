@@ -9,7 +9,7 @@
 //
 // Returns, per step, the muscle ACTIVATIONS (0..1) so the lab can light up the firing pattern.
 
-import { solve, bbox, CLIPS } from './render.mjs';
+import { solve, bbox, CLIPS, GAIT } from './render.mjs';
 import { limbJoints } from './mechanics.mjs';
 import { attachPos, momentArm } from './muscle.mjs';
 
@@ -39,7 +39,7 @@ export function makeGait(sprite, muscles, opt = {}) {
   const span = (() => { const b = bbox(work, 0); return Math.max(b.w, b.h); })();
   const legPrefixes = ['FN', 'FF', 'BN', 'BF'];
   const footSegs = {}; for (const lp of legPrefixes) footSegs[lp] = work.segs.filter((s) => s.id.startsWith(lp + '_k')).map((s) => s.id);
-  let bodyX = 0, bodyY = 0; const anchorX = {}, wasContact = {};
+  let bodyX = 0, bodyY = 0; const prevFx = {};
 
   function step(dt) {
     phase = (phase + dt * cadence) % (Math.PI * 2);
@@ -75,19 +75,20 @@ export function makeGait(sprite, muscles, opt = {}) {
       let lo = null; for (const id of footSegs[lp]) { const t = Wb[id].tip; if (!lo || t.y > lo.y) lo = t; }
       return lo ? { leg: lp, fx: lo.x, fy: lo.y } : null;
     }).filter(Boolean);
-    // stance schedule by PHASE (not foot height — feet barely lift, so height flickers): diagonal pairs,
-    // each leg planted for the rear half of its excursion → exactly two feet down at a time, clean handoff.
-    for (const f of feet) { const off = (f.leg === 'FN' || f.leg === 'BF') ? 0 : Math.PI; f.contact = Math.sin(phase + off) >= 0; }
+    // stance schedule by PHASE — the same 4-beat WALK the clip uses (GAIT.duty ≈ 0.68), so each foot is
+    // planted for most of its cycle and 2–3 feet are always down (no hopping). Matched to render.mjs.
+    const u0 = phase / (2 * Math.PI);
+    for (const f of feet) { const u = (((u0 + GAIT.phase[f.leg]) % 1) + 1) % 1; f.contact = u < GAIT.duty; }
     const planted = feet.filter((f) => f.contact);
     const minFy = (planted.length ? planted : feet).reduce((m, f) => Math.max(m, f.fy), -1e9);
     bodyY = -minFy;                                           // lift the body so the lowest planted foot sits at y=0
-    let sumX = 0, n = 0;
-    for (const f of planted) {
-      if (!wasContact[f.leg]) anchorX[f.leg] = bodyX + f.fx;  // touchdown: plant here (continuous — no jump)
-      sumX += anchorX[f.leg] - f.fx; n++;                     // body must sit so the planted foot stays put
-    }
-    for (const f of feet) wasContact[f.leg] = f.contact;
-    if (n > 0) bodyX = sumX / n;                              // body rides forward over the planted feet
+    // body advances at the average BACKWARD velocity of the planted feet. Velocity form (vs absolute
+    // anchors) avoids reset-jumps across the 2–3 overlapping supports; in steady stance every planted
+    // foot retracts at the same rate, so the body rides forward smoothly with no foot slip.
+    let sumD = 0, nD = 0;
+    for (const f of feet) if (f.contact && prevFx[f.leg] != null) { sumD += prevFx[f.leg] - f.fx; nD++; }
+    if (nD > 0) bodyX += sumD / nD;
+    for (const f of feet) prevFx[f.leg] = f.contact ? f.fx : null;
     const worldFeet = feet.map((f) => ({ leg: f.leg, worldX: bodyX + f.fx, worldY: bodyY + f.fy, contact: f.contact }));
     return { activations: act, bodyX, bodyY, feet: worldFeet, phase };
   }

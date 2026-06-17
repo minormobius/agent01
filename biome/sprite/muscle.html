@@ -55,6 +55,7 @@
       <div class="row"><button class="solve" id="b-solve">▶ SOLVE</button></div>
       <div class="row"><button class="grow" id="b-grow">✦ Auto-grow</button><button id="b-reset">↺ Reset</button></div>
       <div class="row"><button id="b-walk">🏃 Walk on a treadmill</button></div>
+      <div class="row"><button id="z-out">－ zoom</button><button id="z-fit">fit</button><button id="z-in">＋ zoom</button></div>
       <div class="row"><button id="b-add">＋ Add muscle</button><button id="b-del">－ Remove</button><button id="b-clear">Clear</button></div>
       <div class="ctl"><label>new-muscle strength (capacity) <span id="fval">2.0</span></label><input type="range" id="force" min="0.2" max="12" step="0.2" value="2.0"></div>
       <div class="views">
@@ -102,7 +103,7 @@ let CATALOG=null, sprite=null, W=null, muscles=[], nodes=[], actuated=new Set();
 let mode='none', pending=null, mouse=null, tf={s:1,tx:0,ty:0}, force=2.0;
 let result=null, live=null, collapsing=false, anim=null, groundY=null;
 let gait=null, walking=false, gaitAct=new Map(), extraDY=0;
-let walkS=1, walkBodyX=0, walkBodyY=0, walkFeet=[]; const walkGroundY=600;
+let walkS=1, walkBodyX=0, walkBodyY=0, walkFeet=[], zoom=1; const walkGroundY=600;
 const view={bones:1,muscles:1,nodes:1,forces:1,balance:1};
 
 function skeletonNodes(sp){
@@ -124,8 +125,8 @@ function setSprite(id){
   setVerdict(null); draw();
 }
 const toScreen=p=> walking
-  ? ({x:p.x*walkS+540, y:(p.y+walkBodyY)*walkS+walkGroundY})   // camera on the body; flat ground is the datum
-  : ({x:p.x*tf.s+tf.tx, y:p.y*tf.s+tf.ty+extraDY});
+  ? ({x:p.x*walkS*zoom+540, y:(p.y+walkBodyY)*walkS*zoom+walkGroundY})  // camera on body; ground is the datum
+  : ({x:(p.x*tf.s+tf.tx-540)*zoom+540, y:(p.y*tf.s+tf.ty+extraDY-360)*zoom+360});
 
 function curSprite(){ return walking&&gait ? gait.sprite : (collapsing&&live ? live : sprite); }
 function curW(){ return walking&&gait ? solve(gait.sprite,0) : (collapsing&&live ? solve(live,0) : W); }
@@ -134,13 +135,13 @@ function draw(){ try{
   extraDY = 0;
   const sp=curSprite(), Wc=curW(); ctx.clearRect(0,0,1080,720);
   if(collapsing && groundY!=null){ const gy=toScreen({x:0,y:groundY}).y; ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(1080,gy);ctx.strokeStyle='#2a3a32';ctx.lineWidth=2;ctx.stroke(); }
-  if(walking){ const gy=walkGroundY; ctx.fillStyle='#13201a';ctx.fillRect(0,gy,1080,720-gy);
+  if(walking){ const gy=walkGroundY, WS=walkS*zoom; ctx.fillStyle='#13201a';ctx.fillRect(0,gy,1080,720-gy);
     // ground stripes anchored in the WORLD and scrolled by the body's progress (planted feet ride with them)
-    ctx.strokeStyle='#2c4438';ctx.lineWidth=2; const SP=64/walkS, x0=walkBodyX-560/walkS;
-    for(let wx=Math.ceil(x0/SP)*SP; (wx-walkBodyX)*walkS+540<1120; wx+=SP){ const sx=(wx-walkBodyX)*walkS+540; ctx.beginPath();ctx.moveTo(sx,gy);ctx.lineTo(sx-26,gy+20);ctx.stroke(); }
+    ctx.strokeStyle='#2c4438';ctx.lineWidth=2; const SP=64/WS, x0=walkBodyX-560/WS;
+    for(let wx=Math.ceil(x0/SP)*SP; (wx-walkBodyX)*WS+540<1120; wx+=SP){ const sx=(wx-walkBodyX)*WS+540; ctx.beginPath();ctx.moveTo(sx,gy);ctx.lineTo(sx-26,gy+20);ctx.stroke(); }
     ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(1080,gy);ctx.strokeStyle='#3a5446';ctx.lineWidth=3;ctx.stroke();
     // planted feet: a tick where each stance foot is locked to the ground
-    for(const f of walkFeet){ if(!f.contact) continue; const sx=(f.worldX-walkBodyX)*walkS+540; ctx.beginPath();ctx.arc(sx,gy,4,0,7);ctx.fillStyle='#d8b25a';ctx.fill(); } }
+    for(const f of walkFeet){ if(!f.contact) continue; const sx=(f.worldX-walkBodyX)*WS+540; ctx.beginPath();ctx.arc(sx,gy,4,0,7);ctx.fillStyle='#d8b25a';ctx.fill(); } }
   // joint balance markers (from last solve)
   const residMap = result ? new Map(result.residual.map(r=>[r.id,r.unbalanced])) : null;
   // bones
@@ -233,8 +234,8 @@ cv.addEventListener('click',e=>{ const r=cv.getBoundingClientRect(); const sx=e.
 function startWalk(){
   stopWalk(); stopAnim(); collapsing=false; live=null; result=null; setVerdict(null);
   if(!muscles.length) muscles=growMuscles(sprite).muscles;   // need muscles to contract
-  gait=makeGait(sprite, muscles); walking=true;
-  const b=bbox(sprite,0); walkS=Math.min((1080-180)/b.w, (walkGroundY-70)/b.h);  // fit the body above the ground line
+  gait=makeGait(sprite, muscles); walking=true; zoom=1;
+  const b=bbox(sprite,0); walkS=Math.min((1080-300)/b.w, (walkGroundY-150)/b.h);  // fit with headroom above the ground line
   $('b-walk').classList.add('on'); $('b-walk').textContent='⏹ Stop';
   const tick=()=>{ if(!walking) return; const r=gait.step(1/60); gaitAct=r.activations; walkBodyX=r.bodyX; walkBodyY=r.bodyY; walkFeet=r.feet; draw(); anim=requestAnimationFrame(tick); };
   anim=requestAnimationFrame(tick);
@@ -242,6 +243,10 @@ function startWalk(){
 function stopWalk(){ if(!walking){ return; } walking=false; gait=null; gaitAct=new Map(); extraDY=0; stopAnim();
   $('b-walk').classList.remove('on'); $('b-walk').textContent='🏃 Walk on a treadmill'; }
 $('b-walk').onclick=()=>{ if(walking){ stopWalk(); draw(); } else startWalk(); };
+$('z-in').onclick=()=>{ zoom=Math.min(4,zoom*1.2); draw(); };
+$('z-out').onclick=()=>{ zoom=Math.max(0.3,zoom/1.2); draw(); };
+$('z-fit').onclick=()=>{ zoom=1; draw(); };
+cv.addEventListener('wheel', e=>{ e.preventDefault(); zoom=Math.max(0.3,Math.min(4,zoom*(e.deltaY<0?1.12:0.89))); draw(); }, {passive:false});
 $('b-solve').onclick=()=>{ stopWalk(); runSolve(); };
 $('b-grow').onclick=()=>{ stopWalk();stopAnim();collapsing=false;live=null; muscles=growMuscles(sprite).muscles; result=null; setVerdict(null); draw(); };
 $('b-reset').onclick=()=>{ stopWalk();stopAnim();collapsing=false;live=null; result=null; setVerdict(null); draw(); };

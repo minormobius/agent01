@@ -17,34 +17,31 @@ const perp = (a) => ({ x: -Math.sin(a), y: Math.cos(a) }); // +90°: for a=0 poi
 // A clip returns { angles: {segId: ΔradiansAtThisPhase}, bob: yOffsetUnits }. It reads the skeleton's
 // own tags — seg.leg ∈ {FN,FF,BN,BF} and seg.joint ∈ {upper,mid,lower,foot} — so it is independent of
 // how many bones a limb is built from.
-// exported so the gait engine can reuse the walk rhythm as its activation target
+// exported so the gait engine can reuse the walk rhythm as its activation target.
+// GAIT: a 4-beat lateral-sequence WALK — each foot lifts in turn, with a high stance duty so 2–3 feet
+// are always on the ground (no suspension / hopping, unlike a 50%-duty trot).
+export const GAIT = { phase: { BN: 0, FN: 0.25, BF: 0.5, FF: 0.75 }, duty: 0.68 };
 export const CLIPS = {
-  // Quadruped diagonal-gait walk: diagonal pairs (front-near + back-far) swing together, antiphase to
-  // the other diagonal — the trot every tetrapod shares. Distal joints lag & flex on the lift; the
-  // lumbar spine flexes slightly; the tail sways; the trunk bounces at twice stride frequency.
+  // walk: per-leg cycle position u; hip retracts slowly through stance (foot planted, body rides over it)
+  // then returns fast through swing while the knee/hock flex to lift the foot clear.
   walk(phase, sprite) {
-    const angles = {};
-    const legPhase = { FN: 0, BF: 0, FF: Math.PI, BN: Math.PI };
-    const swing = 0.30, flex = 0.42;
+    const angles = {}, u0 = phase / (2 * Math.PI), sw = 0.42, lift = 0.55;
     for (const s of sprite.segs) {
       if (s.leg) {
-        const t = phase + (legPhase[s.leg] ?? 0);
-        const near = s.leg[1] === 'N' ? 1 : 0.85;
-        const front = s.leg[0] === 'F' ? 1 : -1;
-        const lift = 0.5 + 0.5 * Math.sin(t + 1.1);
-        if (s.joint === 'upper') angles[s.id] = swing * Math.sin(t) * near;
-        else if (s.joint === 'mid') angles[s.id] = -flex * lift * front * near * 0.8;
-        else if (s.joint === 'lower') angles[s.id] = -flex * lift * front * near;
-        else if (s.joint === 'foot') angles[s.id] = flex * lift * front * near * 0.7;
-      } else if (s.role === 'caudal') {
-        angles[s.id] = 0.06 * Math.sin(phase * 0.5 + 0.4); // tail wave accumulates down the chain
-      } else if (s.role === 'lumbar') {
-        angles[s.id] = 0.02 * Math.sin(phase * 2 + 0.6);
-      } else if (s.role === 'cervical') {
-        angles[s.id] = 0.012 * Math.sin(phase + 0.3);
-      }
+        const u = (((u0 + GAIT.phase[s.leg]) % 1) + 1) % 1;
+        const near = s.leg[1] === 'N' ? 1 : 0.9, front = s.leg[0] === 'F' ? 1 : -1;
+        const stance = u < GAIT.duty;
+        const sweep = stance ? 1 - 2 * (u / GAIT.duty) : -1 + 2 * ((u - GAIT.duty) / (1 - GAIT.duty));
+        const swu = stance ? 0 : Math.sin(Math.PI * ((u - GAIT.duty) / (1 - GAIT.duty)));  // foot lift in swing
+        if (s.joint === 'upper') angles[s.id] = -sw * sweep * near; // retract through stance → walk forward
+        else if (s.joint === 'mid') angles[s.id] = -lift * swu * front * near * 0.7;
+        else if (s.joint === 'lower') angles[s.id] = -lift * swu * front * near;
+        else if (s.joint === 'foot') angles[s.id] = lift * swu * front * near * 0.5;
+      } else if (s.role === 'caudal') angles[s.id] = 0.05 * Math.sin(phase * 0.5 + 0.4);
+      else if (s.role === 'lumbar') angles[s.id] = 0.015 * Math.sin(phase * 2);
+      else if (s.role === 'cervical') angles[s.id] = 0.01 * Math.sin(phase);
     }
-    return { angles, bob: -1.4 * Math.abs(Math.sin(phase)) };
+    return { angles, bob: -0.8 * Math.abs(Math.sin(phase * 2)) };
   },
   // dead-still: the pose is exactly the rest angles. Used by the construction lab's collapse relaxation,
   // which perturbs seg.rest directly and re-solves frame by frame.
