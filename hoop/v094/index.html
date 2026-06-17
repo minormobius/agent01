@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="hoop v094 — The Tabard, Chapter One: wake in Bay 14, walk the Nave, read the terminal, find Sevin. The opening chunk of the story engine, bent to the bible." />
+<title>hoop v094 · The Tabard — Chapter One</title>
+<style>
+  :root { --bg:#05060a; --ink:#dfe7e2; --dim:#8a978f; --line:#1c2530; --gold:#f4bf62; --teal:#7fd8d0; --copper:#c98a5b; --blue:#7fa8d8; --rind:#b48a6a; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.55 ui-monospace, "JetBrains Mono", monospace; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #hud { position: fixed; top: 8px; left: 10px; max-width: 60vw; color: var(--dim); text-shadow: 0 1px 2px #000; pointer-events: none; }
+  #hud b { color: var(--gold); } #hud .teal { color: var(--teal); }
+  #hud .zone { color: var(--ink); }
+  a.home { position: fixed; top: 8px; right: 10px; color: var(--teal); text-decoration: none; z-index: 8; }
+  #rail { position: fixed; bottom: 12px; left: 10px; width: min(46vw, 560px); max-height: 72vh; overflow-y: auto; background: rgba(8,11,16,.86); border: 1px solid var(--line); border-radius: 10px; padding: 10px 13px; backdrop-filter: blur(6px); display: none; }
+  #rail b { color: var(--gold); } #rail .w, #rail .teal { color: var(--teal); }
+  #rail h2 { font-size: 14px; margin: 0 0 2px; color: var(--gold); }
+  #rail .says { color: var(--ink); margin: 6px 0 9px; font-style: italic; }
+  #rail .choice { color: var(--teal); cursor: pointer; padding: 4px 0 4px 15px; text-indent: -10px; }
+  #rail .choice:hover { color: var(--gold); }
+  #rail .end { color: #778; padding-top: 5px; font-style: italic; }
+  #rail .meta { color: var(--dim); font-size: 11px; margin-top: 7px; border-top: 1px solid var(--line); padding-top: 5px; }
+  #rail .lore { color: var(--ink); margin: 4px 0; }
+  #rail .close { float: right; color: var(--dim); cursor: pointer; } #rail .close:hover { color: var(--gold); }
+  /* mythograph reader */
+  .myth .kick { color: var(--dim); font-size: 11px; }
+  .myth .desire { margin: 8px 0; padding: 7px 9px; border-left: 2px solid var(--gold); color: var(--ink); background: rgba(244,191,98,.05); }
+  .myth .spine { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+  .myth .mv { font-size: 11px; padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+  .myth .mv.inv { border-style: dashed; }
+  .myth .sec { color: var(--teal); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin: 11px 0 3px; }
+  .myth .motif { margin: 2px 0; } .myth .motif .code { color: var(--dim); }
+  .myth .motif.key { color: var(--gold); } .myth .motif.key .code { color: var(--gold); }
+  .myth .gloss { color: var(--dim); margin: 2px 0 5px 8px; border-left: 1px solid var(--line); padding-left: 7px; }
+  .stencil { font-family: "Segoe UI Symbol", "Noto Sans Symbols2", ui-monospace, monospace; color: var(--rind); letter-spacing: 2px; background: rgba(180,138,106,.12); padding: 0 4px; border-radius: 3px; cursor: help; }
+  #toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(8,11,16,.94); border: 1px solid var(--gold); border-radius: 10px; padding: 16px 22px; color: var(--gold); text-align: center; display: none; z-index: 9; box-shadow: 0 0 40px rgba(244,191,98,.25); }
+  #toast .sub { color: var(--dim); font-size: 11px; margin-top: 4px; }
+  #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">◍ <b>hoop v094</b> — The Tabard · Chapter One<br>
+  <span class="zone" id="zone">…</span><br>
+  <span id="tiers"></span><br>
+  <span style="color:#667">arrows / WASD or click to walk · click a thing to approach &amp; examine · esc closes</span>
+</div>
+<a class="home" href="/">← hoop</a>
+<div id="rail"></div>
+<div id="toast"></div>
+<div id="err"></div>
+
+<script type="module">
+import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose,
+         take as storyTake, listInventory } from '../story/engine.js';
+import { meetsState, loadGateState } from '../story/engine.js';
+import { checkAdvance } from '../story/advance.js';
+
+const $ = (id) => document.getElementById(id);
+const fail = (e) => { $('err').style.display = 'block'; $('err').textContent = 'v094: ' + (e && e.stack || e); console.error(e); };
+const PLAYER = 'local', SAVE = 'hoop.v094.save';
+
+let POOL, WORLD, TERMINAL, store, grid, W, H, feat = new Map();
+let px, py, path = [], stepTimer = null, locked = new Set();
+const cv = $('cv'), ctx = cv.getContext('2d');
+let TILE = 30, dpr = Math.min(devicePixelRatio || 1, 2);
+
+// ── type → glyph colour ──
+const TYPE_COLOR = { npc: '#7fd8d0', lore_fragment: '#f4bf62', item: '#bfe08a', plot_beat: '#e8a0c0' };
+const ZONE_OF = (x, y) => {
+  if (y <= 5 && x <= 9) return 'bay14';
+  if (y >= 10 && x >= 11 && x <= 19) return 'margin';
+  if (y >= 10 && x >= 21) return 'shaft';
+  return 'nave';
+};
+
+async function boot() {
+  [POOL, WORLD, TERMINAL] = await Promise.all([
+    fetch('./pool.json').then((r) => r.json()),
+    fetch('./world.json').then((r) => r.json()),
+    fetch('./terminal-71.json').then((r) => r.json()),
+  ]);
+  store = new MemoryStore(flattenPool(POOL), WORLD);
+  try { const s = localStorage.getItem(SAVE); if (s) store.restore(JSON.parse(s)); } catch (e) { /* fresh */ }
+  grid = WORLD.terrain; H = grid.length; W = grid[0].length;
+  for (const f of WORLD.features) feat.set(f.x + ',' + f.y, f);
+  px = WORLD.spawn.x; py = WORLD.spawn.y;
+  refreshLocks();
+  resize(); draw(); updateHud();
+  addEventListener('resize', () => { resize(); draw(); });
+  addEventListener('keydown', onKey);
+  cv.addEventListener('click', onClick);
+}
+
+// the rind membrane (the gap into the shaft room at 25,9) is sealed until Sevin believes you
+function refreshLocks() {
+  locked.clear();
+  const believed = store.getFact(PLAYER, 'flag.sevin_believes') === true;
+  if (!believed) locked.add('25,9');
+}
+const cellAt = (x, y) => (y >= 0 && y < H && x >= 0 && x < W) ? grid[y][x] : '#';
+const passable = (x, y) => cellAt(x, y) !== '#' && !locked.has(x + ',' + y);
+
+// ── render ──
+function resize() { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+function draw() {
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  const ox = innerWidth / 2 - px * TILE - TILE / 2, oy = innerHeight / 2 - py * TILE - TILE / 2;
+  ctx.font = (TILE - 8) + 'px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = grid[y][x], sx = ox + x * TILE, sy = oy + y * TILE;
+    if (sx < -TILE || sx > innerWidth || sy < -TILE || sy > innerHeight) continue;
+    const isLock = locked.has(x + ',' + y);
+    if (c === '#') { ctx.fillStyle = '#0c1118'; ctx.fillRect(sx, sy, TILE - 1, TILE - 1); }
+    else {
+      ctx.fillStyle = c === '+' ? '#1d2733' : '#11161f';
+      if (isLock) ctx.fillStyle = '#2a1316';
+      ctx.fillRect(sx, sy, TILE - 1, TILE - 1);
+      if (isLock) { ctx.fillStyle = '#e08a8a'; ctx.fillText('⊘', sx + TILE / 2, sy + TILE / 2); }
+    }
+  }
+  for (const f of WORLD.features) {
+    const sx = ox + f.x * TILE, sy = oy + f.y * TILE;
+    if (sx < -TILE || sx > innerWidth || sy < -TILE || sy > innerHeight) continue;
+    if (f.fixture) { ctx.fillStyle = 'rgba(244,191,98,.10)'; ctx.fillRect(sx, sy, TILE - 1, TILE - 1); }
+    ctx.fillStyle = TYPE_COLOR[f.type] || '#cdd6cf';
+    ctx.fillText(f.glyph || '?', sx + TILE / 2, sy + TILE / 2);
+  }
+  // the @
+  ctx.fillStyle = '#fff'; ctx.fillText('@', ox + px * TILE + TILE / 2, oy + py * TILE + TILE / 2);
+}
+
+// ── movement: BFS pathfind on passable tiles, step along ──
+function bfs(tx, ty) {
+  const key = (x, y) => x + ',' + y, start = key(px, py), goal = key(tx, ty);
+  if (start === goal) return [];
+  const q = [[px, py]], prev = new Map([[start, null]]);
+  while (q.length) {
+    const [x, y] = q.shift();
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const nx = x + dx, ny = y + dy, k = key(nx, ny);
+      if (prev.has(k) || !passable(nx, ny)) continue;
+      prev.set(k, key(x, y)); if (k === goal) { const p = []; let c = goal; while (c && c !== start) { const [a, b] = c.split(',').map(Number); p.unshift([a, b]); c = prev.get(c); } return p; }
+      q.push([nx, ny]);
+    }
+  }
+  return null;
+}
+function walkTo(tx, ty, then) {
+  const p = bfs(tx, ty); if (!p) { then && then(false); return; }
+  path = p; if (stepTimer) clearInterval(stepTimer);
+  stepTimer = setInterval(() => {
+    if (!path.length) { clearInterval(stepTimer); stepTimer = null; then && then(true); return; }
+    const [nx, ny] = path.shift(); px = nx; py = ny; updateHud(); draw();
+  }, 70);
+}
+// nearest passable neighbour of a feature (where you stand to use it)
+function approach(f) {
+  const adj = [[f.x, f.y - 1], [f.x, f.y + 1], [f.x - 1, f.y], [f.x + 1, f.y], [f.x, f.y]].filter(([x, y]) => passable(x, y));
+  adj.sort((a, b) => (Math.abs(a[0] - px) + Math.abs(a[1] - py)) - (Math.abs(b[0] - px) + Math.abs(b[1] - py)));
+  return adj[0];
+}
+const adjacentTo = (f) => Math.abs(f.x - px) + Math.abs(f.y - py) <= 1;
+
+function onKey(e) {
+  if (e.key === 'Escape') { closeRail(); return; }
+  const mv = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] }[e.key];
+  if (!mv) return; e.preventDefault();
+  const nx = px + mv[0], ny = py + mv[1];
+  if (passable(nx, ny)) { px = nx; py = ny; updateHud(); draw(); }
+  else if (feat.has(nx + ',' + ny)) openFeature(feat.get(nx + ',' + ny));
+}
+function onClick(e) {
+  const ox = innerWidth / 2 - px * TILE - TILE / 2, oy = innerHeight / 2 - py * TILE - TILE / 2;
+  const gx = Math.floor((e.clientX - ox) / TILE), gy = Math.floor((e.clientY - oy) / TILE);
+  const f = feat.get(gx + ',' + gy);
+  if (f) { if (adjacentTo(f) || (gx === px && gy === py)) return openFeature(f); const a = approach(f); if (a) walkTo(a[0], a[1], () => openFeature(f)); return; }
+  if (passable(gx, gy)) walkTo(gx, gy);
+}
+
+// ── interaction ──
+function persistAndAdvance() {
+  try { localStorage.setItem(SAVE, JSON.stringify(store.snapshot())); } catch (e) { /* */ }
+  const adv = checkAdvance(store, PLAYER);
+  refreshLocks(); draw(); updateHud();
+  for (const a of adv) if (a.axis === 'narrative_tier' && a.to === 2)
+    toast('✦ Orientation', 'The ground hasn\'t moved. You have. You can feel the shape of the questions now.');
+  return adv;
+}
+function openFeature(f) {
+  if (f.requires && !meetsState(loadGateState(store, PLAYER), f.requires)) {
+    return showRail('<span class="close" data-close>✕</span><h2>' + f.label + '</h2>' +
+      '<div class="lore">Sealed for cause. The gate does not answer your hand — not yet. <span class="w">Sevin would need a reason she believes.</span></div>' +
+      '<div class="meta">⊘ ' + f.key + '</div>');
+  }
+  const res = storyInteract(store, PLAYER, f.key);
+  if (!res.item) { showRail('<span class="close" data-close>✕</span><div class="end">Nothing here answers you.</div>'); persistAndAdvance(); return; }
+  const it = res.item;
+  if (it.type === 'npc') return renderNpc(f, it);
+  if (f.fixture && f.content_id === 'lo-terminal') { store.setFact(PLAYER, 'flag.read_terminal', true); store.setFact(PLAYER, 'flag.heard_luna', true); renderTerminal(f, it); persistAndAdvance(); return; }
+  if (it.type === 'item') return renderItem(f, it);
+  // lore_fragment / plot_beat
+  showRail('<span class="close" data-close>✕</span><h2>' + (it.name || f.label) + '</h2><div class="lore">' + (it.description || '') + '</div><div class="meta">⌂ ' + f.key + '</div>');
+  persistAndAdvance();
+}
+function renderItem(f, it) {
+  const held = listInventory(store, PLAYER).some((r) => r.content_item_id === it.content_item_id);
+  showRail('<span class="close" data-close>✕</span><h2>' + it.name + '</h2><div class="lore">' + it.description + '</div>' +
+    (held ? '<div class="meta">✓ recorded — it\'s yours now</div>' : '<div class="choice" data-take="' + it.content_item_id + '">› record it (your apparatus copies the mark)</div>') +
+    '<div class="meta">⌂ ' + f.key + '</div>');
+  persistAndAdvance();
+}
+let curNpc = null;
+function renderNpc(f, it) { curNpc = it.content_item_id; drawNpc(f); }
+function drawNpc(f) {
+  const t = storyTalk(store, PLAYER, curNpc);
+  let h = '<span class="close" data-close>✕</span><h2>' + t.npc + '</h2><div class="says">“' + (t.says || '') + '”</div>';
+  if (t.choices && t.choices.length) for (const c of t.choices) h += '<div class="choice" data-choice="' + c.id + '">› ' + c.text + '</div>';
+  else h += '<div class="end">— the exchange is over —</div>';
+  h += '<div class="meta">standing ' + (t.standing >= 0 ? '+' : '') + (t.standing || 0) + ' · ⌂ ' + f.key + '</div>';
+  showRail(h); railNpcFeature = f;
+}
+let railNpcFeature = null;
+
+// ── the mythograph reader: the frozen page Luna posted, your name written in stencil ──
+function renderTerminal(f, it) {
+  const T = TERMINAL, hero = T.heroName, stencil = (POOL.lore_fragments.find((l) => l.id === 'lo-terminal').content.hero_stencil) || '⟜⌖⟊⟁⌇';
+  const STEN = '<span class="stencil" title="a notation you have seen on a wall — you cannot read it">' + stencil + '</span>';
+  const ciph = (s) => hero ? String(s == null ? '' : s).split(hero).join(STEN) : (s || '');
+  const actColor = {}; for (const a of T.propp.acts) actColor[a.id] = a.color;
+  const ac = T.actant;
+  let h = '<span class="close" data-close>✕</span><div class="myth">';
+  h += '<h2>' + ciph(T.title) + '</h2><div class="kick">' + T.kicker + ' · ' + T.cultureLabel + ' · a mythograph, posted before the telling · ' + T.permalink + '</div>';
+  h += '<div class="desire"><b>The desire.</b> ' + ciph(ac.subject) + ' wants <i>' + ac.object + '</i>, against <b>' + ac.opponent + '</b>' +
+       (ac.unreachable ? ' — <span class="w">and the limit is never reached.</span>' : '.') + '</div>';
+  h += '<div class="sec">the spine — Propp\'s functions</div><div class="spine">';
+  for (const m of T.propp.moves) h += '<span class="mv' + (m.inverted ? ' inv' : '') + '" style="border-color:' + (actColor[m.act] || '#2a3340') + '" title="' + (m.gloss || '').replace(/"/g, '') + '">' + m.sym + ' ' + m.name + '</span>';
+  h += '</div>';
+  // the two moves that name you
+  for (const m of T.propp.moves) if (m.name === 'Branding' || m.name === 'Recognition')
+    h += '<div class="gloss"><b>' + m.sym + ' ' + m.name + '.</b> ' + ciph(m.gloss) + '</div>';
+  h += '<div class="sec">the motifs — Thompson\'s index</div>';
+  for (const m of T.motifs.list) { const key = m.code === 'M341'; h += '<div class="motif' + (key ? ' key' : '') + '"><span class="code">' + m.code + '</span> ' + m.name + (key ? ' — <i>' + m.gloss + '</i>' : '') + '</div>'; }
+  h += '<div class="end" style="margin-top:10px">The regulars argue the moves and the motifs. None of them can read the hero\'s name. ' +
+       'It is set in ' + STEN + ' — the same three layers stencilled on the wall of the room you woke in. <span class="w">Luna posted this. The hero is you.</span></div>';
+  h += '</div><div class="meta">⌂ ' + f.key + ' · the Seven post to the Tabard before each telling</div>';
+  showRail(h);
+}
+
+// ── rail plumbing ──
+function showRail(html) { const r = $('rail'); r.innerHTML = html; r.style.display = 'block'; }
+function closeRail() { $('rail').style.display = 'none'; curNpc = null; railNpcFeature = null; }
+$('rail').addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.dataset.close !== undefined) return closeRail();
+  if (t.dataset.take) { storyTake(store, PLAYER, t.dataset.take); persistAndAdvance(); const f = feat.get([...feat.keys()].find((k) => feat.get(k).content_id === t.dataset.take)); if (f) openFeature(f); return; }
+  if (t.dataset.choice && curNpc) { storyChoose(store, PLAYER, curNpc, t.dataset.choice); persistAndAdvance(); if (railNpcFeature) drawNpc(railNpcFeature); return; }
+});
+
+// ── HUD + toast ──
+function updateHud() {
+  const p = store.getPlayerState(PLAYER), z = ZONE_OF(px, py);
+  $('zone').innerHTML = '<span class="zone">' + (WORLD.zones[z] || z) + '</span>';
+  const inv = listInventory(store, PLAYER).length;
+  $('tiers').innerHTML = 'revelation <b>' + p.revelation_tier + '</b> · narrative <b>' + p.narrative_tier +
+    '</b> · power <b>' + p.power_tier + '</b> · carrying <span class="teal">' + inv + '</span>';
+}
+let toastTimer = null;
+function toast(title, sub) {
+  $('toast').innerHTML = '<div>' + title + '</div><div class="sub">' + sub + '</div>'; $('toast').style.display = 'block';
+  if (toastTimer) clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').style.display = 'none'; }, 4200);
+}
+
+boot().catch(fail);
+</script>
+</body>
+</html>

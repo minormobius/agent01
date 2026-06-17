@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>O'Neill Links · play — Coriolis golf in a spin-gravity cylinder</title>
+<meta name="description" content="Play a golf hole inside an O'Neill cylinder. Centrifugal gravity + the Coriolis force bend every shot and break every putt — aim off the pin. WebGPU." />
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body class="golf">
+<canvas id="view"></canvas>
+
+<!-- centre reticle (where you're aiming) + free-look hint -->
+<div id="reticle" aria-hidden="true"></div>
+<div id="lockhint" class="lockhint">click to look around · drag on touch</div>
+
+<!-- trajectory-preview legend (edutainment: with vs without Coriolis) -->
+<div id="legend" class="panel legend">
+  <span class="lg gold">— predicted shot (with Coriolis)</span>
+  <span class="lg blue">— without Coriolis (the bend = the gap)</span>
+  <span class="lg cyan">— ball trail</span>
+</div>
+
+<div id="toast" class="toast" aria-live="polite"></div>
+
+<!-- top-left: scorecard + live physics readout -->
+<div id="hud" class="panel tl">
+  <div id="mode" class="mode cylinder">O’NEILL CYLINDER</div>
+  <div class="row"><span class="k">hole</span><span id="hole" class="v">—</span></div>
+  <div class="row"><span class="k">strokes</span><span id="strokes" class="v">—</span></div>
+  <div class="row"><span class="k">to pin</span><span id="dist" class="v">—</span></div>
+  <div class="row"><span class="k">club</span><span id="club" class="v">—</span></div>
+  <div class="row"><span class="k">aim</span><span id="aimv" class="v">—</span></div>
+  <div class="row"><span class="k">local g</span><span id="glocal" class="v">—</span></div>
+  <div class="row" id="coriolisRow"><span class="k">Coriolis</span><span id="coriolis" class="v">—</span></div>
+  <div class="row" id="spinRow"><span class="k">spin</span><span id="spin" class="v">—</span></div>
+</div>
+
+<!-- top-right: world + nav -->
+<div class="panel tr btns">
+  <button id="btnMode">⇄ Earth / Cylinder <kbd>G</kbd></button>
+  <button id="btnReset">⟲ replay hole <kbd>R</kbd></button>
+  <a class="btnlink" href="index.html" id="editLink">✎ design a course</a>
+  <button id="btnHelp" onclick="document.getElementById('help').classList.toggle('hidden')">? how to play <kbd>H</kbd></button>
+</div>
+
+<!-- bottom: the swing controls -->
+<div id="swing" class="panel swing">
+  <div class="club-pick">
+    <button id="btnClubPrev" class="mini">◀</button>
+    <span id="clubName" class="clubname">Driver</span>
+    <button id="btnClubNext" class="mini">▶</button>
+  </div>
+  <div class="aimrow">
+    <button id="btnAimL" class="mini">◀ aim</button>
+    <div class="powerwrap"><div id="powerBar" class="powerbar"></div></div>
+    <button id="btnAimR" class="mini">aim ▶</button>
+  </div>
+  <button id="btnHit" class="hit">⛳ HOLD to power · release to swing <kbd>Space</kbd></button>
+  <button id="again" class="hit gold" style="display:none">▶ play again</button>
+</div>
+
+<!-- help -->
+<div id="help" class="overlay hidden">
+  <div class="card">
+    <h1>⛳ O'Neill Links</h1>
+    <p>You're playing golf on the inside of an <b>O'Neill cylinder</b>. There's no real gravity —
+    the hull spins, so "down" is <b>centrifugal</b> (ω²r, outward) and the floor curves up and over
+    your head. Every shot also feels the <b>Coriolis force</b> (−2Ω×v), which bends the ball
+    sideways in the air <i>and</i> keeps breaking it as it rolls.</p>
+    <p>As you charge a shot, two preview arcs appear: the <b style="color:#e7c84a">gold</b> line is
+    where the ball will <i>really</i> go, and the <b style="color:#7fa0ff">blue</b> line is where it
+    would go <b>without</b> the Coriolis force. The gap between them is the bend you must aim off.
+    Press <kbd>G</kbd> to replay the exact shot under plain <b>Earth</b> gravity and feel it vanish.</p>
+    <p>The floor is real <b>terrain</b> (carved like iris's spinning-rim ratchet): the ball rolls
+    downhill and putts <b>break</b> across the grade.</p>
+    <table>
+      <tr><td>mouse / drag</td><td><b>look around</b> (click to lock the pointer); aim = where you face</td></tr>
+      <tr><td>hold click / <kbd>Space</kbd> / HIT</td><td>charge power, release to swing</td></tr>
+      <tr><td>scroll</td><td>zoom the camera in / out</td></tr>
+      <tr><td><kbd>A</kbd> <kbd>D</kbd> · <kbd>↑</kbd> <kbd>↓</kbd></td><td>fine aim · camera pitch</td></tr>
+      <tr><td><kbd>1</kbd>–<kbd>5</kbd> / <kbd>[</kbd> <kbd>]</kbd></td><td>pick a club (driver → putter)</td></tr>
+      <tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>side-spin (fade / draw)</td></tr>
+      <tr><td><kbd>G</kbd> · <kbd>R</kbd> · <kbd>P</kbd></td><td>Earth ⇄ cylinder · replay · pause</td></tr>
+    </table>
+    <p>Hazards: <b style="color:#6aa8e0">water</b> costs a penalty stroke, <b style="color:#d8bd6a">sand</b>
+    is slow, <b style="color:#5a8a4a">rough</b> grabs. The green is the lighter patch around the flag.</p>
+    <button onclick="document.getElementById('help').classList.add('hidden')">tee off →</button>
+  </div>
+</div>
+
+<!-- WebGPU gate -->
+<div id="nogpu" class="overlay hidden">
+  <div class="card">
+    <h1>WebGPU required</h1>
+    <p id="nogpu-msg">This renders with WebGPU, which your browser didn't hand us.</p>
+    <p>Try the latest <b>Chrome</b>, <b>Edge</b>, or <b>Safari 18+</b> on desktop (or Chrome on
+    Android). On Linux/Chrome you may need <code>chrome://flags/#enable-unsafe-webgpu</code>.</p>
+  </div>
+</div>
+
+<script type="module">
+  import { start } from '../js/play.js';
+  const canvas = document.getElementById('view');
+  const id = (x) => document.getElementById(x);
+  // keep the "design a course" link round-tripping the current hole
+  const editLink = id('editLink');
+  if (location.hash) editLink.href = 'index.html' + location.hash;
+  const hud = {
+    mode: id('mode'), hole: id('hole'), strokes: id('strokes'), dist: id('dist'),
+    club: id('club'), aimv: id('aimv'), glocal: id('glocal'), coriolis: id('coriolis'),
+    spin: id('spin'), coriolisRow: id('coriolisRow'), spinRow: id('spinRow'),
+    help: id('help'), btnMode: id('btnMode'), btnReset: id('btnReset'),
+    btnHit: id('btnHit'), btnClubPrev: id('btnClubPrev'), btnClubNext: id('btnClubNext'),
+    btnAimL: id('btnAimL'), btnAimR: id('btnAimR'), clubName: id('clubName'),
+    powerBar: id('powerBar'), toast: id('toast'), again: id('again'),
+    reticle: id('reticle'), lockhint: id('lockhint'),
+  };
+  start(canvas, hud).catch((err) => {
+    console.error(err);
+    id('nogpu').classList.remove('hidden');
+    id('nogpu-msg').textContent = String(err && err.message || err);
+  });
+</script>
+</body>
+</html>

@@ -103,6 +103,14 @@ export function interact(store, playerId, featureKey, context = '', opts = {}) {
     return { feature_key: featureKey, label: feature.label, status: 'recalled',
              interaction_count: count + 1, retired: !ci || ci.status !== 'active', item: ci ? renderItem(ci) : null };
   }
+  if (feature.content_id) {                                  // AUTHORED placement: a hand-crafted scene PINS a specific content_item (vs procedural dispatch).
+    const ci = store.contentById(feature.content_id);        // The opening chunk needs Olo at the cradle, Sevin at the margin — not a tier-legal roll.
+    if (ci && ci.approved && ci.status === 'active') {        // Missing/retired pin falls through to dispatch (graceful — same discipline as recall of a retired item).
+      store.markSeen(playerId, ci.id);
+      const leveled = bindAndLevel(store, playerId, featureKey, ci);
+      return { feature_key: featureKey, label: feature.label, status: 'crystallized', item: renderItem(ci), leveled };
+    }
+  }
   const items = dispatch(store, playerId, feature.type, 1, { tag });   // FIRST TOUCH — crystallize (role/domain-biased)
   if (!items.length) return { feature_key: featureKey, label: feature.label, status: 'withheld', content_type: feature.type, item: null };
   const item = items[0], leveled = bindAndLevel(store, playerId, featureKey, item);
@@ -217,6 +225,7 @@ export class MemoryStore {
   getPlayerState(id) { let p = this.players.get(id); if (!p) { p = { id, revelation_tier: 1, narrative_tier: 1, power_tier: 1, xp: 0, seen_ids: [], hp_current: null, hp_max: null }; this.players.set(id, p); } return p; }
   markSeen(id, cid) { const p = this.getPlayerState(id); if (!p.seen_ids.includes(cid)) p.seen_ids.push(cid); }
   setPlayerXp(id, xp, powerTier) { const p = this.getPlayerState(id); p.xp = xp; p.power_tier = powerTier; }
+  setPlayerTier(id, axis, value) { if (axis !== 'revelation_tier' && axis !== 'narrative_tier') return; const p = this.getPlayerState(id); p[axis] = value; }   // advance.js: deterministic milestone advancement (a D1/repo store implements the same setter)
   setPlayerHp(id, hpMax, hpCur) { const p = this.getPlayerState(id); p.hp_max = hpMax; p.hp_current = hpCur; }
   // facts
   _f(id) { let m = this.facts.get(id); if (!m) { m = new Map(); this.facts.set(id, m); } return m; }

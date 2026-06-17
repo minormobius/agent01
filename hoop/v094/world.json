@@ -1,0 +1,43 @@
+{
+  "_note": "hoop/v094 — the Chapter One OPENING geometry: a hand-authored prologue region (Bay 14 → the Nave → the industrial margin → the rind shaft), the bible's named scenes. Features PIN a specific content_item via `content_id` (the authored-placement path added to engine.js#interact) so Olo is at the cradle and Sevin at the margin — not a procedural roll. THE KEYSTONE still holds: when this engine drops onto the infinite ship, each `key` becomes a chamber address (js/postal.js); the named opening and the endless Nave crowd (procedural, no content_id) share one engine. The terminal carries `fixture:true` — the client renders it as a wall fixture you walk adjacent to and interact with (the mythograph reader). The shaft membrane is locked (locks.js) on flag.sevin_believes — the road into chunk 2. Glyphs: #=wall .=floor +=door.",
+  "spawn": { "x": 3, "y": 3 },
+  "terrain": [
+    "###############################",
+    "#.........#.........#.........#",
+    "#.........#.........#.........#",
+    "#.........+.........+.........#",
+    "#.........#.........#.........#",
+    "#.........#.........#.........#",
+    "#####.#########.#########.#####",
+    "#.............................#",
+    "#.............................#",
+    "#####.#########.#########.#####",
+    "#.........#.........#.........#",
+    "#.........#.........#.........#",
+    "#.........#.........#.........#",
+    "#.........#.........#.........#",
+    "###############################"
+  ],
+  "zones": {
+    "bay14":  "Reconstruction Bay 14 — where you wake. Off every schematic. Walls stencilled in a notation no one in the Nave uses.",
+    "nave":   "The Nave — street-level city, three factions sharing space. The reading-room and its Tabard terminal sit here.",
+    "margin": "The Industrial Margin — where the cozy city gives way to machinery and the air tastes different. Sevin works here.",
+    "shaft":  "The Rind Access Shaft — sealed officially, open unofficially to whoever Sevin believes."
+  },
+  "features": [
+    { "key": "bay14.cradle",  "x": 2,  "y": 2,  "glyph": "T", "type": "lore_fragment", "content_id": "lo-cradle",      "label": "the reconstruction cradle" },
+    { "key": "bay14.log",     "x": 5,  "y": 2,  "glyph": "=", "type": "lore_fragment", "content_id": "lo-log",         "label": "a wall console — the access log" },
+    { "key": "bay14.stencil", "x": 8,  "y": 2,  "glyph": "S", "type": "item",          "content_id": "it-stenciltrace", "tag": "notation", "label": "a stencil worked into the wall" },
+    { "key": "bay14.olo",     "x": 3,  "y": 4,  "glyph": "N", "type": "npc",           "content_id": "np-olo",         "tag": "orient", "label": "Olo Vashti" },
+
+    { "key": "nave.terminal", "x": 14, "y": 2,  "glyph": "▤", "type": "lore_fragment", "content_id": "lo-terminal",    "fixture": true, "label": "a Tabard terminal, a mythograph glowing on it" },
+
+    { "key": "cont.solen",    "x": 27, "y": 4,  "glyph": "N", "type": "npc",           "content_id": "np-solen",       "tag": "authority", "label": "Factor Merid Solen" },
+
+    { "key": "margin.sevin",  "x": 13, "y": 12, "glyph": "N", "type": "npc",           "content_id": "np-sevin",       "tag": "guide", "label": "Sevin, a Rind-walker" },
+
+    { "key": "shaft.gate",    "x": 27, "y": 13, "glyph": "?", "type": "plot_beat",     "content_id": "pb-shaft",       "label": "the rind access shaft, faintly warm",
+      "requires": { "facts": { "flag.sevin_believes": true } },
+      "_lock": "locks.js seals the membrane into the shaft zone until flag.sevin_believes — the deterministic lock layer the live map already uses. Sevin's dialogue sets the fact." }
+  ]
+}

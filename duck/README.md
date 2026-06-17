@@ -3,6 +3,10 @@
 **Live at:** `duck.mino.mobi`
 **Stack:** Cloudflare Worker (ASSETS binding) + vanilla ES modules + **WebGPU**. No build step.
 
+> **Sibling game:** [**O'Neill Links** — Coriolis golf](golf/README.md) lives on the same
+> surface at [`duck.mino.mobi/golf/`](https://duck.mino.mobi/golf/), built on this sim's
+> renderer and rotating-frame physics kernel.
+
 Fly a duck under **two reference frames** and feel the difference. The duck's
 aerodynamics — thrust, lift, drag, banking turns — are identical in both. Only the
 **body force** changes:

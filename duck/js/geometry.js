@@ -123,7 +123,7 @@ function cylinderY(seg = 8) {
 
 const PRIM = { box: box(), sphere: sphere(), sphereHi: sphere(20), cone: cone(), cyl: cylinderY(7), blob: sphere(6) };
 
-// ── the duck ──  forward = −Z, up = +Y. A friendly low-poly mallard.
+// ── the duck (flight sim at /) ──  forward = −Z, up = +Y. A friendly low-poly mallard.
 export function buildDuck() {
   const mb = new MeshBuilder();
   const BODY = [0.96, 0.83, 0.22], HEAD = [0.98, 0.86, 0.26], BEAK = [0.95, 0.5, 0.12];
@@ -151,10 +151,74 @@ export function buildDuck() {
   return mb.build(); // unit-ish duck ~2.6 long; the instance scale sets metres
 }
 
-// A breadcrumb / marker (small low sphere).
+// A breadcrumb / marker (small low sphere) — the duck flight sim's ballistic markers.
 export function buildCrumb() {
   const mb = new MeshBuilder();
   mb.add(PRIM.sphere, { color: [1, 1, 1] });
+  return mb.build();
+}
+
+// ── golf props (O'Neill Links at /golf/) ──  Every builder is unit-ish; the
+// instance scale sets metres, and the instance tint recolours the white meshes.
+
+// The ball: a clean white sphere. Vertex colour white so the per-instance tint
+// can flash it (e.g. gold when it drops in the cup).
+export function buildBall() {
+  const mb = new MeshBuilder();
+  mb.add(PRIM.sphereHi, { color: [1, 1, 1] });
+  return mb.build();
+}
+
+// A small marker / trail / aim-tracer dot (low-poly sphere, white → tinted).
+export function buildDot() {
+  const mb = new MeshBuilder();
+  mb.add(PRIM.blob, { color: [1, 1, 1] });
+  return mb.build();
+}
+
+// A flat unit disc in the XZ plane (radius 1, normal +Y), white. Used for the
+// green, the hazards and the cup — laid on the floor by orienting +Y onto `up`.
+export function buildDisc(seg = 40) {
+  const positions = [0, 0, 0], normals = [0, 1, 0], colors = [1, 1, 1], indices = [];
+  for (let i = 0; i <= seg; i++) {
+    const a = (i / seg) * Math.PI * 2;
+    positions.push(Math.cos(a), 0, Math.sin(a)); normals.push(0, 1, 0); colors.push(1, 1, 1);
+  }
+  for (let i = 1; i <= seg; i++) indices.push(0, i, i + 1);
+  return interleave(positions, normals, colors, indices);
+}
+
+// The flag-stick + pennant + cup rim. Built with up = +Y, base at y = 0; the
+// renderer orients +Y onto the local `up` and drops it on the floor at the pin.
+export function buildFlag() {
+  const mb = new MeshBuilder();
+  const POLE = [0.92, 0.92, 0.95], FLAG = [0.95, 0.25, 0.2], CUP = [0.05, 0.05, 0.06];
+  mb.add(PRIM.cyl, { pos: [0, 3.5, 0], scale: [0.12, 7, 0.12], color: POLE });   // 7 m stick
+  // a triangular pennant near the top, offset +X
+  const fq = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 1], -Math.PI / 2);
+  mb.add(PRIM.cone, { pos: [0.95, 6.4, 0], q: fq, scale: [1.0, 2.0, 0.05], color: FLAG });
+  mb.add(PRIM.cyl, { pos: [0, 0.05, 0], scale: [2.0, 0.1, 2.0], color: CUP });   // cup rim ring-ish
+  return mb.build();
+}
+
+// A tee box: a low pad with two flanking marker pegs. up = +Y, centred at y = 0.
+export function buildTee() {
+  const mb = new MeshBuilder();
+  const PAD = [0.5, 0.62, 0.32], PEG = [0.95, 0.95, 0.98];
+  mb.add(PRIM.cyl, { pos: [0, 0.15, 0], scale: [2.4, 0.3, 2.4], color: PAD });
+  mb.add(PRIM.cone, { pos: [1.6, 0.5, 0], scale: [0.4, 0.9, 0.4], color: PEG });
+  mb.add(PRIM.cone, { pos: [-1.6, 0.5, 0], scale: [0.4, 0.9, 0.4], color: PEG });
+  return mb.build();
+}
+
+// An aim arrow lying flat: it points +Z and its face-normal is +Y. The renderer
+// places it with a basis matrix (right→X, up→Y, aim→Z) so it lies on the floor
+// pointing along the chosen heading. White → tinted.
+export function buildArrow() {
+  const mb = new MeshBuilder();
+  mb.add(PRIM.box, { pos: [0, 0.1, 1.2], scale: [0.5, 0.2, 2.4], color: [1, 1, 1] });   // shaft +Z
+  const tipQ = quat.rotateLocal([0, 0, 0, 1], [0, 0, 0, 1], [1, 0, 0], Math.PI / 2);     // cone +Y → +Z
+  mb.add(PRIM.cone, { pos: [0, 0.1, 2.9], q: tipQ, scale: [1.4, 1.4, 0.25], color: [1, 1, 1] });
   return mb.build();
 }
 
@@ -269,13 +333,21 @@ export function buildRing(tube = 0.09, ringSeg = 44, tubeSeg = 9) {
   return interleave(positions, normals, colors, indices);
 }
 
-// EARTH: a big checkered ground plane at y=0.
-export function buildGround(half = 9000, seg = 120) {
+// EARTH: a big checkered ground plane at y=0. An optional heightFn(x, z) → metres
+// displaces it into rolling terrain (golf); with no heightFn it's the flat floor
+// the duck flight sim expects. Normals are finite-differenced so the grade shades.
+export function buildGround(half = 9000, seg = 120, heightFn = null) {
   const positions = [], normals = [], colors = [], indices = [];
   const g1 = [0.13, 0.28, 0.14], g2 = [0.16, 0.34, 0.16];   // forest floor
+  const H = heightFn || (() => 0), d = 1.5;
   for (let j = 0; j <= seg; j++) for (let i = 0; i <= seg; i++) {
     const x = -half + (2 * half * i) / seg, z = -half + (2 * half * j) / seg;
-    positions.push(x, 0, z); normals.push(0, 1, 0);
+    const e = H(x, z);
+    positions.push(x, e, z);
+    // n = (∂P/∂x) × (∂P/∂z), P = (x, H, z)
+    const ex = (H(x + d, z) - H(x - d, z)) / (2 * d), ez = (H(x, z + d) - H(x, z - d)) / (2 * d);
+    const nl = Math.hypot(-ex, 1, -ez) || 1;
+    normals.push(-ex / nl, 1 / nl, -ez / nl);
     const c = ((i + j) & 1) ? g1 : g2; colors.push(c[0], c[1], c[2]);
   }
   const row = seg + 1;
@@ -287,18 +359,29 @@ export function buildGround(half = 9000, seg = 120) {
 }
 
 // CYLINDER: the inside surface of a tube along +Z, inward-facing normals, with
-// painted land/sea bands so the curving floor reads. Floor is at radius R.
-export function buildCylinderShell(R, len, radial = 120, axial = 80) {
+// painted land/sea bands so the curving floor reads. Floor is at radius R. An
+// optional heightFn(θ, z) → metres carves terrain INWARD (surface radius R − e,
+// the iris convention), with normals finite-differenced so the grade shades.
+export function buildCylinderShell(R, len, radial = 160, axial = 110, heightFn = null) {
   const positions = [], normals = [], colors = [], indices = [];
   const sea = [0.12, 0.34, 0.5], land = [0.22, 0.45, 0.22], land2 = [0.30, 0.42, 0.2], sand = [0.6, 0.56, 0.36];
+  const H = heightFn || (() => 0), dth = 1e-3, dz = 2;
+  const surf = (th, z) => { const rr = R - H(th, z); return [Math.cos(th) * rr, Math.sin(th) * rr, z]; };
   for (let a = 0; a <= axial; a++) {
     const z = (a / axial) * len;
     for (let r = 0; r <= radial; r++) {
       const th = (r / radial) * Math.PI * 2;
-      const x = Math.cos(th) * R, y = Math.sin(th) * R;
-      positions.push(x, y, z);
-      normals.push(-Math.cos(th), -Math.sin(th), 0); // inward
-      // three "continents" + sea between, plus shoreline sand
+      const e = H(th, z), rho = R - e;
+      positions.push(Math.cos(th) * rho, Math.sin(th) * rho, z);
+      // finite-difference normal of the carved surface, oriented inward
+      const p = surf(th, z), pt = surf(th + dth, z), pz = surf(th, z + dz);
+      const ax = pt[0] - p[0], ay = pt[1] - p[1], az = pt[2] - p[2];
+      const bx = pz[0] - p[0], by = pz[1] - p[1], bz = pz[2] - p[2];
+      let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+      const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+      if (nx * -Math.cos(th) + ny * -Math.sin(th) < 0) { nx = -nx; ny = -ny; nz = -nz; }
+      normals.push(nx, ny, nz);
+      // three "continents" + sea between, plus shoreline sand; basins read darker
       const band = (th / (Math.PI * 2)) * 3 % 1;
       let c = sea;
       if (band < 0.62) c = ((a >> 2) & 1) ? land : land2;
@@ -413,6 +496,17 @@ export function scatterCylinder(R, len, seed = 7) {
     pylons.push({ pos: [Math.cos(th) * R, Math.sin(th) * R, z], q: orient(th), scale: [base, base, base] });
   }
   return { trees, pylons };
+}
+
+// Build a model matrix directly from an orthonormal basis: a mesh vertex (x,y,z)
+// maps to x·right + y·up + z·fwd + pos, scaled. Used to lay the aim arrow flat on
+// the floor pointing along a heading without juggling quaternions. Column-major.
+export function basisModel(out, right, up, fwd, pos, scale = [1, 1, 1]) {
+  out[0] = right[0] * scale[0]; out[1] = right[1] * scale[0]; out[2] = right[2] * scale[0]; out[3] = 0;
+  out[4] = up[0] * scale[1];    out[5] = up[1] * scale[1];    out[6] = up[2] * scale[1];    out[7] = 0;
+  out[8] = fwd[0] * scale[2];   out[9] = fwd[1] * scale[2];   out[10] = fwd[2] * scale[2];  out[11] = 0;
+  out[12] = pos[0]; out[13] = pos[1]; out[14] = pos[2]; out[15] = 1;
+  return out;
 }
 
 // transforms[] → Float32Array of column-major mat4 (16 floats each).
