@@ -34,17 +34,22 @@ export function solveForces(sprite, muscles, opt = {}) {
 
   // Solve for the tensions the LAYOUT needs (pull-only F ≥ 0, magnitude unbounded). This answers "can
   // these muscle LINES balance the joints at all?" — separate from "are they STRONG enough?" (capacity).
+  // projected SYMMETRIC Gauss-Seidel: plain forward sweeps crawl on the coupled vertebral chain (adjacent
+  // joints leave alternating-sign residual that decays as ~1/N²); alternating the sweep direction each
+  // pass roughly squares the convergence rate, and unlike over-relaxation it can't diverge.
+  const sweeps = opt.sweeps ?? 2500;
   const F = new Float64Array(muscles.length);
   const r = b.map((v) => -v);                            // residual A F − b, starting at −b (F = 0)
-  for (let sweep = 0; sweep < 400; sweep++) {
-    let maxD = 0;
-    for (let m = 0; m < muscles.length; m++) {
+  for (let sweep = 0; sweep < sweeps; sweep++) {
+    let maxD = 0; const fwd = (sweep & 1) === 0;
+    for (let mi = 0; mi < muscles.length; mi++) {
+      const m = fwd ? mi : muscles.length - 1 - mi;
       const c = cols[m]; let g = 0; for (let k = 0; k < J; k++) g += c[k] * r[k];
       let nf = F[m] - g / norm[m]; if (nf < 0) nf = 0;    // pull-only; no upper cap here
       const d = nf - F[m];
       if (d !== 0) { for (let k = 0; k < J; k++) r[k] += c[k] * d; F[m] = nf; if (Math.abs(d) > maxD) maxD = Math.abs(d); }
     }
-    if (maxD < 1e-7) break;
+    if (maxD < 1e-8) break;
   }
 
   const bscale = Math.max(...b.map((v) => Math.abs(v)), 1e-6);

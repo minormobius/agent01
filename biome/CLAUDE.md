@@ -118,11 +118,17 @@ scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG �
   `evaluateStanding` reports every joint held. Sized past the hold threshold (SAFE). Deterministic — NO RNG.
 - `muscle.mjs` also exports `crossedJoints` (which actuated joints a hand-drawn muscle spans) for the lab.
 - `solver.mjs` — **the structural force solve** (`solveForces`): given the muscles, find the pull-only
-  tensions (F ≥ 0, magnitude unbounded) that balance every joint — box-constrained least-squares by
-  projected coordinate descent (`min ‖A F − b‖²`, A = moment arms, b = buckling torques). Splits
-  `balanced` (the layout *can* hold — residual ≈ 0) from `feasible` (and the muscles are strong enough —
-  no force exceeds capacity). `collapseStep` relaxes an unsupported pose so the lab can animate the crumble.
-  This is the natural Rust/WASM kernel (cf. `cycles/solver`); kept JS-first so the lab works without wasm.
+  tensions (F ≥ 0) that balance every joint — least-squares by projected **symmetric** Gauss-Seidel
+  (`min ‖A F − b‖²`, A = moment arms, b = buckling torques; symmetric sweeps because plain GS crawls on
+  the coupled vertebral chain). Splits `balanced` (the layout *can* hold — residual ≈ 0) from `feasible`
+  (and strong enough — no force over capacity). `collapseStep` relaxes an unsupported pose (clamped to
+  joint ROM) so the lab animates the crumble. Natural Rust/WASM kernel (cf. `cycles/solver`); JS-first.
+- `myology.mjs growMuscles` ends with **`coupledRepair`** — grow-against-the-solver: a muscle carries ONE
+  tension that must satisfy every joint it crosses, so the per-joint grower is optimistic. coupledRepair
+  runs `solveForces`, and for each joint it leaves unbalanced adds a local actuator in the residual's
+  direction — crucially incl. **single-joint** spine muscles (interspinales) that fix an anti-correlated
+  adjacent pair without disturbing neighbours — until the layout is coupled-feasible, then sizes every
+  capacity to its solved force. Result: Auto-grow → Solve STANDS (no crumble) for the whole deck.
 - `muscle.html` — **the myology lab (construction interface)** at `/sprite/muscle.html`. Muscles attach to
   real skeletal NODES (joint centres, bone ends, neural-spine tips — the dorsal/ventral side is just which
   node). Click two nodes to add a muscle; press **SOLVE** → tensions drawn (brightness = how hard each
@@ -132,11 +138,12 @@ scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG �
 
 **Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints); grown one STANDS
 (44/44 across the deck, ~70 muscles incl. the whole spine); the trunk is LOAD-BEARING (remove axial muscles
-→ collapse); a long poly-articular axial muscle EMERGES; deterministic. **Honest open items:** (1) walking
-is quasi-static (46–74% coverage — muscles sized for standing only); next is inverse dynamics over the gait.
-(2) The dorsal-vs-ventral (epaxial/hypaxial) *identity* of the load-bearing trunk muscles is the key thing
-to validate against real myology — the grower currently picks whichever side aligns with its sign
-convention. (3) bi-articular limb muscles emerging from volume-minimisation (hamstrings/gastrocnemius).
+→ collapse); a long poly-articular axial muscle EMERGES; auto-grow is COUPLED-feasible (Solve → stands);
+deterministic. **Honest open items:** (1) walking is quasi-static (46–74% coverage — muscles sized for
+standing only); next is inverse dynamics over the gait. (2) The dorsal-vs-ventral (epaxial/hypaxial)
+*identity* of the load-bearing trunk muscles is the key thing to validate against real myology — the grower
+picks whichever side aligns with its sign convention. (3) bi-articular limb muscles emerging from
+volume-minimisation (hamstrings/gastrocnemius).
 Modelling: it's a structural-equilibrium / redundancy-resolution solve (LP/NNLS), not continuum FEM; stays
 2D sagittal for now (the math is vector-based so 3D is a later swap, not a rewrite).
 

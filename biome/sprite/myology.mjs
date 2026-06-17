@@ -15,6 +15,7 @@
 
 import { standingDemand, evaluateStanding, spineChain, limbJoints, passiveFraction } from './mechanics.mjs';
 import { candidatesForJoint, attachPos, momentArm, muscleLength } from './muscle.mjs';
+import { solveForces } from './solver.mjs';
 
 const JOINT_NAME = {
   humerus: 'shoulder', radioulna: 'elbow', metacarpal: 'carpus',
@@ -59,6 +60,12 @@ export function growMuscles(sprite, opt = {}) {
   // ── REPAIR: drive the actual oracle to zero — add short deep muscles for any joint still not held ──
   repair(sprite, muscles, D, sc, { margin });
 
+  // ── COUPLED REPAIR: a muscle carries ONE tension that must satisfy every joint it crosses, so the
+  // per-joint grower is optimistic — the COUPLED force solve (solver.mjs) is the real test. Grow against
+  // it: wherever solveForces leaves a joint unbalanced, add a local muscle that can supply that residual,
+  // until the layout balances. Then size every capacity to its solved force so nothing is over-strength.
+  if (opt.coupled !== false) coupledRepair(sprite, muscles, D, sc, { margin });
+
   const volume = muscles.reduce((s, m) => s + m.fmax * muscleLength(D.W, m), 0);
   return { muscles, kills, log, volume, demand: D };
 }
@@ -88,7 +95,9 @@ function spineCandidates(sprite, D) {
     cands.push({ a, b, joints, rOf, length: Math.hypot(pb.x - pa.x, pb.y - pa.y), side });
   };
   const N = anchor.length;
-  for (const L of [2, 3, 4, 6, 8, N - 1]) for (let i = 0; i + L < N; i += Math.max(1, Math.floor(L / 3))) {
+  // L=1 = single-joint muscles (interspinales / intertransversarii) — the only thing that can fix an
+  // anti-correlated adjacent pair without disturbing its neighbour. Longer spans = the erector group.
+  for (const L of [1, 2, 3, 4, 6, 8, N - 1]) for (let i = 0; i + L < N; i += Math.max(1, Math.floor(L / 3))) {
     addSpan(i, i + L, -1); addSpan(i, i + L, +1);
   }
   addSpan(0, N - 1, -1); addSpan(0, N - 1, +1);
@@ -165,6 +174,44 @@ function repair(sprite, out, D, sc, { margin }) {
       ? { id: `spine:deep:${j.id}:${iter}`, name: `deep (${cand.joints.length} vert)`, joint: j.id, joints: cand.joints, a: cand.a, b: cand.b, fmax: F, role: 'agonist', limb: 'axial' }
       : { ...mk(j.id, cand, F, 'agonist', jointName(j.id) + ' deep', cand.joints), id: `${j.id}:deep:${iter}` });
   }
+}
+
+// Grow against the COUPLED solve. solveForces finds the pull-only tensions that balance every joint; any
+// joint it leaves unbalanced needs a NEW local actuator with a moment arm in the residual's direction
+// (a muscle can only push the joint torque one way per unit tension). Add the shortest such candidate,
+// re-solve, repeat. Finally raise each muscle's capacity to ≥ its solved force so the set is feasible.
+function coupledRepair(sprite, out, D, sc, { margin }) {
+  const segOf = (id) => sprite.segs.find((s) => s.id === id);
+  const givenUp = new Set(), tries = new Map();
+  for (let iter = 0; iter < 80; iter++) {
+    const s = solveForces(sprite, out);
+    const bad = s.residual.filter((x) => x.unbalanced && !givenUp.has(x.id))
+      .sort((a, b) => Math.abs(b.resid) - Math.abs(a.resid));
+    if (!bad.length) break;
+    const j = bad[0];
+    const t = (tries.get(j.id) || 0) + 1; tries.set(j.id, t);
+    if (t > 3) { givenUp.add(j.id); continue; }          // a joint that won't improve — stop hammering it
+    const wantSign = -Math.sign(j.resid) || 1;           // tension here must drive A·F toward b (reduce residual)
+    let cand = null, rj = 0; const spineJ = sc && sc.chain.includes(j.id);
+    if (spineJ) {
+      const opts = sc.cands.filter((c) => c.joints.includes(j.id)
+        && Math.sign(c.rOf.get(j.id)) === wantSign && Math.abs(c.rOf.get(j.id)) > 0.04 * D.scale)
+        .sort((a, b) => a.joints.length - b.joints.length || Math.abs(b.rOf.get(j.id)) - Math.abs(a.rOf.get(j.id)));
+      if (opts.length) { cand = opts[0]; rj = cand.rOf.get(j.id); }
+    } else {
+      const all = candidatesForJoint(D.W, segOf(j.id), D.scale).filter((c) => Math.sign(c.r) === wantSign);
+      if (all.length) { const c = all.reduce((a, b) => (Math.abs(b.r) > Math.abs(a.r) ? b : a));
+        cand = { a: c.a, b: c.b, joints: [j.id], rOf: new Map([[j.id, c.r]]) }; rj = c.r; }
+    }
+    if (!cand || !rj) { givenUp.add(j.id); continue; }    // no actuator available for this residual — skip
+    const F = (Math.abs(j.resid) / Math.abs(rj)) * (1 + margin);
+    out.push(spineJ
+      ? { id: `spine:cpl:${j.id}:${iter}`, name: `deep (${cand.joints.length} vert)`, joint: j.id, joints: cand.joints, a: cand.a, b: cand.b, fmax: F, role: 'agonist', limb: 'axial' }
+      : { id: `${j.id}:cpl:${iter}`, name: jointName(j.id) + ' deep', joint: j.id, joints: cand.joints, a: cand.a, b: cand.b, fmax: F, role: 'agonist', limb: limbOf(j.id) });
+  }
+  // size capacities to the solved forces so no muscle is over-strength (feasible = balanced + strong enough)
+  const s = solveForces(sprite, out);
+  for (const m of out) { const F = s.forces.get(m.id) || 0; if (F * 1.25 + 1e-3 > m.fmax) m.fmax = F * 1.25 + 1e-3; }
 }
 
 export default { growMuscles };

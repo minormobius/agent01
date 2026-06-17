@@ -12,6 +12,7 @@ import { build } from '../bauplan.mjs';
 import { growMuscles } from '../myology.mjs';
 import { evaluateStanding, evaluateWalking, standingDemand, actuatedJoints } from '../mechanics.mjs';
 import { candidatesForJoint } from '../muscle.mjs';
+import { solveForces } from '../solver.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ORG = JSON.parse(readFileSync(join(here, '../../gacha/catalog.json'), 'utf8')).organisms;
@@ -30,6 +31,18 @@ console.log('\nmuscle.selftest — muscular-system solver (Phase 1: standing sta
     if (st.stable || st.joints.some((j) => j.stable)) { allFall = false; info = id; }
   }
   ok('a muscle-less skeleton cannot stand — every joint buckles', allFall, info);
+}
+
+// 1b. grow-against-the-solver: the auto-grown set passes the COUPLED force solve (one tension per muscle
+// satisfying every joint it crosses) — so pressing Solve makes it STAND, not crumble.
+{
+  let allFeasible = true, bad = '';
+  for (const id of SUBJECTS) {
+    const sp = build(ORG[id]);
+    const s = solveForces(sp, growMuscles(sp).muscles);
+    if (!s.feasible) { allFeasible = false; bad = `${id}: ${s.residual.filter((x) => x.unbalanced).length} unbalanced, ${s.overloaded.length} over`; }
+  }
+  ok('auto-grown musculature is COUPLED-feasible (Solve → stands, no crumble)', allFeasible, bad);
 }
 
 // 2. growth makes it stand, with the CoM over the support
