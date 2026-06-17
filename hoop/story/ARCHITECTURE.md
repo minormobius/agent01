@@ -105,8 +105,12 @@ to the player's own repo.
 | **Filter projection** `story/filter.js` — the totally-filterable quasi-DB (lane/provider/tier views; spine-wins merge; provenance stamp) | ✅ node-tested, 24 checks |
 | **Spine match** `story/spine.js` — chunk-characteristics ⇄ content by cosine kNN; thickness gap drives "generate a thicker arc"; deterministic `lexicalEmbed` fallback, neural embedder injected | ✅ node-tested, 19 checks |
 | **Segregated adapter** `story/llm/` — Gemini 2.5 Flash (borges hook) + `local` seam (huwupy) + hard off-switch; never throws | ✅ node-tested, 23 checks (routing/parse via injected fetch) |
-| Worker `/api/story/{sidequest,embed}` (generate → review.js/gates.js/validate.js gate → freeze) | ⏳ phase 2 (deploy-only; needs `GEMINI_API_KEY`) |
-| Browser persists the gated arc to the player's repo via `AuthClient.pds` | ⏳ phase 2 |
+| Bible vendored → `story/bible.md` (worker fetches via ASSETS; re-sync from `hoop-backend/ingestion/chapter1_bible.md`, never fork — the `vendor/auth.js` rule) | ✅ |
+| Prompt builder `story/prompt.js` (bible + chunk thickness + nearby pool → {system,prompt,schema} + repair pass) | ✅ node-tested (in sidequest suite) |
+| Orchestrator `story/sidequest.js` — generate → stamp → review.js/gates.js/validate.js GATE → one repair → return; `persistSidequest` to the player's repo | ✅ node-tested, 25 checks (mock adapter + client) |
+| Worker `/api/story/{health,embed,sidequest}` — additive + fully guarded (a throw never breaks assets) | ✅ wired in `worker.js`; verify on deploy (needs `GEMINI_API_KEY`) |
+| `deploy-hoop.yml` syncs `GEMINI_API_KEY` worker secret + curls `/api/story/health` | ✅ |
+| Browser **UI hook**: call `/api/story/sidequest` on a thick under-served chamber → `persistSidequest` via `AuthClient.pds` → crystallize | ⏳ phase 2b (UI wiring into `v095/index.html`) |
 | Steering: feed the `pulse` + chunk profile into the generation prompt | ⏳ phase 3 |
 | Thin adapter: real econ society output → `ChunkProfile` for `spine.js` | ⏳ phase 3 |
 

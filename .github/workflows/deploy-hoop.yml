@@ -23,3 +23,33 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Sync worker secrets (Gemini key for the v096 story-generation lane)
+        # Push the inference credential from a GitHub secret onto the deployed worker
+        # (same key + pattern borges uses). Skipped — not clobbered — when the secret
+        # is empty, so the adapter just stays the disabled stub and the game is purely
+        # procedural. To run huwupy's local model instead, set STORY_LLM=local +
+        # LLM_BASE_URL/EMBED_BASE_URL as worker vars here the same way.
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            printf '%s' "$GEMINI_API_KEY" | npx wrangler secret put GEMINI_API_KEY
+            echo "✓ GEMINI_API_KEY synced — story generation is live"
+          else
+            echo "· GEMINI_API_KEY empty — skipped (story stays procedural; adapter = off)"
+          fi
+
+      - name: Verify hoop + the story API are live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://hoop.mino.mobi/api/story/health | grep -qi 'hoop-story'; then
+              echo "✓ /api/story/health responding:"; curl -fsS https://hoop.mino.mobi/api/story/health; echo; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ story health didn't respond within 20s — edge propagation may be slow, continuing."
