@@ -153,6 +153,20 @@ scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG �
   gait is NOT solved — soft PD sags, stiff PD goes numerically unstable; it needs an implicit integrator
   (or careful substepping) + a balance/posture controller (this is the research-grade part). `physics-proof.mjs`
   renders the headless (currently tumbling) attempt. Do not present as working until it stands stably.
+- `balance/balance.mjs` + `balance/index.html` — **the BALANCE LAB at `/balance/` (its own dedicated
+  effort, separate endpoint).** Where `physics.mjs` failed by simulating each leg's articulated dynamics
+  (stiff → unstable), this uses **Virtual Model Control** — the method legged robots actually use: treat the
+  trunk as ONE rigid body `(x, y, θ)` under gravity; a PD controller decides the **wrench** (force + torque)
+  it needs to hold height + stay level (+ hold CoM, or track a velocity when walking); `distribute()` solves
+  for the stance-foot **ground-reaction forces** that produce that wrench (min-norm least-squares over the 3×3
+  `AAᵀ` with Tikhonov regularisation so near-collinear feet don't blow up), clamped to pull-only + a friction
+  cone. Legs are kinematic struts (two-link IK in the page), not dynamic bodies → no articulated instability.
+  `makeBalancer(sprite)` → `step(dt, {mode:'stand'|'walk', vTarget, cadence, push, legsOff})`. **Verified:
+  standing is exact (dy≈0, pitch≈0°) and PUSH-RECOVERY works (shove → state error → returns to 0) across the
+  deck; `legsOff` drops it under gravity.** Walking adds a 4-beat gait schedule (`GAIT`) + Raibert foot
+  placement and **holds at slow cadence but still tips in pitch at speed** — capture-point / MPC is the next
+  layer; the page is honest about this. `balance/balance-proof.mjs` = headless settle→shove→recover→walk
+  strip. This is the controller the earlier "gravity-solved walking" ask wanted, factored into its own page.
 - `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG contact sheet (headless).
 
 **Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints); grown one STANDS
