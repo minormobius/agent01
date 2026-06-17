@@ -101,15 +101,38 @@ console.log('\nsprite.selftest — iNaturalist sprite engine (Phase 1: quadruped
   }
   ok('skeletons are topologically ordered (parent before child)', ordered, where);
 
-  // every quadruped has the four legs the walk clip phases
+  // every quadruped carries the four rigged legs (tagged for the walk clip) + the skeletal landmarks
   let legged = true, missing = '';
   for (const o of QUADS) {
-    const ids = new Set(build(o).segs.map((s) => s.id));
-    for (const t of ['FN', 'FF', 'BN', 'BF']) {
-      if (!ids.has(t + 'U')) { legged = false; missing = `${o.id}:${t}`; }
-    }
+    const segs = build(o).segs;
+    const tags = new Set(segs.filter((s) => s.joint === 'upper').map((s) => s.leg));
+    for (const t of ['FN', 'FF', 'BN', 'BF']) if (!tags.has(t)) { legged = false; missing = `${o.id}:${t}`; }
   }
-  ok('every quadruped carries all four rigged legs', legged, missing);
+  ok('every quadruped has four rigged limbs (leg+joint tagged)', legged, missing);
+
+  let skeletal = true, lack = '';
+  for (const o of QUADS) {
+    const shapes = build(o).segs.reduce((m, s) => (m[s.shape] = (m[s.shape] || 0) + 1, m), {});
+    if (!shapes.skull) { skeletal = false; lack = `${o.id}:skull`; }
+    if (!(shapes.vertebra > 10)) { skeletal = false; lack = `${o.id}:vertebrae(${shapes.vertebra})`; }
+    if (!(shapes.rib >= 8)) { skeletal = false; lack = `${o.id}:ribs(${shapes.rib})`; }
+  }
+  ok('every skeleton has a skull, a vertebral column, and a ribcage', skeletal, lack);
+
+  // osteology shows up in the meta: family resolves, C7 holds, digit count is sane
+  let osteo = true, bad = '';
+  for (const o of QUADS) {
+    const m = build(o).meta;
+    if (!m.family) { osteo = false; bad = `${o.id}:family`; }
+    if (m.vert.cervical !== 7 && m.clade !== 'reptile') { osteo = false; bad = `${o.id}:C${m.vert.cervical}`; }
+    if (!(m.digits.fore >= 1 && m.digits.fore <= 5)) { osteo = false; bad = `${o.id}:digits${m.digits.fore}`; }
+  }
+  ok('osteology resolves — family, mammalian C7, sane digit formula', osteo, bad);
+
+  // digit reduction is real: the horse (monodactyl) has fewer toe-bones than the bear (pentadactyl)
+  const toes = (id) => build(ORG[id]).segs.filter((s) => s.shape === 'digit' && s.id.startsWith('FN')).length;
+  ok('digit reduction is expressed — horse (1) < bear (5) fore digits', toes('horse') < toes('bear'),
+    `horse ${toes('horse')} vs bear ${toes('bear')}`);
 
   // proportions scale with mass: the horse (450 kg) is bigger than the weasel (60 g)
   const big = bbox(build(ORG.horse)), small = bbox(build(ORG.weasel));

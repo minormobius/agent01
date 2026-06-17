@@ -51,33 +51,45 @@ stocks and flows?* Everything lives under `cycles/`:
 
 ## The sprite lab (`sprite/`) — live at `biome.mino.mobi/sprite` (Phase 1)
 
-Deterministically generate a **rigged, animated sprite for any organism in the deck**. The insight
-(borrowed from "the guy", `mega/sprite/core.js`): a human is *one fixed body plan* you can hardcode a
-rig for; an arbitrary organism is not. So we DON'T draw any animal — we map the tree of life onto a
-**small finite set of rigged body-plans (Baupläne)** and parameterise one from each creature's seed.
-You author ~10 rigs, not 150 sprites. Two layers mirror mega/sprite's genome→phenotype split:
+Deterministically generate an **animated, articulated SKELETON for any organism in the deck**. The
+insight (borrowed from "the guy", `mega/sprite/core.js`): a human is *one fixed body plan* you can
+hardcode a rig for; an arbitrary organism is not. The first attempt — one soft quadruped topology
+scaled by size + a few knobs — landed in the **uncanny valley** (every animal a stretched blob, because
+size is the least characterful axis). The fix: draw the **literal skeleton**. What makes a horse a horse
+is the *bones* — limb-element ratios, vertebral formula, digit reduction, stance — and those are real,
+measured comparative-anatomy data. The skeleton is also abstract enough to escape the realism contract
+(a naturalist's bone plate, not a fake animal). The bones **are** the rig, so the clip animates real joints.
 
-- `sprite/bauplan.mjs` — the **genome**. `classify(org)` → `{clade, archetype}` (curated genus→clade
-  table now; Phase 2 swaps it for iNaturalist `ancestor_ids`). `build(org)` → a parameterised sprite:
-  skeleton sized from body mass (Kleiber-ish) + shaped by guild, palette seeded by clade, walk clip.
+- `sprite/bauplan.mjs` — the **classifier + orchestrator**. `classify(org)` → `{clade, archetype}`
+  (curated genus→clade table; Phase 2 swaps for iNaturalist `ancestor_ids`). `build(org)` resolves a
+  family + osteometric profile and articulates a skeleton, with a seeded ivory **bone palette**.
   **Determinism is load-bearing** — the seed is the organism's stable iNaturalist taxon id, so a
-  creature has ONE canonical sprite for ever and `/sprite/?id=…` is a permalink. Reuses the shared
-  `Rand` from `gacha/prng.js`.
-- `sprite/render.mjs` — the **phenotype**. `solve()` (forward kinematics) + the clips (the walk clip
-  is the generalisation of the guy's one hardcoded gait — a pure function phase→per-bone Δangle) +
-  `bbox()` (both canvas-free, so the self-test runs headless) + `draw()` (the only browser-only fn).
-- `sprite/index.html` — the lab. A focused animated stage + a gallery of every rigged organism; same
-  `#err` overlay as `/graph` + `/gacha`. The worker normalises no-slash `/sprite` → `/sprite/`.
+  creature has ONE canonical skeleton for ever and `/sprite/?id=…` is a permalink. Reuses `gacha/prng.js`.
+- `sprite/osteo.mjs` — **the comparative-osteology dataset** (the research artifact). Per mammal family
+  (equid, felid, canid, bovid, cervid, ursid, leporid, suid, murid, mustelid, + reptile/generic):
+  stance, vertebral formula, limb-bone ratios, digit formula, skull proportions. Grounded in the
+  cursoriality-index literature (crural/brachial/intermembral, MT/F). `familyOf` / `profileFor` resolve it.
+- `sprite/skeleton.mjs` — **the builder**. `buildSkeleton(org, profile, rand)` → a parent-before-child
+  bone list: vertebral column (neural spines, withers), ribcage, skull+mandible, scapula/pelvis blades,
+  four named-bone limbs with stance-correct feet + digit reduction. A `groundLevel()` pass tilts the body
+  so all feet plant on one line (slopes the back for saltatorial leapers). Limb bones tagged `leg`+`joint`.
+- `sprite/render.mjs` — the **phenotype**. `solve()` (forward kinematics) + the clips (the walk clip is
+  the generalisation of the guy's one gait — phase→per-bone Δangle, dispatched by leg/joint tags) +
+  `bbox()` (canvas-free → headless self-test) + `draw()` (bone/vertebra/blade/skull/rib/hoof primitives;
+  the only browser-only fn).
+- `sprite/index.html` — the lab. Focused animated stage + a gallery; meta shows family/stance/vertebral
+  formula/digits. Same `#err` overlay as `/graph`+`/gacha`. Worker normalises no-slash `/sprite`.
 - `sprite/proof.mjs` — dev tool: renders the SAME `solve()` geometry to an **SVG contact sheet** so the
-  rig can be eyeballed from the sandbox (no browser). `node biome/sprite/proof.mjs [ids…] > sheet.svg`.
-- `sprite/test/sprite.selftest.mjs` — 17 checks: classifier total over the deck, build/solve
-  deterministic, finite geometry across the walk cycle, mass→size monotonicity.
+  skeleton can be eyeballed from the sandbox (no browser). `node biome/sprite/proof.mjs [ids…] [--phases N]`.
+- `sprite/test/sprite.selftest.mjs` — 20 checks: classifier total, deterministic build/solve, finite
+  geometry across the walk cycle, four tagged limbs, skull+spine+ribcage present, osteology (C7, digit
+  formula) resolves, digit reduction expressed (horse < bear), mass→size.
 
 **Phase 1 rigs the `quadruped` archetype deeply** (mammals + walking reptiles — `buildable(org)` gates
 it; non-quadrupeds classify honestly but `build()` refuses). Roadmap: Phase 2 = sister archetypes
-(avian · serpent · finned · hexapod · …) + palette **sampled from the iNat photo** at catalog-build
-time (the magic trick — a generic rig wearing the real animal's colours reads as that animal); Phase 3
-= drop the sprites into the gacha force graph as animated nodes (toggle vs the flat photo nodes).
+(avian · serpent · finned · hexapod · …) + digitise more of the osteometric literature into `osteo.mjs`;
+Phase 3 = drop the skeletons into the gacha force graph as animated nodes (toggle vs the flat photo nodes).
+Known polish: stance-aware limb flexion for leapers (rabbit forelimb), felid/canid spine flexibility.
 
 ## The package it belongs to
 

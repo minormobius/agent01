@@ -66,12 +66,13 @@
   <header>
     <h1>sprite lab <small>— an animable sprite for any organism</small></h1>
     <div class="sub">
-      “The guy” worked because a human is <b>one fixed body plan</b>. An arbitrary organism has none —
-      a bee, a snake and a horse share no rig. So we map the tree of life onto a small set of
-      <b>rigged body-plans</b> and parameterise one from each creature's seed. Every sprite is
-      <b>deterministic</b> from the organism's iNaturalist taxon id — same beast, same sprite, for ever
-      (<span style="color:var(--gold)">/sprite/?id=…</span> is a permalink). <b>Phase 1</b> rigs the
-      <b>quadruped</b> archetype deeply; sister archetypes (avian · serpent · finned · …) are next.
+      What makes a horse a horse and a cat a cat isn't size — it's the <b>bones</b>: relative limb-element
+      lengths, the vertebral formula, digit reduction, stance. So instead of a soft body scaled by a few
+      knobs (the uncanny valley), we draw the <b>literal articulated skeleton</b> from real
+      <b>comparative-osteology</b> data — a naturalist's bone plate, not a fake animal. Every skeleton is
+      <b>deterministic</b> from the organism's iNaturalist taxon id (<span style="color:var(--gold)">/sprite/?id=…</span>
+      is a permalink), and the bones <b>are</b> the rig, so the walk clip animates real joints. <b>Phase 1</b>
+      rigs the <b>quadruped</b> mammals + walking reptiles; sister archetypes (avian · serpent · finned · …) are next.
     </div>
   </header>
   <main>
@@ -99,11 +100,12 @@
           <button id="b-go" style="flex:0 0 auto;padding:8px 12px">go</button></div>
       </div>
       <div class="note">
-        <b>How a sprite is made:</b> the <b>classifier</b> maps the organism's clade → an archetype;
-        the <b>quadruped builder</b> sizes the skeleton from body mass (Kleiber-ish) and shapes it by
-        guild (predators lean & long-legged; grazers barrel-bodied & long-necked); the <b>walk clip</b>
-        is a procedural diagonal-gait trot — a pure function of phase, the generalisation of the guy's
-        one hardcoded gait. Colours are seeded now; <b>Phase 2</b> samples them from the iNat photo.
+        <b>How a skeleton is made:</b> the <b>classifier</b> maps the organism to a mammal <b>family</b>;
+        an <b>osteometric profile</b> (the comparative-anatomy dataset) gives the vertebral formula,
+        limb-element ratios, digit reduction and stance; the <b>builder</b> articulates that into a
+        vertebral column + ribcage + four named-bone limbs, scaled by body mass; the <b>walk clip</b> is
+        a procedural diagonal-gait trot on the real joints. Bone tint is seeded by clade; cursoriality
+        (horse cannon), graviportality (bear), saltation (rabbit hindlimb) all fall out of the numbers.
       </div>
     </section>
     <section class="panel">
@@ -144,13 +146,15 @@ function select(i){
   $('m-nm').textContent = org.common || org.id;
   $('m-sci').textContent = org.sciName || '';
   const m = sprite.meta;
+  const V = m.vert, formula = `C${V.cervical} T${V.thoracic} L${V.lumbar} S${V.sacral} Cd${V.caudal}`;
   $('m-tags').innerHTML =
-    `<span class="tag"><b>${m.archetype}</b></span>`+
-    `<span class="tag">clade <b>${m.clade}</b></span>`+
-    `<span class="tag">guild <b>${m.guild||'—'}</b></span>`+
+    `<span class="tag">family <b>${m.family}</b></span>`+
+    `<span class="tag">stance <b>${m.stance}</b></span>`+
+    `<span class="tag">digits <b>${m.digits.fore}/${m.digits.hind} ${m.digits.type}</b></span>`+
+    `<span class="tag">vertebrae <b>${formula}</b></span>`+
     `<span class="tag">mass <b>${fmtMass(m.mass_g)}</b></span>`+
     `<span class="tag">seed <b>${m.seed}</b></span>`;
-  $('m-pal').innerHTML = ['body','belly','head','limb','limbDark','tail','patch']
+  $('m-pal').innerHTML = ['bone','boneFar','joint','keratin']
     .map(k => `<i title="${k}" style="background:${m.palette[k]}"></i>`).join('');
   document.querySelectorAll('.cell').forEach((c,j)=>c.classList.toggle('sel', j===cur));
   const u = new URL(location.href); u.searchParams.set('id', org.id);
@@ -163,7 +167,7 @@ function buildDeck(catalog){
   const orgs = Object.values(catalog.organisms).filter(buildable)
     .sort((a,b)=>(b.mass_g||0)-(a.mass_g||0));
   DECK = orgs.map(org => ({ org, sprite: build(org) }));
-  $('gal-n').textContent = `${DECK.length} organisms · 1 archetype rigged`;
+  $('gal-n').textContent = `${DECK.length} skeletons articulated`;
 
   const gal = $('gal'); gal.innerHTML = '';
   DECK.forEach((d, i) => {
@@ -171,7 +175,7 @@ function buildDeck(catalog){
     const cv = document.createElement('canvas');
     cell.appendChild(cv);
     const lab = document.createElement('div'); lab.className='lab'; lab.textContent = d.org.common || d.org.id;
-    const sub = document.createElement('div'); sub.className='sub2'; sub.textContent = `${d.sprite.meta.clade} · ${fmtMass(d.org.mass_g)}`;
+    const sub = document.createElement('div'); sub.className='sub2'; sub.textContent = `${d.sprite.meta.family} · ${fmtMass(d.org.mass_g)}`;
     cell.appendChild(lab); cell.appendChild(sub);
     cell.addEventListener('click', ()=>select(i));
     gal.appendChild(cell);

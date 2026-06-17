@@ -1,56 +1,67 @@
-// biome/sprite/render.mjs — the PHENOTYPE layer: forward kinematics, the procedural animation clips,
-// and the canvas renderer. The skeleton (bauplan.mjs) is inert data; this file poses and draws it.
+// biome/sprite/render.mjs — the PHENOTYPE layer: forward kinematics, procedural animation clips, and
+// the canvas renderer. The skeleton (skeleton.mjs) is inert data; this file poses and draws it.
 //
-// `solve()` and `bbox()` are canvas-free and pure (numbers in, numbers out) so the self-test can
-// assert determinism + finiteness with no DOM. `draw()` is the only browser-only function.
+// As of the osteology rebuild the thing being drawn is a LITERAL articulated skeleton — bones with
+// epiphyses, a vertebral column with neural spines, scapula/pelvis blades, a ribcage, a skull. The
+// rig and the subject are now the same object: the clip animates real joints. `solve()`/`bbox()` are
+// canvas-free & pure so the contract is sandbox-testable; `draw()` is the only browser-only function.
 //
-// The clip is the generalisation of mega/sprite/core.js's walkPose(): instead of one hardcoded
-// humanoid gait, a clip is a pure function phase → per-bone angle deltas, chosen per archetype.
+// The clip is the generalisation of mega/sprite/core.js's walkPose(): one pure function phase→per-bone
+// angle deltas, dispatched by the bone's own (leg, joint) tags so it works for any skeleton topology.
 
 const TAU = Math.PI * 2;
+const dir = (a) => ({ x: Math.cos(a), y: Math.sin(a) });
+const perp = (a) => ({ x: -Math.sin(a), y: Math.cos(a) }); // +90°: for a=0 points +y (down)
 
 // ── ANIMATION CLIPS ────────────────────────────────────────────────────────────────────────────
-// A clip returns { angles: {segId: ΔradiansAtThisPhase}, bob: yOffsetUnits }. phase ∈ [0, TAU).
+// A clip returns { angles: {segId: ΔradiansAtThisPhase}, bob: yOffsetUnits }. It reads the skeleton's
+// own tags — seg.leg ∈ {FN,FF,BN,BF} and seg.joint ∈ {upper,mid,lower,foot} — so it is independent of
+// how many bones a limb is built from.
 const CLIPS = {
-  // Quadruped diagonal-gait walk. Diagonal pairs (front-near + back-far) move together, antiphase to
-  // the other diagonal — the trot every tetrapod shares. Knees bend on the lift; the torso bounces at
-  // twice stride frequency; head counter-nods to stay level; the tail sways slowly.
-  walk(phase) {
+  // Quadruped diagonal-gait walk: diagonal pairs (front-near + back-far) swing together, antiphase to
+  // the other diagonal — the trot every tetrapod shares. Distal joints lag & flex on the lift; the
+  // lumbar spine flexes slightly; the tail sways; the trunk bounces at twice stride frequency.
+  walk(phase, sprite) {
     const angles = {};
-    // leg tag → phase offset (radians). FN/BF in phase; FF/BN antiphase.
     const legPhase = { FN: 0, BF: 0, FF: Math.PI, BN: Math.PI };
-    const swing = 0.5, knee = 0.55;
-    for (const tag of ['FN', 'FF', 'BN', 'BF']) {
-      const t = phase + legPhase[tag];
-      const up = swing * Math.sin(t);                          // hip swings fore/aft
-      const lift = 0.5 + 0.5 * Math.sin(t + 1.1);              // 0..1, peaks on forward swing
-      const lo = -knee * lift * (tag[0] === 'F' ? 1 : -1);     // front knee & rear hock bend opposite
-      const near = tag[1] === 'N' ? 1 : 0.85;                  // far legs swing a touch less
-      angles[tag + 'U'] = up * near;
-      angles[tag + 'L'] = lo * near;
-      angles[tag + 'F'] = -(up + lo) * 0.5 * near;             // foot stays roughly level
+    const swing = 0.42, flex = 0.5;
+    for (const s of sprite.segs) {
+      if (s.leg) {
+        const t = phase + (legPhase[s.leg] ?? 0);
+        const near = s.leg[1] === 'N' ? 1 : 0.85;
+        const front = s.leg[0] === 'F' ? 1 : -1;
+        const lift = 0.5 + 0.5 * Math.sin(t + 1.1);
+        if (s.joint === 'upper') angles[s.id] = swing * Math.sin(t) * near;
+        else if (s.joint === 'mid') angles[s.id] = -flex * lift * front * near * 0.8;
+        else if (s.joint === 'lower') angles[s.id] = -flex * lift * front * near;
+        else if (s.joint === 'foot') angles[s.id] = flex * lift * front * near * 0.7;
+      } else if (s.role === 'caudal') {
+        angles[s.id] = 0.06 * Math.sin(phase * 0.5 + 0.4); // tail wave accumulates down the chain
+      } else if (s.role === 'lumbar') {
+        angles[s.id] = 0.02 * Math.sin(phase * 2 + 0.6);
+      } else if (s.role === 'cervical') {
+        angles[s.id] = 0.012 * Math.sin(phase + 0.3);
+      }
     }
-    angles.tail = 0.28 * Math.sin(phase * 0.5 + 0.5);
-    angles.neck = 0.05 * Math.sin(phase + 0.3);
-    angles.head = -0.04 * Math.sin(phase + 0.3);
-    return { angles, bob: -1.6 * Math.abs(Math.sin(phase)) };
+    return { angles, bob: -1.4 * Math.abs(Math.sin(phase)) };
   },
-  // idle: a gentle breathing sway, used as a fallback for any clip we haven't written.
-  idle(phase) {
-    return { angles: { neck: 0.03 * Math.sin(phase), head: 0.03 * Math.sin(phase) },
-             bob: -0.6 * (0.5 + 0.5 * Math.sin(phase)) };
+  // a gentle breathing stand; fallback for any clip we haven't written.
+  idle(phase, sprite) {
+    const angles = {};
+    for (const s of sprite.segs) {
+      if (s.role === 'cervical') angles[s.id] = 0.01 * Math.sin(phase);
+      if (s.role === 'caudal') angles[s.id] = 0.03 * Math.sin(phase * 0.6);
+    }
+    return { angles, bob: -0.5 * (0.5 + 0.5 * Math.sin(phase)) };
   },
 };
 
-const dir = (a) => ({ x: Math.cos(a), y: Math.sin(a) });
-const perp = (a) => ({ x: -Math.sin(a), y: Math.cos(a) });  // +90°: for a=0 points +y (down/belly)
-
 // ── FORWARD KINEMATICS ─────────────────────────────────────────────────────────────────────────
-// Walk the parent-before-child segment list, composing each bone's world base point + absolute angle
-// from its parent. Returns { segId: { base:{x,y}, tip:{x,y}, abs, seg } }. Pure & deterministic.
+// Walk the parent-before-child segment list, composing each bone's world base + absolute angle from
+// its parent. Returns { segId: { base, tip, abs, seg } }. Pure & deterministic.
 export function solve(sprite, phase = 0) {
   const clip = CLIPS[sprite.clip] || CLIPS.idle;
-  const pose = clip(phase % TAU);
+  const pose = clip(phase % TAU, sprite);
   const A = pose.angles || {};
   const out = {};
   for (const s of sprite.segs) {
@@ -76,13 +87,13 @@ export function solve(sprite, phase = 0) {
   return out;
 }
 
-// Axis-aligned bounding box of the posed sprite (accounts for bone widths). Canvas-free — used to
-// fit-and-centre on a canvas and to assert "bigger mass ⇒ bigger sprite" in the self-test.
+// Axis-aligned bounding box of the posed skeleton (accounts for bone widths & dorsal neural spines).
 export function bbox(sprite, phase = 0) {
   const W = solve(sprite, phase);
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const s of sprite.segs) {
-    const w = W[s.id], r = Math.max(s.w0 || 0, s.w1 || 0) / 2;
+    const w = W[s.id];
+    const r = Math.max(s.w0 || 0, s.w1 || 0, s.spine || 0, s.epi || 0) / 2 + (s.spine || 0);
     for (const p of [w.base, w.tip]) {
       x0 = Math.min(x0, p.x - r); y0 = Math.min(y0, p.y - r);
       x1 = Math.max(x1, p.x + r); y1 = Math.max(y1, p.y + r);
@@ -91,39 +102,70 @@ export function bbox(sprite, phase = 0) {
   return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
 }
 
-// ── CANVAS RENDER ──────────────────────────────────────────────────────────────────────────────
-function drawShape(ctx, s, w, pal) {
-  const col = pal[s.role] || pal.body;
-  const cx = (w.base.x + w.tip.x) / 2, cy = (w.base.y + w.tip.y) / 2;
-  if (s.shape === 'ellipse') {
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate(w.abs);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, s.len / 2, (s.w0 || s.len) / 2, 0, 0, TAU);
+// ── BONE DRAWING ─────────────────────────────────────────────────────────────────────────────────
+// One small vocabulary of osteological primitives. Each is a pure function of a solved segment.
+function emit(ctx, kind, w, s, pal) {
+  const col = pal[s.role && pal[s.role] ? s.role : 'bone'] || pal.bone;
+  const b = w.base, t = w.tip, q = perp(w.abs);
+  const thick = (k) => Math.max(0.8, ((s.w0 || 2) * (1 - k) + (s.w1 || 2) * k));
+  if (kind === 'bone' || kind === 'rib' || kind === 'digit') {
+    const curve = s.curve || 0;                                   // perpendicular bow of the shaft
+    const mx = (b.x + t.x) / 2 + q.x * curve * s.len, my = (b.y + t.y) / 2 + q.y * curve * s.len;
+    ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.quadraticCurveTo(mx, my, t.x, t.y);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = (s.w0 + s.w1) / 2 || 2; ctx.strokeStyle = col; ctx.stroke();
+    const e = s.epi == null ? Math.max(thick(0), thick(1)) * 0.85 : s.epi;  // epiphyses (joint knobs)
+    if (e > 0) { for (const p of [b, t]) { ctx.beginPath(); ctx.ellipse(p.x, p.y, e, e, 0, 0, TAU);
+      ctx.fillStyle = pal.joint || col; ctx.fill(); } }
+  } else if (kind === 'vertebra') {
+    // centrum along the spine axis + a dorsal neural spine standing up from it
+    ctx.beginPath(); ctx.ellipse((b.x+t.x)/2, (b.y+t.y)/2, s.len/2*1.1, (s.w0||3)/2, w.abs, 0, TAU);
     ctx.fillStyle = col; ctx.fill();
-    ctx.restore();
-  } else if (s.shape === 'dot') {
+    const sp = s.spine || 0;
+    if (sp > 0.3) { const up = { x: -q.x, y: -q.y };          // dorsal = up (−perp)
+      ctx.beginPath(); ctx.moveTo(b.x - q.x*(s.w0||3)*0.2, b.y - q.y*(s.w0||3)*0.2);
+      ctx.lineTo(b.x + up.x*sp, b.y + up.y*sp);
+      ctx.lineWidth = Math.max(1, (s.w0||3)*0.5); ctx.strokeStyle = col; ctx.lineCap='round'; ctx.stroke(); }
+  } else if (kind === 'blade') {
+    // scapula / pelvis: a flat tapered paddle from base (wide) to tip (narrow)
+    const w0 = (s.w0 || 6) / 2;
     ctx.beginPath();
-    ctx.ellipse(w.base.x, w.base.y, (s.w0 || 2) / 2, (s.w1 || s.w0 || 2) / 2, 0, 0, TAU);
+    ctx.moveTo(b.x + q.x * w0, b.y + q.y * w0);
+    ctx.lineTo(b.x - q.x * w0, b.y - q.y * w0);
+    ctx.lineTo(t.x, t.y); ctx.closePath();
     ctx.fillStyle = col; ctx.fill();
-  } else if (s.shape === 'tri') {
-    const q = perp(w.abs), hw = (s.w0 || 4) / 2;
+  } else if (kind === 'skull') {
+    // cranium (ellipse) + snout wedge; the split is set by the family's snout ratio so a cat gets a
+    // short round skull and a horse a long one. cf = cranium fraction of total skull length.
+    const sf = Math.max(0.25, Math.min(0.66, s.snout || 0.45)), cf = 1 - sf;
+    const dd = dir(w.abs), cr = (s.w0 || 8);
+    const cx = b.x + dd.x * s.len * cf * 0.5, cy = b.y + dd.y * s.len * cf * 0.5;
+    ctx.beginPath(); ctx.ellipse(cx, cy, s.len * cf * 0.55, cr / 2, w.abs, 0, TAU);
+    ctx.fillStyle = col; ctx.fill();
+    const fx = b.x + dd.x * s.len * cf, fy = b.y + dd.y * s.len * cf, sw = (s.w1 || cr * 0.5) / 2;
     ctx.beginPath();
-    ctx.moveTo(w.base.x + q.x * hw, w.base.y + q.y * hw);
-    ctx.lineTo(w.base.x - q.x * hw, w.base.y - q.y * hw);
-    ctx.lineTo(w.tip.x, w.tip.y);
+    ctx.moveTo(fx + q.x * cr * 0.4, fy + q.y * cr * 0.4);
+    ctx.lineTo(fx - q.x * cr * 0.4, fy - q.y * cr * 0.4);
+    ctx.lineTo(t.x - q.x * sw, t.y - q.y * sw);
+    ctx.lineTo(t.x + q.x * sw, t.y + q.y * sw);
     ctx.closePath(); ctx.fillStyle = col; ctx.fill();
-  } else { // capsule: round-cap stroke from base→tip
-    ctx.beginPath();
-    ctx.moveTo(w.base.x, w.base.y); ctx.lineTo(w.tip.x, w.tip.y);
-    ctx.lineCap = 'round';
-    ctx.lineWidth = Math.max(1.2, ((s.w0 || 4) + (s.w1 || 4)) / 2);
-    ctx.strokeStyle = col; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx + dd.x*cr*0.1 - q.x*cr*0.2, cy + dd.y*cr*0.1 - q.y*cr*0.2,
+      cr * 0.17, cr * 0.17, 0, 0, TAU); ctx.fillStyle = pal.socket || '#0006'; ctx.fill();
+  } else if (kind === 'hoof' || kind === 'claw') {
+    const len = s.len, wd = (s.w0 || 4);
+    ctx.beginPath(); ctx.moveTo(b.x, b.y);
+    ctx.quadraticCurveTo(b.x + dir(w.abs).x*len + q.x*wd*0.3, b.y + dir(w.abs).y*len + q.y*wd*0.3, t.x, t.y);
+    ctx.lineWidth = wd; ctx.lineCap = 'round'; ctx.strokeStyle = pal.keratin || col; ctx.stroke();
   }
+}
+
+function drawShape(ctx, s, w, pal) {
+  emit(ctx, s.shape || 'bone', w, s, pal);
 }
 
 // Draw `sprite` at (x,y), auto-fit to `size` px box. facing = 1 (right) or -1 (left).
 export function draw(ctx, sprite, phase, { x, y, size = 120, facing = 1, ground = false } = {}) {
-  const b = bbox(sprite, 0);                         // fit on the rest pose so it doesn't jitter-scale
+  const b = bbox(sprite, 0);
   const scale = (size * 0.92) / Math.max(b.w, b.h, 1);
   const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
   const W = solve(sprite, phase);
@@ -131,12 +173,11 @@ export function draw(ctx, sprite, phase, { x, y, size = 120, facing = 1, ground 
   ctx.translate(x, y);
   ctx.scale(scale * facing, scale);
   ctx.translate(-cx, -cy);
-  if (ground) {                                      // soft contact shadow
-    ctx.save();
-    ctx.beginPath();
-    ctx.ellipse(cx, b.y1 - b.h * 0.02, b.w * 0.42, b.h * 0.06, 0, 0, TAU);
-    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
-    ctx.restore();
+  ctx.lineWidth = 1;
+  if (ground) {
+    ctx.save(); ctx.beginPath();
+    ctx.ellipse(cx, b.y1 - b.h * 0.02, b.w * 0.42, b.h * 0.05, 0, 0, TAU);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill(); ctx.restore();
   }
   const order = sprite.segs.map((s) => W[s.id]).sort((a, c) => (a.seg.z || 0) - (c.seg.z || 0));
   for (const w of order) drawShape(ctx, w.seg, w, sprite.meta.palette);

@@ -1,0 +1,193 @@
+// biome/sprite/skeleton.mjs — articulate an osteology profile (osteo.mjs) into a LITERAL skeleton:
+// a vertebral column with neural spines, a ribcage, a skull + mandible, scapula/pelvis blades, and
+// four named-bone limbs with stance-correct feet and digit reduction. Output is the same flat,
+// parent-before-child segment list render.mjs's forward kinematics + walk clip already consume — the
+// bones ARE the rig, so the existing animation machinery animates them unchanged.
+//
+// Pose convention (shared with render.mjs): +x = forward (the animal faces right), +y = down, angle 0
+// points +x. Limb bones are laid out by their DESIRED ABSOLUTE standing angle (degrees, below) and
+// converted to parent-relative rest angles — far easier to reason about than raw joint bends.
+
+const D = Math.PI / 180;
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// Standing absolute angles for the stance-dependent distal bones (metapodial + phalanx). The proximal
+// bones (scapula/humerus/radioulna, pelvis/femur/tibia) are stance-independent and fixed below.
+const STANCE = {
+  plantigrade: { mp: 14, ph: 4 },   // flat foot — the long metapodial lies along the ground (bear, rat)
+  digitigrade: { mp: 70, ph: 32 },  // up on the toes (cat, dog)
+  unguligrade: { mp: 80, ph: 86 },  // up on the hoof-tip, near-vertical phalanx (horse, deer, cattle)
+  sprawling:   { mp: 24, ph: 10 },  // reptile — handled with extra splay on the proximal bones
+};
+// proximal limb angles (deg, absolute in the standing pose). Kept close to vertical so the limb is
+// columnar and the foot plants under its girdle — a moderate joint zigzag still reads as articulated.
+const FORE_ABS = { scapula: 80, humerus: 102, radioulna: 86 };
+const HIND_ABS = { pelvis: 106, femur: 82, tibia: 104 };
+
+export function buildSkeleton(org, profile, rand) {
+  const rj = rand.fork('jitter');
+  const jit = (a) => a * (1 + (rj.float() - 0.5) * 0.06); // ±3% individual variation
+
+  const lm = clamp(Math.log10(Math.max(1, org.mass_g || 1)), 1.5, 6);
+  const L = jit(lerp(80, 168, (lm - 1.5) / 4.5)) * (profile.trunkScale || 1); // trunk length px
+  const th = L * 0.026 * profile.robust;                                       // base bone thickness
+  const V = profile.vert;
+  const presacral = V.thoracic + V.lumbar || 1;
+  const vsp = L / presacral;                                                   // trunk vertebra spacing
+  const csp = (profile.neck * L) / Math.max(1, V.cervical);                    // cervical spacing
+  const stance = STANCE[profile.stance] || STANCE.digitigrade;
+
+  const S = [];
+  const push = (s) => { S.push(s); return s.id; };
+
+  // ── VERTEBRAL COLUMN ──  root at the sacrum; presacral chain runs forward (+x), tail runs back.
+  push({ id: 'sacrum', parent: null, rest: 0, len: vsp, w0: th * 2.4, w1: th * 2.4,
+    role: 'sacral', shape: 'vertebra', spine: vsp * 0.7, z: 4 });
+
+  let prev = 'sacrum';
+  for (let i = 0; i < V.lumbar; i++) {
+    prev = push({ id: 'L' + i, parent: prev, at: 1, rest: -0.006, len: vsp, w0: th * 2.0, w1: th * 2.0,
+      role: 'lumbar', shape: 'vertebra', spine: vsp * 0.5, z: 4 });
+  }
+  const thor = [];
+  for (let i = 0; i < V.thoracic; i++) {
+    const frac = i / Math.max(1, V.thoracic - 1);                 // 0 = rear thoracic, 1 = front (withers)
+    const spineH = vsp * (0.5 + 1.3 * Math.pow(frac, 1.6));       // dorsal spines rise toward the withers
+    prev = push({ id: 'T' + i, parent: prev, at: 1, rest: 0.002, len: vsp, w0: th * 2.0, w1: th * 1.8,
+      role: 'thoracic', shape: 'vertebra', spine: spineH, z: 4, thFrac: frac });
+    thor.push('T' + i);
+  }
+  // cervical chain arches gently up toward the skull (a horse rises; not a giraffe pole)
+  for (let i = 0; i < V.cervical; i++) {
+    prev = push({ id: 'C' + i, parent: prev, at: 1, rest: -0.055, len: csp, w0: th * 1.7, w1: th * 1.5,
+      role: 'cervical', shape: 'vertebra', spine: csp * 0.25, z: 5 });
+  }
+  // skull + mandible — the head pitches down off the end of the neck
+  const skullLen = L * 0.22 * (0.7 + profile.skull.cranium);
+  push({ id: 'skull', parent: prev, at: 1, rest: 0.42, len: skullLen,
+    w0: th * 6 * (0.5 + profile.skull.cranium), w1: th * 2.6 * profile.skull.snout,
+    role: 'bone', shape: 'skull', z: 8, snout: profile.skull.snout });
+  push({ id: 'mandible', parent: prev, at: 1, rest: 0.42 + 0.16, len: skullLen * (0.6 + profile.skull.snout * 0.5),
+    w0: th * 1.6 * profile.skull.jaw, w1: th * 0.9, role: 'bone', shape: 'bone', curve: 0.14, epi: th * 0.7, z: 8 });
+
+  // caudal chain (tail) runs backward from the sacrum, drooping a little
+  let tprev = 'sacrum', tat = 0.0;
+  const cN = V.caudal, tsp = (0.5 * L * (cN / 24)) / Math.max(1, cN);
+  for (let i = 0; i < cN; i++) {
+    const taper = 1 - i / (cN + 2);
+    tprev = push({ id: 'Ca' + i, parent: i === 0 ? 'sacrum' : tprev, at: i === 0 ? 0.0 : 1,
+      rest: i === 0 ? Math.PI - 0.15 : 0.02, len: tsp, w0: th * 1.4 * taper, w1: th * 1.3 * taper,
+      role: 'caudal', shape: 'vertebra', spine: 0, z: 3 });
+  }
+
+  // ── RIBCAGE ──  one near-side rib per thoracic vertebra, sweeping ventrally & forward.
+  const ribDepth = profile.rib * L;
+  for (let i = 0; i < thor.length; i++) {
+    const frac = i / Math.max(1, thor.length - 1);
+    const len = ribDepth * (0.62 + 0.5 * Math.sin(Math.PI * clamp(frac + 0.1, 0, 1))); // longest mid-chest
+    push({ id: 'rib' + i, parent: thor[i], at: 0.5, off: th * 0.6, rest: Math.PI / 2 + 0.5,
+      len, w0: th * 0.7, w1: th * 0.5, role: 'rib', shape: 'rib', curve: 0.45, epi: 0, z: 5 });
+  }
+
+  // ── LIMBS ──  near pair (in front, opaque) + far pair (behind, shaded). Fore at the withers, hind
+  // at the sacrum/pelvis. Each limb is a named-bone chain laid out by absolute standing angle.
+  const witherId = thor[Math.max(0, thor.length - 3)];
+  const lat = th * 0.7;
+
+  const foreBones = (s) => [
+    { name: 'scapula',   len: profile.fore.scapula * L, abs: FORE_ABS.scapula, shape: 'blade', role: 'scapula' },
+    { name: 'humerus',   len: profile.fore.humerus * L, abs: FORE_ABS.humerus, joint: 'upper', shape: 'bone' },
+    { name: 'radioulna', len: profile.fore.radioulna * L, abs: FORE_ABS.radioulna, joint: 'mid', shape: 'bone' },
+    { name: 'metacarpal',len: profile.fore.metacarpal * L, abs: s.mp, joint: 'lower', shape: 'bone' },
+    { name: 'phalanx',   len: profile.fore.phalanx * L, abs: s.ph, joint: 'foot', shape: 'bone', epi: th * 0.6 },
+  ];
+  const hindBones = (s) => [
+    { name: 'pelvis',    len: profile.hind.femur * 0.6 * L, abs: HIND_ABS.pelvis, shape: 'blade', role: 'pelvis' },
+    { name: 'femur',     len: profile.hind.femur * L, abs: HIND_ABS.femur, joint: 'upper', shape: 'bone' },
+    { name: 'tibia',     len: profile.hind.tibia * L, abs: HIND_ABS.tibia, joint: 'mid', shape: 'bone' },
+    { name: 'metatarsal',len: profile.hind.metatarsal * L, abs: s.mp, joint: 'lower', shape: 'bone' },
+    { name: 'phalanx',   len: profile.hind.phalanx * L, abs: s.ph, joint: 'foot', shape: 'bone', epi: th * 0.6 },
+  ];
+
+  const addLimb = (legTag, region, near) => {
+    const z = near ? 9 : 1, role = near ? 'bone' : 'boneFar';
+    const sideOff = (near ? 1 : -1) * lat;
+    const splay = profile.stance === 'sprawling' ? (region === 'fore' ? -22 : 22) : 0;
+    const bones = (region === 'fore' ? foreBones : hindBones)(stance).map((b, i) =>
+      ({ ...b, abs: b.abs + (i === 1 ? splay : 0) }));      // splay the proximal bone for reptiles
+    let pid = region === 'fore' ? witherId : 'sacrum', pAbs = 0, first = true;
+    for (const b of bones) {
+      const id = legTag + '_' + b.name;
+      const wdt = b.shape === 'blade' ? th * 2.6 : th * 1.5;   // limb long-bones read as bones, not threads
+      push({ id, parent: pid, at: first ? 0.5 : 1, off: first ? sideOff : 0,
+        rest: jit(b.abs * D) - pAbs, len: b.len, w0: wdt, w1: wdt,
+        role: b.role || role, shape: b.shape, z, leg: b.joint ? legTag : undefined,
+        joint: b.joint, epi: b.epi, curve: b.curve });
+      pid = id; pAbs = b.abs * D; first = false;
+    }
+    // foot: digit reduction made visible
+    addFoot(legTag, pid, pAbs, region, near);
+    return pid;
+  };
+
+  function addFoot(legTag, parentId, parentAbs, region, near) {
+    const dig = profile.digits;
+    const count = clamp(region === 'fore' ? dig.fore : dig.hind, 1, 5);
+    const z = near ? 10 : 2, role = near ? 'bone' : 'boneFar';
+    const toeLen = (region === 'fore' ? profile.fore.phalanx : profile.hind.phalanx) * L * 0.7;
+    const groundAbs = profile.stance === 'unguligrade' ? 88 : 18; // hoof points down, claws forward
+    const fan = dig.type === 'hoof' ? 10 : 26;                    // splay (deg) across the digit set
+    for (let i = 0; i < count; i++) {
+      const da = count === 1 ? 0 : (i / (count - 1) - 0.5) * fan;
+      const tip = push({ id: `${legTag}_d${i}`, parent: parentId, at: 1, off: 0,
+        rest: (groundAbs + da) * D - parentAbs, len: toeLen, w0: th * 0.7, w1: th * 0.5,
+        role, shape: 'digit', epi: 0, z });
+      push({ id: `${legTag}_k${i}`, parent: tip, at: 1, rest: 0.15,
+        len: toeLen * (dig.type === 'hoof' ? 0.7 : 0.5),
+        w0: th * (dig.type === 'hoof' ? 1.6 : 0.8), w1: th * 0.5,
+        role: 'keratin', shape: dig.type === 'hoof' ? 'hoof' : 'claw', epi: 0, z });
+    }
+  }
+
+  // draw far limbs first (behind), then near
+  addLimb('FF', 'fore', false); addLimb('BF', 'hind', false);
+  addLimb('FN', 'fore', true);  addLimb('BN', 'hind', true);
+
+  const sprite = { segs: S, clip: 'walk', meta: { palette: {} } };
+  groundLevel(sprite);                 // tilt the body so fore & hind feet meet one ground line
+  return { segs: S, clip: sprite.clip };
+}
+
+// Tilt the whole skeleton about the hip so the mean fore-foot and mean hind-foot land at the same
+// height. When the limbs are very unequal (rabbit) this slopes the back up toward the haunches —
+// exactly the crouched leporid stance — instead of leaving the short forelimb dangling.
+function groundLevel(sprite) {
+  const byId = {}; for (const s of sprite.segs) byId[s.id] = s;
+  // memoised rest-pose forward kinematics: running base point + absolute angle per segment
+  const _b = {}, _abs = {};
+  function compute(id) {
+    if (_b[id]) return; const s = byId[id];
+    if (s.parent == null) { _b[id] = { x: 0, y: 0 }; _abs[id] = s.rest || 0; return; }
+    compute(s.parent); const p = byId[s.parent], pa = _abs[s.parent], pb = _b[s.parent];
+    const at = s.at == null ? 1 : s.at, off = s.off || 0;
+    _b[id] = { x: pb.x + Math.cos(pa) * p.len * at - Math.sin(pa) * off,
+               y: pb.y + Math.sin(pa) * p.len * at + Math.cos(pa) * off };
+    _abs[id] = pa + (s.rest || 0);
+  }
+  const tip = (id) => { compute(id); const s = byId[id]; return { x: _b[id].x + Math.cos(_abs[id]) * s.len, y: _b[id].y + Math.sin(_abs[id]) * s.len }; };
+
+  const feet = (tag) => sprite.segs.filter((s) => s.id.startsWith(tag + '_k')).map((s) => tip(s.id));
+  const mean = (pts) => pts.length ? { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length } : null;
+  const fore = mean([...feet('FN'), ...feet('FF')]);
+  const hind = mean([...feet('BN'), ...feet('BF')]);
+  if (!fore || !hind) return;
+  const dx = fore.x - hind.x, dy = fore.y - hind.y;
+  if (Math.abs(dx) < 1e-3) return;
+  // gentle correction only — damped & clamped so very unequal limbs (rabbit) lean, never rear up.
+  const tilt = -Math.atan2(dy, dx) * 0.45;
+  const root = sprite.segs.find((s) => s.parent == null);
+  if (root) root.rest = (root.rest || 0) + Math.max(-0.22, Math.min(0.22, tilt));
+}
+
+export default { buildSkeleton };
