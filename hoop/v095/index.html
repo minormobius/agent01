@@ -137,7 +137,8 @@
     const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
 
     function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter();
-      const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); } }   // re-cull residents when you enter a new chunk
+      const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); }
+      whereAmI(); }   // refresh the HUD (zone + stamina) on move — only while moving, so no per-frame cost when idle   // re-cull residents when you enter a new chunk
     function setScale() { cam.scale = H / (chunkSpan * VFOV); }   // pin the VERTICAL world span; width follows the aspect (mobile look retained on desktop)
 
     // rebuild the walk graph + the social web, then re-cast residents — but PRESERVE the sim state of
