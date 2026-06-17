@@ -70,8 +70,10 @@
 <div class="foot">
   <p><b>The berg is a strange attractor you can play with.</b> Its body is tens of thousands of
   iterations of a de Jong map <code>x'=sin(a·y)−cos(b·x); y'=sin(c·x)−cos(d·y)</code> warped into an
-  iceberg. <span class="legend"><b>Drag a site</b> to move it · <b>drag the open water</b> to morph the
-  attractor's a/c · <b>double-click</b> the water to re-roll the whole map.</span></p>
+  iceberg. The four map parameters are <b>tied to where the sites sit</b>, so <b>dragging a site reshapes
+  the ice</b>; a Sprott-style interestingness engine (Lyapunov exponent + grid-fill) keeps every result
+  chaotic and space-filling instead of a collapsed dud. <b>Double-click the water</b> to summon a fresh
+  attractor.</span></p>
   <p><b>Depth = how much work the endpoint carries</b>, log scale: deepest-worked near the sunlit tip,
   lightly-touched toward the benthic keel. Preferred metric is <b>page views</b> (Cloudflare, when the
   token has <code>Zone Analytics: Read</code>).</p>
@@ -119,38 +121,92 @@ function halfWidth(t) {
   return Math.max(6, 488 * tip * bulge * keel * jag);
 }
 
+// ── interestingness engine (Sprott): reject fixed points / limit cycles /
+//    thin or collapsed maps; keep chaotic, space-filling attractors ──────────
+const dejong = (p, x, y) => [Math.sin(p.a * y) - Math.cos(p.b * x), Math.sin(p.c * x) - Math.cos(p.d * y)];
+function score(p, iters) {
+  let x = 0.1, y = 0.1;
+  for (let i = 0; i < 90; i++) [x, y] = dejong(p, x, y);   // burn transient
+  let x2 = x + 1e-5, y2 = y, lsum = 0, ln = 0;
+  let mnx = 9, mxx = -9, mny = 9, mxy = -9;
+  const G = 64, cells = new Uint8Array(G * G); let filled = 0;
+  for (let i = 0; i < iters; i++) {
+    [x, y] = dejong(p, x, y);
+    [x2, y2] = dejong(p, x2, y2);
+    const dx = x2 - x, dy = y2 - y, d = Math.hypot(dx, dy);
+    if (d > 0) { lsum += Math.log(d / 1e-5); ln++; const r = 1e-5 / d; x2 = x + dx * r; y2 = y + dy * r; }
+    if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y;
+    const gx = ((x + 2) / 4 * G) | 0, gy = ((y + 2) / 4 * G) | 0;
+    if (gx >= 0 && gx < G && gy >= 0 && gy < G) { const k = gy * G + gx; if (!cells[k]) { cells[k] = 1; filled++; } }
+  }
+  const L = ln ? lsum / ln : -1, area = (mxx - mnx) * (mxy - mny);
+  if (!isFinite(L) || L <= 0.04) return -1;          // not chaotic → dud
+  if (filled < G * G * 0.05 || area < 0.3) return -1; // thin / collapsed → dull
+  return L + (filled / (G * G)) * 3 + Math.min(area, 12) / 12;
+}
+const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5);
+const clampP = (v) => clamp(v, -2.4, 2.4);
+const uni = () => Math.random() * 4.8 - 2.4;   // chaos lives at |param| ~2; uniform beats gaussian
+// best of K random maps — ~31% of this range is chaotic, so the best is never a dud
+function rollInteresting(K = 80, iters = 1700) {
+  let best = { a: -2.02, b: -2.07, c: -1.22, d: 2.01 }, bs = -1;
+  for (let i = 0; i < K; i++) {
+    const c = { a: uni(), b: uni(), c: uni(), d: uni() };
+    const s = score(c, iters); if (s > bs) { bs = s; best = c; }
+  }
+  return best;
+}
+// keep the layout-derived seed if it's interesting; else search its neighbourhood
+function refine(seed) {
+  let best = seed, bs = score(seed, 1500);
+  for (let i = 0; i < 22; i++) {
+    const c = { a: clampP(seed.a + gauss() * 0.55), b: clampP(seed.b + gauss() * 0.55), c: clampP(seed.c + gauss() * 0.55), d: clampP(seed.d + gauss() * 0.55) };
+    const s = score(c, 1400); if (s > bs) { bs = s; best = c; }
+  }
+  return bs > 0 ? best : rollInteresting(50, 1500);
+}
+// the attractor IS tied to where the sites sit: params from layout stats
+function paramsFromLayout() {
+  const ns = NODES.length ? NODES : [{ x: CX, y: WATER + OCEAN / 2 }];
+  let sx = 0, sy = 0, sxx = 0, syy = 0;
+  for (const n of ns) { const u = (n.x - CX) / 500, v = (n.y - WATER) / OCEAN * 2 - 1; sx += u; sy += v; sxx += u * u; syy += v * v; }
+  const k = ns.length, mx = sx / k, my = sy / k;
+  const vx = Math.sqrt(Math.max(0, sxx / k - mx * mx)), vy = Math.sqrt(Math.max(0, syy / k - my * my));
+  return refine({ a: clampP(-2.4 + 9.6 * vx), b: clampP(-2.4 + 9.6 * vy), c: clampP(mx * 6), d: clampP(my * 3) });
+}
+
 // ── attractor cloud → offscreen berg (rebuildable from live params) ──
 let params = { a: -2.02, b: -2.07, c: -1.22, d: 2.01 };
 let cloud = [], BERG = null;
 function buildBerg(p, nPts) {
   let x = 0.1, y = 0.1;
-  const pts = [];
+  for (let i = 0; i < 80; i++) [x, y] = dejong(p, x, y);
+  const pts = new Float32Array(nPts * 2);
   let mnx = 9, mxx = -9, mny = 9, mxy = -9;
   for (let i = 0; i < nPts; i++) {
-    const nx = Math.sin(p.a * y) - Math.cos(p.b * x);
-    const ny = Math.sin(p.c * x) - Math.cos(p.d * y);
-    x = nx; y = ny; pts.push([nx, ny]);
-    if (nx < mnx) mnx = nx; if (nx > mxx) mxx = nx;
-    if (ny < mny) mny = ny; if (ny > mxy) mxy = ny;
+    [x, y] = dejong(p, x, y);
+    pts[i * 2] = x; pts[i * 2 + 1] = y;
+    if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y;
   }
   const berg = document.createElement('canvas');
   berg.width = W * dpr; berg.height = H * dpr;
   const bx = berg.getContext('2d'); bx.scale(dpr, dpr);
-  bx.globalCompositeOperation = 'lighter';   // points glow where they pile up
-  const c2 = [];
-  const sx_d = (mxx - mnx) || 1, sy_d = (mxy - mny) || 1;
-  for (const [px, py] of pts) {
-    const u = (px - mnx) / sx_d * 2 - 1;
-    const t = (py - mny) / sy_d;
+  bx.globalCompositeOperation = 'lighter';   // points blaze where they pile up
+  const sxd = (mxx - mnx) || 1, syd = (mxy - mny) || 1;
+  const big = nPts > 60000, sz = big ? 1.8 : 1.5;
+  for (let i = 0; i < nPts; i++) {
+    const u = (pts[i * 2] - mnx) / sxd * 2 - 1;
+    const t = (pts[i * 2 + 1] - mny) / syd;
     const sx = CX + u * halfWidth(t);
     const sy = (WATER - 72) + t * (FLOOR - (WATER - 72));
-    bx.fillStyle = `rgba(${130 + 70 * (1 - t) | 0}, ${210 - 40 * t | 0}, 255, ${0.16 + 0.14 * (1 - t)})`;
-    bx.fillRect(sx, sy, 1.5, 1.5);
-    c2.push({ x: sx, y: sy });
+    if ((i & 31) === 0) bx.fillStyle = `rgba(245,252,255,${big ? 0.5 : 0.4})`;        // hot white sparks
+    else bx.fillStyle = `rgba(${120 + 80 * (1 - t) | 0}, ${215 - 30 * t | 0}, 255, ${0.20 + 0.16 * (1 - t)})`;
+    bx.fillRect(sx, sy, sz, sz);
   }
-  cloud = c2;
+  cloud = pts; cloudMeta = { mnx, mny, sxd, syd, n: nPts };
   return berg;
 }
+let cloudMeta = null;
 
 // ── nodes ──
 let NODES = [];
@@ -178,9 +234,14 @@ function placeNodes(roster, value, has) {
   });
 }
 
+function cloudScreen(i) {
+  const u = (cloud[i * 2] - cloudMeta.mnx) / cloudMeta.sxd * 2 - 1;
+  const t = (cloud[i * 2 + 1] - cloudMeta.mny) / cloudMeta.syd;
+  return [CX + u * halfWidth(t), (WATER - 72) + t * (FLOOR - (WATER - 72))];
+}
 function frame(time) {
-  // rebuild berg if morphing (throttled; cheaper cloud while actively dragging)
-  if (bergDirty && time - lastBuild > 110) { BERG = buildBerg(params, dragBerg ? 12000 : 26000); lastBuild = time; bergDirty = false; }
+  // rebuild berg if morphing (throttled; lighter cloud while actively dragging a site)
+  if (bergDirty && time - lastBuild > 110) { BERG = buildBerg(params, morphing ? 35000 : 130000); lastBuild = time; bergDirty = false; }
 
   ctx.clearRect(0, 0, W, H);
   let sky = ctx.createLinearGradient(0, 0, 0, WATER);
@@ -194,10 +255,11 @@ function frame(time) {
     const yy = WATER + 10 + i * 22 + Math.sin(time / 1500 + i) * 11;
     ctx.fillStyle = `rgba(150,220,255,${0.08 - i * 0.01})`; ctx.fillRect(0, yy, W, 3);
   }
-  if (cloud.length) for (let i = 0; i < 220; i++) {
-    const p = cloud[(Math.random() * cloud.length) | 0];
-    ctx.fillStyle = `rgba(235,250,255,${0.12 + 0.25 * Math.abs(Math.sin(time / 450 + p.x))})`;
-    ctx.fillRect(p.x, p.y, 1.7, 1.7);
+  if (cloudMeta) for (let i = 0; i < 340; i++) {
+    const idx = (Math.random() * cloudMeta.n) | 0;
+    const [px, py] = cloudScreen(idx);
+    ctx.fillStyle = `rgba(240,252,255,${0.14 + 0.3 * Math.abs(Math.sin(time / 430 + px))})`;
+    ctx.fillRect(px, py, 2.1, 2.1);
   }
   ctx.restore();
 
@@ -279,13 +341,14 @@ async function load() {
   }
   document.getElementById('depth-cap').innerHTML = `<b>depth</b> = ${has ? METRIC.label : '—'} · tip = most`;
 
-  BERG = buildBerg(params, 26000);
   placeNodes(roster, value, has);
+  params = paramsFromLayout();          // the berg is tied to where the sites sit
+  BERG = buildBerg(params, 130000);
   requestAnimationFrame(frame);
 }
 
-// ── interaction: drag sites, morph the attractor, re-roll ──
-let dragNode = null, dragBerg = null, hot = null, bergDirty = false, lastBuild = 0;
+// ── interaction: drag sites (→ the attractor follows the layout), re-roll ──
+let dragNode = null, hot = null, bergDirty = false, lastBuild = 0, morphing = false, morphAt = 0;
 function toCanvas(ev) {
   const r = cv.getBoundingClientRect();
   return { x: (ev.clientX - r.left) * (W / r.width), y: (ev.clientY - r.top) * (H / r.height) };
@@ -296,15 +359,18 @@ function nodeAt(p) {
   return best;
 }
 cv.addEventListener('pointerdown', (e) => {
-  const p = toCanvas(e); const n = nodeAt(p);
+  const n = nodeAt(toCanvas(e));
+  if (!n) return;                       // open water no longer morphs — sites do
   cv.setPointerCapture(e.pointerId); cv.classList.add('grabbing');
-  if (n) { dragNode = n; hot = n; }
-  else { dragBerg = { x: p.x, y: p.y, a: params.a, c: params.c }; }
+  dragNode = n; hot = n; morphing = true;
 });
 cv.addEventListener('pointermove', (e) => {
   const p = toCanvas(e);
-  if (dragNode) { dragNode.x = clamp(p.x, 8, W - 8); dragNode.y = clamp(p.y, WATER - 30, FLOOR); tip.style.display = 'none'; return; }
-  if (dragBerg) { params.a = clamp(dragBerg.a + (p.x - dragBerg.x) * 0.006, -3, 3); params.c = clamp(dragBerg.c + (p.y - dragBerg.y) * 0.006, -3, 3); bergDirty = true; return; }
+  if (dragNode) {
+    dragNode.x = clamp(p.x, 8, W - 8); dragNode.y = clamp(p.y, WATER - 30, FLOOR); tip.style.display = 'none';
+    if (performance.now() - morphAt > 140) { params = paramsFromLayout(); bergDirty = true; morphAt = performance.now(); }
+    return;
+  }
   const n = nodeAt(p); hot = n;
   if (!n) { tip.style.display = 'none'; return; }
   const x = window.__extra && window.__extra.get(n.url);
@@ -323,14 +389,15 @@ cv.addEventListener('pointermove', (e) => {
   if (py + rc.height > innerHeight) py = e.clientY - rc.height - pad;
   tip.style.left = px + 'px'; tip.style.top = py + 'px';
 });
-function endDrag() { if (dragBerg) bergDirty = true; dragNode = null; dragBerg = null; cv.classList.remove('grabbing'); }
+function endDrag() {
+  if (morphing) { params = paramsFromLayout(); bergDirty = true; }  // final full-res rebuild
+  dragNode = null; morphing = false; cv.classList.remove('grabbing');
+}
 cv.addEventListener('pointerup', endDrag);
 cv.addEventListener('pointercancel', endDrag);
-cv.addEventListener('pointerleave', () => { if (!dragNode && !dragBerg) tip.style.display = 'none'; });
-cv.addEventListener('dblclick', (e) => {
-  if (nodeAt(toCanvas(e))) return;
-  const rnd = () => +(Math.random() * 4.4 - 2.2).toFixed(2);
-  params = { a: rnd(), b: rnd(), c: rnd(), d: rnd() }; bergDirty = true;
+cv.addEventListener('pointerleave', () => { if (!dragNode) tip.style.display = 'none'; });
+cv.addEventListener('dblclick', () => {           // creative jump — engine guarantees it's interesting
+  params = rollInteresting(); bergDirty = true;
 });
 
 function buildLegend() {
@@ -338,7 +405,7 @@ function buildLegend() {
   document.getElementById('legend').innerHTML =
     '<span id="depth-cap"><b>depth</b> = work (log) · tip = most</span>'
     + '<span>● size = magnitude</span>'
-    + '<span class="hint">drag a site · drag water to morph · dbl-click to re-roll</span>'
+    + '<span class="hint">drag a site → the berg follows · dbl-click → new attractor</span>'
     + cats.map(([c, l]) => `<span><span class="sw" style="color:${catColor(c)};background:${catColor(c)}"></span>${l}</span>`).join('');
 }
 buildLegend();
