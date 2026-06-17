@@ -1,10 +1,11 @@
-name: Deploy Duck (spin-gravity flight sim)
+name: Deploy Duck (spin-gravity flight sim + O'Neill Links golf)
 
 on:
   push:
     branches:
       - main
       - 'claude/feature-merge-candidate-l4dkwq'
+      - 'claude/oneill-golf-simulation-30ujnk'
     paths:
       - 'duck/**'
       - '.github/workflows/deploy-duck.yml'
@@ -21,10 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Selftests (physics kernel + procedural course must stay honest)
+      - name: Selftests (rotating-frame kernel + gate course + golf ballistics + terrain grade)
         run: |
           node test/physics.selftest.mjs
           node test/course.selftest.mjs
+          node test/golf.selftest.mjs
+          node test/terrain.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
       - name: Deploy worker + assets

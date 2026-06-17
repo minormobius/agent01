@@ -60,6 +60,71 @@ fn fs(i : VSOut) -> @location(0) vec4<f32> {
   return vec4<f32>(lit, 1.0);
 }`;
 
+// Background sky pass — a fullscreen triangle that ray-marches the view ray. In
+// the cylinder it draws the AXIAL SUN as an analytic glow around the spin axis
+// (distance from the ray to the z-axis line, with bloom) and pure-black VOID where
+// the ray exits an open end cap; the interior fills with haze (covered by the land
+// geometry, which is drawn after with depth, so the sun/void only show where there
+// is no land — i.e. straight up the axis and out the ends). Earth draws a plain
+// sky gradient. It writes no depth, so the scene draws over it.
+const SKY_WGSL = /* wgsl */`
+struct Sky {
+  invVP : mat4x4<f32>,
+  cam   : vec4<f32>,   // xyz camera, w = mode (1 cylinder / 0 earth)
+  p     : vec4<f32>,   // R, len, sunGlow radius, sun brightness
+  haze  : vec4<f32>,   // rgb interior haze / earth sky tint
+};
+@group(0) @binding(0) var<uniform> S : Sky;
+
+struct VS { @builtin(position) pos : vec4<f32>, @location(0) ndc : vec2<f32> };
+@vertex
+fn vs(@builtin(vertex_index) i : u32) -> VS {
+  var p = array<vec2<f32>, 3>(vec2<f32>(-1.0, -1.0), vec2<f32>(3.0, -1.0), vec2<f32>(-1.0, 3.0));
+  var o : VS; o.pos = vec4<f32>(p[i], 0.0, 1.0); o.ndc = p[i]; return o;
+}
+
+@fragment
+fn fs(v : VS) -> @location(0) vec4<f32> {
+  let far  = S.invVP * vec4<f32>(v.ndc, 1.0, 1.0);
+  let near = S.invVP * vec4<f32>(v.ndc, 0.0, 1.0);
+  let ro = S.cam.xyz;
+  let rd = normalize(far.xyz / far.w - near.xyz / near.w);
+
+  if (S.cam.w < 0.5) {                                   // EARTH — sky gradient
+    let t = clamp(rd.y * 0.5 + 0.5, 0.0, 1.0);
+    return vec4<f32>(mix(vec3<f32>(0.62, 0.70, 0.86), vec3<f32>(0.27, 0.5, 0.86), t), 1.0);
+  }
+
+  let R = S.p.x; let len = S.p.y;
+  let oxy = ro.xy; let dxy = rd.xy;
+  let denom = max(length(dxy), 1e-5);
+  // perpendicular distance from the view ray to the spin axis (the z-axis line)
+  let distAxis = abs(oxy.x * dxy.y - oxy.y * dxy.x) / denom;
+  let tCA = -dot(oxy, dxy) / (denom * denom);            // ray param of closest approach
+  let zCA = ro.z + rd.z * tCA;
+
+  // axial sun: a glowing line along z in [0,len]; soft bloom out to sunGlow
+  var sun = 0.0;
+  if (tCA > 0.0 && zCA > -len * 0.1 && zCA < len * 1.1) {
+    let core = smoothstep(S.p.z, 0.0, distAxis);
+    sun = pow(core, 2.2);
+  }
+
+  // does the ray meet the side wall (r=R) within the length? then it's interior
+  // (land will cover it); otherwise it exits an end cap → the void.
+  let a = dot(dxy, dxy); let b = 2.0 * dot(oxy, dxy); let c = dot(oxy, oxy) - R * R;
+  let disc = b * b - 4.0 * a * c;
+  var interior = false;
+  if (disc > 0.0 && a > 1e-9) {
+    let t1 = (-b + sqrt(disc)) / (2.0 * a);              // forward hit on the wall
+    let zc = ro.z + rd.z * t1;
+    interior = t1 > 0.0 && zc > 0.0 && zc < len;
+  }
+  var col = select(vec3<f32>(0.0, 0.0, 0.0), S.haze.rgb, interior);  // void vs haze
+  col = col + vec3<f32>(1.0, 0.94, 0.78) * sun * S.p.w;              // add the sun
+  return vec4<f32>(col, 1.0);
+}`;
+
 export async function initRenderer(canvas) {
   if (!navigator.gpu) throw new Error('WebGPU is not available in this browser.');
   const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
@@ -108,6 +173,36 @@ class Renderer {
       layout: this.frameLayout, entries: [{ binding: 0, resource: { buffer: this.frameBuf } }],
     });
     this._frameData = new Float32Array(28); // 112 bytes
+
+    // background sky pass (ray-traced axial sun + end-cap void)
+    const skyModule = device.createShaderModule({ code: SKY_WGSL });
+    this.skyLayout = device.createBindGroupLayout({
+      entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }],
+    });
+    this.skyPipeline = device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [this.skyLayout] }),
+      vertex: { module: skyModule, entryPoint: 'vs' },
+      fragment: { module: skyModule, entryPoint: 'fs', targets: [{ format }] },
+      primitive: { topology: 'triangle-list' },
+      // no depth write, always pass: it paints the backdrop; geometry draws over it
+      depthStencil: { format: 'depth24plus', depthWriteEnabled: false, depthCompare: 'always' },
+    });
+    this.skyBuf = device.createBuffer({ size: 112, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    this.skyBind = device.createBindGroup({ layout: this.skyLayout, entries: [{ binding: 0, resource: { buffer: this.skyBuf } }] });
+    this._skyData = new Float32Array(28);
+    this._sky = false;
+  }
+
+  // params: { invViewProj Float32Array(16), camPos[3], mode (0 earth/1 cylinder),
+  //   R, len, sunGlow (radius m), sunBright, haze[3] }
+  setSky({ invViewProj, camPos, mode, R = 0, len = 0, sunGlow = 0, sunBright = 1.4, haze = [0.45, 0.55, 0.66] }) {
+    const d = this._skyData;
+    d.set(invViewProj, 0);
+    d[16] = camPos[0]; d[17] = camPos[1]; d[18] = camPos[2]; d[19] = mode;
+    d[20] = R; d[21] = len; d[22] = sunGlow; d[23] = sunBright;
+    d[24] = haze[0]; d[25] = haze[1]; d[26] = haze[2]; d[27] = 1;
+    this.device.queue.writeBuffer(this.skyBuf, 0, d);
+    this._sky = true;
   }
 
   resize() {
@@ -177,6 +272,11 @@ class Renderer {
         depthClearValue: 1.0, depthLoadOp: 'clear', depthStoreOp: 'store',
       },
     });
+    if (this._sky) {                       // backdrop first: sun + void behind everything
+      pass.setPipeline(this.skyPipeline);
+      pass.setBindGroup(0, this.skyBind);
+      pass.draw(3);
+    }
     pass.setPipeline(this.pipeline);
     pass.setBindGroup(0, this.frameBind);
     for (const r of drawables) {

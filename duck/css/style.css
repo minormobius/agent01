@@ -147,3 +147,152 @@ body.flying #crosshair { opacity: 1; }
   .tl { min-width: 0; left: 8px; right: 8px; }
   .tr { top: auto; bottom: 64px; right: 8px; }
 }
+
+/* ───────────────────────── O'Neill Links (golf) ───────────────────────── */
+
+.btnlink {
+  display: block; font: inherit; color: var(--phos);
+  background: rgba(30, 50, 44, 0.5); border: 1px solid var(--edge); border-radius: 7px;
+  padding: 6px 10px; text-decoration: none; white-space: nowrap;
+}
+.btnlink:hover { background: rgba(50, 80, 70, 0.6); }
+
+/* play: the swing controls, bottom-centre */
+.swing {
+  left: 50%; bottom: 14px; transform: translateX(-50%);
+  width: min(540px, 94vw); display: flex; flex-direction: column; gap: 8px;
+}
+.club-pick { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.clubname { color: var(--gold); font-weight: 700; min-width: 92px; text-align: center; font-size: 15px; }
+.mini {
+  font: inherit; color: var(--phos); background: rgba(30, 50, 44, 0.6);
+  border: 1px solid var(--edge); border-radius: 6px; padding: 5px 9px; cursor: pointer;
+}
+.mini:hover { background: rgba(50, 80, 70, 0.7); }
+.aimrow { display: flex; align-items: center; gap: 8px; }
+.powerwrap {
+  flex: 1; height: 16px; border-radius: 8px; overflow: hidden;
+  background: rgba(0, 0, 0, 0.4); border: 1px solid var(--edge);
+}
+.powerbar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #6ad0a0, var(--gold) 70%, #ff8a6a);
+  transition: width 0.05s linear;
+}
+.hit {
+  font: inherit; font-size: 15px; font-weight: 700; color: #04110b;
+  background: linear-gradient(90deg, var(--gold), #f0d890);
+  border: none; border-radius: 9px; padding: 11px 14px; cursor: pointer; text-align: center;
+  letter-spacing: 0.3px; touch-action: none;
+}
+.hit:hover { filter: brightness(1.08); }
+.hit kbd { color: #04110b; background: rgba(0, 0, 0, 0.18); }
+.hit.gold { background: linear-gradient(90deg, #ffe08a, var(--gold)); }
+
+/* designer: title + control panel + plan editor */
+.design-title { max-width: 320px; }
+.design-title .tagline { margin: 8px 2px 0; font-size: 12px; color: var(--soft); }
+.design-title .tagline b { color: var(--gold); }
+
+.design-panel { display: flex; flex-direction: column; gap: 8px; width: 230px; }
+.design-panel .ctl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #6f8a90; }
+.design-panel .wide { width: 100%; text-align: center; }
+.design-panel input[type=text] {
+  font: inherit; color: var(--phos); background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--edge); border-radius: 6px; padding: 6px 8px; width: 100%;
+}
+.row2 { display: flex; gap: 6px; }
+.row2 button { flex: 1; text-align: center; }
+.row2.play { margin-top: 2px; }
+.design-panel .stat { display: flex; justify-content: space-between; font-size: 12px; }
+.design-panel .stat .k { color: #6f8a90; }
+.design-panel .stat .v { color: var(--phos); font-variant-numeric: tabular-nums; }
+.terrain { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #6f8a90; }
+.terrain .hint { color: var(--gold); opacity: 0.8; }
+.trow { display: flex; align-items: center; gap: 8px; }
+.trow input[type=range] { flex: 1; accent-color: #6ad0a0; }
+.hazbar { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 11px; color: #6f8a90; }
+.hazbar .k { width: 100%; }
+.haz { padding: 4px 8px; font-size: 11px; }
+.haz.water { color: #9fcdf5; } .haz.sand { color: #e6d79a; } .haz.rough { color: #a8d49a; }
+.haz.on { outline: 2px solid var(--phos); }
+.selpanel { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #6f8a90; flex-wrap: wrap; }
+.selpanel input[type=range] { flex: 1; accent-color: #6ad0a0; }
+.ghosty { background: rgba(10, 14, 20, 0.5); }
+
+.plan-panel { left: 12px; bottom: 12px; padding: 8px; }
+.plan-head { font-size: 11px; color: #6f8a90; margin-bottom: 6px; }
+.plan-head b { color: var(--gold); }
+#plan {
+  display: block; border-radius: 8px; border: 1px solid var(--edge);
+  width: 320px; height: 280px; touch-action: none; cursor: crosshair;
+}
+
+@media (max-width: 720px) {
+  .design-title { max-width: none; left: 8px; right: 8px; }
+  .design-panel { top: auto; bottom: 8px; right: 8px; width: 150px; }
+  .plan-panel { left: 8px; bottom: 8px; }
+  #plan { width: 150px; height: 150px; }
+}
+
+/* play: centre reticle (aim), free-look hint, trajectory legend */
+#reticle {
+  position: fixed; z-index: 4; left: 50%; top: 50%; width: 26px; height: 26px;
+  margin: -13px 0 0 -13px; pointer-events: none;
+  border: 1px solid rgba(180, 240, 215, 0.5); border-radius: 50%;
+}
+#reticle::before, #reticle::after {
+  content: ''; position: absolute; background: rgba(180, 240, 215, 0.65);
+}
+#reticle::before { left: 50%; top: -7px; width: 1px; height: 7px; margin-left: -0.5px; }
+#reticle::after { top: 50%; left: -7px; height: 1px; width: 7px; margin-top: -0.5px; }
+.lockhint {
+  position: fixed; z-index: 6; left: 50%; bottom: 130px; transform: translateX(-50%);
+  font-size: 11px; color: var(--soft); opacity: 0.7; pointer-events: none; white-space: nowrap;
+  background: rgba(10, 14, 20, 0.5); padding: 4px 9px; border-radius: 6px;
+}
+.legend {
+  left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 2px;
+  font-size: 11px; line-height: 1.5;
+}
+.legend .lg { white-space: nowrap; }
+.legend .gold { color: #e7c84a; }
+.legend .blue { color: #7fa0ff; }
+.legend .cyan { color: #8fe8f0; }
+
+@media (max-width: 560px) {
+  .legend { display: none; }
+  .lockhint { bottom: 150px; }
+}
+
+/* ── mobile-friendly play surface ── thumb-reachable controls, compact readouts,
+   safe-area aware. Scoped to body.golf so the duck flight sim is untouched. */
+@media (max-width: 680px) {
+  body.golf .tl {
+    min-width: 0; max-width: 47vw; left: 6px; top: 6px; padding: 7px 8px; font-size: 11px;
+  }
+  body.golf .tl .mode { font-size: 10px; padding: 3px 5px; margin-bottom: 5px; }
+  body.golf .tl .row { gap: 8px; padding: 0; }
+  body.golf .tr.btns { top: 6px; right: 6px; gap: 5px; }
+  body.golf .tr.btns button, body.golf .tr.btns .btnlink {
+    padding: 9px 10px; font-size: 12px; min-height: 40px; display: flex; align-items: center;
+  }
+  body.golf .tr.btns kbd { display: none; }
+
+  /* the swing block: full-width, lifted above the home-bar, big targets */
+  body.golf .swing {
+    width: 96vw; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); gap: 11px; padding: 12px;
+  }
+  body.golf .swing .clubname { font-size: 17px; min-width: 110px; }
+  body.golf .swing .mini { padding: 12px 14px; min-width: 50px; font-size: 14px; }
+  body.golf .swing .powerwrap { height: 24px; }
+  body.golf .swing .hit { padding: 16px; font-size: 17px; min-height: 58px; }
+  body.golf .swing .hit kbd { display: none; }
+}
+
+/* landscape phones: keep the swing bar slim so it doesn't eat the view */
+@media (max-height: 480px) and (orientation: landscape) {
+  body.golf .swing { width: min(520px, 80vw); bottom: 6px; gap: 6px; padding: 8px; }
+  body.golf .swing .hit { padding: 10px; min-height: 42px; }
+  body.golf .tl { font-size: 10px; }
+}
