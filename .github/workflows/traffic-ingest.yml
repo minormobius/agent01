@@ -40,11 +40,14 @@ jobs:
         with:
           fetch-depth: 0   # full history → accurate per-endpoint commit counts
 
+      - name: Fetch every branch (so --all sees off-main / feature-branch work)
+        run: git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Rank by commit impact (no token needed)
+      - name: Rank by commit depth across all refs (no token needed)
         run: node scripts/fetch-commits.mjs
 
       - name: Fetch page views from Cloudflare (skipped if token lacks Analytics scope)

@@ -4,46 +4,53 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>iceberg — mino.mobi sites by depth of work</title>
-<meta name="description" content="Every mino.mobi endpoint sunk into the ocean by how much git history (or page views) it carries — the body of the berg drawn from a strange attractor.">
+<meta name="description" content="Every mino.mobi endpoint sunk into the ocean by how much git history (across all branches) it carries — the berg drawn from a strange attractor you can drag and morph.">
 <style>
   :root {
-    --ink: #eaf2f7; --muted: #8aa0ad;
+    --ink: #eaf6ff; --muted: #93b0c2;
     --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
     --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-    --c-bluesky: #5aa9e6; --c-games: #e6a85a; --c-tools: #b98ce6;
-    --c-math: #5ae6b0; --c-other: #9fb3bf;
+    --c-bluesky: #36c5ff; --c-games: #ffae3b; --c-tools: #c77dff;
+    --c-math: #3bffb0; --c-other: #aebfca;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { background: #04070b; color: var(--ink); font-family: var(--serif); }
+  html, body { background: #02040a; color: var(--ink); font-family: var(--serif); }
   a { color: inherit; }
   .top {
     position: sticky; top: 0; z-index: 20; display: flex; align-items: baseline;
     gap: 0.8rem; flex-wrap: wrap; padding: 0.7rem 1rem;
-    background: linear-gradient(#04070b, rgba(4,7,11,0.85)); border-bottom: 1px solid #142330;
+    background: linear-gradient(#02040a, rgba(2,4,10,0.82)); border-bottom: 1px solid #15314a;
     font-family: var(--mono);
   }
   .top .brand { font-size: 1rem; text-decoration: none; }
   .top .brand b { color: #fff; }
-  .top h1 { font-family: var(--serif); font-size: 1.05rem; font-weight: 600; }
+  .top h1 {
+    font-family: var(--serif); font-size: 1.45rem; font-weight: 700; letter-spacing: .02em;
+    background: linear-gradient(90deg,#7fe7ff,#36c5ff,#c77dff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 22px rgba(54,197,255,0.35);
+  }
   .top .meta { color: var(--muted); font-size: 0.72rem; }
   .top .spacer { flex: 1; }
-  .banner { margin: 0; padding: 0.6rem 1rem; font-family: var(--mono); font-size: 0.78rem;
-    background: #2a1d05; color: #f0c674; border-bottom: 1px solid #5c4a17; }
+  .banner { margin: 0; padding: 0.55rem 1rem; font-family: var(--mono); font-size: 0.78rem;
+    background: linear-gradient(90deg,#06283d,#0a2f12); color: #9fe7ff; border-bottom: 1px solid #14506b; }
   .banner.hide { display: none; }
-  .stage { max-width: 1100px; margin: 0 auto; padding: 0 0.5rem 2rem; }
-  canvas { width: 100%; height: auto; display: block; cursor: crosshair; touch-action: pan-y; }
-  .legend { display: flex; flex-wrap: wrap; gap: 1.1rem; padding: 1rem; max-width: 1100px;
+  .stage { max-width: 1120px; margin: 0 auto; padding: 0 0.5rem 1rem; }
+  canvas { width: 100%; height: auto; display: block; cursor: grab; touch-action: none;
+    border-radius: 8px; box-shadow: 0 0 60px rgba(20,90,140,0.25) inset; }
+  canvas.grabbing { cursor: grabbing; }
+  .legend { display: flex; flex-wrap: wrap; gap: 1.1rem 1.4rem; padding: 0.8rem 1rem; max-width: 1120px;
     margin: 0 auto; font-family: var(--mono); font-size: 0.74rem; color: var(--muted); }
   .legend b { color: var(--ink); font-weight: 600; }
-  .legend .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; }
-  .foot { max-width: 1100px; margin: 0 auto; padding: 0 1rem 3rem; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
-  .foot code { font-family: var(--mono); color: var(--ink); }
-  .foot b { color: var(--ink); }
+  .legend .hint { color: #ffd479; }
+  .legend .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; box-shadow: 0 0 8px currentColor; }
+  .foot { max-width: 1120px; margin: 0 auto; padding: 0 1rem 3rem; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+  .foot code { font-family: var(--mono); color: var(--ink); } .foot b { color: var(--ink); }
   #tip { position: fixed; pointer-events: none; z-index: 30; display: none;
-    background: #0b1620; border: 1px solid #244; border-radius: 6px; padding: 0.4rem 0.6rem;
-    font-family: var(--mono); font-size: 0.74rem; color: var(--ink); max-width: 280px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
-  #tip .v { color: #7fd3ff; } #tip .h { color: #f0c674; }
+    background: #06141f; border: 1px solid #1d4a63; border-radius: 6px; padding: 0.45rem 0.65rem;
+    font-family: var(--mono); font-size: 0.74rem; color: var(--ink); max-width: 290px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6); }
+  #tip .v { color: #7fe7ff; font-weight: 600; } #tip .h { color: #ffd479; }
 </style>
 </head>
 <body>
@@ -56,24 +63,23 @@
 </div>
 <p class="banner hide" id="banner"></p>
 
-<div class="stage"><canvas id="sea" aria-label="mino.mobi endpoints placed by depth of work, drawn into an attractor iceberg"></canvas></div>
+<div class="stage"><canvas id="sea" aria-label="mino.mobi endpoints placed by depth of work; drag sites, drag the water to morph the attractor"></canvas></div>
 
 <div class="legend" id="legend"></div>
 
 <div class="foot">
-  <p><b>The berg is a strange attractor.</b> Its body is ~22,000 iterations of a de Jong map
-  <code>x'=sin(a·y)−cos(b·x); y'=sin(c·x)−cos(d·y)</code>, warped into an iceberg silhouette — so the
-  ice has crystalline veining instead of flat fill, and each endpoint is scattered into it by the same
-  chaotic sequence.</p>
-  <p><b>Depth = how much work the endpoint carries</b>, on a log scale: the deepest-worked float near the
-  sunlit tip, the lightly-touched sink toward the benthic keel. Two metrics, preferred in order:</p>
-  <p><b>Page views</b> (when available) — sampling-adjusted edge HTML loads from Cloudflare, via
-  <code>scripts/fetch-traffic.mjs</code> (needs <code>Zone Analytics: Read</code>).</p>
-  <p><b>Commit depth</b> (the current metric) — every endpoint, sub-paths included, ranked by
-  <b>rename-aware</b> commit count: <code>scripts/fetch-commits.mjs</code> unions <code>git log --follow</code>
-  over each path's files, so work <b>refactored in</b> (the whole <code>clock/</code> subtree was moved in,
-  hiding ~87% of its commits from a naive count) still counts. Hover shows the naive count, the history
-  <b>recovered</b> from refactors, and total line <b>churn</b>.</p>
+  <p><b>The berg is a strange attractor you can play with.</b> Its body is tens of thousands of
+  iterations of a de Jong map <code>x'=sin(a·y)−cos(b·x); y'=sin(c·x)−cos(d·y)</code> warped into an
+  iceberg. <span class="legend"><b>Drag a site</b> to move it · <b>drag the open water</b> to morph the
+  attractor's a/c · <b>double-click</b> the water to re-roll the whole map.</span></p>
+  <p><b>Depth = how much work the endpoint carries</b>, log scale: deepest-worked near the sunlit tip,
+  lightly-touched toward the benthic keel. Preferred metric is <b>page views</b> (Cloudflare, when the
+  token has <code>Zone Analytics: Read</code>).</p>
+  <p><b>Commit depth</b> (current metric) counts every endpoint — sub-paths included — across
+  <b>all refs, not just <code>HEAD</code></b>. Most work happens on <code>claude/*</code> feature
+  branches and is squash-merged down to a few main-line commits, so <code>HEAD</code> alone hides the
+  bulk: this repo has ~490 commits on <code>HEAD</code> but ~1,580 across all branches. Hover shows the
+  HEAD count, the work that lived <b>off-main</b>, and total line <b>churn</b>.</p>
 </div>
 
 <div id="tip"></div>
@@ -82,76 +88,69 @@
 const cv = document.getElementById('sea');
 const ctx = cv.getContext('2d');
 const tip = document.getElementById('tip');
-const W = 1100, H = 1640, WATER = 180, FLOOR = H - 50, OCEAN = FLOOR - WATER, CX = W * 0.52;
+const W = 1120, H = 1640, WATER = 180, FLOOR = H - 50, OCEAN = FLOOR - WATER, CX = W * 0.52;
 const dpr = Math.min(2, window.devicePixelRatio || 1);
 cv.width = W * dpr; cv.height = H * dpr; cv.style.aspectRatio = `${W} / ${H}`;
 ctx.scale(dpr, dpr);
 
 const ZONES = [
-  [0.00, 0.12, 'Sunlight', 'epipelagic',    '#103f6b'],
-  [0.12, 0.35, 'Twilight', 'mesopelagic',   '#0b2e52'],
-  [0.35, 0.60, 'Midnight', 'bathypelagic',  '#071e36'],
-  [0.60, 0.85, 'Abyss',    'abyssopelagic', '#04121f'],
-  [0.85, 1.00, 'Benthic',  'hadal',         '#020910'],
+  [0.00, 0.12, 'Sunlight', 'epipelagic',    '#15568f'],
+  [0.12, 0.35, 'Twilight', 'mesopelagic',   '#0d3a63'],
+  [0.35, 0.60, 'Midnight', 'bathypelagic',  '#082441'],
+  [0.60, 0.85, 'Abyss',    'abyssopelagic', '#041425'],
+  [0.85, 1.00, 'Benthic',  'hadal',         '#020a13'],
 ];
 const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const catColor = (c) => cssVar('--c-' + c) || cssVar('--c-other');
-const fmt = (n) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(Math.round(n));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 let METRIC = { kind: 'none', unit: '', label: '—' };
-
-// log depth in [0,1]: 0 = surface (most), 1 = floor (least / unknown)
 function depthFor(v, lo, hi) {
   if (!(v > 0)) return 1;
   const a = Math.log10(Math.max(1, lo)), b = Math.log10(Math.max(10, hi));
   if (b <= a) return 0;
-  return Math.max(0, Math.min(1, 1 - (Math.log10(v) - a) / (b - a)));
+  return clamp(1 - (Math.log10(v) - a) / (b - a), 0, 1);
 }
-
-// ── iceberg silhouette: half-width as a function of depth t∈[0,1] ──
 function halfWidth(t) {
-  const tip = Math.min(1, t / 0.06);                 // sharpen the tip
-  const bulge = Math.sin(Math.PI * Math.min(1, 0.07 + t * 0.78)); // widest in the upper third
-  const keel = 1 - 0.55 * Math.max(0, (t - 0.62) / 0.38);         // taper to the keel
+  const tip = Math.min(1, t / 0.06);
+  const bulge = Math.sin(Math.PI * Math.min(1, 0.07 + t * 0.78));
+  const keel = 1 - 0.55 * Math.max(0, (t - 0.62) / 0.38);
   const jag = 1 + 0.16 * Math.sin(8.0 * t + 0.7) + 0.10 * Math.sin(15.0 * t + 2.1);
-  return Math.max(6, 470 * tip * bulge * keel * jag);
+  return Math.max(6, 488 * tip * bulge * keel * jag);
 }
 
-// ── the de Jong attractor cloud, warped into the berg, baked to an offscreen ──
-const A = -2.02, B = -2.07, C = -1.22, D = 2.01;     // params with a full, blobby fill
-const N_CLOUD = 22000;
-const cloud = []; // {x,y} in screen space
-function buildBerg() {
+// ── attractor cloud → offscreen berg (rebuildable from live params) ──
+let params = { a: -2.02, b: -2.07, c: -1.22, d: 2.01 };
+let cloud = [], BERG = null;
+function buildBerg(p, nPts) {
   let x = 0.1, y = 0.1;
   const pts = [];
   let mnx = 9, mxx = -9, mny = 9, mxy = -9;
-  for (let i = 0; i < N_CLOUD; i++) {
-    const nx = Math.sin(A * y) - Math.cos(B * x);
-    const ny = Math.sin(C * x) - Math.cos(D * y);
-    x = nx; y = ny;
-    pts.push([nx, ny]);
+  for (let i = 0; i < nPts; i++) {
+    const nx = Math.sin(p.a * y) - Math.cos(p.b * x);
+    const ny = Math.sin(p.c * x) - Math.cos(p.d * y);
+    x = nx; y = ny; pts.push([nx, ny]);
     if (nx < mnx) mnx = nx; if (nx > mxx) mxx = nx;
     if (ny < mny) mny = ny; if (ny > mxy) mxy = ny;
   }
   const berg = document.createElement('canvas');
   berg.width = W * dpr; berg.height = H * dpr;
   const bx = berg.getContext('2d'); bx.scale(dpr, dpr);
+  bx.globalCompositeOperation = 'lighter';   // points glow where they pile up
+  const c2 = [];
+  const sx_d = (mxx - mnx) || 1, sy_d = (mxy - mny) || 1;
   for (const [px, py] of pts) {
-    const u = (px - mnx) / (mxx - mnx) * 2 - 1;       // [-1,1]
-    const t = (py - mny) / (mxy - mny);               // [0,1] depth
+    const u = (px - mnx) / sx_d * 2 - 1;
+    const t = (py - mny) / sy_d;
     const sx = CX + u * halfWidth(t);
-    const sy = (WATER - 70) + t * (FLOOR - (WATER - 70));
-    // ice palette: pale blue near tip, deep teal in the keel
-    const a = 0.10 + 0.10 * (1 - t);
-    bx.fillStyle = `rgba(${180 - 60 * t | 0}, ${224 - 70 * t | 0}, 255, ${a})`;
-    bx.fillRect(sx, sy, 1.1, 1.1);
-    cloud.push({ x: sx, y: sy, t });
+    const sy = (WATER - 72) + t * (FLOOR - (WATER - 72));
+    bx.fillStyle = `rgba(${130 + 70 * (1 - t) | 0}, ${210 - 40 * t | 0}, 255, ${0.16 + 0.14 * (1 - t)})`;
+    bx.fillRect(sx, sy, 1.5, 1.5);
+    c2.push({ x: sx, y: sy });
   }
-  // a faint rim
-  bx.strokeStyle = 'rgba(200,235,255,0.10)'; bx.lineWidth = 1;
+  cloud = c2;
   return berg;
 }
-let BERG = null;
 
 // ── nodes ──
 let NODES = [];
@@ -159,85 +158,76 @@ function placeNodes(roster, value, has) {
   const vals = roster.map((s) => value.get(s.url) || 0).filter((v) => v > 0);
   const lo = vals.length ? Math.min(...vals) : 0, hi = vals.length ? Math.max(...vals) : 0;
   const maxV = Math.max(1, hi);
-  // chaotic but deterministic x-jitter from the same attractor family
   let jx = 0.3, jy = 0.7;
-  const jitter = () => { const a = Math.sin(A * jy) - Math.cos(B * jx); jx = a; jy = Math.sin(C * jx) - Math.cos(D * jy); return a / 2; };
+  const jit = () => { const a = Math.sin(-2.02 * jy) - Math.cos(-2.07 * jx); jx = a; jy = Math.sin(-1.22 * jx) - Math.cos(2.01 * jy); return a / 2; };
   const sorted = [...roster].sort((p, q) => (value.get(q.url) || 0) - (value.get(p.url) || 0));
   const placed = [];
   NODES = sorted.map((s, i) => {
     const v = value.get(s.url) || 0;
     const t = has ? depthFor(v, lo, hi) : 0.80 + 0.18 * ((i % 17) / 16);
-    const y = (WATER - 30) + t * (FLOOR - (WATER - 30));
+    const y = (WATER - 28) + t * (FLOOR - (WATER - 28));
     const hw = halfWidth(t);
-    let x = CX + jitter() * hw * 0.92;
-    // light de-overlap within a vertical neighbourhood
-    for (let k = 0; k < 24; k++) {
-      const clash = placed.find((p) => Math.abs(p.y - y) < 16 && Math.abs(p.x - x) < 17);
+    let x = CX + jit() * hw * 0.92;
+    for (let k = 0; k < 26; k++) {
+      const clash = placed.find((p) => Math.abs(p.y - y) < 15 && Math.abs(p.x - x) < 17);
       if (!clash) break;
-      x += (x >= clash.x ? 1 : -1) * 18;
-      x = Math.max(CX - hw, Math.min(CX + hw, x));
+      x += (x >= clash.x ? 1 : -1) * 18; x = clamp(x, CX - hw, CX + hw);
     }
     placed.push({ x, y });
-    const r = 3.5 + 16 * Math.sqrt(v / maxV);
-    return { ...s, value: v, t, x, y, r };
+    return { ...s, value: v, t, x, y, r: 3.5 + 17 * Math.sqrt(v / maxV) };
   });
 }
 
 function frame(time) {
+  // rebuild berg if morphing (throttled; cheaper cloud while actively dragging)
+  if (bergDirty && time - lastBuild > 110) { BERG = buildBerg(params, dragBerg ? 12000 : 26000); lastBuild = time; bergDirty = false; }
+
   ctx.clearRect(0, 0, W, H);
-  // sky
   let sky = ctx.createLinearGradient(0, 0, 0, WATER);
-  sky.addColorStop(0, '#9cc0d8'); sky.addColorStop(1, '#d2e6f0');
+  sky.addColorStop(0, '#bfe3f5'); sky.addColorStop(1, '#e7f4fb');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, WATER);
-  // ocean zones
-  for (const [a, b, , , fill] of ZONES) {
-    ctx.fillStyle = fill;
-    ctx.fillRect(0, WATER + a * OCEAN, W, (b - a) * OCEAN);
-  }
-  // berg cloud
+  for (const [a, b, , , fill] of ZONES) { ctx.fillStyle = fill; ctx.fillRect(0, WATER + a * OCEAN, W, (b - a) * OCEAN); }
   if (BERG) ctx.drawImage(BERG, 0, 0, W, H);
-  // drifting caustics just under the surface
+
   ctx.save(); ctx.globalCompositeOperation = 'screen';
-  for (let i = 0; i < 4; i++) {
-    const yy = WATER + 14 + i * 26 + Math.sin(time / 1600 + i) * 8;
-    ctx.fillStyle = `rgba(150,210,255,${0.05 - i * 0.008})`;
-    ctx.fillRect(0, yy, W, 3);
+  for (let i = 0; i < 6; i++) {
+    const yy = WATER + 10 + i * 22 + Math.sin(time / 1500 + i) * 11;
+    ctx.fillStyle = `rgba(150,220,255,${0.08 - i * 0.01})`; ctx.fillRect(0, yy, W, 3);
   }
-  // twinkle a few crystals
-  if (cloud.length) for (let i = 0; i < 140; i++) {
+  if (cloud.length) for (let i = 0; i < 220; i++) {
     const p = cloud[(Math.random() * cloud.length) | 0];
-    ctx.fillStyle = `rgba(220,245,255,${0.10 + 0.18 * Math.abs(Math.sin(time / 500 + p.x))})`;
-    ctx.fillRect(p.x, p.y, 1.4, 1.4);
+    ctx.fillStyle = `rgba(235,250,255,${0.12 + 0.25 * Math.abs(Math.sin(time / 450 + p.x))})`;
+    ctx.fillRect(p.x, p.y, 1.7, 1.7);
   }
   ctx.restore();
-  // zone labels
+
   ctx.textBaseline = 'alphabetic';
   for (const [a, , name, sub] of ZONES) {
     const y = WATER + a * OCEAN;
-    ctx.font = '11px ' + cssVar('--mono'); ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.fillText(name, 12, y + 15);
-    ctx.font = '9px ' + cssVar('--mono'); ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.fillText(sub, 12, y + 26);
+    ctx.font = 'bold 12px ' + cssVar('--mono'); ctx.fillStyle = 'rgba(190,230,255,0.6)'; ctx.fillText(name, 12, y + 16);
+    ctx.font = '9px ' + cssVar('--mono'); ctx.fillStyle = 'rgba(190,230,255,0.32)'; ctx.fillText(sub, 12, y + 27);
   }
-  // waterline
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.2;
+  ctx.strokeStyle = 'rgba(220,245,255,0.7)'; ctx.lineWidth = 1.4;
   ctx.beginPath(); ctx.moveTo(0, WATER); ctx.lineTo(W, WATER); ctx.stroke();
-  ctx.font = '11px ' + cssVar('--mono'); ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.fillText('~ sea level ~', W - 92, WATER - 7);
+  ctx.font = '11px ' + cssVar('--mono'); ctx.fillStyle = 'rgba(220,245,255,0.55)'; ctx.fillText('~ sea level ~', W - 94, WATER - 7);
 
-  // nodes
-  const labelCount = 34;
+  const labelCount = 38;
   NODES.forEach((n, i) => {
-    const fade = 0.5 + 0.5 * (1 - n.t);
-    ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, 7);
-    ctx.fillStyle = catColor(n.category); ctx.globalAlpha = fade;
-    ctx.fill();
-    ctx.globalAlpha = 1; ctx.lineWidth = 0.8; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.stroke();
-    if (i < labelCount && !n.parent) {
-      ctx.font = '12px ' + cssVar('--mono'); ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillText(n.name, n.x + n.r + 4, n.y + 4.5);          // shadow
-      ctx.fillStyle = `rgba(234,242,247,${fade + 0.25})`;
-      ctx.fillText(n.name, n.x + n.r + 3.4, n.y + 3.8);
+    const fade = 0.55 + 0.45 * (1 - n.t);
+    const col = catColor(n.category);
+    const pulse = n === hot ? 1.5 : 1;
+    ctx.save();
+    ctx.shadowColor = col; ctx.shadowBlur = (n === hot ? 22 : 11);
+    ctx.beginPath(); ctx.arc(n.x, n.y, n.r * pulse, 0, 7);
+    ctx.globalAlpha = fade; ctx.fillStyle = col; ctx.fill();
+    ctx.restore();
+    ctx.lineWidth = n === hot ? 1.6 : 0.8; ctx.strokeStyle = n === hot ? '#fff' : 'rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(n.x, n.y, n.r * pulse, 0, 7); ctx.stroke();
+    if (i < labelCount || n === hot) {
+      ctx.font = (n === hot ? 'bold 13px ' : '12px ') + cssVar('--mono');
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(n.name, n.x + n.r + 4.2, n.y + 4.5);
+      ctx.fillStyle = n === hot ? '#fff' : `rgba(234,246,255,${fade + 0.25})`;
+      ctx.fillText(n.name, n.x + n.r + 3.6, n.y + 3.8);
     }
   });
   requestAnimationFrame(frame);
@@ -245,7 +235,6 @@ function frame(time) {
 
 // ── data ──
 const fetchJSON = async (u) => { try { return await (await fetch(u, { cache: 'no-store' })).json(); } catch (e) { return null; } };
-
 async function load() {
   let roster = [];
   try {
@@ -260,85 +249,97 @@ async function load() {
   const trafficLive = traffic && traffic.status === 'ok' && (traffic.total_pageviews || 0) > 0;
   const commitsLive = commits && commits.status === 'ok';
 
-  let value = new Map(), extra = new Map(), gen = '', total = 0, win = '—';
+  let value = new Map(), gen = '', total = 0, win = '—';
   if (trafficLive) {
     METRIC = { kind: 'views', unit: 'page views', label: 'page views (log)' };
     value = new Map((traffic.sites || []).map((s) => [s.url, s.views]));
     gen = (traffic.generated || '').slice(0, 10); total = traffic.total_pageviews; win = `last ${traffic.window_days || 30}d`;
   } else if (commitsLive) {
-    METRIC = { kind: 'commits', unit: 'commits', label: 'commit depth (log, rename-aware)' };
-    value = new Map((commits.sites || []).map((s) => [s.url, s.commitsFollow]));
-    extra = new Map((commits.sites || []).map((s) => [s.url, s]));
-    gen = (commits.generated || '').slice(0, 10); total = commits.total_commits_follow; win = `${commits.history_commits} commits deep`;
+    METRIC = { kind: 'commits', unit: 'commits', label: 'commit depth (log, all branches)' };
+    value = new Map((commits.sites || []).map((s) => [s.url, s.commitsAll]));
+    window.__extra = new Map((commits.sites || []).map((s) => [s.url, s]));
+    gen = (commits.generated || '').slice(0, 10); total = commits.total_commits_all;
+    win = `${commits.all_commits} across all refs`;
   }
   const has = METRIC.kind !== 'none';
-  window.__extra = extra;
-
   document.getElementById('win').textContent = win;
   document.getElementById('metric-cap').textContent = has ? `by ${METRIC.unit}` : 'awaiting data';
   document.getElementById('meta').textContent = has
     ? `${roster.length} endpoints · ${Number(total).toLocaleString()} ${METRIC.unit}${gen ? ' · ' + gen : ''}`
     : `${roster.length} endpoints · awaiting data`;
-
   const banner = document.getElementById('banner');
   if (METRIC.kind === 'commits') {
     banner.classList.remove('hide');
-    banner.innerHTML = 'Depth = <b>rename-aware commit count</b> per endpoint (a stand-in). '
-      + 'Page views take over automatically once <code>traffic-ingest</code> runs with an '
-      + 'Analytics-scoped <code>CLOUDFLARE_API_TOKEN</code>.';
+    banner.innerHTML = `Depth = commits across <b>all ${commits.all_commits} refs</b>, not just the ${commits.head_commits} on HEAD — `
+      + `<b>${Number(commits.total_off_main).toLocaleString()}</b> of these commits lived off the main line. `
+      + `Page views take over once <code>CLOUDFLARE_API_TOKEN</code> has Zone Analytics: Read.`;
   } else if (METRIC.kind === 'none') {
     banner.classList.remove('hide');
-    banner.innerHTML = 'No data yet — every endpoint rests on the seafloor. Populate '
-      + '<code>data/commits.json</code> or <code>data/traffic.json</code>.';
+    banner.innerHTML = 'No data yet — every endpoint rests on the seafloor.';
   }
   document.getElementById('depth-cap').innerHTML = `<b>depth</b> = ${has ? METRIC.label : '—'} · tip = most`;
 
-  BERG = buildBerg();
+  BERG = buildBerg(params, 26000);
   placeNodes(roster, value, has);
   requestAnimationFrame(frame);
 }
 
-// ── hover / click ──
-function nodeAt(ev) {
-  const rect = cv.getBoundingClientRect();
-  const mx = (ev.clientX - rect.left) * (W / rect.width);
-  const my = (ev.clientY - rect.top) * (H / rect.height);
+// ── interaction: drag sites, morph the attractor, re-roll ──
+let dragNode = null, dragBerg = null, hot = null, bergDirty = false, lastBuild = 0;
+function toCanvas(ev) {
+  const r = cv.getBoundingClientRect();
+  return { x: (ev.clientX - r.left) * (W / r.width), y: (ev.clientY - r.top) * (H / r.height) };
+}
+function nodeAt(p) {
   let best = null, bd = 1e9;
-  for (const n of NODES) {
-    const d = (n.x - mx) ** 2 + (n.y - my) ** 2;
-    if (d < bd && d < (n.r + 6) ** 2) { bd = d; best = n; }
-  }
+  for (const n of NODES) { const d = (n.x - p.x) ** 2 + (n.y - p.y) ** 2; if (d < bd && d < (n.r + 7) ** 2) { bd = d; best = n; } }
   return best;
 }
+cv.addEventListener('pointerdown', (e) => {
+  const p = toCanvas(e); const n = nodeAt(p);
+  cv.setPointerCapture(e.pointerId); cv.classList.add('grabbing');
+  if (n) { dragNode = n; hot = n; }
+  else { dragBerg = { x: p.x, y: p.y, a: params.a, c: params.c }; }
+});
 cv.addEventListener('pointermove', (e) => {
-  const n = nodeAt(e);
+  const p = toCanvas(e);
+  if (dragNode) { dragNode.x = clamp(p.x, 8, W - 8); dragNode.y = clamp(p.y, WATER - 30, FLOOR); tip.style.display = 'none'; return; }
+  if (dragBerg) { params.a = clamp(dragBerg.a + (p.x - dragBerg.x) * 0.006, -3, 3); params.c = clamp(dragBerg.c + (p.y - dragBerg.y) * 0.006, -3, 3); bergDirty = true; return; }
+  const n = nodeAt(p); hot = n;
   if (!n) { tip.style.display = 'none'; return; }
   const x = window.__extra && window.__extra.get(n.url);
-  let body = `<b>${n.name}</b>${n.parent ? ' <span style="color:#8aa0ad">· ' + n.parent + '</span>' : ''} · ${n.category}<br>`;
+  let body = `<b>${n.name}</b>${n.parent ? ' <span style="color:#93b0c2">· ' + n.parent + '</span>' : ''} · ${n.category}<br>`;
   if (METRIC.kind === 'commits' && x) {
-    body += `<span class="v">${x.commitsFollow}</span> commits`
-      + (x.commitsFollow > x.commits ? ` · <span class="h">+${x.commitsFollow - x.commits}</span> recovered from refactors` : '')
+    body += `<span class="v">${x.commitsAll}</span> commits across all branches`
+      + (x.commitsAll > x.commits ? `<br><span class="h">${x.commitsAll - x.commits}</span> of them off-main (HEAD sees ${x.commits})` : `<br>all ${x.commits} on HEAD`)
       + `<br>${Number(x.churn).toLocaleString()} lines churned`;
-  } else if (METRIC.kind === 'views') {
-    body += `<span class="v">${(n.value || 0).toLocaleString()}</span> page views`;
-  } else body += 'awaiting data';
+  } else if (METRIC.kind === 'views') { body += `<span class="v">${(n.value || 0).toLocaleString()}</span> page views`; }
+  else body += 'awaiting data';
   body += `<br>${n.url.replace(/^https?:\/\//, '')}`;
   tip.innerHTML = body; tip.style.display = 'block';
-  const pad = 14, r = tip.getBoundingClientRect();
+  const pad = 14, rc = tip.getBoundingClientRect();
   let px = e.clientX + pad, py = e.clientY + pad;
-  if (px + r.width > innerWidth) px = e.clientX - r.width - pad;
-  if (py + r.height > innerHeight) py = e.clientY - r.height - pad;
+  if (px + rc.width > innerWidth) px = e.clientX - rc.width - pad;
+  if (py + rc.height > innerHeight) py = e.clientY - rc.height - pad;
   tip.style.left = px + 'px'; tip.style.top = py + 'px';
 });
-cv.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
-cv.addEventListener('click', (e) => { const n = nodeAt(e); if (n) window.open(n.url, '_blank', 'noopener'); });
+function endDrag() { if (dragBerg) bergDirty = true; dragNode = null; dragBerg = null; cv.classList.remove('grabbing'); }
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', () => { if (!dragNode && !dragBerg) tip.style.display = 'none'; });
+cv.addEventListener('dblclick', (e) => {
+  if (nodeAt(toCanvas(e))) return;
+  const rnd = () => +(Math.random() * 4.4 - 2.2).toFixed(2);
+  params = { a: rnd(), b: rnd(), c: rnd(), d: rnd() }; bergDirty = true;
+});
 
 function buildLegend() {
   const cats = [['bluesky', 'Bluesky / ATProto'], ['games', 'games'], ['tools', 'tools'], ['math', 'math'], ['other', 'other']];
   document.getElementById('legend').innerHTML =
     '<span id="depth-cap"><b>depth</b> = work (log) · tip = most</span>'
     + '<span>● size = magnitude</span>'
-    + cats.map(([c, l]) => `<span><span class="sw" style="background:${catColor(c)}"></span>${l}</span>`).join('');
+    + '<span class="hint">drag a site · drag water to morph · dbl-click to re-roll</span>'
+    + cats.map(([c, l]) => `<span><span class="sw" style="color:${catColor(c)};background:${catColor(c)}"></span>${l}</span>`).join('');
 }
 buildLegend();
 load();

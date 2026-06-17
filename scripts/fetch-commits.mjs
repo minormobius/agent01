@@ -7,22 +7,22 @@
  * stand-in metric for /iceberg/ until Cloudflare page views are wired up.
  *
  * Three numbers per endpoint:
- *   • commits       — commits touching the path at its CURRENT location (naive).
- *   • commitsFollow — rename-aware: unions `git log --follow` over the path's
- *                     current files, so work that was REFACTORED IN (e.g. the
- *                     whole `clock/` subtree was moved from elsewhere) still
- *                     counts. The gap (commitsFollow − commits) is history the
- *                     naive count loses to refactors.
- *   • churn         — insertions + deletions over that follow-aware history.
- * The iceberg ranks depth by commitsFollow; the tooltip shows all three.
+ *   • commits    — commits touching the path on the CURRENT branch (HEAD only).
+ *   • commitsAll — commits touching the path across ALL refs (every fetched
+ *                  feature branch). Most work happens on claude/* branches and
+ *                  is squash/merged down to a handful of HEAD commits, so this
+ *                  is the real depth. The gap (commitsAll − commits) is work
+ *                  that lived OFF the main line.
+ *   • churn      — insertions + deletions across all refs at that path.
+ * The iceberg ranks depth by commitsAll; the tooltip shows all three.
  *
  * Endpoint → repo path resolution walks the URL path under the surface's repo
  * dir(s) from deploy-registry.json, existence-checked (handles irregular maps
  * like g.mino.mobi/emsim/ → clock/emsim, mino.mobi/judge/ → judge).
  *
- * Usage: node scripts/fetch-commits.mjs [--out p] [--dry] [--no-follow]
- * The one cost is a `git log --follow` per tracked file (~one pass); CI should
- * checkout with fetch-depth: 0 so the follow history is complete.
+ * Usage: node scripts/fetch-commits.mjs [--out p] [--dry]
+ * CI should checkout with fetch-depth: 0 AND fetch every ref (the workflow runs
+ * `git fetch origin '+refs/heads/*:refs/remotes/origin/*'`) so --all is complete.
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -112,47 +112,26 @@ export function pathspecsFor(site, reg) {
   return [host.split('.')[0]];
 }
 
-// ─── git history (follow-aware) ─────────────────────────────────────────────
+// ─── git history (all refs) ─────────────────────────────────────────────────
 
-/** Map every tracked file → { commits:Set<sha>, ins, del } across renames. */
-function buildFileHistory(follow) {
-  const files = git(['ls-files']).split('\n').filter(Boolean);
-  const map = new Map();
-  const fmt = '\x01%H';
-  let done = 0;
-  for (const f of files) {
-    const commits = new Set();
-    let ins = 0, del = 0, sha = null;
-    let out = '';
-    try {
-      out = git(['log', ...(follow ? ['--follow'] : []), '--numstat', `--format=${fmt}`, '--', f]);
-    } catch { out = ''; }
-    for (const line of out.split('\n')) {
-      if (line[0] === '\x01') { sha = line.slice(1); if (sha) commits.add(sha); continue; }
-      if (!line.trim()) continue;
-      const m = line.split('\t');
-      if (m.length >= 3) { ins += Number(m[0]) || 0; del += Number(m[1]) || 0; }
-    }
-    map.set(f, { commits, churn: ins + del });
-    if (++done % 500 === 0) process.stderr.write(`  …history ${done}/${files.length}\n`);
-  }
-  return map;
-}
+const count = (revArgs, specs) => {
+  try { return Number(git(['rev-list', '--count', ...revArgs, '--', ...specs]).trim()) || 0; }
+  catch { return 0; }
+};
 
-function aggregate(pathspecs, fileHist) {
-  let files = [];
-  try { files = git(['ls-files', '--', ...pathspecs]).split('\n').filter(Boolean); } catch {}
-  const commits = new Set();
+/** Commits + churn for a path on HEAD and across every ref. */
+function statsFor(pathspecs) {
+  const commits = count(['HEAD'], pathspecs);
+  const commitsAll = count(['--all'], pathspecs);
   let churn = 0;
-  for (const f of files) {
-    const h = fileHist.get(f);
-    if (!h) continue;
-    for (const c of h.commits) commits.add(c);
-    churn += h.churn;
-  }
-  let naive = 0;
-  try { naive = Number(git(['rev-list', '--count', 'HEAD', '--', ...pathspecs]).trim()) || 0; } catch {}
-  return { commits: naive, commitsFollow: commits.size, churn, files: files.length };
+  try {
+    const out = git(['log', '--all', '--numstat', '--format=', '--', ...pathspecs]);
+    for (const line of out.split('\n')) {
+      const m = line.split('\t');
+      if (m.length >= 3) { churn += (Number(m[0]) || 0) + (Number(m[1]) || 0); }
+    }
+  } catch {}
+  return { commits, commitsAll, churn };
 }
 
 // ─── main ─────────────────────────────────────────────────────────────────--
@@ -168,25 +147,22 @@ function flattenAll(sitesJson) {
 function main() {
   const args = process.argv.slice(2);
   const dry = args.includes('--dry');
-  const follow = !args.includes('--no-follow');
   const outPath = args.includes('--out')
     ? resolve(args[args.indexOf('--out') + 1]) : resolve(ROOT, 'data/commits.json');
 
   const sites = flattenAll(JSON.parse(readFileSync(resolve(ROOT, 'io/sites.json'), 'utf8')));
   const reg = indexRegistry(JSON.parse(readFileSync(resolve(ROOT, 'deploy-registry.json'), 'utf8')));
-  process.stderr.write(`Building follow-aware file history (${follow ? 'follow' : 'no-follow'})…\n`);
-  const fileHist = buildFileHistory(follow);
 
   const ranked = sites.map((s) => {
     const specs = pathspecsFor(s, reg);
-    const a = aggregate(specs, fileHist);
+    const a = statsFor(specs);
     return { name: s.name, url: s.url, category: s.category, parent: s.parent,
-             commits: a.commits, commitsFollow: a.commitsFollow, churn: a.churn, specs };
-  }).sort((x, y) => y.commitsFollow - x.commitsFollow);
+             commits: a.commits, commitsAll: a.commitsAll, churn: a.churn, specs };
+  }).sort((x, y) => y.commitsAll - x.commitsAll);
 
   if (dry) {
     ranked.slice(0, 24).forEach((r) => console.log(
-      String(r.commitsFollow).padStart(4), `(naive ${String(r.commits).padStart(3)}, +${r.commitsFollow - r.commits} hidden)`,
+      String(r.commitsAll).padStart(4), `(HEAD ${String(r.commits).padStart(3)}, +${r.commitsAll - r.commits} off-main)`,
       String(r.churn).padStart(7) + ' churn ', r.name, r.parent ? `(${r.parent})` : '', '←', r.specs.join(' ')));
     console.log(`… ${ranked.length} endpoints total`);
     return;
@@ -195,17 +171,18 @@ function main() {
   const topLevel = ranked.filter((r) => !r.parent);
   const payload = {
     generated: new Date().toISOString(),
-    metric: 'commits-follow',
-    source: 'git log --follow per file, unioned per endpoint pathspec (rename-aware); churn = insertions+deletions',
-    status: ranked.some((r) => r.commitsFollow > 0) ? 'ok' : 'no-data',
-    history_commits: Number(git(['rev-list', '--count', 'HEAD']).trim()) || 0,
-    total_commits_follow: topLevel.reduce((n, s) => n + s.commitsFollow, 0),
-    total_hidden: topLevel.reduce((n, s) => n + (s.commitsFollow - s.commits), 0),
+    metric: 'commits-all',
+    source: 'git rev-list --count --all per endpoint pathspec (every fetched ref); churn = insertions+deletions across all refs',
+    status: ranked.some((r) => r.commitsAll > 0) ? 'ok' : 'no-data',
+    head_commits: count(['HEAD'], ['.']),
+    all_commits: count(['--all'], ['.']),
+    total_commits_all: topLevel.reduce((n, s) => n + s.commitsAll, 0),
+    total_off_main: topLevel.reduce((n, s) => n + (s.commitsAll - s.commits), 0),
     sites: ranked.map(({ specs, ...keep }) => keep),
   };
   writeFileSync(outPath, JSON.stringify(payload, null, 2) + '\n');
   const top = ranked[0];
-  console.log(`Wrote ${outPath}: ${ranked.length} endpoints (incl sub-paths). Top: ${top.name} ${top.commitsFollow} follow-commits (${top.commits} naive, ${top.commitsFollow - top.commits} recovered from refactors).`);
+  console.log(`Wrote ${outPath}: ${ranked.length} endpoints. Repo: ${payload.head_commits} on HEAD, ${payload.all_commits} across all refs. Top: ${top.name} ${top.commitsAll} (${top.commits} on HEAD, ${top.commitsAll - top.commits} off-main).`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
