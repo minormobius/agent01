@@ -312,12 +312,12 @@ function frame(now) {
   let elapsed = Math.min(0.05, (now - last) / 1000); last = now;
   const h = 1 / 240; let out = null;
   let acc = elapsed;
-  while (acc > 0) {
-    const dt = Math.min(h, acc); acc -= dt;
+  do {                                   // always take ≥1 substep (first frame: elapsed≈0 → dt 0, but out is set)
+    const dt = Math.min(h, Math.max(0, acc)); acc -= h;
     const push = pushFrames > 0 ? pushDir * bal.M * 2600 : 0;
-    if (pushFrames > 0) pushFrames--;
+    if (pushFrames > 0 && dt > 0) pushFrames--;
     out = bal.step(dt, { mode, vTarget, cadence, push, legsOff });
-  }
+  } while (acc > 0);
   render(out);
 
   // readouts
