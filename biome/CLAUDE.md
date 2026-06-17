@@ -134,13 +134,17 @@ scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG �
   node). Click two nodes to add a muscle; press **SOLVE** → tensions drawn (brightness = how hard each
   pulls), ground-reaction arrows, balanced/unbalanced joints; with too few muscles it **crumbles**
   (animated collapse). View toggles (bones/muscles/nodes/forces/balance) + Auto-grow.
-- `gait.mjs` — **WALK by contracting muscles** (forward dynamics). `makeGait(sprite, muscles)`: each LIMB
-  joint is integrated `q̈ = τ/I`; muscles are driven by a controller tracking the walk rhythm (a CPG keyed
-  to `CLIPS.walk`), so the legs move because muscles pull, capped by each muscle's strength (too weak →
-  lags). The trunk muscles hold the spine; the body is pinned (treadmill = no balance problem). Returns
-  per-step muscle ACTIVATIONS. The lab's 🏃 button runs it: scrolling belt, body bob, muscles glow as they
-  fire. `gait-proof.mjs` renders a headless walk strip. NB it *tracks* the kinematic gait (controller-driven),
-  not a learned/emergent one; forward locomotion + balance (off-treadmill) are the next step.
+- `gait.mjs` — **WALK by contracting muscles** (forward dynamics, GROUND-REFERENCED). `makeGait(sprite,
+  muscles)`: each LIMB joint is integrated `q̈ = τ/I`; muscles are driven by a controller tracking the walk
+  rhythm (a CPG keyed to `CLIPS.walk`), so the legs move because muscles pull, capped by each muscle's
+  strength (too weak → lags). **The datum is the flat ground, not the sacrum:** each step it picks the
+  stance feet (diagonal pairs, by phase), locks them to a world anchor, and SOLVES the body's height (lowest
+  planted foot on the ground → it bobs as legs flex) and forward position (rides over the planted feet → the
+  limbs progress against the ground). Returns bodyX/bodyY + per-foot contact + activations. The lab's 🏃
+  button runs it: a fixed ground line, world-anchored ground stripes + planted-foot ticks that scroll with
+  progress (camera follows the body so it stays in view), muscles glow as they fire. `gait-proof.mjs` =
+  headless walk strip. NB it *tracks* the kinematic gait (controller-driven), not learned/emergent; balance
+  off the foot-lock (true free locomotion) is the next step.
 - `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG contact sheet (headless).
 
 **Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints); grown one STANDS

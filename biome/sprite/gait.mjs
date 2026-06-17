@@ -9,7 +9,7 @@
 //
 // Returns, per step, the muscle ACTIVATIONS (0..1) so the lab can light up the firing pattern.
 
-import { solve, CLIPS } from './render.mjs';
+import { solve, bbox, CLIPS } from './render.mjs';
 import { limbJoints } from './mechanics.mjs';
 import { attachPos, momentArm } from './muscle.mjs';
 
@@ -31,6 +31,15 @@ export function makeGait(sprite, muscles, opt = {}) {
   const kp = opt.kp ?? 80, I = opt.I ?? 1.0, cadence = opt.cadence ?? 2.4;
   const kd = opt.kd ?? 2 * Math.sqrt(kp * I) * 1.05;            // ≈ critical damping → tracks without ringing
   let phase = 0;
+
+  // GROUND-REFERENCED placement: the datum is the flat ground, not the sacrum. Each leg's foot is a
+  // contact point; planted feet are locked to a world anchor, and the body's height + forward position
+  // are SOLVED each frame from those contacts — so the body bobs as legs flex and rides forward over the
+  // planted feet (the limbs progress against the ground). The sacrum is wherever the feet put it.
+  const span = (() => { const b = bbox(work, 0); return Math.max(b.w, b.h); })();
+  const legPrefixes = ['FN', 'FF', 'BN', 'BF'];
+  const footSegs = {}; for (const lp of legPrefixes) footSegs[lp] = work.segs.filter((s) => s.id.startsWith(lp + '_k')).map((s) => s.id);
+  let bodyX = 0, bodyY = 0; const anchorX = {}, wasContact = {};
 
   function step(dt) {
     phase = (phase + dt * cadence) % (Math.PI * 2);
@@ -59,7 +68,28 @@ export function makeGait(sprite, muscles, opt = {}) {
       if (limbSet.has(s.id)) s.rest = rest0[s.id] + q[s.id];
       else if (clip.angles[s.id] != null) s.rest = rest0[s.id] + clip.angles[s.id];
     }
-    return { activations: act, bob: clip.bob || 0, phase };
+
+    // ── SOLVE AGAINST FLAT GROUND ──  body-frame foot positions (lowest tip per leg) from current pose
+    const Wb = solve(work, 0);
+    const feet = legPrefixes.map((lp) => {
+      let lo = null; for (const id of footSegs[lp]) { const t = Wb[id].tip; if (!lo || t.y > lo.y) lo = t; }
+      return lo ? { leg: lp, fx: lo.x, fy: lo.y } : null;
+    }).filter(Boolean);
+    // stance schedule by PHASE (not foot height — feet barely lift, so height flickers): diagonal pairs,
+    // each leg planted for the rear half of its excursion → exactly two feet down at a time, clean handoff.
+    for (const f of feet) { const off = (f.leg === 'FN' || f.leg === 'BF') ? 0 : Math.PI; f.contact = Math.sin(phase + off) >= 0; }
+    const planted = feet.filter((f) => f.contact);
+    const minFy = (planted.length ? planted : feet).reduce((m, f) => Math.max(m, f.fy), -1e9);
+    bodyY = -minFy;                                           // lift the body so the lowest planted foot sits at y=0
+    let sumX = 0, n = 0;
+    for (const f of planted) {
+      if (!wasContact[f.leg]) anchorX[f.leg] = bodyX + f.fx;  // touchdown: plant here (continuous — no jump)
+      sumX += anchorX[f.leg] - f.fx; n++;                     // body must sit so the planted foot stays put
+    }
+    for (const f of feet) wasContact[f.leg] = f.contact;
+    if (n > 0) bodyX = sumX / n;                              // body rides forward over the planted feet
+    const worldFeet = feet.map((f) => ({ leg: f.leg, worldX: bodyX + f.fx, worldY: bodyY + f.fy, contact: f.contact }));
+    return { activations: act, bodyX, bodyY, feet: worldFeet, phase };
   }
 
   return { sprite: work, step, phase: () => phase };
