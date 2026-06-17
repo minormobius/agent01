@@ -1,0 +1,400 @@
+{
+  "generated": "2026-06-17T22:10:28.000Z",
+  "metric": "commits",
+  "source": "git rev-list --count per endpoint pathspec (deploy-registry paths)",
+  "status": "ok",
+  "history_commits": 485,
+  "total_commits": 477,
+  "sites": [
+    {
+      "name": "hoop",
+      "url": "https://hoop.mino.mobi",
+      "category": "bluesky",
+      "commits": 144
+    },
+    {
+      "name": "mega",
+      "url": "https://mino.mobi/mega/",
+      "category": "data",
+      "commits": 32
+    },
+    {
+      "name": "sprite",
+      "url": "https://mega.mino.mobi/sprite/",
+      "category": "games",
+      "commits": 32
+    },
+    {
+      "name": "biome",
+      "url": "https://biome.mino.mobi",
+      "category": "data",
+      "commits": 30
+    },
+    {
+      "name": "rite",
+      "url": "https://rite.mino.mobi",
+      "category": "bluesky",
+      "commits": 19
+    },
+    {
+      "name": "bisk",
+      "url": "https://bisk.mino.mobi",
+      "category": "bluesky",
+      "commits": 16
+    },
+    {
+      "name": "read",
+      "url": "https://mino.mobi/read/",
+      "category": "tools",
+      "commits": 16
+    },
+    {
+      "name": "disk",
+      "url": "https://b.mino.mobi/disk/",
+      "category": "bluesky",
+      "commits": 14
+    },
+    {
+      "name": "atmosphere",
+      "url": "https://b.mino.mobi",
+      "category": "bluesky",
+      "commits": 14
+    },
+    {
+      "name": "mappa",
+      "url": "https://mino.mobi/mappa/",
+      "category": "data",
+      "commits": 11
+    },
+    {
+      "name": "g",
+      "url": "https://g.mino.mobi/",
+      "category": "games",
+      "commits": 11
+    },
+    {
+      "name": "fable",
+      "url": "https://fable.mino.mobi",
+      "category": "games",
+      "commits": 11
+    },
+    {
+      "name": "duck",
+      "url": "https://duck.mino.mobi",
+      "category": "games",
+      "commits": 10
+    },
+    {
+      "name": "pod",
+      "url": "https://pod.mino.mobi",
+      "category": "bluesky",
+      "commits": 9
+    },
+    {
+      "name": "rind",
+      "url": "https://rind.mino.mobi",
+      "category": "data",
+      "commits": 9
+    },
+    {
+      "name": "ocr",
+      "url": "https://ocr.mino.mobi",
+      "category": "tools",
+      "commits": 8
+    },
+    {
+      "name": "io",
+      "url": "https://io.mino.mobi",
+      "category": "work",
+      "commits": 7
+    },
+    {
+      "name": "iris",
+      "url": "https://iris.mino.mobi",
+      "category": "data",
+      "commits": 6
+    },
+    {
+      "name": "photo",
+      "url": "https://photo.mino.mobi",
+      "category": "bluesky",
+      "commits": 5
+    },
+    {
+      "name": "phylofiction",
+      "url": "https://phylofiction.mino.mobi",
+      "category": "data",
+      "commits": 5
+    },
+    {
+      "name": "tide",
+      "url": "https://tide.mino.mobi",
+      "category": "data",
+      "commits": 5
+    },
+    {
+      "name": "geometry",
+      "url": "https://mino.mobi/geometry/",
+      "category": "data",
+      "commits": 4
+    },
+    {
+      "name": "prop",
+      "url": "https://mino.mobi/prop/",
+      "category": "data",
+      "commits": 4
+    },
+    {
+      "name": "games",
+      "url": "https://games.mino.mobi",
+      "category": "games",
+      "commits": 4
+    },
+    {
+      "name": "canvas",
+      "url": "https://canvas.mino.mobi",
+      "category": "tools",
+      "commits": 4
+    },
+    {
+      "name": "ar",
+      "url": "https://ar.mino.mobi/",
+      "category": "data",
+      "commits": 3
+    },
+    {
+      "name": "answers",
+      "url": "https://mino.mobi/answers/",
+      "category": "bluesky",
+      "commits": 2
+    },
+    {
+      "name": "cards",
+      "url": "https://mino.mobi/cards/",
+      "category": "data",
+      "commits": 2
+    },
+    {
+      "name": "os",
+      "url": "https://os.mino.mobi",
+      "category": "tools",
+      "commits": 2
+    },
+    {
+      "name": "cable",
+      "url": "https://cable.mino.mobi",
+      "category": "tools",
+      "commits": 2
+    },
+    {
+      "name": "torus",
+      "url": "https://torus.mino.mobi/",
+      "category": "games",
+      "commits": 2
+    },
+    {
+      "name": "airchat",
+      "url": "https://airchat.mino.mobi",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "zoom",
+      "url": "https://zoom.mino.mobi",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "weft",
+      "url": "https://mino.mobi/weft/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "empathy",
+      "url": "https://empath.mino.mobi",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "ternary",
+      "url": "https://mino.mobi/ternary/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "judge",
+      "url": "https://mino.mobi/judge/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "novelty",
+      "url": "https://mino.mobi/novelty/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "echo",
+      "url": "https://mino.mobi/echo/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "density",
+      "url": "https://mino.mobi/density/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "seek",
+      "url": "https://mino.mobi/seek/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "cluster",
+      "url": "https://mino.mobi/cluster/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "wild",
+      "url": "https://mino.mobi/wild/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "cat",
+      "url": "https://cat.mino.mobi",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "track",
+      "url": "https://mino.mobi/track/",
+      "category": "bluesky",
+      "commits": 1
+    },
+    {
+      "name": "bounty",
+      "url": "https://mino.mobi/bounty/",
+      "category": "work",
+      "commits": 1
+    },
+    {
+      "name": "time",
+      "url": "https://mino.mobi/time/",
+      "category": "data",
+      "commits": 1
+    },
+    {
+      "name": "finance",
+      "url": "https://mino.mobi/finance/",
+      "category": "data",
+      "commits": 1
+    },
+    {
+      "name": "wars",
+      "url": "https://mino.mobi/wars/",
+      "category": "data",
+      "commits": 1
+    },
+    {
+      "name": "flows",
+      "url": "https://mino.mobi/flows/",
+      "category": "data",
+      "commits": 1
+    },
+    {
+      "name": "phylo",
+      "url": "https://mino.mobi/phylo/",
+      "category": "data",
+      "commits": 1
+    },
+    {
+      "name": "crucible",
+      "url": "https://mino.mobi/crucible/",
+      "category": "data",
+      "commits": 1
+    },
+    {
+      "name": "elements",
+      "url": "https://mino.mobi/elements/",
+      "category": "data",
+      "commits": 1
+    },
+    {
+      "name": "labglass",
+      "url": "https://mino.mobi/labglass/",
+      "category": "tools",
+      "commits": 1
+    },
+    {
+      "name": "noise",
+      "url": "https://mino.mobi/noise/",
+      "category": "tools",
+      "commits": 1
+    },
+    {
+      "name": "music",
+      "url": "https://mino.mobi/music/",
+      "category": "tools",
+      "commits": 1
+    },
+    {
+      "name": "bakery",
+      "url": "https://bake.mino.mobi",
+      "category": "tools",
+      "commits": 1
+    },
+    {
+      "name": "sweat",
+      "url": "https://mino.mobi/sweat/",
+      "category": "tools",
+      "commits": 1
+    },
+    {
+      "name": "j",
+      "url": "https://j.mino.mobi",
+      "category": "tools",
+      "commits": 1
+    },
+    {
+      "name": "borges",
+      "url": "https://borges.mino.mobi",
+      "category": "tools",
+      "commits": 1
+    },
+    {
+      "name": "ai-edu",
+      "url": "https://ai.mino.mobi",
+      "category": "tools",
+      "commits": 1
+    },
+    {
+      "name": "pokemon",
+      "url": "https://mino.mobi/pokemon/",
+      "category": "games",
+      "commits": 1
+    },
+    {
+      "name": "mmo",
+      "url": "https://mino.mobi/mmo/",
+      "category": "games",
+      "commits": 1
+    },
+    {
+      "name": "splice",
+      "url": "https://splice.mino.mobi",
+      "category": "games",
+      "commits": 1
+    },
+    {
+      "name": "fluoddity",
+      "url": "https://fluoddity.mino.mobi",
+      "category": "games",
+      "commits": 1
+    }
+  ]
+}

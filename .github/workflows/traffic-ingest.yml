@@ -1,17 +1,18 @@
-name: Traffic ingest (page views → iceberg)
+name: Traffic ingest (iceberg metrics)
 
-# Pulls per-surface page views from Cloudflare's GraphQL analytics and commits
-# data/traffic.json — the data source for mino.mobi/iceberg/.
+# Refreshes the two ranking metrics behind mino.mobi/iceberg/:
+#   • data/commits.json — commits touching each endpoint (no token, always runs)
+#   • data/traffic.json — Cloudflare page views (needs an Analytics-scoped token)
+# The iceberg prefers page views and falls back to commit impact.
 #
 # Two gotchas (shared with bisk-digest):
 #   1. `schedule:` only fires from the DEFAULT branch (main), so this lives on main.
 #   2. A GITHUB_TOKEN commit does NOT trigger deploy-root, so we self-deploy the
 #      root Pages project here after committing.
 #
-# REQUIREMENT: CLOUDFLARE_API_TOKEN must include **Zone Analytics: Read** (or
-# account Analytics: Read) in addition to its Pages-deploy scope. Without it the
-# fetch step fails loudly and the committed data/traffic.json keeps its last
-# good value (the iceberg degrades to the "awaiting ingest" seafloor state).
+# NOTE: page views require CLOUDFLARE_API_TOKEN to include **Zone Analytics: Read**
+# (or account Analytics: Read). Without it the traffic step is skipped and only the
+# commit-impact ranking refreshes — the iceberg stays meaningful either way.
 
 on:
   schedule:
@@ -36,28 +37,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history → accurate per-endpoint commit counts
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Fetch page views from Cloudflare
+      - name: Rank by commit impact (no token needed)
+        run: node scripts/fetch-commits.mjs
+
+      - name: Fetch page views from Cloudflare (skipped if token lacks Analytics scope)
+        continue-on-error: true
         run: node scripts/fetch-traffic.mjs --days "${{ github.event.inputs.days || '30' }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Commit data/traffic.json if it changed
+      - name: Commit refreshed metrics if they changed
         id: commit
         run: |
-          if git diff --quiet -- data/traffic.json; then
+          if git diff --quiet -- data/traffic.json data/commits.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No change in data/traffic.json"
+            echo "No change in iceberg metrics"
           else
             git config user.name 'github-actions[bot]'
             git config user.email 'github-actions[bot]@users.noreply.github.com'
-            git add data/traffic.json
-            git commit -m "traffic: refresh page-view ranking $(date -u +%Y-%m-%d)"
+            git add data/traffic.json data/commits.json
+            git commit -m "iceberg: refresh ranking metrics $(date -u +%Y-%m-%d)"
             git push
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi

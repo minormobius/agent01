@@ -68,7 +68,7 @@
   <h1>iceberg</h1>
   <span class="meta" id="meta">loading…</span>
   <span class="spacer"></span>
-  <span class="meta">page views, last <span id="win">30</span>d</span>
+  <span class="meta">ranked <span id="metric-cap">…</span> · <span id="win">—</span></span>
 </div>
 <p class="banner hide" id="banner"></p>
 
@@ -80,13 +80,18 @@
 <div class="legend" id="legend"></div>
 
 <div class="foot">
-  <p><b style="color:var(--ink)">How depth is read.</b> Each surface sinks to a depth set by its page
-  views on a logarithmic scale — the busiest sites float in the sunlit shallows, the quietest settle
-  on the benthic floor. A “page view” is an edge HTML document load
+  <p><b style="color:var(--ink)">How depth is read.</b> Each surface sinks to a depth set by its
+  ranking metric on a logarithmic scale — the biggest float in the sunlit shallows, the quietest
+  settle on the benthic floor. Two metrics, in order of preference:</p>
+  <p><b style="color:var(--ink)">Page views</b> (when available) — an edge HTML document load
   (<code>edgeResponseContentTypeName = "html"</code>), sampling-adjusted, pulled from Cloudflare’s
-  GraphQL analytics by <code>scripts/fetch-traffic.mjs</code> and refreshed daily by the
-  <code>traffic-ingest</code> workflow. Path-based sub-pages roll up into their host surface; only
-  top-level surfaces are plotted.</p>
+  GraphQL analytics by <code>scripts/fetch-traffic.mjs</code>. Needs <code>CLOUDFLARE_API_TOKEN</code>
+  to carry <code>Zone Analytics: Read</code>.</p>
+  <p><b style="color:var(--ink)">Commit impact</b> (the current stand-in) — the number of git commits
+  that have touched the files each endpoint deploys from, via <code>scripts/fetch-commits.mjs</code>
+  reading <code>deploy-registry.json</code>’s pathspecs. No token required. Both are refreshed daily
+  by the <code>traffic-ingest</code> workflow; path-based sub-pages roll up into their host surface,
+  and only top-level surfaces are plotted.</p>
 </div>
 
 <div id="tip"></div>
@@ -119,48 +124,75 @@ function depthFor(v, minV, maxV) {
 }
 const el = (tag, attrs) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
 const fmt = (n) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n);
+const fetchJSON = async (u) => { try { return await (await fetch(u, { cache: 'no-store' })).json(); } catch (e) { return null; } };
+
+// The active metric. Page views win when present; commit-impact is the stand-in.
+let METRIC = { kind: 'none', unit: '', label: '—' };
 
 async function load() {
-  let roster = [], traffic = { status: 'awaiting-ingest', sites: [], window_days: 30 };
+  let roster = [];
   try {
-    const r = await fetch('/io/sites.json', { cache: 'no-store' });
-    const j = await r.json();
+    const j = await (await fetch('/io/sites.json', { cache: 'no-store' })).json();
     for (const c of j.constellations || [])
       for (const s of c.sites || []) if (!s.parent)
         roster.push({ name: s.name, url: s.url, category: (s.tags && s.tags[0]) || 'other' });
   } catch (e) { /* roster stays empty → handled below */ }
-  try { traffic = await (await fetch('/data/traffic.json', { cache: 'no-store' })).json(); } catch (e) {}
 
-  const views = new Map((traffic.sites || []).map((s) => [s.url, s.views]));
-  document.getElementById('win').textContent = traffic.window_days || 30;
-  const live = traffic.status === 'ok' && (traffic.total_pageviews || 0) > 0;
+  const traffic = await fetchJSON('/data/traffic.json');
+  const commits = await fetchJSON('/data/commits.json');
+  const trafficLive = traffic && traffic.status === 'ok' && (traffic.total_pageviews || 0) > 0;
+  const commitsLive = commits && commits.status === 'ok' && (commits.total_commits || 0) > 0;
 
-  document.getElementById('meta').textContent = live
-    ? `${roster.length} surfaces · ${Number(traffic.total_pageviews).toLocaleString()} views · ${(traffic.generated || '').slice(0, 10)}`
-    : `${roster.length} surfaces · awaiting first ingest`;
+  let value = new Map(), gen = '', total = 0, win = '—';
+  if (trafficLive) {
+    METRIC = { kind: 'views', unit: 'page views', label: 'page views (log)' };
+    value = new Map((traffic.sites || []).map((s) => [s.url, s.views]));
+    gen = (traffic.generated || '').slice(0, 10); total = traffic.total_pageviews;
+    win = `last ${traffic.window_days || 30}d`;
+  } else if (commitsLive) {
+    METRIC = { kind: 'commits', unit: 'commits', label: 'commits touching the endpoint (log)' };
+    value = new Map((commits.sites || []).map((s) => [s.url, s.commits]));
+    gen = (commits.generated || '').slice(0, 10); total = commits.total_commits;
+    win = 'all history';
+  }
+  const has = METRIC.kind !== 'none';
+
+  document.getElementById('win').textContent = win;
+  document.getElementById('metric-cap').textContent = has ? `by ${METRIC.unit}` : 'awaiting data';
+  document.getElementById('meta').textContent = has
+    ? `${roster.length} surfaces · ${Number(total).toLocaleString()} ${METRIC.unit} · ${gen}`
+    : `${roster.length} surfaces · awaiting data`;
+  const dc = document.getElementById('depth-cap');
+  if (dc) dc.innerHTML = `<b>depth</b> = ${has ? METRIC.label : '—'} · surface = most`;
+
   const banner = document.getElementById('banner');
-  if (!live) {
+  if (METRIC.kind === 'commits') {
     banner.classList.remove('hide');
-    banner.innerHTML = 'No traffic data yet — every surface is shown <b>at rest on the seafloor</b>. '
-      + 'Depth becomes meaningful once the <code>traffic-ingest</code> workflow runs with an '
-      + 'Analytics-scoped <code>CLOUDFLARE_API_TOKEN</code>.';
+    banner.innerHTML = 'Ranked by <b>commits that touch each endpoint</b> — a stand-in metric. '
+      + 'Page views take over automatically once the <code>traffic-ingest</code> workflow runs '
+      + 'with an Analytics-scoped <code>CLOUDFLARE_API_TOKEN</code>.';
+  } else if (METRIC.kind === 'none') {
+    banner.classList.remove('hide');
+    banner.innerHTML = 'No data yet — every surface rests on the seafloor. Populate '
+      + '<code>data/commits.json</code> or <code>data/traffic.json</code> to give depth meaning.';
   }
 
-  const vals = roster.map((s) => views.get(s.url) || 0).filter((v) => v > 0);
+  const vals = roster.map((s) => value.get(s.url) || 0).filter((v) => v > 0);
   const maxV = vals.length ? Math.max(...vals) : 0;
   const minV = vals.length ? Math.min(...vals) : 0;
 
   draw(roster.map((s, i) => {
-    const v = views.get(s.url) || 0;
-    // Live: depth from views. No data: tile the abyss/hadal so nodes don't pile.
-    const depth = live ? depthFor(v, minV, maxV)
-                       : 0.80 + 0.18 * ((i % 17) / 16);
-    return { ...s, views: v, depth };
-  }), live);
+    const v = value.get(s.url) || 0;
+    // With data: depth from the metric. Without: tile the abyss so nodes don't pile.
+    const depth = has ? depthFor(v, minV, maxV) : 0.80 + 0.18 * ((i % 17) / 16);
+    return { ...s, value: v, depth };
+  }));
 }
 
-function draw(nodes, live) {
+function draw(nodes) {
   sea.innerHTML = '';
+  const has = METRIC.kind !== 'none';
+  const maxVal = Math.max(1, ...nodes.map((n) => n.value || 0));
 
   // sky + water-column zone bands
   sea.appendChild(el('rect', { x: 0, y: 0, width: W, height: WATER, fill: 'url(#sky)' }));
@@ -200,7 +232,7 @@ function draw(nodes, live) {
     shelves.get(row).push(n);
   }
   for (const [row, arr] of shelves) {
-    arr.sort((a, b) => b.views - a.views);
+    arr.sort((a, b) => b.value - a.value);
     const y = Math.min(FLOOR - 8, Math.max(WATER + 18, row * rowH));
     const n = arr.length;
     const usable = W - margin * 2;
@@ -209,7 +241,7 @@ function draw(nodes, live) {
     arr.forEach((node, i) => {
       const x = margin + gap * (i + 0.5);
       const depthFade = 0.45 + 0.55 * (1 - node.depth); // dimmer the deeper it sits
-      const r = Math.max(4, Math.min(24, 4 + Math.sqrt(node.views) * 0.5));
+      const r = 4 + 20 * Math.sqrt((node.value || 0) / maxVal); // scaled to the active metric
       const col = catColor(node.category);
 
       const g = el('g', { class: 'node' });
@@ -222,13 +254,13 @@ function draw(nodes, live) {
         const t = el('text', { class: 'node-label', x: x + r + 5, y: y + 3, 'font-size': 12, 'fill-opacity': depthFade + 0.2 });
         t.textContent = node.name;
         g.appendChild(t);
-        if (live && node.views > 0) {
+        if (has && node.value > 0) {
           const vt = el('text', { class: 'node-views', x: x + r + 5, y: y + 15, 'font-size': 9 });
-          vt.textContent = fmt(node.views);
+          vt.textContent = fmt(node.value);
           g.appendChild(vt);
         }
       }
-      g.addEventListener('pointerenter', (e) => showTip(e, node, live));
+      g.addEventListener('pointerenter', (e) => showTip(e, node));
       g.addEventListener('pointermove', (e) => moveTip(e));
       g.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
       g.addEventListener('click', () => window.open(node.url, '_blank', 'noopener'));
@@ -238,9 +270,9 @@ function draw(nodes, live) {
   }
 }
 
-function showTip(e, node, live) {
+function showTip(e, node) {
   tip.innerHTML = `<b>${node.name}</b> · ${node.category}<br>`
-    + (live ? `<span class="v">${node.views.toLocaleString()}</span> page views` : 'awaiting traffic data')
+    + (METRIC.kind !== 'none' ? `<span class="v">${(node.value || 0).toLocaleString()}</span> ${METRIC.unit}` : 'awaiting data')
     + `<br>${node.url.replace(/^https?:\/\//, '')}`;
   tip.style.display = 'block';
   moveTip(e);
@@ -257,7 +289,7 @@ function moveTip(e) {
 function buildLegend() {
   const cats = [['bluesky', 'Bluesky / ATProto'], ['games', 'games'], ['tools', 'tools'], ['math', 'math'], ['other', 'other']];
   const lg = document.getElementById('legend');
-  lg.innerHTML = '<span><b>depth</b> = page views (log) · surface = most visited</span>'
+  lg.innerHTML = '<span id="depth-cap"><b>depth</b> = page views (log) · surface = most</span>'
     + cats.map(([c, label]) => `<span><span class="sw" style="background:${catColor(c)}"></span>${label}</span>`).join('');
 }
 
