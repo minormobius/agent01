@@ -43,9 +43,25 @@ export function segMasses(sprite) {
   return m;
 }
 
-// the actuated joints we grow muscle for: limb joints (shoulder/elbow/wrist, hip/knee/hock) + head.
+// the actuated joints we grow muscle for: limb joints + head + every presacral VERTEBRA. The spine is
+// a loaded bridge — without trunk muscle it sags — so the intervertebral joints are first-class here.
+const SPINE_ROLES = new Set(['cervical', 'thoracic', 'lumbar']); // presacral & mobile (sacral is fused)
+const isSpine = (s) => s.shape === 'vertebra' && SPINE_ROLES.has(s.role);
+const isLimb = (s) => s.joint === 'upper' || s.joint === 'mid' || s.joint === 'lower';
+export const spineChain = (sprite) => sprite.segs.filter(isSpine).map((s) => s.id); // caudal→cranial order
+export const limbJoints = (sprite) => sprite.segs.filter(isLimb).map((s) => s.id);
 export function actuatedJoints(sprite) {
-  return sprite.segs.filter((s) => (s.joint === 'upper' || s.joint === 'mid' || s.joint === 'lower') || s.id === 'skull');
+  return sprite.segs.filter((s) => isLimb(s) || s.id === 'skull' || isSpine(s));
+}
+
+// ── BOUNDARY CONDITIONS ─────────────────────────────────────────────────────────────────────────
+// Passive structures (joint capsules, intervertebral & nuchal ligaments, the "stay apparatus") carry a
+// share of the load before muscle is recruited — a real boundary condition, and why animals stand cheap.
+// Returns the fraction of a joint's required torque that passive tissue covers (so muscleNeed = req·(1−f)).
+export function passiveFraction(seg) {
+  if (seg.id === 'skull') return 0.35;          // nuchal ligament holds much of the head cantilever
+  if (isSpine(seg)) return seg.role === 'thoracic' ? 0.4 : 0.3; // supraspinous/intervertebral ligaments
+  return 0.1;                                    // limb joint capsules: mostly active control
 }
 
 // ground contacts at this pose: foot tips (keratin) within a band of the lowest point are bearing load.
@@ -142,11 +158,11 @@ export function evaluateStanding(sprite, muscles, opt = {}) {
   for (const seg of actuatedJoints(sprite)) {
     const req = requiredTorque(sprite, W, mass, grf, ch, seg.id);
     const cap = jointCapacity(W, muscles, seg.id);
-    const need = Math.abs(req) * (1 + margin);
+    const need = Math.abs(req) * (1 - passiveFraction(seg)) * (1 + margin); // passive tissue carries a share
     const holdSide = req >= 0 ? 'pos' : 'neg';
     const held = cap[holdSide] >= need;
     const antagonized = cap.pos >= minCap && cap.neg >= minCap;
-    joints.push({ id: seg.id, required: req, cap, held, antagonized, stable: held && antagonized });
+    joints.push({ id: seg.id, required: req, need, holdSide, cap, held, antagonized, stable: held && antagonized });
   }
   // CoM over support interval
   const cs = contacts(sprite, W);

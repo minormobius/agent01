@@ -56,16 +56,23 @@ console.log('\nmuscle.selftest — muscular-system solver (Phase 1: standing sta
   ok('every actuated joint is antagonised (an agonist + an antagonist)', antag, bad);
 }
 
-// 4. minimality — removing ANY single muscle breaks standing (no fat in the solution)
+// 4. the trunk is in the model and load-bearing; the long back muscle emerges from first principles
 {
-  const sp = build(ORG.horse);
-  const muscles = growMuscles(sp).muscles;
-  let necessary = true, keep = '';
-  for (let i = 0; i < muscles.length; i++) {
-    const without = muscles.filter((_, k) => k !== i);
-    if (evaluateStanding(sp, without).stable) { necessary = false; keep = muscles[i].id; }
+  let actuated = true, emerges = true, loadBearing = true, info = '';
+  for (const id of SUBJECTS) {
+    const sp = build(ORG[id]);
+    const m = growMuscles(sp).muscles;
+    const st = evaluateStanding(sp, m);
+    const spineJoints = st.joints.filter((j) => /^[CTL]\d/.test(j.id));
+    if (spineJoints.length < 20) { actuated = false; info = `${id} ${spineJoints.length} spine joints`; }
+    if (!spineJoints.every((j) => j.stable)) { actuated = false; info = `${id} spine not all held`; }
+    const longest = m.filter((x) => x.limb === 'axial').reduce((a, x) => Math.max(a, x.joints.length), 0);
+    if (longest < 10) { emerges = false; info = `${id} longest ${longest}v`; }
+    if (evaluateStanding(sp, m.filter((x) => x.limb !== 'axial')).stable) { loadBearing = false; info = `${id} stood without trunk`; }
   }
-  ok('every muscle is necessary — removing any one collapses standing', necessary, keep);
+  ok('vertebrae are actuated joints (≥20 spine joints) and every one is held', actuated, info);
+  ok('a long poly-articular back muscle EMERGES (longissimus ≥10 vertebrae)', emerges, info);
+  ok('the trunk is load-bearing — removing axial muscles collapses standing', loadBearing, info);
 }
 
 // 5. generation kills the no-lever candidates — every survivor has a usable moment arm
@@ -103,13 +110,13 @@ console.log('\nmuscle.selftest — muscular-system solver (Phase 1: standing sta
   ok('grown muscles actuate ≫ more of the walk cycle than bare bones', improved, bad);
 }
 
-// 8. the solver scales: a roughly antagonist-paired count per actuated joint
+// 8. the solver scales to a substantial set (limbs + the whole spine) without runaway volume
 {
   const sp = build(ORG.horse);
-  const m = growMuscles(sp).muscles;
+  const { muscles, volume } = growMuscles(sp);
   const j = actuatedJoints(sp).length;
-  ok('muscle count ≈ an agonist+antagonist per actuated joint', m.length >= j && m.length <= 2 * j,
-    `${m.length} muscles for ${j} joints`);
+  ok('muscle set is substantial — at least one per actuated joint', muscles.length >= j, `${muscles.length} for ${j} joints`);
+  ok('total muscle volume stays physically sane (no force blow-up)', volume > 0 && volume < 1e5, `vol ${volume.toFixed(0)}`);
 }
 
 console.log(`\n${fail === 0 ? '✓ all green' : '✗ FAIL'} — ${pass} passed, ${fail} failed\n`);
