@@ -173,10 +173,14 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-v091-improvements-16wk16` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-v096-story-bible-vgzqze` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
+- **v096 live inference (phase 2+, NOT yet wired into `worker.js`):** the worker will gain
+  `GEMINI_API_KEY` (set out-of-band via `wrangler secret put`, never committed — the borges rule) to
+  drive the segregated `story/llm/` adapter. Until set, the adapter is the disabled stub and the game
+  is procedural. To swap in huwupy's local model: set `STORY_LLM=local` + `LLM_BASE_URL`/`EMBED_BASE_URL`.
 - Ownership is in `deploy-registry.json` (surface `hoop`). Edit the registry, then
   `node scripts/gen-deploy-triggers.mjs --write` + `node scripts/lint-deploy-registry.mjs`.
 

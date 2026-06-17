@@ -12,13 +12,16 @@
         "properties": {
           "type": { "type": "string", "enum": ["npc", "item", "lore_fragment", "creature", "plot_beat"], "description": "Which pool a feature dispatches from." },
           "content": { "type": "unknown", "description": "The renderable payload: {name, description, mechanics?, dialogue?}. Open-shaped (dialogue trees vary)." },
-          "revelation_tier": { "type": "integer", "minimum": 1, "maximum": 3, "description": "Hard tier gate: a player never sees content above their revelation_tier." },
-          "narrative_tier": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "revelation_tier": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Hard tier gate: a player never sees content above their revelation_tier. The Tabard bible's ladders are 1..5 (Ordinary→Curve→Vessel→Approach→Purpose); the old 1..3 clamp collapsed the back half of the chapter (v094 C2)." },
+          "narrative_tier": { "type": "integer", "minimum": 1, "maximum": 5, "description": "1..5: Arrival→Orientation→Investigation→Convergence→Resolution." },
           "power_tier": { "type": "integer", "minimum": 1, "maximum": 5 },
           "tags": { "type": "array", "items": { "type": "string" }, "description": "World/role tags. The role→tag bridge biases dispatch toward a resident's econ role." },
           "requires": { "type": "unknown", "description": "Gate blob {facts, items, min_rep} — the reactive layer. Empty/absent = always available." },
           "approved": { "type": "boolean", "description": "Only approved items dispatch." },
           "status": { "type": "string", "enum": ["active", "retired"], "description": "Retired items stay bound to existing placements but never re-dispatch." },
+          "lane": { "type": "string", "enum": ["spine", "sidequest"], "description": "PROVENANCE (the pool is totally filterable). 'spine' = the shared authored/seeded canon in the service repo; 'sidequest' = a player's live-generated personal arc, frozen to their own repo. A filter projection lets the engine load spine-only, drop-experimental, or this-player-only views — so a swappable model's output stays cleanly separable and rippable. Absent ⇒ treated as 'spine' (back-compat with pre-v096 records)." },
+          "provider": { "type": "string", "description": "PROVENANCE: which generator authored this — 'authored' (human), 'gemini-2.5-flash', 'local:<model>' (huwupy's playground), etc. Filterable so experimental local-model content can be excluded wholesale." },
+          "genState": { "type": "string", "maxLength": 256, "description": "PROVENANCE: a compact digest of the game-state / chunk-characteristics vector that STEERED this generation (the embeddings-match key huwupy's spine retrieves on). Empty for hand-authored content." },
           "createdAt": { "type": "string", "format": "datetime" }
         }
       }

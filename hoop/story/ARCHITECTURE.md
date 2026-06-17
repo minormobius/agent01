@@ -89,5 +89,26 @@ so sealing it is a drop-in.
 | v3 reads the pulse → "🌐 world pulse" HUD line | ✅ guarded (shows once the Director has run) |
 | **Constellation** chamber backlinks (place at-uri → "who's been here") | ⏳ optional (the pulse already covers chamber heat via folded saves) |
 
+### v096 — wiring the bible in (the generation lane)
+
+The bible (`hoop-backend/ingestion/chapter1_bible.md`) stops being a thing a human hand-copies into the
+pool and becomes prompt context a model reads directly. **All inference is offline/async in
+`hoop-backend/` today; v096 adds a LIVE, in-worker generation lane** for personal side-quests — but the
+player hot path (`engine.js`) stays inference-free, and every new path is additive + guarded (borges
+discipline). Hybrid canon: a **shared authored spine** (service repo) + **per-player side-quests** frozen
+to the player's own repo.
+
+| Piece | State |
+|---|---|
+| Lexicon `story.content` tier cap 3→5 + provenance (`lane`/`provider`/`genState`) | ✅ `hoop/lexicons/` |
+| Auth scope: `com.minomobi.hoop.story.content` (player writes own side-quests) | ✅ in `scope.ts`; redeploy auth (one-shot) |
+| **Filter projection** `story/filter.js` — the totally-filterable quasi-DB (lane/provider/tier views; spine-wins merge; provenance stamp) | ✅ node-tested, 24 checks |
+| **Spine match** `story/spine.js` — chunk-characteristics ⇄ content by cosine kNN; thickness gap drives "generate a thicker arc"; deterministic `lexicalEmbed` fallback, neural embedder injected | ✅ node-tested, 19 checks |
+| **Segregated adapter** `story/llm/` — Gemini 2.5 Flash (borges hook) + `local` seam (huwupy) + hard off-switch; never throws | ✅ node-tested, 23 checks (routing/parse via injected fetch) |
+| Worker `/api/story/{sidequest,embed}` (generate → review.js/gates.js/validate.js gate → freeze) | ⏳ phase 2 (deploy-only; needs `GEMINI_API_KEY`) |
+| Browser persists the gated arc to the player's repo via `AuthClient.pds` | ⏳ phase 2 |
+| Steering: feed the `pulse` + chunk profile into the generation prompt | ⏳ phase 3 |
+| Thin adapter: real econ society output → `ChunkProfile` for `spine.js` | ⏳ phase 3 |
+
 The procedural + localStorage path is the guaranteed fallback: with no service repo and no auth, the
 story tab still works fully. ATProto is additive truth, never a hard dependency (the borges discipline).

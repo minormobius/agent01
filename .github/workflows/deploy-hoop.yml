@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-v094-world-setup-85v472']
+    branches: [main, 'claude/hoop-v096-story-bible-vgzqze']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'
