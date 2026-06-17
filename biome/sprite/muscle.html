@@ -118,7 +118,7 @@ function skeletonNodes(sp){
 function setSprite(id){
   stopAnim(); sprite=build(CATALOG.organisms[id]); W=solve(sprite,0);
   actuated=new Set(actuatedJoints(sprite).map(s=>s.id)); nodes=skeletonNodes(sprite);
-  muscles=[]; result=null; live=null; collapsing=false; pending=null; walking=false; gait=null; gaitAct=new Map(); bobNow=0; extraDY=0;
+  muscles=[]; result=null; live=null; collapsing=false; pending=null; walking=false; gait=null; gaitAct=new Map(); extraDY=0;
   const b=bbox(sprite,0), pad=46, s=Math.min((1080-pad*2)/b.w,(720-pad*2)/b.h);
   tf={s, tx:540-s*(b.x0+b.x1)/2, ty:360-s*(b.y0+b.y1)/2};
   setVerdict(null); draw();
@@ -131,7 +131,7 @@ function curSprite(){ return walking&&gait ? gait.sprite : (collapsing&&live ? l
 function curW(){ return walking&&gait ? solve(gait.sprite,0) : (collapsing&&live ? solve(live,0) : W); }
 
 function draw(){ try{
-  extraDY = walking ? bobNow*tf.s : 0;
+  extraDY = 0;
   const sp=curSprite(), Wc=curW(); ctx.clearRect(0,0,1080,720);
   if(collapsing && groundY!=null){ const gy=toScreen({x:0,y:groundY}).y; ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(1080,gy);ctx.strokeStyle='#2a3a32';ctx.lineWidth=2;ctx.stroke(); }
   if(walking){ const gy=walkGroundY; ctx.fillStyle='#13201a';ctx.fillRect(0,gy,1080,720-gy);
