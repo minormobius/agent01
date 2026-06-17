@@ -17,7 +17,8 @@ const perp = (a) => ({ x: -Math.sin(a), y: Math.cos(a) }); // +90°: for a=0 poi
 // A clip returns { angles: {segId: ΔradiansAtThisPhase}, bob: yOffsetUnits }. It reads the skeleton's
 // own tags — seg.leg ∈ {FN,FF,BN,BF} and seg.joint ∈ {upper,mid,lower,foot} — so it is independent of
 // how many bones a limb is built from.
-const CLIPS = {
+// exported so the gait engine can reuse the walk rhythm as its activation target
+export const CLIPS = {
   // Quadruped diagonal-gait walk: diagonal pairs (front-near + back-far) swing together, antiphase to
   // the other diagonal — the trot every tetrapod shares. Distal joints lag & flex on the lift; the
   // lumbar spine flexes slightly; the tail sways; the trunk bounces at twice stride frequency.

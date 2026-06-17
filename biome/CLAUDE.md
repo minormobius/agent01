@@ -134,6 +134,13 @@ scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG �
   node). Click two nodes to add a muscle; press **SOLVE** → tensions drawn (brightness = how hard each
   pulls), ground-reaction arrows, balanced/unbalanced joints; with too few muscles it **crumbles**
   (animated collapse). View toggles (bones/muscles/nodes/forces/balance) + Auto-grow.
+- `gait.mjs` — **WALK by contracting muscles** (forward dynamics). `makeGait(sprite, muscles)`: each LIMB
+  joint is integrated `q̈ = τ/I`; muscles are driven by a controller tracking the walk rhythm (a CPG keyed
+  to `CLIPS.walk`), so the legs move because muscles pull, capped by each muscle's strength (too weak →
+  lags). The trunk muscles hold the spine; the body is pinned (treadmill = no balance problem). Returns
+  per-step muscle ACTIVATIONS. The lab's 🏃 button runs it: scrolling belt, body bob, muscles glow as they
+  fire. `gait-proof.mjs` renders a headless walk strip. NB it *tracks* the kinematic gait (controller-driven),
+  not a learned/emergent one; forward locomotion + balance (off-treadmill) are the next step.
 - `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG contact sheet (headless).
 
 **Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints); grown one STANDS

@@ -54,6 +54,7 @@
       <label class="ctl" style="margin-top:0"><span style="font-size:12px;color:var(--dim)">subject</span><select id="sel"></select></label>
       <div class="row"><button class="solve" id="b-solve">▶ SOLVE</button></div>
       <div class="row"><button class="grow" id="b-grow">✦ Auto-grow</button><button id="b-reset">↺ Reset</button></div>
+      <div class="row"><button id="b-walk">🏃 Walk on a treadmill</button></div>
       <div class="row"><button id="b-add">＋ Add muscle</button><button id="b-del">－ Remove</button><button id="b-clear">Clear</button></div>
       <div class="ctl"><label>new-muscle strength (capacity) <span id="fval">2.0</span></label><input type="range" id="force" min="0.2" max="12" step="0.2" value="2.0"></div>
       <div class="views">
@@ -87,6 +88,7 @@ import { evaluateStanding, actuatedJoints } from './mechanics.mjs';
 import { growMuscles } from './myology.mjs';
 import { attachPos, crossedJoints, momentArm } from './muscle.mjs';
 import { solveForces, collapseStep } from './solver.mjs';
+import { makeGait } from './gait.mjs';
 
 const errEl=document.getElementById('err');
 const showErr=(w,e)=>{errEl.textContent=`⚠ ${w}: ${(e&&(e.stack||e.message))||e}`;errEl.style.display='block';console.error(w,e);};
@@ -99,6 +101,7 @@ cv.width=1080*dpr; cv.height=720*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
 let CATALOG=null, sprite=null, W=null, muscles=[], nodes=[], actuated=new Set();
 let mode='none', pending=null, mouse=null, tf={s:1,tx:0,ty:0}, force=2.0;
 let result=null, live=null, collapsing=false, anim=null, groundY=null;
+let gait=null, walking=false, gaitAct=new Map(), bobNow=0, beltX=0, extraDY=0;
 const view={bones:1,muscles:1,nodes:1,forces:1,balance:1};
 
 function skeletonNodes(sp){
@@ -114,19 +117,23 @@ function skeletonNodes(sp){
 function setSprite(id){
   stopAnim(); sprite=build(CATALOG.organisms[id]); W=solve(sprite,0);
   actuated=new Set(actuatedJoints(sprite).map(s=>s.id)); nodes=skeletonNodes(sprite);
-  muscles=[]; result=null; live=null; collapsing=false; pending=null;
+  muscles=[]; result=null; live=null; collapsing=false; pending=null; walking=false; gait=null; gaitAct=new Map(); bobNow=0; extraDY=0;
   const b=bbox(sprite,0), pad=46, s=Math.min((1080-pad*2)/b.w,(720-pad*2)/b.h);
   tf={s, tx:540-s*(b.x0+b.x1)/2, ty:360-s*(b.y0+b.y1)/2};
   setVerdict(null); draw();
 }
-const toScreen=p=>({x:p.x*tf.s+tf.tx, y:p.y*tf.s+tf.ty});
+const toScreen=p=>({x:p.x*tf.s+tf.tx, y:p.y*tf.s+tf.ty+extraDY});
 
-function curSprite(){ return collapsing&&live ? live : sprite; }
-function curW(){ return collapsing&&live ? solve(live,0) : W; }
+function curSprite(){ return walking&&gait ? gait.sprite : (collapsing&&live ? live : sprite); }
+function curW(){ return walking&&gait ? solve(gait.sprite,0) : (collapsing&&live ? solve(live,0) : W); }
 
 function draw(){ try{
+  extraDY = walking ? bobNow*tf.s : 0;
   const sp=curSprite(), Wc=curW(); ctx.clearRect(0,0,1080,720);
   if(collapsing && groundY!=null){ const gy=toScreen({x:0,y:groundY}).y; ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(1080,gy);ctx.strokeStyle='#2a3a32';ctx.lineWidth=2;ctx.stroke(); }
+  if(walking && groundY!=null){ const gy=groundY*tf.s+tf.ty; ctx.fillStyle='#13201a';ctx.fillRect(0,gy,1080,720-gy);
+    ctx.strokeStyle='#2c4438';ctx.lineWidth=2; for(let x=-60;x<1140;x+=60){ const sx=((x - (beltX%60))+1140)%1200-60; ctx.beginPath();ctx.moveTo(sx,gy);ctx.lineTo(sx-30,gy+22);ctx.stroke(); }
+    ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(1080,gy);ctx.strokeStyle='#3a5446';ctx.lineWidth=3;ctx.stroke(); }
   // joint balance markers (from last solve)
   const residMap = result ? new Map(result.residual.map(r=>[r.id,r.unbalanced])) : null;
   // bones
@@ -145,7 +152,10 @@ function draw(){ try{
   // muscles
   if(view.muscles) muscles.forEach((m)=>{ const a=toScreen(attachPos(Wc,m.a)), b=toScreen(attachPos(Wc,m.b));
     let col, lw;
-    if(result){ const F=result.forces.get(m.id)||0; const frac=m.fmax?Math.min(1.5,F/m.fmax):0;
+    if(walking){ const act=gaitAct.get(m.id)||0;
+      col = act>0.02 ? `rgba(${210+Math.round(act*45)},${Math.round(90+act*60)},70,${0.4+0.55*Math.min(1,act)})` : 'rgba(120,128,124,0.28)';
+      lw = Math.max(1.6, Math.min(13, (1.4+act*4)*tf.s*0.7)); }
+    else if(result){ const F=result.forces.get(m.id)||0; const frac=m.fmax?Math.min(1.5,F/m.fmax):0;
       const over=result.overloaded.some(o=>o.id===m.id);
       col= over?'#e0795a':`rgba(${180+Math.round(frac*60)},${Math.round(120-frac*70)},${Math.round(80-frac*30)},${0.45+0.5*Math.min(1,frac)})`;
       lw=Math.max(1.5,Math.min(15,Math.sqrt(F+0.05)*5*tf.s*0.5)); }
@@ -213,12 +223,23 @@ cv.addEventListener('click',e=>{ const r=cv.getBoundingClientRect(); const sx=e.
       const d=Math.hypot(sx-(A.x+dx*t),sy-(A.y+dy*t)); if(d<bd){bd=d;best=i;} });
     if(best>=0){ muscles.splice(best,1); result=null; setVerdict(null); draw(); } }
 });
-$('b-solve').onclick=runSolve;
-$('b-grow').onclick=()=>{ stopAnim();collapsing=false;live=null; muscles=growMuscles(sprite).muscles; result=null; setVerdict(null); draw(); };
-$('b-reset').onclick=()=>{ stopAnim();collapsing=false;live=null; result=null; setVerdict(null); draw(); };
-$('b-add').onclick=()=>{ mode=mode==='add'?'none':'add'; pending=null; sync(); };
-$('b-del').onclick=()=>{ mode=mode==='del'?'none':'del'; pending=null; sync(); };
-$('b-clear').onclick=()=>{ stopAnim();collapsing=false;live=null; muscles=[]; result=null; setVerdict(null); draw(); };
+function startWalk(){
+  stopWalk(); stopAnim(); collapsing=false; live=null; result=null; setVerdict(null);
+  if(!muscles.length) muscles=growMuscles(sprite).muscles;   // need muscles to contract
+  gait=makeGait(sprite, muscles); walking=true; beltX=0;
+  $('b-walk').classList.add('on'); $('b-walk').textContent='⏹ Stop';
+  const tick=()=>{ if(!walking) return; const r=gait.step(1/60); gaitAct=r.activations; bobNow=r.bob; beltX+=3.2; draw(); anim=requestAnimationFrame(tick); };
+  anim=requestAnimationFrame(tick);
+}
+function stopWalk(){ if(!walking){ return; } walking=false; gait=null; gaitAct=new Map(); bobNow=0; extraDY=0; stopAnim();
+  $('b-walk').classList.remove('on'); $('b-walk').textContent='🏃 Walk on a treadmill'; }
+$('b-walk').onclick=()=>{ if(walking){ stopWalk(); draw(); } else startWalk(); };
+$('b-solve').onclick=()=>{ stopWalk(); runSolve(); };
+$('b-grow').onclick=()=>{ stopWalk();stopAnim();collapsing=false;live=null; muscles=growMuscles(sprite).muscles; result=null; setVerdict(null); draw(); };
+$('b-reset').onclick=()=>{ stopWalk();stopAnim();collapsing=false;live=null; result=null; setVerdict(null); draw(); };
+$('b-add').onclick=()=>{ stopWalk(); mode=mode==='add'?'none':'add'; pending=null; sync(); draw(); };
+$('b-del').onclick=()=>{ stopWalk(); mode=mode==='del'?'none':'del'; pending=null; sync(); draw(); };
+$('b-clear').onclick=()=>{ stopWalk();stopAnim();collapsing=false;live=null; muscles=[]; result=null; setVerdict(null); draw(); };
 $('force').oninput=e=>{ force=parseFloat(e.target.value); $('fval').textContent=force.toFixed(1); };
 for(const k of Object.keys(view)){ const el=$('v-'+k); if(el) el.onchange=()=>{ view[k]=el.checked?1:0; draw(); }; }
 function sync(){ $('b-add').classList.toggle('on',mode==='add'); $('b-del').classList.toggle('on',mode==='del'); }
