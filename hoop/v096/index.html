@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#04050a" />
+  <meta name="description" content="hoop v096 — The Tabard, Chapter One. v093's lived-in O'Neill-cylinder world (traffic-sized rooms, luminous wall consoles, half-scale residents, FLESH·CHASSIS·ANIMA stats, Voronoi inventory, arena combat) carrying the Tabard story layer: a click crystallizes a Continuant / Drift / Rind-walker figure, the inference-free engine advances the revelation & narrative tiers as you earn them, and the Seven post mythographs to the terminals." />
+  <title>hoop v096 · The Tabard — Chapter One</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; } html, body { height: 100%; margin: 0; }
+    body { background: #04050a; color: #dfe7e2; font-family: "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+    .hud { position: fixed; font-size: 11px; color: #6b7872; pointer-events: none; user-select: none; }
+    #status { top: 8px; left: 10px; }
+    #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
+    #here b { color: #f4bf62; }
+    #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
+    #board { bottom: 8px; left: 96px; color: #b48a6a; text-decoration: none; pointer-events: auto; }
+    #newgame { bottom: 8px; right: 10px; color: #e08a8a; text-decoration: none; pointer-events: auto; cursor: pointer; }
+    #quest { bottom: 28px; left: 10px; max-width: 52vw; color: #cdd6cf; }
+    #quest .lbl { color: #7fd8d0; } #quest .o { color: #f4bf62; } #quest .mk { color: #b48a6a; } #quest a.sb { color: #6b7872; pointer-events: auto; }
+    #pack { position: fixed; bottom: 8px; right: 12px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #f4bf62; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #pack:hover { border-color: #f4bf62; color: #fff; }
+    #charbtn { position: fixed; bottom: 8px; right: 92px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #b39bd8; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #charbtn:hover { border-color: #b39bd8; color: #fff; }
+    #equipbtn { position: fixed; bottom: 8px; right: 185px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #7fd8d0; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #equipbtn:hover { border-color: #7fd8d0; color: #fff; }
+    #arenabtn { position: fixed; bottom: 8px; right: 270px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #cf6b6b; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; text-decoration: none; }
+    #arenabtn:hover { border-color: #cf3b3b; color: #fff; }
+    #mapbtn { position: fixed; bottom: 8px; right: 355px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #8fb89f; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #mapbtn:hover { border-color: #8fb89f; color: #fff; }
+    #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
+    #who b { color: #b39bd8; }
+    #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
+    /* the story panel — a click on a resident crystallizes their thread */
+    #story { position: fixed; top: 0; right: 0; width: min(360px, 86vw); height: 100%; background: linear-gradient(180deg, rgba(8,11,16,0.97), rgba(6,8,12,0.97)); border-left: 1px solid #1b2530; padding: 44px 18px 18px; overflow-y: auto; transform: translateX(102%); transition: transform .18s ease; pointer-events: auto; z-index: 5; }
+    #story.on { transform: translateX(0); }
+    #story .nm { font-size: 16px; font-weight: 600; color: #f4bf62; }
+    #story .rl { font-size: 11px; color: #6b7872; margin: 2px 0 14px; letter-spacing: .3px; }
+    #story .nmh { font-size: 12px; color: #7fd8d0; margin-bottom: 4px; }
+    #story .says { font-size: 13px; line-height: 1.55; color: #cfd8d2; white-space: pre-wrap; }
+    #story .ch { display: flex; flex-direction: column; gap: 7px; margin-top: 16px; }
+    #story .ch button { text-align: left; background: #0f141a; border: 1px solid #20303a; color: #dfe7e2; padding: 9px 11px; border-radius: 7px; font: inherit; font-size: 12.5px; cursor: pointer; transition: .12s; }
+    #story .ch button:hover { border-color: #7fd8d0; color: #fff; }
+    #story .cl { position: absolute; top: 12px; right: 14px; background: none; border: 0; color: #6b7872; font: inherit; font-size: 12px; cursor: pointer; }
+    #story .cl:hover { color: #f4bf62; }
+  </style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+  <div class="hud" id="status">…</div>
+  <div class="hud" id="here"></div>
+  <div class="hud" id="busy">generating…</div>
+  <a class="hud" id="back" href="/">◍ hoop</a>
+  <a class="hud" id="board" href="/v096/storyboard/">❖ storyboard</a>
+  <a class="hud" id="arch" href="/v096/architecture.html" title="the story system data-flow">⌥ data-flow</a>
+  <a class="hud" id="newgame" title="wipe story progress and start over">⟲ new game</a>
+  <div class="hud" id="quest"></div>
+  <button id="charbtn" title="character (c)">☻ character</button>
+  <a id="arenabtn" href="./arena/" title="arena">⚔ arena</a>
+  <button id="equipbtn" title="equipped (e)">⛨ equip</button>
+  <button id="mapbtn" title="minimap (m)">▦ map</button>
+  <button id="pack" title="open pack (i)">▣ pack</button>
+  <div class="hud" id="who"></div>
+  <div id="story"></div>
+
+  <script type="module">
+    import { solveChunk } from './v8/chunkgen.js';
+    import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
+    import { nearestConcourse, attachShaft, markRindDeck, playerDeckOf } from './descent.js';   // chutes: a deck link is a port
+    import { STAMINA_MAX, clampStamina, drainStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf } from './sim.js';   // stamina + fixture-action registry + chest
+    import { bakeFog } from './v8/bake.js';
+    import { paintChunk, SKIN_DEFAULTS } from './skin.js';
+    import { drawDevice } from './v5/deco.js';
+    import { drawWallLight } from './v5/lights.js';
+    import { drawWallFixture } from './consoles.js';
+    import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from './rooms.js';
+    import { buildSociety, buildResidents, stepResidents } from './npc.js';
+    import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
+    import { flattenPool, MemoryStore, interact, talk, choose, take, loadGateState } from './story/engine.js';
+    import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
+    import { computeBoard, questLog, activeMarkers } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
+    import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
+    import { buildProfile, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
+    import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate diff
+    import { Inventory } from './inventory.js';
+    import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
+    import { CharacterCreator, loadCharacter } from './character.js';
+    import { deriveCombat, TRIAD, TRIAD_ORDER } from './stats.js';
+    import { crewSprite, crewStats } from './crew.js';
+    import { EquippedView } from './equipped.js';
+    import { MiniMap, onScreen, edgePoint } from './minimap.js';
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+    // read a tile's baked colour back into a 0..~1.2 luminance — used to light the voronoi-grown fixtures
+    const lumOfColor = (col) => { const m = /rgb\((\d+),(\d+),(\d+)\)/.exec(col || ''); return m ? (0.3 * +m[1] + 0.6 * +m[2] + 0.1 * +m[3]) / 190 : 0.6; };
+
+    const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
+    const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
+    const TERMINAL_ROLES = new Set(['learn', 'govern', 'worship']);   // reading-room / record-hall consoles are Tabard terminals (Continuant rooms). Marked teal ▤; click to read Luna's mythograph. A chunk-0 fallback (_terminal) guarantees at least one.
+    const isTerminal = (cp) => cp._terminal || TERMINAL_ROLES.has(cp.role);
+    const VFOV = 0.5;              // vertical field of view = this fraction of a chunk-span of world, DEVICE-INDEPENDENT:
+                                   // desktop sees the same world-HEIGHT the phone does (just wider), not a screen-size zoom
+    let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
+    let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
+    let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
+    let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0;
+    const story = { store: null, ready: false, playerId: 'local', active: null };
+    let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
+    const storyBigKeys = new Set();     // resident featureKeys an active beat marks → embiggen (storyboard-relevant only)
+    const spriteCache = new Map();
+    const pp = { x: 0, y: 0 };   // the player's CONTINUOUS position (glides; not snapped to a cell centre)
+    const SX = (x) => (x - cam.ox) * cam.scale, SY = (y) => (y - cam.oy) * cam.scale;
+    const WX = (sx) => sx / cam.scale + cam.ox, WY = (sy) => sy / cam.scale + cam.oy;
+    const busy = (on) => { busyN += on ? 1 : -1; $('busy').classList.toggle('on', busyN > 0); };
+    const px = () => pp.x, py = () => pp.y;
+
+    // off-thread generation + paint (worker) with a synchronous fallback — identical contract either way
+    let worker = null, genId = 0;
+    try { worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }); } catch (e) { worker = null; }
+    function generate(opts) {
+      return new Promise((res) => {
+        if (!worker) { const rec = solveChunk(opts); rec.seed = opts.seed >>> 0; return res({ rec, painted: paintChunk(rec, SKIN) }); }
+        const id = ++genId, h = (e) => {
+          if (!e.data || e.data.id !== id) return; worker.removeEventListener('message', h);
+          if (e.data.error) { const rec = solveChunk(opts); rec.seed = opts.seed >>> 0; res({ rec, painted: paintChunk(rec, SKIN) }); }
+          else res({ rec: e.data.rec, painted: e.data.painted });
+        };
+        worker.addEventListener('message', h); worker.postMessage({ id, opts });
+      });
+    }
+
+    function bboxOf(poly) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const v of poly) { x0 = Math.min(x0, v.x); y0 = Math.min(y0, v.y); x1 = Math.max(x1, v.x); y1 = Math.max(y1, v.y); } return { x0, y0, x1, y1 }; }
+    function centroidOf(poly) { let x = 0, y = 0; for (const v of poly) { x += v.x; y += v.y; } return { x: x / poly.length, y: y / poly.length }; }
+    // a chunk's seed is derived from its POSITION (centroid), not the load order — so a chunk is the
+    // same wherever you approach it from, and preloading several at once can't collide on a seed.
+    const hash2 = (a, b) => { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + 0x9e3779b1) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; };
+    const chunkSeedFor = (poly) => { const c = centroidOf(poly); return (hash2(Math.round(c.x), Math.round(c.y)) ^ seed) >>> 0; };
+    const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
+
+    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter();
+      const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); }
+      whereAmI(); }   // refresh the HUD (zone + stamina) on move — only while moving, so no per-frame cost when idle   // re-cull residents when you enter a new chunk
+    function setScale() { cam.scale = H / (chunkSpan * VFOV); }   // pin the VERTICAL world span; width follows the aspect (mobile look retained on desktop)
+
+    // rebuild the walk graph + the social web, then re-cast residents — but PRESERVE the sim state of
+    // residents we already have (global node ids are stable as chunks append), so commuters don't reset
+    // every time a chunk streams in.
+    function restitch() {
+      walk = buildWalk(world, blockedOf); society = buildSociety(world, walk);
+      const fresh = buildResidents(world, walk, society), prev = new Map(residents.map((a) => [a.id, a]));
+      residents = fresh.map((a) => prev.get(a.id) || a);
+      cullResidents();
+    }
+    // PERF: only the residents whose HOME is near the player (and on the current deck) get stepped/drawn —
+    // no loading souls three blocks away. Recomputed on chunk-change + restitch, so per-frame cost is bounded.
+    function cullResidents() {
+      if (!walk || player < 0) { nearResidents = residents; return; }
+      const pd = playerDeck(), R = (chunkSpan * 1.4) ** 2, cx = px(), cy = py();
+      nearResidents = residents.filter((a) => { const hk = a.homeKey; if (!hk) return false;
+        if (((world.chunks[hk.ch] || {}).deck || 0) !== pd) return false;
+        return (hk.x - cx) ** 2 + (hk.y - cy) ** 2 < R; });
+    }
+    // IMPASSABLE fixtures (v091): the bones cells under a room's floor fixture + its central component
+    // are non-navigable. Computed once per chunk from its painted result (the nearest bones cell to each
+    // claimed fixture tile / the component centre), skipping the concourse + the room's door cells.
+    function computeBlocked(ch) {
+      const set = new Set(), P = ch.painted, bones = ch.cells; if (!P || !bones) return set;
+      const doorSet = new Set(); for (const r of ch.rooms) { if (r.door >= 0) doorSet.add(r.door); if (r.doorRoad >= 0) doorSet.add(r.doorRoad); }
+      // blocker points = the fixture eruption tiles + component centres; a bones cell is impassable only
+      // if its CENTRE actually sits under one (within ~0.55·cellSize), so we don't over-block a bones cell
+      // the fixture merely grazes.
+      const pts = [];
+      for (const F of (P.fixtures || [])) for (const cl of F.cells) { if (cl.base) continue; const c = P.paintCells[cl.idx]; if (c) pts.push(c); }
+      for (const cp of (P.comps || [])) pts.push({ x: cp.cx, y: cp.cy });
+      if (!pts.length) return set;
+      const thr2 = ((ch.cellSize || 16) * 0.55) ** 2;
+      for (let i = 0; i < bones.length; i++) { if (doorSet.has(i) || ch.road[i]) continue; const bx = bones[i].x, by = bones[i].y; for (const p of pts) if ((p.x - bx) ** 2 + (p.y - by) ** 2 < thr2) { set.add(i); break; } }
+      return set;
+    }
+    const blockedOf = (chunkId, local) => { const ch = world.chunks[chunkId]; if (!ch) return false; if (!ch._blocked) ch._blocked = computeBlocked(ch); return ch._blocked.has(local); };
+    function rebakeFog() { if (!walk) return; for (const ch of world.chunks) { const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i)); } }
+    function reveal() { if (player < 0) return; for (const g of sightBall(walk, player, OPTS.sight)) seen.add(g); inView = sightBall(walk, player, OPTS.sight); rebakeFog(); }
+
+    // ── DECKS (chutes & ladders): the rind is a lower deck linked to the concourse by a shaft PORT. The
+    // render draws only the player's current deck; crossing the shaft (same x,y) flips the deck seamlessly.
+    const playerDeck = () => playerDeckOf(world, walk, player);
+    let shaftXY = null, rindBuilt = false, shaftNodes = null;
+    // nearest walkable node ON THE CURRENT DECK (decks overlap in (x,y), so a click must not jump decks)
+    function nearestDeckNode(x, y) {
+      const pd = playerDeck(); let best = -1, bd = Infinity;
+      for (let i = 0; i < walk.N; i++) {
+        if (walk.blocked && walk.blocked.has(i)) continue;
+        if (((world.chunks[walk.nodeChunk[i]] || {}).deck || 0) !== pd) continue;
+        const d = (walk.pos[2 * i] - x) ** 2 + (walk.pos[2 * i + 1] - y) ** 2; if (d < bd) { bd = d; best = i; }
+      }
+      return best;
+    }
+    // use the chute: step onto the linked shaft cell on the other deck (a ladder). Only when near the shaft.
+    function crossShaft() {
+      if (!shaftNodes || player < 0) return false;
+      const to = shaftNodes[playerDeck() === 1 ? 0 : 1]; if (to == null || to < 0) return false;
+      player = to; pp.x = walk.pos[2 * to]; pp.y = walk.pos[2 * to + 1]; route = []; routePts = [];
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      followCam(); reveal(); draw(); maybeStream();
+      return true;
+    }
+    async function maybeBuildRind() {
+      if (rindBuilt || !world || !walk || !story.ready) return;
+      if (story.store.getFact(story.playerId, 'flag.sevin_believes') !== true) return;   // unsealed only
+      rindBuilt = true;
+      try {
+        const c0 = world.chunks[0];
+        const sevin = anchors.find((a) => a.key === 'anchor:sevin');
+        const sc = nearestConcourse(c0, sevin ? sevin.x : px(), sevin ? sevin.y : py());
+        if (!sc) { rindBuilt = false; return; }
+        shaftXY = { x: sc.x, y: sc.y };
+        attachShaft(c0, sc.x, sc.y, sc.cell);                       // sink the shaft on the concourse
+        const rseed = (seed ^ 0x9e3779b9) >>> 0;
+        const { rec, painted } = await generate(opts({ seed: rseed, poly: c0.poly, inherit: [{ x: sc.x, y: sc.y }] }));
+        rec.painted = painted; markRindDeck(rec, 1, shaftXY);        // lower deck, links ONLY at the shaft
+        addChunk(world, rec); restitch();
+        shaftNodes = { 0: globalOf(walk, 0, sc.cell), 1: globalOf(walk, rec.id, (rec.ports[0] || {}).cell) };   // the two ends of the chute
+        reveal(); draw();
+      } catch (e) { rindBuilt = false; /* leave the world intact if generation fails */ }
+    }
+    function checkDeckEnter() {
+      if (!story.ready || playerDeck() !== 1) return;
+      if (story.store.getFact(story.playerId, 'flag.entered_rind') === true) return;
+      story.store.setFact(story.playerId, 'flag.entered_rind', true); saveStory();   // completes b4-descent
+    }
+
+    // ── stamina (drains walking, restored by a bed) + chests (per-chamber persistent storage) ──
+    const getStam = () => clampStamina(story.ready ? story.store.getFact(story.playerId, 'sim.stamina') : STAMINA_MAX);
+    const setStam = (v) => { if (story.ready) story.store.setFact(story.playerId, 'sim.stamina', clampStamina(v)); };
+    const getChests = () => (story.ready && story.store.getFact(story.playerId, 'chests')) || {};
+    const setChests = (c) => { if (story.ready) story.store.setFact(story.playerId, 'chests', c); };
+
+    // a living-quarters fixture under a click: the central component is a BED, the grown wall fixture a CHEST
+    function livingFixtureAt(wx, wy) {
+      if (!world) return null; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (fixtureAction(cp.role, 'component') !== 'bed') continue;
+          if ((cp.cx - wx) ** 2 + (cp.cy - wy) ** 2 < (cp.r * 2.0) ** 2) return { action: 'bed', x: cp.cx, y: cp.cy }; }
+        for (const F of (P.fixtures || [])) { const role = (ch.rooms[F.room] || {}).role; if (fixtureAction(role, 'wall') !== 'chest' || !F.tip) continue;
+          if ((F.tip.x - wx) ** 2 + (F.tip.y - wy) ** 2 < (SKIN.playerW * 2.4) ** 2) return { action: 'chest', x: F.tip.x, y: F.tip.y, gid: 'ch' + ch.id + ':r' + F.room }; }
+      }
+      return null;
+    }
+    function useBed() {
+      setStam(STAMINA_MAX); saveStory(); whereAmI();
+      $('busy').textContent = '✚ rested — stamina restored'; $('busy').classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { $('busy').classList.remove('on'); $('busy').textContent = 'generating…'; }, 2400);
+    }
+    let chestGid = null;
+    function openChest(gid) { chestGid = gid; story.active = { chest: true }; renderChest(); }
+    function renderChest() {
+      const panel = $('story'), items = chestOf(getChests(), chestGid);
+      let h = '<button class="cl" data-close="1">close ⏎</button><div class="nm">a storage chest</div><div class="rl">▣ living quarters · ' + esc(chestGid) + '</div>';
+      h += '<div class="nmh">in the chest</div>';
+      h += items.length ? items.map((it, i) => '<div class="choice" data-withdraw="' + i + '">› ' + esc(it.name || 'a thing') + ' — take</div>').join('') : '<div class="end">empty</div>';
+      h += '<div class="nmh" style="margin-top:8px">your pack</div>';
+      h += pack.pack.length ? pack.pack.map((it, i) => '<div class="choice" data-deposit="' + i + '">› ' + esc(it.name || 'a thing') + ' — store</div>').join('') : '<div class="end">pack is empty</div>';
+      panel.innerHTML = h; panel.classList.add('on');
+    }
+
+    // ── streaming: PRELOAD the frontier — generate any free chunk edge within ~one chunk of the player ──
+    // (so from the central chunk the whole 6-neighbour ring loads ahead of you, and the frontier stays a
+    // chunk ahead as you explore). Serial by design: each neighbour inherits its predecessors' ports, so
+    // the seams stay shared — but a chunk takes ~3s to cross and ~0.5s to make, so one worker keeps ahead.
+    async function maybeStream() {
+      if (!world || busyN > 0) return;
+      if (!introSolved()) return;   // the first chunk is sealed until the opening mystery is solved
+      const LOOK = chunkSpan * 1.0;                 // start a full chunk early — "less than one chunk away"
+      let best = null, bd = Infinity;
+      for (const ch of world.chunks) for (let ei = 0; ei < ch.poly.length; ei++) {
+        if (!edgeFree(world, ch, ei)) continue;
+        const a = ch.poly[ei], b = ch.poly[(ei + 1) % ch.poly.length], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const d = Math.hypot(mx - px(), my - py());
+        if (d > LOOK) continue;
+        if (d < bd) { bd = d; best = { ch, ei }; }
+      }
+      if (!best) return;
+      busy(true);
+      const spec = neighbourSpec(world, best.ch.id, best.ei);
+      const nseed = chunkSeedFor(spec.poly);
+      const { rec, painted } = await generate(opts({ seed: nseed, poly: spec.poly, inherit: spec.inherit }));
+      rec.painted = painted; addChunk(world, rec); restitch(); reveal();
+      busy(false); status(); draw();
+      maybeStream();   // chain for any other neighbours the view already reaches
+    }
+
+    async function newWorld() {
+      busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const { rec, painted } = await generate(opts({ seed })); rec.painted = painted; addChunk(world, rec); restitch();
+      chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
+      setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal();
+      placeAnchors(); ensureChunk0Terminal();   // the authored opening: principals at the cradle + margin, a guaranteed terminal
+      renderQuest();   // resolve the storyboard waypoint now that anchors + the terminal exist
+      busy(false); status(); draw(); maybeStream();
+    }
+    function startNode() {
+      if (!walk) return -1; const ch = world.chunks[0];
+      // wake in a HEAL room — narratively Bay 14, the reconstruction bay. Spawn on a passable tile at its centre.
+      const heal = (ch.rooms || []).filter((r) => r.role === 'heal' && r.cells && r.cells.length);
+      if (heal.length) { const r = heal[0]; let rx = 0, ry = 0; for (const c of r.cells) { rx += ch.cells[c].x; ry += ch.cells[c].y; } const g = nearestNode(walk, rx / r.cells.length, ry / r.cells.length, true); if (g >= 0) return g; }
+      // fallback: the concourse cell nearest the chunk centre
+      let cx = 0, cy = 0, n = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { cx += ch.cells[i].x; cy += ch.cells[i].y; n++; } if (n) { cx /= n; cy /= n; }
+      let best = -1, bd = Infinity; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { const d = (ch.cells[i].x - cx) ** 2 + (ch.cells[i].y - cy) ** 2; if (d < bd) { bd = d; best = i; } }
+      return best >= 0 ? globalOf(walk, 0, best) : nearestNode(walk, cx, cy);
+    }
+
+    // corner-cutting (Chaikin) so the trajectory CURVES through cells instead of hopping centre→centre
+    function chaikin(pts, iters) { for (let it = 0; it < iters; it++) { if (pts.length < 3) break; const out = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } out.push(pts[pts.length - 1]); pts = out; } return pts; }
+    function walkTo(wx, wy) {
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const dst = nearestDeckNode(wx, wy); if (dst < 0 || player < 0) return;   // never target an impassable fixture tile — and stay on the current deck (decks share a footprint)
+      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+      route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm; let i = 0;
+      const tick = () => {
+        i++;
+        if (i >= sm.length) { walkTimer = null; player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+        const ox = pp.x, oy = pp.y; pp.x = sm[i][0]; pp.y = sm[i][1];
+        pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i;     // face the way you move; advance the walk cycle
+        const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
+        if (p[ni] !== player) { player = p[ni]; reveal(); setStam(drainStamina(getStam(), 1)); }   // walking costs stamina
+        followCam(); draw(); maybeStream();
+        walkTimer = setTimeout(tick, 24);
+      };
+      walkTimer = setTimeout(tick, 24);
+    }
+
+    const roomSeen = (o) => o.cellsG.some((g) => seen.has(g));
+
+    // ── render ── crisp painted vectors under a world transform, then fog + society + player on top ──
+    function worldXform() { const w = cam.scale * dpr; ctx.setTransform(w, 0, 0, w, -cam.ox * w, -cam.oy * w); }
+    function screenXform() { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    function fillPoly(poly) { ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]); ctx.closePath(); ctx.fill(); }
+    function fillPolyG(g, poly) { g.beginPath(); g.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) g.lineTo(poly[i][0], poly[i][1]); g.closePath(); g.fill(); }
+    // ── PERF: a chunk's painting is STATIC, so bake it to an offscreen raster ONCE and blit it each frame
+    //    (instead of re-tracing thousands of cell polygons every frame). Fog/residents/player draw on top. ──
+    const RPX = 3;   // raster pixels per world unit (the painted look is soft; ample at the pinned VFOV)
+    function paintChunkInto(g, ch, P) {
+      const seamW = 0.7 / RPX;
+      for (const c of P.paintCells) { if (c.poly.length < 3) continue; g.fillStyle = c.color || '#05070b'; fillPolyG(g, c.poly); if (!c.wall) { g.strokeStyle = 'rgba(6,9,12,0.5)'; g.lineWidth = seamW; g.stroke(); } }
+      if (P.fixtures) for (const F of P.fixtures) {
+        const lm = new Map();
+        for (const cl of F.cells) { const c = P.paintCells[cl.idx]; if (c) lm.set(Math.round(c.x) + ',' + Math.round(c.y), lumOfColor(c.color)); }
+        const litAt = (x, y) => lm.get(Math.round(x) + ',' + Math.round(y)) ?? 0.6;
+        drawWallFixture(g, P, F, { accent: F.accent, hue: F.hue, litAt });
+      }
+      for (const cp of P.comps) {
+        drawDevice(g, cp.cx, cp.cy, cp.r, cp.g, { lit: Math.min(1.45, (cp.lit || 1) + 0.3), accent: cp.accent });
+        const er = cp.r * (1.8 + (cp.emit || 0.5) * 1.4), a = Math.min(0.6, 0.16 + (cp.emit || 0.5) * 0.4), hue = cp.hue == null ? 40 : cp.hue;
+        const gl = g.createRadialGradient(cp.cx, cp.cy, cp.r * 0.1, cp.cx, cp.cy, er);
+        gl.addColorStop(0, `hsla(${hue},90%,72%,${a})`); gl.addColorStop(0.45, `hsla(${hue},85%,58%,${a * 0.4})`); gl.addColorStop(1, `hsla(${hue},80%,50%,0)`);
+        g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gl; g.beginPath(); g.arc(cp.cx, cp.cy, er, 0, 7); g.fill(); g.restore();
+        if (isTerminal(cp)) { g.save(); g.strokeStyle = '#7fd8d0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#7fd8d0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('▤', cp.cx, cp.cy); g.restore(); }
+      }
+      for (const L of P.lights) { if (L.concourse) drawBollard(g, L); else drawWallLight(g, L, { hue: L.hue, lit: L.lit }); }
+    }
+    function chunkRaster(ch) {
+      if (ch._raster) return ch._raster;
+      const P = ch.painted; if (!P) return null;
+      try {
+        const bb = ch.bb || (ch.bb = bboxOf(ch.poly)), pad = OPTS.cellSize * 2;
+        const ox = bb.x0 - pad, oy = bb.y0 - pad, w = bb.x1 - bb.x0 + 2 * pad, h = bb.y1 - bb.y0 + 2 * pad;
+        const cvs = document.createElement('canvas'); cvs.width = Math.max(1, Math.ceil(w * RPX)); cvs.height = Math.max(1, Math.ceil(h * RPX));
+        const g = cvs.getContext('2d'); g.setTransform(RPX, 0, 0, RPX, -ox * RPX, -oy * RPX);
+        paintChunkInto(g, ch, P);
+        return (ch._raster = { canvas: cvs, ox, oy, w, h });
+      } catch (e) { return null; }
+    }
+
+    function drawPainted() {
+      screenXform(); ctx.imageSmoothingEnabled = true;
+      const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
+      const pd = playerDeck(), far = chunkSpan * 2.4;
+      for (const ch of world.chunks) {
+        if ((ch.deck || 0) !== pd) continue;   // draw only the current deck (decks share a footprint)
+        const bb = ch.bb || (ch.bb = bboxOf(ch.poly));
+        if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) {   // off-screen: evict far rasters to bound memory
+          if (ch._raster && (Math.abs((bb.x0 + bb.x1) / 2 - px()) > far || Math.abs((bb.y0 + bb.y1) / 2 - py()) > far)) ch._raster = null;
+          continue;
+        }
+        const R = chunkRaster(ch); if (!R) continue;
+        ctx.drawImage(R.canvas, SX(R.ox), SY(R.oy), R.w * cam.scale, R.h * cam.scale);   // blit the baked chunk (one drawImage vs thousands of fills)
+      }
+    }
+    // v091: a free-standing concourse lamp — a dark base ringed by a warm gold glow + a hot core (mirrors
+    // the wall-lamp glow). Drawn under the world transform, so it scales with the painted scene.
+    function drawBollard(ctx, L) {
+      const r = L.len * 0.16, lit = L.lit || 1, hue = L.hue == null ? 40 : L.hue;
+      ctx.fillStyle = 'rgba(6,9,12,0.92)'; ctx.beginPath(); ctx.arc(L.x, L.y, r * 1.25, 0, 7); ctx.fill();
+      for (let i = 4; i >= 1; i--) { ctx.beginPath(); ctx.arc(L.x, L.y, r * i / 1.6, 0, 7); ctx.fillStyle = `hsla(${hue},85%,62%,${(0.05 + (4 - i) * 0.05) * (0.6 + lit * 0.4)})`; ctx.fill(); }
+      ctx.beginPath(); ctx.arc(L.x, L.y, r * 0.5, 0, 7); ctx.fillStyle = `hsla(${hue},70%,88%,0.95)`; ctx.fill();
+    }
+
+    function draw() {
+      screenXform(); ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, W, H);
+      if (!world) return;
+      drawPainted();
+      drawResidents();                 // BEFORE the fog, so the fog hides residents in unseen rooms
+      // fog blitted with a blur so its frontier is soft (hides the per-cell reveal edge)
+      ctx.imageSmoothingEnabled = true;
+      ctx.filter = `blur(${Math.max(1, cam.scale * OPTS.cellSize * 0.35).toFixed(1)}px)`;
+      { const pd = playerDeck(); for (const ch of world.chunks) { if ((ch.deck || 0) !== pd) continue; const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); } }
+      ctx.filter = 'none';
+      if (playerDeck() === 1) { ctx.fillStyle = 'rgba(30,70,90,0.22)'; ctx.fillRect(0, 0, W, H); }   // the rind: no sun-strip, cool hull-glow wash
+      drawNPC(); drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint();
+    }
+    // the shaft: a chute marker at the (deck-shared) shaft cell — ▼ down to the rind, ▲ back up to the Nave
+    function drawShaft() {
+      if (!shaftXY || !rindBuilt) return;
+      const sx = SX(shaftXY.x), sy = SY(shaftXY.y), up = playerDeck() === 1;
+      ctx.save();
+      ctx.strokeStyle = '#7fd8d0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(8, SKIN.playerW * 0.55 * cam.scale), 0, 7); ctx.stroke();
+      ctx.fillStyle = '#7fd8d0'; ctx.font = `bold ${Math.max(12, SKIN.playerW * 0.95 * cam.scale) | 0}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(up ? '▲' : '▼', sx, sy);
+      ctx.fillStyle = '#dfe7e2'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(up ? 'up to the Nave' : 'down to the rind', sx, sy - Math.max(15, SKIN.playerW * 0.8 * cam.scale));
+      ctx.restore();
+    }
+    function strokeNodes(arr, gateSeen) { ctx.beginPath(); let pen = false; for (const g of arr) { if (gateSeen && !seen.has(g)) { pen = false; continue; } const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; if (pen) ctx.lineTo(SX(x), SY(y)); else { ctx.moveTo(SX(x), SY(y)); pen = true; } } ctx.stroke(); }
+    function drawNPC() {
+      if (!society || !walk) return;
+      const pd = playerDeck(), deckOf = (cid) => (world.chunks[cid] || {}).deck || 0;
+      const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
+      const off = (x0, y0, x1, y1) => Math.max(x0, x1) < vx0 || Math.min(x0, x1) > vx1 || Math.max(y0, y1) < vy0 || Math.min(y0, y1) > vy1;   // viewport cull
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      for (const rt of society.routes) { if (!rt.cells.length || deckOf(walk.nodeChunk[rt.cells[0]]) !== pd) continue;
+        const c0 = rt.cells[0], cN = rt.cells[rt.cells.length - 1];
+        if (off(walk.pos[2 * c0], walk.pos[2 * c0 + 1], walk.pos[2 * cN], walk.pos[2 * cN + 1])) continue;
+        ctx.strokeStyle = `rgba(127,216,208,${Math.min(0.5, 0.13 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3, 0.7 + rt.w * 0.2); strokeNodes(rt.cells, true); }
+      ctx.lineWidth = 0.9; for (const e of society.edges) { if (deckOf(e.a.ch) !== pd || off(e.ax, e.ay, e.bx, e.by) || !roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.34)' : 'rgba(180,120,216,0.32)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); }
+    }
+    // ── residents: seed-stable pixel sprites, rendered once per (genome,dir,frame) to a cache canvas ──
+    function spriteCanvas(genome, dir, frame) {
+      const key = genome.seed + '|' + dir + '|' + frame;
+      let c = spriteCache.get(key); if (c) return c;
+      if (spriteCache.size > 1800) spriteCache.clear();          // bound memory over a long session
+      const N = genome.size, S = 4, cvs = document.createElement('canvas'); cvs.width = N * S; cvs.height = N * S;
+      const g = cvs.getContext('2d');
+      for (const r of frameRects(genome, DIR_OF[dir] || DIR_OF.S, frame)) { g.fillStyle = r.c; g.fillRect(r.x * S, r.y * S, S, S); }
+      spriteCache.set(key, cvs); return c = cvs;
+    }
+    function drawResidents() {
+      if (!residents.length || !walk) return;
+      ctx.imageSmoothingEnabled = false;
+      // ambient crowd stays lilliputian; a STORYBOARD-RELEVANT resident (an active beat points at them)
+      // stands near player scale with a tracking ring. storyBigKeys is refreshed from the board in
+      // renderQuest — today the beat markers point at the principals (drawn as anchors), so the crowd is
+      // uniform; a future beat marker {resident:key} embiggens exactly that crowd member.
+      const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale;
+      for (const a of nearResidents) {   // near + current-deck set (culled in cullResidents)
+        const sx = SX(a.x), sy = SY(a.y);
+        if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;   // viewport cull
+        const merit = storyBigKeys.has(a.featureKey), h = merit ? meritH : baseH;
+        const moving = !!a.pts && a.dwellLeft <= 0, frame = moving ? (a.phase | 0) % frames : null;
+        const cvs = spriteCanvas(a.genome, a.dir, frame), w = h * (cvs.width / cvs.height);
+        ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);     // ground point at the feet
+        if (merit) { ctx.imageSmoothingEnabled = true; ctx.strokeStyle = 'rgba(127,216,208,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx, sy, Math.max(6, SKIN.playerW * 0.42 * cam.scale), 0, 7); ctx.stroke(); ctx.imageSmoothingEnabled = false; }
+      }
+      ctx.imageSmoothingEnabled = true;
+    }
+    function strokePolyW(pts) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(SX(pts[i][0]), SY(pts[i][1])); else ctx.moveTo(SX(pts[i][0]), SY(pts[i][1])); } ctx.stroke(); }
+    // map a movement delta to one of the 8 sprite directions
+    function dirKey(dx, dy) { if (!dx && !dy) return pdir; let best = 'S', bd = -2; for (const d of DIR8) { const dot = (dx * d.dx + dy * d.dy) / (Math.hypot(dx, dy) * Math.hypot(d.dx, d.dy) || 1); if (dot > bd) { bd = dot; best = d.k; } } return best; }
+    function drawPlayer() {
+      if (player < 0 || !walk) return;
+      if (routePts.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 6; strokePolyW(routePts); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; strokePolyW(routePts); }
+      const x = px(), y = py(), rad = Math.max(2.5, SKIN.playerW * 0.5 * cam.scale);
+      // the lantern: the player's true-world-size glow (also grounds the sprite)
+      ctx.save(); ctx.shadowColor = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 3.2;
+      ctx.fillStyle = '#fff7e6'; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 1.4; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad * 0.55, 0, 7); ctx.fill(); ctx.restore();
+      // the embarked character, drawn as their own rolled sprite standing over the lantern
+      if (playerGenome) {
+        ctx.imageSmoothingEnabled = false;
+        const moving = !!walkTimer, frame = moving ? (pphase | 0) % 4 : null;
+        const cvs = spriteCanvas(playerGenome, pdir, frame), h = SKIN.playerW * 1.5 * cam.scale, w = h * (cvs.width / cvs.height);
+        ctx.drawImage(cvs, SX(x) - w / 2, SY(y) - h * 0.92, w, h);
+        ctx.imageSmoothingEnabled = true;
+      }
+    }
+    // ── the WAYPOINT indicator — a persistent direction to the dropped point. While the waypoint is
+    // off-screen you get a DIRECTION ONLY: an arrow pinned to the screen edge on the bearing from the
+    // player (the camera centres the player, so screen-centre ≈ player). The moment the waypoint rolls
+    // into the viewport, the edge arrow gives way to the marker itself, drawn at its true world spot. ──
+    function drawWaypoint() {
+      const wp = waypoint || storyWp;   // a manual waypoint overrides; otherwise the active beat's marker points the way
+      if (!wp || player < 0 || !walk) return;
+      const sx = SX(wp.x), sy = SY(wp.y), MARGIN = 46;
+      if (onScreen(sx, sy, W, H, MARGIN)) { drawWaypointMarker(sx, sy); return; }   // in view → the marker
+      // off-screen → the edge arrow on the bearing, clamped to an inset rect, with a distance read
+      const e = edgePoint(sx - W / 2, sy - H / 2, W / 2 - MARGIN, H / 2 - MARGIN), ax = W / 2 + e.x, ay = H / 2 + e.y;
+      const dist = Math.hypot(wp.x - px(), wp.y - py());
+      ctx.save();
+      ctx.translate(ax, ay);
+      // a dark disc so the arrow reads over any background
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, 7); ctx.fillStyle = 'rgba(6,9,12,0.82)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(244,191,98,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.rotate(e.ang);             // +x points along the bearing
+      ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(-5, -7); ctx.lineTo(-5, 7); ctx.closePath();
+      ctx.fillStyle = '#f4bf62'; ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = 8; ctx.fill();
+      ctx.restore();
+      // distance label just inside the arrow (toward screen centre)
+      ctx.fillStyle = '#f4bf62'; ctx.font = '10px "JetBrains Mono",monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`${Math.round(dist)}m`, W / 2 + e.x * 0.86, H / 2 + e.y * 0.86);
+    }
+    function drawWaypointMarker(sx, sy) {
+      const t = (performance.now() % 1200) / 1200;
+      ctx.save();
+      ctx.strokeStyle = `rgba(244,191,98,${(1 - t) * 0.7})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, 10 + t * 9, 0, 7); ctx.stroke();
+      ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(sx, sy, 8, 0, 7); ctx.moveTo(sx - 13, sy); ctx.lineTo(sx + 13, sy); ctx.moveTo(sx, sy - 13); ctx.lineTo(sx, sy + 13); ctx.stroke();
+      ctx.restore();
+    }
+
+    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall`; }
+    function whereAmI() {
+      if (player < 0 || !walk) { $('here').textContent = ''; return; }
+      const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
+      if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
+      let tierTag = '';
+      if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length, st = getStam() | 0;
+        tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span> · <span style="color:${st < 25 ? '#e08a8a' : '#9aa8a0'}" title="stamina — drains as you walk, restored by a bed">stam ${st}</span>`;
+        if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="meet Olo, read the terminal, give Sevin a reason">⊘ the way on is sealed</span>`; }
+      $('here').innerHTML = `<b>${label}</b>${tierTag}`;
+    }
+
+    // v096 generation-lane availability (set from /api/story/health). false ⇒ no ✨ weave affordance,
+    // the game stays purely procedural — the worker adapter is the disabled stub with no GEMINI_API_KEY.
+    const storyApi = { enabled: false, provider: null };
+    const postStory = async (path, body) => {
+      const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      return r.json();
+    };
+    // ── the story engine: a click on a resident crystallizes their thread (deterministic, no inference) ──
+    async function loadStory() {
+      try {
+        const res = await fetch(new URL('./story/pool.json', import.meta.url)); if (!res.ok) throw 0;
+        story.store = new MemoryStore(flattenPool(await res.json()), { features: [] });
+        const saved = localStorage.getItem('hoop:v096:story'); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
+        try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; }
+        try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
+        story.ready = true; renderQuest();
+        try { const h = await fetch('/api/story/health').then((r) => r.json()); storyApi.enabled = !!(h && h.enabled); storyApi.provider = h && h.provider; } catch (e) { storyApi.enabled = false; }   // v096: is live generation available?
+      } catch (e) { story.ready = false; }   // graceful: residents still live and walk, just no story panel
+    }
+    // v096 — weave a NEW side-quest rooted in THIS place: build a chunk profile from the focal role + room,
+    // ask the worker (Gemini, gated by review/gates/validate), fold an approved arc into the live pool, and
+    // crystallize its principal onto a fresh feature. Fully guarded; a SKIP/BLOCK just toasts and changes nothing.
+    function currentRoomInfo() {
+      try { const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player];
+        if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; return { role: r.role, domain: r.domain }; } } catch (e) {}
+      return {};
+    }
+    async function weaveHere(agent) {
+      if (!storyApi.enabled || !story.ready || story.weaving) return;
+      story.weaving = true;
+      const el = $('busy'); el.textContent = '✨ weaving a thread…'; el.classList.add('on');
+      const done = (msg, ms = 2800) => { el.textContent = msg; clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); story.weaving = false; };
+      try {
+        const ri = currentRoomInfo();
+        const profile = buildProfile({ role: agent.role, roomRole: ri.role, roomDomain: ri.domain });
+        const existing = poolFilter([...story.store.content.values()], { lane: 'spine' }).slice(0, 40);
+        const result = await requestSidequest(postStory, { profile, existing });
+        if (!result || result.verdict !== 'PASS') return done(result && result.verdict === 'BLOCK' ? '✨ the thread tangled — try again' : '✨ the weave is quiet');
+        const { principal, added } = applyResult(story.store, result);
+        if (principal) {
+          const key = 'weave:' + (agent.featureKey || agent.id || agent.name) + ':' + Date.now().toString(36);
+          story.store.addFeature({ key, type: 'npc', label: agent.name, content_id: principal });
+          const intro = interact(story.store, story.playerId, key);
+          story.active = { agent, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro, woven: true };
+        }
+        saveStory(); renderStory();
+        done('✨ a new thread — ' + added.length + ' woven', 3200);
+      } catch (e) { done('✨ the weave broke'); }
+    }
+    // the QUEST LOG — derived from the storyboard (board.js), the same source the /storyboard/ board reads
+    function renderQuest() {
+      const el = $('quest'); if (!el) return;
+      if (!story.ready || !story.sb) { el.innerHTML = ''; return; }
+      const board = computeBoard(story.sb, story.store, story.playerId), log = questLog(board);
+      const active = log.filter((l) => l.status === 'active'), done = log.filter((l) => l.status === 'done').length;
+      // refresh the storyboard-derived overlays: the waypoint target + which residents embiggen
+      const ams = activeMarkers(board);
+      storyBigKeys.clear(); for (const m of ams) if (m.resident) storyBigKeys.add(m.resident);
+      storyWp = ams.length ? resolveMarker(ams[0]) : null;
+      let h = '<span class="lbl">❖ quest</span> ';
+      if (active.length) { const a = active[0]; h += '<span class="o">' + esc(a.text) + '</span>'; if (a.marker && a.marker.hint) h += ' <span class="mk">⌖ ' + esc(a.marker.hint) + '</span>'; }
+      else h += '<span class="o">— the way is open —</span>';
+      el.innerHTML = h + ' <span style="color:#566">(' + done + ' done)</span> · <a class="sb" href="/v096/storyboard/">board ↗</a>';
+    }
+    const saveStory = () => {
+      if (!story.ready) return;
+      try { localStorage.setItem('hoop:v096:story', JSON.stringify(story.store.snapshot())); } catch (e) {}
+      for (const a of checkAdvance(story.store, story.playerId)) if (a.axis === 'narrative_tier' || a.axis === 'revelation_tier') flashTier(a);
+      whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
+      if (introSolved()) { maybeStream(); maybeBuildRind(); }   // unseal: stream the Nave + sink the rind shaft on the concourse
+    };
+    function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of nearResidents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
+    function openStory(a) {
+      if (!story.ready) return;
+      const s = story.store;
+      if (!s.featureByKey(a.featureKey)) s.addFeature({ key: a.featureKey, type: 'npc', label: a.name, tag: a.role });
+      const intro = interact(s, story.playerId, a.featureKey, '', { tag: a.role });
+      story.active = { agent: a, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      story.active.informed = deliverInformed();   // the "next person you talk to" delivers any XP-unlocked beat
+      saveStory(); renderStory();
+    }
+    // deliver a pending informed beat (an active beat carrying `informed` text, not yet delivered): mark it
+    // delivered, set its completes_when facts (so it closes → checkAdvance bumps the tier), return the line.
+    function deliverInformed() {
+      if (!story.ready || !story.sb) return null;
+      for (const b of computeBoard(story.sb, story.store, story.playerId)) {
+        if (b.status !== 'active' || !b.informed || story.store.getFact(story.playerId, 'delivered.' + b.id)) continue;
+        story.store.setFact(story.playerId, 'delivered.' + b.id, true);
+        for (const [k, v] of Object.entries((b.completes_when || {}).facts || {})) story.store.setFact(story.playerId, k, v);
+        return b.informed;
+      }
+      return null;
+    }
+    // every soul gets a cheap, deterministic FLESH·CHASSIS·ANIMA stat block (crewStats is O(1))
+    const npcStats = new Map();
+    function statBlockFor(agent) {
+      const k = (agent.genome && agent.genome.seed) || agent.id || agent.name;
+      let sb = npcStats.get(k); if (!sb) { sb = crewStats(k, agent.role); npcStats.set(k, sb); }
+      return sb;
+    }
+    function npcStatLine(agent) {
+      const c = statBlockFor(agent), cm = deriveCombat(c);
+      const tri = TRIAD_ORDER.map((d) => `<span style="color:${TRIAD[d].accent}">${TRIAD[d].glyph}${Math.round(c.triad[d] * 100)}</span>`).join(' ');
+      return `<div style="font-size:10.5px;color:#9aa8a0;margin:-6px 0 12px"><b style="color:#cfd8d2">${esc(c.cast.label)}</b> · ${tri} · <span title="combat">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def}</span></div>`;
+    }
+    // an ambient NPC's line: faction (from its tags) × the active story phase, stable per NPC (no LLM)
+    function chatterFor(npcId, agent) {
+      if (!story.ready || !story.chatter) return null;
+      const ci = story.store.contentById(npcId); if (!ci) return null;
+      const p = story.store.getPlayerState(story.playerId);
+      const state = { facts: story.store.getFacts(story.playerId), narrative_tier: p.narrative_tier, revelation_tier: p.revelation_tier, items: loadGateState(story.store, story.playerId).items };
+      return pickChatter(story.chatter, factionOf(ci.tags), state, agent.featureKey || npcId);
+    }
+    function renderStory() {
+      const panel = $('story');
+      if (story.active && story.active.chest) return renderChest();
+      if (story.active && story.active.terminal) return renderTerminalPanel(panel);
+      if (!story.active) { panel.classList.remove('on'); panel.innerHTML = ''; return; }
+      const { agent, npcId, intro } = story.active;
+      let head, body = '', choices = '';
+      if (npcId) {
+        const t = talk(story.store, story.playerId, npcId);
+        // the crowd (tree-less NPCs) speaks faction×phase chatter that tracks the story; principals keep their authored tree
+        const says = (t.no_tree && (chatterFor(npcId, agent) || t.says)) || t.says;
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)} · ${esc(t.npc || '')} · standing ${t.standing | 0}</div>${npcStatLine(agent)}`;
+        const inform = story.active.informed ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
+        body = inform + `<p class="says">${esc(says)}</p>`;
+        choices = (t.choices || []).map((c) => `<button data-cid="${esc(c.id)}">${esc(c.text)}</button>`).join('');
+      } else if (intro.item) {
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
+        body = `<p class="nmh">${esc(intro.item.name || '')}</p><p class="says">${esc(intro.item.description || '')}</p>`;
+      } else {
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
+        body = `<p class="says">They meet your eye, wary — there is nothing here for you yet.</p>`;
+      }
+      const weave = (storyApi.enabled && agent && !(story.active && story.active.woven))
+        ? `<button data-weave="1" style="margin-top:10px;width:100%;background:#241f33;color:#e6d6a8;border:1px solid #6a5a3a;cursor:pointer;padding:6px;border-radius:4px" title="generate a side-quest rooted in this place (${esc(storyApi.provider || 'inference')}), gated before it's woven in">✨ weave a thread here</button>`
+        : '';
+      panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button>${head}${body}<div class="ch">${choices}</div>${weave}`;
+      panel.classList.add('on');
+    }
+    $('story').addEventListener('click', (e) => {
+      const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
+      if (cl) { story.active = null; renderStory(); return; }
+      const wv = e.target.closest('[data-weave]');
+      if (wv && story.active && story.active.agent) { weaveHere(story.active.agent); return; }
+      const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
+      if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); setChests(chestDeposit(getChests(), chestGid, it)); saveStory(); renderChest(); } return; }
+      if (wd && chestGid) { const i = +wd.dataset.withdraw, r = chestWithdraw(getChests(), chestGid, i); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); saveStory(); renderChest(); } return; }
+      if (ch && story.active && story.active.npcId) {
+        const r = choose(story.store, story.playerId, story.active.npcId, ch.dataset.cid);
+        // an NPC's give_items grant → real items in the Voronoi pack (a key becomes a key sprite)
+        for (const id of (r && r.gave_items) || []) {
+          const it = itemFromGrant(story.store.contentById(id)); if (!it) continue;
+          addToPack(pack.pack, it); pack.setPack(pack.pack); flashPickup(it);
+        }
+        saveStory(); if (r && r.ended) { story.active = null; } renderStory();
+      }
+    });
+    // a brief toast when something enters the pack
+    let _flashT = null;
+    function flashPickup(it) {
+      const el = $('busy'); el.textContent = `+ ${it.name} → pack (i)`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2200);
+    }
+    function flashTier(a) {
+      const axis = a.axis.split('_')[0], label = axis === 'narrative' ? 'Orientation' : 'The Curve';
+      const el = $('busy'); el.textContent = `✦ ${label} — ${axis} ${a.from}→${a.to}`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
+    }
+    addEventListener('keydown', (e) => { if (e.key === 'Escape' && story.active) { story.active = null; renderStory(); } });
+
+    // ── the Tabard terminal: a learn-role component is a TERMINAL (the reading-room console). Click → approach
+    //    → the mythograph reader (Luna's frozen page 71, the hero's name overwritten in stencil). ──
+    function componentAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isTerminal(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    let _pageP = null;
+    function ensureTerminalPage() {
+      if (story.page) return Promise.resolve(story.page);
+      if (!_pageP) _pageP = fetch(new URL('./story/terminal-71.json', import.meta.url)).then((r) => r.json()).then((p) => (story.page = p)).catch(() => null);
+      return _pageP;
+    }
+    async function openTerminal(cp, ch) {
+      if (!story.ready) return;
+      await ensureTerminalPage();
+      const key = 'term:' + ch.id + ':' + cp.room, s = story.store;
+      if (!s.featureByKey(key)) s.addFeature({ key, type: 'lore_fragment', label: 'a Tabard terminal', content_id: 'lo-terminal' });
+      interact(s, story.playerId, key);                              // crystallize lo-terminal (pinned) → XP + placement
+      s.setFact(story.playerId, 'flag.read_terminal', true);
+      s.setFact(story.playerId, 'flag.heard_luna', true);
+      // seeing your own name in the stencil = you now carry the notation (the reason Sevin believes)
+      if (!s.listInventoryRows(story.playerId).some((r) => r.content_item_id === 'it-stenciltrace')) take(s, story.playerId, 'it-stenciltrace');
+      story.active = { terminal: true };
+      saveStory(); renderStory();                                    // saveStory advances tiers if the chain has closed
+    }
+    function renderTerminalPanel(panel) {
+      const T = story.page;
+      if (!T) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The terminal is dark.</p>`; panel.classList.add('on'); return; }
+      const hero = T.heroName, stencil = ((story.store.contentById('lo-terminal') || {}).content || {}).hero_stencil || '⟜⌖⟊⟁⌇';
+      const STEN = `<span style="color:#b48a6a;letter-spacing:2px;background:rgba(180,138,106,.14);padding:0 4px;border-radius:3px" title="a notation you cannot read">${stencil}</span>`;
+      const ciph = (s) => { const e = esc(s); return hero ? e.split(esc(hero)).join(STEN) : e; };
+      const actC = {}; for (const a of T.propp.acts) actC[a.id] = a.color;
+      const ac = T.actant;
+      let spine = ''; for (const m of T.propp.moves) spine += `<span style="font-size:10.5px;padding:2px 6px;border:1px solid ${actC[m.act] || '#2a3340'};${m.inverted ? 'border-style:dashed;' : ''}border-radius:5px;margin:0 3px 4px 0;display:inline-block" title="${esc(m.gloss || '')}">${esc(m.sym)} ${esc(m.name)}</span>`;
+      let marked = ''; for (const m of T.propp.moves) if (m.name === 'Branding' || m.name === 'Recognition') marked += `<div style="color:#9aa8a0;margin:3px 0 3px 8px;border-left:1px solid #20303a;padding-left:7px"><b style="color:#cfd8d2">${esc(m.sym)} ${esc(m.name)}.</b> ${ciph(m.gloss)}</div>`;
+      let motifs = ''; for (const m of T.motifs.list) { const k = m.code === 'M341'; motifs += `<div style="margin:2px 0;${k ? 'color:#f4bf62' : ''}"><span style="color:#6b7872">${esc(m.code)}</span> ${esc(m.name)}${k ? ' — <i>' + esc(m.gloss) + '</i>' : ''}</div>`; }
+      panel.innerHTML =
+        `<button class="cl" data-close="1">close ⏎</button>` +
+        `<div class="nm">${ciph(T.title)}</div>` +
+        `<div class="rl">${esc(T.kicker)} · ${esc(T.cultureLabel)} · a mythograph, posted before its telling · ${esc(T.permalink)}</div>` +
+        `<p class="says" style="font-style:normal;border-left:2px solid #f4bf62;padding-left:9px"><b style="color:#f4bf62">The desire.</b> ${ciph(ac.subject)} wants <i>${esc(ac.object)}</i>, against <b>${esc(ac.opponent)}</b>${ac.unreachable ? ' — <span style="color:#7fd8d0">and the limit is never reached.</span>' : '.'}</p>` +
+        `<div class="nmh">the spine — Propp's functions</div><div style="margin:4px 0 6px">${spine}</div>${marked}` +
+        `<div class="nmh" style="margin-top:10px">the motifs — Thompson's index</div>${motifs}` +
+        `<p class="says" style="margin-top:11px">The reading-room regulars argue the moves and the motifs. None of them can read the hero's name. It is set in ${STEN} — the same three layers stencilled on the wall of the room you woke in. <span style="color:#7fd8d0">Luna posted this. The hero is you.</span></p>`;
+      panel.classList.add('on');
+    }
+
+    // ── the authored opening: two PRINCIPALS pinned in chunk 0 (the bible's Arrival). Olo is at the
+    //    cradle where you wake; Sevin is at the far margin of the chunk — you explore to reach her. They
+    //    are beacons (named, ringed), distinct from the procedural crowd, and pinned via content_id. ──
+    let anchors = [];
+    function placeAnchors() {
+      anchors = [];
+      if (!society || player < 0) return;
+      anchors.push({ key: 'anchor:olo', content_id: 'np-olo', name: 'Olo Vashti', role: 'drift', color: '#7fd8d0', x: px(), y: py(), deck: 0, dir: 'S', genome: buildGenome('hoop-anchor:olo', { role: 'trade', size: 13 }) });
+      const r0 = society.rooms.filter((o) => o.ch === 0);
+      let far = null, fd = -1; for (const o of r0) { const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d > fd) { fd = d; far = o; } }
+      if (far) anchors.push({ key: 'anchor:sevin', content_id: 'np-sevin', name: 'Sevin', role: 'rindwalker', color: '#b48a6a', x: far.x, y: far.y, deck: 0, dir: 'S', genome: buildGenome('hoop-anchor:sevin', { role: 'store', size: 13 }) });
+    }
+    // guarantee chunk 0 has at least one Tabard terminal (designate the most central component if no role matches)
+    function ensureChunk0Terminal() {
+      const ch = world && world.chunks[0]; if (!ch || !ch.painted) return;
+      const comps = ch.painted.comps || [];
+      if (comps.some(isTerminal)) return;
+      let best = null, bd = Infinity; for (const cp of comps) { const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = cp; } }
+      if (best) best._terminal = true;
+    }
+    // resolve a storyboard marker to a world position for the waypoint
+    function resolveMarker(m) {
+      if (!m) return null;
+      if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); return a ? { x: a.x, y: a.y } : null; }
+      if (m.terminal) {
+        let best = null, bd = Infinity;
+        for (const ch of (world ? world.chunks : [])) for (const cp of ((ch.painted && ch.painted.comps) || [])) {
+          if (!isTerminal(cp)) continue; const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = { x: cp.cx, y: cp.cy }; }
+        }
+        return best;
+      }
+      return null;
+    }
+    function anchorAt(wx, wy) {
+      let best = null, bd = (SKIN.playerW * 3) ** 2;
+      for (const a of anchors) { if ((a.deck || 0) !== playerDeck()) continue; const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } }
+      return best;
+    }
+    function openAnchor(a) {
+      if (!story.ready) return;
+      const s = story.store;
+      if (!s.featureByKey(a.key)) s.addFeature({ key: a.key, type: 'npc', label: a.name, content_id: a.content_id });
+      const intro = interact(s, story.playerId, a.key);
+      story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      story.active.informed = deliverInformed();   // a principal can also be the one who informs you
+      saveStory(); renderStory();
+    }
+    function drawAnchors() {
+      const h = SKIN.playerW * 1.45 * cam.scale;   // principals stand at ~player scale (figures of merit, not map pins)
+      for (const a of anchors) {
+        if ((a.deck || 0) !== playerDeck()) continue;   // principals belong to their deck
+        const sx = SX(a.x), sy = SY(a.y);
+        if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;
+        a.dir = dirKey(px() - a.x, py() - a.y);   // turn to face the player — a sign of life, even standing their post
+        ctx.save();
+        ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(7, SKIN.playerW * 0.5 * cam.scale), 0, 7); ctx.stroke();   // faction-coloured ground ring (trackable)
+        if (a.genome) {
+          ctx.imageSmoothingEnabled = false;
+          const cvs = spriteCanvas(a.genome, a.dir || 'S', null), w = h * (cvs.width / cvs.height);
+          ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);
+          ctx.imageSmoothingEnabled = true;
+        } else { ctx.fillStyle = a.color; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.glyph || '☻', sx, sy); }
+        ctx.fillStyle = a.color; ctx.font = 'bold 11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(a.name, sx, sy - h * 0.92 - 8);   // nameplate above the head
+        ctx.restore();
+      }
+    }
+    // the first chunk is SEALED until the opening mystery is solved (narrative 1→2): meet Olo, read the
+    // terminal (Luna's skeleton + the stencil), give Sevin a reason she believes. Then the world opens.
+    const introSolved = () => story.ready && story.store.getPlayerState(story.playerId).narrative_tier >= 2;
+
+    cv.addEventListener('click', (e) => {
+      if (!world || player < 0) return;
+      const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
+      if (shaftXY && rindBuilt) {   // the chute: near it → use it (cross decks); else walk to it
+        const dsh = (shaftXY.x - wx) ** 2 + (shaftXY.y - wy) ** 2;
+        if (dsh < (SKIN.playerW * 1.8) ** 2) {
+          if ((shaftXY.x - px()) ** 2 + (shaftXY.y - py()) ** 2 < (SKIN.playerW * 2.4) ** 2) { crossShaft(); return; }
+          walkTo(shaftXY.x, shaftXY.y); return;
+        }
+      }
+      const a = anchorAt(wx, wy);
+      if (a) { openAnchor(a); walkTo(a.x, a.y); return; }
+      const who = residentAt(wx, wy);
+      if (who) { openStory(who); walkTo(who.x, who.y); return; }
+      const term = componentAt(wx, wy);
+      if (term) { openTerminal(term.cp, term.ch); walkTo(term.cp.cx, term.cp.cy); return; }
+      const lf = livingFixtureAt(wx, wy);
+      if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openChest(lf.gid); return; }
+      if (story.active) { story.active = null; renderStory(); }
+      walkTo(wx, wy);
+    });
+
+    // the animation loop — step the residents' commute, then render (the painted world is otherwise static)
+    function frame(ts) {
+      requestAnimationFrame(frame);
+      if (ts - lastTs < 30) return;   // PERF: cap the loop to ~33fps (movement still redraws via walkTo's own tick)
+      const dt = lastTs ? ts - lastTs : 16; lastTs = ts;
+      if (world && walk && nearResidents.length) stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
+      draw();
+    }
+
+    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
+    let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
+    addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === 'R') { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world
+
+    // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
+    let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
+    function adoptCharacter(c) {
+      playerChar = c;
+      try { playerGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size }); } catch (e) { playerGenome = null; }
+      pack.setPack(packForCharacter(c, 9));
+      renderWho();
+    }
+    function renderWho() {
+      if (!playerChar) { $('who').innerHTML = ''; return; }
+      const cm = deriveCombat(playerChar);
+      $('who').innerHTML = `<b>${esc(playerChar.name)}</b> · ${esc(playerChar.cast.label)} ${esc(playerChar.vocTag)}<br><span style="color:#6b7872">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def} ✣${cm.fluxPool}</span>`;
+    }
+
+    // ── the pack: a Voronoi-cylinder inventory of genomed items ──
+    const pack = new Inventory({ pack: (playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)), title: 'pack' });
+    const togglePack = () => pack.toggle();
+    $('pack').addEventListener('click', togglePack);
+    addEventListener('keydown', (e) => { if ((e.key === 'i' || e.key === 'I') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); togglePack(); } });
+
+    // ── character creation ──
+    const creator = new CharacterCreator({ seed: (seed ^ 0x5a17) >>> 0, onEmbark: adoptCharacter });
+    $('charbtn').addEventListener('click', () => creator.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); creator.toggle(); } });
+
+    // ── the equipped page: stained-glass figure with the pack auto-fitted onto a body plan ──
+    const equip = new EquippedView({ getCharacter: () => playerChar, getPack: () => pack.pack });
+    $('equipbtn').addEventListener('click', () => equip.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); equip.toggle(); } });
+
+    // ── the minimap + waypoint ── a high-level map you drop a waypoint on; the main map then carries a
+    // persistent DIRECTION indicator to it (an edge arrow while it's off-screen → the marker itself once
+    // it rolls into the viewport). The waypoint persists across reloads. ──
+    let waypoint = (() => { try { const s = localStorage.getItem('mega:v093:waypoint'); const w = s ? JSON.parse(s) : null; return (w && Number.isFinite(w.x) && Number.isFinite(w.y)) ? w : null; } catch (e) { return null; } })();
+    function setWaypoint(wp) {
+      waypoint = (wp && Number.isFinite(wp.x) && Number.isFinite(wp.y)) ? { x: wp.x, y: wp.y } : null;
+      try { waypoint ? localStorage.setItem('mega:v093:waypoint', JSON.stringify(waypoint)) : localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+    }
+    const minimap = new MiniMap({
+      getState: () => ({ world, walk, seen, society, px: px(), py: py(), waypoint }),
+      onWaypoint: setWaypoint,
+    });
+    $('mapbtn').addEventListener('click', () => minimap.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
+
+    if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
+    $('newgame').addEventListener('click', () => {
+      if (!confirm('Start a new game? This wipes your story progress — facts, lore, inventory, tiers — and respawns you. The world (and your character) stay.')) return;
+      try { localStorage.removeItem('hoop:v096:story'); localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+      location.reload();
+    });
+    loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

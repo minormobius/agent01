@@ -110,9 +110,12 @@ to the player's own repo.
 | Orchestrator `story/sidequest.js` — generate → stamp → review.js/gates.js/validate.js GATE → one repair → return; `persistSidequest` to the player's repo | ✅ node-tested, 25 checks (mock adapter + client) |
 | Worker `/api/story/{health,embed,sidequest}` — additive + fully guarded (a throw never breaks assets) | ✅ wired in `worker.js`; verify on deploy (needs `GEMINI_API_KEY`) |
 | `deploy-hoop.yml` syncs `GEMINI_API_KEY` worker secret + curls `/api/story/health` | ✅ |
-| Browser **UI hook**: call `/api/story/sidequest` on a thick under-served chamber → `persistSidequest` via `AuthClient.pds` → crystallize | ⏳ phase 2b (UI wiring into `v095/index.html`) |
+| Browser **UI hook** (v096 surface): `✨ weave` → `v096/story/genquest.js` builds a `ChunkProfile`, POSTs `/api/story/sidequest`, folds the approved arc into the live pool (`store.addContent`) + crystallizes its principal | ✅ wired in `hoop/v096/`; node-tested 16 checks; proof by eye on deploy |
+| `MemoryStore.addContent` (fold a generated item into the live pool) | ✅ in `story/engine.js` (canonical + v096) |
+| Persist: localStorage (v096 has no auth) + optional repo freeze via `freezeResult` when a session exists | ✅ guarded; repo freeze is additive |
+| **Data-flow website** `v096/architecture.html` — interactive SVG of the whole system (click-for-detail) | ✅ live at `hoop.mino.mobi/v096/architecture.html` |
 | Steering: feed the `pulse` + chunk profile into the generation prompt | ⏳ phase 3 |
-| Thin adapter: real econ society output → `ChunkProfile` for `spine.js` | ⏳ phase 3 |
+| Thin adapter: real econ society output → `ChunkProfile` for `spine.js` (the rich thick-chunk match) | ⏳ phase 3 |
 
 The procedural + localStorage path is the guaranteed fallback: with no service repo and no auth, the
 story tab still works fully. ATProto is additive truth, never a hard dependency (the borges discipline).
