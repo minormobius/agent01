@@ -108,18 +108,31 @@ scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG �
   torque** (free-body the distal sub-chain: gravity + GRF of feet below it). `evaluateStanding` →
   per-joint {held (capacity on the correct side ≥ |required|), antagonised (both sides)} + CoM-over-support.
   `evaluateWalking` replays the gait clip quasi-statically (lifted feet drop out of support).
-- `myology.mjs` — `growMuscles(sprite)`: for each actuated joint (shoulder/elbow/carpus, hip/stifle/hock,
-  neck) grow an AGONIST opposing the buckling torque (largest moment arm = least force = least volume) +
-  a smaller ANTAGONIST (stability to perturbation). Sized past the evaluator threshold (SAFE factor) so
-  `held` clears robustly, not knife-edge.
-- `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG: faint bones, muscles coloured
-  agonist(warm)/antagonist(cool), width ∝ √force, CoM dot over the support line + stand/walk status.
+  Every presacral VERTEBRA is an actuated joint (the trunk is a loaded bridge). `actuatedJoints` =
+  limbs + head + spine; boundary conditions via `passiveFraction` (ligaments / the stay apparatus carry a
+  share before muscle — nuchal, supraspinous). `evaluateWalking` replays the gait quasi-statically.
+- `myology.mjs` — `growMuscles(sprite)`. LIMB joints get a mono-articular agonist+antagonist. The SPINE is
+  coupled: generate POLY-ARTICULAR candidates (a dorsal cord with a leverage floor spanning many vertebrae)
+  and a greedy coupled cover picks the cheapest set — a **long axial muscle emerges** (one long belly beats
+  many short ones). Then an oracle-driven REPAIR loop adds short deep muscles (multifidus) until
+  `evaluateStanding` reports every joint held. Sized past the hold threshold (SAFE). Deterministic — NO RNG.
+- `muscle.mjs` also exports `crossedJoints` (which actuated joints a hand-drawn muscle spans) for the lab.
+- `muscle.html` — **the myology lab (construction interface)** at `/sprite/muscle.html`. Draw muscles onto
+  the skeleton (click two bone points; the offset sets the moment arm) and get a live FEM-like solve:
+  per-joint stable/held/buckling colouring, CoM over support, total volume, walk %. Or hit Auto-grow.
+- `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG contact sheet (headless).
 
-**Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints), grown one STANDS
-(13/13 across the deck), the set is MINIMAL (removing any one muscle breaks standing) and antagonised.
-Walking is a quasi-static first cut (46–71% gait coverage — muscles are sized for standing only). Next:
-size muscles for the gait (inverse dynamics over the cycle), bi-articular muscles emerging from
-volume-minimisation (like real hamstrings/gastrocnemius), and validation against real myology maps.
+**Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints); grown one STANDS
+(44/44 across the deck, ~70 muscles incl. the whole spine); the trunk is LOAD-BEARING (remove axial muscles
+→ collapse); a long poly-articular axial muscle EMERGES; deterministic. **Honest open items:** (1) walking
+is quasi-static (46–74% coverage — muscles sized for standing only); next is inverse dynamics over the gait.
+(2) The dorsal-vs-ventral (epaxial/hypaxial) *identity* of the load-bearing trunk muscles is the key thing
+to validate against real myology — the grower currently picks whichever side aligns with its sign
+convention. (3) bi-articular limb muscles emerging from volume-minimisation (hamstrings/gastrocnemius).
+Modelling: it's a structural-equilibrium / redundancy-resolution solve (LP/NNLS), not continuum FEM; stays
+2D sagittal for now (the math is vector-based so 3D is a later swap, not a rewrite).
+
+Test: `muscle.selftest.mjs` (12 checks).
 
 ## The package it belongs to
 

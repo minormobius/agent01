@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · myology lab — build a muscular system, solve its stability</title>
+<meta name="description" content="A muscle construction interface: draw muscles onto an animal's skeleton and get a live structural-stability solve — per-joint hold, antagonism, centre of mass over support. Or let the solver grow a whole musculature from first principles." />
+<style>
+  :root{ --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da; --dim:#7f9b8d;
+    --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --ago:#d6604a; --ant:#56aac8;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace; }
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:radial-gradient(150% 130% at 50% -20%,#16261f,#0a110e 62%);color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px 0}
+  .crumb a{color:var(--gold);text-decoration:none}
+  header{padding:10px 20px 12px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:18px;letter-spacing:.4px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;font-size:13px}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:96ch;line-height:1.55}
+  .sub b{color:var(--txt)}
+  main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:920px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .stage{position:relative;background:linear-gradient(180deg,#0e1814,#0b120f);border:1px solid var(--line);border-radius:10px}
+  canvas#cv{display:block;width:100%;height:auto;border-radius:10px;cursor:crosshair}
+  button{font:600 13px/1 var(--mono);color:var(--txt);background:#0e1713;border:1px solid var(--line);border-radius:9px;padding:10px 12px;cursor:pointer;transition:.12s;width:100%}
+  button:hover{border-color:#3c6a4c}
+  button.on{border-color:var(--gold);color:var(--gold)}
+  button.grow{background:linear-gradient(180deg,#1a3a28,#13241a);border-color:#2c5a3c;color:#dff3e6}
+  .row{display:flex;gap:8px;margin-top:9px} .row button{flex:1}
+  select,input[type=range]{width:100%}
+  select{background:#0b1310;border:1px solid var(--line);border-radius:7px;color:var(--txt);font:inherit;padding:8px;margin-top:6px}
+  .ctl{margin-top:12px} .ctl label{font-size:12px;color:var(--dim);display:block;margin-bottom:4px}
+  .verdict{margin-top:14px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .verdict .bar{height:6px;background:var(--st,#8a9b92)}
+  .verdict .body{padding:11px 13px}
+  .verdict .big{font-size:16px;font-weight:700;color:var(--st,#8a9b92)}
+  .stat{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:5px}
+  .stat b{color:var(--txt)}
+  .legend{margin-top:12px;font-size:11.5px;color:var(--dim);line-height:1.8}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:5px}
+  .hint{margin-top:12px;font-size:11.5px;color:var(--dim);line-height:1.6;border-top:1px dashed var(--line);padding-top:10px}
+  .hint b{color:var(--txt)}
+  #err{display:none;position:absolute;left:10px;right:10px;top:10px;z-index:9;background:#2a1410;border:1px solid #5a342c;border-radius:8px;padding:10px 12px;color:#f0b8a8;font-size:12px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">biome</a> / <a href="/sprite/">sprite</a> / myology lab</div>
+  <header>
+    <h1>myology lab <small>— build a muscular system, solve its stability</small></h1>
+    <div class="sub">Draw muscles onto the skeleton and get a live <b>structural-stability solve</b>: every
+      muscle only <b>pulls</b>, each makes torque = force × moment arm, and the body <b>stands</b> only when
+      every joint is <b>held</b> (capacity to cancel its buckling torque) and <b>antagonised</b>, with the
+      centre of mass over the support. Add muscles by hand, or let the solver <b>grow</b> a whole musculature
+      — vertebrae and all — from first principles.</div>
+  </header>
+  <main>
+    <section class="panel">
+      <label class="ctl" style="margin-top:0"><span style="font-size:12px;color:var(--dim)">subject</span>
+        <select id="sel"></select></label>
+      <div class="row"><button class="grow" id="b-grow">✦ Auto-grow musculature</button></div>
+      <div class="row">
+        <button id="b-add">＋ Add muscle</button>
+        <button id="b-del">－ Remove</button>
+        <button id="b-clear">Clear</button>
+      </div>
+      <div class="ctl">
+        <label>new-muscle force <span id="fval">1.0</span></label>
+        <input type="range" id="force" min="0.1" max="8" step="0.1" value="1.0">
+      </div>
+      <div class="verdict" id="verdict">
+        <div class="bar"></div>
+        <div class="body">
+          <div class="big" id="v-big">—</div>
+          <div class="stat"><span>joints held</span><b id="v-joints">—</b></div>
+          <div class="stat"><span>CoM over support</span><b id="v-com">—</b></div>
+          <div class="stat"><span>muscles · volume</span><b id="v-mus">—</b></div>
+          <div class="stat"><span>walk coverage</span><b id="v-walk">—</b></div>
+        </div>
+      </div>
+      <div class="legend">
+        <i style="background:var(--leaf)"></i>joint stable &nbsp; <i style="background:var(--gold)"></i>held, no antagonist &nbsp; <i style="background:var(--warn)"></i>buckling<br>
+        <i style="background:var(--ago)"></i>agonist / extensor &nbsp; <i style="background:var(--ant)"></i>antagonist / flexor &nbsp; <i style="background:var(--gold)"></i>centre of mass
+      </div>
+      <div class="hint"><b>Add a muscle:</b> click <b>Add</b>, then click a point on one bone and a point on
+        another — the offset from the bone sets the moment arm (lever). The solve updates instantly. This is
+        the FEM-like loop: assemble tension elements + boundary conditions, solve for equilibrium, read the
+        margins.</div>
+    </section>
+    <section class="panel">
+      <div class="stage"><canvas id="cv" width="1080" height="720"></canvas><div id="err"></div></div>
+    </section>
+  </main>
+
+<script type="module">
+import { build } from './bauplan.mjs';
+import { solve, bbox } from './render.mjs';
+import { evaluateStanding, evaluateWalking, actuatedJoints } from './mechanics.mjs';
+import { growMuscles } from './myology.mjs';
+import { attachPos, crossedJoints, momentArm } from './muscle.mjs';
+
+const errEl = document.getElementById('err');
+const showErr = (where, e) => { errEl.textContent = `⚠ ${where}: ${(e&&(e.stack||e.message))||e}`; errEl.style.display='block'; console.error(where,e); };
+window.addEventListener('error', (ev)=>showErr('runtime', ev.error||ev.message));
+window.addEventListener('unhandledrejection', (ev)=>showErr('promise', ev.reason));
+const $ = (id)=>document.getElementById(id);
+
+const cv = $('cv'), ctx = cv.getContext('2d');
+const dpr = Math.min(2, window.devicePixelRatio||1);
+function fit(){ cv.width = 1080*dpr; cv.height=720*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+fit();
+
+let CATALOG=null, sprite=null, W=null, muscles=[], actuated=new Set();
+let mode='none', pending=null, mouse=null, selected=-1, tf={s:1,tx:0,ty:0};
+let force=1.0;
+
+function setSprite(id){
+  sprite = build(CATALOG.organisms[id]);
+  W = solve(sprite, 0);
+  actuated = new Set(actuatedJoints(sprite).map(s=>s.id));
+  muscles = []; selected=-1; pending=null;
+  computeTransform(); resolve(); draw();
+}
+function computeTransform(){
+  const b = bbox(sprite,0); const pad=40;
+  const s = Math.min((1080-pad*2)/b.w, (720-pad*2)/b.h);
+  tf = { s, tx: 540 - s*(b.x0+b.x1)/2, ty: 360 - s*(b.y0+b.y1)/2 };
+}
+const toScreen = (p)=>({x:p.x*tf.s+tf.tx, y:p.y*tf.s+tf.ty});
+const toWorld = (x,y)=>({x:(x-tf.tx)/tf.s, y:(y-tf.ty)/tf.s});
+
+let stand=null, walk=null;
+function resolve(){
+  stand = evaluateStanding(sprite, muscles);
+  walk = evaluateWalking(sprite, muscles);
+  const vol = muscles.reduce((a,m)=>a+m.fmax*Math.hypot(attachPos(W,m.b).x-attachPos(W,m.a).x, attachPos(W,m.b).y-attachPos(W,m.a).y),0);
+  const held = stand.joints.filter(j=>j.stable).length, n=stand.joints.length;
+  const st = stand.stable ? 'var(--leaf)' : (held>n*0.6?'var(--gold)':'var(--warn)');
+  document.documentElement.style.setProperty('--st', st);
+  $('verdict').querySelector('.bar').style.background = st;
+  $('v-big').textContent = stand.stable ? 'STANDS ✓' : 'COLLAPSES ✗';
+  $('v-joints').textContent = `${held} / ${n}`;
+  $('v-com').textContent = stand.comOver ? `yes (${(stand.comFrac*100).toFixed(0)}%)` : 'NO';
+  $('v-mus').textContent = `${muscles.length} · ${vol.toFixed(0)}`;
+  $('v-walk').textContent = `${(walk.coverage*100).toFixed(0)}%`;
+}
+
+function draw(){
+  try{
+    ctx.clearRect(0,0,1080,720);
+    // bones
+    for(const sg of sprite.segs){ const a=toScreen(W[sg.id].base), b=toScreen(W[sg.id].tip);
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineCap='round';
+      ctx.lineWidth=Math.max(1,((sg.w0||1)+(sg.w1||1))/2*tf.s*0.7); ctx.strokeStyle='#566'; ctx.stroke(); }
+    // support line + CoM
+    if(stand.contacts.length){ const xs=stand.contacts.map(c=>c.x); const gy=Math.max(...stand.contacts.map(c=>c.y))+6;
+      const l=toScreen({x:Math.min(...xs),y:gy}), r=toScreen({x:Math.max(...xs),y:gy});
+      ctx.beginPath(); ctx.moveTo(l.x,l.y); ctx.lineTo(r.x,r.y); ctx.strokeStyle='#3a4a42'; ctx.lineWidth=2; ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+      const com=toScreen(stand.com); ctx.beginPath(); ctx.arc(com.x,com.y,6,0,7); ctx.fillStyle=stand.comOver?'#d8b25a':'#e0795a'; ctx.fill(); }
+    // muscles
+    muscles.forEach((m,i)=>{ const a=toScreen(attachPos(W,m.a)), b=toScreen(attachPos(W,m.b));
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineCap='round';
+      ctx.lineWidth=Math.max(2,Math.min(16,Math.sqrt(m.fmax)*5*tf.s*0.5));
+      ctx.strokeStyle = i===selected ? '#fff' : (m.role==='antagonist'?'rgba(86,170,200,.8)':'rgba(214,96,74,.85)'); ctx.stroke(); });
+    // joint markers coloured by stability
+    for(const j of stand.joints){ const p=toScreen(W[j.id].base);
+      ctx.beginPath(); ctx.arc(p.x,p.y,3.2,0,7);
+      ctx.fillStyle = j.stable?'#62b87a':(j.held?'#d8b25a':'#e0795a'); ctx.fill(); }
+    // pending add
+    if(mode==='add' && pending){ const a=toScreen(attachPos(W,pending)); ctx.beginPath(); ctx.arc(a.x,a.y,5,0,7); ctx.fillStyle='#fff'; ctx.fill();
+      if(mouse){ ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(mouse.x,mouse.y); ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]); } }
+  }catch(e){ showErr('draw',e); }
+}
+
+// pick the attachment (bone, t, d) nearest a world point
+function pickAttach(wp){
+  let best=null, bd=1e9;
+  for(const sg of sprite.segs){ const A=W[sg.id].base, B=W[sg.id].tip;
+    const dx=B.x-A.x, dy=B.y-A.y, L2=dx*dx+dy*dy||1;
+    let t=((wp.x-A.x)*dx+(wp.y-A.y)*dy)/L2; t=Math.max(0,Math.min(1,t));
+    const px=A.x+dx*t, py=A.y+dy*t; const dist=Math.hypot(wp.x-px,wp.y-py);
+    if(dist<bd){ bd=dist; const L=Math.sqrt(L2); const nx=-dy/L, ny=dx/L; const d=(wp.x-px)*nx+(wp.y-py)*ny;
+      best={bone:sg.id, t, d}; } }
+  return best;
+}
+
+cv.addEventListener('mousemove', e=>{ const r=cv.getBoundingClientRect(); mouse={x:(e.clientX-r.left), y:(e.clientY-r.top)}; if(mode==='add'&&pending) draw(); });
+cv.addEventListener('click', e=>{
+  const r=cv.getBoundingClientRect(); const wp=toWorld(e.clientX-r.left, e.clientY-r.top);
+  if(mode==='add'){
+    const att=pickAttach(wp);
+    if(!pending){ pending=att; draw(); }
+    else{
+      const a=pending, b=att; pending=null;
+      if(a.bone===b.bone){ return; }
+      const joints=crossedJoints(sprite,a.bone,b.bone,actuated);
+      // sign role by moment arm at first crossed joint (just for colour)
+      let role='agonist'; if(joints.length){ const r0=momentArm(attachPos(W,a),attachPos(W,b),W[joints[0]].base); role = r0>=0?'agonist':'antagonist'; }
+      muscles.push({ id:'user'+muscles.length, name:'hand-drawn', joint:joints[0]||a.bone, joints, a, b, fmax:force, role, limb:'user' });
+      resolve(); draw();
+    }
+  } else if(mode==='del'){
+    let best=-1, bd=10;
+    muscles.forEach((m,i)=>{ const A=toScreen(attachPos(W,m.a)), B=toScreen(attachPos(W,m.b)); const sx=e.clientX-r.left, sy=e.clientY-r.top;
+      const dx=B.x-A.x, dy=B.y-A.y, L2=dx*dx+dy*dy||1; let t=((sx-A.x)*dx+(sy-A.y)*dy)/L2; t=Math.max(0,Math.min(1,t));
+      const d=Math.hypot(sx-(A.x+dx*t), sy-(A.y+dy*t)); if(d<bd){bd=d; best=i;} });
+    if(best>=0){ muscles.splice(best,1); resolve(); draw(); }
+  }
+});
+
+$('b-add').onclick = ()=>{ mode = mode==='add'?'none':'add'; pending=null; sync(); };
+$('b-del').onclick = ()=>{ mode = mode==='del'?'none':'del'; pending=null; sync(); };
+$('b-clear').onclick = ()=>{ muscles=[]; selected=-1; resolve(); draw(); };
+$('b-grow').onclick = ()=>{ muscles = growMuscles(sprite).muscles; resolve(); draw(); };
+$('force').oninput = (e)=>{ force=parseFloat(e.target.value); $('fval').textContent=force.toFixed(1); };
+function sync(){ $('b-add').classList.toggle('on',mode==='add'); $('b-del').classList.toggle('on',mode==='del'); }
+
+(async function boot(){
+  try{
+    const res = await fetch('../gacha/catalog.json'); if(!res.ok) throw new Error('catalog '+res.status);
+    CATALOG = await res.json();
+    const quad = Object.values(CATALOG.organisms).filter(o=>{ try{ build(o); return true; }catch{ return false; } }).sort((a,b)=>(b.mass_g||0)-(a.mass_g||0));
+    const sel=$('sel'); for(const o of quad){ const opt=document.createElement('option'); opt.value=o.id; opt.textContent=`${o.common} · ${o.sciName}`; sel.appendChild(opt); }
+    sel.onchange=()=>setSprite(sel.value);
+    setSprite(quad[0].id);
+  }catch(e){ showErr('boot', e); }
+})();
+</script>
+</body>
+</html>

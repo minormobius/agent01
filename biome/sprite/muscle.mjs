@@ -64,4 +64,17 @@ export function candidatesForJoint(W, seg, scale) {
   return out;
 }
 
-export default { attachPos, momentArm, muscleLength, muscleVolume, candidatesForJoint };
+// Which actuated joints a muscle between two bones crosses — the joints on the tree-path between them
+// (up from each attachment to their lowest common ancestor, excluding the LCA's own joint). Used by the
+// construction interface so a hand-drawn muscle torques exactly the joints it spans.
+export function crossedJoints(sprite, aBone, bBone, actuatedSet) {
+  const par = {}; for (const s of sprite.segs) par[s.id] = s.parent;
+  const up = (x) => { const a = []; let c = x; while (c) { a.push(c); c = par[c]; } return a; };
+  const A = up(aBone), B = up(bBone), Bset = new Set(B);
+  const lca = A.find((x) => Bset.has(x));
+  const toLca = (arr) => { const o = []; for (const x of arr) { if (x === lca) break; o.push(x); } return o; };
+  const segs = new Set([...toLca(A), ...toLca(B)]);
+  return [...segs].filter((id) => actuatedSet.has(id));
+}
+
+export default { attachPos, momentArm, muscleLength, muscleVolume, candidatesForJoint, crossedJoints };
