@@ -20,6 +20,10 @@ export const TIER_MAX = 5;                                    // the Tabard bibl
 // A milestone is a tier FLOOR: when `requires` is held, the player's `axis` is at least `to`. Order
 // is irrelevant — checkAdvance takes the highest satisfied `to` per axis. `requires` is the same blob
 // meetsState reads (facts / items / min_rep), so milestones gate on the very state dialogue effects set.
+// LEGACY FALLBACK (v096): the early-game climb is now DERIVED from hoopy's content
+// (story/progression.js#deriveMilestones over his plot_beats) — v096 passes those to checkAdvance. This
+// hand-authored list (met_olo / sevin_believes) is no longer the source; kept only as a fallback for
+// surfaces with no plot_beats + the selftests.
 export const MILESTONES = [
   // Narrative: Arrival → Orientation. Earned by meeting Olo, reading the Tabard terminal, and giving
   // Sevin a reason she believes (the Bay-14 stencil). The opening chunk's "advance the ball".

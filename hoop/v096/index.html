@@ -80,6 +80,7 @@
     import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose, take, loadGateState } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
+    import { deriveStoryboard, deriveMilestones } from './story/progression.js';   // v096: the storyboard + advancement are DERIVED FROM hoopy's content, not hand-authored
     import { computeBoard, questLog, activeMarkers } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
     import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
@@ -546,7 +547,11 @@
         catch (e) { const res = await fetch(new URL('./story/pool.json', import.meta.url)); if (!res.ok) throw 0; content = flattenPool(await res.json()); }
         story.store = new MemoryStore(content, { features: [] });
         const saved = localStorage.getItem('hoop:v096:story'); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
-        try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; }
+        // the storyboard is DERIVED from his plot_beats (the climb "out and down" is his story). The
+        // hand-authored storyboard.json is only a fallback when his content carries no plot_beats.
+        story.sb = deriveStoryboard(content);
+        if (!story.sb.beats.length) { try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; } }
+        story.milestones = story.sb ? deriveMilestones(story.sb) : [];   // tier advancement = his flag-gated beats (empty until his export wires triggers)
         try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
         story.ready = true; renderQuest();
         try { const h = await fetch('/api/story/health').then((r) => r.json()); storyApi.enabled = !!(h && h.enabled); storyApi.provider = h && h.provider; } catch (e) { storyApi.enabled = false; }   // v096: is live generation available?
@@ -607,7 +612,7 @@
     const saveStory = () => {
       if (!story.ready) return;
       try { localStorage.setItem('hoop:v096:story', JSON.stringify(story.store.snapshot())); } catch (e) {}
-      for (const a of checkAdvance(story.store, story.playerId)) if (a.axis === 'narrative_tier' || a.axis === 'revelation_tier') flashTier(a);
+      for (const a of checkAdvance(story.store, story.playerId, story.milestones || [])) if (a.axis === 'narrative_tier' || a.axis === 'revelation_tier') flashTier(a);
       whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
       if (introSolved()) { maybeStream(); maybeBuildRind(); }   // unseal: stream the Nave + sink the rind shaft on the concourse
     };
