@@ -45,7 +45,17 @@
     #story .ch button:hover { border-color: #7fd8d0; color: #fff; }
     #story .cl { position: absolute; top: 12px; right: 14px; background: none; border: 0; color: #6b7872; font: inherit; font-size: 12px; cursor: pointer; }
     #story .cl:hover { color: #f4bf62; }
-  </style>
+    /* the ENCOUNTER card — Qud-style: meeting anything new fills the centre of the screen with its full description */
+    #enc { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9; background: rgba(2,3,6,0.62); pointer-events: auto; }
+    #enc.on { display: flex; }
+    #enc .card { width: min(560px, 92vw); max-height: 82vh; overflow-y: auto; background: linear-gradient(180deg, #0b0f15, #07090e); border: 1px solid #2a3a44; border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); padding: 22px 24px 16px; }
+    #enc .ek { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #7fd8d0; }
+    #enc .en { font-size: 22px; font-weight: 600; color: #f4bf62; margin: 3px 0 2px; line-height: 1.15; }
+    #enc .et { font-size: 11px; color: #6b7872; }
+    #enc .ed { font-size: 14.5px; line-height: 1.66; color: #d7e0da; white-space: pre-wrap; margin-top: 13px; }
+    #enc .eh { margin-top: 13px; font-size: 12.5px; color: #b48a6a; font-style: italic; }
+    #enc .ex { margin-top: 15px; font-size: 11px; color: #566; text-align: right; }
+</style>
 </head>
 <body>
   <canvas id="cv"></canvas>
@@ -64,6 +74,7 @@
   <button id="pack" title="open pack (i)">▣ pack</button>
   <div class="hud" id="who"></div>
   <div id="story"></div>
+  <div id="enc"><div class="card" id="enccard"></div></div>
 
   <script type="module">
     import { solveChunk } from './v8/chunkgen.js';
@@ -651,12 +662,33 @@
       whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
       if (introSolved()) { maybeStream(); maybeBuildRind(); }   // unseal: stream the Nave + sink the rind shaft on the concourse
     };
+    // ── the ENCOUNTER card (Qud-style, hoopy's note): the FIRST time you meet anything, its full
+    //    description fills the centre of the screen. Every entity carries a decent-size description — show
+    //    it. Only fires on first touch (crystallize), never on recall; dismiss with click / ⏎ / Esc. ──
+    const ENC_GLYPH = { npc: '☻ person', creature: '✦ creature', item: '▣ item', lore_fragment: '❧ lore', plot_beat: '✷ moment', rumor: '☷ rumor' };
+    function showEncounter(item) {
+      if (!item || !String(item.description || '').trim()) return;
+      const hint = item.revelation_hint ? `<div class="eh">“${esc(item.revelation_hint)}”</div>` : '';
+      const tier = item.revelation_tier ? ` · tier ${item.revelation_tier}` : '';
+      $('enccard').innerHTML =
+        `<div class="ek">${esc(ENC_GLYPH[item.type] || item.type || 'encounter')}${tier}</div>` +
+        `<div class="en">${esc(item.name || 'Something')}</div>` +
+        `<div class="ed">${esc(item.description)}</div>${hint}` +
+        `<div class="ex">⏎ / click to continue</div>`;
+      $('enc').classList.add('on');
+    }
+    const hideEncounter = () => $('enc').classList.remove('on');
+    $('enc').addEventListener('click', hideEncounter);
+    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
+    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) showEncounter(intro.item); };
+
     function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of nearResidents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
     function openStory(a) {
       if (!story.ready) return;
       const s = story.store;
       if (!s.featureByKey(a.featureKey)) s.addFeature({ key: a.featureKey, type: 'npc', label: a.name, tag: a.role });
       const intro = interact(s, story.playerId, a.featureKey, '', { tag: a.role });
+      maybeEncounter(intro);   // first meeting → its description fills the screen
       story.active = { agent: a, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();   // the "next person you talk to" delivers any XP-unlocked beat
       saveStory(); renderStory();
@@ -1048,6 +1080,7 @@
       const s = story.store;
       if (!s.featureByKey(a.key)) s.addFeature({ key: a.key, type: 'npc', label: a.name, content_id: a.content_id });
       const intro = interact(s, story.playerId, a.key);
+      maybeEncounter(intro);   // first meeting → its description fills the screen
       story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();   // a principal can also be the one who informs you
       saveStory(); renderStory();

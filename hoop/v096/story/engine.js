@@ -23,7 +23,20 @@ export const POWER_THRESHOLDS = [0, 30, 80, 150, 250];   // index i ⇒ min XP f
 export const XP_BASE = 10, XP_PER_REVELATION = 5;
 export function powerTierForXp(xp) { let t = 1; for (let i = 0; i < POWER_THRESHOLDS.length; i++) if (xp >= POWER_THRESHOLDS[i]) t = i + 1; return t; }
 
+// PROTOTYPE exploration leveling (hoopy: "xp could just be as simple as how many things you've
+// encountered"). revelation_tier (how much of the WORLD you understand) and narrative_tier (how far the
+// STORY has carried you) advance from the same encounter-XP as a FLOOR, so wandering reveals higher-tier
+// content — "know 2/5 things ⇒ get 1–2 tier stuff." Same step function as power for now. Milestones
+// (advance.js) and the storyboard floor can still push narrative_tier further; this only ever raises.
+// The human-in-the-loop plot-beat paging is the next architecture; until then, this keeps the world
+// unfolding (and lifts the narrative-2 opening seal) purely from exploration.
+export const exploreTierForXp = powerTierForXp;
+
 // ── the gate: does pre-loaded state satisfy a `requires` blob? (state_gate.meets_state) ──
+// REPUTATION GATING IS IGNORED (hoopy's note: "completely ignore reputation gating, it's not working
+// very well"). `min_rep` is intentionally NOT checked here, and `min_standing` is skipped in npcVisible
+// below. Only facts + items still gate (story progress, not reputation). REP_PREFIX stays exported
+// because dialogue effects (choose) may still ADJUST rep as flavour — it just never blocks anything.
 export const REP_PREFIX = 'rep.';
 export function meetsState(state, requires) {
   if (!requires) return true;
@@ -31,8 +44,7 @@ export function meetsState(state, requires) {
   for (const [k, expected] of Object.entries(requires.facts || {})) if (facts[k] !== expected) return false;
   const items = state.items;   // a Set of lowercased names+tags the player carries
   for (const tok of (requires.items || [])) if (!items.has(String(tok).toLowerCase())) return false;
-  for (const [faction, minv] of Object.entries(requires.min_rep || {})) if ((+facts[REP_PREFIX + faction] || 0) < minv) return false;
-  return true;
+  return true;   // min_rep deliberately not enforced
 }
 // Everything meetsState needs, loaded once so a candidate list filters without re-querying.
 export function loadGateState(store, playerId) {
@@ -86,8 +98,15 @@ function bindAndLevel(store, playerId, featureKey, item) {
   const p = store.getPlayerState(playerId);
   const xp = (p.xp || 0) + gain, before = p.power_tier, after = powerTierForXp(xp);
   store.setPlayerXp(playerId, xp, after);
-  const out = { xp, xp_gain: gain, power_tier: after };
+  // exploration floor: encountering things lifts revelation + narrative tiers too (never lowers).
+  const et = exploreTierForXp(xp);
+  const revFrom = p.revelation_tier, narFrom = p.narrative_tier;
+  if (et > revFrom) store.setPlayerTier(playerId, 'revelation_tier', et);
+  if (et > narFrom) store.setPlayerTier(playerId, 'narrative_tier', et);
+  const out = { xp, xp_gain: gain, power_tier: after, revelation_tier: Math.max(revFrom, et), narrative_tier: Math.max(narFrom, et) };
   if (after > before) out.leveled = { from: before, to: after };
+  if (et > revFrom) out.revelation_up = { from: revFrom, to: et };
+  if (et > narFrom) out.narrative_up = { from: narFrom, to: et };
   return out;
 }
 export function interact(store, playerId, featureKey, context = '', opts = {}) {
@@ -156,7 +175,8 @@ export function unequip(store, playerId, slot) { store.unequip(playerId, slot); 
 function npcVisible(gstate, npcState, choice) {
   const req = choice.requires || {};
   if (!meetsState(gstate, req)) return false;
-  if (req.min_standing != null && npcState.standing < req.min_standing) return false;
+  // min_standing (reputation) intentionally IGNORED — see meetsState. A choice gated only on standing
+  // is always shown, so hoopy's dialogue trees read in full without the rep economy behind them.
   for (const [k, v] of Object.entries(req.npc_flags || {})) if ((npcState.flags || {})[k] !== v) return false;
   return true;
 }

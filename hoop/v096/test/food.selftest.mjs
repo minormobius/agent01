@@ -31,7 +31,7 @@ for (const org of [wheat, cow, carp]) {
   ok(JSON.stringify(f) === JSON.stringify(g), `${org.common}: deriveFood is deterministic`);
   ok(f.kcal > 0, `${org.common}: kcal positive`);
   ok(near(f.macros.carb + f.macros.protein + f.macros.fat, 1, 0.02), `${org.common}: macros ~sum to 1`);
-  ok(f.cost >= 3 && f.cost <= 30, `${org.common}: cost in range (${f.cost})`);
+  ok(f.cost >= 1 && f.cost <= 2, `${org.common}: cost is dirt cheap (${f.cost})`);
   ok(f.restoreStamina >= 6 && f.restoreStamina <= 42, `${org.common}: stamina restore in range`);
   ok(f.nourish >= 8 && f.nourish <= 60, `${org.common}: nourish in range`);
 }

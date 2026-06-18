@@ -9,7 +9,9 @@
 // the web can spare) are what a cafe could actually plate. This module derives the
 // nutrition (kcal + a macro lean) and the game effects (what eating it does):
 //
-//   • cost            — coins to buy (priced against arcade payouts, ~8–20)
+//   • cost            — coins to buy. DIRT CHEAP (1–2): nobody starves on this
+//                       ship; food is a maintenance tick, not a money sink. Coins
+//                       earned at arcades accumulate for items later.
 //   • restoreStamina  — immediate stamina back (you eat, you perk up)
 //   • nourish         — fuel for the slow-drain buff (well-fed ⇒ stamina lasts)
 //
@@ -59,12 +61,12 @@ export function macrosOf(org) {
 }
 
 // the full food item the cafe serves. `yieldKg` = standing biomass from the
-// solved roll (scarcity signal); higher kcal + scarcer ⇒ pricier.
+// solved roll (kept as a scarcity/flavour signal; no longer priced in).
 export function deriveFood(org, { yieldKg = 0 } = {}) {
   const kind = foodKind(org);
   const { kcal, macros, cls } = macrosOf(org);
-  const scarce = yieldKg > 0 ? clamp(3 - Math.log10(yieldKg + 1), 0, 4) : 1.5;  // thin yield ⇒ dearer
-  const cost = clamp(round(4 + kcal / 30 + (kind === 'meat' ? 3 : kind === 'fish' ? 2 : 0) + scarce), 3, 30);
+  // dirt cheap: a hearty plate is 2 coins, anything lighter is 1. A maintenance tick.
+  const cost = kcal > 250 ? 2 : 1;
   const restoreStamina = clamp(round(kcal / 9), 6, 42);
   const nourish = clamp(round(kcal / 6), 8, 60);
   return {

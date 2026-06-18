@@ -37,7 +37,7 @@
       "fat": 0.42
      },
      "yieldKg": 534,
-     "cost": 18,
+     "cost": 2,
      "restoreStamina": 37,
      "nourish": 56,
      "blurb": "Reared on the green decks — hearty (meat)."
@@ -58,7 +58,7 @@
       "fat": 0.42
      },
      "yieldKg": 884,
-     "cost": 18,
+     "cost": 2,
      "restoreStamina": 35,
      "nourish": 52,
      "blurb": "Reared on the green decks — hearty (meat)."
@@ -79,7 +79,7 @@
       "fat": 0.42
      },
      "yieldKg": 1083,
-     "cost": 17,
+     "cost": 2,
      "restoreStamina": 34,
      "nourish": 50,
      "blurb": "Reared on the green decks — hearty (meat)."
@@ -100,7 +100,7 @@
       "fat": 0.12
      },
      "yieldKg": 1049,
-     "cost": 14,
+     "cost": 2,
      "restoreStamina": 33,
      "nourish": 50,
      "blurb": "Grown on the green decks — hearty (root)."
@@ -121,7 +121,7 @@
       "fat": 0.42
      },
      "yieldKg": 1276,
-     "cost": 17,
+     "cost": 2,
      "restoreStamina": 32,
      "nourish": 48,
      "blurb": "Reared on the green decks — hearty (meat)."
@@ -142,7 +142,7 @@
       "fat": 0.12
      },
      "yieldKg": 1174,
-     "cost": 13,
+     "cost": 2,
      "restoreStamina": 31,
      "nourish": 47,
      "blurb": "Grown on the green decks — a decent plate (root)."
@@ -163,7 +163,7 @@
       "fat": 0.08
      },
      "yieldKg": 46005,
-     "cost": 13,
+     "cost": 2,
      "restoreStamina": 30,
      "nourish": 46,
      "blurb": "Grown on the green decks — a decent plate (grain)."
@@ -184,7 +184,7 @@
       "fat": 0.08
      },
      "yieldKg": 1293,
-     "cost": 13,
+     "cost": 2,
      "restoreStamina": 29,
      "nourish": 43,
      "blurb": "Grown on the green decks — a decent plate (grain)."
@@ -205,7 +205,7 @@
       "fat": 0.3
      },
      "yieldKg": 27,
-     "cost": 16,
+     "cost": 1,
      "restoreStamina": 28,
      "nourish": 42,
      "blurb": "Netted from the lake deck — a decent plate (fish)."
@@ -226,7 +226,7 @@
       "fat": 0.42
      },
      "yieldKg": 194416,
-     "cost": 15,
+     "cost": 1,
      "restoreStamina": 27,
      "nourish": 41,
      "blurb": "Reared on the green decks — a decent plate (meat)."
@@ -247,7 +247,7 @@
       "fat": 0.3
      },
      "yieldKg": 16,
-     "cost": 16,
+     "cost": 1,
      "restoreStamina": 27,
      "nourish": 40,
      "blurb": "Netted from the lake deck — a decent plate (fish)."
@@ -268,7 +268,7 @@
       "fat": 0.08
      },
      "yieldKg": 808,
-     "cost": 12,
+     "cost": 1,
      "restoreStamina": 26,
      "nourish": 39,
      "blurb": "Grown on the green decks — a decent plate (fruit)."
@@ -289,7 +289,7 @@
       "fat": 0.3
      },
      "yieldKg": 80,
-     "cost": 15,
+     "cost": 1,
      "restoreStamina": 26,
      "nourish": 39,
      "blurb": "Netted from the lake deck — a decent plate (fish)."
@@ -310,7 +310,7 @@
       "fat": 0.15
      },
      "yieldKg": 17493,
-     "cost": 11,
+     "cost": 1,
      "restoreStamina": 24,
      "nourish": 37,
      "blurb": "Grown on the green decks — a decent plate (greens)."
@@ -331,7 +331,7 @@
       "fat": 0.15
      },
      "yieldKg": 108097,
-     "cost": 9,
+     "cost": 1,
      "restoreStamina": 16,
      "nourish": 24,
      "blurb": "Grown on the green decks — light fare (greens)."
@@ -352,7 +352,7 @@
       "fat": 0.15
      },
      "yieldKg": 1724,
-     "cost": 9,
+     "cost": 1,
      "restoreStamina": 16,
      "nourish": 23,
      "blurb": "Grown on the green decks — light fare (greens)."
@@ -373,7 +373,7 @@
       "fat": 0.15
      },
      "yieldKg": 736,
-     "cost": 9,
+     "cost": 1,
      "restoreStamina": 15,
      "nourish": 22,
      "blurb": "Grown on the green decks — light fare (greens)."
@@ -406,7 +406,7 @@
       "fat": 0.42
      },
      "yieldKg": 124950,
-     "cost": 17,
+     "cost": 2,
      "restoreStamina": 34,
      "nourish": 51,
      "blurb": "Reared on the green decks — hearty (meat)."
@@ -427,7 +427,7 @@
       "fat": 0.08
      },
      "yieldKg": 19932,
-     "cost": 13,
+     "cost": 2,
      "restoreStamina": 30,
      "nourish": 46,
      "blurb": "Grown on the green decks — a decent plate (grain)."
@@ -448,7 +448,7 @@
       "fat": 0.15
      },
      "yieldKg": 8688,
-     "cost": 11,
+     "cost": 1,
      "restoreStamina": 24,
      "nourish": 37,
      "blurb": "Grown on the green decks — a decent plate (greens)."
@@ -469,7 +469,7 @@
       "fat": 0.15
      },
      "yieldKg": 1568,
-     "cost": 11,
+     "cost": 1,
      "restoreStamina": 22,
      "nourish": 33,
      "blurb": "Grown on the green decks — a decent plate (greens)."
@@ -490,7 +490,7 @@
       "fat": 0.15
      },
      "yieldKg": 36608,
-     "cost": 9,
+     "cost": 1,
      "restoreStamina": 16,
      "nourish": 24,
      "blurb": "Grown on the green decks — light fare (greens)."
@@ -523,7 +523,7 @@
       "fat": 0.15
      },
      "yieldKg": 110785,
-     "cost": 13,
+     "cost": 2,
      "restoreStamina": 30,
      "nourish": 45,
      "blurb": "Grown on the green decks — a decent plate (greens)."
@@ -544,7 +544,7 @@
       "fat": 0.15
      },
      "yieldKg": 1091,
-     "cost": 11,
+     "cost": 1,
      "restoreStamina": 24,
      "nourish": 37,
      "blurb": "Grown on the green decks — a decent plate (legume)."
@@ -565,7 +565,7 @@
       "fat": 0.15
      },
      "yieldKg": 22601,
-     "cost": 11,
+     "cost": 1,
      "restoreStamina": 24,
      "nourish": 37,
      "blurb": "Grown on the green decks — a decent plate (greens)."
@@ -586,7 +586,7 @@
       "fat": 0.08
      },
      "yieldKg": 460,
-     "cost": 11,
+     "cost": 1,
      "restoreStamina": 23,
      "nourish": 35,
      "blurb": "Grown on the green decks — a decent plate (fruit)."
@@ -607,7 +607,7 @@
       "fat": 0.15
      },
      "yieldKg": 773,
-     "cost": 11,
+     "cost": 1,
      "restoreStamina": 22,
      "nourish": 33,
      "blurb": "Grown on the green decks — a decent plate (greens)."
@@ -628,7 +628,7 @@
       "fat": 0.42
      },
      "yieldKg": 0,
-     "cost": 15,
+     "cost": 1,
      "restoreStamina": 18,
      "nourish": 26,
      "blurb": "Reared on the green decks — light fare (meat)."
@@ -661,7 +661,7 @@
       "fat": 0.08
      },
      "yieldKg": 3596,
-     "cost": 14,
+     "cost": 2,
      "restoreStamina": 32,
      "nourish": 48,
      "blurb": "Grown on the green decks — hearty (grain)."
@@ -682,7 +682,7 @@
       "fat": 0.42
      },
      "yieldKg": 46514,
-     "cost": 15,
+     "cost": 1,
      "restoreStamina": 27,
      "nourish": 41,
      "blurb": "Reared on the green decks — a decent plate (meat)."
@@ -703,7 +703,7 @@
       "fat": 0.42
      },
      "yieldKg": 0,
-     "cost": 17,
+     "cost": 1,
      "restoreStamina": 25,
      "nourish": 37,
      "blurb": "Reared on the green decks — a decent plate (meat)."
@@ -724,7 +724,7 @@
       "fat": 0.3
      },
      "yieldKg": 0,
-     "cost": 15,
+     "cost": 1,
      "restoreStamina": 20,
      "nourish": 29,
      "blurb": "Netted from the lake deck — light fare (fish)."
@@ -745,7 +745,7 @@
       "fat": 0.15
      },
      "yieldKg": 2796,
-     "cost": 9,
+     "cost": 1,
      "restoreStamina": 18,
      "nourish": 27,
      "blurb": "Grown on the green decks — light fare (legume)."
@@ -778,7 +778,7 @@
       "fat": 0.3
      },
      "yieldKg": 5411,
-     "cost": 15,
+     "cost": 2,
      "restoreStamina": 30,
      "nourish": 46,
      "blurb": "Netted from the lake deck — a decent plate (fish)."
@@ -799,7 +799,7 @@
       "fat": 0.08
      },
      "yieldKg": 2445,
-     "cost": 13,
+     "cost": 2,
      "restoreStamina": 30,
      "nourish": 46,
      "blurb": "Grown on the green decks — a decent plate (grain)."
@@ -820,7 +820,7 @@
       "fat": 0.15
      },
      "yieldKg": 7846,
-     "cost": 13,
+     "cost": 2,
      "restoreStamina": 30,
      "nourish": 45,
      "blurb": "Grown on the green decks — a decent plate (greens)."
@@ -841,7 +841,7 @@
       "fat": 0.3
      },
      "yieldKg": 298412,
-     "cost": 15,
+     "cost": 2,
      "restoreStamina": 28,
      "nourish": 43,
      "blurb": "Netted from the lake deck — a decent plate (fish)."
@@ -862,7 +862,7 @@
       "fat": 0.3
      },
      "yieldKg": 14,
-     "cost": 16,
+     "cost": 2,
      "restoreStamina": 28,
      "nourish": 42,
      "blurb": "Netted from the lake deck — a decent plate (fish)."
@@ -883,7 +883,7 @@
       "fat": 0.42
      },
      "yieldKg": 0,
-     "cost": 18,
+     "cost": 1,
      "restoreStamina": 27,
      "nourish": 40,
      "blurb": "Reared on the green decks — a decent plate (meat)."
@@ -904,7 +904,7 @@
       "fat": 0.3
      },
      "yieldKg": 0,
-     "cost": 17,
+     "cost": 1,
      "restoreStamina": 27,
      "nourish": 40,
      "blurb": "Netted from the lake deck — a decent plate (fish)."
@@ -925,7 +925,7 @@
       "fat": 0.3
      },
      "yieldKg": 0,
-     "cost": 16,
+     "cost": 1,
      "restoreStamina": 24,
      "nourish": 37,
      "blurb": "Netted from the lake deck — a decent plate (fish)."
@@ -946,7 +946,7 @@
       "fat": 0.15
      },
      "yieldKg": 1346,
-     "cost": 11,
+     "cost": 1,
      "restoreStamina": 24,
      "nourish": 37,
      "blurb": "Grown on the green decks — a decent plate (greens)."
@@ -967,7 +967,7 @@
       "fat": 0.15
      },
      "yieldKg": 2844,
-     "cost": 10,
+     "cost": 1,
      "restoreStamina": 21,
      "nourish": 31,
      "blurb": "Grown on the green decks — a decent plate (greens)."
@@ -988,7 +988,7 @@
       "fat": 0.42
      },
      "yieldKg": 33,
-     "cost": 14,
+     "cost": 1,
      "restoreStamina": 18,
      "nourish": 26,
      "blurb": "Reared on the green decks — light fare (meat)."
@@ -1009,7 +1009,7 @@
       "fat": 0.42
      },
      "yieldKg": 0,
-     "cost": 15,
+     "cost": 1,
      "restoreStamina": 18,
      "nourish": 26,
      "blurb": "Reared on the green decks — light fare (meat)."
@@ -1030,7 +1030,7 @@
       "fat": 0.15
      },
      "yieldKg": 1939,
-     "cost": 9,
+     "cost": 1,
      "restoreStamina": 15,
      "nourish": 23,
      "blurb": "Grown on the green decks — light fare (legume)."
@@ -1051,7 +1051,7 @@
       "fat": 0.15
      },
      "yieldKg": 1285,
-     "cost": 8,
+     "cost": 1,
      "restoreStamina": 15,
      "nourish": 22,
      "blurb": "Grown on the green decks — light fare (greens)."
@@ -1072,7 +1072,7 @@
       "fat": 0.15
      },
      "yieldKg": 1712,
-     "cost": 8,
+     "cost": 1,
      "restoreStamina": 14,
      "nourish": 22,
      "blurb": "Grown on the green decks — light fare (greens)."
