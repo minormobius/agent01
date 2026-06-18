@@ -50,8 +50,10 @@
   .note b{color:var(--txt)}
   .legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:9px;font-size:11px;color:var(--dim)}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:4px}
-  #err{display:none;position:absolute;left:10px;right:10px;top:10px;z-index:9;background:#2a1410;
-    border:1px solid #5a342c;border-radius:8px;padding:10px 12px;color:#f0b8a8;font-size:12px;white-space:pre-wrap}
+  #err{display:none;position:absolute;left:10px;right:10px;bottom:10px;z-index:9;background:#2a1410ee;
+    border:1px solid #5a342c;border-radius:8px;padding:8px 30px 8px 12px;color:#f0b8a8;font-size:11.5px;
+    white-space:pre-wrap;max-height:30%;overflow:auto;cursor:pointer}
+  #err::after{content:'×';position:absolute;top:6px;right:10px;font-size:16px;color:#f0b8a8aa}
   .flash{position:absolute;inset:0;border-radius:10px;pointer-events:none;box-shadow:inset 0 0 0 3px var(--warn);opacity:0;transition:opacity .1s}
 </style>
 </head>
@@ -142,14 +144,23 @@
   </main>
 
 <script type="module">
-import { build, classify, buildable } from '../sprite/bauplan.mjs';
+import { build, buildable } from '../sprite/bauplan.mjs';
 import { solve } from '../sprite/render.mjs';
 import { makeBalancer } from './balance.mjs';
 
 const $ = (s) => document.querySelector(s);
 const errBox = $('#err');
-const showErr = (e) => { errBox.style.display = 'block'; errBox.textContent = String(e && e.stack || e); };
+// Non-occluding, dismissible error banner: show the message at the bottom, never cover the canvas, and
+// don't spam — only resurface if the message actually changes. Click to dismiss.
+let lastErrMsg = '';
+const showErr = (e) => {
+  const msg = String((e && e.stack) || (e && e.message) || e);
+  if (msg === lastErrMsg) return; lastErrMsg = msg;
+  errBox.style.display = 'block'; errBox.textContent = msg;
+};
+errBox.addEventListener('click', () => { errBox.style.display = 'none'; });
 window.addEventListener('error', (e) => showErr(e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => showErr(e.reason));
 
 const cv = $('#view'), ctx = cv.getContext('2d');
 const DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -175,6 +186,9 @@ const cadOf = (v) => Math.min(2.6, 1.1 + v * 0.05);
 let maxPitch = 0, startX = 0;
 
 function rebuild(id) {
+  try { rebuildInner(id); } catch (e) { showErr(e); }
+}
+function rebuildInner(id) {
   const org = CAT[id];
   sprite = build(org);
   const W = solve(sprite, 0);
@@ -191,8 +205,7 @@ function rebuild(id) {
   const { w, h } = fitCanvas();
   scale = Math.min((w * 0.62) / Math.max(40, x1 - x0), (h * 0.66) / Math.max(40, y1 - y0));
   maxPitch = 0; startX = bal.com0.x; last = null;
-  const cls = classify(org);
-  $('#r-stance').textContent = (cls && cls.stance) || sprite.stance || '—';
+  $('#r-stance').textContent = (sprite.meta && sprite.meta.stance) || '—';
   $('#r-mass').textContent = bal.M.toFixed(2);
 }
 
@@ -314,7 +327,11 @@ function flash() { flashEl.style.opacity = '0.9'; setTimeout(() => flashEl.style
 
 // ── loop: fixed-timestep sub-stepping for a stable solve ───────────────────────────────────
 function frame(now) {
-  if (!bal) { requestAnimationFrame(frame); return; }
+  try { frameInner(now); } catch (e) { showErr(e); }   // a transient error must never kill the animation
+  requestAnimationFrame(frame);                          // the loop is unconditional — it always reschedules
+}
+function frameInner(now) {
+  if (!bal) return;
   if (last == null) last = now;
   let elapsed = Math.min(0.05, (now - last) / 1000); last = now;
   const h = 1 / 240; let out = null;
@@ -339,7 +356,6 @@ function frame(now) {
   set('#r-adv', (out.trunk.x - startX).toFixed(0));
   set('#r-spd', spd.toFixed(0));
   set('#r-grf', (grfTot / (bal.M * 1400)).toFixed(2) + '·w');
-  requestAnimationFrame(frame);
 }
 function set(sel, txt, cls) { const el = $(sel); el.textContent = txt; el.className = 'v' + (cls ? ' ' + cls : ''); }
 
