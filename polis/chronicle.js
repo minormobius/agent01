@@ -10,14 +10,16 @@
 import { hash2 } from './prng.js';
 import { habitable } from './mesh.js';
 import { makeArteries } from './arteries.js';
-import { step as growStep, flourish, tierOf } from './economy.js';
+import { step as growStep, conquer, flourish, tierOf } from './economy.js';
 
 const KPP = 2600, IMPORT_PP = 9000;
 
 // climate + tech over the run: tick 0 = deep ice age, end = near future
 function envAt(k, ticks, seed) {
   const f = k / (ticks - 1);                                   // 0..1
-  const year = Math.round(-12000 + f * 14100);                 // -12000 BCE → +2100 CE
+  // calendar runs deep time fast, recent centuries slow, so the high-tech eras land in
+  // CE (not anachronistic BCE): a concave map from -12000 BCE → +2100 CE
+  const year = Math.round(-12000 + 14100 * (1 - Math.pow(1 - f, 2.5)));
   const seaLevel = 0.36 + 0.10 * (1 / (1 + Math.exp(-(f - 0.45) / 0.16))); // rises out of the ice age
   const tempShift = -0.28 + 0.34 * (1 / (1 + Math.exp(-(f - 0.42) / 0.18)));
   const tech = 1 / (1 + Math.exp(-(f - 0.62) / 0.12));         // the master clock, late-accelerating
@@ -110,32 +112,65 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18 } =
   const artStrength = new Uint8Array(ticks * E);
   const waves = [];
   let lastWaveTech = -1;
+  const events = [];
+
+  // the discrete shocks the smooth clocks can't produce — plague, conquest, crisis.
+  // deterministic from (seed, tick); they dip a town's population (which then recovers
+  // logistically), with size-dependence: a metropolis shrugs, a mono-functional town dies.
+  function applyEvents(k, e) {
+    const alive = towns.filter((t) => t.alive && t.pop > 0);
+    if (alive.length < 2) return;
+    const total = alive.reduce((s, t) => s + t.pop, 0);
+    const r1 = hash2(k, 1, seed), r2 = hash2(k, 2, seed), r3 = hash2(k, 3, seed), r4 = hash2(k, 4, seed), r5 = hash2(k, 5, seed);
+    // PLAGUE — denser, bigger urban systems are likelier and hit harder
+    if (e.f > 0.18 && r1 < 0.02 + 0.05 * Math.min(1, total / 1.5e5)) {
+      for (const t of alive) t.pop *= 1 - (0.16 + 0.24 * Math.min(1, t.pop / 6e4));
+      events.push({ tick: k, type: 'plague', cell: alive.sort((a, b) => b.pop - a.pop)[0].cell, note: 'plague' });
+    }
+    // CONQUEST — a wealthy town changes hands (sack/tribute/elite/absorb), size-dependent
+    if (r2 < 0.028 && e.f > 0.08) {
+      const ranked = alive.slice().sort((a, b) => b.pop - a.pop);
+      const target = ranked[Math.floor(r4 * Math.min(3, ranked.length))];
+      const oc = r5 < 0.14 ? 'sack' : r5 < 0.48 ? 'tribute' : r5 < 0.72 ? 'elite' : 'absorb';
+      conquer(target, oc);
+      events.push({ tick: k, type: 'conquest', cell: target.cell, ti: towns.indexOf(target), note: 'conquest · ' + oc, outcome: oc });
+    }
+    // FINANCIAL CRISIS — only once mature finance exists (tech>0.7 → early-modern+); hits the big centres
+    if (e.tech > 0.7 && r3 < 0.07) {
+      const top = alive.slice().sort((a, b) => b.pop - a.pop).slice(0, 3);
+      for (const t of top) t.pop *= 0.82;
+      if (top.length) events.push({ tick: k, type: 'crisis', cell: top[0].cell, note: 'financial crisis' });
+    }
+  }
 
   for (let k = 0; k < ticks; k++) {
     const e = env[k];
-    // nucleation + growth
+    // 1 — nucleation, gated by a rising settlement frontier (townships appear over time)
+    const allowed = Math.round(2 + (count - 2) * Math.min(1, e.f / 0.7));
+    let aliveCount = towns.filter((t) => t.alive).length;
     for (const t of towns) {
+      if (t.alive || aliveCount >= allowed) continue;
       const c = mesh.cells[t.cell];
-      if (!t.alive) {
-        if (habitable(c, e) && e.tech >= (TECH_GATE[t.engine] || 0) && (t.engine !== 'market' || e.tempShift > -0.05)) {
-          // found it
-          t.surplus = surplusAround(mesh, t.cell, e);
-          const bt = baseAndTrade(mesh, c, t.engine, t.surplus);
-          t.base = bt.base; t.trade = bt.trade; t.K0 = t.surplus * KPP * 0.5; t.pop = 6; t.alive = true; t.founded = k;
-        }
-      }
-      if (t.alive) {
-        // refresh surplus occasionally (climate opens/closes the hinterland)
-        if (k % 12 === 0) { t.surplus = surplusAround(mesh, t.cell, e); t.K0 = t.surplus * KPP * 0.5; }
-        growStep(t, { r, tech: e.tech });
-        t.history[k] = Math.round(t.pop); t.flourishHist[k] = Math.round(t.flourishVal || flourish(t));
+      if (habitable(c, e) && e.tech >= (TECH_GATE[t.engine] || 0) && (t.engine !== 'market' || e.tempShift > -0.05)) {
+        t.surplus = surplusAround(mesh, t.cell, e);
+        const bt = baseAndTrade(mesh, c, t.engine, t.surplus);
+        t.base = bt.base; t.trade = bt.trade; t.K0 = t.surplus * KPP * 0.5; t.pop = 6; t.alive = true; t.founded = k; aliveCount++;
       }
     }
-    // arteries grow on the live town field (a couple of relaxation rounds once ≥2 towns)
+    // 2 — growth
+    for (const t of towns) if (t.alive) {
+      if (k % 12 === 0) { t.surplus = surplusAround(mesh, t.cell, e); t.K0 = t.surplus * KPP * 0.5; }
+      growStep(t, { r, tech: e.tech });
+    }
+    // 3 — the shocks (mutate pops; logistic recovery resumes next tick)
+    applyEvents(k, e);
+    // 4 — record
+    for (const t of towns) if (t.alive) { t.history[k] = Math.max(0, Math.round(t.pop)); t.flourishHist[k] = Math.round(t.flourishVal || flourish(t)); }
+    // 5 — arteries grow on the live town field
     const live = towns.filter((t) => t.alive && t.pop > 0).map((t) => ({ cell: t.cell, pop: t.pop }));
     if (live.length >= 2) art.step(live);
     const cond = art.cond; for (let i = 0; i < E; i++) artStrength[k * E + i] = Math.min(255, Math.round(cond[i] / 40 * 255));
-    // tech waves: each time tech crosses a 0.2 band, a wave springs from the biggest live town
+    // 6 — tech waves: each time tech crosses a 0.2 band, a wave springs from the biggest live town
     const band = Math.floor(e.tech / 0.2);
     if (band > lastWaveTech && live.length) {
       lastWaveTech = band;
@@ -145,5 +180,5 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18 } =
   }
   // final tiers + ranking
   for (const t of towns) { t.pop = Math.round(t.pop); t.tier = tierOf(t.pop); t.flourishVal = Math.round(t.flourishVal || 0); }
-  return { seed, ticks, env, towns, edges: { ea: art.ea, eb: art.eb }, E, artStrength, waves, mesh };
+  return { seed, ticks, env, towns, edges: { ea: art.ea, eb: art.eb }, E, artStrength, waves, events, mesh };
 }

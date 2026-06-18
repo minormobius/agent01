@@ -80,5 +80,21 @@ ok(mesh.cells.length > 800, `mesh retiles the region into many cells (${mesh.cel
   ok(c.waves.length >= 2, `tech waves ripple out as eras unlock (${c.waves.length} waves)`);
 }
 
+// 9 — discrete shocks fire, are deterministic, and dent a town's population (downturns)
+{
+  const a = runChronicle(SEED, mesh), b = runChronicle(SEED, mesh);
+  ok(a.events.length >= 3, `discrete shocks fire over the run (${a.events.length}: ${[...new Set(a.events.map((e) => e.type))].join(', ')})`);
+  ok(JSON.stringify(a.events) === JSON.stringify(b.events), 'the shock sequence is deterministic');
+  // at least one town's history shows a real dip (a downturn, not just monotone growth)
+  let dipped = false;
+  for (const t of a.towns) for (let k = (t.founded > 0 ? t.founded + 2 : 2); k < a.ticks; k++) {
+    if (t.history[k - 1] > 100 && t.history[k] < t.history[k - 1] * 0.9) { dipped = true; break; }
+  }
+  ok(dipped, 'a town suffers a real population downturn (shock → dip → recovery)');
+  // the event types we expect are represented
+  const types = new Set(a.events.map((e) => e.type));
+  ok(types.has('plague') || types.has('conquest') || types.has('crisis'), 'shocks are drawn from {plague, conquest, crisis}');
+}
+
 console.log(`\n${fail === 0 ? '✓ all green' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

@@ -148,9 +148,29 @@ function draw() {
     if (n === sel) { cx.beginPath(); cx.arc(px, py, rad + 3, 0, 7); cx.strokeStyle = '#f0d28a'; cx.lineWidth = 1.5; cx.stroke(); }
   });
 
+  // event pulses on stricken towns/cells (for a few ticks after the shock)
+  for (const ev of C.events) {
+    const age = tick - ev.tick; if (age < 0 || age > 4 || ev.cell == null) continue;
+    const cell = m.cells[ev.cell], px = wpx(cell.wx), py = hpx(cell.wy);
+    cx.globalAlpha = (1 - age / 4) * 0.75; cx.strokeStyle = EVENT_COLOR[ev.type] || '#fff'; cx.lineWidth = 2.5;
+    cx.beginPath(); cx.arc(px, py, 8 + age * 8, 0, 7); cx.stroke(); cx.globalAlpha = 1;
+  }
+  // active-event caption
+  const cur = C.events.filter((ev) => ev.tick <= tick && tick - ev.tick <= 4).sort((a, b) => b.tick - a.tick)[0];
+  if (cur) { cx.font = '600 13px ui-monospace,monospace'; cx.textAlign = 'center'; cx.fillStyle = EVENT_COLOR[cur.type] || '#fff'; cx.fillText(EVENT_LABEL(cur), W / 2, 26); cx.textAlign = 'left'; }
+
+  // on-canvas event timeline at the bottom (perfectly aligned; click to jump)
+  const BM = 34, BY = H - 12, BW = W - 2 * BM;
+  cx.strokeStyle = 'rgba(180,168,132,0.35)'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(BM, BY); cx.lineTo(W - BM, BY); cx.stroke();
+  for (const w of C.waves) { const x = BM + w.tick / (C.ticks - 1) * BW; cx.fillStyle = 'rgba(220,180,90,0.5)'; cx.fillRect(x - 1, BY - 2, 2, 4); }
+  for (const ev of C.events) { const x = BM + ev.tick / (C.ticks - 1) * BW; cx.strokeStyle = EVENT_COLOR[ev.type] || '#fff'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x, BY - 5); cx.lineTo(x, BY + 5); cx.stroke(); }
+  const curx = BM + tick / (C.ticks - 1) * BW; cx.strokeStyle = '#fff'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(curx, BY - 7); cx.lineTo(curx, BY + 7); cx.stroke();
+
   const eraName = yearEra(e.year);
   eraEl.innerHTML = `<span class="y">${e.year < 0 ? -e.year + ' BCE' : e.year + ' CE'}</span> · ${eraName} <span class="s">· sea ${e.seaLevel.toFixed(2)} · tech ${e.tech.toFixed(2)}</span>`;
 }
+const EVENT_COLOR = { plague: '#7fae74', conquest: '#d05a3a', crisis: '#e0c060' };
+function EVENT_LABEL(ev) { return ev.type === 'plague' ? '☠ plague' : ev.type === 'conquest' ? '⚔ ' + ev.note : '$ financial crisis'; }
 
 function yearEra(y) {
   if (y < -9000) return 'Ice Age'; if (y < -3000) return 'Neolithic'; if (y < -800) return 'Bronze Age';
@@ -177,6 +197,10 @@ function panel(n) {
 cv.addEventListener('click', (ev) => {
   if (!C) return; const rect = cv.getBoundingClientRect(), sx = W / rect.width, sy = H / rect.height;
   const mx = (ev.clientX - rect.left) * sx, my = (ev.clientY - rect.top) * sy;
+  if (my >= H - 24) {                                   // clicked the bottom timeline → jump
+    const BM = 34, BW = W - 2 * BM; tick = Math.max(0, Math.min(C.ticks - 1, Math.round((mx - BM) / BW * (C.ticks - 1))));
+    timeIn.value = tick; sel >= 0 ? panel(sel) : draw(); return;
+  }
   let best = -1, bd = 26 * 26;
   C.towns.forEach((t, n) => { if ((t.history[tick] || 0) <= 0) return; const d = (wpx(t.x) - mx) ** 2 + (hpx(t.y) - my) ** 2; if (d < bd) { bd = d; best = n; } });
   panel(best);
