@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0c0a07">
-<title>polis · a theory of city development</title>
-<meta name="description" content="The charter for polis: a procedural generator that grows the whole history of a city into a generated substrate — founding to metropolis — on mappa's planet, using hoop's Physarum and angiogenesis solvers. The road to a 4X.">
+<title>polis · modeling urban economics across a city's life cycle</title>
+<meta name="description" content="The charter for polis: a procedural engine that grows the whole ECONOMIC history of a city into a generated substrate — founding engine to metropolis — on mappa's planet, using hoop's Physarum and angiogenesis solvers. The economy is a forcing on one field, in three regimes. The road to a 4X.">
 <style>
-:root{--gold:#a9802f;--gold2:#c79a48;--parch:#e8dcc0;--ink:#0c0a07;--mut:#9c8a6c;--line:#2c2316;--card:#140f08;--rust:#b8623c;--moss:#7c8a4e;--sky:#5a86a0}
+:root{--gold:#a9802f;--gold2:#c79a48;--parch:#e8dcc0;--ink:#0c0a07;--mut:#9c8a6c;--line:#2c2316;--card:#140f08;--rust:#b8623c;--moss:#7c8a4e;--sky:#5a86a0;--amber:#d39a3e}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{background:#0c0a07;color:var(--parch);font:16px/1.65 ui-sans-serif,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
@@ -26,7 +26,7 @@ header.top nav a{color:var(--mut)}header.top nav a:hover{color:var(--parch);text
 .kicker{font:600 12.5px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
 .hero h1{font:600 38px/1.08 ui-serif,'Iowan Old Style',Georgia,serif;letter-spacing:.01em}
 .hero h1 span{color:var(--gold)}
-.hero p{color:#cdbd98;font-size:18px;margin-top:14px;max-width:680px}
+.hero p{color:#cdbd98;font-size:18px;margin-top:14px;max-width:690px}
 .hero .cta{margin-top:24px;display:flex;gap:10px;flex-wrap:wrap}
 .btn{display:inline-block;background:#1a140c;border:1px solid var(--line);color:var(--parch);padding:8px 15px;border-radius:7px;font-size:14px}
 .btn:hover{border-color:var(--gold);text-decoration:none}
@@ -49,17 +49,19 @@ td code{white-space:nowrap}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:16px 0}
 .card.accent{border-left:3px solid var(--gold)}
 .tag{display:inline-block;background:#241a0c;border:1px solid #5a4a28;color:var(--gold2);border-radius:5px;padding:1px 7px;font-size:12px;font-family:ui-monospace,monospace}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media (max-width:680px){.two{grid-template-columns:1fr}}
-.regime{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
-.regime h4{font:600 15px/1.3 ui-sans-serif,sans-serif;margin-bottom:3px}
-.regime .src{font-size:12px;color:var(--mut);font-family:ui-monospace,monospace;margin-bottom:10px}
+.eq{background:#100b06;border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;text-align:center;font-family:ui-monospace,monospace;color:#e8c98c;font-size:15px}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media (max-width:760px){.three{grid-template-columns:1fr}}
+.regime{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:15px 16px}
+.regime h4{font:600 14.5px/1.3 ui-sans-serif,sans-serif;margin-bottom:2px}
+.regime .src{font-size:11.5px;color:var(--mut);font-family:ui-monospace,monospace;margin-bottom:9px}
+.regime.nuc h4{color:var(--amber)}.regime.nuc{border-top:3px solid var(--amber)}
 .regime.cov h4{color:var(--sky)}.regime.cov{border-top:3px solid var(--sky)}
 .regime.dem h4{color:var(--rust)}.regime.dem{border-top:3px solid var(--rust)}
-.regime p{font-size:14px;margin:8px 0}
+.regime p{font-size:13.5px;margin:7px 0}
 figure{margin:22px 0;text-align:center}
 figure svg{max-width:100%;height:auto}
-figcaption{font-size:12.5px;color:var(--mut);margin-top:10px;max-width:680px;margin-left:auto;margin-right:auto}
+figcaption{font-size:12.5px;color:var(--mut);margin-top:10px;max-width:700px;margin-left:auto;margin-right:auto}
 .pipe{counter-reset:step;margin:16px 0}
 .pipe .s{position:relative;padding:13px 0 13px 46px;border-bottom:1px solid #1a140c}
 .pipe .s:last-child{border-bottom:0}
@@ -80,10 +82,10 @@ footer a{color:var(--gold2)}
   <a class="home" href="https://mino.mobi/">mino.mobi</a>
   <nav>
     <a href="#thesis">Thesis</a>
-    <a href="#substrate">Substrate</a>
-    <a href="#field">The field</a>
-    <a href="#phases">Phases</a>
-    <a href="#region">Region</a>
+    <a href="#engine">The engine</a>
+    <a href="#field">Three regimes</a>
+    <a href="#cycle">Life cycle</a>
+    <a href="#system">System</a>
     <a href="#road">4X</a>
     <a href="#sources">Sources</a>
   </nav>
@@ -91,10 +93,10 @@ footer a{color:var(--gold2)}
 
 <div class="hero"><div class="wrap">
   <div class="kicker">polis · the next effort after mappa</div>
-  <h1>A theory of <span>city development</span></h1>
-  <p>A procedural engine that grows the <em>whole history</em> of a city into a generated world — founding to metropolis — deterministically, from a seed. It stands on <a href="https://mino.mobi/mappa/">mappa</a>'s planet and reuses two field solvers already living in <a href="https://hoop.mino.mobi/">hoop</a>. The long arc is a 4X game. This page is the theory it will be built on.</p>
+  <h1>Modeling urban <span>economics</span> across a city's life cycle</h1>
+  <p>A procedural engine that grows the <em>whole economic history</em> of a city into a generated world — from the founding engine to the metropolis — deterministically, from a seed. The streets and quarters are how the economy writes itself onto the ground. It stands on <a href="https://mino.mobi/mappa/">mappa</a>'s planet and reuses two field solvers from <a href="https://hoop.mino.mobi/">hoop</a>. The long arc is a 4X game.</p>
   <div class="cta">
-    <a class="btn gold" href="#field">The central idea ↓</a>
+    <a class="btn gold" href="#engine">How cities start ↓</a>
     <a class="btn" href="https://mino.mobi/mappa/">↤ mappa, the world engine</a>
     <a class="btn" href="#sources">Sources ↗</a>
   </div>
@@ -102,276 +104,310 @@ footer a{color:var(--gold2)}
 </div></div>
 
 <div class="lede"><div class="wrap">
-  <b>mappa answers <em>where</em>, once.</b> It generates a deterministic planet — plate
-  tectonics, hydrology, climate, biomes — and scatters plausible city sites on it.
-  <b>polis answers <em>how a city becomes one</em>, over centuries.</b> It takes a site and
-  grows its streets, quarters, arteries and hinterland through the real
-  developmental stages urban geography has documented for two hundred years — and
-  it does so by handing one flow-solver off to another as the city ages.
+  <b>mappa answers <em>where</em>, once.</b> It generates a deterministic planet and scatters
+  plausible city sites. <b>polis answers a harder question: <em>how does a city grow an
+  economy</em>?</b> What engine makes a settlement nucleate, and what keeps it growing
+  past its founding reason? That economic life cycle — not the street grid — is the
+  subject. The geometry follows.
 </div></div>
 
 <section id="thesis"><div class="wrap">
   <h2><span class="n">00</span>The thesis</h2>
-  <p>Three things already exist in this repo, and <code>polis</code> is the missing middle between them:</p>
+  <p>Three things already exist in this repo, and <code>polis</code> is the missing middle:</p>
   <table>
     <tr><th>Layer</th><th>What it is</th><th>What it gives polis</th></tr>
-    <tr><td><a href="https://mino.mobi/mappa/">mappa</a></td><td>a deterministic planet generator + one-shot city-site scatter</td><td>the <strong>substrate</strong>: terrain, rivers, coasts, climate, fertility — the ground a city grows into</td></tr>
-    <tr><td><strong>polis</strong></td><td>this project</td><td>the <strong>history</strong>: founding → organic core → trade arteries → differentiated quarters → regional hierarchy</td></tr>
-    <tr><td><a href="https://hoop.mino.mobi/">hoop</a></td><td>a game whose internals include two pure field solvers</td><td>the <strong>engines</strong>: a Physarum road-grower and a hypoxia/angiogenesis capillary-grower</td></tr>
+    <tr><td><a href="https://mino.mobi/mappa/">mappa</a></td><td>a deterministic planet + one-shot city-site scatter</td><td>the <strong>substrate</strong>: terrain, rivers, coasts, fertility — the ground the economy stands on</td></tr>
+    <tr><td><strong>polis</strong></td><td>this project</td><td>the <strong>economic history</strong>: founding engine → multiplier → diversification → regional hierarchy</td></tr>
+    <tr><td><a href="https://hoop.mino.mobi/">hoop</a></td><td>a game with two pure field solvers in its internals</td><td>the <strong>geometry engines</strong>: a Physarum network-grower and a hypoxia/angiogenesis capillary-grower</td></tr>
   </table>
-  <p>mappa's placement is a habitability k-means scatter — plausible dots, but with no
-  notion of a city <em>growing</em>: no streets, no quarters, no centuries. A 4X needs
-  cities with a <strong>legible history</strong> — a founding reason, an organic core, arteries
-  that thickened with trade, a hinterland that filled in. <code>polis</code> is that layer, and
-  its claim is that the history can be <em>generated</em> by running two solvers hoop
-  already has, handed off from one to the other.</p>
+  <p>mappa's placement answers <em>where</em>; it has no notion of a city <em>growing an
+  economy</em>. A 4X needs cities with a legible economic history — a founding engine, a
+  multiplier, a diversifying base, a place in a hierarchy. <code>polis</code> is that layer.</p>
 </div></section>
 
-<section id="substrate"><div class="wrap">
-  <h2><span class="n">01</span>The substrate it consumes</h2>
-  <p>mappa's engine (<code>mappa/engine.js</code>) exposes, per mesh cell, everything a city
-  needs to decide where and how to grow. <code>polis</code> reads it as <em>ground</em>:</p>
-  <table>
-    <tr><th>mappa signal</th><th>read by polis as</th></tr>
-    <tr><td><code>water</code> · <code>rivers</code> (with <code>flow</code>) · coastline</td><td>drink, power, defence, and — above all — <strong>routes</strong> (the head of navigation, the bridging point, the harbour)</td></tr>
-    <tr><td><code>elev</code> · relief</td><td><strong>defensibility</strong> and friction (hills, meander-loops, passes, buildable land)</td></tr>
-    <tr><td><code>moisture</code> · <code>biome</code> · river valleys</td><td><strong>fertility</strong> → the agricultural <em>surplus</em> that caps how many non-farmers a town can feed</td></tr>
-    <tr><td><code>plate</code> lithology contacts</td><td>the <strong>fall line</strong> — where hard upland meets soft plain, seeding a whole <em>string</em> of cities</td></tr>
-    <tr><td><code>mulberry32</code> PRNG · seed</td><td><strong>determinism</strong>: same seed → same world → same city, on every machine</td></tr>
-  </table>
-  <p class="mut">Improving on mappa is itself Phase 1's job: replacing "plausible-looking dots"
-  with <em>geographically motivated</em> foundings whose logic a player can read.</p>
+<section id="engine"><div class="wrap">
+  <h2><span class="n">01</span>The core economic engine — how cities start, and keep growing</h2>
+  <p>This is the heart of <code>polis</code>, and the answer to <em>how do cities start?</em></p>
+
+  <h3>The big game in town — why a settlement nucleates</h3>
+  <p>A city is not founded by spreading people evenly. It nucleates around <strong>one
+  economic function strong enough to pull a surplus toward a point</strong> — and at the
+  start, everything else is negligible against that one engine. The archetypes:</p>
+  <ul>
+    <li><strong>Break-of-bulk / entrepôt.</strong> Cooley (1894): <em>"population and wealth
+    tend to collect wherever there is a break in transportation"</em> — a head of
+    navigation, a fall line, a lowest bridging point, a harbour, a pass, where cargo
+    <em>must</em> transfer and be stored. The transfer is a captive choke point that
+    <strong>extracts rent</strong>, and that rent is the founding engine.</li>
+    <li><strong>Staple extraction.</strong> A mine, a fishery, a fur/timber frontier — one
+    commodity exported raw (Innis's <em>staples thesis</em>).</li>
+    <li><strong>Administrative / sacred seat.</strong> A temple or palace that concentrates
+    tribute and redistributes it (the earliest Mesopotamian cities).</li>
+    <li><strong>The agricultural precondition</strong> (Childe, 1950): none of these can feed
+    a town without a storable food <em>surplus</em> from the surrounding land. Surplus is the
+    <em>permission</em> to urbanize; the export engine is the <em>reason</em>.</li>
+  </ul>
+  <p>In every case the early city is <strong>one engine plus its support system</strong> — which
+  is exactly why its earliest network is a star of routes to that engine (regime 1, below).</p>
+
+  <h3>The first engine of growth — the economic-base multiplier</h3>
+  <p>Economic-base theory (Sombart 1916 → Haig 1928 → Hoyt 1939; the export-base theory
+  of regional growth, <strong>North, 1955</strong>) splits a city's economy in two:</p>
+  <ul>
+    <li><strong>Basic (city-forming)</strong> — produces for <em>export</em>; earns income from outside. The big game in town.</li>
+    <li><strong>Non-basic (city-serving)</strong> — produces for the <em>local</em> market (the baker, the barber, the school). It exists because base workers spend their wages.</li>
+  </ul>
+  <p>If <code>s</code> is the local-serving share, each export dollar re-circulates locally and total activity is the geometric sum:</p>
+  <div class="eq">Total = Basic × M ,&nbsp;&nbsp;&nbsp; M = 1 / (1 − s)</div>
+  <p><code>M</code> is the <strong>base multiplier</strong> — the structural analogue of the Keynesian
+  income multiplier, with <code>s</code> playing the role of the marginal propensity to spend
+  locally. If non-basic is half the economy (s = ½), M = 2: every export job supports
+  one local job. If s = ⅔, M = 3. <em>This multiplier is the core economic engine that
+  allows for growth</em>: add one base job, the town grows by <code>M</code>.</p>
+
+  <h3>The second engine — why a city outgrows its founding base</h3>
+  <p>The base multiplier is <em>linear</em>: double the staple, double the town. It cannot
+  explain a city that keeps growing after its founding engine fades (the portage that
+  silts up, the mine that empties). Two mechanisms make growth <strong>self-reinforcing</strong>:</p>
+  <ul>
+    <li><strong>Agglomeration / increasing returns</strong> (Marshall, 1890): firms cluster for
+    <em>labour pooling, supplier sharing, knowledge spillovers</em> (the "trinity"). Empirically
+    <strong>doubling a city's size raises productivity ~3–8%</strong> (Rosenthal &amp; Strange, 2004) —
+    so size <em>creates</em> the conditions for more size. This is also <strong>New Economic
+    Geography</strong> (Krugman, 1991, Nobel 2008): increasing returns + transport costs + mobile
+    labour make a featureless plain <strong>bifurcate</strong> into a dense core and a thin periphery
+    once transport costs fall past a threshold.</li>
+    <li><strong>Import-replacement</strong> (Jane Jacobs, <em>The Economy of Cities</em>, 1969): a city
+    starts <strong>making what it used to import</strong> — which keeps that spending local <em>and</em>
+    creates new local work, and the new producers soon <em>export</em> the new good. So the export
+    base grows <em>from within</em>, endogenously, by "adding new work to old." Jacobs argued
+    this — not the static export base — is the true engine of urban growth.</li>
+  </ul>
+  <div class="card accent">
+    <p style="margin-top:0"><strong>The growth engine, assembled.</strong> Founding export base
+    → the multiplier <code>M = 1/(1−s)</code> spins up local services → agglomeration makes the
+    place more productive as it grows → import-replacement turns local services into <em>new</em>
+    export base → the multiplier acts on a bigger base → … A staple that merely <em>serves</em>
+    becomes a city that <em>generates</em>. Past a threshold, Wilbur Thompson's <strong>urban size
+    ratchet</strong> (1965) makes continued growth all but guaranteed — structural diversity
+    insures the city against the death of any one sector.</p>
+  </div>
 </div></section>
 
 <section id="field"><div class="wrap">
-  <h2><span class="n">02</span>The central idea — one field, two regimes</h2>
-  <p>A city is always solving a flow problem on a graph. But <em>which</em> problem changes
-  as it grows, and that change is the whole story. The two hoop solvers turn out to be
-  <strong>the same operator — the graph Laplacian — with different forcing.</strong></p>
+  <h2><span class="n">02</span>The economy as a forcing on one field — three regimes</h2>
+  <p>A city is always solving a flow problem on a graph. <em>Which</em> problem is set by the
+  <strong>shape of its economy</strong>, and that shape changes over the life cycle. Both hoop
+  solvers are the <strong>graph Laplacian <code>L</code></strong> with different forcing — and the forcing
+  tracks how <em>concentrated</em> the economic base is. It evolves <strong>one point → uniform → many
+  peaks</strong>, so <strong>Physarum bookends the cycle</strong> (a star at birth, a network at maturity)
+  with the diffusion/coverage solver in the middle.</p>
 
-  <div class="two">
+  <div class="three">
+    <div class="regime nuc">
+      <h4>1 · Nucleus</h4>
+      <div class="src">Physarum (flux.js), μ high → tree</div>
+      <p><b>Economy:</b> monoculture — one export engine; the multiplier barely started.</p>
+      <p><b>Forcing:</b> a <strong>single</strong> dominant sink — the big game in town.</p>
+      <p><b>Form:</b> <strong>spokes to the one engine</strong>; everything else barely on the map.</p>
+    </div>
     <div class="regime cov">
-      <h4>Coverage regime · the young town</h4>
-      <div class="src">hoop/v7/foam.js — seize()</div>
-      <p><b>Problem:</b> keep everyone <em>served</em> — every dwelling within reach of water, market, mill, gate.</p>
-      <p><b>Physics:</b> a diffusion / Poisson field. A saturation field spreads from supply points; where it falls short — the <em>hypoxic</em> fringe — the town sprouts a lane toward it (angiogenesis).</p>
-      <p><b>Form:</b> space-filling, branching, organic. The medieval town plan.</p>
+      <h4>2 · Coverage</h4>
+      <div class="src">hypoxia (foam.js seize)</div>
+      <p><b>Economy:</b> the base multiplier has spun up local-serving services.</p>
+      <p><b>Forcing:</b> a roughly <strong>uniform</strong> source — serve everyone.</p>
+      <p><b>Form:</b> capillary infill toward the under-served fringe — the town fills in.</p>
     </div>
     <div class="regime dem">
-      <h4>Demand regime · the mature city</h4>
-      <div class="src">hoop/paint/flux.js — growNetwork()</div>
-      <p><b>Problem:</b> move <em>concentrated flows</em> — thousands of journeys between many origins and destinations.</p>
-      <p><b>Physics:</b> a current-flow field. Inject origin→destination current, solve for the potential; the stationary flux is the time-integrated occupancy of every street. Streets are its <strong>superlevel set</strong>.</p>
-      <p><b>Form:</b> arterial, hierarchical. The trading city.</p>
+      <h4>3 · Demand</h4>
+      <div class="src">Physarum (flux.js), μ = grid↔tree</div>
+      <p><b>Economy:</b> diversified — many sectors (import-replacement, agglomeration).</p>
+      <p><b>Forcing:</b> <strong>many peaked</strong> origin–destination currents.</p>
+      <p><b>Form:</b> arterial hierarchy — the trading city.</p>
     </div>
   </div>
 
   <figure>
-  <svg viewBox="0 0 720 230" role="img" aria-label="Two growth regimes: coverage-driven angiogenesis versus demand-driven flux.">
-    <!-- coverage panel -->
-    <text x="120" y="22" text-anchor="middle" fill="#5a86a0" font-family="ui-sans-serif" font-size="13" font-weight="600">COVERAGE · angiogenesis</text>
-    <text x="120" y="38" text-anchor="middle" fill="#9c8a6c" font-family="ui-monospace" font-size="10">young town · keep the fringe served</text>
-    <!-- supply core -->
-    <circle cx="120" cy="135" r="7" fill="#c79a48"/>
-    <!-- branching capillaries -->
-    <g stroke="#5a86a0" stroke-width="2" fill="none" opacity="0.9" stroke-linecap="round">
-      <path d="M120 135 L120 95 L100 70"/><path d="M120 95 L142 72"/>
-      <path d="M120 135 L86 128 L62 110"/><path d="M86 128 L70 150"/>
-      <path d="M120 135 L156 142 L182 126"/><path d="M156 142 L176 164"/>
-      <path d="M120 135 L116 176 L96 196"/><path d="M116 176 L138 192"/>
+  <svg viewBox="0 0 760 210" role="img" aria-label="Three regimes: single-sink star, uniform capillary infill, and multi-peak arterial network.">
+    <!-- panel 1: nucleus star -->
+    <text x="120" y="20" text-anchor="middle" fill="#d39a3e" font-family="ui-sans-serif" font-size="12.5" font-weight="600">1 · NUCLEUS</text>
+    <text x="120" y="35" text-anchor="middle" fill="#9c8a6c" font-family="ui-monospace" font-size="9.5">one engine · spokes</text>
+    <g stroke="#d39a3e" stroke-width="2" stroke-linecap="round" opacity="0.9">
+      <path d="M120 120 L72 86"/><path d="M120 120 L168 84"/><path d="M120 120 L60 140"/><path d="M120 120 L182 138"/><path d="M120 120 L104 178"/><path d="M120 120 L150 172"/>
     </g>
-    <!-- served tissue (faint dots) -->
-    <g fill="#3a4e5a" opacity="0.55">
-      <circle cx="100" cy="70" r="3"/><circle cx="142" cy="72" r="3"/><circle cx="62" cy="110" r="3"/><circle cx="70" cy="150" r="3"/><circle cx="182" cy="126" r="3"/><circle cx="176" cy="164" r="3"/><circle cx="96" cy="196" r="3"/><circle cx="138" cy="192" r="3"/>
+    <g fill="#6f5f44"><circle cx="72" cy="86" r="3"/><circle cx="168" cy="84" r="3"/><circle cx="60" cy="140" r="3"/><circle cx="182" cy="138" r="3"/><circle cx="104" cy="178" r="3"/><circle cx="150" cy="172" r="3"/></g>
+    <circle cx="120" cy="120" r="9" fill="#d39a3e"/>
+    <text x="120" y="124" text-anchor="middle" fill="#1a120a" font-size="10" font-family="ui-monospace" font-weight="700">★</text>
+    <!-- panel 2: coverage capillary -->
+    <text x="380" y="20" text-anchor="middle" fill="#5a86a0" font-family="ui-sans-serif" font-size="12.5" font-weight="600">2 · COVERAGE</text>
+    <text x="380" y="35" text-anchor="middle" fill="#9c8a6c" font-family="ui-monospace" font-size="9.5">services · fill in</text>
+    <g stroke="#5a86a0" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.9">
+      <path d="M380 120 L380 84 L356 64"/><path d="M380 84 L406 62"/>
+      <path d="M380 120 L344 114 L322 96"/><path d="M344 114 L330 138"/>
+      <path d="M380 120 L418 126 L442 110"/><path d="M418 126 L438 148"/>
+      <path d="M380 120 L376 160 L356 180"/><path d="M376 160 L400 176"/>
     </g>
-    <!-- handoff arrow -->
-    <g>
-      <text x="360" y="120" text-anchor="middle" fill="#9c8a6c" font-family="ui-serif" font-size="13" font-style="italic">the city ages</text>
-      <path d="M300 135 L420 135" stroke="#5a4a28" stroke-width="1.5" marker-end="url(#ah)"/>
-      <text x="360" y="156" text-anchor="middle" fill="#6f5f44" font-family="ui-monospace" font-size="9.5">coverage → demand forcing</text>
-    </g>
-    <defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#5a4a28"/></marker></defs>
-    <!-- demand panel -->
-    <text x="600" y="22" text-anchor="middle" fill="#b8623c" font-family="ui-sans-serif" font-size="13" font-weight="600">DEMAND · Physarum flux</text>
-    <text x="600" y="38" text-anchor="middle" fill="#9c8a6c" font-family="ui-monospace" font-size="10">mature city · carry the flow</text>
-    <!-- nodes -->
-    <g fill="#c79a48">
-      <circle cx="540" cy="80" r="5"/><circle cx="660" cy="70" r="5"/><circle cx="600" cy="135" r="8"/><circle cx="520" cy="170" r="5"/><circle cx="680" cy="175" r="5"/><circle cx="600" cy="200" r="4"/>
-    </g>
-    <!-- arteries: thickness ~ flux -->
+    <g fill="#3a4e5a" opacity="0.6"><circle cx="356" cy="64" r="2.5"/><circle cx="406" cy="62" r="2.5"/><circle cx="322" cy="96" r="2.5"/><circle cx="330" cy="138" r="2.5"/><circle cx="442" cy="110" r="2.5"/><circle cx="438" cy="148" r="2.5"/><circle cx="356" cy="180" r="2.5"/><circle cx="400" cy="176" r="2.5"/></g>
+    <circle cx="380" cy="120" r="7" fill="#c79a48"/>
+    <!-- panel 3: demand arterial -->
+    <text x="640" y="20" text-anchor="middle" fill="#b8623c" font-family="ui-sans-serif" font-size="12.5" font-weight="600">3 · DEMAND</text>
+    <text x="640" y="35" text-anchor="middle" fill="#9c8a6c" font-family="ui-monospace" font-size="9.5">many sectors · arteries</text>
+    <g fill="#c79a48"><circle cx="582" cy="74" r="4.5"/><circle cx="700" cy="66" r="4.5"/><circle cx="640" cy="120" r="7.5"/><circle cx="566" cy="158" r="4.5"/><circle cx="710" cy="160" r="4.5"/><circle cx="648" cy="186" r="3.5"/></g>
     <g stroke="#b8623c" fill="none" stroke-linecap="round">
-      <path d="M540 80 L600 135" stroke-width="5"/>
-      <path d="M660 70 L600 135" stroke-width="5"/>
-      <path d="M520 170 L600 135" stroke-width="4"/>
-      <path d="M680 175 L600 135" stroke-width="4"/>
-      <path d="M600 135 L600 200" stroke-width="2"/>
-      <path d="M540 80 L660 70" stroke-width="1.5" opacity="0.6"/>
+      <path d="M582 74 L640 120" stroke-width="5"/><path d="M700 66 L640 120" stroke-width="5"/>
+      <path d="M566 158 L640 120" stroke-width="4"/><path d="M710 160 L640 120" stroke-width="4"/>
+      <path d="M640 120 L648 186" stroke-width="2"/><path d="M582 74 L700 66" stroke-width="1.5" opacity="0.6"/>
     </g>
+    <!-- arrows between -->
+    <defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#5a4a28"/></marker></defs>
+    <path d="M212 120 L268 120" stroke="#5a4a28" stroke-width="1.5" marker-end="url(#ah)"/>
+    <path d="M472 120 L528 120" stroke="#5a4a28" stroke-width="1.5" marker-end="url(#ah)"/>
+    <text x="240" y="112" text-anchor="middle" fill="#6f5f44" font-family="ui-monospace" font-size="8.5">multiplier</text>
+    <text x="500" y="112" text-anchor="middle" fill="#6f5f44" font-family="ui-monospace" font-size="8.5">diversify</text>
   </svg>
-  <figcaption>The same graph-Laplacian solve, two forcings. <b>Left:</b> roughly uniform supply-minus-demand → capillaries grow toward the worst-served cell until everything is within reach (coverage). <b>Right:</b> a sparse, peaked origin–destination current → conductance thickens where journeys concentrate; streets are the superlevel set (demand). A city's life is the cross-fade from left to right.</figcaption>
+  <figcaption>The same graph-Laplacian solve; the forcing's concentration tracks the economy.
+  <b>1 ·</b> a one-engine economy injects current to a single sink → a star (Physarum, μ high).
+  <b>2 ·</b> the multiplier spreads local services → a near-uniform "serve everyone" source →
+  capillary infill (angiogenesis). <b>3 ·</b> a diversified economy injects many peaked O–D
+  currents → an arterial hierarchy (Physarum, μ tuned). Physarum bookends; coverage fills the middle.</figcaption>
   </figure>
 
   <div class="card accent">
-    <p style="margin-top:0"><strong>This is not a metaphor we impose — it is what the kernels already compute.</strong>
-    <code>flux.js</code>'s own header notes that the stationary flux of trips is the Laplace
-    transform of the journey process (the graph's Green's function). <code>foam.js</code>'s
-    <code>seize()</code> is a multi-source BFS perfusion field plus angiogenesis toward the
-    most under-served tissue. Same operator <code>L</code>; the coverage regime forces it with
-    a near-uniform source, the demand regime with a peaked O–D current. <strong>A city ages
-    from the first forcing to the second.</strong> Early, the binding constraint is <em>area
-    served</em>; late, it is <em>flow carried</em>.</p>
-  </div>
-  <p class="refnote">The same activation/inhibition tension shows up in complexity science as a
-  <a href="https://en.wikipedia.org/wiki/Turing_pattern">Turing reaction–diffusion</a>
-  instability (short-range agglomeration vs long-range congestion) — the coverage/demand
-  handoff is the discrete, graph-side cousin of that pattern-forming physics.</p>
-</div></section>
-
-<section id="phases"><div class="wrap">
-  <h2><span class="n">03</span>The four phases</h2>
-
-  <h3><span class="ph">Phase 1 · why here</span>The site</h3>
-  <p>A settlement nucleates where the ground gives it a reason. The classic distinction is
-  <strong>site vs situation</strong>: <em>site</em> is the physical spot (relief, drainage, water,
-  defensibility); <em>situation</em> is its relation to the wider world (routes, resources,
-  other settlements). They are independent — a town can have a poor site but a commanding
-  situation, or the reverse — so <code>polis</code> scores every candidate cell on <strong>two separate
-  axes</strong>. Some features are decisive enough to <em>force</em> a town almost regardless of spacing:</p>
-  <table>
-    <tr><th>Forced spawn point</th><th>Why it nucleates</th><th>mappa signal</th></tr>
-    <tr><td><a href="https://en.wikipedia.org/wiki/Fall_line">Fall line</a></td><td>hard upland meets soft plain → rapids = head of navigation <em>and</em> water power; one escarpment seeds a string of cities (Richmond, Baltimore, Washington…)</td><td>lithology contact crossed by a river</td></tr>
-    <tr><td>Head of navigation</td><td>farthest upstream a boat reaches → cargo must transfer (break-of-bulk)</td><td>walk <code>rivers</code> up until <code>flow</code> drops below a hull threshold</td></tr>
-    <tr><td>Lowest bridging point</td><td>last bridgeable spot before the estuary → river port (London on the Thames)</td><td>most-downstream narrow river cell</td></tr>
-    <tr><td>Harbour</td><td>sheltered deep water + inland route → maritime trade</td><td>coast cells: shelter × depth × inland access</td></tr>
-    <tr><td>Defensive site</td><td>hill, meander-loop (water on 3 sides, like Durham), island</td><td>relief prominence + water-fraction of neighbourhood</td></tr>
-    <tr><td>Gap / pass town</td><td>the only way through a barrier funnels all traffic</td><td>saddle points in <code>elev</code></td></tr>
-  </table>
-  <p><span class="tag">→ rule</span> <code>situation</code> = betweenness on the route/river graph; <code>site</code> = local
-  terrain sample. Spawn where <code>w_site·site + w_situation·situation</code> clears a threshold,
-  with forced points pre-seeded. The founding advantage is a <strong>one-time tie-break, not a
-  permanent subsidy</strong> — which is exactly what lets a city outlive the reason it was founded (Phase 4).</p>
-
-  <h3><span class="ph">Phase 2 · the hypoxia phase</span>Nucleation &amp; organic accretion</h3>
-  <p>A village becomes a town. The binding constraints are food and reach.</p>
-  <ul>
-    <li><strong>Food first</strong> — <a href="https://en.wikipedia.org/wiki/Urban_revolution">Childe's Urban Revolution</a> (1950): a town can hold only as many non-farmers as its agricultural <em>surplus</em> feeds. <code>max_specialists ≈ (arable × yield × surplus_fraction) / food_per_capita</code>, read off mappa's fertility. No surplus → stuck at village tier.</li>
-    <li><strong>Reach second</strong> — the <em>angiogenesis solver</em> (<code>foam.js seize()</code>): as dwellings accrete, compute the perfusion field (hop-distance to the nearest lane), find the most under-served cell, sprout a capillary lane toward it; repeat until everything is within <code>oxygenReach</code>. The branching, space-filling street web of an organically grown town.</li>
-    <li><strong>The grain of the fabric</strong> — <a href="https://www.burgageplots.info/glossary-of-terms">Conzen</a> (<em>Alnwick</em>, 1960): the plan accretes in three layers — <strong>streets → plots → buildings</strong>. Plots are <strong>burgage strips</strong> (long, narrow, perpendicular to the frontage), each living a <strong>burgage cycle</strong>: <em>institutive → repletive (backland infills) → climax (saturation) → recessive (clearance to "urban fallow")</em>. A per-plot state machine that ages density.</li>
-    <li><strong>The first land-use gradient</strong> — <a href="https://transportgeography.org/contents/chapter8/urban-land-use-transportation/von-thunen-regional-land-use/">von Thünen</a> (1826): rent trades off against transport cost, <code>R = Y(p−c) − Y·F·m</code>, so each use bids a line in distance and land goes to the <strong>upper envelope</strong>. Perishable/heavy uses hug the centre; extensive uses push out.</li>
-  </ul>
-  <p><span class="tag">→ rule</span> grow lanes with the coverage solver; gate population by surplus; age each plot through the burgage cycle; assign land use by the bid-rent envelope on travel-distance to the core.</p>
-
-  <h3><span class="ph">Phase 3 · the Physarum phase</span>Networked maturation</h3>
-  <p>The town becomes a city with trade, and the flow problem flips from coverage to demand.</p>
-  <ul>
-    <li><strong>Demand from gravity</strong> — <a href="https://en.wikipedia.org/wiki/Reilly%27s_law_of_retail_gravitation">Reilly</a> (1931): interaction goes as <code>T_ij ∝ P_i·P_j / d_ij²</code> (inverse-square). This O–D matrix is the current we inject.</li>
-    <li><strong>Arteries from flux</strong> — <a href="https://www.science.org/doi/10.1126/science.1177894">Tero et al., <em>Science</em> 2010</a> (the slime-mold Tokyo-rail result): route the demand, accumulate flux, and let each edge adapt, <code>dD_ij/dt = f(|Q_ij|) − D_ij</code> — thicken where used, decay where idle. Streets are the superlevel set. The one real knob is the feedback exponent <strong>μ</strong>: <strong>μ&lt;1</strong> keeps redundant parallel streets (a <em>grid</em>); <strong>μ&gt;1</strong> collapses everyone onto one arterial (a <em>tree</em>). μ <em>is</em> "planned vs organic."</li>
-    <li><strong>Land use differentiates</strong> — <a href="https://en.wikipedia.org/wiki/Bid_rent_theory">Alonso</a> (1964) sorts uses into <strong>commerce → industry → residential</strong> from the centre. <em>Which</em> pattern is a selectable kernel: <a href="https://en.wikipedia.org/wiki/Concentric_zone_model">concentric rings</a> (Burgess, invasion–succession), <a href="https://transportgeography.org/contents/chapter8/urban-land-use-transportation/sector-nuclei-land-use/">sectors</a> along transport rays (Hoyt), or <strong>multiple nuclei</strong> (Harris–Ullman: specialized facilities + agglomeration + repulsion + rent-affordability spawn several centres).</li>
-    <li><strong>History freezes into the plan</strong> — Conzen's <strong>fringe belts</strong>: when growth pauses at a wall or common, low-density uses (cemeteries, barracks, parks) accrete there; when growth leaps past, that ring is embedded as a fossil of a former edge. The <strong>morphological frame</strong> (old walls, route lines, plot boundaries) constrains all later growth — what makes a generated city read as <em>grown</em>, not stamped.</li>
-    <li><strong>The loop closes</strong> — <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1748607">Levinson &amp; Xie</a> co-evolution: new road → accessibility → development → demand → more road. <code>polis</code> <em>iterates</em> Phases 2–3 rather than running them once.</li>
-  </ul>
-  <p><span class="tag">→ rule</span> generate gravity demand between sub-centres; grow the road network with the flux solver (μ as the messiness dial); assign land use by the bid-rent envelope under a chosen structure kernel; drop fringe belts at each epoch edge; persist a morphological-frame mask; iterate.</p>
-
-  <figure>
-  <svg viewBox="0 0 720 96" role="img" aria-label="The four-phase arc from site to system.">
-    <line x1="40" y1="48" x2="680" y2="48" stroke="#2c2316" stroke-width="2"/>
-    <g font-family="ui-sans-serif" text-anchor="middle">
-      <circle cx="110" cy="48" r="9" fill="#1a140c" stroke="#a9802f"/><text x="110" y="52" fill="#c79a48" font-size="11" font-family="ui-monospace">1</text>
-      <text x="110" y="28" fill="#e8dcc0" font-size="12" font-weight="600">Site</text><text x="110" y="78" fill="#9c8a6c" font-size="10">why here</text>
-      <circle cx="290" cy="48" r="9" fill="#1a140c" stroke="#5a86a0"/><text x="290" y="52" fill="#5a86a0" font-size="11" font-family="ui-monospace">2</text>
-      <text x="290" y="28" fill="#e8dcc0" font-size="12" font-weight="600">Accretion</text><text x="290" y="78" fill="#5a86a0" font-size="10">coverage · hypoxia</text>
-      <circle cx="470" cy="48" r="9" fill="#1a140c" stroke="#b8623c"/><text x="470" y="52" fill="#b8623c" font-size="11" font-family="ui-monospace">3</text>
-      <text x="470" y="28" fill="#e8dcc0" font-size="12" font-weight="600">Maturation</text><text x="470" y="78" fill="#b8623c" font-size="10">demand · Physarum</text>
-      <circle cx="650" cy="48" r="9" fill="#1a140c" stroke="#a9802f"/><text x="650" y="52" fill="#c79a48" font-size="11" font-family="ui-monospace">4</text>
-      <text x="650" y="28" fill="#e8dcc0" font-size="12" font-weight="600">System</text><text x="650" y="78" fill="#9c8a6c" font-size="10">the region</text>
-    </g>
-  </svg>
-  </figure>
-
-  <h3><span class="ph">Phase 4 · the region</span>The system &amp; the through-line</h3>
-  <p>One city is never alone, and statistical regularities emerge across many.</p>
-  <ul>
-    <li><strong>Hierarchy</strong> — <a href="https://en.wikipedia.org/wiki/Central_place_theory">Christaller</a> (1933): every service has a <strong>threshold</strong> (minimum market) and a <strong>range</strong> (max travel); a place's <em>order</em> is the highest service it supports. Market areas pack into <strong>hexagons</strong>; the nesting factor <strong>K</strong> picks the geometry — <strong>K=3</strong> market, <strong>K=4</strong> transport (lower centres fall on the arterials), <strong>K=7</strong> administrative. Lösch loosens this into a per-good family of hexagons.</li>
-    <li><strong>Size distribution</strong> — <a href="https://en.wikipedia.org/wiki/Rank-size_distribution">Zipf</a> (1949) / <a href="https://en.wikipedia.org/wiki/Gibrat%27s_law">Gibrat</a> (1931) / <a href="https://pages.stern.nyu.edu/~xgabaix/papers/zipf.pdf">Gabaix</a> (1999): sizes follow <code>P_n ≈ P_1/n</code>. <em>Why</em>: Gibrat (growth rate independent of size) makes log-size a sum of shocks → lognormal; add a lower reflecting barrier (cities can't vanish) and the steady state is exactly <strong>Zipf</strong> (ζ=1). So we don't author the hierarchy — we run proportionate growth with a floor and it self-organizes.</li>
-    <li><strong>Scaling</strong> — <a href="https://www.pnas.org/doi/abs/10.1073/pnas.0610172104">Bettencourt &amp; West</a> (<em>PNAS</em> 2007): <code>Y = Y₀·N^β</code>. <strong>Infrastructure sublinear</strong> (roads, cable; β≈0.85), <strong>socioeconomic output superlinear</strong> (GDP, patents, wages, <em>and</em> crime; β≈1.15), <strong>individual needs linear</strong> (housing, water; β≈1.0). Pick a city's N, then <em>derive</em> its road budget, wealth, crime and housing — no manual balancing, and the metropolis automatically <em>feels</em> denser and richer per capita.</li>
-    <li><strong>The urban lifecycle</strong> — van den Berg's stages: <em>urbanization → suburbanization → counter-urbanization → reurbanization</em>, driven by falling transport cost — the macro clock the phases run under.</li>
-  </ul>
-  <div class="card accent">
-    <p style="margin-top:0"><strong>Path dependence — the through-line.</strong> Why early accidents persist
-    (<a href="https://en.wikipedia.org/wiki/Path_dependence">David</a> 1985;
-    <a href="https://blas.com/increasing-returns-and-path-dependence/">Arthur</a> 1989; Marshall 1890;
-    <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3738199/">Bleakley &amp; Lin</a> 2012). A founding
-    advantage breaks the <em>initial tie</em>; <strong>increasing returns</strong> (labour pooling, supplier
-    linkages, knowledge spillovers) amplify the lead via super-linear / preferential-attachment
-    growth; and <strong>sunk, durable infrastructure does not decay when the founding feature dies.</strong>
-    The clean proof: portage cities, founded at fall-line sites, kept concentrating population
-    <em>after</em> river navigation became obsolete (~6% lower density per 10% farther from the dead
-    portage). <b>The lock-in test for polis: delete a city's founding feature mid-run — it should keep growing.</b></p>
+    <p style="margin-top:0"><strong>This is not a metaphor we impose — it is what the kernels compute.</strong>
+    <code>flux.js</code>'s header notes the stationary flux of trips is the Laplace transform of
+    the journey process (the graph's Green's function); <code>foam.js</code>'s <code>seize()</code> is a
+    multi-source BFS perfusion field plus angiogenesis toward the worst-served tissue. The third
+    regime — the <strong>nucleus</strong> — is the same Physarum solver with current collapsed onto
+    <strong>one</strong> sink, which is exactly the network of the earliest city: a few routes to the
+    one place that matters, everything else barely on the map. A one-engine economy produces a
+    one-hub network.</p>
   </div>
 </div></section>
 
-<section id="region"><div class="wrap">
+<section id="cycle"><div class="wrap">
+  <h2><span class="n">03</span>The life cycle</h2>
+  <p>The phases are not invented — they track <strong>Wilbur Thompson's five stages of urban
+  growth</strong> (1965): export specialization → the export complex → economic maturation
+  (import-replacement) → regional metropolis → technical-professional virtuosity. <code>polis</code>
+  reads that economic succession <em>spatially</em>, with the three regimes as its geometry.</p>
+
+  <h3><span class="ph">why here</span>Phase 0 · Site &amp; the founding engine</h3>
+  <p>Score every candidate cell on <strong>two independent axes</strong> (site vs situation): <code>site</code>
+  = local terrain (water, defensibility, buildable land); <code>situation</code> = betweenness on the
+  route/river graph. Some terrain features are <em>forced spawn points</em> because they manufacture
+  a founding engine — the <a href="https://en.wikipedia.org/wiki/Fall_line">fall line</a> (rapids =
+  head of navigation <em>and</em> water power; one escarpment seeds a string of cities — Richmond,
+  Baltimore, Washington), the head of navigation, the lowest bridging point (river port), the
+  harbour, the defensive hill/meander/island, the gap/pass town. The founding advantage is a
+  <strong>one-time tie-break, not a permanent subsidy</strong> — which is what later lets the city outlive
+  the reason it was founded.</p>
+
+  <h3><span class="ph">regime 1 · single attractor · Physarum</span>Phase 1 · Nucleus</h3>
+  <p>The economy is a monoculture: one basic sector (the founding engine), the multiplier barely
+  started. The network is therefore a <strong>star</strong> — sparse routes from the scattered hinterland
+  to the one place that matters. This is the <strong>Physarum solver with current injected to a single
+  sink</strong> and μ high (the field collapses to a minimal tree/star, not a grid). <em>This is the
+  regime you identified, and it is economically exact: a one-engine economy produces a one-hub
+  network.</em></p>
+
+  <h3><span class="ph">regime 2 · coverage · hypoxia</span>Phase 2 · Town</h3>
+  <p>The base multiplier <code>M = 1/(1−s)</code> spins up the non-basic economy — bakers, smiths, a
+  parish, a market. The binding constraint flips from <em>route-to-the-engine</em> to
+  <em>serve-everyone</em>: every dwelling within reach of the well, the market, the mill, the gate.
+  This is the <strong>angiogenesis solver</strong> (<code>foam.js seize()</code>): grow capillary lanes toward the
+  worst-served ("hypoxic") cell until all tissue is within reach. Its grain follows
+  <a href="https://www.burgageplots.info/glossary-of-terms">Conzen</a> (streets → burgage plots →
+  buildings, each plot aging through the burgage cycle); the first land-use gradient appears via
+  <a href="https://transportgeography.org/contents/chapter8/urban-land-use-transportation/von-thunen-regional-land-use/">von Thünen</a>
+  (<code>R = Y(p−c) − Y·F·m</code>, uses sorted by the upper envelope).</p>
+
+  <h3><span class="ph">regime 3 · demand · Physarum</span>Phase 3 · City</h3>
+  <p>Agglomeration and import-replacement diversify the base into <strong>many</strong> sectors. The flow
+  problem becomes one of moving concentrated flows among many origins and destinations — the
+  <strong>Physarum solver again, with a dense, peaked O–D current matrix</strong> (gravity demand
+  <code>T_ij ∝ P_i·P_j/d_ij²</code>, Reilly 1931). Conductance adapts, <code>dD/dt = f(|Q|) − D</code>
+  (<a href="https://www.science.org/doi/10.1126/science.1177894">Tero et al., <em>Science</em> 2010</a>);
+  arteries are the superlevel set; <strong>μ</strong> dials grid↔tree. <a href="https://en.wikipedia.org/wiki/Bid_rent_theory">Bid-rent</a>
+  (Alonso) sorts land use — concentric rings (Burgess), sectors (Hoyt), or multiple nuclei
+  (Harris–Ullman). History freezes as <strong>fringe belts</strong> under a morphological-frame constraint.
+  The loop closes (Levinson &amp; Xie): road → accessibility → development → demand → more road.</p>
+
+  <h3><span class="ph">the region</span>Phase 4 · Metropolis &amp; the system</h3>
+  <ul>
+    <li><strong>Scaling</strong> (<a href="https://www.pnas.org/doi/abs/10.1073/pnas.0610172104">Bettencourt &amp; West, 2007</a>): <code>Y = Y₀·N^β</code> — infrastructure sublinear (β≈0.85), socioeconomic output superlinear (GDP, wages, patents, crime; β≈1.15), needs linear (β≈1.0). Pick N, derive the rest.</li>
+    <li><strong>Hierarchy</strong> (<a href="https://en.wikipedia.org/wiki/Central_place_theory">Christaller</a>): threshold × range → hexagonal market areas; K=3 / 4 / 7.</li>
+    <li><strong>Size distribution</strong> (<a href="https://en.wikipedia.org/wiki/Rank-size_distribution">Zipf</a> / Gibrat / Gabaix): proportionate growth + a reflecting floor → the rank-size law <code>P_n ≈ P_1/n</code> self-organizes.</li>
+    <li><strong>Diversification &amp; resilience</strong>: the product cycle (Vernon) filters standardized work down the hierarchy; the portfolio effect of a diverse base buffers shocks — the structural basis of the size ratchet.</li>
+  </ul>
+</div></section>
+
+<section id="system"><div class="wrap">
   <h2><span class="n">04</span>How the pieces compose into one engine</h2>
   <div class="pipe">
     <div class="s"><b>Substrate (mappa).</b> A seeded planet; per-cell water, rivers, relief, fertility, lithology.</div>
-    <div class="s"><b>Reaction–diffusion / site score.</b> Place well-spaced nuclei (the Turing analogue) and rank sites by the two-axis site×situation score, with forced spawn points pre-seeded.</div>
-    <div class="s"><b>Scaling laws.</b> Assign each nucleus a population N (sampled Zipf or grown by Gibrat-with-a-floor); derive its infrastructure budget <code>N^0.85</code>, output <code>N^1.15</code>, needs <code>N^1.0</code>.</div>
-    <div class="s"><b>Coverage solver (foam.js seize).</b> While the town is small, grow the organic core by angiogenesis — keep the fringe within reach. Age plots through the burgage cycle.</div>
-    <div class="s"><b>Demand solver (flux.js growNetwork).</b> As trade thickens, cross-fade to gravity demand → Physarum arteries (μ = grid↔tree). Sort land use by the bid-rent envelope; freeze fringe belts.</div>
-    <div class="s"><b>Co-evolution loop.</b> New accessibility spawns development → new demand → more network. Iterate; lock-in keeps the accidents. Across many cities, the central-place hierarchy and Zipf line emerge.</div>
+    <div class="s"><b>Site &amp; founding engine.</b> Score sites on site×situation; pre-seed forced spawn points (break-of-bulk, fall line, harbour). Assign a founding basic sector — the big game in town.</div>
+    <div class="s"><b>The base economy.</b> <code>total = base × 1/(1−s)</code>, capped by agricultural surplus. Agglomeration multiplies base productivity by <code>size^ε</code> (ε ≈ 0.04–0.08).</div>
+    <div class="s"><b>Regime 1 → 2 (Physarum star → hypoxia).</b> Grow spokes to the engine; as the multiplier spins up services, cross-fade to angiogenesis and fill the fabric in. Age plots through the burgage cycle.</div>
+    <div class="s"><b>Regime 3 (Physarum demand).</b> Import-replacement promotes the largest non-basic sector into new export base; gravity demand → arterial network (μ = grid↔tree); bid-rent sorts land use; fringe belts freeze.</div>
+    <div class="s"><b>Co-evolution + system.</b> Iterate; lock-in keeps the accidents; across many cities the central-place hierarchy, the Zipf line, and the <code>N^β</code> scaling emerge.</div>
   </div>
-  <p class="mut">Each step is a separate, swappable module — and the load-bearing two (coverage, demand) already exist, pure and node-tested, in hoop.</p>
+  <div class="card accent">
+    <p style="margin:0"><strong>Path dependence — the through-line.</strong> The founding engine breaks
+    the <em>initial tie</em>; increasing returns amplify the lead; <strong>sunk infrastructure does not
+    decay when the founding feature dies.</strong> The proof: portage cities, founded at fall-line
+    sites, kept concentrating population <em>after</em> river navigation became obsolete (~6% lower
+    density per 10% farther from the dead portage; <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3738199/">Bleakley &amp; Lin, 2012</a>).
+    <b>The lock-in test for polis: delete a city's founding engine mid-run — agglomeration + sunk
+    capital should keep it growing.</b></p>
+  </div>
 </div></section>
 
 <section id="road"><div class="wrap">
   <h2><span class="n">05</span>Determinism, and the road to a 4X</h2>
-  <p><strong>Everything is seeded.</strong> <code>(worldSeed, siteCell)</code> → a city's entire history,
-  identical on every machine, freezable to an ATProto record — exactly mappa's and hoop's
-  contract. No <code>Date.now()</code>, no unseeded <code>Math.random()</code> in generation. A city
-  permalink (and, later, a 4X save) is only meaningful if the history reproduces.</p>
-  <p><code>polis</code> is the <strong>map-and-history layer</strong> a 4X needs. Once a city has a legible,
-  sourced developmental history — a founding reason, an organic core, arteries that thickened
-  with trade, quarters that differentiated, a place in a Zipf hierarchy — the 4X verbs have
-  something real to act on: <strong>eXplore</strong> the mappa world, <strong>eXpand</strong> along the
-  site-score field, <strong>eXploit</strong> the surplus/scaling economy, <strong>eXterminate</strong> over the
-  central-place catchments. The phases above are, deliberately, also the era progression of such a game.</p>
+  <p><strong>Everything is seeded.</strong> <code>(worldSeed, siteCell)</code> → a city's entire economic
+  history, identical on every machine, freezable to an ATProto record. No <code>Date.now()</code>, no
+  unseeded <code>Math.random()</code> in generation. A city permalink (and, later, a 4X save) is only
+  meaningful if the history reproduces.</p>
+  <p><code>polis</code> is the <strong>economic map-and-history layer</strong> a 4X needs. Once a city has a
+  legible economic history — a founding engine, a multiplier, a diversifying base, a place in a
+  Zipf hierarchy — the 4X verbs act on something real: <strong>eXplore</strong> the mappa world,
+  <strong>eXpand</strong> along the site-score field, <strong>eXploit</strong> the surplus and the export base,
+  <strong>eXterminate</strong> over the central-place catchments. The phases are, deliberately, also the
+  economic-era progression of such a game.</p>
   <div class="card">
     <p style="margin:0"><strong>Next passes</strong> (as the theory hardens into code): a
-    <code>substrate.js</code> mappa-reader; a <code>site.js</code> two-axis scorer with the forced
-    spawn points; a vendored <code>coverage.js</code> (from <code>foam.js</code>) and
-    <code>network.js</code> (from <code>flux.js</code>), re-synced not forked; and a
-    deterministic <code>history.js</code> that drives the cross-fade and emits a replayable chronicle.</p>
+    <code>substrate.js</code> mappa-reader; a <code>site.js</code> two-axis scorer with the forced spawn
+    points and the founding-sector assignment; an <code>economy.js</code> carrying the base, the
+    multiplier, agglomeration and import-replacement; vendored <code>network.js</code> (from
+    <code>flux.js</code>) and <code>coverage.js</code> (from <code>foam.js</code>), re-synced not forked; and a
+    deterministic <code>history.js</code> driving the regime cross-fades and emitting a replayable chronicle.</p>
   </div>
 </div></section>
 
 <section id="sources"><div class="wrap">
   <h2><span class="n">06</span>Sources</h2>
-  <p class="mut" style="margin-top:0">The theory above is assembled from the canonical urban-geography and complexity-science literature. Full reading list:</p>
+  <p class="mut" style="margin-top:0">Assembled from the canonical urban-economics, economic-geography, and complexity-science literature. Full reading list:</p>
   <div class="srcgrid">
+    <h4>The economic engine</h4>
+    <p><a href="https://en.wikipedia.org/wiki/Economic_base_analysis">Economic base analysis &amp; the multiplier M=1/(1−s)</a> · <a href="https://ideas.repec.org/a/ucp/jpolec/v63y1955p243.html">North, export-base theory, JPE 1955</a> · <a href="https://en.wikipedia.org/wiki/Charles_Horton_Cooley">Cooley, "break in transportation," 1894</a> · <a href="https://en.wikipedia.org/wiki/Staples_thesis">Innis / Watkins staples thesis</a></p>
+    <h4>Self-reinforcing growth</h4>
+    <p><a href="https://en.wikipedia.org/wiki/Economies_of_agglomeration">Marshall's agglomeration trinity (1890)</a> · <a href="https://ssrosent.expressions.syr.edu/wp-content/uploads/Rosenthal-Strange-JEP-4-15-2020.pdf">Rosenthal &amp; Strange (3–8% elasticity)</a> · <a href="https://dave-donaldson.com/wp-content/uploads/2015/12/krugman91.pdf">Krugman, core–periphery, JPE 1991</a> · <a href="https://en.wikipedia.org/wiki/The_Economy_of_Cities">Jacobs, <em>The Economy of Cities</em> (1969)</a> · <a href="https://en.wikipedia.org/wiki/Import_replacement">import-replacement</a></p>
+    <h4>The life cycle</h4>
+    <p><a href="https://en.wikipedia.org/wiki/Wilbur_R._Thompson">Thompson, five stages + the size ratchet (1965)</a> · <a href="https://en.wikipedia.org/wiki/Product_life-cycle_theory">Vernon, product cycle / filtering-down (1966)</a> · <a href="https://en.wikipedia.org/wiki/Urban_revolution">Childe's urban revolution (surplus)</a></p>
     <h4>Site &amp; situation</h4>
-    <p><a href="https://geographyfieldwork.com/SiteSituation.htm">Settlement site &amp; situation</a> · <a href="https://en.wikipedia.org/wiki/Fall_line">Fall line</a> · <a href="https://en.wikipedia.org/wiki/Atlantic_Seaboard_Fall_Line">Atlantic Seaboard Fall Line</a> · <a href="https://en.wikipedia.org/wiki/Dry_point">Dry point</a></p>
-    <h4>Central place theory</h4>
-    <p><a href="https://en.wikipedia.org/wiki/Central_place_theory">Christaller (1933) — central place theory</a> · <a href="https://rashidfaridi.com/2020/05/05/the-modification-of-august-losch/">Lösch's modification (1940)</a></p>
-    <h4>Rank-size / Zipf / Gibrat</h4>
-    <p><a href="https://pages.stern.nyu.edu/~xgabaix/papers/zipf.pdf">Gabaix, "Zipf's Law for Cities," QJE 1999</a> · <a href="https://arxiv.org/html/2307.05269">Stochastic equations &amp; cities (Kesten math)</a> · <a href="https://en.wikipedia.org/wiki/Gibrat%27s_law">Gibrat's law</a> · <a href="https://www.aeaweb.org/articles?id=10.1257%2F0002828043052303">Eeckhout, "Gibrat's Law for (All) Cities," AER 2004</a></p>
-    <h4>Internal structure</h4>
-    <p><a href="https://en.wikipedia.org/wiki/Concentric_zone_model">Burgess concentric zones (1925)</a> · <a href="https://transportgeography.org/contents/chapter8/urban-land-use-transportation/sector-nuclei-land-use/">Hoyt sectors (1939) &amp; Harris–Ullman nuclei (1945)</a></p>
-    <h4>Von Thünen / bid-rent</h4>
-    <p><a href="https://www.geographyrealm.com/von-thunen-model-of-agricultural-land-use/">Von Thünen rings (1826)</a> · <a href="https://transportgeography.org/contents/chapter8/urban-land-use-transportation/von-thunen-regional-land-use/">the rent formula</a> · <a href="https://en.wikipedia.org/wiki/Bid_rent_theory">Alonso bid-rent (1964)</a></p>
-    <h4>Urban morphology (Conzen)</h4>
-    <p><a href="https://archive.org/details/alnwicknorthumbe00conz">Conzen, <em>Alnwick</em> (1960)</a> · <a href="https://www.burgageplots.info/glossary-of-terms">burgage cycle / fringe belt / morphological frame glossary</a> · <a href="https://www.surf.com.cy/wp-content/uploads/2023/03/EPUM_BP1_Historical-Geographical.pdf">fringe belts (SURF briefing)</a></p>
-    <h4>Transport networks</h4>
-    <p><a href="https://www.science.org/doi/10.1126/science.1177894">Tero et al., Physarum / Tokyo rail, <em>Science</em> 2010</a> · <a href="https://www.nationalgeographic.com/science/article/slime-mould-attacks-simulates-tokyo-rail-network">(summary)</a> · <a href="https://en.wikipedia.org/wiki/Reilly%27s_law_of_retail_gravitation">Reilly's law (1931)</a> · <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1748607">Levinson &amp; Xie, network/land-use co-evolution</a></p>
-    <h4>Complexity science</h4>
-    <p><a href="http://www.complexcity.info/fractalcities/">Batty &amp; Longley, <em>Fractal Cities</em></a> · <a href="https://www.nature.com/articles/377608a0">Makse, Havlin &amp; Stanley, <em>Nature</em> 1995</a> · <a href="https://en.wikipedia.org/wiki/Turing_pattern">Turing patterns</a> · <a href="https://www.pnas.org/doi/abs/10.1073/pnas.0610172104">Bettencourt et al., scaling, <em>PNAS</em> 2007</a> · <a href="https://en.wikipedia.org/wiki/Urban_scaling">Urban scaling</a></p>
-    <h4>Stages &amp; path dependence</h4>
-    <p><a href="https://en.wikipedia.org/wiki/Settlement_hierarchy">Settlement hierarchy</a> · <a href="https://en.wikipedia.org/wiki/Urban_revolution">Childe's urban revolution</a> · <a href="https://ourworldindata.org/urbanization">Urbanization S-curve</a> · <a href="https://en.wikipedia.org/wiki/Northeast_megalopolis">Gottmann's megalopolis (1961)</a> · <a href="https://en.wikipedia.org/wiki/Path_dependence">David, QWERTY (1985)</a> · <a href="https://blas.com/increasing-returns-and-path-dependence/">Arthur, increasing returns (1989)</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3738199/">Bleakley &amp; Lin, portage (2012)</a></p>
+    <p><a href="https://geographyfieldwork.com/SiteSituation.htm">Site &amp; situation</a> · <a href="https://en.wikipedia.org/wiki/Fall_line">Fall line</a> · <a href="https://en.wikipedia.org/wiki/Break-in-bulk_point">Break-of-bulk point</a></p>
+    <h4>Networks (the solvers' grounding)</h4>
+    <p><a href="https://www.science.org/doi/10.1126/science.1177894">Tero et al., Physarum / Tokyo rail, <em>Science</em> 2010</a> · <a href="https://en.wikipedia.org/wiki/Reilly%27s_law_of_retail_gravitation">Reilly's law (1931)</a> · <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1748607">Levinson &amp; Xie, co-evolution</a></p>
+    <h4>Land use &amp; morphology</h4>
+    <p><a href="https://transportgeography.org/contents/chapter8/urban-land-use-transportation/von-thunen-regional-land-use/">Von Thünen rent <code>R=Y(p−c)−YFm</code></a> · <a href="https://en.wikipedia.org/wiki/Bid_rent_theory">Alonso bid-rent</a> · <a href="https://www.burgageplots.info/glossary-of-terms">Conzen burgage cycle / fringe belts</a> · <a href="https://en.wikipedia.org/wiki/Concentric_zone_model">Burgess</a> / <a href="https://transportgeography.org/contents/chapter8/urban-land-use-transportation/sector-nuclei-land-use/">Hoyt &amp; Harris–Ullman</a></p>
+    <h4>System &amp; scaling</h4>
+    <p><a href="https://en.wikipedia.org/wiki/Central_place_theory">Christaller central place theory</a> · <a href="https://pages.stern.nyu.edu/~xgabaix/papers/zipf.pdf">Gabaix, Zipf for cities (1999)</a> · <a href="https://www.pnas.org/doi/abs/10.1073/pnas.0610172104">Bettencourt et al., scaling, <em>PNAS</em> 2007</a> · <a href="https://en.wikipedia.org/wiki/Path_dependence">David, path dependence</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3738199/">Bleakley &amp; Lin, portage (2012)</a></p>
   </div>
 </div></section>
 
 <footer><div class="wrap">
-  <p><strong>polis</strong> — procedural city history · the next big effort after <a href="https://mino.mobi/mappa/">mappa</a>, built on <a href="https://hoop.mino.mobi/">hoop</a>'s field solvers · the road to a 4X.</p>
-  <p class="mut">Theory &amp; bibliography also in <code>polis/THEORY.md</code>. Method note: several primary PDFs (Tero, Bettencourt, Gabaix, Makse) are image-encoded; their equations and exponents were cross-confirmed across multiple secondary academic sources. <a href="https://mino.mobi/">↤ mino.mobi</a></p>
+  <p><strong>polis</strong> — modeling urban economics across a city's life cycle · the next big effort after <a href="https://mino.mobi/mappa/">mappa</a>, built on <a href="https://hoop.mino.mobi/">hoop</a>'s field solvers · the road to a 4X.</p>
+  <p class="mut">Theory &amp; full bibliography in <code>polis/THEORY.md</code>. Method note: several primary PDFs (Tero, Bettencourt, Gabaix, Krugman) are image-encoded; their equations and exponents were cross-confirmed across multiple secondary academic sources. <a href="https://mino.mobi/">↤ mino.mobi</a></p>
 </div></footer>
 </body>
 </html>

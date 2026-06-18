@@ -31,7 +31,7 @@
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/merge-candidate-pr-ud9g8s",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED \u2014 verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
