@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0c0a07">
+<title>polis · proto — roll a region, grow some towns</title>
+<meta name="description" content="A deterministic proto of the polis city-economics model: roll a region from a seed, found proto-towns on site+situation, watch them grow on logistic curves toward a tech-lifted ceiling. Engines, base multiplier, hinterland, away-markets, flourishing.">
+<style>
+:root{--gold:#a9802f;--gold2:#c79a48;--parch:#e8dcc0;--mut:#9c8a6c;--line:#2c2316;--card:#140f08}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
+body{background:#070a0c;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+#map{position:fixed;inset:0;display:block;background:#070a0c;cursor:crosshair;touch-action:none}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:10px;padding:10px 14px;pointer-events:none;background:linear-gradient(#070a0cdd,#070a0c00);flex-wrap:wrap}
+header a{pointer-events:auto;color:var(--gold);text-decoration:none;font-weight:700;letter-spacing:.05em}
+header .t{pointer-events:auto;color:#b7a988;font-size:12.5px}
+.ctl{pointer-events:auto;display:flex;align-items:center;gap:6px;background:#140f08c8;border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+.ctl label{color:#9c8a6c;font-size:11.5px}
+input,button{font:inherit}
+#seed{width:90px;background:#0d0a05;border:1px solid #3a2e1c;color:var(--parch);border-radius:5px;padding:3px 6px;font:12px ui-monospace,monospace;outline:none}
+.btn{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+.btn:hover{border-color:var(--gold)}
+footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 14px;pointer-events:none;background:linear-gradient(#070a0c00,#070a0cee)}
+.scrub{pointer-events:auto;display:flex;align-items:center;gap:9px;flex:1;max-width:520px}
+.scrub input[type=range]{flex:1;accent-color:var(--gold)}
+.era{font:12px ui-monospace,monospace;color:#b7a988;min-width:118px}
+.legend{pointer-events:auto;display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;font-size:11px;color:#9c8a6c}
+.legend span{display:inline-flex;align-items:center;gap:4px}.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+#panel{position:fixed;top:50px;right:12px;z-index:7;width:248px;background:#120d07f4;border:1px solid var(--line);border-radius:10px;padding:13px 15px;display:none}
+#panel.show{display:block}
+#panel h3{font:600 15px/1.2 ui-serif,Georgia,serif;color:var(--gold)}
+#panel .eng{font:11px ui-monospace,monospace;color:#b7a988;margin:1px 0 9px}
+#panel table{width:100%;border-collapse:collapse;font-size:12px}
+#panel td{padding:2px 0;color:#d7c8a8}#panel td.k{color:#9c8a6c}#panel td.v{text-align:right;font-variant-numeric:tabular-nums;color:var(--parch)}
+#panel .close{position:absolute;top:9px;right:11px;cursor:pointer;color:#9c8a6c;background:none;border:0;font-size:15px}
+#spark{display:block;width:100%;height:42px;margin-top:9px}
+.note{position:fixed;left:12px;bottom:52px;z-index:6;max-width:300px;font-size:11px;color:#8c7a5c;pointer-events:none}
+.note a{color:var(--gold2);pointer-events:auto}
+@media (max-width:680px){.legend{display:none}.note{display:none}#panel{top:auto;bottom:96px;left:8px;right:8px;width:auto}}
+</style>
+</head>
+<body>
+<canvas id="map"></canvas>
+<header>
+  <a href="../">↤ polis</a>
+  <span class="t">proto — roll a region, grow some towns</span>
+  <span class="ctl"><label>seed</label><input id="seed" value="20260618" inputmode="numeric"><button class="btn" id="go">roll</button><button class="btn" id="rnd">↻ new</button></span>
+</header>
+<div id="panel">
+  <button class="close" id="close">×</button>
+  <h3 id="pName">—</h3>
+  <div class="eng" id="pEng"></div>
+  <table id="pTab"></table>
+  <canvas id="spark"></canvas>
+</div>
+<footer>
+  <div class="scrub"><button class="btn" id="play">▶</button>
+    <input type="range" id="time" min="0" max="139" value="139"><span class="era" id="era"></span></div>
+  <div class="legend" id="legend"></div>
+</footer>
+<div class="note">A deterministic slice of the <a href="../">polis</a> model: site→engine→base multiplier→logistic growth toward a tech-lifted ceiling. Same seed → same world. Click a town.</div>
+
+<script type="module">
+import { rollRegion } from './sim.js';
+import { tierOf } from './economy.js';
+
+const ENGINE_COLOR = { gateway:'#5a86a0', market:'#7c8a4e', 'break-of-bulk':'#c79a48', staple:'#b8623c', fortress:'#9a6ea0' };
+const cv = document.getElementById('map'), cx = cv.getContext('2d');
+const seedIn = document.getElementById('seed'), timeIn = document.getElementById('time'), era = document.getElementById('era');
+let world = null, tick = 139, playing = false, raf = 0, sel = -1, cell = 12, ox = 0, oy = 0;
+
+function fit(){ cv.width = innerWidth*devicePixelRatio; cv.height = innerHeight*devicePixelRatio; cx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); layout(); draw(); }
+function layout(){ if(!world) return; const W=world.region.W,H=world.region.H; cell=Math.min(innerWidth/W,(innerHeight-40)/H); ox=(innerWidth-W*cell)/2; oy=(innerHeight-H*cell)/2; }
+
+function landShade(e, sea, fert){
+  const a=Math.max(0,Math.min(1,(e-sea)/0.5));               // 0 shore → 1 high
+  const r=Math.round(70+a*90), g=Math.round(64+a*70+fert*34), b=Math.round(40+a*46);
+  return `rgb(${r},${g-Math.round(fert*10)},${b})`;
+}
+function draw(){
+  if(!world) return; const R=world.region, W=R.W, H=R.H;
+  cx.clearRect(0,0,innerWidth,innerHeight);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const i=y*W+x; let col;
+    if(R.water[i]===1) col='#15323f'; else if(R.water[i]===2) col='#1c3340';
+    else col=landShade(R.elev[i],R.seaLevel,R.fertility[i]);
+    cx.fillStyle=col; cx.fillRect(ox+x*cell,oy+y*cell,cell+0.6,cell+0.6);
+    if(R.river[i]){ cx.fillStyle='#2f6f86'; cx.fillRect(ox+x*cell+cell*0.25,oy+y*cell+cell*0.25,cell*0.5,cell*0.5); }
+    if(R.resource[i]==='ore'){ cx.fillStyle='#caa15a'; cx.fillRect(ox+x*cell+cell*0.32,oy+y*cell+cell*0.32,cell*0.36,cell*0.36); }
+  }
+  // towns
+  world.towns.forEach((t,n)=>{
+    const pop=t.history[tick]||0; if(pop<=0) return;
+    const px=ox+(t.x+0.5)*cell, py=oy+(t.y+0.5)*cell;
+    const rad=Math.max(2.5, Math.sqrt(pop)/26);
+    const fl=(t.flourishHist[tick]||0)/100;
+    cx.beginPath(); cx.arc(px,py,rad+(n===sel?3:0),0,7);
+    cx.fillStyle=ENGINE_COLOR[t.engine]||'#ccc'; cx.globalAlpha=0.92; cx.fill(); cx.globalAlpha=1;
+    cx.lineWidth=1.5; cx.strokeStyle=`rgba(232,220,192,${0.25+fl*0.7})`; cx.stroke();   // ring brightness = flourishing
+    if(n===sel){ cx.lineWidth=1.5; cx.strokeStyle=var_gold(); cx.stroke(); }
+  });
+  era.textContent = `tick ${tick} · tech ${(world.meta.techCurve[tick]).toFixed(2)}`;
+}
+function var_gold(){ return '#a9802f'; }
+
+function panel(n){
+  sel=n; const p=document.getElementById('panel');
+  if(n<0){ p.classList.remove('show'); draw(); return; }
+  const t=world.towns[n], pop=t.history[tick]||0;
+  document.getElementById('pName').textContent=`Town ${n+1} — ${tierOf(pop)}`;
+  document.getElementById('pEng').textContent=`${t.engine}  ·  (x${t.x}, y${t.y})`;
+  const rows=[['population',pop.toLocaleString()],['founding engine',t.engine],['basic draw',Math.round(t.base).toLocaleString()],['multiplier M',t.M?t.M.toFixed(2):'—'],['hinterland surplus',t.surplus.toFixed(1)],['food+import ceiling',Math.round(t.ceiling).toLocaleString()],['flourishing',t.flourishHist[tick]||0]];
+  document.getElementById('pTab').innerHTML=rows.map(([k,v])=>`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`).join('');
+  // sparkline of the population history
+  const sc=document.getElementById('spark'), g=sc.getContext('2d'); const w=sc.width=sc.clientWidth, h=sc.height=42;
+  g.clearRect(0,0,w,h); const H=t.history, mx=Math.max(...H,1);
+  g.beginPath(); H.forEach((v,k)=>{ const X=k/(H.length-1)*w, Y=h-2-(v/mx)*(h-4); k?g.lineTo(X,Y):g.moveTo(X,Y); });
+  g.strokeStyle='#c79a48'; g.lineWidth=1.5; g.stroke();
+  const tx=tick/(H.length-1)*w; g.strokeStyle='#5a4a28'; g.beginPath(); g.moveTo(tx,0); g.lineTo(tx,h); g.stroke();
+  p.classList.add('show'); draw();
+}
+
+cv.addEventListener('click',(e)=>{
+  if(!world) return; let best=-1,bd=18*18;
+  world.towns.forEach((t,n)=>{ if((t.history[tick]||0)<=0) return; const px=ox+(t.x+0.5)*cell,py=oy+(t.y+0.5)*cell; const d=(e.clientX-px)**2+(e.clientY-py)**2; if(d<bd){bd=d;best=n;} });
+  panel(best);
+});
+timeIn.addEventListener('input',()=>{ tick=+timeIn.value; if(sel>=0) panel(sel); else draw(); });
+document.getElementById('close').addEventListener('click',()=>panel(-1));
+document.getElementById('play').addEventListener('click',function(){ playing=!playing; this.textContent=playing?'❚❚':'▶'; if(playing) loop(); });
+function loop(){ if(!playing) return; tick=(tick+1)%(world.meta.ticks); timeIn.value=tick; if(sel>=0)panel(sel);else draw(); raf=setTimeout(()=>requestAnimationFrame(loop),70); }
+
+function roll(seed){
+  cancelAnimationFrame(raf); playing=false; document.getElementById('play').textContent='▶';
+  world=rollRegion(seed>>>0,{ticks:140});
+  timeIn.max=world.meta.ticks-1; tick=world.meta.ticks-1; timeIn.value=tick; sel=-1;
+  document.getElementById('panel').classList.remove('show');
+  document.getElementById('legend').innerHTML=Object.entries(ENGINE_COLOR).map(([k,c])=>`<span><i style="background:${c}"></i>${k}</span>`).join('');
+  layout(); draw();
+}
+document.getElementById('go').addEventListener('click',()=>roll(+seedIn.value||1));
+document.getElementById('rnd').addEventListener('click',()=>{ const s=(Math.random()*1e9)>>>0; seedIn.value=s; roll(s); });   // choosing WHICH deterministic world to view (the one allowed unseeded roll)
+addEventListener('resize',fit);
+roll(+seedIn.value); fit();
+</script>
+</body>
+</html>
