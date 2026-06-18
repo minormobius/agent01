@@ -1,37 +1,46 @@
-// arcade.js — the ARCADE fixture: a live cabinet that serves forge puzzles.
+// arcade.js — the ARCADE fixture: live forge cabinets, one RULESET PER CABINET.
 //
-// The second LIVE FIXTURE in the Tabard (the first is the reading-room TERMINAL).
-// A `play`-role room's central component is an arcade cabinet (see sim.js
-// FIXTURE_ACTION: play→'arcade'); click it and it deals you a real puzzle minted
-// by fable/forge — the generator-of-game-forms one wing over. Pure, no DOM, no
-// LLM; index.html draws the board + wires the keys, this module is the rules.
+// The second live fixture in the Tabard (the first is the reading-room TERMINAL).
+// A `play`-role room's central component is an arcade cabinet (sim.js
+// FIXTURE_ACTION: play→'arcade'); click it and it deals a real puzzle minted by
+// fable/forge, the generator-of-game-forms one wing over. Pure, no DOM, no LLM;
+// index.html draws the board + wires the keys, this module is the rules + economy.
 //
-// ONE RULESET, for now. The user asked for a single forged law so we can see the
-// shape of it. We serve forge CODEX LAW № 1 — "the Withering Discipline" — the
-// first law the foundry admits on its seeded candidate line, a permalink: the
-// same law on every machine, for ever (`buildCodex(1)` in fable/forge reproduces
-// the genome + key below exactly). Its puzzle line is likewise deterministic, so
-// puzzle p is the same board everywhere — atproto-persistable, just like the
-// ship engine demands. Add a second cabinet later by baking another codex entry.
+// PLAY-TO-EARN. Each cabinet runs a DIFFERENT discovered law (picked from its
+// stable chamber key), so the world's arcades are a little codex you wander. Beat
+// a cabinet's puzzle and it pays out coins — the earning half of the economy the
+// cafe (food) spends. Rewards scale with the oracle's par + difficulty.
+//
+// ONE CODEX, baked. These are forge's first six admitted laws — `buildCodex(6)`
+// in fable/forge reproduces this genome+key list exactly (a permalink: the same
+// laws on every machine, for ever). Each law's puzzle line is likewise
+// deterministic, so puzzle p of cabinet L is the same board everywhere —
+// atproto-stable, like the ship engine demands.
 
 import { compile, describe } from './forge/dsl.js';
 import { initialState, isWin } from './forge/engine.js';
 import { puzzleFor } from './forge/atlas.js';
 
-// forge codex law № 1 — baked from `buildCodex(1)` (fable/forge/js/foundry.js).
-// key === GENE_KEYS.map(k => law[k]).join('|'); puzzleFor() seeds off this key,
-// so it MUST match forge's lawKey() or the boards drift from fable.mino.mobi/forge.
-export const ARCADE_LAW = {
-  id: 1,
-  name: 'the Withering Discipline',
-  key: 'bounce|needClearAhead|toggle|mark|blocking|turnR',
-  law: { motion: 'bounce', guard: 'needClearAhead', enter: 'toggle', leave: 'mark', markIs: 'blocking', dirRule: 'turnR' },
-  nearestKnown: 'paint (lights-like)',   // novelty 1.08 from the nearest hand-written law
-};
-export const arcadeRules = () => describe(ARCADE_LAW.law);   // the rules card, in English, straight from the genome
+// forge codex laws № 1–6 (baked from buildCodex(6) · fable/forge/js/foundry.js).
+// key === GENE_KEYS.map(k => law[k]).join('|'); puzzleFor() seeds off the key, so
+// it MUST match forge's lawKey() or the boards drift from fable.mino.mobi/forge.
+export const ARCADE_LAWS = [
+  { id: 1, name: 'the Withering Discipline', key: 'bounce|needClearAhead|toggle|mark|blocking|turnR', law: { motion: 'bounce', guard: 'needClearAhead', enter: 'toggle', leave: 'mark', markIs: 'blocking', dirRule: 'turnR' }, nearestKnown: 'paint (lights-like)' },
+  { id: 2, name: 'the Turning Rite', key: 'leap|none|none|none|inert|turnL', law: { motion: 'leap', guard: 'none', enter: 'none', leave: 'none', markIs: 'inert', dirRule: 'turnL' }, nearestKnown: 'leap (checkers-like)' },
+  { id: 3, name: 'the Withering Custom', key: 'leap|none|toggle|wall|inert|turnL', law: { motion: 'leap', guard: 'none', enter: 'toggle', leave: 'wall', markIs: 'inert', dirRule: 'turnL' }, nearestKnown: 'the Withering Discipline' },
+  { id: 4, name: 'the Withering Custom III', key: 'slide|none|unmark|mark|blocking|reflect', law: { motion: 'slide', guard: 'none', enter: 'unmark', leave: 'mark', markIs: 'blocking', dirRule: 'reflect' }, nearestKnown: 'paint (lights-like)' },
+  { id: 5, name: 'the Severing Creed', key: 'leap|none|toggle|wall|boost|keep', law: { motion: 'leap', guard: 'none', enter: 'toggle', leave: 'wall', markIs: 'boost', dirRule: 'keep' }, nearestKnown: 'paint (lights-like)' },
+  { id: 6, name: 'the One-Way Walk', key: 'bounce|needClearAhead|none|wall|boost|keep', law: { motion: 'bounce', guard: 'needClearAhead', enter: 'none', leave: 'wall', markIs: 'boost', dirRule: 'keep' }, nearestKnown: 'the Severing Creed' },
+];
 
-// the cabinet entry forge's atlas wants: { law, key }. Bake it once.
-const ENTRY = { law: ARCADE_LAW.law, key: ARCADE_LAW.key };
+// stable string → law index, so a given cabinet always runs the same law.
+export function lawIndexForKey(cabinetKey) {
+  let h = 2166136261;
+  const s = String(cabinetKey);
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0) % ARCADE_LAWS.length;
+}
+export const arcadeRules = (lawIndex) => describe(ARCADE_LAWS[lawIndex].law);   // the rules card, in English, from the genome
 
 // goal-type → the one line the HUD shows under the board.
 export const GOAL_BLURB = {
@@ -40,13 +49,14 @@ export const GOAL_BLURB = {
   inkAll: 'ink every open cell',
 };
 
-// Deal puzzle p of the cabinet's law (deterministic). Returns a fresh game, or
-// null if forge couldn't certify a board for this p (it tries 5 salts first).
-export function newArcadeGame(p) {
-  const z = puzzleFor(ENTRY, p);
+// Deal puzzle p of law `lawIndex` (deterministic). Returns a fresh game, or null
+// if forge couldn't certify a board for this p (it tries 5 salts first).
+export function newArcadeGame(lawIndex, p) {
+  const e = ARCADE_LAWS[lawIndex]; if (!e) return null;
+  const z = puzzleFor({ law: e.law, key: e.key }, p);
   if (!z) return null;
   return {
-    p,
+    lawIndex, law: e, p,
     world: z.world,
     stepFn: z.stepFn,
     par: z.solve.par,                 // the oracle's optimal — "can you match it?"
@@ -57,6 +67,14 @@ export function newArcadeGame(p) {
     won: false,
     history: [],
   };
+}
+
+// the coin payout for clearing a board — scales with the oracle's par + difficulty,
+// so harder cabinets are worth more. Tunable; the spend side (cafe food) is priced
+// against this in food/nutrition.mjs.
+export function arcadeReward(game) {
+  if (!game) return 0;
+  return Math.round(4 + game.par * 0.8 + (game.report.difficulty || 0) / 10);
 }
 
 // Apply a move (d ∈ 0..3 = N E S W). Returns true if the law permitted it.
@@ -91,7 +109,7 @@ export function arcadeReset(game) {
 
 // A flat, draw-ready snapshot of the board — index.html renders only this, so it
 // never has to reach into engine state. cells[c] = { x, y, wall, mark, dyn,
-// token, exit, agent, goal }. dir is the agent's heading (0..3, N E S W).
+// token, exit, agent }. dir is the agent's heading (0..3, N E S W).
 export function arcadeBoard(game) {
   const w = game.world, s = game.state, N = w.W * w.H;
   const cells = new Array(N);

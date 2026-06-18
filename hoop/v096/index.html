@@ -69,8 +69,9 @@
     import { solveChunk } from './v8/chunkgen.js';
     import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
     import { nearestConcourse, attachShaft, markRindDeck, playerDeckOf } from './descent.js';   // chutes: a deck link is a port
-    import { STAMINA_MAX, clampStamina, drainStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf } from './sim.js';   // stamina + fixture-action registry + chest
-    import { ARCADE_LAW, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard } from './arcade.js';   // the arcade fixture — forge puzzles in the play room
+    import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
+             NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
+    import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
     import { bakeFog } from './v8/bake.js';
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
     import { drawDevice } from './v5/deco.js';
@@ -106,6 +107,9 @@
     // a play-role room's central component is an ARCADE cabinet (sim.js FIXTURE_ACTION: play→'arcade').
     // Marked magenta ◈; click to play a forge puzzle (the Withering Discipline). Not a terminal, so the two never collide.
     const isArcade = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'arcade';
+    // a serve-role room's central component is a CAFE counter (sim.js: serve→'food'). Marked amber ◍;
+    // click to buy food (coins → nourishment + stamina) sourced from biome/gacha ecosystems.
+    const isCafe = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'food';
     const VFOV = 0.5;              // vertical field of view = this fraction of a chunk-span of world, DEVICE-INDEPENDENT:
                                    // desktop sees the same world-HEIGHT the phone does (just wider), not a screen-size zoom
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
@@ -240,6 +244,20 @@
     // ── stamina (drains walking, restored by a bed) + chests (per-chamber persistent storage) ──
     const getStam = () => clampStamina(story.ready ? story.store.getFact(story.playerId, 'sim.stamina') : STAMINA_MAX);
     const setStam = (v) => { if (story.ready) story.store.setFact(story.playerId, 'sim.stamina', clampStamina(v)); };
+    // ── nourishment + health (the food loop) + coins (the wallet: earn at arcades, spend at the cafe) ──
+    const getNourish = () => clampNourish(story.ready ? story.store.getFact(story.playerId, 'sim.nourish') : NOURISH_MAX);
+    const getHealth = () => clampHealth(story.ready ? story.store.getFact(story.playerId, 'sim.health') : HEALTH_MAX);
+    const getCoins = () => (story.ready && story.store.getFact(story.playerId, 'coins')) | 0;
+    const setCoins = (v) => { if (story.ready) story.store.setFact(story.playerId, 'coins', Math.max(0, v | 0)); };
+    // one walking tick: drain stamina (slowed if fed), drain nourishment, bleed health if starving.
+    function tickWalk(tiles = 1) {
+      if (!story.ready) return;
+      const s = tickSurvival({ stamina: getStam(), nourish: getNourish(), health: getHealth() }, tiles);
+      const st = story.store;
+      st.setFact(story.playerId, 'sim.stamina', s.stamina);
+      st.setFact(story.playerId, 'sim.nourish', s.nourish);
+      st.setFact(story.playerId, 'sim.health', s.health);
+    }
     const getChests = () => (story.ready && story.store.getFact(story.playerId, 'chests')) || {};
     const setChests = (c) => { if (story.ready) story.store.setFact(story.playerId, 'chests', c); };
 
@@ -330,7 +348,7 @@
         const ox = pp.x, oy = pp.y; pp.x = sm[i][0]; pp.y = sm[i][1];
         pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i;     // face the way you move; advance the walk cycle
         const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
-        if (p[ni] !== player) { player = p[ni]; reveal(); setStam(drainStamina(getStam(), 1)); }   // walking costs stamina
+        if (p[ni] !== player) { player = p[ni]; reveal(); tickWalk(1); }   // walking costs stamina + nourishment (and health if starving)
         followCam(); draw(); maybeStream();
         walkTimer = setTimeout(tick, 24);
       };
@@ -364,6 +382,7 @@
         g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gl; g.beginPath(); g.arc(cp.cx, cp.cy, er, 0, 7); g.fill(); g.restore();
         if (isTerminal(cp)) { g.save(); g.strokeStyle = '#7fd8d0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#7fd8d0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('▤', cp.cx, cp.cy); g.restore(); }
         else if (isArcade(cp)) { g.save(); g.strokeStyle = '#c89ad0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#c89ad0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◈', cp.cx, cp.cy); g.restore(); }
+        else if (isCafe(cp)) { g.save(); g.strokeStyle = '#e0a86a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e0a86a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◍', cp.cx, cp.cy); g.restore(); }
       }
       for (const L of P.lights) { if (L.concourse) drawBollard(g, L); else drawWallLight(g, L, { hue: L.hue, lit: L.lit }); }
     }
@@ -530,8 +549,12 @@
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
       let tierTag = '';
-      if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length, st = getStam() | 0;
-        tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span> · <span style="color:${st < 25 ? '#e08a8a' : '#9aa8a0'}" title="stamina — drains as you walk, restored by a bed">stam ${st}</span>`;
+      if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length, st = getStam() | 0, no = getNourish() | 0, hp = getHealth() | 0, co = getCoins();
+        tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span>`
+          + ` · <span style="color:${st < 25 ? '#e08a8a' : '#9aa8a0'}" title="stamina — drains as you walk, restored by a bed (and slower when you're fed)">stam ${st}</span>`
+          + ` · <span style="color:${no < 20 ? '#e08a8a' : '#8fb89f'}" title="nourishment — ebbs as you walk; eat at a cafe (◍). Starving bleeds health">food ${no}</span>`
+          + ` · <span style="color:${hp < 35 ? '#e08a8a' : '#9aa8a0'}" title="health — falls only while starving; a meal heals a little">hp ${hp}</span>`
+          + ` · <span style="color:#f4bf62" title="coins — earned beating arcade cabinets, spent on food">◈ ${co}</span>`;
         if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="understanding earns the way on — read the deep posts, meet the principals">⊘ the way on is sealed</span>`; }
       $('here').innerHTML = `<b>${label}</b>${tierTag}`;
     }
@@ -675,6 +698,7 @@
       if (story.active && story.active.chest) return renderChest();
       if (story.active && story.active.terminal) return renderTerminalPanel(panel);
       if (story.active && story.active.arcade) return renderArcadePanel(panel);
+      if (story.active && story.active.cafe) return renderCafePanel(panel);
       if (!story.active) { panel.classList.remove('on'); panel.innerHTML = ''; return; }
       const { agent, npcId, intro } = story.active;
       let head, body = '', choices = '';
@@ -704,6 +728,8 @@
       if (cl) { story.active = null; renderStory(); return; }
       const arc = e.target.closest('[data-arc]');
       if (arc && story.active && story.active.arcade) { arcadeAct(arc.dataset.arc); return; }
+      const eat = e.target.closest('[data-eat]');
+      if (eat && story.active && story.active.cafe) { eatFood(+eat.dataset.eat); return; }
       const wv = e.target.closest('[data-weave]');
       if (wv && story.active && story.active.agent) { weaveHere(story.active.agent); return; }
       const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
@@ -793,8 +819,9 @@
     }
 
     // ── the ARCADE: a play-role component is a forge cabinet (the second live fixture). Click → approach
-    //    → a real puzzle minted by fable/forge, run on ONE discovered ruleset ("the Withering Discipline").
-    //    The cleared count persists as a sim fact; the puzzle line is deterministic (puzzle p === forge's). ──
+    //    → a real puzzle minted by fable/forge. ONE RULESET PER CABINET (picked from its stable chamber
+    //    key), so the world's arcades are a little codex you wander. Beat one and it PAYS OUT coins — the
+    //    earning half of the economy the cafe spends. Cleared count is per-law; the puzzle line is forge's. ──
     function arcadeAt(wx, wy) {
       if (!world) return null;
       let best = null, bd = Infinity; const pd = playerDeck();
@@ -804,35 +831,37 @@
           if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
       return best;
     }
-    const getCleared = () => (story.ready && story.store.getFact(story.playerId, 'arcade.cleared')) | 0;
-    const setCleared = (n) => { if (story.ready) story.store.setFact(story.playerId, 'arcade.cleared', n | 0); };
-    let arcadeGame = null;
+    const cabinetKeyOf = (cp, ch) => 'ch' + ch.id + ':r' + cp.room;
+    const clearedFor = (li) => (story.ready && story.store.getFact(story.playerId, 'arcade.cleared.' + li)) | 0;
+    const setClearedFor = (li, n) => { if (story.ready) story.store.setFact(story.playerId, 'arcade.cleared.' + li, n | 0); };
+    let arcadeGame = null, arcadeLawIndex = 0;
     function loadArcadeGame() {
-      const p = getCleared();
+      const p = clearedFor(arcadeLawIndex);
       // forge tries 5 salts per index; if a given p somehow yields nothing, walk forward to the next playable one.
-      for (let q = p; q < p + 8; q++) { const g = newArcadeGame(q); if (g) { arcadeGame = g; arcadeGame.q = q; return; } }
+      for (let q = p; q < p + 8; q++) { const g = newArcadeGame(arcadeLawIndex, q); if (g) { arcadeGame = g; arcadeGame.q = q; return; } }
       arcadeGame = null;
     }
     function openArcade(cp, ch) {
       if (!story.ready) return;
+      const li = lawIndexForKey(cabinetKeyOf(cp, ch));
       story.store.setFact(story.playerId, 'flag.found_arcade', true);
-      if (!arcadeGame) loadArcadeGame();
+      if (!arcadeGame || arcadeLawIndex !== li) { arcadeLawIndex = li; loadArcadeGame(); }   // a different cabinet runs a different law
       story.active = { arcade: true };
       saveStory(); renderStory();
     }
     function renderArcadePanel(panel) {
       const g = arcadeGame;
       if (!g) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The cabinet is dark.</p>`; panel.classList.add('on'); return; }
-      const r = g.report, cleared = getCleared();
+      const r = g.report, cleared = clearedFor(g.lawIndex), reward = arcadeReward(g);
       const winBar = g.won
-        ? `<div style="margin:9px 0;padding:7px 9px;border:1px solid #6a5a3a;border-radius:6px;background:rgba(244,191,98,.1);color:#f4bf62;font-size:12.5px">◈ solved in ${g.moves} — par ${g.par}. <span data-arc="next" style="color:#7fd8d0;cursor:pointer;text-decoration:underline">next puzzle ›</span></div>`
-        : '';
+        ? `<div style="margin:9px 0;padding:7px 9px;border:1px solid #6a5a3a;border-radius:6px;background:rgba(244,191,98,.1);color:#f4bf62;font-size:12.5px">◈ solved in ${g.moves} — par ${g.par}. <span data-arc="next" style="color:#7fd8d0;cursor:pointer;text-decoration:underline">claim ◈${reward} & next ›</span></div>`
+        : `<div class="rl" style="margin:7px 0;color:#f4bf62">solve to earn ◈${reward}</div>`;
       panel.innerHTML =
         `<button class="cl" data-close="1">close ⏎</button>` +
         `<div class="nm" style="color:#c89ad0">◈ the arcade</div>` +
-        `<div class="rl">a forge cabinet · <b style="color:#cfd8d2">${esc(ARCADE_LAW.name)}</b> · law no.${ARCADE_LAW.id} of the codex</div>` +
-        `<p class="says" style="font-style:normal;border-left:2px solid #c89ad0;padding-left:9px;font-size:12px">${esc(arcadeRules())}</p>` +
-        `<div class="rl" style="margin:8px 0 6px">puzzle #${g.q + 1} · ${esc(GOAL_BLURB[g.goal] || g.goal)} · ${esc(r.diffTier)} · cleared ${cleared}</div>` +
+        `<div class="rl">a forge cabinet · <b style="color:#cfd8d2">${esc(g.law.name)}</b> · law no.${g.law.id} of the codex</div>` +
+        `<p class="says" style="font-style:normal;border-left:2px solid #c89ad0;padding-left:9px;font-size:12px">${esc(arcadeRules(g.lawIndex))}</p>` +
+        `<div class="rl" style="margin:8px 0 6px">puzzle #${g.q + 1} · ${esc(GOAL_BLURB[g.goal] || g.goal)} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}</div>` +
         `<canvas id="arcboard" style="width:100%;display:block;background:#06080c;border:1px solid #20303a;border-radius:6px;image-rendering:pixelated"></canvas>` +
         `<div class="rl" id="arcmoves" style="margin:6px 0">${g.moves} moves · par ${g.par}</div>` +
         winBar +
@@ -874,7 +903,10 @@
       if (!arcadeGame) return;
       if (act === 'undo') { arcadeUndo(arcadeGame); renderArcadePanel($('story')); return; }
       if (act === 'reset') { arcadeReset(arcadeGame); renderArcadePanel($('story')); return; }
-      if (act === 'next') { if (arcadeGame.won) { setCleared(arcadeGame.q + 1); saveStory(); } loadArcadeGame(); renderArcadePanel($('story')); return; }
+      if (act === 'next') {   // claiming a win banks the reward (once per frontier index) and advances
+        if (arcadeGame.won) { setCoins(getCoins() + arcadeReward(arcadeGame)); setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1); saveStory(); whereAmI(); }
+        loadArcadeGame(); renderArcadePanel($('story')); return;
+      }
       const d = +act; if (!(d >= 0 && d <= 3)) return;
       const wasWon = arcadeGame.won;
       if (arcadeMove(arcadeGame, d)) {
@@ -883,8 +915,73 @@
       }
     }
     function flashArcadeWin(g) {
-      const el = $('busy'); el.textContent = `◈ ${ARCADE_LAW.name} — solved in ${g.moves} (par ${g.par})`; el.classList.add('on');
+      const el = $('busy'); el.textContent = `◈ ${g.law.name} — solved in ${g.moves} (par ${g.par}) · claim ◈${arcadeReward(g)}`; el.classList.add('on');
       clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
+    }
+
+    // ── the CAFE: a serve-role component is a food counter (the third live fixture). Each cafe is the
+    //    kitchen of ONE biome/gacha ecosystem (picked from its chamber key), so different cafes plate
+    //    different cuisines. Buy food with coins → nourishment (slows stamina drain) + a little health.
+    //    The nutrition was baked offline from biome's real viability oracle (food/build-biomes.mjs). ──
+    function cafeAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isCafe(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    let foodData = null, _foodP = null, cafeBiome = null;
+    function ensureFoodData() {
+      if (foodData) return Promise.resolve(foodData);
+      if (!_foodP) _foodP = fetch(new URL('./food/biomes.json', import.meta.url)).then((r) => r.json()).then((d) => (foodData = d)).catch(() => null);
+      return _foodP;
+    }
+    async function openCafe(cp, ch) {
+      if (!story.ready) return;
+      await ensureFoodData();
+      const biomes = (foodData && foodData.biomes) || [];
+      if (!biomes.length) { story.active = { cafe: true }; renderStory(); return; }
+      cafeBiome = biomes[lawIndexForKey('cafe:' + cabinetKeyOf(cp, ch)) % biomes.length];   // this counter's kitchen
+      story.store.setFact(story.playerId, 'flag.found_cafe', true);
+      story.active = { cafe: true };
+      saveStory(); renderStory();
+    }
+    const MACRO_COL = { carb: '#8fb89f', protein: '#e08a8a', fat: '#e0c06a' };
+    function renderCafePanel(panel) {
+      const b = cafeBiome;
+      if (!b) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The counter is shuttered.</p>`; panel.classList.add('on'); return; }
+      const coins = getCoins();
+      let menu = '';
+      b.foods.forEach((f, i) => {
+        const afford = coins >= f.cost;
+        const bar = ['carb', 'protein', 'fat'].map((k) => `<span style="display:inline-block;height:5px;width:${Math.round((f.macros[k] || 0) * 60)}px;background:${MACRO_COL[k]}"></span>`).join('');
+        const thumb = f.thumb ? `<img src="${esc(f.thumb)}" alt="" loading="lazy" style="width:34px;height:34px;border-radius:5px;object-fit:cover;flex:0 0 auto" />` : `<span style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;background:#0f141a;border-radius:5px">${f.kind === 'fish' ? '🐟' : f.kind === 'meat' ? '🍖' : '🌿'}</span>`;
+        menu += `<div style="display:flex;gap:9px;align-items:center;padding:7px 0;border-top:1px solid #141c24">${thumb}`
+          + `<div style="flex:1 1 auto;min-width:0"><div style="color:#dfe7e2;font-size:12.5px">${esc(f.name)} <span style="color:#6b7872">· ${esc(f.kind)}</span></div>`
+          + `<div style="font-size:10.5px;color:#9aa8a0">${f.kcal} kcal · +${f.restoreStamina} stam · +${f.nourish} food</div>`
+          + `<div style="margin-top:2px;line-height:0" title="carb / protein / fat">${bar}</div></div>`
+          + `<button data-eat="${i}" ${afford ? '' : 'disabled'} style="flex:0 0 auto;background:${afford ? '#241f15' : '#15171b'};color:${afford ? '#f4bf62' : '#52606a'};border:1px solid ${afford ? '#6a5a3a' : '#222b33'};border-radius:6px;font:inherit;font-size:12px;padding:6px 9px;cursor:${afford ? 'pointer' : 'not-allowed'}">◈${f.cost}</button></div>`;
+      });
+      panel.innerHTML =
+        `<button class="cl" data-close="1">close ⏎</button>` +
+        `<div class="nm" style="color:#e0a86a">◍ the cafe</div>` +
+        `<div class="rl">kitchen of <b style="color:#cfd8d2">${esc(b.name)}</b> · ${esc(b.theme)} · ${esc(b.tier)} biome${b.calorieRatio != null ? ` · feeds ${Math.round(b.calorieRatio * 100)}% of its crew` : ''} · ◈ ${coins}</div>` +
+        `<p class="says" style="font-style:normal;font-size:12px;color:#9aa8a0">A procedurally-grown ecosystem (biome/gacha №${b.n}) — ${b.foods.length} harvestable dishes. Eating tops up nourishment (slows your stamina drain) and heals a little; let it run dry and you starve.</p>` +
+        `<div style="margin-top:6px">${menu}</div>`;
+      panel.classList.add('on');
+    }
+    function eatFood(i) {
+      const b = cafeBiome; if (!b || !b.foods[i]) return;
+      const f = b.foods[i], coins = getCoins();
+      if (coins < f.cost) { const el = $('busy'); el.textContent = `◍ not enough coins for ${f.name} (◈${f.cost})`; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2400); return; }
+      setCoins(coins - f.cost);
+      const s = applyFood({ stamina: getStam(), nourish: getNourish(), health: getHealth() }, f);
+      const st = story.store; st.setFact(story.playerId, 'sim.stamina', s.stamina); st.setFact(story.playerId, 'sim.nourish', s.nourish); st.setFact(story.playerId, 'sim.health', s.health);
+      saveStory(); whereAmI(); renderCafePanel($('story'));
+      const el = $('busy'); el.textContent = `◍ ate ${f.name} — +${f.nourish} food, +${f.restoreStamina} stam`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2600);
     }
 
     // ── the opening: PRINCIPALS pinned in chunk 0 are DERIVED FROM HIS STORY (his Arrival NPCs — Olo
@@ -997,6 +1094,8 @@
       if (term) { openTerminal(term.cp, term.ch); walkTo(term.cp.cx, term.cp.cy); return; }
       const arc = arcadeAt(wx, wy);
       if (arc) { openArcade(arc.cp, arc.ch); walkTo(arc.cp.cx, arc.cp.cy); return; }
+      const caf = cafeAt(wx, wy);
+      if (caf) { openCafe(caf.cp, caf.ch); walkTo(caf.cp.cx, caf.cp.cy); return; }
       const lf = livingFixtureAt(wx, wy);
       if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openChest(lf.gid); return; }
       if (story.active) { story.active = null; renderStory(); }

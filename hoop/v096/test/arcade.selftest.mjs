@@ -1,68 +1,71 @@
-// arcade.selftest.mjs — the ARCADE fixture serves forge's law № 1, deterministically.
+// arcade.selftest.mjs — the ARCADE fixture serves forge's codex laws, one per
+// cabinet, deterministically.
 //
 //   node hoop/v096/test/arcade.selftest.mjs
 //
-// Pins: (1) the baked law key matches forge's lawKey() of the baked genome (the
-// vendored copy hasn't drifted from fable/forge); (2) puzzles are deterministic
-// per index; (3) the oracle's solution path actually wins under arcadeMove (the
-// player CAN match par); (4) illegal moves are refused without mutating state.
+// Pins: (1) every baked law key matches forge's lawKey() of its genome (the
+// vendored copy hasn't drifted); (2) cabinet→law selection is stable; (3) puzzles
+// are deterministic per (law, index); (4) the oracle's solution path wins under
+// arcadeMove at par; (5) illegal moves are refused without mutating state;
+// (6) rewards are positive and scale with par.
 
-import { ARCADE_LAW, arcadeRules, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard } from '../arcade.js';
-import { lawKey, compile } from '../forge/dsl.js';
+import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame,
+         arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from '../arcade.js';
+import { lawKey } from '../forge/dsl.js';
 import { initialState, isWin } from '../forge/engine.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' + m); } };
 
-// 1. the baked key is exactly lawKey(baked genome) — vendor not drifted.
-ok(lawKey(ARCADE_LAW.law) === ARCADE_LAW.key, `law key matches genome (${lawKey(ARCADE_LAW.law)} === ${ARCADE_LAW.key})`);
-ok(/Withering Discipline/.test(ARCADE_LAW.name), 'cabinet is the Withering Discipline');
-ok(typeof arcadeRules() === 'string' && arcadeRules().length > 40, 'rules card describes itself in English');
+// 1. every baked key is exactly lawKey(genome) — vendor not drifted.
+ok(ARCADE_LAWS.length === 6, `six cabinets baked (${ARCADE_LAWS.length})`);
+for (const e of ARCADE_LAWS) ok(lawKey(e.law) === e.key, `law "${e.name}" key matches genome`);
+ok(/Withering Discipline/.test(ARCADE_LAWS[0].name), 'cabinet 0 is the Withering Discipline (forge codex № 1)');
+ok(typeof arcadeRules(0) === 'string' && arcadeRules(0).length > 40, 'rules card describes itself in English');
 
-// 2. determinism — the same puzzle index yields a bit-identical board.
-const a = newArcadeGame(0), b = newArcadeGame(0);
-ok(a && b, 'puzzle 0 instantiates');
-ok(a.world.W === b.world.W && a.world.H === b.world.H && a.par === b.par, 'puzzle 0 is deterministic (W/H/par stable)');
-ok(JSON.stringify(arcadeBoard(a)) === JSON.stringify(arcadeBoard(b)), 'puzzle 0 board snapshot is identical across instantiations');
+// 2. cabinet key → law index is stable and in range.
+const i1 = lawIndexForKey('ch5:r12'), i2 = lawIndexForKey('ch5:r12');
+ok(i1 === i2 && i1 >= 0 && i1 < ARCADE_LAWS.length, 'cabinet→law selection is stable + in range');
+ok(new Set([0, 1, 2, 3, 4, 5].map((n) => lawIndexForKey('cab' + n))).size > 1, 'different cabinets get different laws');
 
-// 3. the oracle's path actually wins under arcadeMove, at par.
-let solvedAtPar = 0, tried = 0;
-for (let p = 0; p < 6; p++) {
-  const g = newArcadeGame(p);
+// 3. determinism — same (law, index) yields a bit-identical board.
+const a = newArcadeGame(0, 0), b = newArcadeGame(0, 0);
+ok(a && b, 'cabinet 0 / puzzle 0 instantiates');
+ok(JSON.stringify(arcadeBoard(a)) === JSON.stringify(arcadeBoard(b)), 'board snapshot is identical across instantiations');
+ok(GOAL_BLURB[a.goal], 'goal has a HUD blurb');
+
+// 4. the oracle's path wins under arcadeMove at par, across every cabinet.
+for (let L = 0; L < ARCADE_LAWS.length; L++) {
+  const g = newArcadeGame(L, 0);
+  ok(g, `cabinet ${L} (${ARCADE_LAWS[L].name}) deals puzzle 0`);
   if (!g) continue;
-  tried++;
-  const z = compile(ARCADE_LAW.law);   // recompute the optimal path independently of the game's stepFn
-  // re-solve to get the path: replay the puzzle's own certified solution.
   const sol = solvePath(g);
-  ok(sol && sol.length === g.par, `puzzle ${p}: a path of length par(${g.par}) exists`);
+  ok(sol && sol.length === g.par, `cabinet ${L}: a par(${g.par}) path exists`);
   if (!sol) continue;
   for (const d of sol) arcadeMove(g, d);
-  ok(g.won, `puzzle ${p}: replaying par-length path WINS`);
-  if (g.won && g.moves === g.par) solvedAtPar++;
+  ok(g.won && g.moves === g.par, `cabinet ${L}: replaying the par path WINS at par`);
+  ok(arcadeReward(g) > 0, `cabinet ${L}: a win pays out (${arcadeReward(g)} coins)`);
 }
-ok(tried >= 4, `at least 4 of the first 6 puzzles instantiate (${tried})`);
-ok(solvedAtPar === tried, `every instantiated puzzle is winnable at par (${solvedAtPar}/${tried})`);
 
-// 4. illegal move refusal leaves state untouched; undo/reset are sound.
+// 5. illegal move refusal + undo/reset soundness.
 {
-  const g = newArcadeGame(1);
+  const g = newArcadeGame(0, 1);
   const before = JSON.stringify(arcadeBoard(g));
-  // hammer all four directions until one is refused, assert no silent mutation on refusal
-  let refusedSeen = false;
   for (const d of [0, 1, 2, 3]) {
     const snap = JSON.stringify(arcadeBoard(g));
-    const moved = arcadeMove(g, d);
-    if (!moved) { refusedSeen = true; ok(JSON.stringify(arcadeBoard(g)) === snap, `refused move keeps board (dir ${d})`); }
+    if (!arcadeMove(g, d)) ok(JSON.stringify(arcadeBoard(g)) === snap, `refused move keeps board (dir ${d})`);
     else break;
   }
-  // undo back to start, then reset — both return to the initial board.
   while (arcadeUndo(g)) { /* unwind */ }
   ok(JSON.stringify(arcadeBoard(g)) === before, 'undo unwinds to the initial board');
-  const g2 = newArcadeGame(1);
-  arcadeMove(g2, g2.stepFn(g2.world, g2.state, 1) ? 1 : 0);
+  const g2 = newArcadeGame(0, 1);
+  if (g2.stepFn(g2.world, g2.state, 1)) arcadeMove(g2, 1);
   arcadeReset(g2);
   ok(JSON.stringify(arcadeBoard(g2)) === before, 'reset returns to the initial board');
 }
+
+// 6. reward scales with par (a harder board pays more).
+ok(arcadeReward({ par: 14, report: { difficulty: 60 } }) > arcadeReward({ par: 5, report: { difficulty: 20 } }), 'reward grows with par + difficulty');
 
 // helper: BFS the game's own world+law for a shortest win path (mirrors forge's oracle).
 function solvePath(game) {
