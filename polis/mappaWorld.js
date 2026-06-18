@@ -29,8 +29,8 @@ export function rollMappaWorld(seed, { N = 7000 } = {}) {
     if (w.water[i] !== 0) { let landN = 0; for (const j of w.adj[i]) if (w.water[j] === 0) landN++; w.good[i] = landN > 0 ? 0.3 : 0; continue; }
     let coast = 0; for (const j of w.adj[i]) if (w.water[j] === 1) coast = 1;
     const fertile = w.moisture[i] * Math.max(0, 1 - Math.max(0, w.elev[i]) * 2);
-    const temperate = Math.max(0, 1 - Math.abs(w.temperature[i] - 16) / 22);
-    w.good[i] = 0.5 * coast + 0.7 * fertile + 0.5 * temperate;
+    const temperate = Math.max(0, 1 - Math.abs(w.temperature[i] - 14) / 14);   // goldilocks ~14°C (warm enough to thrive, cool enough that the ice age bites)
+    w.good[i] = 0.5 * coast + 0.7 * fertile + 1.0 * temperate;
   }
   return w;
 }
@@ -38,15 +38,28 @@ export function rollMappaWorld(seed, { N = 7000 } = {}) {
 // auto-select the city-richest region: the land cell whose neighbourhood (BFS to
 // `depth`) sums the most goodness becomes the centre; the region is a fixed angular
 // window around it (kept off the poles so the projection stays well-conditioned).
-export function selectRegion(w, { depth = 6, halfX = 28, halfY = 20 } = {}) {
-  let best = -1, ci = -1;
-  for (let i = 0; i < w.N; i++) {
-    // prefer temperate land (where cities thrive, and where the ice age actually bites)
-    if (w.water[i] !== 0 || Math.abs(w.lat[i]) > 1.15 || w.temperature[i] < 3 || w.temperature[i] > 22) continue;
-    let sum = 0; const seen = new Set([i]); let frontier = [i];
-    for (let h = 0; h <= depth; h++) { const nx = []; for (const id of frontier) { sum += w.good[id]; for (const j of w.adj[id]) if (!seen.has(j)) { seen.add(j); nx.push(j); } } frontier = nx; }
-    if (sum > best) { best = sum; ci = i; }
-  }
+export function selectRegion(w, { depth = 8, halfX = 28, halfY = 20 } = {}) {
+  // score a candidate centre by goodness over a ~window-sized BFS neighbourhood,
+  // tracking land fraction so we can reject ocean-dominated windows. Only the top-scoring
+  // candidate cells are BFS-evaluated (keeps it fast on big worlds).
+  const tryFind = (tmin, tmax, landMin) => {
+    const cands = [];
+    for (let i = 0; i < w.N; i++) if (w.water[i] === 0 && Math.abs(w.lat[i]) <= 1.15 && w.temperature[i] >= tmin && w.temperature[i] <= tmax) cands.push(i);
+    cands.sort((a, b) => w.good[b] - w.good[a]);
+    let best = -1, ci = -1;
+    for (const i of cands.slice(0, 500)) {
+      let sum = 0, land = 0, tot = 0; const seen = new Set([i]); let frontier = [i];
+      for (let h = 0; h <= depth; h++) { const nx = []; for (const id of frontier) { sum += w.good[id]; tot++; if (w.water[id] === 0) land++; for (const j of w.adj[id]) if (!seen.has(j)) { seen.add(j); nx.push(j); } } frontier = nx; }
+      if (tot > 0 && land / tot < landMin) continue;
+      if (sum > best) { best = sum; ci = i; }
+    }
+    return [ci, best];
+  };
+  // solidly temperate + land-rich; relax in stages so we always return a region
+  let [ci, best] = tryFind(8, 21, 0.45);
+  if (ci < 0) [ci, best] = tryFind(3, 24, 0.3);
+  if (ci < 0) [ci, best] = tryFind(-60, 60, 0);
+  if (ci < 0) ci = 0;
   const lon0 = w.lon[ci], lat0 = w.lat[ci];
   return { lon0, lat0, S, halfX, halfY, x0: -halfX, y0: -halfY, x1: halfX, y1: halfY, score: best, center: ci };
 }

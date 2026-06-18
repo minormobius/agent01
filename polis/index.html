@@ -241,7 +241,7 @@ function roll(seed) {
       const sampler = makeSampler(world, region);
       const mesh = buildMesh(seed >>> 0, region, sampler);
       C = runChronicle(seed >>> 0, mesh, { ticks: 160 });
-      timeIn.max = C.ticks - 1; tick = 0; timeIn.value = 0; sel = -1;
+      timeIn.max = C.ticks - 1; tick = Math.round((C.ticks - 1) * 0.84); timeIn.value = tick; sel = -1; // open on a developed era; scrub left for the ice age
       document.getElementById('panel').classList.remove('show');
       setLegend();
       buildLabels(); draw(); overlay.classList.add('hide');

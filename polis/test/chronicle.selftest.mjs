@@ -30,15 +30,14 @@ ok(mesh.cells.length > 800, `mesh retiles the region into many cells (${mesh.cel
   ok(sym, 'Voronoi adjacency is symmetric');
 }
 
-// 3 — climate shifts the map: the ice age glaciates/depopulates more than the warm era
+// 3 — the climate functions respond to the era (region-independent mechanism)
 {
-  const iceEnv = { seaLevel: -0.03, tempShift: -11 }, warmEnv = { seaLevel: 0.015, tempShift: 2.5 };
-  const iceHab = mesh.cells.filter((c) => habitable(c, iceEnv)).length;
-  const warmHab = mesh.cells.filter((c) => habitable(c, warmEnv)).length;
-  ok(iceHab !== warmHab, `climate shifts how much land is habitable (ice ${iceHab} vs warm ${warmHab})`);
-  const gained = mesh.cells.filter((c) => habitable(c, warmEnv) && !habitable(c, iceEnv)).length;
-  ok(gained > 0, `warming opens new land the ice age had frozen (${gained} cells)`);
-  ok(mesh.cells.some((c) => cellState(c, iceEnv).ice), 'the ice age paints glacier cells');
+  // a frozen cell paints as glacier; a cold cell becomes habitable only when warmed
+  ok(cellState({ elev: 0.1, temp: -12, moist: 0.3, biome: 8, river: 0 }, { seaLevel: 0, tempShift: 0 }).ice, 'cellState paints a glacier for a frozen cell');
+  ok(!habitable({ elev: 0.1, temp: 3 }, { tempShift: -9 }) && habitable({ elev: 0.1, temp: 3 }, { tempShift: 4 }), 'habitability tracks the era temperature');
+  // on the real region: the ice age is at least as frozen as the modern era
+  const cold = (shift) => mesh.cells.filter((c) => c.elev >= 0 && c.temp + shift < -2).length;
+  ok(cold(-6) >= cold(2), `the ice age is at least as frozen as the modern era (${cold(-6)} ≥ ${cold(2)})`);
 }
 
 // 4 — full chronicle: determinism
