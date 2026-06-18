@@ -109,13 +109,30 @@ mercantile model, the break-of-bulk entrepôt). Raw-resource availability +
 agricultural surplus + away-market access define the economy the city plugs into.
 
 **Two axes — scale and flourishing.** A city is judged not only on *scale*
-(population, GDP — the scaling laws) but on **flourishing** — whether it is good to
-live in. We **pull in the civic-vitality model from [`hoop/econ`](../hoop/econ/econ.js)**
-(`scoreSociety()` → vitality + tier on seven sub-signals: supply closure, multiplex
-interaction thickness, social weave, Granovetter bridges, third-places, employment,
-shock-resilience). Its thesis — *"the real output is regard"* — makes flourishing
-explicitly distinct from raw output: the subsistence loop closes, and the
-interesting economy (craft, trade, service, play, esteem) floats above it.
+(population, GDP — the scaling laws) but on **flourishing**, which has two faces. The
+**floor** is livability — the civic-vitality model from
+[`hoop/econ`](../hoop/econ/econ.js) (`scoreSociety()` → vitality + tier on seven
+sub-signals; *"the real output is regard"*). The **bloom** is a structural edge —
+the city's capacity to attract talent and **generate technology** (Vienna 1900; Peter
+Hall's golden ages; Florida's Talent/Technology/Tolerance; Glaeser/Lucas human
+capital), which *feeds back* into growth (talent → innovation → import-replacement →
+new export base) and is a competitive edge because technology diffuses. The **dusk**
+is the Owl of Minerva — flourishing is non-monotonic, peaking on the edge of
+collapse (Tainter's declining marginal returns on complexity), so it carries a
+complexity cost that can turn the feedback negative at the top.
+
+**The political register — defense, empire, conquest.** The full sweep (a 4X's
+eXterminate) needs the city as a political-military actor. **Defense** is a founding
+engine even at nucleation (the citadel/garrison that seeds a town) and a standing
+cost, with Tilly's **capital↔coercion spectrum** locating each polity between the
+"city" and "empire" poles. **Empire** needs no separate engine — an imperial capital
+is a *super-gateway* extracting periphery surplus (Wallerstein world-systems;
+tribute = forced reverse trade), and a *primate city* is just a Zipf deviation
+(Jefferson). **Conquest** is the one piece the continuous/lumpy/tech clocks can't
+produce — a discrete regime-change *event* (sack / tribute / elite-swap /
+absorption), reusing hoop's `removeImpact` shock at city scale, with size-dependent
+damage: a diversified metropolis survives via locational inertia, a mono-functional
+nucleus can die.
 
 ## Borrowed assets (re-synced, never forked)
 

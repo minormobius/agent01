@@ -86,6 +86,7 @@ footer a{color:var(--gold2)}
     <a href="#field">Three regimes</a>
     <a href="#cycle">Life cycle</a>
     <a href="#wider">Wider model</a>
+    <a href="#war">Conflict</a>
     <a href="#system">System</a>
     <a href="#road">4X</a>
     <a href="#sources">Sources</a>
@@ -420,22 +421,97 @@ footer a{color:var(--gold2)}
   the staple sits on the mappa substrate), <strong>agricultural surplus</strong> (the hinterland), and
   <strong>away-market access</strong> (the gateway's reach) are the three inputs of the broader economy.</p>
 
-  <h3>Two axes — scale and flourishing</h3>
+  <h3>Two axes — scale and flourishing (the bloom and the dusk)</h3>
   <p>A city is judged on more than <em>scale</em> (population, GDP — the <code>N^β</code> laws). The second
-  axis is <strong>flourishing — is it good to live in?</strong> The repo already has a civic-vitality model
-  in <a href="https://hoop.mino.mobi/econ/">hoop/econ</a>: <code>scoreSociety()</code> → <strong>vitality
-  0–100 + tier</strong> (Thriving · Healthy · Stable · Fragile · Failing) on seven sub-signals — supply
-  <strong>closure</strong>, multiplex interaction <strong>thickness</strong> (people who wear many hats), social
-  <strong>weave</strong>, Granovetter <strong>bridges</strong> (weak ties), <strong>third-places</strong>, <strong>employment</strong>,
-  and shock <strong>resilience</strong>. Its framing makes flourishing distinct from output: the subsistence
-  loop closes, and <em>"the real output is regard"</em> — craft, trade, service, play and esteem float
-  above mere subsistence. <code>polis</code> carries this as the quality-of-life layer above raw scale.
-  <span class="mut">(Open engine question: whether flourishing <strong>feeds back</strong> into growth — a more
-  livable city draws migration, raising <code>K</code> — or stays a readout. The model leans feedback.)</span></p>
+  axis is <strong>flourishing</strong>, and it has two faces.</p>
+  <p><strong>Livability (the floor).</strong> The civic-vitality model in
+  <a href="https://hoop.mino.mobi/econ/">hoop/econ</a> — <code>scoreSociety()</code> → <strong>vitality
+  0–100 + tier</strong> on seven sub-signals (supply closure, multiplex <strong>thickness</strong>, social
+  <strong>weave</strong>, Granovetter <strong>bridges</strong>, <strong>third-places</strong>, <strong>employment</strong>,
+  <strong>resilience</strong>) — is the floor: <em>is the city good to live in?</em> Its framing already
+  separates this from output: the loop closes, and <em>"the real output is regard."</em></p>
+  <p><strong>A structural edge (the bloom).</strong> But flourishing meant something sharper in
+  <strong>Vienna 1900</strong> (Schorske) — a cultural and technological efflorescence. Structurally that is
+  the city's capacity to <strong>attract talent and generate technology</strong>, and it is the missing
+  <strong>feedback that closes the growth loop</strong>: <code>talent → human-capital externalities →
+  innovation → import-replacement → new export base → scale → (more talent)</code>. Skilled people near
+  skilled people produce more than the sum (Lucas: <em>"what else is a city?"</em>; Glaeser; Jacobs);
+  Peter Hall's <em>Cities in Civilization</em> catalogues these <strong>golden ages</strong>; Florida names the
+  levers <strong>Talent · Technology · Tolerance</strong>. And because technology <strong>diffuses</strong>, generating
+  it <em>first</em> is a competitive <strong>edge</strong> — a lead-time that decays as it spreads. So flourishing
+  is the city's <strong>tech-generation rate</strong>: it advances the tech clock for itself and leaks to
+  laggards. Sassen's <strong>global cities</strong> are the limit case.</p>
+  <p><strong>The dusk — the Owl of Minerva.</strong> Flourishing is <strong>non-monotonic</strong>, and its peak
+  sits on the edge of collapse. Hegel: <em>"the owl of Minerva spreads its wings only with the falling
+  of the dusk"</em> — Vienna's bloom <em>was</em> the eve of the empire's fall. The structural account is
+  <strong>Tainter's declining marginal returns on complexity</strong>: a metropolis at peak complexity is at
+  peak <strong>fragility</strong>, each added layer of coordination returning less until the margin goes
+  negative (Thompson's ratchet has the same ceiling; Spengler's "megalopolis" the late form). So
+  <code>polis</code> models flourishing with a <strong>complexity cost</strong> that eventually bites — bloom and
+  dusk on one curve. <span class="mut">(This resolves last pass's open question: flourishing <strong>does</strong>
+  feed back into growth — via talent + tech — but the complexity cost can turn it negative at the top.)</span></p>
+</div></section>
+
+<section id="war"><div class="wrap">
+  <h2><span class="n">05</span>The political register — defense, empire, conquest</h2>
+  <p>Everything above models the city as an economic growth machine. The full sweep — the
+  <strong>eXterminate</strong> of a 4X — needs the city as a <strong>political-military actor</strong> too. Most of it
+  falls out of the economics already built; one piece does not.</p>
+
+  <h3>Defense — a founding engine and a standing cost</h3>
+  <p>Defense belongs in the <strong>early running, including nucleation</strong>. Site-selection already prizes
+  <strong>defensive sites</strong> (hilltop, river-meander, island); the political register adds defense as a
+  <strong>founding function</strong> — the citadel/acropolis or garrison that <em>seeds</em> a town (you cannot
+  accumulate a surplus you cannot hold), on the same footing as break-of-bulk, the staple, and the
+  administrative seat. The frame is <strong>Tilly's capital↔coercion spectrum</strong> (1990): polities form
+  along an axis from the <strong>capital-intensive pole</strong> (cities, trade — the engine of everything above)
+  to the <strong>coercion-intensive pole</strong> (war, conquest, empire) — <em>"war made the state, and the
+  state made war."</em> A settlement carries a <strong>coercion parameter</strong> on that axis; defense is both a
+  founding engine and an ongoing <strong>security cost</strong> paid from surplus.</p>
+
+  <h3>Empire — an emergent configuration, not a separate engine</h3>
+  <p><em>Is there an imperial version of the narrative, or can it be done by managing inputs and
+  outputs?</em> <strong>Mostly the latter.</strong> Empire is what the machinery already built <em>does</em> at high
+  extraction-reach + coercion:</p>
+  <ul>
+    <li>An <strong>imperial capital is a super-gateway</strong> — the away-markets door run in reverse and at
+    scale, extracting surplus from a vast <strong>periphery</strong> and returning less. This <em>is</em>
+    <a href="https://en.wikipedia.org/wiki/World-systems_theory">Wallerstein's world-systems</a>
+    core / semi-periphery / periphery (1974), already encoded by the regional hierarchy + gateway
+    terms; <strong>tribute is a forced, one-way reversal of trade</strong>.</li>
+    <li>The <a href="https://en.wikipedia.org/wiki/Primate_city"><strong>primate city</strong></a> (Jefferson,
+    1939) is just a <strong>Zipf deviation</strong> — the top city pushed disproportionately large
+    (<code>q&gt;1</code>) by political concentration. A parameter on the size distribution, not new machinery.</li>
+    <li>The failure mode is <strong>Kennedy's imperial overstretch</strong> (1987): military reach outruns the
+    economic base — Tainter's negative marginal return in uniform.</li>
+  </ul>
+  <p>So no separate "empire engine" is needed: empire is a <strong>configuration</strong> of the gateway, the
+  hierarchy, path-dependence, and the coercion parameter.</p>
+
+  <h3>Conquest — the one piece the clocks can't produce</h3>
+  <p>Conquest is the exception: a <strong>discrete regime-change event</strong>, nothing the smooth growth
+  curves, the lumpy projects, or the tech clock can generate. It is the city-scale cousin of hoop's
+  <code>removeImpact</code> shock, with outcomes on a spectrum:</p>
+  <table>
+    <tr><th>Outcome</th><th>What happens</th><th>When</th></tr>
+    <tr><td><strong>sack / raze</strong> (urbicide)</td><td>sunk capital destroyed; the city can die</td><td>rare — the city is the prize</td></tr>
+    <tr><td><strong>tribute</strong></td><td>city kept, surplus redirected outward; flourishing drops</td><td>the common case</td></tr>
+    <tr><td><strong>elite-swap</strong></td><td>the <code>govern</code> sector replaced; population continues</td><td>frequent</td></tr>
+    <tr><td><strong>absorption</strong></td><td>changes hands, carries on</td><td>frequent</td></tr>
+  </table>
+  <p>The outcome is <strong>size-dependent — exactly the intuition that a metropolis loses little</strong>.
+  Locational inertia (the Bleakley–Lin logic: sunk capital + agglomeration persist through regime
+  change) means a <strong>great city survives conquest and just changes masters</strong> — Rome,
+  Constantinople, Damascus, conquered repeatedly, carry on. A <strong>mono-functional nucleus</strong> can
+  <strong>die</strong> when its single engine is taken. Conquerors usually <strong>preserve rather than destroy</strong>
+  — the city is the tax base — so <a href="https://en.wikipedia.org/wiki/Urbicide">urbicide</a> is the
+  exception. In model terms: conquest applies a shock whose damage is <code>f(size, diversity, conqueror
+  intent, whether the base sector survives)</code> — a diversified metropolis absorbs it, a one-engine
+  town may collapse to ruin.</p>
 </div></section>
 
 <section id="system"><div class="wrap">
-  <h2><span class="n">05</span>How the pieces compose into one engine</h2>
+  <h2><span class="n">06</span>How the pieces compose into one engine</h2>
   <div class="pipe">
     <div class="s"><b>Substrate (mappa).</b> A seeded planet; per-cell water, rivers, relief, fertility, lithology.</div>
     <div class="s"><b>Site &amp; founding engine.</b> Score sites on site×situation; pre-seed forced spawn points (break-of-bulk, fall line, harbour). Assign a founding basic sector — the big game in town.</div>
@@ -456,7 +532,7 @@ footer a{color:var(--gold2)}
 </div></section>
 
 <section id="road"><div class="wrap">
-  <h2><span class="n">06</span>Determinism, and the road to a 4X</h2>
+  <h2><span class="n">07</span>Determinism, and the road to a 4X</h2>
   <p><strong>Everything is seeded.</strong> <code>(worldSeed, siteCell)</code> → a city's entire economic
   history, identical on every machine, freezable to an ATProto record. No <code>Date.now()</code>, no
   unseeded <code>Math.random()</code> in generation. A city permalink (and, later, a 4X save) is only
@@ -478,7 +554,7 @@ footer a{color:var(--gold2)}
 </div></section>
 
 <section id="sources"><div class="wrap">
-  <h2><span class="n">07</span>Sources</h2>
+  <h2><span class="n">08</span>Sources</h2>
   <p class="mut" style="margin-top:0">Assembled from the canonical urban-economics, economic-geography, and complexity-science literature. Full reading list:</p>
   <div class="srcgrid">
     <h4>The economic engine</h4>
@@ -493,6 +569,10 @@ footer a{color:var(--gold2)}
     <p><a href="https://en.wikipedia.org/wiki/Bid_rent_theory">von Thünen hinterland rings</a> · <a href="https://en.wikipedia.org/wiki/Ester_Boserup">Boserup intensification</a> · <a href="https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1467-8306.1971.tb00782.x">Burghardt, gateway cities (1971)</a> · <a href="https://pangeography.com/vance-model-of-transport/">Vance mercantile model (1970)</a></p>
     <h4>Borrowed repo assets</h4>
     <p><a href="https://mino.mobi/cards/">cards — 500-node tech DAG</a> · <a href="https://hoop.mino.mobi/econ/">hoop/econ — civic vitality</a> · <a href="https://hoop.mino.mobi/">hoop flux + foam solvers</a> · <a href="https://mino.mobi/mappa/">mappa substrate</a></p>
+    <h4>Flourishing — edge &amp; decline</h4>
+    <p><a href="https://en.wikipedia.org/wiki/Cities_in_Civilization">Peter Hall, golden ages</a> · <a href="https://en.wikipedia.org/wiki/Fin-de-Si%C3%A8cle_Vienna">Schorske, Vienna 1900</a> · <a href="https://en.wikipedia.org/wiki/Creative_class">Florida, creative class</a> · <a href="https://en.wikipedia.org/wiki/Triumph_of_the_City">Glaeser, <em>Triumph of the City</em></a> · <a href="https://en.wikipedia.org/wiki/Global_city">Sassen, global city</a> · <a href="https://en.wikipedia.org/wiki/Owl_of_Minerva">Hegel, owl of Minerva</a> · <a href="https://en.wikipedia.org/wiki/The_Decline_of_the_West">Spengler</a> · <a href="https://en.wikipedia.org/wiki/The_Collapse_of_Complex_Societies">Tainter, complexity collapse</a></p>
+    <h4>Defense, empire &amp; conquest</h4>
+    <p><a href="https://en.wikipedia.org/wiki/Coercion,_Capital,_and_European_States">Tilly, capital↔coercion (1990)</a> · <a href="https://en.wikipedia.org/wiki/World-systems_theory">Wallerstein, world-systems</a> · <a href="https://en.wikipedia.org/wiki/Primate_city">Jefferson, primate city (1939)</a> · <a href="https://en.wikipedia.org/wiki/The_Rise_and_Fall_of_the_Great_Powers">Kennedy, imperial overstretch</a> · <a href="https://en.wikipedia.org/wiki/Urbicide">urbicide</a></p>
     <h4>Site &amp; situation</h4>
     <p><a href="https://geographyfieldwork.com/SiteSituation.htm">Site &amp; situation</a> · <a href="https://en.wikipedia.org/wiki/Fall_line">Fall line</a> · <a href="https://en.wikipedia.org/wiki/Break-in-bulk_point">Break-of-bulk point</a></p>
     <h4>Networks (the solvers' grounding)</h4>

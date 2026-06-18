@@ -348,18 +348,116 @@ access** (the gateway's reach) are the three inputs of the broader economy.
 ### Two axes — scale and flourishing
 
 A city is judged on more than *scale* (population, GDP — the `N^β` laws). The second
-axis is **flourishing — is it good to live in?** The repo already has a civic-vitality
-model in [`hoop/econ`](../hoop/econ/econ.js): `scoreSociety()` → **vitality 0–100 +
-tier** (Thriving · Healthy · Stable · Fragile · Failing) on seven sub-signals — supply
-**closure**, multiplex interaction **thickness** (people who wear many hats), social
-**weave** (reach), Granovetter **bridges** (weak ties), **third-places**,
-**employment**, and shock **resilience** (hub-removal damage). Its framing makes
-flourishing explicitly distinct from output: the subsistence loop closes, and *"the
-real output is regard"* — the interesting economy (craft, trade, service, play,
-esteem) floats above mere subsistence. `polis` carries this as the quality-of-life
-layer above raw scale. *(Open design question for the engine, not the theory: whether
-flourishing **feeds back** into growth — a more livable city draws migration, raising
-`K` — or stays a readout. The model leans feedback.)*
+axis is **flourishing**, and it has two faces — the bloom and the dusk.
+
+**Flourishing as livability (the floor).** The repo's civic-vitality model in
+[`hoop/econ`](../hoop/econ/econ.js) — `scoreSociety()` → **vitality 0–100 + tier** on
+seven sub-signals (supply closure, multiplex **thickness**, social **weave**,
+Granovetter **bridges**, **third-places**, **employment**, shock **resilience**) — is
+the floor: *is the city good to live in?* Its framing already separates this from
+output: the subsistence loop closes, and *"the real output is regard."*
+
+**Flourishing as a structural edge (the bloom).** But flourishing meant something
+sharper in **Vienna 1900** (Schorske) — a **cultural and technological
+efflorescence**. Structurally that is the city's capacity to **attract talent and
+generate knowledge/technology**, and it is the missing **feedback that closes the
+growth loop**: `talent → human-capital externalities → innovation →
+import-replacement → new export base → scale → (more talent)`. Cities are the engine
+of growth precisely because skilled people near other skilled people produce more
+than the sum (Lucas, 1988: *"what else is a city?"*; Glaeser's skilled-city effect;
+Jacobs' cross-sector spillovers). Peter Hall's *Cities in Civilization* (1998)
+catalogues the conditions for these **golden ages**; Florida names the levers
+**Talent, Technology, Tolerance**. And because technology **diffuses**
+(Hägerstrand), generating it *first* is a competitive **edge** — a lead-time
+advantage that decays as it spreads. So flourishing is not just a readout: it is the
+city's **tech-generation rate**, which advances the tech clock for itself and leaks
+to laggards by diffusion. Sassen's **global cities** are the limit case —
+flourishing concentrated into command nodes.
+
+**The dusk — the Owl of Minerva.** Flourishing is **non-monotonic**, and its peak
+often sits on the hairy edge of collapse. Hegel: *"the owl of Minerva spreads its
+wings only with the falling of the dusk"* — a form of life understands itself only
+as it ends, and Vienna's bloom *was* the eve of the empire's fall. The structural
+account is **Tainter's declining marginal returns on complexity** (1988): a
+metropolis at peak complexity is at peak **fragility** — each added layer of
+administration and coordination returns less, until the marginal return goes
+negative. Thompson's size ratchet has the same ceiling (he warned absolute size
+becomes a brake as public-service costs rise); Spengler's "megalopolis" is the late,
+sterile form. So `polis` models flourishing with a **complexity cost** that
+eventually bites — the cultural bloom and the onset of decline are coupled, not
+sequential.
+
+*(This resolves last turn's open question: flourishing **does** feed back into growth
+— via talent and tech generation — but with a complexity cost that can turn the
+feedback negative at the top. Bloom and dusk, one curve.)*
+
+---
+
+## The political register — defense, empire, conquest
+
+Everything above models the city as an economic growth machine. The full sweep — the
+eXterminate of a 4X — needs the city as a **political-military actor** too. Most of it
+falls out of the economics already built; one piece does not.
+
+### Defense — a founding engine and a standing cost
+
+Defense belongs in the **early running, including nucleation**. Site-selection already
+prizes **defensive sites** (hilltop, river-meander, island); the political register
+adds defense as a **founding function** — the citadel/acropolis or garrison that
+*seeds* a town (you cannot accumulate a surplus you cannot hold), on the same footing
+as break-of-bulk, the staple, and the administrative seat. The organizing frame is
+**Tilly's capital↔coercion spectrum** (*Coercion, Capital, and European States*,
+1990): polities form along an axis from the **capital-intensive pole** (cities, trade —
+the economic engine of everything above) to the **coercion-intensive pole** (war,
+conquest, empire) — *"war made the state, and the state made war."* A `polis`
+settlement carries a **coercion parameter** locating it on that axis; defense is both
+a founding engine and an ongoing **security cost** paid from surplus (walls, garrison)
+to protect the extraction that lets the base function.
+
+### Empire — an emergent configuration, not a separate engine
+
+*Is there an imperial version of the narrative, or can it be done by managing inputs
+and outputs?* **Mostly the latter.** Empire is what the machinery already built *does*
+at high extraction-reach plus coercion:
+
+- An **imperial capital is a super-gateway** — the gateway/away-markets door run in
+  reverse and at scale: it extracts surplus from a vast **periphery** and returns less.
+  This *is* **Wallerstein's world-systems** core / semi-periphery / periphery (1974),
+  which the regional central-place hierarchy + gateway terms already encode; **tribute
+  is a forced, one-way reversal of trade**.
+- The **primate city** (Jefferson's *Law of the Primate City*, 1939) is just a **Zipf
+  deviation** — the top city pushed disproportionately large (rank-size exponent
+  `q > 1`) by political concentration. Imperial overconcentration is a *parameter on
+  the size distribution*, not new machinery.
+- The **failure mode** is **Kennedy's imperial overstretch** (*The Rise and Fall of the
+  Great Powers*, 1987): military reach outruns the economic base — Tainter's negative
+  marginal return in uniform.
+
+So no separate "empire engine" is needed: empire is a **configuration** of the gateway,
+the hierarchy, path-dependence, and the coercion parameter.
+
+### Conquest — the one piece the clocks can't produce
+
+Conquest is the exception: a **discrete regime-change event**, nothing the smooth
+growth curves, the lumpy projects, or the tech clock can generate. It is the
+city-scale cousin of hoop's `removeImpact` shock, with outcomes on a spectrum:
+
+| outcome | what happens | when |
+|---|---|---|
+| **sack / raze** (urbicide) | sunk capital destroyed; the city can die | rare — the city is the prize |
+| **tribute** | city kept, surplus redirected outward (the base now exports to the conqueror); flourishing drops | the common case |
+| **elite-swap** | the `govern` sector is replaced; population continues | frequent |
+| **absorption** | changes hands, carries on | frequent |
+
+The outcome is **size-dependent — exactly the intuition that a metropolis loses
+little**. Locational inertia (the Bleakley–Lin logic: sunk capital + agglomeration
+persist through regime change) means a **great city survives conquest and just changes
+masters** — Rome, Constantinople, Damascus, conquered repeatedly, carry on. A
+**mono-functional nucleus**, by contrast, **can die** when its single engine is taken.
+Conquerors therefore usually **preserve rather than destroy** — the city is the tax
+base — so **urbicide is the exception**. In model terms: conquest applies a shock whose
+damage is `f(size, diversity, conqueror intent, whether the base sector survives)`; a
+diversified metropolis absorbs it, a one-engine town may collapse to ruin.
 
 ---
 
@@ -429,6 +527,25 @@ deliberately, also the economic-era progression of such a game.
 - Civic-vitality oracle (`scoreSociety`, seven sub-signals): `hoop/econ/econ.js`
 - Physarum flux + hypoxia solvers: `hoop/paint/flux.js`, `hoop/v7/foam.js`
 - World substrate: `mappa/engine.js`
+
+**Flourishing — the structural edge & its decline-coupling**
+- Peter Hall, *Cities in Civilization* (1998) — urban golden ages: https://en.wikipedia.org/wiki/Cities_in_Civilization
+- Carl Schorske, *Fin-de-Siècle Vienna* (1980): https://en.wikipedia.org/wiki/Fin-de-Si%C3%A8cle_Vienna
+- Richard Florida, the creative class / 3 T's (2002): https://en.wikipedia.org/wiki/Creative_class
+- Edward Glaeser, *Triumph of the City* (2011): https://en.wikipedia.org/wiki/Triumph_of_the_City
+- Robert Lucas, "On the Mechanics of Economic Development" (1988) — human-capital externalities: https://en.wikipedia.org/wiki/Human_capital
+- Saskia Sassen, the global city (1991): https://en.wikipedia.org/wiki/Global_city
+- Hägerstrand, spatial diffusion of innovation: https://en.wikipedia.org/wiki/Diffusion_of_innovations
+- Hegel, the owl of Minerva: https://en.wikipedia.org/wiki/Owl_of_Minerva
+- Oswald Spengler, *The Decline of the West* (1918–22): https://en.wikipedia.org/wiki/The_Decline_of_the_West
+- Joseph Tainter, *The Collapse of Complex Societies* (1988): https://en.wikipedia.org/wiki/The_Collapse_of_Complex_Societies
+
+**The political register — defense, empire, conquest**
+- Charles Tilly, *Coercion, Capital, and European States* (1990): https://en.wikipedia.org/wiki/Coercion,_Capital,_and_European_States
+- Immanuel Wallerstein, world-systems theory (1974): https://en.wikipedia.org/wiki/World-systems_theory
+- Mark Jefferson, "The Law of the Primate City" (1939): https://en.wikipedia.org/wiki/Primate_city
+- Paul Kennedy, *The Rise and Fall of the Great Powers* (1987): https://en.wikipedia.org/wiki/The_Rise_and_Fall_of_the_Great_Powers
+- Urbicide (deliberate destruction of a city): https://en.wikipedia.org/wiki/Urbicide
 
 **Substrate & site**
 - Settlement site & situation: https://geographyfieldwork.com/SiteSituation.htm
