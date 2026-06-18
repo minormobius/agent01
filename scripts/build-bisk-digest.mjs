@@ -371,6 +371,24 @@ async function main() {
       });
     }
   }
+  // House domains: projects on our own domains (mino.mobi, minomobi.com) whose
+  // handle is a plain .bsky.social account, so the handle-root heuristic can't
+  // see them. Credit them explicitly so our own ships land in the Workshop.
+  const handleToProfile = new Map([...profiles.values()].map(p => [p.handle, p]));
+  for (const hd of (config.houseDomains || [])) {
+    const root = regRoot(hd.domain.toLowerCase());
+    if (!root || !hd.handle) continue;
+    memberRootToHandle.set(root, hd.handle);   // override: house domains win
+    const prof = handleToProfile.get(hd.handle);
+    if (!builders.some(b => b.domain === root)) {
+      builders.push({
+        handle: hd.handle,
+        displayName: hd.displayName || prof?.displayName || hd.handle,
+        avatar: prof?.avatar || '',
+        domain: root,
+      });
+    }
+  }
   builders.sort((a, b) => a.domain.localeCompare(b.domain));
 
   const workshopAll = [];
@@ -385,7 +403,7 @@ async function main() {
       const ownerHandle = memberRootToHandle.get(root) || null;
       const maker = isMakerHost(host);
       if (!ownerHandle && !maker) continue;   // neither a neighbor's domain nor a maker-host
-      const self = !!ownerHandle && regRoot(p.author.handle.toLowerCase()) === root;
+      const self = !!ownerHandle && ownerHandle.toLowerCase() === p.author.handle.toLowerCase();
       const weight = (self ? 3 : 0) + (ownerHandle ? 2 : 0) + (maker ? 1 : 0);
       if (!best || weight > best.weight) best = { url, host, ownerHandle, self, maker, weight };
     }

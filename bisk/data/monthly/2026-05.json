@@ -1,0 +1,273 @@
+{
+  "month": "2026-05",
+  "label": "May 2026",
+  "title": "Bisk",
+  "generatedAt": "2026-06-18T15:07:11.639Z",
+  "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
+  "span": {
+    "from": "2026-05-24",
+    "to": "2026-05-31",
+    "editions": 6,
+    "posts": 1583
+  },
+  "builders": [],
+  "featured": [],
+  "chickens": [
+    {
+      "handle": "isolyth.dev",
+      "displayName": "Eris",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreih6tkczdwbkggcmmh37kxhhuv4ehj7gy7btskodpnoyq73rsbakci",
+      "text": "The 'Google -> Goople -> propeller' pipeline",
+      "likeCount": 3267,
+      "replyCount": 109,
+      "repostCount": 549,
+      "url": "https://bsky.app/profile/isolyth.dev/post/3mmubzjq27c2l",
+      "date": "2026-05-28"
+    },
+    {
+      "handle": "segyges.bsky.social",
+      "displayName": "SE Gyges",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
+      "text": "there are severe right-on-right crimes going on in the comments of the katie miller post over how hot this guy's fiancee is. like it's making nazis scream at each other",
+      "likeCount": 1081,
+      "replyCount": 7,
+      "repostCount": 86,
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mmv326yvpc26",
+      "date": "2026-05-28"
+    },
+    {
+      "handle": "vibe-coded.com",
+      "displayName": "Codetaur",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreid6sxsrgc52vausyueg2kpita5msbghrehdmcwezvpkte5r6pxqqy",
+      "text": "I know, I know, I have some kind of severe ascii fluid sim addiction but I'm trying to build the once-and-for-all version and god damn this shit lookin good.",
+      "likeCount": 1074,
+      "replyCount": 31,
+      "repostCount": 77,
+      "url": "https://bsky.app/profile/vibe-coded.com/post/3mmlek4zplk23",
+      "date": "2026-05-24"
+    },
+    {
+      "handle": "segyges.bsky.social",
+      "displayName": "SE Gyges",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
+      "text": "",
+      "likeCount": 348,
+      "replyCount": 36,
+      "repostCount": 13,
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mmponmd7nc26",
+      "date": "2026-05-26"
+    },
+    {
+      "handle": "segyges.bsky.social",
+      "displayName": "SE Gyges",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
+      "text": "when i need to justify my anti-IP position in the future i will tell people it is because i am catholic",
+      "likeCount": 303,
+      "replyCount": 11,
+      "repostCount": 40,
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mmpbmd2yc227",
+      "date": "2026-05-26"
+    }
+  ],
+  "delve": {
+    "handle": "vibe-coded.com",
+    "displayName": "Codetaur",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreid6sxsrgc52vausyueg2kpita5msbghrehdmcwezvpkte5r6pxqqy",
+    "text": "I know, I know, I have some kind of severe ascii fluid sim addiction but I'm trying to build the once-and-for-all version and god damn this shit lookin good.",
+    "maxDepth": 10,
+    "topLevelReplies": 29,
+    "interactorCount": 33,
+    "replyCount": 31,
+    "url": "https://bsky.app/profile/vibe-coded.com/post/3mmlek4zplk23",
+    "atUri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3mmlek4zplk23",
+    "date": "2026-05-24"
+  },
+  "weather": {
+    "avgIndex": 0.155,
+    "dominantMood": "trust",
+    "sunniest": {
+      "date": "2026-05-26",
+      "index": 0.211,
+      "label": "Fair",
+      "mood": "trust"
+    },
+    "stormiest": {
+      "date": "2026-05-24",
+      "index": 0.113,
+      "label": "Fair",
+      "mood": "trust"
+    },
+    "trend": [
+      {
+        "date": "2026-05-24",
+        "index": 0.113,
+        "label": "Fair",
+        "mood": "trust"
+      },
+      {
+        "date": "2026-05-26",
+        "index": 0.211,
+        "label": "Fair",
+        "mood": "trust"
+      },
+      {
+        "date": "2026-05-28",
+        "index": 0.14,
+        "label": "Fair",
+        "mood": "trust"
+      },
+      {
+        "date": "2026-05-29",
+        "index": 0.161,
+        "label": "Fair",
+        "mood": "trust"
+      },
+      {
+        "date": "2026-05-30",
+        "index": 0.144,
+        "label": "Fair",
+        "mood": "trust"
+      },
+      {
+        "date": "2026-05-31",
+        "index": 0.163,
+        "label": "Fair",
+        "mood": "trust"
+      }
+    ],
+    "distinctive": [
+      {
+        "word": "opus",
+        "count": 42
+      },
+      {
+        "word": "norvid",
+        "count": 20
+      },
+      {
+        "word": "anthropic",
+        "count": 19
+      },
+      {
+        "word": "idk",
+        "count": 17
+      },
+      {
+        "word": "fluoddity",
+        "count": 15
+      },
+      {
+        "word": "encyclical",
+        "count": 13
+      },
+      {
+        "word": "coder",
+        "count": 13
+      },
+      {
+        "word": "llm",
+        "count": 12
+      }
+    ]
+  },
+  "shingles": [],
+  "newShingles": [],
+  "scenes": [
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreicexbgekafva7zldjzj3uzsme5jnrmaivmkemlyhcswaablqnnjnm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreicexbgekafva7zldjzj3uzsme5jnrmaivmkemlyhcswaablqnnjnm",
+      "alt": "EARTH IS NOT FLAT\nVACCINES WORK\nWE'VE BEEN TO THE MOON \nCLIMATE CHANGE IS REAL \nUNIVERSE IS EXPANDING\nMATH IS THE UNIVERSAL LANGUAGE CHEMTRAILS AREN'T A THING\nEVOLUTION IS A FACT\nA VAST CAVERN SYSTEM EXISTS BENEATH US \nAMPLE SPACE FOR ADVANCED CIVILIZATION\nSTAND UP FOR SCIENCE",
+      "ratio": 0.6897,
+      "handle": "gracekind.net",
+      "url": "https://bsky.app/profile/gracekind.net/post/3mmmldnvyk22l"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreighiygfaefwwmmifvikjzapujzcefbcuur74wedxxrldzworulpwq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreighiygfaefwwmmifvikjzapujzcefbcuur74wedxxrldzworulpwq",
+      "alt": "",
+      "ratio": 1,
+      "handle": "vibe-coded.com",
+      "url": "https://bsky.app/profile/vibe-coded.com/post/3mmkko7gxx22r"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiczdxhdjhclynyey53jgbrhdweu645gi46dweuzj6py2qeeo6p4fi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiczdxhdjhclynyey53jgbrhdweu645gi46dweuzj6py2qeeo6p4fi",
+      "alt": "",
+      "ratio": 0.7022,
+      "handle": "segyges.bsky.social",
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mmponmd7nc26"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreia3lvacsts6bq7qvcymh36sgyuxh2gmkyn2kdffcpdkflmw27rxpy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreia3lvacsts6bq7qvcymh36sgyuxh2gmkyn2kdffcpdkflmw27rxpy",
+      "alt": "",
+      "ratio": 0.6776,
+      "handle": "segyges.bsky.social",
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mmponmd7nc26"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreidni7gh4hwunmm7cm7fp6y2qqyvfxxxufnpvoxwrzdnotuskc7oay",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreidni7gh4hwunmm7cm7fp6y2qqyvfxxxufnpvoxwrzdnotuskc7oay",
+      "alt": "",
+      "ratio": 0.9809,
+      "handle": "isolyth.dev",
+      "url": "https://bsky.app/profile/isolyth.dev/post/3mmubzjq27c2l"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreifws5ecttjjwh5adldj4ux2uss6n6alunwlkzxsjtrhg6xkwpsblm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreifws5ecttjjwh5adldj4ux2uss6n6alunwlkzxsjtrhg6xkwpsblm",
+      "alt": "",
+      "ratio": 1.6667,
+      "handle": "dave.9000ish.uk",
+      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mmvgafqqc223"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreib6uzb6pnt6vnq5uunmiyvjhuv6d73b5ebuemnpouqr4ajyw5mrem",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreib6uzb6pnt6vnq5uunmiyvjhuv6d73b5ebuemnpouqr4ajyw5mrem",
+      "alt": "that's the smoking raccoon.",
+      "ratio": 7.8077,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mmykkxcyqs2j"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreidg5v6b5p6sfspp6agjzvhkauosmtrytrzmwjoz357vihbgj2oqiq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreidg5v6b5p6sfspp6agjzvhkauosmtrytrzmwjoz357vihbgj2oqiq",
+      "alt": "",
+      "ratio": 0.75,
+      "handle": "astrra.space",
+      "url": "https://bsky.app/profile/astrra.space/post/3mmxlgjmnoc2l"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreife5mha23zdtuudw4hbgrobgrmwmvthklhc7cx5saf75tlwgbtusi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreife5mha23zdtuudw4hbgrobgrmwmvthklhc7cx5saf75tlwgbtusi",
+      "alt": "",
+      "ratio": 4.4943,
+      "handle": "segyges.bsky.social",
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mmz4wyh7w22k"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:rmplvmo2uq2mlth23rqhgcvx/bafkreif65jaw3edrvedfgbzlmkuup2pgjxnichz646djpxr3s5mnlhl3mm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:rmplvmo2uq2mlth23rqhgcvx/bafkreif65jaw3edrvedfgbzlmkuup2pgjxnichz646djpxr3s5mnlhl3mm",
+      "alt": "",
+      "ratio": 1.3636,
+      "handle": "adler.dev",
+      "url": "https://bsky.app/profile/adler.dev/post/3mmz7ibpu4c2g"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreib5ugr2z7izpnz2iil52v7pwiy5kg2qws6bc7efhoacxz7o4kq34u",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreib5ugr2z7izpnz2iil52v7pwiy5kg2qws6bc7efhoacxz7o4kq34u",
+      "alt": "",
+      "ratio": 1.0699,
+      "handle": "sneptech.bsky.social",
+      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mn3mtxwtuk24"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5wm25vgenhgut3iqfjf4ozj5/bafkreifowiunf6dkkrr4z4ev4ihfn74eyz5xz3olbffhekvxtkur32isbi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:5wm25vgenhgut3iqfjf4ozj5/bafkreifowiunf6dkkrr4z4ev4ihfn74eyz5xz3olbffhekvxtkur32isbi",
+      "alt": "",
+      "ratio": 1.5324,
+      "handle": "eugenevinitsky.bsky.social",
+      "url": "https://bsky.app/profile/eugenevinitsky.bsky.social/post/3mn3uocrrgk2h"
+    }
+  ]
+}

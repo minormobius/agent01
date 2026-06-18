@@ -1,0 +1,71 @@
+name: Bisk Monthly Review
+
+# manual re-run marker: 2026-06-18a
+#
+# Rolls up the daily Bisk archive into a monthly review (bisk/data/monthly/*)
+# and regenerates the RSS feed (bisk/feed.xml), then self-deploys.
+#
+# NOTE: the schedule: cron only fires from the repo's DEFAULT branch (main).
+# This file must be merged to main for the 1st-of-month run to happen. On a
+# feature branch, bump the marker above to fire the push trigger.
+#
+# Timing: 06:00 UTC on the 1st — well before the 13:00 daily run, so the latest
+# daily edition is still the last day of the month being rolled up. With no
+# argument, build-bisk-monthly.mjs targets the PREVIOUS calendar month.
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month to roll up, YYYY-MM (defaults to the previous calendar month)'
+        required: false
+        type: string
+  push:
+    branches:
+      - 'claude/bisk-vibecoders-section-mq0umx'
+    paths:
+      - '.github/workflows/bisk-monthly.yml'   # bump the marker above to fire
+
+# Commit the rolled-up data back; the push to bisk/** trips deploy-bisk.yml —
+# but a GITHUB_TOKEN push doesn't trigger other workflows, so we self-deploy.
+permissions:
+  contents: write
+
+jobs:
+  monthly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build monthly review
+        env:
+          BISK_MONTH: ${{ inputs.month }}
+        run: node scripts/build-bisk-monthly.mjs
+
+      - name: Commit data
+        run: |
+          git config user.name "bisk-bot"
+          git config user.email "bisk@minomobi.com"
+          git add bisk/data/monthly bisk/feed.xml
+          if git diff --staged --quiet; then
+            echo "No monthly changes."
+          else
+            git commit -m "bisk: monthly review $(date -u +%Y-%m)"
+            for attempt in 1 2 3 4; do
+              git push && break || { echo "push failed, retrying…"; git pull --rebase --autostash; sleep $((attempt*2)); }
+            done
+          fi
+
+      - name: Deploy bisk
+        working-directory: bisk
+        run: |
+          npm install wrangler
+          npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
