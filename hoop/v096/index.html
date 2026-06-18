@@ -607,6 +607,7 @@
         story.ready = true; renderQuest();
         try { questBank = buildQuestBank([...story.store.content.values()]); } catch (e) { questBank = new Map(); }   // the side-quest bank (one per rumor seed)
         try { openingCast = deriveOpeningCast([...story.store.content.values()], 3); } catch (e) {}   // hoopybot's guides, ready even before anchors place
+        foldCharacterFromSave();   // the character rides the save now — adopt the saved one, or seed it from local
         syncOwnSaveIfReady();   // if already signed in, your repo save wins over the local buffer
         maybeArriveDeck();   // the awakening: the current deck's hand-written character + your guide's hook
         try { const h = await fetch('/api/story/health').then((r) => r.json()); storyApi.enabled = !!(h && h.enabled); storyApi.provider = h && h.provider; } catch (e) { storyApi.enabled = false; }   // v096: is live generation available?
@@ -706,7 +707,7 @@
       if (_syncedSave || !storyUser || !story.ready) return;
       _syncedSave = true;
       loadOwnSave(auth.pds, worldKey()).then((snap) => {
-        if (snap) { story.store.restore(snap); whereAmI(); renderQuest(); if (world) draw(); flashToast('◍ loaded your saved game from @' + storyUser.handle, 2600); }
+        if (snap) { story.store.restore(snap); foldCharacterFromSave(); whereAmI(); renderQuest(); if (world) draw(); flashToast('◍ loaded your saved game from @' + storyUser.handle, 2600); }
         else flushRepo(true);   // no save yet → seed your repo from the local state now
       }).catch(() => {});
     }
@@ -1342,11 +1343,21 @@
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
-    function adoptCharacter(c) {
+    function adoptCharacter(c, persist = true) {
       playerChar = c;
       try { playerGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size }); } catch (e) { playerGenome = null; }
       pack.setPack(packForCharacter(c, 9));
       renderWho();
+      // FOLD THE CHARACTER INTO THE SAVE: store it as a fact so it rides story.save to your PDS (cross-device).
+      // persist=false when we're adopting FROM a restored save (avoid echoing it straight back).
+      if (persist && story.ready) { story.store.setFact(story.playerId, 'character', c); saveStorySnapshot(); }
+    }
+    // adopt the character carried in a (just-restored) save, if any; else seed the save from the local one.
+    function foldCharacterFromSave() {
+      if (!story.ready) return;
+      const savedChar = story.store.getFact(story.playerId, 'character');
+      if (savedChar) adoptCharacter(savedChar, false);
+      else if (playerChar) { story.store.setFact(story.playerId, 'character', playerChar); saveStorySnapshot(); }
     }
     function renderWho() {
       if (!playerChar) { $('who').innerHTML = ''; return; }

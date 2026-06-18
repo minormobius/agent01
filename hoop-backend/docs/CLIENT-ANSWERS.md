@@ -18,7 +18,8 @@ gone. The one real blocker (Q1, the save schema) is answered in full below.
 | **drop reputation gates** (agreement #5) | ✅✅ **done.** `meetsState` no longer enforces `min_rep`, and dialogue choices no longer enforce `min_standing`. **Please deprecate rep on your end too.** |
 | **save often, not just on unload** (#4, Q8) | ✅ **fixed in this pass** — periodic flush every ~12s during play + on unload (was debounce-only, which could starve during continuous play). |
 | **`player_id == DID`** (settled) | ⚠️ see Q1/gap below — our save's *inner* player key is currently `"local"`, not the DID. |
-| **character / profile** (Q3) | ❌ **gap** — the character (name, sprite, kit) is in `localStorage` only, **not** in `story.save`. Cross-device restores progress but loses your character. Needs a decision (fold in vs separate record). |
+| **character / profile** (Q3) | ✅ **folded into the save** — the character (name, sprite, kit) now rides `story.save` as `facts["character"]`. Cross-device restores it; no new lexicon. |
+| **`story.verdict` lexicon** (Q6) | ✅ **added** — `hoop/lexicons/story.verdict.json` (service-repo record tagged `subjectDid`, TID rkey for cursor fetch). |
 
 ## Q1 — the `story.save` `stateJson` schema (your blocker)
 
@@ -68,22 +69,23 @@ so you can finish the projection against it now.
 ## The other questions
 
 2. **Multi-world** — ✅ `rkey = String(seed)`, one save per world. Key your projection on `(did, world)`. World identity rides as the save rkey + the seed that drives generation; it isn't echoed inside `stateJson` (add it if you want — easy).
-3. **Character/profile** — **open gap** (above). Recommendation: simplest is to fold it into `story.save` as a `facts["character"] = {…}` entry (rides the existing save, no new lexicon, no schema bump). If you'd rather a separate `com.minomobi.hoop.story.profile`, I'll publish that instead. Your call drives mine.
+3. **Character/profile** — ✅ **done**: folded into `story.save` as `facts["character"] = {…}` (the full character object — name, cast, vocation, sprite seed/arch/size, kit). No new lexicon, no schema bump; it's just another fact, so your `_project_save` picks it up with the rest. (If you ever want it as a standalone `.profile` record too, easy to add — but it's not needed for cross-device.)
 4. **Does `saw` survive?** — No. `story.save` is the only player→engine channel from the client; we emit no per-interaction `saw`. (So pulse/rumor freshness rides on save cadence — handled by the ~12s flush.)
 5. **Verdict delivery** — 👍 verdicts in morphyx tagged `subjectDid`, client filters its own. Agree on a TTL/prune; we only need the unacked ones since a cursor.
-6. **Namespace** — ✅ confirm `com.minomobi.hoop.story.*`. We already use `.save`/`.content`/`.pulse`; please add **`.verdict`** (no lexicon for it in `hoop/lexicons/` yet). Rename `app.infiniteq.*` → `com.minomobi.hoop.story.*`.
+6. **Namespace** — ✅ `com.minomobi.hoop.story.*`. We use `.save`/`.content`/`.pulse`, and I just **added `com.minomobi.hoop.story.verdict`** (`hoop/lexicons/story.verdict.json`): service-repo record, tagged `subjectDid`, `tid` rkey so a listRecords sweep is cursor-ordered; `type` is open-shaped (`entity_changed` / `entity_retired` / `invalidation` / `rumor` / `input_result`) with the diff in `payload` and an optional `world` + `worldVersion`. Tweak it if your emit shape differs. Please rename `app.infiniteq.*` → `com.minomobi.hoop.story.*`.
 7. **`worldVersion`** — 👍 read-only cache key; we'll treat a bump as "refetch pool + verdicts."
 8. **Save cadence** — periodic **~12s while dirty** + on visibilitychange/unload (best-effort). Not per-interaction. Tunable if you need pulse fresher.
 9. **`requires` gate** — we track `state_gate.py`: **facts** (equality) + **items** (membership). We deliberately **skip `min_rep`** (the rep deprecation you offered). If you keep other gate kinds, expose the blob and we'll evaluate them identically.
 10. **morphyx creds** — shared service account `morphyxmino.bsky.social` / `did:plc:yivyyp54vddf7qf2lpsikhe4`. Creds live as repo secrets (`BLUESKY_MORPHYX_HANDLE` / `BLUESKY_MORPHYX_APP_PASSWORD`, the ones borges/seed workflows use). Your `MORPHYX_ENABLED` publisher can read those.
 
-## Two things we should decide
+## One thing still to decide
 
-- **Character in the save** (Q3) — today it's lost cross-device. Pick: fold into `story.save` facts (my recommendation) or a `.profile` record.
 - **Inner player key** — our snapshot's inner id is `"local"`. The save is in the player's repo so the **DID is the repo owner** (key your projection on that, ignore the inner id) — or I switch the client to use the DID as the engine player id end-to-end. Cheap either way; tell me which you want for "`player_id == DID` end to end."
 
-## One mismatch to flag back
+## Tier ranges — looks already settled toward 1–5
 
-**Tier ranges.** Your `CLAUDE.md` says `revelation_tier`/`narrative_tier` are **1–3**;
-the `world_export` we're running uses **1–5** (and the five-deck spine assumes 5). The
-schema above reflects 1–5. We need one source of truth for the ladders.
+Your `CLAUDE.md` says rev/nar are **1–3**, but your own `lexicon/story.content` schema
+declares them **1–5** with the note *"the old 1..3 clamp collapsed the back half of the
+chapter (v094 C2)."* The `world_export` and our five-deck spine are 1–5, and the save
+schema above reflects 1–5. So this seems resolved — just update the `CLAUDE.md` line so
+nobody re-clamps.
