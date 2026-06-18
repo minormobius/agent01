@@ -14,6 +14,10 @@
 //   • Top Chickens — top 3 posts by like count in the last 24h.
 //   • Delvers      — the deepest reply thread rooted in the last 24h.
 //   • Weather      — neighborhood sentiment (AFINN) + mood (NRC) + verbosity.
+//   • The Workshop — posts where members promote their own built things, sniffed
+//                    from link facets / external cards pointing at a member's own
+//                    custom domain or a known maker-host. Plus a directory of the
+//                    neighborhood's "shingles" (apex custom-domain handles).
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +44,88 @@ const STOP = new Set(('the a an and or but if then so of to in on at for with fr
 // ── helpers ──────────────────────────────────────────────────────────
 function rkeyOf(uri) { return uri.split('/').pop(); }
 function postUrl(handleOrDid, uri) { return `https://bsky.app/profile/${handleOrDid}/post/${rkeyOf(uri)}`; }
+
+// ── domain sniffing (the Workshop) ───────────────────────────────────
+// Country-style second-level TLDs where the registrable root is three labels
+// (foo.co.uk → foo.co.uk, not co.uk).
+const SECOND_LEVEL_TLDS = new Set([
+  'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'me.uk', 'com.au', 'net.au', 'org.au',
+  'co.nz', 'co.jp', 'co.kr', 'com.br', 'co.za', 'com.mx',
+]);
+// Handle-hosting domains that belong to a service, not a person's project site.
+const SHARED_HANDLE_HOSTS = new Set([
+  'bsky.social', 'kawaii.social', 'atproto.ceo', 'brid.gy', 'bsky.app',
+  'staging.bsky.dev', 'bsky.team',
+]);
+// Hosts that always mean "someone built a thing", whoever owns them.
+const MAKER_HOSTS = new Set([
+  'github.com', 'gitlab.com', 'codepen.io', 'observablehq.com', 'itch.io',
+  'val.town', 'glitch.com', 'huggingface.co', 'neocities.org', 'shadertoy.com',
+  'editor.p5js.org', 'scratch.mit.edu', 'tixy.land', 'tangled.org', 'tangled.sh',
+]);
+const MAKER_SUFFIXES = [
+  '.pages.dev', '.workers.dev', '.vercel.app', '.netlify.app', '.itch.io',
+  '.glitch.me', '.github.io', '.observablehq.com', '.val.run', '.neocities.org',
+  '.surge.sh', '.fly.dev', '.deno.dev', '.streamlit.app', '.hf.space',
+  '.gradio.app', '.replit.app', '.repl.co', '.framer.website', '.framer.app',
+  '.modal.run', '.onrender.com', '.web.app', '.firebaseapp.com',
+];
+// Pure social / news / aggregator hosts — never "their art project".
+const NON_PROJECT = new Set([
+  'bsky.app', 'twitter.com', 'x.com', 'youtube.com', 'youtu.be', 'twitch.tv',
+  'tiktok.com', 'instagram.com', 'threads.net', 'reddit.com', 'facebook.com',
+  'linkedin.com', 't.co', 'bit.ly', 'tinyurl.com', 'google.com',
+  'docs.google.com', 'wikipedia.org', 'en.wikipedia.org', 'medium.com',
+  'substack.com', 'nytimes.com', 'theconversation.com', 'arxiv.org',
+  'openai.com', 'anthropic.com', 'discord.gg', 'discord.com', 'patreon.com',
+  'spotify.com', 'soundcloud.com', 'amazon.com', 'goodreads.com', 'imgur.com',
+  'tenor.com', 'giphy.com',
+]);
+// Maker-language: a member showing off something they built.
+const PROMO = /\b(i (?:made|built|wrote|coded|shipped|created|hacked|drew)|made a|built a|new (?:toy|tool|app|game|site|project|demo|thing|page)|just (?:shipped|launched|released|made|finished)|shipped|launched|released|deployed|now live|live (?:at|on)|play (?:it|with)|try (?:it|this)|check (?:it )?out|demo|prototype|vibe[- ]?coded|side project|open[- ]?sourced?|my new|working on|come play|playable)\b/i;
+
+function hostOf(url) {
+  try { return new URL(url).hostname.toLowerCase().replace(/^www\./, ''); } catch { return null; }
+}
+function regRoot(host) {
+  if (!host) return null;
+  const parts = host.split('.');
+  if (parts.length <= 2) return host;
+  const last2 = parts.slice(-2).join('.');
+  if (SECOND_LEVEL_TLDS.has(last2)) return parts.slice(-3).join('.');
+  return last2;
+}
+function isMakerHost(host) {
+  if (!host) return false;
+  if (MAKER_HOSTS.has(host) || MAKER_HOSTS.has(regRoot(host))) return true;
+  return MAKER_SUFFIXES.some(s => host.endsWith(s));
+}
+function isNonProject(host) {
+  return !host || NON_PROJECT.has(host) || NON_PROJECT.has(regRoot(host));
+}
+// Every external URL a post points at: richtext link facets + external card.
+function postLinks(post) {
+  const urls = new Set();
+  const rec = post.record || {};
+  if (Array.isArray(rec.facets)) {
+    for (const f of rec.facets) for (const ft of (f.features || [])) {
+      if (ft.$type === 'app.bsky.richtext.facet#link' && ft.uri) urls.add(ft.uri);
+    }
+  }
+  const card = externalCard(post);
+  if (card) urls.add(card.url);
+  return [...urls];
+}
+// The external link-preview card on a post (direct or record-with-media).
+function externalCard(post) {
+  const e = post.embed;
+  if (!e) return null;
+  let ext = null;
+  if (typeof e.$type === 'string' && e.$type.startsWith('app.bsky.embed.external')) ext = e.external;
+  else if (e.media && typeof e.media.$type === 'string' && e.media.$type.startsWith('app.bsky.embed.external')) ext = e.media.external;
+  if (!ext || !ext.uri) return null;
+  return { url: ext.uri, title: ext.title || '', description: ext.description || '', thumb: ext.thumb || '' };
+}
 
 // Pull image views out of a post's embed (direct images or record-with-media).
 function extractImages(post) {
@@ -81,6 +167,8 @@ async function authorPosts(did, limit = 30) {
           avatar: it.post.author.avatar || '',
         },
         images: extractImages(it.post),
+        links: postLinks(it.post),
+        card: externalCard(it.post),
       }));
   } catch { return []; }
 }
@@ -259,6 +347,75 @@ async function main() {
   const corpusTexts = [...corpus.values()].filter(v => memberSet.has(v.did) && v.text).map(v => v.text);
   const weather = weatherReport(corpusTexts);
 
+  // The Workshop — what the neighborhood is building. First sniff the real
+  // domains these people work on: a member "owns" the registrable root of their
+  // custom handle (so brennan.computer owns sigil.brennan.computer). Then surface
+  // today's posts that promote one of those projects — links pointing at a
+  // member's own domain or a known maker-host (itch.io, *.pages.dev, github…).
+  const memberRootToHandle = new Map();   // registrable root -> the builder's handle
+  const builders = [];                    // directory of apex custom-domain "shingles"
+  for (const did of dids) {
+    const prof = profiles.get(did);
+    if (!prof || !prof.handle) continue;
+    const h = prof.handle.toLowerCase();
+    if (h.endsWith('.bsky.social') || SHARED_HANDLE_HOSTS.has(h)) continue;
+    const root = regRoot(h);
+    if (!root || SHARED_HANDLE_HOSTS.has(root)) continue;
+    if (!memberRootToHandle.has(root)) memberRootToHandle.set(root, prof.handle);
+    if (h.split('.').length === 2) {       // clean apex domain == unambiguously their site
+      builders.push({
+        handle: prof.handle,
+        displayName: prof.displayName || prof.handle,
+        avatar: prof.avatar || '',
+        domain: h,
+      });
+    }
+  }
+  builders.sort((a, b) => a.domain.localeCompare(b.domain));
+
+  const workshopAll = [];
+  for (const p of all) {
+    const links = p.links || [];
+    if (!links.length) continue;
+    let best = null;                       // the most "project-y" link on the post
+    for (const url of links) {
+      const host = hostOf(url);
+      if (isNonProject(host)) continue;
+      const root = regRoot(host);
+      const ownerHandle = memberRootToHandle.get(root) || null;
+      const maker = isMakerHost(host);
+      if (!ownerHandle && !maker) continue;   // neither a neighbor's domain nor a maker-host
+      const self = !!ownerHandle && regRoot(p.author.handle.toLowerCase()) === root;
+      const weight = (self ? 3 : 0) + (ownerHandle ? 2 : 0) + (maker ? 1 : 0);
+      if (!best || weight > best.weight) best = { url, host, ownerHandle, self, maker, weight };
+    }
+    if (!best) continue;
+    const promo = PROMO.test(p.text);
+    const score = best.weight * 1000 + (promo ? 300 : 0) + p.likeCount + 2 * p.repostCount + p.replyCount;
+    const card = p.card && hostOf(p.card.url) === best.host
+      ? { title: p.card.title, description: p.card.description, thumb: p.card.thumb }
+      : null;
+    workshopAll.push({
+      handle: p.author.handle, displayName: p.author.displayName, avatar: p.author.avatar,
+      text: p.text, likeCount: p.likeCount, repostCount: p.repostCount, replyCount: p.replyCount,
+      url: postUrl(p.author.handle, p.uri),
+      project: { url: best.url, domain: best.host, ownerHandle: best.ownerHandle, self: best.self, maker: best.maker },
+      card, promo, _score: score,
+    });
+  }
+  workshopAll.sort((a, b) => b._score - a._score);
+  // At most 2 per author so one prolific shipper doesn't take the whole bench.
+  const perAuthor = new Map();
+  const workshop = [];
+  for (const w of workshopAll) {
+    const n = perAuthor.get(w.handle) || 0;
+    if (n >= 2) continue;
+    perAuthor.set(w.handle, n + 1);
+    delete w._score;
+    workshop.push(w);
+    if (workshop.length >= 10) break;
+  }
+
   const date = new Date().toISOString().slice(0, 10);
   const digest = {
     date,
@@ -270,6 +427,8 @@ async function main() {
     chickens,
     delver,
     weather,
+    workshop,
+    builders,
     scenes,
   };
 
@@ -286,7 +445,7 @@ async function main() {
   idx.sort((a, b) => b.date.localeCompare(a.date));
   writeFileSync(idxPath, JSON.stringify(idx, null, 2));
 
-  console.log(`Wrote ${date}.json — ${chickens.length} chickens, delver depth ${delver?.maxDepth ?? '—'}, weather ${weather.label}, ${scenes.length} scenes.`);
+  console.log(`Wrote ${date}.json — ${chickens.length} chickens, delver depth ${delver?.maxDepth ?? '—'}, weather ${weather.label}, ${workshop.length} workshop, ${builders.length} builders, ${scenes.length} scenes.`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
