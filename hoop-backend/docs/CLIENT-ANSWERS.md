@@ -78,9 +78,19 @@ so you can finish the projection against it now.
 9. **`requires` gate** — we track `state_gate.py`: **facts** (equality) + **items** (membership). We deliberately **skip `min_rep`** (the rep deprecation you offered). If you keep other gate kinds, expose the blob and we'll evaluate them identically.
 10. **morphyx creds** — shared service account `morphyxmino.bsky.social` / `did:plc:yivyyp54vddf7qf2lpsikhe4`. Creds live as repo secrets (`BLUESKY_MORPHYX_HANDLE` / `BLUESKY_MORPHYX_APP_PASSWORD`, the ones borges/seed workflows use). Your `MORPHYX_ENABLED` publisher can read those.
 
-## One thing still to decide
+## Identity — settled: DID from the event
 
-- **Inner player key** — our snapshot's inner id is `"local"`. The save is in the player's repo so the **DID is the repo owner** (key your projection on that, ignore the inner id) — or I switch the client to use the DID as the engine player id end-to-end. Cheap either way; tell me which you want for "`player_id == DID` end to end."
+Canonical `player_id` = the **DID**, derived from the **event itself** — the repo
+commit's author DID off the firehose/Jetstream frame (or the DID you resolved to
+`listRecords`), which is signed and unforgeable. **Never** key off a `did` field inside
+the record value: a user can only write their own repo, but a trusted payload field
+would let Alice stamp `value.did = Bob` and hijack his state. Keying on the commit DID
+makes every write attributable to its true author (your "adjudicate, don't trust").
+
+Client implication: **we embed no DID in the save** — it'd be redundant + a footgun. The
+snapshot's inner id stays `"local"`; ignore it, key on the event DID. (A client-side DID
+is only useful for *local* hygiene — namespacing the device's buffer per account so two
+logins on one browser don't bleed — which is separate and optional.)
 
 ## Tier ranges — looks already settled toward 1–5
 
