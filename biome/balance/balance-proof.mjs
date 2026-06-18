@@ -39,7 +39,7 @@ for (let k = 0; k < FR; k++) {
   else if (k === 1) out = run(out, { mode: 'stand', push: bal.M * 2600 }, 10), out = run(out, { mode: 'stand' }, 40);
   else if (k === 2) out = run(out, { mode: 'stand' }, 120);
   else if (k === 3) out = run(out, { mode: 'stand' }, 240);
-  else out = run(out, { mode: 'walk', vTarget: 40, cadence: 1.1 }, 180);
+  else out = run(out, { mode: 'walk', vTarget: 24, cadence: Math.min(2.6, 1.1 + 24 * 0.05) }, 180);
 
   const camX = k >= 4 ? bal.trunk.x : bal.com0.x;
   const W2S = (wx, wy) => ({ x: (wx - camX) * scale + CELL / 2, y: (wy - bal.groundY) * scale + gyS });
@@ -47,8 +47,11 @@ for (let k = 0; k < FR; k++) {
   svg += `<line x1="6" y1="${gyS}" x2="${CELL - 6}" y2="${gyS}" stroke="#3a5446" stroke-width="2"/>`;
   // legs
   for (const L of out.legs) {
-    const bend = L.lp[0] === 'F' ? 1 : -1, K = ik(L.hip, L.foot, L.thigh, L.shank, bend);
-    const Hs = W2S(L.hip.x, L.hip.y), Ks = W2S(K.x, K.y), Fs = W2S(L.foot.x, L.foot.y);
+    const bend = L.lp[0] === 'F' ? 1 : -1, reach = (L.thigh + L.shank) * 0.999;
+    let foot = L.foot, dx = L.foot.x - L.hip.x, dy = L.foot.y - L.hip.y, dlen = Math.hypot(dx, dy);
+    if (dlen > reach) { const s = reach / dlen; foot = { x: L.hip.x + dx * s, y: L.hip.y + dy * s }; }
+    const K = ik(L.hip, foot, L.thigh, L.shank, bend);
+    const Hs = W2S(L.hip.x, L.hip.y), Ks = W2S(K.x, K.y), Fs = W2S(foot.x, foot.y);
     svg += `<polyline points="${f(Hs.x)},${f(Hs.y)} ${f(Ks.x)},${f(Ks.y)} ${f(Fs.x)},${f(Fs.y)}" fill="none" stroke="${L.stance ? '#8a9a90' : '#5d6b63'}" stroke-width="${f(Math.max(2, 5 * scale))}" stroke-linecap="round" stroke-linejoin="round"/>`;
     svg += `<circle cx="${f(Fs.x)}" cy="${f(Fs.y)}" r="${f(Math.max(2.5, 3.6 * scale))}" fill="${L.stance ? '#d8b25a' : '#5a6b62'}"/>`;
   }

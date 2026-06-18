@@ -164,9 +164,13 @@ scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG �
   `makeBalancer(sprite)` → `step(dt, {mode:'stand'|'walk', vTarget, cadence, push, legsOff})`. **Verified:
   standing is exact (dy≈0, pitch≈0°) and PUSH-RECOVERY works (shove → state error → returns to 0) across the
   deck; `legsOff` drops it under gravity.** Walking adds a 4-beat gait schedule (`GAIT`) + Raibert foot
-  placement and **holds at slow cadence but still tips in pitch at speed** — capture-point / MPC is the next
-  layer; the page is honest about this. `balance/balance-proof.mjs` = headless settle→shove→recover→walk
-  strip. This is the controller the earlier "gravity-solved walking" ask wanted, factored into its own page.
+  placement, with **cadence auto-coupled to speed** (`cadOf(v)=min(2.6, 1.1+0.05v)`) so steps stay short and
+  brisk — feet under the CoM, the stable regime. With that coupling the **whole 30-creature deck walks with
+  pitch < ~15° (no tip-overs) across the speed slider (capped at v26)**; past that range it would still tip
+  (capture-point / MPC is the next layer). Each drawn leg is **clamped to its real bone length** so a strut
+  can never visually stretch even under a transient out-of-range foot ("extendobones" bug, fixed).
+  `balance/balance-proof.mjs` = headless settle→shove→recover→walk strip. This is the controller the earlier
+  "gravity-solved walking" ask wanted, factored into its own page.
 - `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG contact sheet (headless).
 
 **Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints); grown one STANDS

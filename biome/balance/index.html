@@ -66,8 +66,10 @@
       <b>wrench</b> — force + torque — it needs to hold its height and stay level, then <b>solve</b> for the
       ground-reaction forces the planted feet must push with to produce it (least-squares, clamped to a
       friction cone). <b>Shove it</b> and it recovers from the state error; <b>turn the legs off</b> and only
-      gravity remains, so it drops. <span style="color:var(--gold)">Standing &amp; push-recovery are solid;
-      walking is the live edge</span> — slow gaits hold, fast ones still tip.
+      gravity remains, so it drops. It also <b>walks</b>: a 4-beat gait with Raibert foot placement, the
+      <b>cadence auto-coupled to speed</b> so the steps stay short and brisk — that keeps the feet under the
+      centre of mass, which is the stable regime. <span style="color:var(--gold)">Push the speed past the
+      slider and the trunk would still tip</span> — capture-point control is the next layer.
     </div>
   </header>
   <main>
@@ -87,8 +89,8 @@
             <button id="m-stand" class="on">stand</button>
             <button id="m-walk">walk →</button>
           </div>
-          <label class="ctl"><span>speed</span><input id="s-vel" type="range" min="10" max="120" value="40"><b id="v-vel">40</b></label>
-          <label class="ctl"><span>cadence</span><input id="s-cad" type="range" min="60" max="220" value="110"><b id="v-cad">1.1</b></label>
+          <label class="ctl"><span>speed</span><input id="s-vel" type="range" min="0" max="26" value="22"><b id="v-vel">22</b></label>
+          <label class="ctl"><span>cadence</span><i style="flex:1"></i><b id="v-cad" style="color:var(--dim)">auto</b></label>
         </div>
         <div class="grp">
           <h3>perturb</h3>
@@ -131,10 +133,10 @@
         struts are the legs, posed by two-link inverse kinematics from each hip down to where the controller
         decides the foot should be. Green arrows are the <b>ground-reaction forces</b> the balance solve asked
         each planted foot for — note they always sum to hold the body's weight and cancel its tipping torque.
-        The whole thing is <b>deterministic from the iNaturalist taxon id</b>, so a given creature balances the
-        same way on every machine. <b>Walking</b> adds a 4-beat gait schedule with Raibert foot placement; it's
-        honest about its limits — push the speed up and you'll watch a fast walk lose its pitch (capture-point
-        control is the next layer).
+        Each drawn leg is clamped to its <b>real bone length</b>, so a strut can never stretch. The whole thing
+        is <b>deterministic from the iNaturalist taxon id</b>, so a given creature balances the same way on
+        every machine. <b>Walking</b> holds its pitch across the whole speed slider because cadence rises with
+        speed; the honest edge is past that range, where capture-point control would take over.
       </div>
     </section>
   </main>
@@ -166,7 +168,10 @@ const PREFERRED = ['horse','wolf','bear','rabbit','fox','lynx','goat','llama','p
 // ── live state ─────────────────────────────────────────────────────────────────────────────
 let bal = null, sprite = null, skel = [], scale = 1, restCom = { x: 0, y: 0 };
 let mode = 'stand', legsOff = false, pushFrames = 0, pushDir = 1, last = null;
-let vTarget = 40, cadence = 1.1;
+let vTarget = 22;
+// cadence rises with speed → short, brisk steps keep the feet under the CoM (the stable regime). Coupling
+// it removes the foot-gun of pairing a high speed with a slow cadence, which tips the trunk over.
+const cadOf = (v) => Math.min(2.6, 1.1 + v * 0.05);
 let maxPitch = 0, startX = 0;
 
 function rebuild(id) {
@@ -233,11 +238,14 @@ function render(out) {
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
   }
 
-  // legs (behind skeleton): IK strut hip → knee → foot
+  // legs (behind skeleton): IK strut hip → knee → foot. Clamp the foot to within the leg's real reach so a
+  // bone can never visually stretch ("extendobones") if the trunk state ever runs the foot out of range.
   for (const L of out.legs) {
-    const fore = L.lp[0] === 'F', bend = fore ? 1 : -1;
-    const K = ik(L.hip, L.foot, L.thigh, L.shank, bend);
-    const Hs = toScreen(c, L.hip.x, L.hip.y), Ks = toScreen(c, K.x, K.y), Fs = toScreen(c, L.foot.x, L.foot.y);
+    const fore = L.lp[0] === 'F', bend = fore ? 1 : -1, reach = (L.thigh + L.shank) * 0.999;
+    let foot = L.foot, dx = L.foot.x - L.hip.x, dy = L.foot.y - L.hip.y, dlen = Math.hypot(dx, dy);
+    if (dlen > reach) { const s = reach / dlen; foot = { x: L.hip.x + dx * s, y: L.hip.y + dy * s }; }
+    const K = ik(L.hip, foot, L.thigh, L.shank, bend);
+    const Hs = toScreen(c, L.hip.x, L.hip.y), Ks = toScreen(c, K.x, K.y), Fs = toScreen(c, foot.x, foot.y);
     ctx.strokeStyle = L.stance ? '#8a9a90' : '#5d6b63';
     ctx.lineWidth = Math.max(2, 5 * c.S); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.beginPath(); ctx.moveTo(Hs.x, Hs.y); ctx.lineTo(Ks.x, Ks.y); ctx.lineTo(Fs.x, Fs.y); ctx.stroke();
@@ -297,8 +305,7 @@ $('#b-shove-l').onclick = () => { pushDir = -1; pushFrames = 10; flash(); };
 $('#b-shove-r').onclick = () => { pushDir = 1; pushFrames = 10; flash(); };
 $('#b-legs').onclick = (e) => { legsOff = !legsOff; e.target.classList.toggle('on', legsOff); e.target.textContent = legsOff ? 'legs ON — catch it' : 'legs off — drop it'; };
 $('#b-reset').onclick = () => { legsOff = false; $('#b-legs').classList.remove('on'); $('#b-legs').textContent = 'legs off — drop it'; rebuild($('#pick').value); };
-$('#s-vel').oninput = (e) => { vTarget = +e.target.value; $('#v-vel').textContent = vTarget; };
-$('#s-cad').oninput = (e) => { cadence = +e.target.value / 100; $('#v-cad').textContent = cadence.toFixed(1); };
+$('#s-vel').oninput = (e) => { vTarget = +e.target.value; $('#v-vel').textContent = vTarget; $('#v-cad').textContent = vTarget > 0 ? cadOf(vTarget).toFixed(1) : 'auto'; };
 $('#pick').onchange = (e) => rebuild(e.target.value);
 window.addEventListener('resize', () => { if (sprite) fitCanvas(); });
 
@@ -316,7 +323,7 @@ function frame(now) {
     const dt = Math.min(h, Math.max(0, acc)); acc -= h;
     const push = pushFrames > 0 ? pushDir * bal.M * 2600 : 0;
     if (pushFrames > 0 && dt > 0) pushFrames--;
-    out = bal.step(dt, { mode, vTarget, cadence, push, legsOff });
+    out = bal.step(dt, { mode, vTarget, cadence: cadOf(vTarget), push, legsOff });
   } while (acc > 0);
   render(out);
 
