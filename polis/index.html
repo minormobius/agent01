@@ -19,7 +19,7 @@ header .t{pointer-events:auto;color:#b7a988;font-size:12.5px}
 .ctl{pointer-events:auto;display:flex;align-items:center;gap:6px;background:#140f08c8;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin-left:auto}
 #seed{width:96px;background:#0d0a05;border:1px solid #3a2e1c;color:var(--parch);border-radius:5px;padding:3px 6px;font:12px ui-monospace,monospace;outline:none}
 .btn{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
-.btn:hover{border-color:var(--gold)}
+.btn:hover{border-color:var(--gold)}.btn.on{border-color:var(--gold);color:var(--gold)}
 footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 14px;pointer-events:none;background:linear-gradient(#070a0c00,#070a0cee)}
 .scrub{pointer-events:auto;display:flex;align-items:center;gap:9px;flex:1;max-width:560px}
 .scrub input[type=range]{flex:1;accent-color:var(--gold)}
@@ -48,7 +48,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
   <a href="https://mino.mobi/">mino.mobi</a>
   <a href="./docs/" class="d" style="font-weight:400;text-decoration:none">docs ↗</a>
   <span class="t">polis — a world, a region, a city economy through time</span>
-  <span class="ctl"><input id="seed" value="20260618" inputmode="numeric"><button class="btn" id="go">roll</button><button class="btn" id="rnd">↻ new world</button></span>
+  <span class="ctl"><button class="btn" id="useBtn" title="toggle the hinterland land-use map">⊞ land use</button><input id="seed" value="20260618" inputmode="numeric"><button class="btn" id="go">roll</button><button class="btn" id="rnd">↻ new world</button></span>
 </header>
 <div id="panel">
   <button class="close" id="close">×</button>
@@ -66,7 +66,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 <div id="overlay">generating world…</div>
 
 <script type="module">
-import { rollWorld, selectRegion } from './world.js';
+import { rollMappaWorld, selectRegion, makeSampler } from './mappaWorld.js';
 import { buildMesh, cellState } from './mesh.js';
 import { runChronicle } from './chronicle.js';
 import { tierOf } from './economy.js';
@@ -78,7 +78,7 @@ const seedIn = document.getElementById('seed'), timeIn = document.getElementById
 let C = null;            // chronicle
 let label = null, W = 0, H = 0, x0 = 0, y0 = 0;  // raster state
 let terrainCache = new Map();
-let tick = 0, playing = false, sel = -1, raf = 0;
+let tick = 0, playing = false, sel = -1, raf = 0, mode = 'terrain';
 
 const wpx = (wx) => (wx - x0) * PX, hpx = (wy) => (wy - y0) * PX;
 
@@ -102,23 +102,44 @@ function buildLabels() {
   terrainCache = new Map();
 }
 
-function terrainFor(envKey, env) {
-  if (terrainCache.has(envKey)) return terrainCache.get(envKey);
+// HINTERLAND EXPLOITATION — which land each town works, by von Thünen rings around it,
+// modulated by biome + resource: intensive garden → cropland → pasture → managed forest,
+// ore cells → mines, everything out of reach stays wild.
+const USE_COLOR = { intensive: [196, 190, 80], crop: [206, 170, 86], pasture: [156, 176, 120], forest: [70, 100, 58], mine: [150, 92, 58] };
+function useColor(c, tick, env) {
+  if (c.elev < (env.seaLevel || 0)) return null;
+  let best = null, bd = Infinity;
+  for (const t of C.towns) { const pop = t.history[tick]; if (pop <= 0) continue; const d = Math.hypot(c.wx - t.x, c.wy - t.y), reach = 2.6 + Math.sqrt(pop) / 52; if (d < reach && d < bd) { bd = d; best = { d, reach }; } }
+  if (!best) return null;                                   // wild
+  if (c.res === 'ore') return USE_COLOR.mine;
+  const fr = best.d / best.reach;
+  if (fr < 0.26) return USE_COLOR.intensive;
+  if (fr < 0.56) return c.moist < 0.3 ? USE_COLOR.pasture : USE_COLOR.crop;   // arid near land → grazing not crops
+  if (fr < 0.82) return USE_COLOR.pasture;
+  return USE_COLOR.forest;
+}
+
+function frameImage(mode, tick, env) {
+  const key = mode + '|' + (mode === 'use' ? tick : `${Math.round(env.seaLevel * 200)}_${Math.round(env.tempShift)}`);
+  if (mode !== 'use' && terrainCache.has(key)) return terrainCache.get(key);
   const m = C.mesh, img = cx.createImageData(W, H), data = img.data;
-  const colors = m.cells.map((c) => cellState(c, env).rgb);
+  const colors = m.cells.map((c) => {
+    const st = cellState(c, env);
+    if (mode === 'terrain' || st.water) return st.rgb;
+    const u = useColor(c, tick, env);
+    return u || [st.rgb[0] * 0.45 + 26, st.rgb[1] * 0.45 + 26, st.rgb[2] * 0.45 + 22]; // wild = dimmed terrain
+  });
   for (let p = 0; p < W * H; p++) { const rgb = colors[label[p]], o = p * 4; data[o] = rgb[0]; data[o + 1] = rgb[1]; data[o + 2] = rgb[2]; data[o + 3] = 255; }
-  // cell borders: darken pixels whose right/down neighbour is a different cell
   for (let py = 0; py < H; py++) for (let px = 0; px < W - 1; px++) { if (label[py * W + px] !== label[py * W + px + 1]) { const o = (py * W + px) * 4; data[o] *= 0.7; data[o + 1] *= 0.7; data[o + 2] *= 0.7; } }
   const off = document.createElement('canvas'); off.width = W; off.height = H; off.getContext('2d').putImageData(img, 0, 0);
-  terrainCache.set(envKey, off); return off;
+  if (mode !== 'use') terrainCache.set(key, off); return off;
 }
 
 function draw() {
   if (!C) return;
   const e = C.env[tick];
-  const envKey = `${Math.round(e.seaLevel * 100)}_${Math.round(e.tempShift * 50)}`;
   cx.clearRect(0, 0, W, H);
-  cx.drawImage(terrainFor(envKey, e), 0, 0);
+  cx.drawImage(frameImage(mode, tick, e), 0, 0);
 
   // arteries — three strength bands, weak first so strong arterials draw on top
   const E = C.E, ea = C.edges.ea, eb = C.edges.eb, base = tick * E, m = C.mesh;
@@ -215,17 +236,24 @@ function roll(seed) {
   overlay.classList.remove('hide'); overlay.textContent = 'generating world…';
   setTimeout(() => {
     try {
-      const world = rollWorld(seed >>> 0);
+      const world = rollMappaWorld(seed >>> 0);
       const region = selectRegion(world);
-      const mesh = buildMesh(seed >>> 0, region);
+      const sampler = makeSampler(world, region);
+      const mesh = buildMesh(seed >>> 0, region, sampler);
       C = runChronicle(seed >>> 0, mesh, { ticks: 160 });
       timeIn.max = C.ticks - 1; tick = 0; timeIn.value = 0; sel = -1;
       document.getElementById('panel').classList.remove('show');
-      document.getElementById('legend').innerHTML = Object.entries(ENGINE_COLOR).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join('');
+      setLegend();
       buildLabels(); draw(); overlay.classList.add('hide');
     } catch (err) { overlay.textContent = 'generation error: ' + (err && err.message ? err.message : err); console.error(err); }
   }, 40);
 }
+function setLegend() {
+  const leg = document.getElementById('legend'), useBtn = document.getElementById('useBtn');
+  if (mode === 'use') { leg.innerHTML = [['intensive', '#c4be50'], ['cropland', '#cea656'], ['pasture', '#9cb078'], ['forest', '#46643a'], ['mine', '#965c3a'], ['wild', '#3a3a32']].map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join(''); useBtn.classList.add('on'); }
+  else { leg.innerHTML = Object.entries(ENGINE_COLOR).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join(''); useBtn.classList.remove('on'); }
+}
+document.getElementById('useBtn').addEventListener('click', () => { mode = mode === 'use' ? 'terrain' : 'use'; setLegend(); draw(); });
 document.getElementById('go').addEventListener('click', () => roll(+seedIn.value || 1));
 document.getElementById('rnd').addEventListener('click', () => { const s = (Math.random() * 1e9) >>> 0; seedIn.value = s; roll(s); });  // pick WHICH deterministic world to view
 roll(+seedIn.value);

@@ -148,12 +148,11 @@ nucleus can die.
 
 | Path | Role |
 |---|---|
-| `index.html` | **The main page — the living map.** Roll a world → auto-select a city-rich region → retile it as a detailed Voronoi mosaic → run the economy from the **ice age to the future**: townships nucleate, **inter-town arteries grow through the tiling**, cities become centres of gravity, **tech waves** ripple, the coastline/glaciers shift with climate. Timeline scrubber + click-a-town. |
+| `index.html` | **The main page — the living map.** Roll a **real mappa planet** → auto-select a city-rich (temperate) region → retile it as a detailed Voronoi mosaic carrying mappa's terrain → run the economy from the **ice age to the future**: townships nucleate, **inter-town arteries grow through the tiling**, cities become centres of gravity, **tech waves** ripple, the coastline/glaciers shift with climate, **discrete shocks** (plague/conquest/crisis) dent the curves. Timeline scrubber, a **⊞ land-use** overlay (hinterland exploitation: crop/pasture/forest/mine/wild), click-a-town. |
 | `docs/index.html` | **The docs — the theory.** The economic life cycle, the three regimes, the wider coupled model, financial flows, the political register, the grounding + sources. |
 | `prng.js` | `mulberry32` + `hash2` — deterministic randomness, bit-exact with mappa/hoop. |
-| `field.js` | The continuous, scale-free terrain field (elevation/moisture/temperature/resource) — sampled sparsely to find a region, densely to retile it. |
-| `world.js` | `rollWorld(seed)` (coarse world) + `selectRegion()` (auto-pick the city-richest window via an integral image). |
-| `mesh.js` | `buildMesh(seed, region)` — the detailed **Voronoi mosaic**: jittered seeds, nearest-seed adjacency, per-cell terrain, rivers; `cellState(cell, env)` colours per era. |
+| `mappaWorld.js` | **The real mappa engine as terrain source** (imports `../mappa/engine.js`, not forked): `rollMappaWorld(seed)` generates a planet, `selectRegion()` auto-picks the city-richest temperate window, `makeSampler()` returns a planar IDW sampler of mappa's real elevation/temperature/moisture/biome over the region. |
+| `mesh.js` | `buildMesh(seed, region, sampler)` — the detailed **Voronoi mosaic** carrying real mappa terrain (finer than mappa's own cells): jittered seeds, nearest-seed adjacency, sampled terrain, rivers; `cellState(cell, env)` colours by mappa biome + era (sea level/temp). |
 | `arteries.js` | `makeArteries(mesh)` — Physarum flux on the cell graph: gravity demand → conductance adapts → the inter-town network as the traffic field's superlevel set. |
 | `chronicle.js` | `runChronicle(seed, mesh)` — the timeline: climate + tech clocks, staged nucleation, economy growth (reuses `economy.js`), artery growth, tech-wave events — precomputed for replay. |
 | `economy.js` | Founding engine → base multiplier → logistic growth toward a tech-lifted ceiling; agglomeration; flourishing (bloom/dusk); `conquer()` shock. Reused by the chronicle. |

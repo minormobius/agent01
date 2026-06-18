@@ -20,8 +20,8 @@ function envAt(k, ticks, seed) {
   // calendar runs deep time fast, recent centuries slow, so the high-tech eras land in
   // CE (not anachronistic BCE): a concave map from -12000 BCE → +2100 CE
   const year = Math.round(-12000 + 14100 * (1 - Math.pow(1 - f, 2.5)));
-  const seaLevel = 0.36 + 0.10 * (1 / (1 + Math.exp(-(f - 0.45) / 0.16))); // rises out of the ice age
-  const tempShift = -0.28 + 0.34 * (1 / (1 + Math.exp(-(f - 0.42) / 0.18)));
+  const seaLevel = -0.03 + 0.045 * (1 / (1 + Math.exp(-(f - 0.45) / 0.16))); // ice age: sea retreats (-0.03) → future: rises (+0.015), around mappa's sharp shore (0)
+  const tempShift = -12 + 15 * (1 / (1 + Math.exp(-(f - 0.42) / 0.18)));    // °C: ice age ~ −11 → warm ~ +2.5
   const tech = 1 / (1 + Math.exp(-(f - 0.62) / 0.12));         // the master clock, late-accelerating
   return { f, year, seaLevel, tempShift, tech };
 }

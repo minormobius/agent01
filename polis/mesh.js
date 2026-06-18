@@ -1,23 +1,20 @@
-// mesh.js — retile a chosen region as a detailed VORONOI mosaic, in the mappa style.
+// mesh.js — retile a mappa region as a finer VORONOI mosaic carrying REAL terrain.
 //
-// Seeds are a jittered grid (deterministic, evenly covering). Adjacency is derived
-// from a nearest-seed LABEL grid — exactly the rule the viewer rasterizes — so the
-// routing graph the arteries grow on matches the cells you see. Each cell samples the
-// continuous field at its seed, gets a base elevation/moisture/temperature/resource,
-// and rivers are found by steepest-descent flow accumulation ON THE CELL GRAPH. Water
-// and biome colour are computed per-era from a {seaLevel, tempShift} env, so the same
-// mesh shows an ice-age coast and a warm one.
+// Seeds are a jittered grid (deterministic). Each cell samples the mappa-backed
+// `sampler` (IDW-smoothed real elevation/temperature/moisture + nearest biome), so the
+// tiles are finer than mappa's cells but the terrain is the real planet. Adjacency
+// comes from a nearest-seed LABEL grid (matches what the viewer rasterizes). Rivers are
+// re-derived by flow accumulation on the cell graph over the real elevation. Water and
+// colour are computed per-era from {seaLevel, tempShift} so the same mesh shows an
+// ice-age coast (sea retreats, glaciers spread) and a warm, high-sea-level one.
 //
-// Pure; deterministic; node + browser (no canvas — the viewer rasterizes for display).
+// mappa elevation convention: 0 = shore, + = land, − = sea. Temperature is °C.
 
 import { hash2 } from './prng.js';
-import { makeField } from './field.js';
+import { BIOMES } from './mappaWorld.js';
 
-export function buildMesh(seed, region, { spacing = 1.15, sampleScale = 6 } = {}) {
-  const field = makeField(seed, { WW: 200, WH: 140 });
+export function buildMesh(seed, region, sampler, { spacing = 0.95, sampleScale = 6 } = {}) {
   const { x0, y0, x1, y1 } = region, RW = x1 - x0, RH = y1 - y0;
-
-  // 1 — jittered-grid seeds in world coords (deterministic jitter via hash2)
   const cols = Math.max(4, Math.round(RW / spacing)), rows = Math.max(4, Math.round(RH / spacing));
   const cells = [];
   for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < cols; gx++) {
@@ -27,90 +24,61 @@ export function buildMesh(seed, region, { spacing = 1.15, sampleScale = 6 } = {}
   }
   const N = cells.length;
 
-  // 2 — bucket grid over the region for fast nearest-seed
+  // bucket grid for nearest-seed
   const bw = cols, bh = rows, buckets = Array.from({ length: bw * bh }, () => []);
-  const bidx = (wx, wy) => {
-    let bx = Math.floor((wx - x0) / RW * bw), by = Math.floor((wy - y0) / RH * bh);
-    bx = Math.max(0, Math.min(bw - 1, bx)); by = Math.max(0, Math.min(bh - 1, by));
-    return by * bw + bx;
-  };
-  cells.forEach((c) => buckets[bidx(c.wx, c.wy)].push(c.id));
+  const bxy = (wx, wy) => { let bx = Math.floor((wx - x0) / RW * bw), by = Math.floor((wy - y0) / RH * bh); return [Math.max(0, Math.min(bw - 1, bx)), Math.max(0, Math.min(bh - 1, by))]; };
+  cells.forEach((c) => { const [bx, by] = bxy(c.wx, c.wy); buckets[by * bw + bx].push(c.id); });
   const nearest = (wx, wy) => {
-    let bx = Math.floor((wx - x0) / RW * bw), by = Math.floor((wy - y0) / RH * bh);
-    bx = Math.max(0, Math.min(bw - 1, bx)); by = Math.max(0, Math.min(bh - 1, by));
-    let best = -1, bd = Infinity;
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const nx = bx + dx, ny = by + dy; if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue;
-      for (const id of buckets[ny * bw + nx]) { const c = cells[id], d = (c.wx - wx) ** 2 + (c.wy - wy) ** 2; if (d < bd) { bd = d; best = id; } }
-    }
-    if (best < 0) { for (const c of cells) { const d = (c.wx - wx) ** 2 + (c.wy - wy) ** 2; if (d < bd) { bd = d; best = c.id; } } }
+    const [bx, by] = bxy(wx, wy); let best = 0, bd = Infinity;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = bx + dx, ny = by + dy; if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue; for (const id of buckets[ny * bw + nx]) { const c = cells[id], d = (c.wx - wx) ** 2 + (c.wy - wy) ** 2; if (d < bd) { bd = d; best = id; } } }
     return best;
   };
 
-  // 3 — label grid → adjacency (two cells adjacent if their labels touch on the grid)
-  const sw = cols * sampleScale, sh = rows * sampleScale;
-  const label = new Int32Array(sw * sh);
-  for (let sy = 0; sy < sh; sy++) for (let sx = 0; sx < sw; sx++) {
-    const wx = x0 + (sx + 0.5) / sw * RW, wy = y0 + (sy + 0.5) / sh * RH;
-    label[sy * sw + sx] = nearest(wx, wy);
-  }
+  // label grid → adjacency
+  const sw = cols * sampleScale, sh = rows * sampleScale, label = new Int32Array(sw * sh);
+  for (let sy = 0; sy < sh; sy++) for (let sx = 0; sx < sw; sx++) label[sy * sw + sx] = nearest(x0 + (sx + 0.5) / sw * RW, y0 + (sy + 0.5) / sh * RH);
   const neigh = Array.from({ length: N }, () => new Set());
-  const link = (a, b) => { if (a !== b && a >= 0 && b >= 0) { neigh[a].add(b); neigh[b].add(a); } };
-  for (let sy = 0; sy < sh; sy++) for (let sx = 0; sx < sw; sx++) {
-    const i = label[sy * sw + sx];
-    if (sx + 1 < sw) link(i, label[sy * sw + sx + 1]);
-    if (sy + 1 < sh) link(i, label[(sy + 1) * sw + sx]);
-  }
+  const link = (a, b) => { if (a !== b) { neigh[a].add(b); neigh[b].add(a); } };
+  for (let sy = 0; sy < sh; sy++) for (let sx = 0; sx < sw; sx++) { const i = label[sy * sw + sx]; if (sx + 1 < sw) link(i, label[sy * sw + sx + 1]); if (sy + 1 < sh) link(i, label[(sy + 1) * sw + sx]); }
   cells.forEach((c) => { c.neigh = [...neigh[c.id]]; });
 
-  // 4 — per-cell base terrain from the field (sea-level-independent)
-  for (const c of cells) {
-    c.elev = field.elevation(c.wx, c.wy);
-    c.moist = field.moisture(c.wx, c.wy);
-    c.tempBase = field.tempBase(c.wy);
-    c.res = field.resource(c.wx, c.wy) > 0.985 ? (c.elev > 0.62 ? 'ore' : 'clay') : null;
-  }
+  // per-cell REAL terrain from the mappa sampler
+  for (const c of cells) { const s = sampler.sample(c.wx, c.wy); c.elev = s.elev; c.moist = s.moist; c.temp = s.temp; c.biome = s.biome; c.res = s.res; }
 
-  // 5 — rivers: steepest-descent flow accumulation on the cell graph (sea level 0.42 baseline)
-  const baseSea = 0.42;
+  // rivers: steepest-descent flow accumulation over land (mappa shore = elev 0)
+  const baseSea = 0;
   const order = cells.map((c) => c.id).sort((a, b) => cells[b].elev - cells[a].elev);
   for (const c of cells) c.flow = 1;
-  for (const id of order) {
-    const c = cells[id]; let lo = -1, le = c.elev;
-    for (const n of c.neigh) if (cells[n].elev < le) { le = cells[n].elev; lo = n; }
-    c.down = lo;
-    if (lo >= 0 && cells[lo].elev >= baseSea) cells[lo].flow += c.flow;  // pour into the lower LAND neighbour
-  }
-  const flows = cells.filter((c) => c.elev >= baseSea).map((c) => c.flow).sort((a, b) => a - b);
-  const riverThresh = flows.length ? Math.max(5, flows[Math.floor(flows.length * 0.92)]) : 1e9;
+  for (const id of order) { const c = cells[id]; let lo = -1, le = c.elev; for (const n of c.neigh) if (cells[n].elev < le) { le = cells[n].elev; lo = n; } c.down = lo; if (lo >= 0 && cells[lo].elev >= baseSea) cells[lo].flow += c.flow; }
+  const fl = cells.filter((c) => c.elev >= baseSea).map((c) => c.flow).sort((a, b) => a - b);
+  const riverThresh = fl.length ? Math.max(5, fl[Math.floor(fl.length * 0.92)]) : 1e9;
   for (const c of cells) c.river = (c.elev >= baseSea && c.flow >= riverThresh) ? 1 : 0;
 
-  return { seed, region, cells, cols, rows, sw, sh, label, field, baseSea };
+  return { seed, region, cells, cols, rows, sw, sh, label, baseSea };
 }
 
-// per-era cell state: water + a colour in the mappa earthy/biome palette
+// hsl → rgb (mappa biome palette is hsl)
+function hsl(h, s, l) {
+  s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+}
+
+// per-era cell state: water + colour. seaLevel is a threshold around mappa's shore (0):
+// negative in the ice age (sea retreats), positive in the future (sea rises). tempShift °C.
 export function cellState(c, env) {
-  const seaLevel = env.seaLevel, tShift = env.tempShift || 0;
-  if (c.elev < seaLevel) {                                        // ocean / lake
-    const d = Math.max(0, Math.min(1, (seaLevel - c.elev) / 0.4));
-    return { water: 1, rgb: [21 + (1 - d) * 18, 50 + (1 - d) * 20, 64 + (1 - d) * 16] };
-  }
-  const above = c.elev - seaLevel, tEff = c.tempBase - above * 1.4 + tShift;
-  if (tEff < 0.12) return { water: 0, ice: 1, rgb: [205, 214, 220] };           // ice/glacier
-  if (tEff < 0.26) return { water: 0, rgb: [150, 156, 150] };                    // tundra
-  const m = c.moist;
-  let rgb;
-  if (m < 0.35) rgb = [188, 168, 110];                                          // arid tan
-  else if (m < 0.6) rgb = [150, 158, 92];                                       // steppe/savanna
-  else rgb = [92, 128, 72];                                                     // forest green
-  const hi = Math.min(1, above * 1.8); rgb = rgb.map((v, k) => Math.round(v * (1 - hi * 0.4) + [120, 110, 96][k] * hi * 0.4));
-  if (c.river) rgb = [Math.round(rgb[0] * 0.6 + 47 * 0.4), Math.round(rgb[1] * 0.6 + 111 * 0.4), Math.round(rgb[2] * 0.6 + 134 * 0.4)];
+  const seaLevel = env.seaLevel || 0, tShift = env.tempShift || 0;
+  if (c.elev < seaLevel) { const d = Math.max(0, Math.min(1, (seaLevel - c.elev) / 0.4)); return { water: 1, rgb: [21 + (1 - d) * 16, 50 + (1 - d) * 18, 64 + (1 - d) * 14] }; }
+  const tEff = c.temp + tShift;
+  if (tEff < -8) return { water: 0, ice: 1, rgb: [210, 218, 224] };       // glacier in cold eras
+  if (tEff < -2) return { water: 0, rgb: [156, 162, 156] };               // tundra
+  const b = BIOMES[c.biome] || BIOMES[8];
+  let rgb = hsl(b.h, b.s, b.l);
+  if (c.river) rgb = [Math.round(rgb[0] * 0.55 + 47 * 0.45), Math.round(rgb[1] * 0.55 + 111 * 0.45), Math.round(rgb[2] * 0.55 + 134 * 0.45)];
   return { water: 0, rgb };
 }
 
-// is a land cell habitable in this era (drives nucleation/growth)
 export function habitable(c, env) {
-  if (c.elev < env.seaLevel) return false;
-  const tEff = c.tempBase - (c.elev - env.seaLevel) * 1.4 + (env.tempShift || 0);
-  return tEff > 0.2;
+  if (c.elev < (env.seaLevel || 0)) return false;
+  return (c.temp + (env.tempShift || 0)) > -2;
 }

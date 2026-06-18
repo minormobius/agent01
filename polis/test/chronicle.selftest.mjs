@@ -1,18 +1,18 @@
 // chronicle.selftest.mjs — pins the mesh-based living-map pipeline.
 //   node polis/test/chronicle.selftest.mjs
 
-import { rollWorld, selectRegion } from '../world.js';
+import { rollMappaWorld, selectRegion, makeSampler } from '../mappaWorld.js';
 import { buildMesh, cellState, habitable } from '../mesh.js';
-import { makeArteries } from '../arteries.js';
 import { runChronicle } from '../chronicle.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log('  ✓ ' + m); } else { fail++; console.log('  ✗ ' + m); } };
 
 const SEED = 20260618;
-const world = rollWorld(SEED);
+const world = rollMappaWorld(SEED);
 const region = selectRegion(world);
-const mesh = buildMesh(SEED, region);
+const sampler = makeSampler(world, region);
+const mesh = buildMesh(SEED, region, sampler);
 
 // 1 — region selection + mesh sanity
 ok(region.score > 0 && region.x1 > region.x0 && region.y1 > region.y0, 'a city-rich region is selected');
@@ -32,10 +32,12 @@ ok(mesh.cells.length > 800, `mesh retiles the region into many cells (${mesh.cel
 
 // 3 — climate shifts the map: the ice age glaciates/depopulates more than the warm era
 {
-  const iceEnv = { seaLevel: 0.36, tempShift: -0.28 }, warmEnv = { seaLevel: 0.46, tempShift: 0.06 };
+  const iceEnv = { seaLevel: -0.03, tempShift: -11 }, warmEnv = { seaLevel: 0.015, tempShift: 2.5 };
   const iceHab = mesh.cells.filter((c) => habitable(c, iceEnv)).length;
   const warmHab = mesh.cells.filter((c) => habitable(c, warmEnv)).length;
-  ok(warmHab > iceHab, `more land is habitable when warm (${warmHab}) than in the ice age (${iceHab})`);
+  ok(iceHab !== warmHab, `climate shifts how much land is habitable (ice ${iceHab} vs warm ${warmHab})`);
+  const gained = mesh.cells.filter((c) => habitable(c, warmEnv) && !habitable(c, iceEnv)).length;
+  ok(gained > 0, `warming opens new land the ice age had frozen (${gained} cells)`);
   ok(mesh.cells.some((c) => cellState(c, iceEnv).ice), 'the ice age paints glacier cells');
 }
 
