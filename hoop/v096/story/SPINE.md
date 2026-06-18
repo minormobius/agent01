@@ -50,22 +50,36 @@ The decks correspond to his export's real tag distribution per narrative tier
 Resolution/Bay 14), so each deck's learning goal is satisfiable from the content
 actually authored for that tier.
 
-## What's next (the rest of hoopy's plan)
+## Side quests (deterministic) — SHIPPED
 
-This increment is the **spine** — the loop runs end to end on the current world.
-Still ahead, each reusing this same engine:
+The same hook → learning-goal → resolution paradigm, run **without inference**, in
+`story/quests.js`. Every `rumor` (80 in the export) is a seed. You don't stumble on
+rumors directly — the **people you meet tip you to them**: meet an NPC and they
+mention a rumor that shares their world (theme overlap, `pickQuestForNpc`). That
+opens a thread; chase the theme (encounter a few more things tagged like it,
+`questProgress`) and it **resolves**, paying coins into the same economy the arcades
+feed. ~80 threads preparable, surfaced by ~118/120 NPCs; the n-th quest is identical
+on every machine (the seed id is the permalink). Tracked as facts (`sq.on.<seed>` /
+`sq.done.<seed>`); the **journal** (`j`) shows open threads with progress + resolved
+ones. Pinned by `test/quests.selftest.mjs`.
+
+`story/genquest.js` (the inference weave lane, Gemini, gated) remains as the optional
+*authored-feeling* alternative; it's dormant until `GEMINI_API_KEY` is set. The
+deterministic generator is the default and needs no key.
+
+## What's next (the rest of hoopy's plan)
 
 1. **Physical decks per tier.** Today the 5 decks are the *narrative* climb over a
    2-physical-deck world (Nave + Rind via the shaft). Next: one physical deck per
    tier — unlimited chunks per deck, each chunk a seed, the generator reading the
    deck's `gen` profile (tint/roleBias/density already carried in `decks.js`) so a
    deck *feels* like its character. Page = descend to the next deck.
-2. **Side-quest gen.** The same paradigm — ~3 hand-written plot beats + a learning
-   goal — but procedural and unlimited: a side "deck-let" hoopybot runs itself.
-   (`genquest.js` is the seam.)
-3. **The Book of Sand.** At an AI terminal, the player tells their own story, which
-   reshapes the ship through the rumor-mill mechanism (the `rumor` content type is
-   already first-class in the import + export).
+2. **The rumor mill** *(pinned)*. The intent: a player-authored rumor enters the pool
+   (already a first-class type) and *spreads* — reshaping the ship. Likely
+   deterministic too (graph-theory propagation over the NPC/theme graph), surfaced as
+   an in-world NPC **microblog** site. Pinned until the deck/quest layers settle.
+3. **The Book of Sand.** The AI terminal where the player tells their own story,
+   feeding the rumor mill above.
 
 ## Tests
 

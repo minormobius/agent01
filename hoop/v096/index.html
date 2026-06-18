@@ -97,6 +97,7 @@
     import { computeBoard, questLog, activeMarkers, tierFloors } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
     import { DECKS, DECK_COUNT, deckForTier, nextDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
     import { assess, levelMessage, guideFor } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
+    import { buildQuestBank, questProgress, pickQuestForNpc, questMarker } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to
     import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
     import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
@@ -599,6 +600,7 @@
         story.milestones = story.sb ? deriveMilestones(story.sb) : [];   // tier advancement = his flag-gated beats (empty until his export wires triggers)
         try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
         story.ready = true; renderQuest();
+        try { questBank = buildQuestBank([...story.store.content.values()]); } catch (e) { questBank = new Map(); }   // the side-quest bank (one per rumor seed)
         try { openingCast = deriveOpeningCast([...story.store.content.values()], 3); } catch (e) {}   // hoopybot's guides, ready even before anchors place
         maybeArriveDeck();   // the awakening: the current deck's hand-written character + your guide's hook
         try { const h = await fetch('/api/story/health').then((r) => r.json()); storyApi.enabled = !!(h && h.enabled); storyApi.provider = h && h.provider; } catch (e) { storyApi.enabled = false; }   // v096: is live generation available?
@@ -654,7 +656,9 @@
       let h = '<span class="lbl">❖ quest</span> ';
       if (active.length) { const a = active[0]; h += '<span class="o">' + esc(a.text) + '</span>'; if (a.marker && a.marker.hint) h += ' <span class="mk">⌖ ' + esc(a.marker.hint) + '</span>'; }
       else h += '<span class="o">— the way is open —</span>';
-      el.innerHTML = h + ' <span style="color:#566">(' + done + ' done)</span> · <a class="sb" href="/v096/storyboard/">board ↗</a>';
+      let sqOpen = 0; if (story.ready) { const f = story.store.getFacts(story.playerId); for (const k of Object.keys(f)) if (k.startsWith('sq.on.') && !f['sq.done.' + k.slice(6)]) sqOpen++; }
+      el.innerHTML = h + ' <span style="color:#566">(' + done + ' done)</span> · <a class="sb" id="qjournal" style="cursor:pointer" title="side quests (j)">✒ journal' + (sqOpen ? ' ' + sqOpen : '') + '</a> · <a class="sb" href="/v096/storyboard/">board ↗</a>';
+      const jl = $('qjournal'); if (jl) jl.onclick = (e) => { e.preventDefault(); toggleJournal(); };
     }
     const saveStorySnapshot = () => { if (story.ready) { try { localStorage.setItem('hoop:v096:story', JSON.stringify(story.store.snapshot())); } catch (e) {} } };
     const saveStory = () => {
@@ -668,6 +672,7 @@
         const cur = p.revelation_tier || 1; if ((floors.revelation_tier || 1) > cur) { story.store.setPlayerTier(story.playerId, 'revelation_tier', floors.revelation_tier); flashTier({ axis: 'revelation_tier', from: cur, to: floors.revelation_tier }); }
       }
       checkHoopy();   // hoopybot: has the player learned enough of this deck to be paged for the next rung?
+      checkQuests();  // side quests: resolve any thread whose theme the player has now chased enough
       whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
       if (introSolved()) { maybeStream(); maybeBuildRind(); }   // unseal: stream the Nave + sink the rind shaft on the concourse
     };
@@ -748,6 +753,59 @@
       return true;
     }
 
+    // ── SIDE QUESTS (deterministic, story/quests.js): the people you meet tip you to rumors that share
+    //    their world; a thread opens, you chase the theme, it resolves for coins. Tracked as facts
+    //    (sq.on.<seed> / sq.done.<seed>); no inference, ~80 threads in the bank. ──
+    let questBank = new Map();
+    const questTaken = (seedId) => !!(story.ready && (story.store.getFact(story.playerId, 'sq.on.' + seedId) || story.store.getFact(story.playerId, 'sq.done.' + seedId)));
+    function npcNameMap() { const m = new Map(); if (story.ready) for (const c of story.store.content.values()) if (c.type === 'npc') m.set(((c.content || {}).name || '').toLowerCase(), c.id); return m; }
+    // meeting an NPC: they tip you to the best theme-overlapping unopened rumor-thread.
+    function maybeOpenQuest(npcContentId, npcName) {
+      if (!story.ready || !questBank.size) return;
+      const ci = story.store.contentById(npcContentId); if (!ci || ci.type !== 'npc') return;
+      const q = pickQuestForNpc(questBank, ci, questTaken); if (!q) return;
+      story.store.setFact(story.playerId, 'sq.on.' + q.seedId, true); saveStorySnapshot();
+      flashToast(`✒ ${npcName || 'someone'} mentions a rumor — “${q.title}” (j: journal)`, 3200);
+    }
+    // resolve any open thread whose theme the player has now chased enough — pays coins.
+    function checkQuests() {
+      if (!story.ready || !questBank.size) return;
+      const facts = story.store.getFacts(story.playerId); const resolved = [];
+      for (const k of Object.keys(facts)) {
+        if (!k.startsWith('sq.on.')) continue; const seedId = k.slice(6);
+        if (story.store.getFact(story.playerId, 'sq.done.' + seedId)) continue;
+        const q = questBank.get(seedId); if (!q) continue;
+        if (questProgress(story.store, story.playerId, q).done) {
+          story.store.setFact(story.playerId, 'sq.done.' + seedId, true);
+          setCoins(getCoins() + q.reward); resolved.push(q);
+        }
+      }
+      if (resolved.length) { saveStorySnapshot(); const q = resolved[0]; flashToast(`✒ thread resolved — “${q.title}” +◈${q.reward}${resolved.length > 1 ? ` (+${resolved.length - 1} more)` : ''}`, 3600); whereAmI(); }
+    }
+    function flashToast(text, ms = 2600) { const el = $('busy'); el.textContent = text; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); }
+    // the JOURNAL: open threads (progress) + resolved ones. Toggle with j / the ✒ button.
+    function renderJournal() {
+      if (!story.ready) { showPage('journal', 'your journal', 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.'); return; }
+      const facts = story.store.getFacts(story.playerId), names = npcNameMap();
+      const open = [], done = [];
+      for (const k of Object.keys(facts)) { if (!k.startsWith('sq.on.')) continue; const id = k.slice(6); const q = questBank.get(id); if (!q) continue; (facts['sq.done.' + id] ? done : open).push(q); }
+      let body = '';
+      if (!open.length && !done.length) body = 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.';
+      for (const q of open) {
+        const pr = questProgress(story.store, story.playerId, q), mk = questMarker(q, names);
+        body += `<div style="margin:0 0 13px;border-left:2px solid #b48a6a;padding-left:10px">`
+          + `<div style="color:#f4bf62;font-size:13.5px">${esc(q.title)}</div>`
+          + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin:3px 0">${esc((q.hook || '').slice(0, 200))}${q.hook.length > 200 ? '…' : ''}</div>`
+          + `<div style="color:#9aa8a0;font-size:11px">look into: ${esc(q.themes.join(', '))}${mk && mk.hint ? ` · ⌖ ${esc(mk.hint)}` : ''}</div>`
+          + `<div style="margin-top:4px;height:5px;background:#10161d;border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:${Math.round(pr.progress * 100)}%;background:#b48a6a"></span></div>`
+          + `<div style="color:#6b7872;font-size:10.5px;margin-top:2px">${pr.learned}/${pr.needed} · reward ◈${q.reward}</div></div>`;
+      }
+      for (const q of done) body += `<div style="margin:0 0 7px;color:#7fd8d0;font-size:12.5px">✓ ${esc(q.title)} <span style="color:#6b7872">— ◈${q.reward}${q.reveal ? ' · ' + esc(q.reveal.slice(0, 80)) : ''}</span></div>`;
+      showPage(`journal · ${open.length} open · ${done.length} resolved`, 'your journal', '');
+      $('enccard').querySelector('.ed').innerHTML = body;   // rich list (showPage escapes; we want markup)
+    }
+    const toggleJournal = () => { if ($('enc').classList.contains('on')) hideEncounter(); else renderJournal(); };
+
     function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of nearResidents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
     function openStory(a) {
       if (!story.ready) return;
@@ -755,6 +813,7 @@
       if (!s.featureByKey(a.featureKey)) s.addFeature({ key: a.featureKey, type: 'npc', label: a.name, tag: a.role });
       const intro = interact(s, story.playerId, a.featureKey, '', { tag: a.role });
       maybeEncounter(intro);   // first meeting → its description fills the screen
+      if (intro.status === 'crystallized' && intro.item && intro.item.type === 'npc') maybeOpenQuest(intro.item.content_item_id, intro.item.name);   // they tip you to a rumor
       story.active = { agent: a, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();   // the "next person you talk to" delivers any XP-unlocked beat
       saveStory(); renderStory();
@@ -1148,6 +1207,7 @@
       if (!s.featureByKey(a.key)) s.addFeature({ key: a.key, type: 'npc', label: a.name, content_id: a.content_id });
       const intro = interact(s, story.playerId, a.key);
       maybeEncounter(intro);   // first meeting → its description fills the screen
+      if (intro.status === 'crystallized' && intro.item && intro.item.type === 'npc') maybeOpenQuest(intro.item.content_item_id, intro.item.name);   // they tip you to a rumor
       story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();   // a principal can also be the one who informs you
       saveStory(); renderStory();
@@ -1260,6 +1320,7 @@
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !(story.active && story.active.arcade)) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
     $('newgame').addEventListener('click', () => {
