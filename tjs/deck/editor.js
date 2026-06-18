@@ -7,6 +7,7 @@ import { Deck, defaultDeck } from '../lib/deck.js';
 import { DEVICE_TYPES, interactionPoints } from '../lib/devices.js';
 import { STEPPER_PRESETS } from '../lib/motor.js';
 import { toYAML, fromYAML, objectToDeck, deckToObject } from '../lib/deckio.js';
+import { buildManifest, checkSequence } from '../lib/manifest.js';
 import { DeckView } from '../lib/deckscene.js';
 
 const $ = (id) => document.getElementById(id);
@@ -246,7 +247,13 @@ function addRelation() {
 // ---- sequence --------------------------------------------------------------
 function seq() { if (!deck.sequences[0]) deck.sequences.push({ id: 'sequence', steps: [] }); return deck.sequences[0]; }
 function renderSequence() {
-  $('seqName').textContent = deck.sequences[0] ? `“${deck.sequences[0].id}” · ${deck.sequences[0].steps.length} steps` : 'no sequence';
+  const s0 = deck.sequences[0];
+  let summary = s0 ? `“${s0.id}” · ${s0.steps.length} steps` : 'no sequence';
+  if (s0 && s0.steps.length) {
+    const r = checkSequence(deck, s0.steps);
+    summary += r.ok ? ` · ✓ ${r.cycleTime}s cycle` : ` · ⚠ ${r.diagnostics.filter((d) => d.severity === 'error').length} issue(s)`;
+  }
+  $('seqName').textContent = summary;
   const host = $('seqList'); host.innerHTML = '';
   const s = deck.sequences[0]; if (!s) return;
   s.steps.forEach((step, i) => {
@@ -301,6 +308,11 @@ async function doExport() {
   $('ioText').value = text;
   download(`${slug(deck.name)}.deck.yaml`, text);
 }
+function doManifest() {
+  const text = JSON.stringify(buildManifest(deck), null, 2);
+  $('ioText').value = text;
+  navigator.clipboard?.writeText(text).then(() => flash('manifest copied — hand it to your local Claude ✓', true), () => {});
+}
 async function applyText() {
   try {
     const d = await fromYAML($('ioText').value);
@@ -352,6 +364,7 @@ function wireToolbar() {
   $('btnAddStep').addEventListener('click', () => { if (selectedId) addStep(selectedId, 'move'); });
   $('btnReach').addEventListener('click', () => { view.setReachVisible(!view.showReach); $('btnReach').classList.toggle('on', view.showReach); });
   $('btnExport').addEventListener('click', doExport);
+  $('btnManifest').addEventListener('click', doManifest);
   $('btnCopy').addEventListener('click', async () => { if (!$('ioText').value) await doExport(); try { await navigator.clipboard.writeText($('ioText').value); flash('copied ✓', true); } catch { flash('select & copy from the box', false); } });
   $('btnImportFile').addEventListener('click', () => $('fileInput').click());
   $('fileInput').addEventListener('change', (e) => { if (e.target.files[0]) importFile(e.target.files[0]); });

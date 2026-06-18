@@ -8,6 +8,7 @@ import { Deck, defaultDeck } from '../../lib/deck.js';
 import { objectToDeck, fromYAML } from '../../lib/deckio.js';
 import { DeckView } from '../../lib/deckscene.js';
 import { planDeviceMove, simulateDevice, jointStateAt, deviceJoints, defaultState, carriageBorneMass } from '../../lib/deckengine.js';
+import { checkSequence } from '../../lib/manifest.js';
 import { KinematicsScope, TorqueScope } from './scope.js';
 
 const $ = (id) => document.getElementById(id);
@@ -164,6 +165,7 @@ function frame() {
 function renderSequence() {
   const s = deck.sequences[0];
   $('seqInfo').textContent = s ? `“${s.id}” · ${s.steps.length} steps` : 'no sequence in this deck';
+  renderSeqCheck(s);
   const ul = $('seqList'); ul.innerHTML = '';
   if (!s) return;
   s.steps.forEach((st, i) => {
@@ -172,6 +174,19 @@ function renderSequence() {
     li.innerHTML = `<span class="pill">${st.device || '—'}</span> ${what}`;
     ul.appendChild(li);
   });
+}
+
+// The oracle, surfaced: dry-run the deck's sequence and show diagnostics.
+function renderSeqCheck(s) {
+  const host = $('seqCheck'); if (!host) return;
+  if (!s || !s.steps.length) { host.innerHTML = ''; return; }
+  const r = checkSequence(deck, s.steps);
+  if (r.ok && !r.diagnostics.length) { host.innerHTML = `<div class="vok">✓ deliverable · ${r.cycleTime}s cycle</div>`; return; }
+  const lines = r.diagnostics.slice(0, 5).map((d) => {
+    const c = d.severity === 'error' ? 'var(--bad)' : 'var(--warn)';
+    return `<div style="color:${c};font-size:11px">step ${d.step + 1}: ${d.message}</div>`;
+  }).join('');
+  host.innerHTML = (r.ok ? `<div class="vok">✓ ${r.cycleTime}s cycle (warnings)</div>` : `<div class="vwarn">⚠ sequence has issues — ${r.cycleTime}s cycle</div>`) + lines;
 }
 
 function runSequence() {

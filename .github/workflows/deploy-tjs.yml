@@ -22,7 +22,7 @@ jobs:
         working-directory: tjs
         run: |
           rm -rf dist && mkdir -p dist
-          cp -r index.html gantry deck lib dist/
+          cp -r index.html gantry deck lib AGENTS.md dist/
           rm -f dist/wrangler.jsonc dist/wrangler.toml
           ls -laR dist/ | head -60
 

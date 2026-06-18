@@ -83,6 +83,12 @@ export class Deck {
     return applyPoint(this.worldMatrix(id, stateMap), off);
   }
 
+  // World position of an arbitrary point given in a device's local frame
+  // (e.g. a labware interaction site).
+  pointWorld(id, localPoint, stateMap = {}) {
+    return applyPoint(this.worldMatrix(id, stateMap), localPoint);
+  }
+
   // Evaluate collision/keep-apart relations at a given state. Returns violations.
   collisions(stateMap = {}) {
     const out = [];
