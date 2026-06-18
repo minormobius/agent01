@@ -60,6 +60,15 @@ export async function putSave(client, world, snapshot) {
   });
 }
 
+// Freeze one generated content_item (a side-quest, lane:'sidequest') into the PLAYER'S OWN repo. The
+// shared spine is written by the service key (seed-story-pool.mjs); a player's personal arcs are theirs,
+// $0 to us. rkey = the content id. `client` authed for the player's repo (AuthClient.pds). Returns the
+// at-uri/cid the PDS assigns. contentToRecord already stamps $type + createdAt + the provenance fields.
+export async function putContent(client, ci) {
+  const { rkey, value } = contentToRecord(ci);
+  return client.putRecord(CONTENT_NSID, rkey, value);
+}
+
 // ── a tiny UNAUTHED read client (browser): public listRecords/getRecord over any repo, no deps ──
 export function publicClient(pdsBase) {
   const xrpc = async (method, params) => {

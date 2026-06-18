@@ -7,6 +7,81 @@
 //   • COLD / durable   → ATProto lexicons (com.minomobi.hoop.place / .message),
 //     written to each user's PDS. Presence is deliberately NOT a lexicon: you
 //     can't write a permanent firehose record on every footstep.
+//
+// v096 adds an ADDITIVE, fully-guarded story-generation API (/api/story/*): the
+// segregated inference adapter (story/llm) generates personal side-quests on
+// demand, gated by review.js/gates.js/validate.js before the BROWSER freezes them
+// to the player's own repo. Every path is try/catch-wrapped so a model/PDS hiccup
+// can never break asset serving — and with no GEMINI_API_KEY the adapter is the
+// disabled stub and the game stays purely procedural (the borges discipline).
+
+import { makeLLM } from './story/llm/index.js';
+import { generateSidequest } from './story/sidequest.js';
+import { resolveHandle, resolvePds } from '../packages/atproto/pds.js';
+import { PULSE_NSID, readSummary } from './story/director.js';
+import { worldExternal } from './story/import.js';
+
+let _bible = null;   // module-cached bible text (fetched once from ASSETS)
+async function getBible(env, origin) {
+  if (_bible != null) return _bible;
+  try {
+    const r = await env.ASSETS.fetch(new Request(origin + '/story/bible.md'));
+    _bible = r.ok ? await r.text() : '';
+  } catch { _bible = ''; }
+  return _bible;
+}
+
+// THE STEER (Director-steers, authoritative): read the world pulse from the service repo and cache it
+// ~5 min. Fully guarded — if the Director hasn't run yet (no record) or the service handle is unset,
+// this resolves null and generation simply proceeds with no steer. HOOP_SERVICE_HANDLE/_DID override
+// the morphyx default (where the seeder + director write).
+let _pulse = { at: 0, summary: null };
+async function getPulse(env) {
+  if (Date.now() - _pulse.at < 5 * 60 * 1000) return _pulse.summary;
+  _pulse.at = Date.now();
+  try {
+    const did = env.HOOP_SERVICE_DID || await resolveHandle(env.HOOP_SERVICE_HANDLE || 'morphyxmino.bsky.social');
+    const pds = await resolvePds(did);
+    const q = '?repo=' + encodeURIComponent(did) + '&collection=' + PULSE_NSID + '&rkey=self';
+    const r = await fetch(pds + '/xrpc/com.atproto.repo.getRecord' + q);
+    _pulse.summary = r.ok ? readSummary((await r.json()).value) : null;
+  } catch { _pulse.summary = null; }
+  return _pulse.summary;
+}
+
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS' };
+const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json', ...CORS } });
+
+// The whole /api/story surface — isolated so any throw returns a JSON error, never touching asset serving.
+async function handleStory(request, env, url) {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  const llm = makeLLM(env);
+
+  if (url.pathname === '/api/story/health') {
+    return json({ ok: true, service: 'hoop-story', provider: llm.provider, enabled: llm.enabled });
+  }
+  if (url.pathname === '/api/story/embed' && request.method === 'POST') {
+    if (!llm.enabled) return json({ enabled: false, vectors: null }, 503);   // browser falls back to lexicalEmbed
+    const body = await request.json().catch(() => ({}));
+    const vectors = await llm.embed(body.texts || body.text || []);
+    return json({ enabled: true, provider: llm.provider, vectors });
+  }
+  if (url.pathname === '/api/story/sidequest' && request.method === 'POST') {
+    if (!llm.enabled) return json({ ok: false, verdict: 'SKIP', reason: 'inference not configured', items: [], beats: [] }, 503);
+    const body = await request.json().catch(() => ({}));
+    const bible = await getBible(env, url.origin);
+    // The browser sends the chunk profile + the nearby pool/features for the gate; the worker generates +
+    // validates and returns the arc. Persistence to the player's OWN repo is the browser's job (AuthClient.pds).
+    const result = await generateSidequest(llm, {
+      bible, profile: body.profile || {}, existing: body.existing || [], features: body.features || [],
+      match: body.match || {}, descriptor: body.descriptor,
+      pulse: body.pulse || await getPulse(env),   // the Director's pulse steers the arc (browser may override)
+      external: body.external || worldExternal(),  // world/runtime flags so generated gates aren't false orphans
+    });
+    return json(result, result.ok ? 200 : 200);   // a clean BLOCK is a 200 with verdict — not an error
+  }
+  return json({ error: 'unknown story route' }, 404);
+}
 
 export default {
   async fetch(request, env) {
@@ -22,6 +97,12 @@ export default {
       return new Response(JSON.stringify({ ok: true, service: 'hoop' }), {
         headers: { 'content-type': 'application/json' },
       });
+    }
+
+    // v096 story-generation API — additive + fully guarded (never breaks assets).
+    if (url.pathname.startsWith('/api/story/')) {
+      try { return await handleStory(request, env, url); }
+      catch (err) { return json({ ok: false, error: 'story api error', detail: String(err && err.message || err) }, 500); }
     }
 
     return env.ASSETS.fetch(request);

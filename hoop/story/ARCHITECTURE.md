@@ -89,5 +89,47 @@ so sealing it is a drop-in.
 | v3 reads the pulse → "🌐 world pulse" HUD line | ✅ guarded (shows once the Director has run) |
 | **Constellation** chamber backlinks (place at-uri → "who's been here") | ⏳ optional (the pulse already covers chamber heat via folded saves) |
 
+### v096 — wiring the bible in (the generation lane)
+
+The bible (`hoop-backend/ingestion/chapter1_bible.md`) stops being a thing a human hand-copies into the
+pool and becomes prompt context a model reads directly. **All inference is offline/async in
+`hoop-backend/` today; v096 adds a LIVE, in-worker generation lane** for personal side-quests — but the
+player hot path (`engine.js`) stays inference-free, and every new path is additive + guarded (borges
+discipline). Hybrid canon: a **shared authored spine** (service repo) + **per-player side-quests** frozen
+to the player's own repo.
+
+| Piece | State |
+|---|---|
+| Lexicon `story.content` tier cap 3→5 + provenance (`lane`/`provider`/`genState`) | ✅ `hoop/lexicons/` |
+| Auth scope: `com.minomobi.hoop.story.content` (player writes own side-quests) | ✅ in `scope.ts`; redeploy auth (one-shot) |
+| **Filter projection** `story/filter.js` — the totally-filterable quasi-DB (lane/provider/tier views; spine-wins merge; provenance stamp) | ✅ node-tested, 24 checks |
+| **Spine match** `story/spine.js` — chunk-characteristics ⇄ content by cosine kNN; thickness gap drives "generate a thicker arc"; deterministic `lexicalEmbed` fallback, neural embedder injected | ✅ node-tested, 19 checks |
+| **Segregated adapter** `story/llm/` — Gemini 2.5 Flash (borges hook) + `local` seam (huwupy) + hard off-switch; never throws | ✅ node-tested, 23 checks (routing/parse via injected fetch) |
+| Bible vendored → `story/bible.md` (worker fetches via ASSETS; re-sync from `hoop-backend/ingestion/chapter1_bible.md`, never fork — the `vendor/auth.js` rule) | ✅ |
+| Prompt builder `story/prompt.js` (bible + chunk thickness + nearby pool → {system,prompt,schema} + repair pass) | ✅ node-tested (in sidequest suite) |
+| Orchestrator `story/sidequest.js` — generate → stamp → review.js/gates.js/validate.js GATE → one repair → return; `persistSidequest` to the player's repo | ✅ node-tested, 25 checks (mock adapter + client) |
+| Worker `/api/story/{health,embed,sidequest}` — additive + fully guarded (a throw never breaks assets) | ✅ wired in `worker.js`; verify on deploy (needs `GEMINI_API_KEY`) |
+| `deploy-hoop.yml` syncs `GEMINI_API_KEY` worker secret + curls `/api/story/health` | ✅ |
+| Browser **UI hook** (v096 surface): `✨ weave` → `v096/story/genquest.js` builds a `ChunkProfile`, POSTs `/api/story/sidequest`, folds the approved arc into the live pool (`store.addContent`) + crystallizes its principal | ✅ wired in `hoop/v096/`; node-tested 16 checks; proof by eye on deploy |
+| `MemoryStore.addContent` (fold a generated item into the live pool) | ✅ in `story/engine.js` (canonical + v096) |
+| Persist: localStorage (v096 has no auth) + optional repo freeze via `freezeResult` when a session exists | ✅ guarded; repo freeze is additive |
+| **Data-flow website** `v096/architecture.html` — interactive SVG of the whole system (click-for-detail) | ✅ live at `hoop.mino.mobi/v096/architecture.html` |
+| **Steering** (phase 3): the worker reads the `pulse` (cached ~5min, guarded), `prompt.steerFromPulse()` biases the arc toward where the playerbase is | ✅ node-tested; live once the Director has written a pulse |
+| **Rich profile** (phase 3): `genquest.profileFromChunk()` — whole-chunk building programme + lived population + society edges → a thick `ChunkProfile` | ✅ node-tested; wired into `v096` `weaveHere` |
+
+### Hoopy's world_export — first-class content (the authoring tool's shape)
+
+His authoring tool emits a `world_export` (a `content_pool` of creature/item/lore_fragment/npc/plot_beat/**rumor** + a `story_bible`). It's now the canonical content model; v096 sources its pool from it.
+
+| Piece | State |
+|---|---|
+| `story/import.js` — `worldExport → content_item[]`: axis map (his r/n/p → revelation/narrative/power), tier-string→int, flat→`content`, requires gate-strings/`{flag,item}`→`{facts,items}`, carries `refs`/`revelation_hint`/`produces` | ✅ node-tested, 21 checks |
+| `rumor` first-class — `KNOWN_TYPES` (review.js) + lexicon enum + dispatch | ✅ |
+| `gates.js` reads `produces.sets` as declared producers + an `external` (world/runtime flags) **assumed-satisfiable boundary** | ✅ |
+| `WORLD_FACTS`/`worldExternal()` — the journey-flags his pool gates on, produced by the runtime/storyboard outside the pool | ✅ (migrates into storyboard producers as they're set) |
+| **His real 75-record export passes the full review/gates/validate gate** | ✅ (`import.selftest`: 0 conflicts with the manifest; correctly BLOCKs without it) |
+| `scripts/extract-hoopy-export.mjs` → `v096/story/world_export.json` (from his gallery, pending his machine export) | ✅ |
+| v096 sources its pool from `world_export.json` via the importer (`pool.json` fallback); generation emits the same enriched shape (`refs`/`revelation_hint`/`rumor`/chained-item `requires`) | ✅ |
+
 The procedural + localStorage path is the guaranteed fallback: with no service repo and no auth, the
 story tab still works fully. ATProto is additive truth, never a hard dependency (the borges discipline).

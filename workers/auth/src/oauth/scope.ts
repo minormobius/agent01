@@ -48,6 +48,11 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.hoop.place',
   'com.minomobi.hoop.message',
   'com.minomobi.hoop.story.save',
+  // story.content: the SHARED authored spine lives in the service repo, but a
+  // player's live-generated personal side-quests (lane:'sidequest') are frozen
+  // to THEIR OWN repo as story.content records — so a signed-in player needs
+  // write on this collection too (the shared spine is written by the service key).
+  'com.minomobi.hoop.story.content',
   // io (atproto tracker portal)
   'com.minomobi.io.ticket',
   // labglass

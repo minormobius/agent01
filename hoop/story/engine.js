@@ -246,6 +246,13 @@ export class MemoryStore {
   }
   featureByKey(key) { return this.features.get(key) || null; }
   addFeature(f) { this.features.set(f.key, f); return f; }   // register a live hoop feature (resident chamber / building) before interact
+  addContent(ci) {   // fold a generated content_item into the live pool so dispatch/crystallize can see it (v096 generation lane)
+    if (!ci || ci.id == null) return null;
+    this.content.set(ci.id, ci);
+    if (!this._byType.has(ci.type)) this._byType.set(ci.type, []);
+    const arr = this._byType.get(ci.type); if (!arr.some((c) => c.id === ci.id)) arr.push(ci);
+    return ci;
+  }
   // inventory
   _inv(id) { let a = this.inv.get(id); if (!a) { a = []; this.inv.set(id, a); } return a; }
   addInventory(id, cid, qty = 1) { const row = { id: ++this._invSeq, content_item_id: cid, qty }; this._inv(id).push(row); return row; }

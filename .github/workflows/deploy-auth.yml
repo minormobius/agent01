@@ -2,7 +2,7 @@ name: Deploy Auth Worker
 
 on:
   push:
-    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
+    branches: [main, 'claude/feature-merge-candidate-l4dkwq', 'claude/hoop-v096-story-bible-vgzqze']
     paths:
       - 'workers/auth/**'
       - '.github/workflows/deploy-auth.yml'
