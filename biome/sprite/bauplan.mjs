@@ -110,7 +110,7 @@ export function build(org) {
   const family = familyOf(org, clade);
   const profile = profileFor(org, clade);
   const palette = bonePalette(rand.fork('palette'), clade);
-  const { segs, clip } = buildSkeleton(org, profile, rand.fork('rig'));
+  const { segs, clip } = buildSkeleton(org, profile, rand.fork('rig'), { family });
   return {
     meta: {
       id: org.id, common: org.common, sciName: org.sciName, clade, archetype, family, seed,

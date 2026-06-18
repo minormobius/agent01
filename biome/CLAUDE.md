@@ -69,14 +69,26 @@ measured comparative-anatomy data. The skeleton is also abstract enough to escap
   (equid, felid, canid, bovid, cervid, ursid, leporid, suid, murid, mustelid, + reptile/generic):
   stance, vertebral formula, limb-bone ratios, digit formula, skull proportions. Grounded in the
   cursoriality-index literature (crural/brachial/intermembral, MT/F). `familyOf` / `profileFor` resolve it.
-- `sprite/skeleton.mjs` — **the builder**. `buildSkeleton(org, profile, rand)` → a parent-before-child
-  bone list: vertebral column (neural spines, withers), ribcage, skull+mandible, scapula/pelvis blades,
-  four named-bone limbs with stance-correct feet + digit reduction. A `groundLevel()` pass tilts the body
-  so all feet plant on one line (slopes the back for saltatorial leapers). Limb bones tagged `leg`+`joint`.
+  Also carries the **cranial-osteology layer**: `CRANIA` (per-family `dome` · `orbit` · `orbitFwd` · `zygo`
+  · `crest` · `canine` · `incisor` · `diastema` · `reptilian`) merged with the measured `{snout,cranium,jaw}`
+  by `craniumProfile(family, profile)`, and `appendageFor(org)` which resolves horns/antlers/beaks **per
+  genus** (not family — a llama shares the cervid leg plan but grows no antlers).
+- `sprite/skull.mjs` — **the cranial-geometry source of truth** (one place, two backends). `skullParts(w,s,pal)`
+  + `mandibleParts(w,s,pal)` trace a real lateral skull from the cranial profile — braincase dome, dorsal
+  nasal profile, rostrum, orbit (sized + forward/lateral), zygomatic arch, sagittal crest, the dental
+  battery (incisors · canine · cheek row), nares, and the appendage (horn sweeps back · branching antler ·
+  chelonian beak) — and the dentary (coronoid + angular + tooth row). Pure → returns backend-agnostic
+  primitives (`poly`/`stroke`/`quad`/`ring`/`disc`); `render.mjs` paints them to canvas, `proof.mjs` to SVG,
+  so the two can't drift. Sandbox-testable.
+- `sprite/skeleton.mjs` — **the builder**. `buildSkeleton(org, profile, rand, {family})` → a parent-before-child
+  bone list: vertebral column (neural spines, withers), ribcage, skull+mandible (carrying the `cr` cranial
+  profile + `appendage`), scapula/pelvis blades, four named-bone limbs with stance-correct feet + digit
+  reduction. A `groundLevel()` pass tilts the body so all feet plant on one line (slopes the back for
+  saltatorial leapers). Limb bones tagged `leg`+`joint`.
 - `sprite/render.mjs` — the **phenotype**. `solve()` (forward kinematics) + the clips (the walk clip is
   the generalisation of the guy's one gait — phase→per-bone Δangle, dispatched by leg/joint tags) +
-  `bbox()` (canvas-free → headless self-test) + `draw()` (bone/vertebra/blade/skull/rib/hoof primitives;
-  the only browser-only fn).
+  `bbox()` (canvas-free → headless self-test) + `draw()` (bone/vertebra/blade/rib/hoof primitives + the
+  `skull`/`mandible` primitives via `skull.mjs`; the only browser-only fn).
 - `sprite/index.html` — the lab. Focused animated stage + a gallery; meta shows family/stance/vertebral
   formula/digits. Same `#err` overlay as `/graph`+`/gacha`. Worker normalises no-slash `/sprite`.
 - `sprite/proof.mjs` — dev tool: renders the SAME `solve()` geometry to an **SVG contact sheet** so the

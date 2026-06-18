@@ -9,9 +9,31 @@
 // The clip is the generalisation of mega/sprite/core.js's walkPose(): one pure function phase→per-bone
 // angle deltas, dispatched by the bone's own (leg, joint) tags so it works for any skeleton topology.
 
+import { skullParts, mandibleParts } from './skull.mjs';
+
 const TAU = Math.PI * 2;
 const dir = (a) => ({ x: Math.cos(a), y: Math.sin(a) });
 const perp = (a) => ({ x: -Math.sin(a), y: Math.cos(a) }); // +90°: for a=0 points +y (down)
+
+// Paint the cranial-geometry primitives (from skull.mjs) onto a canvas 2D context.
+function drawParts(ctx, parts) {
+  for (const p of parts) {
+    if (p.kind === 'poly') {
+      ctx.beginPath(); p.pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+      ctx.closePath(); ctx.fillStyle = p.fill; ctx.fill();
+    } else if (p.kind === 'stroke') {
+      ctx.beginPath(); p.pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+      ctx.lineWidth = p.width; ctx.strokeStyle = p.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+    } else if (p.kind === 'quad') {
+      ctx.beginPath(); ctx.moveTo(p.a.x, p.a.y); ctx.quadraticCurveTo(p.c.x, p.c.y, p.b.x, p.b.y);
+      ctx.lineWidth = p.width; ctx.strokeStyle = p.color; ctx.lineCap = 'round'; ctx.stroke();
+    } else if (p.kind === 'ring') {
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r, 0, 0, TAU); ctx.lineWidth = p.width; ctx.strokeStyle = p.stroke; ctx.stroke();
+    } else if (p.kind === 'disc') {
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r, 0, 0, TAU); ctx.fillStyle = p.fill; ctx.fill();
+    }
+  }
+}
 
 // ── ANIMATION CLIPS ────────────────────────────────────────────────────────────────────────────
 // A clip returns { angles: {segId: ΔradiansAtThisPhase}, bob: yOffsetUnits }. It reads the skeleton's
@@ -136,22 +158,9 @@ function emit(ctx, kind, w, s, pal) {
     ctx.lineTo(t.x, t.y); ctx.closePath();
     ctx.fillStyle = col; ctx.fill();
   } else if (kind === 'skull') {
-    // cranium (ellipse) + snout wedge; the split is set by the family's snout ratio so a cat gets a
-    // short round skull and a horse a long one. cf = cranium fraction of total skull length.
-    const sf = Math.max(0.25, Math.min(0.66, s.snout || 0.45)), cf = 1 - sf;
-    const dd = dir(w.abs), cr = (s.w0 || 8);
-    const cx = b.x + dd.x * s.len * cf * 0.5, cy = b.y + dd.y * s.len * cf * 0.5;
-    ctx.beginPath(); ctx.ellipse(cx, cy, s.len * cf * 0.55, cr / 2, w.abs, 0, TAU);
-    ctx.fillStyle = col; ctx.fill();
-    const fx = b.x + dd.x * s.len * cf, fy = b.y + dd.y * s.len * cf, sw = (s.w1 || cr * 0.5) / 2;
-    ctx.beginPath();
-    ctx.moveTo(fx + q.x * cr * 0.4, fy + q.y * cr * 0.4);
-    ctx.lineTo(fx - q.x * cr * 0.4, fy - q.y * cr * 0.4);
-    ctx.lineTo(t.x - q.x * sw, t.y - q.y * sw);
-    ctx.lineTo(t.x + q.x * sw, t.y + q.y * sw);
-    ctx.closePath(); ctx.fillStyle = col; ctx.fill();
-    ctx.beginPath(); ctx.ellipse(cx + dd.x*cr*0.1 - q.x*cr*0.2, cy + dd.y*cr*0.1 - q.y*cr*0.2,
-      cr * 0.17, cr * 0.17, 0, 0, TAU); ctx.fillStyle = pal.socket || '#0006'; ctx.fill();
+    drawParts(ctx, skullParts(w, s, pal));         // lateral skull: braincase·orbit·zygoma·crest·teeth·horns
+  } else if (kind === 'mandible') {
+    drawParts(ctx, mandibleParts(w, s, pal));       // lower jaw: dentary·coronoid·angular·tooth row
   } else if (kind === 'hoof' || kind === 'claw') {
     const len = s.len, wd = (s.w0 || 4);
     ctx.beginPath(); ctx.moveTo(b.x, b.y);

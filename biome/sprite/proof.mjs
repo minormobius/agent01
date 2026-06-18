@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { build, buildable } from './bauplan.mjs';
 import { solve, bbox } from './render.mjs';
+import { skullParts, mandibleParts } from './skull.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const catalog = JSON.parse(readFileSync(join(here, '../gacha/catalog.json'), 'utf8'));
@@ -21,6 +22,19 @@ const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt
 const f = (n) => (+n).toFixed(2);
 const perp = (a) => ({ x: -Math.sin(a), y: Math.cos(a) });
 const dir = (a) => ({ x: Math.cos(a), y: Math.sin(a) });
+
+// Render the cranial-geometry primitives (from skull.mjs) to SVG — the mirror of render.mjs's drawParts.
+function partsSVG(parts) {
+  let o = '';
+  for (const p of parts) {
+    if (p.kind === 'poly') o += `<polygon points="${p.pts.map((q) => f(q.x) + ',' + f(q.y)).join(' ')}" fill="${p.fill}"/>`;
+    else if (p.kind === 'stroke') o += `<polyline points="${p.pts.map((q) => f(q.x) + ',' + f(q.y)).join(' ')}" fill="none" stroke="${p.color}" stroke-width="${f(p.width)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    else if (p.kind === 'quad') o += `<path d="M${f(p.a.x)} ${f(p.a.y)} Q${f(p.c.x)} ${f(p.c.y)} ${f(p.b.x)} ${f(p.b.y)}" fill="none" stroke="${p.color}" stroke-width="${f(p.width)}" stroke-linecap="round"/>`;
+    else if (p.kind === 'ring') o += `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="${f(p.r)}" fill="none" stroke="${p.stroke}" stroke-width="${f(p.width)}"/>`;
+    else if (p.kind === 'disc') o += `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="${f(p.r)}" fill="${p.fill}"/>`;
+  }
+  return o;
+}
 
 function shapeSVG(s, w, pal) {
   const col = (s.role && pal[s.role]) ? pal[s.role] : pal.bone;
@@ -42,13 +56,9 @@ function shapeSVG(s, w, pal) {
     const w0 = (s.w0 || 6) / 2;
     out += `<polygon points="${f(b.x + q.x * w0)},${f(b.y + q.y * w0)} ${f(b.x - q.x * w0)},${f(b.y - q.y * w0)} ${f(t.x)},${f(t.y)}" fill="${col}"/>`;
   } else if (kind === 'skull') {
-    const sf = Math.max(0.25, Math.min(0.66, s.snout || 0.45)), cf = 1 - sf;
-    const cr = (s.w0 || 8), deg = (w.abs * 180) / Math.PI;
-    const cx = b.x + d.x * s.len * cf * 0.5, cy = b.y + d.y * s.len * cf * 0.5;
-    out += `<ellipse cx="0" cy="0" rx="${f(s.len * cf * 0.55)}" ry="${f(cr / 2)}" fill="${col}" transform="translate(${f(cx)} ${f(cy)}) rotate(${f(deg)})"/>`;
-    const fx = b.x + d.x * s.len * cf, fy = b.y + d.y * s.len * cf, sw = (s.w1 || cr * 0.5) / 2;
-    out += `<polygon points="${f(fx + q.x * cr * 0.4)},${f(fy + q.y * cr * 0.4)} ${f(fx - q.x * cr * 0.4)},${f(fy - q.y * cr * 0.4)} ${f(t.x - q.x * sw)},${f(t.y - q.y * sw)} ${f(t.x + q.x * sw)},${f(t.y + q.y * sw)}" fill="${col}"/>`;
-    out += `<circle cx="${f(cx + d.x * cr * 0.1 - q.x * cr * 0.2)}" cy="${f(cy + d.y * cr * 0.1 - q.y * cr * 0.2)}" r="${f(cr * 0.17)}" fill="${pal.socket || '#0006'}"/>`;
+    out += partsSVG(skullParts(w, s, pal));
+  } else if (kind === 'mandible') {
+    out += partsSVG(mandibleParts(w, s, pal));
   } else if (kind === 'hoof' || kind === 'claw') {
     const wd = (s.w0 || 4);
     const mx = b.x + d.x * s.len + q.x * wd * 0.3, my = b.y + d.y * s.len + q.y * wd * 0.3;

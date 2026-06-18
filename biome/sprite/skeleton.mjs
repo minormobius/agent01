@@ -8,6 +8,8 @@
 // points +x. Limb bones are laid out by their DESIRED ABSOLUTE standing angle (degrees, below) and
 // converted to parent-relative rest angles — far easier to reason about than raw joint bends.
 
+import { craniumProfile, appendageFor } from './osteo.mjs';
+
 const D = Math.PI / 180;
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -29,7 +31,9 @@ const POSE = {
   sprawling:   { fore: [55, 122, 66, 24, 10], hind: [120, 58, 120, 24, 10] },
 };
 
-export function buildSkeleton(org, profile, rand) {
+export function buildSkeleton(org, profile, rand, opt = {}) {
+  const cranium = opt.cranium || craniumProfile(opt.family || 'mammal', profile);
+  const appendage = opt.appendage || appendageFor(org);
   const rj = rand.fork('jitter');
   const jit = (a) => a * (1 + (rj.float() - 0.5) * 0.06); // ±3% individual variation
 
@@ -68,13 +72,20 @@ export function buildSkeleton(org, profile, rand) {
     prev = push({ id: 'C' + i, parent: prev, at: 1, rest: -0.055, len: csp, w0: th * 1.7, w1: th * 1.5,
       role: 'cervical', shape: 'vertebra', spine: csp * 0.25, z: 5 });
   }
-  // skull + mandible — the head pitches down off the end of the neck
-  const skullLen = L * 0.22 * (0.7 + profile.skull.cranium);
+  // skull + mandible — the head pitches down off the end of the neck. The cranial-osteology profile
+  // (osteo.mjs) drives a real lateral skull (braincase · orbit · zygoma · crest · teeth · horns).
+  const skullLen = L * 0.22 * (0.7 + cranium.cranium);
+  const crH = th * 6 * (0.5 + cranium.cranium);                    // braincase height scale (skull.mjs reads this as cr)
+  const crown = appendage.type === 'antler' ? crH * (1.1 + 2.7 * (appendage.size || .85))
+              : appendage.type === 'horn'   ? crH * (1.1 + 2.3 * (appendage.size || .8))
+              : crH * (0.7 + cranium.crest * 0.6);                 // dorsal reach (for bbox), incl. crest/appendage
   push({ id: 'skull', parent: prev, at: 1, rest: 0.42, len: skullLen,
-    w0: th * 6 * (0.5 + profile.skull.cranium), w1: th * 2.6 * profile.skull.snout,
-    role: 'bone', shape: 'skull', z: 8, snout: profile.skull.snout });
-  push({ id: 'mandible', parent: prev, at: 1, rest: 0.42 + 0.16, len: skullLen * (0.6 + profile.skull.snout * 0.5),
-    w0: th * 1.6 * profile.skull.jaw, w1: th * 0.9, role: 'bone', shape: 'bone', curve: 0.14, epi: th * 0.7, z: 8 });
+    w0: crH, w1: th * 2.6 * cranium.snout,
+    role: 'bone', shape: 'skull', z: 8, snout: cranium.snout, cr: cranium, appendage, spine: crown });
+  push({ id: 'mandible', parent: prev, at: 1, rest: 0.42 + 0.16, len: skullLen * (0.6 + cranium.snout * 0.5),
+    w0: th * 1.9 * (0.4 + cranium.jaw), w1: th * 0.9, role: 'bone', shape: 'mandible', z: 8,
+    mand: { jaw: cranium.jaw, ramus: clamp(0.35 + cranium.crest * 0.7, 0.3, 1.15),
+      reptilian: cranium.reptilian, incisor: cranium.incisor, canine: cranium.canine } });
 
   // caudal chain (tail) runs backward from the sacrum, drooping a little
   let tprev = 'sacrum', tat = 0.0;

@@ -142,4 +142,52 @@ export function familyOf(org, clade) {
 
 export function profileFor(org, clade) { return FAMILIES[familyOf(org, clade)] || FAMILIES.mammal; }
 
-export default { FAMILIES, familyOf, profileFor };
+// ── CRANIAL OSTEOLOGY ──────────────────────────────────────────────────────────────────────────────
+// The skull is the single most identity-bearing bone, so it gets its own detail layer on top of the
+// {snout,cranium,jaw} basics in FAMILIES. These drive a real lateral-skull silhouette (braincase dome,
+// orbit, zygomatic arch, sagittal crest, the dental battery, horns/antlers). Fields are 0..1 unless noted.
+//   dome      braincase globularity        — cat/rodent round; horse/dog flat
+//   orbit     eye-socket radius            — nocturnal/prey large (rabbit, rodent, cat); pig small
+//   orbitFwd  orbit forward-facing         — predators → 1 (binocular); prey → 0 (lateral field)
+//   zygo      zygomatic-arch robustness    — carnivores & rodents heavy (masseter/temporalis); horse slender
+//   crest     sagittal-crest height        — carnivores / big-jaw; absent in herbivores & rodents
+//   canine    upper-canine fang length     — carnivores high; 0 in herbivores & rodents
+//   incisor   procumbent-incisor prominence— rodents/lagomorphs/horse high (gnawing/cropping)
+//   diastema  incisor↔cheek-tooth gap      — herbivores & rodents high; carnivores ≈ 0
+//   reptilian draw a reptile skull         — no mammalian arch/crest; a polydont tooth row
+const CRANIUM_DEFAULT = { dome:.45, orbit:.5, orbitFwd:.4, zygo:.55, crest:.35, canine:.4, incisor:.35, diastema:.3, reptilian:false };
+const CRANIA = {
+  equid:   { dome:.34, orbit:.50, orbitFwd:.15, zygo:.38, crest:.15, canine:.05, incisor:.70, diastema:.72 },
+  cervid:  { dome:.40, orbit:.55, orbitFwd:.18, zygo:.40, crest:.15, canine:.08, incisor:.50, diastema:.60 },
+  bovid:   { dome:.42, orbit:.55, orbitFwd:.15, zygo:.50, crest:.20, canine:.00, incisor:.40, diastema:.62 },
+  canid:   { dome:.40, orbit:.45, orbitFwd:.60, zygo:.70, crest:.55, canine:.70, incisor:.25, diastema:.15 },
+  felid:   { dome:.60, orbit:.52, orbitFwd:.85, zygo:.85, crest:.60, canine:.85, incisor:.18, diastema:.08 },
+  ursid:   { dome:.50, orbit:.40, orbitFwd:.50, zygo:.80, crest:.70, canine:.60, incisor:.30, diastema:.20 },
+  leporid: { dome:.55, orbit:.72, orbitFwd:.10, zygo:.50, crest:.08, canine:.00, incisor:.70, diastema:.72 },
+  suid:    { dome:.34, orbit:.34, orbitFwd:.30, zygo:.55, crest:.45, canine:.60, incisor:.40, diastema:.42 },
+  murid:   { dome:.55, orbit:.60, orbitFwd:.12, zygo:.75, crest:.10, canine:.00, incisor:.85, diastema:.78 },
+  mustelid:{ dome:.45, orbit:.45, orbitFwd:.55, zygo:.70, crest:.60, canine:.70, incisor:.25, diastema:.15 },
+  mammal:  { dome:.45, orbit:.50, orbitFwd:.40, zygo:.55, crest:.35, canine:.40, incisor:.35, diastema:.30 },
+  reptile: { dome:.24, orbit:.50, orbitFwd:.20, zygo:.18, crest:.00, canine:.00, incisor:.00, diastema:.00, reptilian:true },
+};
+
+// Merge the basics ({snout,cranium,jaw} — measured, in FAMILIES) with the cranial-detail layer. The
+// basics win the shared keys. `profile` (the family object) supplies the measured trio if given.
+export function craniumProfile(family, profile) {
+  const f = FAMILIES[family] ? family : 'mammal';
+  const basics = (profile && profile.skull) || FAMILIES[f].skull;
+  return { ...CRANIUM_DEFAULT, ...(CRANIA[f] || {}), ...basics };
+}
+
+// Cranial appendages are resolved per GENUS, not per family — the family mapping is coarse (a llama
+// shares the cervid leg plan but grows no antlers), so horns/antlers/beaks key off the actual genus.
+const APPENDAGE_BY_GENUS = {
+  Capra:{ type:'horn', size:.95, curl:.55 },   // goat — swept back, slight curl
+  Ovis:{ type:'horn', size:1.0, curl:.95 },    // ram — heavy curl
+  Bos:{ type:'horn', size:.80, curl:.22 },     // cattle — lateral, low curl
+  Capreolus:{ type:'antler', size:.85 },        // roe deer — branching antler
+  Testudo:{ type:'beak' }, Trachemys:{ type:'beak' }, Emys:{ type:'beak' }, // chelonian horny beak
+};
+export function appendageFor(org) { return APPENDAGE_BY_GENUS[genusOf(org.sciName)] || { type:'none' }; }
+
+export default { FAMILIES, familyOf, profileFor, craniumProfile, appendageFor };
