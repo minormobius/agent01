@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · sprite lab — animable sprites for any organism</title>
+<meta name="description" content="Deterministically generate a rigged, animated sprite for any iNaturalist organism. The tree of life maps onto a small set of rigged body-plans; each creature's seed parameterises one. Phase 1: the quadruped archetype." />
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da; --dim:#7f9b8d;
+    --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(150% 130% at 50% -20%,#16261f,#0a110e 62%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px 0}
+  .crumb a{color:var(--gold);text-decoration:none}
+  header{padding:10px 20px 12px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:18px;letter-spacing:.4px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0;font-size:13px}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:98ch;line-height:1.55}
+  .sub b{color:var(--txt)} .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:920px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;position:relative}
+  .stage{position:relative;background:
+    linear-gradient(180deg,#0e1814,#0b120f);border:1px solid var(--line);border-radius:10px}
+  canvas#focus{display:block;width:100%;height:auto;border-radius:10px}
+  .meta{margin-top:12px}
+  .meta .nm{font-size:17px;font-weight:600;color:var(--txt)}
+  .meta .sci{font-style:italic;color:var(--dim);font-size:12.5px}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .tag{font-size:11px;border:1px solid var(--line);border-radius:7px;padding:4px 8px;background:#0b1310}
+  .tag b{color:var(--txt)}
+  .pal{display:flex;gap:3px;margin-top:10px}
+  .pal i{width:22px;height:14px;border-radius:3px;border:1px solid #0006}
+  .controls{margin-top:13px;display:flex;flex-direction:column;gap:9px}
+  button{font:600 13px/1 var(--mono);color:var(--txt);background:#0e1713;border:1px solid var(--line);
+    border-radius:9px;padding:10px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:#3c6a4c}
+  .row{display:flex;gap:8px} .row button{flex:1}
+  label.ctl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+  label.ctl input[type=range]{flex:1}
+  .seedline{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--dim)}
+  .seedline input{flex:1;background:#0b1310;border:1px solid var(--line);border-radius:7px;color:var(--txt);
+    font:inherit;padding:8px;min-width:0}
+  .galhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+  .galhead .n{color:var(--dim);font-size:12px}
+  .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+  .cell{background:#0d1714;border:1px solid var(--line);border-radius:10px;padding:8px;cursor:pointer;transition:.12s;text-align:center}
+  .cell:hover{border-color:#3c6a4c;background:#101e18}
+  .cell.sel{border-color:var(--gold)}
+  .cell canvas{display:block;width:100%;height:auto;border-radius:6px;background:linear-gradient(180deg,#0e1814,#0b120f)}
+  .cell .lab{font-size:11px;color:var(--txt);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cell .sub2{font-size:10px;color:var(--dim)}
+  .note{margin-top:14px;font-size:11.5px;color:var(--dim);line-height:1.6;border-top:1px dashed var(--line);padding-top:11px}
+  .note b{color:var(--txt)}
+  #err{display:none;position:absolute;left:10px;right:10px;top:10px;z-index:9;background:#2a1410;
+    border:1px solid #5a342c;border-radius:8px;padding:10px 12px;color:#f0b8a8;font-size:12px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">biome</a> / sprite lab · <a href="./muscle.html">→ myology lab (muscles)</a> · <a href="/balance/">→ balance lab (standing &amp; walking)</a></div>
+  <header>
+    <h1>sprite lab <small>— an animable sprite for any organism</small></h1>
+    <div class="sub">
+      What makes a horse a horse and a cat a cat isn't size — it's the <b>bones</b>: relative limb-element
+      lengths, the vertebral formula, digit reduction, stance. So instead of a soft body scaled by a few
+      knobs (the uncanny valley), we draw the <b>literal articulated skeleton</b> from real
+      <b>comparative-osteology</b> data — a naturalist's bone plate, not a fake animal. Every skeleton is
+      <b>deterministic</b> from the organism's iNaturalist taxon id (<span style="color:var(--gold)">/sprite/?id=…</span>
+      is a permalink), and the bones <b>are</b> the rig, so the walk clip animates real joints. <b>Phase 1</b>
+      rigs the <b>quadruped</b> mammals + walking reptiles; sister archetypes (avian · serpent · finned · …) are next.
+    </div>
+  </header>
+  <main>
+    <section class="panel">
+      <div id="err"></div>
+      <div class="stage"><canvas id="focus" width="640" height="420"></canvas></div>
+      <div class="meta">
+        <div class="nm" id="m-nm">—</div>
+        <div class="sci" id="m-sci">—</div>
+        <div class="tags" id="m-tags"></div>
+        <div class="pal" id="m-pal"></div>
+      </div>
+      <div class="controls">
+        <div class="row">
+          <button id="b-prev">‹ prev</button>
+          <button id="b-play">⏸ pause</button>
+          <button id="b-next">next ›</button>
+        </div>
+        <label class="ctl">speed <input id="b-speed" type="range" min="0" max="3" step="0.05" value="1.1"></label>
+        <div class="row">
+          <button id="b-face">⇄ flip</button>
+          <button id="b-share">⧉ copy link</button>
+        </div>
+        <div class="seedline">id <input id="b-id" type="text" placeholder="e.g. horse" />
+          <button id="b-go" style="flex:0 0 auto;padding:8px 12px">go</button></div>
+      </div>
+      <div class="note">
+        <b>How a skeleton is made:</b> the <b>classifier</b> maps the organism to a mammal <b>family</b>;
+        an <b>osteometric profile</b> (the comparative-anatomy dataset) gives the vertebral formula,
+        limb-element ratios, digit reduction and stance; the <b>builder</b> articulates that into a
+        vertebral column + ribcage + four named-bone limbs, scaled by body mass; the <b>walk clip</b> is
+        a procedural diagonal-gait trot on the real joints. Bone tint is seeded by clade; cursoriality
+        (horse cannon), graviportality (bear), saltation (rabbit hindlimb) all fall out of the numbers.
+      </div>
+    </section>
+    <section class="panel">
+      <div class="galhead"><b style="color:var(--gold)">the quadruped deck</b>
+        <span class="n" id="gal-n">—</span></div>
+      <div class="gal" id="gal"></div>
+    </section>
+  </main>
+
+<script type="module">
+import { build, classify, buildable } from './bauplan.mjs';
+import { draw } from './render.mjs';
+
+const errEl = document.getElementById('err');
+const showErr = (where, e) => { errEl.textContent = `⚠ ${where}: ${(e && (e.stack||e.message)) || e}`;
+  errEl.style.display='block'; console.error(where, e); };
+window.addEventListener('error', (ev)=>showErr('runtime', ev.error||ev.message));
+window.addEventListener('unhandledrejection', (ev)=>showErr('promise', ev.reason));
+
+const $ = (id) => document.getElementById(id);
+const dpr = Math.min(2, window.devicePixelRatio || 1);
+function fitCanvas(cv, w, h){ cv.width = w*dpr; cv.height = h*dpr; cv.style.width=w+'px'; cv.style.height=h+'px';
+  const cx = cv.getContext('2d'); cx.setTransform(dpr,0,0,dpr,0,0); return cx; }
+
+let DECK = [];        // [{org, sprite}]
+let cur = 0, facing = 1, playing = true, speed = 1.1, phase = 0, last = 0;
+const focusCv = $('focus');
+let focusCx = fitCanvas(focusCv, 640, 420);
+const cellCtx = [];   // parallel to DECK: { cx, sprite }
+
+function selectByOrg(org){
+  const i = DECK.findIndex(d => d.org.id === org.id);
+  if (i >= 0) select(i);
+}
+function select(i){
+  cur = (i + DECK.length) % DECK.length;
+  const { org, sprite } = DECK[cur];
+  $('m-nm').textContent = org.common || org.id;
+  $('m-sci').textContent = org.sciName || '';
+  const m = sprite.meta;
+  const V = m.vert, formula = `C${V.cervical} T${V.thoracic} L${V.lumbar} S${V.sacral} Cd${V.caudal}`;
+  $('m-tags').innerHTML =
+    `<span class="tag">family <b>${m.family}</b></span>`+
+    `<span class="tag">stance <b>${m.stance}</b></span>`+
+    `<span class="tag">digits <b>${m.digits.fore}/${m.digits.hind} ${m.digits.type}</b></span>`+
+    `<span class="tag">vertebrae <b>${formula}</b></span>`+
+    `<span class="tag">mass <b>${fmtMass(m.mass_g)}</b></span>`+
+    `<span class="tag">seed <b>${m.seed}</b></span>`;
+  $('m-pal').innerHTML = ['bone','boneFar','joint','keratin']
+    .map(k => `<i title="${k}" style="background:${m.palette[k]}"></i>`).join('');
+  document.querySelectorAll('.cell').forEach((c,j)=>c.classList.toggle('sel', j===cur));
+  const u = new URL(location.href); u.searchParams.set('id', org.id);
+  history.replaceState(null,'',u);
+}
+
+function fmtMass(g){ if(g==null) return '—'; if(g>=1000) return (g/1000).toFixed(g>=100000?0:1)+' kg'; return g+' g'; }
+
+function buildDeck(catalog){
+  const orgs = Object.values(catalog.organisms).filter(buildable)
+    .sort((a,b)=>(b.mass_g||0)-(a.mass_g||0));
+  DECK = orgs.map(org => ({ org, sprite: build(org) }));
+  $('gal-n').textContent = `${DECK.length} skeletons articulated`;
+
+  const gal = $('gal'); gal.innerHTML = '';
+  DECK.forEach((d, i) => {
+    const cell = document.createElement('div'); cell.className='cell';
+    const cv = document.createElement('canvas');
+    cell.appendChild(cv);
+    const lab = document.createElement('div'); lab.className='lab'; lab.textContent = d.org.common || d.org.id;
+    const sub = document.createElement('div'); sub.className='sub2'; sub.textContent = `${d.sprite.meta.family} · ${fmtMass(d.org.mass_g)}`;
+    cell.appendChild(lab); cell.appendChild(sub);
+    cell.addEventListener('click', ()=>select(i));
+    gal.appendChild(cell);
+    const cx = fitCanvas(cv, cv.clientWidth || 116, 92);
+    cellCtx.push({ cx, w: cv.clientWidth||116, h: 92, sprite: d.sprite });
+  });
+}
+
+function frame(t){
+  try{
+    const dt = last ? Math.min(0.05, (t-last)/1000) : 0; last = t;
+    if (playing) phase = (phase + dt * speed * 2.4) % (Math.PI*2);
+    // focus
+    focusCx.clearRect(0,0,640,420);
+    if (DECK[cur]) draw(focusCx, DECK[cur].sprite, phase, { x:320, y:248, size:300, facing, ground:true });
+    // gallery
+    for (let i=0;i<cellCtx.length;i++){
+      const c = cellCtx[i]; if(!c) continue;
+      c.cx.clearRect(0,0,c.w,c.h);
+      // stagger each cell's phase a little so the grid doesn't march in lockstep
+      const ph = (phase + i*0.7) % (Math.PI*2);
+      draw(c.cx, c.sprite, ph, { x:c.w/2, y:c.h*0.62, size:Math.min(c.w,c.h)*0.95, facing:1, ground:true });
+    }
+  } catch(e){ showErr('draw', e); return; }
+  requestAnimationFrame(frame);
+}
+
+// controls
+$('b-prev').onclick = ()=>select(cur-1);
+$('b-next').onclick = ()=>select(cur+1);
+$('b-play').onclick = ()=>{ playing=!playing; $('b-play').textContent = playing?'⏸ pause':'▶ play'; };
+$('b-face').onclick = ()=>{ facing*=-1; };
+$('b-speed').oninput = (e)=>{ speed = parseFloat(e.target.value); };
+$('b-go').onclick = ()=>{ const v=$('b-id').value.trim().toLowerCase();
+  const d = DECK.find(d=>d.org.id===v || (d.org.common||'').toLowerCase()===v);
+  if (d) selectByOrg(d.org); else showErr('lookup', `no rigged quadruped "${v}" in the deck`); };
+$('b-id').addEventListener('keydown', e=>{ if(e.key==='Enter') $('b-go').click(); });
+$('b-share').onclick = async ()=>{ const u=new URL(location.href);
+  try{ await navigator.clipboard.writeText(u.toString()); $('b-share').textContent='✓ copied'; setTimeout(()=>$('b-share').textContent='⧉ copy link',1200);}catch{} };
+window.addEventListener('resize', ()=>{ focusCx = fitCanvas(focusCv, 640, 420); });
+
+(async function boot(){
+  try{
+    const res = await fetch('../gacha/catalog.json');
+    if(!res.ok) throw new Error('catalog.json '+res.status);
+    const catalog = await res.json();
+    buildDeck(catalog);
+    const want = new URL(location.href).searchParams.get('id');
+    const start = want ? DECK.findIndex(d=>d.org.id===want) : -1;
+    select(start>=0 ? start : 0);
+    requestAnimationFrame(frame);
+  } catch(e){ showErr('boot', e); }
+})();
+</script>
+</body>
+</html>
