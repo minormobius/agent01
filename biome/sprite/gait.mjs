@@ -1,0 +1,99 @@
+// biome/sprite/gait.mjs — WALK by contracting muscles (forward dynamics, treadmill-style).
+//
+// Statics asks "what tensions hold this pose?". This asks the opposite: drive the muscles and let the
+// motion fall out. Each LIMB joint is a little dynamical system — muscle torque accelerates it,
+// q̈ = τ/I — and the muscles are driven by a controller that tracks the walk rhythm (a CPG keyed to the
+// kinematic gait). So the legs move BECAUSE muscles pull, capped by each muscle's strength: a muscle too
+// weak to hit the target torque lags, which is honest. On a treadmill the body is pinned (no balance
+// problem — like a gait-lab harness), the trunk muscles hold the spine, and the legs cycle in place.
+//
+// Returns, per step, the muscle ACTIVATIONS (0..1) so the lab can light up the firing pattern.
+
+import { solve, bbox, CLIPS, GAIT } from './render.mjs';
+import { limbJoints } from './mechanics.mjs';
+import { attachPos, momentArm } from './muscle.mjs';
+
+export function makeGait(sprite, muscles, opt = {}) {
+  const work = structuredClone(sprite); work.clip = 'static';   // our own mutable pose; static = no kinematic clip
+  const seg = (id) => work.segs.find((s) => s.id === id);
+  const W0 = solve(work, 0);
+  const limbs = limbJoints(work), limbSet = new Set(limbs);
+
+  // per limb-joint: its muscles + rest-pose moment arm (cheap; arms drift a little as it swings — fine)
+  const byJoint = {}; for (const id of limbs) byJoint[id] = [];
+  for (const m of muscles) for (const jid of m.joints) if (limbSet.has(jid)) {
+    byJoint[jid].push({ id: m.id, r: momentArm(attachPos(W0, m.a), attachPos(W0, m.b), W0[jid].base), fmax: m.fmax });
+  }
+
+  const rest0 = {}; for (const s of work.segs) rest0[s.id] = s.rest || 0;
+  const q = {}, v = {}; for (const id of limbs) { q[id] = 0; v[id] = 0; }
+
+  const kp = opt.kp ?? 80, I = opt.I ?? 1.0, cadence = opt.cadence ?? 2.4;
+  const kd = opt.kd ?? 2 * Math.sqrt(kp * I) * 1.05;            // ≈ critical damping → tracks without ringing
+  let phase = 0;
+
+  // GROUND-REFERENCED placement: the datum is the flat ground, not the sacrum. Each leg's foot is a
+  // contact point; planted feet are locked to a world anchor, and the body's height + forward position
+  // are SOLVED each frame from those contacts — so the body bobs as legs flex and rides forward over the
+  // planted feet (the limbs progress against the ground). The sacrum is wherever the feet put it.
+  const span = (() => { const b = bbox(work, 0); return Math.max(b.w, b.h); })();
+  const legPrefixes = ['FN', 'FF', 'BN', 'BF'];
+  const footSegs = {}; for (const lp of legPrefixes) footSegs[lp] = work.segs.filter((s) => s.id.startsWith(lp + '_k')).map((s) => s.id);
+  let bodyX = 0, bodyY = 0; const prevFx = {};
+
+  function step(dt) {
+    phase = (phase + dt * cadence) % (Math.PI * 2);
+    const clip = CLIPS.walk(phase, work);                       // target rhythm: per-joint angle + body bob
+    const act = new Map();
+    for (const jid of limbs) {
+      const target = clip.angles[jid] || 0;
+      const tauDes = kp * (target - q[jid]) - kd * v[jid];       // PD demand
+      const want = Math.sign(tauDes) || 1;
+      let best = null;                                           // the muscle (pull-only) on the demanded side
+      for (const mm of byJoint[jid]) if (Math.sign(mm.r) === want && (!best || Math.abs(mm.r) > Math.abs(best.r))) best = mm;
+      let torque = 0;
+      if (best && best.fmax > 0) {
+        const Fneed = Math.min(best.fmax, Math.abs(tauDes) / (Math.abs(best.r) || 1)); // capped by strength
+        torque = Fneed * best.r;
+        act.set(best.id, Fneed / best.fmax);
+      }
+      v[jid] += dt * torque / I;                                // q̈ = τ/I  (damping is folded into tauDes)
+      q[jid] += dt * v[jid];
+      const s = seg(jid);
+      if (s.rom) { if (q[jid] < s.rom[0]) { q[jid] = s.rom[0]; if (v[jid] < 0) v[jid] = 0; }
+        else if (q[jid] > s.rom[1]) { q[jid] = s.rom[1]; if (v[jid] > 0) v[jid] = 0; } }
+    }
+    // apply the pose: limbs from the dynamics, the rest (spine/tail/neck) rides the gait kinematically
+    for (const s of work.segs) {
+      if (limbSet.has(s.id)) s.rest = rest0[s.id] + q[s.id];
+      else if (clip.angles[s.id] != null) s.rest = rest0[s.id] + clip.angles[s.id];
+    }
+
+    // ── SOLVE AGAINST FLAT GROUND ──  body-frame foot positions (lowest tip per leg) from current pose
+    const Wb = solve(work, 0);
+    const feet = legPrefixes.map((lp) => {
+      let lo = null; for (const id of footSegs[lp]) { const t = Wb[id].tip; if (!lo || t.y > lo.y) lo = t; }
+      return lo ? { leg: lp, fx: lo.x, fy: lo.y } : null;
+    }).filter(Boolean);
+    // stance schedule by PHASE — the same 4-beat WALK the clip uses (GAIT.duty ≈ 0.68), so each foot is
+    // planted for most of its cycle and 2–3 feet are always down (no hopping). Matched to render.mjs.
+    const u0 = phase / (2 * Math.PI);
+    for (const f of feet) { const u = (((u0 + GAIT.phase[f.leg]) % 1) + 1) % 1; f.contact = u < GAIT.duty; }
+    const planted = feet.filter((f) => f.contact);
+    const minFy = (planted.length ? planted : feet).reduce((m, f) => Math.max(m, f.fy), -1e9);
+    bodyY = -minFy;                                           // lift the body so the lowest planted foot sits at y=0
+    // body advances at the average BACKWARD velocity of the planted feet. Velocity form (vs absolute
+    // anchors) avoids reset-jumps across the 2–3 overlapping supports; in steady stance every planted
+    // foot retracts at the same rate, so the body rides forward smoothly with no foot slip.
+    let sumD = 0, nD = 0;
+    for (const f of feet) if (f.contact && prevFx[f.leg] != null) { sumD += prevFx[f.leg] - f.fx; nD++; }
+    if (nD > 0) bodyX += sumD / nD;
+    for (const f of feet) prevFx[f.leg] = f.contact ? f.fx : null;
+    const worldFeet = feet.map((f) => ({ leg: f.leg, worldX: bodyX + f.fx, worldY: bodyY + f.fy, contact: f.contact }));
+    return { activations: act, bodyX, bodyY, feet: worldFeet, phase };
+  }
+
+  return { sprite: work, step, phase: () => phase };
+}
+
+export default { makeGait };

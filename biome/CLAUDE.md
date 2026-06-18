@@ -49,6 +49,155 @@ stocks and flows?* Everything lives under `cycles/`:
   instead of blanking the canvas; keep it that way. The worker normalises the no-slash `/graph` to `/graph/`
   — the only non-asset route, a rewrite to a page, not server compute.
 
+## The sprite lab (`sprite/`) — live at `biome.mino.mobi/sprite` (Phase 1)
+
+Deterministically generate an **animated, articulated SKELETON for any organism in the deck**. The
+insight (borrowed from "the guy", `mega/sprite/core.js`): a human is *one fixed body plan* you can
+hardcode a rig for; an arbitrary organism is not. The first attempt — one soft quadruped topology
+scaled by size + a few knobs — landed in the **uncanny valley** (every animal a stretched blob, because
+size is the least characterful axis). The fix: draw the **literal skeleton**. What makes a horse a horse
+is the *bones* — limb-element ratios, vertebral formula, digit reduction, stance — and those are real,
+measured comparative-anatomy data. The skeleton is also abstract enough to escape the realism contract
+(a naturalist's bone plate, not a fake animal). The bones **are** the rig, so the clip animates real joints.
+
+- `sprite/bauplan.mjs` — the **classifier + orchestrator**. `classify(org)` → `{clade, archetype}`
+  (curated genus→clade table; Phase 2 swaps for iNaturalist `ancestor_ids`). `build(org)` resolves a
+  family + osteometric profile and articulates a skeleton, with a seeded ivory **bone palette**.
+  **Determinism is load-bearing** — the seed is the organism's stable iNaturalist taxon id, so a
+  creature has ONE canonical skeleton for ever and `/sprite/?id=…` is a permalink. Reuses `gacha/prng.js`.
+- `sprite/osteo.mjs` — **the comparative-osteology dataset** (the research artifact). Per mammal family
+  (equid, felid, canid, bovid, cervid, ursid, leporid, suid, murid, mustelid, + reptile/generic):
+  stance, vertebral formula, limb-bone ratios, digit formula, skull proportions. Grounded in the
+  cursoriality-index literature (crural/brachial/intermembral, MT/F). `familyOf` / `profileFor` resolve it.
+  Also carries the **cranial-osteology layer**: `CRANIA` (per-family `dome` · `orbit` · `orbitFwd` · `zygo`
+  · `crest` · `canine` · `incisor` · `diastema` · `reptilian`) merged with the measured `{snout,cranium,jaw}`
+  by `craniumProfile(family, profile)`, and `appendageFor(org)` which resolves horns/antlers/beaks **per
+  genus** (not family — a llama shares the cervid leg plan but grows no antlers).
+- `sprite/skull.mjs` — **the cranial-geometry source of truth** (one place, two backends). `skullParts(w,s,pal)`
+  + `mandibleParts(w,s,pal)` trace a real lateral skull from the cranial profile — braincase dome, dorsal
+  nasal profile, rostrum, orbit (sized + forward/lateral), zygomatic arch, sagittal crest, the dental
+  battery (incisors · canine · cheek row), nares, and the appendage (horn sweeps back · branching antler ·
+  chelonian beak) — and the dentary (coronoid + angular + tooth row). Pure → returns backend-agnostic
+  primitives (`poly`/`stroke`/`quad`/`ring`/`disc`); `render.mjs` paints them to canvas, `proof.mjs` to SVG,
+  so the two can't drift. Sandbox-testable.
+- `sprite/skeleton.mjs` — **the builder**. `buildSkeleton(org, profile, rand, {family})` → a parent-before-child
+  bone list: vertebral column (neural spines, withers), ribcage, skull+mandible (carrying the `cr` cranial
+  profile + `appendage`), scapula/pelvis blades, four named-bone limbs with stance-correct feet + digit
+  reduction. A `groundLevel()` pass tilts the body so all feet plant on one line (slopes the back for
+  saltatorial leapers). Limb bones tagged `leg`+`joint`.
+- `sprite/render.mjs` — the **phenotype**. `solve()` (forward kinematics) + the clips (the walk clip is
+  the generalisation of the guy's one gait — phase→per-bone Δangle, dispatched by leg/joint tags) +
+  `bbox()` (canvas-free → headless self-test) + `draw()` (bone/vertebra/blade/rib/hoof primitives + the
+  `skull`/`mandible` primitives via `skull.mjs`; the only browser-only fn).
+- `sprite/index.html` — the lab. Focused animated stage + a gallery; meta shows family/stance/vertebral
+  formula/digits. Same `#err` overlay as `/graph`+`/gacha`. Worker normalises no-slash `/sprite`.
+- `sprite/proof.mjs` — dev tool: renders the SAME `solve()` geometry to an **SVG contact sheet** so the
+  skeleton can be eyeballed from the sandbox (no browser). `node biome/sprite/proof.mjs [ids…] [--phases N]`.
+- `sprite/test/sprite.selftest.mjs` — 20 checks: classifier total, deterministic build/solve, finite
+  geometry across the walk cycle, four tagged limbs, skull+spine+ribcage present, osteology (C7, digit
+  formula) resolves, digit reduction expressed (horse < bear), mass→size.
+
+**Phase 1 rigs the `quadruped` archetype deeply** (mammals + walking reptiles — `buildable(org)` gates
+it; non-quadrupeds classify honestly but `build()` refuses). Roadmap: Phase 2 = sister archetypes
+(avian · serpent · finned · hexapod · …) + digitise more of the osteometric literature into `osteo.mjs`;
+Phase 3 = drop the skeletons into the gacha force graph as animated nodes (toggle vs the flat photo nodes).
+Known polish: stance-aware limb flexion for leapers (rabbit forelimb), felid/canid spine flexibility.
+
+### The muscular-system solver (`muscle.mjs` · `mechanics.mjs` · `myology.mjs`) — Phase 1: standing
+
+Given a skeleton, GROW a muscular system by mechanically modelling stability — and kill the failing
+arrangements. The endgame is mythical beasts (no reference exists), so the algorithm is tuned against
+real animals, where the answer is known. Same gacha/oracle shape: generate candidates → a physical
+scorer kills the unfit → survivors are the answer. **Deterministic** (no RNG → one canonical musculature).
+
+- `muscle.mjs` — the MODEL (how muscles work) + candidate generation. A muscle spans two bones across a
+  joint via attachments `{bone, t, d}` (fraction along, perpendicular offset). Physics: muscles only
+  PULL (⇒ antagonist pairs); torque = force × MOMENT ARM (perp distance from joint to the line of action,
+  so attachments are offset — real tendons stand off the bone); cost = force × length ∝ volume.
+  `candidatesForJoint` generates a fixed grid both sides and **kills zero-lever** (degenerate) candidates.
+- `mechanics.mjs` — the ORACLE (2D sagittal statics, g=1, normalised mass). Segment masses → centre of
+  mass → ground-reaction forces split fore/aft by CoM. `standingDemand` gives each joint's raw **buckling
+  torque** (free-body the distal sub-chain: gravity + GRF of feet below it). `evaluateStanding` →
+  per-joint {held (capacity on the correct side ≥ |required|), antagonised (both sides)} + CoM-over-support.
+  `evaluateWalking` replays the gait clip quasi-statically (lifted feet drop out of support).
+  Every presacral VERTEBRA is an actuated joint (the trunk is a loaded bridge). `actuatedJoints` =
+  limbs + head + spine; boundary conditions via `passiveFraction` (ligaments / the stay apparatus carry a
+  share before muscle — nuchal, supraspinous). `evaluateWalking` replays the gait quasi-statically.
+- `myology.mjs` — `growMuscles(sprite)`. LIMB joints get a mono-articular agonist+antagonist. The SPINE is
+  coupled: generate POLY-ARTICULAR candidates (a dorsal cord with a leverage floor spanning many vertebrae)
+  and a greedy coupled cover picks the cheapest set — a **long axial muscle emerges** (one long belly beats
+  many short ones). Then an oracle-driven REPAIR loop adds short deep muscles (multifidus) until
+  `evaluateStanding` reports every joint held. Sized past the hold threshold (SAFE). Deterministic — NO RNG.
+- `muscle.mjs` also exports `crossedJoints` (which actuated joints a hand-drawn muscle spans) for the lab.
+- `solver.mjs` — **the structural force solve** (`solveForces`): given the muscles, find the pull-only
+  tensions (F ≥ 0) that balance every joint — least-squares by projected **symmetric** Gauss-Seidel
+  (`min ‖A F − b‖²`, A = moment arms, b = buckling torques; symmetric sweeps because plain GS crawls on
+  the coupled vertebral chain). Splits `balanced` (the layout *can* hold — residual ≈ 0) from `feasible`
+  (and strong enough — no force over capacity). `collapseStep` relaxes an unsupported pose (clamped to
+  joint ROM) so the lab animates the crumble. Natural Rust/WASM kernel (cf. `cycles/solver`); JS-first.
+- `myology.mjs growMuscles` ends with **`coupledRepair`** — grow-against-the-solver: a muscle carries ONE
+  tension that must satisfy every joint it crosses, so the per-joint grower is optimistic. coupledRepair
+  runs `solveForces`, and for each joint it leaves unbalanced adds a local actuator in the residual's
+  direction — crucially incl. **single-joint** spine muscles (interspinales) that fix an anti-correlated
+  adjacent pair without disturbing neighbours — until the layout is coupled-feasible, then sizes every
+  capacity to its solved force. Result: Auto-grow → Solve STANDS (no crumble) for the whole deck.
+- `muscle.html` — **the myology lab (construction interface)** at `/sprite/muscle.html`. Muscles attach to
+  real skeletal NODES (joint centres, bone ends, neural-spine tips — the dorsal/ventral side is just which
+  node). Click two nodes to add a muscle; press **SOLVE** → tensions drawn (brightness = how hard each
+  pulls), ground-reaction arrows, balanced/unbalanced joints; with too few muscles it **crumbles**
+  (animated collapse). View toggles (bones/muscles/nodes/forces/balance) + Auto-grow.
+- `gait.mjs` — **WALK by contracting muscles** (forward dynamics, GROUND-REFERENCED). `makeGait(sprite,
+  muscles)`: each LIMB joint is integrated `q̈ = τ/I`; muscles are driven by a controller tracking the walk
+  rhythm (a CPG keyed to `CLIPS.walk`), so the legs move because muscles pull, capped by each muscle's
+  strength (too weak → lags). **The datum is the flat ground, not the sacrum:** each step it picks the
+  stance feet (diagonal pairs, by phase), locks them to a world anchor, and SOLVES the body's height (lowest
+  planted foot on the ground → it bobs as legs flex) and forward position (rides over the planted feet → the
+  limbs progress against the ground). Returns bodyX/bodyY + per-foot contact + activations. The lab's 🏃
+  button runs it: a fixed ground line, world-anchored ground stripes + planted-foot ticks that scroll with
+  progress (camera follows the body so it stays in view), muscles glow as they fire. `gait-proof.mjs` =
+  headless walk strip. NB it *tracks* the kinematic gait (controller-driven), not learned/emergent; balance
+  off the foot-lock (true free locomotion) is the next step.
+- `physics.mjs` + `walk.html` — **EXPERIMENTAL / WIP, not linked from the lab.** Real forward dynamics:
+  a 2D rigid-body model (trunk + thigh/shank legs), gravity, ground contact (feet UNLOCKED — they collide,
+  not foot-locked), joints driven by muscle torque. `makeWalker(sprite, muscles)` + `step(dt, control)` /
+  `walkStep`. The constraint solver is correct (proper 2×2 point-to-point); the verified result is that a
+  rigid muscle-held skeleton stands and **muscles-off → gravity collapses it**. But a STABLE controllable
+  gait is NOT solved — soft PD sags, stiff PD goes numerically unstable; it needs an implicit integrator
+  (or careful substepping) + a balance/posture controller (this is the research-grade part). `physics-proof.mjs`
+  renders the headless (currently tumbling) attempt. Do not present as working until it stands stably.
+- `balance/balance.mjs` + `balance/index.html` — **the BALANCE LAB at `/balance/` (its own dedicated
+  effort, separate endpoint).** Where `physics.mjs` failed by simulating each leg's articulated dynamics
+  (stiff → unstable), this uses **Virtual Model Control** — the method legged robots actually use: treat the
+  trunk as ONE rigid body `(x, y, θ)` under gravity; a PD controller decides the **wrench** (force + torque)
+  it needs to hold height + stay level (+ hold CoM, or track a velocity when walking); `distribute()` solves
+  for the stance-foot **ground-reaction forces** that produce that wrench (min-norm least-squares over the 3×3
+  `AAᵀ` with Tikhonov regularisation so near-collinear feet don't blow up), clamped to pull-only + a friction
+  cone. Legs are kinematic struts (two-link IK in the page), not dynamic bodies → no articulated instability.
+  `makeBalancer(sprite)` → `step(dt, {mode:'stand'|'walk', vTarget, cadence, push, legsOff})`. **Verified:
+  standing is exact (dy≈0, pitch≈0°) and PUSH-RECOVERY works (shove → state error → returns to 0) across the
+  deck; `legsOff` drops it under gravity.** Walking adds a 4-beat gait schedule (`GAIT`) + Raibert foot
+  placement, with **cadence auto-coupled to speed** (`cadOf(v)=min(2.6, 1.1+0.05v)`) so steps stay short and
+  brisk — feet under the CoM, the stable regime. With that coupling the **whole 30-creature deck walks with
+  pitch < ~15° (no tip-overs) across the speed slider (capped at v26)**; past that range it would still tip
+  (capture-point / MPC is the next layer). Each drawn leg is **clamped to its real bone length** so a strut
+  can never visually stretch even under a transient out-of-range foot ("extendobones" bug, fixed).
+  `balance/balance-proof.mjs` = headless settle→shove→recover→walk strip. This is the controller the earlier
+  "gravity-solved walking" ask wanted, factored into its own page.
+- `muscle-proof.mjs` — `node biome/sprite/muscle-proof.mjs [ids…]` → SVG contact sheet (headless).
+
+**Checkable result (the answer key):** muscle-less skeleton collapses (0/N joints); grown one STANDS
+(44/44 across the deck, ~70 muscles incl. the whole spine); the trunk is LOAD-BEARING (remove axial muscles
+→ collapse); a long poly-articular axial muscle EMERGES; auto-grow is COUPLED-feasible (Solve → stands);
+deterministic. **Honest open items:** (1) walking is quasi-static (46–74% coverage — muscles sized for
+standing only); next is inverse dynamics over the gait. (2) The dorsal-vs-ventral (epaxial/hypaxial)
+*identity* of the load-bearing trunk muscles is the key thing to validate against real myology — the grower
+picks whichever side aligns with its sign convention. (3) bi-articular limb muscles emerging from
+volume-minimisation (hamstrings/gastrocnemius).
+Modelling: it's a structural-equilibrium / redundancy-resolution solve (LP/NNLS), not continuum FEM; stays
+2D sagittal for now (the math is vector-based so 3D is a later swap, not a rewrite).
+
+Test: `muscle.selftest.mjs` (12 checks).
+
 ## The package it belongs to
 
 Four surfaces, one cylinder. **game → [hoop](../hoop)** · **structure → [rind](../rind)** ·
@@ -71,6 +220,8 @@ node biome/cycles/test/lake.selftest.mjs          # 20 checks: harvest conserves
 node biome/cycles/test/global.selftest.mjs        # 18 checks: union conserves, land↔lake coupling, interior closes, stable
 node biome/cycles/test/maximal.selftest.mjs       # 14 checks: intermingled web conserves, every species persists, couplers bridge containers
 node biome/gacha/test/gacha.selftest.mjs          # 13 checks: ECOSYSTEM GACHA engine — catalog, deterministic rolls, conservation, valid wiring, rarity spread
+node biome/sprite/test/sprite.selftest.mjs        # 20 checks: SPRITE engine — classifier total, deterministic build/pose, finite geometry, mass→size
+node biome/sprite/test/muscle.selftest.mjs        # 9 checks: MUSCLE solver — bare collapses, grown stands, antagonised, minimal, deterministic
 node biome/cycles/test/builder.selftest.mjs       # 23 checks: presets compile/close/conserve/stable, validation, share codec, graceful failure
 ( cd biome/cycles/solver && cargo test )          # 6 checks: the Rust stability kernel
 # or all the node tests at once:

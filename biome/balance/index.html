@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · balance lab — a standing, self-righting quadruped</title>
+<meta name="description" content="A real-time balance controller for the procedurally-generated quadruped skeletons. Virtual Model Control treats the trunk as a rigid body, decides the wrench it needs to stay upright, and solves for the ground-reaction forces the stance feet must push with. Shove it and it recovers; turn the legs off and gravity drops it." />
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da; --dim:#7f9b8d;
+    --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --sky:#5aa6e0;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(150% 130% at 50% -20%,#16261f,#0a110e 62%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px 0}
+  .crumb a{color:var(--gold);text-decoration:none}
+  header{padding:10px 20px 12px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:18px;letter-spacing:.4px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0;font-size:13px}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:100ch;line-height:1.55}
+  .sub b{color:var(--txt)} .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:920px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;position:relative}
+  .stage{position:relative;background:linear-gradient(180deg,#0e1814,#0b120f);border:1px solid var(--line);border-radius:10px}
+  canvas#view{display:block;width:100%;height:auto;border-radius:10px}
+  .controls{display:flex;flex-direction:column;gap:11px}
+  .grp{border:1px solid var(--line);border-radius:9px;padding:10px 10px 11px;background:#0e1713}
+  .grp h3{margin:0 0 9px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--dim);font-weight:600}
+  button{font:600 13px/1 var(--mono);color:var(--txt);background:#0e1713;border:1px solid var(--line);
+    border-radius:9px;padding:10px 12px;cursor:pointer;transition:.12s;width:100%}
+  button:hover{border-color:#3c6a4c}
+  button.on{border-color:var(--gold);color:var(--gold);background:#1a1a10}
+  button.shove{border-color:#5a3a2c;color:var(--warn)}
+  button.shove:hover{border-color:var(--warn);background:#1d120d}
+  .row{display:flex;gap:8px}
+  label.ctl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-top:7px}
+  label.ctl span{min-width:62px}
+  label.ctl input[type=range]{flex:1}
+  label.ctl b{color:var(--txt);min-width:42px;text-align:right}
+  select{width:100%;background:#0b1310;border:1px solid var(--line);border-radius:7px;color:var(--txt);
+    font:inherit;padding:9px}
+  .read{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:12px}
+  .read .k{color:var(--dim)} .read .v{color:var(--txt);text-align:right;font-variant-numeric:tabular-nums}
+  .read .v.bad{color:var(--warn)} .read .v.good{color:var(--leaf)}
+  .note{margin-top:13px;font-size:11.5px;color:var(--dim);line-height:1.6;border-top:1px dashed var(--line);padding-top:11px}
+  .note b{color:var(--txt)}
+  .legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:9px;font-size:11px;color:var(--dim)}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+  #err{display:none;position:absolute;left:10px;right:10px;bottom:10px;z-index:9;background:#2a1410ee;
+    border:1px solid #5a342c;border-radius:8px;padding:8px 30px 8px 12px;color:#f0b8a8;font-size:11.5px;
+    white-space:pre-wrap;max-height:30%;overflow:auto;cursor:pointer}
+  #err::after{content:'×';position:absolute;top:6px;right:10px;font-size:16px;color:#f0b8a8aa}
+  .flash{position:absolute;inset:0;border-radius:10px;pointer-events:none;box-shadow:inset 0 0 0 3px var(--warn);opacity:0;transition:opacity .1s}
+</style>
+</head>
+<body>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">biome</a> / <a href="/sprite/">sprite lab</a> / <a href="/sprite/muscle.html">myology lab</a> / balance lab</div>
+  <header>
+    <h1>balance lab <small>— a standing, self-righting quadruped</small></h1>
+    <div class="sub">
+      The myology lab grew muscles that <b>hold a pose</b>; this asks the harder question — can the skeleton
+      <b>stay up on its own</b> against gravity, in real time? It runs a <b>balance controller</b> (Virtual
+      Model Control, the method real legged robots use): treat the trunk as one rigid body, decide the
+      <b>wrench</b> — force + torque — it needs to hold its height and stay level, then <b>solve</b> for the
+      ground-reaction forces the planted feet must push with to produce it (least-squares, clamped to a
+      friction cone). <b>Shove it</b> and it recovers from the state error; <b>turn the legs off</b> and only
+      gravity remains, so it drops. It also <b>walks</b>: a 4-beat gait with Raibert foot placement, the
+      <b>cadence auto-coupled to speed</b> so the steps stay short and brisk — that keeps the feet under the
+      centre of mass, which is the stable regime. <span style="color:var(--gold)">Push the speed past the
+      slider and the trunk would still tip</span> — capture-point control is the next layer.
+    </div>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="controls">
+        <div class="grp">
+          <h3>creature</h3>
+          <select id="pick"></select>
+          <div class="read" style="margin-top:9px">
+            <div class="k">stance</div><div class="v" id="r-stance">—</div>
+            <div class="k">trunk mass</div><div class="v" id="r-mass">—</div>
+          </div>
+        </div>
+        <div class="grp">
+          <h3>mode</h3>
+          <div class="row">
+            <button id="m-stand" class="on">stand</button>
+            <button id="m-walk">walk →</button>
+          </div>
+          <label class="ctl"><span>speed</span><input id="s-vel" type="range" min="0" max="26" value="22"><b id="v-vel">22</b></label>
+          <label class="ctl"><span>cadence</span><i style="flex:1"></i><b id="v-cad" style="color:var(--dim)">auto</b></label>
+        </div>
+        <div class="grp">
+          <h3>perturb</h3>
+          <div class="row">
+            <button id="b-shove-l" class="shove">⇠ shove</button>
+            <button id="b-shove-r" class="shove">shove ⇢</button>
+          </div>
+          <button id="b-legs" style="margin-top:8px">legs off — drop it</button>
+          <button id="b-reset" style="margin-top:8px">reset</button>
+        </div>
+        <div class="grp">
+          <h3>state</h3>
+          <div class="read">
+            <div class="k">height err</div><div class="v" id="r-dy">0.0</div>
+            <div class="k">pitch</div><div class="v" id="r-pitch">0.0°</div>
+            <div class="k">feet down</div><div class="v" id="r-feet">4 / 4</div>
+            <div class="k">advance</div><div class="v" id="r-adv">0</div>
+            <div class="k">CoM speed</div><div class="v" id="r-spd">0</div>
+            <div class="k">total GRF</div><div class="v" id="r-grf">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i style="background:#9fb4aa"></i>skeleton</span>
+        <span><i style="background:#d8b25a"></i>planted foot</span>
+        <span><i style="background:#5a6b62"></i>swing foot</span>
+        <span><i style="background:#62b87a"></i>ground force</span>
+        <span><i style="background:#5aa6e0"></i>centre of mass</span>
+      </div>
+    </section>
+    <section class="panel" style="padding:10px">
+      <div class="stage">
+        <div id="err"></div>
+        <div class="flash" id="flash"></div>
+        <canvas id="view" width="900" height="560"></canvas>
+      </div>
+      <div class="note">
+        <b>What you're watching.</b> The thin grey figure is the <b>literal skeleton</b> (from
+        <a href="/sprite/">comparative-osteology data</a>), rigidly carried by the controlled trunk. The thick
+        struts are the legs, posed by two-link inverse kinematics from each hip down to where the controller
+        decides the foot should be. Green arrows are the <b>ground-reaction forces</b> the balance solve asked
+        each planted foot for — note they always sum to hold the body's weight and cancel its tipping torque.
+        Each drawn leg is clamped to its <b>real bone length</b>, so a strut can never stretch. The whole thing
+        is <b>deterministic from the iNaturalist taxon id</b>, so a given creature balances the same way on
+        every machine. <b>Walking</b> holds its pitch across the whole speed slider because cadence rises with
+        speed; the honest edge is past that range, where capture-point control would take over.
+      </div>
+    </section>
+  </main>
+
+<script type="module">
+import { build, buildable } from '../sprite/bauplan.mjs';
+import { solve } from '../sprite/render.mjs';
+import { makeBalancer } from './balance.mjs';
+
+const $ = (s) => document.querySelector(s);
+const errBox = $('#err');
+// Non-occluding, dismissible error banner: show the message at the bottom, never cover the canvas, and
+// don't spam — only resurface if the message actually changes. Click to dismiss.
+let lastErrMsg = '';
+const showErr = (e) => {
+  const msg = String((e && e.stack) || (e && e.message) || e);
+  if (msg === lastErrMsg) return; lastErrMsg = msg;
+  errBox.style.display = 'block'; errBox.textContent = msg;
+};
+errBox.addEventListener('click', () => { errBox.style.display = 'none'; });
+window.addEventListener('error', (e) => showErr(e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => showErr(e.reason));
+
+const cv = $('#view'), ctx = cv.getContext('2d');
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+function fitCanvas() {
+  const w = cv.clientWidth || 900, h = Math.round(w * 560 / 900);
+  cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  cv.style.height = h + 'px';
+  return { w, h };
+}
+
+// ── catalogue (only the buildable quadrupeds) ──────────────────────────────────────────────
+let CAT = null;
+const PREFERRED = ['horse','wolf','bear','rabbit','fox','lynx','goat','llama','pig','badger','otter','capybara'];
+
+// ── live state ─────────────────────────────────────────────────────────────────────────────
+let bal = null, sprite = null, skel = [], scale = 1, restCom = { x: 0, y: 0 };
+let mode = 'stand', legsOff = false, pushFrames = 0, pushDir = 1, last = null;
+let vTarget = 22;
+// cadence rises with speed → short, brisk steps keep the feet under the CoM (the stable regime). Coupling
+// it removes the foot-gun of pairing a high speed with a slow cadence, which tips the trunk over.
+const cadOf = (v) => Math.min(2.6, 1.1 + v * 0.05);
+let maxPitch = 0, startX = 0;
+
+function rebuild(id) {
+  try { rebuildInner(id); } catch (e) { showErr(e); }
+}
+function rebuildInner(id) {
+  const org = CAT[id];
+  sprite = build(org);
+  const W = solve(sprite, 0);
+  skel = sprite.segs.filter((s) => !s.leg).map((s) => ({
+    base: W[s.id].base, tip: W[s.id].tip,
+    w: Math.max(0.8, ((s.w0 || 1) + (s.w1 || 1)) / 2),
+  }));
+  bal = makeBalancer(sprite, {});
+  restCom = bal.restCom;
+  // scale to fit: world extent of skeleton + leg reach
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const s of skel) for (const p of [s.base, s.tip]) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+  y1 = Math.max(y1, bal.groundY);
+  const { w, h } = fitCanvas();
+  scale = Math.min((w * 0.62) / Math.max(40, x1 - x0), (h * 0.66) / Math.max(40, y1 - y0));
+  maxPitch = 0; startX = bal.com0.x; last = null;
+  $('#r-stance').textContent = (sprite.meta && sprite.meta.stance) || '—';
+  $('#r-mass').textContent = bal.M.toFixed(2);
+}
+
+// world → screen. camera follows the trunk when walking; ground pinned to a fixed screen row.
+function cam(w, h) {
+  const t = bal.trunk;
+  const camX = (mode === 'walk') ? t.x : bal.com0.x;
+  const groundScreenY = h * 0.80;
+  return { camX, S: scale, gy: groundScreenY, W: w, H: h };
+}
+const toScreen = (c, x, y) => ({ x: (x - c.camX) * c.S + c.W / 2, y: (y - bal.groundY) * c.S + c.gy });
+
+// rest-frame skeleton point → world, via the trunk pose (rotate about CoM, translate)
+function xf(p) {
+  const t = bal.trunk, dx = p.x - restCom.x, dy = p.y - restCom.y, ca = Math.cos(t.a), sa = Math.sin(t.a);
+  return { x: t.x + dx * ca - dy * sa, y: t.y + dx * sa + dy * ca };
+}
+// two-link IK: knee from hip H to foot F with thigh l1, shank l2; bend picks the elbow/knee side
+function ik(H, F, l1, l2, bend) {
+  let dx = F.x - H.x, dy = F.y - H.y, d = Math.hypot(dx, dy);
+  d = Math.min(d, (l1 + l2) * 0.999); d = Math.max(d, Math.abs(l1 - l2) + 1e-3);
+  const a = Math.atan2(dy, dx);
+  const ca = (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d);
+  const ang = Math.acos(Math.max(-1, Math.min(1, ca)));
+  const ka = a + bend * ang;
+  return { x: H.x + Math.cos(ka) * l1, y: H.y + Math.sin(ka) * l1 };
+}
+
+function render(out) {
+  const { w, h } = { w: cv.clientWidth || 900, h: (cv.clientWidth || 900) * 560 / 900 };
+  ctx.clearRect(0, 0, w, h);
+  const c = cam(w, h);
+
+  // ground
+  const gL = toScreen(c, c.camX - 1e4, bal.groundY), gR = toScreen(c, c.camX + 1e4, bal.groundY);
+  ctx.strokeStyle = '#3a5446'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(gL.x, gL.y); ctx.lineTo(gR.x, gR.y); ctx.stroke();
+  // ground hatch (gives a sense of travel when walking)
+  ctx.strokeStyle = '#1d2c25'; ctx.lineWidth = 1;
+  const spacing = 40, base = Math.floor((c.camX - w / 2 / c.S) / spacing) * spacing;
+  for (let gx = base; gx < c.camX + w / 2 / c.S + spacing; gx += spacing) {
+    const a = toScreen(c, gx, bal.groundY), b = toScreen(c, gx - 14, bal.groundY + 16 / c.S);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+
+  // legs (behind skeleton): IK strut hip → knee → foot. Clamp the foot to within the leg's real reach so a
+  // bone can never visually stretch ("extendobones") if the trunk state ever runs the foot out of range.
+  for (const L of out.legs) {
+    const fore = L.lp[0] === 'F', bend = fore ? 1 : -1, reach = (L.thigh + L.shank) * 0.999;
+    let foot = L.foot, dx = L.foot.x - L.hip.x, dy = L.foot.y - L.hip.y, dlen = Math.hypot(dx, dy);
+    if (dlen > reach) { const s = reach / dlen; foot = { x: L.hip.x + dx * s, y: L.hip.y + dy * s }; }
+    const K = ik(L.hip, foot, L.thigh, L.shank, bend);
+    const Hs = toScreen(c, L.hip.x, L.hip.y), Ks = toScreen(c, K.x, K.y), Fs = toScreen(c, foot.x, foot.y);
+    ctx.strokeStyle = L.stance ? '#8a9a90' : '#5d6b63';
+    ctx.lineWidth = Math.max(2, 5 * c.S); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(Hs.x, Hs.y); ctx.lineTo(Ks.x, Ks.y); ctx.lineTo(Fs.x, Fs.y); ctx.stroke();
+    // joints
+    ctx.fillStyle = '#2a3a32'; ctx.beginPath(); ctx.arc(Ks.x, Ks.y, Math.max(1.5, 2.4 * c.S), 0, 7); ctx.fill();
+    // foot
+    ctx.fillStyle = L.stance ? '#d8b25a' : '#5a6b62';
+    ctx.beginPath(); ctx.arc(Fs.x, Fs.y, Math.max(2.5, 3.6 * c.S), 0, 7); ctx.fill();
+  }
+
+  // skeleton (trunk-carried) — thin bones
+  ctx.lineCap = 'round';
+  for (const s of skel) {
+    const a = toScreen(c, ...vals(xf(s.base))), b = toScreen(c, ...vals(xf(s.tip)));
+    ctx.strokeStyle = '#9fb4aa'; ctx.lineWidth = Math.max(0.8, s.w * c.S * 0.62);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+
+  // GRF arrows (the controller's solved ground forces) — drawn FROM the foot in the push direction
+  const wRef = bal.M * 1400;                 // body weight (g default) for arrow scaling
+  for (const G of out.grf) {
+    const mag = Math.hypot(G.fx, G.fy); if (mag < 1e-6) continue;
+    const len = Math.min(h * 0.34, (mag / wRef) * 64);
+    const fs = toScreen(c, G.x, G.y);
+    const ux = G.fx / mag, uy = G.fy / mag;            // force direction (foot pushes body)
+    const tip = { x: fs.x + ux * len, y: fs.y + uy * len };
+    ctx.strokeStyle = '#62b87a'; ctx.fillStyle = '#62b87a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(fs.x, fs.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
+    const ah = 5, ang = Math.atan2(uy, ux);
+    ctx.beginPath(); ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(tip.x - ah * Math.cos(ang - 0.4), tip.y - ah * Math.sin(ang - 0.4));
+    ctx.lineTo(tip.x - ah * Math.cos(ang + 0.4), tip.y - ah * Math.sin(ang + 0.4));
+    ctx.closePath(); ctx.fill();
+  }
+
+  // centre of mass
+  const cm = toScreen(c, out.com.x, out.com.y);
+  ctx.fillStyle = '#5aa6e0'; ctx.beginPath(); ctx.arc(cm.x, cm.y, 4.5, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#5aa6e0'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(cm.x, cm.y, 7.5, 0, 7); ctx.stroke();
+  // gravity plumb line down from CoM (so you can see it relative to the support polygon)
+  ctx.strokeStyle = 'rgba(90,166,224,.35)'; ctx.setLineDash([3, 4]);
+  const plumb = toScreen(c, out.com.x, bal.groundY);
+  ctx.beginPath(); ctx.moveTo(cm.x, cm.y); ctx.lineTo(plumb.x, plumb.y); ctx.stroke(); ctx.setLineDash([]);
+}
+function vals(o) { return [o.x, o.y]; }
+
+// ── controls ──────────────────────────────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  $('#m-stand').classList.toggle('on', m === 'stand');
+  $('#m-walk').classList.toggle('on', m === 'walk');
+}
+$('#m-stand').onclick = () => setMode('stand');
+$('#m-walk').onclick = () => setMode('walk');
+$('#b-shove-l').onclick = () => { pushDir = -1; pushFrames = 10; flash(); };
+$('#b-shove-r').onclick = () => { pushDir = 1; pushFrames = 10; flash(); };
+$('#b-legs').onclick = (e) => { legsOff = !legsOff; e.target.classList.toggle('on', legsOff); e.target.textContent = legsOff ? 'legs ON — catch it' : 'legs off — drop it'; };
+$('#b-reset').onclick = () => { legsOff = false; $('#b-legs').classList.remove('on'); $('#b-legs').textContent = 'legs off — drop it'; rebuild($('#pick').value); };
+$('#s-vel').oninput = (e) => { vTarget = +e.target.value; $('#v-vel').textContent = vTarget; $('#v-cad').textContent = vTarget > 0 ? cadOf(vTarget).toFixed(1) : 'auto'; };
+$('#pick').onchange = (e) => rebuild(e.target.value);
+window.addEventListener('resize', () => { if (sprite) fitCanvas(); });
+
+const flashEl = $('#flash');
+function flash() { flashEl.style.opacity = '0.9'; setTimeout(() => flashEl.style.opacity = '0', 110); }
+
+// ── loop: fixed-timestep sub-stepping for a stable solve ───────────────────────────────────
+function frame(now) {
+  try { frameInner(now); } catch (e) { showErr(e); }   // a transient error must never kill the animation
+  requestAnimationFrame(frame);                          // the loop is unconditional — it always reschedules
+}
+function frameInner(now) {
+  if (!bal) return;
+  if (last == null) last = now;
+  let elapsed = Math.min(0.05, (now - last) / 1000); last = now;
+  const h = 1 / 240; let out = null;
+  let acc = elapsed;
+  do {                                   // always take ≥1 substep (first frame: elapsed≈0 → dt 0, but out is set)
+    const dt = Math.min(h, Math.max(0, acc)); acc -= h;
+    const push = pushFrames > 0 ? pushDir * bal.M * 2600 : 0;
+    if (pushFrames > 0 && dt > 0) pushFrames--;
+    out = bal.step(dt, { mode, vTarget, cadence: cadOf(vTarget), push, legsOff });
+  } while (acc > 0);
+  render(out);
+
+  // readouts
+  const dy = out.com.y - bal.com0.y, pitch = out.trunk.a * 180 / Math.PI;
+  if (!legsOff) maxPitch = Math.max(maxPitch, Math.abs(pitch));
+  const feet = out.legs.filter((l) => l.stance).length;
+  const spd = Math.hypot(bal.trunk.vx, bal.trunk.vy);
+  const grfTot = out.grf.reduce((a, g) => a + Math.hypot(g.fx, g.fy), 0);
+  set('#r-dy', dy.toFixed(1), Math.abs(dy) > 30 ? 'bad' : Math.abs(dy) < 6 ? 'good' : '');
+  set('#r-pitch', pitch.toFixed(1) + '°', Math.abs(pitch) > 25 ? 'bad' : Math.abs(pitch) < 6 ? 'good' : '');
+  set('#r-feet', feet + ' / 4');
+  set('#r-adv', (out.trunk.x - startX).toFixed(0));
+  set('#r-spd', spd.toFixed(0));
+  set('#r-grf', (grfTot / (bal.M * 1400)).toFixed(2) + '·w');
+}
+function set(sel, txt, cls) { const el = $(sel); el.textContent = txt; el.className = 'v' + (cls ? ' ' + cls : ''); }
+
+// ── boot ───────────────────────────────────────────────────────────────────────────────────
+(async function boot() {
+  try {
+    const cat = await (await fetch('../gacha/catalog.json')).json();
+    CAT = cat.organisms;
+    // buildable only
+    const ids = Object.values(CAT).filter((o) => { try { return buildable(o); } catch { return false; } })
+      .map((o) => o.id);
+    const order = [...PREFERRED.filter((i) => ids.includes(i)), ...ids.filter((i) => !PREFERRED.includes(i))];
+    const sel = $('#pick');
+    for (const id of order) {
+      const o = CAT[id]; const opt = document.createElement('option');
+      opt.value = id; opt.textContent = (o.common || id) + ' · ' + (o.sciName || '');
+      sel.appendChild(opt);
+    }
+    const url = new URL(location.href), want = url.searchParams.get('id');
+    const start = (want && CAT[want]) ? want : (order[0] || 'horse');
+    sel.value = start;
+    rebuild(start);
+    requestAnimationFrame(frame);
+  } catch (e) { showErr(e); }
+})();
+</script>
+</body>
+</html>
