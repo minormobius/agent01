@@ -23,13 +23,11 @@ export const POWER_THRESHOLDS = [0, 30, 80, 150, 250];   // index i ⇒ min XP f
 export const XP_BASE = 10, XP_PER_REVELATION = 5;
 export function powerTierForXp(xp) { let t = 1; for (let i = 0; i < POWER_THRESHOLDS.length; i++) if (xp >= POWER_THRESHOLDS[i]) t = i + 1; return t; }
 
-// PROTOTYPE exploration leveling (hoopy: "xp could just be as simple as how many things you've
-// encountered"). revelation_tier (how much of the WORLD you understand) and narrative_tier (how far the
-// STORY has carried you) advance from the same encounter-XP as a FLOOR, so wandering reveals higher-tier
-// content — "know 2/5 things ⇒ get 1–2 tier stuff." Same step function as power for now. Milestones
-// (advance.js) and the storyboard floor can still push narrative_tier further; this only ever raises.
-// The human-in-the-loop plot-beat paging is the next architecture; until then, this keeps the world
-// unfolding (and lifts the narrative-2 opening seal) purely from exploration.
+// EXPLORATION leveling: revelation_tier (how much of the WORLD you understand) advances from encounter-XP
+// as a FLOOR, so wandering reveals higher-tier world content — "know 2/5 things ⇒ get 1–2 tier stuff."
+// NOTE: narrative_tier is NO LONGER on this floor — that axis is the STORY SPINE, driven by hoopybot
+// (story/hoopy.js): you advance it by learning enough of the right things and reporting to your guide.
+// Same step function as power for the revelation floor.
 export const exploreTierForXp = powerTierForXp;
 
 // ── the gate: does pre-loaded state satisfy a `requires` blob? (state_gate.meets_state) ──
@@ -98,15 +96,13 @@ function bindAndLevel(store, playerId, featureKey, item) {
   const p = store.getPlayerState(playerId);
   const xp = (p.xp || 0) + gain, before = p.power_tier, after = powerTierForXp(xp);
   store.setPlayerXp(playerId, xp, after);
-  // exploration floor: encountering things lifts revelation + narrative tiers too (never lowers).
+  // exploration floor lifts REVELATION only (never lowers). narrative_tier is hoopybot's (story/hoopy.js).
   const et = exploreTierForXp(xp);
-  const revFrom = p.revelation_tier, narFrom = p.narrative_tier;
+  const revFrom = p.revelation_tier;
   if (et > revFrom) store.setPlayerTier(playerId, 'revelation_tier', et);
-  if (et > narFrom) store.setPlayerTier(playerId, 'narrative_tier', et);
-  const out = { xp, xp_gain: gain, power_tier: after, revelation_tier: Math.max(revFrom, et), narrative_tier: Math.max(narFrom, et) };
+  const out = { xp, xp_gain: gain, power_tier: after, revelation_tier: Math.max(revFrom, et) };
   if (after > before) out.leveled = { from: before, to: after };
   if (et > revFrom) out.revelation_up = { from: revFrom, to: et };
-  if (et > narFrom) out.narrative_up = { from: narFrom, to: et };
   return out;
 }
 export function interact(store, playerId, featureKey, context = '', opts = {}) {
@@ -273,7 +269,7 @@ export class MemoryStore {
   listPlacements(id) {
     return [...this._p(id).entries()].sort((a, b) => a[1].first_seen - b[1].first_seen).map(([key, r]) => {
       const ci = this.contentById(r.content_item_id) || {}, c = ci.content || {};
-      return { feature_key: key, type: ci.type, name: c.name, description: c.description || c.response || '', revelation_tier: ci.revelation_tier, interaction_count: r.interaction_count };
+      return { feature_key: key, content_item_id: r.content_item_id, type: ci.type, name: c.name, description: c.description || c.response || '', tags: ci.tags || [], revelation_tier: ci.revelation_tier, interaction_count: r.interaction_count };
     });
   }
   featureByKey(key) { return this.features.get(key) || null; }

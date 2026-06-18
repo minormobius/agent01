@@ -50,18 +50,16 @@ ok(meetsState({ facts: {}, items: new Set() }, { facts: { 'flag.x': true } }) ==
   ok(t.choices.length === 2 && t.choices.some((c) => c.id === 'rep'), 'min_standing-gated choice is shown anyway');
 }
 
-// ── 5. exploration drives revelation + narrative tiers (xp = things encountered) ──
+// ── 5. exploration drives REVELATION only; narrative is hoopybot's (story spine) ──
 ok(exploreTierForXp(0) === 1 && exploreTierForXp(30) === 2 && exploreTierForXp(250) === 5, 'exploreTierForXp steps with xp');
 {
   const pool = [];
   for (let i = 0; i < 6; i++) pool.push({ id: 'lf' + i, type: 'lore_fragment', approved: true, status: 'active', revelation_tier: 1, narrative_tier: 1, power_tier: 1, tags: [], content: { name: 'frag ' + i, description: 'a thing' } });
   const s = new MemoryStore(pool, { features: [] });
-  const p0 = s.getPlayerState('p');
-  ok(p0.revelation_tier === 1 && p0.narrative_tier === 1, 'start at tier 1');
   for (let i = 0; i < 6; i++) { s.addFeature({ key: 'f' + i, type: 'lore_fragment' }); interact(s, 'p', 'f' + i); }
   const p1 = s.getPlayerState('p');
-  ok(p1.revelation_tier >= 2 && p1.narrative_tier >= 2, `exploring lifts revelation + narrative tiers (rev ${p1.revelation_tier}, nar ${p1.narrative_tier})`);
-  ok(p1.narrative_tier >= 2, 'narrative tier ≥ 2 ⇒ the opening seal would lift from exploration alone');
+  ok(p1.revelation_tier >= 2, `exploring lifts revelation tier (rev ${p1.revelation_tier})`);
+  ok(p1.narrative_tier === 1, 'narrative tier stays 1 under exploration — it is hoopybot-gated, not XP-gated');
 }
 
 console.log(`\nstory.selftest: ${pass} passed, ${fail} failed`);

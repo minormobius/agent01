@@ -95,6 +95,8 @@
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
     import { deriveStoryboard, deriveMilestones, deriveOpeningCast } from './story/progression.js';   // v096: the storyboard + advancement + opening cast are DERIVED FROM hoopy's content, not hand-authored
     import { computeBoard, questLog, activeMarkers, tierFloors } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
+    import { DECKS, DECK_COUNT, deckForTier, nextDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
+    import { assess, levelMessage, guideFor } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
     import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
     import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
@@ -561,7 +563,11 @@
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
       let tierTag = '';
       if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length, st = getStam() | 0, no = getNourish() | 0, hp = getHealth() | 0, co = getCoins();
-        tierTag = ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · nar ${p.narrative_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span>`
+        const d = currentDeck(), ha = assess(story.store, story.playerId, d), paged = story.store.getFact(story.playerId, 'hoopy.paged.' + d.tier);
+        const hcol = paged ? '#7fd8d0' : ha.progress >= 1 ? '#7fd8d0' : '#9aa8a0';
+        tierTag = ` · <span style="color:#8fb89f" title="${esc(d.character.slice(0, 120))}…">deck ${d.tier}/${DECK_COUNT} · ${esc(d.name)}</span>`
+          + ` · <span style="color:${hcol}" title="hoopybot — learn enough of this deck's themes (${esc(d.learn.hint)}) to be paged on">${paged ? '✦ return to your guide' : 'hoopy ' + ha.learned + '/' + ha.needed}</span>`
+          + ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span>`
           + ` · <span style="color:${st < 25 ? '#e08a8a' : '#9aa8a0'}" title="stamina — drains as you walk, restored by a bed (and slower when you're fed)">stam ${st}</span>`
           + ` · <span style="color:${no < 20 ? '#e08a8a' : '#8fb89f'}" title="nourishment — ebbs as you walk; eat at a cafe (◍). Starving bleeds health">food ${no}</span>`
           + ` · <span style="color:${hp < 35 ? '#e08a8a' : '#9aa8a0'}" title="health — falls only while starving; a meal heals a little">hp ${hp}</span>`
@@ -593,6 +599,8 @@
         story.milestones = story.sb ? deriveMilestones(story.sb) : [];   // tier advancement = his flag-gated beats (empty until his export wires triggers)
         try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
         story.ready = true; renderQuest();
+        try { openingCast = deriveOpeningCast([...story.store.content.values()], 3); } catch (e) {}   // hoopybot's guides, ready even before anchors place
+        maybeArriveDeck();   // the awakening: the current deck's hand-written character + your guide's hook
         try { const h = await fetch('/api/story/health').then((r) => r.json()); storyApi.enabled = !!(h && h.enabled); storyApi.provider = h && h.provider; } catch (e) { storyApi.enabled = false; }   // v096: is live generation available?
       } catch (e) { story.ready = false; }   // graceful: residents still live and walk, just no story panel
     }
@@ -648,17 +656,18 @@
       else h += '<span class="o">— the way is open —</span>';
       el.innerHTML = h + ' <span style="color:#566">(' + done + ' done)</span> · <a class="sb" href="/v096/storyboard/">board ↗</a>';
     }
+    const saveStorySnapshot = () => { if (story.ready) { try { localStorage.setItem('hoop:v096:story', JSON.stringify(story.store.snapshot())); } catch (e) {} } };
     const saveStory = () => {
       if (!story.ready) return;
-      try { localStorage.setItem('hoop:v096:story', JSON.stringify(story.store.snapshot())); } catch (e) {}
-      // advancement is DRIVEN BY HIS STORY: flag-gated milestones (when his export wires triggers) PLUS
-      // board tier-floors — his tier-paced beats lift the tier as you gain exposure (XP) crystallizing his
-      // content. This is what unlocks the way "out" (seal at narrative 2) and "down" (rind at narrative 3).
+      saveStorySnapshot();
+      // advancement: REVELATION (world-understanding) floors from exposure (XP + storyboard) + his flag
+      // milestones; NARRATIVE (the story spine) is hoopybot's — paged via checkHoopy, granted at your guide.
       for (const a of checkAdvance(story.store, story.playerId, story.milestones || [])) if (a.axis === 'narrative_tier' || a.axis === 'revelation_tier') flashTier(a);
       if (story.sb) {
         const floors = tierFloors(computeBoard(story.sb, story.store, story.playerId)), p = story.store.getPlayerState(story.playerId);
-        for (const axis of ['narrative_tier', 'revelation_tier']) { const cur = p[axis] || 1; if ((floors[axis] || 1) > cur) { story.store.setPlayerTier(story.playerId, axis, floors[axis]); flashTier({ axis, from: cur, to: floors[axis] }); } }
+        const cur = p.revelation_tier || 1; if ((floors.revelation_tier || 1) > cur) { story.store.setPlayerTier(story.playerId, 'revelation_tier', floors.revelation_tier); flashTier({ axis: 'revelation_tier', from: cur, to: floors.revelation_tier }); }
       }
+      checkHoopy();   // hoopybot: has the player learned enough of this deck to be paged for the next rung?
       whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
       if (introSolved()) { maybeStream(); maybeBuildRind(); }   // unseal: stream the Nave + sink the rind shaft on the concourse
     };
@@ -681,6 +690,63 @@
     $('enc').addEventListener('click', hideEncounter);
     addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
     const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) showEncounter(intro.item); };
+    // a generic centre-screen page (deck arrival, the hoopybot level-up) — same overlay, custom layout.
+    function showPage(kicker, title, body, foot) {
+      $('enccard').innerHTML =
+        `<div class="ek">${esc(kicker)}</div>` +
+        `<div class="en">${esc(title)}</div>` +
+        `<div class="ed">${esc(body)}</div>` +
+        `<div class="ex">${esc(foot || '⏎ / click to continue')}</div>`;
+      $('enc').classList.add('on');
+    }
+
+    // ── HOOPYBOT + THE DECK SPINE: narrative_tier is the climb through five hand-written decks (decks.js).
+    //    hoopybot (hoopy.js) watches what you've learned on your current deck; when you've learned enough of
+    //    the right things it PAGES you (a custom message) to return to your guide, who advances you and gives
+    //    the next deck's guidance. Each deck shows its hand-written character on arrival. ──
+    let openingCast = [];   // his Arrival NPCs (set in placeAnchors) — the guides you report back to
+    const narTier = () => (story.ready ? (story.store.getPlayerState(story.playerId).narrative_tier || 1) : 1);
+    const currentDeck = () => deckForTier(narTier());
+    const guideName = (g) => (g && (g.content || {}).name) || 'your guide';
+    function showDeckCard(deck, withHook) {
+      if (!deck) return;
+      const body = withHook ? `${deck.character}\n\n— ${deck.hook}` : deck.character;
+      showPage(`deck ${deck.tier} of ${DECK_COUNT} · ${deck.ladder} · ${deck.rev}`, deck.name, body);
+    }
+    // arrival: show a deck's character the first time the player is on that tier.
+    function maybeArriveDeck() {
+      if (!story.ready) return;
+      const d = currentDeck(), k = 'hoopy.arrived.' + d.tier;
+      if (story.store.getFact(story.playerId, k)) return;
+      story.store.setFact(story.playerId, k, true); saveStorySnapshot();
+      showDeckCard(d, true);
+    }
+    // hoopybot's verdict — page the player when they've learned enough of the current deck (once per tier).
+    function checkHoopy() {
+      if (!story.ready) return;
+      const d = currentDeck(), a = assess(story.store, story.playerId, d);
+      const pk = 'hoopy.paged.' + d.tier;
+      if (a.ready && !story.store.getFact(story.playerId, pk)) {
+        story.store.setFact(story.playerId, pk, true); saveStorySnapshot();
+        const guide = guideFor(openingCast, d.tier);
+        $('enc').classList.contains('on') || showPage('hoopybot · you have leveled', d.name + ' — understood', levelMessage(d, guideName(guide)), '⏎ / click — then find your guide');
+      }
+    }
+    // the GRANT: returning to your guide while paged advances the narrative tier and gives next guidance.
+    function isGuide(contentId) { const g = guideFor(openingCast, narTier()); return !!(g && contentId && g.id === contentId); }
+    function grantLevelAtGuide() {
+      const tier = narTier(), d = currentDeck();
+      if (!story.store.getFact(story.playerId, 'hoopy.paged.' + tier)) return false;   // not cleared yet
+      const nd = nextDeck(tier);
+      story.store.setPlayerTier(story.playerId, 'narrative_tier', Math.min(DECK_COUNT, tier + 1));
+      if (nd) story.store.setFact(story.playerId, 'hoopy.arrived.' + nd.tier, true);   // the guidance below IS the arrival
+      saveStory();   // re-floors, re-renders quest, lifts the opening seal at narrative 2
+      const guide = guideFor(openingCast, tier);
+      if (nd) showPage('your guide · new guidance', `${guideName(guide)} sends you on`, `“You learned ${d.name} well. The way opens toward ${nd.name}.”\n\n${nd.character}\n\n— ${nd.hook}`, '⏎ / click to continue');
+      else showPage('your guide · the last word', guideName(guide), `“There is nothing left for me to teach. ${d.name} is yours now, and the choice with it.”`, '⏎ / click to continue');
+      whereAmI();
+      return true;
+    }
 
     function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of nearResidents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
     function openStory(a) {
@@ -1025,6 +1091,7 @@
       anchors = [];
       if (!society || player < 0 || !story.ready) return;
       const cast = deriveOpeningCast([...story.store.content.values()], 3);   // his lowest-tier (Arrival) NPCs
+      openingCast = cast;   // hoopybot's guides: the NPCs you report back to as you climb the decks
       const r0 = society.rooms.filter((o) => o.ch === 0);
       const byDist = r0.map((o) => ({ o, d: (o.x - px()) ** 2 + (o.y - py()) ** 2 })).sort((a, b) => a.d - b.d);
       cast.forEach((npc, i) => {
@@ -1084,6 +1151,7 @@
       story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();   // a principal can also be the one who informs you
       saveStory(); renderStory();
+      if (isGuide(a.content_id)) grantLevelAtGuide();   // your guide, while you're paged → advance + next guidance
     }
     function drawAnchors() {
       const h = SKIN.playerW * 1.45 * cam.scale;   // principals stand at ~player scale (figures of merit, not map pins)
