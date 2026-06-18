@@ -55,11 +55,14 @@
     #enc .ed { font-size: 14.5px; line-height: 1.66; color: #d7e0da; white-space: pre-wrap; margin-top: 13px; }
     #enc .eh { margin-top: 13px; font-size: 12.5px; color: #b48a6a; font-style: italic; }
     #enc .ex { margin-top: 15px; font-size: 11px; color: #566; text-align: right; }
+    #auth { top: 26px; left: 10px; pointer-events: auto; max-width: 60vw; }
+    #auth .act { color: #7fd8d0; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
 <body>
   <canvas id="cv"></canvas>
   <div class="hud" id="status">…</div>
+  <div class="hud" id="auth"></div>
   <div class="hud" id="here"></div>
   <div class="hud" id="busy">generating…</div>
   <a class="hud" id="back" href="/">◍ hoop</a>
@@ -98,6 +101,8 @@
     import { DECKS, DECK_COUNT, deckForTier, nextDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
     import { assess, levelMessage, guideFor } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
     import { buildQuestBank, questProgress, pickQuestForNpc, questMarker } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to
+    import { AuthClient } from '../vendor/auth.js';   // shared OAuth (verbatim copy of packages/oauth-client) — sign in to save to YOUR repo
+    import { loadOwnSave, putSave, SAVE_NSID } from './story/atproto.js';   // the per-player save lane (com.minomobi.hoop.story.save)
     import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
     import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
@@ -602,6 +607,7 @@
         story.ready = true; renderQuest();
         try { questBank = buildQuestBank([...story.store.content.values()]); } catch (e) { questBank = new Map(); }   // the side-quest bank (one per rumor seed)
         try { openingCast = deriveOpeningCast([...story.store.content.values()], 3); } catch (e) {}   // hoopybot's guides, ready even before anchors place
+        syncOwnSaveIfReady();   // if already signed in, your repo save wins over the local buffer
         maybeArriveDeck();   // the awakening: the current deck's hand-written character + your guide's hook
         try { const h = await fetch('/api/story/health').then((r) => r.json()); storyApi.enabled = !!(h && h.enabled); storyApi.provider = h && h.provider; } catch (e) { storyApi.enabled = false; }   // v096: is live generation available?
       } catch (e) { story.ready = false; }   // graceful: residents still live and walk, just no story panel
@@ -660,7 +666,54 @@
       el.innerHTML = h + ' <span style="color:#566">(' + done + ' done)</span> · <a class="sb" id="qjournal" style="cursor:pointer" title="side quests (j)">✒ journal' + (sqOpen ? ' ' + sqOpen : '') + '</a> · <a class="sb" href="/v096/storyboard/">board ↗</a>';
       const jl = $('qjournal'); if (jl) jl.onclick = (e) => { e.preventDefault(); toggleJournal(); };
     }
-    const saveStorySnapshot = () => { if (story.ready) { try { localStorage.setItem('hoop:v096:story', JSON.stringify(story.store.snapshot())); } catch (e) {} } };
+    const saveStorySnapshot = () => { if (story.ready) { try { localStorage.setItem('hoop:v096:story', JSON.stringify(story.store.snapshot())); } catch (e) {} scheduleRepoSave(); } };
+
+    // ── THE SAVE LANE: sign in → your game syncs to YOUR OWN repo (com.minomobi.hoop.story.save), durable
+    //    + cross-device + user-owned ($0 to us). localStorage stays the hot buffer; the repo write is
+    //    BATCHED (debounced ~4s + on unload) — never a record per footstep. A faithful port of v3/v4. ──
+    const auth = new AuthClient();
+    let storyUser = null;                         // { did, handle } when signed in
+    const worldKey = () => String(seed);          // save rkey = ship seed (one save per world)
+    let _repoSaveT = null;
+    function scheduleRepoSave() {
+      if (!storyUser || !story.ready) return;
+      clearTimeout(_repoSaveT);
+      _repoSaveT = setTimeout(() => { _repoSaveT = null; try { putSave(auth.pds, worldKey(), story.store.snapshot()).catch(() => {}); } catch (e) {} }, 4000);
+    }
+    addEventListener('beforeunload', () => { if (storyUser && story.ready) { try { putSave(auth.pds, worldKey(), story.store.snapshot()); } catch (e) {} } });
+    function renderAuthPill() {
+      const el = $('auth'); if (!el) return;
+      el.innerHTML = storyUser
+        ? `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — saved to your repo · <span class="act" data-logout>sign out</span>`
+        : `<span class="act" data-login>sign in</span> to save your game to your PDS`;
+      const lo = el.querySelector('[data-logout]'); if (lo) lo.onclick = signOut;
+      const li = el.querySelector('[data-login]'); if (li) li.onclick = signIn;
+    }
+    let _syncedSave = false;
+    // your repo is the durable truth — restore it the moment BOTH the store and auth are ready (either
+    // order). If you have no save yet, seed it from the local buffer. Runs once per sign-in.
+    function syncOwnSaveIfReady() {
+      if (_syncedSave || !storyUser || !story.ready) return;
+      _syncedSave = true;
+      loadOwnSave(auth.pds, worldKey()).then((snap) => {
+        if (snap) { story.store.restore(snap); whereAmI(); renderQuest(); if (world) draw(); flashToast('◍ loaded your saved game from @' + storyUser.handle, 2600); }
+        else scheduleRepoSave();
+      }).catch(() => {});
+    }
+    function setUser(u) {
+      storyUser = u ? { did: u.did, handle: u.handle } : null;
+      _syncedSave = false;
+      renderAuthPill();
+      syncOwnSaveIfReady();
+    }
+    async function signIn() {
+      const handle = prompt('Bluesky handle — sign in to save your game to your own repo:');
+      if (!handle) return;
+      try { await auth.login(handle.trim()); }   // default UNIFIED scope (includes com.minomobi.hoop.story.save) → OAuth, returns here
+      catch (e) { flashToast('sign-in failed: ' + (e && e.message || e), 3200); }
+    }
+    async function signOut() { try { await auth.logout(); } catch (e) {} setUser(null); }
+    auth.init().then(() => { const u = auth.getUser && auth.getUser(); if (u) setUser(u); else renderAuthPill(); }).catch(() => renderAuthPill());
     const saveStory = () => {
       if (!story.ready) return;
       saveStorySnapshot();
@@ -1326,6 +1379,7 @@
     $('newgame').addEventListener('click', () => {
       if (!confirm('Start a new game? This wipes your story progress — facts, lore, inventory, tiers — and respawns you. The world (and your character) stay.')) return;
       try { localStorage.removeItem('hoop:v096:story'); localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+      if (storyUser) { try { auth.pds.deleteRecord(SAVE_NSID, worldKey()).catch(() => {}); } catch (e) {} }   // wipe the cloud save too
       location.reload();
     });
     loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
