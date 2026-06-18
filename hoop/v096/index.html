@@ -674,18 +674,22 @@
     const auth = new AuthClient();
     let storyUser = null;                         // { did, handle } when signed in
     const worldKey = () => String(seed);          // save rkey = ship seed (one save per world)
-    let _repoSaveT = null;
+    let _repoSaveT = null, _lastSync = null;
     function scheduleRepoSave() {
       if (!storyUser || !story.ready) return;
       clearTimeout(_repoSaveT);
-      _repoSaveT = setTimeout(() => { _repoSaveT = null; try { putSave(auth.pds, worldKey(), story.store.snapshot()).catch(() => {}); } catch (e) {} }, 4000);
+      _repoSaveT = setTimeout(() => { _repoSaveT = null; try { putSave(auth.pds, worldKey(), story.store.snapshot()).then(() => { _lastSync = Date.now(); renderAuthPill(); }).catch(() => {}); } catch (e) {} }, 4000);
     }
     addEventListener('beforeunload', () => { if (storyUser && story.ready) { try { putSave(auth.pds, worldKey(), story.store.snapshot()); } catch (e) {} } });
+    const RECORDS_LINK = `<a class="act" href="/v096/records" target="_blank" title="the lexicons, the service account, and how to read these records">records ↗</a>`;
     function renderAuthPill() {
       const el = $('auth'); if (!el) return;
-      el.innerHTML = storyUser
-        ? `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — saved to your repo · <span class="act" data-logout>sign out</span>`
-        : `<span class="act" data-login>sign in</span> to save your game to your PDS`;
+      if (storyUser) {
+        const uri = `at://${storyUser.did}/${SAVE_NSID}/${worldKey()}`, t = _lastSync ? new Date(_lastSync).toLocaleTimeString() : '';
+        el.innerHTML = `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — <span title="${esc(uri)}">your save${_lastSync ? ' ✓ ' + esc(t) : ' (syncing…)'}</span> · ${RECORDS_LINK} · <span class="act" data-logout>sign out</span>`;
+      } else {
+        el.innerHTML = `<span class="act" data-login>sign in</span> to save your game to your PDS · ${RECORDS_LINK}`;
+      }
       const lo = el.querySelector('[data-logout]'); if (lo) lo.onclick = signOut;
       const li = el.querySelector('[data-login]'); if (li) li.onclick = signIn;
     }
@@ -713,6 +717,7 @@
       catch (e) { flashToast('sign-in failed: ' + (e && e.message || e), 3200); }
     }
     async function signOut() { try { await auth.logout(); } catch (e) {} setUser(null); }
+    renderAuthPill();   // show the sign-in / records affordance immediately; auth.init refines it
     auth.init().then(() => { const u = auth.getUser && auth.getUser(); if (u) setUser(u); else renderAuthPill(); }).catch(() => renderAuthPill());
     const saveStory = () => {
       if (!story.ready) return;

@@ -105,6 +105,11 @@ export default {
       catch (err) { return json({ ok: false, error: 'story api error', detail: String(err && err.message || err) }, 500); }
     }
 
+    // clean endpoint for the records/lexicons docs page (a rewrite to the asset, not server compute).
+    if (url.pathname === '/v096/records' || url.pathname === '/v096/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v096/records.html', url), request));
+    }
+
     return env.ASSETS.fetch(request);
   },
 };
