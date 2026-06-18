@@ -43,11 +43,60 @@
 <body>
 <div class="wrap">
   <div class="crumb"><a href="/">◍ hoop</a> · <a href="/v096/">the Tabard</a> · records</div>
-  <h1>Records &amp; Lexicons</h1>
-  <p class="lead">The Tabard has no database. Every durable thing — the shared world content, the cross-player
-  pulse, and <b>your own saved game</b> — is an <b>ATProto record</b> in a repo. Caches (the in-memory engine,
-  localStorage) are disposable projections; the truth is the records, and the records are public. This page
-  defines the lexicons in play, names the service account, and shows anyone how to read them.</p>
+  <h1>Records, Lexicons &amp; Architecture</h1>
+  <p class="lead">The Tabard's shared world is backed by a <b>relational database (Postgres)</b> — that is
+  the source of truth for the world pool, replenishment, the rumor mill, the world engine, and the
+  notifications feed. On top of that, a player's <b>own saved game</b> can be mirrored to <b>their own
+  ATProto repo</b> — user-owned, public, $0 to us. This page defines that client/backend split and its
+  contract, then the ATProto mirror: the lexicons, the service account, and how anyone reads the records.</p>
+
+  <h2>Architecture — the client ↔ backend split</h2>
+  <p class="lead">There <i>is</i> a database, by design (a relational store is the right tool for the world
+  engine and the rumor mill). The split is clean, and the client never has to think about the DB:</p>
+  <table>
+    <tr><th>Side</th><th>Owns</th></tr>
+    <tr><td><b>Backend</b> · Postgres + a service tier</td>
+      <td>The world <b>pool</b>, content <b>replenishment</b>, the <b>rumor mill</b>, the <b>world engine</b>
+      (tick / cascade), and the <b>notifications/retcon feed</b>. The heavy, global, async, and LLM work —
+      all offline of the player hot path.</td></tr>
+    <tr><td><b>Client</b> · your browser</td>
+      <td>A deterministic, inference-free engine that <b>dispatches + dedups</b>: it holds the pool plus your
+      personal <b>seen</b> set and decides what crystallizes where. No round-trip per step; works offline;
+      the same engine whether the pool came from Postgres, an API, or an ATProto repo.</td></tr>
+  </table>
+
+  <h3>The contract — three reads + one feed</h3>
+  <table>
+    <tr><th>What</th><th>Shape</th></tr>
+    <tr><td><b>the world pool</b></td><td>an array of content items (id · type · tags · tiers · content · requires). The backend owns it; the client loads it (already deduped against your <code>seen</code> server-side, or deduped client-side — see below).</td></tr>
+    <tr><td><b>your character fold</b></td><td>everything you've done: <code>seen_ids</code> + placements (your frozen <code>feature&nbsp;→&nbsp;content</code> bindings) + facts + inventory + tiers/xp. Delivered as one aggregate read <i>or</i> as an event stream the client folds — the engine is deterministic, so either yields the same in-memory state.</td></tr>
+    <tr><td><b>the notifications / retcon feed</b></td><td>a cursored poll (<code>?since=…</code>): "the Tabard changed under your feet" — rumor-mill pushes and entity diffs, marked seen on read.</td></tr>
+  </table>
+
+  <h3>The dedup keystone</h3>
+  <p class="lead">The client already does the thing the backend needs: every dispatch computes
+  <i>pool&nbsp;−&nbsp;what&nbsp;you've&nbsp;seen</i>. Each character carries a <code>seen_ids</code> set;
+  selection is <code>pool.filter(c =&gt; !seen.has(c.id))</code> → gate on facts/items → tier-bias → pick →
+  mark seen. First touch <b>crystallizes</b> (freezes a <code>feature&nbsp;→&nbsp;content_id</code>
+  binding); later touches recall it. So "fetch all character events at load, strip the seen from the pool,
+  dedup in memory" <i>is</i> the engine — not a new mechanism.</p>
+
+  <h3>Retcons — mostly free, by design</h3>
+  <p class="lead">Bindings are <b>by id</b>, so the backend's golden rule (<i>edit entities in place — same
+  content id, never swap</i>) makes most retcons free:</p>
+  <table>
+    <tr><th>Backend action</th><th>Client effect</th></tr>
+    <tr><td>edit an entity in place (enrich / regen, same id)</td><td>recall returns the new body automatically (placement stores the id; content is looked up live). The <b>notifications feed carries the diff</b>, so the player sees what changed without wandering back.</td></tr>
+    <tr><td>retire an entity (status ≠ active)</td><td>recall flags it <code>retired</code> → render as a faded / redacted memory.</td></tr>
+    <tr><td>force a re-roll / un-see a binding</td><td>the one case needing a push: the feed sends an <b>invalidation</b> (content ids / feature keys to evict from this character's placements + seen); the slot re-crystallizes on next touch.</td></tr>
+  </table>
+
+  <h3>Where ATProto fits</h3>
+  <p class="lead">Postgres is the source of truth; <b>ATProto is an optional mirror</b> of <i>your</i> save —
+  user-owned, public, durable, $0 to us. Drop it and the game is unchanged; keep it and anyone can read your
+  progress (below). The shared world content can likewise be published to the service repo as a public,
+  rebuildable projection. The records below are that mirror layer.</p>
+
 
   <h2>The service account</h2>
   <div class="who">
