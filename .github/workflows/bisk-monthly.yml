@@ -1,6 +1,6 @@
 name: Bisk Monthly Review
 
-# manual re-run marker: 2026-06-18a
+# manual re-run marker: 2026-06-18b
 #
 # Rolls up the daily Bisk archive into a monthly review (bisk/data/monthly/*)
 # and regenerates the RSS feed (bisk/feed.xml), then self-deploys.
