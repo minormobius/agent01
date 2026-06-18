@@ -393,6 +393,136 @@ feedback negative at the top. Bloom and dusk, one curve.)*
 
 ---
 
+## Financial flows — funding development at each phase
+
+The economy above moves *real* goods and labour. **Finance is the parallel system
+that moves claims on the future** — it mobilizes surplus into investment, prices time
+and risk, and supplies the medium of exchange. It is not a garnish: it is **how the
+lumpy projects get paid for and how the multiplier deepens**, and its **cost of
+capital is a master lever on par with transport cost** — cheaper, deeper finance
+unlocks bigger projects sooner and is a decisive **edge** between cities.
+
+### What finance does, and why it drives growth
+
+Ross **Levine's five functions** of a financial system: it **mobilizes savings**,
+**allocates capital**, **monitors/governs** the use of capital, **eases exchange**,
+and **manages/diversifies risk**. Schumpeter's slogan — *"the banker authorizes the
+entrepreneur"* — is the point: credit *creates the means* for innovation before the
+returns exist (King & Levine, "Finance and Growth: Schumpeter Might Be Right," 1993).
+**Financial deepening** (Goldsmith's *Financial Interrelations Ratio* — financial
+assets growing faster than output) tracks development; Patrick's distinction between
+**supply-leading** finance (built *ahead* of demand, the financial twin of Hirschman's
+"permissive" excess-SOC) and **demand-following** finance names the two sequences.
+*(Honest nuance: the causation is contested — Robinson's "where enterprise leads
+finance follows" says finance merely follows growth, and the "too much finance"
+literature finds the effect turns **negative** at high financial depth — itself an
+Owl-of-Minerva point: finance helps until the financial sector is too large, which is
+the crisis-proneness below.)*
+
+### Finance funds the three clocks
+
+- **The continuous clock.** Money and credit raise the **velocity and reach** of the
+  base multiplier — more of each surplus dollar is intermediated and re-spent rather
+  than hoarded, so the *effective* multiplier deepens. The fractional-reserve **money
+  multiplier** `1/(1−reserve)` is the structural twin of the base multiplier
+  `1/(1−s)`.
+- **The lumpy clock — where finance bites hardest.** A project (harbour, wall,
+  aqueduct, grid) gets built when its **NPV at the city's cost of capital `ρ` is
+  positive** *and* financing is available (current tax flow + borrowing capacity).
+  `ρ` is the gate.
+- **Who supplies the lump?** **Gerschenkron** (*Economic Backwardness*, 1962): the more
+  backward the economy, the larger the role of **banks** (Germany) and then the
+  **state** (Russia), because scattered savers and thin markets cannot assemble the
+  indivisible lump. So the **financial regime** — market / bank / state — decides
+  whether the big push can be funded at all.
+
+### The per-phase ladder (each stage of financial evolution unlocks a larger scale)
+
+- **Nucleus — redistribution, before markets.** Polanyi's modes of integration:
+  the earliest surplus moves by **reciprocity and redistribution**, not exchange. The
+  temple/palace **treasury and granary** (the administrative-seat founding engine)
+  concentrates the tithe/tribute and redistributes it — "finance" is stored surplus
+  under command, and "investment" is the ruler's allocation of it. Money may not yet
+  exist (weighed grain/metal); the break-of-bulk and staple engines generate a
+  *tradeable* surplus that needs settling, which is what summons money at the trade
+  node.
+
+- **Town — coinage and merchant credit.** Struck **coinage** makes the medium of
+  exchange portable and fungible, lubricating the base multiplier (velocity ↑, the
+  non-basic economy deepens). **Merchant credit** appears at the trade engines — the
+  **bill of exchange** (Italian merchant-bankers) lets value cross distance without
+  shipping coin. Early **public finance** is the town taxing *its own flow* — tolls
+  and market dues on the break-of-bulk traffic — to pay for the first lumpy projects
+  (walls, a well, a bridge). `ρ` is high (thin, local markets).
+
+- **City — deposit banking and the funded debt.** Diversification (Jacobs
+  import-replacement) needs big SOC beyond current tax flow, so the city **borrows**.
+  Deposit banking intermediates savings → investment (Goldsmith; Levine). The
+  **Financial Revolution**: a polity that can **credibly commit** to repay
+  (North & Weingast, "Constitutions and Commitment," 1989 — bind the sovereign →
+  collapse the risk premium → cheaper, far larger borrowing) **out-builds and
+  out-fights** rivals. That is the financial **edge**, and it is institutional, not
+  natural. The capital market **capitalizes the bid-rent gradient into land values**
+  → mortgage / land finance (a huge share of urban capital); secure title turns land
+  into pledgeable **collateral** rather than de Soto's "dead capital."
+
+- **Metropolis — the financial centre (finance becomes the export base).** The
+  gateway/entrepôt becomes a **financial entrepôt**: trade finance cleared at the hub
+  grows into deposit and merchant banking, then **capital export**. Kindleberger's
+  succession — **northern Italy → Amsterdam → London → New York** — each a trade
+  gateway that became a creditor centre: capital flows **follow** trade, then **lead**
+  it. Sassen's **global city** is the limit — a financial command node whose export
+  base *is* finance, sold to distant away-markets. Public-debt markets, joint-stock
+  equity, central banking.
+
+### War, empire, tribute — the fiscal-military thread
+
+Brewer's **fiscal-military state** (*The Sinews of Power*, 1989): war drove the
+mutually-reinforcing growth of **taxation + public debt + bureaucracy**. The polity
+that can **borrow** (capital-rich and credibly-committed) out-finances the one that
+can only **tax or plunder** — Tilly's capital↔coercion axis, now with a financial
+edge (Britain out-*spent* rivals while borrowing *cheaper*). **Tribute** is a forced
+financial flow from periphery to core (Wallerstein). Conquest can **repudiate the
+debt or seize the treasury** — a financial shock.
+
+### The dark twin — financial crisis (the third discrete shock)
+
+Finance has its own Owl of Minerva. **Minsky's Financial Instability Hypothesis**:
+over a long prosperity the financing mix migrates from **hedge** (income covers
+principal + interest) → **speculative** (income covers interest, principal must be
+rolled) → **Ponzi** (income covers neither; survival depends on rising asset prices)
+— *"stability is destabilizing,"* until a *Minsky moment* forces fire-sales.
+**Kindleberger's** anatomy fits 300 years of history: *displacement → boom → euphoria
+→ distress → revulsion/panic/crash* (Tulip 1637; Mississippi & South Sea 1720). The
+**land cycle** (Hoyt's ~18-year Chicago land-value cycle) is the urban form: leverage
+chasing the capitalized rent overshoots, then busts. So **finance adds a third
+discrete event-shock alongside conquest and plague — the financial crisis — and the
+flourishing financial centre is the most prone to it.**
+
+### → modeling rules
+
+- Finance is a **flow network over the real economy**: surplus → (savings rate) → a
+  **capital pool** → allocated by the **financial regime** (redistribution / merchant
+  / bank / market / state, set by phase + tech) → funds lumpy projects and capitalizes
+  the base.
+- A **cost-of-capital `ρ`** — the finance analogue of transport cost — **falls as
+  finance deepens** (institutions, credible commitment, market depth). Lower `ρ` →
+  more/bigger projects sooner → a financial edge.
+- **Lumpy-project decision:** build when `NPV(ρ) > 0` and `tax capacity + borrowing
+  capacity ≥ lump`. Borrowing capacity `= f(credible commitment, tax base, debt
+  already outstanding)`; an uncommitted, market-thin city has high `ρ` and small
+  capacity → it cannot fund the big push without the Gerschenkron substitution (a
+  bank or the state).
+- **Land finance:** capitalize the bid-rent gradient into land value; land is
+  **collateral** that expands borrowing capacity; run an ~18-year land cycle that can
+  overshoot.
+- **Crisis shock:** a discrete event fired when the **Ponzi/leverage share** crosses a
+  threshold — wipes a chunk of the capital pool, can cascade; its probability rises
+  with the size and financial intensity of the city. The third member of the event
+  layer (conquest · plague · crisis).
+
+---
+
 ## The political register — defense, empire, conquest
 
 Everything above models the city as an economic growth machine. The full sweep — the
@@ -539,6 +669,20 @@ deliberately, also the economic-era progression of such a game.
 - Hegel, the owl of Minerva: https://en.wikipedia.org/wiki/Owl_of_Minerva
 - Oswald Spengler, *The Decline of the West* (1918–22): https://en.wikipedia.org/wiki/The_Decline_of_the_West
 - Joseph Tainter, *The Collapse of Complex Societies* (1988): https://en.wikipedia.org/wiki/The_Collapse_of_Complex_Societies
+
+**Financial flows**
+- Ross Levine, "Financial Development and Economic Growth" (JEL 1997) — the five functions: https://www.jstor.org/stable/2729790
+- King & Levine, "Finance and Growth: Schumpeter Might Be Right" (QJE 1993): https://academic.oup.com/qje/article-abstract/108/3/717/1881857
+- Raymond Goldsmith, financial deepening / FIR (1969): https://en.wikipedia.org/wiki/Financial_deepening
+- Karl Polanyi, modes of integration (reciprocity / redistribution / exchange): https://en.wikipedia.org/wiki/Karl_Polanyi
+- History of banking / the bill of exchange: https://en.wikipedia.org/wiki/History_of_banking
+- North & Weingast, "Constitutions and Commitment" (1989): http://pscourses.ucsd.edu/ps200b/North%20and%20Weingast%20-%20Constitutions%20and%20Commitment.pdf
+- John Brewer, *The Sinews of Power* — the fiscal-military state (1989): https://books.google.com/books/about/The_Sinews_of_Power.html?id=uqzA-Xp416YC
+- Alexander Gerschenkron, *Economic Backwardness in Historical Perspective* (1962): https://en.wikipedia.org/wiki/Economic_Backwardness_in_Historical_Perspective
+- Henry George, *Progress and Poverty* / land-value capture (1879): https://en.wikipedia.org/wiki/Henry_George
+- Homer Hoyt, the ~18-year land-value cycle (1933): https://en.wikipedia.org/wiki/Homer_Hoyt
+- Hyman Minsky, the financial-instability hypothesis (hedge/speculative/Ponzi): https://en.wikipedia.org/wiki/Minsky_moment
+- Kindleberger, *Manias, Panics, and Crashes* + the succession of financial centres: https://en.wikipedia.org/wiki/Manias,_Panics,_and_Crashes
 
 **The political register — defense, empire, conquest**
 - Charles Tilly, *Coercion, Capital, and European States* (1990): https://en.wikipedia.org/wiki/Coercion,_Capital,_and_European_States

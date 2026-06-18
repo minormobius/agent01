@@ -144,17 +144,25 @@ nucleus can die.
 | 500-node tech DAG | [`cards/js/pools/tech-pool.js`](../cards/js/pools/tech-pool.js) | the exogenous clock + an `effects` layer over economic levers |
 | world substrate | [`mappa/engine.js`](../mappa/engine.js) | terrain, hydrology, fertility — where resources/ag/routes are |
 
-## Files
+## Layout (mirrors mappa: live engine at `/`, theory at `/docs/`)
 
-| File | Role |
+| Path | Role |
 |---|---|
-| `index.html` | The theory site — the economic life cycle, the three regimes, the wider coupled model, the academic grounding, the sources. House style ported from `mappa/docs/`. |
-| `THEORY.md` | The written theory + the source bibliography (what `index.html` renders). |
+| `index.html` | **The main page — the live sim.** Roll a region, grow proto-towns, scrub the growth curves, click a town for its dossier. Imports the engine modules below. |
+| `docs/index.html` | **The docs — the theory.** The economic life cycle, the three regimes, the wider coupled model, financial flows, the political register, the academic grounding + sources. House style ported from `mappa/docs/`. |
+| `prng.js` | `mulberry32` + `hash2` — deterministic randomness, bit-exact with mappa/hoop. |
+| `substrate.js` | Toy region (stand-in for mappa): elevation, sea/lake, rivers, fertility, ore. |
+| `site.js` | Site-vs-situation scoring + forced spawn points + stratified founding (engine assignment). |
+| `economy.js` | Founding engine → base multiplier → logistic growth toward a tech-lifted ceiling; agglomeration; flourishing (bloom/dusk); `conquer()` shock. |
+| `sim.js` | Orchestrator: `rollRegion(seed)` → `{region, towns, meta}`; the tech clock; CLI chronicle. |
+| `test/proto.selftest.mjs` | 16 checks (determinism + the theory's claims). `node polis/test/proto.selftest.mjs`. |
+| `THEORY.md` | The written theory + the full bibliography (what `docs/index.html` renders). |
 | `README.md` | This file. |
 
-*(Engine modules — `substrate.js`, `site.js`, `economy.js`, `tech.js`, `hinterland.js`,
-`network.js`, `coverage.js`, `flourish.js`, `history.js`, `prng.js` — land in later
-passes as the theory hardens into code.)*
+*(Engine modules still to come as the theory hardens: `tech.js` (the cards DAG +
+effects), `hinterland.js`, `finance.js` (financial flows — see THEORY.md),
+`flourish.js` (port hoop/econ), `event.js` (conquest/plague/crisis shocks),
+`history.js` (the replayable chronicle).)*
 
 ## Deploy
 
