@@ -5,47 +5,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0c0a07">
 <title>polis · a city-economics sim</title>
-<meta name="description" content="polis — roll a region from a seed and grow a city economy: found towns on site+situation, each with a founding engine and a base multiplier, growing on logistic curves toward a tech-lifted ceiling. Hinterland, away-markets, flourishing. The theory is in /docs/.">
+<meta name="description" content="polis — roll a mappa world, auto-select a city-rich region, retile it as a detailed Voronoi mosaic, and watch a city economy grow from the ice age to the future: townships nucleate, inter-town arteries form through the tiling, cities become centres of gravity, tech waves ripple. Theory in /docs/.">
 <style>
 :root{--gold:#a9802f;--gold2:#c79a48;--parch:#e8dcc0;--mut:#9c8a6c;--line:#2c2316;--card:#140f08}
 *{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
 body{background:#070a0c;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
-#map{position:fixed;inset:0;display:block;background:#070a0c;cursor:crosshair;touch-action:none}
+#stage{position:fixed;inset:0;display:grid;place-items:center;background:#05080a}
+#map{image-rendering:auto;max-width:100vw;max-height:100vh;cursor:crosshair;touch-action:none;box-shadow:0 0 60px #000a}
 header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:10px;padding:10px 14px;pointer-events:none;background:linear-gradient(#070a0cdd,#070a0c00);flex-wrap:wrap}
 header a{pointer-events:auto;color:var(--gold);text-decoration:none;font-weight:700;letter-spacing:.05em}
+header .d{color:#b7a988;font-weight:400}
 header .t{pointer-events:auto;color:#b7a988;font-size:12.5px}
-.ctl{pointer-events:auto;display:flex;align-items:center;gap:6px;background:#140f08c8;border:1px solid var(--line);border-radius:8px;padding:4px 8px}
-.ctl label{color:#9c8a6c;font-size:11.5px}
-input,button{font:inherit}
-#seed{width:90px;background:#0d0a05;border:1px solid #3a2e1c;color:var(--parch);border-radius:5px;padding:3px 6px;font:12px ui-monospace,monospace;outline:none}
+.ctl{pointer-events:auto;display:flex;align-items:center;gap:6px;background:#140f08c8;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin-left:auto}
+#seed{width:96px;background:#0d0a05;border:1px solid #3a2e1c;color:var(--parch);border-radius:5px;padding:3px 6px;font:12px ui-monospace,monospace;outline:none}
 .btn{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
 .btn:hover{border-color:var(--gold)}
 footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 14px;pointer-events:none;background:linear-gradient(#070a0c00,#070a0cee)}
-.scrub{pointer-events:auto;display:flex;align-items:center;gap:9px;flex:1;max-width:520px}
+.scrub{pointer-events:auto;display:flex;align-items:center;gap:9px;flex:1;max-width:560px}
 .scrub input[type=range]{flex:1;accent-color:var(--gold)}
-.era{font:12px ui-monospace,monospace;color:#b7a988;min-width:118px}
-.legend{pointer-events:auto;display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;font-size:11px;color:#9c8a6c}
+.era{font:12px ui-monospace,monospace;color:var(--parch);min-width:200px}
+.era .y{color:var(--gold2)}.era .s{color:#8c7a5c}
+.legend{pointer-events:auto;display:flex;gap:9px;flex-wrap:wrap;margin-left:auto;font-size:11px;color:#9c8a6c}
 .legend span{display:inline-flex;align-items:center;gap:4px}.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
-#panel{position:fixed;top:50px;right:12px;z-index:7;width:248px;background:#120d07f4;border:1px solid var(--line);border-radius:10px;padding:13px 15px;display:none}
+#panel{position:fixed;top:50px;right:12px;z-index:7;width:240px;background:#120d07f5;border:1px solid var(--line);border-radius:10px;padding:13px 15px;display:none}
 #panel.show{display:block}
 #panel h3{font:600 15px/1.2 ui-serif,Georgia,serif;color:var(--gold)}
 #panel .eng{font:11px ui-monospace,monospace;color:#b7a988;margin:1px 0 9px}
 #panel table{width:100%;border-collapse:collapse;font-size:12px}
 #panel td{padding:2px 0;color:#d7c8a8}#panel td.k{color:#9c8a6c}#panel td.v{text-align:right;font-variant-numeric:tabular-nums;color:var(--parch)}
 #panel .close{position:absolute;top:9px;right:11px;cursor:pointer;color:#9c8a6c;background:none;border:0;font-size:15px}
-#spark{display:block;width:100%;height:42px;margin-top:9px}
-.note{position:fixed;left:12px;bottom:52px;z-index:6;max-width:300px;font-size:11px;color:#8c7a5c;pointer-events:none}
+#spark{display:block;width:100%;height:40px;margin-top:9px}
+#overlay{position:fixed;inset:0;z-index:9;display:grid;place-items:center;background:#070a0cf2;color:var(--gold2);font:13px ui-monospace,monospace;letter-spacing:.06em;text-align:center;padding:20px}
+#overlay.hide{display:none}
+.note{position:fixed;left:12px;bottom:52px;z-index:6;max-width:330px;font-size:11px;color:#8c7a5c;pointer-events:none}
 .note a{color:var(--gold2);pointer-events:auto}
 @media (max-width:680px){.legend{display:none}.note{display:none}#panel{top:auto;bottom:96px;left:8px;right:8px;width:auto}}
 </style>
 </head>
 <body>
-<canvas id="map"></canvas>
+<div id="stage"><canvas id="map"></canvas></div>
 <header>
   <a href="https://mino.mobi/">mino.mobi</a>
-  <a href="./docs/" style="pointer-events:auto;color:#b7a988;font-weight:400;text-decoration:none">docs ↗</a>
-  <span class="t">polis — roll a region, grow a city economy</span>
-  <span class="ctl"><label>seed</label><input id="seed" value="20260618" inputmode="numeric"><button class="btn" id="go">roll</button><button class="btn" id="rnd">↻ new</button></span>
+  <a href="./docs/" class="d" style="font-weight:400;text-decoration:none">docs ↗</a>
+  <span class="t">polis — a world, a region, a city economy through time</span>
+  <span class="ctl"><input id="seed" value="20260618" inputmode="numeric"><button class="btn" id="go">roll</button><button class="btn" id="rnd">↻ new world</button></span>
 </header>
 <div id="panel">
   <button class="close" id="close">×</button>
@@ -56,93 +59,152 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 </div>
 <footer>
   <div class="scrub"><button class="btn" id="play">▶</button>
-    <input type="range" id="time" min="0" max="139" value="139"><span class="era" id="era"></span></div>
+    <input type="range" id="time" min="0" max="159" value="0"><span class="era" id="era"></span></div>
   <div class="legend" id="legend"></div>
 </footer>
-<div class="note">A deterministic slice of the polis model: site→engine→base multiplier→logistic growth toward a tech-lifted ceiling. Same seed → same world. Click a town. The full theory is in <a href="./docs/">the docs</a>.</div>
+<div class="note">Roll a mappa world → auto-pick a city-rich region → retile it as a Voronoi mosaic → run the economy from the ice age to the future. Arteries grow between towns; cities become centres of gravity; tech waves ripple. Same seed → same history. Click a town. <a href="./docs/">Theory →</a></div>
+<div id="overlay">generating world…</div>
 
 <script type="module">
-import { rollRegion } from './sim.js';
+import { rollWorld, selectRegion } from './world.js';
+import { buildMesh, cellState } from './mesh.js';
+import { runChronicle } from './chronicle.js';
 import { tierOf } from './economy.js';
 
-const ENGINE_COLOR = { gateway:'#5a86a0', market:'#7c8a4e', 'break-of-bulk':'#c79a48', staple:'#b8623c', fortress:'#9a6ea0' };
+const ENGINE_COLOR = { gateway:'#6fa8c8', market:'#9fb265', 'break-of-bulk':'#d9b25a', staple:'#c8703e', fortress:'#b08ec0' };
+const PX = 15;                                   // internal pixels per world unit
 const cv = document.getElementById('map'), cx = cv.getContext('2d');
-const seedIn = document.getElementById('seed'), timeIn = document.getElementById('time'), era = document.getElementById('era');
-let world = null, tick = 139, playing = false, raf = 0, sel = -1, cell = 12, ox = 0, oy = 0;
+const seedIn = document.getElementById('seed'), timeIn = document.getElementById('time'), eraEl = document.getElementById('era'), overlay = document.getElementById('overlay');
+let C = null;            // chronicle
+let label = null, W = 0, H = 0, x0 = 0, y0 = 0;  // raster state
+let terrainCache = new Map();
+let tick = 0, playing = false, sel = -1, raf = 0;
 
-function fit(){ cv.width = innerWidth*devicePixelRatio; cv.height = innerHeight*devicePixelRatio; cx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); layout(); draw(); }
-function layout(){ if(!world) return; const W=world.region.W,H=world.region.H; cell=Math.min(innerWidth/W,(innerHeight-40)/H); ox=(innerWidth-W*cell)/2; oy=(innerHeight-H*cell)/2; }
+const wpx = (wx) => (wx - x0) * PX, hpx = (wy) => (wy - y0) * PX;
 
-function landShade(e, sea, fert){
-  const a=Math.max(0,Math.min(1,(e-sea)/0.5));               // 0 shore → 1 high
-  const r=Math.round(70+a*90), g=Math.round(64+a*70+fert*34), b=Math.round(40+a*46);
-  return `rgb(${r},${g-Math.round(fert*10)},${b})`;
-}
-function draw(){
-  if(!world) return; const R=world.region, W=R.W, H=R.H;
-  cx.clearRect(0,0,innerWidth,innerHeight);
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const i=y*W+x; let col;
-    if(R.water[i]===1) col='#15323f'; else if(R.water[i]===2) col='#1c3340';
-    else col=landShade(R.elev[i],R.seaLevel,R.fertility[i]);
-    cx.fillStyle=col; cx.fillRect(ox+x*cell,oy+y*cell,cell+0.6,cell+0.6);
-    if(R.river[i]){ cx.fillStyle='#2f6f86'; cx.fillRect(ox+x*cell+cell*0.25,oy+y*cell+cell*0.25,cell*0.5,cell*0.5); }
-    if(R.resource[i]==='ore'){ cx.fillStyle='#caa15a'; cx.fillRect(ox+x*cell+cell*0.32,oy+y*cell+cell*0.32,cell*0.36,cell*0.36); }
+function buildLabels() {
+  const m = C.mesh, R = m.region; x0 = R.x0; y0 = R.y0;
+  W = Math.round((R.x1 - R.x0) * PX); H = Math.round((R.y1 - R.y0) * PX);
+  cv.width = W; cv.height = H;
+  // bucket grid for nearest-seed
+  const bw = m.cols, bh = m.rows, buckets = Array.from({ length: bw * bh }, () => []);
+  const RW = R.x1 - R.x0, RH = R.y1 - R.y0;
+  const bidx = (wx, wy) => { let bx = Math.floor((wx - x0) / RW * bw), by = Math.floor((wy - y0) / RH * bh); bx = Math.max(0, Math.min(bw - 1, bx)); by = Math.max(0, Math.min(bh - 1, by)); return by * bw + bx; };
+  m.cells.forEach((c) => buckets[bidx(c.wx, c.wy)].push(c.id));
+  label = new Int32Array(W * H);
+  for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+    const wx = x0 + (px + 0.5) / PX, wy = y0 + (py + 0.5) / PX;
+    let bx = Math.floor((wx - x0) / RW * bw), by = Math.floor((wy - y0) / RH * bh); bx = Math.max(0, Math.min(bw - 1, bx)); by = Math.max(0, Math.min(bh - 1, by));
+    let best = 0, bd = Infinity;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = bx + dx, ny = by + dy; if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue; for (const id of buckets[ny * bw + nx]) { const c = m.cells[id], d = (c.wx - wx) ** 2 + (c.wy - wy) ** 2; if (d < bd) { bd = d; best = id; } } }
+    label[py * W + px] = best;
   }
-  // towns
-  world.towns.forEach((t,n)=>{
-    const pop=t.history[tick]||0; if(pop<=0) return;
-    const px=ox+(t.x+0.5)*cell, py=oy+(t.y+0.5)*cell;
-    const rad=Math.max(2.5, Math.sqrt(pop)/26);
-    const fl=(t.flourishHist[tick]||0)/100;
-    cx.beginPath(); cx.arc(px,py,rad+(n===sel?3:0),0,7);
-    cx.fillStyle=ENGINE_COLOR[t.engine]||'#ccc'; cx.globalAlpha=0.92; cx.fill(); cx.globalAlpha=1;
-    cx.lineWidth=1.5; cx.strokeStyle=`rgba(232,220,192,${0.25+fl*0.7})`; cx.stroke();   // ring brightness = flourishing
-    if(n===sel){ cx.lineWidth=1.5; cx.strokeStyle=var_gold(); cx.stroke(); }
-  });
-  era.textContent = `tick ${tick} · tech ${(world.meta.techCurve[tick]).toFixed(2)}`;
+  terrainCache = new Map();
 }
-function var_gold(){ return '#a9802f'; }
 
-function panel(n){
-  sel=n; const p=document.getElementById('panel');
-  if(n<0){ p.classList.remove('show'); draw(); return; }
-  const t=world.towns[n], pop=t.history[tick]||0;
-  document.getElementById('pName').textContent=`Town ${n+1} — ${tierOf(pop)}`;
-  document.getElementById('pEng').textContent=`${t.engine}  ·  (x${t.x}, y${t.y})`;
-  const rows=[['population',pop.toLocaleString()],['founding engine',t.engine],['basic draw',Math.round(t.base).toLocaleString()],['multiplier M',t.M?t.M.toFixed(2):'—'],['hinterland surplus',t.surplus.toFixed(1)],['food+import ceiling',Math.round(t.ceiling).toLocaleString()],['flourishing',t.flourishHist[tick]||0]];
-  document.getElementById('pTab').innerHTML=rows.map(([k,v])=>`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`).join('');
-  // sparkline of the population history
-  const sc=document.getElementById('spark'), g=sc.getContext('2d'); const w=sc.width=sc.clientWidth, h=sc.height=42;
-  g.clearRect(0,0,w,h); const H=t.history, mx=Math.max(...H,1);
-  g.beginPath(); H.forEach((v,k)=>{ const X=k/(H.length-1)*w, Y=h-2-(v/mx)*(h-4); k?g.lineTo(X,Y):g.moveTo(X,Y); });
-  g.strokeStyle='#c79a48'; g.lineWidth=1.5; g.stroke();
-  const tx=tick/(H.length-1)*w; g.strokeStyle='#5a4a28'; g.beginPath(); g.moveTo(tx,0); g.lineTo(tx,h); g.stroke();
+function terrainFor(envKey, env) {
+  if (terrainCache.has(envKey)) return terrainCache.get(envKey);
+  const m = C.mesh, img = cx.createImageData(W, H), data = img.data;
+  const colors = m.cells.map((c) => cellState(c, env).rgb);
+  for (let p = 0; p < W * H; p++) { const rgb = colors[label[p]], o = p * 4; data[o] = rgb[0]; data[o + 1] = rgb[1]; data[o + 2] = rgb[2]; data[o + 3] = 255; }
+  // cell borders: darken pixels whose right/down neighbour is a different cell
+  for (let py = 0; py < H; py++) for (let px = 0; px < W - 1; px++) { if (label[py * W + px] !== label[py * W + px + 1]) { const o = (py * W + px) * 4; data[o] *= 0.7; data[o + 1] *= 0.7; data[o + 2] *= 0.7; } }
+  const off = document.createElement('canvas'); off.width = W; off.height = H; off.getContext('2d').putImageData(img, 0, 0);
+  terrainCache.set(envKey, off); return off;
+}
+
+function draw() {
+  if (!C) return;
+  const e = C.env[tick];
+  const envKey = `${Math.round(e.seaLevel * 100)}_${Math.round(e.tempShift * 50)}`;
+  cx.clearRect(0, 0, W, H);
+  cx.drawImage(terrainFor(envKey, e), 0, 0);
+
+  // arteries — three strength bands, weak first so strong arterials draw on top
+  const E = C.E, ea = C.edges.ea, eb = C.edges.eb, base = tick * E, m = C.mesh;
+  cx.lineCap = 'round';
+  for (const [lo, hi] of [[30, 90], [90, 170], [170, 256]]) {
+    for (let i = 0; i < E; i++) {
+      const s = C.artStrength[base + i]; if (s < lo || s >= hi) continue;
+      const a = ea[i], b = eb[i];
+      cx.beginPath(); cx.moveTo(wpx(m.cells[a].wx), hpx(m.cells[a].wy)); cx.lineTo(wpx(m.cells[b].wx), hpx(m.cells[b].wy));
+      cx.strokeStyle = `rgba(232,200,140,${0.12 + s / 255 * 0.6})`; cx.lineWidth = 0.6 + s / 255 * 4.5; cx.stroke();
+    }
+  }
+
+  // tech waves — expanding rings from their origin for a few ticks after firing
+  for (const w of C.waves) {
+    const age = tick - w.tick; if (age < 0 || age > 18) continue;
+    const rad = age * PX * 1.7, alpha = (1 - age / 18) * 0.5;
+    cx.beginPath(); cx.arc(wpx(w.x), hpx(w.y), rad, 0, 7); cx.strokeStyle = `rgba(220,180,90,${alpha})`; cx.lineWidth = 2; cx.stroke();
+  }
+
+  // towns — centres of gravity
+  C.towns.forEach((t, n) => {
+    const pop = t.history[tick]; if (pop <= 0) return;
+    const px = wpx(t.x), py = hpx(t.y), rad = Math.max(2, Math.sqrt(pop) / 30), fl = (t.flourishHist[tick] || 0) / 100;
+    cx.beginPath(); cx.arc(px, py, rad, 0, 7); cx.fillStyle = ENGINE_COLOR[t.engine] || '#ccc'; cx.globalAlpha = 0.95; cx.fill(); cx.globalAlpha = 1;
+    cx.lineWidth = 1.4; cx.strokeStyle = `rgba(255,244,210,${0.25 + fl * 0.7})`; cx.stroke();
+    if (n === sel) { cx.beginPath(); cx.arc(px, py, rad + 3, 0, 7); cx.strokeStyle = '#f0d28a'; cx.lineWidth = 1.5; cx.stroke(); }
+  });
+
+  const eraName = yearEra(e.year);
+  eraEl.innerHTML = `<span class="y">${e.year < 0 ? -e.year + ' BCE' : e.year + ' CE'}</span> · ${eraName} <span class="s">· sea ${e.seaLevel.toFixed(2)} · tech ${e.tech.toFixed(2)}</span>`;
+}
+
+function yearEra(y) {
+  if (y < -9000) return 'Ice Age'; if (y < -3000) return 'Neolithic'; if (y < -800) return 'Bronze Age';
+  if (y < 500) return 'Classical'; if (y < 1400) return 'Medieval'; if (y < 1700) return 'Renaissance';
+  if (y < 1900) return 'Industrial'; if (y < 2030) return 'Modern'; return 'Future';
+}
+
+function panel(n) {
+  sel = n; const p = document.getElementById('panel');
+  if (n < 0) { p.classList.remove('show'); draw(); return; }
+  const t = C.towns[n], pop = t.history[tick] || 0;
+  document.getElementById('pName').textContent = `${tierOf(pop)} — town ${n + 1}`;
+  document.getElementById('pEng').textContent = `${t.engine} · founded ${t.founded >= 0 ? (C.env[t.founded].year < 0 ? -C.env[t.founded].year + ' BCE' : C.env[t.founded].year + ' CE') : '—'}`;
+  const rows = [['population', pop.toLocaleString()], ['engine', t.engine], ['basic draw', Math.round(t.base).toLocaleString()], ['hinterland surplus', t.surplus.toFixed(1)], ['flourishing', t.flourishHist[tick] || 0]];
+  document.getElementById('pTab').innerHTML = rows.map(([k, v]) => `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`).join('');
+  const sc = document.getElementById('spark'), g = sc.getContext('2d'), w = sc.width = sc.clientWidth, h = sc.height = 40;
+  g.clearRect(0, 0, w, h); const Hh = t.history, mx = Math.max(...Hh, 1);
+  g.beginPath(); Hh.forEach((v, k) => { const X = k / (Hh.length - 1) * w, Y = h - 2 - (v / mx) * (h - 4); k ? g.lineTo(X, Y) : g.moveTo(X, Y); });
+  g.strokeStyle = '#c79a48'; g.lineWidth = 1.4; g.stroke();
+  const tx = tick / (Hh.length - 1) * w; g.strokeStyle = '#5a4a28'; g.beginPath(); g.moveTo(tx, 0); g.lineTo(tx, h); g.stroke();
   p.classList.add('show'); draw();
 }
 
-cv.addEventListener('click',(e)=>{
-  if(!world) return; let best=-1,bd=18*18;
-  world.towns.forEach((t,n)=>{ if((t.history[tick]||0)<=0) return; const px=ox+(t.x+0.5)*cell,py=oy+(t.y+0.5)*cell; const d=(e.clientX-px)**2+(e.clientY-py)**2; if(d<bd){bd=d;best=n;} });
+cv.addEventListener('click', (ev) => {
+  if (!C) return; const rect = cv.getBoundingClientRect(), sx = W / rect.width, sy = H / rect.height;
+  const mx = (ev.clientX - rect.left) * sx, my = (ev.clientY - rect.top) * sy;
+  let best = -1, bd = 26 * 26;
+  C.towns.forEach((t, n) => { if ((t.history[tick] || 0) <= 0) return; const d = (wpx(t.x) - mx) ** 2 + (hpx(t.y) - my) ** 2; if (d < bd) { bd = d; best = n; } });
   panel(best);
 });
-timeIn.addEventListener('input',()=>{ tick=+timeIn.value; if(sel>=0) panel(sel); else draw(); });
-document.getElementById('close').addEventListener('click',()=>panel(-1));
-document.getElementById('play').addEventListener('click',function(){ playing=!playing; this.textContent=playing?'❚❚':'▶'; if(playing) loop(); });
-function loop(){ if(!playing) return; tick=(tick+1)%(world.meta.ticks); timeIn.value=tick; if(sel>=0)panel(sel);else draw(); raf=setTimeout(()=>requestAnimationFrame(loop),70); }
+timeIn.addEventListener('input', () => { tick = +timeIn.value; sel >= 0 ? panel(sel) : draw(); });
+document.getElementById('close').addEventListener('click', () => panel(-1));
+document.getElementById('play').addEventListener('click', function () { playing = !playing; this.textContent = playing ? '❚❚' : '▶'; if (playing) loop(); });
+function loop() { if (!playing) return; tick = (tick + 1) % C.ticks; timeIn.value = tick; sel >= 0 ? panel(sel) : draw(); raf = setTimeout(() => requestAnimationFrame(loop), 90); }
 
-function roll(seed){
-  cancelAnimationFrame(raf); playing=false; document.getElementById('play').textContent='▶';
-  world=rollRegion(seed>>>0,{ticks:140});
-  timeIn.max=world.meta.ticks-1; tick=world.meta.ticks-1; timeIn.value=tick; sel=-1;
-  document.getElementById('panel').classList.remove('show');
-  document.getElementById('legend').innerHTML=Object.entries(ENGINE_COLOR).map(([k,c])=>`<span><i style="background:${c}"></i>${k}</span>`).join('');
-  layout(); draw();
+function roll(seed) {
+  clearTimeout(raf); playing = false; document.getElementById('play').textContent = '▶';
+  overlay.classList.remove('hide'); overlay.textContent = 'generating world…';
+  setTimeout(() => {
+    try {
+      const world = rollWorld(seed >>> 0);
+      const region = selectRegion(world);
+      const mesh = buildMesh(seed >>> 0, region);
+      C = runChronicle(seed >>> 0, mesh, { ticks: 160 });
+      timeIn.max = C.ticks - 1; tick = 0; timeIn.value = 0; sel = -1;
+      document.getElementById('panel').classList.remove('show');
+      document.getElementById('legend').innerHTML = Object.entries(ENGINE_COLOR).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join('');
+      buildLabels(); draw(); overlay.classList.add('hide');
+    } catch (err) { overlay.textContent = 'generation error: ' + (err && err.message ? err.message : err); console.error(err); }
+  }, 40);
 }
-document.getElementById('go').addEventListener('click',()=>roll(+seedIn.value||1));
-document.getElementById('rnd').addEventListener('click',()=>{ const s=(Math.random()*1e9)>>>0; seedIn.value=s; roll(s); });   // choosing WHICH deterministic world to view (the one allowed unseeded roll)
-addEventListener('resize',fit);
-roll(+seedIn.value); fit();
+document.getElementById('go').addEventListener('click', () => roll(+seedIn.value || 1));
+document.getElementById('rnd').addEventListener('click', () => { const s = (Math.random() * 1e9) >>> 0; seedIn.value = s; roll(s); });  // pick WHICH deterministic world to view
+roll(+seedIn.value);
 </script>
 </body>
 </html>

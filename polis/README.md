@@ -148,21 +148,23 @@ nucleus can die.
 
 | Path | Role |
 |---|---|
-| `index.html` | **The main page — the live sim.** Roll a region, grow proto-towns, scrub the growth curves, click a town for its dossier. Imports the engine modules below. |
-| `docs/index.html` | **The docs — the theory.** The economic life cycle, the three regimes, the wider coupled model, financial flows, the political register, the academic grounding + sources. House style ported from `mappa/docs/`. |
+| `index.html` | **The main page — the living map.** Roll a world → auto-select a city-rich region → retile it as a detailed Voronoi mosaic → run the economy from the **ice age to the future**: townships nucleate, **inter-town arteries grow through the tiling**, cities become centres of gravity, **tech waves** ripple, the coastline/glaciers shift with climate. Timeline scrubber + click-a-town. |
+| `docs/index.html` | **The docs — the theory.** The economic life cycle, the three regimes, the wider coupled model, financial flows, the political register, the grounding + sources. |
 | `prng.js` | `mulberry32` + `hash2` — deterministic randomness, bit-exact with mappa/hoop. |
-| `substrate.js` | Toy region (stand-in for mappa): elevation, sea/lake, rivers, fertility, ore. |
-| `site.js` | Site-vs-situation scoring + forced spawn points + stratified founding (engine assignment). |
-| `economy.js` | Founding engine → base multiplier → logistic growth toward a tech-lifted ceiling; agglomeration; flourishing (bloom/dusk); `conquer()` shock. |
-| `sim.js` | Orchestrator: `rollRegion(seed)` → `{region, towns, meta}`; the tech clock; CLI chronicle. |
-| `test/proto.selftest.mjs` | 16 checks (determinism + the theory's claims). `node polis/test/proto.selftest.mjs`. |
-| `THEORY.md` | The written theory + the full bibliography (what `docs/index.html` renders). |
-| `README.md` | This file. |
+| `field.js` | The continuous, scale-free terrain field (elevation/moisture/temperature/resource) — sampled sparsely to find a region, densely to retile it. |
+| `world.js` | `rollWorld(seed)` (coarse world) + `selectRegion()` (auto-pick the city-richest window via an integral image). |
+| `mesh.js` | `buildMesh(seed, region)` — the detailed **Voronoi mosaic**: jittered seeds, nearest-seed adjacency, per-cell terrain, rivers; `cellState(cell, env)` colours per era. |
+| `arteries.js` | `makeArteries(mesh)` — Physarum flux on the cell graph: gravity demand → conductance adapts → the inter-town network as the traffic field's superlevel set. |
+| `chronicle.js` | `runChronicle(seed, mesh)` — the timeline: climate + tech clocks, staged nucleation, economy growth (reuses `economy.js`), artery growth, tech-wave events — precomputed for replay. |
+| `economy.js` | Founding engine → base multiplier → logistic growth toward a tech-lifted ceiling; agglomeration; flourishing (bloom/dusk); `conquer()` shock. Reused by the chronicle. |
+| `substrate.js` · `site.js` · `sim.js` | The **v1 grid proto** (the earlier square-grid vertical slice) — kept and node-tested; superseded as the main page by the mesh pipeline above. |
+| `test/chronicle.selftest.mjs` | 15 checks on the living-map pipeline (region, mesh, climate, nucleation, hierarchy, arteries, waves). |
+| `test/proto.selftest.mjs` | 16 checks on the v1 grid proto. |
+| `THEORY.md` · `README.md` | The written theory + this file. |
 
-*(Engine modules still to come as the theory hardens: `tech.js` (the cards DAG +
-effects), `hinterland.js`, `finance.js` (financial flows — see THEORY.md),
-`flourish.js` (port hoop/econ), `event.js` (conquest/plague/crisis shocks),
-`history.js` (the replayable chronicle).)*
+*(Still to come as the theory hardens into the sim: `tech.js` (the cards DAG +
+effects), `finance.js` (the cost-of-capital gate + crisis shock — see THEORY.md),
+`flourish.js` (port hoop/econ's `scoreSociety`), and live conquest/plague events.)*
 
 ## Deploy
 
