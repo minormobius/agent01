@@ -336,6 +336,7 @@ async function main() {
       scenes.push({
         thumb: im.thumb, fullsize: im.fullsize, alt: im.alt, ratio: im.ratio,
         handle: p.author.handle, url: postUrl(p.author.handle, p.uri),
+        uri: p.uri, likeCount: p.likeCount,
       });
       if (scenes.length >= SCENES_CAP) break;
     }

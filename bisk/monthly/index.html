@@ -193,7 +193,7 @@ footer a:hover { color: var(--accent); }
 </div>
 
 <div class="section" id="sec-scenes">
-  <h2>Scenes from the Month <span class="note">a sampling of the cluster's images</span></h2>
+  <h2>Scenes from the Month <span class="note">every image, most-liked first</span></h2>
   <div class="scenes" id="scenes"></div>
 </div>
 
@@ -364,7 +364,7 @@ function renderScenes(list) {
   el.innerHTML = list.map(s => `
     <a href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.alt || '@' + s.handle)}">
       <img src="${esc(s.thumb)}" alt="${esc(s.alt)}" loading="lazy">
-      <span class="cap">@${esc(s.handle)}</span>
+      <span class="cap">@${esc(s.handle)}${s.likeCount != null ? ` · ♥ ${s.likeCount}` : ''}</span>
     </a>`).join('');
 }
 

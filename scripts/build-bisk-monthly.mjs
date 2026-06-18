@@ -161,13 +161,24 @@ function build(ym) {
   }
   const newShingles = shingles.filter(b => !prevDomains.has(b.domain)).map(b => b.domain);
 
-  // Scenes — a light sampling: a couple from each edition until we have a wall.
-  const scenes = [];
-  outer: for (const d of dailies) {
-    let n = 0;
-    for (const s of (d.scenes || [])) { scenes.push(s); if (++n >= 2 || scenes.length >= 16) break; if (scenes.length >= 16) break outer; }
-    if (scenes.length >= 16) break;
+  // Scenes — the whole month's images assembled into one feed: every image in
+  // a top post from a list member, deduped, most-liked first. (Editions built
+  // before scenes carried a like count sort as 0 and sink to the tail; the wall
+  // becomes fully ordered as fresh editions accrue.)
+  const MONTH_SCENES_CAP = 600;
+  const sceneMap = new Map();             // image url -> best-liked occurrence
+  for (const d of dailies) {
+    for (const s of (d.scenes || [])) {
+      const key = s.fullsize || s.thumb || s.url;
+      if (!key) continue;
+      const lk = s.likeCount || 0;
+      const prev = sceneMap.get(key);
+      if (!prev || lk > (prev.likeCount || 0)) sceneMap.set(key, { ...s, date: d.date });
+    }
   }
+  const scenes = [...sceneMap.values()]
+    .sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
+    .slice(0, MONTH_SCENES_CAP);
 
   return {
     month: ym,
