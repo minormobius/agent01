@@ -10,11 +10,11 @@
 //
 // Units: lengths in mm, time in s, mass in kg, torque in N·m, angles in rad.
 
-import { planMove } from './scurve.js';
-import { makeMotor, STEPPER_PRESETS } from './motor.js';
+import { planMove } from '../../lib/scurve.js';
+import { makeMotor, STEPPER_PRESETS } from '../../lib/motor.js';
 import {
   beltForces, rackingMoment, reflectedInertiaScrew, GRAVITY,
-} from './kinematics.js';
+} from '../../lib/kinematics.js';
 
 export const TOOLS = {
   gripper:  { label: 'Pneumatic gripper', mass: 0.16, payload: 0.05, actuation: 'jaw' },

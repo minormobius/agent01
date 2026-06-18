@@ -5,7 +5,7 @@
 // pick→place demo chains coordinated moves with gripper/pipettor actuation.
 
 import { Machine, defaultConfig, TOOLS } from './machine.js';
-import { STEPPER_PRESETS } from './motor.js';
+import { STEPPER_PRESETS } from '../../lib/motor.js';
 import { GantryView } from './scene.js';
 import { KinematicsScope, TorqueScope } from './scope.js';
 

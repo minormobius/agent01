@@ -22,9 +22,9 @@ jobs:
         working-directory: tjs
         run: |
           rm -rf dist && mkdir -p dist
-          cp -r index.html gantry dist/
+          cp -r index.html gantry deck lib dist/
           rm -f dist/wrangler.jsonc dist/wrangler.toml
-          ls -laR dist/ | head -40
+          ls -laR dist/ | head -60
 
       - name: Deploy to Cloudflare
         working-directory: tjs
