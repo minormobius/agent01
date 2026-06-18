@@ -70,7 +70,7 @@
     <tr><th>What</th><th>Shape</th></tr>
     <tr><td><b>the world pool</b></td><td>an array of content items (id · type · tags · tiers · content · requires). The backend owns it; the client loads it (already deduped against your <code>seen</code> server-side, or deduped client-side — see below).</td></tr>
     <tr><td><b>your character fold</b></td><td>everything you've done: <code>seen_ids</code> + placements (your frozen <code>feature&nbsp;→&nbsp;content</code> bindings) + facts + inventory + tiers/xp. Delivered as one aggregate read <i>or</i> as an event stream the client folds — the engine is deterministic, so either yields the same in-memory state.</td></tr>
-    <tr><td><b>the notifications / retcon feed</b></td><td>a cursored poll (<code>?since=…</code>): "the Tabard changed under your feet" — rumor-mill pushes and entity diffs, marked seen on read.</td></tr>
+    <tr><td><b>the notifications / retcon feed</b></td><td><code>com.minomobi.hoop.story.verdict</code> records on the service repo, tagged with your DID — "the Tabard changed under your feet": rumor-mill pushes and entity diffs. The client fetches its own at load + subscribes live (the engine can't write into your repo, so these live on the service repo).</td></tr>
   </table>
 
   <h3>The dedup keystone</h3>
@@ -116,7 +116,9 @@
     <tr><td><b>com.minomobi.hoop.story.content</b></td><td>morphyx</td><td>content id</td>
       <td>One world entity (creature / item / lore_fragment / npc / plot_beat / rumor), stored verbatim. The shared pool the engine crystallizes from; a player's own generated side-quests can be written to <i>their</i> repo under the same NSID.</td></tr>
     <tr><td><b>com.minomobi.hoop.story.pulse</b></td><td>morphyx</td><td><code>self</code></td>
-      <td>The Director's cross-player rollup — how many travellers have met what / been where — folded from player saves off the firehose. A disposable projection, rebuildable by replaying Jetstream.</td></tr>
+      <td>The shared cross-player rollup — rumor mill, presence, <code>worldVersion</code>, recent canon shifts — re-derived by the engine from events. A disposable projection.</td></tr>
+    <tr><td><b>com.minomobi.hoop.story.verdict</b></td><td>morphyx</td><td>per result</td>
+      <td>Per-player async results tagged <code>subjectDid</code> — the retcon/notification feed (entity diffs, rumor outcomes). Replaces the old notifications poll; the client reads the ones tagged for it.</td></tr>
     <tr><td><b>com.minomobi.hoop.place</b></td><td>the player's repo</td><td>tile / chamber addr</td>
       <td>A place on the map that anchors a thread (the main-site forum layer).</td></tr>
     <tr><td><b>com.minomobi.hoop.message</b></td><td>the player's repo</td><td>tid</td>

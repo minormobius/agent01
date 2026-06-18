@@ -674,13 +674,19 @@
     const auth = new AuthClient();
     let storyUser = null;                         // { did, handle } when signed in
     const worldKey = () => String(seed);          // save rkey = ship seed (one save per world)
-    let _repoSaveT = null, _lastSync = null;
-    function scheduleRepoSave() {
-      if (!storyUser || !story.ready) return;
-      clearTimeout(_repoSaveT);
-      _repoSaveT = setTimeout(() => { _repoSaveT = null; try { putSave(auth.pds, worldKey(), story.store.snapshot()).then(() => { _lastSync = Date.now(); renderAuthPill(); }).catch(() => {}); } catch (e) {} }, 4000);
+    let _lastSync = null, _repoDirty = false;
+    function scheduleRepoSave() { _repoDirty = true; }   // mark dirty; the periodic flusher + unload do the write
+    // SAVE OFTEN (hoopy #4: beforeunload is flaky on mobile/crashes, and a frequent save keeps the engine's
+    // pulse/rumor projection honest). Periodic flush while dirty + on hide/unload — not a per-action debounce
+    // (which could starve during continuous play).
+    function flushRepo(force) {
+      if (!storyUser || !story.ready || (!_repoDirty && !force)) return;
+      _repoDirty = false;
+      try { putSave(auth.pds, worldKey(), story.store.snapshot()).then(() => { _lastSync = Date.now(); renderAuthPill(); }).catch(() => { _repoDirty = true; }); } catch (e) { _repoDirty = true; }
     }
-    addEventListener('beforeunload', () => { if (storyUser && story.ready) { try { putSave(auth.pds, worldKey(), story.store.snapshot()); } catch (e) {} } });
+    setInterval(() => flushRepo(false), 12000);
+    addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushRepo(true); });
+    addEventListener('beforeunload', () => flushRepo(true));
     const RECORDS_LINK = `<a class="act" href="/v096/records" target="_blank" title="the lexicons, the service account, and how to read these records">records ↗</a>`;
     function renderAuthPill() {
       const el = $('auth'); if (!el) return;
@@ -701,7 +707,7 @@
       _syncedSave = true;
       loadOwnSave(auth.pds, worldKey()).then((snap) => {
         if (snap) { story.store.restore(snap); whereAmI(); renderQuest(); if (world) draw(); flashToast('◍ loaded your saved game from @' + storyUser.handle, 2600); }
-        else scheduleRepoSave();
+        else flushRepo(true);   // no save yet → seed your repo from the local state now
       }).catch(() => {});
     }
     function setUser(u) {

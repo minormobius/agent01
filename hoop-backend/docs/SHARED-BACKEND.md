@@ -1,11 +1,21 @@
 # Sharing the backend — how the two of us both touch it
 
+> **⚠️ Which seam? (updated after hoopy's `docs/roadmap.md`, event-sourcing branch.)**
+> Hoopy has chosen the **ATProto-records seam**, not a direct client→DB API: the engine
+> *publishes* `com.minomobi.hoop.story.{content,pulse,verdict}` to the **morphyx** repo and
+> *consumes* (read-only projects) the client's `story.save`. Postgres stays the engine's
+> **internal** source of truth; the client never touches it. So **the seam is repos, not a
+> Worker→Neon connection.** The Worker→Hyperdrive→Neon topology described below is the
+> *alternative* the backend engineer floated ("I can have the backend publish things
+> instead") — kept here for reference, **not the current plan.** The live contract + the
+> answers to hoopy's questions are in **`CLIENT-ANSWERS.md`**.
+
 This answers "how do we set it up so we both can touch it." The backend already
-exists (this repo: FastAPI + Postgres + a poller + Letta agents). The plan below
-is the one the code already anticipates — `runtime/local_api.py` says its routes are
-"mirrored for the Cloudflare Worker so code ports over with only the data layer
-swapped." Nothing here is a rewrite; it's wiring the existing pieces to a shared DB
-and splitting the work by what each of us can actually run.
+exists (this repo: FastAPI + Postgres + a poller + Letta agents). The (alternative)
+plan below is the one the code's `local_api.py` once anticipated — routes "mirrored for
+the Cloudflare Worker so code ports over with only the data layer swapped." Under
+hoopy's chosen seam, the shared touchpoint is instead the **morphyx repo + each player's
+repo**; we still both push code to this monorepo.
 
 ## The topology
 
