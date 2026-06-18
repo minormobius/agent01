@@ -72,16 +72,72 @@ only difference is the *concentration of the economic forcing* — one point vs 
 4. **Metropolis & the system** — superlinear scaling (Bettencourt–West), Thompson's
    urban size ratchet, the central-place hierarchy and Zipf across many cities.
 
+## The wider model — a coupled city–hinterland economy on three clocks
+
+The phases are the *shape*; the *engine* runs on three clocks, across two
+territories, judged on two axes.
+
+**Three clocks.**
+- **Continuous (curves).** Population and productivity grow logistically toward a
+  carrying capacity `K` — smooth growth on the demand side.
+- **Lumpy (projects).** Roads, walls, mills, aqueducts and buildings arrive as
+  discrete, indivisible **projects** financed out of surplus/capital — step-changes
+  in capacity, not a continuous fill (Hirschman's social-overhead-capital,
+  Rosenstein-Rodan's big push).
+- **Exogenous (technology).** A **tech tree** advances, and each technology shifts
+  the parameters of the other two clocks: raising `K` (agricultural surplus),
+  lowering **transport cost** (the master lever that tips Krugman's bifurcation),
+  raising productivity, cutting project costs. *Can we do this without a tech tree?*
+  Effectively no — technology is the only thing that moves the otherwise-fixed
+  parameters across the life cycle; without it a city saturates against a fixed `K`
+  and has no history. We **reuse the 500-node DAG in [`cards`](../cards/js/pools/tech-pool.js)**
+  (8 eras × 12 domains incl. agriculture/transportation/finance) and add an
+  `effects` layer mapping each tech onto those economic levers.
+
+**Two territories — a hinterland sim as much as a city sim.** A city and its
+hinterland are one coupled system. The hinterland sends in **surplus** (food →
+carrying capacity) and **raw resources** (the staple); the city sends out
+**services** (central-place catchment) and Jacobs' **five forces** (city markets,
+city jobs, transplanted work, technology, capital) that organize the region. von
+Thünen's rings *are* the hinterland arranged by the city. A city is only as big as
+its hinterland surplus + trade can feed.
+
+**The broader economy — two doors to the wider world.** Growth has two distinct
+external drivers: the **central place** (serve the local hinterland — Christaller)
+and the **gateway** (reach distant *away markets* via long-distance trade — Vance's
+mercantile model, the break-of-bulk entrepôt). Raw-resource availability +
+agricultural surplus + away-market access define the economy the city plugs into.
+
+**Two axes — scale and flourishing.** A city is judged not only on *scale*
+(population, GDP — the scaling laws) but on **flourishing** — whether it is good to
+live in. We **pull in the civic-vitality model from [`hoop/econ`](../hoop/econ/econ.js)**
+(`scoreSociety()` → vitality + tier on seven sub-signals: supply closure, multiplex
+interaction thickness, social weave, Granovetter bridges, third-places, employment,
+shock-resilience). Its thesis — *"the real output is regard"* — makes flourishing
+explicitly distinct from raw output: the subsistence loop closes, and the
+interesting economy (craft, trade, service, play, esteem) floats above it.
+
+## Borrowed assets (re-synced, never forked)
+
+| Asset | From | Role in polis |
+|---|---|---|
+| Physarum flux grower | [`hoop/paint/flux.js`](../hoop/paint/flux.js) | regimes 1 & 3 — the network as the traffic field's superlevel set |
+| hypoxia / angiogenesis | [`hoop/v7/foam.js`](../hoop/v7/foam.js) | regime 2 — coverage-driven capillary infill |
+| civic-vitality oracle | [`hoop/econ/econ.js`](../hoop/econ/econ.js) | the flourishing axis (QoL above GDP) |
+| 500-node tech DAG | [`cards/js/pools/tech-pool.js`](../cards/js/pools/tech-pool.js) | the exogenous clock + an `effects` layer over economic levers |
+| world substrate | [`mappa/engine.js`](../mappa/engine.js) | terrain, hydrology, fertility — where resources/ag/routes are |
+
 ## Files
 
 | File | Role |
 |---|---|
-| `index.html` | The theory site — the four-phase model, the academic grounding, the algorithm mappings, the roadmap. House style ported from `mappa/docs/`. |
-| `THEORY.md` | The written theory + the source bibliography (the prose `index.html` renders). |
+| `index.html` | The theory site — the economic life cycle, the three regimes, the wider coupled model, the academic grounding, the sources. House style ported from `mappa/docs/`. |
+| `THEORY.md` | The written theory + the source bibliography (what `index.html` renders). |
 | `README.md` | This file. |
 
-*(Engine modules — `substrate.js`, `site.js`, `accrete.js`, `network.js`, `prng.js`
-— land in later passes as the theory hardens into code.)*
+*(Engine modules — `substrate.js`, `site.js`, `economy.js`, `tech.js`, `hinterland.js`,
+`network.js`, `coverage.js`, `flourish.js`, `history.js`, `prng.js` — land in later
+passes as the theory hardens into code.)*
 
 ## Deploy
 

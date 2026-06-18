@@ -238,6 +238,131 @@ that is a selectable kernel — concentric **rings** (Burgess), transport **sect
 
 ---
 
+## The wider model — three clocks, two territories, two doors, two axes
+
+The phases are the *shape*. The *engine* runs on three clocks, spans two
+territories, opens two doors to the wider world, and is judged on two axes. This is
+where `polis` becomes a **hinterland sim as much as a city sim**.
+
+### Three clocks
+
+**Continuous — growth on curves.** Population and productivity don't step with the
+phases; they grow on an **S-curve** toward a carrying capacity `K`. The Verhulst
+logistic (1838), `dP/dt = r·P·(1 − P/K)` — discrete `P ← P + r·P·(1 − P/K)` —
+inflects symmetrically at `K/2`; the **Gompertz** alternative, `dP/dt = r·P·ln(K/P)`,
+inflects early at `K/e ≈ 0.37K` (fast boom, long crawl to the ceiling — use it for a
+city that explodes then saturates). Northam's urbanization S-curve (1975) is the
+macro envelope (slow below ~25% urban, steep middle, plateau above ~70%).
+
+**Exogenous — K is not fixed.** A carrying capacity is "a function of how people
+live and the technology at their disposal" (the Haber-Bosch point; Boserup). So
+`K(t)` *rises*, and a city chases a **moving ceiling** — stacked successive S-curves
+(the bi-logistic), not one plateau. What raises `K` is the third clock.
+
+**Lumpy — infrastructure as projects.** Capacity does not fill in smoothly. A
+bridge, wall, mill, aqueduct or grid is **indivisible** — a half-bridge carries
+nothing — so infrastructure arrives in **lumps** that step `K` up discretely.
+Hirschman (*The Strategy of Economic Development*, 1958) splits investment into
+**social overhead capital (SOC)** — infrastructure that *enables* production — and
+**directly productive activity (DPA)**, with two opposite sequences: build SOC
+*ahead* of demand (the "permissive" path — cheap infrastructure invites DPA to
+follow) or let SOC *lag* (the "compulsive" path — scarcity raises costs and pulls
+SOC in via backward/forward linkages). Rosenstein-Rodan's **big push** (1943) adds
+that below a coordinated *minimum quantum* across complementary sectors returns are
+negative; cross it and external economies flip positive. So model
+`K = K_continuous + Σ(infra_blocks)`, each block a binary that steps capacity up
+only once its fixed lump cost is paid out of surplus/capital.
+
+### The tech tree — the master clock (and yes, we need one)
+
+Technology is the one exogenous force that moves *every other parameter* across the
+life cycle: it raises the **agricultural surplus ratio** (the food-producer-to-
+consumer ratio falls, freeing labour for the city), lowers **transport cost** (the
+master lever — as `τ` falls past a threshold it tips Krugman's core-periphery
+**bifurcation**, the "tomahawk": the dispersed equilibrium loses stability at the
+*break point*, agglomeration self-sustains past the *sustain point*), raises
+**productivity**, and cuts **project costs**. Layer in **general-purpose
+technologies** (Bresnahan–Trajtenberg, 1995), Schumpeter's **creative destruction**
+(1942) and Kondratiev's ~50-year **long waves** (1925), and technology also rewrites
+*which industries lead* each era. *Can polis run without a tech tree?* Effectively
+no — strip it out and the base multiplier simply saturates against a fixed `K` and
+the city has no history. Technology is the hand on every lever.
+
+**Reuse, don't rebuild.** The repo already has a **500-node technology DAG** in
+[`cards`](../cards/js/pools/tech-pool.js) — `[title, era, {domain, year, status,
+complexity, prereqs}]`, 8 eras (prehistoric → ai) × 12 domains including
+agriculture, transportation, energy and finance, prerequisite depth up to 26. It is
+pure, portable data with no game coupling — but carries **no effects field** (it is a
+declarative historical DAG). The integration is exactly that missing layer: a
+per-tech `effects` map onto the economic levers —
+
+```
+{ agSurplus:+0.2, transportCost:−0.1, baseMultiplier:+0.05, projectCost:{road:−0.15}, K:×1.1 }
+```
+
+so researching down a `domain:'agriculture'` chain (Neolithic → irrigation → heavy
+plough → crop rotation) compounds the surplus that lifts `K`, and a
+`domain:'transportation'` chain drives `τ` toward Krugman's break point.
+
+### Two territories — the hinterland coupling
+
+A city and its hinterland are **one coupled system**; this is why `polis` is a
+hinterland sim as much as a city sim.
+
+- **The city zones the hinterland.** von Thünen (1826): the city's demand, refracted
+  through transport cost, sets a bid-rent gradient `R = Y(p−c) − Y·F·m` that sorts
+  the surrounding land into concentric **specialization rings** (intensive dairy
+  nearest, then fuel, grain, ranching). The city organizes the countryside.
+- **The hinterland feeds the city.** The hard ceiling: **max city population ≈
+  (hinterland surplus + net food imports) ÷ per-capita need**. The surplus is raised
+  by intensification under population pressure (Boserup, 1965) and by the agricultural
+  tech chain — another way `K` rises.
+- **The catchment.** Christaller's **complementary region** — the hinterland a
+  central place serves, bounded by each good's range and threshold.
+- **The five forces.** Jacobs (1984): a vital city radiates **markets, jobs,
+  transplants, technology, capital** into its region; all five → balanced city-region
+  growth, only a subset → "stunted and bizarre" development. The city-region, not the
+  city alone, is the unit `polis` simulates.
+
+### Two doors — the broader economy (central place vs gateway)
+
+A city has two distinct external growth drivers, and the broader economy (raw
+resources, agriculture, away-market access) reaches it through them:
+
+- **The central place** (Christaller) — *endogenic, centred, retail/service*: growth
+  from serving the **local hinterland**'s threshold demand; symmetric radial catchment.
+- **The gateway** (Burghardt, 1971; Vance's **mercantile model**, 1970) — *exogenic,
+  edge-located, wholesaling*: growth from reaching distant **away markets** through a
+  break-of-bulk / entrepôt node; asymmetric, one-directional hinterland, settlement
+  "unravelling" inland from a coastal **point of attachment**. Vance built this
+  expressly *against* central-place theory for newly settled lands.
+
+So a polis city carries **two size terms** — a central-place term (local hinterland
+demand) and a gateway term (export-demand flow × break-of-bulk advantage). The staple
+economy (Innis / Watkins) plugs into the gateway door: a region exports its
+comparative-advantage resource to distant markets, and the entrepôt that transships
+it captures the value. **Raw-resource availability** (where the staple sits on the
+mappa substrate), **agricultural surplus** (the hinterland), and **away-market
+access** (the gateway's reach) are the three inputs of the broader economy.
+
+### Two axes — scale and flourishing
+
+A city is judged on more than *scale* (population, GDP — the `N^β` laws). The second
+axis is **flourishing — is it good to live in?** The repo already has a civic-vitality
+model in [`hoop/econ`](../hoop/econ/econ.js): `scoreSociety()` → **vitality 0–100 +
+tier** (Thriving · Healthy · Stable · Fragile · Failing) on seven sub-signals — supply
+**closure**, multiplex interaction **thickness** (people who wear many hats), social
+**weave** (reach), Granovetter **bridges** (weak ties), **third-places**,
+**employment**, and shock **resilience** (hub-removal damage). Its framing makes
+flourishing explicitly distinct from output: the subsistence loop closes, and *"the
+real output is regard"* — the interesting economy (craft, trade, service, play,
+esteem) floats above mere subsistence. `polis` carries this as the quality-of-life
+layer above raw scale. *(Open design question for the engine, not the theory: whether
+flourishing **feeds back** into growth — a more livable city draws migration, raising
+`K` — or stays a readout. The model leans feedback.)*
+
+---
+
 ## Path dependence — the through-line
 
 Why early accidents persist (David 1985; Arthur 1989; Bleakley & Lin 2012). The
@@ -282,6 +407,28 @@ deliberately, also the economic-era progression of such a game.
 - Krugman, "Increasing Returns and Economic Geography," JPE 99(3):483–499 (1991): https://www.journals.uchicago.edu/doi/10.1086/261763
 - New economic geography — Wikipedia: https://en.wikipedia.org/wiki/New_economic_geography
 - Wilbur Thompson, urban size ratchet (*A Preface to Urban Economics*, 1965): https://en.wikipedia.org/wiki/Wilbur_R._Thompson
+
+**Dynamics — growth curves, lumpy projects, technology**
+- Verhulst logistic `dP/dt = rP(1−P/K)` — Wikipedia: https://en.wikipedia.org/wiki/Logistic_function
+- Gompertz curve (inflects at K/e) — Wikipedia: https://en.wikipedia.org/wiki/Gompertz_function
+- Carrying capacity is technology-dependent (K rises) — Wikipedia: https://en.wikipedia.org/wiki/Carrying_capacity
+- Hirschman, *The Strategy of Economic Development* (1958) — SOC vs DPA: https://en.wikipedia.org/wiki/The_Strategy_of_Economic_Development
+- Rosenstein-Rodan, the big push (1943) — Wikipedia: https://en.wikipedia.org/wiki/Big_push_model
+- Bresnahan & Trajtenberg, general-purpose technologies (1995) — NBER: https://www.nber.org/papers/w4148
+- Schumpeter, creative destruction (1942) — Econlib: https://www.econlib.org/library/Enc/CreativeDestruction.html
+- Kondratiev long waves — Wikipedia: https://en.wikipedia.org/wiki/Kondratiev_wave
+
+**Hinterland & away markets**
+- Bid-rent / von Thünen hinterland rings — Wikipedia: https://en.wikipedia.org/wiki/Bid_rent_theory
+- Ester Boserup, agricultural intensification (1965) — Wikipedia: https://en.wikipedia.org/wiki/Ester_Boserup
+- Burghardt, "A Hypothesis About Gateway Cities" (1971): https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1467-8306.1971.tb00782.x
+- Vance, the mercantile model (1970) — overview: https://pangeography.com/vance-model-of-transport/
+
+**Borrowed repo assets**
+- 500-node technology DAG: `cards/js/pools/tech-pool.js`
+- Civic-vitality oracle (`scoreSociety`, seven sub-signals): `hoop/econ/econ.js`
+- Physarum flux + hypoxia solvers: `hoop/paint/flux.js`, `hoop/v7/foam.js`
+- World substrate: `mappa/engine.js`
 
 **Substrate & site**
 - Settlement site & situation: https://geographyfieldwork.com/SiteSituation.htm

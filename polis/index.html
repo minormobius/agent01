@@ -85,6 +85,7 @@ footer a{color:var(--gold2)}
     <a href="#engine">The engine</a>
     <a href="#field">Three regimes</a>
     <a href="#cycle">Life cycle</a>
+    <a href="#wider">Wider model</a>
     <a href="#system">System</a>
     <a href="#road">4X</a>
     <a href="#sources">Sources</a>
@@ -341,8 +342,100 @@ footer a{color:var(--gold2)}
   </ul>
 </div></section>
 
+<section id="wider"><div class="wrap">
+  <h2><span class="n">04</span>The wider model — three clocks, two territories, two doors, two axes</h2>
+  <p>The phases are the <em>shape</em>. The <em>engine</em> runs on three clocks, spans two
+  territories, opens two doors to the wider world, and is judged on two axes. This is where
+  <code>polis</code> becomes a <strong>hinterland sim as much as a city sim</strong>, and where it pulls in
+  two more assets the repo already has.</p>
+
+  <h3>Three clocks</h3>
+  <ul>
+    <li><strong>Continuous — growth on curves.</strong> Population and productivity don't step with
+    the phases; they grow on an <strong>S-curve</strong> toward a carrying capacity <code>K</code>. The Verhulst
+    logistic (1838), <code>dP/dt = r·P·(1 − P/K)</code>, inflects at <code>K/2</code>; the <strong>Gompertz</strong>
+    alternative <code>dP/dt = r·P·ln(K/P)</code> inflects early at <code>K/e ≈ 0.37K</code> — fast boom, long
+    crawl to the ceiling. Northam's urbanization S-curve (1975) is the macro envelope.</li>
+    <li><strong>Exogenous — K is not fixed.</strong> Carrying capacity is "a function of how people
+    live and the technology at their disposal" (Boserup; Haber-Bosch). So <code>K(t)</code> <em>rises</em> and
+    the city chases a <strong>moving ceiling</strong> — stacked successive S-curves (the bi-logistic), not
+    one plateau.</li>
+    <li><strong>Lumpy — infrastructure as projects.</strong> Capacity does not fill in smoothly. A
+    bridge, wall, mill or grid is <strong>indivisible</strong> — a half-bridge carries nothing — so
+    infrastructure arrives in <strong>lumps</strong> that step <code>K</code> up discretely. Hirschman (1958) splits
+    investment into <strong>social-overhead capital (SOC)</strong> and <strong>directly productive activity
+    (DPA)</strong>: build SOC <em>ahead</em> of demand (permissive — invites DPA) or let it <em>lag</em>
+    (compulsive — scarcity pulls SOC in). Rosenstein-Rodan's <strong>big push</strong> (1943): below a
+    coordinated minimum quantum, returns are negative; cross it and external economies flip
+    positive. Model <code>K = K_continuous + Σ(infra_blocks)</code>, each block a binary paid out of surplus.</li>
+  </ul>
+
+  <h3>The tech tree — the master clock (and yes, we need one)</h3>
+  <p>Technology is the one exogenous force that moves <em>every other parameter</em>: it raises the
+  <strong>agricultural surplus ratio</strong> (freeing labour for the city), lowers <strong>transport cost</strong>
+  (the master lever — as <code>τ</code> falls past a threshold it tips <a href="https://en.wikipedia.org/wiki/Paul_Krugman">Krugman</a>'s
+  core–periphery <strong>bifurcation</strong>: the dispersed equilibrium loses stability at the <em>break
+  point</em>, agglomeration self-sustains past the <em>sustain point</em>), raises <strong>productivity</strong>,
+  and cuts <strong>project costs</strong>. With general-purpose technologies (Bresnahan–Trajtenberg 1995),
+  Schumpeter's <strong>creative destruction</strong> and Kondratiev's ~50-year long waves, it also rewrites
+  <em>which industries lead</em> each era. <strong>Strip the tech tree out and the base multiplier just
+  saturates against a fixed <code>K</code> — the city has no history.</strong> So a tech clock is structural.</p>
+  <div class="card accent">
+    <p style="margin-top:0"><strong>Reuse, don't rebuild.</strong> The repo already has a
+    <strong>500-node technology DAG</strong> in <a href="https://mino.mobi/cards/">cards</a>
+    (<code>tech-pool.js</code>) — 8 eras (prehistoric → ai) × 12 domains incl. agriculture, transportation,
+    energy, finance; prerequisite depth 26. It is pure portable data but carries <strong>no effects
+    field</strong>. The integration is exactly that missing layer — a per-tech <code>effects</code> map onto the
+    economic levers: <code>{ agSurplus:+0.2, transportCost:−0.1, baseMultiplier:+0.05, projectCost:{road:−0.15}, K:×1.1 }</code>
+    — so an <code>agriculture</code> chain compounds the surplus that lifts <code>K</code>, and a
+    <code>transportation</code> chain drives <code>τ</code> toward the break point.</p>
+  </div>
+
+  <h3>Two territories — the hinterland coupling</h3>
+  <p>A city and its hinterland are <strong>one coupled system</strong> — which is why <code>polis</code> is a
+  hinterland sim as much as a city sim.</p>
+  <ul>
+    <li><strong>The city zones the hinterland.</strong> von Thünen (1826): city demand, refracted
+    through transport cost, sets the bid-rent gradient <code>R = Y(p−c) − Y·F·m</code> that sorts the land
+    into concentric <strong>specialization rings</strong> (dairy → fuel → grain → ranching).</li>
+    <li><strong>The hinterland feeds the city.</strong> The hard ceiling: <strong>max city population ≈
+    (hinterland surplus + net food imports) ÷ per-capita need</strong>, the surplus itself raised by
+    intensification (Boserup) and the agricultural tech chain.</li>
+    <li><strong>The catchment &amp; the five forces.</strong> Christaller's complementary region; Jacobs'
+    (1984) five forces a vital city radiates into its region — <strong>markets, jobs, transplants,
+    technology, capital</strong>. All five → balanced city-region growth; only a subset → "stunted and
+    bizarre." The city-region, not the city alone, is the unit.</li>
+  </ul>
+
+  <h3>Two doors — the broader economy (central place vs gateway)</h3>
+  <p>Two distinct external growth drivers, through which raw resources, agriculture and away-market
+  access reach the city:</p>
+  <table>
+    <tr><th>Door</th><th>Logic</th><th>Form</th><th>Fed by</th></tr>
+    <tr><td><strong>Central place</strong> (Christaller)</td><td>endogenic — serve the local hinterland's threshold demand</td><td>centred, symmetric radial catchment, retail/service</td><td>agricultural surplus of the near hinterland</td></tr>
+    <tr><td><strong>Gateway</strong> (Burghardt 1971; Vance's mercantile model 1970)</td><td>exogenic — reach distant <em>away markets</em> via a break-of-bulk node</td><td>edge-located, asymmetric one-way hinterland, wholesaling</td><td>raw-resource staples (Innis) + away-market access</td></tr>
+  </table>
+  <p>So a polis city carries <strong>two size terms</strong> — a central-place term (local demand) and a
+  gateway term (export-demand × break-of-bulk advantage). <strong>Raw-resource availability</strong> (where
+  the staple sits on the mappa substrate), <strong>agricultural surplus</strong> (the hinterland), and
+  <strong>away-market access</strong> (the gateway's reach) are the three inputs of the broader economy.</p>
+
+  <h3>Two axes — scale and flourishing</h3>
+  <p>A city is judged on more than <em>scale</em> (population, GDP — the <code>N^β</code> laws). The second
+  axis is <strong>flourishing — is it good to live in?</strong> The repo already has a civic-vitality model
+  in <a href="https://hoop.mino.mobi/econ/">hoop/econ</a>: <code>scoreSociety()</code> → <strong>vitality
+  0–100 + tier</strong> (Thriving · Healthy · Stable · Fragile · Failing) on seven sub-signals — supply
+  <strong>closure</strong>, multiplex interaction <strong>thickness</strong> (people who wear many hats), social
+  <strong>weave</strong>, Granovetter <strong>bridges</strong> (weak ties), <strong>third-places</strong>, <strong>employment</strong>,
+  and shock <strong>resilience</strong>. Its framing makes flourishing distinct from output: the subsistence
+  loop closes, and <em>"the real output is regard"</em> — craft, trade, service, play and esteem float
+  above mere subsistence. <code>polis</code> carries this as the quality-of-life layer above raw scale.
+  <span class="mut">(Open engine question: whether flourishing <strong>feeds back</strong> into growth — a more
+  livable city draws migration, raising <code>K</code> — or stays a readout. The model leans feedback.)</span></p>
+</div></section>
+
 <section id="system"><div class="wrap">
-  <h2><span class="n">04</span>How the pieces compose into one engine</h2>
+  <h2><span class="n">05</span>How the pieces compose into one engine</h2>
   <div class="pipe">
     <div class="s"><b>Substrate (mappa).</b> A seeded planet; per-cell water, rivers, relief, fertility, lithology.</div>
     <div class="s"><b>Site &amp; founding engine.</b> Score sites on site×situation; pre-seed forced spawn points (break-of-bulk, fall line, harbour). Assign a founding basic sector — the big game in town.</div>
@@ -363,7 +456,7 @@ footer a{color:var(--gold2)}
 </div></section>
 
 <section id="road"><div class="wrap">
-  <h2><span class="n">05</span>Determinism, and the road to a 4X</h2>
+  <h2><span class="n">06</span>Determinism, and the road to a 4X</h2>
   <p><strong>Everything is seeded.</strong> <code>(worldSeed, siteCell)</code> → a city's entire economic
   history, identical on every machine, freezable to an ATProto record. No <code>Date.now()</code>, no
   unseeded <code>Math.random()</code> in generation. A city permalink (and, later, a 4X save) is only
@@ -385,7 +478,7 @@ footer a{color:var(--gold2)}
 </div></section>
 
 <section id="sources"><div class="wrap">
-  <h2><span class="n">06</span>Sources</h2>
+  <h2><span class="n">07</span>Sources</h2>
   <p class="mut" style="margin-top:0">Assembled from the canonical urban-economics, economic-geography, and complexity-science literature. Full reading list:</p>
   <div class="srcgrid">
     <h4>The economic engine</h4>
@@ -394,6 +487,12 @@ footer a{color:var(--gold2)}
     <p><a href="https://en.wikipedia.org/wiki/Economies_of_agglomeration">Marshall's agglomeration trinity (1890)</a> · <a href="https://ssrosent.expressions.syr.edu/wp-content/uploads/Rosenthal-Strange-JEP-4-15-2020.pdf">Rosenthal &amp; Strange (3–8% elasticity)</a> · <a href="https://dave-donaldson.com/wp-content/uploads/2015/12/krugman91.pdf">Krugman, core–periphery, JPE 1991</a> · <a href="https://en.wikipedia.org/wiki/The_Economy_of_Cities">Jacobs, <em>The Economy of Cities</em> (1969)</a> · <a href="https://en.wikipedia.org/wiki/Import_replacement">import-replacement</a></p>
     <h4>The life cycle</h4>
     <p><a href="https://en.wikipedia.org/wiki/Wilbur_R._Thompson">Thompson, five stages + the size ratchet (1965)</a> · <a href="https://en.wikipedia.org/wiki/Product_life-cycle_theory">Vernon, product cycle / filtering-down (1966)</a> · <a href="https://en.wikipedia.org/wiki/Urban_revolution">Childe's urban revolution (surplus)</a></p>
+    <h4>Dynamics — curves, projects, tech</h4>
+    <p><a href="https://en.wikipedia.org/wiki/Logistic_function">Verhulst logistic</a> · <a href="https://en.wikipedia.org/wiki/Gompertz_function">Gompertz curve</a> · <a href="https://en.wikipedia.org/wiki/Carrying_capacity">carrying capacity (K rises)</a> · <a href="https://en.wikipedia.org/wiki/The_Strategy_of_Economic_Development">Hirschman SOC/DPA (1958)</a> · <a href="https://en.wikipedia.org/wiki/Big_push_model">Rosenstein-Rodan big push (1943)</a> · <a href="https://www.nber.org/papers/w4148">Bresnahan &amp; Trajtenberg GPTs</a> · <a href="https://en.wikipedia.org/wiki/Kondratiev_wave">Kondratiev waves</a></p>
+    <h4>Hinterland &amp; away markets</h4>
+    <p><a href="https://en.wikipedia.org/wiki/Bid_rent_theory">von Thünen hinterland rings</a> · <a href="https://en.wikipedia.org/wiki/Ester_Boserup">Boserup intensification</a> · <a href="https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1467-8306.1971.tb00782.x">Burghardt, gateway cities (1971)</a> · <a href="https://pangeography.com/vance-model-of-transport/">Vance mercantile model (1970)</a></p>
+    <h4>Borrowed repo assets</h4>
+    <p><a href="https://mino.mobi/cards/">cards — 500-node tech DAG</a> · <a href="https://hoop.mino.mobi/econ/">hoop/econ — civic vitality</a> · <a href="https://hoop.mino.mobi/">hoop flux + foam solvers</a> · <a href="https://mino.mobi/mappa/">mappa substrate</a></p>
     <h4>Site &amp; situation</h4>
     <p><a href="https://geographyfieldwork.com/SiteSituation.htm">Site &amp; situation</a> · <a href="https://en.wikipedia.org/wiki/Fall_line">Fall line</a> · <a href="https://en.wikipedia.org/wiki/Break-in-bulk_point">Break-of-bulk point</a></p>
     <h4>Networks (the solvers' grounding)</h4>
