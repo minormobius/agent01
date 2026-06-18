@@ -14,6 +14,13 @@
 // A child device mounts to a parent at either the parent's 'frame' (static) or
 // 'carriage' (moving) attach point; "carriage" is what makes B ride A.
 
+// End-effector masses (kg). payload = the held part / aspirated liquid.
+export const TOOLS = {
+  none:     { label: 'none', mass: 0.0, payload: 0.0 },
+  gripper:  { label: 'Pneumatic gripper', mass: 0.16, payload: 0.05 },
+  pipettor: { label: 'Single-channel pipettor', mass: 0.21, payload: 0.002 },
+};
+
 export const DEVICE_TYPES = {
   linear: {
     label: 'Linear axis (1-DOF)',
@@ -106,7 +113,86 @@ export const DEVICE_TYPES = {
       return { frame, carriage, mount: { frame: [0, 0, 0], carriage: [0, 0, 0] } };
     },
   },
+
+  // ---- labware: static deck components (0 DOF) with interaction-point grids --
+  // These don't move; tools visit their interaction points. The motion suite can
+  // target a point (e.g. well A1, tip 3) so a move ends with the carriage over it.
+  wellplate: labwareType({
+    label: 'Well plate', rows: 8, cols: 12, pitch: 9, height: 14,
+    body: 0x20303a, feature: 0x0e1a20, featureShape: 'cyl', featureR: 6, naming: 'alpha',
+  }),
+  tiprack: labwareType({
+    label: 'Pipette-tip rack', rows: 8, cols: 12, pitch: 9, height: 60,
+    body: 0x2a2438, feature: 0xc08cff, featureShape: 'cone', featureR: 3.2, featureH: 48, naming: 'index',
+  }),
+  tuberack: labwareType({
+    label: 'Tube rack', rows: 4, cols: 6, pitch: 20, height: 45,
+    body: 0x243028, feature: 0x7ee787, featureShape: 'cyl', featureR: 7, featureH: 40, naming: 'alpha',
+  }),
+  waste: {
+    label: 'Waste chute', dof: 0, jointKeys: [],
+    defaults() { return { width: 70, depth: 70, height: 50 }; },
+    carriageOffset() { return [0, 0, 0]; },
+    reach(p) { return aabb([-p.width / 2, 0, -p.depth / 2], [p.width / 2, p.height, p.depth / 2], 0); },
+    interactionPoints(p) { return [{ id: 'drop', pos: [0, p.height + 6, 0], kind: 'drop' }]; },
+    spec(p) {
+      const w = p.width, d = p.depth, h = p.height, t = 4;
+      const frame = [
+        { role: 'frame', shape: 'box', size: [w, t, d], pos: [0, t / 2, 0], color: 0x14140f, name: 'floor' },
+        { role: 'frame', shape: 'box', size: [w, h, t], pos: [0, h / 2, -d / 2], color: 0x33271a, name: 'wallN' },
+        { role: 'frame', shape: 'box', size: [w, h, t], pos: [0, h / 2, d / 2], color: 0x33271a, name: 'wallS' },
+        { role: 'frame', shape: 'box', size: [t, h, d], pos: [-w / 2, h / 2, 0], color: 0x33271a, name: 'wallW' },
+        { role: 'frame', shape: 'box', size: [t, h, d], pos: [w / 2, h / 2, 0], color: 0xffb454, emissive: 0xffb454, name: 'wallE' },
+      ];
+      return { frame, carriage: [], mount: { frame: [0, 0, 0], carriage: [0, 0, 0] } };
+    },
+  },
 };
+
+// Build a gridded labware type (well plate / tip rack / tube rack) from a config.
+function labwareType(c) {
+  return {
+    label: c.label, dof: 0, jointKeys: [],
+    defaults() { return { rows: c.rows, cols: c.cols, pitch: c.pitch, height: c.height }; },
+    carriageOffset() { return [0, 0, 0]; },
+    reach(p) {
+      const w = p.cols * p.pitch, d = p.rows * p.pitch;
+      return aabb([-w / 2, 0, -d / 2], [w / 2, p.height + (c.featureH || 0), d / 2], 0);
+    },
+    interactionPoints(p) {
+      const pts = [];
+      const ox = -(p.cols - 1) * p.pitch / 2, oz = -(p.rows - 1) * p.pitch / 2;
+      for (let r = 0; r < p.rows; r++) for (let col = 0; col < p.cols; col++) {
+        const id = c.naming === 'alpha' ? `${String.fromCharCode(65 + r)}${col + 1}` : String(r * p.cols + col + 1);
+        pts.push({ id, pos: [ox + col * p.pitch, p.height, oz + r * p.pitch], kind: 'site' });
+      }
+      return pts;
+    },
+    spec(p) {
+      const w = p.cols * p.pitch + p.pitch, d = p.rows * p.pitch + p.pitch;
+      const frame = [{ role: 'frame', shape: 'box', size: [w, p.height, d], pos: [0, p.height / 2, 0], color: c.body, name: 'body' }];
+      const fH = c.featureH || Math.min(8, p.height * 0.6);
+      const ox = -(p.cols - 1) * p.pitch / 2, oz = -(p.rows - 1) * p.pitch / 2;
+      // cap the rendered feature count so a dense plate stays light
+      const stride = (p.rows * p.cols > 120) ? 2 : 1;
+      for (let r = 0; r < p.rows; r += stride) for (let col = 0; col < p.cols; col += stride) {
+        const fy = c.featureShape === 'cone' ? p.height + fH / 2 : p.height - fH / 2 + 0.5;
+        frame.push({
+          role: 'frame', shape: c.featureShape, size: [c.featureR * 2, fH, c.featureR * 2],
+          pos: [ox + col * p.pitch, fy, oz + r * p.pitch], color: c.feature,
+          emissive: c.featureShape === 'cone' ? c.feature : undefined, name: `f_${r}_${col}`,
+        });
+      }
+      return { frame, carriage: [], mount: { frame: [0, 0, 0], carriage: [0, 0, 0] } };
+    },
+  };
+}
+
+// Interaction points of a placed device in its own local frame (or [] if none).
+export function interactionPoints(device) {
+  const t = DEVICE_TYPES[device.type];
+  return t.interactionPoints ? t.interactionPoints(device.params) : [];
+}
 
 export function deviceDefaults(type) {
   const t = DEVICE_TYPES[type];
@@ -129,5 +215,5 @@ function aabb(a, b, pad) {
 }
 
 if (typeof globalThis !== 'undefined') {
-  globalThis.DEVICES = { DEVICE_TYPES, deviceDefaults, carriageOffset };
+  globalThis.DEVICES = { DEVICE_TYPES, TOOLS, deviceDefaults, carriageOffset, interactionPoints };
 }

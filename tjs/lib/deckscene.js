@@ -93,18 +93,48 @@ export class DeckView {
 
   _buildTool(kind) {
     const g = new THREE.Group();
+    const refs = { group: g, kind, jl: null, jr: null, plunger: null };
     if (kind === 'gripper') {
       const m = this._mat(0xffb454, { metalness: 0.5, roughness: 0.4 });
       const jl = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2, 1.2), m); jl.position.set(-0.7, -1.6, 0);
       const jr = jl.clone(); jr.position.x = 0.7; jl.castShadow = jr.castShadow = true;
-      g.add(jl, jr);
+      g.add(jl, jr); refs.jl = jl; refs.jr = jr;
     } else if (kind === 'pipettor') {
       const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 2, 16), this._mat(0xdedfe6, { metalness: 0.2, roughness: 0.5 }));
       const tip = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.6, 16), this._mat(ACCENT, { roughness: 0.6 }));
       tip.position.y = -1.8; tip.rotation.x = Math.PI; barrel.castShadow = true;
-      g.add(barrel, tip);
+      const plunger = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.6, 12), this._mat(0x2a2a34)); plunger.position.y = 1.2;
+      g.add(barrel, tip, plunger); refs.plunger = plunger;
     }
-    return g;
+    return refs;
+  }
+
+  // Spin a device's motor meshes from its joint state (so "watch the motor" is
+  // literal during playback). hbot: pulleys A/B; linear screw: the lead screw.
+  spinMotors(id, joint) {
+    const node = this.nodes.get(id); if (!node) return;
+    const dev = this.deck.getDevice(id); const p = dev.params;
+    if (dev.type === 'hbot') {
+      const rMm = (p.pulleyTeeth * p.beltPitch) / (2 * Math.PI);
+      const a = ((joint.x ?? 0) + (joint.y ?? 0)) / rMm, b = ((joint.x ?? 0) - (joint.y ?? 0)) / rMm;
+      if (node.named.motorA) node.named.motorA.rotation.x = a;
+      if (node.named.motorB) node.named.motorB.rotation.x = b;
+    } else if (dev.type === 'linear' && p.drive === 'screw' && node.named.rail) {
+      node.named.rail.rotation.y = ((joint.p ?? 0) * 2 * Math.PI) / p.lead;
+    }
+  }
+
+  // Actuate a device's tool. st: { open?:bool, plunge?:0..1 }.
+  actuateTool(id, st) {
+    const node = this.nodes.get(id); const t = node && node.tool; if (!t) return;
+    if (t.kind === 'gripper' && t.jl) { const o = st.open === false ? 0.32 : 0.7; t.jl.position.x = -o; t.jr.position.x = o; }
+    if (t.kind === 'pipettor' && t.plunger) t.plunger.position.y = 1.2 - (st.plunge || 0) * 0.8;
+  }
+
+  // Flag a device as stalled (carriage glows red) during motion playback.
+  setStall(id, bad) {
+    const node = this.nodes.get(id); if (!node) return;
+    for (const part of node.carriageParts) if (part.userData.canTint) part.material.emissive.setHex(bad ? BAD : (id === this.selected ? SEL : ACCENT));
   }
 
   setDeck(deck) {
@@ -122,13 +152,14 @@ export class DeckView {
       frameGroup.position.set(dev.mount.position[0] * MM, dev.mount.position[1] * MM, dev.mount.position[2] * MM);
       frameGroup.rotation.set(rad(dev.mount.rotation[0]), rad(dev.mount.rotation[1]), rad(dev.mount.rotation[2]));
 
-      for (const part of spec.frame) frameGroup.add(this._buildPart(part, dev.id));
-      const carriageParts = spec.carriage.map((part) => { const m = this._buildPart(part, dev.id); frameGroup.add(m); return m; });
+      const named = {};
+      for (const part of spec.frame) { const m = this._buildPart(part, dev.id); frameGroup.add(m); if (part.name) named[part.name] = m; }
+      const carriageParts = spec.carriage.map((part) => { const m = this._buildPart(part, dev.id); frameGroup.add(m); if (part.name) named[part.name] = m; return m; });
       const carriageAnchor = new THREE.Group(); frameGroup.add(carriageAnchor);
 
       // tool hangs from the carriage anchor
-      let toolGroup = null;
-      if (dev.tool && dev.tool !== 'none') { toolGroup = this._buildTool(dev.tool); carriageAnchor.add(toolGroup); }
+      let tool = null;
+      if (dev.tool && dev.tool !== 'none') { tool = this._buildTool(dev.tool); carriageAnchor.add(tool.group); }
 
       // reach envelope
       const reach = this._buildReach(type.reach(dev.params)); reach.visible = this.showReach; frameGroup.add(reach);
@@ -140,7 +171,7 @@ export class DeckView {
         parentObj = dev.mount.attach === 'carriage' ? pn.carriageAnchor : pn.frameGroup;
       }
       parentObj.add(frameGroup);
-      this.nodes.set(dev.id, { group: frameGroup, frameGroup, carriageAnchor, carriageParts, toolGroup });
+      this.nodes.set(dev.id, { group: frameGroup, frameGroup, carriageAnchor, carriageParts, named, tool, type: dev.type });
     }
     this.setState({});
   }

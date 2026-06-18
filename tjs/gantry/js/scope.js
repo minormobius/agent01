@@ -1,5 +1,5 @@
 // scope.js — the dynamic-analysis instrument. Two canvas-2D scopes read the
-// sampled simulation from machine.js:
+// per-device sampled simulation from deckengine.js (dynamic axis/motor keys):
 //
 //   KinematicsScope — four stacked traces (position / velocity / acceleration /
 //   jerk) over the move's timeline, one coloured line per axis. This is where
@@ -42,7 +42,8 @@ function niceMax(v) {
 export class KinematicsScope {
   constructor(canvas) { this.canvas = canvas; this.field = 'v'; }
 
-  // sim: Machine.simulate output. visible: {x,y,z1,z2}->bool. playFrac in [0,1].
+  // sim: deckengine.simulateDevice output (dynamic axisKeys + colors).
+  // visible: key->bool (defaults to shown). playFrac in [0,1].
   draw(sim, visible, playFrac) {
     const { ctx, w, h } = fitDPI(this.canvas);
     ctx.clearRect(0, 0, w, h);
@@ -56,14 +57,15 @@ export class KinematicsScope {
     const padL = 52, padR = 10, padT = 6, padB = 14, gap = 8;
     const rh = (h - padT - padB - gap * (rows.length - 1)) / rows.length;
     const n = sim.time.length;
-    const axes = ['x', 'y', 'z1', 'z2'].filter((a) => visible[a]);
+    const color = (a) => (sim.colors && sim.colors.axis[a]) || AXIS_COLOR[a] || '#39d6c8';
+    const axes = (sim.axisKeys || []).filter((a) => visible[a] !== false);
 
     rows.forEach((row, ri) => {
       const y0 = padT + ri * (rh + gap);
       const plotW = w - padL - padR;
       // y-range across visible axes for this field
       let maxAbs = 1e-9;
-      for (const a of axes) for (const s of sim.cart[a]) maxAbs = Math.max(maxAbs, Math.abs(s[row.key]));
+      for (const a of axes) for (const s of sim.axes[a]) maxAbs = Math.max(maxAbs, Math.abs(s[row.key]));
       maxAbs = niceMax(maxAbs);
       const yMid = row.signed ? y0 + rh / 2 : y0 + rh - 2;
       const yScale = row.signed ? (rh / 2 - 2) / maxAbs : (rh - 4) / maxAbs;
@@ -81,10 +83,10 @@ export class KinematicsScope {
 
       // traces
       for (const a of axes) {
-        ctx.strokeStyle = AXIS_COLOR[a]; ctx.lineWidth = 1.6; ctx.beginPath();
+        ctx.strokeStyle = color(a); ctx.lineWidth = 1.6; ctx.beginPath();
         for (let i = 0; i < n; i++) {
           const x = padL + (i / (n - 1)) * plotW;
-          const val = sim.cart[a][i][row.key];
+          const val = sim.axes[a][i][row.key];
           const y = yMid - val * yScale;
           i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
         }
@@ -109,7 +111,8 @@ export class TorqueScope {
     const { ctx, w, h } = fitDPI(this.canvas);
     ctx.clearRect(0, 0, w, h);
     if (!sim) return;
-    const motors = ['A', 'B', 'Z1', 'Z2'];
+    const motors = sim.motorKeys || ['A', 'B', 'Z1', 'Z2'];
+    const mcolor = (k) => (sim.colors && sim.colors.motor[k]) || MOTOR_COLOR[k] || '#39d6c8';
     const padL = 52, padR = 10, padT = 6, padB = 6, gap = 8;
     const rh = (h - padT - padB - gap * (motors.length - 1)) / motors.length;
     const n = sim.time.length;
@@ -146,7 +149,7 @@ export class TorqueScope {
       ctx.stroke();
 
       // demand line, with red fill where it exceeds available
-      ctx.strokeStyle = MOTOR_COLOR[k]; ctx.lineWidth = 1.8; ctx.beginPath();
+      ctx.strokeStyle = mcolor(k); ctx.lineWidth = 1.8; ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const x = padL + (i / (n - 1)) * plotW;
         const y = yBase - Math.min(series[i].absDemand, maxT) * yScale;
@@ -167,7 +170,7 @@ export class TorqueScope {
 
       // labels
       ctx.fillStyle = INK; ctx.font = '10px ui-monospace,monospace'; ctx.textAlign = 'left';
-      ctx.fillStyle = MOTOR_COLOR[k];
+      ctx.fillStyle = mcolor(k);
       ctx.fillText(`motor ${k}`, padL + 4, y0 + 11);
       ctx.fillStyle = INK; ctx.textAlign = 'right';
       ctx.fillText(maxT.toPrecision(2) + ' N·m', padL - 4, y0 + 10);

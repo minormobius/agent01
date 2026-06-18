@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gantry Playground · tjs.mino.mobi</title>
-<meta name="description" content="A three.js HBot gantry test bench: configurable steppers, jerk-limited seven-segment motion profiles, and live torque-vs-envelope dynamic analysis down to the motor.">
-<!-- import map: lets `import ... from 'three'` and 'three/addons/...' resolve to the CDN, matching the repo's ternary3 pattern. No build step. -->
+<title>Motion Suite · tjs.mino.mobi</title>
+<meta name="description" content="Drive any device on a deck — HBots and linear axes — with seven-segment jerk-limited motion, and read the per-motor torque-vs-envelope analysis with the full mounted payload reflected to the rotor.">
 <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "js-yaml": "https://esm.sh/js-yaml@4.1.0"
   }
 }
 </script>
@@ -26,10 +26,12 @@
   .app{display:grid;grid-template-rows:auto 1fr;height:100vh}
   header{padding:10px 18px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
   header .crumb{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
-  header .crumb a{color:var(--soft);text-decoration:none}
-  header .crumb a:hover{color:var(--accent)}
+  header .crumb a{color:var(--soft);text-decoration:none} header .crumb a:hover{color:var(--accent)}
   header h1{font-size:17px;margin:0;font-weight:700}
   header .tag{font-size:12px;color:var(--soft)}
+  header .spacer{flex:1}
+  header a.deck{font-size:12.5px;color:var(--accent);text-decoration:none;border:1px solid var(--line);padding:5px 10px;border-radius:7px}
+  header a.deck:hover{border-color:var(--accent)}
   .work{display:grid;grid-template-columns:1fr 330px;min-height:0}
   .left{display:grid;grid-template-rows:minmax(0,1.4fr) minmax(0,1fr);min-height:0;min-width:0;border-right:1px solid var(--line)}
   #viewport{position:relative;min-height:0;background:radial-gradient(120% 120% at 60% 10%,#14141f 0%,#0b0b10 70%)}
@@ -45,11 +47,8 @@
   .panel h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin:0 0 8px}
   label.row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;margin:6px 0;font-size:12.5px;color:#c9c9d8}
   label.row .val{color:var(--accent);font:11px ui-monospace,monospace;min-width:54px;text-align:right}
-  select,input[type=number]{width:100%;background:#0c0c14;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:5px 7px;font:12px ui-monospace,monospace}
+  select,input[type=number]{width:100%;background:#0c0c14;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:6px 7px;font:12px ui-monospace,monospace}
   input[type=range]{width:100%;accent-color:var(--accent)}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .col h4{margin:0 0 4px;font-size:11px;color:var(--soft);font-weight:600}
-  .chk{display:flex;align-items:center;gap:6px;font-size:12px;color:#c9c9d8;margin:4px 0}
   .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
   button{background:#15151f;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:7px 12px;font-size:12.5px;cursor:pointer;transition:.12s}
   button:hover{border-color:var(--accent);color:#fff}
@@ -57,8 +56,8 @@
   button.on{border-color:var(--accent2);color:var(--accent2)}
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--soft);margin-top:4px}
   .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle}
-  /* verdict */
-  #verdict .vrow{display:grid;grid-template-columns:24px 1fr 78px;align-items:center;gap:8px;margin:5px 0}
+  .chk{display:flex;align-items:center;gap:6px;font-size:12px;color:#c9c9d8;margin:4px 0}
+  #verdict .vrow{display:grid;grid-template-columns:30px 1fr 86px;align-items:center;gap:8px;margin:5px 0}
   #verdict .vk{font:12px ui-monospace,monospace;font-weight:700}
   #verdict .vbar{height:8px;background:#0c0c14;border:1px solid var(--line);border-radius:4px;overflow:hidden}
   #verdict .vbar i{display:block;height:100%}
@@ -69,27 +68,27 @@
   #verdict .vmeta b{color:#d8d8e6}
   #verdict .vwarn{margin-top:8px;font-size:11.5px;color:var(--bad);background:rgba(255,77,109,.08);border:1px solid rgba(255,77,109,.3);padding:7px 9px;border-radius:6px}
   #verdict .vok{margin-top:8px;font-size:11.5px;color:var(--ok)}
-  .muted{color:var(--soft)}
+  .muted{color:var(--soft);font-size:12px}
   .hint{font-size:11px;color:var(--soft);margin-top:8px;line-height:1.55}
-  @media (max-width:860px){
-    body{overflow:auto}
-    .app{height:auto}
-    .work{grid-template-columns:1fr}
-    .left{border-right:none}
-    #viewport{height:48vh}
-    .scopes{grid-template-columns:1fr}
-    .scopebox{height:300px;border-right:none;border-bottom:1px solid var(--line)}
+  .steps{list-style:none;margin:6px 0 0;padding:0;font-size:12px}
+  .steps li{display:flex;gap:8px;padding:4px 6px;border-left:2px solid var(--line);margin:2px 0;color:#c9c9d8}
+  .steps li.active{border-color:var(--accent2);color:#fff;background:#16140e}
+  .steps li .pill{font:11px ui-monospace,monospace;color:var(--soft)}
+  @media (max-width:880px){
+    body{overflow:auto} .app{height:auto} .work{grid-template-columns:1fr}
+    .left{border-right:none} #viewport{height:46vh}
+    .scopes{grid-template-columns:1fr} .scopebox{height:280px;border-right:none;border-bottom:1px solid var(--line)}
   }
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <span class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / <a href="/">tjs</a> / gantry</span>
-    <h1>Gantry Playground</h1>
-    <span class="tag">HBot · seven-segment jerk-limited profiles · stepper torque envelope · dynamic analysis to the motor</span>
-    <span style="flex:1"></span>
-    <a href="/deck/" style="font-size:12.5px;color:var(--accent);text-decoration:none;border:1px solid var(--line);padding:5px 10px;border-radius:7px">← Deck layout</a>
+    <span class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / <a href="/">tjs</a> / motion</span>
+    <h1>Motion Suite</h1>
+    <span class="tag">drive any deck device · jerk-limited profiles · per-motor torque with the full mounted payload reflected</span>
+    <span class="spacer"></span>
+    <a class="deck" href="/deck/">← Deck layout</a>
   </header>
 
   <div class="work">
@@ -103,84 +102,52 @@
 
     <aside class="panel">
       <section>
+        <h2>Deck</h2>
+        <div class="muted" id="deckName">—</div>
+        <div class="btns">
+          <button id="btnReloadDeck" class="primary">↻ Load from editor</button>
+          <button id="btnImport">⤒ Import YAML</button>
+        </div>
+        <input id="fileInput" type="file" accept=".yaml,.yml,.txt" style="display:none">
+        <p class="hint">The deck comes from the layout editor (autosaved) — edit it in <a href="/deck/" style="color:var(--accent)">Deck</a>, then reload here.</p>
+      </section>
+
+      <section>
+        <h2>Active device</h2>
+        <select id="deviceSel"></select>
+        <div id="loadInfo" class="hint"></div>
+      </section>
+
+      <section>
         <h2>Verdict</h2>
         <div id="verdict" class="muted">—</div>
       </section>
 
       <section>
         <h2>Move</h2>
-        <label class="row">target X <span class="val"><span id="tgXv">250</span> mm</span></label>
-        <input id="tgX" type="range" min="0" max="300" step="1" value="250">
-        <label class="row">target Y <span class="val"><span id="tgYv">240</span> mm</span></label>
-        <input id="tgY" type="range" min="0" max="300" step="1" value="240">
-        <label class="row">Z1 plunge <span class="val"><span id="tgZ1v">0</span> mm</span></label>
-        <input id="tgZ1" type="range" min="0" max="120" step="1" value="0">
-        <label class="row">Z2 plunge <span class="val"><span id="tgZ2v">0</span> mm</span></label>
-        <input id="tgZ2" type="range" min="0" max="120" step="1" value="0">
+        <div id="jointControls"></div>
         <div class="btns">
           <button id="btnRun" class="primary">▶ Run move</button>
-          <button id="btnDemo">Pick → Place</button>
+          <button id="btnReset">Reset pose</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>Sequence</h2>
+        <div class="muted" id="seqInfo">—</div>
+        <ul class="steps" id="seqList"></ul>
+        <div class="btns">
+          <button id="btnRunSeq" class="primary">▶ Run sequence</button>
           <button id="btnLoop">Loop</button>
-          <button id="btnReset">Reset</button>
         </div>
         <label class="row" style="margin-top:10px">playback <span class="val"><span id="speedv">1.0×</span></span></label>
         <input id="speed" type="range" min="0.1" max="2" step="0.1" value="1">
       </section>
 
       <section>
-        <h2>Motion limits</h2>
-        <div class="col"><h4>Gantry X / Y</h4></div>
-        <label class="row">v<sub>max</sub> <span class="val"><span id="lXVv"></span> mm/s</span></label>
-        <input id="lXV" type="range" min="50" max="700" step="10">
-        <label class="row">a<sub>max</sub> <span class="val"><span id="lXAv"></span> mm/s²</span></label>
-        <input id="lXA" type="range" min="500" max="40000" step="100">
-        <label class="row">jerk <span class="val"><span id="lXJv"></span></span></label>
-        <input id="lXJ" type="range" min="10000" max="600000" step="5000">
-        <div class="col" style="margin-top:8px"><h4>Z axes</h4></div>
-        <label class="row">v<sub>max</sub> <span class="val"><span id="lZVv"></span> mm/s</span></label>
-        <input id="lZV" type="range" min="10" max="300" step="5">
-        <label class="row">a<sub>max</sub> <span class="val"><span id="lZAv"></span> mm/s²</span></label>
-        <input id="lZA" type="range" min="200" max="12000" step="100">
-        <label class="row">jerk <span class="val"><span id="lZJv"></span></span></label>
-        <input id="lZJ" type="range" min="5000" max="200000" step="5000">
-      </section>
-
-      <section>
-        <h2>Motors (open-loop steppers)</h2>
-        <label class="row">Gantry A + B</label>
-        <select id="mGantry"></select>
-        <div class="grid2" style="margin-top:8px">
-          <div class="col"><h4>Z1 motor</h4><select id="mZ1"></select></div>
-          <div class="col"><h4>Z2 motor</h4><select id="mZ2"></select></div>
-        </div>
-        <p class="hint">Available torque is flat to the corner speed, then sags as back-EMF steals current (constant-power droop), reaching zero at max speed. Demand above the band = skipped steps = stall.</p>
-      </section>
-
-      <section>
-        <h2>Carriage tools</h2>
-        <div class="grid2">
-          <div class="col">
-            <h4>Z1 tool</h4>
-            <select id="tZ1"></select>
-            <label class="chk"><input id="payZ1" type="checkbox"> holding payload</label>
-          </div>
-          <div class="col">
-            <h4>Z2 tool</h4>
-            <select id="tZ2"></select>
-            <label class="chk"><input id="payZ2" type="checkbox"> holding payload</label>
-          </div>
-        </div>
-      </section>
-
-      <section>
         <h2>Scope axes</h2>
-        <div class="legend">
-          <label class="chk"><input id="vis_x" type="checkbox" checked><i style="background:var(--accent)"></i>X</label>
-          <label class="chk"><input id="vis_y" type="checkbox" checked><i style="background:var(--accent2)"></i>Y</label>
-          <label class="chk"><input id="vis_z1" type="checkbox" checked><i style="background:var(--z1)"></i>Z1</label>
-          <label class="chk"><input id="vis_z2" type="checkbox" checked><i style="background:var(--z2)"></i>Z2</label>
-        </div>
-        <p class="hint">Try a 45° diagonal: an HBot puts almost the whole demand on belt motor <b>A</b> (a&nbsp;=&nbsp;x+y), so it stalls long before motor B. Then raise v<sub>max</sub> past ~320 and watch the diagonal overspeed.</p>
+        <div class="legend" id="axisToggles"></div>
+        <p class="hint">Bolt more onto a device's carriage in the editor and its motors feel the extra inertia here — the reflected payload mass is part of the torque demand.</p>
       </section>
     </aside>
   </div>

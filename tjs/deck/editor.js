@@ -4,14 +4,15 @@
 // motion suite. The 3D preview is a DeckView; this file is all UI/state glue.
 
 import { Deck, defaultDeck } from '../lib/deck.js';
-import { DEVICE_TYPES } from '../lib/devices.js';
+import { DEVICE_TYPES, interactionPoints } from '../lib/devices.js';
 import { STEPPER_PRESETS } from '../lib/motor.js';
 import { toYAML, fromYAML, objectToDeck, deckToObject } from '../lib/deckio.js';
 import { DeckView } from '../lib/deckscene.js';
 
 const $ = (id) => document.getElementById(id);
 const LS_KEY = 'tjs.deck.current';
-const TYPE_DOT = { linear: '#7ee787', hbot: '#39d6c8' };
+const TYPE_DOT = { linear: '#7ee787', hbot: '#39d6c8', wellplate: '#8ac6ff', tiprack: '#c08cff', tuberack: '#7ee787', waste: '#ffb454' };
+const LABWARE = ['wellplate', 'tiprack', 'tuberack', 'waste'];
 
 let deck = loadDeck();
 let selectedId = deck.devices[0]?.id || null;
@@ -104,6 +105,12 @@ function renderInspector() {
       ${num('insp_beam', 'beam kg', p.beamMass, 0.05, 50, 0.05)}
       ${num('insp_cmass', 'carriage kg', p.carriageMass, 0.01, 50, 0.01)}
       ${limitFields(p.limits)}`;
+  } else if (d.type === 'waste') {
+    params = `${num('insp_w', 'width', p.width, 20, 400)}${num('insp_d', 'depth', p.depth, 20, 400)}${num('insp_h', 'height', p.height, 10, 300)}`;
+  } else {
+    // gridded labware (well plate / tip rack / tube rack)
+    params = `${num('insp_rows', 'rows', p.rows, 1, 32)}${num('insp_cols', 'cols', p.cols, 1, 48)}${num('insp_pitch', 'pitch mm', p.pitch, 2, 50)}${num('insp_lh', 'height', p.height, 2, 200)}
+      <div class="muted" style="margin-top:4px">${interactionCount(d)} interaction sites</div>`;
   }
 
   const others = deck.devices.filter((x) => x.id !== d.id && !isDescendant(x.id, d.id));
@@ -135,6 +142,7 @@ function renderInspector() {
 }
 
 function poseSliders(d) {
+  if (!DEVICE_TYPES[d.type].dof) return '<div class="muted">static deck component — no axes to pose</div>';
   const st = preview[d.id] || d.previewState || {};
   if (d.type === 'linear') {
     const v = st.p ?? 0;
@@ -171,6 +179,14 @@ function bindInspector(d) {
   bindNum('insp_lvmax', (v) => { P.limits.vmax = v; });
   bindNum('insp_lamax', (v) => { P.limits.amax = v; });
   bindNum('insp_ljmax', (v) => { P.limits.jmax = v; });
+  // labware params (all structural — they reshape geometry)
+  bindNum('insp_w', (v) => { P.width = v; }, true);
+  bindNum('insp_d', (v) => { P.depth = v; }, true);
+  bindNum('insp_h', (v) => { P.height = v; }, true);
+  bindNum('insp_rows', (v) => { P.rows = v; }, true);
+  bindNum('insp_cols', (v) => { P.cols = v; }, true);
+  bindNum('insp_pitch', (v) => { P.pitch = v; }, true);
+  bindNum('insp_lh', (v) => { P.height = v; }, true);
   on('insp_axis', 'change', (e) => { P.axis = e.target.value; refreshAll(); });
   on('insp_drive', 'change', (e) => { P.drive = e.target.value; refreshAll(); });
   on('insp_motor', 'change', (e) => { P.motor = e.target.value; liveUpdate(); });
@@ -308,6 +324,13 @@ function addDevice(type) {
   const dev = deck.addDevice(type, { mount: { parent, attach, position: type === 'linear' ? [0, 0, 0] : [0, 20, 0] } });
   selectedId = dev.id; refreshAll();
 }
+function addLabware(type) {
+  // labware sits on the deck floor, not on a carriage
+  const n = deck.devices.filter((d) => LABWARE.includes(d.type)).length;
+  const dev = deck.addDevice(type, { mount: { parent: null, attach: 'frame', position: [120 + n * 30, 0, -120] } });
+  selectedId = dev.id; refreshAll();
+}
+function interactionCount(d) { return interactionPoints(d).length; }
 function duplicate() {
   const d = deck.getDevice(selectedId); if (!d) return;
   const copy = deck.addDevice(d.type, { params: JSON.parse(JSON.stringify(d.params)), tool: d.tool, mount: { ...d.mount, position: d.mount.position.map((v) => v + 10) } });
@@ -319,6 +342,10 @@ function wireToolbar() {
   $('deckName').addEventListener('input', (e) => { deck.name = e.target.value; autosave(); });
   $('btnAddLinear').addEventListener('click', () => addDevice('linear'));
   $('btnAddHbot').addEventListener('click', () => addDevice('hbot'));
+  $('btnAddWellplate').addEventListener('click', () => addLabware('wellplate'));
+  $('btnAddTiprack').addEventListener('click', () => addLabware('tiprack'));
+  $('btnAddTuberack').addEventListener('click', () => addLabware('tuberack'));
+  $('btnAddWaste').addEventListener('click', () => addLabware('waste'));
   $('btnDup').addEventListener('click', duplicate);
   $('btnDelete').addEventListener('click', remove);
   $('btnAddRel').addEventListener('click', addRelation);

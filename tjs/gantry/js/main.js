@@ -1,240 +1,235 @@
-// main.js — wires the machine model, the 3D view, and the two scopes into one
-// interactive playground. Changing any motor/limit/tool config re-simulates the
-// current move and refreshes the verdict + scopes immediately; "Run" animates
-// the gantry along the seven-segment profile with a shared playhead; the
-// pick→place demo chains coordinated moves with gripper/pipettor actuation.
+// main.js — the Motion Suite. Loads a deck (from the layout editor's autosave or
+// an imported YAML), lets you pick any motorized device, drive a jerk-limited
+// move on it, and read the per-motor torque-vs-envelope analysis — now with the
+// full mounted payload reflected to the rotor. Also plays the authored sequence
+// across the whole cell. Rendering is the shared DeckView; analysis is deckengine.
 
-import { Machine, defaultConfig, TOOLS } from './machine.js';
-import { STEPPER_PRESETS } from '../../lib/motor.js';
-import { GantryView } from './scene.js';
+import { Deck, defaultDeck } from '../../lib/deck.js';
+import { objectToDeck, fromYAML } from '../../lib/deckio.js';
+import { DeckView } from '../../lib/deckscene.js';
+import { planDeviceMove, simulateDevice, jointStateAt, deviceJoints, defaultState, carriageBorneMass } from '../../lib/deckengine.js';
 import { KinematicsScope, TorqueScope } from './scope.js';
 
 const $ = (id) => document.getElementById(id);
+const LS_KEY = 'tjs.deck.current';
 
-const machine = new Machine();
-const view = new GantryView($('viewport'));
+let deck = loadDeck();
+const view = new DeckView($('viewport'), { editor: false });
 const kinScope = new KinematicsScope($('kinScope'));
 const torScope = new TorqueScope($('torScope'));
 
-const axisVisible = { x: true, y: true, z1: true, z2: true };
+let activeId = null;
+let stateMap = {};          // every device's current joint state
+let targets = {};           // active device target joints
+const toolState = {};       // deviceId -> {open, plunge}
 let move = null, sim = null;
-let anim = null; // active animation/sequence state
-let loop = false;
-let speed = 1.0;
+let anim = null, loop = false, speed = 1, lastFrac = null;
 
-// ---- helpers ---------------------------------------------------------------
-function pulleyK() { return { rMm: machine.pulleyRadiusMm(), k: (2 * Math.PI) / machine.cfg.geometry.leadScrew }; }
-function anglesFromSample(s) {
-  const { rMm, k } = pulleyK();
-  return {
-    A: (s.cart.x.p + s.cart.y.p) / rMm,
-    B: (s.cart.x.p - s.cart.y.p) / rMm,
-    Z1: s.cart.z1.p * k, Z2: s.cart.z2.p * k,
-  };
+// ---- deck load -------------------------------------------------------------
+function loadDeck() {
+  try { const raw = localStorage.getItem(LS_KEY); if (raw) return objectToDeck(JSON.parse(raw)); } catch (e) {}
+  return defaultDeck();
 }
-function toolState() {
-  return { z1: { ...machine.tool.z1 }, z2: { ...machine.tool.z2 } };
-}
+function motorized() { return deck.devices.filter((d) => deviceJoints(d).length > 0); }
 
-// Re-plan + simulate a move to `target`; refresh scopes/verdict statically.
-function resimulate(target, { keepPlayhead = false } = {}) {
-  move = machine.planTo(target);
-  if (!move) { sim = null; renderStatic(); return; }
-  sim = machine.simulate(move, 600);
-  renderStatic(keepPlayhead ? lastFrac : null);
-  updateVerdict();
+function adoptDeck(d) {
+  deck = d;
+  view.setDeck(deck);
+  stateMap = {};
+  for (const dev of deck.devices) stateMap[dev.id] = { ...defaultState(dev) };
+  $('deckName').textContent = `${deck.name} · ${deck.devices.length} devices`;
+  const m = motorized();
+  buildDeviceSelector();
+  renderSequence();
+  if (m.length) selectDevice((m.find((x) => x.id === activeId) ? activeId : m[0].id));
+  else { activeId = null; sim = null; drawScopes(null); $('verdict').innerHTML = '<div class="muted">deck has no motorized devices</div>'; }
+  view.setState(stateMap);
 }
 
-let lastFrac = null;
-function renderStatic(frac = null) {
-  kinScope.draw(sim, axisVisible, frac);
-  torScope.draw(sim, frac);
+// ---- device selection ------------------------------------------------------
+function buildDeviceSelector() {
+  const sel = $('deviceSel');
+  sel.innerHTML = motorized().map((d) => `<option value="${d.id}">${d.id} · ${d.type}</option>`).join('');
+  sel.value = activeId || '';
+  sel.onchange = () => selectDevice(sel.value);
 }
 
-function setViewToFrac(frac) {
-  if (!move) return;
-  const s = machine.sample(move, frac * move.T);
-  view.setState(s, anglesFromSample(s), toolState());
+function selectDevice(id) {
+  activeId = id;
+  $('deviceSel').value = id;
+  view.select(id);
+  const dev = deck.getDevice(id);
+  // default a representative target so the scope shows a profile immediately
+  targets = dev.type === 'hbot'
+    ? { x: Math.round(dev.params.bedX * 0.85), y: Math.round(dev.params.bedY * 0.18) }
+    : { p: Math.round(dev.params.travel * 0.85) };
+  buildJointControls(dev);
+  buildAxisToggles(dev);
+  const borne = carriageBorneMass(deck, id);
+  $('loadInfo').innerHTML = `carriage carries <b style="color:#d8d8e6">${borne.toFixed(2)} kg</b> of mounted devices + tools`;
+  resimulate();
 }
 
-function updateVerdict() {
-  const wrap = $('verdict');
-  if (!sim) { wrap.innerHTML = '<div class="muted">no move</div>'; return; }
-  const rows = ['A', 'B', 'Z1', 'Z2'].map((k) => {
-    const u = sim.verdict.peakUtil[k];
-    const stall = sim.verdict.stall[k];
-    const over = sim.verdict.overspeed[k];
+function buildJointControls(dev) {
+  const host = $('jointControls');
+  const rows = deviceJoints(dev).map((k) => {
+    const max = dev.type === 'hbot' ? (k === 'x' ? dev.params.bedX : dev.params.bedY) : dev.params.travel;
+    const v = targets[k] ?? 0;
+    return `<label class="row">target ${k.toUpperCase()} <span class="val"><span id="tg_${k}_v">${v}</span> mm</span></label>
+            <input id="tg_${k}" type="range" min="0" max="${max}" step="1" value="${v}">`;
+  }).join('');
+  host.innerHTML = rows;
+  for (const k of deviceJoints(dev)) {
+    $(`tg_${k}`).addEventListener('input', (e) => { targets[k] = +e.target.value; $(`tg_${k}_v`).textContent = e.target.value; resimulate(); });
+  }
+}
+
+function buildAxisToggles(dev) {
+  const host = $('axisToggles');
+  host.innerHTML = deviceJoints(dev).map((k) => {
+    const c = (sim && sim.colors.axis[k]) || '#39d6c8';
+    return `<label class="chk"><input type="checkbox" data-axis="${k}" checked><i style="background:${c}"></i>${k.toUpperCase()}</label>`;
+  }).join('');
+  host.querySelectorAll('[data-axis]').forEach((cb) => cb.addEventListener('change', () => drawScopes(lastFrac)));
+}
+function axisVisible() {
+  const m = {};
+  $('axisToggles').querySelectorAll('[data-axis]').forEach((cb) => { m[cb.dataset.axis] = cb.checked; });
+  return m;
+}
+
+// ---- simulate + draw -------------------------------------------------------
+function resimulate() {
+  move = planDeviceMove(deck, activeId, targets, stateMap);
+  sim = move ? simulateDevice(deck, activeId, move, 600) : null;
+  lastFrac = null;
+  drawScopes(null);
+  renderVerdict();
+  if (move) view.setState({ ...stateMap, [activeId]: { ...stateMap[activeId] } });
+}
+function drawScopes(frac) { kinScope.draw(sim, sim ? axisVisible() : {}, frac); torScope.draw(sim, frac); }
+
+function renderVerdict() {
+  if (!sim) { $('verdict').innerHTML = '<div class="muted">target equals current pose — move a target slider</div>'; return; }
+  const rows = sim.motorKeys.map((k) => {
+    const u = sim.verdict.peakUtil[k], stall = sim.verdict.stall[k], over = sim.verdict.overspeed[k];
     const pct = Math.min(100, Math.round(u * 100));
     const cls = stall ? 'bad' : u > 0.85 ? 'warn' : 'ok';
-    const tag = stall ? (over ? 'STALL · OVERSPEED' : 'STALL') : `${pct}%`;
-    return `<div class="vrow">
-      <span class="vk" style="color:${MC[k]}">${k}</span>
+    const tag = stall ? (over ? 'STALL·OVERSPD' : 'STALL') : `${pct}%`;
+    return `<div class="vrow"><span class="vk" style="color:${sim.colors.motor[k]}">${k}</span>
       <span class="vbar"><i class="${cls}" style="width:${pct}%"></i></span>
       <span class="vtag ${cls}">${tag}</span></div>`;
   }).join('');
-  const peakRack = Math.max(...sim.racking);
+  const rack = Math.max(...sim.racking);
   $('verdict').innerHTML = rows +
-    `<div class="vmeta">move time <b>${move.T.toFixed(3)} s</b> · bottleneck <b>${move.bottleneck?.toUpperCase() || '—'}</b> · peak racking <b>${peakRack.toFixed(2)} N·m</b></div>` +
-    (sim.verdict.anyStall ? '<div class="vwarn">⚠ commanded profile is NOT deliverable by these motors — reduce accel/speed, fit a stronger motor, or lighten the load.</div>' : '<div class="vok">✓ profile is within the motor envelope.</div>');
-}
-const MC = { A: '#39d6c8', B: '#ffb454', Z1: '#7ee787', Z2: '#c08cff' };
-
-// ---- animation / sequencing ------------------------------------------------
-function playMove(target, after) {
-  resimulate(target);
-  if (!move) { after && after(); return; }
-  anim = { type: 'move', t0: performance.now(), after };
+    `<div class="vmeta">move <b>${move.T.toFixed(3)} s</b> · bottleneck <b>${(move.bottleneck || '—').toUpperCase()}</b>${rack > 1e-6 ? ` · peak racking <b>${rack.toFixed(2)} N·m</b>` : ''}</div>` +
+    (sim.verdict.anyStall
+      ? '<div class="vwarn">⚠ not deliverable by this motor + load — ease accel/speed, fit a stronger motor, or lighten the carriage.</div>'
+      : '<div class="vok">✓ within the motor envelope.</div>');
 }
 
-// Sequence: array of steps. {move:{...}} or {tool:{z, open?, plunge?}, dwell}
-function runSequence(steps) {
-  let i = 0;
-  const next = () => {
-    if (i >= steps.length) { anim = null; return; }
-    const step = steps[i++];
-    if (step.move) {
-      playMove(step.move, () => { commitPos(step.move); next(); });
-    } else if (step.tool) {
-      const t = machine.tool[step.tool.z];
-      if (step.tool.open !== undefined) t.open = step.tool.open;
-      if (step.tool.plunge !== undefined) t.plunge = step.tool.plunge;
-      // Refresh the 3D tool actuation at the current (held) position.
-      const hold = machine.planTo({}) || { start: machine.pos, evaluators: {}, T: 1e-3 };
-      view.setState(machine.sample(hold, 0), null, toolState());
-      setTimeout(next, (step.dwell || 0.3) * 1000 / speed);
-    } else next();
-  };
-  next();
+// ---- animation -------------------------------------------------------------
+function stallAt(frac) {
+  if (!sim) return false;
+  const i = Math.min(sim.time.length - 1, Math.round(frac * (sim.time.length - 1)));
+  return sim.motorKeys.some((k) => sim.motors[k][i].stall);
+}
+function poseActive(t) {
+  const j = jointStateAt(deck, activeId, move, t);
+  stateMap[activeId] = j;
+  view.setState(stateMap);
+  view.spinMotors(activeId, j);
+  if (toolState[activeId]) view.actuateTool(activeId, toolState[activeId]);
 }
 
-function commitPos(target) {
-  machine.pos = { ...machine.pos, ...target };
+function runMove() {
+  if (!move) return;
+  anim = { type: 'move', t0: performance.now(), after: () => { stateMap[activeId] = { ...targets }; } };
 }
 
-function pickPlaceDemo() {
-  const safeZ = 0, downZ = 95;
-  machine.pos = { x: 60, y: 80, z1: safeZ, z2: safeZ };
-  machine.tool.z1.open = true;
-  runSequence([
-    { move: { x: 60, y: 80 } },
-    { move: { z1: downZ } },
-    { tool: { z: 'z1', open: false }, dwell: 0.25 },
-    { move: { z1: safeZ } },
-    { move: { x: 240, y: 220 } },
-    { move: { z1: downZ } },
-    { tool: { z: 'z1', open: true }, dwell: 0.25 },
-    { move: { z1: safeZ } },
-    { move: { x: 150, y: 150 } },
-  ]);
-}
-
-// RAF loop.
 function frame() {
   if (anim && anim.type === 'move' && move) {
-    const elapsed = (performance.now() - anim.t0) / 1000 * speed;
-    const frac = Math.min(1, elapsed / Math.max(move.T, 1e-3));
+    const frac = Math.min(1, (performance.now() - anim.t0) / 1000 * speed / Math.max(move.T, 1e-3));
     lastFrac = frac;
-    setViewToFrac(frac);
-    renderStatic(frac);
-    if (frac >= 1) {
-      const cb = anim.after; anim = null;
-      if (cb) cb();
-      else if (loop) { anim = { type: 'move', t0: performance.now(), after: null }; }
-    }
+    poseActive(frac * move.T);
+    view.setStall(activeId, stallAt(frac));
+    drawScopes(frac);
+    if (frac >= 1) { const cb = anim.after; anim = null; cb && cb(); if (loop && !cb) runMove(); }
   }
   view.frame();
   requestAnimationFrame(frame);
 }
 
-// ---- UI wiring -------------------------------------------------------------
-function buildControls() {
-  // motor preset selects
-  const presetOpts = Object.keys(STEPPER_PRESETS).map((k) => `<option value="${k}">${STEPPER_PRESETS[k].label}</option>`).join('');
-  for (const id of ['mGantry', 'mZ1', 'mZ2']) $(id).innerHTML = presetOpts;
-  $('mGantry').value = machine.cfg.motors.gantry;
-  $('mZ1').value = machine.cfg.motors.z1;
-  $('mZ2').value = machine.cfg.motors.z2;
-
-  // tool selects
-  const toolOpts = Object.keys(TOOLS).map((k) => `<option value="${k}">${TOOLS[k].label}</option>`).join('');
-  $('tZ1').innerHTML = toolOpts; $('tZ2').innerHTML = toolOpts;
-  $('tZ1').value = machine.cfg.tools.z1; $('tZ2').value = machine.cfg.tools.z2;
-
-  // limit fields
-  syncLimitInputs();
-  syncTargetInputs();
-
-  // events
-  for (const [id, slot] of [['mGantry', 'gantry'], ['mZ1', 'z1'], ['mZ2', 'z2']]) {
-    $(id).addEventListener('change', () => { machine.cfg.motors[slot] = $(id).value; machine.rebuild(); reSim(); });
-  }
-  $('tZ1').addEventListener('change', () => { machine.cfg.tools.z1 = $('tZ1').value; view.setToolKind('z1', toolKind('z1')); reSim(); });
-  $('tZ2').addEventListener('change', () => { machine.cfg.tools.z2 = $('tZ2').value; view.setToolKind('z2', toolKind('z2')); reSim(); });
-  $('payZ1').addEventListener('change', () => { machine.cfg.payload.z1 = $('payZ1').checked; reSim(); });
-  $('payZ2').addEventListener('change', () => { machine.cfg.payload.z2 = $('payZ2').checked; reSim(); });
-
-  const limitMap = [
-    ['lXV', 'xy', 'vmax'], ['lXA', 'xy', 'amax'], ['lXJ', 'xy', 'jmax'],
-    ['lZV', 'z', 'vmax'], ['lZA', 'z', 'amax'], ['lZJ', 'z', 'jmax'],
-  ];
-  for (const [id, grp, key] of limitMap) {
-    $(id).addEventListener('input', () => {
-      machine.cfg.limits[grp][key] = parseFloat($(id).value) || 0;
-      $(id + 'v').textContent = $(id).value;
-      reSim();
-    });
-  }
-
-  for (const id of ['tgX', 'tgY', 'tgZ1', 'tgZ2']) {
-    $(id).addEventListener('input', () => { $(id + 'v').textContent = $(id).value; reSimTarget(); });
-  }
-
-  for (const a of ['x', 'y', 'z1', 'z2']) {
-    $('vis_' + a).addEventListener('change', (e) => { axisVisible[a] = e.target.checked; renderStatic(lastFrac); });
-  }
-
-  $('btnRun').addEventListener('click', () => {
-    const tgt = currentTarget();
-    machine.pos = { ...machine.pos }; // keep
-    anim = null;
-    playMove(tgt, () => commitPos(tgt));
+// ---- sequence --------------------------------------------------------------
+function renderSequence() {
+  const s = deck.sequences[0];
+  $('seqInfo').textContent = s ? `“${s.id}” · ${s.steps.length} steps` : 'no sequence in this deck';
+  const ul = $('seqList'); ul.innerHTML = '';
+  if (!s) return;
+  s.steps.forEach((st, i) => {
+    const li = document.createElement('li'); li.id = `step_${i}`;
+    const what = st.move ? `move ${Object.entries(st.move).map(([k, v]) => `${k}=${v}`).join(' ')}` : st.tool ? `tool ${st.tool.open ? 'open' : 'close'}` : st.dwell != null ? `dwell ${st.dwell}s` : '?';
+    li.innerHTML = `<span class="pill">${st.device || '—'}</span> ${what}`;
+    ul.appendChild(li);
   });
-  $('btnDemo').addEventListener('click', () => { pickPlaceDemo(); });
+}
+
+function runSequence() {
+  const s = deck.sequences[0]; if (!s || !s.steps.length) return;
+  let i = 0;
+  const clearActive = () => document.querySelectorAll('.steps li.active').forEach((e) => e.classList.remove('active'));
+  const next = () => {
+    clearActive();
+    if (i >= s.steps.length) { anim = null; if (loop) { i = 0; } else return; }
+    const step = s.steps[i++];
+    const liEl = $(`step_${i - 1}`); if (liEl) liEl.classList.add('active');
+    const dev = deck.getDevice(step.device);
+    if (step.move && dev) {
+      activeId = step.device; $('deviceSel').value = activeId; view.select(activeId);
+      targets = { ...stateMap[activeId], ...step.move };
+      move = planDeviceMove(deck, activeId, targets, stateMap);
+      sim = move ? simulateDevice(deck, activeId, move, 400) : null;
+      renderVerdict();
+      if (!move) { return next(); }
+      anim = { type: 'move', t0: performance.now(), after: () => { stateMap[activeId] = { ...targets }; next(); } };
+    } else if (step.tool && dev) {
+      const t = dev.tool === 'pipettor' ? { plunge: step.tool.open ? 0 : 1 } : { open: step.tool.open };
+      toolState[step.device] = t; view.actuateTool(step.device, t);
+      setTimeout(next, (step.dwell || 0.3) * 1000 / speed);
+    } else if (step.dwell != null) {
+      setTimeout(next, step.dwell * 1000 / speed);
+    } else next();
+  };
+  next();
+}
+
+// ---- IO --------------------------------------------------------------------
+function reloadFromEditor() {
+  const d = loadDeck(); activeId = null; adoptDeck(d);
+}
+async function importFile(file) {
+  try { const text = await file.text(); adoptDeck(await fromYAML(text)); }
+  catch (e) { $('verdict').innerHTML = `<div class="vwarn">import failed: ${e.message}</div>`; }
+}
+
+// ---- wire ------------------------------------------------------------------
+function wire() {
+  $('btnRun').addEventListener('click', () => { anim = null; resimulate(); runMove(); });
+  $('btnReset').addEventListener('click', () => { stateMap[activeId] = { ...defaultState(deck.getDevice(activeId)) }; view.setState(stateMap); resimulate(); });
+  $('btnRunSeq').addEventListener('click', runSequence);
   $('btnLoop').addEventListener('click', () => { loop = !loop; $('btnLoop').classList.toggle('on', loop); });
-  $('btnReset').addEventListener('click', () => { machine.pos = { x: 150, y: 150, z1: 0, z2: 0 }; syncTargetInputs(); reSimTarget(); });
-  $('speed').addEventListener('input', () => { speed = parseFloat($('speed').value); $('speedv').textContent = speed.toFixed(1) + '×'; });
+  $('speed').addEventListener('input', () => { speed = +$('speed').value; $('speedv').textContent = speed.toFixed(1) + '×'; });
+  $('btnReloadDeck').addEventListener('click', reloadFromEditor);
+  $('btnImport').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', (e) => { if (e.target.files[0]) importFile(e.target.files[0]); });
+  addEventListener('resize', () => drawScopes(lastFrac));
 }
 
-function toolKind(z) { return machine.cfg.tools[z] === 'pipettor' ? 'pipettor' : 'gripper'; }
-function reSim() { resimulate(currentTarget(), { keepPlayhead: true }); setViewToFrac(lastFrac ?? 1); }
-function reSimTarget() { resimulate(currentTarget()); setViewToFrac(1); }
-function currentTarget() {
-  return { x: +$('tgX').value, y: +$('tgY').value, z1: +$('tgZ1').value, z2: +$('tgZ2').value };
-}
-function syncLimitInputs() {
-  const L = machine.cfg.limits;
-  const set = (id, val) => { if ($(id)) { $(id).value = val; if ($(id + 'v')) $(id + 'v').textContent = val; } };
-  set('lXV', L.xy.vmax); set('lXA', L.xy.amax); set('lXJ', L.xy.jmax);
-  set('lZV', L.z.vmax); set('lZA', L.z.amax); set('lZJ', L.z.jmax);
-  $('payZ1').checked = machine.cfg.payload.z1; $('payZ2').checked = machine.cfg.payload.z2;
-}
-function syncTargetInputs() {
-  const set = (id, val) => { $(id).value = val; $(id + 'v').textContent = val; };
-  // default a fresh diagonal target
-  set('tgX', 250); set('tgY', 240); set('tgZ1', machine.pos.z1); set('tgZ2', machine.pos.z2);
-}
-
-// ---- boot ------------------------------------------------------------------
 function boot() {
-  buildControls();
-  view.setToolKind('z1', toolKind('z1'));
-  view.setToolKind('z2', toolKind('z2'));
-  machine.pos = { x: 50, y: 60, z1: 0, z2: 0 };
-  resimulate(currentTarget());
-  setViewToFrac(0);
+  wire();
+  adoptDeck(deck);
   requestAnimationFrame(frame);
-  // autoplay the first move so the scope animates on load
-  setTimeout(() => playMove(currentTarget(), () => commitPos(currentTarget())), 400);
-  addEventListener('resize', () => renderStatic(lastFrac));
+  // autoplay the first device's move so the scope animates on load
+  setTimeout(() => { if (move) runMove(); }, 500);
 }
 boot();
