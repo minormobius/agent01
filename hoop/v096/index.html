@@ -70,6 +70,7 @@
     import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
     import { nearestConcourse, attachShaft, markRindDeck, playerDeckOf } from './descent.js';   // chutes: a deck link is a port
     import { STAMINA_MAX, clampStamina, drainStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf } from './sim.js';   // stamina + fixture-action registry + chest
+    import { ARCADE_LAW, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard } from './arcade.js';   // the arcade fixture — forge puzzles in the play room
     import { bakeFog } from './v8/bake.js';
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
     import { drawDevice } from './v5/deco.js';
@@ -102,6 +103,9 @@
     const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
     const TERMINAL_ROLES = new Set(['learn', 'govern', 'worship']);   // reading-room / record-hall consoles are Tabard terminals (Continuant rooms). Marked teal ▤; click to read Luna's mythograph. A chunk-0 fallback (_terminal) guarantees at least one.
     const isTerminal = (cp) => cp._terminal || TERMINAL_ROLES.has(cp.role);
+    // a play-role room's central component is an ARCADE cabinet (sim.js FIXTURE_ACTION: play→'arcade').
+    // Marked magenta ◈; click to play a forge puzzle (the Withering Discipline). Not a terminal, so the two never collide.
+    const isArcade = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'arcade';
     const VFOV = 0.5;              // vertical field of view = this fraction of a chunk-span of world, DEVICE-INDEPENDENT:
                                    // desktop sees the same world-HEIGHT the phone does (just wider), not a screen-size zoom
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
@@ -359,6 +363,7 @@
         gl.addColorStop(0, `hsla(${hue},90%,72%,${a})`); gl.addColorStop(0.45, `hsla(${hue},85%,58%,${a * 0.4})`); gl.addColorStop(1, `hsla(${hue},80%,50%,0)`);
         g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gl; g.beginPath(); g.arc(cp.cx, cp.cy, er, 0, 7); g.fill(); g.restore();
         if (isTerminal(cp)) { g.save(); g.strokeStyle = '#7fd8d0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#7fd8d0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('▤', cp.cx, cp.cy); g.restore(); }
+        else if (isArcade(cp)) { g.save(); g.strokeStyle = '#c89ad0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#c89ad0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◈', cp.cx, cp.cy); g.restore(); }
       }
       for (const L of P.lights) { if (L.concourse) drawBollard(g, L); else drawWallLight(g, L, { hue: L.hue, lit: L.lit }); }
     }
@@ -669,6 +674,7 @@
       const panel = $('story');
       if (story.active && story.active.chest) return renderChest();
       if (story.active && story.active.terminal) return renderTerminalPanel(panel);
+      if (story.active && story.active.arcade) return renderArcadePanel(panel);
       if (!story.active) { panel.classList.remove('on'); panel.innerHTML = ''; return; }
       const { agent, npcId, intro } = story.active;
       let head, body = '', choices = '';
@@ -696,6 +702,8 @@
     $('story').addEventListener('click', (e) => {
       const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
       if (cl) { story.active = null; renderStory(); return; }
+      const arc = e.target.closest('[data-arc]');
+      if (arc && story.active && story.active.arcade) { arcadeAct(arc.dataset.arc); return; }
       const wv = e.target.closest('[data-weave]');
       if (wv && story.active && story.active.agent) { weaveHere(story.active.agent); return; }
       const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
@@ -723,6 +731,14 @@
       clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
     }
     addEventListener('keydown', (e) => { if (e.key === 'Escape' && story.active) { story.active = null; renderStory(); } });
+    // arcade input: arrows / WASD drive the cabinet's law (absolute directions, like fable/forge's play view).
+    addEventListener('keydown', (e) => {
+      if (!(story.active && story.active.arcade) || e.metaKey || e.ctrlKey) return;
+      const m = { ArrowUp: 0, w: 0, W: 0, ArrowRight: 1, d: 1, D: 1, ArrowDown: 2, s: 2, S: 2, ArrowLeft: 3, a: 3, A: 3 };
+      if (e.key in m) { e.preventDefault(); arcadeAct(m[e.key]); return; }
+      if (e.key === 'u' || e.key === 'U' || e.key === 'Backspace') { e.preventDefault(); arcadeAct('undo'); return; }
+      if (e.key === 'Enter' && arcadeGame && arcadeGame.won) { e.preventDefault(); arcadeAct('next'); }
+    });
 
     // ── the Tabard terminal: a learn-role component is a TERMINAL (the reading-room console). Click → approach
     //    → the mythograph reader (Luna's frozen page 71, the hero's name overwritten in stencil). ──
@@ -774,6 +790,101 @@
         `<div class="nmh" style="margin-top:10px">the motifs — Thompson's index</div>${motifs}` +
         `<p class="says" style="margin-top:11px">The reading-room regulars argue the moves and the motifs. None of them can read the hero's name. It is set in ${STEN} — the same three layers stencilled on the wall of the room you woke in. <span style="color:#7fd8d0">Luna posted this. The hero is you.</span></p>`;
       panel.classList.add('on');
+    }
+
+    // ── the ARCADE: a play-role component is a forge cabinet (the second live fixture). Click → approach
+    //    → a real puzzle minted by fable/forge, run on ONE discovered ruleset ("the Withering Discipline").
+    //    The cleared count persists as a sim fact; the puzzle line is deterministic (puzzle p === forge's). ──
+    function arcadeAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isArcade(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    const getCleared = () => (story.ready && story.store.getFact(story.playerId, 'arcade.cleared')) | 0;
+    const setCleared = (n) => { if (story.ready) story.store.setFact(story.playerId, 'arcade.cleared', n | 0); };
+    let arcadeGame = null;
+    function loadArcadeGame() {
+      const p = getCleared();
+      // forge tries 5 salts per index; if a given p somehow yields nothing, walk forward to the next playable one.
+      for (let q = p; q < p + 8; q++) { const g = newArcadeGame(q); if (g) { arcadeGame = g; arcadeGame.q = q; return; } }
+      arcadeGame = null;
+    }
+    function openArcade(cp, ch) {
+      if (!story.ready) return;
+      story.store.setFact(story.playerId, 'flag.found_arcade', true);
+      if (!arcadeGame) loadArcadeGame();
+      story.active = { arcade: true };
+      saveStory(); renderStory();
+    }
+    function renderArcadePanel(panel) {
+      const g = arcadeGame;
+      if (!g) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The cabinet is dark.</p>`; panel.classList.add('on'); return; }
+      const r = g.report, cleared = getCleared();
+      const winBar = g.won
+        ? `<div style="margin:9px 0;padding:7px 9px;border:1px solid #6a5a3a;border-radius:6px;background:rgba(244,191,98,.1);color:#f4bf62;font-size:12.5px">◈ solved in ${g.moves} — par ${g.par}. <span data-arc="next" style="color:#7fd8d0;cursor:pointer;text-decoration:underline">next puzzle ›</span></div>`
+        : '';
+      panel.innerHTML =
+        `<button class="cl" data-close="1">close ⏎</button>` +
+        `<div class="nm" style="color:#c89ad0">◈ the arcade</div>` +
+        `<div class="rl">a forge cabinet · <b style="color:#cfd8d2">${esc(ARCADE_LAW.name)}</b> · law no.${ARCADE_LAW.id} of the codex</div>` +
+        `<p class="says" style="font-style:normal;border-left:2px solid #c89ad0;padding-left:9px;font-size:12px">${esc(arcadeRules())}</p>` +
+        `<div class="rl" style="margin:8px 0 6px">puzzle #${g.q + 1} · ${esc(GOAL_BLURB[g.goal] || g.goal)} · ${esc(r.diffTier)} · cleared ${cleared}</div>` +
+        `<canvas id="arcboard" style="width:100%;display:block;background:#06080c;border:1px solid #20303a;border-radius:6px;image-rendering:pixelated"></canvas>` +
+        `<div class="rl" id="arcmoves" style="margin:6px 0">${g.moves} moves · par ${g.par}</div>` +
+        winBar +
+        `<div style="display:grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(2,34px);gap:5px;justify-content:center;margin:6px 0">` +
+        `<span></span><button class="arcbtn" data-arc="0">▲</button><span></span>` +
+        `<button class="arcbtn" data-arc="3">◀</button><button class="arcbtn" data-arc="2">▼</button><button class="arcbtn" data-arc="1">▶</button>` +
+        `</div>` +
+        `<div style="display:flex;gap:7px;justify-content:center;margin-top:2px">` +
+        `<button class="arcbtn2" data-arc="undo">↶ undo</button><button class="arcbtn2" data-arc="reset">⟲ reset</button>` +
+        `</div>` +
+        `<style>.arcbtn{background:#0f141a;border:1px solid #20303a;color:#dfe7e2;font:inherit;font-size:15px;border-radius:6px;cursor:pointer}.arcbtn:hover{border-color:#c89ad0;color:#fff}.arcbtn2{background:#0f141a;border:1px solid #20303a;color:#9aa8a0;font:inherit;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer}.arcbtn2:hover{border-color:#c89ad0;color:#fff}</style>`;
+      panel.classList.add('on');
+      drawArcadeBoard();
+    }
+    function drawArcadeBoard() {
+      const cv2 = document.getElementById('arcboard'); if (!cv2 || !arcadeGame) return;
+      const b = arcadeBoard(arcadeGame), CW = 300, cell = Math.floor(CW / b.W), pad = 1;
+      const w = cell * b.W, h = cell * b.H, dpr2 = Math.min(window.devicePixelRatio || 1, 2);
+      cv2.width = w * dpr2; cv2.height = h * dpr2; cv2.style.height = h + 'px';
+      const g = cv2.getContext('2d'); g.setTransform(dpr2, 0, 0, dpr2, 0, 0); g.clearRect(0, 0, w, h);
+      for (const c of b.cells) {
+        const x = c.x * cell, y = c.y * cell;
+        let fill = '#0c1118';                                   // open floor
+        if (c.wall) fill = '#1b2530';                           // static wall
+        else if (c.dyn) fill = '#3a2530';                       // hardened-behind (leave→wall) — there's no going back
+        else if (c.mark) fill = '#2a2440';                      // inked (here: solid — you cannot enter)
+        g.fillStyle = fill; g.fillRect(x + pad, y + pad, cell - 2 * pad, cell - 2 * pad);
+        if (c.exit) { g.fillStyle = '#7fd8d0'; g.font = `${cell * 0.6}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⌖', x + cell / 2, y + cell / 2); }
+        if (c.token) { g.fillStyle = '#f4bf62'; g.font = `${cell * 0.55}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('✦', x + cell / 2, y + cell / 2); }
+        if (c.agent) {
+          g.fillStyle = '#c89ad0'; g.beginPath(); g.arc(x + cell / 2, y + cell / 2, cell * 0.3, 0, 7); g.fill();
+          const cx = x + cell / 2, cy = y + cell / 2, R = cell * 0.36;   // heading chevron (cosmetic — moves are absolute)
+          const ang = [-Math.PI / 2, 0, Math.PI / 2, Math.PI][b.dir];
+          g.strokeStyle = '#06080c'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R); g.stroke();
+        }
+      }
+    }
+    function arcadeAct(act) {
+      if (!arcadeGame) return;
+      if (act === 'undo') { arcadeUndo(arcadeGame); renderArcadePanel($('story')); return; }
+      if (act === 'reset') { arcadeReset(arcadeGame); renderArcadePanel($('story')); return; }
+      if (act === 'next') { if (arcadeGame.won) { setCleared(arcadeGame.q + 1); saveStory(); } loadArcadeGame(); renderArcadePanel($('story')); return; }
+      const d = +act; if (!(d >= 0 && d <= 3)) return;
+      const wasWon = arcadeGame.won;
+      if (arcadeMove(arcadeGame, d)) {
+        if (arcadeGame.won && !wasWon) { renderArcadePanel($('story')); flashArcadeWin(arcadeGame); }
+        else { drawArcadeBoard(); const m = document.getElementById('arcmoves'); if (m) m.textContent = `${arcadeGame.moves} moves · par ${arcadeGame.par}`; }
+      }
+    }
+    function flashArcadeWin(g) {
+      const el = $('busy'); el.textContent = `◈ ${ARCADE_LAW.name} — solved in ${g.moves} (par ${g.par})`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
     }
 
     // ── the opening: PRINCIPALS pinned in chunk 0 are DERIVED FROM HIS STORY (his Arrival NPCs — Olo
@@ -884,6 +995,8 @@
       if (who) { openStory(who); walkTo(who.x, who.y); return; }
       const term = componentAt(wx, wy);
       if (term) { openTerminal(term.cp, term.ch); walkTo(term.cp.cx, term.cp.cy); return; }
+      const arc = arcadeAt(wx, wy);
+      if (arc) { openArcade(arc.cp, arc.ch); walkTo(arc.cp.cx, arc.cp.cy); return; }
       const lf = livingFixtureAt(wx, wy);
       if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openChest(lf.gid); return; }
       if (story.active) { story.active = null; renderStory(); }
@@ -901,7 +1014,7 @@
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === 'R') { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !(story.active && story.active.arcade)) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
