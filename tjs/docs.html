@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tjs · quickstart</title>
+  <meta name="description" content="How to start using the tjs motion-cell tools — hosted, locally, and driven by a local Claude.">
+  <style>
+    :root { --ink:#0d0d12; --soft:#8a8aa0; --line:#23232e; --accent:#39d6c8; --bg:#0b0b10; --code:#0c0c14; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+           color:#e6e6f0; background:var(--bg); -webkit-font-smoothing:antialiased; }
+    .wrap { max-width:760px; margin:0 auto; padding:56px 24px 96px; }
+    .crumb { font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:var(--soft); }
+    .crumb a { color:var(--soft); text-decoration:none; }
+    .crumb a:hover { color:var(--accent); }
+    h1 { font-size:30px; margin:10px 0 6px; }
+    p.lede { color:var(--soft); margin:0 0 32px; }
+    h2 { font-size:20px; margin:40px 0 6px; border-top:1px solid var(--line); padding-top:26px; }
+    h2 .n { color:var(--accent); font:14px ui-monospace,monospace; margin-right:8px; }
+    h3 { font-size:15px; margin:22px 0 4px; color:#d8d8e6; }
+    a { color:var(--accent); }
+    code { background:var(--code); border:1px solid var(--line); border-radius:5px; padding:1px 5px; font:13px ui-monospace,monospace; }
+    pre { background:var(--code); border:1px solid var(--line); border-radius:9px; padding:14px 16px; overflow:auto; margin:12px 0; }
+    pre code { background:none; border:none; padding:0; font-size:13px; line-height:1.55; color:#c9c9d8; }
+    .pill { display:inline-block; font:11px ui-monospace,monospace; padding:1px 7px; border-radius:5px; background:#15151f; border:1px solid var(--line); color:#c9c9d8; }
+    .note { font-size:13.5px; color:var(--soft); background:#101019; border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:0 7px 7px 0; padding:10px 14px; margin:14px 0; }
+    .cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:14px 0; }
+    .card { border:1px solid var(--line); border-radius:9px; padding:14px 16px; }
+    .card b { display:block; margin-bottom:4px; }
+    .card span { font-size:13px; color:var(--soft); }
+    ol, ul { padding-left:22px; } li { margin:4px 0; }
+    footer { margin-top:56px; font-size:13px; color:var(--soft); border-top:1px solid var(--line); padding-top:18px; }
+    @media (max-width:640px){ .cols{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / <a href="/">tjs</a> / quickstart</div>
+  <h1>Quickstart</h1>
+  <p class="lede">Three ways in, smallest first. The apps are static pages — there's nothing to install to use the GUI. You only need node for the agent/CLI loop.</p>
+
+  <div class="cols">
+    <div class="card"><b><a href="/deck/">Deck layout →</a></b><span>Place HBots, linear axes, and labware; mount them into a kinematic tree; author a sequence; export YAML.</span></div>
+    <div class="card"><b><a href="/gantry/">Motion suite →</a></b><span>Drive any device with jerk-limited motion; read per-motor torque; run the sequence across the cell.</span></div>
+  </div>
+
+  <h2><span class="n">1</span>Use the hosted apps (no setup)</h2>
+  <p>Everything runs in your browser at <a href="https://tjs.mino.mobi/">tjs.mino.mobi</a>. The typical loop:</p>
+  <ol>
+    <li>Open <a href="/deck/">/deck</a> — drop in modules (HBot, linear axis, well plate, tip rack, tube rack, waste), mount them, and author a sequence with the verb picker (move / <code>moveOver</code> / <code>pickTip</code> / <code>aspirate</code> / …). The panel shows the oracle's verdict (cycle time, or what's wrong) as you build.</li>
+    <li>It autosaves. Open <a href="/gantry/">/gantry</a> and click <span class="pill">Load from editor</span> to pull that deck in.</li>
+    <li>Pick a device, nudge the target sliders, hit <span class="pill">Run move</span>, or <span class="pill">Run sequence</span> to watch the whole cell execute.</li>
+  </ol>
+  <div class="note">A fresh visit lands on a working pipetting sample (an HBot positioning a pipettor over a tip rack, source/destination plates, and a waste chute) so you have something to drive immediately.</div>
+
+  <h2><span class="n">2</span>Run it locally</h2>
+  <p>The pages are ES modules, so they need to be served over <code>http://</code> (not <code>file://</code>). three.js and js-yaml load from a CDN, so keep internet on for the GUI.</p>
+  <pre><code>git clone &lt;repo-url&gt; minomobi
+cd minomobi
+git checkout claude/gantry-playground-3js-phjc1x
+cd tjs
+
+# any static server rooted at tjs/ works — pick one:
+python3 -m http.server 8000
+#   or:  npx --yes serve -l 8000 .
+
+# then open:
+#   http://localhost:8000/deck/
+#   http://localhost:8000/gantry/</code></pre>
+  <div class="note">Serve from the <code>tjs/</code> directory so <code>/lib/</code> resolves — the pages import shared modules via <code>../lib/…</code>, mirroring how the site is deployed.</div>
+
+  <h2><span class="n">3</span>Drive it from a local Claude</h2>
+  <p>The whole engine is pure JavaScript and runs in node — so a local Claude can ground itself, write a sequence, and dry-run it against <em>the same physics the site uses</em>, fully offline. Hand your agent <a href="/AGENTS.md">AGENTS.md</a> (the contract), then use the CLI as the oracle:</p>
+  <pre><code>cd tjs/lib
+# optional — only if you feed YAML decks; JSON needs no deps:
+npm i js-yaml
+
+# what's on the deck: modules, joints, reachable sites, the verb grammar
+node deck-cli.mjs manifest ../samples/pipetting.deck.json
+
+# dry-run the deck's sequence -> structured diagnostics (exit 1 on errors)
+node deck-cli.mjs check ../samples/pipetting.deck.json
+
+# check a sequence file you wrote against a deck
+node deck-cli.mjs check ../samples/pipetting.deck.json my-sequence.json
+
+# one move's torque verdict
+node deck-cli.mjs simulate ../samples/pipetting.deck.json bridge '{"x":260,"y":40}'</code></pre>
+
+  <h3>The loop</h3>
+  <pre><code>read manifest ─► write a sequence ─► check ─► fix what it flags ─► run
+      ▲                                  │
+      └──────────────── iterate ─────────┘</code></pre>
+  <p>A sequence is a JSON list of verb steps; the oracle catches out-of-reach sites, motor stalls, collisions, missing tips, over-capacity aspirates, and more <em>before</em> you run:</p>
+  <pre><code>[
+  { "device": "z_pip", "pickTip":  "tips.1" },
+  { "device": "z_pip", "aspirate": "src.A1", "uL": 50 },
+  { "device": "z_pip", "dispense": "dst.A1", "uL": 50 },
+  { "device": "z_pip", "dropTip":  true }
+]</code></pre>
+  <p>To put it on the screen, paste or upload the deck YAML in <a href="/deck/">/deck</a> (Import) or <a href="/gantry/">/gantry</a> (Import YAML). Start from a deck by clicking <span class="pill">Export</span> in /deck, or <span class="pill">Manifest for Claude</span> to copy the full contract to hand your agent.</p>
+
+  <h2><span class="n">4</span>What's built vs. coming</h2>
+  <ul>
+    <li><b>Built:</b> the GUI (deck + motion), the pure physics engine, IK + labware verbs, the capability manifest + validating oracle, and the file/CLI transport.</li>
+    <li><b>Coming:</b> a localhost MCP server + WebSocket bridge so a local Claude drives the live tab directly — no copy-paste. The contract above is identical; only the transport changes. Further out, the same validated deck + sequence compiles to real steppers, with the sim as the always-on dry-run.</li>
+  </ul>
+
+  <footer>Reference: <a href="/AGENTS.md">AGENTS.md</a> (agent contract) · <a href="/deck/">Deck layout</a> · <a href="/gantry/">Motion suite</a> · back to <a href="/">tjs</a>.</footer>
+</div>
+</body>
+</html>
