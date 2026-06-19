@@ -146,6 +146,34 @@
     }
   }
 
+  // ── backfill PLAYER saves abroad — the firehose only catches live writes, so to show existing saves we
+  //    need the player list. The Director's pulse (playersJson) is the only enumeration of who's played; for
+  //    each DID, resolve its PDS and pull its story.save records straight from the player's own repo. ──
+  const pdsOf = (doc) => { const s = (doc.service || []).find((x) => x.id === '#atproto_pds' || x.type === 'AtprotoPersonalDataServer'); return s && s.serviceEndpoint; };
+  async function didToPds(did) {
+    try {
+      if (did.startsWith('did:web:')) { const host = did.slice(8); return pdsOf(await fetch(`https://${host}/.well-known/did.json`).then((r) => r.json())); }
+      return pdsOf(await fetch(`https://plc.directory/${did}`).then((r) => r.json()));
+    } catch (e) { return null; }
+  }
+  async function backfillPlayers() {
+    let dids = [];
+    try {
+      const pulse = await fetch(`${MORPHYX.pds}/xrpc/com.atproto.repo.getRecord?repo=${MORPHYX.did}&collection=${NS.pulse}&rkey=self`).then((r) => (r.ok ? r.json() : null));
+      dids = Object.keys(JSON.parse((pulse && pulse.value && pulse.value.playersJson) || '{}'));
+    } catch (e) { /* no pulse / no players */ }
+    for (const did of dids) {
+      try {
+        const pds = await didToPds(did); if (!pds) continue;
+        const res = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}&collection=${NS.save}&limit=100`).then((r) => (r.ok ? r.json() : null));
+        for (const rec of (res && res.records) || []) {
+          const rkey = String(rec.uri).split('/').pop(), v = rec.value || {};
+          addRow({ did, col: NS.save, rkey, op: 'on repo', time: Date.parse(v.updatedAt || v.createdAt || '') || (Date.now() - 1), record: v });
+        }
+      } catch (e) { /* repo unreachable */ }
+    }
+  }
+
   // ── live tail of the firehose (Jetstream), filtered to our collections, across ALL repos ──
   let ws = null, lastUs = (Date.now() - 6 * 3600 * 1000) * 1000;   // start ~6h back, then resume from last seen
   function connect() {
@@ -167,6 +195,7 @@
   }
 
   backfillService();
+  backfillPlayers();   // pull existing player saves (abroad) from the pulse's player list
   connect();
 </script>
 </body>

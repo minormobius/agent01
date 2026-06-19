@@ -395,7 +395,8 @@ repo=did:plc:yivyyp54vddf7qf2lpsikhe4&amp;collection=com.minomobi.hoop.story.con
     ['director', 'pulse', 'write'], ['pulse', 'morphyx', 'host'],
     ['engine', 'content', 'write'], ['content', 'morphyx', 'host'],
     ['engine', 'verdict', 'write'], ['verdict', 'morphyx', 'host'],
-    ['content', 'client', 'read'], ['pulse', 'client', 'read'], ['verdict', 'client', 'read'],
+    ['morphyx', 'client', 'read'],          // the client reads content/pulse/verdict FROM the morphyx repo
+    ['jetstream', 'client', 'stream'],      // …or subscribes its own verdicts live off the firehose
     ['engine', 'postgres', 'intern'],
   ];
   const EKCOL = { write: '#f4bf62', read: '#7fd8d0', stream: '#c89ad0', host: '#46586a', intern: '#5a6472' };
