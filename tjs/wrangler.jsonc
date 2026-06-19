@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tjs",
+  "compatibility_date": "2026-03-21",
+  // tjs.mino.mobi — the three.js workbench surface. Self-contained static site
+  // (no external mirror): deploy-tjs.yml stages this dir's own files into ./dist
+  // at build time, dropping the wrangler config. First bench: /gantry.
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    { "pattern": "tjs.mino.mobi", "custom_domain": true }
+  ]
+}

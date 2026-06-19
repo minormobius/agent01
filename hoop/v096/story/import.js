@@ -47,25 +47,36 @@ export function parseRequires(req) {
 
 // One record → one content_item (engine shape + carried provenance/metadata). provider/lane default to
 // the authored spine; pass {provider, lane} to override (e.g. a player's imported personal canon).
+//
+// Handles BOTH of hoopy's export schemas, which differ only in surface:
+//   • FLAT (older):   {name, description, dialogue, power_tier:"r1", narrative_tier:"n1", plot_tier:"p3"}
+//                     — the r/n/p prefixes are remapped through AXIS_MAP (his "power"=our revelation, etc).
+//   • NESTED (newer): {content:{name, description, dialogue, revelation_hint}, revelation_tier:1,
+//                     narrative_tier:1, power_tier:1} — fields nested under content{}, tiers already integers
+//                     on our own axis names (no AXIS_MAP remap). world_refs replaces refs.
 export function importRecord(rec, { provider = 'hoopy-export', lane = 'spine' } = {}) {
+  const C = rec.content && typeof rec.content === 'object' ? rec.content : null;   // newer schema nests under content{}
+  const get = (k) => (C && C[k] != null ? C[k] : rec[k]);                          // prefer content.<k>, fall back to flat
+  const name = get('name');
   const ci = {
-    id: rec.id || slug(rec.name),
+    id: rec.id || slug(name),
     type: rec.type,
-    revelation_tier: parseTier(rec[invAxis('revelation_tier')] ?? rec.revelation_tier),
-    narrative_tier: parseTier(rec[invAxis('narrative_tier')] ?? rec.narrative_tier),
-    power_tier: parseTier(rec[invAxis('power_tier')] ?? rec.power_tier),
+    // newer schema carries revelation/narrative/power directly; older one prefixes r/n/p (remap via AXIS_MAP)
+    revelation_tier: parseTier(C ? rec.revelation_tier : (rec[invAxis('revelation_tier')] ?? rec.revelation_tier)),
+    narrative_tier: parseTier(rec.narrative_tier),
+    power_tier: parseTier(C ? rec.power_tier : (rec[invAxis('power_tier')] ?? rec.power_tier)),
     tags: rec.tags || [],
     approved: rec.approved != null ? !!rec.approved : (rec.status || 'approved') !== 'pending',
     status: rec.status === 'pending' ? 'active' : (rec.status === 'retired' ? 'retired' : 'active'),
-    content: { name: rec.name, description: rec.description || '' },
+    content: { name, description: get('description') || '' },
     lane, provider,
   };
-  if (rec.dialogue) ci.content.dialogue = rec.dialogue;
-  if (rec.mechanics) ci.content.mechanics = rec.mechanics;
+  const dialogue = get('dialogue'); if (dialogue) ci.content.dialogue = dialogue;
+  const mechanics = get('mechanics'); if (mechanics) ci.content.mechanics = mechanics;
   const requires = parseRequires(rec.requires);
   if (Object.keys(requires).length) ci.requires = requires;
-  if (rec.refs) ci.refs = rec.refs;                               // first-class: cross-entity references (spine signal)
-  if (rec.revelation_hint) ci.revelation_hint = rec.revelation_hint;
+  const refs = rec.world_refs || rec.refs; if (refs) ci.refs = refs;   // first-class cross-entity refs (spine signal)
+  const hint = get('revelation_hint'); if (hint) ci.revelation_hint = hint;
   if (rec.produces) ci.produces = rec.produces;                   // declared producers (gates.js reachability)
   if (rec.source_npc) ci.source_npc = rec.source_npc;             // rumor provenance
   if (rec.spreads_via) ci.spreads_via = rec.spreads_via;
@@ -92,8 +103,14 @@ export const WORLD_ITEMS = ['translation_apparatus', 'translation_matrix_calibra
 // → the shape gates.js / reviewBatch take as opts.external (facts as keys ⇒ produced true).
 export const worldExternal = () => ({ facts: WORLD_FACTS, items: WORLD_ITEMS });
 
-// A whole world_export → {content, bible}. Accepts {content_pool:{items}}, {items}, or a bare array.
+// A whole world_export → {content, bible}. Accepts {content_pool:{items}}, {items}, a bare array, OR
+// hoopy's newer KEYED-OBJECT export ({ "0": {…}, "1": {…} } — values are the records, keyed by index/id).
 export function importWorldExport(json, opts = {}) {
-  const items = (json && json.content_pool && json.content_pool.items) || (json && json.items) || (Array.isArray(json) ? json : []);
+  let items;
+  if (json && json.content_pool && Array.isArray(json.content_pool.items)) items = json.content_pool.items;
+  else if (json && Array.isArray(json.items)) items = json.items;
+  else if (Array.isArray(json)) items = json;
+  else if (json && typeof json === 'object') items = Object.values(json).filter((v) => v && typeof v === 'object' && v.type);
+  else items = [];
   return { content: items.map((r) => importRecord(r, opts)), bible: (json && json.story_bible) || null };
 }
