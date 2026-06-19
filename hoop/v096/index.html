@@ -653,18 +653,29 @@
     // the QUEST LOG — derived from the storyboard (board.js), the same source the /storyboard/ board reads
     function renderQuest() {
       const el = $('quest'); if (!el) return;
-      if (!story.ready || !story.sb) { el.innerHTML = ''; return; }
-      const board = computeBoard(story.sb, story.store, story.playerId), log = questLog(board);
-      const active = log.filter((l) => l.status === 'active'), done = log.filter((l) => l.status === 'done').length;
-      // refresh the storyboard-derived overlays: the waypoint target + which residents embiggen
-      const ams = activeMarkers(board);
-      storyBigKeys.clear(); for (const m of ams) if (m.resident) storyBigKeys.add(m.resident);
-      storyWp = ams.length ? resolveMarker(ams[0]) : null;
-      let h = '<span class="lbl">❖ quest</span> ';
-      if (active.length) { const a = active[0]; h += '<span class="o">' + esc(a.text) + '</span>'; if (a.marker && a.marker.hint) h += ' <span class="mk">⌖ ' + esc(a.marker.hint) + '</span>'; }
-      else h += '<span class="o">— the way is open —</span>';
-      let sqOpen = 0; if (story.ready) { const f = story.store.getFacts(story.playerId); for (const k of Object.keys(f)) if (k.startsWith('sq.on.') && !f['sq.done.' + k.slice(6)]) sqOpen++; }
-      el.innerHTML = h + ' <span style="color:#566">(' + done + ' done)</span> · <a class="sb" id="qjournal" style="cursor:pointer" title="side quests (j)">✒ journal' + (sqOpen ? ' ' + sqOpen : '') + '</a> · <a class="sb" href="/v096/storyboard/">board ↗</a>';
+      if (!story.ready) { el.innerHTML = ''; return; }
+      // ── PRIMARY objective: hoopybot drives the narrative (the deck climb). Make it explicit, and point
+      //    the on-screen waypoint at your GUIDE when you've been paged — that's the way out of a deck. ──
+      const d = currentDeck(), tier = narTier(), paged = story.store.getFact(story.playerId, 'hoopy.paged.' + d.tier);
+      let lead, hoopWp = null;
+      if (paged) {
+        const guide = guideFor(openingCast, tier), gA = anchors.find((a) => guide && a.content_id === guide.id);
+        lead = `<span class="lbl">⚑</span> <span class="o">return to ${esc(guideName(guide))}</span> <span class="mk">— they have your next guidance${gA ? '' : ' (back where you woke)'}</span>`;
+        if (gA) hoopWp = { x: gA.x, y: gA.y };
+      } else {
+        const a = assess(story.store, story.playerId, d);
+        lead = `<span class="lbl">⚑ ${esc(d.name)}</span> <span class="o">meet its people — learn ${Math.max(1, a.needed - a.learned)} more</span> <span class="mk">(${a.learned}/${a.needed} · ${esc(d.learn.hint)})</span>`;
+      }
+      // storyboard waypoint (secondary fallback) + which residents embiggen
+      let sbWp = null;
+      if (story.sb) {
+        const ams = activeMarkers(computeBoard(story.sb, story.store, story.playerId));
+        storyBigKeys.clear(); for (const m of ams) if (m.resident) storyBigKeys.add(m.resident);
+        sbWp = ams.length ? resolveMarker(ams[0]) : null;
+      }
+      storyWp = hoopWp || sbWp;   // the guide when paged, else the storyboard marker
+      let sqOpen = 0; const f = story.store.getFacts(story.playerId); for (const k of Object.keys(f)) if (k.startsWith('sq.on.') && !f['sq.done.' + k.slice(6)]) sqOpen++;
+      el.innerHTML = lead + ' · <a class="sb" id="qjournal" style="cursor:pointer" title="side quests (j)">✒ journal' + (sqOpen ? ' ' + sqOpen : '') + '</a> · <a class="sb" href="/v096/storyboard/">board ↗</a>';
       const jl = $('qjournal'); if (jl) jl.onclick = (e) => { e.preventDefault(); toggleJournal(); };
     }
     const saveStorySnapshot = () => { if (story.ready) { try { localStorage.setItem('hoop:v096:story', JSON.stringify(story.store.snapshot())); } catch (e) {} scheduleRepoSave(); } };
@@ -675,15 +686,19 @@
     const auth = new AuthClient();
     let storyUser = null;                         // { did, handle } when signed in
     const worldKey = () => String(seed);          // save rkey = ship seed (one save per world)
-    let _lastSync = null, _repoDirty = false;
+    let _lastSync = null, _repoDirty = false, _saveErr = null;
     function scheduleRepoSave() { _repoDirty = true; }   // mark dirty; the periodic flusher + unload do the write
     // SAVE OFTEN (hoopy #4: beforeunload is flaky on mobile/crashes, and a frequent save keeps the engine's
     // pulse/rumor projection honest). Periodic flush while dirty + on hide/unload — not a per-action debounce
-    // (which could starve during continuous play).
+    // (which could starve during continuous play). Surfaces the real error instead of failing silently.
     function flushRepo(force) {
       if (!storyUser || !story.ready || (!_repoDirty && !force)) return;
       _repoDirty = false;
-      try { putSave(auth.pds, worldKey(), story.store.snapshot()).then(() => { _lastSync = Date.now(); renderAuthPill(); }).catch(() => { _repoDirty = true; }); } catch (e) { _repoDirty = true; }
+      try {
+        putSave(auth.pds, worldKey(), story.store.snapshot())
+          .then(() => { _lastSync = Date.now(); _saveErr = null; renderAuthPill(); })
+          .catch((e) => { _repoDirty = true; _saveErr = String((e && e.message) || e); console.error('[hoop] save to PDS failed:', e); renderAuthPill(); });
+      } catch (e) { _repoDirty = true; _saveErr = String((e && e.message) || e); console.error('[hoop] save threw:', e); renderAuthPill(); }
     }
     setInterval(() => flushRepo(false), 12000);
     addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushRepo(true); });
@@ -692,13 +707,19 @@
     function renderAuthPill() {
       const el = $('auth'); if (!el) return;
       if (storyUser) {
-        const uri = `at://${storyUser.did}/${SAVE_NSID}/${worldKey()}`, t = _lastSync ? new Date(_lastSync).toLocaleTimeString() : '';
-        el.innerHTML = `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — <span title="${esc(uri)}">your save${_lastSync ? ' ✓ ' + esc(t) : ' (syncing…)'}</span> · ${RECORDS_LINK} · <span class="act" data-logout>sign out</span>`;
+        const uri = `at://${storyUser.did}/${SAVE_NSID}/${worldKey()}`;
+        let status;
+        if (_saveErr) status = `<span style="color:#e08a8a" title="${esc(_saveErr)}">save failed</span> · <span class="act" data-retry>retry</span> · <span class="act" data-relogin>re-sign in</span>`;
+        else if (_lastSync) status = `<span title="${esc(uri)}">your save ✓ ${esc(new Date(_lastSync).toLocaleTimeString())}</span>`;
+        else status = `<span title="${esc(uri)}">your save (syncing…)</span>`;
+        el.innerHTML = `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — ${status} · ${RECORDS_LINK} · <span class="act" data-logout>sign out</span>`;
       } else {
         el.innerHTML = `<span class="act" data-login>sign in</span> to save your game to your PDS · ${RECORDS_LINK}`;
       }
       const lo = el.querySelector('[data-logout]'); if (lo) lo.onclick = signOut;
       const li = el.querySelector('[data-login]'); if (li) li.onclick = signIn;
+      const rt = el.querySelector('[data-retry]'); if (rt) rt.onclick = () => { _saveErr = null; renderAuthPill(); flushRepo(true); };
+      const rl = el.querySelector('[data-relogin]'); if (rl) rl.onclick = () => { _saveErr = null; signIn(); };   // a fresh OAuth re-mints the unified scope (fixes a narrow SSO session)
     }
     let _syncedSave = false;
     // your repo is the durable truth — restore it the moment BOTH the store and auth are ready (either
