@@ -960,10 +960,9 @@
         head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
         body = `<p class="says">They meet your eye, wary — there is nothing here for you yet.</p>`;
       }
-      const weave = (storyApi.enabled && agent && !(story.active && story.active.woven))
-        ? `<button data-weave="1" style="margin-top:10px;width:100%;background:#241f33;color:#e6d6a8;border:1px solid #6a5a3a;cursor:pointer;padding:6px;border-radius:4px" title="generate a side-quest rooted in this place (${esc(storyApi.provider || 'inference')}), gated before it's woven in">✨ weave a thread here</button>`
-        : '';
-      panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button>${head}${body}<div class="ch">${choices}</div>${weave}`;
+      // ✨ "weave a thread" (inference side-quest lane) removed for now — the machinery (weaveHere/genquest)
+      // stays dormant in case we revisit it; just no affordance.
+      panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button>${head}${body}<div class="ch">${choices}</div>`;
       panel.classList.add('on');
     }
     $('story').addEventListener('click', (e) => {
@@ -973,8 +972,6 @@
       if (arc && story.active && story.active.arcade) { arcadeAct(arc.dataset.arc); return; }
       const eat = e.target.closest('[data-eat]');
       if (eat && story.active && story.active.cafe) { eatFood(+eat.dataset.eat); return; }
-      const wv = e.target.closest('[data-weave]');
-      if (wv && story.active && story.active.agent) { weaveHere(story.active.agent); return; }
       const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
       if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); setChests(chestDeposit(getChests(), chestGid, it)); saveStory(); renderChest(); } return; }
       if (wd && chestGid) { const i = +wd.dataset.withdraw, r = chestWithdraw(getChests(), chestGid, i); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); saveStory(); renderChest(); } return; }
