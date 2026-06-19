@@ -38,11 +38,29 @@
     .rec .uri { color: var(--dim); font-size: 11px; word-break: break-all; }
     .err { color: #e08a8a; }
     .ok { color: var(--teal); }
+    /* tabs */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 0 0 16px; }
+    .tab { font-size: 13px; color: var(--dim); padding: 8px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; }
+    .tab:hover { color: var(--faint); }
+    .tab.on { color: var(--gold); border-bottom-color: var(--gold); }
+    /* data-flow graph */
+    .flowwrap { }
+    #flow { width: 100%; height: 540px; display: block; background: radial-gradient(120% 120% at 50% 0%, #0a0f16, #05070b); border: 1px solid var(--line); border-radius: 10px; cursor: grab; touch-action: none; }
+    #flow:active { cursor: grabbing; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 11.5px; color: var(--faint); margin: 10px 2px; }
+    .legend b { font-weight: 600; }
+    .lk { display: inline-block; width: 20px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 5px; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <div class="crumb"><a href="/">◍ hoop</a> · <a href="/v096/">the Tabard</a> · records · <a href="/v096/feed">live feed ↗</a></div>
+  <div class="tabs">
+    <span class="tab on" data-tab="docs">📄 Docs</span>
+    <span class="tab" data-tab="flow">⌖ Data flow</span>
+    <a class="tab" href="/v096/feed">⊹ Live feed ↗</a>
+  </div>
+  <div id="tab-docs">
   <h1>Records, Lexicons &amp; Architecture</h1>
   <p class="lead">The Tabard's shared world is backed by a <b>relational database (Postgres)</b> — that is
   the source of truth for the world pool, replenishment, the rumor mill, the world engine, and the
@@ -254,6 +272,21 @@ repo=did:plc:yivyyp54vddf7qf2lpsikhe4&amp;collection=com.minomobi.hoop.story.con
   <p class="lead" style="margin-top:30px">Why this shape? See <a href="/v096/architecture.html">the data-flow</a> and
   <a href="/v096/story/SPINE.md">the story spine</a>. The rule that matters: <i>truth is the records; everything
   else is a cache.</i></p>
+  </div><!-- /tab-docs -->
+
+  <div id="tab-flow" class="flowwrap" style="display:none">
+    <p class="lead">Who writes what, who reads what. <b>Boxes</b> are actors (where code runs / repos);
+    <b>pills</b> are the record types. Drag a node to pull the layout apart.</p>
+    <canvas id="flow"></canvas>
+    <div class="legend">
+      <span><span class="lk" style="border-color:#f4bf62"></span><b>writes</b></span>
+      <span><span class="lk" style="border-color:#7fd8d0"></span><b>reads</b></span>
+      <span><span class="lk" style="border-color:#c89ad0"></span><b>firehose / consume</b></span>
+      <span><span class="lk" style="border-color:#46586a"></span><b>resides in repo</b></span>
+      <span><span class="lk" style="border-color:#566;border-top-style:dashed"></span><b>internal</b></span>
+      <span style="color:var(--dim)">— actors: teal=client · red=engine · gold=service repo · green=player repos · violet=stream/director</span>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -332,6 +365,93 @@ repo=did:plc:yivyyp54vddf7qf2lpsikhe4&amp;collection=com.minomobi.hoop.story.con
   $('go').onclick = readSaves;
   $('svc').onclick = readService;
   $('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') readSaves(); });
+
+  // ── tabs ──
+  const _tabs = document.querySelectorAll('.tab[data-tab]');
+  _tabs.forEach((t) => t.addEventListener('click', () => {
+    _tabs.forEach((x) => x.classList.toggle('on', x === t));
+    $('tab-docs').style.display = t.dataset.tab === 'docs' ? '' : 'none';
+    $('tab-flow').style.display = t.dataset.tab === 'flow' ? '' : 'none';
+    if (t.dataset.tab === 'flow') startFlow(); else stopFlow();
+  }));
+
+  // ── the data-flow force graph: actors (boxes) + record types (pills), directed edges ──
+  const FN = [
+    { id: 'client', kind: 'actor', label: 'Client (v096)', color: '#7fd8d0' },
+    { id: 'engine', kind: 'actor', label: 'Engine', color: '#e08a8a' },
+    { id: 'postgres', kind: 'actor', label: 'Postgres', color: '#e08a8a' },
+    { id: 'morphyx', kind: 'actor', label: 'morphyx repo', color: '#f4bf62' },
+    { id: 'players', kind: 'actor', label: 'Player repos', color: '#8fb89f' },
+    { id: 'jetstream', kind: 'actor', label: 'Jetstream', color: '#c89ad0' },
+    { id: 'director', kind: 'actor', label: 'Director', color: '#c89ad0' },
+    { id: 'save', kind: 'rec', label: 'story.save', color: '#f4bf62' },
+    { id: 'content', kind: 'rec', label: 'story.content', color: '#7fd8d0' },
+    { id: 'pulse', kind: 'rec', label: 'story.pulse', color: '#c89ad0' },
+    { id: 'verdict', kind: 'rec', label: 'story.verdict', color: '#e08a8a' },
+  ];
+  const FE = [
+    ['client', 'save', 'write'], ['save', 'players', 'host'],
+    ['players', 'jetstream', 'stream'], ['jetstream', 'director', 'stream'],
+    ['director', 'pulse', 'write'], ['pulse', 'morphyx', 'host'],
+    ['engine', 'content', 'write'], ['content', 'morphyx', 'host'],
+    ['engine', 'verdict', 'write'], ['verdict', 'morphyx', 'host'],
+    ['content', 'client', 'read'], ['pulse', 'client', 'read'], ['verdict', 'client', 'read'],
+    ['engine', 'postgres', 'intern'],
+  ];
+  const EKCOL = { write: '#f4bf62', read: '#7fd8d0', stream: '#c89ad0', host: '#46586a', intern: '#5a6472' };
+  const _byId = Object.fromEntries(FN.map((n) => [n.id, n]));
+  const _links = FE.map(([a, b, k]) => ({ a: _byId[a], b: _byId[b], k }));
+  let cv, ctx, W, H, raf = null, drag = null, inited = false, dpr = 1;
+  const fontOf = (n) => (n.kind === 'rec' ? '600 12px "JetBrains Mono",monospace' : '600 12.5px "JetBrains Mono",monospace');
+  function measure(n) { ctx.font = fontOf(n); n.hw = ctx.measureText(n.label).width / 2 + 11; n.hh = (n.kind === 'rec' ? 9 : 11) + 4; n.r = Math.hypot(n.hw, n.hh); }
+  function layout() {
+    const r = cv.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    FN.forEach((n, i) => { if (n.x == null) { const a = i / FN.length * 6.283; n.x = W / 2 + Math.cos(a) * Math.min(W, H) * 0.32; n.y = H / 2 + Math.sin(a) * Math.min(W, H) * 0.32; n.vx = 0; n.vy = 0; } });
+  }
+  function initFlow() {
+    cv = $('flow'); ctx = cv.getContext('2d'); layout(); FN.forEach(measure);
+    cv.addEventListener('pointerdown', onDown); cv.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
+    window.addEventListener('resize', () => { if (raf) layout(); });
+    inited = true;
+  }
+  function step() {
+    for (let i = 0; i < FN.length; i++) for (let j = i + 1; j < FN.length; j++) {
+      const a = FN[i], b = FN[j]; let dx = a.x - b.x, dy = a.y - b.y; const d = Math.hypot(dx, dy) || 0.01;
+      const f = 11000 / (d * d); dx /= d; dy /= d; a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    }
+    for (const l of _links) { let dx = l.b.x - l.a.x, dy = l.b.y - l.a.y; const d = Math.hypot(dx, dy) || 0.01; const f = (d - 132) * 0.02; dx /= d; dy /= d; l.a.vx += dx * f; l.a.vy += dy * f; l.b.vx -= dx * f; l.b.vy -= dy * f; }
+    for (const n of FN) { n.vx += (W / 2 - n.x) * 0.0022; n.vy += (H / 2 - n.y) * 0.0022; }
+    for (const n of FN) { if (n === drag) { n.vx = n.vy = 0; continue; } n.vx *= 0.86; n.vy *= 0.86; n.x += n.vx; n.y += n.vy; n.x = Math.max(n.hw + 4, Math.min(W - n.hw - 4, n.x)); n.y = Math.max(n.hh + 4, Math.min(H - n.hh - 4, n.y)); }
+  }
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (const l of _links) {
+      const a = l.a, b = l.b; let dx = b.x - a.x, dy = b.y - a.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+      const sx = a.x + dx * a.r, sy = a.y + dy * a.r, ex = b.x - dx * b.r, ey = b.y - dy * b.r;
+      ctx.strokeStyle = EKCOL[l.k]; ctx.lineWidth = (l.k === 'host' || l.k === 'intern') ? 1 : 1.6; ctx.globalAlpha = (l.k === 'host' || l.k === 'intern') ? 0.55 : 0.92;
+      ctx.setLineDash(l.k === 'intern' ? [4, 4] : []);
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+      const ah = 6.5; ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex - dx * ah - dy * ah * 0.55, ey - dy * ah + dx * ah * 0.55); ctx.lineTo(ex - dx * ah + dy * ah * 0.55, ey - dy * ah - dx * ah * 0.55); ctx.closePath(); ctx.fillStyle = EKCOL[l.k]; ctx.fill();
+    }
+    ctx.globalAlpha = 1; ctx.setLineDash([]);
+    for (const n of FN) {
+      const w = n.hw * 2, h = n.hh * 2, rad = n.kind === 'rec' ? h / 2 : 6;
+      rr(n.x - n.hw, n.y - n.hh, w, h, rad);
+      ctx.fillStyle = n.kind === 'rec' ? 'rgba(10,14,20,0.95)' : 'rgba(8,11,16,0.95)'; ctx.fill();
+      ctx.strokeStyle = n.color; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.font = fontOf(n); ctx.fillStyle = n.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n.label, n.x, n.y);
+    }
+  }
+  function tick() { step(); draw(); raf = requestAnimationFrame(tick); }
+  function startFlow() { if (!inited) initFlow(); else layout(); if (!raf) tick(); }
+  function stopFlow() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
+  const _np = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  function _nodeAt(x, y) { for (const n of FN) if (Math.abs(x - n.x) <= n.hw + 3 && Math.abs(y - n.y) <= n.hh + 3) return n; return null; }
+  function onDown(e) { const [x, y] = _np(e); drag = _nodeAt(x, y); if (drag) { drag.x = x; drag.y = y; try { cv.setPointerCapture(e.pointerId); } catch (err) {} } }
+  function onMove(e) { if (!drag) return; const [x, y] = _np(e); drag.x = x; drag.y = y; drag.vx = drag.vy = 0; }
+  function onUp() { drag = null; }
 </script>
 </body>
 </html>
