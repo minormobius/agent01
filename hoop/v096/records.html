@@ -127,6 +127,104 @@
   <p class="lead">Schemas live in the repo at <code>hoop/lexicons/*.json</code>. The save's <code>stateJson</code>
   is a serialized <code>MemoryStore.snapshot()</code>, so the save can evolve without re-versioning the lexicon.</p>
 
+  <h2>Publish spec — the exact record shapes</h2>
+  <p class="lead">Enough to start publishing. Rules for all of them: every record carries <code>$type</code> =
+  its NSID; you <code>putRecord(collection, rkey, value)</code> to the repo named below; reads are public,
+  writes are signed by that repo's key. <b>Edit in place</b> — re-<code>putRecord</code> the same rkey;
+  for content, <b>retire via <code>status:"retired"</code>, never <code>deleteRecord</code></b> (a deletion
+  orphans players' crystallized bindings). The three the ENGINE publishes (to <b>morphyx</b>), then the one
+  the CLIENT publishes (to each player's repo) for your consume side.</p>
+
+  <h3>① <code>com.minomobi.hoop.story.content</code> — engine → morphyx · rkey = <code>contentId</code> (uuid, forever)</h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>type</b></td><td>string enum</td><td>✔</td><td><code>npc·item·lore_fragment·creature·plot_beat·rumor</code> — which pool a feature dispatches from</td></tr>
+    <tr><td><b>content</b></td><td>object</td><td>✔</td><td>the renderable payload: <code>{name, description, mechanics?, dialogue?, revelation_hint?}</code> — open-shaped (dialogue trees vary)</td></tr>
+    <tr><td>revelation_tier · narrative_tier · power_tier</td><td>int 1–5</td><td>—</td><td>hard tier gates; the client gates locally. <b>1–5</b> (not 1–3)</td></tr>
+    <tr><td>tags</td><td>string[]</td><td>—</td><td>world/role tags; the role→tag bridge biases dispatch</td></tr>
+    <tr><td>requires</td><td>object</td><td>—</td><td><code>{facts, items, min_rep}</code> gate blob (client skips <code>min_rep</code>). Empty ⇒ always available</td></tr>
+    <tr><td>approved · status</td><td>bool · enum</td><td>—</td><td>only <code>approved:true</code> dispatches; <code>status: active|retired</code></td></tr>
+    <tr><td>refs · revelation_hint · produces · source_npc · spreads_via · trigger_conditions</td><td>mixed</td><td>—</td><td>carried first-class from the world_export (spine/gate signals; rumor provenance; plot_beat triggers)</td></tr>
+    <tr><td>lane · provider · genState · createdAt</td><td>string</td><td>—</td><td>provenance: <code>spine|sidequest</code> · who generated it · steer digest · timestamp</td></tr>
+  </table>
+<pre><span class="c">// putRecord("com.minomobi.hoop.story.content", "&lt;contentId-uuid&gt;", …)</span>
+{
+  "$type": "com.minomobi.hoop.story.content",
+  "type": "npc",
+  "content": {
+    "name": "Kael Kest",
+    "description": "A salt-merchant of the Nave who trades in questions.",
+    "dialogue": { "nodes": { "greet": { "says": "What currency do you bring?",
+      "choices": [ { "id": "leave", "text": "None.", "effects": { "end": true } } ] } } }
+  },
+  "tags": ["nave", "drift", "market"],
+  "refs": ["The Nave", "The Drift"],
+  "revelation_hint": "The Ordinary",
+  "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1,
+  "requires": {}, "approved": true, "status": "active",
+  "lane": "spine", "provider": "authored",
+  "createdAt": "2026-06-19T12:00:00.000Z"
+}</pre>
+
+  <h3>② <code>com.minomobi.hoop.story.pulse</code> — engine → morphyx · rkey = <code>self</code> (singleton, last-write-wins)</h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>summaryJson</b></td><td>string ≤20k</td><td>✔</td><td>readable rollup the client shows: <code>{travellers, totalMet, topContent, topChambers, tierDist, xpSum}</code> (JSON string)</td></tr>
+    <tr><td><b>updatedAt</b></td><td>datetime</td><td>✔</td><td></td></tr>
+    <tr><td>playersJson</td><td>string ≤900k</td><td>—</td><td>the Director's working state <code>{did → {met, chambers, tier, xp}}</code>; not for clients</td></tr>
+    <tr><td>cursor</td><td>string ≤32</td><td>—</td><td>Jetstream cursor (µs) of the last folded event — where replay resumes</td></tr>
+  </table>
+<pre><span class="c">// putRecord("com.minomobi.hoop.story.pulse", "self", …)</span>
+{
+  "$type": "com.minomobi.hoop.story.pulse",
+  "summaryJson": "{\"travellers\":12,\"totalMet\":340,\"topContent\":[[\"&lt;id&gt;\",9]],\"topChambers\":[],\"tierDist\":{\"1\":5,\"2\":7},\"xpSum\":4200}",
+  "playersJson": "{\"did:plc:abc\":{\"met\":[\"&lt;id&gt;\"],\"chambers\":[\"ch0\"],\"tier\":2,\"xp\":40}}",
+  "cursor": "1718800000000000",
+  "updatedAt": "2026-06-19T12:00:00.000Z"
+}</pre>
+
+  <h3>③ <code>com.minomobi.hoop.story.verdict</code> — engine → morphyx · rkey = <code>tid</code> (time-sortable cursor) · tagged <code>subjectDid</code></h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>subjectDid</b></td><td>did</td><td>✔</td><td>the recipient — the client keeps the ones where this == its own DID</td></tr>
+    <tr><td><b>type</b></td><td>string</td><td>✔</td><td>open: <code>entity_changed · entity_retired · invalidation · rumor · input_result</code></td></tr>
+    <tr><td><b>createdAt</b></td><td>datetime</td><td>✔</td><td>basis of the TID rkey / cursor</td></tr>
+    <tr><td>subject</td><td>string</td><td>—</td><td>the contentId the verdict concerns (find the placement); for invalidation, ids may ride in payload</td></tr>
+    <tr><td>world · worldVersion</td><td>string · int</td><td>—</td><td>which save it applies to; a read-only cache-key bump</td></tr>
+    <tr><td>payload</td><td>object</td><td>—</td><td>entity_changed: <code>{entity, kind, summary, added?, before?, after?}</code>; invalidation: <code>{contentIds?, featureKeys?}</code></td></tr>
+  </table>
+<pre><span class="c">// putRecord("com.minomobi.hoop.story.verdict", "&lt;tid&gt;", …)</span>
+{
+  "$type": "com.minomobi.hoop.story.verdict",
+  "subjectDid": "did:plc:abc...",
+  "type": "entity_changed",
+  "subject": "&lt;contentId&gt;",
+  "world": "7", "worldVersion": 42,
+  "payload": { "entity": "Kael Kest", "kind": "npc",
+    "summary": "rumor churn rewrote his price", "before": { "price": "salt" }, "after": { "price": "silence" } },
+  "createdAt": "2026-06-19T12:00:00.000Z"
+}</pre>
+
+  <h3>④ <code>com.minomobi.hoop.story.save</code> — CLIENT → player's repo · rkey = world (ship seed) <span style="color:var(--dim)">[you consume, read-only]</span></h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>world</b></td><td>string ≤64</td><td>✔</td><td>ship seed; one save per world. (= the rkey too)</td></tr>
+    <tr><td><b>stateJson</b></td><td>string ≤100k</td><td>✔</td><td><code>JSON.stringify(MemoryStore.snapshot())</code>; <code>schemaVersion = </code>its <code>v</code> field. Decode per the schema below.</td></tr>
+    <tr><td><b>updatedAt</b></td><td>datetime</td><td>✔</td><td></td></tr>
+  </table>
+<pre><span class="c">// in the PLAYER's repo: at://&lt;did&gt;/com.minomobi.hoop.story.save/&lt;seed&gt;</span>
+{
+  "$type": "com.minomobi.hoop.story.save",
+  "world": "7",
+  "stateJson": "{ \"v\":1, \"invSeq\":3, \"players\":[[\"local\",{ \"id\":\"local\", \"revelation_tier\":2, \"narrative_tier\":2, \"power_tier\":2, \"xp\":40, \"seen_ids\":[\"&lt;contentId&gt;\"], \"hp_current\":25, \"hp_max\":25 }]], \"facts\":[[\"local\",[[\"coins\",18],[\"character\",{…}]]]], \"placements\":[[\"local\",[[\"ch0:r5#2\",{\"content_item_id\":\"&lt;contentId&gt;\",\"interaction_count\":2,\"first_seen\":0}]]]], \"equip\":[[\"local\",[[\"mainhand\",1]]]], \"npc\":[[\"local\",[[\"&lt;npcId&gt;\",{\"standing\":0,\"flags\":{},\"current_node\":\"greet\"}]]]], \"inv\":[[\"local\",[{\"id\":1,\"content_item_id\":\"&lt;contentId&gt;\",\"qty\":1}]]] }",
+  "updatedAt": "2026-06-19T12:00:00.000Z"
+}</pre>
+  <p class="lead"><code>stateJson</code> decode: it's the engine snapshot (single-player, so each <code>[[id,…]]</code> array
+  has one entry). <code>players[0][1]</code> = tiers/xp/seen; <code>facts[0][1]</code> = <code>[[key,value]]</code>
+  incl. <code>character</code>; <code>placements</code> ref content by <code>content_item_id</code>; equipment is
+  <code>slot→invId</code> resolved in <code>inv</code>. <b>Key player identity on the commit DID, not any field
+  inside</b> (the inner <code>"local"</code> is ignored).</p>
+
   <h2>How an onlooker reads the records</h2>
   <p class="lead">Reads are <b>public and unauthenticated</b> — standard <code>com.atproto.repo</code> XRPC. Three steps:</p>
   <h3>1. handle → DID → PDS</h3>
