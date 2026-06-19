@@ -105,6 +105,14 @@ export default {
       catch (err) { return json({ ok: false, error: 'story api error', detail: String(err && err.message || err) }, 500); }
     }
 
+    // clean endpoints for the records/lexicons docs page + the live records feed (rewrites to assets).
+    if (url.pathname === '/v096/records' || url.pathname === '/v096/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v096/records.html', url), request));
+    }
+    if (url.pathname === '/v096/feed' || url.pathname === '/v096/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v096/feed.html', url), request));
+    }
+
     return env.ASSETS.fetch(request);
   },
 };

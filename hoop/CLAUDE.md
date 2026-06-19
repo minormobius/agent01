@@ -173,7 +173,7 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-v096-story-bible-vgzqze` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-arcade-fixture-gn8e9j` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
