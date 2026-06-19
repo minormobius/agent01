@@ -284,7 +284,8 @@ repo=did:plc:yivyyp54vddf7qf2lpsikhe4&amp;collection=com.minomobi.hoop.story.con
       <span><span class="lk" style="border-color:#c89ad0"></span><b>firehose / consume</b></span>
       <span><span class="lk" style="border-color:#46586a"></span><b>resides in repo</b></span>
       <span><span class="lk" style="border-color:#566;border-top-style:dashed"></span><b>internal</b></span>
-      <span style="color:var(--dim)">— actors: teal=client · red=engine · gold=service repo · green=player repos · violet=stream/director</span>
+      <span><span class="lk" style="border-color:#b48a6a"></span><b>feeds (canon)</b></span>
+      <span style="color:var(--dim)">— actors: teal=client · red=engine · gold=service repo · green=player repos · violet=stream/director · copper(dashed)=story bible</span>
     </div>
   </div>
 </div>
@@ -380,6 +381,7 @@ repo=did:plc:yivyyp54vddf7qf2lpsikhe4&amp;collection=com.minomobi.hoop.story.con
     { id: 'client', kind: 'actor', label: 'Client (v096)', color: '#7fd8d0' },
     { id: 'engine', kind: 'actor', label: 'Engine', color: '#e08a8a' },
     { id: 'postgres', kind: 'actor', label: 'Postgres', color: '#e08a8a' },
+    { id: 'bible', kind: 'src', label: 'story bible (canon)', color: '#b48a6a' },
     { id: 'morphyx', kind: 'actor', label: 'morphyx repo', color: '#f4bf62' },
     { id: 'players', kind: 'actor', label: 'Player repos', color: '#8fb89f' },
     { id: 'jetstream', kind: 'actor', label: 'Jetstream', color: '#c89ad0' },
@@ -393,13 +395,14 @@ repo=did:plc:yivyyp54vddf7qf2lpsikhe4&amp;collection=com.minomobi.hoop.story.con
     ['client', 'save', 'write'], ['save', 'players', 'host'],
     ['players', 'jetstream', 'stream'], ['jetstream', 'director', 'stream'],
     ['director', 'pulse', 'write'], ['pulse', 'morphyx', 'host'],
+    ['bible', 'engine', 'feeds'],            // canon source → the engine's offline ingestion mints content
     ['engine', 'content', 'write'], ['content', 'morphyx', 'host'],
     ['engine', 'verdict', 'write'], ['verdict', 'morphyx', 'host'],
     ['morphyx', 'client', 'read'],          // the client reads content/pulse/verdict FROM the morphyx repo
     ['jetstream', 'client', 'stream'],      // …or subscribes its own verdicts live off the firehose
     ['engine', 'postgres', 'intern'],
   ];
-  const EKCOL = { write: '#f4bf62', read: '#7fd8d0', stream: '#c89ad0', host: '#46586a', intern: '#5a6472' };
+  const EKCOL = { write: '#f4bf62', read: '#7fd8d0', stream: '#c89ad0', host: '#46586a', intern: '#5a6472', feeds: '#b48a6a' };
   const _byId = Object.fromEntries(FN.map((n) => [n.id, n]));
   const _links = FE.map(([a, b, k]) => ({ a: _byId[a], b: _byId[b], k }));
   let cv, ctx, W, H, raf = null, drag = null, inited = false, dpr = 1;
@@ -441,7 +444,7 @@ repo=did:plc:yivyyp54vddf7qf2lpsikhe4&amp;collection=com.minomobi.hoop.story.con
       const w = n.hw * 2, h = n.hh * 2, rad = n.kind === 'rec' ? h / 2 : 6;
       rr(n.x - n.hw, n.y - n.hh, w, h, rad);
       ctx.fillStyle = n.kind === 'rec' ? 'rgba(10,14,20,0.95)' : 'rgba(8,11,16,0.95)'; ctx.fill();
-      ctx.strokeStyle = n.color; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.setLineDash(n.kind === 'src' ? [4, 3] : []); ctx.strokeStyle = n.color; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
       ctx.font = fontOf(n); ctx.fillStyle = n.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n.label, n.x, n.y);
     }
   }
