@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "name": "Pipetting sample",
+  "units": "mm",
+  "devices": [
+    {
+      "id": "bridge",
+      "type": "hbot",
+      "params": {
+        "bedX": 300,
+        "bedY": 300,
+        "height": 90,
+        "motor": "NEMA 17 (0.44 N·m)",
+        "pulleyTeeth": 20,
+        "beltPitch": 2,
+        "beamMass": 1.8,
+        "carriageMass": 0.6,
+        "limits": {
+          "vmax": 300,
+          "amax": 4000,
+          "jmax": 120000
+        }
+      },
+      "mount": {
+        "parent": null,
+        "attach": "frame",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "z_pip",
+      "type": "linear",
+      "params": {
+        "axis": "z",
+        "drive": "screw",
+        "travel": 110,
+        "motor": "NEMA 17 (0.44 N·m)",
+        "lead": 8,
+        "pulleyTeeth": 20,
+        "beltPitch": 2,
+        "carriageMass": 0.6,
+        "tool": "none",
+        "limits": {
+          "vmax": 80,
+          "amax": 1500,
+          "jmax": 40000
+        }
+      },
+      "mount": {
+        "parent": "bridge",
+        "attach": "carriage",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ]
+      },
+      "tool": "pipettor"
+    },
+    {
+      "id": "tips",
+      "type": "tiprack",
+      "params": {
+        "rows": 8,
+        "cols": 12,
+        "pitch": 9,
+        "height": 60
+      },
+      "mount": {
+        "parent": null,
+        "attach": "frame",
+        "position": [
+          -60,
+          0,
+          55
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "src",
+      "type": "wellplate",
+      "params": {
+        "rows": 8,
+        "cols": 12,
+        "pitch": 9,
+        "height": 14
+      },
+      "mount": {
+        "parent": null,
+        "attach": "frame",
+        "position": [
+          60,
+          0,
+          55
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "dst",
+      "type": "wellplate",
+      "params": {
+        "rows": 8,
+        "cols": 12,
+        "pitch": 9,
+        "height": 14
+      },
+      "mount": {
+        "parent": null,
+        "attach": "frame",
+        "position": [
+          60,
+          0,
+          -55
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "bin",
+      "type": "waste",
+      "params": {
+        "width": 70,
+        "depth": 70,
+        "height": 50
+      },
+      "mount": {
+        "parent": null,
+        "attach": "frame",
+        "position": [
+          -60,
+          0,
+          -55
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "relations": [],
+  "sequences": [
+    {
+      "id": "transfer",
+      "steps": [
+        {
+          "device": "z_pip",
+          "pickTip": "tips.1"
+        },
+        {
+          "device": "z_pip",
+          "aspirate": "src.A1",
+          "uL": 50
+        },
+        {
+          "device": "z_pip",
+          "dispense": "dst.A1",
+          "uL": 50
+        },
+        {
+          "device": "z_pip",
+          "aspirate": "src.B1",
+          "uL": 50
+        },
+        {
+          "device": "z_pip",
+          "dispense": "dst.B1",
+          "uL": 50
+        },
+        {
+          "device": "z_pip",
+          "dropTip": true
+        }
+      ]
+    }
+  ]
+}
