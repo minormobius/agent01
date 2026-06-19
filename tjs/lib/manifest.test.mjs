@@ -24,7 +24,8 @@ ok(man.sites.length === 96, `96 plate sites (got ${man.sites.length})`);
 const a1 = man.sites.find((s) => s.ref === 'plate.A1');
 ok(a1 && a1.world.length === 3, 'site A1 has world coords');
 ok(Array.isArray(a1.reachableBy), 'site lists reachableBy');
-ok(man.verbs.map((v) => v.verb).join() === 'move,tool,dwell', 'verb grammar present');
+const vnames = man.verbs.map((v) => v.verb);
+ok(['move', 'tool', 'dwell', 'moveOver', 'pickTip', 'aspirate', 'dispense', 'grip', 'release'].every((x) => vnames.includes(x)), 'verb grammar present (primitives + IK/labware verbs)');
 
 // --- oracle: good ------------------------------------------------------------
 console.log('Oracle — valid sequence:');

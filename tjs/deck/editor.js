@@ -3,7 +3,7 @@
 // serializes it to YAML. Persists to localStorage and hands the deck to the
 // motion suite. The 3D preview is a DeckView; this file is all UI/state glue.
 
-import { Deck, defaultDeck } from '../lib/deck.js';
+import { Deck, defaultDeck, pipettingSample } from '../lib/deck.js';
 import { DEVICE_TYPES, interactionPoints } from '../lib/devices.js';
 import { STEPPER_PRESETS } from '../lib/motor.js';
 import { toYAML, fromYAML, objectToDeck, deckToObject } from '../lib/deckio.js';
@@ -31,7 +31,7 @@ function loadDeck() {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) return objectToDeck(JSON.parse(raw));
   } catch (e) { /* fall through to sample */ }
-  return defaultDeck();
+  return pipettingSample();
 }
 function autosave() {
   try { localStorage.setItem(LS_KEY, JSON.stringify(deckToObject(deck))); } catch (e) {}
@@ -258,28 +258,58 @@ function renderSequence() {
   const s = deck.sequences[0]; if (!s) return;
   s.steps.forEach((step, i) => {
     const row = document.createElement('div'); row.className = 'steprow';
-    const label = step.move ? `move → ${jointStr(step.move)}` : step.tool ? `tool ${step.tool.open ? 'open' : 'close'}` : step.dwell != null ? `dwell ${step.dwell}s` : '?';
-    row.innerHTML = `<div><span class="pill">${esc(step.device || '—')}</span> <span class="meta">${label}</span></div>
+    row.innerHTML = `<div><span class="pill">${esc(step.device || '—')}</span> <span class="meta">${esc(stepLabel(step))}</span></div>
       <div class="btns"><button class="sm" data-up="${i}">↑</button><button class="sm" data-down="${i}">↓</button><button class="sm danger" data-del="${i}">✕</button></div>`;
     host.appendChild(row);
   });
-  // add-row
+  // add-row: device · verb · site (autocomplete) · µL
   const add = document.createElement('div'); add.className = 'steprow';
   const devOpts = deck.devices.map((x) => `<option value="${x.id}">${esc(x.id)}</option>`).join('');
-  add.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+  const siteOpts = allSiteRefs(deck).map((r) => `<option value="${r}">`).join('');
+  add.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1">
       <select id="seqDev">${devOpts}</select>
-      <select id="seqAct"><option value="move">move to pose</option><option value="open">tool open</option><option value="close">tool close</option><option value="dwell">dwell 0.3s</option></select>
-    </div><button class="sm" id="seqAdd">+ add</button>`;
+      <select id="seqAct">
+        <option value="move">move to pose</option>
+        <option value="moveOver">moveOver site</option>
+        <option value="pickTip">pickTip</option><option value="dropTip">dropTip</option>
+        <option value="aspirate">aspirate</option><option value="dispense">dispense</option>
+        <option value="grip">grip</option><option value="release">release</option>
+        <option value="open">tool open</option><option value="close">tool close</option>
+        <option value="dwell">dwell 0.3s</option>
+      </select>
+      <input id="seqSite" list="siteList" placeholder="site e.g. src.A1">
+      <input id="seqUL" type="number" placeholder="µL" min="0">
+    </div><button class="sm" id="seqAdd">+ add</button>
+    <datalist id="siteList">${siteOpts}</datalist>`;
   host.appendChild(add);
   if (selectedId) $('seqDev').value = selectedId;
   host.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => { s.steps.splice(+b.dataset.del, 1); refreshAll(); }));
   host.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.up; if (i > 0) { [s.steps[i - 1], s.steps[i]] = [s.steps[i], s.steps[i - 1]]; refreshAll(); } }));
   host.querySelectorAll('[data-down]').forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.down; if (i < s.steps.length - 1) { [s.steps[i + 1], s.steps[i]] = [s.steps[i], s.steps[i + 1]]; refreshAll(); } }));
-  $('seqAdd').addEventListener('click', () => addStep($('seqDev').value, $('seqAct').value));
+  $('seqAdd').addEventListener('click', () => addStep($('seqDev').value, $('seqAct').value, $('seqSite').value.trim(), $('seqUL').value));
 }
-function addStep(devId, act) {
+function stepLabel(step) {
+  if (step.move) return `move → ${jointStr(step.move)}`;
+  if (step.moveOver) return `moveOver ${step.moveOver}`;
+  if (step.pickTip) return `pickTip ${step.pickTip}`;
+  if ('dropTip' in step) return `dropTip ${typeof step.dropTip === 'string' ? step.dropTip : '(waste)'}`;
+  if (step.aspirate) return `aspirate ${step.uL || '?'}µL ${step.aspirate}`;
+  if (step.dispense) return `dispense ${step.uL || '?'}µL ${step.dispense}`;
+  if (step.grip) return `grip ${step.grip}`;
+  if (step.release) return `release ${step.release}`;
+  if (step.tool) return `tool ${step.tool.open ? 'open' : 'close'}`;
+  if (step.dwell != null) return `dwell ${step.dwell}s`;
+  return '?';
+}
+function allSiteRefs(deck) {
+  const out = [];
+  for (const d of deck.devices) for (const pt of interactionPoints(d)) out.push(`${d.id}.${pt.id}`);
+  return out;
+}
+function addStep(devId, act, site, uL) {
   const d = deck.getDevice(devId); if (!d) return;
   const s = seq();
+  const v = +uL || undefined;
   if (act === 'move') {
     const st = preview[devId] || d.previewState || {};
     const move = d.type === 'linear' ? { p: Math.round(st.p ?? 0) } : { x: Math.round(st.x ?? d.params.bedX / 2), y: Math.round(st.y ?? d.params.bedY / 2) };
@@ -288,6 +318,16 @@ function addStep(devId, act) {
     s.steps.push({ device: devId, tool: { open: act === 'open' } });
   } else if (act === 'dwell') {
     s.steps.push({ device: devId, dwell: 0.3 });
+  } else if (act === 'moveOver') {
+    s.steps.push({ device: devId, moveOver: site });
+  } else if (act === 'pickTip') {
+    s.steps.push({ device: devId, pickTip: site });
+  } else if (act === 'dropTip') {
+    s.steps.push({ device: devId, dropTip: site || true });
+  } else if (act === 'aspirate' || act === 'dispense') {
+    s.steps.push({ device: devId, [act]: site, uL: v });
+  } else if (act === 'grip' || act === 'release') {
+    s.steps.push({ device: devId, [act]: site });
   }
   refreshAll();
 }
@@ -369,7 +409,7 @@ function wireToolbar() {
   $('btnImportFile').addEventListener('click', () => $('fileInput').click());
   $('fileInput').addEventListener('change', (e) => { if (e.target.files[0]) importFile(e.target.files[0]); });
   $('btnApplyText').addEventListener('click', applyText);
-  $('btnLoadDefault').addEventListener('click', () => { deck = defaultDeck(); selectedId = deck.devices[0]?.id || null; refreshAll(); });
+  $('btnLoadDefault').addEventListener('click', () => { deck = pipettingSample(); selectedId = deck.devices[0]?.id || null; refreshAll(); });
   $('btnNew').addEventListener('click', () => { deck = new Deck({ name: 'New deck' }); selectedId = null; refreshAll(); });
 }
 

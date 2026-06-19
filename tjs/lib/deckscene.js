@@ -104,7 +104,10 @@ export class DeckView {
       const tip = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.6, 16), this._mat(ACCENT, { roughness: 0.6 }));
       tip.position.y = -1.8; tip.rotation.x = Math.PI; barrel.castShadow = true;
       const plunger = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.6, 12), this._mat(0x2a2a34)); plunger.position.y = 1.2;
-      g.add(barrel, tip, plunger); refs.plunger = plunger;
+      // a disposable tip that appears once picked up
+      const attached = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.5, 12), this._mat(0xffe08a, { roughness: 0.4 }));
+      attached.position.y = -2.6; attached.rotation.x = Math.PI; attached.visible = false;
+      g.add(barrel, tip, plunger, attached); refs.plunger = plunger; refs.attachedTip = attached;
     }
     return refs;
   }
@@ -130,6 +133,9 @@ export class DeckView {
     if (t.kind === 'gripper' && t.jl) { const o = st.open === false ? 0.32 : 0.7; t.jl.position.x = -o; t.jr.position.x = o; }
     if (t.kind === 'pipettor' && t.plunger) t.plunger.position.y = 1.2 - (st.plunge || 0) * 0.8;
   }
+
+  // Show/hide a pipettor's disposable tip (picked up / dropped).
+  setTip(id, on) { const t = this.nodes.get(id)?.tool; if (t && t.attachedTip) t.attachedTip.visible = !!on; }
 
   // Flag a device as stalled (carriage glows red) during motion playback.
   setStall(id, bad) {

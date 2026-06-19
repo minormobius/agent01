@@ -54,17 +54,47 @@ A sequence is an ordered list of steps. Each step names one device:
 ]
 ```
 
+**Primitive verbs** (run directly):
+
 | verb | shape | meaning |
 |------|-------|---------|
 | `move` | `{ device, <joint>: mm }` | jerk-limited coordinated move. joints are `x`,`y` (hbot) or `p` (linear). |
-| `tool` | `{ device, tool: { open: bool } }` | actuate the end-effector (gripper jaws, pipettor plunge). |
+| `tool` | `{ device, tool: { open: bool } }` | actuate the end-effector. |
 | `dwell` | `{ device?, dwell: seconds }` | pause. |
 
-Joint targets are absolute positions in mm, within each joint's `[min,max]`
-(read them from the manifest). Coordinates: `move` takes raw joint values today;
-targeting a named site (`plate.B3`) by inverse kinematics, and liquid-transfer
-verbs (`aspirate`/`dispense`), are the next verbs to land — they appear under
-`plannedVerbs` in the manifest.
+**High-level verbs** — name a site instead of computing joints; they lower to
+primitives by inverse kinematics (every joint is translational, so the IK is
+exact) and enforce a tool/labware state machine:
+
+| verb | shape | meaning |
+|------|-------|---------|
+| `moveOver` | `{ device, moveOver: "plate.B3" }` | IK move so the tool sits over a named site. |
+| `pickTip` | `{ device, pickTip: "tips.5" }` | pipettor acquires a tip (consumes that tip site). |
+| `dropTip` | `{ device, dropTip: true \| "bin.drop" }` | eject the tip (default: a waste chute). |
+| `aspirate` | `{ device, aspirate: "src.A1", uL: 50 }` | draw liquid — needs a tip, respects the 1000 µL capacity. |
+| `dispense` | `{ device, dispense: "dst.A1", uL: 50 }` | expel liquid — needs enough held volume. |
+| `grip` | `{ device, grip: "rack.A1" }` | gripper closes on a part at a site. |
+| `release` | `{ device, release: "dst.A1" }` | gripper opens, placing the part. |
+
+A site ref is `"<labwareId>.<siteId>"` (e.g. `plate.B3`, `tips.5`); the manifest
+lists every site with its world coordinates and which carriages can reach it.
+The oracle rejects out-of-reach sites, missing tips, over-capacity aspirates,
+over-dispenses, and wrong-tool calls — so you find out before you run.
+
+A pipetting transfer end-to-end:
+
+```json
+[
+  { "device": "z", "pickTip":  "tips.1" },
+  { "device": "z", "aspirate": "src.A1", "uL": 50 },
+  { "device": "z", "dispense": "dst.A1", "uL": 50 },
+  { "device": "z", "dropTip":  true }
+]
+```
+
+Raw joint targets (in `move`) are absolute mm within each joint's `[min,max]`
+(read from the manifest). The reserved `plannedVerbs` (liquid classes, parallel
+moves) are not wired yet.
 
 ## Assembling a deck (placing modules)
 

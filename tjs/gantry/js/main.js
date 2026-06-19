@@ -4,11 +4,12 @@
 // full mounted payload reflected to the rotor. Also plays the authored sequence
 // across the whole cell. Rendering is the shared DeckView; analysis is deckengine.
 
-import { Deck, defaultDeck } from '../../lib/deck.js';
+import { Deck, defaultDeck, pipettingSample } from '../../lib/deck.js';
 import { objectToDeck, fromYAML } from '../../lib/deckio.js';
 import { DeckView } from '../../lib/deckscene.js';
 import { planDeviceMove, simulateDevice, jointStateAt, deviceJoints, defaultState, carriageBorneMass } from '../../lib/deckengine.js';
 import { checkSequence } from '../../lib/manifest.js';
+import { initWorld, expand } from '../../lib/verbs.js';
 import { KinematicsScope, TorqueScope } from './scope.js';
 
 const $ = (id) => document.getElementById(id);
@@ -29,7 +30,7 @@ let anim = null, loop = false, speed = 1, lastFrac = null;
 // ---- deck load -------------------------------------------------------------
 function loadDeck() {
   try { const raw = localStorage.getItem(LS_KEY); if (raw) return objectToDeck(JSON.parse(raw)); } catch (e) {}
-  return defaultDeck();
+  return pipettingSample();
 }
 function motorized() { return deck.devices.filter((d) => deviceJoints(d).length > 0); }
 
@@ -189,33 +190,60 @@ function renderSeqCheck(s) {
   host.innerHTML = (r.ok ? `<div class="vok">✓ ${r.cycleTime}s cycle (warnings)</div>` : `<div class="vwarn">⚠ sequence has issues — ${r.cycleTime}s cycle</div>`) + lines;
 }
 
+// Run the sequence: expand each verb into primitive moves (via the shared verb
+// lowering), animate the primitives, and apply world effects (tip on/off,
+// gripper) after each verb — the same expansion the oracle dry-ran.
+let world = null;
 function runSequence() {
   const s = deck.sequences[0]; if (!s || !s.steps.length) return;
-  let i = 0;
+  world = initWorld(deck);
+  let vi = 0;
   const clearActive = () => document.querySelectorAll('.steps li.active').forEach((e) => e.classList.remove('active'));
-  const next = () => {
-    clearActive();
-    if (i >= s.steps.length) { anim = null; if (loop) { i = 0; } else return; }
-    const step = s.steps[i++];
-    const liEl = $(`step_${i - 1}`); if (liEl) liEl.classList.add('active');
-    const dev = deck.getDevice(step.device);
-    if (step.move && dev) {
-      activeId = step.device; $('deviceSel').value = activeId; view.select(activeId);
-      targets = { ...stateMap[activeId], ...step.move };
-      move = planDeviceMove(deck, activeId, targets, stateMap);
-      sim = move ? simulateDevice(deck, activeId, move, 400) : null;
-      renderVerdict();
-      if (!move) { return next(); }
-      anim = { type: 'move', t0: performance.now(), after: () => { stateMap[activeId] = { ...targets }; next(); } };
-    } else if (step.tool && dev) {
-      const t = dev.tool === 'pipettor' ? { plunge: step.tool.open ? 0 : 1 } : { open: step.tool.open };
-      toolState[step.device] = t; view.actuateTool(step.device, t);
-      setTimeout(next, (step.dwell || 0.3) * 1000 / speed);
-    } else if (step.dwell != null) {
-      setTimeout(next, step.dwell * 1000 / speed);
-    } else next();
+
+  const runPrims = (prims, done) => {
+    let pi = 0;
+    const nextPrim = () => {
+      if (pi >= prims.length) { done(); return; }
+      const prim = prims[pi++];
+      if (prim.move && deck.getDevice(prim.device)) {
+        activeId = prim.device; $('deviceSel').value = activeId; view.select(activeId);
+        targets = { ...stateMap[activeId], ...prim.move };
+        move = planDeviceMove(deck, activeId, targets, stateMap);
+        sim = move ? simulateDevice(deck, activeId, move, 400) : null;
+        renderVerdict();
+        if (!move) { nextPrim(); return; }
+        anim = { type: 'move', t0: performance.now(), after: () => { stateMap[activeId] = { ...targets }; nextPrim(); } };
+      } else if (prim.tool && deck.getDevice(prim.device)) {
+        const dev = deck.getDevice(prim.device);
+        const t = dev.tool === 'pipettor' ? { plunge: prim.tool.open ? 0 : 1 } : { open: prim.tool.open };
+        toolState[prim.device] = t; view.actuateTool(prim.device, t);
+        setTimeout(nextPrim, 250 / speed);
+      } else if (prim.dwell != null) {
+        setTimeout(nextPrim, prim.dwell * 1000 / speed);
+      } else nextPrim();
+    };
+    nextPrim();
   };
-  next();
+
+  const nextVerb = () => {
+    clearActive();
+    if (vi >= s.steps.length) { anim = null; if (loop) { vi = 0; world = initWorld(deck); nextVerb(); } return; }
+    const step = s.steps[vi++];
+    const liEl = $(`step_${vi - 1}`); if (liEl) liEl.classList.add('active');
+    const ex = expand(deck, step, world, stateMap);
+    if (ex.error) { nextVerb(); return; } // the oracle already surfaces this
+    runPrims(ex.primitives, () => { ex.apply(world); applyWorldVisuals(); nextVerb(); });
+  };
+  nextVerb();
+}
+
+// Reflect world state onto the 3D: pipettor tips, gripper holding.
+function applyWorldVisuals() {
+  if (!world) return;
+  for (const [id, t] of Object.entries(world.tools)) {
+    if (deck.getDevice(id)?.tool === 'pipettor') view.setTip(id, t.tip);
+    if (deck.getDevice(id)?.tool === 'gripper') { const st = { open: !t.holding }; toolState[id] = st; view.actuateTool(id, st); }
+  }
 }
 
 // ---- IO --------------------------------------------------------------------

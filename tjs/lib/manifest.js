@@ -16,19 +16,16 @@
 
 import { DEVICE_TYPES, interactionPoints } from './devices.js';
 import { deviceJoints, defaultState, carriageBorneMass, planDeviceMove, simulateDevice } from './deckengine.js';
+import { initWorld, expand, VERB_DEFS } from './verbs.js';
 
 export const MANIFEST_SCHEMA = 'tjs.deck.manifest/1';
 
-// The sequence grammar an agent may emit. Kept tiny and declarative.
-export const VERBS = [
-  { verb: 'move', args: { device: '<motorized id>', '<joint>': '<number, mm>' }, note: 'jerk-limited coordinated move; joints are x/y for hbot, p for linear' },
-  { verb: 'tool', args: { device: '<id with a tool>', open: '<bool>' }, note: 'actuate the end-effector (gripper jaws / pipettor plunge)' },
-  { verb: 'dwell', args: { device: '<id (optional)>', dwell: '<seconds>' }, note: 'pause' },
-];
-// Verbs not yet wired but reserved so the agent knows the direction.
+// The full sequence grammar (primitives + IK / labware verbs) lives in verbs.js.
+export const VERBS = VERB_DEFS;
+// Reserved for the next pass.
 export const PLANNED_VERBS = [
-  { verb: 'moveOver', args: { device: '<id>', over: '<site ref e.g. plate.B3>' }, note: 'inverse-kinematic move to put a tool over a named site (needs IK — coming next)' },
-  { verb: 'aspirate / dispense', args: { device: '<pipettor id>', site: '<site ref>', uL: '<number>' }, note: 'liquid transfer (needs the labware interaction state machine)' },
+  { verb: 'liquidClass', args: { device: '<pipettor>', class: '<name>' }, note: 'aspirate/dispense speed + air-gap profiles' },
+  { verb: 'parallel', args: { steps: '[...]' }, note: 'run independent device moves concurrently to shorten cycle time' },
 ];
 
 function jointRange(dev, k) {
@@ -134,43 +131,59 @@ export function checkSequence(deck, steps) {
 
   const stateMap = {};
   for (const d of deck.devices) stateMap[d.id] = { ...defaultState(d) };
+  const world = initWorld(deck);
   let cycle = 0, anyStall = false, anyCollision = false;
 
   (steps || []).forEach((step, i) => {
-    const dev = deck.getDevice(step.device);
-    if (step.device && !dev) { diagnostics.push(err(i, 'unknown_device', `no device "${step.device}"`)); return; }
-
-    if (step.move) {
-      const joints = deviceJoints(dev);
-      if (!joints.length) { diagnostics.push(err(i, 'not_motorized', `"${dev.id}" has no joints to move`)); return; }
-      for (const k of Object.keys(step.move)) {
-        if (!joints.includes(k)) { diagnostics.push(err(i, 'bad_joint', `"${dev.id}" has no joint "${k}" (has: ${joints.join(', ')})`)); continue; }
-        const mx = jointMax(dev, k), val = step.move[k];
-        if (val < 0 || val > mx) diagnostics.push(warn(i, 'out_of_range', `${dev.id}.${k}=${val} outside [0, ${mx}] — will clamp`));
-      }
-      const target = { ...stateMap[dev.id], ...step.move };
-      const mv = planDeviceMove(deck, dev.id, target, stateMap);
-      if (mv) {
-        const sim = simulateDevice(deck, dev.id, mv, 200);
-        cycle += mv.T;
-        for (const mkk of sim.motorKeys) {
-          if (sim.verdict.stall[mkk]) { anyStall = true; diagnostics.push(err(i, 'stall', `motor ${mkk} on ${dev.id} stalls (peak ${Math.round(sim.verdict.peakUtil[mkk] * 100)}% of pullout${sim.verdict.overspeed[mkk] ? ', overspeed' : ''})`)); }
-          else if (sim.verdict.peakUtil[mkk] > 0.9) diagnostics.push(warn(i, 'near_limit', `motor ${mkk} on ${dev.id} at ${Math.round(sim.verdict.peakUtil[mkk] * 100)}% of pullout`));
-        }
-        stateMap[dev.id] = target;
-        for (const c of deck.collisions(stateMap)) if (c.violated) { anyCollision = true; diagnostics.push(err(i, 'collision', `${c.between.join(' ↔ ')} at ${c.dist.toFixed(0)}mm (min ${c.minDist})`)); }
-      }
-    } else if (step.tool) {
-      if (!dev) { diagnostics.push(err(i, 'unknown_device', 'tool step has no device')); return; }
-      if (!dev.tool || dev.tool === 'none') diagnostics.push(warn(i, 'no_tool', `"${dev.id}" has no tool to actuate`));
-    } else if (step.dwell != null) {
-      cycle += step.dwell;
-    } else {
-      diagnostics.push(warn(i, 'unknown_step', 'unrecognized step shape'));
+    // Expand high-level verbs (moveOver/aspirate/grip/...) into primitive moves,
+    // validating tool/labware preconditions against the running world state.
+    const ex = expand(deck, step, world, stateMap);
+    if (ex.error) { diagnostics.push(err(i, ex.code || 'verb_error', ex.error)); return; }
+    for (const w of ex.warnings || []) diagnostics.push(warn(i, w.code, w.message));
+    for (const prim of ex.primitives) {
+      const r = runPrimitive(deck, prim, stateMap, i, diagnostics);
+      cycle += r.dt; if (r.stall) anyStall = true; if (r.collision) anyCollision = true;
     }
+    ex.apply(world);
   });
 
   return { ok: !diagnostics.some((d) => d.severity === 'error'), cycleTime: +cycle.toFixed(3), anyStall, anyCollision, diagnostics };
+}
+
+// Run one primitive (move/tool/dwell) through the physics: torque + collision for
+// moves, and accumulate time. Pushes diagnostics for the owning step index.
+function runPrimitive(deck, prim, stateMap, stepIdx, diag) {
+  let dt = 0, stall = false, collision = false;
+  if (prim.move) {
+    const dev = deck.getDevice(prim.device);
+    if (!dev) { diag.push(err(stepIdx, 'unknown_device', `no device "${prim.device}"`)); return { dt, stall, collision }; }
+    const joints = deviceJoints(dev);
+    if (!joints.length) { diag.push(err(stepIdx, 'not_motorized', `"${dev.id}" has no joints to move`)); return { dt, stall, collision }; }
+    for (const k of Object.keys(prim.move)) {
+      if (!joints.includes(k)) { diag.push(err(stepIdx, 'bad_joint', `"${dev.id}" has no joint "${k}" (has: ${joints.join(', ')})`)); continue; }
+      const mx = jointMax(dev, k), val = prim.move[k];
+      if (val < 0 || val > mx) diag.push(warn(stepIdx, 'out_of_range', `${dev.id}.${k}=${val} outside [0, ${mx}] — will clamp`));
+    }
+    const target = { ...stateMap[dev.id], ...prim.move };
+    const mv = planDeviceMove(deck, dev.id, target, stateMap);
+    if (mv) {
+      const sim = simulateDevice(deck, dev.id, mv, 200);
+      dt = mv.T;
+      for (const mkk of sim.motorKeys) {
+        if (sim.verdict.stall[mkk]) { stall = true; diag.push(err(stepIdx, 'stall', `motor ${mkk} on ${dev.id} stalls (peak ${Math.round(sim.verdict.peakUtil[mkk] * 100)}%${sim.verdict.overspeed[mkk] ? ', overspeed' : ''})`)); }
+        else if (sim.verdict.peakUtil[mkk] > 0.9) diag.push(warn(stepIdx, 'near_limit', `motor ${mkk} on ${dev.id} at ${Math.round(sim.verdict.peakUtil[mkk] * 100)}%`));
+      }
+      stateMap[dev.id] = target;
+      for (const c of deck.collisions(stateMap)) if (c.violated) { collision = true; diag.push(err(stepIdx, 'collision', `${c.between.join(' ↔ ')} at ${c.dist.toFixed(0)}mm (min ${c.minDist})`)); }
+    }
+  } else if (prim.tool) {
+    dt = 0.1;
+    const dev = deck.getDevice(prim.device);
+    if (dev && (!dev.tool || dev.tool === 'none')) diag.push(warn(stepIdx, 'no_tool', `"${dev.id}" has no tool to actuate`));
+  } else if (prim.dwell != null) {
+    dt = prim.dwell;
+  }
+  return { dt, stall, collision };
 }
 
 if (typeof globalThis !== 'undefined') {

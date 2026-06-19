@@ -176,6 +176,29 @@ export function defaultDeck() {
   return deck;
 }
 
+// A reachable pipetting cell that exercises the IK + labware verbs — the
+// fresh-user default. An HBot positions a pipettor over tip rack, source, and
+// destination plates, with a waste chute; the sequence is written in high-level
+// verbs (pickTip / aspirate / dispense / dropTip).
+export function pipettingSample() {
+  const deck = new Deck({ name: 'Pipetting sample' });
+  deck.addDevice('hbot', { id: 'bridge', params: { bedX: 300, bedY: 300, height: 90 }, mount: { position: [0, 0, 0] } });
+  deck.addDevice('linear', { id: 'z_pip', params: { axis: 'z', drive: 'screw', travel: 110 }, tool: 'pipettor', mount: { parent: 'bridge', attach: 'carriage', position: [0, 0, 0] } });
+  deck.addDevice('tiprack', { id: 'tips', mount: { position: [-60, 0, 55] } });
+  deck.addDevice('wellplate', { id: 'src', mount: { position: [60, 0, 55] } });
+  deck.addDevice('wellplate', { id: 'dst', mount: { position: [60, 0, -55] } });
+  deck.addDevice('waste', { id: 'bin', mount: { position: [-60, 0, -55] } });
+  deck.sequences.push({ id: 'transfer', steps: [
+    { device: 'z_pip', pickTip: 'tips.1' },
+    { device: 'z_pip', aspirate: 'src.A1', uL: 50 },
+    { device: 'z_pip', dispense: 'dst.A1', uL: 50 },
+    { device: 'z_pip', aspirate: 'src.B1', uL: 50 },
+    { device: 'z_pip', dispense: 'dst.B1', uL: 50 },
+    { device: 'z_pip', dropTip: true },
+  ] });
+  return deck;
+}
+
 // ---- minimal column-major mat4 (subset, matches three.js conventions) ------
 function mat4() { const m = new Float64Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; }
 function translation(x = 0, y = 0, z = 0) { const m = mat4(); m[12] = x; m[13] = y; m[14] = z; return m; }
@@ -206,5 +229,5 @@ function applyPoint(m, p) {
 function deg2rad(d) { return (d * Math.PI) / 180; }
 
 if (typeof globalThis !== 'undefined') {
-  globalThis.DECK = { Deck, defaultDeck, SCHEMA_VERSION };
+  globalThis.DECK = { Deck, defaultDeck, pipettingSample, SCHEMA_VERSION };
 }
