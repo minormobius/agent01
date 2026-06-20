@@ -60,20 +60,52 @@
     #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
     #who b { color: #b39bd8; }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
-    /* the story panel — a click on a resident crystallizes their thread */
-    #story { position: fixed; top: 0; right: 0; width: min(360px, 86vw); height: 100%; background: linear-gradient(180deg, rgba(8,11,16,0.97), rgba(6,8,12,0.97)); border-left: 1px solid #1b2530; padding: 44px 18px 18px; overflow-y: auto; transform: translateX(102%); transition: transform .18s ease; pointer-events: auto; z-index: 5; }
-    #story.on { transform: translateX(0); }
-    #story .nm { font-size: 16px; font-weight: 600; color: #f4bf62; }
-    #story .rl { font-size: 11px; color: #6b7872; margin: 2px 0 14px; letter-spacing: .3px; }
-    #story .nmh { font-size: 12px; color: #7fd8d0; margin-bottom: 4px; }
-    #story .says { font-size: 13px; line-height: 1.55; color: #cfd8d2; white-space: pre-wrap; }
-    #story .ch { display: flex; flex-direction: column; gap: 7px; margin-top: 16px; }
-    #story .ch button { text-align: left; background: #0f141a; border: 1px solid #20303a; color: #dfe7e2; padding: 9px 11px; border-radius: 7px; font: inherit; font-size: 12.5px; cursor: pointer; transition: .12s; }
-    #story .ch button:hover { border-color: #7fd8d0; color: #fff; }
-    #story .cl { position: absolute; top: 12px; right: 14px; background: none; border: 0; color: #6b7872; font: inherit; font-size: 12px; cursor: pointer; }
+    /* the story panel — a Qud-like fullscreen interaction overlay (above the HUD), two-pane for people */
+    #storybg { position: fixed; inset: 0; z-index: 31; background: rgba(2,3,6,0.70); display: none; pointer-events: auto; }
+    #storybg.on { display: block; }
+    #story { position: fixed; z-index: 32; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(900px, 95vw); max-height: 90vh; display: none; flex-direction: column; overflow: hidden; background: linear-gradient(180deg, #0e141c, #090c12); border: 1px solid #2c3c47; border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,0.72); pointer-events: auto; }
+    #story.on { display: flex; }
+    #story.compact { width: min(560px, 92vw); }
+    /* two-pane scaffold: portrait + stats on the left, dialogue + choices on the right */
+    #story .stwrap { display: grid; grid-template-columns: 264px 1fr; min-height: 0; flex: 1; }
+    #story.compact .stwrap, #story .stwrap.single { grid-template-columns: 1fr; }
+    #story .stleft { padding: 26px 22px; border-right: 1px solid #1b2530; background: rgba(127,216,208,0.035); overflow-y: auto; }
+    #story.compact .stleft, #story .stwrap.single .stleft { display: none; }
+    #story .stright { padding: 26px 30px 24px; overflow-y: auto; min-height: 0; }
+    #story.compact .stright { padding: 24px 26px; }
+    /* solo: a single deep screen (terminal / café / chest) — padded directly, medium width */
+    #story.solo { width: min(700px, 94vw); padding: 28px 32px; overflow-y: auto; }
+    #story .portrait { width: 96px; height: 96px; border-radius: 14px; background: #0a0f15; border: 1px solid #2c3c47; display: flex; align-items: center; justify-content: center; font-size: 52px; line-height: 1; color: #f4bf62; margin-bottom: 16px; }
+    #story .nm { font-size: 19px; font-weight: 600; color: #f7c674; line-height: 1.2; }
+    #story .rl { font-size: 11.5px; color: #8aa39a; margin: 3px 0 14px; letter-spacing: .3px; }
+    #story .nmh { font-size: 12.5px; color: #7fd8d0; margin-bottom: 5px; }
+    #story .says { font-size: 14.5px; line-height: 1.62; color: #e3ebe5; white-space: pre-wrap; }
+    #story .ch { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+    #story .ch button { text-align: left; background: #131a22; border: 1px solid #2c3c47; color: #e8efe9; padding: 11px 13px; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; transition: .12s; }
+    #story .ch button:hover { border-color: #7fd8d0; background: #16212b; color: #fff; }
+    #story .cl { position: absolute; top: 13px; right: 16px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; z-index: 2; }
     #story .cl:hover { color: #f4bf62; }
     /* the ENCOUNTER card — Qud-style: meeting anything new fills the centre of the screen with its full description */
-    #enc { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9; background: rgba(2,3,6,0.62); pointer-events: auto; }
+    #enc { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 40; background: rgba(2,3,6,0.62); pointer-events: auto; }
+    /* the ARCADE — a dedicated fullscreen cabinet screen (à la the inventory), high contrast */
+    #arc { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 35%, rgba(12,9,18,0.96), rgba(4,4,8,0.99)); pointer-events: auto; }
+    #arc.on { display: flex; align-items: center; justify-content: center; }
+    #arc .acard { width: min(560px, 94vw); max-height: 94vh; overflow-y: auto; text-align: center; padding: 26px 22px 30px; }
+    #arc .ahead { font-size: 13px; letter-spacing: 1px; color: #c89ad0; }
+    #arc .alaw { font-size: 21px; font-weight: 600; color: #f4bf62; margin: 4px 0 2px; }
+    #arc .ameta { font-size: 11.5px; color: #9aa8a0; margin-bottom: 4px; }
+    #arc .arule { font-size: 12.5px; line-height: 1.5; color: #cfd8d2; border-left: 2px solid #c89ad0; padding: 4px 0 4px 11px; margin: 12px auto; max-width: 440px; text-align: left; }
+    #arc canvas { width: min(440px, 90vw); display: block; margin: 14px auto 8px; background: #0a0e16; border: 1px solid #34424d; border-radius: 8px; image-rendering: pixelated; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+    #arc .amoves { font-size: 12px; color: #9aa8a0; margin: 4px 0; }
+    #arc .awin { margin: 10px auto; padding: 9px 12px; max-width: 440px; border: 1px solid #6a5a3a; border-radius: 8px; background: rgba(244,191,98,0.12); color: #f4bf62; font-size: 13px; }
+    #arc .apad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(2, 46px); gap: 7px; justify-content: center; margin: 14px auto 4px; }
+    #arc .apad button, #arc .arow button { background: #161d27; border: 1px solid #34424d; color: #e8efe9; font: inherit; border-radius: 8px; cursor: pointer; transition: .12s; }
+    #arc .apad button { font-size: 20px; }
+    #arc .apad button:hover, #arc .arow button:hover { border-color: #c89ad0; background: #1c2630; color: #fff; }
+    #arc .arow { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
+    #arc .arow button { font-size: 12.5px; padding: 7px 13px; color: #b6c2bb; }
+    #arc .aclose { position: absolute; top: 14px; right: 18px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; }
+    #arc .aclose:hover { color: #f4bf62; }
     #enc.on { display: flex; }
     #enc .card { width: min(560px, 92vw); max-height: 82vh; overflow-y: auto; background: linear-gradient(180deg, #0b0f15, #07090e); border: 1px solid #2a3a44; border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); padding: 22px 24px 16px; }
     #enc .ek { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #7fd8d0; }
@@ -103,7 +135,9 @@
   <button id="mapbtn" title="minimap (m)">▦ map</button>
   <button id="pack" title="open pack (i)">▣ pack</button>
   <div class="hud" id="who"></div>
+  <div id="storybg"></div>
   <div id="story"></div>
+  <div id="arc"><div class="acard" id="arccard"></div></div>
   <div id="enc"><div class="card" id="enccard"></div></div>
 
   <script type="module">
@@ -332,7 +366,7 @@
       h += items.length ? items.map((it, i) => '<div class="choice" data-withdraw="' + i + '">› ' + esc(it.name || 'a thing') + ' — take</div>').join('') : '<div class="end">empty</div>';
       h += '<div class="nmh" style="margin-top:8px">your pack</div>';
       h += pack.pack.length ? pack.pack.map((it, i) => '<div class="choice" data-deposit="' + i + '">› ' + esc(it.name || 'a thing') + ' — store</div>').join('') : '<div class="end">pack is empty</div>';
-      panel.innerHTML = h; panel.classList.add('on');
+      panel.innerHTML = h; showStory('solo');
     }
 
     // ── streaming: PRELOAD the frontier — generate any free chunk edge within ~one chunk of the player ──
@@ -1061,40 +1095,66 @@
       const state = { facts: story.store.getFacts(story.playerId), narrative_tier: p.narrative_tier, revelation_tier: p.revelation_tier, items: loadGateState(story.store, story.playerId).items };
       return pickChatter(story.chatter, factionOf(ci.tags), state, agent.featureKey || npcId);
     }
+    // the story overlay is shown/hidden through one pair so the backdrop + width class stay in lock-step.
+    function showStory(mode) {
+      const p = $('story'); p.classList.remove('compact', 'wide', 'solo'); p.classList.add(mode || 'wide'); p.classList.add('on');
+      const bg = $('storybg'); if (bg) bg.classList.add('on');
+    }
+    function hideStory() { $('story').classList.remove('on'); const bg = $('storybg'); if (bg) bg.classList.remove('on'); }
+    // the left-pane stat block (portrait pane): the FLESH·CHASSIS·ANIMA triad + the combat derive, vertical.
+    function npcStatBlock(agent) {
+      const c = statBlockFor(agent), cm = deriveCombat(c);
+      const tri = TRIAD_ORDER.map((d) => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin:4px 0"><span style="color:${TRIAD[d].accent}" title="${esc(TRIAD[d].gloss)}">${TRIAD[d].glyph} ${TRIAD[d].label}</span><b style="color:#cfd8d2">${Math.round(c.triad[d] * 100)}</b></div>`).join('');
+      return `<div style="margin-top:16px;border-top:1px solid #1b2530;padding-top:13px">`
+        + `<div style="font-size:11px;color:#7fd8d0;letter-spacing:.4px;margin-bottom:7px">${esc(c.cast.label)}</div>${tri}`
+        + `<div style="display:flex;gap:12px;margin-top:11px;font-size:12px;color:#9aa8a0"><span title="health">✚ ${cm.hp}</span><span title="attack">⚔ ${cm.atk}</span><span title="defense">⛨ ${cm.def}</span></div></div>`;
+    }
     function renderStory() {
       const panel = $('story');
       if (story.active && story.active.chest) return renderChest();
       if (story.active && story.active.terminal) return renderTerminalPanel(panel);
-      if (story.active && story.active.arcade) return renderArcadePanel(panel);
       if (story.active && story.active.cafe) return renderCafePanel(panel);
-      if (!story.active) { panel.classList.remove('on'); panel.innerHTML = ''; return; }
+      if (!story.active) { hideStory(); panel.innerHTML = ''; return; }
       const { agent, npcId, intro } = story.active;
-      let head, body = '', choices = '';
+      const glyph = esc(agent.glyph || '☻'), close = `<button class="cl" data-close="1">close ⏎</button>`;
       if (npcId) {
         const t = talk(story.store, story.playerId, npcId);
         // the crowd (tree-less NPCs) speaks faction×phase chatter that tracks the story; principals keep their authored tree
         const says = (t.no_tree && (chatterFor(npcId, agent) || t.says)) || t.says;
-        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)} · ${esc(t.npc || '')} · standing ${t.standing | 0}</div>${npcStatLine(agent)}`;
+        const choices = (t.choices || []).map((c) => `<button data-cid="${esc(c.id)}">${esc(c.text)}</button>`).join('');
         const inform = story.active.informed ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
-        body = inform + `<p class="says">${esc(says)}</p>`;
-        choices = (t.choices || []).map((c) => `<button data-cid="${esc(c.id)}">${esc(c.text)}</button>`).join('');
-      } else if (intro.item) {
-        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
-        body = `<p class="nmh">${esc(intro.item.name || '')}</p><p class="says">${esc(intro.item.description || '')}</p>`;
-      } else {
-        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
-        body = `<p class="says">They meet your eye, wary — there is nothing here for you yet.</p>`;
+        const right = inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>`;
+        // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
+        // an ambient crowd one-liner → a light compact popup.
+        if (!t.no_tree || (t.choices && t.choices.length)) {
+          const left = `<div class="portrait">${glyph}</div><div class="nm">${esc(agent.name)}</div>`
+            + `<div class="rl">${esc(agent.role)}${t.npc ? ' · ' + esc(t.npc) : ''} · standing ${t.standing | 0}</div>${npcStatBlock(agent)}`;
+          panel.innerHTML = `${close}<div class="stwrap"><div class="stleft">${left}</div><div class="stright">${right}</div></div>`;
+          showStory('wide');
+        } else {
+          panel.innerHTML = `${close}<div class="stwrap single"><div class="stright">`
+            + `<div class="nm">${glyph} ${esc(agent.name)}</div><div class="rl">${esc(agent.role)}${t.npc ? ' · ' + esc(t.npc) : ''}</div>${right}</div></div>`;
+          showStory('compact');
+        }
+        return;
       }
-      // ✨ "weave a thread" (inference side-quest lane) removed for now — the machinery (weaveHere/genquest)
-      // stays dormant in case we revisit it; just no affordance.
-      panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button>${head}${body}<div class="ch">${choices}</div>`;
-      panel.classList.add('on');
+      // item / lore intro, or a not-yet NPC → a light compact popup
+      let inner;
+      if (intro && intro.item) {
+        inner = `<div class="nm">${glyph} ${esc(agent.name)}</div><div class="rl">${esc(agent.role)}</div>`
+          + `<p class="nmh">${esc(intro.item.name || '')}</p><p class="says">${esc(intro.item.description || '')}</p>`;
+      } else {
+        inner = `<div class="nm">${glyph} ${esc(agent.name)}</div><div class="rl">${esc(agent.role)}</div>`
+          + `<p class="says">They meet your eye, wary — there is nothing here for you yet.</p>`;
+      }
+      panel.innerHTML = `${close}<div class="stwrap single"><div class="stright">${inner}</div></div>`;
+      showStory('compact');
     }
+    // clicking the dim backdrop closes the conversation (like the inventory screen).
+    $('storybg').addEventListener('click', () => { if (story.active) { story.active = null; renderStory(); } });
     $('story').addEventListener('click', (e) => {
       const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
       if (cl) { story.active = null; renderStory(); return; }
-      const arc = e.target.closest('[data-arc]');
-      if (arc && story.active && story.active.arcade) { arcadeAct(arc.dataset.arc); return; }
       const eat = e.target.closest('[data-eat]');
       if (eat && story.active && story.active.cafe) { eatFood(+eat.dataset.eat); return; }
       const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
@@ -1121,10 +1181,14 @@
       const el = $('busy'); el.textContent = `✦ ${label} — ${axis} ${a.from}→${a.to}`; el.classList.add('on');
       clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
     }
-    addEventListener('keydown', (e) => { if (e.key === 'Escape' && story.active) { story.active = null; renderStory(); } });
+    addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (arcadeOpen) { closeArcade(); return; }
+      if (story.active) { story.active = null; renderStory(); }
+    });
     // arcade input: arrows / WASD drive the cabinet's law (absolute directions, like fable/forge's play view).
     addEventListener('keydown', (e) => {
-      if (!(story.active && story.active.arcade) || e.metaKey || e.ctrlKey) return;
+      if (!arcadeOpen || e.metaKey || e.ctrlKey) return;
       const m = { ArrowUp: 0, w: 0, W: 0, ArrowRight: 1, d: 1, D: 1, ArrowDown: 2, s: 2, S: 2, ArrowLeft: 3, a: 3, A: 3 };
       if (e.key in m) { e.preventDefault(); arcadeAct(m[e.key]); return; }
       if (e.key === 'u' || e.key === 'U' || e.key === 'Backspace') { e.preventDefault(); arcadeAct('undo'); return; }
@@ -1163,7 +1227,7 @@
     }
     function renderTerminalPanel(panel) {
       const T = story.page;
-      if (!T) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The terminal is dark.</p>`; panel.classList.add('on'); return; }
+      if (!T) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The terminal is dark.</p>`; showStory('solo'); return; }
       const hero = T.heroName, stencil = ((story.store.contentById('lo-terminal') || {}).content || {}).hero_stencil || '⟜⌖⟊⟁⌇';
       const STEN = `<span style="color:#b48a6a;letter-spacing:2px;background:rgba(180,138,106,.14);padding:0 4px;border-radius:3px" title="a notation you cannot read">${stencil}</span>`;
       const ciph = (s) => { const e = esc(s); return hero ? e.split(esc(hero)).join(STEN) : e; };
@@ -1180,7 +1244,7 @@
         `<div class="nmh">the spine — Propp's functions</div><div style="margin:4px 0 6px">${spine}</div>${marked}` +
         `<div class="nmh" style="margin-top:10px">the motifs — Thompson's index</div>${motifs}` +
         `<p class="says" style="margin-top:11px">The reading-room regulars argue the moves and the motifs. None of them can read the hero's name. It is set in ${STEN} — the same three layers stencilled on the wall of the room you woke in. <span style="color:#7fd8d0">Luna posted this. The hero is you.</span></p>`;
-      panel.classList.add('on');
+      showStory('solo');
     }
 
     // ── the ARCADE: a play-role component is a forge cabinet (the second live fixture). Click → approach
@@ -1206,79 +1270,83 @@
       for (let q = p; q < p + 8; q++) { const g = newArcadeGame(arcadeLawIndex, q); if (g) { arcadeGame = g; arcadeGame.q = q; return; } }
       arcadeGame = null;
     }
+    // ── THE ARCADE is its own fullscreen cabinet screen (#arc), à la the inventory — never the sidebar.
+    let arcadeOpen = false;
     function openArcade(cp, ch) {
       if (!story.ready) return;
       const li = lawIndexForKey(cabinetKeyOf(cp, ch));
       story.store.setFact(story.playerId, 'flag.found_arcade', true);
       if (!arcadeGame || arcadeLawIndex !== li) { arcadeLawIndex = li; loadArcadeGame(); }   // a different cabinet runs a different law
-      story.active = { arcade: true };
-      saveStory(); renderStory();
+      saveStory();
+      arcadeOpen = true; renderArcadeScreen();
     }
-    function renderArcadePanel(panel) {
+    function closeArcade() { arcadeOpen = false; $('arc').classList.remove('on'); }
+    function renderArcadeScreen() {
+      const card = $('arccard'); arcadeOpen = true; $('arc').classList.add('on');
       const g = arcadeGame;
-      if (!g) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The cabinet is dark.</p>`; panel.classList.add('on'); return; }
+      if (!g) { card.innerHTML = `<button class="aclose" data-aclose="1">close ⏎</button><div class="alaw">The cabinet is dark.</div>`; return; }
       const r = g.report, cleared = clearedFor(g.lawIndex), reward = arcadeReward(g);
       const winBar = g.won
-        ? `<div style="margin:9px 0;padding:7px 9px;border:1px solid #6a5a3a;border-radius:6px;background:rgba(244,191,98,.1);color:#f4bf62;font-size:12.5px">◈ solved in ${g.moves} — par ${g.par}. <span data-arc="next" style="color:#7fd8d0;cursor:pointer;text-decoration:underline">claim ◈${reward} & next ›</span></div>`
-        : `<div class="rl" style="margin:7px 0;color:#f4bf62">solve to earn ◈${reward}</div>`;
-      panel.innerHTML =
-        `<button class="cl" data-close="1">close ⏎</button>` +
-        `<div class="nm" style="color:#c89ad0">◈ the arcade</div>` +
-        `<div class="rl">a forge cabinet · <b style="color:#cfd8d2">${esc(g.law.name)}</b> · law no.${g.law.id} of the codex</div>` +
-        `<p class="says" style="font-style:normal;border-left:2px solid #c89ad0;padding-left:9px;font-size:12px">${esc(arcadeRules(g.lawIndex))}</p>` +
-        `<div class="rl" style="margin:8px 0 6px">puzzle #${g.q + 1} · ${esc(GOAL_BLURB[g.goal] || g.goal)} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}</div>` +
-        `<canvas id="arcboard" style="width:100%;display:block;background:#06080c;border:1px solid #20303a;border-radius:6px;image-rendering:pixelated"></canvas>` +
-        `<div class="rl" id="arcmoves" style="margin:6px 0">${g.moves} moves · par ${g.par}</div>` +
+        ? `<div class="awin">◈ solved in ${g.moves} — par ${g.par}. <span data-arc="next" style="color:#7fd8d0;cursor:pointer;text-decoration:underline">claim ◈${reward} &amp; next ›</span></div>`
+        : `<div class="ameta" style="color:#f4bf62;margin:8px 0">solve to earn ◈${reward}</div>`;
+      card.innerHTML =
+        `<button class="aclose" data-aclose="1">close ⏎</button>` +
+        `<div class="ahead">◈ THE ARCADE</div>` +
+        `<div class="alaw">${esc(g.law.name)}</div>` +
+        `<div class="ameta">forge cabinet · law no.${g.law.id} of the codex · puzzle #${g.q + 1} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}</div>` +
+        `<div class="arule">${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}</span></div>` +
+        `<canvas id="arcboard"></canvas>` +
+        `<div class="amoves" id="arcmoves">${g.moves} moves · par ${g.par}</div>` +
         winBar +
-        `<div style="display:grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(2,34px);gap:5px;justify-content:center;margin:6px 0">` +
-        `<span></span><button class="arcbtn" data-arc="0">▲</button><span></span>` +
-        `<button class="arcbtn" data-arc="3">◀</button><button class="arcbtn" data-arc="2">▼</button><button class="arcbtn" data-arc="1">▶</button>` +
-        `</div>` +
-        `<div style="display:flex;gap:7px;justify-content:center;margin-top:2px">` +
-        `<button class="arcbtn2" data-arc="undo">↶ undo</button><button class="arcbtn2" data-arc="reset">⟲ reset</button>` +
-        `</div>` +
-        `<style>.arcbtn{background:#0f141a;border:1px solid #20303a;color:#dfe7e2;font:inherit;font-size:15px;border-radius:6px;cursor:pointer}.arcbtn:hover{border-color:#c89ad0;color:#fff}.arcbtn2{background:#0f141a;border:1px solid #20303a;color:#9aa8a0;font:inherit;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer}.arcbtn2:hover{border-color:#c89ad0;color:#fff}</style>`;
-      panel.classList.add('on');
+        `<div class="apad"><span></span><button data-arc="0">▲</button><span></span>` +
+        `<button data-arc="3">◀</button><button data-arc="2">▼</button><button data-arc="1">▶</button></div>` +
+        `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button></div>` +
+        `<div class="ameta" style="margin-top:12px;color:#6b7872">arrows / WASD to move · U undo · Enter to claim · Esc to leave</div>`;
       drawArcadeBoard();
     }
     function drawArcadeBoard() {
       const cv2 = document.getElementById('arcboard'); if (!cv2 || !arcadeGame) return;
-      const b = arcadeBoard(arcadeGame), CW = 300, cell = Math.floor(CW / b.W), pad = 1;
+      const b = arcadeBoard(arcadeGame), CW = Math.min(440, (window.innerWidth || 480) * 0.9), cell = Math.max(14, Math.floor(CW / b.W)), pad = 1;
       const w = cell * b.W, h = cell * b.H, dpr2 = Math.min(window.devicePixelRatio || 1, 2);
-      cv2.width = w * dpr2; cv2.height = h * dpr2; cv2.style.height = h + 'px';
+      cv2.width = w * dpr2; cv2.height = h * dpr2; cv2.style.width = w + 'px'; cv2.style.height = h + 'px';
       const g = cv2.getContext('2d'); g.setTransform(dpr2, 0, 0, dpr2, 0, 0); g.clearRect(0, 0, w, h);
       for (const c of b.cells) {
         const x = c.x * cell, y = c.y * cell;
-        let fill = '#0c1118';                                   // open floor
-        if (c.wall) fill = '#1b2530';                           // static wall
-        else if (c.dyn) fill = '#3a2530';                       // hardened-behind (leave→wall) — there's no going back
-        else if (c.mark) fill = '#2a2440';                      // inked (here: solid — you cannot enter)
+        let fill = '#161d27';                                   // open floor — lifted for contrast vs near-black
+        if (c.wall) fill = '#394a57';                           // static wall — clearly lighter than floor
+        else if (c.dyn) fill = '#6a3344';                       // hardened-behind (leave→wall) — there's no going back
+        else if (c.mark) fill = '#4a3d77';                      // inked (solid — you cannot enter)
         g.fillStyle = fill; g.fillRect(x + pad, y + pad, cell - 2 * pad, cell - 2 * pad);
         if (c.exit) { g.fillStyle = '#7fd8d0'; g.font = `${cell * 0.6}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⌖', x + cell / 2, y + cell / 2); }
         if (c.token) { g.fillStyle = '#f4bf62'; g.font = `${cell * 0.55}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('✦', x + cell / 2, y + cell / 2); }
         if (c.agent) {
-          g.fillStyle = '#c89ad0'; g.beginPath(); g.arc(x + cell / 2, y + cell / 2, cell * 0.3, 0, 7); g.fill();
+          g.fillStyle = '#e3b6ec'; g.beginPath(); g.arc(x + cell / 2, y + cell / 2, cell * 0.3, 0, 7); g.fill();
           const cx = x + cell / 2, cy = y + cell / 2, R = cell * 0.36;   // heading chevron (cosmetic — moves are absolute)
           const ang = [-Math.PI / 2, 0, Math.PI / 2, Math.PI][b.dir];
-          g.strokeStyle = '#06080c'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R); g.stroke();
+          g.strokeStyle = '#0a0e16'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R); g.stroke();
         }
       }
     }
     function arcadeAct(act) {
       if (!arcadeGame) return;
-      if (act === 'undo') { arcadeUndo(arcadeGame); renderArcadePanel($('story')); return; }
-      if (act === 'reset') { arcadeReset(arcadeGame); renderArcadePanel($('story')); return; }
+      if (act === 'undo') { arcadeUndo(arcadeGame); renderArcadeScreen(); return; }
+      if (act === 'reset') { arcadeReset(arcadeGame); renderArcadeScreen(); return; }
       if (act === 'next') {   // claiming a win banks the reward (once per frontier index) and advances
         if (arcadeGame.won) { setCoins(getCoins() + arcadeReward(arcadeGame)); setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1); saveStory(); whereAmI(); }
-        loadArcadeGame(); renderArcadePanel($('story')); return;
+        loadArcadeGame(); renderArcadeScreen(); return;
       }
       const d = +act; if (!(d >= 0 && d <= 3)) return;
       const wasWon = arcadeGame.won;
       if (arcadeMove(arcadeGame, d)) {
-        if (arcadeGame.won && !wasWon) { renderArcadePanel($('story')); flashArcadeWin(arcadeGame); }
+        if (arcadeGame.won && !wasWon) { renderArcadeScreen(); flashArcadeWin(arcadeGame); }
         else { drawArcadeBoard(); const m = document.getElementById('arcmoves'); if (m) m.textContent = `${arcadeGame.moves} moves · par ${arcadeGame.par}`; }
       }
     }
+    // arcade screen input: the d-pad / undo / reset / claim-&-next, plus backdrop / close.
+    $('arc').addEventListener('click', (e) => {
+      if (e.target === $('arc') || e.target.closest('[data-aclose]')) { closeArcade(); return; }
+      const arc = e.target.closest('[data-arc]'); if (arc) arcadeAct(arc.dataset.arc);
+    });
     function flashArcadeWin(g) {
       const el = $('busy'); el.textContent = `◈ ${g.law.name} — solved in ${g.moves} (par ${g.par}) · claim ◈${arcadeReward(g)}`; el.classList.add('on');
       clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
@@ -1316,7 +1384,7 @@
     const MACRO_COL = { carb: '#8fb89f', protein: '#e08a8a', fat: '#e0c06a' };
     function renderCafePanel(panel) {
       const b = cafeBiome;
-      if (!b) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The counter is shuttered.</p>`; panel.classList.add('on'); return; }
+      if (!b) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The counter is shuttered.</p>`; showStory('solo'); return; }
       const coins = getCoins();
       let menu = '';
       b.foods.forEach((f, i) => {
@@ -1335,7 +1403,7 @@
         `<div class="rl">kitchen of <b style="color:#cfd8d2">${esc(b.name)}</b> · ${esc(b.theme)} · ${esc(b.tier)} biome${b.calorieRatio != null ? ` · feeds ${Math.round(b.calorieRatio * 100)}% of its crew` : ''} · ◈ ${coins}</div>` +
         `<p class="says" style="font-style:normal;font-size:12px;color:#9aa8a0">A procedurally-grown ecosystem (biome/gacha №${b.n}) — ${b.foods.length} harvestable dishes. Eating tops up nourishment (slows your stamina drain) and heals a little; let it run dry and you starve.</p>` +
         `<div style="margin-top:6px">${menu}</div>`;
-      panel.classList.add('on');
+      showStory('solo');
     }
     function eatFood(i) {
       const b = cafeBiome; if (!b || !b.foods[i]) return;
@@ -1482,7 +1550,7 @@
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !(story.active && story.active.arcade)) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
@@ -1538,7 +1606,7 @@
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
-    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !(story.active && story.active.arcade)) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !arcadeOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
     $('newgame').addEventListener('click', () => {
