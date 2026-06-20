@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-arcade-fixture-gn8e9j']
+    branches: [main, 'claude/hoop-quest-improvements-r78jfp']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'

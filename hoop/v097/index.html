@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#04050a" />
+  <meta name="description" content="hoop v096 — The Tabard, Chapter One. v093's lived-in O'Neill-cylinder world (traffic-sized rooms, luminous wall consoles, half-scale residents, FLESH·CHASSIS·ANIMA stats, Voronoi inventory, arena combat) carrying the Tabard story layer: a click crystallizes a Continuant / Drift / Rind-walker figure, the inference-free engine advances the revelation & narrative tiers as you earn them, and the Seven post mythographs to the terminals." />
+  <title>hoop v096 · The Tabard — Chapter One</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; } html, body { height: 100%; margin: 0; }
+    body { background: #04050a; color: #dfe7e2; font-family: "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+    .hud { position: fixed; font-size: 11px; color: #6b7872; pointer-events: none; user-select: none; }
+    #status { top: 8px; left: 10px; }
+    #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
+    #here b { color: #f4bf62; }
+    #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
+    #board { bottom: 8px; left: 96px; color: #b48a6a; text-decoration: none; pointer-events: auto; }
+    #newgame { bottom: 8px; right: 10px; color: #e08a8a; text-decoration: none; pointer-events: auto; cursor: pointer; }
+    #quest { bottom: 26px; left: 10px; max-width: 54vw; color: #cdd6cf; line-height: 1.5; }
+    #quest .lbl { color: #7fd8d0; } #quest .o { color: #f4bf62; } #quest .mk { color: #b48a6a; } #quest a.sb { color: #6b7872; pointer-events: auto; }
+    /* the handholding quest block: objective → the concrete step → where to go → how to act */
+    #quest .qobj { font-size: 12.5px; }
+    #quest .qstep { color: #cfd8d2; font-size: 11.5px; margin-top: 2px; }
+    #quest .qwhere { color: #b48a6a; font-size: 11.5px; margin-top: 2px; }
+    #quest .qwhere b { color: #f4bf62; font-weight: 600; }
+    #quest .qhow { color: #8aa39a; font-size: 11px; margin-top: 2px; font-style: italic; }
+    #quest .qhow b { color: #cfd8d2; font-style: normal; }
+    #quest .qfoot { font-size: 11px; margin-top: 3px; }
+    #quest .qbar { display: inline-block; vertical-align: middle; width: 66px; height: 5px; background: #10161d; border-radius: 3px; overflow: hidden; margin-left: 5px; }
+    #quest .qbar > span { display: block; height: 100%; background: #f4bf62; }
+    /* sign-in modal with Bluesky handle typeahead */
+    .himodal { position: fixed; inset: 0; background: rgba(6,9,13,0.72); z-index: 50; display: flex; align-items: center; justify-content: center; }
+    .hicard { background: #0d1117; border: 1px solid #20303a; border-radius: 12px; padding: 18px 18px 14px; width: min(420px, 92vw); box-shadow: 0 18px 60px rgba(0,0,0,0.6); }
+    .hihead { color: #7fd8d0; font-size: 15px; font-weight: 600; }
+    .hisub { color: #8aa39a; font-size: 12px; margin: 4px 0 12px; }
+    .hiinput { width: 100%; box-sizing: border-box; background: #070a0e; border: 1px solid #2a3a44; color: #e8eee9; font: inherit; font-size: 14px; padding: 9px 11px; border-radius: 8px; outline: none; }
+    .hiinput:focus { border-color: #7fd8d0; }
+    .hilist { margin: 6px 0 0; max-height: 230px; overflow-y: auto; }
+    .hiopt { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 7px; cursor: pointer; }
+    .hiopt.on, .hiopt:hover { background: #16212b; }
+    .hiav { width: 24px; height: 24px; border-radius: 50%; background: #233; object-fit: cover; flex: none; }
+    .hih { color: #f4bf62; font-size: 13px; flex: none; }
+    .hidn { color: #8aa39a; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hirow { display: flex; gap: 8px; margin-top: 12px; }
+    .hibtn { flex: 1; background: #7fd8d0; color: #07120f; border: none; font: inherit; font-size: 13px; font-weight: 600; padding: 9px; border-radius: 8px; cursor: pointer; }
+    .hibtn:hover { filter: brightness(1.08); }
+    .hibtn.hicancel { background: transparent; color: #8aa39a; border: 1px solid #2a3a44; }
+    #pack { position: fixed; bottom: 8px; right: 12px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #f4bf62; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #pack:hover { border-color: #f4bf62; color: #fff; }
+    #charbtn { position: fixed; bottom: 8px; right: 92px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #b39bd8; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #charbtn:hover { border-color: #b39bd8; color: #fff; }
+    #equipbtn { position: fixed; bottom: 8px; right: 185px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #7fd8d0; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #equipbtn:hover { border-color: #7fd8d0; color: #fff; }
+    #arenabtn { position: fixed; bottom: 8px; right: 270px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #cf6b6b; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; text-decoration: none; }
+    #arenabtn:hover { border-color: #cf3b3b; color: #fff; }
+    #mapbtn { position: fixed; bottom: 8px; right: 355px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #8fb89f; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
+    #mapbtn:hover { border-color: #8fb89f; color: #fff; }
+    #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
+    #who b { color: #b39bd8; }
+    #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
+    /* the story panel — a click on a resident crystallizes their thread */
+    #story { position: fixed; top: 0; right: 0; width: min(360px, 86vw); height: 100%; background: linear-gradient(180deg, rgba(8,11,16,0.97), rgba(6,8,12,0.97)); border-left: 1px solid #1b2530; padding: 44px 18px 18px; overflow-y: auto; transform: translateX(102%); transition: transform .18s ease; pointer-events: auto; z-index: 5; }
+    #story.on { transform: translateX(0); }
+    #story .nm { font-size: 16px; font-weight: 600; color: #f4bf62; }
+    #story .rl { font-size: 11px; color: #6b7872; margin: 2px 0 14px; letter-spacing: .3px; }
+    #story .nmh { font-size: 12px; color: #7fd8d0; margin-bottom: 4px; }
+    #story .says { font-size: 13px; line-height: 1.55; color: #cfd8d2; white-space: pre-wrap; }
+    #story .ch { display: flex; flex-direction: column; gap: 7px; margin-top: 16px; }
+    #story .ch button { text-align: left; background: #0f141a; border: 1px solid #20303a; color: #dfe7e2; padding: 9px 11px; border-radius: 7px; font: inherit; font-size: 12.5px; cursor: pointer; transition: .12s; }
+    #story .ch button:hover { border-color: #7fd8d0; color: #fff; }
+    #story .cl { position: absolute; top: 12px; right: 14px; background: none; border: 0; color: #6b7872; font: inherit; font-size: 12px; cursor: pointer; }
+    #story .cl:hover { color: #f4bf62; }
+    /* the ENCOUNTER card — Qud-style: meeting anything new fills the centre of the screen with its full description */
+    #enc { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9; background: rgba(2,3,6,0.62); pointer-events: auto; }
+    #enc.on { display: flex; }
+    #enc .card { width: min(560px, 92vw); max-height: 82vh; overflow-y: auto; background: linear-gradient(180deg, #0b0f15, #07090e); border: 1px solid #2a3a44; border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); padding: 22px 24px 16px; }
+    #enc .ek { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #7fd8d0; }
+    #enc .en { font-size: 22px; font-weight: 600; color: #f4bf62; margin: 3px 0 2px; line-height: 1.15; }
+    #enc .et { font-size: 11px; color: #6b7872; }
+    #enc .ed { font-size: 14.5px; line-height: 1.66; color: #d7e0da; white-space: pre-wrap; margin-top: 13px; }
+    #enc .eh { margin-top: 13px; font-size: 12.5px; color: #b48a6a; font-style: italic; }
+    #enc .ex { margin-top: 15px; font-size: 11px; color: #566; text-align: right; }
+    #auth { top: 26px; left: 10px; pointer-events: auto; max-width: 60vw; }
+    #auth .act { color: #7fd8d0; cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+  <div class="hud" id="status">…</div>
+  <div class="hud" id="auth"></div>
+  <div class="hud" id="here"></div>
+  <div class="hud" id="busy">generating…</div>
+  <a class="hud" id="back" href="/">◍ hoop</a>
+  <a class="hud" id="board" href="/v097/storyboard/">❖ storyboard</a>
+  <a class="hud" id="arch" href="/v097/architecture.html" title="the story system data-flow">⌥ data-flow</a>
+  <a class="hud" id="newgame" title="wipe story progress and start over">⟲ new game</a>
+  <div class="hud" id="quest"></div>
+  <button id="charbtn" title="character (c)">☻ character</button>
+  <a id="arenabtn" href="./arena/" title="arena">⚔ arena</a>
+  <button id="equipbtn" title="equipped (e)">⛨ equip</button>
+  <button id="mapbtn" title="minimap (m)">▦ map</button>
+  <button id="pack" title="open pack (i)">▣ pack</button>
+  <div class="hud" id="who"></div>
+  <div id="story"></div>
+  <div id="enc"><div class="card" id="enccard"></div></div>
+
+  <script type="module">
+    import { solveChunk } from './v8/chunkgen.js';
+    import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
+    import { nearestConcourse, attachShaft, markRindDeck, playerDeckOf } from './descent.js';   // chutes: a deck link is a port
+    import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
+             NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
+    import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
+    import { bakeFog } from './v8/bake.js';
+    import { paintChunk, SKIN_DEFAULTS } from './skin.js';
+    import { drawDevice } from './v5/deco.js';
+    import { drawWallLight } from './v5/lights.js';
+    import { drawWallFixture } from './consoles.js';
+    import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from './rooms.js';
+    import { buildSociety, buildResidents, stepResidents } from './npc.js';
+    import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
+    import { flattenPool, MemoryStore, interact, talk, choose, take, loadGateState } from './story/engine.js';
+    import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
+    import { deriveStoryboard, deriveMilestones, deriveOpeningCast } from './story/progression.js';   // v096: the storyboard + advancement + opening cast are DERIVED FROM hoopy's content, not hand-authored
+    import { computeBoard, questLog, activeMarkers, tierFloors } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
+    import { DECKS, DECK_COUNT, deckForTier, nextDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
+    import { assess, levelMessage, guideFor } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
+    import { buildQuestBank, questProgress, pickQuestForNpc, questMarker } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to
+    import { AuthClient } from '../vendor/auth.js';   // shared OAuth (verbatim copy of packages/oauth-client) — sign in to save to YOUR repo
+    import { loadOwnSave, putSave, SAVE_NSID, loadPool, publicClient } from './story/atproto.js';   // the per-player save lane + the SHARED pool read (com.minomobi.hoop.story.*)
+    import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
+    import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
+    import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
+    import { importWorldExport } from './story/import.js';   // v096: hoopy's world_export → content_items (first-class) diff
+    import { Inventory } from './inventory.js';
+    import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
+    import { CharacterCreator, loadCharacter } from './character.js';
+    import { deriveCombat, TRIAD, TRIAD_ORDER } from './stats.js';
+    import { crewSprite, crewStats } from './crew.js';
+    import { EquippedView } from './equipped.js';
+    import { MiniMap, onScreen, edgePoint } from './minimap.js';
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+    // read a tile's baked colour back into a 0..~1.2 luminance — used to light the voronoi-grown fixtures
+    const lumOfColor = (col) => { const m = /rgb\((\d+),(\d+),(\d+)\)/.exec(col || ''); return m ? (0.3 * +m[1] + 0.6 * +m[2] + 0.1 * +m[3]) / 190 : 0.6; };
+
+    const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
+    const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
+    const TERMINAL_ROLES = new Set(['learn', 'govern', 'worship']);   // reading-room / record-hall consoles are Tabard terminals (Continuant rooms). Marked teal ▤; click to read Luna's mythograph. A chunk-0 fallback (_terminal) guarantees at least one.
+    const isTerminal = (cp) => cp._terminal || TERMINAL_ROLES.has(cp.role);
+    // a play-role room's central component is an ARCADE cabinet (sim.js FIXTURE_ACTION: play→'arcade').
+    // Marked magenta ◈; click to play a forge puzzle (the Withering Discipline). Not a terminal, so the two never collide.
+    const isArcade = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'arcade';
+    // a serve-role room's central component is a CAFE counter (sim.js: serve→'food'). Marked amber ◍;
+    // click to buy food (coins → nourishment + stamina) sourced from biome/gacha ecosystems.
+    const isCafe = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'food';
+    const VFOV = 0.5;              // vertical field of view = this fraction of a chunk-span of world, DEVICE-INDEPENDENT:
+                                   // desktop sees the same world-HEIGHT the phone does (just wider), not a screen-size zoom
+    let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
+    let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
+    let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
+    let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0;
+    const story = { store: null, ready: false, playerId: 'local', active: null };
+    let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
+    const storyBigKeys = new Set();     // resident featureKeys an active beat marks → embiggen (storyboard-relevant only)
+    const spriteCache = new Map();
+    const pp = { x: 0, y: 0 };   // the player's CONTINUOUS position (glides; not snapped to a cell centre)
+    const SX = (x) => (x - cam.ox) * cam.scale, SY = (y) => (y - cam.oy) * cam.scale;
+    const WX = (sx) => sx / cam.scale + cam.ox, WY = (sy) => sy / cam.scale + cam.oy;
+    const busy = (on) => { busyN += on ? 1 : -1; $('busy').classList.toggle('on', busyN > 0); };
+    const px = () => pp.x, py = () => pp.y;
+
+    // off-thread generation + paint (worker) with a synchronous fallback — identical contract either way
+    let worker = null, genId = 0;
+    try { worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }); } catch (e) { worker = null; }
+    function generate(opts) {
+      return new Promise((res) => {
+        if (!worker) { const rec = solveChunk(opts); rec.seed = opts.seed >>> 0; return res({ rec, painted: paintChunk(rec, SKIN) }); }
+        const id = ++genId, h = (e) => {
+          if (!e.data || e.data.id !== id) return; worker.removeEventListener('message', h);
+          if (e.data.error) { const rec = solveChunk(opts); rec.seed = opts.seed >>> 0; res({ rec, painted: paintChunk(rec, SKIN) }); }
+          else res({ rec: e.data.rec, painted: e.data.painted });
+        };
+        worker.addEventListener('message', h); worker.postMessage({ id, opts });
+      });
+    }
+
+    function bboxOf(poly) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const v of poly) { x0 = Math.min(x0, v.x); y0 = Math.min(y0, v.y); x1 = Math.max(x1, v.x); y1 = Math.max(y1, v.y); } return { x0, y0, x1, y1 }; }
+    function centroidOf(poly) { let x = 0, y = 0; for (const v of poly) { x += v.x; y += v.y; } return { x: x / poly.length, y: y / poly.length }; }
+    // a chunk's seed is derived from its POSITION (centroid), not the load order — so a chunk is the
+    // same wherever you approach it from, and preloading several at once can't collide on a seed.
+    const hash2 = (a, b) => { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + 0x9e3779b1) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; };
+    const chunkSeedFor = (poly) => { const c = centroidOf(poly); return (hash2(Math.round(c.x), Math.round(c.y)) ^ seed) >>> 0; };
+    const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
+
+    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter();
+      const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); }
+      whereAmI(); }   // refresh the HUD (zone + stamina) on move — only while moving, so no per-frame cost when idle   // re-cull residents when you enter a new chunk
+    function setScale() { cam.scale = H / (chunkSpan * VFOV); }   // pin the VERTICAL world span; width follows the aspect (mobile look retained on desktop)
+
+    // rebuild the walk graph + the social web, then re-cast residents — but PRESERVE the sim state of
+    // residents we already have (global node ids are stable as chunks append), so commuters don't reset
+    // every time a chunk streams in.
+    function restitch() {
+      walk = buildWalk(world, blockedOf); society = buildSociety(world, walk);
+      const fresh = buildResidents(world, walk, society), prev = new Map(residents.map((a) => [a.id, a]));
+      residents = fresh.map((a) => prev.get(a.id) || a);
+      cullResidents();
+    }
+    // PERF: only the residents whose HOME is near the player (and on the current deck) get stepped/drawn —
+    // no loading souls three blocks away. Recomputed on chunk-change + restitch, so per-frame cost is bounded.
+    function cullResidents() {
+      if (!walk || player < 0) { nearResidents = residents; return; }
+      const pd = playerDeck(), R = (chunkSpan * 1.4) ** 2, cx = px(), cy = py();
+      nearResidents = residents.filter((a) => { const hk = a.homeKey; if (!hk) return false;
+        if (((world.chunks[hk.ch] || {}).deck || 0) !== pd) return false;
+        return (hk.x - cx) ** 2 + (hk.y - cy) ** 2 < R; });
+    }
+    // IMPASSABLE fixtures (v091): the bones cells under a room's floor fixture + its central component
+    // are non-navigable. Computed once per chunk from its painted result (the nearest bones cell to each
+    // claimed fixture tile / the component centre), skipping the concourse + the room's door cells.
+    function computeBlocked(ch) {
+      const set = new Set(), P = ch.painted, bones = ch.cells; if (!P || !bones) return set;
+      const doorSet = new Set(); for (const r of ch.rooms) { if (r.door >= 0) doorSet.add(r.door); if (r.doorRoad >= 0) doorSet.add(r.doorRoad); }
+      // blocker points = the fixture eruption tiles + component centres; a bones cell is impassable only
+      // if its CENTRE actually sits under one (within ~0.55·cellSize), so we don't over-block a bones cell
+      // the fixture merely grazes.
+      const pts = [];
+      for (const F of (P.fixtures || [])) for (const cl of F.cells) { if (cl.base) continue; const c = P.paintCells[cl.idx]; if (c) pts.push(c); }
+      for (const cp of (P.comps || [])) pts.push({ x: cp.cx, y: cp.cy });
+      if (!pts.length) return set;
+      const thr2 = ((ch.cellSize || 16) * 0.55) ** 2;
+      for (let i = 0; i < bones.length; i++) { if (doorSet.has(i) || ch.road[i]) continue; const bx = bones[i].x, by = bones[i].y; for (const p of pts) if ((p.x - bx) ** 2 + (p.y - by) ** 2 < thr2) { set.add(i); break; } }
+      return set;
+    }
+    const blockedOf = (chunkId, local) => { const ch = world.chunks[chunkId]; if (!ch) return false; if (!ch._blocked) ch._blocked = computeBlocked(ch); return ch._blocked.has(local); };
+    function rebakeFog() { if (!walk) return; for (const ch of world.chunks) { const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i)); } }
+    function reveal() { if (player < 0) return; for (const g of sightBall(walk, player, OPTS.sight)) seen.add(g); inView = sightBall(walk, player, OPTS.sight); rebakeFog(); }
+
+    // ── DECKS (chutes & ladders): the rind is a lower deck linked to the concourse by a shaft PORT. The
+    // render draws only the player's current deck; crossing the shaft (same x,y) flips the deck seamlessly.
+    const playerDeck = () => playerDeckOf(world, walk, player);
+    let shaftXY = null, rindBuilt = false, shaftNodes = null;
+    // nearest walkable node ON THE CURRENT DECK (decks overlap in (x,y), so a click must not jump decks)
+    function nearestDeckNode(x, y) {
+      const pd = playerDeck(); let best = -1, bd = Infinity;
+      for (let i = 0; i < walk.N; i++) {
+        if (walk.blocked && walk.blocked.has(i)) continue;
+        if (((world.chunks[walk.nodeChunk[i]] || {}).deck || 0) !== pd) continue;
+        const d = (walk.pos[2 * i] - x) ** 2 + (walk.pos[2 * i + 1] - y) ** 2; if (d < bd) { bd = d; best = i; }
+      }
+      return best;
+    }
+    // use the chute: step onto the linked shaft cell on the other deck (a ladder). Only when near the shaft.
+    function crossShaft() {
+      if (!shaftNodes || player < 0) return false;
+      const to = shaftNodes[playerDeck() === 1 ? 0 : 1]; if (to == null || to < 0) return false;
+      player = to; pp.x = walk.pos[2 * to]; pp.y = walk.pos[2 * to + 1]; route = []; routePts = [];
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      followCam(); reveal(); draw(); maybeStream();
+      return true;
+    }
+    async function maybeBuildRind() {
+      if (rindBuilt || !world || !walk || !story.ready) return;
+      if ((story.store.getPlayerState(story.playerId).narrative_tier || 1) < 3) return;   // the rind opens at his Investigation tier (the climb "down" is his ladder, not a hand-flag)
+      rindBuilt = true;
+      try {
+        const c0 = world.chunks[0];
+        const sevin = anchors.find((a) => a.key === 'anchor:sevin');
+        const sc = nearestConcourse(c0, sevin ? sevin.x : px(), sevin ? sevin.y : py());
+        if (!sc) { rindBuilt = false; return; }
+        shaftXY = { x: sc.x, y: sc.y };
+        attachShaft(c0, sc.x, sc.y, sc.cell);                       // sink the shaft on the concourse
+        const rseed = (seed ^ 0x9e3779b9) >>> 0;
+        const { rec, painted } = await generate(opts({ seed: rseed, poly: c0.poly, inherit: [{ x: sc.x, y: sc.y }] }));
+        rec.painted = painted; markRindDeck(rec, 1, shaftXY);        // lower deck, links ONLY at the shaft
+        addChunk(world, rec); restitch();
+        shaftNodes = { 0: globalOf(walk, 0, sc.cell), 1: globalOf(walk, rec.id, (rec.ports[0] || {}).cell) };   // the two ends of the chute
+        reveal(); draw();
+      } catch (e) { rindBuilt = false; /* leave the world intact if generation fails */ }
+    }
+    function checkDeckEnter() {
+      if (!story.ready || playerDeck() !== 1) return;
+      if (story.store.getFact(story.playerId, 'flag.entered_rind') === true) return;
+      story.store.setFact(story.playerId, 'flag.entered_rind', true); saveStory();   // completes b4-descent
+    }
+
+    // ── stamina (drains walking, restored by a bed) + chests (per-chamber persistent storage) ──
+    const getStam = () => clampStamina(story.ready ? story.store.getFact(story.playerId, 'sim.stamina') : STAMINA_MAX);
+    const setStam = (v) => { if (story.ready) story.store.setFact(story.playerId, 'sim.stamina', clampStamina(v)); };
+    // ── nourishment + health (the food loop) + coins (the wallet: earn at arcades, spend at the cafe) ──
+    const getNourish = () => clampNourish(story.ready ? story.store.getFact(story.playerId, 'sim.nourish') : NOURISH_MAX);
+    const getHealth = () => clampHealth(story.ready ? story.store.getFact(story.playerId, 'sim.health') : HEALTH_MAX);
+    const getCoins = () => (story.ready && story.store.getFact(story.playerId, 'coins')) | 0;
+    const setCoins = (v) => { if (story.ready) story.store.setFact(story.playerId, 'coins', Math.max(0, v | 0)); };
+    // one walking tick: drain stamina (slowed if fed), drain nourishment, bleed health if starving.
+    function tickWalk(tiles = 1) {
+      if (!story.ready) return;
+      const s = tickSurvival({ stamina: getStam(), nourish: getNourish(), health: getHealth() }, tiles);
+      const st = story.store;
+      st.setFact(story.playerId, 'sim.stamina', s.stamina);
+      st.setFact(story.playerId, 'sim.nourish', s.nourish);
+      st.setFact(story.playerId, 'sim.health', s.health);
+    }
+    const getChests = () => (story.ready && story.store.getFact(story.playerId, 'chests')) || {};
+    const setChests = (c) => { if (story.ready) story.store.setFact(story.playerId, 'chests', c); };
+
+    // a living-quarters fixture under a click: the central component is a BED, the grown wall fixture a CHEST
+    function livingFixtureAt(wx, wy) {
+      if (!world) return null; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (fixtureAction(cp.role, 'component') !== 'bed') continue;
+          if ((cp.cx - wx) ** 2 + (cp.cy - wy) ** 2 < (cp.r * 2.0) ** 2) return { action: 'bed', x: cp.cx, y: cp.cy }; }
+        for (const F of (P.fixtures || [])) { const role = (ch.rooms[F.room] || {}).role; if (fixtureAction(role, 'wall') !== 'chest' || !F.tip) continue;
+          if ((F.tip.x - wx) ** 2 + (F.tip.y - wy) ** 2 < (SKIN.playerW * 2.4) ** 2) return { action: 'chest', x: F.tip.x, y: F.tip.y, gid: 'ch' + ch.id + ':r' + F.room }; }
+      }
+      return null;
+    }
+    function useBed() {
+      setStam(STAMINA_MAX); saveStory(); whereAmI();
+      $('busy').textContent = '✚ rested — stamina restored'; $('busy').classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { $('busy').classList.remove('on'); $('busy').textContent = 'generating…'; }, 2400);
+    }
+    let chestGid = null;
+    function openChest(gid) { chestGid = gid; story.active = { chest: true }; renderChest(); }
+    function renderChest() {
+      const panel = $('story'), items = chestOf(getChests(), chestGid);
+      let h = '<button class="cl" data-close="1">close ⏎</button><div class="nm">a storage chest</div><div class="rl">▣ living quarters · ' + esc(chestGid) + '</div>';
+      h += '<div class="nmh">in the chest</div>';
+      h += items.length ? items.map((it, i) => '<div class="choice" data-withdraw="' + i + '">› ' + esc(it.name || 'a thing') + ' — take</div>').join('') : '<div class="end">empty</div>';
+      h += '<div class="nmh" style="margin-top:8px">your pack</div>';
+      h += pack.pack.length ? pack.pack.map((it, i) => '<div class="choice" data-deposit="' + i + '">› ' + esc(it.name || 'a thing') + ' — store</div>').join('') : '<div class="end">pack is empty</div>';
+      panel.innerHTML = h; panel.classList.add('on');
+    }
+
+    // ── streaming: PRELOAD the frontier — generate any free chunk edge within ~one chunk of the player ──
+    // (so from the central chunk the whole 6-neighbour ring loads ahead of you, and the frontier stays a
+    // chunk ahead as you explore). Serial by design: each neighbour inherits its predecessors' ports, so
+    // the seams stay shared — but a chunk takes ~3s to cross and ~0.5s to make, so one worker keeps ahead.
+    async function maybeStream() {
+      if (!world || busyN > 0) return;
+      if (!introSolved()) return;   // the first chunk is sealed until the opening mystery is solved
+      const LOOK = chunkSpan * 1.0;                 // start a full chunk early — "less than one chunk away"
+      let best = null, bd = Infinity;
+      for (const ch of world.chunks) for (let ei = 0; ei < ch.poly.length; ei++) {
+        if (!edgeFree(world, ch, ei)) continue;
+        const a = ch.poly[ei], b = ch.poly[(ei + 1) % ch.poly.length], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const d = Math.hypot(mx - px(), my - py());
+        if (d > LOOK) continue;
+        if (d < bd) { bd = d; best = { ch, ei }; }
+      }
+      if (!best) return;
+      busy(true);
+      const spec = neighbourSpec(world, best.ch.id, best.ei);
+      const nseed = chunkSeedFor(spec.poly);
+      const { rec, painted } = await generate(opts({ seed: nseed, poly: spec.poly, inherit: spec.inherit }));
+      rec.painted = painted; addChunk(world, rec); restitch(); reveal();
+      busy(false); status(); draw();
+      maybeStream();   // chain for any other neighbours the view already reaches
+    }
+
+    async function newWorld() {
+      busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const { rec, painted } = await generate(opts({ seed })); rec.painted = painted; addChunk(world, rec); restitch();
+      chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
+      setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal();
+      placeAnchors(); ensureChunk0Terminal();   // the authored opening: principals at the cradle + margin, a guaranteed terminal
+      renderQuest();   // resolve the storyboard waypoint now that anchors + the terminal exist
+      busy(false); status(); draw(); maybeStream();
+    }
+    function startNode() {
+      if (!walk) return -1; const ch = world.chunks[0];
+      // wake in a HEAL room — narratively Bay 14, the reconstruction bay. Spawn on a passable tile at its centre.
+      const heal = (ch.rooms || []).filter((r) => r.role === 'heal' && r.cells && r.cells.length);
+      if (heal.length) { const r = heal[0]; let rx = 0, ry = 0; for (const c of r.cells) { rx += ch.cells[c].x; ry += ch.cells[c].y; } const g = nearestNode(walk, rx / r.cells.length, ry / r.cells.length, true); if (g >= 0) return g; }
+      // fallback: the concourse cell nearest the chunk centre
+      let cx = 0, cy = 0, n = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { cx += ch.cells[i].x; cy += ch.cells[i].y; n++; } if (n) { cx /= n; cy /= n; }
+      let best = -1, bd = Infinity; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { const d = (ch.cells[i].x - cx) ** 2 + (ch.cells[i].y - cy) ** 2; if (d < bd) { bd = d; best = i; } }
+      return best >= 0 ? globalOf(walk, 0, best) : nearestNode(walk, cx, cy);
+    }
+
+    // corner-cutting (Chaikin) so the trajectory CURVES through cells instead of hopping centre→centre
+    function chaikin(pts, iters) { for (let it = 0; it < iters; it++) { if (pts.length < 3) break; const out = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } out.push(pts[pts.length - 1]); pts = out; } return pts; }
+    function walkTo(wx, wy) {
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const dst = nearestDeckNode(wx, wy); if (dst < 0 || player < 0) return;   // never target an impassable fixture tile — and stay on the current deck (decks share a footprint)
+      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+      route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm; let i = 0;
+      const tick = () => {
+        i++;
+        if (i >= sm.length) { walkTimer = null; player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+        const ox = pp.x, oy = pp.y; pp.x = sm[i][0]; pp.y = sm[i][1];
+        pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i;     // face the way you move; advance the walk cycle
+        const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
+        if (p[ni] !== player) { player = p[ni]; reveal(); tickWalk(1); }   // walking costs stamina + nourishment (and health if starving)
+        followCam(); draw(); maybeStream();
+        walkTimer = setTimeout(tick, 24);
+      };
+      walkTimer = setTimeout(tick, 24);
+    }
+
+    const roomSeen = (o) => o.cellsG.some((g) => seen.has(g));
+
+    // ── render ── crisp painted vectors under a world transform, then fog + society + player on top ──
+    function worldXform() { const w = cam.scale * dpr; ctx.setTransform(w, 0, 0, w, -cam.ox * w, -cam.oy * w); }
+    function screenXform() { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    function fillPoly(poly) { ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]); ctx.closePath(); ctx.fill(); }
+    function fillPolyG(g, poly) { g.beginPath(); g.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) g.lineTo(poly[i][0], poly[i][1]); g.closePath(); g.fill(); }
+    // ── PERF: a chunk's painting is STATIC, so bake it to an offscreen raster ONCE and blit it each frame
+    //    (instead of re-tracing thousands of cell polygons every frame). Fog/residents/player draw on top. ──
+    const RPX = 3;   // raster pixels per world unit (the painted look is soft; ample at the pinned VFOV)
+    function paintChunkInto(g, ch, P) {
+      const seamW = 0.7 / RPX;
+      for (const c of P.paintCells) { if (c.poly.length < 3) continue; g.fillStyle = c.color || '#05070b'; fillPolyG(g, c.poly); if (!c.wall) { g.strokeStyle = 'rgba(6,9,12,0.5)'; g.lineWidth = seamW; g.stroke(); } }
+      if (P.fixtures) for (const F of P.fixtures) {
+        const lm = new Map();
+        for (const cl of F.cells) { const c = P.paintCells[cl.idx]; if (c) lm.set(Math.round(c.x) + ',' + Math.round(c.y), lumOfColor(c.color)); }
+        const litAt = (x, y) => lm.get(Math.round(x) + ',' + Math.round(y)) ?? 0.6;
+        drawWallFixture(g, P, F, { accent: F.accent, hue: F.hue, litAt });
+      }
+      for (const cp of P.comps) {
+        drawDevice(g, cp.cx, cp.cy, cp.r, cp.g, { lit: Math.min(1.45, (cp.lit || 1) + 0.3), accent: cp.accent });
+        const er = cp.r * (1.8 + (cp.emit || 0.5) * 1.4), a = Math.min(0.6, 0.16 + (cp.emit || 0.5) * 0.4), hue = cp.hue == null ? 40 : cp.hue;
+        const gl = g.createRadialGradient(cp.cx, cp.cy, cp.r * 0.1, cp.cx, cp.cy, er);
+        gl.addColorStop(0, `hsla(${hue},90%,72%,${a})`); gl.addColorStop(0.45, `hsla(${hue},85%,58%,${a * 0.4})`); gl.addColorStop(1, `hsla(${hue},80%,50%,0)`);
+        g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gl; g.beginPath(); g.arc(cp.cx, cp.cy, er, 0, 7); g.fill(); g.restore();
+        if (isTerminal(cp)) { g.save(); g.strokeStyle = '#7fd8d0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#7fd8d0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('▤', cp.cx, cp.cy); g.restore(); }
+        else if (isArcade(cp)) { g.save(); g.strokeStyle = '#c89ad0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#c89ad0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◈', cp.cx, cp.cy); g.restore(); }
+        else if (isCafe(cp)) { g.save(); g.strokeStyle = '#e0a86a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e0a86a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◍', cp.cx, cp.cy); g.restore(); }
+      }
+      for (const L of P.lights) { if (L.concourse) drawBollard(g, L); else drawWallLight(g, L, { hue: L.hue, lit: L.lit }); }
+    }
+    function chunkRaster(ch) {
+      if (ch._raster) return ch._raster;
+      const P = ch.painted; if (!P) return null;
+      try {
+        const bb = ch.bb || (ch.bb = bboxOf(ch.poly)), pad = OPTS.cellSize * 2;
+        const ox = bb.x0 - pad, oy = bb.y0 - pad, w = bb.x1 - bb.x0 + 2 * pad, h = bb.y1 - bb.y0 + 2 * pad;
+        const cvs = document.createElement('canvas'); cvs.width = Math.max(1, Math.ceil(w * RPX)); cvs.height = Math.max(1, Math.ceil(h * RPX));
+        const g = cvs.getContext('2d'); g.setTransform(RPX, 0, 0, RPX, -ox * RPX, -oy * RPX);
+        paintChunkInto(g, ch, P);
+        return (ch._raster = { canvas: cvs, ox, oy, w, h });
+      } catch (e) { return null; }
+    }
+
+    function drawPainted() {
+      screenXform(); ctx.imageSmoothingEnabled = true;
+      const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
+      const pd = playerDeck(), far = chunkSpan * 2.4;
+      for (const ch of world.chunks) {
+        if ((ch.deck || 0) !== pd) continue;   // draw only the current deck (decks share a footprint)
+        const bb = ch.bb || (ch.bb = bboxOf(ch.poly));
+        if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) {   // off-screen: evict far rasters to bound memory
+          if (ch._raster && (Math.abs((bb.x0 + bb.x1) / 2 - px()) > far || Math.abs((bb.y0 + bb.y1) / 2 - py()) > far)) ch._raster = null;
+          continue;
+        }
+        const R = chunkRaster(ch); if (!R) continue;
+        ctx.drawImage(R.canvas, SX(R.ox), SY(R.oy), R.w * cam.scale, R.h * cam.scale);   // blit the baked chunk (one drawImage vs thousands of fills)
+      }
+    }
+    // v091: a free-standing concourse lamp — a dark base ringed by a warm gold glow + a hot core (mirrors
+    // the wall-lamp glow). Drawn under the world transform, so it scales with the painted scene.
+    function drawBollard(ctx, L) {
+      const r = L.len * 0.16, lit = L.lit || 1, hue = L.hue == null ? 40 : L.hue;
+      ctx.fillStyle = 'rgba(6,9,12,0.92)'; ctx.beginPath(); ctx.arc(L.x, L.y, r * 1.25, 0, 7); ctx.fill();
+      for (let i = 4; i >= 1; i--) { ctx.beginPath(); ctx.arc(L.x, L.y, r * i / 1.6, 0, 7); ctx.fillStyle = `hsla(${hue},85%,62%,${(0.05 + (4 - i) * 0.05) * (0.6 + lit * 0.4)})`; ctx.fill(); }
+      ctx.beginPath(); ctx.arc(L.x, L.y, r * 0.5, 0, 7); ctx.fillStyle = `hsla(${hue},70%,88%,0.95)`; ctx.fill();
+    }
+
+    function draw() {
+      screenXform(); ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, W, H);
+      if (!world) return;
+      drawPainted();
+      drawResidents();                 // BEFORE the fog, so the fog hides residents in unseen rooms
+      // fog blitted with a blur so its frontier is soft (hides the per-cell reveal edge)
+      ctx.imageSmoothingEnabled = true;
+      ctx.filter = `blur(${Math.max(1, cam.scale * OPTS.cellSize * 0.35).toFixed(1)}px)`;
+      { const pd = playerDeck(); for (const ch of world.chunks) { if ((ch.deck || 0) !== pd) continue; const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); } }
+      ctx.filter = 'none';
+      if (playerDeck() === 1) { ctx.fillStyle = 'rgba(30,70,90,0.22)'; ctx.fillRect(0, 0, W, H); }   // the rind: no sun-strip, cool hull-glow wash
+      drawNPC(); drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint();
+    }
+    // the shaft: a chute marker at the (deck-shared) shaft cell — ▼ down to the rind, ▲ back up to the Nave
+    function drawShaft() {
+      if (!shaftXY || !rindBuilt) return;
+      const sx = SX(shaftXY.x), sy = SY(shaftXY.y), up = playerDeck() === 1;
+      ctx.save();
+      ctx.strokeStyle = '#7fd8d0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(8, SKIN.playerW * 0.55 * cam.scale), 0, 7); ctx.stroke();
+      ctx.fillStyle = '#7fd8d0'; ctx.font = `bold ${Math.max(12, SKIN.playerW * 0.95 * cam.scale) | 0}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(up ? '▲' : '▼', sx, sy);
+      ctx.fillStyle = '#dfe7e2'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(up ? 'up to the Nave' : 'down to the rind', sx, sy - Math.max(15, SKIN.playerW * 0.8 * cam.scale));
+      ctx.restore();
+    }
+    function strokeNodes(arr, gateSeen) { ctx.beginPath(); let pen = false; for (const g of arr) { if (gateSeen && !seen.has(g)) { pen = false; continue; } const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; if (pen) ctx.lineTo(SX(x), SY(y)); else { ctx.moveTo(SX(x), SY(y)); pen = true; } } ctx.stroke(); }
+    function drawNPC() {
+      if (!society || !walk) return;
+      const pd = playerDeck(), deckOf = (cid) => (world.chunks[cid] || {}).deck || 0;
+      const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
+      const off = (x0, y0, x1, y1) => Math.max(x0, x1) < vx0 || Math.min(x0, x1) > vx1 || Math.max(y0, y1) < vy0 || Math.min(y0, y1) > vy1;   // viewport cull
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      for (const rt of society.routes) { if (!rt.cells.length || deckOf(walk.nodeChunk[rt.cells[0]]) !== pd) continue;
+        const c0 = rt.cells[0], cN = rt.cells[rt.cells.length - 1];
+        if (off(walk.pos[2 * c0], walk.pos[2 * c0 + 1], walk.pos[2 * cN], walk.pos[2 * cN + 1])) continue;
+        ctx.strokeStyle = `rgba(127,216,208,${Math.min(0.5, 0.13 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3, 0.7 + rt.w * 0.2); strokeNodes(rt.cells, true); }
+      ctx.lineWidth = 0.9; for (const e of society.edges) { if (deckOf(e.a.ch) !== pd || off(e.ax, e.ay, e.bx, e.by) || !roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.34)' : 'rgba(180,120,216,0.32)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); }
+    }
+    // ── residents: seed-stable pixel sprites, rendered once per (genome,dir,frame) to a cache canvas ──
+    function spriteCanvas(genome, dir, frame) {
+      const key = genome.seed + '|' + dir + '|' + frame;
+      let c = spriteCache.get(key); if (c) return c;
+      if (spriteCache.size > 1800) spriteCache.clear();          // bound memory over a long session
+      const N = genome.size, S = 4, cvs = document.createElement('canvas'); cvs.width = N * S; cvs.height = N * S;
+      const g = cvs.getContext('2d');
+      for (const r of frameRects(genome, DIR_OF[dir] || DIR_OF.S, frame)) { g.fillStyle = r.c; g.fillRect(r.x * S, r.y * S, S, S); }
+      spriteCache.set(key, cvs); return c = cvs;
+    }
+    function drawResidents() {
+      if (!residents.length || !walk) return;
+      ctx.imageSmoothingEnabled = false;
+      // ambient crowd stays lilliputian; a STORYBOARD-RELEVANT resident (an active beat points at them)
+      // stands near player scale with a tracking ring. storyBigKeys is refreshed from the board in
+      // renderQuest — today the beat markers point at the principals (drawn as anchors), so the crowd is
+      // uniform; a future beat marker {resident:key} embiggens exactly that crowd member.
+      const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale;
+      for (const a of nearResidents) {   // near + current-deck set (culled in cullResidents)
+        const sx = SX(a.x), sy = SY(a.y);
+        if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;   // viewport cull
+        const merit = storyBigKeys.has(a.featureKey), h = merit ? meritH : baseH;
+        const moving = !!a.pts && a.dwellLeft <= 0, frame = moving ? (a.phase | 0) % frames : null;
+        const cvs = spriteCanvas(a.genome, a.dir, frame), w = h * (cvs.width / cvs.height);
+        ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);     // ground point at the feet
+        if (merit) { ctx.imageSmoothingEnabled = true; ctx.strokeStyle = 'rgba(127,216,208,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx, sy, Math.max(6, SKIN.playerW * 0.42 * cam.scale), 0, 7); ctx.stroke(); ctx.imageSmoothingEnabled = false; }
+      }
+      ctx.imageSmoothingEnabled = true;
+    }
+    function strokePolyW(pts) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(SX(pts[i][0]), SY(pts[i][1])); else ctx.moveTo(SX(pts[i][0]), SY(pts[i][1])); } ctx.stroke(); }
+    // map a movement delta to one of the 8 sprite directions
+    function dirKey(dx, dy) { if (!dx && !dy) return pdir; let best = 'S', bd = -2; for (const d of DIR8) { const dot = (dx * d.dx + dy * d.dy) / (Math.hypot(dx, dy) * Math.hypot(d.dx, d.dy) || 1); if (dot > bd) { bd = dot; best = d.k; } } return best; }
+    function drawPlayer() {
+      if (player < 0 || !walk) return;
+      if (routePts.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 6; strokePolyW(routePts); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; strokePolyW(routePts); }
+      const x = px(), y = py(), rad = Math.max(2.5, SKIN.playerW * 0.5 * cam.scale);
+      // the lantern: the player's true-world-size glow (also grounds the sprite)
+      ctx.save(); ctx.shadowColor = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 3.2;
+      ctx.fillStyle = '#fff7e6'; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 1.4; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad * 0.55, 0, 7); ctx.fill(); ctx.restore();
+      // the embarked character, drawn as their own rolled sprite standing over the lantern
+      if (playerGenome) {
+        ctx.imageSmoothingEnabled = false;
+        const moving = !!walkTimer, frame = moving ? (pphase | 0) % 4 : null;
+        const cvs = spriteCanvas(playerGenome, pdir, frame), h = SKIN.playerW * 1.5 * cam.scale, w = h * (cvs.width / cvs.height);
+        ctx.drawImage(cvs, SX(x) - w / 2, SY(y) - h * 0.92, w, h);
+        ctx.imageSmoothingEnabled = true;
+      }
+    }
+    // ── the WAYPOINT indicator — a persistent direction to the dropped point. While the waypoint is
+    // off-screen you get a DIRECTION ONLY: an arrow pinned to the screen edge on the bearing from the
+    // player (the camera centres the player, so screen-centre ≈ player). The moment the waypoint rolls
+    // into the viewport, the edge arrow gives way to the marker itself, drawn at its true world spot. ──
+    function drawWaypoint() {
+      const wp = waypoint || storyWp;   // a manual waypoint overrides; otherwise the active beat's marker points the way
+      if (!wp || player < 0 || !walk) return;
+      const sx = SX(wp.x), sy = SY(wp.y), MARGIN = 46;
+      if (onScreen(sx, sy, W, H, MARGIN)) { drawWaypointMarker(sx, sy); return; }   // in view → the marker
+      // off-screen → the edge arrow on the bearing, clamped to an inset rect, with a distance read
+      const e = edgePoint(sx - W / 2, sy - H / 2, W / 2 - MARGIN, H / 2 - MARGIN), ax = W / 2 + e.x, ay = H / 2 + e.y;
+      const dist = Math.hypot(wp.x - px(), wp.y - py());
+      ctx.save();
+      ctx.translate(ax, ay);
+      // a dark disc so the arrow reads over any background
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, 7); ctx.fillStyle = 'rgba(6,9,12,0.82)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(244,191,98,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.rotate(e.ang);             // +x points along the bearing
+      ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(-5, -7); ctx.lineTo(-5, 7); ctx.closePath();
+      ctx.fillStyle = '#f4bf62'; ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = 8; ctx.fill();
+      ctx.restore();
+      // distance label just inside the arrow (toward screen centre)
+      ctx.fillStyle = '#f4bf62'; ctx.font = '10px "JetBrains Mono",monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`${Math.round(dist)}m`, W / 2 + e.x * 0.86, H / 2 + e.y * 0.86);
+    }
+    function drawWaypointMarker(sx, sy) {
+      const t = (performance.now() % 1200) / 1200;
+      ctx.save();
+      ctx.strokeStyle = `rgba(244,191,98,${(1 - t) * 0.7})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, 10 + t * 9, 0, 7); ctx.stroke();
+      ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(sx, sy, 8, 0, 7); ctx.moveTo(sx - 13, sy); ctx.lineTo(sx + 13, sy); ctx.moveTo(sx, sy - 13); ctx.lineTo(sx, sy + 13); ctx.stroke();
+      ctx.restore();
+    }
+
+    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall`; }
+    function whereAmI() {
+      if (player < 0 || !walk) { $('here').textContent = ''; return; }
+      const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
+      if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
+      let tierTag = '';
+      if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length, st = getStam() | 0, no = getNourish() | 0, hp = getHealth() | 0, co = getCoins();
+        const d = currentDeck(), ha = assess(story.store, story.playerId, d), paged = story.store.getFact(story.playerId, 'hoopy.paged.' + d.tier);
+        const hcol = paged ? '#7fd8d0' : ha.progress >= 1 ? '#7fd8d0' : '#9aa8a0';
+        tierTag = ` · <span style="color:#8fb89f" title="${esc(d.character.slice(0, 120))}…">deck ${d.tier}/${DECK_COUNT} · ${esc(d.name)}</span>`
+          + ` · <span style="color:${hcol}" title="hoopybot — learn enough of this deck's themes (${esc(d.learn.hint)}) to be paged on">${paged ? '✦ return to your guide' : 'hoopy ' + ha.learned + '/' + ha.needed}</span>`
+          + ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span>`
+          + ` · <span style="color:${st < 25 ? '#e08a8a' : '#9aa8a0'}" title="stamina — drains as you walk, restored by a bed (and slower when you're fed)">stam ${st}</span>`
+          + ` · <span style="color:${no < 20 ? '#e08a8a' : '#8fb89f'}" title="nourishment — ebbs as you walk; eat at a cafe (◍). Starving bleeds health">food ${no}</span>`
+          + ` · <span style="color:${hp < 35 ? '#e08a8a' : '#9aa8a0'}" title="health — falls only while starving; a meal heals a little">hp ${hp}</span>`
+          + ` · <span style="color:#f4bf62" title="coins — earned beating arcade cabinets, spent on food">◈ ${co}</span>`;
+        if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="understanding earns the way on — read the deep posts, meet the principals">⊘ the way on is sealed</span>`; }
+      $('here').innerHTML = `<b>${label}</b>${tierTag}`;
+    }
+
+    // v096 generation-lane availability (set from /api/story/health). false ⇒ no ✨ weave affordance,
+    // the game stays purely procedural — the worker adapter is the disabled stub with no GEMINI_API_KEY.
+    const storyApi = { enabled: false, provider: null };
+    const postStory = async (path, body) => {
+      const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      return r.json();
+    };
+    // ── THE POOL is atproto-native (ARCHITECTURE.md / records.html): the 600-beat corpus lives on the
+    //    morphyx SERVICE repo as com.minomobi.hoop.story.content records, and the game READS it live with
+    //    listRecords. STORY_SERVICE.pds is the last-known host; resolve the live one at runtime so a PDS
+    //    migration can't strand the read. ──
+    const STORY_SERVICE = { did: 'did:plc:yivyyp54vddf7qf2lpsikhe4', pds: 'https://chalciporus.us-west.host.bsky.network' };  // morphyx — the same account feed.html/records.html read
+    const _pdsOf = (doc) => { const s = ((doc && doc.service) || []).find((x) => x.id === '#atproto_pds' || x.type === 'AtprotoPersonalDataServer'); return s && s.serviceEndpoint; };
+    async function resolveStoryPds(svc) { try { return _pdsOf(await fetch(`https://plc.directory/${svc.did}`).then((r) => r.json())) || svc.pds; } catch (e) { return svc.pds; } }
+
+    // ── the story engine: a click on a resident crystallizes their thread (deterministic, no inference) ──
+    async function loadStory() {
+      try {
+        // Repo-primary, static-fallback. loadPool returns engine content_items verbatim (the seeder stores the
+        // normalized shape), so repo / world_export / pool.json are byte-identical to the engine. The procedural
+        // + localStorage path always works with no network and no auth — the records read only UPGRADES it.
+        let content, poolSrc;
+        try {
+          const pds = await resolveStoryPds(STORY_SERVICE);
+          content = await loadPool(publicClient(pds), STORY_SERVICE.did);
+          if (!content || content.length < 50) throw new Error('service repo pool empty/short');
+          poolSrc = 'repo';
+        } catch (e) {
+          try { content = importWorldExport(await fetch(new URL('./story/world_export.json', import.meta.url)).then((r) => { if (!r.ok) throw 0; return r.json(); })).content; poolSrc = 'world_export'; }
+          catch (e2) { const res = await fetch(new URL('./story/pool.json', import.meta.url)); if (!res.ok) throw 0; content = flattenPool(await res.json()); poolSrc = 'pool.json'; }
+        }
+        story.poolSrc = poolSrc;
+        story.store = new MemoryStore(content, { features: [] });
+        const saved = localStorage.getItem('hoop:v097:story'); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
+        // the storyboard is DERIVED from his plot_beats (the climb "out and down" is his story). The
+        // hand-authored storyboard.json is only a fallback when his content carries no plot_beats.
+        story.sb = deriveStoryboard(content);
+        if (!story.sb.beats.length) { try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; } }
+        story.milestones = story.sb ? deriveMilestones(story.sb) : [];   // tier advancement = his flag-gated beats (empty until his export wires triggers)
+        try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
+        story.ready = true; renderQuest();
+        try { questBank = buildQuestBank([...story.store.content.values()]); } catch (e) { questBank = new Map(); }   // the side-quest bank (one per rumor seed)
+        try { openingCast = deriveOpeningCast([...story.store.content.values()], 3); } catch (e) {}   // hoopybot's guides, ready even before anchors place
+        foldCharacterFromSave();   // the character rides the save now — adopt the saved one, or seed it from local
+        syncOwnSaveIfReady();   // if already signed in, your repo save wins over the local buffer
+        maybeArriveDeck();   // the awakening: the current deck's hand-written character + your guide's hook
+        try { const h = await fetch('/api/story/health').then((r) => r.json()); storyApi.enabled = !!(h && h.enabled); storyApi.provider = h && h.provider; } catch (e) { storyApi.enabled = false; }   // v096: is live generation available?
+      } catch (e) { story.ready = false; }   // graceful: residents still live and walk, just no story panel
+    }
+    // v096 — weave a NEW side-quest rooted in THIS place: build a chunk profile from the focal role + room,
+    // ask the worker (Gemini, gated by review/gates/validate), fold an approved arc into the live pool, and
+    // crystallize its principal onto a fresh feature. Fully guarded; a SKIP/BLOCK just toasts and changes nothing.
+    // phase 3 — the RICH chunk profile: the whole building programme + lived population + civic web here,
+    // so the spine matches a story arc as THICK as the place. Falls back to the light profile if not ready.
+    function profileHere(agent) {
+      try {
+        const ci = walk.nodeChunk[player], chunk = world.chunks[ci], rooms = (chunk && chunk.rooms) || [];
+        const residentRoles = {}; for (const a of nearResidents) if (a.role) residentRoles[a.role] = (residentRoles[a.role] || 0) + 1;
+        if (agent && agent.role) residentRoles[agent.role] = (residentRoles[agent.role] || 0) + 1;
+        const edges = (society && society.edges) ? society.edges.filter((e) => (e.a && e.a.ch === ci) || (e.b && e.b.ch === ci)) : [];
+        const p = profileFromChunk({ rooms, residentRoles, edges });
+        if (p.roles && Object.keys(p.roles).length) return p;
+      } catch (e) {}
+      return buildProfile({ role: agent && agent.role });
+    }
+    async function weaveHere(agent) {
+      if (!storyApi.enabled || !story.ready || story.weaving) return;
+      story.weaving = true;
+      const el = $('busy'); el.textContent = '✨ weaving a thread…'; el.classList.add('on');
+      const done = (msg, ms = 2800) => { el.textContent = msg; clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); story.weaving = false; };
+      try {
+        const profile = profileHere(agent);   // phase 3: the rich chunk profile (building programme + population + civic web)
+        const existing = poolFilter([...story.store.content.values()], { lane: 'spine' }).slice(0, 40);
+        const result = await requestSidequest(postStory, { profile, existing });
+        if (!result || result.verdict !== 'PASS') return done(result && result.verdict === 'BLOCK' ? '✨ the thread tangled — try again' : '✨ the weave is quiet');
+        const { principal, added } = applyResult(story.store, result);
+        if (principal) {
+          const key = 'weave:' + (agent.featureKey || agent.id || agent.name) + ':' + Date.now().toString(36);
+          story.store.addFeature({ key, type: 'npc', label: agent.name, content_id: principal });
+          const intro = interact(story.store, story.playerId, key);
+          story.active = { agent, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro, woven: true };
+        }
+        saveStory(); renderStory();
+        done('✨ a new thread — ' + added.length + ' woven', 3200);
+      } catch (e) { done('✨ the weave broke'); }
+    }
+    // the QUEST LOG — derived from the storyboard (board.js), the same source the /storyboard/ board reads.
+    // Four lines of deliberate handholding: (1) OBJECTIVE — what you're working toward + progress; (2) STEP —
+    // the hand-authored concrete next move (the active storyboard beat's log); (3) WHERE — the waypoint target
+    // in words; (4) HOW — the verb to use when you're new. Lines 2-4 appear only when they add something.
+    function renderQuest() {
+      const el = $('quest'); if (!el) return;
+      if (!story.ready) { el.innerHTML = ''; return; }
+      const d = currentDeck(), tier = narTier(), paged = story.store.getFact(story.playerId, 'hoopy.paged.' + d.tier);
+      const chap = (story.sb && story.sb.chapter) || 1;
+
+      // (1) OBJECTIVE — hoopybot drives the narrative (the deck climb). When PAGED, the objective flips to
+      //     "return to your guide" and the waypoint points at them — that's the way out of a deck.
+      let objective, progHtml = '', hoopWp = null, whereWord = null;
+      if (paged) {
+        const guide = guideFor(openingCast, tier), gA = anchors.find((a) => guide && a.content_id === guide.id);
+        objective = `<span class="lbl">⚑</span> <span class="o">Return to ${esc(guideName(guide))}</span> <span class="mk">— they have new guidance for you</span>`;
+        if (gA) { hoopWp = { x: gA.x, y: gA.y }; whereWord = guideName(guide); } else whereWord = 'where you woke (Bay 14)';
+      } else {
+        const a = assess(story.store, story.playerId, d);
+        const left = Math.max(1, a.needed - a.learned);
+        objective = `<span class="lbl">⚑ Chapter ${chap} · ${esc(d.name)}</span> <span class="o">— learn ${left} more of ${esc(d.learn.hint)}</span>`
+          + `<span class="qbar"><span style="width:${Math.round(100 * a.learned / Math.max(1, a.needed))}%"></span></span>`
+          + ` <span class="mk">${a.learned}/${a.needed}</span>`;
+      }
+
+      // (2) STEP + (3) WHERE — the active storyboard beat is the most concrete instruction we have. Its `log`
+      //     is the hand-authored "do this next"; its marker.hint is the place in words. Also pick which
+      //     residents EMBIGGEN (storyboard-relevant) and resolve the on-screen waypoint.
+      let stepText = null, sbWp = null;
+      if (story.sb) {
+        const board = computeBoard(story.sb, story.store, story.playerId);
+        const ams = activeMarkers(board);
+        storyBigKeys.clear(); for (const m of ams) if (m.resident) storyBigKeys.add(m.resident);
+        sbWp = ams.length ? resolveMarker(ams[0]) : null;
+        const active = questLog(board).find((q) => q.status === 'active');
+        if (active) {
+          stepText = active.text;
+          if (!paged && active.marker && active.marker.hint) whereWord = active.marker.hint;
+        }
+      }
+      storyWp = hoopWp || sbWp;   // the guide when paged, else the storyboard marker
+
+      // (4) HOW — teach the core verb while the player is still new (no progress on this deck yet).
+      let howText = null;
+      if (!paged) {
+        const a = assess(story.store, story.playerId, d);
+        if (a.learned === 0) howText = 'Click a person to walk over and <b>talk</b>; click anything that glows to examine it. Everything new you meet counts.';
+      }
+
+      let sqOpen = 0; const f = story.store.getFacts(story.playerId); for (const k of Object.keys(f)) if (k.startsWith('sq.on.') && !f['sq.done.' + k.slice(6)]) sqOpen++;
+      const foot = `<a class="sb" id="qjournal" style="cursor:pointer" title="side quests (j)">✒ journal${sqOpen ? ' (' + sqOpen + ')' : ''}</a> · <a class="sb" href="/v097/storyboard/">full quest board ↗</a>`;
+
+      el.innerHTML = `<div class="qobj">${objective}</div>`
+        + (stepText ? `<div class="qstep">▸ ${esc(stepText)}</div>` : '')
+        + (whereWord ? `<div class="qwhere">→ go to <b>${esc(whereWord)}</b>${storyWp ? ' (follow the ◇ waypoint)' : ''}</div>` : '')
+        + (howText ? `<div class="qhow">${howText}</div>` : '')
+        + `<div class="qfoot">${foot}</div>`;
+      const jl = $('qjournal'); if (jl) jl.onclick = (e) => { e.preventDefault(); toggleJournal(); };
+    }
+    const saveStorySnapshot = () => { if (story.ready) { try { localStorage.setItem('hoop:v097:story', JSON.stringify(story.store.snapshot())); } catch (e) {} scheduleRepoSave(); } };
+
+    // ── THE SAVE LANE: sign in → your game syncs to YOUR OWN repo (com.minomobi.hoop.story.save), durable
+    //    + cross-device + user-owned ($0 to us). localStorage stays the hot buffer; the repo write is
+    //    BATCHED (debounced ~4s + on unload) — never a record per footstep. A faithful port of v3/v4. ──
+    const auth = new AuthClient();
+    let storyUser = null;                         // { did, handle } when signed in
+    const worldKey = () => String(seed);          // save rkey = ship seed (one save per world)
+    let _lastSync = null, _repoDirty = false, _saveErr = null;
+    function scheduleRepoSave() { _repoDirty = true; }   // mark dirty; the periodic flusher + unload do the write
+    // SAVE OFTEN (hoopy #4: beforeunload is flaky on mobile/crashes, and a frequent save keeps the engine's
+    // pulse/rumor projection honest). Periodic flush while dirty + on hide/unload — not a per-action debounce
+    // (which could starve during continuous play). Surfaces the real error instead of failing silently.
+    function flushRepo(force) {
+      if (!storyUser || !story.ready || (!_repoDirty && !force)) return;
+      _repoDirty = false;
+      try {
+        putSave(auth.pds, worldKey(), story.store.snapshot())
+          .then(() => { _lastSync = Date.now(); _saveErr = null; renderAuthPill(); })
+          .catch((e) => { _repoDirty = true; _saveErr = String((e && e.message) || e); console.error('[hoop] save to PDS failed:', e); renderAuthPill(); });
+      } catch (e) { _repoDirty = true; _saveErr = String((e && e.message) || e); console.error('[hoop] save threw:', e); renderAuthPill(); }
+    }
+    setInterval(() => flushRepo(false), 12000);
+    addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushRepo(true); });
+    addEventListener('beforeunload', () => flushRepo(true));
+    const RECORDS_LINK = `<a class="act" href="/v097/records" target="_blank" title="the lexicons, the service account, and how to read these records">records ↗</a>`;
+    function renderAuthPill() {
+      const el = $('auth'); if (!el) return;
+      if (storyUser) {
+        const uri = `at://${storyUser.did}/${SAVE_NSID}/${worldKey()}`;
+        let status;
+        if (_saveErr) status = `<span style="color:#e08a8a" title="${esc(_saveErr)}">save failed</span> · <span class="act" data-retry>retry</span> · <span class="act" data-relogin>re-sign in</span>`;
+        else if (_lastSync) status = `<span title="${esc(uri)}">your save ✓ ${esc(new Date(_lastSync).toLocaleTimeString())}</span>`;
+        else status = `<span title="${esc(uri)}">your save (syncing…)</span>`;
+        el.innerHTML = `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — ${status} · ${RECORDS_LINK} · <span class="act" data-logout>sign out</span>`;
+      } else {
+        el.innerHTML = `<span class="act" data-login>sign in</span> to save your game to your PDS · ${RECORDS_LINK}`;
+      }
+      const lo = el.querySelector('[data-logout]'); if (lo) lo.onclick = signOut;
+      const li = el.querySelector('[data-login]'); if (li) li.onclick = signIn;
+      const rt = el.querySelector('[data-retry]'); if (rt) rt.onclick = () => { _saveErr = null; renderAuthPill(); flushRepo(true); };
+      const rl = el.querySelector('[data-relogin]'); if (rl) rl.onclick = () => { _saveErr = null; signIn(); };   // a fresh OAuth re-mints the unified scope (fixes a narrow SSO session)
+    }
+    let _syncedSave = false;
+    // your repo is the durable truth — restore it the moment BOTH the store and auth are ready (either
+    // order). If you have no save yet, seed it from the local buffer. Runs once per sign-in.
+    function syncOwnSaveIfReady() {
+      if (_syncedSave || !storyUser || !story.ready) return;
+      _syncedSave = true;
+      loadOwnSave(auth.pds, worldKey()).then((snap) => {
+        if (snap) { story.store.restore(snap); foldCharacterFromSave(); whereAmI(); renderQuest(); if (world) draw(); flashToast('◍ loaded your saved game from @' + storyUser.handle, 2600); }
+        else flushRepo(true);   // no save yet → seed your repo from the local state now
+      }).catch(() => {});
+    }
+    function setUser(u) {
+      storyUser = u ? { did: u.did, handle: u.handle } : null;
+      _syncedSave = false;
+      renderAuthPill();
+      syncOwnSaveIfReady();
+    }
+    // ── SIGN-IN with handle TYPEAHEAD: a small modal whose input live-searches Bluesky handles via the
+    //    public appview (app.bsky.actor.searchActorsTypeahead — unauthed). Replaces the bare prompt(): no
+    //    more typo'd handles, and you can pick yourself from the dropdown (↑/↓ + Enter, or click). ──
+    let _handleModal = null;
+    function searchHandles(q) {
+      const term = String(q || '').replace(/^@+/, '').trim();
+      if (term.length < 2) return Promise.resolve([]);
+      return fetch('https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?limit=6&q=' + encodeURIComponent(term))
+        .then((r) => (r.ok ? r.json() : { actors: [] })).then((j) => (j && j.actors) || []).catch(() => []);
+    }
+    function signIn() {
+      if (_handleModal) return;
+      const wrap = document.createElement('div'); wrap.className = 'himodal';
+      wrap.innerHTML =
+        '<div class="hicard">'
+        + '<div class="hihead">Sign in with Bluesky</div>'
+        + '<div class="hisub">Save your game to your own repo — start typing your handle.</div>'
+        + '<input class="hiinput" type="text" placeholder="you.bsky.social" autocomplete="off" autocapitalize="off" spellcheck="false" />'
+        + '<div class="hilist"></div>'
+        + '<div class="hirow"><button class="hibtn" data-go>Sign in</button><button class="hibtn hicancel" data-cancel>Cancel</button></div>'
+        + '</div>';
+      document.body.appendChild(wrap); _handleModal = wrap;
+      const input = wrap.querySelector('.hiinput'), list = wrap.querySelector('.hilist');
+      let actors = [], sel = -1, t = null, reqId = 0;
+      const close = () => { if (_handleModal) { _handleModal.remove(); _handleModal = null; } };
+      const submit = (h) => {
+        const handle = String(h != null ? h : input.value).replace(/^@+/, '').trim();
+        if (!handle) { input.focus(); return; }
+        close();
+        auth.login(handle).catch((e) => flashToast('sign-in failed: ' + (e && e.message || e), 3200));   // UNIFIED scope (incl. story.save) → OAuth, returns here
+      };
+      const renderList = () => {
+        list.innerHTML = actors.map((a, i) =>
+          `<div class="hiopt${i === sel ? ' on' : ''}" data-i="${i}">`
+          + `<img class="hiav" src="${esc(a.avatar || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=')}" alt="" />`
+          + `<span class="hih">@${esc(a.handle)}</span>`
+          + (a.displayName ? `<span class="hidn">${esc(a.displayName)}</span>` : '')
+          + '</div>').join('');
+        list.querySelectorAll('.hiopt').forEach((o) => { o.onmousedown = (e) => { e.preventDefault(); submit(actors[+o.dataset.i].handle); }; });
+      };
+      input.addEventListener('input', () => {
+        clearTimeout(t); const q = input.value, id = ++reqId;
+        t = setTimeout(() => searchHandles(q).then((as) => { if (id !== reqId) return; actors = as; sel = -1; renderList(); }), 160);
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); if (actors.length) { sel = (sel + 1) % actors.length; renderList(); } }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); if (actors.length) { sel = (sel - 1 + actors.length) % actors.length; renderList(); } }
+        else if (e.key === 'Enter') { e.preventDefault(); submit(sel >= 0 ? actors[sel].handle : input.value); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+      });
+      wrap.addEventListener('mousedown', (e) => { if (e.target === wrap) close(); });
+      wrap.querySelector('[data-go]').onclick = () => submit();
+      wrap.querySelector('[data-cancel]').onclick = () => close();
+      setTimeout(() => input.focus(), 30);
+    }
+    async function signOut() { try { await auth.logout(); } catch (e) {} setUser(null); }
+    renderAuthPill();   // show the sign-in / records affordance immediately; auth.init refines it
+    auth.init().then(() => { const u = auth.getUser && auth.getUser(); if (u) setUser(u); else renderAuthPill(); }).catch(() => renderAuthPill());
+    const saveStory = () => {
+      if (!story.ready) return;
+      saveStorySnapshot();
+      // advancement: REVELATION (world-understanding) floors from exposure (XP + storyboard) + his flag
+      // milestones; NARRATIVE (the story spine) is hoopybot's — paged via checkHoopy, granted at your guide.
+      for (const a of checkAdvance(story.store, story.playerId, story.milestones || [])) if (a.axis === 'narrative_tier' || a.axis === 'revelation_tier') flashTier(a);
+      if (story.sb) {
+        const floors = tierFloors(computeBoard(story.sb, story.store, story.playerId)), p = story.store.getPlayerState(story.playerId);
+        const cur = p.revelation_tier || 1; if ((floors.revelation_tier || 1) > cur) { story.store.setPlayerTier(story.playerId, 'revelation_tier', floors.revelation_tier); flashTier({ axis: 'revelation_tier', from: cur, to: floors.revelation_tier }); }
+      }
+      checkHoopy();   // hoopybot: has the player learned enough of this deck to be paged for the next rung?
+      checkQuests();  // side quests: resolve any thread whose theme the player has now chased enough
+      whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
+      if (introSolved()) { maybeStream(); maybeBuildRind(); }   // unseal: stream the Nave + sink the rind shaft on the concourse
+    };
+    // ── the ENCOUNTER card (Qud-style, hoopy's note): the FIRST time you meet anything, its full
+    //    description fills the centre of the screen. Every entity carries a decent-size description — show
+    //    it. Only fires on first touch (crystallize), never on recall; dismiss with click / ⏎ / Esc. ──
+    const ENC_GLYPH = { npc: '☻ person', creature: '✦ creature', item: '▣ item', lore_fragment: '❧ lore', plot_beat: '✷ moment', rumor: '☷ rumor' };
+    function showEncounter(item) {
+      if (!item || !String(item.description || '').trim()) return;
+      const hint = item.revelation_hint ? `<div class="eh">“${esc(item.revelation_hint)}”</div>` : '';
+      const tier = item.revelation_tier ? ` · tier ${item.revelation_tier}` : '';
+      $('enccard').innerHTML =
+        `<div class="ek">${esc(ENC_GLYPH[item.type] || item.type || 'encounter')}${tier}</div>` +
+        `<div class="en">${esc(item.name || 'Something')}</div>` +
+        `<div class="ed">${esc(item.description)}</div>${hint}` +
+        `<div class="ex">⏎ / click to continue</div>`;
+      $('enc').classList.add('on');
+    }
+    const hideEncounter = () => $('enc').classList.remove('on');
+    $('enc').addEventListener('click', hideEncounter);
+    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
+    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) showEncounter(intro.item); };
+    // a generic centre-screen page (deck arrival, the hoopybot level-up) — same overlay, custom layout.
+    function showPage(kicker, title, body, foot) {
+      $('enccard').innerHTML =
+        `<div class="ek">${esc(kicker)}</div>` +
+        `<div class="en">${esc(title)}</div>` +
+        `<div class="ed">${esc(body)}</div>` +
+        `<div class="ex">${esc(foot || '⏎ / click to continue')}</div>`;
+      $('enc').classList.add('on');
+    }
+
+    // ── HOOPYBOT + THE DECK SPINE: narrative_tier is the climb through five hand-written decks (decks.js).
+    //    hoopybot (hoopy.js) watches what you've learned on your current deck; when you've learned enough of
+    //    the right things it PAGES you (a custom message) to return to your guide, who advances you and gives
+    //    the next deck's guidance. Each deck shows its hand-written character on arrival. ──
+    let openingCast = [];   // his Arrival NPCs (set in placeAnchors) — the guides you report back to
+    const narTier = () => (story.ready ? (story.store.getPlayerState(story.playerId).narrative_tier || 1) : 1);
+    const currentDeck = () => deckForTier(narTier());
+    const guideName = (g) => (g && (g.content || {}).name) || 'your guide';
+    function showDeckCard(deck, withHook) {
+      if (!deck) return;
+      const body = withHook ? `${deck.character}\n\n— ${deck.hook}` : deck.character;
+      showPage(`deck ${deck.tier} of ${DECK_COUNT} · ${deck.ladder} · ${deck.rev}`, deck.name, body);
+    }
+    // arrival: show a deck's character the first time the player is on that tier.
+    function maybeArriveDeck() {
+      if (!story.ready) return;
+      const d = currentDeck(), k = 'hoopy.arrived.' + d.tier;
+      if (story.store.getFact(story.playerId, k)) return;
+      story.store.setFact(story.playerId, k, true); saveStorySnapshot();
+      showDeckCard(d, true);
+    }
+    // hoopybot's verdict — page the player when they've learned enough of the current deck (once per tier).
+    function checkHoopy() {
+      if (!story.ready) return;
+      const d = currentDeck(), a = assess(story.store, story.playerId, d);
+      const pk = 'hoopy.paged.' + d.tier;
+      if (a.ready && !story.store.getFact(story.playerId, pk)) {
+        story.store.setFact(story.playerId, pk, true); saveStorySnapshot();
+        const guide = guideFor(openingCast, d.tier);
+        $('enc').classList.contains('on') || showPage('hoopybot · you have leveled', d.name + ' — understood', levelMessage(d, guideName(guide)), '⏎ / click — then find your guide');
+      }
+    }
+    // the GRANT: returning to your guide while paged advances the narrative tier and gives next guidance.
+    function isGuide(contentId) { const g = guideFor(openingCast, narTier()); return !!(g && contentId && g.id === contentId); }
+    function grantLevelAtGuide() {
+      const tier = narTier(), d = currentDeck();
+      if (!story.store.getFact(story.playerId, 'hoopy.paged.' + tier)) return false;   // not cleared yet
+      const nd = nextDeck(tier);
+      story.store.setPlayerTier(story.playerId, 'narrative_tier', Math.min(DECK_COUNT, tier + 1));
+      if (nd) story.store.setFact(story.playerId, 'hoopy.arrived.' + nd.tier, true);   // the guidance below IS the arrival
+      saveStory();   // re-floors, re-renders quest, lifts the opening seal at narrative 2
+      const guide = guideFor(openingCast, tier);
+      if (nd) showPage('your guide · new guidance', `${guideName(guide)} sends you on`, `“You learned ${d.name} well. The way opens toward ${nd.name}.”\n\n${nd.character}\n\n— ${nd.hook}`, '⏎ / click to continue');
+      else showPage('your guide · the last word', guideName(guide), `“There is nothing left for me to teach. ${d.name} is yours now, and the choice with it.”`, '⏎ / click to continue');
+      whereAmI();
+      return true;
+    }
+
+    // ── SIDE QUESTS (deterministic, story/quests.js): the people you meet tip you to rumors that share
+    //    their world; a thread opens, you chase the theme, it resolves for coins. Tracked as facts
+    //    (sq.on.<seed> / sq.done.<seed>); no inference, ~80 threads in the bank. ──
+    let questBank = new Map();
+    const questTaken = (seedId) => !!(story.ready && (story.store.getFact(story.playerId, 'sq.on.' + seedId) || story.store.getFact(story.playerId, 'sq.done.' + seedId)));
+    function npcNameMap() { const m = new Map(); if (story.ready) for (const c of story.store.content.values()) if (c.type === 'npc') m.set(((c.content || {}).name || '').toLowerCase(), c.id); return m; }
+    // meeting an NPC: they tip you to the best theme-overlapping unopened rumor-thread.
+    function maybeOpenQuest(npcContentId, npcName) {
+      if (!story.ready || !questBank.size) return;
+      const ci = story.store.contentById(npcContentId); if (!ci || ci.type !== 'npc') return;
+      const q = pickQuestForNpc(questBank, ci, questTaken); if (!q) return;
+      story.store.setFact(story.playerId, 'sq.on.' + q.seedId, true); saveStorySnapshot();
+      flashToast(`✒ ${npcName || 'someone'} mentions a rumor — “${q.title}” (j: journal)`, 3200);
+    }
+    // resolve any open thread whose theme the player has now chased enough — pays coins.
+    function checkQuests() {
+      if (!story.ready || !questBank.size) return;
+      const facts = story.store.getFacts(story.playerId); const resolved = [];
+      for (const k of Object.keys(facts)) {
+        if (!k.startsWith('sq.on.')) continue; const seedId = k.slice(6);
+        if (story.store.getFact(story.playerId, 'sq.done.' + seedId)) continue;
+        const q = questBank.get(seedId); if (!q) continue;
+        if (questProgress(story.store, story.playerId, q).done) {
+          story.store.setFact(story.playerId, 'sq.done.' + seedId, true);
+          setCoins(getCoins() + q.reward); resolved.push(q);
+        }
+      }
+      if (resolved.length) { saveStorySnapshot(); const q = resolved[0]; flashToast(`✒ thread resolved — “${q.title}” +◈${q.reward}${resolved.length > 1 ? ` (+${resolved.length - 1} more)` : ''}`, 3600); whereAmI(); }
+    }
+    function flashToast(text, ms = 2600) { const el = $('busy'); el.textContent = text; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); }
+    // the JOURNAL: open threads (progress) + resolved ones. Toggle with j / the ✒ button.
+    function renderJournal() {
+      if (!story.ready) { showPage('journal', 'your journal', 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.'); return; }
+      const facts = story.store.getFacts(story.playerId), names = npcNameMap();
+      const open = [], done = [];
+      for (const k of Object.keys(facts)) { if (!k.startsWith('sq.on.')) continue; const id = k.slice(6); const q = questBank.get(id); if (!q) continue; (facts['sq.done.' + id] ? done : open).push(q); }
+      let body = '';
+      if (!open.length && !done.length) body = 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.';
+      for (const q of open) {
+        const pr = questProgress(story.store, story.playerId, q), mk = questMarker(q, names);
+        body += `<div style="margin:0 0 13px;border-left:2px solid #b48a6a;padding-left:10px">`
+          + `<div style="color:#f4bf62;font-size:13.5px">${esc(q.title)}</div>`
+          + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin:3px 0">${esc((q.hook || '').slice(0, 200))}${q.hook.length > 200 ? '…' : ''}</div>`
+          + `<div style="color:#9aa8a0;font-size:11px">look into: ${esc(q.themes.join(', '))}${mk && mk.hint ? ` · ⌖ ${esc(mk.hint)}` : ''}</div>`
+          + `<div style="margin-top:4px;height:5px;background:#10161d;border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:${Math.round(pr.progress * 100)}%;background:#b48a6a"></span></div>`
+          + `<div style="color:#6b7872;font-size:10.5px;margin-top:2px">${pr.learned}/${pr.needed} · reward ◈${q.reward}</div></div>`;
+      }
+      for (const q of done) body += `<div style="margin:0 0 7px;color:#7fd8d0;font-size:12.5px">✓ ${esc(q.title)} <span style="color:#6b7872">— ◈${q.reward}${q.reveal ? ' · ' + esc(q.reveal.slice(0, 80)) : ''}</span></div>`;
+      showPage(`journal · ${open.length} open · ${done.length} resolved`, 'your journal', '');
+      $('enccard').querySelector('.ed').innerHTML = body;   // rich list (showPage escapes; we want markup)
+    }
+    const toggleJournal = () => { if ($('enc').classList.contains('on')) hideEncounter(); else renderJournal(); };
+
+    function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of nearResidents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
+    function openStory(a) {
+      if (!story.ready) return;
+      const s = story.store;
+      if (!s.featureByKey(a.featureKey)) s.addFeature({ key: a.featureKey, type: 'npc', label: a.name, tag: a.role });
+      const intro = interact(s, story.playerId, a.featureKey, '', { tag: a.role });
+      maybeEncounter(intro);   // first meeting → its description fills the screen
+      if (intro.status === 'crystallized' && intro.item && intro.item.type === 'npc') maybeOpenQuest(intro.item.content_item_id, intro.item.name);   // they tip you to a rumor
+      story.active = { agent: a, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      story.active.informed = deliverInformed();   // the "next person you talk to" delivers any XP-unlocked beat
+      saveStory(); renderStory();
+    }
+    // deliver a pending informed beat (an active beat carrying `informed` text, not yet delivered): mark it
+    // delivered, set its completes_when facts (so it closes → checkAdvance bumps the tier), return the line.
+    function deliverInformed() {
+      if (!story.ready || !story.sb) return null;
+      for (const b of computeBoard(story.sb, story.store, story.playerId)) {
+        if (b.status !== 'active' || !b.informed || story.store.getFact(story.playerId, 'delivered.' + b.id)) continue;
+        story.store.setFact(story.playerId, 'delivered.' + b.id, true);
+        for (const [k, v] of Object.entries((b.completes_when || {}).facts || {})) story.store.setFact(story.playerId, k, v);
+        return b.informed;
+      }
+      return null;
+    }
+    // every soul gets a cheap, deterministic FLESH·CHASSIS·ANIMA stat block (crewStats is O(1))
+    const npcStats = new Map();
+    function statBlockFor(agent) {
+      const k = (agent.genome && agent.genome.seed) || agent.id || agent.name;
+      let sb = npcStats.get(k); if (!sb) { sb = crewStats(k, agent.role); npcStats.set(k, sb); }
+      return sb;
+    }
+    function npcStatLine(agent) {
+      const c = statBlockFor(agent), cm = deriveCombat(c);
+      const tri = TRIAD_ORDER.map((d) => `<span style="color:${TRIAD[d].accent}">${TRIAD[d].glyph}${Math.round(c.triad[d] * 100)}</span>`).join(' ');
+      return `<div style="font-size:10.5px;color:#9aa8a0;margin:-6px 0 12px"><b style="color:#cfd8d2">${esc(c.cast.label)}</b> · ${tri} · <span title="combat">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def}</span></div>`;
+    }
+    // an ambient NPC's line: faction (from its tags) × the active story phase, stable per NPC (no LLM)
+    function chatterFor(npcId, agent) {
+      if (!story.ready || !story.chatter) return null;
+      const ci = story.store.contentById(npcId); if (!ci) return null;
+      const p = story.store.getPlayerState(story.playerId);
+      const state = { facts: story.store.getFacts(story.playerId), narrative_tier: p.narrative_tier, revelation_tier: p.revelation_tier, items: loadGateState(story.store, story.playerId).items };
+      return pickChatter(story.chatter, factionOf(ci.tags), state, agent.featureKey || npcId);
+    }
+    function renderStory() {
+      const panel = $('story');
+      if (story.active && story.active.chest) return renderChest();
+      if (story.active && story.active.terminal) return renderTerminalPanel(panel);
+      if (story.active && story.active.arcade) return renderArcadePanel(panel);
+      if (story.active && story.active.cafe) return renderCafePanel(panel);
+      if (!story.active) { panel.classList.remove('on'); panel.innerHTML = ''; return; }
+      const { agent, npcId, intro } = story.active;
+      let head, body = '', choices = '';
+      if (npcId) {
+        const t = talk(story.store, story.playerId, npcId);
+        // the crowd (tree-less NPCs) speaks faction×phase chatter that tracks the story; principals keep their authored tree
+        const says = (t.no_tree && (chatterFor(npcId, agent) || t.says)) || t.says;
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)} · ${esc(t.npc || '')} · standing ${t.standing | 0}</div>${npcStatLine(agent)}`;
+        const inform = story.active.informed ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
+        body = inform + `<p class="says">${esc(says)}</p>`;
+        choices = (t.choices || []).map((c) => `<button data-cid="${esc(c.id)}">${esc(c.text)}</button>`).join('');
+      } else if (intro.item) {
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
+        body = `<p class="nmh">${esc(intro.item.name || '')}</p><p class="says">${esc(intro.item.description || '')}</p>`;
+      } else {
+        head = `<div class="nm">${esc(agent.name)}</div><div class="rl">${esc(agent.glyph || '')} ${esc(agent.role)}</div>`;
+        body = `<p class="says">They meet your eye, wary — there is nothing here for you yet.</p>`;
+      }
+      // ✨ "weave a thread" (inference side-quest lane) removed for now — the machinery (weaveHere/genquest)
+      // stays dormant in case we revisit it; just no affordance.
+      panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button>${head}${body}<div class="ch">${choices}</div>`;
+      panel.classList.add('on');
+    }
+    $('story').addEventListener('click', (e) => {
+      const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
+      if (cl) { story.active = null; renderStory(); return; }
+      const arc = e.target.closest('[data-arc]');
+      if (arc && story.active && story.active.arcade) { arcadeAct(arc.dataset.arc); return; }
+      const eat = e.target.closest('[data-eat]');
+      if (eat && story.active && story.active.cafe) { eatFood(+eat.dataset.eat); return; }
+      const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
+      if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); setChests(chestDeposit(getChests(), chestGid, it)); saveStory(); renderChest(); } return; }
+      if (wd && chestGid) { const i = +wd.dataset.withdraw, r = chestWithdraw(getChests(), chestGid, i); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); saveStory(); renderChest(); } return; }
+      if (ch && story.active && story.active.npcId) {
+        const r = choose(story.store, story.playerId, story.active.npcId, ch.dataset.cid);
+        // an NPC's give_items grant → real items in the Voronoi pack (a key becomes a key sprite)
+        for (const id of (r && r.gave_items) || []) {
+          const it = itemFromGrant(story.store.contentById(id)); if (!it) continue;
+          addToPack(pack.pack, it); pack.setPack(pack.pack); flashPickup(it);
+        }
+        saveStory(); if (r && r.ended) { story.active = null; } renderStory();
+      }
+    });
+    // a brief toast when something enters the pack
+    let _flashT = null;
+    function flashPickup(it) {
+      const el = $('busy'); el.textContent = `+ ${it.name} → pack (i)`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2200);
+    }
+    function flashTier(a) {
+      const axis = a.axis.split('_')[0], label = axis === 'narrative' ? 'Orientation' : 'The Curve';
+      const el = $('busy'); el.textContent = `✦ ${label} — ${axis} ${a.from}→${a.to}`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
+    }
+    addEventListener('keydown', (e) => { if (e.key === 'Escape' && story.active) { story.active = null; renderStory(); } });
+    // arcade input: arrows / WASD drive the cabinet's law (absolute directions, like fable/forge's play view).
+    addEventListener('keydown', (e) => {
+      if (!(story.active && story.active.arcade) || e.metaKey || e.ctrlKey) return;
+      const m = { ArrowUp: 0, w: 0, W: 0, ArrowRight: 1, d: 1, D: 1, ArrowDown: 2, s: 2, S: 2, ArrowLeft: 3, a: 3, A: 3 };
+      if (e.key in m) { e.preventDefault(); arcadeAct(m[e.key]); return; }
+      if (e.key === 'u' || e.key === 'U' || e.key === 'Backspace') { e.preventDefault(); arcadeAct('undo'); return; }
+      if (e.key === 'Enter' && arcadeGame && arcadeGame.won) { e.preventDefault(); arcadeAct('next'); }
+    });
+
+    // ── the Tabard terminal: a learn-role component is a TERMINAL (the reading-room console). Click → approach
+    //    → the mythograph reader (Luna's frozen page 71, the hero's name overwritten in stencil). ──
+    function componentAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isTerminal(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    let _pageP = null;
+    function ensureTerminalPage() {
+      if (story.page) return Promise.resolve(story.page);
+      if (!_pageP) _pageP = fetch(new URL('./story/terminal-71.json', import.meta.url)).then((r) => r.json()).then((p) => (story.page = p)).catch(() => null);
+      return _pageP;
+    }
+    async function openTerminal(cp, ch) {
+      if (!story.ready) return;
+      await ensureTerminalPage();
+      const key = 'term:' + ch.id + ':' + cp.room, s = story.store;
+      if (!s.featureByKey(key)) s.addFeature({ key, type: 'lore_fragment', label: 'a Tabard terminal', content_id: 'lo-terminal' });
+      interact(s, story.playerId, key);                              // crystallize lo-terminal (pinned) → XP + placement
+      s.setFact(story.playerId, 'flag.read_terminal', true);
+      s.setFact(story.playerId, 'flag.heard_luna', true);
+      // seeing your own name in the stencil = you now carry the notation (the reason Sevin believes)
+      if (!s.listInventoryRows(story.playerId).some((r) => r.content_item_id === 'it-stenciltrace')) take(s, story.playerId, 'it-stenciltrace');
+      story.active = { terminal: true };
+      saveStory(); renderStory();                                    // saveStory advances tiers if the chain has closed
+    }
+    function renderTerminalPanel(panel) {
+      const T = story.page;
+      if (!T) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The terminal is dark.</p>`; panel.classList.add('on'); return; }
+      const hero = T.heroName, stencil = ((story.store.contentById('lo-terminal') || {}).content || {}).hero_stencil || '⟜⌖⟊⟁⌇';
+      const STEN = `<span style="color:#b48a6a;letter-spacing:2px;background:rgba(180,138,106,.14);padding:0 4px;border-radius:3px" title="a notation you cannot read">${stencil}</span>`;
+      const ciph = (s) => { const e = esc(s); return hero ? e.split(esc(hero)).join(STEN) : e; };
+      const actC = {}; for (const a of T.propp.acts) actC[a.id] = a.color;
+      const ac = T.actant;
+      let spine = ''; for (const m of T.propp.moves) spine += `<span style="font-size:10.5px;padding:2px 6px;border:1px solid ${actC[m.act] || '#2a3340'};${m.inverted ? 'border-style:dashed;' : ''}border-radius:5px;margin:0 3px 4px 0;display:inline-block" title="${esc(m.gloss || '')}">${esc(m.sym)} ${esc(m.name)}</span>`;
+      let marked = ''; for (const m of T.propp.moves) if (m.name === 'Branding' || m.name === 'Recognition') marked += `<div style="color:#9aa8a0;margin:3px 0 3px 8px;border-left:1px solid #20303a;padding-left:7px"><b style="color:#cfd8d2">${esc(m.sym)} ${esc(m.name)}.</b> ${ciph(m.gloss)}</div>`;
+      let motifs = ''; for (const m of T.motifs.list) { const k = m.code === 'M341'; motifs += `<div style="margin:2px 0;${k ? 'color:#f4bf62' : ''}"><span style="color:#6b7872">${esc(m.code)}</span> ${esc(m.name)}${k ? ' — <i>' + esc(m.gloss) + '</i>' : ''}</div>`; }
+      panel.innerHTML =
+        `<button class="cl" data-close="1">close ⏎</button>` +
+        `<div class="nm">${ciph(T.title)}</div>` +
+        `<div class="rl">${esc(T.kicker)} · ${esc(T.cultureLabel)} · a mythograph, posted before its telling · ${esc(T.permalink)}</div>` +
+        `<p class="says" style="font-style:normal;border-left:2px solid #f4bf62;padding-left:9px"><b style="color:#f4bf62">The desire.</b> ${ciph(ac.subject)} wants <i>${esc(ac.object)}</i>, against <b>${esc(ac.opponent)}</b>${ac.unreachable ? ' — <span style="color:#7fd8d0">and the limit is never reached.</span>' : '.'}</p>` +
+        `<div class="nmh">the spine — Propp's functions</div><div style="margin:4px 0 6px">${spine}</div>${marked}` +
+        `<div class="nmh" style="margin-top:10px">the motifs — Thompson's index</div>${motifs}` +
+        `<p class="says" style="margin-top:11px">The reading-room regulars argue the moves and the motifs. None of them can read the hero's name. It is set in ${STEN} — the same three layers stencilled on the wall of the room you woke in. <span style="color:#7fd8d0">Luna posted this. The hero is you.</span></p>`;
+      panel.classList.add('on');
+    }
+
+    // ── the ARCADE: a play-role component is a forge cabinet (the second live fixture). Click → approach
+    //    → a real puzzle minted by fable/forge. ONE RULESET PER CABINET (picked from its stable chamber
+    //    key), so the world's arcades are a little codex you wander. Beat one and it PAYS OUT coins — the
+    //    earning half of the economy the cafe spends. Cleared count is per-law; the puzzle line is forge's. ──
+    function arcadeAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isArcade(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    const cabinetKeyOf = (cp, ch) => 'ch' + ch.id + ':r' + cp.room;
+    const clearedFor = (li) => (story.ready && story.store.getFact(story.playerId, 'arcade.cleared.' + li)) | 0;
+    const setClearedFor = (li, n) => { if (story.ready) story.store.setFact(story.playerId, 'arcade.cleared.' + li, n | 0); };
+    let arcadeGame = null, arcadeLawIndex = 0;
+    function loadArcadeGame() {
+      const p = clearedFor(arcadeLawIndex);
+      // forge tries 5 salts per index; if a given p somehow yields nothing, walk forward to the next playable one.
+      for (let q = p; q < p + 8; q++) { const g = newArcadeGame(arcadeLawIndex, q); if (g) { arcadeGame = g; arcadeGame.q = q; return; } }
+      arcadeGame = null;
+    }
+    function openArcade(cp, ch) {
+      if (!story.ready) return;
+      const li = lawIndexForKey(cabinetKeyOf(cp, ch));
+      story.store.setFact(story.playerId, 'flag.found_arcade', true);
+      if (!arcadeGame || arcadeLawIndex !== li) { arcadeLawIndex = li; loadArcadeGame(); }   // a different cabinet runs a different law
+      story.active = { arcade: true };
+      saveStory(); renderStory();
+    }
+    function renderArcadePanel(panel) {
+      const g = arcadeGame;
+      if (!g) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The cabinet is dark.</p>`; panel.classList.add('on'); return; }
+      const r = g.report, cleared = clearedFor(g.lawIndex), reward = arcadeReward(g);
+      const winBar = g.won
+        ? `<div style="margin:9px 0;padding:7px 9px;border:1px solid #6a5a3a;border-radius:6px;background:rgba(244,191,98,.1);color:#f4bf62;font-size:12.5px">◈ solved in ${g.moves} — par ${g.par}. <span data-arc="next" style="color:#7fd8d0;cursor:pointer;text-decoration:underline">claim ◈${reward} & next ›</span></div>`
+        : `<div class="rl" style="margin:7px 0;color:#f4bf62">solve to earn ◈${reward}</div>`;
+      panel.innerHTML =
+        `<button class="cl" data-close="1">close ⏎</button>` +
+        `<div class="nm" style="color:#c89ad0">◈ the arcade</div>` +
+        `<div class="rl">a forge cabinet · <b style="color:#cfd8d2">${esc(g.law.name)}</b> · law no.${g.law.id} of the codex</div>` +
+        `<p class="says" style="font-style:normal;border-left:2px solid #c89ad0;padding-left:9px;font-size:12px">${esc(arcadeRules(g.lawIndex))}</p>` +
+        `<div class="rl" style="margin:8px 0 6px">puzzle #${g.q + 1} · ${esc(GOAL_BLURB[g.goal] || g.goal)} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}</div>` +
+        `<canvas id="arcboard" style="width:100%;display:block;background:#06080c;border:1px solid #20303a;border-radius:6px;image-rendering:pixelated"></canvas>` +
+        `<div class="rl" id="arcmoves" style="margin:6px 0">${g.moves} moves · par ${g.par}</div>` +
+        winBar +
+        `<div style="display:grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(2,34px);gap:5px;justify-content:center;margin:6px 0">` +
+        `<span></span><button class="arcbtn" data-arc="0">▲</button><span></span>` +
+        `<button class="arcbtn" data-arc="3">◀</button><button class="arcbtn" data-arc="2">▼</button><button class="arcbtn" data-arc="1">▶</button>` +
+        `</div>` +
+        `<div style="display:flex;gap:7px;justify-content:center;margin-top:2px">` +
+        `<button class="arcbtn2" data-arc="undo">↶ undo</button><button class="arcbtn2" data-arc="reset">⟲ reset</button>` +
+        `</div>` +
+        `<style>.arcbtn{background:#0f141a;border:1px solid #20303a;color:#dfe7e2;font:inherit;font-size:15px;border-radius:6px;cursor:pointer}.arcbtn:hover{border-color:#c89ad0;color:#fff}.arcbtn2{background:#0f141a;border:1px solid #20303a;color:#9aa8a0;font:inherit;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer}.arcbtn2:hover{border-color:#c89ad0;color:#fff}</style>`;
+      panel.classList.add('on');
+      drawArcadeBoard();
+    }
+    function drawArcadeBoard() {
+      const cv2 = document.getElementById('arcboard'); if (!cv2 || !arcadeGame) return;
+      const b = arcadeBoard(arcadeGame), CW = 300, cell = Math.floor(CW / b.W), pad = 1;
+      const w = cell * b.W, h = cell * b.H, dpr2 = Math.min(window.devicePixelRatio || 1, 2);
+      cv2.width = w * dpr2; cv2.height = h * dpr2; cv2.style.height = h + 'px';
+      const g = cv2.getContext('2d'); g.setTransform(dpr2, 0, 0, dpr2, 0, 0); g.clearRect(0, 0, w, h);
+      for (const c of b.cells) {
+        const x = c.x * cell, y = c.y * cell;
+        let fill = '#0c1118';                                   // open floor
+        if (c.wall) fill = '#1b2530';                           // static wall
+        else if (c.dyn) fill = '#3a2530';                       // hardened-behind (leave→wall) — there's no going back
+        else if (c.mark) fill = '#2a2440';                      // inked (here: solid — you cannot enter)
+        g.fillStyle = fill; g.fillRect(x + pad, y + pad, cell - 2 * pad, cell - 2 * pad);
+        if (c.exit) { g.fillStyle = '#7fd8d0'; g.font = `${cell * 0.6}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⌖', x + cell / 2, y + cell / 2); }
+        if (c.token) { g.fillStyle = '#f4bf62'; g.font = `${cell * 0.55}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('✦', x + cell / 2, y + cell / 2); }
+        if (c.agent) {
+          g.fillStyle = '#c89ad0'; g.beginPath(); g.arc(x + cell / 2, y + cell / 2, cell * 0.3, 0, 7); g.fill();
+          const cx = x + cell / 2, cy = y + cell / 2, R = cell * 0.36;   // heading chevron (cosmetic — moves are absolute)
+          const ang = [-Math.PI / 2, 0, Math.PI / 2, Math.PI][b.dir];
+          g.strokeStyle = '#06080c'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R); g.stroke();
+        }
+      }
+    }
+    function arcadeAct(act) {
+      if (!arcadeGame) return;
+      if (act === 'undo') { arcadeUndo(arcadeGame); renderArcadePanel($('story')); return; }
+      if (act === 'reset') { arcadeReset(arcadeGame); renderArcadePanel($('story')); return; }
+      if (act === 'next') {   // claiming a win banks the reward (once per frontier index) and advances
+        if (arcadeGame.won) { setCoins(getCoins() + arcadeReward(arcadeGame)); setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1); saveStory(); whereAmI(); }
+        loadArcadeGame(); renderArcadePanel($('story')); return;
+      }
+      const d = +act; if (!(d >= 0 && d <= 3)) return;
+      const wasWon = arcadeGame.won;
+      if (arcadeMove(arcadeGame, d)) {
+        if (arcadeGame.won && !wasWon) { renderArcadePanel($('story')); flashArcadeWin(arcadeGame); }
+        else { drawArcadeBoard(); const m = document.getElementById('arcmoves'); if (m) m.textContent = `${arcadeGame.moves} moves · par ${arcadeGame.par}`; }
+      }
+    }
+    function flashArcadeWin(g) {
+      const el = $('busy'); el.textContent = `◈ ${g.law.name} — solved in ${g.moves} (par ${g.par}) · claim ◈${arcadeReward(g)}`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
+    }
+
+    // ── the CAFE: a serve-role component is a food counter (the third live fixture). Each cafe is the
+    //    kitchen of ONE biome/gacha ecosystem (picked from its chamber key), so different cafes plate
+    //    different cuisines. Buy food with coins → nourishment (slows stamina drain) + a little health.
+    //    The nutrition was baked offline from biome's real viability oracle (food/build-biomes.mjs). ──
+    function cafeAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isCafe(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    let foodData = null, _foodP = null, cafeBiome = null;
+    function ensureFoodData() {
+      if (foodData) return Promise.resolve(foodData);
+      if (!_foodP) _foodP = fetch(new URL('./food/biomes.json', import.meta.url)).then((r) => r.json()).then((d) => (foodData = d)).catch(() => null);
+      return _foodP;
+    }
+    async function openCafe(cp, ch) {
+      if (!story.ready) return;
+      await ensureFoodData();
+      const biomes = (foodData && foodData.biomes) || [];
+      if (!biomes.length) { story.active = { cafe: true }; renderStory(); return; }
+      cafeBiome = biomes[lawIndexForKey('cafe:' + cabinetKeyOf(cp, ch)) % biomes.length];   // this counter's kitchen
+      story.store.setFact(story.playerId, 'flag.found_cafe', true);
+      story.active = { cafe: true };
+      saveStory(); renderStory();
+    }
+    const MACRO_COL = { carb: '#8fb89f', protein: '#e08a8a', fat: '#e0c06a' };
+    function renderCafePanel(panel) {
+      const b = cafeBiome;
+      if (!b) { panel.innerHTML = `<button class="cl" data-close="1">close ⏎</button><p class="says">The counter is shuttered.</p>`; panel.classList.add('on'); return; }
+      const coins = getCoins();
+      let menu = '';
+      b.foods.forEach((f, i) => {
+        const afford = coins >= f.cost;
+        const bar = ['carb', 'protein', 'fat'].map((k) => `<span style="display:inline-block;height:5px;width:${Math.round((f.macros[k] || 0) * 60)}px;background:${MACRO_COL[k]}"></span>`).join('');
+        const thumb = f.thumb ? `<img src="${esc(f.thumb)}" alt="" loading="lazy" style="width:34px;height:34px;border-radius:5px;object-fit:cover;flex:0 0 auto" />` : `<span style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;background:#0f141a;border-radius:5px">${f.kind === 'fish' ? '🐟' : f.kind === 'meat' ? '🍖' : '🌿'}</span>`;
+        menu += `<div style="display:flex;gap:9px;align-items:center;padding:7px 0;border-top:1px solid #141c24">${thumb}`
+          + `<div style="flex:1 1 auto;min-width:0"><div style="color:#dfe7e2;font-size:12.5px">${esc(f.name)} <span style="color:#6b7872">· ${esc(f.kind)}</span></div>`
+          + `<div style="font-size:10.5px;color:#9aa8a0">${f.kcal} kcal · +${f.restoreStamina} stam · +${f.nourish} food</div>`
+          + `<div style="margin-top:2px;line-height:0" title="carb / protein / fat">${bar}</div></div>`
+          + `<button data-eat="${i}" ${afford ? '' : 'disabled'} style="flex:0 0 auto;background:${afford ? '#241f15' : '#15171b'};color:${afford ? '#f4bf62' : '#52606a'};border:1px solid ${afford ? '#6a5a3a' : '#222b33'};border-radius:6px;font:inherit;font-size:12px;padding:6px 9px;cursor:${afford ? 'pointer' : 'not-allowed'}">◈${f.cost}</button></div>`;
+      });
+      panel.innerHTML =
+        `<button class="cl" data-close="1">close ⏎</button>` +
+        `<div class="nm" style="color:#e0a86a">◍ the cafe</div>` +
+        `<div class="rl">kitchen of <b style="color:#cfd8d2">${esc(b.name)}</b> · ${esc(b.theme)} · ${esc(b.tier)} biome${b.calorieRatio != null ? ` · feeds ${Math.round(b.calorieRatio * 100)}% of its crew` : ''} · ◈ ${coins}</div>` +
+        `<p class="says" style="font-style:normal;font-size:12px;color:#9aa8a0">A procedurally-grown ecosystem (biome/gacha №${b.n}) — ${b.foods.length} harvestable dishes. Eating tops up nourishment (slows your stamina drain) and heals a little; let it run dry and you starve.</p>` +
+        `<div style="margin-top:6px">${menu}</div>`;
+      panel.classList.add('on');
+    }
+    function eatFood(i) {
+      const b = cafeBiome; if (!b || !b.foods[i]) return;
+      const f = b.foods[i], coins = getCoins();
+      if (coins < f.cost) { const el = $('busy'); el.textContent = `◍ not enough coins for ${f.name} (◈${f.cost})`; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2400); return; }
+      setCoins(coins - f.cost);
+      const s = applyFood({ stamina: getStam(), nourish: getNourish(), health: getHealth() }, f);
+      const st = story.store; st.setFact(story.playerId, 'sim.stamina', s.stamina); st.setFact(story.playerId, 'sim.nourish', s.nourish); st.setFact(story.playerId, 'sim.health', s.health);
+      saveStory(); whereAmI(); renderCafePanel($('story'));
+      const el = $('busy'); el.textContent = `◍ ate ${f.name} — +${f.nourish} food, +${f.restoreStamina} stam`; el.classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2600);
+    }
+
+    // ── the opening: PRINCIPALS pinned in chunk 0 are DERIVED FROM HIS STORY (his Arrival NPCs — Olo
+    //    Vashti / Sevin / Solen are all in his pool), not a hand-pinned fixture. The first wakes with you
+    //    at the cradle; the rest stand at progressively farther margins. Beacons, pinned via content_id. ──
+    let anchors = [];
+    const ANCHOR_COLORS = ['#7fd8d0', '#b48a6a', '#c89ad0', '#d0c07f'];
+    function placeAnchors() {
+      anchors = [];
+      if (!society || player < 0 || !story.ready) return;
+      const cast = deriveOpeningCast([...story.store.content.values()], 3);   // his lowest-tier (Arrival) NPCs
+      openingCast = cast;   // hoopybot's guides: the NPCs you report back to as you climb the decks
+      const r0 = society.rooms.filter((o) => o.ch === 0);
+      const byDist = r0.map((o) => ({ o, d: (o.x - px()) ** 2 + (o.y - py()) ** 2 })).sort((a, b) => a.d - b.d);
+      cast.forEach((npc, i) => {
+        const pos = i === 0 ? { x: px(), y: py() } : ((byDist[Math.min(byDist.length - 1, Math.round((i / Math.max(1, cast.length - 1)) * (byDist.length - 1)))] || {}).o) || { x: px(), y: py() };
+        anchors.push({ key: 'anchor:' + npc.id, content_id: npc.id, name: (npc.content || {}).name || npc.id, role: (npc.tags || [])[0] || 'drift',
+          color: ANCHOR_COLORS[i % ANCHOR_COLORS.length], x: pos.x, y: pos.y, deck: 0, dir: 'S', genome: buildGenome('hoop-anchor:' + npc.id, { role: 'trade', size: 13 }) });
+      });
+    }
+    // guarantee chunk 0 has at least one Tabard terminal (designate the most central component if no role matches)
+    function ensureChunk0Terminal() {
+      const ch = world && world.chunks[0]; if (!ch || !ch.painted) return;
+      const comps = ch.painted.comps || [];
+      if (comps.some(isTerminal)) return;
+      let best = null, bd = Infinity; for (const cp of comps) { const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = cp; } }
+      if (best) best._terminal = true;
+    }
+    // resolve a storyboard marker to a world position for the waypoint
+    const PLACE_ROLE = [[/industrial|forge|works|margin/i, 'make'], [/garden|green|grow|deck/i, 'grow'], [/market|braid|trade|bazaar/i, 'trade'], [/hall|council|govern|court/i, 'govern'], [/heal|clinic|med|bay/i, 'heal'], [/learn|library|archive|school/i, 'learn'], [/worship|shrine|temple|nave/i, 'worship']];
+    function farMargin() {
+      if (!society) return null; let far = null, fd = -1;
+      for (const o of society.rooms) { if (o.ch !== 0) continue; const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d > fd) { fd = d; far = o; } }
+      return far ? { x: far.x, y: far.y } : null;
+    }
+    function nearestRoomOfRole(role) {
+      if (!society || !role) return null; let best = null, bd = Infinity;
+      for (const o of society.rooms) { if (o.role !== role) continue; const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d < bd) { bd = d; best = { x: o.x, y: o.y }; } }
+      return best;
+    }
+    function resolveMarker(m) {
+      if (!m) return null;
+      if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); return a ? { x: a.x, y: a.y } : null; }
+      if (m.terminal) {
+        let best = null, bd = Infinity;
+        for (const ch of (world ? world.chunks : [])) for (const cp of ((ch.painted && ch.painted.comps) || [])) {
+          if (!isTerminal(cp)) continue; const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = { x: cp.cx, y: cp.cy }; }
+        }
+        return best;
+      }
+      if (m.place) {   // a LOCATION ref from his plot_beats → a world position (the descent, or a role-matched room)
+        if (m.place === 'rind') return (shaftXY && { x: shaftXY.x, y: shaftXY.y }) || farMargin();
+        for (const [re, role] of PLACE_ROLE) if (re.test(m.place)) { const p = nearestRoomOfRole(role); if (p) return p; }
+        return null;   // unresolved → the hint text still shows in the quest log
+      }
+      return null;
+    }
+    function anchorAt(wx, wy) {
+      let best = null, bd = (SKIN.playerW * 3) ** 2;
+      for (const a of anchors) { if ((a.deck || 0) !== playerDeck()) continue; const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } }
+      return best;
+    }
+    function openAnchor(a) {
+      if (!story.ready) return;
+      const s = story.store;
+      if (!s.featureByKey(a.key)) s.addFeature({ key: a.key, type: 'npc', label: a.name, content_id: a.content_id });
+      const intro = interact(s, story.playerId, a.key);
+      maybeEncounter(intro);   // first meeting → its description fills the screen
+      if (intro.status === 'crystallized' && intro.item && intro.item.type === 'npc') maybeOpenQuest(intro.item.content_item_id, intro.item.name);   // they tip you to a rumor
+      story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      story.active.informed = deliverInformed();   // a principal can also be the one who informs you
+      saveStory(); renderStory();
+      if (isGuide(a.content_id)) grantLevelAtGuide();   // your guide, while you're paged → advance + next guidance
+    }
+    function drawAnchors() {
+      const h = SKIN.playerW * 1.45 * cam.scale;   // principals stand at ~player scale (figures of merit, not map pins)
+      for (const a of anchors) {
+        if ((a.deck || 0) !== playerDeck()) continue;   // principals belong to their deck
+        const sx = SX(a.x), sy = SY(a.y);
+        if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;
+        a.dir = dirKey(px() - a.x, py() - a.y);   // turn to face the player — a sign of life, even standing their post
+        ctx.save();
+        ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(7, SKIN.playerW * 0.5 * cam.scale), 0, 7); ctx.stroke();   // faction-coloured ground ring (trackable)
+        if (a.genome) {
+          ctx.imageSmoothingEnabled = false;
+          const cvs = spriteCanvas(a.genome, a.dir || 'S', null), w = h * (cvs.width / cvs.height);
+          ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);
+          ctx.imageSmoothingEnabled = true;
+        } else { ctx.fillStyle = a.color; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.glyph || '☻', sx, sy); }
+        ctx.fillStyle = a.color; ctx.font = 'bold 11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(a.name, sx, sy - h * 0.92 - 8);   // nameplate above the head
+        ctx.restore();
+      }
+    }
+    // the first chunk is SEALED until the opening mystery is solved (narrative 1→2): meet Olo, read the
+    // terminal (Luna's skeleton + the stencil), give Sevin a reason she believes. Then the world opens.
+    const introSolved = () => story.ready && story.store.getPlayerState(story.playerId).narrative_tier >= 2;
+
+    cv.addEventListener('click', (e) => {
+      if (!world || player < 0) return;
+      const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
+      if (shaftXY && rindBuilt) {   // the chute: near it → use it (cross decks); else walk to it
+        const dsh = (shaftXY.x - wx) ** 2 + (shaftXY.y - wy) ** 2;
+        if (dsh < (SKIN.playerW * 1.8) ** 2) {
+          if ((shaftXY.x - px()) ** 2 + (shaftXY.y - py()) ** 2 < (SKIN.playerW * 2.4) ** 2) { crossShaft(); return; }
+          walkTo(shaftXY.x, shaftXY.y); return;
+        }
+      }
+      const a = anchorAt(wx, wy);
+      if (a) { openAnchor(a); walkTo(a.x, a.y); return; }
+      const who = residentAt(wx, wy);
+      if (who) { openStory(who); walkTo(who.x, who.y); return; }
+      const term = componentAt(wx, wy);
+      if (term) { openTerminal(term.cp, term.ch); walkTo(term.cp.cx, term.cp.cy); return; }
+      const arc = arcadeAt(wx, wy);
+      if (arc) { openArcade(arc.cp, arc.ch); walkTo(arc.cp.cx, arc.cp.cy); return; }
+      const caf = cafeAt(wx, wy);
+      if (caf) { openCafe(caf.cp, caf.ch); walkTo(caf.cp.cx, caf.cp.cy); return; }
+      const lf = livingFixtureAt(wx, wy);
+      if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openChest(lf.gid); return; }
+      if (story.active) { story.active = null; renderStory(); }
+      walkTo(wx, wy);
+    });
+
+    // the animation loop — step the residents' commute, then render (the painted world is otherwise static)
+    function frame(ts) {
+      requestAnimationFrame(frame);
+      if (ts - lastTs < 30) return;   // PERF: cap the loop to ~33fps (movement still redraws via walkTo's own tick)
+      const dt = lastTs ? ts - lastTs : 16; lastTs = ts;
+      if (world && walk && nearResidents.length) stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
+      draw();
+    }
+
+    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
+    let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !(story.active && story.active.arcade)) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
+
+    // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
+    let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
+    function adoptCharacter(c, persist = true) {
+      playerChar = c;
+      try { playerGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size }); } catch (e) { playerGenome = null; }
+      pack.setPack(packForCharacter(c, 9));
+      renderWho();
+      // FOLD THE CHARACTER INTO THE SAVE: store it as a fact so it rides story.save to your PDS (cross-device).
+      // persist=false when we're adopting FROM a restored save (avoid echoing it straight back).
+      if (persist && story.ready) { story.store.setFact(story.playerId, 'character', c); saveStorySnapshot(); }
+    }
+    // adopt the character carried in a (just-restored) save, if any; else seed the save from the local one.
+    function foldCharacterFromSave() {
+      if (!story.ready) return;
+      const savedChar = story.store.getFact(story.playerId, 'character');
+      if (savedChar) adoptCharacter(savedChar, false);
+      else if (playerChar) { story.store.setFact(story.playerId, 'character', playerChar); saveStorySnapshot(); }
+    }
+    function renderWho() {
+      if (!playerChar) { $('who').innerHTML = ''; return; }
+      const cm = deriveCombat(playerChar);
+      $('who').innerHTML = `<b>${esc(playerChar.name)}</b> · ${esc(playerChar.cast.label)} ${esc(playerChar.vocTag)}<br><span style="color:#6b7872">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def} ✣${cm.fluxPool}</span>`;
+    }
+
+    // ── the pack: a Voronoi-cylinder inventory of genomed items ──
+    const pack = new Inventory({ pack: (playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)), title: 'pack' });
+    const togglePack = () => pack.toggle();
+    $('pack').addEventListener('click', togglePack);
+    addEventListener('keydown', (e) => { if ((e.key === 'i' || e.key === 'I') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); togglePack(); } });
+
+    // ── character creation ──
+    const creator = new CharacterCreator({ seed: (seed ^ 0x5a17) >>> 0, onEmbark: adoptCharacter });
+    $('charbtn').addEventListener('click', () => creator.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); creator.toggle(); } });
+
+    // ── the equipped page: stained-glass figure with the pack auto-fitted onto a body plan ──
+    const equip = new EquippedView({ getCharacter: () => playerChar, getPack: () => pack.pack });
+    $('equipbtn').addEventListener('click', () => equip.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); equip.toggle(); } });
+
+    // ── the minimap + waypoint ── a high-level map you drop a waypoint on; the main map then carries a
+    // persistent DIRECTION indicator to it (an edge arrow while it's off-screen → the marker itself once
+    // it rolls into the viewport). The waypoint persists across reloads. ──
+    let waypoint = (() => { try { const s = localStorage.getItem('mega:v093:waypoint'); const w = s ? JSON.parse(s) : null; return (w && Number.isFinite(w.x) && Number.isFinite(w.y)) ? w : null; } catch (e) { return null; } })();
+    function setWaypoint(wp) {
+      waypoint = (wp && Number.isFinite(wp.x) && Number.isFinite(wp.y)) ? { x: wp.x, y: wp.y } : null;
+      try { waypoint ? localStorage.setItem('mega:v093:waypoint', JSON.stringify(waypoint)) : localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+    }
+    const minimap = new MiniMap({
+      getState: () => ({ world, walk, seen, society, px: px(), py: py(), waypoint }),
+      onWaypoint: setWaypoint,
+    });
+    $('mapbtn').addEventListener('click', () => minimap.toggle());
+    addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !(story.active && story.active.arcade)) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
+
+    if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
+    $('newgame').addEventListener('click', () => {
+      if (!confirm('Start a new game? This wipes your story progress — facts, lore, inventory, tiers — and respawns you. The world (and your character) stay.')) return;
+      try { localStorage.removeItem('hoop:v097:story'); localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+      if (storyUser) { try { auth.pds.deleteRecord(SAVE_NSID, worldKey()).catch(() => {}); } catch (e) {} }   // wipe the cloud save too
+      location.reload();
+    });
+    loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
