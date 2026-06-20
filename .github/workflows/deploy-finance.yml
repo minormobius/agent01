@@ -2,7 +2,7 @@ name: Deploy Finance (fin)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/speculative-feedback-playground-t0yiaq']
     paths:
       - 'finance/**'
       - '.github/workflows/deploy-finance.yml'

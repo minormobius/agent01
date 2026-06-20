@@ -1,16 +1,23 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "fin",
+  "main": "worker.js",
   "compatibility_date": "2026-02-20",
   "assets": {
+    // Vite builds both apps into dist/:
+    //   dist/index.html        -> speculative-feedback playground (root)
+    //   dist/pm/index.html     -> personal-finance planning SPA (/pm)
+    // The worker owns not-found handling so it can do *subtree-aware* SPA
+    // fallback (see worker.js); "none" makes ASSETS return 404 on a miss
+    // instead of silently serving the root index for /pm/* deep links.
     "directory": "./dist",
-    // SPA fallback: any path that doesn't match a static file in dist/
-    // serves dist/index.html (with 200) so the React router takes over.
-    // Static passthroughs (/stocks/, /bogo/, /lexicons/, /universe.json)
-    // are still served first because Workers Assets matches real files
-    // before applying not_found_handling. This replaces the prior
-    // _redirects file, which tripped Workers Assets' infinite-loop
-    // validator (code 10021) on `/* /index.html 200`.
-    "not_found_handling": "single-page-application"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+  // Golden rule: the worker named here must own the live custom domain, and
+  // the domain must be declared as a custom_domain route. Otherwise a deploy
+  // ships green into a stray *.workers.dev and fin.mino.mobi never changes.
+  "routes": [
+    { "pattern": "fin.mino.mobi", "custom_domain": true }
+  ]
 }

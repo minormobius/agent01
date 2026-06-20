@@ -32,7 +32,7 @@ function NotFound({ path }) {
     <div className="not-found">
       <h1>not found</h1>
       <p>
-        <code>{path}</code> isn't a route here. <a href="/">return to home</a>
+        <code>{path}</code> isn't a route here. <a href="/pm">return to home</a>
       </p>
     </div>
   );

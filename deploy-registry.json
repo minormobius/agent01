@@ -793,11 +793,11 @@
       "dir": "finance",
       "endpoint": "fin.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/speculative-feedback-playground-t0yiaq",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 onboarded to Actions (deploy-finance.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
-      "note": "Personal finance planning SPA (Vite -> ./dist, Worker `fin`). SPA fallback enabled.",
+      "status": "MANAGED \u2014 onboarded to Actions (deploy-finance.yml). Surface taken over for the speculative-feedback research playground; the personal-finance SPA was relocated under /pm.",
+      "note": "Worker `fin` (main: worker.js + ASSETS) serving two apps from one dist/: the speculative-feedback playground at / (TS/React, Vite multipage) and the personal-finance planning SPA at /pm. worker.js does subtree-aware SPA fallback and reserves /api/* for the M2 backend (experiment store + server-side runs).",
       "paths": [
         "finance/**"
       ]
