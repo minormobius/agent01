@@ -18,7 +18,7 @@ let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' + m); } };
 
 // 1. every baked key is exactly lawKey(genome) — vendor not drifted.
-ok(ARCADE_LAWS.length === 6, `six cabinets baked (${ARCADE_LAWS.length})`);
+ok(ARCADE_LAWS.length === 22, `full codex baked (${ARCADE_LAWS.length})`);
 for (const e of ARCADE_LAWS) ok(lawKey(e.law) === e.key, `law "${e.name}" key matches genome`);
 ok(/Withering Discipline/.test(ARCADE_LAWS[0].name), 'cabinet 0 is the Withering Discipline (forge codex № 1)');
 ok(typeof arcadeRules(0) === 'string' && arcadeRules(0).length > 40, 'rules card describes itself in English');
