@@ -36,9 +36,11 @@ export async function initGpuMap(canvas) {
   } catch (e) { return null; }
 }
 
+const SAMPLES = 4;   // 4x MSAA — antialiases the cell edges + seam lines (WebGPU draws them aliased otherwise)
+
 class GpuMap {
   constructor(device, ctx, format, canvas) {
-    this.device = device; this.ctx = ctx; this.canvas = canvas; this._w = 0; this._h = 0;
+    this.device = device; this.ctx = ctx; this.format = format; this.canvas = canvas; this._w = 0; this._h = 0; this._msaa = null;
     const module = device.createShaderModule({ code: WGSL });
     this.uLayout = device.createBindGroupLayout({
       entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }],
@@ -60,6 +62,7 @@ class GpuMap {
       vertex: { module, entryPoint: 'vs', buffers },
       fragment: { module, entryPoint: 'fs', targets: [{ format, blend }] },
       primitive: { topology },
+      multisample: { count: SAMPLES },
     });
     this.triPipe = mk('triangle-list');
     this.linePipe = mk('line-list');
@@ -72,6 +75,11 @@ class GpuMap {
     wpx = Math.max(1, wpx | 0); hpx = Math.max(1, hpx | 0);
     if (wpx === this._w && hpx === this._h) return;
     this.canvas.width = wpx; this.canvas.height = hpx; this._w = wpx; this._h = hpx;
+    if (this._msaa) { try { this._msaa.destroy(); } catch (e) {} }
+    this._msaa = this.device.createTexture({                 // the multisampled colour target; resolved to the canvas
+      size: [wpx, hpx], sampleCount: SAMPLES, format: this.format, usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    this._msaaView = this._msaa.createView();
   }
 
   // pack an interleaved Float32Array [x,y,r,g,b,a, …] into a vertex buffer (or null if empty)
@@ -86,10 +94,12 @@ class GpuMap {
   setCamera(ax, ay, bx, by) { this._u[0] = ax; this._u[1] = ay; this._u[2] = bx; this._u[3] = by; this.device.queue.writeBuffer(this.uBuf, 0, this._u); }
 
   begin(bg) {
+    if (!this._msaaView) this.resize(this.canvas.width, this.canvas.height);
     this._enc = this.device.createCommandEncoder();
     this._pass = this._enc.beginRenderPass({
       colorAttachments: [{
-        view: this.ctx.getCurrentTexture().createView(),
+        view: this._msaaView,                                   // render into the MSAA target…
+        resolveTarget: this.ctx.getCurrentTexture().createView(),  // …and resolve (downsample) into the canvas
         clearValue: { r: bg[0], g: bg[1], b: bg[2], a: 1 },
         loadOp: 'clear', storeOp: 'store',
       }],

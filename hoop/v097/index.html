@@ -75,7 +75,7 @@
     #story.compact .stright { padding: 24px 26px; }
     /* solo: a single deep screen (terminal / café / chest) — padded directly, medium width */
     #story.solo { width: min(700px, 94vw); padding: 28px 32px; overflow-y: auto; }
-    #story .portrait { width: 96px; height: 96px; border-radius: 14px; background: #0a0f15; border: 1px solid #2c3c47; display: flex; align-items: center; justify-content: center; font-size: 52px; line-height: 1; color: #f4bf62; margin-bottom: 16px; }
+    #story .portrait { display: block; width: 96px; height: 96px; border-radius: 14px; background: #0a0f15; border: 1px solid #2c3c47; image-rendering: pixelated; margin-bottom: 16px; }
     #story .nm { font-size: 19px; font-weight: 600; color: #f7c674; line-height: 1.2; }
     #story .rl { font-size: 11.5px; color: #8aa39a; margin: 3px 0 14px; letter-spacing: .3px; }
     #story .nmh { font-size: 12.5px; color: #7fd8d0; margin-bottom: 5px; }
@@ -85,6 +85,14 @@
     #story .ch button:hover { border-color: #7fd8d0; background: #16212b; color: #fff; }
     #story .cl { position: absolute; top: 13px; right: 16px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; z-index: 2; }
     #story .cl:hover { color: #f4bf62; }
+    /* mobile: stack the two panes (the side-by-side split is cramped on a phone) */
+    @media (max-width: 640px) {
+      #story.wide, #story.solo { width: 95vw; max-height: 90vh; }
+      #story .stwrap { grid-template-columns: 1fr; }
+      #story .stleft { display: block; border-right: 0; border-bottom: 1px solid #1b2530; padding: 18px 20px 14px; }
+      #story .stleft .portrait { width: 72px; height: 72px; margin-bottom: 12px; }
+      #story .stright { padding: 18px 20px 22px; }
+    }
     /* the ENCOUNTER card — Qud-style: meeting anything new fills the centre of the screen with its full description */
     #enc { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 40; background: rgba(2,3,6,0.62); pointer-events: auto; }
     /* the ARCADE — a dedicated fullscreen cabinet screen (à la the inventory), high contrast */
@@ -799,7 +807,11 @@
       if (paged) {
         const guide = guideFor(openingCast, tier), gA = anchors.find((a) => guide && a.content_id === guide.id);
         objective = `<span class="lbl">⚑</span> <span class="o">Return to ${esc(guideName(guide))}</span> <span class="mk">— they have new guidance for you</span>`;
-        if (gA) { hoopWp = { x: gA.x, y: gA.y }; whereWord = guideName(guide); } else whereWord = 'where you woke (Bay 14)';
+        // your guides live in the Nave (deck 0). If you've descended into the rind, point the waypoint at the
+        // shaft back up, not at the Nave coordinates under your feet (which is why the marker had "no NPC").
+        if (gA && (gA.deck || 0) !== playerDeck() && shaftXY) { hoopWp = { x: shaftXY.x, y: shaftXY.y }; whereWord = `the shaft up to the Nave — ${guideName(guide)} is up there`; }
+        else if (gA) { hoopWp = { x: gA.x, y: gA.y }; whereWord = guideName(guide); }
+        else whereWord = 'where you woke (Bay 14)';
       } else {
         const a = assess(story.store, story.playerId, d);
         const left = Math.max(1, a.needed - a.learned);
@@ -1163,6 +1175,15 @@
         + `<div style="font-size:11px;color:#7fd8d0;letter-spacing:.4px;margin-bottom:7px">${esc(c.cast.label)}</div>${tri}`
         + `<div style="display:flex;gap:12px;margin-top:11px;font-size:12px;color:#9aa8a0"><span title="health">✚ ${cm.hp}</span><span title="attack">⚔ ${cm.atk}</span><span title="defense">⛨ ${cm.def}</span></div></div>`;
     }
+    // paint the character's own sprite into the dialogue portrait canvas (pixel-art scaled, grounded at the
+    // bottom of the box); fall back to the glyph if the agent carries no genome.
+    function drawPortraitSprite(agent) {
+      const cv2 = document.getElementById('storyportrait'); if (!cv2) return;
+      const g = cv2.getContext('2d'); g.clearRect(0, 0, 96, 96); g.imageSmoothingEnabled = false;
+      let spr = null; try { if (agent && agent.genome) spr = spriteCanvas(agent.genome, 'S', null); } catch (e) {}
+      if (spr) { const s = Math.min(82 / spr.width, 88 / spr.height), w = spr.width * s, h = spr.height * s; g.drawImage(spr, (96 - w) / 2, 92 - h, w, h); }
+      else { g.fillStyle = '#f4bf62'; g.font = '50px ui-monospace, monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText((agent && agent.glyph) || '☻', 48, 50); }
+    }
     function renderStory() {
       const panel = $('story');
       if (story.active && story.active.chest) return renderChest();
@@ -1181,10 +1202,12 @@
         // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
         // an ambient crowd one-liner → a light compact popup.
         if (!t.no_tree || (t.choices && t.choices.length)) {
-          const left = `<div class="portrait">${glyph}</div><div class="nm">${esc(agent.name)}</div>`
+          // the PORTRAIT is the character's own sprite (drawn after, into the canvas), not a generic glyph/role.
+          const left = `<canvas class="portrait" id="storyportrait" width="96" height="96"></canvas><div class="nm">${esc(agent.name)}</div>`
             + `<div class="rl">${esc(agent.role)}${t.npc ? ' · ' + esc(t.npc) : ''} · standing ${t.standing | 0}</div>${npcStatBlock(agent)}`;
           panel.innerHTML = `${close}<div class="stwrap"><div class="stleft">${left}</div><div class="stright">${right}</div></div>`;
           showStory('wide');
+          drawPortraitSprite(agent);
         } else {
           panel.innerHTML = `${close}<div class="stwrap single"><div class="stright">`
             + `<div class="nm">${glyph} ${esc(agent.name)}</div><div class="rl">${esc(agent.role)}${t.npc ? ' · ' + esc(t.npc) : ''}</div>${right}</div></div>`;
@@ -1511,7 +1534,7 @@
     }
     function resolveMarker(m) {
       if (!m) return null;
-      if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); return a ? { x: a.x, y: a.y } : null; }
+      if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); if (!a) return null; return ((a.deck || 0) !== playerDeck() && shaftXY) ? { x: shaftXY.x, y: shaftXY.y } : { x: a.x, y: a.y }; }
       if (m.terminal) {
         let best = null, bd = Infinity;
         for (const ch of (world ? world.chunks : [])) for (const cp of ((ch.painted && ch.painted.comps) || [])) {
@@ -1538,7 +1561,7 @@
       const intro = interact(s, story.playerId, a.key);
       maybeEncounter(intro);   // first meeting → its description fills the screen
       if (intro.status === 'crystallized' && intro.item && intro.item.type === 'npc') maybeOpenQuest(intro.item.content_item_id, intro.item.name);   // they tip you to a rumor
-      story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph, genome: a.genome }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();   // a principal can also be the one who informs you
       saveStory(); renderStory();
       if (isGuide(a.content_id)) grantLevelAtGuide();   // your guide, while you're paged → advance + next guidance
