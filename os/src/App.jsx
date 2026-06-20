@@ -3,11 +3,17 @@ import Terminal from './terminal/Terminal.jsx';
 import { createSession, resolveIdentity, saveSession, clearSession, restoreSession } from './auth/oauth.js';
 import { WSTransport } from './lib/ws-transport.js';
 
-// Container API endpoint — update when deployed
+// Container API endpoint. The os-api Cloudflare Containers backend is NOT
+// deployed by default (it builds a Docker image + provisions paid container
+// instances — see deploy-os-api.yml). When no backend is configured we ship the
+// PDS shell standalone and leave the `container` command cleanly disabled
+// rather than dangle a dead WebSocket that retries for 15s and then fails.
+// To enable it, set VITE_CONTAINER_API_URL at build time once os-api is live.
 const CONTAINER_API_URL = (
   import.meta.env.VITE_CONTAINER_API_URL ||
-  (location.hostname === 'localhost' ? 'ws://localhost:8787' : 'wss://os-api.minomobi.com')
+  (location.hostname === 'localhost' ? 'ws://localhost:8787' : null)
 );
+const CONTAINER_ENABLED = Boolean(CONTAINER_API_URL);
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -23,8 +29,9 @@ export default function App() {
       .finally(() => setRestoring(false));
   }, []);
 
-  // Create transport once
+  // Create transport once — only when a container backend is configured.
   useEffect(() => {
+    if (!CONTAINER_ENABLED) return;
     transportRef.current = new WSTransport({
       url: CONTAINER_API_URL,
       onStatus: setContainerStatus,
@@ -71,7 +78,7 @@ export default function App() {
       onLogin={handleLogin}
       onLogout={handleLogout}
       transport={transportRef.current}
-      onConnectContainer={handleConnectContainer}
+      onConnectContainer={CONTAINER_ENABLED ? handleConnectContainer : null}
       containerStatus={containerStatus}
     />
   );
