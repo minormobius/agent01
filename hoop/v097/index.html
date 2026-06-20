@@ -167,6 +167,21 @@
     #trade .trr { font-size: 11.5px; margin: 2px 0; }
     #trade .trs { font-size: 11px; color: #b6c2bb; }
     #trade .trow { margin-top: 16px; }
+    /* the trade desk's two tabs (Wares / Seed packs) + the wares shop UI */
+    #trade .ttabs { display: flex; gap: 6px; justify-content: center; margin: 2px 0 14px; }
+    #trade .ttab { background: #120f08; border: 1px solid #2a2417; color: #9aa8a0; font: inherit; font-size: 12px; padding: 6px 16px; border-radius: 8px; cursor: pointer; transition: .12s; }
+    #trade .ttab:hover { color: #e6c878; border-color: #6a5a3a; }
+    #trade .ttab.on { background: #2a2110; border-color: #e6c878; color: #f4d99a; }
+    #trade .wgrid .tcell { justify-content: flex-start; gap: 4px; padding: 9px 5px; }
+    #trade .wglyph { font-size: 26px; line-height: 1; margin-bottom: 1px; }
+    #trade .tcell.tsold { opacity: .5; }
+    #trade .wbuy { font-size: 11px; padding: 4px 10px; margin-top: 3px; }
+    #trade .wsells { max-width: 420px; margin: 8px auto 0; }
+    #trade .wsell { display: flex; align-items: center; gap: 9px; padding: 6px 4px; border-bottom: 1px solid #1c1810; }
+    #trade .wsg { font-size: 17px; width: 18px; text-align: center; }
+    #trade .wsn { flex: 1; text-align: left; font-size: 12px; color: #dfe7e2; }
+    #trade .wsellb { font-size: 11px; padding: 4px 11px; }
+    #trade .gdim { font-size: 11px; color: #6b7872; padding: 8px 0; }
     /* the in-world battle overlay (the tactical board, ported from /arena) */
     #battle { position: fixed; inset: 0; display: none; z-index: 38; background: radial-gradient(120% 120% at 50% 40%, rgba(10,7,9,0.97), rgba(3,3,5,0.995)); pointer-events: auto; }
     #battle.on { display: block; }
@@ -257,6 +272,7 @@
     import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
     import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce
     import { TIER_FOIL, PULL_COST, biomeForKey, progress as bxProgress, pullRng, pull as bxPull } from './garden/gacha.js';   // the TRADE fixture — gacha-pull seeds from one biome, collect to CLOSE it
+    import { shopStock, buyPrice, sellPrice, SHOP_SIZE } from './shop.js';   // the WARES market at the same desk — buy gear, sell loot
     import { DISH_MIN, DISH_MAX, cookScore, cookDish } from './garden/kitchen.js';   // the dwelling's storage fixture, grown into a KITCHEN — cook crops into flavor-scored dishes
     import { createBattle } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, spoilsFor } from './arena/encounter.js';   // hazard-room creeps
@@ -1661,20 +1677,65 @@
           if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
       return best;
     }
-    let tradeOpen = false, tradeKey = null, tradeBiome = null, lastPull = null;
+    let tradeOpen = false, tradeKey = null, tradeBiome = null, lastPull = null, tradeTab = 'wares';
     const tradeKeyOf = (cp, ch) => 't' + ch.id + ':r' + cp.room;
     async function openTrade(cp, ch) {
       if (!story.ready) return;
-      await ensureArk(); if (!gardenArk) return;
       story.store.setFact(story.playerId, 'flag.found_trade', true);
-      tradeKey = tradeKeyOf(cp, ch); tradeBiome = biomeForKey(gardenArk, tradeKey); lastPull = null;
-      tradeOpen = true; renderTrade();
+      tradeKey = tradeKeyOf(cp, ch); tradeBiome = null; lastPull = null;
+      tradeOpen = true; $('trade').classList.add('on'); renderTrade();   // wares tab needs no ark — render at once
+      await ensureArk(); tradeBiome = gardenArk ? biomeForKey(gardenArk, tradeKey) : null;
+      if (tradeOpen) renderTrade();                                       // re-render once the biome is known (packs tab)
     }
     function closeTrade() { tradeOpen = false; lastPull = null; $('trade').classList.remove('on'); }
+    const tradeTabsHTML = () => { const t = (id, label) => `<button class="ttab${tradeTab === id ? ' on' : ''}" data-ttab="${id}">${label}</button>`; return `<div class="ttabs">${t('wares', '⇄ Wares')}${t('packs', '❀ Seed packs')}</div>`; };
     function renderTrade() {
       const card = $('tradecard'); tradeOpen = true; $('trade').classList.add('on');
+      const body = tradeTab === 'wares' ? waresSectionHTML() : packsSectionHTML();
+      card.innerHTML = `<button class="aclose" data-tclose="1">close ⏎</button>` + tradeTabsHTML() + body;
+    }
+    // ── WARES — the shop. Buy seeded gear (drops into your pack → equip at ⛨) + sell loot for coins.
+    //    Shelf is deterministic per desk + restocks on the garden day (sleeping). ──
+    function waresSectionHTML() {
+      const epoch = getDay(), stock = shopStock(seed, tradeKey, epoch, SHOP_SIZE), coins = getCoins();
+      const rec = getJSONFact('shop.sold.' + tradeKey, null), sold = new Set((rec && rec.epoch === epoch) ? (rec.sold || []) : []);
+      const cells = stock.map((e) => {
+        const it = e.item, col = it.frame || it.accent || '#8a9b92';
+        if (sold.has(e.slot)) return `<div class="tcell tsold"><div class="wglyph" style="color:#3a342a">✓</div><div class="tn" style="color:#5a6660">sold</div></div>`;
+        return `<div class="tcell" style="border-color:${col}55">`
+          + `<div class="wglyph" style="color:${col}">${esc(it.glyph || '◆')}</div>`
+          + `<div class="tn" title="${esc(it.headline || '')}">${esc(it.name)}</div>`
+          + `<div class="tr" style="color:${col}">${esc(it.gradeLabel || it.grade || '')}</div>`
+          + `<button class="gbtn wbuy" data-buy="${e.slot}" ${coins >= e.price ? '' : 'disabled'}>◈${e.price}</button></div>`;
+      }).join('');
+      const sellRows = pack.pack.length ? pack.pack.map((it, i) => {
+        const col = it.frame || it.accent || '#8a9b92';
+        return `<div class="wsell"><span class="wsg" style="color:${col}">${esc(it.glyph || '◆')}</span><span class="wsn">${esc(it.name || 'a thing')}</span><button class="gbtn wsellb" data-sell="${i}">sell ◈${sellPrice(it)}</button></div>`;
+      }).join('') : `<div class="gdim">your pack is empty — win fights or buy wares</div>`;
+      return `<div class="tfoil" style="background:#e6c878"></div>`
+        + `<div class="ahead" style="color:#e6c878">⇄ THE TRADE DESK</div><div class="alaw" style="color:#e6c878">wares &amp; salvage</div>`
+        + `<div class="ameta">gear you buy drops into your pack — equip it at ⛨ · stock refreshes when you sleep (day ${epoch})</div>`
+        + `<div class="ggrid tgrid wgrid">${cells}</div>`
+        + `<div class="ghead2" style="color:#e0a86a;margin-top:18px">sell from your pack</div><div class="wsells">${sellRows}</div>`
+        + `<div class="ameta" style="margin-top:10px;color:#6b7872">◈ ${coins} · Esc to leave</div>`;
+    }
+    function doBuy(slot) {
+      const epoch = getDay(), e = shopStock(seed, tradeKey, epoch, SHOP_SIZE).find((x) => x.slot === slot); if (!e) return;
+      const rec = getJSONFact('shop.sold.' + tradeKey, null), sold = new Set((rec && rec.epoch === epoch) ? (rec.sold || []) : []);
+      if (sold.has(slot)) return;
+      const coins = getCoins(); if (coins < e.price) { flashBusy(`◍ not enough coins (◈${e.price})`); return; }
+      setCoins(coins - e.price); addToPack(pack.pack, e.item); pack.setPack(pack.pack);
+      sold.add(slot); setJSONFact('shop.sold.' + tradeKey, { epoch, sold: [...sold] });
+      saveStory(); renderTrade(); whereAmI(); flashPickup(e.item);
+    }
+    function doSell(i) {
+      const it = pack.pack[i]; if (!it) return; const sp = sellPrice(it);
+      pack.pack.splice(i, 1); pack.setPack(pack.pack); setCoins(getCoins() + sp);
+      saveStory(); renderTrade(); whereAmI(); flashBusy(`◈ +${sp} · sold ${it.name || 'item'}`);
+    }
+    function packsSectionHTML() {
       const b = tradeBiome;
-      if (!b) { card.innerHTML = `<button class="aclose" data-tclose="1">close ⏎</button><div class="alaw">The stalls are bare.</div>`; return; }
+      if (!b) return `<div class="alaw" style="margin-top:20px">The seed stalls are stocking…</div><div class="ameta">(the biome is loading — or try ⇄ Wares)</div>`;
       const dex = getDex(b.id), owned = new Set(dex), prog = bxProgress(b, owned), closed = getClosed(b.id);
       const pulls = getPullCount(b.id), free = pulls === 0, cost = free ? 0 : PULL_COST, coins = getCoins(), afford = free || coins >= cost;
       const stars = '★'.repeat(RARITY_STARS[b.tier] || 1) + '☆'.repeat(5 - (RARITY_STARS[b.tier] || 1));
@@ -1691,10 +1752,9 @@
           + `<div class="trr" style="color:${foil}">${'★'.repeat(RARITY_STARS[c.rarity] || 1)} ${esc(c.rarity)}</div>`
           + `<div class="trs">${lastPull.isNew ? '<b style="color:#8fe07a">NEW</b> — added to the collection' : 'duplicate'} · +${lastPull.seeds} seed${lastPull.seeds === 1 ? '' : 's'}</div></div></div>`;
       }
-      card.innerHTML =
-        `<button class="aclose" data-tclose="1">close ⏎</button>` +
+      return (
         `<div class="tfoil" style="background:${b.foil}"></div>` +
-        `<div class="ahead" style="color:${b.foil}">⇄ THE TRADE DESK</div>` +
+        `<div class="ahead" style="color:${b.foil}">❀ SEED PACKS</div>` +
         `<div class="alaw" style="color:${b.foil}">${esc(b.name)}</div>` +
         `<div class="ameta"><span style="color:${b.foil}">${stars}</span> ${esc(b.tier)} · ${esc(b.blurb)} · viability ${b.interest}</div>` +
         `<div class="tprog">collection ${prog.have}/${prog.total} ${closed ? '· <b style="color:#f0c860">✦ CLOSED</b>' : ''}<div class="gbar" style="margin:5px auto 0;max-width:260px"><span style="width:${Math.round(prog.pct * 100)}%;background:${b.foil}"></span></div></div>` +
@@ -1704,10 +1764,13 @@
           ? `<div class="ameta" style="margin-top:14px;color:#f0c860">✦ this biome is closed — every crop gathered. Keep pulling for seeds.</div>`
           : ``) +
         `<div class="trow"><button class="gbtn tpull" data-pull="1" ${afford ? '' : 'disabled'}>${free ? 'first pull — FREE' : `PULL · ◈${cost}`}</button></div>` +
-        `<div class="ameta" style="margin-top:8px;color:#6b7872">◈ ${coins} · seeds go to your bag — plant them at a ❀ garden · Esc to leave</div>`;
+        `<div class="ameta" style="margin-top:8px;color:#6b7872">◈ ${coins} · seeds go to your bag — plant them at a ❀ garden · Esc to leave</div>`);
     }
     $('trade').addEventListener('click', (e) => {
       if (e.target === $('trade') || e.target.closest('[data-tclose]')) { closeTrade(); return; }
+      const tab = e.target.closest('[data-ttab]'); if (tab) { tradeTab = tab.dataset.ttab; renderTrade(); return; }
+      const bb = e.target.closest('[data-buy]'); if (bb) { doBuy(+bb.dataset.buy); return; }
+      const sb = e.target.closest('[data-sell]'); if (sb) { doSell(+sb.dataset.sell); return; }
       const pb = e.target.closest('[data-pull]'); if (!pb || !tradeBiome) return;
       const b = tradeBiome, pulls = getPullCount(b.id), free = pulls === 0, cost = free ? 0 : PULL_COST, coins = getCoins();
       if (!free && coins < cost) { lastPull = null; flashBusy(`◍ not enough coins to pull (◈${cost})`); return; }
