@@ -51,7 +51,7 @@ export function applyFood(s, food) {
 
 // (room role × fixture kind) → action. component = the central emissive fixture; wall = the grown console.
 export const FIXTURE_ACTION = {
-  component: { learn: 'terminal', govern: 'terminal', worship: 'terminal', dwell: 'bed', grow: 'garden', play: 'arcade', serve: 'food' },
+  component: { learn: 'terminal', govern: 'terminal', worship: 'terminal', dwell: 'bed', grow: 'garden', play: 'arcade', serve: 'food', trade: 'trade' },
   wall: { dwell: 'chest' },
 };
 export function fixtureAction(role, kind) { return (FIXTURE_ACTION[kind] || {})[role] || null; }

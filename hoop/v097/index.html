@@ -96,14 +96,15 @@
     /* the ENCOUNTER card — Qud-style: meeting anything new fills the centre of the screen with its full description */
     #enc { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 40; background: rgba(2,3,6,0.62); pointer-events: auto; }
     /* the ARCADE — a dedicated fullscreen cabinet screen (à la the inventory), high contrast */
-    #arc, #garden { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 35%, rgba(12,9,18,0.96), rgba(4,4,8,0.99)); pointer-events: auto; }
+    #arc, #garden, #trade { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 35%, rgba(12,9,18,0.96), rgba(4,4,8,0.99)); pointer-events: auto; }
     #garden { background: radial-gradient(120% 120% at 50% 32%, rgba(10,18,12,0.96), rgba(3,6,4,0.99)); }
-    #arc.on, #garden.on { display: flex; align-items: center; justify-content: center; }
-    #arc .acard, #garden .acard { width: min(560px, 94vw); max-height: 94vh; overflow-y: auto; text-align: center; padding: 26px 22px 30px; }
+    #trade { background: radial-gradient(120% 120% at 50% 32%, rgba(18,15,8,0.96), rgba(6,5,3,0.99)); }
+    #arc.on, #garden.on, #trade.on { display: flex; align-items: center; justify-content: center; }
+    #arc .acard, #garden .acard, #trade .acard { width: min(560px, 94vw); max-height: 94vh; overflow-y: auto; text-align: center; padding: 26px 22px 30px; }
     #arc .ahead { font-size: 13px; letter-spacing: 1px; color: #c89ad0; }
-    #garden .ahead { font-size: 13px; letter-spacing: 1px; color: #8fe07a; }
-    #arc .alaw, #garden .alaw { font-size: 21px; font-weight: 600; color: #f4bf62; margin: 4px 0 2px; }
-    #arc .ameta, #garden .ameta { font-size: 11.5px; color: #9aa8a0; margin-bottom: 4px; }
+    #garden .ahead, #trade .ahead { font-size: 13px; letter-spacing: 1px; color: #8fe07a; }
+    #arc .alaw, #garden .alaw, #trade .alaw { font-size: 21px; font-weight: 600; color: #f4bf62; margin: 4px 0 2px; }
+    #arc .ameta, #garden .ameta, #trade .ameta { font-size: 11.5px; color: #9aa8a0; margin-bottom: 4px; }
     #arc .arule { font-size: 12.5px; line-height: 1.5; color: #cfd8d2; border-left: 2px solid #c89ad0; padding: 4px 0 4px 11px; margin: 12px auto; max-width: 440px; text-align: left; }
     #arc canvas { width: min(440px, 90vw); display: block; margin: 14px auto 8px; background: #0a0e16; border: 1px solid #34424d; border-radius: 8px; image-rendering: pixelated; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
     #arc .amoves { font-size: 12px; color: #9aa8a0; margin: 4px 0; }
@@ -114,8 +115,30 @@
     #arc .apad button:hover, #arc .arow button:hover { border-color: #c89ad0; background: #1c2630; color: #fff; }
     #arc .arow { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
     #arc .arow button { font-size: 12.5px; padding: 7px 13px; color: #b6c2bb; }
-    #arc .aclose, #garden .aclose { position: absolute; top: 14px; right: 18px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; }
-    #arc .aclose:hover, #garden .aclose:hover { color: #f4bf62; }
+    #arc .aclose, #garden .aclose, #trade .aclose { position: absolute; top: 14px; right: 18px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; }
+    #arc .aclose:hover, #garden .aclose:hover, #trade .aclose:hover { color: #f4bf62; }
+    /* the trade-desk gacha: foil header, collection grid (owned vs locked), pull reveal */
+    #trade .gbar { width: 100%; height: 5px; background: #1a160c; border-radius: 3px; overflow: hidden; }
+    #trade .gbar > span { display: block; height: 100%; }
+    #trade .gbtn { background: #2a2110; border: 1px solid #6a5a3a; color: #f4d99a; font: inherit; font-size: 13px; padding: 9px 18px; border-radius: 8px; cursor: pointer; transition: .12s; }
+    #trade .gbtn:hover:not([disabled]) { border-color: #e6c878; background: #352a14; color: #fff; }
+    #trade .gbtn[disabled] { opacity: .4; cursor: not-allowed; }
+    #trade .tfoil { width: 64px; height: 4px; border-radius: 2px; margin: 0 auto 10px; }
+    #trade .tprog { font-size: 12px; color: #cfd8d2; margin: 10px 0 4px; }
+    #trade .tgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px auto 6px; max-width: 500px; }
+    @media (max-width: 520px) { #trade .tgrid { grid-template-columns: repeat(3, 1fr); } }
+    #trade .tcell { background: #120f08; border: 1px solid #2a2417; border-radius: 9px; padding: 8px 5px; min-height: 86px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+    #trade .tcell.thave { background: #15120a; }
+    #trade .tthumb { width: 42px; height: 42px; border-radius: 7px; object-fit: cover; background: #06080c; }
+    #trade .tqq { width: 42px; height: 42px; border-radius: 7px; background: #0c0a06; display: flex; align-items: center; justify-content: center; color: #3a342a; font-size: 22px; }
+    #trade .tn { font-size: 10.5px; color: #dfe7e2; line-height: 1.15; }
+    #trade .tr { font-size: 9px; letter-spacing: .5px; text-transform: uppercase; }
+    #trade .treveal { display: flex; align-items: center; gap: 12px; justify-content: center; text-align: left; margin: 14px auto 6px; max-width: 340px; padding: 10px 14px; border: 1px solid #6a5a3a; border-radius: 10px; background: rgba(20,16,8,0.7); }
+    #trade .trthumb { width: 56px; height: 56px; border-radius: 9px; object-fit: cover; background: #06080c; }
+    #trade .trn { font-size: 15px; font-weight: 600; color: #f4d99a; }
+    #trade .trr { font-size: 11.5px; margin: 2px 0; }
+    #trade .trs { font-size: 11px; color: #b6c2bb; }
+    #trade .trow { margin-top: 16px; }
     /* the garden plot grid */
     #garden .ggrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 16px auto 6px; max-width: 480px; }
     @media (max-width: 520px) { #garden .ggrid { grid-template-columns: repeat(2, 1fr); } }
@@ -169,6 +192,7 @@
   <div id="story"></div>
   <div id="arc"><div class="acard" id="arccard"></div></div>
   <div id="garden"><div class="acard" id="gardencard"></div></div>
+  <div id="trade"><div class="acard" id="tradecard"></div></div>
   <div id="enc"><div class="card" id="enccard"></div></div>
 
   <script type="module">
@@ -178,7 +202,8 @@
     import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
              NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
     import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
-    import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest, starterSeeds } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce
+    import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce
+    import { TIER_FOIL, PULL_COST, biomeForKey, progress as bxProgress, pullRng, pull as bxPull } from './garden/gacha.js';   // the TRADE fixture — gacha-pull seeds from one biome, collect to CLOSE it
     import { bakeFog } from './v8/bake.js';
     import { initGpuMap } from './gpumap.js';   // optional WebGPU vector renderer for the cell fills (crisp at any zoom); null ⇒ baked-raster fallback
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
@@ -506,6 +531,7 @@
         else if (isArcade(cp)) { g.save(); g.strokeStyle = '#c89ad0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#c89ad0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◈', cp.cx, cp.cy); g.restore(); }
         else if (isCafe(cp)) { g.save(); g.strokeStyle = '#e0a86a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e0a86a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◍', cp.cx, cp.cy); g.restore(); }
         else if (isGarden(cp)) { g.save(); g.strokeStyle = '#6fc06a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#8fe07a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('❀', cp.cx, cp.cy); g.restore(); }
+        else if (isTrade(cp)) { g.save(); g.strokeStyle = '#d8b25a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e6c878'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⇄', cp.cx, cp.cy); g.restore(); }
       }
       for (const L of P.lights) { if (L.concourse) drawBollard(g, L); else drawWallLight(g, L, { hue: L.hue, lit: L.lit }); }
     }
@@ -1288,6 +1314,7 @@
       if (e.key !== 'Escape') return;
       if (arcadeOpen) { closeArcade(); return; }
       if (gardenOpen) { closeGarden(); return; }
+      if (tradeOpen) { closeTrade(); return; }
       if (story.active) { story.active = null; renderStory(); }
     });
     // arcade input: arrows / WASD drive the cabinet's law (absolute directions, like fable/forge's play view).
@@ -1489,9 +1516,6 @@
       if (!story.ready) return;
       await ensureArk(); if (!gardenArk) return;
       story.store.setFact(story.playerId, 'flag.found_garden', true);
-      if (!story.store.getFact(story.playerId, 'garden.seeded')) {   // a deterministic starter seed bag, so the garden is playable before the trade desk exists
-        setSeeds(starterSeeds(seed, gardenArk)); story.store.setFact(story.playerId, 'garden.seeded', true); saveStory();
-      }
       gardenKey = gardenKeyOf(cp, ch); gardenOpen = true; renderGarden();
     }
     function closeGarden() { gardenOpen = false; $('garden').classList.remove('on'); }
@@ -1552,6 +1576,90 @@
         return;
       }
     });
+
+    // ── THE TRADE DESK (trade-role component) — the TRADE corner of the triangle: a gacha bound to ONE
+    //    biome (a viability-scored, closeable food web). Spend ◈ coins to pull SEEDS from that biome's crop
+    //    pool; collect every crop to CLOSE the biome. The first pull at each biome is free, so the grow loop
+    //    bootstraps without arcade coins. Collection (dex), pull count, and closed-state ride the save. ──
+    const RARITY_STARS = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
+    const CLOSE_REWARD = 50;
+    const getDex = (bid) => getJSONFact('garden.dex.' + bid, []);
+    const setDex = (bid, ids) => setJSONFact('garden.dex.' + bid, ids);
+    const getPullCount = (bid) => (story.ready && story.store.getFact(story.playerId, 'garden.pulls.' + bid)) | 0;
+    const setPullCount = (bid, n) => { if (story.ready) story.store.setFact(story.playerId, 'garden.pulls.' + bid, n | 0); };
+    const getClosed = (bid) => !!(story.ready && story.store.getFact(story.playerId, 'garden.closed.' + bid));
+    const setClosed = (bid, v) => { if (story.ready) story.store.setFact(story.playerId, 'garden.closed.' + bid, !!v); };
+    const isTrade = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'trade';
+    function tradeAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isTrade(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    let tradeOpen = false, tradeKey = null, tradeBiome = null, lastPull = null;
+    const tradeKeyOf = (cp, ch) => 't' + ch.id + ':r' + cp.room;
+    async function openTrade(cp, ch) {
+      if (!story.ready) return;
+      await ensureArk(); if (!gardenArk) return;
+      story.store.setFact(story.playerId, 'flag.found_trade', true);
+      tradeKey = tradeKeyOf(cp, ch); tradeBiome = biomeForKey(gardenArk, tradeKey); lastPull = null;
+      tradeOpen = true; renderTrade();
+    }
+    function closeTrade() { tradeOpen = false; lastPull = null; $('trade').classList.remove('on'); }
+    function renderTrade() {
+      const card = $('tradecard'); tradeOpen = true; $('trade').classList.add('on');
+      const b = tradeBiome;
+      if (!b) { card.innerHTML = `<button class="aclose" data-tclose="1">close ⏎</button><div class="alaw">The stalls are bare.</div>`; return; }
+      const dex = getDex(b.id), owned = new Set(dex), prog = bxProgress(b, owned), closed = getClosed(b.id);
+      const pulls = getPullCount(b.id), free = pulls === 0, cost = free ? 0 : PULL_COST, coins = getCoins(), afford = free || coins >= cost;
+      const stars = '★'.repeat(RARITY_STARS[b.tier] || 1) + '☆'.repeat(5 - (RARITY_STARS[b.tier] || 1));
+      const cells = b.crops.map((c) => {
+        const have = owned.has(c.id), foil = TIER_FOIL[c.rarity] || '#8a9b92';
+        return have
+          ? `<div class="tcell thave" style="border-color:${foil}"><img class="tthumb" src="${esc(c.thumb)}" alt="" loading="lazy"/><div class="tn">${esc(c.common)}</div><div class="tr" style="color:${foil}">${esc(c.rarity)}</div></div>`
+          : `<div class="tcell tlock"><div class="tqq">?</div><div class="tn" style="color:#5a6660">— — —</div><div class="tr" style="color:${foil}">${esc(c.rarity)}</div></div>`;
+      }).join('');
+      let reveal = '';
+      if (lastPull) { const c = lastPull.crop, foil = TIER_FOIL[c.rarity] || '#8a9b92';
+        reveal = `<div class="treveal" style="border-color:${foil};box-shadow:0 0 22px ${foil}33">`
+          + `<img class="trthumb" src="${esc(c.thumb)}" alt=""/><div><div class="trn">${esc(c.common)}</div>`
+          + `<div class="trr" style="color:${foil}">${'★'.repeat(RARITY_STARS[c.rarity] || 1)} ${esc(c.rarity)}</div>`
+          + `<div class="trs">${lastPull.isNew ? '<b style="color:#8fe07a">NEW</b> — added to the collection' : 'duplicate'} · +${lastPull.seeds} seed${lastPull.seeds === 1 ? '' : 's'}</div></div></div>`;
+      }
+      card.innerHTML =
+        `<button class="aclose" data-tclose="1">close ⏎</button>` +
+        `<div class="tfoil" style="background:${b.foil}"></div>` +
+        `<div class="ahead" style="color:${b.foil}">⇄ THE TRADE DESK</div>` +
+        `<div class="alaw" style="color:${b.foil}">${esc(b.name)}</div>` +
+        `<div class="ameta"><span style="color:${b.foil}">${stars}</span> ${esc(b.tier)} · ${esc(b.blurb)} · viability ${b.interest}</div>` +
+        `<div class="tprog">collection ${prog.have}/${prog.total} ${closed ? '· <b style="color:#f0c860">✦ CLOSED</b>' : ''}<div class="gbar" style="margin:5px auto 0;max-width:260px"><span style="width:${Math.round(prog.pct * 100)}%;background:${b.foil}"></span></div></div>` +
+        reveal +
+        `<div class="ggrid tgrid">${cells}</div>` +
+        (closed
+          ? `<div class="ameta" style="margin-top:14px;color:#f0c860">✦ this biome is closed — every crop gathered. Keep pulling for seeds.</div>`
+          : ``) +
+        `<div class="trow"><button class="gbtn tpull" data-pull="1" ${afford ? '' : 'disabled'}>${free ? 'first pull — FREE' : `PULL · ◈${cost}`}</button></div>` +
+        `<div class="ameta" style="margin-top:8px;color:#6b7872">◈ ${coins} · seeds go to your bag — plant them at a ❀ garden · Esc to leave</div>`;
+    }
+    $('trade').addEventListener('click', (e) => {
+      if (e.target === $('trade') || e.target.closest('[data-tclose]')) { closeTrade(); return; }
+      const pb = e.target.closest('[data-pull]'); if (!pb || !tradeBiome) return;
+      const b = tradeBiome, pulls = getPullCount(b.id), free = pulls === 0, cost = free ? 0 : PULL_COST, coins = getCoins();
+      if (!free && coins < cost) { lastPull = null; flashBusy(`◍ not enough coins to pull (◈${cost})`); return; }
+      if (!free) setCoins(coins - cost);
+      const res = bxPull(b, getDex(b.id), pullRng(seed, b.id, pulls));
+      setPullCount(b.id, pulls + 1);
+      if (res.isNew) { const dex = getDex(b.id); dex.push(res.crop.id); setDex(b.id, dex); }
+      const seeds = getSeeds(); seeds[res.crop.id] = (seeds[res.crop.id] || 0) + res.seeds; setSeeds(seeds);
+      let closedNow = false;
+      if (bxProgress(b, getDex(b.id)).complete && !getClosed(b.id)) { setClosed(b.id, true); setCoins(getCoins() + CLOSE_REWARD); closedNow = true; }
+      lastPull = res; saveStory(); renderTrade(); whereAmI();
+      if (closedNow) flashBusy(`✦ ${b.name} CLOSED — collection complete! +◈${CLOSE_REWARD}`, 3600);
+    });
+    function flashBusy(msg, ms = 2400) { const el = $('busy'); el.textContent = msg; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); }
 
     // ── the CAFE: a serve-role component is a food counter (the third live fixture). Each cafe is the
     //    kitchen of ONE biome/gacha ecosystem (picked from its chamber key), so different cafes plate
@@ -1736,6 +1844,8 @@
       if (caf) { openCafe(caf.cp, caf.ch); walkTo(caf.cp.cx, caf.cp.cy); return; }
       const grd = gardenAt(wx, wy);
       if (grd) { openGarden(grd.cp, grd.ch); walkTo(grd.cp.cx, grd.cp.cy); return; }
+      const trd = tradeAt(wx, wy);
+      if (trd) { openTrade(trd.cp, trd.ch); walkTo(trd.cp.cx, trd.cp.cy); return; }
       const lf = livingFixtureAt(wx, wy);
       if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openChest(lf.gid); return; }
       if (story.active) { story.active = null; renderStory(); }
@@ -1753,7 +1863,7 @@
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (gpu) gpu.resize(W * dpr, H * dpr); if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen && !gardenOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen && !gardenOpen && !tradeOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
@@ -1809,7 +1919,7 @@
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
-    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
     $('newgame').addEventListener('click', () => {

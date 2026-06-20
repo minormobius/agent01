@@ -10,12 +10,13 @@ const ark = JSON.parse(readFileSync(join(HERE, '../garden/ark.json'), 'utf8'));
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗', m); } };
 
-// 1. ark integrity
-ok(ark.crops.length >= 20, `ark has crops (${ark.crops.length})`);
+// 1. ark integrity (flat crop pool, deduped across biomes)
+ok(ark.crops.length >= 10, `ark has distinct crops (${ark.crops.length})`);
+ok(ark.cropIndex && Object.keys(ark.cropIndex).length === ark.crops.length, 'cropIndex covers every crop');
 for (const c of ark.crops) {
   ok(c.id && c.common && c.sciName, `crop ${c.id} has identity`);
   ok(c.growthDays >= 1 && c.growthDays <= 7, `crop ${c.common} growthDays in range (${c.growthDays})`);
-  ok(c.yield >= 1 && c.nourish >= 1 && c.seedCost >= 1, `crop ${c.common} has game stats`);
+  ok(c.yield >= 1 && c.nourish >= 1, `crop ${c.common} has game stats`);
 }
 ok(ark.crops.some((c) => c.thumb.startsWith('http')), 'crops carry iNat thumbnails');
 

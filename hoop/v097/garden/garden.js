@@ -9,7 +9,7 @@
 
 export const PLOTS_PER_GARDEN = 6;
 
-export const cropById = (ark, id) => (ark && ark.crops || []).find((c) => c.id === id) || null;
+export const cropById = (ark, id) => (ark && ark.cropIndex && ark.cropIndex[id]) || ((ark && ark.crops || []).find((c) => c.id === id)) || null;
 
 // a fresh, empty garden (all slots open).
 export const emptyGarden = () => new Array(PLOTS_PER_GARDEN).fill(null);
