@@ -119,6 +119,7 @@
 </style>
 </head>
 <body>
+  <canvas id="mapgl" style="pointer-events:none"></canvas>
   <canvas id="cv"></canvas>
   <div class="hud" id="status">…</div>
   <div class="hud" id="auth"></div>
@@ -148,6 +149,7 @@
              NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
     import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
     import { bakeFog } from './v8/bake.js';
+    import { initGpuMap } from './gpumap.js';   // optional WebGPU vector renderer for the cell fills (crisp at any zoom); null ⇒ baked-raster fallback
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
     import { drawDevice } from './v5/deco.js';
     import { drawWallLight } from './v5/lights.js';
@@ -194,6 +196,7 @@
                                    // desktop sees the same world-HEIGHT the phone does (just wider), not a screen-size zoom
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
+    let gpu = null, gpuActive = false;   // the WebGPU cell renderer (set once init resolves); false ⇒ raster fallback
     let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
     let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0;
     const story = { store: null, ready: false, playerId: 'local', active: null };
@@ -396,6 +399,7 @@
     }
 
     async function newWorld() {
+      if (gpu && world) for (const ch of world.chunks) freeChunkGpu(ch);   // release the old world's GPU cell buffers
       busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
       const { rec, painted } = await generate(opts({ seed })); rec.painted = painted; addChunk(world, rec); restitch();
       chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
@@ -445,9 +449,14 @@
     // ── PERF: a chunk's painting is STATIC, so bake it to an offscreen raster ONCE and blit it each frame
     //    (instead of re-tracing thousands of cell polygons every frame). Fog/residents/player draw on top. ──
     const RPX = 3;   // raster pixels per world unit (the painted look is soft; ample at the pinned VFOV)
-    function paintChunkInto(g, ch, P) {
+    // the CELL FILLS — the big flat Voronoi regions. When the GPU layer is live it draws these (crisp), so
+    // the raster skips them (gpuActive ⇒ paintChunkInto omits this and bakes only the detail layer).
+    function paintCellsInto(g, P) {
       const seamW = 0.7 / RPX;
       for (const c of P.paintCells) { if (c.poly.length < 3) continue; g.fillStyle = c.color || '#05070b'; fillPolyG(g, c.poly); if (!c.wall) { g.strokeStyle = 'rgba(6,9,12,0.5)'; g.lineWidth = seamW; g.stroke(); } }
+    }
+    function paintChunkInto(g, ch, P) {
+      if (!gpuActive) paintCellsInto(g, P);   // GPU draws the cells when active; otherwise bake them here
       if (P.fixtures) for (const F of P.fixtures) {
         const lm = new Map();
         for (const cl of F.cells) { const c = P.paintCells[cl.idx]; if (c) lm.set(Math.round(c.x) + ',' + Math.round(c.y), lumOfColor(c.color)); }
@@ -479,6 +488,42 @@
       } catch (e) { return null; }
     }
 
+    // ── the WebGPU CELL layer. Parse any CSS colour to rgba floats (a 1×1 canvas is bullet-proof for hex/
+    //    rgb/hsl), then fan-triangulate each CONVEX Voronoi cell into world-space vertices, cached per chunk. ──
+    const BG = [0x04 / 255, 0x05 / 255, 0x0a / 255];   // '#04050a'
+    const _colCache = new Map(); let _colCtx = null;
+    function parseColor(s) {
+      if (_colCache.has(s)) return _colCache.get(s);
+      if (!_colCtx) { const c = document.createElement('canvas'); c.width = c.height = 1; _colCtx = c.getContext('2d', { willReadFrequently: true }); }
+      _colCtx.clearRect(0, 0, 1, 1); _colCtx.fillStyle = '#000'; _colCtx.fillStyle = s; _colCtx.fillRect(0, 0, 1, 1);
+      const d = _colCtx.getImageData(0, 0, 1, 1).data, v = [d[0] / 255, d[1] / 255, d[2] / 255, d[3] / 255];
+      _colCache.set(s, v); return v;
+    }
+    const SEAM = [6 / 255, 9 / 255, 12 / 255, 0.5];   // rgba(6,9,12,0.5)
+    function buildChunkGpu(ch) {
+      if (ch._gpu) return ch._gpu;
+      const P = ch.painted; if (!P || !gpu) return (ch._gpu = { tris: null, lines: null });
+      const tris = [], lines = [];
+      const pv = (arr, p, c) => arr.push(p[0], p[1], c[0], c[1], c[2], c[3]);
+      for (const c of P.paintCells) {
+        const p = c.poly; if (!p || p.length < 3) continue;
+        const col = parseColor(c.color || '#05070b');
+        for (let i = 1; i < p.length - 1; i++) { pv(tris, p[0], col); pv(tris, p[i], col); pv(tris, p[i + 1], col); }   // convex fan
+        if (!c.wall) for (let i = 0; i < p.length; i++) { pv(lines, p[i], SEAM); pv(lines, p[(i + 1) % p.length], SEAM); }   // seam outline
+      }
+      return (ch._gpu = { tris: gpu.buffer(new Float32Array(tris)), lines: gpu.buffer(new Float32Array(lines)) });
+    }
+    function freeChunkGpu(ch) { if (ch._gpu && gpu) { gpu.free(ch._gpu.tris); gpu.free(ch._gpu.lines); } ch._gpu = null; }
+    // draw every visible chunk's cells on the GPU (one render pass): fills first, then seams over them.
+    function drawGpuCells(visible) {
+      const ax = 2 * cam.scale / W, ay = -2 * cam.scale / H;
+      gpu.setCamera(ax, ay, -cam.ox * ax - 1, 1 - cam.oy * ay);
+      gpu.begin(BG);
+      for (const ch of visible) gpu.drawTris(buildChunkGpu(ch).tris);
+      for (const ch of visible) gpu.drawLines(ch._gpu && ch._gpu.lines);
+      gpu.end();
+    }
+
     function drawPainted() {
       screenXform(); ctx.imageSmoothingEnabled = true;
       const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
@@ -486,8 +531,8 @@
       for (const ch of world.chunks) {
         if ((ch.deck || 0) !== pd) continue;   // draw only the current deck (decks share a footprint)
         const bb = ch.bb || (ch.bb = bboxOf(ch.poly));
-        if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) {   // off-screen: evict far rasters to bound memory
-          if (ch._raster && (Math.abs((bb.x0 + bb.x1) / 2 - px()) > far || Math.abs((bb.y0 + bb.y1) / 2 - py()) > far)) ch._raster = null;
+        if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) {   // off-screen: evict far rasters + GPU buffers to bound memory
+          if ((ch._raster || ch._gpu) && (Math.abs((bb.x0 + bb.x1) / 2 - px()) > far || Math.abs((bb.y0 + bb.y1) / 2 - py()) > far)) { ch._raster = null; freeChunkGpu(ch); }
           continue;
         }
         const R = chunkRaster(ch); if (!R) continue;
@@ -503,9 +548,18 @@
       ctx.beginPath(); ctx.arc(L.x, L.y, r * 0.5, 0, 7); ctx.fillStyle = `hsla(${hue},70%,88%,0.95)`; ctx.fill();
     }
 
+    // the visible chunks on the current deck (same cull drawPainted uses) — fed to the GPU cell pass.
+    function visibleDeckChunks() {
+      const out = [], pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad, pd = playerDeck();
+      for (const ch of world.chunks) { if ((ch.deck || 0) !== pd) continue; const bb = ch.bb || (ch.bb = bboxOf(ch.poly)); if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) continue; out.push(ch); }
+      return out;
+    }
     function draw() {
-      screenXform(); ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, W, H);
+      screenXform();
+      if (gpuActive) ctx.clearRect(0, 0, W, H);                          // GPU canvas behind shows the cells through
+      else { ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, W, H); }
       if (!world) return;
+      if (gpuActive) drawGpuCells(visibleDeckChunks());                  // crisp vector cell fills on the back canvas
       drawPainted();
       drawResidents();                 // BEFORE the fog, so the fog hides residents in unseen rooms
       // fog blitted with a blur so its frontier is soft (hides the per-cell reveal edge)
@@ -1548,7 +1602,7 @@
       draw();
     }
 
-    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
+    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (gpu) gpu.resize(W * dpr, H * dpr); if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
     addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
 
@@ -1616,6 +1670,14 @@
       location.reload();
     });
     loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
+    // bring up the WebGPU cell renderer (crisp vector fills). Async + fully guarded: if it never resolves
+    // or WebGPU is missing, the game stays on the baked-raster path with zero change.
+    initGpuMap($('mapgl')).then((g) => {
+      if (!g) return;
+      gpu = g; gpuActive = true; gpu.resize(W * dpr, H * dpr);
+      if (world) for (const ch of world.chunks) ch._raster = null;   // re-bake detail-only now that the GPU owns the cells
+      draw();
+    }).catch(() => { gpu = null; gpuActive = false; });
   </script>
 </body>
 </html>
