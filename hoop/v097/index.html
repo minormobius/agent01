@@ -96,12 +96,14 @@
     /* the ENCOUNTER card — Qud-style: meeting anything new fills the centre of the screen with its full description */
     #enc { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 40; background: rgba(2,3,6,0.62); pointer-events: auto; }
     /* the ARCADE — a dedicated fullscreen cabinet screen (à la the inventory), high contrast */
-    #arc { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 35%, rgba(12,9,18,0.96), rgba(4,4,8,0.99)); pointer-events: auto; }
-    #arc.on { display: flex; align-items: center; justify-content: center; }
-    #arc .acard { width: min(560px, 94vw); max-height: 94vh; overflow-y: auto; text-align: center; padding: 26px 22px 30px; }
+    #arc, #garden { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 35%, rgba(12,9,18,0.96), rgba(4,4,8,0.99)); pointer-events: auto; }
+    #garden { background: radial-gradient(120% 120% at 50% 32%, rgba(10,18,12,0.96), rgba(3,6,4,0.99)); }
+    #arc.on, #garden.on { display: flex; align-items: center; justify-content: center; }
+    #arc .acard, #garden .acard { width: min(560px, 94vw); max-height: 94vh; overflow-y: auto; text-align: center; padding: 26px 22px 30px; }
     #arc .ahead { font-size: 13px; letter-spacing: 1px; color: #c89ad0; }
-    #arc .alaw { font-size: 21px; font-weight: 600; color: #f4bf62; margin: 4px 0 2px; }
-    #arc .ameta { font-size: 11.5px; color: #9aa8a0; margin-bottom: 4px; }
+    #garden .ahead { font-size: 13px; letter-spacing: 1px; color: #8fe07a; }
+    #arc .alaw, #garden .alaw { font-size: 21px; font-weight: 600; color: #f4bf62; margin: 4px 0 2px; }
+    #arc .ameta, #garden .ameta { font-size: 11.5px; color: #9aa8a0; margin-bottom: 4px; }
     #arc .arule { font-size: 12.5px; line-height: 1.5; color: #cfd8d2; border-left: 2px solid #c89ad0; padding: 4px 0 4px 11px; margin: 12px auto; max-width: 440px; text-align: left; }
     #arc canvas { width: min(440px, 90vw); display: block; margin: 14px auto 8px; background: #0a0e16; border: 1px solid #34424d; border-radius: 8px; image-rendering: pixelated; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
     #arc .amoves { font-size: 12px; color: #9aa8a0; margin: 4px 0; }
@@ -112,8 +114,27 @@
     #arc .apad button:hover, #arc .arow button:hover { border-color: #c89ad0; background: #1c2630; color: #fff; }
     #arc .arow { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
     #arc .arow button { font-size: 12.5px; padding: 7px 13px; color: #b6c2bb; }
-    #arc .aclose { position: absolute; top: 14px; right: 18px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; }
-    #arc .aclose:hover { color: #f4bf62; }
+    #arc .aclose, #garden .aclose { position: absolute; top: 14px; right: 18px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; }
+    #arc .aclose:hover, #garden .aclose:hover { color: #f4bf62; }
+    /* the garden plot grid */
+    #garden .ggrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 16px auto 6px; max-width: 480px; }
+    @media (max-width: 520px) { #garden .ggrid { grid-template-columns: repeat(2, 1fr); } }
+    #garden .gplot { background: #0d160f; border: 1px solid #25402a; border-radius: 9px; padding: 9px 8px; min-height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+    #garden .gplot.gready { border-color: #5aa860; background: #102414; box-shadow: 0 0 14px rgba(120,224,140,0.12); }
+    #garden .gplot.gempty { border-style: dashed; justify-content: flex-start; }
+    #garden .gthumb { width: 46px; height: 46px; border-radius: 8px; object-fit: cover; background: #06080c; }
+    #garden .gph { font-size: 12px; color: #dfe7e2; line-height: 1.2; }
+    #garden .gsub { font-size: 10.5px; color: #8fb89f; }
+    #garden .gbar { width: 80%; height: 5px; background: #06120a; border-radius: 3px; overflow: hidden; }
+    #garden .gbar > span { display: block; height: 100%; background: #6fc06a; }
+    #garden .gdim { font-size: 10.5px; color: #6b7872; }
+    #garden .gbtn { background: #163322; border: 1px solid #2f6a3c; color: #cfeccf; font: inherit; font-size: 12px; padding: 6px 11px; border-radius: 7px; cursor: pointer; transition: .12s; }
+    #garden .gbtn:hover { border-color: #6fc06a; background: #1c4329; color: #fff; }
+    #garden .gseed { display: block; width: 100%; margin: 3px 0 0; background: #11201a; border: 1px solid #25402a; color: #cfe6d2; font: inherit; font-size: 11px; padding: 5px 8px; border-radius: 6px; cursor: pointer; text-align: left; }
+    #garden .gseed:hover { border-color: #6fc06a; color: #fff; }
+    #garden .ghead2 { font-size: 11px; letter-spacing: 1px; color: #8fe07a; margin: 18px 0 7px; text-transform: uppercase; }
+    #garden .gpantry { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+    #garden .gpan { font-size: 11.5px; }
     #enc.on { display: flex; }
     #enc .card { width: min(560px, 92vw); max-height: 82vh; overflow-y: auto; background: linear-gradient(180deg, #0b0f15, #07090e); border: 1px solid #2a3a44; border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); padding: 22px 24px 16px; }
     #enc .ek { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #7fd8d0; }
@@ -147,6 +168,7 @@
   <div id="storybg"></div>
   <div id="story"></div>
   <div id="arc"><div class="acard" id="arccard"></div></div>
+  <div id="garden"><div class="acard" id="gardencard"></div></div>
   <div id="enc"><div class="card" id="enccard"></div></div>
 
   <script type="module">
@@ -156,6 +178,7 @@
     import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
              NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
     import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
+    import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest, starterSeeds } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce
     import { bakeFog } from './v8/bake.js';
     import { initGpuMap } from './gpumap.js';   // optional WebGPU vector renderer for the cell fills (crisp at any zoom); null ⇒ baked-raster fallback
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
@@ -364,9 +387,11 @@
       return null;
     }
     function useBed() {
-      setStam(STAMINA_MAX); saveStory(); whereAmI();
-      $('busy').textContent = '✚ rested — stamina restored'; $('busy').classList.add('on');
-      clearTimeout(_flashT); _flashT = setTimeout(() => { $('busy').classList.remove('on'); $('busy').textContent = 'generating…'; }, 2400);
+      setStam(STAMINA_MAX);
+      const d = getDay() + 1; setDay(d);   // sleep is the garden's clock: a night passes, your crops grow
+      saveStory(); whereAmI();
+      $('busy').textContent = `✚ rested — a night passes (day ${d}). Your gardens grow.`; $('busy').classList.add('on');
+      clearTimeout(_flashT); _flashT = setTimeout(() => { $('busy').classList.remove('on'); $('busy').textContent = 'generating…'; }, 2800);
     }
     let chestGid = null;
     function openChest(gid) { chestGid = gid; story.active = { chest: true }; renderChest(); }
@@ -480,6 +505,7 @@
         if (isTerminal(cp)) { g.save(); g.strokeStyle = '#7fd8d0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#7fd8d0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('▤', cp.cx, cp.cy); g.restore(); }
         else if (isArcade(cp)) { g.save(); g.strokeStyle = '#c89ad0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#c89ad0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◈', cp.cx, cp.cy); g.restore(); }
         else if (isCafe(cp)) { g.save(); g.strokeStyle = '#e0a86a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e0a86a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◍', cp.cx, cp.cy); g.restore(); }
+        else if (isGarden(cp)) { g.save(); g.strokeStyle = '#6fc06a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#8fe07a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('❀', cp.cx, cp.cy); g.restore(); }
       }
       for (const L of P.lights) { if (L.concourse) drawBollard(g, L); else drawWallLight(g, L, { hue: L.hue, lit: L.lit }); }
     }
@@ -1261,6 +1287,7 @@
     addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       if (arcadeOpen) { closeArcade(); return; }
+      if (gardenOpen) { closeGarden(); return; }
       if (story.active) { story.active = null; renderStory(); }
     });
     // arcade input: arrows / WASD drive the cabinet's law (absolute directions, like fable/forge's play view).
@@ -1428,6 +1455,103 @@
       const el = $('busy'); el.textContent = `◈ ${g.law.name} — solved in ${g.moves} (par ${g.par}) · claim ◈${arcadeReward(g)}`; el.classList.add('on');
       clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
     }
+
+    // ── THE GARDEN (grow-role component) — the GROW corner of the trade↔grow↔dwell triangle. Plant seeds
+    //    from the biome iNaturalist ark, sleep in your dwelling to pass days, harvest produce. State (day,
+    //    seed bag, pantry, per-garden plots) rides the save as JSON facts. The trade desk (seeds) + kitchen
+    //    (cook the pantry into yum recipes) land next; for now produce is eaten raw to close the loop. ──
+    const getDay = () => (story.ready && story.store.getFact(story.playerId, 'sim.day')) | 0;
+    const setDay = (v) => { if (story.ready) story.store.setFact(story.playerId, 'sim.day', v | 0); };
+    const getJSONFact = (k, dflt) => { try { const v = story.ready && story.store.getFact(story.playerId, k); return v ? JSON.parse(v) : dflt; } catch (e) { return dflt; } };
+    const setJSONFact = (k, o) => { if (story.ready) story.store.setFact(story.playerId, k, JSON.stringify(o)); };
+    const getSeeds = () => getJSONFact('garden.seeds', {});
+    const setSeeds = (o) => setJSONFact('garden.seeds', o);
+    const getPantry = () => getJSONFact('garden.pantry', {});
+    const setPantry = (o) => setJSONFact('garden.pantry', o);
+    const gardenKeyOf = (cp, ch) => 'g' + ch.id + ':r' + cp.room;
+    const getPlots = (key) => getJSONFact('garden.plots.' + key, null) || emptyGarden();
+    const setPlots = (key, plots) => setJSONFact('garden.plots.' + key, plots);
+
+    let gardenArk = null, _arkP = null;
+    function ensureArk() { if (gardenArk) return Promise.resolve(gardenArk); if (!_arkP) _arkP = fetch(new URL('./garden/ark.json', import.meta.url)).then((r) => r.json()).then((a) => (gardenArk = a)).catch(() => null); return _arkP; }
+    const isGarden = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'garden';
+    function gardenAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isGarden(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    let gardenOpen = false, gardenKey = null;
+    async function openGarden(cp, ch) {
+      if (!story.ready) return;
+      await ensureArk(); if (!gardenArk) return;
+      story.store.setFact(story.playerId, 'flag.found_garden', true);
+      if (!story.store.getFact(story.playerId, 'garden.seeded')) {   // a deterministic starter seed bag, so the garden is playable before the trade desk exists
+        setSeeds(starterSeeds(seed, gardenArk)); story.store.setFact(story.playerId, 'garden.seeded', true); saveStory();
+      }
+      gardenKey = gardenKeyOf(cp, ch); gardenOpen = true; renderGarden();
+    }
+    function closeGarden() { gardenOpen = false; $('garden').classList.remove('on'); }
+    const cropName = (id) => { const c = cropById(gardenArk, id); return c ? c.common : id; };
+    function renderGarden() {
+      const card = $('gardencard'); gardenOpen = true; $('garden').classList.add('on');
+      if (!gardenArk) { card.innerHTML = `<button class="aclose" data-gclose="1">close ⏎</button><div class="alaw">The plot is fallow.</div>`; return; }
+      const day = getDay(), plots = getPlots(gardenKey), seeds = getSeeds(), pantry = getPantry();
+      const seedEntries = Object.entries(seeds).filter(([, n]) => n > 0);
+      const plotCards = plots.map((p, i) => {
+        if (!p) {
+          const opts = seedEntries.length
+            ? seedEntries.map(([id, n]) => `<button class="gseed" data-plant="${i}" data-seed="${esc(id)}">🌱 ${esc(cropName(id))} <span style="color:#6b7872">(${n})</span></button>`).join('')
+            : `<div class="gdim">no seeds — find a trade desk</div>`;
+          return `<div class="gplot gempty"><div class="gph">plot ${i + 1} · empty</div>${opts}</div>`;
+        }
+        const crop = cropById(gardenArk, p.seedId), g = growth(p, crop, day);
+        const img = crop && crop.thumb ? `<img class="gthumb" src="${esc(crop.thumb)}" alt="" loading="lazy" />` : '';
+        if (g.ready) return `<div class="gplot gready">${img}<div class="gph">${esc(crop.common)}</div><div class="gsub" style="color:#8fe0a0">✓ ripe</div><button class="gbtn" data-harvest="${i}">harvest +${crop.yield}</button></div>`;
+        return `<div class="gplot">${img}<div class="gph">${esc(crop.common)}</div><div class="gbar"><span style="width:${Math.round(g.stage * 100)}%"></span></div><div class="gsub">${g.daysLeft} day${g.daysLeft === 1 ? '' : 's'} to ripen</div></div>`;
+      }).join('');
+      const pantryEntries = Object.entries(pantry).filter(([, n]) => n > 0);
+      const pantryHtml = pantryEntries.length
+        ? pantryEntries.map(([id, n]) => { const c = cropById(gardenArk, id); return `<button class="gbtn gpan" data-eat="${esc(id)}">${esc(cropName(id))} ×${n} · eat +${c ? c.nourish : 6}</button>`; }).join('')
+        : `<div class="gdim">empty — harvest a ripe plot</div>`;
+      card.innerHTML =
+        `<button class="aclose" data-gclose="1">close ⏎</button>` +
+        `<div class="ahead">❀ THE GARDEN</div>` +
+        `<div class="alaw">a grow-deck plot</div>` +
+        `<div class="ameta">day ${day} · ${plots.filter(Boolean).length}/${PLOTS_PER_GARDEN} plots planted · rest in your dwelling (a bed) to pass a day</div>` +
+        `<div class="ggrid">${plotCards}</div>` +
+        `<div class="ghead2">pantry</div><div class="gpantry">${pantryHtml}</div>` +
+        `<div class="ameta" style="margin-top:12px;color:#6b7872">seeds from the biome ark (iNaturalist) · Esc to leave</div>`;
+    }
+    $('garden').addEventListener('click', (e) => {
+      if (e.target === $('garden') || e.target.closest('[data-gclose]')) { closeGarden(); return; }
+      const pl = e.target.closest('[data-plant]'), hv = e.target.closest('[data-harvest]'), et = e.target.closest('[data-eat]');
+      if (pl) {
+        const slot = +pl.dataset.plant, sid = pl.dataset.seed, seeds = getSeeds();
+        if (!(seeds[sid] > 0)) return;
+        seeds[sid]--; setSeeds(seeds);
+        setPlots(gardenKey, plant(getPlots(gardenKey), slot, sid, getDay()));
+        saveStory(); renderGarden(); return;
+      }
+      if (hv) {
+        const r = harvest(getPlots(gardenKey), +hv.dataset.harvest, gardenArk, getDay());
+        if (r) { setPlots(gardenKey, r.plots); const pan = getPantry(); pan[r.cropId] = (pan[r.cropId] || 0) + r.yield; setPantry(pan); saveStory(); renderGarden(); }
+        return;
+      }
+      if (et) {
+        const id = et.dataset.eat, pan = getPantry(); if (!(pan[id] > 0)) return;
+        const crop = cropById(gardenArk, id); if (!crop) return;
+        pan[id]--; setPantry(pan);
+        const s = applyFood({ stamina: getStam(), nourish: getNourish(), health: getHealth() }, { name: crop.common, nourish: crop.nourish, restoreStamina: Math.round(crop.nourish * 0.4), heal: 0 });
+        const st = story.store; st.setFact(story.playerId, 'sim.stamina', s.stamina); st.setFact(story.playerId, 'sim.nourish', s.nourish); st.setFact(story.playerId, 'sim.health', s.health);
+        saveStory(); whereAmI(); renderGarden();
+        const el = $('busy'); el.textContent = `❀ ate raw ${crop.common} — +${crop.nourish} food`; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2400);
+        return;
+      }
+    });
 
     // ── the CAFE: a serve-role component is a food counter (the third live fixture). Each cafe is the
     //    kitchen of ONE biome/gacha ecosystem (picked from its chamber key), so different cafes plate
@@ -1610,6 +1734,8 @@
       if (arc) { openArcade(arc.cp, arc.ch); walkTo(arc.cp.cx, arc.cp.cy); return; }
       const caf = cafeAt(wx, wy);
       if (caf) { openCafe(caf.cp, caf.ch); walkTo(caf.cp.cx, caf.cp.cy); return; }
+      const grd = gardenAt(wx, wy);
+      if (grd) { openGarden(grd.cp, grd.ch); walkTo(grd.cp.cx, grd.cp.cy); return; }
       const lf = livingFixtureAt(wx, wy);
       if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openChest(lf.gid); return; }
       if (story.active) { story.active = null; renderStory(); }
@@ -1627,7 +1753,7 @@
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (gpu) gpu.resize(W * dpr, H * dpr); if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen && !gardenOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
@@ -1683,7 +1809,7 @@
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
-    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !arcadeOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
     $('newgame').addEventListener('click', () => {
