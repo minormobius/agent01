@@ -141,10 +141,41 @@ These change what gets built, so they're yours to make before implementing §2�
 
 ---
 
+## Decisions & findings
+
+**Tenancy target: "a few trusted people."** ⇒ `INJECT_SHARED_CREDS=false`; git via
+per-repo GitHub App installation tokens (HTTPS); no Cloudflare deploy for users;
+per-user PDS proxy. The capability token + PDS proxy carry over unchanged.
+
+**Tangled is NOT viable as the container's live git remote.** It was an appealing
+idea — git hosting native to ATProto identity would dissolve the credential
+problem (the DID we already authenticate *is* the git identity). But two hard
+transport facts collide:
+- **Cloudflare Containers allow HTTP/HTTPS egress only** — no arbitrary TCP, no
+  SSH/port 22. <https://github.com/cloudflare/containers/blob/main/docs/egress.md>
+- **Tangled git is SSH-only** — no HTTPS smart-HTTP transport.
+  <https://docs.tangled.org/quick-start-guide>
+
+A container therefore cannot push to tangled. (A worker *could* open raw TCP via
+`connect()`, but implementing git-over-SSH in a Worker is far past MVP.) So:
+- **Live dev remote = GitHub over HTTPS** (App installation tokens) — the one
+  that fits the egress wall.
+- **Tangled stays as the publish/mirror target**, driven from *GitHub Actions*
+  (where SSH egress is fine — `mirror-tangled.yml` already does this). Best of
+  both: GitHub for live agent dev, tangled for identity-native "remixable"
+  publishing. Revisit a live tangled remote only if it ships HTTPS git, or we add
+  an SSH-capable relay.
+
+**uv added to the container** (`Dockerfile`) — fast Python package/project
+manager, HTTPS-install so egress-compatible. Speeds the agent's frequent
+re-installs on ephemeral disk.
+
 ## Rollout order
 
 1. ✅ `/ws` identity gate (Phase 1).
-2. ✅ Capability token + `/sync` DID-scoping + `INJECT_SHARED_CREDS` gate (this).
+2. ✅ Capability token + `/sync` DID-scoping + `INJECT_SHARED_CREDS` gate.
 3. PDS-MCP server + `/pds/*` proxy (the differentiated win; safe single-tenant).
-4. Pick the tenancy target (decisions above), then git/CF capabilities to match.
-5. WS ticket + container egress/quota hardening.
+4. GitHub App + `/git/*` credential broker: worker mints a per-repo, ~1h
+   installation token; container uses it via a git credential helper over HTTPS.
+   No GitHub token ever persists in the shell.
+5. WS ticket + container egress allowlist + per-DID R2 quota.
