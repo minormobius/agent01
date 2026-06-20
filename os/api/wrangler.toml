@@ -5,6 +5,14 @@ compatibility_flags = ["nodejs_compat", "containers"]
 
 [vars]
 SYNC_URL = "https://os-api.minomobi.com"
+# Comma-separated allowlist of DIDs permitted to open a container shell.
+# FAIL-CLOSED: if this is empty, the /ws endpoint refuses every connection.
+# The shell is handed shared GITHUB_TOKEN / CLOUDFLARE_API_TOKEN, so only put
+# DIDs you fully trust here. For a personal tool this is just your own DID, e.g.
+#   ALLOWED_DIDS = "did:plc:xxxxxxxxxxxxxxxxxxxxxxxx"
+# (A DID is public, not a secret, so it's fine to commit. Can also be set via
+#  `wrangler secret put ALLOWED_DIDS` if you prefer to keep it out of git.)
+ALLOWED_DIDS = ""
 
 # R2 bucket for persistent workspace storage
 [[r2_buckets]]
@@ -31,3 +39,15 @@ new_sqlite_classes = ["ContainerShell"]
 #   GITHUB_TOKEN          — GitHub PAT for MCP server + git push
 #   CLOUDFLARE_API_TOKEN  — for wrangler commands inside container
 #   CLOUDFLARE_ACCOUNT_ID — for wrangler commands inside container
+#
+# SECURITY: GITHUB_TOKEN and CLOUDFLARE_API_TOKEN are SHARED across every
+# container and readable from the shell env. They are protected ONLY by the
+# ALLOWED_DIDS gate above (single-tenant safe). Before granting access to anyone
+# besides yourself, scope these down hard:
+#   • GITHUB_TOKEN → a fine-grained PAT limited to minormobius/agent01 only
+#                    (or a GitHub App installation token), NOT a classic all-repo
+#                    token and NOT your org-wide token.
+#   • CLOUDFLARE_API_TOKEN → scoped to just the os Workers/Pages/R2 resources,
+#                    not an account-wide token.
+# True multi-tenant requires per-user minted tokens held by a broker, not these
+# shared secrets in env — see Phase 2.

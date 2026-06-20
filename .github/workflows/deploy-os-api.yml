@@ -17,7 +17,13 @@ name: Deploy os-api (container) [MANUAL]
 #        npx wrangler secret put GITHUB_TOKEN -c os/api/wrangler.toml
 #      (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID for in-container wrangler are
 #       also referenced by the container — see os/api/wrangler.toml.)
-#   4. Attach the custom domain os-api.minomobi.com after the first deploy.
+#   4. REQUIRED: set ALLOWED_DIDS to your DID (in [vars] in wrangler.toml, or via
+#      `wrangler secret put ALLOWED_DIDS`). The /ws endpoint is FAIL-CLOSED — with
+#      no allowlist it refuses every connection, so the shared GITHUB_TOKEN /
+#      CLOUDFLARE_API_TOKEN in the shell can't be reached by anyone. Do NOT deploy
+#      this with ALLOWED_DIDS empty and then add a second user without first
+#      scoping those tokens down (see the SECURITY note in wrangler.toml).
+#   5. Attach the custom domain os-api.minomobi.com after the first deploy.
 #
 # wrangler builds the image from os/api/container/Dockerfile (the ubuntu-latest
 # runner provides Docker) and pushes it to Cloudflare's container registry.

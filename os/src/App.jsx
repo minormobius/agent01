@@ -67,6 +67,9 @@ export default function App() {
       rows: 24,
       session: sessionId,
       apiKey,
+      // PDS access token — the worker verifies this and checks the derived DID
+      // against its allowlist before granting a shell.
+      auth: session.accessJwt,
     });
   }, [session]);
 

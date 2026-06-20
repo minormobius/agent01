@@ -133,6 +133,87 @@ async function handleSync(request, env, url) {
   return new Response('Method not allowed', { status: 405 });
 }
 
+// ─── Identity gate ─────────────────────────────────────────────────
+// The container is handed powerful, SHARED credentials (GITHUB_TOKEN,
+// CLOUDFLARE_API_TOKEN) via ContainerShell.envVars — anyone who opens a shell
+// can read them. So we must prove the connecting user is allowed BEFORE routing
+// to a container, and we must derive their identity from a VERIFIED token, never
+// from a client-supplied query param.
+//
+// Spoof/SSRF-safe flow:
+//   1. client sends its claimed did (?session) + its PDS accessJwt (?auth)
+//   2. did must be on the allowlist (cheap reject)
+//   3. resolve the did → its canonical PDS via the TRUSTED directory
+//      (plc.directory / did:web) — NOT any client-supplied URL
+//   4. call com.atproto.server.getSession on that PDS with the bearer
+//   5. assert the token's did matches the claimed, allowlisted did
+// An attacker can claim your did but can't produce a valid token for your real
+// PDS, and can't redirect us to a lying server, so the gate holds.
+//
+// Fail closed: if ALLOWED_DIDS is unset, refuse every connection.
+async function authorizeDid(env, claimedDid, accessJwt) {
+  const allow = (env.ALLOWED_DIDS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (allow.length === 0) {
+    return { ok: false, status: 503, msg: 'Container access not configured (ALLOWED_DIDS unset)' };
+  }
+  if (!claimedDid || !accessJwt) {
+    return { ok: false, status: 401, msg: 'Missing identity (session + auth required)' };
+  }
+  if (!allow.includes(claimedDid)) {
+    return { ok: false, status: 403, msg: 'Not authorized' };
+  }
+
+  let pdsUrl;
+  try {
+    pdsUrl = await resolvePds(claimedDid);
+  } catch {
+    return { ok: false, status: 401, msg: 'Could not resolve identity' };
+  }
+
+  let verifiedDid;
+  try {
+    const res = await fetch(`${new URL(pdsUrl).origin}/xrpc/com.atproto.server.getSession`, {
+      headers: { Authorization: `Bearer ${accessJwt}` },
+    });
+    if (!res.ok) return { ok: false, status: 401, msg: 'Invalid session' };
+    verifiedDid = (await res.json())?.did;
+  } catch {
+    return { ok: false, status: 401, msg: 'Auth verification failed' };
+  }
+
+  if (!verifiedDid || verifiedDid !== claimedDid || !allow.includes(verifiedDid)) {
+    return { ok: false, status: 403, msg: 'Not authorized' };
+  }
+  return { ok: true, did: verifiedDid };
+}
+
+// Trusted DID → PDS resolution (mirrors os/src/auth/oauth.js). Only ever fetches
+// plc.directory or the did:web domain itself — never a client-supplied endpoint.
+async function resolvePds(did) {
+  if (did.startsWith('did:plc:')) {
+    const res = await fetch(`https://plc.directory/${encodeURIComponent(did)}`);
+    if (!res.ok) throw new Error('plc resolve failed');
+    const doc = await res.json();
+    const svc = doc.service?.find((s) => s.id === '#atproto_pds');
+    if (!svc?.serviceEndpoint) throw new Error('no pds in did doc');
+    return svc.serviceEndpoint;
+  }
+  if (did.startsWith('did:web:')) {
+    const domain = did.slice('did:web:'.length);
+    if (!/^[a-zA-Z0-9.-]+$/.test(domain)) throw new Error('bad did:web');
+    const res = await fetch(`https://${domain}/.well-known/did.json`);
+    if (!res.ok) throw new Error('did:web resolve failed');
+    const doc = await res.json();
+    const svc = doc.service?.find((s) => s.id === '#atproto_pds');
+    if (!svc?.serviceEndpoint) throw new Error('no pds in did doc');
+    return svc.serviceEndpoint;
+  }
+  throw new Error('unsupported did method');
+}
+
 // ─── WebSocket handler ─────────────────────────────────────────────
 
 async function handleWebSocket(request, env, url) {
@@ -141,10 +222,17 @@ async function handleWebSocket(request, env, url) {
     return new Response('Expected WebSocket', { status: 426 });
   }
 
-  const sessionId = url.searchParams.get('session');
-  if (!sessionId) {
-    return new Response('Missing session parameter', { status: 400 });
+  // Verify identity BEFORE touching a container. The verified did becomes the
+  // workspace key — we ignore any unauthenticated client-claimed value.
+  const auth = await authorizeDid(
+    env,
+    url.searchParams.get('session'),
+    url.searchParams.get('auth')
+  );
+  if (!auth.ok) {
+    return new Response(auth.msg, { status: auth.status });
   }
+  const sessionId = auth.did;
 
   // Route to per-user container instance
   const containerId = env.CONTAINER_SHELL.idFromName(sessionId);
