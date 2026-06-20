@@ -167,6 +167,29 @@
     #trade .trr { font-size: 11.5px; margin: 2px 0; }
     #trade .trs { font-size: 11px; color: #b6c2bb; }
     #trade .trow { margin-top: 16px; }
+    /* the in-world battle overlay (the tactical board, ported from /arena) */
+    #battle { position: fixed; inset: 0; display: none; z-index: 38; background: radial-gradient(120% 120% at 50% 40%, rgba(10,7,9,0.97), rgba(3,3,5,0.995)); pointer-events: auto; }
+    #battle.on { display: block; }
+    #battle .bcv { position: absolute; inset: 0; display: block; }
+    #battle .btop { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; gap: 14px; padding: 0 16px; font-size: 12px; color: #cfd8d2; z-index: 2; pointer-events: none; }
+    #battle .btop .bwho { color: #f4bf62; } #battle .btop .bturn { color: #8aa39a; } #battle .btop .bphase { color: #cf8b8b; }
+    #battle .btop .bflee { margin-left: auto; pointer-events: auto; background: rgba(40,12,12,0.7); border: 1px solid #5a2a2a; color: #cf8b8b; font: inherit; font-size: 11px; padding: 4px 11px; border-radius: 7px; cursor: pointer; }
+    #battle .btop .bflee:hover { border-color: #cf3b3b; color: #fff; }
+    #battle .blog { position: absolute; left: 12px; bottom: 96px; width: min(280px, 60vw); max-height: 120px; overflow: hidden; font-size: 10.5px; line-height: 1.45; z-index: 2; pointer-events: none; text-shadow: 0 1px 2px #000; }
+    #battle .blog .l-win { color: #8fe07a; } #battle .blog .l-lose { color: #e05a5a; } #battle .blog .l-hit { color: #f4d99a; } #battle .blog .l-heal { color: #7fd8d0; } #battle .blog .l-buff { color: #b39bd8; } #battle .blog .l-info, #battle .blog .l-miss { color: #8aa39a; }
+    #battle .bbar { position: absolute; left: 0; right: 0; bottom: 0; min-height: 80px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 14px; z-index: 2; }
+    #battle .bact { background: #161d27; border: 1px solid #34424d; color: #e8efe9; font: inherit; font-size: 13px; padding: 9px 15px; border-radius: 9px; cursor: pointer; transition: .12s; }
+    #battle .bact:hover:not([disabled]) { border-color: #f4bf62; background: #1c2630; color: #fff; }
+    #battle .bact.sel { border-color: #f4bf62; background: #2a2410; color: #f4bf62; }
+    #battle .bact[disabled] { opacity: .35; cursor: not-allowed; }
+    #battle .bact .bc { color: #b39bd8; font-size: 11px; }
+    #battle .bover { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(3,3,6,0.78); z-index: 3; }
+    #battle .bover.on { display: flex; }
+    #battle .bover .bres { font-size: 34px; font-weight: 800; letter-spacing: 3px; }
+    #battle .bover .bres.win { color: #f4bf62; } #battle .bover .bres.lose { color: #cf3b3b; }
+    #battle .bover .bsub { font-size: 13px; color: #9aa8a0; }
+    #battle .bover .bclaim { margin-top: 8px; background: #161d27; border: 1px solid #34424d; color: #e8efe9; font: inherit; font-size: 13px; padding: 9px 20px; border-radius: 9px; cursor: pointer; }
+    #battle .bover .bclaim:hover { border-color: #f4bf62; color: #fff; }
     /* the garden plot grid */
     #garden .ggrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 16px auto 6px; max-width: 480px; }
     @media (max-width: 520px) { #garden .ggrid { grid-template-columns: repeat(2, 1fr); } }
@@ -222,6 +245,7 @@
   <div id="garden"><div class="acard" id="gardencard"></div></div>
   <div id="trade"><div class="acard" id="tradecard"></div></div>
   <div id="kitchen"><div class="acard" id="kitchencard"></div></div>
+  <div id="battle"></div>
   <div id="enc"><div class="card" id="enccard"></div></div>
 
   <script type="module">
@@ -234,6 +258,11 @@
     import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce
     import { TIER_FOIL, PULL_COST, biomeForKey, progress as bxProgress, pullRng, pull as bxPull } from './garden/gacha.js';   // the TRADE fixture — gacha-pull seeds from one biome, collect to CLOSE it
     import { DISH_MIN, DISH_MAX, cookScore, cookDish } from './garden/kitchen.js';   // the dwelling's storage fixture, grown into a KITCHEN — cook crops into flavor-scored dishes
+    import { createBattle } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
+    import { CREEP_ROLES, isCreepRole, creepId, creepFor, spoilsFor } from './arena/encounter.js';   // hazard-room creeps
+    import { BattleOverlay } from './arena/battle-ui.js';   // the tactical-board UI, shared with /arena
+    import { autoEquip, defaultPlan } from './bodyplan.js';   // equip the player/creep for battle
+    import { rollItem } from './sprite/item/genome.js';   // mint a loot item from a spoils seed
     import { bakeFog } from './v8/bake.js';
     import { initGpuMap } from './gpumap.js';   // optional WebGPU vector renderer for the cell fills (crisp at any zoom); null ⇒ baked-raster fallback
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
@@ -443,6 +472,7 @@
     }
     function useBed() {
       setStam(STAMINA_MAX);
+      setJSONFact('combat.home', { x: pp.x, y: pp.y });   // remember this bed — you wake here if you fall in battle
       const d = getDay() + 1; setDay(d);   // sleep is the garden's clock: a night passes, your crops grow
       saveStory(); whereAmI();
       $('busy').textContent = `✚ rested — a night passes (day ${d}). Your gardens grow.`; $('busy').classList.add('on');
@@ -562,6 +592,7 @@
         else if (isCafe(cp)) { g.save(); g.strokeStyle = '#e0a86a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e0a86a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◍', cp.cx, cp.cy); g.restore(); }
         else if (isGarden(cp)) { g.save(); g.strokeStyle = '#6fc06a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#8fe07a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('❀', cp.cx, cp.cy); g.restore(); }
         else if (isTrade(cp)) { g.save(); g.strokeStyle = '#d8b25a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e6c878'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⇄', cp.cx, cp.cy); g.restore(); }
+        else if (isCreepRoom(cp, ch)) { g.save(); g.strokeStyle = '#cf3b3b'; g.lineWidth = 1.6 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.6, 0, 7); g.stroke(); g.fillStyle = '#e05a5a'; g.font = `${Math.max(9, cp.r * 1.3)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('☠', cp.cx, cp.cy); g.restore(); }
       }
       for (const L of P.lights) { if (L.concourse) drawBollard(g, L); else drawWallLight(g, L, { hue: L.hue, lit: L.lit }); }
     }
@@ -1774,6 +1805,69 @@
       if (store) { const i = +store.dataset.store, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); setChests(chestDeposit(getChests(), kitchenGid, it)); saveStory(); renderKitchen(); } return; }
     });
 
+    // ── COMBAT IN-WORLD — hazard-room CREEPS. A store/move room's component is a foe (rolled crew, armed
+    //    like the player, scaled by deck). Walk into one → the tactical board (the arena engine, shared UI).
+    //    Win → the room is cleared for good (slain rides the save) + spoils (coins + a loot item to your
+    //    pack). Lose → you wake at your last bed, shaken (−health/−food). ──
+    let battleOpen = false, battleView = null, battleCtx = null;
+    const isSlain = (id) => !!(story.ready && story.store.getFact(story.playerId, 'combat.slain.' + id));
+    const isCreepRoom = (cp, ch) => isCreepRole(cp.role) && !isSlain(creepId(ch.id, cp.room));
+    function creepAt(wx, wy) {
+      if (!world) return null; let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isCreepRoom(cp, ch)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    const battleSpriteFor = (u) => { try { return crewSprite(u.sprite.seed, u.sprite.role, {}); } catch (e) { return null; } };
+    function buildPlayerUnit(c) {
+      const eq = autoEquip(defaultPlan(), packForCharacter(c, 9));
+      const combat = deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand });
+      return { id: 0, name: c.name, character: c, combat, sprite: { seed: c.sprite.seed, role: c.vocation }, glyph: '☻' };
+    }
+    function teleportTo(x, y) {
+      const nd = nearestDeckNode(x, y); if (nd < 0 || !walk) return;
+      player = nd; pp.x = walk.pos[2 * nd]; pp.y = walk.pos[2 * nd + 1]; route = []; routePts = [];
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      followCam(); reveal(); draw();
+    }
+    function openBattle(cp, ch) {
+      if (!story.ready || battleOpen) return;
+      const c = playerChar || loadCharacter();
+      if (!c) { flashBusy('⚔ roll a character first — ⛨ equip'); return; }
+      const deck = ch.deck || 0, id = creepId(ch.id, cp.room);
+      const foe = creepFor(seed, ch.id, cp.room, deck);
+      let bseed = 2166136261; for (const ch2 of id) bseed = Math.imul(bseed ^ ch2.charCodeAt(0), 16777619);
+      const state = createBattle({ player: buildPlayerUnit(c), foes: [foe], seed: bseed >>> 0, W: 9, H: 9 });
+      battleCtx = { ch, cp, id, deck };
+      battleOpen = true; $('battle').classList.add('on');
+      if (!battleView) battleView = new BattleOverlay($('battle'), { spriteFor: battleSpriteFor });
+      battleView.start(state, resolveBattle);
+    }
+    function resolveBattle(winner) {
+      battleOpen = false; $('battle').classList.remove('on');
+      const cx = battleCtx || {}; const ch = cx.ch, cp = cx.cp;
+      if (winner === 'player' && cx.id) {
+        story.store.setFact(story.playerId, 'combat.slain.' + cx.id, true);
+        const sp = spoilsFor(seed, ch.id, cp.room, cx.deck);
+        let it = null; try { it = rollItem(sp.itemSeed); } catch (e) {}
+        if (it) { addToPack(pack.pack, it); pack.setPack(pack.pack); }
+        setCoins(getCoins() + sp.coins);
+        saveStory(); draw(); whereAmI();
+        flashBusy(`⚔ hazard cleared — +◈${sp.coins}${it ? ` · spoils: ${it.name}` : ''}`, 3600);
+      } else {
+        const st = story.store;
+        st.setFact(story.playerId, 'sim.health', clampHealth(getHealth() - 25));
+        st.setFact(story.playerId, 'sim.nourish', clampNourish(getNourish() - 10));
+        setStam(STAMINA_MAX);                                   // you black out and wake rested but hurt
+        const home = getJSONFact('combat.home', null); if (home && walk) teleportTo(home.x, home.y);
+        saveStory(); draw(); whereAmI();
+        flashBusy('⚔ you fall — and wake in your quarters, shaken (−health, −food)', 3600);
+      }
+      battleCtx = null;
+    }
+
     // ── the CAFE: a serve-role component is a food counter (the third live fixture). Each cafe is the
     //    kitchen of ONE biome/gacha ecosystem (picked from its chamber key), so different cafes plate
     //    different cuisines. Buy food with coins → nourishment (slows stamina drain) + a little health.
@@ -1959,6 +2053,8 @@
       if (grd) { openGarden(grd.cp, grd.ch); walkTo(grd.cp.cx, grd.cp.cy); return; }
       const trd = tradeAt(wx, wy);
       if (trd) { openTrade(trd.cp, trd.ch); walkTo(trd.cp.cx, trd.cp.cy); return; }
+      const cre = creepAt(wx, wy);
+      if (cre) { openBattle(cre.cp, cre.ch); return; }
       const lf = livingFixtureAt(wx, wy);
       if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openKitchen(lf.gid); return; }
       if (story.active) { story.active = null; renderStory(); }
@@ -1976,7 +2072,7 @@
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (gpu) gpu.resize(W * dpr, H * dpr); if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
@@ -2032,7 +2128,7 @@
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
-    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
     $('newgame').addEventListener('click', () => {
