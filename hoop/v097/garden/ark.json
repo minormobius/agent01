@@ -24,8 +24,8 @@
      "yield": 3,
      "nourish": 23,
      "kcal": 140,
-     "yumName": "Mead",
-     "category": "BEVERAGE",
+     "yumName": null,
+     "category": "VEGETABLE",
      "rarity": "Common",
      "weight": 40,
      "seedCost": 15
@@ -54,8 +54,8 @@
      "yield": 3,
      "nourish": 22,
      "kcal": 134,
-     "yumName": "Gin",
-     "category": "BEVERAGE",
+     "yumName": null,
+     "category": "VEGETABLE",
      "rarity": "Common",
      "weight": 40,
      "seedCost": 11
@@ -348,7 +348,7 @@
      "yield": 5,
      "nourish": 48,
      "kcal": 289,
-     "yumName": null,
+     "yumName": "Corn",
      "category": "VEGETABLE",
      "rarity": "Legendary",
      "weight": 7,
@@ -376,8 +376,8 @@
      "yield": 3,
      "nourish": 22,
      "kcal": 134,
-     "yumName": "Gin",
-     "category": "BEVERAGE",
+     "yumName": null,
+     "category": "VEGETABLE",
      "rarity": "Common",
      "weight": 40,
      "seedCost": 11
@@ -391,8 +391,8 @@
      "yield": 3,
      "nourish": 23,
      "kcal": 138,
-     "yumName": "Clove",
-     "category": "SPICE",
+     "yumName": null,
+     "category": "VEGETABLE",
      "rarity": "Common",
      "weight": 40,
      "seedCost": 13
@@ -557,7 +557,7 @@
    "yield": 5,
    "nourish": 48,
    "kcal": 289,
-   "yumName": null,
+   "yumName": "Corn",
    "category": "VEGETABLE"
   },
   {
@@ -569,8 +569,8 @@
    "yield": 3,
    "nourish": 23,
    "kcal": 140,
-   "yumName": "Mead",
-   "category": "BEVERAGE"
+   "yumName": null,
+   "category": "VEGETABLE"
   },
   {
    "id": "papyrus",
@@ -629,8 +629,8 @@
    "yield": 3,
    "nourish": 22,
    "kcal": 134,
-   "yumName": "Gin",
-   "category": "BEVERAGE"
+   "yumName": null,
+   "category": "VEGETABLE"
   },
   {
    "id": "sunflower",
@@ -677,8 +677,8 @@
    "yield": 3,
    "nourish": 23,
    "kcal": 138,
-   "yumName": "Clove",
-   "category": "SPICE"
+   "yumName": null,
+   "category": "VEGETABLE"
   },
   {
    "id": "strawberry",
@@ -775,7 +775,7 @@
    "yield": 5,
    "nourish": 48,
    "kcal": 289,
-   "yumName": null,
+   "yumName": "Corn",
    "category": "VEGETABLE"
   },
   "grass": {
@@ -787,8 +787,8 @@
    "yield": 3,
    "nourish": 23,
    "kcal": 140,
-   "yumName": "Mead",
-   "category": "BEVERAGE"
+   "yumName": null,
+   "category": "VEGETABLE"
   },
   "papyrus": {
    "id": "papyrus",
@@ -847,8 +847,8 @@
    "yield": 3,
    "nourish": 22,
    "kcal": 134,
-   "yumName": "Gin",
-   "category": "BEVERAGE"
+   "yumName": null,
+   "category": "VEGETABLE"
   },
   "sunflower": {
    "id": "sunflower",
@@ -895,8 +895,8 @@
    "yield": 3,
    "nourish": 23,
    "kcal": 138,
-   "yumName": "Clove",
-   "category": "SPICE"
+   "yumName": null,
+   "category": "VEGETABLE"
   },
   "strawberry": {
    "id": "strawberry",

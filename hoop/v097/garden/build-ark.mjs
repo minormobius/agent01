@@ -20,11 +20,15 @@ const catalog = JSON.parse(readFileSync(join(HERE, '../../../biome/gacha/catalog
 const byId = catalog.organisms;   // { id → organism }
 
 // yum ingredient names → category, for matching crops to the flavor pool (the kitchen will use this).
-const yum = FOOD_POOL.map((f) => ({ name: String(f[0]), low: String(f[0]).toLowerCase(), cat: f[1] }));
+// hand aliases where the crop's name doesn't literally appear in the pool; STOP kills generic words
+// ("white" would otherwise grab "Egg white") so a word-match means a real ingredient overlap.
+const ALIAS = { 'Maize': 'Corn' };
+const STOP = new Set(['white', 'oil', 'root', 'shoot', 'wild', 'sweet', 'common', 'sacred', 'meadow', 'stinging', 'green', 'red', 'sea', 'water']);
+const yum = FOOD_POOL.map((f) => ({ name: String(f[0]), low: String(f[0]).toLowerCase(), words: String(f[0]).toLowerCase().split(/\s+/), cat: f[1] }));
 function matchYum(common) {
-  const c = common.toLowerCase();
-  let best = yum.find((y) => y.low === c) || yum.find((y) => c.includes(y.low) || y.low.includes(c));
-  if (!best) { const w = c.split(/\s+/).pop(); best = yum.find((y) => y.low === w || y.low.includes(w)); }
+  const target = (ALIAS[common] || common).toLowerCase(), tw = target.split(/\s+/);
+  let best = yum.find((y) => y.low === target);                            // exact full name (or alias)
+  if (!best) best = yum.find((y) => y.words.some((w) => tw.includes(w) && w.length >= 4 && !STOP.has(w)));   // shared meaningful whole word
   return best || null;
 }
 
