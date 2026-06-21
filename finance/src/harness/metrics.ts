@@ -3,6 +3,7 @@
 // hard to game. Economic metrics are abstention-aware.
 
 import { mean, sharpe as sharpeRatio } from "../lib/stats";
+import { estimateExogeneity } from "./exogeneity";
 import type { ReliabilityBin, Metrics } from "./types";
 
 export function brier(probs: number[], outcomes: boolean[]): number | null {
@@ -56,6 +57,9 @@ export interface MetricInputs {
   // regime
   regimePred: (string | null)[];
   regimeTruth: string[];
+  // full pm / asset-implied series for exogeneity estimation
+  pmSeries: (number | null)[];
+  assetSeries: (number | null)[];
 }
 
 export function computeMetrics(inp: MetricInputs): Metrics {
@@ -82,6 +86,8 @@ export function computeMetrics(inp: MetricInputs): Metrics {
     }
   }
 
+  const exo = estimateExogeneity(inp.pmSeries, inp.assetSeries);
+
   return {
     brierModel: brier(inp.modelProbs, inp.modelOutcomes),
     brierPm: brier(inp.pmProbs, inp.pmOutcomes),
@@ -96,6 +102,9 @@ export function computeMetrics(inp: MetricInputs): Metrics {
     abstainRate: inp.abstain.length ? 1 - nActive / inp.abstain.length : 0,
     tradeWinRate: nActive > 0 ? wins / nActive : null,
     regimeHitRate: rN > 0 ? rHit / rN : null,
+    exogeneityScore: exo ? exo.score : null,
+    exogeneityLag: exo ? exo.bestLag : null,
+    exogeneityVerdict: exo ? exo.verdict : null,
   };
 }
 

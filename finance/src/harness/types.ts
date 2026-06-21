@@ -29,6 +29,11 @@ export interface Metrics {
 
   // regime (vs ground truth when present)
   regimeHitRate: number | null;
+
+  // measured exogeneity of the PM vs asset-implied (lead-lag); null if too few points
+  exogeneityScore: number | null;
+  exogeneityLag: number | null;
+  exogeneityVerdict: string | null;
 }
 
 export interface RunSeries {

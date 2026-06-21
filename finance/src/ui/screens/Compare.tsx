@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { useStore } from "../../app/store";
 import type { RunRecord } from "../../harness/types";
 
 const f = (x: number | null, d = 3) => (x == null ? "—" : x.toFixed(d));
 
 export function Compare({ onOpen }: { onOpen: () => void }) {
-  const { runs, compareIds, toggleCompare, setRun, clearRuns } = useStore();
+  const { runs, setRun, clearRuns, storeBackend } = useStore();
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const toggleCompare = (id: string) =>
+    setCompareIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const selected = runs.filter((r) => compareIds.includes(r.id));
 
   if (runs.length === 0) {
@@ -23,8 +27,8 @@ export function Compare({ onOpen }: { onOpen: () => void }) {
             <h2>Experiment log</h2>
             <p className="desc">
               Every run is recorded with model, config, dataset, contract version, and all metrics.
-              Tick rows to compare. (Session-local for now; the durable cross-device store lands in
-              M2.)
+              Tick rows to compare. Backend:{" "}
+              <span className="chip mono">{storeBackend === "d1" ? "D1 (durable, cross-device)" : "localStorage (fallback)"}</span>
             </p>
           </div>
           <button className="btn ghost small" onClick={clearRuns}>clear</button>

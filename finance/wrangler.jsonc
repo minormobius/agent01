@@ -19,5 +19,19 @@
   // ships green into a stray *.workers.dev and fin.mino.mobi never changes.
   "routes": [
     { "pattern": "fin.mino.mobi", "custom_domain": true }
-  ]
+  ],
+  // Experiment store + real-PM snapshots live on the shared atpolls-db
+  // (poll/feed/rite/airchat). Tables are prefixed spec_ (migration
+  // poll/apps/api/migrations/0031_speclab.sql, applied by deploy-finance.yml).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atpolls-db",
+      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
+    }
+  ],
+  // Hourly: accrue a real BTC PM snapshot (Coinbase spot + Kalshi implied).
+  "triggers": {
+    "crons": ["0 * * * *"]
+  }
 }

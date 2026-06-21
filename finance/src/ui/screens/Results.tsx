@@ -51,6 +51,28 @@ export function Results({ run, onGoRun }: { run: RunRecord | null; onGoRun: () =
           />
         </div>
 
+        <h3>Exogeneity — measured, not declared</h3>
+        <div className="grid cols-3">
+          <Stat
+            k="verdict"
+            v={m.exogeneityVerdict ?? "—"}
+            sub="lead-lag of PM vs asset-implied"
+            tone={m.exogeneityVerdict === "exogenous-leaning" ? "good" : m.exogeneityVerdict === "endogenous-leaning" ? "bad" : undefined}
+          />
+          <Stat k="score" v={f(m.exogeneityScore)} sub="leadCorr − lagCorr ∈ [−1,1]" />
+          <Stat
+            k="best lag"
+            v={m.exogeneityLag == null ? "—" : `${m.exogeneityLag > 0 ? "+" : ""}${m.exogeneityLag}`}
+            sub={m.exogeneityLag == null ? "" : m.exogeneityLag > 0 ? "PM leads (informative)" : "PM lags (mirror)"}
+          />
+        </div>
+        <p className="small muted" style={{ marginTop: 8 }}>
+          A positive score / positive lag means the prediction market moves <i>before</i> the
+          asset-implied probability — it carries information the asset hasn't priced. Negative means
+          it's a reflective, herding mirror. This is the realism test: on real data exogeneity is an
+          estimate, not a setting.
+        </p>
+
         <h3>Economic (forward-looking · abstention-aware)</h3>
         <div className="grid cols-3">
           <Stat k="total P&L" v={f(m.totalReturn, 4)} tone={m.totalReturn >= 0 ? "good" : "bad"} />
@@ -90,10 +112,20 @@ export function Results({ run, onGoRun }: { run: RunRecord | null; onGoRun: () =
         <DivergenceChart series={run.series} />
       </div>
 
-      <div className="card">
-        <h2>Regime timeline vs ground truth</h2>
-        <RegimeTimeline series={run.series} regimeNames={run.regimeNames} />
-      </div>
+      {run.regimeNames.length > 0 ? (
+        <div className="card">
+          <h2>Regime timeline vs ground truth</h2>
+          <RegimeTimeline series={run.series} regimeNames={run.regimeNames} />
+        </div>
+      ) : (
+        <div className="card">
+          <h2>Regime timeline</h2>
+          <p className="muted small">
+            No ground-truth regimes on real data. A regime detector (HMMRegime, M3) would populate a
+            predicted band here; for now calibration and the exogeneity verdict carry the analysis.
+          </p>
+        </div>
+      )}
     </>
   );
 }

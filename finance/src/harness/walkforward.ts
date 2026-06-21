@@ -177,6 +177,8 @@ export function runBacktest(args: RunArgs): RunRecord {
     pmOutcomes: pPairsO,
     regimePred,
     regimeTruth,
+    pmSeries: pmProb,
+    assetSeries: assetImplied,
   });
 
   const priceFull = dataset.truth?.price ?? assetValueSeries(dataset);
