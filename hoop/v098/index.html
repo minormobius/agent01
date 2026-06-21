@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#04050a" />
   <meta name="description" content="hoop v096 — The Tabard, Chapter One. v093's lived-in O'Neill-cylinder world (traffic-sized rooms, luminous wall consoles, half-scale residents, FLESH·CHASSIS·ANIMA stats, Voronoi inventory, arena combat) carrying the Tabard story layer: a click crystallizes a Continuant / Drift / Rind-walker figure, the inference-free engine advances the revelation & narrative tiers as you earn them, and the Seven post mythographs to the terminals." />
-  <title>hoop v096 · The Tabard — Chapter One</title>
+  <title>hoop v098 · The Tabard — Chapter One</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; } html, body { height: 100%; margin: 0; }
     body { background: #04050a; color: #dfe7e2; font-family: "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
-    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: manipulation; }
     .hud { position: fixed; font-size: 11px; color: #6b7872; pointer-events: none; user-select: none; }
     #status { top: 8px; left: 10px; }
     #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
     #here b { color: #f4bf62; }
-    #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
-    #board { bottom: 8px; left: 96px; color: #b48a6a; text-decoration: none; pointer-events: auto; }
+    #back { bottom: calc(8px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); color: #7fd8d0; text-decoration: none; pointer-events: auto; }
+    #board { bottom: calc(8px + env(safe-area-inset-bottom)); left: calc(96px + env(safe-area-inset-left)); color: #b48a6a; text-decoration: none; pointer-events: auto; }
+    #arch { bottom: calc(8px + env(safe-area-inset-bottom)); left: calc(188px + env(safe-area-inset-left)); color: #8a7faa; text-decoration: none; pointer-events: auto; }   /* was unpositioned + unclickable (.hud pointer-events:none) — now the third bottom-left link */
     #newgame { bottom: 8px; right: 10px; color: #e08a8a; text-decoration: none; pointer-events: auto; cursor: pointer; }
     #quest { bottom: 26px; left: 10px; max-width: 54vw; color: #cdd6cf; line-height: 1.5; }
     #quest .lbl { color: #7fd8d0; } #quest .o { color: #f4bf62; } #quest .mk { color: #b48a6a; } #quest a.sb { color: #6b7872; pointer-events: auto; }
@@ -47,16 +48,17 @@
     .hibtn { flex: 1; background: #7fd8d0; color: #07120f; border: none; font: inherit; font-size: 13px; font-weight: 600; padding: 9px; border-radius: 8px; cursor: pointer; }
     .hibtn:hover { filter: brightness(1.08); }
     .hibtn.hicancel { background: transparent; color: #8aa39a; border: 1px solid #2a3a44; }
-    #pack { position: fixed; bottom: 8px; right: 12px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #f4bf62; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
-    #pack:hover { border-color: #f4bf62; color: #fff; }
-    #charbtn { position: fixed; bottom: 8px; right: 92px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #b39bd8; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
-    #charbtn:hover { border-color: #b39bd8; color: #fff; }
-    #equipbtn { position: fixed; bottom: 8px; right: 185px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #7fd8d0; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
-    #equipbtn:hover { border-color: #7fd8d0; color: #fff; }
-    #arenabtn { position: fixed; bottom: 8px; right: 270px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #cf6b6b; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; text-decoration: none; }
-    #arenabtn:hover { border-color: #cf3b3b; color: #fff; }
-    #mapbtn { position: fixed; bottom: 8px; right: 355px; background: rgba(10,13,18,0.82); border: 1px solid #20303a; color: #8fb89f; font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 8px; cursor: pointer; pointer-events: auto; transition: .12s; z-index: 6; }
-    #mapbtn:hover { border-color: #8fb89f; color: #fff; }
+    /* the bottom-right action DOCK — a wrapping flex row (replaces hardcoded right-offsets that ran off
+       the screen on phones). Buttons collapse to icon-only on narrow screens; safe-area keeps the row
+       clear of the home indicator. :active mirrors :hover so taps get feedback on touch. */
+    #dock { position: fixed; right: calc(8px + env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-end; gap: 7px; z-index: 6; max-width: calc(100vw - 16px); pointer-events: none; }
+    #dock > * { pointer-events: auto; background: rgba(10,13,18,0.86); border: 1px solid #20303a; font: inherit; font-size: 12px; line-height: 1; padding: 7px 11px; border-radius: 8px; cursor: pointer; transition: .12s; text-decoration: none; white-space: nowrap; }
+    #pack { color: #f4bf62; } #pack:hover, #pack:active { border-color: #f4bf62; color: #fff; }
+    #charbtn { color: #b39bd8; } #charbtn:hover, #charbtn:active { border-color: #b39bd8; color: #fff; }
+    #equipbtn { color: #7fd8d0; } #equipbtn:hover, #equipbtn:active { border-color: #7fd8d0; color: #fff; }
+    #arenabtn { color: #cf6b6b; } #arenabtn:hover, #arenabtn:active { border-color: #cf3b3b; color: #fff; }
+    #mapbtn { color: #8fb89f; } #mapbtn:hover, #mapbtn:active { border-color: #8fb89f; color: #fff; }
+    #newgame { color: #e08a8a; } #newgame:hover, #newgame:active { border-color: #e08a8a; color: #fff; }
     #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
     #who b { color: #b39bd8; }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
@@ -274,6 +276,26 @@
     #enc .ex { margin-top: 15px; font-size: 11px; color: #566; text-align: right; }
     #auth { top: 26px; left: 10px; pointer-events: auto; max-width: 60vw; }
     #auth .act { color: #7fd8d0; cursor: pointer; text-decoration: underline; }
+    /* ── MOBILE PASS ── safe-area insets (notch / home indicator) + touch ergonomics. The top HUD and the
+       bottom-left links clear the system chrome; the action dock collapses to icons so it fits one row. */
+    #status { top: calc(8px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); }
+    #here { top: calc(8px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); }
+    #who { top: calc(30px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); }
+    #busy { top: calc(8px + env(safe-area-inset-top)); }
+    #auth { top: calc(26px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); }
+    #quest { bottom: calc(26px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); }
+    @media (max-width: 640px), (pointer: coarse) {
+      #dock > * { font-size: 15px; padding: 9px 12px; }     /* ≥40px tap targets on touch; dock owns the bottom-right */
+      #dock .lbl { display: none; }                          /* icon-only → the whole dock fits one row */
+      #status, #here, #who { font-size: 10px; }
+      #back, #board, #arch { bottom: calc(54px + env(safe-area-inset-bottom)); font-size: 10px; }   /* lift the links to their OWN row, clear of the dock */
+      #quest { max-width: 92vw; bottom: calc(86px + env(safe-area-inset-bottom)); }                  /* above both the links and the dock */
+    }
+    /* touch feedback for overlay buttons (which otherwise only style :hover) + roomier close targets */
+    @media (pointer: coarse) {
+      .aclose, #story .cl, #battle .bflee, #battle .bclaim, #enc .ecl { padding: 8px 12px; font-size: 13px; }
+      .gbtn:active, .bact:active, .act:active, #story .ch button:active, .hibtn:active, .ttab:active, .kchip:active { filter: brightness(1.18); border-color: currentColor; }
+    }
 </style>
 </head>
 <body>
@@ -286,13 +308,15 @@
   <a class="hud" id="back" href="/">◍ hoop</a>
   <a class="hud" id="board" href="/v098/storyboard/">❖ storyboard</a>
   <a class="hud" id="arch" href="/v098/architecture.html" title="the story system data-flow">⌥ data-flow</a>
-  <a class="hud" id="newgame" title="wipe story progress and start over">⟲ new game</a>
   <div class="hud" id="quest"></div>
-  <button id="charbtn" title="character (c)">☻ character</button>
-  <a id="arenabtn" href="./arena/" title="arena">⚔ arena</a>
-  <button id="equipbtn" title="equipped (e)">⛨ equip</button>
-  <button id="mapbtn" title="minimap (m)">▦ map</button>
-  <button id="pack" title="open pack (i)">▣ pack</button>
+  <div id="dock">
+    <button id="charbtn" title="character (c)">☻<span class="lbl"> character</span></button>
+    <a id="arenabtn" href="./arena/" title="arena">⚔<span class="lbl"> arena</span></a>
+    <button id="equipbtn" title="equipped (e)">⛨<span class="lbl"> equip</span></button>
+    <button id="mapbtn" title="minimap (m)">▦<span class="lbl"> map</span></button>
+    <button id="pack" title="open pack (i)">▣<span class="lbl"> pack</span></button>
+    <a id="newgame" title="wipe story progress and start over">⟲<span class="lbl"> new game</span></a>
+  </div>
   <div class="hud" id="who"></div>
   <div id="storybg"></div>
   <div id="story"></div>

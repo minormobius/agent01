@@ -34,6 +34,18 @@ and tested; what remains is *feel*. This is the living checklist for the final p
 - [ ] save size: items carry full genomes; a deep pack + gem satchel is sizeable JSON. Watch the
       100 KB `stateJson` ceiling on heavy saves; consider trimming item genomes to a re-roll seed.
 
+## Mobile (audit pass — done)
+- [x] bottom HUD was 5 buttons on hardcoded `right:` offsets (~430px) → overflowed phones. Now a
+      wrapping flex **`#dock`** that collapses to icon-only ≤640px / coarse pointer.
+- [x] `viewport-fit=cover` had no padding → safe-area insets added to top HUD, bottom links, dock.
+- [x] touch targets bumped to ≥40px on coarse pointers; `:active` feedback added (hover is dead on touch).
+- [x] `touch-action: manipulation` on the canvas (kills double-tap-zoom + tap delay on tap-to-walk).
+- [x] fixed two pre-existing bugs surfaced by the audit: `#arch` was unpositioned + unclickable
+      (`.hud` is `pointer-events:none`); `#newgame` overlapped `#pack` at bottom-right. Title v096→v098.
+- [ ] still to verify on-device: landscape phones, the battle board's tap precision at small `ts`,
+      and overlay `max-height: vh` vs the URL-bar (consider `dvh`).
+- [ ] `title=` tooltips (27) are invisible on touch — fold the important hints into visible copy.
+
 ## Cross-cutting
 - [ ] a unified **notice/feed** component (verdicts, pickups, level-ups, quest resolves all flash the
       same `#busy` line today — they compete). One stack would make all of them read.
