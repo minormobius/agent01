@@ -62,6 +62,15 @@
     #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
     #who b { color: #b39bd8; }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
+    /* the unified NOTICE FEED — a stack of dismissible cards (replaces the single #busy line that every
+       toast used to stomp). Newest on top; auto-expire; tap to dismiss; kind sets the left-border accent. */
+    #notices { position: fixed; top: calc(32px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 45; display: flex; flex-direction: column; align-items: center; gap: 6px; width: max-content; max-width: 94vw; pointer-events: none; }
+    .ntc { pointer-events: auto; max-width: min(440px, 92vw); background: rgba(10,13,18,0.93); border: 1px solid #243038; border-left: 3px solid var(--nc, #f4bf62); color: #e6ede8; font-size: 12.5px; line-height: 1.36; padding: 8px 13px; border-radius: 9px; box-shadow: 0 6px 22px rgba(0,0,0,0.45); cursor: pointer; opacity: 0; transform: translateY(-7px); transition: opacity .18s ease, transform .18s ease; text-align: left; }
+    .ntc.in { opacity: 1; transform: none; } .ntc.out { opacity: 0; transform: translateY(-7px); }
+    .ntc.k-info { --nc: #f4bf62; } .ntc.k-coin { --nc: #f0c860; } .ntc.k-combat { --nc: #cf6b6b; color: #f1dada; }
+    .ntc.k-gem { --nc: #7fd8d0; } .ntc.k-life { --nc: #8fe07a; } .ntc.k-tier { --nc: #b39bd8; color: #e7defa; }
+    .ntc.k-verdict { --nc: #7fd8d0; color: #d6efec; } .ntc.k-quest { --nc: #d8b25a; } .ntc.k-warn { --nc: #e08a8a; } .ntc.k-pickup { --nc: #7fd8d0; }
+    @media (pointer: coarse) { .ntc { font-size: 13.5px; padding: 10px 15px; } }
     /* the story panel — a Qud-like fullscreen interaction overlay (above the HUD), two-pane for people */
     #storybg { position: fixed; inset: 0; z-index: 31; background: rgba(2,3,6,0.70); display: none; pointer-events: auto; }
     #storybg.on { display: block; }
@@ -305,6 +314,7 @@
   <div class="hud" id="auth"></div>
   <div class="hud" id="here"></div>
   <div class="hud" id="busy">generating…</div>
+  <div id="notices"></div>
   <a class="hud" id="back" href="/">◍ hoop</a>
   <a class="hud" id="board" href="/v098/storyboard/">❖ storyboard</a>
   <a class="hud" id="arch" href="/v098/architecture.html" title="the story system data-flow">⌥ data-flow</a>
@@ -405,6 +415,22 @@
     const SX = (x) => (x - cam.ox) * cam.scale, SY = (y) => (y - cam.oy) * cam.scale;
     const WX = (sx) => sx / cam.scale + cam.ox, WY = (sy) => sy / cam.scale + cam.oy;
     const busy = (on) => { busyN += on ? 1 : -1; $('busy').classList.toggle('on', busyN > 0); };
+    // ── the unified notice feed. notify(text,{kind,ms}); kind defaults from the message's leading glyph so
+    //    every existing call gets a sensible accent for free. Capped, dismissible, never overlaps the others. ──
+    const _ntc = [];
+    const NTC_GLYPH = [[/^◈/, 'coin'], [/^[⚔☠]/, 'combat'], [/^[⬡△◆]/, 'gem'], [/^✦/, 'tier'], [/^✶/, 'verdict'], [/^✒/, 'quest'], [/^[❀✚]/, 'life'], [/^\+/, 'pickup']];
+    function ntcKind(text) { const t = String(text).trim(); for (const [re, k] of NTC_GLYPH) if (re.test(t)) return k; if (/not enough|failed|can'?t |cannot |empty|quiet|tangled/i.test(t)) return 'warn'; return 'info'; }
+    function dropNtc(el) { const i = _ntc.indexOf(el); if (i < 0) return; _ntc.splice(i, 1); clearTimeout(el._t); el.classList.remove('in'); el.classList.add('out'); setTimeout(() => el.remove(), 200); }
+    function notify(text, opts = {}) {
+      const host = $('notices'); if (!host || text == null) return null;
+      const el = document.createElement('div'); el.className = 'ntc k-' + (opts.kind || ntcKind(text)); el.textContent = text;
+      el.addEventListener('click', () => dropNtc(el));
+      host.prepend(el); _ntc.push(el);   // newest on top
+      requestAnimationFrame(() => el.classList.add('in'));
+      el._t = setTimeout(() => dropNtc(el), opts.ms || 2800);
+      while (_ntc.length > 5) dropNtc(_ntc[0]);   // cap the stack — oldest falls off
+      return el;
+    }
     const px = () => pp.x, py = () => pp.y;
 
     // off-thread generation + paint (worker) with a synchronous fallback — identical contract either way
@@ -558,8 +584,7 @@
       setJSONFact('combat.home', { x: pp.x, y: pp.y });   // remember this bed — you wake here if you fall in battle
       const d = getDay() + 1; setDay(d);   // sleep is the garden's clock: a night passes, your crops grow
       saveStory(); whereAmI();
-      $('busy').textContent = `✚ rested — a night passes (day ${d}). Your gardens grow.`; $('busy').classList.add('on');
-      clearTimeout(_flashT); _flashT = setTimeout(() => { $('busy').classList.remove('on'); $('busy').textContent = 'generating…'; }, 2800);
+      notify(`✚ rested — a night passes (day ${d}). Your gardens grow.`, { kind: 'life', ms: 2800 });
     }
     let chestGid = null;
     function openChest(gid) { chestGid = gid; story.active = { chest: true }; renderChest(); }
@@ -972,7 +997,7 @@
       if (!storyApi.enabled || !story.ready || story.weaving) return;
       story.weaving = true;
       const el = $('busy'); el.textContent = '✨ weaving a thread…'; el.classList.add('on');
-      const done = (msg, ms = 2800) => { el.textContent = msg; clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); story.weaving = false; };
+      const done = (msg, ms = 2800) => { el.classList.remove('on'); el.textContent = 'generating…'; notify(msg, { ms }); story.weaving = false; };
       try {
         const profile = profileHere(agent);   // phase 3: the rich chunk profile (building programme + population + civic web)
         const existing = poolFilter([...story.store.content.values()], { lane: 'spine' }).slice(0, 40);
@@ -1128,8 +1153,7 @@
         if (mine.length) {
           const digest = digestVerdicts(story.store, story.playerId, mine);
           story.store.setFact(story.playerId, 'verdict.cursor', digest.cursor); scheduleRepoSave();
-          if (digest.notices.length === 1) flashToast('✶ ' + digest.notices[0].notice, 4800);
-          else if (digest.notices.length > 1) flashToast(`✶ ${digest.notices.length} changes reach you — ${digest.notices[0].notice}`, 5400);
+          for (const n of digest.notices) notify('✶ ' + n.notice, { kind: 'verdict', ms: 6500 });   // each verdict gets its own card — no more stomping
           if (digest.redraw) { await reloadPool(); if (world) draw(); whereAmI(); renderQuest(); }
         }
       } catch (e) { /* the Tabard feed is best-effort; never break play */ }
@@ -1321,7 +1345,7 @@
       }
       if (resolved.length) { saveStorySnapshot(); const q = resolved[0]; flashToast(`✒ thread resolved — “${q.title}” +◈${q.reward}${resolved.length > 1 ? ` (+${resolved.length - 1} more)` : ''}`, 3600); whereAmI(); }
     }
-    function flashToast(text, ms = 2600) { const el = $('busy'); el.textContent = text; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); }
+    function flashToast(text, ms = 2600) { return notify(text, { ms }); }
     // the JOURNAL: open threads (progress) + resolved ones. Toggle with j / the ✒ button.
     function renderJournal() {
       if (!story.ready) { showPage('journal', 'your journal', 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.'); return; }
@@ -1476,15 +1500,10 @@
       }
     });
     // a brief toast when something enters the pack
-    let _flashT = null;
-    function flashPickup(it) {
-      const el = $('busy'); el.textContent = `+ ${it.name} → pack (i)`; el.classList.add('on');
-      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2200);
-    }
+    function flashPickup(it) { return notify(`+ ${it.name} → pack (i)`, { kind: 'pickup', ms: 2600 }); }
     function flashTier(a) {
       const axis = a.axis.split('_')[0], label = axis === 'narrative' ? 'Orientation' : 'The Curve';
-      const el = $('busy'); el.textContent = `✦ ${label} — ${axis} ${a.from}→${a.to}`; el.classList.add('on');
-      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
+      return notify(`✦ ${label} — ${axis} ${a.from}→${a.to}`, { kind: 'tier', ms: 4600 });
     }
     addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
@@ -1657,8 +1676,7 @@
       const arc = e.target.closest('[data-arc]'); if (arc) arcadeAct(arc.dataset.arc);
     });
     function flashArcadeWin(g) {
-      const el = $('busy'); el.textContent = `◈ ${g.law.name} — solved in ${g.moves} (par ${g.par}) · claim ◈${arcadeReward(g)}`; el.classList.add('on');
-      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 3200);
+      notify(`◈ ${g.law.name} — solved in ${g.moves} (par ${g.par}) · claim ◈${arcadeReward(g)}`, { kind: 'coin', ms: 3600 });
     }
 
     // ── THE GARDEN (grow-role component) — the GROW corner of the trade↔grow↔dwell triangle. Plant seeds
@@ -1750,7 +1768,7 @@
         const s = applyFood({ stamina: getStam(), nourish: getNourish(), health: getHealth() }, { name: crop.common, nourish: crop.nourish, restoreStamina: Math.round(crop.nourish * 0.4), heal: 0 });
         const st = story.store; st.setFact(story.playerId, 'sim.stamina', s.stamina); st.setFact(story.playerId, 'sim.nourish', s.nourish); st.setFact(story.playerId, 'sim.health', s.health);
         saveStory(); whereAmI(); renderGarden();
-        const el = $('busy'); el.textContent = `❀ ate raw ${crop.common} — +${crop.nourish} food`; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2400);
+        notify(`❀ ate raw ${crop.common} — +${crop.nourish} food`, { kind: 'life', ms: 2600 });
         return;
       }
     });
@@ -1995,7 +2013,7 @@
       if (e.target.closest('[data-dosocket]')) { doSocket(); return; }
       if (e.target.closest('[data-dogrow]')) { doGrow(); return; }
     });
-    function flashBusy(msg, ms = 2400) { const el = $('busy'); el.textContent = msg; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); }
+    function flashBusy(msg, ms = 2400) { return notify(msg, { ms }); }
 
     // ── THE KITCHEN (the dwelling's storage fixture, grown into a larder+kitchen). It KEEPS its storage
     //    trait — deposit/withdraw still works, and cooked dishes are stored right here — and adds COOK:
@@ -2200,13 +2218,12 @@
     function eatFood(i) {
       const b = cafeBiome; if (!b || !b.foods[i]) return;
       const f = b.foods[i], coins = getCoins();
-      if (coins < f.cost) { const el = $('busy'); el.textContent = `◍ not enough coins for ${f.name} (◈${f.cost})`; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2400); return; }
+      if (coins < f.cost) { notify(`◍ not enough coins for ${f.name} (◈${f.cost})`, { kind: 'warn' }); return; }
       setCoins(coins - f.cost);
       const s = applyFood({ stamina: getStam(), nourish: getNourish(), health: getHealth() }, f);
       const st = story.store; st.setFact(story.playerId, 'sim.stamina', s.stamina); st.setFact(story.playerId, 'sim.nourish', s.nourish); st.setFact(story.playerId, 'sim.health', s.health);
       saveStory(); whereAmI(); renderCafePanel($('story'));
-      const el = $('busy'); el.textContent = `◍ ate ${f.name} — +${f.nourish} food, +${f.restoreStamina} stam`; el.classList.add('on');
-      clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, 2600);
+      notify(`◍ ate ${f.name} — +${f.nourish} food, +${f.restoreStamina} stam`, { kind: 'life', ms: 2600 });
     }
 
     // ── the opening: PRINCIPALS pinned in chunk 0 are DERIVED FROM HIS STORY (his Arrival NPCs — Olo

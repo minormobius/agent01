@@ -47,6 +47,11 @@ and tested; what remains is *feel*. This is the living checklist for the final p
 - [ ] `title=` tooltips (27) are invisible on touch — fold the important hints into visible copy.
 
 ## Cross-cutting
-- [ ] a unified **notice/feed** component (verdicts, pickups, level-ups, quest resolves all flash the
-      same `#busy` line today — they compete). One stack would make all of them read.
+- [x] **unified notice feed** — `notify(text,{kind,ms})` + a capped, dismissible `#notices` stack.
+      All `flash*` + the inline `#busy` writers route through it; kind auto-derives from the leading
+      glyph (◈ coin · ⚔ combat · ⬡ gem · ✦ tier · ✶ verdict · ✒ quest · ❀/✚ life · "not enough" warn).
+      Each verdict now gets its own card (no more stomping). `#busy` is left to the generation spinner
+      + the weave status only.
+  - [ ] follow-on: a tap-to-open **history drawer** (the feed only shows the last 5 live); persist
+        recent notices so a missed verdict/level-up is recoverable.
 - [ ] first-run onboarding: the new surfaces (⚔ creeps, ⇄ wares, ⬡ Lapidary) have no tutorial beat.
