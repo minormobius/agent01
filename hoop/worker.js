@@ -119,6 +119,13 @@ export default {
     if (url.pathname === '/v097/feed' || url.pathname === '/v097/feed/') {
       return env.ASSETS.fetch(new Request(new URL('/v097/feed.html', url), request));
     }
+    // v098 — the current working version (verdict feed wired into the live load path).
+    if (url.pathname === '/v098/records' || url.pathname === '/v098/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v098/records.html', url), request));
+    }
+    if (url.pathname === '/v098/feed' || url.pathname === '/v098/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v098/feed.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

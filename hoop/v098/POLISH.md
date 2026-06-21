@@ -1,0 +1,40 @@
+# v098 — the home stretch (polish punch-list)
+
+v098 = v097 + the rumor-mill verdict feed wired into the live load path. The big systems are in
+and tested; what remains is *feel*. This is the living checklist for the final pass.
+
+## The content loop (backend ⇄ client) — wired + pinned
+- [x] backfill → draw → mint/save → crystallize → deplete → replenish → verdict → redraw
+      (`test/hypothecation.selftest.mjs`, 31 assertions)
+- [x] verdict consumer (`story/verdicts.js`) wired live: sweep on save-load, tab-refocus, 60 s poll
+- [ ] **verdict notices** — currently one `#busy` toast (multiple stomp). Want a small notice **log**
+      (a dismissible stack) + a "what changed" panel on a retcon, not a flash.
+- [ ] **pulse** (`story.pulse`) — the cross-player rollup is never shown. An ambient line ("31
+      travellers have met the Keeper") on the auth pill or a corner would close the loop's last leg.
+- [ ] verdicts need a signed-in DID (they're DID-tagged) — anonymous players get none. Intended,
+      but surface it (a hint in the auth pill: "sign in to receive the Tabard's changes").
+- [ ] records page (`/v098/records`) — note that the verdict feed is now consumed live.
+
+## Combat (arena → world) — shipped, needs balance
+- [ ] creep frequency: are `store`/`move` hazard rooms too dense / too sparse? tune `CREEP_ROLES`
+- [ ] deck scaling (`encounter.js` deck multiplier) — does depth feel meaner without feeling unfair?
+- [ ] defeat penalty (−25 hp / −10 food + wake-at-bed) — right magnitude?
+- [ ] battle board on touch: tap targets, sprite scale, the flee affordance
+
+## Shop + Lapidary (economy) — shipped, needs balance
+- [ ] price curve (`shop.js` `PRICE_K=0.1`) vs. combat spoils — is the one-treasure-per-shelf right?
+- [ ] gem pull cost (10) vs. socket payoff — does pulling feel worth a coin sink?
+- [ ] **only worn gear's gems fight** — the `⚔ worn` marker helps; consider an "equip to benefit"
+      nudge, or surface gem bonuses on the equip screen itself.
+- [ ] grow UX: hint which lattices you already hold 3+ of (a ready-to-grow cue).
+- [ ] are `mend` (Lapidary) rooms common enough to find one? widen roles if not.
+
+## Durability / save — foundation laid this session
+- [x] pack is durable (`pack.items` fact); combat/shop/gem state rides the existing `story.save`
+- [ ] save size: items carry full genomes; a deep pack + gem satchel is sizeable JSON. Watch the
+      100 KB `stateJson` ceiling on heavy saves; consider trimming item genomes to a re-roll seed.
+
+## Cross-cutting
+- [ ] a unified **notice/feed** component (verdicts, pickups, level-ups, quest resolves all flash the
+      same `#busy` line today — they compete). One stack would make all of them read.
+- [ ] first-run onboarding: the new surfaces (⚔ creeps, ⇄ wares, ⬡ Lapidary) have no tutorial beat.
