@@ -182,6 +182,46 @@
     #trade .wsn { flex: 1; text-align: left; font-size: 12px; color: #dfe7e2; }
     #trade .wsellb { font-size: 11px; padding: 4px 11px; }
     #trade .gdim { font-size: 11px; color: #6b7872; padding: 8px 0; }
+    /* THE LAPIDARY (mend) — crystallography gem bench. Reuses the overlay aesthetic, teal-keyed. */
+    #lapidary { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 32%, rgba(8,16,16,0.96), rgba(3,6,6,0.99)); pointer-events: auto; }
+    #lapidary.on { display: flex; align-items: center; justify-content: center; }
+    #lapidary .acard { width: min(560px, 94vw); max-height: 94vh; overflow-y: auto; text-align: center; padding: 26px 22px 30px; position: relative; }
+    #lapidary .aclose { position: absolute; top: 14px; right: 18px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; }
+    #lapidary .aclose:hover { color: #7fd8d0; }
+    #lapidary .tfoil { width: 64px; height: 4px; border-radius: 2px; margin: 0 auto 10px; }
+    #lapidary .ahead { font-size: 13px; letter-spacing: 1px; }
+    #lapidary .alaw { font-size: 21px; font-weight: 600; margin: 4px 0 2px; }
+    #lapidary .ameta { font-size: 11.5px; color: #9aa8a0; margin-bottom: 4px; }
+    #lapidary .ghead2 { font-size: 12px; letter-spacing: .5px; margin: 6px 0 7px; }
+    #lapidary .gdim { font-size: 11px; color: #6b7872; padding: 8px 0; }
+    #lapidary .ttabs { display: flex; gap: 6px; justify-content: center; margin: 2px 0 14px; }
+    #lapidary .ttab { background: #08110f; border: 1px solid #1c2a28; color: #9aa8a0; font: inherit; font-size: 12px; padding: 6px 16px; border-radius: 8px; cursor: pointer; transition: .12s; }
+    #lapidary .ttab:hover { color: #7fd8d0; border-color: #2f5a55; }
+    #lapidary .ttab.on { background: #0f2422; border-color: #7fd8d0; color: #9ee6df; }
+    #lapidary .gbtn { background: #0f2422; border: 1px solid #2f5a55; color: #9ee6df; font: inherit; font-size: 13px; padding: 9px 18px; border-radius: 8px; cursor: pointer; transition: .12s; }
+    #lapidary .gbtn:hover:not([disabled]) { border-color: #7fd8d0; background: #143230; color: #fff; }
+    #lapidary .gbtn[disabled] { opacity: .4; cursor: not-allowed; }
+    #lapidary .trow { margin-top: 14px; }
+    #lapidary .tgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px auto 6px; max-width: 500px; }
+    @media (max-width: 520px) { #lapidary .tgrid { grid-template-columns: repeat(3, 1fr); } }
+    #lapidary .tcell { background: #08110f; border: 1px solid #1c2a28; border-radius: 9px; padding: 9px 5px; min-height: 92px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; cursor: pointer; }
+    #lapidary .gcell.gsel { background: #0f2422; box-shadow: 0 0 0 1px #7fd8d0 inset; }
+    #lapidary .wglyph { font-size: 26px; line-height: 1; }
+    #lapidary .tn { font-size: 10.5px; color: #dfe7e2; line-height: 1.15; }
+    #lapidary .tr { font-size: 9px; letter-spacing: .5px; text-transform: uppercase; }
+    #lapidary .gbz { font-size: 9.5px; color: #8aa39a; margin-top: 1px; }
+    #lapidary .srows { max-width: 440px; margin: 6px auto; }
+    #lapidary .srow { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid #1c2a28; border-radius: 8px; margin-bottom: 5px; cursor: pointer; transition: .12s; }
+    #lapidary .srow:hover { border-color: #2f5a55; }
+    #lapidary .srow.on { border-color: #7fd8d0; background: #0f2422; }
+    #lapidary .srn { flex: 1; text-align: left; font-size: 12px; color: #dfe7e2; }
+    #lapidary .sdots { display: flex; gap: 4px; }
+    #lapidary .sdot { font-size: 14px; color: #34424d; }
+    #lapidary .sdot.on { text-shadow: 0 0 7px currentColor; }
+    #lapidary .treveal { display: flex; align-items: center; gap: 12px; justify-content: center; text-align: left; margin: 14px auto 6px; max-width: 360px; padding: 10px 14px; border: 1px solid #2f5a55; border-radius: 10px; background: rgba(8,22,20,0.7); }
+    #lapidary .trn { font-size: 15px; font-weight: 600; color: #9ee6df; }
+    #lapidary .trr { font-size: 11.5px; margin: 2px 0; }
+    #lapidary .trs { font-size: 11px; color: #b6c2bb; }
     /* the in-world battle overlay (the tactical board, ported from /arena) */
     #battle { position: fixed; inset: 0; display: none; z-index: 38; background: radial-gradient(120% 120% at 50% 40%, rgba(10,7,9,0.97), rgba(3,3,5,0.995)); pointer-events: auto; }
     #battle.on { display: block; }
@@ -260,6 +300,7 @@
   <div id="garden"><div class="acard" id="gardencard"></div></div>
   <div id="trade"><div class="acard" id="tradecard"></div></div>
   <div id="kitchen"><div class="acard" id="kitchencard"></div></div>
+  <div id="lapidary"><div class="acard" id="lapidarycard"></div></div>
   <div id="battle"></div>
   <div id="enc"><div class="card" id="enccard"></div></div>
 
@@ -273,11 +314,12 @@
     import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce
     import { TIER_FOIL, PULL_COST, biomeForKey, progress as bxProgress, pullRng, pull as bxPull } from './garden/gacha.js';   // the TRADE fixture — gacha-pull seeds from one biome, collect to CLOSE it
     import { shopStock, buyPrice, sellPrice, SHOP_SIZE } from './shop.js';   // the WARES market at the same desk — buy gear, sell loot
+    import { CRYSTAL_SYSTEMS, RARITY_COLOR, RARITY_TIER, rollGem, gemBonus, sumBonus, socketCap, canGrow, growGems, gemGlyph, cssOf } from './gems.js';   // THE LAPIDARY (mend) — crystallography gem improvement
     import { DISH_MIN, DISH_MAX, cookScore, cookDish } from './garden/kitchen.js';   // the dwelling's storage fixture, grown into a KITCHEN — cook crops into flavor-scored dishes
     import { createBattle } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, spoilsFor } from './arena/encounter.js';   // hazard-room creeps
     import { BattleOverlay } from './arena/battle-ui.js';   // the tactical-board UI, shared with /arena
-    import { autoEquip, defaultPlan } from './bodyplan.js';   // equip the player/creep for battle
+    import { autoEquip, defaultPlan, slotForItem } from './bodyplan.js';   // equip the player/creep for battle
     import { rollItem } from './sprite/item/genome.js';   // mint a loot item from a spoils seed
     import { bakeFog } from './v8/bake.js';
     import { initGpuMap } from './gpumap.js';   // optional WebGPU vector renderer for the cell fills (crisp at any zoom); null ⇒ baked-raster fallback
@@ -609,6 +651,7 @@
         else if (isGarden(cp)) { g.save(); g.strokeStyle = '#6fc06a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#8fe07a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('❀', cp.cx, cp.cy); g.restore(); }
         else if (isTrade(cp)) { g.save(); g.strokeStyle = '#d8b25a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e6c878'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⇄', cp.cx, cp.cy); g.restore(); }
         else if (isCreepRoom(cp, ch)) { g.save(); g.strokeStyle = '#cf3b3b'; g.lineWidth = 1.6 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.6, 0, 7); g.stroke(); g.fillStyle = '#e05a5a'; g.font = `${Math.max(9, cp.r * 1.3)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('☠', cp.cx, cp.cy); g.restore(); }
+        else if (cp.role === 'mend') { g.save(); g.strokeStyle = '#7fd8d0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#9ee6df'; g.font = `${Math.max(8, cp.r * 1.2)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⬡', cp.cx, cp.cy); g.restore(); }
       }
       for (const L of P.lights) { if (L.concourse) drawBollard(g, L); else drawWallLight(g, L, { hue: L.hue, lit: L.lit }); }
     }
@@ -1364,14 +1407,14 @@
       const eat = e.target.closest('[data-eat]');
       if (eat && story.active && story.active.cafe) { eatFood(+eat.dataset.eat); return; }
       const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
-      if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); setChests(chestDeposit(getChests(), chestGid, it)); saveStory(); renderChest(); } return; }
-      if (wd && chestGid) { const i = +wd.dataset.withdraw, r = chestWithdraw(getChests(), chestGid, i); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); saveStory(); renderChest(); } return; }
+      if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack(); setChests(chestDeposit(getChests(), chestGid, it)); saveStory(); renderChest(); } return; }
+      if (wd && chestGid) { const i = +wd.dataset.withdraw, r = chestWithdraw(getChests(), chestGid, i); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); persistPack(); saveStory(); renderChest(); } return; }
       if (ch && story.active && story.active.npcId) {
         const r = choose(story.store, story.playerId, story.active.npcId, ch.dataset.cid);
         // an NPC's give_items grant → real items in the Voronoi pack (a key becomes a key sprite)
         for (const id of (r && r.gave_items) || []) {
           const it = itemFromGrant(story.store.contentById(id)); if (!it) continue;
-          addToPack(pack.pack, it); pack.setPack(pack.pack); flashPickup(it);
+          addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack(); flashPickup(it);
         }
         saveStory(); if (r && r.ended) { story.active = null; } renderStory();
       }
@@ -1392,6 +1435,7 @@
       if (arcadeOpen) { closeArcade(); return; }
       if (gardenOpen) { closeGarden(); return; }
       if (tradeOpen) { closeTrade(); return; }
+      if (lapidaryOpen) { closeLapidary(); return; }
       if (kitchenOpen) { closeKitchen(); return; }
       if (story.active) { story.active = null; renderStory(); }
     });
@@ -1724,13 +1768,13 @@
       const rec = getJSONFact('shop.sold.' + tradeKey, null), sold = new Set((rec && rec.epoch === epoch) ? (rec.sold || []) : []);
       if (sold.has(slot)) return;
       const coins = getCoins(); if (coins < e.price) { flashBusy(`◍ not enough coins (◈${e.price})`); return; }
-      setCoins(coins - e.price); addToPack(pack.pack, e.item); pack.setPack(pack.pack);
+      setCoins(coins - e.price); addToPack(pack.pack, e.item); pack.setPack(pack.pack); persistPack();
       sold.add(slot); setJSONFact('shop.sold.' + tradeKey, { epoch, sold: [...sold] });
       saveStory(); renderTrade(); whereAmI(); flashPickup(e.item);
     }
     function doSell(i) {
       const it = pack.pack[i]; if (!it) return; const sp = sellPrice(it);
-      pack.pack.splice(i, 1); pack.setPack(pack.pack); setCoins(getCoins() + sp);
+      pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack(); setCoins(getCoins() + sp);
       saveStory(); renderTrade(); whereAmI(); flashBusy(`◈ +${sp} · sold ${it.name || 'item'}`);
     }
     function packsSectionHTML() {
@@ -1783,6 +1827,117 @@
       if (bxProgress(b, getDex(b.id)).complete && !getClosed(b.id)) { setClosed(b.id, true); setCoins(getCoins() + CLOSE_REWARD); closedNow = true; }
       lastPull = res; saveStory(); renderTrade(); whereAmI();
       if (closedNow) flashBusy(`✦ ${b.name} CLOSED — collection complete! +◈${CLOSE_REWARD}`, 3600);
+    });
+
+    // ── THE LAPIDARY (the `mend` fixture) — crystallography gear improvement, ported from /cards. Three
+    //    moves on one bench: ◈ PULL raw crystals (gacha → satchel), △ GROW three of one lattice into a
+    //    bigger crystal (epitaxy), ⬡ SOCKET a gem into gear so its lattice adds a stat (felt in battle). ──
+    let lapidaryOpen = false, lapidaryKey = null, lapTab = 'pull', lapItemSel = -1, lapGemSel = [], lapReveal = null;
+    const GEM_PULL_COST = 10;
+    const lapKeyOf = (cp, ch) => 'm' + ch.id + ':r' + cp.room;
+    const getGems = () => getJSONFact('lapidary.gems', []);
+    const setGems = (a) => setJSONFact('lapidary.gems', a);
+    const getLapPulls = () => (story.ready && story.store.getFact(story.playerId, 'lapidary.pulls')) | 0;
+    const setLapPulls = (v) => { if (story.ready) story.store.setFact(story.playerId, 'lapidary.pulls', v | 0); };
+    const isMendRoom = (cp) => cp.role === 'mend';
+    function mendAt(wx, wy) {
+      if (!world) return null; let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isMendRoom(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2; if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    function openLapidary(cp, ch) {
+      if (!story.ready || lapidaryOpen) return;
+      story.store.setFact(story.playerId, 'flag.found_mend', true);
+      lapidaryKey = lapKeyOf(cp, ch); lapItemSel = -1; lapGemSel = []; lapReveal = null;
+      lapidaryOpen = true; $('lapidary').classList.add('on'); renderLapidary();
+    }
+    function closeLapidary() { lapidaryOpen = false; lapGemSel = []; lapReveal = null; $('lapidary').classList.remove('on'); }
+    const bonusStr = (b) => [['atk', '⚔'], ['def', '⛨'], ['hp', '✚'], ['flux', '✣']].filter(([k]) => b[k]).map(([k, g]) => `${g}${b[k]}`).join(' ') || '—';
+    function gemCell(gem, sel, attr) {
+      const col = cssOf(gem.color), rc = RARITY_COLOR[gem.rarity] || '#8a9b92';
+      return `<div class="tcell gcell${sel ? ' gsel' : ''}" ${attr || ''} style="border-color:${sel ? '#7fd8d0' : rc + '55'}">`
+        + `<div class="wglyph" style="color:${col};text-shadow:0 0 9px ${col}">${gemGlyph(gem)}</div>`
+        + `<div class="tn">${esc(gem.mineral)}</div><div class="tr" style="color:${rc}">${esc(gem.rarity)}</div>`
+        + `<div class="gbz">${bonusStr(gemBonus(gem))}</div></div>`;
+    }
+    const lapTabsHTML = () => { const t = (id, l) => `<button class="ttab${lapTab === id ? ' on' : ''}" data-laptab="${id}">${l}</button>`; return `<div class="ttabs">${t('pull', '◈ Pull')}${t('socket', '⬡ Socket')}${t('grow', '△ Grow')}</div>`; };
+    function renderLapidary() {
+      const card = $('lapidarycard'); lapidaryOpen = true; $('lapidary').classList.add('on');
+      const body = lapTab === 'socket' ? socketSectionHTML() : lapTab === 'grow' ? growSectionHTML() : pullSectionHTML();
+      card.innerHTML = `<button class="aclose" data-mclose="1">close ⏎</button><div class="tfoil" style="background:#7fd8d0"></div>`
+        + `<div class="ahead" style="color:#7fd8d0">⬡ THE LAPIDARY</div><div class="alaw" style="color:#7fd8d0">cut · set · grow</div>` + lapTabsHTML() + body;
+    }
+    function revealHTML() {
+      if (!lapReveal) return ''; const g = lapReveal, rc = RARITY_COLOR[g.rarity] || '#8a9b92';
+      return `<div class="treveal" style="border-color:${rc};box-shadow:0 0 22px ${rc}33"><div class="wglyph" style="color:${cssOf(g.color)};font-size:34px">${gemGlyph(g)}</div>`
+        + `<div><div class="trn">${esc(g.mineral)}</div><div class="trr" style="color:${rc}">${CRYSTAL_SYSTEMS[g.system].name} · ${esc(g.rarity)}</div>`
+        + `<div class="trs">${CRYSTAL_SYSTEMS[g.system].blurb} · sets ${bonusStr(gemBonus(g))}</div></div></div>`;
+    }
+    function pullSectionHTML() {
+      const gems = getGems(), coins = getCoins();
+      const sat = gems.length ? gems.map((g) => gemCell(g, false, '')).join('') : `<div class="gdim">no gems yet — pull to mine the lattice</div>`;
+      return `<div class="ameta">mine raw crystals — each lattice channels a different stat when set into gear</div>` + revealHTML()
+        + `<div class="trow"><button class="gbtn" data-gpull="1" ${coins >= GEM_PULL_COST ? '' : 'disabled'}>PULL · ◈${GEM_PULL_COST}</button></div>`
+        + `<div class="ghead2" style="color:#7fd8d0;margin-top:16px">satchel · ${gems.length}</div><div class="ggrid tgrid wgrid">${sat}</div>`
+        + `<div class="ameta" style="margin-top:8px;color:#6b7872">◈ ${coins} · Esc to leave</div>`;
+    }
+    function socketSectionHTML() {
+      const gems = getGems(), items = pack.pack.map((it, i) => ({ it, i })).filter(({ it }) => slotForItem(it));
+      const worn = new Set(Object.values(autoEquip(defaultPlan(), pack.pack)).filter(Boolean));   // only worn gear's gems fight
+      const itemRows = items.length ? items.map(({ it, i }) => {
+        const cap = socketCap(it), set = it.gems || [];
+        const dots = Array.from({ length: cap }, (_, k) => set[k] ? `<span class="sdot on" style="color:${cssOf(set[k].color)}">${gemGlyph(set[k])}</span>` : `<span class="sdot">○</span>`).join('');
+        return `<div class="srow${lapItemSel === i ? ' on' : ''}" data-itemsel="${i}"><span class="srn">${esc(it.name || 'a thing')}${worn.has(it) ? ' <span style="color:#7fd8d0">⚔ worn</span>' : ''}</span><span class="sdots">${dots}</span></div>`;
+      }).join('') : `<div class="gdim">no equippable gear in your pack — win or buy some</div>`;
+      const sel = lapItemSel >= 0 ? pack.pack[lapItemSel] : null, free = sel ? socketCap(sel) - ((sel.gems || []).length) : 0;
+      const satHTML = gems.length ? gems.map((g, gi) => gemCell(g, lapGemSel[0] === gi, `data-gemsel="${gi}"`)).join('') : `<div class="gdim">satchel empty — pull gems first</div>`;
+      const canSet = sel && free > 0 && lapGemSel.length === 1;
+      return `<div class="ameta">set a gem into gear — the crystal's lattice adds its stat to that item (equip to feel it in battle)</div>`
+        + `<div class="ghead2" style="color:#7fd8d0">your gear</div><div class="srows">${itemRows}</div>`
+        + (sel ? `<div class="ameta" style="margin-top:6px">${esc(sel.name)} · ${free} free socket${free === 1 ? '' : 's'} · gem bonus ${bonusStr(sumBonus(sel.gems || []))}</div>` : `<div class="ameta" style="margin-top:6px;color:#6b7872">pick a piece of gear ↑</div>`)
+        + `<div class="ghead2" style="color:#7fd8d0;margin-top:14px">satchel · ${gems.length}</div><div class="ggrid tgrid wgrid">${satHTML}</div>`
+        + `<div class="trow"><button class="gbtn" data-dosocket="1" ${canSet ? '' : 'disabled'}>${sel && free <= 0 ? 'no free sockets' : 'set gem ⬡'}</button></div>`
+        + `<div class="ameta" style="margin-top:6px;color:#6b7872">Esc to leave</div>`;
+    }
+    function growSectionHTML() {
+      const gems = getGems(), sel = lapGemSel;
+      const chk = sel.length === 3 ? canGrow(sel.map((i) => gems[i])) : { ok: false, reason: `pick 3 gems of one lattice (${sel.length}/3)` };
+      const satHTML = gems.length ? gems.map((g, gi) => gemCell(g, sel.includes(gi), `data-growsel="${gi}"`)).join('') : `<div class="gdim">satchel empty — pull gems first</div>`;
+      return `<div class="ameta">epitaxial growth — fuse 3 crystals of ONE lattice into a bigger, rarer one</div>` + revealHTML()
+        + `<div class="ghead2" style="color:#7fd8d0">satchel · ${gems.length} · selected ${sel.length}/3</div><div class="ggrid tgrid wgrid">${satHTML}</div>`
+        + `<div class="trow"><button class="gbtn" data-dogrow="1" ${chk.ok ? '' : 'disabled'}>${chk.ok ? 'GROW △' : esc(chk.reason)}</button></div>`
+        + `<div class="ameta" style="margin-top:6px;color:#6b7872">Esc to leave</div>`;
+    }
+    function doGemPull() {
+      const coins = getCoins(); if (coins < GEM_PULL_COST) { flashBusy(`◍ not enough coins (◈${GEM_PULL_COST})`); return; }
+      const pulls = getLapPulls(), gem = rollGem(seed, lapidaryKey, pulls);
+      setCoins(coins - GEM_PULL_COST); setLapPulls(pulls + 1); const g = getGems(); g.push(gem); setGems(g);
+      lapReveal = gem; saveStory(); renderLapidary(); whereAmI();
+    }
+    function doSocket() {
+      const it = lapItemSel >= 0 ? pack.pack[lapItemSel] : null; if (!it || lapGemSel.length !== 1) return;
+      if (socketCap(it) - ((it.gems || []).length) <= 0) return;
+      const gems = getGems(), gem = gems[lapGemSel[0]]; if (!gem) return;
+      it.gems = (it.gems || []).concat(gem); gems.splice(lapGemSel[0], 1); setGems(gems); persistPack(); lapGemSel = [];
+      saveStory(); renderLapidary(); whereAmI(); flashBusy(`⬡ set ${gem.mineral} into ${it.name || 'gear'}`);
+    }
+    function doGrow() {
+      if (lapGemSel.length !== 3) return; const gems = getGems(), picks = lapGemSel.map((i) => gems[i]);
+      const res = growGems(picks); if (!res.ok) { flashBusy('◍ ' + res.reason); return; }
+      const uids = new Set(picks.map((g) => g.uid)); const remain = gems.filter((g) => !uids.has(g.uid)); remain.push(res.gem);
+      setGems(remain); lapGemSel = []; lapReveal = res.gem; saveStory(); renderLapidary(); whereAmI(); flashBusy(`△ grew a ${res.grewTo} ${res.gem.mineral}`, 3200);
+    }
+    $('lapidary').addEventListener('click', (e) => {
+      if (e.target === $('lapidary') || e.target.closest('[data-mclose]')) { closeLapidary(); return; }
+      const tab = e.target.closest('[data-laptab]'); if (tab) { lapTab = tab.dataset.laptab; lapGemSel = []; lapReveal = null; renderLapidary(); return; }
+      if (e.target.closest('[data-gpull]')) { doGemPull(); return; }
+      const isel = e.target.closest('[data-itemsel]'); if (isel) { lapItemSel = +isel.dataset.itemsel; renderLapidary(); return; }
+      const gsel = e.target.closest('[data-gemsel]'); if (gsel) { lapGemSel = [+gsel.dataset.gemsel]; renderLapidary(); return; }
+      const grsel = e.target.closest('[data-growsel]'); if (grsel) { const gi = +grsel.dataset.growsel, at = lapGemSel.indexOf(gi); if (at >= 0) lapGemSel.splice(at, 1); else if (lapGemSel.length < 3) lapGemSel.push(gi); renderLapidary(); return; }
+      if (e.target.closest('[data-dosocket]')) { doSocket(); return; }
+      if (e.target.closest('[data-dogrow]')) { doGrow(); return; }
     });
     function flashBusy(msg, ms = 2400) { const el = $('busy'); el.textContent = msg; el.classList.add('on'); clearTimeout(_flashT); _flashT = setTimeout(() => { el.classList.remove('on'); el.textContent = 'generating…'; }, ms); }
 
@@ -1864,8 +2019,8 @@
         flashBusy(`▣ ate “${r.item.name}” — +${f.nourish} food${f.heal ? ` · +${f.heal} heal` : ''}`);
         return;
       }
-      if (take) { const r = chestWithdraw(getChests(), kitchenGid, +take.dataset.take); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); saveStory(); renderKitchen(); } return; }
-      if (store) { const i = +store.dataset.store, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); setChests(chestDeposit(getChests(), kitchenGid, it)); saveStory(); renderKitchen(); } return; }
+      if (take) { const r = chestWithdraw(getChests(), kitchenGid, +take.dataset.take); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); persistPack(); saveStory(); renderKitchen(); } return; }
+      if (store) { const i = +store.dataset.store, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack(); setChests(chestDeposit(getChests(), kitchenGid, it)); saveStory(); renderKitchen(); } return; }
     });
 
     // ── COMBAT IN-WORLD — hazard-room CREEPS. A store/move room's component is a foe (rolled crew, armed
@@ -1885,8 +2040,10 @@
     }
     const battleSpriteFor = (u) => { try { return crewSprite(u.sprite.seed, u.sprite.role, {}); } catch (e) { return null; } };
     function buildPlayerUnit(c) {
-      const eq = autoEquip(defaultPlan(), packForCharacter(c, 9));
+      const eq = autoEquip(defaultPlan(), pack.pack);   // fight with your ACTUAL gear (bought/looted/socketed)
       const combat = deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand });
+      const gb = sumBonus([].concat(eq.mainhand && eq.mainhand.gems || [], eq.body && eq.body.gems || [], eq.offhand && eq.offhand.gems || []));
+      combat.hp += gb.hp; combat.atk += gb.atk; combat.def += gb.def; combat.fluxPool += gb.flux;   // socketed-gem crystallography
       return { id: 0, name: c.name, character: c, combat, sprite: { seed: c.sprite.seed, role: c.vocation }, glyph: '☻' };
     }
     function teleportTo(x, y) {
@@ -1915,7 +2072,7 @@
         story.store.setFact(story.playerId, 'combat.slain.' + cx.id, true);
         const sp = spoilsFor(seed, ch.id, cp.room, cx.deck);
         let it = null; try { it = rollItem(sp.itemSeed); } catch (e) {}
-        if (it) { addToPack(pack.pack, it); pack.setPack(pack.pack); }
+        if (it) { addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack(); }
         setCoins(getCoins() + sp.coins);
         saveStory(); draw(); whereAmI();
         flashBusy(`⚔ hazard cleared — +◈${sp.coins}${it ? ` · spoils: ${it.name}` : ''}`, 3600);
@@ -2118,6 +2275,8 @@
       if (trd) { openTrade(trd.cp, trd.ch); walkTo(trd.cp.cx, trd.cp.cy); return; }
       const cre = creepAt(wx, wy);
       if (cre) { openBattle(cre.cp, cre.ch); return; }
+      const mnd = mendAt(wx, wy);
+      if (mnd) { openLapidary(mnd.cp, mnd.ch); return; }
       const lf = livingFixtureAt(wx, wy);
       if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openKitchen(lf.gid); return; }
       if (story.active) { story.active = null; renderStory(); }
@@ -2135,25 +2294,30 @@
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (gpu) gpu.resize(W * dpr, H * dpr); if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); pack.setPack(playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)); } });   // R = new world (suppressed while the arcade is open)
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world (your durable pack carries across)
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
     function adoptCharacter(c, persist = true) {
       playerChar = c;
       try { playerGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size }); } catch (e) { playerGenome = null; }
-      pack.setPack(packForCharacter(c, 9));
-      renderWho();
+      renderWho();   // pack is durable now → adopting a character does NOT touch it (see freshCharacter / foldCharacterFromSave)
       // FOLD THE CHARACTER INTO THE SAVE: store it as a fact so it rides story.save to your PDS (cross-device).
       // persist=false when we're adopting FROM a restored save (avoid echoing it straight back).
       if (persist && story.ready) { story.store.setFact(story.playerId, 'character', c); saveStorySnapshot(); }
     }
+    // a BRAND-NEW character from the creator: adopt it AND reset to a fresh starting pack (coins + gems are
+    // account-level, so they carry; gear does not).
+    function freshCharacter(c) { adoptCharacter(c, true); pack.setPack(packForCharacter(c, 9)); persistPack(); }
     // adopt the character carried in a (just-restored) save, if any; else seed the save from the local one.
+    // Then restore the durable pack the save carries (gear, socketed gems and all).
     function foldCharacterFromSave() {
       if (!story.ready) return;
       const savedChar = story.store.getFact(story.playerId, 'character');
       if (savedChar) adoptCharacter(savedChar, false);
       else if (playerChar) { story.store.setFact(story.playerId, 'character', playerChar); saveStorySnapshot(); }
+      const sv = getJSONFact('pack.items', null);
+      if (sv && Array.isArray(sv) && sv.length) pack.setPack(sv);
     }
     function renderWho() {
       if (!playerChar) { $('who').innerHTML = ''; return; }
@@ -2163,12 +2327,16 @@
 
     // ── the pack: a Voronoi-cylinder inventory of genomed items ──
     const pack = new Inventory({ pack: (playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)), title: 'pack' });
+    // the pack is now DURABLE — bought wares, combat loot, and socketed gems persist. Restore it on load
+    // (the snapshot's item array), and re-save it on every mutation via persistPack().
+    const persistPack = () => { if (story.ready) story.store.setFact(story.playerId, 'pack.items', JSON.stringify(pack.pack)); };
+    { const saved = getJSONFact('pack.items', null); if (saved && Array.isArray(saved) && saved.length) pack.setPack(saved); }
     const togglePack = () => pack.toggle();
     $('pack').addEventListener('click', togglePack);
     addEventListener('keydown', (e) => { if ((e.key === 'i' || e.key === 'I') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); togglePack(); } });
 
     // ── character creation ──
-    const creator = new CharacterCreator({ seed: (seed ^ 0x5a17) >>> 0, onEmbark: adoptCharacter });
+    const creator = new CharacterCreator({ seed: (seed ^ 0x5a17) >>> 0, onEmbark: freshCharacter });
     $('charbtn').addEventListener('click', () => creator.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); creator.toggle(); } });
 
@@ -2191,7 +2359,7 @@
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
-    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
     $('newgame').addEventListener('click', () => {
