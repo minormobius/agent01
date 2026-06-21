@@ -15,6 +15,7 @@
 
 export const CONTENT_NSID = 'com.minomobi.hoop.story.content';
 export const SAVE_NSID = 'com.minomobi.hoop.story.save';
+export const VERDICT_NSID = 'com.minomobi.hoop.story.verdict';
 
 const rkeyOf = (uri) => String(uri).split('/').pop();
 

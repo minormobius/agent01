@@ -84,6 +84,22 @@ export function dispatch(store, playerId, contentType, n = 1, opts = {}) {
   return selected;
 }
 
+// ── pool census: how much UNSEEN, tier-legal, gate-passing content remains per type, for this player.
+// The client's depletion signal — when `unseen` runs to the floor the draw pool is spent and the backend
+// must replenish (publish fresh content to the service repo, which a reload then folds in). ──
+export function poolCensus(store, playerId, types = ['npc', 'item', 'lore_fragment', 'creature', 'plot_beat']) {
+  const p = store.getPlayerState(playerId), seen = new Set(p.seen_ids || []), gstate = loadGateState(store, playerId);
+  const out = {};
+  for (const t of types) {
+    const legal = store.queryContent({ type: t, revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
+      .filter((c) => meetsState(gstate, c.requires || {}));
+    const unseen = legal.filter((c) => !seen.has(c.id)).length;
+    out[t] = { legal: legal.length, unseen, depleted: unseen === 0 };
+  }
+  return out;
+}
+export const needsReplenish = (census, floor = 1) => Object.values(census).some((c) => c.unseen <= floor);
+
 // ── crystallize / recall: the keystone binding (placement.interact) ──
 function renderItem(ci) {
   const c = ci.content || {};
@@ -252,6 +268,7 @@ export class MemoryStore {
   // player state
   getPlayerState(id) { let p = this.players.get(id); if (!p) { p = { id, revelation_tier: 1, narrative_tier: 1, power_tier: 1, xp: 0, seen_ids: [], hp_current: null, hp_max: null }; this.players.set(id, p); } return p; }
   markSeen(id, cid) { const p = this.getPlayerState(id); if (!p.seen_ids.includes(cid)) p.seen_ids.push(cid); }
+  unsee(id, cid) { const p = this.getPlayerState(id); const i = p.seen_ids.indexOf(cid); if (i >= 0) p.seen_ids.splice(i, 1); }   // verdict invalidation: let an evicted slot re-crystallize
   setPlayerXp(id, xp, powerTier) { const p = this.getPlayerState(id); p.xp = xp; p.power_tier = powerTier; }
   setPlayerTier(id, axis, value) { if (axis !== 'revelation_tier' && axis !== 'narrative_tier') return; const p = this.getPlayerState(id); p[axis] = value; }   // advance.js: deterministic milestone advancement (a D1/repo store implements the same setter)
   setPlayerHp(id, hpMax, hpCur) { const p = this.getPlayerState(id); p.hp_max = hpMax; p.hp_current = hpCur; }
@@ -266,6 +283,7 @@ export class MemoryStore {
   getPlacement(id, key) { return this._p(id).get(key) || null; }
   bindPlacement(id, key, cid) { this._p(id).set(key, { content_item_id: cid, interaction_count: 1, first_seen: this._p(id).size }); }
   bumpPlacement(id, key) { const r = this._p(id).get(key); if (r) r.interaction_count++; }
+  unbindPlacement(id, key) { return this._p(id).delete(key); }   // verdict invalidation: drop a binding so the slot re-rolls
   listPlacements(id) {
     return [...this._p(id).entries()].sort((a, b) => a[1].first_seen - b[1].first_seen).map(([key, r]) => {
       const ci = this.contentById(r.content_item_id) || {}, c = ci.content || {};
