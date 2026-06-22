@@ -6,7 +6,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/health') {
-      return Response.json({ ok: true, surface: 'fable', wings: ['puzz', 'knack', 'flux', 'gyre', 'morph', 'drift', 'forge', 'deal'] });
+      return Response.json({ ok: true, surface: 'fable', wings: ['puzz', 'knack', 'flux', 'gyre', 'morph', 'drift', 'forge', 'deal'], guests: ['tetro'] });
     }
     // Everything else is a static asset (the assets binding handles directory
     // index resolution, e.g. /puzz/ -> /puzz/index.html).

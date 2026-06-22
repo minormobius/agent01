@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tetro — a tetromino sandbox</title>
+<meta name="description" content="An interactive tetromino sandbox: place, clone, rotate, flip and clumpify blocks on a board that tracks adjacency dependencies. A guest piece in the fable cabinet — human-authored, not oracle-rolled.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="tetro — a tetromino sandbox">
+<meta property="og:description" content="Place, clone, rotate, flip and clumpify tetrominoes. A guest piece in the fable cabinet.">
+<meta property="og:url" content="https://fable.mino.mobi/tetro/">
+<style>
+  :root { --bg:#faf9f6; --text:#1a1a1a; --muted:#777; --rule:#ccc; --accent:#4338ca;
+          --mono:'SF Mono','Cascadia Code','Fira Code',Menlo,monospace;
+          --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f0f0f; --text:#d4d4d4; --muted:#888; --rule:#333; --accent:#a39bff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--serif);
+         -webkit-font-smoothing:antialiased; }
+  .frame { max-width:1100px; margin:0 auto; padding:1.6rem 1.2rem 3rem; }
+  .crumb { font-family:var(--mono); font-size:0.68rem; letter-spacing:0.1em;
+           text-transform:uppercase; color:var(--muted); margin-bottom:1rem; }
+  .crumb a { color:var(--muted); text-decoration:none; }
+  .crumb a:hover { color:var(--accent); }
+  h1 { font-size:2.2rem; font-weight:600; letter-spacing:-0.01em; margin:0 0 0.2rem; }
+  .tagline { color:var(--muted); font-size:0.98rem; margin-bottom:1.4rem; max-width:60ch; }
+  .tagline b { color:var(--text); font-weight:600; }
+  #root { background:#fff; border:1px solid var(--rule); border-radius:8px; overflow:hidden;
+          min-height:300px; }
+  @media (prefers-color-scheme: dark) { #root { background:#161616; } }
+  .boot { padding:3rem 1.5rem; text-align:center; color:var(--muted); font-family:var(--mono); font-size:0.85rem; }
+  .note { font-family:var(--mono); font-size:0.62rem; letter-spacing:0.04em; color:var(--muted);
+          margin-top:1rem; text-transform:uppercase; }
+</style>
+<!-- React 18 (production UMD) + Tailwind (the artifact styles with utility classes) -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<div class="frame">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="/">fable</a> · tetro</div>
+  <header>
+    <h1>tetro</h1>
+    <div class="tagline">A <b>tetromino sandbox</b>: place, clone, rotate, flip and <b>clumpify</b> blocks on a
+      board that tracks adjacency dependencies. A guest piece in the fable cabinet —
+      <b>human-authored</b>, not oracle-rolled.</div>
+  </header>
+  <div id="root"><div class="boot">loading tetro…</div></div>
+  <p class="note">A Claude artifact, contributed. Source: <a href="./game.src.jsx" style="color:var(--accent)">game.src.jsx</a></p>
+</div>
+<script src="./game.js"></script>
+<script>
+  (function () {
+    var el = document.getElementById('root');
+    function fail(msg) {
+      el.innerHTML = '<div class="boot">tetro could not start — ' + msg +
+        '. Try a reload; this page needs to reach the React &amp; Tailwind CDNs.</div>';
+    }
+    try {
+      if (!window.React || !window.ReactDOM || typeof window.__mountClump !== 'function') {
+        return fail('a dependency failed to load');
+      }
+      el.innerHTML = '';
+      window.__mountClump(el);
+    } catch (e) {
+      fail((e && e.message) || 'unknown error');
+    }
+  })();
+</script>
+</body>
+</html>
