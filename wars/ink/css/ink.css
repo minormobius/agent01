@@ -200,6 +200,14 @@ body{
 }
 .disclaimer a{color:var(--ink-soft)}
 
+/* ---- line / smush mode switch ---- */
+.modesw{display:flex;width:max-content;margin:11px auto 0;border:1px solid var(--edge);
+  border-radius:999px;overflow:hidden;background:rgba(255,250,235,.4)}
+.modesw button{font-family:var(--serif);font-size:.74rem;letter-spacing:.1em;
+  padding:6px 18px;border:none;background:none;color:var(--ink-faint);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:background .2s,color .2s}
+.modesw button.on{background:var(--ink);color:var(--paper)}
+
 /* ---- quiz: two 2-D pads + reveal verdict ---- */
 .quiz{padding:8px 2px 0}
 .qprompt{text-align:center;font-size:.72rem;color:var(--ink-soft);font-style:italic;margin:2px 0 9px}

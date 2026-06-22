@@ -157,6 +157,7 @@
     const H = RES;
     const N = opts.points || 120000;   // denser sampling -> continuous strokes
     const BURN = 800;
+    const mode = opts.mode === "smush" ? "smush" : "line";
     const rng = makeRng(seedStr);
     const t0 = (g.performance && performance.now()) || 0;
 
@@ -201,17 +202,25 @@
       const place = { tx, ty, tw, th };
       meta = { foldMode };
 
-      // coloured pigment layers first (rendered underneath). Tight thresholds =
-      // thin strokes: only the density ridges ink up, the flanks stay paper.
+      // line mode: tight thresholds = thin strokes (only density ridges ink up).
+      // smush mode: lower/wider = bold pooled masses with feathered edges.
+      const TH = mode === "smush"
+        ? { pig: { t0: 0.05, t1: 0.30, op: 1.0 }, ink: { t0: 0.06, t1: 0.32, op: 1.1 } }
+        : { pig: { t0: 0.10, t1: 0.40, op: 1.05 }, ink: { t0: 0.12, t1: 0.40, op: 1.15 } };
       const layerSpecs = [];
-      for (let i = 0; i < nPig; i++) layerSpecs.push({ role: "pigment", color: pigColors[i], t0: 0.10, t1: 0.40, op: 1.05 });
-      layerSpecs.push({ role: "ink", color: darkColor, t0: 0.12, t1: 0.40, op: 1.15 });
+      for (let i = 0; i < nPig; i++) layerSpecs.push(Object.assign({ role: "pigment", color: pigColors[i] }, TH.pig));
+      layerSpecs.push(Object.assign({ role: "ink", color: darkColor }, TH.ink));
 
       let ok = true;
       for (const spec of layerSpecs) {
         let field = null, tries = 0;
         while (!field && tries++ < 14) field = layerField(rng, HALF, H, N, BURN, place);
         if (!field) { ok = false; break; }
+        // smush mode: squeeze the wet seed through the fold (Hele-Shaw spread)
+        // on a SEPARATE rng so toggling mode never changes the underlying blot.
+        if (mode === "smush" && g.INKSMUSH) {
+          field.grid = g.INKSMUSH.spread(field.grid, HALF, H, makeRng(seedStr + "#s" + layers.length), {});
+        }
         spec.field = field;
         spec.ks = ksFromHex(spec.color);
         layers.push(spec);
@@ -287,6 +296,7 @@
       meta: {
         seed: String(seedStr),
         res: RES,
+        mode: mode,
         coverage: meta.coverage,
         foldMode: meta.foldMode,
         pigmentCount: nPig,

@@ -24,6 +24,7 @@
     hint: document.getElementById("attrsHint"),
     runbar: document.getElementById("runbar"),
     report: document.getElementById("report"),
+    modesw: document.getElementById("modesw"),
   };
 
   // session history of seeds — the full stack, walkable with Prev/Next.
@@ -31,6 +32,25 @@
 
   const RUN_TARGET = 10;
   let run = [], reportShown = false;
+  let currentMode = new URLSearchParams(location.search).get("m") === "smush" ? "smush" : "line";
+
+  // line / smush segmented toggle — re-renders the SAME blot in the chosen mode
+  (function setupModeSwitch() {
+    const sw = els.modesw;
+    if (!sw) return;
+    sw.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("on", b.dataset.mode === currentMode);
+      b.addEventListener("click", () => {
+        if (b.dataset.mode === currentMode) return;
+        currentMode = b.dataset.mode;
+        sw.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x.dataset.mode === currentMode));
+        if (current) render(current.seed);
+      });
+    });
+  })();
+
+  const urlFor = (seed) =>
+    location.pathname + "?b=" + encodeURIComponent(seed) + (currentMode === "smush" ? "&m=smush" : "");
 
   const quiz = INKQUIZ.mount(document.getElementById("quiz"), {
     onReveal: (portrait, deltas) => {
@@ -111,7 +131,7 @@
     html +=
       `<div class="dna">
          <div><b>generative dna</b></div>
-         <div>seed <b>${m.seed}</b> · ${m.foldMode} fold · ${m.pigmentCount ? m.pigmentCount + " pigment" + (m.pigmentCount === 1 ? "" : "s") : "monochrome"} · ${m.ms}ms</div>
+         <div>seed <b>${m.seed}</b> · ${m.mode} · ${m.foldMode} fold · ${m.pigmentCount ? m.pigmentCount + " pigment" + (m.pigmentCount === 1 ? "" : "s") : "monochrome"} · ${m.ms}ms</div>
          <div style="margin-top:5px">${fams}</div>
        </div>`;
     els.body.innerHTML = html;
@@ -119,7 +139,7 @@
 
   // ---- render one blot (pure; no stack changes) ----
   function render(seed) {
-    const res = INKENGINE.generate(seed, { RES });
+    const res = INKENGINE.generate(seed, { RES, mode: currentMode });
     current = { seed, res };
     paint(res);
     const tv = {};
@@ -128,7 +148,7 @@
     renderRaw(res);
     els.seed.textContent = "№ " + seed;
     els.hint.textContent = "— place two dots —";
-    history.replaceState({ seed }, "", location.pathname + "?b=" + encodeURIComponent(seed));
+    history.replaceState({ seed }, "", urlFor(seed));
     updateNav();
   }
 
