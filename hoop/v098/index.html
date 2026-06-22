@@ -511,7 +511,18 @@
         const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i));
       }
     }
-    function reveal() { if (player < 0) return; for (const g of sightBall(walk, player, OPTS.sight)) seen.add(g); inView = sightBall(walk, player, OPTS.sight); rebakeFog(); }
+    let _lastFogBake = 0;
+    // reveal() updates seen/inView EVERY step (cheap set ops — one sight BFS now, was two) so gameplay
+    // reveal is instant; the expensive CANVAS re-bake is THROTTLED when `throttle` is passed (the per-step
+    // walk tick), since the fog visibly lagging ≤100ms is imperceptible. One-shot callers bake immediately.
+    function reveal(throttle) {
+      if (player < 0) return;
+      const ball = sightBall(walk, player, OPTS.sight);   // ONE BFS (was computed twice)
+      for (const g of ball) seen.add(g);
+      inView = ball;
+      const now = performance.now();
+      if (!throttle || now - _lastFogBake > 100) { rebakeFog(); _lastFogBake = now; }
+    }
 
     // ── DECKS (chutes & ladders): the rind is a lower deck linked to the concourse by a shaft PORT. The
     // render draws only the player's current deck; crossing the shaft (same x,y) flips the deck seamlessly.
@@ -671,7 +682,7 @@
         const ox = pp.x, oy = pp.y; pp.x = sm[i][0]; pp.y = sm[i][1];
         pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i;     // face the way you move; advance the walk cycle
         const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
-        if (p[ni] !== player) { player = p[ni]; reveal(); tickWalk(1); }   // walking costs stamina + nourishment (and health if starving)
+        if (p[ni] !== player) { player = p[ni]; reveal(true); tickWalk(1); }   // throttled fog re-bake — the per-step walk tick (seen/inView still update instantly)
         followCam(); draw(); maybeStream();
         walkTimer = setTimeout(tick, 24);
       };
@@ -2388,8 +2399,8 @@
       if (world && walk && nearResidents.length) {
         const t0 = performance.now();
         stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
-        draw();
-        _drawMs = _drawMs ? _drawMs * 0.85 + (performance.now() - t0) * 0.15 : (performance.now() - t0);   // step+draw, the full per-frame work
+        if (!walkTimer) draw();   // while walking, walkTo's own 24ms tick already draws — don't double-paint
+        _drawMs = _drawMs ? _drawMs * 0.85 + (performance.now() - t0) * 0.15 : (performance.now() - t0);
       }
     }
 
