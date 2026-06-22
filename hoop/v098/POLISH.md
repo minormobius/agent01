@@ -3,6 +3,20 @@
 v098 = v097 + the rumor-mill verdict feed wired into the live load path. The big systems are in
 and tested; what remains is *feel*. This is the living checklist for the final pass.
 
+## Automated testing — the simulated player
+- [x] `test/playthrough.selftest.mjs` — generates REAL worlds (`solveChunk`), walks a synthetic
+      traveller room-to-room over the actual nav mesh, and drives the real engine at each place
+      (crystallize / fight / trade / socket gems), writing save records mid-walk and reloading them
+      to prove recall survives. Asserts connectivity, no-repeat, save round-trip, coins ≥ 0, and
+      **determinism** (same seed ⇒ identical transcript). ~1.6 s for 3 worlds + 2 re-runs.
+- **It already surfaced a balance signal:** the synthetic (greedy-AI, starting-gear) traveller
+  **loses most deck-0 hazard fights** (≈2 wins of 7 across the worlds). Either creeps are over-tuned
+  at deck 0, the baseline character needs better starting gear, or the player AI is too naive — worth
+  a look during the combat-balance pass. The harness makes this measurable: win-rate is now a number.
+- [ ] follow-ons: multi-chunk worlds (stitch the walk graph across `ports`), property-style fuzzing
+      over many seeds (assert invariants, not exact transcripts), drive the verdict/replenish loop
+      *over a live walk*, and a CI Playwright lane for the actual DOM/canvas (the one thing node can't).
+
 ## The content loop (backend ⇄ client) — wired + pinned
 - [x] backfill → draw → mint/save → crystallize → deplete → replenish → verdict → redraw
       (`test/hypothecation.selftest.mjs`, 31 assertions)
