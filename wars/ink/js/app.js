@@ -15,13 +15,17 @@
     seed: document.getElementById("seedlabel"),
     share: document.getElementById("share"),
     newBtn: document.getElementById("newblot"),
+    prev: document.getElementById("prev"),
+    next: document.getElementById("next"),
+    counter: document.getElementById("counter"),
     attrs: document.getElementById("attrs"),
     handle: document.getElementById("attrsHandle"),
     body: document.getElementById("attrsBody"),
     hint: document.getElementById("attrsHint"),
   };
 
-  let current = null;
+  // session history of seeds — the full stack, walkable with Prev/Next.
+  let stack = [], pos = -1, current = null;
 
   // ---- procedural parchment (cached; same paper every time, calm) ----
   function makeParchment(res) {
@@ -98,7 +102,7 @@
     html +=
       `<div class="dna">
          <div><b>generative dna</b></div>
-         <div>seed <b>${m.seed}</b> · ${m.pigmentCount ? m.pigmentCount + " pigment" + (m.pigmentCount === 1 ? "" : "s") : "monochrome"} · ${m.ms}ms</div>
+         <div>seed <b>${m.seed}</b> · ${m.foldMode} fold · ${m.pigmentCount ? m.pigmentCount + " pigment" + (m.pigmentCount === 1 ? "" : "s") : "monochrome"} · ${m.ms}ms</div>
          <div style="margin-top:5px">${fams}</div>
        </div>`;
     els.body.innerHTML = html;
@@ -108,24 +112,35 @@
     els.hint.textContent = `${lead.family} · ${Math.round(res.raw.coverage * 100)}%`;
   }
 
-  // ---- generate + show ----
-  function show(seed, push) {
+  // ---- render one blot (pure; no stack changes) ----
+  function render(seed) {
     const res = INKENGINE.generate(seed, { RES });
     current = { seed, res };
     paint(res);
     renderTraits(res);
     els.seed.textContent = "№ " + seed;
-    updateURL(seed, push);
+    history.replaceState({ seed }, "", location.pathname + "?b=" + encodeURIComponent(seed));
+    updateNav();
   }
 
-  function updateURL(seed, push) {
-    const url = location.pathname + "?b=" + encodeURIComponent(seed);
-    if (push) history.pushState({ seed }, "", url);
-    else history.replaceState({ seed }, "", url);
+  // push a brand-new blot onto the stack (truncating any forward history)
+  function pushNew(seed) {
+    stack = stack.slice(0, pos + 1);
+    stack.push(seed);
+    pos = stack.length - 1;
+    render(seed);
+  }
+
+  function updateNav() {
+    els.prev.disabled = pos <= 0;
+    els.next.disabled = pos >= stack.length - 1;
+    els.counter.textContent = stack.length > 1 ? pos + 1 + " / " + stack.length : "";
   }
 
   // ---- events ----
-  els.newBtn.addEventListener("click", () => show(INKPRNG.freshSeed(), true));
+  els.newBtn.addEventListener("click", () => pushNew(INKPRNG.freshSeed()));
+  els.prev.addEventListener("click", () => { if (pos > 0) render(stack[--pos]); });
+  els.next.addEventListener("click", () => { if (pos < stack.length - 1) render(stack[++pos]); });
 
   els.handle.addEventListener("click", () => {
     const open = els.attrs.getAttribute("aria-expanded") === "true";
@@ -144,12 +159,14 @@
     setTimeout(() => (el.textContent = old), 900);
   }
 
-  window.addEventListener("popstate", (e) => {
-    const seed = (e.state && e.state.seed) || new URLSearchParams(location.search).get("b");
-    if (seed) show(seed, false);
+  // keyboard: ← / → walk the stack, space = new blot
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") els.prev.click();
+    else if (e.key === "ArrowRight") els.next.click();
+    else if (e.key === " ") { e.preventDefault(); els.newBtn.click(); }
   });
 
   // ---- boot ----
   const initSeed = new URLSearchParams(location.search).get("b") || INKPRNG.freshSeed();
-  show(initSeed, false);
+  pushNew(initSeed);
 })();

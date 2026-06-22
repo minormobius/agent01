@@ -161,10 +161,23 @@
       const mV = 14;
       const tw = HALF * rng.range(0.5, 0.97);
       const th = H * rng.range(0.45, 0.94);
-      const tx = (HALF - tw) * Math.pow(rng(), 2.4) * 0.42;   // usually fold-hugging (bridged); occasionally split
+
+      // FOLD MODE — how the ink meets the axis of symmetry. Real folded blots
+      // span the midline (cards I/IV/V/VI: one axis-straddling mass) more often
+      // than they flank a central white channel (cards II/VIII–X: white-space S).
+      // tx<0 pushes the attractor's dense interior across the fold (left part is
+      // clipped, then the mirror rebuilds a solid central mass); tx>0 opens a
+      // white channel; tx≈0 just kisses the axis.
+      const roll = rng();
+      let tx, foldMode;
+      if (roll < 0.6) { foldMode = "bridged"; tx = -tw * rng.range(0.08, 0.34); }
+      else if (roll < 0.8) { foldMode = "kissing"; tx = tw * rng.range(0, 0.03); }
+      else { foldMode = "lateral"; tx = HALF * rng.range(0.05, 0.18); }
+
       const tyMax = Math.max(mV, H - mV - th);
       const ty = rng.range(mV, tyMax);
       const place = { tx, ty, tw, th };
+      meta = { foldMode };
 
       // coloured pigment layers first (rendered underneath)
       const layerSpecs = [];
@@ -210,12 +223,12 @@
       let cov = 0;
       for (let i = 0; i < Atot.length; i++) if (Atot[i] >= 0.18) cov++;
       cov /= Atot.length;
-      meta = { coverage: cov };
+      meta.coverage = cov;
       if (cov >= 0.03 && cov <= 0.5) break;
     } while (attempts < 6);
 
     // ---- objective traits (separable; feeds the interpretation layer) ----
-    const traits = g.INKTRAITS.extract({
+    const tr = g.INKTRAITS.extract({
       HALF, H, Atot, Acol, pigmentCount: nPig, mask: 0.18,
     });
 
@@ -250,11 +263,13 @@
     const ms = ((g.performance && performance.now()) || 0) - t0;
     return {
       canvas,
-      traits,
+      traits: tr.traits,
+      raw: tr.raw,
       meta: {
         seed: String(seedStr),
         res: RES,
         coverage: meta.coverage,
+        foldMode: meta.foldMode,
         pigmentCount: nPig,
         inkColor: darkColor,
         pigments: pigColors,
