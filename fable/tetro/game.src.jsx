@@ -108,7 +108,7 @@ class Tetromino {
     
     // Apply rotation
     for (let i = 0; i < this.orientation; i++) {
-      result = result.map(([x, y]) => [-y, x]); // 90Â° clockwise
+      result = result.map(([x, y]) => [-y, x]); // 90° clockwise
     }
     
     // Add position offset
@@ -706,8 +706,8 @@ class Gameboard {
       const relY = tetromino.position[1] - anchorPos[1];
       
       // Apply rotation to the relative position
-      // x,y -> -y,x for 90Â° clockwise
-      // x,y -> y,-x for 90Â° counterclockwise
+      // x,y -> -y,x for 90° clockwise
+      // x,y -> y,-x for 90° counterclockwise
       let newRelX, newRelY;
       
       if (clockwise) {
@@ -2098,19 +2098,6 @@ const TetrominoGame = () => {
     }
   };
   
-  // Handle button clicks for clumpify
-  const handleClumpify = () => {
-    const gameboard = gameboardRef.current;
-    
-    // Make devSlider values available to the Gameboard class
-    window.devSlider0Value = devSlider0Value;
-    window.devSlider1Value = devSlider1Value;
-    
-    if (gameboard.hasSelection()) {
-      gameboard.clumpify();
-    }
-  };
-
   // Draw score
   const drawScore = (ctx) => {
     const gameboard = gameboardRef.current;
@@ -2686,12 +2673,7 @@ const TetrominoGame = () => {
             handleRotateClockwise();
           }
           break;
-        
-        case 'g':
-          // Clumpify functionality
-          handleClumpify();
-          break;
-        
+
         // WASD for panning
         case 'w':
           // Pan up
@@ -2745,27 +2727,25 @@ const TetrominoGame = () => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="p-4 bg-gray-100 rounded-lg mb-4">
+      <div className="p-4 bg-gray-100 text-gray-900 rounded-lg mb-4">
         <h2 className="text-xl font-bold mb-2">Tetromino Puzzle Game</h2>
         <p className="mb-2">
-          Place tetrominos so they satisfy their dependencies. When all pieces are active (bright colored), you score a point and difficulty increases.
+          Each piece needs the right neighbors to <strong>light up</strong>. A piece shows small
+          <strong> colored bubbles, each with a number</strong> &mdash; that&rsquo;s how many more pieces
+          of <em>that color</em> it still needs <strong>touching it</strong> (edge&#8209;to&#8209;edge). A
+          green bubble showing <strong>2</strong> means &ldquo;put 2 more green pieces up against me.&rdquo;
+        </p>
+        <p className="mb-2">
+          Satisfy all of a piece&rsquo;s bubbles and it turns <strong>bright</strong> (active); leave it short
+          and it stays dark. When <strong>every</strong> piece on the board is active you score a point and the
+          difficulty rises.
         </p>
         <p className="mb-3">
-          <strong>Game Modes:</strong> Default: random dependencies. Challenge: dependencies increase over time. Clumps: new pieces spawn each round.
+          <strong>Game Modes:</strong> Default &mdash; random dependencies. Challenge &mdash; dependencies grow over time.
         </p>
         <p className="mb-3">
-          <strong>Controls:</strong> Click to select/place, drag to move or pan view, scroll to zoom. Use buttons below to rotate, clone or delete.
-        </p>
-        <p className="mb-3">
-          <strong>Clumps:</strong> Select multiple tetrominos and use the Clumpify button to merge them. Clumps have their own dependency system where:
-          <ul className="list-disc ml-6 mt-1">
-            <li>Each clump provides a count of 1 for each species it contains</li>
-            <li>New clumps require 2 of Species A and devSlider0 value of Species B</li>
-            <li>Species with double weight for selection are those in the clump</li>
-          </ul>
-        </p>
-        <p className="mb-3">
-          <strong>Board Size:</strong> 200Ã200 grid (expanded by 10Ã) - plenty of room to build complex structures!
+          <strong>Controls:</strong> Click to select / place, drag to move or pan the view, scroll to zoom. Use the
+          buttons below to rotate, clone, or delete. The board is large (200&times;200) &mdash; plenty of room to build.
         </p>
         
         {/* Game Mode Selection */}
@@ -2793,23 +2773,12 @@ const TetrominoGame = () => {
               />
               <span className="ml-2">Challenge</span>
             </label>
-            
-            <label className="inline-flex items-center">
-              <input
-                type="radio"
-                className="form-radio h-4 w-4"
-                value="clumps"
-                checked={gameMode === 'clumps'}
-                onChange={handleModeChange}
-              />
-              <span className="ml-2">Clumps</span>
-            </label>
           </div>
         </div>
         
         {/* DevSlider0 - First tetromino dependency count */}
         <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-800 mb-1">
             Species A dependency count (devSlider0): {devSlider0Value}
           </label>
           <input
@@ -2825,7 +2794,7 @@ const TetrominoGame = () => {
         
         {/* DevSlider1 - Second tetromino dependency count */}
         <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-800 mb-1">
             Species B dependency count (devSlider1): {devSlider1Value}
           </label>
           <input
@@ -2855,18 +2824,18 @@ const TetrominoGame = () => {
         onContextMenu={(e) => e.preventDefault()}
       />
       
-      <div className="flex flex-wrap justify-center gap-2 p-4 bg-gray-100 rounded-lg mt-4">
+      <div className="flex flex-wrap justify-center gap-2 p-4 bg-gray-100 text-gray-900 rounded-lg mt-4">
         <button 
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
           onClick={handleRotateCounterClockwise}
         >
-          Rotate âº
+          Rotate ↺
         </button>
         <button 
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
           onClick={handleRotateClockwise}
         >
-          Rotate â»
+          Rotate ↻
         </button>
         <button 
           className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
@@ -2880,13 +2849,7 @@ const TetrominoGame = () => {
         >
           Delete (Z)
         </button>
-        <button 
-          className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
-          onClick={handleClumpify}
-        >
-          Clumpify (G)
-        </button>
-        <button 
+        <button
           className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
           onClick={handleAddTetrominoPair}
         >
@@ -2894,8 +2857,8 @@ const TetrominoGame = () => {
         </button>
       </div>
       
-      <div className="mt-3 px-4 pb-2 text-sm text-gray-600">
-        <p><strong>Keyboard Controls:</strong> Q: Clone, Z: Delete, R: Rotate CW, Shift+R: Rotate CCW, G: Clumpify, WASD: Pan View</p>
+      <div className="mt-3 px-4 pb-2 text-sm text-gray-800">
+        <p><strong>Keyboard Controls:</strong> Q: Clone, Z: Delete, R: Rotate CW, Shift+R: Rotate CCW, WASD: Pan View</p>
       </div>
     </div>
   );

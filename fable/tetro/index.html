@@ -27,9 +27,11 @@
   h1 { font-size:2.2rem; font-weight:600; letter-spacing:-0.01em; margin:0 0 0.2rem; }
   .tagline { color:var(--muted); font-size:0.98rem; margin-bottom:1.4rem; max-width:60ch; }
   .tagline b { color:var(--text); font-weight:600; }
-  #root { background:#fff; border:1px solid var(--rule); border-radius:8px; overflow:hidden;
-          min-height:300px; }
-  @media (prefers-color-scheme: dark) { #root { background:#161616; } }
+  /* The game is a light-themed artifact (gray panels, black canvas), so the card
+     stays light in both color schemes; only the fable chrome around it follows the OS. */
+  #root { background:#fff; color:#111; border:1px solid var(--rule); border-radius:8px;
+          overflow:hidden; min-height:300px; padding:0.75rem; }
+  @media (prefers-color-scheme: dark) { #root { border-color:#2a2a2a; } }
   .boot { padding:3rem 1.5rem; text-align:center; color:var(--muted); font-family:var(--mono); font-size:0.85rem; }
   .note { font-family:var(--mono); font-size:0.62rem; letter-spacing:0.04em; color:var(--muted);
           margin-top:1rem; text-transform:uppercase; }
