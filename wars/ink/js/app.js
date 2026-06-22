@@ -27,6 +27,10 @@
   // session history of seeds — the full stack, walkable with Prev/Next.
   let stack = [], pos = -1, current = null;
 
+  const quiz = INKQUIZ.mount(document.getElementById("quiz"), {
+    onReveal: (portrait) => { els.hint.textContent = portrait.title; },
+  });
+
   // ---- procedural parchment (cached; same paper every time, calm) ----
   function makeParchment(res) {
     const c = document.createElement("canvas");
@@ -80,34 +84,14 @@
     }
   }
 
-  // ---- render the drawer: the archetypal reading, with raw attrs tucked under ----
-  function renderTraits(res) {
+  // ---- drawer: the raw attribute vector (the ruler). The archetypal reading is
+  //      deliberately NOT here — it's hidden until the player places both dots. ----
+  function renderRaw(res) {
     const m = res.meta;
-    const tv = {};
-    res.traits.forEach((t) => (tv[t.key] = t.value));
-    const portrait = INKJUDGE.portrait(INKJUDGE.scoreBlot(tv));
-
-    let html = `<div class="reading">
-      <div class="portrait">
-        <div class="ptitle">${portrait.title}</div>
-        <div class="pblurb">${portrait.blurb}</div>
-      </div>`;
-    for (const ax of portrait.axes) {
-      const pc = Math.round(ax.value * 100);
-      html +=
-        `<div class="arch">
-           <div class="arow"><span class="aname">${ax.title}</span><span class="alean">${ax.line}</span></div>
-           <div class="abar"><i style="left:${pc}%"></i></div>
-           <div class="apoles"><span class="${ax.value < 0.5 ? "on" : ""}">${ax.lo}</span><span class="${ax.value >= 0.5 ? "on" : ""}">${ax.hi}</span></div>
-         </div>`;
-    }
-    html += `</div>`;
-
-    // raw attributes — the ruler, hidden under a fold
-    let raw = "";
+    let html = "";
     for (const t of res.traits) {
       const pct = Math.round(t.value * 100);
-      raw +=
+      html +=
         `<div class="trait">
            <div class="row"><span class="name">${t.label}</span><span class="val">${t.display}</span></div>
            <div class="bar"><i style="width:${pct}%"></i></div>
@@ -116,16 +100,13 @@
     }
     const swatch = (c) => `<span class="sw" style="background:${c}"></span>`;
     const fams = m.layers.map((L) => `<span class="chip">${swatch(L.color)}${L.family}</span>`).join("");
-    raw +=
+    html +=
       `<div class="dna">
          <div><b>generative dna</b></div>
          <div>seed <b>${m.seed}</b> · ${m.foldMode} fold · ${m.pigmentCount ? m.pigmentCount + " pigment" + (m.pigmentCount === 1 ? "" : "s") : "monochrome"} · ${m.ms}ms</div>
          <div style="margin-top:5px">${fams}</div>
        </div>`;
-
-    html += `<details class="rawwrap"><summary>raw attributes · the ruler</summary>${raw}</details>`;
     els.body.innerHTML = html;
-    els.hint.textContent = portrait.title;
   }
 
   // ---- render one blot (pure; no stack changes) ----
@@ -133,8 +114,12 @@
     const res = INKENGINE.generate(seed, { RES });
     current = { seed, res };
     paint(res);
-    renderTraits(res);
+    const tv = {};
+    res.traits.forEach((t) => (tv[t.key] = t.value));
+    quiz.setBlot(INKJUDGE.scoreBlot(tv));   // arm the pads (hidden until both dots land)
+    renderRaw(res);
     els.seed.textContent = "№ " + seed;
+    els.hint.textContent = "— place two dots —";
     history.replaceState({ seed }, "", location.pathname + "?b=" + encodeURIComponent(seed));
     updateNav();
   }
