@@ -460,7 +460,9 @@
 
     function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter();
       const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); }
-      whereAmI(); }   // refresh the HUD (zone + stamina) on move — only while moving, so no per-frame cost when idle   // re-cull residents when you enter a new chunk
+      whereAmISoon(); }   // HUD refresh is THROTTLED — whereAmI runs the hoopy oracle + a big innerHTML write; doing it every frame during a walk was the steppy stutter
+    let _whereT = 0;
+    function whereAmISoon() { const now = performance.now(); if (now - _whereT < 250) return; _whereT = now; whereAmI(); }
     function setScale() { cam.scale = H / (chunkSpan * VFOV); }   // pin the VERTICAL world span; width follows the aspect (mobile look retained on desktop)
 
     // rebuild the walk graph + the social web, then re-cast residents — but PRESERVE the sim state of
@@ -827,7 +829,8 @@
       ctx.imageSmoothingEnabled = true;
       { const pd = playerDeck(); for (const ch of world.chunks) { if ((ch.deck || 0) !== pd) continue; const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); } }
       if (playerDeck() === 1) { ctx.fillStyle = 'rgba(30,70,90,0.22)'; ctx.fillRect(0, 0, W, H); }   // the rind: no sun-strip, cool hull-glow wash
-      drawNPC(); drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint();
+      if (!walkPath) drawNPC();   // the social web is ambient — skip it while WALKING (its per-route strokes are off the hot path; it reappears the moment you stop)
+      drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint();
     }
     // the shaft: a chute marker at the (deck-shared) shaft cell — ▼ down to the rind, ▲ back up to the Nave
     function drawShaft() {
