@@ -119,6 +119,30 @@ body{
 }
 .attrs[aria-expanded="true"] .attrs-body{max-height:1400px;opacity:1;padding-bottom:14px}
 
+/* ---- the archetypal reading ---- */
+.reading{padding:4px 0 6px}
+.portrait{text-align:center;padding:6px 4px 12px}
+.ptitle{display:block;font-size:1.18rem;letter-spacing:.02em;color:var(--ink)}
+.pblurb{display:block;font-size:.74rem;color:var(--ink-soft);font-style:italic;margin-top:4px;line-height:1.5}
+.arch{padding:9px 0;border-top:1px solid rgba(150,124,80,.28)}
+.arow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:8px}
+.arch .aname{font-size:.8rem;color:var(--ink)}
+.arch .alean{font-size:.68rem;color:var(--ink-soft);font-style:italic;text-align:right}
+.abar{position:relative;height:3px;border-radius:2px;background:rgba(150,124,80,.35);margin:8px 2px}
+.abar i{position:absolute;top:50%;width:13px;height:13px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#3a2a18,#160f08);
+  border:1px solid rgba(255,250,235,.35);transform:translate(-50%,-50%);
+  box-shadow:0 2px 5px -2px rgba(0,0,0,.6);transition:left .35s cubic-bezier(.5,1.4,.5,1)}
+.apoles{display:flex;justify-content:space-between;margin-top:5px;font-size:.64rem;color:var(--ink-faint);letter-spacing:.02em}
+.apoles .on{color:var(--accent);font-weight:600}
+
+.rawwrap{margin-top:12px;border-top:1px dashed rgba(150,124,80,.45)}
+.rawwrap>summary{cursor:pointer;list-style:none;font-size:.66rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-faint);padding:10px 0 4px}
+.rawwrap>summary::-webkit-details-marker{display:none}
+.rawwrap>summary::before{content:"▸ ";color:var(--ink-faint)}
+.rawwrap[open]>summary::before{content:"▾ "}
+
 .trait{padding:9px 0;border-top:1px solid rgba(150,124,80,.28)}
 .trait:first-child{border-top:none}
 .trait .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}

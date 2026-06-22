@@ -80,36 +80,52 @@
     }
   }
 
-  // ---- render the attribute drawer ----
+  // ---- render the drawer: the archetypal reading, with raw attrs tucked under ----
   function renderTraits(res) {
-    const { traits } = res;
     const m = res.meta;
-    let html = "";
-    for (const t of traits) {
-      const pct = Math.round(t.value * 100);
+    const tv = {};
+    res.traits.forEach((t) => (tv[t.key] = t.value));
+    const portrait = INKJUDGE.portrait(INKJUDGE.scoreBlot(tv));
+
+    let html = `<div class="reading">
+      <div class="portrait">
+        <div class="ptitle">${portrait.title}</div>
+        <div class="pblurb">${portrait.blurb}</div>
+      </div>`;
+    for (const ax of portrait.axes) {
+      const pc = Math.round(ax.value * 100);
       html +=
+        `<div class="arch">
+           <div class="arow"><span class="aname">${ax.title}</span><span class="alean">${ax.line}</span></div>
+           <div class="abar"><i style="left:${pc}%"></i></div>
+           <div class="apoles"><span class="${ax.value < 0.5 ? "on" : ""}">${ax.lo}</span><span class="${ax.value >= 0.5 ? "on" : ""}">${ax.hi}</span></div>
+         </div>`;
+    }
+    html += `</div>`;
+
+    // raw attributes — the ruler, hidden under a fold
+    let raw = "";
+    for (const t of res.traits) {
+      const pct = Math.round(t.value * 100);
+      raw +=
         `<div class="trait">
            <div class="row"><span class="name">${t.label}</span><span class="val">${t.display}</span></div>
            <div class="bar"><i style="width:${pct}%"></i></div>
            <div class="poles"><span>${t.low}</span><span class="axis">${t.axis}</span><span>${t.high}</span></div>
          </div>`;
     }
-    // the generative DNA
     const swatch = (c) => `<span class="sw" style="background:${c}"></span>`;
-    const fams = m.layers
-      .map((L) => `<span class="chip">${swatch(L.color)}${L.family}</span>`)
-      .join("");
-    html +=
+    const fams = m.layers.map((L) => `<span class="chip">${swatch(L.color)}${L.family}</span>`).join("");
+    raw +=
       `<div class="dna">
          <div><b>generative dna</b></div>
          <div>seed <b>${m.seed}</b> · ${m.foldMode} fold · ${m.pigmentCount ? m.pigmentCount + " pigment" + (m.pigmentCount === 1 ? "" : "s") : "monochrome"} · ${m.ms}ms</div>
          <div style="margin-top:5px">${fams}</div>
        </div>`;
-    els.body.innerHTML = html;
 
-    // collapsed hint: family + coverage
-    const lead = m.layers[m.layers.length - 1];
-    els.hint.textContent = `${lead.family} · ${Math.round(res.raw.coverage * 100)}%`;
+    html += `<details class="rawwrap"><summary>raw attributes · the ruler</summary>${raw}</details>`;
+    els.body.innerHTML = html;
+    els.hint.textContent = portrait.title;
   }
 
   // ---- render one blot (pure; no stack changes) ----
