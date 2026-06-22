@@ -405,7 +405,7 @@
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
     let gpu = null, gpuActive = false;   // the WebGPU cell renderer (set once init resolves); false ⇒ raster fallback
-    let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
+    let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkPath = null, society = null;   // walkPath: the active walk (advanced by the RAF loop, dt-interpolated), null = idle
     let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0, _drawMs = 0, _statusT = 0, _fps = 0;   // _drawMs: EMA of frame-work cost; _fps: achieved rate — both shown in the status line for live perf diagnosis
     const story = { store: null, ready: false, playerId: 'local', active: null };
     let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
@@ -543,7 +543,7 @@
       if (!shaftNodes || player < 0) return false;
       const to = shaftNodes[playerDeck() === 1 ? 0 : 1]; if (to == null || to < 0) return false;
       player = to; pp.x = walk.pos[2 * to]; pp.y = walk.pos[2 * to + 1]; route = []; routePts = [];
-      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      walkPath = null;
       followCam(); reveal(); draw(); maybeStream();
       return true;
     }
@@ -650,7 +650,7 @@
 
     async function newWorld() {
       if (gpu && world) for (const ch of world.chunks) freeChunkGpu(ch);   // release the old world's GPU cell buffers
-      busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; walkPath = null;
       const { rec, painted } = await generate(opts({ seed })); rec.painted = painted; addChunk(world, rec); restitch();
       chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
       setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal();
@@ -672,21 +672,28 @@
     // corner-cutting (Chaikin) so the trajectory CURVES through cells instead of hopping centre→centre
     function chaikin(pts, iters) { for (let it = 0; it < iters; it++) { if (pts.length < 3) break; const out = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } out.push(pts[pts.length - 1]); pts = out; } return pts; }
     function walkTo(wx, wy) {
-      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      walkPath = null;
       const dst = nearestDeckNode(wx, wy); if (dst < 0 || player < 0) return;   // never target an impassable fixture tile — and stay on the current deck (decks share a footprint)
       const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
-      route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm; let i = 0;
-      const tick = () => {
-        i++;
-        if (i >= sm.length) { walkTimer = null; player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
-        const ox = pp.x, oy = pp.y; pp.x = sm[i][0]; pp.y = sm[i][1];
-        pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i;     // face the way you move; advance the walk cycle
-        const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
-        if (p[ni] !== player) { player = p[ni]; reveal(true); tickWalk(1); }   // throttled fog re-bake — the per-step walk tick (seen/inView still update instantly)
-        followCam(); draw(); maybeStream();
-        walkTimer = setTimeout(tick, 24);
-      };
-      walkTimer = setTimeout(tick, 24);
+      route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm;
+      walkPath = { sm, f: 0, p, dst };   // the RAF loop advances `f` (sample index) by dt and interpolates pp between samples
+    }
+    // advance the active walk by `dt` ms, INTERPOLATING the player between path samples (frame-rate
+    // independent: 1 chaikin sample per 24ms of progress, so speed is identical at 30 or 60fps). Returns
+    // true while moving. Reveal is throttled; streaming is throttled; the RAF loop draws once after this.
+    let _lastStream = 0;
+    function advanceWalk(dt) {
+      const wp = walkPath, sm = wp.sm; if (!sm || sm.length < 2) { walkPath = null; return false; }
+      wp.f += dt / 24;
+      if (wp.f >= sm.length - 1) { player = wp.dst; pp.x = walk.pos[2 * wp.dst]; pp.y = walk.pos[2 * wp.dst + 1]; route = []; routePts = []; walkPath = null; followCam(); reveal(); maybeStream(); return true; }
+      const i0 = Math.floor(wp.f), t = wp.f - i0, a = sm[i0], b = sm[i0 + 1], ox = pp.x, oy = pp.y;
+      pp.x = a[0] + (b[0] - a[0]) * t; pp.y = a[1] + (b[1] - a[1]) * t;
+      pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i0;     // face the way you move; advance the walk cycle
+      const ni = Math.min(wp.p.length - 1, Math.round(wp.f / (sm.length - 1) * (wp.p.length - 1)));
+      if (wp.p[ni] !== player) { player = wp.p[ni]; reveal(true); tickWalk(1); }   // walking costs stamina + nourishment (and health if starving)
+      followCam();
+      const now = performance.now(); if (now - _lastStream > 250) { _lastStream = now; maybeStream(); }   // stream-ahead a few times/sec, not every frame
+      return true;
     }
 
     const roomSeen = (o) => o.cellsG.some((g) => seen.has(g));
@@ -889,7 +896,7 @@
       // the embarked character, drawn as their own rolled sprite standing over the lantern
       if (playerGenome) {
         ctx.imageSmoothingEnabled = false;
-        const moving = !!walkTimer, frame = moving ? (pphase | 0) % 4 : null;
+        const moving = !!walkPath, frame = moving ? (pphase | 0) % 4 : null;
         const cvs = spriteCanvas(playerGenome, pdir, frame), h = SKIN.playerW * 1.5 * cam.scale, w = h * (cvs.width / cvs.height);
         ctx.drawImage(cvs, SX(x) - w / 2, SY(y) - h * 0.92, w, h);
         ctx.imageSmoothingEnabled = true;
@@ -2145,7 +2152,7 @@
     function teleportTo(x, y) {
       const nd = nearestDeckNode(x, y); if (nd < 0 || !walk) return;
       player = nd; pp.x = walk.pos[2 * nd]; pp.y = walk.pos[2 * nd + 1]; route = []; routePts = [];
-      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      walkPath = null;
       followCam(); reveal(); draw();
     }
     function openBattle(cp, ch) {
@@ -2389,17 +2396,20 @@
     // to show (residents animating). Player movement redraws via walkTo's own 24ms tick; map-changing actions
     // call draw() themselves; an idle empty scene or a covered world needs no redraw. This stops the constant
     // full-scene repaint (incl. the fog blur) from chugging — most visibly behind the sign-in modal.
+    // ONE render loop — movement, residents, and draw all ride the RAF (no more setTimeout walk loop that
+    // double-painted and janked). Targets 60fps; movement is dt-interpolated so it's smooth at any rate.
     function frame(ts) {
       requestAnimationFrame(frame);
-      if (ts - lastTs < 30) return;   // cap to ~33fps
-      const dt = lastTs ? ts - lastTs : 16; lastTs = ts;
-      _fps = _fps ? _fps * 0.9 + (1000 / dt) * 0.1 : 1000 / dt;   // achieved frame rate (capped near 33)
+      if (ts - lastTs < 15) return;   // ~60fps target (draw is cheap); dt clamps the rest
+      const dt = Math.min(50, lastTs ? ts - lastTs : 16); lastTs = ts;   // clamp so a backgrounded tab doesn't teleport
+      _fps = _fps ? _fps * 0.9 + (1000 / dt) * 0.1 : 1000 / dt;
       if (ts - _statusT > 600) { _statusT = ts; if (world) status(); }   // refresh the gpu/draw-ms/fps readout ~1.6×/s
       if (worldCovered()) return;     // an overlay is up — don't paint the hidden world (the big login-screen win)
-      if (world && walk && nearResidents.length) {
+      const moving = walkPath ? advanceWalk(dt) : false;
+      if (world && walk && (nearResidents.length || moving)) {
         const t0 = performance.now();
-        stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
-        if (!walkTimer) draw();   // while walking, walkTo's own 24ms tick already draws — don't double-paint
+        if (nearResidents.length) stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
+        draw();
         _drawMs = _drawMs ? _drawMs * 0.85 + (performance.now() - t0) * 0.15 : (performance.now() - t0);
       }
     }

@@ -61,6 +61,10 @@ and tested; what remains is *feel*. This is the living checklist for the final p
 - [ ] `title=` tooltips (27) are invisible on touch — fold the important hints into visible copy.
 
 ## Render performance — the per-frame draw budget
+- [x] **movement = its own setTimeout(24ms) loop that drew independently of RAF** → walking janked to
+      ~20fps (two unsynced loops + per-step fog canvas allocs). Folded movement into the single RAF
+      loop (`advanceWalk`, dt-interpolated, frame-rate independent), one draw/frame, cap raised to 60fps.
+
 The static scene is already cheap (baked chunk raster + WebGPU cell fills, blitted once). The cost is
 per-frame OVERLAYS redrawn every frame while residents animate. Five candidates, lowest-hanging first:
 - [x] **fog blur** — was `ctx.filter = blur()` over each visible chunk EVERY frame (the costliest op).
