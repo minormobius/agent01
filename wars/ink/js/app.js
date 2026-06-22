@@ -22,13 +22,21 @@
     handle: document.getElementById("attrsHandle"),
     body: document.getElementById("attrsBody"),
     hint: document.getElementById("attrsHint"),
+    runbar: document.getElementById("runbar"),
+    report: document.getElementById("report"),
   };
 
   // session history of seeds — the full stack, walkable with Prev/Next.
   let stack = [], pos = -1, current = null;
 
+  const RUN_TARGET = 10;
+  let run = [], reportShown = false;
+
   const quiz = INKQUIZ.mount(document.getElementById("quiz"), {
-    onReveal: (portrait) => { els.hint.textContent = portrait.title; },
+    onReveal: (portrait, deltas) => {
+      els.hint.textContent = portrait.title;
+      recordSubmission(deltas);
+    },
   });
 
   // ---- procedural parchment (cached; same paper every time, calm) ----
@@ -138,6 +146,63 @@
     els.counter.textContent = stack.length > 1 ? pos + 1 + " / " + stack.length : "";
   }
 
+  // ---- run accumulation + report ----
+  function recordSubmission(deltas) {
+    const seed = current.seed;
+    if (run.some((r) => r.seed === seed)) return;   // count each blot once
+    const raw = {};
+    current.res.traits.forEach((t) => (raw[t.key] = t.value));
+    run.push({ seed, raw, deltas: deltas.map((d) => ({ key: d.ax.key, you: d.you, ink: d.ink, d: d.d })) });
+    updateRunUI();
+    if (run.length === RUN_TARGET && !reportShown) { reportShown = true; showReport(); }
+  }
+
+  function updateRunUI() {
+    const n = run.length;
+    if (n < RUN_TARGET) {
+      els.runbar.innerHTML =
+        `<span class="rprog">${"●".repeat(n)}${"○".repeat(RUN_TARGET - n)}</span>` +
+        `<span class="rcount">${n} / ${RUN_TARGET} read</span>`;
+    } else {
+      els.runbar.innerHTML = `<button id="reportBtn" class="report-btn">✦ Read your report (${n})</button>`;
+      document.getElementById("reportBtn").addEventListener("click", showReport);
+    }
+  }
+
+  function showReport() {
+    const rep = INKANALYSIS.report(run);
+    const tagLabel = { lens: "a lens", offset: "a flat lean", conditional: "conditional", aligned: "true to the ink" };
+    const axes = rep.signature.map((s) => {
+      const sign = s.mean >= 0 ? "+" : "";
+      return `<div class="r-axis ${s.tag}">
+                <div class="r-axrow"><span class="r-axname">${s.perceptual}</span>
+                  <span class="r-axtag">${tagLabel[s.tag]} · ${sign}${s.mean.toFixed(2)}</span></div>
+                <div class="r-axline">${s.line}</div>
+              </div>`;
+    }).join("");
+    els.report.innerHTML =
+      `<div class="r-card">
+         <button class="r-close" aria-label="close">×</button>
+         <div class="r-kicker">after ${rep.n} blots</div>
+         <div class="r-title">${rep.title}</div>
+         <div class="r-headline">${rep.headline}</div>
+         <div class="r-axes">${axes}</div>
+         <div class="r-meta">${rep.metaNote}</div>
+         <div class="r-reveal">${rep.reveal}</div>
+         <div class="r-actions">
+           <button class="r-restart">start over</button>
+           <button class="r-keep">keep going</button>
+         </div>
+       </div>`;
+    els.report.hidden = false;
+    const close = () => { els.report.hidden = true; };
+    els.report.querySelector(".r-close").addEventListener("click", close);
+    els.report.querySelector(".r-keep").addEventListener("click", close);
+    els.report.querySelector(".r-restart").addEventListener("click", () => {
+      run = []; reportShown = false; updateRunUI(); close();
+    });
+  }
+
   // ---- events ----
   els.newBtn.addEventListener("click", () => pushNew(INKPRNG.freshSeed()));
   els.prev.addEventListener("click", () => { if (pos > 0) render(stack[--pos]); });
@@ -168,6 +233,7 @@
   });
 
   // ---- boot ----
+  updateRunUI();
   const initSeed = new URLSearchParams(location.search).get("b") || INKPRNG.freshSeed();
   pushNew(initSeed);
 })();
