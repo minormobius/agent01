@@ -406,7 +406,7 @@
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
     let gpu = null, gpuActive = false;   // the WebGPU cell renderer (set once init resolves); false ⇒ raster fallback
     let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
-    let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0;
+    let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0, _drawMs = 0, _statusT = 0;   // _drawMs: EMA of draw() cost (shown in the status line for live perf diagnosis)
     const story = { store: null, ready: false, playerId: 'local', active: null };
     let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
     const storyBigKeys = new Set();     // resident featureKeys an active beat marks → embiggen (storyboard-relevant only)
@@ -907,7 +907,7 @@
       ctx.restore();
     }
 
-    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall`; }
+    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
@@ -2371,8 +2371,12 @@
       requestAnimationFrame(frame);
       if (ts - lastTs < 30) return;   // cap to ~33fps
       const dt = lastTs ? ts - lastTs : 16; lastTs = ts;
+      if (ts - _statusT > 600) { _statusT = ts; if (world) status(); }   // refresh the gpu/draw-ms readout ~1.6×/s (even when idle/covered)
       if (worldCovered()) return;     // an overlay is up — don't paint the hidden world (the big login-screen win)
-      if (world && walk && nearResidents.length) { stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 }); draw(); }
+      if (world && walk && nearResidents.length) {
+        stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
+        const t0 = performance.now(); draw(); _drawMs = _drawMs ? _drawMs * 0.85 + (performance.now() - t0) * 0.15 : (performance.now() - t0);
+      }
     }
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (gpu) gpu.resize(W * dpr, H * dpr); if (world) { setScale(); followCam(); draw(); maybeStream(); } }
