@@ -406,7 +406,7 @@
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
     let gpu = null, gpuActive = false;   // the WebGPU cell renderer (set once init resolves); false ⇒ raster fallback
     let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkPath = null, society = null;   // walkPath: the active walk (advanced by the RAF loop, dt-interpolated), null = idle
-    let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0, _drawMs = 0, _statusT = 0, _fps = 0;   // _drawMs: EMA of frame-work cost; _fps: achieved rate — both shown in the status line for live perf diagnosis
+    let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0, _drawMs = 0, _statusT = 0, _fps = 0, _stitchMs = 0;   // _drawMs: EMA of frame-work; _fps: achieved rate; _stitchMs: last full-world restitch cost — shown in status for live perf diagnosis
     const story = { store: null, ready: false, playerId: 'local', active: null };
     let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
     const storyBigKeys = new Set();     // resident featureKeys an active beat marks → embiggen (storyboard-relevant only)
@@ -469,10 +469,19 @@
     // residents we already have (global node ids are stable as chunks append), so commuters don't reset
     // every time a chunk streams in.
     function restitch() {
+      const t0 = performance.now();
       walk = buildWalk(world, blockedOf); society = buildSociety(world, walk);
       const fresh = buildResidents(world, walk, society), prev = new Map(residents.map((a) => [a.id, a]));
       residents = fresh.map((a) => prev.get(a.id) || a);
       cullResidents();
+      _stitchMs = performance.now() - t0;   // a full-world rebuild on every streamed chunk — surfaced in the readout to confirm the walking hitch
+    }
+    // pre-bake a streamed chunk's raster + GPU buffers during idle time, BEFORE the player walks it on
+    // screen — otherwise drawPainted bakes it lazily on its first on-screen frame (the 30ms draw spike).
+    // The chunk is ~1 chunk away when streamed, so there's walking time; the idle timeout guarantees it.
+    function prebakeSoon(ch) {
+      const bake = () => { try { if (!ch._raster) chunkRaster(ch); if (gpuActive && !ch._gpu) buildChunkGpu(ch); } catch (e) {} };
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(bake, { timeout: 400 }); else setTimeout(bake, 0);
     }
     // PERF: only the residents whose HOME is near the player (and on the current deck) get stepped/drawn —
     // no loading souls three blocks away. Recomputed on chunk-change + restitch, so per-frame cost is bounded.
@@ -647,6 +656,7 @@
       const { rec, painted } = await generate(opts({ seed: nseed, poly: spec.poly, inherit: spec.inherit }));
       rec.painted = painted; addChunk(world, rec); restitch(); reveal();
       busy(false); status(); draw();
+      prebakeSoon(rec);   // bake its raster + GPU buffers in idle time — so the first ON-SCREEN draw doesn't hitch (the 30ms spike)
       maybeStream();   // chain for any other neighbours the view already reaches
     }
 
@@ -939,7 +949,7 @@
       ctx.restore();
     }
 
-    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}</span>`; }
+    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}${_stitchMs > 1 ? ' · stitch ' + _stitchMs.toFixed(0) + 'ms' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
