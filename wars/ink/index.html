@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0f">
+<title>The Infinite Inkblot — Research Dossier</title>
+<meta name="description" content="Background research for a procedurally-generated inkblot personality quiz: the tradition, the real clinical machinery, the science, the interpretive axes, and the pop-psych framing.">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;
+  --surface:#14141f;
+  --surface2:#1b1b29;
+  --border:#2a2a3a;
+  --text:#c8c8d8;
+  --dim:#666680;
+  --accent:#a98bff;       /* ink violet */
+  --accent2:#ff6ab0;      /* the colored-plate red/pink */
+  --accent-glow:#a98bff33;
+  --warn:#ff6644;
+  --gold:#ffcc44;
+  --good:#5fd0a0;
+}
+body{
+  background:
+    radial-gradient(1200px 600px at 50% -200px, #17132a 0%, transparent 70%),
+    var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  line-height:1.7;
+  padding:2rem 1rem 4rem;
+  max-width:680px;
+  margin:0 auto;
+}
+.crumb{display:inline-block;margin-bottom:1.5rem;font-size:.72rem;color:var(--dim);letter-spacing:.04em}
+.crumb a{color:var(--dim)}
+.crumb a:hover{color:var(--accent)}
+
+/* ---- header inkblot ---- */
+.hero{text-align:center;margin-bottom:.5rem}
+.blot{width:148px;height:120px;margin:0 auto .25rem;display:block}
+h1{
+  font-size:1.35rem;font-weight:300;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--dim);margin:.25rem 0 .35rem;
+}
+h1 span{color:var(--accent);font-weight:600}
+.tagline{font-size:.78rem;color:var(--dim);max-width:30rem;margin:0 auto 1.4rem;font-style:italic}
+
+h2{
+  font-size:1rem;color:var(--accent);margin:2.4rem 0 .75rem;letter-spacing:.05em;
+  border-bottom:1px solid var(--border);padding-bottom:.35rem;
+}
+h2 .num{color:var(--dim);font-weight:400;margin-right:.4rem}
+h3{font-size:.85rem;color:var(--text);margin:1.25rem 0 .5rem;letter-spacing:.02em}
+p{font-size:.85rem;margin-bottom:.75rem;color:var(--text)}
+ul{margin:.25rem 0 .9rem 1.1rem}
+li{font-size:.85rem;margin-bottom:.35rem}
+em{color:#e6e0ff;font-style:italic}
+strong{color:#efeeff}
+
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:1.2rem 1.25rem;margin-bottom:1rem;
+}
+.card p:last-child,.card ul:last-child{margin-bottom:0}
+.card.tl{border-left:3px solid var(--accent)}
+.lede{font-size:.9rem;color:#dcd8ee}
+
+.note{
+  background:linear-gradient(180deg,var(--surface2),var(--surface));
+  border:1px solid var(--border);border-left:3px solid var(--gold);
+  border-radius:10px;padding:1rem 1.1rem;margin:1rem 0;font-size:.83rem;
+}
+.note.honest{border-left-color:var(--accent2)}
+.note .label{margin-bottom:.4rem}
+
+.label{font-size:.6rem;text-transform:uppercase;letter-spacing:.15em;color:var(--dim);margin-bottom:.5rem}
+
+code{font-size:.8rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.1rem .35rem;color:var(--accent)}
+.diagram{
+  font-family:'Courier New',monospace;font-size:.7rem;line-height:1.5;color:var(--dim);
+  background:#0d0d15;border:1px solid var(--border);border-radius:8px;padding:1rem;
+  margin:.75rem 0;overflow-x:auto;white-space:pre;
+}
+
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+table{width:100%;border-collapse:collapse;font-size:.78rem;margin:.85rem 0}
+th{text-align:left;color:var(--dim);font-weight:600;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;padding:.45rem .5rem;border-bottom:1px solid var(--border);vertical-align:bottom}
+td{padding:.45rem .5rem;border-bottom:1px solid var(--border);vertical-align:top}
+td:first-child{color:#e0d8ff}
+
+/* confidence pills */
+.c{display:inline-block;font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;padding:.08rem .4rem;border-radius:999px;border:1px solid;white-space:nowrap;vertical-align:middle}
+.c-h{color:var(--good);border-color:#2f6f54;background:#5fd0a015}
+.c-m{color:var(--gold);border-color:#6f5e2a;background:#ffcc4415}
+.c-l{color:var(--warn);border-color:#6f3a2a;background:#ff664415}
+
+.axis{font-family:'Courier New',monospace;color:var(--accent2)}
+.poles{display:flex;justify-content:space-between;font-size:.7rem;color:var(--dim);margin-top:.2rem}
+
+.toc{columns:2;column-gap:1.5rem;font-size:.8rem;margin:.5rem 0 0}
+.toc a{display:block;padding:.15rem 0;color:var(--text)}
+.toc a:hover{color:var(--accent)}
+@media(max-width:480px){.toc{columns:1}}
+
+ol.brief{margin:.25rem 0 0 1.2rem}
+ol.brief li{margin-bottom:.55rem;font-size:.84rem}
+
+.srcgrid{font-size:.76rem}
+.srcgrid h3{margin-top:1rem}
+.srcgrid a{display:block;padding:.12rem 0;word-break:break-word}
+
+footer{text-align:center;padding:2.5rem 0 .5rem;font-size:.62rem;color:var(--dim);letter-spacing:.1em;line-height:1.9}
+footer .rule{width:60px;height:1px;background:var(--border);margin:0 auto 1.2rem}
+</style>
+</head>
+<body>
+
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> &nbsp;/&nbsp; <a href="https://war.mino.mobi">war</a> &nbsp;/&nbsp; <span style="color:var(--accent)">ink</span></div>
+
+<div class="hero">
+  <!-- procedurally-feeling symmetric inkblot, rendered with an SVG turbulence filter + vertical mirror -->
+  <svg class="blot" viewBox="0 0 200 160" aria-hidden="true">
+    <defs>
+      <filter id="ink" x="-40%" y="-40%" width="180%" height="180%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.018 0.026" numOctaves="3" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="34" xChannelSelector="R" yChannelSelector="G"/>
+        <feGaussianBlur stdDeviation="0.4"/>
+      </filter>
+      <radialGradient id="g" cx="50%" cy="42%" r="70%">
+        <stop offset="0%" stop-color="#c4a8ff"/>
+        <stop offset="55%" stop-color="#a98bff"/>
+        <stop offset="100%" stop-color="#6f5bd6"/>
+      </radialGradient>
+    </defs>
+    <g filter="url(#ink)" fill="url(#g)">
+      <!-- right half; mirrored to the left for bilateral symmetry -->
+      <g>
+        <ellipse cx="118" cy="78" rx="26" ry="40"/>
+        <ellipse cx="138" cy="58" rx="16" ry="20"/>
+        <ellipse cx="108" cy="116" rx="13" ry="17"/>
+        <ellipse cx="150" cy="92" rx="10" ry="13"/>
+        <circle cx="128" cy="40" r="7"/>
+      </g>
+      <g transform="translate(200,0) scale(-1,1)">
+        <ellipse cx="118" cy="78" rx="26" ry="40"/>
+        <ellipse cx="138" cy="58" rx="16" ry="20"/>
+        <ellipse cx="108" cy="116" rx="13" ry="17"/>
+        <ellipse cx="150" cy="92" rx="10" ry="13"/>
+        <circle cx="128" cy="40" r="7"/>
+      </g>
+    </g>
+  </svg>
+  <h1>The Infinite <span>Inkblot</span></h1>
+  <p class="tagline">Research dossier for a procedurally-generated inkblot personality quiz —
+  the tradition, the real machinery, the science, the axes, and the honest art of the read-out.</p>
+</div>
+
+<div class="card tl">
+  <p class="lede">The concept: generate symmetric inkblots, ask people to characterize each by
+  placing a dot on two axes, and produce a playful personality read-out at the end. This page is
+  the <strong>research</strong> behind it — and the eventual docs page of the widget itself.</p>
+  <p style="margin-bottom:0">The throughline that matters: <em>the real Rorschach barely does what pop
+  culture thinks it does — but the pop-culture version is exactly the fun, honest fiction we want to
+  build, as long as we frame it as projection, not diagnosis.</em></p>
+</div>
+
+<div class="note">
+  <div class="label">How to read the confidence tags</div>
+  <p style="margin-bottom:.4rem"><span class="c c-h">High</span> corroborated by multiple sources incl. an
+  authoritative one &nbsp; <span class="c c-m">Med</span> single credible / teaching source &nbsp;
+  <span class="c c-l">Low</span> one tertiary source or internally contested.</p>
+  <p style="margin-bottom:0">Crucially, for the <em>interpretive</em> claims "confidence" means confidence that
+  this is <em>what the tradition asserts</em> — <strong>not</strong> that it is psychometrically true. Most
+  personality inferences from inkblots are weakly validated or unvalidated (see §3).</p>
+</div>
+
+<div class="toc">
+  <a href="#s1">1 · The tradition</a>
+  <a href="#s2">2 · The real scoring machinery</a>
+  <a href="#s3">3 · The science: is any of it real?</a>
+  <a href="#s4">4 · Interpretive axes → the dot UI</a>
+  <a href="#s5">5 · The pop-psych layer</a>
+  <a href="#s6">6 · Design brief</a>
+  <a href="#src">· Sources</a>
+</div>
+
+<!-- ===================== 1 ===================== -->
+<h2 id="s1"><span class="num">1</span>The tradition: where inkblots come from</h2>
+
+<h3>Inkblots predate psychology — a parlor game and an art form</h3>
+<div class="card">
+  <ul>
+    <li><strong>Klecksography</strong> — the art of making pictures from inkblots: drop ink, fold the
+    paper, get a mirror-symmetric blot. The Romantic poet <strong>Justinus Kerner</strong> pioneered it;
+    his <em>Klecksographien</em> was begun ~1857, published posthumously 1890. <span class="c c-h">High</span></li>
+    <li>It became a popular game: <strong>1896</strong>, <em>Gobolinks, or Shadow-Pictures for Young and
+    Old</em> (Stuart &amp; Paine) — klecksography as a parlor game. The Victorian "Blottentots" books
+    followed. <span class="c c-h">High</span></li>
+    <li><strong>Takeaway:</strong> the symmetric fold-blot was an established 19th-century artistic
+    tradition <em>decades before</em> Rorschach. Our quiz returns the inkblot to its playful roots — which
+    is honest and on-theme.</li>
+  </ul>
+</div>
+
+<h3>Hermann Rorschach (1884–1922)</h3>
+<div class="card">
+  <ul>
+    <li>Died at <strong>37</strong> (peritonitis), barely a year after publishing his test.
+    <span class="c c-h">High</span></li>
+    <li>His <strong>father was an art teacher</strong>; as a schoolboy he was nicknamed
+    <strong>"Klecks"</strong> ("inkblot") for his love of klecksography — a near-perfect origin story.
+    <span class="c c-h">High</span></li>
+    <li>Published <strong><em>Psychodiagnostik</em> (1921)</strong>. Experimented with hundreds of
+    self-drawn blots, winnowed to ~15; his <strong>publisher cut the set to 10</strong> for printing cost.
+    <span class="c c-h">High</span></li>
+  </ul>
+</div>
+
+<h3>The 10 official plates — colour &amp; symmetry</h3>
+<div class="card">
+  <p><strong>10 plates: 5 monochrome, 2 black-and-red, 3 multicoloured.</strong> Each has near-perfect
+  <strong>bilateral symmetry</strong> from the fold method. <span class="c c-h">High</span></p>
+  <p>Rorschach chose symmetry <em>deliberately</em>: "Asymmetric figures are rejected by many subjects;
+  symmetry supplied part of the necessary artistic composition." It also equalizes left/right-handers and
+  "makes possible the interpretation of whole scenes." <span class="c c-h">High</span></p>
+  <div class="note" style="margin:.5rem 0 0">
+    <div class="label">Design takeaway</div>
+    <p style="margin-bottom:0">Symmetry is not incidental — it's what makes a blot read as <em>a thing</em>
+    and invites projection. The generator must produce <strong>bilaterally symmetric</strong> blots
+    (generate one half, mirror across the vertical axis — exactly like the motif above).</p>
+  </div>
+</div>
+
+<h3>Variants worth knowing</h3>
+<div class="card">
+  <table>
+    <tr><th>Variant</th><th>What &amp; why it matters to us</th><th></th></tr>
+    <tr><td>Holtzman (HIT, 1961)</td><td>Two parallel forms, 45 blots each, and crucially <strong>one
+      response per blot</strong> to make it scorable. <strong>The closest precedent to a quiz</strong>:
+      many blots, one quick reaction each.</td><td><span class="c c-h">High</span></td></tr>
+    <tr><td>Behn-Rorschach (~1920)</td><td>A 10-blot parallel control set, later adapted for
+      children/adolescents.</td><td><span class="c c-m">Med</span></td></tr>
+    <tr><td>Somatic Inkblot Series (1980)</td><td>~20 blots engineered to evoke <em>body</em> percepts;
+      content-analysis focus.</td><td><span class="c c-m">Med</span></td></tr>
+  </table>
+</div>
+
+<!-- ===================== 2 ===================== -->
+<h2 id="s2"><span class="num">2</span>How the real test is scored (the machinery to caricature)</h2>
+
+<div class="card tl">
+  <p>Pop culture thinks the Rorschach is "you saw a bat → you're X." <strong>It isn't.</strong> Real scoring
+  is about the <em>structure</em> of the response — <strong>where</strong> you looked,
+  <strong>what feature</strong> drove the percept, <strong>how well</strong> it fits, and
+  <strong>what</strong> you saw — aggregated across the protocol into ratios. Understanding this lets us
+  build something that <em>rhymes</em> with the real thing instead of parroting the myth.</p>
+</div>
+
+<h3>The systems</h3>
+<div class="card">
+  <ul>
+    <li><strong>Five competing systems</strong> (Beck, Klopfer, Hertz, Piotrowski, Rapaport-Schafer,
+    1930s–50s). <span class="c c-h">High</span></li>
+    <li><strong>Exner's Comprehensive System (CS), 1974</strong> synthesized them into one standard — for
+    decades <em>the</em> system. <span class="c c-h">High</span></li>
+    <li><strong>R-PAS (2011)</strong> — an empirically-based revision: drops unsupported variables, adds
+    international norms (fixing "overpathologizing"), prompts 2–3 responses/card (target 18–27 total),
+    reports standard scores. <span class="c c-h">High</span></li>
+  </ul>
+</div>
+
+<h3>The four coding questions per response</h3>
+
+<div class="card">
+  <p class="label">1 · Location — where did you look?</p>
+  <table>
+    <tr><th>Code</th><th>Meaning</th><th>Traditional read</th><th></th></tr>
+    <tr><td>W</td><td>Whole blot</td><td>Big-picture, integrative, ambitious</td><td><span class="c c-m">Med</span></td></tr>
+    <tr><td>D</td><td>Common detail</td><td>Practical, concrete, "adequate functioning"</td><td><span class="c c-m">Med</span></td></tr>
+    <tr><td>Dd</td><td>Unusual/small detail</td><td>Meticulous → obsessive; high Dd flagged maladjustment</td><td><span class="c c-m">Med</span></td></tr>
+    <tr><td>S</td><td>White space</td><td>Traditionally oppositional — <em>empirically shaky</em>; better read as autonomy</td><td><span class="c c-l">Low</span></td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <p class="label">2 · Determinants — what drove the percept? (the heart of it)</p>
+  <ul>
+    <li><strong>Form (F)</strong> — shape only. Most common determinant; read as intellectual
+    <strong>control</strong>. <span class="c c-h">High</span></li>
+    <li><strong>Movement</strong> — <em>added by you</em> (the blot doesn't move), so read as projected inner
+    life: <strong>M</strong> (human) = imagination, empathy, deliberate ideation; <strong>FM</strong>
+    (animal) = instinct/drive; <strong>m</strong> (inanimate) = situational stress. Scored
+    <strong>active vs passive</strong>. <span class="c c-h">High</span> / <span class="c c-m">Med</span></li>
+    <li><strong>Colour (FC / CF / C)</strong> — window onto <strong>emotion</strong>; the amount of form
+    binding the colour is the <em>control dial</em>: <code>FC</code> (modulated) → <code>CF</code> (labile)
+    → <code>C</code> (unrestrained). Colour <em>before</em> form = emotion overriding reason.
+    <span class="c c-m">Med</span></li>
+    <li><strong>Achromatic colour (C′)</strong> — black/grey as colour → internalized, suppressed,
+    dysphoric affect. <span class="c c-m">Med</span></li>
+    <li><strong>Shading (T/V/Y)</strong> — historically a <em>printing artifact</em> later given meaning
+    (anxiety, attachment, self-scrutiny). <span class="c c-l">Low</span></li>
+  </ul>
+</div>
+
+<div class="card">
+  <p class="label">3 · Form Quality — does the percept actually fit the blot? <span style="color:var(--good)">(the one well-validated dimension)</span></p>
+  <p><code>+</code> superior · <code>o</code> ordinary · <code>u</code> unusual-but-fits · <code>−</code>
+  minus (doesn't fit). FQ operationalizes <strong>perceptual accuracy → reality testing</strong>. Many minus
+  responses is a <strong>validated marker of thought disorder</strong> — the one place the Rorschach has
+  real, both-camps-agreed footing. <span class="c c-h">High</span></p>
+</div>
+
+<div class="card">
+  <p class="label">4 · Content — what did you see?</p>
+  <p>27 CS codes: <code>H</code> human, <code>(H)</code> fictional human, <code>A</code> animal,
+  <code>An</code> anatomy, <code>Bl</code> blood, <code>Bt</code> botany, <code>Fi</code> fire,
+  <code>Sx</code> sex, <code>Xy</code> x-ray… <span class="c c-h">High</span> (major codes).
+  Content is the <em>least</em> robust layer — it can be consciously controlled, so it's read in aggregate,
+  never response-by-response.</p>
+</div>
+
+<h3>Popular vs Original</h3>
+<div class="card">
+  <p>A response is <strong>Popular (P)</strong> if statistically common (≈ given by ≥⅓ of the normative
+  sample); there are <strong>13 Populars</strong> in the CS (Card I bat/butterfly, Card V bat/butterfly,
+  Card VIII four-legged animal on the sides…). Rare answers are effectively "original." <span class="c c-m">Med</span></p>
+  <p style="margin-bottom:0">The <strong>popular-vs-original axis is gold for us</strong>: a generated blot can carry a
+  "what most people place here" baseline, so seeing something nobody else does becomes a real, characterizable trait.</p>
+</div>
+
+<h3>The master ratios (the "personality" output)</h3>
+<div class="card">
+  <ul>
+    <li><strong>Erlebnistypus / Experience Balance (EB) = ΣM : WSumC</strong> — movement vs colour.
+    <strong>The single most important Rorschach personality axis.</strong> <span class="c c-h">High</span>
+      <ul>
+        <li><strong>Introversive</strong> (M&gt;C): thinks before acting, inner coping.</li>
+        <li><strong>Extratensive</strong> (M&lt;C): emotion-driven, outward coping.</li>
+        <li><strong>Ambitent</strong> (M≈C): vacillates.</li>
+        <li>Historical root: <strong>Jung's introversion/extraversion</strong> (1913), deliberately renamed.</li>
+        <li>Second, orthogonal axis — <strong>Coarctated ↔ Dilated</strong> (the <em>total</em> of M+C):
+        constricted vs richly responsive. A natural "<em>how much did the blot move you at all?</em>" axis.</li>
+      </ul>
+    </li>
+    <li><strong>Lambda = F / (R−F)</strong> — pure-form proportion. High = narrowing, affect-avoidant.
+    <span class="c c-h">High</span> (as a definition)</li>
+    <li><strong>W:M "Aspirational Index"</strong> — whole responses vs movement resource. W≫M = striving
+    beyond one's capacity. <span class="c c-h">High</span></li>
+    <li><strong>Egocentricity Index</strong> — self-focus from reflections &amp; pairs. Well-defined but
+    <strong>Mihura 2013 flagged it as having little/no validity</strong>. <span class="c c-m">Med</span></li>
+  </ul>
+</div>
+
+<!-- ===================== 3 ===================== -->
+<h2 id="s3"><span class="num">3</span>The science: is any of this real?</h2>
+
+<div class="card tl">
+  <p class="lede" style="margin-bottom:0">Short version: <strong>weak as a standalone clinical/forensic
+  diagnostic, with isolated pockets of genuine validity</strong> in narrowly-scored applications. After a
+  long, bitter debate, both sides now agree on roughly where the line sits.</p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Still used?</h3>
+  <p>Yes — clinical, forensic, and custody settings, ~1 million administrations/year. Court use is
+  contested. <span class="c c-h">High</span></p>
+
+  <h3>The debate, fairly stated</h3>
+  <p><strong>Critics</strong> (Wood, Lilienfeld, Garb, Nezworski — <em>What's Wrong with the Rorschach?</em>,
+  2003): most CS indices are unvalidated; poor incremental validity over self-report; subjective scoring;
+  CS norms <strong>overpathologize</strong> (one study labeled ~16% of normal adults "possibly
+  schizophrenic"). <span class="c c-h">High</span></p>
+  <p><strong>Defenders</strong> (Meyer, Mihura, Viglione; SPA): the landmark <strong>Mihura et al. (2013)</strong>
+  meta-analysis of 65 CS variables found mean validity <strong>r = .27</strong> against externally-assessed
+  criteria, but only <strong>r = .08</strong> against self-report. Strongest were cognitive/perceptual
+  variables; 13 had little/no support; 12 had no validity studies at all. <span class="c c-h">High</span></p>
+  <p style="margin-bottom:0"><strong>The convergence (2015):</strong> critics conceded a "cognitive quartet" of
+  thought-disorder variables <em>is</em> valid; the live disagreement narrowed to noncognitive use
+  (emotion, traits, diagnosis). Both agree CS norms overpathologized — fixed in 2007 norms / R-PAS.
+  <span class="c c-h">High</span></p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Valid FOR vs NOT</h3>
+  <table>
+    <tr><th>Use</th><th>Standing</th><th></th></tr>
+    <tr><td>Thought disorder / psychosis</td><td>Best-supported, both camps agree (via Form Quality)</td><td><span class="c c-h">High</span></td></tr>
+    <tr><td>Personality, emotion, DSM diagnosis, violence</td><td>Weak / disputed (r=.08 vs self-report)</td><td><span class="c c-h">High</span></td></tr>
+  </table>
+  <h3>Projective tests as a class</h3>
+  <p style="margin-bottom:0">Broadly viewed skeptically (Lilienfeld, Wood &amp; Garb 2000). Human-figure
+  drawings are weakest (a 2022 neural-net study found HTP couldn't separate depressed from non-depressed);
+  sentence-completion fares best; the TAT's one real success is <em>implicit-motive</em> coding — a research
+  tool, not a diagnosis. Self-report inventories (MMPI-2) are the better-validated default.
+  <span class="c c-h">High</span></p>
+</div>
+
+<div class="note honest">
+  <div class="label">The honest one-liner for the site</div>
+  <p style="margin-bottom:0"><em>"Inkblots don't actually read your mind — and neither does this. The blot is a
+  mirror you project onto. Here's a fun reflection."</em> That sentence is both true and a better story than
+  pretending otherwise.</p>
+</div>
+
+<!-- ===================== 4 ===================== -->
+<h2 id="s4"><span class="num">4</span>Interpretive axes → the two-axis dot UI</h2>
+
+<div class="card tl">
+  <p>The quiz's core mechanic is placing a dot on two axes per blot. The tradition hands us a stack of
+  <em>genuine</em> bipolar dimensions. Use them as flavor, not diagnosis.</p>
+</div>
+
+<h3>Recommended primary pairing</h3>
+<div class="card">
+  <p><strong>Axis A — "What pulled your eye": <span class="axis">FORM ⟷ COLOUR/FEELING</span>.</strong>
+  Shape/structure (controlled, analytical, "I see what it <em>is</em>") vs colour/mood (emotional,
+  expressive, "I <em>feel</em> what it is"). The FC→CF→C dial + the chromatic arm of EB.</p>
+  <p><strong>Axis B — "How you took it in": <span class="axis">WHOLE ⟷ DETAIL</span>.</strong>
+  The whole blot at once (big-picture, ambitious) vs a small part (precise, concrete). This is W↔D↔Dd.</p>
+  <p style="margin-bottom:0">Both are intuitive to a layperson, map cleanly to a square dot-pad, and each
+  quadrant has a ready archetype — e.g. <em>whole+feeling = the dreamer/visionary</em>;
+  <em>detail+form = the analyst/craftsman</em>.</p>
+</div>
+
+<h3>A fuller menu to rotate between blots</h3>
+<div class="card">
+  <table>
+    <tr><th>Axis</th><th>Tradition source</th><th>Trait flavor</th></tr>
+    <tr><td>Form ⟷ Feeling</td><td>FC–CF–C; EB chromatic arm</td><td>controlled/analytical ⟷ emotional/expressive</td></tr>
+    <tr><td>Whole ⟷ Detail</td><td>W ⟷ D/Dd</td><td>big-picture ⟷ precise/concrete</td></tr>
+    <tr><td>Still ⟷ Moving</td><td>F ⟷ M/FM/m</td><td>grounded/literal ⟷ imaginative/animated</td></tr>
+    <tr><td>Active ⟷ Passive</td><td>a:p movement</td><td>driving/assertive ⟷ receptive/drifting</td></tr>
+    <tr><td>Constricted ⟷ Rich</td><td>Coarctated ⟷ Dilated EB</td><td>reserved/flat ⟷ vivid/responsive</td></tr>
+    <tr><td>Cooperative ⟷ Hostile</td><td>COP ⟷ AG/MOR content</td><td>sees kindness ⟷ sees conflict &amp; damage</td></tr>
+    <tr><td>Human ⟷ Animal ⟷ Object</td><td>content H/A codes</td><td>people ⟷ instinct ⟷ thing-oriented</td></tr>
+    <tr><td>What most see ⟷ All my own</td><td>Popular vs Original</td><td>conformist ⟷ individualist</td></tr>
+    <tr><td>Outside-in ⟷ Inside-out</td><td>figure (D) ⟷ white space (S)</td><td>goes with the figure ⟷ sees the gaps/contrarian</td></tr>
+  </table>
+</div>
+
+<div class="note">
+  <div class="label">The content polarity that's actually real</div>
+  <p style="margin-bottom:0">"Calm vs threatening" maps onto real codes: <strong>COP</strong> (cooperative
+  movement = expects warmth) vs <strong>AG/AGC</strong> (aggressive) and <strong>MOR</strong> (morbid =
+  damaged, dysphoric). COP and MOR are among the better-supported content variables. <span class="c c-m">Med</span></p>
+</div>
+
+<div class="note" style="border-left-color:var(--warn)">
+  <div class="label">A polarity that is NOT real — own it or drop it</div>
+  <p style="margin-bottom:0">"Organic/living ⟷ geometric/mechanical" <em>feels</em> like a Rorschach axis but
+  <strong>isn't</strong> a recognized one (nearest relative: inanimate movement <code>m</code> = stress).
+  Don't present it as traditional; if we want it as a quiz axis, own that it's our invention.</p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Two <em>kinds</em> of axis, design-wise</h3>
+  <p><strong>Signed sliders</strong> (neutral healthy middle, two opposite ends): EB introversive↔
+  extratensive, Form↔Colour, active↔passive, Zd over↔under-incorporation. A normal left-right slider.</p>
+  <p style="margin-bottom:0"><strong>"Both ends extreme, center is balance"</strong>: Egocentricity (too much
+  <em>or</em> too little self-focus is flagged), Popular↔Original, Constricted↔Dilated. The interesting
+  read-out is near-an-extreme vs balanced — a signal we can honestly compute from dot scatter.</p>
+</div>
+
+<div class="note" style="border-left-color:var(--warn)">
+  <div class="label">Caveats to honor — don't overclaim</div>
+  <p style="margin-bottom:0">The <strong>S=oppositional</strong>, <strong>Dd=obsessive</strong>, and
+  <strong>Isolation-Index=withdrawn</strong> readings are empirically shaky — the last was literally
+  <em>dropped from R-PAS</em>, a cautionary tale that intuited content axes often don't survive validation.
+  Colour→emotion and movement→ideation are <em>traditional</em>, not proven. Form Quality is the only
+  strongly validated dimension — but it's the least fun, so treat it lightly.</p>
+</div>
+
+<!-- ===================== 5 ===================== -->
+<h2 id="s5"><span class="num">5</span>The pop-psych layer: making it fun <em>and</em> honest</h2>
+
+<div class="card">
+  <h3 style="margin-top:0">Inkblots are the cultural symbol of "psychology itself"</h3>
+  <p style="margin-bottom:0">By the 1980s the Rorschach was shorthand for psychological testing — the
+  "what do you see?" trope. <strong>Watchmen's Rorschach</strong> (1986) wears a mask of a
+  <em>constantly shifting</em> inkblot — a literal metaphor for <strong>projection</strong>: characters and
+  readers pour meaning onto a faceless void. Leaning into <em>projection</em> (rather than diagnosis) is both
+  more honest and more interesting. <span class="c c-h">High</span></p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">The genre we're entering</h3>
+  <p style="margin-bottom:0">BuzzFeed-style "what you see first reveals your personality" quizzes are
+  everywhere: pick what you see first, "go with your gut," sum to a pre-written outcome. They make
+  <strong>no validity claim</strong> — the value is shareability and identity-play. The "what you see
+  <em>first</em>" framing feels pre-conscious, so the reveal feels like it bypassed your defenses.
+  <span class="c c-h">High</span></p>
+</div>
+
+<div class="card tl">
+  <h3 style="margin-top:0">The engine: the Barnum / Forer effect</h3>
+  <p>People accept <strong>vague, general statements as uniquely personal</strong>. In <strong>Forer's 1948
+  experiment</strong>, 39 students took a sham test, all got the <em>same</em> 13-statement profile (cribbed
+  from astrology), and rated its accuracy <strong>~4.2/5</strong>. It replicates robustly. The effect
+  strengthens when the reading is believed <strong>personalized</strong>, from an <strong>authority</strong>,
+  and <strong>flattering</strong>. Classic form: the two-sided "at times" line. <span class="c c-h">High</span></p>
+  <p style="margin-bottom:0"><strong>This is our read-out recipe</strong> — and we have one <em>real</em>
+  signal, the user's actual dot placements, so we can anchor each line to a genuine choice (legitimate "warm
+  reading"): <em>"You read the blots by feel before form — you process the world emotionally first, then
+  reason your way back."</em> That makes a Barnum line feel <strong>earned</strong>.</p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Ethics &amp; framing — what makes a "for fun" experience good</h3>
+  <ul>
+    <li>A <strong>clear disclaimer</strong> is the single most important sign of a responsible tool: say
+    plainly it's <strong>entertainment / self-reflection</strong>, not a test or diagnosis. <span class="c c-h">High</span></li>
+    <li>Even baseless quizzes have legitimate value as <strong>guided self-reflection</strong> — the worth
+    isn't accuracy, it's prompting reflection and shared language. <span class="c c-h">High</span></li>
+    <li>The failure mode is rigid "you ARE this box" determinism; the good mode is <strong>a mirror</strong>.
+    Keep it spectrum/story-shaped, avoid clinical vocabulary. <span class="c c-m">Med</span></li>
+    <li>Format inspiration: <strong>The Pudding</strong> — playful-but-honest, transparent method, no overclaiming.</li>
+  </ul>
+</div>
+
+<div class="note honest">
+  <div class="label">The signature beat — our differentiator</div>
+  <p style="margin-bottom:0">End with an <strong>honest reveal</strong>: a one-screen explainer that the warmth
+  came from <em>you</em> projecting, not the ink. It's entertaining, it teaches, it inoculates against the
+  "tests can read me" myth, and it's the most original, ethical note in the genre. <strong>It turns the trick
+  into the point.</strong></p>
+</div>
+
+<!-- ===================== 6 ===================== -->
+<h2 id="s6"><span class="num">6</span>Design brief (the build, in one place)</h2>
+<div class="card">
+  <ol class="brief">
+    <li><strong>Generate bilaterally symmetric blots.</strong> Symmetry is load-bearing — generate one half,
+    mirror across the vertical axis.</li>
+    <li><strong>Structure = Holtzman, not Rorschach.</strong> Many blots, <em>one fast reaction each</em>
+    (a dot on two axes). That's a quiz; "unlimited responses to 10 cards" is a clinical interview.</li>
+    <li><strong>Two primary axes:</strong> Form⟷Feeling and Whole⟷Detail — the two arms of the real
+    Erlebnistypus, each quadrant a ready archetype. Rotate in the §4 menu to keep blots varied.</li>
+    <li><strong>Aggregate into a position, not a diagnosis.</strong> Average placements into a 2D personality
+    "location" plus honest derived signals (e.g. consistent vs scattered placements).</li>
+    <li><strong>Write read-outs as flattering, two-sided, choice-anchored Barnum statements</strong> tied to
+    what they actually did. Tilt positive.</li>
+    <li><strong>Frame as projection / a mirror, echoing Watchmen</strong> — never diagnosis. Disclaimer
+    up-front and on the result.</li>
+    <li><strong>End with the honest reveal</strong> (the Barnum explainer). Make the trick the lesson.</li>
+    <li><strong>Borrow popular-vs-original</strong>: give blots a "what most people place here" baseline so a
+    user can discover they're conventional or idiosyncratic — a genuinely personal signal.</li>
+    <li><strong>Tread lightly on the shaky bits.</strong> Keep the science honest in the explainer, keep the
+    quiz playful.</li>
+  </ol>
+</div>
+<div class="note">
+  <div class="label">Implementation fit</div>
+  <p style="margin-bottom:0">The <code>wars/</code> surface is a no-build static assets worker (serves
+  <code>directory: "."</code>), so the whole widget can ship as vanilla HTML/JS/Canvas with no build step —
+  blots generated client-side from a seed (deterministic permalinks, à la borges), no backend required. This
+  page will become the widget's <code>/ink</code> docs once the quiz lands.</p>
+</div>
+
+<!-- ===================== SOURCES ===================== -->
+<h2 id="src">Sources</h2>
+<div class="card srcgrid">
+  <h3 style="margin-top:0;color:var(--accent)">History &amp; tradition</h3>
+  <a href="https://en.wikipedia.org/wiki/Hermann_Rorschach">Wikipedia — Hermann Rorschach</a>
+  <a href="https://en.wikipedia.org/wiki/Rorschach_test">Wikipedia — Rorschach test</a>
+  <a href="https://en.wikipedia.org/wiki/Klecksography">Wikipedia — Klecksography</a>
+  <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7077865/">PMC — Rorschach: from klecksography to psychiatry</a>
+  <a href="https://www.atlasobscura.com/articles/gobolinks-inkblots-victorian-blottentots-book-art">Atlas Obscura — Victorian inkblot art / Gobolinks</a>
+  <a href="https://publicdomainreview.org/collection/inkblot-books">Public Domain Review — Inkblot books</a>
+  <a href="https://www.encyclopedia.com/medicine/encyclopedias-almanacs-transcripts-and-maps/holtzman-inkblot-technique">Encyclopedia.com — Holtzman Inkblot Technique</a>
+  <a href="https://econtent.hogrefe.com/doi/10.1027/1192-5604/a000175">Hogrefe — Behn–Rorschach parallel series</a>
+
+  <h3 style="color:var(--accent)">Scoring systems &amp; coding</h3>
+  <a href="https://en.wikipedia.org/wiki/Rorschach_Performance_Assessment_System">Wikipedia — R-PAS</a>
+  <a href="https://r-pas.org/">r-pas.org</a>
+  <a href="https://virtualpsychology.com/documentation/rap/code_help/determinants.html">VirtualPsychology — determinant definitions</a>
+  <a href="https://virtualpsychology.com/documentation/rap/rap3/HTML/structural_summary_report.htm">VirtualPsychology — structural summary (EB, Lambda, W:M, Egocentricity)</a>
+  <a href="https://www.scielo.br/j/paideia/a/nPFfZdnvqKqW8mV9btN3wfP/?lang=en">SciELO — Form Quality in CS &amp; R-PAS</a>
+  <a href="https://dandebat.dk/eng-personkort.htm">dandebat.dk — interpretation summaries (secondary)</a>
+
+  <h3 style="color:var(--accent)">Validity, reliability &amp; projective science</h3>
+  <a href="https://pubmed.ncbi.nlm.nih.gov/22925137/">Mihura et al. 2013 — validity meta-analysis</a>
+  <a href="https://scottlilienfeld.com/wp-content/uploads/2021/01/wood2015.pdf">Wood et al. 2015 — "A Second Look"</a>
+  <a href="https://journals.sagepub.com/doi/10.1111/1529-1006.002">Lilienfeld, Wood &amp; Garb 2000</a>
+  <a href="https://www.tandfonline.com/doi/abs/10.1207/s15327752jpa8502_16">SPA 2005 — official statement</a>
+  <a href="https://en.wikipedia.org/wiki/Projective_test">Wikipedia — Projective test</a>
+  <a href="https://en.wikipedia.org/wiki/Thematic_apperception_test">Wikipedia — TAT</a>
+  <a href="https://pubmed.ncbi.nlm.nih.gov/36058187/">HTP not valid — neural-net study (2022)</a>
+
+  <h3 style="color:var(--accent)">Pop culture, Barnum effect &amp; framing</h3>
+  <a href="https://en.wikipedia.org/wiki/Rorschach_(character)">Wikipedia — Rorschach (Watchmen)</a>
+  <a href="https://en.wikipedia.org/wiki/Barnum_effect">Wikipedia — Barnum effect</a>
+  <a href="https://en.wikipedia.org/wiki/Cold_reading">Wikipedia — Cold reading</a>
+  <a href="https://www.psychologicalscience.org/news/most-personality-quizzes-are-junk-science-take-one-that-isnt.html">APS — most personality quizzes are junk science</a>
+  <a href="https://saropa-contacts.medium.com/more-than-a-type-a-skeptics-guide-to-personality-quizzes-b6c77afaa2fa">A skeptic's guide to personality quizzes</a>
+  <a href="https://pudding.cool/">The Pudding — format inspiration</a>
+</div>
+
+<footer>
+  <div class="rule"></div>
+  THE INFINITE INKBLOT &nbsp;·&nbsp; RESEARCH DOSSIER &nbsp;·&nbsp; war.mino.mobi/ink<br>
+  a mirror, not a measurement &nbsp;·&nbsp; markdown source: <a href="RESEARCH.md">RESEARCH.md</a>
+</footer>
+
+</body>
+</html>
