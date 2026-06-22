@@ -340,7 +340,7 @@
 
   <script type="module">
     import { solveChunk } from './v8/chunkgen.js';
-    import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
+    import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, extendWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
     import { nearestConcourse, attachShaft, markRindDeck, playerDeckOf } from './descent.js';   // chutes: a deck link is a port
     import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
              NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
@@ -468,11 +468,20 @@
     // rebuild the walk graph + the social web, then re-cast residents — but PRESERVE the sim state of
     // residents we already have (global node ids are stable as chunks append), so commuters don't reset
     // every time a chunk streams in.
-    function restitch() {
+    function restitch() {   // FULL rebuild — used on new world / first chunk
       const t0 = performance.now();
-      walk = buildWalk(world, blockedOf);   // ESSENTIAL — navigation must be ready to keep walking; kept synchronous
+      walk = buildWalk(world, blockedOf);
       _stitchMs = performance.now() - t0;
-      rebuildSocietySoon();                 // the social layer (buildSociety = up to 70 pathFinds + residents) is COSMETIC — defer + coalesce it off the per-stream hot path (was the 120ms hitch)
+      rebuildSocietySoon();                 // the social layer (buildSociety = up to 70 pathFinds + residents) is COSMETIC — defer + coalesce it off the per-stream hot path
+    }
+    // INCREMENTAL stitch for a streamed chunk — appends just the new chunk's nodes (O(one chunk)) instead of
+    // rebuilding the whole graph (O(all chunks), the frontier hitch that grew to 120ms at 54 chunks). Pinned
+    // identical to a full rebuild by test/walkextend.selftest.mjs.
+    function stitchAdd(newId) {
+      const t0 = performance.now();
+      if (walk) extendWalk(walk, world, newId, blockedOf); else walk = buildWalk(world, blockedOf);
+      _stitchMs = performance.now() - t0;
+      rebuildSocietySoon();
     }
     let _socScheduled = false;
     function rebuildSocietySoon() {
@@ -664,7 +673,7 @@
       const spec = neighbourSpec(world, best.ch.id, best.ei);
       const nseed = chunkSeedFor(spec.poly);
       const { rec, painted } = await generate(opts({ seed: nseed, poly: spec.poly, inherit: spec.inherit }));
-      rec.painted = painted; addChunk(world, rec); restitch(); reveal();
+      rec.painted = painted; addChunk(world, rec); stitchAdd(rec.id); reveal();   // INCREMENTAL stitch — O(one chunk), not a full-world rebuild
       busy(false); status(); draw();
       prebakeSoon(rec);   // bake its raster + GPU buffers in idle time — so the first ON-SCREEN draw doesn't hitch (the 30ms spike)
       maybeStream();   // chain for any other neighbours the view already reaches
