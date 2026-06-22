@@ -470,11 +470,21 @@
     // every time a chunk streams in.
     function restitch() {
       const t0 = performance.now();
-      walk = buildWalk(world, blockedOf); society = buildSociety(world, walk);
-      const fresh = buildResidents(world, walk, society), prev = new Map(residents.map((a) => [a.id, a]));
-      residents = fresh.map((a) => prev.get(a.id) || a);
-      cullResidents();
-      _stitchMs = performance.now() - t0;   // a full-world rebuild on every streamed chunk — surfaced in the readout to confirm the walking hitch
+      walk = buildWalk(world, blockedOf);   // ESSENTIAL — navigation must be ready to keep walking; kept synchronous
+      _stitchMs = performance.now() - t0;
+      rebuildSocietySoon();                 // the social layer (buildSociety = up to 70 pathFinds + residents) is COSMETIC — defer + coalesce it off the per-stream hot path (was the 120ms hitch)
+    }
+    let _socScheduled = false;
+    function rebuildSocietySoon() {
+      if (_socScheduled) return; _socScheduled = true;   // coalesce a burst of streams into ONE social rebuild
+      const go = () => {
+        _socScheduled = false;
+        society = buildSociety(world, walk);
+        const fresh = buildResidents(world, walk, society), prev = new Map(residents.map((a) => [a.id, a]));
+        residents = fresh.map((a) => prev.get(a.id) || a);
+        cullResidents();
+      };
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(go, { timeout: 600 }); else setTimeout(go, 60);
     }
     // pre-bake a streamed chunk's raster + GPU buffers during idle time, BEFORE the player walks it on
     // screen — otherwise drawPainted bakes it lazily on its first on-screen frame (the 30ms draw spike).
