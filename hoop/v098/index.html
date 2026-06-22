@@ -406,7 +406,7 @@
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
     let gpu = null, gpuActive = false;   // the WebGPU cell renderer (set once init resolves); false ⇒ raster fallback
     let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
-    let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0, _drawMs = 0, _statusT = 0;   // _drawMs: EMA of draw() cost (shown in the status line for live perf diagnosis)
+    let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0, _drawMs = 0, _statusT = 0, _fps = 0;   // _drawMs: EMA of frame-work cost; _fps: achieved rate — both shown in the status line for live perf diagnosis
     const story = { store: null, ready: false, playerId: 'local', active: null };
     let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
     const storyBigKeys = new Set();     // resident featureKeys an active beat marks → embiggen (storyboard-relevant only)
@@ -499,7 +499,18 @@
       return set;
     }
     const blockedOf = (chunkId, local) => { const ch = world.chunks[chunkId]; if (!ch) return false; if (!ch._blocked) ch._blocked = computeBlocked(ch); return ch._blocked.has(local); };
-    function rebakeFog() { if (!walk) return; for (const ch of world.chunks) { const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i)); } }
+    // PERF: only re-bake fog for chunks whose fog can actually have CHANGED — the current deck, near the
+    // player (sightBall only touches nearby cells; far chunks' fog is static once seen). This runs on every
+    // walked step, so scoping it (rather than all world.chunks) is a real movement-smoothness win.
+    function rebakeFog() {
+      if (!walk) return; const pd = playerDeck(), pcx = px(), pcy = py(), R = (chunkSpan * 1.6) ** 2;
+      for (const ch of world.chunks) {
+        if ((ch.deck || 0) !== pd) continue;                          // only the deck that gets blitted
+        const bb = ch.bb || (ch.bb = bboxOf(ch.poly));
+        if (((bb.x0 + bb.x1) / 2 - pcx) ** 2 + ((bb.y0 + bb.y1) / 2 - pcy) ** 2 > R) { if (!ch.fog) { const b0 = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b0 + i), (i) => inView.has(b0 + i)); } continue; }
+        const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i));
+      }
+    }
     function reveal() { if (player < 0) return; for (const g of sightBall(walk, player, OPTS.sight)) seen.add(g); inView = sightBall(walk, player, OPTS.sight); rebakeFog(); }
 
     // ── DECKS (chutes & ladders): the rind is a lower deck linked to the concourse by a shaft PORT. The
@@ -907,7 +918,7 @@
       ctx.restore();
     }
 
-    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}</span>`; }
+    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
@@ -2371,11 +2382,14 @@
       requestAnimationFrame(frame);
       if (ts - lastTs < 30) return;   // cap to ~33fps
       const dt = lastTs ? ts - lastTs : 16; lastTs = ts;
-      if (ts - _statusT > 600) { _statusT = ts; if (world) status(); }   // refresh the gpu/draw-ms readout ~1.6×/s (even when idle/covered)
+      _fps = _fps ? _fps * 0.9 + (1000 / dt) * 0.1 : 1000 / dt;   // achieved frame rate (capped near 33)
+      if (ts - _statusT > 600) { _statusT = ts; if (world) status(); }   // refresh the gpu/draw-ms/fps readout ~1.6×/s
       if (worldCovered()) return;     // an overlay is up — don't paint the hidden world (the big login-screen win)
       if (world && walk && nearResidents.length) {
+        const t0 = performance.now();
         stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
-        const t0 = performance.now(); draw(); _drawMs = _drawMs ? _drawMs * 0.85 + (performance.now() - t0) * 0.15 : (performance.now() - t0);
+        draw();
+        _drawMs = _drawMs ? _drawMs * 0.85 + (performance.now() - t0) * 0.15 : (performance.now() - t0);   // step+draw, the full per-frame work
       }
     }
 
