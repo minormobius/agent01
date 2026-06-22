@@ -37,6 +37,28 @@
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
 
+  // ---- Kubelka–Munk (single constant) ----
+  // Each colorant's masstone reflectance R per channel gives an absorption/scatter
+  // load K/S = (1-R)²/2R. Loads ADD across overlapping pigments (the physical
+  // bit), then reflectance comes back via the K–M solution. This is why two inks
+  // overlapping go deep/muddy instead of averaging like RGB alpha.
+  function ksFromHex(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+      const R = Math.min(0.985, Math.max(0.02, v / 255));
+      return (1 - R) * (1 - R) / (2 * R);
+    });
+  }
+  function KM(A) {           // K/S load -> reflectance over white backing
+    if (A <= 1e-6) return 1; // no ink -> bare paper
+    const R = 1 + A - Math.sqrt(A * A + 2 * A);
+    return R < 0 ? 0 : R > 1 ? 1 : R;
+  }
+
+  // render character — pushed toward line work: barely-there blur so the
+  // attractor's filaments survive as strokes instead of smearing into blobs.
+  const RENDER = { blurR: 1, blurPasses: 1, gamma: 0.95 };
+
   // ---- one pigment layer: iterate attractor -> normalized blurred density ----
   // Returns { grid:Float32(HALF*H in 0..1), family, p } or null if degenerate.
   // `place` = {tx,ty,tw,th} target rect in the half-plane; shared across a blot's
@@ -82,9 +104,9 @@
       grid[o + HALF + 1] += dx * dy;
     }
 
-    boxBlur(grid, HALF, H, 3, 2);
+    if (RENDER.blurR > 0) boxBlur(grid, HALF, H, RENDER.blurR, RENDER.blurPasses);
 
-    // log-compress + normalize to 0..1, lift midtones a touch.
+    // log-compress + normalize to 0..1, keep lines crisp (gamma≈1, no midtone bloom).
     let max = 0;
     for (let i = 0; i < grid.length; i++) {
       grid[i] = Math.log(1 + grid[i]);
@@ -92,7 +114,7 @@
     }
     if (max <= 0) return null;
     const inv = 1 / max;
-    for (let i = 0; i < grid.length; i++) grid[i] = Math.pow(grid[i] * inv, 0.82);
+    for (let i = 0; i < grid.length; i++) grid[i] = Math.pow(grid[i] * inv, RENDER.gamma);
 
     return { grid, family: ATT.label(famKey), famKey, p: a.p };
   }
@@ -133,7 +155,7 @@
     const RES = opts.RES || 600;          // full square resolution
     const HALF = RES / 2 | 0;
     const H = RES;
-    const N = opts.points || 70000;
+    const N = opts.points || 120000;   // denser sampling -> continuous strokes
     const BURN = 800;
     const rng = makeRng(seedStr);
     const t0 = (g.performance && performance.now()) || 0;
@@ -179,10 +201,11 @@
       const place = { tx, ty, tw, th };
       meta = { foldMode };
 
-      // coloured pigment layers first (rendered underneath)
+      // coloured pigment layers first (rendered underneath). Tight thresholds =
+      // thin strokes: only the density ridges ink up, the flanks stay paper.
       const layerSpecs = [];
-      for (let i = 0; i < nPig; i++) layerSpecs.push({ role: "pigment", color: pigColors[i], t0: 0.05, t1: 0.5, op: 0.9 });
-      layerSpecs.push({ role: "ink", color: darkColor, t0: 0.06, t1: 0.44, op: 1.0 });
+      for (let i = 0; i < nPig; i++) layerSpecs.push({ role: "pigment", color: pigColors[i], t0: 0.10, t1: 0.40, op: 1.05 });
+      layerSpecs.push({ role: "ink", color: darkColor, t0: 0.12, t1: 0.40, op: 1.15 });
 
       let ok = true;
       for (const spec of layerSpecs) {
@@ -190,33 +213,31 @@
         while (!field && tries++ < 14) field = layerField(rng, HALF, H, N, BURN, place);
         if (!field) { ok = false; break; }
         spec.field = field;
-        spec.rgb = hexRGB(spec.color);
+        spec.ks = ksFromHex(spec.color);
         layers.push(spec);
       }
       if (!ok) continue;
 
-      // composite (right half): coloured layers, then dark on top.
+      // composite (right half) via single-constant Kubelka–Munk: each colorant
+      // adds K/S load per channel; loads sum where strokes overlap so the mix
+      // goes deep/muddy like real ink. compR/G/B hold reflectance×255 (255 = bare
+      // paper), multiplied over the parchment at draw time.
       Atot = new Float32Array(HALF * H);
       Acol = new Float32Array(HALF * H);
       for (let i = 0; i < HALF * H; i++) {
-        let ar = 0, ag = 0, ab = 0, aa = 0;       // premultiplied accumulate (all)
-        let car = 0, cag = 0, cab = 0, caa = 0;    // coloured-only
+        let aR = 0, aG = 0, aB = 0, Lt = 0, Lc = 0;
         for (const L of layers) {
-          const a = ss(L.t0, L.t1, L.field.grid[i]) * L.op;
-          if (a <= 0) continue;
-          const k = a * (1 - aa);
-          ar += L.rgb[0] * k; ag += L.rgb[1] * k; ab += L.rgb[2] * k; aa += k;
-          if (L.role === "pigment") {
-            const ck = a * (1 - caa);
-            car += L.rgb[0] * ck; cag += L.rgb[1] * ck; cab += L.rgb[2] * ck; caa += ck;
-          }
+          const c = ss(L.t0, L.t1, L.field.grid[i]);
+          if (c <= 0) continue;
+          const load = c * L.op;
+          aR += load * L.ks[0]; aG += load * L.ks[1]; aB += load * L.ks[2];
+          Lt += load; if (L.role === "pigment") Lc += load;
         }
-        Atot[i] = aa; Acol[i] = caa;
-        // stash composited colour back into the dark field's grid slot? no —
-        // keep colour in a parallel buffer for painting:
-        compR[i] = aa > 0 ? ar / aa : 0;
-        compG[i] = aa > 0 ? ag / aa : 0;
-        compB[i] = aa > 0 ? ab / aa : 0;
+        compR[i] = KM(aR) * 255;
+        compG[i] = KM(aG) * 255;
+        compB[i] = KM(aB) * 255;
+        Atot[i] = Lt < 1 ? Lt : 1;     // ink load (alpha proxy for traits)
+        Acol[i] = Lc < 1 ? Lc : 1;     // coloured load (chromatic trait)
       }
 
       // coverage sanity
@@ -243,11 +264,9 @@
       for (let y = 0; y < H; y++) {
         for (let gx = 0; gx < HALF; gx++) {
           const i = y * HALF + gx;
-          const A = Atot[i];
-          // white background; ink lerps paper toward ink colour (multiply later)
-          const r = 255 * (1 - A) + compR[i] * A;
-          const gg = 255 * (1 - A) + compG[i] * A;
-          const b = 255 * (1 - A) + compB[i] * A;
+          // K–M reflectance directly (×255); 255 where bare paper. Multiplied
+          // over the parchment at draw time -> ink soaks the page.
+          const r = compR[i], gg = compG[i], b = compB[i];
           const xr = HALF + gx, xl = HALF - 1 - gx;
           for (const X of [xr, xl]) {
             const o = (y * RES + X) * 4;

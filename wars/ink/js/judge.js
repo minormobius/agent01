@@ -49,10 +49,10 @@
   // swing, instead of collapsing toward one pole. {mean, spread=k·σ} measured by
   // Monte-Carlo over 500 random blots (k≈2.2). Re-measure if the engine changes.
   const CALIB = {
-    temperament: { mean: 0.300, spread: 0.420 },
-    scope:       { mean: 0.703, spread: 0.376 },
-    gravity:     { mean: 0.537, spread: 0.180 },
-    bond:        { mean: 0.637, spread: 0.447 },
+    temperament: { mean: 0.443, spread: 0.512 },
+    scope:       { mean: 0.706, spread: 0.298 },
+    gravity:     { mean: 0.533, spread: 0.182 },
+    bond:        { mean: 0.647, spread: 0.432 },
   };
   function calibrate(key, v) {
     const c = CALIB[key];

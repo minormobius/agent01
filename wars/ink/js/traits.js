@@ -54,7 +54,7 @@
         }
       }
     }
-    const { components, largest } = countComponents(full, W, H);
+    const { components, largest } = gestaltComponents(full, W, H);
     const largestShare = inkFull > 0 ? largest / inkFull : 1;
 
     let perim = 0;
@@ -73,7 +73,7 @@
     const traits = [
       {
         key: "coverage", label: "Coverage", low: "Sparse", high: "Lavish",
-        value: clamp(coverage / 0.4, 0, 1), axis: "Constricted ⟷ Rich",
+        value: clamp(coverage / 0.28, 0, 1), axis: "Constricted ⟷ Rich",
         display: pct(coverage) + " inked",
       },
       {
@@ -88,7 +88,7 @@
       },
       {
         key: "filigree", label: "Filigree", low: "Smooth", high: "Filigreed",
-        value: clamp((edgeC - 4) / 22, 0, 1), axis: "Form ⟷ Feeling",
+        value: clamp((edgeC - 6) / 48, 0, 1), axis: "Form ⟷ Feeling",
         display: "edge " + edgeC.toFixed(1),
       },
       {
@@ -125,6 +125,20 @@
         bboxFill, aspect, chromatic, edgeC, centroidY, pigmentCount,
       },
     };
+  }
+
+  // Count gestalt masses: OR-pool the mask down (4×4) so thin strokes a human
+  // reads as one form merge, instead of shattering into dozens of line fragments.
+  // `largest` is rescaled back to full-pixel units.
+  function gestaltComponents(full, W, H) {
+    const DS = 8, dw = Math.ceil(W / DS), dh = Math.ceil(H / DS);
+    const small = new Uint8Array(dw * dh);
+    for (let y = 0; y < H; y++) {
+      const row = y * W, drow = ((y / DS) | 0) * dw;
+      for (let x = 0; x < W; x++) if (full[row + x]) small[drow + ((x / DS) | 0)] = 1;
+    }
+    const c = countComponents(small, dw, dh);
+    return { components: c.components, largest: c.largest * DS * DS };
   }
 
   // 8-connected component labelling with an explicit stack (no recursion).
