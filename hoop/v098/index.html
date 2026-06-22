@@ -794,11 +794,9 @@
       if (gpuActive) drawGpuCells(visibleDeckChunks());                  // crisp vector cell fills on the back canvas
       drawPainted();
       drawResidents();                 // BEFORE the fog, so the fog hides residents in unseen rooms
-      // fog blitted with a blur so its frontier is soft (hides the per-cell reveal edge)
+      // fog: the soft frontier is now PRE-BLURRED in bakeFog (once per reveal) — blit it plain (no per-frame filter)
       ctx.imageSmoothingEnabled = true;
-      ctx.filter = `blur(${Math.min(4, Math.max(1, cam.scale * OPTS.cellSize * 0.35)).toFixed(1)}px)`;   // PERF: cap the blur radius — a big canvas filter every frame is the costliest blit
       { const pd = playerDeck(); for (const ch of world.chunks) { if ((ch.deck || 0) !== pd) continue; const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); } }
-      ctx.filter = 'none';
       if (playerDeck() === 1) { ctx.fillStyle = 'rgba(30,70,90,0.22)'; ctx.fillRect(0, 0, W, H); }   // the rind: no sun-strip, cool hull-glow wash
       drawNPC(); drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint();
     }

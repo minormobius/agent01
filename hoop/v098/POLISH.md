@@ -60,6 +60,20 @@ and tested; what remains is *feel*. This is the living checklist for the final p
       and overlay `max-height: vh` vs the URL-bar (consider `dvh`).
 - [ ] `title=` tooltips (27) are invisible on touch — fold the important hints into visible copy.
 
+## Render performance — the per-frame draw budget
+The static scene is already cheap (baked chunk raster + WebGPU cell fills, blitted once). The cost is
+per-frame OVERLAYS redrawn every frame while residents animate. Five candidates, lowest-hanging first:
+- [x] **fog blur** — was `ctx.filter = blur()` over each visible chunk EVERY frame (the costliest op).
+      Now pre-blurred once in `bakeFog` (on reveal); the blit is plain. Done.
+- [ ] **`drawNPC` society web** — every route + edge re-stroked each frame (static, fog-gated). Cache to
+      an offscreen keyed on `(seen.size, deck, camera)` and blit. Likely the next-biggest win.
+- [ ] **`drawPainted` raster blit** — large smoothed `drawImage`/chunk each frame; drop smoothing at
+      scale ≤ 1, or pre-scale per zoom bucket.
+- [ ] **`drawGpuCells` seam lines** — per-cell outline vertices every frame; skip the line pass below a
+      zoom threshold (sub-pixel when zoomed out).
+- [ ] **static/dynamic layering** — when the camera is still, only the player + residents need repaint;
+      hold the world+overlays on a cached layer so a populated idle scene stops re-rendering everything.
+
 ## Cross-cutting
 - [x] **unified notice feed** — `notify(text,{kind,ms})` + a capped, dismissible `#notices` stack.
       All `flash*` + the inline `#busy` writers route through it; kind auto-derives from the leading

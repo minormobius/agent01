@@ -37,5 +37,13 @@ export function bakeFog(rec, isSeen, isInView) {
   const cv = newCanvas(W, H), ctx = cv.getContext('2d');
   const path = (p) => { ctx.beginPath(); ctx.moveTo(p[0][0] - ox, p[0][1] - oy); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0] - ox, p[i][1] - oy); ctx.closePath(); };
   for (let i = 0; i < rec.cells.length; i++) { const c = rec.cells[i]; if (c.poly.length < 3) continue; const s = isSeen(i), v = isInView(i), a = !s ? 0.93 : v ? 0 : 0.5; if (a <= 0) continue; ctx.fillStyle = `rgba(6,8,11,${a})`; path(c.poly); ctx.fill(); }
-  return { canvas: cv, ox, oy, w: W, h: H };
+  // PERF: soften the per-cell reveal edge ONCE here (on reveal), not with a ctx.filter blur on EVERY frame's
+  // blit — the per-frame canvas filter was the costliest op in the draw loop. World-res blur ⇒ consistent
+  // world-space softness; the blit scales it. Guarded: if `filter` is unsupported the edge is just crisp.
+  try {
+    const r = Math.min(4, Math.max(1, (rec.cellSize || 12) * 0.25));
+    const out = newCanvas(W, H), o = out.getContext('2d');
+    o.filter = `blur(${r}px)`; o.drawImage(cv, 0, 0);
+    return { canvas: out, ox, oy, w: W, h: H };
+  } catch (e) { return { canvas: cv, ox, oy, w: W, h: H }; }
 }
