@@ -61,6 +61,25 @@
     #newgame { color: #e08a8a; } #newgame:hover, #newgame:active { border-color: #e08a8a; color: #fff; }
     #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
     #who b { color: #b39bd8; }
+    #dbgbtn { color: #8aa39a; } #dbgbtn:hover, #dbgbtn:active { border-color: #8aa39a; color: #fff; }
+    /* the STORY STATUS panel — a toggleable overlay (` key / ⓘ dock button) proving the save-loop is live:
+       who you are, what's saved where, your tiers, the snapshot census, and the cross-player pulse the
+       backend Director folds your save into. Read-only diagnostics; never touches game state. */
+    #dbg { position: fixed; z-index: 44; top: calc(8px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+           width: min(420px, 94vw); max-height: calc(100vh - 80px); overflow-y: auto; display: none;
+           background: rgba(8,11,16,0.96); border: 1px solid #243038; border-radius: 11px; padding: 13px 15px 14px;
+           box-shadow: 0 14px 50px rgba(0,0,0,0.6); font-size: 11.5px; line-height: 1.5; color: #c5cfc9; pointer-events: auto; }
+    #dbg.on { display: block; }
+    #dbg h4 { margin: 0 0 7px; font-size: 12px; color: #7fd8d0; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    #dbg h4 .dx { cursor: pointer; color: #8aa39a; font-weight: 400; } #dbg h4 .dx:hover { color: #f4bf62; }
+    #dbg .sec { margin-top: 9px; padding-top: 8px; border-top: 1px solid #18222a; }
+    #dbg .sec:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+    #dbg .st { color: #6f7e77; font-size: 10px; letter-spacing: .4px; text-transform: uppercase; margin-bottom: 3px; }
+    #dbg .kv { display: flex; justify-content: space-between; gap: 12px; }
+    #dbg .kv span:first-child { color: #8aa39a; } #dbg .kv span:last-child { color: #dfe7e2; text-align: right; word-break: break-all; }
+    #dbg .ok { color: #8fe07a; } #dbg .warn { color: #e08a8a; } #dbg .dim { color: #6f7e77; }
+    #dbg .pulse { color: #7fd8d0; }
+    @media (pointer: coarse) { #dbg { font-size: 12.5px; } }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
     /* the unified NOTICE FEED — a stack of dismissible cards (replaces the single #busy line that every
        toast used to stomp). Newest on top; auto-expire; tap to dismiss; kind sets the left-border accent. */
@@ -325,9 +344,11 @@
     <button id="equipbtn" title="equipped (e)">⛨<span class="lbl"> equip</span></button>
     <button id="mapbtn" title="minimap (m)">▦<span class="lbl"> map</span></button>
     <button id="pack" title="open pack (i)">▣<span class="lbl"> pack</span></button>
+    <button id="dbgbtn" title="story status (`)">ⓘ<span class="lbl"> story</span></button>
     <a id="newgame" title="wipe story progress and start over">⟲<span class="lbl"> new game</span></a>
   </div>
   <div class="hud" id="who"></div>
+  <div id="dbg"></div>
   <div id="storybg"></div>
   <div id="story"></div>
   <div id="arc"><div class="acard" id="arccard"></div></div>
@@ -372,7 +393,7 @@
     import { assess, levelMessage, guideFor } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
     import { buildQuestBank, questProgress, pickQuestForNpc, questMarker } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to
     import { AuthClient } from '../vendor/auth.js';   // shared OAuth (verbatim copy of packages/oauth-client) — sign in to save to YOUR repo
-    import { loadOwnSave, putSave, SAVE_NSID, loadPool, publicClient } from './story/atproto.js';   // the per-player save lane + the SHARED pool read (com.minomobi.hoop.story.*)
+    import { loadOwnSave, putSave, SAVE_NSID, loadPool, publicClient, loadPulse, listOwnSaves, deleteOwnSave } from './story/atproto.js';   // the per-player save lane + the SHARED pool read + the cross-player pulse + own-save enumeration (com.minomobi.hoop.story.*)
     import { loadVerdicts, digestVerdicts } from './story/verdicts.js';   // the rumor-mill / async-result feed: apply retcons + notices, redraw on change
     import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
@@ -1023,14 +1044,14 @@
         }
         story.poolSrc = poolSrc;
         story.store = new MemoryStore(content, { features: [] });
-        const saved = localStorage.getItem('hoop:v098:story'); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
+        const saved = localGet(); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
         // the storyboard is DERIVED from his plot_beats (the climb "out and down" is his story). The
         // hand-authored storyboard.json is only a fallback when his content carries no plot_beats.
         story.sb = deriveStoryboard(content);
         if (!story.sb.beats.length) { try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; } }
         story.milestones = story.sb ? deriveMilestones(story.sb) : [];   // tier advancement = his flag-gated beats (empty until his export wires triggers)
         try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
-        story.ready = true; renderQuest();
+        story.ready = true; renderQuest(); syncPulse();
         try { questBank = buildQuestBank([...story.store.content.values()]); } catch (e) { questBank = new Map(); }   // the side-quest bank (one per rumor seed)
         try { openingCast = deriveOpeningCast([...story.store.content.values()], 3); } catch (e) {}   // hoopybot's guides, ready even before anchors place
         foldCharacterFromSave();   // the character rides the save now — adopt the saved one, or seed it from local
@@ -1139,7 +1160,7 @@
         + `<div class="qfoot">${foot}</div>`;
       const jl = $('qjournal'); if (jl) jl.onclick = (e) => { e.preventDefault(); toggleJournal(); };
     }
-    const saveStorySnapshot = () => { if (story.ready) { try { localStorage.setItem('hoop:v098:story', JSON.stringify(story.store.snapshot())); } catch (e) {} scheduleRepoSave(); } };
+    const saveStorySnapshot = () => { if (story.ready) { try { localSet(JSON.stringify(story.store.snapshot())); } catch (e) {} scheduleRepoSave(); } };
 
     // ── THE SAVE LANE: sign in → your game syncs to YOUR OWN repo (com.minomobi.hoop.story.save), durable
     //    + cross-device + user-owned ($0 to us). localStorage stays the hot buffer; the repo write is
@@ -1147,6 +1168,14 @@
     const auth = new AuthClient();
     let storyUser = null;                         // { did, handle } when signed in
     const worldKey = () => String(seed);          // save rkey = ship seed (one save per world)
+    // localStorage is the hot buffer, now keyed PER WORLD so a single browser holds many anonymous save
+    // profiles (one per ship seed) — same model as the per-seed PDS records, just local. The legacy single
+    // global key is read as a fallback (and migrated to the current world's key on first save).
+    const LOCAL_PREFIX = 'hoop:v098:story';
+    const localSaveKey = (s = seed) => LOCAL_PREFIX + ':' + String(s);
+    const localGet = (s = seed) => { try { return localStorage.getItem(localSaveKey(s)) || (String(s) === worldKey() ? localStorage.getItem(LOCAL_PREFIX) : null); } catch (e) { return null; } };
+    const localSet = (json) => { try { localStorage.setItem(localSaveKey(), json); localStorage.removeItem(LOCAL_PREFIX); } catch (e) {} };   // migrate off the legacy global on first write
+    const localDel = (s = seed) => { try { localStorage.removeItem(localSaveKey(s)); if (String(s) === worldKey()) localStorage.removeItem(LOCAL_PREFIX); } catch (e) {} };
     let _lastSync = null, _repoDirty = false, _saveErr = null;
     function scheduleRepoSave() { _repoDirty = true; }   // mark dirty; the periodic flusher + unload do the write
     // SAVE OFTEN (hoopy #4: beforeunload is flaky on mobile/crashes, and a frequent save keeps the engine's
@@ -1173,12 +1202,13 @@
         if (_saveErr) status = `<span style="color:#e08a8a" title="${esc(_saveErr)}">save failed</span> · <span class="act" data-retry>retry</span> · <span class="act" data-relogin>re-sign in</span>`;
         else if (_lastSync) status = `<span title="${esc(uri)}">your save ✓ ${esc(new Date(_lastSync).toLocaleTimeString())}</span>`;
         else status = `<span title="${esc(uri)}">your save (syncing…)</span>`;
-        el.innerHTML = `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — ${status} · ${RECORDS_LINK} · <span class="act" data-logout>sign out</span>`;
+        el.innerHTML = `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — ${status}${pulseTag()} · ${RECORDS_LINK} · <span class="act" data-logout>sign out</span>`;
       } else {
-        el.innerHTML = `<span class="act" data-login>sign in</span> to save your game to your PDS · ${RECORDS_LINK}`;
+        el.innerHTML = `<span class="act" data-login>sign in</span> to save your game to your PDS${pulseTag()} · ${RECORDS_LINK}`;
       }
       const lo = el.querySelector('[data-logout]'); if (lo) lo.onclick = signOut;
       const li = el.querySelector('[data-login]'); if (li) li.onclick = signIn;
+      const pt = el.querySelector('[data-pulse]'); if (pt) pt.onclick = () => toggleDbg(true);
       const rt = el.querySelector('[data-retry]'); if (rt) rt.onclick = () => { _saveErr = null; renderAuthPill(); flushRepo(true); };
       const rl = el.querySelector('[data-relogin]'); if (rl) rl.onclick = () => { _saveErr = null; signIn(); };   // a fresh OAuth re-mints the unified scope (fixes a narrow SSO session)
     }
@@ -1227,6 +1257,103 @@
       _syncedSave = false;
       renderAuthPill();
       syncOwnSaveIfReady();
+    }
+
+    // ── THE PULSE (com.minomobi.hoop.story.pulse). The backend Director consumes every player's PUBLISHED
+    //    save off the firehose and folds them into ONE cross-player rollup on the morphyx service repo
+    //    (rkey='self'). Reading it is the direct proof your save was received server-side: "31 travellers ·
+    //    4 have met the Keeper". Public — no sign-in needed. Best-effort; null until the Director publishes. ──
+    let pulse = null, _pulseBusy = false;
+    async function syncPulse() {
+      if (_pulseBusy) return; _pulseBusy = true;
+      try { const p = await loadPulse(publicClient(storyPds), STORY_SERVICE.did); if (p) { pulse = p; renderAuthPill(); if (dbgOpen) renderDbg(); } }
+      catch (e) { /* the pulse is a read-only signal; never break play */ }
+      finally { _pulseBusy = false; }
+    }
+    setInterval(syncPulse, 90000);   // refresh the rollup periodically while playing
+    // a compact, clickable pulse chip for the always-visible auth pill (opens the full panel on tap)
+    function pulseTag() {
+      if (!pulse) return '';
+      const trav = pulse.travellers != null ? pulse.travellers : pulse.players;
+      if (trav == null) return '';
+      return ` · <span class="act" data-pulse title="the cross-player rollup the backend Director folds your save into — tap for detail">◍ ${trav} traveller${trav === 1 ? '' : 's'}</span>`;
+    }
+    // a one-line human reading of the pulse for the auth pill + panel ("N travellers · M met the Keeper")
+    function pulseLine() {
+      if (!pulse) return null;
+      const trav = pulse.travellers != null ? pulse.travellers : (pulse.players != null ? pulse.players : null);
+      if (trav == null) return null;
+      const met = pulse.totalMet != null ? pulse.totalMet : null;
+      const top = (pulse.topContent && pulse.topContent[0]) || (pulse.topChambers && pulse.topChambers[0]);
+      const topName = top && (top.name || top.label || top.id);
+      let s = `${trav} traveller${trav === 1 ? '' : 's'}`;
+      if (met != null && topName) s += ` · ${met} ${met === 1 ? 'has' : 'have'} met ${esc(topName)}`;
+      else if (met != null) s += ` · ${met} have met the Keeper`;
+      else if (topName) s += ` · most-met: ${esc(topName)}`;
+      return s;
+    }
+
+    // ── THE STORY-STATUS PANEL: a toggleable, read-only overlay that proves the save-loop end to end —
+    //    who you are, what's saved where + when, your tiers, the snapshot census, the verdict cursor, and
+    //    the cross-player pulse. Tappable (mobile) via the ⓘ dock button + the ` key. Refreshes while open. ──
+    let dbgOpen = false, _dbgTimer = null;
+    function toggleDbg(force) {
+      dbgOpen = force == null ? !dbgOpen : !!force;
+      $('dbg').classList.toggle('on', dbgOpen);
+      if (dbgOpen) { renderDbg(); syncPulse(); if (!_dbgTimer) _dbgTimer = setInterval(() => { if (dbgOpen) renderDbg(); }, 2000); }
+      else if (_dbgTimer) { clearInterval(_dbgTimer); _dbgTimer = null; }
+    }
+    function renderDbg() {
+      const el = $('dbg'); if (!el) return;
+      const row = (k, v, cls) => `<div class="kv"><span>${k}</span><span class="${cls || ''}">${v}</span></div>`;
+      const out = [];
+      out.push(`<h4>story status <span class="dx" data-dclose>✕ close</span></h4>`);
+      // who
+      out.push(`<div class="sec"><div class="st">identity</div>`);
+      if (storyUser) { out.push(row('handle', '@' + esc(storyUser.handle), 'ok')); out.push(row('did', `<span class="dim">${esc(storyUser.did)}</span>`)); }
+      else out.push(row('signed in', '<span class="warn">no — local only</span>'));
+      out.push(`</div>`);
+      // save
+      out.push(`<div class="sec"><div class="st">save</div>`);
+      out.push(row('world key', esc(worldKey())));
+      if (storyUser) {
+        const st = _saveErr ? `<span class="warn">failed</span>` : _lastSync ? `<span class="ok">✓ ${esc(new Date(_lastSync).toLocaleTimeString())}</span>` : `<span class="dim">syncing…</span>`;
+        out.push(row('cloud save', st));
+        if (_saveErr) out.push(row('error', `<span class="warn">${esc(_saveErr).slice(0, 80)}</span>`));
+        if (_repoDirty) out.push(row('pending write', '<span class="dim">dirty — flushes ≤12s</span>'));
+        out.push(row('uri', `<span class="dim">at://…/${SAVE_NSID}/${esc(worldKey())}</span>`));
+      } else {
+        const local = localGet(); out.push(row('local save', local ? '<span class="ok">present</span>' : '<span class="dim">none yet</span>'));
+      }
+      out.push(`</div>`);
+      // story engine + tiers
+      if (story.ready) {
+        const p = story.store.getPlayerState(story.playerId), d = currentDeck(), ha = assess(story.store, story.playerId, d);
+        out.push(`<div class="sec"><div class="st">pool</div>`);
+        out.push(row('source', `${esc(story.poolSrc || '?')} <span class="dim">· ${story.store.content.size} items</span>`));
+        out.push(`</div>`);
+        out.push(`<div class="sec"><div class="st">tiers</div>`);
+        out.push(row('deck (narrative)', `${d.tier}/${DECK_COUNT} · ${esc(d.name)}`));
+        out.push(row('revelation', String(p.revelation_tier)));
+        out.push(row('power', `${p.power_tier} <span class="dim">· xp ${p.xp | 0}</span>`));
+        out.push(row('hoopy (this deck)', `${ha.learned}/${ha.needed}${ha.progress >= 1 ? ' <span class="ok">✦ ready</span>' : ''}`));
+        out.push(`</div>`);
+        out.push(`<div class="sec"><div class="st">census</div>`);
+        out.push(row('seen / placed', `${seen.size} / ${story.store.listPlacements(story.playerId).length}`));
+        out.push(row('inventory / pack', `${story.store.listInventoryRows(story.playerId).length} / ${(pack && pack.pack ? pack.pack.length : 0)}`));
+        out.push(row('gems / coins', `${getGems().length} / ◈${getCoins()}`));
+        const vc = story.store.getFact(story.playerId, 'verdict.cursor');
+        out.push(row('verdict cursor', vc ? `<span class="dim">${esc(String(vc)).slice(-16)}</span>` : '<span class="dim">none</span>'));
+        out.push(`</div>`);
+      } else out.push(`<div class="sec"><span class="warn">story not ready (residents still walk)</span></div>`);
+      // pulse
+      out.push(`<div class="sec"><div class="st">the pulse — cross-player rollup</div>`);
+      const pl = pulseLine();
+      if (pl) { out.push(`<div class="pulse">${pl}</div>`); if (pulse.updatedAt) out.push(row('published', `<span class="dim">${esc(new Date(pulse.updatedAt).toLocaleString())}</span>`)); }
+      else out.push(`<div class="dim">not published yet — the Director folds saves here once it's running. Sign in &amp; play to feed it.</div>`);
+      out.push(`</div>`);
+      el.innerHTML = out.join('');
+      const cx = el.querySelector('[data-dclose]'); if (cx) cx.onclick = () => toggleDbg(false);
     }
     // ── SIGN-IN with handle TYPEAHEAD: a small modal whose input live-searches Bluesky handles via the
     //    public appview (app.bsky.actor.searchActorsTypeahead — unauthed). Replaces the bare prompt(): no
@@ -2515,6 +2642,8 @@
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
+    $('dbgbtn').addEventListener('click', () => toggleDbg());
+    addEventListener('keydown', (e) => { if (e.key === '`' && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); toggleDbg(); } });   // ` = story-status panel
     addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !typing() && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load

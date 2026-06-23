@@ -16,6 +16,7 @@
 export const CONTENT_NSID = 'com.minomobi.hoop.story.content';
 export const SAVE_NSID = 'com.minomobi.hoop.story.save';
 export const VERDICT_NSID = 'com.minomobi.hoop.story.verdict';
+export const PULSE_NSID = 'com.minomobi.hoop.story.pulse';
 
 const rkeyOf = (uri) => String(uri).split('/').pop();
 
@@ -73,6 +74,36 @@ export async function putContent(client, ci) {
   const { rkey, value } = contentToRecord(ci);
   return client.putRecord(CONTENT_NSID, rkey, value);
 }
+
+// ── cross-player pulse ⇄ the service repo's `…story.pulse` singleton (rkey='self') ──
+// The BACKEND Director folds every published player save into ONE rollup record. Reading it is the
+// player's direct signal that their save was received and folded server-side (the "hoopy is listening"
+// proof). Public-readable: any browser pulls it through publicClient.getRecordFrom. Returns the parsed
+// summary ({travellers,totalMet,topContent,topChambers,tierDist,xpSum,…}) or null when not yet published.
+export async function loadPulse(client, serviceDid) {
+  try {
+    const rec = await client.getRecordFrom(serviceDid, PULSE_NSID, 'self');
+    const v = rec && (rec.value || rec);
+    if (!v || !v.summaryJson) return null;
+    return JSON.parse(v.summaryJson);
+  } catch (e) { return null; }
+}
+
+// ── enumerate / delete the player's own saves (the world-loader / profile screen) ──
+// Each save record's rkey IS the world key (String(seed)), so listing them lists every profile this
+// player owns across worlds. `client` must be authed for the player's repo (AuthClient.pds). Returns
+// [{ world, ...recordValue }] newest-cursor-order from the PDS; the caller derives a label from stateJson.
+export async function listOwnSaves(client) {
+  const out = [];
+  let cursor;
+  do {
+    const res = await client.listRecords(SAVE_NSID, 100, cursor);
+    for (const r of (res && res.records) || []) out.push({ world: rkeyOf(r.uri), ...(r.value || {}) });
+    cursor = res && res.cursor;
+  } while (cursor);
+  return out;
+}
+export async function deleteOwnSave(client, world) { return client.deleteRecord(SAVE_NSID, world); }
 
 // ── a tiny UNAUTHED read client (browser): public listRecords/getRecord over any repo, no deps ──
 export function publicClient(pdsBase) {
