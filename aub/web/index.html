@@ -119,6 +119,14 @@
   <script type="module">
     import { AuthClient } from './auth.js';
 
+    // Master switch for the atproto sync layer. Keep false until the auth
+    // worker is redeployed with com.minomobi.ecdysium.save in WRITE_COLLECTIONS
+    // (workers/auth/src/oauth/scope.ts) — otherwise sign-in works but the
+    // PDS write is scope-denied. When off, the overlay stays hidden and no
+    // auth calls happen; the game is pure phase-1 (localStorage saves). To
+    // enable: flip to true AND deploy the auth worker.
+    const ATPROTO_ENABLED = false;
+
     const SAVE_NSID = 'com.minomobi.ecdysium.save';
     const LS_KEY = 'ecdysium/save/v1';     // must match save.rs web_storage::KEY
     const MT_KEY = 'ecdysium/save/mtime';
@@ -204,8 +212,10 @@
     });
     out?.addEventListener('click', () => auth.logout());
 
-    // Additive init — never let an auth failure break the game.
+    // Additive init — never let an auth failure break the game. Skipped
+    // entirely (overlay stays hidden) while the atproto layer is disabled.
     (async () => {
+      if (!ATPROTO_ENABLED) { if (box) box.hidden = true; return; }
       try { const u = await auth.init(); render(u); if (u) await pull(); }
       catch (e) { render(null); console.warn('[aub] auth init failed', e); }
     })();

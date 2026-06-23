@@ -104,6 +104,11 @@ lexicon in `lexicons/ecdysium.save.json`), mirroring `hoop`'s `story.save`:
 - If `auth.mino.mobi` is down or the player never signs in, nothing changes —
   the game and its `localStorage` saves work exactly as in phase 1.
 
+**Currently gated off.** The whole sync layer sits behind
+`const ATPROTO_ENABLED = false` in `web/index.html` — the overlay stays hidden
+and no auth calls happen, so the public site is pure phase-1. To turn it on:
+flip the flag to `true` **and** do the auth-worker deploy below.
+
 **Deploy dependency (one-time):** the write needs `com.minomobi.ecdysium.save`
 in the consent ceiling. It's been added to `WRITE_COLLECTIONS` in
 `workers/auth/src/oauth/scope.ts` (and `aub.mino.mobi` to `ALLOWED_ORIGINS` in
