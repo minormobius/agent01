@@ -80,6 +80,34 @@
     #dbg .ok { color: #8fe07a; } #dbg .warn { color: #e08a8a; } #dbg .dim { color: #6f7e77; }
     #dbg .pulse { color: #7fd8d0; }
     @media (pointer: coarse) { #dbg { font-size: 12.5px; } }
+    /* the WORLD LOADER — the save-profile picker. Each ship seed is a profile (a PDS record + a local
+       buffer); this lists them, resumes/deletes them, and starts fresh worlds. Fullscreen overlay. */
+    #loader { position: fixed; inset: 0; z-index: 48; display: none; background: rgba(3,5,9,0.92); overflow-y: auto; pointer-events: auto; }
+    #loader.on { display: block; }
+    #loader .lwrap { width: min(680px, 94vw); margin: 0 auto; padding: calc(34px + env(safe-area-inset-top)) 18px 60px; }
+    #loader .lhead { color: #f4bf62; font-size: 19px; font-weight: 600; }
+    #loader .lsub { color: #8aa39a; font-size: 12.5px; margin: 5px 0 16px; line-height: 1.5; }
+    #loader .lacts { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 18px; }
+    #loader .lbtn { background: #131a22; border: 1px solid #2c3c47; color: #e8efe9; font: inherit; font-size: 13px; padding: 9px 14px; border-radius: 9px; cursor: pointer; transition: .12s; }
+    #loader .lbtn:hover { border-color: #7fd8d0; color: #fff; }
+    #loader .lbtn.prim { background: #7fd8d0; color: #07120f; border-color: #7fd8d0; font-weight: 600; }
+    #loader .lbtn.prim:hover { filter: brightness(1.08); }
+    #loader .lbtn.danger { color: #e08a8a; border-color: #3a2630; } #loader .lbtn.danger:hover { border-color: #e08a8a; color: #fff; }
+    #loader .lclose { float: right; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 13px; cursor: pointer; }
+    #loader .lclose:hover { color: #f4bf62; }
+    #loader .plist { display: flex; flex-direction: column; gap: 10px; }
+    #loader .pcard { border: 1px solid #20303a; border-radius: 11px; padding: 12px 14px; background: rgba(10,13,18,0.7); display: flex; align-items: center; gap: 12px; }
+    #loader .pcard.cur { border-color: #7fd8d0; background: rgba(127,216,208,0.06); }
+    #loader .pmain { flex: 1; min-width: 0; }
+    #loader .pname { color: #f4bf62; font-size: 14px; font-weight: 600; }
+    #loader .pname .cur-tag { color: #7fd8d0; font-size: 10.5px; font-weight: 400; margin-left: 7px; border: 1px solid #2c4a48; border-radius: 5px; padding: 1px 5px; }
+    #loader .pmeta { color: #9aa8a0; font-size: 11.5px; margin-top: 3px; line-height: 1.5; }
+    #loader .pmeta .src { color: #6f7e77; }
+    #loader .pmeta .cloud { color: #7fd8d0; } #loader .pmeta .local { color: #b48a6a; }
+    #loader .pbtns { display: flex; flex-direction: column; gap: 6px; flex: none; }
+    #loader .pbtns .lbtn { padding: 7px 12px; font-size: 12px; text-align: center; }
+    #loader .empty { color: #6f7e77; font-size: 12.5px; padding: 18px 2px; }
+    @media (max-width: 520px) { #loader .pcard { flex-direction: column; align-items: stretch; } #loader .pbtns { flex-direction: row; } #loader .pbtns .lbtn { flex: 1; } }
     #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
     /* the unified NOTICE FEED — a stack of dismissible cards (replaces the single #busy line that every
        toast used to stomp). Newest on top; auto-expire; tap to dismiss; kind sets the left-border accent. */
@@ -345,10 +373,11 @@
     <button id="mapbtn" title="minimap (m)">▦<span class="lbl"> map</span></button>
     <button id="pack" title="open pack (i)">▣<span class="lbl"> pack</span></button>
     <button id="dbgbtn" title="story status (`)">ⓘ<span class="lbl"> story</span></button>
-    <a id="newgame" title="wipe story progress and start over">⟲<span class="lbl"> new game</span></a>
+    <button id="newgame" title="your worlds — resume a save, start a new world, or restart this one">⟲<span class="lbl"> worlds</span></button>
   </div>
   <div class="hud" id="who"></div>
   <div id="dbg"></div>
+  <div id="loader"></div>
   <div id="storybg"></div>
   <div id="story"></div>
   <div id="arc"><div class="acard" id="arccard"></div></div>
@@ -423,7 +452,19 @@
     const isCafe = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'food';
     const VFOV = 0.5;              // vertical field of view = this fraction of a chunk-span of world, DEVICE-INDEPENDENT:
                                    // desktop sees the same world-HEIGHT the phone does (just wider), not a screen-size zoom
-    let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
+    // the world seed IS the save-profile key. Boot resumes the LAST-PLAYED world (or a ?seed=N deep link),
+    // so a reload drops you back into the profile you were in — not always world 7. The loader switches it.
+    const SEED_DEFAULT = 7;
+    let seed = (() => {
+      try {
+        const u = new URLSearchParams(location.search).get('seed');
+        if (u && /^\d+$/.test(u)) return (+u >>> 0) || SEED_DEFAULT;
+        const ls = localStorage.getItem('hoop:v098:lastseed');
+        if (ls && /^\d+$/.test(ls)) return (+ls >>> 0) || SEED_DEFAULT;
+      } catch (e) {}
+      return SEED_DEFAULT;
+    })(), W = 0, H = 0, dpr = 1, busyN = 0;
+    const rememberSeed = () => { try { localStorage.setItem('hoop:v098:lastseed', String(seed)); } catch (e) {} };   // sticky "last played" pointer → boot resumes this world
     let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
     let gpu = null, gpuActive = false;   // the WebGPU cell renderer (set once init resolves); false ⇒ raster fallback
     let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkPath = null, society = null;   // walkPath: the active walk (advanced by the RAF loop, dt-interpolated), null = idle
@@ -709,7 +750,7 @@
       setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal();
       placeAnchors(); ensureChunk0Terminal();   // the authored opening: principals at the cradle + margin, a guaranteed terminal
       renderQuest();   // resolve the storyboard waypoint now that anchors + the terminal exist
-      busy(false); status(); draw(); maybeStream();
+      busy(false); status(); draw(); maybeStream(); rememberSeed();
     }
     function startNode() {
       if (!walk) return -1; const ch = world.chunks[0];
@@ -2547,7 +2588,7 @@
 
     // is a fullscreen overlay/modal covering the world? then the animation loop need not render behind it.
     function worldCovered() {
-      if (arcadeOpen || gardenOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen) return true;
+      if (arcadeOpen || gardenOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen || loaderOpen) return true;
       if (minimap.open || equip.open || (creator && creator.open)) return true;
       if (document.querySelector('.himodal')) return true;                          // the sign-in handle box
       return ['story', 'enc', 'arc', 'garden', 'trade', 'kitchen', 'lapidary', 'battle'].some((id) => { const el = $(id); return el && el.classList.contains('on'); });
@@ -2577,7 +2618,7 @@
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (gpu) gpu.resize(W * dpr, H * dpr); if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !typing() && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world (your durable pack carries across)
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !typing() && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world (your durable pack carries across)
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
@@ -2641,18 +2682,133 @@
       onWaypoint: setWaypoint,
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
-    addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); minimap.toggle(); } });
+    addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !typing() && !e.metaKey && !e.ctrlKey && !loaderOpen) { e.preventDefault(); minimap.toggle(); } });
     $('dbgbtn').addEventListener('click', () => toggleDbg());
     addEventListener('keydown', (e) => { if (e.key === '`' && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); toggleDbg(); } });   // ` = story-status panel
-    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !typing() && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !typing() && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
-    $('newgame').addEventListener('click', () => {
-      if (!confirm('Start a new game? This wipes your story progress — facts, lore, inventory, tiers — and respawns you. The world (and your character) stay.')) return;
-      try { localStorage.removeItem('hoop:v098:story'); localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
-      if (storyUser) { try { auth.pds.deleteRecord(SAVE_NSID, worldKey()).catch(() => {}); } catch (e) {} }   // wipe the cloud save too
+
+    // ── THE WORLD LOADER / SAVE-PROFILE PICKER ──────────────────────────────────────────────────────────
+    //    Each ship seed is a profile (a com.minomobi.hoop.story.save record keyed by seed, in YOUR repo —
+    //    plus a local buffer). Saves are durable + user-owned, so you can keep as many as you like. This
+    //    screen lists them (cloud ☁ + local ◍, merged by seed), resumes/deletes them, and starts fresh
+    //    worlds. Switching a profile is a navigation (?seed=N + reload) so loadStory re-restores cleanly. ──
+    let loaderOpen = false;
+    // pull a one-line summary out of a serialized MemoryStore snapshot WITHOUT instantiating a store
+    function summarizeState(st) {
+      if (!st) return null;
+      try {
+        const players = new Map(st.players || []), p = players.get('local') || {};
+        const fe = (st.facts || []).find((e) => e[0] === 'local'), f = new Map(fe ? fe[1] : []);
+        let name = null; const cj = f.get('character'); if (cj) { try { name = JSON.parse(cj).name; } catch (e) {} }
+        const pl = (st.placements || []).find((e) => e[0] === 'local');
+        return { name, nar: p.narrative_tier || 1, rev: p.revelation_tier || 1, pow: p.power_tier || 1, xp: p.xp | 0, placed: pl ? pl[1].length : 0, coins: +(f.get('coins') || 0) };
+      } catch (e) { return null; }
+    }
+    const safeParse = (s) => { try { return s ? JSON.parse(s) : null; } catch (e) { return null; } };
+    // every per-world local buffer (hoop:v098:story:<seed>) + the legacy global (→ seed 7 if not shadowed)
+    function localProfiles() {
+      const out = [], pre = LOCAL_PREFIX + ':';
+      try {
+        let hasLegacy = false, has7 = false;
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(pre)) { const s = k.slice(pre.length); if (/^\d+$/.test(s)) { out.push({ world: s, state: safeParse(localStorage.getItem(k)) }); if (s === '7') has7 = true; } }
+          else if (k === LOCAL_PREFIX) hasLegacy = true;
+        }
+        if (hasLegacy && !has7) out.push({ world: '7', state: safeParse(localStorage.getItem(LOCAL_PREFIX)) });
+      } catch (e) {}
+      return out;
+    }
+    // merge local + (if signed in) cloud saves into one profile list, keyed by world seed
+    async function gatherProfiles() {
+      const map = new Map();
+      for (const p of localProfiles()) map.set(p.world, { world: p.world, local: true, cloud: false, state: p.state, updatedAt: null });
+      if (storyUser) {
+        try {
+          for (const r of await listOwnSaves(auth.pds)) {
+            const ex = map.get(r.world) || { world: r.world, local: false, state: null, updatedAt: null };
+            ex.cloud = true; if (r.updatedAt) ex.updatedAt = r.updatedAt;
+            if (!ex.state && r.stateJson) ex.state = safeParse(r.stateJson);
+            map.set(r.world, ex);
+          }
+        } catch (e) { /* cloud list is best-effort */ }
+      }
+      return [...map.values()].sort((a, b) => {
+        if (a.world === worldKey()) return -1; if (b.world === worldKey()) return 1;   // current world floats to top
+        return String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')) || (+a.world - +b.world);
+      });
+    }
+    // navigate to a world (reload re-inits seed from ?seed → loadStory restores that profile)
+    function switchToWorld(s) { rememberSeedTo(s); const u = new URL(location.href); u.searchParams.set('seed', String(s)); location.href = u.toString(); }
+    const rememberSeedTo = (s) => { try { localStorage.setItem('hoop:v098:lastseed', String(s)); } catch (e) {} };
+    // a brand-new game: a fresh random seed with no save → clean character-creation start. Clears the
+    // (global) waypoint so you don't aim at the old world. This is the "fully new game".
+    function newRandomWorld() {
+      const s = ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0) || 1;
+      try { localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+      switchToWorld(s);
+    }
+    async function deleteProfile(s) {
+      if (!confirm(`Delete the save for world ${s}? This removes it from ${storyUser ? 'your PDS and ' : ''}this device. Can't be undone.`)) return;
+      localDel(s);
+      if (storyUser) { try { await deleteOwnSave(auth.pds, String(s)); } catch (e) {} }
+      if (String(s) === worldKey()) { try { localStorage.removeItem('hoop:v098:lastseed'); } catch (e) {} location.href = location.pathname; return; }   // deleted the current world → boot back to default
+      renderLoader();
+    }
+    // restart THIS world from scratch (the old #newgame behaviour) — wipe its story progress, keep the seed
+    function restartCurrentWorld() {
+      if (!confirm('Restart this world? Wipes its story progress — facts, lore, inventory, tiers — and respawns you. The world geometry and your character stay.')) return;
+      localDel(); try { localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+      if (storyUser) { try { auth.pds.deleteRecord(SAVE_NSID, worldKey()).catch(() => {}); } catch (e) {} }
       location.reload();
-    });
+    }
+    function openLoader() { loaderOpen = true; $('loader').classList.add('on'); renderLoader(); }
+    function closeLoader() { loaderOpen = false; $('loader').classList.remove('on'); }
+    async function renderLoader() {
+      const el = $('loader'); if (!el) return;
+      el.innerHTML = `<div class="lwrap"><button class="lclose" data-lclose>✕ close</button>
+        <div class="lhead">your worlds</div>
+        <div class="lsub">Each ship is a separate save — kept on ${storyUser ? `your PDS (@${esc(storyUser.handle)})` : 'this device'}, so you can run as many as you like. Resume one, start fresh, or clear one out.</div>
+        <div class="lacts">
+          <button class="lbtn prim" data-new>✦ new world</button>
+          <button class="lbtn" data-restart>↻ restart this world</button>
+          ${storyUser ? '' : '<button class="lbtn" data-signin>sign in to sync across devices</button>'}
+        </div>
+        <div class="plist" id="plist"><div class="empty">reading saves…</div></div></div>`;
+      el.querySelector('[data-lclose]').onclick = closeLoader;
+      el.querySelector('[data-new]').onclick = newRandomWorld;
+      el.querySelector('[data-restart]').onclick = restartCurrentWorld;
+      const si = el.querySelector('[data-signin]'); if (si) si.onclick = () => { closeLoader(); signIn(); };
+      let profiles = [];
+      try { profiles = await gatherProfiles(); } catch (e) {}
+      if (!loaderOpen) return;   // closed while awaiting
+      const list = el.querySelector('#plist'); if (!list) return;
+      if (!profiles.length) { list.innerHTML = `<div class="empty">No saves yet — you're playing world ${esc(worldKey())}. It'll appear here once it saves.</div>`; return; }
+      list.innerHTML = profiles.map((p) => {
+        const cur = p.world === worldKey(), s = summarizeState(p.state);
+        const deck = s ? deckForTier(s.nar) : null;
+        const title = s && s.name ? esc(s.name) : 'unnamed traveller';
+        const src = [p.cloud ? '<span class="cloud">☁ cloud</span>' : '', p.local ? '<span class="local">◍ local</span>' : ''].filter(Boolean).join(' · ');
+        const meta = s ? `deck ${s.nar}/${DECK_COUNT}${deck ? ' · ' + esc(deck.name) : ''} · rev ${s.rev} · pow ${s.pow} · ◈${s.coins} · ${s.placed} lore` : '<span class="src">empty / unreadable save</span>';
+        const when = p.updatedAt ? ` · <span class="src">saved ${esc(new Date(p.updatedAt).toLocaleString())}</span>` : '';
+        return `<div class="pcard${cur ? ' cur' : ''}">
+          <div class="pmain">
+            <div class="pname">${title}${cur ? '<span class="cur-tag">playing now</span>' : ''}</div>
+            <div class="pmeta">world ${esc(p.world)} · ${src}<br>${meta}${when}</div>
+          </div>
+          <div class="pbtns">
+            ${cur ? '<button class="lbtn" data-resume disabled style="opacity:.4;cursor:default">current</button>' : `<button class="lbtn prim" data-resume="${esc(p.world)}">resume</button>`}
+            <button class="lbtn danger" data-del="${esc(p.world)}">delete</button>
+          </div></div>`;
+      }).join('');
+      list.querySelectorAll('[data-resume]').forEach((b) => { const w = b.getAttribute('data-resume'); if (w) b.onclick = () => switchToWorld(w); });
+      list.querySelectorAll('[data-del]').forEach((b) => { b.onclick = () => deleteProfile(b.getAttribute('data-del')); });
+    }
+    $('loader').addEventListener('click', (e) => { if (e.target === $('loader')) closeLoader(); });   // click the backdrop to dismiss
+    $('newgame').addEventListener('click', openLoader);
+    addEventListener('keydown', (e) => { if (e.key === 'Escape' && loaderOpen) { e.preventDefault(); closeLoader(); } });
     loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
     // bring up the WebGPU cell renderer (crisp vector fills). Async + fully guarded: if it never resolves
     // or WebGPU is missing, the game stays on the baked-raster path with zero change.
