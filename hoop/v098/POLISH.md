@@ -23,8 +23,13 @@ and tested; what remains is *feel*. This is the living checklist for the final p
 - [x] verdict consumer (`story/verdicts.js`) wired live: sweep on save-load, tab-refocus, 60 s poll
 - [ ] **verdict notices** — currently one `#busy` toast (multiple stomp). Want a small notice **log**
       (a dismissible stack) + a "what changed" panel on a retcon, not a flash.
-- [ ] **pulse** (`story.pulse`) — the cross-player rollup is never shown. An ambient line ("31
-      travellers have met the Keeper") on the auth pill or a corner would close the loop's last leg.
+- [x] **pulse** (`story.pulse`) — wired. `loadPulse` reads the morphyx rollup singleton; the auth
+      pill shows a "◍ N travellers" chip (tap → panel) and the new **story-status panel** (` / ⓘ dock)
+      shows the full "N travellers · M have met the Keeper" line. Best-effort, public, fully guarded.
+- [x] **story-status / debug panel** — toggleable read-only overlay proving the save-loop end to end:
+      identity (@handle/DID), save (world key, cloud ✓/failed/dirty + uri, or local), pool source+count,
+      tiers (deck/rev/pow/xp + hoopy learned/needed), census (seen/placed, inv/pack, gems/coins, verdict
+      cursor), and the pulse line. Refreshes every 2 s while open.
 - [ ] verdicts need a signed-in DID (they're DID-tagged) — anonymous players get none. Intended,
       but surface it (a hint in the auth pill: "sign in to receive the Tabard's changes").
 - [ ] records page (`/v098/records`) — note that the verdict feed is now consumed live.
@@ -45,6 +50,11 @@ and tested; what remains is *feel*. This is the living checklist for the final p
 
 ## Durability / save — foundation laid this session
 - [x] pack is durable (`pack.items` fact); combat/shop/gem state rides the existing `story.save`
+- [x] **multi-profile saves + world loader** — each ship seed is a separate save (PDS record keyed by
+      seed + a per-world local buffer, `hoop:v098:story:<seed>`, migrated off the legacy global). Boot
+      resumes the last-played world (`hoop:v098:lastseed` / `?seed=N`). The ⟲ "worlds" dock button opens
+      a picker that lists profiles (local ◍ + cloud ☁, merged), resumes/deletes them, and starts fresh
+      worlds (✦ new world = the "fully new game"; ↻ restart = the old wipe).
 - [ ] save size: items carry full genomes; a deep pack + gem satchel is sizeable JSON. Watch the
       100 KB `stateJson` ceiling on heavy saves; consider trimming item genomes to a re-roll seed.
 
