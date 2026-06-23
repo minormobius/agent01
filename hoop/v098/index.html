@@ -15,7 +15,7 @@
        cards, and dock — maddening on mobile). `manipulation` keeps pan + pinch-zoom, drops double-tap. */
     #dock, #arc, #garden, #trade, #kitchen, #lapidary, #battle, #story, #storybg, #enc, #dbg, #loader, #notices, .himodal { touch-action: manipulation; }
     .hud { position: fixed; font-size: 11px; color: #6b7872; pointer-events: none; user-select: none; }
-    #status { top: 8px; left: 10px; }
+    #status { display: none; }   /* the diagnostic readout (seed · chunks · souls · perf) lives in the story panel (ⓘ) now — off the main screen */
     #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
     #here b { color: #f4bf62; }
     #back { bottom: calc(8px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); color: #7fd8d0; text-decoration: none; pointer-events: auto; }
@@ -774,10 +774,17 @@
     function walkTo(wx, wy) {
       walkPath = null;
       const dst = nearestDeckNode(wx, wy); if (dst < 0 || player < 0) return;   // never target an impassable fixture tile — and stay on the current deck (decks share a footprint)
-      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); arrive(); return; }
       route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm;
       walkPath = { sm, f: 0, p, dst };   // the RAF loop advances `f` (sample index) by dt and interpolates pp between samples
     }
+    // WALK THEN INTERACT: clicking a person/fixture now WALKS there first and opens the encounter on arrival,
+    // instead of popping the screen the instant you click (you'd interact "from across the room"). The action
+    // is queued in pendingArrival and fired by arrive() — from walkTo's already-adjacent branch or when
+    // advanceWalk reaches the destination. Any subsequent click clears the queue (see the canvas handler).
+    let pendingArrival = null;
+    function arrive() { const f = pendingArrival; pendingArrival = null; if (f) { try { f(); } catch (e) {} } }
+    function walkThenInteract(x, y, action) { pendingArrival = action; walkTo(x, y); }
     // advance the active walk by `dt` ms, INTERPOLATING the player between path samples (frame-rate
     // independent: 1 chaikin sample per 24ms of progress, so speed is identical at 30 or 60fps). Returns
     // true while moving. Reveal is throttled; streaming is throttled; the RAF loop draws once after this.
@@ -785,7 +792,7 @@
     function advanceWalk(dt) {
       const wp = walkPath, sm = wp.sm; if (!sm || sm.length < 2) { walkPath = null; return false; }
       wp.f += dt / 24;
-      if (wp.f >= sm.length - 1) { player = wp.dst; pp.x = walk.pos[2 * wp.dst]; pp.y = walk.pos[2 * wp.dst + 1]; route = []; routePts = []; walkPath = null; followCam(); reveal(); maybeStream(); return true; }
+      if (wp.f >= sm.length - 1) { player = wp.dst; pp.x = walk.pos[2 * wp.dst]; pp.y = walk.pos[2 * wp.dst + 1]; route = []; routePts = []; walkPath = null; followCam(); reveal(); maybeStream(); arrive(); return true; }
       const i0 = Math.floor(wp.f), t = wp.f - i0, a = sm[i0], b = sm[i0 + 1], ox = pp.x, oy = pp.y;
       pp.x = a[0] + (b[0] - a[0]) * t; pp.y = a[1] + (b[1] - a[1]) * t;
       pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i0;     // face the way you move; advance the walk cycle
@@ -1374,6 +1381,15 @@
       }
       out.push(`</div>`);
       // story engine + tiers
+      // world + render diagnostics (the old top-left #status line, moved here off the main screen)
+      if (world) {
+        out.push(`<div class="sec"><div class="st">world</div>`);
+        out.push(row('chunks / souls', `${world.chunks.length} / ${residents.length}`));
+        out.push(row('explored', `${walk ? (seen.size / walk.N * 100) | 0 : 0}% <span class="dim">· ${(chunkSpan * VFOV) | 0}u tall</span>`));
+        const perf = `<span class="${gpuActive ? 'ok' : ''}">${gpuActive ? 'gpu' : 'raster'}</span>${_drawMs ? ' · ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' · ' + (_fps | 0) + 'fps' : ''}${_maxDt > 20 ? ' · max ' + _maxDt.toFixed(0) + 'ms' : ''}${_socMs > 1 ? ' · soc ' + _socMs.toFixed(0) + 'ms' : ''}${_stitchMs > 1 ? ' · stitch ' + _stitchMs.toFixed(0) + 'ms' : ''}`;
+        out.push(row('render', perf));
+        out.push(`</div>`);
+      }
       if (story.ready) {
         const p = story.store.getPlayerState(story.playerId), d = currentDeck(), ha = assess(story.store, story.playerId, d);
         out.push(`<div class="sec"><div class="st">pool</div>`);
@@ -2565,8 +2581,14 @@
           ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);
           ctx.imageSmoothingEnabled = true;
         } else { ctx.fillStyle = a.color; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.glyph || '☻', sx, sy); }
-        ctx.fillStyle = a.color; ctx.font = 'bold 11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(a.name, sx, sy - h * 0.92 - 8);   // nameplate above the head
+        // nameplate ABOVE the head — clearance scales with the sprite (small on a zoomed-out phone, the name
+        // used to sit on the sprite's scalp), on a dark pill so it stays legible over the figure.
+        ctx.font = 'bold 11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const ny = sy - h * 0.92 - Math.max(11, h * 0.22), tw = ctx.measureText(a.name).width;
+        ctx.fillStyle = 'rgba(6,9,13,0.72)';
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(sx - tw / 2 - 5, ny - 8, tw + 10, 16, 5); ctx.fill(); }
+        ctx.fillStyle = a.color;
+        ctx.fillText(a.name, sx, ny);
         ctx.restore();
       }
     }
@@ -2584,26 +2606,27 @@
           walkTo(shaftXY.x, shaftXY.y); return;
         }
       }
+      pendingArrival = null;   // a fresh click cancels any queued walk-then-interact
       const a = anchorAt(wx, wy);
-      if (a) { openAnchor(a); walkTo(a.x, a.y); return; }
+      if (a) { walkThenInteract(a.x, a.y, () => openAnchor(a)); return; }
       const who = residentAt(wx, wy);
-      if (who) { openStory(who); walkTo(who.x, who.y); return; }
+      if (who) { walkThenInteract(who.x, who.y, () => openStory(who)); return; }
       const term = componentAt(wx, wy);
-      if (term) { openTerminal(term.cp, term.ch); walkTo(term.cp.cx, term.cp.cy); return; }
+      if (term) { walkThenInteract(term.cp.cx, term.cp.cy, () => openTerminal(term.cp, term.ch)); return; }
       const arc = arcadeAt(wx, wy);
-      if (arc) { openArcade(arc.cp, arc.ch); walkTo(arc.cp.cx, arc.cp.cy); return; }
+      if (arc) { walkThenInteract(arc.cp.cx, arc.cp.cy, () => openArcade(arc.cp, arc.ch)); return; }
       const caf = cafeAt(wx, wy);
-      if (caf) { openCafe(caf.cp, caf.ch); walkTo(caf.cp.cx, caf.cp.cy); return; }
+      if (caf) { walkThenInteract(caf.cp.cx, caf.cp.cy, () => openCafe(caf.cp, caf.ch)); return; }
       const grd = gardenAt(wx, wy);
-      if (grd) { openGarden(grd.cp, grd.ch); walkTo(grd.cp.cx, grd.cp.cy); return; }
+      if (grd) { walkThenInteract(grd.cp.cx, grd.cp.cy, () => openGarden(grd.cp, grd.ch)); return; }
       const trd = tradeAt(wx, wy);
-      if (trd) { openTrade(trd.cp, trd.ch); walkTo(trd.cp.cx, trd.cp.cy); return; }
+      if (trd) { walkThenInteract(trd.cp.cx, trd.cp.cy, () => openTrade(trd.cp, trd.ch)); return; }
       const cre = creepAt(wx, wy);
-      if (cre) { openBattle(cre.cp, cre.ch); return; }
+      if (cre) { walkThenInteract(cre.cp.cx, cre.cp.cy, () => openBattle(cre.cp, cre.ch)); return; }
       const mnd = mendAt(wx, wy);
-      if (mnd) { openLapidary(mnd.cp, mnd.ch); return; }
+      if (mnd) { walkThenInteract(mnd.cp.cx, mnd.cp.cy, () => openLapidary(mnd.cp, mnd.ch)); return; }
       const lf = livingFixtureAt(wx, wy);
-      if (lf) { walkTo(lf.x, lf.y); if (lf.action === 'bed') useBed(); else openKitchen(lf.gid); return; }
+      if (lf) { walkThenInteract(lf.x, lf.y, () => { if (lf.action === 'bed') useBed(); else openKitchen(lf.gid); }); return; }
       if (story.active) { story.active = null; renderStory(); }
       walkTo(wx, wy);
     });
