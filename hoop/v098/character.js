@@ -43,44 +43,37 @@ export class CharacterCreator {
     root.id = 'char'; root.style.cssText = 'position:fixed;inset:0;z-index:40;display:none;overflow:auto;background:radial-gradient(120% 120% at 50% 30%,rgba(8,11,16,.96),rgba(3,4,7,.99));font-family:"JetBrains Mono",ui-monospace,monospace;color:#dfe7e2;';
     root.innerHTML = `
       <button id="chclose" style="position:absolute;top:10px;right:14px;background:none;border:0;color:#6b7872;font:inherit;font-size:12px;cursor:pointer;z-index:2">close ⏎</button>
-      <div style="max-width:900px;margin:0 auto;padding:30px 18px 60px;">
+      <div style="max-width:720px;margin:0 auto;padding:30px 18px 60px;">
         <div style="text-align:center;margin-bottom:16px">
           <div style="font-size:13px;color:#7fd8d0;letter-spacing:1px">CHARACTER · roll up a crew-soul</div>
           <div style="font-size:10.5px;color:#6b7872;margin-top:3px">class mirrors the civic tree · everyone is a little bit robot</div>
         </div>
-        <!-- SPRITE: a dedicated, centred element (the name + identity sit beneath it, never beside it) -->
-        <div style="text-align:center;max-width:300px;margin:0 auto 24px">
-          <canvas id="chsprite" width="220" height="220" style="width:200px;height:200px;image-rendering:pixelated;background:radial-gradient(circle at 50% 42%,#0c1118,#06080c);border:1px solid #1b2530;border-radius:14px;display:block;margin:0 auto"></canvas>
-          <div style="display:flex;gap:6px;justify-content:center;align-items:center;margin-top:13px">
+        <!-- the SPRITE is a FLOATED element: the name, rerolls, vocation and stats all work their way around it -->
+        <div class="chflow">
+          <canvas id="chsprite" width="220" height="220" class="chsprite"></canvas>
+          <div class="chrow" style="margin-bottom:5px">
             <input id="chnameinput" type="text" maxlength="28" placeholder="name your character" autocomplete="off" spellcheck="false"
-              style="flex:1;min-width:0;max-width:220px;background:#0c1118;border:1px solid #2c3c47;color:#f4bf62;font:inherit;font-size:16px;font-weight:600;text-align:center;padding:8px 10px;border-radius:9px;outline:none">
+              style="flex:1;min-width:130px;background:#0c1118;border:1px solid #2c3c47;color:#f4bf62;font:inherit;font-size:16px;font-weight:600;padding:8px 10px;border-radius:9px;outline:none">
             <button class="chbtn" id="chrerollName" title="suggest a name">⟳</button>
           </div>
-          <div id="chnamewarn" style="font-size:10.5px;color:#e08a8a;height:13px;margin-top:4px"></div>
+          <div id="chnamewarn" style="font-size:10.5px;color:#e08a8a;height:13px"></div>
           <div id="chcast" style="font-size:11px;color:#9aa8a0;margin-top:1px"></div>
-          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap">
+          <div class="chrow" style="margin:11px 0 16px">
             <button class="chbtn" id="chrerollAll">⟳ reroll all</button>
             <button class="chbtn" id="chrerollSprite">⟳ body</button>
             <button class="chbtn" id="chrerollQuirks">⟳ quirks</button>
           </div>
-        </div>
-        <!-- BELOW: vocation + stats — two columns on a wide screen, a single stack on a phone -->
-        <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start">
-          <div style="flex:1 1 280px;min-width:240px">
-            <div class="chh">VOCATION <span style="color:#6b7872">· the civic tree</span></div>
-            <div id="chvocs" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px"></div>
-            <div id="chvocgloss" style="font-size:10.5px;color:#9aa8a0;margin-top:8px;min-height:28px;line-height:1.45"></div>
-          </div>
-          <div style="flex:1 1 280px;min-width:240px">
-            <div class="chh">BLEND <span style="color:#6b7872">· flesh · chassis · anima</span></div>
-            <div id="chtriad" style="margin-top:8px"></div>
-            <div class="chh" style="margin-top:14px">ATTRIBUTES</div>
-            <div id="chattrs" style="margin-top:7px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px 12px"></div>
-            <div class="chh" style="margin-top:14px">IN A FIGHT</div>
-            <div id="chcombat" style="margin-top:6px;font-size:11px;color:#cfd8d2"></div>
-            <div class="chh" style="margin-top:14px">CHARACTERISTICS</div>
-            <div id="chquirks" style="margin-top:6px"></div>
-          </div>
+          <div class="chh">VOCATION <span style="color:#6b7872">· the civic tree</span></div>
+          <div id="chvocs" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px"></div>
+          <div id="chvocgloss" style="font-size:10.5px;color:#9aa8a0;margin-top:8px;min-height:28px;line-height:1.45"></div>
+          <div class="chh" style="margin-top:16px">BLEND <span style="color:#6b7872">· flesh · chassis · anima</span></div>
+          <div id="chtriad" style="margin-top:8px"></div>
+          <div class="chh" style="margin-top:16px">ATTRIBUTES</div>
+          <div id="chattrs" style="margin-top:7px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px 12px"></div>
+          <div class="chh" style="margin-top:16px">IN A FIGHT</div>
+          <div id="chcombat" style="margin-top:6px;font-size:11px;color:#cfd8d2"></div>
+          <div class="chh" style="margin-top:16px">CHARACTERISTICS</div>
+          <div id="chquirks" style="margin-top:6px"></div>
         </div>
         <button id="chembark" style="margin:24px auto 0;display:block;width:100%;max-width:420px;background:#11331f;border:1px solid #2f7a4a;color:#bfe9cf;font:inherit;font-size:13px;padding:11px;border-radius:9px;cursor:pointer">embark →</button>
       </div>
@@ -88,6 +81,10 @@ export class CharacterCreator {
         #char .chbtn{background:#0f141a;border:1px solid #20303a;color:#dfe7e2;font:inherit;font-size:11px;padding:4px 9px;border-radius:7px;cursor:pointer}
         #char .chbtn:hover{border-color:#7fd8d0;color:#fff}
         #char .chh{font-size:11px;color:#7fd8d0;letter-spacing:.6px;border-bottom:1px solid #1b2530;padding-bottom:4px}
+        #char .chflow::after{content:"";display:block;clear:both}   /* contain the float so the embark button sits below */
+        #char .chsprite{float:left;width:172px;height:172px;image-rendering:pixelated;background:radial-gradient(circle at 50% 42%,#0c1118,#06080c);border:1px solid #1b2530;border-radius:14px;margin:2px 20px 12px 0}
+        #char .chrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+        @media (max-width:560px){ #char .chsprite{width:118px;height:118px;margin:2px 14px 10px 0} }
         #char .voc{text-align:left;background:#0d1117;border:1px solid #1b2530;color:#cfd8d2;font:inherit;font-size:11px;padding:5px 7px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:6px}
         #char .voc:hover{border-color:#7fd8d0}
         #char .voc.on{border-color:#f4bf62;color:#fff;background:#161d12}
