@@ -212,6 +212,14 @@ footer a { color: var(--muted); text-decoration: underline; }
         <button data-lens="sharp">sharp</button>
       </div>
     </div>
+    <div class="field" style="flex:1.8;">
+      <label class="lbl">name kind &mdash; type words, or actual named instances</label>
+      <div class="seg" id="kind">
+        <button data-kind="type" class="on">type words</button>
+        <button data-kind="named">named</button>
+        <button data-kind="both">both</button>
+      </div>
+    </div>
   </div>
 
   <div class="opts">
@@ -271,6 +279,8 @@ footer a { color: var(--muted); text-decoration: underline; }
 </table>
 
 <p>Two things to take from this. First, distinctiveness and protectability rise together &mdash; the law rewards names that don't describe, because a descriptive name is a word your competitors also need. Second, and more usefully here: <strong>most great name families live in the suggestive-to-arbitrary band.</strong> A metaphor-derived family (planets, rivers, ranks) is by construction <em>arbitrary</em> with respect to the product &mdash; &ldquo;Saturn&rdquo; has nothing to do with a storage tier &mdash; yet <em>suggestive</em> with respect to the family, because once you know the metaphor, each member's position is legible. That double life is exactly what you want. (The generator's <em>coin it</em> toggle nudges a family one notch further, toward the fanciful end.)</p>
+
+<p>There's a second vocabulary hiding inside every domain: <strong>type words</strong> versus <strong>named instances</strong>. The water cycle's type words are <em>Vapor, Rain, River</em>; its named instances are the <em>Thames</em>, the <em>Danube</em>, the <em>Mekong</em>. Mountains give you <em>Ridge, Crag, Summit</em> &mdash; or <em>Everest, Denali, Eiger</em>. Winds give you <em>gust</em> and <em>gale</em> &mdash; or the <em>Mistral</em> and the <em>Sirocco</em>. Reaching for the already-named pays off because someone has already done the work of making those words feel like names. But mind two things. First, on the §02 spectrum, a proper instance sits further toward <em>arbitrary</em> &mdash; more ownable, but also more loaded: a named river may already be a company, a mountain a trademark. Second, named instances usually form a <em>flat peer set</em>; they shed the internal ordering the type words carried (Source&rarr;Mouth is structure; Thames&rarr;Nile is not). So reach for named instances when the relation is <em>kindred</em> or the tiers differ by vibe; keep type words when position has to read. The generator's <em>name kind</em> toggle switches between the two, or blends them.</p>
 
 <h2><span class="num">03</span>Sound is meaning before semantics</h2>
 
@@ -345,7 +355,7 @@ your objects' <strong>relation structure</strong> &nbsp;&xrarr;&nbsp; a <strong>
 <li><strong>Apply the extensibility test.</strong> Can a stranger, told only the metaphor, name the next member correctly? If yes, ship it. If no, the domain is too sparse or too arbitrary &mdash; go back to move 3.</li>
 </ol>
 
-<p>The generator at the top runs moves 2&ndash;5 on a library of ~60 source domains, cross-indexed by fourteen relation modes and nine registers. Moves 1, 6, and 7 are yours.</p>
+<p>The generator at the top runs moves 2&ndash;5 on a library of ~60 source domains, cross-indexed by fourteen relation modes and nine registers, many of them thickened with named instances (the Thames, Everest, the Mistral) alongside their type words. Moves 1, 6, and 7 are yours.</p>
 
 <h2><span class="num">07</span>Pitfalls</h2>
 <ul>
@@ -423,7 +433,8 @@ const PACKS = [
     members:['Vapor','Mist','Cloud','Rain','Spring','Brook','Stream','River','Estuary','Tide'] },
   { id:'river', name:'A river’s course', tone:'natural', modes:['flow','sequential','branching'],
     note:'Headwaters to the sea — a pipeline with a direction.',
-    members:['Source','Spring','Brook','Confluence','Channel','Current','Bend','Delta','Mouth'] },
+    members:['Source','Spring','Brook','Confluence','Channel','Current','Bend','Delta','Mouth'],
+    proper:['Nile','Tigris','Ganges','Rhine','Rhone','Severn','Thames','Danube','Volga','Indus','Congo','Mekong','Loire','Tiber','Avon'] },
   { id:'seasons', name:'The seasons', tone:'natural', modes:['cyclical','sequential'],
     note:'A four-beat wheel that always returns.',
     members:['Spring','Summer','Harvest','Autumn','Winter'] },
@@ -438,7 +449,8 @@ const PACKS = [
     members:['Seed','Sprout','Root','Stem','Leaf','Bud','Bloom','Canopy'] },
   { id:'ascent', name:'A mountain ascent', tone:'natural', modes:['hierarchical','sequential','spatial','scalar'],
     note:'Foothill to summit — height as the axis.',
-    members:['Foothill','Slope','Bluff','Ridge','Crag','Spur','Peak','Summit'] },
+    members:['Foothill','Slope','Bluff','Ridge','Crag','Spur','Peak','Summit'],
+    proper:['Everest','Denali','Eiger','Rainier','Fuji','Olympus','Shasta','Hood','Elbrus','Etna','Blanc','Kenya'] },
   { id:'weather', name:'Weather fronts', tone:'natural', modes:['kindred','oppositional'],
     note:'Calm to storm and back — a set of moods of the sky.',
     members:['Calm','Breeze','Mist','Front','Squall','Gale','Storm','Thaw'] },
@@ -457,13 +469,15 @@ const PACKS = [
   // ---- mythic ----
   { id:'celestial', name:'The wandering stars', tone:'mythic', modes:['kindred','oppositional','radial'],
     note:'Distinct bodies, each with its own temper — a peer set.',
-    members:['Sol','Luna','Mercury','Venus','Mars','Vesta','Polaris','Vega'] },
+    members:['Sol','Luna','Mercury','Venus','Mars','Vesta','Polaris','Vega'],
+    proper:['Mercury','Venus','Terra','Mars','Jupiter','Saturn','Uranus','Neptune','Ceres','Vesta','Pallas'] },
   { id:'light', name:'Light & shadow', tone:'mythic', modes:['oppositional'],
     note:'Poles and their thresholds.',
     members:['Dawn','Aurora','Glare','Eclipse','Penumbra','Umbra','Dusk'] },
   { id:'constell', name:'Constellations', tone:'mythic', modes:['kindred'],
     note:'Named patterns in the dark — evocative, unordered.',
-    members:['Lyra','Orion','Draco','Cygnus','Vega','Corvus','Hydra','Aquila'] },
+    members:['Lyra','Orion','Draco','Cygnus','Vega','Corvus','Hydra','Aquila'],
+    proper:['Vega','Sirius','Rigel','Altair','Antares','Deneb','Capella','Procyon','Arcturus','Bellatrix','Mizar','Lyra','Orion'] },
   { id:'elements4', name:'The four elements', tone:'mythic', modes:['kindred','oppositional','partwhole'],
     note:'Fire, water, air, earth — the oldest four-way set.',
     members:['Ember','Tide','Gale','Stone','Aether'] },
@@ -476,13 +490,15 @@ const PACKS = [
     members:['Largo','Adagio','Andante','Moderato','Allegro','Vivace','Presto'] },
   { id:'winds', name:'The four winds', tone:'classical', modes:['oppositional','kindred'],
     note:'Named winds of the compass — directional and poetic.',
-    members:['Boreas','Eurus','Notus','Zephyr','Aquilo','Caurus'] },
+    members:['Boreas','Eurus','Notus','Zephyr','Aquilo','Caurus'],
+    proper:['Mistral','Sirocco','Levant','Chinook','Bora','Khamsin','Foehn','Zephyr','Boreas','Harmattan','Pampero','Etesian'] },
   { id:'greek', name:'Greek letters', tone:'classical', modes:['sequential','kindred'],
     note:'An ordered alphabet — versioning’s favorite spine.',
     members:['Alpha','Beta','Gamma','Delta','Epsilon','Zeta','Eta','Theta'] },
   { id:'roman', name:'Roman architecture', tone:'classical', modes:['partwhole','spatial'],
     note:'The members of a built forum.',
-    members:['Forum','Arch','Aqueduct','Column','Vault','Portico','Atrium','Rostra'] },
+    members:['Forum','Arch','Aqueduct','Column','Vault','Portico','Atrium','Rostra'],
+    proper:['Appia','Aurelia','Flaminia','Ostia','Capitol','Palatine','Aventine','Latium','Salaria','Cassia'] },
   // ---- technical ----
   { id:'ranks', name:'Field ranks', tone:'plain', modes:['hierarchical'],
     note:'A chain of command, low to high.',
@@ -501,7 +517,8 @@ const PACKS = [
     members:['Node','Bus','Gate','Relay','Array','Core','Bridge','Trace'] },
   { id:'orbit', name:'Orbital mechanics', tone:'technical', modes:['kindred','sequential','radial'],
     note:'The waypoints of a trajectory.',
-    members:['Apogee','Perigee','Orbit','Transit','Vector','Drift','Apsis'] },
+    members:['Apogee','Perigee','Orbit','Transit','Vector','Drift','Apsis'],
+    proper:['Apollo','Gemini','Voyager','Cassini','Juno','Sputnik','Pioneer','Horizon','Kepler','Hubble','Galileo','Magellan'] },
   // ---- craft ----
   { id:'forge', name:'The forge', tone:'craft', modes:['sequential','flow'],
     note:'Raw ore worked, step by step, to a finished edge.',
@@ -523,7 +540,8 @@ const PACKS = [
     members:['Clay','Wedge','Throw','Trim','Bisque','Glaze','Kiln'] },
   { id:'ship', name:'A ship', tone:'craft', modes:['partwhole','kindred'],
     note:'The parts and instruments of one vessel.',
-    members:['Helm','Keel','Mast','Tiller','Compass','Sextant','Anchor','Beacon'] },
+    members:['Helm','Keel','Mast','Tiller','Compass','Sextant','Anchor','Beacon'],
+    proper:['Endeavour','Beagle','Victory','Cutty','Mayflower','Endurance','Nautilus','Argo','Pequod','Dawn'] },
   // ---- plain ----
   { id:'compass', name:'Compass points', tone:'plain', modes:['oppositional','kindred','spatial'],
     note:'The cardinal set — plus zenith and nadir.',
@@ -662,6 +680,7 @@ function coin(word){
 let mode = 'spatial';
 let tone = 'any';
 let lens = 'any';
+let kind = 'type';   // 'type' (common nouns) | 'named' (proper instances) | 'both'
 
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
 
@@ -670,23 +689,33 @@ function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=(Math.ra
 // its first member is the hub and must always appear.)
 const ORDERED_MODES = new Set(['sequential','cyclical','hierarchical','scalar','flow','causal','nested','branching','kinship']);
 
-// Pick k members. Ordered modes spread evenly across native order; radial pins
-// the hub then samples spokes; unordered modes sample at random. The lens biases
-// which members survive.
+// Which words a pack offers for the current name-kind. Type words are the common
+// nouns (they encode the relation's order); named instances are the proper-noun
+// exemplars (a flat, more-ownable peer set).
+function poolFor(pack){
+  if (kind === 'named') return (pack.proper && pack.proper.length) ? pack.proper.slice() : null;
+  if (kind === 'both'  && pack.proper && pack.proper.length) return [...new Set(pack.members.concat(pack.proper))];
+  return pack.members.slice();
+}
+
+// Pick k members. Type-word draws honor structure: ordered modes spread across
+// native order, radial pins the hub. Named/both draws are exemplar sets — they
+// shed the type vocabulary's ordering, so we just sample.
 function pickFamily(pack, k, ordered){
-  let pool = pack.members.slice();
+  let pool = poolFor(pack) || pack.members.slice();
   if (lens !== 'any'){
     const sorted = pool.slice().sort((a,b)=> sharpness(b)-sharpness(a)); // sharp first
     const keep = Math.max(k, Math.ceil(pool.length*0.6));
     pool = (lens==='sharp' ? sorted.slice(0,keep) : sorted.slice(-keep));
   }
   k = Math.min(k, pool.length);
-  if (mode === 'radial'){
+  const structured = (kind === 'type');   // only type words carry the relation's shape
+  if (structured && mode === 'radial'){
     const hub = pack.members[0];                       // the center always shows
     const spokes = shuffle(pool.filter(m=>m!==hub)).slice(0, Math.max(0,k-1));
     return [hub, ...spokes];
   }
-  if (ordered){
+  if (structured && ordered){
     const inOrder = pack.members.filter(m=>pool.includes(m)); // keep native order
     const out = [];
     for (let i=0;i<k;i++) out.push(inOrder[Math.round(i*(inOrder.length-1)/(k-1||1))]);
@@ -713,27 +742,36 @@ function render(){
   const out = document.getElementById('gen-out');
 
   let matches = PACKS.filter(p=>p.modes.includes(mode) && (tone==='any' || p.tone===tone));
+  if (kind === 'named') matches = matches.filter(p=>p.proper && p.proper.length);
   if (!matches.length){
     const modeName = (MODES.find(m=>m.id===mode)||{}).label || mode;
-    out.innerHTML = `<p class="empty-note">No ${tone==='any'?'':tone+' '}domains relate things &ldquo;${modeName}&rdquo;. Try register <strong>Any</strong>, or another relation.</p>`;
+    const tail = kind==='named'
+      ? `None of the fitting domains carry named instances yet — try name kind <strong>type words</strong> or <strong>both</strong>.`
+      : `Try register <strong>Any</strong>, or another relation.`;
+    out.innerHTML = `<p class="empty-note">No ${tone==='any'?'':tone+' '}domains relate things &ldquo;${modeName}&rdquo;. ${tail}</p>`;
     return;
   }
   const total = matches.length;
   const shown = shuffle(matches).slice(0, fshow);
+  const showStructure = (kind === 'type');
 
   out.innerHTML = shown.map(p=>{
     const fam = pickFamily(p, k, ordered);
+    const usingNames = kind!=='type' && p.proper && p.proper.length;
     const chips = fam.map((nm,i)=>{
       const pair = labels[i] ? `<span class="pair">${labels[i]}</span>` : '';
       return `<span class="chip">${dress(nm)}${pair}</span>`;
     }).join('');
+    const flags = (showStructure && ordered ? ' &middot; <em>ordered</em>' : '')
+                + (usingNames ? ` &middot; <em>${kind==='both'?'mixed':'named'}</em>` : '');
     return `<div class="pack">
       <div class="pack-name">${p.name}<span class="tone-badge">${p.tone}</span></div>
-      <div class="pack-note">${p.note}${ordered?' &middot; <em>ordered</em>':''}</div>
+      <div class="pack-note">${p.note}${flags}</div>
       <div class="family">${chips}</div>
     </div>`;
   }).join('');
-  out.innerHTML += `<div class="count-line">showing ${shown.length} of ${total} domain${total===1?'':'s'} that fit this relation${tone!=='any'?' · '+tone:''} — press Shuffle for more</div>`;
+  const namedCount = matches.filter(p=>p.proper && p.proper.length).length;
+  out.innerHTML += `<div class="count-line">showing ${shown.length} of ${total} domain${total===1?'':'s'} that fit this relation${tone!=='any'?' · '+tone:''}${kind==='type'&&namedCount?` · ${namedCount} also offer named instances`:''} — press Shuffle for more</div>`;
 }
 
 // build mode + tone pickers
@@ -756,6 +794,12 @@ tp.addEventListener('click', e=>{
 document.getElementById('lens').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   lens = b.dataset.lens;
+  [...e.currentTarget.children].forEach(c=>c.classList.toggle('on', c===b));
+  render();
+});
+document.getElementById('kind').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  kind = b.dataset.kind;
   [...e.currentTarget.children].forEach(c=>c.classList.toggle('on', c===b));
   render();
 });
