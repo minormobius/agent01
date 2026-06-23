@@ -11,6 +11,9 @@
     * { box-sizing: border-box; } html, body { height: 100%; margin: 0; }
     body { background: #04050a; color: #dfe7e2; font-family: "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
     canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: manipulation; }
+    /* kill the double-tap-to-zoom gesture on every interactive surface (it fires on the puzzle pads,
+       cards, and dock — maddening on mobile). `manipulation` keeps pan + pinch-zoom, drops double-tap. */
+    #dock, #arc, #garden, #trade, #kitchen, #lapidary, #battle, #story, #storybg, #enc, #dbg, #loader, #notices, .himodal { touch-action: manipulation; }
     .hud { position: fixed; font-size: 11px; color: #6b7872; pointer-events: none; user-select: none; }
     #status { top: 8px; left: 10px; }
     #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
@@ -56,7 +59,6 @@
     #pack { color: #f4bf62; } #pack:hover, #pack:active { border-color: #f4bf62; color: #fff; }
     #charbtn { color: #b39bd8; } #charbtn:hover, #charbtn:active { border-color: #b39bd8; color: #fff; }
     #equipbtn { color: #7fd8d0; } #equipbtn:hover, #equipbtn:active { border-color: #7fd8d0; color: #fff; }
-    #arenabtn { color: #cf6b6b; } #arenabtn:hover, #arenabtn:active { border-color: #cf3b3b; color: #fff; }
     #mapbtn { color: #8fb89f; } #mapbtn:hover, #mapbtn:active { border-color: #8fb89f; color: #fff; }
     #newgame { color: #e08a8a; } #newgame:hover, #newgame:active { border-color: #e08a8a; color: #fff; }
     #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
@@ -121,7 +123,7 @@
     /* the story panel — a Qud-like fullscreen interaction overlay (above the HUD), two-pane for people */
     #storybg { position: fixed; inset: 0; z-index: 31; background: rgba(2,3,6,0.70); display: none; pointer-events: auto; }
     #storybg.on { display: block; }
-    #story { position: fixed; z-index: 32; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(900px, 95vw); max-height: 90vh; display: none; flex-direction: column; overflow: hidden; background: linear-gradient(180deg, #0e141c, #090c12); border: 1px solid #2c3c47; border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,0.72); pointer-events: auto; }
+    #story { position: fixed; z-index: 32; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(900px, 95vw); max-height: 90vh; max-height: 90dvh; display: none; flex-direction: column; overflow: hidden; background: linear-gradient(180deg, #0e141c, #090c12); border: 1px solid #2c3c47; border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,0.72); pointer-events: auto; }
     #story.on { display: flex; }
     #story.compact { width: min(560px, 92vw); }
     /* two-pane scaffold: portrait + stats on the left, dialogue + choices on the right */
@@ -145,7 +147,7 @@
     #story .cl:hover { color: #f4bf62; }
     /* mobile: stack the two panes (the side-by-side split is cramped on a phone) */
     @media (max-width: 640px) {
-      #story.wide, #story.solo { width: 95vw; max-height: 90vh; }
+      #story.wide, #story.solo { width: 95vw; max-height: 90vh; max-height: 90dvh; }
       #story .stwrap { grid-template-columns: 1fr; }
       #story .stleft { display: block; border-right: 0; border-bottom: 1px solid #1b2530; padding: 18px 20px 14px; }
       #story .stleft .portrait { width: 72px; height: 72px; margin-bottom: 12px; }
@@ -159,7 +161,7 @@
     #trade { background: radial-gradient(120% 120% at 50% 32%, rgba(18,15,8,0.96), rgba(6,5,3,0.99)); }
     #kitchen { background: radial-gradient(120% 120% at 50% 32%, rgba(20,14,9,0.96), rgba(6,4,3,0.99)); }
     #arc.on, #garden.on, #trade.on, #kitchen.on { display: flex; align-items: center; justify-content: center; }
-    #arc .acard, #garden .acard, #trade .acard, #kitchen .acard { width: min(560px, 94vw); max-height: 94vh; overflow-y: auto; text-align: center; padding: 26px 22px 30px; }
+    #arc .acard, #garden .acard, #trade .acard, #kitchen .acard { width: min(560px, 94vw); max-height: 94vh; max-height: 94dvh; overflow-y: auto; text-align: center; padding: calc(26px + env(safe-area-inset-top)) 22px calc(30px + env(safe-area-inset-bottom)); }
     #arc .ahead { font-size: 13px; letter-spacing: 1px; color: #c89ad0; }
     #garden .ahead, #trade .ahead { font-size: 13px; letter-spacing: 1px; color: #8fe07a; }
     #kitchen .ahead { font-size: 13px; letter-spacing: 1px; color: #e0a86a; }
@@ -175,8 +177,8 @@
     #arc .apad button:hover, #arc .arow button:hover { border-color: #c89ad0; background: #1c2630; color: #fff; }
     #arc .arow { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
     #arc .arow button { font-size: 12.5px; padding: 7px 13px; color: #b6c2bb; }
-    #arc .aclose, #garden .aclose, #trade .aclose, #kitchen .aclose { position: absolute; top: 14px; right: 18px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; }
-    #arc .aclose:hover, #garden .aclose:hover, #trade .aclose:hover, #kitchen .aclose:hover { color: #f4bf62; }
+    #arc .aclose, #garden .aclose, #trade .aclose, #kitchen .aclose { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); z-index: 3; background: rgba(10,13,18,0.8); border: 1px solid #34424d; border-radius: 8px; color: #cfd8d2; font: inherit; font-size: 12px; padding: 6px 11px; cursor: pointer; }
+    #arc .aclose:hover, #garden .aclose:hover, #trade .aclose:hover, #kitchen .aclose:hover { border-color: #f4bf62; color: #f4bf62; }
     /* the kitchen: shared helpers (reused from #garden) + cook chips + flavor preview + larder rows */
     #kitchen .ghead2 { font-size: 11px; letter-spacing: 1px; margin: 8px 0 8px; text-transform: uppercase; }
     #kitchen .gdim { font-size: 11px; color: #6b7872; margin: 6px 0; }
@@ -243,9 +245,9 @@
     /* THE LAPIDARY (mend) — crystallography gem bench. Reuses the overlay aesthetic, teal-keyed. */
     #lapidary { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 32%, rgba(8,16,16,0.96), rgba(3,6,6,0.99)); pointer-events: auto; }
     #lapidary.on { display: flex; align-items: center; justify-content: center; }
-    #lapidary .acard { width: min(560px, 94vw); max-height: 94vh; overflow-y: auto; text-align: center; padding: 26px 22px 30px; position: relative; }
-    #lapidary .aclose { position: absolute; top: 14px; right: 18px; background: none; border: 0; color: #8aa39a; font: inherit; font-size: 12px; cursor: pointer; }
-    #lapidary .aclose:hover { color: #7fd8d0; }
+    #lapidary .acard { width: min(560px, 94vw); max-height: 94vh; max-height: 94dvh; overflow-y: auto; text-align: center; padding: 26px 22px calc(30px + env(safe-area-inset-bottom)); position: relative; }
+    #lapidary .aclose { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); z-index: 3; background: rgba(10,13,18,0.8); border: 1px solid #34424d; border-radius: 8px; color: #cfd8d2; font: inherit; font-size: 12px; padding: 6px 11px; cursor: pointer; }
+    #lapidary .aclose:hover { border-color: #7fd8d0; color: #7fd8d0; }
     #lapidary .tfoil { width: 64px; height: 4px; border-radius: 2px; margin: 0 auto 10px; }
     #lapidary .ahead { font-size: 13px; letter-spacing: 1px; }
     #lapidary .alaw { font-size: 21px; font-weight: 600; margin: 4px 0 2px; }
@@ -323,7 +325,7 @@
     #garden .gpantry { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
     #garden .gpan { font-size: 11.5px; }
     #enc.on { display: flex; }
-    #enc .card { width: min(560px, 92vw); max-height: 82vh; overflow-y: auto; background: linear-gradient(180deg, #0b0f15, #07090e); border: 1px solid #2a3a44; border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); padding: 22px 24px 16px; }
+    #enc .card { width: min(560px, 92vw); max-height: 82vh; max-height: 82dvh; overflow-y: auto; background: linear-gradient(180deg, #0b0f15, #07090e); border: 1px solid #2a3a44; border-radius: 12px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); padding: 22px 24px 16px; }
     #enc .ek { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #7fd8d0; }
     #enc .en { font-size: 22px; font-weight: 600; color: #f4bf62; margin: 3px 0 2px; line-height: 1.15; }
     #enc .et { font-size: 11px; color: #6b7872; }
@@ -368,7 +370,6 @@
   <div class="hud" id="quest"></div>
   <div id="dock">
     <button id="charbtn" title="character (c)">☻<span class="lbl"> character</span></button>
-    <a id="arenabtn" href="./arena/" title="arena">⚔<span class="lbl"> arena</span></a>
     <button id="equipbtn" title="equipped (e)">⛨<span class="lbl"> equip</span></button>
     <button id="mapbtn" title="minimap (m)">▦<span class="lbl"> map</span></button>
     <button id="pack" title="open pack (i)">▣<span class="lbl"> pack</span></button>
