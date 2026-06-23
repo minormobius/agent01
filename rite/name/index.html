@@ -300,6 +300,10 @@ your objects' <strong>relation structure</strong> &nbsp;&xrarr;&nbsp; a <strong>
 <li>Related as <strong>parts of one whole</strong>? &mdash; reach for anatomy, a ship, a loom, a book.</li>
 <li>Related as <strong>opposites or poles</strong>? &mdash; reach for day/night, the winds, light and shadow.</li>
 <li>Just a flat <strong>peer set</strong>? &mdash; reach for trees, birds, gems, constellations.</li>
+<li>Spread across a <strong>magnitude</strong> axis? &mdash; reach for sizes, measures, the cosmic scale.</li>
+<li>Each one <strong>nested</strong> inside the next? &mdash; reach for map zoom, administrative tiers, shells and cores.</li>
+<li>A <strong>hub</strong> and its satellites? &mdash; reach for the wheel, the orrery, hub-and-spoke.</li>
+<li>A <strong>forking</strong> tree, or a <strong>causal</strong> chain, or a <strong>lineage</strong>? &mdash; reach for a tree's form, ignition, a dynasty.</li>
 </ul>
 
 <p>The mode is the question; the metaphor is the answer; the family is automatic. Two seed intuitions make it concrete: <em>objects related in space &rarr; placenames</em>, <em>objects related in time &rarr; the water cycle</em>. Generalize the move and you have a method &mdash; and a generator.</p>
@@ -341,7 +345,7 @@ your objects' <strong>relation structure</strong> &nbsp;&xrarr;&nbsp; a <strong>
 <li><strong>Apply the extensibility test.</strong> Can a stranger, told only the metaphor, name the next member correctly? If yes, ship it. If no, the domain is too sparse or too arbitrary &mdash; go back to move 3.</li>
 </ol>
 
-<p>The generator at the top runs moves 2&ndash;5 on a library of ~38 source domains. Moves 1, 6, and 7 are yours.</p>
+<p>The generator at the top runs moves 2&ndash;5 on a library of ~60 source domains, cross-indexed by fourteen relation modes and nine registers. Moves 1, 6, and 7 are yours.</p>
 
 <h2><span class="num">07</span>Pitfalls</h2>
 <ul>
@@ -381,10 +385,16 @@ const MODES = [
   { id: 'spatial',      label: 'In space',      sub: 'a set of places' },
   { id: 'sequential',   label: 'In sequence',   sub: 'ordered steps A→B→C' },
   { id: 'cyclical',     label: 'In a cycle',    sub: 'phases that return' },
-  { id: 'hierarchical', label: 'By rank',       sub: 'levels / tiers' },
+  { id: 'hierarchical', label: 'By rank',       sub: 'discrete tiers' },
+  { id: 'scalar',       label: 'By magnitude',  sub: 'small → large' },
   { id: 'flow',         label: 'By flow',       sub: 'source → sink' },
+  { id: 'causal',       label: 'By cause',      sub: 'cause drives effect' },
+  { id: 'nested',       label: 'Nested',        sub: 'each inside the next' },
+  { id: 'radial',       label: 'Radial',        sub: 'a hub & its spokes' },
+  { id: 'branching',    label: 'Branching',     sub: 'a forking tree' },
   { id: 'partwhole',    label: 'Parts of one',  sub: 'one body, many parts' },
   { id: 'oppositional', label: 'As opposites',  sub: 'poles / pairs' },
+  { id: 'kinship',      label: 'Kinship',       sub: 'lineage / generations' },
   { id: 'kindred',      label: 'As kin',        sub: 'a flat peer set' },
 ];
 
@@ -395,6 +405,9 @@ const TONES = [
   { id: 'classical', label: 'Classical' },
   { id: 'technical', label: 'Technical' },
   { id: 'craft',     label: 'Craft' },
+  { id: 'culinary',  label: 'Culinary' },
+  { id: 'martial',   label: 'Martial' },
+  { id: 'scholarly', label: 'Scholarly' },
   { id: 'plain',     label: 'Plain' },
 ];
 
@@ -408,7 +421,7 @@ const PACKS = [
   { id:'water', name:'The water cycle', tone:'natural', modes:['cyclical','flow','sequential'],
     note:'Evaporation to rain to runoff and back — time as a closed loop.',
     members:['Vapor','Mist','Cloud','Rain','Spring','Brook','Stream','River','Estuary','Tide'] },
-  { id:'river', name:'A river’s course', tone:'natural', modes:['flow','sequential'],
+  { id:'river', name:'A river’s course', tone:'natural', modes:['flow','sequential','branching'],
     note:'Headwaters to the sea — a pipeline with a direction.',
     members:['Source','Spring','Brook','Confluence','Channel','Current','Bend','Delta','Mouth'] },
   { id:'seasons', name:'The seasons', tone:'natural', modes:['cyclical','sequential'],
@@ -420,10 +433,10 @@ const PACKS = [
   { id:'moon', name:'Phases of the moon', tone:'natural', modes:['cyclical','sequential'],
     note:'New to full to dark — a slow, legible cycle.',
     members:['New','Waxing','Crescent','Quarter','Gibbous','Full','Waning','Dark'] },
-  { id:'botany', name:'A plant’s growth', tone:'natural', modes:['sequential','partwhole','cyclical'],
+  { id:'botany', name:'A plant’s growth', tone:'natural', modes:['sequential','partwhole','cyclical','branching'],
     note:'Seed to canopy — growth as an ordered unfolding.',
     members:['Seed','Sprout','Root','Stem','Leaf','Bud','Bloom','Canopy'] },
-  { id:'ascent', name:'A mountain ascent', tone:'natural', modes:['hierarchical','sequential','spatial'],
+  { id:'ascent', name:'A mountain ascent', tone:'natural', modes:['hierarchical','sequential','spatial','scalar'],
     note:'Foothill to summit — height as the axis.',
     members:['Foothill','Slope','Bluff','Ridge','Crag','Spur','Peak','Summit'] },
   { id:'weather', name:'Weather fronts', tone:'natural', modes:['kindred','oppositional'],
@@ -442,7 +455,7 @@ const PACKS = [
     note:'The parts of one living body.',
     members:['Heart','Spine','Cortex','Vein','Pulse','Sinew','Marrow','Limb'] },
   // ---- mythic ----
-  { id:'celestial', name:'The wandering stars', tone:'mythic', modes:['kindred','oppositional'],
+  { id:'celestial', name:'The wandering stars', tone:'mythic', modes:['kindred','oppositional','radial'],
     note:'Distinct bodies, each with its own temper — a peer set.',
     members:['Sol','Luna','Mercury','Venus','Mars','Vesta','Polaris','Vega'] },
   { id:'light', name:'Light & shadow', tone:'mythic', modes:['oppositional'],
@@ -458,7 +471,7 @@ const PACKS = [
   { id:'noble', name:'Nobility', tone:'classical', modes:['hierarchical'],
     note:'Ascending rank — position is the meaning.',
     members:['Page','Squire','Knight','Baron','Viscount','Earl','Duke','Sovereign'] },
-  { id:'tempo', name:'Musical tempo', tone:'classical', modes:['hierarchical','sequential'],
+  { id:'tempo', name:'Musical tempo', tone:'classical', modes:['hierarchical','sequential','scalar'],
     note:'Slow to fast — perfect for speed or intensity tiers.',
     members:['Largo','Adagio','Andante','Moderato','Allegro','Vivace','Presto'] },
   { id:'winds', name:'The four winds', tone:'classical', modes:['oppositional','kindred'],
@@ -480,13 +493,13 @@ const PACKS = [
   { id:'optics', name:'Optics', tone:'technical', modes:['kindred','partwhole'],
     note:'The instruments of light, a coherent kit.',
     members:['Prism','Lumen','Facet','Spectrum','Glint','Halo','Beam','Aperture'] },
-  { id:'spectrum', name:'The visible spectrum', tone:'technical', modes:['sequential','hierarchical'],
+  { id:'spectrum', name:'The visible spectrum', tone:'technical', modes:['sequential','hierarchical','scalar'],
     note:'Long to short wavelength — an ordered band.',
     members:['Infra','Red','Amber','Gold','Green','Cyan','Indigo','Ultra'] },
   { id:'circuit', name:'Circuitry', tone:'technical', modes:['partwhole','flow'],
     note:'The components of one board.',
     members:['Node','Bus','Gate','Relay','Array','Core','Bridge','Trace'] },
-  { id:'orbit', name:'Orbital mechanics', tone:'technical', modes:['kindred','sequential'],
+  { id:'orbit', name:'Orbital mechanics', tone:'technical', modes:['kindred','sequential','radial'],
     note:'The waypoints of a trajectory.',
     members:['Apogee','Perigee','Orbit','Transit','Vector','Drift','Apsis'] },
   // ---- craft ----
@@ -518,6 +531,111 @@ const PACKS = [
   { id:'house', name:'Rooms of a house', tone:'plain', modes:['partwhole','spatial'],
     note:'Foyer to garret — the parts of one dwelling.',
     members:['Foyer','Hearth','Atrium','Gallery','Parlor','Cellar','Loft','Garret'] },
+  // ---- scalar (magnitude) ----
+  { id:'cosmscale', name:'Scales of the cosmos', tone:'technical', modes:['scalar','sequential','nested'],
+    note:'Quark to cosmos — magnitude as the axis.',
+    members:['Quark','Atom','Cell','Grain','Body','World','Star','Galaxy','Cosmos'] },
+  { id:'sizes', name:'Sizes of things', tone:'natural', modes:['scalar','sequential'],
+    note:'Mote to mountain — a continuous size axis.',
+    members:['Mote','Grain','Pebble','Stone','Boulder','Crag','Cliff','Mountain'] },
+  { id:'measures', name:'Measures of length', tone:'plain', modes:['scalar','sequential'],
+    note:'Hair to league — old units, small to large.',
+    members:['Hair','Inch','Span','Hand','Pace','Furlong','Mile','League'] },
+  { id:'crowd', name:'Sizes of a crowd', tone:'plain', modes:['scalar','sequential'],
+    note:'A pair to a multitude — counting up.',
+    members:['Pair','Few','Band','Cluster','Throng','Host','Legion','Multitude'] },
+  // ---- nested (containment) ----
+  { id:'zoom', name:'Map zoom', tone:'natural', modes:['nested','scalar','sequential','spatial'],
+    note:'Each scale sits inside the next — grain to world.',
+    members:['Grain','Plot','Field','Region','Realm','Continent','World'] },
+  { id:'admin', name:'Administrative tiers', tone:'plain', modes:['nested','hierarchical','spatial'],
+    note:'Ward inside borough inside province — civic nesting.',
+    members:['Ward','District','Borough','City','County','Province','Realm'] },
+  { id:'shells', name:'Shells & cores', tone:'craft', modes:['nested','partwhole'],
+    note:'Layer within layer, husk to kernel.',
+    members:['Husk','Shell','Casing','Rind','Pith','Core','Kernel'] },
+  { id:'atomshell', name:'Atomic shells', tone:'technical', modes:['nested','radial','partwhole'],
+    note:'Nucleus out through the electron shells.',
+    members:['Nucleus','Core','Shell','Orbital','Valence','Cloud'] },
+  // ---- radial (hub & spokes) ----
+  { id:'wheel', name:'The wheel', tone:'craft', modes:['radial','partwhole'],
+    note:'A hub, its spokes, the rim around.',
+    members:['Hub','Spoke','Felloe','Rim','Axle','Nave'] },
+  { id:'orrery', name:'The orrery', tone:'technical', modes:['radial','kindred'],
+    note:'A core at center, bodies wheeling round it.',
+    members:['Core','Mercury','Venus','Terra','Mars','Ceres','Halo'] },
+  { id:'hubspoke', name:'Hub & spokes', tone:'technical', modes:['radial','flow'],
+    note:'A center that everything routes through.',
+    members:['Hub','Spoke','Ray','Node','Rim','Relay'] },
+  { id:'rose', name:'The compass rose', tone:'classical', modes:['radial','spatial','oppositional'],
+    note:'A center throwing rays to every quarter.',
+    members:['Center','North','East','South','West','Rhumb'] },
+  // ---- branching (a forking tree) ----
+  { id:'treeform', name:'A tree’s form', tone:'natural', modes:['branching','partwhole','sequential'],
+    note:'Root to leaf — the canonical fork.',
+    members:['Root','Trunk','Bough','Branch','Limb','Twig','Leaf'] },
+  { id:'lineage', name:'Lineage', tone:'classical', modes:['branching','kinship','hierarchical'],
+    note:'A stem and its offshoots — a family forks.',
+    members:['Stem','Line','Branch','Scion','Offshoot','Sprig'] },
+  { id:'delta2', name:'A river delta', tone:'natural', modes:['branching','flow'],
+    note:'One channel splitting toward the sea.',
+    members:['Trunk','Channel','Distributary','Branch','Rivulet','Mouth'] },
+  { id:'bolt', name:'A lightning bolt', tone:'technical', modes:['branching','causal'],
+    note:'A strike forking as it falls.',
+    members:['Charge','Leader','Bolt','Fork','Branch','Tendril'] },
+  // ---- causal (cause drives effect) ----
+  { id:'ignition', name:'Ignition', tone:'technical', modes:['causal','sequential','flow'],
+    note:'Spark to ash — one thing setting off the next.',
+    members:['Spark','Kindle','Catch','Flame','Blaze','Ember','Ash'] },
+  { id:'chainrx', name:'Chain reaction', tone:'plain', modes:['causal','sequential'],
+    note:'Each step trips the one after.',
+    members:['Trigger','Cascade','Chain','Ripple','Surge','Wake'] },
+  { id:'dominoes', name:'Cause & effect', tone:'plain', modes:['causal'],
+    note:'Push, and the consequences follow.',
+    members:['Cause','Spark','Catalyst','Reaction','Effect','Yield'] },
+  // ---- kinship (lineage / generations) ----
+  { id:'family', name:'Kinship', tone:'plain', modes:['kinship','hierarchical'],
+    note:'Elder to heir — generations in order.',
+    members:['Forebear','Elder','Kin','Peer','Heir','Scion','Ward'] },
+  { id:'dynasty', name:'A dynasty', tone:'classical', modes:['kinship','sequential','hierarchical'],
+    note:'Founder to successor — a ruling line.',
+    members:['Founder','Regent','Sovereign','Heir','Scion','Successor'] },
+  { id:'generations', name:'Generations of a wood', tone:'natural', modes:['kinship','scalar','sequential'],
+    note:'Seedling to snag — a stand of trees aging.',
+    members:['Seedling','Sapling','Youngwood','Elder','Old-Growth','Snag'] },
+  // ---- culinary ----
+  { id:'spice', name:'Spices', tone:'culinary', modes:['kindred'],
+    note:'A rack of warm, distinct notes.',
+    members:['Clove','Saffron','Cumin','Anise','Nutmeg','Cardamom','Pepper','Mace'] },
+  { id:'courses', name:'Courses of a meal', tone:'culinary', modes:['sequential'],
+    note:'Amuse to digestif — a meal in order.',
+    members:['Amuse','Starter','Soup','Main','Cheese','Dessert','Digestif'] },
+  { id:'roast', name:'Degrees of roast', tone:'culinary', modes:['scalar','sequential'],
+    note:'Green to dark — the roast as a scale.',
+    members:['Green','Cinnamon','City','Full','Vienna','French','Italian'] },
+  { id:'brigade', name:'The kitchen brigade', tone:'culinary', modes:['hierarchical'],
+    note:'Commis to executive — the line’s ranks.',
+    members:['Commis','Demi','Partie','Saucier','Sous','Chef','Executive'] },
+  // ---- martial ----
+  { id:'arms', name:'Arms & armor', tone:'martial', modes:['kindred','partwhole'],
+    note:'The pieces of a warrior’s kit.',
+    members:['Blade','Hilt','Shield','Helm','Greave','Vambrace','Lance','Quiver'] },
+  { id:'siege', name:'A siege', tone:'martial', modes:['sequential','causal'],
+    note:'Muster to hold — a campaign in stages.',
+    members:['Muster','March','Encircle','Breach','Storm','Sack','Hold'] },
+  { id:'watch', name:'The watch', tone:'martial', modes:['cyclical','sequential'],
+    note:'The watches of the night, in turn.',
+    members:['Dusk','First','Middle','Dead','Last','Dawn'] },
+  // ---- scholarly ----
+  { id:'manuscript', name:'The manuscript', tone:'scholarly', modes:['partwhole','sequential'],
+    note:'Incipit to explicit — the made parts of a book.',
+    members:['Incipit','Folio','Recto','Verso','Gloss','Colophon','Explicit'] },
+  { id:'argument', name:'An argument', tone:'scholarly', modes:['sequential','causal'],
+    note:'Premise to QED — reasoning in order.',
+    members:['Premise','Axiom','Lemma','Proof','Corollary','Theorem','QED'] },
+  { id:'trivium', name:'The liberal arts', tone:'scholarly', modes:['kindred','sequential'],
+    note:'Trivium and quadrivium — classed learning.',
+    members:['Grammar','Logic','Rhetoric','Arithmetic','Geometry','Music','Astronomy'] },
 ];
 
 // --- phonetic "sharpness": plosives & sibilants push sharp; sonorants & long
@@ -547,10 +665,14 @@ let lens = 'any';
 
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
 
-const ORDERED_MODES = new Set(['sequential','cyclical','hierarchical','flow']);
+// Ordered relations: position carries meaning, so we keep native order and
+// spread the picks across the whole scale. (Radial is handled specially below —
+// its first member is the hub and must always appear.)
+const ORDERED_MODES = new Set(['sequential','cyclical','hierarchical','scalar','flow','causal','nested','branching','kinship']);
 
-// Pick k members. Ordered modes spread evenly across native order; unordered
-// modes sample at random. The lens biases which members survive.
+// Pick k members. Ordered modes spread evenly across native order; radial pins
+// the hub then samples spokes; unordered modes sample at random. The lens biases
+// which members survive.
 function pickFamily(pack, k, ordered){
   let pool = pack.members.slice();
   if (lens !== 'any'){
@@ -559,6 +681,11 @@ function pickFamily(pack, k, ordered){
     pool = (lens==='sharp' ? sorted.slice(0,keep) : sorted.slice(-keep));
   }
   k = Math.min(k, pool.length);
+  if (mode === 'radial'){
+    const hub = pack.members[0];                       // the center always shows
+    const spokes = shuffle(pool.filter(m=>m!==hub)).slice(0, Math.max(0,k-1));
+    return [hub, ...spokes];
+  }
   if (ordered){
     const inOrder = pack.members.filter(m=>pool.includes(m)); // keep native order
     const out = [];
