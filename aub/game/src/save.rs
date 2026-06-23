@@ -58,6 +58,50 @@ use crate::items::{EquipSlot, ItemKind};
 use crate::status::{StatusEffectList, StatusKind};
 use crate::{Inventory, Level, PlayerEquipment};
 
+
+// ─── Web persistence backend ──────────────────────────────────────
+//
+// In the browser there is no filesystem, so the wasm build collapses
+// the whole save system onto a single localStorage slot (a "single
+// autosave"). Storage is reached through a tiny miniquad JS plugin in
+// `aub/web/index.html`, which exposes three `env` imports we read/write
+// wasm memory through — no sapp-jsutils, no extra crate. This is the
+// persistence layer the atproto sync (phase 2) mirrors: one JSON blob,
+// one record.
+#[cfg(target_arch = "wasm32")]
+mod web_storage {
+    /// Single autosave: every slot name collapses to this one key.
+    pub const KEY: &str = "ecdysium/save/v1";
+
+    unsafe extern "C" {
+        // Defined by the `aub_storage` plugin in aub/web/index.html.
+        fn aub_storage_set(kp: *const u8, kl: usize, vp: *const u8, vl: usize);
+        fn aub_storage_get_len(kp: *const u8, kl: usize) -> usize;
+        fn aub_storage_get_copy(out: *mut u8);
+    }
+
+    pub fn set(key: &str, val: &str) {
+        unsafe { aub_storage_set(key.as_ptr(), key.len(), val.as_ptr(), val.len()) };
+    }
+
+    /// Read a key. Absent or empty → `None` (a real save is never empty).
+    /// The two-call length-then-copy dance avoids JS allocating into wasm
+    /// memory; it's safe because wasm is single-threaded so nothing
+    /// interleaves between the two calls.
+    pub fn get(key: &str) -> Option<String> {
+        unsafe {
+            let n = aub_storage_get_len(key.as_ptr(), key.len());
+            if n == 0 {
+                return None;
+            }
+            let mut buf = vec![0u8; n];
+            aub_storage_get_copy(buf.as_mut_ptr());
+            String::from_utf8(buf).ok()
+        }
+    }
+}
+
+
 /// Bumped any time the save schema changes. Loading a save whose
 /// `format_version > SAVE_FORMAT_VERSION` is a hard error: the
 /// running build can't know what new fields the future schema
@@ -184,8 +228,17 @@ impl From<serde_json::Error> for SaveError {
 /// is sanitized so a stray `..` or path separator can't escape the
 /// saves directory.
 pub fn slot_path(name: &str) -> PathBuf {
-    let safe = sanitize_slot_name(name);
-    Path::new(SAVES_DIR).join(format!("{}.{}", safe, SAVE_EXTENSION))
+    // Web: single autosave — every name maps to the one localStorage key.
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = name;
+        return PathBuf::from(web_storage::KEY);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let safe = sanitize_slot_name(name);
+        Path::new(SAVES_DIR).join(format!("{}.{}", safe, SAVE_EXTENSION))
+    }
 }
 
 /// Strip anything that could escape the saves directory or break the
@@ -212,6 +265,21 @@ pub fn sanitize_slot_name(name: &str) -> String {
 /// so the most recent save lands at index 0. Returns an empty list
 /// if the directory doesn't exist yet — that's the new-player state.
 pub fn list_save_slots() -> Vec<SaveSlot> {
+    // Web: the single localStorage slot shows up as one "web save" entry
+    // (or nothing, for a new player), so the load menu works unchanged.
+    #[cfg(target_arch = "wasm32")]
+    {
+        return match web_storage::get(web_storage::KEY) {
+            Some(_) => vec![SaveSlot {
+                name: "web save".to_string(),
+                path: PathBuf::from(web_storage::KEY),
+                modified: None,
+            }],
+            None => Vec::new(),
+        };
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
     let dir = Path::new(SAVES_DIR);
     if !dir.is_dir() { return Vec::new(); }
     let mut out = Vec::new();
@@ -235,6 +303,7 @@ pub fn list_save_slots() -> Vec<SaveSlot> {
     }
     out.sort_by(|a, b| b.modified.cmp(&a.modified));
     out
+    }
 }
 
 /// Compute the next sequential `save_NNN` name that doesn't already
@@ -264,20 +333,43 @@ pub struct SaveSlot {
 // ─── I/O entry points ─────────────────────────────────────────────
 
 pub fn save_to_path(snap: &RunSnapshot, path: &Path) -> Result<(), SaveError> {
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)?;
-        }
-    }
     let envelope = SaveEnvelope::current(snap.clone());
     let json = serde_json::to_string_pretty(&envelope)?;
-    fs::write(path, json)?;
-    Ok(())
+
+    // Web: write the one JSON blob to localStorage.
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = path;
+        web_storage::set(web_storage::KEY, &json);
+        return Ok(());
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+        fs::write(path, json)?;
+        Ok(())
+    }
 }
 
 pub fn load_from_path(path: &Path) -> Result<RunSnapshot, SaveError> {
-    let body = fs::read_to_string(path)?;
-    parse(&body)
+    // Web: read the one JSON blob back from localStorage.
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = path;
+        let body = web_storage::get(web_storage::KEY).ok_or_else(|| {
+            SaveError::Io(io::Error::new(io::ErrorKind::NotFound, "no web save"))
+        })?;
+        return parse(&body);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let body = fs::read_to_string(path)?;
+        parse(&body)
+    }
 }
 
 // ─── Envelope ─────────────────────────────────────────────────────

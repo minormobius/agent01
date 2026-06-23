@@ -28,6 +28,40 @@
   <canvas id="glcanvas" tabindex="1" oncontextmenu="event.preventDefault()"></canvas>
   <script src="mq_js_bundle.js"></script>
   <script>
+    // aub_storage: a tiny miniquad plugin that backs the game's save system
+    // with localStorage on the web. The wasm imports three env functions
+    // (declared in src/save.rs::web_storage); we satisfy them by reading and
+    // writing the wasm's linear memory directly — no sapp-jsutils needed.
+    // Must register BEFORE load() so it's wired into the import object.
+    (function () {
+      var pending = null;      // bytes staged by get_len for the next get_copy
+      // `wasm_memory` is a script-global the bundle assigns at instantiation
+      // (e.exports.memory); these env fns only fire during gameplay, by which
+      // point it's set. Re-read .buffer each call — it changes if memory grows.
+      function readStr(ptr, len) {
+        return new TextDecoder("utf-8").decode(new Uint8Array(wasm_memory.buffer, ptr, len));
+      }
+      miniquad_add_plugin({
+        register_plugin: function (importObject) {
+          importObject.env.aub_storage_set = function (kp, kl, vp, vl) {
+            try { localStorage.setItem(readStr(kp, kl), readStr(vp, vl)); } catch (e) {}
+          };
+          importObject.env.aub_storage_get_len = function (kp, kl) {
+            var s = "";
+            try { var v = localStorage.getItem(readStr(kp, kl)); if (v != null) s = v; } catch (e) {}
+            pending = new TextEncoder().encode(s);
+            return pending.length;
+          };
+          importObject.env.aub_storage_get_copy = function (outptr) {
+            if (pending) { new Uint8Array(wasm_memory.buffer, outptr, pending.length).set(pending); }
+            pending = null;
+          };
+        },
+        name: "aub_storage",
+        version: "1",
+      });
+    })();
+
     // macroquad entry point: streams + instantiates the wasm module and
     // drives the game loop against #glcanvas.
     load("ecdysium.wasm");

@@ -73,11 +73,22 @@ absent. A handful of textures (a third-party SciFi tileset, a few creature
 sprites) are genuinely absent from the upstream repo; the game draws its own
 magenta "missing art" stand-in for those (intentional — they flag art TODOs).
 
-**Known limitation**: save/load (`src/save.rs`) writes JSON to disk via
-`std::fs`. In the browser there is no filesystem, so saving is a no-op (errors
-are handled, nothing crashes — runs just don't persist across reloads).
-Migrating saves to `localStorage`/`quad-storage` is a future nicety, not a
-blocker for play.
+## Saves (web)
+
+Native, `save.rs` writes JSON files under `saves/` via `std::fs`. The browser
+has no filesystem, so on wasm the four IO functions in `save.rs`
+(`slot_path`, `list_save_slots`, `save_to_path`, `load_from_path`) are
+cfg-swapped onto **one `localStorage` slot** (key `ecdysium/save/v1`) — a
+single autosave. The in-game Save/Load menus work unchanged and persist across
+reloads.
+
+The bridge is a small **miniquad plugin** in `web/index.html` (`aub_storage`)
+exposing three `env` imports the wasm calls; it reads/writes the wasm's linear
+memory directly (no `sapp-jsutils`, no extra crate). This is **phase 1** of
+"save to your Bluesky/ATProto repo": the wasm only ever speaks `localStorage`,
+and a future **phase 2** JS layer syncs that one blob ⇄ the user's PDS as a
+`com.minomobi.ecdysium.save` record (mirroring `hoop`'s `story.save`), so the
+wasm never has to touch auth or the network.
 
 ## Re-syncing from upstream
 
