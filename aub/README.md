@@ -30,17 +30,34 @@ The deploy workflow builds `game/` to wasm, then assembles `dist/` from
 
 ## What changed from upstream (and why)
 
-The only source change vs. `aubrika/ecdysium` is one block in `game/Cargo.toml`:
+Two small web-build accommodations vs. `aubrika/ecdysium`, both isolated:
 
-```toml
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
-```
+1. **getrandom on wasm** (`game/Cargo.toml` + a shim in `game/src/main.rs`).
+   `rand` pulls in `getrandom`, which won't compile for
+   `wasm32-unknown-unknown` without a backend. We use its **`custom`** backend
+   (NOT `js`) and register a tiny xorshift fallback in `main.rs`:
 
-`rand` pulls in `getrandom`, which won't compile for `wasm32-unknown-unknown`
-without its `js` backend. Everything else builds unmodified — assets load
-through macroquad's async fetch pipeline (web-native), and CLI args / the
-window icon degrade gracefully when absent.
+   ```toml
+   [target.'cfg(target_arch = "wasm32")'.dependencies]
+   getrandom = { version = "0.2", features = ["custom"] }
+   ```
+
+   Why not the `js` backend? `js` drags **wasm-bindgen** into the module, and
+   macroquad's `mq_js_bundle.js` is a *raw* wasm loader — it can't satisfy
+   wasm-bindgen imports, so the module fails to instantiate
+   (`Import "__wbindgen_placeholder__"… is not an object`). The game seeds its
+   `StdRng` from explicit u64 seeds and never calls `thread_rng`/`OsRng`, so
+   getrandom is effectively never hit at runtime; the shim is just a correct,
+   dependency-free fallback. After this change the wasm imports **only `env`**
+   (macroquad's host functions), which is exactly what the bundle provides.
+
+2. **wasm linker flag** (`game/.cargo/config.toml`): `--import-undefined`, so
+   macroquad/miniquad's JS-host symbols are emitted as wasm imports instead of
+   erroring at link time on some toolchains.
+
+Everything else builds unmodified — assets load through macroquad's async
+fetch pipeline (web-native), and CLI args / the window icon degrade gracefully
+when absent.
 
 **Known limitation**: save/load (`src/save.rs`) writes JSON to disk via
 `std::fs`. In the browser there is no filesystem, so saving is a no-op (errors

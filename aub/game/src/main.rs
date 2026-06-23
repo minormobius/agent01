@@ -20,6 +20,41 @@ mod stock;
 mod tileset;
 mod ui;
 
+// --- Web build: dependency-free getrandom backend ------------------------
+// On wasm32 `rand` pulls in getrandom. We compile it with the `custom`
+// backend so it does NOT drag in wasm-bindgen (macroquad's mq_js_bundle.js is
+// a raw loader that cannot satisfy wasm-bindgen imports). The game seeds its
+// StdRng from explicit u64 seeds, so getrandom is effectively never called;
+// this xorshift64* shim (seeded once from the JS clock via miniquad) is a
+// correct fallback if anything ever does.
+#[cfg(target_arch = "wasm32")]
+mod web_getrandom {
+    use std::cell::Cell;
+    std::thread_local! { static STATE: Cell<u64> = Cell::new(0); }
+    fn fill(buf: &mut [u8]) -> Result<(), ::getrandom::Error> {
+        STATE.with(|st| {
+            let mut x = st.get();
+            if x == 0 {
+                x = (macroquad::miniquad::date::now() * 1.0e6) as u64
+                    ^ 0x9E37_79B9_7F4A_7C15;
+                if x == 0 { x = 0xDEAD_BEEF_CAFE_F00D; }
+            }
+            for chunk in buf.chunks_mut(8) {
+                x ^= x >> 12;
+                x ^= x << 25;
+                x ^= x >> 27;
+                let r = x.wrapping_mul(0x2545_F491_4F6C_DD1D);
+                for (b, v) in chunk.iter_mut().zip(r.to_le_bytes()) {
+                    *b = v;
+                }
+            }
+            st.set(x);
+        });
+        Ok(())
+    }
+    ::getrandom::register_custom_getrandom!(fill);
+}
+
 use macroquad::prelude::*;
 use audio::{AudioBank, Sfx};
 use ::rand::{Rng, SeedableRng};

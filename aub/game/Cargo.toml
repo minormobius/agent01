@@ -16,7 +16,9 @@ image = { version = "0.24", default-features = false, features = ["png"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# Web build: getrandom needs the `js` backend to compile for
-# wasm32-unknown-unknown (pulled in transitively via rand).
+# Web build: getrandom is pulled in transitively via `rand`. Use its
+# `custom` backend (NOT `js`) so it does not drag wasm-bindgen into the
+# module — macroquad's mq_js_bundle.js is a raw loader and cannot satisfy
+# wasm-bindgen imports. A custom backend is registered in main.rs.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.2", features = ["custom"] }
