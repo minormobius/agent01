@@ -154,6 +154,8 @@ input:focus, select:focus { border-color: var(--accent); }
   background: var(--accent-faint); color: var(--text);
 }
 .chip .pair { color: var(--muted); font-variant: normal; font-size: 0.72rem; display: block; letter-spacing: 0; }
+.chip.loaded { border-style: dashed; }
+.load { color: var(--bad); font-variant: normal; cursor: help; font-weight: 700; }
 .empty-note { color: var(--muted); font-style: italic; }
 .count-line { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin-top: 0.9rem; }
 
@@ -241,6 +243,10 @@ footer a { color: var(--muted); text-decoration: underline; }
   </div>
 
   <div class="field">
+    <label class="checkline"><input type="checkbox" id="production"> naming for production <span class="hint">&mdash; hide the most heavily-branded named instances (Apollo, Mars, Olympus&hellip;)</span></label>
+  </div>
+
+  <div class="field">
     <label class="lbl">your elements (optional, comma-separated &mdash; we'll pair them in order)</label>
     <input type="text" id="labels" placeholder="e.g. free tier, pro tier, team tier, enterprise tier">
   </div>
@@ -281,6 +287,8 @@ footer a { color: var(--muted); text-decoration: underline; }
 <p>Two things to take from this. First, distinctiveness and protectability rise together &mdash; the law rewards names that don't describe, because a descriptive name is a word your competitors also need. Second, and more usefully here: <strong>most great name families live in the suggestive-to-arbitrary band.</strong> A metaphor-derived family (planets, rivers, ranks) is by construction <em>arbitrary</em> with respect to the product &mdash; &ldquo;Saturn&rdquo; has nothing to do with a storage tier &mdash; yet <em>suggestive</em> with respect to the family, because once you know the metaphor, each member's position is legible. That double life is exactly what you want. (The generator's <em>coin it</em> toggle nudges a family one notch further, toward the fanciful end.)</p>
 
 <p>There's a second vocabulary hiding inside every domain: <strong>type words</strong> versus <strong>named instances</strong>. The water cycle's type words are <em>Vapor, Rain, River</em>; its named instances are the <em>Thames</em>, the <em>Danube</em>, the <em>Mekong</em>. Mountains give you <em>Ridge, Crag, Summit</em> &mdash; or <em>Everest, Denali, Eiger</em>. Winds give you <em>gust</em> and <em>gale</em> &mdash; or the <em>Mistral</em> and the <em>Sirocco</em>. Reaching for the already-named pays off because someone has already done the work of making those words feel like names. But mind two things. First, on the §02 spectrum, a proper instance sits further toward <em>arbitrary</em> &mdash; more ownable, but also more loaded: a named river may already be a company, a mountain a trademark. Second, named instances usually form a <em>flat peer set</em>; they shed the internal ordering the type words carried (Source&rarr;Mouth is structure; Thames&rarr;Nile is not). So reach for named instances when the relation is <em>kindred</em> or the tiers differ by vibe; keep type words when position has to read. The generator's <em>name kind</em> toggle switches between the two, or blends them.</p>
+
+<p>Not all named instances are equally usable. Some are so heavily branded already that they're effectively spoken for &mdash; <em>Apollo</em>, <em>Mars</em>, <em>Olympus</em>, <em>Tiffany</em> read less like an open metaphor and more like someone else's logo. The generator marks these with a <span class="load">°</span>, and a <em>naming for production</em> switch hides them outright so the palette only shows instances you have a fighting chance of owning. The freshest names from this layer are usually the deep cuts &mdash; not <em>Orion</em> but <em>Bellatrix</em>; not <em>Everest</em> but <em>Eiger</em>; not the <em>Mistral</em> but the <em>Harmattan</em>. (And if you fall for a loaded one anyway, <em>coin it</em> can carry it just far enough off the trademark.)</p>
 
 <h2><span class="num">03</span>Sound is meaning before semantics</h2>
 
@@ -456,7 +464,8 @@ const PACKS = [
     members:['Calm','Breeze','Mist','Front','Squall','Gale','Storm','Thaw'] },
   { id:'stones', name:'Gemstones', tone:'natural', modes:['kindred'],
     note:'A flat set of jewels — peers, no order.',
-    members:['Opal','Onyx','Jasper','Amber','Garnet','Beryl','Jade','Topaz'] },
+    members:['Opal','Onyx','Jasper','Amber','Garnet','Beryl','Jade','Topaz'],
+    proper:['Hope','Cullinan','Koh-i-Noor','Orlov','Sancy','Regent','Taylor','Tiffany','Dresden','Florentine'] },
   { id:'trees', name:'Trees', tone:'natural', modes:['kindred'],
     note:'A grove of equals — short, sturdy, distinct.',
     members:['Oak','Ash','Elm','Birch','Rowan','Alder','Willow','Yew','Hazel'] },
@@ -528,7 +537,8 @@ const PACKS = [
     members:['Warp','Weft','Loom','Spindle','Skein','Selvage','Shuttle','Weave'] },
   { id:'codex', name:'The codex', tone:'craft', modes:['partwhole','kindred'],
     note:'The anatomy of a hand-made book.',
-    members:['Codex','Folio','Quire','Index','Margin','Gloss','Spine','Colophon'] },
+    members:['Codex','Folio','Quire','Index','Margin','Gloss','Spine','Colophon'],
+    proper:['Kells','Lindisfarne','Amiatinus','Argenteus','Bezae','Vaticanus','Aleppo','Gigas','Mendoza','Vercelli'] },
   { id:'masonry', name:'Masonry', tone:'craft', modes:['sequential','partwhole','hierarchical'],
     note:'Footing to spire — a building rising course by course.',
     members:['Footing','Course','Lintel','Keystone','Cornice','Frieze','Spire'] },
@@ -624,7 +634,8 @@ const PACKS = [
   // ---- culinary ----
   { id:'spice', name:'Spices', tone:'culinary', modes:['kindred'],
     note:'A rack of warm, distinct notes.',
-    members:['Clove','Saffron','Cumin','Anise','Nutmeg','Cardamom','Pepper','Mace'] },
+    members:['Clove','Saffron','Cumin','Anise','Nutmeg','Cardamom','Pepper','Mace'],
+    proper:['Garam','Ras-el-Hanout','Berbere','Zaatar','Dukkah','Harissa','Furikake','Shichimi','Baharat','Advieh'] },
   { id:'courses', name:'Courses of a meal', tone:'culinary', modes:['sequential'],
     note:'Amuse to digestif — a meal in order.',
     members:['Amuse','Starter','Soup','Main','Cheese','Dessert','Digestif'] },
@@ -637,17 +648,20 @@ const PACKS = [
   // ---- martial ----
   { id:'arms', name:'Arms & armor', tone:'martial', modes:['kindred','partwhole'],
     note:'The pieces of a warrior’s kit.',
-    members:['Blade','Hilt','Shield','Helm','Greave','Vambrace','Lance','Quiver'] },
+    members:['Blade','Hilt','Shield','Helm','Greave','Vambrace','Lance','Quiver'],
+    proper:['Excalibur','Durendal','Joyeuse','Tizona','Gram','Hrunting','Kusanagi','Gungnir','Mjolnir','Aegis'] },
   { id:'siege', name:'A siege', tone:'martial', modes:['sequential','causal'],
     note:'Muster to hold — a campaign in stages.',
-    members:['Muster','March','Encircle','Breach','Storm','Sack','Hold'] },
+    members:['Muster','March','Encircle','Breach','Storm','Sack','Hold'],
+    proper:['Thermopylae','Cannae','Agincourt','Hastings','Crecy','Marathon','Gaugamela','Alesia','Zama','Actium'] },
   { id:'watch', name:'The watch', tone:'martial', modes:['cyclical','sequential'],
     note:'The watches of the night, in turn.',
     members:['Dusk','First','Middle','Dead','Last','Dawn'] },
   // ---- scholarly ----
   { id:'manuscript', name:'The manuscript', tone:'scholarly', modes:['partwhole','sequential'],
     note:'Incipit to explicit — the made parts of a book.',
-    members:['Incipit','Folio','Recto','Verso','Gloss','Colophon','Explicit'] },
+    members:['Incipit','Folio','Recto','Verso','Gloss','Colophon','Explicit'],
+    proper:['Sinaiticus','Vaticanus','Bezae','Amiatinus','Argenteus','Kells','Lindisfarne','Vercelli','Exeter','Nowell'] },
   { id:'argument', name:'An argument', tone:'scholarly', modes:['sequential','causal'],
     note:'Premise to QED — reasoning in order.',
     members:['Premise','Axiom','Lemma','Proof','Corollary','Theorem','QED'] },
@@ -692,9 +706,30 @@ const ORDERED_MODES = new Set(['sequential','cyclical','hierarchical','scalar','
 // Which words a pack offers for the current name-kind. Type words are the common
 // nouns (they encode the relation's order); named instances are the proper-noun
 // exemplars (a flat, more-ownable peer set).
+
+// "Loaded" instances carry heavy existing brand / trademark associations — they
+// make risky product names. We flag them, and "naming for production" hides them.
+const LOADED = new Set([
+  'Avon','Volga','Mercury','Venus','Mars','Jupiter','Saturn','Neptune',
+  'Sirius','Vega','Orion','Altair','Lyra','Mistral','Sirocco','Chinook',
+  'Capitol','Apollo','Gemini','Voyager','Juno','Pioneer','Kepler','Galileo',
+  'Magellan','Horizon','Nautilus','Argo','Victory','Mayflower','Excalibur',
+  'Aegis','Mjolnir','Marathon','Hastings','Everest','Fuji','Olympus','Denali',
+  'Rainier','Blanc','Tiffany','Hope','Regent','Taylor',
+]);
+function isLoaded(n){ return LOADED.has(n); }
+function productionOn(){ const el = document.getElementById('production'); return !!(el && el.checked); }
+
+// A pack's usable proper instances for the current settings — empty if it has
+// none, or if "naming for production" has filtered all the loaded ones away.
+function properPool(pack){
+  if (!pack.proper || !pack.proper.length) return [];
+  return productionOn() ? pack.proper.filter(n=>!isLoaded(n)) : pack.proper.slice();
+}
+
 function poolFor(pack){
-  if (kind === 'named') return (pack.proper && pack.proper.length) ? pack.proper.slice() : null;
-  if (kind === 'both'  && pack.proper && pack.proper.length) return [...new Set(pack.members.concat(pack.proper))];
+  if (kind === 'named'){ const p = properPool(pack); return p.length ? p : null; }
+  if (kind === 'both'){ const p = properPool(pack); return p.length ? [...new Set(pack.members.concat(p))] : pack.members.slice(); }
   return pack.members.slice();
 }
 
@@ -742,11 +777,11 @@ function render(){
   const out = document.getElementById('gen-out');
 
   let matches = PACKS.filter(p=>p.modes.includes(mode) && (tone==='any' || p.tone===tone));
-  if (kind === 'named') matches = matches.filter(p=>p.proper && p.proper.length);
+  if (kind === 'named') matches = matches.filter(p=>properPool(p).length);
   if (!matches.length){
     const modeName = (MODES.find(m=>m.id===mode)||{}).label || mode;
     const tail = kind==='named'
-      ? `None of the fitting domains carry named instances yet — try name kind <strong>type words</strong> or <strong>both</strong>.`
+      ? `No fitting domain has usable named instances${productionOn()?' once the heavily-branded ones are hidden':''} — try name kind <strong>type words</strong> or <strong>both</strong>.`
       : `Try register <strong>Any</strong>, or another relation.`;
     out.innerHTML = `<p class="empty-note">No ${tone==='any'?'':tone+' '}domains relate things &ldquo;${modeName}&rdquo;. ${tail}</p>`;
     return;
@@ -754,13 +789,19 @@ function render(){
   const total = matches.length;
   const shown = shuffle(matches).slice(0, fshow);
   const showStructure = (kind === 'type');
+  const coined = document.getElementById('coin').checked;
+  let sawLoaded = false;
 
   out.innerHTML = shown.map(p=>{
     const fam = pickFamily(p, k, ordered);
-    const usingNames = kind!=='type' && p.proper && p.proper.length;
+    const usingNames = kind!=='type' && properPool(p).length;
     const chips = fam.map((nm,i)=>{
       const pair = labels[i] ? `<span class="pair">${labels[i]}</span>` : '';
-      return `<span class="chip">${dress(nm)}${pair}</span>`;
+      const properDraw = kind!=='type' && p.proper && p.proper.includes(nm);
+      const loaded = properDraw && isLoaded(nm) && !coined;   // coining moves it off the trademark
+      if (loaded) sawLoaded = true;
+      const mark = loaded ? `<sup class="load" title="heavily branded — vet the trademark before use">°</sup>` : '';
+      return `<span class="chip${loaded?' loaded':''}">${dress(nm)}${mark}${pair}</span>`;
     }).join('');
     const flags = (showStructure && ordered ? ' &middot; <em>ordered</em>' : '')
                 + (usingNames ? ` &middot; <em>${kind==='both'?'mixed':'named'}</em>` : '');
@@ -770,8 +811,9 @@ function render(){
       <div class="family">${chips}</div>
     </div>`;
   }).join('');
-  const namedCount = matches.filter(p=>p.proper && p.proper.length).length;
-  out.innerHTML += `<div class="count-line">showing ${shown.length} of ${total} domain${total===1?'':'s'} that fit this relation${tone!=='any'?' · '+tone:''}${kind==='type'&&namedCount?` · ${namedCount} also offer named instances`:''} — press Shuffle for more</div>`;
+  const namedCount = matches.filter(p=>properPool(p).length).length;
+  const legend = sawLoaded ? ` · <span class="load">°</span> heavily branded, vet the trademark` : '';
+  out.innerHTML += `<div class="count-line">showing ${shown.length} of ${total} domain${total===1?'':'s'} that fit this relation${tone!=='any'?' · '+tone:''}${kind==='type'&&namedCount?` · ${namedCount} also offer named instances`:''}${productionOn()?' · production filter on':''}${legend} — press Shuffle for more</div>`;
 }
 
 // build mode + tone pickers
@@ -807,6 +849,7 @@ document.getElementById('kind').addEventListener('click', e=>{
 ['count','families','placement'].forEach(id=>document.getElementById(id).addEventListener('change', render));
 ['shared','labels'].forEach(id=>document.getElementById(id).addEventListener('input', render));
 document.getElementById('coin').addEventListener('change', render);
+document.getElementById('production').addEventListener('change', render);
 
 render();
 </script>
