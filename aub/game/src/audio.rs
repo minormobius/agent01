@@ -107,18 +107,34 @@ impl AudioBank {
     /// a removed or not-yet-authored sound degrades gracefully instead
     /// of taking the whole game down at boot.
     pub async fn load() -> Self {
-        let mut banks: Vec<Vec<Sound>> = Vec::with_capacity(SFX_TABLE.len());
-        for def in SFX_TABLE {
-            let mut loaded: Vec<Sound> = Vec::with_capacity(def.paths.len());
-            for path in def.paths {
-                match load_sound(path).await {
-                    Ok(snd) => loaded.push(snd),
-                    Err(_) => eprintln!("sound missing, skipping: {}", path),
-                }
-            }
-            banks.push(loaded);
+        // Web build: the upstream repo ships no audio files, so on wasm every
+        // `load_sound` below is a 404 — and miniquad's web loader serializes
+        // them, so ~30 missing sounds become ~30 sequential round-trips on a
+        // cold load (the "cycling through missing assets" stall). Skip the
+        // fetches entirely and hand back empty (silent) banks; `play` is
+        // already a no-op for an empty bank. Drop this guard once audio assets
+        // are committed (see aub/README.md "Re-syncing from upstream").
+        #[cfg(target_arch = "wasm32")]
+        {
+            return Self {
+                banks: SFX_TABLE.iter().map(|_| Vec::new()).collect(),
+            };
         }
-        Self { banks }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut banks: Vec<Vec<Sound>> = Vec::with_capacity(SFX_TABLE.len());
+            for def in SFX_TABLE {
+                let mut loaded: Vec<Sound> = Vec::with_capacity(def.paths.len());
+                for path in def.paths {
+                    match load_sound(path).await {
+                        Ok(snd) => loaded.push(snd),
+                        Err(_) => eprintln!("sound missing, skipping: {}", path),
+                    }
+                }
+                banks.push(loaded);
+            }
+            Self { banks }
+        }
     }
 }
 

@@ -55,9 +55,23 @@ Two small web-build accommodations vs. `aubrika/ecdysium`, both isolated:
    macroquad/miniquad's JS-host symbols are emitted as wasm imports instead of
    erroring at link time on some toolchains.
 
-Everything else builds unmodified — assets load through macroquad's async
-fetch pipeline (web-native), and CLI args / the window icon degrade gracefully
-when absent.
+3. **skip audio fetches on web** (`game/src/audio.rs`): the upstream repo ships
+   no sound files, and miniquad's web loader fetches assets serially — so ~30
+   missing `load_sound` calls become ~30 sequential 404 round-trips on a cold
+   load. On wasm, `AudioBank::load` now returns empty (silent) banks without
+   fetching. `play()` is already a no-op for empty banks, so this is pure
+   speedup. Remove the `#[cfg(target_arch = "wasm32")]` guard once audio is
+   committed upstream.
+
+The browser shell (`web/mq_js_bundle.js`) is macroquad's loader **pinned to the
+crate version (v0.4.14)** — not `master`, whose bundle has a strict-mode bug
+(`register_plugin is not defined`).
+
+Everything else builds unmodified — assets load through macroquad's async fetch
+pipeline (web-native), and CLI args / the window icon degrade gracefully when
+absent. A handful of textures (a third-party SciFi tileset, a few creature
+sprites) are genuinely absent from the upstream repo; the game draws its own
+magenta "missing art" stand-in for those (intentional — they flag art TODOs).
 
 **Known limitation**: save/load (`src/save.rs`) writes JSON to disk via
 `std::fs`. In the browser there is no filesystem, so saving is a no-op (errors
@@ -73,7 +87,10 @@ curl -sSL https://github.com/aubrika/ecdysium/archive/refs/heads/main.tar.gz | t
 rsync -a --delete ecdysium-main/src/   aub/game/src/
 rsync -a --delete ecdysium-main/assets/ aub/game/assets/
 cp ecdysium-main/Cargo.lock aub/game/Cargo.lock
-# then re-apply the getrandom block to aub/game/Cargo.toml (see above)
+# then re-apply, in aub/game/, the three web accommodations above:
+#   1. the getrandom `custom` block + main.rs shim
+#   2. .cargo/config.toml (--import-undefined)   (untouched by the rsync)
+#   3. the wasm audio-skip guard in src/audio.rs
 ```
 
 Pushing any change under `aub/**` on the owning branch redeploys.
