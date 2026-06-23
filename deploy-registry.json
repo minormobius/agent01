@@ -902,6 +902,19 @@
         "os/**",
         "!os/api/**"
       ]
+    },
+    {
+      "surface": "aub",
+      "dir": "aub",
+      "endpoint": "aub.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/game-website-deploy-2ffuu2",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "aub/**"
+      ],
+      "note": "Ecdysium (aubrika/ecdysium) — a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown. Assets-only worker `aub` serving a static dist (web shell + macroquad JS bundle + game assets + the wasm), assembled at deploy time by deploy-aub.yml. Only upstream change is a getrandom `js` feature for the wasm target. Save/load no-ops in-browser (std::fs unavailable) but the game plays."
     }
   ],
   "unmanaged": {

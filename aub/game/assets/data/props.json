@@ -1,0 +1,23 @@
+{
+  "_comment": "Tunable per-prop stats for Ecdysium. `passable` and `animation` timing are designer-facing tunables. Sprite paths, name + description i18n keys, footprint, anchor direction, and interaction kind stay in `src/props.rs` because they're identity / structural data. Adjusting an entry here and restarting changes the value without a recompile.",
+  "cryo_tube": {
+    "passable": false,
+    "animation": { "Strip": { "frames": 3, "frame_seconds": 0.35 } }
+  },
+  "cryo_tube_occupied": {
+    "passable": false,
+    "animation": { "Strip": { "frames": 3, "frame_seconds": 0.35 } }
+  },
+  "locker_unlocked": {
+    "passable": true,
+    "animation": { "Strip": { "frames": 2, "frame_seconds": 0.5 } }
+  },
+  "storage_crate": {
+    "passable": true,
+    "animation": "Static"
+  },
+  "custodibot_deactivated": {
+    "passable": false,
+    "animation": "Static"
+  }
+}
