@@ -84,11 +84,34 @@ reloads.
 
 The bridge is a small **miniquad plugin** in `web/index.html` (`aub_storage`)
 exposing three `env` imports the wasm calls; it reads/writes the wasm's linear
-memory directly (no `sapp-jsutils`, no extra crate). This is **phase 1** of
-"save to your Bluesky/ATProto repo": the wasm only ever speaks `localStorage`,
-and a future **phase 2** JS layer syncs that one blob ⇄ the user's PDS as a
-`com.minomobi.ecdysium.save` record (mirroring `hoop`'s `story.save`), so the
-wasm never has to touch auth or the network.
+memory directly (no `sapp-jsutils`, no extra crate). The wasm only ever speaks
+`localStorage` — it never touches auth or the network.
+
+### Phase 2 — sync to your ATProto repo (the `hoop` pattern)
+
+A guarded, additive JS layer in `web/index.html` (+ the vendored
+`web/auth.js` = `packages/oauth-client/auth.js`) syncs that one `localStorage`
+blob ⇄ the player's PDS as a `com.minomobi.ecdysium.save` record (rkey `self`,
+lexicon in `lexicons/ecdysium.save.json`), mirroring `hoop`'s `story.save`:
+
+- A "Sign in with Bluesky" overlay (top-right) drives the shared auth worker
+  (`auth.mino.mobi`) — SSO, so a session minted on any `*.mino.mobi` site is
+  picked up here.
+- On login it **pulls** the remote save into `localStorage` when it's newer
+  (last-write-wins by `updatedAt` vs a local `mtime` stamp).
+- The storage plugin fires `window.__aubOnSave` on every in-game save, which
+  **pushes** the blob to the PDS (debounced 1.5 s).
+- If `auth.mino.mobi` is down or the player never signs in, nothing changes —
+  the game and its `localStorage` saves work exactly as in phase 1.
+
+**Deploy dependency (one-time):** the write needs `com.minomobi.ecdysium.save`
+in the consent ceiling. It's been added to `WRITE_COLLECTIONS` in
+`workers/auth/src/oauth/scope.ts` (and `aub.mino.mobi` to `ALLOWED_ORIGINS` in
+`workers/auth/src/index.ts`), but those live on the **auth surface** — the auth
+worker must be redeployed (`deploy-auth.yml`) for the new scope to enter
+`UNIFIED_SCOPE`/`METADATA_SCOPE`. Until then, sign-in works but `putRecord` to
+the collection is denied (insufficient scope); local saves still persist.
+CORS already works via the worker's `*.mino.mobi` wildcard.
 
 ## Re-syncing from upstream
 

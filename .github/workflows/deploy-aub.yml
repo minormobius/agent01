@@ -41,7 +41,7 @@ jobs:
         working-directory: aub
         run: |
           rm -rf dist && mkdir -p dist
-          cp web/index.html web/mq_js_bundle.js dist/
+          cp web/* dist/                 # index.html, mq_js_bundle.js, auth.js
           cp -r game/assets dist/assets
           cp game/target/wasm32-unknown-unknown/release/ecdysium.wasm dist/ecdysium.wasm
           echo "dist contents:" && ls -lhR dist | head -40
