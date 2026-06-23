@@ -110,7 +110,7 @@
       <div class="card">
         <span class="verdict v-full">Fully modelled</span>
         <h3>Liquid Glass UI material</h3>
-        <p>The headline tab. Real UI — menus, a dock, search and music pills — sits over a live wallpaper and <em>refracts the content behind it</em>. The background is a procedural function, so each glass pixel re-samples it at a displaced coordinate: edges lens and magnify, colour splits chromatically, the interior frosts, and a directional sheen rides the bevel. Drag any panel; the refraction tracks whatever's underneath. This is the iOS&nbsp;26 / macOS&nbsp;Tahoe look, edge-bending and all.</p>
+        <p>The headline tab. Real UI — menus, a dock, search and music pills — sits over a live wallpaper and <em>refracts the content behind it</em>. The background is a procedural function, so each glass pixel re-samples it at a displaced coordinate: edges lens and magnify, colour splits chromatically, the interior frosts, and a directional sheen rides the bevel. <strong>All the optics toys apply to the UI glass</strong> — the same refractive-index, birefringence/polariser and total-internal-reflection controls drive the panels, so you can push the menus from window-glass to diamond, double the background like calcite, or light the rims with TIR. Drag any panel; the refraction tracks whatever's underneath. This is the iOS&nbsp;26 / macOS&nbsp;Tahoe look, edge-bending and all.</p>
       </div>
       <div class="card">
         <span class="verdict v-full">Fully modelled</span>
@@ -130,7 +130,7 @@
       <div class="card">
         <span class="verdict v-some">Concept + real beam</span>
         <h3>Laser-pointer homescreen widget</h3>
-        <p>A web page can't <em>be</em> an iOS home-screen widget — that's an Apple SDK surface. But we can model what it'd show: a live laser raytraced through a glass drop, bending and total-internal-reflecting as you aim. Drag the dot. The widget chrome is a mock; the optics inside it are real.</p>
+        <p>A web page can't <em>be</em> an iOS home-screen widget — that's an Apple SDK surface. But we can model what it'd show: a live laser raytraced through a glass drop, bending and total-internal-reflecting as you aim. Now with <strong>two degrees of freedom</strong> — drag the red emitter to move the source and the ring to aim, so the beam is no longer locked through the drop's centre. The widget chrome is a mock; the optics inside it are real.</p>
       </div>
     </div>
   </section>
@@ -173,8 +173,9 @@
     ior:1.52, shape:0 /*0 sphere,1 cube,2 prism*/, biref:0.18, polar:0.5,
     absorb:[0.35,0.12,0.55], tirGlow:1.0,
     yaw:0.7, pitch:-0.35, dist:3.4, auto:true,
-    // liquid-glass UI mode
-    ui:{ strength:34, frost:0.45, chroma:0.6, tint:0.6, wall:0, scroll:0 }
+    // liquid-glass UI mode (the optics toys apply here too)
+    ui:{ strength:34, frost:0.45, chroma:0.6, tint:0.6, wall:0, scroll:0,
+         ior:1.5, biref:0.0, polar:0.5, tir:0.0 }
   };
 
   /* ---------------------------- shaders ---------------------------- */
@@ -381,6 +382,10 @@
   uniform float uTint;        // 0..1
   uniform int   uWall;        // wallpaper id
   uniform float uScroll;
+  uniform float uIOR;         // refractive index (the toy, applied to UI glass)
+  uniform float uBiref;       // birefringence Δn
+  uniform float uPolar;       // polariser 0..1
+  uniform float uTIRamt;      // total-internal-reflection amount 0..1
 
   float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
   vec3 hsv(float h,float s,float v){
@@ -435,6 +440,11 @@
     return m;
   }
 
+  // refracted background sample with chromatic dispersion along the bend dir
+  vec3 refrAt(vec2 p, vec2 off, vec2 ca){
+    return vec3( bg(p+off+ca).r, bg(p+off).g, bg(p+off-ca).b );
+  }
+
   void main(){
     vec2 p=gl_FragCoord.xy;
     vec3 col=bg(p);
@@ -452,12 +462,37 @@
                             scene(p+vec2(0.0,1.5))-scene(p-vec2(0.0,1.5)))+1e-6);
       float ed=clamp(-d/band,0.0,1.0);
       float slope=pow(1.0-ed,1.7);              // bending concentrated at the rim
-      vec2 off=g*slope*uStrength;
-      vec2 ca=g*slope*uStrength*uChroma*0.6;
+
+      // --- the optics toys, applied to the UI glass ---
+      // displacement scales with the refractive index (Snell: more n, more bend)
+      float iorFac=(uIOR-1.0)/0.52;             // n=1.52 -> 1.0
+      vec2 baseOff=g*slope*uStrength*iorFac;
+      vec2 ca=baseOff*uChroma*0.45;             // dispersion grows with the bend
+
       vec3 refr;
-      refr.r=bg(p+off+ca).r;
-      refr.g=bg(p+off).g;
-      refr.b=bg(p+off-ca).b;
+      if(uBiref>0.001){
+        // birefringence: ordinary + extraordinary rays, doubled like calcite
+        float iorE=(uIOR+uBiref-1.0)/0.52;
+        vec2 offE=g*slope*uStrength*iorE;
+        vec3 o=refrAt(p, baseOff, ca)*vec3(0.80,1.0,1.07);
+        vec3 e=refrAt(p, offE,    ca)*vec3(1.08,0.87,0.78);
+        float a=uPolar*1.5708;                  // Malus's law mix
+        float wo=cos(a)*cos(a), we=sin(a)*sin(a);
+        wo=mix(0.5,wo,0.85); we=mix(0.5,we,0.85);
+        refr=o*wo+e*we;
+      } else {
+        refr=refrAt(p, baseOff, ca);
+      }
+
+      // total internal reflection: past the critical angle the rim mirrors
+      // instead of transmitting. Critical angle shrinks as n rises, so the
+      // TIR ring grows with the index.
+      float slopeAngle=atan(slope*2.7);
+      float critical=asin(clamp(1.0/uIOR,0.0,1.0));
+      float tir=uTIRamt*smoothstep(critical*0.8, critical+0.001, slopeAngle);
+      vec3 reflC=refrAt(p, -baseOff*1.4, ca);   // reflect the sample inward
+      refr=mix(refr, reflC, tir);
+
       // frost: cheap box blur
       vec3 bl=bg(p+vec2(3.0,0.0))+bg(p+vec2(-3.0,0.0))+bg(p+vec2(0.0,3.0))
              +bg(p+vec2(0.0,-3.0))+bg(p+vec2(2.5,2.5))+bg(p+vec2(-2.5,-2.5));
@@ -474,6 +509,8 @@
       float edgeLine=smoothstep(2.2,0.0,abs(d+2.2));
       float toplit=clamp(g.y,0.0,1.0);
       glass+=edgeLine*(0.22+0.55*toplit);
+      // TIR rim glow so trapped edges read as lit
+      glass+=tir*vec3(0.55,0.82,1.0)*0.45;
       // subtle inner shade at the very bottom for depth
       glass-=clamp(-g.y,0.0,1.0)*edgeLine*0.10;
       col=glass;
@@ -508,7 +545,8 @@
     ['uRes','uTime','uIOR','uShape','uMode','uBiref','uPolar','uAbsorb','uTIR','uRot','uDist']
       .forEach(n=>loc[n]=gl.getUniformLocation(prog,n));
     uiProg=link(FS_UI);
-    ['uRes','uTime','uPanelN','uPanels','uRadius','uStrength','uFrost','uChroma','uTint','uWall','uScroll']
+    ['uRes','uTime','uPanelN','uPanels','uRadius','uStrength','uFrost','uChroma','uTint','uWall','uScroll',
+     'uIOR','uBiref','uPolar','uTIRamt']
       .forEach(n=>uloc[n]=gl.getUniformLocation(uiProg,n));
   }
 
@@ -608,6 +646,10 @@
     gl.uniform1f(uloc.uTint, state.ui.tint);
     gl.uniform1i(uloc.uWall, state.ui.wall);
     gl.uniform1f(uloc.uScroll, state.ui.scroll*dpr);
+    gl.uniform1f(uloc.uIOR, state.ui.ior);
+    gl.uniform1f(uloc.uBiref, state.ui.biref);
+    gl.uniform1f(uloc.uPolar, state.ui.polar);
+    gl.uniform1f(uloc.uTIRamt, state.ui.tir);
     gl.drawArrays(gl.TRIANGLES,0,3);
   }
 
@@ -807,6 +849,10 @@
   function buildUIControls(){
     controlsEl.innerHTML='';
     controlsEl.append(
+      sliderObj(state.ui,'ior','Refractive index n',1.0,2.6,0.01,v=>v.toFixed(2)),
+      sliderObj(state.ui,'biref','Birefringence Δn',0,0.5,0.005,v=>v.toFixed(3)),
+      sliderObj(state.ui,'polar','Polariser angle',0,1,0.005,v=>Math.round(v*90)+'°'),
+      sliderObj(state.ui,'tir','Total internal reflection',0,1,0.01,v=>Math.round(v*100)+'%'),
       sliderObj(state.ui,'strength','Edge bending',0,80,1,v=>Math.round(v)+'px'),
       sliderObj(state.ui,'frost','Frost / blur',0,1,0.01,v=>Math.round(v*100)+'%'),
       sliderObj(state.ui,'chroma','Chromatic split',0,1,0.01,v=>Math.round(v*100)+'%'),
@@ -853,7 +899,9 @@
      ============================================================ */
   const W = {
     ctx:null, raf:0, dpr:1, w:0, h:0,
-    laser:{x:0.12,y:0.5}, drag:false, ior:1.5, shape:'drop', t:0
+    // two degrees of freedom: emitter position AND aim point (independent)
+    laser:{x:0.12,y:0.62}, aim:{x:0.5,y:0.42},
+    dragWhich:null, ior:1.5, shape:'drop', t:0
   };
   function widgetResize(){
     const r=wcv.getBoundingClientRect();
@@ -948,16 +996,27 @@
     ctx.fillText('Laser · Liquid Glass', cardX+18*W.dpr, cardY+26*W.dpr);
     ctx.fillStyle='rgba(169,159,196,0.8)';
     ctx.font=`${11*W.dpr}px -apple-system,system-ui,sans-serif`;
-    ctx.fillText('drag the dot to aim · n='+W.ior.toFixed(2), cardX+18*W.dpr, cardY+44*W.dpr);
-    // laser origin
+    ctx.fillText('drag the emitter to move · drag the ring to aim · n='+W.ior.toFixed(2), cardX+18*W.dpr, cardY+44*W.dpr);
+    // emitter + aim handles (two independent DOFs)
     const lx=W.laser.x*W.w, ly=W.laser.y*W.h;
-    // beam toward drop centre-ish with slight aim from laser pos
-    const cx=W.w*0.62, cy=W.h*0.5;
-    let dx=cx-lx, dy=cy-ly; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+    const ax=W.aim.x*W.w, ay=W.aim.y*W.h;
+    let dx=ax-lx, dy=ay-ly; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+    // faint aim guide from emitter through the aim ring and beyond
+    ctx.save(); ctx.setLineDash([4*W.dpr,5*W.dpr]); ctx.strokeStyle='rgba(255,255,255,0.18)';
+    ctx.lineWidth=1*W.dpr; ctx.beginPath(); ctx.moveTo(lx,ly);
+    ctx.lineTo(lx+dx*W.w*1.4, ly+dy*W.w*1.4); ctx.stroke(); ctx.restore();
+    // the actual ray
     traceBeam(ctx,lx,ly,dx,dy);
+    // aim handle (ring + crosshair)
+    ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=2*W.dpr;
+    ctx.beginPath(); ctx.arc(ax,ay,11*W.dpr,0,7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax-15*W.dpr,ay); ctx.lineTo(ax-5*W.dpr,ay);
+    ctx.moveTo(ax+5*W.dpr,ay); ctx.lineTo(ax+15*W.dpr,ay);
+    ctx.moveTo(ax,ay-15*W.dpr); ctx.lineTo(ax,ay-5*W.dpr);
+    ctx.moveTo(ax,ay+5*W.dpr); ctx.lineTo(ax,ay+15*W.dpr); ctx.stroke();
     // laser emitter dot
     ctx.fillStyle='#ff3b3b'; ctx.shadowColor='#ff3b3b'; ctx.shadowBlur=18*W.dpr;
-    ctx.beginPath(); ctx.arc(lx,ly,7*W.dpr,0,7); ctx.fill(); ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.arc(lx,ly,8*W.dpr,0,7); ctx.fill(); ctx.shadowBlur=0;
     ctx.fillStyle='rgba(255,255,255,0.9)';ctx.beginPath();ctx.arc(lx,ly,2.5*W.dpr,0,7);ctx.fill();
     ctx.restore();
   }
@@ -966,13 +1025,22 @@
     ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
     ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
   }
-  wcv.addEventListener('pointerdown',e=>{W.drag=true;wcv.setPointerCapture(e.pointerId);aimLaser(e);});
-  wcv.addEventListener('pointermove',e=>{if(W.drag)aimLaser(e);});
-  wcv.addEventListener('pointerup',()=>{W.drag=false;});
-  function aimLaser(e){
-    const r=wcv.getBoundingClientRect();
-    W.laser.x=Math.max(0.04,Math.min(0.5,(e.clientX-r.left)/r.width));
-    W.laser.y=Math.max(0.08,Math.min(0.92,(e.clientY-r.top)/r.height));
+  function wptNorm(e){ const r=wcv.getBoundingClientRect();
+    return {x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height}; }
+  wcv.addEventListener('pointerdown',e=>{
+    const pt=wptNorm(e);
+    const le=Math.hypot(pt.x-W.laser.x, pt.y-W.laser.y);
+    const ae=Math.hypot(pt.x-W.aim.x, pt.y-W.aim.y);
+    W.dragWhich = ae<le ? 'aim' : 'laser';   // grab whichever handle is nearer
+    wcv.setPointerCapture(e.pointerId); moveHandle(e);
+  });
+  wcv.addEventListener('pointermove',e=>{ if(W.dragWhich) moveHandle(e); });
+  wcv.addEventListener('pointerup',()=>{W.dragWhich=null;});
+  function moveHandle(e){
+    const pt=wptNorm(e);
+    const h = W.dragWhich==='aim' ? W.aim : W.laser;
+    h.x=Math.max(0.03,Math.min(0.97,pt.x));
+    h.y=Math.max(0.05,Math.min(0.95,pt.y));
   }
   function buildLaserControls(){
     controlsEl.innerHTML='';
@@ -982,7 +1050,7 @@
     const upd=()=>out.textContent=parseFloat(r.value).toFixed(2);
     r.addEventListener('input',()=>{W.ior=parseFloat(r.value);upd();});upd();
     const info=el(`<div class="ctl"><label>About this widget</label>
-      <div class="note">A home-screen widget is an iOS SDK surface — a website can't install one. What you can ship to the browser is exactly what the widget would <em>render</em>: a live laser raytraced through liquid glass. Aim it so the beam grazes the rim and watch it total-internal-reflect (red→amber inside→blue out). The chrome is a faithful mock; the optics are real.</div></div>`);
+      <div class="note">Two handles, two degrees of freedom: drag the <strong>red emitter</strong> to move the source, drag the <strong>ring</strong> to aim — the beam is emitter→ring, no longer locked through the drop's centre. A home-screen widget is an iOS SDK surface a website can't install; this is exactly what the widget would <em>render</em>. Graze the rim and watch it total-internal-reflect (red→amber inside→blue out). Chrome is a mock; the optics are real.</div></div>`);
     controlsEl.append(node,info);
   }
 
@@ -994,7 +1062,7 @@
     badge.textContent=labels[m];
     const isLaser=m==='laser', isUI=m==='ui';
     wcv.hidden=!isLaser; lab.hidden=isLaser; ovl.hidden=!isUI;
-    hint.textContent = isLaser?'drag the dot to aim the laser'
+    hint.textContent = isLaser?'drag the emitter · drag the ring to aim'
                      : isUI?'drag the glass panels'
                      : 'drag to rotate · scroll to zoom';
     cancelAnimationFrame(W.raf);
