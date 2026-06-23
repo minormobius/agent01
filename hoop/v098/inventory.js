@@ -62,8 +62,9 @@ export function buildLayout(count, C, Hs) {
 
 // ── THE VIEW ───────────────────────────────────────────────────────────────────────────────────
 export class Inventory {
-  constructor({ pack = [], onClose = null, title = 'pack' } = {}) {
+  constructor({ pack = [], onClose = null, title = 'pack', equipInfo = null, onEquip = null } = {}) {
     this.pack = pack; this.onClose = onClose; this.title = title;
+    this.equipInfo = equipInfo; this.onEquip = onEquip;   // controller hooks for the inventory⇆equipment link
     this.rot = 0; this.target = 0; this.focus = 0; this.open = false;
     this.drag = null; this.raf = null; this.dpr = 1; this.layout = null;
     this._build();
@@ -258,9 +259,21 @@ export class Inventory {
           ${item.lore ? `<div style="font-size:11px;color:#cbb6e6;margin-top:8px;line-height:1.5;border-left:2px solid ${item.frame};padding-left:8px">${esc(item.lore)}</div>` : ''}
           <div style="font-size:11px;color:#cfd8d2;margin-top:8px;line-height:1.5;font-style:italic">${esc(item.headline || '')}</div>
         </div>
-      </div>`;
+      </div>${this._equipBtnHTML(item)}`;
     const sc = this.elCard.querySelector('#invsprite');
     if (sc) { const g = sc.getContext('2d'); g.imageSmoothingEnabled = false; try { drawSprite(g, item, { x: 12, y: 12, size: 96, frame: false }); } catch (e) {} }
+    const eb = this.elCard.querySelector('#inveq');
+    if (eb && this.onEquip) eb.addEventListener('click', () => this.onEquip(item));
+  }
+  // the EQUIP button (only for items that fit a body slot). Default action installs into the slot, swapping
+  // whatever was there; if this item is already worn, it toggles to unequip. pointer-events:auto because the
+  // card wrapper is click-through (pointer-events:none) so taps fall to the spinning ring behind it.
+  _equipBtnHTML(item) {
+    const info = this.equipInfo ? this.equipInfo(item) : null;
+    if (!info || !info.slot) return '';
+    const on = info.equipped;
+    return `<button id="inveq" style="pointer-events:auto;margin-top:10px;width:100%;background:${on ? '#11331f' : '#131a22'};border:1px solid ${on ? '#2f7a4a' : '#34424d'};color:${on ? '#bfe9cf' : '#cfe3dc'};font:inherit;font-size:12.5px;padding:9px;border-radius:9px;cursor:pointer">`
+      + (on ? `✓ equipped · ${esc(info.label)} — tap to unequip` : `equip ▸ ${esc(info.label)}`) + `</button>`;
   }
 }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m])); }

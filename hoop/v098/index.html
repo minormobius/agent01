@@ -427,7 +427,7 @@
     import { createBattle } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, spoilsFor } from './arena/encounter.js';   // hazard-room creeps
     import { BattleOverlay } from './arena/battle-ui.js';   // the tactical-board UI, shared with /arena
-    import { autoEquip, defaultPlan, slotForItem } from './bodyplan.js';   // equip the player/creep for battle
+    import { autoEquip, defaultPlan, slotForItem, SLOTS } from './bodyplan.js';   // equip the player/creep for battle
     import { rollItem } from './sprite/item/genome.js';   // mint a loot item from a spoils seed
     import { bakeFog } from './v8/bake.js';
     import { initGpuMap } from './gpumap.js';   // optional WebGPU vector renderer for the cell fills (crisp at any zoom); null ⇒ baked-raster fallback
@@ -2316,7 +2316,7 @@
     }
     function socketSectionHTML() {
       const gems = getGems(), items = pack.pack.map((it, i) => ({ it, i })).filter(({ it }) => slotForItem(it));
-      const worn = new Set(Object.values(autoEquip(defaultPlan(), pack.pack)).filter(Boolean));   // only worn gear's gems fight
+      const worn = new Set(Object.values(effectiveEquip()).filter(Boolean));   // only worn gear's gems fight
       const itemRows = items.length ? items.map(({ it, i }) => {
         const cap = socketCap(it), set = it.gems || [];
         const dots = Array.from({ length: cap }, (_, k) => set[k] ? `<span class="sdot on" style="color:${cssOf(set[k].color)}">${gemGlyph(set[k])}</span>` : `<span class="sdot">○</span>`).join('');
@@ -2471,7 +2471,7 @@
     }
     const battleSpriteFor = (u) => { try { return crewSprite(u.sprite.seed, u.sprite.role, {}); } catch (e) { return null; } };
     function buildPlayerUnit(c) {
-      const eq = autoEquip(defaultPlan(), pack.pack);   // fight with your ACTUAL gear (bought/looted/socketed)
+      const eq = effectiveEquip();   // fight with your ACTUAL gear (manually equipped, else auto-best)
       const combat = deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand });
       const gb = sumBonus([].concat(eq.mainhand && eq.mainhand.gems || [], eq.body && eq.body.gems || [], eq.offhand && eq.offhand.gems || []));
       combat.hp += gb.hp; combat.atk += gb.atk; combat.def += gb.def; combat.fluxPool += gb.flux;   // socketed-gem crystallography
@@ -2809,12 +2809,45 @@
       $('who').innerHTML = `<b>${esc(playerChar.name)}</b> · ${esc(playerChar.cast.label)} ${esc(playerChar.vocTag)}<br><span style="color:#6b7872">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def} ✣${cm.fluxPool}</span>`;
     }
 
+    // ── MANUAL EQUIP — a per-slot override over the auto-best fit. equipChoice[slot] = uid (pinned) |
+    //    null (explicitly empty / unequipped) | absent (auto-fill the best item — the legacy behavior).
+    //    Items get a stable `uid` so the choice survives reorders/reloads; persisted with the pack. ──
+    let equipChoice = {}, _uidSeq = 0;
+    function ensureUids(arr) { for (const it of arr || []) { if (it && !it.uid) it.uid = 'e' + (++_uidSeq); const n = +String((it && it.uid) || '').slice(1); if (n > _uidSeq) _uidSeq = n; } }
+    function effectiveEquip() {
+      const plan = defaultPlan(); ensureUids(pack.pack);
+      const auto = autoEquip(plan, pack.pack), slots = new Set(plan.regions.map((r) => r.slot));
+      const byUid = new Map(pack.pack.map((it) => [it.uid, it])), out = {};
+      for (const sl of slots) {
+        const ch = equipChoice[sl];
+        if (ch === undefined) { if (auto[sl]) out[sl] = auto[sl]; }                 // untouched slot → auto-fit best
+        else if (ch === null) { /* explicitly unequipped → leave empty */ }
+        else { const it = byUid.get(ch); if (it && slotForItem(it) === sl) out[sl] = it; else if (auto[sl]) out[sl] = auto[sl]; }
+      }
+      return out;
+    }
+    function equipInfo(item) {
+      if (!item) return null; ensureUids(pack.pack); const slot = slotForItem(item); if (!slot) return null;
+      const cur = effectiveEquip()[slot];
+      return { slot, label: (SLOTS[slot] || {}).label || slot, equipped: !!(cur && cur.uid === item.uid) };
+    }
+    function onEquipToggle(item) {
+      if (!item) return; ensureUids(pack.pack); const slot = slotForItem(item); if (!slot) return;
+      const cur = effectiveEquip()[slot];
+      if (cur && cur.uid === item.uid) equipChoice[slot] = null;   // already worn → unequip (toggle off)
+      else equipChoice[slot] = item.uid;                           // install / SWAP whatever occupied the slot
+      persistPack(); refreshEquipViews();
+    }
+    function unequipSlot(slot) { if (!slot) return; equipChoice[slot] = null; persistPack(); refreshEquipViews(); }
+    function refreshEquipViews() { try { if (equip && equip.open) equip.refresh(); } catch (e) {} try { if (pack && pack.open) pack._renderDetail(); } catch (e) {} }
+
     // ── the pack: a Voronoi-cylinder inventory of genomed items ──
-    const pack = new Inventory({ pack: (playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)), title: 'pack' });
+    const pack = new Inventory({ pack: (playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)), title: 'pack', equipInfo, onEquip: onEquipToggle });
     // the pack is now DURABLE — bought wares, combat loot, and socketed gems persist. Restore it on load
     // (the snapshot's item array), and re-save it on every mutation via persistPack().
-    const persistPack = () => { if (story.ready) story.store.setFact(story.playerId, 'pack.items', JSON.stringify(pack.pack)); };
-    { const saved = getJSONFact('pack.items', null); if (saved && Array.isArray(saved) && saved.length) pack.setPack(saved); }
+    const persistPack = () => { if (story.ready) { ensureUids(pack.pack); story.store.setFact(story.playerId, 'pack.items', JSON.stringify(pack.pack)); story.store.setFact(story.playerId, 'pack.equip', JSON.stringify(equipChoice)); } };
+    { const saved = getJSONFact('pack.items', null); if (saved && Array.isArray(saved) && saved.length) pack.setPack(saved); ensureUids(pack.pack);
+      const ec = getJSONFact('pack.equip', null); if (ec && typeof ec === 'object' && !Array.isArray(ec)) equipChoice = ec; }
     const togglePack = () => pack.toggle();
     $('pack').addEventListener('click', togglePack);
     addEventListener('keydown', (e) => { if ((e.key === 'i' || e.key === 'I') && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); togglePack(); } });
@@ -2832,7 +2865,7 @@
     addEventListener('keydown', (e) => { if ((e.key === 'c' || e.key === 'C') && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); creator.toggle(); } });
 
     // ── the equipped page: stained-glass figure with the pack auto-fitted onto a body plan ──
-    const equip = new EquippedView({ getCharacter: () => playerChar, getPack: () => pack.pack });
+    const equip = new EquippedView({ getCharacter: () => playerChar, getPack: () => pack.pack, getEquipped: () => effectiveEquip(), onUnequip: (slot) => unequipSlot(slot) });
     $('equipbtn').addEventListener('click', () => equip.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'e' || e.key === 'E') && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); equip.toggle(); } });
 

@@ -18,8 +18,9 @@ function shade(hex, t) {
 const sjit = (x, y) => { let h = Math.imul(((x * 9301) ^ (y * 49297)) | 0, 2654435761); h ^= h >>> 15; return ((h >>> 0) / 4294967296) - 0.5; };
 
 export class EquippedView {
-  constructor({ getCharacter = () => null, getPack = () => [], onClose = null, planId = 'humanoid' } = {}) {
+  constructor({ getCharacter = () => null, getPack = () => [], onClose = null, planId = 'humanoid', getEquipped = null, onUnequip = null } = {}) {
     this.getCharacter = getCharacter; this.getPack = getPack; this.onClose = onClose; this.planId = planId;
+    this.getEquipped = getEquipped; this.onUnequip = onUnequip;   // manual equip map + unequip hook (else auto)
     this.open = false; this.raf = null; this.phase = 0; this.dpr = 1; this.shards = null; this.equipped = {};
     this._build();
   }
@@ -46,7 +47,7 @@ export class EquippedView {
     this.plan = plan;
     const seed = (c && c.seed) || 7;
     this.shards = glassTiling(plan, seed, 7);
-    this.equipped = autoEquip(plan, this.getPack() || []);
+    this.equipped = this.getEquipped ? this.getEquipped() : autoEquip(plan, this.getPack() || []);
     // index regions for anchors/labels
     this.regionById = {}; for (const r of plan.regions) this.regionById[r.id] = r;
     this._renderHead(c); this._renderList(c);
@@ -58,14 +59,18 @@ export class EquippedView {
   }
   _renderList(c) {
     const slots = [...new Set(this.plan.regions.map((r) => r.slot))];
+    const uneq = (sl) => this.onUnequip ? `<button data-uneq="${sl}" style="margin-top:5px;background:#1a1320;border:1px solid #4a3d57;color:#cbb6e6;font:inherit;font-size:10px;padding:3px 9px;border-radius:7px;cursor:pointer">unequip</button>` : '';
     this.root.querySelector('#eqlist').innerHTML = slots.map((sl) => {
       const it = this.equipped[sl], L = (SLOTS[sl] || {}).label || sl;
       if (!it) return `<div style="font-size:11px;color:#6b7872;border-bottom:1px solid #141c24;padding:7px 0">${esc(L)} <span style="float:right">— empty</span></div>`;
-      return `<div style="font-size:11px;border-bottom:1px solid #141c24;padding:7px 0;display:flex;justify-content:space-between;gap:8px">
+      return `<div style="font-size:11px;border-bottom:1px solid #141c24;padding:7px 0;display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
         <span style="color:#9aa8a0">${esc(L)}</span>
-        <span style="text-align:right"><b style="color:${it.frame}">${it.glyph} ${esc(it.name)}</b><br><span style="color:#6b7872">${esc(it.kingdom)} · ⚔${it.stats?.potency ?? '—'} ⛨${it.stats?.durability ?? '—'}</span></span></div>`;
-    }).join('') + `<div style="font-size:10px;color:#566066;margin-top:12px;line-height:1.5">stained-glass shards are tinted by the item equipped to each region. body plan is a hook — alternate plans (extra heads, wheels, a shoulder cannon) drop in as new regions.</div>`;
+        <span style="text-align:right"><b style="color:${it.frame}">${it.glyph} ${esc(it.name)}</b><br><span style="color:#6b7872">${esc(it.kingdom)} · ⚔${it.stats?.potency ?? '—'} ⛨${it.stats?.durability ?? '—'}</span><br>${uneq(sl)}</span></div>`;
+    }).join('') + `<div style="font-size:10px;color:#566066;margin-top:12px;line-height:1.5">equip gear from the pack (i); unequip here. an untouched slot auto-fits your best item. shards are tinted by what's worn.</div>`;
+    if (this.onUnequip) this.root.querySelectorAll('[data-uneq]').forEach((b) => b.addEventListener('click', () => this.onUnequip(b.dataset.uneq)));
   }
+  // re-pull the equipped map + redraw the list (after an equip/unequip from elsewhere) while open.
+  refresh() { if (this.open) this._rebuild(); }
 
   toggle() { this.open ? this.close() : this.show(); }
   show() {
