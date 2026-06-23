@@ -443,7 +443,7 @@
 
     const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
     const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
-    const TERMINAL_ROLES = new Set(['learn', 'govern', 'worship']);   // reading-room / record-hall consoles are Tabard terminals (Continuant rooms). Marked teal ▤; click to read Luna's mythograph. A chunk-0 fallback (_terminal) guarantees at least one.
+    const TERMINAL_ROLES = new Set(['learn']);   // the mythograph terminal belongs to ONE role: the reading room / record hall (learn). It used to blanket govern + worship too (sim.js still maps those to 'terminal' for paint), but three room types opening the same Luna page muddied its role — the console is the reading room's. govern/worship are now ordinary rooms (their component action is 'terminal', so they fall through to no fixture, not arcade/cafe). Marked teal ▤; click to read Luna's mythograph. A chunk-0 fallback (_terminal) guarantees at least one.
     const isTerminal = (cp) => cp._terminal || TERMINAL_ROLES.has(cp.role);
     // a play-role room's central component is an ARCADE cabinet (sim.js FIXTURE_ACTION: play→'arcade').
     // Marked magenta ◈; click to play a forge puzzle (the Withering Discipline). Not a terminal, so the two never collide.
