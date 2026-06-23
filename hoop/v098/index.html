@@ -1115,7 +1115,9 @@
         try { openingCast = deriveOpeningCast([...story.store.content.values()], 3); } catch (e) {}   // hoopybot's guides, ready even before anchors place
         foldCharacterFromSave();   // the character rides the save now — adopt the saved one, or seed it from local
         syncOwnSaveIfReady();   // if already signed in, your repo save wins over the local buffer
-        maybeArriveDeck();   // the awakening: the current deck's hand-written character + your guide's hook
+        // a brand-new game FORCES character creation (and a name) before the world opens; resumes skip it
+        if (needsForcedCreate()) creator.showForced(() => maybeArriveDeck());
+        else maybeArriveDeck();   // the awakening: the current deck's hand-written character + your guide's hook
         try { const h = await fetch('/api/story/health').then((r) => r.json()); storyApi.enabled = !!(h && h.enabled); storyApi.provider = h && h.provider; } catch (e) { storyApi.enabled = false; }   // v096: is live generation available?
       } catch (e) { story.ready = false; }   // graceful: residents still live and walk, just no story panel
     }
@@ -2773,6 +2775,13 @@
 
     // ── character creation ──
     const creator = new CharacterCreator({ seed: (seed ^ 0x5a17) >>> 0, onEmbark: freshCharacter });
+    // FORCE character creation when: (a) the loader just started a brand-new world (sessionStorage flag), or
+    // (b) this is a truly first-ever run with no character committed anywhere. Resuming a world never forces it.
+    function needsForcedCreate() {
+      try { if (sessionStorage.getItem('hoop:forceCreate')) { sessionStorage.removeItem('hoop:forceCreate'); return true; } } catch (e) {}
+      const committed = story.ready && story.store.getFact(story.playerId, 'character');
+      return !committed && !loadCharacter();
+    }
     $('charbtn').addEventListener('click', () => creator.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'c' || e.key === 'C') && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); creator.toggle(); } });
 
@@ -2865,6 +2874,7 @@
     function newRandomWorld() {
       const s = ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0) || 1;
       try { localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+      try { sessionStorage.setItem('hoop:forceCreate', '1'); } catch (e) {}   // the fresh world opens straight into (named) character creation
       switchToWorld(s);
     }
     async function deleteProfile(s) {

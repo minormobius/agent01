@@ -25,12 +25,15 @@ export class CharacterCreator {
   constructor({ onEmbark = null, onClose = null, seed = 1 } = {}) {
     this.onEmbark = onEmbark; this.onClose = onClose;
     this.open = false; this.raf = null; this.phase = 0;
+    this.mustEmbark = false;                       // forced mode: no close, embark required (a brand-new game)
+    this._afterEmbark = null;                      // one-shot continuation fired after a forced embark
     // working draft
     this.seed = (seed >>> 0) || 1;
     this.spriteSeed = mix(this.seed, 1);
     this.vocation = null;                          // null until rolled/picked
     this.triad = null;                            // weights; null ⇒ derive from vocation
     this.chars = null;                            // characteristics
+    this.charName = null;                          // PLAYER-OWNED name (string); null ⇒ use the rolled name
     this._build();
     this._reroll(true);
   }
@@ -40,32 +43,35 @@ export class CharacterCreator {
     root.id = 'char'; root.style.cssText = 'position:fixed;inset:0;z-index:40;display:none;overflow:auto;background:radial-gradient(120% 120% at 50% 30%,rgba(8,11,16,.96),rgba(3,4,7,.99));font-family:"JetBrains Mono",ui-monospace,monospace;color:#dfe7e2;';
     root.innerHTML = `
       <button id="chclose" style="position:absolute;top:10px;right:14px;background:none;border:0;color:#6b7872;font:inherit;font-size:12px;cursor:pointer;z-index:2">close ⏎</button>
-      <div style="max-width:980px;margin:0 auto;padding:34px 18px 60px;">
-        <div style="text-align:center;margin-bottom:18px">
+      <div style="max-width:900px;margin:0 auto;padding:30px 18px 60px;">
+        <div style="text-align:center;margin-bottom:16px">
           <div style="font-size:13px;color:#7fd8d0;letter-spacing:1px">CHARACTER · roll up a crew-soul</div>
           <div style="font-size:10.5px;color:#6b7872;margin-top:3px">class mirrors the civic tree · everyone is a little bit robot</div>
         </div>
-        <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start">
-          <!-- LEFT: sprite + identity -->
-          <div style="flex:1 1 240px;min-width:230px;text-align:center">
-            <canvas id="chsprite" width="220" height="220" style="width:200px;height:200px;image-rendering:pixelated;background:radial-gradient(circle at 50% 42%,#0c1118,#06080c);border:1px solid #1b2530;border-radius:14px"></canvas>
-            <div id="chname" style="font-size:17px;font-weight:600;color:#f4bf62;margin-top:10px"></div>
-            <div id="chcast" style="font-size:11px;color:#9aa8a0;margin-top:2px"></div>
-            <div style="display:flex;gap:6px;justify-content:center;margin-top:11px;flex-wrap:wrap">
-              <button class="chbtn" id="chrerollAll">⟳ reroll all</button>
-              <button class="chbtn" id="chrerollSprite">⟳ body</button>
-              <button class="chbtn" id="chrerollName">⟳ name</button>
-              <button class="chbtn" id="chrerollQuirks">⟳ quirks</button>
-            </div>
+        <!-- SPRITE: a dedicated, centred element (the name + identity sit beneath it, never beside it) -->
+        <div style="text-align:center;max-width:300px;margin:0 auto 24px">
+          <canvas id="chsprite" width="220" height="220" style="width:200px;height:200px;image-rendering:pixelated;background:radial-gradient(circle at 50% 42%,#0c1118,#06080c);border:1px solid #1b2530;border-radius:14px;display:block;margin:0 auto"></canvas>
+          <div style="display:flex;gap:6px;justify-content:center;align-items:center;margin-top:13px">
+            <input id="chnameinput" type="text" maxlength="28" placeholder="name your character" autocomplete="off" spellcheck="false"
+              style="flex:1;min-width:0;max-width:220px;background:#0c1118;border:1px solid #2c3c47;color:#f4bf62;font:inherit;font-size:16px;font-weight:600;text-align:center;padding:8px 10px;border-radius:9px;outline:none">
+            <button class="chbtn" id="chrerollName" title="suggest a name">⟳</button>
           </div>
-          <!-- MIDDLE: vocation (the civic tree) -->
-          <div style="flex:1 1 250px;min-width:240px">
+          <div id="chnamewarn" style="font-size:10.5px;color:#e08a8a;height:13px;margin-top:4px"></div>
+          <div id="chcast" style="font-size:11px;color:#9aa8a0;margin-top:1px"></div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap">
+            <button class="chbtn" id="chrerollAll">⟳ reroll all</button>
+            <button class="chbtn" id="chrerollSprite">⟳ body</button>
+            <button class="chbtn" id="chrerollQuirks">⟳ quirks</button>
+          </div>
+        </div>
+        <!-- BELOW: vocation + stats — two columns on a wide screen, a single stack on a phone -->
+        <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start">
+          <div style="flex:1 1 280px;min-width:240px">
             <div class="chh">VOCATION <span style="color:#6b7872">· the civic tree</span></div>
             <div id="chvocs" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px"></div>
             <div id="chvocgloss" style="font-size:10.5px;color:#9aa8a0;margin-top:8px;min-height:28px;line-height:1.45"></div>
           </div>
-          <!-- RIGHT: triad + attrs + combat -->
-          <div style="flex:1 1 250px;min-width:240px">
+          <div style="flex:1 1 280px;min-width:240px">
             <div class="chh">BLEND <span style="color:#6b7872">· flesh · chassis · anima</span></div>
             <div id="chtriad" style="margin-top:8px"></div>
             <div class="chh" style="margin-top:14px">ATTRIBUTES</div>
@@ -74,9 +80,9 @@ export class CharacterCreator {
             <div id="chcombat" style="margin-top:6px;font-size:11px;color:#cfd8d2"></div>
             <div class="chh" style="margin-top:14px">CHARACTERISTICS</div>
             <div id="chquirks" style="margin-top:6px"></div>
-            <button id="chembark" style="margin-top:18px;width:100%;background:#11331f;border:1px solid #2f7a4a;color:#bfe9cf;font:inherit;font-size:13px;padding:10px;border-radius:9px;cursor:pointer">embark →</button>
           </div>
         </div>
+        <button id="chembark" style="margin:24px auto 0;display:block;width:100%;max-width:420px;background:#11331f;border:1px solid #2f7a4a;color:#bfe9cf;font:inherit;font-size:13px;padding:11px;border-radius:9px;cursor:pointer">embark →</button>
       </div>
       <style>
         #char .chbtn{background:#0f141a;border:1px solid #20303a;color:#dfe7e2;font:inherit;font-size:11px;padding:4px 9px;border-radius:7px;cursor:pointer}
@@ -85,6 +91,7 @@ export class CharacterCreator {
         #char .voc{text-align:left;background:#0d1117;border:1px solid #1b2530;color:#cfd8d2;font:inherit;font-size:11px;padding:5px 7px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:6px}
         #char .voc:hover{border-color:#7fd8d0}
         #char .voc.on{border-color:#f4bf62;color:#fff;background:#161d12}
+        #char #chnameinput:focus{border-color:#7fd8d0}
         #char input[type=range]{width:100%;accent-color:#7fd8d0}
       </style>`;
     document.body.appendChild(root);
@@ -92,12 +99,17 @@ export class CharacterCreator {
     root.querySelector('#chclose').addEventListener('click', () => this.close());
     root.querySelector('#chrerollAll').addEventListener('click', () => this._reroll(true));
     root.querySelector('#chrerollSprite').addEventListener('click', () => { this.spriteSeed = mix(this.spriteSeed, 7) ^ Date.now(); this._sync(); });
-    root.querySelector('#chrerollName').addEventListener('click', () => { this.seed = (mix(this.seed, 31) ^ Date.now()) >>> 0; this._sync(); });
+    // ⟳ name SUGGESTS a fresh name (into the editable field) without disturbing the rolled stats/sprite
+    root.querySelector('#chrerollName').addEventListener('click', () => { this.charName = this._rollName(); this._setNameInput(this.charName); this._clearNameWarn(); });
     root.querySelector('#chrerollQuirks').addEventListener('click', () => { this.chars = rollCharacteristics((mix(this.seed, 53) ^ Date.now()) >>> 0, 2); this._sync(); });
     root.querySelector('#chembark').addEventListener('click', () => this._embark());
+    // the name is PLAYER-OWNED: typing sets it directly (no seed reroll), and it's required to embark
+    const nameInput = root.querySelector('#chnameinput');
+    nameInput.addEventListener('input', () => { this.charName = nameInput.value; this._clearNameWarn(); });
+    nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this._embark(); } e.stopPropagation(); });
     this._buildVocations();
     this._buildTriad();
-    this._keyh = (e) => { if (!this.open) return; if (e.key === 'Escape') { this.close(); e.preventDefault(); } };
+    this._keyh = (e) => { if (!this.open) return; if (e.key === 'Escape' && !this.mustEmbark) { this.close(); e.preventDefault(); } };
     addEventListener('keydown', this._keyh);
   }
 
@@ -135,16 +147,25 @@ export class CharacterCreator {
     this.seed = all ? ((this.seed * 1664525 + 1013904223) >>> 0 || 1) : this.seed;
     this.spriteSeed = mix(this.seed, 1);
     if (all || !this.vocation) { const c = rollCharacter(this.seed, {}); this.vocation = c.vocation; this.triad = c.triad; this.chars = c.characteristics; }
+    if (all) this.charName = null;                 // a fresh person → a fresh suggested name
     this._sync();
+    if (this.charName == null && this._c) { this.charName = this._c.name; this._setNameInput(this._c.name); this._clearNameWarn(); }
   }
+  _rollName() { try { return rollCharacter((mix(this.seed, 31) ^ Date.now()) >>> 0, { vocation: this.vocation || 'dwell' }).name; } catch (e) { return ''; } }
+  _setNameInput(v) { const i = this.root && this.root.querySelector('#chnameinput'); if (i && document.activeElement !== i) i.value = v == null ? '' : v; }
+  _nameWarn(m) { const w = this.root && this.root.querySelector('#chnamewarn'); if (w) w.textContent = m || ''; }
+  _clearNameWarn() { this._nameWarn(''); }
 
   // build the live character from the working draft
   _draft() {
     const triad = this.triad || rollTriad(this.seed, this.vocation || 'dwell');
-    return rollCharacter(this.seed, {
+    const c = rollCharacter(this.seed, {
       vocation: this.vocation || 'dwell', triad, characteristics: this.chars || rollCharacteristics(this.seed, 2),
       sprite: { seed: `mega:char:${this.spriteSeed}`, role: this.vocation || 'dwell', arch: 'balanced', size: 17 },
     });
+    const nm = this.charName != null ? String(this.charName).trim() : '';   // the player's typed name wins over the rolled one
+    if (nm) c.name = nm;
+    return c;
   }
 
   _sync() {                                                 // full refresh (selection, sliders, readouts, sprite)
@@ -162,8 +183,6 @@ export class CharacterCreator {
     const triad = this.triad || (this._c && this._c.triad);
     const cast = castOf(triad);
     const attrs = applyCharacteristics(deriveAttrs(triad, 10, this.seed), this.chars);
-    const name = (this._c && this._c.name) || '—';
-    this.root.querySelector('#chname').textContent = name;
     this.root.querySelector('#chcast').innerHTML = `<b style="color:#cfd8d2">${esc(cast.label)}</b> · ${esc(this.vocation || '')} — <span style="color:#6b7872">${esc(cast.gloss)}</span>`;
     TRIAD_ORDER.forEach((d) => { const el = this.root.querySelector(`#chtv-${d}`); if (el) el.textContent = Math.round(triad[d] * 100) + '%'; });
     // attributes grouped by domain colour
@@ -210,17 +229,26 @@ export class CharacterCreator {
   toggle() { this.open ? this.close() : this.show(); }
   show() {
     this.open = true; this.root.style.display = 'block';
+    this.root.querySelector('#chclose').style.display = this.mustEmbark ? 'none' : '';   // forced: no escape hatch
     if (!this._c) this._sync();
     const loop = () => { if (!this.open) return; this.phase++; this._renderSpriteFrame(); this.raf = requestAnimationFrame(loop); };
     this.raf = requestAnimationFrame(loop);
   }
-  close() { this.open = false; this.root.style.display = 'none'; if (this.raf) cancelAnimationFrame(this.raf), this.raf = null; if (this.onClose) this.onClose(); }
+  // FORCED creation (a brand-new game): can't be dismissed; `after` fires once the player embarks.
+  showForced(after) { this.mustEmbark = true; this._afterEmbark = after || null; this.show(); }
+  close() { if (this.mustEmbark) return; this.open = false; this.root.style.display = 'none'; if (this.raf) cancelAnimationFrame(this.raf), this.raf = null; if (this.onClose) this.onClose(); }
 
   _embark() {
-    const c = this._draft();
+    const name = String(this.charName == null ? '' : this.charName).trim();
+    if (!name) { this._nameWarn('your character needs a name'); const i = this.root.querySelector('#chnameinput'); if (i) i.focus(); return; }
+    this.charName = name;
+    const c = this._draft(); c.name = name; c.named = true;
     saveCharacter(c);
-    this.close();
+    const after = this._afterEmbark; this._afterEmbark = null;
+    this.mustEmbark = false;                          // release the forced gate so close() can run
+    this.open = false; this.root.style.display = 'none'; if (this.raf) cancelAnimationFrame(this.raf), this.raf = null;
     if (this.onEmbark) this.onEmbark(c);
+    if (after) try { after(); } catch (e) {}
   }
 }
 
