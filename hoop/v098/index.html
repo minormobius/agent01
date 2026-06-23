@@ -1935,6 +1935,16 @@
       arcadeOpen = true; renderArcadeScreen();
     }
     function closeArcade() { arcadeOpen = false; $('arc').classList.remove('on'); }
+    // the live status line under the board — for COLLECT puzzles it shows how many tokens are still on the
+    // board (the win is tokens-left = 0). This is the "how do I win / am I done" feedback that was missing:
+    // with `leap` you VAULT OVER the middle cell, so a token you jumped is NOT swept — the counter catches it.
+    function arcadeStatusText(g) {
+      if (!g) return '';
+      let head = '';
+      if (g.goal === 'collect') { const left = arcadeBoard(g).cells.filter((c) => c.token).length; head = `✦ ${left} left · `; }
+      else if (g.goal === 'exit') head = 'reach ⌖ · ';
+      return `${head}${g.moves} moves · par ${g.par}`;
+    }
     function renderArcadeScreen() {
       const card = $('arccard'); arcadeOpen = true; $('arc').classList.add('on');
       const g = arcadeGame;
@@ -1949,7 +1959,7 @@
           // the ACTIVE ELEMENT — the board + its immediate status
           `<div class="aboardzone">` +
             `<canvas id="arcboard"></canvas>` +
-            `<div class="amoves" id="arcmoves">${g.moves} moves · par ${g.par}</div>` +
+            `<div class="amoves" id="arcmoves">${arcadeStatusText(g)}</div>` +
             winBar +
           `</div>` +
           // everything else works its way AROUND the board (beside on wide, below on a phone)
@@ -1960,8 +1970,8 @@
             `<div class="arule">${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}</span></div>` +
             `<div class="apad"><span></span><button data-arc="0">▲</button><span></span>` +
             `<button data-arc="3">◀</button><button data-arc="2">▼</button><button data-arc="1">▶</button></div>` +
-            `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button></div>` +
-            `<div class="ameta" style="color:#6b7872">arrows / WASD to move · U undo · Enter to claim · Esc to leave</div>` +
+            `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button><button data-arc="skip">⏭ skip</button></div>` +
+            `<div class="ameta" style="color:#6b7872">arrows / WASD to move · U undo · Enter to claim · Esc to leave · skip = a fresh puzzle (no reward)</div>` +
           `</div>` +
         `</div>`;
       drawArcadeBoard();
@@ -2000,6 +2010,12 @@
       if (!arcadeGame) return;
       if (act === 'undo') { arcadeUndo(arcadeGame); renderArcadeScreen(); return; }
       if (act === 'reset') { arcadeReset(arcadeGame); renderArcadeScreen(); return; }
+      if (act === 'skip') {   // escape hatch: jump to a FRESH puzzle of this law (no reward) — never be stuck
+        let nq = (arcadeGame.q | 0) + 1, g = null, tries = 0;
+        while (!g && tries < 16) { g = newArcadeGame(arcadeLawIndex, nq); if (!g) { nq++; tries++; } }
+        if (g) { g.q = nq; arcadeGame = g; }
+        renderArcadeScreen(); return;
+      }
       if (act === 'next') {   // claiming a win banks the reward (once per frontier index) and advances
         if (arcadeGame.won) { setCoins(getCoins() + arcadeReward(arcadeGame)); setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1); saveStory(); whereAmI(); }
         loadArcadeGame(); renderArcadeScreen(); return;
@@ -2008,7 +2024,7 @@
       const wasWon = arcadeGame.won;
       if (arcadeMove(arcadeGame, d)) {
         if (arcadeGame.won && !wasWon) { renderArcadeScreen(); flashArcadeWin(arcadeGame); }
-        else { drawArcadeBoard(); const m = document.getElementById('arcmoves'); if (m) m.textContent = `${arcadeGame.moves} moves · par ${arcadeGame.par}`; }
+        else { drawArcadeBoard(); const m = document.getElementById('arcmoves'); if (m) m.textContent = arcadeStatusText(arcadeGame); }
       }
     }
     // arcade screen input: the d-pad / undo / reset / claim-&-next, plus backdrop / close.
