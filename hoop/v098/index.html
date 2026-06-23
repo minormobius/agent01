@@ -556,6 +556,7 @@
         residents = fresh.map((a) => prev.get(a.id) || a);
         cullResidents();
         _socMs = performance.now() - t0;   // the deferred social rebuild (buildSociety pathFinds + residents) — does it still block when it fires?
+        ensureAnchors();   // society is now built — place the principals if story is also ready (idempotent)
       };
       if (typeof requestIdleCallback === 'function') requestIdleCallback(go, { timeout: 600 }); else setTimeout(go, 60);
     }
@@ -749,8 +750,8 @@
       const { rec, painted } = await generate(opts({ seed })); rec.painted = painted; addChunk(world, rec); restitch();
       chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
       setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal();
-      placeAnchors(); ensureChunk0Terminal();   // the authored opening: principals at the cradle + margin, a guaranteed terminal
-      renderQuest();   // resolve the storyboard waypoint now that anchors + the terminal exist
+      _anchorsDone = false; ensureChunk0Terminal(); ensureAnchors();   // a terminal exists immediately; the principals land once society + story are ready (ensureAnchors, idempotent)
+      renderQuest();   // resolve the storyboard waypoint now that the terminal exists (re-resolved again by ensureAnchors when anchors land)
       busy(false); status(); draw(); maybeStream(); rememberSeed();
     }
     function startNode() {
@@ -1093,7 +1094,7 @@
         if (!story.sb.beats.length) { try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; } }
         story.milestones = story.sb ? deriveMilestones(story.sb) : [];   // tier advancement = his flag-gated beats (empty until his export wires triggers)
         try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
-        story.ready = true; renderQuest(); syncPulse();
+        story.ready = true; renderQuest(); ensureAnchors(); syncPulse();   // story is ready — place the principals if society is also built (idempotent)
         try { questBank = buildQuestBank([...story.store.content.values()]); } catch (e) { questBank = new Map(); }   // the side-quest bank (one per rumor seed)
         try { openingCast = deriveOpeningCast([...story.store.content.values()], 3); } catch (e) {}   // hoopybot's guides, ready even before anchors place
         foldCharacterFromSave();   // the character rides the save now — adopt the saved one, or seed it from local
@@ -2461,6 +2462,7 @@
     //    Vashti / Sevin / Solen are all in his pool), not a hand-pinned fixture. The first wakes with you
     //    at the cradle; the rest stand at progressively farther margins. Beacons, pinned via content_id. ──
     let anchors = [];
+    let _anchorsDone = false;   // placeAnchors needs BOTH society (built async) + story.ready — ensureAnchors fires once both land
     const ANCHOR_COLORS = ['#7fd8d0', '#b48a6a', '#c89ad0', '#d0c07f'];
     function placeAnchors() {
       anchors = [];
@@ -2483,6 +2485,16 @@
       let best = null, bd = Infinity; for (const cp of comps) { const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = cp; } }
       if (best) best._terminal = true;
     }
+    // The principals (anchors) + the storyboard markers + the embiggen set ALL need society (built async,
+    // deferred off the stream hot path) AND story.ready (loaded async from the pool). newWorld calls this
+    // too early for both, and on a FRESH world there's no save to restore them from — so the guides went
+    // missing. Run it once, the moment all three prerequisites land (from whichever path finishes last:
+    // newWorld, the deferred society build, or story-ready), then re-resolve the quest waypoint + repaint.
+    function ensureAnchors() {
+      if (_anchorsDone || !society || !story.ready || player < 0) return;
+      _anchorsDone = true;
+      placeAnchors(); ensureChunk0Terminal(); renderQuest(); if (world) draw();
+    }
     // resolve a storyboard marker to a world position for the waypoint
     const PLACE_ROLE = [[/industrial|forge|works|margin/i, 'make'], [/garden|green|grow|deck/i, 'grow'], [/market|braid|trade|bazaar/i, 'trade'], [/hall|council|govern|court/i, 'govern'], [/heal|clinic|med|bay/i, 'heal'], [/learn|library|archive|school/i, 'learn'], [/worship|shrine|temple|nave/i, 'worship']];
     function farMargin() {
@@ -2499,11 +2511,13 @@
       if (!m) return null;
       if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); if (!a) return null; return ((a.deck || 0) !== playerDeck() && shaftXY) ? { x: shaftXY.x, y: shaftXY.y } : { x: a.x, y: a.y }; }
       if (m.terminal) {
-        let best = null, bd = Infinity;
-        for (const ch of (world ? world.chunks : [])) for (const cp of ((ch.painted && ch.painted.comps) || [])) {
-          if (!isTerminal(cp)) continue; const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = { x: cp.cx, y: cp.cy }; }
-        }
-        return best;
+        // point at a terminal ON THE PLAYER'S DECK — componentAt (the click handler) filters by deck, so an
+        // off-deck terminal would draw a waypoint you can't walk to OR click. Fall back to any deck if none here.
+        const pick = (sameDeck) => { let best = null, bd = Infinity; const pd = playerDeck();
+          for (const ch of (world ? world.chunks : [])) { if (sameDeck && (ch.deck || 0) !== pd) continue;
+            for (const cp of ((ch.painted && ch.painted.comps) || [])) { if (!isTerminal(cp)) continue; const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = { x: cp.cx, y: cp.cy }; } } }
+          return best; };
+        return pick(true) || pick(false);
       }
       if (m.place) {   // a LOCATION ref from his plot_beats → a world position (the descent, or a role-matched room)
         if (m.place === 'rind') return (shaftXY && { x: shaftXY.x, y: shaftXY.y }) || farMargin();
