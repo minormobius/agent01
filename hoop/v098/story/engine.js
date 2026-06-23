@@ -192,6 +192,18 @@ function npcVisible(gstate, npcState, choice) {
   for (const [k, v] of Object.entries(req.npc_flags || {})) if ((npcState.flags || {})[k] !== v) return false;
   return true;
 }
+// DEAD LINKS — the generated trees often reference a `goto` node the generator never emitted. Taken, such
+// a choice used to silently loop back to the start node: the option reads as "unselectable" and the thread
+// "abruptly ends". `danglingGoto` detects them. A dead link that carries a real story effect (set_facts /
+// give_items) is KEPT but ENDS the conversation when taken (choose) — its effect still lands, then it
+// closes cleanly. A dead link with no effect is pure noise (an unanswerable question) → hidden by `talk`.
+const danglingGoto = (tree, c) => !!(c.goto && !((tree.nodes || {})[c.goto]) && !((c.effects || {}).end));
+function choiceHasEffect(c) {
+  const e = c.effects || {};
+  return !!((e.set_facts && Object.keys(e.set_facts).length) || (e.give_items && e.give_items.length)
+    || e.adjust_standing || (e.adjust_rep && Object.keys(e.adjust_rep).length) || (e.set_npc_flags && Object.keys(e.set_npc_flags).length));
+}
+const choiceLive = (tree, c) => !(danglingGoto(tree, c) && !choiceHasEffect(c));
 // state-gated ENTRY: a tree may declare `entries: [{when, node}]` — when the player is at the start/an
 // entry node (not mid-branch), talk opens at the LAST entry whose `when` the state satisfies, so a keystone
 // NPC greets differently as the story advances instead of repeating its intro. No entries → plain start.
@@ -213,7 +225,7 @@ export function talk(store, playerId, npcContentId) {
   const st = store.getNpcState(playerId, npcContentId, start);
   const gstate = loadGateState(store, playerId);
   const nodeId = entryNode(tree, st, gstate, start), node = tree.nodes[nodeId] || tree.nodes[start];
-  const choices = (node.choices || []).filter((c) => npcVisible(gstate, st, c)).map((c) => ({ id: c.id, text: c.text }));
+  const choices = (node.choices || []).filter((c) => npcVisible(gstate, st, c) && choiceLive(tree, c)).map((c) => ({ id: c.id, text: c.text }));
   return { npc: name, standing: st.standing, says: node.says || '', node: nodeId, choices };
 }
 export function choose(store, playerId, npcContentId, choiceId) {
@@ -224,7 +236,7 @@ export function choose(store, playerId, npcContentId, choiceId) {
   const st = store.getNpcState(playerId, npcContentId, start);
   const gstate = loadGateState(store, playerId);
   const node = nodes[entryNode(tree, st, gstate, start)] || {};
-  const choice = (node.choices || []).find((c) => c.id === choiceId && npcVisible(gstate, st, c));
+  const choice = (node.choices || []).find((c) => c.id === choiceId && npcVisible(gstate, st, c) && choiceLive(tree, c));
   if (!choice) return { error: 'choice unavailable' };
   const eff = choice.effects || {};
   for (const [k, v] of Object.entries(eff.set_facts || {})) store.setFact(playerId, k, v);
@@ -232,10 +244,12 @@ export function choose(store, playerId, npcContentId, choiceId) {
   const flags = { ...(st.flags || {}), ...(eff.set_npc_flags || {}) };
   const given = [];
   for (const itemId of (eff.give_items || [])) { take(store, playerId, itemId); given.push(itemId); }
-  const goto = eff.end ? start : (choice.goto || start);   // on end, reset to start so talk re-picks the state-gated entry next time
+  // a dead link (kept only because it carries an effect) ENDS the conversation gracefully instead of looping
+  const ended = !!eff.end || danglingGoto(tree, choice);
+  const goto = ended ? start : (choice.goto || start);   // on end, reset to start so talk re-picks the state-gated entry next time
   store.setNpcState(playerId, npcContentId, { standing: st.standing + (eff.adjust_standing || 0), flags, current_node: goto });
   const result = talk(store, playerId, npcContentId);
-  return { ...result, chose: choice.text, ended: !!eff.end, gave_items: given };
+  return { ...result, chose: choice.text, ended, gave_items: given };
 }
 
 // Flatten the sectioned pool.json ({items,lore_fragments,npcs,creatures,plot_beats}) into one
