@@ -97,7 +97,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/follower-post-discovery-bZumw",
+      "branch": "claude/gc-block-checker-endpoint-ac323w",
       "uses": [],
       "provides": null,
       "paths": [

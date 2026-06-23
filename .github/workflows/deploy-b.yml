@@ -2,7 +2,7 @@ name: Deploy b (Bluesky corner)
 
 on:
   push:
-    branches: [main, 'claude/follower-post-discovery-bZumw']
+    branches: [main, 'claude/gc-block-checker-endpoint-ac323w']
     paths:
       - 'b/**'
       - '.github/workflows/deploy-b.yml'
