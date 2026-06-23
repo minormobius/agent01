@@ -179,8 +179,8 @@
     #kitchen .ahead { font-size: 13px; letter-spacing: 1px; color: #e0a86a; }
     #arc .alaw, #garden .alaw, #trade .alaw, #kitchen .alaw { font-size: 21px; font-weight: 600; color: #f4bf62; margin: 4px 0 2px; }
     #arc .ameta, #garden .ameta, #trade .ameta, #kitchen .ameta { font-size: 11.5px; color: #9aa8a0; margin-bottom: 4px; }
-    #arc .arule { font-size: 12.5px; line-height: 1.5; color: #cfd8d2; border-left: 2px solid #c89ad0; padding: 4px 0 4px 11px; margin: 12px auto; max-width: 440px; text-align: left; }
-    #arc canvas { width: min(440px, 90vw); display: block; margin: 14px auto 8px; background: #0a0e16; border: 1px solid #34424d; border-radius: 8px; image-rendering: pixelated; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+    #arc .arule { font-size: 12.5px; line-height: 1.5; color: #cfd8d2; border-left: 2px solid #c89ad0; padding: 4px 0 4px 11px; margin: 8px 0; max-width: 440px; text-align: left; }
+    #arc canvas { display: block; max-width: 100%; background: #0a0e16; border: 1px solid #34424d; border-radius: 8px; image-rendering: pixelated; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
     #arc .amoves { font-size: 12px; color: #9aa8a0; margin: 4px 0; }
     #arc .awin { margin: 10px auto; padding: 9px 12px; max-width: 440px; border: 1px solid #6a5a3a; border-radius: 8px; background: rgba(244,191,98,0.12); color: #f4bf62; font-size: 13px; }
     #arc .apad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(2, 46px); gap: 7px; justify-content: center; margin: 14px auto 4px; }
@@ -191,6 +191,20 @@
     #arc .arow button { font-size: 12.5px; padding: 7px 13px; color: #b6c2bb; }
     #arc .aclose, #garden .aclose, #trade .aclose, #kitchen .aclose { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); z-index: 3; background: rgba(10,13,18,0.8); border: 1px solid #34424d; border-radius: 8px; color: #cfd8d2; font: inherit; font-size: 12px; padding: 6px 11px; cursor: pointer; }
     #arc .aclose:hover, #garden .aclose:hover, #trade .aclose:hover, #kitchen .aclose:hover { border-color: #f4bf62; color: #f4bf62; }
+    /* THE ARCADE puzzle: the BOARD is the active element. On a wide/landscape screen the rules + d-pad sit
+       BESIDE it; on a tall phone they stack compactly below. The board is sized in JS to the smaller of its
+       width/height budget, so the d-pad + rules are ALWAYS on-screen with it (the old bug: width-only sizing
+       pushed the controls off the bottom). */
+    #arc .acard { width: min(940px, 96vw); display: flex; flex-direction: column; align-items: center; gap: 10px; overflow-y: auto; }
+    #arc .azones { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; width: 100%; min-height: 0; }
+    #arc .aboardzone { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; flex: none; }
+    #arc .asidezone { display: flex; flex-direction: column; align-items: stretch; gap: 7px; min-width: 0; max-width: 360px; }
+    #arc .asidezone .arule { margin: 6px 0; max-width: none; }
+    @media (orientation: landscape) and (min-width: 700px) {
+      #arc .azones { flex-direction: row; align-items: center; }
+      #arc .asidezone { text-align: left; }
+    }
+    @media (pointer: coarse) { #arc .asidezone .ameta:last-child { display: none; } }   /* keyboard hints are dead weight on touch — the d-pad is right there */
     /* the kitchen: shared helpers (reused from #garden) + cook chips + flavor preview + larder rows */
     #kitchen .ghead2 { font-size: 11px; letter-spacing: 1px; margin: 8px 0 8px; text-transform: uppercase; }
     #kitchen .gdim { font-size: 11px; color: #6b7872; margin: 6px 0; }
@@ -1931,22 +1945,37 @@
         : `<div class="ameta" style="color:#f4bf62;margin:8px 0">solve to earn ◈${reward}</div>`;
       card.innerHTML =
         `<button class="aclose" data-aclose="1">close ⏎</button>` +
-        `<div class="ahead">◈ THE ARCADE</div>` +
-        `<div class="alaw">${esc(g.law.name)}</div>` +
-        `<div class="ameta">forge cabinet · law no.${g.law.id} of the codex · puzzle #${g.q + 1} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}</div>` +
-        `<div class="arule">${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}</span></div>` +
-        `<canvas id="arcboard"></canvas>` +
-        `<div class="amoves" id="arcmoves">${g.moves} moves · par ${g.par}</div>` +
-        winBar +
-        `<div class="apad"><span></span><button data-arc="0">▲</button><span></span>` +
-        `<button data-arc="3">◀</button><button data-arc="2">▼</button><button data-arc="1">▶</button></div>` +
-        `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button></div>` +
-        `<div class="ameta" style="margin-top:12px;color:#6b7872">arrows / WASD to move · U undo · Enter to claim · Esc to leave</div>`;
+        `<div class="azones">` +
+          // the ACTIVE ELEMENT — the board + its immediate status
+          `<div class="aboardzone">` +
+            `<canvas id="arcboard"></canvas>` +
+            `<div class="amoves" id="arcmoves">${g.moves} moves · par ${g.par}</div>` +
+            winBar +
+          `</div>` +
+          // everything else works its way AROUND the board (beside on wide, below on a phone)
+          `<div class="asidezone">` +
+            `<div class="ahead">◈ THE ARCADE</div>` +
+            `<div class="alaw">${esc(g.law.name)}</div>` +
+            `<div class="ameta">law no.${g.law.id} · puzzle #${g.q + 1} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}</div>` +
+            `<div class="arule">${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}</span></div>` +
+            `<div class="apad"><span></span><button data-arc="0">▲</button><span></span>` +
+            `<button data-arc="3">◀</button><button data-arc="2">▼</button><button data-arc="1">▶</button></div>` +
+            `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button></div>` +
+            `<div class="ameta" style="color:#6b7872">arrows / WASD to move · U undo · Enter to claim · Esc to leave</div>` +
+          `</div>` +
+        `</div>`;
       drawArcadeBoard();
     }
     function drawArcadeBoard() {
       const cv2 = document.getElementById('arcboard'); if (!cv2 || !arcadeGame) return;
-      const b = arcadeBoard(arcadeGame), CW = Math.min(440, (window.innerWidth || 480) * 0.9), cell = Math.max(14, Math.floor(CW / b.W)), pad = 1;
+      const b = arcadeBoard(arcadeGame);
+      // size the board to the SMALLER of its width and height budgets so the d-pad + rules stay on-screen.
+      // landscape/desktop: the side panel sits BESIDE the board, so the board gets ~half the width + most
+      // of the height. portrait/phone: the board gets the width, but height must leave room for the panel.
+      const vw = window.innerWidth || 480, vh = window.innerHeight || 640, landscape = vw > vh && vw >= 700;
+      const availW = landscape ? Math.min(vw * 0.5, 560) : Math.min(vw * 0.92, 540);
+      const availH = Math.max(160, landscape ? vh * 0.84 : vh - 340);   // portrait reserves ~340px for rules + d-pad + buttons
+      const cell = Math.max(12, Math.min(46, Math.floor(Math.min(availW / b.W, availH / b.H)))), pad = 1;
       const w = cell * b.W, h = cell * b.H, dpr2 = Math.min(window.devicePixelRatio || 1, 2);
       cv2.width = w * dpr2; cv2.height = h * dpr2; cv2.style.width = w + 'px'; cv2.style.height = h + 'px';
       const g = cv2.getContext('2d'); g.setTransform(dpr2, 0, 0, dpr2, 0, 0); g.clearRect(0, 0, w, h);
@@ -2730,6 +2759,7 @@
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
       if (gpu) gpu.resize(cv.width, cv.height);
       if (world) { setScale(); followCam(); draw(); maybeStream(); }
+      if (arcadeOpen) drawArcadeBoard();   // re-fit the puzzle board to the new viewport / orientation
     }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
     addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !typing() && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world (your durable pack carries across)
