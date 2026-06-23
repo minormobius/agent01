@@ -19,9 +19,6 @@
     #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
     #here b { color: #f4bf62; }
     #back { bottom: calc(8px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); color: #7fd8d0; text-decoration: none; pointer-events: auto; }
-    #board { bottom: calc(8px + env(safe-area-inset-bottom)); left: calc(96px + env(safe-area-inset-left)); color: #b48a6a; text-decoration: none; pointer-events: auto; }
-    #arch { bottom: calc(8px + env(safe-area-inset-bottom)); left: calc(188px + env(safe-area-inset-left)); color: #8a7faa; text-decoration: none; pointer-events: auto; }   /* was unpositioned + unclickable (.hud pointer-events:none) — now the third bottom-left link */
-    #newgame { bottom: 8px; right: 10px; color: #e08a8a; text-decoration: none; pointer-events: auto; cursor: pointer; }
     #quest { bottom: 26px; left: 10px; max-width: 54vw; color: #cdd6cf; line-height: 1.5; }
     #quest .lbl { color: #7fd8d0; } #quest .o { color: #f4bf62; } #quest .mk { color: #b48a6a; } #quest a.sb { color: #6b7872; pointer-events: auto; }
     /* the handholding quest block: objective → the concrete step → where to go → how to act */
@@ -60,10 +57,13 @@
     #charbtn { color: #b39bd8; } #charbtn:hover, #charbtn:active { border-color: #b39bd8; color: #fff; }
     #equipbtn { color: #7fd8d0; } #equipbtn:hover, #equipbtn:active { border-color: #7fd8d0; color: #fff; }
     #mapbtn { color: #8fb89f; } #mapbtn:hover, #mapbtn:active { border-color: #8fb89f; color: #fff; }
-    #newgame { color: #e08a8a; } #newgame:hover, #newgame:active { border-color: #e08a8a; color: #fff; }
-    #who { top: 30px; right: 10px; text-align: right; color: #9aa8a0; max-width: 60vw; }
-    #who b { color: #b39bd8; }
-    #dbgbtn { color: #8aa39a; } #dbgbtn:hover, #dbgbtn:active { border-color: #8aa39a; color: #fff; }
+    #morebtn { color: #8aa39a; } #morebtn:hover, #morebtn:active { border-color: #8aa39a; color: #fff; }
+    /* the overflow menu (⋯): story status + worlds, lifted just above the dock; tap-out / item closes it */
+    #moremenu { position: fixed; right: calc(8px + env(safe-area-inset-right)); bottom: calc(52px + env(safe-area-inset-bottom)); z-index: 7; display: none; flex-direction: column; align-items: stretch; gap: 6px; }
+    #moremenu.on { display: flex; }
+    #moremenu > * { pointer-events: auto; background: rgba(10,13,18,0.94); border: 1px solid #20303a; font: inherit; font-size: 12.5px; line-height: 1; padding: 10px 14px; border-radius: 8px; cursor: pointer; text-decoration: none; white-space: nowrap; text-align: left; color: #b6c2bb; transition: .12s; }
+    #moremenu > *:hover, #moremenu > *:active { border-color: #7fd8d0; color: #fff; }
+    #who { display: none; }   /* character + combat live on the character (c) / equip (e) screens — off the main HUD */
     /* the STORY STATUS panel — a toggleable overlay (` key / ⓘ dock button) proving the save-loop is live:
        who you are, what's saved where, your tiers, the snapshot census, and the cross-player pulse the
        backend Director folds your save into. Read-only diagnostics; never touches game state. */
@@ -81,6 +81,7 @@
     #dbg .kv span:first-child { color: #8aa39a; } #dbg .kv span:last-child { color: #dfe7e2; text-align: right; word-break: break-all; }
     #dbg .ok { color: #8fe07a; } #dbg .warn { color: #e08a8a; } #dbg .dim { color: #6f7e77; }
     #dbg .pulse { color: #7fd8d0; }
+    #dbg .act { color: #7fd8d0; cursor: pointer; text-decoration: none; } #dbg .act:hover { text-decoration: underline; }
     @media (pointer: coarse) { #dbg { font-size: 12.5px; } }
     /* the WORLD LOADER — the save-profile picker. Each ship seed is a profile (a PDS record + a local
        buffer); this lists them, resumes/deletes them, and starts fresh worlds. Fullscreen overlay. */
@@ -349,8 +350,8 @@
     @media (max-width: 640px), (pointer: coarse) {
       #dock > * { font-size: 15px; padding: 9px 12px; }     /* ≥40px tap targets on touch; dock owns the bottom-right */
       #dock .lbl { display: none; }                          /* icon-only → the whole dock fits one row */
-      #status, #here, #who { font-size: 10px; }
-      #back, #board, #arch { bottom: calc(54px + env(safe-area-inset-bottom)); font-size: 10px; }   /* lift the links to their OWN row, clear of the dock */
+      #here { font-size: 10px; }
+      #back { bottom: calc(54px + env(safe-area-inset-bottom)); font-size: 10px; }   /* lift the hub link to its OWN row, clear of the dock */
       #quest { max-width: 92vw; bottom: calc(86px + env(safe-area-inset-bottom)); }                  /* above both the links and the dock */
     }
     /* touch feedback for overlay buttons (which otherwise only style :hover) + roomier close targets */
@@ -369,16 +370,17 @@
   <div class="hud" id="busy">generating…</div>
   <div id="notices"></div>
   <a class="hud" id="back" href="/">◍ hoop</a>
-  <a class="hud" id="board" href="/v098/storyboard/">❖ storyboard</a>
-  <a class="hud" id="arch" href="/v098/architecture.html" title="the story system data-flow">⌥ data-flow</a>
   <div class="hud" id="quest"></div>
   <div id="dock">
     <button id="charbtn" title="character (c)">☻<span class="lbl"> character</span></button>
     <button id="equipbtn" title="equipped (e)">⛨<span class="lbl"> equip</span></button>
     <button id="mapbtn" title="minimap (m)">▦<span class="lbl"> map</span></button>
     <button id="pack" title="open pack (i)">▣<span class="lbl"> pack</span></button>
-    <button id="dbgbtn" title="story status (`)">ⓘ<span class="lbl"> story</span></button>
-    <button id="newgame" title="your worlds — resume a save, start a new world, or restart this one">⟲<span class="lbl"> worlds</span></button>
+    <button id="morebtn" title="more">⋯<span class="lbl"> more</span></button>
+  </div>
+  <div id="moremenu">
+    <button id="dbgbtn" title="story status (`)">ⓘ story status</button>
+    <button id="newgame" title="resume a save, start a new world, or restart this one">⟲ worlds</button>
   </div>
   <div class="hud" id="who"></div>
   <div id="dbg"></div>
@@ -1050,17 +1052,14 @@
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
       let tierTag = '';
-      if (story.ready) { const p = story.store.getPlayerState(story.playerId), lore = story.store.listPlacements(story.playerId).length, st = getStam() | 0, no = getNourish() | 0, hp = getHealth() | 0, co = getCoins();
-        const d = currentDeck(), ha = assess(story.store, story.playerId, d), paged = story.store.getFact(story.playerId, 'hoopy.paged.' + d.tier);
-        const hcol = paged ? '#7fd8d0' : ha.progress >= 1 ? '#7fd8d0' : '#9aa8a0';
-        tierTag = ` · <span style="color:#8fb89f" title="${esc(d.character.slice(0, 120))}…">deck ${d.tier}/${DECK_COUNT} · ${esc(d.name)}</span>`
-          + ` · <span style="color:${hcol}" title="hoopybot — learn enough of this deck's themes (${esc(d.learn.hint)}) to be paged on">${paged ? '✦ return to your guide' : 'hoopy ' + ha.learned + '/' + ha.needed}</span>`
-          + ` · <span style="color:#7fd8d0">rev ${p.revelation_tier} · pow ${p.power_tier}</span> · <span style="color:#9aa8a0" title="lore you've been exposed to — this is your XP">lore ${lore}</span>`
-          + ` · <span style="color:${st < 25 ? '#e08a8a' : '#9aa8a0'}" title="stamina — drains as you walk, restored by a bed (and slower when you're fed)">stam ${st}</span>`
+      if (story.ready) { const st = getStam() | 0, no = getNourish() | 0, hp = getHealth() | 0, co = getCoins();
+        // the narrative tiers (deck / hoopy / rev / pow / lore) live in the quest block + the ⓘ panel now —
+        // #here keeps only WHERE you are + the survival vitals you act on moment to moment.
+        tierTag = ` · <span style="color:${st < 25 ? '#e08a8a' : '#9aa8a0'}" title="stamina — drains as you walk, restored by a bed (and slower when you're fed)">stam ${st}</span>`
           + ` · <span style="color:${no < 20 ? '#e08a8a' : '#8fb89f'}" title="nourishment — ebbs as you walk; eat at a cafe (◍). Starving bleeds health">food ${no}</span>`
           + ` · <span style="color:${hp < 35 ? '#e08a8a' : '#9aa8a0'}" title="health — falls only while starving; a meal heals a little">hp ${hp}</span>`
           + ` · <span style="color:#f4bf62" title="coins — earned beating arcade cabinets, spent on food">◈ ${co}</span>`;
-        if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="understanding earns the way on — read the deep posts, meet the principals">⊘ the way on is sealed</span>`; }
+        if (!introSolved()) tierTag += ` · <span style="color:#e0a86a" title="understanding earns the way on — read the deep posts, meet the principals">⊘ sealed</span>`; }
       $('here').innerHTML = `<b>${label}</b>${tierTag}`;
     }
 
@@ -1415,6 +1414,11 @@
       if (pl) { out.push(`<div class="pulse">${pl}</div>`); if (pulse.updatedAt) out.push(row('published', `<span class="dim">${esc(new Date(pulse.updatedAt).toLocaleString())}</span>`)); }
       else out.push(`<div class="dim">not published yet — the Director folds saves here once it's running. Sign in &amp; play to feed it.</div>`);
       out.push(`</div>`);
+      // meta links (moved off the bottom-left of the main screen)
+      out.push(`<div class="sec" style="display:flex;gap:16px;flex-wrap:wrap">`
+        + `<a class="act" href="/v098/storyboard/" target="_blank">❖ storyboard</a>`
+        + `<a class="act" href="/v098/architecture.html" target="_blank">⌥ data-flow</a>`
+        + `<a class="act" href="/v098/records" target="_blank">▤ records</a></div>`);
       el.innerHTML = out.join('');
       const cx = el.querySelector('[data-dclose]'); if (cx) cx.onclick = () => toggleDbg(false);
     }
@@ -2728,6 +2732,10 @@
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !typing() && !e.metaKey && !e.ctrlKey && !loaderOpen) { e.preventDefault(); minimap.toggle(); } });
+    // the ⋯ overflow menu (story status + worlds): toggle on the button, close on any item or a tap-out
+    $('morebtn').addEventListener('click', (e) => { e.stopPropagation(); $('moremenu').classList.toggle('on'); });
+    $('moremenu').addEventListener('click', () => $('moremenu').classList.remove('on'));
+    addEventListener('click', (e) => { const mm = $('moremenu'); if (mm.classList.contains('on') && !mm.contains(e.target) && e.target !== $('morebtn') && !$('morebtn').contains(e.target)) mm.classList.remove('on'); });
     $('dbgbtn').addEventListener('click', () => toggleDbg());
     addEventListener('keydown', (e) => { if (e.key === '`' && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); toggleDbg(); } });   // ` = story-status panel
     addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !typing() && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
