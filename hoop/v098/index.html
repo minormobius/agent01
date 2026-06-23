@@ -137,8 +137,17 @@
     #story.compact .stright { padding: 24px 26px; }
     /* solo: a single deep screen (terminal / café / chest) — padded directly, medium width */
     #story.solo { width: min(700px, 94vw); padding: 28px 32px; overflow-y: auto; }
-    #story .portrait { display: block; width: 96px; height: 96px; border-radius: 14px; background: #0a0f15; border: 1px solid #2c3c47; image-rendering: pixelated; margin-bottom: 16px; }
-    #story .sthd { min-width: 0; }   /* desktop: .sthead is a plain block — portrait stacks above the name as before */
+    #story .portrait { display: block; width: 96px; height: 96px; image-rendering: pixelated; }
+    /* the LEFT PANE is a FLIP CARD: front = the character's sprite, back = the FLESH·CHASSIS·ANIMA + combat
+       stats. Click to flip between them. The name/role sit ABOVE the card so a tall sprite can't cover them. */
+    #story .flipcard { perspective: 820px; width: 100%; max-width: 196px; height: 196px; margin: 16px auto 0; cursor: pointer; }
+    #story .flipinner { position: relative; width: 100%; height: 100%; transition: transform .5s cubic-bezier(.2,.75,.2,1); transform-style: preserve-3d; }
+    #story .flipcard.flipped .flipinner { transform: rotateY(180deg); }
+    #story .flipface { position: absolute; inset: 0; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #2c3c47; border-radius: 14px; background: #0a0f15; padding: 14px; box-sizing: border-box; overflow: hidden; }
+    #story .flipback { transform: rotateY(180deg); justify-content: flex-start; }
+    #story .flipfront .portrait { width: 118px; height: 118px; }
+    #story .fliphint { font-size: 10px; color: #5e6d66; letter-spacing: .3px; flex: none; margin-top: 10px; }
+    #story .flipback .fliphint { margin-top: auto; }
     #story .nm { font-size: 19px; font-weight: 600; color: #f7c674; line-height: 1.2; }
     #story .rl { font-size: 11.5px; color: #8aa39a; margin: 3px 0 14px; letter-spacing: .3px; }
     #story .nmh { font-size: 12.5px; color: #7fd8d0; margin-bottom: 5px; }
@@ -153,10 +162,9 @@
       #story.wide, #story.solo { width: 95vw; max-height: 90vh; max-height: 90dvh; }
       #story .stwrap { grid-template-columns: 1fr; }
       #story .stleft { display: block; border-right: 0; border-bottom: 1px solid #1b2530; padding: 18px 20px 14px; }
-      /* avatar BESIDE the name on a phone — a flex header that can't overlap (was stacked + cramped) */
-      #story .stleft .sthead { display: flex; align-items: center; gap: 13px; }
-      #story .stleft .portrait { width: 60px; height: 60px; margin-bottom: 0; flex: none; }
-      #story .stleft .sthd .rl { margin-bottom: 0; }
+      /* phone: a smaller flip card; name/role stack above it (no overlap by construction) */
+      #story .stleft .flipcard { height: 148px; max-width: 148px; margin-top: 11px; }
+      #story .flipfront .portrait { width: 96px; height: 96px; }
       #story .stright { padding: 18px 20px 22px; }
     }
     /* the ENCOUNTER card — Qud-style: meeting anything new fills the centre of the screen with its full description */
@@ -931,7 +939,10 @@
       drawResidents();                 // BEFORE the fog, so the fog hides residents in unseen rooms
       // fog: the soft frontier is now PRE-BLURRED in bakeFog (once per reveal) — blit it plain (no per-frame filter)
       ctx.imageSmoothingEnabled = true;
-      { const pd = playerDeck(); for (const ch of world.chunks) { if ((ch.deck || 0) !== pd) continue; const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); } }
+      { const pd = playerDeck(), fpad = OPTS.cellSize * 3, fx0 = cam.ox - fpad, fy0 = cam.oy - fpad, fx1 = cam.ox + W / cam.scale + fpad, fy1 = cam.oy + H / cam.scale + fpad;
+        for (const ch of world.chunks) { if ((ch.deck || 0) !== pd) continue; const t = ch.fog; if (!t) continue;
+          if (t.ox + t.w < fx0 || t.ox > fx1 || t.oy + t.h < fy0 || t.oy > fy1) continue;   // viewport cull (matches drawPainted) — don't blit off-screen fog on a wide deck
+          ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); } }
       if (playerDeck() === 1) { ctx.fillStyle = 'rgba(30,70,90,0.22)'; ctx.fillRect(0, 0, W, H); }   // the rind: no sun-strip, cool hull-glow wash
       if (!walkPath) drawNPC();   // the social web is ambient — skip it while WALKING (its per-route strokes are off the hot path; it reappears the moment you stop)
       drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint();
@@ -1615,6 +1626,22 @@
       }
       if (resolved.length) { saveStorySnapshot(); const q = resolved[0]; flashToast(`✒ thread resolved — “${q.title}” +◈${q.reward}${resolved.length > 1 ? ` (+${resolved.length - 1} more)` : ''}`, 3600); whereAmI(); }
     }
+    // Reading ANY terminal SATISFIES EVERY open thread that points you at a terminal (fungible). The player's
+    // model is "I read the terminal → that's done", not "I read 1 of N corroborating posts" — so we resolve
+    // every open thread whose navigable marker IS a terminal, regardless of which console you actually used.
+    function creditTerminalThreads() {
+      if (!story.ready || !questBank.size) return;
+      const names = npcNameMap(), resolved = [];
+      for (const k of Object.keys(story.store.getFacts(story.playerId))) {
+        if (!k.startsWith('sq.on.')) continue; const seedId = k.slice(6);
+        if (story.store.getFact(story.playerId, 'sq.done.' + seedId)) continue;
+        const q = questBank.get(seedId); if (!q) continue;
+        const mk = questMarker(q, names); if (!mk || !mk.terminal) continue;
+        story.store.setFact(story.playerId, 'sq.done.' + seedId, true);
+        setCoins(getCoins() + q.reward); resolved.push(q);
+      }
+      if (resolved.length) { saveStorySnapshot(); const q = resolved[0]; flashToast(`▤ terminal read — thread resolved “${q.title}” +◈${q.reward}${resolved.length > 1 ? ` (+${resolved.length - 1} more)` : ''}`, 3600); whereAmI(); }
+    }
     function flashToast(text, ms = 2600) { return notify(text, { ms }); }
     // the JOURNAL: open threads (progress) + resolved ones. Toggle with j / the ✒ button.
     function renderJournal() {
@@ -1693,13 +1720,13 @@
       const bg = $('storybg'); if (bg) bg.classList.add('on');
     }
     function hideStory() { $('story').classList.remove('on'); const bg = $('storybg'); if (bg) bg.classList.remove('on'); }
-    // the left-pane stat block (portrait pane): the FLESH·CHASSIS·ANIMA triad + the combat derive, vertical.
+    // the stat block, sized to live on the BACK FACE of the flip card: FLESH·CHASSIS·ANIMA triad + combat derive.
     function npcStatBlock(agent) {
       const c = statBlockFor(agent), cm = deriveCombat(c);
-      const tri = TRIAD_ORDER.map((d) => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin:4px 0"><span style="color:${TRIAD[d].accent}" title="${esc(TRIAD[d].gloss)}">${TRIAD[d].glyph} ${TRIAD[d].label}</span><b style="color:#cfd8d2">${Math.round(c.triad[d] * 100)}</b></div>`).join('');
-      return `<div style="margin-top:16px;border-top:1px solid #1b2530;padding-top:13px">`
-        + `<div style="font-size:11px;color:#7fd8d0;letter-spacing:.4px;margin-bottom:7px">${esc(c.cast.label)}</div>${tri}`
-        + `<div style="display:flex;gap:12px;margin-top:11px;font-size:12px;color:#9aa8a0"><span title="health">✚ ${cm.hp}</span><span title="attack">⚔ ${cm.atk}</span><span title="defense">⛨ ${cm.def}</span></div></div>`;
+      const tri = TRIAD_ORDER.map((d) => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin:5px 0"><span style="color:${TRIAD[d].accent}" title="${esc(TRIAD[d].gloss)}">${TRIAD[d].glyph} ${TRIAD[d].label}</span><b style="color:#cfd8d2">${Math.round(c.triad[d] * 100)}</b></div>`).join('');
+      return `<div style="width:100%">`
+        + `<div style="font-size:11px;color:#7fd8d0;letter-spacing:.4px;margin-bottom:8px;text-align:center">${esc(c.cast.label)}</div>${tri}`
+        + `<div style="display:flex;gap:14px;margin-top:11px;font-size:12px;color:#9aa8a0;justify-content:center"><span title="health">✚ ${cm.hp}</span><span title="attack">⚔ ${cm.atk}</span><span title="defense">⛨ ${cm.def}</span></div></div>`;
     }
     // paint the character's own sprite into the dialogue portrait canvas (pixel-art scaled, grounded at the
     // bottom of the box); fall back to the glyph if the agent carries no genome.
@@ -1730,10 +1757,15 @@
         // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
         // an ambient crowd one-liner → a light compact popup.
         if (!t.no_tree || (t.choices && t.choices.length)) {
-          // the PORTRAIT is the character's own sprite (drawn after, into the canvas), not a generic glyph/role.
-          const left = `<div class="sthead"><canvas class="portrait" id="storyportrait" width="96" height="96"></canvas>`
-            + `<div class="sthd"><div class="nm">${esc(agent.name)}</div>`
-            + `<div class="rl">${esc(agent.role)}${t.npc ? ' · ' + esc(t.npc) : ''} · standing ${t.standing | 0}</div></div></div>${npcStatBlock(agent)}`;
+          // name/role sit ABOVE a FLIP CARD whose front is the character's own sprite and whose back is the
+          // stat block — click the card to flip between sprite ⇄ stats (the sprite can never cover the name).
+          const left = `<div class="nm">${esc(agent.name)}</div>`
+            + `<div class="rl">${esc(agent.role)}${t.npc ? ' · ' + esc(t.npc) : ''} · standing ${t.standing | 0}</div>`
+            + `<div class="flipcard" id="flipcard" title="click to flip between sprite and stats">`
+            +   `<div class="flipinner">`
+            +     `<div class="flipface flipfront"><canvas class="portrait" id="storyportrait" width="96" height="96"></canvas><div class="fliphint">◔ tap for stats</div></div>`
+            +     `<div class="flipface flipback">${npcStatBlock(agent)}<div class="fliphint">↺ tap for portrait</div></div>`
+            +   `</div></div>`;
           panel.innerHTML = `${close}<div class="stwrap"><div class="stleft">${left}</div><div class="stright">${right}</div></div>`;
           showStory('wide');
           drawPortraitSprite(agent);
@@ -1759,6 +1791,7 @@
     // clicking the dim backdrop closes the conversation (like the inventory screen).
     $('storybg').addEventListener('click', () => { if (story.active) { story.active = null; renderStory(); } });
     $('story').addEventListener('click', (e) => {
+      const fc = e.target.closest('.flipcard'); if (fc) { fc.classList.toggle('flipped'); return; }   // sprite ⇄ stats
       const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
       if (cl) { story.active = null; renderStory(); return; }
       const eat = e.target.closest('[data-eat]');
@@ -1827,6 +1860,8 @@
       s.setFact(story.playerId, 'flag.heard_luna', true);
       // seeing your own name in the stencil = you now carry the notation (the reason Sevin believes)
       if (!s.listInventoryRows(story.playerId).some((r) => r.content_item_id === 'it-stenciltrace')) take(s, story.playerId, 'it-stenciltrace');
+      checkQuests();              // theme-based: lo-terminal (tabard/mythograph/luna) may corroborate a thread
+      creditTerminalThreads();    // fungible: reading this console satisfies every thread that calls for "a terminal"
       story.active = { terminal: true };
       saveStory(); renderStory();                                    // saveStory advances tiers if the chain has closed
     }
@@ -2683,7 +2718,19 @@
       }
     }
 
-    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (gpu) gpu.resize(W * dpr, H * dpr); if (world) { setScale(); followCam(); draw(); maybeStream(); } }
+    function resize() {
+      W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight));
+      // DRAWING-BUFFER CAP: the world is a soft, baked raster, so a WIDE / hi-dpi DESKTOP paying full dpr is pure
+      // fill-rate waste (a 2560-wide screen at dpr 2 is a 5120px buffer — 4× the pixels of a phone). Clamp the
+      // longest device-px edge; phones (small W·H) stay under the cap and keep full dpr, so they don't soften.
+      let d = Math.min(window.devicePixelRatio || 1, 2);
+      const MAX_EDGE = 2400, longest = Math.max(W, H) * d;
+      if (longest > MAX_EDGE) d = Math.max(1, MAX_EDGE / Math.max(W, H));
+      dpr = d;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      if (gpu) gpu.resize(cv.width, cv.height);
+      if (world) { setScale(); followCam(); draw(); maybeStream(); }
+    }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
     addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !typing() && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world (your durable pack carries across)
 
