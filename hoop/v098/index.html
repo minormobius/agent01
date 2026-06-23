@@ -488,7 +488,7 @@
       if (_socScheduled) return; _socScheduled = true;   // coalesce a burst of streams into ONE social rebuild
       const go = () => {
         _socScheduled = false; const t0 = performance.now();
-        society = buildSociety(world, walk);
+        society = buildSociety(world, walk, { routes: false });   // skip the up-to-70 route pathFinds (the 60-70ms) — the curvy commute web is cosmetic; residents only need edges
         const fresh = buildResidents(world, walk, society), prev = new Map(residents.map((a) => [a.id, a]));
         residents = fresh.map((a) => prev.get(a.id) || a);
         cullResidents();

@@ -18,7 +18,7 @@ const THIRDROLES = new Set(['worship', 'serve', 'play', 'learn']);
 // its door walk-node, and a STABLE gid (the door cell's global-lattice id → the story engine's feature
 // key). A dwelling links to its nearest workplace ('work') and nearest third-place ('third'); a budget
 // of the work links also carry a concrete walk-graph route (the ambient commute traffic). Pure.
-export function buildSociety(world, walk) {
+export function buildSociety(world, walk, { routes: doRoutes = true } = {}) {
   const rooms = [];
   for (const ch of world.chunks) ch.rooms.forEach((r, ri) => {
     if (r.door < 0) return;
@@ -29,11 +29,11 @@ export function buildSociety(world, walk) {
   });
   const work = rooms.filter((o) => WORKROLES.has(o.role)), third = rooms.filter((o) => THIRDROLES.has(o.role));
   const nearest = (list, o) => { let b = null, bd = Infinity; for (const w of list) { if (w === o) continue; const d = (w.x - o.x) ** 2 + (w.y - o.y) ** 2; if (d < bd) { bd = d; b = w; } } return b; };
-  const edges = [], routes = []; let budget = 70;
+  const edges = [], routes = []; let budget = doRoutes ? 70 : 0;   // routes (the curvy commute web) cost up to 70 pathFinds — opt-in; edges (which residents need) are always cheap
   for (const o of rooms) {
     if (o.role !== 'dwell') continue;
     const n = Math.max(1, o.people.length), w = nearest(work, o);
-    if (w) { edges.push({ ax: o.x, ay: o.y, bx: w.x, by: w.y, kind: 'work', a: o, b: w }); if (budget-- > 0) { const p = pathFind(walk, o.doorG, w.doorG); if (p && p.length > 1) routes.push({ cells: p, w: n }); } }
+    if (w) { edges.push({ ax: o.x, ay: o.y, bx: w.x, by: w.y, kind: 'work', a: o, b: w }); if (doRoutes && budget-- > 0) { const p = pathFind(walk, o.doorG, w.doorG); if (p && p.length > 1) routes.push({ cells: p, w: n }); } }
     const t = nearest(third, o); if (t && t !== w) edges.push({ ax: o.x, ay: o.y, bx: t.x, by: t.y, kind: 'third', a: o, b: t });
   }
   return { rooms, edges, routes };
