@@ -143,11 +143,10 @@
     #story .flipcard { perspective: 820px; width: 100%; max-width: 196px; height: 196px; margin: 16px auto 0; cursor: pointer; }
     #story .flipinner { position: relative; width: 100%; height: 100%; transition: transform .5s cubic-bezier(.2,.75,.2,1); transform-style: preserve-3d; }
     #story .flipcard.flipped .flipinner { transform: rotateY(180deg); }
-    #story .flipface { position: absolute; inset: 0; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #2c3c47; border-radius: 14px; background: #0a0f15; padding: 14px; box-sizing: border-box; overflow: hidden; }
-    #story .flipback { transform: rotateY(180deg); justify-content: flex-start; }
-    #story .flipfront .portrait { width: 118px; height: 118px; }
-    #story .fliphint { font-size: 10px; color: #5e6d66; letter-spacing: .3px; flex: none; margin-top: 10px; }
-    #story .flipback .fliphint { margin-top: auto; }
+    #story .flipface { position: absolute; inset: 0; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #2c3c47; border-radius: 14px; background: #0a0f15; box-sizing: border-box; overflow: hidden; }
+    #story .flipfront .portrait { width: 100%; height: 100%; }   /* the sprite fills the whole card face, centred — no overlay text */
+    #story .flipback { transform: rotateY(180deg); padding: 18px; }
+    #story .flipmark { position: absolute; top: 7px; right: 9px; font-size: 12px; color: #5b6a63; z-index: 2; pointer-events: none; }   /* a quiet flip affordance — no instructional text over the portrait */
     #story .nm { font-size: 19px; font-weight: 600; color: #f7c674; line-height: 1.2; }
     #story .rl { font-size: 11.5px; color: #8aa39a; margin: 3px 0 14px; letter-spacing: .3px; }
     #story .nmh { font-size: 12.5px; color: #7fd8d0; margin-bottom: 5px; }
@@ -163,8 +162,7 @@
       #story .stwrap { grid-template-columns: 1fr; }
       #story .stleft { display: block; border-right: 0; border-bottom: 1px solid #1b2530; padding: 18px 20px 14px; }
       /* phone: a smaller flip card; name/role stack above it (no overlap by construction) */
-      #story .stleft .flipcard { height: 148px; max-width: 148px; margin-top: 11px; }
-      #story .flipfront .portrait { width: 96px; height: 96px; }
+      #story .stleft .flipcard { height: 150px; max-width: 150px; margin-top: 11px; }
       #story .stright { padding: 18px 20px 22px; }
     }
     /* the ENCOUNTER card — Qud-style: meeting anything new fills the centre of the screen with its full description */
@@ -1734,7 +1732,7 @@
       const cv2 = document.getElementById('storyportrait'); if (!cv2) return;
       const g = cv2.getContext('2d'); g.clearRect(0, 0, 96, 96); g.imageSmoothingEnabled = false;
       let spr = null; try { if (agent && agent.genome) spr = spriteCanvas(agent.genome, 'S', null); } catch (e) {}
-      if (spr) { const s = Math.min(82 / spr.width, 88 / spr.height), w = spr.width * s, h = spr.height * s; g.drawImage(spr, (96 - w) / 2, 92 - h, w, h); }
+      if (spr) { const s = Math.min(92 / spr.width, 92 / spr.height), w = spr.width * s, h = spr.height * s; g.drawImage(spr, (96 - w) / 2, (96 - h) / 2, w, h); }   // centred both axes, fills the card
       else { g.fillStyle = '#f4bf62'; g.font = '50px ui-monospace, monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText((agent && agent.glyph) || '☻', 48, 50); }
     }
     function renderStory() {
@@ -1763,9 +1761,9 @@
             + `<div class="rl">${esc(agent.role)}${t.npc ? ' · ' + esc(t.npc) : ''} · standing ${t.standing | 0}</div>`
             + `<div class="flipcard" id="flipcard" title="click to flip between sprite and stats">`
             +   `<div class="flipinner">`
-            +     `<div class="flipface flipfront"><canvas class="portrait" id="storyportrait" width="96" height="96"></canvas><div class="fliphint">◔ tap for stats</div></div>`
-            +     `<div class="flipface flipback">${npcStatBlock(agent)}<div class="fliphint">↺ tap for portrait</div></div>`
-            +   `</div></div>`;
+            +     `<div class="flipface flipfront"><canvas class="portrait" id="storyportrait" width="96" height="96"></canvas></div>`
+            +     `<div class="flipface flipback">${npcStatBlock(agent)}</div>`
+            +   `</div><div class="flipmark" aria-hidden="true">⟲</div></div>`;
           panel.innerHTML = `${close}<div class="stwrap"><div class="stleft">${left}</div><div class="stright">${right}</div></div>`;
           showStory('wide');
           drawPortraitSprite(agent);
