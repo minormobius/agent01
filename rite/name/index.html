@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>name &mdash; designing name families from a modal metaphor</title>
-<meta name="description" content="How to name a set of related things at once: pick a source domain whose structure mirrors your objects', and let the names fall out of it. Theory, method, and a working name-family generator.">
+<title>name &mdash; a name-family generator (and the theory behind it)</title>
+<meta name="description" content="Name a whole set of related things at once: pick the mode in which they relate, borrow a source domain with that same structure, and let the names fall out. A working generator plus the theory.">
 <meta property="og:title" content="name">
-<meta property="og:description" content="Designing a family of names from a single metaphor. A report on name creation + a name-family generator.">
+<meta property="og:description" content="A name-family generator built on the modal metaphor — plus a report on name creation.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://rite.mino.mobi/name/">
 <style>
@@ -32,10 +32,10 @@ body {
   font-family: var(--serif); font-size: 17px; line-height: 1.62;
   padding: 1.5rem 1rem 4rem; min-height: 100vh;
 }
-.wrap { max-width: 760px; margin: 0 auto; }
+.wrap { max-width: 780px; margin: 0 auto; }
 header.app {
   border-bottom: 1px solid var(--rule);
-  padding-bottom: 1rem; margin-bottom: 1.6rem;
+  padding-bottom: 1rem; margin-bottom: 1.4rem;
 }
 h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
 h1 .dot { color: var(--accent); }
@@ -54,13 +54,12 @@ p { margin: 0.8rem 0; }
 a { color: var(--accent); }
 em { font-style: italic; }
 strong { font-weight: 700; }
-.lede { font-size: 1.1rem; line-height: 1.55; }
+.lede { font-size: 1.08rem; line-height: 1.5; }
 .lede strong { color: var(--text); }
 
 blockquote {
   margin: 1.2rem 0; padding: 0.4rem 0 0.4rem 1.1rem;
-  border-left: 3px solid var(--accent); color: var(--text);
-  font-style: italic;
+  border-left: 3px solid var(--accent); color: var(--text); font-style: italic;
 }
 ul, ol { margin: 0.8rem 0; padding-left: 1.3rem; }
 li { margin: 0.35rem 0; }
@@ -73,14 +72,6 @@ code, .kbd {
   background: var(--card-bg); border: 1px solid var(--rule); border-radius: 6px;
   padding: 0.9rem 1rem; margin: 1.2rem 0; line-height: 1.5;
 }
-.callout {
-  background: var(--accent-faint); border-radius: 6px;
-  padding: 0.9rem 1.1rem; margin: 1.3rem 0; font-size: 0.97rem;
-}
-.callout .tag {
-  font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--accent); display: block; margin-bottom: 0.3rem;
-}
 
 table { width: 100%; border-collapse: collapse; margin: 1.2rem 0; font-size: 0.92rem; }
 th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
@@ -90,58 +81,71 @@ th {
 }
 td .fam { font-variant: small-caps; letter-spacing: 0.02em; }
 
-/* ---------- generator ---------- */
+/* ---------- generator (hero) ---------- */
 .gen {
-  border: 1px solid var(--rule); border-radius: 10px;
-  background: var(--card-bg); padding: 1.2rem 1.2rem 1.4rem; margin: 1.4rem 0;
+  border: 1px solid var(--rule); border-radius: 12px;
+  background: var(--card-bg); padding: 1.3rem 1.3rem 1.5rem; margin: 0.4rem 0 0.6rem;
+  box-shadow: 0 1px 0 var(--rule);
 }
-.gen .gen-head { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.9rem; }
-.field { margin: 0.9rem 0; }
+.gen .gen-head {
+  font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.2rem;
+}
+.gen .gen-tag { color: var(--muted); font-style: italic; font-size: 0.9rem; margin: 0 0 1rem; }
+.field { margin: 1rem 0 0; }
 .field > label.lbl {
-  display: block; font-family: var(--mono); font-size: 0.72rem;
+  display: block; font-family: var(--mono); font-size: 0.7rem;
   text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.45rem;
 }
-.modes { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.modes button {
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chips button {
   font-family: var(--serif); font-size: 0.92rem; text-transform: none; letter-spacing: 0;
-  padding: 0.4rem 0.75rem; background: transparent; color: var(--text);
+  padding: 0.38rem 0.72rem; background: transparent; color: var(--text);
   border: 1px solid var(--rule); border-radius: 20px; cursor: pointer; transition: all 0.12s;
 }
-.modes button:hover { border-color: var(--accent); }
-.modes button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-.modes button .mode-sub { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.05rem; }
-.modes button.on .mode-sub { color: var(--bg); opacity: 0.85; }
+.chips button:hover { border-color: var(--accent); }
+.chips button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.chips button .sub { display: block; font-size: 0.66rem; color: var(--muted); margin-top: 0.05rem; }
+.chips button.on .sub { color: var(--bg); opacity: 0.85; }
+.chips.tones button { border-radius: 5px; font-size: 0.84rem; padding: 0.32rem 0.6rem; }
 
-.row { display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: flex-end; }
-.row .field { flex: 1; min-width: 150px; margin: 0; }
-input[type="number"], input[type="text"] {
-  width: 100%; padding: 0.55rem 0.7rem; font-family: var(--serif); font-size: 1rem;
+.opts { display: flex; gap: 1.1rem; flex-wrap: wrap; align-items: flex-end; margin-top: 1rem; }
+.opts .field { flex: 1; min-width: 120px; margin: 0; }
+input[type="number"], input[type="text"], select {
+  width: 100%; padding: 0.5rem 0.65rem; font-family: var(--serif); font-size: 0.98rem;
   background: var(--bg); color: var(--text); border: 1px solid var(--rule);
   border-radius: 5px; outline: none;
 }
-input:focus { border-color: var(--accent); }
-.lens { display: flex; gap: 0.4rem; }
-.lens button {
-  flex: 1; font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase;
-  letter-spacing: 0.04em; padding: 0.5rem 0.4rem; background: transparent; color: var(--text);
+input:focus, select:focus { border-color: var(--accent); }
+.seg { display: flex; gap: 0.35rem; }
+.seg button {
+  flex: 1; font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase;
+  letter-spacing: 0.03em; padding: 0.5rem 0.3rem; background: transparent; color: var(--text);
   border: 1px solid var(--rule); border-radius: 5px; cursor: pointer;
 }
-.lens button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.seg button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.checkline { display: flex; align-items: center; gap: 0.5rem; font-size: 0.92rem; color: var(--text); cursor: pointer; }
+.checkline input { width: auto; }
+.checkline .hint { color: var(--muted); font-style: italic; font-size: 0.82rem; }
 
+.actions { margin-top: 1.2rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .go {
   font-family: var(--mono); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em;
-  padding: 0.65rem 1.2rem; background: var(--accent); color: var(--bg); border: none;
-  border-radius: 5px; cursor: pointer; margin-top: 1rem;
+  padding: 0.62rem 1.2rem; background: var(--accent); color: var(--bg); border: none;
+  border-radius: 5px; cursor: pointer;
 }
 .go:hover { opacity: 0.88; }
-.go.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); margin-left: 0.5rem; }
+.go.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
 
-#gen-out { margin-top: 1.3rem; }
-.pack {
-  border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 1rem;
-}
+#gen-out { margin-top: 1.4rem; }
+.pack { border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 1rem; }
 .pack:first-child { border-top: none; padding-top: 0; margin-top: 0; }
 .pack .pack-name { font-weight: 700; }
+.pack .pack-name .tone-badge {
+  font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); border: 1px solid var(--rule); border-radius: 3px; padding: 0.05rem 0.3rem;
+  margin-left: 0.5rem; vertical-align: middle;
+}
 .pack .pack-note { color: var(--muted); font-size: 0.9rem; font-style: italic; margin: 0.2rem 0 0.7rem; }
 .family { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .chip {
@@ -151,6 +155,7 @@ input:focus { border-color: var(--accent); }
 }
 .chip .pair { color: var(--muted); font-variant: normal; font-size: 0.72rem; display: block; letter-spacing: 0; }
 .empty-note { color: var(--muted); font-style: italic; }
+.count-line { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin-top: 0.9rem; }
 
 footer {
   margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--rule);
@@ -168,20 +173,85 @@ footer a { color: var(--muted); text-decoration: underline; }
 
 <header class="app">
   <h1>name<span class="dot">.</span></h1>
-  <p class="subtitle">Designing a family of names from a single metaphor.</p>
+  <p class="subtitle">A name-family generator &mdash; and the theory behind it.</p>
 </header>
 
 <main>
 
-<p class="lede">You don't have a naming problem. You have a <strong>set</strong> of naming problems that should be solved at once. Five parts of one product want five names that read as a family &mdash; obviously kin, never twins. The reliable way to get there isn't to brainstorm five clever words. It's to pick one <em>source domain</em> whose internal structure mirrors how your five parts relate, and then let the names fall out of it.</p>
+<p class="lede">You rarely have <em>one</em> name to make. You have a <strong>set</strong> &mdash; tiers of a plan, modules of a platform, agents in a pipeline &mdash; that should read as a family: obviously kin, never twins. The reliable way there is to pick one <em>source domain</em> whose internal structure mirrors how your parts relate, and let the names fall out of it. Set the relation; the generator does the falling-out.</p>
 
-<p>This report sets out the theory behind that move, the working method, and a generator that runs the method live. The organizing idea &mdash; the one worth keeping &mdash; is the <strong>modal metaphor</strong>: choose the <em>mode</em> in which your objects are related (in space? in time? in rank?), and that mode tells you which metaphor to mine.</p>
+<!-- ============ GENERATOR (hero) ============ -->
+<div class="gen">
+  <div class="gen-head">name-family generator</div>
+  <p class="gen-tag">Tell it how your elements relate. It shortlists source domains with that structure and emits a coherent family for each. (This is moves 2&ndash;5 of the method below.)</p>
+
+  <div class="field">
+    <label class="lbl">1 &middot; how do your elements relate to each other?</label>
+    <div class="chips" id="mode-picker"></div>
+  </div>
+
+  <div class="field">
+    <label class="lbl">2 &middot; register &mdash; the flavor of domain</label>
+    <div class="chips tones" id="tone-picker"></div>
+  </div>
+
+  <div class="opts">
+    <div class="field">
+      <label class="lbl">names / family</label>
+      <input type="number" id="count" min="2" max="8" value="4">
+    </div>
+    <div class="field">
+      <label class="lbl">families shown</label>
+      <input type="number" id="families" min="1" max="10" value="5">
+    </div>
+    <div class="field" style="flex:1.4;">
+      <label class="lbl">phonetic lens</label>
+      <div class="seg" id="lens">
+        <button data-lens="round">round</button>
+        <button data-lens="any" class="on">any</button>
+        <button data-lens="sharp">sharp</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="opts">
+    <div class="field" style="flex:2;">
+      <label class="lbl">shared word (optional &mdash; binds the family, e.g. &ldquo;Drive&rdquo;, &ldquo;Labs&rdquo;)</label>
+      <input type="text" id="shared" placeholder="leave blank for bare names">
+    </div>
+    <div class="field">
+      <label class="lbl">placement</label>
+      <select id="placement">
+        <option value="after">after &mdash; Harbor Drive</option>
+        <option value="before">before &mdash; Drive Harbor</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="checkline"><input type="checkbox" id="coin"> coin it <span class="hint">&mdash; morph each word toward an invented, trademark-friendly form (experimental)</span></label>
+  </div>
+
+  <div class="field">
+    <label class="lbl">your elements (optional, comma-separated &mdash; we'll pair them in order)</label>
+    <input type="text" id="labels" placeholder="e.g. free tier, pro tier, team tier, enterprise tier">
+  </div>
+
+  <div class="actions">
+    <button class="go" id="gen-go">Generate</button>
+    <button class="go ghost" id="gen-shuffle">Shuffle</button>
+  </div>
+
+  <div id="gen-out"></div>
+</div>
+
+<p class="lede" style="margin-top:1.6rem;">The rest of this page is the thinking behind that box &mdash; why naming a <em>set</em> is a different problem, and why a single metaphor solves it.</p>
 
 <h2><span class="num">01</span>The shape of the problem: name a set, not a name</h2>
 
 <p>Most naming advice is about a <em>single</em> name &mdash; a company, a product, a feature. That advice is real but incomplete, because branded systems almost never name one thing. They name a constellation: tiers of a plan, modules of a platform, the agents in a pipeline, the rooms of an app. When those names are generated independently, the result is a zoo &mdash; one part named for a Greek god, one for a color, one a portmanteau, one an acronym. Individually fine; together, noise.</p>
 
-<p>A <em>family</em> of names does work that no individual name can. It tells the user these things belong together; it signals where one thing sits relative to the others; and &mdash; the test that matters most &mdash; it makes the <em>next</em> name obvious. If you can't name the sixth member without a committee, you never had a system.</p>
+<p>A <em>family</em> of names does work no individual name can. It tells the user these things belong together; it signals where one thing sits relative to the others; and &mdash; the test that matters most &mdash; it makes the <em>next</em> name obvious. If you can't name the sixth member without a committee, you never had a system.</p>
 
 <blockquote>The quality bar for a name family is not &ldquo;are these five names good?&rdquo; It's &ldquo;does the sixth name write itself?&rdquo;</blockquote>
 
@@ -200,7 +270,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 </tbody>
 </table>
 
-<p>Two things to take from this. First, distinctiveness and protectability rise together &mdash; the law rewards names that don't describe, because a descriptive name is a word your competitors also need. Second, and more usefully here: <strong>most great name families live in the suggestive-to-arbitrary band.</strong> A metaphor-derived family (planets, rivers, ranks) is by construction <em>arbitrary</em> with respect to the product &mdash; &ldquo;Saturn&rdquo; has nothing to do with a storage tier &mdash; yet <em>suggestive</em> with respect to the family, because once you know the metaphor, each member's position is legible. That double life is exactly what you want.</p>
+<p>Two things to take from this. First, distinctiveness and protectability rise together &mdash; the law rewards names that don't describe, because a descriptive name is a word your competitors also need. Second, and more usefully here: <strong>most great name families live in the suggestive-to-arbitrary band.</strong> A metaphor-derived family (planets, rivers, ranks) is by construction <em>arbitrary</em> with respect to the product &mdash; &ldquo;Saturn&rdquo; has nothing to do with a storage tier &mdash; yet <em>suggestive</em> with respect to the family, because once you know the metaphor, each member's position is legible. That double life is exactly what you want. (The generator's <em>coin it</em> toggle nudges a family one notch further, toward the fanciful end.)</p>
 
 <h2><span class="num">03</span>Sound is meaning before semantics</h2>
 
@@ -208,7 +278,7 @@ footer a { color: var(--muted); text-decoration: underline; }
 
 <p>For naming this is leverage, not trivia. Front vowels (<em>ee, i</em>) read small, light, fast, precise &mdash; <span class="kbd">Nike</span>, <span class="kbd">Twitter</span>. Back vowels (<em>oh, oo</em>) read large, heavy, solid &mdash; <span class="kbd">Volvo</span>, <span class="kbd">Google</span>. Plosives (<em>k, t, p, hard&nbsp;g</em>) feel sharp, technical, abrupt; sonorants and fricatives (<em>l, m, n, r, s, v</em>) feel smooth, soft, continuous. A name's <em>job</em> should agree with its sound: a security product wants edges (kiki); a sleep product wants curves (bouba).</p>
 
-<p>This matters for families too. Once you've chosen a source domain, it usually contains both sharp and soft members &mdash; the water cycle gives you the soft <em>Mist</em> and the crisp <em>Crest</em>. You can pick within the domain to match the product's character. The generator below lets you tilt a family toward <em>round</em> or toward <em>sharp</em> on exactly this axis.</p>
+<p>This matters for families too. Once you've chosen a source domain, it usually contains both sharp and soft members &mdash; the water cycle gives you the soft <em>Mist</em> and the crisp <em>Crest</em>. You can pick within the domain to match the product's character. The generator's <em>phonetic lens</em> tilts a family toward <em>round</em> or toward <em>sharp</em> on exactly this axis.</p>
 
 <h2><span class="num">04</span>The modal metaphor</h2>
 
@@ -228,20 +298,21 @@ your objects' <strong>relation structure</strong> &nbsp;&xrarr;&nbsp; a <strong>
 <li>Related in <strong>time</strong>, as a sequence? &mdash; reach for a river's course, a plant's growth, a forging process.</li>
 <li>Related by <strong>rank</strong>? &mdash; reach for nobility, military grades, musical tempo.</li>
 <li>Related as <strong>parts of one whole</strong>? &mdash; reach for anatomy, a ship, a loom, a book.</li>
-<li>Related as <strong>opposites or poles</strong>? &mdash; reach for day/night, the celestial, light and shadow.</li>
+<li>Related as <strong>opposites or poles</strong>? &mdash; reach for day/night, the winds, light and shadow.</li>
+<li>Just a flat <strong>peer set</strong>? &mdash; reach for trees, birds, gems, constellations.</li>
 </ul>
 
-<p>The mode is the question; the metaphor is the answer; the family is automatic. The user's two seed intuitions are exactly this: <em>objects related in space &rarr; placenames</em>, <em>objects related in time &rarr; the water cycle</em>. Generalize the move and you have a method.</p>
+<p>The mode is the question; the metaphor is the answer; the family is automatic. Two seed intuitions make it concrete: <em>objects related in space &rarr; placenames</em>, <em>objects related in time &rarr; the water cycle</em>. Generalize the move and you have a method &mdash; and a generator.</p>
 
 <table>
 <thead><tr><th>relation mode</th><th>candidate source domains</th><th>a family falls out</th></tr></thead>
 <tbody>
-<tr><td><strong>Spatial</strong> &mdash; a set of locations</td><td>cartography, architecture</td><td class="fam">Harbor · Summit · Delta · Ridge</td></tr>
+<tr><td><strong>Spatial</strong> &mdash; a set of locations</td><td>cartography, architecture, compass</td><td class="fam">Harbor · Summit · Delta · Ridge</td></tr>
 <tr><td><strong>Cyclical</strong> &mdash; recurring phases</td><td>water cycle, seasons, hours, moon</td><td class="fam">Vapor · Rain · River · Tide</td></tr>
 <tr><td><strong>Sequential</strong> &mdash; ordered steps</td><td>river course, growth, the forge</td><td class="fam">Source · Confluence · Channel · Mouth</td></tr>
 <tr><td><strong>Hierarchical</strong> &mdash; levels of rank</td><td>nobility, ranks, tempo markings</td><td class="fam">Squire · Knight · Baron · Duke</td></tr>
 <tr><td><strong>Part&ndash;whole</strong> &mdash; one body's parts</td><td>anatomy, ship, loom, codex</td><td class="fam">Heart · Spine · Vein · Pulse</td></tr>
-<tr><td><strong>Oppositional</strong> &mdash; poles</td><td>day/night, celestial, optics</td><td class="fam">Dawn · Eclipse · Umbra · Aurora</td></tr>
+<tr><td><strong>Oppositional</strong> &mdash; poles</td><td>day/night, the winds, optics</td><td class="fam">Dawn · Eclipse · Umbra · Aurora</td></tr>
 </tbody>
 </table>
 
@@ -263,52 +334,16 @@ your objects' <strong>relation structure</strong> &nbsp;&xrarr;&nbsp; a <strong>
 <ol>
 <li><strong>Inventory the elements.</strong> List the things needing names. Five tiers? Three agents? Seven modules?</li>
 <li><strong>Name the relation, not the elements.</strong> How do they relate to each other? Pick the <em>mode</em> &mdash; spatial, cyclical, sequential, hierarchical, part&ndash;whole, oppositional, or simply kindred (a flat set with no order).</li>
-<li><strong>Choose an isomorphic source domain.</strong> One whose own members carry that same structure. The mode shortlists it; taste picks the winner. Prefer a domain with <em>more</em> members than you need &mdash; headroom is extensibility.</li>
+<li><strong>Choose an isomorphic source domain.</strong> One whose own members carry that same structure. The mode shortlists it; taste (and the <em>register</em> control) picks the winner. Prefer a domain with <em>more</em> members than you need &mdash; headroom is extensibility.</li>
 <li><strong>Harvest the members in register.</strong> Pull the words. If the relation is ordered, keep them in their native order so position encodes rank/stage.</li>
-<li><strong>Run the phonetic pass.</strong> Tilt the selection toward the product's character &mdash; round for soft/calm, sharp for technical/fast (§3). Drop members that mispronounce or collide.</li>
-<li><strong>Gut-check availability.</strong> A real word from a real domain is, by the spectrum (§2), <em>arbitrary</em> for your product &mdash; good for protection &mdash; but check it isn't already owned in your category, and that the <code>.com</code>/handle/namespace isn't a fight you'll lose.</li>
+<li><strong>Run the phonetic pass.</strong> Tilt the selection toward the product's character &mdash; round for soft/calm, sharp for technical/fast (§03). Drop members that mispronounce or collide.</li>
+<li><strong>Gut-check availability.</strong> A real word from a real domain is, by the spectrum (§02), <em>arbitrary</em> for your product &mdash; good for protection &mdash; but check it isn't already owned in your category, and that the <code>.com</code>/handle/namespace isn't a fight you'll lose. (When everything's taken, <em>coin it</em>.)</li>
 <li><strong>Apply the extensibility test.</strong> Can a stranger, told only the metaphor, name the next member correctly? If yes, ship it. If no, the domain is too sparse or too arbitrary &mdash; go back to move 3.</li>
 </ol>
 
-<h2><span class="num">07</span>The name-family generator</h2>
+<p>The generator at the top runs moves 2&ndash;5 on a library of ~38 source domains. Moves 1, 6, and 7 are yours.</p>
 
-<p>This runs moves 2&ndash;5 of the method. Tell it how your elements relate; it shortlists source domains with that structure and emits a coherent family for each. For ordered relations it spreads the picks across the domain's native order, so a three-member family spans the scale rather than clumping. The phonetic lens biases each family toward round or sharp members (§3).</p>
-
-<div class="gen">
-  <div class="gen-head">name-family generator</div>
-
-  <div class="field">
-    <label class="lbl">1 &middot; how do your elements relate to each other?</label>
-    <div class="modes" id="mode-picker"></div>
-  </div>
-
-  <div class="row">
-    <div class="field">
-      <label class="lbl">2 &middot; how many</label>
-      <input type="number" id="count" min="2" max="8" value="4">
-    </div>
-    <div class="field">
-      <label class="lbl">3 &middot; phonetic lens</label>
-      <div class="lens" id="lens">
-        <button data-lens="round">round</button>
-        <button data-lens="any" class="on">any</button>
-        <button data-lens="sharp">sharp</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="field">
-    <label class="lbl">4 &middot; your elements (optional, comma-separated &mdash; we'll pair them)</label>
-    <input type="text" id="labels" placeholder="e.g. free tier, pro tier, team tier, enterprise tier">
-  </div>
-
-  <button class="go" id="gen-go">Generate families</button>
-  <button class="go ghost" id="gen-shuffle">Shuffle</button>
-
-  <div id="gen-out"></div>
-</div>
-
-<h2><span class="num">08</span>Pitfalls</h2>
+<h2><span class="num">07</span>Pitfalls</h2>
 <ul>
 <li><strong>Choosing a metaphor that's prettier than it is structural.</strong> &ldquo;Constellations&rdquo; sounds lovely, but if your objects are an ordered pipeline and constellations have no order, the metaphor fights the product. Structure first, charm second.</li>
 <li><strong>Picking an exhaustible domain for an open-ended set.</strong> Seven planets is fine for seven things and a trap for a platform that will grow to twenty. Match the domain's <em>cardinality</em> to your roadmap.</li>
@@ -316,7 +351,7 @@ your objects' <strong>relation structure</strong> &nbsp;&xrarr;&nbsp; a <strong>
 <li><strong>Forgetting the family is a promise.</strong> Once you're &ldquo;the rivers company,&rdquo; every future name must be a river. Choose a domain you'll still want to live in at member number fifteen.</li>
 </ul>
 
-<h2><span class="num">09</span>Sources</h2>
+<h2><span class="num">08</span>Sources</h2>
 <ul class="refs">
 <li>Gentner, D. &mdash; <a href="https://groups.psych.northwestern.edu/gentner/papers/Gentner88b.pdf">Metaphor as Structure Mapping: The Relational Shift</a>; <a href="http://matt.colorado.edu/teaching/highcog/readings/g83.pdf">Structure-Mapping: A Theoretical Framework for Analogy</a>.</li>
 <li>Lakoff, G. &mdash; <a href="https://terpconnect.umd.edu/~israel/lakoff-ConTheorMetaphor.pdf">The Contemporary Theory of Metaphor</a> (conceptual metaphor theory).</li>
@@ -338,8 +373,8 @@ your objects' <strong>relation structure</strong> &nbsp;&xrarr;&nbsp; a <strong>
 // ---------------------------------------------------------------------------
 // Name-family generator. Reads the modal metaphor: the user picks the *mode*
 // in which their elements relate; each metaphor "pack" declares which modes its
-// internal structure satisfies. Ordered packs preserve their native order so a
-// k-member family spans the whole scale instead of clumping.
+// internal structure satisfies and which register (tone) it carries. Ordered
+// packs preserve their native order so a k-member family spans the whole scale.
 // ---------------------------------------------------------------------------
 
 const MODES = [
@@ -350,66 +385,139 @@ const MODES = [
   { id: 'flow',         label: 'By flow',       sub: 'source → sink' },
   { id: 'partwhole',    label: 'Parts of one',  sub: 'one body, many parts' },
   { id: 'oppositional', label: 'As opposites',  sub: 'poles / pairs' },
-  { id: 'kindred',      label: 'As kin',        sub: 'a flat set, no order' },
+  { id: 'kindred',      label: 'As kin',        sub: 'a flat peer set' },
 ];
 
-// Each pack: members are listed in the domain's native order (matters for
-// ordered modes). `modes` lists the relation structures the pack satisfies.
+const TONES = [
+  { id: 'any',       label: 'Any' },
+  { id: 'natural',   label: 'Natural' },
+  { id: 'mythic',    label: 'Mythic' },
+  { id: 'classical', label: 'Classical' },
+  { id: 'technical', label: 'Technical' },
+  { id: 'craft',     label: 'Craft' },
+  { id: 'plain',     label: 'Plain' },
+];
+
+// Each pack: members listed in the domain's NATIVE order (matters for ordered
+// modes). `modes` lists the relation structures it satisfies; `tone` its register.
 const PACKS = [
-  { id:'carto', name:'Cartography', modes:['spatial','kindred','partwhole'],
+  // ---- natural ----
+  { id:'carto', name:'Cartography', tone:'natural', modes:['spatial','kindred','partwhole'],
     note:'Placenames — a terrain read as one map.',
     members:['Harbor','Cove','Ford','Vale','Glen','Reach','Ridge','Cape','Bluff','Summit','Delta','Fjord','Mesa','Bay'] },
-  { id:'water', name:'The water cycle', modes:['cyclical','flow','sequential'],
+  { id:'water', name:'The water cycle', tone:'natural', modes:['cyclical','flow','sequential'],
     note:'Evaporation to rain to runoff and back — time as a closed loop.',
     members:['Vapor','Mist','Cloud','Rain','Spring','Brook','Stream','River','Estuary','Tide'] },
-  { id:'river', name:'A river’s course', modes:['flow','sequential'],
+  { id:'river', name:'A river’s course', tone:'natural', modes:['flow','sequential'],
     note:'Headwaters to the sea — a pipeline with a direction.',
     members:['Source','Spring','Brook','Confluence','Channel','Current','Bend','Delta','Mouth'] },
-  { id:'seasons', name:'The seasons', modes:['cyclical','sequential'],
+  { id:'seasons', name:'The seasons', tone:'natural', modes:['cyclical','sequential'],
     note:'A four-beat wheel that always returns.',
     members:['Spring','Summer','Harvest','Autumn','Winter'] },
-  { id:'hours', name:'Hours of the day', modes:['cyclical','sequential'],
+  { id:'hours', name:'Hours of the day', tone:'natural', modes:['cyclical','sequential'],
     note:'Dawn to dark — the day as an ordered ring.',
     members:['Dawn','Morrow','Noon','Vesper','Dusk','Twilight','Midnight'] },
-  { id:'noble', name:'Nobility', modes:['hierarchical'],
-    note:'Ascending rank — position is the meaning.',
-    members:['Page','Squire','Knight','Baron','Viscount','Earl','Duke','Sovereign'] },
-  { id:'ranks', name:'Field ranks', modes:['hierarchical'],
-    note:'A chain of command, low to high.',
-    members:['Scout','Corporal','Sergeant','Captain','Major','Colonel','General','Marshal'] },
-  { id:'tempo', name:'Musical tempo', modes:['hierarchical','sequential'],
-    note:'Slow to fast — perfect for speed or intensity tiers.',
-    members:['Largo','Adagio','Andante','Moderato','Allegro','Vivace','Presto'] },
-  { id:'anatomy', name:'Anatomy', modes:['partwhole'],
-    note:'The parts of one living body.',
-    members:['Heart','Spine','Cortex','Vein','Pulse','Sinew','Marrow','Limb'] },
-  { id:'botany', name:'A plant’s growth', modes:['sequential','partwhole','cyclical'],
+  { id:'moon', name:'Phases of the moon', tone:'natural', modes:['cyclical','sequential'],
+    note:'New to full to dark — a slow, legible cycle.',
+    members:['New','Waxing','Crescent','Quarter','Gibbous','Full','Waning','Dark'] },
+  { id:'botany', name:'A plant’s growth', tone:'natural', modes:['sequential','partwhole','cyclical'],
     note:'Seed to canopy — growth as an ordered unfolding.',
     members:['Seed','Sprout','Root','Stem','Leaf','Bud','Bloom','Canopy'] },
-  { id:'forge', name:'The forge', modes:['sequential','flow'],
-    note:'Raw ore worked, step by step, to a finished edge.',
-    members:['Ore','Smelt','Forge','Anneal','Quench','Temper','Hone','Edge'] },
-  { id:'celestial', name:'The wandering stars', modes:['kindred','oppositional'],
+  { id:'ascent', name:'A mountain ascent', tone:'natural', modes:['hierarchical','sequential','spatial'],
+    note:'Foothill to summit — height as the axis.',
+    members:['Foothill','Slope','Bluff','Ridge','Crag','Spur','Peak','Summit'] },
+  { id:'weather', name:'Weather fronts', tone:'natural', modes:['kindred','oppositional'],
+    note:'Calm to storm and back — a set of moods of the sky.',
+    members:['Calm','Breeze','Mist','Front','Squall','Gale','Storm','Thaw'] },
+  { id:'stones', name:'Gemstones', tone:'natural', modes:['kindred'],
+    note:'A flat set of jewels — peers, no order.',
+    members:['Opal','Onyx','Jasper','Amber','Garnet','Beryl','Jade','Topaz'] },
+  { id:'trees', name:'Trees', tone:'natural', modes:['kindred'],
+    note:'A grove of equals — short, sturdy, distinct.',
+    members:['Oak','Ash','Elm','Birch','Rowan','Alder','Willow','Yew','Hazel'] },
+  { id:'birds', name:'Birds', tone:'natural', modes:['kindred'],
+    note:'A flock of peers — quick, vivid monosyllables.',
+    members:['Wren','Hawk','Heron','Raven','Finch','Kestrel','Swift','Lark'] },
+  { id:'anatomy', name:'Anatomy', tone:'natural', modes:['partwhole'],
+    note:'The parts of one living body.',
+    members:['Heart','Spine','Cortex','Vein','Pulse','Sinew','Marrow','Limb'] },
+  // ---- mythic ----
+  { id:'celestial', name:'The wandering stars', tone:'mythic', modes:['kindred','oppositional'],
     note:'Distinct bodies, each with its own temper — a peer set.',
     members:['Sol','Luna','Mercury','Venus','Mars','Vesta','Polaris','Vega'] },
-  { id:'light', name:'Light & shadow', modes:['oppositional'],
+  { id:'light', name:'Light & shadow', tone:'mythic', modes:['oppositional'],
     note:'Poles and their thresholds.',
     members:['Dawn','Aurora','Glare','Eclipse','Penumbra','Umbra','Dusk'] },
-  { id:'optics', name:'Optics', modes:['kindred','partwhole'],
-    note:'The instruments of light, a coherent kit.',
-    members:['Prism','Lumen','Facet','Spectrum','Glint','Halo','Beam','Aperture'] },
-  { id:'ship', name:'A ship', modes:['partwhole','kindred'],
-    note:'The parts and instruments of one vessel.',
-    members:['Helm','Keel','Mast','Tiller','Compass','Sextant','Anchor','Beacon'] },
-  { id:'signal', name:'Signals & relay', modes:['flow','kindred'],
+  { id:'constell', name:'Constellations', tone:'mythic', modes:['kindred'],
+    note:'Named patterns in the dark — evocative, unordered.',
+    members:['Lyra','Orion','Draco','Cygnus','Vega','Corvus','Hydra','Aquila'] },
+  { id:'elements4', name:'The four elements', tone:'mythic', modes:['kindred','oppositional','partwhole'],
+    note:'Fire, water, air, earth — the oldest four-way set.',
+    members:['Ember','Tide','Gale','Stone','Aether'] },
+  // ---- classical ----
+  { id:'noble', name:'Nobility', tone:'classical', modes:['hierarchical'],
+    note:'Ascending rank — position is the meaning.',
+    members:['Page','Squire','Knight','Baron','Viscount','Earl','Duke','Sovereign'] },
+  { id:'tempo', name:'Musical tempo', tone:'classical', modes:['hierarchical','sequential'],
+    note:'Slow to fast — perfect for speed or intensity tiers.',
+    members:['Largo','Adagio','Andante','Moderato','Allegro','Vivace','Presto'] },
+  { id:'winds', name:'The four winds', tone:'classical', modes:['oppositional','kindred'],
+    note:'Named winds of the compass — directional and poetic.',
+    members:['Boreas','Eurus','Notus','Zephyr','Aquilo','Caurus'] },
+  { id:'greek', name:'Greek letters', tone:'classical', modes:['sequential','kindred'],
+    note:'An ordered alphabet — versioning’s favorite spine.',
+    members:['Alpha','Beta','Gamma','Delta','Epsilon','Zeta','Eta','Theta'] },
+  { id:'roman', name:'Roman architecture', tone:'classical', modes:['partwhole','spatial'],
+    note:'The members of a built forum.',
+    members:['Forum','Arch','Aqueduct','Column','Vault','Portico','Atrium','Rostra'] },
+  // ---- technical ----
+  { id:'ranks', name:'Field ranks', tone:'plain', modes:['hierarchical'],
+    note:'A chain of command, low to high.',
+    members:['Scout','Corporal','Sergeant','Captain','Major','Colonel','General','Marshal'] },
+  { id:'signal', name:'Signals & relay', tone:'technical', modes:['flow','kindred'],
     note:'Things that carry a message across a gap.',
     members:['Beacon','Relay','Echo','Pulse','Carrier','Signal','Semaphore','Ping'] },
-  { id:'codex', name:'The codex', modes:['partwhole','kindred'],
-    note:'The anatomy of a hand-made book.',
-    members:['Codex','Folio','Quire','Index','Margin','Gloss','Spine','Colophon'] },
-  { id:'loom', name:'The loom', modes:['partwhole','flow'],
+  { id:'optics', name:'Optics', tone:'technical', modes:['kindred','partwhole'],
+    note:'The instruments of light, a coherent kit.',
+    members:['Prism','Lumen','Facet','Spectrum','Glint','Halo','Beam','Aperture'] },
+  { id:'spectrum', name:'The visible spectrum', tone:'technical', modes:['sequential','hierarchical'],
+    note:'Long to short wavelength — an ordered band.',
+    members:['Infra','Red','Amber','Gold','Green','Cyan','Indigo','Ultra'] },
+  { id:'circuit', name:'Circuitry', tone:'technical', modes:['partwhole','flow'],
+    note:'The components of one board.',
+    members:['Node','Bus','Gate','Relay','Array','Core','Bridge','Trace'] },
+  { id:'orbit', name:'Orbital mechanics', tone:'technical', modes:['kindred','sequential'],
+    note:'The waypoints of a trajectory.',
+    members:['Apogee','Perigee','Orbit','Transit','Vector','Drift','Apsis'] },
+  // ---- craft ----
+  { id:'forge', name:'The forge', tone:'craft', modes:['sequential','flow'],
+    note:'Raw ore worked, step by step, to a finished edge.',
+    members:['Ore','Smelt','Forge','Anneal','Quench','Temper','Hone','Edge'] },
+  { id:'loom', name:'The loom', tone:'craft', modes:['partwhole','flow'],
     note:'Threads and tools that make one cloth.',
     members:['Warp','Weft','Loom','Spindle','Skein','Selvage','Shuttle','Weave'] },
+  { id:'codex', name:'The codex', tone:'craft', modes:['partwhole','kindred'],
+    note:'The anatomy of a hand-made book.',
+    members:['Codex','Folio','Quire','Index','Margin','Gloss','Spine','Colophon'] },
+  { id:'masonry', name:'Masonry', tone:'craft', modes:['sequential','partwhole','hierarchical'],
+    note:'Footing to spire — a building rising course by course.',
+    members:['Footing','Course','Lintel','Keystone','Cornice','Frieze','Spire'] },
+  { id:'brew', name:'Brewing', tone:'craft', modes:['sequential','flow'],
+    note:'Grain to glass — a fermenting pipeline.',
+    members:['Malt','Mash','Wort','Ferment','Cask','Rack','Pour'] },
+  { id:'pottery', name:'The wheel', tone:'craft', modes:['sequential'],
+    note:'Clay to kiln — the potter’s ordered process.',
+    members:['Clay','Wedge','Throw','Trim','Bisque','Glaze','Kiln'] },
+  { id:'ship', name:'A ship', tone:'craft', modes:['partwhole','kindred'],
+    note:'The parts and instruments of one vessel.',
+    members:['Helm','Keel','Mast','Tiller','Compass','Sextant','Anchor','Beacon'] },
+  // ---- plain ----
+  { id:'compass', name:'Compass points', tone:'plain', modes:['oppositional','kindred','spatial'],
+    note:'The cardinal set — plus zenith and nadir.',
+    members:['North','South','East','West','Zenith','Nadir'] },
+  { id:'house', name:'Rooms of a house', tone:'plain', modes:['partwhole','spatial'],
+    note:'Foyer to garret — the parts of one dwelling.',
+    members:['Foyer','Hearth','Atrium','Gallery','Parlor','Cellar','Loft','Garret'] },
 ];
 
 // --- phonetic "sharpness": plosives & sibilants push sharp; sonorants & long
@@ -421,66 +529,101 @@ function sharpness(word){
   return (s - r) / Math.max(w.length, 1);
 }
 
+// --- coinage: morph a real word toward an invented, trademark-friendlier form
+//     by trimming trailing vowels and appending a soft brandable suffix.
+const COIN_SUF = ['a','o','ia','os','ix','ora','eon','yx'];
+function coin(word){
+  let stem = word.replace(/[aeiou]+$/i, '');        // drop trailing vowels
+  if (stem.length < 3) stem = word;
+  let suf = COIN_SUF[(Math.random()*COIN_SUF.length)|0];
+  if (stem.slice(-1).toLowerCase() === suf[0]) suf = suf.slice(1) || 'a'; // dodge double-letter seam
+  return stem + suf;
+}
+
 // state
 let mode = 'spatial';
+let tone = 'any';
 let lens = 'any';
 
-function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+const ORDERED_MODES = new Set(['sequential','cyclical','hierarchical','flow']);
 
 // Pick k members. Ordered modes spread evenly across native order; unordered
 // modes sample at random. The lens biases which members survive.
 function pickFamily(pack, k, ordered){
   let pool = pack.members.slice();
-  if(lens !== 'any'){
+  if (lens !== 'any'){
     const sorted = pool.slice().sort((a,b)=> sharpness(b)-sharpness(a)); // sharp first
     const keep = Math.max(k, Math.ceil(pool.length*0.6));
     pool = (lens==='sharp' ? sorted.slice(0,keep) : sorted.slice(-keep));
   }
   k = Math.min(k, pool.length);
-  if(ordered){
-    // keep native order; sample k indices spread across the (filtered, still
-    // natively-ordered) pool so the family spans the scale.
-    const inOrder = pack.members.filter(m=>pool.includes(m));
+  if (ordered){
+    const inOrder = pack.members.filter(m=>pool.includes(m)); // keep native order
     const out = [];
-    for(let i=0;i<k;i++){ out.push(inOrder[Math.round(i*(inOrder.length-1)/(k-1||1))]); }
+    for (let i=0;i<k;i++) out.push(inOrder[Math.round(i*(inOrder.length-1)/(k-1||1))]);
     return out;
   }
   return shuffle(pool).slice(0,k);
 }
 
-const ORDERED_MODES = new Set(['sequential','cyclical','hierarchical','flow']);
+function dress(nm){
+  if (document.getElementById('coin').checked) nm = coin(nm);
+  const sw = document.getElementById('shared').value.trim();
+  if (sw){
+    const where = document.getElementById('placement').value;
+    nm = where==='before' ? sw+' '+nm : nm+' '+sw;
+  }
+  return nm;
+}
 
 function render(){
   const k = Math.max(2, Math.min(8, parseInt(document.getElementById('count').value)||4));
+  const fshow = Math.max(1, Math.min(10, parseInt(document.getElementById('families').value)||5));
   const labels = document.getElementById('labels').value.split(',').map(s=>s.trim()).filter(Boolean);
   const ordered = ORDERED_MODES.has(mode);
-  const matches = PACKS.filter(p=>p.modes.includes(mode));
   const out = document.getElementById('gen-out');
-  if(!matches.length){ out.innerHTML = '<p class="empty-note">No packs for that mode yet.</p>'; return; }
 
-  // surface up to 4 packs, freshly shuffled so Shuffle varies the shortlist
-  const shown = shuffle(matches).slice(0,4);
+  let matches = PACKS.filter(p=>p.modes.includes(mode) && (tone==='any' || p.tone===tone));
+  if (!matches.length){
+    const modeName = (MODES.find(m=>m.id===mode)||{}).label || mode;
+    out.innerHTML = `<p class="empty-note">No ${tone==='any'?'':tone+' '}domains relate things &ldquo;${modeName}&rdquo;. Try register <strong>Any</strong>, or another relation.</p>`;
+    return;
+  }
+  const total = matches.length;
+  const shown = shuffle(matches).slice(0, fshow);
+
   out.innerHTML = shown.map(p=>{
     const fam = pickFamily(p, k, ordered);
     const chips = fam.map((nm,i)=>{
       const pair = labels[i] ? `<span class="pair">${labels[i]}</span>` : '';
-      return `<span class="chip">${nm}${pair}</span>`;
+      return `<span class="chip">${dress(nm)}${pair}</span>`;
     }).join('');
     return `<div class="pack">
-      <div class="pack-name">${p.name}</div>
+      <div class="pack-name">${p.name}<span class="tone-badge">${p.tone}</span></div>
       <div class="pack-note">${p.note}${ordered?' &middot; <em>ordered</em>':''}</div>
       <div class="family">${chips}</div>
     </div>`;
   }).join('');
+  out.innerHTML += `<div class="count-line">showing ${shown.length} of ${total} domain${total===1?'':'s'} that fit this relation${tone!=='any'?' · '+tone:''} — press Shuffle for more</div>`;
 }
 
-// build mode picker
+// build mode + tone pickers
 const mp = document.getElementById('mode-picker');
-mp.innerHTML = MODES.map(m=>`<button data-mode="${m.id}" class="${m.id===mode?'on':''}">${m.label}<span class="mode-sub">${m.sub}</span></button>`).join('');
+mp.innerHTML = MODES.map(m=>`<button data-mode="${m.id}" class="${m.id===mode?'on':''}">${m.label}<span class="sub">${m.sub}</span></button>`).join('');
 mp.addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   mode = b.dataset.mode;
   [...mp.children].forEach(c=>c.classList.toggle('on', c===b));
+  render();
+});
+const tp = document.getElementById('tone-picker');
+tp.innerHTML = TONES.map(t=>`<button data-tone="${t.id}" class="${t.id===tone?'on':''}">${t.label}</button>`).join('');
+tp.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  tone = b.dataset.tone;
+  [...tp.children].forEach(c=>c.classList.toggle('on', c===b));
   render();
 });
 document.getElementById('lens').addEventListener('click', e=>{
@@ -489,10 +632,10 @@ document.getElementById('lens').addEventListener('click', e=>{
   [...e.currentTarget.children].forEach(c=>c.classList.toggle('on', c===b));
   render();
 });
-document.getElementById('gen-go').addEventListener('click', render);
-document.getElementById('gen-shuffle').addEventListener('click', render);
-document.getElementById('count').addEventListener('change', render);
-document.getElementById('labels').addEventListener('input', render);
+['gen-go','gen-shuffle'].forEach(id=>document.getElementById(id).addEventListener('click', render));
+['count','families','placement'].forEach(id=>document.getElementById(id).addEventListener('change', render));
+['shared','labels'].forEach(id=>document.getElementById(id).addEventListener('input', render));
+document.getElementById('coin').addEventListener('change', render);
 
 render();
 </script>
