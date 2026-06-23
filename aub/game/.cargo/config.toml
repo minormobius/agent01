@@ -1,0 +1,7 @@
+# macroquad/miniquad declare their JS-host functions (glFlush, init_webgl,
+# audio_init, console_log, …) as extern imports satisfied at runtime by
+# mq_js_bundle.js. Some rust-lld versions error on these undefined symbols
+# instead of emitting them as wasm imports; --import-undefined forces the
+# import behaviour so the link succeeds on every toolchain.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--import-undefined"]
