@@ -18,19 +18,16 @@
     #status { display: none; }   /* the diagnostic readout (seed · chunks · souls · perf) lives in the story panel (ⓘ) now — off the main screen */
     #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
     #here b { color: #f4bf62; }
-    #back { bottom: calc(8px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); color: #7fd8d0; text-decoration: none; pointer-events: auto; }
-    #quest { bottom: 26px; left: 10px; max-width: 54vw; color: #cdd6cf; line-height: 1.5; }
-    #quest .lbl { color: #7fd8d0; } #quest .o { color: #f4bf62; } #quest .mk { color: #b48a6a; } #quest a.sb { color: #6b7872; pointer-events: auto; }
-    /* the handholding quest block: objective → the concrete step → where to go → how to act */
-    #quest .qobj { font-size: 12.5px; }
-    #quest .qstep { color: #cfd8d2; font-size: 11.5px; margin-top: 2px; }
-    #quest .qwhere { color: #b48a6a; font-size: 11.5px; margin-top: 2px; }
-    #quest .qwhere b { color: #f4bf62; font-weight: 600; }
-    #quest .qhow { color: #8aa39a; font-size: 11px; margin-top: 2px; font-style: italic; }
-    #quest .qhow b { color: #cfd8d2; font-style: normal; }
-    #quest .qfoot { font-size: 11px; margin-top: 3px; }
-    #quest .qbar { display: inline-block; vertical-align: middle; width: 66px; height: 5px; background: #10161d; border-radius: 3px; overflow: hidden; margin-left: 5px; }
-    #quest .qbar > span { display: block; height: 100%; background: #f4bf62; }
+    /* the guidance block (objective → step → where → how) now leads the JOURNAL (#enc), not a HUD corner */
+    #enc .lbl { color: #7fd8d0; } #enc .o { color: #f4bf62; } #enc .mk { color: #b48a6a; }
+    #enc .qobj { font-size: 13.5px; line-height: 1.5; color: #cdd6cf; }
+    #enc .qstep { color: #cfd8d2; font-size: 12.5px; margin-top: 6px; }
+    #enc .qwhere { color: #b48a6a; font-size: 12.5px; margin-top: 4px; }
+    #enc .qwhere b { color: #f4bf62; font-weight: 600; }
+    #enc .qhow { color: #8aa39a; font-size: 11.5px; margin-top: 6px; font-style: italic; }
+    #enc .qhow b { color: #cfd8d2; font-style: normal; }
+    #enc .qbar { display: inline-block; vertical-align: middle; width: 66px; height: 5px; background: #10161d; border-radius: 3px; overflow: hidden; margin-left: 5px; }
+    #enc .qbar > span { display: block; height: 100%; background: #f4bf62; }
     /* sign-in modal with Bluesky handle typeahead */
     .himodal { position: fixed; inset: 0; background: rgba(6,9,13,0.72); z-index: 50; display: flex; align-items: center; justify-content: center; }
     .hicard { background: #0d1117; border: 1px solid #20303a; border-radius: 12px; padding: 18px 18px 14px; width: min(420px, 92vw); box-shadow: 0 18px 60px rgba(0,0,0,0.6); }
@@ -57,6 +54,7 @@
     #charbtn { color: #b39bd8; } #charbtn:hover, #charbtn:active { border-color: #b39bd8; color: #fff; }
     #equipbtn { color: #7fd8d0; } #equipbtn:hover, #equipbtn:active { border-color: #7fd8d0; color: #fff; }
     #mapbtn { color: #8fb89f; } #mapbtn:hover, #mapbtn:active { border-color: #8fb89f; color: #fff; }
+    #journalbtn { color: #d8b25a; } #journalbtn:hover, #journalbtn:active { border-color: #d8b25a; color: #fff; }
     #morebtn { color: #8aa39a; } #morebtn:hover, #morebtn:active { border-color: #8aa39a; color: #fff; }
     /* the overflow menu (⋯): story status + worlds, lifted just above the dock; tap-out / item closes it */
     #moremenu { position: fixed; right: calc(8px + env(safe-area-inset-right)); bottom: calc(52px + env(safe-area-inset-bottom)); z-index: 7; display: none; flex-direction: column; align-items: stretch; gap: 6px; }
@@ -82,6 +80,9 @@
     #dbg .ok { color: #8fe07a; } #dbg .warn { color: #e08a8a; } #dbg .dim { color: #6f7e77; }
     #dbg .pulse { color: #7fd8d0; }
     #dbg .act { color: #7fd8d0; cursor: pointer; text-decoration: none; } #dbg .act:hover { text-decoration: underline; }
+    #dbg .who2 { display: flex; align-items: center; gap: 9px; }
+    #dbg .pfp { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: #0a0f15; border: 1px solid #2c3c47; flex: none; }
+    #dbg .pfp-ph { display: flex; align-items: center; justify-content: center; color: #5a6a63; font-size: 15px; }
     @media (pointer: coarse) { #dbg { font-size: 12.5px; } }
     /* the WORLD LOADER — the save-profile picker. Each ship seed is a profile (a PDS record + a local
        buffer); this lists them, resumes/deletes them, and starts fresh worlds. Fullscreen overlay. */
@@ -346,13 +347,10 @@
     #who { top: calc(30px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); }
     #busy { top: calc(8px + env(safe-area-inset-top)); }
     #auth { top: calc(26px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); }
-    #quest { bottom: calc(26px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); }
     @media (max-width: 640px), (pointer: coarse) {
       #dock > * { font-size: 15px; padding: 9px 12px; }     /* ≥40px tap targets on touch; dock owns the bottom-right */
       #dock .lbl { display: none; }                          /* icon-only → the whole dock fits one row */
       #here { font-size: 10px; }
-      #back { bottom: calc(54px + env(safe-area-inset-bottom)); font-size: 10px; }   /* lift the hub link to its OWN row, clear of the dock */
-      #quest { max-width: 92vw; bottom: calc(86px + env(safe-area-inset-bottom)); }                  /* above both the links and the dock */
     }
     /* touch feedback for overlay buttons (which otherwise only style :hover) + roomier close targets */
     @media (pointer: coarse) {
@@ -369,11 +367,10 @@
   <div class="hud" id="here"></div>
   <div class="hud" id="busy">generating…</div>
   <div id="notices"></div>
-  <a class="hud" id="back" href="/">◍ hoop</a>
-  <div class="hud" id="quest"></div>
   <div id="dock">
     <button id="charbtn" title="character (c)">☻<span class="lbl"> character</span></button>
     <button id="equipbtn" title="equipped (e)">⛨<span class="lbl"> equip</span></button>
+    <button id="journalbtn" title="journal — quests &amp; guidance (j)">✒<span class="lbl"> journal</span></button>
     <button id="mapbtn" title="minimap (m)">▦<span class="lbl"> map</span></button>
     <button id="pack" title="open pack (i)">▣<span class="lbl"> pack</span></button>
     <button id="morebtn" title="more">⋯<span class="lbl"> more</span></button>
@@ -1154,9 +1151,10 @@
     // Four lines of deliberate handholding: (1) OBJECTIVE — what you're working toward + progress; (2) STEP —
     // the hand-authored concrete next move (the active storyboard beat's log); (3) WHERE — the waypoint target
     // in words; (4) HOW — the verb to use when you're new. Lines 2-4 appear only when they add something.
+    let questGuidance = null;   // the computed objective/step/where/how, rendered inside the JOURNAL now (not a HUD block)
+    let journalOpen = false;    // the journal reuses the #enc overlay; this distinguishes it from an encounter card
     function renderQuest() {
-      const el = $('quest'); if (!el) return;
-      if (!story.ready) { el.innerHTML = ''; return; }
+      if (!story.ready) { questGuidance = null; if (journalOpen) renderJournal(); return; }
       const d = currentDeck(), tier = narTier(), paged = story.store.getFact(story.playerId, 'hoopy.paged.' + d.tier);
       const chap = (story.sb && story.sb.chapter) || 1;
 
@@ -1203,15 +1201,17 @@
         if (a.learned === 0) howText = 'Click a person to walk over and <b>talk</b>; click anything that glows to examine it. Everything new you meet counts.';
       }
 
-      let sqOpen = 0; const f = story.store.getFacts(story.playerId); for (const k of Object.keys(f)) if (k.startsWith('sq.on.') && !f['sq.done.' + k.slice(6)]) sqOpen++;
-      const foot = `<a class="sb" id="qjournal" style="cursor:pointer" title="side quests (j)">✒ journal${sqOpen ? ' (' + sqOpen + ')' : ''}</a> · <a class="sb" href="/v098/storyboard/">full quest board ↗</a>`;
-
-      el.innerHTML = `<div class="qobj">${objective}</div>`
-        + (stepText ? `<div class="qstep">▸ ${esc(stepText)}</div>` : '')
-        + (whereWord ? `<div class="qwhere">→ go to <b>${esc(whereWord)}</b>${storyWp ? ' (follow the ◇ waypoint)' : ''}</div>` : '')
-        + (howText ? `<div class="qhow">${howText}</div>` : '')
-        + `<div class="qfoot">${foot}</div>`;
-      const jl = $('qjournal'); if (jl) jl.onclick = (e) => { e.preventDefault(); toggleJournal(); };
+      // stash the guidance for the journal to render (the on-screen ◇ waypoint + embiggen were resolved above)
+      questGuidance = { objective, stepText, whereWord, hasWp: !!storyWp, howText };
+      if (journalOpen) renderJournal();   // live-refresh the journal if it's open
+    }
+    // the guidance block (objective → step → where → how), rendered at the TOP of the journal
+    function guidanceHTML() {
+      const g = questGuidance; if (!g) return '';
+      return `<div class="qobj">${g.objective}</div>`
+        + (g.stepText ? `<div class="qstep">▸ ${esc(g.stepText)}</div>` : '')
+        + (g.whereWord ? `<div class="qwhere">→ go to <b>${esc(g.whereWord)}</b>${g.hasWp ? ' (follow the ◇ waypoint)' : ''}</div>` : '')
+        + (g.howText ? `<div class="qhow">${g.howText}</div>` : '');
     }
     const saveStorySnapshot = () => { if (story.ready) { try { localSet(JSON.stringify(story.store.snapshot())); } catch (e) {} scheduleRepoSave(); } };
 
@@ -1246,7 +1246,6 @@
     setInterval(() => flushRepo(false), 12000);
     addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushRepo(true); else syncVerdicts(); });
     addEventListener('beforeunload', () => flushRepo(true));
-    const RECORDS_LINK = `<a class="act" href="/v098/records" target="_blank" title="the lexicons, the service account, and how to read these records">records ↗</a>`;
     function renderAuthPill() {
       const el = $('auth'); if (!el) return;
       if (storyUser) {
@@ -1255,9 +1254,9 @@
         if (_saveErr) status = `<span style="color:#e08a8a" title="${esc(_saveErr)}">save failed</span> · <span class="act" data-retry>retry</span> · <span class="act" data-relogin>re-sign in</span>`;
         else if (_lastSync) status = `<span title="${esc(uri)}">your save ✓ ${esc(new Date(_lastSync).toLocaleTimeString())}</span>`;
         else status = `<span title="${esc(uri)}">your save (syncing…)</span>`;
-        el.innerHTML = `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — ${status}${pulseTag()} · ${RECORDS_LINK} · <span class="act" data-logout>sign out</span>`;
+        el.innerHTML = `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — ${status}${pulseTag()} · <span class="act" data-logout>sign out</span>`;
       } else {
-        el.innerHTML = `<span class="act" data-login>sign in</span> to save your game to your PDS${pulseTag()} · ${RECORDS_LINK}`;
+        el.innerHTML = `<span class="act" data-login>sign in</span> to save your game to your PDS${pulseTag()}`;
       }
       const lo = el.querySelector('[data-logout]'); if (lo) lo.onclick = signOut;
       const li = el.querySelector('[data-login]'); if (li) li.onclick = signIn;
@@ -1305,11 +1304,22 @@
       finally { _verdictBusy = false; }
     }
     setInterval(syncVerdicts, 60000);   // poll the feed while playing
+    let _pfpUrl = null;   // the signed-in user's avatar — fetched once, shown in the ⓘ panel instead of the raw DID
+    async function loadPfp() {
+      if (!storyUser || !storyUser.did) return;
+      try {
+        const r = await fetch('https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=' + encodeURIComponent(storyUser.did));
+        if (!r.ok) return; const p = await r.json();
+        if (p && p.avatar) { _pfpUrl = p.avatar; if (dbgOpen) renderDbg(); }
+        if (p && p.handle && p.handle !== 'handle.invalid') { storyUser.handle = p.handle; renderAuthPill(); if (dbgOpen) renderDbg(); }
+      } catch (e) { /* avatar is cosmetic */ }
+    }
     function setUser(u) {
       storyUser = u ? { did: u.did, handle: u.handle } : null;
-      _syncedSave = false;
+      _syncedSave = false; _pfpUrl = null;
       renderAuthPill();
       syncOwnSaveIfReady();
+      loadPfp();
     }
 
     // ── THE PULSE (com.minomobi.hoop.story.pulse). The backend Director consumes every player's PUBLISHED
@@ -1353,7 +1363,7 @@
     function toggleDbg(force) {
       dbgOpen = force == null ? !dbgOpen : !!force;
       $('dbg').classList.toggle('on', dbgOpen);
-      if (dbgOpen) { renderDbg(); syncPulse(); if (!_dbgTimer) _dbgTimer = setInterval(() => { if (dbgOpen) renderDbg(); }, 2000); }
+      if (dbgOpen) { renderDbg(); syncPulse(); if (storyUser && !_pfpUrl) loadPfp(); if (!_dbgTimer) _dbgTimer = setInterval(() => { if (dbgOpen) renderDbg(); }, 2000); }
       else if (_dbgTimer) { clearInterval(_dbgTimer); _dbgTimer = null; }
     }
     function renderDbg() {
@@ -1363,8 +1373,10 @@
       out.push(`<h4>story status <span class="dx" data-dclose>✕ close</span></h4>`);
       // who
       out.push(`<div class="sec"><div class="st">identity</div>`);
-      if (storyUser) { out.push(row('handle', '@' + esc(storyUser.handle), 'ok')); out.push(row('did', `<span class="dim">${esc(storyUser.did)}</span>`)); }
-      else out.push(row('signed in', '<span class="warn">no — local only</span>'));
+      if (storyUser) {
+        const av = _pfpUrl ? `<img class="pfp" src="${esc(_pfpUrl)}" alt="">` : `<span class="pfp pfp-ph">☻</span>`;
+        out.push(`<div class="who2">${av}<span class="ok">@${esc(storyUser.handle)}</span></div>`);
+      } else out.push(row('signed in', '<span class="warn">no — local only</span>'));
       out.push(`</div>`);
       // save
       out.push(`<div class="sec"><div class="st">save</div>`);
@@ -1508,9 +1520,10 @@
         `<div class="en">${esc(item.name || 'Something')}</div>` +
         `<div class="ed">${esc(item.description)}</div>${hint}` +
         `<div class="ex">⏎ / click to continue</div>`;
+      journalOpen = false;   // a real encounter takes the #enc overlay — not the journal
       $('enc').classList.add('on');
     }
-    const hideEncounter = () => $('enc').classList.remove('on');
+    const hideEncounter = () => { $('enc').classList.remove('on'); journalOpen = false; };
     $('enc').addEventListener('click', hideEncounter);
     addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
     const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) showEncounter(intro.item); };
@@ -1521,6 +1534,7 @@
         `<div class="en">${esc(title)}</div>` +
         `<div class="ed">${esc(body)}</div>` +
         `<div class="ex">${esc(foot || '⏎ / click to continue')}</div>`;
+      journalOpen = false;   // a generic page (deck arrival / level-up); renderJournal re-sets the flag after it calls this
       $('enc').classList.add('on');
     }
 
@@ -1604,12 +1618,15 @@
     function flashToast(text, ms = 2600) { return notify(text, { ms }); }
     // the JOURNAL: open threads (progress) + resolved ones. Toggle with j / the ✒ button.
     function renderJournal() {
-      if (!story.ready) { showPage('journal', 'your journal', 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.'); return; }
+      if (!story.ready) { showPage('journal', 'your journal', 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.'); journalOpen = true; return; }
       const facts = story.store.getFacts(story.playerId), names = npcNameMap();
       const open = [], done = [];
       for (const k of Object.keys(facts)) { if (!k.startsWith('sq.on.')) continue; const id = k.slice(6); const q = questBank.get(id); if (!q) continue; (facts['sq.done.' + id] ? done : open).push(q); }
-      let body = '';
-      if (!open.length && !done.length) body = 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.';
+      // the MAIN quest guidance (objective/step/where/how) leads the journal, then the side-quest threads
+      const guide = guidanceHTML();
+      let body = guide ? `<div style="margin:0 0 16px;padding-bottom:13px;border-bottom:1px solid #1b2530">${guide}</div>` : '';
+      if (open.length || done.length) body += `<div style="color:#7fd8d0;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:9px">side threads</div>`;
+      if (!open.length && !done.length) body += guide ? '<div style="color:#6b7872;font-size:12px">No side threads yet. Talk to the people of the deck — someone will mention something worth chasing.</div>' : 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.';
       for (const q of open) {
         const pr = questProgress(story.store, story.playerId, q), mk = questMarker(q, names);
         body += `<div style="margin:0 0 13px;border-left:2px solid #b48a6a;padding-left:10px">`
@@ -1622,8 +1639,9 @@
       for (const q of done) body += `<div style="margin:0 0 7px;color:#7fd8d0;font-size:12.5px">✓ ${esc(q.title)} <span style="color:#6b7872">— ◈${q.reward}${q.reveal ? ' · ' + esc(q.reveal.slice(0, 80)) : ''}</span></div>`;
       showPage(`journal · ${open.length} open · ${done.length} resolved`, 'your journal', '');
       $('enccard').querySelector('.ed').innerHTML = body;   // rich list (showPage escapes; we want markup)
+      journalOpen = true;   // set AFTER showPage (which clears it) so a live renderQuest refresh keeps the journal
     }
-    const toggleJournal = () => { if ($('enc').classList.contains('on')) hideEncounter(); else renderJournal(); };
+    const toggleJournal = () => { if (journalOpen) hideEncounter(); else renderJournal(); };
 
     function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of nearResidents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
     function openStory(a) {
@@ -2732,6 +2750,7 @@
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
     addEventListener('keydown', (e) => { if ((e.key === 'm' || e.key === 'M') && !typing() && !e.metaKey && !e.ctrlKey && !loaderOpen) { e.preventDefault(); minimap.toggle(); } });
+    $('journalbtn').addEventListener('click', toggleJournal);
     // the ⋯ overflow menu (story status + worlds): toggle on the button, close on any item or a tap-out
     $('morebtn').addEventListener('click', (e) => { e.stopPropagation(); $('moremenu').classList.toggle('on'); });
     $('moremenu').addEventListener('click', () => $('moremenu').classList.remove('on'));
