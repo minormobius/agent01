@@ -274,32 +274,15 @@ const VERT=`
     gl_Position=projectionMatrix*viewMatrix*wp;
   }`;
 
-/* displacement vertex shader (kaleidoscope material): the pen's ink, folded into
-   the fundamental domain, becomes a radial height field -> symmetric lobes. */
+/* displacement vertex shader (kaleidoscope material): per-vertex height (aH) is
+   computed on the CPU from the pen's ink, folded into the fundamental domain.
+   No vertex texture fetch -> compiles everywhere. */
 const KVERT=`
   varying vec3 vLocal; varying vec3 vWorld; varying vec3 vNormal;
-  uniform int uMode; uniform float uN,uMirrorEq,uRelief;
-  uniform vec3 uIGen0,uIGen1,uIGen2; uniform sampler2D uInk;
-  const vec2 IP0=vec2(0.12,0.86), IP1=vec2(0.88,0.86), IP2=vec2(0.5,0.16);
-  vec2 inkUV(vec3 p){
-    if(uMode==0){
-      float t=atan(p.z,p.x)/6.28318+0.5;
-      return vec2(fract(t*uN), uMirrorEq>0.5 ? abs(p.y) : p.y*0.5+0.5);
-    }
-    vec3 iq=p;
-    for(int i=0;i<96;i++){ bool mv=false;
-      float a0=dot(iq,uIGen0); if(a0>1e-4){iq-=2.0*a0*uIGen0;mv=true;}
-      float a1=dot(iq,uIGen1); if(a1>1e-4){iq-=2.0*a1*uIGen1;mv=true;}
-      float a2=dot(iq,uIGen2); if(a2>1e-4){iq-=2.0*a2*uIGen2;mv=true;}
-      if(!mv) break; }
-    float k0=max(0.0,-dot(iq,uIGen0)),k1=max(0.0,-dot(iq,uIGen1)),k2=max(0.0,-dot(iq,uIGen2));
-    float ks=k0+k1+k2+1e-9;
-    return (k0/ks)*IP0+(k1/ks)*IP1+(k2/ks)*IP2;
-  }
+  attribute float aH; uniform float uRelief;
   void main(){
     vec3 d=normalize(position); vLocal=d;
-    float h = uRelief>0.0 ? texture2DLod(uInk, inkUV(d), 0.0).a : 0.0;
-    vec3 disp = position*(1.0 + uRelief*h);
+    vec3 disp=position*(1.0 + uRelief*aH);
     vec4 wp=modelMatrix*vec4(disp,1.0); vWorld=wp.xyz;
     vNormal=normalize(mat3(modelMatrix)*normal);
     gl_Position=projectionMatrix*viewMatrix*wp;
@@ -313,7 +296,8 @@ const inkTex=new THREE.CanvasTexture(inkCanvas);
 inkTex.minFilter=THREE.LinearFilter; inkTex.magFilter=THREE.LinearFilter; inkTex.generateMipmaps=false;
 let penOn=false, penColor='#ffffff', penSize=7;
 let inkGens=[[1,0,0],[0,1,0],[0,0,1]];   // clean group generators the pen folds through
-function clearInk(){ ictx.clearRect(0,0,INK,INK); inkTex.needsUpdate=true; }
+let inkDirty=false, inkImg=null;          // height-field recompute flag (processed in the loop)
+function clearInk(){ ictx.clearRect(0,0,INK,INK); inkTex.needsUpdate=true; inkDirty=true; }
 
 /* fold a local point into the fundamental triangle (mirror modes) — matches the shader */
 function foldPoint(p,g0,g1,g2){ let q=p.slice();
@@ -340,7 +324,7 @@ function foldUV(p){
 function splat(p){ const uv=foldUV(p);
   ictx.fillStyle=penColor; ictx.globalAlpha=0.95;
   ictx.beginPath(); ictx.arc(uv[0]*INK,(1-uv[1])*INK,penSize,0,6.2831853); ictx.fill();
-  inkTex.needsUpdate=true; }
+  inkTex.needsUpdate=true; inkDirty=true; }
 function slerp(a,b,t){ const d=Math.min(1,Math.max(-1,dot(a,b))), om=Math.acos(d);
   if(om<1e-4) return a.slice(); const so=Math.sin(om),s0=Math.sin((1-t)*om)/so,s1=Math.sin(t*om)/so;
   return [a[0]*s0+b[0]*s1,a[1]*s0+b[1]*s1,a[2]*s0+b[2]*s1]; }
@@ -446,6 +430,23 @@ const voroMat=new THREE.ShaderMaterial({
 
 const orb=new THREE.Mesh(new THREE.SphereGeometry(1,256,192), kaleMat);
 scene.add(orb);
+
+/* CPU-side height field: per-vertex ink coverage, folded into the fundamental
+   domain. Recomputed (throttled to once per frame) whenever the ink changes. */
+const aH=new Float32Array(orb.geometry.attributes.position.count);
+orb.geometry.setAttribute('aH', new THREE.BufferAttribute(aH,1));
+function recomputeHeights(){
+  const pos=orb.geometry.attributes.position; const data=inkImg ? inkImg.data : null;
+  for(let i=0;i<pos.count;i++){
+    if(!data){ aH[i]=0; continue; }
+    const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i), l=Math.hypot(x,y,z)||1;
+    const uv=foldUV([x/l,y/l,z/l]);
+    const px=Math.min(INK-1,Math.max(0,Math.round(uv[0]*INK)));
+    const py=Math.min(INK-1,Math.max(0,Math.round((1-uv[1])*INK)));
+    aH[i]=data[(py*INK+px)*4+3]/255;
+  }
+  orb.geometry.attributes.aH.needsUpdate=true;
+}
 
 /* ---------- state + UI ---------- */
 let mode='dihedral', sliderWasVoro=false;
@@ -619,6 +620,7 @@ function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h); came
 addEventListener('resize',resize); resize();
 renderer.setAnimationLoop(()=>{
   controls.update();
+  if(inkDirty){ inkImg=ictx.getImageData(0,0,INK,INK); recomputeHeights(); inkDirty=false; }
   U.uCamPos.value.copy(camera.position);
   renderer.render(scene,camera);
 });
