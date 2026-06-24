@@ -1925,38 +1925,41 @@
     // PROTO gate: forge (the live default) vs morph (opt-in). `?morph=1` or the in-screen toggle flips it.
     let arcadeMode = (() => { try { return new URLSearchParams(location.search).get('morph') ? 'morph' : 'forge'; } catch (e) { return 'forge'; } })();
     function loadArcadeGame() {
-      if (arcadeMode === 'morph') { arcadeGame = loadMorphGame(arcadeLawIndex, clearedFor(arcadeLawIndex)); return; }
+      if (arcadeMode === 'morph') { arcadeGame = loadMorphGame(); return; }
       const p = clearedFor(arcadeLawIndex);
       // forge tries 5 salts per index; if a given p somehow yields nothing, walk forward to the next playable one.
       for (let q = p; q < p + 8; q++) { const g = newArcadeGame(arcadeLawIndex, q); if (g) { arcadeGame = g; arcadeGame.q = q; return; } }
       arcadeGame = null;
     }
-    // ── MORPH PROTO: one cabinet = one deterministic morph GAME (metaSeed → topology + legible law + goal);
-    //    each puzzle is an INSTANCE (instSeed). Restricted to 4-dir SQUARE substrates so the N/E/S/W d-pad
-    //    drives it (hex is skipped for the proto). The same BFS oracle certifies solvability + par. ──
-    const _morphMeta = new Map();   // cabinet lawIndex → chosen square metaSeed (cached)
-    function morphMetaFor(li) {
-      if (_morphMeta.has(li)) return _morphMeta.get(li);
-      const base = ((li + 1) * 2654435761) >>> 0; let chosen = base;
-      for (let k = 0; k < 64; k++) {
-        const metaSeed = (base + k) >>> 0, gen = mGenomeForSeed(metaSeed);
-        if (gen.substrate.id === 'hex') continue;                                   // 4-dir only (proto)
-        if (gen.primary === 'lights' && gen.substrate.W * gen.substrate.H > 16) continue;
-        if (mGameForSeed(metaSeed, 0)) { chosen = metaSeed; break; }                // a good instance exists
+    // ── MORPH PROTO: in proto mode the arcade is a SAMPLER — a small showcase of distinct game TYPES
+    //    (one per primary: traverse / sokoban / collect / lights, each on a square substrate). "⟳ type"
+    //    cycles the type; "next"/"skip" advance the instance within the type. Same BFS oracle certifies. ──
+    let morphTypeIdx = 0, morphInst = 0, _morphShow = null;
+    function morphShowcase() {
+      if (_morphShow) return _morphShow;
+      const wants = ['traverse', 'sokoban', 'collect', 'lights'], out = [];
+      for (const prim of wants) {
+        for (let ms = 1; ms < 6000; ms++) {
+          const gen = mGenomeForSeed(ms);
+          if (gen.substrate.id === 'hex' || gen.primary !== prim) continue;
+          if (prim === 'lights' && gen.substrate.W * gen.substrate.H > 16) continue;
+          if (mGameForSeed(ms, 0)) { out.push(ms); break; }
+        }
       }
-      _morphMeta.set(li, chosen); return chosen;
+      _morphShow = out.length ? out : [1];
+      return _morphShow;
     }
-    function wrapMorph(g, li, instSeed) {
+    function wrapMorph(g, typeIdx, instSeed) {
       if (!g) return null;
-      return { engine: 'morph', lawIndex: li, q: instSeed, metaSeed: g.metaSeed, genome: g.genome, inst: g.inst,
-        goal: g.inst.goal.type, par: g.solve.par, report: g.report, dirs: g.inst.sub.dirs,
+      return { engine: 'morph', lawIndex: typeIdx, q: instSeed, metaSeed: g.metaSeed, genome: g.genome, inst: g.inst,
+        goal: g.inst.goal.type, par: g.solve.par, solvePath: g.solve.path || [], report: g.report, dirs: g.inst.sub.dirs,
         state: mInit(g.inst), moves: 0, won: false, history: [],
-        law: { id: li + 1, name: (g.genome.aesthetic && g.genome.aesthetic.name) || 'morph', law: {} } };
+        law: { id: typeIdx + 1, name: (g.genome.aesthetic && g.genome.aesthetic.name) || 'morph', law: {} } };
     }
-    function loadMorphGame(li, instSeed) {
-      const meta = morphMetaFor(li);
-      const g = mExactGame(meta, instSeed) || mGameForSeed(meta, instSeed);
-      return wrapMorph(g, li, g ? (g.instSeed != null ? g.instSeed : instSeed) : instSeed);
+    function loadMorphGame() {
+      const show = morphShowcase(), meta = show[morphTypeIdx % show.length];
+      const g = mExactGame(meta, morphInst) || mGameForSeed(meta, morphInst);
+      return wrapMorph(g, morphTypeIdx % show.length, g ? (g.instSeed != null ? g.instSeed : morphInst) : morphInst);
     }
     function morphMove(game, d) {
       if (!game || game.won || d < 0 || d >= game.dirs) return false;
@@ -2030,6 +2033,8 @@
         ? `${esc(g.genome.label)}<br><span style="color:#9aa8a0">goal: ${esc(MGOAL_BLURB[g.goal] || g.goal)}</span>`
         : `${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}${g.goal === 'collect' ? ' — take each ✦ by <b style="color:#f4bf62">landing on it</b>' + (((g.law.law || {}).motion === 'leap') ? '; <b style="color:#e0a86a">leaping vaults over a ✦ without taking it</b>' : '') : ''}</span>`;
       const engTog = `<span data-arc="engine" title="prototype: swap the puzzle engine" style="cursor:pointer;text-decoration:underline;color:#c89ad0">engine: ${arcadeMode}${arcadeMode === 'morph' ? ' ✦' : ''}</span>`;
+      const watchBtn = (g.solvePath && g.solvePath.length) ? `<button data-arc="watch" title="watch the engine solve it (par ${g.par})">${arcadePlaying ? '■ stop' : '▶ watch'}</button>` : '';
+      const typeBtn = morph ? `<button data-arc="mtype" title="cycle the puzzle type">⟳ type</button>` : '';
       card.innerHTML =
         `<button class="aclose" data-aclose="1">close ⏎</button>` +
         `<div class="azones">` +
@@ -2047,7 +2052,7 @@
             `<div class="arule">${ruleTxt}</div>` +
             `<div class="apad"><span></span><button data-arc="0">▲</button><span></span>` +
             `<button data-arc="3">◀</button><button data-arc="2">▼</button><button data-arc="1">▶</button></div>` +
-            `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button><button data-arc="skip">⏭ skip</button></div>` +
+            `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button><button data-arc="skip">⏭ skip</button>${watchBtn}${typeBtn}</div>` +
             `<div class="ameta" style="color:#6b7872">arrows / WASD to move · U undo · Enter to claim · Esc to leave · ${engTog}</div>` +
           `</div>` +
         `</div>`;
@@ -2063,7 +2068,7 @@
       const vw = window.innerWidth || 480, vh = window.innerHeight || 640, landscape = vw > vh && vw >= 700;
       const availW = landscape ? Math.min(vw * 0.5, 560) : Math.min(vw * 0.92, 540);
       const availH = Math.max(160, landscape ? vh * 0.84 : vh - 340);   // portrait reserves ~340px for rules + d-pad + buttons
-      const cell = Math.max(12, Math.min(46, Math.floor(Math.min(availW / b.W, availH / b.H)))), pad = 1;
+      const cell = Math.max(12, Math.min(84, Math.floor(Math.min(availW / b.W, availH / b.H)))), pad = 1;   // 84 (was 46) so a small board (a 4×4 morph level) isn't a tiny chip on a big screen
       const w = cell * b.W, h = cell * b.H, dpr2 = Math.min(window.devicePixelRatio || 1, 2);
       cv2.width = w * dpr2; cv2.height = h * dpr2; cv2.style.width = w + 'px'; cv2.style.height = h + 'px';
       const g = cv2.getContext('2d'); g.setTransform(dpr2, 0, 0, dpr2, 0, 0); g.clearRect(0, 0, w, h);
@@ -2120,24 +2125,51 @@
         g.setLineDash([]); g.restore();
       }
     }
+    // WATCH THE ENGINE SOLVE IT — replays the oracle's certified optimal path through the SAME interactive
+    //    mover, step by step. Proves the puzzle is solvable (it's you, not the implementation). Both engines.
+    let arcadePlaying = false;
+    async function watchSolve() {
+      const g = arcadeGame, path = g && g.solvePath; if (!g || !path || !path.length || arcadePlaying) return;
+      const morph = g.engine === 'morph';
+      (morph ? morphReset : arcadeReset)(g);
+      arcadePlaying = true; renderArcadeScreen();   // button flips to ■ stop; input is gated while playing
+      for (const d of path) {
+        if (!arcadePlaying || arcadeGame !== g) break;   // stopped / cabinet changed
+        (morph ? morphMove : arcadeMove)(g, d);
+        drawArcadeBoard(); const m = document.getElementById('arcmoves'); if (m) m.textContent = arcadeStatusText(g) + ' · ▶ watching';
+        await new Promise((r) => setTimeout(r, 230));
+      }
+      arcadePlaying = false;
+      if (arcadeGame === g) { renderArcadeScreen(); if (g.won) flashArcadeWin(g); }
+    }
     function arcadeAct(act) {
       if (!arcadeGame) return;
       const morph = arcadeGame.engine === 'morph';
+      if (act === 'watch') { if (arcadePlaying) arcadePlaying = false; else watchSolve(); return; }
+      if (arcadePlaying) return;   // ignore other input while the solver is playing
       if (act === 'engine') {   // PROTO toggle: swap forge ⇄ morph and reload this cabinet
         arcadeMode = (arcadeMode === 'morph') ? 'forge' : 'morph'; arcadeGame = null; loadArcadeGame(); renderArcadeScreen(); return;
       }
+      if (act === 'mtype') {   // PROTO: cycle to the next morph game TYPE (traverse → sokoban → collect → lights)
+        morphTypeIdx = (morphTypeIdx + 1) % morphShowcase().length; morphInst = 0; arcadeGame = loadMorphGame(); renderArcadeScreen(); return;
+      }
       if (act === 'undo') { (morph ? morphUndo : arcadeUndo)(arcadeGame); renderArcadeScreen(); return; }
       if (act === 'reset') { (morph ? morphReset : arcadeReset)(arcadeGame); renderArcadeScreen(); return; }
-      if (act === 'skip') {   // escape hatch: jump to a FRESH puzzle of this cabinet (no reward) — never be stuck
-        if (morph) { const nq = (arcadeGame.q | 0) + 1, g = loadMorphGame(arcadeLawIndex, nq); if (g) arcadeGame = g; renderArcadeScreen(); return; }
+      if (act === 'skip') {   // escape hatch: a fresh puzzle of this cabinet/type (no reward) — never be stuck
+        if (morph) { morphInst = (morphInst | 0) + 1; arcadeGame = loadMorphGame(); renderArcadeScreen(); return; }
         let nq = (arcadeGame.q | 0) + 1, g = null, tries = 0;
         while (!g && tries < 16) { g = newArcadeGame(arcadeLawIndex, nq); if (!g) { nq++; tries++; } }
         if (g) { g.q = nq; arcadeGame = g; }
         renderArcadeScreen(); return;
       }
-      if (act === 'next') {   // claiming a win banks the reward (once per frontier index) and advances
-        if (arcadeGame.won) { setCoins(getCoins() + (morph ? morphReward(arcadeGame) : arcadeReward(arcadeGame))); setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1); saveStory(); whereAmI(); }
-        loadArcadeGame(); renderArcadeScreen(); return;
+      if (act === 'next') {   // claiming a win banks the reward and advances to a fresh puzzle
+        if (arcadeGame.won) {
+          setCoins(getCoins() + (morph ? morphReward(arcadeGame) : arcadeReward(arcadeGame)));
+          if (!morph) setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1);   // forge tracks a per-law frontier; the morph proto is a session sampler
+          saveStory(); whereAmI();
+        }
+        if (morph) { morphInst = (morphInst | 0) + 1; arcadeGame = loadMorphGame(); } else loadArcadeGame();
+        renderArcadeScreen(); return;
       }
       const d = +act; if (!(d >= 0 && d <= 3)) return;
       const wasWon = arcadeGame.won;

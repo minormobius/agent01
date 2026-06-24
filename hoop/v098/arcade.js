@@ -78,6 +78,7 @@ export function newArcadeGame(lawIndex, p) {
     world: z.world,
     stepFn: z.stepFn,
     par: z.solve.par,                 // the oracle's optimal — "can you match it?"
+    solvePath: z.solve.path || [],    // the certified optimal move sequence — drives "watch the engine solve"
     report: z.report,                 // { interest, difficulty, diffTier, ... }
     goal: z.world.goal.type,
     state: initialState(z.world),
