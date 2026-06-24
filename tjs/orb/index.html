@@ -118,16 +118,26 @@
 
   <label class="toggle"><input type="checkbox" id="lines" checked> <span id="linesLabel">mirror lines</span></label>
   <label class="toggle"><input type="checkbox" id="spin" checked> auto-rotate</label>
+  <label class="toggle"><input type="checkbox" id="pen"> pen — draw on the orb</label>
+  <div id="penRow" style="display:none">
+    <div class="row" style="margin:6px 0"><label>brush <b><span id="penSizeVal">7</span></b></label><input type="range" id="penSize" min="2" max="22" step="1" value="7"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin:2px 0 4px">
+      <input type="color" id="penColor" value="#ffffff" style="width:40px;height:28px;padding:0;background:none;border:1px solid var(--line);border-radius:6px;cursor:pointer">
+      <button id="penClear" style="flex:1;cursor:pointer;font:inherit;font-size:12px;color:var(--soft);background:#0d0d15;border:1px solid var(--line);border-radius:8px;padding:7px">clear ink</button>
+    </div>
+  </div>
 
   <div class="note" id="note">
     A spherical kaleidoscope is a Schwarz triangle <code>(p,q,r)</code> with
     1/p+1/q+1/r&nbsp;&gt;&nbsp;1. <b>(2,2,n)</b> is the infinite family; tetra/octa/icosa
     are the only three exceptions. <b>Schwarz</b> adds fractional angles (5⁄2…) — same
     mirrors, a triangle that wraps the sphere d&gt;1 times → star tilings.
+    Flip on the <b>pen</b> and draw: each stroke folds into the fundamental domain,
+    so it reflects into every cell at once.
   </div>
 </div>
 
-<div class="hint">drag to orbit · scroll to zoom</div>
+<div class="hint" id="hint">drag to orbit · scroll to zoom</div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -262,6 +272,49 @@ const VERT=`
     gl_Position=projectionMatrix*viewMatrix*wp;
   }`;
 
+/* ---------- pen / ink (paint in the fundamental domain; symmetry is free) ---------- */
+const INK=1024, IP0=[0.12,0.86], IP1=[0.88,0.86], IP2=[0.5,0.16];   // triangle embedding
+const inkCanvas=document.createElement('canvas'); inkCanvas.width=inkCanvas.height=INK;
+const ictx=inkCanvas.getContext('2d');
+const inkTex=new THREE.CanvasTexture(inkCanvas);
+inkTex.minFilter=THREE.LinearFilter; inkTex.magFilter=THREE.LinearFilter; inkTex.generateMipmaps=false;
+let penOn=false, penColor='#ffffff', penSize=7;
+let inkGens=[[1,0,0],[0,1,0],[0,0,1]];   // clean group generators the pen folds through
+function clearInk(){ ictx.clearRect(0,0,INK,INK); inkTex.needsUpdate=true; }
+
+/* fold a local point into the fundamental triangle (mirror modes) — matches the shader */
+function foldPoint(p,g0,g1,g2){ let q=p.slice();
+  for(let i=0;i<128;i++){ let m=false;
+    let d0=dot(q,g0); if(d0>1e-7){q=[q[0]-2*d0*g0[0],q[1]-2*d0*g0[1],q[2]-2*d0*g0[2]];m=true;}
+    let d1=dot(q,g1); if(d1>1e-7){q=[q[0]-2*d1*g1[0],q[1]-2*d1*g1[1],q[2]-2*d1*g1[2]];m=true;}
+    let d2=dot(q,g2); if(d2>1e-7){q=[q[0]-2*d2*g2[0],q[1]-2*d2*g2[1],q[2]-2*d2*g2[2]];m=true;}
+    if(!m) break; }
+  return q; }
+/* fundamental-domain uv for a local point — identical mapping to the fragment shader */
+function foldUV(p){
+  if(mode==='lune'){
+    const t=Math.atan2(p[2],p[0])/(2*Math.PI)+0.5, n=kaleMat.uniforms.uN.value;
+    const frac=((t*n)%1+1)%1;
+    const lat=kaleMat.uniforms.uMirrorEq.value>0.5 ? Math.abs(p[1]) : (p[1]*0.5+0.5);
+    return [frac,lat];
+  }
+  const g0=inkGens[0],g1=inkGens[1],g2=inkGens[2];
+  const q=foldPoint(p,g0,g1,g2);
+  const e0=Math.max(0,-dot(q,g0)),e1=Math.max(0,-dot(q,g1)),e2=Math.max(0,-dot(q,g2));
+  const es=e0+e1+e2+1e-9,a=e0/es,b=e1/es,c=e2/es;
+  return [a*IP0[0]+b*IP1[0]+c*IP2[0], a*IP0[1]+b*IP1[1]+c*IP2[1]];
+}
+function splat(p){ const uv=foldUV(p);
+  ictx.fillStyle=penColor; ictx.globalAlpha=0.95;
+  ictx.beginPath(); ictx.arc(uv[0]*INK,(1-uv[1])*INK,penSize,0,6.2831853); ictx.fill();
+  inkTex.needsUpdate=true; }
+function slerp(a,b,t){ const d=Math.min(1,Math.max(-1,dot(a,b))), om=Math.acos(d);
+  if(om<1e-4) return a.slice(); const so=Math.sin(om),s0=Math.sin((1-t)*om)/so,s1=Math.sin(t*om)/so;
+  return [a[0]*s0+b[0]*s1,a[1]*s0+b[1]*s1,a[2]*s0+b[2]*s1]; }
+function paintSeg(p0,p1){ const ang=Math.acos(Math.min(1,Math.max(-1,dot(p0,p1))));
+  const steps=Math.max(1,Math.min(96,Math.ceil(ang/0.01)));
+  for(let i=1;i<=steps;i++) splat(norm(slerp(p0,p1,i/steps))); }
+
 /* ---- kaleidoscope material (lune + dihedral + tetra/octa/icosa + schwarz) ---- */
 const PAD=Array.from({length:MAXM},()=>new THREE.Vector3());
 const kaleMat=new THREE.ShaderMaterial({
@@ -269,14 +322,19 @@ const kaleMat=new THREE.ShaderMaterial({
     uMode:{value:1}, uN:{value:12.0}, uSubdiv:{value:1.0}, uMirrorEq:{value:0.0},
     uGen0:{value:new THREE.Vector3(1,0,0)}, uGen1:{value:new THREE.Vector3(0,1,0)},
     uGen2:{value:new THREE.Vector3(0,0,1)},
-    uMirrors:{value:PAD}, uMirrorCount:{value:0},
+    uIGen0:{value:new THREE.Vector3(1,0,0)}, uIGen1:{value:new THREE.Vector3(0,1,0)},
+    uIGen2:{value:new THREE.Vector3(0,0,1)},
+    uMirrors:{value:PAD}, uMirrorCount:{value:0}, uInk:{value:inkTex},
   }),
   vertexShader:VERT,
   fragmentShader:PRELUDE+`
   uniform int uMode; uniform float uN,uSubdiv,uMirrorEq;
-  uniform vec3 uGen0,uGen1,uGen2; uniform vec3 uMirrors[64]; uniform int uMirrorCount;
+  uniform vec3 uGen0,uGen1,uGen2; uniform vec3 uIGen0,uIGen1,uIGen2;
+  uniform vec3 uMirrors[64]; uniform int uMirrorCount;
+  uniform sampler2D uInk;
+  const vec2 IP0=vec2(0.12,0.86), IP1=vec2(0.88,0.86), IP2=vec2(0.5,0.16);
   void main(){
-    vec3 p=normalize(vLocal); vec3 sym; float line=0.0;
+    vec3 p=normalize(vLocal); vec3 sym; float line=0.0; vec2 iuv;
     if(uMode==0){
       float t=atan(p.z,p.x)/6.28318+0.5;
       float seg=t*uN, idx=floor(seg), parity=mod(idx,2.0);
@@ -285,6 +343,7 @@ const kaleMat=new THREE.ShaderMaterial({
       float dm=min(fract(seg),1.0-fract(seg));
       line=1.0-smoothstep(0.0, fwidth(seg)*1.3+1e-4, dm);
       if(uMirrorEq>0.5) line=max(line, 1.0-smoothstep(0.0, fwidth(p.y)*1.6+0.0015, abs(p.y)));
+      iuv=vec2(fract(seg), uMirrorEq>0.5 ? abs(p.y) : p.y*0.5+0.5);
     } else {
       vec3 q=p; float cnt=0.0;
       for(int i=0;i<96;i++){ bool moved=false;
@@ -308,6 +367,19 @@ const kaleMat=new THREE.ShaderMaterial({
         line=max(line,(1.0-smoothstep(0.0,(fwidth(fa)+fwidth(fb)+fwidth(fc))*0.9+1e-4,dg))*0.6);
       }
     }
+    if(uMode==1){                         // ink folds via the clean group generators
+      vec3 iq=p;
+      for(int i=0;i<96;i++){ bool mv=false;
+        float a0=dot(iq,uIGen0); if(a0>1e-4){iq-=2.0*a0*uIGen0;mv=true;}
+        float a1=dot(iq,uIGen1); if(a1>1e-4){iq-=2.0*a1*uIGen1;mv=true;}
+        float a2=dot(iq,uIGen2); if(a2>1e-4){iq-=2.0*a2*uIGen2;mv=true;}
+        if(!mv) break; }
+      float k0=max(0.0,-dot(iq,uIGen0)),k1=max(0.0,-dot(iq,uIGen1)),k2=max(0.0,-dot(iq,uIGen2));
+      float ks=k0+k1+k2+1e-9;
+      iuv=(k0/ks)*IP0+(k1/ks)*IP1+(k2/ks)*IP2;
+    }
+    vec4 ink=texture2D(uInk,iuv);
+    sym=mix(sym, ink.rgb, ink.a);
     gl_FragColor=vec4(shade(sym,line),1.0);
   }`,
 });
@@ -351,6 +423,12 @@ function applyGroup(g){
   kaleMat.uniforms.uMirrorCount.value=Math.min(g.mirrors.length,MAXM);
   el('groupName').textContent=g.name;
 }
+function setInkGens(g){
+  inkGens=[g[0].slice(),g[1].slice(),g[2].slice()];
+  kaleMat.uniforms.uIGen0.value.set(...g[0]);
+  kaleMat.uniforms.uIGen1.value.set(...g[1]);
+  kaleMat.uniforms.uIGen2.value.set(...g[2]);
+}
 function setVoroPoints(n){
   const pts=fibPoints(n);
   for(let i=0;i<MAXP;i++) PTS[i].set(...(i<pts.length?pts[i]:[0,0,0]));
@@ -372,13 +450,15 @@ function refresh(){
   const n=+s.value;
 
   let base=0;
-  if(mode==='lune'){ kaleMat.uniforms.uMode.value=0; base=n; }
-  else if(mode==='dihedral'){ kaleMat.uniforms.uMode.value=1; const g=dihedralGroup(n); applyGroup(g); base=g.domains; }
+  if(mode==='lune'){ kaleMat.uniforms.uMode.value=0; base=n; setInkGens(EXCEPTIONAL.icosa.gens); }
+  else if(mode==='dihedral'){ kaleMat.uniforms.uMode.value=1; const g=dihedralGroup(n); applyGroup(g); base=g.domains; setInkGens(g.gens); }
   else if(mode==='schwarz'){ kaleMat.uniforms.uMode.value=1; const sc=SCHWARZ[+el('schw').value];
     const g=buildGroup(...sc.pqr, '(' + sc.sym + ')', sc.order); applyGroup(g); base=sc.order;
-    el('groupName').textContent='Schwarz '+'('+sc.sym+')'; }
+    el('groupName').textContent='Schwarz '+'('+sc.sym+')';
+    const parent = sc.order===120?'icosa':sc.order===48?'octa':'tetra';
+    setInkGens(EXCEPTIONAL[parent].gens); }                 // ink uses the clean parent group
   else if(mode==='voronoi'){ setVoroPoints(n); base=n; }
-  else { kaleMat.uniforms.uMode.value=1; const g=EXCEPTIONAL[mode]; applyGroup(g); base=g.domains; }
+  else { kaleMat.uniforms.uMode.value=1; const g=EXCEPTIONAL[mode]; applyGroup(g); base=g.domains; setInkGens(g.gens); }
 
   const cells = (mode==='lune'||mode==='voronoi') ? base : Math.round(base*F*F);
   el('cellCount').textContent=cells;
@@ -401,18 +481,57 @@ function refresh(){
 document.querySelectorAll('#modes button').forEach(btn=>{
   btn.onclick=()=>{ mode=btn.dataset.mode;
     document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b===btn));
-    refresh(); };
+    refresh(); clearInk();                  // fundamental domain changed -> ink coords stale
+    const penActive = penOn && mode!=='voronoi';
+    el('pen').parentElement.style.opacity = (mode==='voronoi')?0.4:1;
+    controls.enableRotate = !penActive;     // Voronoi has no pen -> keep orbit usable
+    controls.autoRotate = el('spin').checked && !penActive;
+  };
 });
-el('schw').onchange=refresh;
-el('n').oninput=refresh;
+el('schw').onchange=()=>{ refresh(); clearInk(); };
+el('n').oninput=()=>{ refresh(); clearInk(); };       // n changes the domain (lune wedge / dihedral triangle)
 el('sub').oninput=e=>{ kaleMat.uniforms.uSubdiv.value=+e.target.value; el('subVal').textContent=e.target.value; refresh(); };
-el('mirror').onchange=e=>kaleMat.uniforms.uMirrorEq.value=e.target.checked?1:0;
+el('mirror').onchange=e=>{ kaleMat.uniforms.uMirrorEq.value=e.target.checked?1:0; clearInk(); };
 el('lines').onchange=e=>U.uShowLines.value=e.target.checked?1:0;
-el('spin').onchange=e=>controls.autoRotate=e.target.checked;
+el('spin').onchange=e=>controls.autoRotate=e.target.checked && !penOn;
 document.querySelectorAll('#pals button').forEach(b=>{
   b.onclick=()=>{ U.uPalette.value=+b.dataset.pal;
     document.querySelectorAll('#pals button').forEach(x=>x.classList.toggle('on',x===b)); };
 });
+
+/* pen wiring */
+const dom=renderer.domElement;
+function setPen(on){ penOn=on;
+  el('penRow').style.display = on ? '' : 'none';
+  controls.enableRotate = !on;
+  controls.autoRotate = !on && el('spin').checked;
+  dom.style.cursor = on ? 'crosshair' : 'grab';
+  el('hint').textContent = on ? 'pen on · drag to draw — every stroke folds into all cells · toggle off to orbit'
+                              : 'drag to orbit · scroll to zoom';
+}
+el('pen').onchange=e=>setPen(e.target.checked);
+el('penSize').oninput=e=>{ penSize=+e.target.value; el('penSizeVal').textContent=e.target.value; };
+el('penColor').oninput=e=>penColor=e.target.value;
+el('penClear').onclick=clearInk;
+
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
+let drawing=false, lastLocal=null;
+function hitLocal(ev){
+  const r=dom.getBoundingClientRect();
+  ndc.x=((ev.clientX-r.left)/r.width)*2-1; ndc.y=-((ev.clientY-r.top)/r.height)*2+1;
+  ray.setFromCamera(ndc,camera);
+  const hits=ray.intersectObject(orb,false); if(!hits.length) return null;
+  orb.updateMatrixWorld();
+  const lp=orb.worldToLocal(hits[0].point.clone()).normalize();
+  return [lp.x,lp.y,lp.z];
+}
+dom.addEventListener('pointerdown',ev=>{ if(!penOn||mode==='voronoi') return;
+  const p=hitLocal(ev); if(!p) return; drawing=true; lastLocal=p; splat(p);
+  dom.setPointerCapture(ev.pointerId); ev.preventDefault(); });
+dom.addEventListener('pointermove',ev=>{ if(!penOn||!drawing) return;
+  const p=hitLocal(ev); if(!p) return; paintSeg(lastLocal,p); lastLocal=p; });
+dom.addEventListener('pointerup',()=>{ drawing=false; lastLocal=null; });
+dom.addEventListener('pointercancel',()=>{ drawing=false; lastLocal=null; });
 
 refresh();
 
