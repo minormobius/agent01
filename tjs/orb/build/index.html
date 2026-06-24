@@ -136,6 +136,9 @@
     <div class="row" id="seedRow" style="margin:7px 0"><label>phase / variant <b><span id="seedVal">0</span></b></label><input type="range" id="seed" min="0" max="20" step="1" value="0"></div>
     <div class="row" style="margin:7px 0"><label>relief — height into space <b>×<span id="reliefVal">0.30</span></b></label><input type="range" id="relief" min="0" max="1" step="0.02" value="0.30"></div>
 
+    <label class="toggle"><input type="checkbox" id="animate"> animate — send the waves moving</label>
+    <div class="row" id="speedRow" style="display:none;margin:6px 0"><label>speed <b><span id="speedVal">1.0</span></b></label><input type="range" id="speed" min="0.1" max="4" step="0.1" value="1"></div>
+
     <label class="toggle"><input type="checkbox" id="pen"> pen — add lobes by hand</label>
     <div id="penRow" style="display:none">
       <div class="row" style="margin:6px 0"><label>brush <b><span id="penSizeVal">7</span></b></label><input type="range" id="penSize" min="2" max="22" step="1" value="7"></div>
@@ -313,7 +316,10 @@ const inkTex=new THREE.CanvasTexture(inkCanvas);
 inkTex.minFilter=THREE.LinearFilter; inkTex.magFilter=THREE.LinearFilter; inkTex.generateMipmaps=false;
 let penOn=false, penColor='#ffffff', penSize=7;
 let inkGens=[[1,0,0],[0,1,0],[0,0,1]];   // clean group generators the pen folds through
-let inkDirty=false, inkImg=null;          // height-field recompute flag (processed in the loop)
+let inkDirty=false, inkImg=null;          // pen-ink recompute flag (processed in the loop)
+let foldDirty=true;                       // group/fold-cache rebuild flag (true -> build on first frame)
+let animate=false, speed=1, tphase=0;     // undulation: advancing phase fed to the field math
+const clock=new THREE.Clock();
 function clearInk(){ ictx.clearRect(0,0,INK,INK); inkTex.needsUpdate=true; inkDirty=true; }
 
 /* fold a local point into the fundamental triangle (mirror modes) — matches the shader */
@@ -463,27 +469,29 @@ function vnoise(x,y,z){
            L(L(c(0,0,1),c(1,0,1),u),L(c(0,1,1),c(1,1,1),u),v),w);
 }
 function fbm(x,y,z,oct){ let a=0,amp=0.5,f=1,nrm=0; for(let o=0;o<oct;o++){ a+=amp*vnoise(x*f,y*f,z*f); nrm+=amp; f*=2; amp*=0.5; } return a/(nrm||1); }
-function fieldH(name,q,F,P,S){
+function fieldH(name,q,F,P,ph){
   const x=q[0],y=q[1],z=q[2];
   if(name==='harmonic'){
-    const th=Math.acos(Math.max(-1,Math.min(1,y))), ph=Math.atan2(z,x)+S*0.3;
+    const th=Math.acos(Math.max(-1,Math.min(1,y))), pphi=Math.atan2(z,x)+ph;
     const m=Math.max(1,Math.round(F)), l=Math.max(1,Math.round(F*0.7));
-    return clamp01(Math.pow(Math.abs(Math.sin(m*ph)),P)*Math.pow(Math.abs(Math.sin(l*th)),P));
+    const h=Math.pow(Math.abs(Math.sin(m*pphi)),P)*Math.pow(Math.abs(Math.sin(l*th)),P);
+    return clamp01(h*(0.72+0.28*Math.sin(ph)));               // rotate + breathe
   }
   if(name==='gyroid'){
-    const s=F*Math.PI, g=Math.sin(s*x)*Math.cos(s*y)+Math.sin(s*y)*Math.cos(s*z)+Math.sin(s*z)*Math.cos(s*x);
+    const s=F*Math.PI;                                        // phase on the sin terms -> travelling flow
+    const g=Math.sin(s*x+ph)*Math.cos(s*y)+Math.sin(s*y+ph)*Math.cos(s*z)+Math.sin(s*z+ph)*Math.cos(s*x);
     return clamp01(Math.pow(0.5+0.5*g/1.5,P));
   }
   if(name==='quasi'){
-    let s=0; for(const k of QC) s+=Math.cos(F*Math.PI*(k[0]*x+k[1]*y+k[2]*z)+S*0.5);
+    let s=0; for(const k of QC) s+=Math.cos(F*Math.PI*(k[0]*x+k[1]*y+k[2]*z)+ph);  // travelling waves
     return clamp01(Math.pow(0.5+0.5*s/QC.length,P));
   }
-  if(name==='noise') return clamp01(fbm(x*F+S*1.7,y*F+S*2.3,z*F+S*3.1,Math.max(1,Math.round(P*3))));
+  if(name==='noise') return clamp01(fbm(x*F+ph,y*F,z*F+ph*0.6,Math.max(1,Math.round(P*3))));  // drift
   if(name==='super'){
-    const ph=Math.atan2(z,x), th=Math.acos(Math.max(-1,Math.min(1,y))), m=Math.max(1,Math.round(F)), e=2+P*3;
-    const t1=Math.pow(Math.abs(Math.cos(m*ph/4)),e), t2=Math.pow(Math.abs(Math.sin(m*ph/4)),e);
+    const pphi=Math.atan2(z,x)+ph*0.5, th=Math.acos(Math.max(-1,Math.min(1,y))), m=Math.max(1,Math.round(F)), e=2+P*3;
+    const t1=Math.pow(Math.abs(Math.cos(m*pphi/4)),e), t2=Math.pow(Math.abs(Math.sin(m*pphi/4)),e);
     let r=Math.pow(t1+t2,-1/(0.3+P)); if(!isFinite(r)) r=0;
-    return clamp01(r*Math.sin(th)*1.1);
+    return clamp01(r*Math.sin(th)*1.1*(0.6+0.4*Math.sin(ph)));   // rotate + pulse
   }
   return 0;
 }
@@ -499,26 +507,45 @@ function foldRep(dir){
   return foldPoint(dir, inkGens[0],inkGens[1],inkGens[2]);
 }
 
-/* CPU-side height field: field math + pen ink, folded into the fundamental domain.
-   Recomputed (throttled to once per frame) when ink, field, or params change. */
-const aH=new Float32Array(orb.geometry.attributes.position.count);
+/* CPU-side height field, split so animation is cheap:
+   - qRep[i]  : the folded representative of vertex i (depends only on the group;
+                rebuilt on mode/n/group change).
+   - inkH[i]  : pen-ink height at vertex i (rebuilt when the ink changes).
+   - applyHeights() : aH[i] = field(qRep[i], phase) + inkH[i]. Runs every frame
+                while animating — no per-vertex fold, just the (cheap) math. */
+const NV=orb.geometry.attributes.position.count;
+const aH=new Float32Array(NV), qRep=new Float32Array(NV*3), inkH=new Float32Array(NV);
 orb.geometry.setAttribute('aH', new THREE.BufferAttribute(aH,1));
-function recomputeHeights(){
-  const pos=orb.geometry.attributes.position, data=inkImg ? inkImg.data : null;
-  const field=el('field').value, F=+el('freq').value, P=+el('param').value, S=+el('seed').value;
-  const useField = field!=='none' && mode!=='voronoi';
+function rebuildFold(){
+  const pos=orb.geometry.attributes.position;
   for(let i=0;i<pos.count;i++){
-    const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i), l=Math.hypot(x,y,z)||1, dir=[x/l,y/l,z/l];
-    let h = useField ? fieldH(field, foldRep(dir), F,P,S) : 0;
-    if(data){ const uv=foldUV(dir);
-      const px=Math.min(INK-1,Math.max(0,Math.round(uv[0]*INK)));
-      const py=Math.min(INK-1,Math.max(0,Math.round((1-uv[1])*INK)));
-      h += data[(py*INK+px)*4+3]/255; }
+    const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i), l=Math.hypot(x,y,z)||1;
+    const q=foldRep([x/l,y/l,z/l]); qRep[3*i]=q[0]; qRep[3*i+1]=q[1]; qRep[3*i+2]=q[2];
+  }
+}
+function rebuildInk(){
+  const pos=orb.geometry.attributes.position, data=inkImg ? inkImg.data : null;
+  for(let i=0;i<pos.count;i++){
+    if(!data){ inkH[i]=0; continue; }
+    const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i), l=Math.hypot(x,y,z)||1;
+    const uv=foldUV([x/l,y/l,z/l]);
+    const px=Math.min(INK-1,Math.max(0,Math.round(uv[0]*INK)));
+    const py=Math.min(INK-1,Math.max(0,Math.round((1-uv[1])*INK)));
+    inkH[i]=data[(py*INK+px)*4+3]/255;
+  }
+}
+function applyHeights(){
+  const field=el('field').value, F=+el('freq').value, P=+el('param').value;
+  const ph=(+el('seed').value)*0.7 + tphase;
+  const useField = field!=='none' && mode!=='voronoi';
+  for(let i=0;i<NV;i++){
+    let h = useField ? fieldH(field,[qRep[3*i],qRep[3*i+1],qRep[3*i+2]],F,P,ph) : 0;
+    h += inkH[i];
     aH[i]=clamp01(h);
   }
   orb.geometry.attributes.aH.needsUpdate=true;
 }
-function ensureHeights(){ inkImg=ictx.getImageData(0,0,INK,INK); recomputeHeights(); inkDirty=false; }
+function ensureHeights(){ rebuildFold(); inkImg=ictx.getImageData(0,0,INK,INK); rebuildInk(); applyHeights(); }
 
 /* ---------- state + UI ---------- */
 let mode='dihedral', sliderWasVoro=false;
@@ -594,17 +621,17 @@ function refresh(){
 document.querySelectorAll('#modes button').forEach(btn=>{
   btn.onclick=()=>{ mode=btn.dataset.mode;
     document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b===btn));
-    refresh(); clearInk();                  // fundamental domain changed -> ink coords stale
+    refresh(); clearInk(); foldDirty=true;  // fundamental domain changed -> rebuild fold cache + ink
     const penActive = penOn && mode!=='voronoi';
     el('pen').parentElement.style.opacity = (mode==='voronoi')?0.4:1;
     controls.enableRotate = !penActive;     // Voronoi has no pen -> keep orbit usable
     controls.autoRotate = el('spin').checked && !penActive;
   };
 });
-el('schw').onchange=()=>{ refresh(); clearInk(); };
-el('n').oninput=()=>{ refresh(); clearInk(); };       // n changes the domain (lune wedge / dihedral triangle)
+el('schw').onchange=()=>{ refresh(); clearInk(); foldDirty=true; };
+el('n').oninput=()=>{ refresh(); clearInk(); foldDirty=true; };   // n changes the domain
 el('sub').oninput=e=>{ kaleMat.uniforms.uSubdiv.value=+e.target.value; el('subVal').textContent=e.target.value; refresh(); };
-el('mirror').onchange=e=>{ kaleMat.uniforms.uMirrorEq.value=e.target.checked?1:0; clearInk(); };
+el('mirror').onchange=e=>{ kaleMat.uniforms.uMirrorEq.value=e.target.checked?1:0; clearInk(); foldDirty=true; };
 el('lines').onchange=e=>U.uShowLines.value=e.target.checked?1:0;
 el('spin').onchange=e=>controls.autoRotate=e.target.checked && !penOn;
 document.querySelectorAll('#pals button').forEach(b=>{
@@ -628,10 +655,12 @@ el('penColor').oninput=e=>penColor=e.target.value;
 el('penClear').onclick=clearInk;
 el('relief').oninput=e=>{ kaleMat.uniforms.uRelief.value=+e.target.value; el('reliefVal').textContent=(+e.target.value).toFixed(2); };
 el('penExport').onclick=exportSTL;
-el('field').onchange=()=>{ inkDirty=true; };
-el('freq').oninput =e=>{ el('freqVal').textContent=e.target.value; inkDirty=true; };
-el('param').oninput=e=>{ el('paramVal').textContent=(+e.target.value).toFixed(1); inkDirty=true; };
-el('seed').oninput =e=>{ el('seedVal').textContent=e.target.value; inkDirty=true; };
+el('field').onchange=()=>applyHeights();                 // field eval only — fold cache unchanged
+el('freq').oninput =e=>{ el('freqVal').textContent=e.target.value; applyHeights(); };
+el('param').oninput=e=>{ el('paramVal').textContent=(+e.target.value).toFixed(1); applyHeights(); };
+el('seed').oninput =e=>{ el('seedVal').textContent=e.target.value; applyHeights(); };
+el('animate').onchange=e=>{ animate=e.target.checked; el('speedRow').style.display=animate?'':'none'; };
+el('speed').oninput=e=>{ speed=+e.target.value; el('speedVal').textContent=(+e.target.value).toFixed(1); };
 
 /* bake the displaced orb (radial height = aH field) to a watertight binary STL */
 function exportSTL(){
@@ -692,7 +721,10 @@ function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h); came
 addEventListener('resize',resize); resize();
 renderer.setAnimationLoop(()=>{
   controls.update();
-  if(inkDirty){ inkImg=ictx.getImageData(0,0,INK,INK); recomputeHeights(); inkDirty=false; }
+  const dt=clock.getDelta();
+  if(foldDirty){ rebuildFold(); inkImg=ictx.getImageData(0,0,INK,INK); rebuildInk(); applyHeights(); foldDirty=false; inkDirty=false; }
+  else if(inkDirty){ inkImg=ictx.getImageData(0,0,INK,INK); rebuildInk(); applyHeights(); inkDirty=false; }
+  if(animate){ tphase+=dt*speed; applyHeights(); }
   U.uCamPos.value.copy(camera.position);
   renderer.render(scene,camera);
 });
