@@ -1969,7 +1969,7 @@
             `<div class="ahead">◈ THE ARCADE</div>` +
             `<div class="alaw">${esc(g.law.name)}</div>` +
             `<div class="ameta">law no.${g.law.id} · puzzle #${g.q + 1} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}</div>` +
-            `<div class="arule">${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}</span></div>` +
+            `<div class="arule">${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}${g.goal === 'collect' ? ' — take each ✦ by <b style="color:#f4bf62">landing on it</b>' + (((g.law.law || {}).motion === 'leap') ? '; <b style="color:#e0a86a">leaping vaults over a ✦ without taking it</b>' : '') : ''}</span></div>` +
             `<div class="apad"><span></span><button data-arc="0">▲</button><span></span>` +
             `<button data-arc="3">◀</button><button data-arc="2">▼</button><button data-arc="1">▶</button></div>` +
             `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button><button data-arc="skip">⏭ skip</button></div>` +
@@ -1996,10 +1996,14 @@
         let fill = '#161d27';                                   // open floor — lifted for contrast vs near-black
         if (c.wall) fill = '#394a57';                           // static wall — clearly lighter than floor
         else if (c.dyn) fill = '#6a3344';                       // hardened-behind (leave→wall) — there's no going back
-        else if (c.mark) fill = '#4a3d77';                      // inked (solid — you cannot enter)
+        else if (c.mark && !c.token) fill = '#4a3d77';          // inked — but a TOKEN cell always reads as collectable floor, never as an inked mark (the overlap that made tokens look like walls)
         g.fillStyle = fill; g.fillRect(x + pad, y + pad, cell - 2 * pad, cell - 2 * pad);
         if (c.exit) { g.fillStyle = '#7fd8d0'; g.font = `${cell * 0.6}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⌖', x + cell / 2, y + cell / 2); }
-        if (c.token) { g.fillStyle = '#f4bf62'; g.font = `${cell * 0.55}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('✦', x + cell / 2, y + cell / 2); }
+        if (c.token) {                                          // a bright halo so a token is unmistakable (and obviously not a wall)
+          const cx = x + cell / 2, cy = y + cell / 2;
+          g.fillStyle = 'rgba(244,191,98,0.16)'; g.beginPath(); g.arc(cx, cy, cell * 0.42, 0, 7); g.fill();
+          g.fillStyle = '#f4bf62'; g.font = `${cell * 0.6}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('✦', cx, cy);
+        }
         if (c.agent) {
           g.fillStyle = '#e3b6ec'; g.beginPath(); g.arc(x + cell / 2, y + cell / 2, cell * 0.3, 0, 7); g.fill();
           const cx = x + cell / 2, cy = y + cell / 2, R = cell * 0.36;   // heading chevron (cosmetic — moves are absolute)
