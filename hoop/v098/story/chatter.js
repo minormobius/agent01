@@ -6,7 +6,27 @@
 // advances. No inference, no Date.now — same (faction, phase, seed) → same line, so it's atproto-stable.
 
 const FACTIONS = ['continuant', 'drift', 'rindwalker'];
-export const factionOf = (tags) => (tags || []).find((t) => FACTIONS.includes(t)) || '_default';
+// hoopy's export tags NPCs with the PLURAL/variant class name ("continuants", "rind-walkers", "Drifter").
+// Normalize every spelling onto the three canonical factions so chatter-keying + role/rep all line up.
+const FACTION_ALIASES = {
+  continuants: 'continuant', continuant: 'continuant',
+  drift: 'drift', drifts: 'drift', drifter: 'drift', drifters: 'drift',
+  rindwalker: 'rindwalker', rindwalkers: 'rindwalker', 'rind-walker': 'rindwalker', 'rind-walkers': 'rindwalker', rindwalking: 'rindwalker',
+};
+// One token → its canonical faction, or null if it isn't a faction word.
+export const normalizeFaction = (t) => { const s = String(t || '').toLowerCase().trim(); return FACTIONS.includes(s) ? s : (FACTION_ALIASES[s] || null); };
+// First faction found among a tag list (now plural-tolerant), else '_default'.
+export const factionOf = (tags) => { for (const t of (tags || [])) { const f = normalizeFaction(t); if (f) return f; } return '_default'; };
+
+// Civic/econ ROLE → faction (mirrors genquest.js FACTION_BY_ROLE; kept here so the crowd can derive a
+// faction from a resident's role without importing the generation lane). 'dwell' is neutral (no faction).
+export const FACTION_BY_ROLE = {
+  mend: 'continuant', make: 'continuant', govern: 'continuant', serve: 'continuant', store: 'continuant',
+  move: 'continuant', heal: 'continuant', learn: 'continuant', worship: 'continuant',
+  trade: 'drift', broker: 'drift', play: 'drift', grow: 'drift',
+  salvage: 'rindwalker', hull: 'rindwalker', dig: 'rindwalker',
+};
+export const factionForRole = (r) => FACTION_BY_ROLE[r] || null;
 
 function phaseOk(when, state) {
   if (!when) return true;

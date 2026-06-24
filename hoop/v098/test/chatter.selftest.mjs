@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { activePhase, pickChatter, factionOf } from '../story/chatter.js';
+import { activePhase, pickChatter, factionOf, normalizeFaction, factionForRole } from '../story/chatter.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BANK = JSON.parse(readFileSync(join(HERE, '../story/chatter.json'), 'utf8'));
@@ -34,9 +34,17 @@ ok('narrative 2 → opened (highest)', activePhase(BANK, OPEN) === 'opened');
   ok('crowd varies across seeds', new Set(seeds).size > 1);
   ok('unknown faction → _default bank', BANK.lines._default.ordinary.includes(pickChatter(BANK, 'townsfolk', ORD, 'x'))); }
 
-// 5. factionOf reads the faction tag off an NPC's tags
+// 5. factionOf reads the faction tag off an NPC's tags — and normalizes hoopy's plural/variant spellings
 ok('factionOf finds the faction', factionOf(['continuant', 'govern']) === 'continuant');
 ok('factionOf defaults', factionOf(['govern']) === '_default');
+ok('factionOf normalizes the PLURAL (continuants → continuant)', factionOf(['continuants', 'atmosphere']) === 'continuant');
+ok('normalizeFaction folds rind-walkers → rindwalker', normalizeFaction('rind-walkers') === 'rindwalker');
+ok('normalizeFaction folds Drifter → drift', normalizeFaction('Drifter') === 'drift');
+ok('normalizeFaction rejects a non-faction word', normalizeFaction('atmosphere') === null);
+ok('chatter keys off the normalized faction (continuants resolves to a real bank)',
+   BANK.lines.continuant.ordinary.includes(pickChatter(BANK, factionOf(['continuants']), ORD, 'np-x')));
+ok('factionForRole maps a civic role', factionForRole('trade') === 'drift' && factionForRole('mend') === 'continuant');
+ok('factionForRole is null for neutral dwell', factionForRole('dwell') === null);
 
 // 6. bank integrity — every faction covers every phase with ≥1 line
 { const phases = BANK.phases.map((p) => p.id), bad = [];
