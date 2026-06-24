@@ -675,12 +675,12 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/gantry-playground-3js-phjc1x",
+      "branch": "claude/spherical-symmetry-orb-y774aj",
       "uses": [],
       "provides": null,
       "status": "MANAGED — new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time.",
       "op": "create",
-      "note": "tjs.mino.mobi — three.js workbenches. Landing at /, first bench at /gantry: a configurable HBot gantry test bench (seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
+      "note": "tjs.mino.mobi — three.js workbenches. Landing at /, benches at /gantry (configurable HBot gantry test bench: seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools) and /orb (spherical-symmetry toy: a sphere sliced into n longitudinal lunes (axial Cn) or a polyhedral kaleidoscope — tetra/octa/icosa Schwarz-triangle fundamental domains, per-fragment fold + glowing mirror great-circles; the 3D analogue of a 2D polar symmetric pen). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
       "paths": [
         "tjs/**"
       ]

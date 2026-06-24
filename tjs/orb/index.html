@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orb · spherical symmetry · tjs</title>
+<meta name="description" content="A sphere sliced into n symmetric domains — longitudinal lunes (axial Cn) and the polyhedral kaleidoscope groups (tetra/octa/icosa). The 3D analogue of a polar symmetric pen.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#07070c; --panel:#101019cc; --line:#23232e; --ink:#e6e6f0; --soft:#8a8aa0;
+    --accent:#39d6c8; --accent2:#ffb454;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(130% 130% at 62% 8%, #15151f 0%, #07070c 62%);
+    color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;overflow:hidden}
+  #viewport{position:fixed;inset:0}
+  #viewport canvas{display:block}
+
+  .crumb{position:fixed;top:14px;left:18px;z-index:5;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
+  .crumb a{color:var(--soft);text-decoration:none}
+  .crumb a:hover{color:var(--accent)}
+  .crumb b{color:var(--ink);font-weight:600}
+
+  .panel{
+    position:fixed;top:46px;right:16px;z-index:5;width:248px;
+    background:var(--panel);backdrop-filter:blur(9px);
+    border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;
+    box-shadow:0 18px 50px -20px #000}
+  .panel h2{margin:0 0 2px;font-size:15px;font-weight:700}
+  .panel .sub{margin:0 0 12px;font-size:12px;color:var(--soft)}
+
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+  .seg button{
+    appearance:none;cursor:pointer;font:inherit;font-size:12.5px;
+    color:var(--soft);background:#0d0d15;border:1px solid var(--line);
+    border-radius:8px;padding:7px 6px;transition:.12s}
+  .seg button:hover{color:var(--ink);border-color:#3a3a4a}
+  .seg button.on{color:var(--bg);background:var(--accent);border-color:var(--accent);font-weight:600}
+
+  .row{margin:11px 0}
+  .row label{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--soft);margin-bottom:5px}
+  .row label b{color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+
+  .toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--soft);cursor:pointer;margin:9px 0}
+  .toggle input{accent-color:var(--accent);width:15px;height:15px}
+
+  .pals{display:flex;gap:6px;margin-top:5px}
+  .pals button{flex:1;height:20px;border-radius:5px;border:1px solid var(--line);cursor:pointer;padding:0}
+  .pals button.on{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+
+  .note{margin-top:13px;padding-top:11px;border-top:1px solid var(--line);font-size:11.5px;line-height:1.45;color:var(--soft)}
+  .note code{color:var(--accent2)}
+
+  .hint{position:fixed;bottom:12px;left:18px;z-index:5;font-size:11.5px;color:var(--soft)}
+  @media (max-width:560px){ .panel{width:auto;left:12px;right:12px;top:auto;bottom:46px} .hint{display:none} }
+</style>
+</head>
+<body>
+<div id="viewport"></div>
+<div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / <a href="../">tjs</a> / <b>orb</b></div>
+
+<div class="panel">
+  <h2>Spherical symmetry</h2>
+  <p class="sub">n symmetric slices of a sphere</p>
+
+  <div class="seg" id="modes">
+    <button data-mode="axial" class="on">Lunes</button>
+    <button data-mode="tetra">Tetra ·24</button>
+    <button data-mode="octa">Octa ·48</button>
+    <button data-mode="icosa">Icosa ·120</button>
+  </div>
+
+  <div id="axialCtl">
+    <div class="row">
+      <label>slices <b><span id="nVal">12</span></b></label>
+      <input type="range" id="n" min="1" max="48" step="1" value="12">
+    </div>
+    <label class="toggle"><input type="checkbox" id="mirror"> equatorial mirror</label>
+  </div>
+
+  <div id="kaleidoInfo" style="display:none" class="row">
+    <label>fundamental domains <b><span id="domCount">24</span></b></label>
+    <div style="font-size:11.5px;color:var(--soft)">Schwarz triangle (<span id="schwarz">3,3,2</span>) reflected through 3 mirror planes.</div>
+  </div>
+
+  <div class="row" style="margin-top:13px">
+    <label>palette</label>
+    <div class="pals" id="pals">
+      <button data-pal="0" class="on" style="background:linear-gradient(90deg,#ff5d73,#ffd166,#06d6a0,#118ab2)"></button>
+      <button data-pal="1" style="background:linear-gradient(90deg,#39d6c8,#5b8cff,#b06cff)"></button>
+      <button data-pal="2" style="background:linear-gradient(90deg,#2b2d42,#8d99ae,#ef8354)"></button>
+      <button data-pal="3" style="background:linear-gradient(90deg,#ffb454,#ff5d8f,#7a5cff)"></button>
+    </div>
+  </div>
+
+  <label class="toggle"><input type="checkbox" id="lines" checked> mirror lines</label>
+  <label class="toggle"><input type="checkbox" id="spin" checked> auto-rotate</label>
+
+  <div class="note">
+    The 2D polar pen is the cyclic group <code>Cn</code>. <b>Lunes</b> is its 3D
+    twin: n gores about an axis. The polyhedral modes are true spherical
+    kaleidoscopes — a stroke in one triangle reflects across all of them.
+  </div>
+</div>
+
+<div class="hint">drag to orbit · scroll to zoom</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+THREE.ColorManagement.enabled = false;
+
+/* ---------- vector helpers ---------- */
+const dot = (a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const norm = a=>{ const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; };
+const reflect = (v,n)=>{ const d=2*dot(v,n); return [v[0]-d*n[0], v[1]-d*n[1], v[2]-d*n[2]]; };
+
+/* Three generating mirror normals of a Coxeter (p,q,2) Schwarz triangle.
+   Pairwise dihedral angles -> dot(ni,nj) = -cos(pi/order).
+   The all-negative cone {dot(x,ni)<=0} is the (non-empty) fundamental domain. */
+function generators(p,q){
+  const a=[1,0,0];
+  const b=[-Math.cos(Math.PI/p), Math.sin(Math.PI/p), 0];
+  const cy=-Math.cos(Math.PI/q)/Math.sin(Math.PI/p);
+  const cz=Math.sqrt(Math.max(0,1-cy*cy));
+  return [a, b, [0,cy,cz]];
+}
+
+/* Close the 3 generators under reflection to get the full mirror set
+   (6 for tetra, 9 for octa, 15 for icosa) — used to draw the great circles. */
+function closeMirrors(gens){
+  const list=[];
+  const canon=m=>{ m=norm(m);
+    if(m[0]<-1e-7) m=[-m[0],-m[1],-m[2]];
+    else if(Math.abs(m[0])<1e-7){ if(m[1]<-1e-7) m=[-m[0],-m[1],-m[2]];
+      else if(Math.abs(m[1])<1e-7 && m[2]<0) m=[-m[0],-m[1],-m[2]]; }
+    return m; };
+  const has=m=>list.some(x=>Math.abs(dot(x,m))>1-1e-5);
+  const add=m=>{ m=canon(m); if(!has(m)) list.push(m); };
+  gens.forEach(add);
+  for(let it=0; it<60; it++){
+    const snap=list.slice();
+    for(const m of snap) for(const r of snap) add(reflect(m,r));
+    if(list.length===snap.length) break;
+  }
+  return list;
+}
+
+const GROUPS = {
+  tetra: { gens: generators(3,3), schwarz:'3,3,2', domains:24 },
+  octa:  { gens: generators(4,3), schwarz:'4,3,2', domains:48 },
+  icosa: { gens: generators(5,3), schwarz:'5,3,2', domains:120 },
+};
+for(const k in GROUPS) GROUPS[k].mirrors = closeMirrors(GROUPS[k].gens);
+
+/* ---------- three.js scene ---------- */
+const viewport=document.getElementById('viewport');
+const renderer=new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace=THREE.LinearSRGBColorSpace;
+viewport.appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+camera.position.set(2.0, 1.2, 2.6);
+
+const controls=new OrbitControls(camera, renderer.domElement);
+controls.enableDamping=true;
+controls.dampingFactor=0.08;
+controls.minDistance=1.6;
+controls.maxDistance=8;
+controls.autoRotate=true;
+controls.autoRotateSpeed=0.55;
+
+const PAD=Array.from({length:15},()=>new THREE.Vector3());
+
+const uniforms={
+  uMode:{value:0},               // 0 axial, 1 kaleidoscope
+  uN:{value:12.0},
+  uMirrorEq:{value:0.0},
+  uShowLines:{value:1.0},
+  uPalette:{value:0},
+  uGen0:{value:new THREE.Vector3(1,0,0)},
+  uGen1:{value:new THREE.Vector3(0,1,0)},
+  uGen2:{value:new THREE.Vector3(0,0,1)},
+  uMirrors:{value:PAD},
+  uMirrorCount:{value:0},
+  uCamPos:{value:new THREE.Vector3()},
+  uLight:{value:new THREE.Vector3(0.4,0.72,0.55).normalize()},
+  uLine:{value:new THREE.Color(0xffffff)},
+  uRim:{value:new THREE.Color(0x39d6c8)},
+};
+
+const vert=`
+  varying vec3 vLocal; varying vec3 vWorld; varying vec3 vNormal;
+  void main(){
+    vLocal = normalize(position);
+    vec4 wp = modelMatrix*vec4(position,1.0);
+    vWorld = wp.xyz;
+    vNormal = normalize(mat3(modelMatrix)*normal);
+    gl_Position = projectionMatrix*viewMatrix*wp;
+  }`;
+
+const frag=`
+  precision highp float;
+  #define PI 3.14159265
+  varying vec3 vLocal; varying vec3 vWorld; varying vec3 vNormal;
+  uniform int uMode; uniform float uN, uMirrorEq, uShowLines; uniform int uPalette;
+  uniform vec3 uGen0,uGen1,uGen2; uniform vec3 uMirrors[15]; uniform int uMirrorCount;
+  uniform vec3 uCamPos,uLight,uLine,uRim;
+
+  vec3 pal(float t,int p){
+    vec3 a,b,c,d;
+    if(p==0){a=vec3(.5);b=vec3(.5);c=vec3(1.);d=vec3(0.0,0.33,0.67);}
+    else if(p==1){a=vec3(.4,.45,.5);b=vec3(.45,.4,.5);c=vec3(1.);d=vec3(0.55,0.7,0.9);}
+    else if(p==2){a=vec3(.34,.36,.42);b=vec3(.42,.36,.34);c=vec3(1.);d=vec3(0.0,0.18,0.42);}
+    else {a=vec3(.5,.42,.4);b=vec3(.5,.45,.45);c=vec3(1.,0.9,0.8);d=vec3(0.1,0.45,0.8);}
+    return clamp(a+b*cos(6.28318*(c*t+d)),0.0,1.0);
+  }
+
+  void main(){
+    vec3 p = normalize(vLocal);
+    vec3 sym; float line=0.0;
+
+    if(uMode==0){
+      // axial lunes — Cn about the y axis (optional equatorial mirror)
+      float t = atan(p.z,p.x)/6.28318 + 0.5;     // 0..1 longitude
+      float seg = t*uN;
+      float idx = floor(seg);
+      float parity = mod(idx,2.0);
+      if(uMirrorEq>0.5 && p.y<0.0) parity = 1.0-parity;
+      sym = pal(idx/uN, uPalette) * (parity>0.5?0.80:1.0);
+      // meridian boundary lines
+      float fseg = fract(seg);
+      float dm = min(fseg,1.0-fseg);
+      float aaM = fwidth(seg)*1.3 + 1e-4;
+      line = 1.0 - smoothstep(0.0, aaM, dm);
+      if(uMirrorEq>0.5){
+        float aaE = fwidth(p.y)*1.6 + 0.0015;
+        line = max(line, 1.0 - smoothstep(0.0, aaE, abs(p.y)));
+      }
+    } else {
+      // polyhedral kaleidoscope — fold to fundamental Schwarz triangle
+      vec3 q=p; float cnt=0.0;
+      for(int i=0;i<64;i++){
+        bool moved=false;
+        float d0=dot(q,uGen0); if(d0>1e-4){ q-=2.0*d0*uGen0; cnt+=1.0; moved=true; }
+        float d1=dot(q,uGen1); if(d1>1e-4){ q-=2.0*d1*uGen1; cnt+=1.0; moved=true; }
+        float d2=dot(q,uGen2); if(d2>1e-4){ q-=2.0*d2*uGen2; cnt+=1.0; moved=true; }
+        if(!moved) break;
+      }
+      float parity=mod(cnt,2.0);
+      float g=0.5+0.5*q.y;
+      sym = mix(pal(0.12+0.55*g,uPalette), pal(0.58+0.4*g,uPalette), parity);
+      // every mirror great circle
+      float dl=1e9;
+      for(int i=0;i<15;i++){ if(i>=uMirrorCount) break; dl=min(dl, abs(dot(p,uMirrors[i]))); }
+      line = 1.0 - smoothstep(0.0, 0.016, dl);
+    }
+    line *= uShowLines;
+
+    // shading
+    vec3 N=normalize(vNormal);
+    vec3 V=normalize(uCamPos-vWorld);
+    float diff=0.45+0.55*max(dot(N,uLight),0.0);
+    vec3 col=sym*diff;
+    float fres=pow(1.0-max(dot(N,V),0.0),3.0);
+    col+=fres*uRim*0.85;
+    float spec=pow(max(dot(reflect(-uLight,N),V),0.0),48.0);
+    col+=spec*0.35;
+    col=mix(col, uLine, line*0.92);
+    col+=uLine*line*0.25;                          // line glow
+    gl_FragColor=vec4(col,1.0);
+  }`;
+
+const material=new THREE.ShaderMaterial({uniforms, vertexShader:vert, fragmentShader:frag});
+const orb=new THREE.Mesh(new THREE.SphereGeometry(1,160,120), material);
+scene.add(orb);
+
+/* ---------- state + UI ---------- */
+let mode='axial';
+
+function setKaleido(name){
+  const g=GROUPS[name];
+  uniforms.uGen0.value.set(...g.gens[0]);
+  uniforms.uGen1.value.set(...g.gens[1]);
+  uniforms.uGen2.value.set(...g.gens[2]);
+  for(let i=0;i<15;i++){
+    if(i<g.mirrors.length) PAD[i].set(...g.mirrors[i]); else PAD[i].set(0,0,0);
+  }
+  uniforms.uMirrorCount.value=g.mirrors.length;
+  document.getElementById('domCount').textContent=g.domains;
+  document.getElementById('schwarz').textContent=g.schwarz;
+}
+
+document.querySelectorAll('#modes button').forEach(btn=>{
+  btn.onclick=()=>{
+    mode=btn.dataset.mode;
+    document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b===btn));
+    const axial = mode==='axial';
+    uniforms.uMode.value = axial?0:1;
+    document.getElementById('axialCtl').style.display = axial?'':'none';
+    document.getElementById('kaleidoInfo').style.display = axial?'none':'';
+    if(!axial) setKaleido(mode);
+  };
+});
+
+const n=document.getElementById('n'), nVal=document.getElementById('nVal');
+n.oninput=()=>{ uniforms.uN.value=+n.value; nVal.textContent=n.value; };
+document.getElementById('mirror').onchange=e=>uniforms.uMirrorEq.value=e.target.checked?1:0;
+document.getElementById('lines').onchange=e=>uniforms.uShowLines.value=e.target.checked?1:0;
+document.getElementById('spin').onchange=e=>controls.autoRotate=e.target.checked;
+document.querySelectorAll('#pals button').forEach(b=>{
+  b.onclick=()=>{ uniforms.uPalette.value=+b.dataset.pal;
+    document.querySelectorAll('#pals button').forEach(x=>x.classList.toggle('on',x===b)); };
+});
+
+/* ---------- loop ---------- */
+function resize(){
+  const w=innerWidth, h=innerHeight;
+  renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix();
+}
+addEventListener('resize',resize); resize();
+
+renderer.setAnimationLoop(()=>{
+  controls.update();
+  uniforms.uCamPos.value.copy(camera.position);
+  renderer.render(scene,camera);
+});
+</script>
+</body>
+</html>
