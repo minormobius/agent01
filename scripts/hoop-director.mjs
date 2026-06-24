@@ -19,7 +19,10 @@ import { emptyPulse, foldSave, summarize, pulseToRecord, recordToPulse, PULSE_NS
 const DRY = process.argv.includes('--dry');
 const windowArg = process.argv.find((a) => a.startsWith('--window='));
 const WINDOW_MS = (windowArg ? +windowArg.split('=')[1] : 40) * 1000;
-const JETSTREAM = process.env.JETSTREAM_URL || 'wss://jetstream2.us-east.bsky.network/subscribe';
+// jetstream2.us-east is a DEAD node — it accepts the connection and advances the cursor but delivers
+// zero commits, so the pulse silently folds nobody's saves. Default to a live node (jetstream1.us-east;
+// us-west also works). Override with JETSTREAM_URL if this one goes dark too.
+const JETSTREAM = process.env.JETSTREAM_URL || 'wss://jetstream1.us-east.bsky.network/subscribe';
 
 const handle = process.env.MORPHYX_HANDLE, password = process.env.MORPHYX_PASSWORD;
 if (!handle || !password) { console.error('Set MORPHYX_HANDLE + MORPHYX_PASSWORD.'); process.exit(1); }

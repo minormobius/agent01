@@ -179,7 +179,7 @@
   function connect() {
     const params = COLS.map((c) => `wantedCollections=${encodeURIComponent(c)}`).join('&');
     setStatus('connecting…', 'warn');
-    try { ws = new WebSocket(`wss://jetstream2.us-east.bsky.network/subscribe?${params}&cursor=${lastUs}`); }
+    try { ws = new WebSocket(`wss://jetstream1.us-east.bsky.network/subscribe?${params}&cursor=${lastUs}`); }   // jetstream2.us-east is a dead node (0 commits); use a live one
     catch (e) { setStatus('firehose unavailable (service records only)', 'warn'); return; }
     ws.onopen = () => setStatus('live · listening to the firehose', 'live');
     ws.onclose = () => { setStatus('reconnecting…', 'warn'); setTimeout(connect, 3000); };
