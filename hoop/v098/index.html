@@ -419,6 +419,8 @@
     import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
              NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
     import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
+    import { gameForSeed as mGameForSeed, exactGame as mExactGame, genomeForSeed as mGenomeForSeed } from './morph/atlas.js';   // PROTO: morph engine (topology × legible law × goal) — gated, opt-in via ?morph=1 / the engine toggle
+    import { initialState as mInit, tryMove as mTryMove, isWin as mIsWin } from './morph/engine.js';
     import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce
     import { TIER_FOIL, PULL_COST, biomeForKey, progress as bxProgress, pullRng, pull as bxPull } from './garden/gacha.js';   // the TRADE fixture — gacha-pull seeds from one biome, collect to CLOSE it
     import { shopStock, buyPrice, sellPrice, SHOP_SIZE } from './shop.js';   // the WARES market at the same desk — buy gear, sell loot
@@ -1920,11 +1922,74 @@
     const clearedFor = (li) => (story.ready && story.store.getFact(story.playerId, 'arcade.cleared.' + li)) | 0;
     const setClearedFor = (li, n) => { if (story.ready) story.store.setFact(story.playerId, 'arcade.cleared.' + li, n | 0); };
     let arcadeGame = null, arcadeLawIndex = 0;
+    // PROTO gate: forge (the live default) vs morph (opt-in). `?morph=1` or the in-screen toggle flips it.
+    let arcadeMode = (() => { try { return new URLSearchParams(location.search).get('morph') ? 'morph' : 'forge'; } catch (e) { return 'forge'; } })();
     function loadArcadeGame() {
+      if (arcadeMode === 'morph') { arcadeGame = loadMorphGame(arcadeLawIndex, clearedFor(arcadeLawIndex)); return; }
       const p = clearedFor(arcadeLawIndex);
       // forge tries 5 salts per index; if a given p somehow yields nothing, walk forward to the next playable one.
       for (let q = p; q < p + 8; q++) { const g = newArcadeGame(arcadeLawIndex, q); if (g) { arcadeGame = g; arcadeGame.q = q; return; } }
       arcadeGame = null;
+    }
+    // ── MORPH PROTO: one cabinet = one deterministic morph GAME (metaSeed → topology + legible law + goal);
+    //    each puzzle is an INSTANCE (instSeed). Restricted to 4-dir SQUARE substrates so the N/E/S/W d-pad
+    //    drives it (hex is skipped for the proto). The same BFS oracle certifies solvability + par. ──
+    const _morphMeta = new Map();   // cabinet lawIndex → chosen square metaSeed (cached)
+    function morphMetaFor(li) {
+      if (_morphMeta.has(li)) return _morphMeta.get(li);
+      const base = ((li + 1) * 2654435761) >>> 0; let chosen = base;
+      for (let k = 0; k < 64; k++) {
+        const metaSeed = (base + k) >>> 0, gen = mGenomeForSeed(metaSeed);
+        if (gen.substrate.id === 'hex') continue;                                   // 4-dir only (proto)
+        if (gen.primary === 'lights' && gen.substrate.W * gen.substrate.H > 16) continue;
+        if (mGameForSeed(metaSeed, 0)) { chosen = metaSeed; break; }                // a good instance exists
+      }
+      _morphMeta.set(li, chosen); return chosen;
+    }
+    function wrapMorph(g, li, instSeed) {
+      if (!g) return null;
+      return { engine: 'morph', lawIndex: li, q: instSeed, metaSeed: g.metaSeed, genome: g.genome, inst: g.inst,
+        goal: g.inst.goal.type, par: g.solve.par, report: g.report, dirs: g.inst.sub.dirs,
+        state: mInit(g.inst), moves: 0, won: false, history: [],
+        law: { id: li + 1, name: (g.genome.aesthetic && g.genome.aesthetic.name) || 'morph', law: {} } };
+    }
+    function loadMorphGame(li, instSeed) {
+      const meta = morphMetaFor(li);
+      const g = mExactGame(meta, instSeed) || mGameForSeed(meta, instSeed);
+      return wrapMorph(g, li, g ? (g.instSeed != null ? g.instSeed : instSeed) : instSeed);
+    }
+    function morphMove(game, d) {
+      if (!game || game.won || d < 0 || d >= game.dirs) return false;
+      const ns = mTryMove(game.inst, game.state, d); if (!ns) return false;
+      game.history.push(game.state); game.state = ns; game.moves++; game.won = mIsWin(game.inst, game.state);
+      return true;
+    }
+    const morphUndo = (g) => { if (!g || !g.history.length) return false; g.state = g.history.pop(); g.moves = Math.max(0, g.moves - 1); g.won = false; return true; };
+    const morphReset = (g) => { if (g) { g.state = mInit(g.inst); g.moves = 0; g.won = false; g.history = []; } };
+    const morphReward = (g) => g ? Math.round(4 + g.par * 0.8 + ((g.report && g.report.difficulty) || 0) / 10) : 0;
+    const popcount = (n) => { let c = 0; n = n >>> 0; while (n) { c += n & 1; n >>>= 1; } return c; };
+    const MGOAL_BLURB = { exit: 'reach the gate ⌖', collect: 'gather every ✦', cover: 'push a box onto every ◇ marker', lights: 'light every ◆ tile' };
+    // render-ready board snapshot (square substrates: layout(c) = integer {x,y})
+    function morphBoard(game) {
+      const inst = game.inst, s = game.state, sub = inst.sub, N = sub.ncells, cells = [], tog = inst.toggles || [];
+      for (let c = 0; c < N; c++) {
+        const p = sub.layout(c), gi = inst.has.collect ? inst.gemAt[c] : -1, lgi = inst.has.lights ? tog.indexOf(c) : -1;
+        cells.push({ x: p.x, y: p.y, wall: !!inst.wall[c], ice: !!(inst.ice && inst.ice[c]),
+          gem: gi >= 0 && !((s.gems >> gi) & 1), target: (inst.targets || []).indexOf(c) >= 0,
+          box: (s.boxes || []).indexOf(c) >= 0, exit: inst.goal.cell === c, agent: s.agent === c,
+          lit: lgi >= 0 ? ((s.lit >> lgi) & 1) : null, portal: !!(inst.portalTo && inst.portalTo[c] >= 0) });
+      }
+      const id = sub.id;
+      return { W: sub.W || inst.W, H: sub.H || inst.H, dir: s.dir, dirs: sub.dirs, goal: inst.goal.type, substrate: id,
+        wrapX: (id === 'cylinder' || id === 'torus' || id === 'mobius' || id === 'klein'), wrapY: (id === 'torus' || id === 'klein'), cells };
+    }
+    function morphStatusText(game) {
+      const inst = game.inst, s = game.state; let head = '';
+      if (game.goal === 'collect') { const total = (inst.gems || []).length, got = popcount(s.gems || 0); head = `✦ ${total - got} left · `; }
+      else if (game.goal === 'cover') { const tg = inst.targets || [], on = tg.filter((t) => (s.boxes || []).indexOf(t) >= 0).length; head = `▣ ${on}/${tg.length} covered · `; }
+      else if (game.goal === 'lights') { const total = (inst.toggles || []).length, on = popcount(s.lit || 0); head = `◆ ${on}/${total} lit · `; }
+      else if (game.goal === 'exit') head = 'reach ⌖ · ';
+      return `${head}${game.moves} moves · par ${game.par}`;
     }
     // ── THE ARCADE is its own fullscreen cabinet screen (#arc), à la the inventory — never the sidebar.
     let arcadeOpen = false;
@@ -1942,6 +2007,7 @@
     // with `leap` you VAULT OVER the middle cell, so a token you jumped is NOT swept — the counter catches it.
     function arcadeStatusText(g) {
       if (!g) return '';
+      if (g.engine === 'morph') return morphStatusText(g);
       let head = '';
       if (g.goal === 'collect') { const left = arcadeBoard(g).cells.filter((c) => c.token).length; head = `✦ ${left} left · `; }
       else if (g.goal === 'exit') head = 'reach ⌖ · ';
@@ -1951,10 +2017,19 @@
       const card = $('arccard'); arcadeOpen = true; $('arc').classList.add('on');
       const g = arcadeGame;
       if (!g) { card.innerHTML = `<button class="aclose" data-aclose="1">close ⏎</button><div class="alaw">The cabinet is dark.</div>`; return; }
-      const r = g.report, cleared = clearedFor(g.lawIndex), reward = arcadeReward(g);
+      const morph = g.engine === 'morph';
+      const r = g.report, cleared = clearedFor(g.lawIndex), reward = morph ? morphReward(g) : arcadeReward(g);
       const winBar = g.won
         ? `<div class="awin">◈ solved in ${g.moves} — par ${g.par}. <span data-arc="next" style="color:#7fd8d0;cursor:pointer;text-decoration:underline">claim ◈${reward} &amp; next ›</span></div>`
         : `<div class="ameta" style="color:#f4bf62;margin:8px 0">solve to earn ◈${reward}</div>`;
+      const headTxt = morph ? '◈ THE ARCADE · <span style="color:#c89ad0">morph</span> proto' : '◈ THE ARCADE';
+      const metaTxt = morph
+        ? `morph game · puzzle #${g.q + 1} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}`
+        : `law no.${g.law.id} · puzzle #${g.q + 1} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}`;
+      const ruleTxt = morph
+        ? `${esc(g.genome.label)}<br><span style="color:#9aa8a0">goal: ${esc(MGOAL_BLURB[g.goal] || g.goal)}</span>`
+        : `${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}${g.goal === 'collect' ? ' — take each ✦ by <b style="color:#f4bf62">landing on it</b>' + (((g.law.law || {}).motion === 'leap') ? '; <b style="color:#e0a86a">leaping vaults over a ✦ without taking it</b>' : '') : ''}</span>`;
+      const engTog = `<span data-arc="engine" title="prototype: swap the puzzle engine" style="cursor:pointer;text-decoration:underline;color:#c89ad0">engine: ${arcadeMode}${arcadeMode === 'morph' ? ' ✦' : ''}</span>`;
       card.innerHTML =
         `<button class="aclose" data-aclose="1">close ⏎</button>` +
         `<div class="azones">` +
@@ -1966,21 +2041,22 @@
           `</div>` +
           // everything else works its way AROUND the board (beside on wide, below on a phone)
           `<div class="asidezone">` +
-            `<div class="ahead">◈ THE ARCADE</div>` +
+            `<div class="ahead">${headTxt}</div>` +
             `<div class="alaw">${esc(g.law.name)}</div>` +
-            `<div class="ameta">law no.${g.law.id} · puzzle #${g.q + 1} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}</div>` +
-            `<div class="arule">${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}${g.goal === 'collect' ? ' — take each ✦ by <b style="color:#f4bf62">landing on it</b>' + (((g.law.law || {}).motion === 'leap') ? '; <b style="color:#e0a86a">leaping vaults over a ✦ without taking it</b>' : '') : ''}</span></div>` +
+            `<div class="ameta">${metaTxt}</div>` +
+            `<div class="arule">${ruleTxt}</div>` +
             `<div class="apad"><span></span><button data-arc="0">▲</button><span></span>` +
             `<button data-arc="3">◀</button><button data-arc="2">▼</button><button data-arc="1">▶</button></div>` +
             `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button><button data-arc="skip">⏭ skip</button></div>` +
-            `<div class="ameta" style="color:#6b7872">arrows / WASD to move · U undo · Enter to claim · Esc to leave · skip = a fresh puzzle (no reward)</div>` +
+            `<div class="ameta" style="color:#6b7872">arrows / WASD to move · U undo · Enter to claim · Esc to leave · ${engTog}</div>` +
           `</div>` +
         `</div>`;
       drawArcadeBoard();
     }
     function drawArcadeBoard() {
       const cv2 = document.getElementById('arcboard'); if (!cv2 || !arcadeGame) return;
-      const b = arcadeBoard(arcadeGame);
+      const morph = arcadeGame.engine === 'morph';
+      const b = morph ? morphBoard(arcadeGame) : arcadeBoard(arcadeGame);
       // size the board to the SMALLER of its width and height budgets so the d-pad + rules stay on-screen.
       // landscape/desktop: the side panel sits BESIDE the board, so the board gets ~half the width + most
       // of the height. portrait/phone: the board gets the width, but height must leave room for the panel.
@@ -1991,6 +2067,7 @@
       const w = cell * b.W, h = cell * b.H, dpr2 = Math.min(window.devicePixelRatio || 1, 2);
       cv2.width = w * dpr2; cv2.height = h * dpr2; cv2.style.width = w + 'px'; cv2.style.height = h + 'px';
       const g = cv2.getContext('2d'); g.setTransform(dpr2, 0, 0, dpr2, 0, 0); g.clearRect(0, 0, w, h);
+      if (morph) { drawMorphCells(g, b, cell, pad, w, h); return; }
       for (const c of b.cells) {
         const x = c.x * cell, y = c.y * cell;
         let fill = '#161d27';                                   // open floor — lifted for contrast vs near-black
@@ -2012,23 +2089,59 @@
         }
       }
     }
+    // PROTO renderer for morph boards: legible pieces on a square substrate (floor/wall/ice, gem ✦, box □,
+    // target ◇, exit ⌖, lit ◆ tile, portal ◌, agent + heading); dashed borders mark a wrap topology.
+    function drawMorphCells(g, b, cell, pad, w, h) {
+      for (const c of b.cells) {
+        const x = c.x * cell, y = c.y * cell, cx = x + cell / 2, cy = y + cell / 2;
+        let fill = '#161d27';
+        if (c.wall) fill = '#394a57';
+        else if (c.lit === 1) fill = '#5a4a18';                  // lights: a lit tile glows gold
+        else if (c.lit === 0) fill = '#231f12';                  // lights: unlit
+        else if (c.ice) fill = '#1b3340';                        // ice: cool tint
+        g.fillStyle = fill; g.fillRect(x + pad, y + pad, cell - 2 * pad, cell - 2 * pad);
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        if (c.lit === 1) { g.fillStyle = '#f4bf62'; g.font = `${cell * 0.5}px ui-monospace, monospace`; g.fillText('◆', cx, cy); }
+        if (c.target) { g.strokeStyle = '#9a86c8'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy - cell * 0.26); g.lineTo(cx + cell * 0.26, cy); g.lineTo(cx, cy + cell * 0.26); g.lineTo(cx - cell * 0.26, cy); g.closePath(); g.stroke(); }
+        if (c.portal) { g.strokeStyle = '#41b0d0'; g.lineWidth = 2.2; g.beginPath(); g.arc(cx, cy, cell * 0.34, 0, 7); g.stroke(); }
+        if (c.exit) { g.fillStyle = '#7fd8d0'; g.font = `${cell * 0.6}px ui-monospace, monospace`; g.fillText('⌖', cx, cy); }
+        if (c.gem) { g.fillStyle = 'rgba(244,191,98,0.16)'; g.beginPath(); g.arc(cx, cy, cell * 0.42, 0, 7); g.fill(); g.fillStyle = '#f4bf62'; g.font = `${cell * 0.6}px ui-monospace, monospace`; g.fillText('✦', cx, cy); }
+        if (c.box) { const m = cell * 0.16; g.fillStyle = c.target ? '#5aa845' : '#b48a6a'; g.fillRect(x + m, y + m, cell - 2 * m, cell - 2 * m); g.strokeStyle = '#0a0e16'; g.lineWidth = 1.5; g.strokeRect(x + m, y + m, cell - 2 * m, cell - 2 * m); }
+        if (c.agent) {
+          g.fillStyle = '#e3b6ec'; g.beginPath(); g.arc(cx, cy, cell * 0.3, 0, 7); g.fill();
+          const R = cell * 0.36, ang = [-Math.PI / 2, 0, Math.PI / 2, Math.PI][b.dir] || 0;
+          g.strokeStyle = '#0a0e16'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R); g.stroke();
+        }
+      }
+      if (b.wrapX || b.wrapY) {   // wrap-seam hints — the topology is legible even drawn flat
+        g.save(); g.setLineDash([6, 5]); g.lineWidth = 2; g.strokeStyle = '#c89ad0';
+        if (b.wrapX) { g.beginPath(); g.moveTo(1, 0); g.lineTo(1, h); g.moveTo(w - 1, 0); g.lineTo(w - 1, h); g.stroke(); }
+        if (b.wrapY) { g.beginPath(); g.moveTo(0, 1); g.lineTo(w, 1); g.moveTo(0, h - 1); g.lineTo(w, h - 1); g.stroke(); }
+        g.setLineDash([]); g.restore();
+      }
+    }
     function arcadeAct(act) {
       if (!arcadeGame) return;
-      if (act === 'undo') { arcadeUndo(arcadeGame); renderArcadeScreen(); return; }
-      if (act === 'reset') { arcadeReset(arcadeGame); renderArcadeScreen(); return; }
-      if (act === 'skip') {   // escape hatch: jump to a FRESH puzzle of this law (no reward) — never be stuck
+      const morph = arcadeGame.engine === 'morph';
+      if (act === 'engine') {   // PROTO toggle: swap forge ⇄ morph and reload this cabinet
+        arcadeMode = (arcadeMode === 'morph') ? 'forge' : 'morph'; arcadeGame = null; loadArcadeGame(); renderArcadeScreen(); return;
+      }
+      if (act === 'undo') { (morph ? morphUndo : arcadeUndo)(arcadeGame); renderArcadeScreen(); return; }
+      if (act === 'reset') { (morph ? morphReset : arcadeReset)(arcadeGame); renderArcadeScreen(); return; }
+      if (act === 'skip') {   // escape hatch: jump to a FRESH puzzle of this cabinet (no reward) — never be stuck
+        if (morph) { const nq = (arcadeGame.q | 0) + 1, g = loadMorphGame(arcadeLawIndex, nq); if (g) arcadeGame = g; renderArcadeScreen(); return; }
         let nq = (arcadeGame.q | 0) + 1, g = null, tries = 0;
         while (!g && tries < 16) { g = newArcadeGame(arcadeLawIndex, nq); if (!g) { nq++; tries++; } }
         if (g) { g.q = nq; arcadeGame = g; }
         renderArcadeScreen(); return;
       }
       if (act === 'next') {   // claiming a win banks the reward (once per frontier index) and advances
-        if (arcadeGame.won) { setCoins(getCoins() + arcadeReward(arcadeGame)); setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1); saveStory(); whereAmI(); }
+        if (arcadeGame.won) { setCoins(getCoins() + (morph ? morphReward(arcadeGame) : arcadeReward(arcadeGame))); setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1); saveStory(); whereAmI(); }
         loadArcadeGame(); renderArcadeScreen(); return;
       }
       const d = +act; if (!(d >= 0 && d <= 3)) return;
       const wasWon = arcadeGame.won;
-      if (arcadeMove(arcadeGame, d)) {
+      if ((morph ? morphMove : arcadeMove)(arcadeGame, d)) {
         if (arcadeGame.won && !wasWon) { renderArcadeScreen(); flashArcadeWin(arcadeGame); }
         else { drawArcadeBoard(); const m = document.getElementById('arcmoves'); if (m) m.textContent = arcadeStatusText(arcadeGame); }
       }
