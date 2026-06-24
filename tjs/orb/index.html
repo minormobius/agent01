@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orb · spherical symmetry · tjs</title>
-<meta name="description" content="A sphere sliced into n symmetric domains — the (2,2,n) dihedral kaleidoscope family plus the three exceptional polyhedral groups (tetra/octa/icosa), with geodesic subdivision. The 3D analogue of a polar symmetric pen.">
+<meta name="description" content="Slice a sphere into n symmetric domains: the (2,2,n) dihedral family, the three exceptional polyhedral groups, the star Schwarz triangles, and a Fibonacci-sphere spherical Voronoi. The 3D analogue of a polar symmetric pen.">
 <script type="importmap">
 {
   "imports": {
@@ -33,7 +33,7 @@
   .crumb b{color:var(--ink);font-weight:600}
 
   .panel{
-    position:fixed;top:46px;right:16px;z-index:5;width:252px;
+    position:fixed;top:46px;right:16px;z-index:5;width:256px;
     background:var(--panel);backdrop-filter:blur(9px);
     border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;
     box-shadow:0 18px 50px -20px #000}
@@ -53,6 +53,8 @@
   .row label{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--soft);margin-bottom:5px}
   .row label b{color:var(--ink);font-variant-numeric:tabular-nums}
   input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+  select{width:100%;font:inherit;font-size:12.5px;color:var(--ink);background:#0d0d15;
+    border:1px solid var(--line);border-radius:8px;padding:6px 8px}
 
   .toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--soft);cursor:pointer;margin:9px 0}
   .toggle input{accent-color:var(--accent);width:15px;height:15px}
@@ -65,7 +67,7 @@
   .note code{color:var(--accent2)}
 
   .hint{position:fixed;bottom:12px;left:18px;z-index:5;font-size:11.5px;color:var(--soft)}
-  @media (max-width:560px){ .panel{width:auto;left:12px;right:12px;top:auto;bottom:10px;max-height:78vh;overflow:auto} .hint{display:none} }
+  @media (max-width:560px){ .panel{width:auto;left:12px;right:12px;top:auto;bottom:10px;max-height:80vh;overflow:auto} .hint{display:none} }
 </style>
 </head>
 <body>
@@ -82,8 +84,15 @@
     <button data-mode="tetra">Tetra</button>
     <button data-mode="octa">Octa</button>
     <button data-mode="icosa">Icosa</button>
+    <button data-mode="schwarz">Schwarz</button>
+    <button data-mode="voronoi">Voronoi</button>
   </div>
   <div style="font-size:11px;color:var(--soft);margin-bottom:4px" id="schwarzLine">(2,2,n) — the infinite family, one per integer</div>
+
+  <div class="row" id="schwRow" style="display:none">
+    <label>star triangle (p,q,r)</label>
+    <select id="schw"></select>
+  </div>
 
   <div class="row" id="nRow">
     <label><span id="nLabel">order n</span> <b><span id="nVal">12</span></b></label>
@@ -107,15 +116,14 @@
     </div>
   </div>
 
-  <label class="toggle"><input type="checkbox" id="lines" checked> mirror lines</label>
+  <label class="toggle"><input type="checkbox" id="lines" checked> <span id="linesLabel">mirror lines</span></label>
   <label class="toggle"><input type="checkbox" id="spin" checked> auto-rotate</label>
 
-  <div class="note">
+  <div class="note" id="note">
     A spherical kaleidoscope is a Schwarz triangle <code>(p,q,r)</code> with
-    1/p+1/q+1/r&nbsp;&gt;&nbsp;1. The complete list: the <b>(2,2,n)</b> family
-    (any n → 4n cells) plus exactly three exceptions — tetra (2,3,3), octa
-    (2,3,4), icosa (2,3,5). <b>Subdivide</b> splits each triangle on a geodesic
-    grid: arbitrary density, symmetry intact.
+    1/p+1/q+1/r&nbsp;&gt;&nbsp;1. <b>(2,2,n)</b> is the infinite family; tetra/octa/icosa
+    are the only three exceptions. <b>Schwarz</b> adds fractional angles (5⁄2…) — same
+    mirrors, a triangle that wraps the sphere d&gt;1 times → star tilings.
   </div>
 </div>
 
@@ -132,21 +140,19 @@ const dot = (a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const norm = a=>{ const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; };
 const reflect = (v,n)=>{ const d=2*dot(v,n); return [v[0]-d*n[0], v[1]-d*n[1], v[2]-d*n[2]]; };
 
-/* Three generating mirror normals of a Coxeter / Schwarz triangle (p,q,r).
-   The dihedral angle at the edge shared by mirrors i,j is pi/m  ->
-   n_i . n_j = -cos(pi/m). The all-negative cone {dot(x,n_i) <= 0} is the
-   (non-empty, when 1/p+1/q+1/r > 1) fundamental triangle. */
+/* Three generating mirror normals of a Schwarz triangle (p,q,r), p,q,r possibly
+   fractional. Dihedral angle at edge {i,j} is pi/m -> n_i.n_j = -cos(pi/m). The
+   all-negative cone {dot(x,n_i)<=0} is the fundamental triangle. */
 function generators(p,q,r){
   const n0=[1,0,0];
-  const n1=[-Math.cos(Math.PI/p), Math.sin(Math.PI/p), 0];     // n0.n1 = -cos(pi/p)
-  const x = -Math.cos(Math.PI/r);                              // n0.n2 = -cos(pi/r)
-  const y = (-Math.cos(Math.PI/q) - Math.cos(Math.PI/p)*x) / Math.sin(Math.PI/p); // n1.n2 = -cos(pi/q)
+  const n1=[-Math.cos(Math.PI/p), Math.sin(Math.PI/p), 0];
+  const x = -Math.cos(Math.PI/r);
+  const y = (-Math.cos(Math.PI/q) - Math.cos(Math.PI/p)*x) / Math.sin(Math.PI/p);
   const z = Math.sqrt(Math.max(0, 1 - x*x - y*y));
   return [n0, n1, [x,y,z]];
 }
 
-/* Close the 3 generators under reflection -> the full mirror set
-   (6 tetra, 9 octa, 15 icosa, n+1 dihedral). Used to draw the great circles. */
+/* Close the 3 generators under reflection -> full mirror set (6/9/15, or n+1 dihedral). */
 function closeMirrors(gens){
   const list=[];
   const canon=m=>{ m=norm(m);
@@ -165,7 +171,7 @@ function closeMirrors(gens){
   return list;
 }
 
-const MAXM = 64;   // shader mirror-array size; dihedral n=48 needs ~49
+const MAXM=64, MAXP=160;
 function buildGroup(p,q,r,name,domains){
   const gens=generators(p,q,r);
   return { gens, mirrors:closeMirrors(gens), name, domains, pqr:`(${p},${q},${r})` };
@@ -176,6 +182,29 @@ const EXCEPTIONAL = {
   icosa: buildGroup(5,3,2,'icosahedral',120),
 };
 const dihedralGroup = n => buildGroup(2,2,n,'dihedral (2,2,n)',4*n);
+
+/* Curated star Schwarz triangles — each verified to a finite group (order
+   24/48/120) with a convergent fold; fractional angle gives the star tiling. */
+const SCHWARZ=[
+  {sym:'2 3 5⁄2',  pqr:[2,3,2.5],  order:120},
+  {sym:'2 5⁄2 5',  pqr:[2,2.5,5],  order:120},
+  {sym:'3 5 5⁄2',  pqr:[3,5,2.5],  order:120},
+  {sym:'5⁄2 5⁄2 3',pqr:[2.5,2.5,3],order:120},
+  {sym:'2 5⁄2 3',  pqr:[2,2.5,3],  order:120},
+  {sym:'2 3 4⁄3',  pqr:[2,3,4/3],  order:48},
+  {sym:'2 4 3⁄2',  pqr:[2,4,1.5],  order:48},
+  {sym:'2 3⁄2 3',  pqr:[2,1.5,3],  order:24},
+];
+
+/* Fibonacci sphere — n near-uniform points, no symmetry (the cursed any-n option). */
+function fibPoints(n){
+  const pts=[]; const ga=Math.PI*(3-Math.sqrt(5));
+  for(let k=0;k<n;k++){
+    const y=1-2*(k+0.5)/n, r=Math.sqrt(Math.max(0,1-y*y)), th=ga*k;
+    pts.push([r*Math.cos(th), y, r*Math.sin(th)]);
+  }
+  return pts;
+}
 
 /* ---------- three.js scene ---------- */
 const viewport=document.getElementById('viewport');
@@ -193,44 +222,18 @@ controls.enableDamping=true; controls.dampingFactor=0.08;
 controls.minDistance=1.6; controls.maxDistance=8;
 controls.autoRotate=true; controls.autoRotateSpeed=0.55;
 
-const PAD=Array.from({length:MAXM},()=>new THREE.Vector3());
-
-const uniforms={
-  uMode:{value:1},               // 0 axial lunes, 1 kaleidoscope
-  uN:{value:12.0},
-  uSubdiv:{value:1.0},
-  uMirrorEq:{value:0.0},
-  uShowLines:{value:1.0},
-  uPalette:{value:0},
-  uGen0:{value:new THREE.Vector3(1,0,0)},
-  uGen1:{value:new THREE.Vector3(0,1,0)},
-  uGen2:{value:new THREE.Vector3(0,0,1)},
-  uMirrors:{value:PAD},
-  uMirrorCount:{value:0},
-  uCamPos:{value:new THREE.Vector3()},
-  uLight:{value:new THREE.Vector3(0.4,0.72,0.55).normalize()},
-  uLine:{value:new THREE.Color(0xffffff)},
-  uRim:{value:new THREE.Color(0x39d6c8)},
+/* shared uniform value-objects, referenced by BOTH materials */
+const U={
+  uShowLines:{value:1.0}, uPalette:{value:0},
+  uCamPos:{value:new THREE.Vector3()}, uLight:{value:new THREE.Vector3(0.4,0.72,0.55).normalize()},
+  uLine:{value:new THREE.Color(0xffffff)}, uRim:{value:new THREE.Color(0x39d6c8)},
 };
 
-const vert=`
-  varying vec3 vLocal; varying vec3 vWorld; varying vec3 vNormal;
-  void main(){
-    vLocal = normalize(position);
-    vec4 wp = modelMatrix*vec4(position,1.0);
-    vWorld = wp.xyz;
-    vNormal = normalize(mat3(modelMatrix)*normal);
-    gl_Position = projectionMatrix*viewMatrix*wp;
-  }`;
-
-const frag=`
+const PRELUDE=`
   precision highp float;
-  #define PI 3.14159265
   varying vec3 vLocal; varying vec3 vWorld; varying vec3 vNormal;
-  uniform int uMode; uniform float uN, uSubdiv, uMirrorEq, uShowLines; uniform int uPalette;
-  uniform vec3 uGen0,uGen1,uGen2; uniform vec3 uMirrors[64]; uniform int uMirrorCount;
+  uniform float uShowLines; uniform int uPalette;
   uniform vec3 uCamPos,uLight,uLine,uRim;
-
   vec3 pal(float t,int p){
     vec3 a,b,c,d;
     if(p==0){a=vec3(.5);b=vec3(.5);c=vec3(1.);d=vec3(0.0,0.33,0.67);}
@@ -239,151 +242,186 @@ const frag=`
     else {a=vec3(.5,.42,.4);b=vec3(.5,.45,.45);c=vec3(1.,0.9,0.8);d=vec3(0.1,0.45,0.8);}
     return clamp(a+b*cos(6.28318*(c*t+d)),0.0,1.0);
   }
-
-  void main(){
-    vec3 p = normalize(vLocal);
-    vec3 sym; float line=0.0;
-
-    if(uMode==0){
-      // axial lunes — Cn about the y axis (rotation only; optional equatorial mirror)
-      float t = atan(p.z,p.x)/6.28318 + 0.5;
-      float seg = t*uN;
-      float idx = floor(seg);
-      float parity = mod(idx,2.0);
-      if(uMirrorEq>0.5 && p.y<0.0) parity = 1.0-parity;
-      sym = pal(idx/uN, uPalette) * (parity>0.5?0.80:1.0);
-      float fseg = fract(seg);
-      float dm = min(fseg,1.0-fseg);
-      float aaM = fwidth(seg)*1.3 + 1e-4;
-      line = 1.0 - smoothstep(0.0, aaM, dm);
-      if(uMirrorEq>0.5){
-        float aaE = fwidth(p.y)*1.6 + 0.0015;
-        line = max(line, 1.0 - smoothstep(0.0, aaE, abs(p.y)));
-      }
-    } else {
-      // kaleidoscope — fold to the fundamental Schwarz triangle
-      vec3 q=p; float cnt=0.0;
-      for(int i=0;i<96;i++){
-        bool moved=false;
-        float d0=dot(q,uGen0); if(d0>1e-4){ q-=2.0*d0*uGen0; cnt+=1.0; moved=true; }
-        float d1=dot(q,uGen1); if(d1>1e-4){ q-=2.0*d1*uGen1; cnt+=1.0; moved=true; }
-        float d2=dot(q,uGen2); if(d2>1e-4){ q-=2.0*d2*uGen2; cnt+=1.0; moved=true; }
-        if(!moved) break;
-      }
-      float parity=mod(cnt,2.0);
-
-      // barycentric-ish coords inside the triangle: e_i = 0 on mirror i, max at the opposite vertex
-      float e0=max(0.0,-dot(q,uGen0)), e1=max(0.0,-dot(q,uGen1)), e2=max(0.0,-dot(q,uGen2));
-      float es=e0+e1+e2+1e-9;
-      float F=uSubdiv;
-      float fa=e0/es*F, fb=e1/es*F, fc=e2/es*F;
-      float ia=floor(fa), ib=floor(fb), ic=floor(fc);
-      float s=ia+ib+ic;
-      float up = (s > F-1.5) ? 0.0 : 1.0;             // up/down sub-triangle
-      float hue = fract(ia*0.16 + ib*0.41 + 0.07);
-      sym = pal(fract(0.12 + 0.6*hue + 0.10*parity), uPalette);
-      sym *= (parity>0.5?0.86:1.0);                   // chirality two-tone
-      sym *= (up>0.5?0.90:1.0);
-
-      // mirror great circles
-      float dl=1e9;
-      for(int i=0;i<64;i++){ if(i>=uMirrorCount) break; dl=min(dl, abs(dot(p,uMirrors[i]))); }
-      line = 1.0 - smoothstep(0.0, 0.016, dl);
-
-      // geodesic subdivision grid (only when subdividing)
-      if(F>1.5){
-        float da=min(fract(fa),1.0-fract(fa));
-        float db=min(fract(fb),1.0-fract(fb));
-        float dc=min(fract(fc),1.0-fract(fc));
-        float dg=min(da,min(db,dc));
-        float aag=fwidth(fa)+fwidth(fb)+fwidth(fc)+1e-4;
-        line=max(line, (1.0-smoothstep(0.0, aag*0.9, dg))*0.6);
-      }
-    }
-    line *= uShowLines;
-
-    vec3 N=normalize(vNormal);
-    vec3 V=normalize(uCamPos-vWorld);
+  vec3 shade(vec3 sym,float line){
+    vec3 N=normalize(vNormal), V=normalize(uCamPos-vWorld);
     float diff=0.45+0.55*max(dot(N,uLight),0.0);
     vec3 col=sym*diff;
-    float fres=pow(1.0-max(dot(N,V),0.0),3.0);
-    col+=fres*uRim*0.85;
-    float spec=pow(max(dot(reflect(-uLight,N),V),0.0),48.0);
-    col+=spec*0.35;
-    col=mix(col, uLine, line*0.92);
-    col+=uLine*line*0.25;
-    gl_FragColor=vec4(col,1.0);
+    col+=pow(1.0-max(dot(N,V),0.0),3.0)*uRim*0.85;
+    col+=pow(max(dot(reflect(-uLight,N),V),0.0),48.0)*0.35;
+    line*=uShowLines;
+    col=mix(col,uLine,line*0.92); col+=uLine*line*0.25;
+    return col;
   }`;
 
-const material=new THREE.ShaderMaterial({uniforms, vertexShader:vert, fragmentShader:frag});
-const orb=new THREE.Mesh(new THREE.SphereGeometry(1,180,140), material);
+const VERT=`
+  varying vec3 vLocal; varying vec3 vWorld; varying vec3 vNormal;
+  void main(){
+    vLocal=normalize(position);
+    vec4 wp=modelMatrix*vec4(position,1.0); vWorld=wp.xyz;
+    vNormal=normalize(mat3(modelMatrix)*normal);
+    gl_Position=projectionMatrix*viewMatrix*wp;
+  }`;
+
+/* ---- kaleidoscope material (lune + dihedral + tetra/octa/icosa + schwarz) ---- */
+const PAD=Array.from({length:MAXM},()=>new THREE.Vector3());
+const kaleMat=new THREE.ShaderMaterial({
+  uniforms:Object.assign({}, U, {
+    uMode:{value:1}, uN:{value:12.0}, uSubdiv:{value:1.0}, uMirrorEq:{value:0.0},
+    uGen0:{value:new THREE.Vector3(1,0,0)}, uGen1:{value:new THREE.Vector3(0,1,0)},
+    uGen2:{value:new THREE.Vector3(0,0,1)},
+    uMirrors:{value:PAD}, uMirrorCount:{value:0},
+  }),
+  vertexShader:VERT,
+  fragmentShader:PRELUDE+`
+  uniform int uMode; uniform float uN,uSubdiv,uMirrorEq;
+  uniform vec3 uGen0,uGen1,uGen2; uniform vec3 uMirrors[64]; uniform int uMirrorCount;
+  void main(){
+    vec3 p=normalize(vLocal); vec3 sym; float line=0.0;
+    if(uMode==0){
+      float t=atan(p.z,p.x)/6.28318+0.5;
+      float seg=t*uN, idx=floor(seg), parity=mod(idx,2.0);
+      if(uMirrorEq>0.5 && p.y<0.0) parity=1.0-parity;
+      sym=pal(idx/uN,uPalette)*(parity>0.5?0.80:1.0);
+      float dm=min(fract(seg),1.0-fract(seg));
+      line=1.0-smoothstep(0.0, fwidth(seg)*1.3+1e-4, dm);
+      if(uMirrorEq>0.5) line=max(line, 1.0-smoothstep(0.0, fwidth(p.y)*1.6+0.0015, abs(p.y)));
+    } else {
+      vec3 q=p; float cnt=0.0;
+      for(int i=0;i<96;i++){ bool moved=false;
+        float d0=dot(q,uGen0); if(d0>1e-4){q-=2.0*d0*uGen0;cnt+=1.0;moved=true;}
+        float d1=dot(q,uGen1); if(d1>1e-4){q-=2.0*d1*uGen1;cnt+=1.0;moved=true;}
+        float d2=dot(q,uGen2); if(d2>1e-4){q-=2.0*d2*uGen2;cnt+=1.0;moved=true;}
+        if(!moved) break; }
+      float parity=mod(cnt,2.0);
+      float e0=max(0.0,-dot(q,uGen0)),e1=max(0.0,-dot(q,uGen1)),e2=max(0.0,-dot(q,uGen2));
+      float es=e0+e1+e2+1e-9, a=e0/es,b=e1/es,c=e2/es, F=uSubdiv;
+      float fa=a*F,fb=b*F,fc=c*F, ia=floor(fa),ib=floor(fb),ic=floor(fc);
+      float up=((ia+ib+ic)>F-1.5)?0.0:1.0;
+      float hue=fract(0.34*b+0.67*c + 0.11*(ia-ic));
+      sym=pal(fract(0.04+hue+0.08*parity),uPalette);
+      sym*=(parity>0.5?0.84:1.0); sym*=(up>0.5?0.90:1.0);
+      float dl=1e9;
+      for(int i=0;i<64;i++){ if(i>=uMirrorCount) break; dl=min(dl,abs(dot(p,uMirrors[i]))); }
+      line=1.0-smoothstep(0.0,0.016,dl);
+      if(F>1.5){
+        float dg=min(min(min(fract(fa),1.0-fract(fa)),min(fract(fb),1.0-fract(fb))),min(fract(fc),1.0-fract(fc)));
+        line=max(line,(1.0-smoothstep(0.0,(fwidth(fa)+fwidth(fb)+fwidth(fc))*0.9+1e-4,dg))*0.6);
+      }
+    }
+    gl_FragColor=vec4(shade(sym,line),1.0);
+  }`,
+});
+
+/* ---- voronoi material (Fibonacci-sphere spherical Voronoi) ---- */
+const PTS=Array.from({length:MAXP},()=>new THREE.Vector3());
+const voroMat=new THREE.ShaderMaterial({
+  uniforms:Object.assign({}, U, { uPoints:{value:PTS}, uPCount:{value:72} }),
+  vertexShader:VERT,
+  fragmentShader:PRELUDE+`
+  uniform vec3 uPoints[160]; uniform int uPCount;
+  void main(){
+    vec3 p=normalize(vLocal);
+    float b1=-2.0,b2=-2.0; int idx=0;
+    for(int i=0;i<160;i++){ if(i>=uPCount) break;
+      float dp=dot(p,uPoints[i]);
+      if(dp>b1){ b2=b1; b1=dp; idx=i; } else if(dp>b2){ b2=dp; } }
+    float hue=fract(float(idx)*0.6180339887);
+    vec3 sym=pal(hue,uPalette);
+    float w=fwidth(b1-b2)*0.6+0.0035;
+    float line=1.0-smoothstep(0.0,w,b1-b2);
+    gl_FragColor=vec4(shade(sym,line),1.0);
+  }`,
+});
+
+const orb=new THREE.Mesh(new THREE.SphereGeometry(1,180,140), kaleMat);
 scene.add(orb);
 
 /* ---------- state + UI ---------- */
-let mode='dihedral';
+let mode='dihedral', sliderWasVoro=false;
 const el=id=>document.getElementById(id);
 
+// populate schwarz dropdown
+el('schw').innerHTML = SCHWARZ.map((s,i)=>`<option value="${i}">(${s.sym})</option>`).join('');
+
 function applyGroup(g){
-  uniforms.uGen0.value.set(...g.gens[0]);
-  uniforms.uGen1.value.set(...g.gens[1]);
-  uniforms.uGen2.value.set(...g.gens[2]);
-  for(let i=0;i<MAXM;i++){
-    if(i<g.mirrors.length) PAD[i].set(...g.mirrors[i]); else PAD[i].set(0,0,0);
-  }
-  uniforms.uMirrorCount.value=Math.min(g.mirrors.length, MAXM);
+  kaleMat.uniforms.uGen0.value.set(...g.gens[0]);
+  kaleMat.uniforms.uGen1.value.set(...g.gens[1]);
+  kaleMat.uniforms.uGen2.value.set(...g.gens[2]);
+  for(let i=0;i<MAXM;i++) PAD[i].set(...(i<g.mirrors.length?g.mirrors[i]:[0,0,0]));
+  kaleMat.uniforms.uMirrorCount.value=Math.min(g.mirrors.length,MAXM);
   el('groupName').textContent=g.name;
-  el('schwarzLine').textContent =
-    g.name.startsWith('dihedral') ? '(2,2,n) — the infinite family, one per integer'
-                                  : g.pqr+' — one of exactly three exceptions';
+}
+function setVoroPoints(n){
+  const pts=fibPoints(n);
+  for(let i=0;i<MAXP;i++) PTS[i].set(...(i<pts.length?pts[i]:[0,0,0]));
+  voroMat.uniforms.uPCount.value=Math.min(n,MAXP);
+  el('groupName').textContent='Fibonacci Voronoi';
 }
 
 function refresh(){
-  const F=uniforms.uSubdiv.value, n=uniforms.uN.value;
-  let base;
-  if(mode==='lune'){ uniforms.uMode.value=0; base=n; }
-  else {
-    uniforms.uMode.value=1;
-    const g = mode==='dihedral' ? dihedralGroup(n) : EXCEPTIONAL[mode];
-    applyGroup(g); base=g.domains;
-  }
-  el('cellCount').textContent = mode==='lune' ? base : Math.round(base*F*F);
+  const F=kaleMat.uniforms.uSubdiv.value;
+  const isKale = mode!=='voronoi';
+  orb.material = isKale ? kaleMat : voroMat;
+
+  // slider range/label per mode
+  const s=el('n'), v0=+s.value;
+  if(mode==='voronoi'){ s.min=8; s.max=160; if(!sliderWasVoro){ s.value=72; } el('nLabel').textContent='cells (points)'; }
+  else { s.min=2; s.max=48; if(sliderWasVoro){ s.value=12; } el('nLabel').textContent = mode==='lune'?'slices n':'order n'; }
+  sliderWasVoro = (mode==='voronoi');
+  el('nVal').textContent=s.value;
+  const n=+s.value;
+
+  let base=0;
+  if(mode==='lune'){ kaleMat.uniforms.uMode.value=0; base=n; }
+  else if(mode==='dihedral'){ kaleMat.uniforms.uMode.value=1; const g=dihedralGroup(n); applyGroup(g); base=g.domains; }
+  else if(mode==='schwarz'){ kaleMat.uniforms.uMode.value=1; const sc=SCHWARZ[+el('schw').value];
+    const g=buildGroup(...sc.pqr, '(' + sc.sym + ')', sc.order); applyGroup(g); base=sc.order;
+    el('groupName').textContent='Schwarz '+'('+sc.sym+')'; }
+  else if(mode==='voronoi'){ setVoroPoints(n); base=n; }
+  else { kaleMat.uniforms.uMode.value=1; const g=EXCEPTIONAL[mode]; applyGroup(g); base=g.domains; }
+
+  const cells = (mode==='lune'||mode==='voronoi') ? base : Math.round(base*F*F);
+  el('cellCount').textContent=cells;
+
   // control visibility
-  el('nRow').style.display    = (mode==='lune'||mode==='dihedral') ? '' : 'none';
-  el('subRow').style.display  = (mode==='lune') ? 'none' : '';
+  const kaleGrp = (mode==='dihedral'||mode==='tetra'||mode==='octa'||mode==='icosa'||mode==='schwarz');
+  el('nRow').style.display      = (mode==='lune'||mode==='dihedral'||mode==='voronoi') ? '' : 'none';
+  el('subRow').style.display    = kaleGrp ? '' : 'none';
+  el('schwRow').style.display   = (mode==='schwarz') ? '' : 'none';
   el('mirrorRow').style.display = (mode==='lune') ? '' : 'none';
-  el('nLabel').textContent = mode==='lune' ? 'slices n' : 'order n';
+  el('linesLabel').textContent  = (mode==='voronoi') ? 'cell edges' : 'mirror lines';
+  el('schwarzLine').textContent =
+    mode==='voronoi' ? 'golden-spiral lattice — any n, near-equal cells, no symmetry' :
+    mode==='schwarz' ? 'fractional triangle — same mirrors, density d>1 star tiling' :
+    mode==='lune'    ? 'Cn — rotation only (the 2D polar pen, lifted)' :
+    mode==='dihedral'? '(2,2,n) — the infinite family, one per integer'
+                     : (EXCEPTIONAL[mode].pqr+' — one of exactly three exceptions');
 }
 
 document.querySelectorAll('#modes button').forEach(btn=>{
-  btn.onclick=()=>{
-    mode=btn.dataset.mode;
+  btn.onclick=()=>{ mode=btn.dataset.mode;
     document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b===btn));
-    refresh();
-  };
+    refresh(); };
 });
-
-el('n').oninput=e=>{ uniforms.uN.value=+e.target.value; el('nVal').textContent=e.target.value; refresh(); };
-el('sub').oninput=e=>{ uniforms.uSubdiv.value=+e.target.value; el('subVal').textContent=e.target.value; refresh(); };
-el('mirror').onchange=e=>uniforms.uMirrorEq.value=e.target.checked?1:0;
-el('lines').onchange=e=>uniforms.uShowLines.value=e.target.checked?1:0;
+el('schw').onchange=refresh;
+el('n').oninput=refresh;
+el('sub').oninput=e=>{ kaleMat.uniforms.uSubdiv.value=+e.target.value; el('subVal').textContent=e.target.value; refresh(); };
+el('mirror').onchange=e=>kaleMat.uniforms.uMirrorEq.value=e.target.checked?1:0;
+el('lines').onchange=e=>U.uShowLines.value=e.target.checked?1:0;
 el('spin').onchange=e=>controls.autoRotate=e.target.checked;
 document.querySelectorAll('#pals button').forEach(b=>{
-  b.onclick=()=>{ uniforms.uPalette.value=+b.dataset.pal;
+  b.onclick=()=>{ U.uPalette.value=+b.dataset.pal;
     document.querySelectorAll('#pals button').forEach(x=>x.classList.toggle('on',x===b)); };
 });
 
 refresh();
 
 /* ---------- loop ---------- */
-function resize(){
-  const w=innerWidth, h=innerHeight;
-  renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix();
-}
+function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); }
 addEventListener('resize',resize); resize();
-
 renderer.setAnimationLoop(()=>{
   controls.update();
-  uniforms.uCamPos.value.copy(camera.position);
+  U.uCamPos.value.copy(camera.position);
   renderer.render(scene,camera);
 });
 </script>
