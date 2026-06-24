@@ -22,15 +22,15 @@ fork.** hoop is a no-build static site and can't reach `../../fable/` at runtime
 takes input through its own arcade UI (`index.html` `drawMorphBoard` /
 `morphMove`), adapting morph's `gameForSeed`/`tryMove`/`isWin` contract.
 
-## Status: PROTOTYPE, gated (morph is the chosen direction)
+## Status: DEFAULT (v098) — morph is the live arcade engine
 
-A side-by-side proof of concept; the live arcade default is still **forge**
-(opaque minted laws), with morph opt-in:
+morph is now the **default** arcade engine. forge (opaque minted laws) is kept
+accessible but opt-in:
 
-- add `?morph=1` to the URL, **or** toggle "engine: forge ⇄ morph" in the arcade
+- add `?forge=1` to the URL, **or** toggle "engine: morph ⇄ forge" in the arcade
   screen footer.
 
-In proto mode the arcade is a **sampler**: a diverse showcase covering every
+The arcade is a **sampler**: a diverse showcase covering every
 primary (traverse / sokoban / collect / lights) and **every substrate** —
 grid / cylinder / torus / Möbius / Klein **and hex**. "⟳ type" cycles the game
 type; next/skip advance the instance within it.

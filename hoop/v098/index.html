@@ -1956,8 +1956,8 @@
     const clearedFor = (li) => (story.ready && story.store.getFact(story.playerId, 'arcade.cleared.' + li)) | 0;
     const setClearedFor = (li, n) => { if (story.ready) story.store.setFact(story.playerId, 'arcade.cleared.' + li, n | 0); };
     let arcadeGame = null, arcadeLawIndex = 0;
-    // PROTO gate: forge (the live default) vs morph (opt-in). `?morph=1` or the in-screen toggle flips it.
-    let arcadeMode = (() => { try { return new URLSearchParams(location.search).get('morph') ? 'morph' : 'forge'; } catch (e) { return 'forge'; } })();
+    // ENGINE gate: morph (the live default) vs forge (opt-in). `?forge=1` or the in-screen toggle flips it.
+    let arcadeMode = (() => { try { return new URLSearchParams(location.search).get('forge') ? 'forge' : 'morph'; } catch (e) { return 'morph'; } })();
     function loadArcadeGame() {
       if (arcadeMode === 'morph') { arcadeGame = loadMorphGame(); return; }
       const p = clearedFor(arcadeLawIndex);
@@ -2036,6 +2036,11 @@
     const morphUndo = (g) => { if (!g || !g.history.length) return false; g.state = g.history.pop(); g.moves = Math.max(0, g.moves - 1); g.won = false; return true; };
     const morphReset = (g) => { if (g) { g.state = mInit(g.inst); g.moves = 0; g.won = false; g.history = []; } };
     const morphReward = (g) => g ? Math.round(4 + g.par * 0.8 + ((g.report && g.report.difficulty) || 0) / 10) : 0;
+    // EFFICIENCY PAYS. The full reward is for matching par; every move over par shaves 12% (floored at
+    // 20% of base, and never below 1 coin). Reads `g.moves` so it's live as you play and exact on the win.
+    const overPar = (g) => g ? Math.max(0, (g.moves | 0) - (g.par | 0)) : 0;
+    const baseReward = (g) => g ? (g.engine === 'morph' ? morphReward(g) : arcadeReward(g)) : 0;
+    const parReward = (g) => { if (!g) return 0; const base = baseReward(g); return Math.max(1, Math.round(base * Math.max(0.2, 1 - overPar(g) * 0.12))); };
     const popcount = (n) => { let c = 0; n = n >>> 0; while (n) { c += n & 1; n >>>= 1; } return c; };
     const MGOAL_BLURB = { exit: 'reach the gate ⌖', collect: 'gather every ✦', cover: 'push a box onto every ◇ marker', lights: 'light every ◆ tile' };
     // render-ready board snapshot (square substrates: layout(c) = integer {x,y})
@@ -2088,10 +2093,11 @@
       const g = arcadeGame;
       if (!g) { card.innerHTML = `<button class="aclose" data-aclose="1">close ⏎</button><div class="ahead">THE ARCADE</div><div class="aboardcard" style="padding:34px"><span class="atitle">the cabinet is dark</span><div class="arule" style="margin-top:8px">no puzzle right now — close and step back in</div></div>`; return; }
       const morph = g.engine === 'morph';
-      const r = g.report, cleared = clearedFor(g.lawIndex), reward = morph ? morphReward(g) : arcadeReward(g);
+      const r = g.report, cleared = clearedFor(g.lawIndex), reward = parReward(g), full = baseReward(g), over = overPar(g);
+      const overTag = over > 0 ? ` <span style="color:var(--mmuted)">(−${full - reward} over par)</span>` : '';
       const winBar = g.won
-        ? `<div class="awin">solved in ${g.moves} — par ${g.par} · <span data-arc="next" style="cursor:pointer;text-decoration:underline;color:var(--maccent)">claim ◈${reward} &amp; next ›</span></div>`
-        : `<div class="astatus" style="color:var(--mmuted)">solve to earn ◈${reward}</div>`;
+        ? `<div class="awin">solved in ${g.moves} — par ${g.par} · <span data-arc="next" style="cursor:pointer;text-decoration:underline;color:var(--maccent)">claim ◈${reward} &amp; next ›</span>${overTag}</div>`
+        : `<div class="astatus" style="color:var(--mmuted)">solve to earn ◈${full}${over > 0 ? ` · now ◈${reward} (${over} over par)` : ' — match par for full'}</div>`;
       const headTxt = morph ? `THE ARCADE · morph proto · type ${(morphTypeIdx % morphTypeCount()) + 1}/${morphTypeCount()}` : 'THE ARCADE';
       const hue = morph ? (g.genome.aesthetic ? g.genome.aesthetic.hue : 268) : 258;
       const pillTxt = morph ? `${esc(g.genome.substrate.id)} · ${esc(g.genome.primary)}` : `forge · law ${g.law.id}`;
@@ -2252,7 +2258,7 @@
       }
       if (act === 'next') {   // claiming a win banks the reward and advances to a fresh puzzle
         if (arcadeGame.won) {
-          setCoins(getCoins() + (morph ? morphReward(arcadeGame) : arcadeReward(arcadeGame)));
+          setCoins(getCoins() + parReward(arcadeGame));   // efficiency pays — over-par solves bank less
           if (!morph) setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1);   // forge tracks a per-law frontier; the morph proto is a session sampler
           saveStory(); whereAmI();
         }
@@ -2272,7 +2278,8 @@
       const arc = e.target.closest('[data-arc]'); if (arc) arcadeAct(arc.dataset.arc);
     });
     function flashArcadeWin(g) {
-      notify(`◈ ${g.law.name} — solved in ${g.moves} (par ${g.par}) · claim ◈${arcadeReward(g)}`, { kind: 'coin', ms: 3600 });
+      const over = overPar(g), tail = over > 0 ? ` · ◈${parReward(g)} (${over} over par)` : ` · ◈${parReward(g)} (par!)`;
+      notify(`◈ ${g.law.name} — solved in ${g.moves} (par ${g.par})${tail}`, { kind: 'coin', ms: 3600 });
     }
 
     // ── THE GARDEN (grow-role component) — the GROW corner of the trade↔grow↔dwell triangle. Plant seeds
