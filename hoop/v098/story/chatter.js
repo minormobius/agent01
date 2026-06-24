@@ -28,12 +28,14 @@ export function activePhase(bank, state) {
 
 const hash = (s) => { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 
-// pick a faction+phase line, deterministic per (seed, phase) — re-rolls when the phase advances
-export function pickChatter(bank, faction, state, seed) {
+// pick a faction+phase line, deterministic per (seed, phase) — re-rolls when the phase advances. `bump`
+// advances the line each time you re-talk to the SAME crowd member (their interaction count), so an ambient
+// NPC cycles through its bank instead of repeating one line forever. Still pure (no Date/random) → stable.
+export function pickChatter(bank, faction, state, seed, bump = 0) {
   if (!bank || !bank.lines) return null;
   const phase = activePhase(bank, state);
   const byF = bank.lines[faction] || bank.lines._default || {};
   const list = byF[phase] || byF[(bank.phases[0] || {}).id] || [];
   if (!list.length) return null;
-  return list[hash(String(seed) + '|' + phase) % list.length];
+  return list[(hash(String(seed) + '|' + phase) + (bump | 0)) % list.length];
 }

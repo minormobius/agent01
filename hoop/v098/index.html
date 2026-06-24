@@ -1726,7 +1726,9 @@
       const ci = story.store.contentById(npcId); if (!ci) return null;
       const p = story.store.getPlayerState(story.playerId);
       const state = { facts: story.store.getFacts(story.playerId), narrative_tier: p.narrative_tier, revelation_tier: p.revelation_tier, items: loadGateState(story.store, story.playerId).items };
-      return pickChatter(story.chatter, factionOf(ci.tags), state, agent.featureKey || npcId);
+      // bump = how many times you've talked to THIS crowd member → cycle their lines instead of repeating one
+      const bump = (story.active && story.active.intro && story.active.intro.interaction_count) | 0;
+      return pickChatter(story.chatter, factionOf(ci.tags), state, agent.featureKey || npcId, bump);
     }
     // the story overlay is shown/hidden through one pair so the backdrop + width class stay in lock-step.
     function showStory(mode) {
@@ -2622,11 +2624,6 @@
     }
     // resolve a storyboard marker to a world position for the waypoint
     const PLACE_ROLE = [[/industrial|forge|works|margin/i, 'make'], [/garden|green|grow|deck/i, 'grow'], [/market|braid|trade|bazaar/i, 'trade'], [/hall|council|govern|court/i, 'govern'], [/heal|clinic|med|bay/i, 'heal'], [/learn|library|archive|school/i, 'learn'], [/worship|shrine|temple|nave/i, 'worship']];
-    function farMargin() {
-      if (!society) return null; let far = null, fd = -1;
-      for (const o of society.rooms) { if (o.ch !== 0) continue; const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d > fd) { fd = d; far = o; } }
-      return far ? { x: far.x, y: far.y } : null;
-    }
     function nearestRoomOfRole(role) {
       if (!society || !role) return null; let best = null, bd = Infinity;
       for (const o of society.rooms) { if (o.role !== role) continue; const d = (o.x - px()) ** 2 + (o.y - py()) ** 2; if (d < bd) { bd = d; best = { x: o.x, y: o.y }; } }
@@ -2636,16 +2633,15 @@
       if (!m) return null;
       if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); if (!a) return null; return ((a.deck || 0) !== playerDeck() && shaftXY) ? { x: shaftXY.x, y: shaftXY.y } : { x: a.x, y: a.y }; }
       if (m.terminal) {
-        // point at a terminal ON THE PLAYER'S DECK — componentAt (the click handler) filters by deck, so an
-        // off-deck terminal would draw a waypoint you can't walk to OR click. Fall back to any deck if none here.
-        const pick = (sameDeck) => { let best = null, bd = Infinity; const pd = playerDeck();
-          for (const ch of (world ? world.chunks : [])) { if (sameDeck && (ch.deck || 0) !== pd) continue;
-            for (const cp of ((ch.painted && ch.painted.comps) || [])) { if (!isTerminal(cp)) continue; const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = { x: cp.cx, y: cp.cy }; } } }
-          return best; };
-        return pick(true) || pick(false);
+        // a terminal ON THE PLAYER'S DECK is walkable + clickable; if none is here, point at the SHAFT (the way
+        // to the other deck), NEVER at an off-deck terminal (that drew a waypoint you couldn't walk to or click).
+        let best = null, bd = Infinity; const pd = playerDeck();
+        for (const ch of (world ? world.chunks : [])) { if ((ch.deck || 0) !== pd) continue;
+          for (const cp of ((ch.painted && ch.painted.comps) || [])) { if (!isTerminal(cp)) continue; const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = { x: cp.cx, y: cp.cy }; } } }
+        return best || (shaftXY ? { x: shaftXY.x, y: shaftXY.y } : null);
       }
       if (m.place) {   // a LOCATION ref from his plot_beats → a world position (the descent, or a role-matched room)
-        if (m.place === 'rind') return (shaftXY && { x: shaftXY.x, y: shaftXY.y }) || farMargin();
+        if (m.place === 'rind') return shaftXY ? { x: shaftXY.x, y: shaftXY.y } : null;   // no shaft yet → NO waypoint (the hint text still shows), not a random far room
         for (const [re, role] of PLACE_ROLE) if (re.test(m.place)) { const p = nearestRoomOfRole(role); if (p) return p; }
         return null;   // unresolved → the hint text still shows in the quest log
       }
