@@ -4,6 +4,7 @@
 // a user's feed definition record from their PDS and running the shared evaluator.
 // Stateless: feeds live entirely on ATProto, no database.
 import { evaluate } from './feedgen/pipeline.js';
+import * as gc from './lib/gc.js';
 
 const FEED_HOST = 'b.mino.mobi';
 const SERVICE_DID = `did:web:${FEED_HOST}`;
@@ -162,6 +163,19 @@ export default {
     if (path === '/xrpc/app.bsky.feed.describeFeedGenerator') return json({ did: SERVICE_DID, feeds: [] });
     if (path === '/xrpc/app.bsky.feed.getFeedSkeleton') return getFeedSkeleton(url, env);
     if (path === '/api/feedgen/regex' && request.method === 'POST') return regexAssistant(request, env);
+
+    // ── gc — block intelligence API (read-only, public data, CORS open) ───────
+    if (path === '/api/gc' || path === '/api/gc/') return json(gc.discovery(url.origin));
+    const gcRoute = {
+      '/api/gc/relation': gc.relation,
+      '/api/gc/matrix': gc.matrix,
+      '/api/gc/who-blocks': gc.whoBlocks,
+      '/api/gc/blockers': gc.blockers,
+    }[path];
+    if (gcRoute) {
+      try { return json(await gcRoute(url.searchParams, url.origin)); }
+      catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
+    }
 
     // Builder preview — evaluate a posted definition (so search works via the
     // service token without exposing it to the browser).

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gc · who blocks them — everyone blocking a user</title>
+<meta name="description" content="Everyone who blocks a Bluesky user. One handle in, the full blocklist out — network-wide block index, paginated, no login.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="gc · who blocks them">
+<meta property="og:description" content="Everyone who blocks a named Bluesky user. One handle in, the full count + list out.">
+<meta property="og:url" content="https://b.mino.mobi/gc/blockers/">
+<meta property="og:image" content="https://mino.mobi/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root {
+  --bg:#04060f; --panel:#0a1324; --panel2:#0c1830; --line:rgba(120,160,220,0.16);
+  --fg:#dce8fb; --muted:#8ea6c8; --sky:#5aa9ff; --gold:#ffd86b; --rose:#ff7a9c; --green:#6be3a6;
+  --mono: ui-monospace, Menlo, Consolas, monospace;
+  --rule: rgba(120,160,220,0.28); --text: var(--fg);
+}
+* { box-sizing: border-box; }
+body { margin:0; background: radial-gradient(120% 80% at 50% -10%, #0b1830 0%, #060d1c 50%, #04060f 100%); color: var(--fg); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height:100vh; }
+a { color: var(--sky); text-decoration:none; }
+a:hover { text-decoration:underline; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 22px 18px 80px; }
+.crumb { color: var(--muted); font-size:13px; }
+.crumb:hover { color: var(--sky); }
+.tabs { display:flex; gap:8px; margin:14px 0 0; flex-wrap:wrap; }
+.tabs a { font:600 11px/1 var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:7px 13px; }
+.tabs a.on { color:var(--rose); border-color:rgba(255,122,156,0.4); background:rgba(255,122,156,0.07); }
+.tabs a:hover { text-decoration:none; color:var(--fg); }
+h1 { margin:.7rem 0 .15rem; font-size: 30px; letter-spacing:-0.01em; }
+h1 .dot { color: var(--rose); }
+.sub { color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing:.18em; text-transform:uppercase; margin:0 0 14px; }
+.lede { color: var(--muted); max-width: 64ch; margin: 0 0 4px; }
+.lede b { color: var(--fg); font-weight:600; }
+.note { color:var(--muted); font:500 12.5px/1.6 var(--mono); background:rgba(90,169,255,0.05); border:1px solid var(--line); border-left:3px solid var(--sky); border-radius:8px; padding:10px 13px; margin:16px 0 0; max-width:64ch; }
+.note b { color:var(--fg); }
+.note a { color:var(--sky); }
+
+/* form */
+form { margin: 22px 0 6px; background: var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+.field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.flabel { font:600 10px/1.3 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.flabel small { color:var(--sky); font-weight:500; letter-spacing:.04em; text-transform:none; }
+.field input { background:#060e1e; border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:10px 11px; font:15px var(--mono); width:100%; }
+.field input:focus { outline:none; border-color:var(--sky); }
+.runrow { display:flex; align-items:center; gap:14px; margin-top:14px; flex-wrap:wrap; }
+.run { font:600 14px var(--mono); background:var(--rose); color:#2a0010; border:0; border-radius:999px; padding:10px 24px; cursor:pointer; }
+.run:hover { filter:brightness(1.06); }
+.run:disabled { opacity:.5; cursor:default; }
+.status { color:var(--muted); font:500 13px var(--mono); }
+.status.err { color:#ff9a9a; }
+
+/* summary */
+.summary { margin: 22px 0 8px; padding:14px 16px; background:var(--panel2); border:1px solid var(--line); border-radius:12px; line-height:1.7; }
+.summary .big { color:var(--rose); font-weight:700; }
+.summary .who { color:var(--gold); }
+.summary .meta { color:var(--muted); font-size:13px; margin-top:6px; }
+
+/* blocker rows */
+.people { margin-top:18px; display:flex; flex-direction:column; gap:0; }
+.person { display:flex; gap:10px; align-items:center; padding:13px 4px; border-top:1px solid var(--line); color:inherit; }
+.person:hover { background:rgba(255,122,156,0.05); text-decoration:none; }
+.av { width:34px; height:34px; border-radius:50%; flex:0 0 auto; object-fit:cover; background:#0c1830; }
+.who2 { min-width:0; }
+.name { font-weight:600; font-size:14px; color:var(--fg); }
+.handle { color:var(--muted); font-size:12.5px; }
+.when { margin-left:auto; font:600 11px/1.3 var(--mono); color:var(--muted); text-align:right; white-space:nowrap; }
+.morewrap { margin-top:18px; text-align:center; }
+.more { font:600 13px var(--mono); background:transparent; color:var(--sky); border:1px solid var(--line); border-radius:999px; padding:9px 20px; cursor:pointer; }
+.more:hover { border-color:var(--sky); }
+.more:disabled { opacity:.5; cursor:default; }
+
+footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font:500 12px var(--mono); display:flex; gap:14px; flex-wrap:wrap; }
+footer a { color:var(--muted); }
+footer a:hover { color:var(--sky); }
+.empty { color:var(--muted); margin-top:18px; font-style:italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="crumb" href="/">← b.mino.mobi · the Bluesky corner</a>
+  <div class="tabs">
+    <a href="/gc/">block matrix</a>
+    <a href="/gc/mutuals/">mutuals who block</a>
+    <a href="/gc/blockers/" class="on">who blocks them</a>
+    <a href="/gc/api/">API</a>
+  </div>
+  <h1>who blocks them<span class="dot"> ⛒</span></h1>
+  <p class="sub">everyone blocking a user</p>
+  <p class="lede">Give one handle <b>Y</b> and see <b>everyone who blocks Y</b> — the full count and the list, newest blocks first. Unlike the other gc tools (which read raw block records for a bounded set of accounts), a network-wide blocker list can't come from raw records — blocks live in each blocker's own repo, scattered across all of Bluesky. This reads the firehose-built <b>block index</b> at <a href="https://clearsky.services" target="_blank" rel="noopener">clearsky.services</a> through our API.</p>
+
+  <p class="note"><b>Index-backed.</b> Counts and membership are as fresh and complete as Clearsky's index, which mirrors the firehose. Direct blocks only (a subscribed moderation block-list isn't a per-account block). This is the same data the <a href="/gc/api/">/api/gc/blockers</a> endpoint serves — agents can call it directly.</p>
+
+  <form id="form" autocomplete="off">
+    <div class="field">
+      <label class="flabel" for="y">Y <small>the user whose blockers to list</small></label>
+      <input id="y" name="y" placeholder="bob.bsky.social" spellcheck="false" data-bsky-typeahead autocapitalize="off">
+    </div>
+    <div class="runrow">
+      <button class="run" id="run" type="submit">list blockers</button>
+      <span class="status" id="status"></span>
+    </div>
+  </form>
+
+  <div id="out"></div>
+  <div id="morewrap"></div>
+
+  <footer>
+    <a href="/">b.mino.mobi</a>
+    <a href="/gc/api/">gc API</a>
+    <span>via clearsky.services · public block index</span>
+  </footer>
+</div>
+
+<script src="/feedgen/typeahead.js"></script>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const statusEl = $('status'), outEl = $('out'), moreEl = $('morewrap'), runBtn = $('run');
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+function setStatus(msg, err = false) { statusEl.textContent = msg; statusEl.classList.toggle('err', !!err); }
+function fmtDate(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }); }
+
+let state = null; // { subject, total, page, shown }
+
+function renderPerson(p) {
+  const handle = p.handle || p.did;
+  const name = p.displayName || handle;
+  const av = p.avatar ? `<img class="av" src="${esc(p.avatar)}" alt="">` : `<span class="av"></span>`;
+  return `<a class="person" href="https://bsky.app/profile/${esc(handle)}" target="_blank" rel="noopener">
+    ${av}
+    <div class="who2"><div class="name">${esc(name)}</div><div class="handle">@${esc(handle)}</div></div>
+    <div class="when">${p.blockedAt ? 'blocked' : ''}<small>${p.blockedAt ? esc(fmtDate(p.blockedAt)) : ''}</small></div>
+  </a>`;
+}
+
+async function fetchPage(subject, page) {
+  const r = await fetch(`/api/gc/blockers?subject=${encodeURIComponent(subject)}&page=${page}`);
+  const d = await r.json().catch(() => ({ error: 'bad response' }));
+  if (!r.ok) throw new Error(d.error || `error ${r.status}`);
+  return d;
+}
+
+function renderMore() {
+  moreEl.innerHTML = '';
+  if (state && state.nextPage) {
+    moreEl.innerHTML = `<div class="morewrap"><button class="more" id="more">load more — showing ${state.shown.toLocaleString()} of ${state.total.toLocaleString()}</button></div>`;
+    $('more').addEventListener('click', loadMore);
+  } else if (state) {
+    moreEl.innerHTML = `<div class="morewrap" style="color:var(--muted);font:500 12px var(--mono)">all ${state.total.toLocaleString()} shown</div>`;
+  }
+}
+
+let busy = false;
+async function loadMore() {
+  if (busy || !state || !state.nextPage) return;
+  busy = true; const btn = $('more'); if (btn) { btn.disabled = true; btn.textContent = 'loading…'; }
+  try {
+    const d = await fetchPage(state.subjectInput, state.nextPage);
+    outEl.querySelector('.people').insertAdjacentHTML('beforeend', d.blockers.map(renderPerson).join(''));
+    state.shown += d.blockers.length;
+    state.nextPage = d.nextPage;
+    renderMore();
+  } catch (e) { setStatus(String(e.message || e), true); }
+  finally { busy = false; }
+}
+
+let running = false;
+async function run(subject) {
+  if (running) return;
+  running = true; runBtn.disabled = true; outEl.innerHTML = ''; moreEl.innerHTML = '';
+  try {
+    setStatus('reading the block index…');
+    const d = await fetchPage(subject, 1);
+    const sh = d.subject.handle || subject;
+    let html = `<div class="summary"><span class="big">${d.total.toLocaleString()}</span> account${d.total === 1 ? '' : 's'} block <span class="who">@${esc(sh)}</span>.`;
+    html += `<div class="meta">newest first · via clearsky.services index</div></div>`;
+    if (d.blockers.length) html += `<div class="people">${d.blockers.map(renderPerson).join('')}</div>`;
+    else html += `<p class="empty">No one blocks @${esc(sh)} — or they're not in the index.</p>`;
+    outEl.innerHTML = html;
+    state = { subjectInput: subject, total: d.total, shown: d.blockers.length, nextPage: d.nextPage };
+    renderMore();
+    setStatus('done.');
+  } catch (e) {
+    setStatus(String(e.message || e), true);
+  } finally {
+    running = false; runBtn.disabled = false;
+  }
+}
+
+$('form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const y = $('y').value.trim();
+  if (!y) { setStatus('enter a handle', true); return; }
+  const url = new URL(location.href);
+  url.searchParams.set('subject', y);
+  history.replaceState(null, '', url);
+  run(y);
+});
+
+// deep-link support: /gc/blockers/?subject=Y
+const q = new URLSearchParams(location.search);
+if (q.get('subject')) { $('y').value = q.get('subject'); run(q.get('subject')); }
+</script>
+</body>
+</html>
