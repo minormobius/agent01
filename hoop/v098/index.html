@@ -207,12 +207,10 @@
     /* the 4-way CROSS (square substrates) */
     #arc .apad { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(2, 46px); gap: 7px; justify-content: center; }
     #arc .apad button { font-size: 20px; }
-    /* the 6-way HONEYCOMB (hex substrates): three rows of hex-clipped keys, the middle pair splayed around
-       the centre and rows overlapped, so the pad IS a hexagon and each key sits where that move goes. */
-    #arc .hexpad { display: flex; flex-direction: column; align-items: center; }
-    #arc .hexrow { display: flex; gap: 6px; }
-    #arc .hexrow.mid { gap: 34px; margin: -11px 0; }
-    #arc .hexpad button { width: 54px; height: 60px; font-size: 18px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); border: 0; border-radius: 0; background: #1c2636; color: #d8c4e6; box-shadow: inset 0 0 0 1.5px #34424d; cursor: pointer; transition: .12s; font-family: inherit; }
+    /* the 6-way HONEYCOMB (hex substrates): six hex-clipped keys placed on the VERTICES of a hexagon (absolute
+       positions computed in JS), each sitting exactly where that move goes — E, NE, NW, W, SW, SE. */
+    #arc .hexpad { position: relative; margin: 2px auto; }
+    #arc .hexpad button { position: absolute; font-size: 18px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); border: 0; border-radius: 0; background: #1c2636; color: #d8c4e6; box-shadow: inset 0 0 0 1.5px #34424d; cursor: pointer; transition: background .12s, box-shadow .12s; font-family: inherit; }
     #arc .hexpad button:hover, #arc .hexpad button:active { background: #28384f; box-shadow: inset 0 0 0 2px #c89ad0; color: #fff; }
     /* shared key skin + the secondary toolbar of buttons */
     #arc .apad button, #arc .arow button { background: #161d27; border: 1px solid #34424d; color: #e8efe9; font: inherit; border-radius: 8px; cursor: pointer; transition: .12s; }
@@ -2082,15 +2080,21 @@
       const engTog = `<span data-arc="engine" title="prototype: swap the puzzle engine" style="cursor:pointer;text-decoration:underline;color:#c89ad0">engine: ${arcadeMode}${arcadeMode === 'morph' ? ' ✦' : ''}</span>`;
       const watchBtn = (g.solvePath && g.solvePath.length) ? `<button data-arc="watch" title="watch the engine solve it (par ${g.par})">${arcadePlaying ? '■ stop' : '▶ watch'}</button>` : '';
       const typeBtn = morph ? `<button data-arc="mtype" title="cycle the puzzle type">⟳ type</button>` : '';
-      // CONTROL PAD tied to the board's direction set — a 4-way cross for square, a 6-way honeycomb for hex.
+      // CONTROL PAD tied to the board's direction set — a 4-way cross for square, a 6-way HEX of keys placed
+      // on the vertices of a hexagon (each key sits exactly where that move goes) for hex.
       const dirs = g.dirs || 4;
-      const pad = dirs === 6
-        ? `<div class="hexpad">`
-          + `<div class="hexrow"><button data-arc="3" title="NW">↖</button><button data-arc="2" title="NE">↗</button></div>`
-          + `<div class="hexrow mid"><button data-arc="1" title="W">←</button><button data-arc="0" title="E">→</button></div>`
-          + `<div class="hexrow"><button data-arc="5" title="SW">↙</button><button data-arc="4" title="SE">↘</button></div></div>`
-        : `<div class="apad"><span></span><button data-arc="0" title="N">↑</button><span></span>`
+      let pad;
+      if (dirs === 6) {
+        const HEXB = [[0, 0, '→', 'E'], [2, -60, '↗', 'NE'], [3, -120, '↖', 'NW'], [1, 180, '←', 'W'], [5, 120, '↙', 'SW'], [4, 60, '↘', 'SE']];
+        const R = 44, bw = 46, bh = 50, W = 2 * R + bw, H = Math.round(2 * R * 0.866 + bh), cx = W / 2, cy = H / 2;
+        pad = `<div class="hexpad" style="width:${W}px;height:${H}px">` + HEXB.map(([d, deg, gl, t]) => {
+          const a = deg * Math.PI / 180, x = (cx + R * Math.cos(a) - bw / 2).toFixed(1), y = (cy + R * Math.sin(a) - bh / 2).toFixed(1);
+          return `<button data-arc="${d}" title="${t}" style="left:${x}px;top:${y}px;width:${bw}px;height:${bh}px">${gl}</button>`;
+        }).join('') + `</div>`;
+      } else {
+        pad = `<div class="apad"><span></span><button data-arc="0" title="N">↑</button><span></span>`
           + `<button data-arc="3" title="W">←</button><button data-arc="2" title="S">↓</button><button data-arc="1" title="E">→</button></div>`;
+      }
       card.innerHTML =
         `<button class="aclose" data-aclose="1">close ⏎</button>` +
         `<div class="ahead">${headTxt}</div>` +
@@ -2209,7 +2213,9 @@
       if (act === 'undo') { (morph ? morphUndo : arcadeUndo)(arcadeGame); renderArcadeScreen(); return; }
       if (act === 'reset') { (morph ? morphReset : arcadeReset)(arcadeGame); renderArcadeScreen(); return; }
       if (act === 'skip') {   // escape hatch: a fresh puzzle of this cabinet/type (no reward) — never be stuck
-        if (morph) { morphInst = (morphInst | 0) + 1; arcadeGame = loadMorphGame(); renderArcadeScreen(); return; }
+        // advance PAST the instance we actually landed on (q), not the search start — playable instSeeds are
+        // sparse, so morphInst+1 would re-resolve to the same puzzle (the "15 clicks to a new board" bug).
+        if (morph) { morphInst = (arcadeGame.q | 0) + 1; arcadeGame = loadMorphGame(); renderArcadeScreen(); return; }
         let nq = (arcadeGame.q | 0) + 1, g = null, tries = 0;
         while (!g && tries < 16) { g = newArcadeGame(arcadeLawIndex, nq); if (!g) { nq++; tries++; } }
         if (g) { g.q = nq; arcadeGame = g; }
@@ -2221,10 +2227,10 @@
           if (!morph) setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1);   // forge tracks a per-law frontier; the morph proto is a session sampler
           saveStory(); whereAmI();
         }
-        if (morph) { morphInst = (morphInst | 0) + 1; arcadeGame = loadMorphGame(); } else loadArcadeGame();
+        if (morph) { morphInst = (arcadeGame.q | 0) + 1; arcadeGame = loadMorphGame(); } else loadArcadeGame();   // past the found instance, not search-start+1
         renderArcadeScreen(); return;
       }
-      const d = +act; if (!(d >= 0 && d <= 3)) return;
+      const d = +act, maxd = arcadeGame.dirs || 4; if (!(d >= 0 && d < maxd)) return;   // hex has 6 directions — the old `<= 3` clamp killed SE(4)/SW(5), the two DOWNWARD moves
       const wasWon = arcadeGame.won;
       if ((morph ? morphMove : arcadeMove)(arcadeGame, d)) {
         if (arcadeGame.won && !wasWon) { renderArcadeScreen(); flashArcadeWin(arcadeGame); }
