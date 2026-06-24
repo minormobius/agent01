@@ -22,18 +22,25 @@ fork.** hoop is a no-build static site and can't reach `../../fable/` at runtime
 takes input through its own arcade UI (`index.html` `drawMorphBoard` /
 `morphMove`), adapting morph's `gameForSeed`/`tryMove`/`isWin` contract.
 
-## Status: PROTOTYPE, gated
+## Status: PROTOTYPE, gated (morph is the chosen direction)
 
-This is a side-by-side proof of concept. The live arcade still runs **forge**
-(opaque minted laws). morph mode is opt-in:
+A side-by-side proof of concept; the live arcade default is still **forge**
+(opaque minted laws), with morph opt-in:
 
 - add `?morph=1` to the URL, **or** toggle "engine: forge ⇄ morph" in the arcade
   screen footer.
 
-The proto restricts to the **square substrate family** (grid / cylinder / torus /
-Möbius / Klein — all 4-direction, so the N/E/S/W d-pad drives them). Hex (6-dir)
-genomes are skipped when picking a cabinet's game. If the proto graduates,
-hex + a 6-way pad + the `render.js` seam/twist markers are the next step.
+In proto mode the arcade is a **sampler**: a diverse showcase covering every
+primary (traverse / sokoban / collect / lights) and **every substrate** —
+grid / cylinder / torus / Möbius / Klein **and hex**. "⟳ type" cycles the game
+type; next/skip advance the instance within it.
 
-Each arcade cabinet maps to one deterministic morph **game** (a metaSeed →
-genome: a topology + law + goal); each puzzle is a fresh **instance** (instSeed).
+**The board drives the layout** (centred hero; header above, status + control pad
+below) and **the control pad follows the substrate**: a 4-way cross for the
+square family, a 6-way honeycomb for hex. "▶ watch" replays the oracle's optimal
+path so you can prove a board is solvable.
+
+Hoop draws + inputs through its own arcade UI (`drawMorphCells`, the type-aware
+pad, the hex honeycomb); morph's `render.js`/`play.js` are not used. The
+adapter contract is pinned by `test/morph.selftest.mjs` (every substrate
+resolves, carries 4/6 dirs, and the solver path replays to a win).

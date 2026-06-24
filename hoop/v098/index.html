@@ -195,16 +195,30 @@
        BESIDE it; on a tall phone they stack compactly below. The board is sized in JS to the smaller of its
        width/height budget, so the d-pad + rules are ALWAYS on-screen with it (the old bug: width-only sizing
        pushed the controls off the bottom). */
-    #arc .acard { width: min(940px, 96vw); display: flex; flex-direction: column; align-items: center; gap: 10px; overflow-y: auto; }
-    #arc .azones { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; width: 100%; min-height: 0; }
-    #arc .aboardzone { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; flex: none; }
-    #arc .asidezone { display: flex; flex-direction: column; align-items: stretch; gap: 7px; min-width: 0; max-width: 360px; }
-    #arc .asidezone .arule { margin: 6px 0; max-width: none; }
-    @media (orientation: landscape) and (min-width: 700px) {
-      #arc .azones { flex-direction: row; align-items: center; }
-      #arc .asidezone { text-align: left; }
-    }
-    @media (pointer: coarse) { #arc .asidezone .ameta:last-child { display: none; } }   /* keyboard hints are dead weight on touch — the d-pad is right there */
+    /* THE BOARD IS THE HERO: a single centred column — slim header above, the board, then a thin status
+       strip + the type-aware control pad below. No second column stealing the board's width. */
+    #arc .acard { width: min(96vw, 760px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; overflow-y: auto; text-align: center; }
+    #arc .ahead { font-size: 11.5px; letter-spacing: .7px; color: #c89ad0; }
+    #arc .alaw { font-size: 17px; font-weight: 600; color: #f4bf62; margin: 0; line-height: 1.25; }
+    #arc .arule { font-size: 12px; line-height: 1.45; color: #9aa8a0; margin: 0; max-width: 560px; text-align: center; border: 0; padding: 0; }
+    #arc .astatus { font-size: 13.5px; color: #cfd8d2; letter-spacing: .3px; min-height: 1em; }
+    #arc .awin { margin: 0; padding: 9px 14px; border: 1px solid #6a5a3a; border-radius: 9px; background: rgba(244,191,98,0.12); color: #f4bf62; font-size: 13px; }
+    #arc .atools { font-size: 11px; color: #6b7872; display: flex; gap: 13px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    /* the 4-way CROSS (square substrates) */
+    #arc .apad { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(2, 46px); gap: 7px; justify-content: center; }
+    #arc .apad button { font-size: 20px; }
+    /* the 6-way HONEYCOMB (hex substrates): three rows of hex-clipped keys, the middle pair splayed around
+       the centre and rows overlapped, so the pad IS a hexagon and each key sits where that move goes. */
+    #arc .hexpad { display: flex; flex-direction: column; align-items: center; }
+    #arc .hexrow { display: flex; gap: 6px; }
+    #arc .hexrow.mid { gap: 34px; margin: -11px 0; }
+    #arc .hexpad button { width: 54px; height: 60px; font-size: 18px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); border: 0; border-radius: 0; background: #1c2636; color: #d8c4e6; box-shadow: inset 0 0 0 1.5px #34424d; cursor: pointer; transition: .12s; font-family: inherit; }
+    #arc .hexpad button:hover, #arc .hexpad button:active { background: #28384f; box-shadow: inset 0 0 0 2px #c89ad0; color: #fff; }
+    /* shared key skin + the secondary toolbar of buttons */
+    #arc .apad button, #arc .arow button { background: #161d27; border: 1px solid #34424d; color: #e8efe9; font: inherit; border-radius: 8px; cursor: pointer; transition: .12s; }
+    #arc .apad button:hover, #arc .apad button:active, #arc .arow button:hover, #arc .arow button:active { border-color: #c89ad0; background: #1c2630; color: #fff; }
+    #arc .arow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    #arc .arow button { font-size: 12px; padding: 6px 11px; color: #b6c2bb; }
     /* the kitchen: shared helpers (reused from #garden) + cook chips + flavor preview + larder rows */
     #kitchen .ghead2 { font-size: 11px; letter-spacing: 1px; margin: 8px 0 8px; text-transform: uppercase; }
     #kitchen .gdim { font-size: 11px; color: #6b7872; margin: 6px 0; }
@@ -419,8 +433,12 @@
     import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
              NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
     import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
-    import { gameForSeed as mGameForSeed, exactGame as mExactGame, genomeForSeed as mGenomeForSeed } from './morph/atlas.js';   // PROTO: morph engine (topology × legible law × goal) — gated, opt-in via ?morph=1 / the engine toggle
+    import { genomeForSeed as mGenomeForSeed } from './morph/atlas.js';   // PROTO: morph engine (topology × legible law × goal) — gated, opt-in via ?morph=1 / the engine toggle
     import { initialState as mInit, tryMove as mTryMove, isWin as mIsWin } from './morph/engine.js';
+    import { Rand as mRand } from './morph/prng.js';
+    import { buildInstance as mBuild } from './morph/instance.js';
+    import { solve as mSolve, analyzePath as mAnalyze } from './morph/solver.js';
+    import { gradeInstance as mGrade, headlineUsed as mHeadline } from './morph/difficulty.js';
     import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce
     import { TIER_FOIL, PULL_COST, biomeForKey, progress as bxProgress, pullRng, pull as bxPull } from './garden/gacha.js';   // the TRADE fixture — gacha-pull seeds from one biome, collect to CLOSE it
     import { shopStock, buyPrice, sellPrice, SHOP_SIZE } from './shop.js';   // the WARES market at the same desk — buy gear, sell loot
@@ -1842,10 +1860,14 @@
       if (kitchenOpen) { closeKitchen(); return; }
       if (story.active) { story.active = null; renderStory(); }
     });
-    // arcade input: arrows / WASD drive the cabinet's law (absolute directions, like fable/forge's play view).
+    // arcade input: keys drive the cabinet's law in ABSOLUTE directions. Square boards take arrows / WASD
+    // (N E S W). HEX boards take the honeycomb finger cluster q w / a d / z x (NW NE / W E / SW SE).
     addEventListener('keydown', (e) => {
       if (!arcadeOpen || e.metaKey || e.ctrlKey) return;
-      const m = { ArrowUp: 0, w: 0, W: 0, ArrowRight: 1, d: 1, D: 1, ArrowDown: 2, s: 2, S: 2, ArrowLeft: 3, a: 3, A: 3 };
+      const hex = arcadeGame && arcadeGame.dirs === 6;
+      const m = hex
+        ? { q: 3, Q: 3, w: 2, W: 2, a: 1, A: 1, d: 0, D: 0, z: 5, Z: 5, x: 4, X: 4, ArrowLeft: 1, ArrowRight: 0 }   // NW NE / W E / SW SE
+        : { ArrowUp: 0, w: 0, W: 0, ArrowRight: 1, d: 1, D: 1, ArrowDown: 2, s: 2, S: 2, ArrowLeft: 3, a: 3, A: 3 };
       if (e.key in m) { e.preventDefault(); arcadeAct(m[e.key]); return; }
       if (e.key === 'u' || e.key === 'U' || e.key === 'Backspace') { e.preventDefault(); arcadeAct('undo'); return; }
       if (e.key === 'Enter' && arcadeGame && arcadeGame.won) { e.preventDefault(); arcadeAct('next'); }
@@ -1934,21 +1956,48 @@
     // ── MORPH PROTO: in proto mode the arcade is a SAMPLER — a small showcase of distinct game TYPES
     //    (one per primary: traverse / sokoban / collect / lights, each on a square substrate). "⟳ type"
     //    cycles the type; "next"/"skip" advance the instance within the type. Same BFS oracle certifies. ──
-    let morphTypeIdx = 0, morphInst = 0, _morphShow = null;
-    function morphShowcase() {
-      if (_morphShow) return _morphShow;
-      const wants = ['traverse', 'sokoban', 'collect', 'lights'], out = [];
-      for (const prim of wants) {
-        for (let ms = 1; ms < 6000; ms++) {
-          const gen = mGenomeForSeed(ms);
-          if (gen.substrate.id === 'hex' || gen.primary !== prim) continue;
-          if (prim === 'lights' && gen.substrate.W * gen.substrate.H > 16) continue;
-          if (mGameForSeed(ms, 0)) { out.push(ms); break; }
-        }
+    let morphTypeIdx = 0, morphInst = 0;
+    // A curated cycle of distinct (primary × substrate) game TYPES — every primary and every substrate
+    // (incl. HEX). Resolved LAZILY per type (one solver search, then cached), so the first open and each ⟳
+    // cost a single roll, not a 3-second batch. Early entries are common/cheap; rarer combos come later.
+    const MORPH_TARGETS = [
+      ['traverse', 'grid'], ['collect', 'cylinder'], ['sokoban', 'torus'], ['lights', 'grid'],
+      ['collect', 'hex'], ['traverse', 'mobius'], ['sokoban', 'cylinder'], ['lights', 'klein'],
+      ['traverse', 'hex'], ['collect', 'torus'], ['sokoban', 'hex'], ['lights', 'hex'],
+    ];
+    // Resolve a (metaSeed, instSeed) to the FIRST PLAYABLE instance — solvable, par ≥ 4, and the genome's
+    // headline mechanic actually used. This is gameForSeed WITHOUT its hunt for high "interest" (which makes
+    // lights solve up to 40 boards, ~2.5s); first-playable is ~1–3 solves, so even lights is snappy.
+    function morphFirstPlayable(metaSeed, instSeed) {
+      let genome = mGenomeForSeed(metaSeed);
+      // a 4×4 Lights-Out is 65k states (~2.5s BFS PER load — unusable live); 3×3 is 512 states (instant) and
+      // still a real puzzle. Shrink the lights board (cosmetic label patched to match).
+      if (genome.primary === 'lights') genome = { ...genome, substrate: { ...genome.substrate, W: 3, H: 3 }, label: genome.label.replace(/\d+×\d+/, '3×3') };
+      for (let k = 0; k < 36; k++) {
+        let inst; try { inst = mBuild(genome, new mRand('morph::' + metaSeed + '::i' + (instSeed + k))); } catch (e) { continue; }
+        const sr = mSolve(inst, { cap: 150000 });
+        if (!sr.solvable || sr.par < 4) continue;
+        const pa = mAnalyze(inst, sr.path);
+        if (!mHeadline(inst, pa)) continue;
+        return { metaSeed, genome, inst, solve: sr, analysis: pa, report: mGrade(inst, sr, pa), instSeed: instSeed + k };
       }
-      _morphShow = out.length ? out : [1];
-      return _morphShow;
+      return null;
     }
+    const _morphMeta = new Map();
+    function morphMetaForType(idx) {
+      const i = ((idx % MORPH_TARGETS.length) + MORPH_TARGETS.length) % MORPH_TARGETS.length;
+      if (_morphMeta.has(i)) return _morphMeta.get(i);
+      const [prim, sub] = MORPH_TARGETS[i]; let chosen = null;
+      for (let ms = 1; ms < 16000 && chosen == null; ms++) {
+        const gen = mGenomeForSeed(ms);
+        if (gen.primary !== prim || gen.substrate.id !== sub) continue;
+        if (prim === 'lights' && gen.substrate.W * gen.substrate.H > 16) continue;   // lights blows up BFS — keep small
+        if (morphFirstPlayable(ms, 0)) chosen = ms;
+      }
+      if (chosen == null) chosen = 1;   // fallback so a type is never stuck
+      _morphMeta.set(i, chosen); return chosen;
+    }
+    const morphTypeCount = () => MORPH_TARGETS.length;
     function wrapMorph(g, typeIdx, instSeed) {
       if (!g) return null;
       return { engine: 'morph', lawIndex: typeIdx, q: instSeed, metaSeed: g.metaSeed, genome: g.genome, inst: g.inst,
@@ -1957,9 +2006,9 @@
         law: { id: typeIdx + 1, name: (g.genome.aesthetic && g.genome.aesthetic.name) || 'morph', law: {} } };
     }
     function loadMorphGame() {
-      const show = morphShowcase(), meta = show[morphTypeIdx % show.length];
-      const g = mExactGame(meta, morphInst) || mGameForSeed(meta, morphInst);
-      return wrapMorph(g, morphTypeIdx % show.length, g ? (g.instSeed != null ? g.instSeed : morphInst) : morphInst);
+      const meta = morphMetaForType(morphTypeIdx);
+      const g = morphFirstPlayable(meta, morphInst);
+      return wrapMorph(g, morphTypeIdx, g ? g.instSeed : morphInst);
     }
     function morphMove(game, d) {
       if (!game || game.won || d < 0 || d >= game.dirs) return false;
@@ -1984,7 +2033,7 @@
       }
       const id = sub.id;
       return { W: sub.W || inst.W, H: sub.H || inst.H, dir: s.dir, dirs: sub.dirs, goal: inst.goal.type, substrate: id,
-        wrapX: (id === 'cylinder' || id === 'torus' || id === 'mobius' || id === 'klein'), wrapY: (id === 'torus' || id === 'klein'), cells };
+        hex: sub.family === 'hex', wrapX: (id === 'cylinder' || id === 'torus' || id === 'mobius' || id === 'klein'), wrapY: (id === 'torus' || id === 'klein'), cells };
     }
     function morphStatusText(game) {
       const inst = game.inst, s = game.state; let head = '';
@@ -2024,52 +2073,50 @@
       const r = g.report, cleared = clearedFor(g.lawIndex), reward = morph ? morphReward(g) : arcadeReward(g);
       const winBar = g.won
         ? `<div class="awin">◈ solved in ${g.moves} — par ${g.par}. <span data-arc="next" style="color:#7fd8d0;cursor:pointer;text-decoration:underline">claim ◈${reward} &amp; next ›</span></div>`
-        : `<div class="ameta" style="color:#f4bf62;margin:8px 0">solve to earn ◈${reward}</div>`;
-      const headTxt = morph ? '◈ THE ARCADE · <span style="color:#c89ad0">morph</span> proto' : '◈ THE ARCADE';
-      const metaTxt = morph
-        ? `morph game · puzzle #${g.q + 1} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}`
-        : `law no.${g.law.id} · puzzle #${g.q + 1} · ${esc(r.diffTier)} · cleared ${cleared} · ◈ ${getCoins()}`;
+        : `<div class="astatus" style="color:#f4bf62">solve to earn ◈${reward}</div>`;
+      const headTxt = morph ? `◈ THE ARCADE · <span style="color:#c89ad0">morph</span> proto · type ${(morphTypeIdx % morphTypeCount()) + 1}/${morphTypeCount()}` : '◈ THE ARCADE';
+      const nameTxt = `${esc(g.law.name)} <span style="font-size:12px;color:#8aa39a;font-weight:400">· #${g.q + 1}</span>`;
       const ruleTxt = morph
-        ? `${esc(g.genome.label)}<br><span style="color:#9aa8a0">goal: ${esc(MGOAL_BLURB[g.goal] || g.goal)}</span>`
-        : `${esc(arcadeRules(g.lawIndex))}<br><span style="color:#9aa8a0">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}${g.goal === 'collect' ? ' — take each ✦ by <b style="color:#f4bf62">landing on it</b>' + (((g.law.law || {}).motion === 'leap') ? '; <b style="color:#e0a86a">leaping vaults over a ✦ without taking it</b>' : '') : ''}</span>`;
+        ? `${esc(g.genome.label)}<br><span style="color:#8aa39a">goal: ${esc(MGOAL_BLURB[g.goal] || g.goal)}</span>`
+        : `${esc(arcadeRules(g.lawIndex))}<br><span style="color:#8aa39a">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}${g.goal === 'collect' ? ' — take each ✦ by <b style="color:#f4bf62">landing on it</b>' + (((g.law.law || {}).motion === 'leap') ? '; <b style="color:#e0a86a">leaping vaults over a ✦ without taking it</b>' : '') : ''}</span>`;
       const engTog = `<span data-arc="engine" title="prototype: swap the puzzle engine" style="cursor:pointer;text-decoration:underline;color:#c89ad0">engine: ${arcadeMode}${arcadeMode === 'morph' ? ' ✦' : ''}</span>`;
       const watchBtn = (g.solvePath && g.solvePath.length) ? `<button data-arc="watch" title="watch the engine solve it (par ${g.par})">${arcadePlaying ? '■ stop' : '▶ watch'}</button>` : '';
       const typeBtn = morph ? `<button data-arc="mtype" title="cycle the puzzle type">⟳ type</button>` : '';
+      // CONTROL PAD tied to the board's direction set — a 4-way cross for square, a 6-way honeycomb for hex.
+      const dirs = g.dirs || 4;
+      const pad = dirs === 6
+        ? `<div class="hexpad">`
+          + `<div class="hexrow"><button data-arc="3" title="NW">↖</button><button data-arc="2" title="NE">↗</button></div>`
+          + `<div class="hexrow mid"><button data-arc="1" title="W">←</button><button data-arc="0" title="E">→</button></div>`
+          + `<div class="hexrow"><button data-arc="5" title="SW">↙</button><button data-arc="4" title="SE">↘</button></div></div>`
+        : `<div class="apad"><span></span><button data-arc="0" title="N">↑</button><span></span>`
+          + `<button data-arc="3" title="W">←</button><button data-arc="2" title="S">↓</button><button data-arc="1" title="E">→</button></div>`;
       card.innerHTML =
         `<button class="aclose" data-aclose="1">close ⏎</button>` +
-        `<div class="azones">` +
-          // the ACTIVE ELEMENT — the board + its immediate status
-          `<div class="aboardzone">` +
-            `<canvas id="arcboard"></canvas>` +
-            `<div class="amoves" id="arcmoves">${arcadeStatusText(g)}</div>` +
-            winBar +
-          `</div>` +
-          // everything else works its way AROUND the board (beside on wide, below on a phone)
-          `<div class="asidezone">` +
-            `<div class="ahead">${headTxt}</div>` +
-            `<div class="alaw">${esc(g.law.name)}</div>` +
-            `<div class="ameta">${metaTxt}</div>` +
-            `<div class="arule">${ruleTxt}</div>` +
-            `<div class="apad"><span></span><button data-arc="0">▲</button><span></span>` +
-            `<button data-arc="3">◀</button><button data-arc="2">▼</button><button data-arc="1">▶</button></div>` +
-            `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button><button data-arc="skip">⏭ skip</button>${watchBtn}${typeBtn}</div>` +
-            `<div class="ameta" style="color:#6b7872">arrows / WASD to move · U undo · Enter to claim · Esc to leave · ${engTog}</div>` +
-          `</div>` +
-        `</div>`;
+        `<div class="ahead">${headTxt}</div>` +
+        `<div class="alaw">${nameTxt}</div>` +
+        `<div class="arule">${ruleTxt}</div>` +
+        `<canvas id="arcboard"></canvas>` +                                  // ← the hero, centred
+        `<div class="astatus" id="arcmoves">${arcadeStatusText(g)}</div>` +
+        winBar + pad +
+        `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button><button data-arc="skip">⏭ skip</button>${watchBtn}${typeBtn}</div>` +
+        `<div class="atools">${esc(r.diffTier)}${morph ? '' : ' · law ' + g.law.id} · cleared ${cleared} · ◈ ${getCoins()} · ${engTog}</div>`;
       drawArcadeBoard();
     }
     function drawArcadeBoard() {
       const cv2 = document.getElementById('arcboard'); if (!cv2 || !arcadeGame) return;
       const morph = arcadeGame.engine === 'morph';
       const b = morph ? morphBoard(arcadeGame) : arcadeBoard(arcadeGame);
-      // size the board to the SMALLER of its width and height budgets so the d-pad + rules stay on-screen.
-      // landscape/desktop: the side panel sits BESIDE the board, so the board gets ~half the width + most
-      // of the height. portrait/phone: the board gets the width, but height must leave room for the panel.
-      const vw = window.innerWidth || 480, vh = window.innerHeight || 640, landscape = vw > vh && vw >= 700;
-      const availW = landscape ? Math.min(vw * 0.5, 560) : Math.min(vw * 0.92, 540);
-      const availH = Math.max(160, landscape ? vh * 0.84 : vh - 340);   // portrait reserves ~340px for rules + d-pad + buttons
-      const cell = Math.max(12, Math.min(84, Math.floor(Math.min(availW / b.W, availH / b.H)))), pad = 1;   // 84 (was 46) so a small board (a 4×4 morph level) isn't a tiny chip on a big screen
-      const w = cell * b.W, h = cell * b.H, dpr2 = Math.min(window.devicePixelRatio || 1, 2);
+      // The board is the centred HERO; the chrome (header + status + pad + toolbar) is thin, so reserve for
+      // it and give the rest to the board. Extents are in CELL units — square: W×H; hex: from the fractional
+      // layout coords (odd rows offset +0.5, vertical pitch ×0.866).
+      let cols = b.W, rows = b.H;
+      if (b.hex) { let mx = 0, my = 0; for (const c of b.cells) { if (c.x > mx) mx = c.x; if (c.y > my) my = c.y; } cols = mx + 1; rows = my + 1.2; }
+      const vw = window.innerWidth || 480, vh = window.innerHeight || 640, portrait = vh >= vw;
+      const availW = Math.min(vw * 0.94, 680);
+      const availH = Math.max(180, vh - (portrait ? 360 : 300));   // header+status+pad+toolbar live here
+      const cell = Math.max(12, Math.min(b.hex ? 66 : 88, Math.floor(Math.min(availW / cols, availH / rows)))), pad = 1;
+      const w = Math.ceil(cols * cell), h = Math.ceil(rows * cell), dpr2 = Math.min(window.devicePixelRatio || 1, 2);
       cv2.width = w * dpr2; cv2.height = h * dpr2; cv2.style.width = w + 'px'; cv2.style.height = h + 'px';
       const g = cv2.getContext('2d'); g.setTransform(dpr2, 0, 0, dpr2, 0, 0); g.clearRect(0, 0, w, h);
       if (morph) { drawMorphCells(g, b, cell, pad, w, h); return; }
@@ -2094,31 +2141,37 @@
         }
       }
     }
-    // PROTO renderer for morph boards: legible pieces on a square substrate (floor/wall/ice, gem ✦, box □,
-    // target ◇, exit ⌖, lit ◆ tile, portal ◌, agent + heading); dashed borders mark a wrap topology.
+    // PROTO renderer for morph boards: legible pieces (floor/wall/ice, gem ✦, box, target ◇, exit ⌖, lit ◆,
+    // portal ◌, agent + heading) on either a SQUARE grid or a HEX honeycomb. Square wrap topologies draw a
+    // dashed seam; hex is non-wrapping. Cell SHAPE follows the substrate so the board reads as what it is.
     function drawMorphCells(g, b, cell, pad, w, h) {
+      const hex = b.hex, R = cell * 0.55;
+      const hexPath = (cx, cy) => { g.beginPath(); for (let k = 0; k < 6; k++) { const a = (-90 + 60 * k) * Math.PI / 180, vx = cx + R * Math.cos(a), vy = cy + R * Math.sin(a); k ? g.lineTo(vx, vy) : g.moveTo(vx, vy); } g.closePath(); };
+      const HEX_ANG = [0, 180, -60, -120, 60, 120];   // E W NE NW SE SW (degrees) → agent heading on hex
       for (const c of b.cells) {
-        const x = c.x * cell, y = c.y * cell, cx = x + cell / 2, cy = y + cell / 2;
+        const cx = c.x * cell + cell * 0.5, cy = c.y * cell + (hex ? cell * 0.6 : cell * 0.5);
         let fill = '#161d27';
         if (c.wall) fill = '#394a57';
         else if (c.lit === 1) fill = '#5a4a18';                  // lights: a lit tile glows gold
         else if (c.lit === 0) fill = '#231f12';                  // lights: unlit
         else if (c.ice) fill = '#1b3340';                        // ice: cool tint
-        g.fillStyle = fill; g.fillRect(x + pad, y + pad, cell - 2 * pad, cell - 2 * pad);
+        g.fillStyle = fill;
+        if (hex) { hexPath(cx, cy); g.fill(); g.strokeStyle = 'rgba(8,12,20,0.7)'; g.lineWidth = 1; g.stroke(); }
+        else g.fillRect(c.x * cell + pad, c.y * cell + pad, cell - 2 * pad, cell - 2 * pad);
         g.textAlign = 'center'; g.textBaseline = 'middle';
-        if (c.lit === 1) { g.fillStyle = '#f4bf62'; g.font = `${cell * 0.5}px ui-monospace, monospace`; g.fillText('◆', cx, cy); }
-        if (c.target) { g.strokeStyle = '#9a86c8'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy - cell * 0.26); g.lineTo(cx + cell * 0.26, cy); g.lineTo(cx, cy + cell * 0.26); g.lineTo(cx - cell * 0.26, cy); g.closePath(); g.stroke(); }
-        if (c.portal) { g.strokeStyle = '#41b0d0'; g.lineWidth = 2.2; g.beginPath(); g.arc(cx, cy, cell * 0.34, 0, 7); g.stroke(); }
-        if (c.exit) { g.fillStyle = '#7fd8d0'; g.font = `${cell * 0.6}px ui-monospace, monospace`; g.fillText('⌖', cx, cy); }
-        if (c.gem) { g.fillStyle = 'rgba(244,191,98,0.16)'; g.beginPath(); g.arc(cx, cy, cell * 0.42, 0, 7); g.fill(); g.fillStyle = '#f4bf62'; g.font = `${cell * 0.6}px ui-monospace, monospace`; g.fillText('✦', cx, cy); }
-        if (c.box) { const m = cell * 0.16; g.fillStyle = c.target ? '#5aa845' : '#b48a6a'; g.fillRect(x + m, y + m, cell - 2 * m, cell - 2 * m); g.strokeStyle = '#0a0e16'; g.lineWidth = 1.5; g.strokeRect(x + m, y + m, cell - 2 * m, cell - 2 * m); }
+        if (c.lit === 1) { g.fillStyle = '#f4bf62'; g.font = `${cell * 0.45}px ui-monospace, monospace`; g.fillText('◆', cx, cy); }
+        if (c.target) { g.strokeStyle = '#9a86c8'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy - cell * 0.24); g.lineTo(cx + cell * 0.24, cy); g.lineTo(cx, cy + cell * 0.24); g.lineTo(cx - cell * 0.24, cy); g.closePath(); g.stroke(); }
+        if (c.portal) { g.strokeStyle = '#41b0d0'; g.lineWidth = 2.2; g.beginPath(); g.arc(cx, cy, cell * 0.3, 0, 7); g.stroke(); }
+        if (c.exit) { g.fillStyle = '#7fd8d0'; g.font = `${cell * 0.55}px ui-monospace, monospace`; g.fillText('⌖', cx, cy); }
+        if (c.gem) { g.fillStyle = 'rgba(244,191,98,0.16)'; g.beginPath(); g.arc(cx, cy, cell * 0.38, 0, 7); g.fill(); g.fillStyle = '#f4bf62'; g.font = `${cell * 0.55}px ui-monospace, monospace`; g.fillText('✦', cx, cy); }
+        if (c.box) { const s2 = cell * 0.56; g.fillStyle = c.target ? '#5aa845' : '#b48a6a'; g.fillRect(cx - s2 / 2, cy - s2 / 2, s2, s2); g.strokeStyle = '#0a0e16'; g.lineWidth = 1.5; g.strokeRect(cx - s2 / 2, cy - s2 / 2, s2, s2); }
         if (c.agent) {
-          g.fillStyle = '#e3b6ec'; g.beginPath(); g.arc(cx, cy, cell * 0.3, 0, 7); g.fill();
-          const R = cell * 0.36, ang = [-Math.PI / 2, 0, Math.PI / 2, Math.PI][b.dir] || 0;
-          g.strokeStyle = '#0a0e16'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R); g.stroke();
+          g.fillStyle = '#e3b6ec'; g.beginPath(); g.arc(cx, cy, cell * 0.28, 0, 7); g.fill();
+          const Rr = cell * 0.34, ang = (hex ? (HEX_ANG[b.dir] || 0) * Math.PI / 180 : ([-Math.PI / 2, 0, Math.PI / 2, Math.PI][b.dir] || 0));
+          g.strokeStyle = '#0a0e16'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * Rr, cy + Math.sin(ang) * Rr); g.stroke();
         }
       }
-      if (b.wrapX || b.wrapY) {   // wrap-seam hints — the topology is legible even drawn flat
+      if (!hex && (b.wrapX || b.wrapY)) {   // wrap-seam hints — the square topology is legible even drawn flat
         g.save(); g.setLineDash([6, 5]); g.lineWidth = 2; g.strokeStyle = '#c89ad0';
         if (b.wrapX) { g.beginPath(); g.moveTo(1, 0); g.lineTo(1, h); g.moveTo(w - 1, 0); g.lineTo(w - 1, h); g.stroke(); }
         if (b.wrapY) { g.beginPath(); g.moveTo(0, 1); g.lineTo(w, 1); g.moveTo(0, h - 1); g.lineTo(w, h - 1); g.stroke(); }
@@ -2150,8 +2203,8 @@
       if (act === 'engine') {   // PROTO toggle: swap forge ⇄ morph and reload this cabinet
         arcadeMode = (arcadeMode === 'morph') ? 'forge' : 'morph'; arcadeGame = null; loadArcadeGame(); renderArcadeScreen(); return;
       }
-      if (act === 'mtype') {   // PROTO: cycle to the next morph game TYPE (traverse → sokoban → collect → lights)
-        morphTypeIdx = (morphTypeIdx + 1) % morphShowcase().length; morphInst = 0; arcadeGame = loadMorphGame(); renderArcadeScreen(); return;
+      if (act === 'mtype') {   // PROTO: cycle to the next morph game TYPE (primary × substrate, incl. hex)
+        morphTypeIdx = (morphTypeIdx + 1) % morphTypeCount(); morphInst = 0; arcadeGame = loadMorphGame(); renderArcadeScreen(); return;
       }
       if (act === 'undo') { (morph ? morphUndo : arcadeUndo)(arcadeGame); renderArcadeScreen(); return; }
       if (act === 'reset') { (morph ? morphReset : arcadeReset)(arcadeGame); renderArcadeScreen(); return; }
