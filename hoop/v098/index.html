@@ -195,28 +195,39 @@
        BESIDE it; on a tall phone they stack compactly below. The board is sized in JS to the smaller of its
        width/height budget, so the d-pad + rules are ALWAYS on-screen with it (the old bug: width-only sizing
        pushed the controls off the bottom). */
-    /* THE BOARD IS THE HERO: a single centred column — slim header above, the board, then a thin status
-       strip + the type-aware control pad below. No second column stealing the board's width. */
-    #arc .acard { width: min(96vw, 760px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; overflow-y: auto; text-align: center; }
-    #arc .ahead { font-size: 11.5px; letter-spacing: .7px; color: #c89ad0; }
-    #arc .alaw { font-size: 17px; font-weight: 600; color: #f4bf62; margin: 0; line-height: 1.25; }
-    #arc .arule { font-size: 12px; line-height: 1.45; color: #9aa8a0; margin: 0; max-width: 560px; text-align: center; border: 0; padding: 0; }
-    #arc .astatus { font-size: 13.5px; color: #cfd8d2; letter-spacing: .3px; min-height: 1em; }
-    #arc .awin { margin: 0; padding: 9px 14px; border: 1px solid #6a5a3a; border-radius: 9px; background: rgba(244,191,98,0.12); color: #f4bf62; font-size: 13px; }
-    #arc .atools { font-size: 11px; color: #6b7872; display: flex; gap: 13px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    /* ── THE ARCADE in MORPH'S design language: the board is a big centred PUZZLE SURFACE inside a panel card
+       (title + substrate pill above, status below), with controls in their own elements beneath — morph's
+       warm-dark palette + serif titles + lavender accent. Scoped to #arc; the rest of hoop is unchanged. ── */
+    #arc { --mbg: #14130f; --mpanel: #1c1b16; --mfg: #ece7da; --mmuted: #9a958a; --mfaint: #6f6b61; --mrule: #34322a;
+           --maccent: #a39bff; --maccent-soft: rgba(163,155,255,.12); --maccent-line: rgba(163,155,255,.30); --mgood: #6ec48d;
+           --mserif: "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; --mmono: ui-monospace,"SF Mono",Menlo,monospace;
+           --mshadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 34px rgba(0,0,0,.45);
+           background: radial-gradient(125% 125% at 50% 28%, #1b1812, #100f0b); }
+    #arc .acard { width: min(96vw, 720px); display: flex; flex-direction: column; align-items: center; gap: 15px; overflow-y: auto; color: var(--mfg); }
+    #arc .ahead { font-family: var(--mmono); font-size: 11px; letter-spacing: .7px; color: var(--maccent); }
+    #arc .aboardcard { background: var(--mpanel); border: 1px solid var(--mrule); border-radius: 16px; padding: 18px 18px 15px; box-shadow: var(--mshadow); display: flex; flex-direction: column; align-items: center; gap: 11px; max-width: 100%; }
+    #arc .aboardhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; width: 100%; flex-wrap: wrap; }
+    #arc .atitle { font-family: var(--mserif); font-size: 24px; font-weight: 600; color: var(--mfg); letter-spacing: -.01em; line-height: 1.1; }
+    #arc .apill { font-family: var(--mmono); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 3px 10px; border-radius: 999px; color: #fff; align-self: center; white-space: nowrap; }
+    #arc .arule { font-family: var(--mmono); font-size: 12px; color: var(--mmuted); margin: 0; text-align: center; border: 0; padding: 0; line-height: 1.4; }
+    #arc canvas { display: block; max-width: 100%; background: transparent; border: 0; border-radius: 10px; box-shadow: none; image-rendering: auto; }
+    #arc .astatus { font-family: var(--mmono); font-size: 13px; color: var(--mfg); letter-spacing: .02em; min-height: 1em; }
+    #arc .awin { font-family: var(--mmono); margin: 0; padding: 8px 14px; border: 1px solid rgba(110,196,141,.4); border-radius: 9px; background: rgba(110,196,141,.14); color: var(--mgood); font-size: 13px; }
+    #arc .atools { font-family: var(--mmono); font-size: 11px; color: var(--mfaint); display: flex; gap: 13px; align-items: center; flex-wrap: wrap; justify-content: center; }
     /* the 4-way CROSS (square substrates) */
     #arc .apad { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(2, 46px); gap: 7px; justify-content: center; }
     #arc .apad button { font-size: 20px; }
-    /* the 6-way HONEYCOMB (hex substrates): six hex-clipped keys placed on the VERTICES of a hexagon (absolute
-       positions computed in JS), each sitting exactly where that move goes — E, NE, NW, W, SW, SE. */
+    /* the 6-way HEX of keys on the VERTICES of a hexagon (absolute positions computed in JS) */
     #arc .hexpad { position: relative; margin: 2px auto; }
-    #arc .hexpad button { position: absolute; font-size: 18px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); border: 0; border-radius: 0; background: #1c2636; color: #d8c4e6; box-shadow: inset 0 0 0 1.5px #34424d; cursor: pointer; transition: background .12s, box-shadow .12s; font-family: inherit; }
-    #arc .hexpad button:hover, #arc .hexpad button:active { background: #28384f; box-shadow: inset 0 0 0 2px #c89ad0; color: #fff; }
+    #arc .hexpad button { position: absolute; font-size: 18px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); border: 0; border-radius: 0; background: #262320; color: var(--maccent); box-shadow: inset 0 0 0 1.5px var(--mrule); cursor: pointer; transition: background .12s, box-shadow .12s, color .12s; font-family: var(--mmono); }
+    #arc .hexpad button:hover, #arc .hexpad button:active { background: var(--maccent-soft); box-shadow: inset 0 0 0 2px var(--maccent-line); color: var(--mfg); }
     /* shared key skin + the secondary toolbar of buttons */
-    #arc .apad button, #arc .arow button { background: #161d27; border: 1px solid #34424d; color: #e8efe9; font: inherit; border-radius: 8px; cursor: pointer; transition: .12s; }
-    #arc .apad button:hover, #arc .apad button:active, #arc .arow button:hover, #arc .arow button:active { border-color: #c89ad0; background: #1c2630; color: #fff; }
+    #arc .apad button, #arc .arow button { background: var(--mbg); border: 1px solid var(--mrule); color: var(--mfg); font-family: var(--mmono); border-radius: 9px; cursor: pointer; transition: .12s; }
+    #arc .apad button:hover, #arc .apad button:active, #arc .arow button:hover, #arc .arow button:active { border-color: var(--maccent-line); background: var(--maccent-soft); color: var(--mfg); }
     #arc .arow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-    #arc .arow button { font-size: 12px; padding: 6px 11px; color: #b6c2bb; }
+    #arc .arow button { font-size: 12px; padding: 7px 12px; color: var(--mmuted); }
+    #arc .aclose { background: var(--mpanel); border-color: var(--mrule); color: var(--mmuted); }
+    #arc .aclose:hover { border-color: var(--maccent-line); color: var(--maccent); }
     /* the kitchen: shared helpers (reused from #garden) + cook chips + flavor preview + larder rows */
     #kitchen .ghead2 { font-size: 11px; letter-spacing: 1px; margin: 8px 0 8px; text-transform: uppercase; }
     #kitchen .gdim { font-size: 11px; color: #6b7872; margin: 6px 0; }
@@ -2005,8 +2016,13 @@
     }
     function loadMorphGame() {
       const meta = morphMetaForType(morphTypeIdx);
-      const g = morphFirstPlayable(meta, morphInst);
-      return wrapMorph(g, morphTypeIdx, g ? g.instSeed : morphInst);
+      let g = null;
+      // never run out: search forward in windows; if a stretch is dry, wrap to 0 (the meta was chosen BECAUSE
+      // instance 0 resolves), and as a last resort fall back to type 0. The arcade always serves a puzzle.
+      for (let start = morphInst, t = 0; t < 12 && !g; t++, start += 36) g = morphFirstPlayable(meta, start);
+      if (!g) { morphInst = 0; g = morphFirstPlayable(meta, 0); }
+      if (!g) { morphTypeIdx = 0; g = morphFirstPlayable(morphMetaForType(0), 0); }
+      return wrapMorph(g, morphTypeIdx, g ? g.instSeed : 0);
     }
     function morphMove(game, d) {
       if (!game || game.won || d < 0 || d >= game.dirs) return false;
@@ -2029,8 +2045,9 @@
           box: (s.boxes || []).indexOf(c) >= 0, exit: inst.goal.cell === c, agent: s.agent === c,
           lit: lgi >= 0 ? ((s.lit >> lgi) & 1) : null, portal: !!(inst.portalTo && inst.portalTo[c] >= 0) });
       }
-      const id = sub.id;
+      const id = sub.id, aes = inst.genome.aesthetic || { hue: 268, glyph: {} };
       return { W: sub.W || inst.W, H: sub.H || inst.H, dir: s.dir, dirs: sub.dirs, goal: inst.goal.type, substrate: id,
+        hue: aes.hue, agentGlyph: (aes.glyph && aes.glyph.agent) || '◆', gemGlyph: (aes.glyph && aes.glyph.gem) || '◇',
         hex: sub.family === 'hex', wrapX: (id === 'cylinder' || id === 'torus' || id === 'mobius' || id === 'klein'), wrapY: (id === 'torus' || id === 'klein'), cells };
     }
     function morphStatusText(game) {
@@ -2066,18 +2083,20 @@
     function renderArcadeScreen() {
       const card = $('arccard'); arcadeOpen = true; $('arc').classList.add('on');
       const g = arcadeGame;
-      if (!g) { card.innerHTML = `<button class="aclose" data-aclose="1">close ⏎</button><div class="alaw">The cabinet is dark.</div>`; return; }
+      if (!g) { card.innerHTML = `<button class="aclose" data-aclose="1">close ⏎</button><div class="ahead">THE ARCADE</div><div class="aboardcard" style="padding:34px"><span class="atitle">the cabinet is dark</span><div class="arule" style="margin-top:8px">no puzzle right now — close and step back in</div></div>`; return; }
       const morph = g.engine === 'morph';
       const r = g.report, cleared = clearedFor(g.lawIndex), reward = morph ? morphReward(g) : arcadeReward(g);
       const winBar = g.won
-        ? `<div class="awin">◈ solved in ${g.moves} — par ${g.par}. <span data-arc="next" style="color:#7fd8d0;cursor:pointer;text-decoration:underline">claim ◈${reward} &amp; next ›</span></div>`
-        : `<div class="astatus" style="color:#f4bf62">solve to earn ◈${reward}</div>`;
-      const headTxt = morph ? `◈ THE ARCADE · <span style="color:#c89ad0">morph</span> proto · type ${(morphTypeIdx % morphTypeCount()) + 1}/${morphTypeCount()}` : '◈ THE ARCADE';
-      const nameTxt = `${esc(g.law.name)} <span style="font-size:12px;color:#8aa39a;font-weight:400">· #${g.q + 1}</span>`;
+        ? `<div class="awin">solved in ${g.moves} — par ${g.par} · <span data-arc="next" style="cursor:pointer;text-decoration:underline;color:var(--maccent)">claim ◈${reward} &amp; next ›</span></div>`
+        : `<div class="astatus" style="color:var(--mmuted)">solve to earn ◈${reward}</div>`;
+      const headTxt = morph ? `THE ARCADE · morph proto · type ${(morphTypeIdx % morphTypeCount()) + 1}/${morphTypeCount()}` : 'THE ARCADE';
+      const hue = morph ? (g.genome.aesthetic ? g.genome.aesthetic.hue : 268) : 258;
+      const pillTxt = morph ? `${esc(g.genome.substrate.id)} · ${esc(g.genome.primary)}` : `forge · law ${g.law.id}`;
+      const pill = `<span class="apill" style="background:hsl(${hue},46%,52%)">${pillTxt}</span>`;
       const ruleTxt = morph
-        ? `${esc(g.genome.label)}<br><span style="color:#8aa39a">goal: ${esc(MGOAL_BLURB[g.goal] || g.goal)}</span>`
-        : `${esc(arcadeRules(g.lawIndex))}<br><span style="color:#8aa39a">goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}${g.goal === 'collect' ? ' — take each ✦ by <b style="color:#f4bf62">landing on it</b>' + (((g.law.law || {}).motion === 'leap') ? '; <b style="color:#e0a86a">leaping vaults over a ✦ without taking it</b>' : '') : ''}</span>`;
-      const engTog = `<span data-arc="engine" title="prototype: swap the puzzle engine" style="cursor:pointer;text-decoration:underline;color:#c89ad0">engine: ${arcadeMode}${arcadeMode === 'morph' ? ' ✦' : ''}</span>`;
+        ? `goal: ${esc(MGOAL_BLURB[g.goal] || g.goal)}`
+        : `${esc(arcadeRules(g.lawIndex))} — goal: ${esc(GOAL_BLURB[g.goal] || g.goal)}${g.goal === 'collect' ? ', land ON each ✦' + (((g.law.law || {}).motion === 'leap') ? ' (leaping vaults over)' : '') : ''}`;
+      const engTog = `<span data-arc="engine" title="prototype: swap the puzzle engine" style="cursor:pointer;text-decoration:underline;color:var(--maccent)">engine: ${arcadeMode}${arcadeMode === 'morph' ? ' ✦' : ''}</span>`;
       const watchBtn = (g.solvePath && g.solvePath.length) ? `<button data-arc="watch" title="watch the engine solve it (par ${g.par})">${arcadePlaying ? '■ stop' : '▶ watch'}</button>` : '';
       const typeBtn = morph ? `<button data-arc="mtype" title="cycle the puzzle type">⟳ type</button>` : '';
       // CONTROL PAD tied to the board's direction set — a 4-way cross for square, a 6-way HEX of keys placed
@@ -2098,11 +2117,16 @@
       card.innerHTML =
         `<button class="aclose" data-aclose="1">close ⏎</button>` +
         `<div class="ahead">${headTxt}</div>` +
-        `<div class="alaw">${nameTxt}</div>` +
-        `<div class="arule">${ruleTxt}</div>` +
-        `<canvas id="arcboard"></canvas>` +                                  // ← the hero, centred
-        `<div class="astatus" id="arcmoves">${arcadeStatusText(g)}</div>` +
-        winBar + pad +
+        // the PUZZLE SURFACE — a panel card: title + substrate pill above, the board, status below
+        `<div class="aboardcard">` +
+          `<div class="aboardhead"><span class="atitle">${esc(g.law.name)} <span style="color:var(--mfaint);font-size:14px;font-weight:400">#${g.q + 1}</span></span>${pill}</div>` +
+          `<div class="arule">${ruleTxt}</div>` +
+          `<canvas id="arcboard"></canvas>` +
+          `<div class="astatus" id="arcmoves">${arcadeStatusText(g)}</div>` +
+          winBar +
+        `</div>` +
+        // controls live in their own elements BELOW the surface
+        pad +
         `<div class="arow"><button data-arc="undo">↶ undo</button><button data-arc="reset">⟲ reset</button><button data-arc="skip">⏭ skip</button>${watchBtn}${typeBtn}</div>` +
         `<div class="atools">${esc(r.diffTier)}${morph ? '' : ' · law ' + g.law.id} · cleared ${cleared} · ◈ ${getCoins()} · ${engTog}</div>`;
       drawArcadeBoard();
@@ -2117,8 +2141,8 @@
       let cols = b.W, rows = b.H;
       if (b.hex) { let mx = 0, my = 0; for (const c of b.cells) { if (c.x > mx) mx = c.x; if (c.y > my) my = c.y; } cols = mx + 1; rows = my + 1.2; }
       const vw = window.innerWidth || 480, vh = window.innerHeight || 640, portrait = vh >= vw;
-      const availW = Math.min(vw * 0.94, 680);
-      const availH = Math.max(180, vh - (portrait ? 360 : 300));   // header+status+pad+toolbar live here
+      const availW = Math.min(vw * 0.9, 660);
+      const availH = Math.max(180, vh - (portrait ? 400 : 340));   // board-card chrome (title+pill+rule+status) + pad + toolbar live here
       const cell = Math.max(12, Math.min(b.hex ? 66 : 88, Math.floor(Math.min(availW / cols, availH / rows)))), pad = 1;
       const w = Math.ceil(cols * cell), h = Math.ceil(rows * cell), dpr2 = Math.min(window.devicePixelRatio || 1, 2);
       cv2.width = w * dpr2; cv2.height = h * dpr2; cv2.style.width = w + 'px'; cv2.style.height = h + 'px';
@@ -2145,38 +2169,40 @@
         }
       }
     }
-    // PROTO renderer for morph boards: legible pieces (floor/wall/ice, gem ✦, box, target ◇, exit ⌖, lit ◆,
-    // portal ◌, agent + heading) on either a SQUARE grid or a HEX honeycomb. Square wrap topologies draw a
-    // dashed seam; hex is non-wrapping. Cell SHAPE follows the substrate so the board reads as what it is.
+    // Renderer in MORPH'S design language: each game is themed by its aesthetic HUE (Vault purple, Reef cyan,
+    // Circuit green, …) with morph's dark HSL palette, rounded tiles / hexagons, lead-came strokes, and the
+    // pack's own agent/gem glyphs. Square wrap topologies draw a dashed seam; hex is non-wrapping.
     function drawMorphCells(g, b, cell, pad, w, h) {
-      const hex = b.hex, R = cell * 0.55;
+      const hex = b.hex, R = cell * 0.55, hue = b.hue == null ? 268 : b.hue;
+      const H = (s, l, a) => `hsla(${hue},${s}%,${l}%,${a == null ? 1 : a})`, HA = (deg, s, l) => `hsl(${(hue + deg) % 360},${s}%,${l}%)`;
       const hexPath = (cx, cy) => { g.beginPath(); for (let k = 0; k < 6; k++) { const a = (-90 + 60 * k) * Math.PI / 180, vx = cx + R * Math.cos(a), vy = cy + R * Math.sin(a); k ? g.lineTo(vx, vy) : g.moveTo(vx, vy); } g.closePath(); };
+      const roundRect = (x, y, ww, hh, rr) => { g.beginPath(); g.moveTo(x + rr, y); g.arcTo(x + ww, y, x + ww, y + hh, rr); g.arcTo(x + ww, y + hh, x, y + hh, rr); g.arcTo(x, y + hh, x, y, rr); g.arcTo(x, y, x + ww, y, rr); g.closePath(); };
+      const tile = (cx, cy) => { if (hex) hexPath(cx, cy); else { const r = cell * 0.46; roundRect(cx - r, cy - r, r * 2, r * 2, cell * 0.13); } };
       const HEX_ANG = [0, 180, -60, -120, 60, 120];   // E W NE NW SE SW (degrees) → agent heading on hex
+      g.textAlign = 'center'; g.textBaseline = 'middle';
       for (const c of b.cells) {
         const cx = c.x * cell + cell * 0.5, cy = c.y * cell + (hex ? cell * 0.6 : cell * 0.5);
-        let fill = '#161d27';
-        if (c.wall) fill = '#394a57';
-        else if (c.lit === 1) fill = '#5a4a18';                  // lights: a lit tile glows gold
-        else if (c.lit === 0) fill = '#231f12';                  // lights: unlit
-        else if (c.ice) fill = '#1b3340';                        // ice: cool tint
-        g.fillStyle = fill;
-        if (hex) { hexPath(cx, cy); g.fill(); g.strokeStyle = 'rgba(8,12,20,0.7)'; g.lineWidth = 1; g.stroke(); }
-        else g.fillRect(c.x * cell + pad, c.y * cell + pad, cell - 2 * pad, cell - 2 * pad);
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        if (c.lit === 1) { g.fillStyle = '#f4bf62'; g.font = `${cell * 0.45}px ui-monospace, monospace`; g.fillText('◆', cx, cy); }
-        if (c.target) { g.strokeStyle = '#9a86c8'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy - cell * 0.24); g.lineTo(cx + cell * 0.24, cy); g.lineTo(cx, cy + cell * 0.24); g.lineTo(cx - cell * 0.24, cy); g.closePath(); g.stroke(); }
-        if (c.portal) { g.strokeStyle = '#41b0d0'; g.lineWidth = 2.2; g.beginPath(); g.arc(cx, cy, cell * 0.3, 0, 7); g.stroke(); }
-        if (c.exit) { g.fillStyle = '#7fd8d0'; g.font = `${cell * 0.55}px ui-monospace, monospace`; g.fillText('⌖', cx, cy); }
-        if (c.gem) { g.fillStyle = 'rgba(244,191,98,0.16)'; g.beginPath(); g.arc(cx, cy, cell * 0.38, 0, 7); g.fill(); g.fillStyle = '#f4bf62'; g.font = `${cell * 0.55}px ui-monospace, monospace`; g.fillText('✦', cx, cy); }
-        if (c.box) { const s2 = cell * 0.56; g.fillStyle = c.target ? '#5aa845' : '#b48a6a'; g.fillRect(cx - s2 / 2, cy - s2 / 2, s2, s2); g.strokeStyle = '#0a0e16'; g.lineWidth = 1.5; g.strokeRect(cx - s2 / 2, cy - s2 / 2, s2, s2); }
+        let fill = H(14, 16);                                    // floor
+        if (c.wall) fill = H(10, 30);                            // wall
+        else if (c.lit === 1) fill = H(70, 46);                  // lights: lit
+        else if (c.lit === 0) fill = H(12, 14);                  // lights: unlit
+        else if (c.ice) fill = HA(180, 40, 26);                  // ice: complementary tint
+        g.fillStyle = fill; tile(cx, cy); g.fill();
+        g.strokeStyle = '#05070b'; g.lineWidth = Math.max(1, cell * 0.03); g.stroke();   // lead came
+        if (c.target) { g.strokeStyle = H(60, 64); g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy - cell * 0.24); g.lineTo(cx + cell * 0.24, cy); g.lineTo(cx, cy + cell * 0.24); g.lineTo(cx - cell * 0.24, cy); g.closePath(); g.stroke(); }
+        if (c.portal) { g.strokeStyle = HA(150, 65, 56); g.lineWidth = 2.4; g.beginPath(); g.arc(cx, cy, cell * 0.3, 0, 7); g.stroke(); }
+        if (c.exit) { g.strokeStyle = H(80, 66); g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, cell * 0.34, 0, 7); g.stroke(); g.globalAlpha = 0.14; g.fillStyle = H(80, 66); g.beginPath(); g.arc(cx, cy, cell * 0.34, 0, 7); g.fill(); g.globalAlpha = 1; }
+        if (c.gem) { g.fillStyle = H(78, 62); g.font = `${cell * 0.62}px serif`; g.fillText(b.gemGlyph, cx, cy); }
+        if (c.box) { const s2 = cell * 0.6, on = c.target; g.fillStyle = on ? H(58, 46) : H(28, 42); roundRect(cx - s2 / 2, cy - s2 / 2, s2, s2, cell * 0.1); g.fill(); g.strokeStyle = 'rgba(5,7,11,.6)'; g.lineWidth = 1.3; g.stroke(); }
         if (c.agent) {
-          g.fillStyle = '#e3b6ec'; g.beginPath(); g.arc(cx, cy, cell * 0.28, 0, 7); g.fill();
+          g.fillStyle = H(80, 68); g.beginPath(); g.arc(cx, cy, cell * 0.34, 0, 7); g.fill();
+          g.fillStyle = '#fff'; g.font = `${cell * 0.42}px serif`; g.fillText(b.agentGlyph, cx, cy);
           const Rr = cell * 0.34, ang = (hex ? (HEX_ANG[b.dir] || 0) * Math.PI / 180 : ([-Math.PI / 2, 0, Math.PI / 2, Math.PI][b.dir] || 0));
-          g.strokeStyle = '#0a0e16'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * Rr, cy + Math.sin(ang) * Rr); g.stroke();
+          g.strokeStyle = H(80, 30); g.lineWidth = 2.6; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * Rr * 1.15, cy + Math.sin(ang) * Rr * 1.15); g.stroke();
         }
       }
       if (!hex && (b.wrapX || b.wrapY)) {   // wrap-seam hints — the square topology is legible even drawn flat
-        g.save(); g.setLineDash([6, 5]); g.lineWidth = 2; g.strokeStyle = '#c89ad0';
+        g.save(); g.setLineDash([6, 5]); g.lineWidth = 2.5; g.strokeStyle = H(70, 58);
         if (b.wrapX) { g.beginPath(); g.moveTo(1, 0); g.lineTo(1, h); g.moveTo(w - 1, 0); g.lineTo(w - 1, h); g.stroke(); }
         if (b.wrapY) { g.beginPath(); g.moveTo(0, 1); g.lineTo(w, 1); g.moveTo(0, h - 1); g.lineTo(w, h - 1); g.stroke(); }
         g.setLineDash([]); g.restore();
