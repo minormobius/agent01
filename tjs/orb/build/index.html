@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orb · build — symmetric 3D-print sculptor · tjs</title>
+<meta name="description" content="Sculpt a symmetric orb out into space: pick a spherical symmetry group, drive a radial height field with weird math (spherical harmonics, gyroid TPMS, quasicrystal interference, fBm noise, superformula) or draw lobes by hand, then export a watertight STL for 3D printing.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#07070c; --panel:#101019cc; --line:#23232e; --ink:#e6e6f0; --soft:#8a8aa0;
+    --accent:#39d6c8; --accent2:#ffb454;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(130% 130% at 62% 8%, #15151f 0%, #07070c 62%);
+    color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;overflow:hidden}
+  #viewport{position:fixed;inset:0}
+  #viewport canvas{display:block}
+
+  .crumb{position:fixed;top:14px;left:18px;z-index:5;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
+  .crumb a{color:var(--soft);text-decoration:none}
+  .crumb a:hover{color:var(--accent)}
+  .crumb b{color:var(--ink);font-weight:600}
+
+  .panel{
+    position:fixed;top:46px;right:16px;z-index:5;width:256px;
+    background:var(--panel);backdrop-filter:blur(9px);
+    border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;
+    box-shadow:0 18px 50px -20px #000}
+  .panel h2{margin:0 0 2px;font-size:15px;font-weight:700}
+  .panel .sub{margin:0 0 12px;font-size:12px;color:var(--soft)}
+  .panel .sub b{color:var(--accent);font-variant-numeric:tabular-nums}
+
+  .seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px}
+  .seg button{
+    appearance:none;cursor:pointer;font:inherit;font-size:12px;
+    color:var(--soft);background:#0d0d15;border:1px solid var(--line);
+    border-radius:8px;padding:7px 4px;transition:.12s}
+  .seg button:hover{color:var(--ink);border-color:#3a3a4a}
+  .seg button.on{color:var(--bg);background:var(--accent);border-color:var(--accent);font-weight:600}
+
+  .row{margin:11px 0}
+  .row label{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--soft);margin-bottom:5px}
+  .row label b{color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+  select{width:100%;font:inherit;font-size:12.5px;color:var(--ink);background:#0d0d15;
+    border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+
+  .toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--soft);cursor:pointer;margin:9px 0}
+  .toggle input{accent-color:var(--accent);width:15px;height:15px}
+
+  .pals{display:flex;gap:6px;margin-top:5px}
+  .pals button{flex:1;height:20px;border-radius:5px;border:1px solid var(--line);cursor:pointer;padding:0}
+  .pals button.on{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+
+  .note{margin-top:13px;padding-top:11px;border-top:1px solid var(--line);font-size:11.5px;line-height:1.45;color:var(--soft)}
+  .note code{color:var(--accent2)}
+
+  .hint{position:fixed;bottom:12px;left:18px;z-index:5;font-size:11.5px;color:var(--soft)}
+  @media (max-width:560px){ .panel{width:auto;left:12px;right:12px;top:auto;bottom:10px;max-height:80vh;overflow:auto} .hint{display:none} }
+</style>
+</head>
+<body>
+<div id="viewport"></div>
+<div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / <a href="../../">tjs</a> / <a href="../">orb</a> / <b>build</b> · <a href="../sketch/">sketch ↗</a></div>
+
+<div class="panel">
+  <h2>Build — sculpt &amp; print</h2>
+  <p class="sub"><span id="groupName">dihedral (2,2,n)</span> · <b id="cellCount">48</b> cells</p>
+
+  <div class="seg" id="modes">
+    <button data-mode="lune">Lunes</button>
+    <button data-mode="dihedral" class="on">Dihedral</button>
+    <button data-mode="tetra">Tetra</button>
+    <button data-mode="octa">Octa</button>
+    <button data-mode="icosa">Icosa</button>
+    <button data-mode="schwarz">Schwarz</button>
+    <button data-mode="voronoi">Voronoi</button>
+  </div>
+  <div style="font-size:11px;color:var(--soft);margin-bottom:4px" id="schwarzLine">(2,2,n) — the infinite family, one per integer</div>
+
+  <div class="row" id="schwRow" style="display:none">
+    <label>star triangle (p,q,r)</label>
+    <select id="schw"></select>
+  </div>
+
+  <div class="row" id="nRow">
+    <label><span id="nLabel">order n</span> <b><span id="nVal">12</span></b></label>
+    <input type="range" id="n" min="2" max="48" step="1" value="12">
+  </div>
+
+  <div class="row" id="subRow">
+    <label>geodesic subdivide <b>×<span id="subVal">1</span></b></label>
+    <input type="range" id="sub" min="1" max="8" step="1" value="1">
+  </div>
+
+  <label class="toggle" id="mirrorRow"><input type="checkbox" id="mirror"> equatorial mirror</label>
+
+  <div class="row" style="margin-top:13px">
+    <label>palette</label>
+    <div class="pals" id="pals">
+      <button data-pal="0" class="on" style="background:linear-gradient(90deg,#ff5d73,#ffd166,#06d6a0,#118ab2)"></button>
+      <button data-pal="1" style="background:linear-gradient(90deg,#39d6c8,#5b8cff,#b06cff)"></button>
+      <button data-pal="2" style="background:linear-gradient(90deg,#2b2d42,#8d99ae,#ef8354)"></button>
+      <button data-pal="3" style="background:linear-gradient(90deg,#ffb454,#ff5d8f,#7a5cff)"></button>
+    </div>
+  </div>
+
+  <label class="toggle"><input type="checkbox" id="lines" checked> <span id="linesLabel">mirror lines</span></label>
+  <label class="toggle"><input type="checkbox" id="spin" checked> auto-rotate</label>
+
+  <div id="sculpt" style="margin-top:11px;padding-top:11px;border-top:1px solid var(--line)">
+    <div class="row" style="margin:2px 0 9px">
+      <label>height field — <span style="color:var(--accent2)">weird math</span></label>
+      <select id="field">
+        <option value="none">none (pen only)</option>
+        <option value="harmonic">spherical harmonic</option>
+        <option value="gyroid">gyroid (TPMS)</option>
+        <option value="quasi">quasicrystal interference</option>
+        <option value="noise">value-noise fBm</option>
+        <option value="super">superformula</option>
+      </select>
+    </div>
+    <div class="row" id="freqRow" style="margin:7px 0"><label>frequency <b><span id="freqVal">4</span></b></label><input type="range" id="freq" min="1" max="14" step="0.5" value="4"></div>
+    <div class="row" id="paramRow" style="margin:7px 0"><label>warp / power <b><span id="paramVal">1.0</span></b></label><input type="range" id="param" min="0.2" max="4" step="0.1" value="1"></div>
+    <div class="row" id="seedRow" style="margin:7px 0"><label>phase / variant <b><span id="seedVal">0</span></b></label><input type="range" id="seed" min="0" max="20" step="1" value="0"></div>
+    <div class="row" style="margin:7px 0"><label>relief — height into space <b>×<span id="reliefVal">0.30</span></b></label><input type="range" id="relief" min="0" max="1" step="0.02" value="0.30"></div>
+
+    <label class="toggle"><input type="checkbox" id="pen"> pen — add lobes by hand</label>
+    <div id="penRow" style="display:none">
+      <div class="row" style="margin:6px 0"><label>brush <b><span id="penSizeVal">7</span></b></label><input type="range" id="penSize" min="2" max="22" step="1" value="7"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin:2px 0 4px">
+        <input type="color" id="penColor" value="#ffffff" style="width:40px;height:28px;padding:0;background:none;border:1px solid var(--line);border-radius:6px;cursor:pointer">
+        <button id="penClear" style="flex:1;cursor:pointer;font:inherit;font-size:12px;color:var(--soft);background:#0d0d15;border:1px solid var(--line);border-radius:8px;padding:7px">clear ink</button>
+      </div>
+    </div>
+    <button id="penExport" style="width:100%;cursor:pointer;font:inherit;font-size:12px;color:var(--bg);background:var(--accent2);border:none;border-radius:8px;padding:8px;font-weight:600;margin-top:4px">⬇ export STL (3D print)</button>
+  </div>
+
+  <div class="note" id="note">
+    The symmetry group folds the whole sphere into one fundamental cell; the
+    <b>height field</b> is evaluated there and reflected into every cell, so any
+    function comes out symmetric — and printable. <b>Math is sampled on the folded
+    3D point</b>: gyroid &amp; quasicrystal are genuinely volumetric. Add the
+    <b>pen</b> on top, then <b>export STL</b> (watertight, ~40&nbsp;mm).
+  </div>
+</div>
+
+<div class="hint" id="hint">drag to orbit · scroll to zoom</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+THREE.ColorManagement.enabled = false;
+
+/* ---------- vector helpers ---------- */
+const dot = (a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const norm = a=>{ const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; };
+const reflect = (v,n)=>{ const d=2*dot(v,n); return [v[0]-d*n[0], v[1]-d*n[1], v[2]-d*n[2]]; };
+
+/* Three generating mirror normals of a Schwarz triangle (p,q,r), p,q,r possibly
+   fractional. Dihedral angle at edge {i,j} is pi/m -> n_i.n_j = -cos(pi/m). The
+   all-negative cone {dot(x,n_i)<=0} is the fundamental triangle. */
+function generators(p,q,r){
+  const n0=[1,0,0];
+  const n1=[-Math.cos(Math.PI/p), Math.sin(Math.PI/p), 0];
+  const x = -Math.cos(Math.PI/r);
+  const y = (-Math.cos(Math.PI/q) - Math.cos(Math.PI/p)*x) / Math.sin(Math.PI/p);
+  const z = Math.sqrt(Math.max(0, 1 - x*x - y*y));
+  return [n0, n1, [x,y,z]];
+}
+
+/* Close the 3 generators under reflection -> full mirror set (6/9/15, or n+1 dihedral). */
+function closeMirrors(gens){
+  const list=[];
+  const canon=m=>{ m=norm(m);
+    if(m[0]<-1e-7) m=[-m[0],-m[1],-m[2]];
+    else if(Math.abs(m[0])<1e-7){ if(m[1]<-1e-7) m=[-m[0],-m[1],-m[2]];
+      else if(Math.abs(m[1])<1e-7 && m[2]<0) m=[-m[0],-m[1],-m[2]]; }
+    return m; };
+  const has=m=>list.some(x=>Math.abs(dot(x,m))>1-1e-5);
+  const add=m=>{ m=canon(m); if(!has(m)) list.push(m); };
+  gens.forEach(add);
+  for(let it=0; it<80; it++){
+    const snap=list.slice();
+    for(const m of snap) for(const r of snap) add(reflect(m,r));
+    if(list.length===snap.length || list.length>120) break;
+  }
+  return list;
+}
+
+const MAXM=64, MAXP=160;
+function buildGroup(p,q,r,name,domains){
+  const gens=generators(p,q,r);
+  return { gens, mirrors:closeMirrors(gens), name, domains, pqr:`(${p},${q},${r})` };
+}
+const EXCEPTIONAL = {
+  tetra: buildGroup(3,3,2,'tetrahedral',24),
+  octa:  buildGroup(4,3,2,'octahedral',48),
+  icosa: buildGroup(5,3,2,'icosahedral',120),
+};
+const dihedralGroup = n => buildGroup(2,2,n,'dihedral (2,2,n)',4*n);
+
+/* Curated star Schwarz triangles — each verified to a finite group (order
+   24/48/120) with a convergent fold; fractional angle gives the star tiling. */
+const SCHWARZ=[
+  {sym:'2 3 5⁄2',  pqr:[2,3,2.5],  order:120},
+  {sym:'2 5⁄2 5',  pqr:[2,2.5,5],  order:120},
+  {sym:'3 5 5⁄2',  pqr:[3,5,2.5],  order:120},
+  {sym:'5⁄2 5⁄2 3',pqr:[2.5,2.5,3],order:120},
+  {sym:'2 5⁄2 3',  pqr:[2,2.5,3],  order:120},
+  {sym:'2 3 4⁄3',  pqr:[2,3,4/3],  order:48},
+  {sym:'2 4 3⁄2',  pqr:[2,4,1.5],  order:48},
+  {sym:'2 3⁄2 3',  pqr:[2,1.5,3],  order:24},
+];
+
+/* Fibonacci sphere — n near-uniform points, no symmetry (the cursed any-n option). */
+function fibPoints(n){
+  const pts=[]; const ga=Math.PI*(3-Math.sqrt(5));
+  for(let k=0;k<n;k++){
+    const y=1-2*(k+0.5)/n, r=Math.sqrt(Math.max(0,1-y*y)), th=ga*k;
+    pts.push([r*Math.cos(th), y, r*Math.sin(th)]);
+  }
+  return pts;
+}
+
+/* ---------- three.js scene ---------- */
+const viewport=document.getElementById('viewport');
+const renderer=new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace=THREE.LinearSRGBColorSpace;
+viewport.appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+camera.position.set(2.0, 1.2, 2.6);
+
+const controls=new OrbitControls(camera, renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.08;
+controls.minDistance=1.6; controls.maxDistance=8;
+controls.autoRotate=true; controls.autoRotateSpeed=0.55;
+
+/* shared uniform value-objects, referenced by BOTH materials */
+const U={
+  uShowLines:{value:1.0}, uPalette:{value:0},
+  uCamPos:{value:new THREE.Vector3()}, uLight:{value:new THREE.Vector3(0.4,0.72,0.55).normalize()},
+  uLine:{value:new THREE.Color(0xffffff)}, uRim:{value:new THREE.Color(0x39d6c8)},
+};
+
+const PRELUDE=`
+  precision highp float;
+  varying vec3 vLocal; varying vec3 vWorld; varying vec3 vNormal;
+  uniform float uShowLines; uniform int uPalette;
+  uniform vec3 uCamPos,uLight,uLine,uRim;
+  vec3 pal(float t,int p){
+    vec3 a,b,c,d;
+    if(p==0){a=vec3(.5);b=vec3(.5);c=vec3(1.);d=vec3(0.0,0.33,0.67);}
+    else if(p==1){a=vec3(.4,.45,.5);b=vec3(.45,.4,.5);c=vec3(1.);d=vec3(0.55,0.7,0.9);}
+    else if(p==2){a=vec3(.34,.36,.42);b=vec3(.42,.36,.34);c=vec3(1.);d=vec3(0.0,0.18,0.42);}
+    else {a=vec3(.5,.42,.4);b=vec3(.5,.45,.45);c=vec3(1.,0.9,0.8);d=vec3(0.1,0.45,0.8);}
+    return clamp(a+b*cos(6.28318*(c*t+d)),0.0,1.0);
+  }
+  vec3 shade(vec3 sym,float line,vec3 N){
+    vec3 V=normalize(uCamPos-vWorld);
+    float diff=0.45+0.55*max(dot(N,uLight),0.0);
+    vec3 col=sym*diff;
+    col+=pow(1.0-max(dot(N,V),0.0),3.0)*uRim*0.85;
+    col+=pow(max(dot(reflect(-uLight,N),V),0.0),48.0)*0.35;
+    line*=uShowLines;
+    col=mix(col,uLine,line*0.92); col+=uLine*line*0.25;
+    return col;
+  }`;
+
+const VERT=`
+  varying vec3 vLocal; varying vec3 vWorld; varying vec3 vNormal;
+  void main(){
+    vLocal=normalize(position);
+    vec4 wp=modelMatrix*vec4(position,1.0); vWorld=wp.xyz;
+    vNormal=normalize(mat3(modelMatrix)*normal);
+    gl_Position=projectionMatrix*viewMatrix*wp;
+  }`;
+
+/* displacement vertex shader (kaleidoscope material): per-vertex height (aH) is
+   computed on the CPU from the pen's ink, folded into the fundamental domain.
+   No vertex texture fetch -> compiles everywhere. */
+const KVERT=`
+  varying vec3 vLocal; varying vec3 vWorld; varying vec3 vNormal;
+  attribute float aH; uniform float uRelief;
+  void main(){
+    vec3 d=normalize(position); vLocal=d;
+    vec3 disp=position*(1.0 + uRelief*aH);
+    vec4 wp=modelMatrix*vec4(disp,1.0); vWorld=wp.xyz;
+    vNormal=normalize(mat3(modelMatrix)*normal);
+    gl_Position=projectionMatrix*viewMatrix*wp;
+  }`;
+
+/* ---------- pen / ink (paint in the fundamental domain; symmetry is free) ---------- */
+const INK=1024, IP0=[0.12,0.86], IP1=[0.88,0.86], IP2=[0.5,0.16];   // triangle embedding
+const inkCanvas=document.createElement('canvas'); inkCanvas.width=inkCanvas.height=INK;
+const ictx=inkCanvas.getContext('2d');
+const inkTex=new THREE.CanvasTexture(inkCanvas);
+inkTex.minFilter=THREE.LinearFilter; inkTex.magFilter=THREE.LinearFilter; inkTex.generateMipmaps=false;
+let penOn=false, penColor='#ffffff', penSize=7;
+let inkGens=[[1,0,0],[0,1,0],[0,0,1]];   // clean group generators the pen folds through
+let inkDirty=false, inkImg=null;          // height-field recompute flag (processed in the loop)
+function clearInk(){ ictx.clearRect(0,0,INK,INK); inkTex.needsUpdate=true; inkDirty=true; }
+
+/* fold a local point into the fundamental triangle (mirror modes) — matches the shader */
+function foldPoint(p,g0,g1,g2){ let q=p.slice();
+  for(let i=0;i<128;i++){ let m=false;
+    let d0=dot(q,g0); if(d0>1e-7){q=[q[0]-2*d0*g0[0],q[1]-2*d0*g0[1],q[2]-2*d0*g0[2]];m=true;}
+    let d1=dot(q,g1); if(d1>1e-7){q=[q[0]-2*d1*g1[0],q[1]-2*d1*g1[1],q[2]-2*d1*g1[2]];m=true;}
+    let d2=dot(q,g2); if(d2>1e-7){q=[q[0]-2*d2*g2[0],q[1]-2*d2*g2[1],q[2]-2*d2*g2[2]];m=true;}
+    if(!m) break; }
+  return q; }
+/* fundamental-domain uv for a local point — identical mapping to the fragment shader */
+function foldUV(p){
+  if(mode==='lune'){
+    const t=Math.atan2(p[2],p[0])/(2*Math.PI)+0.5, n=kaleMat.uniforms.uN.value;
+    const frac=((t*n)%1+1)%1;
+    const lat=kaleMat.uniforms.uMirrorEq.value>0.5 ? Math.abs(p[1]) : (p[1]*0.5+0.5);
+    return [frac,lat];
+  }
+  const g0=inkGens[0],g1=inkGens[1],g2=inkGens[2];
+  const q=foldPoint(p,g0,g1,g2);
+  const e0=Math.max(0,-dot(q,g0)),e1=Math.max(0,-dot(q,g1)),e2=Math.max(0,-dot(q,g2));
+  const es=e0+e1+e2+1e-9,a=e0/es,b=e1/es,c=e2/es;
+  return [a*IP0[0]+b*IP1[0]+c*IP2[0], a*IP0[1]+b*IP1[1]+c*IP2[1]];
+}
+function splat(p){ const uv=foldUV(p);
+  ictx.fillStyle=penColor; ictx.globalAlpha=0.95;
+  ictx.beginPath(); ictx.arc(uv[0]*INK,(1-uv[1])*INK,penSize,0,6.2831853); ictx.fill();
+  inkTex.needsUpdate=true; inkDirty=true; }
+function slerp(a,b,t){ const d=Math.min(1,Math.max(-1,dot(a,b))), om=Math.acos(d);
+  if(om<1e-4) return a.slice(); const so=Math.sin(om),s0=Math.sin((1-t)*om)/so,s1=Math.sin(t*om)/so;
+  return [a[0]*s0+b[0]*s1,a[1]*s0+b[1]*s1,a[2]*s0+b[2]*s1]; }
+function paintSeg(p0,p1){ const ang=Math.acos(Math.min(1,Math.max(-1,dot(p0,p1))));
+  const steps=Math.max(1,Math.min(96,Math.ceil(ang/0.01)));
+  for(let i=1;i<=steps;i++) splat(norm(slerp(p0,p1,i/steps))); }
+
+/* ---- kaleidoscope material (lune + dihedral + tetra/octa/icosa + schwarz) ---- */
+const PAD=Array.from({length:MAXM},()=>new THREE.Vector3());
+const kaleMat=new THREE.ShaderMaterial({
+  uniforms:Object.assign({}, U, {
+    uMode:{value:1}, uN:{value:12.0}, uSubdiv:{value:1.0}, uMirrorEq:{value:0.0}, uRelief:{value:0.30},
+    uGen0:{value:new THREE.Vector3(1,0,0)}, uGen1:{value:new THREE.Vector3(0,1,0)},
+    uGen2:{value:new THREE.Vector3(0,0,1)},
+    uIGen0:{value:new THREE.Vector3(1,0,0)}, uIGen1:{value:new THREE.Vector3(0,1,0)},
+    uIGen2:{value:new THREE.Vector3(0,0,1)},
+    uMirrors:{value:PAD}, uMirrorCount:{value:0}, uInk:{value:inkTex},
+  }),
+  vertexShader:KVERT,
+  fragmentShader:PRELUDE+`
+  uniform int uMode; uniform float uN,uSubdiv,uMirrorEq,uRelief;
+  uniform vec3 uGen0,uGen1,uGen2; uniform vec3 uIGen0,uIGen1,uIGen2;
+  uniform vec3 uMirrors[64]; uniform int uMirrorCount;
+  uniform sampler2D uInk;
+  const vec2 IP0=vec2(0.12,0.86), IP1=vec2(0.88,0.86), IP2=vec2(0.5,0.16);
+  void main(){
+    vec3 p=normalize(vLocal); vec3 sym; float line=0.0; vec2 iuv;
+    if(uMode==0){
+      float t=atan(p.z,p.x)/6.28318+0.5;
+      float seg=t*uN, idx=floor(seg), parity=mod(idx,2.0);
+      if(uMirrorEq>0.5 && p.y<0.0) parity=1.0-parity;
+      sym=pal(idx/uN,uPalette)*(parity>0.5?0.80:1.0);
+      float dm=min(fract(seg),1.0-fract(seg));
+      line=1.0-smoothstep(0.0, fwidth(seg)*1.3+1e-4, dm);
+      if(uMirrorEq>0.5) line=max(line, 1.0-smoothstep(0.0, fwidth(p.y)*1.6+0.0015, abs(p.y)));
+      iuv=vec2(fract(seg), uMirrorEq>0.5 ? abs(p.y) : p.y*0.5+0.5);
+    } else {
+      vec3 q=p; float cnt=0.0;
+      for(int i=0;i<96;i++){ bool moved=false;
+        float d0=dot(q,uGen0); if(d0>1e-4){q-=2.0*d0*uGen0;cnt+=1.0;moved=true;}
+        float d1=dot(q,uGen1); if(d1>1e-4){q-=2.0*d1*uGen1;cnt+=1.0;moved=true;}
+        float d2=dot(q,uGen2); if(d2>1e-4){q-=2.0*d2*uGen2;cnt+=1.0;moved=true;}
+        if(!moved) break; }
+      float parity=mod(cnt,2.0);
+      float e0=max(0.0,-dot(q,uGen0)),e1=max(0.0,-dot(q,uGen1)),e2=max(0.0,-dot(q,uGen2));
+      float es=e0+e1+e2+1e-9, a=e0/es,b=e1/es,c=e2/es, F=uSubdiv;
+      float fa=a*F,fb=b*F,fc=c*F, ia=floor(fa),ib=floor(fb),ic=floor(fc);
+      float up=((ia+ib+ic)>F-1.5)?0.0:1.0;
+      float hue=fract(0.34*b+0.67*c + 0.11*(ia-ic));
+      sym=pal(fract(0.04+hue+0.08*parity),uPalette);
+      sym*=(parity>0.5?0.84:1.0); sym*=(up>0.5?0.90:1.0);
+      float dl=1e9;
+      for(int i=0;i<64;i++){ if(i>=uMirrorCount) break; dl=min(dl,abs(dot(p,uMirrors[i]))); }
+      line=1.0-smoothstep(0.0,0.016,dl);
+      if(F>1.5){
+        float dg=min(min(min(fract(fa),1.0-fract(fa)),min(fract(fb),1.0-fract(fb))),min(fract(fc),1.0-fract(fc)));
+        line=max(line,(1.0-smoothstep(0.0,(fwidth(fa)+fwidth(fb)+fwidth(fc))*0.9+1e-4,dg))*0.6);
+      }
+    }
+    if(uMode==1){                         // ink folds via the clean group generators
+      vec3 iq=p;
+      for(int i=0;i<96;i++){ bool mv=false;
+        float a0=dot(iq,uIGen0); if(a0>1e-4){iq-=2.0*a0*uIGen0;mv=true;}
+        float a1=dot(iq,uIGen1); if(a1>1e-4){iq-=2.0*a1*uIGen1;mv=true;}
+        float a2=dot(iq,uIGen2); if(a2>1e-4){iq-=2.0*a2*uIGen2;mv=true;}
+        if(!mv) break; }
+      float k0=max(0.0,-dot(iq,uIGen0)),k1=max(0.0,-dot(iq,uIGen1)),k2=max(0.0,-dot(iq,uIGen2));
+      float ks=k0+k1+k2+1e-9;
+      iuv=(k0/ks)*IP0+(k1/ks)*IP1+(k2/ks)*IP2;
+    }
+    vec4 ink=texture2D(uInk,iuv);
+    sym=mix(sym, ink.rgb, ink.a);
+    // displaced-surface normal: geometric (from the bulged surface) blended toward
+    // the smooth sphere normal so a flat orb (relief 0) still shades smoothly.
+    vec3 sn=normalize(vNormal);
+    vec3 gn=normalize(cross(dFdx(vWorld),dFdy(vWorld)));
+    if(dot(gn,sn)<0.0) gn=-gn;
+    vec3 N=mix(sn, gn, clamp(uRelief*6.0,0.0,1.0));
+    gl_FragColor=vec4(shade(sym,line,N),1.0);
+  }`,
+});
+
+/* ---- voronoi material (Fibonacci-sphere spherical Voronoi) ---- */
+const PTS=Array.from({length:MAXP},()=>new THREE.Vector3());
+const voroMat=new THREE.ShaderMaterial({
+  uniforms:Object.assign({}, U, { uPoints:{value:PTS}, uPCount:{value:72} }),
+  vertexShader:VERT,
+  fragmentShader:PRELUDE+`
+  uniform vec3 uPoints[160]; uniform int uPCount;
+  void main(){
+    vec3 p=normalize(vLocal);
+    float b1=-2.0,b2=-2.0; int idx=0;
+    for(int i=0;i<160;i++){ if(i>=uPCount) break;
+      float dp=dot(p,uPoints[i]);
+      if(dp>b1){ b2=b1; b1=dp; idx=i; } else if(dp>b2){ b2=dp; } }
+    float hue=fract(float(idx)*0.6180339887);
+    vec3 sym=pal(hue,uPalette);
+    float w=fwidth(b1-b2)*0.6+0.0035;
+    float line=1.0-smoothstep(0.0,w,b1-b2);
+    gl_FragColor=vec4(shade(sym,line,normalize(vNormal)),1.0);
+  }`,
+});
+
+const orb=new THREE.Mesh(new THREE.SphereGeometry(1,256,192), kaleMat);
+scene.add(orb);
+
+/* ---------- weird-math height fields (evaluated on the FOLDED point, so the
+   result is automatically symmetric under the active group — and printable) ---------- */
+const clamp01=v=>v<0?0:v>1?1:v;
+const PHI=(1+Math.sqrt(5))/2;
+const QC=[[0,1,PHI],[0,-1,PHI],[1,PHI,0],[-1,PHI,0],[PHI,0,1],[PHI,0,-1]].map(norm); // icosahedral axes
+function hash3(i,j,k){ let n=Math.imul(i,374761393)+Math.imul(j,668265263)+Math.imul(k,2147483647);
+  n=Math.imul(n^(n>>>13),1274126177); n^=n>>>16; return (n>>>0)/4294967295; }
+function vnoise(x,y,z){
+  const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z), xf=x-xi,yf=y-yi,zf=z-zi;
+  const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf),w=zf*zf*(3-2*zf), L=(a,b,t)=>a+(b-a)*t;
+  const c=(di,dj,dk)=>hash3(xi+di,yi+dj,zi+dk);
+  return L(L(L(c(0,0,0),c(1,0,0),u),L(c(0,1,0),c(1,1,0),u),v),
+           L(L(c(0,0,1),c(1,0,1),u),L(c(0,1,1),c(1,1,1),u),v),w);
+}
+function fbm(x,y,z,oct){ let a=0,amp=0.5,f=1,nrm=0; for(let o=0;o<oct;o++){ a+=amp*vnoise(x*f,y*f,z*f); nrm+=amp; f*=2; amp*=0.5; } return a/(nrm||1); }
+function fieldH(name,q,F,P,S){
+  const x=q[0],y=q[1],z=q[2];
+  if(name==='harmonic'){
+    const th=Math.acos(Math.max(-1,Math.min(1,y))), ph=Math.atan2(z,x)+S*0.3;
+    const m=Math.max(1,Math.round(F)), l=Math.max(1,Math.round(F*0.7));
+    return clamp01(Math.pow(Math.abs(Math.sin(m*ph)),P)*Math.pow(Math.abs(Math.sin(l*th)),P));
+  }
+  if(name==='gyroid'){
+    const s=F*Math.PI, g=Math.sin(s*x)*Math.cos(s*y)+Math.sin(s*y)*Math.cos(s*z)+Math.sin(s*z)*Math.cos(s*x);
+    return clamp01(Math.pow(0.5+0.5*g/1.5,P));
+  }
+  if(name==='quasi'){
+    let s=0; for(const k of QC) s+=Math.cos(F*Math.PI*(k[0]*x+k[1]*y+k[2]*z)+S*0.5);
+    return clamp01(Math.pow(0.5+0.5*s/QC.length,P));
+  }
+  if(name==='noise') return clamp01(fbm(x*F+S*1.7,y*F+S*2.3,z*F+S*3.1,Math.max(1,Math.round(P*3))));
+  if(name==='super'){
+    const ph=Math.atan2(z,x), th=Math.acos(Math.max(-1,Math.min(1,y))), m=Math.max(1,Math.round(F)), e=2+P*3;
+    const t1=Math.pow(Math.abs(Math.cos(m*ph/4)),e), t2=Math.pow(Math.abs(Math.sin(m*ph/4)),e);
+    let r=Math.pow(t1+t2,-1/(0.3+P)); if(!isFinite(r)) r=0;
+    return clamp01(r*Math.sin(th)*1.1);
+  }
+  return 0;
+}
+/* fold a direction to its representative 3D point in the fundamental domain */
+function foldRep(dir){
+  if(mode==='lune'){
+    const n=kaleMat.uniforms.uN.value, step=2*Math.PI/n;
+    const k=Math.floor((Math.atan2(dir[2],dir[0])+Math.PI)/step), ang=-k*step;
+    const c=Math.cos(ang),s=Math.sin(ang);
+    let y=dir[1]; if(kaleMat.uniforms.uMirrorEq.value>0.5 && y<0) y=-y;
+    return [dir[0]*c-dir[2]*s, y, dir[0]*s+dir[2]*c];
+  }
+  return foldPoint(dir, inkGens[0],inkGens[1],inkGens[2]);
+}
+
+/* CPU-side height field: field math + pen ink, folded into the fundamental domain.
+   Recomputed (throttled to once per frame) when ink, field, or params change. */
+const aH=new Float32Array(orb.geometry.attributes.position.count);
+orb.geometry.setAttribute('aH', new THREE.BufferAttribute(aH,1));
+function recomputeHeights(){
+  const pos=orb.geometry.attributes.position, data=inkImg ? inkImg.data : null;
+  const field=el('field').value, F=+el('freq').value, P=+el('param').value, S=+el('seed').value;
+  const useField = field!=='none' && mode!=='voronoi';
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i), l=Math.hypot(x,y,z)||1, dir=[x/l,y/l,z/l];
+    let h = useField ? fieldH(field, foldRep(dir), F,P,S) : 0;
+    if(data){ const uv=foldUV(dir);
+      const px=Math.min(INK-1,Math.max(0,Math.round(uv[0]*INK)));
+      const py=Math.min(INK-1,Math.max(0,Math.round((1-uv[1])*INK)));
+      h += data[(py*INK+px)*4+3]/255; }
+    aH[i]=clamp01(h);
+  }
+  orb.geometry.attributes.aH.needsUpdate=true;
+}
+function ensureHeights(){ inkImg=ictx.getImageData(0,0,INK,INK); recomputeHeights(); inkDirty=false; }
+
+/* ---------- state + UI ---------- */
+let mode='dihedral', sliderWasVoro=false;
+const el=id=>document.getElementById(id);
+
+// populate schwarz dropdown
+el('schw').innerHTML = SCHWARZ.map((s,i)=>`<option value="${i}">(${s.sym})</option>`).join('');
+
+function applyGroup(g){
+  kaleMat.uniforms.uGen0.value.set(...g.gens[0]);
+  kaleMat.uniforms.uGen1.value.set(...g.gens[1]);
+  kaleMat.uniforms.uGen2.value.set(...g.gens[2]);
+  for(let i=0;i<MAXM;i++) PAD[i].set(...(i<g.mirrors.length?g.mirrors[i]:[0,0,0]));
+  kaleMat.uniforms.uMirrorCount.value=Math.min(g.mirrors.length,MAXM);
+  el('groupName').textContent=g.name;
+}
+function setInkGens(g){
+  inkGens=[g[0].slice(),g[1].slice(),g[2].slice()];
+  kaleMat.uniforms.uIGen0.value.set(...g[0]);
+  kaleMat.uniforms.uIGen1.value.set(...g[1]);
+  kaleMat.uniforms.uIGen2.value.set(...g[2]);
+}
+function setVoroPoints(n){
+  const pts=fibPoints(n);
+  for(let i=0;i<MAXP;i++) PTS[i].set(...(i<pts.length?pts[i]:[0,0,0]));
+  voroMat.uniforms.uPCount.value=Math.min(n,MAXP);
+  el('groupName').textContent='Fibonacci Voronoi';
+}
+
+function refresh(){
+  const F=kaleMat.uniforms.uSubdiv.value;
+  const isKale = mode!=='voronoi';
+  orb.material = isKale ? kaleMat : voroMat;
+
+  // slider range/label per mode
+  const s=el('n'), v0=+s.value;
+  if(mode==='voronoi'){ s.min=8; s.max=160; if(!sliderWasVoro){ s.value=72; } el('nLabel').textContent='cells (points)'; }
+  else { s.min=2; s.max=48; if(sliderWasVoro){ s.value=12; } el('nLabel').textContent = mode==='lune'?'slices n':'order n'; }
+  sliderWasVoro = (mode==='voronoi');
+  el('nVal').textContent=s.value;
+  const n=+s.value;
+
+  let base=0;
+  if(mode==='lune'){ kaleMat.uniforms.uMode.value=0; base=n; setInkGens(EXCEPTIONAL.icosa.gens); }
+  else if(mode==='dihedral'){ kaleMat.uniforms.uMode.value=1; const g=dihedralGroup(n); applyGroup(g); base=g.domains; setInkGens(g.gens); }
+  else if(mode==='schwarz'){ kaleMat.uniforms.uMode.value=1; const sc=SCHWARZ[+el('schw').value];
+    const g=buildGroup(...sc.pqr, '(' + sc.sym + ')', sc.order); applyGroup(g); base=sc.order;
+    el('groupName').textContent='Schwarz '+'('+sc.sym+')';
+    const parent = sc.order===120?'icosa':sc.order===48?'octa':'tetra';
+    setInkGens(EXCEPTIONAL[parent].gens); }                 // ink uses the clean parent group
+  else if(mode==='voronoi'){ setVoroPoints(n); base=n; }
+  else { kaleMat.uniforms.uMode.value=1; const g=EXCEPTIONAL[mode]; applyGroup(g); base=g.domains; setInkGens(g.gens); }
+
+  const cells = (mode==='lune'||mode==='voronoi') ? base : Math.round(base*F*F);
+  el('cellCount').textContent=cells;
+
+  // control visibility
+  const kaleGrp = (mode==='dihedral'||mode==='tetra'||mode==='octa'||mode==='icosa'||mode==='schwarz');
+  el('nRow').style.display      = (mode==='lune'||mode==='dihedral'||mode==='voronoi') ? '' : 'none';
+  el('subRow').style.display    = kaleGrp ? '' : 'none';
+  el('schwRow').style.display   = (mode==='schwarz') ? '' : 'none';
+  el('mirrorRow').style.display = (mode==='lune') ? '' : 'none';
+  el('sculpt').style.display    = (mode==='voronoi') ? 'none' : '';   // no displacement on Voronoi
+  el('linesLabel').textContent  = (mode==='voronoi') ? 'cell edges' : 'mirror lines';
+  el('schwarzLine').textContent =
+    mode==='voronoi' ? 'golden-spiral lattice — any n, near-equal cells, no symmetry' :
+    mode==='schwarz' ? 'fractional triangle — same mirrors, density d>1 star tiling' :
+    mode==='lune'    ? 'Cn — rotation only (the 2D polar pen, lifted)' :
+    mode==='dihedral'? '(2,2,n) — the infinite family, one per integer'
+                     : (EXCEPTIONAL[mode].pqr+' — one of exactly three exceptions');
+}
+
+document.querySelectorAll('#modes button').forEach(btn=>{
+  btn.onclick=()=>{ mode=btn.dataset.mode;
+    document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b===btn));
+    refresh(); clearInk();                  // fundamental domain changed -> ink coords stale
+    const penActive = penOn && mode!=='voronoi';
+    el('pen').parentElement.style.opacity = (mode==='voronoi')?0.4:1;
+    controls.enableRotate = !penActive;     // Voronoi has no pen -> keep orbit usable
+    controls.autoRotate = el('spin').checked && !penActive;
+  };
+});
+el('schw').onchange=()=>{ refresh(); clearInk(); };
+el('n').oninput=()=>{ refresh(); clearInk(); };       // n changes the domain (lune wedge / dihedral triangle)
+el('sub').oninput=e=>{ kaleMat.uniforms.uSubdiv.value=+e.target.value; el('subVal').textContent=e.target.value; refresh(); };
+el('mirror').onchange=e=>{ kaleMat.uniforms.uMirrorEq.value=e.target.checked?1:0; clearInk(); };
+el('lines').onchange=e=>U.uShowLines.value=e.target.checked?1:0;
+el('spin').onchange=e=>controls.autoRotate=e.target.checked && !penOn;
+document.querySelectorAll('#pals button').forEach(b=>{
+  b.onclick=()=>{ U.uPalette.value=+b.dataset.pal;
+    document.querySelectorAll('#pals button').forEach(x=>x.classList.toggle('on',x===b)); };
+});
+
+/* pen wiring */
+const dom=renderer.domElement;
+function setPen(on){ penOn=on;
+  el('penRow').style.display = on ? '' : 'none';
+  controls.enableRotate = !on;
+  controls.autoRotate = !on && el('spin').checked;
+  dom.style.cursor = on ? 'crosshair' : 'grab';
+  el('hint').textContent = on ? 'pen on · drag to draw — every stroke folds into all cells · toggle off to orbit'
+                              : 'drag to orbit · scroll to zoom';
+}
+el('pen').onchange=e=>setPen(e.target.checked);
+el('penSize').oninput=e=>{ penSize=+e.target.value; el('penSizeVal').textContent=e.target.value; };
+el('penColor').oninput=e=>penColor=e.target.value;
+el('penClear').onclick=clearInk;
+el('relief').oninput=e=>{ kaleMat.uniforms.uRelief.value=+e.target.value; el('reliefVal').textContent=(+e.target.value).toFixed(2); };
+el('penExport').onclick=exportSTL;
+el('field').onchange=()=>{ inkDirty=true; };
+el('freq').oninput =e=>{ el('freqVal').textContent=e.target.value; inkDirty=true; };
+el('param').oninput=e=>{ el('paramVal').textContent=(+e.target.value).toFixed(1); inkDirty=true; };
+el('seed').oninput =e=>{ el('seedVal').textContent=e.target.value; inkDirty=true; };
+
+/* bake the displaced orb (radial height = aH field) to a watertight binary STL */
+function exportSTL(){
+  if(mode==='voronoi'){ return; }
+  ensureHeights();                                        // make aH current (field + pen)
+  const geo=orb.geometry, pos=geo.attributes.position, index=geo.index;
+  const relief=kaleMat.uniforms.uRelief.value, R=20;     // 20mm radius -> ~40mm print
+  const V=pos.count, dp=new Float32Array(V*3);
+  for(let i=0;i<V;i++){
+    const px=pos.getX(i),py=pos.getY(i),pz=pos.getZ(i), l=Math.hypot(px,py,pz)||1;
+    const s=(1+relief*aH[i])*R;
+    dp[i*3]=px/l*s; dp[i*3+1]=py/l*s; dp[i*3+2]=pz/l*s;
+  }
+  const tris = index ? index.count/3 : V/3;
+  const at = index ? i=>index.getX(i) : i=>i;
+  const buf=new ArrayBuffer(84+tris*50), dv=new DataView(buf); let o=80;
+  dv.setUint32(o,tris,true); o+=4;
+  const f3=(a,b,c)=>{ dv.setFloat32(o,a,true); dv.setFloat32(o+4,b,true); dv.setFloat32(o+8,c,true); o+=12; };
+  for(let t=0;t<tris;t++){
+    const i0=at(t*3),i1=at(t*3+1),i2=at(t*3+2);
+    const ax=dp[i0*3],ay=dp[i0*3+1],az=dp[i0*3+2];
+    const bx=dp[i1*3],by=dp[i1*3+1],bz=dp[i1*3+2];
+    const cx=dp[i2*3],cy=dp[i2*3+1],cz=dp[i2*3+2];
+    const ux=bx-ax,uy=by-ay,uz=bz-az, vx=cx-ax,vy=cy-ay,vz=cz-az;
+    let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx; const nl=Math.hypot(nx,ny,nz)||1;
+    f3(nx/nl,ny/nl,nz/nl); f3(ax,ay,az); f3(bx,by,bz); f3(cx,cy,cz);
+    dv.setUint16(o,0,true); o+=2;
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([buf],{type:'model/stl'}));
+  a.download='orb-'+mode+'.stl'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
+let drawing=false, lastLocal=null;
+function hitLocal(ev){
+  const r=dom.getBoundingClientRect();
+  ndc.x=((ev.clientX-r.left)/r.width)*2-1; ndc.y=-((ev.clientY-r.top)/r.height)*2+1;
+  ray.setFromCamera(ndc,camera);
+  const hits=ray.intersectObject(orb,false); if(!hits.length) return null;
+  orb.updateMatrixWorld();
+  const lp=orb.worldToLocal(hits[0].point.clone()).normalize();
+  return [lp.x,lp.y,lp.z];
+}
+dom.addEventListener('pointerdown',ev=>{ if(!penOn||mode==='voronoi') return;
+  const p=hitLocal(ev); if(!p) return; drawing=true; lastLocal=p; splat(p);
+  dom.setPointerCapture(ev.pointerId); ev.preventDefault(); });
+dom.addEventListener('pointermove',ev=>{ if(!penOn||!drawing) return;
+  const p=hitLocal(ev); if(!p) return; paintSeg(lastLocal,p); lastLocal=p; });
+dom.addEventListener('pointerup',()=>{ drawing=false; lastLocal=null; });
+dom.addEventListener('pointercancel',()=>{ drawing=false; lastLocal=null; });
+
+refresh();
+
+/* ---------- loop ---------- */
+function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize();
+renderer.setAnimationLoop(()=>{
+  controls.update();
+  if(inkDirty){ inkImg=ictx.getImageData(0,0,INK,INK); recomputeHeights(); inkDirty=false; }
+  U.uCamPos.value.copy(camera.position);
+  renderer.render(scene,camera);
+});
+</script>
+</body>
+</html>
