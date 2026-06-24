@@ -53,6 +53,9 @@ const WRITE_COLLECTIONS = [
   // to THEIR OWN repo as story.content records — so a signed-in player needs
   // write on this collection too (the shared spine is written by the service key).
   'com.minomobi.hoop.story.content',
+  // story.rumor: a write-only outbox in the player's OWN repo — rumors they spread, which
+  // the engine tails off the firehose and may answer with a verdict or new content.
+  'com.minomobi.hoop.story.rumor',
   // io (atproto tracker portal)
   'com.minomobi.io.ticket',
   // labglass

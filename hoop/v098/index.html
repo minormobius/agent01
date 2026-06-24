@@ -478,7 +478,7 @@
     import { assess, levelMessage, guideFor } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
     import { buildQuestBank, questProgress, pickQuestForNpc, questMarker } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to
     import { AuthClient } from '../vendor/auth.js';   // shared OAuth (verbatim copy of packages/oauth-client) — sign in to save to YOUR repo
-    import { loadOwnSave, putSave, SAVE_NSID, loadPool, publicClient, loadPulse, listOwnSaves, deleteOwnSave } from './story/atproto.js';   // the per-player save lane + the SHARED pool read + the cross-player pulse + own-save enumeration (com.minomobi.hoop.story.*)
+    import { loadOwnSave, putSave, SAVE_NSID, loadPool, publicClient, loadPulse, listOwnSaves, deleteOwnSave, putRumor } from './story/atproto.js';   // the per-player save lane + the SHARED pool read + the cross-player pulse + own-save enumeration + the rumor outbox (com.minomobi.hoop.story.*)
     import { loadVerdicts, digestVerdicts } from './story/verdicts.js';   // the rumor-mill / async-result feed: apply retcons + notices, redraw on change
     import { pickChatter, factionOf } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
@@ -1568,24 +1568,54 @@
     //    description fills the centre of the screen. Every entity carries a decent-size description — show
     //    it. Only fires on first touch (crystallize), never on recall; dismiss with click / ⏎ / Esc. ──
     const ENC_GLYPH = { npc: '☻ person', creature: '✦ creature', item: '▣ item', lore_fragment: '❧ lore', plot_beat: '✷ moment', rumor: '☷ rumor' };
+    let _encItem = null;   // the item the encounter card is showing, so the "spread word" action can reference it
     function showEncounter(item) {
       if (!item || !String(item.description || '').trim()) return;
+      _encItem = item;
       const hint = item.revelation_hint ? `<div class="eh">“${esc(item.revelation_hint)}”</div>` : '';
       const tier = item.revelation_tier ? ` · tier ${item.revelation_tier}` : '';
+      // SPREAD WORD — write-only rumor to your own repo (the engine may verdict/content against it). Only
+      // offered when you're signed in (rumors live in YOUR repo) and the figure has a content id to reference.
+      const spread = (storyUser && item.content_item_id)
+        ? `<button data-spread="1" style="margin-top:12px;padding:7px 16px;border:1px solid var(--gold,#f4bf62);background:rgba(244,191,98,.12);color:var(--gold,#f4bf62);border-radius:7px;font:inherit;font-size:13px;cursor:pointer">☷ spread word</button>`
+        : '';
       $('enccard').innerHTML =
         `<div class="ek">${esc(ENC_GLYPH[item.type] || item.type || 'encounter')}${tier}</div>` +
         `<div class="en">${esc(item.name || 'Something')}</div>` +
-        `<div class="ed">${esc(item.description)}</div>${hint}` +
+        `<div class="ed">${esc(item.description)}</div>${hint}${spread}` +
         `<div class="ex">⏎ / click to continue</div>`;
       journalOpen = false;   // a real encounter takes the #enc overlay — not the journal
       $('enc').classList.add('on');
     }
-    const hideEncounter = () => { $('enc').classList.remove('on'); journalOpen = false; };
-    $('enc').addEventListener('click', hideEncounter);
+    const hideEncounter = () => { $('enc').classList.remove('on'); journalOpen = false; _encItem = null; };
+    // SPREAD a rumor about the figure you just met → your own repo (append-only outbox). Best-effort; a
+    // failure (e.g. a pre-rumor OAuth session that lacks the scope) just marks the button, never breaks play.
+    async function spreadRumor(item) {
+      if (!storyUser || !item) return false;
+      const rumor = { world: worldKey(), text: `Word spreads of ${item.name || 'something'}${item.type ? ` (${item.type})` : ''}.` };
+      if (item.content_item_id) rumor.subject = item.content_item_id;
+      if (item.type) rumor.subjectType = item.type;
+      if (item.name) rumor.subjectName = item.name;
+      if (item.revelation_tier) rumor.tier = item.revelation_tier;
+      try { await putRumor(auth.pds, rumor); return true; } catch (e) { return false; }
+    }
+    $('enc').addEventListener('click', async (e) => {
+      const sp = e.target.closest('[data-spread]');
+      if (sp && !sp.disabled) {
+        e.stopPropagation();
+        const item = _encItem; sp.disabled = true; sp.textContent = '☷ spreading…';
+        const ok = await spreadRumor(item);
+        sp.textContent = ok ? '☷ word spread' : '✕ couldn’t spread';
+        if (ok) flashToast(`☷ you spread word of ${(item && item.name) || 'it'}`, 2400);
+        return;
+      }
+      hideEncounter();
+    });
     addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
     const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) showEncounter(intro.item); };
     // a generic centre-screen page (deck arrival, the hoopybot level-up) — same overlay, custom layout.
     function showPage(kicker, title, body, foot) {
+      _encItem = null;   // a generic page reuses the overlay — no figure to spread word of
       $('enccard').innerHTML =
         `<div class="ek">${esc(kicker)}</div>` +
         `<div class="en">${esc(title)}</div>` +

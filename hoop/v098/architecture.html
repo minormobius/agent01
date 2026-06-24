@@ -101,6 +101,8 @@ const N = {
     d:'The inference-free \'long rest\': a player crosses a tier FLOOR when they HOLD earned story state (facts/items/rep). Declarative storyboard beats derive the quest log + map markers. Monotonic, deterministic.' },
   client:  { x: 1460, y: 250, lane:'client', t:'🖥 v096 client', s:'index.html · ✨ weave',
     d:'The playable surface. Click a resident → crystallize their thread. ✨ weave → genquest.js builds a ChunkProfile, POSTs /api/story/sidequest, folds the approved arc into the live pool (store.addContent) and crystallizes its principal. Guarded: a SKIP/BLOCK changes nothing.' },
+  rumor:   { x: 1460, y: 70,  lane:'client', t:'☷ rumor outbox', s:'player repo · story.rumor (write-only)',
+    d:'A player SPREADS a rumor (the "☷ spread word" encounter action) → an append-only record in THEIR OWN repo, naming its subject (a content id) by reference. Write-only: the client never reads its own rumors. The engine tails the firehose for these and MAY answer with a verdict (retcon/notice, possibly to other players) or new shared content — both channels the client already consumes. Its own lexicon, not a save field: a rumor is an event (TID-keyed), not part of the latest-wins save aggregate. Cross-player / PvP is a future engine surface.' },
 };
 // edges: [from, to, kind?, label?]   kind: ''(flow) | 'dash'(feedback/steer) | 'req'(client request)
 const E = [
@@ -110,6 +112,7 @@ const E = [
   ['spineRepo','filter'], ['saveRepo','filter'], ['filter','engine'], ['engine','advance'],
   ['engine','client'], ['client','adapter','req','POST /api/story/sidequest'],
   ['saveRepo','pulse','','fold'], ['pulse','prompt','dash','steer'],
+  ['client','rumor','req','spread word'], ['rumor','gate','dash','engine tails → verdict / content'],
 ];
 const INV = {
   bible:['Stuffed whole — no RAG, no pgvector, no embeddings DB.'],

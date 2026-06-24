@@ -137,6 +137,8 @@
       <td>The shared cross-player rollup — rumor mill, presence, <code>worldVersion</code>, recent canon shifts — re-derived by the engine from events. A disposable projection.</td></tr>
     <tr><td><b>com.minomobi.hoop.story.verdict</b></td><td>morphyx</td><td>per result</td>
       <td>Per-player async results tagged <code>subjectDid</code> — the retcon/notification feed (entity diffs, rumor outcomes). Replaces the old notifications poll; the client reads the ones tagged for it.</td></tr>
+    <tr><td><b>com.minomobi.hoop.story.rumor</b></td><td>the <b>player's</b> repo</td><td><code>tid</code></td>
+      <td>A rumor the player <b>spreads</b> — a <b>write-only outbox</b>: the client never reads it back. Append-only (rkey = TID), each names a <code>subject</code> (a content id) by reference. The engine tails the firehose for these and <i>may</i> answer with a <code>verdict</code> or new <code>content</code>. Cross-player propagation is the engine's job (a future PvP surface).</td></tr>
     <tr><td><b>com.minomobi.hoop.place</b></td><td>the player's repo</td><td>tile / chamber addr</td>
       <td>A place on the map that anchors a thread (the main-site forum layer).</td></tr>
     <tr><td><b>com.minomobi.hoop.message</b></td><td>the player's repo</td><td>tid</td>
@@ -242,6 +244,34 @@
   incl. <code>character</code>; <code>placements</code> ref content by <code>content_item_id</code>; equipment is
   <code>slot→invId</code> resolved in <code>inv</code>. <b>Key player identity on the commit DID, not any field
   inside</b> (the inner <code>"local"</code> is ignored).</p>
+
+  <h3>⑤ <code>com.minomobi.hoop.story.rumor</code> — CLIENT → player's repo · rkey = <code>tid</code> <span style="color:var(--dim)">[engine consumes off the firehose]</span></h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>world</b></td><td>string ≤64</td><td>✔</td><td>ship seed the rumor pertains to.</td></tr>
+    <tr><td><b>text</b></td><td>string ≤600</td><td></td><td>the rumor body — what's being spread, in words.</td></tr>
+    <tr><td><b>subject</b></td><td>string ≤256</td><td></td><td>the <code>content_item</code> id this rumor is <i>about</i>, by reference (the content isn't copied).</td></tr>
+    <tr><td><b>subjectType</b></td><td>string ≤32</td><td></td><td>npc / creature / item / lore_fragment / plot_beat / rumor.</td></tr>
+    <tr><td><b>subjectName</b></td><td>string ≤200</td><td></td><td>display label at spread time.</td></tr>
+    <tr><td><b>tier</b></td><td>int 1..5</td><td></td><td>revelation tier of the subject when spread.</td></tr>
+    <tr><td><b>createdAt</b></td><td>datetime</td><td>✔</td><td></td></tr>
+  </table>
+<pre><span class="c">// in the PLAYER's repo, append-only: at://&lt;did&gt;/com.minomobi.hoop.story.rumor/&lt;tid&gt;</span>
+{
+  "$type": "com.minomobi.hoop.story.rumor",
+  "world": "7",
+  "text": "Word spreads of Olo the cradle-keeper (npc).",
+  "subject": "np-olo",
+  "subjectType": "npc",
+  "subjectName": "Olo",
+  "tier": 2,
+  "createdAt": "2026-06-24T12:00:00.000Z"
+}</pre>
+  <p class="lead"><b>Write-only from the client.</b> The game never reads its own rumors; it just appends them.
+  The engine tails this collection across player repos (Jetstream) and <i>may</i> answer by writing a
+  <code>verdict</code> (a retcon/notice, possibly to other players) or new shared <code>content</code> — both
+  channels the client already consumes. No client-side rumor consumer exists by design (cross-player effects
+  flow back through the verdict feed; direct player-vs-player is a later surface).</p>
 
   <h2>How an onlooker reads the records</h2>
   <p class="lead">Reads are <b>public and unauthenticated</b> — standard <code>com.atproto.repo</code> XRPC. Three steps:</p>
@@ -390,10 +420,13 @@ repo=did:plc:yivyyp54vddf7qf2lpsikhe4&amp;collection=com.minomobi.hoop.story.con
     { id: 'content', kind: 'rec', label: 'story.content', color: '#7fd8d0' },
     { id: 'pulse', kind: 'rec', label: 'story.pulse', color: '#c89ad0' },
     { id: 'verdict', kind: 'rec', label: 'story.verdict', color: '#e08a8a' },
+    { id: 'rumor', kind: 'rec', label: 'story.rumor', color: '#8fb89f' },   // player-spread, write-only outbox in the player's own repo
   ];
   const FE = [
     ['client', 'save', 'write'], ['save', 'players', 'host'],
+    ['client', 'rumor', 'write'], ['rumor', 'players', 'host'],   // a player SPREADS a rumor into their own repo (write-only; never read back)
     ['players', 'jetstream', 'stream'], ['jetstream', 'director', 'stream'],
+    ['jetstream', 'engine', 'stream'],      // the engine tails the firehose for player rumors → may answer with a verdict / content
     ['director', 'pulse', 'write'], ['pulse', 'morphyx', 'host'],
     ['bible', 'engine', 'feeds'],            // canon source → the engine's offline ingestion mints content
     ['engine', 'content', 'write'], ['content', 'morphyx', 'host'],
