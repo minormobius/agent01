@@ -1276,6 +1276,20 @@
     //    + cross-device + user-owned ($0 to us). localStorage stays the hot buffer; the repo write is
     //    BATCHED (debounced ~4s + on unload) — never a record per footstep. A faithful port of v3/v4. ──
     const auth = new AuthClient();
+    // NARROW SCOPE — hoop requests only its OWN collections, so the Bluesky consent screen lists a
+    // handful of hoop record types + identity, not the 50-line mino.mobi union (which reads as scarier
+    // than transition:generic). HOOP_SCOPE (the login scope) is the four collections that have been in
+    // the live consent ceiling for months: place + message (forum), story.save + story.content (game
+    // state + personal side-quests). story.rumor is DELIBERATELY NOT here: it only enters the ceiling
+    // once the auth worker redeploys, and requesting a not-yet-declared scope would reject the whole
+    // sign-in. So rumor is obtained JUST-IN-TIME via ensureScope at spread time (HOOP_SCOPE_RUMOR) —
+    // which both keeps sign-in deploy-safe and is the incremental-escalation model in action.
+    // (The engine writes pulse/verdict to morphyx under its own key — players only READ those.)
+    const HOOP_SCOPE = 'atproto ' + [
+      'com.minomobi.hoop.place', 'com.minomobi.hoop.message',
+      'com.minomobi.hoop.story.save', 'com.minomobi.hoop.story.content',
+    ].map((c) => 'repo:' + c).join(' ');
+    const HOOP_SCOPE_RUMOR = HOOP_SCOPE + ' repo:com.minomobi.hoop.story.rumor';
     let storyUser = null;                         // { did, handle } when signed in
     const worldKey = () => String(seed);          // save rkey = ship seed (one save per world)
     // localStorage is the hot buffer, now keyed PER WORLD so a single browser holds many anonymous save
@@ -1520,7 +1534,7 @@
         const handle = String(h != null ? h : input.value).replace(/^@+/, '').trim();
         if (!handle) { input.focus(); return; }
         close();
-        auth.login(handle).catch((e) => flashToast('sign-in failed: ' + (e && e.message || e), 3200));   // UNIFIED scope (incl. story.save) → OAuth, returns here
+        auth.login(handle, { scope: HOOP_SCOPE }).catch((e) => flashToast('sign-in failed: ' + (e && e.message || e), 3200));   // NARROW: only hoop's own collections → a short consent screen (not the 50-line union)
       };
       const renderList = () => {
         list.innerHTML = actors.map((a, i) =>
@@ -1592,6 +1606,15 @@
     // failure (e.g. a pre-rumor OAuth session that lacks the scope) just marks the button, never breaks play.
     async function spreadRumor(item) {
       if (!storyUser || !item) return false;
+      // INCREMENTAL AUTH: the login scope doesn't include story.rumor (see HOOP_SCOPE), so the first
+      // spread escalates just-in-time — ensureScope redirects to a short consent for the union, then
+      // returns here. Guarded: if the auth worker hasn't yet declared story.rumor in its ceiling, the
+      // escalation is rejected; we toast and bail rather than throw (rumor goes live once auth redeploys).
+      if (!auth.hasScope('com.minomobi.hoop.story.rumor')) {
+        flashToast('one-time: authorizing rumors…', 2400);
+        try { await auth.ensureScope(HOOP_SCOPE_RUMOR); } catch (e) { flashToast('rumors not enabled yet — try again later', 2600); }
+        return false;
+      }
       const rumor = { world: worldKey(), text: `Word spreads of ${item.name || 'something'}${item.type ? ` (${item.type})` : ''}.` };
       if (item.content_item_id) rumor.subject = item.content_item_id;
       if (item.type) rumor.subjectType = item.type;
