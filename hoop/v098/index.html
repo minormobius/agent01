@@ -10,7 +10,11 @@
   <style>
     * { box-sizing: border-box; } html, body { height: 100%; margin: 0; }
     body { background: #04050a; color: #dfe7e2; font-family: "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
-    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: manipulation; }
+    canvas { display: block; }
+    /* full-screen world canvases ONLY — scoped so this `position:fixed; inset:0` doesn't leak onto in-card
+       canvases (the arcade board, the conversation portrait, creator/equipped sprites), which it pinned to
+       the viewport's (0,0). Other full-screen canvases (#invcv, #mmcv, #battle .bcv) carry their own position. */
+    #cv, #mapgl { position: fixed; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: manipulation; }
     /* kill the double-tap-to-zoom gesture on every interactive surface (it fires on the puzzle pads,
        cards, and dock — maddening on mobile). `manipulation` keeps pan + pinch-zoom, drops double-tap. */
     #dock, #arc, #garden, #trade, #kitchen, #lapidary, #battle, #story, #storybg, #enc, #dbg, #loader, #notices, .himodal { touch-action: manipulation; }
@@ -180,7 +184,6 @@
     #arc .alaw, #garden .alaw, #trade .alaw, #kitchen .alaw { font-size: 21px; font-weight: 600; color: #f4bf62; margin: 4px 0 2px; }
     #arc .ameta, #garden .ameta, #trade .ameta, #kitchen .ameta { font-size: 11.5px; color: #9aa8a0; margin-bottom: 4px; }
     #arc .arule { font-size: 12.5px; line-height: 1.5; color: #cfd8d2; border-left: 2px solid #c89ad0; padding: 4px 0 4px 11px; margin: 8px 0; max-width: 440px; text-align: left; }
-    #arc canvas { display: block; max-width: 100%; background: #0a0e16; border: 1px solid #34424d; border-radius: 8px; image-rendering: pixelated; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
     #arc .amoves { font-size: 12px; color: #9aa8a0; margin: 4px 0; }
     #arc .awin { margin: 10px auto; padding: 9px 12px; max-width: 440px; border: 1px solid #6a5a3a; border-radius: 8px; background: rgba(244,191,98,0.12); color: #f4bf62; font-size: 13px; }
     #arc .apad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(2, 46px); gap: 7px; justify-content: center; margin: 14px auto 4px; }
