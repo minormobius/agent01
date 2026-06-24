@@ -2096,7 +2096,9 @@
       const r = g.report, cleared = clearedFor(g.lawIndex), reward = parReward(g), full = baseReward(g), over = overPar(g);
       const overTag = over > 0 ? ` <span style="color:var(--mmuted)">(−${full - reward} over par)</span>` : '';
       const winBar = g.won
-        ? `<div class="awin">solved in ${g.moves} — par ${g.par} · <span data-arc="next" style="cursor:pointer;text-decoration:underline;color:var(--maccent)">claim ◈${reward} &amp; next ›</span>${overTag}</div>`
+        ? (g.autoSolved
+          ? `<div class="awin">engine solved it in ${g.moves} — par ${g.par} · <span data-arc="next" style="cursor:pointer;text-decoration:underline;color:var(--maccent)">next ›</span> <span style="color:var(--mmuted)">(watched — no reward; reset to earn)</span></div>`
+          : `<div class="awin">solved in ${g.moves} — par ${g.par} · <span data-arc="next" style="cursor:pointer;text-decoration:underline;color:var(--maccent)">claim ◈${reward} &amp; next ›</span>${overTag}</div>`)
         : `<div class="astatus" style="color:var(--mmuted)">solve to earn ◈${full}${over > 0 ? ` · now ◈${reward} (${over} over par)` : ' — match par for full'}</div>`;
       const headTxt = morph ? `THE ARCADE · morph proto · type ${(morphTypeIdx % morphTypeCount()) + 1}/${morphTypeCount()}` : 'THE ARCADE';
       const hue = morph ? (g.genome.aesthetic ? g.genome.aesthetic.hue : 268) : 258;
@@ -2232,7 +2234,7 @@
         await new Promise((r) => setTimeout(r, 230));
       }
       arcadePlaying = false;
-      if (arcadeGame === g) { renderArcadeScreen(); if (g.won) flashArcadeWin(g); }
+      if (arcadeGame === g) { if (g.won) g.autoSolved = true; renderArcadeScreen(); if (g.won) flashArcadeWin(g); }   // engine-solved → no payout on claim
     }
     function arcadeAct(act) {
       if (!arcadeGame) return;
@@ -2245,8 +2247,8 @@
       if (act === 'mtype') {   // PROTO: cycle to the next morph game TYPE (primary × substrate, incl. hex)
         morphTypeIdx = (morphTypeIdx + 1) % morphTypeCount(); morphInst = 0; arcadeGame = loadMorphGame(); renderArcadeScreen(); return;
       }
-      if (act === 'undo') { (morph ? morphUndo : arcadeUndo)(arcadeGame); renderArcadeScreen(); return; }
-      if (act === 'reset') { (morph ? morphReset : arcadeReset)(arcadeGame); renderArcadeScreen(); return; }
+      if (act === 'undo') { arcadeGame.autoSolved = false; (morph ? morphUndo : arcadeUndo)(arcadeGame); renderArcadeScreen(); return; }
+      if (act === 'reset') { arcadeGame.autoSolved = false; (morph ? morphReset : arcadeReset)(arcadeGame); renderArcadeScreen(); return; }
       if (act === 'skip') {   // escape hatch: a fresh puzzle of this cabinet/type (no reward) — never be stuck
         // advance PAST the instance we actually landed on (q), not the search start — playable instSeeds are
         // sparse, so morphInst+1 would re-resolve to the same puzzle (the "15 clicks to a new board" bug).
@@ -2257,7 +2259,7 @@
         renderArcadeScreen(); return;
       }
       if (act === 'next') {   // claiming a win banks the reward and advances to a fresh puzzle
-        if (arcadeGame.won) {
+        if (arcadeGame.won && !arcadeGame.autoSolved) {   // a watched (engine) solve banks nothing — you have to solve it yourself
           setCoins(getCoins() + parReward(arcadeGame));   // efficiency pays — over-par solves bank less
           if (!morph) setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1);   // forge tracks a per-law frontier; the morph proto is a session sampler
           saveStory(); whereAmI();
@@ -2278,6 +2280,7 @@
       const arc = e.target.closest('[data-arc]'); if (arc) arcadeAct(arc.dataset.arc);
     });
     function flashArcadeWin(g) {
+      if (g.autoSolved) { notify(`▶ ${g.law.name} — engine solved it in ${g.moves} (par ${g.par}) · watched, no reward`, { kind: 'info', ms: 3200 }); return; }
       const over = overPar(g), tail = over > 0 ? ` · ◈${parReward(g)} (${over} over par)` : ` · ◈${parReward(g)} (par!)`;
       notify(`◈ ${g.law.name} — solved in ${g.moves} (par ${g.par})${tail}`, { kind: 'coin', ms: 3600 });
     }
