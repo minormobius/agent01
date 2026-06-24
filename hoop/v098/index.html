@@ -1278,18 +1278,15 @@
     const auth = new AuthClient();
     // NARROW SCOPE — hoop requests only its OWN collections, so the Bluesky consent screen lists a
     // handful of hoop record types + identity, not the 50-line mino.mobi union (which reads as scarier
-    // than transition:generic). HOOP_SCOPE (the login scope) is the four collections that have been in
-    // the live consent ceiling for months: place + message (forum), story.save + story.content (game
-    // state + personal side-quests). story.rumor is DELIBERATELY NOT here: it only enters the ceiling
-    // once the auth worker redeploys, and requesting a not-yet-declared scope would reject the whole
-    // sign-in. So rumor is obtained JUST-IN-TIME via ensureScope at spread time (HOOP_SCOPE_RUMOR) —
-    // which both keeps sign-in deploy-safe and is the incremental-escalation model in action.
-    // (The engine writes pulse/verdict to morphyx under its own key — players only READ those.)
+    // than transition:generic). Everything the player writes to their own repo: place + message (forum),
+    // story.save + story.content (game state + personal side-quests) + story.rumor (the spread outbox).
+    // story.rumor is in the auth worker's ceiling (scope.ts WRITE_COLLECTIONS), deployed from this same
+    // branch — so requesting it at login is safe. (The engine writes pulse/verdict to morphyx under its
+    // own key — players only READ those.)
     const HOOP_SCOPE = 'atproto ' + [
-      'com.minomobi.hoop.place', 'com.minomobi.hoop.message',
-      'com.minomobi.hoop.story.save', 'com.minomobi.hoop.story.content',
+      'com.minomobi.hoop.place', 'com.minomobi.hoop.message', 'com.minomobi.hoop.story.save',
+      'com.minomobi.hoop.story.content', 'com.minomobi.hoop.story.rumor',
     ].map((c) => 'repo:' + c).join(' ');
-    const HOOP_SCOPE_RUMOR = HOOP_SCOPE + ' repo:com.minomobi.hoop.story.rumor';
     let storyUser = null;                         // { did, handle } when signed in
     const worldKey = () => String(seed);          // save rkey = ship seed (one save per world)
     // localStorage is the hot buffer, now keyed PER WORLD so a single browser holds many anonymous save
@@ -1606,13 +1603,12 @@
     // failure (e.g. a pre-rumor OAuth session that lacks the scope) just marks the button, never breaks play.
     async function spreadRumor(item) {
       if (!storyUser || !item) return false;
-      // INCREMENTAL AUTH: the login scope doesn't include story.rumor (see HOOP_SCOPE), so the first
-      // spread escalates just-in-time — ensureScope redirects to a short consent for the union, then
-      // returns here. Guarded: if the auth worker hasn't yet declared story.rumor in its ceiling, the
-      // escalation is rejected; we toast and bail rather than throw (rumor goes live once auth redeploys).
+      // INCREMENTAL AUTH (fallback): a hoop sign-in grants story.rumor (it's in HOOP_SCOPE). But a session
+      // picked up cross-site (the .mino.mobi cookie, minted narrowly elsewhere) might lack it — if so,
+      // escalate just-in-time. ensureScope redirects to a short consent for the union, then returns here.
       if (!auth.hasScope('com.minomobi.hoop.story.rumor')) {
         flashToast('one-time: authorizing rumors…', 2400);
-        try { await auth.ensureScope(HOOP_SCOPE_RUMOR); } catch (e) { flashToast('rumors not enabled yet — try again later', 2600); }
+        try { await auth.ensureScope(HOOP_SCOPE); } catch (e) { flashToast('couldn’t authorize rumors — try again later', 2600); }
         return false;
       }
       const rumor = { world: worldKey(), text: `Word spreads of ${item.name || 'something'}${item.type ? ` (${item.type})` : ''}.` };
@@ -1635,7 +1631,9 @@
       hideEncounter();
     });
     addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
-    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) showEncounter(intro.item); };
+    // NPCs fold their reveal INTO the dialogue (one screen, one name — see renderStory); only non-NPC
+    // encounters (item / lore / creature / plot_beat) still get the standalone popup.
+    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item && intro.item.type !== 'npc') showEncounter(intro.item); };
     // a generic centre-screen page (deck arrival, the hoopybot level-up) — same overlay, custom layout.
     function showPage(kicker, title, body, foot) {
       _encItem = null;   // a generic page reuses the overlay — no figure to spread word of
@@ -1853,15 +1851,28 @@
         const choiceBtns = (t.choices || []).map((c) => `<button data-cid="${esc(c.id)}">${esc(c.text)}</button>`).join('');
         // a tree NPC with no live choices (a dead-end node) gets an explicit way out, not a hanging screen
         const choices = choiceBtns || (!t.no_tree ? `<button data-close="1" class="leaveconvo">⏎ leave</button>` : '');
+        // ONE NAME — the crystallized story figure's name (t.npc, e.g. "Miren Tal") IS the NPC's name,
+        // not the procedural resident the world spawned (agent.name, e.g. "Cole"). agent.name is only the
+        // fallback for a soul with no story figure yet. The role+standing line no longer repeats the name.
+        const npcName = t.npc || agent.name;
+        // ONE SCREEN — the figure's reveal (description + hint + "spread word") folds INTO the dialogue on
+        // first meeting, instead of a separate encounter popup. fresh = the just-crystallized item; null on recall.
+        const fresh = (story.active.intro && story.active.intro.status === 'crystallized') ? story.active.intro.item : null;
+        const canSpread = !!(fresh && storyUser && fresh.content_item_id);
+        const meet = (fresh && fresh.description)
+          ? `<p class="says" style="border-left:2px solid #f4bf62;padding-left:9px;font-style:normal;color:#cfd8d0">${esc(fresh.description)}</p>`
+            + (fresh.revelation_hint ? `<p class="says" style="color:#e0a86a;font-size:13px;font-style:italic;margin-top:-4px">“${esc(fresh.revelation_hint)}”</p>` : '')
+            + (canSpread ? `<button data-spread="1" style="margin:2px 0 8px;padding:6px 14px;border:1px solid #f4bf62;background:rgba(244,191,98,.12);color:#f4bf62;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer">☷ spread word</button>` : '')
+          : '';
         const inform = story.active.informed ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
-        const right = inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>`;
+        const right = meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>`;
         // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
         // an ambient crowd one-liner → a light compact popup.
         if (!t.no_tree || (t.choices && t.choices.length)) {
           // name/role sit ABOVE a FLIP CARD whose front is the character's own sprite and whose back is the
           // stat block — click the card to flip between sprite ⇄ stats (the sprite can never cover the name).
-          const left = `<div class="nm">${esc(agent.name)}</div>`
-            + `<div class="rl">${esc(agent.role)}${t.npc ? ' · ' + esc(t.npc) : ''} · standing ${t.standing | 0}</div>`
+          const left = `<div class="nm">${esc(npcName)}</div>`
+            + `<div class="rl">${esc(agent.role)} · standing ${t.standing | 0}</div>`
             + `<div class="flipcard" id="flipcard" title="click to flip between sprite and stats">`
             +   `<div class="flipinner">`
             +     `<div class="flipface flipfront"><canvas class="portrait" id="storyportrait" width="96" height="96"></canvas></div>`
@@ -1872,7 +1883,7 @@
           drawPortraitSprite(agent);
         } else {
           panel.innerHTML = `${close}<div class="stwrap single"><div class="stright">`
-            + `<div class="nm">${glyph} ${esc(agent.name)}</div><div class="rl">${esc(agent.role)}${t.npc ? ' · ' + esc(t.npc) : ''}</div>${right}</div></div>`;
+            + `<div class="nm">${glyph} ${esc(npcName)}</div><div class="rl">${esc(agent.role)}</div>${right}</div></div>`;
           showStory('compact');
         }
         return;
@@ -1895,6 +1906,12 @@
       const fc = e.target.closest('.flipcard'); if (fc) { fc.classList.toggle('flipped'); return; }   // sprite ⇄ stats
       const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
       if (cl) { story.active = null; renderStory(); return; }
+      const sp = e.target.closest('[data-spread]');   // spread word of the figure you're talking to (folded-in reveal)
+      if (sp && !sp.disabled && story.active && story.active.intro && story.active.intro.item) {
+        const item = story.active.intro.item; sp.disabled = true; sp.textContent = '☷ spreading…';
+        spreadRumor(item).then((ok) => { sp.textContent = ok ? '☷ word spread' : '✕ couldn’t spread'; if (ok) flashToast(`☷ you spread word of ${item.name || 'them'}`, 2400); });
+        return;
+      }
       const eat = e.target.closest('[data-eat]');
       if (eat && story.active && story.active.cafe) { eatFood(+eat.dataset.eat); return; }
       const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');

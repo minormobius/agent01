@@ -102,7 +102,7 @@ so sealing it is a drop-in.
 |---|---|
 | Lexicons `story.content` / `story.save` / `story.pulse` / `story.verdict` | ✅ `hoop/lexicons/` |
 | **Rumor outbox** `story.rumor` (player → engine; write-only, append-only, by-reference) + `story/atproto.js#putRumor` + the "☷ spread word" encounter action | ✅ `hoop/lexicons/`; client wired in `hoop/v098/`; **engine consume + cross-player = hoopy's side / future PvP** |
-| Auth scope: `com.minomobi.hoop.story.rumor` in `workers/auth` `scope.ts` | ⏳ added; **redeploy auth worker + players re-sign-in to mint the new scope** |
+| Auth scope: `com.minomobi.hoop.story.rumor` in the ceiling (`scope.ts`) **and** hoop's narrow `HOOP_SCOPE` (login) | ✅ `deploy-auth.yml` wired to this branch (ships the ceiling) + hoop requests it at login; players re-sign-in to mint it. `spreadRumor` falls back to `ensureScope` for older sessions |
 | Bridge `story/atproto.js` (pool ⇄ records, save ⇄ record, own-repo read, publicClient) | ✅ mock-tested, 13 checks |
 | Seeder `scripts/seed-story-pool.mjs` | ✅ **live** — 23 records on morphyx |
 | v3 sources the pool from morphyx (public `listRecords`), bundled fallback | ✅ **live** |
