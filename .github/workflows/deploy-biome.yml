@@ -2,7 +2,7 @@ name: Deploy Biome
 
 on:
   push:
-    branches: [main, 'claude/inaturalist-sprite-generation-2o2wsd']
+    branches: [main, 'claude/naturalist-random-critter-cf48fm']
     paths:
       - 'biome/**'
       - '.github/workflows/deploy-biome.yml'
