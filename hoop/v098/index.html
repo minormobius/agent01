@@ -3043,12 +3043,21 @@
         }
       }
     }
-    // guarantee chunk 0 has at least one Tabard terminal (designate the most central component if no role matches)
+    // guarantee chunk 0 has at least one Tabard terminal (the prologue needs a console to read). The forced
+    // terminal must NOT steal a room that already owns a fixture — `_terminal` overrides every other predicate
+    // (they all gate on !isTerminal), so stamping a grow room turned its garden ❀ into a mythograph ▤. Claim a
+    // room that was MEANT to be terminal-ish (component action 'terminal' — govern/worship/learn), else any
+    // fixtureless room, and only as a last resort any nearest. Never a grow/play/serve/trade room.
+    const OWNED_FIXTURES = new Set(['arcade', 'food', 'garden', 'trade', 'bed']);
     function ensureChunk0Terminal() {
       const ch = world && world.chunks[0]; if (!ch || !ch.painted) return;
       const comps = ch.painted.comps || [];
       if (comps.some(isTerminal)) return;
-      let best = null, bd = Infinity; for (const cp of comps) { const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = cp; } }
+      const free = comps.filter((cp) => !OWNED_FIXTURES.has(fixtureAction(cp.role, 'component')));
+      const pref = free.filter((cp) => fixtureAction(cp.role, 'component') === 'terminal');
+      const pool = pref.length ? pref : (free.length ? free : comps);
+      let best = null, bd = Infinity;
+      for (const cp of pool) { const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = cp; } }
       if (best) best._terminal = true;
     }
     // The principals (anchors) + the storyboard markers + the embiggen set ALL need society (built async,
