@@ -11,6 +11,7 @@
 
 export const CONTENT_NSID = 'com.minomobi.hoop.story.content';
 export const SAVE_NSID = 'com.minomobi.hoop.story.save';
+export const RUMOR_NSID = 'com.minomobi.hoop.story.rumor';
 
 const rkeyOf = (uri) => String(uri).split('/').pop();
 
@@ -67,6 +68,17 @@ export async function putSave(client, world, snapshot) {
 export async function putContent(client, ci) {
   const { rkey, value } = contentToRecord(ci);
   return client.putRecord(CONTENT_NSID, rkey, value);
+}
+
+// ── spread a RUMOR ⇄ the player's own repo `…story.rumor` (append-only, write-only outbox) ──
+// The client never reads these back. The engine (hoopy) tails the collection off the firehose and MAY
+// respond with a verdict or new content — channels the client already consumes. createRecord mints a TID
+// rkey, so the collection is time-ordered (the same property the verdict stream relies on). `client` must
+// be authed for the player's repo (AuthClient.pds). Best-effort: callers swallow errors (never break play).
+export async function putRumor(client, rumor) {
+  return client.createRecord(RUMOR_NSID, {
+    $type: RUMOR_NSID, createdAt: new Date().toISOString(), ...rumor,
+  });
 }
 
 // ── a tiny UNAUTHED read client (browser): public listRecords/getRecord over any repo, no deps ──

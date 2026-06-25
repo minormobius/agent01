@@ -56,6 +56,28 @@ service repo:                       the player's own repo:             a Jetstre
   the place at-uri* makes the **chamber a queryable spatial index for free** ("who crystallized this
   chamber"). The map-as-forum becomes map-as-database.
 
+## The rumor outbox (player → engine)
+
+A fourth flow, opposite in direction to the three above: the player **writes upstream to the engine**.
+`com.minomobi.hoop.story.rumor` is an **append-only, write-only outbox in the player's own repo** — when
+you spread word of a figure you've met, the client `createRecord`s a rumor (rkey = TID) that names its
+`subject` (a content id) **by reference**. The client never reads its own rumors back; there is no
+client-side rumor consumer by design.
+
+The **engine** (hoopy) tails this collection off the firehose and **may** answer through channels the
+client *already* consumes: a `story.verdict` (a retcon/notice, possibly aimed at other players) or new
+shared `story.content`. So a rumor is the player's lightweight *signal*; the engine decides whether and how
+it lands. This keeps the untrusted-input boundary where it belongs — an arbitrary player's record can never
+directly mutate another player's story; only an **engine-authored** verdict/content can, and those pass the
+`review.js` gate. Cross-player propagation (and direct player-vs-player) is deliberately left to the engine
+as a future surface.
+
+Why its own lexicon and not a `rumors[]` field on `story.save`: a rumor is an **event** (append-only,
+time-ordered, applied-then-forgotten), the opposite of the save's **latest-wins aggregate** (rewritten
+whole at each checkpoint). Putting an event stream inside the aggregate is O(n) write-amplification and
+burns the `stateJson` budget; a TID-keyed collection is the right shape (the same one `story.verdict` uses).
+The save holds at most a cursor, never rumor bodies.
+
 ## The transport seam
 
 `story/atproto.js` is transport-agnostic: it takes a `client` exposing the standard repo verbs
@@ -78,7 +100,9 @@ so sealing it is a drop-in.
 
 | Piece | State |
 |---|---|
-| Lexicons `story.content` / `story.save` / `story.pulse` | ✅ `hoop/lexicons/` |
+| Lexicons `story.content` / `story.save` / `story.pulse` / `story.verdict` | ✅ `hoop/lexicons/` |
+| **Rumor outbox** `story.rumor` (player → engine; write-only, append-only, by-reference) + `story/atproto.js#putRumor` + the "☷ spread word" encounter action | ✅ `hoop/lexicons/`; client wired in `hoop/v098/`; **engine consume + cross-player = hoopy's side / future PvP** |
+| Auth scope: `com.minomobi.hoop.story.rumor` in the ceiling (`scope.ts`) **and** hoop's narrow `HOOP_SCOPE` (login) | ✅ `deploy-auth.yml` wired to this branch (ships the ceiling) + hoop requests it at login; players re-sign-in to mint it. `spreadRumor` falls back to `ensureScope` for older sessions |
 | Bridge `story/atproto.js` (pool ⇄ records, save ⇄ record, own-repo read, publicClient) | ✅ mock-tested, 13 checks |
 | Seeder `scripts/seed-story-pool.mjs` | ✅ **live** — 23 records on morphyx |
 | v3 sources the pool from morphyx (public `listRecords`), bundled fallback | ✅ **live** |

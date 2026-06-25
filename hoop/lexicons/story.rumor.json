@@ -1,0 +1,24 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.hoop.story.rumor",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A rumor a player SPREADS — written to the PLAYER'S OWN repo (user-owned, $0 to us). This is a WRITE-ONLY OUTBOX from the client's side: the game never reads its own rumors back. The engine (hoopy) tails this collection off the firehose and MAY choose to respond by writing a com.minomobi.hoop.story.verdict (a retcon/notice aimed at this player or others) or a com.minomobi.hoop.story.content (new shared material) — both of which the client already consumes. So a rumor is an append-only event, NOT a field on the save aggregate: rkey = a TID (time-ordered, never rewritten), the opposite of story.save's latest-wins snapshot. The save holds at most a cursor, never rumor bodies. Cross-player propagation is the engine's job (and a future PvP surface); the client only ever writes here. Retained by reference — a rumor names its subject (a content_item id), it does not copy the content.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["world", "createdAt"],
+        "properties": {
+          "world": { "type": "string", "maxLength": 64, "description": "World key (ship seed) this rumor pertains to." },
+          "text": { "type": "string", "maxLength": 600, "description": "The rumor body — what is being spread, in words." },
+          "subject": { "type": "string", "maxLength": 256, "description": "OPTIONAL reference: the content_item id (or at-uri) this rumor is ABOUT. The engine resolves it against the pool. Retained by reference — the content itself is not copied here." },
+          "subjectType": { "type": "string", "maxLength": 32, "description": "The content type of the subject (npc / creature / item / lore_fragment / plot_beat / rumor)." },
+          "subjectName": { "type": "string", "maxLength": 200, "description": "Display name of the subject at spread time (a convenience label; the binding is `subject`)." },
+          "tier": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Revelation tier of the subject when the rumor was spread (1..5, the Tabard range)." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

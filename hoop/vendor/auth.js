@@ -43,6 +43,43 @@
 const DEFAULT_AUTH_URL = 'https://auth.mino.mobi';
 const SESSION_KEY = 'mino_auth_session';
 
+// --- Scope helpers (pure; exported for node testing) ---
+// Scope strings are space-separated tokens: 'atproto', 'repo:<nsid>', 'blob:<mime>',
+// 'rpc:<method>', 'transition:generic' (≡ 'repo:*', a write to every collection).
+
+/** Split a scope string into its tokens. */
+export function scopeTokens(scope) {
+  return String(scope || '').split(/\s+/).filter(Boolean);
+}
+
+/** Normalize a required-scope input (string or array) into tokens. A bare NSID
+ * (a dotted name with no scheme prefix) is shorthand for a `repo:` write on it. */
+export function normalizeScopes(required) {
+  const raw = Array.isArray(required) ? required : scopeTokens(required);
+  return raw.map((t) => (t === 'atproto' || t.includes(':') ? t : `repo:${t}`)).filter(Boolean);
+}
+
+/** Does the granted scope (string or Set of tokens) cover one required token?
+ * transition:generic / repo:* is a superset of any `repo:` write. */
+export function scopeCovers(granted, token) {
+  const have = granted instanceof Set ? granted : new Set(scopeTokens(granted));
+  if (have.has(token)) return true;
+  if (token.startsWith('repo:') && (have.has('transition:generic') || have.has('repo:*'))) return true;
+  return false;
+}
+
+/** The normalized required tokens that `granted` does NOT cover. */
+export function missingScopes(granted, required) {
+  const have = new Set(scopeTokens(granted));
+  return normalizeScopes(required).filter((t) => !scopeCovers(have, t));
+}
+
+/** Additive union of granted + required, as one scope string — what an escalation
+ * requests so it never drops a grant the shared SSO session already holds. */
+export function unionScopes(granted, required) {
+  return Array.from(new Set([...scopeTokens(granted), ...normalizeScopes(required)])).join(' ');
+}
+
 export class AuthClient {
   /**
    * @param {string} [authUrl] - Auth worker URL (default: https://auth.mino.mobi)
@@ -105,9 +142,13 @@ export class AuthClient {
    * @param {string} handle - Bluesky handle (e.g. 'alice.bsky.social')
    * @param {object} [opts]
    * @param {string} [opts.returnTo] - URL to return to after auth (default: current page)
-   * @param {string} [opts.scope] - OAuth scope. Omit to mint the unified mino.mobi
-   *   scope (the enumerated union of every site's collections — NOT transition:generic;
-   *   see workers/auth/src/oauth/scope.ts). Pass a narrower scope to tighten consent.
+   * @param {string} [opts.scope] - OAuth scope. PREFER passing your site's own narrow
+   *   scope (`'atproto repo:com.minomobi.yoursite.thing …'`) so the Bluesky consent
+   *   screen lists only what your site writes — a long enumerated list reads as scarier
+   *   than transition:generic. Omitting it falls back to the unified union of every
+   *   site's collections (workers/auth/src/oauth/scope.ts) — kept for back-compat, but
+   *   it produces the long consent screen. For cross-site writes, escalate just-in-time
+   *   with `ensureScope()` rather than requesting everything up front.
    */
   async login(handle, opts) {
     const returnTo = opts?.returnTo || window.location.href;
@@ -178,6 +219,40 @@ export class AuthClient {
   /** Whether a user is currently logged in. */
   isLoggedIn() {
     return this._user !== null;
+  }
+
+  /** Does the current session already cover `required` (a scope string or array of
+   * tokens)? Bare NSIDs are read as `repo:<nsid>`. False if not signed in. */
+  hasScope(required) {
+    if (!this._user) return false;
+    return missingScopes(this._user.scope, required).length === 0;
+  }
+
+  /**
+   * Incremental authorization. Ensure the session is authorized for `required`.
+   *   • already covered  → returns true, does nothing.
+   *   • signed in, short → REDIRECTS to a fresh consent for the UNION of the
+   *     current scope and `required` (additive: escalation never drops a grant the
+   *     shared .mino.mobi session already holds), then does not return.
+   *   • not signed in    → returns false (caller should call login() instead).
+   *
+   * This is the primitive that makes per-site narrow scopes viable: a site requests
+   * only the collections it writes, and escalates just-in-time when a write needs
+   * more. Call it from an EXPLICIT user gesture — it navigates the page away.
+   *
+   * @param {string|string[]} required - scope token(s), e.g. 'repo:com.x.thing' or
+   *   ['atproto','repo:com.x.thing']. A bare NSID is shorthand for a repo: write.
+   * @param {object} [opts]
+   * @param {string} [opts.returnTo] - where to return after consent (default: here)
+   * @returns {Promise<boolean>} true if already covered; redirects otherwise.
+   */
+  async ensureScope(required, opts) {
+    const user = this._user;
+    if (!user || !user.handle) return false;
+    if (missingScopes(user.scope, required).length === 0) return true;
+    const returnTo = opts?.returnTo || (typeof window !== 'undefined' ? window.location.href : undefined);
+    await this.login(user.handle, { scope: unionScopes(user.scope, required), returnTo });
+    return false;   // login() redirects; control usually doesn't reach here
   }
 
   /**
