@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'claude/font-generator-demo-f3pdfa'
+      - 'claude/modal-metaphor-names-mhc1zw'
     paths:
       - 'rite/**'
       - 'poll/apps/api/migrations/0014_fodder.sql'
