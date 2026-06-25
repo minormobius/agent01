@@ -13,6 +13,13 @@ RUN apt-get update && apt-get install -y \
 # Install Claude Code + GitHub MCP server globally
 RUN npm install -g @anthropic-ai/claude-code @modelcontextprotocol/server-github
 
+# uv — fast Python package/project manager (pip/venv/pipx/poetry replacement).
+# Installs over HTTPS, so it works within Cloudflare Containers' HTTP/HTTPS-only
+# egress. 10–100x faster cold installs, which matters on ephemeral container disk
+# where the agent re-installs often. `uv pip`, `uv venv`, `uv run` all available;
+# system pip stays for compatibility. (Pin the tag for reproducibility.)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 # Create workspace and config dirs
 RUN mkdir -p /home/coder/workspace /home/coder/.claude && chown -R node:node /home/coder
 WORKDIR /home/coder

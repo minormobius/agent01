@@ -1,0 +1,31 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.ecdysium.save",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A single Ecdysium run, autosaved to the player's repo. One record per player (rkey 'self') — the web build's single-slot save. `stateJson` is the same versioned RunSnapshot envelope the native build writes to disk.",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": ["stateJson", "updatedAt"],
+        "properties": {
+          "stateJson": {
+            "type": "string",
+            "maxLength": 400000,
+            "description": "Serialized save envelope (JSON): { format_version, body }."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this save was written, for last-write-wins sync across devices."
+          },
+          "floor": {
+            "type": "integer",
+            "description": "Current dungeon floor at save time (optional, for display)."
+          }
+        }
+      }
+    }
+  }
+}

@@ -12,9 +12,11 @@ const HEARTBEAT_MS = 30_000;
 const AUTOSAVE_MS = 2 * 60 * 1000; // 2 minutes
 
 const SYNC_URL = process.env.SYNC_URL || '';
-const SYNC_TOKEN = process.env.SYNC_TOKEN || '';
+// Per-instance, did-scoped capability token minted by the worker (replaces the
+// old shared SYNC_TOKEN). The worker authorizes sync against the DID inside it.
+const CAP_TOKEN = process.env.CAP_TOKEN || '';
 const WORKSPACE_ID = process.env.WORKSPACE_ID || '';
-const SYNC_ENABLED = !!(SYNC_URL && SYNC_TOKEN && WORKSPACE_ID);
+const SYNC_ENABLED = !!(SYNC_URL && CAP_TOKEN && WORKSPACE_ID);
 
 // ─── Workspace auto-save to R2 ───────────────────────────────────
 
@@ -42,7 +44,7 @@ async function saveWorkspace() {
       {
         method: 'PUT',
         headers: {
-          Authorization: `Bearer ${SYNC_TOKEN}`,
+          Authorization: `Bearer ${CAP_TOKEN}`,
           'Content-Type': 'application/gzip',
         },
         body: tarData,

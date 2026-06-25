@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#e3d1a6">
+<title>The Infinite Inkblot</title>
+<meta name="description" content="Procedurally-generated inkblots — strange-attractor density fields, folded in half. A mirror, not a measurement.">
+<link rel="stylesheet" href="css/ink.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="topbar">
+    <span class="mark">the infinite <b>inkblot</b></span>
+    <a class="docs" href="docs.html">the thinking ✎</a>
+  </header>
+
+  <section class="plate">
+    <canvas id="blot" aria-label="a procedurally generated inkblot"></canvas>
+    <div class="plate-cap">
+      <span id="seedlabel">—</span>
+      <button id="share" title="copy link to this blot" aria-label="copy link to this blot">⧉</button>
+    </div>
+  </section>
+
+  <div class="modesw" id="modesw" role="group" aria-label="ink mode">
+    <button data-mode="line" type="button">line</button>
+    <button data-mode="smush" type="button">smush</button>
+  </div>
+
+  <section id="quiz" class="quiz"></section>
+
+  <div class="controls">
+    <button id="prev" class="nav" aria-label="previous blot" title="previous (←)">‹</button>
+    <button id="newblot" class="primary"><span class="star">✦</span>New Blot</button>
+    <button id="next" class="nav" aria-label="next blot" title="next (→)">›</button>
+  </div>
+  <div class="counter" id="counter"></div>
+  <div class="runbar" id="runbar"></div>
+
+  <section class="attrs" id="attrs" aria-expanded="false">
+    <button class="attrs-handle" id="attrsHandle" aria-controls="attrsBody">
+      <span class="chev">▾</span> Extracted attributes
+      <span class="hint" id="attrsHint"></span>
+    </button>
+    <div class="attrs-body" id="attrsBody"></div>
+  </section>
+
+  <p class="disclaimer">
+    A mirror, not a measurement. Made from chaos, folded in half —
+    <a href="docs.html">how &amp; why</a>.
+  </p>
+
+</div>
+
+<div class="report-overlay" id="report" hidden></div>
+
+<script src="js/prng.js"></script>
+<script src="js/attractors.js"></script>
+<script src="js/traits.js"></script>
+<script src="js/judge.js"></script>
+<script src="js/smush.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

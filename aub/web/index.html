@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Ecdysium — a sci-fi horror roguelike</title>
+  <meta name="description" content="Ecdysium: a turn-based sci-fi horror roguelike. Built in Rust + macroquad, running in your browser via WebAssembly.">
+  <link rel="icon" href="assets/original/mutant/B1.png">
+  <style>
+    html, body { margin: 0; height: 100%; background: #0a0a0a; overflow: hidden; }
+    /* macroquad's JS bundle resizes the canvas backing store to its CSS size,
+       so stretching to fill the viewport gives a crisp, responsive surface. */
+    canvas#glcanvas {
+      display: block; position: absolute; inset: 0;
+      width: 100%; height: 100%; z-index: 0; outline: none;
+    }
+    #loading {
+      position: absolute; inset: 0; z-index: 1;
+      display: flex; align-items: center; justify-content: center;
+      color: #5a6a5a; font: 14px ui-monospace, Menlo, Consolas, monospace;
+      letter-spacing: 0.15em; text-transform: lowercase; pointer-events: none;
+    }
+    /* Bluesky save-sync overlay — unobtrusive, top-right. */
+    #aub-auth {
+      position: absolute; top: 8px; right: 8px; z-index: 2;
+      display: flex; gap: 6px; align-items: center;
+      font: 12px ui-monospace, Menlo, Consolas, monospace; color: #9bb39b;
+      background: rgba(10, 12, 10, 0.72); border: 1px solid #2a352a;
+      border-radius: 6px; padding: 5px 8px; backdrop-filter: blur(3px);
+    }
+    #aub-auth form { display: flex; gap: 4px; margin: 0; }
+    #aub-auth input {
+      background: #0c0f0c; border: 1px solid #2a352a; border-radius: 4px;
+      color: #cfe; padding: 3px 6px; font: inherit; width: 150px;
+    }
+    #aub-auth button {
+      background: #1c2a1c; border: 1px solid #3a4a3a; border-radius: 4px;
+      color: #bfe3bf; padding: 3px 8px; font: inherit; cursor: pointer;
+    }
+    #aub-auth button:hover { background: #294029; }
+    #aub-auth #aub-auth-status { white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <div id="loading">loading ecdysium…</div>
+  <!-- Bluesky save-sync overlay (phase 2). Hidden until auth.js inits. -->
+  <div id="aub-auth" hidden>
+    <span id="aub-auth-status">save to Bluesky:</span>
+    <form id="aub-auth-form">
+      <input id="aub-auth-handle" type="text" autocomplete="username"
+             autocapitalize="none" spellcheck="false" placeholder="handle.bsky.social" />
+      <button type="submit">Sign in</button>
+    </form>
+    <button id="aub-auth-out" hidden>sign out</button>
+  </div>
+  <!-- tabindex makes the canvas focusable so it receives keyboard input -->
+  <canvas id="glcanvas" tabindex="1" oncontextmenu="event.preventDefault()"></canvas>
+  <script src="mq_js_bundle.js"></script>
+  <script>
+    // aub_storage: a tiny miniquad plugin that backs the game's save system
+    // with localStorage on the web. The wasm imports three env functions
+    // (declared in src/save.rs::web_storage); we satisfy them by reading and
+    // writing the wasm's linear memory directly — no sapp-jsutils needed.
+    // Must register BEFORE load() so it's wired into the import object.
+    (function () {
+      var pending = null;      // bytes staged by get_len for the next get_copy
+      // `wasm_memory` is a script-global the bundle assigns at instantiation
+      // (e.exports.memory); these env fns only fire during gameplay, by which
+      // point it's set. Re-read .buffer each call — it changes if memory grows.
+      function readStr(ptr, len) {
+        return new TextDecoder("utf-8").decode(new Uint8Array(wasm_memory.buffer, ptr, len));
+      }
+      miniquad_add_plugin({
+        register_plugin: function (importObject) {
+          importObject.env.aub_storage_set = function (kp, kl, vp, vl) {
+            try {
+              var k = readStr(kp, kl), v = readStr(vp, vl);
+              localStorage.setItem(k, v);
+              // Stamp a save time + notify the atproto sync layer (phase 2).
+              localStorage.setItem("ecdysium/save/mtime", String(Date.now()));
+              if (window.__aubOnSave) { try { window.__aubOnSave(k, v); } catch (e) {} }
+            } catch (e) {}
+          };
+          importObject.env.aub_storage_get_len = function (kp, kl) {
+            var s = "";
+            try { var v = localStorage.getItem(readStr(kp, kl)); if (v != null) s = v; } catch (e) {}
+            pending = new TextEncoder().encode(s);
+            return pending.length;
+          };
+          importObject.env.aub_storage_get_copy = function (outptr) {
+            if (pending) { new Uint8Array(wasm_memory.buffer, outptr, pending.length).set(pending); }
+            pending = null;
+          };
+        },
+        name: "aub_storage",
+        version: "1",
+      });
+    })();
+
+    // macroquad entry point: streams + instantiates the wasm module and
+    // drives the game loop against #glcanvas.
+    load("ecdysium.wasm");
+    // The wasm fetch + asset preload takes a moment; drop the caption once
+    // the first frames are plausibly up. Harmless if it lingers a beat.
+    window.addEventListener("load", () => setTimeout(() => {
+      const l = document.getElementById("loading");
+      if (l) l.remove();
+      const c = document.getElementById("glcanvas");
+      if (c) c.focus();
+    }, 1800));
+  </script>
+
+  <!-- Phase 2: sync the single localStorage save <-> the player's ATProto repo
+       (com.minomobi.ecdysium.save, rkey 'self') via the shared auth worker,
+       mirroring hoop's story.save. Fully additive and guarded: if auth.mino.mobi
+       is unreachable or the player never signs in, the game and its localStorage
+       saves work exactly as before. The wasm never touches auth or the network —
+       it only ever reads/writes localStorage; this layer bridges that to the PDS. -->
+  <script type="module">
+    import { AuthClient } from './auth.js';
+
+    // Master switch for the atproto sync layer. Keep false until the auth
+    // worker is redeployed with com.minomobi.ecdysium.save in WRITE_COLLECTIONS
+    // (workers/auth/src/oauth/scope.ts) — otherwise sign-in works but the
+    // PDS write is scope-denied. When off, the overlay stays hidden and no
+    // auth calls happen; the game is pure phase-1 (localStorage saves). To
+    // enable: flip to true AND deploy the auth worker.
+    const ATPROTO_ENABLED = false;
+
+    const SAVE_NSID = 'com.minomobi.ecdysium.save';
+    const LS_KEY = 'ecdysium/save/v1';     // must match save.rs web_storage::KEY
+    const MT_KEY = 'ecdysium/save/mtime';
+    const $ = (id) => document.getElementById(id);
+    const box = $('aub-auth'), statusEl = $('aub-auth-status');
+    const form = $('aub-auth-form'), input = $('aub-auth-handle'), out = $('aub-auth-out');
+
+    const auth = new AuthClient();
+    window.__aubAuth = auth; // console handle for debugging
+
+    const setStatus = (t) => { if (statusEl) statusEl.textContent = t; };
+
+    function render(user) {
+      if (box) box.hidden = false;
+      if (user) {
+        form.hidden = true; out.hidden = false;
+        setStatus('● @' + user.handle + ' — saves sync');
+      } else {
+        form.hidden = false; out.hidden = true;
+        setStatus('save to Bluesky:');
+      }
+    }
+
+    // PDS -> localStorage: adopt the remote save when it's newer (or we have
+    // none locally), so a run continues across devices. Last-write-wins.
+    async function pull() {
+      const user = auth.getUser(); if (!user) return;
+      try {
+        const rec = await auth.pds.getRecord(SAVE_NSID, 'self');
+        const v = (rec && (rec.value || rec)) || null;
+        if (v && v.stateJson) {
+          const localMt = parseInt(localStorage.getItem(MT_KEY) || '0', 10);
+          const remoteMt = v.updatedAt ? Date.parse(v.updatedAt) : 0;
+          const haveLocal = !!localStorage.getItem(LS_KEY);
+          if (!haveLocal || remoteMt > localMt) {
+            localStorage.setItem(LS_KEY, v.stateJson);
+            localStorage.setItem(MT_KEY, String(remoteMt || Date.now()));
+            setStatus('● @' + user.handle + ' — loaded save from your repo');
+          }
+        }
+      } catch (e) { /* getRecord 404 = no save yet; that's fine */ }
+    }
+
+    // localStorage -> PDS, debounced. Triggered by the wasm save hook.
+    let pushTimer = null;
+    async function push() {
+      const user = auth.getUser(); if (!user) return;
+      const stateJson = localStorage.getItem(LS_KEY); if (!stateJson) return;
+      let floor;
+      try { floor = JSON.parse(stateJson)?.body?.floor; } catch (e) {}
+      try {
+        await auth.pds.putRecord(SAVE_NSID, 'self', {
+          $type: SAVE_NSID,
+          stateJson,
+          updatedAt: new Date().toISOString(),
+          ...(Number.isInteger(floor) ? { floor } : {}),
+        });
+        setStatus('● @' + user.handle + ' — saved to your repo ✓');
+      } catch (e) {
+        setStatus('● @' + user.handle + ' — sync failed');
+        console.warn('[aub] PDS push failed', e);
+      }
+    }
+
+    // The wasm storage plugin calls this on every in-game save.
+    window.__aubOnSave = function () {
+      if (!auth.getUser()) return;
+      clearTimeout(pushTimer);
+      pushTimer = setTimeout(push, 1500);
+    };
+
+    auth.onAuthChange((user) => { render(user); if (user) pull(); });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const handle = input.value.trim(); if (!handle) return;
+      setStatus('redirecting to Bluesky…');
+      // Default scope = the unified mino.mobi union, which (once the auth worker
+      // is redeployed with com.minomobi.ecdysium.save in WRITE_COLLECTIONS)
+      // includes our collection. No scope override needed.
+      try { await auth.login(handle); }
+      catch (err) { setStatus('login failed: ' + (err?.message || err)); }
+    });
+    out?.addEventListener('click', () => auth.logout());
+
+    // Additive init — never let an auth failure break the game. Skipped
+    // entirely (overlay stays hidden) while the atproto layer is disabled.
+    (async () => {
+      if (!ATPROTO_ENABLED) { if (box) box.hidden = true; return; }
+      try { const u = await auth.init(); render(u); if (u) await pull(); }
+      catch (e) { render(null); console.warn('[aub] auth init failed', e); }
+    })();
+  </script>
+</body>
+</html>

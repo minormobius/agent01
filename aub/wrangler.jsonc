@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Golden rule: this `name` is the Cloudflare worker that owns the live
+  // custom domain below. Assets-only worker (no `main`) — it just serves the
+  // static web shell, the macroquad JS bundle, the wasm module, and the game
+  // assets out of ./dist (assembled at deploy time by deploy-aub.yml).
+  "name": "aub",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    { "pattern": "aub.mino.mobi", "custom_domain": true }
+  ]
+}

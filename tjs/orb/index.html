@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orb · spherical symmetry · tjs</title>
+<meta name="description" content="Orb — spherical symmetry toys. Sketch: a spherical kaleidoscope you draw into. Build: drive a radial height field with weird math and export a 3D-printable STL.">
+<style>
+  :root{
+    --bg:#07070c; --panel:#101019cc; --line:#23232e; --ink:#e6e6f0; --soft:#8a8aa0;
+    --accent:#39d6c8; --accent2:#ffb454;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{
+    background:radial-gradient(130% 130% at 62% 8%, #15151f 0%, #07070c 62%);
+    color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;min-height:100vh;display:flex;flex-direction:column}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  .crumb{padding:16px 20px;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
+  .crumb a{color:var(--soft)} .crumb b{color:var(--ink);font-weight:600}
+
+  .wrap{max-width:880px;margin:0 auto;padding:18px 22px 60px;flex:1}
+  h1{font-size:34px;margin:14px 0 6px;letter-spacing:-.02em}
+  .lede{color:var(--soft);max-width:60ch;margin:0 0 30px}
+  .lede b{color:var(--ink);font-weight:600}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:620px){ .cards{grid-template-columns:1fr} }
+  .card{
+    display:block;background:var(--panel);backdrop-filter:blur(9px);
+    border:1px solid var(--line);border-radius:16px;padding:22px 22px 20px;
+    color:var(--ink);transition:.15s;position:relative;overflow:hidden}
+  .card:hover{border-color:#3a3a4a;transform:translateY(-2px);text-decoration:none;
+    box-shadow:0 22px 60px -28px #000}
+  .card .glyph{font-size:30px;line-height:1;margin-bottom:12px;filter:saturate(1.2)}
+  .card h2{margin:0 0 4px;font-size:19px}
+  .card .tag{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+  .card.build .tag{color:var(--accent2)}
+  .card p{margin:0 0 8px;font-size:13.5px;color:var(--soft)}
+  .card .go{font-size:13px;color:var(--accent);font-weight:600}
+  .card.build .go{color:var(--accent2)}
+
+  .math{margin-top:34px;padding-top:20px;border-top:1px solid var(--line);color:var(--soft);font-size:13px;max-width:70ch}
+  .math code{color:var(--accent2)}
+  footer{padding:18px 22px;color:var(--soft);font-size:12px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / <a href="../">tjs</a> / <b>orb</b></div>
+
+<div class="wrap">
+  <h1>Orb</h1>
+  <p class="lede">
+    Two ways to play with <b>spherical symmetry</b>. A 2D kaleidoscope pen has a
+    cyclic group <code style="color:var(--accent2)">Cn</code>; lift it to the sphere and
+    you get the spherical reflection groups — the <b>(2,2,n)</b> dihedral family,
+    the three Platonic exceptions, and the star Schwarz triangles. Pick a vibe:
+  </p>
+
+  <div class="cards">
+    <a class="card sketch" href="sketch/">
+      <div class="glyph">❄</div>
+      <div class="tag">draw · 2D on a sphere</div>
+      <h2>Sketch</h2>
+      <p>The spherical kaleidoscope. Choose a symmetry group, then draw — every
+         stroke folds into the fundamental cell and reflects into all the others.
+         Calm, flat, beautiful.</p>
+      <div class="go">open sketch →</div>
+    </a>
+
+    <a class="card build" href="build/">
+      <div class="glyph">🪸</div>
+      <div class="tag">sculpt · print · into space</div>
+      <h2>Build</h2>
+      <p>Turn symmetry into geometry. Drive a radial height field with weird math —
+         spherical harmonics, gyroid, quasicrystal, fBm noise, superformula — or
+         draw lobes by hand, then export a watertight STL.</p>
+      <div class="go">open build →</div>
+    </a>
+  </div>
+
+  <div class="math">
+    The shared idea: a spherical kaleidoscope is a <b>Schwarz triangle</b>
+    <code>(p,q,r)</code> with 1/p+1/q+1/r&nbsp;&gt;&nbsp;1. Solve that over the
+    integers and the complete list is one infinite family <b>(2,2,n)</b> plus
+    exactly three exceptions — tetra (2,3,3), octa (2,3,4), icosa (2,3,5). Both
+    toys fold the whole sphere into one of those triangles; Sketch paints there,
+    Build evaluates math there. Either way the result is symmetric for free.
+  </div>
+</div>
+
+<footer>tjs.mino.mobi — three.js workbenches</footer>
+</body>
+</html>

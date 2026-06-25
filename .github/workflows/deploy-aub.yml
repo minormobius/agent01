@@ -1,0 +1,76 @@
+name: Deploy Aub (Ecdysium roguelike)
+
+# Builds the vendored Rust game (aub/game) to wasm32-unknown-unknown, assembles
+# a static dist (web shell + macroquad JS bundle + game assets + the wasm), and
+# deploys it as the assets-only `aub` worker bound to aub.mino.mobi.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/game-website-deploy-2ffuu2'
+    paths:
+      - 'aub/**'
+      - '.github/workflows/deploy-aub.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            aub/game/target
+          key: cargo-aub-${{ runner.os }}-${{ hashFiles('aub/game/Cargo.lock') }}
+          restore-keys: cargo-aub-${{ runner.os }}-
+
+      - name: Build game (wasm)
+        working-directory: aub/game
+        run: cargo build --release --bin ecdysium --target wasm32-unknown-unknown
+
+      - name: Assemble dist
+        working-directory: aub
+        run: |
+          rm -rf dist && mkdir -p dist
+          cp web/* dist/                 # index.html, mq_js_bundle.js, auth.js
+          cp -r game/assets dist/assets
+          cp game/target/wasm32-unknown-unknown/release/ecdysium.wasm dist/ecdysium.wasm
+          echo "dist contents:" && ls -lhR dist | head -40
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        working-directory: aub
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        working-directory: aub
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify the game is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://aub.mino.mobi/ | grep -qi 'ecdysium'; then
+              echo "✓ aub.mino.mobi is serving the shell"
+              if curl -fsSI https://aub.mino.mobi/ecdysium.wasm | grep -qi '200'; then
+                echo "✓ wasm module reachable"; exit 0
+              fi
+            fi
+            echo "  attempt $attempt: not ready, sleeping…"; sleep 4
+          done
+          echo "⚠️ aub didn't fully respond within ~20s — edge propagation may be slow, continuing."

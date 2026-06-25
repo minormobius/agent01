@@ -8,7 +8,7 @@
       "dir": "fable",
       "endpoint": "fable.mino.mobi",
       "type": "frontend",
-      "branch": "claude/phylofiction-exploration-ixjmpa",
+      "branch": "claude/artifact-website-deploy-x8aiuq",
       "uses": [],
       "provides": null,
       "paths": [
@@ -22,9 +22,10 @@
         "morph",
         "drift",
         "forge",
-        "deal"
+        "deal",
+        "tetro"
       ],
-      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. Live wings: /puzz \u2014 seeded, certified-unique logic puzzles (binairo + nonogram), a real solver certifying uniqueness, fairness, and grading from deduction techniques; /knack \u2014 canvas minigames, one composable discrete-move engine -> six genres, each certified solvable by a BFS solver that finds optimal par; /flux \u2014 continuous-space physics puzzles (no grid): aim one launch through gravity wells/magnets/goo/bumpers, a solver sweeps the 2D launch space to map winning basins, grading by shot precision; /gyre \u2014 flux in 3D: the ball constrained to a torus surface (intrinsic-coordinate geodesic integration + tangent-projected forces, hand-rolled 3D canvas in the torus-pack style), winding numbers of the winning shot are part of the interest battery. flux JS engine is mirrored in fable/flux/engine-rs (Rust) and cross-checked in CI by build-flux-catalog.yml, which commits fable/flux/data/catalog.json. /morph \u2014 a generator of puzzle GENERATORS (one level up): samples a game GENOME (substrate/topology incl. torus/M\u00f6bius/Klein/hex \u00d7 law \u00d7 goal \u00d7 aesthetic) and instantiates a concrete puzzle a single invariant BFS oracle certifies solvable; two knobs (new game = new genome, new puzzle = new instance). /drift \u2014 puzzles in MEANING-space (tier-4 substrate): the board is a committed kNN graph over 7k MiniLM word embeddings (built by scripts/build-drift-graph.mjs, cult-basis pattern; regenerate ONLY via manual build-drift-graph.yml \u2014 it re-rolls every permalink); Ladder = BFS-certified semantic crossings with measured par, Fold = margin-certified word families. /forge \u2014 the rung above morph: a FOUNDRY that mints new LAWS OF MOTION from a closed rule-DSL, fingerprints each by behaviour (state-space/branching/irreversibility/mutation/stride/drift), and admits only laws measurably novel vs the hand-written ones AND certifiable into playable puzzles by the one BFS oracle (novelty-search / MAP-Elites lineage). The generator-generator then runs on a law no one wrote. /deal \u2014 generated 2-player CARD GAMES certified by a TRIBUNAL of simulated opponents (the adversarial/hidden-info oracle family: seeded bot-vs-bot playouts prove terminates + rewards-skill + fair before shipping); the engine is a pure reducer (init/legalMoves/apply) so any game lifts into the games.mino.mobi DO rooms / hoop / ar transports for human-vs-human later \u2014 the certifying bot is also your opponent. Planned: /city (extends mappa), /character (sci-fi NPC systems)."
+      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. Live wings: /puzz \u2014 seeded, certified-unique logic puzzles (binairo + nonogram), a real solver certifying uniqueness, fairness, and grading from deduction techniques; /knack \u2014 canvas minigames, one composable discrete-move engine -> six genres, each certified solvable by a BFS solver that finds optimal par; /flux \u2014 continuous-space physics puzzles (no grid): aim one launch through gravity wells/magnets/goo/bumpers, a solver sweeps the 2D launch space to map winning basins, grading by shot precision; /gyre \u2014 flux in 3D: the ball constrained to a torus surface (intrinsic-coordinate geodesic integration + tangent-projected forces, hand-rolled 3D canvas in the torus-pack style), winding numbers of the winning shot are part of the interest battery. flux JS engine is mirrored in fable/flux/engine-rs (Rust) and cross-checked in CI by build-flux-catalog.yml, which commits fable/flux/data/catalog.json. /morph \u2014 a generator of puzzle GENERATORS (one level up): samples a game GENOME (substrate/topology incl. torus/M\u00f6bius/Klein/hex \u00d7 law \u00d7 goal \u00d7 aesthetic) and instantiates a concrete puzzle a single invariant BFS oracle certifies solvable; two knobs (new game = new genome, new puzzle = new instance). /drift \u2014 puzzles in MEANING-space (tier-4 substrate): the board is a committed kNN graph over 7k MiniLM word embeddings (built by scripts/build-drift-graph.mjs, cult-basis pattern; regenerate ONLY via manual build-drift-graph.yml \u2014 it re-rolls every permalink); Ladder = BFS-certified semantic crossings with measured par, Fold = margin-certified word families. /forge \u2014 the rung above morph: a FOUNDRY that mints new LAWS OF MOTION from a closed rule-DSL, fingerprints each by behaviour (state-space/branching/irreversibility/mutation/stride/drift), and admits only laws measurably novel vs the hand-written ones AND certifiable into playable puzzles by the one BFS oracle (novelty-search / MAP-Elites lineage). The generator-generator then runs on a law no one wrote. /deal \u2014 generated 2-player CARD GAMES certified by a TRIBUNAL of simulated opponents (the adversarial/hidden-info oracle family: seeded bot-vs-bot playouts prove terminates + rewards-skill + fair before shipping); the engine is a pure reducer (init/legalMoves/apply) so any game lifts into the games.mino.mobi DO rooms / hoop / ar transports for human-vs-human later \u2014 the certifying bot is also your opponent. Guest cabinet (NOT part of the seeded/certified thesis): /tetro — a human-authored React tetromino sandbox (a contributed Claude artifact; pre-transpiled to a global IIFE, React+Tailwind from CDN), listed under the worker health `guests[]`, not `wings[]`. Planned: /city (extends mappa), /character (sci-fi NPC systems)."
     },
     {
       "surface": "root",
@@ -97,7 +98,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/follower-post-discovery-bZumw",
+      "branch": "claude/gc-block-checker-endpoint-ac323w",
       "uses": [],
       "provides": null,
       "paths": [
@@ -106,9 +107,10 @@
       "serves": [
         "disk",
         "spark",
-        "dyad"
+        "dyad",
+        "gc"
       ],
-      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), and dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts \u2014 likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions). All permissionless, client-side over public ATProto records. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired \u2014 detach in dashboard + delete the mino-atmosphere worker)."
+      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts \u2014 likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions), and gc at /gc (block-intelligence tools + API \u2014 /gc block matrix: accounts vs posters \u2192 who directly blocks whom; /gc/mutuals: mutuals or followers of X who block Y; /gc/blockers: everyone blocking a named user; /gc/api docs the read-only JSON API at /api/gc/{relation,matrix,who-blocks,blockers}). #1/#2 read raw app.bsky.graph.block records (the worker also serves them server-side via b/lib/gc.js); network-wide blocker sets (#3 + the blocker side of #2) come from the clearsky.services index. All read-only public data, no auth, CORS open. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired \u2014 detach in dashboard + delete the mino-atmosphere worker)."
     },
     {
       "surface": "auth",
@@ -167,7 +169,7 @@
       "dir": "biome",
       "endpoint": "biome.mino.mobi",
       "type": "frontend",
-      "branch": "claude/inaturalist-sprite-generation-2o2wsd",
+      "branch": "claude/naturalist-random-critter-cf48fm",
       "uses": [],
       "provides": null,
       "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Pure static \u2014 model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
@@ -675,12 +677,12 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/gantry-playground-3js-phjc1x",
+      "branch": "claude/spherical-symmetry-orb-y774aj",
       "uses": [],
       "provides": null,
       "status": "MANAGED — new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time.",
       "op": "create",
-      "note": "tjs.mino.mobi — three.js workbenches. Landing at /, first bench at /gantry: a configurable HBot gantry test bench (seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
+      "note": "tjs.mino.mobi — three.js workbenches. Landing at /, benches at /gantry (configurable HBot gantry test bench: seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools) and /orb (spherical-symmetry toy: a sphere sliced into n longitudinal lunes (axial Cn) or a polyhedral kaleidoscope — tetra/octa/icosa Schwarz-triangle fundamental domains, per-fragment fold + glowing mirror great-circles; the 3D analogue of a 2D polar symmetric pen). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
       "paths": [
         "tjs/**"
       ]
@@ -793,11 +795,11 @@
       "dir": "finance",
       "endpoint": "fin.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/speculative-feedback-playground-t0yiaq",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 onboarded to Actions (deploy-finance.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
-      "note": "Personal finance planning SPA (Vite -> ./dist, Worker `fin`). SPA fallback enabled.",
+      "status": "MANAGED \u2014 onboarded to Actions (deploy-finance.yml). Surface taken over for the speculative-feedback research playground; the personal-finance SPA was relocated under /pm.",
+      "note": "Worker `fin` (main: worker.js + ASSETS) serving two apps from one dist/: the speculative-feedback playground at / (TS/React, Vite multipage) and the personal-finance planning SPA at /pm. worker.js does subtree-aware SPA fallback and reserves /api/* for the M2 backend (experiment store + server-side runs).",
       "paths": [
         "finance/**"
       ]
@@ -893,15 +895,28 @@
       "dir": "os",
       "endpoint": "os.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/os-deploy-surface-5hrw5w",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (frontend) \u2014 FIXED (zoom-bucket): config renamed pds-os -> os + custom_domain route (os.mino.mobi). Was deploying stray worker pds-os. CLEANUP: delete the orphan `pds-os` worker. (os/api container worker unaffected \u2014 still manual via deploy-os-api.yml.)",
-      "note": "React + Vite + xterm.js terminal UI; talks to os-api (Cloudflare Containers backend) at runtime via SYNC_URL. Workflow paths exclude os/api/** so frontend deploys do not fire on backend changes.",
+      "status": "MANAGED (frontend) \u2014 standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). The `container` command is gated OFF unless VITE_CONTAINER_API_URL is set, because os-api (Cloudflare Containers backend) is not deployed; the command reports 'not configured' instead of dangling a dead WebSocket. Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker. (os/api container worker unaffected \u2014 still manual via deploy-os-api.yml.)",
+      "note": "React + Vite + xterm.js terminal UI. Fully functional standalone against the user's own PDS; the optional os-api Cloudflare Containers backend (bash + claude-code over WebSocket) is enabled at build time via VITE_CONTAINER_API_URL once os-api is live. Workflow paths exclude os/api/** so frontend deploys do not fire on backend changes.",
       "paths": [
         "os/**",
         "!os/api/**"
       ]
+    },
+    {
+      "surface": "aub",
+      "dir": "aub",
+      "endpoint": "aub.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/game-website-deploy-2ffuu2",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "aub/**"
+      ],
+      "note": "Ecdysium (aubrika/ecdysium) — a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown. Assets-only worker `aub` serving a static dist (web shell + macroquad JS bundle + game assets + the wasm), assembled at deploy time by deploy-aub.yml. Only upstream change is a getrandom `js` feature for the wasm target. Save/load no-ops in-browser (std::fs unavailable) but the game plays."
     }
   ],
   "unmanaged": {

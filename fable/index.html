@@ -29,6 +29,7 @@
   /* wing hues */
   --w-puzz: #0d7d74; --w-knack: #c2792e; --w-flux: #2f8fd6;
   --w-gyre: #7a55c8; --w-morph: #b5476d; --w-drift: #2f9d6e; --w-forge: #b5651d; --w-deal: #8f2f4f;
+  --w-tetro: #0d9488;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -39,6 +40,7 @@
     --tag-bg: rgba(163, 155, 255, 0.12); --tag-text: #b6aeff;
     --w-puzz: #45c2b6; --w-knack: #d6975a; --w-flux: #62aee2;
     --w-gyre: #a98fe0; --w-morph: #d2738f; --w-drift: #5cc594; --w-forge: #d08a3a; --w-deal: #d06a8a;
+    --w-tetro: #2dd4bf;
   }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -299,6 +301,26 @@ footer a:hover { color: var(--accent); }
   </ul>
 </section>
 
+<!-- ── guest cabinet ── -->
+<section id="guests">
+  <div class="section-label"><span>Guest cabinet — contributed, human-authored</span><span class="count">1</span></div>
+  <p style="color:var(--muted); font-size:0.9rem; margin:0.2rem 0 1rem; max-width:64ch;">
+    Not part of the thesis. Where the wings are <i>games no one wrote</i> — rolled from a seed and certified by
+    the oracle that made them — these are games someone <i>did</i> write: Claude artifacts contributed by friends,
+    hosted here, honestly unrolled and uncertified.</p>
+  <ul class="wings">
+    <li style="--wing: var(--w-tetro)">
+      <canvas class="emblem" data-wing="tetro"></canvas>
+      <div class="body">
+        <div class="name-row"><a href="/tetro/">tetro</a><span class="tag">react</span><span class="tag">sandbox</span></div>
+        <div class="desc">A tetromino sandbox: place, clone, rotate, flip and <i>clumpify</i> blocks on a board that
+          tracks adjacency dependencies between pieces. A guest artifact — authored, not generated.</div>
+        <div class="oracle-line">guest: human-authored · no seed · no oracle</div>
+      </div>
+    </li>
+  </ul>
+</section>
+
 <!-- ── planned ── -->
 <section id="planned">
   <div class="section-label"><span>Unrolled — wings the machine hasn't reached</span><span class="count">2</span></div>
@@ -337,7 +359,7 @@ let W=0,H=0,dpr=1;
 function resize(){dpr=window.devicePixelRatio||1;W=machine.clientWidth;H=machine.clientHeight;stage.width=W*dpr;stage.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
 resize(); window.addEventListener('resize',resize);
 
-const HUES = { puzz:174, knack:31, flux:206, gyre:262, morph:336, drift:152, forge:28, deal:340 };
+const HUES = { puzz:174, knack:31, flux:206, gyre:262, morph:336, drift:152, forge:28, deal:340, tetro:174 };
 
 /* ---- substrate builders: each returns {nodes:[{x,y,label?}], adj:[[...]], wing} ---- */
 function gridWorld(rand,wing,wrap,hex){
@@ -584,6 +606,16 @@ function emblem(cv){
     const glyphs=['◻','◯','△','▢','◇','✕','∿','⬡'];
     let gx=0;
     for(let x=14;x<w-8;x+=22)for(let y=14;y<h-6;y+=18){const struck=(gx++ % 9===4);c.globalAlpha=struck?0.95:0.25;c.fillStyle=struck?'#d8b35a':ink;c.fillText(glyphs[r.i(glyphs.length)],x,y);}
+  } else if(wing==='tetro'){ // scattered tetromino cells
+    const cs=12;
+    const shapes=[[[0,0],[1,0],[2,0],[3,0]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[2,0],[1,1]],[[0,0],[1,0],[2,0],[0,1]]];
+    for(let n=0;n<6;n++){
+      const sh=shapes[r.i(shapes.length)];
+      const ox=8+r.i(Math.max(1,(w-56)/cs))*cs, oy=4+r.i(3)*cs;
+      const struck=(n===2);
+      c.globalAlpha=struck?0.9:0.4;
+      sh.forEach(([dx,dy])=>{const x=ox+dx*cs,y=oy+dy*cs; if(x<w-4&&y<h-4){c.fillRect(x,y,cs-2,cs-2);}});
+    }
   } else { // drift: word dust + a hop path
     c.font='9px ui-monospace,monospace';c.textAlign='center';
     const pts=[];

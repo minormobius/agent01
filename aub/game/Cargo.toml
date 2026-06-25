@@ -1,0 +1,24 @@
+[package]
+name = "ecdysium"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rand = { version = "0.8", features = ["serde1"] }
+macroquad = { version = "0.4", features = ["audio"] }
+# Used by the `slice_atlas` helper binary to save sliced PNG tiles.
+image = { version = "0.24", default-features = false, features = ["png"] }
+# Save / load persistence. JSON keeps saves human-readable and
+# debuggable; the migration framework in `save.rs` is keyed off the
+# top-level `format_version` field. The `serde1` feature on `rand`
+# is what lets us round-trip the live RNG state so a load resumes
+# the deterministic stream exactly where the save took it.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Web build: getrandom is pulled in transitively via `rand`. Use its
+# `custom` backend (NOT `js`) so it does not drag wasm-bindgen into the
+# module — macroquad's mq_js_bundle.js is a raw loader and cannot satisfy
+# wasm-bindgen imports. A custom backend is registered in main.rs.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["custom"] }
