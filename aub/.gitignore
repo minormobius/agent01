@@ -1,0 +1,4 @@
+# Cargo build output for the vendored game source.
+game/target/
+# Deploy-time assembly directory (web shell + assets + freshly-built wasm).
+dist/

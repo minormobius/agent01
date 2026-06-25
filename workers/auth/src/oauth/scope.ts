@@ -53,6 +53,9 @@ const WRITE_COLLECTIONS = [
   // to THEIR OWN repo as story.content records — so a signed-in player needs
   // write on this collection too (the shared spine is written by the service key).
   'com.minomobi.hoop.story.content',
+  // ecdysium (sci-fi horror roguelike at aub.mino.mobi) — single autosave,
+  // one record per player (rkey 'self') holding the serialized run snapshot.
+  'com.minomobi.ecdysium.save',
   // io (atproto tracker portal)
   'com.minomobi.io.ticket',
   // labglass

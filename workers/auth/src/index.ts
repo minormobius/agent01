@@ -42,6 +42,7 @@ const ALLOWED_ORIGINS = [
   'https://games.mino.mobi',
   'https://io.mino.mobi',
   'https://hoop.mino.mobi',
+  'https://aub.mino.mobi',
 ];
 
 function isAllowedOrigin(origin: string | null): boolean {
