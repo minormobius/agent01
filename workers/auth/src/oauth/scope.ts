@@ -8,18 +8,30 @@
  * writes. This file is that enumeration — the union of a full repo-wide audit of
  * createRecord / putRecord / deleteRecord / uploadBlob call sites.
  *
+ * THE MODEL (per-site narrow + incremental). A login should request only the
+ * collections THAT site writes, so the Bluesky consent screen lists a short,
+ * legible set — a 50-line enumerated union reads as scarier than transition:generic,
+ * which defeats the point of enumerating. Sites pass their own scope to
+ * `login(handle, { scope })`; cross-site writes escalate JUST-IN-TIME via the client
+ * lib's `ensureScope()` (re-consent for the union of held + needed), so the shared
+ * .mino.mobi session ACCUMULATES scope as you actually use sites instead of asking
+ * for everything up front. hoop is the first site on the narrow model.
+ *
  * Two derived strings:
- *   UNIFIED_SCOPE  — what a login MINTS by default. No transition:generic. This
- *                    is the session that homepage sign-in creates and that the
- *                    .mino.mobi cookie carries across every subdomain.
+ *   UNIFIED_SCOPE  — the enumerated union. BACK-COMPAT FALLBACK only: it's what a
+ *                    `login()` with no `scope` still mints (so un-migrated sites keep
+ *                    working), and it's the long consent screen we're moving away
+ *                    from. New/updated sites should pass a narrow scope instead.
  *   METADATA_SCOPE — the CEILING declared in client-metadata.json: UNIFIED_SCOPE
  *                    plus transition:generic, which a few grandfathered sites
- *                    (fluoddity, mmo) still request explicitly. The auth server
- *                    only grants what the metadata declares, so the ceiling must
- *                    be a superset of every scope any site can ask for.
+ *                    (fluoddity, mmo) still request explicitly. The auth server only
+ *                    grants what the metadata declares, so the ceiling must remain a
+ *                    superset of every scope any site can ask for — narrow per-site
+ *                    requests are always a subset of this, so the ceiling is unchanged
+ *                    by the narrow-scope move. Keep every collection listed here.
  *
- * When a new site ships a new lexicon, add its collection here and redeploy the
- * auth worker. The consent screen will then list it.
+ * When a new site ships a new lexicon, add its collection here and redeploy the auth
+ * worker — that keeps the ceiling a superset so the site can request it (narrowly).
  */
 
 // Every collection (NSID) written across the repo. Keep alphabetical within
@@ -53,6 +65,9 @@ const WRITE_COLLECTIONS = [
   // to THEIR OWN repo as story.content records — so a signed-in player needs
   // write on this collection too (the shared spine is written by the service key).
   'com.minomobi.hoop.story.content',
+  // story.rumor: a write-only outbox in the player's OWN repo — rumors they spread, which
+  // the engine tails off the firehose and may answer with a verdict or new content.
+  'com.minomobi.hoop.story.rumor',
   // ecdysium (sci-fi horror roguelike at aub.mino.mobi) — single autosave,
   // one record per player (rkey 'self') holding the serialized run snapshot.
   'com.minomobi.ecdysium.save',

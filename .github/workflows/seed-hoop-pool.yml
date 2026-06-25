@@ -1,0 +1,49 @@
+name: Seed Hoop story pool (atproto)
+
+# Publishes hoopy's 600-beat corpus (hoop/v097/story/world_export.json) to a service
+# account's PDS as com.minomobi.hoop.story.content records, so the game can read the
+# pool LIVE from the records (the bundled JSON is only the offline fallback).
+# Idempotent: putRecord(rkey = content id) overwrites, so re-running re-publishes in
+# place. Default account: morphyx (the same repo hoop/v097 reads via STORY_SERVICE).
+on:
+  workflow_dispatch:
+    inputs:
+      author:
+        description: 'Which service account holds the pool'
+        type: choice
+        default: morphyx
+        options: [morphyx, modulo, main]
+      dry:
+        description: 'Dry run (build + print records, no write)'
+        type: boolean
+        default: false
+  # Re-seed when the corpus or the seeder changes (idempotent overwrite). Scoped to the
+  # owning branch + these paths only, mirroring seed-hoop.yml.
+  push:
+    branches: ['claude/hoop-quest-improvements-r78jfp']
+    paths:
+      - 'hoop/v097/story/world_export.json'
+      - 'hoop/scripts/seed-hoop-pool.mjs'
+      - '.github/workflows/seed-hoop-pool.yml'
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Seed story pool
+        env:
+          # Select the account's app-password secrets from the dispatch input.
+          # Default (and the push-trigger path, where inputs are empty) → morphyx.
+          HOOP_STORY_HANDLE: >-
+            ${{ inputs.author == 'modulo' && secrets.BLUESKY_MODULO_HANDLE
+              || inputs.author == 'main' && secrets.BLUESKY_HANDLE
+              || secrets.BLUESKY_MORPHYX_HANDLE }}
+          HOOP_STORY_PASSWORD: >-
+            ${{ inputs.author == 'modulo' && secrets.BLUESKY_MODULO_APP_PASSWORD
+              || inputs.author == 'main' && secrets.BLUESKY_APP_PASSWORD
+              || secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: node hoop/scripts/seed-hoop-pool.mjs ${{ inputs.dry && '--dry' || '' }}

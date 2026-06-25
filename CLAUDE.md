@@ -86,33 +86,36 @@ Sign in once (e.g. on the homepage) and every `*.mino.mobi` site recognises you 
 - **`packages/oauth-client/auth.js`** — 9.7 KB browser-side library, no deps, no build. Exports `AuthClient` with `login(handle, {scope})`, `init()`, `getUser()`, `logout()`, and `auth.pds.{createRecord, putRecord, listRecords, deleteRecord, uploadBlob, getBlob}`. PDS calls go through the worker, so the browser never sees a token that talks to a PDS directly.
 - **Deploy workflow**: `.github/workflows/deploy-auth.yml` — triggers on `main` or `claude/implement-oauth-bsky-JgUdn` touching `workers/auth/**`. The workflow auto-creates `mino-auth-db` on first run via `wrangler d1 create` (the `TODO_CREATE_DATABASE` placeholder in `workers/auth/wrangler.jsonc` is intentional — `sed`-patched at deploy time, not committed back).
 
-### Per-site permission shaping — yes, this is supported
+### Per-site permission shaping — narrow scope + incremental escalation (the model)
 
-The worker accepts a `scope` parameter on every OAuth start and stores it per-session:
+**A login should request only the collections THAT site writes.** The worker takes a `scope` on every OAuth start and stores it per-session; the Bluesky consent screen renders the *requested* scope, not the metadata ceiling — so a narrow request = a short, legible consent. We moved to this because the enumerated 50-line union reads as *scarier* than `transition:generic`, which defeats the point of enumerating.
 
 ```js
 const auth = new AuthClient();
-// Default → the UNIFIED mino.mobi scope: the enumerated union of every
-// collection any site writes (NOT transition:generic). This is what homepage
-// sign-in mints, so the resulting SSO session works on every site:
-await auth.login('alice.bsky.social');
 
-// Custom: identity-only (no writes):
+// THE PATTERN: pass your site's own narrow scope. Short consent screen.
+const HOOP_SCOPE = 'atproto repo:com.minomobi.hoop.story.save repo:com.minomobi.hoop.story.rumor /*…*/';
+await auth.login('alice.bsky.social', { scope: HOOP_SCOPE });
+
+// identity-only (no writes):
 await auth.login('alice.bsky.social', { scope: 'atproto' });
 
-// Custom: writes scoped to one lexicon + a blob type:
-await auth.login('alice.bsky.social', {
-  scope: 'atproto repo:com.example.thing blob:image/*',
-});
+// INCREMENTAL ESCALATION: when a write needs scope this session lacks, escalate
+// just-in-time. ensureScope re-consents for the UNION of held + needed (so it never
+// drops a grant the shared session already holds), then returns to this page. Call
+// it from an explicit user gesture — it navigates away. No-op if already covered.
+if (!auth.hasScope('com.minomobi.hoop.story.rumor')) await auth.ensureScope(HOOP_SCOPE);
 ```
 
-**The unified scope.** ATProto OAuth forbids prefix wildcards (`repo:com.minomobi.*` is illegal — only exact NSIDs or the blanket `repo:*`, and `repo:*` is just `transition:generic` renamed). So the one scope that "works for every site but isn't transition:generic" **enumerates every collection** the repo writes. That enumeration lives in **`workers/auth/src/oauth/scope.ts`**, which derives two strings:
-- `UNIFIED_SCOPE` — what a login mints by default. ~50 `repo:` collections + `blob:` types + `rpc:`. No `transition:generic`.
-- `METADATA_SCOPE` — the ceiling declared in `client-metadata.json`: `UNIFIED_SCOPE` **plus** `transition:generic`, which a few grandfathered sites (fluoddity, mmo) still request by name. The auth server only grants what the metadata declares, so the ceiling stays a superset.
+**The SSO consequence (the one real tradeoff).** An OAuth token's scope is fixed at authorization — you can't widen a live token without a new consent. So with narrow scopes: **identity SSO stays instant** (the `.mino.mobi` cookie recognizes you everywhere with no re-login), but **write authorization is per-site** — a site you haven't granted writes for escalates on first write (one short consent). The shared session thus *accumulates* scope as you actually use sites, instead of asking for all 50 collections up front. There is no scope that is both short AND pre-authorizes every site's writes — except `transition:generic` (one line, maximally broad), which we're deliberately not using.
 
-**When a new site ships a new lexicon, add its collection to `WRITE_COLLECTIONS` in `scope.ts` and redeploy the auth worker.** The consent screen then lists it. Sites can still request *narrower* scopes than the union by passing `{ scope }` to `login()`.
+**Two derived strings in `workers/auth/src/oauth/scope.ts`:**
+- `UNIFIED_SCOPE` — the enumerated union. **Back-compat fallback only**: what a `login()` with no `scope` still mints (so un-migrated sites keep working), and the long consent screen we're moving away from. New/updated sites pass a narrow scope instead.
+- `METADATA_SCOPE` — the ceiling in `client-metadata.json`: `UNIFIED_SCOPE` **plus** `transition:generic` (grandfathered fluoddity/mmo). The auth server only grants what the metadata declares, so the ceiling must stay a superset — narrow per-site requests are always a subset, so **the ceiling is unchanged by the narrow-scope move.**
 
-When tightening a site's scope, prefer the narrowest scope that lets the feature work. The reward shows up in the Bluesky consent screen, which lists exactly what the site can do.
+**When a new site ships a new lexicon, still add its collection to `WRITE_COLLECTIONS` in `scope.ts` and redeploy the auth worker** — that keeps the ceiling a superset so the site can request it (narrowly). The scope math (`hasScope`/`ensureScope`/`missingScopes`/`unionScopes`) is pure and node-tested in `packages/oauth-client/scope.selftest.mjs`.
+
+**Migration status:** hoop is the first site on the narrow model (requests `HOOP_SCOPE`, escalates via `ensureScope`). The homepage and the other shared-lib sites (bakery, photo, wave, wiki) still mint `UNIFIED_SCOPE` by default — migrate them site-by-site (declare a scope + `ensureScope` before writes), then flip the worker's no-scope default from `UNIFIED_SCOPE` to `atproto` as the final step.
 
 ### Adding a new site to the shared OAuth worker
 
@@ -120,7 +123,7 @@ Three steps:
 
 1. **Allowlist the origin**. Add `https://your-site.mino.mobi` to `ALLOWED_ORIGINS` in `workers/auth/src/index.ts:21-30`. (The wildcard `*.mino.mobi` check on line 36 catches subdomains, but list the explicit origin so future devs can see who's using the worker.)
 2. **Import the client lib**. From your site: `import { AuthClient } from '../../packages/oauth-client/auth.js'`. Do **not** hand-roll an `auth.js` — photo/wave/wiki did, and they each diverge slightly. Use the shared lib.
-3. **Pick a scope**. Default is the `UNIFIED_SCOPE` union (see `scope.ts`) — and if your site writes a new collection, add it there so the union (and the consent screen) covers it. If you can get away with less, pass a narrower `{ scope }` to `login()`.
+3. **Pick a narrow scope**. Pass your site's own `{ scope }` to `login()` — only the collections you write (`'atproto repo:com.minomobi.yoursite.thing …'`) — so the consent screen is short. Add any new collection to `WRITE_COLLECTIONS` in `scope.ts` (the metadata ceiling must remain a superset) and redeploy the auth worker. For cross-site writes, escalate with `ensureScope()` rather than requesting the union. Omitting `{ scope }` falls back to the `UNIFIED_SCOPE` union — the long consent screen, avoid for new sites.
 
 That's it. Push to a branch matching `deploy-auth.yml`'s trigger glob to update `ALLOWED_ORIGINS`; push your site's branch to deploy the frontend.
 
