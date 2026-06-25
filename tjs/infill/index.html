@@ -72,6 +72,30 @@
   .blurb{position:fixed;left:18px;bottom:40px;z-index:5;max-width:330px;font-size:12px;color:var(--soft);pointer-events:none}
   .blurb b{color:var(--ink)}
   @media (max-width:680px){ .blurb{display:none} .panel{width:224px} }
+
+  /* acoustic dampening panel (bottom-left) */
+  .apanel{position:fixed;left:16px;bottom:14px;z-index:6;width:332px;
+    background:var(--panel);backdrop-filter:blur(9px);border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 18px 50px -20px #000;overflow:hidden}
+  .ahead{padding:11px 14px;font-size:13px;font-weight:600;cursor:pointer;
+    display:flex;justify-content:space-between;align-items:center;color:var(--ink)}
+  .ahead:hover{background:#13131c}
+  .ahead .car{color:var(--accent);font-size:11px}
+  .abody{padding:0 14px 13px}
+  .anote{font-size:11.5px;line-height:1.5;color:var(--soft);margin:2px 0 10px}
+  .anote b{color:var(--accent2)}
+  .arow{display:flex;gap:8px;margin-bottom:9px}
+  .arow select{flex:1;font:inherit;font-size:12px;color:var(--ink);background:#0d0d15;
+    border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+  .arow button{font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+    color:var(--bg);background:var(--accent);border:none;border-radius:8px;padding:6px 14px}
+  .arow button:disabled{background:#2a2a36;color:var(--soft);cursor:default}
+  .aprog{height:4px;background:#0d0d15;border-radius:3px;overflow:hidden;margin-bottom:10px}
+  .aprog #abar{height:100%;width:0;background:var(--accent);transition:width .12s}
+  #aplot{display:block;width:100%;height:172px;background:#0a0a11;border:1px solid var(--line);border-radius:8px}
+  .alegend{font-size:11px;color:var(--soft);margin-top:7px;min-height:14px}
+  .alegend b{color:var(--ink);font-variant-numeric:tabular-nums}
+  @media (max-width:680px){ .apanel{display:none} }
 </style>
 </head>
 <body>
@@ -93,6 +117,10 @@
   <div class="row">
     <label>Density <b><span id="densv">15</span>%</b></label>
     <input id="dens" type="range" min="5" max="45" step="1" value="15">
+  </div>
+  <div class="row">
+    <label>Solid shell <b><span id="shellv">off</span></b></label>
+    <input id="shell" type="range" min="0" max="4" step="0.1" value="0">
   </div>
   <div class="row">
     <label>Peel depth <b><span id="peelv">top</span></b></label>
@@ -126,6 +154,27 @@
   layers from the top down; the orange face is the freshly cut cross-section.
 </div>
 <div class="hint"><b>scroll</b> peel · <b>drag</b> rotate · <b>shift+scroll</b> / pinch zoom · <b>↑ ↓</b> peel · <b>space</b> spin</div>
+
+<div class="apanel">
+  <div class="ahead" id="atoggle">Acoustic dampening <span class="car" id="acar">show ▸</span></div>
+  <div class="abody" id="abody" style="display:none">
+    <p class="anote">Coarse FDTD: transmission loss of <em>this</em> orb vs free field, source at centre.
+      Solid is modelled as a dense fluid, so the <b>solid shell</b>, full enclosure and closed
+      cells (the dominant barriers) read true; fine open-cell pore absorption is below this grid —
+      that's the WebGPU job. <span id="acompact"></span></p>
+    <div class="arow">
+      <select id="ares">
+        <option value="48">Fast · 48³</option>
+        <option value="64" selected>Balanced · 64³</option>
+        <option value="80">Fine · 80³ (slow)</option>
+      </select>
+      <button id="arun">Run sim</button>
+    </div>
+    <div class="aprog"><div id="abar"></div></div>
+    <canvas id="aplot" width="600" height="344"></canvas>
+    <div class="alegend" id="alegend">Runs the current pattern · density · shell. ~10–40 s.</div>
+  </div>
+</div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -267,6 +316,7 @@ const uniforms = {
   uR:       { value: R },
   uPeelY:   { value: R*1.02 },
   uT:       { value: 0.3 },
+  uShell:   { value: 0.0 },
   uCell:    { value: 6.0 },
   uPattern: { value: 0 },
   uColor:   { value: new THREE.Color(FILAMENTS[0]) },
@@ -286,7 +336,7 @@ const FRAG = /* glsl */`
   precision highp float;
   varying vec2 vUv;
   uniform vec3 uCamPos,uRight,uUp,uFwd,uColor,uCapColor;
-  uniform float uTanFov,uAspect,uR,uPeelY,uT,uCell,uLayerH;
+  uniform float uTanFov,uAspect,uR,uPeelY,uT,uCell,uLayerH,uShell;
   uniform int uPattern,uSamplesPerCell,uMaxSteps,uLayersOn;
   #define PI 3.14159265359
   #define TWO_PI 6.28318530718
@@ -347,14 +397,24 @@ const FRAG = /* glsl */`
     }
   }
 
+  // Unified solidity: > 0 inside printed material. Material = infill wall UNION
+  // solid shell, intersected with the sphere. The peel plane is applied
+  // separately in the march. Surface (solidF == 0) is exactly what we render.
+  float solidF(vec3 p){
+    float r = length(p);
+    float infill = uT - gdist(p);          // >0 inside an infill wall
+    float shell  = r - (uR - uShell);      // >0 inside the shell band (r > R-shell)
+    float mat    = max(infill, shell);      // union of the two solid phases
+    return min(mat, uR - r);                // intersect with the sphere (r < R)
+  }
+
   vec3 wallNormal(vec3 p){
     float e = uCell * 0.012;
     vec2 h = vec2(e, 0.0);
-    // outward of solid = +gradient of gdist (gdist grows away from walls)
     return normalize(vec3(
-      gdist(p+h.xyy) - gdist(p-h.xyy),
-      gdist(p+h.yxy) - gdist(p-h.yxy),
-      gdist(p+h.yyx) - gdist(p-h.yyx)));
+      solidF(p+h.xyy) - solidF(p-h.xyy),
+      solidF(p+h.yxy) - solidF(p-h.yxy),
+      solidF(p+h.yyx) - solidF(p-h.yyx)));
   }
 
   void main(){
@@ -377,7 +437,7 @@ const FRAG = /* glsl */`
     float t = t0;
     vec3  p = ro + rd*t;
     bool  prevAbovePlane = p.y > uPeelY;     // reason previous sample was empty
-    bool  prevSolid = (p.y <= uPeelY) && (gdist(p) < uT);
+    bool  prevSolid = (p.y <= uPeelY) && (solidF(p) > 0.0);
 
     float hitT = -1.0;
     bool  isCap = false;
@@ -392,23 +452,23 @@ const FRAG = /* glsl */`
       if(t > t1) break;
       p = ro + rd*t;
       bool below = p.y <= uPeelY;
-      bool solid = below && (gdist(p) < uT);
+      bool solid = below && (solidF(p) > 0.0);
       if(solid && !prevSolid){
         if(prevAbovePlane){
           // descended through the peel plane into material -> cut face
           float tp = (uPeelY - ro.y) / rd.y;          // exact plane crossing
           vec3 pp = ro + rd*tp;
-          if(tp > t0 && gdist(pp) < uT){
+          if(tp > t0 && solidF(pp) > 0.0){
             hitT = tp; isCap = true; break;
           }
           // plane point sat in a void: real surface is a wall just below -> fall through
         }
-        // wall crossing: bisect gdist == uT between previous (empty) t and current
+        // wall crossing: bisect solidF == 0 between previous (empty) t and current
         float lo = t - dt, hi = t;
         for(int b=0;b<6;b++){
           float m = 0.5*(lo+hi);
           vec3 pm = ro + rd*m;
-          if((pm.y <= uPeelY) && (gdist(pm) < uT)) hi = m; else lo = m;
+          if((pm.y <= uPeelY) && (solidF(pm) > 0.0)) hi = m; else lo = m;
         }
         hitT = hi; isCap = false; break;
       }
@@ -565,6 +625,11 @@ $('dens').oninput = e=>{
   $('densv').textContent = e.target.value;
   requestRecalc();
 };
+$('shell').oninput = e=>{
+  const v = parseFloat(e.target.value);
+  uniforms.uShell.value = v;
+  $('shellv').textContent = v <= 0 ? 'off' : v.toFixed(1)+' mm';
+};
 $('q').oninput = e=>{
   uniforms.uSamplesPerCell.value = parseInt(e.target.value);
   $('qv').textContent = e.target.value;
@@ -605,6 +670,7 @@ function resize(){
   uniforms.uAspect.value = w/h;
 }
 window.addEventListener('resize', resize);
+window.addEventListener('resize', ()=>{ if($('abody').style.display !== 'none'){ sizeCanvas(); lastSim ? redraw() : drawEmpty(); } });
 
 /* ---------- loop ---------- */
 let frames=0, fps=0, tPrev=performance.now();
@@ -624,6 +690,100 @@ function loop(){
     $('rfps').textContent = fps + ' fps';
     frames = 0; tPrev = now;
   }
+}
+
+/* ---------- acoustic dampening panel ---------- */
+const aplot = $('aplot'), actx = aplot.getContext('2d');
+let simWorker = null, simBusy = false, lastSim = null;
+
+function sizeCanvas(){
+  const cssW = aplot.clientWidth || 304, cssH = 172, dpr = Math.min(devicePixelRatio, 2);
+  aplot.width = Math.round(cssW*dpr); aplot.height = Math.round(cssH*dpr);
+  actx.setTransform(dpr, 0, 0, dpr, 0, 0);   // draw in CSS pixels
+  aplot._w = cssW; aplot._h = cssH;
+}
+
+$('atoggle').onclick = ()=>{
+  const b = $('abody');
+  const open = b.style.display === 'none';
+  b.style.display = open ? 'block' : 'none';
+  $('acar').textContent = open ? 'hide ▾' : 'show ▸';
+  if(open){ sizeCanvas(); lastSim ? redraw() : drawEmpty(); }
+};
+
+function ensureWorker(){
+  if(simWorker) return simWorker;
+  simWorker = new Worker(new URL('./sim-worker.js', import.meta.url), { type:'module' });
+  simWorker.onmessage = (e)=>{
+    const m = e.data;
+    if(m.type === 'progress'){
+      const frac = (m.phase === 'reference' ? 0 : 0.5) + m.frac*0.5;
+      $('abar').style.width = (frac*100).toFixed(0)+'%';
+      $('alegend').textContent = (m.phase==='reference' ? 'free-field reference… ' : 'orb… ') + (frac*100).toFixed(0)+'%';
+    } else if(m.type === 'done'){
+      simBusy = false; $('arun').disabled = false; $('abar').style.width = '100%';
+      lastSim = { freqs:m.freqs, tl:m.tlDisplay, meta:m.meta };
+      $('acompact').textContent = 'Compact (≈0 dB) below ~'+m.meta.compactBelow+' Hz.';
+      redraw();
+    } else if(m.type === 'error'){
+      simBusy = false; $('arun').disabled = false; $('alegend').textContent = 'sim error: '+m.message;
+    }
+  };
+  simWorker.onerror = (err)=>{ simBusy=false; $('arun').disabled=false; $('alegend').textContent = 'worker error: '+(err.message||err); };
+  return simWorker;
+}
+
+$('arun').onclick = ()=>{
+  if(simBusy) return;
+  simBusy = true; $('arun').disabled = true; $('abar').style.width = '0%';
+  $('alegend').textContent = 'starting…';
+  sizeCanvas();
+  ensureWorker().postMessage({
+    pattern: curPat, cell: curCell, T: uniforms.uT.value,
+    shell: uniforms.uShell.value, R: R, n: parseInt($('ares').value),
+  });
+};
+
+function drawEmpty(){
+  const w=aplot._w||304, h=aplot._h||172;
+  actx.clearRect(0,0,w,h);
+  actx.fillStyle='#6a6a80'; actx.font='12px sans-serif'; actx.textAlign='center';
+  actx.fillText('press Run to compute TL(f)', w/2, h/2);
+}
+function redraw(){ if(lastSim) drawSpectrum(lastSim.freqs, lastSim.tl, lastSim.meta); }
+
+function drawSpectrum(freqs, tl, meta){
+  const w=aplot._w||304, h=aplot._h||172;
+  const bx0=34, by0=10, bx1=w-8, by1=h-20;
+  const fMin=meta.fMin, fMax=meta.fMax;
+  const maxTL = Math.max(24, Math.ceil(Math.max.apply(null, tl)/6)*6);
+  const X = f => bx0 + (Math.log(f)-Math.log(fMin))/(Math.log(fMax)-Math.log(fMin))*(bx1-bx0);
+  const Y = v => by1 - Math.min(v,maxTL)/maxTL*(by1-by0);
+  actx.clearRect(0,0,w,h);
+  // acoustically-compact (near-field, TL≈0) region
+  actx.fillStyle='rgba(255,180,84,0.07)';
+  actx.fillRect(bx0, by0, Math.max(0, X(meta.compactBelow)-bx0), by1-by0);
+  // dB gridlines
+  actx.font='9px sans-serif'; actx.textAlign='right';
+  const dbStep = Math.max(6, Math.round(maxTL/4/6)*6);
+  for(let v=0; v<=maxTL; v+=dbStep){ const y=Y(v);
+    actx.strokeStyle='#16161f'; actx.lineWidth=1; actx.beginPath(); actx.moveTo(bx0,y); actx.lineTo(bx1,y); actx.stroke();
+    actx.fillStyle='#6a6a80'; actx.fillText(v, bx0-4, y+3); }
+  // freq ticks
+  actx.textAlign='center';
+  for(const f of [250,500,1000,2000,4000,8000]){ if(f<fMin||f>fMax) continue; const x=X(f);
+    actx.strokeStyle='#1c1c28'; actx.beginPath(); actx.moveTo(x,by0); actx.lineTo(x,by1); actx.stroke();
+    actx.fillStyle='#6a6a80'; actx.fillText(f>=1000?(f/1000)+'k':f, x, by1+12); }
+  // TL curve, filled
+  actx.beginPath(); actx.moveTo(X(freqs[0]), by1);
+  for(let i=0;i<freqs.length;i++) actx.lineTo(X(freqs[i]), Y(tl[i]));
+  actx.lineTo(X(freqs[freqs.length-1]), by1); actx.closePath();
+  actx.fillStyle='rgba(57,214,200,0.15)'; actx.fill();
+  actx.beginPath();
+  for(let i=0;i<freqs.length;i++){ const x=X(freqs[i]), y=Y(tl[i]); i?actx.lineTo(x,y):actx.moveTo(x,y); }
+  actx.strokeStyle='#39d6c8'; actx.lineWidth=2; actx.stroke();
+  const peak = Math.max.apply(null, tl);
+  $('alegend').innerHTML = 'peak <b>'+peak.toFixed(0)+' dB</b> · '+meta.n+'³ grid · '+meta.dx.toFixed(2)+' mm/cell · amber = acoustically compact';
 }
 
 setFilament(FILAMENTS[0]);
