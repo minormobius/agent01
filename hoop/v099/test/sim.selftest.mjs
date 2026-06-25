@@ -18,7 +18,9 @@ ok('dwell central → bed', fixtureAction('dwell', 'component') === 'bed');
 ok('dwell wall → chest', fixtureAction('dwell', 'wall') === 'chest');
 ok('learn central → terminal', fixtureAction('learn', 'component') === 'terminal');
 ok('grow central → garden', fixtureAction('grow', 'component') === 'garden');
-ok('isTerminalRole matches learn/govern/worship', isTerminalRole('govern') && isTerminalRole('worship') && !isTerminalRole('dwell'));
+ok('worship central → oracle', fixtureAction('worship', 'component') === 'oracle');
+ok('govern central → inkblot', fixtureAction('govern', 'component') === 'inkblot');
+ok('isTerminalRole is learn only (govern/worship have their own fixtures now)', isTerminalRole('learn') && !isTerminalRole('govern') && !isTerminalRole('worship') && !isTerminalRole('dwell'));
 ok('unmapped → null', fixtureAction('make', 'component') === null && fixtureAction('learn', 'wall') === null);
 
 // chest: per-chamber persistent storage, deposit/withdraw are pure

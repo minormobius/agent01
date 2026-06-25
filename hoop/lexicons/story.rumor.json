@@ -11,7 +11,11 @@
         "required": ["world", "createdAt"],
         "properties": {
           "world": { "type": "string", "maxLength": 64, "description": "World key (ship seed) this rumor pertains to." },
-          "text": { "type": "string", "maxLength": 600, "description": "The rumor body — what is being spread, in words." },
+          "kind": { "type": "string", "maxLength": 32, "description": "OPTIONAL discriminator for what KIND of rumor this is, so the engine can route it. 'sighting' (the spread-word default — a content_item was met), 'divination' (a worship-room oracle omen — yijing/geomancy — the entropic-omen signal), 'inkblot' (a govern-room seal: a Rorschach archetype + the player's colour). Absent ⇒ treat as 'sighting'." },
+          "text": { "type": "string", "maxLength": 600, "description": "The rumor body — what is being spread, in words. For divination it is the omen; for an inkblot it names the figure + the player's colour." },
+          "seed": { "type": "string", "maxLength": 64, "description": "OPTIONAL reproducibility seed: for kind 'divination'/'inkblot', re-running the same deterministic cast/blot-generation from this seed reproduces the reading exactly." },
+          "profileJson": { "type": "string", "maxLength": 4000, "description": "OPTIONAL JSON-encoded ARCHETYPE PROFILE for kind 'divination' (hexagram/figure + trigrams/planet/judgment) or 'inkblot' (portrait title/blurb/axes + objective traits). Carried as a string (like story.save's stateJson) so the structured shape can evolve without a lexicon bump." },
+          "color": { "type": "string", "maxLength": 280, "description": "OPTIONAL free-text 'colour' the player adds to an inkblot seal — what they saw in it. Their words, alongside the blot's measured archetype." },
           "subject": { "type": "string", "maxLength": 256, "description": "OPTIONAL reference: the content_item id (or at-uri) this rumor is ABOUT. The engine resolves it against the pool. Retained by reference — the content itself is not copied here." },
           "subjectType": { "type": "string", "maxLength": 32, "description": "The content type of the subject (npc / creature / item / lore_fragment / plot_beat / rumor)." },
           "subjectName": { "type": "string", "maxLength": 200, "description": "Display name of the subject at spread time (a convenience label; the binding is `subject`)." },

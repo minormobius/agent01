@@ -438,6 +438,14 @@
   <div id="battle"></div>
   <div id="enc"><div class="card" id="enccard"></div></div>
 
+  <!-- govern seal-stand: wars/ink vendored as classic globals (INKPRNG/INKATTRACTORS/INKTRAITS/INKJUDGE/
+       INKENGINE), loaded BEFORE the deferred module so globalThis.INKENGINE is ready. Re-sync, never fork. -->
+  <script src="govern/ink/prng.js"></script>
+  <script src="govern/ink/attractors.js"></script>
+  <script src="govern/ink/traits.js"></script>
+  <script src="govern/ink/judge.js"></script>
+  <script src="govern/ink/engine.js"></script>
+
   <script type="module">
     import { solveChunk } from './v8/chunkgen.js';
     import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, extendWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
@@ -445,6 +453,8 @@
     import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
              NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
     import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
+    import { openOracle, closeOracle, oracleOpen } from './worship/oracle.js';   // the WORSHIP fixture — divination (yijing + geomancy) → entropic rumors
+    import { openInkblot, closeInkblot, inkblotOpen } from './govern/inkblot.js';   // the GOVERN fixture — flip Rorschach seals → archetype + your colour → a rumor
     import { genomeForSeed as mGenomeForSeed } from './morph/atlas.js';   // PROTO: morph engine (topology × legible law × goal) — gated, opt-in via ?morph=1 / the engine toggle
     import { initialState as mInit, tryMove as mTryMove, isWin as mIsWin } from './morph/engine.js';
     import { Rand as mRand } from './morph/prng.js';
@@ -498,7 +508,7 @@
 
     const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
     const SKIN = { ...SKIN_DEFAULTS, fixtureArea: MAX_FIXTURE_AREA };
-    const TERMINAL_ROLES = new Set(['learn']);   // the mythograph terminal belongs to ONE role: the reading room / record hall (learn). It used to blanket govern + worship too (sim.js still maps those to 'terminal' for paint), but three room types opening the same Luna page muddied its role — the console is the reading room's. govern/worship are now ordinary rooms (their component action is 'terminal', so they fall through to no fixture, not arcade/cafe). Marked teal ▤; click to read Luna's mythograph. A chunk-0 fallback (_terminal) guarantees at least one.
+    const TERMINAL_ROLES = new Set(['learn']);   // the mythograph terminal belongs to ONE role: the reading room / record hall (learn). It used to blanket govern + worship too, but three room types opening the same Luna page muddied its role — the console is the reading room's. govern → the seal-stand (inkblot), worship → the oracle (divination); both their own principal fixtures now. Marked teal ▤; click to read Luna's mythograph. A chunk-0 fallback (_terminal) guarantees at least one.
     const isTerminal = (cp) => cp._terminal || TERMINAL_ROLES.has(cp.role);
     // a play-role room's central component is an ARCADE cabinet (sim.js FIXTURE_ACTION: play→'arcade').
     // Marked magenta ◈; click to play a forge puzzle (the Withering Discipline). Not a terminal, so the two never collide.
@@ -506,6 +516,12 @@
     // a serve-role room's central component is a CAFE counter (sim.js: serve→'food'). Marked amber ◍;
     // click to buy food (coins → nourishment + stamina) sourced from biome/gacha ecosystems.
     const isCafe = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'food';
+    // a worship-role room's central component is THE ORACLE (sim.js: worship→'oracle'). Marked indigo ☯;
+    // click to draw a divinatory omen (yijing / geomancy) and release it to the ship as an entropic rumor.
+    const isOracle = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'oracle';
+    // a govern-role room's central component is THE SEAL-STAND (sim.js: govern→'inkblot'). Marked slate ❦;
+    // click to flip Rorschach seals, pick one, add your colour, and stamp it into the record as a rumor.
+    const isInkblot = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'inkblot';
     const VFOV = 0.5;              // vertical field of view = this fraction of a chunk-span of world, DEVICE-INDEPENDENT:
                                    // desktop sees the same world-HEIGHT the phone does (just wider), not a screen-size zoom
     // the world seed IS the save-profile key. Boot resumes the LAST-PLAYED world (or a ?seed=N deep link),
@@ -888,6 +904,8 @@
         if (isTerminal(cp)) { g.save(); g.strokeStyle = '#7fd8d0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#7fd8d0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('▤', cp.cx, cp.cy); g.restore(); }
         else if (isArcade(cp)) { g.save(); g.strokeStyle = '#c89ad0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#c89ad0'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◈', cp.cx, cp.cy); g.restore(); }
         else if (isCafe(cp)) { g.save(); g.strokeStyle = '#e0a86a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e0a86a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('◍', cp.cx, cp.cy); g.restore(); }
+        else if (isOracle(cp)) { g.save(); g.strokeStyle = '#8a7fd8'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#b6a8f0'; g.font = `${Math.max(8, cp.r * 1.2)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('☯', cp.cx, cp.cy); g.restore(); }
+        else if (isInkblot(cp)) { g.save(); g.strokeStyle = '#9aa7c0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#c2c8d6'; g.font = `${Math.max(8, cp.r * 1.2)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('❦', cp.cx, cp.cy); g.restore(); }
         else if (isGarden(cp)) { g.save(); g.strokeStyle = '#6fc06a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#8fe07a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('❀', cp.cx, cp.cy); g.restore(); }
         else if (isTrade(cp)) { g.save(); g.strokeStyle = '#d8b25a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e6c878'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⇄', cp.cx, cp.cy); g.restore(); }
         else if (isCreepRoom(cp, ch)) { g.save(); g.strokeStyle = '#cf3b3b'; g.lineWidth = 1.6 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.6, 0, 7); g.stroke(); g.fillStyle = '#e05a5a'; g.font = `${Math.max(9, cp.r * 1.3)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('☠', cp.cx, cp.cy); g.restore(); }
@@ -1609,23 +1627,29 @@
     const hideEncounter = () => { $('enc').classList.remove('on'); journalOpen = false; _encItem = null; };
     // SPREAD a rumor about the figure you just met → your own repo (append-only outbox). Best-effort; a
     // failure just marks the button, never breaks play.
-    async function spreadRumor(item) {
-      if (!storyUser || !item) return false;
-      // ONE GAME SIGN-IN, GAME SCOPE ONLY. HOOP_SCOPE covers everything the game writes (place/message/
-      // save/content/rumor). If this session lacks the rumor grant, it was minted broad elsewhere (the
-      // .mino.mobi SSO cookie). Do NOT escalate via the union (that re-shows the scary 50-collection list) —
-      // re-sign-in for HOOP_SCOPE ALONE: one short, game-only consent, and you're never asked again.
+    // THE shared rumor publisher — every fixture that writes to the player's own story.rumor outbox goes
+    // through here (spread-word, the worship oracle, the govern seal-stand). ONE GAME SIGN-IN, GAME SCOPE
+    // ONLY. HOOP_SCOPE covers everything the game writes (place/message/save/content/rumor). If this session
+    // lacks the rumor grant, it was minted broad elsewhere (the .mino.mobi SSO cookie). Do NOT escalate via
+    // the union (that re-shows the scary 50-collection list) — re-sign-in for HOOP_SCOPE ALONE: one short,
+    // game-only consent, and you're never asked again. Best-effort: returns false rather than throwing.
+    async function publishRumor(rumor) {
+      if (!storyUser || !rumor) return false;
       if (!auth.hasScope('com.minomobi.hoop.story.rumor')) {
         flashToast('one-time: sign in to the game…', 2400);
         try { await auth.login(storyUser.handle, { scope: HOOP_SCOPE }); } catch (e) { flashToast('couldn’t sign in — try again', 2600); }
         return false;
       }
-      const rumor = { world: worldKey(), text: `Word spreads of ${item.name || 'something'}${item.type ? ` (${item.type})` : ''}.` };
+      try { await putRumor(auth.pds, rumor); return true; } catch (e) { return false; }
+    }
+    async function spreadRumor(item) {
+      if (!storyUser || !item) return false;
+      const rumor = { world: worldKey(), kind: 'sighting', text: `Word spreads of ${item.name || 'something'}${item.type ? ` (${item.type})` : ''}.` };
       if (item.content_item_id) rumor.subject = item.content_item_id;
       if (item.type) rumor.subjectType = item.type;
       if (item.name) rumor.subjectName = item.name;
       if (item.revelation_tier) rumor.tier = item.revelation_tier;
-      try { await putRumor(auth.pds, rumor); return true; } catch (e) { return false; }
+      return publishRumor(rumor);
     }
     $('enc').addEventListener('click', async (e) => {
       const sp = e.target.closest('[data-spread]');
@@ -2054,6 +2078,20 @@
           if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
       return best;
     }
+    // the worship oracle / govern seal-stand finders — same proximity test as arcadeAt, different predicate.
+    function componentByPred(wx, wy, pred) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!pred(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
+    const oracleAt = (wx, wy) => componentByPred(wx, wy, isOracle);
+    const inkblotAt = (wx, wy) => componentByPred(wx, wy, isInkblot);
+    // the host context both fixtures receive: the world key, sign-in state, the rumor publisher, the toast.
+    const fixtureCtx = () => ({ world: worldKey(), signedIn: !!storyUser, publishRumor, toast: flashToast });
     const cabinetKeyOf = (cp, ch) => 'ch' + ch.id + ':r' + cp.room;
     const clearedFor = (li) => (story.ready && story.store.getFact(story.playerId, 'arcade.cleared.' + li)) | 0;
     const setClearedFor = (li, n) => { if (story.ready) story.store.setFact(story.playerId, 'arcade.cleared.' + li, n | 0); };
@@ -3172,6 +3210,10 @@
       if (term) { walkThenInteract(term.cp.cx, term.cp.cy, () => openTerminal(term.cp, term.ch)); return; }
       const arc = arcadeAt(wx, wy);
       if (arc) { walkThenInteract(arc.cp.cx, arc.cp.cy, () => openArcade(arc.cp, arc.ch)); return; }
+      const orc = oracleAt(wx, wy);
+      if (orc) { walkThenInteract(orc.cp.cx, orc.cp.cy, () => openOracle(fixtureCtx())); return; }
+      const ink = inkblotAt(wx, wy);
+      if (ink) { walkThenInteract(ink.cp.cx, ink.cp.cy, () => openInkblot(fixtureCtx())); return; }
       const caf = cafeAt(wx, wy);
       if (caf) { walkThenInteract(caf.cp.cx, caf.cp.cy, () => openCafe(caf.cp, caf.ch)); return; }
       const grd = gardenAt(wx, wy);
@@ -3191,6 +3233,7 @@
     // is a fullscreen overlay/modal covering the world? then the animation loop need not render behind it.
     function worldCovered() {
       if (arcadeOpen || gardenOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen || loaderOpen) return true;
+      if (oracleOpen() || inkblotOpen()) return true;                                 // the worship oracle / govern seal-stand overlays
       if (minimap.open || equip.open || (creator && creator.open)) return true;
       if (document.querySelector('.himodal')) return true;                          // the sign-in handle box
       return ['story', 'enc', 'arc', 'garden', 'trade', 'kitchen', 'lapidary', 'battle'].some((id) => { const el = $(id); return el && el.classList.contains('on'); });
@@ -3233,7 +3276,7 @@
       if (arcadeOpen) drawArcadeBoard();   // re-fit the puzzle board to the new viewport / orientation
     }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !typing() && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world (your durable pack carries across)
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !typing() && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen && !oracleOpen() && !inkblotOpen()) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world (your durable pack carries across)
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
@@ -3345,7 +3388,7 @@
     addEventListener('click', (e) => { const mm = $('moremenu'); if (mm.classList.contains('on') && !mm.contains(e.target) && e.target !== $('morebtn') && !$('morebtn').contains(e.target)) mm.classList.remove('on'); });
     $('dbgbtn').addEventListener('click', () => toggleDbg());
     addEventListener('keydown', (e) => { if (e.key === '`' && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); toggleDbg(); } });   // ` = story-status panel
-    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !typing() && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !typing() && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen && !oracleOpen() && !inkblotOpen()) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
 
