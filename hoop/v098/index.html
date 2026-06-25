@@ -470,12 +470,12 @@
     import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from './rooms.js';
     import { buildSociety, buildResidents, stepResidents } from './npc.js';
     import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
-    import { flattenPool, MemoryStore, interact, talk, choose, take, loadGateState } from './story/engine.js';
+    import { flattenPool, MemoryStore, interact, talk, choose, take, loadGateState, meetsState } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
     import { deriveStoryboard, deriveMilestones, deriveOpeningCast } from './story/progression.js';   // v096: the storyboard + advancement + opening cast are DERIVED FROM hoopy's content, not hand-authored
     import { computeBoard, questLog, activeMarkers, tierFloors } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
-    import { DECKS, DECK_COUNT, deckForTier, nextDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
-    import { assess, levelMessage, guideFor } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
+    import { DECKS, DECK_COUNT, deckForTier, nextDeck, countsForDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
+    import { assess, levelMessage, guideFor, learnedForDeck } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
     import { buildQuestBank, questProgress, pickQuestForNpc, questMarker } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to
     import { AuthClient } from '../vendor/auth.js';   // shared OAuth (verbatim copy of packages/oauth-client) — sign in to save to YOUR repo
     import { loadOwnSave, putSave, SAVE_NSID, loadPool, publicClient, loadPulse, listOwnSaves, deleteOwnSave, putRumor } from './story/atproto.js';   // the per-player save lane + the SHARED pool read + the cross-player pulse + own-save enumeration + the rumor outbox (com.minomobi.hoop.story.*)
@@ -1102,6 +1102,7 @@
     function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}${_maxDt > 20 ? ' · max ' + _maxDt.toFixed(0) + 'ms' : ''}${_socMs > 1 ? ' · soc ' + _socMs.toFixed(0) + 'ms' : ''}${_stitchMs > 1 ? ' · stitch ' + _stitchMs.toFixed(0) + 'ms' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
+      ensureDeckSupply(); discoverQuestNpcs();   // keep the deck clearable + surface quest NPCs as you explore (both guarded + throttled)
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
       let tierTag = '';
@@ -2967,13 +2968,52 @@
       const disc = getJSONFact('npc.discovered', {});
       if (disc[npc.id]) return false;
       let res = null, bd = Infinity;
-      for (const r of residents) { if ((r.deck || 0) !== (deck || 0)) continue; const d = (r.x - x) ** 2 + (r.y - y) ** 2; if (d < bd) { bd = d; res = r; } }
+      for (const r of residents) { if ((r.deck || 0) !== (deck || 0)) continue; const k = hkStr(r.homeKey); if (k && _promotedKeys.has(k)) continue;   // don't promote the same little guy twice
+        const d = (r.x - x) ** 2 + (r.y - y) ** 2; if (d < bd) { bd = d; res = r; } }
       const pos = res ? { x: res.x, y: res.y } : { x, y }, rkey = res ? hkStr(res.homeKey) : null;
       disc[npc.id] = { x: pos.x, y: pos.y, deck: deck || 0, res: rkey };
       setJSONFact('npc.discovered', disc);
       if (rkey) _promotedKeys.add(rkey);
       placeAnchors();
       return true;
+    }
+    // PROGRESSION SOLVER (v1) — keep the current deck CLEARABLE. assess() clears a deck when you've
+    // crystallized `needed` distinct deck-themed items; with the crowd now ambience, that supply has to come
+    // from DISCOVERED named NPCs. So as you explore, promote enough deck-themed corpus NPCs (gate-passing,
+    // tier-legal, deterministic by id) that learned + placeable ≥ needed. This is the drive-to-solvable: it
+    // guarantees a path exists, drawn from the (growing) corpus. Throttled; promotes near the player.
+    let _supplyT = 0;
+    function ensureDeckSupply() {
+      if (!story.ready || !society || player < 0) return;
+      const now = performance.now(); if (now - _supplyT < 700) return; _supplyT = now;
+      const deck = currentDeck(); if (!deck) return;
+      const needed = (deck.learn && deck.learn.count) || 4;
+      const learnedIds = learnedForDeck(story.store, story.playerId, deck);
+      if (learnedIds.size >= needed) return;   // already clearable from what you've met
+      const disc = getJSONFact('npc.discovered', {});
+      let placedUnlearned = 0;
+      for (const id of Object.keys(disc)) { const ci = story.store.contentById(id); if (ci && countsForDeck(ci, deck) && !learnedIds.has(id)) placedUnlearned++; }
+      let want = (needed - learnedIds.size + 1) - placedUnlearned;   // +1 slack so the deck is never a knife-edge
+      if (want <= 0) return;
+      const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
+      const cands = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
+        .filter((c) => !disc[c.id] && countsForDeck(c, deck) && meetsState(gstate, c.requires || {}))
+        .sort((a, b) => (a.id < b.id ? -1 : 1));
+      for (const npc of cands) { if (want <= 0) break; if (discoverNpc(npc, px(), py(), playerDeck())) want--; }
+    }
+    // Discover any NPC a live QUEST points at (storyboard beat OR side-thread) so its waypoint resolves and
+    // you can actually go meet them — covers the "I have a quest for Sevin but she never appears" gap.
+    function discoverQuestNpcs() {
+      if (!story.ready || !society || player < 0 || !questBank) return;
+      const names = npcNameMap(), facts = story.store.getFacts(story.playerId);
+      for (const k of Object.keys(facts)) {
+        if (!k.startsWith('sq.on.') || facts['sq.done.' + k.slice(6)]) continue;
+        const q = questBank.get(k.slice(6)); if (!q) continue;
+        const mk = questMarker(q, names);
+        if (mk && mk.anchor && !anchors.some((a) => a.key === 'anchor:' + mk.anchor)) {
+          const npc = story.store.contentById(mk.anchor); if (npc) discoverNpc(npc, px(), py(), playerDeck());
+        }
+      }
     }
     // guarantee chunk 0 has at least one Tabard terminal (designate the most central component if no role matches)
     function ensureChunk0Terminal() {
