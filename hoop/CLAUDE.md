@@ -173,10 +173,17 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-arcade-fixture-gn8e9j` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-surface-setup-xd0mqo` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
+- **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
+  `/vNNN/records` + `/vNNN/feed` to their `.html`; assets are relative). **`v098` is the stable
+  TEST surface** (hoopy's content/story testbed — leave it stable); **`v099` is the DEVELOPMENT
+  surface** (disruptive map work, new government/worship fixtures, deepened combat). Each surface
+  namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never collide with
+  the test surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/` and
+  `hoop:vNN:`→`hoop:vMM:` in the copy, add the two clean-URL rewrites in `worker.js`.
 - **v096 live inference (phase 2+, NOT yet wired into `worker.js`):** the worker will gain
   `GEMINI_API_KEY` (set out-of-band via `wrangler secret put`, never committed — the borges rule) to
   drive the segregated `story/llm/` adapter. Until set, the adapter is the disabled stub and the game

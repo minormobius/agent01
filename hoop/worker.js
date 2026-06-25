@@ -126,6 +126,13 @@ export default {
     if (url.pathname === '/v098/feed' || url.pathname === '/v098/feed/') {
       return env.ASSETS.fetch(new Request(new URL('/v098/feed.html', url), request));
     }
+    // v099 — the development surface (disruptive map/fixture/combat work in flight; v098 stays the stable test surface).
+    if (url.pathname === '/v099/records' || url.pathname === '/v099/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v099/records.html', url), request));
+    }
+    if (url.pathname === '/v099/feed' || url.pathname === '/v099/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v099/feed.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
