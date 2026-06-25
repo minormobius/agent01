@@ -2,7 +2,7 @@ name: Deploy ATPhoto
 
 on:
   push:
-    branches: [main, 'claude/feature-merge-candidate-l4dkwq', 'claude/liquid-glass-web-demos-hyt229']
+    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
     paths:
       - 'photo/**'
       - '.github/workflows/deploy-photo.yml'

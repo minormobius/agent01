@@ -2,7 +2,7 @@ name: Deploy War Factor Analysis
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/inkblot-personality-quiz-7pg6te']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'wars/**'
       - '.github/workflows/deploy-wars.yml'
