@@ -1608,15 +1608,16 @@
     }
     const hideEncounter = () => { $('enc').classList.remove('on'); journalOpen = false; _encItem = null; };
     // SPREAD a rumor about the figure you just met → your own repo (append-only outbox). Best-effort; a
-    // failure (e.g. a pre-rumor OAuth session that lacks the scope) just marks the button, never breaks play.
+    // failure just marks the button, never breaks play.
     async function spreadRumor(item) {
       if (!storyUser || !item) return false;
-      // INCREMENTAL AUTH (fallback): a hoop sign-in grants story.rumor (it's in HOOP_SCOPE). But a session
-      // picked up cross-site (the .mino.mobi cookie, minted narrowly elsewhere) might lack it — if so,
-      // escalate just-in-time. ensureScope redirects to a short consent for the union, then returns here.
+      // ONE GAME SIGN-IN, GAME SCOPE ONLY. HOOP_SCOPE covers everything the game writes (place/message/
+      // save/content/rumor). If this session lacks the rumor grant, it was minted broad elsewhere (the
+      // .mino.mobi SSO cookie). Do NOT escalate via the union (that re-shows the scary 50-collection list) —
+      // re-sign-in for HOOP_SCOPE ALONE: one short, game-only consent, and you're never asked again.
       if (!auth.hasScope('com.minomobi.hoop.story.rumor')) {
-        flashToast('one-time: authorizing rumors…', 2400);
-        try { await auth.ensureScope(HOOP_SCOPE); } catch (e) { flashToast('couldn’t authorize rumors — try again later', 2600); }
+        flashToast('one-time: sign in to the game…', 2400);
+        try { await auth.login(storyUser.handle, { scope: HOOP_SCOPE }); } catch (e) { flashToast('couldn’t sign in — try again', 2600); }
         return false;
       }
       const rumor = { world: worldKey(), text: `Word spreads of ${item.name || 'something'}${item.type ? ` (${item.type})` : ''}.` };
