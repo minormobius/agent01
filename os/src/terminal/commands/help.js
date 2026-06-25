@@ -32,7 +32,7 @@ const COMMANDS = [
   ['clear', 'Clear terminal'],
   ['logout', 'End session'],
   ['', ''],
-  ['container', 'Launch container shell (bash + claude-code)'],
+  ['container', 'Launch container shell (bash + claude-code) — needs os-api backend'],
   ['container --api-key=KEY', 'Launch with explicit API key'],
   ['set-key <key>', 'Save Anthropic API key'],
 ];

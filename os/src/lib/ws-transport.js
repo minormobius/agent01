@@ -15,10 +15,11 @@ export class WSTransport {
     this.pingInterval = null;
   }
 
-  connect({ cols, rows, session, apiKey }) {
+  connect({ cols, rows, session, apiKey, auth }) {
     this.intentionalClose = false;
     this.session = session;
     this.apiKey = apiKey;
+    this.auth = auth;
     this.cols = cols;
     this.rows = rows;
 
@@ -28,6 +29,9 @@ export class WSTransport {
       rows: String(rows),
     });
     if (apiKey) params.set('apiKey', apiKey);
+    // PDS accessJwt — the worker verifies this against the user's PDS and
+    // checks the resulting did against its allowlist before opening a shell.
+    if (auth) params.set('auth', auth);
 
     const wsUrl = `${this.baseUrl}/ws?${params}`;
     this.onStatus?.('connecting');
@@ -117,6 +121,7 @@ export class WSTransport {
           rows: this.rows,
           session: this.session,
           apiKey: this.apiKey,
+          auth: this.auth,
         });
       }
     }, delay);

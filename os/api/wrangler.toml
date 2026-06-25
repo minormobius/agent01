@@ -5,6 +5,22 @@ compatibility_flags = ["nodejs_compat", "containers"]
 
 [vars]
 SYNC_URL = "https://os-api.minomobi.com"
+# Comma-separated allowlist of DIDs permitted to open a container shell.
+# FAIL-CLOSED: if this is empty, the /ws endpoint refuses every connection.
+# The shell is handed shared GITHUB_TOKEN / CLOUDFLARE_API_TOKEN, so only put
+# DIDs you fully trust here. For a personal tool this is just your own DID, e.g.
+#   ALLOWED_DIDS = "did:plc:xxxxxxxxxxxxxxxxxxxxxxxx"
+# (A DID is public, not a secret, so it's fine to commit. Can also be set via
+#  `wrangler secret put ALLOWED_DIDS` if you prefer to keep it out of git.)
+ALLOWED_DIDS = ""
+
+# TENANCY SWITCH. When "true", the SHARED account credentials GITHUB_TOKEN +
+# CLOUDFLARE_API_TOKEN are injected into the shell (convenient for single-tenant
+# / personal use — you trust yourself with your own tokens). MUST be "false" for
+# any config where a DID other than yours is on ALLOWED_DIDS — otherwise that
+# user gets your whole GitHub + Cloudflare account. Default: off (fail-safe).
+# See SECURITY.md for the multi-tenant model (per-user broker-held creds).
+INJECT_SHARED_CREDS = "false"
 
 # R2 bucket for persistent workspace storage
 [[r2_buckets]]
@@ -27,7 +43,19 @@ tag = "v1"
 new_sqlite_classes = ["ContainerShell"]
 
 # Secrets (set via `wrangler secret put`):
-#   SYNC_TOKEN            — shared secret for container ↔ worker sync
-#   GITHUB_TOKEN          — GitHub PAT for MCP server + git push
-#   CLOUDFLARE_API_TOKEN  — for wrangler commands inside container
-#   CLOUDFLARE_ACCOUNT_ID — for wrangler commands inside container
+#   CAP_SIGNING_KEY       — HMAC key the worker uses to sign per-instance
+#                           capability tokens. NEVER enters the container.
+#                           Generate once: `openssl rand -hex 32`.
+#   GITHUB_TOKEN          — only used when INJECT_SHARED_CREDS=true (single-tenant)
+#   CLOUDFLARE_API_TOKEN  — only used when INJECT_SHARED_CREDS=true (single-tenant)
+#   CLOUDFLARE_ACCOUNT_ID — only used when INJECT_SHARED_CREDS=true (single-tenant)
+#
+# SECURITY: GITHUB_TOKEN and CLOUDFLARE_API_TOKEN are SHARED account credentials.
+# When injected (INJECT_SHARED_CREDS=true) they are readable from the shell and
+# are protected ONLY by the ALLOWED_DIDS gate — safe for a single trusted user
+# (you), never for a second. Even single-tenant, scope them down as defense in
+# depth: GITHUB_TOKEN → a fine-grained PAT limited to minormobius/agent01;
+# CLOUDFLARE_API_TOKEN → scoped to just the os Workers/Pages/R2 resources.
+# The container↔worker sync no longer uses a shared secret — it uses the
+# per-instance CAP_TOKEN, signed by CAP_SIGNING_KEY. See SECURITY.md for the
+# full multi-tenant model (per-user broker-held creds, PDS/git proxies).

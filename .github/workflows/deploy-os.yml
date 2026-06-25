@@ -8,7 +8,7 @@ name: Deploy os (terminal frontend)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/os-deploy-surface-5hrw5w']
     paths:
       - 'os/**'
       - '!os/api/**'
