@@ -1882,16 +1882,19 @@
         // not the procedural resident the world spawned (agent.name, e.g. "Cole"). agent.name is only the
         // fallback for a soul with no story figure yet. The role+standing line no longer repeats the name.
         const npcName = t.npc || agent.name;
-        // ONE SCREEN — the figure's reveal (description + hint + "spread word") folds INTO the dialogue on
-        // first meeting, instead of a separate encounter popup. fresh = the just-crystallized item; null on recall.
-        const fresh = (story.active.intro && story.active.intro.status === 'crystallized') ? story.active.intro.item : null;
+        // ONE SCREEN, FIRST SCREEN ONLY — the figure's reveal (description + hint + "spread word") and any
+        // delivered story beat (`informed`) belong to the OPENING screen of the meeting. They show once, then
+        // clear as soon as you pick a choice (firstScreen → false), so the note never hangs over the whole
+        // conversation (the mobile-scroll fix). fresh = the just-crystallized item; null on recall.
+        const onFirst = story.active.firstScreen !== false;
+        const fresh = (onFirst && story.active.intro && story.active.intro.status === 'crystallized') ? story.active.intro.item : null;
         const canSpread = !!(fresh && storyUser && fresh.content_item_id);
         const meet = (fresh && fresh.description)
           ? `<p class="says" style="border-left:2px solid #f4bf62;padding-left:9px;font-style:normal;color:#cfd8d0">${esc(fresh.description)}</p>`
             + (fresh.revelation_hint ? `<p class="says" style="color:#e0a86a;font-size:13px;font-style:italic;margin-top:-4px">“${esc(fresh.revelation_hint)}”</p>` : '')
             + (canSpread ? `<button data-spread="1" style="margin:2px 0 8px;padding:6px 14px;border:1px solid #f4bf62;background:rgba(244,191,98,.12);color:#f4bf62;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer">☷ spread word</button>` : '')
           : '';
-        const inform = story.active.informed ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
+        const inform = (onFirst && story.active.informed) ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
         const right = meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>`;
         // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
         // an ambient crowd one-liner → a light compact popup.
@@ -1945,6 +1948,7 @@
       if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack(); setChests(chestDeposit(getChests(), chestGid, it)); saveStory(); renderChest(); } return; }
       if (wd && chestGid) { const i = +wd.dataset.withdraw, r = chestWithdraw(getChests(), chestGid, i); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); persistPack(); saveStory(); renderChest(); } return; }
       if (ch && story.active && story.active.npcId) {
+        story.active.firstScreen = false;   // past the opening screen — drop the meet note / informed beat
         const r = choose(story.store, story.playerId, story.active.npcId, ch.dataset.cid);
         // an NPC's give_items grant → real items in the Voronoi pack (a key becomes a key sprite)
         for (const id of (r && r.gave_items) || []) {
@@ -2056,7 +2060,7 @@
     // ENGINE gate: morph (the live default) vs forge (opt-in). `?forge=1` or the in-screen toggle flips it.
     let arcadeMode = (() => { try { return new URLSearchParams(location.search).get('forge') ? 'forge' : 'morph'; } catch (e) { return 'morph'; } })();
     function loadArcadeGame() {
-      if (arcadeMode === 'morph') { arcadeGame = loadMorphGame(); return; }
+      if (arcadeMode === 'morph') { arcadeGame = loadRandomMorph(); return; }   // default: random game × random puzzle (no serialization)
       const p = clearedFor(arcadeLawIndex);
       // forge tries 5 salts per index; if a given p somehow yields nothing, walk forward to the next playable one.
       for (let q = p; q < p + 8; q++) { const g = newArcadeGame(arcadeLawIndex, q); if (g) { arcadeGame = g; arcadeGame.q = q; return; } }
@@ -2123,6 +2127,29 @@
       if (!g) { morphInst = 0; g = morphFirstPlayable(meta, 0); }
       if (!g) { morphTypeIdx = 0; g = morphFirstPlayable(morphMetaForType(0), 0); }
       return wrapMorph(g, morphTypeIdx, g ? g.instSeed : 0);
+    }
+    // NO SERIALIZATION — the arcade serves a RANDOM game (type) × RANDOM puzzle (instance), and never the
+    // same one twice in a session. The morph engine stays deterministic per (type, instSeed); only the
+    // SELECTION is rolled (the borges "random page picker" exception — fine, since arcade play isn't
+    // atproto-persisted per seed). Pass a fixed type to roll only the puzzle within that game (the ⟳ type
+    // control). morphSeen guards repeats; falls back to any playable board rather than soft-locking.
+    const morphSeen = new Set();   // `${typeIdx}:${instSeed}` already served this session
+    function loadRandomMorph(fixedType) {
+      const n = morphTypeCount();
+      for (let tries = 0; tries < 48; tries++) {
+        const ti = (fixedType == null) ? Math.floor(Math.random() * n) : (((fixedType % n) + n) % n);
+        const meta = morphMetaForType(ti);
+        let g = null;
+        for (let s = Math.floor(Math.random() * 100000), w = 0; w < 8 && !g; w++, s += 36) g = morphFirstPlayable(meta, s);
+        if (!g) continue;
+        const key = ti + ':' + g.instSeed;
+        if (morphSeen.has(key)) continue;
+        morphSeen.add(key); morphTypeIdx = ti; morphInst = g.instSeed;
+        return wrapMorph(g, ti, g.instSeed);
+      }
+      const g = loadMorphGame();   // every roll collided or came up dry — serve something rather than nothing
+      if (g) morphSeen.add((g.lawIndex | 0) + ':' + (g.q | 0));
+      return g;
     }
     function morphMove(game, d) {
       if (!game || game.won || d < 0 || d >= game.dirs) return false;
@@ -2341,15 +2368,15 @@
       if (act === 'engine') {   // PROTO toggle: swap forge ⇄ morph and reload this cabinet
         arcadeMode = (arcadeMode === 'morph') ? 'forge' : 'morph'; arcadeGame = null; loadArcadeGame(); renderArcadeScreen(); return;
       }
-      if (act === 'mtype') {   // PROTO: cycle to the next morph game TYPE (primary × substrate, incl. hex)
-        morphTypeIdx = (morphTypeIdx + 1) % morphTypeCount(); morphInst = 0; arcadeGame = loadMorphGame(); renderArcadeScreen(); return;
+      if (act === 'mtype') {   // cycle to the next game TYPE (primary × substrate, incl. hex) — random unseen puzzle of it
+        arcadeGame = loadRandomMorph((morphTypeIdx + 1) % morphTypeCount()); renderArcadeScreen(); return;
       }
       if (act === 'undo') { arcadeGame.autoSolved = false; (morph ? morphUndo : arcadeUndo)(arcadeGame); renderArcadeScreen(); return; }
       if (act === 'reset') { arcadeGame.autoSolved = false; (morph ? morphReset : arcadeReset)(arcadeGame); renderArcadeScreen(); return; }
       if (act === 'skip') {   // escape hatch: a fresh puzzle of this cabinet/type (no reward) — never be stuck
         // advance PAST the instance we actually landed on (q), not the search start — playable instSeeds are
         // sparse, so morphInst+1 would re-resolve to the same puzzle (the "15 clicks to a new board" bug).
-        if (morph) { morphInst = (arcadeGame.q | 0) + 1; arcadeGame = loadMorphGame(); renderArcadeScreen(); return; }
+        if (morph) { arcadeGame = loadRandomMorph(); renderArcadeScreen(); return; }   // a different random game × puzzle
         let nq = (arcadeGame.q | 0) + 1, g = null, tries = 0;
         while (!g && tries < 16) { g = newArcadeGame(arcadeLawIndex, nq); if (!g) { nq++; tries++; } }
         if (g) { g.q = nq; arcadeGame = g; }
@@ -2361,7 +2388,7 @@
           if (!morph) setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1);   // forge tracks a per-law frontier; the morph proto is a session sampler
           saveStory(); whereAmI();
         }
-        if (morph) { morphInst = (arcadeGame.q | 0) + 1; arcadeGame = loadMorphGame(); } else loadArcadeGame();   // past the found instance, not search-start+1
+        if (morph) arcadeGame = loadRandomMorph(); else loadArcadeGame();   // solved → a different random game × puzzle (never repeats)
         renderArcadeScreen(); return;
       }
       const d = +act, maxd = arcadeGame.dirs || 4; if (!(d >= 0 && d < maxd)) return;   // hex has 6 directions — the old `<= 3` clamp killed SE(4)/SW(5), the two DOWNWARD moves
