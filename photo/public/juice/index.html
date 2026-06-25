@@ -1,0 +1,1101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Juice — Liquid Glass Lab</title>
+<meta name="description" content="A browser-side optics lab modelling Apple's Liquid Glass ideas: refractive-index slider, total internal reflection in 3D cubes, birefringence, and a laser-pointer widget. Real Snell / Fresnel / Beer–Lambert physics in WebGL." />
+<meta property="og:title" content="Juice — Liquid Glass Lab" />
+<meta property="og:description" content="How much of Liquid Glass can you actually model in a browser? Real refraction, total internal reflection, birefringence, and a laser widget." />
+<style>
+  :root{
+    --bg:#07060c; --panel:rgba(20,16,32,0.55); --line:rgba(255,255,255,0.10);
+    --ink:#f3eefb; --dim:#a99fc4; --gold:#ffcf6b; --cit:#ff7a3c; --lime:#b6ff5e;
+    --accent:#7df9ff;
+    font-synthesis:none; -webkit-text-size-adjust:100%;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Helvetica,Arial,sans-serif;
+    overflow-x:hidden;
+  }
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:18px 18px 80px}
+
+  header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:6px 2px 16px}
+  .crumb{color:var(--dim);font-size:13px;letter-spacing:.02em}
+  .crumb a{color:var(--dim)}
+  h1{font-family:"SF Pro Display",-apple-system,system-ui,serif;font-weight:700;font-size:clamp(26px,5vw,40px);margin:0;letter-spacing:-.02em;
+     background:linear-gradient(92deg,var(--cit),var(--gold) 38%,var(--lime) 78%,var(--accent));
+     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .tagline{color:var(--dim);font-size:14px;margin:2px 2px 18px;max-width:62ch}
+
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .tab{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--dim);
+    padding:9px 14px;border-radius:12px;font-size:13.5px;cursor:pointer;transition:.15s;backdrop-filter:blur(8px)}
+  .tab:hover{color:var(--ink);border-color:rgba(255,255,255,.22)}
+  .tab[aria-selected="true"]{color:#0a0710;background:linear-gradient(180deg,#fff,#e9e2ff);border-color:transparent;font-weight:600}
+
+  .stage{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);
+    box-shadow:0 24px 80px -30px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.06);
+    background:#05040a;aspect-ratio:16/10}
+  canvas{display:block;width:100%;height:100%;touch-action:none}
+  #lab,#widgetCanvas,#overlay{position:absolute;inset:0;width:100%;height:100%}
+  #overlay{z-index:3}
+  .badge{position:absolute;left:14px;top:12px;z-index:5;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--dim);background:rgba(0,0,0,.35);border:1px solid var(--line);padding:5px 10px;border-radius:999px;backdrop-filter:blur(10px)}
+  .hint{position:absolute;right:14px;bottom:12px;z-index:5;font-size:12px;color:var(--dim);
+    background:rgba(0,0,0,.35);border:1px solid var(--line);padding:5px 10px;border-radius:999px;backdrop-filter:blur(10px)}
+
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:16px}
+  .ctl{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 15px;backdrop-filter:blur(14px)}
+  .ctl label{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--dim);margin-bottom:9px}
+  .ctl label b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--cit);height:22px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:64px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--dim);
+    padding:7px 6px;border-radius:9px;font-size:12.5px;cursor:pointer}
+  .seg button[aria-pressed="true"]{color:#0a0710;background:var(--gold);border-color:transparent;font-weight:600}
+  .note{font-size:12px;color:var(--dim);margin-top:7px;line-height:1.45}
+
+  .explain{margin-top:34px}
+  .explain h2{font-size:18px;margin:0 0 6px;letter-spacing:-.01em}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+  .card h3{margin:0 0 4px;font-size:15px}
+  .verdict{display:inline-block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;margin-bottom:8px}
+  .v-full{background:rgba(182,255,94,.14);color:var(--lime);border:1px solid rgba(182,255,94,.3)}
+  .v-most{background:rgba(255,207,107,.14);color:var(--gold);border:1px solid rgba(255,207,107,.3)}
+  .v-some{background:rgba(255,122,60,.14);color:var(--cit);border:1px solid rgba(255,122,60,.3)}
+  .card p{margin:6px 0 0;font-size:13.5px;color:#cfc7e4}
+  .err{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:30px;color:var(--dim)}
+  footer{margin-top:40px;color:var(--dim);font-size:12.5px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="https://photo.mino.mobi/">photo</a> · juice</span>
+  </header>
+  <h1>Liquid Glass Lab 🍊</h1>
+  <p class="tagline">Apple's <strong>Liquid&nbsp;Glass</strong> material, modelled in the browser — real per-pixel refraction of the content <em>behind</em> the UI, with edge lensing, chromatic split, frost and specular sheen. Drag the menus, dock and pills around and watch them bend the wallpaper. Optics-lab tabs sit alongside. <em>(Floating these for the Apple team — hi 👋)</em></p>
+
+  <div class="tabs" role="tablist" aria-label="Modes">
+    <button class="tab" role="tab" data-mode="ui"     aria-selected="true">Liquid Glass UI</button>
+    <button class="tab" role="tab" data-mode="ior"    aria-selected="false">Refractive index</button>
+    <button class="tab" role="tab" data-mode="tir"    aria-selected="false">Total internal reflection</button>
+    <button class="tab" role="tab" data-mode="biref"  aria-selected="false">Birefringence</button>
+    <button class="tab" role="tab" data-mode="laser"  aria-selected="false">Laser widget</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <span class="badge" id="badge">Liquid Glass UI</span>
+    <span class="hint" id="hint">drag the glass panels</span>
+    <canvas id="lab"></canvas>
+    <canvas id="overlay" hidden></canvas>
+    <canvas id="widgetCanvas" hidden></canvas>
+    <div class="err" id="err">Your browser couldn't start WebGL. The optics here need a GPU canvas — try a recent Safari, Chrome, or Firefox.</div>
+  </div>
+
+  <!-- shared / per-mode controls -->
+  <div class="controls" id="controls"></div>
+
+  <section class="explain">
+    <h2>How much of this can we actually model?</h2>
+    <p class="tagline" style="margin-top:4px">The honest answer, idea by idea. Everything above is the real thing running in your browser, not a video.</p>
+    <div class="grid">
+      <div class="card">
+        <span class="verdict v-full">Fully modelled</span>
+        <h3>Liquid Glass UI material</h3>
+        <p>The headline tab. Real UI — menus, a dock, search and music pills — sits over a live wallpaper and <em>refracts the content behind it</em>. The background is a procedural function, so each glass pixel re-samples it at a displaced coordinate: edges lens and magnify, colour splits chromatically, the interior frosts, and a directional sheen rides the bevel. <strong>All the optics toys apply to the UI glass</strong> — the same refractive-index, birefringence/polariser and total-internal-reflection controls drive the panels, so you can push the menus from window-glass to diamond, double the background like calcite, or light the rims with TIR. Drag any panel; the refraction tracks whatever's underneath. This is the iOS&nbsp;26 / macOS&nbsp;Tahoe look, edge-bending and all.</p>
+      </div>
+      <div class="card">
+        <span class="verdict v-full">Fully modelled</span>
+        <h3>Refractive-index slider</h3>
+        <p>This is exact. Every pixel is a ray refracted through the glass with Snell's law; the slider is the index <em>n</em> (1.0 air → 2.42 diamond). Watch the background squeeze and flip as <em>n</em> climbs, and the Fresnel edge-glow harden. Real physics, 60&nbsp;fps.</p>
+      </div>
+      <div class="card">
+        <span class="verdict v-full">Fully modelled</span>
+        <h3>3D cubes &amp; total internal reflection</h3>
+        <p>Switch the shape to a cube and push <em>n</em> up. Past the critical angle the ray can't escape a face and reflects <em>inside</em> the solid — genuine TIR, traced for several bounces, the same effect that traps light in a diamond or an optical fibre. TIR'd rays are tinted so you can see them ricochet.</p>
+      </div>
+      <div class="card">
+        <span class="verdict v-most">Mostly modelled</span>
+        <h3>Birefringence mode</h3>
+        <p>We trace two rays at once — an <em>ordinary</em> and <em>extraordinary</em> index — so the background doubles, exactly like text seen through calcite. The polariser knob fades between them via Malus's law. What we don't do is full crystal-axis tensor optics; it's the visible result, not the stress-engineering tool.</p>
+      </div>
+      <div class="card">
+        <span class="verdict v-some">Concept + real beam</span>
+        <h3>Laser-pointer homescreen widget</h3>
+        <p>A web page can't <em>be</em> an iOS home-screen widget — that's an Apple SDK surface. But we can model what it'd show: a live laser raytraced through a glass drop, bending and total-internal-reflecting as you aim. Now with <strong>two degrees of freedom</strong> — drag the red emitter to move the source and the ring to aim, so the beam is no longer locked through the drop's centre. The widget chrome is a mock; the optics inside it are real.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Built on <a href="https://photo.mino.mobi/">photo.mino.mobi</a>. Pure client-side WebGL + Canvas2D, no build step, no tracking.
+    Sibling toys: <a href="https://photo.mino.mobi/prism/">/prism</a> · <a href="https://photo.mino.mobi/orb/">/orb</a> · <a href="https://photo.mino.mobi/fractal/">/fractal</a>.
+  </footer>
+</div>
+
+<script>
+/* ============================================================================
+   Liquid Glass Lab (WebGL1 + Canvas2D). Four surfaces:
+   - "Liquid Glass UI"  (FS_UI): Apple's iOS 26 / macOS Tahoe material. Real
+     glass UI panels (menu/dock/pills) refract a *procedural* wallpaper behind
+     them — each glass pixel re-samples bg() at a displaced coordinate, giving
+     edge lensing + chromatic split + frost + specular sheen. A crisp Canvas2D
+     overlay draws the icons/labels on top. Panels are draggable.
+   - Optics lab (FS): ray-traces a single glass solid against a "citrus studio"
+     environment with Snell refraction, Fresnel, internal bounces / TIR,
+     Beer–Lambert tint (modes: refractive-index, TIR, birefringence).
+   - Laser widget (Canvas2D): a 2D beam raytraced through a glass drop.
+   ========================================================================== */
+(function(){
+  "use strict";
+  const lab = document.getElementById('lab');
+  const ovl = document.getElementById('overlay');
+  const wcv = document.getElementById('widgetCanvas');
+  const errEl = document.getElementById('err');
+  const badge = document.getElementById('badge');
+  const hint  = document.getElementById('hint');
+  const controlsEl = document.getElementById('controls');
+
+  const gl = lab.getContext('webgl', {antialias:true, premultipliedAlpha:false, alpha:false})
+          || lab.getContext('experimental-webgl');
+
+  // -------- state --------
+  const state = {
+    mode:'ui',
+    ior:1.52, shape:0 /*0 sphere,1 cube,2 prism*/, biref:0.18, polar:0.5,
+    absorb:[0.35,0.12,0.55], tirGlow:1.0,
+    yaw:0.7, pitch:-0.35, dist:3.4, auto:true,
+    // liquid-glass UI mode (the optics toys apply here too)
+    ui:{ strength:34, frost:0.45, chroma:0.6, tint:0.6, wall:0, scroll:0,
+         ior:1.5, biref:0.0, polar:0.5, tir:0.0 }
+  };
+
+  /* ---------------------------- shaders ---------------------------- */
+  const VS = `
+    attribute vec2 p; void main(){ gl_Position = vec4(p,0.0,1.0); }`;
+
+  const FS = `
+  precision highp float;
+  uniform vec2  uRes;
+  uniform float uTime;
+  uniform float uIOR;     // refractive index
+  uniform int   uShape;   // 0 sphere, 1 box, 2 prism(box-ish)
+  uniform int   uMode;    // 0 single, 2 biref
+  uniform float uBiref;   // index split for birefringence
+  uniform float uPolar;   // polariser 0..1
+  uniform vec3  uAbsorb;  // beer-lambert per-channel
+  uniform float uTIR;     // tint strength for TIR bounces
+  uniform mat3  uRot;     // object -> world
+  uniform float uDist;
+
+  // ---- procedural environment (citrus studio) ----
+  vec3 env(vec3 d){
+    d = normalize(d);
+    float t = clamp(d.y*0.5+0.5,0.0,1.0);
+    // sunset-citrus sky
+    vec3 sky = mix(vec3(1.0,0.42,0.18), vec3(0.06,0.04,0.16), pow(t,0.7));
+    sky = mix(sky, vec3(0.95,0.85,1.0), pow(max(d.y,0.0),3.0)*0.25);
+    // key light
+    vec3 sun = normalize(vec3(0.45,0.55,-0.6));
+    sky += vec3(1.0,0.92,0.7)*pow(max(dot(d,sun),0.0),350.0)*3.0;
+    sky += vec3(1.0,0.7,0.4)*pow(max(dot(d,sun),0.0),12.0)*0.18;
+    // floor with citrus grid
+    if(d.y < -0.02){
+      float f = -0.9/d.y;
+      vec3 fp = d*f;
+      vec2 g = abs(fract(fp.xz*0.6)-0.5);
+      float line = smoothstep(0.46,0.5,max(g.x,g.y));
+      vec3 floorC = mix(vec3(0.07,0.05,0.10), vec3(0.18,0.10,0.06), line);
+      floorC += vec3(1.0,0.6,0.2)*pow(max(dot(d,sun),0.0),60.0)*0.4;
+      float fade = clamp(1.0/(1.0+f*0.06),0.0,1.0);
+      sky = mix(sky, floorC, fade);
+    }
+    // floating fruit lights — colourful blobs so refraction is "juicy"
+    vec3 fruit[5];
+    fruit[0]=normalize(vec3( 0.8, 0.30, 0.5));
+    fruit[1]=normalize(vec3(-0.7, 0.10,-0.4));
+    fruit[2]=normalize(vec3( 0.1,-0.20, 0.9));
+    fruit[3]=normalize(vec3(-0.4, 0.55, 0.7));
+    fruit[4]=normalize(vec3( 0.6,-0.10,-0.7));
+    vec3 fcol[5];
+    fcol[0]=vec3(1.0,0.45,0.10); fcol[1]=vec3(0.7,1.0,0.2);
+    fcol[2]=vec3(1.0,0.2,0.45);  fcol[3]=vec3(1.0,0.85,0.2);
+    fcol[4]=vec3(0.3,0.8,1.0);
+    for(int i=0;i<5;i++){
+      float m = max(dot(d,fruit[i]),0.0);
+      sky += fcol[i]*pow(m,90.0)*1.6;       // bright core
+      sky += fcol[i]*pow(m,9.0)*0.10;       // soft halo
+    }
+    return sky;
+  }
+
+  // ---- intersections (object space, centred at origin) ----
+  // sphere radius r -> entry/exit t
+  vec2 iSphere(vec3 o, vec3 d, float r){
+    float b=dot(o,d); float c=dot(o,o)-r*r; float h=b*b-c;
+    if(h<0.0) return vec2(-1.0);
+    h=sqrt(h); return vec2(-b-h,-b+h);
+  }
+  // box half-extent rad -> tN,tF and out-normals
+  vec2 iBox(vec3 ro, vec3 rd, vec3 rad, out vec3 nN, out vec3 nF){
+    vec3 m=1.0/rd; vec3 n=m*ro; vec3 k=abs(m)*rad;
+    vec3 t1=-n-k; vec3 t2=-n+k;
+    float tN=max(max(t1.x,t1.y),t1.z);
+    float tF=min(min(t2.x,t2.y),t2.z);
+    if(tN>tF || tF<0.0) return vec2(-1.0);
+    nN = -sign(rd)*step(t1.yzx,t1.xyz)*step(t1.zxy,t1.xyz);
+    nF =  sign(rd)*step(t2.xyz,t2.yzx)*step(t2.xyz,t2.zxy);
+    return vec2(tN,tF);
+  }
+
+  struct Hit{ float t; vec3 n; bool hit; };
+
+  // entry intersection (outward normal), shape-aware
+  Hit entry(vec3 o, vec3 d){
+    Hit h; h.hit=false;
+    if(uShape==0){
+      vec2 s=iSphere(o,d,1.0);
+      if(s.x>0.0){ h.t=s.x; h.n=normalize(o+d*s.x); h.hit=true; }
+    } else {
+      vec3 rad = (uShape==2)? vec3(1.05,0.78,1.05) : vec3(0.92);
+      vec3 nN,nF; vec2 b=iBox(o,d,rad,nN,nF);
+      if(b.x>0.0){ h.t=b.x; h.n=nN; h.hit=true; }
+    }
+    return h;
+  }
+  // exit intersection from a point inside, outward normal at exit
+  Hit exitInside(vec3 o, vec3 d){
+    Hit h; h.hit=false;
+    if(uShape==0){
+      vec2 s=iSphere(o,d,1.0);
+      if(s.y>0.0){ h.t=s.y; h.n=normalize(o+d*s.y); h.hit=true; }
+    } else {
+      vec3 rad = (uShape==2)? vec3(1.05,0.78,1.05) : vec3(0.92);
+      vec3 nN,nF; vec2 b=iBox(o,d,rad,nN,nF);
+      if(b.y>0.0){ h.t=b.y; h.n=nF; h.hit=true; }
+    }
+    return h;
+  }
+
+  float fresnel(float cosi, float ior){
+    float r0=(1.0-ior)/(1.0+ior); r0*=r0;
+    return r0+(1.0-r0)*pow(1.0-cosi,5.0);
+  }
+
+  // trace one refracted ray through the solid; returns transmitted colour.
+  // tirOut reports how much total-internal-reflection happened (for tint).
+  vec3 traceInside(vec3 p, vec3 dir, float ior, out float tirOut){
+    vec3 tint=vec3(1.0); tirOut=0.0;
+    for(int i=0;i<6;i++){
+      Hit ex = exitInside(p, dir);
+      if(!ex.hit) break;
+      vec3 hp = p + dir*ex.t;
+      tint *= exp(-uAbsorb*ex.t);            // Beer–Lambert
+      vec3 outDir = refract(dir, -ex.n, ior); // glass->air
+      if(dot(outDir,outDir) < 0.0001){        // total internal reflection
+        tirOut += 1.0;
+        dir = reflect(dir, ex.n);
+        p = hp + dir*0.002;
+        continue;
+      }
+      // small Fresnel loss at exit, then escape
+      float fr = fresnel(max(dot(-dir,ex.n),0.0), ior);
+      vec3 escaped = env(uRot*outDir)*tint;
+      vec3 internal = env(uRot*reflect(dir,ex.n))*tint*0.5;
+      return mix(escaped, internal, fr*0.5);
+    }
+    return env(uRot*dir)*tint;
+  }
+
+  void main(){
+    vec2 uv=(gl_FragCoord.xy*2.0-uRes)/uRes.y;
+    // camera in object space (world == object after we fold rotation into env)
+    vec3 ro=vec3(0.0,0.0,uDist);
+    vec3 rd=normalize(vec3(uv,-1.6));
+
+    vec3 col = env(uRot*rd);                 // background
+
+    Hit en=entry(ro,rd);
+    if(en.hit){
+      float cosi=max(dot(-rd,en.n),0.0);
+      float F=fresnel(cosi,uIOR);
+      vec3 reflCol=env(uRot*reflect(rd,en.n));
+      vec3 pin = ro+rd*en.t + (-en.n)*0.002;
+
+      vec3 refrCol; float tir=0.0;
+      if(uMode==2){
+        // birefringence: two rays, ordinary + extraordinary index
+        float to,te;
+        vec3 dO=refract(rd,en.n,1.0/uIOR);
+        vec3 dE=refract(rd,en.n,1.0/(uIOR+uBiref));
+        vec3 o=traceInside(pin,dO,uIOR,to);
+        vec3 e=traceInside(pin,dE,uIOR+uBiref,te);
+        o*=vec3(0.78,1.0,1.05);              // ordinary -> cool
+        e*=vec3(1.08,0.86,0.78);             // extraordinary -> warm
+        float a=uPolar*1.5708;               // Malus's law mix
+        float wo=cos(a)*cos(a), we=sin(a)*sin(a);
+        // keep both visible at the neutral setting
+        wo=mix(0.5,wo,0.85); we=mix(0.5,we,0.85);
+        refrCol=o*wo+e*we;
+        tir=(to+te)*0.5;
+      } else {
+        vec3 dR=refract(rd,en.n,1.0/uIOR);
+        refrCol=traceInside(pin,dR,uIOR,tir);
+      }
+
+      vec3 glass=mix(refrCol,reflCol,F);
+      // TIR glow: tint ricocheting light so trapped paths read as "lit"
+      glass += vec3(0.5,0.85,1.0)*clamp(tir,0.0,3.0)*0.06*uTIR;
+      // crisp specular rim
+      glass += vec3(1.0)*pow(F,3.0)*0.4;
+      col=glass;
+    }
+
+    // tone-map + subtle vignette
+    col = col/(col+vec3(0.85));
+    col = pow(col, vec3(0.85));
+    float vig = smoothstep(1.6,0.3,length(uv));
+    col *= 0.85+0.15*vig;
+    gl_FragColor=vec4(col,1.0);
+  }`;
+
+  /* ---- Liquid Glass UI shader: refracts a procedural wallpaper behind
+          rounded-rect glass panels (edge lensing + chroma + frost + sheen). ---- */
+  const FS_UI = `
+  precision highp float;
+  uniform vec2  uRes;
+  uniform float uTime;
+  uniform int   uPanelN;
+  uniform vec4  uPanels[6];   // cx,cy,hw,hh  (device px, y-up)
+  uniform float uRadius[6];   // corner radius (device px)
+  uniform float uStrength;    // edge bend, px
+  uniform float uFrost;       // 0..1
+  uniform float uChroma;      // 0..1
+  uniform float uTint;        // 0..1
+  uniform int   uWall;        // wallpaper id
+  uniform float uScroll;
+  uniform float uIOR;         // refractive index (the toy, applied to UI glass)
+  uniform float uBiref;       // birefringence Δn
+  uniform float uPolar;       // polariser 0..1
+  uniform float uTIRamt;      // total-internal-reflection amount 0..1
+
+  float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+  vec3 hsv(float h,float s,float v){
+    vec3 c=clamp(abs(mod(h*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);
+    return v*mix(vec3(1.0),c,s);
+  }
+
+  // procedural wallpaper / content. p in device px (y-up).
+  vec3 bg(vec2 p){
+    vec2 uv = p/uRes;
+    if(uWall==0){
+      // Photos-style grid of colourful tiles (lots of edges to refract)
+      vec2 P = vec2(p.x, p.y - uScroll);
+      float cw = uRes.x/3.0;
+      vec2 cell = floor(P/cw);
+      vec2 f = fract(P/cw);
+      float pad=0.045;
+      float g = smoothstep(0.0,pad,f.x)*smoothstep(0.0,pad,1.0-f.x)
+              * smoothstep(0.0,pad,f.y)*smoothstep(0.0,pad,1.0-f.y);
+      float hue=h21(cell);
+      vec3 tile=hsv(hue,0.55,0.98);
+      tile=mix(tile, hsv(fract(hue+0.12),0.6,0.78), f.y);
+      tile=mix(tile, hsv(fract(hue+0.5),0.5,0.9), smoothstep(0.3,0.7,f.x)*0.35);
+      return mix(vec3(0.05,0.05,0.08), tile, g);
+    } else if(uWall==1){
+      // Aurora gradient
+      float n=sin(uv.x*6.0+uTime*0.25)+sin(uv.y*5.0-uTime*0.18)+sin((uv.x+uv.y)*4.0+uTime*0.1);
+      vec3 c=mix(vec3(0.04,0.09,0.26), vec3(0.10,0.85,0.72), 0.5+0.5*sin(n+uv.y*3.0));
+      c=mix(c, vec3(0.7,0.2,0.85), 0.5+0.5*sin(n*1.3+1.5));
+      c=mix(c, vec3(1.0,0.75,0.3), pow(max(0.0,0.6-uv.y),2.0)*0.4);
+      return c;
+    } else {
+      // Sunset citrus
+      vec3 c=mix(vec3(1.0,0.5,0.2), vec3(0.15,0.04,0.28), pow(uv.y,0.8));
+      c+=vec3(1.0,0.85,0.4)*pow(max(1.0-length((uv-vec2(0.5,0.78))*vec2(1.0,1.4)),0.0),2.0)*0.9;
+      c+=vec3(0.9,0.3,0.5)*pow(max(0.0,uv.y-0.5),2.0)*0.5;
+      return c;
+    }
+  }
+
+  float sdRound(vec2 p, vec2 c, vec2 hw, float r){
+    vec2 q=abs(p-c)-hw+r;
+    return length(max(q,0.0))+min(max(q.x,q.y),0.0)-r;
+  }
+  float scene(vec2 p){
+    float m=1e9;
+    for(int i=0;i<6;i++){
+      if(i>=uPanelN) break;
+      vec4 pn=uPanels[i];
+      m=min(m, sdRound(p, pn.xy, pn.zw, uRadius[i]));
+    }
+    return m;
+  }
+
+  // refracted background sample with chromatic dispersion along the bend dir
+  vec3 refrAt(vec2 p, vec2 off, vec2 ca){
+    return vec3( bg(p+off+ca).r, bg(p+off).g, bg(p+off-ca).b );
+  }
+
+  void main(){
+    vec2 p=gl_FragCoord.xy;
+    vec3 col=bg(p);
+    float d=scene(p);
+    float band=20.0;
+
+    // soft directional drop shadow outside the glass
+    if(d>0.0){
+      float sd=scene(p+vec2(7.0,-10.0));
+      float sh=max(smoothstep(24.0,0.0,d)*0.28, smoothstep(22.0,0.0,sd)*0.30);
+      col*=(1.0-sh);
+    } else {
+      // gradient / surface normal of the panel field
+      vec2 g=normalize(vec2(scene(p+vec2(1.5,0.0))-scene(p-vec2(1.5,0.0)),
+                            scene(p+vec2(0.0,1.5))-scene(p-vec2(0.0,1.5)))+1e-6);
+      float ed=clamp(-d/band,0.0,1.0);
+      float slope=pow(1.0-ed,1.7);              // bending concentrated at the rim
+
+      // --- the optics toys, applied to the UI glass ---
+      // displacement scales with the refractive index (Snell: more n, more bend)
+      float iorFac=(uIOR-1.0)/0.52;             // n=1.52 -> 1.0
+      vec2 baseOff=g*slope*uStrength*iorFac;
+      vec2 ca=baseOff*uChroma*0.45;             // dispersion grows with the bend
+
+      vec3 refr;
+      if(uBiref>0.001){
+        // birefringence: ordinary + extraordinary rays, doubled like calcite
+        float iorE=(uIOR+uBiref-1.0)/0.52;
+        vec2 offE=g*slope*uStrength*iorE;
+        vec3 o=refrAt(p, baseOff, ca)*vec3(0.80,1.0,1.07);
+        vec3 e=refrAt(p, offE,    ca)*vec3(1.08,0.87,0.78);
+        float a=uPolar*1.5708;                  // Malus's law mix
+        float wo=cos(a)*cos(a), we=sin(a)*sin(a);
+        wo=mix(0.5,wo,0.85); we=mix(0.5,we,0.85);
+        refr=o*wo+e*we;
+      } else {
+        refr=refrAt(p, baseOff, ca);
+      }
+
+      // total internal reflection: past the critical angle the rim mirrors
+      // instead of transmitting. Critical angle shrinks as n rises, so the
+      // TIR ring grows with the index.
+      float slopeAngle=atan(slope*2.7);
+      float critical=asin(clamp(1.0/uIOR,0.0,1.0));
+      float tir=uTIRamt*smoothstep(critical*0.8, critical+0.001, slopeAngle);
+      vec3 reflC=refrAt(p, -baseOff*1.4, ca);   // reflect the sample inward
+      refr=mix(refr, reflC, tir);
+
+      // frost: cheap box blur
+      vec3 bl=bg(p+vec2(3.0,0.0))+bg(p+vec2(-3.0,0.0))+bg(p+vec2(0.0,3.0))
+             +bg(p+vec2(0.0,-3.0))+bg(p+vec2(2.5,2.5))+bg(p+vec2(-2.5,-2.5));
+      bl/=6.0;
+      vec3 glass=mix(refr, bl, uFrost);
+      glass=mix(glass, vec3(1.0), uTint*0.16);   // liquid glass reads bright
+      glass+=0.03;
+      // directional sheen off the bevel
+      vec3 N=normalize(vec3(g*slope*1.5, 1.0));
+      vec3 L=normalize(vec3(-0.45,0.6,0.75));
+      float spec=pow(max(dot(N,L),0.0),9.0);
+      glass+=spec*0.55;
+      // thin bright edge line, brighter on top-facing edges
+      float edgeLine=smoothstep(2.2,0.0,abs(d+2.2));
+      float toplit=clamp(g.y,0.0,1.0);
+      glass+=edgeLine*(0.22+0.55*toplit);
+      // TIR rim glow so trapped edges read as lit
+      glass+=tir*vec3(0.55,0.82,1.0)*0.45;
+      // subtle inner shade at the very bottom for depth
+      glass-=clamp(-g.y,0.0,1.0)*edgeLine*0.10;
+      col=glass;
+    }
+    gl_FragColor=vec4(clamp(col,0.0,1.4),1.0);
+  }`;
+
+  /* ---------------------------- gl plumbing ---------------------------- */
+  let prog, uiProg, loc={}, uloc={}, buf, raf=0, t0=performance.now();
+  function compile(type,src){
+    const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  function link(fsSrc){
+    const pr=gl.createProgram();
+    gl.attachShader(pr,compile(gl.VERTEX_SHADER,VS));
+    gl.attachShader(pr,compile(gl.FRAGMENT_SHADER,fsSrc));
+    gl.linkProgram(pr);
+    if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+    return pr;
+  }
+  function bindQuad(pr){
+    const pl=gl.getAttribLocation(pr,'p');
+    gl.enableVertexAttribArray(pl); gl.vertexAttribPointer(pl,2,gl.FLOAT,false,0,0);
+  }
+  function initGL(){
+    if(!gl) throw new Error('no webgl');
+    buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+    prog=link(FS);
+    ['uRes','uTime','uIOR','uShape','uMode','uBiref','uPolar','uAbsorb','uTIR','uRot','uDist']
+      .forEach(n=>loc[n]=gl.getUniformLocation(prog,n));
+    uiProg=link(FS_UI);
+    ['uRes','uTime','uPanelN','uPanels','uRadius','uStrength','uFrost','uChroma','uTint','uWall','uScroll',
+     'uIOR','uBiref','uPolar','uTIRamt']
+      .forEach(n=>uloc[n]=gl.getUniformLocation(uiProg,n));
+  }
+
+  function rotMat(yaw,pitch){
+    const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch);
+    // object->world = Ry * Rx  (column-major for WebGL)
+    return new Float32Array([
+      cy,      0,   -sy,
+      sy*sx,   cx,  cy*sx,
+      sy*cx,  -sx,  cy*cx
+    ]);
+  }
+
+  function resize(){
+    const r=lab.getBoundingClientRect();
+    const dpr=Math.min(window.devicePixelRatio||1, 2);
+    const w=Math.max(2,Math.round(r.width*dpr)), h=Math.max(2,Math.round(r.height*dpr));
+    if(lab.width!==w||lab.height!==h){ lab.width=w; lab.height=h; }
+    gl.viewport(0,0,lab.width,lab.height);
+  }
+
+  function frame(now){
+    raf=requestAnimationFrame(frame);
+    if(state.mode==='laser') return; // 2D widget owns the loop
+    resize();
+    const tt=(now-t0)/1000;
+    if(state.mode==='ui'){ drawUI(tt); drawOverlay(); return; }
+    if(state.auto) state.yaw += 0.0035; // gentle idle spin
+    gl.useProgram(prog); bindQuad(prog);
+    gl.uniform2f(loc.uRes, lab.width, lab.height);
+    gl.uniform1f(loc.uTime, tt);
+    gl.uniform1f(loc.uIOR, state.ior);
+    gl.uniform1i(loc.uShape, state.shape);
+    gl.uniform1i(loc.uMode, state.mode==='biref'?2:0);
+    gl.uniform1f(loc.uBiref, state.biref);
+    gl.uniform1f(loc.uPolar, state.polar);
+    gl.uniform3f(loc.uAbsorb, state.absorb[0],state.absorb[1],state.absorb[2]);
+    gl.uniform1f(loc.uTIR, state.tirGlow);
+    gl.uniformMatrix3fv(loc.uRot,false, rotMat(state.yaw,state.pitch));
+    gl.uniform1f(loc.uDist, state.dist);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+  }
+
+  /* =================== Liquid Glass UI: panels + render =================== */
+  // Panels live in CSS px (top-left origin). Geometry is laid out responsively
+  // in layoutPanels(); the same objects drive both the WebGL refraction and the
+  // crisp Canvas2D overlay (icons + text).
+  const UI = { panels:[], dpr:1, W:0, H:0, cw:0, ch:0, drag:null, dx:0, dy:0 };
+
+  function layoutPanels(){
+    const r=lab.getBoundingClientRect();
+    UI.cw=r.width; UI.ch=r.height;
+    const w=UI.cw, h=UI.ch;
+    // keep existing positions on resize if already laid out
+    if(UI.panels.length){ clampPanels(); return; }
+    const dockW=Math.min(w*0.62,420), dockH=64;
+    UI.panels=[
+      { id:'search', kind:'search', x:w*0.5-Math.min(w*0.5,300)/2, y:h*0.06,
+        w:Math.min(w*0.5,300), h:44, r:22 },
+      { id:'menu', kind:'menu', x:w*0.10, y:h*0.30, w:210, h:196, r:18 },
+      { id:'music', kind:'music', x:w*0.56, y:h*0.34, w:260, h:96, r:22 },
+      { id:'dock', kind:'dock', x:w*0.5-dockW/2, y:h-dockH-18, w:dockW, h:dockH, r:30 },
+    ];
+  }
+  function clampPanels(){
+    for(const p of UI.panels){
+      p.x=Math.max(6,Math.min(UI.cw-p.w-6,p.x));
+      p.y=Math.max(6,Math.min(UI.ch-p.h-6,p.y));
+    }
+  }
+
+  const panBuf=new Float32Array(6*4), radBuf=new Float32Array(6);
+  function drawUI(tt){
+    resize();
+    if(UI.cw!==lab.getBoundingClientRect().width || !UI.panels.length) layoutPanels();
+    const dpr=Math.min(window.devicePixelRatio||1,2); UI.dpr=dpr;
+    UI.W=lab.width; UI.H=lab.height;
+    state.ui.scroll = (state.ui.scroll + 0.25); // gentle content drift
+    const n=Math.min(UI.panels.length,6);
+    for(let i=0;i<n;i++){
+      const p=UI.panels[i];
+      const cx=(p.x+p.w/2)*dpr;
+      const cyTop=(p.y+p.h/2);
+      const cy=UI.H-cyTop*dpr;           // flip to gl y-up
+      panBuf[i*4]=cx; panBuf[i*4+1]=cy; panBuf[i*4+2]=(p.w/2)*dpr; panBuf[i*4+3]=(p.h/2)*dpr;
+      radBuf[i]=p.r*dpr;
+    }
+    gl.useProgram(uiProg); bindQuad(uiProg);
+    gl.uniform2f(uloc.uRes, UI.W, UI.H);
+    gl.uniform1f(uloc.uTime, tt);
+    gl.uniform1i(uloc.uPanelN, n);
+    gl.uniform4fv(uloc.uPanels, panBuf);
+    gl.uniform1fv(uloc.uRadius, radBuf);
+    gl.uniform1f(uloc.uStrength, state.ui.strength*dpr);
+    gl.uniform1f(uloc.uFrost, state.ui.frost);
+    gl.uniform1f(uloc.uChroma, state.ui.chroma);
+    gl.uniform1f(uloc.uTint, state.ui.tint);
+    gl.uniform1i(uloc.uWall, state.ui.wall);
+    gl.uniform1f(uloc.uScroll, state.ui.scroll*dpr);
+    gl.uniform1f(uloc.uIOR, state.ui.ior);
+    gl.uniform1f(uloc.uBiref, state.ui.biref);
+    gl.uniform1f(uloc.uPolar, state.ui.polar);
+    gl.uniform1f(uloc.uTIRamt, state.ui.tir);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+  }
+
+  /* ---- crisp overlay: SF-symbol-ish icons + labels riding the glass ---- */
+  let octx=null;
+  function overlayResize(){
+    const r=lab.getBoundingClientRect();
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    ovl.width=Math.round(r.width*dpr); ovl.height=Math.round(r.height*dpr);
+    octx=ovl.getContext('2d');
+    octx.setTransform(dpr,0,0,dpr,0,0); // draw in CSS px
+  }
+  function shadow(on){
+    if(on){ octx.shadowColor='rgba(0,0,0,0.35)'; octx.shadowBlur=4; octx.shadowOffsetY=1; }
+    else { octx.shadowColor='transparent'; octx.shadowBlur=0; octx.shadowOffsetY=0; }
+  }
+  // glyphs (drawn centred in a box of size s at x,y)
+  function glyph(name,x,y,s,col){
+    const c=octx; c.save(); c.translate(x,y); c.strokeStyle=col; c.fillStyle=col;
+    c.lineWidth=Math.max(1.6,s*0.085); c.lineCap='round'; c.lineJoin='round';
+    const u=s/2;
+    if(name==='search'){ c.beginPath(); c.arc(-u*0.15,-u*0.15,u*0.55,0,7); c.stroke();
+      c.beginPath(); c.moveTo(u*0.28,u*0.28); c.lineTo(u*0.75,u*0.75); c.stroke(); }
+    else if(name==='house'){ c.beginPath(); c.moveTo(-u*0.7,u*0.1); c.lineTo(0,-u*0.7); c.lineTo(u*0.7,u*0.1);
+      c.stroke(); c.beginPath(); c.moveTo(-u*0.5,u*0.02); c.lineTo(-u*0.5,u*0.7); c.lineTo(u*0.5,u*0.7);
+      c.lineTo(u*0.5,u*0.02); c.stroke(); }
+    else if(name==='photos'){ for(let i=0;i<4;i++){ const gx=(i%2)-0.5, gy=Math.floor(i/2)-0.5;
+      c.beginPath(); roundRectP(c,gx*u*0.95-u*0.38,gy*u*0.95-u*0.38,u*0.76,u*0.76,u*0.18); c.stroke(); } }
+    else if(name==='heart'){ c.beginPath(); c.moveTo(0,u*0.6);
+      c.bezierCurveTo(-u*0.95,-u*0.1,-u*0.45,-u*0.8,0,-u*0.25);
+      c.bezierCurveTo(u*0.45,-u*0.8,u*0.95,-u*0.1,0,u*0.6); c.fill(); }
+    else if(name==='person'){ c.beginPath(); c.arc(0,-u*0.3,u*0.34,0,7); c.fill();
+      c.beginPath(); c.arc(0,u*0.95,u*0.62,Math.PI*1.15,Math.PI*1.85); c.lineWidth=s*0.16; c.stroke(); }
+    else if(name==='play'){ c.beginPath(); c.moveTo(-u*0.45,-u*0.6); c.lineTo(u*0.6,0); c.lineTo(-u*0.45,u*0.6); c.closePath(); c.fill(); }
+    else if(name==='prev'||name==='next'){ const sgn=name==='next'?1:-1;
+      c.beginPath(); c.moveTo(sgn*-u*0.2,-u*0.5); c.lineTo(sgn*u*0.5,0); c.lineTo(sgn*-u*0.2,u*0.5); c.closePath(); c.fill();
+      c.fillRect(sgn*u*0.5-(sgn>0?0:u*0.16),-u*0.5,u*0.16,u); }
+    else if(name==='copy'){ c.beginPath(); roundRectP(c,-u*0.55,-u*0.35,u*0.8,u*0.95,u*0.14); c.stroke();
+      c.beginPath(); roundRectP(c,-u*0.2,-u*0.65,u*0.8,u*0.95,u*0.14); c.stroke(); }
+    else if(name==='dup'){ c.beginPath(); roundRectP(c,-u*0.6,-u*0.6,u*0.95,u*0.95,u*0.16); c.stroke();
+      c.beginPath(); c.moveTo(-u*0.12,-u*0.12); c.lineTo(u*0.5,-u*0.12); c.moveTo(u*0.19,-u*0.45); c.lineTo(u*0.19,u*0.2); c.stroke(); }
+    else if(name==='share'){ c.beginPath(); c.moveTo(0,-u*0.7); c.lineTo(0,u*0.3); c.stroke();
+      c.beginPath(); c.moveTo(-u*0.3,-u*0.4); c.lineTo(0,-u*0.7); c.lineTo(u*0.3,-u*0.4); c.stroke();
+      c.beginPath(); roundRectP(c,-u*0.55,-u*0.05,u*1.1,u*0.85,u*0.14); c.stroke(); }
+    else if(name==='trash'){ c.beginPath(); c.moveTo(-u*0.55,-u*0.45); c.lineTo(u*0.55,-u*0.45); c.stroke();
+      c.beginPath(); roundRectP(c,-u*0.42,-u*0.45,u*0.84,u*1.0,u*0.12); c.stroke();
+      c.beginPath(); c.moveTo(-u*0.22,-u*0.45); c.lineTo(-u*0.22,-u*0.7); c.lineTo(u*0.22,-u*0.7); c.lineTo(u*0.22,-u*0.45); c.stroke(); }
+    c.restore();
+  }
+  function roundRectP(c,x,y,w,h,r){ c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+
+  function drawOverlay(){
+    if(!octx) overlayResize();
+    octx.clearRect(0,0,UI.cw,UI.ch);
+    octx.textBaseline='middle';
+    for(const p of UI.panels){
+      if(p.kind==='search'){
+        shadow(true); glyph('search', p.x+24, p.y+p.h/2, 17, 'rgba(255,255,255,0.92)');
+        octx.fillStyle='rgba(255,255,255,0.62)'; octx.font='15px -apple-system,system-ui,sans-serif';
+        octx.fillText('Search', p.x+44, p.y+p.h/2+1); shadow(false);
+      } else if(p.kind==='dock'){
+        const icons=['house','photos','search','heart','person'];
+        const cols=['#ff7a3c','#5ad1ff','#b6ff5e','#ff4d7d','#ffcf6b'];
+        const n=icons.length, slot=p.w/n;
+        for(let i=0;i<n;i++){
+          const cx=p.x+slot*(i+0.5), cy=p.y+p.h/2, sz=p.h*0.52;
+          octx.save();
+          const g=octx.createLinearGradient(cx-sz/2,cy-sz/2,cx+sz/2,cy+sz/2);
+          g.addColorStop(0,cols[i]); g.addColorStop(1,'rgba(255,255,255,0.25)');
+          octx.fillStyle=g; octx.beginPath(); roundRectP(octx,cx-sz/2,cy-sz/2,sz,sz,sz*0.28); octx.fill();
+          octx.strokeStyle='rgba(255,255,255,0.4)'; octx.lineWidth=1; octx.stroke();
+          octx.restore();
+          glyph(icons[i],cx,cy,sz*0.6,'rgba(20,12,28,0.85)');
+        }
+      } else if(p.kind==='menu'){
+        const rows=[['copy','Copy','#fff'],['dup','Duplicate','#fff'],['share','Share…','#fff'],['trash','Delete','#ff6b6b']];
+        const pad=12, rh=(p.h-pad*1.5)/rows.length;
+        for(let i=0;i<rows.length;i++){
+          const [ic,lab2,cl]=rows[i]; const ry=p.y+pad*0.75+rh*(i+0.5);
+          if(i===rows.length-1){ octx.strokeStyle='rgba(255,255,255,0.16)'; octx.lineWidth=1;
+            octx.beginPath(); octx.moveTo(p.x+10,ry-rh/2); octx.lineTo(p.x+p.w-10,ry-rh/2); octx.stroke(); }
+          shadow(true); glyph(ic,p.x+24,ry,17,cl);
+          octx.fillStyle=cl; octx.font='14px -apple-system,system-ui,sans-serif';
+          octx.fillText(lab2,p.x+44,ry+1); shadow(false);
+        }
+      } else if(p.kind==='music'){
+        const art=p.h-20, ax=p.x+10, ay=p.y+10;
+        const g=octx.createLinearGradient(ax,ay,ax+art,ay+art);
+        g.addColorStop(0,'#ff4d7d'); g.addColorStop(1,'#7a5cff');
+        octx.fillStyle=g; octx.beginPath(); roundRectP(octx,ax,ay,art,art,12); octx.fill();
+        shadow(true);
+        octx.fillStyle='rgba(255,255,255,0.95)'; octx.font='600 14px -apple-system,system-ui,sans-serif';
+        octx.fillText('Liquid Sunrise', ax+art+12, p.y+26);
+        octx.fillStyle='rgba(255,255,255,0.6)'; octx.font='12px -apple-system,system-ui,sans-serif';
+        octx.fillText('Tahoe FM', ax+art+12, p.y+44);
+        shadow(false);
+        // transport
+        const ty=p.y+p.h-22, tx=ax+art+14;
+        glyph('prev',tx,ty,15,'rgba(255,255,255,0.9)');
+        glyph('play',tx+30,ty,17,'rgba(255,255,255,0.95)');
+        glyph('next',tx+62,ty,15,'rgba(255,255,255,0.9)');
+        // progress
+        const pbx=ax+art+92, pbw=p.x+p.w-12-pbx;
+        if(pbw>20){ octx.strokeStyle='rgba(255,255,255,0.25)'; octx.lineWidth=3; octx.lineCap='round';
+          octx.beginPath(); octx.moveTo(pbx,ty); octx.lineTo(pbx+pbw,ty); octx.stroke();
+          octx.strokeStyle='rgba(255,255,255,0.85)'; octx.beginPath(); octx.moveTo(pbx,ty); octx.lineTo(pbx+pbw*0.4,ty); octx.stroke(); }
+      }
+    }
+  }
+
+  /* ---- drag glass panels (overlay owns pointer in UI mode) ---- */
+  function uiPoint(e){ const r=ovl.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+  ovl.addEventListener('pointerdown',e=>{
+    const pt=uiPoint(e);
+    for(let i=UI.panels.length-1;i>=0;i--){ const p=UI.panels[i];
+      if(pt.x>=p.x&&pt.x<=p.x+p.w&&pt.y>=p.y&&pt.y<=p.y+p.h){
+        UI.drag=p; UI.dx=pt.x-p.x; UI.dy=pt.y-p.y;
+        UI.panels.splice(i,1); UI.panels.push(p); // bring to front
+        ovl.setPointerCapture(e.pointerId); break; }
+    }
+  });
+  ovl.addEventListener('pointermove',e=>{
+    if(!UI.drag)return; const pt=uiPoint(e);
+    UI.drag.x=pt.x-UI.dx; UI.drag.y=pt.y-UI.dy; clampPanels();
+  });
+  ovl.addEventListener('pointerup',()=>{UI.drag=null;});
+
+  /* ---------------------------- pointer (3D) ---------------------------- */
+  let drag=false,px=0,py=0;
+  lab.addEventListener('pointerdown',e=>{drag=true;state.auto=false;px=e.clientX;py=e.clientY;lab.setPointerCapture(e.pointerId);});
+  lab.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    state.yaw+=(e.clientX-px)*0.01; state.pitch+=(e.clientY-py)*0.01;
+    state.pitch=Math.max(-1.45,Math.min(1.45,state.pitch));
+    px=e.clientX;py=e.clientY;
+  });
+  lab.addEventListener('pointerup',()=>{drag=false;});
+  lab.addEventListener('wheel',e=>{e.preventDefault();state.dist=Math.max(2.3,Math.min(6.0,state.dist+e.deltaY*0.002));},{passive:false});
+
+  /* ---------------------------- controls UI ---------------------------- */
+  function el(html){const d=document.createElement('div');d.innerHTML=html.trim();return d.firstChild;}
+  function slider(key,label,min,max,step,fmt){
+    const node=el(`<div class="ctl"><label>${label}<b id="v_${key}"></b></label>
+      <input type="range" id="r_${key}" min="${min}" max="${max}" step="${step}"></div>`);
+    const r=node.querySelector('input'), out=node.querySelector('b');
+    r.value=state[key];
+    const upd=()=>{ out.textContent=fmt(parseFloat(r.value)); };
+    r.addEventListener('input',()=>{ state[key]=parseFloat(r.value); upd(); });
+    upd(); return node;
+  }
+  function shapePicker(){
+    const node=el(`<div class="ctl"><label>Shape</label>
+      <div class="seg" id="shapeseg">
+        <button data-s="0" ${state.shape===0?'aria-pressed="true"':''}>Sphere</button>
+        <button data-s="1" ${state.shape===1?'aria-pressed="true"':''}>Cube</button>
+        <button data-s="2" ${state.shape===2?'aria-pressed="true"':''}>Prism</button>
+      </div><div class="note" id="shapenote"></div></div>`);
+    node.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      state.shape=parseInt(b.dataset.s,10);
+      node.querySelectorAll('button').forEach(x=>x.removeAttribute('aria-pressed'));
+      b.setAttribute('aria-pressed','true');
+    }));
+    return node;
+  }
+  function presetRow(){
+    const ps=[['Water',1.33],['Glass',1.52],['Sapphire',1.77],['Diamond',2.42]];
+    const node=el(`<div class="ctl"><label>Material preset</label><div class="seg" id="matseg"></div>
+      <div class="note">Index of refraction <em>n</em> = how much slower light moves inside. Higher <em>n</em> → harder bending, brighter edges, easier total internal reflection.</div></div>`);
+    const seg=node.querySelector('#matseg');
+    ps.forEach(([nm,v])=>{const b=el(`<button>${nm}</button>`);
+      b.addEventListener('click',()=>{state.ior=v;const r=document.getElementById('r_ior');if(r){r.value=v;r.dispatchEvent(new Event('input'));}});
+      seg.appendChild(b);});
+    return node;
+  }
+
+  // slider bound to a nested object (used by the Liquid Glass UI controls)
+  function sliderObj(obj,key,label,min,max,step,fmt){
+    const node=el(`<div class="ctl"><label>${label}<b></b></label>
+      <input type="range" min="${min}" max="${max}" step="${step}"></div>`);
+    const r=node.querySelector('input'), out=node.querySelector('b');
+    r.value=obj[key];
+    const upd=()=>out.textContent=fmt(parseFloat(r.value));
+    r.addEventListener('input',()=>{ obj[key]=parseFloat(r.value); upd(); });
+    upd(); return node;
+  }
+  function wallPicker(){
+    const names=['Photos','Aurora','Sunset'];
+    const node=el(`<div class="ctl"><label>Wallpaper</label><div class="seg" id="wallseg"></div>
+      <div class="note">The background is a live procedural function — the glass refracts it by re-sampling at displaced coordinates, so there's no separate "blur of a screenshot". Drag any panel to see it bend whatever's underneath.</div></div>`);
+    const seg=node.querySelector('#wallseg');
+    names.forEach((nm,i)=>{ const b=el(`<button ${state.ui.wall===i?'aria-pressed="true"':''}>${nm}</button>`);
+      b.addEventListener('click',()=>{ state.ui.wall=i; seg.querySelectorAll('button').forEach(x=>x.removeAttribute('aria-pressed')); b.setAttribute('aria-pressed','true'); });
+      seg.appendChild(b); });
+    return node;
+  }
+  function buildUIControls(){
+    controlsEl.innerHTML='';
+    controlsEl.append(
+      sliderObj(state.ui,'ior','Refractive index n',1.0,2.6,0.01,v=>v.toFixed(2)),
+      sliderObj(state.ui,'biref','Birefringence Δn',0,0.5,0.005,v=>v.toFixed(3)),
+      sliderObj(state.ui,'polar','Polariser angle',0,1,0.005,v=>Math.round(v*90)+'°'),
+      sliderObj(state.ui,'tir','Total internal reflection',0,1,0.01,v=>Math.round(v*100)+'%'),
+      sliderObj(state.ui,'strength','Edge bending',0,80,1,v=>Math.round(v)+'px'),
+      sliderObj(state.ui,'frost','Frost / blur',0,1,0.01,v=>Math.round(v*100)+'%'),
+      sliderObj(state.ui,'chroma','Chromatic split',0,1,0.01,v=>Math.round(v*100)+'%'),
+      sliderObj(state.ui,'tint','Glass tint',0,1,0.01,v=>Math.round(v*100)+'%'),
+      wallPicker()
+    );
+  }
+
+  function buildControls(){
+    controlsEl.innerHTML='';
+    const m=state.mode;
+    if(m==='ui'){ buildUIControls(); return; }
+    if(m==='ior'){
+      controlsEl.append(
+        slider('ior','Refractive index n',1.0,2.6,0.01,v=>v.toFixed(2)),
+        presetRow(),
+        shapePicker(),
+        slider('dist','Camera distance',2.3,6.0,0.01,v=>v.toFixed(1)+'×')
+      );
+    } else if(m==='tir'){
+      state.shape=1; // cube by default for TIR
+      controlsEl.append(
+        slider('ior','Refractive index n',1.0,2.6,0.01,v=>v.toFixed(2)),
+        shapePicker(),
+        slider('tirGlow','TIR ray tint',0,2.0,0.01,v=>Math.round(v*100)+'%'),
+        slider('dist','Camera distance',2.3,6.0,0.01,v=>v.toFixed(1)+'×')
+      );
+      // mark cube pressed
+      setTimeout(()=>{const seg=document.getElementById('shapeseg');if(seg){seg.querySelectorAll('button').forEach(x=>x.removeAttribute('aria-pressed'));seg.querySelector('[data-s="1"]').setAttribute('aria-pressed','true');}},0);
+    } else if(m==='biref'){
+      controlsEl.append(
+        slider('biref','Index split Δn (o vs e)',0.0,0.5,0.005,v=>v.toFixed(3)),
+        slider('polar','Polariser angle',0,1,0.005,v=>Math.round(v*90)+'°'),
+        slider('ior','Base index n',1.2,2.2,0.01,v=>v.toFixed(2)),
+        shapePicker()
+      );
+    }
+  }
+
+  /* ============================================================
+     Mode 4 — Laser-pointer "home-screen widget" (Canvas2D)
+     Real 2D raytrace: a beam from the laser refracts into a glass
+     drop, bounces with TIR, and exits. The widget chrome is a mock.
+     ============================================================ */
+  const W = {
+    ctx:null, raf:0, dpr:1, w:0, h:0,
+    // two degrees of freedom: emitter position AND aim point (independent)
+    laser:{x:0.12,y:0.62}, aim:{x:0.5,y:0.42},
+    dragWhich:null, ior:1.5, shape:'drop', t:0
+  };
+  function widgetResize(){
+    const r=wcv.getBoundingClientRect();
+    W.dpr=Math.min(window.devicePixelRatio||1,2);
+    wcv.width=Math.round(r.width*W.dpr); wcv.height=Math.round(r.height*W.dpr);
+    W.w=wcv.width; W.h=wcv.height;
+  }
+  // refract/reflect a 2D ray through a circle (the glass drop)
+  function traceBeam(ctx, ox,oy, dx,dy){
+    const cx=W.w*0.62, cy=W.h*0.5, R=Math.min(W.w,W.h)*0.26;
+    const n=W.ior;
+    let x=ox,y=oy, ux=dx,uy=dy;
+    const seg=(x0,y0,x1,y1,col,wd)=>{
+      ctx.strokeStyle=col; ctx.lineWidth=wd; ctx.lineCap='round';
+      ctx.shadowColor=col; ctx.shadowBlur=14*W.dpr;
+      ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();ctx.shadowBlur=0;
+    };
+    // entry: ray-circle intersection
+    function hitCircle(px,py,vx,vy){
+      const mx=px-cx,my=py-cy;
+      const b=mx*vx+my*vy, c=mx*mx+my*my-R*R, h=b*b-c;
+      if(h<0) return null; const t1=-b-Math.sqrt(h), t2=-b+Math.sqrt(h);
+      return {t1,t2};
+    }
+    const hc=hitCircle(x,y,ux,uy);
+    if(!hc || hc.t1<0){
+      // miss — draw straight beam to edge
+      seg(x,y,x+ux*W.w*1.4,y+uy*W.w*1.4,'rgba(255,60,60,0.9)',3*W.dpr);
+      return;
+    }
+    const ex=x+ux*hc.t1, ey=y+uy*hc.t1;
+    seg(x,y,ex,ey,'rgba(255,40,40,0.95)',3*W.dpr); // incoming
+    // refract in
+    let nx=(ex-cx)/R, ny=(ey-cy)/R; // outward normal
+    function refract2(ix,iy,nx,ny,eta){
+      const cosi=-(ix*nx+iy*ny);
+      const k=1-eta*eta*(1-cosi*cosi);
+      if(k<0) return null; // TIR
+      const t=eta*cosi-Math.sqrt(k);
+      return {x:eta*ix+t*nx, y:eta*iy+t*ny};
+    }
+    let r=refract2(ux,uy,nx,ny,1/n);
+    if(!r){ return; }
+    let px=ex,py=ey, vx=r.x,vy=r.y;
+    for(let i=0;i<8;i++){
+      // exit intersection from inside
+      const mx=px-cx,my=py-cy;
+      const b=mx*vx+my*vy, h=b*b-(mx*mx+my*my-R*R);
+      if(h<0) break;
+      const t2=-b+Math.sqrt(h);
+      const hx=px+vx*t2, hy=py+vy*t2;
+      seg(px,py,hx,hy,'rgba(255,120,40,0.95)',2.6*W.dpr); // inside (warm)
+      let onx=(hx-cx)/R, ony=(hy-cy)/R; // outward
+      const out=refract2(vx,vy,-onx,-ony,n);
+      if(!out){ // TIR — reflect inside
+        const dot=vx*onx+vy*ony;
+        vx=vx-2*dot*onx; vy=vy-2*dot*ony;
+        px=hx+vx*0.5; py=hy+vy*0.5;
+        continue;
+      }
+      seg(hx,hy,hx+out.x*W.w*1.3,hy+out.y*W.w*1.3,'rgba(120,200,255,0.95)',2.6*W.dpr); // exit (cool)
+      break;
+    }
+    // draw the glass drop
+    ctx.save();
+    const grd=ctx.createRadialGradient(cx-R*0.3,cy-R*0.3,R*0.1,cx,cy,R);
+    grd.addColorStop(0,'rgba(255,255,255,0.20)');
+    grd.addColorStop(0.7,'rgba(160,200,255,0.10)');
+    grd.addColorStop(1,'rgba(120,160,255,0.22)');
+    ctx.fillStyle=grd; ctx.beginPath();ctx.arc(cx,cy,R,0,7); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.35)';ctx.lineWidth=1.5*W.dpr;ctx.stroke();
+    ctx.restore();
+  }
+  function widgetFrame(){
+    if(state.mode!=='laser'){ return; }
+    W.raf=requestAnimationFrame(widgetFrame);
+    const ctx=W.ctx; W.t+=0.016;
+    // backdrop — a "home screen" gradient
+    const bg=ctx.createLinearGradient(0,0,0,W.h);
+    bg.addColorStop(0,'#15102a'); bg.addColorStop(1,'#070510');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W.w,W.h);
+    // widget card
+    const pad=20*W.dpr, cardX=pad, cardY=pad, cardW=W.w-pad*2, cardH=W.h-pad*2, rad=26*W.dpr;
+    ctx.save();
+    roundRect(ctx,cardX,cardY,cardW,cardH,rad);
+    ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=1*W.dpr; ctx.stroke();
+    ctx.clip();
+    // header
+    ctx.fillStyle='rgba(243,238,251,0.92)';
+    ctx.font=`${13*W.dpr}px -apple-system,system-ui,sans-serif`;
+    ctx.fillText('Laser · Liquid Glass', cardX+18*W.dpr, cardY+26*W.dpr);
+    ctx.fillStyle='rgba(169,159,196,0.8)';
+    ctx.font=`${11*W.dpr}px -apple-system,system-ui,sans-serif`;
+    ctx.fillText('drag the emitter to move · drag the ring to aim · n='+W.ior.toFixed(2), cardX+18*W.dpr, cardY+44*W.dpr);
+    // emitter + aim handles (two independent DOFs)
+    const lx=W.laser.x*W.w, ly=W.laser.y*W.h;
+    const ax=W.aim.x*W.w, ay=W.aim.y*W.h;
+    let dx=ax-lx, dy=ay-ly; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+    // faint aim guide from emitter through the aim ring and beyond
+    ctx.save(); ctx.setLineDash([4*W.dpr,5*W.dpr]); ctx.strokeStyle='rgba(255,255,255,0.18)';
+    ctx.lineWidth=1*W.dpr; ctx.beginPath(); ctx.moveTo(lx,ly);
+    ctx.lineTo(lx+dx*W.w*1.4, ly+dy*W.w*1.4); ctx.stroke(); ctx.restore();
+    // the actual ray
+    traceBeam(ctx,lx,ly,dx,dy);
+    // aim handle (ring + crosshair)
+    ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=2*W.dpr;
+    ctx.beginPath(); ctx.arc(ax,ay,11*W.dpr,0,7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax-15*W.dpr,ay); ctx.lineTo(ax-5*W.dpr,ay);
+    ctx.moveTo(ax+5*W.dpr,ay); ctx.lineTo(ax+15*W.dpr,ay);
+    ctx.moveTo(ax,ay-15*W.dpr); ctx.lineTo(ax,ay-5*W.dpr);
+    ctx.moveTo(ax,ay+5*W.dpr); ctx.lineTo(ax,ay+15*W.dpr); ctx.stroke();
+    // laser emitter dot
+    ctx.fillStyle='#ff3b3b'; ctx.shadowColor='#ff3b3b'; ctx.shadowBlur=18*W.dpr;
+    ctx.beginPath(); ctx.arc(lx,ly,8*W.dpr,0,7); ctx.fill(); ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(255,255,255,0.9)';ctx.beginPath();ctx.arc(lx,ly,2.5*W.dpr,0,7);ctx.fill();
+    ctx.restore();
+  }
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+  }
+  function wptNorm(e){ const r=wcv.getBoundingClientRect();
+    return {x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height}; }
+  wcv.addEventListener('pointerdown',e=>{
+    const pt=wptNorm(e);
+    const le=Math.hypot(pt.x-W.laser.x, pt.y-W.laser.y);
+    const ae=Math.hypot(pt.x-W.aim.x, pt.y-W.aim.y);
+    W.dragWhich = ae<le ? 'aim' : 'laser';   // grab whichever handle is nearer
+    wcv.setPointerCapture(e.pointerId); moveHandle(e);
+  });
+  wcv.addEventListener('pointermove',e=>{ if(W.dragWhich) moveHandle(e); });
+  wcv.addEventListener('pointerup',()=>{W.dragWhich=null;});
+  function moveHandle(e){
+    const pt=wptNorm(e);
+    const h = W.dragWhich==='aim' ? W.aim : W.laser;
+    h.x=Math.max(0.03,Math.min(0.97,pt.x));
+    h.y=Math.max(0.05,Math.min(0.95,pt.y));
+  }
+  function buildLaserControls(){
+    controlsEl.innerHTML='';
+    const node=el(`<div class="ctl"><label>Drop index n<b id="v_wior"></b></label>
+      <input type="range" id="r_wior" min="1.0" max="2.4" step="0.01" value="${W.ior}"></div>`);
+    const r=node.querySelector('input'),out=node.querySelector('b');
+    const upd=()=>out.textContent=parseFloat(r.value).toFixed(2);
+    r.addEventListener('input',()=>{W.ior=parseFloat(r.value);upd();});upd();
+    const info=el(`<div class="ctl"><label>About this widget</label>
+      <div class="note">Two handles, two degrees of freedom: drag the <strong>red emitter</strong> to move the source, drag the <strong>ring</strong> to aim — the beam is emitter→ring, no longer locked through the drop's centre. A home-screen widget is an iOS SDK surface a website can't install; this is exactly what the widget would <em>render</em>. Graze the rim and watch it total-internal-reflect (red→amber inside→blue out). Chrome is a mock; the optics are real.</div></div>`);
+    controlsEl.append(node,info);
+  }
+
+  /* ---------------------------- mode switching ---------------------------- */
+  const labels={ui:'Liquid Glass UI',ior:'Refractive index',tir:'Total internal reflection',biref:'Birefringence',laser:'Laser widget'};
+  function setMode(m){
+    state.mode=m;
+    document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', t.dataset.mode===m?'true':'false'));
+    badge.textContent=labels[m];
+    const isLaser=m==='laser', isUI=m==='ui';
+    wcv.hidden=!isLaser; lab.hidden=isLaser; ovl.hidden=!isUI;
+    hint.textContent = isLaser?'drag the emitter · drag the ring to aim'
+                     : isUI?'drag the glass panels'
+                     : 'drag to rotate · scroll to zoom';
+    cancelAnimationFrame(W.raf);
+    if(isLaser){
+      buildLaserControls();
+      widgetResize();
+      W.raf=requestAnimationFrame(widgetFrame);
+    } else if(isUI){
+      buildControls();
+      layoutPanels();
+      overlayResize();
+    } else {
+      buildControls();
+    }
+  }
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setMode(t.dataset.mode)));
+  window.addEventListener('resize',()=>{
+    if(state.mode==='laser') widgetResize();
+    if(state.mode==='ui'){ layoutPanels(); overlayResize(); }
+  });
+
+  /* ---------------------------- boot ---------------------------- */
+  try{
+    initGL();
+    W.ctx=wcv.getContext('2d');
+    setMode('ui');
+    raf=requestAnimationFrame(frame);
+  }catch(e){
+    console.error(e);
+    errEl.style.display='grid';
+    lab.style.display='none';
+  }
+})();
+</script>
+</body>
+</html>
