@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gc · mutuals who block — mutuals of X who block Y</title>
+<meta name="description" content="Permissionless Bluesky tool: find the mutuals of one account that block a third named party — mutuals of X who block Y, read straight off public follow + block records, no login.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="gc · mutuals who block">
+<meta property="og:description" content="Mutuals of X who block Y. Two handles in, the overlap out — public follows ∩ follows-back, then public block records. No login.">
+<meta property="og:url" content="https://b.mino.mobi/gc/mutuals/">
+<meta property="og:image" content="https://mino.mobi/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root {
+  --bg:#04060f; --panel:#0a1324; --panel2:#0c1830; --line:rgba(120,160,220,0.16);
+  --fg:#dce8fb; --muted:#8ea6c8; --sky:#5aa9ff; --gold:#ffd86b; --rose:#ff7a9c; --green:#6be3a6;
+  --mono: ui-monospace, Menlo, Consolas, monospace;
+  --rule: rgba(120,160,220,0.28); --text: var(--fg);
+}
+* { box-sizing: border-box; }
+body { margin:0; background: radial-gradient(120% 80% at 50% -10%, #0b1830 0%, #060d1c 50%, #04060f 100%); color: var(--fg); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height:100vh; }
+a { color: var(--sky); text-decoration:none; }
+a:hover { text-decoration:underline; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 22px 18px 80px; }
+.crumb { color: var(--muted); font-size:13px; }
+.crumb:hover { color: var(--sky); }
+.tabs { display:flex; gap:8px; margin:14px 0 0; flex-wrap:wrap; }
+.tabs a { font:600 11px/1 var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:7px 13px; }
+.tabs a.on { color:var(--rose); border-color:rgba(255,122,156,0.4); background:rgba(255,122,156,0.07); }
+.tabs a:hover { text-decoration:none; color:var(--fg); }
+h1 { margin:.7rem 0 .15rem; font-size: 30px; letter-spacing:-0.01em; }
+h1 .dot { color: var(--rose); }
+.sub { color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing:.18em; text-transform:uppercase; margin:0 0 14px; }
+.lede { color: var(--muted); max-width: 64ch; margin: 0 0 4px; }
+.lede b { color: var(--fg); font-weight:600; }
+.note { color:var(--muted); font:500 12.5px/1.6 var(--mono); background:rgba(90,169,255,0.05); border:1px solid var(--line); border-left:3px solid var(--sky); border-radius:8px; padding:10px 13px; margin:16px 0 0; max-width:64ch; }
+.note b { color:var(--fg); }
+
+/* form */
+form { margin: 22px 0 6px; background: var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+.fields { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+@media (max-width:560px){ .fields { grid-template-columns: 1fr; } }
+.field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.flabel { font:600 10px/1.3 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.flabel small { color:var(--sky); font-weight:500; letter-spacing:.04em; text-transform:none; }
+.field input { background:#060e1e; border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:10px 11px; font:15px var(--mono); width:100%; }
+.field input:focus { outline:none; border-color:var(--sky); }
+.scope { display:flex; gap:6px; margin-top:14px; }
+.scope label { flex:1; position:relative; }
+.scope input { position:absolute; opacity:0; pointer-events:none; }
+.scope span { display:block; text-align:center; cursor:pointer; font:600 11px/1.3 var(--mono); letter-spacing:.04em; text-transform:uppercase; color:var(--muted); border:1px solid var(--line); border-radius:8px; padding:9px 10px; }
+.scope input:checked + span { color:var(--rose); border-color:rgba(255,122,156,0.4); background:rgba(255,122,156,0.08); }
+.scope input:focus-visible + span { border-color:var(--sky); }
+.scope small { display:block; text-transform:none; letter-spacing:0; font-weight:400; color:var(--muted); margin-top:3px; font-size:10.5px; }
+.runrow { display:flex; align-items:center; gap:14px; margin-top:14px; flex-wrap:wrap; }
+.run { font:600 14px var(--mono); background:var(--rose); color:#2a0010; border:0; border-radius:999px; padding:10px 24px; cursor:pointer; }
+.run:hover { filter:brightness(1.06); }
+.run:disabled { opacity:.5; cursor:default; }
+.status { color:var(--muted); font:500 13px var(--mono); }
+.status.err { color:#ff9a9a; }
+.bar { height:4px; background:rgba(120,160,220,0.12); border-radius:3px; overflow:hidden; margin-top:12px; display:none; }
+.bar.on { display:block; }
+.bar > i { display:block; height:100%; width:0; background:var(--rose); transition:width .15s linear; }
+
+/* summary */
+.summary { margin: 22px 0 8px; padding:14px 16px; background:var(--panel2); border:1px solid var(--line); border-radius:12px; line-height:1.7; }
+.summary .big { color:var(--rose); font-weight:700; }
+.summary .who { color:var(--gold); }
+.summary .meta { color:var(--muted); font-size:13px; margin-top:6px; }
+
+/* blocker rows */
+.people { margin-top:18px; display:flex; flex-direction:column; gap:0; }
+.person { display:flex; gap:10px; align-items:center; padding:13px 4px; border-top:1px solid var(--line); color:inherit; }
+.person:hover { background:rgba(255,122,156,0.05); text-decoration:none; }
+.av { width:34px; height:34px; border-radius:50%; flex:0 0 auto; object-fit:cover; background:#0c1830; }
+.who2 { min-width:0; }
+.name { font-weight:600; font-size:14px; color:var(--fg); }
+.handle { color:var(--muted); font-size:12.5px; }
+.when { margin-left:auto; font:600 11px/1.3 var(--mono); color:var(--rose); text-align:right; white-space:nowrap; }
+.when small { display:block; color:var(--muted); font-weight:400; }
+
+footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font:500 12px var(--mono); display:flex; gap:14px; flex-wrap:wrap; }
+footer a { color:var(--muted); }
+footer a:hover { color:var(--sky); }
+.empty { color:var(--muted); margin-top:18px; font-style:italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="crumb" href="/">← b.mino.mobi · the Bluesky corner</a>
+  <div class="tabs">
+    <a href="/gc/">block matrix</a>
+    <a href="/gc/mutuals/" class="on">mutuals who block</a>
+    <a href="/gc/blockers/">who blocks them</a>
+    <a href="/gc/api/">API</a>
+  </div>
+  <h1>mutuals who block<span class="dot"> ⛒</span></h1>
+  <p class="sub">mutuals of X · who block Y</p>
+  <p class="lede">Give an account <b>X</b> and a third party <b>Y</b>. This finds X's <b>mutuals</b> — the accounts X follows who follow back — and shows which of them <b>block Y</b>. Mutuals are computed from public follow records (X's follows, intersected with who follows X back); the blocks are public <code>app.bsky.graph.block</code> records on each mutual's own PDS. Read straight off the network: no login, nothing written. Flip the scope to <b>all followers</b> to widen the net to everyone who follows X, not just mutuals — a deeper sweep, slower for big accounts. For an arbitrary set of accounts vs a set of posters, use the <a href="/gc/">block matrix</a>.</p>
+
+  <p class="note"><b>Public data only.</b> Direct blocks only — a "no" here can't see blocks applied via a subscribed moderation block-list (those write no per-account record). This walks each candidate's block list, so a big mutual set — and especially the <b>all followers</b> scope on a large account — can take a while; progress is shown below.</p>
+
+  <form id="form" autocomplete="off">
+    <div class="fields">
+      <div class="field">
+        <label class="flabel" for="x">X <small>whose mutuals — e.g. you</small></label>
+        <input id="x" name="x" placeholder="alice.bsky.social" spellcheck="false" data-bsky-typeahead autocapitalize="off">
+      </div>
+      <div class="field">
+        <label class="flabel" for="y">Y <small>the third party they may block</small></label>
+        <input id="y" name="y" placeholder="dave.bsky.social" spellcheck="false" data-bsky-typeahead autocapitalize="off">
+      </div>
+    </div>
+    <div class="scope" id="scope">
+      <label><input type="radio" name="scope" value="mutuals" checked><span>mutuals<small>follows ∩ follows-back</small></span></label>
+      <label><input type="radio" name="scope" value="followers"><span>all followers<small>everyone who follows X — deeper, slower</small></span></label>
+    </div>
+    <div class="runrow">
+      <button class="run" id="run" type="submit">find blockers</button>
+      <span class="status" id="status"></span>
+    </div>
+    <div class="bar" id="bar"><i id="barfill"></i></div>
+  </form>
+
+  <div id="out"></div>
+
+  <footer>
+    <a href="/">b.mino.mobi</a>
+    <a href="/gc/">gc · block matrix</a>
+    <a href="/dyad/">dyad</a>
+    <span>permissionless · public ATProto records</span>
+  </footer>
+</div>
+
+<!-- shared Bluesky handle typeahead — same file the feedgen builder uses -->
+<script src="/feedgen/typeahead.js"></script>
+
+<script type="module">
+const PUBLIC = 'https://public.api.bsky.app';
+const $ = (id) => document.getElementById(id);
+const statusEl = $('status'), outEl = $('out'), runBtn = $('run'), barEl = $('bar'), barFill = $('barfill');
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+function setStatus(msg, err = false) { statusEl.textContent = msg; statusEl.classList.toggle('err', !!err); }
+function setProgress(done, total) {
+  if (!total) { barEl.classList.remove('on'); return; }
+  barEl.classList.add('on');
+  barFill.style.width = Math.round((done / total) * 100) + '%';
+}
+function fmtDate(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }); }
+
+// ── identity ───────────────────────────────────────────────────────────────
+async function resolveActor(raw) {
+  let s = String(raw || '').trim().replace(/^@/, '').replace(/^at:\/\//, '').replace(/^https?:\/\/(bsky\.app\/profile\/)?/, '').split('/')[0];
+  if (!s) throw new Error('empty handle');
+  if (s.startsWith('did:')) return s;
+  const r = await fetch(`${PUBLIC}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(s)}`);
+  if (!r.ok) throw new Error(`couldn't resolve “${s}”`);
+  const d = await r.json();
+  if (!d.did) throw new Error(`couldn't resolve “${s}”`);
+  return d.did;
+}
+async function resolvePds(did) {
+  if (did.startsWith('did:plc:')) {
+    const r = await fetch(`https://plc.directory/${did}`);
+    if (!r.ok) throw new Error('PLC lookup failed');
+    const doc = await r.json();
+    const svc = (doc.service || []).find((s) => s.type === 'AtprotoPersonalDataServer' || s.id === '#atproto_pds');
+    if (!svc) throw new Error('no PDS in DID doc');
+    return svc.serviceEndpoint;
+  }
+  if (did.startsWith('did:web:')) {
+    const host = did.slice('did:web:'.length).replace(/:/g, '/');
+    const r = await fetch(`https://${host}/.well-known/did.json`);
+    if (!r.ok) throw new Error('did:web lookup failed');
+    const doc = await r.json();
+    const svc = (doc.service || []).find((s) => s.type === 'AtprotoPersonalDataServer' || s.id === '#atproto_pds');
+    if (!svc) throw new Error('no PDS in DID doc');
+    return svc.serviceEndpoint;
+  }
+  throw new Error('unsupported DID method');
+}
+async function getProfile(did) {
+  try {
+    const r = await fetch(`${PUBLIC}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`);
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
+// ── mutuals ──────────────────────────────────────────────────────────────────
+// X's follows are a bounded set X chose, so we page those (not the possibly-huge
+// followers list), then batch them through getRelationships to keep only the ones
+// who follow X back — that's the mutual set.
+async function getFollows(did) {
+  const out = [];
+  let cursor = '';
+  for (let page = 0; page < 300; page++) { // ceiling ≈ 30k follows
+    const u = new URL(`${PUBLIC}/xrpc/app.bsky.graph.getFollows`);
+    u.searchParams.set('actor', did);
+    u.searchParams.set('limit', '100');
+    if (cursor) u.searchParams.set('cursor', cursor);
+    const r = await fetch(u);
+    if (!r.ok) throw new Error(`getFollows → ${r.status}`);
+    const d = await r.json();
+    out.push(...(d.follows || []));
+    setStatus(`reading follows… ${out.length}`);
+    if (!d.cursor || !(d.follows || []).length) break;
+    cursor = d.cursor;
+  }
+  return out;
+}
+// Every account that follows X — the wider candidate set. Can be very large, so
+// this just pages straight through; progress is shown by the running count.
+async function getFollowers(did) {
+  const out = [];
+  let cursor = '';
+  for (let page = 0; page < 600; page++) { // ceiling ≈ 60k followers
+    const u = new URL(`${PUBLIC}/xrpc/app.bsky.graph.getFollowers`);
+    u.searchParams.set('actor', did);
+    u.searchParams.set('limit', '100');
+    if (cursor) u.searchParams.set('cursor', cursor);
+    const r = await fetch(u);
+    if (!r.ok) throw new Error(`getFollowers → ${r.status}`);
+    const d = await r.json();
+    out.push(...(d.followers || []));
+    setStatus(`reading followers… ${out.length}`);
+    if (!d.cursor || !(d.followers || []).length) break;
+    cursor = d.cursor;
+  }
+  return out;
+}
+async function keepFollowBacks(xDid, follows) {
+  const mutuals = [];
+  for (let i = 0; i < follows.length; i += 30) {
+    const batch = follows.slice(i, i + 30);
+    const u = new URL(`${PUBLIC}/xrpc/app.bsky.graph.getRelationships`);
+    u.searchParams.set('actor', xDid);
+    batch.forEach((f) => u.searchParams.append('others', f.did));
+    try {
+      const r = await fetch(u);
+      if (r.ok) {
+        const d = await r.json();
+        const rel = new Map();
+        for (const x of (d.relationships || [])) if (x.did) rel.set(x.did, x);
+        for (const f of batch) { const x = rel.get(f.did); if (x && x.followedBy) mutuals.push(f); }
+      }
+    } catch { /* skip this batch */ }
+    setStatus(`checking follow-backs… ${Math.min(i + 30, follows.length)}/${follows.length}`);
+  }
+  return mutuals;
+}
+
+// ── blocks ───────────────────────────────────────────────────────────────────
+// Walk a mutual's public block records, looking for one target DID. Early-stops
+// on a hit; a clean walk to the end means no direct block.
+async function blocksTarget(pds, did, yDid) {
+  let cursor = '';
+  for (let page = 0; page < 400; page++) {
+    const u = new URL(`${pds}/xrpc/com.atproto.repo.listRecords`);
+    u.searchParams.set('repo', did);
+    u.searchParams.set('collection', 'app.bsky.graph.block');
+    u.searchParams.set('limit', '100');
+    if (cursor) u.searchParams.set('cursor', cursor);
+    const r = await fetch(u);
+    if (!r.ok) { if (r.status === 400) return { blocked: false }; throw new Error(`block → ${r.status}`); }
+    const d = await r.json();
+    for (const rec of (d.records || [])) {
+      if (rec.value && rec.value.subject === yDid) return { blocked: true, at: rec.value.createdAt };
+    }
+    if (!d.cursor || !(d.records || []).length) return { blocked: false };
+    cursor = d.cursor;
+  }
+  return { blocked: false };
+}
+
+// Bounded-concurrency map.
+async function pool(items, n, worker, onProgress) {
+  const results = new Array(items.length);
+  let next = 0, done = 0;
+  async function lane() {
+    while (next < items.length) {
+      const idx = next++;
+      results[idx] = await worker(items[idx], idx);
+      done++; if (onProgress) onProgress(done, items.length);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, lane));
+  return results;
+}
+
+// ── render ───────────────────────────────────────────────────────────────────
+function renderPerson(m) {
+  const handle = m.profile.handle || m.profile.did;
+  const name = m.profile.displayName || handle;
+  const av = m.profile.avatar ? `<img class="av" src="${esc(m.profile.avatar)}" alt="">` : `<span class="av"></span>`;
+  return `<a class="person" href="https://bsky.app/profile/${esc(handle)}" target="_blank" rel="noopener">
+    ${av}
+    <div class="who2"><div class="name">${esc(name)}</div><div class="handle">@${esc(handle)}</div></div>
+    <div class="when">blocked${m.at ? '' : ''}<small>${m.at ? esc(fmtDate(m.at)) : 'date unknown'}</small></div>
+  </a>`;
+}
+
+// ── main ─────────────────────────────────────────────────────────────────────
+let running = false;
+async function run(xRaw, yRaw) {
+  if (running) return;
+  running = true; runBtn.disabled = true; outEl.innerHTML = ''; setProgress(0, 0);
+  try {
+    setStatus('resolving handles…');
+    const [xDid, yDid] = await Promise.all([resolveActor(xRaw), resolveActor(yRaw)]);
+    if (xDid === yDid) throw new Error('X and Y are the same account');
+    const [xProf, yProf] = await Promise.all([getProfile(xDid), getProfile(yDid)]);
+
+    const scope = (document.querySelector('input[name="scope"]:checked') || {}).value || 'mutuals';
+    const xhPre = (xProf && xProf.handle) || xRaw;
+
+    let people, noun, srcNote;
+    if (scope === 'followers') {
+      people = await getFollowers(xDid);
+      if (!people.length) throw new Error(`@${xhPre} has no followers`);
+      noun = 'followers';
+      srcNote = `every account that follows @${xhPre}`;
+    } else {
+      const follows = await getFollows(xDid);
+      if (!follows.length) throw new Error(`@${xhPre} doesn't follow anyone`);
+      setStatus(`finding mutuals among ${follows.length} follows…`);
+      people = await keepFollowBacks(xDid, follows);
+      if (!people.length) throw new Error('no mutuals found');
+      noun = 'mutuals';
+      srcNote = `mutuals = follows ∩ follows-back, from ${follows.length} follows`;
+    }
+
+    setStatus(`scanning ${people.length} ${noun}' blocks…`);
+    const checked = await pool(people, 8, async (m) => {
+      try {
+        const pds = await resolvePds(m.did);
+        const res = await blocksTarget(pds, m.did, yDid);
+        return res.blocked ? { profile: m, at: res.at } : null;
+      } catch { return { error: true }; }
+    }, (done, total) => { setProgress(done, total); setStatus(`scanning ${noun}' blocks… ${done}/${total}`); });
+
+    const blockers = checked.filter((c) => c && !c.error).sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+    const unreadable = checked.filter((c) => c && c.error).length;
+
+    const xh = (xProf && xProf.handle) || xRaw, yh = (yProf && yProf.handle) || yRaw;
+    const nounSing = noun === 'mutuals' ? 'mutual' : 'follower';
+    let html = `<div class="summary">`;
+    html += `<span class="big">${blockers.length}</span> of <span class="who">@${esc(xh)}</span>'s <b>${people.length}</b> ${noun} block <span class="who">@${esc(yh)}</span>.`;
+    html += `<div class="meta">${esc(srcNote)}`
+      + (unreadable ? ` · ${unreadable} ${nounSing}${unreadable === 1 ? '' : 's'} had unreadable repos` : '')
+      + `</div></div>`;
+
+    if (blockers.length) {
+      html += '<div class="people">';
+      for (const m of blockers) html += renderPerson(m);
+      html += '</div>';
+    } else {
+      html += `<p class="empty">None of @${esc(xh)}'s ${people.length} ${noun} directly block @${esc(yh)}.</p>`;
+    }
+    outEl.innerHTML = html;
+    setStatus('done.');
+  } catch (e) {
+    setStatus(String((e && e.message) || e), true);
+  } finally {
+    running = false; runBtn.disabled = false; setProgress(0, 0);
+  }
+}
+
+$('form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const x = $('x').value.trim(), y = $('y').value.trim();
+  if (!x || !y) { setStatus('fill in both X and Y', true); return; }
+  const scopeVal = (document.querySelector('input[name="scope"]:checked') || {}).value || 'mutuals';
+  const url = new URL(location.href);
+  url.searchParams.set('of', x); url.searchParams.set('blocks', y); url.searchParams.set('scope', scopeVal);
+  history.replaceState(null, '', url);
+  run(x, y);
+});
+
+// deep-link support: /gc/mutuals/?of=X&blocks=Y&scope=mutuals|followers
+const q = new URLSearchParams(location.search);
+if (q.get('of')) $('x').value = q.get('of');
+if (q.get('blocks')) $('y').value = q.get('blocks');
+if (q.get('scope') === 'followers' || q.get('scope') === 'mutuals') {
+  const radio = document.querySelector(`input[name="scope"][value="${q.get('scope')}"]`);
+  if (radio) radio.checked = true;
+}
+if (q.get('of') && q.get('blocks')) run(q.get('of'), q.get('blocks'));
+</script>
+</body>
+</html>

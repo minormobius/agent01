@@ -98,7 +98,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/follower-post-discovery-bZumw",
+      "branch": "claude/gc-block-checker-endpoint-ac323w",
       "uses": [],
       "provides": null,
       "paths": [
@@ -107,9 +107,10 @@
       "serves": [
         "disk",
         "spark",
-        "dyad"
+        "dyad",
+        "gc"
       ],
-      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), and dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts \u2014 likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions). All permissionless, client-side over public ATProto records. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired \u2014 detach in dashboard + delete the mino-atmosphere worker)."
+      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts \u2014 likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions), and gc at /gc (block-intelligence tools + API \u2014 /gc block matrix: accounts vs posters \u2192 who directly blocks whom; /gc/mutuals: mutuals or followers of X who block Y; /gc/blockers: everyone blocking a named user; /gc/api docs the read-only JSON API at /api/gc/{relation,matrix,who-blocks,blockers}). #1/#2 read raw app.bsky.graph.block records (the worker also serves them server-side via b/lib/gc.js); network-wide blocker sets (#3 + the blocker side of #2) come from the clearsky.services index. All read-only public data, no auth, CORS open. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired \u2014 detach in dashboard + delete the mino-atmosphere worker)."
     },
     {
       "surface": "auth",
