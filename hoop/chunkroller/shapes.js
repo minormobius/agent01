@@ -8,6 +8,14 @@ export function shapePoly(shape, cx, cy, R) {
   return shape.boundary.map(([x, y]) => ({ x: cx + x * s, y: cy + y * s }));
 }
 
+// `shapeSideOf(shape)` → the side (direction) index per boundary segment, so ports allocate PER DIRECTION,
+// not per segment. Uses the bundled `sideOf` if present, else derives it (6 equal sides over the boundary).
+export function shapeSideOf(shape) {
+  if (Array.isArray(shape.sideOf) && shape.sideOf.length === shape.boundary.length) return shape.sideOf;
+  const per = shape.boundary.length / 6;
+  return shape.boundary.map((_, i) => Math.floor(i / per));
+}
+
 // the sample the user designed in the tessellation editor (hoop.chunkshape.tessellation v1).
 export const SAMPLE_SHAPE = {
   type: 'hoop.chunkshape.tessellation', version: 1, tiling: 'translation', R: 180,

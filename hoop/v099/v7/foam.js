@@ -123,7 +123,7 @@ export function centroid(cells, list) { let x = 0, y = 0; for (const i of list) 
 // OUTSIDE it becomes a GHOST — not shown as a room, but kept to bound the edge-cells and woken
 // wholesale when the neighbour chunk loads. Each chunk edge gets 1–4 CONCOURSE PORTS at Monte-Carlo
 // positions — the cross-chunk movement points the solve must connect and perfuse from.
-export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: want = null, portRange = [1, 4] } = {}) {
+export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: want = null, portRange = [1, 4], sideOf = null } = {}) {
   const rng = mulberry32((seed ^ 0xc40c) >>> 0);
   let shape;
   if (!poly) {
@@ -145,12 +145,26 @@ export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: 
   // INHERITED ports first — the shared edge's crossing points, reused from the neighbour so the
   // concourse meets across the seam (each binds to THIS chunk's nearest cell, adjacent across the edge)
   for (const ip of inherit) { const cell = nearestInterior(ip.x, ip.y); if (cell < 0) continue; const e = nearestEdge(ip.x, ip.y); ports.push({ edge: e, x: ip.x, y: ip.y, cell, inherited: true }); edgeHasPort.add(e); }
-  // fresh 1–4 Monte-Carlo ports on every edge that didn't inherit any
-  for (let e = 0; e < poly.length; e++) {
-    if (edgeHasPort.has(e)) continue;
-    // 1–4 fresh ports per edge by default; `portRange` [min,max] tunes the seam density (down = fewer crossings).
-    const a = poly[e], b = poly[(e + 1) % poly.length], pr0 = portRange[0] | 0, pr1 = Math.max(pr0, portRange[1] | 0), n = pr0 + Math.floor(rng() * (pr1 - pr0 + 1));
-    for (let i = 0; i < n; i++) { const t = (i + 0.5 + (rng() - 0.5) * 0.6) / n, px = a.x + (b.x - a.x) * t, py = a.y + (b.y - a.y) * t, cell = nearestInterior(px, py); if (cell >= 0 && !ports.some((p) => p.cell === cell)) ports.push({ edge: e, x: px, y: py, cell }); }
+  // fresh ports — `portRange` [min,max] ports PER SIDE (direction). Group the polygon edges into sides:
+  // default, each edge is its own side (a regular hex → 6). A tessellation shape passes `sideOf` (one
+  // side index per edge) so its many boundary segments collapse to the original 6 directions — ports are
+  // then allocated PER DIRECTION, spread along that side's arc length, not per segment.
+  const pr0 = portRange[0] | 0, pr1 = Math.max(pr0, portRange[1] | 0);
+  const groups = new Map();
+  for (let e = 0; e < poly.length; e++) { const s = sideOf ? (sideOf[e] == null ? e : sideOf[e]) : e; let g = groups.get(s); if (!g) { g = []; groups.set(s, g); } g.push(e); }
+  for (const es of groups.values()) {
+    if (es.some((e) => edgeHasPort.has(e))) continue;                 // a side that inherited a port needs no fresh ones
+    const pts = [poly[es[0]]]; for (const e of es) pts.push(poly[(e + 1) % poly.length]);   // the side's polyline
+    const segLen = [], cum = [0]; let total = 0;
+    for (let i = 0; i < pts.length - 1; i++) { const L = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y); segLen.push(L); total += L; cum.push(total); }
+    const n = pr0 + Math.floor(rng() * (pr1 - pr0 + 1));
+    for (let i = 0; i < n; i++) {
+      const target = ((i + 0.5 + (rng() - 0.5) * 0.6) / n) * total;
+      let si = 0; while (si < segLen.length - 1 && cum[si + 1] < target) si++;
+      const lt = segLen[si] ? (target - cum[si]) / segLen[si] : 0.5;
+      const px = pts[si].x + (pts[si + 1].x - pts[si].x) * lt, py = pts[si].y + (pts[si + 1].y - pts[si].y) * lt, cell = nearestInterior(px, py);
+      if (cell >= 0 && !ports.some((p) => p.cell === cell)) ports.push({ edge: es[si], x: px, y: py, cell });
+    }
   }
   // rim = interior cells touching the chunk boundary (adjacent to a ghost). The concourse is kept
   // OFF the rim except at port cells, so chunk-to-chunk crossing happens ONLY at the ports — the

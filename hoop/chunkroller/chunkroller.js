@@ -8,7 +8,7 @@ import { TRIAD, TRIAD_ORDER } from '../v099/stats.js';
 import { SLIDERS, NEUTRAL, SLIDER_MAX, BIOMES, BIOME_COLOR, BIOME_GRAND, mixFromSliders, mixShares } from './biomes.js';
 import { scoreChunk, npcRoster, roomShock } from './civic.js';
 import { growFloor } from './floor.js';
-import { SAMPLE_SHAPE, shapePoly } from './shapes.js';
+import { SAMPLE_SHAPE, shapePoly, shapeSideOf } from './shapes.js';
 import { evaluateMix, solveStableSliders, themeOf } from './stability.js';
 
 const W = 900, H = 600;
@@ -62,7 +62,7 @@ function generateChunk() {
   const roleMix = mixFromSliders(sliders);
   const grand = BIOME_GRAND[biome] || GRAND_ROLES;
   const Wc = Math.round(W * csize), Hc = Math.round(H * csize);
-  const shapeOpt = useShape ? { poly: shapePoly(SAMPLE_SHAPE, Wc / 2, Hc / 2, Math.min(Wc, Hc) * 0.46) } : { shape: 'hex' };
+  const shapeOpt = useShape ? { poly: shapePoly(SAMPLE_SHAPE, Wc / 2, Hc / 2, Math.min(Wc, Hc) * 0.46), sideOf: shapeSideOf(SAMPLE_SHAPE) } : { shape: 'hex' };
   chunk = solveChunk({ ...shapeOpt, seed, W: Wc, H: Hc, roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix, portRange: [1, portsMax] });
   civic = scoreChunk(chunk.rooms, Wc, Hc, seed);
   roster = npcRoster(civic.society);

@@ -45,6 +45,13 @@ const fine = defaultEdges(5);
 fine[0].controls = fine[0].controls.map((_, j) => [Math.sin(j) * 20, Math.cos(j) * 18]);
 ok(tessellationGap(buildShape(R, fine)) < 1e-9, '5 control points/edge: still tessellates');
 
+// ── sideOf maps every boundary segment to one of the 6 directions (ports-per-direction) ──
+ok(wild.sideOf.length === wild.boundary.length, 'sideOf has one entry per boundary segment');
+ok(new Set(wild.sideOf).size === 6, 'boundary segments group into exactly 6 sides (directions)');
+ok(wild.sideOf.every((s) => s >= 0 && s < 6), 'every side index is 0..5');
+const counts = {}; for (const s of wild.sideOf) counts[s] = (counts[s] || 0) + 1;
+ok(Object.values(counts).every((c) => c === wild.boundary.length / 6), 'each side owns an equal run of segments');
+
 // ── export is JSON-adjacent + round-trips ──
 const ex = exportShape(R, edges, 12345);
 ok(ex.type === 'hoop.chunkshape.tessellation' && ex.tiling === 'translation' && ex.version === 1, 'export carries the shape type/tiling/version');

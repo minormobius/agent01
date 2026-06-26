@@ -23,7 +23,7 @@ export function solveChunk(opts = {}) {
   const o = { ...DEFAULTS, ...opts }, seed = (o.seed ?? 1) >>> 0;
   const region = o.poly ? bbox(o.poly) : { x0: 0, y0: 0, x1: o.W, y1: o.H };
   const foam = buildFoam({ regions: [region], cellSize: o.cellSize, depth: o.depth, seed, W: o.W, H: o.H });
-  const def = defineChunk(foam, { seed, poly: o.poly, inherit: o.inherit || [], shape: o.poly ? null : (o.shape === 'auto' ? null : o.shape), portRange: o.portRange || [1, 4] });
+  const def = defineChunk(foam, { seed, poly: o.poly, inherit: o.inherit || [], shape: o.poly ? null : (o.shape === 'auto' ? null : o.shape), portRange: o.portRange || [1, 4], sideOf: o.sideOf || null });
   const sol = seize(foam, def, { oxygenReach: o.oxygenReach, concourseWidth: o.concourseWidth, seed });
   const rm = paintRooms(foam, def, sol, { roomSize: o.roomSize, seed, footprint: o.footprint || null, grand: o.grand || null, grandMin: o.grandMin, minRoom: o.minRoom || 0, roleMix: o.roleMix || null });
   const cast = castCharacter(rm.rooms, { seed, roleMix: o.roleMix || null });

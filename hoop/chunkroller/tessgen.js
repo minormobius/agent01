@@ -35,9 +35,9 @@ export function buildShape(R, edges) {
   const E = [0, 1, 2].map((k) => edgePolyline(V, k, edges[k]));
   const opp = [0, 1, 2].map((k) => { const T = latticeT(V, k); return E[k].slice().reverse().map((p) => sub(p, T)); });   // edge k+3 (V_{k+3}→V_{k+4})
   const all = [E[0], E[1], E[2], opp[0], opp[1], opp[2]];   // boundary order edge0..edge5
-  const boundary = [];
-  for (let k = 0; k < 6; k++) { const pts = all[k]; for (let i = 0; i < pts.length - 1; i++) boundary.push(pts[i]); }   // drop each edge's shared last point
-  return { R, V, edges: all, boundary, lattice: [latticeT(V, 0), latticeT(V, 1), latticeT(V, 2)] };
+  const boundary = [], sideOf = [];   // sideOf[i] = which of the 6 SIDES (directions) boundary segment i belongs to
+  for (let k = 0; k < 6; k++) { const pts = all[k]; for (let i = 0; i < pts.length - 1; i++) { boundary.push(pts[i]); sideOf.push(k); } }   // drop each edge's shared last point
+  return { R, V, edges: all, boundary, sideOf, lattice: [latticeT(V, 0), latticeT(V, 1), latticeT(V, 2)] };
 }
 
 // the 6 neighbour translations for the tiling preview: ±T0, ±T1, ±T2.
@@ -60,5 +60,5 @@ export function tessellationGap(shape) {
 // export object (JSON-adjacent): re-loadable shape descriptor.
 export function exportShape(R, edges, stamp = 0) {
   const sh = buildShape(R, edges);
-  return { type: 'hoop.chunkshape.tessellation', version: 1, tiling: 'translation', R, vertices: sh.V, lattice: sh.lattice, edges: edges.map((e) => ({ controls: e.controls.map((c) => [Math.round(c[0] * 100) / 100, Math.round(c[1] * 100) / 100]) })), boundary: sh.boundary.map((p) => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]), createdAt: stamp };
+  return { type: 'hoop.chunkshape.tessellation', version: 1, tiling: 'translation', R, vertices: sh.V, lattice: sh.lattice, edges: edges.map((e) => ({ controls: e.controls.map((c) => [Math.round(c[0] * 100) / 100, Math.round(c[1] * 100) / 100]) })), boundary: sh.boundary.map((p) => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]), sideOf: sh.sideOf, createdAt: stamp };
 }

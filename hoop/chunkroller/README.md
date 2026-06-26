@@ -29,11 +29,13 @@ pocket plants). Moving the sliders genuinely changes what the chunk grows — an
 
 ## Two views
 
-- **▣ one chunk** — the single-chunk design view (above). The **ports/edge** slider tunes the seam density
-  (max concourse ports per edge, 1–4) via the engine's new `portRange` option — turn it down for fewer
-  chunk-to-chunk crossings. The **size** slider scales the chunk (1–2.5×; bigger = more rooms/cells, see
-  perf below). **▰ tessellation shape** fills an editor-exported shape (`shapes.js`) instead of a perfect
-  hexagon, so you see the deformed, tessellating outline as a real chunk.
+- **▣ one chunk** — the single-chunk design view (above). The **ports/side** slider tunes the seam density
+  (max concourse ports per *direction*, 1–4) via the engine's `portRange` + `sideOf` — turn it down for
+  fewer chunk-to-chunk crossings. **Ports are allocated per SIDE (direction), not per segment**, so a
+  tessellation shape's ~30 boundary segments still get a few ports total (e.g. 6 at ports/side=1), not one
+  each. The **size** slider scales the chunk (1–2.5×; bigger = more rooms/cells, see perf below). **▰
+  tessellation shape** fills an editor-exported shape (`shapes.js`) instead of a perfect hexagon, so you
+  see the deformed, tessellating outline as a real chunk.
 - **⬡ bounded floor** — a finite hand of ~7–10 chunks grown off the real tiler, each painted by its
   **ward biome**, the **edge tiles** drawn as a gold sealed rim, and **☮ floor 1 — no baddies** on the
   readout. Click a ward → its civic vitality. The model lives in `floor.js`:
