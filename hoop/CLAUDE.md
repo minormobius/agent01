@@ -50,6 +50,14 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   `drawRole`/`castCharacter`, default = wild-type `ROLE_MIX`, so the game is unchanged). Seven sliders +
   named biomes (Commons/Market/Garden/Foundry/Cloister/Civic Seat/Dormitory). The design surface for the
   bigger map plan (chunk biomes, edge tiles/bounded floors, no-baddies floor 1). See `chunkroller/README.md`.
+- `nave/` — **floor 1** at `hoop.mino.mobi/nave`. The realised floor-1 layout: a central **commons** (≥1 of
+  every building type) ringed by **six faction wards** in **three two-chunk lobes** — Rindwalker · Continuant
+  · Drift. Each faction owns four roles (two exclusive buildings + two shared, weight-0 for everything else),
+  its two biomes carrying the exclusives at two intensity levels. Center links to all six; a ward links only
+  to the center + its sibling; every cross-faction adjacency is a portless wall. `nave.js#buildNave(seed)`
+  composes the v2 engine (`solveChunk` + explicit `closedSides`/inherited ports, one shared foam seed). Three
+  views (biome · verb · full v99-style) with pan/zoom. Pure + node-tested (`nave/test/nave.selftest.mjs`, 36
+  checks). See `nave/README.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a

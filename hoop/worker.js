@@ -141,6 +141,10 @@ export default {
     if (url.pathname === '/chunkroller/tess' || url.pathname === '/chunkroller/tess/') {
       return env.ASSETS.fetch(new Request(new URL('/chunkroller/tess.html', url), request));
     }
+    // nave — floor 1: a central commons ringed by six faction wards in three two-chunk lobes.
+    if (url.pathname === '/nave' || url.pathname === '/nave/') {
+      return env.ASSETS.fetch(new Request(new URL('/nave/index.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

@@ -31,7 +31,7 @@ function hexPoly(cx, cy, R) { const p = []; for (let i = 0; i < 6; i++) { const 
 // the 6 lattice translation vectors for a centred poly: corner[k] = the poly vertex that STARTS side k;
 // T_k = corner_k + corner_{k+1} − 2·centre (= latticeT scaled to the world tile). Translating a ward by
 // T_k yields the neighbour across side k; the shared side is the neighbour's opposite side (k+3).
-function latticeVectors(poly, sideOf) {
+export function latticeVectors(poly, sideOf) {
   const corner = [];
   for (let i = 0; i < poly.length; i++) { const k = sideOf[i]; if (corner[k] === undefined) corner[k] = poly[i]; }
   const nS = corner.length;
