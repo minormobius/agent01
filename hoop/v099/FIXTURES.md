@@ -6,19 +6,27 @@ outbox (`com.minomobi.hoop.story.rumor`) — the lexicon the engine (hoopy) tail
 
 ## Worship → ☯ The Oracle  (`worship/`)
 
-A divination seal-stand. The player draws an **entropic omen** by one of two rites and — signed in —
-**releases** it to the ship as a `kind:'divination'` rumor (the engine's entropic-omen signal).
+A divination fixture with two **full tactile rituals** (not instant rolls — the real interactions ported
+from the `clock/` divination surfaces). The player performs the rite by hand and — signed in — **releases**
+the omen to the ship as a `kind:'divination'` rumor (the engine's entropic-omen signal).
 
-- **Yijing** — the three-coin oracle: 6 lines → a King Wen hexagram + moving lines + the hexagram it
-  changes toward.
-- **Geomancy** — sixteen tallies → four Mothers → the shield → its **Judge** figure + Robert Fludd's
-  signification (planet · zodiac · nature).
+- **Yijing — the yarrow division** (`worship/yarrow.js`, ported from `clock/yijing/index.html`): fifty
+  stalks, one set aside, forty-nine divided **by hand**. A marker sweeps the bundle; tap to split; the 49
+  persistent stalks physically divide into heaps, one is lifted, the fours are counted off and set aside,
+  the rest gather — three changes to a line, six lines to a hexagram (+ moving lines + the hexagram it
+  changes toward). The classic yarrow odds (moving yin 1/16 … moving yang 3/16) are preserved.
+- **Geomancy — stabbed in sand** (`worship/sand.js`, ported from `clock/geocast/index.html`): sixteen
+  bracketed lines in damp sand (the `soil.js` mass-conserving height-field). **Poke dots** into each line;
+  the parity of each line's dot-count builds the four Mothers → the shield → its **Judge** figure + Robert
+  Fludd's signification (planet · zodiac · nature). WebGPU-shaded sand with a canvas2d fallback.
 
 | File | Role |
 |---|---|
-| `worship/oracle-cast.js` | **Pure cast kernel** — seeded (reproducible), no DOM. `cast(system, seed)` → `{system, omen, profile, seed}`; `divinationRumor(world, reading)` builds the record. |
-| `worship/oracle.js` | The fixture UI — self-contained overlay (own DOM + scoped CSS). Pick a rite → draw → release. |
-| `worship/lib/` | **Vendored** I Ching + geomancy kernels (`iching.js`, `zhouyi.js`, `geomancy.js`, `geomancy-meanings.js`) from `clock/lib/`; `hexagrams.js` is the King Wen `HEX` table extracted from `clock/yijing/index.html`. Re-sync, never fork. |
+| `worship/oracle-cast.js` | **Pure kernels** — `yijingFromLines(lines)` / `geomancyFromShield(shield)` (the ritual outputs → the reading + profile), `cast(system, seed)` (the deterministic non-ritual path, still used/tested), `divinationRumor(world, reading)` (the record). No DOM. |
+| `worship/oracle.js` | The fixture UI — self-contained overlay hosting whichever ritual canvas; on completion shows the omen + release. |
+| `worship/yarrow.js` | The yarrow-stalk physical sim + the three-changes-per-line division (canvas + tap). DOM/canvas; the page's element-ids swapped for an injected canvas + callbacks. |
+| `worship/sand.js` | The sand cast: poke→measure→shield over the `soil` Field, the bracket overlay, drag-to-stroke poking. Injected sand+overlay canvases + callbacks. |
+| `worship/lib/` | **Vendored** kernels from `clock/lib/` (`iching`, `zhouyi`, `geomancy`, `geomancy-meanings`, `stalk-render`, `soil`, `soil-render`) + `hexagrams.js` (the King Wen `HEX` table from `clock/yijing`). Re-sync, never fork. |
 
 ## Govern → ❦ The Seal-stand  (`govern/`)
 
@@ -51,7 +59,10 @@ inkblot colour). Back-compatible — every field is optional; an absent `kind` r
 
 ## Tests
 
-`test/fixtures.selftest.mjs` (82 checks): cast determinism, the hexagram lookup **cross-checked against
-the library's own `composeReading`**, geomancy Judge/profile, and both rumor builders. `test/sim.selftest.mjs`
-pins the new `FIXTURE_ACTION` mapping. A headless-Chromium smoke test confirmed both panels open and render
-(a full I Ching reading; an inkblot archetype with painted pixels) with no console errors.
+`test/fixtures.selftest.mjs` (95 checks): cast determinism, the hexagram lookup **cross-checked against
+the library's own `composeReading`**, the ritual builders (`yijingFromLines`/`geomancyFromShield`), the
+`soil.js` Field engine (deterministic reset, mass-conserving poke leaves a countable crater, settle), and
+both rumor builders. `test/sim.selftest.mjs` pins the new `FIXTURE_ACTION` mapping. A headless-Chromium
+smoke test drove both rituals: the yarrow stalk sim paints and the division advances (aim→split→count),
+and the sand cast produced a full reading ("The Judge is Coniunctio, under Mercury") with the 16-line
+bracket overlay painted — no console errors. (The inkblot govern fixture is unchanged.)

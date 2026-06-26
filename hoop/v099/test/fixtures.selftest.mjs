@@ -1,9 +1,11 @@
 // fixtures.selftest.mjs — the worship ORACLE + govern INKBLOT kernels (pure, deterministic).
 //   node hoop/v099/test/fixtures.selftest.mjs
-import { cast, castYijing, rngFromSeed, divinationRumor, ORACLE_SYSTEMS } from '../worship/oracle-cast.js';
+import { cast, castYijing, rngFromSeed, divinationRumor, ORACLE_SYSTEMS, yijingFromLines, geomancyFromShield } from '../worship/oracle-cast.js';
 import { decompose, movingLines } from '../worship/lib/iching.js';
 import { HEX } from '../worship/lib/hexagrams.js';
 import { composeReading } from '../worship/lib/iching.js';
+import { mothersFromCounts, shield } from '../worship/lib/geomancy.js';
+import { Field, soilProps } from '../worship/lib/soil.js';
 import { inkblotRumor } from '../govern/inkblot-rumor.js';
 
 let pass = 0, fail = 0;
@@ -60,6 +62,39 @@ ok(irp.title === 'The Watchful Ember' && irp.axes[0].value === 0.81 && irp.trait
 ok(ir.text.includes('The Watchful Ember') && ir.text.includes('a held breath'), 'inkblot rumor text names the figure + colour');
 const ir2 = inkblotRumor('1234', { seed: 'b9x', portrait });
 ok(ir2.color === undefined && JSON.parse(ir2.profileJson).colour === undefined, 'inkblot rumor omits colour when none added');
+
+// ── the RITUAL builders (the yarrow division / sand cast feed these) ──
+// yijingFromLines: a known cast → the right hexagram (cross-checked against the library), lines carried.
+const knownLines = [7, 8, 7, 9, 6, 8];
+const yr = yijingFromLines(knownLines);
+ok(yr.profile.hexagram === composeReading(knownLines, HEX).primaryNo, 'yijingFromLines agrees with composeReading');
+ok(JSON.stringify(yr.profile.lines) === JSON.stringify(knownLines), 'yijingFromLines carries the 6 cast lines');
+ok(yr.profile.moving.join(',') === '4,5', 'yijingFromLines marks the moving lines (9 at 4, 6 at 5)');
+ok(yr.profile.changesTo >= 1 && yr.profile.changesTo <= 64, 'yijingFromLines resolves the resulting hexagram');
+// all-still lines → no change
+const still = yijingFromLines([7, 8, 7, 8, 7, 8]);
+ok(still.profile.moving.length === 0 && still.profile.changesTo === null, 'all-young lines → a still hexagram');
+// castYijing now delegates to yijingFromLines and stays deterministic
+ok(JSON.stringify(cast('yijing', 'seed-42').profile) === JSON.stringify(cast('yijing', 'seed-42').profile), 'castYijing still deterministic post-refactor');
+
+// geomancyFromShield: a shield built from tallies → a named Judge + witnesses + omen.
+const S = shield(mothersFromCounts([3, 6, 5, 8, 1, 4, 7, 2, 9, 2, 5, 6, 3, 8, 1, 4]));
+const gr = geomancyFromShield(S);
+ok(gr.system === 'geomancy' && typeof gr.profile.judge === 'string' && gr.profile.judge !== '—', 'geomancyFromShield names the Judge');
+ok(gr.profile.witnesses.length === 2 && gr.omen.length > 10, 'geomancyFromShield carries witnesses + omen');
+
+// ── the SAND engine (soil.js) the geomancy rite pokes ──
+const props = soilProps(0.82, 0.13, 0.05, 0.40);
+ok(props.class && typeof props.heave === 'number', 'soilProps returns a texture class + heave');
+const f1 = new Field(64), f2 = new Field(64);
+ok(JSON.stringify([...f1.h]) === JSON.stringify([...f2.h]), 'Field.reset is deterministic (same default seed → same surface)');
+const before = f1.h[32 * 64 + 32];
+f1.poke(0.5, 0.5, 3, 4, props.heave);
+ok(f1.h[32 * 64 + 32] !== before, 'poke deforms the sand under the press');
+const settle = f1.settle(props, 8);
+ok(settle && typeof settle.iters === 'number' && typeof settle.settled === 'boolean', 'settle returns a relaxation summary');
+// a poked dot reads as a measurable depression (the basis of the dot-count)
+ok(f1.h[32 * 64 + 32] < 0.5, 'a poke leaves a crater (negative height) — the dot the cast counts');
 
 console.log(`fixtures.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

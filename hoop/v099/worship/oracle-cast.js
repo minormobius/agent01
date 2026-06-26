@@ -33,10 +33,9 @@ const codeOf = (yang) => { let c = 0; for (let i = 0; i < 6; i++) if (yang[i]) c
 function codeToNo(code) { for (let n = 1; n <= 64; n++) { const b = HEX[n].b; let c = 0; for (let i = 0; i < 6; i++) if (b[i] === '1') c |= 1 << i; if (c === code) return n; } return null; }
 const hexName = (n) => ({ zh: HEX[n].ch, py: HEX[n].py, en: HEX[n].en });
 
-// ── YIJING: the three-coin oracle (each line is three coins: 2|3 each → sum 6/7/8/9; 6 & 9 are moving) ──
-export function castYijing(rng) {
-  const lines = [];
-  for (let i = 0; i < 6; i++) { let s = 0; for (let k = 0; k < 3; k++) s += rng() < 0.5 ? 2 : 3; lines.push(s); }
+// ── YIJING reading from 6 cast lines (6/7/8/9). The ritual (yarrow.js / coins) produces the lines; this
+//    turns them into the hexagram + moving lines + resulting hexagram + omen. The shared builder. ──
+export function yijingFromLines(lines) {
   const d = decompose(lines);
   const primaryNo = codeToNo(codeOf(d.y));
   const moving = movingLines(lines);                                  // 0-based indices of the 6/9 lines
@@ -49,18 +48,24 @@ export function castYijing(rng) {
     elements: { below: d.lower.element, above: d.upper.element },
     moving: moving.map((i) => i + 1),                                 // 1-based line positions
     changesTo: result, changesToName: result ? hexName(result).en : null,
+    lines: lines.slice(),
     judgment: HEX[primaryNo].j,
   };
   const omen = `${name.en} (${name.zh} ${name.py}) — ${d.lower.en} below, ${d.upper.en} above. ${HEX[primaryNo].j}`
     + (result ? ` It changes toward ${hexName(result).en}.` : '');
-  return { system: 'yijing', omen, profile, lines };
+  return { system: 'yijing', omen, profile, lines: lines.slice() };
 }
 
-// ── GEOMANCY: sixteen tallies → four Mothers → the shield → the JUDGE figure + Fludd's signification ──
-export function castGeomancy(rng) {
-  const counts = Array.from({ length: 16 }, () => 1 + Math.floor(rng() * 16));
-  const mothers = mothersFromCounts(counts);
-  const S = shield(mothers);
+// ── YIJING: the three-coin oracle (each line is three coins: 2|3 each → sum 6/7/8/9; 6 & 9 are moving) ──
+export function castYijing(rng) {
+  const lines = [];
+  for (let i = 0; i < 6; i++) { let s = 0; for (let k = 0; k < 3; k++) s += rng() < 0.5 ? 2 : 3; lines.push(s); }
+  return yijingFromLines(lines);
+}
+
+// ── GEOMANCY reading from a SHIELD (the sand cast / a tally roll produces the shield → its JUDGE figure
+//    + Fludd's signification). The shared builder. ──
+export function geomancyFromShield(S) {
   const judge = S.judge;                                              // {rows, figure}
   const m = MEANINGS[figureKey(judge.rows)] || {};
   const witnesses = [S.witnessRight, S.witnessLeft].map((w) => (w && w.figure ? w.figure.name : '—'));
@@ -74,7 +79,13 @@ export function castGeomancy(rng) {
   };
   const omen = (`The Judge is ${judgeName}${m.en ? ` (${m.en})` : ''}`
     + `${m.planet ? `, under ${m.planet}` : ''}${m.zodiac ? ` in ${m.zodiac}` : ''}. ${m.sig || ''}`).trim();
-  return { system: 'geomancy', omen, profile, counts };
+  return { system: 'geomancy', omen, profile };
+}
+
+// ── GEOMANCY: sixteen tallies → four Mothers → the shield → the JUDGE figure + Fludd's signification ──
+export function castGeomancy(rng) {
+  const counts = Array.from({ length: 16 }, () => 1 + Math.floor(rng() * 16));
+  return { ...geomancyFromShield(shield(mothersFromCounts(counts))), counts };
 }
 
 // Cast a named rite from a seed string (deterministic). The UI rolls a fresh seed per draw (a player
