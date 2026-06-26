@@ -178,19 +178,18 @@ function buildFill(){
   const r = cfg.grainR;
   const s = r * 2.12;                       // spacing > diameter, avoids init blowup
   const pos = [];
+  const cap = cfg.count * 4;                 // pos is flat: 4 floats (x,y,z,tint) per grain
   const yTop = GEO.H * 0.985;
   const yBot = r * 1.5;                      // just above the neck
-  let nx = 0;
-  for(let y = yTop; y > yBot && pos.length < cfg.count; y -= s){
+  for(let y = yTop; y > yBot && pos.length < cap; y -= s){
     const Rc = profileJS(y) - r;            // packable radius at this height
     if(Rc <= s) continue;
-    for(let x = -Rc; x <= Rc && pos.length < cfg.count; x += s){
-      for(let z = -Rc; z <= Rc && pos.length < cfg.count; z += s){
+    for(let x = -Rc; x <= Rc && pos.length < cap; x += s){
+      for(let z = -Rc; z <= Rc && pos.length < cap; z += s){
         if(x*x + z*z > Rc*Rc) continue;
         const jx = (Math.random()-0.5)*0.3*r, jy=(Math.random()-0.5)*0.3*r, jz=(Math.random()-0.5)*0.3*r;
         const tint = Math.random();
         pos.push(x+jx, y+jy, z+jz, tint);
-        nx++;
       }
     }
   }
