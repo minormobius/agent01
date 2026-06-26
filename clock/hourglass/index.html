@@ -264,17 +264,22 @@ fn profile(y: f32)->f32 {
   let t = clamp((ay - hc)/(Hh - hc), 0.0, 1.0);
   return Rm * sqrt(max(0.0, 1.0 - t*t));
 }
-// project a position back inside the closed glass cavity (analytic, no mesh)
+// project a position back inside the closed glass cavity (analytic, no mesh).
+// Crucially we clamp grains OUT of the sub-grain-radius tips (to yFit) rather
+// than collapsing them onto the axis — collapsing makes grains coincident,
+// which the contact solver can't separate, so they merge and vanish.
 fn clampCavity(p: vec3f)->vec3f {
-  let r = S.phys.x;
-  let Hcap = S.geom.w + 0.02;
-  var x = vec3f(p.x, clamp(p.y, -Hcap, Hcap), p.z);
-  let Rc = profile(x.y);
-  let lim = Rc - r;
+  let r  = S.phys.x;
+  let Rm = S.geom.y;
+  let hc = S.grid.w;
+  let Hh = S.geom.w;
+  // |y| at which the dome cap narrows to exactly the grain radius
+  let frac = sqrt(max(0.0, 1.0 - (r/Rm)*(r/Rm)));
+  let yFit = min(hc + (Hh - hc)*frac, Hh);
+  var x = vec3f(p.x, clamp(p.y, -yFit, yFit), p.z);   // can't enter the tips
+  let lim = max(profile(x.y) - r, 0.0);               // ≥0 everywhere now
   let rxz = length(x.xz);
-  if (lim <= 0.0) {
-    x = vec3f(0.0, x.y, 0.0);                 // pinched below grain size → on-axis
-  } else if (rxz > lim) {
+  if (rxz > lim) {
     let nd = x.xz / max(rxz, 1e-6);
     x = vec3f(nd.x*lim, x.y, nd.y*lim);
   }
@@ -340,9 +345,18 @@ fn project(@builtin(global_invocation_id) gid: vec3u){
           let j = tbl[ci*K + s];
           if (j == i) { continue; }
           let dvec = xi - pos[j].xyz;
-          let dist = length(dvec);
-          if (dist >= dd || dist < 1e-6) { continue; }
-          let nrm = dvec / dist;
+          var dist = length(dvec);
+          if (dist >= dd) { continue; }
+          var nrm: vec3f;
+          if (dist < 1e-5) {
+            // coincident grains: pick a deterministic per-grain direction so
+            // they ALWAYS separate (never silently merge into one another)
+            let a = f32(i) * 2.3999632;             // golden-angle scatter
+            nrm = normalize(vec3f(cos(a), 0.35, sin(a)));
+            dist = 0.0;
+          } else {
+            nrm = dvec / dist;
+          }
           let overlap = dd - dist;
           dx += nrm * (0.5*overlap*(1.0 + bounce));   // push half the overlap apart
           nc += 1.0;
