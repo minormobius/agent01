@@ -48,11 +48,12 @@ inter-faction walls) + inherited seam ports (the nine connections). All seven sh
 neighbouring Voronoi cells abut without a clash. The topology is enforced purely by which sides are
 ported vs walled — `sharedSide()` matches abutting sides, the `CONNECTIONS` list says which to open.
 
-The nave uses a **regular hexagon** chunk shape (`NAVE_SHAPE`), not the deformed tessellation: the game's
-skin (`skin.js#paintChunk`) assumes a **convex** chunk polygon (`inConvex`/`clipToConvex`), so a non-convex
-tessellation tile makes the skin fill only the convex core — a sliver. A hexagon is convex, is the natural
-shape for a centre + six neighbours, and still tiles by translation. (The tessellation stays for the
-flat-rendered chunkroller views, which don't run the skin.)
+The nave uses the deformed **tessellation** chunk shape (`SAMPLE_SHAPE`). The game skin used to assume a
+**convex** chunk polygon, which made a non-convex tile paint only its convex core (a sliver); that's now
+fixed in `skin.js` — `inConvex` is a ray-cast point-in-polygon (any simple polygon), `clipToConvex` clips
+the *polygon* against the convex *cell* (Sutherland–Hodgman only needs the window convex), and the WebGPU
+triangulation fans from each cell's centroid — so the wiggly tile fills fully. A convex `hexShape()` is
+exported as an alternative, but the tessellation is the default.
 
 Pure + node-tested: `node hoop/nave/test/nave.selftest.mjs` (36 checks — the topology graph, the commons
 completeness, exclusive-building isolation, faction role separation, one connected world, determinism).

@@ -974,7 +974,10 @@
       for (const c of P.paintCells) {
         const p = c.poly; if (!p || p.length < 3) continue;
         const col = parseColor(c.color || '#05070b');
-        for (let i = 1; i < p.length - 1; i++) { pv(tris, p[0], col); pv(tris, p[i], col); pv(tris, p[i + 1], col); }   // convex fan
+        // fan from the CENTROID (not vertex 0) so mildly non-convex boundary cells — the wiggle of a
+        // tessellation tile clipped to its edge — still triangulate cleanly; convex cells are unaffected.
+        let mx = 0, my = 0; for (const v of p) { mx += v[0]; my += v[1]; } mx /= p.length; my /= p.length;
+        for (let i = 0; i < p.length; i++) { pv(tris, [mx, my], col); pv(tris, p[i], col); pv(tris, p[(i + 1) % p.length], col); }
         if (!c.wall) for (let i = 0; i < p.length; i++) { pv(lines, p[i], SEAM); pv(lines, p[(i + 1) % p.length], SEAM); }   // seam outline
       }
       return (ch._gpu = { tris: gpu.buffer(new Float32Array(tris)), lines: gpu.buffer(new Float32Array(lines)) });

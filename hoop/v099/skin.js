@@ -40,16 +40,27 @@ function* globalDarts(ox, oy, W, H, spacing, jit) {
     yield { x: wx - ox, y: wy - oy };   // local
   }
 }
-// is a local point inside the convex chunk polygon (centroid cx,cy gives the inside half-plane sign)?
-function inConvex(px, py, poly, cx, cy) {
-  for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], ex = b[0] - a[0], ey = b[1] - a[1]; const sref = ex * (cy - a[1]) - ey * (cx - a[0]); if ((ex * (py - a[1]) - ey * (px - a[0])) * sref < -1e-6) return false; }
-  return true;
+// is a local point inside the chunk polygon? RAY-CAST crossing test — works for ANY simple polygon,
+// convex OR non-convex (so a deformed tessellation tile, not just a hexagon). (cx,cy unused; kept for the
+// old call shape.)
+function inConvex(px, py, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
 }
-// Sutherland–Hodgman clip of a poly to the convex chunk polygon → a cell never bleeds across a seam.
-function clipToConvex(sub, poly, cx, cy) {
-  let out = sub;
-  for (let i = 0; i < poly.length && out.length >= 3; i++) {
-    const a = poly[i], b = poly[(i + 1) % poly.length], ex = b[0] - a[0], ey = b[1] - a[1], sref = ex * (cy - a[1]) - ey * (cx - a[0]);
+// clip a CONVEX cell `sub` to the chunk polygon `poly` = their intersection, so a cell never bleeds across
+// a seam. Sutherland–Hodgman only needs the clip WINDOW to be convex — the CELL is, the polygon may NOT be
+// (tessellation tiles wiggle) — so we clip the POLYGON (subject) against the CELL (window). Same region as
+// the old cell-vs-convex-poly clip when the chunk is convex; correct for non-convex chunks too.
+function clipToConvex(sub, poly) {
+  if (!sub || sub.length < 3) return [];
+  let scx = 0, scy = 0; for (const p of sub) { scx += p[0]; scy += p[1]; } scx /= sub.length; scy /= sub.length;
+  let out = poly;
+  for (let i = 0; i < sub.length && out.length >= 3; i++) {
+    const a = sub[i], b = sub[(i + 1) % sub.length], ex = b[0] - a[0], ey = b[1] - a[1], sref = ex * (scy - a[1]) - ey * (scx - a[0]);
     const f = (p) => (ex * (p[1] - a[1]) - ey * (p[0] - a[0])) * sref, np = [];
     for (let k = 0; k < out.length; k++) { const P = out[k], Q = out[(k + 1) % out.length], dp = f(P), dq = f(Q); if (dp >= -1e-9) np.push(P); if ((dp >= -1e-9) !== (dq >= -1e-9)) { const t = dp / (dp - dq); np.push([P[0] + (Q[0] - P[0]) * t, P[1] + (Q[1] - P[1]) * t]); } }
     out = np;

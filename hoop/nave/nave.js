@@ -62,16 +62,15 @@ function biomeFloors(b) { const f = FACTIONS[b.faction], fl = { dwell: 1, [b.exc
 const COMMONS_FLOORS = Object.fromEntries(Object.keys(ROLES).map((r) => [r, 1]));
 export const COMMONS = { key: 'commons', label: 'The Commons', color: '#c9b07a', roleMix: ROLE_MIX, roleFloors: COMMONS_FLOORS, grand: ['serve', 'govern', 'learn'] };
 
-// A REGULAR HEXAGON shape descriptor (convex), in the same format shapePoly/shapeSideOf consume. The nave
-// uses this — NOT the deformed tessellation — because the game's skin (skin.js#paintChunk) assumes a CONVEX
-// chunk polygon (its inConvex / clipToConvex). A non-convex tessellation tile makes paintChunk fill only the
-// convex core (a sliver). A hexagon is also the natural shape for a centre + six neighbours, and still tiles
-// by translation (latticeVectors). Tessellation stays available for the flat-rendered chunkroller views.
-function hexShape(R = 180) {
+// A REGULAR HEXAGON shape descriptor (convex), in the same format shapePoly/shapeSideOf consume — kept as
+// an alternative. The nave DEFAULTS to the deformed TESSELLATION (SAMPLE_SHAPE): the game's skin now
+// handles non-convex chunk polygons (skin.js#inConvex is a ray-cast, #clipToConvex clips the polygon
+// against the convex cell, and the WebGPU fan triangulates from the cell centroid), so the wiggly tile
+// fills fully instead of painting only its convex core.
+export function hexShape(R = 180) {
   const boundary = []; for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; boundary.push([R * Math.cos(a), R * Math.sin(a)]); }
   return { R, boundary, sideOf: [0, 1, 2, 3, 4, 5] };
 }
-export const NAVE_SHAPE = hexShape();
 
 export function biomeForChunk(i) {
   if (i === 0) return { ...COMMONS, faction: null };
@@ -93,7 +92,7 @@ function sharedSide(polyA, sideOf, polyB) {
 // prepare the nave layout (cheap: geometry + topology, no solving). Returns a STATE you drive one chunk at
 // a time with naveSolveNext — so a caller can pace the seven solves (the game streams them in like normal
 // chunks) instead of freezing on a single ~1s block. `order` solves the commons (0) first.
-export function prepareNave(seed, { shape = NAVE_SHAPE, W = 900, H = 600, commonsRoomSize = 11, factionRoomSize = 13 } = {}) {
+export function prepareNave(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, commonsRoomSize = 11, factionRoomSize = 13 } = {}) {
   seed = (seed | 0) >>> 0;
   const R = Math.min(W, H) * 0.46, cx = W / 2, cy = H / 2;
   const poly0 = shapePoly(shape, cx, cy, R), sideOf = shapeSideOf(shape);
