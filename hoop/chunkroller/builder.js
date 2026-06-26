@@ -1,48 +1,75 @@
 // builder.js — the interactive BOUNDED FLOOR builder (chunkroller's floor mode, v2).
 //
-// Where floor.js#growFloor AUTO-grows a compact hand of chunks, this builds one BY HAND: you click a
-// free edge → the neighbouring chunk renders off it (reflection tiling over manager.js), you pick each
-// chunk's biome (one of the seven wards), and you seal a frontier edge into a CLOSED WALL — a side with
-// ZERO ports, so no concourse ever reaches that edge: a hard floor boundary (the bounded-floor boundary
-// condition), not a streaming seam. Each chunk is solved with the v2 rooms-first solver + role floors.
+// You build a finite floor BY HAND: click a free SIDE → the neighbouring ward renders off it, you pick each
+// ward's biome (one of the seven), and you seal a frontier side into a CLOSED WALL — a side with ZERO ports
+// (no concourse reaches it: a hard floor boundary, not a streaming seam). Each ward is solved with the v2
+// rooms-first solver + role floors.
+//
+// TILING BY TRANSLATION. Wards tile by translation, not reflection: crossing a ward's side k lands the
+// neighbour at +T_k (the lattice vector, `latticeT` in tessgen.js = corner_k + corner_{k+1}). This works
+// for a regular hexagon AND for a deformed TESSELLATION shape (whose wiggly opposite edges are reverse+
+// translate partners) — so the floor can use the editor's tessellation geometry and the seams stop reading
+// as obvious straight hex edges. Every ward shares ONE foam seed, so neighbouring Voronoi cells abut with
+// no clash (chunkgen.js `foamSeed`).
 //
 // Pure (no DOM): operates on real solveChunk records. Node-tested in test/builder.selftest.mjs.
 
 import { solveChunk } from '../v099/v8/chunkgen.js';
-import { createWorld, addChunk, neighbourSpec, edgeFree, midKey } from '../v099/v8/manager.js';
+import { createWorld, addChunk, edgeFree, midKey } from '../v099/v8/manager.js';
 import { ROLES } from '../v099/econ/econ.js';
 import { BIOMES, BIOME_GRAND, mixFromSliders } from './biomes.js';
 import { GRAND_ROLES, GRAND_MIN, MIN_ROOM, TRAFFIC_FOOTPRINT } from '../v099/rooms.js';
+import { SAMPLE_SHAPE, shapePoly, shapeSideOf } from './shapes.js';
 
 const ONE_OF_EACH = Object.fromEntries(Object.keys(ROLES).map((r) => [r, 1]));   // role floors: ≥1 of each type
+const centroid = (poly) => { let x = 0, y = 0; for (const p of poly) { x += p.x; y += p.y; } return { x: x / poly.length, y: y / poly.length }; };
 
-// solve one ward: a hex chunk biased by its biome, with the given inherited seam ports + closed walls.
-// Pure — same (seedC, poly, inherit, biome, closed, flags) ⇒ identical record on every machine.
+// a flat-top regular hexagon as a {x,y} poly + identity sideOf (6 edges = 6 sides) — the fallback when no
+// tessellation shape is used. Matches v7/foam.js's hex (V_k = R·(cos 60k, sin 60k)).
+function hexPoly(cx, cy, R) { const p = []; for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; p.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) }); } return p; }
+
+// the 6 lattice translation vectors for a centred poly: corner[k] = the poly vertex that STARTS side k;
+// T_k = corner_k + corner_{k+1} − 2·centre (= latticeT scaled to the world tile). Translating a ward by
+// T_k yields the neighbour across side k; the shared side is the neighbour's opposite side (k+3).
+function latticeVectors(poly, sideOf) {
+  const corner = [];
+  for (let i = 0; i < poly.length; i++) { const k = sideOf[i]; if (corner[k] === undefined) corner[k] = poly[i]; }
+  const nS = corner.length;
+  // the tile CENTRE is the centroid of the CORNERS (the symmetric hex vertices) — NOT of all boundary
+  // vertices, which the deformed edges pull off-centre. T_k = corner_k + corner_{k+1} − 2·centre = latticeT.
+  const c = centroid(corner), T = [];
+  for (let k = 0; k < nS; k++) { const a = corner[k], b = corner[(k + 1) % nS]; T[k] = { x: a.x + b.x - 2 * c.x, y: a.y + b.y - 2 * c.y }; }
+  return T;
+}
+
+// solve one ward: a biome-biased chunk over the given polygon, with inherited seam ports + closed walls.
+// Pure — same (seedC, foamSeed, poly, inherit, biome, closed) ⇒ identical record everywhere.
 function solveWard(state, seedC, poly, inherit, biome, closed) {
   const b = BIOMES[biome] || BIOMES.wild;
   return solveChunk({
-    seed: seedC, foamSeed: state.seed, W: state.W, H: state.H, poly: poly || undefined, inherit: inherit || [],
-    shape: poly ? null : 'hex', roomSize: 14, footprint: TRAFFIC_FOOTPRINT,
-    grand: BIOME_GRAND[biome] || GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM,
-    roleMix: mixFromSliders(b.sliders), portRange: [1, state.portsMax],
+    seed: seedC, foamSeed: state.seed, W: state.W, H: state.H, poly, inherit: inherit || [], sideOf: state.sideOf,
+    roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand: BIOME_GRAND[biome] || GRAND_ROLES, grandMin: GRAND_MIN,
+    minRoom: MIN_ROOM, roleMix: mixFromSliders(b.sliders), portRange: [1, state.portsMax],
     closedSides: closed && closed.size ? [...closed] : null,
     v2: state.v2, roleFloors: state.v2 ? ONE_OF_EACH : null, tension: state.v2 ? 0.6 : 0,
   });
 }
 
-// gather the seam ports a chunk's polygon inherits from every OTHER abutting chunk (for re-solving an
-// existing chunk in place — keeps its shared edges aligned to the neighbours that already exist).
-function inheritFor(world, poly, selfId) {
+// gather the seam ports a polygon inherits from every OTHER abutting ward, and mark those shared segments
+// occupied — translation cousin of manager.neighbourSpec (which reflects). midKey matching is geometry-
+// agnostic, so it works for the wiggly tessellation boundary too (shared segments coincide).
+function inheritAndOccupy(state, poly, selfId) {
   const inherit = [];
-  for (let be = 0; be < poly.length; be++) { const mk = midKey(poly, be); for (const ec of world.chunks) { if (ec.id === selfId) continue; for (let e = 0; e < ec.poly.length; e++) if (midKey(ec.poly, e) === mk) for (const p of ec.ports) if (p.edge === e) inherit.push({ x: p.x, y: p.y }); } }
+  for (let be = 0; be < poly.length; be++) {
+    const mk = midKey(poly, be);
+    for (const ec of state.world.chunks) { if (ec.id === selfId) continue; for (let e = 0; e < ec.poly.length; e++) if (midKey(ec.poly, e) === mk) { for (const p of ec.ports) if (p.edge === e) inherit.push({ x: p.x, y: p.y }); state.world.occupied.add(mk); } }
+  }
   return inherit;
 }
 
-// re-solve chunk `id` in place (after its closed-wall set or a neighbour changed). Append-stable: id and
-// occupancy don't move; only this chunk's ports/road/rooms change.
 function reSolve(state, id) {
   const m = state.meta[id], poly = state.world.chunks[id].poly;
-  const rec = solveWard(state, m.seedC, poly, inheritFor(state.world, poly, id), m.biome, m.closed);
+  const rec = solveWard(state, m.seedC, poly, inheritAndOccupy(state, poly, id), m.biome, m.closed);
   rec.id = id; state.world.chunks[id] = rec;
 }
 
@@ -56,57 +83,73 @@ function placeChunk(state, poly, inherit, biome) {
   return id;
 }
 
+// the SIDE a polygon edge belongs to → which of the 6 directions. Constant across wards (all are translates).
+const sideOfEdge = (state, e) => state.sideOf[e];
+
 // ── public API ──
 
-// start a floor: chunk 0, centred, with the chosen biome. v2 (rooms-first + role floors) on by default.
-export function createBuild(seed, { W = 900, H = 600, v2 = true, portsMax = 1, biome = 'wild' } = {}) {
-  const state = { seed: (seed | 0) >>> 0, W, H, v2, portsMax, world: createWorld(), meta: [] };
-  placeChunk(state, null, null, biome);
+// start a floor: ward 0 centred. `shape` = a tessellation descriptor (default SAMPLE_SHAPE) or null for a
+// plain hexagon. v2 (rooms-first + role floors) on by default.
+export function createBuild(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, v2 = true, portsMax = 1, biome = 'wild' } = {}) {
+  const R = Math.min(W, H) * 0.46, cx = W / 2, cy = H / 2;
+  const poly = shape ? shapePoly(shape, cx, cy, R) : hexPoly(cx, cy, R);
+  const sideOf = shape ? shapeSideOf(shape) : poly.map((_, i) => i);
+  const state = { seed: (seed | 0) >>> 0, W, H, v2, portsMax, shape, sideOf, world: createWorld(), meta: [] };
+  state.T = latticeVectors(poly, sideOf);
+  placeChunk(state, poly, [], biome);
   return state;
 }
 
-// grow the neighbour off a free edge. If that edge was a closed wall, it re-opens (it must carry a port to
-// share across the new seam). Returns the new chunk id, or -1 if the edge isn't a frontier.
-export function growAt(state, chunkId, edge, biome) {
+// is side k of this ward a frontier (all its segments free)? returns the segment edge indices, or null.
+function sideEdges(state, ch, k) { const es = []; for (let e = 0; e < ch.poly.length; e++) if (state.sideOf[e] === k) es.push(e); return es; }
+function sideFree(state, ch, k) { const es = sideEdges(state, ch, k); return es.length ? es.every((e) => edgeFree(state.world, ch, e)) : false; }
+
+// grow the neighbour off a free side. If that side was a closed wall, it re-opens (it must carry a port to
+// share). Returns the new ward id, or -1 if the side isn't a frontier.
+export function growSide(state, chunkId, sideK, biome) {
   const ch = state.world.chunks[chunkId];
-  if (!ch || !edgeFree(state.world, ch, edge)) return -1;
-  if (state.meta[chunkId].closed.delete(edge)) reSolve(state, chunkId);   // reopen → it has a port to share
-  const spec = neighbourSpec(state.world, chunkId, edge);
-  return placeChunk(state, spec.poly, spec.inherit, biome || state.meta[chunkId].biome);
+  if (!ch || !sideFree(state, ch, sideK)) return -1;
+  if (state.meta[chunkId].closed.delete(sideK)) reSolve(state, chunkId);   // reopen → it has a port to share
+  const T = state.T[sideK], poly = ch.poly.map((p) => ({ x: p.x + T.x, y: p.y + T.y }));
+  const inherit = inheritAndOccupy(state, poly, -1);
+  return placeChunk(state, poly, inherit, biome || state.meta[chunkId].biome);
 }
 
-// toggle a frontier edge between open and CLOSED WALL (0 ports). Re-solves the chunk. Seam edges can't be
-// walled (they carry a live crossing). Returns true if it toggled.
-export function toggleWall(state, chunkId, edge) {
+// toggle a frontier side between open and CLOSED WALL (0 ports). Re-solves the ward. A side with a neighbour
+// (a live seam) can't be walled. Returns true if it toggled.
+export function toggleWall(state, chunkId, sideK) {
   const ch = state.world.chunks[chunkId];
-  if (!ch || !edgeFree(state.world, ch, edge)) return false;
+  if (!ch || !sideFree(state, ch, sideK)) return false;
   const closed = state.meta[chunkId].closed;
-  if (closed.has(edge)) closed.delete(edge); else closed.add(edge);
+  if (closed.has(sideK)) closed.delete(sideK); else closed.add(sideK);
   reSolve(state, chunkId);
   return true;
 }
 
-// seal EVERY remaining frontier edge into a closed wall — the bounded floor's boundary in one move.
+// seal EVERY remaining frontier side into a closed wall — the bounded floor's boundary in one move.
 export function sealFrontier(state) {
   let n = 0;
   for (const ch of state.world.chunks) {
     const closed = state.meta[ch.id].closed; let changed = false;
-    for (let e = 0; e < ch.poly.length; e++) if (edgeFree(state.world, ch, e) && !closed.has(e)) { closed.add(e); changed = true; n++; }
+    const nS = state.T.length;
+    for (let k = 0; k < nS; k++) if (sideFree(state, ch, k) && !closed.has(k)) { closed.add(k); changed = true; n++; }
     if (changed) reSolve(state, ch.id);
   }
   return n;
 }
 
-// every frontier edge, flagged open vs closed-wall — the page draws growable handles on the open ones and
-// walls on the closed ones.
-export function freeEdges(state) {
-  const out = [];
+// every frontier SIDE, flagged open vs closed-wall, with its segment polyline + a handle point. The page
+// draws a ＋ grow handle on the open ones and a wall along the closed ones.
+export function frontier(state) {
+  const out = [], nS = state.T.length;
   for (const ch of state.world.chunks) {
     const n = ch.poly.length;
-    for (let e = 0; e < n; e++) {
-      if (!edgeFree(state.world, ch, e)) continue;
-      const a = ch.poly[e], b = ch.poly[(e + 1) % n];
-      out.push({ chunkId: ch.id, edge: e, closed: state.meta[ch.id].closed.has(e), ax: a.x, ay: a.y, bx: b.x, by: b.y, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 });
+    for (let k = 0; k < nS; k++) {
+      if (!sideFree(state, ch, k)) continue;
+      const es = sideEdges(state, ch, k), segs = [];
+      let mx = 0, my = 0;
+      for (const e of es) { const a = ch.poly[e], b = ch.poly[(e + 1) % n]; segs.push([a.x, a.y, b.x, b.y]); mx += (a.x + b.x) / 2; my += (a.y + b.y) / 2; }
+      out.push({ chunkId: ch.id, sideK: k, closed: state.meta[ch.id].closed.has(k), mx: mx / es.length, my: my / es.length, segs });
     }
   }
   return out;

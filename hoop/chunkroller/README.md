@@ -87,16 +87,22 @@ Skinniness is the per-room PCA aspect ratio (long axis / short). Measured: tensi
 took the worst room from aspect **12.8 → 5.4** and average **3.08 → 2.26**, road still fully connected,
 solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
 - **⬡ bounded floor** — the **interactive floor builder** (`builder.js`). You build a finite floor BY
-  HAND: each ward is a hex chunk solved with the **v2 rooms-first solver + role floors** (≥1 of each
-  building type), painted by its **biome**, and **☮ floor 1 — no baddies** on the readout. Click a ward →
-  its civic vitality. The interactions:
-  - **click ＋ to grow** — every open frontier edge shows a gold **＋** handle; click it and the
-    neighbouring ward renders off that edge (reflection tiling over `manager.js`), taking the **biome**
-    selected in the dropdown. So you choose any of the seven ward types per chunk as you build.
-  - **✎ wall mode** — toggle it, then click a frontier edge to seal it into a **closed wall**: a side with
-    ZERO ports (engine `closedSides`), so no concourse ever reaches that edge — a hard floor boundary, not
+  HAND: each ward is a **tessellation-shape** chunk (the editor geometry — wiggly edges, not obvious hex
+  seams) solved with the **v2 rooms-first solver + role floors** (≥1 of each building type), painted by its
+  **biome**, and **☮ floor 1 — no baddies** on the readout. Click a ward → its civic vitality. The
+  interactions:
+  - **click ＋ to grow** — every open frontier SIDE shows a gold **＋** handle; click it and the
+    neighbouring ward renders off that side, taking the **biome** selected in the dropdown. So you choose
+    any of the seven ward types per chunk as you build.
+  - **TILING BY TRANSLATION.** Wards tile by translation (crossing side *k* lands the neighbour at the
+    lattice vector `+T_k = corner_k + corner_{k+1}`), so the **tessellation geometry tiles seamlessly** —
+    the wiggly opposite edges are reverse+translate partners (`tessgen.js`), so the shared side coincides
+    with zero gap. A plain hexagon (`shape: null`) is the same lattice (each edge its own side). Ports
+    allocate **per side (direction)**, not per segment, so a 30-segment ward still gets ~6 ports.
+  - **✎ wall mode** — toggle it, then click a frontier side to seal it into a **closed wall**: a side with
+    ZERO ports (engine `closedSides`), so no concourse ever reaches that side — a hard floor boundary, not
     a streaming seam. This is the bounded floor's boundary condition: *we set ports to zero on the sides of
-    merit.* **⊟ seal frontier** does it to every remaining open edge at once.
+    merit.* **⊟ seal frontier** does it to every remaining open side at once.
   - **🎲 auto-grow** grows a compact hand of random-biome wards off the current floor; **↺ reset** starts
     over from one centred chunk. The floor stays one connected walk-graph world throughout (seams cross at
     the shared ports; closed walls carry none).
@@ -115,7 +121,7 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
 | `chunkroller.js` | controller — both views, render, readout, click dossier/ward |
 | `biomes.js` | the sliders + `mixFromSliders` (rollup → biased `ROLE_MIX`) + the named biomes + tints |
 | `civic.js` | `fieldFromRooms` (adapt chunk rooms → econ `field`), `scoreChunk`, `npcRoster` |
-| `builder.js` | the **interactive floor builder** — `createBuild`/`growAt`/`toggleWall`/`sealFrontier`/`freeEdges` (click-to-grow + closed walls) |
+| `builder.js` | the **interactive floor builder** — `createBuild`/`growSide`/`toggleWall`/`sealFrontier`/`frontier` (click-to-grow + closed walls, TRANSLATION tiling of the tessellation shape) |
 | `floor.js` | `growFloor` (auto-grown bounded floor), `chunkBiomeAt` (ward assignment), edge tiles, no-baddies flag |
 | `tess.html` + `tess.js` | the **tessellation editor** (`/chunkroller/tess`) — drag edges, preview the tiling, export JSON |
 | `tessgen.js` | the tessellation kernel: deform 3 edges → opposite 3 follow (reverse+translate) → always tiles |
@@ -124,7 +130,7 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
 | `test/stability.selftest.mjs` | 12 checks — sampler determinism, all-homes < balanced, the solver never worsens stability |
 | `test/civic.selftest.mjs` | 20 checks — slider rollup, the civic field over a real chunk, NPC stats, biome biasing |
 | `test/floor.selftest.mjs` | 17 checks — deterministic floor, edge tiles seal the rim, ward variety, no-baddies gate |
-| `test/builder.selftest.mjs` | 25 checks — the seam contract (shared foamSeed ⇒ identical overlap nuclei, no clash), click-to-grow connects, closed walls carry 0 ports, seal-frontier keeps the floor one walk world, determinism |
+| `test/builder.selftest.mjs` | 27 checks — the seam contract (shared foamSeed ⇒ identical overlap nuclei, no clash), translation tiling (neighbour = ward + T_k, wiggly shared side zero-gap), click-to-grow connects, closed walls carry 0 ports per side, seal-frontier keeps the floor one walk world, determinism, hex fallback |
 | `test/tess.selftest.mjs` | 17 checks — deformed edges keep zero tessellation gap; export round-trips |
 
 ## Stability model (backing the room distribution)

@@ -1,18 +1,19 @@
-// builder.selftest.mjs — the interactive bounded-floor builder.
+// builder.selftest.mjs — the interactive bounded-floor builder (translation tiling, tessellation shape).
 //   node hoop/chunkroller/test/builder.selftest.mjs
-import { createBuild, growAt, toggleWall, sealFrontier, freeEdges, histogram, biomeOf, closedWallCount } from '../builder.js';
-import { edgeFree, buildWalk } from '../../v099/v8/manager.js';
+import { createBuild, growSide, toggleWall, sealFrontier, frontier, histogram, biomeOf, closedWallCount } from '../builder.js';
+import { edgeFree, buildWalk, midKey } from '../../v099/v8/manager.js';
 import { buildFoam } from '../../v099/v7/foam.js';
+import { SAMPLE_SHAPE } from '../shapes.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m); } };
 
 // 0) THE SEAM CONTRACT (the clash fix): two chunks whose regions OVERLAP must generate identical Voronoi
 // nuclei in the overlap when they SHARE the foam-lattice seed — that's what makes neighbouring chunks abut
-// without a clash. With DIFFERENT foam seeds the overlap nuclei diverge (the old bug: each chunk sliced its
-// own foam, so the boundary cells didn't line up). buildFoam keys nuclei by (gid, seed).
+// without a clash. With DIFFERENT foam seeds the overlap nuclei diverge (the old bug). buildFoam keys
+// nuclei by (gid, seed).
 function nucleiByGid(region, seed) { const f = buildFoam({ regions: [region], cellSize: 16, depth: 2.4, seed }); const m = new Map(); for (const c of f.cells) m.set(c.gid, [c.x, c.y]); return m; }
-const rA = { x0: 0, y0: 0, x1: 320, y1: 320 }, rB = { x0: 160, y0: 0, x1: 480, y1: 320 };   // overlap x∈[160,320]
+const rA = { x0: 0, y0: 0, x1: 320, y1: 320 }, rB = { x0: 160, y0: 0, x1: 480, y1: 320 };
 {
   const a = nucleiByGid(rA, 99), b = nucleiByGid(rB, 99);
   let shared = 0, same = 0; for (const [g, p] of a) if (b.has(g)) { shared++; const q = b.get(g); if (Math.abs(p[0] - q[0]) < 1e-9 && Math.abs(p[1] - q[1]) < 1e-9) same++; }
@@ -24,84 +25,85 @@ const rA = { x0: 0, y0: 0, x1: 320, y1: 320 }, rB = { x0: 160, y0: 0, x1: 480, y
   ok(shared > 40 && same < shared * 0.05, `DIFFERENT foam seeds ⇒ overlap nuclei CLASH (${same}/${shared} identical — the old bug)`);
 }
 
-// 1) a fresh build is one centred hex chunk
+// 1) a fresh build is one centred TESSELLATION ward (the floor uses the editor geometry by default)
 const s = createBuild(7, { v2: true, portsMax: 1 });
-ok(s.world.chunks.length === 1, 'createBuild places exactly one chunk');
-ok(s.world.chunks[0].poly.length === 6, 'chunk 0 is a hexagon (tiles by reflection)');
-ok(s.world.chunks[0].rooms.length > 8, 'chunk 0 has rooms (v2 solver ran)');
-
-// 1b) one port per direction by default — the new default
-ok(s.world.chunks[0].ports.length <= 6 && s.world.chunks[0].ports.length >= 4, `~one port per side (${s.world.chunks[0].ports.length} on a hex)`);
-
-// 1c) v2 role floors — at least one of each building type in the first ward
-const roles0 = new Set(s.world.chunks[0].rooms.map((r) => r.role));
+ok(s.world.chunks.length === 1, 'createBuild places exactly one ward');
+ok(s.world.chunks[0].poly.length === SAMPLE_SHAPE.boundary.length, `ward 0 fills the tessellation outline (${s.world.chunks[0].poly.length} segs, not a 6-edge hex)`);
+ok(s.world.chunks[0].rooms.length > 8, 'ward 0 has rooms (v2 solver ran over the deformed shape)');
+ok(s.world.chunks[0].ports.length <= 6 && s.world.chunks[0].ports.length >= 4, `~one port per side, not per segment (${s.world.chunks[0].ports.length} on 6 sides)`);
 ok(Object.keys(s.world.chunks[0].rooms.reduce((a, r) => (a[r.role] = 1, a), {})).length >= 10, 'v2 ward plants many building types (role floors)');
 
-// 2) grow off a free edge → a connected neighbour
-const fe = freeEdges(s);
-ok(fe.length === 6 && fe.every((f) => !f.closed), 'a lone chunk shows 6 open frontier edges');
-const nb = growAt(s, 0, fe[0].edge, 'market');
-ok(nb === 1 && s.world.chunks.length === 2, 'growAt adds the neighbour');
+// 2) grow off a free SIDE → a connected neighbour, by TRANSLATION (not reflection)
+const fr = frontier(s);
+ok(fr.length === 6 && fr.every((f) => !f.closed), 'a lone ward shows 6 open frontier SIDES (grouped from 30 segments)');
+const nb = growSide(s, 0, fr[0].sideK, 'market');
+ok(nb === 1 && s.world.chunks.length === 2, 'growSide adds the neighbour');
 ok(biomeOf(s, 1) === 'market', 'the neighbour took the chosen biome');
-ok(!edgeFree(s.world, s.world.chunks[0], fe[0].edge), 'the grown edge is no longer a frontier (it is a seam)');
+// the neighbour is ward 0 TRANSLATED by the side-k lattice vector T_k
+const T = s.T[fr[0].sideK];
+ok(s.world.chunks[1].poly.every((p, i) => Math.abs(p.x - (s.world.chunks[0].poly[i].x + T.x)) < 1e-6 && Math.abs(p.y - (s.world.chunks[0].poly[i].y + T.y)) < 1e-6), 'the neighbour is the ward translated by T_k (translation tiling)');
 
-// 2b) the two chunks share a seam crossing — a port at the same location on both
-function seamShared(a, b) { const A = new Set(a.ports.map((p) => Math.round(p.x) + ',' + Math.round(p.y))); return b.ports.some((p) => A.has(Math.round(p.x) + ',' + Math.round(p.y))); }
-ok(seamShared(s.world.chunks[0], s.world.chunks[1]), 'the seam port is shared by both chunks (concourse crosses)');
-
-// 2d) NO CLASH: the two abutting chunks slice the SAME global foam, so no cell of one sits (nearly)
-// on top of a cell of the other — their interiors are complementary halves of one lattice.
+// 2b) THE TESSELLATION SEAM: the shared side's segments coincide exactly (zero gap), so the wiggly seam
+// tiles. The parent's side-k segment midpoints all appear among the neighbour's segment midpoints.
 {
-  const A = s.world.chunks[0].cells, B = s.world.chunks[1].cells, cs = s.world.chunks[0].cellSize;
-  let minD = Infinity;
-  for (const a of A) for (const b of B) { const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2; if (d < minD) minD = d; }
-  ok(Math.sqrt(minD) > cs * 0.3, `abutting chunks don't overlap — closest cross-seam cells ${Math.sqrt(minD).toFixed(1)}px apart (> ${(cs * 0.3).toFixed(1)})`);
+  const A = s.world.chunks[0], B = s.world.chunks[1];
+  const bKeys = new Set(); for (let e = 0; e < B.poly.length; e++) bKeys.add(midKey(B.poly, e));
+  let sideSegs = 0, matched = 0; for (let e = 0; e < A.poly.length; e++) if (s.sideOf[e] === fr[0].sideK) { sideSegs++; if (bKeys.has(midKey(A.poly, e))) matched++; }
+  ok(sideSegs >= 4 && matched === sideSegs, `the wiggly shared side tiles with zero gap (${matched}/${sideSegs} segments coincide)`);
 }
 
-// 2c) the walk graph reaches the neighbour from chunk 0 (the floor is one connected world)
+// 2c) one connected walk-graph world
 function reach(world) {
   const walk = buildWalk(world); const seen = new Uint8Array(walk.N); const q = [0]; seen[0] = 1;
   for (let h = 0; h < q.length; h++) for (const v of walk.adj[q[h]]) if (!seen[v]) { seen[v] = 1; q.push(v); }
-  // is at least one node of every chunk reached?
   return world.chunks.every((ch) => { const b = walk.base[ch.id]; for (let i = 0; i < ch.cells.length; i++) if (seen[b + i]) return true; return false; });
 }
-ok(reach(s.world), 'every chunk is walk-reachable from chunk 0 (connected floor)');
+ok(reach(s.world), 'every ward is walk-reachable from ward 0 (connected floor)');
 
-// 3) CLOSED WALL: seal a frontier edge → that side has 0 ports (no concourse reaches it)
-const fe2 = freeEdges(s).filter((f) => f.chunkId === 1 && !f.closed);
-const wallEdge = fe2[0].edge;
-ok(toggleWall(s, 1, wallEdge), 'toggleWall seals a frontier edge');
-const ch1 = s.world.chunks[1];
-ok(!ch1.ports.some((p) => p.edge === wallEdge), 'the closed wall carries ZERO ports');
-ok(reach(s.world), 'the floor stays connected after walling a frontier edge');
-ok(toggleWall(s, 1, wallEdge) && s.world.chunks[1].ports.some((p) => p.edge === wallEdge || true), 'toggleWall re-opens the wall');
+// 2d) NO CLASH at the seam: the two abutting wards slice the SAME global foam — no cell of one sits on top
+// of a cell of the other.
+{
+  const A = s.world.chunks[0].cells, B = s.world.chunks[1].cells, cs = s.world.chunks[0].cellSize;
+  let minD = Infinity; for (const a of A) for (const b of B) { const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2; if (d < minD) minD = d; }
+  ok(Math.sqrt(minD) > cs * 0.3, `abutting wards don't overlap — closest cross-seam cells ${Math.sqrt(minD).toFixed(1)}px apart`);
+}
 
-// 3b) growing off a sealed edge re-opens it and still connects
-toggleWall(s, 1, wallEdge);
-const nb2 = growAt(s, 1, wallEdge, 'garden');
-ok(nb2 === 2 && seamShared(s.world.chunks[1], s.world.chunks[2]), 'growing off a sealed edge re-opens it and shares the seam');
+// 3) CLOSED WALL: seal a frontier side → that whole side has 0 ports
+const wf = frontier(s).filter((f) => f.chunkId === 1 && !f.closed)[0];
+ok(toggleWall(s, 1, wf.sideK), 'toggleWall seals a frontier side');
+ok(!s.world.chunks[1].ports.some((p) => s.sideOf[p.edge] === wf.sideK), 'the closed wall carries ZERO ports across its whole side');
+ok(reach(s.world), 'the floor stays connected after walling a side');
+toggleWall(s, 1, wf.sideK);   // reopen
+ok(s.world.chunks[1].ports.some((p) => s.sideOf[p.edge] === wf.sideK), 'toggleWall re-opens the wall (the side gets a port back)');
 
-// 4) seal the whole frontier → many closed walls, floor still connected, interior seams intact
+// 3b) growing off a sealed side re-opens it and still connects
+toggleWall(s, 1, wf.sideK);
+const nb2 = growSide(s, 1, wf.sideK, 'garden');
+ok(nb2 === 2 && reach(s.world), 'growing off a sealed side re-opens it and connects');
+
+// 4) seal the whole frontier → many closed walls, floor still one world, no boundary ports
 const before = closedWallCount(s);
 const sealed = sealFrontier(s);
-ok(sealed > 0 && closedWallCount(s) === before + sealed, `sealFrontier closes every open frontier edge (${sealed})`);
-ok(freeEdges(s).every((f) => f.closed), 'after sealing, no open frontier edges remain');
-ok(reach(s.world), 'the sealed bounded floor is still one connected world (interior seams survive)');
-
-// 4b) every boundary edge (frontier) of every chunk is now a closed wall with no port
+ok(sealed > 0 && closedWallCount(s) === before + sealed, `sealFrontier closes every open frontier side (${sealed})`);
+ok(frontier(s).every((f) => f.closed), 'after sealing, no open frontier sides remain');
+ok(reach(s.world), 'the sealed bounded floor is still one connected world');
 let boundaryPorts = 0;
 for (const ch of s.world.chunks) for (let e = 0; e < ch.poly.length; e++) if (edgeFree(s.world, ch, e)) for (const p of ch.ports) if (p.edge === e) boundaryPorts++;
-ok(boundaryPorts === 0, 'no concourse port sits on a sealed boundary edge');
+ok(boundaryPorts === 0, 'no concourse port sits on any sealed boundary segment');
 
 // 5) determinism — same seed + same build script ⇒ identical floor
-function build(seed) { const t = createBuild(seed, { v2: true, portsMax: 1 }); const f = freeEdges(t); growAt(t, 0, f[0].edge, 'market'); growAt(t, 0, f[1].edge, 'garden'); sealFrontier(t); return t; }
+function build(seed) { const t = createBuild(seed, { v2: true, portsMax: 1 }); const f = frontier(t); growSide(t, 0, f[0].sideK, 'market'); growSide(t, 0, f[1].sideK, 'garden'); sealFrontier(t); return t; }
 const a = build(11), b = build(11);
 const sig = (t) => JSON.stringify(t.world.chunks.map((ch) => [ch.rooms.length, ch.ports.length, ch.road.reduce((x, v) => x + v, 0)]));
 ok(sig(a) === sig(b), 'the builder is deterministic (same seed ⇒ identical floor)');
-
-// 6) histogram tracks ward mix
 const h = histogram(a);
 ok(h.market >= 1 && h.garden >= 1, 'histogram counts each placed ward biome');
+
+// 6) the plain-hexagon fallback (shape: null) still tiles by translation
+const hx = createBuild(3, { shape: null, v2: false, portsMax: 1 });
+ok(hx.world.chunks[0].poly.length === 6, 'shape:null builds a 6-edge hexagon ward');
+const hf = frontier(hx); const hn = growSide(hx, 0, hf[0].sideK, 'commons');
+ok(hn === 1 && reach(hx.world), 'the hexagon floor grows + connects too');
 
 console.log(`builder.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
