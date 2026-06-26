@@ -70,15 +70,18 @@ button.off{opacity:.45}
     <input id="sFric" type="range" min="0" max="1" step="0.02" value="0.5"></div>
   <div class="row"><label>bounce <span id="vRest"></span></label>
     <input id="sRest" type="range" min="0" max="0.6" step="0.02" value="0.16"></div>
+  <div class="row"><label>resolution <span id="vRes"></span></label>
+    <input id="sRes" type="range" min="0.35" max="1" step="0.05" value="1"></div>
   <div class="btns">
     <button id="bFlip">⟲ flip</button>
     <button id="bReset">reset</button>
   </div>
   <div class="btns">
+    <button id="bPerf">perf: auto</button>
     <button id="bSpin" class="off">auto-spin</button>
     <button id="bGyro" class="off">tilt: gyro</button>
   </div>
-  <div class="note">Drag to tilt the glass. Orifice + grain size set the timer (Beverloo flow). Grains/Ø apply on release (resets).</div>
+  <div class="note">Perf handles: <b>resolution</b> (the big one — scales the glass raymarch) and <b>grains</b> (physics cost). Auto holds ~55fps by adapting resolution. Drag to tilt; orifice + grain size set the timer.</div>
 </div>
 <div id="hint">drag to tilt · pinch / scroll to zoom · ⚙ for controls</div>
 <div id="noGPU">WebGPU not available.<br>Try Chrome 121+ / Edge, or Safari 18+.<br><br>This sim needs GPU compute shaders.</div>
@@ -137,6 +140,9 @@ let tiltX = 0.0, tiltZ = 0.0;     // hourglass tilt (radians)
 let yaw = 0.0, pitch = 0.06;      // camera orbit (mostly fixed; auto-spin adds yaw)
 let camDist = 3.35;               // orbit radius (pinch / wheel zoom)
 let autoSpin = false, useGyro = false;
+let renderScale = 1.0;            // internal-resolution multiplier (perf lever)
+let autoPerf = true;             // adapt renderScale to hold target fps
+const DPR_CAP = 2.0;
 const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
 let flipping = 0;                 // flip animation progress driver
 let flipFrom = 0, flipTo = 0, flipT = 1;
@@ -545,7 +551,9 @@ fn fs(in: VOut)->@location(0) vec4f {
   var t = 0.0;
   var hit = false;
   var hp = vec3f(0.0);
-  for (var k=0; k<96; k++){
+  let maxSteps = i32(C.glass.w);
+  for (var k=0; k<160; k++){
+    if (k >= maxSteps){ break; }
     let p = ro + rd*t;
     let dS = glassSDF(p);
     if (dS < 0.0006){ hit = true; hp = p; break; }
@@ -746,7 +754,9 @@ function writeCam(time){
   a[40]=fwd[0]; a[41]=fwd[1]; a[42]=fwd[2]; a[43]=0;
   a[44]=Math.tan(fovy/2); a[45]=aspect; a[46]=cfg.grainR; a[47]=time;
   a[48]=cfg.orifice; a[49]=GEO.Rmax; a[50]=GEO.hf; a[51]=GEO.H;
-  a[52]=GEO.thick; a[53]=1.5; a[54]=GEO.hc; a[55]=0;   // glass.z = cylinder top
+  // glass.z = cylinder top; glass.w = raymarch step budget (cheaper at low res)
+  const gSteps = renderScale < 0.55 ? 52 : (renderScale < 0.8 ? 72 : 96);
+  a[52]=GEO.thick; a[53]=1.5; a[54]=GEO.hc; a[55]=gSteps;
   device.queue.writeBuffer(camBuf, 0, a);
 }
 
@@ -855,7 +865,14 @@ function frame(now){
 
   // HUD
   frames++;
-  if (now - fpsT > 500){ fps = Math.round(frames*1000/(now-fpsT)); frames=0; fpsT=now; }
+  if (now - fpsT > 500){
+    fps = Math.round(frames*1000/(now-fpsT)); frames=0; fpsT=now;
+    // adaptive resolution: nudge toward ~55fps with hysteresis (no thrash)
+    if (autoPerf && fps > 0){
+      if (fps < 46 && renderScale > 0.36){ renderScale = Math.max(0.35, renderScale*0.86); resize(); syncResUI(); }
+      else if (fps > 58 && renderScale < 1.0){ renderScale = Math.min(1.0, renderScale*1.07); resize(); syncResUI(); }
+    }
+  }
   const below = drainState.below||0;
   const pct = nGrains? Math.round(below/nGrains*100):0;
   let eta='—';
@@ -865,7 +882,7 @@ function frame(now){
     `drained ${pct}%   flow ${Math.max(0,Math.round(drainState.rate))}/s\n` +
     `est full drain  ${eta}\n` +
     `orifice/Ø  ${(cfg.orifice/(cfg.grainR*2)).toFixed(1)}×\n` +
-    `${fps} fps`;
+    `${fps} fps  ·  res ${Math.round(renderScale*100)}%${autoPerf?' auto':''}`;
 }
 
 // ── Interaction ────────────────────────────────────────────────────────────
@@ -930,6 +947,21 @@ function setupInput(){
   bindLive('sFric','friction', v=>v.toFixed(2));
   bindLive('sRest','rest', v=>v.toFixed(2));
 
+  // resolution slider (manual): dragging it turns auto-perf off
+  const sRes=document.getElementById('sRes');
+  const bPerf=document.getElementById('bPerf');
+  syncResUI();
+  sRes.addEventListener('input', ()=>{
+    autoPerf=false; bPerf.textContent='perf: manual'; bPerf.classList.add('off');
+    renderScale=parseFloat(sRes.value); document.getElementById('vRes').textContent=Math.round(renderScale*100)+'%';
+    resize();
+  });
+  bPerf.addEventListener('click', ()=>{
+    autoPerf=!autoPerf;
+    bPerf.textContent = autoPerf? 'perf: auto':'perf: manual';
+    bPerf.classList.toggle('off', !autoPerf);
+  });
+
   document.getElementById('bReset').addEventListener('click', doReset);
   document.getElementById('bFlip').addEventListener('click', ()=>{
     flipFrom = tiltX; flipTo = tiltX + Math.PI; flipT = 0;   // 180° rock about X
@@ -964,11 +996,17 @@ function doReset(){
 }
 
 function resize(){
-  dpr = Math.min(window.devicePixelRatio||1, 2);
-  W = Math.max(1, Math.floor(canvas.clientWidth*dpr));
-  H2 = Math.max(1, Math.floor(canvas.clientHeight*dpr));
+  dpr = Math.min(window.devicePixelRatio||1, DPR_CAP);
+  const s = dpr * renderScale;
+  W  = Math.max(1, Math.floor(canvas.clientWidth  * s));
+  H2 = Math.max(1, Math.floor(canvas.clientHeight * s));
   canvas.width=W; canvas.height=H2;
   makeTargets();
+}
+function syncResUI(){
+  const el=document.getElementById('sRes'), out=document.getElementById('vRes');
+  if(el){ el.value=renderScale.toFixed(2); }
+  if(out){ out.textContent = Math.round(renderScale*100)+'%'; }
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────
