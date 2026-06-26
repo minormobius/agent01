@@ -67,6 +67,28 @@ const wide2 = solveChunk({ v2: true, seed: 4, W: 1125, H: 750, roomSize: 14, foo
 const wide1 = solveChunk({ v2: true, seed: 4, W: 1125, H: 750, roomSize: 14, footprint: FOOT, grand: ['serve', 'learn', 'play'], roleFloors: FLOORS, concourseWidth: 1 });
 ok(degOf(wide2) > degOf(wide1) + 0.8, `concourseWidth 2 is wider than 1 (${degOf(wide2).toFixed(1)} > ${degOf(wide1).toFixed(1)} road-neighbours)`);
 
+// 6c) MICROROOM CLEANUP: post-road slivers are absorbed. With the default microRoom=6 there are far
+// fewer sub-6-cell rooms than with cleanup off — and the few that survive are the protected role floors.
+const tiny = (c, n) => c.rooms.filter((r) => r.cells.length < n).length;
+const clean = solveChunk({ v2: true, seed: 4, W: 1125, H: 750, roomSize: 14, footprint: FOOT, grand: ['serve', 'learn', 'play'], roleFloors: FLOORS });
+const dirty = solveChunk({ v2: true, seed: 4, W: 1125, H: 750, roomSize: 14, footprint: FOOT, grand: ['serve', 'learn', 'play'], roleFloors: FLOORS, microRoom: 1 });
+ok(tiny(clean, 6) < tiny(dirty, 6), `microroom cleanup absorbs slivers (${tiny(clean, 6)} < ${tiny(dirty, 6)} sub-6 rooms)`);
+ok(tiny(clean, 6) <= Object.keys(ROLES).length, `surviving microrooms are just protected role floors (${tiny(clean, 6)} ≤ ${Object.keys(ROLES).length})`);
+
+// 6d) EDGE MARGIN: the concourse is banished from the edge — far less road hugs depth 1-2 from the rim
+// than with the margin off, so edge rooms get real depth instead of being skrawny rim slivers.
+const shallowRoad = (c, margin) => {
+  const N = c.cells.length, rim = (i) => c.cells[i].poly.some((v) => v[2] === -1);
+  const ed = new Int32Array(N).fill(-1), q = [];
+  for (let i = 0; i < N; i++) if (rim(i)) { ed[i] = 0; q.push(i); }
+  for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of c.adj[u]) if (ed[v] < 0) { ed[v] = ed[u] + 1; q.push(v); } }
+  const portSet = new Set(c.ports.map((p) => p.cell).filter((x) => x >= 0));
+  let n = 0; for (let i = 0; i < N; i++) if (c.road[i] && !portSet.has(i) && ed[i] >= 1 && ed[i] < margin) n++; return n;
+};
+const m3 = solveChunk({ v2: true, seed: 4, W: 1125, H: 750, roomSize: 14, footprint: FOOT, grand: ['serve', 'learn', 'play'], roleFloors: FLOORS });
+const m1 = solveChunk({ v2: true, seed: 4, W: 1125, H: 750, roomSize: 14, footprint: FOOT, grand: ['serve', 'learn', 'play'], roleFloors: FLOORS, edgeMargin: 1 });
+ok(shallowRoad(m3, 3) < shallowRoad(m1, 3), `edgeMargin 3 keeps road out of the 3-cell rim band (${shallowRoad(m3, 3)} < ${shallowRoad(m1, 3)} shallow road cells)`);
+
 // 7) ROLE FLOORS: at least one of each building type
 const present = new Set(ch.rooms.map((r) => r.role));
 const missing = Object.keys(ROLES).filter((r) => !present.has(r));

@@ -29,7 +29,7 @@ export function solveChunk(opts = {}) {
   // grow the concourse by cell hypoxia (seize), then carve rooms from the leftover tissue (paintRooms).
   let sol, rm;
   if (o.v2) {
-    const rf = solveRoomsFirst(foam, def, { roomSize: o.roomSize, seed, footprint: o.footprint || null, grand: o.grand || null, grandMin: o.grandMin, roleFloors: o.roleFloors || null, roleMix: o.roleMix || null, tension: o.tension || 0, concourseWidth: o.concourseWidth });
+    const rf = solveRoomsFirst(foam, def, { roomSize: o.roomSize, seed, footprint: o.footprint || null, grand: o.grand || null, grandMin: o.grandMin, roleFloors: o.roleFloors || null, roleMix: o.roleMix || null, tension: o.tension || 0, concourseWidth: o.concourseWidth, edgeMargin: o.edgeMargin, microRoom: o.microRoom });
     sol = { road: rf.road, servedFrac: 1 }; rm = { roomOf: rf.roomOf, rooms: rf.rooms };
   } else {
     sol = seize(foam, def, { oxygenReach: o.oxygenReach, concourseWidth: o.concourseWidth, seed });

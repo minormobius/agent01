@@ -38,7 +38,7 @@ pocket plants). Moving the sliders genuinely changes what the chunk grows — an
   see the deformed, tessellating outline as a real chunk. The **tension** slider discourages long skinny
   edge rooms (see below); the readout shows room aspect avg/max + the skinny count.
 
-## ⚡ v2 chunk — one toggle, four bundled changes
+## ⚡ v2 chunk — one toggle, the rooms-first model
 
 The **⚡ v2 chunk** checkbox flips the chunk to a new model in one click, bundling:
 1. **Tessellation shape** — fills the editor-exported tile (no perfect-hex seams).
@@ -49,12 +49,18 @@ The **⚡ v2 chunk** checkbox flips the chunk to a new model in one click, bundl
    and the rim left slivers. v2 **partitions the whole interior into rooms up front** (footprint-weighted
    graph-Voronoi + role floors + surface tension), then grows a **minimal concourse that reaches every
    ROOM** — seeded at the ports, Prim-grown until every room borders road, each room guaranteed a door
-   onto one connected concourse. Oxygen to *rooms*, not cells. Two boundary conditions matter:
-   - **The concourse only paves `canRoad` cells — never the rim, except at the ports.** So the perimeter
-     belongs to *rooms* (you meet rooms on the edge), and the concourse is forced inward instead of
-     looping around the outside. Measured: ~90% of the perimeter is rooms; only the ports touch the edge.
+   onto one connected concourse. Oxygen to *rooms*, not cells. Four boundary conditions matter:
+   - **The concourse is banished from the edge by a margin** (`edgeMargin`, default 3 cells). Road may
+     only pave a port or a cell ≥3 cells in from the rim; each rim port punches a single thin stub
+     straight inward (never running *along* the edge). So the perimeter belongs to *rooms* with real
+     depth — no skrawny rim slivers — and only the ports (+ their stubs) touch the edge. Measured: ~92%
+     of the perimeter is rooms.
    - **The concourse widens to a 2-wide minimum** (`concourseWidth`, default 2, via the shared
      `widenOneSided`) so corridors are ribbons, not hairlines.
+   - **Microroom cleanup** (`microRoom`, default 6): after the eminent-domain road carve, any room under
+     6 cells is absorbed into the neighbouring room it shares the most border with — or, if walled off by
+     concourse on every side, dissolved into the concourse. The role floors are protected (the last room
+     of a required type is never absorbed away). Measured: sub-6 rooms drop ~550 → ~12 over 8 chunks.
 
 Same record contract as v1 (`buildWalk` runs unchanged) — verified in `test/roomsfirst.selftest.mjs`
 (every room reachable from a port through its door, road one component, ports on road, one-of-each).
