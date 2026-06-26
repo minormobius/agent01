@@ -2,9 +2,27 @@
 //   node hoop/chunkroller/test/builder.selftest.mjs
 import { createBuild, growAt, toggleWall, sealFrontier, freeEdges, histogram, biomeOf, closedWallCount } from '../builder.js';
 import { edgeFree, buildWalk } from '../../v099/v8/manager.js';
+import { buildFoam } from '../../v099/v7/foam.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m); } };
+
+// 0) THE SEAM CONTRACT (the clash fix): two chunks whose regions OVERLAP must generate identical Voronoi
+// nuclei in the overlap when they SHARE the foam-lattice seed — that's what makes neighbouring chunks abut
+// without a clash. With DIFFERENT foam seeds the overlap nuclei diverge (the old bug: each chunk sliced its
+// own foam, so the boundary cells didn't line up). buildFoam keys nuclei by (gid, seed).
+function nucleiByGid(region, seed) { const f = buildFoam({ regions: [region], cellSize: 16, depth: 2.4, seed }); const m = new Map(); for (const c of f.cells) m.set(c.gid, [c.x, c.y]); return m; }
+const rA = { x0: 0, y0: 0, x1: 320, y1: 320 }, rB = { x0: 160, y0: 0, x1: 480, y1: 320 };   // overlap x∈[160,320]
+{
+  const a = nucleiByGid(rA, 99), b = nucleiByGid(rB, 99);
+  let shared = 0, same = 0; for (const [g, p] of a) if (b.has(g)) { shared++; const q = b.get(g); if (Math.abs(p[0] - q[0]) < 1e-9 && Math.abs(p[1] - q[1]) < 1e-9) same++; }
+  ok(shared > 40 && same === shared, `SHARED foam seed ⇒ overlap nuclei bit-identical, no clash (${same}/${shared})`);
+}
+{
+  const a = nucleiByGid(rA, 1), b = nucleiByGid(rB, 2);
+  let shared = 0, same = 0; for (const [g, p] of a) if (b.has(g)) { shared++; const q = b.get(g); if (Math.abs(p[0] - q[0]) < 1e-9 && Math.abs(p[1] - q[1]) < 1e-9) same++; }
+  ok(shared > 40 && same < shared * 0.05, `DIFFERENT foam seeds ⇒ overlap nuclei CLASH (${same}/${shared} identical — the old bug)`);
+}
 
 // 1) a fresh build is one centred hex chunk
 const s = createBuild(7, { v2: true, portsMax: 1 });
@@ -30,6 +48,15 @@ ok(!edgeFree(s.world, s.world.chunks[0], fe[0].edge), 'the grown edge is no long
 // 2b) the two chunks share a seam crossing — a port at the same location on both
 function seamShared(a, b) { const A = new Set(a.ports.map((p) => Math.round(p.x) + ',' + Math.round(p.y))); return b.ports.some((p) => A.has(Math.round(p.x) + ',' + Math.round(p.y))); }
 ok(seamShared(s.world.chunks[0], s.world.chunks[1]), 'the seam port is shared by both chunks (concourse crosses)');
+
+// 2d) NO CLASH: the two abutting chunks slice the SAME global foam, so no cell of one sits (nearly)
+// on top of a cell of the other — their interiors are complementary halves of one lattice.
+{
+  const A = s.world.chunks[0].cells, B = s.world.chunks[1].cells, cs = s.world.chunks[0].cellSize;
+  let minD = Infinity;
+  for (const a of A) for (const b of B) { const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2; if (d < minD) minD = d; }
+  ok(Math.sqrt(minD) > cs * 0.3, `abutting chunks don't overlap — closest cross-seam cells ${Math.sqrt(minD).toFixed(1)}px apart (> ${(cs * 0.3).toFixed(1)})`);
+}
 
 // 2c) the walk graph reaches the neighbour from chunk 0 (the floor is one connected world)
 function reach(world) {

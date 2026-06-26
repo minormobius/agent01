@@ -37,7 +37,7 @@ export function growFloor(floorSeed, { count = 9, depth = 1, W = 900, H = 600, p
     const bk = chunkBiomeAt(floorSeed, cx, cy);
     const grand = BIOME_GRAND[bk] || GRAND_ROLES;
     const rec = solveChunk({
-      ...opts, seed: (floorSeed ^ (world.chunks.length * 0x9e37 + 0x51)) >>> 0, W, H,
+      ...opts, seed: (floorSeed ^ (world.chunks.length * 0x9e37 + 0x51)) >>> 0, foamSeed: floorSeed, W, H,
       roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM,
       roleMix: mixFromSliders(BIOMES[bk].sliders), portRange,
     });

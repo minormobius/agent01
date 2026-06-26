@@ -100,6 +100,10 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
   - **🎲 auto-grow** grows a compact hand of random-biome wards off the current floor; **↺ reset** starts
     over from one centred chunk. The floor stays one connected walk-graph world throughout (seams cross at
     the shared ports; closed walls carry none).
+  - **No seam clash.** Every ward on a floor slices the SAME global Voronoi foam — `solveChunk` takes a
+    `foamSeed` (the shared floor seed) SEPARATE from each ward's per-chunk `seed`. So two neighbours'
+    boundary cells are bit-identical and abut cleanly, instead of each chunk slicing its own foam and the
+    seam tiling colliding (the old bug). The per-chunk seed still varies ports/rooms/roles ward to ward.
   - The older auto-grower (`floor.js#growFloor` + `chunkBiomeAt` + edge tiles) is still present and
     node-tested, but the UI now drives the hand-builder instead.
 
@@ -120,7 +124,7 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
 | `test/stability.selftest.mjs` | 12 checks — sampler determinism, all-homes < balanced, the solver never worsens stability |
 | `test/civic.selftest.mjs` | 20 checks — slider rollup, the civic field over a real chunk, NPC stats, biome biasing |
 | `test/floor.selftest.mjs` | 17 checks — deterministic floor, edge tiles seal the rim, ward variety, no-baddies gate |
-| `test/builder.selftest.mjs` | 22 checks — click-to-grow connects, closed walls carry 0 ports, seal-frontier keeps the floor one walk world, determinism |
+| `test/builder.selftest.mjs` | 25 checks — the seam contract (shared foamSeed ⇒ identical overlap nuclei, no clash), click-to-grow connects, closed walls carry 0 ports, seal-frontier keeps the floor one walk world, determinism |
 | `test/tess.selftest.mjs` | 17 checks — deformed edges keep zero tessellation gap; export round-trips |
 
 ## Stability model (backing the room distribution)

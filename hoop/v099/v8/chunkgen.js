@@ -22,8 +22,14 @@ function bbox(poly) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const v
 // otherwise the chunk is generated over its own bbox and `inherit` carries the shared-edge ports.
 export function solveChunk(opts = {}) {
   const o = { ...DEFAULTS, ...opts }, seed = (o.seed ?? 1) >>> 0;
+  // THE FOAM-LATTICE SEED is SEPARATE from the per-chunk seed. The 3D Voronoi nuclei live on a global
+  // jittered lattice keyed by (gid, foamSeed); two chunks that share `foamSeed` slice the SAME global foam,
+  // so their boundary cells are bit-identical and abut WITHOUT A CLASH (the seam tiling lines up). A floor
+  // passes ONE shared foamSeed to every chunk; the per-chunk `seed` still drives ports/rooms/roles (which
+  // SHOULD vary per chunk). Default: foamSeed = seed, so a lone chunk is unchanged.
+  const foamSeed = (o.foamSeed ?? o.seed ?? 1) >>> 0;
   const region = o.poly ? bbox(o.poly) : { x0: 0, y0: 0, x1: o.W, y1: o.H };
-  const foam = buildFoam({ regions: [region], cellSize: o.cellSize, depth: o.depth, seed, W: o.W, H: o.H });
+  const foam = buildFoam({ regions: [region], cellSize: o.cellSize, depth: o.depth, seed: foamSeed, W: o.W, H: o.H });
   const def = defineChunk(foam, { seed, poly: o.poly, inherit: o.inherit || [], shape: o.poly ? null : (o.shape === 'auto' ? null : o.shape), portRange: o.portRange || [1, 1], sideOf: o.sideOf || null, closedSides: o.closedSides || null });
   // v2 chunk: GROW ROOMS FIRST, then path a concourse to reach every room (roomsfirst.js). v1 default:
   // grow the concourse by cell hypoxia (seize), then carve rooms from the leftover tissue (paintRooms).

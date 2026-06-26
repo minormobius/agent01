@@ -21,7 +21,7 @@ const ONE_OF_EACH = Object.fromEntries(Object.keys(ROLES).map((r) => [r, 1]));  
 function solveWard(state, seedC, poly, inherit, biome, closed) {
   const b = BIOMES[biome] || BIOMES.wild;
   return solveChunk({
-    seed: seedC, W: state.W, H: state.H, poly: poly || undefined, inherit: inherit || [],
+    seed: seedC, foamSeed: state.seed, W: state.W, H: state.H, poly: poly || undefined, inherit: inherit || [],
     shape: poly ? null : 'hex', roomSize: 14, footprint: TRAFFIC_FOOTPRINT,
     grand: BIOME_GRAND[biome] || GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM,
     roleMix: mixFromSliders(b.sliders), portRange: [1, state.portsMax],
