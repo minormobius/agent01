@@ -19,7 +19,7 @@
 // Pure + deterministic (seed in → identical chunk on every machine, atproto-stable). Zero side
 // effects; the page only draws what these return. Pinned by hoop/test/v7.selftest.mjs.
 
-import { mulberry32, bucketGrid, assignZones } from '../paint/voronoi.js';
+import { mulberry32, bucketGrid, assignZones, relaxZones } from '../paint/voronoi.js';
 import { ROLES, ROLE_MIX, DOMAINS, makePlace } from '../econ/econ.js';
 
 // ── LAYER 1: the base foam — a planar cut through a 3D Voronoi foam (= a 2D power diagram) ────────
@@ -346,7 +346,7 @@ function drawRole(rng, mix = ROLE_MIX) { const tot = mix.reduce((s, m) => s + m[
 // each room carries the role it was sized for (castCharacter honours it). Omitted ⇒ identical to before.
 // `grand`/`grandMin`: plant one grand role as the anchor of any pocket ≥ grandMin room-units.
 // `minRoom`: bulldoze rooms smaller than this many cells (merge into a neighbour / back to concourse).
-export function paintRooms(foam, chunk, solve, { roomSize = 10, seed = 1, footprint = null, grand = null, grandMin = 3, minRoom = 0, roleMix = null } = {}) {
+export function paintRooms(foam, chunk, solve, { roomSize = 10, seed = 1, footprint = null, grand = null, grandMin = 3, minRoom = 0, roleMix = null, tension = 0 } = {}) {
   const road = solve.road, N = foam.cells.length;
   const comp = new Int32Array(N).fill(-1), rooms = [];
   // tissue = interior, non-concourse, and REACHABLE from the concourse. Excluding unreachable cells
@@ -380,7 +380,9 @@ export function paintRooms(foam, chunk, solve, { roomSize = 10, seed = 1, footpr
       } else {
         const k = Math.max(1, Math.round(members.length / roomSize)); weights = new Array(k).fill(1);
       }
-      const sub = assignZones(members.length, subEdges, weights, (seed ^ (cc * 0x9e37)) >>> 0);
+      let sub = assignZones(members.length, subEdges, weights, (seed ^ (cc * 0x9e37)) >>> 0);
+      // SURFACE TENSION (opt-in): relax the long, thin rim zones into compact rooms that reach inward.
+      if (tension > 0) sub = relaxZones(members.length, subEdges, sub, tension);
       const buckets = Array.from({ length: weights.length }, () => []);
       sub.forEach((z, i) => { if (z >= 0 && z < weights.length) buckets[z].push(members[i]); });
       buckets.forEach((mem, zi) => { if (mem.length) rooms.push(roles ? { cells: mem, role: roles[zi] } : { cells: mem }); });
@@ -424,13 +426,67 @@ export function paintRooms(foam, chunk, solve, { roomSize = 10, seed = 1, footpr
       }
     }
   }
+  // SURFACE TENSION (opt-in): the rim tissue forms thin pockets that read as long skinny rooms. A 1-wide
+  // strip has no width to redistribute, so we relieve the tension by MERGING each too-skinny room into the
+  // chunkier neighbour it shares the most border with — the interior room then reaches out to the edge,
+  // and the strip stops being its own thin room. `tension` 0..1 sets how aggressively (lower threshold).
+  if (tension > 0) {
+    const aspThresh = Math.max(2.4, 4.6 - tension * 2.4), maxGrow = Math.round(roomSize * (2 + tension * 2));
+    const aspectOf = (cl) => {
+      if (cl.length < 3) return 1;
+      let mx = 0, my = 0; for (const c of cl) { mx += foam.cells[c].x; my += foam.cells[c].y; } mx /= cl.length; my /= cl.length;
+      let xx = 0, yy = 0, xy = 0; for (const c of cl) { const dx = foam.cells[c].x - mx, dy = foam.cells[c].y - my; xx += dx * dx; yy += dy * dy; xy += dx * dy; }
+      xx /= cl.length; yy /= cl.length; xy /= cl.length;
+      const tr = xx + yy, disc = Math.sqrt(Math.max(0, tr * tr / 4 - (xx * yy - xy * xy)));
+      return Math.sqrt((tr / 2 + disc) / Math.max(1e-6, tr / 2 - disc));
+    };
+    const roomCells = () => { const m = new Map(); for (const i of chunk.interior) { const z = roomOf[i]; if (z >= 0) { let a = m.get(z); if (!a) { a = []; m.set(z, a); } a.push(i); } } return m; };
+    // PASS A — a skinny room that touches another ROOM merges into the chunkiest neighbour (reach inward).
+    let again = true, guard = 0;
+    while (again && guard++ < 40) {
+      again = false; const byRoom = roomCells();
+      for (const [id, cl] of byRoom) {
+        if (!cl.length || cl.length > maxGrow || aspectOf(cl) <= aspThresh) continue;
+        const share = new Map();
+        for (const c of cl) for (const v of foam.adj[c]) { const z = roomOf[v]; if (z >= 0 && z !== id) share.set(z, (share.get(z) || 0) + 1); }
+        if (!share.size) continue;
+        let bz = -1, bs = -1, basp = Infinity;
+        for (const [z, s] of share) { const za = aspectOf(byRoom.get(z) || []); if (s > bs || (s === bs && za < basp)) { bs = s; bz = z; basp = za; } }
+        if (bz >= 0) { for (const c of cl) roomOf[c] = bz; again = true; }
+      }
+    }
+    // PASS B — a skinny room hemmed in by concourse GROWS into adjacent road cells (reaches into the
+    // corridor), one cell at a time toward the most compact shape. Guarded: never take a port cell, and
+    // never take a road cell whose removal would disconnect the concourse.
+    const roadOkWithout = (c) => {
+      const nb = foam.adj[c].filter((v) => road[v] && !chunk.ghost[v]);
+      if (nb.length <= 1) return true;
+      const seen = new Set([nb[0]]), q = [nb[0]];
+      for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (v === c || !road[v] || chunk.ghost[v] || seen.has(v)) continue; seen.add(v); q.push(v); } }
+      return nb.every((v) => seen.has(v));
+    };
+    again = true; guard = 0;
+    while (again && guard++ < 80) {
+      again = false; const byRoom = roomCells();
+      for (const [id, cl] of byRoom) {
+        if (!cl.length || cl.length > maxGrow || aspectOf(cl) <= aspThresh) continue;
+        let best = -1, bestAsp = aspectOf(cl);
+        for (const c of cl) for (const v of foam.adj[c]) {
+          if (!road[v] || chunk.ghost[v] || roomOf[v] >= 0 || (chunk.portCells && chunk.portCells.has(v)) || !roadOkWithout(v)) continue;
+          const na = aspectOf(cl.concat(v));
+          if (na < bestAsp - 0.02) { bestAsp = na; best = v; }
+        }
+        if (best >= 0) { road[best] = 0; roomOf[best] = id; again = true; }
+      }
+    }
+  }
   // recompact: spurs stole cells from their old rooms, so rebuild membership + drop emptied rooms
   const cellsOf = rooms.map(() => []);
   for (const i of chunk.interior) { const z = roomOf[i]; if (z >= 0 && z < rooms.length) cellsOf[z].push(i); }
   rooms.forEach((r, id) => { r.cells = cellsOf[id]; });
   const live = rooms.filter((r) => r.cells.length);
   const roomOf2 = new Int32Array(N).fill(-1);
-  live.forEach((r, id) => { r.id = id; const ctr = centroid(foam.cells, r.cells); r.x = ctr.x; r.y = ctr.y; r.cells.forEach((c) => { roomOf2[c] = id; }); if (r.door >= 0 && roomOf2[r.door] !== id) assignDoor(r); });
+  live.forEach((r, id) => { r.id = id; const ctr = centroid(foam.cells, r.cells); r.x = ctr.x; r.y = ctr.y; r.cells.forEach((c) => { roomOf2[c] = id; }); if (tension > 0 || (r.door >= 0 && roomOf2[r.door] !== id)) assignDoor(r); });
   const doored = live.filter((r) => r.door >= 0).length;
   return { rooms: live, roomOf: roomOf2, road, stats: { rooms: live.length, doored, avgCells: live.length ? live.reduce((s, r) => s + r.cells.length, 0) / live.length : 0 } };
 }

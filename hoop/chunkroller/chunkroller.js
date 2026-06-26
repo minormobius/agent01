@@ -17,7 +17,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': 
 const TIER_COLOR = { Thriving: '#5fd08a', Healthy: '#8fd06a', Stable: '#d8c45a', Fragile: '#e0a05a', Failing: '#e0635a' };
 const domHue = {}; DOMAINS.forEach((d, i) => { domHue[d.id] = Math.round((i / DOMAINS.length) * 320); });
 
-let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', floorN = 9, portsMax = 4, csize = 1, useShape = false;
+let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', floorN = 9, portsMax = 4, csize = 1, useShape = false, tension = 0;
 let chunk = null, civic = null, roster = null, sel = -1, view = { s: 1, ox: 0, oy: 0 };
 let floor = null, selChunk = -1;
 
@@ -46,6 +46,7 @@ $('floorN').addEventListener('input', (e) => { floorN = +e.target.value; $('floo
 $('portsMax').addEventListener('input', (e) => { portsMax = +e.target.value; $('portsMaxv').textContent = portsMax; generate(); });
 $('csize').addEventListener('input', (e) => { csize = +e.target.value; $('csizev').textContent = csize.toFixed(2).replace(/0$/, '') + '×'; generate(); });
 $('useShape').addEventListener('change', (e) => { useShape = e.target.checked; generate(); });
+$('tension').addEventListener('input', (e) => { tension = +e.target.value; $('tensionv').textContent = tension.toFixed(1); generate(); });
 $('stabilize').addEventListener('click', () => {
   const btn = $('stabilize'); btn.disabled = true; btn.textContent = '⚖ solving…';
   setTimeout(() => {
@@ -63,7 +64,7 @@ function generateChunk() {
   const grand = BIOME_GRAND[biome] || GRAND_ROLES;
   const Wc = Math.round(W * csize), Hc = Math.round(H * csize);
   const shapeOpt = useShape ? { poly: shapePoly(SAMPLE_SHAPE, Wc / 2, Hc / 2, Math.min(Wc, Hc) * 0.46), sideOf: shapeSideOf(SAMPLE_SHAPE) } : { shape: 'hex' };
-  chunk = solveChunk({ ...shapeOpt, seed, W: Wc, H: Hc, roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix, portRange: [1, portsMax] });
+  chunk = solveChunk({ ...shapeOpt, seed, W: Wc, H: Hc, roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix, portRange: [1, portsMax], tension });
   civic = scoreChunk(chunk.rooms, Wc, Hc, seed);
   roster = npcRoster(civic.society);
   sel = -1; $('dossier').classList.remove('on');
@@ -174,12 +175,26 @@ function renderChunk() {
 
 // ── readout ──
 function bar(v, color, w = 1) { return `<span class="bar"><i style="width:${Math.round(Math.max(0, Math.min(1, v)) * 100)}%;background:${color}"></i></span>`; }
+// per-room PCA aspect ratio (long axis / short) — the skinniness metric the tension knob lowers.
+function roomAspects() {
+  const A = [];
+  for (const r of chunk.rooms) {
+    if (r.cells.length < 3) { A.push(1); continue; }
+    let mx = 0, my = 0; for (const c of r.cells) { mx += chunk.cells[c].x; my += chunk.cells[c].y; } mx /= r.cells.length; my /= r.cells.length;
+    let xx = 0, yy = 0, xy = 0; for (const c of r.cells) { const dx = chunk.cells[c].x - mx, dy = chunk.cells[c].y - my; xx += dx * dx; yy += dy * dy; xy += dx * dy; }
+    xx /= r.cells.length; yy /= r.cells.length; xy /= r.cells.length;
+    const tr = xx + yy, disc = Math.sqrt(Math.max(0, tr * tr / 4 - (xx * yy - xy * xy)));
+    A.push(Math.sqrt((tr / 2 + disc) / Math.max(1e-6, tr / 2 - disc)));
+  }
+  return { avg: A.length ? A.reduce((s, x) => s + x, 0) / A.length : 0, max: A.length ? Math.max(...A) : 0, skinny: A.filter((x) => x > 4).length };
+}
 function readout() {
   const v = civic.vital, soc = civic.society, met = civic.metrics, f = civic.field;
   $('vital').innerHTML = `<b class="big" style="color:${TIER_COLOR[v.tier] || '#ccc'}">${v.vitality} · ${v.tier}</b><br><span style="color:#9aa3b5">${esc(v.headline || '')}</span>`;
   const SIGS = [['closes', 'closure'], ['thick', 'thickness'], ['weave', 'weave'], ['bridges', 'bridges'], ['thirds', 'third-places'], ['employ', 'employed'], ['resilient', 'resilience']];
   $('signals').innerHTML = SIGS.map(([k, lab]) => `<div class="sig"><span class="l">${lab}</span>${bar(v.signals[k], '#7fb0d8')}<b style="color:#b9c0cf;width:30px;text-align:right">${Math.round((v.signals[k] || 0) * 100)}</b></div>`).join('');
-  $('metrics').innerHTML = `cells <b>${chunk.cells.length}</b> · rooms <b>${chunk.rooms.length}</b> · ports <b>${chunk.ports.length}</b> · closure <b>${Math.round(f.closure * 100)}%</b><br>people <b>${soc.people.length}</b> · avg hats <b>${soc.avgHats.toFixed(2)}</b> · third-place <b>${Math.round(soc.thirdsFrac * 100)}%</b> · reach <b>~${Math.round(met.avgReach)}</b>`;
+  const asp = roomAspects();
+  $('metrics').innerHTML = `cells <b>${chunk.cells.length}</b> · rooms <b>${chunk.rooms.length}</b> · ports <b>${chunk.ports.length}</b> · closure <b>${Math.round(f.closure * 100)}%</b><br>room aspect avg <b>${asp.avg.toFixed(2)}</b> · max <b>${asp.max.toFixed(1)}</b> · skinny(&gt;4) <b>${asp.skinny}</b><br>people <b>${soc.people.length}</b> · avg hats <b>${soc.avgHats.toFixed(2)}</b> · third-place <b>${Math.round(soc.thirdsFrac * 100)}%</b> · reach <b>~${Math.round(met.avgReach)}</b>`;
   const counts = f.counts;
   $('rolecounts').innerHTML = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([role, n]) => `<span title="${role}" style="color:${(ROLES[role] || {}).color || '#999'}">${(ROLES[role] || {}).glyph || '·'} ${role} <b style="color:#e6e8ee">${n}</b></span>`).join('');
   // people

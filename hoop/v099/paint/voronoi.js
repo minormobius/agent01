@@ -132,6 +132,49 @@ export function assignZones(roomCount, adjEdges, weights, seed) {
   for (let i = 0; i < roomCount; i++) if (zoneOf[i] === -1) { let z = -1; for (const v of adj[i]) if (zoneOf[v] >= 0) { z = zoneOf[v]; break; } zoneOf[i] = z >= 0 ? z : 0; }
   return zoneOf;
 }
+// SURFACE TENSION over zones (a cellular-Potts relaxation). assignZones grows zones by graph-distance,
+// which runs them long and thin along narrow bands (the rim strip is the worst case). This relaxes the
+// labelling toward LOW total inter-zone boundary (surface tension) while holding each zone near its
+// initial AREA (so rooms reshape into compact blobs reaching inward, instead of dissolving). Greedy +
+// deterministic + connectivity-preserving. `strength` 0..1 scales how hard the area constraint binds and
+// how many sweeps run; 0 ⇒ a no-op (returns the input untouched). Opt-in from paintRooms.
+export function relaxZones(roomCount, adjEdges, zoneOf, strength = 0.5) {
+  if (!(strength > 0) || !roomCount) return zoneOf;
+  const adj = Array.from({ length: roomCount }, () => []);
+  for (const e of adjEdges) { adj[e.a].push(e.b); adj[e.b].push(e.a); }
+  const z = Int32Array.from(zoneOf), nZones = Math.max(...z) + 1;
+  const size = new Int32Array(nZones); for (let i = 0; i < roomCount; i++) size[z[i]]++;
+  const target = Int32Array.from(size);                 // hold each room near the area assignZones gave it
+  const J = 1, lambda = 0.35 + strength * 1.2, minKeep = 2, iters = 3 + Math.round(strength * 7);
+  // does removing c keep its zone `cur` connected? local BFS within cur over c's cur-neighbours.
+  const staysConnected = (c, cur) => {
+    const nb = adj[c].filter((v) => z[v] === cur);
+    if (nb.length <= 1) return true;
+    const seen = new Set([nb[0]]), q = [nb[0]];
+    for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of adj[u]) { if (v === c || z[v] !== cur || seen.has(v)) continue; seen.add(v); q.push(v); } }
+    return nb.every((v) => seen.has(v));
+  };
+  for (let it = 0; it < iters; it++) {
+    let changed = false;
+    for (let c = 0; c < roomCount; c++) {
+      const cur = z[c]; if (size[cur] <= minKeep) continue;
+      const cnt = new Map(); let inCur = 0;
+      for (const v of adj[c]) { if (z[v] === cur) inCur++; else cnt.set(z[v], (cnt.get(z[v]) || 0) + 1); }
+      if (cnt.size === 0) continue;                     // interior cell, not on a boundary
+      let bestT = -1, bestDE = -1e-9;
+      for (const [t, cntT] of cnt) {
+        const dSurf = J * (inCur - cntT);                                            // fewer cut pairs ⇒ negative
+        const a = size[cur] - target[cur], b = size[t] - target[t];
+        const dArea = lambda * (((a - 1) * (a - 1) - a * a) + ((b + 1) * (b + 1) - b * b));  // keep areas near target
+        const dE = dSurf + dArea;
+        if (dE < bestDE) { bestDE = dE; bestT = t; }
+      }
+      if (bestT >= 0 && staysConnected(c, cur)) { z[c] = bestT; size[cur]--; size[bestT]++; changed = true; }
+    }
+    if (!changed) break;
+  }
+  return z;
+}
 // a "program": mostly unit zones (weight 1 ≈ `zoneSize` rooms), a spread of `mixed` larger ones (×4).
 export function programWeights(roomCount, zoneSize, mixed, seed) {
   const n = Math.max(1, Math.round(roomCount / Math.max(1, zoneSize))), w = new Array(n).fill(1);

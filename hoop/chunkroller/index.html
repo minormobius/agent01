@@ -81,6 +81,7 @@
       <label class="row" title="max concourse ports per SIDE (direction) — the chunk-to-chunk crossings. Allocated per direction, so a tessellation shape's many segments still get a few ports, not one each. Tune down for fewer seams."><span class="l">ports/side</span><input type="range" id="portsMax" min="1" max="4" step="1" value="4"><b id="portsMaxv">4</b></label>
       <label class="row" title="scale the chunk up (more rooms, more cells). See the readout for cell count / perf."><span class="l">size</span><input type="range" id="csize" min="1" max="2.5" step="0.25" value="1"><b id="csizev">1.0×</b></label>
       <label class="row" title="fill a tessellating editor shape instead of a perfect hexagon"><input type="checkbox" id="useShape"> ▰ tessellation shape</label>
+      <label class="row" title="discourage long skinny edge rooms — slivers grow into the corridor / merge inward toward compact rooms"><span class="l">tension</span><input type="range" id="tension" min="0" max="1" step="0.1" value="0"><b id="tensionv">0</b></label>
       <div class="btns">
         <button id="roll" class="primary" style="flex:1">🎲 roll chunk</button>
         <button id="reseed" title="same biome, new seed">↻ seed</button>

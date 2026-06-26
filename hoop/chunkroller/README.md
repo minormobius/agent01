@@ -35,7 +35,23 @@ pocket plants). Moving the sliders genuinely changes what the chunk grows — an
   tessellation shape's ~30 boundary segments still get a few ports total (e.g. 6 at ports/side=1), not one
   each. The **size** slider scales the chunk (1–2.5×; bigger = more rooms/cells, see perf below). **▰
   tessellation shape** fills an editor-exported shape (`shapes.js`) instead of a perfect hexagon, so you
-  see the deformed, tessellating outline as a real chunk.
+  see the deformed, tessellating outline as a real chunk. The **tension** slider discourages long skinny
+  edge rooms (see below); the readout shows room aspect avg/max + the skinny count.
+
+## Surface tension — discouraging long skinny edge rooms
+
+The rim tissue forms thin pockets that read as long skinny rooms — and the worst are slivers hemmed in by
+the concourse, with no room neighbour to merge into and (being 1-wide) no width to redistribute. The
+engine's new `tension` option (0..1, additive, default 0 → unchanged) relieves this in `paintRooms`:
+- **Pass A** — a skinny room that touches another *room* merges into the chunkiest neighbour (the interior
+  room reaches out to the edge).
+- **Pass B** — a skinny room hemmed in by *concourse* grows into adjacent road cells, one at a time toward
+  the most compact shape — "reaching into the corridor." Guarded: never takes a port cell, and never a road
+  cell whose removal would disconnect the concourse (so the corridor network stays whole).
+
+Skinniness is the per-room PCA aspect ratio (long axis / short). Measured: tension 0.8 on a sample chunk
+took the worst room from aspect **12.8 → 5.4** and average **3.08 → 2.26**, road still fully connected,
+solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
 - **⬡ bounded floor** — a finite hand of ~7–10 chunks grown off the real tiler, each painted by its
   **ward biome**, the **edge tiles** drawn as a gold sealed rim, and **☮ floor 1 — no baddies** on the
   readout. Click a ward → its civic vitality. The model lives in `floor.js`:

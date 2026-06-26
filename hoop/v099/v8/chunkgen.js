@@ -25,7 +25,7 @@ export function solveChunk(opts = {}) {
   const foam = buildFoam({ regions: [region], cellSize: o.cellSize, depth: o.depth, seed, W: o.W, H: o.H });
   const def = defineChunk(foam, { seed, poly: o.poly, inherit: o.inherit || [], shape: o.poly ? null : (o.shape === 'auto' ? null : o.shape), portRange: o.portRange || [1, 4], sideOf: o.sideOf || null });
   const sol = seize(foam, def, { oxygenReach: o.oxygenReach, concourseWidth: o.concourseWidth, seed });
-  const rm = paintRooms(foam, def, sol, { roomSize: o.roomSize, seed, footprint: o.footprint || null, grand: o.grand || null, grandMin: o.grandMin, minRoom: o.minRoom || 0, roleMix: o.roleMix || null });
+  const rm = paintRooms(foam, def, sol, { roomSize: o.roomSize, seed, footprint: o.footprint || null, grand: o.grand || null, grandMin: o.grandMin, minRoom: o.minRoom || 0, roleMix: o.roleMix || null, tension: o.tension || 0 });
   const cast = castCharacter(rm.rooms, { seed, roleMix: o.roleMix || null });
 
   // pack interior cells into a compact LOCAL index space, with poly-edge neighbour labels in LOCAL ids
