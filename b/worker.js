@@ -5,6 +5,7 @@
 // Stateless: feeds live entirely on ATProto, no database.
 import { evaluate } from './feedgen/pipeline.js';
 import * as gc from './lib/gc.js';
+import { circle as squaresCircle } from './squares/circle.js';
 
 const FEED_HOST = 'b.mino.mobi';
 const SERVICE_DID = `did:web:${FEED_HOST}`;
@@ -22,8 +23,10 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), { status
 // deploy-b.yml from the GH secrets). Degrades cleanly if unset.
 let _svc = null;
 async function serviceToken(env) {
-  const handle = env.BLUESKY_MORPHYX_HANDLE || env.FEEDGEN_BSKY_HANDLE;
-  const pass = env.BLUESKY_MORPHYX_APP_PASSWORD || env.FEEDGEN_BSKY_APP_PASSWORD;
+  // Prefer modulo (its app-password is provisioned for these reads and carries
+  // a higher authed rate limit); fall back to morphyx / feedgen creds.
+  const handle = env.BLUESKY_MODULO_HANDLE || env.BLUESKY_MORPHYX_HANDLE || env.FEEDGEN_BSKY_HANDLE;
+  const pass = env.BLUESKY_MODULO_APP_PASSWORD || env.BLUESKY_MORPHYX_APP_PASSWORD || env.FEEDGEN_BSKY_APP_PASSWORD;
   if (!handle || !pass) return null;
   if (_svc && _svc.exp > Date.now()) return _svc.token;
   try {
@@ -163,6 +166,12 @@ export default {
     if (path === '/xrpc/app.bsky.feed.describeFeedGenerator') return json({ did: SERVICE_DID, feeds: [] });
     if (path === '/xrpc/app.bsky.feed.getFeedSkeleton') return getFeedSkeleton(url, env);
     if (path === '/api/feedgen/regex' && request.method === 'POST') return regexAssistant(request, env);
+
+    // ── squares — closest-circle picture toy (server-side fan-out, authed) ────
+    if (path === '/api/squares/circle') {
+      try { return json(await squaresCircle(url.searchParams, env, await serviceToken(env))); }
+      catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
+    }
 
     // ── gc — block intelligence API (read-only, public data, CORS open) ───────
     if (path === '/api/gc' || path === '/api/gc/') return json(gc.discovery(url.origin));

@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>squares — your closest circle, in pictures</title>
-<meta name="description" content="Permissionless Bluesky toy: type a handle and see the accounts they've interacted with most this week, ringed around their avatar — each tile the close account's most-liked picture. Click a tile to make that account the new centre.">
+<meta name="description" content="Permissionless Bluesky toy: type a handle and see the accounts they've interacted with most this week, ringed around their avatar — each tile the close account's most-liked picture. Tap a tile to view it full, tap again to make that account the new centre.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="squares — your closest circle, in pictures">
-<meta property="og:description" content="A handle's closest circle this week, ringed in their friends' best pictures. Click a tile to walk the graph. Read straight off the public network, no login.">
+<meta property="og:description" content="A handle's closest circle this week, ringed in their friends' best pictures. Tap a tile to view it, tap again to walk the graph. Read straight off the public network, no login.">
 <meta property="og:url" content="https://b.mino.mobi/squares/">
 <meta property="og:image" content="https://mino.mobi/og.png?v=2">
 <meta name="twitter:card" content="summary_large_image">
@@ -58,11 +58,7 @@ form { margin: 22px 0 6px; background: var(--panel); border:1px solid var(--line
 #out { margin-top:24px; }
 .board { position:relative; width:100%; max-width:620px; margin:8px auto 0; aspect-ratio:1/1; }
 .board.shape-hex { max-width:560px; }
-
-/* square 3×3 */
 .grid3 { position:absolute; inset:0; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:10px; }
-
-/* hex ring uses absolute placement (set in JS) */
 .hexring { position:absolute; inset:0; }
 .hexring .cell { position:absolute; }
 
@@ -81,14 +77,13 @@ form { margin: 22px 0 6px; background: var(--panel); border:1px solid var(--line
 .cell .lk { font:600 11px var(--mono); color:var(--amber); display:flex; align-items:center; gap:3px; }
 .cell.hx .who { display:none; }
 .cell .rank { position:absolute; top:7px; left:8px; font:700 11px var(--mono); color:#fff; background:rgba(4,6,15,0.55); border-radius:6px; padding:2px 6px; pointer-events:none; }
-.cell .open { position:absolute; top:6px; right:7px; width:24px; height:24px; border-radius:7px; background:rgba(4,6,15,0.55); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; opacity:0; transition:opacity .12s; }
-.cell:hover .open { opacity:1; }
-.cell.hx .open { top:14%; right:18%; }
+.cell .zoom { position:absolute; top:6px; right:7px; width:24px; height:24px; border-radius:7px; background:rgba(4,6,15,0.55); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; opacity:0; transition:opacity .12s; pointer-events:none; }
+.cell:hover .zoom { opacity:1; }
+.cell.hx .zoom { top:14%; right:18%; }
 
 /* centre seed */
 .cell.seed { cursor:default; border-color: var(--amber); box-shadow: 0 0 0 2px rgba(255,180,84,0.25), 0 10px 30px rgba(0,0,0,0.5); }
 .cell.seed:hover { transform:none; }
-.cell.seed .img { object-fit:cover; }
 .cell.seed .ring { position:absolute; inset:0; border-radius:inherit; box-shadow: inset 0 0 0 3px rgba(255,180,84,0.55); pointer-events:none; }
 .cell.seed .meta { justify-content:center; }
 .cell.seed .hn { max-width:none; color:#fff; }
@@ -96,9 +91,35 @@ form { margin: 22px 0 6px; background: var(--panel); border:1px solid var(--line
 
 .legend { text-align:center; color:var(--muted); font:500 12px var(--mono); margin-top:14px; }
 .legend b { color:var(--fg); }
+.legend .authed { color:var(--amber); }
 
 .empty { color:var(--muted); margin-top:18px; font-style:italic; text-align:center; }
-.loading { text-align:center; color:var(--muted); font:500 13px var(--mono); padding:40px 0; }
+.loading { text-align:center; color:var(--muted); font:500 13px var(--mono); padding:48px 0; }
+.loading .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--line); border-top-color:var(--amber); border-radius:50%; margin-right:8px; vertical-align:-2px; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── photo viewer (lightbox) ─────────────────────────────────── */
+.lb { position:fixed; inset:0; z-index:50; background:rgba(2,4,10,0.93); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:24px; opacity:0; pointer-events:none; transition:opacity .15s; }
+.lb.show { opacity:1; pointer-events:auto; }
+.lb figure { margin:0; max-width:min(94vw,1040px); display:flex; flex-direction:column; gap:14px; align-items:center; }
+.lb .stage { position:relative; max-width:100%; }
+.lb img.full { display:block; max-width:100%; max-height:76vh; object-fit:contain; border-radius:10px; cursor:zoom-in; box-shadow:0 24px 70px rgba(0,0,0,0.65); background:#0c1830; }
+.lb figcaption { display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center; }
+.lb .cap-id { display:flex; align-items:center; gap:9px; color:var(--fg); font:500 13px var(--mono); }
+.lb .cap-id img { width:30px; height:30px; border-radius:50%; object-fit:cover; background:#0c1830; }
+.lb .cap-id .dn { color:#fff; font-weight:600; }
+.lb .cap-id .lk { color:var(--amber); }
+.lb .enter { background:var(--amber); color:#2a1500; border:0; border-radius:999px; padding:9px 20px; font:700 13px var(--mono); cursor:pointer; }
+.lb .enter:hover { filter:brightness(1.06); }
+.lb .ghost { background:rgba(255,255,255,.07); color:var(--fg); border:1px solid var(--line); border-radius:999px; padding:9px 16px; font:600 12px var(--mono); cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
+.lb .ghost:hover { background:rgba(255,255,255,.14); text-decoration:none; }
+.lb .hint { color:var(--muted); font:500 11px var(--mono); width:100%; text-align:center; margin-top:-2px; }
+.lb .nav { position:absolute; top:50%; transform:translateY(-50%); width:46px; height:46px; border-radius:50%; background:rgba(4,6,15,.6); border:1px solid var(--line); color:#fff; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.lb .nav:hover { background:rgba(4,6,15,.85); border-color:var(--amber); }
+.lb .nav.prev { left:-58px; } .lb .nav.next { right:-58px; }
+.lb .close { position:fixed; top:16px; right:18px; width:42px; height:42px; border-radius:50%; background:rgba(4,6,15,.6); border:1px solid var(--line); color:#fff; font-size:20px; cursor:pointer; }
+.lb .close:hover { border-color:var(--amber); }
+@media (max-width:680px){ .lb .nav.prev{left:6px;} .lb .nav.next{right:6px;} .lb .nav{background:rgba(4,6,15,.78);} }
 
 footer { margin-top:44px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font:500 12px var(--mono); display:flex; gap:14px; flex-wrap:wrap; }
 footer a { color:var(--muted); }
@@ -110,7 +131,7 @@ footer a:hover { color:var(--sky); }
   <a class="crumb" href="/">← b.mino.mobi · the Bluesky corner</a>
   <h1>squares<span class="dot"> ◳</span></h1>
   <p class="sub">your closest circle, in pictures</p>
-  <p class="lede">Type a handle. squares reads who they've <b>interacted with most this week</b> — the accounts they liked, reposted, replied to and quoted — and rings the closest ones around their avatar. Each tile is that friend's <b>most-liked picture of the week</b>. <b>Click a tile</b> and that account drops into the centre: a new circle blooms, and you walk the graph picture by picture. Read straight off the public network — no login, nothing written.</p>
+  <p class="lede">Type a handle. squares reads who they've <b>interacted with most this week</b> — the accounts they liked, reposted, replied to and quoted — and rings the closest ones around their avatar. Each tile is that friend's <b>most-liked picture of the week</b>. <b>Tap a tile</b> to open the photo full; <b>tap it again</b> to drop that account into the centre and bloom a fresh circle. Read straight off the public network — no login, nothing written.</p>
 
   <form id="form" autocomplete="off">
     <div class="fields">
@@ -154,266 +175,153 @@ footer a:hover { color:var(--sky); }
 <script src="/feedgen/typeahead.js"></script>
 
 <script type="module">
-const PUBLIC = 'https://public.api.bsky.app';
 const $ = (id) => document.getElementById(id);
 const statusEl = $('status'), outEl = $('out'), runBtn = $('run'), trailEl = $('trail');
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-function setStatus(msg, err = false) { statusEl.textContent = msg; statusEl.classList.toggle('err', !!err); }
-
-// interaction weights — replies/quotes are the more effortful, "closer" signals
-const W = { like: 1, repost: 2, reply: 3, quote: 4 };
-const MAX_PAGES = 25;       // ceiling per collection scan (≈2500 records)
-const CANDIDATES = 12;      // how many top accounts to probe for a picture
-
-// ── identity ─────────────────────────────────────────────────────────────────
-async function resolveActor(raw) {
-  let s = raw.trim().replace(/^@/, '').replace(/^at:\/\//, '').replace(/^https?:\/\/(bsky\.app\/profile\/)?/, '');
-  s = s.split('/')[0];
-  if (!s) throw new Error('empty handle');
-  if (s.startsWith('did:')) return s;
-  const r = await fetch(`${PUBLIC}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(s)}`);
-  if (!r.ok) throw new Error(`couldn't resolve “${s}”`);
-  const d = await r.json();
-  if (!d.did) throw new Error(`couldn't resolve “${s}”`);
-  return d.did;
-}
-async function resolvePds(did) {
-  let doc;
-  if (did.startsWith('did:plc:')) {
-    const r = await fetch(`https://plc.directory/${did}`);
-    if (!r.ok) throw new Error('PLC lookup failed'); doc = await r.json();
-  } else if (did.startsWith('did:web:')) {
-    const host = did.slice('did:web:'.length).replace(/:/g, '/');
-    const r = await fetch(`https://${host}/.well-known/did.json`);
-    if (!r.ok) throw new Error('did:web lookup failed'); doc = await r.json();
-  } else throw new Error('unsupported DID method');
-  const svc = (doc.service || []).find((s) => s.type === 'AtprotoPersonalDataServer' || s.id === '#atproto_pds');
-  if (!svc) throw new Error('no PDS in DID doc');
-  return svc.serviceEndpoint;
-}
-async function getProfiles(dids) {
-  const out = new Map();
-  for (let i = 0; i < dids.length; i += 25) {
-    const batch = dids.slice(i, i + 25);
-    const u = new URL(`${PUBLIC}/xrpc/app.bsky.actor.getProfiles`);
-    batch.forEach((d) => u.searchParams.append('actors', d));
-    try {
-      const r = await fetch(u); if (!r.ok) continue;
-      const d = await r.json();
-      for (const p of (d.profiles || [])) out.set(p.did, p);
-    } catch {}
-  }
-  return out;
-}
-
-// ── repo scan ──────────────────────────────────────────────────────────────
-// Paginate a collection newest-first, stop once records fall before sinceMs.
-async function scanCollection(pds, did, collection, sinceMs, onRec) {
-  let cursor = '', scanned = 0, stop = false;
-  for (let page = 0; page < MAX_PAGES && !stop; page++) {
-    const u = new URL(`${pds}/xrpc/com.atproto.repo.listRecords`);
-    u.searchParams.set('repo', did);
-    u.searchParams.set('collection', collection);
-    u.searchParams.set('limit', '100');
-    if (cursor) u.searchParams.set('cursor', cursor);
-    let d;
-    try { const r = await fetch(u); if (!r.ok) break; d = await r.json(); } catch { break; }
-    const recs = d.records || [];
-    for (const rec of recs) {
-      const t = rec.value && rec.value.createdAt ? new Date(rec.value.createdAt).getTime() : 0;
-      if (t && t < sinceMs) { stop = true; break; }
-      scanned++; onRec(rec);
-    }
-    if (!d.cursor || recs.length === 0) break;
-    cursor = d.cursor;
-  }
-  return scanned;
-}
-
-function authorOf(uri) {
-  // at://did/collection/rkey → did
-  if (!uri || !uri.startsWith('at://')) return null;
-  return uri.slice(5).split('/')[0] || null;
-}
-
-// Rank the accounts the seed has interacted with in the window.
-async function closestCircle(seedDid, pds, sinceMs) {
-  const counts = new Map(); // did → {did, like, repost, reply, quote, score}
-  const add = (did, type) => {
-    if (!did || did === seedDid) return;
-    let e = counts.get(did);
-    if (!e) { e = { did, like:0, repost:0, reply:0, quote:0, score:0 }; counts.set(did, e); }
-    e[type]++; e.score += W[type];
-  };
-
-  setStatus('reading likes…');
-  await scanCollection(pds, seedDid, 'app.bsky.feed.like', sinceMs, (rec) => {
-    add(authorOf(rec.value && rec.value.subject && rec.value.subject.uri), 'like');
-  });
-
-  setStatus('reading reposts…');
-  await scanCollection(pds, seedDid, 'app.bsky.feed.repost', sinceMs, (rec) => {
-    add(authorOf(rec.value && rec.value.subject && rec.value.subject.uri), 'repost');
-  });
-
-  setStatus('reading replies & quotes…');
-  await scanCollection(pds, seedDid, 'app.bsky.feed.post', sinceMs, (rec) => {
-    const v = rec.value || {};
-    if (v.reply && v.reply.parent && v.reply.parent.uri) add(authorOf(v.reply.parent.uri), 'reply');
-    const emb = v.embed; let qu = null;
-    if (emb) {
-      if (emb.$type === 'app.bsky.embed.record' && emb.record) qu = emb.record.uri;
-      else if (emb.$type === 'app.bsky.embed.recordWithMedia' && emb.record && emb.record.record) qu = emb.record.record.uri;
-    }
-    if (qu && qu.includes('/app.bsky.feed.post/')) add(authorOf(qu), 'quote');
-  });
-
-  return [...counts.values()].sort((a, b) => b.score - a.score || (b.like + b.repost) - (a.like + a.repost));
-}
-
-// ── best picture in the window for one account ───────────────────────────────
-function extractImage(embed) {
-  if (!embed) return null;
-  const fromImages = (im) => im && im.images && im.images.length
-    ? { thumb: im.images[0].thumb, full: im.images[0].fullsize || im.images[0].thumb, alt: im.images[0].alt || '', count: im.images.length }
-    : null;
-  if (embed.$type === 'app.bsky.embed.images#view') return fromImages(embed);
-  if (embed.$type === 'app.bsky.embed.recordWithMedia#view' && embed.media) {
-    if (embed.media.$type === 'app.bsky.embed.images#view') return fromImages(embed.media);
-    if (embed.media.$type === 'app.bsky.embed.video#view' && embed.media.thumbnail)
-      return { thumb: embed.media.thumbnail, full: embed.media.thumbnail, alt: embed.media.alt || '', count: 1, video: true };
-  }
-  if (embed.$type === 'app.bsky.embed.video#view' && embed.thumbnail)
-    return { thumb: embed.thumbnail, full: embed.thumbnail, alt: embed.alt || '', count: 1, video: true };
-  return null;
-}
-
-async function bestPicture(did, sinceMs) {
-  let cursor, best = null, pages = 0;
-  do {
-    const u = new URL(`${PUBLIC}/xrpc/app.bsky.feed.getAuthorFeed`);
-    u.searchParams.set('actor', did);
-    u.searchParams.set('limit', '100');
-    u.searchParams.set('filter', 'posts_no_replies');
-    if (cursor) u.searchParams.set('cursor', cursor);
-    let d;
-    try { const r = await fetch(u); if (!r.ok) break; d = await r.json(); } catch { break; }
-    const feed = d.feed || [];
-    let oldest = Infinity;
-    for (const item of feed) {
-      const post = item.post; if (!post) continue;
-      if (item.reason && item.reason.$type === 'app.bsky.feed.defs#reasonRepost') continue; // their own posts only
-      if (post.author && post.author.did !== did) continue;
-      const t = new Date(post.indexedAt || (post.record && post.record.createdAt) || 0).getTime();
-      if (t < oldest) oldest = t;
-      if (!t || t < sinceMs) continue;
-      const img = extractImage(post.embed);
-      if (!img) continue;
-      const likes = post.likeCount || 0;
-      if (!best || likes > best.likes) best = { ...img, likes, uri: post.uri, author: post.author };
-    }
-    cursor = d.cursor; pages++;
-    if (oldest < sinceMs) break; // page reached past the window
-  } while (cursor && pages < 4);
-  return best;
-}
-
-async function mapLimit(items, limit, fn) {
-  const out = new Array(items.length); let i = 0;
-  async function worker() { while (i < items.length) { const idx = i++; try { out[idx] = await fn(items[idx], idx); } catch { out[idx] = null; } } }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length || 1) }, worker));
-  return out;
-}
-
-// ── rendering ────────────────────────────────────────────────────────────────
 const handleShort = (h) => String(h || '').replace(/\.bsky\.social$/, '');
+function setStatus(msg, err = false) { statusEl.textContent = msg; statusEl.classList.toggle('err', !!err); }
 function webPost(handle, uri) {
   const rkey = (uri || '').split('/').pop();
   return handle && rkey ? `https://bsky.app/profile/${encodeURIComponent(handle)}/post/${encodeURIComponent(rkey)}` : '#';
 }
 
-// clockwise-from-top placement into a 3×3 grid (centre is the seed)
-const SQ_ORDER = [1, 2, 5, 8, 7, 6, 3, 0]; // grid indices, top → clockwise
-const HEX_ANGLES = [-90, -30, 30, 90, 150, 210]; // pointy-top ring, starting at top
+// the worker does the heavy lifting (repo scan + per-friend picture probe,
+// authed via the modulo service account) and hands back a compact payload.
+async function fetchCircle(seedRaw, windowMs) {
+  const u = new URL('/api/squares/circle', location.origin);
+  u.searchParams.set('seed', seedRaw);
+  u.searchParams.set('window', String(windowMs));
+  u.searchParams.set('n', '12');
+  const r = await fetch(u);
+  let d; try { d = await r.json(); } catch { throw new Error(`HTTP ${r.status}`); }
+  if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+  return d;
+}
+
+// ── rendering ────────────────────────────────────────────────────────────────
+const SQ_ORDER = [1, 2, 5, 8, 7, 6, 3, 0];           // 3×3 indices, top → clockwise
+const HEX_ANGLES = [-90, -30, 30, 90, 150, 210];     // pointy-top ring from top
 
 function tileInner(t, rank) {
-  const a = t.author || {};
-  const handle = a.handle || t.handle || '';
-  const av = a.avatar ? `<img class="av" src="${esc(a.avatar)}" alt="" loading="lazy">` : `<span class="av"></span>`;
-  const open = t.uri ? `<a class="open" href="${esc(webPost(handle, t.uri))}" target="_blank" rel="noopener" title="open post" data-stop>↗</a>` : '';
+  const handle = t.handle || '';
+  const av = t.avatar ? `<img class="av" src="${esc(t.avatar)}" alt="" loading="lazy">` : `<span class="av"></span>`;
+  const zoom = t.full ? `<div class="zoom">⤢</div>` : '';
   const body = t.thumb
     ? `<img class="img" src="${esc(t.thumb)}" alt="${esc(t.alt)}" loading="lazy">`
     : `<div class="noimg">no picture<br>this week</div>`;
   const likes = t.thumb ? `<span class="lk">♥ ${t.likes ?? 0}</span>` : '';
   return `${body}<div class="veil"></div>
-    <div class="rank">${rank}</div>${open}
+    <div class="rank">${rank}</div>${zoom}
     <div class="meta">${av}<div class="who"><div class="hn">@${esc(handleShort(handle))}</div></div>${likes}</div>`;
 }
-
-function seedInner(prof) {
-  const av = prof.avatar ? `<img class="img" src="${esc(prof.avatar)}" alt="">` : `<div class="noimg">@${esc(handleShort(prof.handle))}</div>`;
+function seedInner(seed) {
+  const av = seed.avatar ? `<img class="img" src="${esc(seed.avatar)}" alt="">` : `<div class="noimg">@${esc(handleShort(seed.handle))}</div>`;
   return `${av}<div class="ring"></div><div class="veil"></div>
-    <div class="meta"><div class="who"><div class="hn">@${esc(handleShort(prof.handle))}</div></div></div>`;
+    <div class="meta"><div class="who"><div class="hn">@${esc(handleShort(seed.handle))}</div></div></div>`;
 }
+function makeCell(cls, html) { const el = document.createElement('div'); el.className = 'cell ' + cls; el.innerHTML = html; return el; }
 
-function makeCell(cls, html) {
-  const el = document.createElement('div');
-  el.className = 'cell ' + cls;
-  el.innerHTML = html;
-  return el;
-}
-
-function renderBoard(seedProf, tiles, shape) {
+function renderBoard(seed, tiles, shape) {
   const board = document.createElement('div');
   board.className = 'board shape-' + shape;
+  const wire = (cell, t, i) => { cell.dataset.idx = String(i); cell.dataset.did = t.did || ''; cell.dataset.handle = t.handle || ''; };
 
   if (shape === 'hex') {
     const ring = document.createElement('div'); ring.className = 'hexring';
-    // centre
-    const R = 33;          // ring radius (% of board)
-    const size = 33;       // tile size (% of board)
+    const R = 33, size = 33;
     const place = (el, cx, cy) => { el.style.left = (cx - size / 2) + '%'; el.style.top = (cy - size / 2) + '%'; el.style.width = size + '%'; el.style.height = size + '%'; };
-    const seed = makeCell('hx seed', seedInner(seedProf)); place(seed, 50, 50); ring.appendChild(seed);
+    const sc = makeCell('hx seed', seedInner(seed)); place(sc, 50, 50); ring.appendChild(sc);
     tiles.slice(0, 6).forEach((t, i) => {
       const ang = HEX_ANGLES[i] * Math.PI / 180;
-      const cx = 50 + R * Math.cos(ang), cy = 50 + R * Math.sin(ang);
-      const cell = makeCell('hx', tileInner(t, i + 1));
-      cell.dataset.did = (t.author && t.author.did) || t.did || '';
-      cell.dataset.handle = (t.author && t.author.handle) || '';
-      place(cell, cx, cy); ring.appendChild(cell);
+      const cell = makeCell('hx', tileInner(t, i + 1)); wire(cell, t, i);
+      place(cell, 50 + R * Math.cos(ang), 50 + R * Math.sin(ang)); ring.appendChild(cell);
     });
     board.appendChild(ring);
   } else {
     const grid = document.createElement('div'); grid.className = 'grid3';
     const cells = new Array(9).fill(null);
-    cells[4] = makeCell('sq seed', seedInner(seedProf));
-    tiles.slice(0, 8).forEach((t, i) => {
-      const cell = makeCell('sq', tileInner(t, i + 1));
-      cell.dataset.did = (t.author && t.author.did) || t.did || '';
-      cell.dataset.handle = (t.author && t.author.handle) || '';
-      cells[SQ_ORDER[i]] = cell;
-    });
-    for (let i = 0; i < 9; i++) {
-      const c = cells[i] || makeCell('sq', `<div class="noimg" style="opacity:.4">—</div>`);
-      grid.appendChild(c);
-    }
+    cells[4] = makeCell('sq seed', seedInner(seed));
+    tiles.slice(0, 8).forEach((t, i) => { const cell = makeCell('sq', tileInner(t, i + 1)); wire(cell, t, i); cells[SQ_ORDER[i]] = cell; });
+    for (let i = 0; i < 9; i++) grid.appendChild(cells[i] || makeCell('sq', `<div class="noimg" style="opacity:.4">—</div>`));
     board.appendChild(grid);
   }
 
-  // click a tile → recenter on that account
+  // tap a tile → open the photo viewer (or reseed directly if there's no photo)
   board.addEventListener('click', (e) => {
-    if (e.target.closest('[data-stop]')) return; // the ↗ open-post link
     const cell = e.target.closest('.cell');
     if (!cell || cell.classList.contains('seed')) return;
-    const handle = cell.dataset.handle, did = cell.dataset.did;
-    if (handle || did) navigate(handle || did, did);
+    const i = parseInt(cell.dataset.idx, 10);
+    const t = tiles[i];
+    if (t && t.full) openViewer(tiles, i);
+    else if (t) navigate(t.handle || t.did, t.did);
   });
   return board;
 }
 
+// ── photo viewer ─────────────────────────────────────────────────────────────
+let lb = null, lbTiles = [], lbIdx = 0;
+function ensureLb() {
+  if (lb) return lb;
+  lb = document.createElement('div'); lb.className = 'lb';
+  lb.innerHTML = `
+    <button class="close" title="close (esc)">✕</button>
+    <figure>
+      <div class="stage">
+        <button class="nav prev" title="previous (←)">‹</button>
+        <img class="full" alt="">
+        <button class="nav next" title="next (→)">›</button>
+      </div>
+      <figcaption>
+        <span class="cap-id"></span>
+        <button class="enter">enter their circle →</button>
+        <a class="ghost open" target="_blank" rel="noopener">open post ↗</a>
+      </figcaption>
+      <div class="hint">tap the photo again to enter their circle · ← → to browse · esc to close</div>
+    </figure>`;
+  document.body.appendChild(lb);
+  const close = () => closeViewer();
+  lb.querySelector('.close').addEventListener('click', close);
+  lb.addEventListener('click', (e) => { if (e.target === lb) close(); });        // backdrop
+  lb.querySelector('.full').addEventListener('click', () => reseedFromViewer()); // "tap again"
+  lb.querySelector('.enter').addEventListener('click', () => reseedFromViewer());
+  lb.querySelector('.prev').addEventListener('click', () => step(-1));
+  lb.querySelector('.next').addEventListener('click', () => step(1));
+  return lb;
+}
+function paintViewer() {
+  const t = lbTiles[lbIdx]; if (!t) return;
+  const img = lb.querySelector('.full');
+  img.src = t.full || t.thumb || ''; img.alt = t.alt || '';
+  const id = lb.querySelector('.cap-id');
+  const av = t.avatar ? `<img src="${esc(t.avatar)}" alt="">` : '';
+  const name = t.displayName ? `<span class="dn">${esc(t.displayName)}</span>` : '';
+  id.innerHTML = `${av}<span>${name} <span style="color:var(--muted)">@${esc(handleShort(t.handle))}</span></span><span class="lk">♥ ${t.likes ?? 0}</span>`;
+  const open = lb.querySelector('.open'); open.href = webPost(t.handle, t.uri);
+  const multi = lbTiles.length > 1;
+  lb.querySelector('.prev').style.display = multi ? '' : 'none';
+  lb.querySelector('.next').style.display = multi ? '' : 'none';
+}
+function openViewer(tiles, idx) {
+  ensureLb();
+  lbTiles = tiles.filter((t) => t && t.full);
+  lbIdx = Math.max(0, lbTiles.indexOf(tiles[idx]));
+  paintViewer();
+  lb.classList.add('show');
+}
+function step(d) { if (!lbTiles.length) return; lbIdx = (lbIdx + d + lbTiles.length) % lbTiles.length; paintViewer(); }
+function closeViewer() { if (lb) lb.classList.remove('show'); }
+function reseedFromViewer() { const t = lbTiles[lbIdx]; if (!t) return; closeViewer(); navigate(t.handle || t.did, t.did); }
+addEventListener('keydown', (e) => {
+  if (!lb || !lb.classList.contains('show')) return;
+  if (e.key === 'Escape') closeViewer();
+  else if (e.key === 'ArrowLeft') step(-1);
+  else if (e.key === 'ArrowRight') step(1);
+  else if (e.key === 'Enter') reseedFromViewer();
+});
+
 // ── trail of visited seeds ───────────────────────────────────────────────────
 let trail = [];
-function renderTrail(current) {
+function renderTrail() {
   if (trail.length <= 1) { trailEl.hidden = true; return; }
   trailEl.hidden = false;
   let html = '<span class="t-lbl">trail</span>';
@@ -429,13 +337,15 @@ trailEl.addEventListener('click', (e) => {
   const a = e.target.closest('a[data-seed]'); if (!a) return;
   e.preventDefault();
   const h = a.dataset.seed;
-  trail = trail.slice(0, trail.indexOf(h) + 1); // rewind the trail
+  trail = trail.slice(0, trail.indexOf(h) + 1);
   navigate(h, null, true);
 });
 
 // ── orchestration ────────────────────────────────────────────────────────────
-let running = false;
-function navigate(handle, knownDid, fromTrail) {
+let running = false, lastData = null;
+
+function navigate(handle, _knownDid, fromTrail) {
+  closeViewer();
   $('seed').value = handle;
   const url = new URL(location.href);
   url.searchParams.set('seed', handle);
@@ -445,61 +355,48 @@ function navigate(handle, knownDid, fromTrail) {
   run(handle, { fromTrail });
 }
 
+function renderData(data) {
+  const shape = $('shape').value === 'hex' ? 'hex' : 'square';
+  const gridN = shape === 'hex' ? 6 : 8;
+  // prefer accounts that actually have a picture this week, then fill the rest
+  const tiles = (data.tiles || []).map((t) => ({
+    did: t.did, handle: t.handle, displayName: t.displayName, avatar: t.avatar,
+    thumb: t.pic && t.pic.thumb, full: t.pic && t.pic.full, alt: t.pic && t.pic.alt,
+    likes: t.pic && t.pic.likes, uri: t.pic && t.pic.uri,
+  }));
+  tiles.sort((a, b) => (b.thumb ? 1 : 0) - (a.thumb ? 1 : 0));
+  const shown = tiles.slice(0, gridN);
+
+  outEl.innerHTML = '';
+  if (!shown.length) {
+    outEl.innerHTML = `<p class="empty">No interactions found for <b>@${esc(handleShort(data.seed.handle))}</b> in this window. Try a longer one, or another handle.</p>`;
+    return;
+  }
+  outEl.appendChild(renderBoard(data.seed, shown, shape));
+
+  const withPics = shown.filter((t) => t.thumb).length;
+  const winLabel = $('window').selectedOptions[0].textContent.toLowerCase();
+  const leg = document.createElement('div'); leg.className = 'legend';
+  leg.innerHTML = `<b>@${esc(handleShort(data.seed.handle))}</b>'s closest circle over the last ${esc(winLabel)} — ${withPics} of ${shown.length} with a picture · tap a tile to view, again to recenter`
+    + (data.authed ? ` · <span class="authed">authed</span>` : '');
+  outEl.appendChild(leg);
+}
+
 async function run(seedRaw, opts = {}) {
   if (running) return;
   running = true; runBtn.disabled = true;
-  outEl.innerHTML = '<div class="loading">resolving…</div>';
+  outEl.innerHTML = '<div class="loading"><span class="spin"></span>drawing the circle…</div>';
+  setStatus('working…');
   try {
-    setStatus('resolving handle…');
-    const seedDid = await resolveActor(seedRaw);
-
-    setStatus('locating their data…');
-    const [pds, profMap] = await Promise.all([resolvePds(seedDid), getProfiles([seedDid])]);
-    const seedProf = profMap.get(seedDid) || { did: seedDid, handle: seedRaw.replace(/^@/, ''), avatar: null };
-
-    // maintain the trail
-    const seedHandle = seedProf.handle || seedRaw.replace(/^@/, '');
-    if (!opts.fromTrail) {
-      if (trail[trail.length - 1] !== seedHandle) trail.push(seedHandle);
-    }
-    renderTrail(seedHandle);
-
     const winMs = parseInt($('window').value, 10) || 604800000;
-    const sinceMs = Date.now() - winMs;
-    const shape = $('shape').value === 'hex' ? 'hex' : 'square';
-    const gridN = shape === 'hex' ? 6 : 8;
+    const data = await fetchCircle(seedRaw, winMs);
+    lastData = data;
 
-    const ranked = await closestCircle(seedDid, pds, sinceMs);
-    if (!ranked.length) {
-      outEl.innerHTML = `<p class="empty">No interactions found for <b>@${esc(handleShort(seedHandle))}</b> in this window. Try a longer one, or another handle.</p>`;
-      setStatus('done.'); return;
-    }
+    const seedHandle = (data.seed && data.seed.handle) || seedRaw.replace(/^@/, '');
+    if (!opts.fromTrail) { if (trail[trail.length - 1] !== seedHandle) trail.push(seedHandle); }
+    renderTrail();
 
-    const top = ranked.slice(0, CANDIDATES);
-    setStatus(`probing ${top.length} closest accounts for pictures…`);
-    const [pics, closeProfs] = await Promise.all([
-      mapLimit(top, 4, (c) => bestPicture(c.did, sinceMs)),
-      getProfiles(top.map((c) => c.did)),
-    ]);
-
-    // assemble tiles in rank order: picture if we found one, else avatar-only
-    const tiles = top.map((c, i) => {
-      const pic = pics[i];
-      const prof = closeProfs.get(c.did) || (pic && pic.author) || { did: c.did, handle: c.did };
-      return pic ? { ...pic, author: prof, did: c.did } : { author: prof, did: c.did };
-    });
-    // prefer accounts that actually have a picture this week, then fill the rest
-    tiles.sort((a, b) => (b.thumb ? 1 : 0) - (a.thumb ? 1 : 0));
-    const shown = tiles.slice(0, gridN);
-
-    outEl.innerHTML = '';
-    outEl.appendChild(renderBoard(seedProf, shown, shape));
-
-    const withPics = shown.filter((t) => t.thumb).length;
-    const winLabel = $('window').selectedOptions[0].textContent.toLowerCase();
-    const leg = document.createElement('div'); leg.className = 'legend';
-    leg.innerHTML = `<b>@${esc(handleShort(seedHandle))}</b>'s closest circle over the last ${esc(winLabel)} — ${withPics} of ${shown.length} with a picture · click a tile to recenter`;
-    outEl.appendChild(leg);
+    renderData(data);
     setStatus('done.');
   } catch (e) {
     outEl.innerHTML = '';
@@ -513,14 +410,20 @@ $('form').addEventListener('submit', (e) => {
   e.preventDefault();
   const seed = $('seed').value.trim();
   if (!seed) { setStatus('enter a handle', true); return; }
-  trail = []; // fresh start from the form
+  trail = [];
   navigate(seed, null);
 });
+// window change → refetch; shape change → just re-render the cached payload
 $('window').addEventListener('change', () => { if ($('seed').value.trim()) navigate($('seed').value.trim(), null, true); });
-$('shape').addEventListener('change', () => { if ($('seed').value.trim()) navigate($('seed').value.trim(), null, true); });
+$('shape').addEventListener('change', () => {
+  const url = new URL(location.href); url.searchParams.set('shape', $('shape').value); history.replaceState(null, '', url);
+  if (lastData) renderData(lastData);
+});
 
 addEventListener('popstate', () => {
   const q = new URLSearchParams(location.search);
+  if (q.get('shape') && [...$('shape').options].some((o) => o.value === q.get('shape'))) $('shape').value = q.get('shape');
+  if (q.get('window') && [...$('window').options].some((o) => o.value === q.get('window'))) $('window').value = q.get('window');
   if (q.get('seed')) { $('seed').value = q.get('seed'); run(q.get('seed'), { fromTrail: true }); }
 });
 
