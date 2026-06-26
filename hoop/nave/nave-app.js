@@ -11,40 +11,45 @@ const cv = $('cv'), ctx = cv.getContext('2d');
 const SKIN = { ...SKIN_DEFAULTS, playerW: 7 };   // a touch coarser than the live game — this is a floor overview
 
 let seed = 7, view = 'biome', nave = null;
-let painted = [], paintQueue = [], paintTimer = null;   // the full view's per-chunk skin cache + paced queue
+let painted = [];   // the full view's per-chunk skin cache: a paintChunk result, an {error}, or null
 let DPR = 1, CW = 0, CH = 0, cam = { s: 1, ox: 0, oy: 0 };
 const SX = (x) => x * cam.s + cam.ox, SY = (y) => y * cam.s + cam.oy;
 
 // THE FULL VIEW runs the real game-engine skin per chunk (skin.js#paintChunk): seeded walls along the real
 // membranes, the coarse generation "bones" hidden, the concourse retiled, lighting baked into each cell's
-// colour. One chunk's skin is ~120ms — painting all seven at once chokes the tab, so we paint ONE PER TICK
-// (paced), drawing each chunk the moment it's ready and leaving the rest as dim flat placeholders. Clicking
-// a chunk paints it immediately (jumps the queue).
-function paintOne(ci) { if (nave && !painted[ci]) painted[ci] = paintChunk(nave.world.chunks[ci], SKIN); }
-function startQueue() { stopQueue(); if (!nave) return; paintQueue = nave.world.chunks.map((_, i) => i).filter((i) => !painted[i]); pump(); }
-function stopQueue() { if (paintTimer) clearTimeout(paintTimer); paintTimer = null; }
-function pump() {
-  paintTimer = null;
-  const ci = paintQueue.shift();
-  if (ci == null) { paintStatus(); return; }
-  paintOne(ci); if (view === 'full') render(); paintStatus();
-  paintTimer = setTimeout(pump, 24);   // yield between chunks so pan/zoom + the tab stay responsive
+// colour. Painting all seven at once chokes the tab, so we paint ON DEMAND: the CENTER first (one chunk),
+// then any ward you CLICK. Each paint is wrapped so a failure can't silently bail the whole view — it's
+// recorded as an {error} and surfaced on screen instead.
+let lastErr = '';
+function paintOne(ci) {
+  if (!nave || painted[ci]) return painted[ci];
+  try { painted[ci] = paintChunk(nave.world.chunks[ci], SKIN); }
+  catch (e) { lastErr = `ward ${ci}: ${e && e.message || e}`; painted[ci] = { error: lastErr }; console.error('[nave] paintChunk #' + ci + ' failed', e); }
+  return painted[ci];
 }
-const paintedCount = () => painted.reduce((n, p) => n + (p ? 1 : 0), 0);
-function paintStatus() {
+// paint a ward off the next tick (so the click/switch feels instant), then redraw + report.
+function paintWardSoon(ci) {
+  if (!nave || painted[ci]) return;
+  paintStatus(`rendering ward ${ci}…`);
+  setTimeout(() => { paintOne(ci); if (view === 'full') render(); paintStatus(); }, 20);
+}
+const paintedCount = () => painted.reduce((n, p) => n + (p && p.paintCells ? 1 : 0), 0);
+function paintStatus(busy) {
   const el = $('pstat'); if (!el) return;
   if (view !== 'full' || !nave) { el.style.display = 'none'; return; }
-  const n = paintedCount(), tot = nave.world.chunks.length;
   el.style.display = '';
-  el.innerHTML = n < tot ? `rendering wards… <b style="color:var(--ink)">${n}/${tot}</b> · <span style="color:#7d8597">click a ward to jump the queue</span>` : `<span style="color:#7d8597">all ${tot} wards rendered · click roll for a new nave</span>`;
+  if (lastErr) { el.innerHTML = `<span style="color:#e0635a">render failed — ${esc(lastErr)}</span><br><span style="color:#7d8597">(reported to the console too)</span>`; return; }
+  if (busy) { el.innerHTML = `<span style="color:var(--gold)">${esc(busy)}</span>`; return; }
+  const n = paintedCount(), tot = nave.world.chunks.length;
+  el.innerHTML = `<b style="color:var(--ink)">${n}/${tot}</b> wards rendered · <span style="color:#7d8597">click a ward to render it</span>`;
 }
 
 // ── build + fit ──
 function roll(newSeed) {
   if (newSeed != null) seed = newSeed;
-  nave = buildNave(seed); painted = new Array(nave.world.chunks.length).fill(null); stopQueue();
+  nave = buildNave(seed); painted = new Array(nave.world.chunks.length).fill(null); lastErr = '';
   fit(); render(); sidebar();
-  if (view === 'full') startQueue(); else paintStatus();
+  if (view === 'full') paintWardSoon(0); else paintStatus();   // render the center first
 }
 function fit() {
   if (!nave) return;
@@ -105,19 +110,20 @@ function renderFlat() {
   });
 }
 
-// full: the real game-engine skin per chunk. PAINTED chunks draw their retiled seeded-wall mesh; the rest
-// draw as dim flat placeholders until the paced queue (or a click) reaches them — so the view is always
-// whole, never a choking all-at-once paint.
+// full: the real game-engine skin per chunk. A PAINTED chunk draws its retiled seeded-wall mesh; an unpainted
+// (or failed) one draws as a dim flat placeholder — so the view is always whole, never a choking paint.
 function renderFull() {
   const seamW = Math.max(0.35, 0.6 * cam.s);
   nave.world.chunks.forEach((ch, ci) => {
-    if (!painted[ci]) {
+    const P = painted[ci];
+    if (!P || !P.paintCells) {
       ctx.globalAlpha = 0.42;   // placeholder: the record's flat role cells, dimmed
       for (let i = 0; i < ch.cells.length; i++) { const poly = ch.cells[i].poly; if (poly.length < 3) continue; ctx.fillStyle = ch.road[i] ? '#0d1120' : (ch.roomOf[i] >= 0 ? ((ch.rooms[ch.roomOf[i]] || {}).color || '#2a2f35') : '#07080c'); ctx.beginPath(); ctx.moveTo(SX(poly[0][0]), SY(poly[0][1])); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k][0]), SY(poly[k][1])); ctx.closePath(); ctx.fill(); }
       ctx.globalAlpha = 1;
+      if (P && P.error) { const c = ch.poly.reduce((a, p) => ({ x: a.x + p.x / ch.poly.length, y: a.y + p.y / ch.poly.length }), { x: 0, y: 0 }); ctx.fillStyle = '#e0635a'; ctx.font = '11px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.fillText('⚠ render failed', SX(c.x), SY(c.y) + 16); }
       return;
     }
-    for (const c of painted[ci].paintCells) {
+    for (const c of P.paintCells) {
       const poly = c.poly; if (poly.length < 3) continue;
       ctx.fillStyle = c.color || '#05070b';
       ctx.beginPath(); ctx.moveTo(SX(poly[0][0]), SY(poly[0][1])); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k][0]), SY(poly[k][1])); ctx.closePath(); ctx.fill();
@@ -154,8 +160,8 @@ function sidebar() {
 // ── view toggle ──
 function setView(v) {
   view = v; for (const [b, vv] of [['v-biome', 'biome'], ['v-verb', 'verb'], ['v-full', 'full']]) $(b).classList.toggle('primary', vv === v);
-  if (v === 'full') startQueue(); else stopQueue();
-  render(); sidebar(); paintStatus();
+  render(); sidebar();
+  if (v === 'full') paintWardSoon(0); else paintStatus();   // render the center on entry; other wards on click
 }
 $('v-biome').addEventListener('click', () => setView('biome'));
 $('v-verb').addEventListener('click', () => setView('verb'));
@@ -177,7 +183,7 @@ cv.addEventListener('pointerdown', (e) => { dragging = true; moved = false; last
 cv.addEventListener('pointermove', (e) => { if (!dragging) return; if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) moved = true; cam.ox += e.clientX - last.x; cam.oy += e.clientY - last.y; last = { x: e.clientX, y: e.clientY }; render(); });
 cv.addEventListener('pointerup', (e) => {
   dragging = false; cv.classList.remove('drag');
-  if (!moved && view === 'full' && nave) { const ci = chunkAt(e.clientX, e.clientY); if (ci >= 0 && !painted[ci]) { paintOne(ci); paintQueue = paintQueue.filter((i) => i !== ci); render(); paintStatus(); } }
+  if (!moved && view === 'full' && nave) { const ci = chunkAt(e.clientX, e.clientY); if (ci >= 0 && !painted[ci]) paintWardSoon(ci); }
 });
 cv.addEventListener('wheel', (e) => {
   e.preventDefault();
@@ -187,6 +193,10 @@ cv.addEventListener('wheel', (e) => {
   cam.ox = mx - (mx - cam.ox) * (ns / cam.s); cam.oy = my - (my - cam.oy) * (ns / cam.s); cam.s = ns;
   render();
 }, { passive: false });
+
+// surface any uncaught error on screen (so a silent bail in the skin path is visible, not a blank/sliver).
+addEventListener('error', (e) => { lastErr = (e.message || 'error') + (e.filename ? ' @ ' + e.filename.split('/').pop() + ':' + e.lineno : ''); paintStatus(); });
+addEventListener('unhandledrejection', (e) => { lastErr = 'promise: ' + ((e.reason && e.reason.message) || e.reason); paintStatus(); });
 
 addEventListener('resize', resize);
 resize(); roll();

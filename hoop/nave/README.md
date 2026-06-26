@@ -35,10 +35,11 @@ has weight 0, so the factions stay distinct and the exclusives stay exclusive.
 - **✶ verb** — cells coloured by **role** (the verb of the building), so you see the programme.
 - **⊞ full** — the **real game-engine render** (`skin.js#paintChunk` per chunk): the coarse generation
   "bones" hidden, **seeded walls** along the real membranes, the **concourse retiled**, and lighting baked
-  into every cell's colour — plus room glyphs + seam ports. Each chunk's skin is ~120 ms, so painting all
-  seven at once chokes the tab; instead the full view paints **one chunk per tick** (paced), drawing each
-  the moment it's ready and leaving the rest as dim flat placeholders, so the view is always whole and never
-  freezes. **Click a ward** to paint it immediately (it jumps the queue). Cached per roll.
+  into every cell's colour — plus room glyphs + seam ports. Each chunk's skin is ~120 ms and painting all
+  seven at once chokes the tab, so the full view paints **on demand**: the **center first**, then any ward
+  you **click**. The rest show as dim flat placeholders until painted, so the view is always whole. Every
+  paint is wrapped — if the skin ever throws it's caught and the error is shown in the rail (and console),
+  not silently bailed. Cached per roll.
 
 ## How it's built
 
