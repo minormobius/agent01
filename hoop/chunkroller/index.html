@@ -71,6 +71,10 @@
           <button id="b-auto" style="flex:1" title="auto-grow a compact hand of wards off the current floor">🎲 auto-grow</button>
           <button id="b-reset" title="start over from a single centred chunk">↺ reset</button>
         </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+          <canvas id="planhex" width="120" height="120" style="width:120px;height:120px;flex:0 0 auto;cursor:pointer"></canvas>
+          <p class="sub" style="margin:0;font-size:10.5px;line-height:1.5"><b>next-tile boundary</b><br>click a side to set it <b style="color:var(--gold)">open ◠</b> (a gate the concourse reaches) or <b style="color:#9aa3b5">wall ▬</b> (sealed). the next ward you grow takes this pattern; the seam side is always open.</p>
+        </div>
       </div>
     </div>
 

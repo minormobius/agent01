@@ -79,9 +79,10 @@ function placeChunk(state, poly, inherit, biome) {
   // A PRIORI WALLS: every side that doesn't already abut an existing ward is a CLOSED WALL (no port) from
   // the start. So the bounded floor's boundary is portless walls by default — no post-hoc sealing, and the
   // solver never grows the concourse toward the boundary ("no port = no concourse"). Only seam sides (whose
-  // segments are already occupied) stay open. Ward 0 has no neighbours, so it starts fully walled.
+  // segments are already occupied) stay open — PLUS any side the NEXT-TILE PLAN marks as a deliberate open
+  // GATE (`state.planOpen`), so you can establish a tile's boundary conditions before you place it.
   const closed = new Set(), nS = state.T.length, n = poly.length;
-  for (let k = 0; k < nS; k++) { let seam = false; for (let e = 0; e < n; e++) if (state.sideOf[e] === k && state.world.occupied.has(midKey(poly, e))) { seam = true; break; } if (!seam) closed.add(k); }
+  for (let k = 0; k < nS; k++) { if (state.planOpen && state.planOpen.has(k)) continue; let seam = false; for (let e = 0; e < n; e++) if (state.sideOf[e] === k && state.world.occupied.has(midKey(poly, e))) { seam = true; break; } if (!seam) closed.add(k); }
   const rec = solveWard(state, seedC, poly, inherit, biome, closed);
   addChunk(state.world, rec);                       // assigns rec.id = id
   state.meta[id] = { biome, closed, seedC };
@@ -99,7 +100,7 @@ export function createBuild(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, v2 =
   const R = Math.min(W, H) * 0.46, cx = W / 2, cy = H / 2;
   const poly = shape ? shapePoly(shape, cx, cy, R) : hexPoly(cx, cy, R);
   const sideOf = shape ? shapeSideOf(shape) : poly.map((_, i) => i);
-  const state = { seed: (seed | 0) >>> 0, W, H, v2, portsMax, shape, sideOf, world: createWorld(), meta: [] };
+  const state = { seed: (seed | 0) >>> 0, W, H, v2, portsMax, shape, sideOf, world: createWorld(), meta: [], planOpen: new Set() };
   state.T = latticeVectors(poly, sideOf);
   placeChunk(state, poly, [], biome);
   return state;
@@ -168,3 +169,12 @@ export function bbox(state) {
 export const biomeOf = (state, id) => state.meta[id].biome;
 export function histogram(state) { const h = {}; for (const ch of state.world.chunks) { const b = state.meta[ch.id].biome; h[b] = (h[b] || 0) + 1; } return h; }
 export function closedWallCount(state) { let n = 0; for (const m of state.meta) n += m.closed.size; return n; }
+
+// ── the NEXT-TILE PLAN: prospectively establish a tile's boundary conditions before you place it ──
+// `planOpen` is the set of side directions (0..nS-1) that the NEXT placed ward leaves OPEN as a gate
+// instead of the default closed wall. (A seam side is always open regardless.) Set it, then grow.
+export const sideCount = (state) => state.T.length;
+export function togglePlan(state, sideK) { if (state.planOpen.has(sideK)) state.planOpen.delete(sideK); else state.planOpen.add(sideK); return state.planOpen.has(sideK); }
+export function setPlan(state, sides) { state.planOpen = new Set(sides); }
+export function planSides(state) { return [...state.planOpen]; }
+export function isPlanOpen(state, sideK) { return state.planOpen.has(sideK); }

@@ -1,6 +1,6 @@
 // builder.selftest.mjs — the interactive bounded-floor builder (translation tiling, tessellation shape).
 //   node hoop/chunkroller/test/builder.selftest.mjs
-import { createBuild, growSide, toggleWall, sealFrontier, frontier, histogram, biomeOf, closedWallCount } from '../builder.js';
+import { createBuild, growSide, toggleWall, sealFrontier, frontier, histogram, biomeOf, closedWallCount, setPlan } from '../builder.js';
 import { edgeFree, buildWalk, midKey } from '../../v099/v8/manager.js';
 import { buildFoam } from '../../v099/v7/foam.js';
 import { SAMPLE_SHAPE } from '../shapes.js';
@@ -107,6 +107,21 @@ const hx = createBuild(3, { shape: null, v2: false, portsMax: 1 });
 ok(hx.world.chunks[0].poly.length === 6, 'shape:null builds a 6-edge hexagon ward');
 const hf = frontier(hx); const hn = growSide(hx, 0, hf[0].sideK, 'commons');
 ok(hn === 1 && reach(hx.world), 'the hexagon floor grows + connects too');
+
+// 7) NEXT-TILE PLAN: prospectively establish boundary conditions on the tile you're about to place
+const ps = createBuild(5, { v2: true, portsMax: 1 });
+setPlan(ps, [2]);                                  // the next ward keeps side 2 OPEN (a gate)
+const pf = frontier(ps);
+const pid = growSide(ps, 0, pf[0].sideK, 'commons');
+ok(pid >= 1, 'grew a planned ward');
+ok(!ps.meta[pid].closed.has(2), 'the planned side stays OPEN (a gate), not the default wall');
+ok(ps.world.chunks[pid].ports.some((p) => ps.sideOf[p.edge] === 2), 'the planned gate carries a port (the concourse reaches it)');
+ok(ps.meta[pid].closed.size >= 1, 'the unplanned non-seam sides are still closed walls');
+// clearing the plan → the next ward is fully walled again (only its seam sides open)
+setPlan(ps, []);
+const pf2 = frontier(ps).filter((f) => f.chunkId === pid);
+const pid2 = growSide(ps, pid, pf2[0].sideK, 'garden');
+ok(pid2 >= 2 && ps.meta[pid2].closed.size >= 4, `with an empty plan the next ward walls every non-seam side again (${ps.meta[pid2].closed.size} walls)`);
 
 console.log(`builder.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -7,7 +7,7 @@ import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM } from '../v099/roo
 import { TRIAD, TRIAD_ORDER } from '../v099/stats.js';
 import { SLIDERS, NEUTRAL, SLIDER_MAX, BIOMES, BIOME_COLOR, BIOME_GRAND, mixFromSliders, mixShares } from './biomes.js';
 import { scoreChunk, npcRoster, roomShock } from './civic.js';
-import { createBuild, growSide, toggleWall, sealFrontier, frontier, bbox as buildBbox, biomeOf as wardBiome, histogram as wardHistogram, closedWallCount } from './builder.js';
+import { createBuild, growSide, toggleWall, sealFrontier, frontier, bbox as buildBbox, biomeOf as wardBiome, histogram as wardHistogram, closedWallCount, setPlan } from './builder.js';
 import { SAMPLE_SHAPE, shapePoly, shapeSideOf } from './shapes.js';
 import { evaluateMix, solveStableSliders, themeOf } from './stability.js';
 
@@ -21,6 +21,7 @@ let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'c
 const ONE_OF_EACH = Object.fromEntries(Object.keys(ROLES).map((r) => [r, 1]));   // role floors: at least one of each building type
 let chunk = null, civic = null, roster = null, sel = -1, view = { s: 1, ox: 0, oy: 0 };
 let build = null, selChunk = -1, wallMode = false;   // the interactive bounded-floor builder + per-edge wall toggle
+let planSet = new Set();   // the NEXT-TILE boundary plan: side directions to leave OPEN (gates) on the next grown ward
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0;
@@ -88,9 +89,39 @@ function generateChunk() {
 }
 function generateFloor() {
   build = createBuild(seed, { W, H, v2: true, portsMax, biome });   // the bounded floor is v2 (rooms-first + role floors)
+  setPlan(build, [...planSet]);                                     // carry the next-tile boundary plan onto the new floor
   selChunk = -1; $('dossier').classList.remove('on');
-  fitFloor(); renderFloor(); floorReadout();
+  fitFloor(); renderFloor(); floorReadout(); drawPlanHex();
 }
+
+// the NEXT-TILE BOUNDARY widget: a mini hexagon whose 6 sides you toggle open (gate) / wall, establishing
+// the boundary conditions the next grown ward will take. Side k spans world angle [60k°, 60(k+1)°], drawn
+// y-down so the widget matches the floor's orientation.
+function drawPlanHex() {
+  const c = $('planhex'); if (!c) return;
+  const x = c.getContext('2d'), W = c.width, H = c.height, cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.38;
+  x.clearRect(0, 0, W, H);
+  const V = []; for (let k = 0; k < 6; k++) { const a = Math.PI / 3 * k; V.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]); }
+  x.lineCap = 'round';
+  for (let k = 0; k < 6; k++) {
+    const a = V[k], b = V[(k + 1) % 6], open = planSet.has(k);
+    x.strokeStyle = open ? 'rgba(244,191,98,.9)' : '#3a4254'; x.lineWidth = open ? 3 : 6;
+    if (open) x.setLineDash([4, 3]); x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke(); x.setLineDash([]);
+    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    x.fillStyle = open ? '#f4bf62' : '#6b7280'; x.beginPath(); x.arc(mx, my, 2.4, 0, 7); x.fill();
+  }
+  x.fillStyle = '#7d8597'; x.font = '9px ui-monospace,monospace'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText('next', cx, cy - 5); x.fillText('tile', cx, cy + 5);
+}
+$('planhex').addEventListener('click', (e) => {
+  const c = $('planhex'), r = c.getBoundingClientRect();
+  const px = (e.clientX - r.left) * (c.width / r.width), py = (e.clientY - r.top) * (c.height / r.height);
+  let deg = Math.atan2(py - c.height / 2, px - c.width / 2) * 180 / Math.PI; if (deg < 0) deg += 360;
+  const k = Math.floor(deg / 60) % 6;
+  if (planSet.has(k)) planSet.delete(k); else planSet.add(k);
+  if (build) setPlan(build, [...planSet]);
+  drawPlanHex();
+});
 // auto-grow a compact hand off the current floor: repeatedly grow the open side whose neighbour would land
 // nearest the floor centroid (so the floor stays a clump, not a line).
 function autoGrow() {

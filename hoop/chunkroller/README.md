@@ -109,6 +109,12 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
     sides.
   - **2-WIDE PORTS.** The concourse — including the port stubs that punch through the edge margin — is
     widened to a 2-cell ribbon (`concourseWidth`, default 2), so seams read as corridors, not capillaries.
+  - **NEXT-TILE BOUNDARY PLAN.** The mini hexagon under the buttons lets you **prospectively set a tile's
+    boundary conditions before you place it**: click a side to make it an **open gate ◠** (the concourse
+    reaches it) or leave it a **wall ▬** (the default). The next ward you grow takes that pattern (its seam
+    side is always open regardless), so you establish the boundary in the placing solve — no place-then-
+    toggle re-solve. The plan is absolute (side *k* = the same world direction on every tile) and persists
+    until you change it. API: `setPlan`/`togglePlan`/`planSides` over `state.planOpen` in `builder.js`.
   - **🎲 auto-grow** grows a compact hand of random-biome wards off the current floor; **↺ reset** starts
     over from one centred chunk. The floor stays one connected walk-graph world throughout (seams cross at
     the shared ports; closed walls carry none).
@@ -136,7 +142,7 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
 | `test/stability.selftest.mjs` | 12 checks — sampler determinism, all-homes < balanced, the solver never worsens stability |
 | `test/civic.selftest.mjs` | 20 checks — slider rollup, the civic field over a real chunk, NPC stats, biome biasing |
 | `test/floor.selftest.mjs` | 17 checks — deterministic floor, edge tiles seal the rim, ward variety, no-baddies gate |
-| `test/builder.selftest.mjs` | 27 checks — the seam contract (shared foamSeed ⇒ identical overlap nuclei, no clash), translation tiling (neighbour = ward + T_k, wiggly shared side zero-gap), portless walls a priori (ward 0 sealed, no concourse on walls), grow opens a wall + connects, 2-wide ports, determinism, hex fallback |
+| `test/builder.selftest.mjs` | 32 checks — the seam contract (shared foamSeed ⇒ identical overlap nuclei, no clash), translation tiling (neighbour = ward + T_k, wiggly shared side zero-gap), portless walls a priori (ward 0 sealed, no concourse on walls), grow opens a wall + connects, 2-wide ports, the next-tile boundary plan (planned gates open, walls stay), determinism, hex fallback |
 | `test/tess.selftest.mjs` | 17 checks — deformed edges keep zero tessellation gap; export round-trips |
 
 ## Stability model (backing the room distribution)
