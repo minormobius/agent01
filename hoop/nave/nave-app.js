@@ -3,19 +3,26 @@
 
 import { buildNave, FACTIONS, BIOMES, biomeForChunk } from './nave.js';
 import { ROLES } from '../v099/econ/econ.js';
+import { paintChunk, SKIN_DEFAULTS } from '../v099/skin.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const cv = $('cv'), ctx = cv.getContext('2d');
+const SKIN = { ...SKIN_DEFAULTS, playerW: 7 };   // a touch coarser than the live game — this is a floor overview
 
-let seed = 7, view = 'biome', nave = null;
+let seed = 7, view = 'biome', nave = null, painted = null;
 let DPR = 1, CW = 0, CH = 0, cam = { s: 1, ox: 0, oy: 0 };
 const SX = (x) => x * cam.s + cam.ox, SY = (y) => y * cam.s + cam.oy;
+
+// the full view runs the real game-engine skin per chunk (skin.js#paintChunk): seeded walls along the
+// real membranes, the coarse generation "bones" hidden, the concourse retiled, lighting baked into each
+// cell's colour. Heavy (~1s for seven chunks) so it's computed lazily + cached per roll.
+function ensurePainted() { if (!painted && nave) painted = nave.world.chunks.map((ch) => paintChunk(ch, SKIN)); }
 
 // ── build + fit ──
 function roll(newSeed) {
   if (newSeed != null) seed = newSeed;
-  nave = buildNave(seed);
+  nave = buildNave(seed); painted = null;
   fit(); render(); sidebar();
 }
 function fit() {
@@ -25,57 +32,79 @@ function fit() {
 }
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (!cam.s || cam.s === 1) fit(); render(); }
 
-// ── colour a cell ──
+// the biome/verb cell colour (the record's coarse cells). biome = faction tint; verb = role colour.
 function cellFill(ch, i, ci) {
   if (ch.road[i]) return '#0d1120';
   const rid = ch.roomOf[i];
   if (rid < 0) return '#07080c';
   if (view === 'biome') return nave.meta[ci].color;
   const room = ch.rooms[rid];
-  return (room && room.color) || (ROLES[room && room.role] || {}).color || '#2a2f35';   // verb + full: by role
+  return (room && room.color) || (ROLES[room && room.role] || {}).color || '#2a2f35';   // verb: by role
 }
 
 // ── render ──
 function render() {
   if (!nave) return;
   ctx.clearRect(0, 0, CW, CH);
-  // cells
-  nave.world.chunks.forEach((ch, ci) => {
-    for (let i = 0; i < ch.cells.length; i++) {
-      const poly = ch.cells[i].poly; if (poly.length < 3) continue;
-      ctx.fillStyle = cellFill(ch, i, ci);
-      ctx.beginPath(); ctx.moveTo(SX(poly[0][0]), SY(poly[0][1])); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k][0]), SY(poly[k][1])); ctx.closePath(); ctx.fill();
-      if (view === 'full' && !ch.road[i] && ch.roomOf[i] >= 0) { ctx.strokeStyle = 'rgba(6,9,13,.4)'; ctx.lineWidth = 0.5; ctx.stroke(); }
-    }
-  });
-  // chunk outlines + the walled boundary
+  if (view === 'full') renderFull(); else renderFlat();
+  // chunk outlines (the commons gold; faction wards faint)
   ctx.lineJoin = 'round';
   nave.world.chunks.forEach((ch, ci) => {
     const p = ch.poly;
     ctx.strokeStyle = ci === 0 ? 'rgba(244,191,98,.5)' : 'rgba(255,255,255,.10)'; ctx.lineWidth = ci === 0 ? 2 : 1;
     ctx.beginPath(); ctx.moveTo(SX(p[0].x), SY(p[0].y)); for (let k = 1; k < p.length; k++) ctx.lineTo(SX(p[k].x), SY(p[k].y)); ctx.closePath(); ctx.stroke();
   });
-  // full view: ports (seam crossings) + room glyphs
+  // room glyphs (full view) + faction/biome labels (all views)
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (view === 'full') {
-    nave.world.chunks.forEach((ch) => { for (const p of ch.ports) { if (p.cell == null || p.cell < 0) continue; ctx.fillStyle = p.inherited ? '#5fd0c0' : '#d8b25a'; ctx.beginPath(); ctx.arc(SX(p.x), SY(p.y), 2.6, 0, 7); ctx.fill(); } });
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    nave.world.chunks.forEach((ch) => {
-      for (const r of ch.rooms) {
-        const fs = Math.max(7, Math.min(17, 6 + Math.sqrt(r.cells.length) * cam.s * 0.6)); if (fs < 8) continue;
-        ctx.font = `${fs}px ui-monospace,monospace`;
-        ctx.fillStyle = 'rgba(8,10,14,.5)'; ctx.fillText(r.glyph || '·', SX(r.x) + 0.6, SY(r.y) + 0.6);
-        ctx.fillStyle = 'rgba(244,240,228,.92)'; ctx.fillText(r.glyph || '·', SX(r.x), SY(r.y));
-      }
-    });
+    for (const ch of nave.world.chunks) for (const r of ch.rooms) {
+      const fs = Math.max(7, Math.min(16, 5 + Math.sqrt(r.cells.length) * cam.s * 0.55)); if (fs < 8) continue;
+      ctx.font = `${fs}px ui-monospace,monospace`;
+      ctx.fillStyle = 'rgba(8,10,14,.55)'; ctx.fillText(r.glyph || '·', SX(r.x) + 0.6, SY(r.y) + 0.6);
+      ctx.fillStyle = 'rgba(244,240,228,.9)'; ctx.fillText(r.glyph || '·', SX(r.x), SY(r.y));
+    }
   }
-  // faction/biome labels per chunk
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '11px ui-monospace,monospace';
+  ctx.font = '11px ui-monospace,monospace';
   nave.world.chunks.forEach((ch, ci) => {
     let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } x /= ch.poly.length; y /= ch.poly.length;
     const m = nave.meta[ci], lbl = ci === 0 ? '★ commons' : m.label;
-    ctx.fillStyle = 'rgba(8,10,14,.72)'; ctx.fillText(lbl, SX(x) + 0.6, SY(y) + 0.6);
-    ctx.fillStyle = ci === 0 ? '#f4bf62' : '#e8eaf0'; ctx.fillText(lbl, SX(x), SY(y));
+    ctx.fillStyle = 'rgba(8,10,14,.78)'; ctx.fillText(lbl, SX(x) + 0.6, SY(y) + 0.6);
+    ctx.fillStyle = ci === 0 ? '#f4bf62' : '#eef0f6'; ctx.fillText(lbl, SX(x), SY(y));
   });
+}
+
+// biome + verb: the record's coarse cells, flat-filled.
+function renderFlat() {
+  nave.world.chunks.forEach((ch, ci) => {
+    for (let i = 0; i < ch.cells.length; i++) {
+      const poly = ch.cells[i].poly; if (poly.length < 3) continue;
+      ctx.fillStyle = cellFill(ch, i, ci);
+      ctx.beginPath(); ctx.moveTo(SX(poly[0][0]), SY(poly[0][1])); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k][0]), SY(poly[k][1])); ctx.closePath(); ctx.fill();
+    }
+  });
+}
+
+let painting = false;
+// full: the real game-engine skin — paintChunk's retiled, lit, seeded-wall mesh per chunk.
+function renderFull() {
+  if (!painted) {
+    // the skin is heavy (~1s); draw a quick biome placeholder + status and compute it off the next tick.
+    if (!painting) { painting = true; setTimeout(() => { ensurePainted(); painting = false; render(); }, 20); }
+    for (let ci = 0; ci < nave.world.chunks.length; ci++) { const p = nave.world.chunks[ci].poly; ctx.fillStyle = nave.meta[ci].color + '44'; ctx.beginPath(); ctx.moveTo(SX(p[0].x), SY(p[0].y)); for (let k = 1; k < p.length; k++) ctx.lineTo(SX(p[k].x), SY(p[k].y)); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = 'rgba(244,191,98,.95)'; ctx.font = '13px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('rendering game view…', CW / 2, 14);
+    return;
+  }
+  const seamW = Math.max(0.35, 0.6 * cam.s);
+  for (const P of painted) {
+    for (const c of P.paintCells) {
+      const poly = c.poly; if (poly.length < 3) continue;
+      ctx.fillStyle = c.color || '#05070b';
+      ctx.beginPath(); ctx.moveTo(SX(poly[0][0]), SY(poly[0][1])); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k][0]), SY(poly[k][1])); ctx.closePath(); ctx.fill();
+      if (!c.wall) { ctx.strokeStyle = 'rgba(6,9,12,0.5)'; ctx.lineWidth = seamW; ctx.stroke(); }
+    }
+  }
+  // seam ports (the chunk-to-chunk crossings)
+  for (const ch of nave.world.chunks) for (const p of ch.ports) { if (p.cell == null || p.cell < 0) continue; ctx.fillStyle = p.inherited ? '#5fd0c0' : '#d8b25a'; ctx.beginPath(); ctx.arc(SX(p.x), SY(p.y), 2.4, 0, 7); ctx.fill(); }
 }
 
 // ── sidebar: legend (per view) + readout ──

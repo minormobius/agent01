@@ -56,8 +56,9 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   its two biomes carrying the exclusives at two intensity levels. Center links to all six; a ward links only
   to the center + its sibling; every cross-faction adjacency is a portless wall. `nave.js#buildNave(seed)`
   composes the v2 engine (`solveChunk` + explicit `closedSides`/inherited ports, one shared foam seed). Three
-  views (biome · verb · full v99-style) with pan/zoom. Pure + node-tested (`nave/test/nave.selftest.mjs`, 36
-  checks). See `nave/README.md`.
+  views with pan/zoom: biome (faction tint) · verb (by role) · **full** (the real game skin —
+  `skin.js#paintChunk` per chunk: seeded walls, bones hidden, retiled concourse, baked lighting). Pure +
+  node-tested (`nave/test/nave.selftest.mjs`, 36 checks). See `nave/README.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a

@@ -33,7 +33,10 @@ has weight 0, so the factions stay distinct and the exclusives stay exclusive.
 
 - **▣ biome** — each ward painted by its faction colour; the commons gold. Reads the lobe structure.
 - **✶ verb** — cells coloured by **role** (the verb of the building), so you see the programme.
-- **⊞ full** — the v99-style detailed render: cells by role + concourse + seam ports + room glyphs.
+- **⊞ full** — the **real game-engine render** (`skin.js#paintChunk` per chunk): the coarse generation
+  "bones" hidden, **seeded walls** along the real membranes, the **concourse retiled**, and lighting baked
+  into every cell's colour — plus room glyphs + seam ports. Heavy (~1 s for seven chunks), so it's computed
+  lazily on first switch and cached per roll (a biome placeholder shows while it paints).
 
 ## How it's built
 
