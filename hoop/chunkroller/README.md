@@ -99,10 +99,16 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
     the wiggly opposite edges are reverse+translate partners (`tessgen.js`), so the shared side coincides
     with zero gap. A plain hexagon (`shape: null`) is the same lattice (each edge its own side). Ports
     allocate **per side (direction)**, not per segment, so a 30-segment ward still gets ~6 ports.
-  - **✎ wall mode** — toggle it, then click a frontier side to seal it into a **closed wall**: a side with
-    ZERO ports (engine `closedSides`), so no concourse ever reaches that side — a hard floor boundary, not
-    a streaming seam. This is the bounded floor's boundary condition: *we set ports to zero on the sides of
-    merit.* **⊟ seal frontier** does it to every remaining open side at once.
+  - **PORTLESS WALLS A PRIORI.** Every frontier side is a **closed wall by default** — a side with ZERO
+    ports (engine `closedSides`). Ward 0 starts fully sealed; growing through a side is the *only* thing
+    that opens it. So the bounded floor's boundary is portless walls from the start (no post-hoc sealing).
+    *No port = no concourse:* the rooms-first solver hard-banishes the concourse from a portless side (even
+    its last-resort fallbacks won't pave a wall), so a wall is a true wall the concourse never penetrates —
+    ~93% of a walled boundary is rooms, the residual being only the doors of rooms walled in on every side.
+    **✎ wall mode** opens (○) / re-closes (✕) a side by hand; **⊟ seal frontier** re-closes any hand-opened
+    sides.
+  - **2-WIDE PORTS.** The concourse — including the port stubs that punch through the edge margin — is
+    widened to a 2-cell ribbon (`concourseWidth`, default 2), so seams read as corridors, not capillaries.
   - **🎲 auto-grow** grows a compact hand of random-biome wards off the current floor; **↺ reset** starts
     over from one centred chunk. The floor stays one connected walk-graph world throughout (seams cross at
     the shared ports; closed walls carry none).
@@ -130,7 +136,7 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
 | `test/stability.selftest.mjs` | 12 checks — sampler determinism, all-homes < balanced, the solver never worsens stability |
 | `test/civic.selftest.mjs` | 20 checks — slider rollup, the civic field over a real chunk, NPC stats, biome biasing |
 | `test/floor.selftest.mjs` | 17 checks — deterministic floor, edge tiles seal the rim, ward variety, no-baddies gate |
-| `test/builder.selftest.mjs` | 27 checks — the seam contract (shared foamSeed ⇒ identical overlap nuclei, no clash), translation tiling (neighbour = ward + T_k, wiggly shared side zero-gap), click-to-grow connects, closed walls carry 0 ports per side, seal-frontier keeps the floor one walk world, determinism, hex fallback |
+| `test/builder.selftest.mjs` | 27 checks — the seam contract (shared foamSeed ⇒ identical overlap nuclei, no clash), translation tiling (neighbour = ward + T_k, wiggly shared side zero-gap), portless walls a priori (ward 0 sealed, no concourse on walls), grow opens a wall + connects, 2-wide ports, determinism, hex fallback |
 | `test/tess.selftest.mjs` | 17 checks — deformed edges keep zero tessellation gap; export round-trips |
 
 ## Stability model (backing the room distribution)

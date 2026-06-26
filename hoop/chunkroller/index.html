@@ -62,10 +62,10 @@
         <button id="m-floor" style="flex:1">⬡ bounded floor</button>
       </div>
       <div id="builder-tools" style="display:none">
-        <p class="sub" style="margin:8px 0 6px;font-size:11px;line-height:1.5">click an <b style="color:var(--gold)">＋ open edge</b> to grow the next ward off it (it takes the biome below). <b style="color:#e0635a">wall mode</b>: click an edge to seal it shut (a closed wall — 0 ports, a hard boundary).</p>
+        <p class="sub" style="margin:8px 0 6px;font-size:11px;line-height:1.5">the boundary is <b style="color:#9aa3b5">portless walls</b> a priori — no concourse reaches them. click a <b style="color:var(--gold)">＋</b> on any wall to grow the next ward off it (it takes the biome below). <b style="color:#e0635a">wall mode</b>: open ○ / close ✕ a side by hand.</p>
         <div class="btns">
-          <button id="b-wall" style="flex:1" title="when on, clicking a frontier edge seals it into a closed wall (0 ports) instead of growing">✎ wall mode</button>
-          <button id="b-seal" title="seal every open frontier edge into a closed wall — the bounded floor's boundary in one move">⊟ seal frontier</button>
+          <button id="b-wall" style="flex:1" title="when on, clicking a frontier side opens it (a port stub) or re-closes it, instead of growing">✎ wall mode</button>
+          <button id="b-seal" title="re-close any hand-opened sides — the boundary is already walls by default">⊟ seal frontier</button>
         </div>
         <div class="btns" style="margin-top:6px">
           <button id="b-auto" style="flex:1" title="auto-grow a compact hand of wards off the current floor">🎲 auto-grow</button>

@@ -133,22 +133,21 @@ function renderFloor() {
     }
     ctx.globalAlpha = 1;
   });
-  // FRONTIER SIDES: closed walls (thick slate wall along the side's wiggly polyline) vs open sides (gold
-  // dashed polyline + a ＋ grow handle at the side midpoint). A side is 1+ boundary segments (a hex side is
-  // one segment; a tessellation side is several).
+  // FRONTIER SIDES: the boundary is CLOSED WALLS by default (a priori) — drawn as a thick slate wall along
+  // the side's wiggly polyline. A manually-opened side (a port-stub to nowhere) is gold dashed. Either way a
+  // grow handle sits at the side midpoint: ＋ to grow a ward off it (normal), or a toggle in wall mode.
   const sides = frontier(build); _floorHandles = sides;
   const strokeSide = (f) => { ctx.beginPath(); for (const [ax, ay, bx, by] of f.segs) { ctx.moveTo(SX(ax), SY(ay)); ctx.lineTo(SX(bx), SY(by)); } ctx.stroke(); };
   ctx.lineCap = 'round';
   for (const f of sides) {
-    if (!f.closed) continue;
-    ctx.strokeStyle = '#3a4254'; ctx.lineWidth = 6; strokeSide(f);
-    ctx.strokeStyle = '#11151f'; ctx.lineWidth = 1.4; strokeSide(f);
+    if (f.closed) { ctx.strokeStyle = '#3a4254'; ctx.lineWidth = 6; strokeSide(f); ctx.strokeStyle = '#11151f'; ctx.lineWidth = 1.4; strokeSide(f); }
+    else { ctx.strokeStyle = 'rgba(244,191,98,.5)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); strokeSide(f); ctx.setLineDash([]); }
   }
   for (const f of sides) {
-    if (f.closed) continue;
-    ctx.strokeStyle = wallMode ? 'rgba(224,99,90,.55)' : 'rgba(244,191,98,.5)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); strokeSide(f); ctx.setLineDash([]);
     const r = 8; ctx.fillStyle = wallMode ? 'rgba(224,99,90,.92)' : 'rgba(244,191,98,.92)'; ctx.beginPath(); ctx.arc(SX(f.mx), SY(f.my), r, 0, 7); ctx.fill();
-    ctx.fillStyle = '#11151f'; ctx.font = 'bold 12px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(wallMode ? '✕' : '＋', SX(f.mx), SY(f.my) + 0.5);
+    // normal mode: ＋ (grow here). wall mode: ○ to open a wall, ✕ to re-close an opened side.
+    ctx.fillStyle = '#11151f'; ctx.font = 'bold 12px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(wallMode ? (f.closed ? '○' : '✕') : '＋', SX(f.mx), SY(f.my) + 0.5);
   }
   // per-chunk biome label
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '11px ui-monospace,monospace';
@@ -163,7 +162,7 @@ function floorReadout() {
   const n = build.world.chunks.length, walls = closedWallCount(build), open = frontier(build).filter((f) => !f.closed).length;
   $('vital').innerHTML = `<b class="big" style="color:#f4bf62">bounded floor · ${n} ward${n === 1 ? '' : 's'}</b><br><span style="color:#9aa3b5">☮ floor 1 — no baddies · next ward: <b style="color:${BIOME_COLOR[biome] || '#ccc'}">${BIOMES[biome].label}</b></span>`;
   $('signals').innerHTML = '';
-  $('metrics').innerHTML = `wards <b>${n}</b> · closed walls <b>${walls}</b> · open sides <b>${open}</b><br><span style="color:#7d8597">${open ? 'click ＋ to grow · ✎ wall mode to seal · click a ward to read it' : 'floor is sealed — click a ward to read its civic vitality'}</span>`;
+  $('metrics').innerHTML = `wards <b>${n}</b> · closed walls <b>${walls}</b>${open ? ` · open sides <b>${open}</b>` : ''}<br><span style="color:#7d8597">the boundary is portless walls (no concourse) · click ＋ to grow a ward · ✎ wall mode opens/closes a side · click a ward to read it</span>`;
   const h = wardHistogram(build);
   $('rolecounts').innerHTML = Object.entries(h).sort((a, b) => b[1] - a[1]).map(([bk, c]) => `<span style="color:${BIOME_COLOR[bk]}">▣ ${BIOMES[bk].label} <b style="color:#e6e8ee">${c}</b></span>`).join('');
   $('npc').innerHTML = 'pick a ward →'; $('triadbar').innerHTML = ''; $('casts').innerHTML = '';

@@ -76,7 +76,12 @@ function reSolve(state, id) {
 function placeChunk(state, poly, inherit, biome) {
   const id = state.world.chunks.length;
   const seedC = (state.seed ^ (id * 0x9e37 + 0x51)) >>> 0;
-  const closed = new Set();
+  // A PRIORI WALLS: every side that doesn't already abut an existing ward is a CLOSED WALL (no port) from
+  // the start. So the bounded floor's boundary is portless walls by default — no post-hoc sealing, and the
+  // solver never grows the concourse toward the boundary ("no port = no concourse"). Only seam sides (whose
+  // segments are already occupied) stay open. Ward 0 has no neighbours, so it starts fully walled.
+  const closed = new Set(), nS = state.T.length, n = poly.length;
+  for (let k = 0; k < nS; k++) { let seam = false; for (let e = 0; e < n; e++) if (state.sideOf[e] === k && state.world.occupied.has(midKey(poly, e))) { seam = true; break; } if (!seam) closed.add(k); }
   const rec = solveWard(state, seedC, poly, inherit, biome, closed);
   addChunk(state.world, rec);                       // assigns rec.id = id
   state.meta[id] = { biome, closed, seedC };

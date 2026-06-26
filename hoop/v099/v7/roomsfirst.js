@@ -27,7 +27,7 @@ function planZones(nZones, footprint, grand, grandMin, roleFloors, roleMix, rng)
 }
 
 export function solveRoomsFirst(foam, chunk, opts = {}) {
-  const { roomSize = 14, seed = 1, footprint = null, grand = null, grandMin = 3, roleFloors = null, roleMix = null, tension = 0, concourseWidth = 2, edgeMargin = 3, microRoom = 6 } = opts;
+  const { roomSize = 14, seed = 1, footprint = null, grand = null, grandMin = 3, roleFloors = null, roleMix = null, tension = 0, concourseWidth = 2, edgeMargin = 3, microRoom = 6, wallMargin = 1 } = opts;
   const N = foam.cells.length, interior = chunk.interior;
   const rng = mulberry32((seed ^ 0x2f1d) >>> 0);
   const portCellSet = chunk.portCells || new Set();
@@ -39,7 +39,16 @@ export function solveRoomsFirst(foam, chunk, opts = {}) {
   const edgeDist = new Int32Array(N).fill(-1), eq = [];
   for (const c of interior) if (chunk.rim && chunk.rim[c]) { edgeDist[c] = 0; eq.push(c); }
   for (let h = 0; h < eq.length; h++) { const u = eq[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || edgeDist[v] >= 0) continue; edgeDist[v] = edgeDist[u] + 1; eq.push(v); } }
-  const roadable = (cid) => portCellSet.has(cid) || edgeDist[cid] < 0 || edgeDist[cid] >= edgeMargin;
+
+  // CLOSED WALLS: cells within `wallMargin` of a portless (wall) side. The concourse is HARD-banished from
+  // these — never roadable, never paved even by a fallback, never widened onto. So a portless wall is a
+  // true wall (no concourse penetrates); rooms there take their door on the inner side. `isWall` overrides
+  // every road decision below.
+  const wallRim = chunk.wallRim || null;
+  const wallDist = new Int32Array(N).fill(-1), wq = [];
+  if (wallRim) { for (const c of interior) if (wallRim[c]) { wallDist[c] = 0; wq.push(c); } for (let h = 0; h < wq.length; h++) { const u = wq[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || wallDist[v] >= 0) continue; wallDist[v] = wallDist[u] + 1; wq.push(v); } } }
+  const isWall = (cid) => wallRim != null && wallDist[cid] >= 0 && wallDist[cid] < wallMargin;
+  const roadable = (cid) => !isWall(cid) && (portCellSet.has(cid) || edgeDist[cid] < 0 || edgeDist[cid] >= edgeMargin);
 
   // ── 1) PARTITION the whole interior into zones (rooms-first) ──
   const li = new Map(); interior.forEach((c, i) => li.set(c, i));
@@ -72,19 +81,22 @@ export function solveRoomsFirst(foam, chunk, opts = {}) {
     // escape without one rim step — so fall back to allowing rim traversal if the strict pass finds none.
     const stub = (avoidRim) => {
       const par = new Int32Array(N).fill(-2), q = [s]; par[s] = -1; let hit = -1;
-      for (let h = 0; h < q.length && hit < 0; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || par[v] !== -2 || (avoidRim && edgeDist[v] === 0)) continue; par[v] = u; if (edgeDist[v] >= edgeMargin) { hit = v; break; } q.push(v); } }
+      for (let h = 0; h < q.length && hit < 0; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || par[v] !== -2 || isWall(v) || (avoidRim && edgeDist[v] === 0)) continue; par[v] = u; if (edgeDist[v] >= edgeMargin) { hit = v; break; } q.push(v); } }
       if (hit < 0) return false;
       for (let u = hit; u !== -1; u = par[u]) road[u] = 1;
       return true;
     };
     if (!stub(true)) stub(false);
   }
-  const carveTo = (isTarget, allowRim = false) => {
+  // carve the shortest road to a target. `allowRim` lets it ride the edge margin (last resort); `allowWall`
+  // additionally lets it cross a closed wall (the absolute last resort — only to keep a walled-in room
+  // connected, never for ordinary growth). By default the wall is impassable.
+  const carveTo = (isTarget, allowRim = false, allowWall = false) => {
     const par = new Int32Array(N).fill(-2), q = [];
     for (const c of interior) if (road[c]) { par[c] = -1; q.push(c); }
     if (!q.length) { const t = interior.find(isTarget); if (t == null) return false; road[t] = 1; return true; }
     let hit = -1;
-    for (let h = 0; h < q.length && hit < 0; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || par[v] !== -2 || (!allowRim && !roadable(v) && !isTarget(v))) continue; par[v] = u; if (isTarget(v)) { hit = v; break; } q.push(v); } }
+    for (let h = 0; h < q.length && hit < 0; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || par[v] !== -2 || (!allowWall && isWall(v) && !isTarget(v)) || (!allowRim && !roadable(v) && !isTarget(v))) continue; par[v] = u; if (isTarget(v)) { hit = v; break; } q.push(v); } }
     if (hit < 0) return false;
     for (let u = hit; u !== -1; u = par[u]) road[u] = 1;
     return true;
@@ -108,9 +120,23 @@ export function solveRoomsFirst(foam, chunk, opts = {}) {
     markServed();
   }
   stitchRoad(foam, chunk, road, roadable);
-  // CONCOURSE WIDTH: widen the 1-cell capillaries to the minimum (default 2-wide), roadable only (the
-  // widener already refuses rim cells), so corridors aren't hairline.
+  // CONCOURSE WIDTH: widen the interior capillaries to the minimum (default 2-wide), roadable only (the
+  // widener refuses the rim + walls), so corridors aren't hairline.
   if (concourseWidth > 1) widenOneSided(foam, chunk, road, concourseWidth - 1, roadable);
+  // PORT STUBS 2-WIDE: the stubs live in the edge margin, which `roadable` excludes, so the main widener
+  // skips them — they'd read as capillaries. Thicken each margin stub cell by one neighbour DEEPER than it
+  // (never toward the rim, never a wall), so the crossing corridor is a 2-wide ribbon without paving the
+  // perimeter. Repeat per extra width layer.
+  if (concourseWidth > 1) {
+    for (let L = 1; L < concourseWidth; L++) {
+      const add = [];
+      for (const c of interior) {
+        if (!road[c] || edgeDist[c] < 1 || edgeDist[c] >= edgeMargin) continue;   // a stub cell inside the margin
+        for (const v of foam.adj[c]) { if (road[v] || chunk.ghost[v] || isWall(v) || edgeDist[v] < edgeDist[c]) continue; add.push(v); break; }
+      }
+      for (const v of add) road[v] = 1;
+    }
+  }
 
   // ── 3) ROOMS = per-zone connected components of the non-road cells; each guaranteed a door ──
   const buildRooms = () => {
@@ -131,9 +157,10 @@ export function solveRoomsFirst(foam, chunk, opts = {}) {
     let orphan = null;
     for (const r of rcs) if (!r.cells.some((c) => foam.adj[c].some((v) => road[v]))) { orphan = new Set(r.cells); break; }
     if (!orphan) break;
-    // reach a roadable cell ADJACENT to the orphan (keeps the rim boundary); fall back to allowing rim.
+    // reach a roadable cell ADJACENT to the orphan (keeps the boundary); fall back to allowing the rim,
+    // then — only for a room walled in on every side — allow crossing the wall so it can't be orphaned.
     const adjOrphan = (v) => roadable(v) && !road[v] && foam.adj[v].some((w) => orphan.has(w));
-    if (!carveTo(adjOrphan) && !carveTo((v) => orphan.has(v), true)) break;
+    if (!carveTo(adjOrphan) && !carveTo((v) => orphan.has(v), true) && !carveTo((v) => orphan.has(v), true, true)) break;
     rcs = buildRooms();
   }
 

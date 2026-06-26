@@ -175,7 +175,15 @@ export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: 
   // concourse is forced inward instead of riding the seam.
   const rim = new Uint8Array(foam.cells.length), portCells = new Set(ports.map((p) => p.cell));
   for (const cid of interior) if (foam.adj[cid].some((v) => ghost[v])) rim[cid] = 1;
-  return { shape, poly, ghost, ports, interior, interiorCount: interior.length, rim, portCells };
+  // WALL RIM — rim cells whose nearest boundary SIDE carries no port (a closed wall). The rooms-first
+  // solver banishes the concourse from these entirely (even its last-resort fallbacks), so "no port = no
+  // concourse": a portless wall is a true wall the concourse never penetrates, instead of a 3-cell margin
+  // the room-serving fallback still leaks road into.
+  const sideKeyOf = (e) => (sideOf ? (sideOf[e] == null ? e : sideOf[e]) : e);
+  const sidesWithPort = new Set(ports.map((p) => sideKeyOf(p.edge)));
+  const wallRim = new Uint8Array(foam.cells.length); let anyWall = false;
+  for (const cid of interior) if (rim[cid]) { const sk = sideKeyOf(nearestEdge(foam.cells[cid].x, foam.cells[cid].y)); if (!sidesWithPort.has(sk)) { wallRim[cid] = 1; anyWall = true; } }
+  return { shape, poly, ghost, ports, interior, interiorCount: interior.length, rim, portCells, wallRim: anyWall ? wallRim : null };
 }
 // may a cell carry concourse? everywhere interior except the boundary rim — but always at a port.
 function canRoad(chunk, cid) { return !chunk.rim || !chunk.rim[cid] || (chunk.portCells && chunk.portCells.has(cid)); }

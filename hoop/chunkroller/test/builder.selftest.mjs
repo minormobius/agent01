@@ -25,19 +25,25 @@ const rA = { x0: 0, y0: 0, x1: 320, y1: 320 }, rB = { x0: 160, y0: 0, x1: 480, y
   ok(shared > 40 && same < shared * 0.05, `DIFFERENT foam seeds ⇒ overlap nuclei CLASH (${same}/${shared} identical — the old bug)`);
 }
 
-// 1) a fresh build is one centred TESSELLATION ward (the floor uses the editor geometry by default)
+// 1) a fresh build is one centred TESSELLATION ward, SEALED — walls a priori (the boundary is portless)
 const s = createBuild(7, { v2: true, portsMax: 1 });
 ok(s.world.chunks.length === 1, 'createBuild places exactly one ward');
 ok(s.world.chunks[0].poly.length === SAMPLE_SHAPE.boundary.length, `ward 0 fills the tessellation outline (${s.world.chunks[0].poly.length} segs, not a 6-edge hex)`);
 ok(s.world.chunks[0].rooms.length > 8, 'ward 0 has rooms (v2 solver ran over the deformed shape)');
-ok(s.world.chunks[0].ports.length <= 6 && s.world.chunks[0].ports.length >= 4, `~one port per side, not per segment (${s.world.chunks[0].ports.length} on 6 sides)`);
+ok(s.world.chunks[0].ports.length === 0, `a lone ward is SEALED — portless walls a priori (${s.world.chunks[0].ports.length} ports)`);
 ok(Object.keys(s.world.chunks[0].rooms.reduce((a, r) => (a[r.role] = 1, a), {})).length >= 10, 'v2 ward plants many building types (role floors)');
 
-// 2) grow off a free SIDE → a connected neighbour, by TRANSLATION (not reflection)
+// 1b) NO CONCOURSE ON WALLS: in a sealed ward the concourse never touches the wall rim (no port = no
+// concourse). Measure: of the perimeter cells, almost none carry road.
+function perimRoad(ch) { let perim = 0, road = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.cells[i].poly.some((v) => v[2] === -1)) { perim++; if (ch.road[i]) road++; } return { perim, road }; }
+{ const pr = perimRoad(s.world.chunks[0]); ok(pr.road / pr.perim < 0.1, `the sealed ward keeps the concourse off its walls (${pr.road}/${pr.perim} perimeter cells carry road — only walled-in-room doors)`); }
+
+// 2) grow off a wall SIDE → it OPENS (gets a port) and a connected neighbour renders, by TRANSLATION
 const fr = frontier(s);
-ok(fr.length === 6 && fr.every((f) => !f.closed), 'a lone ward shows 6 open frontier SIDES (grouped from 30 segments)');
+ok(fr.length === 6 && fr.every((f) => f.closed), 'a lone ward shows 6 frontier SIDES, all closed walls (a priori)');
 const nb = growSide(s, 0, fr[0].sideK, 'market');
 ok(nb === 1 && s.world.chunks.length === 2, 'growSide adds the neighbour');
+ok(s.world.chunks[0].ports.some((p) => s.sideOf[p.edge] === fr[0].sideK), 'growing OPENED ward 0’s grown side (it now carries a seam port)');
 ok(biomeOf(s, 1) === 'market', 'the neighbour took the chosen biome');
 // the neighbour is ward 0 TRANSLATED by the side-k lattice vector T_k
 const T = s.T[fr[0].sideK];
@@ -68,28 +74,25 @@ ok(reach(s.world), 'every ward is walk-reachable from ward 0 (connected floor)')
   ok(Math.sqrt(minD) > cs * 0.3, `abutting wards don't overlap — closest cross-seam cells ${Math.sqrt(minD).toFixed(1)}px apart`);
 }
 
-// 3) CLOSED WALL: seal a frontier side → that whole side has 0 ports
-const wf = frontier(s).filter((f) => f.chunkId === 1 && !f.closed)[0];
-ok(toggleWall(s, 1, wf.sideK), 'toggleWall seals a frontier side');
-ok(!s.world.chunks[1].ports.some((p) => s.sideOf[p.edge] === wf.sideK), 'the closed wall carries ZERO ports across its whole side');
-ok(reach(s.world), 'the floor stays connected after walling a side');
-toggleWall(s, 1, wf.sideK);   // reopen
-ok(s.world.chunks[1].ports.some((p) => s.sideOf[p.edge] === wf.sideK), 'toggleWall re-opens the wall (the side gets a port back)');
+// 2c) one connected walk-graph world
+ok(reach(s.world), 'every ward is walk-reachable from ward 0 (connected floor)');
 
-// 3b) growing off a sealed side re-opens it and still connects
-toggleWall(s, 1, wf.sideK);
-const nb2 = growSide(s, 1, wf.sideK, 'garden');
-ok(nb2 === 2 && reach(s.world), 'growing off a sealed side re-opens it and connects');
-
-// 4) seal the whole frontier → many closed walls, floor still one world, no boundary ports
-const before = closedWallCount(s);
-const sealed = sealFrontier(s);
-ok(sealed > 0 && closedWallCount(s) === before + sealed, `sealFrontier closes every open frontier side (${sealed})`);
-ok(frontier(s).every((f) => f.closed), 'after sealing, no open frontier sides remain');
-ok(reach(s.world), 'the sealed bounded floor is still one connected world');
+// 3) the boundary is closed walls A PRIORI — every frontier side is a wall carrying 0 ports, and the
+// concourse stays off all of them. No sealing needed.
+ok(frontier(s).every((f) => f.closed), 'every frontier side is a closed wall by default (a priori)');
 let boundaryPorts = 0;
 for (const ch of s.world.chunks) for (let e = 0; e < ch.poly.length; e++) if (edgeFree(s.world, ch, e)) for (const p of ch.ports) if (p.edge === e) boundaryPorts++;
-ok(boundaryPorts === 0, 'no concourse port sits on any sealed boundary segment');
+ok(boundaryPorts === 0, 'no concourse port sits on any boundary (wall) segment — the walls are portless (the no-concourse-on-walls is pinned on the sealed ward in 1b)');
+
+// 3b) toggleWall opens a wall into a port-stub, and re-closes it
+const wf = frontier(s).filter((f) => f.chunkId === 1 && f.closed)[0];
+ok(toggleWall(s, 1, wf.sideK) && s.world.chunks[1].ports.some((p) => s.sideOf[p.edge] === wf.sideK), 'toggleWall opens a wall (the side gets a port)');
+ok(toggleWall(s, 1, wf.sideK) && !s.world.chunks[1].ports.some((p) => s.sideOf[p.edge] === wf.sideK), 'toggleWall re-closes the wall (0 ports again)');
+
+// 3c) growing off a wall side opens it and still connects
+const nb2 = growSide(s, 1, wf.sideK, 'garden');
+ok(nb2 === 2 && reach(s.world), 'growing off a wall side opens it and connects');
+ok(sealFrontier(s) >= 0 && frontier(s).every((f) => f.closed), 'sealFrontier leaves the frontier all walls (a no-op when already walled)');
 
 // 5) determinism — same seed + same build script ⇒ identical floor
 function build(seed) { const t = createBuild(seed, { v2: true, portsMax: 1 }); const f = frontier(t); growSide(t, 0, f[0].sideK, 'market'); growSide(t, 0, f[1].sideK, 'garden'); sealFrontier(t); return t; }
