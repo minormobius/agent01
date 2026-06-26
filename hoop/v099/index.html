@@ -448,6 +448,7 @@
 
   <script type="module">
     import { solveChunk } from './v8/chunkgen.js';
+    import { prepareNave, naveSolveNext } from '../nave/nave.js';   // FLOOR 1 = the nave: a central commons + six faction wards (paced solve)
     import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, extendWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
     import { nearestConcourse, attachShaft, markRindDeck, playerDeckOf } from './descent.js';   // chutes: a deck link is a port
     import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
@@ -795,7 +796,7 @@
     // chunk ahead as you explore). Serial by design: each neighbour inherits its predecessors' ports, so
     // the seams stay shared — but a chunk takes ~3s to cross and ~0.5s to make, so one worker keeps ahead.
     async function maybeStream() {
-      if (!world || busyN > 0) return;
+      if (!world || world._nave || busyN > 0) return;   // floor 1 is the bounded NAVE — never stream past its seven wards
       if (!introSolved()) return;   // the first chunk is sealed until the opening mystery is solved
       const LOOK = chunkSpan * 1.0;                 // start a full chunk early — "less than one chunk away"
       let best = null, bd = Infinity;
@@ -819,13 +820,35 @@
 
     async function newWorld() {
       if (gpu && world) for (const ch of world.chunks) freeChunkGpu(ch);   // release the old world's GPU cell buffers
-      busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; walkPath = null;
-      const { rec, painted } = await generate(opts({ seed })); rec.painted = painted; addChunk(world, rec); restitch();
-      chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
+      busy(true); world = null; walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; walkPath = null;
+      // FLOOR 1 = THE NAVE — a central COMMONS (≥1 of every building) ringed by six FACTION wards
+      // (Continuant · Drift · Rindwalker) in three two-chunk lobes. Bounded: the commons links to all six,
+      // each ward to the commons + its sibling, every cross-faction edge a wall. No streaming past it.
+      await new Promise((r) => setTimeout(r, 0));   // let the busy spinner paint before the first solve
+      const nave = prepareNave(seed); world = nave.world; world._nave = nave;
+      naveSolveNext(nave);   // solve the COMMONS (chunk 0) — the spawn — now; the six wards stream in paced
+      const c0 = world.chunks[0]; c0.painted = paintChunk(c0, SKIN);
+      restitch();
+      chunkSpan = (() => { const bb = bboxOf(c0.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
       setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal();
       _anchorsDone = false; ensureChunk0Terminal(); ensureAnchors();   // a terminal exists immediately; the principals land once society + story are ready (ensureAnchors, idempotent)
       renderQuest();   // resolve the storyboard waypoint now that the terminal exists (re-resolved again by ensureAnchors when anchors land)
-      busy(false); status(); draw(); maybeStream(); rememberSeed();
+      busy(false); status(); draw(); rememberSeed();
+      streamNaveWards(nave);
+    }
+    // stream the six faction wards in ONE PER TICK after the commons — solve + paint + incremental stitch,
+    // exactly like a normal chunk load, so a new world never chokes on seven skins at once.
+    function streamNaveWards(st) {
+      const step = () => {
+        if (!world || world._nave !== st) return;   // a newer world replaced this one
+        const ci = naveSolveNext(st);
+        if (ci < 0) { rebuildSocietySoon(); return; }
+        const ch = world.chunks[ci];
+        try { ch.painted = paintChunk(ch, SKIN); } catch (e) {}
+        stitchAdd(ci); reveal(); draw();
+        setTimeout(step, 24);
+      };
+      setTimeout(step, 40);
     }
     function startNode() {
       if (!walk) return -1; const ch = world.chunks[0];

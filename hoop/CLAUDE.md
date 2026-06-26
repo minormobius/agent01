@@ -58,7 +58,11 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   composes the v2 engine (`solveChunk` + explicit `closedSides`/inherited ports, one shared foam seed). Three
   views with pan/zoom: biome (faction tint) · verb (by role) · **full** (the real game skin —
   `skin.js#paintChunk` per chunk: seeded walls, bones hidden, retiled concourse, baked lighting). Pure +
-  node-tested (`nave/test/nave.selftest.mjs`, 36 checks). See `nave/README.md`.
+  node-tested (`nave/test/nave.selftest.mjs`, 36 checks). See `nave/README.md`. **Wired into the v099 game
+  as floor 1**: `v099/index.html#newWorld` builds the nave via `prepareNave`/`naveSolveNext` (the commons
+  solves + spawns first, the six wards stream in paced one-per-tick like normal chunk loads), and
+  `maybeStream` is gated on `world._nave` so the bounded floor never streams past its seven wards. The
+  standalone `/nave` page stays the design view.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a

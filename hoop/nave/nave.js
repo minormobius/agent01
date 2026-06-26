@@ -79,15 +79,15 @@ function sharedSide(polyA, sideOf, polyB) {
   return -1;
 }
 
-// build the whole nave. Returns the world (7 records), per-chunk meta (biome/faction), the connection
-// graph, and the bbox. Deterministic from `seed` (one shared foam seed → seamless seams).
-export function buildNave(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, commonsRoomSize = 11, factionRoomSize = 13 } = {}) {
+// prepare the nave layout (cheap: geometry + topology, no solving). Returns a STATE you drive one chunk at
+// a time with naveSolveNext — so a caller can pace the seven solves (the game streams them in like normal
+// chunks) instead of freezing on a single ~1s block. `order` solves the commons (0) first.
+export function prepareNave(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, commonsRoomSize = 11, factionRoomSize = 13 } = {}) {
   seed = (seed | 0) >>> 0;
   const R = Math.min(W, H) * 0.46, cx = W / 2, cy = H / 2;
   const poly0 = shapePoly(shape, cx, cy, R), sideOf = shapeSideOf(shape);
   const T = latticeVectors(poly0, sideOf);
   const polys = [poly0]; for (let k = 0; k < 6; k++) polys.push(poly0.map((p) => ({ x: p.x + T[k].x, y: p.y + T[k].y })));
-
   // for each chunk, the set of sides that should be OPEN (a connected seam); the rest become walls.
   const activeSides = polys.map(() => new Set());
   for (const [a, b] of CONNECTIONS) {
@@ -95,32 +95,41 @@ export function buildNave(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, common
     if (sa >= 0) activeSides[a].add(sa);
     if (sb >= 0) activeSides[b].add(sb);
   }
+  return { seed, W, H, sideOf, polys, activeSides, commonsRoomSize, factionRoomSize, world: createWorld(), meta: [], recs: [], order: polys.map((_, i) => i), idx: 0 };
+}
 
-  const world = createWorld(), meta = [], recs = [];
-  for (let i = 0; i < polys.length; i++) {
-    const closed = []; for (let k = 0; k < 6; k++) if (!activeSides[i].has(k)) closed.push(k);
-    // inherit ports from already-solved connected neighbours (on the side that faces this chunk)
-    const inherit = [];
-    for (const [a, b] of CONNECTIONS) {
-      const j = a === i ? b : b === i ? a : -1; if (j < 0 || !recs[j]) continue;
-      const sj = sharedSide(polys[j], sideOf, polys[i]);
-      for (const p of recs[j].ports) if (sideOf[p.edge] === sj) inherit.push({ x: p.x, y: p.y });
-    }
-    const bi = biomeForChunk(i);
-    const rec = solveChunk({
-      poly: polys[i], sideOf, inherit, closedSides: closed,
-      seed: (seed ^ (i * 0x9e37 + 0x51)) >>> 0, foamSeed: seed, W, H,
-      roomSize: i === 0 ? commonsRoomSize : factionRoomSize, footprint: TRAFFIC_FOOTPRINT,
-      grand: bi.grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix: bi.roleMix, roleFloors: bi.roleFloors,
-      v2: true, tension: 0.6, portRange: [1, 1],
-    });
-    recs[i] = rec; addChunk(world, rec);
-    meta[i] = { key: bi.key, label: bi.label, faction: bi.faction, exclusive: bi.exclusive || null, color: bi.color, dir: i === 0 ? -1 : i - 1 };
+// solve + add the NEXT chunk in the prepared nave; returns its index, or -1 when all seven are done.
+export function naveSolveNext(st) {
+  if (st.idx >= st.order.length) return -1;
+  const i = st.order[st.idx++], sideOf = st.sideOf;
+  const closed = []; for (let k = 0; k < 6; k++) if (!st.activeSides[i].has(k)) closed.push(k);
+  const inherit = [];
+  for (const [a, b] of CONNECTIONS) {
+    const j = a === i ? b : b === i ? a : -1; if (j < 0 || !st.recs[j]) continue;   // only already-solved neighbours
+    const sj = sharedSide(st.polys[j], sideOf, st.polys[i]);
+    for (const p of st.recs[j].ports) if (sideOf[p.edge] === sj) inherit.push({ x: p.x, y: p.y });
   }
+  const bi = biomeForChunk(i);
+  const rec = solveChunk({
+    poly: st.polys[i], sideOf, inherit, closedSides: closed,
+    seed: (st.seed ^ (i * 0x9e37 + 0x51)) >>> 0, foamSeed: st.seed, W: st.W, H: st.H,
+    roomSize: i === 0 ? st.commonsRoomSize : st.factionRoomSize, footprint: TRAFFIC_FOOTPRINT,
+    grand: bi.grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix: bi.roleMix, roleFloors: bi.roleFloors,
+    v2: true, tension: 0.6, portRange: [1, 1],
+  });
+  st.recs[i] = rec; addChunk(st.world, rec);
+  st.meta[i] = { key: bi.key, label: bi.label, faction: bi.faction, exclusive: bi.exclusive || null, color: bi.color, dir: i === 0 ? -1 : i - 1 };
+  return i;
+}
 
+// build the whole nave in one go (the page + tests). Returns world (7 records), per-chunk meta, the
+// connection graph + bbox. Deterministic from `seed` (one shared foam seed → seamless seams).
+export function buildNave(seed, opts) {
+  const st = prepareNave(seed, opts);
+  while (naveSolveNext(st) >= 0);
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-  for (const ch of world.chunks) for (const p of ch.poly) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
-  return { world, meta, connections: CONNECTIONS, sideOf, bbox: { x0, y0, x1, y1 }, seed };
+  for (const ch of st.world.chunks) for (const p of ch.poly) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+  return { world: st.world, meta: st.meta, connections: CONNECTIONS, sideOf: st.sideOf, bbox: { x0, y0, x1, y1 }, seed: st.seed };
 }
 
 // the connectivity check used by the page + tests: build the cross-chunk walk graph and confirm which
