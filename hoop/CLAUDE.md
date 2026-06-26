@@ -42,6 +42,14 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   (the ratchet's equipotential arc). The figure kernels in `research.js` are pure/zero-dep and
   re-derive each wing's headline physics (hoop is pure-static and can't import a sibling wing at
   runtime); they're pinned by `test/research.selftest.mjs` against the numbers the wings publish.
+- `chunkroller/` — the **chunk-design tool** at `hoop.mino.mobi/chunkroller` (a `/econ` cousin for a single
+  chunk). Rolls a `solveChunk()` and shows a **total top-down view** (cells by role/domain/tier/social
+  lens + roads + ports + glyphs), a **civic vitality readout** (the econ kernel run over the chunk's
+  rooms), **NPC stats** (`stats.js#rollCharacter` per resident → mean triad + per-room dossier), and
+  **biome sliders that bias room creation** via the engine's additive `roleMix` override (`v7/foam.js`
+  `drawRole`/`castCharacter`, default = wild-type `ROLE_MIX`, so the game is unchanged). Seven sliders +
+  named biomes (Commons/Market/Garden/Foundry/Cloister/Civic Seat/Dormitory). The design surface for the
+  bigger map plan (chunk biomes, edge tiles/bounded floors, no-baddies floor 1). See `chunkroller/README.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a

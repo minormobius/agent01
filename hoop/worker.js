@@ -133,6 +133,10 @@ export default {
     if (url.pathname === '/v099/feed' || url.pathname === '/v099/feed/') {
       return env.ASSETS.fetch(new Request(new URL('/v099/feed.html', url), request));
     }
+    // chunkroller — the chunk-design tool (a /econ cousin for chunks): total view + civic readout + NPC stats + biome sliders.
+    if (url.pathname === '/chunkroller' || url.pathname === '/chunkroller/') {
+      return env.ASSETS.fetch(new Request(new URL('/chunkroller/index.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

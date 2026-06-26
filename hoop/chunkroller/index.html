@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>chunkroller · hoop</title>
+<meta name="description" content="Roll a chunk of the ship: a total top-down view, a civic vitality readout, NPC stats, and biome sliders that bias room creation." />
+<style>
+  :root { --bg:#0a0c10; --panel:#11141b; --line:#222838; --ink:#e6e8ee; --soft:#8a93a6; --gold:#f4bf62; --accent:#7fb0d8; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .wrap { display:flex; height:100vh; }
+  #rail { width:288px; flex:none; background:var(--panel); border-right:1px solid var(--line); overflow:auto; padding:14px 14px 28px; }
+  #stage { flex:1; position:relative; min-width:0; background:radial-gradient(120% 120% at 50% 30%, #0d1018, #07080c); }
+  #cv { width:100%; height:100%; display:block; touch-action:none; cursor:crosshair; }
+  h1 { font-size:14px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); margin:0 0 2px; }
+  .sub { color:var(--soft); font-size:11px; margin:0 0 12px; }
+  .grp { border-top:1px solid var(--line); padding:11px 0 4px; }
+  .grp h2 { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin:0 0 7px; font-weight:600; }
+  label.row { display:flex; align-items:center; gap:8px; margin:5px 0; color:var(--soft); }
+  label.row span.l { width:62px; flex:none; color:#b9c0cf; }
+  input[type=range] { flex:1; accent-color:var(--gold); }
+  label.row b { width:30px; text-align:right; color:var(--ink); }
+  select, button { font:inherit; color:var(--ink); background:#0c0f15; border:1px solid var(--line); border-radius:7px; padding:7px 9px; }
+  select { width:100%; }
+  button { cursor:pointer; }
+  button:hover { border-color:#3a445c; }
+  button.primary { background:rgba(244,191,98,.13); border-color:#6a5a30; color:var(--gold); }
+  .btns { display:flex; gap:7px; margin:8px 0 2px; }
+  .read { color:var(--soft); margin:7px 0; }
+  .read b { color:var(--ink); }
+  #vital b.big { font-size:15px; }
+  .bar { height:7px; border-radius:4px; background:#0c0f15; overflow:hidden; margin:3px 0 7px; border:1px solid var(--line); }
+  .bar i { display:block; height:100%; }
+  .sig { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--soft); margin:2px 0; }
+  .sig .l { width:64px; flex:none; }
+  .sig .bar { flex:1; margin:0; }
+  .roles { display:flex; flex-wrap:wrap; gap:3px 7px; font-size:11px; color:var(--soft); }
+  .triad { display:flex; gap:4px; margin:4px 0; }
+  .triad i { display:block; height:9px; border-radius:2px; }
+  #dossier { position:absolute; right:12px; top:12px; width:248px; max-height:calc(100% - 24px); overflow:auto; background:rgba(12,14,20,.94); border:1px solid var(--line); border-radius:10px; padding:12px 13px; font-size:12px; display:none; }
+  #dossier.on { display:block; }
+  #dossier h3 { margin:0 0 5px; font-size:13px; color:var(--gold); }
+  #dossier .x { float:right; cursor:pointer; color:var(--soft); }
+  #dossier .np { border-top:1px solid var(--line); margin-top:8px; padding-top:7px; }
+  .att { display:grid; grid-template-columns:1fr 1fr 1fr; gap:2px 8px; font-size:10.5px; color:var(--soft); }
+  .crumb { position:absolute; left:12px; bottom:10px; color:var(--soft); font-size:11px; }
+  .crumb a { color:var(--accent); text-decoration:none; }
+  @media (max-width:760px){ .wrap{flex-direction:column;} #rail{width:100%;height:auto;max-height:46vh;} #stage{height:54vh;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="rail">
+    <h1>chunkroller</h1>
+    <p class="sub">roll a chunk · civic readout · NPC stats · biome sliders that bias room creation</p>
+
+    <div class="grp" style="border-top:none">
+      <h2>the chunk</h2>
+      <label class="row"><span class="l">biome</span>
+        <select id="biome"></select>
+      </label>
+      <label class="row"><span class="l">colour by</span>
+        <select id="by">
+          <option value="role" selected>role (the verb)</option>
+          <option value="domain">domain (the matter)</option>
+          <option value="tier">tier (central-place rank)</option>
+          <option value="social">social thickness</option>
+          <option value="bridging">bridges vs bonds</option>
+        </select>
+      </label>
+      <div class="btns">
+        <button id="roll" class="primary" style="flex:1">🎲 roll chunk</button>
+        <button id="reseed" title="same biome, new seed">↻ seed</button>
+      </div>
+      <label class="row" style="margin-top:6px"><input type="checkbox" id="t-web" /> supply web</label>
+      <label class="row"><input type="checkbox" id="t-fab" /> social fabric</label>
+    </div>
+
+    <div class="grp">
+      <h2>characteristics</h2>
+      <div id="sliders"></div>
+      <div class="read" id="mix" style="font-size:10.5px"></div>
+    </div>
+
+    <div class="grp">
+      <h2>civic vitality</h2>
+      <div class="read" id="vital">—</div>
+      <div id="signals"></div>
+    </div>
+
+    <div class="grp">
+      <h2>readout</h2>
+      <div class="read" id="metrics">—</div>
+      <div class="roles" id="rolecounts"></div>
+    </div>
+
+    <div class="grp">
+      <h2>the people</h2>
+      <div class="read" id="npc">—</div>
+      <div class="triad" id="triadbar"></div>
+      <div class="read" id="casts" style="font-size:11px"></div>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="dossier"></div>
+    <div class="crumb"><a href="/">◍ hoop</a> · chunkroller · a <a href="/econ/">/econ</a> cousin for chunks</div>
+  </div>
+</div>
+<script type="module" src="./chunkroller.js"></script>
+</body>
+</html>
