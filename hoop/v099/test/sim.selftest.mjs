@@ -19,6 +19,7 @@ ok('dwell wall → chest', fixtureAction('dwell', 'wall') === 'chest');
 ok('learn central → terminal', fixtureAction('learn', 'component') === 'terminal');
 ok('grow central → garden', fixtureAction('grow', 'component') === 'garden');
 ok('worship central → oracle', fixtureAction('worship', 'component') === 'oracle');
+ok('worship wall → geomancy (the secondary fixture)', fixtureAction('worship', 'wall') === 'geomancy');
 ok('govern central → inkblot', fixtureAction('govern', 'component') === 'inkblot');
 ok('isTerminalRole is learn only (govern/worship have their own fixtures now)', isTerminalRole('learn') && !isTerminalRole('govern') && !isTerminalRole('worship') && !isTerminalRole('dwell'));
 ok('unmapped → null', fixtureAction('make', 'component') === null && fixtureAction('learn', 'wall') === null);

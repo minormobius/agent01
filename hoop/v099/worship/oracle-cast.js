@@ -14,8 +14,9 @@
 // Vendored kernels (re-sync from clock/, never fork — the vendor/auth.js rule): lib/iching.js,
 // lib/hexagrams.js, lib/geomancy.js, lib/geomancy-meanings.js.
 
-import { decompose, movingLines, transformedLines, lines2yang } from './lib/iching.js';
+import { decompose, movingLines, transformedLines, lines2yang, composeReading } from './lib/iching.js';
 import { HEX } from './lib/hexagrams.js';
+import { ZHOUYI } from './lib/zhouyi.js';
 import { mothersFromCounts, shield, figureKey } from './lib/geomancy.js';
 import { MEANINGS } from './lib/geomancy-meanings.js';
 
@@ -34,26 +35,38 @@ function codeToNo(code) { for (let n = 1; n <= 64; n++) { const b = HEX[n].b; le
 const hexName = (n) => ({ zh: HEX[n].ch, py: HEX[n].py, en: HEX[n].en });
 
 // ── YIJING reading from 6 cast lines (6/7/8/9). The ritual (yarrow.js / coins) produces the lines; this
-//    turns them into the hexagram + moving lines + resulting hexagram + omen. The shared builder. ──
+//    turns them into the EXPANDED reading via the library's composeReading + the canonical Zhouyi text:
+//    hexagram + trigrams + the Image, the Judgment (卦辭), the surfaced moving-line texts (爻辭), and the
+//    relating hexagram it changes toward. `profile` is the compact record (re-derivable from `lines`);
+//    `full` is the display reading. ──
 export function yijingFromLines(lines) {
-  const d = decompose(lines);
-  const primaryNo = codeToNo(codeOf(d.y));
-  const moving = movingLines(lines);                                  // 0-based indices of the 6/9 lines
-  const result = moving.length ? codeToNo(codeOf(lines2yang(transformedLines(lines)))) : null;
+  const r = composeReading(lines, HEX, ZHOUYI);
+  const primaryNo = r.primaryNo;
+  const result = r.transformedNo;
   const name = hexName(primaryNo);
   const profile = {
     system: 'yijing',
     hexagram: primaryNo, name,
-    trigrams: { below: d.lower.en, above: d.upper.en },
-    elements: { below: d.lower.element, above: d.upper.element },
-    moving: moving.map((i) => i + 1),                                 // 1-based line positions
+    trigrams: { below: r.lower.en, above: r.upper.en },
+    elements: { below: r.lower.element, above: r.upper.element },
+    moving: r.moving.map((i) => i + 1),                               // 1-based line positions
     changesTo: result, changesToName: result ? hexName(result).en : null,
     lines: lines.slice(),
     judgment: HEX[primaryNo].j,
   };
-  const omen = `${name.en} (${name.zh} ${name.py}) — ${d.lower.en} below, ${d.upper.en} above. ${HEX[primaryNo].j}`
+  // the expanded, display-only reading (not re-stored in the rumor — the engine re-derives it from `lines`).
+  const full = {
+    image: r.image || null,
+    structure: r.structure || null,
+    judgment: (r.judgment && r.judgment.e) || HEX[primaryNo].j,
+    judgmentZh: (r.judgment && r.judgment.z) || name.zh,
+    lines: (r.lineReadings || []).map((L) => ({ pos: L.pos, text: (L.canonical && L.canonical.e) || L.text, zh: (L.canonical && L.canonical.z) || null })),
+    relating: r.relating ? { no: r.relating.no, name: hexName(r.relating.no).en, judgment: (r.relating.judgment && r.relating.judgment.e) || null, role: r.relating.role } : null,
+    useLine: (r.useLine && r.useLine.e) || null,
+  };
+  const omen = `${name.en} (${name.zh} ${name.py}) — ${r.lower.en} below, ${r.upper.en} above. ${HEX[primaryNo].j}`
     + (result ? ` It changes toward ${hexName(result).en}.` : '');
-  return { system: 'yijing', omen, profile, lines: lines.slice() };
+  return { system: 'yijing', omen, profile, full, lines: lines.slice() };
 }
 
 // ── YIJING: the three-coin oracle (each line is three coins: 2|3 each → sum 6/7/8/9; 6 & 9 are moving) ──
@@ -63,23 +76,49 @@ export function castYijing(rng) {
   return yijingFromLines(lines);
 }
 
-// ── GEOMANCY reading from a SHIELD (the sand cast / a tally roll produces the shield → its JUDGE figure
-//    + Fludd's signification). The shared builder. ──
+// one figure node {rows, figure} → its full descriptor (name + Fludd's signification fields).
+export function figInfo(node) {
+  const m = MEANINGS[figureKey(node.rows)] || {};
+  return {
+    name: (node.figure && node.figure.name) || m.la || '—',
+    latin: m.la || null, en: m.en || null,
+    planet: m.planet || null, nature: m.nature || null,
+  };
+}
+
+// the whole shield, flattened to descriptors — the FULL report (4 Mothers · 4 Daughters · 4 Nieces ·
+// 2 Witnesses · Judge · Reconciler). Rides in the geomancy rumor's profile (the engine gets the lot).
+export function shieldReport(S) {
+  return {
+    mothers: S.mothers.map(figInfo),
+    daughters: S.daughters.map(figInfo),
+    nieces: S.nieces.map(figInfo),
+    witnessRight: figInfo(S.witnessRight),
+    witnessLeft: figInfo(S.witnessLeft),
+    judge: figInfo(S.judge),
+    reconciler: figInfo(S.reconciler),
+  };
+}
+
+// ── GEOMANCY reading from a SHIELD (the sand cast / a tally roll produces the shield). Reports the FULL
+//    shield — every figure — alongside the JUDGE headline + Fludd's signification. ──
 export function geomancyFromShield(S) {
   const judge = S.judge;                                              // {rows, figure}
   const m = MEANINGS[figureKey(judge.rows)] || {};
   const witnesses = [S.witnessRight, S.witnessLeft].map((w) => (w && w.figure ? w.figure.name : '—'));
   const judgeName = (judge.figure && judge.figure.name) || m.la || '—';
+  const report = shieldReport(S);
   const profile = {
     system: 'geomancy',
     judge: judgeName, latin: m.la || null, gloss: m.en || (judge.figure && judge.figure.gloss) || null,
     planet: m.planet || null, zodiac: m.zodiac || null,
     nature: m.nature || null, strength: m.strength || null,
     witnesses,
+    shield: report,                                                   // THE FULL SHIELD (the user's ask)
   };
   const omen = (`The Judge is ${judgeName}${m.en ? ` (${m.en})` : ''}`
     + `${m.planet ? `, under ${m.planet}` : ''}${m.zodiac ? ` in ${m.zodiac}` : ''}. ${m.sig || ''}`).trim();
-  return { system: 'geomancy', omen, profile };
+  return { system: 'geomancy', omen, profile, shield: report };
 }
 
 // ── GEOMANCY: sixteen tallies → four Mothers → the shield → the JUDGE figure + Fludd's signification ──

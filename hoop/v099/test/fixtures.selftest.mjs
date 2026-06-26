@@ -77,11 +77,23 @@ ok(still.profile.moving.length === 0 && still.profile.changesTo === null, 'all-y
 // castYijing now delegates to yijingFromLines and stays deterministic
 ok(JSON.stringify(cast('yijing', 'seed-42').profile) === JSON.stringify(cast('yijing', 'seed-42').profile), 'castYijing still deterministic post-refactor');
 
-// geomancyFromShield: a shield built from tallies → a named Judge + witnesses + omen.
+// the EXPANDED yijing reading: composeReading attaches Image / Judgment / moving-line texts / relating.
+ok(yr.full && typeof yr.full.judgment === 'string' && yr.full.judgment.length > 0, 'expanded reading carries a Judgment text');
+ok(yr.full.image && typeof yr.full.image === 'string', 'expanded reading carries the Image');
+ok(yr.full.relating && yr.full.relating.name && yr.full.relating.no === yr.profile.changesTo, 'a moving cast surfaces the relating hexagram');
+ok(Array.isArray(yr.full.lines) && yr.full.lines.length > 0 && yr.full.lines.every((L) => L.pos && L.text), 'expanded reading surfaces the moving-line texts');
+ok(!still.full.relating && still.full.lines.length === 0, 'a still cast has no relating hexagram and no moving-line texts');
+
+// geomancyFromShield: a shield built from tallies → a named Judge + witnesses + omen + the FULL shield.
 const S = shield(mothersFromCounts([3, 6, 5, 8, 1, 4, 7, 2, 9, 2, 5, 6, 3, 8, 1, 4]));
 const gr = geomancyFromShield(S);
 ok(gr.system === 'geomancy' && typeof gr.profile.judge === 'string' && gr.profile.judge !== '—', 'geomancyFromShield names the Judge');
 ok(gr.profile.witnesses.length === 2 && gr.omen.length > 10, 'geomancyFromShield carries witnesses + omen');
+const sh = gr.profile.shield;
+ok(sh && sh.mothers.length === 4 && sh.daughters.length === 4 && sh.nieces.length === 4, 'full shield: 4 Mothers, 4 Daughters, 4 Nieces');
+ok(sh.witnessRight.name && sh.witnessLeft.name && sh.judge.name && sh.reconciler.name, 'full shield: Witnesses, Judge, Reconciler all named');
+ok(sh.judge.name === gr.profile.judge, 'the shield Judge matches the headline Judge');
+ok([...sh.mothers, ...sh.daughters, ...sh.nieces].every((f) => f.name && typeof f.name === 'string'), 'every shield figure is named');
 
 // ── the SAND engine (soil.js) the geomancy rite pokes ──
 const props = soilProps(0.82, 0.13, 0.05, 0.40);

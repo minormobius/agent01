@@ -453,7 +453,8 @@
     import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
              NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
     import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
-    import { openOracle, closeOracle, oracleOpen } from './worship/oracle.js';   // the WORSHIP fixture — divination (yijing + geomancy) → entropic rumors
+    import { openOracle, closeOracle, oracleOpen } from './worship/oracle.js';   // WORSHIP primary fixture — the yarrow yijing → entropic rumors
+    import { openGeomancy, closeGeomancy, geomancyOpen } from './worship/scry.js';   // WORSHIP secondary (wall) fixture — geomancy in sand → the full shield → a rumor
     import { openInkblot, closeInkblot, inkblotOpen } from './govern/inkblot.js';   // the GOVERN fixture — flip Rorschach seals → archetype + your colour → a rumor
     import { genomeForSeed as mGenomeForSeed } from './morph/atlas.js';   // PROTO: morph engine (topology × legible law × goal) — gated, opt-in via ?morph=1 / the engine toggle
     import { initialState as mInit, tryMove as mTryMove, isWin as mIsWin } from './morph/engine.js';
@@ -894,6 +895,10 @@
         for (const cl of F.cells) { const c = P.paintCells[cl.idx]; if (c) lm.set(Math.round(c.x) + ',' + Math.round(c.y), lumOfColor(c.color)); }
         const litAt = (x, y) => lm.get(Math.round(x) + ',' + Math.round(y)) ?? 0.6;
         drawWallFixture(g, P, F, { accent: F.accent, hue: F.hue, litAt });
+        // the worship room's secondary fixture — geomancy in sand — marks its wall console with 🜨 at the tip.
+        if (F.tip && fixtureAction((ch.rooms[F.room] || {}).role, 'wall') === 'geomancy') {
+          g.save(); g.fillStyle = '#e0c98a'; g.font = `${Math.max(7, (SKIN.playerW || 6) * 0.9)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('🜨', F.tip.x, F.tip.y); g.restore();
+        }
       }
       for (const cp of P.comps) {
         drawDevice(g, cp.cx, cp.cy, cp.r, cp.g, { lit: Math.min(1.45, (cp.lit || 1) + 0.3), accent: cp.accent });
@@ -2090,6 +2095,15 @@
     }
     const oracleAt = (wx, wy) => componentByPred(wx, wy, isOracle);
     const inkblotAt = (wx, wy) => componentByPred(wx, wy, isInkblot);
+    // the worship room's SECONDARY fixture: geomancy lives on the GROWN WALL console (like the dwell chest).
+    // Iterate the grown wall fixtures, match the room's wall action, and use F.tip as the interaction point.
+    function geomancyAt(wx, wy) {
+      if (!world) return null; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const F of (P.fixtures || [])) { const role = (ch.rooms[F.room] || {}).role; if (fixtureAction(role, 'wall') !== 'geomancy' || !F.tip) continue;
+          if ((F.tip.x - wx) ** 2 + (F.tip.y - wy) ** 2 < (SKIN.playerW * 2.4) ** 2) return { x: F.tip.x, y: F.tip.y }; } }
+      return null;
+    }
     // the host context both fixtures receive: the world key, sign-in state, the rumor publisher, the toast.
     const fixtureCtx = () => ({ world: worldKey(), signedIn: !!storyUser, publishRumor, toast: flashToast });
     const cabinetKeyOf = (cp, ch) => 'ch' + ch.id + ':r' + cp.room;
@@ -3212,6 +3226,8 @@
       if (arc) { walkThenInteract(arc.cp.cx, arc.cp.cy, () => openArcade(arc.cp, arc.ch)); return; }
       const orc = oracleAt(wx, wy);
       if (orc) { walkThenInteract(orc.cp.cx, orc.cp.cy, () => openOracle(fixtureCtx())); return; }
+      const geo = geomancyAt(wx, wy);
+      if (geo) { walkThenInteract(geo.x, geo.y, () => openGeomancy(fixtureCtx())); return; }
       const ink = inkblotAt(wx, wy);
       if (ink) { walkThenInteract(ink.cp.cx, ink.cp.cy, () => openInkblot(fixtureCtx())); return; }
       const caf = cafeAt(wx, wy);
@@ -3233,7 +3249,7 @@
     // is a fullscreen overlay/modal covering the world? then the animation loop need not render behind it.
     function worldCovered() {
       if (arcadeOpen || gardenOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen || loaderOpen) return true;
-      if (oracleOpen() || inkblotOpen()) return true;                                 // the worship oracle / govern seal-stand overlays
+      if (oracleOpen() || geomancyOpen() || inkblotOpen()) return true;               // the worship oracle / sand-stand / govern seal-stand overlays
       if (minimap.open || equip.open || (creator && creator.open)) return true;
       if (document.querySelector('.himodal')) return true;                          // the sign-in handle box
       return ['story', 'enc', 'arc', 'garden', 'trade', 'kitchen', 'lapidary', 'battle'].some((id) => { const el = $(id); return el && el.classList.contains('on'); });
@@ -3276,7 +3292,7 @@
       if (arcadeOpen) drawArcadeBoard();   // re-fit the puzzle board to the new viewport / orientation
     }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
-    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !typing() && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen && !oracleOpen() && !inkblotOpen()) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world (your durable pack carries across)
+    addEventListener('keydown', (e) => { if ((e.key === 'r' || e.key === 'R') && !typing() && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen && !oracleOpen() && !geomancyOpen() && !inkblotOpen()) { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world (your durable pack carries across)
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
@@ -3388,7 +3404,7 @@
     addEventListener('click', (e) => { const mm = $('moremenu'); if (mm.classList.contains('on') && !mm.contains(e.target) && e.target !== $('morebtn') && !$('morebtn').contains(e.target)) mm.classList.remove('on'); });
     $('dbgbtn').addEventListener('click', () => toggleDbg());
     addEventListener('keydown', (e) => { if (e.key === '`' && !typing() && !e.metaKey && !e.ctrlKey) { e.preventDefault(); toggleDbg(); } });   // ` = story-status panel
-    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !typing() && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen && !oracleOpen() && !inkblotOpen()) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
+    addEventListener('keydown', (e) => { if ((e.key === 'j' || e.key === 'J') && !typing() && !e.metaKey && !e.ctrlKey && !arcadeOpen && !gardenOpen && !tradeOpen && !kitchenOpen && !battleOpen && !lapidaryOpen && !loaderOpen && !oracleOpen() && !geomancyOpen() && !inkblotOpen()) { e.preventDefault(); toggleJournal(); } });   // j = side-quest journal
 
     if (playerChar) adoptCharacter(playerChar);   // restore the saved sprite/kit/HUD on load
 

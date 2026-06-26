@@ -50,11 +50,12 @@ export function applyFood(s, food) {
 }
 
 // (room role × fixture kind) → action. component = the central emissive fixture; wall = the grown console.
-// worship → 'oracle' (the divination seal-stand: yijing + geomancy → entropic rumors); govern → 'inkblot'
-// (the Rorschach seal-stand: flip → pick → archetype + your colour → a rumor). Both publish to story.rumor.
+// worship: the central ORACLE is the yarrow yijing; its SECONDARY (grown wall) fixture is GEOMANCY-in-sand.
+// govern → 'inkblot' (the Rorschach seal-stand). All three publish to story.rumor (oracle/geomancy as
+// kind:'divination', inkblot as kind:'inkblot').
 export const FIXTURE_ACTION = {
   component: { learn: 'terminal', govern: 'inkblot', worship: 'oracle', dwell: 'bed', grow: 'garden', play: 'arcade', serve: 'food', trade: 'trade' },
-  wall: { dwell: 'chest' },
+  wall: { dwell: 'chest', worship: 'geomancy' },
 };
 export function fixtureAction(role, kind) { return (FIXTURE_ACTION[kind] || {})[role] || null; }
 export const isTerminalRole = (role) => fixtureAction(role, 'component') === 'terminal';

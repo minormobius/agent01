@@ -4,29 +4,41 @@ The two big civic rooms that had no principal fixture (they fell through to the 
 got nothing) now have their own. Both are **divinatory** and both publish to the player's `story.rumor`
 outbox (`com.minomobi.hoop.story.rumor`) — the lexicon the engine (hoopy) tails off the firehose.
 
-## Worship → ☯ The Oracle  (`worship/`)
+## Worship — two fixtures, both full tactile rituals (ported from the `clock/` surfaces)
 
-A divination fixture with two **full tactile rituals** (not instant rolls — the real interactions ported
-from the `clock/` divination surfaces). The player performs the rite by hand and — signed in — **releases**
-the omen to the ship as a `kind:'divination'` rumor (the engine's entropic-omen signal).
+The worship room carries **two** divination fixtures — a primary (central component) and a secondary
+(grown wall console) — the same component/wall split the dwelling uses (bed + chest). Both perform the
+real interaction by hand and — signed in — **release** the result as a `kind:'divination'` rumor.
 
-- **Yijing — the yarrow division** (`worship/yarrow.js`, ported from `clock/yijing/index.html`): fifty
-  stalks, one set aside, forty-nine divided **by hand**. A marker sweeps the bundle; tap to split; the 49
-  persistent stalks physically divide into heaps, one is lifted, the fours are counted off and set aside,
-  the rest gather — three changes to a line, six lines to a hexagram (+ moving lines + the hexagram it
-  changes toward). The classic yarrow odds (moving yin 1/16 … moving yang 3/16) are preserved.
-- **Geomancy — stabbed in sand** (`worship/sand.js`, ported from `clock/geocast/index.html`): sixteen
-  bracketed lines in damp sand (the `soil.js` mass-conserving height-field). **Poke dots** into each line;
-  the parity of each line's dot-count builds the four Mothers → the shield → its **Judge** figure + Robert
-  Fludd's signification (planet · zodiac · nature). WebGPU-shaded sand with a canvas2d fallback.
+### ☯ Primary — The Oracle: the yarrow yijing  (`worship/oracle.js` + `yarrow.js`)
+
+Ported from `clock/yijing/index.html`: fifty stalks, one set aside, forty-nine divided **by hand**. A
+marker sweeps the bundle; tap to split; the 49 persistent stalks physically divide into heaps, one is
+lifted, the fours are counted off and set aside, the rest gather — three changes to a line, six lines to a
+hexagram. Classic yarrow odds preserved (moving yin 1/16 … moving yang 3/16). The reading is **expanded**
+(via the library's `composeReading` + the canonical Zhouyi): the **Image**, the **Judgment** (卦辭), the
+surfaced **moving-line texts** (爻辭), and the **relating hexagram** it changes toward.
+
+### 🜨 Secondary — The sand-stand: geomancy  (`worship/scry.js` + `sand.js`)
+
+Ported from `clock/geocast/index.html` over the `soil.js` mass-conserving height-field: sixteen bracketed
+lines in damp sand. **Poke dots** into each line; the parity of each line's dot-count builds the four
+Mothers → the whole shield. The panel reports the **FULL SHIELD** — every figure (4 Mothers · 4 Daughters
+· 4 Nieces · 2 Witnesses · Judge · Reconciler) with glyphs — plus the Judge headline + Fludd's
+signification. WebGPU-shaded sand with a canvas2d fallback. It lives on the **grown wall console** (found
+at `F.tip`, like the dwell chest), marked 🜨.
 
 | File | Role |
 |---|---|
-| `worship/oracle-cast.js` | **Pure kernels** — `yijingFromLines(lines)` / `geomancyFromShield(shield)` (the ritual outputs → the reading + profile), `cast(system, seed)` (the deterministic non-ritual path, still used/tested), `divinationRumor(world, reading)` (the record). No DOM. |
-| `worship/oracle.js` | The fixture UI — self-contained overlay hosting whichever ritual canvas; on completion shows the omen + release. |
-| `worship/yarrow.js` | The yarrow-stalk physical sim + the three-changes-per-line division (canvas + tap). DOM/canvas; the page's element-ids swapped for an injected canvas + callbacks. |
-| `worship/sand.js` | The sand cast: poke→measure→shield over the `soil` Field, the bracket overlay, drag-to-stroke poking. Injected sand+overlay canvases + callbacks. |
+| `worship/oracle-cast.js` | **Pure kernels** — `yijingFromLines(lines)` (expanded reading via `composeReading`+Zhouyi), `geomancyFromShield(shield)` (the **full** shield report + Judge), `shieldReport`/`figInfo`, `cast(system, seed)` (deterministic non-ritual path, still tested), `divinationRumor`. No DOM. |
+| `worship/oracle.js` | Primary fixture UI — hosts the yarrow canvas; on completion shows the expanded reading + release. |
+| `worship/scry.js` | Secondary (wall) fixture UI — hosts the sand canvas; on cast renders the full shield chart + release. |
+| `worship/yarrow.js` | The yarrow-stalk physical sim + the three-changes-per-line division (canvas + tap). |
+| `worship/sand.js` | The sand cast engine: poke→measure→shield over the `soil` Field, the bracket overlay, drag-to-stroke poking. |
 | `worship/lib/` | **Vendored** kernels from `clock/lib/` (`iching`, `zhouyi`, `geomancy`, `geomancy-meanings`, `stalk-render`, `soil`, `soil-render`) + `hexagrams.js` (the King Wen `HEX` table from `clock/yijing`). Re-sync, never fork. |
+
+The wall wiring mirrors the chest: `sim.js` `FIXTURE_ACTION.wall.worship = 'geomancy'`; `index.html`'s
+`geomancyAt` finds the worship room's grown wall fixture by `F.tip` and opens the sand panel.
 
 ## Govern → ❦ The Seal-stand  (`govern/`)
 
@@ -59,10 +71,11 @@ inkblot colour). Back-compatible — every field is optional; an absent `kind` r
 
 ## Tests
 
-`test/fixtures.selftest.mjs` (95 checks): cast determinism, the hexagram lookup **cross-checked against
-the library's own `composeReading`**, the ritual builders (`yijingFromLines`/`geomancyFromShield`), the
-`soil.js` Field engine (deterministic reset, mass-conserving poke leaves a countable crater, settle), and
-both rumor builders. `test/sim.selftest.mjs` pins the new `FIXTURE_ACTION` mapping. A headless-Chromium
-smoke test drove both rituals: the yarrow stalk sim paints and the division advances (aim→split→count),
-and the sand cast produced a full reading ("The Judge is Coniunctio, under Mercury") with the 16-line
-bracket overlay painted — no console errors. (The inkblot govern fixture is unchanged.)
+`test/fixtures.selftest.mjs` (104 checks): cast determinism, the hexagram lookup **cross-checked against
+the library's own `composeReading`**, the ritual builders, the **expanded yijing reading** (Image /
+Judgment / moving-line texts / relating hexagram present; a still cast has none), the **full shield**
+(4+4+4 + Witnesses + Judge + Reconciler all named; Judge matches the headline), the `soil.js` Field engine
+(deterministic reset, countable crater, settle), and both rumor builders. `test/sim.selftest.mjs` pins the
+`FIXTURE_ACTION` mapping incl. `worship.wall = geomancy`. A headless-Chromium smoke test confirmed the
+Oracle is yijing-only (no rite picker) and the sand-stand renders the **full 16-figure shield** (Judge
+"Populus") with a release button — no console errors. (The inkblot govern fixture is unchanged.)
