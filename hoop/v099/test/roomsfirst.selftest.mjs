@@ -59,7 +59,8 @@ const portSet = new Set(ch.ports.map((p) => p.cell).filter((c) => c >= 0));
 let perim = 0, perimRoom = 0, perimRoadNonPort = 0;
 for (let i = 0; i < ch.cells.length; i++) { if (!ch.cells[i].poly.some((v) => v[2] === -1)) continue; perim++; if (ch.road[i]) { if (!portSet.has(i)) perimRoadNonPort++; } else if (ch.roomOf[i] >= 0) perimRoom++; }
 ok(perim > 0 && perimRoom / perim > 0.8, `the perimeter is mostly rooms (${perimRoom}/${perim})`);
-ok(perimRoadNonPort <= Math.max(6, portSet.size), `the concourse only reaches the edge at ports (${perimRoadNonPort} stray edge-road cells)`);
+// each port reaches inward via a short stub that can graze ~2 boundary cells, so allow 2/port (+ slack).
+ok(perimRoadNonPort <= Math.max(8, portSet.size * 2), `the concourse only reaches the edge at ports + their stubs (${perimRoadNonPort} stray edge-road cells)`);
 
 // 6b) CONCOURSE WIDTH: the 2-wide minimum reads as a ribbon, not a hairline.
 const degOf = (c) => { let road = 0, deg = 0; for (let i = 0; i < c.road.length; i++) if (c.road[i]) { road++; deg += c.adj[i].filter((j) => c.road[j]).length; } return road ? deg / road : 0; };

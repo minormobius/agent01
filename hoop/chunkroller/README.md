@@ -31,8 +31,9 @@ pocket plants). Moving the sliders genuinely changes what the chunk grows — an
 
 - **▣ one chunk** — the single-chunk design view (above). The **ports/side** slider tunes the seam density
   (max concourse ports per *direction*, 1–4) via the engine's `portRange` + `sideOf` — turn it down for
-  fewer chunk-to-chunk crossings. **Ports are allocated per SIDE (direction), not per segment**, so a
-  tessellation shape's ~30 boundary segments still get a few ports total (e.g. 6 at ports/side=1), not one
+  fewer chunk-to-chunk crossings. **The default is now 1 — one port per direction** (`portRange` default
+  `[1,1]`). **Ports are allocated per SIDE (direction), not per segment**, so a
+  tessellation shape's ~30 boundary segments still get one port per direction (6 on a hex), not one
   each. The **size** slider scales the chunk (1–2.5×; bigger = more rooms/cells, see perf below). **▰
   tessellation shape** fills an editor-exported shape (`shapes.js`) instead of a perfect hexagon, so you
   see the deformed, tessellating outline as a real chunk. The **tension** slider discourages long skinny
@@ -85,16 +86,22 @@ engine's new `tension` option (0..1, additive, default 0 → unchanged) relieves
 Skinniness is the per-room PCA aspect ratio (long axis / short). Measured: tension 0.8 on a sample chunk
 took the worst room from aspect **12.8 → 5.4** and average **3.08 → 2.26**, road still fully connected,
 solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
-- **⬡ bounded floor** — a finite hand of ~7–10 chunks grown off the real tiler, each painted by its
-  **ward biome**, the **edge tiles** drawn as a gold sealed rim, and **☮ floor 1 — no baddies** on the
-  readout. Click a ward → its civic vitality. The model lives in `floor.js`:
-  - **chunk biome** — `chunkBiomeAt(floorSeed, cx, cy)` deterministically assigns a biome per chunk
-    position, so a floor grows varied wards reproducibly (atproto-stable).
-  - **bounded floor** — `growFloor(seed, {count, depth})` grows exactly `count` chunks compactly from the
-    origin via `manager.js` reflection (the same tiler the game streams with), then stops.
-  - **edge tile** — once growth stops, every chunk edge with no neighbour (`edgeFree`) is a frontier the
-    floor SEALS: an edge tile, the floor's wall, instead of a streaming seam.
-  - **no-baddies floor 1** — `noBaddies` (depth === 1) rides on the floor: the per-floor creature gate.
+- **⬡ bounded floor** — the **interactive floor builder** (`builder.js`). You build a finite floor BY
+  HAND: each ward is a hex chunk solved with the **v2 rooms-first solver + role floors** (≥1 of each
+  building type), painted by its **biome**, and **☮ floor 1 — no baddies** on the readout. Click a ward →
+  its civic vitality. The interactions:
+  - **click ＋ to grow** — every open frontier edge shows a gold **＋** handle; click it and the
+    neighbouring ward renders off that edge (reflection tiling over `manager.js`), taking the **biome**
+    selected in the dropdown. So you choose any of the seven ward types per chunk as you build.
+  - **✎ wall mode** — toggle it, then click a frontier edge to seal it into a **closed wall**: a side with
+    ZERO ports (engine `closedSides`), so no concourse ever reaches that edge — a hard floor boundary, not
+    a streaming seam. This is the bounded floor's boundary condition: *we set ports to zero on the sides of
+    merit.* **⊟ seal frontier** does it to every remaining open edge at once.
+  - **🎲 auto-grow** grows a compact hand of random-biome wards off the current floor; **↺ reset** starts
+    over from one centred chunk. The floor stays one connected walk-graph world throughout (seams cross at
+    the shared ports; closed walls carry none).
+  - The older auto-grower (`floor.js#growFloor` + `chunkBiomeAt` + edge tiles) is still present and
+    node-tested, but the UI now drives the hand-builder instead.
 
 ## Files
 
@@ -104,7 +111,8 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
 | `chunkroller.js` | controller — both views, render, readout, click dossier/ward |
 | `biomes.js` | the sliders + `mixFromSliders` (rollup → biased `ROLE_MIX`) + the named biomes + tints |
 | `civic.js` | `fieldFromRooms` (adapt chunk rooms → econ `field`), `scoreChunk`, `npcRoster` |
-| `floor.js` | `growFloor` (bounded floor), `chunkBiomeAt` (ward assignment), edge tiles, no-baddies flag |
+| `builder.js` | the **interactive floor builder** — `createBuild`/`growAt`/`toggleWall`/`sealFrontier`/`freeEdges` (click-to-grow + closed walls) |
+| `floor.js` | `growFloor` (auto-grown bounded floor), `chunkBiomeAt` (ward assignment), edge tiles, no-baddies flag |
 | `tess.html` + `tess.js` | the **tessellation editor** (`/chunkroller/tess`) — drag edges, preview the tiling, export JSON |
 | `tessgen.js` | the tessellation kernel: deform 3 edges → opposite 3 follow (reverse+translate) → always tiles |
 | `shapes.js` | bundled tessellation shapes (paste an editor export) + `shapePoly` (→ solveChunk `poly`) |
@@ -112,6 +120,7 @@ solve cost +~13%. Node-tested in `v099/test/tension.selftest.mjs`.
 | `test/stability.selftest.mjs` | 12 checks — sampler determinism, all-homes < balanced, the solver never worsens stability |
 | `test/civic.selftest.mjs` | 20 checks — slider rollup, the civic field over a real chunk, NPC stats, biome biasing |
 | `test/floor.selftest.mjs` | 17 checks — deterministic floor, edge tiles seal the rim, ward variety, no-baddies gate |
+| `test/builder.selftest.mjs` | 22 checks — click-to-grow connects, closed walls carry 0 ports, seal-frontier keeps the floor one walk world, determinism |
 | `test/tess.selftest.mjs` | 17 checks — deformed edges keep zero tessellation gap; export round-trips |
 
 ## Stability model (backing the room distribution)

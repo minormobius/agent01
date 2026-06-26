@@ -7,7 +7,7 @@ import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM } from '../v099/roo
 import { TRIAD, TRIAD_ORDER } from '../v099/stats.js';
 import { SLIDERS, NEUTRAL, SLIDER_MAX, BIOMES, BIOME_COLOR, BIOME_GRAND, mixFromSliders, mixShares } from './biomes.js';
 import { scoreChunk, npcRoster, roomShock } from './civic.js';
-import { growFloor } from './floor.js';
+import { createBuild, growAt, toggleWall, sealFrontier, freeEdges, bbox as buildBbox, biomeOf as wardBiome, histogram as wardHistogram, closedWallCount } from './builder.js';
 import { SAMPLE_SHAPE, shapePoly, shapeSideOf } from './shapes.js';
 import { evaluateMix, solveStableSliders, themeOf } from './stability.js';
 
@@ -17,10 +17,10 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': 
 const TIER_COLOR = { Thriving: '#5fd08a', Healthy: '#8fd06a', Stable: '#d8c45a', Fragile: '#e0a05a', Failing: '#e0635a' };
 const domHue = {}; DOMAINS.forEach((d, i) => { domHue[d.id] = Math.round((i / DOMAINS.length) * 320); });
 
-let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', floorN = 9, portsMax = 4, csize = 1, useShape = false, tension = 0, v2 = false;
+let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', portsMax = 1, csize = 1, useShape = false, tension = 0, v2 = false;
 const ONE_OF_EACH = Object.fromEntries(Object.keys(ROLES).map((r) => [r, 1]));   // role floors: at least one of each building type
 let chunk = null, civic = null, roster = null, sel = -1, view = { s: 1, ox: 0, oy: 0 };
-let floor = null, selChunk = -1;
+let build = null, selChunk = -1, wallMode = false;   // the interactive bounded-floor builder + per-edge wall toggle
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0;
@@ -30,7 +30,7 @@ $('biome').innerHTML = Object.entries(BIOMES).map(([k, b]) => `<option value="${
 $('sliders').innerHTML = SLIDERS.map((s) => `<label class="row" title="${esc(s.hint)}"><span class="l">${esc(s.label)}</span><input type="range" data-sl="${s.key}" min="0" max="${SLIDER_MAX}" step="0.1" value="${sliders[s.key]}"><b data-slv="${s.key}">${sliders[s.key].toFixed(1)}</b></label>`).join('');
 function syncSliders() { for (const s of SLIDERS) { const r = document.querySelector(`[data-sl="${s.key}"]`); const b = document.querySelector(`[data-slv="${s.key}"]`); if (r) r.value = sliders[s.key]; if (b) b.textContent = sliders[s.key].toFixed(1); } }
 
-$('biome').addEventListener('change', (e) => { biome = e.target.value; sliders = { ...(BIOMES[biome].sliders) }; syncSliders(); generate(); });
+$('biome').addEventListener('change', (e) => { biome = e.target.value; sliders = { ...(BIOMES[biome].sliders) }; syncSliders(); if (mode === 'floor') { renderFloor(); floorReadout(); } else generate(); });
 $('sliders').addEventListener('input', (e) => { const k = e.target.getAttribute('data-sl'); if (!k) return; sliders[k] = +e.target.value; document.querySelector(`[data-slv="${k}"]`).textContent = sliders[k].toFixed(1); biome = 'wild'; $('biome').value = matchBiome() || ''; generate(); });
 $('by').addEventListener('change', (e) => { lens = e.target.value; render(); });
 $('roll').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; generate(); });
@@ -39,11 +39,16 @@ $('t-web').addEventListener('change', () => render());
 $('t-fab').addEventListener('change', () => render());
 function matchBiome() { for (const [k, b] of Object.entries(BIOMES)) if (SLIDERS.every((s) => Math.abs((b.sliders[s.key] ?? 1) - sliders[s.key]) < 0.05)) return k; return null; }
 
-// view mode (one chunk ↔ the bounded floor)
-function setMode(m) { mode = m; $('m-chunk').classList.toggle('primary', m === 'chunk'); $('m-floor').classList.toggle('primary', m === 'floor'); $('floorsize-row').style.display = m === 'floor' ? '' : 'none'; generate(); }
+// view mode (one chunk ↔ the interactive bounded-floor builder)
+function setMode(m) { mode = m; $('m-chunk').classList.toggle('primary', m === 'chunk'); $('m-floor').classList.toggle('primary', m === 'floor'); $('builder-tools').style.display = m === 'floor' ? '' : 'none'; generate(); }
 $('m-chunk').addEventListener('click', () => setMode('chunk'));
 $('m-floor').addEventListener('click', () => setMode('floor'));
-$('floorN').addEventListener('input', (e) => { floorN = +e.target.value; $('floorNv').textContent = floorN; generate(); });
+// builder toolbar
+$('b-wall').addEventListener('click', () => { wallMode = !wallMode; $('b-wall').classList.toggle('primary', wallMode); cv.style.cursor = wallMode ? 'crosshair' : ''; });
+function deferBtn(btn, busy, work) { const t = btn.textContent; btn.disabled = true; btn.textContent = busy; setTimeout(() => { try { work(); } finally { btn.disabled = false; btn.textContent = t; } }, 20); }
+$('b-seal').addEventListener('click', () => { if (!build) return; deferBtn($('b-seal'), '⊟ sealing…', () => { sealFrontier(build); selChunk = -1; renderFloor(); floorReadout(); }); });
+$('b-reset').addEventListener('click', () => { generateFloor(); });
+$('b-auto').addEventListener('click', () => { if (!build) return; deferBtn($('b-auto'), '🎲 growing…', () => autoGrow()); });
 $('portsMax').addEventListener('input', (e) => { portsMax = +e.target.value; $('portsMaxv').textContent = portsMax; generate(); });
 $('csize').addEventListener('input', (e) => { csize = +e.target.value; $('csizev').textContent = csize.toFixed(2).replace(/0$/, '') + '×'; generate(); });
 $('useShape').addEventListener('change', (e) => { useShape = e.target.checked; generate(); });
@@ -82,24 +87,43 @@ function generateChunk() {
   fitView(); render(); readout();
 }
 function generateFloor() {
-  floor = growFloor(seed, { count: floorN, depth: 1, W, H, portRange: [1, portsMax] });
+  build = createBuild(seed, { W, H, v2: true, portsMax, biome });   // the bounded floor is v2 (rooms-first + role floors)
   selChunk = -1; $('dossier').classList.remove('on');
   fitFloor(); renderFloor(); floorReadout();
 }
+// auto-grow a compact hand off the current floor: repeatedly grow the open edge nearest the floor centroid.
+function autoGrow() {
+  if (!build) return;
+  const TARGET = build.world.chunks.length + 6;
+  let guard = 0;
+  while (build.world.chunks.length < TARGET && guard++ < 60) {
+    const fe = freeEdges(build).filter((f) => !f.closed);
+    if (!fe.length) break;
+    const b = buildBbox(build), cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+    let best = null, bd = Infinity;
+    for (const f of fe) { const nx = 2 * f.mx - centroidX(f.chunkId), ny = 2 * f.my - centroidY(f.chunkId), d = (nx - cx) ** 2 + (ny - cy) ** 2; if (d < bd) { bd = d; best = f; } }
+    if (!best) break;
+    growAt(build, best.chunkId, best.edge, randomBiome());
+  }
+  selChunk = -1; fitFloor(); renderFloor(); floorReadout();
+}
+const centroidX = (ci) => { const p = build.world.chunks[ci].poly; let x = 0; for (const v of p) x += v.x; return x / p.length; };
+const centroidY = (ci) => { const p = build.world.chunks[ci].poly; let y = 0; for (const v of p) y += v.y; return y / p.length; };
+function randomBiome() { const ks = Object.keys(BIOMES).filter((k) => k !== 'wild'); return ks[(Math.random() * ks.length) | 0]; }
 
 // ── view fit (chunk poly bbox → canvas) ──
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); if (mode === 'floor') { fitFloor(); } else { fitView(); } render(); }
 function fitFloor() {
-  if (!floor) return;
-  const b = floor.bbox, pad = 28, sw = (CW - 2 * pad) / (b.x1 - b.x0 || 1), sh = (CH - 2 * pad) / (b.y1 - b.y0 || 1), s = Math.min(sw, sh);
+  if (!build) return;
+  const b = buildBbox(build), pad = 34, sw = (CW - 2 * pad) / (b.x1 - b.x0 || 1), sh = (CH - 2 * pad) / (b.y1 - b.y0 || 1), s = Math.min(sw, sh);
   view = { s, ox: (CW - (b.x1 - b.x0) * s) / 2 - b.x0 * s, oy: (CH - (b.y1 - b.y0) * s) / 2 - b.y0 * s };
 }
-// ── render the bounded floor: chunks painted by their ward biome + the sealed edge tiles ──
+// ── render the bounded floor: chunks painted by their ward biome + the closed walls + grow handles ──
 function renderFloor() {
-  if (!floor) return;
+  if (!build) return;
   ctx.clearRect(0, 0, CW, CH);
-  floor.world.chunks.forEach((ch, ci) => {
-    const tint = BIOME_COLOR[floor.biomeOf[ci]] || '#555', dim = (selChunk < 0 || selChunk === ci) ? 1 : 0.4;
+  build.world.chunks.forEach((ch, ci) => {
+    const tint = BIOME_COLOR[wardBiome(build, ci)] || '#555', dim = (selChunk < 0 || selChunk === ci) ? 1 : 0.4;
     for (let i = 0; i < ch.cells.length; i++) {
       const c = ch.cells[i], poly = c.poly; if (poly.length < 3) continue;
       ctx.globalAlpha = dim;
@@ -108,26 +132,41 @@ function renderFloor() {
     }
     ctx.globalAlpha = 1;
   });
-  // EDGE TILES — the sealed floor boundary (thick gold seam)
-  ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-  for (const t of floor.edgeTiles) { ctx.beginPath(); ctx.moveTo(SX(t.ax), SY(t.ay)); ctx.lineTo(SX(t.bx), SY(t.by)); ctx.stroke(); }
+  // FRONTIER edges: closed walls (thick slate wall) vs open edges (gold ＋ grow handle)
+  const edges = freeEdges(build); _floorHandles = edges;
+  ctx.lineCap = 'round';
+  for (const f of edges) {
+    if (!f.closed) continue;
+    ctx.strokeStyle = '#3a4254'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(SX(f.ax), SY(f.ay)); ctx.lineTo(SX(f.bx), SY(f.by)); ctx.stroke();
+    ctx.strokeStyle = '#11151f'; ctx.lineWidth = 1.4; ctx.stroke();
+  }
+  for (const f of edges) {
+    if (f.closed) continue;
+    ctx.strokeStyle = wallMode ? 'rgba(224,99,90,.55)' : 'rgba(244,191,98,.5)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(SX(f.ax), SY(f.ay)); ctx.lineTo(SX(f.bx), SY(f.by)); ctx.stroke(); ctx.setLineDash([]);
+    const r = 8; ctx.fillStyle = wallMode ? 'rgba(224,99,90,.92)' : 'rgba(244,191,98,.92)'; ctx.beginPath(); ctx.arc(SX(f.mx), SY(f.my), r, 0, 7); ctx.fill();
+    ctx.fillStyle = '#11151f'; ctx.font = 'bold 12px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(wallMode ? '✕' : '＋', SX(f.mx), SY(f.my) + 0.5);
+  }
   // per-chunk biome label
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '11px ui-monospace,monospace';
-  floor.world.chunks.forEach((ch, ci) => {
+  build.world.chunks.forEach((ch, ci) => {
     let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } x /= ch.poly.length; y /= ch.poly.length;
-    const lbl = BIOMES[floor.biomeOf[ci]].label;
+    const lbl = BIOMES[wardBiome(build, ci)].label;
     ctx.fillStyle = 'rgba(8,10,14,.7)'; ctx.fillText(lbl, SX(x) + 0.6, SY(y) + 0.6);
     ctx.fillStyle = selChunk === ci ? '#fff' : 'rgba(240,238,228,.9)'; ctx.fillText(lbl, SX(x), SY(y));
   });
 }
 function floorReadout() {
-  $('vital').innerHTML = `<b class="big" style="color:#f4bf62">bounded floor · ${floor.count} chunks</b><br><span style="color:#9aa3b5">${floor.noBaddies ? '☮ floor 1 — no baddies' : `depth ${floor.depth}`} · ${floor.edgeTiles.length} edge tiles sealing the rim</span>`;
+  const n = build.world.chunks.length, walls = closedWallCount(build), open = freeEdges(build).filter((f) => !f.closed).length;
+  $('vital').innerHTML = `<b class="big" style="color:#f4bf62">bounded floor · ${n} ward${n === 1 ? '' : 's'}</b><br><span style="color:#9aa3b5">☮ floor 1 — no baddies · next ward: <b style="color:${BIOME_COLOR[biome] || '#ccc'}">${BIOMES[biome].label}</b></span>`;
   $('signals').innerHTML = '';
-  $('metrics').innerHTML = `chunks <b>${floor.count}</b> · edge tiles <b>${floor.edgeTiles.length}</b> · wards <b>${Object.keys(floor.histogram).length}</b><br><span style="color:#7d8597">click a ward to read its civic vitality</span>`;
-  $('rolecounts').innerHTML = Object.entries(floor.histogram).sort((a, b) => b[1] - a[1]).map(([bk, n]) => `<span style="color:${BIOME_COLOR[bk]}">▣ ${BIOMES[bk].label} <b style="color:#e6e8ee">${n}</b></span>`).join('');
+  $('metrics').innerHTML = `wards <b>${n}</b> · closed walls <b>${walls}</b> · open edges <b>${open}</b><br><span style="color:#7d8597">${open ? 'click ＋ to grow · ✎ wall mode to seal · click a ward to read it' : 'floor is sealed — click a ward to read its civic vitality'}</span>`;
+  const h = wardHistogram(build);
+  $('rolecounts').innerHTML = Object.entries(h).sort((a, b) => b[1] - a[1]).map(([bk, c]) => `<span style="color:${BIOME_COLOR[bk]}">▣ ${BIOMES[bk].label} <b style="color:#e6e8ee">${c}</b></span>`).join('');
   $('npc').innerHTML = 'pick a ward →'; $('triadbar').innerHTML = ''; $('casts').innerHTML = '';
   $('mix').innerHTML = '';
 }
+let _floorHandles = [];
 function fitView() {
   if (!chunk) return;
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -225,9 +264,19 @@ function readout() {
 cv.addEventListener('click', (e) => {
   const r = cv.getBoundingClientRect(), mx = (e.clientX - r.left - view.ox) / view.s, my = (e.clientY - r.top - view.oy) / view.s;
   if (mode === 'floor') {
-    if (!floor) return;
+    if (!build) return;
+    // 1) a frontier-edge handle? (grow off it, or seal it in wall mode) — handles take click priority.
+    const hitR = 13 / view.s; let hf = null, hd = Infinity;
+    for (const f of _floorHandles) { const d = (f.mx - mx) ** 2 + (f.my - my) ** 2; if (d < hd) { hd = d; hf = f; } }
+    if (hf && Math.sqrt(hd) < hitR) {
+      if (wallMode) toggleWall(build, hf.chunkId, hf.edge);
+      else { growAt(build, hf.chunkId, hf.edge, biome); }
+      selChunk = -1; $('dossier').classList.remove('on'); fitFloor(); renderFloor(); floorReadout();
+      return;
+    }
+    // 2) otherwise select the nearest ward and read it
     let best = -1, bd = Infinity;
-    floor.world.chunks.forEach((ch, ci) => { let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } x /= ch.poly.length; y /= ch.poly.length; const d = (x - mx) ** 2 + (y - my) ** 2; if (d < bd) { bd = d; best = ci; } });
+    build.world.chunks.forEach((ch, ci) => { let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } x /= ch.poly.length; y /= ch.poly.length; const d = (x - mx) ** 2 + (y - my) ** 2; if (d < bd) { bd = d; best = ci; } });
     if (best < 0) return;
     selChunk = best; showWard(best); renderFloor();
     return;
@@ -240,7 +289,7 @@ cv.addEventListener('click', (e) => {
 });
 // a ward (floor chunk) clicked → its biome + civic vitality + people, in the rail readout.
 function showWard(ci) {
-  const ch = floor.world.chunks[ci], bk = floor.biomeOf[ci];
+  const ch = build.world.chunks[ci], bk = wardBiome(build, ci);
   const sc = scoreChunk(ch.rooms, W, H, seed ^ ci);
   $('vital').innerHTML = `<b class="big" style="color:${TIER_COLOR[sc.vital.tier] || '#ccc'}">${sc.vital.vitality} · ${sc.vital.tier}</b><br><span style="color:#9aa3b5">▣ ${BIOMES[bk].label} ward · ${sc.society.people.length} residents</span>`;
   const SIGS = [['closes', 'closure'], ['thick', 'thickness'], ['weave', 'weave'], ['bridges', 'bridges'], ['thirds', 'third-places'], ['employ', 'employed'], ['resilient', 'resilience']];

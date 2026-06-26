@@ -61,7 +61,17 @@
         <button id="m-chunk" class="primary" style="flex:1">▣ one chunk</button>
         <button id="m-floor" style="flex:1">⬡ bounded floor</button>
       </div>
-      <label class="row" id="floorsize-row" style="display:none"><span class="l">floor</span><input type="range" id="floorN" min="3" max="12" step="1" value="9"><b id="floorNv">9</b></label>
+      <div id="builder-tools" style="display:none">
+        <p class="sub" style="margin:8px 0 6px;font-size:11px;line-height:1.5">click an <b style="color:var(--gold)">＋ open edge</b> to grow the next ward off it (it takes the biome below). <b style="color:#e0635a">wall mode</b>: click an edge to seal it shut (a closed wall — 0 ports, a hard boundary).</p>
+        <div class="btns">
+          <button id="b-wall" style="flex:1" title="when on, clicking a frontier edge seals it into a closed wall (0 ports) instead of growing">✎ wall mode</button>
+          <button id="b-seal" title="seal every open frontier edge into a closed wall — the bounded floor's boundary in one move">⊟ seal frontier</button>
+        </div>
+        <div class="btns" style="margin-top:6px">
+          <button id="b-auto" style="flex:1" title="auto-grow a compact hand of wards off the current floor">🎲 auto-grow</button>
+          <button id="b-reset" title="start over from a single centred chunk">↺ reset</button>
+        </div>
+      </div>
     </div>
 
     <div class="grp" style="border-top:none">
@@ -79,7 +89,7 @@
           <option value="bridging">bridges vs bonds</option>
         </select>
       </label>
-      <label class="row" title="max concourse ports per SIDE (direction) — the chunk-to-chunk crossings. Allocated per direction, so a tessellation shape's many segments still get a few ports, not one each. Tune down for fewer seams."><span class="l">ports/side</span><input type="range" id="portsMax" min="1" max="4" step="1" value="4"><b id="portsMaxv">4</b></label>
+      <label class="row" title="max concourse ports per SIDE (direction) — the chunk-to-chunk crossings. Default 1 = one per direction. Allocated per direction, so a tessellation shape's many segments still get one port, not one each."><span class="l">ports/side</span><input type="range" id="portsMax" min="1" max="4" step="1" value="1"><b id="portsMaxv">1</b></label>
       <label class="row" title="scale the chunk up (more rooms, more cells). See the readout for cell count / perf."><span class="l">size</span><input type="range" id="csize" min="1" max="2.5" step="0.25" value="1"><b id="csizev">1.0×</b></label>
       <label class="row" title="fill a tessellating editor shape instead of a perfect hexagon"><input type="checkbox" id="useShape"> ▰ tessellation shape</label>
       <label class="row" title="discourage long skinny edge rooms — slivers grow into the corridor / merge inward toward compact rooms"><span class="l">tension</span><input type="range" id="tension" min="0" max="1" step="0.1" value="0"><b id="tensionv">0</b></label>

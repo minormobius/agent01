@@ -121,9 +121,11 @@ export function centroid(cells, list) { let x = 0, y = 0; for (const i of list) 
 // (rectangles and right triangles tile worse and were the source of the old navigation pain). The
 // foam covers the whole canvas; the chunk shape is inscribed, and every cell whose centroid lands
 // OUTSIDE it becomes a GHOST — not shown as a room, but kept to bound the edge-cells and woken
-// wholesale when the neighbour chunk loads. Each chunk edge gets 1–4 CONCOURSE PORTS at Monte-Carlo
-// positions — the cross-chunk movement points the solve must connect and perfuse from.
-export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: want = null, portRange = [1, 4], sideOf = null } = {}) {
+// wholesale when the neighbour chunk loads. Each chunk SIDE gets `portRange` CONCOURSE PORTS (default
+// one per direction) at Monte-Carlo positions — the cross-chunk movement points the solve connects and
+// perfuses from. A side listed in `closedSides` gets ZERO ports — a "closed wall", the bounded-floor
+// boundary condition (no port ⇒ no concourse reaches that edge ⇒ a hard wall, not a seam).
+export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: want = null, portRange = [1, 1], sideOf = null, closedSides = null } = {}) {
   const rng = mulberry32((seed ^ 0xc40c) >>> 0);
   let shape;
   if (!poly) {
@@ -145,14 +147,16 @@ export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: 
   // INHERITED ports first — the shared edge's crossing points, reused from the neighbour so the
   // concourse meets across the seam (each binds to THIS chunk's nearest cell, adjacent across the edge)
   for (const ip of inherit) { const cell = nearestInterior(ip.x, ip.y); if (cell < 0) continue; const e = nearestEdge(ip.x, ip.y); ports.push({ edge: e, x: ip.x, y: ip.y, cell, inherited: true }); edgeHasPort.add(e); }
-  // fresh ports — `portRange` [min,max] ports PER SIDE (direction). Group the polygon edges into sides:
-  // default, each edge is its own side (a regular hex → 6). A tessellation shape passes `sideOf` (one
-  // side index per edge) so its many boundary segments collapse to the original 6 directions — ports are
-  // then allocated PER DIRECTION, spread along that side's arc length, not per segment.
+  // fresh ports — `portRange` [min,max] ports PER SIDE (direction), default [1,1] = one per direction.
+  // Group the polygon edges into sides: default, each edge is its own side (a regular hex → 6). A
+  // tessellation shape passes `sideOf` (one side index per edge) so its many boundary segments collapse to
+  // the original 6 directions — ports are allocated PER DIRECTION, spread along that side's arc length.
   const pr0 = portRange[0] | 0, pr1 = Math.max(pr0, portRange[1] | 0);
+  const closed = closedSides ? new Set(closedSides) : null;            // CLOSED WALLS: sides forced to 0 ports
   const groups = new Map();
   for (let e = 0; e < poly.length; e++) { const s = sideOf ? (sideOf[e] == null ? e : sideOf[e]) : e; let g = groups.get(s); if (!g) { g = []; groups.set(s, g); } g.push(e); }
-  for (const es of groups.values()) {
+  for (const [sk, es] of groups) {
+    if (closed && closed.has(sk)) continue;                           // a closed wall gets no concourse port — a hard floor boundary
     if (es.some((e) => edgeHasPort.has(e))) continue;                 // a side that inherited a port needs no fresh ones
     const pts = [poly[es[0]]]; for (const e of es) pts.push(poly[(e + 1) % poly.length]);   // the side's polyline
     const segLen = [], cum = [0]; let total = 0;
