@@ -10,20 +10,41 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': 
 const cv = $('cv'), ctx = cv.getContext('2d');
 const SKIN = { ...SKIN_DEFAULTS, playerW: 7 };   // a touch coarser than the live game — this is a floor overview
 
-let seed = 7, view = 'biome', nave = null, painted = null;
+let seed = 7, view = 'biome', nave = null;
+let painted = [], paintQueue = [], paintTimer = null;   // the full view's per-chunk skin cache + paced queue
 let DPR = 1, CW = 0, CH = 0, cam = { s: 1, ox: 0, oy: 0 };
 const SX = (x) => x * cam.s + cam.ox, SY = (y) => y * cam.s + cam.oy;
 
-// the full view runs the real game-engine skin per chunk (skin.js#paintChunk): seeded walls along the
-// real membranes, the coarse generation "bones" hidden, the concourse retiled, lighting baked into each
-// cell's colour. Heavy (~1s for seven chunks) so it's computed lazily + cached per roll.
-function ensurePainted() { if (!painted && nave) painted = nave.world.chunks.map((ch) => paintChunk(ch, SKIN)); }
+// THE FULL VIEW runs the real game-engine skin per chunk (skin.js#paintChunk): seeded walls along the real
+// membranes, the coarse generation "bones" hidden, the concourse retiled, lighting baked into each cell's
+// colour. One chunk's skin is ~120ms — painting all seven at once chokes the tab, so we paint ONE PER TICK
+// (paced), drawing each chunk the moment it's ready and leaving the rest as dim flat placeholders. Clicking
+// a chunk paints it immediately (jumps the queue).
+function paintOne(ci) { if (nave && !painted[ci]) painted[ci] = paintChunk(nave.world.chunks[ci], SKIN); }
+function startQueue() { stopQueue(); if (!nave) return; paintQueue = nave.world.chunks.map((_, i) => i).filter((i) => !painted[i]); pump(); }
+function stopQueue() { if (paintTimer) clearTimeout(paintTimer); paintTimer = null; }
+function pump() {
+  paintTimer = null;
+  const ci = paintQueue.shift();
+  if (ci == null) { paintStatus(); return; }
+  paintOne(ci); if (view === 'full') render(); paintStatus();
+  paintTimer = setTimeout(pump, 24);   // yield between chunks so pan/zoom + the tab stay responsive
+}
+const paintedCount = () => painted.reduce((n, p) => n + (p ? 1 : 0), 0);
+function paintStatus() {
+  const el = $('pstat'); if (!el) return;
+  if (view !== 'full' || !nave) { el.style.display = 'none'; return; }
+  const n = paintedCount(), tot = nave.world.chunks.length;
+  el.style.display = '';
+  el.innerHTML = n < tot ? `rendering wards… <b style="color:var(--ink)">${n}/${tot}</b> · <span style="color:#7d8597">click a ward to jump the queue</span>` : `<span style="color:#7d8597">all ${tot} wards rendered · click roll for a new nave</span>`;
+}
 
 // ── build + fit ──
 function roll(newSeed) {
   if (newSeed != null) seed = newSeed;
-  nave = buildNave(seed); painted = null;
+  nave = buildNave(seed); painted = new Array(nave.world.chunks.length).fill(null); stopQueue();
   fit(); render(); sidebar();
+  if (view === 'full') startQueue(); else paintStatus();
 }
 function fit() {
   if (!nave) return;
@@ -84,25 +105,25 @@ function renderFlat() {
   });
 }
 
-let painting = false;
-// full: the real game-engine skin — paintChunk's retiled, lit, seeded-wall mesh per chunk.
+// full: the real game-engine skin per chunk. PAINTED chunks draw their retiled seeded-wall mesh; the rest
+// draw as dim flat placeholders until the paced queue (or a click) reaches them — so the view is always
+// whole, never a choking all-at-once paint.
 function renderFull() {
-  if (!painted) {
-    // the skin is heavy (~1s); draw a quick biome placeholder + status and compute it off the next tick.
-    if (!painting) { painting = true; setTimeout(() => { ensurePainted(); painting = false; render(); }, 20); }
-    for (let ci = 0; ci < nave.world.chunks.length; ci++) { const p = nave.world.chunks[ci].poly; ctx.fillStyle = nave.meta[ci].color + '44'; ctx.beginPath(); ctx.moveTo(SX(p[0].x), SY(p[0].y)); for (let k = 1; k < p.length; k++) ctx.lineTo(SX(p[k].x), SY(p[k].y)); ctx.closePath(); ctx.fill(); }
-    ctx.fillStyle = 'rgba(244,191,98,.95)'; ctx.font = '13px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('rendering game view…', CW / 2, 14);
-    return;
-  }
   const seamW = Math.max(0.35, 0.6 * cam.s);
-  for (const P of painted) {
-    for (const c of P.paintCells) {
+  nave.world.chunks.forEach((ch, ci) => {
+    if (!painted[ci]) {
+      ctx.globalAlpha = 0.42;   // placeholder: the record's flat role cells, dimmed
+      for (let i = 0; i < ch.cells.length; i++) { const poly = ch.cells[i].poly; if (poly.length < 3) continue; ctx.fillStyle = ch.road[i] ? '#0d1120' : (ch.roomOf[i] >= 0 ? ((ch.rooms[ch.roomOf[i]] || {}).color || '#2a2f35') : '#07080c'); ctx.beginPath(); ctx.moveTo(SX(poly[0][0]), SY(poly[0][1])); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k][0]), SY(poly[k][1])); ctx.closePath(); ctx.fill(); }
+      ctx.globalAlpha = 1;
+      return;
+    }
+    for (const c of painted[ci].paintCells) {
       const poly = c.poly; if (poly.length < 3) continue;
       ctx.fillStyle = c.color || '#05070b';
       ctx.beginPath(); ctx.moveTo(SX(poly[0][0]), SY(poly[0][1])); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k][0]), SY(poly[k][1])); ctx.closePath(); ctx.fill();
       if (!c.wall) { ctx.strokeStyle = 'rgba(6,9,12,0.5)'; ctx.lineWidth = seamW; ctx.stroke(); }
     }
-  }
+  });
   // seam ports (the chunk-to-chunk crossings)
   for (const ch of nave.world.chunks) for (const p of ch.ports) { if (p.cell == null || p.cell < 0) continue; ctx.fillStyle = p.inherited ? '#5fd0c0' : '#d8b25a'; ctx.beginPath(); ctx.arc(SX(p.x), SY(p.y), 2.4, 0, 7); ctx.fill(); }
 }
@@ -131,18 +152,33 @@ function sidebar() {
 }
 
 // ── view toggle ──
-function setView(v) { view = v; for (const [b, vv] of [['v-biome', 'biome'], ['v-verb', 'verb'], ['v-full', 'full']]) $(b).classList.toggle('primary', vv === v); render(); sidebar(); }
+function setView(v) {
+  view = v; for (const [b, vv] of [['v-biome', 'biome'], ['v-verb', 'verb'], ['v-full', 'full']]) $(b).classList.toggle('primary', vv === v);
+  if (v === 'full') startQueue(); else stopQueue();
+  render(); sidebar(); paintStatus();
+}
 $('v-biome').addEventListener('click', () => setView('biome'));
 $('v-verb').addEventListener('click', () => setView('verb'));
 $('v-full').addEventListener('click', () => setView('full'));
 $('roll').addEventListener('click', () => roll((Math.random() * 1e9) | 0));
 $('fit').addEventListener('click', () => { fit(); render(); });
 
-// ── pan + zoom ──
-let dragging = false, last = null;
-cv.addEventListener('pointerdown', (e) => { dragging = true; last = { x: e.clientX, y: e.clientY }; cv.classList.add('drag'); cv.setPointerCapture(e.pointerId); });
-cv.addEventListener('pointermove', (e) => { if (!dragging) return; cam.ox += e.clientX - last.x; cam.oy += e.clientY - last.y; last = { x: e.clientX, y: e.clientY }; render(); });
-cv.addEventListener('pointerup', (e) => { dragging = false; cv.classList.remove('drag'); });
+// click a ward (full view) → paint it now, jumping the paced queue.
+function chunkAt(clientX, clientY) {
+  const r = cv.getBoundingClientRect(), mx = (clientX - r.left - cam.ox) / cam.s, my = (clientY - r.top - cam.oy) / cam.s;
+  let best = -1, bd = Infinity;
+  nave.world.chunks.forEach((ch, ci) => { let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } x /= ch.poly.length; y /= ch.poly.length; const d = (x - mx) ** 2 + (y - my) ** 2; if (d < bd) { bd = d; best = ci; } });
+  return best;
+}
+
+// ── pan + zoom (+ click-to-paint in full view) ──
+let dragging = false, last = null, down = null, moved = false;
+cv.addEventListener('pointerdown', (e) => { dragging = true; moved = false; last = down = { x: e.clientX, y: e.clientY }; cv.classList.add('drag'); cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', (e) => { if (!dragging) return; if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) moved = true; cam.ox += e.clientX - last.x; cam.oy += e.clientY - last.y; last = { x: e.clientX, y: e.clientY }; render(); });
+cv.addEventListener('pointerup', (e) => {
+  dragging = false; cv.classList.remove('drag');
+  if (!moved && view === 'full' && nave) { const ci = chunkAt(e.clientX, e.clientY); if (ci >= 0 && !painted[ci]) { paintOne(ci); paintQueue = paintQueue.filter((i) => i !== ci); render(); paintStatus(); } }
+});
 cv.addEventListener('wheel', (e) => {
   e.preventDefault();
   const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
