@@ -433,12 +433,12 @@ export function paintRooms(foam, chunk, solve, { roomSize = 10, seed = 1, footpr
   if (tension > 0) {
     const aspThresh = Math.max(2.4, 4.6 - tension * 2.4), maxGrow = Math.round(roomSize * (2 + tension * 2));
     const aspectOf = (cl) => {
-      if (cl.length < 3) return 1;
+      if (cl.length < 5) return 1;   // tiny rooms aren't "skinny"; PCA on <5 cells is degenerate (3 collinear → ∞)
       let mx = 0, my = 0; for (const c of cl) { mx += foam.cells[c].x; my += foam.cells[c].y; } mx /= cl.length; my /= cl.length;
       let xx = 0, yy = 0, xy = 0; for (const c of cl) { const dx = foam.cells[c].x - mx, dy = foam.cells[c].y - my; xx += dx * dx; yy += dy * dy; xy += dx * dy; }
       xx /= cl.length; yy /= cl.length; xy /= cl.length;
       const tr = xx + yy, disc = Math.sqrt(Math.max(0, tr * tr / 4 - (xx * yy - xy * xy)));
-      return Math.sqrt((tr / 2 + disc) / Math.max(1e-6, tr / 2 - disc));
+      return Math.sqrt((tr / 2 + disc) / Math.max(1e-6, (tr / 2 - disc), tr * 0.0025));   // floor λ2 so near-collinear cells don't blow up
     };
     const roomCells = () => { const m = new Map(); for (const i of chunk.interior) { const z = roomOf[i]; if (z >= 0) { let a = m.get(z); if (!a) { a = []; m.set(z, a); } a.push(i); } } return m; };
     // PASS A — a skinny room that touches another ROOM merges into the chunkiest neighbour (reach inward).

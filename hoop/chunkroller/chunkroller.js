@@ -17,7 +17,8 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': 
 const TIER_COLOR = { Thriving: '#5fd08a', Healthy: '#8fd06a', Stable: '#d8c45a', Fragile: '#e0a05a', Failing: '#e0635a' };
 const domHue = {}; DOMAINS.forEach((d, i) => { domHue[d.id] = Math.round((i / DOMAINS.length) * 320); });
 
-let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', floorN = 9, portsMax = 4, csize = 1, useShape = false, tension = 0;
+let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', floorN = 9, portsMax = 4, csize = 1, useShape = false, tension = 0, v2 = false;
+const ONE_OF_EACH = Object.fromEntries(Object.keys(ROLES).map((r) => [r, 1]));   // role floors: at least one of each building type
 let chunk = null, civic = null, roster = null, sel = -1, view = { s: 1, ox: 0, oy: 0 };
 let floor = null, selChunk = -1;
 
@@ -47,6 +48,16 @@ $('portsMax').addEventListener('input', (e) => { portsMax = +e.target.value; $('
 $('csize').addEventListener('input', (e) => { csize = +e.target.value; $('csizev').textContent = csize.toFixed(2).replace(/0$/, '') + '×'; generate(); });
 $('useShape').addEventListener('change', (e) => { useShape = e.target.checked; generate(); });
 $('tension').addEventListener('input', (e) => { tension = +e.target.value; $('tensionv').textContent = tension.toFixed(1); generate(); });
+// ⚡ v2 chunk — ONE toggle bundles the four: tessellation shape + 25% bigger + one-of-each + rooms-first.
+$('v2').addEventListener('change', (e) => {
+  v2 = e.target.checked;
+  if (v2) {
+    useShape = true; $('useShape').checked = true;
+    csize = 1.25; $('csize').value = 1.25; $('csizev').textContent = '1.25×';
+    if (tension === 0) { tension = 0.6; $('tension').value = 0.6; $('tensionv').textContent = '0.6'; }
+  }
+  generate();
+});
 $('stabilize').addEventListener('click', () => {
   const btn = $('stabilize'); btn.disabled = true; btn.textContent = '⚖ solving…';
   setTimeout(() => {
@@ -64,7 +75,7 @@ function generateChunk() {
   const grand = BIOME_GRAND[biome] || GRAND_ROLES;
   const Wc = Math.round(W * csize), Hc = Math.round(H * csize);
   const shapeOpt = useShape ? { poly: shapePoly(SAMPLE_SHAPE, Wc / 2, Hc / 2, Math.min(Wc, Hc) * 0.46), sideOf: shapeSideOf(SAMPLE_SHAPE) } : { shape: 'hex' };
-  chunk = solveChunk({ ...shapeOpt, seed, W: Wc, H: Hc, roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix, portRange: [1, portsMax], tension });
+  chunk = solveChunk({ ...shapeOpt, seed, W: Wc, H: Hc, roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix, portRange: [1, portsMax], tension, v2, roleFloors: v2 ? ONE_OF_EACH : null });
   civic = scoreChunk(chunk.rooms, Wc, Hc, seed);
   roster = npcRoster(civic.society);
   sel = -1; $('dossier').classList.remove('on');
@@ -179,12 +190,12 @@ function bar(v, color, w = 1) { return `<span class="bar"><i style="width:${Math
 function roomAspects() {
   const A = [];
   for (const r of chunk.rooms) {
-    if (r.cells.length < 3) { A.push(1); continue; }
+    if (r.cells.length < 5) { A.push(1); continue; }   // tiny rooms can't be meaningfully "skinny" (and PCA is degenerate)
     let mx = 0, my = 0; for (const c of r.cells) { mx += chunk.cells[c].x; my += chunk.cells[c].y; } mx /= r.cells.length; my /= r.cells.length;
     let xx = 0, yy = 0, xy = 0; for (const c of r.cells) { const dx = chunk.cells[c].x - mx, dy = chunk.cells[c].y - my; xx += dx * dx; yy += dy * dy; xy += dx * dy; }
     xx /= r.cells.length; yy /= r.cells.length; xy /= r.cells.length;
     const tr = xx + yy, disc = Math.sqrt(Math.max(0, tr * tr / 4 - (xx * yy - xy * xy)));
-    A.push(Math.sqrt((tr / 2 + disc) / Math.max(1e-6, tr / 2 - disc)));
+    A.push(Math.min(20, Math.sqrt((tr / 2 + disc) / Math.max(1e-6, (tr / 2 - disc), tr * 0.0025))));   // clamp + floor λ2 so 3-collinear cells don't blow up
   }
   return { avg: A.length ? A.reduce((s, x) => s + x, 0) / A.length : 0, max: A.length ? Math.max(...A) : 0, skinny: A.filter((x) => x > 4).length };
 }

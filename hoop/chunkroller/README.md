@@ -38,6 +38,28 @@ pocket plants). Moving the sliders genuinely changes what the chunk grows — an
   see the deformed, tessellating outline as a real chunk. The **tension** slider discourages long skinny
   edge rooms (see below); the readout shows room aspect avg/max + the skinny count.
 
+## ⚡ v2 chunk — one toggle, four bundled changes
+
+The **⚡ v2 chunk** checkbox flips the chunk to a new model in one click, bundling:
+1. **Tessellation shape** — fills the editor-exported tile (no perfect-hex seams).
+2. **25% bigger** (1.25× linear) — more room for variety + the role floors.
+3. **One of each building type** — `roleFloors` plants ≥1 of every role before filling the rest.
+4. **Rooms-first pathfinding** (`v099/v7/roomsfirst.js`) — the real refactor. v1 grew the concourse by
+   **cell** hypoxia (`seize`) then carved rooms from the leftover tissue, so rooms were an afterthought
+   and the rim left slivers. v2 **partitions the whole interior into rooms up front** (footprint-weighted
+   graph-Voronoi + role floors + surface tension), then grows a **minimal concourse that reaches every
+   ROOM** — seeded at the ports, Prim-grown until every room borders road, each room guaranteed a door
+   onto one connected concourse. Oxygen to *rooms*, not cells.
+
+Same record contract as v1 (`buildWalk` runs unchanged) — verified in `test/roomsfirst.selftest.mjs`
+(every room reachable from a port through its door, road one component, ports on road, one-of-each).
+Measured v1 → v2 on a sample chunk: building types **9 → 13**, avg room aspect **2.2 → 1.27**, skinniest
+**7.6 → 3.4**, road footprint **38% → 14%** (a thin corridor, not space-filling), and it's *faster*
+(~430 → ~370 ms — no hypoxia loop). Default (no `v2` flag) is byte-identical, so the live game is untouched.
+
+> Note: v2 makes many small rooms at `roomSize 14` (~120 over a 1.25× chunk); bump `roomSize` for fewer,
+> bigger rooms. The solver is the engine piece to wire into the live v099 game next.
+
 ## Surface tension — discouraging long skinny edge rooms
 
 The rim tissue forms thin pockets that read as long skinny rooms — and the worst are slivers hemmed in by
