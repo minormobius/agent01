@@ -80,7 +80,7 @@ button.off{opacity:.45}
   </div>
   <div class="note">Drag to tilt the glass. Orifice + grain size set the timer (Beverloo flow). Grains/Ø apply on release (resets).</div>
 </div>
-<div id="hint">drag to tilt · ⚙ for controls</div>
+<div id="hint">drag to tilt · pinch / scroll to zoom · ⚙ for controls</div>
 <div id="noGPU">WebGPU not available.<br>Try Chrome 121+ / Edge, or Safari 18+.<br><br>This sim needs GPU compute shaders.</div>
 
 <script type="module">
@@ -107,9 +107,13 @@ const canvas = document.getElementById('c');
 const noGPU  = () => { document.getElementById('noGPU').style.display = 'flex'; };
 
 // ── Tunable geometry (hourglass-local units; total height = 2*H) ───────────
+// Profile by |y|:  funnel(0..hf) → cylinder(hf..hc, straight walls @ Rmax) → dome(hc..H).
+// The cylindrical body gives the classic hourglass silhouette and ~doubles
+// bulb volume so a given grain count reads full instead of roomy.
 const GEO = {
-  Rmax:  0.62,   // max bulb radius
-  hf:    0.66,   // shoulder height: funnel→dome crossover
+  Rmax:  0.56,   // body radius (straight-wall section)
+  hf:    0.40,   // funnel top: cone(neck→Rmax) ends here
+  hc:    0.86,   // cylinder top: straight walls run hf..hc, then the dome caps
   H:     1.00,   // apex height (half total)
   thick: 0.028,  // glass wall thickness
 };
@@ -131,7 +135,9 @@ const MAXDIM = 128;     // cap grid axis → bounds cell-table memory
 // State that drives uniforms / interaction.
 let tiltX = 0.0, tiltZ = 0.0;     // hourglass tilt (radians)
 let yaw = 0.0, pitch = 0.06;      // camera orbit (mostly fixed; auto-spin adds yaw)
+let camDist = 3.35;               // orbit radius (pinch / wheel zoom)
 let autoSpin = false, useGyro = false;
+const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
 let flipping = 0;                 // flip animation progress driver
 let flipFrom = 0, flipTo = 0, flipT = 1;
 
@@ -176,7 +182,7 @@ function tiltColumns(tx, tz){
 // ── Particle initial fill: pack the TOP bulb on a loose jittered grid ──────
 function buildFill(){
   const r = cfg.grainR;
-  const s = r * 2.12;                       // spacing > diameter, avoids init blowup
+  const s = r * 2.02;                       // spacing just over diameter (dense but no init blowup)
   const pos = [];
   const cap = cfg.count * 4;                 // pos is flat: 4 floats (x,y,z,tint) per grain
   const yTop = GEO.H * 0.985;
@@ -197,9 +203,10 @@ function buildFill(){
 }
 // JS mirror of the WGSL cavity profile (keep in sync!)
 function profileJS(y){
-  const ay = Math.abs(y), o=cfg.orifice, Rm=GEO.Rmax, hf=GEO.hf, Hh=GEO.H;
+  const ay = Math.abs(y), o=cfg.orifice, Rm=GEO.Rmax, hf=GEO.hf, hc=GEO.hc, Hh=GEO.H;
   if(ay <= hf) return o + (Rm-o)*Math.pow(ay/hf, 1.6);
-  const t = Math.min(1, (ay-hf)/(Hh-hf));
+  if(ay <= hc) return Rm;                              // straight cylindrical body
+  const t = Math.min(1, (ay-hc)/(Hh-hc));
   return Rm * Math.sqrt(Math.max(0, 1 - t*t));
 }
 
@@ -251,8 +258,10 @@ fn cellIndex(c: vec3i)->u32 {
 fn profile(y: f32)->f32 {
   let ay = abs(y);
   let o = S.geom.x; let Rm = S.geom.y; let hf = S.geom.z; let Hh = S.geom.w;
+  let hc = S.grid.w;
   if (ay <= hf) { return o + (Rm - o) * pow(ay/hf, 1.6); }
-  let t = clamp((ay - hf)/(Hh - hf), 0.0, 1.0);
+  if (ay <= hc) { return Rm; }                         // straight cylindrical body
+  let t = clamp((ay - hc)/(Hh - hc), 0.0, 1.0);
   return Rm * sqrt(max(0.0, 1.0 - t*t));
 }
 // project a position back inside the closed glass cavity (analytic, no mesh)
@@ -464,8 +473,10 @@ fn tiltv(p: vec3f)->vec3f { return C.t0.xyz*p.x + C.t1.xyz*p.y + C.t2.xyz*p.z; }
 fn profile(y: f32)->f32 {
   let ay = abs(y);
   let o = C.geom.x; let Rm = C.geom.y; let hf = C.geom.z; let Hh = C.geom.w;
+  let hc = C.glass.z;
   if (ay <= hf) { return o + (Rm - o) * pow(ay/hf, 1.6); }
-  let t = clamp((ay - hf)/(Hh - hf), 0.0, 1.0);
+  if (ay <= hc) { return Rm; }                         // straight cylindrical body
+  let t = clamp((ay - hc)/(Hh - hc), 0.0, 1.0);
   return Rm * sqrt(max(0.0, 1.0 - t*t));
 }
 // signed distance to the glass shell (approx; radial metric, conservative steps)
@@ -673,10 +684,11 @@ function writeSim(dt){
   const g = cfg.gravity;
   // gravity_local = transpose(M) * (0,-g,0).  tc = [c0(0,1,2), c1(3,4,5), c2(6,7,8)],
   // each column = (x,y,z). Only the y term survives ⇒ local = c1 * (-g).
+  // gravity_local = Mᵀ·(0,-g,0) = ROW 1 of M times -g.  M[r][c] = tc[c*3+r].
   const wgY = -g;
-  const lgx = tc[1*3+0]*wgY; // c1.x * (-g)
-  const lgy = tc[1*3+1]*wgY; // c1.y * (-g)
-  const lgz = tc[1*3+2]*wgY; // c1.z * (-g)
+  const lgx = tc[0*3+1]*wgY; // M[1][0] = tc[1]
+  const lgy = tc[1*3+1]*wgY; // M[1][1] = tc[4]
+  const lgz = tc[2*3+1]*wgY; // M[1][2] = tc[7]
   const cell = grid.cell;
   const vmax = 0.5 * cell / dt;   // cap displacement/substep < ~½ cell (anti-tunnel)
   const a = simArr;
@@ -685,7 +697,7 @@ function writeSim(dt){
   // phys: grainR, relax(SOR), bounce, friction
   a[8]=cfg.grainR; a[9]=cfg.relax; a[10]=cfg.rest; a[11]=cfg.friction;
   a[12]=0; a[13]=0; a[14]=vmax; a[15]=nGrains;
-  a[16]=grid.dim[0]; a[17]=grid.dim[1]; a[18]=grid.dim[2]; a[19]=0;
+  a[16]=grid.dim[0]; a[17]=grid.dim[1]; a[18]=grid.dim[2]; a[19]=GEO.hc;  // grid.w = cylinder top
   a[20]=grid.origin[0]; a[21]=grid.origin[1]; a[22]=grid.origin[2]; a[23]=cell;
   device.queue.writeBuffer(simBuf, 0, a);
 }
@@ -694,7 +706,7 @@ const camArr = new Float32Array(64);   // generous; matches Cam struct
 function writeCam(time){
   const aspect = W/H2;
   const fovy = 0.78;
-  const dist = 3.35;
+  const dist = camDist;
   const ey = Math.sin(pitch)*dist + 0.0;
   const ex = Math.sin(yaw)*Math.cos(pitch)*dist;
   const ez = Math.cos(yaw)*Math.cos(pitch)*dist;
@@ -720,7 +732,7 @@ function writeCam(time){
   a[40]=fwd[0]; a[41]=fwd[1]; a[42]=fwd[2]; a[43]=0;
   a[44]=Math.tan(fovy/2); a[45]=aspect; a[46]=cfg.grainR; a[47]=time;
   a[48]=cfg.orifice; a[49]=GEO.Rmax; a[50]=GEO.hf; a[51]=GEO.H;
-  a[52]=GEO.thick; a[53]=1.5; a[54]=0; a[55]=0;
+  a[52]=GEO.thick; a[53]=1.5; a[54]=GEO.hc; a[55]=0;   // glass.z = cylinder top
   device.queue.writeBuffer(camBuf, 0, a);
 }
 
@@ -844,19 +856,35 @@ function frame(now){
 
 // ── Interaction ────────────────────────────────────────────────────────────
 function setupInput(){
-  let dragging=false, px=0, py=0;
   const hint = document.getElementById('hint');
   let hintGone=false;
   function fade(){ if(!hintGone){ hint.style.opacity=0; hintGone=true; } }
-  canvas.addEventListener('pointerdown', e=>{ dragging=true; px=e.clientX; py=e.clientY; canvas.setPointerCapture(e.pointerId); fade(); });
-  canvas.addEventListener('pointermove', e=>{
-    if(!dragging || useGyro) return;
-    const dx=(e.clientX-px), dy=(e.clientY-py); px=e.clientX; py=e.clientY;
-    tiltZ = Math.max(-1.35, Math.min(1.35, tiltZ - dx*0.006));
-    tiltX = Math.max(-1.35, Math.min(1.35, tiltX + dy*0.006));
+  // multi-pointer: 1 finger = tilt, 2 fingers = pinch zoom
+  const pts = new Map();
+  let pinchD = 0;
+  const twoDist = ()=>{ const a=[...pts.values()]; return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y); };
+  canvas.addEventListener('pointerdown', e=>{
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    canvas.setPointerCapture(e.pointerId); fade();
+    if (pts.size === 2) pinchD = twoDist();
   });
-  canvas.addEventListener('pointerup', ()=> dragging=false);
-  canvas.addEventListener('pointercancel', ()=> dragging=false);
+  canvas.addEventListener('pointermove', e=>{
+    const p = pts.get(e.pointerId); if(!p) return;
+    const dx=e.clientX-p.x, dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY;
+    if (pts.size >= 2){
+      const nd = twoDist();
+      if (pinchD > 0 && nd > 0) camDist = clamp(camDist * pinchD/nd, 1.6, 9);
+      pinchD = nd;
+    } else if (!useGyro){
+      tiltZ = clamp(tiltZ - dx*0.006, -1.35, 1.35);
+      tiltX = clamp(tiltX + dy*0.006, -1.35, 1.35);
+    }
+  });
+  const endP = e=>{ pts.delete(e.pointerId); if (pts.size < 2) pinchD = 0; };
+  canvas.addEventListener('pointerup', endP);
+  canvas.addEventListener('pointercancel', endP);
+  canvas.addEventListener('wheel', e=>{ e.preventDefault();
+    camDist = clamp(camDist * (1 + Math.sign(e.deltaY)*0.08), 1.6, 9); }, {passive:false});
 
   // panel toggle on small screens
   const panel=document.getElementById('panel'), gear=document.getElementById('gear');
