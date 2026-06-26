@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>HOURGLASS — WebGPU sand</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#05070d;touch-action:none;
+  font-family:ui-monospace,Menlo,Consolas,monospace;color:#cdd6e6}
+canvas{display:block;width:100%;height:100%;cursor:grab}
+canvas:active{cursor:grabbing}
+#noGPU{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#f88;font:18px monospace;text-align:center;padding:20px}
+#hud{position:fixed;top:10px;left:12px;z-index:3;font-size:11px;line-height:1.55;
+  color:rgba(220,228,244,.72);text-shadow:0 1px 3px #000;pointer-events:none;white-space:pre}
+#hud b{color:#ffd27a;font-weight:600}
+#panel{position:fixed;top:10px;right:10px;z-index:4;width:236px;background:rgba(10,14,22,.82);
+  border:1px solid rgba(120,150,200,.18);border-radius:12px;padding:12px 13px;
+  backdrop-filter:blur(8px);font-size:11px;transition:transform .25s ease,opacity .25s}
+#panel.hidden{transform:translateX(115%);opacity:0}
+#panel h1{font-size:11px;letter-spacing:.12em;color:#ffd27a;margin-bottom:9px;font-weight:600}
+.row{margin:8px 0}
+.row label{display:flex;justify-content:space-between;color:rgba(220,228,244,.7);margin-bottom:3px}
+.row label span{color:#9fb4d8}
+input[type=range]{width:100%;height:18px;accent-color:#ffb347;background:transparent}
+.btns{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+button{flex:1;min-width:60px;background:rgba(255,179,71,.14);border:1px solid rgba(255,179,71,.35);
+  color:#ffd27a;border-radius:8px;padding:7px 4px;font:inherit;font-size:11px;cursor:pointer}
+button:active{background:rgba(255,179,71,.3)}
+button.off{opacity:.45}
+#gear{position:fixed;top:10px;right:10px;z-index:5;width:34px;height:34px;border-radius:9px;
+  display:none;align-items:center;justify-content:center;background:rgba(10,14,22,.82);
+  border:1px solid rgba(120,150,200,.2);color:#ffd27a;cursor:pointer;font-size:16px}
+#hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:3;
+  color:rgba(220,228,244,.32);font-size:11px;pointer-events:none;transition:opacity 1.5s}
+.note{color:rgba(159,180,216,.5);font-size:10px;margin-top:8px;line-height:1.4}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<div id="gear">⚙</div>
+<div id="panel">
+  <h1>HOURGLASS</h1>
+  <div class="row"><label>grains <span id="vCount"></span></label>
+    <input id="sCount" type="range" min="2000" max="120000" step="1000" value="42000"></div>
+  <div class="row"><label>grain Ø <span id="vDia"></span></label>
+    <input id="sDia" type="range" min="0.006" max="0.03" step="0.0005" value="0.012"></div>
+  <div class="row"><label>orifice <span id="vOri"></span></label>
+    <input id="sOri" type="range" min="0.02" max="0.18" step="0.002" value="0.06"></div>
+  <div class="row"><label>gravity <span id="vGrav"></span></label>
+    <input id="sGrav" type="range" min="1" max="16" step="0.5" value="7"></div>
+  <div class="row"><label>friction <span id="vFric"></span></label>
+    <input id="sFric" type="range" min="0" max="1" step="0.02" value="0.5"></div>
+  <div class="row"><label>bounce <span id="vRest"></span></label>
+    <input id="sRest" type="range" min="0" max="0.6" step="0.02" value="0.16"></div>
+  <div class="btns">
+    <button id="bFlip">⟲ flip</button>
+    <button id="bReset">reset</button>
+  </div>
+  <div class="btns">
+    <button id="bSpin" class="off">auto-spin</button>
+    <button id="bGyro" class="off">tilt: gyro</button>
+  </div>
+  <div class="note">Drag to tilt the glass. Orifice + grain size set the timer (Beverloo flow). Grains/Ø apply on release (resets).</div>
+</div>
+<div id="hint">drag to tilt · ⚙ for controls</div>
+<div id="noGPU">WebGPU not available.<br>Try Chrome 121+ / Edge, or Safari 18+.<br><br>This sim needs GPU compute shaders.</div>
+
+<script type="module">
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────────────
+// Hourglass — grain-resolved DEM sand in a revolved-profile glass, WebGPU.
+//
+//  • Physics: Discrete Element Method. Each grain is a sphere; contacts are
+//    linear spring-dashpot (normal) + Coulomb friction (tangential). Neighbour
+//    search is a GPU uniform grid (bounded per-cell capacity, no prefix sum).
+//    Integrated with semi-implicit Euler, substepped for stability.
+//  • Glass: a surface of revolution. The cavity radius R(y) is a funnel near
+//    the neck blending into an elliptical dome — closed top & bottom. Grain↔
+//    glass collision is an ANALYTIC radial clamp in the hourglass's local
+//    frame (no mesh). Same profile is raymarched for the rendered glass shell.
+//  • Tilt: we simulate in hourglass-local space, so tilting only rotates the
+//    gravity vector (drag / device gyro) and the model. Look stays fixed-ish.
+//  • Render: sand as instanced sphere-impostors → offscreen colour+depth, then
+//    a fullscreen pass raymarches the glass and screen-space-refracts the sand.
+// ─────────────────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('c');
+const noGPU  = () => { document.getElementById('noGPU').style.display = 'flex'; };
+
+// ── Tunable geometry (hourglass-local units; total height = 2*H) ───────────
+const GEO = {
+  Rmax:  0.62,   // max bulb radius
+  hf:    0.66,   // shoulder height: funnel→dome crossover
+  H:     1.00,   // apex height (half total)
+  thick: 0.028,  // glass wall thickness
+};
+
+const cfg = {
+  count:   42000,
+  grainR:  0.006,        // radius = diameter/2 ; slider is diameter
+  orifice: 0.06,
+  gravity: 7.0,
+  friction:0.5,
+  rest:    0.16,
+  substeps:6,
+  K:       12,           // per-cell grain capacity (compile-time const in WGSL)
+};
+const MAXDIM = 128;     // cap grid axis → bounds cell-table memory
+
+// State that drives uniforms / interaction.
+let tiltX = 0.0, tiltZ = 0.0;     // hourglass tilt (radians)
+let yaw = 0.0, pitch = 0.06;      // camera orbit (mostly fixed; auto-spin adds yaw)
+let autoSpin = false, useGyro = false;
+let flipping = 0;                 // flip animation progress driver
+let flipFrom = 0, flipTo = 0, flipT = 1;
+
+let device, ctx, format;
+let W = 1, H2 = 1, dpr = 1;
+
+// ── Math helpers ───────────────────────────────────────────────────────────
+function mat4Perspective(fovy, aspect, near, far){
+  const f = 1/Math.tan(fovy/2), nf = 1/(near-far);
+  return [ f/aspect,0,0,0,  0,f,0,0,  0,0,(far+near)*nf,-1,  0,0,2*far*near*nf,0 ];
+}
+function mat4LookAt(eye, c, up){
+  const z0=eye[0]-c[0], z1=eye[1]-c[1], z2=eye[2]-c[2];
+  let zl=Math.hypot(z0,z1,z2); const zx=z0/zl, zy=z1/zl, zz=z2/zl;
+  let xx=up[1]*zz-up[2]*zy, xy=up[2]*zx-up[0]*zz, xz=up[0]*zy-up[1]*zx;
+  let xl=Math.hypot(xx,xy,xz)||1; xx/=xl; xy/=xl; xz/=xl;
+  const yx=zy*xz-zz*xy, yy=zz*xx-zx*xz, yz=zx*xy-zy*xx;
+  return [ xx,yx,zx,0, xy,yy,zy,0, xz,yz,zz,0,
+    -(xx*eye[0]+xy*eye[1]+xz*eye[2]), -(yx*eye[0]+yy*eye[1]+yz*eye[2]), -(zx*eye[0]+zy*eye[1]+zz*eye[2]), 1 ];
+}
+function mat4Mul(a,b){
+  const o=new Array(16);
+  for(let r=0;r<4;r++)for(let cc=0;cc<4;cc++){
+    o[cc*4+r]=a[0*4+r]*b[cc*4+0]+a[1*4+r]*b[cc*4+1]+a[2*4+r]*b[cc*4+2]+a[3*4+r]*b[cc*4+3];
+  }
+  return o;
+}
+// tilt rotation (local→world): Rz(tiltZ) * Rx(tiltX), returned as 3 column vec3s
+function tiltColumns(tx, tz){
+  const cx=Math.cos(tx), sx=Math.sin(tx), cz=Math.cos(tz), sz=Math.sin(tz);
+  // Rx
+  const rx=[1,0,0, 0,cx,sx, 0,-sx,cx];
+  // Rz
+  const rz=[cz,sz,0, -sz,cz,0, 0,0,1];
+  // M = Rz * Rx (column-major 3x3 as flat [c0(3),c1(3),c2(3)])
+  function m3mul(A,B){ const o=new Array(9);
+    for(let r=0;r<3;r++)for(let c=0;c<3;c++) o[c*3+r]=A[0*3+r]*B[c*3+0]+A[1*3+r]*B[c*3+1]+A[2*3+r]*B[c*3+2];
+    return o; }
+  return m3mul(rz,rx); // flat column-major
+}
+
+// ── Particle initial fill: pack the TOP bulb on a loose jittered grid ──────
+function buildFill(){
+  const r = cfg.grainR;
+  const s = r * 2.12;                       // spacing > diameter, avoids init blowup
+  const pos = [];
+  const yTop = GEO.H * 0.985;
+  const yBot = r * 1.5;                      // just above the neck
+  let nx = 0;
+  for(let y = yTop; y > yBot && pos.length < cfg.count; y -= s){
+    const Rc = profileJS(y) - r;            // packable radius at this height
+    if(Rc <= s) continue;
+    for(let x = -Rc; x <= Rc && pos.length < cfg.count; x += s){
+      for(let z = -Rc; z <= Rc && pos.length < cfg.count; z += s){
+        if(x*x + z*z > Rc*Rc) continue;
+        const jx = (Math.random()-0.5)*0.3*r, jy=(Math.random()-0.5)*0.3*r, jz=(Math.random()-0.5)*0.3*r;
+        const tint = Math.random();
+        pos.push(x+jx, y+jy, z+jz, tint);
+        nx++;
+      }
+    }
+  }
+  return new Float32Array(pos);             // length = nGrains*4
+}
+// JS mirror of the WGSL cavity profile (keep in sync!)
+function profileJS(y){
+  const ay = Math.abs(y), o=cfg.orifice, Rm=GEO.Rmax, hf=GEO.hf, Hh=GEO.H;
+  if(ay <= hf) return o + (Rm-o)*Math.pow(ay/hf, 1.6);
+  const t = Math.min(1, (ay-hf)/(Hh-hf));
+  return Rm * Math.sqrt(Math.max(0, 1 - t*t));
+}
+
+// ── Grid sizing from grain radius ──────────────────────────────────────────
+function gridSpec(){
+  const cell = 2.0 * cfg.grainR;            // search radius = contact distance
+  const ext  = [ (GEO.Rmax+GEO.thick)*2.05, (GEO.H+GEO.thick)*2.05, (GEO.Rmax+GEO.thick)*2.05 ];
+  const dim  = ext.map(e => Math.max(8, Math.min(MAXDIM, Math.floor(e/cell))));
+  const csz  = ext.map((e,i)=> e/dim[i]);   // per-axis cell size (>= 2r; clamping only widens it)
+  const origin = [ -ext[0]/2, -ext[1]/2, -ext[2]/2 ];
+  const numCells = dim[0]*dim[1]*dim[2];
+  return { dim, cell: Math.max(csz[0],csz[1],csz[2]), origin, numCells };
+}
+
+// ── WGSL: compute (4 entry points, one shared bind group) ──────────────────
+const COMPUTE_WGSL = `
+struct Sim {
+  grav:   vec4f,   // xyz gravity (local), w dt
+  geom:   vec4f,   // orifice, Rmax, hf, H
+  phys:   vec4f,   // grainR, kn, gamma_n, mu
+  phys2:  vec4f,   // restitution, wallFric, vmax, N
+  grid:   vec4f,   // dimX, dimY, dimZ, (unused)
+  gorg:   vec4f,   // originX,Y,Z, cellSize
+};
+@group(0) @binding(0) var<storage,read_write> pos:   array<vec4f>;
+@group(0) @binding(1) var<storage,read_write> vel:   array<vec4f>;
+@group(0) @binding(2) var<storage,read_write> frc:   array<vec4f>;
+@group(0) @binding(3) var<storage,read_write> cnt:   array<atomic<u32>>;
+@group(0) @binding(4) var<storage,read_write> tbl:   array<u32>;
+@group(0) @binding(5) var<uniform> S: Sim;
+
+fn dimv()->vec3i { return vec3i(i32(S.grid.x), i32(S.grid.y), i32(S.grid.z)); }
+fn numCells()->u32 { return u32(S.grid.x)*u32(S.grid.y)*u32(S.grid.z); }
+fn cellCoord(p: vec3f)->vec3i {
+  let d = dimv();
+  let c = vec3i(floor((p - S.gorg.xyz) / S.gorg.w));
+  return clamp(c, vec3i(0), d - vec3i(1));
+}
+fn cellIndex(c: vec3i)->u32 {
+  let d = dimv();
+  return u32(c.x) + u32(c.y)*u32(d.x) + u32(c.z)*u32(d.x)*u32(d.y);
+}
+fn profile(y: f32)->f32 {
+  let ay = abs(y);
+  let o = S.geom.x; let Rm = S.geom.y; let hf = S.geom.z; let Hh = S.geom.w;
+  if (ay <= hf) { return o + (Rm - o) * pow(ay/hf, 1.6); }
+  let t = clamp((ay - hf)/(Hh - hf), 0.0, 1.0);
+  return Rm * sqrt(max(0.0, 1.0 - t*t));
+}
+
+@compute @workgroup_size(256)
+fn clearGrid(@builtin(global_invocation_id) gid: vec3u){
+  let i = gid.x;
+  if (i >= numCells()) { return; }
+  atomicStore(&cnt[i], 0u);
+}
+
+@compute @workgroup_size(256)
+fn buildGrid(@builtin(global_invocation_id) gid: vec3u){
+  let i = gid.x;
+  if (i >= u32(S.phys2.w)) { return; }
+  let c = cellIndex(cellCoord(pos[i].xyz));
+  let slot = atomicAdd(&cnt[c], 1u);
+  let K = u32(${cfg.K});
+  if (slot < K) { tbl[c*K + slot] = i; }
+}
+
+@compute @workgroup_size(256)
+fn forces(@builtin(global_invocation_id) gid: vec3u){
+  let i = gid.x;
+  let N = u32(S.phys2.w);
+  if (i >= N) { return; }
+  let xi = pos[i].xyz;
+  let vi = vel[i].xyz;
+  let r  = S.phys.x;
+  let kn = S.phys.y;
+  let gn = S.phys.z;
+  let mu = S.phys.w;
+  let dd = 2.0*r;
+  let K  = u32(${cfg.K});
+  let base = cellCoord(xi);
+  let d = dimv();
+  var f = vec3f(0.0);
+  for (var dz=-1; dz<=1; dz++){
+    for (var dy=-1; dy<=1; dy++){
+      for (var dx=-1; dx<=1; dx++){
+        let c = base + vec3i(dx,dy,dz);
+        if (c.x<0 || c.y<0 || c.z<0 || c.x>=d.x || c.y>=d.y || c.z>=d.z) { continue; }
+        let ci = cellIndex(c);
+        let n = min(atomicLoad(&cnt[ci]), K);
+        for (var s=0u; s<n; s++){
+          let j = tbl[ci*K + s];
+          if (j == i) { continue; }
+          let xj = pos[j].xyz;
+          let dvec = xi - xj;
+          let dist = length(dvec);
+          if (dist >= dd || dist < 1e-6) { continue; }
+          let nrm = dvec / dist;
+          let overlap = dd - dist;
+          let vrel = vi - vel[j].xyz;
+          let vn = dot(vrel, nrm);
+          // normal: linear spring + dashpot (repulsive only)
+          var fNorm = kn*overlap - gn*vn;
+          fNorm = max(fNorm, 0.0);
+          var fcontact = fNorm*nrm;
+          // tangential Coulomb friction (clamped viscous)
+          let vt = vrel - vn*nrm;
+          let vtl = length(vt);
+          if (vtl > 1e-5){
+            let ft = min(mu*fNorm, gn*vtl);
+            fcontact -= (ft/vtl)*vt;
+          }
+          f += fcontact;
+        }
+      }
+    }
+  }
+  frc[i] = vec4f(f, 0.0);
+}
+
+@compute @workgroup_size(256)
+fn integrate(@builtin(global_invocation_id) gid: vec3u){
+  let i = gid.x;
+  if (i >= u32(S.phys2.w)) { return; }
+  let dt = S.grav.w;
+  let r  = S.phys.x;
+  var v = vel[i].xyz + (frc[i].xyz + S.grav.xyz) * dt;   // unit mass
+  v *= 0.9985;                                           // gentle global damping
+  let vmax = S.phys2.z;
+  let vl = length(v);
+  if (vl > vmax) { v *= vmax/vl; }
+  var x = pos[i].xyz + v*dt;
+
+  // ── analytic glass containment (radial clamp to cavity profile) ──────────
+  let Rc = profile(x.y);
+  let lim = Rc - r;
+  let rxz = length(x.xz);
+  let rest = S.phys2.x;
+  let wf = S.phys2.y;
+  if (lim <= 0.0) {
+    // pinched tighter than a grain (apex / sub-orifice): pin to axis
+    x = vec3f(0.0, x.y, 0.0);
+    v = vec3f(0.0, v.y*rest, 0.0);
+  } else if (rxz > lim) {
+    let nd = x.xz / max(rxz, 1e-6);          // outward radial normal (2D)
+    x = vec3f(nd.x*lim, x.y, nd.y*lim);
+    let vr = v.x*nd.x + v.z*nd.y;            // radial component
+    if (vr > 0.0) {
+      let vrad = vec2f(nd.x, nd.y)*vr;
+      var vxz = v.xz - (1.0+rest)*vrad;       // reflect with restitution
+      vxz *= (1.0 - wf);                      // wall friction on tangential
+      v = vec3f(vxz.x, v.y, vxz.y);
+    }
+  }
+  // hard clamp inside bounding box (safety)
+  let Hh = S.geom.w + 0.02;
+  x.y = clamp(x.y, -Hh, Hh);
+
+  pos[i] = vec4f(x, pos[i].w);
+  vel[i] = vec4f(v, 0.0);
+}
+`;
+
+// ── WGSL: sand sphere-impostors → offscreen colour + depth ─────────────────
+const SAND_WGSL = `
+struct Cam {
+  vp:    mat4x4f,
+  t0:    vec4f, t1: vec4f, t2: vec4f,   // tilt columns (local→world), .w unused
+  eye:   vec4f,
+  right: vec4f, up: vec4f, fwd: vec4f,
+  misc:  vec4f,   // tanHalfFov, aspect, grainR, time
+  geom:  vec4f,   // orifice, Rmax, hf, H
+  glass: vec4f,   // thick, ior, _, _
+};
+@group(0) @binding(0) var<uniform> C: Cam;
+@group(0) @binding(1) var<storage,read> pos: array<vec4f>;
+
+fn tilt(p: vec3f)->vec3f { return C.t0.xyz*p.x + C.t1.xyz*p.y + C.t2.xyz*p.z; }
+
+struct VOut {
+  @builtin(position) clip: vec4f,
+  @location(0) uv: vec2f,
+  @location(1) centerW: vec3f,
+  @location(2) tint: f32,
+};
+
+@vertex
+fn vs(@builtin(vertex_index) vi:u32, @builtin(instance_index) ii:u32)->VOut {
+  var corners = array<vec2f,6>(
+    vec2f(-1,-1), vec2f(1,-1), vec2f(-1,1),
+    vec2f(-1,1),  vec2f(1,-1), vec2f(1,1));
+  let q = corners[vi];
+  let p = pos[ii];
+  let cW = tilt(p.xyz);
+  let r = C.misc.z;
+  let world = cW + (C.right.xyz*q.x + C.up.xyz*q.y)*r;
+  var o: VOut;
+  o.clip = C.vp * vec4f(world, 1.0);
+  o.uv = q;
+  o.centerW = cW;
+  o.tint = p.w;
+  return o;
+}
+
+struct FOut { @location(0) color: vec4f, @builtin(frag_depth) depth: f32 };
+
+@fragment
+fn fs(in: VOut)->FOut {
+  let d2 = dot(in.uv, in.uv);
+  if (d2 > 1.0) { discard; }
+  let zc = sqrt(1.0 - d2);
+  let r = C.misc.z;
+  let eyeDir = normalize(C.eye.xyz - in.centerW);
+  let nrm = normalize(C.right.xyz*in.uv.x + C.up.xyz*in.uv.y + eyeDir*zc);
+  let hitW = in.centerW + (C.right.xyz*in.uv.x + C.up.xyz*in.uv.y)*r + eyeDir*(zc*r);
+  // depth
+  let clip = C.vp * vec4f(hitW, 1.0);
+  // sand colour: warm grain with per-grain tint + simple lighting
+  let L = normalize(vec3f(0.4, 0.85, 0.45));
+  let diff = max(dot(nrm, L), 0.0);
+  let h = normalize(L + eyeDir);
+  let spec = pow(max(dot(nrm, h), 0.0), 28.0) * 0.4;
+  let warm = mix(vec3f(0.78,0.58,0.33), vec3f(0.93,0.80,0.55), in.tint);
+  let amb = 0.28 + 0.12*in.tint;
+  var col = warm*(amb + 0.85*diff) + vec3f(spec);
+  // depth-cue darkening near pile base reads as occlusion
+  var o: FOut;
+  o.color = vec4f(col, 1.0);
+  o.depth = clip.z / clip.w;
+  return o;
+}
+`;
+
+// ── WGSL: fullscreen glass raymarch + screen-space refraction composite ────
+const GLASS_WGSL = `
+struct Cam {
+  vp:    mat4x4f,
+  t0:    vec4f, t1: vec4f, t2: vec4f,
+  eye:   vec4f,
+  right: vec4f, up: vec4f, fwd: vec4f,
+  misc:  vec4f,
+  geom:  vec4f,
+  glass: vec4f,
+};
+@group(0) @binding(0) var<uniform> C: Cam;
+@group(0) @binding(1) var samp: sampler;
+@group(0) @binding(2) var sandTex: texture_2d<f32>;
+
+fn invtilt(p: vec3f)->vec3f {
+  // rotation inverse = transpose: rows are the columns
+  return vec3f(dot(C.t0.xyz,p), dot(C.t1.xyz,p), dot(C.t2.xyz,p));
+}
+fn tiltv(p: vec3f)->vec3f { return C.t0.xyz*p.x + C.t1.xyz*p.y + C.t2.xyz*p.z; }
+
+fn profile(y: f32)->f32 {
+  let ay = abs(y);
+  let o = C.geom.x; let Rm = C.geom.y; let hf = C.geom.z; let Hh = C.geom.w;
+  if (ay <= hf) { return o + (Rm - o) * pow(ay/hf, 1.6); }
+  let t = clamp((ay - hf)/(Hh - hf), 0.0, 1.0);
+  return Rm * sqrt(max(0.0, 1.0 - t*t));
+}
+// signed distance to the glass shell (approx; radial metric, conservative steps)
+fn glassSDF(p: vec3f)->f32 {
+  let rad = length(p.xz);
+  let inn = profile(p.y);
+  let out = inn + C.glass.x;
+  let shell = max(rad - out, inn - rad);
+  let cap = abs(p.y) - C.geom.w;        // body extent (closes the domes)
+  return max(shell, cap);
+}
+fn glassNrm(p: vec3f)->vec3f {
+  let e = 0.0015;
+  let dx = glassSDF(p+vec3f(e,0,0)) - glassSDF(p-vec3f(e,0,0));
+  let dy = glassSDF(p+vec3f(0,e,0)) - glassSDF(p-vec3f(0,e,0));
+  let dz = glassSDF(p+vec3f(0,0,e)) - glassSDF(p-vec3f(0,0,e));
+  return normalize(vec3f(dx,dy,dz));
+}
+
+struct VOut { @builtin(position) clip: vec4f, @location(0) ndc: vec2f };
+@vertex
+fn vs(@builtin(vertex_index) vi:u32)->VOut {
+  var p = array<vec2f,3>(vec2f(-1,-1), vec2f(3,-1), vec2f(-1,3));
+  var o: VOut;
+  o.clip = vec4f(p[vi], 0.0, 1.0);
+  o.ndc = p[vi];
+  return o;
+}
+
+fn worldToUV(p: vec3f)->vec2f {
+  let cl = C.vp * vec4f(p, 1.0);
+  let n = cl.xy / cl.w;
+  return vec2f(n.x*0.5 + 0.5, 0.5 - n.y*0.5);
+}
+fn sky(d: vec3f)->vec3f {
+  let t = clamp(d.y*0.5 + 0.5, 0.0, 1.0);
+  return mix(vec3f(0.04,0.06,0.10), vec3f(0.16,0.22,0.34), t);
+}
+
+@fragment
+fn fs(in: VOut)->@location(0) vec4f {
+  let aspect = C.misc.y;
+  let thf = C.misc.x;
+  // camera ray (world)
+  let rdW = normalize(C.fwd.xyz + in.ndc.x*thf*aspect*C.right.xyz + in.ndc.y*thf*C.up.xyz);
+  let uvBG = vec2f(in.ndc.x*0.5 + 0.5, 0.5 - in.ndc.y*0.5);
+  let bg = textureSample(sandTex, samp, uvBG);
+
+  // march in local space
+  let ro = invtilt(C.eye.xyz);
+  let rd = invtilt(rdW);
+  var t = 0.0;
+  var hit = false;
+  var hp = vec3f(0.0);
+  for (var k=0; k<96; k++){
+    let p = ro + rd*t;
+    let dS = glassSDF(p);
+    if (dS < 0.0006){ hit = true; hp = p; break; }
+    t += max(dS*0.6, 0.0009);
+    if (t > 6.0){ break; }
+  }
+  if (!hit){ return bg; }
+
+  let nL = glassNrm(hp);
+  let nW = normalize(tiltv(nL));
+  let viewW = -rdW;
+  let fres = pow(1.0 - max(dot(nW, viewW), 0.0), 5.0);
+  let F = 0.04 + 0.96*fres;
+
+  // refraction: bend the lookup into the sand texture
+  let ior = C.glass.y;
+  let refrL = refract(rd, nL, 1.0/ior);
+  let refrW = normalize(tiltv(refrL));
+  let hpW = tiltv(hp);
+  let refrUV = worldToUV(hpW + refrW*0.55);
+  var refrCol = textureSample(sandTex, samp, refrUV).rgb;
+  // glass tint / absorption (cool aquamarine)
+  refrCol *= vec3f(0.86, 0.94, 0.93);
+
+  let reflCol = sky(reflect(rdW, nW));
+  // specular glints
+  let Ld = normalize(vec3f(0.4,0.85,0.45));
+  let spec = pow(max(dot(reflect(-Ld, nW), viewW), 0.0), 60.0);
+
+  var col = mix(refrCol, reflCol, F) + vec3f(spec)*0.6;
+  // subtle edge brightening
+  col += vec3f(fres)*0.06;
+  return vec4f(col, 1.0);
+}
+`;
+
+// ── Buffers / pipelines (rebuilt on count/grainR change) ───────────────────
+let posBuf, velBuf, frcBuf, cntBuf, tblBuf, simBuf, camBuf, stageBuf;
+let computeBG, sandBG, glassBG, sampler;
+let pipeClear, pipeBuild, pipeForce, pipeInteg, pipeSand, pipeGlass;
+let sandColorTex, sandDepthTex, sandView, depthView;
+let nGrains = 0, grid = null;
+let computeLayout, camModule, sandModule, glassModule;
+
+function makeComputePipes(){
+  const mod = device.createShaderModule({ code: COMPUTE_WGSL });
+  computeLayout = device.createBindGroupLayout({ entries: [
+    {binding:0, visibility:GPUShaderStage.COMPUTE, buffer:{type:'storage'}},
+    {binding:1, visibility:GPUShaderStage.COMPUTE, buffer:{type:'storage'}},
+    {binding:2, visibility:GPUShaderStage.COMPUTE, buffer:{type:'storage'}},
+    {binding:3, visibility:GPUShaderStage.COMPUTE, buffer:{type:'storage'}},
+    {binding:4, visibility:GPUShaderStage.COMPUTE, buffer:{type:'storage'}},
+    {binding:5, visibility:GPUShaderStage.COMPUTE, buffer:{type:'uniform'}},
+  ]});
+  const pl = device.createPipelineLayout({ bindGroupLayouts:[computeLayout] });
+  pipeClear = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'clearGrid'} });
+  pipeBuild = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'buildGrid'} });
+  pipeForce = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'forces'} });
+  pipeInteg = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'integrate'} });
+}
+
+function makeRenderPipes(){
+  sandModule = device.createShaderModule({ code: SAND_WGSL });
+  glassModule = device.createShaderModule({ code: GLASS_WGSL });
+
+  const sandBGL = device.createBindGroupLayout({ entries:[
+    {binding:0, visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT, buffer:{type:'uniform'}},
+    {binding:1, visibility:GPUShaderStage.VERTEX, buffer:{type:'read-only-storage'}},
+  ]});
+  pipeSand = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts:[sandBGL] }),
+    vertex:{ module:sandModule, entryPoint:'vs' },
+    fragment:{ module:sandModule, entryPoint:'fs', targets:[{format:'rgba8unorm'}] },
+    primitive:{ topology:'triangle-list', cullMode:'none' },
+    depthStencil:{ format:'depth24plus', depthWriteEnabled:true, depthCompare:'less' },
+  });
+
+  const glassBGL = device.createBindGroupLayout({ entries:[
+    {binding:0, visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT, buffer:{type:'uniform'}},
+    {binding:1, visibility:GPUShaderStage.FRAGMENT, sampler:{type:'filtering'}},
+    {binding:2, visibility:GPUShaderStage.FRAGMENT, texture:{sampleType:'float'}},
+  ]});
+  pipeGlass = device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts:[glassBGL] }),
+    vertex:{ module:glassModule, entryPoint:'vs' },
+    fragment:{ module:glassModule, entryPoint:'fs', targets:[{format}] },
+    primitive:{ topology:'triangle-list' },
+  });
+  return { sandBGL, glassBGL };
+}
+
+let sandBGL, glassBGL;
+
+function allocParticles(){
+  grid = gridSpec();
+  const fill = buildFill();
+  nGrains = fill.length / 4;
+
+  posBuf?.destroy(); velBuf?.destroy(); frcBuf?.destroy(); cntBuf?.destroy(); tblBuf?.destroy(); stageBuf?.destroy();
+  posBuf = device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC });
+  velBuf = device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST });
+  frcBuf = device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.STORAGE });
+  cntBuf = device.createBuffer({ size: grid.numCells*4, usage: GPUBufferUsage.STORAGE });
+  tblBuf = device.createBuffer({ size: grid.numCells*cfg.K*4, usage: GPUBufferUsage.STORAGE });
+  stageBuf = device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST });
+
+  device.queue.writeBuffer(posBuf, 0, fill);
+  device.queue.writeBuffer(velBuf, 0, new Float32Array(nGrains*4));
+
+  computeBG = device.createBindGroup({ layout: computeLayout, entries:[
+    {binding:0, resource:{buffer:posBuf}},
+    {binding:1, resource:{buffer:velBuf}},
+    {binding:2, resource:{buffer:frcBuf}},
+    {binding:3, resource:{buffer:cntBuf}},
+    {binding:4, resource:{buffer:tblBuf}},
+    {binding:5, resource:{buffer:simBuf}},
+  ]});
+  sandBG = device.createBindGroup({ layout: sandBGL, entries:[
+    {binding:0, resource:{buffer:camBuf}},
+    {binding:1, resource:{buffer:posBuf}},
+  ]});
+  drainState = { lastBelow:0, lastT:0, rate:0, eta:0, started:false };
+}
+
+function makeTargets(){
+  sandColorTex?.destroy(); sandDepthTex?.destroy();
+  sandColorTex = device.createTexture({ size:[W,H2], format:'rgba8unorm',
+    usage: GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING });
+  sandDepthTex = device.createTexture({ size:[W,H2], format:'depth24plus',
+    usage: GPUTextureUsage.RENDER_ATTACHMENT });
+  sandView = sandColorTex.createView();
+  depthView = sandDepthTex.createView();
+  glassBG = device.createBindGroup({ layout: glassBGL, entries:[
+    {binding:0, resource:{buffer:camBuf}},
+    {binding:1, resource: sampler},
+    {binding:2, resource: sandView},
+  ]});
+}
+
+// ── Uniform packing ────────────────────────────────────────────────────────
+const simArr = new Float32Array(24);   // 6 vec4
+function writeSim(dt){
+  // gravity in local frame = tilt^T * (0,-g,0)  (tilt cols are local→world)
+  const tc = tiltColumns(tiltX, tiltZ);   // flat column-major 3x3
+  const g = cfg.gravity;
+  // gravity_local = transpose(M) * (0,-g,0).  tc = [c0(0,1,2), c1(3,4,5), c2(6,7,8)],
+  // each column = (x,y,z). Only the y term survives ⇒ local = c1 * (-g).
+  const wgY = -g;
+  const lgx = tc[1*3+0]*wgY; // c1.x * (-g)
+  const lgy = tc[1*3+1]*wgY; // c1.y * (-g)
+  const lgz = tc[1*3+2]*wgY; // c1.z * (-g)
+  const cell = grid.cell;
+  const vmax = 0.5 * cell / dt;   // cap displacement/substep < ~½ cell (anti-tunnel)
+  const a = simArr;
+  a[0]=lgx; a[1]=lgy; a[2]=lgz; a[3]=dt;
+  a[4]=cfg.orifice; a[5]=GEO.Rmax; a[6]=GEO.hf; a[7]=GEO.H;
+  // stiffness scales so heavy piles don't over-penetrate; tie to gravity & size
+  const kn = 2600.0;
+  const gn = 14.0;
+  a[8]=cfg.grainR; a[9]=kn; a[10]=gn; a[11]=cfg.friction;
+  a[12]=cfg.rest; a[13]=cfg.friction*0.5; a[14]=vmax; a[15]=nGrains;
+  a[16]=grid.dim[0]; a[17]=grid.dim[1]; a[18]=grid.dim[2]; a[19]=0;
+  a[20]=grid.origin[0]; a[21]=grid.origin[1]; a[22]=grid.origin[2]; a[23]=cell;
+  device.queue.writeBuffer(simBuf, 0, a);
+}
+
+const camArr = new Float32Array(64);   // generous; matches Cam struct
+function writeCam(time){
+  const aspect = W/H2;
+  const fovy = 0.78;
+  const dist = 3.35;
+  const ey = Math.sin(pitch)*dist + 0.0;
+  const ex = Math.sin(yaw)*Math.cos(pitch)*dist;
+  const ez = Math.cos(yaw)*Math.cos(pitch)*dist;
+  const eye = [ex, ey, ez];
+  const center = [0,0,0], up=[0,1,0];
+  const view = mat4LookAt(eye, center, up);
+  const proj = mat4Perspective(fovy, aspect, 0.05, 30);
+  const vp = mat4Mul(proj, view);
+  // camera basis (world) for ray gen — derive from view matrix rows
+  const right = [view[0], view[4], view[8]];
+  const upv   = [view[1], view[5], view[9]];
+  const fwd   = [-view[2], -view[6], -view[10]];
+  const tc = tiltColumns(tiltX, tiltZ);
+  const a = camArr;
+  for(let i=0;i<16;i++) a[i]=vp[i];
+  // tilt columns as vec4 (t0,t1,t2)
+  a[16]=tc[0]; a[17]=tc[1]; a[18]=tc[2]; a[19]=0;
+  a[20]=tc[3]; a[21]=tc[4]; a[22]=tc[5]; a[23]=0;
+  a[24]=tc[6]; a[25]=tc[7]; a[26]=tc[8]; a[27]=0;
+  a[28]=eye[0]; a[29]=eye[1]; a[30]=eye[2]; a[31]=0;
+  a[32]=right[0]; a[33]=right[1]; a[34]=right[2]; a[35]=0;
+  a[36]=upv[0]; a[37]=upv[1]; a[38]=upv[2]; a[39]=0;
+  a[40]=fwd[0]; a[41]=fwd[1]; a[42]=fwd[2]; a[43]=0;
+  a[44]=Math.tan(fovy/2); a[45]=aspect; a[46]=cfg.grainR; a[47]=time;
+  a[48]=cfg.orifice; a[49]=GEO.Rmax; a[50]=GEO.hf; a[51]=GEO.H;
+  a[52]=GEO.thick; a[53]=1.5; a[54]=0; a[55]=0;
+  device.queue.writeBuffer(camBuf, 0, a);
+}
+
+// ── Drain readout (throttled GPU readback) ─────────────────────────────────
+let drainState = { lastBelow:0, lastT:0, rate:0, eta:0, started:false };
+let readbackBusy = false, lastReadback = 0;
+async function readback(now){
+  if (readbackBusy || now - lastReadback < 700) return;
+  readbackBusy = true; lastReadback = now;
+  try {
+    const enc = device.createCommandEncoder();
+    enc.copyBufferToBuffer(posBuf, 0, stageBuf, 0, nGrains*16);
+    device.queue.submit([enc.finish()]);
+    await stageBuf.mapAsync(GPUMapMode.READ);
+    const arr = new Float32Array(stageBuf.getMappedRange());
+    let below = 0;
+    for (let i=0;i<nGrains;i++){ if (arr[i*4+1] < -0.01) below++; }
+    stageBuf.unmap();
+    const t = now/1000;
+    if (drainState.started){
+      const dN = below - drainState.lastBelow;
+      const dt = t - drainState.lastT;
+      if (dt > 0){
+        const inst = dN/dt;
+        drainState.rate = drainState.rate*0.6 + inst*0.4;     // smoothed grains/s
+        const remaining = nGrains - below;
+        drainState.eta = drainState.rate > 1 ? remaining/drainState.rate : 0;
+      }
+    }
+    drainState.lastBelow = below; drainState.lastT = t; drainState.started = true;
+    drainState.below = below;
+  } catch(e){ /* map race — ignore */ }
+  readbackBusy = false;
+}
+
+// ── Frame loop ─────────────────────────────────────────────────────────────
+let frames=0, fpsT=0, fps=0, lastFrame=0;
+const hud = document.getElementById('hud');
+
+function flipUpdate(dt){
+  if (flipT < 1){
+    flipT = Math.min(1, flipT + dt*1.6);
+    const e = flipT<0.5 ? 2*flipT*flipT : 1-Math.pow(-2*flipT+2,2)/2; // easeInOut
+    tiltX = flipFrom + (flipTo - flipFrom)*e;
+  }
+}
+
+function frame(now){
+  requestAnimationFrame(frame);
+  if (!lastFrame) lastFrame = now;
+  let realDt = (now - lastFrame)/1000; lastFrame = now;
+  realDt = Math.min(realDt, 1/30);
+  const time = now/1000;
+
+  if (autoSpin) yaw += realDt*0.25;
+  flipUpdate(realDt);
+
+  const sub = cfg.substeps;
+  const dt = (1/60) / sub;     // fixed physics dt for stability
+
+  writeSim(dt);
+  writeCam(time);
+
+  const enc = device.createCommandEncoder();
+
+  // physics substeps
+  const cellGroups = Math.ceil(grid.numCells/256);
+  const grainGroups = Math.ceil(nGrains/256);
+  for (let s=0;s<sub;s++){
+    let cp = enc.beginComputePass();
+    cp.setBindGroup(0, computeBG);
+    cp.setPipeline(pipeClear); cp.dispatchWorkgroups(cellGroups);
+    cp.setPipeline(pipeBuild); cp.dispatchWorkgroups(grainGroups);
+    cp.setPipeline(pipeForce); cp.dispatchWorkgroups(grainGroups);
+    cp.setPipeline(pipeInteg); cp.dispatchWorkgroups(grainGroups);
+    cp.end();
+  }
+
+  // sand pass → offscreen
+  let sp = enc.beginRenderPass({
+    colorAttachments:[{ view:sandView, clearValue:{r:0.02,g:0.03,b:0.06,a:1}, loadOp:'clear', storeOp:'store' }],
+    depthStencilAttachment:{ view:depthView, depthClearValue:1.0, depthLoadOp:'clear', depthStoreOp:'store' },
+  });
+  sp.setPipeline(pipeSand);
+  sp.setBindGroup(0, sandBG);
+  sp.draw(6, nGrains);
+  sp.end();
+
+  // glass + composite → swapchain
+  let gp = enc.beginRenderPass({
+    colorAttachments:[{ view:ctx.getCurrentTexture().createView(), clearValue:{r:0,g:0,b:0,a:1}, loadOp:'clear', storeOp:'store' }],
+  });
+  gp.setPipeline(pipeGlass);
+  gp.setBindGroup(0, glassBG);
+  gp.draw(3, 1);
+  gp.end();
+
+  device.queue.submit([enc.finish()]);
+
+  readback(now);
+
+  // HUD
+  frames++;
+  if (now - fpsT > 500){ fps = Math.round(frames*1000/(now-fpsT)); frames=0; fpsT=now; }
+  const below = drainState.below||0;
+  const pct = nGrains? Math.round(below/nGrains*100):0;
+  let eta='—';
+  if (drainState.eta>0){ const e=drainState.eta; eta = e>90? (e/60).toFixed(1)+'m' : e.toFixed(0)+'s'; }
+  hud.textContent =
+    `grains  ${nGrains.toLocaleString()}\n` +
+    `drained ${pct}%   flow ${Math.max(0,Math.round(drainState.rate))}/s\n` +
+    `est full drain  ${eta}\n` +
+    `orifice/Ø  ${(cfg.orifice/(cfg.grainR*2)).toFixed(1)}×\n` +
+    `${fps} fps`;
+}
+
+// ── Interaction ────────────────────────────────────────────────────────────
+function setupInput(){
+  let dragging=false, px=0, py=0;
+  const hint = document.getElementById('hint');
+  let hintGone=false;
+  function fade(){ if(!hintGone){ hint.style.opacity=0; hintGone=true; } }
+  canvas.addEventListener('pointerdown', e=>{ dragging=true; px=e.clientX; py=e.clientY; canvas.setPointerCapture(e.pointerId); fade(); });
+  canvas.addEventListener('pointermove', e=>{
+    if(!dragging || useGyro) return;
+    const dx=(e.clientX-px), dy=(e.clientY-py); px=e.clientX; py=e.clientY;
+    tiltZ = Math.max(-1.35, Math.min(1.35, tiltZ - dx*0.006));
+    tiltX = Math.max(-1.35, Math.min(1.35, tiltX + dy*0.006));
+  });
+  canvas.addEventListener('pointerup', ()=> dragging=false);
+  canvas.addEventListener('pointercancel', ()=> dragging=false);
+
+  // panel toggle on small screens
+  const panel=document.getElementById('panel'), gear=document.getElementById('gear');
+  function small(){ return window.innerWidth < 640; }
+  function applyLayout(){ if(small()){ panel.classList.add('hidden'); gear.style.display='flex'; } else { panel.classList.remove('hidden'); gear.style.display='none'; } }
+  gear.addEventListener('click', ()=> panel.classList.toggle('hidden'));
+  window.addEventListener('resize', applyLayout); applyLayout();
+
+  // live slider: updates cfg[key] continuously, no reset
+  const bindLive=(id, key, fmt, xform=(v)=>v)=>{
+    const el=document.getElementById(id), out=document.getElementById('v'+id.slice(1));
+    const show=()=> out.textContent = fmt(parseFloat(el.value));
+    const apply=()=>{ cfg[key]=xform(parseFloat(el.value)); show(); };
+    apply();
+    el.addEventListener('input', apply);
+  };
+  // reset slider: shows live, but only re-inits the sim on release (change)
+  const bindReset=(id, key, fmt, xform=(v)=>v)=>{
+    const el=document.getElementById(id), out=document.getElementById('v'+id.slice(1));
+    const show=()=> out.textContent = fmt(parseFloat(el.value));
+    show();
+    el.addEventListener('input', show);
+    el.addEventListener('change', ()=>{ cfg[key]=xform(parseFloat(el.value)); doReset(); });
+  };
+  bindReset('sCount','count', v=>Math.round(v/1000)+'k');
+  bindReset('sDia','grainR', v=>v.toFixed(4), v=>v/2);   // slider is diameter → radius
+  bindLive('sOri','orifice', v=>v.toFixed(3));
+  bindLive('sGrav','gravity', v=>v.toFixed(1));
+  bindLive('sFric','friction', v=>v.toFixed(2));
+  bindLive('sRest','rest', v=>v.toFixed(2));
+
+  document.getElementById('bReset').addEventListener('click', doReset);
+  document.getElementById('bFlip').addEventListener('click', ()=>{
+    flipFrom = tiltX; flipTo = tiltX + Math.PI; flipT = 0;   // 180° rock about X
+    // normalize so repeated flips don't accumulate huge angles
+    if (Math.abs(flipTo) > Math.PI*1.5){ flipTo = (tiltX>0? tiltX-Math.PI : tiltX+Math.PI); }
+  });
+  const bSpin=document.getElementById('bSpin');
+  bSpin.addEventListener('click', ()=>{ autoSpin=!autoSpin; bSpin.classList.toggle('off',!autoSpin); });
+  const bGyro=document.getElementById('bGyro');
+  bGyro.addEventListener('click', async ()=>{
+    if(!useGyro){
+      if (typeof DeviceOrientationEvent!=='undefined' && DeviceOrientationEvent.requestPermission){
+        try{ const p=await DeviceOrientationEvent.requestPermission(); if(p!=='granted') return; }catch(e){ return; }
+      }
+      window.addEventListener('deviceorientation', onGyro);
+      useGyro=true;
+    } else { window.removeEventListener('deviceorientation', onGyro); useGyro=false; }
+    bGyro.classList.toggle('off',!useGyro);
+  });
+}
+function onGyro(e){
+  // beta: front-back tilt, gamma: left-right. Map to hourglass tilt.
+  const beta=(e.beta||0), gamma=(e.gamma||0);
+  tiltX = Math.max(-1.35, Math.min(1.35, (beta-90)*Math.PI/180));
+  tiltZ = Math.max(-1.35, Math.min(1.35, (gamma)*Math.PI/180));
+}
+
+let resetQueued=false;
+function doReset(){
+  if(resetQueued) return; resetQueued=true;
+  requestAnimationFrame(()=>{ allocParticles(); resetQueued=false; });
+}
+
+function resize(){
+  dpr = Math.min(window.devicePixelRatio||1, 2);
+  W = Math.max(1, Math.floor(canvas.clientWidth*dpr));
+  H2 = Math.max(1, Math.floor(canvas.clientHeight*dpr));
+  canvas.width=W; canvas.height=H2;
+  makeTargets();
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+async function main(){
+  if (!navigator.gpu){ noGPU(); return; }
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference:'high-performance' });
+  if (!adapter){ noGPU(); return; }
+  device = await adapter.requestDevice();
+  device.lost.then(info=>{ console.error('device lost', info); });
+  ctx = canvas.getContext('webgpu');
+  format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format, alphaMode:'opaque' });
+
+  simBuf = device.createBuffer({ size: 24*4, usage: GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST });
+  camBuf = device.createBuffer({ size: 64*4, usage: GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST });
+  sampler = device.createSampler({ magFilter:'linear', minFilter:'linear', addressModeU:'clamp-to-edge', addressModeV:'clamp-to-edge' });
+
+  makeComputePipes();
+  ({ sandBGL, glassBGL } = makeRenderPipes());
+
+  resize();
+  window.addEventListener('resize', resize);
+  allocParticles();
+  setupInput();
+  requestAnimationFrame(frame);
+}
+main();
+</script>
+</body>
+</html>
