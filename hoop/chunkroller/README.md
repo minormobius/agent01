@@ -49,7 +49,12 @@ The **⚡ v2 chunk** checkbox flips the chunk to a new model in one click, bundl
    and the rim left slivers. v2 **partitions the whole interior into rooms up front** (footprint-weighted
    graph-Voronoi + role floors + surface tension), then grows a **minimal concourse that reaches every
    ROOM** — seeded at the ports, Prim-grown until every room borders road, each room guaranteed a door
-   onto one connected concourse. Oxygen to *rooms*, not cells.
+   onto one connected concourse. Oxygen to *rooms*, not cells. Two boundary conditions matter:
+   - **The concourse only paves `canRoad` cells — never the rim, except at the ports.** So the perimeter
+     belongs to *rooms* (you meet rooms on the edge), and the concourse is forced inward instead of
+     looping around the outside. Measured: ~90% of the perimeter is rooms; only the ports touch the edge.
+   - **The concourse widens to a 2-wide minimum** (`concourseWidth`, default 2, via the shared
+     `widenOneSided`) so corridors are ribbons, not hairlines.
 
 Same record contract as v1 (`buildWalk` runs unchanged) — verified in `test/roomsfirst.selftest.mjs`
 (every room reachable from a port through its door, road one component, ports on road, one-of-each).

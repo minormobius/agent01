@@ -54,7 +54,20 @@ const unreachedRooms = ch.rooms.filter((r) => !r.cells.some((c) => seen[c])).len
 ok(unreachedRooms === 0, `every room is reachable from a port through its door (${unreachedRooms} unreached)`);
 ok(roadCells.every((c) => seen[c]), 'every road cell is reachable from the port');
 
-// 6) ROLE FLOORS: at least one of each building type
+// 6) RIM BOUNDARY: the perimeter is rooms, not concourse — except at the ports.
+const portSet = new Set(ch.ports.map((p) => p.cell).filter((c) => c >= 0));
+let perim = 0, perimRoom = 0, perimRoadNonPort = 0;
+for (let i = 0; i < ch.cells.length; i++) { if (!ch.cells[i].poly.some((v) => v[2] === -1)) continue; perim++; if (ch.road[i]) { if (!portSet.has(i)) perimRoadNonPort++; } else if (ch.roomOf[i] >= 0) perimRoom++; }
+ok(perim > 0 && perimRoom / perim > 0.8, `the perimeter is mostly rooms (${perimRoom}/${perim})`);
+ok(perimRoadNonPort <= Math.max(6, portSet.size), `the concourse only reaches the edge at ports (${perimRoadNonPort} stray edge-road cells)`);
+
+// 6b) CONCOURSE WIDTH: the 2-wide minimum reads as a ribbon, not a hairline.
+const degOf = (c) => { let road = 0, deg = 0; for (let i = 0; i < c.road.length; i++) if (c.road[i]) { road++; deg += c.adj[i].filter((j) => c.road[j]).length; } return road ? deg / road : 0; };
+const wide2 = solveChunk({ v2: true, seed: 4, W: 1125, H: 750, roomSize: 14, footprint: FOOT, grand: ['serve', 'learn', 'play'], roleFloors: FLOORS, concourseWidth: 2 });
+const wide1 = solveChunk({ v2: true, seed: 4, W: 1125, H: 750, roomSize: 14, footprint: FOOT, grand: ['serve', 'learn', 'play'], roleFloors: FLOORS, concourseWidth: 1 });
+ok(degOf(wide2) > degOf(wide1) + 0.8, `concourseWidth 2 is wider than 1 (${degOf(wide2).toFixed(1)} > ${degOf(wide1).toFixed(1)} road-neighbours)`);
+
+// 7) ROLE FLOORS: at least one of each building type
 const present = new Set(ch.rooms.map((r) => r.role));
 const missing = Object.keys(ROLES).filter((r) => !present.has(r));
 ok(missing.length === 0, `at least one of each building type (missing: ${missing.join(',') || 'none'})`);

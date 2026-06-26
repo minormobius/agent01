@@ -308,7 +308,7 @@ function stitchConcourse(foam, chunk, road) {
 // SINGLE-HEADED widening: grow the concourse by `layers` one-cell layers, each on ONE flank only.
 // For each concourse cell we estimate the local tangent (along the capillary) and absorb only the
 // tissue neighbours on its left normal — so width N reads as ~N cells, not the 2N of both-sided.
-function widenOneSided(foam, chunk, road, layers) {
+export function widenOneSided(foam, chunk, road, layers) {
   const added = [];
   for (let L = 0; L < layers; L++) {
     const adds = [];
