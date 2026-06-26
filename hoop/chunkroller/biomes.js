@@ -47,6 +47,12 @@ export const BIOMES = {
   dormitory: { label: 'Dormitory', sliders: { homes: 2.0, industry: 0.8, greenery: 0.6, lore: 0.6, leisure: 0.6, care: 0.6, order: 0.6 } },
 };
 
+// a tint per biome, for the floor "ward map" (each chunk painted by its biome).
+export const BIOME_COLOR = {
+  wild: '#6b7280', commons: '#3bb0c9', market: '#cf3b3b', garden: '#5aa845',
+  foundry: '#e0772f', cloister: '#b39bd8', seat: '#5570d8', dormitory: '#d9b24a',
+};
+
 // a biome may steer the GRAND ANCHOR roles too — the civic centrepiece a big pocket plants (solveChunk
 // `grand`). Defaults to rooms.js GRAND_ROLES when a biome has no override.
 export const BIOME_GRAND = {

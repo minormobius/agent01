@@ -56,6 +56,15 @@
     <p class="sub">roll a chunk · civic readout · NPC stats · biome sliders that bias room creation</p>
 
     <div class="grp" style="border-top:none">
+      <h2>view</h2>
+      <div class="btns">
+        <button id="m-chunk" class="primary" style="flex:1">▣ one chunk</button>
+        <button id="m-floor" style="flex:1">⬡ bounded floor</button>
+      </div>
+      <label class="row" id="floorsize-row" style="display:none"><span class="l">floor</span><input type="range" id="floorN" min="3" max="12" step="1" value="9"><b id="floorNv">9</b></label>
+    </div>
+
+    <div class="grp" style="border-top:none">
       <h2>the chunk</h2>
       <label class="row"><span class="l">biome</span>
         <select id="biome"></select>
