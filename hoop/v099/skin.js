@@ -181,20 +181,18 @@ export function paintChunk(rec, opts = {}) {
   });
   tintLights(lights, (room) => hexHue(rec.rooms[room] && rec.rooms[room].color));
 
-  // ── 4b. CONCOURSE light fixtures (v091) — the walkway was DANK. Scatter warm, free-standing bollard
-  // lamps along the concourse (region −1 floor cells), spaced ≈ 2.4·roomSpacing, so light pools down the
-  // corridor and spills into doorways instead of leaving it black. Warm gold (hue 40), independent of the
-  // room hues. Per-chunk + deterministic: cells ordered by a position hash, greedily thinned, ports skipped
-  // (lamp positions near a seam would differ per chunk). ──
-  const concSpacing = rs * 2.4, cs2 = concSpacing * concSpacing, concChosen = [];
-  const concCells = cells.filter((c) => !c.wall && c.region === -1);
-  concCells.sort((a, b) => (hsh(Math.round(a.x), Math.round(a.y)) - hsh(Math.round(b.x), Math.round(b.y))) || (a.x - b.x) || (a.y - b.y));
-  for (const c of concCells) {
-    if (atPort(c.x, c.y)) continue;
-    let okc = true; for (const q of concChosen) if ((q.x - c.x) ** 2 + (q.y - c.y) ** 2 < cs2) { okc = false; break; }
-    if (okc) concChosen.push(c);
-  }
-  const concLights = concChosen.map((c) => { const g = lightGenome(rng); const len = pw * (1.0 + g.len * 0.5) * o.fixture; return { x: c.x, y: c.y, nx: 0, ny: -1, len, model: g, room: -1, concourse: true, hue: 40, rgb: hslToRgb(40, 0.5, 0.6), tip: { x: c.x, y: c.y } }; });
+  // ── 4b. CONCOURSE light fixtures — warm bollard lamps along the walkway. SEAM-RECTIFIED, the way the big
+  // foam cells were: lamps sit on a GLOBAL jittered lattice (world-deterministic, NOT per-chunk) and one
+  // sits AT each port, with a genome keyed to WORLD POSITION — so two abutting chunks drop the SAME lamp
+  // (same place, same length, same glow) wherever their concourse aligns. The walkway light then MEETS
+  // across a seam without a step, and the crossing itself is lit instead of being the dark point between
+  // two chunks' interior lamps. (No port-skipping any more — the lamp at the port is what makes it smooth.)
+  const concSpacing = rs * 2.4, concChosen = [], concSeen = new Set();
+  const lampGenome = (wx, wy) => lightGenome(mulberry32(((Math.imul(Math.round(wx), 73856093) ^ Math.imul(Math.round(wy), 19349663)) >>> 0) || 1));
+  const pushConc = (lx, ly, port) => { const k = Math.round(lx / ws) + ',' + Math.round(ly / ws); if (concSeen.has(k)) return; concSeen.add(k); concChosen.push({ x: lx, y: ly, port: !!port }); };
+  for (const p of rec.ports) { if (p.cell == null || p.cell < 0) continue; pushConc(p.x - ox, p.y - oy, true); }   // ports FIRST — the lamp AT each port (shared by both chunks) must survive the dedup
+  for (const p of globalDarts(ox, oy, W, H, concSpacing, 0.5)) { if (!inConvex(p.x, p.y, lpoly)) continue; if (regionAt(p.x, p.y) !== -1) continue; pushConc(p.x, p.y, false); }
+  const concLights = concChosen.map((c) => { const g = lampGenome(c.x + ox, c.y + oy); const len = pw * (1.0 + g.len * 0.5) * o.fixture; return { x: c.x, y: c.y, nx: 0, ny: -1, len, model: g, room: -1, concourse: true, hue: 40, rgb: hslToRgb(40, 0.5, 0.6), tip: { x: c.x, y: c.y } }; });
 
   // ── 4c. VORONOI-GROWN WALL FIXTURES (grown BEFORE the component now, so the component can sit away
   // from them and BOTH can feed the light bake). The fixture CLAIMS a cluster of a room's own cells at a
