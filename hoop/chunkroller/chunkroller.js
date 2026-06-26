@@ -8,6 +8,8 @@ import { TRIAD, TRIAD_ORDER } from '../v099/stats.js';
 import { SLIDERS, NEUTRAL, SLIDER_MAX, BIOMES, BIOME_COLOR, BIOME_GRAND, mixFromSliders, mixShares } from './biomes.js';
 import { scoreChunk, npcRoster, roomShock } from './civic.js';
 import { growFloor } from './floor.js';
+import { SAMPLE_SHAPE, shapePoly } from './shapes.js';
+import { evaluateMix, solveStableSliders, themeOf } from './stability.js';
 
 const W = 900, H = 600;
 const $ = (id) => document.getElementById(id);
@@ -15,7 +17,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': 
 const TIER_COLOR = { Thriving: '#5fd08a', Healthy: '#8fd06a', Stable: '#d8c45a', Fragile: '#e0a05a', Failing: '#e0635a' };
 const domHue = {}; DOMAINS.forEach((d, i) => { domHue[d.id] = Math.round((i / DOMAINS.length) * 320); });
 
-let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', floorN = 9, portsMax = 4;
+let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', floorN = 9, portsMax = 4, csize = 1, useShape = false;
 let chunk = null, civic = null, roster = null, sel = -1, view = { s: 1, ox: 0, oy: 0 };
 let floor = null, selChunk = -1;
 
@@ -42,14 +44,27 @@ $('m-chunk').addEventListener('click', () => setMode('chunk'));
 $('m-floor').addEventListener('click', () => setMode('floor'));
 $('floorN').addEventListener('input', (e) => { floorN = +e.target.value; $('floorNv').textContent = floorN; generate(); });
 $('portsMax').addEventListener('input', (e) => { portsMax = +e.target.value; $('portsMaxv').textContent = portsMax; generate(); });
+$('csize').addEventListener('input', (e) => { csize = +e.target.value; $('csizev').textContent = csize.toFixed(2).replace(/0$/, '') + '×'; generate(); });
+$('useShape').addEventListener('change', (e) => { useShape = e.target.checked; generate(); });
+$('stabilize').addEventListener('click', () => {
+  const btn = $('stabilize'); btn.disabled = true; btn.textContent = '⚖ solving…';
+  setTimeout(() => {
+    const res = solveStableSliders(sliders, { theme: themeOf(sliders), seed });
+    sliders = res.sliders; biome = 'wild'; $('biome').value = matchBiome() || ''; syncSliders();
+    btn.disabled = false; btn.textContent = '⚖ solve for stability';
+    generate();
+  }, 20);
+});
 
 // ── generate ──
 function generate() { if (mode === 'floor') generateFloor(); else generateChunk(); }
 function generateChunk() {
   const roleMix = mixFromSliders(sliders);
   const grand = BIOME_GRAND[biome] || GRAND_ROLES;
-  chunk = solveChunk({ seed, W, H, roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix, portRange: [1, portsMax] });
-  civic = scoreChunk(chunk.rooms, W, H, seed);
+  const Wc = Math.round(W * csize), Hc = Math.round(H * csize);
+  const shapeOpt = useShape ? { poly: shapePoly(SAMPLE_SHAPE, Wc / 2, Hc / 2, Math.min(Wc, Hc) * 0.46) } : { shape: 'hex' };
+  chunk = solveChunk({ ...shapeOpt, seed, W: Wc, H: Hc, roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix, portRange: [1, portsMax] });
+  civic = scoreChunk(chunk.rooms, Wc, Hc, seed);
   roster = npcRoster(civic.society);
   sel = -1; $('dossier').classList.remove('on');
   fitView(); render(); readout();
@@ -175,6 +190,9 @@ function readout() {
   $('casts').innerHTML = Object.entries(roster.casts).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([lbl, n]) => `${esc(lbl)} <b style="color:#e6e8ee">${n}</b>`).join(' · ');
   // resulting mix
   $('mix').innerHTML = 'mix → ' + mixShares(sliders).slice(0, 6).map(([role, v2]) => `${(ROLES[role] || {}).glyph || ''}${role} ${Math.round(v2 * 100)}%`).join(' · ');
+  // the stability MODEL's estimate for this distribution (sampled over several seeds, not just this chunk)
+  const em = evaluateMix(mixFromSliders(sliders));
+  $('model').innerHTML = `model: <b style="color:${TIER_COLOR[em.tier] || '#ccc'}">${Math.round(em.vitality)} · ${em.tier}</b> <span style="color:#7d8597">· fragile ${Math.round(em.fragility * 100)}% of rolls</span>`;
 }
 
 // ── click → room dossier ──

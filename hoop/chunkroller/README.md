@@ -31,7 +31,9 @@ pocket plants). Moving the sliders genuinely changes what the chunk grows — an
 
 - **▣ one chunk** — the single-chunk design view (above). The **ports/edge** slider tunes the seam density
   (max concourse ports per edge, 1–4) via the engine's new `portRange` option — turn it down for fewer
-  chunk-to-chunk crossings. The port count shows in the readout.
+  chunk-to-chunk crossings. The **size** slider scales the chunk (1–2.5×; bigger = more rooms/cells, see
+  perf below). **▰ tessellation shape** fills an editor-exported shape (`shapes.js`) instead of a perfect
+  hexagon, so you see the deformed, tessellating outline as a real chunk.
 - **⬡ bounded floor** — a finite hand of ~7–10 chunks grown off the real tiler, each painted by its
   **ward biome**, the **edge tiles** drawn as a gold sealed rim, and **☮ floor 1 — no baddies** on the
   readout. Click a ward → its civic vitality. The model lives in `floor.js`:
@@ -54,9 +56,41 @@ pocket plants). Moving the sliders genuinely changes what the chunk grows — an
 | `floor.js` | `growFloor` (bounded floor), `chunkBiomeAt` (ward assignment), edge tiles, no-baddies flag |
 | `tess.html` + `tess.js` | the **tessellation editor** (`/chunkroller/tess`) — drag edges, preview the tiling, export JSON |
 | `tessgen.js` | the tessellation kernel: deform 3 edges → opposite 3 follow (reverse+translate) → always tiles |
+| `shapes.js` | bundled tessellation shapes (paste an editor export) + `shapePoly` (→ solveChunk `poly`) |
+| `stability.js` | the room-distribution model: `evaluateMix`/`stabilityScore` (sampled vitality) + `solveStableSliders` |
+| `test/stability.selftest.mjs` | 12 checks — sampler determinism, all-homes < balanced, the solver never worsens stability |
 | `test/civic.selftest.mjs` | 20 checks — slider rollup, the civic field over a real chunk, NPC stats, biome biasing |
 | `test/floor.selftest.mjs` | 17 checks — deterministic floor, edge tiles seal the rim, ward variety, no-baddies gate |
 | `test/tess.selftest.mjs` | 17 checks — deformed edges keep zero tessellation gap; export round-trips |
+
+## Stability model (backing the room distribution)
+
+The biomes are no longer just hand-tuned sliders — `stability.js` is a model behind them. It estimates a
+role-mix's civic stability by **sampling** synthetic rooms from the mix and running the real econ vitality
+oracle over several seeds: mean **vitality** + **fragility** (how often the society tips Fragile/Failing).
+The rail shows the modeled tier alongside the live chunk's. **⚖ solve for stability** hill-climbs the
+sliders toward stability while keeping the biome's emphasized sliders above a floor (so a Dormitory stays
+a dormitory but becomes as stable as that character allows — e.g. 63·Stable/40%-fragile → 74·Healthy/0%).
+Deterministic from the seed; node-tested (the solver never lowers the stability score).
+
+## Perf — making chunks bigger
+
+Measured (`solveChunk`, node, roomSize 14):
+
+| size | region | cells | rooms | solve |
+|---|---|---|---|---|
+| 1× | 900×600 | ~780 | ~40 | ~285 ms |
+| 1.5× | 1350×900 | ~1775 | ~84 | ~490 ms |
+| 2× | 1800×1200 | ~3180 | ~142 | ~850 ms |
+| 2.5× | 2250×1500 | ~4960 | ~218 | ~1435 ms |
+
+Cells scale ~**quadratically** with linear size (it's area); solve time tracks cells roughly linearly.
+Bigger chunks **reduce the seam problem** (fewer chunk boundaries on screen — the thing the tessellation
+editor also attacks) at these costs: (1) longer **generation latency** per chunk — but that runs in a Web
+Worker off the main thread, so it's streaming lag, not framerate; (2) a larger **one-time paint bake** per
+chunk (`skin.js`), again off the hot loop; (3) more **memory** per chunk. Per-frame cost (the raster blit +
+residents + fog) is roughly flat, and you have *fewer* chunks loaded at once, which partly offsets.
+**Verdict: 1.5× is a safe sweet spot; 2× is viable if ~850 ms streaming latency/chunk is acceptable.**
 
 ## ✎ Tessellation editor (`/chunkroller/tess`)
 
