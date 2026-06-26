@@ -78,6 +78,9 @@ button.off{opacity:.45}
   </div>
   <div class="btns">
     <button id="bPerf">perf: auto</button>
+    <button id="bGlass">glass: full</button>
+  </div>
+  <div class="btns">
     <button id="bSpin" class="off">auto-spin</button>
     <button id="bGyro" class="off">tilt: gyro</button>
   </div>
@@ -142,6 +145,8 @@ let camDist = 3.35;               // orbit radius (pinch / wheel zoom)
 let autoSpin = false, useGyro = false;
 let renderScale = 1.0;            // internal-resolution multiplier (perf lever)
 let autoPerf = true;             // adapt renderScale to hold target fps
+let glassSimple = false;         // low-end: skip refractive raymarch
+let glassAuto = false;           // simple mode was engaged by the auto fallback
 const DPR_CAP = 2.0;
 const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
 let flipping = 0;                 // flip animation progress driver
@@ -588,12 +593,21 @@ fn fs(in: VOut)->@location(0) vec4f {
   col += vec3f(fres)*0.06;
   return vec4f(col, 1.0);
 }
+
+// low-end mode: no raymarch, no refraction — just blit the sand with a vignette
+@fragment
+fn fsFlat(in: VOut)->@location(0) vec4f {
+  let uv = vec2f(in.ndc.x*0.5 + 0.5, 0.5 - in.ndc.y*0.5);
+  var c = textureSample(sandTex, samp, uv).rgb;
+  let v = 1.0 - 0.22*dot(in.ndc, in.ndc);    // gentle vignette
+  return vec4f(c * clamp(v, 0.0, 1.0), 1.0);
+}
 `;
 
 // ── Buffers / pipelines (rebuilt on count/grainR change) ───────────────────
 let posBuf, velBuf, dltBuf, cntBuf, tblBuf, simBuf, camBuf, stageBuf, prevBuf;
 let computeBG, sandBG, glassBG, sampler;
-let pipeClear, pipeBuild, pipePredict, pipeProject, pipeApply, pipeFinal, pipeSand, pipeGlass;
+let pipeClear, pipeBuild, pipePredict, pipeProject, pipeApply, pipeFinal, pipeSand, pipeGlass, pipeFlat;
 let sandColorTex, sandDepthTex, sandView, depthView;
 let nGrains = 0, grid = null;
 let computeLayout, camModule, sandModule, glassModule;
@@ -639,10 +653,17 @@ function makeRenderPipes(){
     {binding:1, visibility:GPUShaderStage.FRAGMENT, sampler:{type:'filtering'}},
     {binding:2, visibility:GPUShaderStage.FRAGMENT, texture:{sampleType:'float'}},
   ]});
+  const glassPL = device.createPipelineLayout({ bindGroupLayouts:[glassBGL] });
   pipeGlass = device.createRenderPipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts:[glassBGL] }),
+    layout: glassPL,
     vertex:{ module:glassModule, entryPoint:'vs' },
     fragment:{ module:glassModule, entryPoint:'fs', targets:[{format}] },
+    primitive:{ topology:'triangle-list' },
+  });
+  pipeFlat = device.createRenderPipeline({   // low-end: blit sand, no raymarch
+    layout: glassPL,
+    vertex:{ module:glassModule, entryPoint:'vs' },
+    fragment:{ module:glassModule, entryPoint:'fsFlat', targets:[{format}] },
     primitive:{ topology:'triangle-list' },
   });
   return { sandBGL, glassBGL };
@@ -854,7 +875,7 @@ function frame(now){
   let gp = enc.beginRenderPass({
     colorAttachments:[{ view:ctx.getCurrentTexture().createView(), clearValue:{r:0,g:0,b:0,a:1}, loadOp:'clear', storeOp:'store' }],
   });
-  gp.setPipeline(pipeGlass);
+  gp.setPipeline(glassSimple ? pipeFlat : pipeGlass);
   gp.setBindGroup(0, glassBG);
   gp.draw(3, 1);
   gp.end();
@@ -871,6 +892,10 @@ function frame(now){
     if (autoPerf && fps > 0){
       if (fps < 46 && renderScale > 0.36){ renderScale = Math.max(0.35, renderScale*0.86); resize(); syncResUI(); }
       else if (fps > 58 && renderScale < 1.0){ renderScale = Math.min(1.0, renderScale*1.07); resize(); syncResUI(); }
+      // last resort: if even at floor res we can't hold up, drop refractive glass
+      else if (fps < 40 && renderScale <= 0.38 && !glassSimple){ glassSimple=true; glassAuto=true; syncGlassUI(); }
+      // if simple was auto-engaged and there's now ample headroom, restore the glass
+      else if (glassAuto && fps > 70 && renderScale >= 0.95){ glassSimple=false; glassAuto=false; syncGlassUI(); }
     }
   }
   const below = drainState.below||0;
@@ -882,7 +907,7 @@ function frame(now){
     `drained ${pct}%   flow ${Math.max(0,Math.round(drainState.rate))}/s\n` +
     `est full drain  ${eta}\n` +
     `orifice/Ø  ${(cfg.orifice/(cfg.grainR*2)).toFixed(1)}×\n` +
-    `${fps} fps  ·  res ${Math.round(renderScale*100)}%${autoPerf?' auto':''}`;
+    `${fps} fps · res ${Math.round(renderScale*100)}%${autoPerf?' auto':''}${glassSimple?' · flat glass':''}`;
 }
 
 // ── Interaction ────────────────────────────────────────────────────────────
@@ -961,6 +986,10 @@ function setupInput(){
     bPerf.textContent = autoPerf? 'perf: auto':'perf: manual';
     bPerf.classList.toggle('off', !autoPerf);
   });
+  document.getElementById('bGlass').addEventListener('click', ()=>{
+    glassSimple=!glassSimple; glassAuto=false;   // manual choice sticks
+    syncGlassUI();
+  });
 
   document.getElementById('bReset').addEventListener('click', doReset);
   document.getElementById('bFlip').addEventListener('click', ()=>{
@@ -1007,6 +1036,10 @@ function syncResUI(){
   const el=document.getElementById('sRes'), out=document.getElementById('vRes');
   if(el){ el.value=renderScale.toFixed(2); }
   if(out){ out.textContent = Math.round(renderScale*100)+'%'; }
+}
+function syncGlassUI(){
+  const b=document.getElementById('bGlass');
+  if(b){ b.textContent = glassSimple? 'glass: flat':'glass: full'; b.classList.toggle('off', glassSimple); }
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────
