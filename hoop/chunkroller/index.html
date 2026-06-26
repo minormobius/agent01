@@ -78,6 +78,7 @@
           <option value="bridging">bridges vs bonds</option>
         </select>
       </label>
+      <label class="row" title="max concourse ports per edge — the chunk-to-chunk crossings. Tune down for fewer seams."><span class="l">ports/edge</span><input type="range" id="portsMax" min="1" max="4" step="1" value="4"><b id="portsMaxv">4</b></label>
       <div class="btns">
         <button id="roll" class="primary" style="flex:1">🎲 roll chunk</button>
         <button id="reseed" title="same biome, new seed">↻ seed</button>
@@ -115,7 +116,7 @@
   <div id="stage">
     <canvas id="cv"></canvas>
     <div id="dossier"></div>
-    <div class="crumb"><a href="/">◍ hoop</a> · chunkroller · a <a href="/econ/">/econ</a> cousin for chunks</div>
+    <div class="crumb"><a href="/">◍ hoop</a> · chunkroller · <a href="/chunkroller/tess">✎ tessellation editor</a> · a <a href="/econ/">/econ</a> cousin for chunks</div>
   </div>
 </div>
 <script type="module" src="./chunkroller.js"></script>

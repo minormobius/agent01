@@ -123,7 +123,7 @@ export function centroid(cells, list) { let x = 0, y = 0; for (const i of list) 
 // OUTSIDE it becomes a GHOST — not shown as a room, but kept to bound the edge-cells and woken
 // wholesale when the neighbour chunk loads. Each chunk edge gets 1–4 CONCOURSE PORTS at Monte-Carlo
 // positions — the cross-chunk movement points the solve must connect and perfuse from.
-export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: want = null } = {}) {
+export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: want = null, portRange = [1, 4] } = {}) {
   const rng = mulberry32((seed ^ 0xc40c) >>> 0);
   let shape;
   if (!poly) {
@@ -148,7 +148,8 @@ export function defineChunk(foam, { seed = 1, poly = null, inherit = [], shape: 
   // fresh 1–4 Monte-Carlo ports on every edge that didn't inherit any
   for (let e = 0; e < poly.length; e++) {
     if (edgeHasPort.has(e)) continue;
-    const a = poly[e], b = poly[(e + 1) % poly.length], n = 1 + Math.floor(rng() * 4);
+    // 1–4 fresh ports per edge by default; `portRange` [min,max] tunes the seam density (down = fewer crossings).
+    const a = poly[e], b = poly[(e + 1) % poly.length], pr0 = portRange[0] | 0, pr1 = Math.max(pr0, portRange[1] | 0), n = pr0 + Math.floor(rng() * (pr1 - pr0 + 1));
     for (let i = 0; i < n; i++) { const t = (i + 0.5 + (rng() - 0.5) * 0.6) / n, px = a.x + (b.x - a.x) * t, py = a.y + (b.y - a.y) * t, cell = nearestInterior(px, py); if (cell >= 0 && !ports.some((p) => p.cell === cell)) ports.push({ edge: e, x: px, y: py, cell }); }
   }
   // rim = interior cells touching the chunk boundary (adjacent to a ghost). The concourse is kept

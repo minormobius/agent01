@@ -15,7 +15,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': 
 const TIER_COLOR = { Thriving: '#5fd08a', Healthy: '#8fd06a', Stable: '#d8c45a', Fragile: '#e0a05a', Failing: '#e0635a' };
 const domHue = {}; DOMAINS.forEach((d, i) => { domHue[d.id] = Math.round((i / DOMAINS.length) * 320); });
 
-let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', floorN = 9;
+let seed = 7, biome = 'wild', sliders = { ...NEUTRAL }, lens = 'role', mode = 'chunk', floorN = 9, portsMax = 4;
 let chunk = null, civic = null, roster = null, sel = -1, view = { s: 1, ox: 0, oy: 0 };
 let floor = null, selChunk = -1;
 
@@ -41,20 +41,21 @@ function setMode(m) { mode = m; $('m-chunk').classList.toggle('primary', m === '
 $('m-chunk').addEventListener('click', () => setMode('chunk'));
 $('m-floor').addEventListener('click', () => setMode('floor'));
 $('floorN').addEventListener('input', (e) => { floorN = +e.target.value; $('floorNv').textContent = floorN; generate(); });
+$('portsMax').addEventListener('input', (e) => { portsMax = +e.target.value; $('portsMaxv').textContent = portsMax; generate(); });
 
 // ── generate ──
 function generate() { if (mode === 'floor') generateFloor(); else generateChunk(); }
 function generateChunk() {
   const roleMix = mixFromSliders(sliders);
   const grand = BIOME_GRAND[biome] || GRAND_ROLES;
-  chunk = solveChunk({ seed, W, H, roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix });
+  chunk = solveChunk({ seed, W, H, roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix, portRange: [1, portsMax] });
   civic = scoreChunk(chunk.rooms, W, H, seed);
   roster = npcRoster(civic.society);
   sel = -1; $('dossier').classList.remove('on');
   fitView(); render(); readout();
 }
 function generateFloor() {
-  floor = growFloor(seed, { count: floorN, depth: 1, W, H });
+  floor = growFloor(seed, { count: floorN, depth: 1, W, H, portRange: [1, portsMax] });
   selChunk = -1; $('dossier').classList.remove('on');
   fitFloor(); renderFloor(); floorReadout();
 }
@@ -163,7 +164,7 @@ function readout() {
   $('vital').innerHTML = `<b class="big" style="color:${TIER_COLOR[v.tier] || '#ccc'}">${v.vitality} · ${v.tier}</b><br><span style="color:#9aa3b5">${esc(v.headline || '')}</span>`;
   const SIGS = [['closes', 'closure'], ['thick', 'thickness'], ['weave', 'weave'], ['bridges', 'bridges'], ['thirds', 'third-places'], ['employ', 'employed'], ['resilient', 'resilience']];
   $('signals').innerHTML = SIGS.map(([k, lab]) => `<div class="sig"><span class="l">${lab}</span>${bar(v.signals[k], '#7fb0d8')}<b style="color:#b9c0cf;width:30px;text-align:right">${Math.round((v.signals[k] || 0) * 100)}</b></div>`).join('');
-  $('metrics').innerHTML = `cells <b>${chunk.cells.length}</b> · rooms <b>${chunk.rooms.length}</b> · closure <b>${Math.round(f.closure * 100)}%</b><br>people <b>${soc.people.length}</b> · avg hats <b>${soc.avgHats.toFixed(2)}</b> · third-place <b>${Math.round(soc.thirdsFrac * 100)}%</b> · reach <b>~${Math.round(met.avgReach)}</b>`;
+  $('metrics').innerHTML = `cells <b>${chunk.cells.length}</b> · rooms <b>${chunk.rooms.length}</b> · ports <b>${chunk.ports.length}</b> · closure <b>${Math.round(f.closure * 100)}%</b><br>people <b>${soc.people.length}</b> · avg hats <b>${soc.avgHats.toFixed(2)}</b> · third-place <b>${Math.round(soc.thirdsFrac * 100)}%</b> · reach <b>~${Math.round(met.avgReach)}</b>`;
   const counts = f.counts;
   $('rolecounts').innerHTML = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([role, n]) => `<span title="${role}" style="color:${(ROLES[role] || {}).color || '#999'}">${(ROLES[role] || {}).glyph || '·'} ${role} <b style="color:#e6e8ee">${n}</b></span>`).join('');
   // people

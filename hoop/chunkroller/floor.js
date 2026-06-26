@@ -30,7 +30,7 @@ export function chunkBiomeAt(floorSeed, cx, cy) {
 
 // grow a bounded floor of `count` chunks off the real tiler, compactly from the origin, each chunk solved
 // with its biome's roleMix. Returns the world + per-chunk biome + the sealed edge tiles + the floor flags.
-export function growFloor(floorSeed, { count = 9, depth = 1, W = 900, H = 600 } = {}) {
+export function growFloor(floorSeed, { count = 9, depth = 1, W = 900, H = 600, portRange = [1, 4] } = {}) {
   const world = createWorld();
   const biomeOf = [];
   const solveFor = (opts, cx, cy) => {
@@ -39,7 +39,7 @@ export function growFloor(floorSeed, { count = 9, depth = 1, W = 900, H = 600 } 
     const rec = solveChunk({
       ...opts, seed: (floorSeed ^ (world.chunks.length * 0x9e37 + 0x51)) >>> 0, W, H,
       roomSize: 14, footprint: TRAFFIC_FOOTPRINT, grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM,
-      roleMix: mixFromSliders(BIOMES[bk].sliders),
+      roleMix: mixFromSliders(BIOMES[bk].sliders), portRange,
     });
     biomeOf.push(bk);
     return addChunk(world, rec);

@@ -137,6 +137,10 @@ export default {
     if (url.pathname === '/chunkroller' || url.pathname === '/chunkroller/') {
       return env.ASSETS.fetch(new Request(new URL('/chunkroller/index.html', url), request));
     }
+    // chunkroller/tess — the tessellation editor (drag edges into shapes that still tile; export JSON).
+    if (url.pathname === '/chunkroller/tess' || url.pathname === '/chunkroller/tess/') {
+      return env.ASSETS.fetch(new Request(new URL('/chunkroller/tess.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

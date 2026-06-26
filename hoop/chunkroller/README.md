@@ -29,7 +29,9 @@ pocket plants). Moving the sliders genuinely changes what the chunk grows — an
 
 ## Two views
 
-- **▣ one chunk** — the single-chunk design view (above).
+- **▣ one chunk** — the single-chunk design view (above). The **ports/edge** slider tunes the seam density
+  (max concourse ports per edge, 1–4) via the engine's new `portRange` option — turn it down for fewer
+  chunk-to-chunk crossings. The port count shows in the readout.
 - **⬡ bounded floor** — a finite hand of ~7–10 chunks grown off the real tiler, each painted by its
   **ward biome**, the **edge tiles** drawn as a gold sealed rim, and **☮ floor 1 — no baddies** on the
   readout. Click a ward → its civic vitality. The model lives in `floor.js`:
@@ -50,8 +52,24 @@ pocket plants). Moving the sliders genuinely changes what the chunk grows — an
 | `biomes.js` | the sliders + `mixFromSliders` (rollup → biased `ROLE_MIX`) + the named biomes + tints |
 | `civic.js` | `fieldFromRooms` (adapt chunk rooms → econ `field`), `scoreChunk`, `npcRoster` |
 | `floor.js` | `growFloor` (bounded floor), `chunkBiomeAt` (ward assignment), edge tiles, no-baddies flag |
+| `tess.html` + `tess.js` | the **tessellation editor** (`/chunkroller/tess`) — drag edges, preview the tiling, export JSON |
+| `tessgen.js` | the tessellation kernel: deform 3 edges → opposite 3 follow (reverse+translate) → always tiles |
 | `test/civic.selftest.mjs` | 20 checks — slider rollup, the civic field over a real chunk, NPC stats, biome biasing |
 | `test/floor.selftest.mjs` | 17 checks — deterministic floor, edge tiles seal the rim, ward variety, no-baddies gate |
+| `test/tess.selftest.mjs` | 17 checks — deformed edges keep zero tessellation gap; export round-trips |
+
+## ✎ Tessellation editor (`/chunkroller/tess`)
+
+Ends the **obvious perfect (straight) edges** by letting you drag a hexagon's edges into weird shapes that
+**still tessellate**. The trick: a hexagon tiles by *translation* when each edge equals its opposite edge
+translated. You drag the three editable edges (0–2); the opposite edges (3–5) are computed as their
+reverse-and-translate partners, so the tile tessellates **no matter how strange the edges get**
+(`tessgen.js` proves the seam gap stays zero). Faint translated copies preview the seamless tiling. The
+**⤓ export JSON** button downloads the deformed shape (`hoop.chunkshape.tessellation`: base hex + edit
+offsets + the closed boundary polyline + the lattice) — JSON-adjacent and re-loadable.
+
+> Note: the live game tiler is *reflection*-based (straight edges); a translation tile is a separate tiling
+> mode. The editor + export come first; wiring the exported shape into generation is the next step.
 
 Engine reuse (no fork): imports `solveChunk` (`v099/v8`), `createWorld`/`neighbourSpec`/`edgeFree`
 (`v099/v8/manager`), the econ kernel + `ROLES`/`ROLE_MIX` (`v099/econ`), `rollCharacter` (`v099/stats`),
