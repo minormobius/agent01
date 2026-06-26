@@ -35,6 +35,21 @@ button.off{opacity:.45}
 #hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:3;
   color:rgba(220,228,244,.32);font-size:11px;pointer-events:none;transition:opacity 1.5s}
 .note{color:rgba(159,180,216,.5);font-size:10px;margin-top:8px;line-height:1.4}
+
+/* mobile: controls live in the bottom third, thumb-reachable bottom sheet */
+@media (max-width:640px), (pointer:coarse){
+  #panel{top:auto;bottom:0;left:0;right:0;width:auto;border-radius:14px 14px 0 0;
+    border-bottom:none;max-height:42vh;overflow-y:auto;display:flex;flex-wrap:wrap;
+    gap:0 12px;padding:11px 14px calc(11px + env(safe-area-inset-bottom))}
+  #panel.hidden{transform:translateY(112%)}
+  #panel h1{width:100%}
+  #panel .row{width:46%;margin:6px 0}
+  #panel .btns{width:100%}
+  #panel .note{width:100%}
+  #gear{top:auto;bottom:12px;right:12px}
+  #hud{font-size:12px}                 /* stays top-left, clear of the bottom sheet */
+  #hint{bottom:auto;top:12px}
+}
 </style>
 </head>
 <body>
@@ -106,7 +121,9 @@ const cfg = {
   gravity: 7.0,
   friction:0.5,
   rest:    0.16,
-  substeps:6,
+  substeps:3,            // gravity sub-integrations per frame
+  iters:   3,            // PBD contact-projection sweeps per substep
+  relax:   1.4,          // successive-over-relaxation factor for projection
   K:       12,           // per-cell grain capacity (compile-time const in WGSL)
 };
 const MAXDIM = 128;     // cap grid axis → bounds cell-table memory
@@ -198,22 +215,28 @@ function gridSpec(){
   return { dim, cell: Math.max(csz[0],csz[1],csz[2]), origin, numCells };
 }
 
-// ── WGSL: compute (4 entry points, one shared bind group) ──────────────────
+// ── WGSL: compute — Position-Based Dynamics (stable for deep piles) ─────────
+// Contacts are resolved by directly projecting overlapping grains apart
+// (Jacobi, under-relaxed, iterated) rather than soft springs — so a tall sand
+// column cannot collapse no matter how many grains rest on the bottom one.
+// Velocity is derived from the net position change (PBD), giving natural,
+// energy-losing, sticky-sand behaviour.
 const COMPUTE_WGSL = `
 struct Sim {
   grav:   vec4f,   // xyz gravity (local), w dt
   geom:   vec4f,   // orifice, Rmax, hf, H
-  phys:   vec4f,   // grainR, kn, gamma_n, mu
-  phys2:  vec4f,   // restitution, wallFric, vmax, N
+  phys:   vec4f,   // grainR, relax, bounce, friction
+  phys2:  vec4f,   // (unused), (unused), vmax, N
   grid:   vec4f,   // dimX, dimY, dimZ, (unused)
   gorg:   vec4f,   // originX,Y,Z, cellSize
 };
 @group(0) @binding(0) var<storage,read_write> pos:   array<vec4f>;
 @group(0) @binding(1) var<storage,read_write> vel:   array<vec4f>;
-@group(0) @binding(2) var<storage,read_write> frc:   array<vec4f>;
+@group(0) @binding(2) var<storage,read_write> dlt:   array<vec4f>;   // position correction
 @group(0) @binding(3) var<storage,read_write> cnt:   array<atomic<u32>>;
 @group(0) @binding(4) var<storage,read_write> tbl:   array<u32>;
 @group(0) @binding(5) var<uniform> S: Sim;
+@group(0) @binding(6) var<storage,read_write> prev:  array<vec4f>;   // pre-substep position
 
 fn dimv()->vec3i { return vec3i(i32(S.grid.x), i32(S.grid.y), i32(S.grid.z)); }
 fn numCells()->u32 { return u32(S.grid.x)*u32(S.grid.y)*u32(S.grid.z); }
@@ -233,6 +256,22 @@ fn profile(y: f32)->f32 {
   let t = clamp((ay - hf)/(Hh - hf), 0.0, 1.0);
   return Rm * sqrt(max(0.0, 1.0 - t*t));
 }
+// project a position back inside the closed glass cavity (analytic, no mesh)
+fn clampCavity(p: vec3f)->vec3f {
+  let r = S.phys.x;
+  let Hcap = S.geom.w + 0.02;
+  var x = vec3f(p.x, clamp(p.y, -Hcap, Hcap), p.z);
+  let Rc = profile(x.y);
+  let lim = Rc - r;
+  let rxz = length(x.xz);
+  if (lim <= 0.0) {
+    x = vec3f(0.0, x.y, 0.0);                 // pinched below grain size → on-axis
+  } else if (rxz > lim) {
+    let nd = x.xz / max(rxz, 1e-6);
+    x = vec3f(nd.x*lim, x.y, nd.y*lim);
+  }
+  return x;
+}
 
 @compute @workgroup_size(256)
 fn clearGrid(@builtin(global_invocation_id) gid: vec3u){
@@ -251,98 +290,83 @@ fn buildGrid(@builtin(global_invocation_id) gid: vec3u){
   if (slot < K) { tbl[c*K + slot] = i; }
 }
 
+// 1) integrate gravity, remember pre-substep position, move, clamp to glass
 @compute @workgroup_size(256)
-fn forces(@builtin(global_invocation_id) gid: vec3u){
+fn predict(@builtin(global_invocation_id) gid: vec3u){
   let i = gid.x;
-  let N = u32(S.phys2.w);
-  if (i >= N) { return; }
+  if (i >= u32(S.phys2.w)) { return; }
+  let dt = S.grav.w;
+  prev[i] = pos[i];
+  var v = vel[i].xyz + S.grav.xyz * dt;
+  v *= 0.999;
+  let vmax = S.phys2.z;
+  let vl = length(v);
+  if (vl > vmax) { v *= vmax/vl; }
+  vel[i] = vec4f(v, 0.0);
+  let x = clampCavity(pos[i].xyz + v*dt);
+  pos[i] = vec4f(x, pos[i].w);
+}
+
+// 2) accumulate contact corrections (Jacobi: read pos, write delta only)
+@compute @workgroup_size(256)
+fn project(@builtin(global_invocation_id) gid: vec3u){
+  let i = gid.x;
+  if (i >= u32(S.phys2.w)) { return; }
   let xi = pos[i].xyz;
-  let vi = vel[i].xyz;
   let r  = S.phys.x;
-  let kn = S.phys.y;
-  let gn = S.phys.z;
-  let mu = S.phys.w;
   let dd = 2.0*r;
+  let bounce = S.phys.z;
   let K  = u32(${cfg.K});
   let base = cellCoord(xi);
   let d = dimv();
-  var f = vec3f(0.0);
+  var dx = vec3f(0.0);
+  var nc = 0.0;
   for (var dz=-1; dz<=1; dz++){
     for (var dy=-1; dy<=1; dy++){
-      for (var dx=-1; dx<=1; dx++){
-        let c = base + vec3i(dx,dy,dz);
+      for (var dxi=-1; dxi<=1; dxi++){
+        let c = base + vec3i(dxi,dy,dz);
         if (c.x<0 || c.y<0 || c.z<0 || c.x>=d.x || c.y>=d.y || c.z>=d.z) { continue; }
         let ci = cellIndex(c);
         let n = min(atomicLoad(&cnt[ci]), K);
         for (var s=0u; s<n; s++){
           let j = tbl[ci*K + s];
           if (j == i) { continue; }
-          let xj = pos[j].xyz;
-          let dvec = xi - xj;
+          let dvec = xi - pos[j].xyz;
           let dist = length(dvec);
           if (dist >= dd || dist < 1e-6) { continue; }
           let nrm = dvec / dist;
           let overlap = dd - dist;
-          let vrel = vi - vel[j].xyz;
-          let vn = dot(vrel, nrm);
-          // normal: linear spring + dashpot (repulsive only)
-          var fNorm = kn*overlap - gn*vn;
-          fNorm = max(fNorm, 0.0);
-          var fcontact = fNorm*nrm;
-          // tangential Coulomb friction (clamped viscous)
-          let vt = vrel - vn*nrm;
-          let vtl = length(vt);
-          if (vtl > 1e-5){
-            let ft = min(mu*fNorm, gn*vtl);
-            fcontact -= (ft/vtl)*vt;
-          }
-          f += fcontact;
+          dx += nrm * (0.5*overlap*(1.0 + bounce));   // push half the overlap apart
+          nc += 1.0;
         }
       }
     }
   }
-  frc[i] = vec4f(f, 0.0);
+  if (nc > 0.0) { dx = (dx / nc) * S.phys.y; }         // average × relax (under-relaxed)
+  dlt[i] = vec4f(dx, nc);
 }
 
+// 3) apply accumulated correction, then re-project to inside the glass
 @compute @workgroup_size(256)
-fn integrate(@builtin(global_invocation_id) gid: vec3u){
+fn applyC(@builtin(global_invocation_id) gid: vec3u){
+  let i = gid.x;
+  if (i >= u32(S.phys2.w)) { return; }
+  let x = clampCavity(pos[i].xyz + dlt[i].xyz);
+  pos[i] = vec4f(x, pos[i].w);
+}
+
+// 4) derive velocity from the net move this substep (PBD); damp by friction
+@compute @workgroup_size(256)
+fn finalize(@builtin(global_invocation_id) gid: vec3u){
   let i = gid.x;
   if (i >= u32(S.phys2.w)) { return; }
   let dt = S.grav.w;
-  let r  = S.phys.x;
-  var v = vel[i].xyz + (frc[i].xyz + S.grav.xyz) * dt;   // unit mass
-  v *= 0.9985;                                           // gentle global damping
+  var v = (pos[i].xyz - prev[i].xyz) / dt;
+  let fr = S.phys.w;
+  v *= (1.0 - fr*0.03);                                 // friction → settling
   let vmax = S.phys2.z;
   let vl = length(v);
   if (vl > vmax) { v *= vmax/vl; }
-  var x = pos[i].xyz + v*dt;
-
-  // ── analytic glass containment (radial clamp to cavity profile) ──────────
-  let Rc = profile(x.y);
-  let lim = Rc - r;
-  let rxz = length(x.xz);
-  let rest = S.phys2.x;
-  let wf = S.phys2.y;
-  if (lim <= 0.0) {
-    // pinched tighter than a grain (apex / sub-orifice): pin to axis
-    x = vec3f(0.0, x.y, 0.0);
-    v = vec3f(0.0, v.y*rest, 0.0);
-  } else if (rxz > lim) {
-    let nd = x.xz / max(rxz, 1e-6);          // outward radial normal (2D)
-    x = vec3f(nd.x*lim, x.y, nd.y*lim);
-    let vr = v.x*nd.x + v.z*nd.y;            // radial component
-    if (vr > 0.0) {
-      let vrad = vec2f(nd.x, nd.y)*vr;
-      var vxz = v.xz - (1.0+rest)*vrad;       // reflect with restitution
-      vxz *= (1.0 - wf);                      // wall friction on tangential
-      v = vec3f(vxz.x, v.y, vxz.y);
-    }
-  }
-  // hard clamp inside bounding box (safety)
-  let Hh = S.geom.w + 0.02;
-  x.y = clamp(x.y, -Hh, Hh);
-
-  pos[i] = vec4f(x, pos[i].w);
   vel[i] = vec4f(v, 0.0);
 }
 `;
@@ -535,9 +559,9 @@ fn fs(in: VOut)->@location(0) vec4f {
 `;
 
 // ── Buffers / pipelines (rebuilt on count/grainR change) ───────────────────
-let posBuf, velBuf, frcBuf, cntBuf, tblBuf, simBuf, camBuf, stageBuf;
+let posBuf, velBuf, dltBuf, cntBuf, tblBuf, simBuf, camBuf, stageBuf, prevBuf;
 let computeBG, sandBG, glassBG, sampler;
-let pipeClear, pipeBuild, pipeForce, pipeInteg, pipeSand, pipeGlass;
+let pipeClear, pipeBuild, pipePredict, pipeProject, pipeApply, pipeFinal, pipeSand, pipeGlass;
 let sandColorTex, sandDepthTex, sandView, depthView;
 let nGrains = 0, grid = null;
 let computeLayout, camModule, sandModule, glassModule;
@@ -551,12 +575,15 @@ function makeComputePipes(){
     {binding:3, visibility:GPUShaderStage.COMPUTE, buffer:{type:'storage'}},
     {binding:4, visibility:GPUShaderStage.COMPUTE, buffer:{type:'storage'}},
     {binding:5, visibility:GPUShaderStage.COMPUTE, buffer:{type:'uniform'}},
+    {binding:6, visibility:GPUShaderStage.COMPUTE, buffer:{type:'storage'}},
   ]});
   const pl = device.createPipelineLayout({ bindGroupLayouts:[computeLayout] });
-  pipeClear = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'clearGrid'} });
-  pipeBuild = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'buildGrid'} });
-  pipeForce = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'forces'} });
-  pipeInteg = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'integrate'} });
+  pipeClear   = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'clearGrid'} });
+  pipeBuild   = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'buildGrid'} });
+  pipePredict = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'predict'} });
+  pipeProject = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'project'} });
+  pipeApply   = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'applyC'} });
+  pipeFinal   = device.createComputePipeline({ layout:pl, compute:{module:mod, entryPoint:'finalize'} });
 }
 
 function makeRenderPipes(){
@@ -596,10 +623,11 @@ function allocParticles(){
   const fill = buildFill();
   nGrains = fill.length / 4;
 
-  posBuf?.destroy(); velBuf?.destroy(); frcBuf?.destroy(); cntBuf?.destroy(); tblBuf?.destroy(); stageBuf?.destroy();
+  posBuf?.destroy(); velBuf?.destroy(); dltBuf?.destroy(); cntBuf?.destroy(); tblBuf?.destroy(); stageBuf?.destroy(); prevBuf?.destroy();
   posBuf = device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC });
   velBuf = device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST });
-  frcBuf = device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.STORAGE });
+  dltBuf = device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.STORAGE });
+  prevBuf= device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.STORAGE });
   cntBuf = device.createBuffer({ size: grid.numCells*4, usage: GPUBufferUsage.STORAGE });
   tblBuf = device.createBuffer({ size: grid.numCells*cfg.K*4, usage: GPUBufferUsage.STORAGE });
   stageBuf = device.createBuffer({ size: nGrains*16, usage: GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST });
@@ -610,10 +638,11 @@ function allocParticles(){
   computeBG = device.createBindGroup({ layout: computeLayout, entries:[
     {binding:0, resource:{buffer:posBuf}},
     {binding:1, resource:{buffer:velBuf}},
-    {binding:2, resource:{buffer:frcBuf}},
+    {binding:2, resource:{buffer:dltBuf}},
     {binding:3, resource:{buffer:cntBuf}},
     {binding:4, resource:{buffer:tblBuf}},
     {binding:5, resource:{buffer:simBuf}},
+    {binding:6, resource:{buffer:prevBuf}},
   ]});
   sandBG = device.createBindGroup({ layout: sandBGL, entries:[
     {binding:0, resource:{buffer:camBuf}},
@@ -654,11 +683,9 @@ function writeSim(dt){
   const a = simArr;
   a[0]=lgx; a[1]=lgy; a[2]=lgz; a[3]=dt;
   a[4]=cfg.orifice; a[5]=GEO.Rmax; a[6]=GEO.hf; a[7]=GEO.H;
-  // stiffness scales so heavy piles don't over-penetrate; tie to gravity & size
-  const kn = 2600.0;
-  const gn = 14.0;
-  a[8]=cfg.grainR; a[9]=kn; a[10]=gn; a[11]=cfg.friction;
-  a[12]=cfg.rest; a[13]=cfg.friction*0.5; a[14]=vmax; a[15]=nGrains;
+  // phys: grainR, relax(SOR), bounce, friction
+  a[8]=cfg.grainR; a[9]=cfg.relax; a[10]=cfg.rest; a[11]=cfg.friction;
+  a[12]=0; a[13]=0; a[14]=vmax; a[15]=nGrains;
   a[16]=grid.dim[0]; a[17]=grid.dim[1]; a[18]=grid.dim[2]; a[19]=0;
   a[20]=grid.origin[0]; a[21]=grid.origin[1]; a[22]=grid.origin[2]; a[23]=cell;
   device.queue.writeBuffer(simBuf, 0, a);
@@ -760,18 +787,23 @@ function frame(now){
 
   const enc = device.createCommandEncoder();
 
-  // physics substeps
+  // physics substeps (PBD): gravity predict → N projection sweeps → velocity
   const cellGroups = Math.ceil(grid.numCells/256);
   const grainGroups = Math.ceil(nGrains/256);
+  let cp = enc.beginComputePass();
+  cp.setBindGroup(0, computeBG);
   for (let s=0;s<sub;s++){
-    let cp = enc.beginComputePass();
-    cp.setBindGroup(0, computeBG);
-    cp.setPipeline(pipeClear); cp.dispatchWorkgroups(cellGroups);
-    cp.setPipeline(pipeBuild); cp.dispatchWorkgroups(grainGroups);
-    cp.setPipeline(pipeForce); cp.dispatchWorkgroups(grainGroups);
-    cp.setPipeline(pipeInteg); cp.dispatchWorkgroups(grainGroups);
-    cp.end();
+    cp.setPipeline(pipePredict); cp.dispatchWorkgroups(grainGroups);
+    // rebuild the neighbour grid once per substep; positions drift <1 cell across sweeps
+    cp.setPipeline(pipeClear);   cp.dispatchWorkgroups(cellGroups);
+    cp.setPipeline(pipeBuild);   cp.dispatchWorkgroups(grainGroups);
+    for (let it=0; it<cfg.iters; it++){
+      cp.setPipeline(pipeProject); cp.dispatchWorkgroups(grainGroups);
+      cp.setPipeline(pipeApply);   cp.dispatchWorkgroups(grainGroups);
+    }
+    cp.setPipeline(pipeFinal); cp.dispatchWorkgroups(grainGroups);
   }
+  cp.end();
 
   // sand pass → offscreen
   let sp = enc.beginRenderPass({
