@@ -71,15 +71,32 @@ export function selectWithVariety(candidates, n) {
 export function dispatch(store, playerId, contentType, n = 1, opts = {}) {
   const p = store.getPlayerState(playerId);
   const seen = new Set(p.seen_ids || []);
-  let candidates = store.queryContent({ type: contentType, revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
+  const valid = store.queryContent({ type: contentType, revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
     .filter((c) => !seen.has(c.id));
   const gstate = loadGateState(store, playerId);
-  candidates = candidates.filter((c) => meetsState(gstate, c.requires || {}));
+  const legal = valid.filter((c) => meetsState(gstate, c.requires || {}));
   // THE ROLE→TAG BRIDGE: when a feature carries a tag (a resident's econ role, a building's domain),
   // prefer pool content authored for it. Graceful: if nothing matches the tag we fall back to the
   // whole tier-legal set, so an unmapped role still gets *a* figure rather than silence.
-  if (opts.tag) { const tagged = candidates.filter((c) => (c.tags || []).includes(opts.tag)); if (tagged.length) candidates = tagged; }
-  const selected = selectWithVariety(candidates, n);
+  let candidates = legal;
+  if (opts.tag) { const tagged = legal.filter((c) => (c.tags || []).includes(opts.tag)); if (tagged.length) candidates = tagged; }
+  // DECK-STACKING (deckquest.js): opts.priorityIds are flag-bearing fragments the stacker forces so the
+  // player can't draw forever without a required flag (hoopy's "start stacking the deck if necessary").
+  // Priority is honoured only among VALID, LEGAL draws (never illegal/seen/gated content) and BYPASSES
+  // the tag filter — a forced flag matters regardless of the room's role. Priority fills the draw first
+  // (varied within itself); the remaining slots fall back to the tag-biased variety pick. With no
+  // priorityIds, `selected` starts empty and this is byte-identical to the old tag-biased behaviour.
+  let selected = [];
+  if (opts.priorityIds && opts.priorityIds.length) {
+    const pset = new Set(opts.priorityIds);
+    const inTag = candidates.filter((c) => pset.has(c.id));
+    const pri = inTag.length ? inTag : legal.filter((c) => pset.has(c.id));   // fall back past the tag filter if it hid them
+    selected = selectWithVariety(pri, n);
+  }
+  if (selected.length < n) {
+    const got = new Set(selected.map((c) => c.id));
+    selected = selected.concat(selectWithVariety(candidates.filter((c) => !got.has(c.id)), n - selected.length));
+  }
   for (const item of selected) store.markSeen(playerId, item.id);
   return selected;
 }
@@ -106,8 +123,22 @@ function renderItem(ci) {
   return { content_item_id: ci.id, type: ci.type, name: c.name || null,
            description: c.description || c.response || '', revelation_tier: ci.revelation_tier, tags: ci.tags || [] };
 }
+// flags a crystallized item carries → player facts: the keystone's STORY payload. A content item
+// declares the flags it fires via `produces.sets` (array of flag names, each set true) and/or
+// `produces.set_facts` ({key: value}) — the SAME `produces` field gates.js already treats as a producer
+// for orphan-checking. This is hoopy's "the lore may come with a flag — set the flag at that time."
+// Applied ONCE, on crystallize (first touch — bindAndLevel is never reached on recall), so gathering
+// the right lore SETS the prerequisite flags that ripen a load-bearing deck quest (deckquest.js).
+export function applyProduces(store, playerId, ci) {
+  const out = [], pr = ci && ci.produces;
+  if (!pr) return out;
+  for (const f of (pr.sets || [])) { const k = String(f).split('=')[0].trim(); if (k) { store.setFact(playerId, k, true); out.push([k, true]); } }
+  for (const [k, v] of Object.entries(pr.set_facts || {})) { store.setFact(playerId, k, v); out.push([k, v]); }
+  return out;
+}
 function bindAndLevel(store, playerId, featureKey, item) {
   store.bindPlacement(playerId, featureKey, item.id);
+  const flagsSet = applyProduces(store, playerId, item);   // the lore's flag payload → player facts (ripens deck quests)
   const gain = XP_BASE + XP_PER_REVELATION * ((item.revelation_tier || 1) - 1);
   const p = store.getPlayerState(playerId);
   const xp = (p.xp || 0) + gain, before = p.power_tier, after = powerTierForXp(xp);
@@ -119,6 +150,7 @@ function bindAndLevel(store, playerId, featureKey, item) {
   const out = { xp, xp_gain: gain, power_tier: after, revelation_tier: Math.max(revFrom, et) };
   if (after > before) out.leveled = { from: before, to: after };
   if (et > revFrom) out.revelation_up = { from: revFrom, to: et };
+  if (flagsSet.length) out.flags_set = flagsSet;   // the lore's flag payload (deckquest ripening)
   return out;
 }
 export function interact(store, playerId, featureKey, context = '', opts = {}) {
@@ -142,7 +174,7 @@ export function interact(store, playerId, featureKey, context = '', opts = {}) {
       return { feature_key: featureKey, label: feature.label, status: 'crystallized', item: renderItem(ci), leveled };
     }
   }
-  const items = dispatch(store, playerId, feature.type, 1, { tag });   // FIRST TOUCH — crystallize (role/domain-biased)
+  const items = dispatch(store, playerId, feature.type, 1, { tag, priorityIds: opts.priorityIds });   // FIRST TOUCH — crystallize (role/domain-biased; priorityIds = deckquest stacking)
   if (!items.length) return { feature_key: featureKey, label: feature.label, status: 'withheld', content_type: feature.type, item: null };
   const item = items[0], leveled = bindAndLevel(store, playerId, featureKey, item);
   return { feature_key: featureKey, label: feature.label, status: 'crystallized', item: renderItem(item), leveled };
