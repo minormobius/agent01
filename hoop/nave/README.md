@@ -73,4 +73,14 @@ the guaranteed floors, the pool-requirements table (per role tag: tier band · f
 content types · anchors), the six lobe anchors, and a live "roll a world" sample. Renders from `slots.json`
 (instant) with an opt-in live re-roll via `manifest.js`.
 
+`lexicon.js` is the **prose layer** that page also carries — written for the model (a qwen) that authors
+the pools and therefore has to digest the *meanings and interrelations*, not just the slot skeleton. For
+every one of the thirteen verbs: what the building IS, the resident archetype + voice to cast, its **supply
+web** links (`needs ⇐ / feeds ⇒`, derived from the econ flows so the prose can't drift), and its place in
+**society** (bond seat vs bridge / third place). Plus the three factions (worldview · why-these-roles · the
+lobe's NPC web), the resource-token glossary (the edge labels of the supply web), and the two webs stated
+whole (supply · social · the regard economy). `buildLexicon()` assembles it; `gen-slots.mjs` folds it into
+both `SLOTS.md` and `slots.json` (the qwen handoff). Pinned by `test/lexicon.selftest.mjs` (102 checks —
+prose completeness + the derivations stay honest to `econ.js`/`nave.js`).
+
 Served at `/nave` via `worker.js`; deploys with `hoop/**` on the owning branch.

@@ -70,5 +70,195 @@ quest-giver and a `plot_beat`. They map cleanly to the four-quest spine (unlock 
 - **Drift · learn** — 44 slots, anchor `nave:c5:r0` (learn)
 - **Drift · play** — 40 slots, anchor `nave:c6:r1` (play)
 
+## The lexicon — what the verbs mean (for the generating model)
+
+The slot list above is the skeleton; this is the flesh. A model authoring nave content needs to know not
+just *that* a `worship` room exists but what worship IS, who staffs it, what flows through it, and who it
+draws together. Each verb below carries: its gloss · the resident archetype to cast · the **supply web**
+links (`needs ⇐` the roles that produce what it consumes, `feeds ⇒` the roles that consume what it makes,
+both derived from the econ flows) · and its place in **society** (bond seat vs bridge / third place).
+
+### Resource tokens (the edges of the supply web)
+
+- **`people`** — Bodies and their hours — labour, custom, congregation, the crowd a place draws. Emitted by homes, consumed by every place that needs hands or an audience. The substrate of the whole floor.
+- **`regard`** — Esteem — the post-scarcity currency. Standing paid in attention: who is admired, trusted, sought out. (In-world it IS hoop's ATProto economy of likes and follows.) Made by third places and worship, spent by homes (you live FOR regard once fed) and by rule (which runs on legitimacy).
+- **`bread`** — Staple calories — the cooked good of the grain domain. The floor of survival; a home needs it before anything else.
+- **`cloth`** — Worked fiber — clothing, bandage, sailcloth. The second necessity, and the healer's consumable.
+- **`care`** — Tended wellbeing — the output of healing, counted in bodies kept whole. Not stored or traded; spent the moment it is made.
+- **`lore`** — Recorded knowledge — what learning produces. A terminal good (no building consumes it as a supply input), but socially it is drawn on by worship (read into rite and omen) and by rule (cited as precedent); the nave's memory of itself.
+- **`order`** — Enforced predictability — the output of governance: rules, schedules, the writ that lets every other place run without re-negotiating the world each morning.
+- **`transit`** — Movement itself — the throughput of corridors, lifts and carts. Pure infrastructure: it binds far rooms into one walkable floor. Without it the supply web has arrows it cannot actually traverse.
+- **`raw`** — Unworked matter from a domain (grain, ore, timber, fiber…) — what GROW yields and MAKE consumes. The first link of every material chain.
+- **`good`** — A finished article of a domain (bread, tools, furniture, cloth…) — what MAKE yields and what TRADE moves, STORE buffers, MEND keeps alive, and SERVE turns into a meal.
+
+### The thirteen verbs
+
+#### ⌂ dwell — where people live — the residential cell, and the demographic floor of the whole floor.
+*tier 1 · universal · takes `bread, cloth, regard` → makes `people`*
+
+- **building** — A home: a few private cells around a bed. By far the most common building (near half of every chunk).
+- **activity** — Living. Rest, meals, family, the off-hours of everyone who works the other twelve verbs.
+- **resident** — a resident — a family, roommates, a widow, two apprentices sharing rent. Not a trade; a life. *(voice: ordinary, grounded, off-duty; gossip and grievance and small hope.)*
+- **supply** — needs ⇐ `make` `mend` `play` `serve` `store` `trade` `worship`; feeds ⇒ `heal` `learn` `play` `serve` `worship`
+- **society** — the BOND seat — strong, close, kin-and-roommate ties. Homes are where people START; every other place borrows them.
+- **note** — The great SINK and source: it draws bread, cloth and regard inward and emits PEOPLE — the labour and custom the other twelve verbs all run on. Cast the broadest range of figures here.
+
+#### ❀ grow — where raw matter is coaxed from nothing — the farm, the hydroponic green-deck, the algae vat.
+*tier 1 · exclusive · Continuant · takes `—` → makes `grain`*
+
+- **building** — Tended beds and tanks under sun-strip light: the only verb with NO input, a primary producer.
+- **activity** — Cultivation. Turning light and water into grain, fiber, timber — the first link of every material chain.
+- **resident** — a grower — patient, seasonal, soil-under-the-nails; reads light and rot the way others read faces. *(voice: slow, cyclic, attentive to weather and time; suspicious of haste.)*
+- **supply** — needs ⇐ *(nothing — a primary producer)*; feeds ⇒ `make`
+- **society** — a quiet bond seat; the green-decks are where the Continuant's stewardship is most literal.
+- **note** — Feeds the entire material economy and consumes none of it — so it never fails for want of a supplier, only for want of light, water and care.
+
+#### ⚒ make — where raw becomes good — the workshop, forge, mill, loom.
+*tier 1 · shared · Rindwalker · takes `grain` → makes `bread`*
+
+- **building** — A shop floor: benches, a furnace or a loom, the noise and heat of fabrication.
+- **activity** — Fabrication. Takes a domain's RAW (ore, grain, fiber) and yields its GOOD (tools, bread, cloth).
+- **resident** — a maker — a smith, baker, weaver; proud of the craft, defined by what leaves the bench. *(voice: concrete, exacting, proud of work; impatient with talk that isn't about the work.)*
+- **supply** — needs ⇐ `grow`; feeds ⇒ `dwell` `heal` `learn` `mend` `serve` `store` `trade`
+- **society** — a working bond seat, but its goods reach everyone — the hinge between the farm and the table.
+- **note** — The keystone of the material spine: GROW feeds it, and MEND, STORE, TRADE and SERVE all live downstream of what it makes. A Rindwalker shared verb — they are the floor's makers and keepers.
+
+#### ⚙ mend — where worn goods are kept alive — the repair shop, the tinker's bench, the chop-shop.
+*tier 1 · exclusive · Rindwalker · takes `bread` → makes `bread`*
+
+- **building** — A bench buried in parts: a good goes in broken and comes out working — input and output the same token.
+- **activity** — Repair. Extends a good's life instead of consuming a new raw — the anti-entropy verb.
+- **resident** — a mender — a fixer who knows the guts of things, hoards spares, distrusts the new-bought. *(voice: dry, knowing, a little proprietary; speaks in symptoms and fixes.)*
+- **supply** — needs ⇐ `make` `store` `trade`; feeds ⇒ `dwell` `heal` `learn` `serve` `store` `trade`
+- **society** — a bridge of sorts — everyone's broken things pass through, so the mender knows everyone's business.
+- **note** — A Rindwalker EXCLUSIVE and the faction's soul: on a ship, maintenance IS survival. Mend is sacred maintenance's practical half (worship is its devotional half).
+
+#### ⇄ trade — where goods change hands and place — the stall, the market, the broker's counter.
+*tier 1 · shared · Drift · takes `bread` → makes `bread`*
+
+- **building** — A counter or a stall: goods in, the same goods out, moved to where they are wanted.
+- **activity** — Exchange. Moves goods across space and owners; the circulatory verb of the material economy.
+- **resident** — a merchant — quick, social, a memory for prices and faces; the floor's connective tissue. *(voice: fast, persuasive, transactional but warm; always already mid-deal.)*
+- **supply** — needs ⇐ `make` `mend` `store`; feeds ⇒ `dwell` `heal` `learn` `mend` `serve` `store`
+- **society** — a strong BRIDGE — markets are where strangers meet, weak ties form, and news travels fastest.
+- **note** — A Drift shared verb. With MOVE it makes the Drift the faction of circulation — of goods, bodies and word. The natural place to seed rumors and quest hooks.
+
+#### ☕ serve — where goods become hospitality — the café, eatery, tavern, tea-house.
+*tier 1 · shared · Continuant · takes `bread, people` → makes `regard`*
+
+- **building** — Tables and a counter: takes finished goods AND people, returns regard — a hearth, not a factory.
+- **activity** — Hospitality. Feeds and waters the crowd; the place you go to BE among others.
+- **resident** — a host — a cook or barkeep who remembers your order and your troubles; a confessor with a cloth. *(voice: warm, attentive, knowing; draws people out, holds the room's mood.)*
+- **supply** — needs ⇐ `dwell` `make` `mend` `store` `trade`; feeds ⇒ `dwell` `govern`
+- **society** — a THIRD PLACE — the prime bridge seat: neither home nor work, where the floor actually socialises.
+- **note** — A Continuant shared verb. Consumes the material economy (goods + people) and outputs REGARD — the first rung up from survival into the economy of esteem.
+
+#### ◍ play — where people gather for its own sake — the arcade, the court, the game-hall.
+*tier 2 · exclusive · Drift · takes `people` → makes `regard`*
+
+- **building** — An open hall of games and contests: it consumes only PEOPLE and returns REGARD.
+- **activity** — Recreation. Status and delight won at play; the purest third place.
+- **resident** — a games-keeper or a regular champion — performative, competitive, generous with attention. *(voice: playful, sharp, a showman's cadence; trades in dares and standings.)*
+- **supply** — needs ⇐ `dwell`; feeds ⇒ `dwell` `govern`
+- **society** — a BRIDGE and a status engine — reputations are made and lost here in public.
+- **note** — A Drift EXCLUSIVE. Where serve feeds the body socially, play feeds the appetite for esteem directly — the clearest expression of the post-scarcity tell.
+
+#### ✚ heal — where bodies are kept whole — the clinic, infirmary, ward.
+*tier 2 · shared · Continuant · takes `people, cloth` → makes `care`*
+
+- **building** — Beds and a dispensary: consumes people (the sick) and cloth (the bandage), outputs CARE.
+- **activity** — Healing. The maintenance verb for people, as mend is for goods.
+- **resident** — a healer — calm under pressure, scarce and trusted; holds the floor's griefs and recoveries. *(voice: measured, kind, unflinching; speaks plainly about hard things.)*
+- **supply** — needs ⇐ `dwell` `make` `mend` `store` `trade`; feeds ⇒ *(a terminal output — its consumer is the floor itself)*
+- **society** — a deep bond of trust — not a crowd place, but the person everyone hopes to know before they need to.
+- **note** — A Continuant shared verb — life-support as civic duty. CARE is spent the instant it is made; it cannot be stored or traded, which makes the healer a pure giver in the web.
+
+#### ❍ learn — where knowledge is made and kept — the school, library, reading-room, archive.
+*tier 2 · exclusive · Drift · takes `people, paper` → makes `lore`*
+
+- **building** — Stacks and desks: consumes people and PAPER, outputs LORE — the nave's memory.
+- **activity** — Study. Turning attention and paper into recorded knowledge; the slow accumulation of understanding.
+- **resident** — a scholar or archivist — curious, precise, a little removed; the keeper of what the floor knows. *(voice: thoughtful, qualifying, delighted by a good question; cites and connects.)*
+- **supply** — needs ⇐ `dwell` `make` `mend` `store` `trade`; feeds ⇒ *(a terminal output — its consumer is the floor itself)*
+- **society** — a quiet bridge — ideas travel here, and the archive links the present to the ship's deep past.
+- **note** — A Drift EXCLUSIVE and the richest LORE seat on the floor — the natural home of the Signal-curious, the historians, the ones who suspect the ship is more than it says. Prime quest-and-revelation ground.
+
+#### ☥ worship — where meaning is tended — the temple, shrine, oracle, parish.
+*tier 2 · exclusive · Rindwalker · takes `people` → makes `regard`*
+
+- **building** — A sanctuary: consumes PEOPLE (the congregation) and outputs REGARD — and reads the archive's LORE into rite and omen (a social tie to learn, not a supply flow).
+- **activity** — Devotion. Rite, interpretation, the framing of the voyage as something that MEANS.
+- **resident** — a priest or oracle — grave, certain or searching, a reader of signs; holds the ship's why. *(voice: liturgical, weighty, speaks in figures and old certainties; sometimes cracks with doubt.)*
+- **supply** — needs ⇐ `dwell`; feeds ⇒ `dwell` `govern`
+- **society** — a powerful BRIDGE — the congregation crosses every other tie; the temple gathers the whole lobe.
+- **note** — A Rindwalker EXCLUSIVE. With MEND it makes the Rindwalker creed: the ship is a body to be kept AND a temple to be served — sacred maintenance. Where doctrine meets the Signal, the floor's deepest plot lives.
+
+#### ⛬ govern — where the floor is ruled — the council hall, magistrate's seat, writ-office.
+*tier 3 · exclusive · Continuant · takes `regard` → makes `order`*
+
+- **building** — The biggest civic block: consumes REGARD (legitimacy), outputs ORDER (the rules everyone runs on).
+- **activity** — Rule. Setting schedules, settling disputes, issuing the writ that coordinates thousands.
+- **resident** — an official — a magistrate or councillor; weighs, decides, is owed and owes; carries authority and its costs. *(voice: formal, careful, conscious of precedent and consequence; rarely off the record.)*
+- **supply** — needs ⇐ `play` `serve` `worship`; feeds ⇒ *(a terminal output — its consumer is the floor itself)*
+- **society** — a hub of authority — not warm, but central; every weak tie of trade and rumor eventually reaches it.
+- **note** — A Continuant EXCLUSIVE and the apex of the social tier (tier 3). It RUNS ON regard — so it cannot rule without the esteem the third places make. The seat where the ship's secrets are most likely kept, and most worth uncovering.
+
+#### ↕ move — the connective infrastructure — corridors, lifts, cart-lines, the shaft.
+*tier 3 · shared · Drift · takes `—` → makes `transit`*
+
+- **building** — Not a destination but a CONDUIT: no input, outputs TRANSIT — the capacity to get anywhere.
+- **activity** — Carriage. Moving people and goods between rooms; the verb that makes the floor one place.
+- **resident** — a porter, liftwright or carter — always in motion, knows every shortcut and who went where. *(voice: brisk, route-minded, full of who-and-where; the floor's unofficial witness.)*
+- **supply** — needs ⇐ *(nothing — a primary producer)*; feeds ⇒ *(a terminal output — its consumer is the floor itself)*
+- **society** — a pure BRIDGE — it touches everything and settles nowhere; the conduit along which all other flows ride.
+- **note** — A Drift shared verb. TRANSIT is what lets every other arrow in the supply web actually be traversed — the infrastructure the whole system silently assumes. Down here is also the way toward the Rind.
+
+#### ▣ store — where goods wait in time — the warehouse, granary, cache, hold.
+*tier 2 · shared · Rindwalker · takes `bread` → makes `bread`*
+
+- **building** — Racks and a hold: a good goes in and the same good comes out later — buffering supply across time.
+- **activity** — Storage. Smoothing gluts and shortages; the verb that lets the floor survive a bad cycle.
+- **resident** — a keeper or quartermaster — careful, inventorying, a gatekeeper of scarcity; knows what the floor has. *(voice: precise, cautious, ledger-minded; measures twice and trusts records.)*
+- **supply** — needs ⇐ `make` `mend` `trade`; feeds ⇒ `dwell` `heal` `learn` `mend` `serve` `trade`
+- **society** — a quiet hub — undramatic, but the keeper holds the knowledge of what exists and what is running low.
+- **note** — A Rindwalker shared verb — with make and mend, the keeping half of the maker-keeper faction. The cache is a natural ITEM seat and a natural place to hide what shouldn't be found.
+
+### The three factions
+
+#### Rindwalker — The makers and keepers — sacred maintenance, hull-facing.
+*exclusives `worship` `mend` · shared `make` `store` · copper, rust, brown — oxidised metal and old devotion.*
+
+The ship is a body and a temple, and to keep it running IS to keep faith. The Rindwalkers make, store, fix and pray — the material and devotional halves of one creed: that maintenance is meaning. They face the Rind (the hull, the cold structural foam), closest of the three to the ship-as-machine and its Signal.
+
+- **why these exclusives** — WORSHIP and MEND are one idea split in two — tending the ship's soul and tending its body. A faction defined by upkeep makes its temple and its repair-bench its holiest places.
+- **why these shared** — MAKE and STORE are upkeep's supply: you cannot keep what you cannot build or hold. The three productive verbs plus the rite that sanctifies them.
+- **the lobe's NPC web** — The mender carries broken goods to the maker and the keeper; the priest blesses the work and reads the Signal's leak as omen; the congregation crosses all of it. Doubt enters here first — a mender who has seen too deep into the ship, a priest whose certainty is cracking.
+
+#### Continuant — The stewards — life-support, rule and care as civic continuity.
+*exclusives `govern` `grow` · shared `serve` `heal` · deep blue, slate, institutional — the colour of the writ and the uniform.*
+
+The voyage must CONTINUE, and continuity is grown, governed, served and healed into being. The Continuants run the farm, the council, the café and the clinic — the institutions that keep a generation alive long enough to hand the ship to the next. The state and the green-deck and the ward, one stewardship.
+
+- **why these exclusives** — GOVERN and GROW are continuity's two pillars — the order that coordinates and the food that sustains. Rule and harvest: the apex of the social tier and the base of the material one, both owned by the keepers of continuity.
+- **why these shared** — SERVE and HEAL are continuity's daily care — the hearth and the ward, where the social contract is felt as warmth and as mercy.
+- **the lobe's NPC web** — The grower feeds the cook who feeds the crowd; the official rules by the regard the café and the clinic earn; the healer holds what rule cannot. Power and care lean on each other — and the council is where the ship's secrets are most likely kept.
+
+#### Drift — The circulators — knowledge, goods, bodies and play in motion.
+*exclusives `learn` `play` · shared `move` `trade` · cyan, teal, bright — the colour of signal and motion.*
+
+A floor is only alive if things MOVE through it. The Drift learn, play, move and trade — they circulate everything: ideas through the archive, goods through the market, bodies through the corridors, esteem through the games. Cosmopolitan and restless, equal parts library and bazaar; the least rooted and the most curious of the three.
+
+- **why these exclusives** — LEARN and PLAY are circulation's two currencies — knowledge and esteem, the things that move fastest and matter most once survival is handled. The archive and the arcade: where the floor thinks and where it shows off.
+- **why these shared** — MOVE and TRADE are circulation's literal machinery — the corridors and the markets that carry the rest. Without them the other verbs are stranded rooms.
+- **the lobe's NPC web** — The carter knows who went where; the merchant knows what everyone wants; the scholar knows what the ship is hiding; the games-hall mints the reputations. News, contraband and revelation all ride the Drift first — the faction where most quests begin.
+
+### The two webs (read the floor as a system)
+
+- **supply web** — The MATERIAL SPINE runs grow → make → (mend · store · trade move and keep the goods) → serve and dwell consume them: light becomes grain becomes bread becomes a fed home. It bottoms out at GROW, which needs no supplier, so the chain never starves for lack of a source — only for lack of light, hands or transit. Riding on top is the ABSTRACT LOOP: homes emit PEOPLE; people pour into serve, play, worship, heal and learn; those emit REGARD, CARE and LORE; regard flows back into homes (you live for esteem once fed) and into GOVERN, which converts legitimacy into ORDER that lets the whole web run. MOVE underwrites all of it, emitting the TRANSIT every arrow silently rides.
+
+- **social web** — Two tie-types weave the floor. BOND ties are strong and close — home, workshop, farm, ward: the places you belong to. BRIDGE ties are the weak, far-reaching links that hold a society together — and they form at the THIRD PLACES: the café (serve), the arcade (play), the temple (worship), the market (trade), the archive (learn), the corridors (move). A figure who works a bridge seat knows the whole floor; a figure in a bond seat knows their own deeply. Drama and news travel the bridges; loyalty and grief live in the bonds.
+
+- **the regard economy** — The post-scarcity tell: because the material spine MEETS the needs, the economy that actually matters is REGARD — esteem, hoop's in-world currency of attention and standing. It is minted by the third places and worship, hoarded and spent by homes, and converted by rule into order. When you ask "what is this person's real output?", for half the floor the honest answer is regard, not goods.
+
 ---
-*Regenerate with `node hoop/nave/gen-slots.mjs`. Machine-readable profile in `slots.json`.*
+*Regenerate with `node hoop/nave/gen-slots.mjs`. Machine-readable profile + lexicon in `slots.json`.*

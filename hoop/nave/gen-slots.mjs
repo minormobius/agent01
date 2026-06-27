@@ -5,10 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { slotProfile, naveManifest, featureKey } from './manifest.js';
 import { FACTIONS, BIOMES } from './nave.js';
+import { buildLexicon } from './lexicon.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const p = slotProfile({ seeds: 16 });
 const sample = naveManifest(7);
+const lexicon = buildLexicon();   // the PROSE layer: what each verb means, who staffs it, the supply + social webs
 
 const pad = (s, n) => String(s).padEnd(n);
 const tierBand = (t) => (t === 1 ? 'early (rev/pow 1)' : t === 2 ? 'mid (rev/pow 2)' : 'late (rev/pow 3)');
@@ -72,9 +74,48 @@ for (const ch of sample.chunks) {
   md += `- **${ch.label}** — ${ch.rooms.length} slots${ex ? `, anchor \`${ex.key}\` (${ex.role})` : ''}\n`;
 }
 
+// ── THE LEXICON — the prose a generating model digests to understand MEANINGS + interrelations. ──
+md += `\n## The lexicon — what the verbs mean (for the generating model)
+
+The slot list above is the skeleton; this is the flesh. A model authoring nave content needs to know not
+just *that* a \`worship\` room exists but what worship IS, who staffs it, what flows through it, and who it
+draws together. Each verb below carries: its gloss · the resident archetype to cast · the **supply web**
+links (\`needs ⇐\` the roles that produce what it consumes, \`feeds ⇒\` the roles that consume what it makes,
+both derived from the econ flows) · and its place in **society** (bond seat vs bridge / third place).
+
+### Resource tokens (the edges of the supply web)
+
+`;
+for (const [k, v] of Object.entries(lexicon.resources)) md += `- **\`${k}\`** — ${v}\n`;
+
+md += `\n### The thirteen verbs\n`;
+for (const r of lexicon.roles) {
+  const pr = r.prose || {};
+  md += `\n#### ${r.glyph} ${r.role} — ${pr.gloss || ''}\n`;
+  md += `*tier ${r.tier} · ${r.hold}${r.faction ? ' · ' + FACTIONS[r.faction].label : ''} · takes \`${(r.inputs.join(', ') || '—')}\` → makes \`${r.outputs.join(', ')}\`*\n\n`;
+  if (pr.building) md += `- **building** — ${pr.building}\n`;
+  if (pr.activity) md += `- **activity** — ${pr.activity}\n`;
+  if (pr.npc) md += `- **resident** — ${pr.npc} *(voice: ${pr.voice || ''})*\n`;
+  md += `- **supply** — needs ⇐ ${r.needs.length ? r.needs.map((x) => '`' + x + '`').join(' ') : '*(nothing — a primary producer)*'}; feeds ⇒ ${r.feeds.length ? r.feeds.map((x) => '`' + x + '`').join(' ') : '*(a terminal output — its consumer is the floor itself)*'}\n`;
+  if (pr.society) md += `- **society** — ${pr.society}\n`;
+  if (pr.note) md += `- **note** — ${pr.note}\n`;
+}
+
+md += `\n### The three factions\n`;
+for (const [fk, fp] of Object.entries(lexicon.factions)) {
+  const f = FACTIONS[fk];
+  md += `\n#### ${f.label} — ${fp.tagline}\n`;
+  md += `*exclusives \`${f.exclusives.join('` `')}\` · shared \`${f.shared.join('` `')}\` · ${fp.palette}*\n\n`;
+  md += `${fp.worldview}\n\n`;
+  md += `- **why these exclusives** — ${fp.why_exclusives}\n- **why these shared** — ${fp.why_shared}\n- **the lobe's NPC web** — ${fp.web}\n`;
+}
+
+md += `\n### The two webs (read the floor as a system)\n\n`;
+md += `- **supply web** — ${lexicon.webs.supply}\n\n- **social web** — ${lexicon.webs.social}\n\n- **the regard economy** — ${lexicon.webs.regard}\n`;
+
 md += `\n---
-*Regenerate with \`node hoop/nave/gen-slots.mjs\`. Machine-readable profile in \`slots.json\`.*\n`;
+*Regenerate with \`node hoop/nave/gen-slots.mjs\`. Machine-readable profile + lexicon in \`slots.json\`.*\n`;
 
 writeFileSync(join(here, 'SLOTS.md'), md);
-writeFileSync(join(here, 'slots.json'), JSON.stringify({ profile: p, sample }, null, 2));
-console.log('wrote nave/SLOTS.md + nave/slots.json ·', p.pools.length, 'role tags ·', sample.totalRooms, 'sample slots');
+writeFileSync(join(here, 'slots.json'), JSON.stringify({ profile: p, sample, lexicon }, null, 2));
+console.log('wrote nave/SLOTS.md + nave/slots.json ·', p.pools.length, 'role tags ·', lexicon.roles.length, 'verbs ·', sample.totalRooms, 'sample slots');
