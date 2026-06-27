@@ -47,7 +47,9 @@
 
 <div class="controls" style="padding:0 16px 8px">
   <label>player <select id="pf"></select></label>
+  <label>×<input id="pn" type="number" value="1" min="1" max="4" style="width:46px"></label>
   <label>foe <select id="ff"></select></label>
+  <label>×<input id="fn" type="number" value="1" min="1" max="4" style="width:46px"></label>
   <label>seed <input id="seed" type="number" value="1" style="width:70px"></label>
   <label>power <input id="power" type="number" value="10" style="width:60px"></label>
   <button id="new">new battle</button>
@@ -85,14 +87,18 @@ function build() {
   stopAuto();
   const seed = +$('seed').value || 1, power = +$('power').value || 10;
   const pk = pf.value, fk = ff.value;
-  const player = { id: 'P', name: `${FACTIONS[pk].label} (you)`, faction: pk, character: rollCharacter(seed * 2 + 1, { triad: FACTION_LEAN[pk], power }) };
-  const foe = { id: 'E', name: `${FACTIONS[fk].label}`, faction: fk, character: rollCharacter(seed * 2 + 2, { triad: FACTION_LEAN[fk], power }) };
-  s = E.createBattle({ player, foes: [foe], seed });
+  const pn = Math.max(1, Math.min(4, +$('pn').value || 1)), fn = Math.max(1, Math.min(4, +$('fn').value || 1));
+  const mk = (k, i, tag) => ({ id: tag, name: `${FACTIONS[k].label}${tag === 'P' ? ' (you)' : ' ' + tag}`, faction: k, character: rollCharacter(seed * 100 + i, { triad: FACTION_LEAN[k], power }) });
+  const player = mk(pk, 1, 'P');
+  const allies = []; for (let i = 1; i < pn; i++) allies.push(mk(pk, 1 + i, 'P' + i));
+  const foes = []; for (let i = 0; i < fn; i++) foes.push(mk(fk, 50 + i, 'E' + i));
+  s = E.createBattle({ player, allies, foes, seed });
   sel = null;
   render();
 }
 
 function unitAt(x, y) { return s.units.find((u) => u.alive && u.x === x && u.y === y); }
+function unitAtAny(x, y) { return s.units.find((u) => u.x === x && u.y === y && (u.alive || !s.units.some((o) => o.alive && o.x === x && o.y === y))); }
 
 function render() {
   const board = $('board');
@@ -105,11 +111,11 @@ function render() {
   const act = E.active(s);
   for (let y = 0; y < s.H; y++) for (let x = 0; x < s.W; x++) {
     const c = document.createElement('div'); c.className = 'cell';
-    const u = unitAt(x, y);
+    const u = unitAtAny(x, y);
     if (moveSet.has(x + ',' + y) && sel === '__move') c.classList.add('move');
     if (tgtSet.has(x + ',' + y)) c.classList.add('tgt');
     if (u) {
-      c.textContent = u.glyph; c.style.color = u.accent;
+      c.textContent = u.alive ? u.glyph : '✝'; c.style.color = u.accent; c.style.opacity = u.alive ? 1 : 0.4;
       if (u === act) c.classList.add('active');
       const bar = document.createElement('div'); bar.className = 'hpbar';
       const i = document.createElement('i'); i.style.width = (100 * Math.max(0, u.hp) / u.maxhp) + '%';
@@ -167,7 +173,7 @@ function renderSkills(lg) {
 function onCell(x, y, moveSet, tgtSet) {
   if (s.winner || E.active(s).team !== 'player') return;
   if (sel === '__move' && moveSet.has(x + ',' + y)) { E.act(s, { type: 'move', x, y }); sel = null; render(); return; }
-  if (sel && sel !== '__move' && tgtSet.has(x + ',' + y)) { const u = unitAt(x, y); E.act(s, { type: 'skill', skillId: sel, targetId: u.id }); sel = null; render(); return; }
+  if (sel && sel !== '__move' && tgtSet.has(x + ',' + y)) { const u = unitAtAny(x, y); E.act(s, { type: 'skill', skillId: sel, targetId: u.id }); sel = null; render(); return; }
 }
 
 function stepTurn() { if (!s || s.winner) return; if (E.active(s).team === 'foe') { E.runAiTurn(s); } else { E.act(s, { type: 'end' }); } render(); }

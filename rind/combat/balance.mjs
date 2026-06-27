@@ -23,6 +23,7 @@ const POWER = +flag('power', 10);
 const MAXT = +flag('maxturns', 100);
 const CSV = argv.includes('--csv');
 const PAIR = flag('pair', null);
+const PARTY = +flag('party', 1);   // units per side (NvN) — exercises the multi-agent path
 
 // build a faction-typical combatant: a character rolled to lean its faction's triad domain.
 function combatant(faction, seed, id, name) {
@@ -31,10 +32,12 @@ function combatant(faction, seed, id, name) {
 }
 
 // run one battle to the end; return { winner, turns, timedOut, hpPlayer, hpFoe }.
+// PARTY>1 fields N units per side (same faction) — the multi-agent path through the engine.
 function battle(pf, ff, seed) {
-  const player = combatant(pf, seed * 2 + 1, 'P', 'Player');
-  const foe = combatant(ff, seed * 2 + 2, 'E', 'Foe');
-  const s = E.createBattle({ player, foes: [foe], seed, maxTurns: MAXT });
+  const player = combatant(pf, seed * 100 + 1, 'P', 'Player');
+  const allies = []; for (let i = 1; i < PARTY; i++) allies.push(combatant(pf, seed * 100 + 1 + i, 'P' + i, 'Ally' + i));
+  const foes = []; for (let i = 0; i < PARTY; i++) foes.push(combatant(ff, seed * 100 + 50 + i, 'E' + i, 'Foe' + i));
+  const s = E.createBattle({ player, allies, foes, seed, maxTurns: MAXT });
   let g = 0; while (!s.winner && g++ < MAXT * 6) E.runAiTurn(s);
   const hpFrac = (team) => { let hp = 0, mx = 0; for (const u of s.units) if (u.team === team) { hp += Math.max(0, u.hp); mx += u.maxhp; } return mx ? hp / mx : 0; };
   return { winner: s.winner || 'draw', turns: s.turn, timedOut: s.timedOut, hpPlayer: hpFrac('player'), hpFoe: hpFrac('foe') };

@@ -46,7 +46,17 @@ export const SKILLS = {
   gore:      { label: 'Gore',      cost: 0, kind: 'attack', mult: 1.6, range: 1, selfHp: 0.10, status: 'bleed', sturns: 3, glyph: '✸', gloss: 'a savage blow that costs you blood and opens theirs' },
   adrenal:   { label: 'Adrenal',   cost: 0, kind: 'convert', selfHp: 0.12, gainFlux: 10, glyph: '☍', gloss: 'spend life to charge the ghost — HP into Flux' },
   scavenge:  { label: 'Scavenge',  cost: 4, kind: 'heal',   amount: 0.30, glyph: '♻', gloss: 'salvage what the hull gives — a deep self-repair' },
+
+  // ── MULTI-AGENT & RANGE verbs — magic scales off apow (anima), so these read as an anima/Drift identity ──
+  lance:       { label: 'Lance',       cost: 5, kind: 'attack', magic: true, mult: 1.3, range: 3, glyph: '➳', gloss: 'a bolt of focused anima — strike a foe from range' },
+  blast:       { label: 'Blast',       cost: 8, kind: 'blast',  magic: true, mult: 1.0, range: 4, radius: 1, glyph: '✺', gloss: 'detonate anima over an area — every foe by the mark is hit' },
+  agglomerate: { label: 'Agglomerate', cost: 6, kind: 'agglomerate', range: 4, radius: 2, pull: 2, glyph: '◍', gloss: 'a gravity knot — drag nearby units toward the mark (set up a Blast)' },
+  summon:      { label: 'Summon',      cost: 7, kind: 'summon', glyph: '❂', gloss: 'call a maintenance drone to fight beside you' },
+  revive:      { label: 'Revive',      cost: 9, kind: 'revive', amount: 0.4, range: 1, glyph: '☩', gloss: 'restart a fallen ally at partial integrity' },
+  assist:      { label: 'Assist',      cost: 5, kind: 'assist', range: 2, glyph: '⇄', gloss: 'hand an ally the initiative — they act again this round' },
 };
+// the temporary unit Summon brings in (faction-less; AI-driven on its owner's team).
+export const DRONE = { hp: 12, atk: 6, def: 2, speed: 1, accuracy: 0.85, crit: 0.02, fluxPool: 0, apow: 0, power: 6 };
 export const UNIVERSAL = ['strike', 'brace', 'mend', 'overclock', 'harden'];
 
 // ── STATUS EFFECTS ──────────────────────────────────────────────────────────────────────────────
@@ -69,27 +79,31 @@ export function skillsFor(unit) {
 // a unit's actual flux cost for a skill (faction discount applied). Pure.
 export const costOf = (unit, skillId) => discountedCost(unit.faction, skillId, SKILLS[skillId]?.cost || 0);
 
-export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent }) {
+export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent, summoned = false }) {
   const cm = combat || deriveCombat(character || { attrs: {}, power: 10 });
   const fac = FACTIONS[faction];
   return {
-    id, name, team, faction: fac ? faction : null, character, sprite,
+    id, name, team, faction: fac ? faction : null, character, sprite, summoned,
     glyph: glyph || (fac ? fac.glyph : (team === 'player' ? '☻' : '☗')),
     accent: accent || (fac ? fac.accent : (team === 'player' ? '#f4bf62' : '#cf3b3b')),
     maxhp: cm.hp, hp: cm.hp, atk: cm.atk, def: cm.def, speed: cm.speed, accuracy: cm.accuracy, crit: cm.crit,
-    maxflux: cm.fluxPool, flux: cm.fluxPool, x, y, alive: true,
+    apow: cm.apow ?? cm.atk, maxflux: cm.fluxPool, flux: cm.fluxPool, x, y, alive: true,
     moved: false, acted: false, movedThisTurn: false,
-    buff: { def: 0, turns: 0, counter: false }, status: {},
+    buff: { def: 0, turns: 0, counter: false }, status: {}, extraTurn: false,
   };
 }
 
-export function createBattle({ player, foes = [], seed = 1, W = 9, H = 9, maxTurns = 100 }) {
+// player + optional `allies` (rest of the player party) vs `foes`. Any team size on either side —
+// the win check is "a team has no living units", so summon/revive grow/shrink the party mid-battle.
+export function createBattle({ player, allies = [], foes = [], seed = 1, W = 9, H = 9, maxTurns = 100 }) {
   const units = [];
-  units.push(makeUnit({ ...player, team: 'player', x: player.x ?? (W >> 1), y: player.y ?? (H - 1) }));
+  const pcs = [player, ...allies];
+  const np = pcs.length;
+  pcs.forEach((p, i) => units.push(makeUnit({ ...p, team: 'player', x: p.x ?? Math.round((i + 1) * W / (np + 1)), y: p.y ?? (H - 1) })));
   const n = foes.length;
   foes.forEach((f, i) => units.push(makeUnit({ ...f, team: 'foe', x: f.x ?? Math.round((i + 1) * W / (n + 1)), y: f.y ?? 0 })));
   const order = units.slice().sort((a, b) => (b.speed - a.speed) || (a.team === 'player' ? -1 : 1)).map((u) => u.id);
-  const state = { W, H, units, order, idx: 0, turn: 1, maxTurns, log: [], phase: 'choose', winner: null, timedOut: false, rng: mulberry32(seed >>> 0 || 1) };
+  const state = { W, H, units, order, idx: 0, turn: 1, maxTurns, nextId: 1, log: [], phase: 'choose', winner: null, timedOut: false, rng: mulberry32(seed >>> 0 || 1) };
   beginTurn(state);
   return state;
 }
@@ -104,6 +118,14 @@ export const enemiesOf = (s, u) => s.units.filter((x) => x.alive && x.team !== u
 export const alliesOf = (s, u) => s.units.filter((x) => x.alive && x.team === u.team && x !== u);
 export const occupied = (s, x, y, except) => s.units.some((u) => u.alive && u !== except && u.x === x && u.y === y);
 const inBounds = (s, x, y) => x >= 0 && y >= 0 && x < s.W && y < s.H;
+// first open adjacent tile to `u` (for Summon placement), or null.
+function freeAdjacent(s, u) {
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+    if (!dx && !dy) continue; const x = u.x + dx, y = u.y + dy;
+    if (inBounds(s, x, y) && !occupied(s, x, y)) return { x, y };
+  }
+  return null;
+}
 
 // move range: base from speed, +faction moveBonus (Drift), −to 1 while slowed.
 export function moveRange(u) {
@@ -145,9 +167,17 @@ export function legal(s) {
     const sk = SKILLS[id], cost = costOf(u, id);
     if (cost > u.flux) { skills[id] = { usable: false, reason: 'flux', targets: [] }; continue; }
     let targets = [];
-    if (sk.kind === 'attack' || sk.kind === 'control' || sk.kind === 'debuff' || sk.kind === 'siphon') {
-      targets = targetsInRange(s, u, sk.range || 1).map((e) => e.id);
+    if (sk.kind === 'attack' || sk.kind === 'control' || sk.kind === 'debuff' || sk.kind === 'siphon' || sk.kind === 'blast' || sk.kind === 'agglomerate') {
+      targets = targetsInRange(s, u, sk.range || 1).map((e) => e.id);   // enemy-targeted (blast/agglomerate centre on a foe)
       skills[id] = { usable: targets.length > 0, targets };
+    } else if (sk.kind === 'revive') {
+      targets = s.units.filter((x) => !x.alive && x.team === u.team && cheb(u, x) <= (sk.range || 1)).map((x) => x.id);  // downed allies
+      skills[id] = { usable: targets.length > 0, targets };
+    } else if (sk.kind === 'assist') {
+      targets = alliesOf(s, u).filter((a) => cheb(u, a) <= (sk.range || 1)).map((a) => a.id);  // living allies
+      skills[id] = { usable: targets.length > 0, targets };
+    } else if (sk.kind === 'summon') {
+      skills[id] = { usable: freeAdjacent(s, u) != null, targets: [] };   // needs an open adjacent tile
     } else { skills[id] = { usable: true, targets: [] }; }     // self skills (heal/buff/brace/convert/reposition)
   }
   return { unit: u, move: (u.moved || stunned) ? [] : reachable(s, u), skills };
@@ -179,13 +209,13 @@ function resolveAttack(s, atk, tgt, skillId, isCounter = false) {
   if (sk.selfHp) { const c = Math.max(1, Math.round(atk.maxhp * sk.selfHp)); atk.hp = Math.max(1, atk.hp - c); }  // gore costs blood (never self-kill)
   // crit: base + Drift hit-and-run bonus when it struck the same turn it moved
   let critChance = atk.crit + ((FACTIONS[atk.faction]?.passive?.hitAndRunCrit && atk.movedThisTurn) ? FACTIONS[atk.faction].passive.hitAndRunCrit : 0);
-  const flank = !isCounter && isFlanking(s, atk, tgt);
+  const flank = !isCounter && !sk.magic && cheb(atk, tgt) <= 1 && isFlanking(s, atk, tgt);   // melee-only pincer
   const acc = atk.accuracy + (flank ? 0.1 : 0);
   const hit = s.rng() < acc;
   if (!hit) { log(s, `${atk.name} ${sk.label} — misses ${tgt.name}`, 'miss'); return { hit: false, target: tgt.id }; }
   const crit = s.rng() < critChance;
   const variance = 0.8 + s.rng() * 0.4;
-  let power = atk.atk * (sk.mult || 1) * berserkMult(atk);
+  let power = (sk.magic ? atk.apow : atk.atk) * (sk.mult || 1) * berserkMult(atk);   // magic scales off apow (anima)
   if (flank) power *= 1.25;                                          // pincered: the flank bonus
   const markBonus = tgt.status.mark?.turns > 0 ? (1 + (tgt.status.mark.amt || 0.25)) : 1;
   let dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * (crit ? 2 : 1)));
@@ -220,6 +250,17 @@ export function act(s, action) {
     const sk = SKILLS[action.skillId]; if (!sk || u.acted) return { type: 'illegal' };
     const cost = costOf(u, action.skillId); if (cost > u.flux) return { type: 'illegal', reason: 'flux' };
 
+    // pre-validate targeted skills up front so an illegal target never burns the turn (consume is below).
+    const TARGETED = ['attack', 'control', 'debuff', 'siphon', 'blast', 'agglomerate', 'revive', 'assist'];
+    if (TARGETED.includes(sk.kind)) {
+      const t = unitById(s, action.targetId);
+      if (!t || cheb(u, t) > (sk.range || 1)) return { type: 'illegal' };
+      if (sk.kind === 'revive') { if (t.alive || t.team !== u.team) return { type: 'illegal' }; }
+      else if (sk.kind === 'assist') { if (!t.alive || t.team !== u.team || t === u) return { type: 'illegal' }; }
+      else { if (!t.alive || t.team === u.team) return { type: 'illegal' }; }   // offensive: a living enemy
+    }
+    if (sk.kind === 'summon' && !freeAdjacent(s, u)) return { type: 'illegal' };
+
     if (sk.kind === 'attack') {
       const tgt = unitById(s, action.targetId);
       if (!tgt || !tgt.alive || cheb(u, tgt) > (sk.range || 1)) return { type: 'illegal' };
@@ -245,14 +286,68 @@ export function act(s, action) {
     }
     if (sk.kind === 'siphon') {
       const tgt = unitById(s, action.targetId);
-      if (!tgt || !tgt.alive || cheb(u, tgt) > (sk.range || 1)) return { type: 'illegal' };
       const drained = Math.min(sk.amount, tgt.flux); tgt.flux -= drained; u.flux = Math.min(u.maxflux, u.flux + drained);
       log(s, `${u.name} ${sk.label} → ${tgt.name} −${drained} Flux`, 'info');
       return { type: 'siphon', unit: u.id, target: tgt.id, drained };
     }
+    // ── multi-agent & range verbs ──
+    if (sk.kind === 'blast') {                 // area magic: every enemy within radius of the marked foe
+      const ctr = unitById(s, action.targetId);
+      const hits = enemiesOf(s, u).filter((e) => cheb(e, ctr) <= (sk.radius || 1));
+      const results = hits.map((e) => dealMagic(s, u, e, sk.mult || 1, sk.label));
+      log(s, `${u.name} ${sk.label} — ${results.filter((r) => r.hit).length}/${hits.length} caught`, 'info');
+      checkEnd(s);
+      return { type: 'blast', unit: u.id, center: { x: ctr.x, y: ctr.y }, results };
+    }
+    if (sk.kind === 'agglomerate') {           // gravity knot: drag nearby units toward the marked tile
+      const ctr = unitById(s, action.targetId), moved = [];
+      for (const o of s.units) {
+        if (!o.alive || o === u || (o.x === ctr.x && o.y === ctr.y)) continue;
+        if (cheb(o, ctr) > (sk.radius || 2)) continue;
+        for (let k = 0; k < (sk.pull || 1); k++) {
+          const sx = Math.sign(ctr.x - o.x), sy = Math.sign(ctr.y - o.y), nx = o.x + sx, ny = o.y + sy;
+          if ((sx || sy) && inBounds(s, nx, ny) && !occupied(s, nx, ny, o) && !(nx === ctr.x && ny === ctr.y)) { o.x = nx; o.y = ny; if (!moved.includes(o.id)) moved.push(o.id); }
+          else break;
+        }
+      }
+      log(s, `${u.name} ${sk.label} — drags ${moved.length} toward the knot`, 'info');
+      return { type: 'agglomerate', unit: u.id, center: { x: ctr.x, y: ctr.y }, moved };
+    }
+    if (sk.kind === 'summon') {                 // bring a new allied agent onto the board
+      const spot = freeAdjacent(s, u), id = `${u.id}~d${s.nextId++}`;
+      const drone = makeUnit({ id, name: `${u.name}'s Drone`, team: u.team, combat: { ...DRONE }, x: spot.x, y: spot.y, glyph: '◆', accent: u.accent, summoned: true });
+      s.units.push(drone); s.order.push(id);   // acts when the round wraps to its new slot
+      log(s, `${u.name} summons a drone`, 'info');
+      return { type: 'summon', unit: u.id, droneId: id };
+    }
+    if (sk.kind === 'revive') {                 // restart a downed ally at partial integrity
+      const t = unitById(s, action.targetId);
+      t.alive = true; t.hp = Math.max(1, Math.round(t.maxhp * sk.amount)); t.status = {}; t.buff = { def: 0, turns: 0, counter: false };
+      log(s, `${u.name} ${sk.label}s ${t.name} (+${t.hp})`, 'heal');
+      return { type: 'revive', unit: u.id, target: t.id };
+    }
+    if (sk.kind === 'assist') {                 // hand an ally an extra activation this round
+      const t = unitById(s, action.targetId);
+      s.order.splice(s.idx + 1, 0, t.id); t.extraTurn = true;
+      log(s, `${u.name} ${sk.label}s ${t.name} — extra turn`, 'info');
+      return { type: 'assist', unit: u.id, target: t.id };
+    }
   }
   if (action.type === 'end') return endTurn(s);
   return { type: 'noop' };
+}
+
+// per-target magic damage for AoE (Blast) — no flux deduction (the caster paid once) and no counter.
+function dealMagic(s, atk, tgt, mult, label = 'Blast') {
+  if (s.rng() >= atk.accuracy) { log(s, `${atk.name} ${label} — misses ${tgt.name}`, 'miss'); return { hit: false, target: tgt.id }; }
+  const crit = s.rng() < atk.crit, variance = 0.8 + s.rng() * 0.4;
+  const power = atk.apow * mult * berserkMult(atk);
+  const markBonus = tgt.status.mark?.turns > 0 ? (1 + (tgt.status.mark.amt || 0.25)) : 1;
+  const dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * (crit ? 2 : 1)));
+  tgt.hp = Math.max(0, tgt.hp - dmg);
+  log(s, `${atk.name} ${label}${crit ? ' (crit!)' : ''} → ${tgt.name} −${dmg}`, crit ? 'crit' : 'hit');
+  if (tgt.hp <= 0) { tgt.alive = false; log(s, `${tgt.name} falls.`, 'down'); }
+  return { hit: true, crit, dmg, target: tgt.id };
 }
 
 function checkEnd(s) {
@@ -323,11 +418,18 @@ export function aiPlan(s) {
       else seq.push({ type: 'skill', skillId: 'brace' });
     }
   } else if (arche === 'kite') {
-    // dart in, strike (banking the hit-and-run crit), then flit back out of reach. NB: a unit gets ONE
-    // action/turn — feint would eat it and leave no strike, so the kite leads with the strike and uses
-    // flit (which reopens only the MOVE slot, not the action) to slip away after.
-    if (cheb(u, target) > 1) { const b = stepToward(target.x, target.y, moveRange(u)); if (b) seq.push({ type: 'move', x: b.x, y: b.y }); }
-    seq.push({ type: '__attack_adjacent', targetId: target.id });
+    // the ranged kite: close only to LANCE range, lance from afar, then flit back out of reach. This is
+    // Drift's real win condition vs melee aggro — it never has to enter the strike zone. (Falls back to
+    // a melee dart-and-flit if it can't afford a lance.) NB: a unit gets ONE action/turn; flit reopens
+    // only the MOVE slot, so lance-then-flit is legal.
+    const lanceR = SKILLS.lance.range;
+    if (canUse('lance')) {
+      if (cheb(u, target) > lanceR) { const b = stepToward(target.x, target.y, moveRange(u)); if (b) seq.push({ type: 'move', x: b.x, y: b.y }); }
+      seq.push({ type: '__lance', targetId: target.id });
+    } else {
+      if (cheb(u, target) > 1) { const b = stepToward(target.x, target.y, moveRange(u)); if (b) seq.push({ type: 'move', x: b.x, y: b.y }); }
+      seq.push({ type: '__attack_adjacent', targetId: target.id });
+    }
     if (canUse('flit')) seq.push({ type: '__flit_away', fromId: target.id });
   } else { // aggro (rindwalker / default)
     if (cheb(u, target) > 1) { const b = stepToward(target.x, target.y, moveRange(u)); if (b) seq.push({ type: 'move', x: b.x, y: b.y }); }
@@ -356,6 +458,12 @@ export function aiStep(s, step) {
   if (step.type === '__feint_adjacent') {
     const tgt = unitById(s, step.targetId);
     if (u && tgt && tgt.alive && cheb(u, tgt) <= 1 && !u.acted && costOf(u, 'feint') <= u.flux) return act(s, { type: 'skill', skillId: 'feint', targetId: tgt.id });
+    return { type: 'noop' };
+  }
+  if (step.type === '__lance') {
+    const tgt = unitById(s, step.targetId);
+    if (u && tgt && tgt.alive && !u.acted && cheb(u, tgt) <= SKILLS.lance.range && costOf(u, 'lance') <= u.flux) return act(s, { type: 'skill', skillId: 'lance', targetId: tgt.id });
+    if (u && tgt && tgt.alive && !u.acted && cheb(u, tgt) <= 1) return act(s, { type: 'skill', skillId: 'strike', targetId: tgt.id });  // fallback
     return { type: 'noop' };
   }
   if (step.type === '__flit_away') {

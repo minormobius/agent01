@@ -160,6 +160,89 @@ ok('flanking increases damage', strikeDmg({ flank: true }) > strikeDmg({ flank: 
   ok('siphon moves flux foe→self', r.type === 'siphon' && u.flux > 5 && foe.flux < 30, `self ${u.flux} foe ${foe.flux}`);
 }
 
+// ── 4b. multi-agent & range verbs ───────────────────────────────────────────────────────────────
+const A = (faction, over = {}) => ({ id: 'A', name: 'Ally', faction, combat: C(over) });
+// lance: ranged (range 3) magic; damage scales off apow, NOT atk.
+{
+  const s = E.createBattle({ player: P('drift', { apow: 30, atk: 1, fluxPool: 30 }), foes: [F('continuant', { def: 0, hp: 999 })], seed: 1, W: 9, H: 9 });
+  while (E.active(s).id !== 'P') E.endTurn(s);
+  const u = E.active(s), foe = E.unitById(s, 'E'); foe.x = u.x + 3; foe.y = u.y;   // 3 away
+  const r = E.act(s, { type: 'skill', skillId: 'lance', targetId: 'E' });
+  ok('lance hits at range 3', r.type === 'attack' && r.hit, `dmg ${r.dmg}`);
+  // low-apow caster lances for less (proves apow, not atk, drives magic)
+  const s2 = E.createBattle({ player: P('drift', { apow: 4, atk: 30, fluxPool: 30 }), foes: [F('continuant', { def: 0, hp: 999 })], seed: 1, W: 9, H: 9 });
+  while (E.active(s2).id !== 'P') E.endTurn(s2);
+  const u2 = E.active(s2), f2 = E.unitById(s2, 'E'); f2.x = u2.x + 3; f2.y = u2.y;
+  const r2 = E.act(s2, { type: 'skill', skillId: 'lance', targetId: 'E' });
+  ok('magic damage scales off apow not atk', r.dmg > r2.dmg, `apow30 ${r.dmg} vs apow4 ${r2.dmg}`);
+}
+{
+  const s = E.createBattle({ player: P('drift', { fluxPool: 30 }), foes: [F('continuant')], seed: 1 });
+  while (E.active(s).id !== 'P') E.endTurn(s);
+  const u = E.active(s), foe = E.unitById(s, 'E'); foe.x = u.x + 4; foe.y = u.y + 4;   // >3 (Chebyshev 4)
+  ok('lance illegal beyond range', E.act(s, { type: 'skill', skillId: 'lance', targetId: 'E' }).type === 'illegal');
+}
+// blast: AoE magic hits every enemy within radius of the marked foe.
+{
+  const s = E.createBattle({ player: P('drift', { apow: 20, fluxPool: 40 }), foes: [F('continuant', { hp: 999, def: 0 }), { id: 'E2', name: 'Foe2', faction: 'continuant', combat: C({ hp: 999, def: 0 }) }], seed: 1 });
+  while (E.active(s).id !== 'P') E.endTurn(s);
+  const u = E.active(s), e1 = E.unitById(s, 'E'), e2 = E.unitById(s, 'E2');
+  e1.x = u.x + 2; e1.y = u.y; e2.x = u.x + 2; e2.y = u.y + 1;   // both within radius 1 of e1, within range 4
+  const h1 = e1.hp, h2 = e2.hp;
+  const r = E.act(s, { type: 'skill', skillId: 'blast', targetId: 'E' });
+  ok('blast hits multiple foes in radius', r.type === 'blast' && e1.hp < h1 && e2.hp < h2, `e1 −${h1 - e1.hp} e2 −${h2 - e2.hp}`);
+}
+// summon: a new allied agent joins the board + the turn order.
+{
+  const s = E.createBattle({ player: P('continuant', { fluxPool: 30 }), foes: [F('rindwalker')], seed: 1 });
+  while (E.active(s).id !== 'P') E.endTurn(s);
+  const before = s.units.length, ordBefore = s.order.length;
+  const r = E.act(s, { type: 'skill', skillId: 'summon' });
+  const drone = E.unitById(s, r.droneId);
+  ok('summon adds an allied unit to board + order', r.type === 'summon' && s.units.length === before + 1 && s.order.length === ordBefore + 1 && drone.team === 'player' && drone.alive);
+}
+// revive: a downed ally returns at partial HP.
+{
+  const s = E.createBattle({ player: P('continuant', { fluxPool: 30 }), allies: [A('rindwalker')], foes: [F('drift')], seed: 1 });
+  while (E.active(s).id !== 'P') E.endTurn(s);
+  const u = E.active(s), ally = E.unitById(s, 'A'); ally.alive = false; ally.hp = 0; ally.x = u.x + 1; ally.y = u.y;
+  const r = E.act(s, { type: 'skill', skillId: 'revive', targetId: 'A' });
+  ok('revive restores a downed ally', r.type === 'revive' && ally.alive && ally.hp > 0, `hp ${ally.hp}`);
+}
+// assist: hands an ally an extra activation (a second slot in the order).
+{
+  const s = E.createBattle({ player: P('continuant', { fluxPool: 30 }), allies: [A('rindwalker')], foes: [F('drift')], seed: 1 });
+  while (E.active(s).id !== 'P') E.endTurn(s);
+  const u = E.active(s), ally = E.unitById(s, 'A'); ally.x = u.x + 1; ally.y = u.y;
+  const ordBefore = s.order.filter((id) => id === 'A').length;
+  const r = E.act(s, { type: 'skill', skillId: 'assist', targetId: 'A' });
+  ok('assist gives an ally an extra turn', r.type === 'assist' && s.order.filter((id) => id === 'A').length === ordBefore + 1);
+}
+// agglomerate: drags nearby units toward the marked tile.
+{
+  const s = E.createBattle({ player: P('drift', { fluxPool: 30 }), foes: [F('continuant'), { id: 'E2', name: 'Foe2', faction: 'continuant', combat: C() }], seed: 1 });
+  while (E.active(s).id !== 'P') E.endTurn(s);
+  const u = E.active(s), ctr = E.unitById(s, 'E'), other = E.unitById(s, 'E2');
+  u.x = 0; u.y = 0; ctr.x = 3; ctr.y = 0; other.x = 5; other.y = 0;   // other 2 away from centre, caster in range 4
+  const r = E.act(s, { type: 'skill', skillId: 'agglomerate', targetId: 'E' });
+  ok('agglomerate pulls units toward the knot', r.type === 'agglomerate' && other.x < 5, `other.x → ${other.x}`);
+}
+// pre-validation: an illegal target does NOT burn the action or flux.
+{
+  const s = E.createBattle({ player: P('drift', { fluxPool: 30 }), foes: [F('continuant')], seed: 1 });
+  while (E.active(s).id !== 'P') E.endTurn(s);
+  const u = E.active(s), foe = E.unitById(s, 'E'); foe.x = u.x + 8; foe.y = u.y;   // far away
+  const flux0 = u.flux;
+  const r = E.act(s, { type: 'skill', skillId: 'lance', targetId: 'E' });
+  ok('illegal target spends neither action nor flux', r.type === 'illegal' && !u.acted && u.flux === flux0);
+}
+// a 2v2 party battle terminates.
+{
+  const s = E.createBattle({ player: P('continuant'), allies: [A('rindwalker')], foes: [F('drift'), { id: 'E2', name: 'Foe2', faction: 'rindwalker', combat: C() }], seed: 3 });
+  let g = 0; while (!s.winner && g++ < 600) E.runAiTurn(s);
+  ok('2v2 party battle terminates', !!s.winner, s.winner || 'none');
+}
+
 // ── 5. passives ───────────────────────────────────────────────────────────────────────────────
 {
   const d = E.makeUnit({ ...P('drift'), x: 0, y: 0, team: 'player' });

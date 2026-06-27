@@ -25,8 +25,8 @@ export const FACTIONS = {
       counterOnBrace: true,     // braced + hit by an adjacent attacker → it strikes back
       fluxRegen: 2,             // +Flux at the start of each of its turns (slow, steady technomagic budget)
     },
-    kit: ['bulwark', 'rivet', 'mend'],
-    discount: { harden: 0.5, mend: 0.5 },   // anima→chassis & self-repair come cheap
+    kit: ['bulwark', 'rivet', 'mend', 'summon', 'revive', 'assist'],   // the maintainers rebuild & restore the party
+    discount: { harden: 0.5, mend: 0.5, revive: 0.7 },   // anima→chassis, self-repair, and restoring others come cheap
     ai: 'turtle',
   },
 
@@ -38,9 +38,10 @@ export const FACTIONS = {
     passive: {
       moveBonus: 2,             // +2 move range — Drift owns the board's geometry (and can out-kite aggro)
       hitAndRunCrit: 0.22,      // +crit chance on an attack made the same turn it moved
+      fluxRegen: 2,             // +Flux/turn — anima is flux-native, so the ranged kite never runs dry
     },
-    kit: ['flit', 'feint', 'siphon'],
-    discount: { overclock: 0.6 },           // the anima burst is cheap
+    kit: ['lance', 'flit', 'feint', 'blast', 'agglomerate', 'siphon'],   // ranged anima offense + the area combo
+    discount: { overclock: 0.6, lance: 0.6, blast: 0.75 },   // the anima offense is cheap for Drift
     ai: 'kite',
   },
 
