@@ -69,6 +69,11 @@ deterministic generator is the default and needs no key.
 
 ## Load-bearing NPC quests — the flag spine (`deckquest.js`) — MECHANISM SHIPPED
 
+> **Shareable spec + live demo:** [`hoop.mino.mobi/v099/spine`](/v099/spine) (`story/spine.html`) — the
+> loop, the pieces table, the five decks, and an **interactive deck-stacking visualizer** that runs the
+> real modules (drag patience/safety and watch the ripe-marker jump). Served via `worker.js`.
+
+
 hoopy's refinement of the climb: **one load-bearing NPC per deck**, who **blocks advancement to the
 next deck**. They give an *informational* quest — *"gather lore until the following flags are set."* The
 flags are set by the **lore you gather**: a content item may carry a flag, set the moment you

@@ -149,6 +149,10 @@ export default {
     if (url.pathname === '/nave/slots' || url.pathname === '/nave/slots/') {
       return env.ASSETS.fetch(new Request(new URL('/nave/slots.html', url), request));
     }
+    // v099/spine — the flag-spine spec: load-bearing NPC deck quests + the live deck-stacking demo.
+    if (url.pathname === '/v099/spine' || url.pathname === '/v099/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v099/story/spine.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
