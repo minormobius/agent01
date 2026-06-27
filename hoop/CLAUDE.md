@@ -77,6 +77,21 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   descent wiring is the next step**: `v099/index.html#maybeBuildRind` already gates at tier 3 but builds a
   single placeholder chunk; swap it for this streamed four-chunk floor, **offset** in world coords (the
   rind's hub↔station seams share the nave's lattice, so co-locating would leak the player between decks).
+- `forge/` — **the ship's industrial metabolism** (`forge/forge.js` + `FACTORY.md`), the everything-factory
+  of the upper rind modelled as a **closed-loop production economy** — biome's industrial cousin. A
+  generation ship is closed (every atom already aboard), so production is **cycling a fixed stock of
+  conserved commodities**: `scrap →[reclaim]→ stock →[build]→ deployed →[wear]→ scrap`. Conservation is
+  **structural** (paired transfers; mass drift ~1e-12), the **reclaimer is the decomposer** (the recycle
+  valve — under-build it and scrap piles while stock drains: the Biosphere-2 failure, a passing test), and
+  energy is drawn from a fixed budget (tide's `energyLedger().total_GW`) → waste heat. Seven conserved
+  commodities (metal · polymer · silicate · volatiles · water · biomass · trace), five cross-commodity
+  products (structure · fixture · machine · circuit · consumable). The **closure law**: `reclaimCap ≥
+  wearDemand` per commodity. An **oracle** (`oracle()`) scores whether the loop closes (Closed · Lean ·
+  Leaking · Draining · Collapsing), names the keystone valve, and catches the failure modes. Pure +
+  node-tested (`forge/test/forge.selftest.mjs`, 34 checks). **Status: the spine only** — the conserved cycle
+  proven to close. Next: couple the seams (tide energy · biome biomass · iris water), then place processes
+  in rind chambers (the logistics layer), then rooms/fixtures (robots, lines — the game). See `FACTORY.md`.
+  **Seams** (biomass↔biome, water/heat↔tide·iris) are documented but inactive in v1 so conservation is exact.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a
