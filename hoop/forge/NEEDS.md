@@ -144,6 +144,20 @@ to Fe₂O₃ and is re-reduced), so they're steady-state balanced. `chem.js`: `M
 (atom-balanced) + curated per-element `CYCLES`; pinned by `test/chem.selftest.mjs` (57). Extensible by data —
 the remaining elements use the generic ring until enriched.
 
+### The FORKING catalogue — one element, many uses
+
+An element doesn't flow in one ring: it **forks** through several refining pathways into different material
+forms, each fanning out to the many catalogue products that use it. **Silicon → wafer** (chips · sensors ·
+displays) **AND glass** (lighting · optics · hardware) **AND ceramic** (insulation · substrate). The
+branching is **catalogue-driven**: `chem.js#forkedFlow` reads the products that contain the element
+(`productsWithElement`), assigns each to a pathway by loop, and fans the flow from the form to the real
+products — so adding a product to the catalogue automatically adds a fork. `ledger.js#elementFork` is the
+page's source (life-support products merged in so carbon's food pathway is fed); the metal pathways close
+through the ore pool, the bio ones through the atmosphere. `chem.js` `FORKS` curate the multi-pathway
+elements (C · Si), single-pathway-many-product elements (Fe · Al · Cu · N) fan from one form; the rest
+auto-fork. Pinned by `test/elementfork.selftest.mjs` (51). *(The circular layout gets busy at ~20 nodes; a
+layered Sankey is the next viz polish — the forking model is the substance.)*
+
 ## Status / next
 
 - `catalogue.js` — the ~40 classes as data, each with loop · need · element vector · family bridge · a

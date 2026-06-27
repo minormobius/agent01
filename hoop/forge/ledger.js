@@ -21,7 +21,7 @@
 import { step, defaultParams, defaultState, elements as biomeElements, snapshot as biomeSnap } from './vendor/biome/cycles.mjs';
 import { ELEMENTS, ELEMENT, PRODUCTS, PRODUCT, composition } from './catalogue.js';
 import { populationDemand } from './needs.js';
-import { COVERED, chemCycle } from './chem.js';
+import { COVERED, chemCycle, forkedFlow } from './chem.js';
 
 export const ATOMIC = { H: 1.008, C: 12.011, N: 14.007, O: 15.999, Al: 26.982, Si: 28.085, P: 30.974, S: 32.06, Ca: 40.078, Ti: 47.867, Fe: 55.845, Ni: 58.693, Cu: 63.546, RE: 144.24 };
 export const BIOTIC = ['C', 'H', 'O', 'N'];                                            // biome's conserved ledger
@@ -110,6 +110,18 @@ export function unifiedLedger({ people = 1000, biomeDays = 250, growFactor = 1 }
     pump, perElement, carbonClosed,
     elements: ELEMENTS,
   };
+}
+
+// THE FORKING element view (the page's source): an element forks through several refining pathways into
+// material forms, each fanning out to the many catalogue products that use it — driven by the catalogue.
+// Food/water life-support products are merged into the demand so the biotic forks (carbon's food, etc.)
+// are fed. Closure verdict comes from the unified ledger (carbon over biome).
+export function elementFork(sym, { people = 1000, growFactor = 3, u } = {}) {
+  u = u || unifiedLedger({ people, growFactor });
+  const { demand, lifeSupport } = populationDemand(people);
+  const base = forkedFlow(sym, { ...demand, ...lifeSupport });
+  const E = ELEMENT[sym] || {};
+  return { sym, name: E.name, metabolism: BIOTIC.includes(sym) ? (sym === 'C' ? 'shared' : 'biotic') : 'industrial', closes: sym === 'C' ? u.carbonClosed : true, ...base };
 }
 
 // per-element index for the periodic-table → Sankey endpoint: for an element, which metabolism(s) carry it

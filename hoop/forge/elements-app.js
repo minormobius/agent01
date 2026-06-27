@@ -2,7 +2,7 @@
 // drawn as a ring that loops back on itself, with magnitudes from the unified ledger (ledger.js). Carbon
 // shows the biome+forge grand loop + the pump; iron a pure industrial ring; N/O/H a biotic loop. Mobile-first.
 
-import { elementCycle, unifiedLedger, BIOTIC } from './ledger.js';
+import { elementFork, unifiedLedger, BIOTIC } from './ledger.js';
 import { ELEMENTS, ELEMENT } from './catalogue.js';
 
 const $ = (id) => document.getElementById(id);
@@ -28,21 +28,25 @@ function buildTable() {
 
 function recompute() { u = unifiedLedger({ people, growFactor, biomeDays: 150 }); }
 function select(s) {
-  sym = s; cycle = elementCycle(sym, { u });
+  sym = s; cycle = elementFork(sym, { u });
   for (const el of $('ptable').querySelectorAll('.cell')) el.classList.toggle('sel', el.dataset.sym === sym);
   const fam = (ELEMENT[sym] || {}).family, fc = FAMCOLOR[fam] || '#888';
   $('sw-flow').style.background = fc;
   $('eltitle').textContent = (ELEMENT[sym] || {}).name;
-  $('elinfo').innerHTML =
-    `<div class="ig"><span class="s" style="color:${fc}">${esc(sym)}</span><span class="n">${esc(cycle.name)}</span><span class="m">${esc(cycle.metabolism)}</span></div>` +
-    `<div class="prod" style="margin-bottom:6px"><span>cycle throughput</span><b>${cycle.flow} ${esc(cycle.unit)}</b></div>` +
-    (cycle.topProducts.length ? `<div class="prods">${cycle.topProducts.map((p) => `<div class="prod"><span>${esc(p.glyph || '·')} ${esc(p.name)}</span><b>${Math.round(p.frac * 100)}%</b></div>`).join('')}</div>` : '');
-  // named processes (the molecular detail): real reactions, atom-balanced
-  const rxns = (cycle.nodes || []).filter((n) => n.process && n.reaction);
-  if (rxns.length) {
-    $('elinfo').innerHTML += `<div style="margin-top:10px;color:var(--accent);font-size:10px;letter-spacing:.12em;text-transform:uppercase">named processes</div>` +
-      rxns.map((n) => `<div style="margin:5px 0;font-size:11.5px"><b style="color:#cdb38a">${esc(n.process)}</b><br><span style="color:var(--soft)">${esc(n.reaction)}</span></div>`).join('');
+  const linkIn = (id) => cycle.links.filter((l) => l.to === id).reduce((a, l) => a + l.value, 0);
+  const forms = cycle.nodes.filter((n) => n.kind === 'material');         // one per refining pathway
+  const uses = cycle.nodes.filter((n) => n.kind === 'use').sort((a, b) => linkIn(b.id) - linkIn(a.id));
+  let h = `<div class="ig"><span class="s" style="color:${fc}">${esc(sym)}</span><span class="n">${esc(cycle.name)}</span><span class="m">${esc(cycle.metabolism)}</span></div>` +
+    `<div class="prod" style="margin-bottom:4px"><span>cycle throughput</span><b>${cycle.flow} ${esc(cycle.unit)}</b></div>`;
+  h += `<div style="margin-top:9px;color:var(--accent);font-size:10px;letter-spacing:.12em;text-transform:uppercase">pathways (${forms.length})</div>`;
+  for (const f of forms) {
+    const proc = cycle.nodes.find((n) => n.id === 'ref' + f.id.slice(4)) || cycle.nodes.find((n) => n.kind === 'process');
+    h += `<div class="prod"><span style="color:#cdb38a">${esc((proc || {}).process || 'refine')}</span><b style="color:${fc}">${esc(f.label)}${f.formula ? ' · ' + f.formula : ''}</b></div>`;
   }
+  h += `<div style="margin-top:9px;color:var(--accent);font-size:10px;letter-spacing:.12em;text-transform:uppercase">endpoints (${uses.length})</div><div class="prods">`;
+  for (const en of uses) h += `<div class="prod"><span>${esc((en.endpoints && en.endpoints[0] && en.endpoints[0].glyph) || '·')} ${esc(en.label)}</span><b>${linkIn(en.id).toFixed(1)}</b></div>`;
+  h += `</div>`;
+  $('elinfo').innerHTML = h;
   render();
 }
 

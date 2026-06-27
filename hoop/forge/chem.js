@@ -10,7 +10,7 @@
 // Pure, zero-dep. Tested in test/chem.selftest.mjs. Covers the major elements (C·N·O·H·Fe·Al·Si·Cu) with
 // real named chemistry; the rest fall back to ledger.js's generic ring until enriched (extensible by data).
 
-import { PRODUCT } from './catalogue.js';
+import { PRODUCT, productsWithElement, composition, LOOP } from './catalogue.js';
 
 // ── molecules: id → { name, formula, el:{atom counts} }. el ties each molecule to the element ledger. ──
 export const MOLECULES = {
@@ -226,4 +226,75 @@ export function chemCycle(sym, flowKg = 1) {
 export function rxnString(r) {
   const side = (bag) => Object.entries(bag).map(([m, c]) => (c === 1 ? '' : c + ' ') + (MOLECULES[m] || { formula: m }).formula).join(' + ');
   return `${side(r.in)} → ${side(r.out)}`;
+}
+
+// ── THE FORKING CATALOGUE: an element does not flow in one ring — it FORKS through several refining
+// pathways into different MATERIAL FORMS, each of which fans out to the many catalogue products that use
+// that form. Silicon → wafer (chips · sensors · displays) AND glass (lighting · optics · hardware) AND
+// ceramic (insulation · substrate). The forks below are the pathways; the products that fan from each are
+// pulled live from the catalogue by loop (catalogue-driven), so the branching is real, not hand-listed. ──
+export const FORKS = {
+  Si: [
+    { id: 'wafer',    process: 'Carbothermic → wafer', form: 'Silicon wafer', formula: 'Si',   loops: ['compute', 'energy'] },
+    { id: 'glass',    process: 'Glass melting',        form: 'Glass',         formula: 'SiO₂', loops: ['habitat', 'society', 'propulsion', 'air', 'water'] },
+    { id: 'ceramic',  process: 'Kiln (ceramic)',       form: 'Ceramic',       formula: 'SiO₂', loops: ['textiles', 'structure', 'body', 'waste'] },
+  ],
+  C: [
+    { id: 'food',  process: 'Photosynthesis → mill', form: 'Biomass · food',   formula: 'C₆H₁₂O₆', loops: ['food', 'continuity', 'body', 'waste'] },
+    { id: 'fiber', process: 'Pyrolysis → weave',     form: 'Carbon fiber',     formula: 'C',        loops: ['textiles', 'structure', 'labor', 'mobility'] },
+    { id: 'resin', process: 'Ferment → extrude',     form: 'Bioplastic · resin', formula: 'PHA',    loops: ['habitat', 'society', 'air', 'energy', 'compute'] },
+  ],
+  Fe: [{ id: 'steel', process: 'Direct reduction → cast', form: 'Steel', formula: 'Fe', loops: null }],
+  Al: [{ id: 'al',    process: 'Hall–Héroult → form',     form: 'Aluminium', formula: 'Al', loops: null }],
+  Cu: [{ id: 'cu',    process: 'Smelting → draw',         form: 'Copper', formula: 'Cu', loops: null }],
+  N:  [{ id: 'fert',  process: 'Haber–Bosch → nitrify',   form: 'Nutrient', formula: 'NO₃', loops: null }],
+};
+const POOL = {
+  Si: { label: 'Silica', formula: 'SiO₂' }, Fe: { label: 'Hematite', formula: 'Fe₂O₃' }, Al: { label: 'Alumina', formula: 'Al₂O₃' },
+  Cu: { label: 'Copper ore', formula: 'CuO' }, C: { label: 'Atmosphere', formula: 'CO₂' }, N: { label: 'N₂ reservoir', formula: 'N₂' },
+};
+const r3 = (x) => +x.toFixed(3);
+
+// build the FORKING flow for an element from live demand (element-kg/day). Stages: pool → refine forks →
+// material forms → products (fanned from the catalogue, top few per fork + an "others" rollup) → reclaim →
+// (loops back to pool). Steady-state balanced (recycle + reserve makeup = throughput). Carries molecular
+// detail (formulas, named processes) + the considered endpoint products.
+export function forkedFlow(sym, demand = {}, { topPerFork = 3 } = {}) {
+  const forks = FORKS[sym] || [{ id: 'main', process: 'Refine', form: sym + ' stock', formula: sym, loops: null }];
+  const prodFlow = {};
+  for (const { id, frac } of productsWithElement(sym)) { const fl = (demand[id] || 0) * frac; if (fl > 1e-6) prodFlow[id] = fl; }
+  const pickFork = (loop) => (forks.find((f) => f.loops && f.loops.includes(loop)) || forks.find((f) => !f.loops) || forks[forks.length - 1]).id;
+  const byFork = Object.fromEntries(forks.map((f) => [f.id, []]));
+  for (const [id, fl] of Object.entries(prodFlow)) byFork[pickFork(PRODUCT[id].loop)].push({ id, fl });
+
+  const pool = POOL[sym] || { label: sym + ' stock', formula: sym };
+  const nodes = [{ id: 'pool', label: pool.label, formula: pool.formula, kind: 'pool' }];
+  const links = []; let total = 0;
+  for (const f of forks) {
+    const prods = byFork[f.id].sort((a, b) => b.fl - a.fl); const ftot = prods.reduce((a, p) => a + p.fl, 0);
+    if (ftot <= 1e-6) continue; total += ftot;
+    const refId = 'ref_' + f.id, formId = 'form_' + f.id, rx = f.id === 'food' ? REACTION.photosynthesis : null;
+    nodes.push({ id: refId, label: f.process, process: f.process, reaction: rx ? rxnString(rx) : null, kind: 'process' });
+    nodes.push({ id: formId, label: f.form, formula: f.formula, kind: 'material' });
+    links.push({ from: 'pool', to: refId, value: r3(ftot), kind: 'flow' });
+    links.push({ from: refId, to: formId, value: r3(ftot), kind: 'flow' });
+    const top = prods.slice(0, topPerFork), rest = prods.slice(topPerFork);
+    for (const p of top) {
+      const pid = 'p_' + p.id, P = PRODUCT[p.id];
+      nodes.push({ id: pid, label: P.name, endpoints: [{ id: p.id, name: P.name, glyph: P.glyph }], kind: 'use' });
+      links.push({ from: formId, to: pid, value: r3(p.fl), kind: 'flow' });
+      links.push({ from: pid, to: 'reclaim', value: r3(p.fl * 0.92), kind: 'flow' });
+    }
+    if (rest.length) {
+      const oid = 'o_' + f.id, of = rest.reduce((a, p) => a + p.fl, 0);
+      nodes.push({ id: oid, label: `+${rest.length} more`, kind: 'use' });
+      links.push({ from: formId, to: oid, value: r3(of), kind: 'flow' });
+      links.push({ from: oid, to: 'reclaim', value: r3(of * 0.92), kind: 'flow' });
+    }
+  }
+  nodes.push({ id: 'reclaim', label: 'Reclaim', kind: 'recover' });
+  nodes.push({ id: 'reserve', label: 'Reserve', kind: 'reserve' });
+  links.push({ from: 'reclaim', to: 'pool', value: r3(total * 0.92), kind: 'recycle' });
+  links.push({ from: 'reserve', to: 'pool', value: r3(total * 0.08), kind: 'makeup' });
+  return { sym, unit: 'kg/day', flow: r3(total), forks: forks.length, nodes, links };
 }
