@@ -1,0 +1,3804 @@
+{
+  "profile": {
+    "seeds": 16,
+    "guaranteed": {
+      "commons": [
+        "dwell",
+        "grow",
+        "make",
+        "mend",
+        "trade",
+        "serve",
+        "play",
+        "heal",
+        "learn",
+        "worship",
+        "govern",
+        "move",
+        "store"
+      ],
+      "factions": {
+        "rindwalker": {
+          "shared": [
+            "make",
+            "store"
+          ],
+          "exclusives": [
+            "worship",
+            "mend"
+          ],
+          "wards": [
+            {
+              "exclusive": "worship",
+              "level": "high",
+              "floors": [
+                "dwell",
+                "make",
+                "store",
+                "worship"
+              ]
+            },
+            {
+              "exclusive": "mend",
+              "level": "mild",
+              "floors": [
+                "dwell",
+                "make",
+                "store",
+                "mend"
+              ]
+            }
+          ]
+        },
+        "continuant": {
+          "shared": [
+            "serve",
+            "heal"
+          ],
+          "exclusives": [
+            "govern",
+            "grow"
+          ],
+          "wards": [
+            {
+              "exclusive": "govern",
+              "level": "high",
+              "floors": [
+                "dwell",
+                "serve",
+                "heal",
+                "govern"
+              ]
+            },
+            {
+              "exclusive": "grow",
+              "level": "mild",
+              "floors": [
+                "dwell",
+                "serve",
+                "heal",
+                "grow"
+              ]
+            }
+          ]
+        },
+        "drift": {
+          "shared": [
+            "move",
+            "trade"
+          ],
+          "exclusives": [
+            "learn",
+            "play"
+          ],
+          "wards": [
+            {
+              "exclusive": "learn",
+              "level": "high",
+              "floors": [
+                "dwell",
+                "move",
+                "trade",
+                "learn"
+              ]
+            },
+            {
+              "exclusive": "play",
+              "level": "mild",
+              "floors": [
+                "dwell",
+                "move",
+                "trade",
+                "play"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "distribution": {
+      "commons": {
+        "learn": 3,
+        "dwell": 9.3,
+        "make": 5.4,
+        "play": 2.9,
+        "govern": 1.6,
+        "move": 1.3,
+        "serve": 4.9,
+        "trade": 5,
+        "mend": 2.5,
+        "store": 1.3,
+        "worship": 1.6,
+        "grow": 2.9,
+        "heal": 1.9
+      },
+      "rindwalker": {
+        "make": 22.1,
+        "store": 12.3,
+        "worship": 18.9,
+        "dwell": 20.1,
+        "mend": 10.5
+      },
+      "continuant": {
+        "heal": 20.2,
+        "govern": 15.1,
+        "dwell": 14.1,
+        "serve": 20.9,
+        "grow": 12.4
+      },
+      "drift": {
+        "dwell": 16.3,
+        "trade": 18.8,
+        "learn": 18.8,
+        "move": 13.9,
+        "play": 14.1
+      }
+    },
+    "pools": [
+      {
+        "tag": "dwell",
+        "tier": 1,
+        "glyph": "⌂",
+        "factions": [
+          "commons",
+          "rindwalker",
+          "continuant",
+          "drift"
+        ],
+        "avgSlotsPerWorld": 59.8,
+        "contentTypes": [
+          "npc"
+        ],
+        "anchor": false
+      },
+      {
+        "tag": "make",
+        "tier": 1,
+        "glyph": "⚒",
+        "factions": [
+          "commons",
+          "rindwalker"
+        ],
+        "avgSlotsPerWorld": 27.5,
+        "contentTypes": [
+          "npc",
+          "item"
+        ],
+        "anchor": false
+      },
+      {
+        "tag": "serve",
+        "tier": 1,
+        "glyph": "☕",
+        "factions": [
+          "commons",
+          "continuant"
+        ],
+        "avgSlotsPerWorld": 25.8,
+        "contentTypes": [
+          "npc"
+        ],
+        "anchor": false
+      },
+      {
+        "tag": "trade",
+        "tier": 1,
+        "glyph": "⇄",
+        "factions": [
+          "commons",
+          "drift"
+        ],
+        "avgSlotsPerWorld": 23.8,
+        "contentTypes": [
+          "npc",
+          "item"
+        ],
+        "anchor": false
+      },
+      {
+        "tag": "grow",
+        "tier": 1,
+        "glyph": "❀",
+        "factions": [
+          "commons",
+          "continuant"
+        ],
+        "avgSlotsPerWorld": 15.3,
+        "contentTypes": [
+          "npc"
+        ],
+        "anchor": true
+      },
+      {
+        "tag": "mend",
+        "tier": 1,
+        "glyph": "⚙",
+        "factions": [
+          "commons",
+          "rindwalker"
+        ],
+        "avgSlotsPerWorld": 13,
+        "contentTypes": [
+          "npc",
+          "item"
+        ],
+        "anchor": true
+      },
+      {
+        "tag": "heal",
+        "tier": 2,
+        "glyph": "✚",
+        "factions": [
+          "commons",
+          "continuant"
+        ],
+        "avgSlotsPerWorld": 22.1,
+        "contentTypes": [
+          "npc"
+        ],
+        "anchor": false
+      },
+      {
+        "tag": "learn",
+        "tier": 2,
+        "glyph": "❍",
+        "factions": [
+          "commons",
+          "drift"
+        ],
+        "avgSlotsPerWorld": 21.8,
+        "contentTypes": [
+          "npc",
+          "lore_fragment"
+        ],
+        "anchor": true
+      },
+      {
+        "tag": "worship",
+        "tier": 2,
+        "glyph": "☥",
+        "factions": [
+          "commons",
+          "rindwalker"
+        ],
+        "avgSlotsPerWorld": 20.5,
+        "contentTypes": [
+          "npc",
+          "lore_fragment"
+        ],
+        "anchor": true
+      },
+      {
+        "tag": "play",
+        "tier": 2,
+        "glyph": "◍",
+        "factions": [
+          "commons",
+          "drift"
+        ],
+        "avgSlotsPerWorld": 17,
+        "contentTypes": [
+          "npc"
+        ],
+        "anchor": true
+      },
+      {
+        "tag": "store",
+        "tier": 2,
+        "glyph": "▣",
+        "factions": [
+          "commons",
+          "rindwalker"
+        ],
+        "avgSlotsPerWorld": 13.6,
+        "contentTypes": [
+          "npc",
+          "item"
+        ],
+        "anchor": false
+      },
+      {
+        "tag": "govern",
+        "tier": 3,
+        "glyph": "⛬",
+        "factions": [
+          "commons",
+          "continuant"
+        ],
+        "avgSlotsPerWorld": 16.7,
+        "contentTypes": [
+          "npc",
+          "lore_fragment"
+        ],
+        "anchor": true
+      },
+      {
+        "tag": "move",
+        "tier": 3,
+        "glyph": "↕",
+        "factions": [
+          "commons",
+          "drift"
+        ],
+        "avgSlotsPerWorld": 15.2,
+        "contentTypes": [
+          "npc"
+        ],
+        "anchor": false
+      }
+    ],
+    "noCreatures": true
+  },
+  "sample": {
+    "seed": 7,
+    "chunks": [
+      {
+        "id": 0,
+        "key": "commons",
+        "label": "The Commons",
+        "faction": null,
+        "exclusive": null,
+        "rooms": [
+          {
+            "key": "nave:c0:r0",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r1",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "lore_fragment"
+            ]
+          },
+          {
+            "key": "nave:c0:r2",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r3",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r4",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r5",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r6",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r7",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r8",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "lore_fragment"
+            ]
+          },
+          {
+            "key": "nave:c0:r9",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r10",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r11",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r12",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r13",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r14",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r15",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "lore_fragment"
+            ]
+          },
+          {
+            "key": "nave:c0:r16",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r17",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r18",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r19",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r20",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r21",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r22",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r23",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r24",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r25",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r26",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r27",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r28",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r29",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r30",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r31",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r32",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r33",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r34",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r35",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "lore_fragment"
+            ]
+          },
+          {
+            "key": "nave:c0:r36",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r37",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r38",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r39",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r40",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "lore_fragment"
+            ]
+          },
+          {
+            "key": "nave:c0:r41",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c0:r42",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r43",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c0:r44",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": null,
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "key": "rind-worship",
+        "label": "Rindwalker · worship",
+        "faction": "rindwalker",
+        "exclusive": "worship",
+        "rooms": [
+          {
+            "key": "nave:c1:r0",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r1",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r2",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r3",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r4",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r5",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r6",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r7",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r8",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r9",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r10",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r11",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r12",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r13",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r14",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r15",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r16",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r17",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r18",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r19",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c1:r20",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r21",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r22",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r23",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r24",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c1:r25",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r26",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c1:r27",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r28",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r29",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c1:r30",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r31",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c1:r32",
+            "role": "worship",
+            "glyph": "☥",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c1:r33",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c1:r34",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r35",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r36",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r37",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c1:r38",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "key": "rind-mend",
+        "label": "Rindwalker · mend",
+        "faction": "rindwalker",
+        "exclusive": "mend",
+        "rooms": [
+          {
+            "key": "nave:c2:r0",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "item",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c2:r1",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "item",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c2:r2",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r3",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r4",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r5",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r6",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r7",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r8",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r9",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r10",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r11",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "item",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c2:r12",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r13",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r14",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "item",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c2:r15",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "item",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c2:r16",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r17",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r18",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r19",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r20",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r21",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r22",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r23",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r24",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r25",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r26",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r27",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r28",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r29",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r30",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r31",
+            "role": "store",
+            "glyph": "▣",
+            "tier": 2,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r32",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "item",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c2:r33",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r34",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r35",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r36",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r37",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r38",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r39",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r40",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r41",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r42",
+            "role": "mend",
+            "glyph": "⚙",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "item",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c2:r43",
+            "role": "make",
+            "glyph": "⚒",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c2:r44",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c2:r45",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "rindwalker",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "key": "cont-govern",
+        "label": "Continuant · govern",
+        "faction": "continuant",
+        "exclusive": "govern",
+        "rooms": [
+          {
+            "key": "nave:c3:r0",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r1",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r2",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r3",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r4",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r5",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r6",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r7",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r8",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r9",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r10",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r11",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r12",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r13",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r14",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r15",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r16",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r17",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r18",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r19",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r20",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r21",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r22",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r23",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r24",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r25",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r26",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r27",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r28",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r29",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r30",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r31",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r32",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r33",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r34",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r35",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r36",
+            "role": "govern",
+            "glyph": "⛬",
+            "tier": 3,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c3:r37",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c3:r38",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "key": "cont-grow",
+        "label": "Continuant · grow",
+        "faction": "continuant",
+        "exclusive": "grow",
+        "rooms": [
+          {
+            "key": "nave:c4:r0",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r1",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c4:r2",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r3",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c4:r4",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c4:r5",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r6",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r7",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c4:r8",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r9",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r10",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c4:r11",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r12",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r13",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r14",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c4:r15",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r16",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r17",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r18",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c4:r19",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r20",
+            "role": "grow",
+            "glyph": "❀",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c4:r21",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r22",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r23",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r24",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r25",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r26",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r27",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r28",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r29",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r30",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r31",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r32",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r33",
+            "role": "heal",
+            "glyph": "✚",
+            "tier": 2,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r34",
+            "role": "serve",
+            "glyph": "☕",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c4:r35",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "continuant",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "key": "drift-learn",
+        "label": "Drift · learn",
+        "faction": "drift",
+        "exclusive": "learn",
+        "rooms": [
+          {
+            "key": "nave:c5:r0",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r1",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r2",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c5:r3",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r4",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r5",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r6",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r7",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r8",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r9",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r10",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r11",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r12",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c5:r13",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r14",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r15",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r16",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r17",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c5:r18",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r19",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c5:r20",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c5:r21",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r22",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r23",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r24",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r25",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c5:r26",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r27",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r28",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r29",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r30",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r31",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r32",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r33",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r34",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r35",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r36",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c5:r37",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r38",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c5:r39",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r40",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c5:r41",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c5:r42",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c5:r43",
+            "role": "learn",
+            "glyph": "❍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "lore_fragment",
+              "plot_beat"
+            ]
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "key": "drift-play",
+        "label": "Drift · play",
+        "faction": "drift",
+        "exclusive": "play",
+        "rooms": [
+          {
+            "key": "nave:c6:r0",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r1",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r2",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r3",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r4",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r5",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r6",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r7",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r8",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r9",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r10",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r11",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r12",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r13",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r14",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r15",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r16",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r17",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r18",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r19",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r20",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r21",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r22",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r23",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r24",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r25",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r26",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r27",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r28",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r29",
+            "role": "trade",
+            "glyph": "⇄",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc",
+              "item"
+            ]
+          },
+          {
+            "key": "nave:c6:r30",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r31",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r32",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r33",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r34",
+            "role": "play",
+            "glyph": "◍",
+            "tier": 2,
+            "faction": "drift",
+            "exclusive": true,
+            "contentTypes": [
+              "npc",
+              "plot_beat"
+            ]
+          },
+          {
+            "key": "nave:c6:r35",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r36",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r37",
+            "role": "dwell",
+            "glyph": "⌂",
+            "tier": 1,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r38",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          },
+          {
+            "key": "nave:c6:r39",
+            "role": "move",
+            "glyph": "↕",
+            "tier": 3,
+            "faction": "drift",
+            "exclusive": false,
+            "contentTypes": [
+              "npc"
+            ]
+          }
+        ]
+      }
+    ],
+    "totalRooms": 289
+  }
+}

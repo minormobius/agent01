@@ -58,4 +58,14 @@ exported as an alternative, but the tessellation is the default.
 Pure + node-tested: `node hoop/nave/test/nave.selftest.mjs` (36 checks — the topology graph, the commons
 completeness, exclusive-building isolation, faction role separation, one connected world, determinism).
 
+## Content slots (the hoopy handoff)
+
+`manifest.js` describes the **content slots** the nave exposes, so the existing distribution engine
+(`v099/story/engine.js` — deal a tier-legal pool item onto a feature_key on first touch) can be filled.
+Every room is a feature; its **role** is the dispatcher tag, **faction** the flavour, the role **tier** the
+band to author at; the six **exclusive** buildings are the lobe anchors (quest hooks). `slotProfile()`
+averages the guaranteed floors + typical depth over many seeds. Regenerate the handoff doc with
+`node hoop/nave/gen-slots.mjs` → **[`SLOTS.md`](SLOTS.md)** (+ `slots.json`). Pinned by
+`test/manifest.selftest.mjs` (29 checks). Floor 1 is no-baddies, so no creature pools.
+
 Served at `/nave` via `worker.js`; deploys with `hoop/**` on the owning branch.
