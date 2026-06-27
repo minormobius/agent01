@@ -63,6 +63,20 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   solves + spawns first, the six wards stream in paced one-per-tick like normal chunk loads), and
   `maybeStream` is gated on `world._nave` so the bounded floor never streams past its seven wards. The
   standalone `/nave` page stays the design view.
+- `rind/` — **floor 2** at `hoop.mino.mobi/rind`. The structural underworld below the nave (deck 3 of the
+  story spine, "The Vessel"), reached by **descending the shaft** once the nave is cleared
+  (`narrative_tier ≥ 3`). A central **shaft-foot hub** spoked to three stations on alternating hex sides
+  (dirs 0·2·4, so the spokes touch only the hub — a clean **star**): **Navigation** · **The Propulsion
+  Drum** · **The Signal Chamber** (the tier-3 revelation seat). **Infrastructure only** — no `grow`
+  (farms), no `play` (arcades); just make · mend · store · move · govern, and the Signal (worship · learn).
+  `rind.js#buildRind(seed)` composes the **same v2 engine as the nave** (`prepareRind`/`rindSolveNext` pace
+  the four solves; one shared foam seed). Standalone `/rind` view (`index.html` + `rind-app.js`) is a
+  near-clone of the nave view (station · verb · full skin, pan/zoom). Pure + node-tested
+  (`rind/test/rind.selftest.mjs`, 36 checks). See `rind/README.md`. **NB:** this is the game's rind FLOOR,
+  the playable cousin of the repo-root `/rind` structural WING — same name, different layer. **In-game
+  descent wiring is the next step**: `v099/index.html#maybeBuildRind` already gates at tier 3 but builds a
+  single placeholder chunk; swap it for this streamed four-chunk floor, **offset** in world coords (the
+  rind's hub↔station seams share the nave's lattice, so co-locating would leak the player between decks).
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a

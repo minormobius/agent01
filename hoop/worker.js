@@ -153,6 +153,10 @@ export default {
     if (url.pathname === '/v099/spine' || url.pathname === '/v099/spine/') {
       return env.ASSETS.fetch(new Request(new URL('/v099/story/spine.html', url), request));
     }
+    // rind — floor 2: the structural underworld (shaft-foot hub + Navigation / Drum / Signal stations).
+    if (url.pathname === '/rind' || url.pathname === '/rind/') {
+      return env.ASSETS.fetch(new Request(new URL('/rind/index.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
