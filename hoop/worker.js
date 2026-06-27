@@ -161,6 +161,10 @@ export default {
     if (url.pathname === '/forge' || url.pathname === '/forge/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/index.html', url), request));
     }
+    // forge/elements — the periodic table → looping-Sankey: every element's closed cycle (biome ⊕ forge).
+    if (url.pathname === '/forge/elements' || url.pathname === '/forge/elements/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/elements.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

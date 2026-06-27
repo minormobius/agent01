@@ -115,6 +115,21 @@ the CREW eats O₂+food+water (biome) and wears products (forge) — the node th
 - Pinned: `test/ledger.selftest.mjs` (19) · `test/needs.selftest.mjs` (12).
 - **Energetics (tide) is the next seam** — tracked, not far away, not wired yet.
 
+## The endpoint — the periodic table → looping Sankey (live)
+
+`hoop.mino.mobi/forge/elements` (`elements.html` + `elements-app.js`). The 14 tracked elements as a
+periodic table, coloured by metabolism (biotic · shared · industrial). **Tap an element → its CLOSED
+CYCLE draws as a ring that loops back on itself**, magnitudes from `ledger.js#elementCycle`:
+
+- **Carbon** — the grand loop: `Atmosphere·CO₂ → Photosynthesis → Biomass →` forks to `Crew →(respire)→`
+  back and `Forge → Carbon fiber → Structure·locked →(pump)→` back. The **grow-factor slider** dials the
+  biome over-grow; the verdict shows carbon closing and the pump rate (the carbon-pump thesis, live).
+- **Iron / Silicon / …** — pure industrial rings: `stock → refine → fabricate → assemble → in-use → wear
+  → reclaim →` back, with a small reserve-makeup spur (the recycling tax).
+- **N / O / H** — biotic loops (biome uptake → biomass → litter → decompose → back) with a forge tap.
+
+Pinned by `test/elementcycle.selftest.mjs` (74 — every element's cycle loops back, balanced).
+
 ## Status / next
 
 - `catalogue.js` — the ~40 classes as data, each with loop · need · element vector · family bridge · a

@@ -119,3 +119,69 @@ export function elementFlows(sym) {
     .filter((x) => x.frac > 0).sort((a, b) => b.frac - a.frac);
   return { sym, name: (ELEMENT[sym] || {}).name, metabolism: biotic ? 'shared/biotic' : 'industrial', biotic, inProducts };
 }
+
+// ── the per-element CLOSED CYCLE — the looping-Sankey data. Every cycle returns to its source pool, so the
+// chart loops back on itself. Magnitudes come from the unified ledger (kg/day). Three shapes: the carbon
+// GRAND LOOP (biome + forge + the pump), a generic biotic loop (N/O/H), and the industrial ring (the rest).
+function industrialCycle(sym, u) {
+  const F = Math.max(0.1, u.perElement[sym].forgeFlowKg || 0), recycled = F * 0.92, makeup = F - recycled;
+  return {
+    unit: 'kg/day', flow: +F.toFixed(1),
+    nodes: [
+      { id: 'pool', label: sym + ' stock', kind: 'pool' }, { id: 'refine', label: 'Refine', kind: 'process' },
+      { id: 'fab', label: 'Fabricate', kind: 'process' }, { id: 'asm', label: 'Assemble', kind: 'process' },
+      { id: 'use', label: 'In use', kind: 'use' }, { id: 'wear', label: 'Wear', kind: 'process' },
+      { id: 'reclaim', label: 'Reclaim', kind: 'recover' }, { id: 'reserve', label: 'Reserve', kind: 'reserve' },
+    ],
+    links: [
+      { from: 'pool', to: 'refine', value: F, kind: 'flow' }, { from: 'refine', to: 'fab', value: F, kind: 'flow' },
+      { from: 'fab', to: 'asm', value: F, kind: 'flow' }, { from: 'asm', to: 'use', value: F, kind: 'flow' },
+      { from: 'use', to: 'wear', value: F, kind: 'flow' }, { from: 'wear', to: 'reclaim', value: F, kind: 'flow' },
+      { from: 'reclaim', to: 'pool', value: recycled, kind: 'recycle' }, { from: 'reserve', to: 'pool', value: makeup, kind: 'makeup' },
+    ],
+  };
+}
+function carbonCycle(u) {
+  const crew = Math.max(0.01, u.biome.crewFoodKgDay), forge = Math.max(0, u.pump.totalDrawKgC);
+  const locked = Math.max(0, u.pump.lockedKgC), fast = Math.max(0, forge - locked), fix = crew + forge;
+  return {
+    unit: 'kgC/day', flow: +fix.toFixed(1),
+    nodes: [
+      { id: 'air', label: 'Atmosphere · CO₂', kind: 'pool' }, { id: 'photo', label: 'Photosynthesis', kind: 'biome' },
+      { id: 'biomass', label: 'Biomass', kind: 'biome' }, { id: 'crew', label: 'Crew', kind: 'crew' },
+      { id: 'forge', label: 'Forge', kind: 'forge' }, { id: 'fiber', label: 'Carbon fiber', kind: 'forge' },
+      { id: 'struct', label: 'Structure · locked', kind: 'pump' },
+    ],
+    links: [
+      { from: 'air', to: 'photo', value: fix, kind: 'flow' }, { from: 'photo', to: 'biomass', value: fix, kind: 'flow' },
+      { from: 'biomass', to: 'crew', value: crew, kind: 'flow' }, { from: 'crew', to: 'air', value: crew, kind: 'recycle' },
+      { from: 'biomass', to: 'forge', value: forge, kind: 'flow' }, { from: 'forge', to: 'fiber', value: forge, kind: 'flow' },
+      { from: 'fiber', to: 'air', value: fast, kind: 'recycle' }, { from: 'fiber', to: 'struct', value: locked, kind: 'pump' },
+      { from: 'struct', to: 'air', value: locked, kind: 'pump' },
+    ],
+  };
+}
+function bioticCycle(sym, u) {
+  const F = Math.max(0.1, u.perElement[sym].forgeFlowKg || 0), bio = F * 4 + 10;   // biome cycles much more of it than the forge taps
+  return {
+    unit: 'kg/day', flow: +bio.toFixed(1),
+    nodes: [
+      { id: 'pool', label: sym + ' pool', kind: 'pool' }, { id: 'uptake', label: 'Biome uptake', kind: 'biome' },
+      { id: 'biomass', label: 'Biomass', kind: 'biome' }, { id: 'litter', label: 'Litter', kind: 'biome' },
+      { id: 'decomp', label: 'Decompose', kind: 'biome' }, { id: 'forge', label: 'Forge tap', kind: 'forge' },
+    ],
+    links: [
+      { from: 'pool', to: 'uptake', value: bio, kind: 'flow' }, { from: 'uptake', to: 'biomass', value: bio, kind: 'flow' },
+      { from: 'biomass', to: 'litter', value: bio - F, kind: 'flow' }, { from: 'litter', to: 'decomp', value: bio - F, kind: 'flow' },
+      { from: 'decomp', to: 'pool', value: bio - F, kind: 'recycle' }, { from: 'biomass', to: 'forge', value: F, kind: 'flow' },
+      { from: 'forge', to: 'pool', value: F, kind: 'recycle' },
+    ],
+  };
+}
+export function elementCycle(sym, { people = 1000, growFactor = 3, u } = {}) {
+  u = u || unifiedLedger({ people, growFactor });
+  const E = ELEMENT[sym] || {};
+  const top = elementFlows(sym).inProducts.slice(0, 6).map((x) => ({ id: x.id, name: (PRODUCT[x.id] || {}).name, glyph: (PRODUCT[x.id] || {}).glyph, frac: +x.frac.toFixed(3) }));
+  const base = sym === 'C' ? carbonCycle(u) : BIOTIC.includes(sym) ? bioticCycle(sym, u) : industrialCycle(sym, u);
+  return { sym, name: E.name, metabolism: BIOTIC.includes(sym) ? (sym === 'C' ? 'shared' : 'biotic') : 'industrial', closes: sym === 'C' ? u.carbonClosed : true, topProducts: top, ...base };
+}
