@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<base href="/forge/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>the forge · production flow</title>
+<meta name="description" content="The ship's industrial metabolism as a production flow graph: named processing steps, intermediates, recycling and bio-regeneration, with closure read live. Click any process for its recipe + wiki." />
+<style>
+  :root { --bg:#080a0e; --panel:#0e1219; --panel2:#0b0e14; --line:#1e2636; --ink:#e6e8ee; --soft:#8794a6; --dim:#566173; --gold:#f4bf62; --accent:#e0772f; --green:#8fd06a; --warn:#e0905a; --bad:#e0635a; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:hidden; }
+  .wrap { display:flex; height:100vh; }
+  #rail { width:300px; flex:none; background:var(--panel); border-right:1px solid var(--line); overflow:auto; padding:14px 13px 30px; }
+  #stage { flex:1; position:relative; min-width:0; background:radial-gradient(130% 130% at 60% 30%, #11140f, #06070a); }
+  #cv { width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #cv.drag { cursor:grabbing; }
+  h1 { font-size:14px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 2px; }
+  .sub { color:var(--soft); font-size:11px; margin:0 0 12px; }
+  .grp { border-top:1px solid var(--line); padding:11px 0 4px; }
+  .grp h2 { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin:0 0 8px; font-weight:600; }
+  .ctrl { margin:7px 0; }
+  .ctrl label { display:flex; justify-content:space-between; color:var(--soft); font-size:11px; margin-bottom:2px; }
+  .ctrl label b { color:var(--ink); }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  .bars { display:flex; flex-direction:column; gap:6px; }
+  .bar { font-size:11px; }
+  .bar .t { display:flex; justify-content:space-between; color:var(--soft); margin-bottom:2px; }
+  .bar .t b { color:var(--ink); }
+  .track { height:8px; background:var(--panel2); border:1px solid var(--line); border-radius:5px; overflow:hidden; position:relative; }
+  .track i { display:block; height:100%; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 10px; font-size:10.5px; color:var(--soft); }
+  .legend .row { display:flex; align-items:center; gap:5px; }
+  .sw { width:11px; height:3px; border-radius:2px; flex:none; }
+  .crumb { color:var(--soft); font-size:11px; margin-top:16px; }
+  .crumb a { color:var(--accent); text-decoration:none; }
+  .hint { position:absolute; right:12px; bottom:10px; color:var(--dim); font-size:10.5px; }
+  /* info panel */
+  #info { position:absolute; top:12px; right:12px; width:330px; max-height:calc(100vh - 24px); overflow:auto; background:rgba(14,18,25,.97); border:1px solid var(--line); border-radius:11px; padding:14px 15px; display:none; box-shadow:0 8px 30px rgba(0,0,0,.5); }
+  #info.on { display:block; }
+  #info .x { position:absolute; top:10px; right:12px; color:var(--dim); cursor:pointer; font-size:15px; }
+  #info .ih { display:flex; align-items:center; gap:9px; margin-bottom:3px; }
+  #info .ig { font-size:20px; }
+  #info .it { font-size:15px; font-weight:600; }
+  #info .cat { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); margin-bottom:8px; }
+  #info .prose { color:var(--soft); font-size:12px; line-height:1.6; margin:8px 0; }
+  #info .reck { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); margin:11px 0 4px; }
+  #info .rec { font-size:12px; color:var(--ink); }
+  #info .rec .io { color:var(--soft); }
+  #info .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
+  #info .chip { font-size:11px; padding:1px 8px; border:1px solid var(--line); border-radius:10px; cursor:pointer; color:var(--ink); background:var(--panel2); }
+  #info .chip:hover { border-color:#3a4a5c; }
+  #info .energy { color:var(--warn); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="rail">
+    <h1>the forge</h1>
+    <p class="sub">production flow — the ship's closed industrial metabolism. Drag the deployed setpoints; watch the loops carry it and the closure read respond.</p>
+
+    <div class="grp" style="border-top:none">
+      <h2>deployed setpoints</h2>
+      <div id="sliders"></div>
+    </div>
+
+    <div class="grp">
+      <h2>closure — makeup from reserve</h2>
+      <p class="sub" style="font-size:10.5px;margin:0 0 8px">how much feedstock each step the recycling + bio-regen loops <i>can't</i> supply (drawn from the ship's finite reserve). 0 = fully closed.</p>
+      <div class="bars" id="closure"></div>
+    </div>
+
+    <div class="grp">
+      <h2>energy — the tide seam</h2>
+      <div class="bar"><div class="t"><span>draw vs budget</span><b id="ev">—</b></div><div class="track"><i id="ebar"></i></div></div>
+      <p class="sub" style="font-size:10.5px;margin:6px 0 0">the Grow Vat (photosynthesis) is the biggest single draw.</p>
+    </div>
+
+    <div class="grp">
+      <h2>flows</h2>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <p class="crumb">↩ <a href="/">mino.mobi</a> · <a href="/rind">the rind</a> · the model: <code>forge/graph.js</code></p>
+  </div>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="info"><span class="x" id="ix">✕</span><div id="ibody"></div></div>
+    <p class="hint">scroll to zoom · drag to pan · click a process or material for its recipe + wiki</p>
+  </div>
+</div>
+<script type="module" src="./forge-app.js"></script>
+</body>
+</html>

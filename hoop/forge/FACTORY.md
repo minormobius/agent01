@@ -105,18 +105,54 @@ mass still conserved). Starve the energy budget → chronic throttle. *Closing t
 get right* — over 40 rolled configs (`rollConfig`), conservation always holds but the oracle spreads across
 viability tiers.
 
+## The production graph (`graph.js`) — the Factorio view
+
+`forge.js` is the aggregate metabolism (stocks ↔ scrap ↔ deployed). `graph.js` is the **detailed process
+network** beneath it: every named processing step, its machine, its intermediates, and the recycling +
+bio-regenerative loops that close it. Same conservation discipline — each process declares inputs + named
+outputs and the kernel emits an implicit **loss → scrap** output, so a process can never create mass
+(output > input is an authoring error, caught by `validate()`); the "yield loss" of a real step becomes
+scrap the recyclers must reclaim.
+
+- **Materials** (31): feedstock (the 7 conserved bases) → intermediates (plate, wire, glass, ceramic,
+  resin, nutrient, food) → components (frame, gear, board, chip, panel) → products → scrap streams.
+- **Processes** (25): **refine** (mill/furnace/kiln/extruder/reactor), **fabricate** (frame/machine/board/
+  chip/panel shops), **assemble** (hull/fixture/machine/circuit lines + galley), **recycle** (shredder,
+  remelter, depolymerizer, catalyst-recovery — the industrial decomposers), **bio-regen** (digester →
+  nutrient-synth → grow-vat → food-mill — the organic loop), **seam** (condenser).
+- **The seams, as actual processes:** ENERGY (tide) is the cost on every machine and the Grow Vat's huge
+  draw (`energyDemand()` → compare to tide's `total_GW`); the BIO-REGEN loop IS the biome bridge (organic
+  waste digested back to nutrient, grown back to biomass + food); the CONDENSER closes water (iris).
+- **`solveFlow(demand)`** back-propagates product demand through the (acyclic) builder graph to every
+  process's run-rate and every material edge, then **cascades** recovery (product wear → scrap → recycler
+  → feedstock, multi-step) and reports per-feedstock **closure** (recovered vs demanded). Product wear
+  routes to scrap by each product's **real composition** (`compositionOf`), so recovery is exact.
+- **The honest read:** with realistic recycler yields (90–95%) nothing closes *perfectly* — there's always
+  a small makeup = the recycling loss (the generation-ship clock). Metal/silica are ~95% closed, volatiles
+  closes via bio-regen surplus, **water** leaks most (life-support) and **trace** is the keystone leak
+  (catalysts scatter into every stream). Closing those gaps is the game. Pinned by `test/graph.selftest.mjs`
+  (82 checks).
+
+A **flow page** at **`hoop.mino.mobi/forge`** (`index.html` + `forge-app.js`) renders the graph
+Factorio-style: feedstock pools → refine → fabricate → assemble → product pools, with wear → scrap pools →
+recyclers + bio-regen looping back; edges coloured by family, width ∝ rate. Drag the deployed setpoints to
+drive it; the closure bars + energy-vs-budget respond live. Click any process or material for its **recipe +
+wiki** (`wiki.js` — authored prose merged with derived recipe facts; info tabs cross-link).
+
 ## What this is, and what's next
 
-This is the **spine** — the conserved cycle proven to close — not the factory yet. The deliberate sequence
-(taking more care this time):
+The closed cycle is proven (`forge.js`) and the detailed production network + flow page are live
+(`graph.js` + `/forge`). The deliberate sequence:
 
-1. **Metabolism kernel + oracle + published verticals** — *this, done.* The closed loop, proven.
-2. **Couple the seams** — energy from tide's ledger, biomass exchange with biome, water/heat with iris —
-   so the Forge runs on the ship's real budgets instead of standalone constants.
-3. **Place it in the rind** — bind processes (reclaimer, smelter, mill, assembler, line) to upper-rind
+1. **Metabolism kernel + oracle + published verticals** — *done.* The closed loop, proven.
+2. **The production graph + seams + flow page** — *done.* Named steps, intermediates, recycling,
+   bio-regeneration; energy/water/biomass seams as processes; the visual flow + wiki.
+3. **Numeric seam coupling** — feed tide's real `energyLedger().total_GW` and biome's biomass exchange in
+   as live budgets (today the energy budget + seam flows are self-contained reference constants).
+4. **Place it in the rind** — bind processes (reclaimer, smelter, mill, assembler, line) to upper-rind
    chambers, route material along the rind roads (the logistics layer over the chamber graph).
-4. **Rooms & fixtures** — the verticals become the game: robots, machines, assembly lines you walk among,
+5. **Rooms & fixtures** — the processes become the game: robots, machines, assembly lines you walk among,
    in the nave/rind aesthetic. The kernel is what makes them *mean* something — a fixture that stops
-   reclaiming is a loop you can watch start to leak.
+   reclaiming is a loop you watch start to leak.
 
-Run: `node hoop/forge/test/forge.selftest.mjs`.
+Run: `node hoop/forge/test/forge.selftest.mjs` · `node hoop/forge/test/graph.selftest.mjs`.

@@ -157,6 +157,10 @@ export default {
     if (url.pathname === '/rind' || url.pathname === '/rind/') {
       return env.ASSETS.fetch(new Request(new URL('/rind/index.html', url), request));
     }
+    // forge — the production-flow graph: the ship's industrial metabolism (named steps, recycling, bio-regen).
+    if (url.pathname === '/forge' || url.pathname === '/forge/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/index.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

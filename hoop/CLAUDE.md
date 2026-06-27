@@ -88,10 +88,21 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   products (structure · fixture · machine · circuit · consumable). The **closure law**: `reclaimCap ≥
   wearDemand` per commodity. An **oracle** (`oracle()`) scores whether the loop closes (Closed · Lean ·
   Leaking · Draining · Collapsing), names the keystone valve, and catches the failure modes. Pure +
-  node-tested (`forge/test/forge.selftest.mjs`, 34 checks). **Status: the spine only** — the conserved cycle
-  proven to close. Next: couple the seams (tide energy · biome biomass · iris water), then place processes
-  in rind chambers (the logistics layer), then rooms/fixtures (robots, lines — the game). See `FACTORY.md`.
-  **Seams** (biomass↔biome, water/heat↔tide·iris) are documented but inactive in v1 so conservation is exact.
+  node-tested (`forge/test/forge.selftest.mjs`, 34 checks). The detailed **production graph**
+  (`forge/graph.js`) is the Factorio layer beneath the aggregate: 31 materials (feedstock → intermediates →
+  components → products → scrap) and 25 named **processes** (refine · fabricate · assemble · recycle ·
+  bio-regen · seam), same structural conservation (each process's implicit loss→scrap means output can never
+  exceed input). The **seams are processes**: energy on every machine (the Grow Vat is the big draw — tide),
+  the digest→synth→grow→mill organic loop (biome), the condenser (iris). `solveFlow(demand)` back-props to
+  per-process rates + edge flows and **cascades** recovery (wear→scrap→recycler→feedstock) with
+  composition-accurate wear routing (`compositionOf`); the honest closure read: metal/silica ~95% closed,
+  volatiles closes (bio surplus), water + trace are the makeup leaks (life-support; the scarce keystone).
+  Pinned by `forge/test/graph.selftest.mjs` (82 checks). **Flow page** at `hoop.mino.mobi/forge`
+  (`index.html` + `forge-app.js`): the graph rendered Factorio-style (pools → refine → fabricate → assemble
+  → products, wear → scrap → recyclers/bio-regen looping back; edges family-coloured, width ∝ rate), live
+  deployed-setpoint sliders driving closure bars + energy-vs-budget, and click-a-node → recipe + **wiki**
+  (`forge/wiki.js`, authored prose merged with derived facts). **Next:** numeric seam coupling (tide's real
+  `total_GW`, biome biomass) → place processes in rind chambers → rooms/fixtures (robots, lines). See `FACTORY.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a
