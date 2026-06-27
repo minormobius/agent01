@@ -86,6 +86,35 @@ a ship's mass and every loop. Click an element on the periodic table → a Sanke
 through products → use → waste → recycle → back, **looping on itself** because the system is closed. The
 closure math `graph.js` already does, re-expressed per element.
 
+## The unified engine — biome (life support) ⊕ forge (industry) on one element ledger
+
+The forge is an **extension of biome** to give the ship robots, chips and pumps — not a parallel system.
+biome's `cycles.mjs` is already an **element-exact box model** that conserves **C·H·O·N**, so we don't
+rebuild air/water/food as machines: **biome IS the life support**, vendored verbatim into
+`vendor/biome/` (copy-never-fork, see its README). The forge adds the **industrial** elements
+(Si·Fe·Al·Cu·Ti·Ni·P·S·Ca·RE) and the industrial flux of carbon. They share one ledger and couple at:
+
+```
+biome ──(biomass/food: organic C)──► forge living products (carbon fiber, bioplastic, food goods)
+forge ──(CO₂ + mineral N, from recyclers/digester)──► biome      ← closes the bio elements
+the CREW eats O₂+food+water (biome) and wears products (forge) — the node that joins them
+```
+
+- **`ledger.js`** runs vendored biome to steady state (sized to the population), reads its C·H·O·N ledger +
+  life-support rates, computes the forge's per-element flows from the population's needs, and reports each
+  element's **metabolism** (biotic · industrial · **shared**) and closure.
+- **The carbon pump is mechanical, and a dial.** The forge locks biomass-carbon into long-lived structure
+  (woven carbon fiber → hull/cable). Carbon closes only if biome's NPP **surplus** ≥ the forge's carbon
+  draw — which means the ship must **over-grow**. Result at population 1000: `growFactor 1` (food-only
+  biome) → carbon short; **`growFactor ≈ 3` → carbon closes** and the pump locks ~16 kgC/day into
+  structure. A manufacturing generation ship has to fix **~3× the carbon** of a food-only one. Your
+  carbon-pump hypothesis falls out of the model.
+- **The nave is the demand.** `needs.js` maps the nave's verbs (econ roles) → the loops they drive, and a
+  population → a product-demand + life-support vector. The robot supply chain is the template: every product
+  is `standing stock × wear`, so one cycle shape covers them all.
+- Pinned: `test/ledger.selftest.mjs` (19) · `test/needs.selftest.mjs` (12).
+- **Energetics (tide) is the next seam** — tracked, not far away, not wired yet.
+
 ## Status / next
 
 - `catalogue.js` — the ~40 classes as data, each with loop · need · element vector · family bridge · a

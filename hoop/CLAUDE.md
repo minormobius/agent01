@@ -101,8 +101,16 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   (`index.html` + `forge-app.js`): the graph rendered Factorio-style (pools → refine → fabricate → assemble
   → products, wear → scrap → recyclers/bio-regen looping back; edges family-coloured, width ∝ rate), live
   deployed-setpoint sliders driving closure bars + energy-vs-budget, and click-a-node → recipe + **wiki**
-  (`forge/wiki.js`, authored prose merged with derived facts). **Next:** numeric seam coupling (tide's real
-  `total_GW`, biome biomass) → place processes in rind chambers → rooms/fixtures (robots, lines). See `FACTORY.md`.
+  (`forge/wiki.js`, authored prose merged with derived facts). **The needs + unified-ledger layer**
+  (`NEEDS.md`): products are derived from the ship's NEEDS (15 loops of a closed generation ship) →
+  `catalogue.js` (~50 element-tagged product classes over 14 real elements, the periodic-table/Sankey
+  substrate); `needs.js` maps the nave's verbs → loops → a population's demand; and **`ledger.js` is the
+  unified element ledger** — it vendors **biome** verbatim (`vendor/biome/`, copy-never-fork) as the
+  **life-support** half (biome conserves C·H·O·N) and adds the **industrial** half (Si·Fe·…) on ONE ledger,
+  coupled at the shared pools. The **carbon pump is mechanical + a dial**: carbon closes only when biome
+  over-grows (~3×) to feed industry on top of the crew. Pinned by `test/{catalogue,needs,ledger}.selftest.mjs`.
+  **Next:** vendor → DONE; energetics (tide) seam; the periodic-table → looping-Sankey page; then place
+  processes in rind chambers + rooms/fixtures (robots, lines). See `NEEDS.md` + `FACTORY.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a
