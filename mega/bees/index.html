@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bee Lab · mega.mino.mobi/bees</title>
+<meta name="description" content="A pixel-bee swarm: baked micro-sprites (deterministic, portable) driven by a live boids-lite + curl-noise sim. Lead the swarm with your cursor — organic chaos, no baked loop. Sister to the Sprite Lab.">
+<style>
+  :root{
+    --bg:#0f1014; --panel:#16181f; --panel2:#1c1f28; --ink:#e7e3d8; --dim:#a39c8b;
+    --faint:#6f6a5d; --gold:#d8b25a; --gold-soft:#caa24a; --line:#2a2d38; --accent:#8fd6a0;
+    --serif:Georgia,"Iowan Old Style",Cambria,"Times New Roman",serif;
+    --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--gold);text-decoration:none} a:hover{text-decoration:underline}
+  .crumb{font-size:13px;color:var(--faint);border-bottom:1px solid var(--line);padding:10px 22px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .crumb a{color:var(--dim)} .crumb .here{color:var(--gold)} .crumb .spacer{flex:1}
+  header.hero{max-width:1100px;margin:0 auto;padding:34px 22px 8px}
+  .kicker{letter-spacing:.22em;text-transform:uppercase;font-size:11px;color:var(--gold-soft);margin:0 0 10px}
+  h1{font-family:var(--serif);font-size:40px;line-height:1.05;margin:0 0 10px;font-weight:600;letter-spacing:-.01em}
+  h1 .g{color:var(--gold)}
+  .lede{font-family:var(--serif);font-size:18px;color:var(--dim);max-width:66ch;margin:0}
+  .lede b{color:#f3efe4}
+  main{max-width:1100px;margin:0 auto;padding:22px 22px 80px;display:grid;grid-template-columns:330px 1fr;gap:26px;align-items:start}
+  @media(max-width:820px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .panel h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-soft);margin:0 0 14px;font-weight:600}
+  .stagewrap{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0a0b0e}
+  #stage{display:block;width:100%;image-rendering:pixelated;cursor:crosshair;touch-action:none}
+  .hud{position:absolute;top:10px;left:12px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 4px #000}
+  .hud b{color:var(--gold-soft)}
+  .hint{position:absolute;bottom:10px;left:12px;right:12px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 4px #000}
+  .ctl{margin:13px 0}
+  .ctl label{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-bottom:5px;letter-spacing:.02em}
+  .ctl .val{color:var(--gold-soft);font-family:var(--mono)}
+  input[type=text]{width:100%;background:#0c0d11;border:1px solid var(--line);color:var(--ink);font-family:var(--mono);padding:8px 10px;border-radius:8px;font-size:13px}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  .dim{color:var(--dim)} code{font-family:var(--mono);font-size:.85em;background:var(--panel2);padding:.1em .4em;border-radius:4px;color:#e9d9a8}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  button{font-family:var(--sans);font-size:13px;background:var(--gold);color:#0f1014;border:0;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+  button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
+  button.ghost:hover{color:var(--ink);border-color:var(--gold-soft)}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:6px}
+  .seg button{background:transparent;color:var(--dim);border:0;border-radius:0;flex:1;font-weight:500;padding:7px 4px;font-size:12px}
+  .seg button.on{background:var(--gold);color:#0f1014;font-weight:600}
+  .preset{font-size:12px}
+  .foot{max-width:1100px;margin:0 auto;padding:0 22px 60px;color:var(--faint);font-size:12.5px}
+  .foot code{font-family:var(--mono);background:var(--panel2);padding:.1em .4em;border-radius:4px;color:#e9d9a8}
+  .foot h3{color:var(--dim);font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin:22px 0 8px}
+  .sub{font-size:11px;color:var(--faint);margin:-6px 0 14px}
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a> / <a href="/">mega</a> / <span class="here">bees</span>
+  <span class="spacer"></span>
+  <a href="/sprite/">← sprite lab</a> &nbsp;·&nbsp; <a href="https://fluoddity.mino.mobi">fluoddity ↗</a>
+</nav>
+
+<header class="hero">
+  <p class="kicker">mega · swarm extension</p>
+  <h1>Bee <span class="g">Lab</span></h1>
+  <p class="lede">The same pixel world, one scale down. A bee is ~3px — so we <b>bake</b> the look (a tiny seed-deterministic micro-atlas, portable like a sprite genome) and <b>simulate</b> the motion (boids-lite + curl-noise, not a baked loop). <b>Move your cursor</b> over the field to lead the swarm: it reacts, and never repeats.</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Swarm</h2>
+
+    <div class="ctl">
+      <input id="seed" type="text" value="hive:meadow" spellcheck="false">
+    </div>
+    <div class="ctl">
+      <label>bees <span class="val" id="countV">320</span></label>
+      <input id="count" type="range" min="40" max="2000" step="20" value="320">
+    </div>
+
+    <h2 style="margin-top:18px">Forces</h2>
+    <div class="ctl"><label>follow flower <span class="val" id="followV"></span></label><input id="follow" type="range" min="0" max="240" value="70"></div>
+    <div class="ctl"><label>swirl (orbit) <span class="val" id="swirlV"></span></label><input id="swirl" type="range" min="-120" max="120" value="34"></div>
+    <div class="ctl"><label>separation <span class="val" id="separationV"></span></label><input id="separation" type="range" min="0" max="300" value="130"></div>
+    <div class="ctl"><label>cohesion <span class="val" id="cohesionV"></span></label><input id="cohesion" type="range" min="0" max="80" value="9"></div>
+    <div class="ctl"><label>alignment <span class="val" id="alignmentV"></span></label><input id="alignment" type="range" min="0" max="80" value="14"></div>
+    <div class="ctl"><label>wander (curl) <span class="val" id="wanderV"></span></label><input id="wander" type="range" min="0" max="240" value="95"></div>
+    <div class="ctl"><label>wind → <span class="val" id="windXV"></span></label><input id="windX" type="range" min="-120" max="120" value="0"></div>
+
+    <div class="row">
+      <button id="reseed">reseed</button>
+      <button class="ghost" id="pause">pause</button>
+      <button class="ghost" id="reset">defaults</button>
+    </div>
+    <div class="seg" id="trailSeg">
+      <button data-trail="0" class="on">crisp</button>
+      <button data-trail="1">motion blur</button>
+    </div>
+    <div class="row">
+      <button class="ghost preset" data-preset="calm">calm hive</button>
+      <button class="ghost preset" data-preset="angry">angry swarm</button>
+      <button class="ghost preset" data-preset="ribbon">curl ribbon</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="stagewrap">
+      <canvas id="stage" width="1320" height="880"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="hint">cursor / touch = the flower · the swarm follows but won't collapse onto it</div>
+    </div>
+
+    <div class="foot">
+      <h3>Why this and not a looped animation</h3>
+      <p class="sub">A baked loop either syncs every bee (uncanny) or rides fixed rails that ignore you. This is N independent agents over a shared turbulence field — it reacts to the cursor and never repeats.</p>
+      <h3>The split that keeps it cheap</h3>
+      <p><b>Appearance is baked once.</b> <code>beeAtlas(seed)</code> → <em>headings × 2 wingbeat</em> frames of <code>{x,y,c}</code> pixels. Per frame we only pick a heading bin from velocity and stamp — never recompute pixels. <b>Motion is a struct-of-arrays fixed-timestep sim</b> (<code>Swarm.step</code>), the exact shape a WebGPU compute pass / Rust loop wants. Hundreds of bees here in plain JS; the GPU port carries tens of thousands (see <a href="https://fluoddity.mino.mobi">fluoddity</a>, 40–120k agents at 60fps).</p>
+      <h3>HTTP API — the portable bake</h3>
+      <p><code>GET /bees/api/atlas.json?seed=&amp;headings=</code> → the full micro-atlas an engine uploads to a texture.<br>
+         <code>GET /bees/api/bee.svg?seed=&amp;heading=&amp;wing=&amp;scale=</code> → one bee as an image.</p>
+      <h3>Next tier (optional): true stigmergy</h3>
+      <p class="sub">Layer a shared scent field (deposit → diffuse → sense) on top and the swarm self-organizes trails between flowers and the hive — that's the <a href="https://fluoddity.mino.mobi">fluoddity</a> loop, ported. Boids-lite is the cheap tier shipped here first.</p>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { Swarm, beeAtlas, DEFAULT_PARAMS } from './swarm.js';
+
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d', { alpha:false });
+const SCALE = 2;                          // each bee pixel = SCALE canvas px
+const W = cv.width / SCALE, H = cv.height / SCALE; // sim WORLD units (canvas is world × SCALE)
+const $ = id => document.getElementById(id);
+
+const PARAM_IDS = ['follow','swirl','separation','cohesion','alignment','wander','windX'];
+let swarm, atlas, paused=false, trail=0, last=0;
+
+function readParams(){
+  const p = {};
+  for(const k of PARAM_IDS){ p[k] = +$(k).value; $(k+'V').textContent = $(k).value; }
+  return p;
+}
+function build(){
+  const seed = $('seed').value || 'hive';
+  const count = +$('count').value; $('countV').textContent = count;
+  atlas = beeAtlas(seed, { headings: 12 });
+  swarm = new Swarm({ width:W, height:H, count, seed, headings: 12, params: readParams() });
+  swarm.setTarget(W*0.5, H*0.5);
+}
+function sync(){ if(swarm) swarm.setParams(readParams()); }
+
+// pointer leads the flower
+function pointTo(e){
+  const r = cv.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  swarm.setTarget((t.clientX-r.left)/r.width*W, (t.clientY-r.top)/r.height*H);
+}
+cv.addEventListener('mousemove', pointTo);
+cv.addEventListener('touchmove', e=>{ e.preventDefault(); pointTo(e); }, {passive:false});
+cv.addEventListener('touchstart', e=>{ e.preventDefault(); pointTo(e); }, {passive:false});
+
+function draw(){
+  if(trail){ ctx.fillStyle='rgba(10,11,14,0.34)'; ctx.fillRect(0,0,cv.width,cv.height); }
+  else { ctx.fillStyle='#0a0b0e'; ctx.fillRect(0,0,cv.width,cv.height); }
+
+  // the flower (attractor)
+  const tx = swarm.target.x, ty = swarm.target.y;
+  ctx.fillStyle = '#c853a0';
+  ctx.fillRect(tx*SCALE-SCALE, ty*SCALE-SCALE, SCALE*2, SCALE*2);
+  ctx.fillStyle = '#5aa845';
+  ctx.fillRect(tx*SCALE, (ty+1.5)*SCALE, SCALE, SCALE*2);
+
+  // stamp each bee from the baked atlas — pick heading bin + wing frame, draw its cells
+  swarm.forEachBee((px, py, bin, wing)=>{
+    const cells = atlas.cells[bin][wing];
+    const ox = Math.round(px), oy = Math.round(py);
+    for(let c=0;c<cells.length;c++){
+      const cell = cells[c];
+      ctx.fillStyle = cell.c;
+      ctx.fillRect((ox+cell.x)*SCALE, (oy+cell.y)*SCALE, SCALE, SCALE);
+    }
+  });
+
+  $('hud').innerHTML = `<b>${swarm.count}</b> bees · curl-noise + boids-lite · ${paused?'<b>paused</b>':'live'}`;
+}
+
+function frame(ts){
+  const dt = last ? Math.min(0.05,(ts-last)/1000) : 0; last = ts;
+  if(!paused) swarm.step(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// wire controls
+for(const k of PARAM_IDS) $(k).addEventListener('input', sync);
+$('count').addEventListener('input', build);
+$('seed').addEventListener('change', build);
+$('reseed').addEventListener('click', ()=>{ $('seed').value = 'hive:'+Math.random().toString(36).slice(2,8); build(); });
+$('pause').addEventListener('click', e=>{ paused=!paused; e.target.textContent = paused?'resume':'pause'; });
+$('reset').addEventListener('click', ()=>{
+  for(const k of PARAM_IDS) if(DEFAULT_PARAMS[k]!=null) $(k).value = DEFAULT_PARAMS[k];
+  readParams(); sync();
+});
+$('trailSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  trail = +b.dataset.trail;
+  [...$('trailSeg').children].forEach(c=>c.classList.toggle('on', c===b));
+});
+const PRESETS = {
+  calm:   { follow:40, swirl:20, separation:90, cohesion:14, alignment:22, wander:45, windX:0 },
+  angry:  { follow:150, swirl:70, separation:200, cohesion:6, alignment:10, wander:170, windX:0 },
+  ribbon: { follow:20, swirl:0, separation:60, cohesion:4, alignment:30, wander:220, windX:35 },
+};
+document.querySelectorAll('.preset').forEach(b=> b.addEventListener('click', ()=>{
+  const pr = PRESETS[b.dataset.preset]; if(!pr) return;
+  for(const k in pr) $(k).value = pr[k];
+  readParams(); sync();
+}));
+
+build();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
