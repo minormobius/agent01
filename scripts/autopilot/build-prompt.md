@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-06-26 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-06-27 by build-brief.mjs — do not edit by hand._
 
 **Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, arena, ask, astro, atlas, atmosphere, atproto-data, aub, audio, auto, aztec, b, bakery, basket, biome, bisk, bogo, borges, borsuk, bounty, branwen, breeder, cable, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, crucible, culhwch, cult, curve, data, deck, density, descent, diffract, disk, docs, draw, duck, dyad, echo, econ, elements, empathy, emsim, erdos, fable, feedgen, finance, fixture, flights, flogame, flotorus, flow, flows, fluoddity, fodder, font, forest, fractal, functions, g, gacha, gallery, games, gantry, garden, gawain, gc, gen, geomancy, geometry, globe, golf, graph, grow, guthkatz, hadwiger, hand, heilbronn, helix, hoop, hoop-backend, horned, hotnot, iching, inat, ink, inpac, io, iris, ising, item, j, js, judge, juice, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, mappa, markov, math, meander, mega, mmo, modulo, mol, mole, monthly, morphyx, music, name, noise, notes, novelty, ocr, orb, orfeo, org, orrery, os, owain, pac, packages, paint, pds, pendragon, phasemap, photo, phylo, phylofiction, pizza, playground, pm, pod, pokemon, poll, post01, prism, prop, proteus, pwyll, range, read, recipe, redact, rind, rite, runner, scope, scripts, seek, selection, ship, signal, soil, spark, speclab, splice, sprite, src, sticks, stocks, story, stretch, swarmclip, swarmread, swarmtext, sweat, szemeredi-trotter, tabard, tablet, tabletilt, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, tetro, thread, tide, time, tjs, torpac, torus, track, traffic, vault, viazovska, vitamerlini, voronoi, wars, wave, wc, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
 
 **Catalog saturation** (sites per category): games 60, bluesky 52, data 49, tools 34, work 7.
 
-**Neighborhood spark** (bisk 2026-06-26, 99 members / 219 posts):
+**Neighborhood spark** (bisk 2026-06-27, 99 members / 232 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llm, umans, substack
-- Top post: "This divide is also why half of my friends are "What will we put in the abandoned shells of these data centers when peop" — @tedunderwood.com
+- Distinctive words: letta, gpt, llms
+- Top post: "A company tried to poach some of our colleagues by sending them PS5s and I just want any company to know that I am very " — @eugenevinitsky.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
