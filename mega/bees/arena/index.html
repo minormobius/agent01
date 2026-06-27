@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Swarm Arena · mega.mino.mobi/bees/arena</title>
+<meta name="description" content="Turn-based arena vs a bee swarm: the swarm is ONE unit whose hp is its mass and whose attack is an area pulse. Strike to chip it, Ember to scatter it (fire is super-effective). Built on the real arena engine.">
+<style>
+  :root{
+    --bg:#0f1014; --panel:#16181f; --ink:#e7e3d8; --dim:#a39c8b; --faint:#6f6a5d; --gold:#d8b25a;
+    --gold-soft:#caa24a; --line:#2a2d38; --danger:#cf3b3b; --accent:#8fd6a0;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; --sans:ui-sans-serif,system-ui,Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+  #app{height:100dvh;display:flex;flex-direction:column}
+  .crumb{padding:8px 14px;font:11px/1 var(--mono);color:var(--faint);border-bottom:1px solid var(--line)}
+  .crumb a{color:var(--dim);text-decoration:none}
+  #status{padding:8px 14px;font:12px/1.4 var(--mono);color:var(--dim);display:flex;justify-content:space-between;gap:10px}
+  #status b{color:var(--gold-soft)} #status .hot{color:var(--danger)}
+  #boardwrap{flex:1;position:relative;min-height:0}
+  #board{display:block;width:100%;height:100%;image-rendering:pixelated;touch-action:none}
+  #log{height:34px;padding:0 14px;font:11px/34px var(--mono);color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid var(--line)}
+  #bar{display:flex;gap:8px;padding:10px 12px calc(env(safe-area-inset-bottom) + 12px);background:var(--panel);border-top:1px solid var(--line)}
+  #bar button{flex:1;font:600 13px/1.1 var(--sans);background:#22242c;color:var(--ink);border:1px solid var(--line);
+       border-radius:10px;padding:12px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+  #bar button .sub{font:400 10px/1 var(--mono);color:var(--faint)}
+  #bar button.prime{background:var(--gold);color:#0f1014;border-color:var(--gold)}
+  #bar button.fire{background:#7a2e1f;color:#ffd9b0;border-color:#a3522a}
+  #bar button:disabled{opacity:.35;cursor:default}
+  #bar button:active:not(:disabled){transform:scale(.96)}
+  .banner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+          background:rgba(10,11,14,.78);opacity:0;pointer-events:none;transition:opacity .25s;text-align:center}
+  .banner.show{opacity:1;pointer-events:auto}
+  .banner h2{font:600 30px/1.1 var(--sans);margin:0} .banner.win h2{color:var(--accent)} .banner.lose h2{color:var(--danger)}
+  .banner button{font:600 14px/1 var(--sans);background:var(--gold);color:#0f1014;border:0;border-radius:10px;padding:12px 22px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="crumb"><a href="/bees/">‹ bee lab</a> · swarm arena</div>
+  <div id="status"></div>
+  <div id="boardwrap">
+    <canvas id="board"></canvas>
+    <div class="banner" id="banner"><h2 id="bannerT"></h2><button id="again">fight again</button></div>
+  </div>
+  <div id="log"></div>
+  <div id="bar"></div>
+</div>
+
+<script type="module">
+import { createBattle, act, active, unitById, reachable, moveRange, SKILLS } from '../../v092/arena/engine.js';
+import { rollCharacter, deriveCombat } from '../../v092/stats.js';
+import { makeSwarmUnit, addSwarm, swarmTurn, emberHits, resolveEnd, EMBER } from './swarm-combat.js';
+import { genomeFromParams, frameRects, DIR_OF } from '../../sprite/core.js';
+import { beeAtlas, beeCells } from '../swarm.js';
+
+const $ = s => document.querySelector(s);
+const cv = $('#board'), ctx = cv.getContext('2d', { alpha:false });
+const cheb=(a,b)=>Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));
+const MAXBEES = 84;
+let s, player, swarm, playerG, atlas, dpr=1, busy=false, fightSeed=7;
+const flashes=[]; // {x,y,txt,col,t0}
+
+function newFight(seed){
+  fightSeed = seed;
+  const c = rollCharacter(seed, { vocation:'make' });
+  const combat = deriveCombat(c);
+  playerG = genomeFromParams({ seed:c.sprite.seed, role:c.sprite.role, size:15 });
+  s = createBattle({ player:{ id:'P', name:'You', character:c, combat, x:4, y:8 }, foes:[], seed, W:9, H:9 });
+  swarm = addSwarm(s, makeSwarmUnit({ seed:'hive:'+seed, x:4, y:3, mass:88 }));
+  player = unitById(s, 'P');
+  atlas = beeAtlas('hive:'+seed, { headings:12 });
+  $('#banner').className='banner';
+  busy=false;
+  // if the swarm somehow won initiative, run its turn first
+  pump();
+  syncUI();
+}
+
+// ── board geometry ──
+function geo(){
+  const r = $('#boardwrap').getBoundingClientRect();
+  dpr = Math.min(2, window.devicePixelRatio||1);
+  cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+  const ts = Math.floor(Math.min(r.width, r.height) / 9.4);
+  const bw = ts*9, ox = Math.round((r.width-bw)/2), oy = Math.round((r.height-bw)/2);
+  return { ts, ox, oy, w:r.width, h:r.height };
+}
+const T2P = (g,tx,ty)=>({ x:g.ox+tx*g.ts, y:g.oy+ty*g.ts });
+
+// ── input ──
+cv.addEventListener('pointerdown', e=>{
+  if(busy || !s || s.winner || active(s).team!=='player') return;
+  const r=cv.getBoundingClientRect(), g=geo();
+  const tx=Math.floor((e.clientX-r.left - g.ox)/g.ts), ty=Math.floor((e.clientY-r.top - g.oy)/g.ts);
+  if(tx<0||ty<0||tx>=9||ty>=9) return;
+  if(!player.moved && reachable(s,player).some(t=>t.x===tx&&t.y===ty)){ act(s,{type:'move',x:tx,y:ty}); syncUI(); }
+});
+
+// ── action bar ──
+function bar(){
+  const el=$('#bar'); el.innerHTML='';
+  const yours = s && !s.winner && active(s).team==='player';
+  const adj = cheb(player,swarm)<=1 && swarm.alive;
+  const inEmber = cheb(player,swarm)<=EMBER.radius && swarm.alive;
+  const btn=(label,sub,cls,enabled,fn)=>{ const b=document.createElement('button'); if(cls)b.className=cls;
+    b.innerHTML=`${label}<span class="sub">${sub}</span>`; b.disabled=!enabled; if(enabled)b.onclick=fn; el.appendChild(b); };
+  btn('Strike','chip · adj','', yours&&!player.acted&&adj, ()=>{ act(s,{type:'attack',targetId:'swarm',skillId:'strike'}); syncUI(); });
+  btn('Ember','✺ scatter · '+EMBER.cost+'⚡','fire', yours&&!player.acted&&inEmber&&player.flux>=EMBER.cost, ()=>{
+    player.flux-=EMBER.cost; player.acted=true; const hits=emberHits(s,player); flashHits(hits,'#ffb070'); resolveEnd(s); syncUI(); });
+  btn('Mend','✚ heal · '+SKILLS.mend.cost+'⚡','', yours&&!player.acted&&player.flux>=SKILLS.mend.cost&&player.hp<player.maxhp, ()=>{ act(s,{type:'skill',skillId:'mend'}); syncUI(); });
+  btn('End turn','→','prime', yours, ()=>endPlayer());
+}
+
+function flashHits(hits,col){ for(const h of hits){ const u=unitById(s,h.id); if(u) flashes.push({x:u.x,y:u.y,txt:'−'+h.dmg,col,t0:performance.now()}); } }
+
+async function endPlayer(){ if(busy)return; act(s,{type:'end'}); syncUI(); await pump(); }
+
+// run all non-player turns (the swarm) with a beat between, then hand back
+async function pump(){
+  busy=true; syncUI();
+  while(s && !s.winner && active(s).team!=='player'){
+    const u=active(s); await sleep(420);
+    if(u.swarm){ const ev=swarmTurn(s,u); for(const e of ev) if(e.type==='pulse') flashHits(e.hits,'#ff6a6a'); syncUI(); await sleep(360); if(!s.winner) act(s,{type:'end'}); }
+    else { act(s,{type:'end'}); }
+    syncUI();
+  }
+  // channel a little Flux back at the top of each of your rounds — keeps Ember repeatable
+  if(s && !s.winner && active(s).team==='player') player.flux=Math.min(player.maxflux, player.flux+FLUX_REGEN);
+  busy=false; syncUI();
+  if(s.winner) showBanner();
+}
+const FLUX_REGEN = 4;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function showBanner(){ const b=$('#banner'); b.className='banner show '+(s.winner==='player'?'win':'lose');
+  $('#bannerT').textContent = s.winner==='player'?'the swarm scatters':'the swarm takes you'; }
+$('#again').onclick=()=>newFight((fightSeed*1664525+1013904223)>>>0 || 1);
+
+// ── render ──
+function bars(g, u, cx, cy){
+  const w=g.ts*0.8, x=cx-w/2, y=cy-g.ts*0.62;
+  ctx.fillStyle='#000'; ctx.fillRect(x-1,y-1,w+2,5);
+  ctx.fillStyle = u.team==='player' ? '#5aa845' : '#cf3b3b'; ctx.fillRect(x,y,w*(u.hp/u.maxhp),3);
+  if(u.maxflux>0){ ctx.fillStyle='#33408f'; ctx.fillRect(x,y+4,w*(u.flux/u.maxflux),2); }
+}
+
+function drawSwarmBees(g, cx, cy){
+  const shown=Math.floor(MAXBEES*(swarm.hp/swarm.maxhp)); const t=performance.now()/1000;
+  const spread=g.ts*(swarm.radius+0.4);
+  for(let i=0;i<shown;i++){
+    const a=i*2.3999632, rr=Math.sqrt((i+0.5)/MAXBEES)*spread;     // phyllotaxis disk
+    const jx=Math.sin(t*3+i)*g.ts*0.12, jy=Math.cos(t*3.3+i*1.7)*g.ts*0.12;
+    const bx=cx+Math.cos(a)*rr+jx, by=cy+Math.sin(a)*rr+jy;
+    const ang=t*2+i, cells=beeCells('hive:'+fightSeed, ang, (Math.floor(t*16)+i)&1, atlas.colors);
+    const PX=Math.max(2,Math.round(g.ts/9));
+    for(const c of cells){ ctx.fillStyle=c.c; ctx.fillRect(Math.round(bx+c.x*PX),Math.round(by+c.y*PX),PX,PX); }
+  }
+}
+
+function draw(){
+  if(!s) return;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const g=geo(); ctx.fillStyle='#0a0b0e'; ctx.fillRect(0,0,g.w,g.h);
+  const yours = !s.winner && active(s).team==='player';
+  const reach = (yours && !player.moved) ? reachable(s,player) : [];
+
+  // tiles
+  for(let y=0;y<9;y++) for(let x=0;x<9;x++){
+    const p=T2P(g,x,y); const dark=(x+y)&1;
+    ctx.fillStyle = dark?'#15171e':'#191c24'; ctx.fillRect(p.x,p.y,g.ts-1,g.ts-1);
+  }
+  // swarm pulse area (authoritative danger), drawn under bees
+  if(swarm.alive) for(let y=0;y<9;y++) for(let x=0;x<9;x++){
+    if(cheb({x,y},swarm)<=swarm.radius){ const p=T2P(g,x,y); ctx.fillStyle=`rgba(207,59,59,${0.06+0.12*(swarm.hp/swarm.maxhp)})`; ctx.fillRect(p.x,p.y,g.ts-1,g.ts-1); }
+  }
+  // reachable highlight
+  for(const t of reach){ const p=T2P(g,t.x,t.y); ctx.strokeStyle='rgba(216,178,90,.5)'; ctx.lineWidth=1; ctx.strokeRect(p.x+1.5,p.y+1.5,g.ts-4,g.ts-4); }
+
+  // player sprite
+  if(player.alive){ const p=T2P(g,player.x,player.y), PX=Math.max(2,Math.round(g.ts/12));
+    const ox=p.x+g.ts/2-(playerG.size/2)*PX, oy=p.y+g.ts/2-(playerG.size*0.62)*PX;
+    for(const r of frameRects(playerG, DIR_OF.N, null)){ ctx.fillStyle=r.c; ctx.fillRect(Math.round(ox+r.x*PX),Math.round(oy+r.y*PX),PX,PX); }
+    bars(g,player,p.x+g.ts/2,p.y+g.ts/2);
+  }
+  // swarm (bee cloud) over its tile
+  if(swarm.alive){ const p=T2P(g,swarm.x,swarm.y); drawSwarmBees(g,p.x+g.ts/2,p.y+g.ts/2); bars(g,swarm,p.x+g.ts/2,p.y+g.ts/2); }
+
+  // damage flashes
+  const now=performance.now();
+  for(let i=flashes.length-1;i>=0;i--){ const f=flashes[i], age=(now-f.t0)/700; if(age>=1){flashes.splice(i,1);continue;}
+    const p=T2P(g,f.x,f.y); ctx.globalAlpha=1-age; ctx.fillStyle=f.col; ctx.font=`bold ${Math.round(g.ts*0.34)}px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.textAlign='center'; ctx.fillText(f.txt, p.x+g.ts/2, p.y+g.ts*0.3 - age*g.ts*0.5); ctx.globalAlpha=1; }
+
+}
+
+// status + bar — DOM only, refreshed on state changes (NOT every frame, or buttons detach mid-tap)
+function syncUI(){
+  if(!s) return;
+  const turnOf = active(s); const who = s.winner ? '—' : (turnOf.team==='player'?'your turn':'swarm’s turn');
+  $('#status').innerHTML = `<span>vit <b>${player.hp}/${player.maxhp}</b> · flux <b>${player.flux}/${player.maxflux}</b></span>`+
+    `<span>${busy?'<span class="hot">…</span>':who}</span>`+
+    `<span>swarm <b class="${swarm.alive?'hot':''}">${swarm.hp}/${swarm.maxhp}</b></span>`;
+  $('#log').textContent = (s.log[s.log.length-1]||{}).msg || 'A swarm boils up across the arena. Scatter it with fire.';
+  bar();
+  if(s.winner) showBanner();   // a player-turn Ember can end the fight too, not just a swarm turn
+}
+
+// continuous redraw for the buzz; DOM updates only when state changes
+function loop(){ draw(); requestAnimationFrame(loop); }
+addEventListener('resize', draw);
+newFight(7); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
