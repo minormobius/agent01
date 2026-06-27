@@ -130,6 +130,20 @@ CYCLE draws as a ring that loops back on itself**, magnitudes from `ledger.js#el
 
 Pinned by `test/elementcycle.selftest.mjs` (74 — every element's cycle loops back, balanced).
 
+### Going molecular — named processes, real reactions (`chem.js`)
+
+The covered elements (C · N · O · H · Fe · Al · Si · Cu) no longer use generic Refine/Fabricate/Assemble
+stages — their rings are the **actual named industrial + biological processes operating on actual
+molecules**, converging on the original `/forge` graph's spirit with far more detail. Because real
+reactions BALANCE, conservation here is **atom-exact** (validated): Photosynthesis
+(`6 CO₂ + 6 H₂O → C₆H₁₂O₆ + 6 O₂`), Hall–Héroult (`2 Al₂O₃ + 3 C → 4 Al + 3 CO₂`), Haber–Bosch, direct
+reduction, carbothermic reduction, glass melting, smelting — each shown on the element page with its
+molecular formulas and balanced equation, ending at **considered endpoints** (real catalogue products:
+hull/cable, frames/tools, chips, wire/motors…). Metal loops close through the **ore pool** (iron rusts back
+to Fe₂O₃ and is re-reduced), so they're steady-state balanced. `chem.js`: `MOLECULES` + named `REACTIONS`
+(atom-balanced) + curated per-element `CYCLES`; pinned by `test/chem.selftest.mjs` (57). Extensible by data —
+the remaining elements use the generic ring until enriched.
+
 ## Status / next
 
 - `catalogue.js` — the ~40 classes as data, each with loop · need · element vector · family bridge · a

@@ -21,6 +21,7 @@
 import { step, defaultParams, defaultState, elements as biomeElements, snapshot as biomeSnap } from './vendor/biome/cycles.mjs';
 import { ELEMENTS, ELEMENT, PRODUCTS, PRODUCT, composition } from './catalogue.js';
 import { populationDemand } from './needs.js';
+import { COVERED, chemCycle } from './chem.js';
 
 export const ATOMIC = { H: 1.008, C: 12.011, N: 14.007, O: 15.999, Al: 26.982, Si: 28.085, P: 30.974, S: 32.06, Ca: 40.078, Ti: 47.867, Fe: 55.845, Ni: 58.693, Cu: 63.546, RE: 144.24 };
 export const BIOTIC = ['C', 'H', 'O', 'N'];                                            // biome's conserved ledger
@@ -182,6 +183,16 @@ export function elementCycle(sym, { people = 1000, growFactor = 3, u } = {}) {
   u = u || unifiedLedger({ people, growFactor });
   const E = ELEMENT[sym] || {};
   const top = elementFlows(sym).inProducts.slice(0, 6).map((x) => ({ id: x.id, name: (PRODUCT[x.id] || {}).name, glyph: (PRODUCT[x.id] || {}).glyph, frac: +x.frac.toFixed(3) }));
-  const base = sym === 'C' ? carbonCycle(u) : BIOTIC.includes(sym) ? bioticCycle(sym, u) : industrialCycle(sym, u);
+  let base;
+  if (COVERED.includes(sym)) {
+    // the MOLECULAR cycle — real named processes + molecules + considered endpoints (chem.js), scaled to
+    // this element's ledger flow. Carbon's throughput is the fixed carbon (crew + the pump draw).
+    const flow = sym === 'C' ? (Math.max(0.01, u.biome.crewFoodKgDay) + Math.max(0, u.pump.totalDrawKgC))
+      : BIOTIC.includes(sym) ? ((u.perElement[sym].forgeFlowKg || 0) * 4 + 10)
+      : Math.max(0.1, u.perElement[sym].forgeFlowKg || 0);
+    base = chemCycle(sym, flow); base.flow = +flow.toFixed(1); base.molecular = true;
+  } else {
+    base = BIOTIC.includes(sym) ? bioticCycle(sym, u) : industrialCycle(sym, u);
+  }
   return { sym, name: E.name, metabolism: BIOTIC.includes(sym) ? (sym === 'C' ? 'shared' : 'biotic') : 'industrial', closes: sym === 'C' ? u.carbonClosed : true, topProducts: top, ...base };
 }

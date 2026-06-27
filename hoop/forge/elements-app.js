@@ -37,6 +37,12 @@ function select(s) {
     `<div class="ig"><span class="s" style="color:${fc}">${esc(sym)}</span><span class="n">${esc(cycle.name)}</span><span class="m">${esc(cycle.metabolism)}</span></div>` +
     `<div class="prod" style="margin-bottom:6px"><span>cycle throughput</span><b>${cycle.flow} ${esc(cycle.unit)}</b></div>` +
     (cycle.topProducts.length ? `<div class="prods">${cycle.topProducts.map((p) => `<div class="prod"><span>${esc(p.glyph || '·')} ${esc(p.name)}</span><b>${Math.round(p.frac * 100)}%</b></div>`).join('')}</div>` : '');
+  // named processes (the molecular detail): real reactions, atom-balanced
+  const rxns = (cycle.nodes || []).filter((n) => n.process && n.reaction);
+  if (rxns.length) {
+    $('elinfo').innerHTML += `<div style="margin-top:10px;color:var(--accent);font-size:10px;letter-spacing:.12em;text-transform:uppercase">named processes</div>` +
+      rxns.map((n) => `<div style="margin:5px 0;font-size:11.5px"><b style="color:#cdb38a">${esc(n.process)}</b><br><span style="color:var(--soft)">${esc(n.reaction)}</span></div>`).join('');
+  }
   render();
 }
 
@@ -71,15 +77,18 @@ function render() {
   // nodes + labels
   ctx.textBaseline = 'middle'; ctx.font = '12px ui-monospace,monospace';
   for (const n of cycle.nodes) {
-    const p = pos[n.id], col = n.kind === 'pool' ? flowCol : n.kind === 'biome' ? '#5aa845' : n.kind === 'crew' ? '#e6e8ee' : n.kind === 'pump' ? '#f4bf62' : n.kind === 'recover' ? '#5fd0c0' : n.kind === 'reserve' ? '#e0635a' : '#9aa7bb';
+    const p = pos[n.id], col = n.kind === 'pool' ? flowCol : n.kind === 'biome' ? '#5aa845' : n.kind === 'crew' ? '#e6e8ee' : n.kind === 'pump' ? '#f4bf62' : n.kind === 'recover' ? '#5fd0c0' : n.kind === 'reserve' ? '#e0635a' : n.kind === 'process' ? '#cdb38a' : n.kind === 'material' ? flowCol : '#9aa7bb';
     ctx.fillStyle = '#0b0e14'; ctx.strokeStyle = col; ctx.lineWidth = n.kind === 'pool' ? 2.5 : 1.5;
     ctx.beginPath(); ctx.arc(p.x, p.y, n.kind === 'pool' ? 9 : 6, 0, 7); ctx.fill(); ctx.stroke();
     const right = Math.cos(p.a) >= 0; ctx.textAlign = 'left';
-    const tw = ctx.measureText(n.label).width, ly = p.y;
+    ctx.font = '12px ui-monospace,monospace';
+    const sub = n.formula || n.process || (n.endpoints && n.endpoints.length ? n.endpoints.map((e) => e.glyph).join('') : '');
+    const tw = Math.max(ctx.measureText(n.label).width, sub ? 9 / 12 * ctx.measureText(sub).width : 0), ly = p.y;
     let lx = right ? p.x + 13 : p.x - 13 - tw;
     lx = Math.max(4, Math.min(lx, CW - 4 - tw));   // clamp so labels never clip off-screen
-    ctx.fillStyle = '#06080c'; ctx.fillText(n.label, lx + 0.6, ly + 0.6);
-    ctx.fillStyle = col; ctx.fillText(n.label, lx, ly);
+    ctx.fillStyle = '#06080c'; ctx.fillText(n.label, lx + 0.6, ly - (sub ? 5 : 0) + 0.6);
+    ctx.fillStyle = col; ctx.fillText(n.label, lx, ly - (sub ? 5 : 0));
+    if (sub) { ctx.font = '9px ui-monospace,monospace'; ctx.fillStyle = '#7d8597'; ctx.fillText(sub, lx, ly + 7); }
   }
   // centre caption
   ctx.textAlign = 'center'; ctx.fillStyle = flowCol; ctx.font = '700 30px ui-monospace,monospace'; ctx.fillText(sym, cx, cy - 6);
