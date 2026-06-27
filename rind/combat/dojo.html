@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>combat dojo — rind sandbox</title>
+<style>
+  :root{ --ink:#e7e2d6; --bg:#14110c; --panel:#1d1913; --gold:#f4bf62; --line:#3a342a; --dim:#9a907c; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 ui-monospace,Menlo,Consolas,monospace; }
+  header{ padding:10px 16px; border-bottom:1px solid var(--line); display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  header b{ color:var(--gold); letter-spacing:.04em; }
+  header .crumb{ color:var(--dim); }
+  a{ color:var(--gold); text-decoration:none; }
+  main{ display:flex; gap:18px; padding:16px; flex-wrap:wrap; align-items:flex-start; }
+  .controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  select,button,input{ background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font:inherit; }
+  button{ cursor:pointer; }
+  button:hover{ border-color:var(--gold); }
+  button:disabled{ opacity:.35; cursor:default; }
+  button.skill{ display:block; width:100%; text-align:left; margin:3px 0; }
+  #board{ display:grid; gap:2px; background:var(--line); border:1px solid var(--line); border-radius:8px; padding:2px; }
+  .cell{ width:44px; height:44px; background:#100d09; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:22px; position:relative; cursor:default; }
+  .cell.move{ outline:2px solid #4a7; cursor:pointer; }
+  .cell.tgt{ outline:2px solid #c55; cursor:pointer; }
+  .cell.active{ box-shadow:inset 0 0 0 2px var(--gold); }
+  .cell .hpbar{ position:absolute; left:3px; right:3px; bottom:3px; height:3px; background:#400; border-radius:2px; overflow:hidden; }
+  .cell .hpbar i{ display:block; height:100%; background:#4c4; }
+  .side{ width:280px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:12px; }
+  .card h3{ margin:0 0 6px; font-size:13px; color:var(--gold); }
+  .bars{ font-size:12px; color:var(--dim); }
+  .bars b{ color:var(--ink); }
+  #log{ height:240px; overflow:auto; font-size:12px; }
+  #log .l{ padding:1px 0; border-bottom:1px dotted #2a251d; }
+  .crit{ color:#ffd; } .hit{ color:#fb8; } .miss{ color:var(--dim); } .down{ color:#c55; } .heal{ color:#7d7; } .win{ color:var(--gold); }
+  .status-chips{ font-size:11px; color:#d9b; }
+  .tag{ display:inline-block; padding:0 5px; border:1px solid var(--line); border-radius:10px; font-size:11px; color:var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <span class="crumb"><a href="/">mino.mobi</a> / <a href="../index.html">rind</a> / combat</span>
+  <b>⚔ combat dojo</b>
+  <span class="crumb">sandbox tuner over <code>rind/combat/engine.js</code> — vendors into hoop's arena</span>
+</header>
+
+<div class="controls" style="padding:0 16px 8px">
+  <label>player <select id="pf"></select></label>
+  <label>foe <select id="ff"></select></label>
+  <label>seed <input id="seed" type="number" value="1" style="width:70px"></label>
+  <label>power <input id="power" type="number" value="10" style="width:60px"></label>
+  <button id="new">new battle</button>
+  <button id="auto">▶ auto-play</button>
+  <button id="step">step turn</button>
+  <span id="verdict" class="tag"></span>
+</div>
+
+<main>
+  <div id="board"></div>
+  <div class="side">
+    <div class="card" id="activeCard"><h3>—</h3></div>
+    <div class="card"><h3>actions</h3><div id="skills"><em style="color:var(--dim)">new battle to begin</em></div>
+      <button id="end" style="margin-top:8px">end turn ⏭</button></div>
+  </div>
+  <div class="side">
+    <div class="card"><h3>combatants</h3><div id="roster" class="bars"></div></div>
+    <div class="card"><h3>log</h3><div id="log"></div></div>
+  </div>
+</main>
+
+<script type="module">
+import { FACTIONS, FACTION_ORDER, FACTION_LEAN } from './factions.js';
+import { rollCharacter } from './stats.js';
+import * as E from './engine.js';
+
+const $ = (id) => document.getElementById(id);
+const pf = $('pf'), ff = $('ff');
+for (const f of FACTION_ORDER) { for (const sel of [pf, ff]) { const o = document.createElement('option'); o.value = f; o.textContent = `${FACTIONS[f].glyph} ${FACTIONS[f].label}`; sel.appendChild(o); } }
+ff.selectedIndex = 1;
+
+let s = null, sel = null, autoTimer = null;
+
+function build() {
+  stopAuto();
+  const seed = +$('seed').value || 1, power = +$('power').value || 10;
+  const pk = pf.value, fk = ff.value;
+  const player = { id: 'P', name: `${FACTIONS[pk].label} (you)`, faction: pk, character: rollCharacter(seed * 2 + 1, { triad: FACTION_LEAN[pk], power }) };
+  const foe = { id: 'E', name: `${FACTIONS[fk].label}`, faction: fk, character: rollCharacter(seed * 2 + 2, { triad: FACTION_LEAN[fk], power }) };
+  s = E.createBattle({ player, foes: [foe], seed });
+  sel = null;
+  render();
+}
+
+function unitAt(x, y) { return s.units.find((u) => u.alive && u.x === x && u.y === y); }
+
+function render() {
+  const board = $('board');
+  board.style.gridTemplateColumns = `repeat(${s.W}, 44px)`;
+  board.innerHTML = '';
+  const lg = (!s.winner && E.active(s).team === 'player') ? E.legal(s) : { move: [], skills: {} };
+  const moveSet = new Set(lg.move.map((t) => t.x + ',' + t.y));
+  const tgtSet = new Set();
+  if (sel && lg.skills[sel]) for (const id of lg.skills[sel].targets) { const u = E.unitById(s, id); tgtSet.add(u.x + ',' + u.y); }
+  const act = E.active(s);
+  for (let y = 0; y < s.H; y++) for (let x = 0; x < s.W; x++) {
+    const c = document.createElement('div'); c.className = 'cell';
+    const u = unitAt(x, y);
+    if (moveSet.has(x + ',' + y) && sel === '__move') c.classList.add('move');
+    if (tgtSet.has(x + ',' + y)) c.classList.add('tgt');
+    if (u) {
+      c.textContent = u.glyph; c.style.color = u.accent;
+      if (u === act) c.classList.add('active');
+      const bar = document.createElement('div'); bar.className = 'hpbar';
+      const i = document.createElement('i'); i.style.width = (100 * Math.max(0, u.hp) / u.maxhp) + '%';
+      bar.appendChild(i); c.appendChild(bar);
+      c.title = `${u.name} — HP ${u.hp}/${u.maxhp} · Flux ${u.flux}/${u.maxflux}`;
+    }
+    c.onclick = () => onCell(x, y, moveSet, tgtSet);
+    board.appendChild(c);
+  }
+  // active card
+  const ac = $('activeCard');
+  if (s.winner) { ac.innerHTML = `<h3>${s.winner === 'draw' ? 'Draw' : s.winner === 'player' ? 'You win' : 'You fall'}</h3>`; }
+  else { const f = FACTIONS[act.faction]; ac.innerHTML = `<h3>${act.glyph} ${act.name}</h3><div class="bars"><b>${f ? f.label : '—'}</b> — ${f ? f.gloss : ''}<br>HP <b>${act.hp}/${act.maxhp}</b> · Flux <b>${act.flux}/${act.maxflux}</b> · Atk <b>${act.atk}</b> · Def <b>${act.def}</b> · Spd <b>${act.speed}</b><br>${statusChips(act)}</div>`; }
+  // skills
+  renderSkills(lg);
+  // roster
+  $('roster').innerHTML = s.units.map((u) => `<div style="opacity:${u.alive ? 1 : .35}">${u.glyph} <b style="color:${u.accent}">${u.name}</b> ${u.alive ? `HP ${u.hp}/${u.maxhp} · Flux ${u.flux}` : '✝ down'} ${statusChips(u)}</div>`).join('');
+  // log
+  $('log').innerHTML = s.log.slice().reverse().map((l) => `<div class="l ${l.kind}">t${l.t}· ${l.msg}</div>`).join('');
+  $('verdict').textContent = s.winner ? `turn ${s.turn} · ${s.winner}${s.timedOut ? ' (timeout)' : ''}` : `turn ${s.turn} · ${act.team === 'player' ? 'your move' : 'enemy'}`;
+  $('end').disabled = !!s.winner || E.active(s).team !== 'player';
+  // if it's the enemy's turn and auto is off, run it on a short delay so you can watch
+  if (!s.winner && E.active(s).team === 'foe' && !autoTimer) setTimeout(() => { if (s && !s.winner && E.active(s).team === 'foe') { E.runAiTurn(s); render(); } }, 260);
+}
+
+function statusChips(u) {
+  const ks = Object.keys(u.status || {}).filter((k) => u.status[k].turns > 0);
+  if (!ks.length) return '';
+  return '<span class="status-chips">' + ks.map((k) => `${E.STATUS[k]?.glyph || ''}${k}(${u.status[k].turns})`).join(' ') + '</span>';
+}
+
+function renderSkills(lg) {
+  const box = $('skills');
+  if (s.winner || E.active(s).team !== 'player') { box.innerHTML = `<em style="color:var(--dim)">${s.winner ? 'battle over' : 'enemy turn…'}</em>`; return; }
+  const u = E.active(s);
+  let html = '';
+  const moveBtn = `<button class="skill" data-act="move" ${u.moved ? 'disabled' : ''}>➤ Move (range ${E.moveRange(u)})${u.moved ? ' — used' : ''}</button>`;
+  html += moveBtn;
+  for (const id of E.skillsFor(u)) {
+    const meta = E.SKILLS[id], st = lg.skills[id] || {};
+    const cost = E.costOf(u, id);
+    html += `<button class="skill" data-act="skill" data-id="${id}" ${st.usable ? '' : 'disabled'} title="${meta.gloss}">${meta.glyph} ${meta.label}${cost ? ` · ${cost}⚡` : ''}${st.usable === false && st.reason === 'flux' ? ' — no flux' : ''}</button>`;
+  }
+  box.innerHTML = html;
+  box.querySelectorAll('button').forEach((b) => b.onclick = () => {
+    const a = b.dataset.act;
+    if (a === 'move') { sel = '__move'; render(); }
+    else { sel = b.dataset.id; const st = lg.skills[sel];
+      if (!st.targets.length) { E.act(s, { type: 'skill', skillId: sel }); sel = null; render(); }  // self-skill, fire now
+      else render();  // needs a target → highlight & wait for a cell click
+    }
+  });
+}
+
+function onCell(x, y, moveSet, tgtSet) {
+  if (s.winner || E.active(s).team !== 'player') return;
+  if (sel === '__move' && moveSet.has(x + ',' + y)) { E.act(s, { type: 'move', x, y }); sel = null; render(); return; }
+  if (sel && sel !== '__move' && tgtSet.has(x + ',' + y)) { const u = unitAt(x, y); E.act(s, { type: 'skill', skillId: sel, targetId: u.id }); sel = null; render(); return; }
+}
+
+function stepTurn() { if (!s || s.winner) return; if (E.active(s).team === 'foe') { E.runAiTurn(s); } else { E.act(s, { type: 'end' }); } render(); }
+function autoLoop() { if (!s || s.winner) { stopAuto(); return; } E.runAiTurn(s); render(); }
+function startAuto() { if (autoTimer) return; $('auto').textContent = '⏸ pause'; autoTimer = setInterval(autoLoop, 380); }
+function stopAuto() { if (autoTimer) clearInterval(autoTimer); autoTimer = null; $('auto').textContent = '▶ auto-play'; }
+
+$('new').onclick = build;
+$('step').onclick = stepTurn;
+$('end').onclick = () => { E.act(s, { type: 'end' }); sel = null; render(); };
+$('auto').onclick = () => autoTimer ? stopAuto() : startAuto();
+build();
+</script>
+</body>
+</html>
