@@ -145,6 +145,10 @@ export default {
     if (url.pathname === '/nave' || url.pathname === '/nave/') {
       return env.ASSETS.fetch(new Request(new URL('/nave/index.html', url), request));
     }
+    // nave/slots — the content-slot manifest report (what the story engine fills; the pool-authoring target).
+    if (url.pathname === '/nave/slots' || url.pathname === '/nave/slots/') {
+      return env.ASSETS.fetch(new Request(new URL('/nave/slots.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

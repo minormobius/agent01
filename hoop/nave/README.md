@@ -68,4 +68,9 @@ averages the guaranteed floors + typical depth over many seeds. Regenerate the h
 `node hoop/nave/gen-slots.mjs` → **[`SLOTS.md`](SLOTS.md)** (+ `slots.json`). Pinned by
 `test/manifest.selftest.mjs` (29 checks). Floor 1 is no-baddies, so no creature pools.
 
+A **shareable HTML report** of the same manifest is served at **`hoop.mino.mobi/nave/slots`** (`slots.html`):
+the guaranteed floors, the pool-requirements table (per role tag: tier band · factions · slot depth ·
+content types · anchors), the six lobe anchors, and a live "roll a world" sample. Renders from `slots.json`
+(instant) with an opt-in live re-roll via `manifest.js`.
+
 Served at `/nave` via `worker.js`; deploys with `hoop/**` on the owning branch.
