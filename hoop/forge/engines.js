@@ -27,7 +27,7 @@ export const ENGINES = {
   foundry: {
     label: 'Foundry', glyph: '🜂', color: '#e0772f', family: 'star', perChunk: 1,
     note: 'Ore in, metal out. A hot core tapped on every side — the ship\'s smelter.',
-    core: 'furnace',
+    core: 'furnace', intake: ['scrap_metal', 'coolant'], output: ['metal'],
     steps: [
       { id: 'ore', name: 'Ore intake', glyph: '⛰', fp: 1.0 },
       { id: 'flux', name: 'Flux prep', glyph: '✚', fp: 0.7 },
@@ -42,7 +42,7 @@ export const ENGINES = {
   chemworks: {
     label: 'Chemical works', glyph: '⚗', color: '#b39bd8', family: 'cycle', perChunk: 2,
     note: 'A reactor with its recycle loop closed — the catalyst returns, only the product leaves.',
-    core: 'reactor',
+    core: 'reactor', intake: ['feedstock', 'coolant'], output: ['polymer'],
     steps: [
       { id: 'feed', name: 'Feedstock', glyph: '◉', fp: 0.9 },
       { id: 'reactor', name: 'Reactor', glyph: '⚗', fp: 2.0 },
@@ -56,7 +56,7 @@ export const ENGINES = {
   mill: {
     label: 'Mill', glyph: '⊏', color: '#9aa3b2', family: 'path', perChunk: 1,
     note: 'A long line — billet to coil. Each stand only ever hands forward.',
-    core: 'reheat',
+    core: 'reheat', intake: ['metal'], output: ['stock'],
     steps: [
       { id: 'billet', name: 'Billet bay', glyph: '▭', fp: 0.9 },
       { id: 'reheat', name: 'Reheat', glyph: '♨', fp: 1.6 },
@@ -70,7 +70,7 @@ export const ENGINES = {
   fab: {
     label: 'Cleanroom fab', glyph: '▤', color: '#45c1c9', family: 'dag', perChunk: 1,
     note: 'Purity only ever rises. A graded corridor — gowning at the door, dice at the far end.',
-    core: 'litho',
+    core: 'litho', intake: ['silicon'], output: ['circuit'],
     steps: [
       { id: 'gown', name: 'Gowning', glyph: '⌖', fp: 0.8 },
       { id: 'wafer', name: 'Wafer prep', glyph: '○', fp: 1.0 },
@@ -85,7 +85,7 @@ export const ENGINES = {
   weave: {
     label: 'Weave hall', glyph: '𝍱', color: '#5aa845', family: 'comb', perChunk: 2,
     note: 'A spool spine feeds parallel teeth — card, spin, dye — that comb back to one bolt.',
-    core: 'spool',
+    core: 'spool', intake: ['fiber'], output: ['cloth'],
     steps: [
       { id: 'spool', name: 'Spool spine', glyph: '═', fp: 1.6 },
       { id: 'card', name: 'Carding', glyph: '∥', fp: 1.0 },
@@ -99,7 +99,7 @@ export const ENGINES = {
   assembly: {
     label: 'Assembly line', glyph: '⊶', color: '#d9b24a', family: 'intree', perChunk: 2,
     note: 'Feeder bays converge on a spine. Sub-assemblies merge, the line tests and crates.',
-    core: 'line',
+    core: 'line', intake: ['stock', 'polymer', 'circuit', 'cloth'], output: ['product'],
     steps: [
       { id: 'partA', name: 'Feeder A', glyph: '◣', fp: 0.8 },
       { id: 'partB', name: 'Feeder B', glyph: '◤', fp: 0.8 },
@@ -114,7 +114,7 @@ export const ENGINES = {
   fluid: {
     label: 'Fluid works', glyph: '◍', color: '#4f86d6', family: 'flow', perChunk: 2,
     note: 'Reservoirs and pumps — a flow network with a return leg. Water, coolant, reaction mass.',
-    core: 'pump',
+    core: 'pump', intake: ['scrap_water'], output: ['coolant'],
     steps: [
       { id: 'intake', name: 'Intake', glyph: '▽', fp: 0.9 },
       { id: 'surge', name: 'Surge tank', glyph: '◗', fp: 1.4 },
@@ -129,7 +129,7 @@ export const ENGINES = {
   reclaim: {
     label: 'Reclaim yard', glyph: '♺', color: '#cf6b4a', family: 'fan', perChunk: 3,
     note: 'The decomposer. One throat shreds, one sort, then it fans to the bales — the recycle valve.',
-    core: 'shred',
+    core: 'shred', intake: ['product'], output: ['scrap_metal', 'feedstock', 'silicon', 'fiber', 'scrap_water'],
     steps: [
       { id: 'intake', name: 'Intake throat', glyph: '▼', fp: 1.2 },
       { id: 'shred', name: 'Shredder', glyph: '♺', fp: 1.8 },
@@ -151,6 +151,26 @@ export const stepOf = (engId, stepId) => ENGINES[engId].steps.find((s) => s.id =
 export function engineFootprint(engId) {
   const e = ENGINES[engId], fp = {}; for (const s of e.steps) fp[s.id] = s.fp; return fp;
 }
+
+// ── the inter-engine economy: commodity tags close the loop across facilities ──
+// A facility EMITS its engine's output tags from its SINK steps and DRAWS its intake tags into its SOURCE
+// steps. Match an emitter's tag to a consumer's intake → a supply edge (the inter-engine / axial-rail flow).
+export const COMMODITIES = (() => { const s = new Set(); for (const e of Object.values(ENGINES)) { (e.intake || []).forEach((t) => s.add(t)); (e.output || []).forEach((t) => s.add(t)); } return [...s].sort(); })();
+
+// in/out step degrees over the activity flow: a SOURCE step has no inbound edge (raw goes in there), a
+// SINK step has no outbound edge (product leaves there). These are where supply edges attach.
+export function flowDegrees(engId) {
+  const e = ENGINES[engId], indeg = {}, outdeg = {};
+  for (const s of e.steps) { indeg[s.id] = 0; outdeg[s.id] = 0; }
+  for (const [a, b] of e.flow) { outdeg[a]++; indeg[b]++; }
+  return { indeg, outdeg };
+}
+export function sourceSteps(engId) { const { indeg } = flowDegrees(engId); return ENGINES[engId].steps.filter((s) => indeg[s.id] === 0).map((s) => s.id); }
+export function sinkSteps(engId) { const { outdeg } = flowDegrees(engId); return ENGINES[engId].steps.filter((s) => outdeg[s.id] === 0).map((s) => s.id); }
+
+// the engines that CONSUME a commodity tag (its intake), and those that EMIT it (its output).
+export function consumersOf(tag) { return ENGINE_IDS.filter((id) => (ENGINES[id].intake || []).includes(tag)); }
+export function emittersOf(tag) { return ENGINE_IDS.filter((id) => (ENGINES[id].output || []).includes(tag)); }
 
 // validate the data: every flow endpoint is a real step, the core is a real step, the activity graph is
 // CONNECTED (one facility, not islands), and each family's flow has the shape it claims.
@@ -176,6 +196,13 @@ export function validate() {
     if (e.family === 'dag') { if (directedCycle(adj2(e.flow))) errs.push(`${id}: dag has a cycle`); }
     if (e.family === 'intree') { const sinks = e.steps.filter((s) => outdeg[s.id] === 0).length; if (sinks !== 1) errs.push(`${id}: in-tree should have one sink (${sinks})`); }
     if (e.family === 'comb') { if (outdeg[e.core] < 3) errs.push(`${id}: comb spine has too few teeth`); }
+    if (!e.intake || !e.intake.length) errs.push(`${id}: no intake commodities`);
+    if (!e.output || !e.output.length) errs.push(`${id}: no output commodities`);
+  }
+  // CLOSED LOOP: every output is consumed somewhere, every intake is emitted somewhere (no dead-end matter).
+  for (const tag of COMMODITIES) {
+    if (!emittersOf(tag).length) errs.push(`commodity "${tag}" is consumed but never produced`);
+    if (!consumersOf(tag).length) errs.push(`commodity "${tag}" is produced but never consumed`);
   }
   return errs;
 }

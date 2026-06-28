@@ -120,8 +120,18 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   overlay, not the room shapes. Live at `hoop.mino.mobi/forge/facilities` (`facilities.html` +
   `facilities-app.js`, a chunkroller cousin: pick ≤3 engines, roll, chambers tinted by facility + shaded by
   step, flow arrows routed; `?seed=&e=` permalink). Pinned by `forge/test/facility.selftest.mjs` (101 checks).
-  **Next:** inter-engine supply graph (axial-rail / trans-rind transport); a forge FLOOR (buildNave cousin);
-  energetics (tide) seam; fixtures + logistics droids. See `ENGINES.md` + `NEEDS.md` + `FACTORY.md`.
+  **The coherent-region layer** (`floor.js#buildForgeRegion`): many forge chunks solved at once on one shared
+  foam (the buildNave composition scaled up — 7/19/any count, seamless seams), with the conduit network
+  **grown by physarum** (`paint/flux.js`) instead of solveRoomsFirst's imposed concourse. Two demand layers
+  feed it: intra-facility activity flow + the **inter-engine supply graph** — facilities close the economy
+  across chunks via commodity tags (`engines.js` intake/output, validated a closed loop: reclaim → raw →
+  foundry/chemworks/fab/weave → mill → assembly → product → reclaim). The heavy long-haul demand is
+  inter-chunk, so physarum's **trunk arterials span the seams = the emergent axial-rail / trans-rind
+  transport** (the parked transport question, now grown from what the rind moves, not drawn). Live at
+  `hoop.mino.mobi/forge/region` (`region.html` + `region-app.js`: chunks/μ sliders — μ dials grid↔trunk —
+  conduits drawn by tier, supply overlay, `?seed=&n=&mu=` permalink). Pinned by `forge/test/region.selftest.mjs`
+  (19 checks). **Next:** carve the grown conduits back into the foam (real concourse, econ/roads.js cousin);
+  energetics (tide) seam; fixtures + logistics droids riding the trunks. See `ENGINES.md` + `NEEDS.md` + `FACTORY.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a

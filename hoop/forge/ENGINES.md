@@ -76,14 +76,35 @@ chambers each). The funnel caps complexity: a small family of layout rules (hub 
 ordering) over one foam kernel covers all eight — the spatial cousin of the nave's single vitality oracle
 driving every ward.
 
+## The coherent region — many chunks at once, conduits GROWN (`floor.js`)
+
+The single-chunk roller shows one facility cluster; `floor.js#buildForgeRegion(seed, {count, mu})` solves a
+**hex cluster of forge chunks on one shared foam** (the `buildNave`/`buildRind` composition, scaled up — 7,
+19, any count), so the upper rind reads coherently with seamless seams. Three things only the region shows:
+
+1. **The inter-engine supply graph.** Facilities close the economy *across chunks*. Each engine carries
+   `intake`/`output` **commodity tags** (`engines.js`); the loop is validated closed (every tag both
+   produced and consumed): `reclaim` shreds worn **product** back into **scrap_metal · feedstock · silicon
+   · fiber · scrap_water**, which feed **foundry · chemworks · fab · weave · fluid**; foundry **metal** →
+   mill **stock** → assembly → **product** → reclaim. Each (emitter, tag) matches the nearest consumer
+   (preferring another chunk), attaching to the facility's sink room (emit) and a source room (receive).
+2. **Physarum pathing** — *not* `solveRoomsFirst`'s imposed concourse. The conduit network is **grown**:
+   the intra-facility activity flow **and** the inter-facility supply graph are the trip demand
+   (`paint/flux.js`), the flux field is grown over the global chamber graph, and the conduits are its
+   superlevel set with a 3-tier hierarchy (capillary · street · arterial). `mu` is the one knob —
+   `μ<1` keeps a redundant grid, `μ>1` collapses traffic onto trunk arterials.
+3. **The emergent axial-rail.** Because the heavy long-haul demand is *inter-chunk* supply, the trunk
+   arterials that physarum reinforces **span chunk seams** — the trans-rind transport the user asked about
+   ("Does the upper rind have axial rail?"), grown from what the rind actually moves rather than drawn by
+   hand. Live at `hoop.mino.mobi/forge/region`; pinned by `test/region.selftest.mjs` (19 checks: seamless
+   seams, one connected chamber graph, the supply loop matches emitter→consumer and spans chunks, a tiered
+   conduit network whose trunks cross seams, deterministic, scales to 19 chunks).
+
 ## Open seams (parked)
 
-- **Inter-engine supply graph** — the ~8 facilities of a forge floor wired to each other (the axial-rail /
-  trans-rind transport question the user flagged: "Does the upper rind have axial rail?"). The intra-engine
-  flow is done; the inter-engine flow is the next layer.
-- **A forge floor** — composing several forge chunks into a bounded floor (the `buildNave`/`buildRind`
-  cousin), so the whole upper rind reads at once. The single-chunk roller is the design view; the floor is
-  the deployment.
 - **Energetics (tide) seam** — every hot engine draws from the fixed energy budget; not yet wired.
-- **Fixtures + robots** — the logistics droids that move material between chambers (the FIXTURES.md cousin
-  for production lines).
+- **Fixtures + robots** — the logistics droids that ride the grown conduits between chambers (the
+  FIXTURES.md cousin for production lines).
+- **Tier-aware conduit carving** — the grown conduits are currently an overlay; carving them back into the
+  foam as actual concourse (so the trunk is real floor, not just a drawn line) is the next port, the cousin
+  of `econ/roads.js`'s carve.

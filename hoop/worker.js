@@ -169,6 +169,10 @@ export default {
     if (url.pathname === '/forge/facilities' || url.pathname === '/forge/facilities/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/facilities.html', url), request));
     }
+    // forge/region — a coherent multi-chunk rind region: physarum-grown conduits + inter-engine supply.
+    if (url.pathname === '/forge/region' || url.pathname === '/forge/region/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/region.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
