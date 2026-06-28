@@ -109,8 +109,19 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   **life-support** half (biome conserves C·H·O·N) and adds the **industrial** half (Si·Fe·…) on ONE ledger,
   coupled at the shared pools. The **carbon pump is mechanical + a dial**: carbon closes only when biome
   over-grows (~3×) to feed industry on top of the crew. Pinned by `test/{catalogue,needs,ledger}.selftest.mjs`.
-  **Next:** vendor → DONE; energetics (tide) seam; the periodic-table → looping-Sankey page; then place
-  processes in rind chambers + rooms/fixtures (robots, lines). See `NEEDS.md` + `FACTORY.md`.
+  **The facilities-in-foam layer** (`ENGINES.md`): the processes are placed in **rind chambers** as the
+  **eight production engines** — foundry (star) · chemworks (cycle) · mill (path) · fab (dag) · weave (comb)
+  · assembly (in-tree) · fluid (flow) · reclaim (fan) — fit into the **same voronoi foam** as the nave & rind.
+  `engines.js` is the engine data (steps · core · activity graph · family); `facility.js#solveForgeChunk`
+  runs the nave's `buildFoam → defineChunk → solveRoomsFirst` pipeline, then partitions the chunk's rooms
+  into **1–3 facilities** by graph-Voronoi (facilities are Voronoi regions OF the chambers — the conceit run
+  one level up), labels each cluster's rooms with its engine's process steps, and routes the activity graph
+  room→room. **The wriggle:** eight distinct topologies in one uniform foam — the topology lives in the flow
+  overlay, not the room shapes. Live at `hoop.mino.mobi/forge/facilities` (`facilities.html` +
+  `facilities-app.js`, a chunkroller cousin: pick ≤3 engines, roll, chambers tinted by facility + shaded by
+  step, flow arrows routed; `?seed=&e=` permalink). Pinned by `forge/test/facility.selftest.mjs` (101 checks).
+  **Next:** inter-engine supply graph (axial-rail / trans-rind transport); a forge FLOOR (buildNave cousin);
+  energetics (tide) seam; fixtures + logistics droids. See `ENGINES.md` + `NEEDS.md` + `FACTORY.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a

@@ -158,6 +158,17 @@ elements (C · Si), single-pathway-many-product elements (Fe · Al · Cu · N) f
 auto-fork. Pinned by `test/elementfork.selftest.mjs` (51). *(The circular layout gets busy at ~20 nodes; a
 layered Sankey is the next viz polish — the forking model is the substance.)*
 
+## Placing the processes in the foam — the eight production engines
+
+The endpoint pointed past the Sankey: *place the processes in rind chambers + rooms/fixtures (robots,
+lines).* That's now its own layer — **[`ENGINES.md`](ENGINES.md)**. The ~25 abiotic processes group into
+**eight production engines**, each a distinct activity-graph family (foundry star · chemworks cycle · mill
+path · fab dag · weave comb · assembly in-tree · fluid flow · reclaim fan), and they **fit into the same
+voronoi foam** as the nave & rind: a chunk's rooms partition into **1–3 facilities** (Voronoi regions OF the
+chambers), each labelled with its engine's steps and routed with its activity graph. The wriggle — eight
+topologies in one uniform foam — lives in `engines.js` + `facility.js`, live at
+`hoop.mino.mobi/forge/facilities`, pinned by `test/facility.selftest.mjs` (101).
+
 ## Status / next
 
 - `catalogue.js` — the ~40 classes as data, each with loop · need · element vector · family bridge · a

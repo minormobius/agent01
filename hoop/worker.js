@@ -165,6 +165,10 @@ export default {
     if (url.pathname === '/forge/elements' || url.pathname === '/forge/elements/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/elements.html', url), request));
     }
+    // forge/facilities — the eight production engines fit into the ship's voronoi foam (1–3 per chunk).
+    if (url.pathname === '/forge/facilities' || url.pathname === '/forge/facilities/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/facilities.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
