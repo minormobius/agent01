@@ -145,7 +145,7 @@ function startBrawl(difficulty) {
   setTimeout(() => {                                   // yield so the spinner paints before the heavy solve
     enc = generateEncounter(hero, { difficulty, seed: baseSeed * 7 + streak * 13, terrain: true, cap: 9000, tries: 14 });
     s = E.createBattle(enc.setup);
-    sprites.clear(); sprCache.clear(); snapHp(); floats.length = 0; sel = null; mode = 'idle'; radial = null; drag = false; busy = false;
+    sprites.clear(); sprCache.clear(); anims.length = 0; snapState(); floats.length = 0; sel = null; mode = 'idle'; radial = null; drag = false; busy = false;
     hideOver();
     const g = enc.grade;
     $('#cert').innerHTML = `streak <b>${streak}</b> · <b style="color:var(--gold)">${enc.difficulty}</b> · oracle: ${g.solvable ? `certified <b>winnable in ~${g.par} turns</b> (${(100 * g.margin).toFixed(0)}% margin)` : 'uncertified'}${enc.ok ? '' : ' (closest)'}`;
@@ -154,19 +154,32 @@ function startBrawl(difficulty) {
   }, 40);
 }
 
-// ── animation layer (real-time; engine stays seeded) ──
+// ── animation layer (real-time, cosmetic; the engine resolves synchronously and stays seeded). ──
+// Both effects are DIFF-DRIVEN against a pre-action snapshot — no per-skill math: damage numbers diff
+// HP, slide tweens diff position. One snapshot rule covers move, flit AND agglomerate for free.
 const floats = [];                 // {x,y,text,color,born}
-let lastHp = new Map();
-function snapHp() { lastHp = new Map(s.units.map((u) => [u.id, u.hp])); }
-function spawnFloaters() {
+const anims = [];                  // {id, from, to, t0, dur} — position slide tweens
+let lastHp = new Map(), lastPos = new Map();
+function snapState() { lastHp = new Map(s.units.map((u) => [u.id, u.hp])); lastPos = new Map(s.units.map((u) => [u.id, { x: u.x, y: u.y }])); }
+function spawnFx() {
+  const now = performance.now();
   for (const u of s.units) {
-    const prev = lastHp.get(u.id); if (prev == null) continue;
-    const d = u.hp - prev;
-    if (d < 0) floats.push({ x: u.x, y: u.y, text: `−${-d}`, color: '#ff8a7a', born: performance.now() });
-    else if (d > 0) floats.push({ x: u.x, y: u.y, text: `+${d}`, color: '#9cf0b8', born: performance.now() });
-    if (d !== 0) u._flash = performance.now();
+    const ph = lastHp.get(u.id), pp = lastPos.get(u.id);
+    if (ph != null) { const d = u.hp - ph;
+      if (d < 0) floats.push({ x: u.x, y: u.y, text: `−${-d}`, color: '#ff8a7a', born: now });
+      else if (d > 0) floats.push({ x: u.x, y: u.y, text: `+${d}`, color: '#9cf0b8', born: now });
+      if (d !== 0) u._flash = now;
+    }
+    if (pp && (pp.x !== u.x || pp.y !== u.y)) anims.push({ id: u.id, from: { x: pp.x, y: pp.y }, to: { x: u.x, y: u.y }, t0: now, dur: 220 });
   }
-  snapHp();
+  snapState();
+}
+// the position a unit is DRAWN at — its logical spot, or the eased interpolation while a slide plays.
+function drawPos(u) {
+  const a = anims.find((a) => a.id === u.id && performance.now() - a.t0 < a.dur);
+  if (!a) return { x: u.x, y: u.y };
+  const t = (performance.now() - a.t0) / a.dur, k = 1 - (1 - t) * (1 - t);
+  return { x: a.from.x + (a.to.x - a.from.x) * k, y: a.from.y + (a.to.y - a.from.y) * k };
 }
 
 // ── geometry ──
@@ -200,6 +213,7 @@ const MONO = "ui-monospace,Menlo,Consolas,monospace", SERIF = "Georgia,serif";
 function drawCanvas() {
   SCALE = Math.min(cv.width / s.W, cv.height / s.H);
   const now = performance.now();
+  for (let i = anims.length - 1; i >= 0; i--) if (now - anims[i].t0 >= anims[i].dur) anims.splice(i, 1);
   ctx.clearRect(0, 0, cv.width, cv.height);
   ctx.strokeStyle = 'rgba(120,160,160,0.05)'; ctx.lineWidth = 1;
   for (let i = 1; i < s.W; i++) { ctx.beginPath(); ctx.moveTo(px(i), 0); ctx.lineTo(px(i), cv.height); ctx.stroke(); }
@@ -227,7 +241,7 @@ function drawCanvas() {
 
   const R = (E.UNIT_R || .5) * SCALE;
   for (const u of s.units) {
-    const cx = px(u.x), cy = py(u.y), footY = cy + R * 0.7;
+    const dp = drawPos(u), cx = px(dp.x), cy = py(dp.y), footY = cy + R * 0.7;
     const flash = u._flash && now - u._flash < 220;
     ctx.globalAlpha = u.alive ? 1 : .32;
     // ground shadow + team/selection ring at the feet
@@ -278,7 +292,7 @@ function drawRadial(now) {
     ctx.fillStyle = it.usable ? (hover ? '#1d2a2a' : '#11161d') : '#0c0f13';
     ctx.fill();
     ctx.lineWidth = hover ? 3 : 1.5;
-    ctx.strokeStyle = !it.usable ? '#2a2f38' : hover ? '#ffce78' : (it.id === '__move' ? '#7fd8d0' : '#b9c6c4');
+    ctx.strokeStyle = !it.usable ? '#2a2f38' : hover ? '#ffce78' : (it.id === '__move' ? '#7fd8d0' : it.id === '__end' ? '#9a907c' : '#b9c6c4');
     if (hover && it.usable) { ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 10; } ctx.stroke(); ctx.shadowBlur = 0;
     ctx.globalAlpha = it.usable ? 0.92 : 0.4;
     ctx.fillStyle = !it.usable ? '#6b7480' : it.id === '__move' ? '#7fd8d0' : '#e7e2d6';
@@ -344,10 +358,10 @@ const onHero = (wx, wy) => { if (!isPlayerTurn()) return false; const u = E.acti
 const targetAt = (id, wx, wy) => { const ts = (E.legal(s).skills[id] || {}).targets || []; let best = null, bd = 1e9; for (const tid of ts) { const t = E.unitById(s, tid); const d = Math.hypot(t.x - wx, t.y - wy); if (d < (E.UNIT_R || .5) * 2.4 && d < bd) { bd = d; best = t; } } return best; };
 
 function openRadial() {
-  const u = E.active(s), lg = E.legal(s), ids = ['__move', ...E.skillsFor(u)], n = ids.length;
+  const u = E.active(s), lg = E.legal(s), ids = ['__move', ...E.skillsFor(u), '__end'], n = ids.length;
   radial = { u, hover: null, items: ids.map((id, i) => {
-    const usable = id === '__move' ? (!u.moved && lg.move.range > 0) : !!(lg.skills[id] && lg.skills[id].usable);
-    const meta = id === '__move' ? { glyph: '➤', label: 'Move', cost: 0 } : { glyph: E.SKILLS[id].glyph, label: E.SKILLS[id].label, cost: E.costOf(u, id) };
+    const usable = id === '__move' ? (!u.moved && lg.move.range > 0) : id === '__end' ? true : !!(lg.skills[id] && lg.skills[id].usable);
+    const meta = id === '__move' ? { glyph: '➤', label: 'Move', cost: 0 } : id === '__end' ? { glyph: '⏭', label: 'End', cost: 0 } : { glyph: E.SKILLS[id].glyph, label: E.SKILLS[id].label, cost: E.costOf(u, id) };
     return { id, ...meta, usable, angle: -Math.PI / 2 + i * 2 * Math.PI / n, x: 0, y: 0 };
   }) };
   mode = 'radial'; sel = null; syncPanels();
@@ -363,6 +377,7 @@ function radialHit(sx, sy) {
 }
 function commitSkill(id, reachPt) {
   const u = E.active(s), lg = E.legal(s);
+  if (id === '__end') { mode = 'idle'; sel = null; radial = null; E.act(s, { type: 'end' }); afterPlayer(); return; }
   const usable = id === '__move' ? (!u.moved && lg.move.range > 0) : !!(lg.skills[id] && lg.skills[id].usable);
   if (!usable) { closeRadial(); return; }
   radial = null;
@@ -415,12 +430,17 @@ cv.onpointerup = (ev) => {
 };
 cv.onpointercancel = () => { drag = false; };
 cv.ondragstart = (ev) => ev.preventDefault();   // no native image-drag ghost on the canvas
+// keyboard shortcut: E / Enter / Space ends the turn (desktop)
+window.addEventListener('keydown', (ev) => {
+  if (!s || busy || !isPlayerTurn()) return;
+  if (ev.key === 'e' || ev.key === 'E' || ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); E.act(s, { type: 'end' }); mode = 'idle'; sel = null; radial = null; afterPlayer(); }
+});
 
 $('#end').onclick = () => { if (!busy && isPlayerTurn()) { E.act(s, { type: 'end' }); mode = 'idle'; sel = null; radial = null; afterPlayer(); } };
 
 // after any player action: animate, then if it's the foe's turn, run foes on a watchable timer.
 function afterPlayer() {
-  spawnFloaters(); syncPanels();
+  spawnFx(); syncPanels();
   if (checkOver()) return;
   enemyTurnsIfNeeded();
 }
@@ -430,7 +450,7 @@ function enemyTurnsIfNeeded() {
   const step = () => {
     if (s.winner) { busy = false; checkOver(); return; }
     if (isPlayerTurn()) { busy = false; syncPanels(); return; }
-    E.runAiTurn(s); spawnFloaters(); syncPanels();
+    E.runAiTurn(s); spawnFx(); syncPanels();
     if (checkOver()) { busy = false; return; }
     setTimeout(step, 480);
   };
