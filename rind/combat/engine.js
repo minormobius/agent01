@@ -548,7 +548,7 @@ export function aiStep(s, step) {
 // run a full turn for the active unit headlessly (used by the balance harness + as a UI convenience).
 // aiPlan already terminates in {type:'end'}, so the loop ends the turn itself — no trailing endTurn
 // (a second endTurn would skip the next unit if it were also AI-driven).
-export function runAiTurn(s) { for (const step of aiPlan(s)) { if (s.winner) break; aiStep(s, step); } }
+export function runAiTurn(s) { const evs = []; for (const step of aiPlan(s)) { if (s.winner) break; evs.push(aiStep(s, step)); } return evs; }   // returns the resolved events (for a UI's FX); callers may ignore it
 
 export default {
   createBattle, legal, act, endTurn, aiPlan, aiStep, runAiTurn,

@@ -145,7 +145,7 @@ function startBrawl(difficulty) {
   setTimeout(() => {                                   // yield so the spinner paints before the heavy solve
     enc = generateEncounter(hero, { difficulty, seed: baseSeed * 7 + streak * 13, terrain: true, cap: 9000, tries: 14 });
     s = E.createBattle(enc.setup);
-    sprites.clear(); sprCache.clear(); anims.length = 0; snapState(); floats.length = 0; sel = null; mode = 'idle'; radial = null; drag = false; busy = false;
+    sprites.clear(); sprCache.clear(); anims.length = 0; fx.length = 0; snapState(); floats.length = 0; sel = null; mode = 'idle'; radial = null; drag = false; busy = false;
     hideOver();
     const g = enc.grade;
     $('#cert').innerHTML = `streak <b>${streak}</b> · <b style="color:var(--gold)">${enc.difficulty}</b> · oracle: ${g.solvable ? `certified <b>winnable in ~${g.par} turns</b> (${(100 * g.margin).toFixed(0)}% margin)` : 'uncertified'}${enc.ok ? '' : ' (closest)'}`;
@@ -158,7 +158,8 @@ function startBrawl(difficulty) {
 // Both effects are DIFF-DRIVEN against a pre-action snapshot — no per-skill math: damage numbers diff
 // HP, slide tweens diff position. One snapshot rule covers move, flit AND agglomerate for free.
 const floats = [];                 // {x,y,text,color,born}
-const anims = [];                  // {id, from, to, t0, dur} — position slide tweens
+const anims = [];                  // {id, from, to, t0, dur} slides + {id, kind:'lunge', dx, dy} jabs
+const fx = [];                     // transient cast FX: bolts (projectile), rings (AoE), pulses (self)
 let lastHp = new Map(), lastPos = new Map();
 function snapState() { lastHp = new Map(s.units.map((u) => [u.id, u.hp])); lastPos = new Map(s.units.map((u) => [u.id, { x: u.x, y: u.y }])); }
 function spawnFx() {
@@ -174,12 +175,32 @@ function spawnFx() {
   }
   snapState();
 }
-// the position a unit is DRAWN at — its logical spot, or the eased interpolation while a slide plays.
+// the position a unit is DRAWN at — logical spot, eased slide while moving, + a melee lunge jab.
 function drawPos(u) {
-  const a = anims.find((a) => a.id === u.id && performance.now() - a.t0 < a.dur);
-  if (!a) return { x: u.x, y: u.y };
-  const t = (performance.now() - a.t0) / a.dur, k = 1 - (1 - t) * (1 - t);
-  return { x: a.from.x + (a.to.x - a.from.x) * k, y: a.from.y + (a.to.y - a.from.y) * k };
+  const now = performance.now();
+  let x = u.x, y = u.y;
+  const sl = anims.find((a) => a.id === u.id && !a.kind && now - a.t0 < a.dur);
+  if (sl) { const t = (now - sl.t0) / sl.dur, k = 1 - (1 - t) * (1 - t); x = sl.from.x + (sl.to.x - sl.from.x) * k; y = sl.from.y + (sl.to.y - sl.from.y) * k; }
+  const lu = anims.find((a) => a.id === u.id && a.kind === 'lunge' && now - a.t0 < a.dur);
+  if (lu) { const amp = Math.sin(Math.PI * (now - lu.t0) / lu.dur) * 0.55; x += lu.dx * amp; y += lu.dy * amp; }
+  return { x, y };
+}
+// map a resolved engine event → cast FX. One archetype per visual family — not per skill:
+//   melee attack → lunge ·  ranged/magic → projectile bolt ·  blast/agglomerate → ring ·  self → pulse.
+function fxFor(ev) {
+  if (!ev) return;
+  const now = performance.now(), at = (id) => { const u = E.unitById(s, id); return u ? { x: u.x, y: u.y } : null; };
+  if (ev.type === 'attack') {
+    const a = at(ev.unit), t = at(ev.target); if (!a || !t) return;
+    const sk = E.SKILLS[ev.skill] || {};
+    if (sk.magic) fx.push({ kind: 'bolt', from: a, to: t, color: ev.crit ? '#ffe9a8' : '#c9a8ff', t0: now, dur: 120 + Math.hypot(t.x - a.x, t.y - a.y) * 42 });
+    else { const d = Math.hypot(t.x - a.x, t.y - a.y) || 1; anims.push({ id: ev.unit, kind: 'lunge', dx: (t.x - a.x) / d, dy: (t.y - a.y) / d, t0: now, dur: 240 }); }
+  } else if (ev.type === 'blast' && ev.center) fx.push({ kind: 'ring', x: ev.center.x, y: ev.center.y, r0: 0.2, r1: (E.SKILLS.blast.radius || 1) + 0.5, color: '#c9a8ff', t0: now, dur: 360 });
+  else if (ev.type === 'agglomerate' && ev.center) fx.push({ kind: 'ring', x: ev.center.x, y: ev.center.y, r0: (E.SKILLS.agglomerate.radius || 2), r1: 0.3, color: '#b39bd8', t0: now, dur: 380 });
+  else if (['heal', 'buff', 'brace', 'convert'].includes(ev.type)) { const p = at(ev.unit); if (p) fx.push({ kind: 'pulse', x: p.x, y: p.y, color: ev.type === 'heal' ? '#7fe6a0' : ev.type === 'convert' ? '#ff9a76' : '#ffce78', t0: now, dur: 320 }); }
+  else if (ev.type === 'revive') { const p = at(ev.target); if (p) fx.push({ kind: 'pulse', x: p.x, y: p.y, color: '#7fe6a0', t0: now, dur: 400 }); }
+  else if (ev.type === 'summon') { const p = at(ev.droneId); if (p) fx.push({ kind: 'pulse', x: p.x, y: p.y, color: '#7fd8d0', t0: now, dur: 360 }); }
+  else if (['control', 'debuff', 'siphon'].includes(ev.type)) { const p = at(ev.target); if (p) fx.push({ kind: 'pulse', x: p.x, y: p.y, color: '#b39bd8', t0: now, dur: 280 }); }
 }
 
 // ── geometry ──
@@ -268,6 +289,21 @@ function drawCanvas() {
     ctx.globalAlpha = 1;
   }
 
+  // cast FX: projectile bolts, AoE rings, self-pulses
+  for (let i = fx.length - 1; i >= 0; i--) {
+    const f = fx[i], t = (now - f.t0) / f.dur; if (t >= 1) { fx.splice(i, 1); continue; }
+    if (f.kind === 'bolt') {
+      const x = px(f.from.x + (f.to.x - f.from.x) * t), y = py(f.from.y + (f.to.y - f.from.y) * t);
+      ctx.fillStyle = f.color; ctx.shadowColor = f.color; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+    } else if (f.kind === 'ring') {
+      const r = Math.max(1, (f.r0 + (f.r1 - f.r0) * t) * SCALE);
+      ctx.globalAlpha = 1 - t; ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(px(f.x), py(f.y), r, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+    } else if (f.kind === 'pulse') {
+      const r = R * (0.6 + 1.5 * t); ctx.globalAlpha = 0.85 * (1 - t); ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(px(f.x), py(f.y), r, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+  }
+
   for (let i = floats.length - 1; i >= 0; i--) {
     const f = floats[i], age = (now - f.born) / 900; if (age >= 1) { floats.splice(i, 1); continue; }
     ctx.globalAlpha = 1 - age; ctx.fillStyle = f.color; ctx.font = `bold ${Math.round(SCALE * .5)}px ${MONO}`; ctx.textAlign = 'center';
@@ -348,7 +384,7 @@ function onSkill(b, lg) {
   const a = b.dataset.act;
   if (a === 'move') { mode = (mode === 'aim' && sel === '__move') ? 'idle' : 'aim'; sel = mode === 'aim' ? '__move' : null; radial = null; syncPanels(); return; }
   const id = b.dataset.id;
-  if (((lg.skills[id] || {}).targets || []).length === 0 && E.SKILLS[id].kind !== 'attack') { mode = 'idle'; sel = null; radial = null; E.act(s, { type: 'skill', skillId: id }); afterPlayer(); }
+  if (((lg.skills[id] || {}).targets || []).length === 0 && E.SKILLS[id].kind !== 'attack') { mode = 'idle'; sel = null; radial = null; const ev = E.act(s, { type: 'skill', skillId: id }); afterPlayer(ev); }
   else { mode = (mode === 'aim' && sel === id) ? 'idle' : 'aim'; sel = mode === 'aim' ? id : null; radial = null; syncPanels(); }
 }
 
@@ -385,14 +421,14 @@ function commitSkill(id, reachPt) {
     if (reachPt) { const p = E.canReach(s, u, reachPt.wx, reachPt.wy) ? { x: reachPt.wx, y: reachPt.wy } : E.moveToward(s, u, reachPt.wx, reachPt.wy, E.moveRange(u), 0); if (p.x !== u.x || p.y !== u.y) { mode = 'idle'; sel = null; E.act(s, { type: 'move', x: p.x, y: p.y }); afterPlayer(); return; } }
     mode = 'aim'; sel = '__move'; syncPanels(); return;
   }
-  if (((lg.skills[id] || {}).targets || []).length === 0) { mode = 'idle'; sel = null; E.act(s, { type: 'skill', skillId: id }); afterPlayer(); return; }   // self / summon
-  if (reachPt) { const t = targetAt(id, reachPt.wx, reachPt.wy); if (t) { mode = 'idle'; sel = null; E.act(s, { type: 'skill', skillId: id, targetId: t.id }); afterPlayer(); return; } }
+  if (((lg.skills[id] || {}).targets || []).length === 0) { mode = 'idle'; sel = null; const ev = E.act(s, { type: 'skill', skillId: id }); afterPlayer(ev); return; }   // self / summon
+  if (reachPt) { const t = targetAt(id, reachPt.wx, reachPt.wy); if (t) { mode = 'idle'; sel = null; const ev = E.act(s, { type: 'skill', skillId: id, targetId: t.id }); afterPlayer(ev); return; } }
   mode = 'aim'; sel = id; syncPanels();
 }
 function handleAim(wx, wy) {
   const u = E.active(s);
   if (sel === '__move') { const p = E.canReach(s, u, wx, wy) ? { x: wx, y: wy } : E.moveToward(s, u, wx, wy, E.moveRange(u), 0); if (p.x !== u.x || p.y !== u.y) { mode = 'idle'; sel = null; E.act(s, { type: 'move', x: p.x, y: p.y }); afterPlayer(); } }
-  else if (sel) { const t = targetAt(sel, wx, wy); if (t) { const id = sel; mode = 'idle'; sel = null; E.act(s, { type: 'skill', skillId: id, targetId: t.id }); afterPlayer(); } }
+  else if (sel) { const t = targetAt(sel, wx, wy); if (t) { const id = sel; mode = 'idle'; sel = null; const ev = E.act(s, { type: 'skill', skillId: id, targetId: t.id }); afterPlayer(ev); } }
 }
 
 cv.onpointerdown = (ev) => {
@@ -438,9 +474,9 @@ window.addEventListener('keydown', (ev) => {
 
 $('#end').onclick = () => { if (!busy && isPlayerTurn()) { E.act(s, { type: 'end' }); mode = 'idle'; sel = null; radial = null; afterPlayer(); } };
 
-// after any player action: animate, then if it's the foe's turn, run foes on a watchable timer.
-function afterPlayer() {
-  spawnFx(); syncPanels();
+// after any player action: spawn its cast FX (ev) + the diff FX, then run foes if it's their turn.
+function afterPlayer(ev) {
+  fxFor(ev); spawnFx(); syncPanels();
   if (checkOver()) return;
   enemyTurnsIfNeeded();
 }
@@ -450,7 +486,7 @@ function enemyTurnsIfNeeded() {
   const step = () => {
     if (s.winner) { busy = false; checkOver(); return; }
     if (isPlayerTurn()) { busy = false; syncPanels(); return; }
-    E.runAiTurn(s); spawnFx(); syncPanels();
+    for (const e of E.runAiTurn(s)) fxFor(e); spawnFx(); syncPanels();
     if (checkOver()) { busy = false; return; }
     setTimeout(step, 480);
   };
