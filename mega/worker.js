@@ -8,6 +8,7 @@ import { buildRadialGenome, radialSVG, radialFrame } from './sprite/radial/radia
 import { buildQuadGenome, quadSVG, quadFrame, FAMILIES as QUAD_FAMILIES } from './sprite/quad/quad.js';
 import { buildPolyGenome, polySVG, polyFrame, FAMILIES as POLY_FAMILIES } from './sprite/poly/poly.js';
 import { buildAxialGenome, axialSVG, axialFrame, FAMILIES as AXIAL_FAMILIES } from './sprite/axial/axial.js';
+import { buildIsopodGenome, isopodSVG, isopodFrame, FAMILIES as ISOPOD_FAMILIES } from './sprite/isopod/isopod.js';
 
 const CORS = { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods':'GET,OPTIONS', 'Access-Control-Allow-Headers':'*' };
 const json = (o,status)=> new Response(JSON.stringify(o,null,2), {status:status||200, headers:{'content-type':'application/json; charset=utf-8', ...CORS}});
@@ -46,6 +47,8 @@ function api(url){
       'GET /sprite/api/poly.json':'same params → polypod genome + rest-pose rects',
       'GET /sprite/api/axial.svg':'undulator still. params: seed,family(worm|snake|eel|mechworm),length,girth,taper,amp,waves,headSize,fins,segments,chassis,hue,scale → image/svg+xml',
       'GET /sprite/api/axial.json':'same params → axial genome + rest-pose rects',
+      'GET /sprite/api/isopod.svg':'isopod still (axial × polypod hybrid). params: seed,family(pillbug|woodlouse|giant|mechpod),segments,bodyLen,bodyWide,legLen,armor,antennae,tailFan,chassis,hue,scale → image/svg+xml',
+      'GET /sprite/api/isopod.json':'same params → isopod genome + rest-pose rects',
     }, archetypes:['balanced','dormitory','company','commons'] });
 
   const g = genomeFromParams(p);
@@ -120,7 +123,20 @@ function api(url){
     }
     return json({ seed:ag.seed, family:p.family||null, mech:ag.mech, w:ag.w, h:ag.h, rects:axialFrame(ag, 0) });
   }
-  return json({error:'unknown endpoint', endpoints:['sprite.svg','sprite.json','walk.json','radial.svg','radial.json','quad.svg','quad.json','poly.svg','poly.json','axial.svg','axial.json']}, 404);
+  if(route==='isopod.svg' || route==='isopod.json'){
+    const fam = (p.family && ISOPOD_FAMILIES[p.family]) ? ISOPOD_FAMILIES[p.family] : {};
+    const genes = {...fam};
+    for(const k of ['segments','bodyLen','bodyWide','legLen','legGirth','armor','antennae','tailFan','chassis','cadence','hue'])
+      if(p[k]!=null && p[k]!=='') genes[k]=+p[k];
+    const ig = buildIsopodGenome(p.seed!=null?String(p.seed):'iso:0', genes);
+    if(route==='isopod.svg'){
+      const scale=Math.max(1,Math.min(32,Math.round(+(p.scale||11))||11));
+      return new Response(isopodSVG(ig, scale, 0), {headers:{
+        'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=31536000, immutable', ...CORS }});
+    }
+    return json({ seed:ig.seed, family:p.family||null, mech:ig.mech, segs:ig.segs, legs:ig.segs*2, w:ig.w, h:ig.h, rects:isopodFrame(ig, 0) });
+  }
+  return json({error:'unknown endpoint', endpoints:['sprite.svg','sprite.json','walk.json','radial.svg','radial.json','quad.svg','quad.json','poly.svg','poly.json','axial.svg','axial.json','isopod.svg','isopod.json']}, 404);
 }
 
 // ── /bees/api/* — the portable BAKE for the swarm. Motion is live in the browser/engine; the
