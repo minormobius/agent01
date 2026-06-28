@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<base href="/forge/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>the forge · the infinite ship</title>
+<meta name="description" content="The production layer as the ship's infinite circulation: two interpenetrating vessel lattices (material arteries · pedestrian veins) that never touch, with the finite naves hanging off them like organs and the eight verticals glanded along the vessels. It streams forever — fly through it. The interstitium the bounded naves float in." />
+<style>
+  :root { --ink:#e6e8ee; --soft:#8794a6; --accent:#e0772f; --mat:#f4bf62; --ped:#5fd0e0; --nave:#ffd9a0; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#03040a; color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:hidden; }
+  #cv { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #cv.drag { cursor:grabbing; }
+  #hud { position:fixed; left:12px; top:12px; width:312px; background:rgba(6,9,15,.82); border:1px solid #1e2636; border-radius:10px; padding:12px 14px; }
+  #hud h1 { font-size:12px; letter-spacing:.15em; text-transform:uppercase; color:var(--accent); margin:0 0 3px; }
+  #hud .sub { color:var(--soft); font-size:10.5px; margin:0 0 9px; line-height:1.55; }
+  #read { font-size:11px; color:var(--soft); } #read b { color:var(--ink); }
+  .key { display:flex; flex-direction:column; gap:3px; margin-top:9px; font-size:10.5px; color:var(--soft); }
+  .key .r { display:flex; align-items:center; gap:6px; } .key .sw { width:11px; height:4px; border-radius:2px; flex:none; } .key .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .crumb { position:fixed; left:12px; bottom:12px; color:var(--soft); font-size:11px; } .crumb a { color:var(--accent); text-decoration:none; }
+  .hint { position:fixed; right:12px; bottom:12px; color:#566173; font-size:10.5px; text-align:right; }
+  .ctrls { position:fixed; right:12px; top:12px; display:flex; gap:6px; }
+  .ctrls button { font:inherit; color:var(--ink); background:rgba(6,9,15,.9); border:1px solid #1e2636; border-radius:7px; padding:7px 9px; cursor:pointer; } .ctrls button:hover { border-color:#3a445c; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">
+  <h1>the infinite ship · production</h1>
+  <p class="sub">the production layer isn't a floor — it's the <b>connective tissue</b> the finite naves float in. Two interpenetrating vessel lattices — <b style="color:var(--mat)">material arteries</b> &amp; <b style="color:var(--ped)">pedestrian veins</b> — that never touch, the <b style="color:var(--nave)">naves</b> hanging off them like organs, the eight verticals glanded along the vessels. It <b>streams forever</b>.</p>
+  <div id="read">—</div>
+  <div class="key">
+    <div class="r"><span class="sw" style="background:var(--mat)"></span>material arteries (spiderbots · freight)</div>
+    <div class="r"><span class="sw" style="background:var(--ped)"></span>pedestrian veins (the maintenance crew)</div>
+    <div class="r"><span class="dot" style="background:var(--nave)"></span>a nave — a finite little society (organ)</div>
+  </div>
+</div>
+<div class="ctrls"><button id="drift">⏸ drift</button><button id="reset">⌖</button></div>
+<div class="crumb"><a href="/">◍ hoop</a> · <a href="/forge">⚙ forge</a> · <a href="/forge/foam3d">⬢ two species</a> · <a href="/forge/tower">⌗ tower</a> · the ship</div>
+<div class="hint">drag to look · WASD + Q/E to fly through · scroll to zoom<br>the ship streams around you — there is no edge</div>
+<script type="module" src="./ship-app.js"></script>
+</body>
+</html>

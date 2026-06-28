@@ -183,6 +183,16 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   (walkable, @ at the lift); SECTION = the elevation (strata reclaim-bottom→assembly-top, the lift threading
   them, you-are-here). Scrub floors via the lift/ramps. 3D stays legible as N trivial 2D maps + one cut.
   `slices.html` + `slices-app.js` (presentation over the tested kernels; no new test).
+  **The infinity reframe** (`infinitefoam.js`, `/forge/ship`): the slice/hex-prism is only the LOCAL zoom —
+  production is really the **infinite interstitium the finite naves float in**. Naves = sparse finite
+  inclusions (the bounded little societies); production = the connective **vasculature** between them, endless.
+  Two interpenetrating vessel lattices (material arteries · pedestrian veins, offset ½-cell so they never
+  touch — the two-species result made infinite), naves as organs on the arteries, the 8 verticals glanded
+  along them. **Infinity hook** = the 3D seam contract (cousin of `econ/record.js`): every hub/vessel/nave is
+  a pure function of its lattice coord + ship seed, so `shipWindow(center,R)` streams forever and overlapping
+  windows agree. `hoop.mino.mobi/forge/ship` flies through the circulation (WASD+Q/E, depth fog, no edge).
+  Pinned by `forge/test/infinitefoam.selftest.mjs` (13). `/ship` = the whole production layer; `/slices` = a
+  local drop-in. The pipe was the microscope slide, not the ship.
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

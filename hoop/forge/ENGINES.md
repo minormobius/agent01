@@ -249,6 +249,33 @@ Click the plan to walk, click a floor in the section to jump, ▲▼ takes the l
 it's N trivial 2D maps + one cut — never a confusing volume. (Presentation layer over the tested kernels:
 `formFactory` strata · `solveForgeChunk` per floor · `regionWalk`/`pathFind` for the walk.)
 
+## The reframe — production is the INFINITE interstitium the finite naves float in (`/forge/ship`)
+
+The hex-prism slice navigator (above) is **not** the answer to the production layer — it's only the *local
+zoom* (one locale's detail, the capillary-bed scale). The real shape is the opposite of a pipe:
+
+**Naves are finite by design** — little societies, separated, safe, each a carbon-pump lobule (parenchyma).
+So the production layer is what naves are EMBEDDED IN: the **interstitium + vasculature** that runs between
+and around them, and *that* is what's infinite. The ship is an endless 3D foam; naves are sparse finite
+**inclusions** in it; production is the connective medium tiling forever. Infinity belongs to the connective
+part precisely because the bounded part (naves) is bounded — they're complements.
+
+This also kills the boring-form problem. You don't read production with floor plans — **you ride the
+circulation.** `infinitefoam.js` is the substrate: two interpenetrating vessel lattices — **material
+arteries · pedestrian veins** — offset half a cell so they *never touch* (the two-species result, now
+infinite and endless), the **naves** hanging off the arteries like organs, the eight verticals **glanded**
+along the vessels. The **infinity hook** is the 3D seam contract (the cousin of `econ/record.js`): every hub,
+vessel, and nave is a **pure function of its lattice coordinate + the ship seed**, so it streams around the
+player forever and any two windows agree on their overlap — no global solve, no bounds, just a windowed read
+(`shipWindow(center, R)`). Live at `hoop.mino.mobi/forge/ship`: fly through the ship's circulation (WASD +
+Q/E), naves glowing as organs, vessels receding into fog — no edge, in any direction. Pinned by
+`test/infinitefoam.selftest.mjs` (13: windows agree on overlap, travel reveals new ship, the two systems
+never coincide, naves are a Bernoulli field at the right density).
+
+So the two scales are complementary: **`/forge/ship`** is the infinite circulation (the whole production
+layer); **`/forge/slices`** is the local plan+section when you drop into one locale. The pipe was never the
+ship — it was the microscope slide.
+
 ## Open seams (parked)
 
 - **Energetics (tide) seam** — every hot engine draws from the fixed energy budget; not yet wired.

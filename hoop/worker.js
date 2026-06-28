@@ -193,6 +193,10 @@ export default {
     if (url.pathname === '/forge/slices' || url.pathname === '/forge/slices/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/slices.html', url), request));
     }
+    // forge/ship — the INFINITE production layer: fly through the ship's circulation, naves as organs.
+    if (url.pathname === '/forge/ship' || url.pathname === '/forge/ship/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/ship.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
