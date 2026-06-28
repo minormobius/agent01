@@ -4,6 +4,8 @@
 
 import { ENGINES, ENGINE_IDS, stepOf } from './engines.js';
 import { solveForgeChunk, pickChunkEngines } from './facility.js';
+import { ambientOf, materialOf, fixtureOf } from './fixtures.js';
+import { drawCore, drawMachine, drawCarrier, ambientGlow } from './sprites.js';
 import { SAMPLE_SHAPE, shapePoly, shapeSideOf } from '../chunkroller/shapes.js';
 
 const W = 900, H = 600;
@@ -51,6 +53,7 @@ $('reseed').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; 
 $('auto').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; picked = pickChunkEngines(seed); buildPicker(); generate(); });
 $('t-flow').addEventListener('change', render);
 $('t-steps').addEventListener('change', render);
+$('t-rich').addEventListener('change', render);
 $('zin').addEventListener('click', () => zoomAt(CW / 2, CH / 2, 1.25));
 $('zout').addEventListener('click', () => zoomAt(CW / 2, CH / 2, 0.8));
 $('zfit').addEventListener('click', () => { fitView(); render(); });
@@ -73,25 +76,27 @@ function fitView() {
 const SX = (x) => x * view.s + view.ox, SY = (y) => y * view.s + view.oy;
 
 // ── render ──
+let clock = 0;   // animation phase (advanced by the rAF loop)
+const engColor = (room) => rec.facilities[room.facility] ? rec.facilities[room.facility].color : '#444';
+const engId = (room) => rec.facilities[room.facility] ? rec.facilities[room.facility].engine : null;
+const stepFracOf = (room) => { const f = room.facility; if (f < 0) return 0; const e = ENGINES[rec.facilities[f].engine]; const i = e.steps.findIndex((s) => s.id === room.step); return e.steps.length > 1 ? i / (e.steps.length - 1) : 0; };
+
 function render() {
   if (!rec) return;
   ctx.clearRect(0, 0, CW, CH);
-  const showSteps = $('t-steps').checked;
-  const facColor = rec.facilities.map((f) => f.color);
-  // index: room → {facility,color,stepFrac,isCore}
-  const eng = (f) => ENGINES[rec.facilities[f] ? rec.facilities[f].engine : null];
-  const stepFracOf = (room) => { const f = room.facility; if (f < 0) return 0; const e = ENGINES[rec.facilities[f].engine]; const i = e.steps.findIndex((s) => s.id === room.step); return e.steps.length > 1 ? i / (e.steps.length - 1) : 0; };
-
-  // cells
+  const rich = $('t-rich').checked, showSteps = $('t-steps').checked;
   const cells = rec.cells, roomOf = rec.roomOf, road = rec.road, rooms = rec.rooms;
+
+  // 1) chambers — rich: per-engine AMBIENT floor tint; flat: the old facility colour (the "soup" baseline)
   for (let i = 0; i < cells.length; i++) {
     const poly = cells[i].poly; if (poly.length < 3) continue;
     const rid = roomOf[i]; let fill;
-    if (road[i]) fill = '#0c1018';
+    if (road[i]) fill = '#0b0f17';
     else if (rid >= 0 && rooms[rid] && rooms[rid].facility >= 0) {
-      const room = rooms[rid], col = facColor[room.facility] || '#444';
-      fill = showSteps ? shade(col, stepFracOf(room)) : tint(col, 0.42);
-    } else if (rid >= 0) fill = '#11151d';
+      const room = rooms[rid];
+      if (rich) { const amb = ambientOf(engId(room)); fill = shadeMix(amb.floor, engColor(room), 0.12 + stepFracOf(room) * 0.16); }
+      else fill = showSteps ? shade(engColor(room), stepFracOf(room)) : tint(engColor(room), 0.42);
+    } else if (rid >= 0) fill = '#0e1219';
     else fill = '#07080c';
     ctx.fillStyle = fill;
     ctx.beginPath(); ctx.moveTo(SX(poly[0][0]), SY(poly[0][1])); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k][0]), SY(poly[k][1])); ctx.closePath(); ctx.fill();
@@ -99,39 +104,51 @@ function render() {
     if (sel >= 0 && rid === sel) { ctx.strokeStyle = 'rgba(244,191,98,.9)'; ctx.lineWidth = 1.3; ctx.stroke(); }
   }
 
-  // facility hulls (a faint coloured outline grouping each facility's rooms)
-  for (const f of rec.facilities) {
-    if (!f.rooms.length) continue;
-    ctx.strokeStyle = tint(f.color, 0.5); ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
-    // convex-ish hull via room centroids — light hint, not exact
-    const pts = f.rooms.map((r) => rooms[r]).map((r) => ({ x: r.x, y: r.y }));
-    const hull = convexHull(pts);
-    if (hull.length >= 3) { ctx.beginPath(); ctx.moveTo(SX(hull[0].x), SY(hull[0].y)); for (let k = 1; k < hull.length; k++) ctx.lineTo(SX(hull[k].x), SY(hull[k].y)); ctx.closePath(); ctx.stroke(); }
-    ctx.setLineDash([]);
-  }
+  // 2) ambient glow at each facility core (the engine's signature light)
+  if (rich) for (const f of rec.facilities) { if (!f.rooms.length || f.core < 0) continue; const c = rooms[f.core]; ambientGlow(ctx, SX(c.x), SY(c.y), Math.max(40, f.rooms.length ** 0.5 * view.s * 4), ambientOf(f.engine).light); }
 
-  // activity flow (routed chamber→chamber)
-  if ($('t-flow').checked) {
+  // 3) the activity flow as faint RAILS the material rides
+  if ($('t-flow').checked) for (const e of rec.flow) { const a = rooms[e.from], b = rooms[e.to]; if (!a || !b) continue; if (rich) { ctx.strokeStyle = tint(e.color, 0.3); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(SX(a.x), SY(a.y)); ctx.lineTo(SX(b.x), SY(b.y)); ctx.stroke(); } else drawArrow(SX(a.x), SY(a.y), SX(b.x), SY(b.y), tint(e.color, 0.85)); }
+
+  // 4) FIXTURES — the machines that fill the chambers (rich), else step glyphs (flat)
+  if (rich) {
+    for (const r of rooms) {
+      if (r.facility < 0) continue;
+      const eng = engId(r), st = stepOf(eng, r.step), light = ambientOf(eng).light;
+      const rr = Math.max(7, Math.sqrt(r.cells.length) * view.s * 0.85);
+      if (r.isCore) drawCore(ctx, fixtureOf(eng, r.step), SX(r.x), SY(r.y), rr * 1.25, light, clock);
+      else drawMachine(ctx, st ? st.glyph : '', SX(r.x), SY(r.y), rr * 0.8, light);
+    }
+    // 5) MATERIAL in motion — carriers ride each flow edge so the TOPOLOGY MOVES (the anti-soup verb)
     for (const e of rec.flow) {
       const a = rooms[e.from], b = rooms[e.to]; if (!a || !b) continue;
-      drawArrow(SX(a.x), SY(a.y), SX(b.x), SY(b.y), tint(e.color, 0.85));
+      const mat = materialOf(e.engine), col = ambientOf(e.engine).light, cr = Math.max(2, view.s * 1.6);
+      const K = 3; for (let k = 0; k < K; k++) {
+        const ph = (clock * mat.speed * 0.5 + e.from * 0.13 + e.to * 0.07 + k / K) % 1;
+        drawCarrier(ctx, mat.shape, SX(a.x + (b.x - a.x) * ph), SY(a.y + (b.y - a.y) * ph), cr, col, mat.hot);
+      }
     }
-  }
-
-  // step glyphs + core ring
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (const r of rooms) {
-    if (r.facility < 0) continue;
-    const e = ENGINES[rec.facilities[r.facility].engine], st = stepOf(e ? rec.facilities[r.facility].engine : null, r.step);
-    if (r.isCore) { ctx.strokeStyle = tint(rec.facilities[r.facility].color, 0.95); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(SX(r.x), SY(r.y), Math.max(8, r.cells.length ** 0.5 * view.s * 0.6), 0, 7); ctx.stroke(); }
-    const fs = Math.max(8, Math.min(20, 7 + Math.sqrt(r.cells.length) * view.s * 0.7));
-    ctx.font = `${fs}px ui-monospace,monospace`;
-    ctx.fillStyle = 'rgba(6,8,12,.6)'; ctx.fillText(st ? st.glyph : '·', SX(r.x) + 0.6, SY(r.y) + 0.6);
-    ctx.fillStyle = r.isCore ? '#fff' : 'rgba(244,240,228,.92)'; ctx.fillText(st ? st.glyph : '·', SX(r.x), SY(r.y));
+  } else {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const r of rooms) {
+      if (r.facility < 0) continue;
+      const st = stepOf(engId(r), r.step);
+      if (r.isCore) { ctx.strokeStyle = tint(engColor(r), 0.95); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(SX(r.x), SY(r.y), Math.max(8, r.cells.length ** 0.5 * view.s * 0.6), 0, 7); ctx.stroke(); }
+      const fs = Math.max(8, Math.min(20, 7 + Math.sqrt(r.cells.length) * view.s * 0.7)); ctx.font = `${fs}px ui-monospace,monospace`;
+      ctx.fillStyle = 'rgba(6,8,12,.6)'; ctx.fillText(st ? st.glyph : '·', SX(r.x) + 0.6, SY(r.y) + 0.6);
+      ctx.fillStyle = r.isCore ? '#fff' : 'rgba(244,240,228,.92)'; ctx.fillText(st ? st.glyph : '·', SX(r.x), SY(r.y));
+    }
   }
 
   // ports (chunk seams)
   for (const p of rec.ports) { ctx.fillStyle = p.inherited ? '#5fd0c0' : '#d8b25a'; ctx.beginPath(); ctx.arc(SX(p.x), SY(p.y), 3, 0, 7); ctx.fill(); }
+}
+
+// blend a base floor hex toward an accent hex by `a` (rich chamber fill: ambient floor + a touch of engine).
+function shadeMix(baseHex, accentHex, a) {
+  const b = parseInt(baseHex.slice(1), 16), c = parseInt(accentHex.slice(1), 16);
+  const m = (s, t) => Math.round(s + (t - s) * a);
+  return `rgb(${m((b >> 16) & 255, (c >> 16) & 255)},${m((b >> 8) & 255, (c >> 8) & 255)},${m(b & 255, c & 255)})`;
 }
 
 function drawArrow(x0, y0, x1, y1, col) {
@@ -198,4 +215,11 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundi
 
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); fitView(); render(); }
 addEventListener('resize', resize);
+
+// animation loop: advance the material clock + repaint while "machines & material" is on (the motion is
+// what makes the topology legible). When off, it's a static map and we don't burn frames.
+let _last = 0;
+function loop(ts) { const dt = _last ? Math.min(0.05, (ts - _last) / 1000) : 0; _last = ts; if ($('t-rich').checked) { clock += dt; render(); } requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
 buildPicker(); resize(); generate();

@@ -138,7 +138,17 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   physarum's **trunk arterials span the seams = the emergent axial-rail**. It tiles (19→37→larger; one hub per
   factory). Live at `hoop.mino.mobi/forge/region` (`region.html` + `region-app.js`: chunks/μ sliders, **⚙
   optimise-layout toggle** with a live transport readout, carved conduits by tier, nave lift, supply overlay,
-  `?seed=&n=&mu=&opt=`). Pinned by `forge/test/region.selftest.mjs` (29 checks). **Next:** wire a forge region into the v099 game as
+  `?seed=&n=&mu=&opt=`). Pinned by `forge/test/region.selftest.mjs` (29 checks).
+  **The anti-soup layer** (`fixtures.js` + `sprites.js`): the foam geometry is uniform by design, so engine
+  identity comes from three non-geometric overlays — **ambient** (per-engine light/floor: foundry hot-orange,
+  fab cold-cyan, weave humid-green…), **fixtures** (a characteristic core machine per engine — crucible ·
+  retort · rollers · litho · loom · conveyor · pump · shredder · nave-lift, all distinct), and **material in
+  motion** (carriers animate along the activity graph so the topology is a *verb*: foundry pulses droplets
+  out, mill streams a billet down, chemworks circulates, reclaim fans out). The **⚙ machines & material**
+  toggle on both `/forge/facilities` and `/forge/region` (default on; off = flat tint = the soup, for
+  comparison) makes each facility read as its own place and the factory a patchwork of districts, not a stew.
+  Pinned by `forge/test/fixtures.selftest.mjs` (31). The eventual home is the v099 game skin
+  (`skin.js#paintChunk` + consoles/FIXTURES) — the forge pages prove the treatment. **Next:** wire a forge region into the v099 game as
   a playable deck (nave/rind cousin); energetics (tide) seam; fixtures + logistics droids riding the trunks.
   See `ENGINES.md` + `NEEDS.md` + `FACTORY.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at

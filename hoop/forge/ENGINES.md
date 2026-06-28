@@ -123,6 +123,30 @@ and spanning chunks, **one fulfillment per 19-chunk factory** bridging to a link
 layout cutting transport >10% with assembly+reclaim ringing the hub**, a tiered conduit network with a nave
 lift and seam-crossing trunks, deterministic, tiles to 37 (two hubs), single-chunk mode for the facilities page).
 
+## Not soup — fixtures, ambient & material in motion (`fixtures.js` + `sprites.js`)
+
+The foam geometry is uniform *by design*, so if a tint were the only thing distinguishing a foundry from a
+weave hall the map would be a homogeneous stew and the topology would be invisible to the player. Identity
+comes from three overlays the player reads, none of which touch the geometry:
+
+1. **Ambient** — per-engine light + floor (`AMBIENT`): a foundry glows hot orange, a cleanroom is cold cyan,
+   a weave hall humid green, fluid blue, reclaim rust. The atmosphere names the place before any glyph.
+2. **Fixtures** — a characteristic **machine** per step (`sprites.js#drawCore`): the core step gets the
+   landmark (crucible · retort · rollers · litho · loom · conveyor+arm · pump · shredder · nave-lift), the
+   rest get equipment boxes. The cores are all distinct, so engines read apart at a glance.
+3. **Material in motion** — carriers animate along the activity graph (`MATERIAL` + `drawCarrier`), so the
+   **topology is a verb, not a noun**: a foundry *pulses* molten droplets out from the hot core (star), a
+   mill *streams* a billet down the line (path), a chemworks *circulates* the reactor loop (cycle), a
+   reclaim yard *fans* junk out to the bales. This is the real anti-soup move — the flow moves the way the
+   engine works, so a star and a path are obviously different even on identical foam.
+
+On `/forge/facilities` and `/forge/region` it's the **⚙ machines & material** toggle (default on); flip it
+off to see the flat tint (the soup) for comparison. At factory scale the region reads as a patchwork of
+distinct industrial districts — each its own light + landmark — wired by the grown trunk network, not a
+uniform stew. Pinned by `test/fixtures.selftest.mjs` (31: every engine has all three overlays; the cores
+are distinct; the motion modes vary). **The eventual home is the v099 game skin** (`skin.js#paintChunk` +
+the consoles/FIXTURES fixture system) — these forge pages prove the treatment; the game renders it for real.
+
 ## Open seams (parked)
 
 - **Energetics (tide) seam** — every hot engine draws from the fixed energy budget; not yet wired.

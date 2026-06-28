@@ -4,6 +4,8 @@
 
 import { buildForgeRegion } from './floor.js';
 import { ENGINES } from './engines.js';
+import { ambientOf, materialOf, fixtureOf } from './fixtures.js';
+import { drawCore, drawCarrier, ambientGlow } from './sprites.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -13,7 +15,7 @@ let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 7;
 let count = Q.has('n') ? Math.max(3, Math.min(37, Q.get('n') | 0)) : 19;
 let mu = Q.has('mu') ? Math.max(0.6, Math.min(1.8, +Q.get('mu'))) : 1.35;
 let optimize = Q.has('opt') ? Q.get('opt') === '1' : true;
-let reg = null, sel = -1, view = { s: 1, ox: 0, oy: 0 };
+let reg = null, sel = -1, view = { s: 1, ox: 0, oy: 0 }, clock = 0;
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0;
 
@@ -28,7 +30,7 @@ $('mu').addEventListener('input', (e) => { mu = +e.target.value; $('muv').textCo
 $('opt').addEventListener('change', (e) => { optimize = e.target.checked; generate(); });
 $('roll').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; generate(); });
 $('reseed').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; generate(); });
-for (const id of ['t-cond', 't-supply', 't-tint', 't-seam']) $(id).addEventListener('change', render);
+for (const id of ['t-cond', 't-supply', 't-tint', 't-seam', 't-rich']) $(id).addEventListener('change', render);
 $('zin').addEventListener('click', () => zoomAt(CW / 2, CH / 2, 1.25));
 $('zout').addEventListener('click', () => zoomAt(CW / 2, CH / 2, 0.8));
 $('zfit').addEventListener('click', () => { fitView(); render(); });
@@ -52,22 +54,28 @@ function render() {
   const tintOn = $('t-tint').checked;
   const selFac = sel >= 0 ? reg.facilities[sel] : null;
   const selRooms = selFac ? new Set(selFac.rooms) : null;
+  const rich = $('t-rich').checked;
 
-  // chambers, per chunk (road cells dark = the GROWN concourse; room cells facility-tinted)
+  // chambers, per chunk (road cells dark = the GROWN concourse; rich: per-engine AMBIENT floor; flat: tint)
   for (let ci = 0; ci < reg.recs.length; ci++) {
     const rec = reg.recs[ci];
-    const facCol = rec.facilities.map((f) => f.color);
+    const facCol = rec.facilities.map((f) => f.color), facEng = rec.facilities.map((f) => f.engine);
     for (let i = 0; i < rec.cells.length; i++) {
       const poly = rec.cells[i].poly; if (poly.length < 3) continue;
       const rid = rec.roomOf[i]; let fill;
       if (rec.road[i]) fill = '#0b0f17';
-      else if (rid >= 0 && rec.rooms[rid] && rec.rooms[rid].facility >= 0) { const room = rec.rooms[rid], col = facCol[room.facility] || '#444'; const gid = roomGid(ci, rid); fill = tintOn ? tint(col, selRooms ? (selRooms.has(gid) ? 0.62 : 0.16) : 0.34) : '#10141c'; }
-      else if (rid >= 0) fill = '#0e1219';
+      else if (rid >= 0 && rec.rooms[rid] && rec.rooms[rid].facility >= 0) {
+        const room = rec.rooms[rid], gid = roomGid(ci, rid), dim = selRooms && !selRooms.has(gid);
+        if (rich) fill = shadeMix(ambientOf(facEng[room.facility]).floor, facCol[room.facility] || '#444', dim ? 0.06 : 0.16);
+        else { const col = facCol[room.facility] || '#444'; fill = tintOn ? tint(col, selRooms ? (dim ? 0.16 : 0.62) : 0.34) : '#10141c'; }
+      } else if (rid >= 0) fill = '#0e1219';
       else fill = '#07080c';
       ctx.fillStyle = fill;
       ctx.beginPath(); ctx.moveTo(SX(poly[0][0]), SY(poly[0][1])); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k][0]), SY(poly[k][1])); ctx.closePath(); ctx.fill();
     }
   }
+  // ambient glow at each facility core (the engine's signature light)
+  if (rich) for (const f of reg.facilities) ambientGlow(ctx, SX(f.x), SY(f.y), Math.max(30, f.rooms.length ** 0.5 * view.s * 3), ambientOf(f.engine).light);
 
   // chunk seams
   if ($('t-seam').checked) { ctx.strokeStyle = 'rgba(120,140,170,.22)'; ctx.lineWidth = 1; for (const poly of reg.polys) { ctx.beginPath(); ctx.moveTo(SX(poly[0].x), SY(poly[0].y)); for (let k = 1; k < poly.length; k++) ctx.lineTo(SX(poly[k].x), SY(poly[k].y)); ctx.closePath(); ctx.stroke(); } }
@@ -99,15 +107,37 @@ function render() {
   ctx.fillStyle = '#cbd3e0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '13px ui-monospace,monospace'; ctx.fillText('⌂', SX(nv.x), SY(nv.y));
   ctx.fillStyle = 'rgba(203,211,224,.85)'; ctx.font = '10px ui-monospace,monospace'; ctx.fillText(`the nave ↑ (~${nv.pop} crew)`, SX(nv.x), SY(nv.y) - 24);
 
-  // facility cores + glyph
+  // material IN MOTION along the supply trunks + up the nave lift (the verb that kills the soup at scale)
+  if (rich) {
+    for (const s of reg.supply) {
+      const a = reg.rooms[s.fromRoom], b = reg.rooms[s.toRoom]; if (!a || !b) continue;
+      const mat = materialOf(reg.facilities[s.from].engine), col = ambientOf(reg.facilities[s.from].engine).light, cr = Math.max(1.6, view.s * 1.4);
+      for (let k = 0; k < 2; k++) { const ph = (clock * mat.speed * 0.4 + s.from * 0.11 + k * 0.5) % 1; drawCarrier(ctx, mat.shape, SX(a.x + (b.x - a.x) * ph), SY(a.y + (b.y - a.y) * ph), cr, col, mat.hot); }
+    }
+    for (const c of reg.conduits) if (c.nave) { const ph = (clock * 0.35) % 1; const up = (ph + 0.5) % 1; drawCarrier(ctx, 'crate', SX(c.bx + (c.ax - c.bx) * ph), SY(c.by + (c.ay - c.by) * ph), Math.max(2, view.s * 1.8), '#cbd3e0', false); drawCarrier(ctx, 'junk', SX(c.ax + (c.bx - c.ax) * up), SY(c.ay + (c.by - c.ay) * up), Math.max(1.6, view.s * 1.4), '#8a7d6a', false); }
+  }
+
+  // facility cores: rich → the engine's landmark machine; flat → a ring + glyph
   for (const f of reg.facilities) {
     const e = ENGINES[f.engine], on = selFac && selFac.id === f.id;
-    ctx.strokeStyle = tint(f.color, on ? 1 : 0.72); ctx.lineWidth = on ? 2.4 : 1.4;
-    ctx.beginPath(); ctx.arc(SX(f.x), SY(f.y), Math.max(7, (f.navePort ? 11 : 9) * Math.min(1.6, view.s)), 0, 7); ctx.stroke();
-    const fs = Math.max(10, Math.min(20, 11 * Math.min(1.6, view.s))); ctx.font = `${fs}px ui-monospace,monospace`;
-    ctx.fillStyle = 'rgba(6,8,12,.6)'; ctx.fillText(e.glyph, SX(f.x) + 0.7, SY(f.y) + 0.7);
-    ctx.fillStyle = on ? '#fff' : tint(f.color, 0.95); ctx.fillText(e.glyph, SX(f.x), SY(f.y));
+    if (rich) {
+      const rr = Math.max(8, (f.navePort ? 13 : 10) * Math.min(1.7, view.s));
+      drawCore(ctx, fixtureOf(f.engine, ENGINES[f.engine].core), SX(f.x), SY(f.y), rr, ambientOf(f.engine).light, clock);
+      if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(SX(f.x), SY(f.y), rr * 1.3, 0, 7); ctx.stroke(); }
+    } else {
+      ctx.strokeStyle = tint(f.color, on ? 1 : 0.72); ctx.lineWidth = on ? 2.4 : 1.4;
+      ctx.beginPath(); ctx.arc(SX(f.x), SY(f.y), Math.max(7, (f.navePort ? 11 : 9) * Math.min(1.6, view.s)), 0, 7); ctx.stroke();
+      const fs = Math.max(10, Math.min(20, 11 * Math.min(1.6, view.s))); ctx.font = `${fs}px ui-monospace,monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(6,8,12,.6)'; ctx.fillText(e.glyph, SX(f.x) + 0.7, SY(f.y) + 0.7);
+      ctx.fillStyle = on ? '#fff' : tint(f.color, 0.95); ctx.fillText(e.glyph, SX(f.x), SY(f.y));
+    }
   }
+}
+
+// blend a base floor hex toward an accent hex by `a`.
+function shadeMix(baseHex, accentHex, a) {
+  const b = parseInt(baseHex.slice(1), 16), c = parseInt(accentHex.slice(1), 16), m = (s, t) => Math.round(s + (t - s) * a);
+  return `rgb(${m((b >> 16) & 255, (c >> 16) & 255)},${m((b >> 8) & 255, (c >> 8) & 255)},${m(b & 255, c & 255)})`;
 }
 const roomGid = (chunk, localRoomId) => { // map a chunk-local room id to its global id (facilities use global ids)
   let base = 0; for (let i = 0; i < chunk; i++) base += reg.recs[i].rooms.length; return base + localRoomId;
@@ -168,4 +198,10 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundi
 
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); fitView(); render(); }
 addEventListener('resize', resize);
+
+// animation loop: advance the material clock + repaint while "machines & material" is on.
+let _last = 0;
+function loop(ts) { const dt = _last ? Math.min(0.05, (ts - _last) / 1000) : 0; _last = ts; if (reg && $('t-rich').checked) { clock += dt; render(); } requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
 resize(); generate();
