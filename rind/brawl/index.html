@@ -122,7 +122,10 @@ buildSetup();
 
 // ── run state ──
 let hero = null, streak = 0, baseSeed = 1;
-let s = null, enc = null, sel = null, busy = false;
+let s = null, enc = null, busy = false;
+// interaction: mode 'idle' (nothing) | 'radial' (move-wheel open on the hero) | 'aim' (a skill is
+// chosen, pick a target/tile). `sel` is the aimed skill ('__move' or a skill id) while aiming.
+let mode = 'idle', sel = null, radial = null, drag = false, moved = false;
 const LADDER = ['comfortable', 'fair', 'fair', 'tight', 'tight', 'brutal'];
 
 $('#summon').onclick = () => {
@@ -140,7 +143,7 @@ function startBrawl(difficulty) {
   setTimeout(() => {                                   // yield so the spinner paints before the heavy solve
     enc = generateEncounter(hero, { difficulty, seed: baseSeed * 7 + streak * 13, terrain: true, cap: 9000, tries: 14 });
     s = E.createBattle(enc.setup);
-    sprites.clear(); sprCache.clear(); snapHp(); floats.length = 0; sel = null; busy = false;
+    sprites.clear(); sprCache.clear(); snapHp(); floats.length = 0; sel = null; mode = 'idle'; radial = null; drag = false; busy = false;
     hideOver();
     const g = enc.grade;
     $('#cert').innerHTML = `streak <b>${streak}</b> · <b style="color:var(--gold)">${enc.difficulty}</b> · oracle: ${g.solvable ? `certified <b>winnable in ~${g.par} turns</b> (${(100 * g.margin).toFixed(0)}% margin)` : 'uncertified'}${enc.ok ? '' : ' (closest)'}`;
@@ -254,6 +257,41 @@ function drawCanvas() {
     ctx.globalAlpha = 1 - age; ctx.fillStyle = f.color; ctx.font = `bold ${Math.round(SCALE * .5)}px ${MONO}`; ctx.textAlign = 'center';
     ctx.fillText(f.text, px(f.x), py(f.y) - R - 6 - age * 22); ctx.globalAlpha = 1;
   }
+
+  if (mode === 'radial' && radial) drawRadial(now);
+}
+
+// ── the radial move-wheel: tokens ringed around the hero; drag-to-pick, drag-out to aim. ──
+const RAD = { ring: 66, token: 17, inner: 22, reach: 104 };
+function radialCenter() { return { x: px(radial.u.x), y: py(radial.u.y) }; }
+function drawRadial(now) {
+  const c = radialCenter();
+  for (const it of radial.items) { it.x = c.x + Math.cos(it.angle) * RAD.ring; it.y = c.y + Math.sin(it.angle) * RAD.ring; }
+  ctx.globalAlpha = 0.92;
+  ctx.beginPath(); ctx.arc(c.x, c.y, RAD.ring, 0, 7); ctx.strokeStyle = 'rgba(127,216,208,0.25)'; ctx.lineWidth = 1; ctx.stroke();
+  for (const it of radial.items) {
+    const hover = radial.hover === it.id;
+    const tr = RAD.token * (hover ? 1.18 : 1);
+    ctx.beginPath(); ctx.arc(it.x, it.y, tr, 0, 7);
+    ctx.fillStyle = it.usable ? (hover ? '#1d2a2a' : '#11161d') : '#0c0f13';
+    ctx.fill();
+    ctx.lineWidth = hover ? 3 : 1.5;
+    ctx.strokeStyle = !it.usable ? '#2a2f38' : hover ? '#ffce78' : (it.id === '__move' ? '#7fd8d0' : '#b9c6c4');
+    if (hover && it.usable) { ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 10; } ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.globalAlpha = it.usable ? 0.92 : 0.4;
+    ctx.fillStyle = !it.usable ? '#6b7480' : it.id === '__move' ? '#7fd8d0' : '#e7e2d6';
+    ctx.font = `${Math.round(tr * 1.15)}px ${SERIF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(it.glyph, it.x, it.y - 1);
+    ctx.globalAlpha = 0.92;
+  }
+  // center: cancel + the hovered skill's name/cost label
+  const lab = radial.hover ? radial.items.find((i) => i.id === radial.hover) : null;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.beginPath(); ctx.arc(c.x, c.y, RAD.inner, 0, 7); ctx.fill();
+  ctx.fillStyle = lab ? (lab.usable ? '#ffce78' : '#6b7480') : '#8aa';
+  ctx.font = `11px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(lab ? lab.label : '✕', c.x, c.y);
+  if (lab && lab.cost) { ctx.fillStyle = '#8aa'; ctx.font = `9px ${MONO}`; ctx.fillText(lab.cost + '⚡', c.x, c.y + 12); }
+  ctx.globalAlpha = 1;
 }
 function ring(x, y, r, stroke, fill) {
   ctx.beginPath(); ctx.arc(px(x), py(y), r * SCALE, 0, 7);
@@ -281,33 +319,99 @@ function syncPanels() {
   $('#end').disabled = !isPlayerTurn();
   $('#roster').innerHTML = s.units.map((u) => `<div style="opacity:${u.alive ? 1 : .35}">${u.glyph} <b style="color:${u.accent}">${u.name}</b> ${u.alive ? `${u.hp}/${u.maxhp}` : '✝'}${status(u)}</div>`).join('');
   $('#log').innerHTML = s.log.slice().reverse().map((l) => `<div class="${l.kind}">${l.msg}</div>`).join('');
-  $('#hint').textContent = s.winner ? '' : (isPlayerTurn() ? (sel === '__move' ? 'click in the teal disk to move' : sel ? 'click a highlighted foe' : 'choose Move or a skill') : 'enemy turn…');
+  $('#hint').textContent = s.winner ? '' : !isPlayerTurn() ? 'enemy turn…'
+    : mode === 'radial' ? 'drag to a move · release on it to aim, or out onto a target to cast'
+    : mode === 'aim' ? (sel === '__move' ? 'tap in the teal disk to move (tap your fighter to reopen)' : 'tap a highlighted foe (tap your fighter to reopen)')
+    : 'tap your fighter for the move-wheel';
 }
 const status = (u) => { const ks = Object.keys(u.status || {}).filter((k) => u.status[k].turns > 0); return ks.length ? ' · ' + ks.map((k) => `${E.STATUS[k]?.glyph || ''}${u.status[k].turns}`).join(' ') : ''; };
 
+// ── sidebar buttons: a desktop affordance that drives the same aim machinery as the radial. ──
 function onSkill(b, lg) {
-  if (busy) return;
+  if (busy || !isPlayerTurn()) return;
   const a = b.dataset.act;
-  if (a === 'move') { sel = sel === '__move' ? null : '__move'; syncPanels(); return; }
-  const id = b.dataset.id, st = lg.skills[id];
-  if (!st.targets.length && E.SKILLS[id].kind !== 'attack') { E.act(s, { type: 'skill', skillId: id }); afterPlayer(); }
-  else { sel = sel === id ? null : id; syncPanels(); }
+  if (a === 'move') { mode = (mode === 'aim' && sel === '__move') ? 'idle' : 'aim'; sel = mode === 'aim' ? '__move' : null; radial = null; syncPanels(); return; }
+  const id = b.dataset.id;
+  if (((lg.skills[id] || {}).targets || []).length === 0 && E.SKILLS[id].kind !== 'attack') { mode = 'idle'; sel = null; radial = null; E.act(s, { type: 'skill', skillId: id }); afterPlayer(); }
+  else { mode = (mode === 'aim' && sel === id) ? 'idle' : 'aim'; sel = mode === 'aim' ? id : null; radial = null; syncPanels(); }
+}
+
+// ── the radial move-wheel ──
+const evPos = (ev) => { const r = cv.getBoundingClientRect(); const sx = ev.clientX - r.left, sy = ev.clientY - r.top; return { sx, sy, wx: sx / SCALE, wy: sy / SCALE }; };
+const onHero = (wx, wy) => { if (!isPlayerTurn()) return false; const u = E.active(s); return Math.hypot(u.x - wx, u.y - wy) <= (E.UNIT_R || .5) * 1.9; };
+const targetAt = (id, wx, wy) => { const ts = (E.legal(s).skills[id] || {}).targets || []; let best = null, bd = 1e9; for (const tid of ts) { const t = E.unitById(s, tid); const d = Math.hypot(t.x - wx, t.y - wy); if (d < (E.UNIT_R || .5) * 2.4 && d < bd) { bd = d; best = t; } } return best; };
+
+function openRadial() {
+  const u = E.active(s), lg = E.legal(s), ids = ['__move', ...E.skillsFor(u)], n = ids.length;
+  radial = { u, hover: null, items: ids.map((id, i) => {
+    const usable = id === '__move' ? (!u.moved && lg.move.range > 0) : !!(lg.skills[id] && lg.skills[id].usable);
+    const meta = id === '__move' ? { glyph: '➤', label: 'Move', cost: 0 } : { glyph: E.SKILLS[id].glyph, label: E.SKILLS[id].label, cost: E.costOf(u, id) };
+    return { id, ...meta, usable, angle: -Math.PI / 2 + i * 2 * Math.PI / n, x: 0, y: 0 };
+  }) };
+  mode = 'radial'; sel = null; syncPanels();
+}
+function closeRadial() { mode = 'idle'; radial = null; sel = null; drag = false; syncPanels(); }
+function radialHit(sx, sy) {
+  const c = radialCenter(), d = Math.hypot(sx - c.x, sy - c.y);
+  if (d < RAD.inner) return { kind: 'center' };
+  const ang = Math.atan2(sy - c.y, sx - c.x);
+  let best = radial.items[0], bd = 9;
+  for (const it of radial.items) { const da = Math.abs(((it.angle - ang + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI); if (da < bd) { bd = da; best = it; } }
+  return { kind: d <= RAD.ring + 34 ? 'wedge' : 'reach', skill: best.id };
+}
+function commitSkill(id, reachPt) {
+  const u = E.active(s), lg = E.legal(s);
+  const usable = id === '__move' ? (!u.moved && lg.move.range > 0) : !!(lg.skills[id] && lg.skills[id].usable);
+  if (!usable) { closeRadial(); return; }
+  radial = null;
+  if (id === '__move') {
+    if (reachPt) { const p = E.canReach(s, u, reachPt.wx, reachPt.wy) ? { x: reachPt.wx, y: reachPt.wy } : E.moveToward(s, u, reachPt.wx, reachPt.wy, E.moveRange(u), 0); if (p.x !== u.x || p.y !== u.y) { mode = 'idle'; sel = null; E.act(s, { type: 'move', x: p.x, y: p.y }); afterPlayer(); return; } }
+    mode = 'aim'; sel = '__move'; syncPanels(); return;
+  }
+  if (((lg.skills[id] || {}).targets || []).length === 0) { mode = 'idle'; sel = null; E.act(s, { type: 'skill', skillId: id }); afterPlayer(); return; }   // self / summon
+  if (reachPt) { const t = targetAt(id, reachPt.wx, reachPt.wy); if (t) { mode = 'idle'; sel = null; E.act(s, { type: 'skill', skillId: id, targetId: t.id }); afterPlayer(); return; } }
+  mode = 'aim'; sel = id; syncPanels();
+}
+function handleAim(wx, wy) {
+  const u = E.active(s);
+  if (sel === '__move') { const p = E.canReach(s, u, wx, wy) ? { x: wx, y: wy } : E.moveToward(s, u, wx, wy, E.moveRange(u), 0); if (p.x !== u.x || p.y !== u.y) { mode = 'idle'; sel = null; E.act(s, { type: 'move', x: p.x, y: p.y }); afterPlayer(); } }
+  else if (sel) { const t = targetAt(sel, wx, wy); if (t) { const id = sel; mode = 'idle'; sel = null; E.act(s, { type: 'skill', skillId: id, targetId: t.id }); afterPlayer(); } }
 }
 
 cv.onpointerdown = (ev) => {
   if (busy || !isPlayerTurn()) return;
-  const r = cv.getBoundingClientRect(), wx = (ev.clientX - r.left) / SCALE, wy = (ev.clientY - r.top) / SCALE, u = E.active(s);
-  if (sel === '__move') {
-    const p = E.canReach(s, u, wx, wy) ? { x: wx, y: wy } : E.moveToward(s, u, wx, wy, E.moveRange(u), 0);
-    if (p.x !== u.x || p.y !== u.y) { E.act(s, { type: 'move', x: p.x, y: p.y }); sel = null; afterPlayer(); }
-  } else if (sel) {
-    const ts = (E.legal(s).skills[sel] || {}).targets || []; let hit = null, hd = 1e9;
-    for (const id of ts) { const t = E.unitById(s, id); const d = Math.hypot(t.x - wx, t.y - wy); if (d < (E.UNIT_R || .5) * 2.2 && d < hd) { hd = d; hit = t; } }
-    if (hit) { E.act(s, { type: 'skill', skillId: sel, targetId: hit.id }); sel = null; afterPlayer(); }
+  const p = evPos(ev);
+  if (mode === 'radial') {                       // wheel already open (from a tap) → this tap selects/cancels
+    const ht = radialHit(p.sx, p.sy);
+    if (ht.kind === 'wedge') commitSkill(ht.skill, null); else closeRadial();
+    return;
   }
+  if (mode === 'aim') {
+    if (onHero(p.wx, p.wy)) { openRadial(); drag = true; moved = false; try { cv.setPointerCapture(ev.pointerId); } catch {} }
+    else handleAim(p.wx, p.wy);
+    return;
+  }
+  if (onHero(p.wx, p.wy)) { openRadial(); drag = true; moved = false; try { cv.setPointerCapture(ev.pointerId); } catch {} }
 };
+cv.onpointermove = (ev) => {
+  if (mode !== 'radial' || !radial) return;
+  const p = evPos(ev), c = radialCenter();
+  if (Math.hypot(p.sx - c.x, p.sy - c.y) > 7) moved = true;
+  const ht = radialHit(p.sx, p.sy); radial.hover = ht.kind === 'center' ? null : ht.skill;
+};
+cv.onpointerup = (ev) => {
+  try { cv.releasePointerCapture(ev.pointerId); } catch {}
+  if (mode !== 'radial' || !drag) { drag = false; return; }
+  drag = false;
+  if (!moved) return;                            // a tap (no drag) leaves the wheel open for tap-select
+  const p = evPos(ev), ht = radialHit(p.sx, p.sy);
+  if (ht.kind === 'center') closeRadial();
+  else if (ht.kind === 'wedge') commitSkill(ht.skill, null);
+  else commitSkill(ht.skill, { wx: p.wx, wy: p.wy });   // dragged out → aim at the release point
+};
+cv.onpointercancel = () => { drag = false; };
 
-$('#end').onclick = () => { if (!busy && isPlayerTurn()) { E.act(s, { type: 'end' }); sel = null; afterPlayer(); } };
+$('#end').onclick = () => { if (!busy && isPlayerTurn()) { E.act(s, { type: 'end' }); mode = 'idle'; sel = null; radial = null; afterPlayer(); } };
 
 // after any player action: animate, then if it's the foe's turn, run foes on a watchable timer.
 function afterPlayer() {
