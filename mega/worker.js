@@ -5,6 +5,7 @@
 import { genomeFromParams, frameSVG, frameRects, dirFromKey, DIR8 } from './sprite/core.js';
 import { beeAtlas, beeSVG } from './bees/swarm.js';
 import { buildRadialGenome, radialSVG, radialFrame } from './sprite/radial/radial.js';
+import { buildQuadGenome, quadSVG, quadFrame, FAMILIES as QUAD_FAMILIES } from './sprite/quad/quad.js';
 
 const CORS = { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods':'GET,OPTIONS', 'Access-Control-Allow-Headers':'*' };
 const json = (o,status)=> new Response(JSON.stringify(o,null,2), {status:status||200, headers:{'content-type':'application/json; charset=utf-8', ...CORS}});
@@ -37,6 +38,8 @@ function api(url){
       'GET /sprite/api/walk.json':'+ frames → full 8-direction walk-cycle rects',
       'GET /sprite/api/radial.svg':'radial echinoderm still. params: seed,arms,depth,splay,taper,writhe,glow,accentHue,size,scale → image/svg+xml',
       'GET /sprite/api/radial.json':'same params → radial genome + rest-pose rects',
+      'GET /sprite/api/quad.svg':'quadruped still. params: seed,family(hound|boar|bear|robot),body,depth,leg,neck,head,snout,tail,stance,chassis,hue,face(left),scale → image/svg+xml',
+      'GET /sprite/api/quad.json':'same params → quad genome + standing-pose rects',
     }, archetypes:['balanced','dormitory','company','commons'] });
 
   const g = genomeFromParams(p);
@@ -71,7 +74,21 @@ function api(url){
     }
     return json({ seed:rg.seed, arms:rg.arms, depth:rg.depth, size:rg.size, rects:radialFrame(rg, null, rg.size) });
   }
-  return json({error:'unknown endpoint', endpoints:['sprite.svg','sprite.json','walk.json','radial.svg','radial.json']}, 404);
+  if(route==='quad.svg' || route==='quad.json'){
+    const fam = (p.family && QUAD_FAMILIES[p.family]) ? QUAD_FAMILIES[p.family] : {};
+    const genes = {...fam};
+    for(const k of ['body','depth','leg','neck','head','snout','tail','ear','stance','chassis','stride','cadence','hue'])
+      if(p[k]!=null && p[k]!=='') genes[k]=+p[k];
+    const qg = buildQuadGenome(p.seed!=null?String(p.seed):'quad:0', genes);
+    const faceLeft = (p.face==='left'||p.face==='W');
+    if(route==='quad.svg'){
+      const scale=Math.max(1,Math.min(32,Math.round(+(p.scale||10))||10));
+      return new Response(quadSVG(qg, scale, 0, faceLeft), {headers:{
+        'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=31536000, immutable', ...CORS }});
+    }
+    return json({ seed:qg.seed, family:p.family||null, mech:qg.mech, w:qg.w, h:qg.h, rects:quadFrame(qg, 0, faceLeft) });
+  }
+  return json({error:'unknown endpoint', endpoints:['sprite.svg','sprite.json','walk.json','radial.svg','radial.json','quad.svg','quad.json']}, 404);
 }
 
 // ── /bees/api/* — the portable BAKE for the swarm. Motion is live in the browser/engine; the
