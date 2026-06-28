@@ -53,13 +53,21 @@ import { createBattle, act, active, unitById, reachable, moveRange, SKILLS } fro
 import { rollCharacter, deriveCombat } from '../../v092/stats.js';
 import { makeSwarmUnit, addSwarm, swarmTurn, emberHits, resolveEnd, EMBER } from './swarm-combat.js';
 import { genomeFromParams, frameRects, DIR_OF } from '../../sprite/core.js';
-import { beeAtlas, beeCells } from '../swarm.js';
+import { beeAtlas, Swarm } from '../swarm.js';
 
 const $ = s => document.querySelector(s);
 const cv = $('#board'), ctx = cv.getContext('2d', { alpha:false });
 const cheb=(a,b)=>Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));
-const MAXBEES = 84;
-let s, player, swarm, playerG, atlas, dpr=1, busy=false, fightSeed=7;
+const SWARM_COUNT = 110;
+// the cloud is a LIVE boids sim (same kernel as the hazard demo), NOT a baked loop. The Swarm kernel
+// has world-scale constants (its soft-wall margin is 28 units), so it must run in a world of that
+// scale — we use 40 units/tile → a 360-unit board — and divide by BOIDS_SCALE when drawing. The
+// attractor tracks the swarm unit's continuous position, so the cloud flows over when it moves;
+// Ember scatters it with a wind impulse.
+const BOIDS_SCALE = 40;
+const SWARM_PARAMS = { follow:155, swirl:26, separation:95, cohesion:8, alignment:10, wander:42,
+  noiseFreq:0.03, maxSpeed:58, drag:0.88, neighborRadius:26, sepRadius:9 };
+let s, player, swarm, swarmBoids, playerG, atlas, dpr=1, busy=false, fightSeed=7, lastT=0;
 const flashes=[]; // {x,y,txt,col,t0}
 
 function newFight(seed){
@@ -71,6 +79,8 @@ function newFight(seed){
   swarm = addSwarm(s, makeSwarmUnit({ seed:'hive:'+seed, x:4, y:3, mass:88 }));
   player = unitById(s, 'P');
   atlas = beeAtlas('hive:'+seed, { headings:12 });
+  swarmBoids = new Swarm({ width:9*BOIDS_SCALE, height:9*BOIDS_SCALE, count:SWARM_COUNT, seed:'hive:'+seed, headings:12, params:SWARM_PARAMS });
+  swarmBoids.setTarget((swarm.x+0.5)*BOIDS_SCALE, (swarm.y+0.5)*BOIDS_SCALE);
   $('#banner').className='banner';
   busy=false;
   // if the swarm somehow won initiative, run its turn first
@@ -108,7 +118,7 @@ function bar(){
     b.innerHTML=`${label}<span class="sub">${sub}</span>`; b.disabled=!enabled; if(enabled)b.onclick=fn; el.appendChild(b); };
   btn('Strike','chip · adj','', yours&&!player.acted&&adj, ()=>{ act(s,{type:'attack',targetId:'swarm',skillId:'strike'}); syncUI(); });
   btn('Ember','✺ scatter · '+EMBER.cost+'⚡','fire', yours&&!player.acted&&inEmber&&player.flux>=EMBER.cost, ()=>{
-    player.flux-=EMBER.cost; player.acted=true; const hits=emberHits(s,player); flashHits(hits,'#ffb070'); resolveEnd(s); syncUI(); });
+    player.flux-=EMBER.cost; player.acted=true; const hits=emberHits(s,player); flashHits(hits,'#ffb070'); scatterBees(); resolveEnd(s); syncUI(); });
   btn('Mend','✚ heal · '+SKILLS.mend.cost+'⚡','', yours&&!player.acted&&player.flux>=SKILLS.mend.cost&&player.hp<player.maxhp, ()=>{ act(s,{type:'skill',skillId:'mend'}); syncUI(); });
   btn('End turn','→','prime', yours, ()=>endPlayer());
 }
@@ -146,17 +156,20 @@ function bars(g, u, cx, cy){
   if(u.maxflux>0){ ctx.fillStyle='#33408f'; ctx.fillRect(x,y+4,w*(u.flux/u.maxflux),2); }
 }
 
-function drawSwarmBees(g, cx, cy){
-  const shown=Math.floor(MAXBEES*(swarm.hp/swarm.maxhp)); const t=performance.now()/1000;
-  const spread=g.ts*(swarm.radius+0.4);
-  for(let i=0;i<shown;i++){
-    const a=i*2.3999632, rr=Math.sqrt((i+0.5)/MAXBEES)*spread;     // phyllotaxis disk
-    const jx=Math.sin(t*3+i)*g.ts*0.12, jy=Math.cos(t*3.3+i*1.7)*g.ts*0.12;
-    const bx=cx+Math.cos(a)*rr+jx, by=cy+Math.sin(a)*rr+jy;
-    const ang=t*2+i, cells=beeCells('hive:'+fightSeed, ang, (Math.floor(t*16)+i)&1, atlas.colors);
-    const PX=Math.max(2,Math.round(g.ts/9));
-    for(const c of cells){ ctx.fillStyle=c.c; ctx.fillRect(Math.round(bx+c.x*PX),Math.round(by+c.y*PX),PX,PX); }
-  }
+// draw the LIVE boids cloud: each bee at its simulated tile-space position, count ∝ remaining mass.
+function drawSwarmBees(g){
+  if(!swarmBoids) return;
+  const shown=Math.floor(swarmBoids.count*(swarm.hp/swarm.maxhp)), PX=Math.max(2,Math.round(g.ts/9));
+  let n=0;
+  swarmBoids.forEachBee((bx,by,bin,wing)=>{ if(n++>=shown) return;
+    const cells=atlas.cells[bin][wing], sx=g.ox+(bx/BOIDS_SCALE)*g.ts, sy=g.oy+(by/BOIDS_SCALE)*g.ts;
+    for(const c of cells){ ctx.fillStyle=c.c; ctx.fillRect(Math.round(sx+c.x*PX),Math.round(sy+c.y*PX),PX,PX); }
+  });
+}
+function scatterBees(){ if(!swarmBoids) return;            // Ember impulse: blow the cloud off the player
+  const dx=swarm.x-player.x, dy=swarm.y-player.y, d=Math.hypot(dx,dy)||1;
+  swarmBoids.setParams({ windX:dx/d*220, windY:dy/d*220 });
+  setTimeout(()=>swarmBoids&&swarmBoids.setParams({windX:0,windY:0}), 280);
 }
 
 function draw(){
@@ -185,7 +198,7 @@ function draw(){
     bars(g,player,p.x+g.ts/2,p.y+g.ts/2);
   }
   // swarm (bee cloud) over its tile
-  if(swarm.alive){ const p=T2P(g,swarm.x,swarm.y); drawSwarmBees(g,p.x+g.ts/2,p.y+g.ts/2); bars(g,swarm,p.x+g.ts/2,p.y+g.ts/2); }
+  if(swarm.alive){ const p=T2P(g,swarm.x,swarm.y); drawSwarmBees(g); bars(g,swarm,p.x+g.ts/2,p.y+g.ts/2); }
 
   // damage flashes
   const now=performance.now();
@@ -207,8 +220,13 @@ function syncUI(){
   if(s.winner) showBanner();   // a player-turn Ember can end the fight too, not just a swarm turn
 }
 
-// continuous redraw for the buzz; DOM updates only when state changes
-function loop(){ draw(); requestAnimationFrame(loop); }
+// continuous loop: step the LIVE boids cloud (attractor = the swarm unit's tile), then redraw.
+// DOM updates only when state changes.
+function loop(ts){
+  const dt = lastT ? Math.min(0.05,(ts-lastT)/1000) : 0; lastT=ts;
+  if(swarmBoids && swarm && swarm.alive){ swarmBoids.setTarget((swarm.x+0.5)*BOIDS_SCALE, (swarm.y+0.5)*BOIDS_SCALE); swarmBoids.step(dt); }
+  draw(); requestAnimationFrame(loop);
+}
 addEventListener('resize', draw);
 newFight(7); requestAnimationFrame(loop);
 </script>
