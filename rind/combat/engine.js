@@ -9,7 +9,12 @@
 //   • EXPANDED VERBS   — brace (guard + counter), flit (disengage-move), feint/rivet (control),
 //                        gore (bleed-for-power), adrenal (HP→Flux), siphon (Flux drain), scavenge.
 //   • STATUS EFFECTS   — bleed · stun · mark · slow, ticked each turn, resisted by nerve/will.
-//   • FLANKING         — a strike lands harder when an ally is also adjacent to the target.
+//   • FLANKING         — a strike lands harder when an ally is also within melee of the target.
+//   • CONTINUUM BOARD  — positions are continuous Euclidean points (not grid cells); movement is a free
+//                        step anywhere within a disk; range/AoE are radii; units have a body radius and
+//                        can't overlap. The discrete-grid `cheb`/`reachable` layer was replaced by
+//                        `dist`/`moveToward`/`canReach`. Skill numbers are unchanged — they're now
+//                        center-to-center distances in world units (a unit is ~1 unit across).
 //
 // Pure + seeded: a battle is fully determined by (player, foes, seed), so it is reproducible and
 // node-testable, and the balance harness can run thousands headlessly. Zero-dep beyond stats/factions.
@@ -17,14 +22,19 @@
 import { deriveCombat } from './stats.js';
 import { FACTIONS, discountedCost } from './factions.js';
 
-const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+// ── CONTINUUM GEOMETRY ────────────────────────────────────────────────────────────────────────
+export const UNIT_R = 0.5;               // body radius; two units can't be closer than 2·UNIT_R
+const REACH_PAD = 0.25;                   // range forgiveness so "touching" reliably counts as in-range
+export const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+export const inRange = (a, b, r) => dist(a, b) <= (r || 1) + REACH_PAD;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
 // ── SKILLS ────────────────────────────────────────────────────────────────────────────────────
 // `strike` is the free universal melee. The rest are flux-fuelled; factions.js says who gets which
-// (kit) and at what discount. `kind` is the verb family the resolver switches on. `range` is Chebyshev
-// reach (default 1 = melee/adjacent). Costs are BEFORE the faction discount (discountedCost applies it).
+// (kit) and at what discount. `kind` is the verb family the resolver switches on. `range`/`radius` are
+// now Euclidean center distances in world units (≈1 unit per body). Costs are BEFORE the faction
+// discount (discountedCost applies it).
 export const SKILLS = {
   // universal
   strike:    { label: 'Strike',    cost: 0, kind: 'attack', mult: 1.0, range: 1, glyph: '⚔', gloss: 'a plain blow with what you hold' },
@@ -48,7 +58,7 @@ export const SKILLS = {
   scavenge:  { label: 'Scavenge',  cost: 4, kind: 'heal',   amount: 0.30, glyph: '♻', gloss: 'salvage what the hull gives — a deep self-repair' },
 
   // ── MULTI-AGENT & RANGE verbs — magic scales off apow (anima), so these read as an anima/Drift identity ──
-  lance:       { label: 'Lance',       cost: 5, kind: 'attack', magic: true, mult: 1.3, range: 3, glyph: '➳', gloss: 'a bolt of focused anima — strike a foe from range' },
+  lance:       { label: 'Lance',       cost: 5, kind: 'attack', magic: true, mult: 1.3, range: 5, glyph: '➳', gloss: 'a bolt of focused anima — strike a foe from well beyond melee' },
   blast:       { label: 'Blast',       cost: 8, kind: 'blast',  magic: true, mult: 1.0, range: 4, radius: 1, glyph: '✺', gloss: 'detonate anima over an area — every foe by the mark is hit' },
   agglomerate: { label: 'Agglomerate', cost: 6, kind: 'agglomerate', range: 4, radius: 2, pull: 2, glyph: '◍', gloss: 'a gravity knot — drag nearby units toward the mark (set up a Blast)' },
   summon:      { label: 'Summon',      cost: 7, kind: 'summon', glyph: '❂', gloss: 'call a maintenance drone to fight beside you' },
@@ -98,13 +108,13 @@ export function makeUnit({ id, name, team, faction, character, combat, x, y, spr
 // `det: true` puts the battle in DETERMINISTIC mode — no RNG: every attack lands and deals its
 // EXPECTED value (base × P(hit) × (1+P(crit))), variance = 1. This is what the solvability oracle
 // (solver.js) searches; normal play leaves det false and keeps the seeded rolls.
-export function createBattle({ player, allies = [], foes = [], seed = 1, W = 9, H = 9, maxTurns = 100, det = false }) {
+export function createBattle({ player, allies = [], foes = [], seed = 1, W = 16, H = 16, maxTurns = 100, det = false }) {
   const units = [];
   const pcs = [player, ...allies];
   const np = pcs.length;
-  pcs.forEach((p, i) => units.push(makeUnit({ ...p, team: 'player', x: p.x ?? Math.round((i + 1) * W / (np + 1)), y: p.y ?? (H - 1) })));
+  pcs.forEach((p, i) => units.push(makeUnit({ ...p, team: 'player', x: p.x ?? (i + 1) * W / (np + 1), y: p.y ?? (H - 1.5) })));
   const n = foes.length;
-  foes.forEach((f, i) => units.push(makeUnit({ ...f, team: 'foe', x: f.x ?? Math.round((i + 1) * W / (n + 1)), y: f.y ?? 0 })));
+  foes.forEach((f, i) => units.push(makeUnit({ ...f, team: 'foe', x: f.x ?? (i + 1) * W / (n + 1), y: f.y ?? 1.5 })));
   const order = units.slice().sort((a, b) => (b.speed - a.speed) || (a.team === 'player' ? -1 : 1)).map((u) => u.id);
   const state = { W, H, units, order, idx: 0, turn: 1, maxTurns, nextId: 1, det, log: [], phase: 'choose', winner: null, timedOut: false, rng: mulberry32(seed >>> 0 || 1) };
   beginTurn(state);
@@ -119,18 +129,13 @@ export const active = (s) => unitById(s, s.order[s.idx]);
 export const living = (s) => s.units.filter((u) => u.alive);
 export const enemiesOf = (s, u) => s.units.filter((x) => x.alive && x.team !== u.team);
 export const alliesOf = (s, u) => s.units.filter((x) => x.alive && x.team === u.team && x !== u);
-export const occupied = (s, x, y, except) => s.units.some((u) => u.alive && u !== except && u.x === x && u.y === y);
-const inBounds = (s, x, y) => x >= 0 && y >= 0 && x < s.W && y < s.H;
-// first open adjacent tile to `u` (for Summon placement), or null.
-function freeAdjacent(s, u) {
-  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
-    if (!dx && !dy) continue; const x = u.x + dx, y = u.y + dy;
-    if (inBounds(s, x, y) && !occupied(s, x, y)) return { x, y };
-  }
-  return null;
-}
+const inBounds = (s, x, y) => x >= UNIT_R && y >= UNIT_R && x <= s.W - UNIT_R && y <= s.H - UNIT_R;
+// would a body centred at (x,y) overlap any other living unit's body?
+export const collides = (s, x, y, except) => s.units.some((u) => u.alive && u !== except && dist(u, { x, y }) < 2 * UNIT_R - 1e-6);
+// a legal stand point near (x,y)? (in bounds + no overlap)
+const standable = (s, x, y, except) => inBounds(s, x, y) && !collides(s, x, y, except);
 
-// move range: base from speed, +faction moveBonus (Drift), −to 1 while slowed.
+// move range (a radius now): base from speed, +faction moveBonus (Drift), shrunk to 1 while slowed.
 export function moveRange(u) {
   if (u.status.slow?.turns > 0) return 1;
   const fac = FACTIONS[u.faction];
@@ -138,31 +143,40 @@ export function moveRange(u) {
   return clamp(Math.round(1 + u.speed) + bonus, 2, 5);
 }
 
+// can `u` legally stand at (x,y) this move? (within radius R, in bounds, no overlap)
+export function canReach(s, u, x, y, R = moveRange(u)) { return dist(u, { x, y }) <= R + 1e-6 && standable(s, x, y, u); }
+
+// step `u` toward (tx,ty), travelling at most R and stopping `stopAt` short; backs off on collision.
+export function moveToward(s, u, tx, ty, R = moveRange(u), stopAt = 0) {
+  const d = dist(u, { x: tx, y: ty }); if (d < 1e-6) return { x: u.x, y: u.y };
+  const ux = (tx - u.x) / d, uy = (ty - u.y) / d, travel = Math.min(R, Math.max(0, d - stopAt));
+  for (let t = travel; t > 0; t -= 0.25) { const x = u.x + ux * t, y = u.y + uy * t; if (standable(s, x, y, u)) return { x, y }; }
+  return { x: u.x, y: u.y };
+}
+// step `u` directly away from (fx,fy), up to R; backs off on collision/bounds.
+export function moveAway(s, u, fx, fy, R = moveRange(u)) {
+  const d = dist(u, { x: fx, y: fy }) || 1, ux = (u.x - fx) / d, uy = (u.y - fy) / d;
+  for (let t = R; t > 0; t -= 0.25) { const x = u.x + ux * t, y = u.y + uy * t; if (standable(s, x, y, u)) return { x, y }; }
+  return { x: u.x, y: u.y };
+}
+// an open point just outside `u`'s body, for Summon placement (sampled ring), or null.
+function freeNear(s, u) {
+  const r = 2 * UNIT_R + 0.2;
+  for (let k = 0; k < 16; k++) { const a = k * Math.PI / 8, x = u.x + Math.cos(a) * r, y = u.y + Math.sin(a) * r; if (standable(s, x, y, u)) return { x, y }; }
+  return null;
+}
+
 function log(s, msg, kind) { s.log.push({ t: s.turn, msg, kind: kind || 'info' }); if (s.log.length > 80) s.log.shift(); }
 
-// reachable tiles within a range (BFS, 8-dir, blocked by units). `R` overrides moveRange (for flit).
-export function reachable(s, u, R = moveRange(u)) {
-  const out = [], seen = new Set([u.x + ',' + u.y]), q = [{ x: u.x, y: u.y, d: 0 }];
-  while (q.length) {
-    const c = q.shift();
-    if (c.d >= R) continue;
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
-      if (!dx && !dy) continue; const nx = c.x + dx, ny = c.y + dy, k = nx + ',' + ny;
-      if (!inBounds(s, nx, ny) || seen.has(k) || occupied(s, nx, ny, u)) continue;
-      seen.add(k); out.push({ x: nx, y: ny }); q.push({ x: nx, y: ny, d: c.d + 1 });
-    }
-  }
-  return out;
-}
-export function targetsInRange(s, u, range) { return enemiesOf(s, u).filter((e) => cheb(u, e) <= range); }
+export function targetsInRange(s, u, range) { return enemiesOf(s, u).filter((e) => inRange(u, e, range)); }
 export function attackable(s, u) { return targetsInRange(s, u, 1); }
 
-// is `u` flanking `tgt`? — true when an ally of u is also adjacent to tgt (target is pincered).
-export function isFlanking(s, u, tgt) { return alliesOf(s, u).some((a) => cheb(a, tgt) <= 1); }
+// is `u` flanking `tgt`? — true when an ally of u is also within melee of tgt (target is pincered).
+export function isFlanking(s, u, tgt) { return alliesOf(s, u).some((a) => inRange(a, tgt, 1)); }
 
 // the legal action surface for the active unit (what the UI offers).
 export function legal(s) {
-  const u = active(s); if (!u || s.winner) return { move: [], skills: [] };
+  const u = active(s); if (!u || s.winner) return { move: { range: 0 }, skills: {} };
   const stunned = u.status.stun?.turns > 0;
   const skills = {};
   for (const id of skillsFor(u)) {
@@ -174,16 +188,16 @@ export function legal(s) {
       targets = targetsInRange(s, u, sk.range || 1).map((e) => e.id);   // enemy-targeted (blast/agglomerate centre on a foe)
       skills[id] = { usable: targets.length > 0, targets };
     } else if (sk.kind === 'revive') {
-      targets = s.units.filter((x) => !x.alive && x.team === u.team && cheb(u, x) <= (sk.range || 1)).map((x) => x.id);  // downed allies
+      targets = s.units.filter((x) => !x.alive && x.team === u.team && inRange(u, x, sk.range || 1)).map((x) => x.id);  // downed allies
       skills[id] = { usable: targets.length > 0, targets };
     } else if (sk.kind === 'assist') {
-      targets = alliesOf(s, u).filter((a) => cheb(u, a) <= (sk.range || 1)).map((a) => a.id);  // living allies
+      targets = alliesOf(s, u).filter((a) => inRange(u, a, sk.range || 1)).map((a) => a.id);  // living allies
       skills[id] = { usable: targets.length > 0, targets };
     } else if (sk.kind === 'summon') {
-      skills[id] = { usable: freeAdjacent(s, u) != null, targets: [] };   // needs an open adjacent tile
+      skills[id] = { usable: freeNear(s, u) != null, targets: [] };   // needs an open spot nearby
     } else { skills[id] = { usable: true, targets: [] }; }     // self skills (heal/buff/brace/convert/reposition)
   }
-  return { unit: u, move: (u.moved || stunned) ? [] : reachable(s, u), skills };
+  return { unit: u, move: { range: (u.moved || stunned) ? 0 : moveRange(u) }, skills };
 }
 
 // faction berserk multiplier for outgoing damage (Rindwalker: more damage the more hurt it is).
@@ -212,7 +226,7 @@ function resolveAttack(s, atk, tgt, skillId, isCounter = false) {
   if (sk.selfHp) { const c = Math.max(1, Math.round(atk.maxhp * sk.selfHp)); atk.hp = Math.max(1, atk.hp - c); }  // gore costs blood (never self-kill)
   // crit: base + Drift hit-and-run bonus when it struck the same turn it moved
   let critChance = atk.crit + ((FACTIONS[atk.faction]?.passive?.hitAndRunCrit && atk.movedThisTurn) ? FACTIONS[atk.faction].passive.hitAndRunCrit : 0);
-  const flank = !isCounter && !sk.magic && cheb(atk, tgt) <= 1 && isFlanking(s, atk, tgt);   // melee-only pincer
+  const flank = !isCounter && !sk.magic && inRange(atk, tgt, 1) && isFlanking(s, atk, tgt);   // melee-only pincer
   const acc = Math.min(1, atk.accuracy + (flank ? 0.1 : 0));
   let hit, crit, variance;
   if (s.det) { hit = true; crit = false; variance = 1; }            // deterministic: always lands, mean roll
@@ -227,7 +241,7 @@ function resolveAttack(s, atk, tgt, skillId, isCounter = false) {
   log(s, `${atk.name} ${sk.label}${crit ? ' (crit!)' : ''}${flank ? ' (flank)' : ''} → ${tgt.name} −${dmg}`, crit ? 'crit' : 'hit');
   if (tgt.hp <= 0) { tgt.alive = false; log(s, `${tgt.name} falls.`, 'down'); return { hit: true, crit, dmg, target: tgt.id, flank }; }
   // COUNTER: a braced (or Bulwark) defender adjacent to its attacker answers a non-counter blow.
-  if (!isCounter && tgt.buff.counter && tgt.buff.turns > 0 && cheb(atk, tgt) <= 1 && atk.alive) {
+  if (!isCounter && tgt.buff.counter && tgt.buff.turns > 0 && inRange(atk, tgt, 1) && atk.alive) {
     log(s, `${tgt.name} counters!`, 'info');
     resolveAttack(s, tgt, atk, 'strike', true);
   }
@@ -243,7 +257,7 @@ export function act(s, action) {
     const isFlit = action.type === 'flit-move';
     if (!isFlit && u.moved) return { type: 'illegal' };
     const R = isFlit ? SKILLS.flit.extra : moveRange(u);
-    if (!reachable(s, u, R).some((t) => t.x === action.x && t.y === action.y)) return { type: 'illegal' };
+    if (!canReach(s, u, action.x, action.y, R)) return { type: 'illegal' };
     const from = { x: u.x, y: u.y }; u.x = action.x; u.y = action.y; u.movedThisTurn = true;
     if (!isFlit) u.moved = true;
     return { type: 'move', unit: u.id, from, to: { x: u.x, y: u.y } };
@@ -257,16 +271,16 @@ export function act(s, action) {
     const TARGETED = ['attack', 'control', 'debuff', 'siphon', 'blast', 'agglomerate', 'revive', 'assist'];
     if (TARGETED.includes(sk.kind)) {
       const t = unitById(s, action.targetId);
-      if (!t || cheb(u, t) > (sk.range || 1)) return { type: 'illegal' };
+      if (!t || !inRange(u, t, sk.range || 1)) return { type: 'illegal' };
       if (sk.kind === 'revive') { if (t.alive || t.team !== u.team) return { type: 'illegal' }; }
       else if (sk.kind === 'assist') { if (!t.alive || t.team !== u.team || t === u) return { type: 'illegal' }; }
       else { if (!t.alive || t.team === u.team) return { type: 'illegal' }; }   // offensive: a living enemy
     }
-    if (sk.kind === 'summon' && !freeAdjacent(s, u)) return { type: 'illegal' };
+    if (sk.kind === 'summon' && !freeNear(s, u)) return { type: 'illegal' };
 
     if (sk.kind === 'attack') {
       const tgt = unitById(s, action.targetId);
-      if (!tgt || !tgt.alive || cheb(u, tgt) > (sk.range || 1)) return { type: 'illegal' };
+      if (!tgt || !tgt.alive || !inRange(u, tgt, sk.range || 1)) return { type: 'illegal' };
       u.acted = true; const r = resolveAttack(s, u, tgt, action.skillId); checkEnd(s);
       return { type: 'attack', unit: u.id, skill: action.skillId, ...r };
     }
@@ -282,7 +296,7 @@ export function act(s, action) {
     if (sk.kind === 'convert') { const gain = sk.gainFlux; const c = Math.max(1, Math.round(u.maxhp * sk.selfHp)); u.hp = Math.max(1, u.hp - c); u.flux = Math.min(u.maxflux, u.flux + gain); log(s, `${u.name} ${sk.label}: −${c} HP → +${gain} Flux`, 'info'); return { type: 'convert', unit: u.id, hp: c, flux: gain }; }
     if (sk.kind === 'control' || sk.kind === 'debuff') {
       const tgt = unitById(s, action.targetId);
-      if (!tgt || !tgt.alive || cheb(u, tgt) > (sk.range || 1)) return { type: 'illegal' };
+      if (!tgt || !tgt.alive || !inRange(u, tgt, sk.range || 1)) return { type: 'illegal' };
       applyStatus(tgt, sk.status, sk.turns || 2, sk.amt);
       log(s, `${u.name} ${sk.label} → ${tgt.name} (${sk.status})`, 'info');
       return { type: sk.kind, unit: u.id, target: tgt.id, status: sk.status };
@@ -296,28 +310,25 @@ export function act(s, action) {
     // ── multi-agent & range verbs ──
     if (sk.kind === 'blast') {                 // area magic: every enemy within radius of the marked foe
       const ctr = unitById(s, action.targetId);
-      const hits = enemiesOf(s, u).filter((e) => cheb(e, ctr) <= (sk.radius || 1));
+      const hits = enemiesOf(s, u).filter((e) => inRange(e, ctr, sk.radius || 1));
       const results = hits.map((e) => dealMagic(s, u, e, sk.mult || 1, sk.label));
       log(s, `${u.name} ${sk.label} — ${results.filter((r) => r.hit).length}/${hits.length} caught`, 'info');
       checkEnd(s);
       return { type: 'blast', unit: u.id, center: { x: ctr.x, y: ctr.y }, results };
     }
-    if (sk.kind === 'agglomerate') {           // gravity knot: drag nearby units toward the marked tile
+    if (sk.kind === 'agglomerate') {           // gravity knot: drag nearby units toward the marked point
       const ctr = unitById(s, action.targetId), moved = [];
       for (const o of s.units) {
-        if (!o.alive || o === u || (o.x === ctr.x && o.y === ctr.y)) continue;
-        if (cheb(o, ctr) > (sk.radius || 2)) continue;
-        for (let k = 0; k < (sk.pull || 1); k++) {
-          const sx = Math.sign(ctr.x - o.x), sy = Math.sign(ctr.y - o.y), nx = o.x + sx, ny = o.y + sy;
-          if ((sx || sy) && inBounds(s, nx, ny) && !occupied(s, nx, ny, o) && !(nx === ctr.x && ny === ctr.y)) { o.x = nx; o.y = ny; if (!moved.includes(o.id)) moved.push(o.id); }
-          else break;
-        }
+        if (!o.alive || o === u || dist(o, ctr) < 1e-6) continue;
+        if (dist(o, ctr) > (sk.radius || 2)) continue;
+        const p = moveToward(s, o, ctr.x, ctr.y, sk.pull || 1, 2 * UNIT_R);   // pulled in, stops at body contact
+        if (p.x !== o.x || p.y !== o.y) { o.x = p.x; o.y = p.y; moved.push(o.id); }
       }
       log(s, `${u.name} ${sk.label} — drags ${moved.length} toward the knot`, 'info');
       return { type: 'agglomerate', unit: u.id, center: { x: ctr.x, y: ctr.y }, moved };
     }
     if (sk.kind === 'summon') {                 // bring a new allied agent onto the board
-      const spot = freeAdjacent(s, u), id = `${u.id}~d${s.nextId++}`;
+      const spot = freeNear(s, u) || { x: u.x, y: u.y }, id = `${u.id}~d${s.nextId++}`;
       const drone = makeUnit({ id, name: `${u.name}'s Drone`, team: u.team, combat: { ...DRONE }, x: spot.x, y: spot.y, glyph: '◆', accent: u.accent, summoned: true });
       s.units.push(drone); s.order.push(id);   // acts when the round wraps to its new slot
       log(s, `${u.name} summons a drone`, 'info');
@@ -405,39 +416,39 @@ export function aiPlan(s) {
   const u = active(s); if (!u || s.winner) return [{ type: 'end' }];
   if (u.status.stun?.turns > 0) return [{ type: 'end' }];
   const arche = FACTIONS[u.faction]?.ai || 'aggro';
-  const foes = enemiesOf(s, u).slice().sort((a, b) => cheb(u, a) - cheb(u, b));
+  const foes = enemiesOf(s, u).slice().sort((a, b) => dist(u, a) - dist(u, b));
   const target = foes[0];
   if (!target) return [{ type: 'end' }];
   const seq = [];
   const hurt = u.hp / u.maxhp;
   const canUse = (id) => skillsFor(u).includes(id) && costOf(u, id) <= u.flux;
-  const stepToward = (tx, ty, R) => { const tiles = reachable(s, u, R); let best = null, bd = cheb(u, { x: tx, y: ty }); for (const t of tiles) { const d = Math.max(Math.abs(t.x - tx), Math.abs(t.y - ty)); if (d < bd) { bd = d; best = t; } } return best; };
+  // step toward the target, stopping `stopAt` short (so the unit lands inside attack range, not on top).
+  const closeTo = (stopAt) => { const p = moveToward(s, u, target.x, target.y, moveRange(u), stopAt); if (p.x !== u.x || p.y !== u.y) seq.push({ type: 'move', x: p.x, y: p.y }); };
 
   if (arche === 'turtle') {
-    // hold near where you are; brace; mend when hurt; only strike what's already adjacent.
+    // hold near where you are; mend when hurt; only strike what's already in reach.
     if (hurt < 0.5 && canUse('mend')) seq.push({ type: 'skill', skillId: 'mend' });
-    else if (cheb(u, target) > 1) { const b = stepToward(target.x, target.y, moveRange(u)); if (b) seq.push({ type: 'move', x: b.x, y: b.y }); }
+    else if (!inRange(u, target, 1)) closeTo(2 * UNIT_R);
     if (!seq.some((a) => a.type === 'skill')) {
-      if (cheb(u, target) <= 1) seq.push({ type: '__attack_adjacent', targetId: target.id });
+      if (inRange(u, target, 1)) seq.push({ type: '__attack_adjacent', targetId: target.id });
       else if (canUse('bulwark')) seq.push({ type: 'skill', skillId: 'bulwark' });
       else seq.push({ type: 'skill', skillId: 'brace' });
     }
   } else if (arche === 'kite') {
     // the ranged kite: close only to LANCE range, lance from afar, then flit back out of reach. This is
-    // Drift's real win condition vs melee aggro — it never has to enter the strike zone. (Falls back to
-    // a melee dart-and-flit if it can't afford a lance.) NB: a unit gets ONE action/turn; flit reopens
-    // only the MOVE slot, so lance-then-flit is legal.
-    const lanceR = SKILLS.lance.range;
+    // Drift's real win condition vs melee aggro — it never enters the strike zone. (Falls back to a melee
+    // dart-and-flit if it can't afford a lance.) NB: a unit gets ONE action/turn; flit reopens only the
+    // MOVE slot, so lance-then-flit is legal.
     if (canUse('lance')) {
-      if (cheb(u, target) > lanceR) { const b = stepToward(target.x, target.y, moveRange(u)); if (b) seq.push({ type: 'move', x: b.x, y: b.y }); }
+      if (!inRange(u, target, SKILLS.lance.range)) closeTo(SKILLS.lance.range - REACH_PAD);
       seq.push({ type: '__lance', targetId: target.id });
     } else {
-      if (cheb(u, target) > 1) { const b = stepToward(target.x, target.y, moveRange(u)); if (b) seq.push({ type: 'move', x: b.x, y: b.y }); }
+      if (!inRange(u, target, 1)) closeTo(2 * UNIT_R);
       seq.push({ type: '__attack_adjacent', targetId: target.id });
     }
     if (canUse('flit')) seq.push({ type: '__flit_away', fromId: target.id });
   } else { // aggro (rindwalker / default)
-    if (cheb(u, target) > 1) { const b = stepToward(target.x, target.y, moveRange(u)); if (b) seq.push({ type: 'move', x: b.x, y: b.y }); }
+    if (!inRange(u, target, 1)) closeTo(2 * UNIT_R);
     if (hurt < 0.35 && canUse('scavenge')) seq.push({ type: 'skill', skillId: 'scavenge' });
     else seq.push({ type: '__attack_adjacent', targetId: target.id });
   }
@@ -450,7 +461,7 @@ export function aiStep(s, step) {
   const u = active(s);
   if (step.type === '__attack_adjacent') {
     const tgt = unitById(s, step.targetId);
-    if (u && tgt && tgt.alive && cheb(u, tgt) <= 1 && !u.acted) {
+    if (u && tgt && tgt.alive && inRange(u, tgt, 1) && !u.acted) {
       // pick the best affordable attack: gore (rindwalker) > overclock burst > strike, gated on flux/kit.
       // Drift gets overclock cheap, so a kite that can afford it leads with the burst instead of a poke.
       let id = 'strike';
@@ -462,13 +473,13 @@ export function aiStep(s, step) {
   }
   if (step.type === '__feint_adjacent') {
     const tgt = unitById(s, step.targetId);
-    if (u && tgt && tgt.alive && cheb(u, tgt) <= 1 && !u.acted && costOf(u, 'feint') <= u.flux) return act(s, { type: 'skill', skillId: 'feint', targetId: tgt.id });
+    if (u && tgt && tgt.alive && inRange(u, tgt, 1) && !u.acted && costOf(u, 'feint') <= u.flux) return act(s, { type: 'skill', skillId: 'feint', targetId: tgt.id });
     return { type: 'noop' };
   }
   if (step.type === '__lance') {
     const tgt = unitById(s, step.targetId);
-    if (u && tgt && tgt.alive && !u.acted && cheb(u, tgt) <= SKILLS.lance.range && costOf(u, 'lance') <= u.flux) return act(s, { type: 'skill', skillId: 'lance', targetId: tgt.id });
-    if (u && tgt && tgt.alive && !u.acted && cheb(u, tgt) <= 1) return act(s, { type: 'skill', skillId: 'strike', targetId: tgt.id });  // fallback
+    if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, SKILLS.lance.range) && costOf(u, 'lance') <= u.flux) return act(s, { type: 'skill', skillId: 'lance', targetId: tgt.id });
+    if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, 1)) return act(s, { type: 'skill', skillId: 'strike', targetId: tgt.id });  // fallback
     return { type: 'noop' };
   }
   if (step.type === '__flit_away') {
@@ -477,10 +488,7 @@ export function aiStep(s, step) {
     if (!u || costOf(u, 'flit') > u.flux) return { type: 'noop' };
     const tgt = unitById(s, step.fromId);
     act(s, { type: 'skill', skillId: 'flit' });
-    // move to the reachable tile (flit range) farthest from the target
-    const tiles = reachable(s, u, SKILLS.flit.extra); let best = null, bd = -1;
-    for (const t of tiles) { const d = tgt ? cheb(t, tgt) : 0; if (d > bd) { bd = d; best = t; } }
-    if (best) return act(s, { type: 'flit-move', x: best.x, y: best.y });
+    if (tgt) { const p = moveAway(s, u, tgt.x, tgt.y, SKILLS.flit.extra); if (p.x !== u.x || p.y !== u.y) return act(s, { type: 'flit-move', x: p.x, y: p.y }); }
     return { type: 'noop' };
   }
   return act(s, step);
@@ -493,6 +501,7 @@ export function runAiTurn(s) { for (const step of aiPlan(s)) { if (s.winner) bre
 
 export default {
   createBattle, legal, act, endTurn, aiPlan, aiStep, runAiTurn,
-  active, unitById, reachable, attackable, targetsInRange, isFlanking,
+  active, unitById, attackable, targetsInRange, isFlanking,
+  dist, inRange, collides, canReach, moveToward, moveAway, UNIT_R,
   skillsFor, costOf, moveRange, SKILLS, UNIVERSAL, STATUS, makeUnit,
 };

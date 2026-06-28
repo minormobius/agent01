@@ -82,30 +82,36 @@ everyone) to a real **rock-paper-scissors triangle**, via two changes the harnes
    `apow` line must flow back into `hoop/v098/stats.js` when vendoring** (see below).
 2. **Drift ran its flux dry mid-kite** (tuning). Fix: `fluxRegen: 2` on Drift's passive.
 
-Resulting edges (≈, run `balance.mjs` for live): **rindwalker > continuant** (76/27), **drift >
-rindwalker** (69/27), **continuant ↔ drift** ~even. Each faction now wins one matchup and loses one.
+The **continuum move re-tuned this** — geometry changed the fights, and the harness drove it back to a
+playable spread (no faction 's overall win-rate outside ~44–55%): **continuant > drift** is the clean
+edge, **drift ↔ rindwalker** and **rindwalker ↔ continuant** are near-coinflips. Two continuum findings:
 
-Emergent finding (`--party 2`): **AoE scales superlinearly with party size** — Drift's `blast` makes it
-markedly stronger at 2v2 than 1v1. Encounter design will need to account for this.
+- **A kiter's ranged attack must out-distance the pursuer's reach+move, or the kite collapses.** On the
+  bigger board Drift's `lance` at range 3 left a razor-thin safe zone (a faster rindwalker closed from
+  lance-range into melee in one move); bumping `lance` to **range 5** restored the kite. A pure geometry
+  fact the grid hid.
+- **AoE scales superlinearly with party size** (`--party 2`): Drift's `blast` makes it markedly stronger
+  at 2v2 than 1v1. Encounter design must account for this.
 
 Tuning levers live in `factions.js` (move/crit/berserk/regen, kit, discounts) and the `engine.js` skill
 table (mults, costs, ranges, status durations). The harness is the feedback loop.
 
 ## Roadmap — the larger arc (design intent)
 
-The sandbox is being grown toward a deeper game. Shipped so far: faction styles, the multi-agent verb
-set (summon/revive/assist/blast/agglomerate), range (lance), the AI archetypes, and the **solvability
-oracle** (`solver.js`) — the fable/forge analog described below. Still ahead:
+The sandbox is being grown toward a deeper game. Shipped: faction styles, the multi-agent verb set
+(summon/revive/assist/blast/agglomerate), range (lance), the AI archetypes, the **solvability oracle**
+(`solver.js`, the fable/forge analog below), and the **continuum board** (Euclidean positions, free-disk
+movement, radii ranges, body collision — `dist`/`moveToward`/`canReach` replaced the old grid layer).
+Still ahead:
 
-- **The board beyond the grid (open decision — pick this next).** Today it's a 9×9 Chebyshev grid.
-  Options: a **bigger grid** (+ terrain/cover/elevation), or a **continuum** (Euclidean positions +
-  radii). The engine routes distance/range through `cheb` and skill `range`/`radius` — abstracting that
-  to a swappable metric (`dist(a,b)`) lets the same verbs (and the oracle) run on either. This is the
-  hinge; the oracle's state space follows from it.
-- **Oracle v2.** Today `solver.js` searches a bounded macro-action menu against the AI. Next: real
-  expectiminimax (so it's robust to RNG, not just expected-value), a **fragility** read (what fraction of
-  lines lose), and forge-style **encounter generation** — lay out foes + a board, let the oracle certify
-  it solvable at a target difficulty, mint the n-th encounter as a permalink.
+- **Terrain on the continuum.** Cover, hazard fields, elevation/decks, and line-of-sight blockers for
+  ranged attacks — the continuum makes these organic (circles/polygons rather than tagged cells).
+- **Oracle v2.** Today `solver.js` searches a bounded macro-action menu against the AI, quantizing
+  continuous positions (`Q`) to dedup. Next: real expectiminimax (robust to RNG, not just expected
+  value), a **fragility** read (what fraction of lines lose), and forge-style **encounter generation** —
+  lay out foes + a board, let the oracle certify it solvable at a target difficulty, mint the n-th
+  encounter as a permalink.
+- **Skill trees.** Seeded from `CONVERSIONS`; unlock kit verbs + passives, gated by items/narrative.
 - **Skill trees.** The `CONVERSIONS` in `stats.js` are the seeds; unlocks gate via items + narrative
   (the existing progression model). A tree would unlock kit verbs + passives per faction.
 - **Range/terrain depth.** Cover, hazards, elevation (decks), line-of-sight for ranged attacks.

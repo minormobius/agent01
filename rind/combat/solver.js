@@ -22,7 +22,9 @@
 
 import * as E from './engine.js';
 
-const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+const dist = E.dist;
+const Q = 1;   // position quantum: round continuous coords to this grid in the state key so near-equal
+               // positions dedup (the continuum would otherwise give an unbounded state space).
 
 // deep-clone a battle state so a branch can mutate freely (rng is unused in det mode; log dropped).
 function cloneState(s) {
@@ -36,9 +38,11 @@ function cloneState(s) {
 function cloneStatus(st) { const o = {}; for (const k in st) o[k] = { ...st[k] }; return o; }
 
 // a compact, time-invariant signature of a state (excludes turn count so equal positions dedup).
+// continuous coords are quantized to the Q grid so near-identical positions collapse to one node.
 function stateKey(s) {
+  const q = (v) => Math.round(v / Q);
   return s.idx + '|' + s.order.length + '|' + s.units.map((u) =>
-    `${u.id}:${u.alive ? 1 : 0}:${u.x},${u.y}:${u.hp}:${u.flux}:${u.buff.turns}:${Object.keys(u.status).sort().map((k) => k + u.status[k].turns).join('')}`
+    `${u.id}:${u.alive ? 1 : 0}:${q(u.x)},${q(u.y)}:${u.hp}:${u.flux}:${u.buff.turns}:${Object.keys(u.status).sort().map((k) => k + u.status[k].turns).join('')}`
   ).join(';');
 }
 
@@ -62,11 +66,11 @@ function playerPlans(s) {
     if (can(id)) plans.push([{ type: 'skill', skillId: id }, { type: 'end' }]);
   }
   // 3) revive a downed ally / assist a living ally (if any in range) — keeps the party verbs in-search
-  const downed = s.units.find((x) => !x.alive && x.team === u.team && cheb(u, x) <= 1);
+  const downed = s.units.find((x) => !x.alive && x.team === u.team && E.inRange(u, x, 1));
   if (can('revive') && downed) plans.push([{ type: 'skill', skillId: 'revive', targetId: downed.id }, { type: 'end' }]);
 
   // 4) advance toward the nearest enemy / hold
-  const near = enemies.slice().sort((a, b) => cheb(u, a) - cheb(u, b))[0];
+  const near = enemies.slice().sort((a, b) => dist(u, a) - dist(u, b))[0];
   if (near) plans.push(advance(s, u, near));
   plans.push([{ type: 'end' }]);
 
@@ -77,17 +81,15 @@ function playerPlans(s) {
 function engage(s, u, e, atkOpts) {
   for (const id of atkOpts) {
     const R = E.SKILLS[id].range || 1;
-    if (cheb(u, e) <= R) return [{ type: 'skill', skillId: id, targetId: e.id }, { type: 'end' }];
-    let best = null, bd = 1e9;
-    for (const t of E.reachable(s, u)) { const d = cheb(t, e); if (d <= R && d < bd) { bd = d; best = t; } }
-    if (best) return [{ type: 'move', x: best.x, y: best.y }, { type: 'skill', skillId: id, targetId: e.id }, { type: 'end' }];
+    if (E.inRange(u, e, R)) return [{ type: 'skill', skillId: id, targetId: e.id }, { type: 'end' }];
+    const p = E.moveToward(s, u, e.x, e.y, E.moveRange(u), R - 0.25);   // close to just inside this skill's range
+    if (E.inRange(p, e, R) && (p.x !== u.x || p.y !== u.y)) return [{ type: 'move', x: p.x, y: p.y }, { type: 'skill', skillId: id, targetId: e.id }, { type: 'end' }];
   }
   return advance(s, u, e);   // couldn't reach to strike → just close in
 }
 function advance(s, u, e) {
-  let best = null, bd = cheb(u, e);
-  for (const t of E.reachable(s, u)) { const d = cheb(t, e); if (d < bd) { bd = d; best = t; } }
-  return best ? [{ type: 'move', x: best.x, y: best.y }, { type: 'end' }] : [{ type: 'end' }];
+  const p = E.moveToward(s, u, e.x, e.y, E.moveRange(u), 2 * E.UNIT_R);
+  return (p.x !== u.x || p.y !== u.y) ? [{ type: 'move', x: p.x, y: p.y }, { type: 'end' }] : [{ type: 'end' }];
 }
 
 function applyPlan(s, plan) { for (const a of plan) { if (s.winner) break; E.act(s, a); } }

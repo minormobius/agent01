@@ -30,14 +30,9 @@ function autoBattle(seed, pf = 'rindwalker', ff = 'continuant') {
   while (!s.winner && guard++ < 400) {
     const u = E.active(s);
     if (u.team === 'foe') { E.runAiTurn(s); continue; }
-    // simple scripted player: move toward foe, strike, end
+    // simple scripted player: close on the foe, strike, end
     const foe = E.enemiesOf(s, u)[0];
-    const lg = E.legal(s);
-    if (lg.move.length && Math.max(Math.abs(u.x - foe.x), Math.abs(u.y - foe.y)) > 1) {
-      let best = lg.move[0], bd = 99;
-      for (const t of lg.move) { const d = Math.max(Math.abs(t.x - foe.x), Math.abs(t.y - foe.y)); if (d < bd) { bd = d; best = t; } }
-      E.act(s, { type: 'move', x: best.x, y: best.y });
-    }
+    if (!E.inRange(u, foe, 1)) { const p = E.moveToward(s, u, foe.x, foe.y, E.moveRange(u), 2 * E.UNIT_R); if (p.x !== u.x || p.y !== u.y) E.act(s, { type: 'move', x: p.x, y: p.y }); }
     const sk = E.legal(s).skills;
     if (sk.strike?.usable) E.act(s, { type: 'skill', skillId: 'strike', targetId: foe.id });
     E.act(s, { type: 'end' });
@@ -223,9 +218,9 @@ const A = (faction, over = {}) => ({ id: 'A', name: 'Ally', faction, combat: C(o
   const s = E.createBattle({ player: P('drift', { fluxPool: 30 }), foes: [F('continuant'), { id: 'E2', name: 'Foe2', faction: 'continuant', combat: C() }], seed: 1 });
   while (E.active(s).id !== 'P') E.endTurn(s);
   const u = E.active(s), ctr = E.unitById(s, 'E'), other = E.unitById(s, 'E2');
-  u.x = 0; u.y = 0; ctr.x = 3; ctr.y = 0; other.x = 5; other.y = 0;   // other 2 away from centre, caster in range 4
+  u.x = 2; u.y = 5; ctr.x = 5; ctr.y = 5; other.x = 7; other.y = 5;   // other 2 away from centre, caster in range 4
   const r = E.act(s, { type: 'skill', skillId: 'agglomerate', targetId: 'E' });
-  ok('agglomerate pulls units toward the knot', r.type === 'agglomerate' && other.x < 5, `other.x → ${other.x}`);
+  ok('agglomerate pulls units toward the knot', r.type === 'agglomerate' && other.x < 7, `other.x → ${other.x.toFixed(2)}`);
 }
 // pre-validation: an illegal target does NOT burn the action or flux.
 {

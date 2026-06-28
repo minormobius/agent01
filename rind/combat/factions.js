@@ -51,8 +51,8 @@ export const FACTIONS = {
     gloss: 'the hull-divers — bleed for power, regen, fight harder hurt',
     // passive Hull-sense: damage climbs as its own HP falls (berserk); knits between blows.
     passive: {
-      berserkMax: 0.45,         // up to +45% outgoing damage at 1 HP, scaling with the missing fraction
-      regenPerTurn: 0.06,       // heals 6% of max HP at the start of each of its turns
+      berserkMax: 0.3,         // up to +45% outgoing damage at 1 HP, scaling with the missing fraction
+      regenPerTurn: 0.04,       // heals 6% of max HP at the start of each of its turns
     },
     kit: ['gore', 'adrenal', 'scavenge'],
     discount: { adrenal: 0.5 },
