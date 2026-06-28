@@ -129,13 +129,16 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   set as the road (expropriating cells, giving frontage + doors — the `econ/roads.js#finalizeRoads` pattern).
   Commodity tags (`engines.js` intake/output) close the economy across chunks (reclaim → raw →
   foundry/chemworks/fab/weave → mill → assembly → product → reclaim, validated closed). A **ninth role, the
-  `fulfillment` center** (a logistics hub, placed at the hub chunk, ~1/8 chunks) is the **rind↔nave conduit**:
-  assembly product rides **up** the lift to a **NAVE node**, the nave's worn goods come **down** as waste to
-  the reclaim yards — so the region **supplies a whole nave** (~180 crew/assembly line). The heavy long-haul
-  demand (inter-chunk supply + nave lifts) makes physarum's **trunk arterials span the seams = the emergent
-  axial-rail**. It tiles (7→19→larger). Live at `hoop.mino.mobi/forge/region` (`region.html` +
-  `region-app.js`: chunks/μ sliders, carved conduits by tier, nave lift, supply overlay, `?seed=&n=&mu=`).
-  Pinned by `forge/test/region.selftest.mjs` (25 checks). **Next:** wire a forge region into the v099 game as
+  `fulfillment` center** (a logistics hub, **one per ~19-chunk factory**, at the most central chunk) is the
+  **rind↔nave conduit**: assembly product rides **up** the lift to a **NAVE node**, the nave's worn goods come
+  **down** as waste to the reclaim yards — so the factory **supplies a whole nave** (~180 crew/assembly line).
+  With a single hub the layout is **optimised** (`optimizeLayout`): assign engines to chunks to minimise
+  transport around the hub → a **radial supply gradient** (assembly+reclaim ring the hub, refiners outside),
+  ~25–30% below random placement. The heavy long-haul demand (inter-chunk supply + nave lifts) makes
+  physarum's **trunk arterials span the seams = the emergent axial-rail**. It tiles (19→37→larger; one hub per
+  factory). Live at `hoop.mino.mobi/forge/region` (`region.html` + `region-app.js`: chunks/μ sliders, **⚙
+  optimise-layout toggle** with a live transport readout, carved conduits by tier, nave lift, supply overlay,
+  `?seed=&n=&mu=&opt=`). Pinned by `forge/test/region.selftest.mjs` (29 checks). **Next:** wire a forge region into the v099 game as
   a playable deck (nave/rind cousin); energetics (tide) seam; fixtures + logistics droids riding the trunks.
   See `ENGINES.md` + `NEEDS.md` + `FACTORY.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at

@@ -12,13 +12,30 @@ import { ENGINES } from '../engines.js';
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
 
-const reg = buildForgeRegion(7, { count: 7 });
+// THE FACTORY: a 19-chunk region with ONE fulfillment center, optimised global layout.
+const reg = buildForgeRegion(7, { count: 19, optimize: true });
 
 // ── composition ──
-ok(reg.recs.length === 7 && reg.recs.every(Boolean), `7 chunks solved (${reg.recs.length})`);
-ok(reg.facilities.length >= 7, `region carries facilities (${reg.facilities.length})`);
-ok(reg.rooms.length >= 60, `region has a substantial chamber graph (${reg.rooms.length} rooms)`);
-ok(reg.crossLinks >= 6, `chunks are stitched across seams (${reg.crossLinks} cross-seam cell links)`);
+ok(reg.recs.length === 19 && reg.recs.every(Boolean), `19 chunks solved (${reg.recs.length})`);
+ok(reg.facilities.length >= 18, `factory carries facilities (${reg.facilities.length})`);
+ok(reg.rooms.length >= 150, `factory has a substantial chamber graph (${reg.rooms.length} rooms)`);
+ok(reg.crossLinks >= 18, `chunks are stitched across seams (${reg.crossLinks} cross-seam cell links)`);
+
+// ── ONE fulfillment per ~19-chunk factory ──
+ok(reg.nave.fulfillment === 1, `one fulfillment center per 19-chunk factory (${reg.nave.fulfillment})`);
+
+// ── the GLOBAL LAYOUT is OPTIMISED: lower transport than the same mix placed at random ──
+ok(reg.layout.optimized && reg.layout.reduction > 0.1, `optimised layout cuts transport vs random (${(reg.layout.reduction * 100).toFixed(0)}% lower)`);
+// the emergent structure: assembly + reclaim RING the hub; the refiners sit outside (radial supply gradient)
+const hub = reg.facilities.find((f) => f.navePort);
+const dHub = (f) => Math.hypot(f.x - hub.x, f.y - hub.y);
+const inner = reg.facilities.filter((f) => f.engine === 'assembly' || f.engine === 'reclaim');
+const outer = reg.facilities.filter((f) => ['foundry', 'mill', 'chemworks', 'fab', 'weave'].includes(f.engine));
+const meanInner = inner.reduce((s, f) => s + dHub(f), 0) / inner.length, meanOuter = outer.reduce((s, f) => s + dHub(f), 0) / outer.length;
+ok(meanInner < meanOuter, `assembly+reclaim ring the hub, refiners outside (inner ${meanInner.toFixed(0)} < outer ${meanOuter.toFixed(0)})`);
+// the balanced mix guarantees every engine type → the commodity loop closes
+const engineSet = new Set(reg.facilities.map((f) => f.engine));
+ok(['assembly', 'reclaim', 'foundry', 'mill', 'chemworks', 'fab', 'weave', 'fluid'].every((e) => engineSet.has(e)), 'the optimised mix includes every engine (loop closes)');
 
 // ── the concourse is GROWN (carved), not imposed: every chunk has road cells, and rooms still tile ──
 const roadCells = reg.recs.reduce((s, r) => s + r.road.reduce((a, b) => a + b, 0), 0);
@@ -50,15 +67,19 @@ const seamConduits = reg.conduits.filter((c) => c.chunkA !== c.chunkB && c.chunk
 ok(seamConduits >= 1, `conduits cross chunk seams (${seamConduits} trans-rind edges)`);
 ok(reg.conduits.some((c) => c.nave), 'a conduit rides up to the nave (the lift trunk)');
 
-// ── variety + determinism + scale ──
-let variety = 0; for (let s = 0; s < 8; s++) { const r = buildForgeRegion(s * 13 + 1, { count: 7 }); variety = Math.max(variety, new Set(r.facilities.map((f) => f.engine)).size); }
-ok(variety >= 3, `regions exercise a variety of engines (max ${variety} distinct across seeds)`);
-const a = buildForgeRegion(42, { count: 7 }), b = buildForgeRegion(42, { count: 7 });
-ok(JSON.stringify(a.facilities) === JSON.stringify(b.facilities) && JSON.stringify(a.conduits) === JSON.stringify(b.conduits), 'buildForgeRegion is deterministic');
-const big = buildForgeRegion(3, { count: 19 });
-ok(big.recs.length === 19 && big.recs.every(Boolean), `a larger region composes (${big.recs.length} chunks) — it tiles`);
-ok(big.facilities.filter((f) => f.navePort).length >= 2, `the bigger region grows more fulfillment conduits (${big.facilities.filter((f) => f.navePort).length})`);
-ok(big.conduits.filter((c) => c.chunkA !== c.chunkB && c.chunkA >= 0 && c.chunkB >= 0).length >= 3, 'the larger region grows trans-chunk conduits');
+// ── a smaller random (non-optimised) region still builds + reports a transport cost ──
+const rnd = buildForgeRegion(9, { count: 7 });
+ok(rnd.recs.length === 7 && rnd.recs.every(Boolean), `a 7-chunk region composes (${rnd.recs.length})`);
+ok(rnd.nave.fulfillment === 1, `a 7-chunk region also gets one fulfillment (${rnd.nave.fulfillment})`);
+ok(!rnd.layout.optimized && typeof rnd.layout.cost === 'number', 'a random layout still reports its transport cost (to compare against)');
+
+// ── determinism ──
+const a = buildForgeRegion(42, { count: 19, optimize: true }), b = buildForgeRegion(42, { count: 19, optimize: true });
+ok(JSON.stringify(a.facilities) === JSON.stringify(b.facilities) && JSON.stringify(a.conduits) === JSON.stringify(b.conduits) && a.layout.cost === b.layout.cost, 'buildForgeRegion is deterministic (incl. the optimised layout)');
+
+// ── it tiles past one factory: a 37-chunk region gets two fulfillment hubs ──
+const two = buildForgeRegion(3, { count: 37, optimize: true });
+ok(two.recs.length === 37 && two.nave.fulfillment === 2, `two factories tile (${two.recs.length} chunks, ${two.nave.fulfillment} fulfillment hubs)`);
 
 // ── single-chunk mode (the facilities page route): forced engines, no fulfillment ──
 const one = buildForgeRegion(5, { count: 1, engines: ['foundry'] });

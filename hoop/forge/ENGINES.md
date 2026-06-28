@@ -95,21 +95,33 @@ concourse solver is gone** — physarum is the *only* pather. Four things the re
    **foundry · chemworks · fab · weave · fluid**; foundry **metal** → mill **stock** → assembly →
    **product** → reclaim. Each (emitter, tag) matches the nearest consumer (preferring another chunk).
 3. **The fulfillment center → the nave (product up, waste down).** A ninth role — `fulfillment`, a
-   **logistics hub** (`engines.js`, `logistics: true`, excluded from the production pick), placed at the
-   region's hub chunk (one per ~8 chunks). It is the **rind↔nave conduit**: assembly's **product** flows to
-   it and rides **up** the lift to the **NAVE node** (the living deck above); the nave's worn goods come
-   **down** as **waste** to the reclaim yards. The nave lift is a strong bidirectional trip, so physarum
-   grows it as a bright vertical trunk. Given the region's assembly throughput it reports the crew it can
-   supply (`~180 / assembly line`) — the forge supplies a whole nave.
-4. **The emergent axial-rail.** Because the heavy long-haul demand is *inter-chunk* supply + the nave lifts,
+   **logistics hub** (`engines.js`, `logistics: true`, excluded from the production pick). **One per ~19-chunk
+   factory** (`fulfillmentCount`, default `round(count/19)`), placed at the most central chunk. It is the
+   **rind↔nave conduit**: assembly's **product** flows to it and rides **up** the lift to the **NAVE node**
+   (the living deck above); the nave's worn goods come **down** as **waste** to the reclaim yards. The nave
+   lift is a strong bidirectional trip, so physarum grows it as a bright vertical trunk. Given the factory's
+   assembly throughput it reports the crew it can supply (`~180 / assembly line`) — the forge supplies a
+   whole nave.
+4. **The optimised global layout (around the single hub).** With one fulfillment center, every gram of
+   product funnels to one nave conduit and every gram of waste returns through it — so the layout problem is:
+   **assign engines to chunks to minimise total weighted transport around that hub.** `optimizeLayout`
+   minimises (a) the nave throughput — all assembly product travels to the hub, all reclaim absorbs waste
+   from it (heavy weights, so assembly+reclaim are pulled to RING the hub) — plus (b) the inter-engine supply
+   (each producer to its nearest consumer). It seeds by ring+affinity then polishes with swap local search.
+   The **emergent structure is a radial supply gradient**: fulfillment at the centre, a ring of
+   assembly+reclaim, the refiners (foundry/mill/chem/fab/weave/fluid) outside feeding inward. Versus the same
+   engine mix placed at random it cuts transport **~25–30%** (reported live: "X% below random"). On the
+   `/forge/region` page it's the **⚙ optimise global layout** toggle.
+5. **The emergent axial-rail.** Because the heavy long-haul demand is *inter-chunk* supply + the nave lifts,
    the trunk arterials physarum reinforces **span chunk seams** — the trans-rind transport ("Does the upper
-   rind have axial rail?"), grown from what the rind moves, not drawn. **It tiles**: 7 → 19 → larger,
-   unchanged.
+   rind have axial rail?"), grown from what the rind moves, not drawn. **It tiles**: 19 → 37 (two factories,
+   two hubs) → larger, unchanged.
 
-Live at `hoop.mino.mobi/forge/region`; pinned by `test/region.selftest.mjs` (25 checks: seamless seams, a
+Live at `hoop.mino.mobi/forge/region`; pinned by `test/region.selftest.mjs` (29 checks: seamless seams, a
 **carved** concourse whose road cells are expropriated from rooms, the supply loop matching emitter→consumer
-and spanning chunks, a fulfillment center bridging to a linked nave node, a tiered conduit network with a
-nave lift and seam-crossing trunks, deterministic, scales to 19, single-chunk mode for the facilities page).
+and spanning chunks, **one fulfillment per 19-chunk factory** bridging to a linked nave node, the **optimised
+layout cutting transport >10% with assembly+reclaim ringing the hub**, a tiered conduit network with a nave
+lift and seam-crossing trunks, deterministic, tiles to 37 (two hubs), single-chunk mode for the facilities page).
 
 ## Open seams (parked)
 

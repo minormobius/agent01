@@ -54,11 +54,12 @@
     <p class="sub">many forge chunks at once on one shared foam · the conduit network GROWN by physarum from the production flow · trunk arterials emerge across seams</p>
 
     <div class="grp" style="border-top:none">
-      <h2>the region</h2>
-      <label class="row"><span class="l">chunks</span><input type="range" id="count" min="3" max="19" step="1" value="7"><b id="countv">7</b></label>
-      <label class="row" title="the physarum feedback exponent: μ<1 keeps redundant parallel streets (a grid); μ>1 collapses traffic onto trunk arterials (a tree). this dial IS 'how much trans-rind trunk'."><span class="l">μ grid·tree</span><input type="range" id="mu" min="0.6" max="1.8" step="0.05" value="1.25"><b id="muv">1.25</b></label>
+      <h2>the factory</h2>
+      <label class="row"><span class="l">chunks</span><input type="range" id="count" min="3" max="37" step="1" value="19"><b id="countv">19</b></label>
+      <label class="row" title="the physarum feedback exponent: μ<1 keeps redundant parallel streets (a grid); μ>1 collapses traffic onto trunk arterials (a tree). this dial IS 'how much trans-rind trunk'."><span class="l">μ grid·tree</span><input type="range" id="mu" min="0.6" max="1.8" step="0.05" value="1.35"><b id="muv">1.35</b></label>
+      <label class="row" title="ONE fulfillment center per ~19-chunk factory: assign engines to chunks to MINIMISE transport around that single nave hub. assembly+reclaim ring the hub, the refiners sit outside — a radial supply gradient. off = the same engine mix placed at random."><input type="checkbox" id="opt" checked> ⚙ optimise global layout</label>
       <div class="btns">
-        <button id="roll" class="primary" style="flex:1">🎲 roll region</button>
+        <button id="roll" class="primary" style="flex:1">🎲 roll factory</button>
         <button id="reseed" title="same settings, new seed">↻ seed</button>
       </div>
     </div>

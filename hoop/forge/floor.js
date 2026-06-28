@@ -41,8 +41,100 @@ function sharedSide(polyA, sideOf, polyB) {
   return -1;
 }
 
+// ── THE GLOBAL LAYOUT OPTIMIZER ──────────────────────────────────────────────────────────────────────
+// With ONE fulfillment center per factory, every gram of product funnels to a single nave conduit and every
+// gram of waste comes back down through it. So the layout problem is: assign engines to chunks to MINIMISE
+// total weighted transport around that one hub. The cost has three parts: (1) the nave throughput — all
+// assembly product travels to the hub, all reclaim absorbs waste from the hub (heavy, so assembly+reclaim
+// want to RING the hub); (2) the inter-engine supply — each producer's output to its nearest consumer; the
+// minimiser pulls a producer next to its consumer. The emergent structure is a RADIAL SUPPLY GRADIENT:
+// fulfillment at the centre, a ring of assembly+reclaim, the refiners (foundry/mill/chem/fab/weave) outside
+// feeding inward. We seed that by ring+affinity then polish with swap local search.
+
+// relative chunk counts per engine (the balanced factory mix) + each engine's affinity for the hub
+// (1 / its supply-graph distance to the fulfillment center): assembly & reclaim talk to it directly.
+const MIX = { assembly: 4, reclaim: 3, foundry: 2, mill: 2, chemworks: 2, fab: 2, weave: 2, fluid: 1 };
+const AFFINITY = { assembly: 1.0, reclaim: 1.0, mill: 0.5, chemworks: 0.5, fab: 0.5, weave: 0.5, foundry: 0.34, fluid: 0.25 };
+const W_PROD = 3, W_WASTE = 3;   // nave throughput weights (dominant — they funnel to the hub)
+
+const polyCentroid = (poly) => { let x = 0, y = 0; for (const p of poly) { x += p.x; y += p.y; } return { x: x / poly.length, y: y / poly.length }; };
+
+// scale MIX to exactly P production chunks, ≥1 of each (so the commodity loop always closes).
+function targetMix(P) {
+  const keys = Object.keys(MIX), tot = keys.reduce((s, k) => s + MIX[k], 0);
+  const cnt = {}; let sum = 0; for (const k of keys) { cnt[k] = Math.max(1, Math.round((MIX[k] / tot) * P)); sum += cnt[k]; }
+  // fix rounding drift to hit P exactly (add/remove from the largest groups, never below 1)
+  const order = keys.slice().sort((a, b) => cnt[b] - cnt[a]);
+  let gi = 0; while (sum > P) { const k = order[gi % order.length]; if (cnt[k] > 1) { cnt[k]--; sum--; } gi++; if (gi > 1000) break; }
+  gi = 0; while (sum < P) { const k = order[gi % order.length]; cnt[k]++; sum++; gi++; if (gi > 1000) break; }
+  const list = []; for (const k of keys) for (let i = 0; i < cnt[k]; i++) list.push(k); return { cnt, list };
+}
+
+// total weighted transport for an engine→chunk assignment (engineOf[i] = engine id, or null for a hub).
+function layoutCost(engineOf, centroids, hubChunks) {
+  const prod = []; for (let i = 0; i < engineOf.length; i++) if (engineOf[i]) prod.push(i);
+  const d = (a, b) => Math.hypot(centroids[a].x - centroids[b].x, centroids[a].y - centroids[b].y);
+  const hubD = (i) => Math.min(...hubChunks.map((h) => d(i, h)));
+  let cost = 0;
+  for (const i of prod) {
+    const e = ENGINES[engineOf[i]];
+    for (const tag of (e.output || [])) {
+      if (tag === 'waste') continue;                                   // waste is produced at the hub, handled below
+      // nearest production consumer of this tag
+      let best = Infinity; for (const j of prod) { if (j === i) continue; if ((ENGINES[engineOf[j]].intake || []).includes(tag)) best = Math.min(best, d(i, j)); }
+      if (tag === 'product') cost += hubD(i) * W_PROD;                 // product goes UP to the nave hub
+      else if (best < Infinity) cost += best;                         // ordinary inter-engine supply
+    }
+    if ((e.intake || []).includes('waste')) cost += hubD(i) * W_WASTE; // reclaim absorbs waste DOWN from the hub
+  }
+  return cost;
+}
+
+// optimise: ring+affinity seed, then swap local search. Returns engineOf[] (null at hubs) + cost + baseline
+// (the SAME mix placed at random — so the number isolates the PLACEMENT win, not a different engine set).
+function optimizeLayout(seed, hexes, centroids, hubChunks) {
+  const count = hexes.length, hubSet = new Set(hubChunks);
+  const prodChunks = []; for (let i = 0; i < count; i++) if (!hubSet.has(i)) prodChunks.push(i);
+  const { list } = targetMix(prodChunks.length);
+  // hex distance to the nearest hub (axial) → ring
+  const axDist = (a, b) => { const di = hexes[a].i - hexes[b].i, dj = hexes[a].j - hexes[b].j; return (Math.abs(di) + Math.abs(dj) + Math.abs(di + dj)) / 2; };
+  const ringOf = (i) => Math.min(...hubChunks.map((h) => axDist(i, h)));
+  // SEED: innermost chunks ← highest-affinity engines
+  const byRing = prodChunks.slice().sort((a, b) => ringOf(a) - ringOf(b) || a - b);
+  const byAff = list.slice().sort((a, b) => (AFFINITY[b] || 0) - (AFFINITY[a] || 0) || a.localeCompare(b));
+  const engineOf = new Array(count).fill(null);
+  byRing.forEach((c, k) => { engineOf[c] = byAff[k]; });
+  // swap local search to a fixed point
+  let improved = true, guard = 0;
+  while (improved && guard++ < 60) {
+    improved = false;
+    for (let x = 0; x < prodChunks.length; x++) for (let y = x + 1; y < prodChunks.length; y++) {
+      const a = prodChunks[x], b = prodChunks[y]; if (engineOf[a] === engineOf[b]) continue;
+      const before = layoutCost(engineOf, centroids, hubChunks);
+      const t = engineOf[a]; engineOf[a] = engineOf[b]; engineOf[b] = t;
+      if (layoutCost(engineOf, centroids, hubChunks) < before - 1e-9) improved = true;
+      else { const u = engineOf[a]; engineOf[a] = engineOf[b]; engineOf[b] = u; }
+    }
+  }
+  // baseline: same mix, deterministic-random placement (Fisher–Yates on prodChunks)
+  const rnd = mulberryRng((seed ^ 0xbeef) >>> 0), perm = list.slice();
+  for (let i = perm.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = perm[i]; perm[i] = perm[j]; perm[j] = t; }
+  const baseOf = new Array(count).fill(null); prodChunks.forEach((c, k) => { baseOf[c] = perm[k]; });
+  return { engineOf, cost: layoutCost(engineOf, centroids, hubChunks), baseline: layoutCost(baseOf, centroids, hubChunks) };
+}
+function mulberryRng(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+// choose the fulfillment hub chunk(s): the most central (chunk 0 in a spiral), then farthest-point spread.
+function chooseHubs(centroids, k) {
+  const n = centroids.length, cx = centroids.reduce((s, c) => s + c.x, 0) / n, cy = centroids.reduce((s, c) => s + c.y, 0) / n;
+  let c0 = 0, bd = Infinity; for (let i = 0; i < n; i++) { const d = (centroids[i].x - cx) ** 2 + (centroids[i].y - cy) ** 2; if (d < bd) { bd = d; c0 = i; } }
+  const hubs = [c0];
+  while (hubs.length < k) { let best = -1, bb = -1; for (let i = 0; i < n; i++) { if (hubs.includes(i)) continue; const dd = Math.min(...hubs.map((h) => (centroids[i].x - centroids[h].x) ** 2 + (centroids[i].y - centroids[h].y) ** 2)); if (dd > bb) { bb = dd; best = i; } } if (best < 0) break; hubs.push(best); }
+  return hubs;
+}
+
 export function buildForgeRegion(seed, opts = {}) {
-  const { count = 7, W = 900, H = 600, R = 150, mu = 1.2, iters = 18, roadFrac = 0.24, engines = null } = opts;
+  const { count = 7, W = 900, H = 600, R = 150, mu = 1.2, iters = 18, roadFrac = 0.24, engines = null, optimize = false, fulfillmentCount = null } = opts;
   seed = (seed | 0) >>> 0;
   const cx = W / 2, cy = H / 2;
   const poly0 = shapePoly(SAMPLE_SHAPE, cx, cy, R), sideOf = shapeSideOf(SAMPLE_SHAPE);
@@ -54,9 +146,17 @@ export function buildForgeRegion(seed, opts = {}) {
   const indexAt = new Map(); hexes.forEach((h, i) => indexAt.set(axKey(h.i, h.j), i));
   const neighbourOf = hexes.map((h) => AX_DIRS.map(([di, dj]) => { const id = indexAt.get(axKey(h.i + di, h.j + dj)); return id == null ? -1 : id; }));
 
-  // FULFILLMENT placement: the hub chunk (0) is the nave conduit; one more per ~8 chunks for a bigger region.
-  const fulfilChunks = new Set();
-  if (engines == null && count >= 4) for (let i = 0; i < count; i++) if (i % 8 === 0) fulfilChunks.add(i);
+  // FULFILLMENT placement: ONE nave conduit per ~19-chunk factory (the user's call), at the most central
+  // chunk. (Override with fulfillmentCount; for a much larger region, farthest-point spread the hubs.)
+  const centroids = polys.map(polyCentroid);
+  const nFulfil = engines && count === 1 ? 0 : Math.max(1, fulfillmentCount != null ? fulfillmentCount : Math.round(count / 19));
+  const hubChunks = nFulfil ? chooseHubs(centroids, nFulfil) : [];
+  const hubSet = new Set(hubChunks);
+
+  // ENGINE ASSIGNMENT: optimised global layout (minimise transport around the hub) or random per-chunk.
+  let layout = null, engineOf = null;
+  if (engines && count === 1) { /* single-chunk facilities view: forced engines, no fulfillment */ }
+  else if (optimize) { layout = optimizeLayout(seed, hexes, centroids, hubChunks); engineOf = layout.engineOf; }
 
   // ── solve (partition only — NO concourse) center-out, inheriting seam ports ──
   const parts = new Array(count).fill(null), recPoly = new Array(count);
@@ -65,7 +165,7 @@ export function buildForgeRegion(seed, opts = {}) {
     const inherit = [];
     for (let k = 0; k < 6; k++) { const j = neighbourOf[i][k]; if (j < 0 || !parts[j]) continue; const sj = sharedSide(polys[j], sideOf, polys[i]); for (const p of parts[j].ports) if (sideOf[p.edge] === sj) inherit.push({ x: p.x, y: p.y }); }
     const cseed = (seed ^ (i * 0x9e37 + 0x51)) >>> 0;
-    const eng = engines && count === 1 ? engines : (fulfilChunks.has(i) ? ['fulfillment'] : pickChunkEngines(cseed));
+    const eng = engines && count === 1 ? engines : (hubSet.has(i) ? ['fulfillment'] : (engineOf ? [engineOf[i]] : pickChunkEngines(cseed)));
     parts[i] = partitionChunk({ poly: polys[i], sideOf, inherit, closedSides: closed, seed: cseed, foamSeed: seed, W, H, engines: eng });
     recPoly[i] = polys[i];
   }
@@ -137,11 +237,22 @@ export function buildForgeRegion(seed, opts = {}) {
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   for (const p of polys.flat()) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
   y0 = Math.min(y0, naveXY[1] - 14);
+  // the layout's transport cost vs the same engine mix placed at random (when optimised) — the placement win
+  const curCost = hubChunks.length ? layoutCost(engineOf || facilitiesEngineOf(facilities, count, hubSet), centroids, hubChunks) : null;
   return {
     seed, count, recs, polys, rooms, facilities, supply, conduits,
     nave: { x: naveXY[0], y: naveXY[1], pop: navePop, fulfillment: fulfil.length, links: naveEdges.length },
+    layout: layout ? { optimized: true, cost: layout.cost, baseline: layout.baseline, reduction: layout.baseline > 0 ? (layout.baseline - layout.cost) / layout.baseline : 0, fulfillment: hubChunks.length } : { optimized: false, cost: curCost, fulfillment: hubChunks.length },
     crossLinks, bbox: { x0, y0, x1, y1 }, sideOf,
   };
+}
+
+// the engine-per-chunk array implied by the placed facilities (first production engine per chunk, null at
+// hubs) — used to score a non-optimised (random) layout's transport cost for the readout comparison.
+function facilitiesEngineOf(facilities, count, hubSet) {
+  const out = new Array(count).fill(null);
+  for (const f of facilities) { if (hubSet.has(f.chunk) || f.logistics) continue; if (!out[f.chunk]) out[f.chunk] = f.engine; }
+  return out;
 }
 
 // pick the facility room whose step is in `stepSet`, nearest the facility centroid; null if none.

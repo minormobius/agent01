@@ -10,8 +10,9 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': 
 
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 7;
-let count = Q.has('n') ? Math.max(3, Math.min(19, Q.get('n') | 0)) : 7;
-let mu = Q.has('mu') ? Math.max(0.6, Math.min(1.8, +Q.get('mu'))) : 1.2;
+let count = Q.has('n') ? Math.max(3, Math.min(37, Q.get('n') | 0)) : 19;
+let mu = Q.has('mu') ? Math.max(0.6, Math.min(1.8, +Q.get('mu'))) : 1.35;
+let optimize = Q.has('opt') ? Q.get('opt') === '1' : true;
 let reg = null, sel = -1, view = { s: 1, ox: 0, oy: 0 };
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0;
@@ -19,11 +20,12 @@ let DPR = 1, CW = 0, CH = 0;
 const tint = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
 const TIER = { 1: { col: 'rgba(150,170,200,.34)', w: 0.8, label: 'capillary' }, 2: { col: 'rgba(224,176,98,.72)', w: 1.8, label: 'street' }, 3: { col: 'rgba(244,191,98,.97)', w: 3.2, label: 'arterial (trunk)' } };
 
-function syncURL() { const u = new URL(location); u.searchParams.set('seed', seed); u.searchParams.set('n', count); u.searchParams.set('mu', mu); history.replaceState(null, '', u); }
+function syncURL() { const u = new URL(location); u.searchParams.set('seed', seed); u.searchParams.set('n', count); u.searchParams.set('mu', mu); u.searchParams.set('opt', optimize ? 1 : 0); history.replaceState(null, '', u); }
 
-$('count').value = count; $('countv').textContent = count; $('mu').value = mu; $('muv').textContent = mu.toFixed(2);
+$('count').value = count; $('countv').textContent = count; $('mu').value = mu; $('muv').textContent = mu.toFixed(2); $('opt').checked = optimize;
 $('count').addEventListener('input', (e) => { count = +e.target.value; $('countv').textContent = count; generate(); });
 $('mu').addEventListener('input', (e) => { mu = +e.target.value; $('muv').textContent = mu.toFixed(2); generate(); });
+$('opt').addEventListener('change', (e) => { optimize = e.target.checked; generate(); });
 $('roll').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; generate(); });
 $('reseed').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; generate(); });
 for (const id of ['t-cond', 't-supply', 't-tint', 't-seam']) $(id).addEventListener('change', render);
@@ -32,7 +34,7 @@ $('zout').addEventListener('click', () => zoomAt(CW / 2, CH / 2, 0.8));
 $('zfit').addEventListener('click', () => { fitView(); render(); });
 
 function generate() {
-  reg = buildForgeRegion(seed, { count, mu });
+  reg = buildForgeRegion(seed, { count, mu, optimize });
   sel = -1; $('info').classList.remove('on'); syncURL();
   fitView(); render(); readout();
 }
@@ -116,10 +118,15 @@ function readout() {
   const trunk = reg.conduits.filter((c) => c.tier === 3).length;
   const seamAll = reg.conduits.filter((c) => c.chunkA !== c.chunkB && c.chunkA >= 0 && c.chunkB >= 0).length;
   const roadCells = reg.recs.reduce((s, r) => s + r.road.reduce((a, b) => a + b, 0), 0);
+  const L = reg.layout;
+  const layoutLine = L.optimized
+    ? `<span style="color:#8fd06a">⚙ optimised layout · transport <b>${Math.round(L.cost)}</b> · <b>${Math.round(L.reduction * 100)}%</b> below random</span>`
+    : `<span style="color:#e0905a">⚙ random layout · transport <b>${Math.round(L.cost || 0)}</b> · tick "optimise" to cut it</span>`;
   $('metrics').innerHTML = `chunks <b>${reg.count}</b> · facilities <b>${nf}</b> · chambers <b>${reg.rooms.length}</b><br>` +
     `<span style="color:#cbd3e0">grown concourse <b>${roadCells}</b> cells · physarum-pathed</span><br>` +
     `supply edges <b>${reg.supply.length}</b> · cross-chunk <b>${cross}</b><br>` +
     `conduits <b>${reg.conduits.length}</b> · trunk (tier-3) <b>${trunk}</b> · cross-seam <b>${seamAll}</b><br>` +
+    `${layoutLine}<br>` +
     `<span style="color:#cbd3e0">⌂ fulfillment <b>${reg.nave.fulfillment}</b> → supplies a nave of <b>~${reg.nave.pop}</b> crew</span>`;
   $('tierlegend').innerHTML = [3, 2, 1].map((t) => `<div class="row"><span class="ln" style="border-top-width:${TIER[t].w}px;border-color:${TIER[t].col}"></span>${TIER[t].label}</div>`).join('') +
     `<div class="row"><span class="ln" style="border-top:3px solid rgba(203,211,224,.92)"></span>nave lift (up/down)</div>` +
