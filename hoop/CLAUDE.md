@@ -177,6 +177,12 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   falls). Tradeoff: footprint −~70% (a column not a disc) for transport ×~1.5–2.3 (the climb, scaled by
   `kVert`) — right for a ship where volume is scarce. Rotatable tower `hoop.mino.mobi/forge/tower` (climb/
   explode sliders, flat-disc toggle). Pinned by `forge/test/formation3d.selftest.mjs` (14).
+  **Presenting the 3D chunk** (`/forge/slices`): the bounded 3D chunk is a **hex prism** (2D hex × floors,
+  still tessellates; each slice stays the familiar 2D map). The player reads it the way a radiologist reads a
+  body and an architect reads a building — **plan + section**: PLAN = the current floor's 2D foam map
+  (walkable, @ at the lift); SECTION = the elevation (strata reclaim-bottom→assembly-top, the lift threading
+  them, you-are-here). Scrub floors via the lift/ramps. 3D stays legible as N trivial 2D maps + one cut.
+  `slices.html` + `slices-app.js` (presentation over the tested kernels; no new test).
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

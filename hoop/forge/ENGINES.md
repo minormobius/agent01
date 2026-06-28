@@ -228,6 +228,27 @@ apex placement is free. Live rotatable tower at `hoop.mino.mobi/forge/tower` (cl
 toggle to the flat 2D disc to see what 3D buys). Pinned by `test/formation3d.selftest.mjs` (14). This composes
 with the two decks / two species: each floor can split material + pedestrian, the lift axis carries both.
 
+## Presenting the 3D chunk to the player — plan + section (`/forge/slices`)
+
+The bounded chunk in 3D is a **hexagonal prism** (the 2D hex tile extruded into floors — it still tessellates,
+and crucially every horizontal slice is the 2D foam map the player already reads; the "true" 3D foam cell is
+the truncated octahedron / Kelvin cell, but its slices aren't a stable map, so the *chunk* stays a prism —
+readability over foam-optimality). The hard part the user named — how do you present a volumetric tissue with
+built-in pathing and supply webs without it turning to mush — has a biology/architecture answer:
+
+- **Histology**: you understand 3D tissue by **scrubbing 2D slices** with a **localizer** showing where the
+  slice sits. A radiologist never sees the whole volume at once.
+- **Architecture**: a building is **floor plans** (one per level, each trivial) **plus a section** (the
+  vertical cut showing strata + the stairwells/shafts that thread them).
+
+So the player reads **one floor at a time — a 2D map they already know** — and moves between floors through
+**portals** (the lift at the chunk centre, the corkscrew ramps). `/forge/slices` is that navigator: **PLAN**
+(the current floor's foam map, walkable, @ at the lift) beside **SECTION** (the elevation — strata stacked
+reclaim-bottom→assembly-top, the lift threading them, *you-are-here*, "raw ↓ falls · product ↑ rises").
+Click the plan to walk, click a floor in the section to jump, ▲▼ takes the lift. The 3D stays legible because
+it's N trivial 2D maps + one cut — never a confusing volume. (Presentation layer over the tested kernels:
+`formFactory` strata · `solveForgeChunk` per floor · `regionWalk`/`pathFind` for the walk.)
+
 ## Open seams (parked)
 
 - **Energetics (tide) seam** — every hot engine draws from the fixed energy budget; not yet wired.

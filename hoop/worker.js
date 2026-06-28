@@ -189,6 +189,10 @@ export default {
     if (url.pathname === '/forge/tower' || url.pathname === '/forge/tower/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/tower.html', url), request));
     }
+    // forge/slices — presenting a 3D chunk to the player: plan + section (floor slices + the elevation).
+    if (url.pathname === '/forge/slices' || url.pathname === '/forge/slices/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/slices.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
