@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Bee Play · mega.mino.mobi/bees/play</title>
+<meta name="description" content="Full-screen mobile bee-swarm playground. Swarm up top; four XY pads below — drag a point in each with your thumb and watch the swarm react. Dice for a fresh draw.">
+<style>
+  :root{
+    --bg:#0f1014; --panel:#16181f; --panel2:#1c1f28; --ink:#e7e3d8; --dim:#a39c8b;
+    --faint:#6f6a5d; --gold:#d8b25a; --gold-soft:#caa24a; --line:#2a2d38; --accent:#8fd6a0;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+  #app{height:100dvh;display:flex;flex-direction:column}
+
+  /* ── swarm: top third ── */
+  #stagewrap{flex:0 0 34%;position:relative;background:#0a0b0e;border-bottom:1px solid var(--line);touch-action:none;overflow:hidden}
+  #stage{display:block;width:100%;height:100%;image-rendering:pixelated}
+  .crumb{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:12px;font:11px/1 var(--mono);color:var(--faint);pointer-events:auto}
+  .crumb a{color:var(--dim);text-decoration:none}
+  .hud{position:absolute;top:calc(env(safe-area-inset-top) + 8px);right:12px;font:11px/1 var(--mono);color:var(--faint);text-align:right;pointer-events:none}
+  .hud b{color:var(--gold-soft)}
+  #dice{position:absolute;bottom:10px;right:10px;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);
+        background:rgba(22,24,31,.82);color:var(--gold);font-size:22px;display:flex;align-items:center;justify-content:center;
+        cursor:pointer;backdrop-filter:blur(4px);user-select:none}
+  #dice:active{transform:scale(.92);background:var(--gold);color:#0f1014}
+  .leadhint{position:absolute;bottom:12px;left:12px;font:11px/1.3 var(--mono);color:var(--faint);pointer-events:none;max-width:60%}
+
+  /* ── four XY pads: a sixth of the screen each (2×2) ── */
+  #pads{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--line)}
+  .pad{position:relative;background:var(--panel);touch-action:none;overflow:hidden;
+       background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+       background-size:25% 25%;background-position:center}
+  .pad .zero{position:absolute;inset:0;pointer-events:none}
+  .pad .zero.vx::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:#3a3e4c}
+  .pad .zero.vy::after{content:"";position:absolute;top:50%;left:0;right:0;height:1px;background:#3a3e4c}
+  .pad .name{position:absolute;top:6px;left:8px;font:10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--gold-soft);pointer-events:none}
+  .pad .read{position:absolute;top:6px;right:8px;font:10px/1.3 var(--mono);color:var(--faint);text-align:right;pointer-events:none}
+  .pad .ax{position:absolute;font:9px/1 var(--mono);color:var(--faint);pointer-events:none;opacity:.85}
+  .pad .ax.x{bottom:5px;left:50%;transform:translateX(-50%)}
+  .pad .ax.y{top:50%;left:5px;transform:translateY(-50%) rotate(-90deg);transform-origin:left center}
+  .pad .knob{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--gold);
+       border:2px solid #0f1014;box-shadow:0 0 0 1px var(--gold-soft),0 2px 8px #000a;transform:translate(-50%,-50%);pointer-events:none}
+  .pad .knob::after{content:"";position:absolute;inset:7px;border-radius:50%;background:#0f1014;opacity:.35}
+  .pad.live .knob{box-shadow:0 0 0 1px var(--gold),0 0 14px var(--gold)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stagewrap">
+    <canvas id="stage"></canvas>
+    <div class="crumb"><a href="/bees/">‹ bee lab</a></div>
+    <div class="hud" id="hud"></div>
+    <div class="leadhint">drag the swarm to lead it</div>
+    <div id="dice" title="random draw">⚄</div>
+  </div>
+  <div id="pads"></div>
+</div>
+
+<script type="module">
+import { Swarm, beeAtlas, DEFAULT_PARAMS } from '../swarm.js';
+
+const $ = s => document.querySelector(s);
+const cv = $('#stage'), ctx = cv.getContext('2d', { alpha:false });
+const PX = 3;               // CSS px per bee-pixel (= per world unit). Bees read ~3px.
+let dpr = 1, W = 130, H = 90, swarm, atlas, atlasSeed = 'hive:meadow';
+
+// ── the four pads: each maps two params to (x,y). Signed params put 0 at centre (vx/vy class). ──
+// lo = value at left/top edge, hi = value at right/bottom edge. value = lo + n*(hi-lo), n∈[0,1].
+const PADS = [
+  { name:'flower', vx:false, vy:false,
+    x:{k:'follow',     lo:0,    hi:240,  label:'follow →'},
+    y:{k:'swirl',      lo:120,  hi:-120, label:'↑ swirl'} },          // signed → origin mid
+  { name:'flock',  vx:false, vy:false,
+    x:{k:'separation', lo:0,    hi:300,  label:'separate →'},
+    y:{k:'cohesion',   lo:80,   hi:0,    label:'↑ cohere'} },
+  { name:'chaos',  vx:false, vy:false,
+    x:{k:'wander',     lo:0,    hi:240,  label:'turbulence →'},
+    y:{k:'noiseFreq',  lo:0.055,hi:0.003,label:'↑ coarse'} },
+  { name:'wind',   vx:true,  vy:true,
+    x:{k:'windX',      lo:-120, hi:120,  label:'wind x'},
+    y:{k:'windY',      lo:-120, hi:120,  label:'wind y'} },
+];
+const knobs = PADS.map(()=>({ nx:0.5, ny:0.5 }));
+
+// seed each knob from the defaults so we open in a known-good state
+PADS.forEach((pad,i)=>{
+  const inv=(ax,v)=> (v - ax.lo)/(ax.hi - ax.lo);
+  knobs[i].nx = Math.min(1,Math.max(0, inv(pad.x, DEFAULT_PARAMS[pad.x.k] ?? (pad.x.lo+pad.x.hi)/2)));
+  knobs[i].ny = Math.min(1,Math.max(0, inv(pad.y, DEFAULT_PARAMS[pad.y.k] ?? (pad.y.lo+pad.y.hi)/2)));
+});
+
+function paramsFromKnobs(){
+  const p={};
+  PADS.forEach((pad,i)=>{
+    p[pad.x.k] = pad.x.lo + knobs[i].nx*(pad.x.hi-pad.x.lo);
+    p[pad.y.k] = pad.y.lo + knobs[i].ny*(pad.y.hi-pad.y.lo);
+  });
+  return p;
+}
+
+// ── build pad DOM ──
+const padsEl = $('#pads'), padEls = [];
+PADS.forEach((pad,i)=>{
+  const el = document.createElement('div'); el.className='pad';
+  el.innerHTML =
+    `<div class="zero ${pad.vx?'vx':''} ${pad.vy?'vy':''}"></div>`+
+    `<span class="name">${pad.name}</span>`+
+    `<span class="read" id="read${i}"></span>`+
+    `<span class="ax x">${pad.x.label}</span>`+
+    `<span class="ax y">${pad.y.label}</span>`+
+    `<div class="knob" id="knob${i}"></div>`;
+  padsEl.appendChild(el); padEls.push(el);
+
+  // the WHOLE pad is the control: pointerdown anywhere jumps the knob to the finger
+  const set = e=>{
+    const r = el.getBoundingClientRect();
+    knobs[i].nx = Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+    knobs[i].ny = Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
+    placeKnob(i); applyParams();
+  };
+  el.addEventListener('pointerdown', e=>{ el.setPointerCapture(e.pointerId); el.classList.add('live'); set(e); });
+  el.addEventListener('pointermove', e=>{ if(el.hasPointerCapture(e.pointerId)) set(e); });
+  const up = e=>{ el.classList.remove('live'); try{el.releasePointerCapture(e.pointerId);}catch{} };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+});
+function placeKnob(i){
+  const k = $('#knob'+i); k.style.left = (knobs[i].nx*100)+'%'; k.style.top = (knobs[i].ny*100)+'%';
+}
+function placeAllKnobs(){ PADS.forEach((_,i)=>placeKnob(i)); }
+
+function applyParams(){
+  if(swarm) swarm.setParams(paramsFromKnobs());
+  const r = swarm ? swarm.params : paramsFromKnobs();
+  PADS.forEach((pad,i)=>{
+    const fmt = v => Math.abs(v)>=1 ? Math.round(v) : v.toFixed(3);
+    $('#read'+i).textContent = `${fmt(r[pad.x.k])} · ${fmt(r[pad.y.k])}`;
+  });
+}
+
+// ── responsive swarm sizing ──
+function size(){
+  const r = $('#stagewrap').getBoundingClientRect();
+  dpr = Math.min(2, window.devicePixelRatio||1);
+  cv.width = Math.round(r.width*dpr); cv.height = Math.round(r.height*dpr);
+  W = Math.max(40, Math.round(r.width/PX)); H = Math.max(30, Math.round(r.height/PX));
+  const count = Math.round(Math.min(560, Math.max(180, W*H*0.03)));   // density-scaled to the screen
+  const keep = swarm ? swarm.params : paramsFromKnobs();
+  swarm = new Swarm({ width:W, height:H, count, seed:atlasSeed, headings:12, params:keep });
+  swarm.setTarget(W/2, H/2);
+}
+function rebuildAtlas(){ atlas = beeAtlas(atlasSeed, { headings:12 }); }
+
+// ── flower: follows touch on the swarm; idles on a slow drift otherwise ──
+let manual=false;
+function lead(e){
+  const r = cv.getBoundingClientRect();
+  swarm.setTarget(((e.clientX-r.left)/r.width)*W, ((e.clientY-r.top)/r.height)*H);
+}
+$('#stagewrap').addEventListener('pointerdown', e=>{ if(e.target.id==='dice')return; manual=true; cv.setPointerCapture?.(e.pointerId); lead(e); });
+$('#stagewrap').addEventListener('pointermove', e=>{ if(manual) lead(e); });
+const stop = ()=>{ manual=false; };
+$('#stagewrap').addEventListener('pointerup', stop); $('#stagewrap').addEventListener('pointercancel', stop);
+
+// ── render ──
+let last=0;
+function draw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const cw = cv.width/dpr, ch = cv.height/dpr;
+  ctx.fillStyle='#0a0b0e'; ctx.fillRect(0,0,cw,ch);
+  // flower
+  const tx=swarm.target.x, ty=swarm.target.y;
+  ctx.fillStyle='#c853a0'; ctx.fillRect(tx*PX-PX, ty*PX-PX, PX*2, PX*2);
+  ctx.fillStyle='#5aa845'; ctx.fillRect(tx*PX, (ty+1.4)*PX, PX, PX*2);
+  // bees from the baked atlas
+  swarm.forEachBee((px,py,bin,wing)=>{
+    const cells=atlas.cells[bin][wing], ox=Math.round(px), oy=Math.round(py);
+    for(let c=0;c<cells.length;c++){ const cell=cells[c]; ctx.fillStyle=cell.c;
+      ctx.fillRect((ox+cell.x)*PX,(oy+cell.y)*PX,PX,PX); }
+  });
+  $('#hud').innerHTML = `<b>${swarm.count}</b> bees · ${atlasSeed}`;
+}
+function frame(ts){
+  const dt = last ? Math.min(0.05,(ts-last)/1000) : 0; last=ts;
+  swarm.step(dt);
+  if(!manual){ const t=swarm.t; swarm.setTarget(W/2 + W*0.30*Math.sin(t*0.5), H/2 + H*0.30*Math.sin(t*0.8+1)); }
+  draw(); requestAnimationFrame(frame);
+}
+
+// ── the dice: a fresh draw. THIS IS THE SEAM for the future interestingness engine —
+// pickDraw() currently samples uniform-random knob positions + a new colour seed; later it will
+// propose N candidates, score each (the "interestingness" model), and animate to the best one. ──
+function pickDraw(){
+  return {
+    knobs: PADS.map(()=>({ nx:Math.random(), ny:Math.random() })),
+    seed: 'r'+Math.random().toString(36).slice(2,7),
+  };
+}
+function randomize(){
+  const d = pickDraw();
+  d.knobs.forEach((k,i)=>{ knobs[i].nx=k.nx; knobs[i].ny=k.ny; });
+  atlasSeed = d.seed; rebuildAtlas();         // recolour bees; keep them flying (no position reset)
+  placeAllKnobs(); applyParams();
+}
+$('#dice').addEventListener('pointerdown', e=>{ e.stopPropagation(); randomize(); });
+
+// ── boot ──
+let rt;
+addEventListener('resize', ()=>{ clearTimeout(rt); rt=setTimeout(size, 150); });
+rebuildAtlas(); size(); placeAllKnobs(); applyParams();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

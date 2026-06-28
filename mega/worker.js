@@ -3,6 +3,12 @@
 // (sprite/core.js) the browser lab uses, as SVG (a scalable, portable image) or JSON (the
 // genome + cell rects). Everything is deterministic from the query, so responses are immutable.
 import { genomeFromParams, frameSVG, frameRects, dirFromKey, DIR8 } from './sprite/core.js';
+import { beeAtlas, beeSVG } from './bees/swarm.js';
+import { buildRadialGenome, radialSVG, radialFrame } from './sprite/radial/radial.js';
+import { buildQuadGenome, quadSVG, quadFrame, FAMILIES as QUAD_FAMILIES } from './sprite/quad/quad.js';
+import { buildPolyGenome, polySVG, polyFrame, FAMILIES as POLY_FAMILIES } from './sprite/poly/poly.js';
+import { buildAxialGenome, axialSVG, axialFrame, FAMILIES as AXIAL_FAMILIES } from './sprite/axial/axial.js';
+import { buildIsopodGenome, isopodSVG, isopodFrame, FAMILIES as ISOPOD_FAMILIES } from './sprite/isopod/isopod.js';
 
 const CORS = { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods':'GET,OPTIONS', 'Access-Control-Allow-Headers':'*' };
 const json = (o,status)=> new Response(JSON.stringify(o,null,2), {status:status||200, headers:{'content-type':'application/json; charset=utf-8', ...CORS}});
@@ -13,6 +19,10 @@ export default {
     if(url.pathname.startsWith('/sprite/api')){
       if(req.method==='OPTIONS') return new Response(null,{headers:CORS});
       try { return api(url); } catch(e){ return json({error:String(e&&e.message||e)},400); }
+    }
+    if(url.pathname.startsWith('/bees/api')){
+      if(req.method==='OPTIONS') return new Response(null,{headers:CORS});
+      try { return beesApi(url); } catch(e){ return json({error:String(e&&e.message||e)},400); }
     }
     // every other path is a static asset (dashboard at /, lab at /sprite, core.js, etc.)
     if(env.ASSETS) return env.ASSETS.fetch(req);
@@ -29,6 +39,16 @@ function api(url){
       'GET /sprite/api/sprite.svg':'params: seed,size,arch,dir(S..NW),phase,scale,sym,head,legs,eyes,item → image/svg+xml',
       'GET /sprite/api/sprite.json':'same params → genome + cell rects',
       'GET /sprite/api/walk.json':'+ frames → full 8-direction walk-cycle rects',
+      'GET /sprite/api/radial.svg':'radial echinoderm still. params: seed,arms,depth,splay,taper,writhe,glow,accentHue,size,scale → image/svg+xml',
+      'GET /sprite/api/radial.json':'same params → radial genome + rest-pose rects',
+      'GET /sprite/api/quad.svg':'quadruped still. params: seed,family(hound|boar|bear|robot),body,depth,leg,neck,head,snout,tail,stance,chassis,hue,face(left),scale → image/svg+xml',
+      'GET /sprite/api/quad.json':'same params → quad genome + standing-pose rects',
+      'GET /sprite/api/poly.svg':'polypod still. params: seed,family(ant|spider|crab|spiderbot),legs,segs,bodyLen,bodyWide,legLen,legGirth,claws,antennae,chassis,hue,scale → image/svg+xml',
+      'GET /sprite/api/poly.json':'same params → polypod genome + rest-pose rects',
+      'GET /sprite/api/axial.svg':'undulator still. params: seed,family(worm|snake|eel|mechworm),length,girth,taper,amp,waves,headSize,fins,segments,chassis,hue,scale → image/svg+xml',
+      'GET /sprite/api/axial.json':'same params → axial genome + rest-pose rects',
+      'GET /sprite/api/isopod.svg':'isopod still (axial × polypod hybrid). params: seed,family(pillbug|woodlouse|giant|mechpod),segments,bodyLen,bodyWide,legLen,armor,antennae,tailFan,chassis,hue,scale → image/svg+xml',
+      'GET /sprite/api/isopod.json':'same params → isopod genome + rest-pose rects',
     }, archetypes:['balanced','dormitory','company','commons'] });
 
   const g = genomeFromParams(p);
@@ -50,5 +70,98 @@ function api(url){
     for(const d of DIR8){ dirs[d.k]=[]; for(let f=0;f<frames;f++) dirs[d.k].push(frameRects(g,d,f)); }
     return json({ seed:g.seed, size:g.size, frames, dirs });
   }
-  return json({error:'unknown endpoint', endpoints:['sprite.svg','sprite.json','walk.json']}, 404);
+  if(route==='radial.svg' || route==='radial.json'){
+    const rg = buildRadialGenome(p.seed!=null?String(p.seed):'echino:0', {
+      arms:+p.arms||undefined, depth:p.depth!=null?+p.depth:undefined,
+      splay:p.splay!=null?+p.splay:undefined, taper:p.taper!=null?+p.taper:undefined,
+      writhe:p.writhe!=null?+p.writhe:undefined, glow:p.glow!=null?+p.glow:undefined,
+      accentHue:p.accentHue!=null?+p.accentHue:undefined, size:p.size!=null?+p.size:undefined });
+    if(route==='radial.svg'){
+      const scale=Math.max(1,Math.min(48,Math.round(+(p.scale||12))||12));
+      return new Response(radialSVG(rg, scale), {headers:{
+        'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=31536000, immutable', ...CORS }});
+    }
+    return json({ seed:rg.seed, arms:rg.arms, depth:rg.depth, size:rg.size, rects:radialFrame(rg, null, rg.size) });
+  }
+  if(route==='quad.svg' || route==='quad.json'){
+    const fam = (p.family && QUAD_FAMILIES[p.family]) ? QUAD_FAMILIES[p.family] : {};
+    const genes = {...fam};
+    for(const k of ['body','depth','leg','neck','head','snout','tail','ear','stance','chassis','stride','cadence','hue'])
+      if(p[k]!=null && p[k]!=='') genes[k]=+p[k];
+    const qg = buildQuadGenome(p.seed!=null?String(p.seed):'quad:0', genes);
+    const faceLeft = (p.face==='left'||p.face==='W');
+    if(route==='quad.svg'){
+      const scale=Math.max(1,Math.min(32,Math.round(+(p.scale||10))||10));
+      return new Response(quadSVG(qg, scale, 0, faceLeft), {headers:{
+        'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=31536000, immutable', ...CORS }});
+    }
+    return json({ seed:qg.seed, family:p.family||null, mech:qg.mech, w:qg.w, h:qg.h, rects:quadFrame(qg, 0, faceLeft) });
+  }
+  if(route==='poly.svg' || route==='poly.json'){
+    const fam = (p.family && POLY_FAMILIES[p.family]) ? POLY_FAMILIES[p.family] : {};
+    const genes = {...fam};
+    for(const k of ['legs','segs','bodyLen','bodyWide','legLen','legGirth','claws','antennae','chassis','cadence','hue'])
+      if(p[k]!=null && p[k]!=='') genes[k]=+p[k];
+    const pg = buildPolyGenome(p.seed!=null?String(p.seed):'poly:0', genes);
+    if(route==='poly.svg'){
+      const scale=Math.max(1,Math.min(32,Math.round(+(p.scale||11))||11));
+      return new Response(polySVG(pg, scale, 0), {headers:{
+        'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=31536000, immutable', ...CORS }});
+    }
+    return json({ seed:pg.seed, family:p.family||null, mech:pg.mech, legs:pg.legs*2, w:pg.w, h:pg.h, rects:polyFrame(pg, 0) });
+  }
+  if(route==='axial.svg' || route==='axial.json'){
+    const fam = (p.family && AXIAL_FAMILIES[p.family]) ? AXIAL_FAMILIES[p.family] : {};
+    const genes = {...fam};
+    for(const k of ['length','girth','taper','amp','waves','headSize','fins','segments','chassis','cadence','hue'])
+      if(p[k]!=null && p[k]!=='') genes[k]=+p[k];
+    const ag = buildAxialGenome(p.seed!=null?String(p.seed):'axial:0', genes);
+    if(route==='axial.svg'){
+      const scale=Math.max(1,Math.min(32,Math.round(+(p.scale||10))||10));
+      return new Response(axialSVG(ag, scale, 0), {headers:{
+        'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=31536000, immutable', ...CORS }});
+    }
+    return json({ seed:ag.seed, family:p.family||null, mech:ag.mech, w:ag.w, h:ag.h, rects:axialFrame(ag, 0) });
+  }
+  if(route==='isopod.svg' || route==='isopod.json'){
+    const fam = (p.family && ISOPOD_FAMILIES[p.family]) ? ISOPOD_FAMILIES[p.family] : {};
+    const genes = {...fam};
+    for(const k of ['segments','bodyLen','bodyWide','legLen','legGirth','armor','antennae','tailFan','chassis','cadence','hue'])
+      if(p[k]!=null && p[k]!=='') genes[k]=+p[k];
+    const ig = buildIsopodGenome(p.seed!=null?String(p.seed):'iso:0', genes);
+    if(route==='isopod.svg'){
+      const scale=Math.max(1,Math.min(32,Math.round(+(p.scale||11))||11));
+      return new Response(isopodSVG(ig, scale, 0), {headers:{
+        'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=31536000, immutable', ...CORS }});
+    }
+    return json({ seed:ig.seed, family:p.family||null, mech:ig.mech, segs:ig.segs, legs:ig.segs*2, w:ig.w, h:ig.h, rects:isopodFrame(ig, 0) });
+  }
+  return json({error:'unknown endpoint', endpoints:['sprite.svg','sprite.json','walk.json','radial.svg','radial.json','quad.svg','quad.json','poly.svg','poly.json','axial.svg','axial.json','isopod.svg','isopod.json']}, 404);
+}
+
+// ── /bees/api/* — the portable BAKE for the swarm. Motion is live in the browser/engine; the
+// appearance (the bee micro-atlas) is canvas-free, deterministic from the query, hence immutable.
+function beesApi(url){
+  const route = url.pathname.replace(/^\/bees\/api\/?/,'') || '';
+  const p = Object.fromEntries(url.searchParams);
+  if(route===''){ return json({
+    service:'mega bee swarm api', portable:'appearance is its seed — bake once, simulate motion live',
+    endpoints:{
+      'GET /bees/api/atlas.json':'params: seed,headings(4..32) → baked micro-atlas: cells[bin][wingFrame] of {x,y,c}, the artifact an engine uploads to a texture',
+      'GET /bees/api/bee.svg':'params: seed,heading(deg),wing(0|1),scale → one bee as image/svg+xml',
+    }, note:'the swarm lab (live boids-lite + curl-noise sim) is the static page at /bees/' }); }
+
+  const seed = p.seed!=null ? String(p.seed) : 'hive:0';
+  if(route==='atlas.json'){
+    const headings = Math.max(4, Math.min(32, (p.headings|0)||8));
+    return json({ seed, ...beeAtlas(seed, { headings }) });
+  }
+  if(route==='bee.svg'){
+    const heading = (+p.heading||0), wing = (+p.wing)?1:0;
+    const scale = Math.max(1, Math.min(64, Math.round(+(p.scale||14))||14));
+    return new Response(beeSVG(seed, heading, wing, scale), {headers:{
+      'content-type':'image/svg+xml; charset=utf-8',
+      'cache-control':'public, max-age=31536000, immutable', ...CORS }});
+  }
+  return json({error:'unknown endpoint', endpoints:['atlas.json','bee.svg']}, 404);
 }

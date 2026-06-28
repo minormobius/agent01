@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Swarm Hazard · mega.mino.mobi/bees/hazard</title>
+<meta name="description" content="A hoop-shaped reference: an authoritative swarm hazard (the red danger field) that pursues and damages, with the bees as a cosmetic layer on top. Walk the wanderer, keep out of the cloud, swat to shove it back.">
+<style>
+  :root{
+    --bg:#0f1014; --ink:#e7e3d8; --dim:#a39c8b; --faint:#6f6a5d; --gold:#d8b25a; --gold-soft:#caa24a;
+    --line:#2a2d38; --danger:#cf3b3b; --accent:#8fd6a0;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; --sans:ui-sans-serif,system-ui,Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+  #app{height:100dvh;display:flex;flex-direction:column}
+  #stagewrap{flex:1;position:relative;background:#0a0b0e;touch-action:none;overflow:hidden}
+  #stage{display:block;width:100%;height:100%;image-rendering:pixelated}
+  .crumb{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:12px;font:11px/1 var(--mono);color:var(--faint)}
+  .crumb a{color:var(--dim);text-decoration:none}
+  .panel{position:absolute;top:calc(env(safe-area-inset-top) + 8px);right:12px;font:11px/1.5 var(--mono);color:var(--faint);text-align:right}
+  .panel b{color:var(--gold-soft)} .panel .hot{color:var(--danger)}
+  /* health */
+  .health{position:absolute;left:12px;top:calc(env(safe-area-inset-top) + 28px);width:180px;max-width:46vw}
+  .health .bar{height:10px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#181a22}
+  .health .fill{height:100%;background:linear-gradient(90deg,#cf3b3b,#e0a33a,#5aa845);transition:width .15s}
+  .health .lbl{font:10px/1.6 var(--mono);color:var(--faint)}
+  /* swat */
+  #swat{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 16px);right:16px;width:72px;height:72px;border-radius:50%;
+        border:1px solid var(--line);background:rgba(22,24,31,.82);color:var(--gold);font:600 13px/1 var(--sans);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;backdrop-filter:blur(4px);user-select:none}
+  #swat:active{transform:scale(.92);background:var(--gold);color:#0f1014}
+  #swat .ic{font-size:22px}
+  .legend{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 14px);left:14px;font:11px/1.6 var(--mono);color:var(--faint);max-width:54vw}
+  .legend .d{color:var(--danger)} .legend .b{color:var(--gold-soft)}
+  .toast{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:600 28px/1.2 var(--sans);
+         color:#fff;background:rgba(207,59,59,.18);opacity:0;transition:opacity .2s;pointer-events:none;text-align:center}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stagewrap">
+    <canvas id="stage"></canvas>
+    <div class="crumb"><a href="/bees/">‹ bee lab</a></div>
+    <div class="panel" id="panel"></div>
+    <div class="health"><div class="lbl">vitality</div><div class="bar"><div class="fill" id="hpfill" style="width:100%"></div></div></div>
+    <div class="legend"><span class="d">▦ red field</span> = authoritative threat · <span class="b">bees</span> = cosmetic<br>hold to walk · keep out of the cloud</div>
+    <div id="swat"><span class="ic">✺</span>swat</div>
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script type="module">
+import { genomeFromParams, frameRects } from '../../sprite/core.js';
+import { Swarm, beeAtlas } from '../swarm.js';
+import { SwarmHazard, HAZARD_DEFAULTS } from '../hazard.js';
+
+const $ = s => document.querySelector(s);
+const cv = $('#stage'), ctx = cv.getContext('2d', { alpha:false });
+const PX = 3;                       // CSS px per world unit
+let dpr = 1, W = 320, H = 220;
+
+// ── actors ──
+let hz, swarm, atlas;
+const playerGenome = genomeFromParams({ seed:'wanderer', size:15 });
+const player = { x: 60, y: 60, vx:0, vy:0, walked:0, dir:'S', health:100, dead:false };
+
+// the authoritative step cadence. The DEMO ticks on a fixed 170ms accumulator; HOOP would call
+// hz.stepTo() once per walked tile inside sim.js tickSurvival — same call, different driver.
+const STEP_MS = 170; let stepAcc = 0;
+
+function buildWorld(){
+  const r = $('#stagewrap').getBoundingClientRect();
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(r.width*dpr); cv.height = Math.round(r.height*dpr);
+  W = Math.max(120, Math.round(r.width/PX)); H = Math.max(90, Math.round(r.height/PX));
+  hz = new SwarmHazard({ seed:'hive:meadow', world:{w:W,h:H}, cx:W*0.62, cy:H*0.45 });
+  atlas = beeAtlas('hive:meadow', { headings:12 });
+  swarm = new Swarm({ width:W, height:H, count:280, seed:'hive:meadow', headings:12,
+    params:{ follow:64, swirl:30, separation:120, cohesion:10, wander:80 } });
+  swarm.setTarget(hz.cx, hz.cy);
+}
+
+// ── input: hold to walk toward a point; WASD/arrows too ──
+let target=null;
+function aimAt(e){ const r=cv.getBoundingClientRect(); target={ x:((e.clientX-r.left)/r.width)*W, y:((e.clientY-r.top)/r.height)*H }; }
+$('#stagewrap').addEventListener('pointerdown', e=>{ if(e.target.id==='swat')return; cv.setPointerCapture?.(e.pointerId); aimAt(e); });
+$('#stagewrap').addEventListener('pointermove', e=>{ if(target) aimAt(e); });
+const drop=()=>{ target=null; };
+$('#stagewrap').addEventListener('pointerup', drop); $('#stagewrap').addEventListener('pointercancel', drop);
+const keys={};
+addEventListener('keydown', e=>{ keys[e.key.toLowerCase()]=true; if(e.key===' '){ swat(); e.preventDefault(); } });
+addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
+
+function swat(){
+  if(player.dead) return;
+  hz.repulse(player.x, player.y);                 // authoritative: shove centroid + thin cloud
+  swarm.setParams({ windX:(swarm.target.x-player.x), windY:(swarm.target.y-player.y) }); // brief cosmetic recoil
+  setTimeout(()=>swarm.setParams({windX:0,windY:0}), 220);
+  flash('✺');
+}
+$('#swat').addEventListener('pointerdown', e=>{ e.stopPropagation(); swat(); });
+
+function flash(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(flash._t); flash._t=setTimeout(()=>t.classList.remove('show'), 260); }
+
+const DIRS=['E','SE','S','SW','W','NW','N','NE'];
+function dirKey(vx,vy){ if(!vx&&!vy) return player.dir; return DIRS[(Math.round(Math.atan2(vy,vx)/(Math.PI/4))+8)%8]; }
+
+// ── per-frame ──
+let last=0;
+function frame(ts){
+  const dt = last ? Math.min(0.05,(ts-last)/1000) : 0; last=ts;
+
+  // player movement (continuous, cosmetic timing)
+  let mx=0,my=0;
+  if(target){ const dx=target.x-player.x, dy=target.y-player.y, d=Math.hypot(dx,dy); if(d>1.5){ mx=dx/d; my=dy/d; } }
+  if(keys['w']||keys['arrowup'])my-=1; if(keys['s']||keys['arrowdown'])my+=1;
+  if(keys['a']||keys['arrowleft'])mx-=1; if(keys['d']||keys['arrowright'])mx+=1;
+  const ml=Math.hypot(mx,my); if(ml>0&&!player.dead){ mx/=ml; my/=ml; const sp=46*dt; player.x+=mx*sp; player.y+=my*sp;
+    player.x=Math.max(0,Math.min(W,player.x)); player.y=Math.max(0,Math.min(H,player.y));
+    player.walked+=sp; player.dir=dirKey(mx,my); }
+
+  // authoritative hazard steps on the fixed cadence
+  if(!player.dead){ stepAcc+=ts-(frame._p||ts); frame._p=ts;
+    while(stepAcc>=STEP_MS){ stepAcc-=STEP_MS;
+      const { damage } = hz.stepTo(player.x, player.y);
+      if(damage>0){ player.health=Math.max(0,player.health-damage); if(player.health<=0) die(); }
+      else player.health=Math.min(100, player.health+0.6);   // regen out of the cloud
+    }
+  } else frame._p=ts;
+
+  // cosmetic bees follow the authoritative centroid
+  swarm.setTarget(hz.cx, hz.cy); swarm.step(dt);
+
+  draw();
+  requestAnimationFrame(frame);
+}
+
+function die(){ player.dead=true; flash('the swarm takes you'); setTimeout(respawn, 1100); }
+function respawn(){ player.health=100; player.dead=false; player.x=Math.min(W-6,10); player.y=Math.min(H-6,H-10);
+  hz.intensity=HAZARD_DEFAULTS.baseIntensity; hz.aggro=0; hz.cx=hz.home.x; hz.cy=hz.home.y; }
+
+function draw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const cw=cv.width/dpr, ch=cv.height/dpr;
+  ctx.fillStyle='#0a0b0e'; ctx.fillRect(0,0,cw,ch);
+
+  // AUTHORITATIVE danger field — the thing that actually deals damage
+  const R = hz.o.radius*1.7*PX, gx=hz.cx*PX, gy=hz.cy*PX;
+  const grad=ctx.createRadialGradient(gx,gy,0,gx,gy,R);
+  const a=0.42*hz.intensity;
+  grad.addColorStop(0,`rgba(207,59,59,${a})`); grad.addColorStop(0.6,`rgba(207,59,59,${a*0.4})`); grad.addColorStop(1,'rgba(207,59,59,0)');
+  ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(gx,gy,R,0,7); ctx.fill();
+  if(hz.aggro>0){ ctx.strokeStyle=`rgba(207,59,59,0.5)`; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(gx,gy,hz.o.aggroRadius*PX,0,7); ctx.stroke(); }
+
+  // COSMETIC bees — count shown ∝ authoritative intensity (no rebuild; just draw fewer)
+  const shown=Math.floor(swarm.count * (hz.intensity/hz.o.maxIntensity));
+  let drawn=0;
+  swarm.forEachBee((bx,by,bin,wing)=>{ if(drawn++>=shown) return; const cells=atlas.cells[bin][wing], ox=Math.round(bx), oy=Math.round(by);
+    for(let c=0;c<cells.length;c++){ const cell=cells[c]; ctx.fillStyle=cell.c; ctx.fillRect((ox+cell.x)*PX,(oy+cell.y)*PX,PX,PX); } });
+
+  // player sprite (the world's own pixel kernel)
+  if(!player.dead || (Math.floor(performance.now()/120)&1)){
+    const phase = (target||keys['w']||keys['a']||keys['s']||keys['d']) ? Math.floor(player.walked/3)%4 : null;
+    const dirObj = { k:player.dir, dx:({E:1,SE:1,S:0,SW:-1,W:-1,NW:-1,N:0,NE:1})[player.dir], dy:({E:0,SE:1,S:1,SW:1,W:0,NW:-1,N:-1,NE:-1})[player.dir] };
+    const ox=Math.round(player.x)-((playerGenome.size/2)|0), oy=Math.round(player.y)-playerGenome.size+2;
+    for(const r of frameRects(playerGenome, dirObj, phase)){ ctx.fillStyle=r.c; ctx.fillRect((ox+r.x)*PX,(oy+r.y)*PX,PX,PX); }
+  }
+
+  // HUD
+  $('#hpfill').style.width = player.health+'%';
+  const last = hz.density(player.x,player.y)*hz.o.damageScale;
+  $('#panel').innerHTML = `<b>${hz.aggro>0?'<span class="hot">ROUSED</span>':'calm'}</b><br>intensity <b>${hz.intensity.toFixed(2)}</b><br>dmg/step <b>${last.toFixed(1)}</b><br>bees <b>${shown}</b>`;
+}
+
+let rt; addEventListener('resize', ()=>{ clearTimeout(rt); rt=setTimeout(buildWorld,150); });
+buildWorld(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
