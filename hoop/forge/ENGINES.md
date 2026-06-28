@@ -319,6 +319,35 @@ circulation seen at a learn terminal (four path sets threading a load-bearing se
 pipe); **`/forge/slices`** is the local plan+section when you drop into one locale. The pipe was never the
 ship — it was the microscope slide.
 
+## From macro to micro — the chunk floor a nave-dweller walks (`/forge/micro`)
+
+The macro is the whole circulation; this is **one locale at floor level**, where a player actually walks from
+the nave, through production, and does something. It encodes three things with their feet (`micro.js`,
+node-tested, 18 checks):
+
+**1. A directional gradient with barriers.** Along the radial axis (inner→outer): the **office band** (white
+collar, nave-side, clean) → `barrier 1` → **material transit** (the working artery floor: freight, hazard) →
+`barrier 2` → the **lower-rind portal**. The portal touches *only* the transit band — so you reach the lower
+rind **only by crossing the material transit**. Two gates, three ordered zones, one direction. The gated walk
+crosses barrier 1 before barrier 2 (tested), and ends at the portal.
+
+**2. The white-collar layer (`WHITE_COLLAR`).** The production apparatus is **autonomic** — the material
+arteries hum lights-out. The white collars are the **cortex over that autonomic system**: *perfusion watch*
+(is every chamber fed, or going ischemic?), *dispatch* (send a tech down a crew capillary to a fault),
+*scheduling* (the fulfillment lift, production priority), *gate control* (hold the two barriers), *telemetry*,
+*inventory*. They work the mezzanine and look down on the machines (this is `deck2.js`'s deck 1, given a job).
+
+**3. The capillary structure of the arteries.** Each artery is a **space-colonization tree** (the
+leaf-venation / angiogenesis algorithm, `spaceColonize`): trunk → arteriole → capillaries that **perfuse every
+chamber** — and the whole interstitial *tissue* (a scattered perfusion field), so the bed grows lush like a
+real vascular bed, not a few pipes. There are **two beds**: the **material arterial bed** (deck 0, rooted at
+the office/transit barrier where supply crosses inward, draining waste *down* to the portal) and the
+**white-collar crew bed** (deck 1, rooted at the office, reaching every chamber so a tech can get anywhere).
+Their 2D projections **cross** (`bedsCrossInPlane`, tested) — which is exactly why they **can't be coplanar**
+and must ride two decks (the two-species result, made concrete at the floor). A per-chamber drop links the
+decks (the exchange). Live at `hoop.mino.mobi/forge/micro` (plan view, top = inner/nave, down = outward/lower
+rind; toggle the two beds + the walk). This is the real foundation to build the weird floor-level task into.
+
 ## Open seams (parked)
 
 - **Energetics (tide) seam** — every hot engine draws from the fixed energy budget; not yet wired.

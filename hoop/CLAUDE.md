@@ -214,6 +214,17 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   (the ship-anatomy content shown at a `learn`-role component fixture → `terminal`, `v099/sim.js`
   `FIXTURE_ACTION`), not a control surface. `/ship` = the whole production layer; `/slices` = a local drop-in.
   The pipe was the microscope slide, not the ship.
+  **Macro→micro — the chunk floor (`/forge/micro`, `forge/micro.js`, 18-test):** one locale at floor level a
+  nave-dweller walks. (1) a **directional gradient with barriers**: office band (white collar, nave-side) →
+  *barrier 1* → material transit (artery floor) → *barrier 2* → lower-rind portal — the portal touches only
+  transit, so you reach the lower rind ONLY through the material transit; the gated walk crosses barrier 1
+  before 2. (2) the **white-collar layer** (`WHITE_COLLAR`): the cortex over the autonomic production system —
+  perfusion-watch / dispatch / scheduling / gate-control / telemetry / inventory (deck2.js's deck-1 mezzanine,
+  given jobs). (3) the **capillary structure**: each artery a **space-colonization tree** (`spaceColonize`,
+  leaf-venation/angiogenesis) perfusing every chamber + the interstitial tissue (a scattered field → a lush
+  bed). Two beds — material arterial (deck 0) + white-collar crew (deck 1) — whose 2D projections **cross**
+  (`bedsCrossInPlane`) → why they need two decks (the two-species result made concrete). The real foundation for
+  the floor-level task.
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

@@ -197,6 +197,10 @@ export default {
     if (url.pathname === '/forge/ship' || url.pathname === '/forge/ship/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/ship.html', url), request));
     }
+    // forge/micro — one chunk floor: the office→transit→lower-rind gradient + the capillary structure.
+    if (url.pathname === '/forge/micro' || url.pathname === '/forge/micro/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/micro.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
