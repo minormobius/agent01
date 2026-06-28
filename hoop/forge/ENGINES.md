@@ -176,6 +176,18 @@ big piece — **extend `skin.js#paintChunk`** to render forge fixtures/ambient/m
 knows nave rooms today; the forge's look currently lives in `sprites.js`). That's invasive on the 302 KB
 game file, so the standalone proto is the safe testbed first.
 
+## Two tracks (material + pedestrian) — see `TRACKS.md`
+
+Asked: make the roadway the material track (spiderbots + packets) and add a separate non-intersecting
+pedestrian track (technicians/rindwalkers). The probe (`tracks.js`) found it's a **planar impossibility in
+2D** on this foam — the interior is road + rooms with *no interstitial tissue* (`interstitialFrac ≈ 0`), and
+the concourse *is* the connectivity (remove it → ~130 isolated room-pockets), so a second disjoint
+everywhere-reaching network can't also be connected. It doesn't degenerate to a spiral; two such nets just
+don't exist in the plane. Blood vessels evade this with the **third dimension** — so the answer is **two
+decks** (material deck + pedestrian deck, joined by lifts at each facility). Pinned by
+`test/tracks.selftest.mjs` (8). Resolution A (two decks) is the proposed build; B (divided concourse) and C
+(regenerate foam with interstitial corridors) are the alternatives in `TRACKS.md`.
+
 ## Open seams (parked)
 
 - **Energetics (tide) seam** — every hot engine draws from the fixed energy budget; not yet wired.
