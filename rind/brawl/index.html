@@ -38,7 +38,9 @@
   #battle{display:none;gap:16px;align-items:flex-start;margin-top:6px}
   #battle.live{display:flex;flex-wrap:wrap}
   .stage{position:relative}
-  #cv{background:linear-gradient(160deg,#0a0f15,#070a0f);border:1px solid var(--line);border-radius:12px;touch-action:none;display:block}
+  #cv{background:linear-gradient(160deg,#0a0f15,#070a0f);border:1px solid var(--line);border-radius:12px;display:block;
+    touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-user-drag:none}
+  #battle{ user-select:none; -webkit-user-select:none }   /* a drag from the canvas mustn't start a text selection on the page */
   .cert{font:12px/1.5 var(--mono);color:var(--dim);margin:8px 2px 0}
   .cert b{color:var(--teal)}
   .side{width:260px;min-width:230px;flex:1}
@@ -78,7 +80,7 @@
 
   <div id="battle">
     <div class="stage">
-      <canvas id="cv" width="520" height="520"></canvas>
+      <canvas id="cv" width="520" height="520" draggable="false"></canvas>
       <div class="cert" id="cert"></div>
       <div class="hint" id="hint"></div>
     </div>
@@ -379,6 +381,7 @@ function handleAim(wx, wy) {
 }
 
 cv.onpointerdown = (ev) => {
+  ev.preventDefault();   // stop the browser starting a text/image selection on drag
   if (busy || !isPlayerTurn()) return;
   const p = evPos(ev);
   if (mode === 'radial') {                       // wheel already open (from a tap) → this tap selects/cancels
@@ -395,6 +398,7 @@ cv.onpointerdown = (ev) => {
 };
 cv.onpointermove = (ev) => {
   if (mode !== 'radial' || !radial) return;
+  ev.preventDefault();
   const p = evPos(ev), c = radialCenter();
   if (Math.hypot(p.sx - c.x, p.sy - c.y) > 7) moved = true;
   const ht = radialHit(p.sx, p.sy); radial.hover = ht.kind === 'center' ? null : ht.skill;
@@ -410,6 +414,7 @@ cv.onpointerup = (ev) => {
   else commitSkill(ht.skill, { wx: p.wx, wy: p.wy });   // dragged out → aim at the release point
 };
 cv.onpointercancel = () => { drag = false; };
+cv.ondragstart = (ev) => ev.preventDefault();   // no native image-drag ghost on the canvas
 
 $('#end').onclick = () => { if (!busy && isPlayerTurn()) { E.act(s, { type: 'end' }); mode = 'idle'; sel = null; radial = null; afterPlayer(); } };
 
