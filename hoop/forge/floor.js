@@ -227,7 +227,8 @@ export function buildForgeRegion(seed, opts = {}) {
   for (let i = 0; i < count; i++) {
     const p = parts[i], isRoadLocal = new Uint8Array(p.interior.length);
     p.interior.forEach((cid, li) => { if (carve.isRoad[g2[i].get(cid)]) isRoadLocal[li] = 1; });
-    recs.push(packChunk(p.foam, p.def, p.interior, p.rooms, p.facilities, p.flow, isRoadLocal, p.engines));
+    const rec = packChunk(p.foam, p.def, p.interior, p.rooms, p.facilities, p.flow, isRoadLocal, p.engines);
+    rec.id = i; recs.push(rec);   // id = chunk index, so {chunks: recs} drives buildWalk()/pathFind directly
   }
 
   // conduit edges (world coords, tiered) — the grown network for the region overlay
@@ -245,6 +246,21 @@ export function buildForgeRegion(seed, opts = {}) {
     layout: layout ? { optimized: true, cost: layout.cost, baseline: layout.baseline, reduction: layout.baseline > 0 ? (layout.baseline - layout.cost) / layout.baseline : 0, fulfillment: hubChunks.length } : { optimized: false, cost: curCost, fulfillment: hubChunks.length },
     crossLinks, bbox: { x0, y0, x1, y1 }, sideOf,
   };
+}
+
+// FREE-ROAM nav graph over a region — every interior cell is a node, foam-adjacent cells link, chunks join
+// at shared ports. Fully connected (the foam is), so a player can walk the whole region: the carved road is
+// the streets, but you can also cut through the facilities. Shaped like manager.buildWalk's output, so the
+// game's pathFind()/nearestNode() run over it unchanged. (The proto pather — /forge/walk.)
+export function regionWalk(reg) {
+  const recs = reg.recs, base = [], pos = [], nodeChunk = [], nodeLocal = []; let N = 0;
+  for (const ch of recs) { base[ch.id] = N; for (let i = 0; i < ch.cells.length; i++) { pos.push(ch.cells[i].x, ch.cells[i].y); nodeChunk.push(ch.id); nodeLocal.push(i); N++; } }
+  const adj = Array.from({ length: N }, () => []), link = (a, b) => { adj[a].push(b); adj[b].push(a); };
+  for (const ch of recs) { const b0 = base[ch.id]; for (let i = 0; i < ch.adj.length; i++) for (const j of ch.adj[i]) if (j > i) link(b0 + i, b0 + j); }
+  const byLoc = new Map();
+  for (const ch of recs) for (const p of ch.ports) { if (p.cell == null || p.cell < 0) continue; const k = Math.round(p.x) + ',' + Math.round(p.y); let a = byLoc.get(k); if (!a) byLoc.set(k, a = []); a.push(base[ch.id] + p.cell); }
+  for (const g of byLoc.values()) for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) link(g[i], g[j]);
+  return { N, adj, pos: new Float32Array(pos), nodeChunk: new Int32Array(nodeChunk), nodeLocal: new Int32Array(nodeLocal), base, blocked: null };
 }
 
 // the engine-per-chunk array implied by the placed facilities (first production engine per chunk, null at

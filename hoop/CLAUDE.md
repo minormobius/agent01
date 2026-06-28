@@ -148,7 +148,16 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   toggle on both `/forge/facilities` and `/forge/region` (default on; off = flat tint = the soup, for
   comparison) makes each facility read as its own place and the factory a patchwork of districts, not a stew.
   Pinned by `forge/test/fixtures.selftest.mjs` (31). The eventual home is the v099 game skin
-  (`skin.js#paintChunk` + consoles/FIXTURES) — the forge pages prove the treatment. **Next:** wire a forge region into the v099 game as
+  (`skin.js#paintChunk` + consoles/FIXTURES) — the forge pages prove the treatment.
+  **Walk it** — `hoop.mino.mobi/forge/walk` (`walk.html` + `walk-app.js`) is a **playable proto**: an @ walks
+  a forge region's production floor, reusing the game's `manager.pathFind`/`nearestNode` over a free-roam nav
+  graph (`floor.js#regionWalk`, 100% connected), click/tap-to-walk + WASD, camera following, the rich skin +
+  the nave lift overhead, a HUD naming the facility you're in. To enable this, `packChunk` now emits cell
+  `adj` + room `doorPairs`, so forge records are **buildWalk-compatible** (they drive the game nav graph).
+  **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
+  is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
+  **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The
+  standalone proto is the safe testbed first. See `ENGINES.md`. **Next:** wire a forge region into the v099 game as
   a playable deck (nave/rind cousin); energetics (tide) seam; fixtures + logistics droids riding the trunks.
   See `ENGINES.md` + `NEEDS.md` + `FACTORY.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at

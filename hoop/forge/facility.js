@@ -233,12 +233,23 @@ export function packChunk(foam, def, interior, rooms, facilities, flow, isRoadLo
     const poly = c.poly.map((vx) => { const nb = vx.s >= 0 ? srcToCell.get(vx.s) : -1; const lb = nb != null && local.has(nb) ? local.get(nb) : -1; return [vx.x, vx.y, lb]; });
     return { x: c.x, y: c.y, poly };
   });
+  // CELL ADJACENCY (local) from the poly neighbour labels — what buildWalk()/the game nav graph needs.
+  const adj = cells.map(() => []), aseen = new Set();
+  cells.forEach((c, i) => { for (const vx of c.poly) { const j = vx[2]; if (j < 0) continue; const k = i < j ? i + ',' + j : j + ',' + i; if (aseen.has(k)) continue; aseen.add(k); adj[i].push(j); adj[j].push(i); } });
   const road = new Uint8Array(interior.length), roomOf = new Int32Array(interior.length).fill(-1);
   rooms.forEach((r) => { for (const c of r.cells) { const l = local.get(c); if (l != null) roomOf[l] = r.idx; } });
   if (isRoadLocal) for (let i = 0; i < interior.length; i++) if (isRoadLocal[i]) { road[i] = 1; roomOf[i] = -1; }
-  const outRooms = rooms.map((r) => ({ id: r.idx, cells: r.cells.map((c) => local.get(c)).filter((v) => v != null && !road[v]), x: r.x, y: r.y, door: r.doorCell != null ? local.get(r.doorCell) : -1, facility: r.facility, engine: r.engine, step: r.step, isCore: r.isCore }));
+  const outRooms = rooms.map((r) => {
+    const cellsL = r.cells.map((c) => local.get(c)).filter((v) => v != null && !road[v]);
+    // DOOR onto the concourse: the surviving room cell adjacent to a road cell, nearest the centroid (so the
+    // player walks the carved street and enters the facility through one opening — buildWalk's doorPair).
+    let door = -1, doorRoad = -1, bd = Infinity;
+    for (const c of cellsL) for (const nb of adj[c]) if (road[nb]) { const d = (cells[c].x - r.x) ** 2 + (cells[c].y - r.y) ** 2; if (d < bd) { bd = d; door = c; doorRoad = nb; } break; }
+    const doorPairs = door >= 0 && doorRoad >= 0 ? [[door, doorRoad]] : [];
+    return { id: r.idx, cells: cellsL, x: r.x, y: r.y, door, doorRoad, doorPairs, facility: r.facility, engine: r.engine, step: r.step, isCore: r.isCore };
+  });
   const ports = def.ports.map((p) => ({ x: p.x, y: p.y, edge: p.edge, inherited: !!p.inherited, cell: local.get(p.cell) }));
-  return { poly: def.poly, shape: def.shape, region: bbox(def.poly), cells, road, roomOf, rooms: outRooms, facilities, flow, ports, engines: engineIds, cellSize: foam.cellSize };
+  return { poly: def.poly, shape: def.shape, region: bbox(def.poly), cells, adj, road, roomOf, rooms: outRooms, facilities, flow, ports, engines: engineIds, cellSize: foam.cellSize };
 }
 
 // ── deterministic engine selection for a chunk (production engines only; fulfillment is placed by floor) ──

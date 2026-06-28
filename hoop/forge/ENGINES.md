@@ -147,10 +147,31 @@ uniform stew. Pinned by `test/fixtures.selftest.mjs` (31: every engine has all t
 are distinct; the motion modes vary). **The eventual home is the v099 game skin** (`skin.js#paintChunk` +
 the consoles/FIXTURES fixture system) — these forge pages prove the treatment; the game renders it for real.
 
+## Walk it — the playable proto (`/forge/walk`)
+
+`forge/walk.html` + `walk-app.js`: an **@ you walk around a forge region's production floor.** It reuses the
+v099 game's own movement — `manager.pathFind`/`nearestNode` over a **free-roam nav graph**
+(`floor.js#regionWalk`: every interior cell a node, foam-adjacency + shared ports, 100% connected across all
+chunks), the same click/tap-to-walk control as the game (plus WASD). Camera follows, zoomed in so you're
+*in* it; the rich skin (ambient light · core machines · material in motion) renders around you; the HUD
+names the facility you're standing in + what it makes; the fulfillment hub shows the **nave lift** rising
+overhead. To make this work the partition records were made **buildWalk-compatible** — `packChunk` now emits
+cell `adj` + room `doorPairs` (the door onto the carved concourse), so the forge chunks drive the game's nav
+graph directly.
+
+### Wiring into the v099 game proper (the next step, not yet done)
+
+The records are now game-shaped, so the remaining work to make the forge a real **deck reached from the
+rind** (`v099/index.html#maybeBuildRind` is the hook — it already sinks a shaft + marks a lower deck) is:
+(1) generate the forge region as a deck (`markRindDeck` cousin, offset in world coords); (2) attach the
+**fulfillment lift as the shaft** — thematically the fulfillment center *is* the nave connection; (3) the
+big piece — **extend `skin.js#paintChunk`** to render forge fixtures/ambient/material (the game skin only
+knows nave rooms today; the forge's look currently lives in `sprites.js`). That's invasive on the 302 KB
+game file, so the standalone proto is the safe testbed first.
+
 ## Open seams (parked)
 
 - **Energetics (tide) seam** — every hot engine draws from the fixed energy budget; not yet wired.
-- **Fixtures + robots** — the logistics droids that ride the grown conduits between chambers (the
-  FIXTURES.md cousin for production lines).
-- **The carve as game floor** — the carved road is in the packed record (`rec.road`); wiring a forge region
-  into the v099 game as a playable deck (the nave/rind cousin) is the deployment step.
+- **Fixtures + robots** — the logistics droids that ride the grown conduits between chambers.
+- **Forge skin in the game** — port `sprites.js`'s fixtures/ambient/material into `skin.js#paintChunk` so a
+  forge deck renders in-game the way `/forge/walk` does (the prerequisite for the v099 deck wiring above).

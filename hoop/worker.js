@@ -173,6 +173,10 @@ export default {
     if (url.pathname === '/forge/region' || url.pathname === '/forge/region/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/region.html', url), request));
     }
+    // forge/walk — the playable upper-rind proto: walk an @ around the production floor.
+    if (url.pathname === '/forge/walk' || url.pathname === '/forge/walk/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/walk.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
