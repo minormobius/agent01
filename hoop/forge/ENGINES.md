@@ -337,23 +337,21 @@ arteries hum lights-out. The white collars are the **cortex over that autonomic 
 *scheduling* (the fulfillment lift, production priority), *gate control* (hold the two barriers), *telemetry*,
 *inventory*. They work the mezzanine and look down on the machines (this is `deck2.js`'s deck 1, given a job).
 
-**3. The capillary structure — a lava lamp.** The white collar needs access to *everything* the machines do,
-so it isn't separate plumbing hung from the office — it's one half of an **interpenetrating pair**. The
-**material bed** (deck 0) **rises from below** (supply/utilities up from the lower rind; rooted at the
-transit/portal barrier, waste draining back down); the **white-collar bed** (deck 1) **descends from above**
-(the office reaching down to every machine). They **meet at the production floor**: tendrils from below,
-tendrils from above, interpenetrating. That's the **weird math of a lava lamp** — the **Rayleigh–Taylor
-instability** (light plumes rising, heavy fingers sinking, a fractal interface), each tendril a **Laplacian /
-viscous (Saffman–Taylor) finger**, the same growth as a **Lichtenberg figure** (two opposite-polarity
-dendrites racing to meet). We grow them with **space colonization** (a discrete cousin of Laplacian growth,
-`spaceColonize`) from opposite roots toward a shared perfusion field (chambers + interstitial tissue → a lush
-bed). Tested: `lavaLamp()` confirms material rises *past* the floor midline and the crew descends *past* it
-(true interpenetration, not a flat interface), and every machine is an **anastomosis** — reached by *both*
-fields (the white collar touches every machine). Their 2D projections **cross** (`bedsCrossInPlane`) — which
-is exactly why they **can't be coplanar** and must ride two decks (the two-species result, made concrete); the
-per-chamber **drop** between decks *is* the white collar's access to that machine. Live at
-`hoop.mino.mobi/forge/micro` (plan view, top = inner/nave, down = outward/lower rind; toggle the two fields +
-the walk). The real foundation to build the weird floor-level task into.
+**3. The capillary structure is WOVEN SURFACES, not nodes.** The white collar needs access to *everything* the
+machines do — so the two systems aren't pipe-trees, they're broad **surfaces (sheets) that weave**. In section
+(`/forge/micro`), the **white-collar sheet** (leaning up, toward the office) and the **material sheet** (leaning
+down, toward the lower rind) are a quarter-wave out of phase, so they cross **over-under** — a weave — bounding
+**three broad layers**: white-collar phase / the production weave / material phase. A production **facility sits
+at every weave crossing**, touched by *both* sheets. Because each sheet is **one broad continuous surface**
+spanning the whole floor, **every office touches every production facility** — broad, not deep (*three good
+layers tops*). That's the weird math of interwoven surfaces: a **triply-periodic minimal surface** (the
+**gyroid**) / the **lamellar↔gyroid phases** of block-copolymer microphase separation — two surfaces
+partitioning space into interpenetrating labyrinths, each phase still in contact with everything. Tested
+(`weaveStats`, `contact`): the sheets cross many times with the "over" sheet alternating (a genuine weave), the
+white-collar sheet leans toward the office while the material leans toward the rind, and the office×facility
+contact is **complete** (every office, every facility). Live at `hoop.mino.mobi/forge/micro` (section, top =
+inner/nave, down = outward/lower rind; toggle the two sheets + the walk). The real foundation to build the weird
+floor-level task into.
 
 ## Open seams (parked)
 

@@ -1,28 +1,24 @@
-// micro.js — FROM MACRO TO MICRO: one chunk-floor a nave-dweller actually walks. The macro view (/forge/ship)
-// is the whole infinite circulation; this is one locale at the floor level, and it encodes three things the
-// player feels with their feet:
+// micro.js — FROM MACRO TO MICRO: one chunk-floor a nave-dweller walks. The macro (/forge/ship) is the whole
+// circulation; this is one locale at floor level, and it carries three things the player feels with their feet:
 //
-//   1. A DIRECTIONAL GRADIENT WITH BARRIERS. Along the radial axis (inner→outer): the OFFICE band (white
-//      collar, nave-side, clean) → [barrier 1] → MATERIAL TRANSIT (the working artery floor: freight, hazard)
-//      → [barrier 2] → the LOWER-RIND PORTAL. The portal touches ONLY the transit band, so you can reach the
-//      lower rind *only* by crossing the material transit. Two gates, three zones, one direction.
+//   1. A DIRECTIONAL GRADIENT WITH BARRIERS. Along the radial axis (inner→outer / top→bottom in section): the
+//      OFFICE layer (white collar, nave-side) → [barrier 1] → the PRODUCTION FLOOR (the machines) → [barrier 2]
+//      → the LOWER-RIND portal. The portal touches ONLY the production floor, so you reach the lower rind only
+//      by crossing it. Two gates, three layers, one direction.
 //
-//   2. THE WHITE-COLLAR LAYER. The production apparatus is autonomic — the material arteries hum lights-out.
-//      The white collars are the cortex over that autonomic system: they WATCH PERFUSION (is every chamber
-//      fed, or going ischemic?), DISPATCH a tech down a crew capillary to a fault, SCHEDULE the fulfillment
-//      lift, and HOLD THE GATES. They work the mezzanine and look down on the machines (deck2.js's deck 1).
+//   2. THE WHITE-COLLAR LAYER. Production is autonomic — the material runs lights-out. The white collars are the
+//      cortex over it: perfusion-watch, dispatch, scheduling, gate-control, telemetry, inventory (`WHITE_COLLAR`).
 //
-//   3. THE CAPILLARY STRUCTURE — A LAVA LAMP. The white collar needs access to everything the machines do, so
-//      it isn't a separate plumbing hung from the office: it's one half of an interpenetrating pair. The
-//      MATERIAL arterial bed (deck 0) rises FROM BELOW (supply/utilities up from the lower rind); the
-//      WHITE-COLLAR crew bed (deck 1) descends FROM ABOVE (the office reaching down to every machine). They
-//      MEET at the production floor — tendrils from above, tendrils from below, interpenetrating. This is the
-//      weird math of a lava lamp: the RAYLEIGH–TAYLOR instability (light plumes rising, heavy fingers sinking,
-//      a fractal interface), with each tendril a LAPLACIAN / viscous (Saffman–Taylor) finger — the same growth
-//      as a LICHTENBERG figure, two opposite-polarity dendrites racing to meet. We grow them with space
-//      colonization (a discrete cousin of Laplacian growth) from opposite roots toward a shared field. Their 2D
-//      projections CROSS — so they can't be coplanar; they ride two decks, joined at each machine by a drop
-//      (the per-chamber exchange — that drop IS the white collar's access to the machine).
+//   3. THE CAPILLARY STRUCTURE IS WOVEN SURFACES, NOT NODES. The white-collar system and the material system
+//      aren't pipe-trees — they're broad SURFACES (sheets) that WEAVE together. Two phase-boundary sheets, a
+//      quarter-wave out of phase so they cross OVER-UNDER (a weave), bounding THREE broad layers (white-collar
+//      phase / the production weave / material phase). Because each sheet is one BROAD connected surface spanning
+//      the whole floor, EVERY office touches EVERY production facility — broad, not deep (three good layers tops).
+//      This is the weird math of interwoven surfaces: a triply-periodic minimal surface (the GYROID) / the
+//      lamellar↔gyroid phases of block-copolymer microphase separation — two surfaces partitioning space into
+//      interpenetrating labyrinths, each phase still in contact with everything. The material sheet leans toward
+//      the lower rind (rises from below); the white-collar sheet leans toward the office (descends from above);
+//      they meet and weave at the production floor, with a facility at every weave crossing.
 //
 // Pure + deterministic from the seed. Node-tested in test/micro.selftest.mjs.
 
@@ -31,142 +27,95 @@ const PRODUCTION = ['foundry', 'chemworks', 'mill', 'fab', 'weave', 'assembly', 
 function mulberry32(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 export const DEFAULTS = {
-  W: 440, H: 660, seed: 1,
-  officeFrac: 0.26, portalFrac: 0.16,   // band heights as fractions of H (transit = the remainder)
-  nChambers: 15, jitter: 0.5,
-  influence: 150, kill: 26, step: 16, maxNodes: 900,   // space-colonization params
+  W: 560, H: 520, seed: 1,
+  officeFrac: 0.22, portalFrac: 0.16,   // the office (top) & portal (bottom) layer heights; floor = the rest
+  nLobes: 4,                            // how many broad lobes the sheets weave through (broad → small)
+  ampFrac: 0.34, biasFrac: 0.34,        // sheet undulation amplitude & the lean (white→office, material→rind)
+  samples: 140,
 };
-
-// ── space colonization (Runions et al.): grow a tree from `root` so its tips reach every attractor ──────────
-// Returns { nodes:[{x,y,parent}], reached:[bool per attractor] }. Deterministic given attractors + params.
-export function spaceColonize(root, attractors, o = {}) {
-  const { influence, kill, step, maxNodes } = { ...DEFAULTS, ...o };
-  const nodes = [{ x: root.x, y: root.y, parent: -1 }];
-  const live = attractors.map(() => true);
-  const reached = attractors.map(() => false);
-  const MINSEP = step * 0.5;
-  let guard = 0;
-  while (live.some(Boolean) && nodes.length < maxNodes && guard++ < maxNodes * 3) {
-    // each live attractor votes for its nearest node (within influence); attractors within kill are captured
-    const pull = new Map(); let captured = 0;
-    for (let i = 0; i < attractors.length; i++) {
-      if (!live[i]) continue; const a = attractors[i];
-      let best = -1, bd = Infinity;
-      for (let n = 0; n < nodes.length; n++) { const d = (nodes[n].x - a.x) ** 2 + (nodes[n].y - a.y) ** 2; if (d < bd) { bd = d; best = n; } }
-      const dist = Math.sqrt(bd);
-      if (dist <= kill) { live[i] = false; reached[i] = true; captured++; continue; }
-      if (dist < influence) { const v = pull.get(best) || { dx: 0, dy: 0 }; const inv = 1 / dist; v.dx += (a.x - nodes[best].x) * inv; v.dy += (a.y - nodes[best].y) * inv; pull.set(best, v); }
-    }
-    let grew = 0;
-    for (const [ni, v] of pull) {
-      const L = Math.hypot(v.dx, v.dy); if (L < 1e-3) continue;          // symmetric pull → don't spawn a duplicate
-      const nx = nodes[ni].x + v.dx / L * step, ny = nodes[ni].y + v.dy / L * step;
-      let dup = false; for (let n = 0; n < nodes.length; n++) { if ((nodes[n].x - nx) ** 2 + (nodes[n].y - ny) ** 2 < MINSEP * MINSEP) { dup = true; break; } }
-      if (dup) continue; nodes.push({ x: nx, y: ny, parent: ni }); grew++;
-    }
-    if (grew === 0 && captured === 0) {              // stalled (incl. symmetric lock) → reach toward the nearest live attractor
-      let bn = -1, ba = -1, bd = Infinity;
-      for (let i = 0; i < attractors.length; i++) { if (!live[i]) continue; for (let n = 0; n < nodes.length; n++) { const d = (nodes[n].x - attractors[i].x) ** 2 + (nodes[n].y - attractors[i].y) ** 2; if (d < bd) { bd = d; bn = n; ba = i; } } }
-      if (bn < 0) break; const a = attractors[ba], nd = nodes[bn], L = Math.hypot(a.x - nd.x, a.y - nd.y) || 1, t = Math.min(step, L);
-      nodes.push({ x: nd.x + (a.x - nd.x) / L * t, y: nd.y + (a.y - nd.y) / L * t, parent: bn });
-    }
-  }
-  return { nodes, reached };
-}
-
-export const edgesOf = (bed) => bed.nodes.filter((n) => n.parent >= 0).map((n) => [bed.nodes[n.parent], n]);
-
-// segment intersection (proper crossing, for the "the two beds cross in 2D" check)
-function ccw(a, b, c) { return (c.y - a.y) * (b.x - a.x) - (b.y - a.y) * (c.x - a.x); }
-export function segsCross(p1, p2, p3, p4) {
-  const d1 = ccw(p3, p4, p1), d2 = ccw(p3, p4, p2), d3 = ccw(p1, p2, p3), d4 = ccw(p1, p2, p4);
-  return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
-}
 
 // the white collars' jobs — the cortex over the autonomic production system
 export const WHITE_COLLAR = [
-  { id: 'perfusion', label: 'perfusion watch', blurb: 'reads the flux field — every chamber fed, or one going ischemic?' },
-  { id: 'dispatch', label: 'dispatch', blurb: 'sends a tech down a crew capillary to a faulting chamber' },
+  { id: 'perfusion', label: 'perfusion watch', blurb: 'reads the flux field — every facility fed, or one going ischemic?' },
+  { id: 'dispatch', label: 'dispatch', blurb: 'sends a tech across the weave to a faulting facility' },
   { id: 'schedule', label: 'scheduling', blurb: 'allocates the fulfillment lift; sets production priority' },
   { id: 'gate', label: 'gate control', blurb: 'holds the two barriers — who/what passes inward, who descends' },
   { id: 'telemetry', label: 'telemetry', blurb: 'the trunk health, the spiderbot census, the energy draw' },
-  { id: 'inventory', label: 'inventory', blurb: 'what the bed has made; what the nave above has ordered' },
+  { id: 'inventory', label: 'inventory', blurb: 'what the floor has made; what the nave above has ordered' },
 ];
+
+// the two woven phase-boundary surfaces, evaluated at x. `white` leans up (office), `material` leans down
+// (lower rind); they're a quarter-wave out of phase so they cross over-under — the weave.
+function geom(o) {
+  const { W, H, officeFrac, portalFrac, nLobes, ampFrac, biasFrac, seed } = o;
+  const zOfficeBot = H * (1 - officeFrac), zPortalTop = H * portalFrac, floorMid = (zOfficeBot + zPortalTop) / 2;
+  const A = (zOfficeBot - zPortalTop) * ampFrac, bias = A * biasFrac, k = 2 * Math.PI * nLobes / W;
+  const ph0 = mulberry32((seed ^ 0x5f3a) >>> 0)() * Math.PI * 2;   // seeded phase so seeds differ
+  const surfZ = (which, x) => floorMid + (which === 'white' ? bias : -bias) + A * Math.sin(k * x + (which === 'white' ? 0 : Math.PI / 2) + ph0);
+  return { zOfficeBot, zPortalTop, floorMid, A, bias, k, surfZ };
+}
 
 export function buildMicroChunk(seed, opts = {}) {
   const o = { ...DEFAULTS, ...opts, seed: seed >>> 0 };
-  const { W, H, officeFrac, portalFrac, nChambers, jitter } = o;
+  const { W, H, samples } = o;
+  const g = geom(o);
   const rng = mulberry32((o.seed ^ 0x10c0) >>> 0);
-  const h1 = Math.round(H * officeFrac), h2 = Math.round(H * (1 - portalFrac));   // the two barriers (y)
   const bands = {
-    office: { y0: 0, y1: h1, role: 'office' },
-    transit: { y0: h1, y1: h2, role: 'transit' },
-    portal: { y0: h2, y1: H, role: 'portal' },
+    office: { z0: g.zOfficeBot, z1: H, role: 'office' },          // top — inner / nave side
+    floor: { z0: g.zPortalTop, z1: g.zOfficeBot, role: 'floor' }, // the production weave
+    portal: { z0: 0, z1: g.zPortalTop, role: 'portal' },          // bottom — outward / lower rind
   };
-  // chambers: production rooms, jittered grid inside the TRANSIT band (the working floor)
-  const cols = Math.ceil(Math.sqrt(nChambers * (W / (h2 - h1)))), rows = Math.ceil(nChambers / cols);
-  const chambers = []; const pad = 44;
-  for (let r = 0; r < rows && chambers.length < nChambers; r++) for (let c = 0; c < cols && chambers.length < nChambers; c++) {
-    const gx = pad + (W - 2 * pad) * (c + 0.5) / cols, gy = h1 + pad * 0.5 + (h2 - h1 - pad) * (r + 0.5) / rows;
-    const x = gx + (rng() - 0.5) * (W / cols) * jitter, y = gy + (rng() - 0.5) * ((h2 - h1) / rows) * jitter;
-    chambers.push({ id: chambers.length, x, y, engine: PRODUCTION[(rng() * PRODUCTION.length) | 0] });
+  const barriers = [{ z: g.zOfficeBot, name: 'office → floor' }, { z: g.zPortalTop, name: 'floor → lower rind' }];
+
+  // sample the two broad surfaces (for rendering + analysis)
+  const white = [], material = [];
+  for (let i = 0; i <= samples; i++) { const x = W * i / samples; white.push({ x, z: g.surfZ('white', x) }); material.push({ x, z: g.surfZ('material', x) }); }
+  const surfaces = { white, material };
+
+  // the WEAVE: crossings where white passes over/under material (sign changes of white−material). A production
+  // facility sits at every crossing — touched by both broad sheets.
+  const crossings = [];
+  for (let i = 1; i <= samples; i++) {
+    const x0 = W * (i - 1) / samples, x1 = W * i / samples;
+    const d0 = g.surfZ('white', x0) - g.surfZ('material', x0), d1 = g.surfZ('white', x1) - g.surfZ('material', x1);
+    if ((d0 > 0) !== (d1 > 0)) { const t = d0 / (d0 - d1), x = x0 + (x1 - x0) * t, z = g.surfZ('white', x); crossings.push({ x, z, over: d0 > 0 ? 'material' : 'white' }); }
   }
-  // the perfusion FIELD: a capillary bed perfuses tissue, not just discrete rooms. The attractor set is the
-  // chambers (first, for coverage) PLUS scattered interstitial points across the WHOLE production floor — and
-  // BOTH beds grow toward the same field from OPPOSITE ends, so they interpenetrate (the lava lamp).
-  const nTissue = Math.round(nChambers * 3.2), tissue = [];
-  for (let i = 0; i < nTissue; i++) tissue.push({ x: pad * 0.6 + (W - 1.2 * pad) * rng(), y: h1 + 16 + (h2 - h1 - 32) * rng(), tissue: true });
-  const field = chambers.concat(tissue);
-  // THE LAVA LAMP. Two opposing dendritic fields meet at the production floor (Rayleigh–Taylor: light plumes
-  // rising / heavy fingers sinking; the tendrils themselves are Laplacian / viscous fingering — Lichtenberg).
-  //   material arterial bed (deck 0): rises FROM BELOW — supply/utilities come up from the lower rind. Root at
-  //     the transit/portal barrier; grows UP through the floor; waste drains back down (same lower-rind side).
-  const artRoot = { x: W * 0.5, y: h2 };
-  const arterial = spaceColonize(artRoot, field, o);
-  const drain = { x: W * 0.62, y: h2 };                          // waste sink at barrier 2 (down to the lower rind)
-  //   white-collar crew bed (deck 1): descends FROM ABOVE — the office reaches DOWN to every machine, so the
-  //     white collar has access to everything the machines do. Root at the office; grows DOWN through the floor.
-  const crewRoot = { x: W * 0.5, y: Math.round(h1 * 0.5) };
-  const crew = spaceColonize(crewRoot, field, { ...o, kill: o.kill * 1.1 });
-  // offices (the white collar) strung across the office band, each running one job
-  const nOff = WHITE_COLLAR.length, offices = WHITE_COLLAR.map((w, i) => ({
-    ...w, x: pad + (W - 2 * pad) * (i + 0.5) / nOff, y: Math.round(h1 * (0.4 + 0.32 * (i % 2))),
-  }));
-  // the gated walk: nave entry (top) → through an office → GATE 1 → transit spine → GATE 2 → lower-rind portal
-  const gate1 = { x: W * 0.4, y: h1 }, gate2 = { x: W * 0.62, y: h2 };
+  const facilities = crossings.map((c, i) => ({ id: i, x: c.x, z: c.z, engine: PRODUCTION[(rng() * PRODUCTION.length) | 0], weaveOver: c.over }));
+
+  // offices (the white collar) strung along the white-collar surface
+  const offices = WHITE_COLLAR.map((w, i) => { const x = 30 + (W - 60) * (i + 0.5) / WHITE_COLLAR.length; return { ...w, x, z: g.surfZ('white', x) }; });
+
+  // CONTACT: each sheet is one broad connected surface spanning every facility's x, so it touches every
+  // facility; offices live on the white sheet → every office reaches every facility (complete bipartite).
+  const whiteTouches = facilities.map(() => true), matTouches = facilities.map(() => true);
+
+  // the gated walk in section: nave (top) → office → barrier 1 → the weave floor → barrier 2 → lower rind
   const walk = [
-    { x: W * 0.5, y: 6, label: 'from the nave' },
-    { x: offices[2].x, y: offices[2].y, label: 'office' },
-    { x: gate1.x, y: gate1.y, label: 'barrier 1 · into transit' },
-    { x: W * 0.5, y: (h1 + h2) / 2, label: 'material transit' },
-    { x: gate2.x, y: gate2.y, label: 'barrier 2 · descend' },
-    { x: W * 0.5, y: H - 10, label: 'lower-rind portal' },
+    { x: W * 0.5, z: H - 6, label: 'from the nave' },
+    { x: offices[2].x, z: offices[2].z, label: 'office' },
+    { x: W * 0.4, z: g.zOfficeBot, label: 'barrier 1 · onto the floor' },
+    { x: W * 0.5, z: g.floorMid, label: 'the production weave' },
+    { x: W * 0.6, z: g.zPortalTop, label: 'barrier 2 · descend' },
+    { x: W * 0.5, z: 8, label: 'lower-rind portal' },
   ];
-  return { W, H, bands, barriers: [{ y: h1, gate: gate1.x, name: 'office → transit' }, { y: h2, gate: gate2.x, name: 'transit → lower rind' }],
-    chambers, nChambers: chambers.length, tissue, arterial, crew, drain, artRoot, crewRoot, offices, walk, seed: o.seed };
+
+  return {
+    W, H, bands, barriers, surfaces, crossings, facilities, offices, walk,
+    layers: ['white-collar (office phase)', 'the production weave', 'material (rind phase)'],   // ≤ 3
+    whiteTouches, matTouches, floorMid: g.floorMid, nLobes: o.nLobes, seed: o.seed,
+  };
 }
 
-// every chamber is both perfused (arterial) and covered (crew) — checked over the chamber prefix of the field
-export const coverage = (mc) => { const n = mc.nChambers;
-  return { arterial: mc.arterial.reached.slice(0, n).filter(Boolean).length, crew: mc.crew.reached.slice(0, n).filter(Boolean).length, total: n }; };
-
-// do the two beds' 2D projections cross? (yes → they can't be coplanar → the two decks are necessary)
-export function bedsCrossInPlane(mc) {
-  const A = edgesOf(mc.arterial), C = edgesOf(mc.crew);
-  for (const [a1, a2] of A) for (const [c1, c2] of C) if (segsCross(a1, a2, c1, c2)) return true;
-  return false;
+// every facility is in contact with BOTH broad sheets (broad coverage), and — since each sheet is one connected
+// surface — every office touches every facility (complete bipartite). Returns the contact summary.
+export function contact(mc) {
+  const facCovered = mc.facilities.every((_, i) => mc.whiteTouches[i] && mc.matTouches[i]);
+  const pairs = mc.offices.length * mc.facilities.length;
+  return { facilities: mc.facilities.length, offices: mc.offices.length, facCovered, pairs, complete: facCovered, layers: mc.layers.length };
 }
 
-// THE MEETING (the lava-lamp interpenetration): the material field rises from below, the crew field descends
-// from above. They INTERPENETRATE if each pushes tendrils past the floor's midline into the other's half —
-// not just touching at a flat interface. Returns how deep each reaches across the midline, plus the count of
-// chambers that are an "anastomosis" (reached by BOTH fields → the white collar touches that machine).
-export function lavaLamp(mc) {
-  const mid = (mc.bands.transit.y0 + mc.bands.transit.y1) / 2;
-  const matHigh = Math.min(...mc.arterial.nodes.map((n) => n.y));    // how far UP the rising material reaches
-  const crewLow = Math.max(...mc.crew.nodes.map((n) => n.y));        // how far DOWN the descending crew reaches
-  const n = mc.nChambers;
-  const anastomoses = mc.chambers.filter((_, i) => mc.arterial.reached[i] && mc.crew.reached[i]).length;
-  return { mid, matReachesAboveMid: matHigh < mid, crewReachesBelowMid: crewLow > mid, matHigh, crewLow, anastomoses, total: n,
-    interpenetrates: matHigh < mid && crewLow > mid };
+// the weave is genuine over-under: the two sheets cross many times, and the "over" sheet alternates.
+export function weaveStats(mc) {
+  let alternations = 0; for (let i = 1; i < mc.crossings.length; i++) if (mc.crossings[i].over !== mc.crossings[i - 1].over) alternations++;
+  return { crossings: mc.crossings.length, alternations, woven: mc.crossings.length >= mc.nLobes && alternations >= mc.crossings.length - 1 };
 }
