@@ -60,6 +60,14 @@ material floor, with a drop-shaft at each facility core where a technician meets
   zoom/pan; packets ride the floor, technicians the catwalks, cars climb the ramps). Pinned by
   `test/deck2.selftest.mjs` (9). The ramp is the "weird ramp like stairs" the voronoi foam wanted — the
   corkscrew through the cells is the deck-to-deck stairwell.
-- **Next:** make the mezzanine a real walkable deck in `/forge/walk` (descend a ramp to the floor), and
-  grow the pedestrian network its OWN way (offices ↔ offices, not just over the freight trunks); B/C remain
-  the alternatives if a single-deck answer is ever wanted.
+- **The 3D version is built + proven** — `foam3d.js`: a real **volumetric chamber foam** (3D nuclei → a
+  near-neighbour graph) with **two physarum species** (material + pedestrian) grown as **disjoint** networks
+  that **both reach every facility**. This is the rigorous escape from the 2D obstruction: a 1D network has
+  codimension 2 in a volume, so it can't separate the space and the complement stays connected. `twoSpecies`
+  confirms it numerically — `feasibleIn3D = true`, both reach 10/10 (vs ~1–3 in 2D), disjoint, ~88%
+  interface (they run wall-to-wall, the interdigitation, exchanging at facilities). Live foamview at
+  `hoop.mino.mobi/forge/foam3d` (rotatable volume; gold material net weaving past cyan pedestrian net,
+  never touching). Pinned by `test/foam3d.selftest.mjs` (13). **This is the answer** — two non-intersecting
+  everywhere-reaching tracks need the third dimension, and a volumetric foam gives it for free.
+- **Next:** unify the volumetric foam with the factory (chambers = facility rooms in 3D), and make both
+  species walkable in `/forge/walk` (spiderbots on one, you on the other, never crossing).

@@ -164,6 +164,12 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   each facility (`rampPoint`, the voronoi-foam stairwell; the fulfillment ramp continues to the nave). Iso
   view `hoop.mino.mobi/forge/stack` (explode slider separates the layers; packets on the floor, technicians
   on the catwalks, cars on the ramps). Pinned by `forge/test/{tracks,deck2}.selftest.mjs`.
+  **The rigorous 3D answer** (`foam3d.js`): a real **volumetric chamber foam** (3D nuclei → near-neighbour
+  graph) with **two physarum species** grown as **disjoint** networks that **both reach every facility** —
+  `feasibleIn3D = true`, 10/10 each (vs ~1–3 in 2D). A 1D net has codimension 2 in a volume so it can't
+  separate the space; the complement stays connected and the second species threads it. Rotatable foamview at
+  `hoop.mino.mobi/forge/foam3d` (gold material net weaving past cyan pedestrian net, never touching). Pinned
+  by `forge/test/foam3d.selftest.mjs` (13).
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

@@ -193,6 +193,14 @@ stairs" through the foam; the fulfillment ramp continues to the nave). Isometric
 the catwalks, cars climb the ramps). Pinned by `test/deck2.selftest.mjs` (9). B (divided concourse) and C
 (interstitial corridors) remain alternatives in `TRACKS.md`.
 
+**The rigorous 3D version is built + proven** (`foam3d.js`): a real **volumetric chamber foam** (3D nuclei →
+near-neighbour graph) with **two physarum species** (material + pedestrian) grown as **disjoint** networks
+that **both reach every facility** — `feasibleIn3D = true`, 10/10 each (vs ~1–3 in 2D), ~88% interface. A 1D
+network has codimension 2 in a volume, so it can't separate the space — the complement stays connected and
+the second species threads it. Rotatable foamview at `hoop.mino.mobi/forge/foam3d` (gold material net weaving
+past cyan pedestrian net, never touching). Pinned by `test/foam3d.selftest.mjs` (13). This is the definitive
+answer to the two-track question: it needs the third dimension, and a volumetric foam supplies it.
+
 ## Open seams (parked)
 
 - **Energetics (tide) seam** — every hot engine draws from the fixed energy budget; not yet wired.

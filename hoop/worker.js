@@ -181,6 +181,10 @@ export default {
     if (url.pathname === '/forge/stack' || url.pathname === '/forge/stack/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/stack.html', url), request));
     }
+    // forge/foam3d — the volumetric foamview: two non-touching physarum species in a 3D chamber foam.
+    if (url.pathname === '/forge/foam3d' || url.pathname === '/forge/foam3d/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/foam3d.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },
