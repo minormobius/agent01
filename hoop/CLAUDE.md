@@ -170,6 +170,13 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   separate the space; the complement stays connected and the second species threads it. Rotatable foamview at
   `hoop.mino.mobi/forge/foam3d` (gold material net weaving past cyan pedestrian net, never touching). Pinned
   by `forge/test/foam3d.selftest.mjs` (13).
+  **Factory formation in 3D** (`formation3d.js`): with floors, the supply chain rotates from a 2D radial
+  gradient (around the hub) to a **vertical tower** — `engineStage()` derives supply depth (fulfillment 0 …
+  reclaim 5), `formFactory` stratifies it bottom-to-top (reclaim·raw at z=0 where waste falls → foundry →
+  refine → assembly·finish at the top, product up the lift to the nave). Gravity-aligned (heavy low, waste
+  falls). Tradeoff: footprint −~70% (a column not a disc) for transport ×~1.5–2.3 (the climb, scaled by
+  `kVert`) — right for a ship where volume is scarce. Rotatable tower `hoop.mino.mobi/forge/tower` (climb/
+  explode sliders, flat-disc toggle). Pinned by `forge/test/formation3d.selftest.mjs` (14).
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

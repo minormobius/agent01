@@ -185,6 +185,10 @@ export default {
     if (url.pathname === '/forge/foam3d' || url.pathname === '/forge/foam3d/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/foam3d.html', url), request));
     }
+    // forge/tower — factory formation in 3D: the supply chain stratified into a vertical tower.
+    if (url.pathname === '/forge/tower' || url.pathname === '/forge/tower/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/tower.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

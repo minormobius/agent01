@@ -201,6 +201,33 @@ the second species threads it. Rotatable foamview at `hoop.mino.mobi/forge/foam3
 past cyan pedestrian net, never touching). Pinned by `test/foam3d.selftest.mjs` (13). This is the definitive
 answer to the two-track question: it needs the third dimension, and a volumetric foam supplies it.
 
+## Factory formation in 3D — the supply chain stands up (`formation3d.js`)
+
+Once there are floors, formation itself changes. The 2D optimizer laid the supply chain out **radially**
+(reclaim/assembly ringing a central hub — `optimizeLayout`). But that hub is a **vertical lift to the nave**,
+so in 3D the gradient rotates upright: the chain becomes a **tower**, and gravity gives it a preferred order.
+`engineStage()` derives each engine's depth in the forward production DAG (reclaim cut out as the raw source,
+so the recycle loop doesn't make it cyclic) — `fulfillment 0 · assembly 1 · refiners 2 · foundry 3 · fluid 4
+· reclaim 5`. `formFactory(seed)` stratifies that into floors, bottom-to-top:
+
+```
+   ⌂ the nave (product out)
+  ─ assembly · finish        ← top: product rides the lift up
+  ─ mill·chem·fab·weave · refine
+  ─ foundry · smelt          ← hot, heavy
+  ─ fluid
+  ─ reclaim · raw            ← bottom: waste FALLS here (the decomposer)
+```
+
+So raw + heavy sit low (gravity-fed), finished + light rise to the nave, and **waste falls back down** to the
+reclaim yards — the loop closes with gravity instead of against it. The honest tradeoff (`stats`): the tower's
+**footprint shrinks ~70%** (a compact column, not a wide disc) but **transport rises ~1.5–2.3×** — the climb,
+scaled by `kVert` (how dear vertical movement is). On a generation ship **volume is the scarce resource**, so
+you build up and pay the conveyor energy; and the dominant flow (product → nave) is vertical anyway, so the
+apex placement is free. Live rotatable tower at `hoop.mino.mobi/forge/tower` (climb-cost + explode sliders, a
+toggle to the flat 2D disc to see what 3D buys). Pinned by `test/formation3d.selftest.mjs` (14). This composes
+with the two decks / two species: each floor can split material + pedestrian, the lift axis carries both.
+
 ## Open seams (parked)
 
 - **Energetics (tide) seam** — every hot engine draws from the fixed energy budget; not yet wired.
