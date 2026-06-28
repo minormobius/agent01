@@ -2,7 +2,7 @@ name: Deploy b (Bluesky corner)
 
 on:
   push:
-    branches: [main, 'claude/gc-block-checker-endpoint-ac323w']
+    branches: [main, 'claude/bsky-closest-circle-3ofbo0']
     paths:
       - 'b/**'
       - '.github/workflows/deploy-b.yml'
@@ -24,14 +24,23 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Set feedgen worker secrets (morphyx search + gemini regex)
+      - name: Set feedgen worker secrets (modulo/morphyx search + gemini regex)
         env:
+          MODULO_HANDLE: ${{ secrets.BLUESKY_MODULO_HANDLE }}
+          MODULO_APP_PASSWORD: ${{ secrets.BLUESKY_MODULO_APP_PASSWORD }}
           MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
           MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          if [ -n "$MODULO_APP_PASSWORD" ]; then
+            printf '%s' "$MODULO_HANDLE"       | npx wrangler secret put BLUESKY_MODULO_HANDLE
+            printf '%s' "$MODULO_APP_PASSWORD" | npx wrangler secret put BLUESKY_MODULO_APP_PASSWORD
+            echo "✓ modulo search secrets set (preferred service account)"
+          else
+            echo "· modulo creds empty — falling back to morphyx"
+          fi
           if [ -n "$MORPHYX_APP_PASSWORD" ]; then
             printf '%s' "$MORPHYX_HANDLE"       | npx wrangler secret put BLUESKY_MORPHYX_HANDLE
             printf '%s' "$MORPHYX_APP_PASSWORD" | npx wrangler secret put BLUESKY_MORPHYX_APP_PASSWORD
