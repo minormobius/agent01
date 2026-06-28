@@ -82,6 +82,39 @@ function segColor(genome, gen, local) {
   return { c: genome.ramps.arm[idx], pri: 2 };
 }
 
+// ── THE CENTRAL EYE — a derived feature, NOT a gene. It "chases the eight axes": the pupil is an
+// arms-pointed star (body plan), spiked by depth+splay, that DILATES as the Kuramoto sync drops and
+// the gaze drifts toward the mean phase (constricts + centres when locked); iris colour rides the
+// accent hue, brightness rides glow + the phase pulse, and writhe gives the pupil a tremor. ──
+function eyeCells(put, genome, theta, c, dR) {
+  const N = genome.arms, gg = genome.genes;
+  let sx = 0, sy = 0;
+  if (theta) for (let i = 0; i < N; i++) { sx += Math.cos(theta[i]); sy += Math.sin(theta[i]); }
+  const r = theta ? Math.hypot(sx, sy) / N : 1;            // order parameter (rest = locked)
+  const psi = theta ? Math.atan2(sy, sx) : 0;              // mean phase → gaze direction
+  const pulse = 0.5 + 0.5 * Math.cos(psi);                 // global brightness pulse
+  const taperN = (0.82 - gg.taper) / 0.34;                 // 0 (fat arms) .. 1 (thin arms)
+  const pupilR = dR * (0.30 + 0.42 * (1 - r)) * (1 - 0.18 * taperN);  // dilates as sync drops
+  const spike = Math.min(0.85, 0.12 + 0.095 * genome.depth + 0.28 * gg.splay); // depth+splay → spikier
+  const orient = genome.rot + gg.writhe * 0.6 * Math.sin(psi);        // writhe tremor on the pupil
+  const gaze = dR * 0.5 * (1 - r);                                    // wander when desynced
+  const gx = c + Math.cos(psi) * gaze, gy = c + Math.sin(psi) * gaze;
+  const L = (b) => Math.round(b + 14 * gg.glow * 0.5 + 16 * pulse);
+  const iris = `hsl(${gg.accentHue} 88% ${Math.min(78, L(40))}%)`;
+  const irisIn = `hsl(${gg.accentHue} 80% ${Math.min(60, L(24))}%)`;
+  const dark = '#06070a';
+  for (let yy = -dR; yy <= dR; yy++) for (let xx = -dR; xx <= dR; xx++) {
+    if (xx * xx + yy * yy > dR * dR) continue;
+    const px = c + xx, py = c + yy, dx = px - gx, dy = py - gy;
+    const rho = Math.hypot(dx, dy), phi = Math.atan2(dy, dx);
+    const starR = pupilR * (1 - spike * 0.5 * (1 - Math.cos(N * (phi - orient)))); // N-pointed pupil
+    if (rho <= starR) put(px, py, dark, 6);                 // the pupil
+    else put(px, py, (rho - starR) < 1.3 ? iris : irisIn, 5); // iris ring
+  }
+  // catchlight — a living glint, opposite the gaze
+  put(Math.round(gx - Math.cos(psi) * pupilR * 0.55), Math.round(gy - Math.sin(psi) * pupilR * 0.55), '#f3efe4', 7);
+}
+
 // ── THE FRAME: genome + per-arm phases → [{x,y,c}] cells. Pure given (genome, theta). ──
 export function radialFrame(genome, theta, N) {
   N = N || genome.size;
@@ -108,13 +141,12 @@ export function radialFrame(genome, theta, N) {
     for (const k of node.kids) walk(k, ex, ey, a, armPhase);
   };
 
-  // central disc (the body) with a dark mouth
+  // central disc (the body) — base fill; the EYE is stamped over it below
   const dR = genome.discR;
   for (let yy = -dR; yy <= dR; yy++) for (let xx = -dR; xx <= dR; xx++) {
     const d2 = xx * xx + yy * yy; if (d2 > dR * dR) continue;
     put(c + xx, c + yy, d2 > (dR - 1) * (dR - 1) ? genome.ramps.arm[1] : genome.ramps.arm[3], 4);
   }
-  put(c, c, '#0a0b0e', 5);
 
   // the arms — one seeded tree stamped N times; each arm carries its own Kuramoto phase
   for (let a = 0; a < genome.arms; a++) {
@@ -122,6 +154,8 @@ export function radialFrame(genome, theta, N) {
     const ph = theta ? theta[a] : 0;
     walk(genome.tree, c + Math.cos(base) * dR, c + Math.sin(base) * dR, base, ph);
   }
+
+  eyeCells(put, genome, theta, c, dR);   // the central eye: a readout of body plan + psyche
 
   // psychic glow: a dim accent halo around lit filaments (additive bloom, pixel-style)
   if (genome.glow > 0) {

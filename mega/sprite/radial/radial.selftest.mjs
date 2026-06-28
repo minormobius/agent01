@@ -71,6 +71,19 @@ ok(JSON.stringify(a.frame()) === JSON.stringify(b.frame()), 'animator reproducib
 const c1 = JSON.stringify(a.frame()); for (let i = 0; i < 60; i++) a.step(1 / 60);
 ok(JSON.stringify(a.frame()) !== c1, 'frame evolves as the arms writhe');
 
+// ── the central eye chases the psyche: the pupil dilates as sync drops ──
+{
+  const ge = buildRadialGenome('eye', { arms: 6 });
+  const pupil = (theta) => radialFrame(ge, theta, ge.size).filter(c => c.c === '#06070a').length;
+  const synced = new Float64Array(6).fill(1.0);            // r = 1 (locked)
+  const spread = Float64Array.from({ length: 6 }, (_, i) => i * Math.PI * 2 / 6); // r ≈ 0 (chaos)
+  const pSync = pupil(synced), pWander = pupil(spread);
+  ok(pSync > 0, 'eye has a pupil');
+  ok(pWander > pSync, `pupil dilates as sync drops (locked ${pSync} < chaotic ${pWander})`);
+  // and the iris carries the accent hue, not a gold arm shade
+  ok(radialFrame(ge, synced, ge.size).some(c => /^hsl\(/.test(c.c) && c.c.includes(`${ge.genes.accentHue}`)), 'iris uses the accent hue');
+}
+
 // SVG well-formed
 const svg = radialSVG(g, 10);
 ok(svg.startsWith('<svg') && svg.includes('<rect') && svg.endsWith('</svg>'), 'radialSVG well-formed');
