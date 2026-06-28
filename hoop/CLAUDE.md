@@ -121,17 +121,23 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   `facilities-app.js`, a chunkroller cousin: pick ≤3 engines, roll, chambers tinted by facility + shaded by
   step, flow arrows routed; `?seed=&e=` permalink). Pinned by `forge/test/facility.selftest.mjs` (101 checks).
   **The coherent-region layer** (`floor.js#buildForgeRegion`): many forge chunks solved at once on one shared
-  foam (the buildNave composition scaled up — 7/19/any count, seamless seams), with the conduit network
-  **grown by physarum** (`paint/flux.js`) instead of solveRoomsFirst's imposed concourse. Two demand layers
-  feed it: intra-facility activity flow + the **inter-engine supply graph** — facilities close the economy
-  across chunks via commodity tags (`engines.js` intake/output, validated a closed loop: reclaim → raw →
-  foundry/chemworks/fab/weave → mill → assembly → product → reclaim). The heavy long-haul demand is
-  inter-chunk, so physarum's **trunk arterials span the seams = the emergent axial-rail / trans-rind
-  transport** (the parked transport question, now grown from what the rind moves, not drawn). Live at
-  `hoop.mino.mobi/forge/region` (`region.html` + `region-app.js`: chunks/μ sliders — μ dials grid↔trunk —
-  conduits drawn by tier, supply overlay, `?seed=&n=&mu=` permalink). Pinned by `forge/test/region.selftest.mjs`
-  (19 checks). **Next:** carve the grown conduits back into the foam (real concourse, econ/roads.js cousin);
-  energetics (tide) seam; fixtures + logistics droids riding the trunks. See `ENGINES.md` + `NEEDS.md` + `FACTORY.md`.
+  foam (the buildNave composition scaled up — 7/19/any count, seamless seams). **The hypoxia/rooms-first
+  concourse solver is GONE for the forge — physarum is the only pather.** Each chunk is just *partitioned*
+  (`partitionChunk`, no road); the concourse is then **grown + carved**: the intra-facility activity flow,
+  the **inter-engine supply graph**, and the nave demand are the trip demand, the flux field
+  (`paint/flux.js`) grows over the whole region's **cell graph**, and `growConduits` carves its superlevel
+  set as the road (expropriating cells, giving frontage + doors — the `econ/roads.js#finalizeRoads` pattern).
+  Commodity tags (`engines.js` intake/output) close the economy across chunks (reclaim → raw →
+  foundry/chemworks/fab/weave → mill → assembly → product → reclaim, validated closed). A **ninth role, the
+  `fulfillment` center** (a logistics hub, placed at the hub chunk, ~1/8 chunks) is the **rind↔nave conduit**:
+  assembly product rides **up** the lift to a **NAVE node**, the nave's worn goods come **down** as waste to
+  the reclaim yards — so the region **supplies a whole nave** (~180 crew/assembly line). The heavy long-haul
+  demand (inter-chunk supply + nave lifts) makes physarum's **trunk arterials span the seams = the emergent
+  axial-rail**. It tiles (7→19→larger). Live at `hoop.mino.mobi/forge/region` (`region.html` +
+  `region-app.js`: chunks/μ sliders, carved conduits by tier, nave lift, supply overlay, `?seed=&n=&mu=`).
+  Pinned by `forge/test/region.selftest.mjs` (25 checks). **Next:** wire a forge region into the v099 game as
+  a playable deck (nave/rind cousin); energetics (tide) seam; fixtures + logistics droids riding the trunks.
+  See `ENGINES.md` + `NEEDS.md` + `FACTORY.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a

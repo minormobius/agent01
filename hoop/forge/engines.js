@@ -16,7 +16,7 @@
 
 // family = the activity-graph archetype. coreAt = where the keystone room sits in the foam cluster:
 //   'center' (star/cycle/fan/flow — a hub) | 'head' (path/dag/comb/in-tree — a spine end).
-const CENTER = new Set(['star', 'cycle', 'fan', 'flow']);
+const CENTER = new Set(['star', 'cycle', 'fan', 'flow', 'hub']);
 export const coreAt = (family) => (CENTER.has(family) ? 'center' : 'head');
 
 // Each engine: steps (process rooms, fp = footprint weight ⇒ relative chamber size), the core step (the
@@ -129,7 +129,7 @@ export const ENGINES = {
   reclaim: {
     label: 'Reclaim yard', glyph: '♺', color: '#cf6b4a', family: 'fan', perChunk: 3,
     note: 'The decomposer. One throat shreds, one sort, then it fans to the bales — the recycle valve.',
-    core: 'shred', intake: ['product'], output: ['scrap_metal', 'feedstock', 'silicon', 'fiber', 'scrap_water'],
+    core: 'shred', intake: ['product', 'waste'], output: ['scrap_metal', 'feedstock', 'silicon', 'fiber', 'scrap_water'],
     steps: [
       { id: 'intake', name: 'Intake throat', glyph: '▼', fp: 1.2 },
       { id: 'shred', name: 'Shredder', glyph: '♺', fp: 1.8 },
@@ -140,6 +140,23 @@ export const ENGINES = {
       { id: 'residue', name: 'Residue', glyph: '·', fp: 0.6 },
     ],
     flow: [['intake', 'shred'], ['shred', 'sort'], ['sort', 'metal'], ['sort', 'polymer'], ['sort', 'cullet'], ['sort', 'residue']],
+  },
+  // THE FULFILLMENT CENTER — not a production engine but the LOGISTICS conduit between the rind (forge) and
+  // the nave (the living deck above). Product rides UP the shaft to the nave; the nave's worn goods come
+  // DOWN as waste to the reclaim yards. It is the node that lets the forge supply a whole nave. Placed by
+  // the floor (not the random production pick), one per ~region; carries a vertical link to the NAVE node.
+  fulfillment: {
+    label: 'Fulfillment center', glyph: '⇅', color: '#cbd3e0', family: 'hub', perChunk: 1, logistics: true,
+    note: 'The rind↔nave conduit. Finished product rides up the shaft; the nave\'s waste comes down to the reclaim yards.',
+    core: 'lift', intake: ['product'], output: ['waste'], navePort: true,
+    steps: [
+      { id: 'dock', name: 'Goods dock', glyph: '▤', fp: 1.0 },
+      { id: 'hold', name: 'Holding', glyph: '▦', fp: 1.2 },
+      { id: 'lift', name: 'Nave lift shaft', glyph: '⇅', fp: 1.8 },
+      { id: 'gate', name: 'Waste gate', glyph: '▽', fp: 1.0 },
+      { id: 'ship', name: 'Shipping', glyph: '▣', fp: 0.9 },
+    ],
+    flow: [['dock', 'hold'], ['hold', 'lift'], ['gate', 'lift'], ['lift', 'ship']],
   },
 };
 
@@ -196,6 +213,7 @@ export function validate() {
     if (e.family === 'dag') { if (directedCycle(adj2(e.flow))) errs.push(`${id}: dag has a cycle`); }
     if (e.family === 'intree') { const sinks = e.steps.filter((s) => outdeg[s.id] === 0).length; if (sinks !== 1) errs.push(`${id}: in-tree should have one sink (${sinks})`); }
     if (e.family === 'comb') { if (outdeg[e.core] < 3) errs.push(`${id}: comb spine has too few teeth`); }
+    // 'hub' (the fulfillment conduit) has no production-shape constraint — just connectivity + commodities.
     if (!e.intake || !e.intake.length) errs.push(`${id}: no intake commodities`);
     if (!e.output || !e.output.length) errs.push(`${id}: no output commodities`);
   }

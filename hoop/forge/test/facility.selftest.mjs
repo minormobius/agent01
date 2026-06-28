@@ -15,7 +15,9 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
 
 // ── engines.js data ──
 ok(validateEngines().length === 0, 'engine data validates: ' + (validateEngines().join('; ') || 'clean'));
-ok(ENGINE_IDS.length === 8, `eight engines (${ENGINE_IDS.length})`);
+const PRODUCTION = ENGINE_IDS.filter((id) => !ENGINES[id].logistics);
+ok(PRODUCTION.length === 8, `eight production engines (${PRODUCTION.length})`);
+ok(ENGINE_IDS.includes('fulfillment') && ENGINES.fulfillment.logistics, 'plus the fulfillment logistics conduit');
 for (const id of ENGINE_IDS) {
   const e = ENGINES[id];
   ok(e.steps.length >= 5 && e.steps.length <= 7, `${id}: 5–7 steps (${e.steps.length})`);
