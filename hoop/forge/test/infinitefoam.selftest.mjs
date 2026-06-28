@@ -74,6 +74,9 @@ ok(st.cables.every((c) => c.b.z > c.a.z), 'cables advance along the axis (the hy
 const segCore = (c) => { const ax = c.b.x - c.a.x, ay = c.b.y - c.a.y, az = c.b.z - c.a.z, L2 = ax * ax + ay * ay + az * az; let t = -(c.a.x * ax + c.a.y * ay + c.a.z * az) / L2; t = Math.max(0, Math.min(1, t)); const x = c.a.x + t * ax, y = c.a.y + t * ay; return Math.hypot(x, y); };
 let nearest = Infinity; for (const c of st.cables) nearest = Math.min(nearest, segCore(c));
 ok(nearest > st.coreClear - 1 && st.coreClear > 0 && st.coreClear < st.ROUT, `cables keep the bore open — nearest approach ≈ coreClear (${nearest.toFixed(0)} ~ ${st.coreClear.toFixed(0)} < ${st.ROUT})`);
+// the web must cut THROUGH the inner radius (fully visible across the bore), yet leave a central core for the light pipe
+ok(st.coreClear < st.Rin, `cables come through the inner radius — coreClear ${st.coreClear.toFixed(0)} < R0 ${st.Rin}`);
+ok(st.coreClear > st.Rin * 0.3, `but they leave a central core open for the light pipe (coreClear ${st.coreClear.toFixed(0)})`);
 // structure streams: a shared bay agrees across overlapping windows
 const sa = shipStructure(0, 300), sb = shipStructure(360, 300);
 const sak = new Set(sa.cables.map((c) => c.m + '.' + c.i + c.fam));

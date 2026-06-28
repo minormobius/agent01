@@ -113,7 +113,11 @@ function utilHub(iz, slot, ir, kind, o) {
 export function shipStructure(centerA, span, o = {}) {
   const opt = { ...DEFAULTS, ...o }, { Tz, Nth, Nr, R0, Tr } = opt;
   const ROUT = R0 + Nr * Tr, Rin = R0;
-  const N = opt.anchorsN || 18, k = opt.cableK || 5, pitch = (opt.cableBay || 2) * Tz;
+  // N rim anchors, each joined to the k-th. k is chosen so the chord's nearest approach to the axis,
+  // coreClear = ROUT·cos(πk/N), falls INSIDE the inner radius R0 — the web cuts THROUGH the bore (fully
+  // visible from down the axis) while still leaving a central core open for the light pipe. (k=5 → 379, just
+  // outside R0=360, hidden behind the inner skin; k=7 → 202, well inside.)
+  const N = opt.anchorsN || 18, k = opt.cableK || 7, pitch = (opt.cableBay || 2) * Tz;
   const ang = Math.PI * k / N, coreClear = ROUT * Math.cos(ang);     // nearest approach of any chord to the axis
   const anchor = (i, z) => { const th = 2 * Math.PI * (((i % N) + N) % N) / N; return { x: ROUT * Math.cos(th), y: ROUT * Math.sin(th), z, i: ((i % N) + N) % N }; };
   const out = { N, k, coreClear, ROUT, Rin, hoops: [], stringers: [], cables: [], opt };

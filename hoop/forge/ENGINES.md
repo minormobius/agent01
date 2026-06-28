@@ -295,16 +295,29 @@ walk alone — straight from `/rind`'s `research.js`: the **secant-cable web**, 
 rim anchors each joined to the k-th, every cable a **chord** (a secant of the ring) cutting across the bore to
 carry hoop tension. Here the planar web is **advanced one bay along the axis**, so the two mirrored families
 (`i→i+k`, `i→i−k`) become **counter-rotating helices that cross** in the traverse (the Shukhov hyperboloid)
-while still reading as the `{N/k}` rose down the bore — and they keep the bore centre open by
-`coreClear = ROUT·cos(πk/N)` (drawn as `/rind`'s dashed teal core-clearance circle). Plus ring **hoops** at the
-shell boundaries and axial **stringers**. Defaults match `/rind`: `N=18`, `k=5`. The `/ship` viewer toggles
-all six layers (keys 1–6 / legend chips); structure-only is the woven hyperboloid, utility-only the trunks.
-Pinned by the same selftest (27 total: power/water present + deep + interleaved + streaming; the `{N/k}` web,
-both families, cables advance + clear the core, the web streams).
+while still reading as the `{N/k}` rose down the bore. The **k is chosen so the cables cut THROUGH the inner
+radius** — `coreClear = ROUT·cos(πk/N)` must fall *inside* `R0`, or the chords hug the outer shell behind the
+inner skin and you never see them (`k=5 → coreClear 379`, just outside `R0=360`, the old bug; **`k=7 → 202`**,
+well inside, fully visible across the bore) — while still leaving a central core open for the light pipe. Plus
+ring **hoops** at the shell boundaries and axial **stringers**, and `/rind`'s dashed teal core-clearance
+circle. Defaults: `N=18`, `k=7`.
 
-So the two scales are complementary: **`/forge/ship`** is the infinite circulation (the whole production
-layer — four path sets threading a load-bearing secant skeleton); **`/forge/slices`** is the local
-plan+section when you drop into one locale. The pipe was never the ship — it was the microscope slide.
+**The light pipe.** Down the axis runs the cylinder's central **light pipe** (its sun-line) — a luminous core
+the secant web crosses in front of. Because an on-axis camera sees an axial line end-on (a point), the `/ship`
+camera sits slightly off the axis (`CAMR`) so the pipe reads as a glowing **line** receding to the vanishing
+point. It defines the lighting / the "up" the naves face.
+
+The `/ship` viewer toggles all six path/structure layers (keys 1–6 / legend chips); structure-only is the
+woven hyperboloid, utility-only the trunks. Pinned by the selftest (29 total: power/water present + deep +
+interleaved + streaming; the `{N/k}` web, both families, cables advance + clear the core + **cut through the
+inner radius** while leaving the central core, the web streams).
+
+**Where it lives in the game:** this is a **learn-terminal codex view** — the kind of ship-anatomy content
+surfaced when a player works a `learn`-role component fixture (`v099/sim.js` `FIXTURE_ACTION.component.learn =
+'terminal'`), not a control surface. So the two scales are complementary: **`/forge/ship`** is the infinite
+circulation seen at a learn terminal (four path sets threading a load-bearing secant skeleton around the light
+pipe); **`/forge/slices`** is the local plan+section when you drop into one locale. The pipe was never the
+ship — it was the microscope slide.
 
 ## Open seams (parked)
 

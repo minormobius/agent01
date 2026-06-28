@@ -202,12 +202,18 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   `ir=Nr-1` with radial risers feeding inward — `win.power`/`win.water`, `utilHub`), and the rind's own
   **secant-cable skeleton** (`shipStructure`) lifted straight from `/rind`'s `research.js`: an `{N/k}` star
   polygon (N rim anchors → the k-th, each cable a chord/secant across the bore) **advanced one bay axially** →
-  counter-rotating helices that cross (Shukhov hyperboloid), keeping the bore open by `coreClear=ROUT·cos(πk/N)`
-  (the dashed teal core-clearance circle), plus hoops + stringers. Defaults match `/rind` (N=18, k=5). Pinned by
-  `forge/test/infinitefoam.selftest.mjs` (27: ring closes, radius bounded, naves inner-only, outward
-  stratification, axial windows agree, two systems never coincide; power/water deep+interleaved+streaming; the
-  `{N/k}` web, both families, cables advance + clear the core, the web streams). `/ship` = the whole production
-  layer; `/slices` = a local drop-in. The pipe was the microscope slide, not the ship.
+  counter-rotating helices that cross (Shukhov hyperboloid). **k is set so the cables cut THROUGH the inner
+  radius** — `coreClear=ROUT·cos(πk/N)` must fall *inside* R0 or the chords hide behind the inner skin (k=5→379
+  outside R0=360 was the bug; **k=7→202** inside, fully visible) — while leaving a central core for the light
+  pipe (the dashed teal core-clearance circle). Plus hoops + stringers. Defaults N=18, **k=7**. A central
+  **light pipe** (the cylinder's sun) runs the axis; the camera sits slightly off-axis (`CAMR`) so it reads as a
+  glowing line, not an end-on point. Pinned by `forge/test/infinitefoam.selftest.mjs` (29: ring closes, radius
+  bounded, naves inner-only, outward stratification, axial windows agree, two systems never coincide;
+  power/water deep+interleaved+streaming; the `{N/k}` web, both families, cables advance + clear the core + cut
+  through the inner radius, the web streams). **Where it lives in the game:** a **learn-terminal codex view**
+  (the ship-anatomy content shown at a `learn`-role component fixture → `terminal`, `v099/sim.js`
+  `FIXTURE_ACTION`), not a control surface. `/ship` = the whole production layer; `/slices` = a local drop-in.
+  The pipe was the microscope slide, not the ship.
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

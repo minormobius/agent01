@@ -22,6 +22,9 @@ let a0 = 0, win = null, struct = null;   // a0 = axial position; the player flie
 let yaw = 0.0, pitch = 0.13, Z = 1.0, clock = 0, drift = false;
 const keys = new Set();
 const FOC = 560, CAMBACK = 250, NEAR = 26;     // perspective: focal length, camera set-back, near clip
+const CAMR = 58;                               // camera sits slightly off the axis, so the central light pipe
+                                               // reads as a luminous LINE down the bore (on-axis it's a point)
+const R_LP = 6, LIGHTPIPE = [255, 244, 214];   // the axial light pipe (the cylinder's central sun-line)
 const MAT = [244, 191, 98], PED = [95, 208, 224], NAVE = [255, 214, 150];
 const POWER = [184, 142, 255], WATER = [79, 140, 255];          // the 3rd & 4th path sets (utility trunks)
 const CABLE = [127, 230, 160], BEAM = [134, 148, 172];          // rind structure: secant cables (held/green), beams
@@ -39,7 +42,8 @@ function readout() {
 // the look a touch off-axis so the far rim of each ring shows. Points behind the near plane are culled.
 function proj(p) {
   const cr = Math.cos(yaw), sr = Math.sin(yaw);
-  const rx = p.x * cr - p.y * sr, ry0 = p.x * sr + p.y * cr;   // roll the cross-section about the bore
+  const px = p.x, py = p.y + CAMR;                             // camera offset off the axis (reveals the light pipe)
+  const rx = px * cr - py * sr, ry0 = px * sr + py * cr;       // roll the cross-section about the bore
   const fwd = (p.z - a0) + CAMBACK;                            // distance ahead of the camera
   const cp = Math.cos(pitch), sp = Math.sin(pitch);
   const ry = ry0 * cp - fwd * sp, depth = ry0 * sp + fwd * cp; // gentle tilt mixes vertical with depth
@@ -62,6 +66,23 @@ function polyZ(x, y, z0, z1, col, alpha) {   // an axial beam (stringer) from z0
   ctx.strokeStyle = rgba(col, alpha); ctx.lineWidth = 1; ctx.stroke();
 }
 
+// the central light pipe — sample the axis, additively bloom a glowing core + bright line that recedes to the
+// vanishing point. The camera offset (CAMR) makes the axis project to a LINE, not a point, so you see it run.
+function drawLightPipe() {
+  ctx.globalCompositeOperation = 'lighter';
+  let prev = null, prevR = 0;
+  for (let dz = -CAMBACK + NEAR + 6; dz <= SPAN * 1.9; dz += OPT.Tz * 0.6) {
+    const p = proj({ x: 0, y: 0, z: a0 + dz }); if (p.cull) { prev = null; continue; }
+    const f = Math.max(0.05, fog(dz + CAMBACK)), r = Math.min(14, Math.max(1, R_LP * p.s));   // capped so the near end doesn't balloon
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.4);
+    g.addColorStop(0, rgba(LIGHTPIPE, 0.22 * f)); g.addColorStop(0.5, rgba(LIGHTPIPE, 0.07 * f)); g.addColorStop(1, rgba(LIGHTPIPE, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.4, 0, 7); ctx.fill();
+    if (prev) { ctx.strokeStyle = rgba(LIGHTPIPE, 0.5 * f); ctx.lineWidth = Math.max(0.8, (r + prevR) * 0.3); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke(); }
+    prev = p; prevR = r;
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
 function render() {
   if (!win) return;
   ctx.fillStyle = '#03040a'; ctx.fillRect(0, 0, CW, CH);
@@ -69,6 +90,10 @@ function render() {
   // guide rings: the inner skin (R0, where the naves live) + the outer rind boundary (ROUT), at a ladder of
   // axial stations marching into the bore → the tube. Far rings dimmer (fog) → it recedes to a vanishing pt.
   for (let dz = -CAMBACK + 60; dz <= SPAN * 1.6; dz += OPT.Tz * 1.5) { const f = fog(dz + CAMBACK); ring(R0, a0 + dz, 0.22 * f); ring(ROUT, a0 + dz, 0.10 * f); }
+
+  // the LIGHT PIPE: the cylinder's central sun — a luminous core running down the axis to the vanishing point.
+  // (Drawn before the foam so the secant web crosses in front of the lit core.)
+  drawLightPipe();
 
   // rind STRUCTURE (background members): hoops at the shell boundaries, axial stringers, + the dashed
   // core-clearance circle (the bore the secant cables keep open — /rind's teal convention). Cables themselves
