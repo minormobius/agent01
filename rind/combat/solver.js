@@ -139,18 +139,18 @@ export function solveCombat(setup, opts = {}) {
   return { solvable: false, par: -1, margin: 0, nodes, capped };
 }
 
-// a one-line difficulty read for an encounter (for encounter design / tuning).
-//   capped            → 'unknown' (raise cap or simplify)
-//   !solvable         → 'impossible'
-//   else by margin    → comfortable / fair / tight / brutal (how much HP optimal play keeps)
+// a one-line difficulty read for an encounter. The margin cut-points are the SAME bands the encounter
+// generator targets (encounter.js DIFFICULTY), so tier === the difficulty an encounter was built for.
+//   capped → 'unknown' (raise cap) · !solvable → 'impossible' · else by HP-left margin:
 export function gradeEncounter(setup, opts = {}) {
   const r = solveCombat(setup, opts);
   let tier;
   if (r.capped) tier = 'unknown';
   else if (!r.solvable) tier = 'impossible';
-  else if (r.margin > 0.6) tier = 'comfortable';
-  else if (r.margin > 0.35) tier = 'fair';
-  else if (r.margin > 0.15) tier = 'tight';
+  else if (r.margin >= 0.70) tier = 'trivial';
+  else if (r.margin >= 0.50) tier = 'comfortable';
+  else if (r.margin >= 0.30) tier = 'fair';
+  else if (r.margin >= 0.15) tier = 'tight';
   else tier = 'brutal';
   return { ...r, tier };
 }

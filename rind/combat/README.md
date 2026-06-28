@@ -17,9 +17,12 @@ Nothing in this directory deploys. It's a workbench.
 | `prng.js` | **Copied** from `hoop/v098/sprite/item/prng.js`. Seeded RNG. |
 | `balance.mjs` | The headless balance harness — many seeded AI-vs-AI battles per faction matchup → a win/draw/TTK matrix. The reason the sandbox exists. |
 | `solver.js` | The **solvability oracle** (fable/forge analog) — searches the deterministic combat tree vs the AI to certify a player party can win, with par + margin + a difficulty grade. |
+| `encounter.js` | **Encounter generator** — given a hero (stat + equipment block), summons a foe roster (+ terrain) the oracle certifies is winnable-but-not-trivial at a target difficulty. |
+| `encounter.mjs` | CLI: roll a hero, print a generated fight at one or all difficulties. |
 | `dojo.html` | A visual tuner — pick factions + party sizes, roll a seed, step turns or auto-play, watch the log. |
 | `../test/combat.selftest.mjs` | 45 invariants (determinism, kits, legality, every verb incl. multi-agent, terrain/LoS/hazards, passives, termination). |
 | `../test/solver.selftest.mjs` | 13 invariants (determinism, easy-solvable, hard-unwinnable, det-mode math, grading, terrain). |
+| `../test/encounter.selftest.mjs` | 10 invariants (winnable-not-trivial, determinism, difficulty ordering, equipment feeds in, terrain). |
 
 `stats.js`/`prng.js` are **vendored copies** (the fork-engine-copy-stats decision): the sandbox stays
 fully standalone and node-testable. If hoop's spine changes, re-sync these — don't let them drift.
@@ -35,8 +38,32 @@ node rind/combat/balance.mjs --terrain       # scatter walls + hazards into ever
 node rind/combat/balance.mjs --pair drift:rindwalker   # one matchup, verbose
 node rind/combat/balance.mjs --csv           # machine-readable
 node rind/test/solver.selftest.mjs           # the solvability oracle invariants
+node rind/test/encounter.selftest.mjs        # the encounter-generator invariants
+node rind/combat/encounter.mjs --all         # generate a fight at every difficulty for a rolled hero
 open rind/combat/dojo.html                    # the visual tuner (party sizes, step/auto-play)
 ```
+
+### Encounter generation (`encounter.js`)
+
+```js
+import { generateEncounter, describeEncounter } from './encounter.js';
+const hero = { faction: 'drift', character, weapon, armour };       // stat block + equipment
+const enc = generateEncounter(hero, { difficulty: 'fair', seed: 3, terrain: true });
+// enc.setup → ready for createBattle / solveCombat ; enc.grade → {solvable, par, margin, tier}
+```
+
+Difficulty is a **target band on the oracle's margin** (hero HP fraction left at an optimal win):
+`trivial`(≥70%) · `comfortable`(50–70) · `fair`(30–50, the "winnable but not trivial" default) ·
+`tight`(15–30) · `brutal`(2–15). The generator rolls a foe roster (+ optional terrain) scaled by a
+single `threat` dial and runs a **feedback controller** — grade with the oracle, nudge threat up if the
+fight came out too easy / down if too hard, re-roll — converging in a handful of oracle calls. The
+admitted fight is the one the oracle certifies lands in-band. Equipment feeds in via `deriveCombat`
+(weapon/armour), so a better-geared hero is met with a tougher roster to hold the same difficulty.
+
+**Limitation:** very tanky heroes (a chassis-heavy Continuant that out-sustains) have a *narrow or empty*
+tight/brutal window — the foes hard enough to chip it to 15–30% also tend to kill it — so the controller
+returns the closest winnable fight it found with `ok:false` instead of an in-band one. A bisection /
+multi-axis (foe-count × power × terrain) search would reach more of those; single-axis threat is v1.
 
 ### The solvability oracle (`solver.js`)
 
@@ -114,9 +141,9 @@ takes it; the oracle and balance harness honour it for free (it's all in the sha
 
 - **Oracle v2.** Today `solver.js` searches a bounded macro-action menu against the AI, quantizing
   continuous positions (`Q`) to dedup. Next: real expectiminimax (robust to RNG, not just expected
-  value), a **fragility** read (what fraction of lines lose), and forge-style **encounter generation** —
-  lay out foes + terrain, let the oracle certify it solvable at a target difficulty, mint the n-th
-  encounter as a permalink.
+  value) and a **fragility** read (what fraction of lines lose). *(Encounter generation — shipped, see
+  `encounter.js` above. Next for it: bisection/multi-axis search for tanky heroes, and minting the n-th
+  encounter as a permalink the way forge mints the n-th puzzle.)*
 - **Smarter terrain navigation.** `moveToward` does *local* obstacle deflection (rounds a wall), not
   full pathfinding — fine for scattered cover, but a maze would still stall the AI. A nav layer (visibility
   graph / A* over the free space) is the next step if terrain gets dense.

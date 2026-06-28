@@ -55,9 +55,9 @@ ok('1 frail hero vs an overwhelming pack is not winnable', rd.solvable === false
 {
   const comfy = gradeEncounter({ player: unit('P', 'rindwalker', { hp: 120, atk: 20 }), foes: [unit('E', 'continuant', { hp: 12, atk: 2 })], seed: 1 });
   const rough = gradeEncounter({ player: unit('P', 'continuant', { hp: 34, atk: 9 }), foes: [unit('E', 'rindwalker', { hp: 60, atk: 14 })], seed: 1 });
-  ok('comfortable encounter grades high', ['comfortable', 'fair'].includes(comfy.tier), comfy.tier + ` (${(100 * comfy.margin).toFixed(0)}%)`);
+  ok('comfortable encounter grades high', ['trivial', 'comfortable', 'fair'].includes(comfy.tier), comfy.tier + ` (${(100 * comfy.margin).toFixed(0)}%)`);
   ok('comfy margin ≥ rough margin when both solvable', !(comfy.solvable && rough.solvable) || comfy.margin >= rough.margin, `${comfy.tier} vs ${rough.tier}`);
-  ok('grade returns a known tier', ['comfortable', 'fair', 'tight', 'brutal', 'impossible', 'unknown'].includes(rough.tier), rough.tier);
+  ok('grade returns a known tier', ['trivial', 'comfortable', 'fair', 'tight', 'brutal', 'impossible', 'unknown'].includes(rough.tier), rough.tier);
 }
 
 // ── 6. a 1v1 even faction encounter resolves to some verdict within budget ──────────────────────────
