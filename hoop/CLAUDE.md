@@ -150,10 +150,13 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   Pinned by `forge/test/fixtures.selftest.mjs` (31). The eventual home is the v099 game skin
   (`skin.js#paintChunk` + consoles/FIXTURES) — the forge pages prove the treatment.
   **Walk it** — `hoop.mino.mobi/forge/walk` (`walk.html` + `walk-app.js`) is a **playable proto**: an @ walks
-  a forge region's production floor, reusing the game's `manager.pathFind`/`nearestNode` over a free-roam nav
-  graph (`floor.js#regionWalk`, 100% connected), click/tap-to-walk + WASD, camera following, the rich skin +
-  the nave lift overhead, a HUD naming the facility you're in. To enable this, `packChunk` now emits cell
-  `adj` + room `doorPairs`, so forge records are **buildWalk-compatible** (they drive the game nav graph).
+  the **full 19-chunk factory** (default; `?n=&seed=&z=`, scroll/pinch zoom), reusing the game's
+  `manager.pathFind`/`nearestNode` over a free-roam nav graph (`floor.js#regionWalk`, 100% connected),
+  click/tap-to-walk + WASD, camera following, the rich skin + the nave lift overhead, a HUD naming the
+  facility you're in. **Material packets ride the carved roads** — `floor.js#supplyRoutes` pathfinds every
+  supply edge along a road-restricted graph (≥90% on-road), so packets stream the grown concourse to the
+  fulfillment hub + up the lift, not straight lines. To enable the nav, `packChunk` emits cell `adj` + room
+  `doorPairs`, so forge records are **buildWalk-compatible**.
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

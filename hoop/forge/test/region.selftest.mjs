@@ -6,7 +6,7 @@
 // across chunks; a fulfillment center bridges to a NAVE node (product up / waste down); the grown conduit
 // network is tiered with TRUNK arterials spanning seams + a nave conduit. All deterministic.
 
-import { buildForgeRegion } from '../floor.js';
+import { buildForgeRegion, supplyRoutes, regionWalk } from '../floor.js';
 import { ENGINES } from '../engines.js';
 
 let pass = 0, fail = 0;
@@ -36,6 +36,19 @@ ok(meanInner < meanOuter, `assembly+reclaim ring the hub, refiners outside (inne
 // the balanced mix guarantees every engine type → the commodity loop closes
 const engineSet = new Set(reg.facilities.map((f) => f.engine));
 ok(['assembly', 'reclaim', 'foundry', 'mill', 'chemworks', 'fab', 'weave', 'fluid'].every((e) => engineSet.has(e)), 'the optimised mix includes every engine (loop closes)');
+
+// ── the packets ride the CARVED ROADS: every supply edge routes along the concourse, not a straight line ──
+const walk = regionWalk(reg);
+const rts = supplyRoutes(reg, walk);
+ok(rts.length === reg.supply.length, `a route per supply edge (${rts.length})`);
+const onRoad = rts.filter((r) => r.onRoad).length;
+ok(onRoad >= rts.length * 0.9, `≥90% of supply routes ride the carved roads (${onRoad}/${rts.length})`);
+// an on-road route weaves through many road cells (a real path, not a 2-point straight line)
+const woven = rts.filter((r) => r.onRoad && r.poly.length >= 4).length;
+ok(woven >= onRoad * 0.8, `on-road routes weave the concourse (${woven} with ≥4 waypoints)`);
+// every route's waypoints are real walkable positions; routes are deterministic
+ok(rts.every((r) => r.poly.every((p) => isFinite(p.x) && isFinite(p.y))), 'route waypoints are finite');
+ok(JSON.stringify(supplyRoutes(buildForgeRegion(7, { count: 19, optimize: true }))) === JSON.stringify(supplyRoutes(buildForgeRegion(7, { count: 19, optimize: true }))), 'supplyRoutes is deterministic');
 
 // ── the concourse is GROWN (carved), not imposed: every chunk has road cells, and rooms still tile ──
 const roadCells = reg.recs.reduce((s, r) => s + r.road.reduce((a, b) => a + b, 0), 0);

@@ -149,15 +149,22 @@ the consoles/FIXTURES fixture system) — these forge pages prove the treatment;
 
 ## Walk it — the playable proto (`/forge/walk`)
 
-`forge/walk.html` + `walk-app.js`: an **@ you walk around a forge region's production floor.** It reuses the
-v099 game's own movement — `manager.pathFind`/`nearestNode` over a **free-roam nav graph**
-(`floor.js#regionWalk`: every interior cell a node, foam-adjacency + shared ports, 100% connected across all
-chunks), the same click/tap-to-walk control as the game (plus WASD). Camera follows, zoomed in so you're
-*in* it; the rich skin (ambient light · core machines · material in motion) renders around you; the HUD
-names the facility you're standing in + what it makes; the fulfillment hub shows the **nave lift** rising
-overhead. To make this work the partition records were made **buildWalk-compatible** — `packChunk` now emits
-cell `adj` + room `doorPairs` (the door onto the carved concourse), so the forge chunks drive the game's nav
-graph directly.
+`forge/walk.html` + `walk-app.js`: an **@ you walk around a forge region's production floor** — the **full
+19-chunk factory** by default (`?n=`, `?seed=`, `?z=` zoom; scroll/pinch to zoom out to the whole factory
+or in to walk). It reuses the v099 game's own movement — `manager.pathFind`/`nearestNode` over a **free-roam
+nav graph** (`floor.js#regionWalk`: every interior cell a node, foam-adjacency + shared ports, 100% connected
+across all chunks), the same click/tap-to-walk control as the game (plus WASD). Camera follows; the rich skin
+(ambient light · core machines · material in motion) renders around you; the HUD names the facility you're in
++ what it makes; the fulfillment hub shows the **nave lift** rising overhead. To make this work the partition
+records were made **buildWalk-compatible** — `packChunk` now emits cell `adj` + room `doorPairs` (the door
+onto the carved concourse), so the forge chunks drive the game's nav graph directly.
+
+**The packets ride the roads we grew.** `floor.js#supplyRoutes` pathfinds every inter-engine supply edge
+along a **road-restricted graph** (only road↔road steps + seam crossings bridged onto each chunk's
+concourse), so the material packets animate **along the carved physarum trunks**, not straight facility→
+facility lines — ≥90% on-road (100% on the tested seeds), weaving ~20 road cells each. You watch product
+stream the concourse to the fulfillment hub and ride the lift up; reclaim's output fans back out to the
+foundries. Pinned in `test/region.selftest.mjs`.
 
 ### Wiring into the v099 game proper (the next step, not yet done)
 

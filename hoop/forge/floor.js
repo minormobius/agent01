@@ -17,6 +17,7 @@
 
 import { partitionChunk, pickChunkEngines, packChunk, growConduits } from './facility.js';
 import { ENGINES, sourceSteps, sinkSteps } from './engines.js';
+import { pathFind } from '../v099/v8/manager.js';
 import { SAMPLE_SHAPE, shapePoly, shapeSideOf } from '../chunkroller/shapes.js';
 import { latticeVectors } from '../chunkroller/builder.js';
 
@@ -261,6 +262,37 @@ export function regionWalk(reg) {
   for (const ch of recs) for (const p of ch.ports) { if (p.cell == null || p.cell < 0) continue; const k = Math.round(p.x) + ',' + Math.round(p.y); let a = byLoc.get(k); if (!a) byLoc.set(k, a = []); a.push(base[ch.id] + p.cell); }
   for (const g of byLoc.values()) for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) link(g[i], g[j]);
   return { N, adj, pos: new Float32Array(pos), nodeChunk: new Int32Array(nodeChunk), nodeLocal: new Int32Array(nodeLocal), base, blocked: null };
+}
+
+// SUPPLY ROUTES ON THE CARVED ROADS — for each inter-engine supply edge, the path the material PACKETS
+// take along the grown concourse (not a straight line): pathFind over a ROAD-RESTRICTED graph (only road↔road
+// edges + cross-chunk port links), from the emitter facility's road access to the consumer's. Returns a
+// polyline per supply edge so the proto can animate packets riding the trunks we grew. Falls back to a
+// straight line for the rare facility pair the road net can't connect.
+export function supplyRoutes(reg, walk) {
+  walk = walk || regionWalk(reg);
+  const N = walk.N, isRoad = new Uint8Array(N);
+  for (let i = 0; i < N; i++) { const ch = reg.recs[walk.nodeChunk[i]]; if (ch.road[walk.nodeLocal[i]]) isRoad[i] = 1; }
+  // road-restricted adjacency: keep an edge iff both ends are road, OR it's a cross-chunk link (the seam
+  // crossings — port cells bridge the concourse between chunks even if the exact port cell isn't paved).
+  const radj = Array.from({ length: N }, () => []);
+  for (let i = 0; i < N; i++) for (const j of walk.adj[i]) { if (j <= i) continue; if ((isRoad[i] && isRoad[j]) || walk.nodeChunk[i] !== walk.nodeChunk[j]) { radj[i].push(j); radj[j].push(i); } }
+  // bridge each seam-crossing cell to its OWN chunk's nearest road, so a route can step off the concourse,
+  // over the seam, and back onto the next chunk's concourse — lifts the road net toward one component.
+  const nearestRoadIn = (chunk, x, y) => { let best = -1, bd = Infinity; for (let i = 0; i < N; i++) { if (!isRoad[i] || walk.nodeChunk[i] !== chunk) continue; const d = (walk.pos[2 * i] - x) ** 2 + (walk.pos[2 * i + 1] - y) ** 2; if (d < bd) { bd = d; best = i; } } return best; };
+  const seamCells = new Set(); for (let i = 0; i < N; i++) for (const j of walk.adj[i]) if (walk.nodeChunk[i] !== walk.nodeChunk[j]) { seamCells.add(i); seamCells.add(j); }
+  for (const p of seamCells) { if (isRoad[p]) continue; const r = nearestRoadIn(walk.nodeChunk[p], walk.pos[2 * p], walk.pos[2 * p + 1]); if (r >= 0) { radj[p].push(r); radj[r].push(p); } }
+  const roadWalk = { N, adj: radj, pos: walk.pos, nodeChunk: walk.nodeChunk, nodeLocal: walk.nodeLocal, base: walk.base, blocked: null };
+  const accessOf = (f) => { let best = -1, bd = Infinity; for (let i = 0; i < N; i++) { if (!isRoad[i]) continue; const d = (walk.pos[2 * i] - f.x) ** 2 + (walk.pos[2 * i + 1] - f.y) ** 2; if (d < bd) { bd = d; best = i; } } return best; };
+  const acc = reg.facilities.map(accessOf);
+  const out = [];
+  for (const s of reg.supply) {
+    const a = acc[s.from], b = acc[s.to]; let poly = null, onRoad = false;
+    if (a >= 0 && b >= 0) { const p = pathFind(roadWalk, a, b); if (p && p.length > 1) { poly = p.map((n) => ({ x: walk.pos[2 * n], y: walk.pos[2 * n + 1] })); onRoad = true; } }
+    if (!poly) { const F = reg.facilities[s.from], G = reg.facilities[s.to]; poly = [{ x: F.x, y: F.y }, { x: G.x, y: G.y }]; }
+    out.push({ poly, engine: reg.facilities[s.from].engine, tag: s.tag, onRoad, cross: s.cross, from: s.from, to: s.to });
+  }
+  return out;
 }
 
 // the engine-per-chunk array implied by the placed facilities (first production engine per chunk, null at

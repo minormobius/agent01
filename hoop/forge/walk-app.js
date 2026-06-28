@@ -3,7 +3,7 @@
 // the game's pathFind/nearestNode over a free-roam nav graph (floor.js#regionWalk), the same control model
 // as the v099 game (click/tap to walk), plus WASD. Camera follows, zoomed in so you're IN it.
 
-import { buildForgeRegion, regionWalk } from './floor.js';
+import { buildForgeRegion, regionWalk, supplyRoutes } from './floor.js';
 import { ENGINES } from './engines.js';
 import { ambientOf, materialOf, fixtureOf } from './fixtures.js';
 import { drawCore, drawMachine, drawCarrier, ambientGlow } from './sprites.js';
@@ -13,12 +13,13 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 7;
-const COUNT = Q.has('n') ? Math.max(3, Math.min(19, Q.get('n') | 0)) : 7;
+const COUNT = Q.has('n') ? Math.max(3, Math.min(37, Q.get('n') | 0)) : 19;   // the full factory by default
 
 const cv = $('cv'), ctx = cv.getContext('2d');
-let DPR = 1, CW = 0, CH = 0, Z = 2.4;
+let DPR = 1, CW = 0, CH = 0, Z = Q.has('z') ? Math.max(0.55, Math.min(4, +Q.get('z'))) : 2.4;
 let reg = null, walk = null, player = -1, pp = { x: 0, y: 0 }, cam = { x: 0, y: 0 };
 let route = [], rseg = 0, clock = 0;
+let routes = [];   // supply routes along the carved roads (each: {poly, cum, len, engine, onRoad, cross})
 const SPEED = 95;   // world units / sec
 const keys = new Set();
 
@@ -27,10 +28,18 @@ function shadeMix(baseHex, accentHex, a) { const b = parseInt(baseHex.slice(1), 
 
 const SX = (x) => (x - cam.x) * Z + CW / 2, SY = (y) => (y - cam.y) * Z + CH / 2;
 const wX = (sx) => (sx - CW / 2) / Z + cam.x, wY = (sy) => (sy - CH / 2) / Z + cam.y;
+// point at fraction t (0..1) along a route polyline (by arc length)
+function pointAt(rt, t) {
+  const target = t * rt.len, c = rt.cum, p = rt.poly; let i = 1; while (i < c.length && c[i] < target) i++;
+  if (i >= p.length) return p[p.length - 1]; const seg = c[i] - c[i - 1] || 1, f = (target - c[i - 1]) / seg;
+  return { x: p[i - 1].x + (p[i].x - p[i - 1].x) * f, y: p[i - 1].y + (p[i].y - p[i - 1].y) * f };
+}
 
 function build() {
   reg = buildForgeRegion(seed, { count: COUNT, optimize: true });
   walk = regionWalk(reg);
+  // the supply routes ALONG THE CARVED ROADS — material packets ride these (precompute cumulative lengths)
+  routes = supplyRoutes(reg, walk).map((rt) => { const cum = [0]; for (let i = 1; i < rt.poly.length; i++) cum.push(cum[i - 1] + Math.hypot(rt.poly[i].x - rt.poly[i - 1].x, rt.poly[i].y - rt.poly[i - 1].y)); return { ...rt, cum, len: cum[cum.length - 1] || 1 }; });
   // start on a ROAD node near the fulfillment hub (the lift) — the natural arrival point
   const hub = reg.facilities.find((f) => f.navePort) || reg.facilities[0];
   player = nearestRoadNode(hub.x, hub.y);
@@ -109,6 +118,20 @@ function render() {
   ctx.fillStyle = '#cbd3e0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '13px ui-monospace,monospace'; ctx.fillText('⌂', SX(nv.x), SY(nv.y));
   ctx.fillStyle = 'rgba(203,211,224,.85)'; ctx.font = '10px ui-monospace,monospace'; ctx.fillText('the nave ↑', SX(nv.x), SY(nv.y) - 24);
 
+  // MATERIAL PACKETS riding the carved roads — the supply trunks, in motion along the concourse we grew
+  for (const rt of routes) {
+    // cull: skip routes wholly off-screen
+    let on = false; for (const pt of rt.poly) { if (pt.x >= vx0 && pt.x <= vx1 && pt.y >= vy0 && pt.y <= vy1) { on = true; break; } }
+    if (!on) continue;
+    const light = ambientOf(rt.engine).light, mat = materialOf(rt.engine);
+    // faint trunk line so the route the packets take reads even between packets
+    ctx.strokeStyle = tint(light, rt.onRoad ? 0.16 : 0.1); ctx.lineWidth = rt.cross ? 2 : 1.4;
+    ctx.beginPath(); ctx.moveTo(SX(rt.poly[0].x), SY(rt.poly[0].y)); for (let i = 1; i < rt.poly.length; i++) ctx.lineTo(SX(rt.poly[i].x), SY(rt.poly[i].y)); ctx.stroke();
+    // the packets — speed ∝ a fixed world rate so long trunks take longer to cross (reads as distance)
+    const period = Math.max(2.5, rt.len / 70), K = Math.max(1, Math.min(4, Math.round(rt.len / 90)));
+    for (let k = 0; k < K; k++) { const ph = ((clock / period) + k / K + rt.from * 0.07) % 1; const pt = pointAt(rt, ph); drawCarrier(ctx, mat.shape, SX(pt.x), SY(pt.y), Math.max(2.6, Z * 1.9), light, mat.hot); }
+  }
+
   // the route ribbon (where you're walking)
   if (route.length > rseg) { ctx.strokeStyle = 'rgba(244,191,98,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(SX(pp.x), SY(pp.y)); for (let i = rseg; i < route.length; i++) ctx.lineTo(SX(walk.pos[2 * route[i]]), SY(walk.pos[2 * route[i] + 1])); ctx.stroke(); }
 
@@ -130,6 +153,12 @@ cv.addEventListener('pointerdown', (e) => { const r = cv.getBoundingClientRect()
 addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if ('wasd'.includes(k) || k.startsWith('arrow')) { keys.add(k); e.preventDefault(); } });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 function keyDir() { let dx = 0, dy = 0; if (keys.has('a') || keys.has('arrowleft')) dx -= 1; if (keys.has('d') || keys.has('arrowright')) dx += 1; if (keys.has('w') || keys.has('arrowup')) dy -= 1; if (keys.has('s') || keys.has('arrowdown')) dy += 1; return { dx, dy }; }
+
+// scroll / pinch to zoom (out to see the whole factory, in to walk) — camera stays on the player
+cv.addEventListener('wheel', (e) => { e.preventDefault(); Z = Math.max(0.55, Math.min(4, Z * (e.deltaY < 0 ? 1.12 : 0.89))); }, { passive: false });
+let _pinch = 0;
+cv.addEventListener('touchmove', (e) => { if (e.touches.length === 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); if (_pinch) Z = Math.max(0.55, Math.min(4, Z * d / _pinch)); _pinch = d; e.preventDefault(); } }, { passive: false });
+cv.addEventListener('touchend', () => { _pinch = 0; });
 
 $('roll').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; build(); });
 $('recenter').addEventListener('click', () => { const hub = reg.facilities.find((f) => f.navePort) || reg.facilities[0]; player = nearestRoadNode(hub.x, hub.y); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; route = []; whereAmI(); });
