@@ -16,14 +16,15 @@ const MAT = '#f4bf62', PED = '#5fd0e0';
 
 function build() {
   foam = buildFoam3D(seed);
-  sp = twoSpecies(foam);
+  sp = twoSpecies(foam, { pedMode: $('pedmode').value, reach: 2 });
   const N = foam.nuclei; cx = cy = cz = 0; for (const p of N) { cx += p.x; cy += p.y; cz += p.z; } cx /= N.length; cy /= N.length; cz /= N.length;
   // fit zoom to the volume
   let rmax = 1; for (const p of N) rmax = Math.max(rmax, Math.hypot(p.x - cx, p.y - cy, p.z - cz));
   Z = Math.min(CW, CH) * 0.42 / rmax; pan = { x: 0, y: 0 };
   const st = sp.stats;
+  const cov = st.pedestrian.coverage != null ? ` · <b style="color:#5fd0e0">coverage ${(st.pedestrian.coverage * 100 | 0)}%</b>` : '';
   $('verdict').innerHTML = `<b>feasible in 3D: ${st.feasibleIn3D ? 'YES' : 'no'}</b><br>` +
-    `<span style="color:#8794a6">material reaches <b style="color:#f4bf62">${st.material.reached}/${st.facilities}</b> · pedestrian reaches <b style="color:#5fd0e0">${st.pedestrian.reached}/${st.facilities}</b> · disjoint <b>${st.disjoint ? '✓' : '✗'}</b><br>${foam.n} chambers · ${st.material.cells}+${st.pedestrian.cells} in the two nets · interface ${(st.interfaceFrac * 100 | 0)}%</span>`;
+    `<span style="color:#8794a6"><b style="color:#f4bf62">bots · physarum</b> reach ${st.material.reached}/${st.facilities} · <b style="color:#5fd0e0">peds · ${st.pedestrian.method}</b> reach ${st.pedestrian.reached}/${st.facilities}${cov}<br>disjoint <b>${st.disjoint ? '✓' : '✗'}</b> · ${foam.n} chambers · ${st.material.cells}+${st.pedestrian.cells} in the two nets · interface ${(st.interfaceFrac * 100 | 0)}%</span>`;
   const u = new URL(location); u.searchParams.set('seed', seed); history.replaceState(null, '', u);
 }
 
@@ -82,6 +83,7 @@ function drawCouriers(P, netEdges, col, shape) {
 // ── controls ──
 $('t-cells').addEventListener('change', render);
 $('t-foam').addEventListener('change', render);
+$('pedmode').addEventListener('change', build);
 $('roll').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; build(); });
 $('reset').addEventListener('click', () => { yaw = 0.6; pitch = -0.5; pan = { x: 0, y: 0 }; build(); });
 let drag = false, lx = 0, ly = 0;

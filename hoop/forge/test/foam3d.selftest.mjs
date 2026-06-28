@@ -25,10 +25,23 @@ ok(st.feasibleIn3D === true, 'VERDICT: two non-touching everywhere-reaching netw
 // they run close (interface > 0): a wall between them, the capillary exchange surface
 ok(st.interfaceFrac > 0, `the species interleave — they run adjacent (interface ${(st.interfaceFrac * 100 | 0)}%)`);
 
+// ── MIXED METHODS: bots on PHYSARUM, peds on PERFUSION (two different growth models, still non-touching) ──
+const mix = twoSpecies(foam, { pedMode: 'perfusion', reach: 2 }), ms = mix.stats;
+ok(ms.material.method === 'physarum' && ms.pedestrian.method === 'perfusion', 'bots on physarum · peds on perfusion');
+ok(ms.disjoint && ms.material.reached === ms.facilities && ms.pedestrian.reached === ms.facilities, 'mixed methods: still disjoint, both reach every facility');
+// perfusion is COVERAGE-driven — it oxygenates ALL the tissue (every chamber within reach), unlike the
+// physarum trunk net. This is the defining difference.
+ok(ms.pedestrian.coverage >= 0.99, `perfusion covers all the tissue (coverage ${(ms.pedestrian.coverage * 100 | 0)}% — every chamber within reach)`);
+ok(ms.pedestrian.connectedFrac > 0.95, `the perfusion bed is one connected net (${(ms.pedestrian.connectedFrac * 100 | 0)}%)`);
+ok(ms.feasibleIn3D === true, 'mixed methods are feasible in 3D too');
+let mixOk = true; for (let s = 0; s < 8; s++) { const c = twoSpecies(buildFoam3D(s * 5 + 2), { pedMode: 'perfusion', reach: 2 }).stats; if (!c.feasibleIn3D || c.pedestrian.coverage < 0.99) mixOk = false; }
+ok(mixOk, 'physarum-bots + perfusion-peds holds across seeds (disjoint, feasible, full coverage)');
+
 // holds across seeds (not a lucky roll) + deterministic
 let allFeasible = true; for (let s = 0; s < 10; s++) { const f = buildFoam3D(s * 7 + 1); if (!twoSpecies(f).stats.feasibleIn3D) allFeasible = false; }
 ok(allFeasible, 'the 3D result holds across seeds');
 ok(JSON.stringify(twoSpecies(buildFoam3D(7)).stats) === JSON.stringify(st), 'twoSpecies is deterministic');
+ok(JSON.stringify(twoSpecies(buildFoam3D(7), { pedMode: 'perfusion' }).stats) === JSON.stringify(mix.stats), 'perfusion mode is deterministic');
 
 console.log(`\nfoam3d.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -69,5 +69,12 @@ material floor, with a drop-shaft at each facility core where a technician meets
   `hoop.mino.mobi/forge/foam3d` (rotatable volume; gold material net weaving past cyan pedestrian net,
   never touching). Pinned by `test/foam3d.selftest.mjs` (13). **This is the answer** — two non-intersecting
   everywhere-reaching tracks need the third dimension, and a volumetric foam gives it for free.
+- **Two growth models, not one.** The species needn't use the same algorithm. `twoSpecies(foam, {pedMode})`:
+  **bots run physarum** (demand-driven trunks — efficient flow between facilities, the artery), **peds run
+  perfusion** (`pedMode:'perfusion'` — angiogenesis/hypoxia-seeking: sprout a capillary toward the farthest
+  under-served chamber until *all* tissue is within `reach`, the capillary bed). Perfusion's `coverage`
+  hits 100% (every chamber reachable on foot) where physarum only builds trunks — the right contrast for
+  freight vs people. Both still come out disjoint, both reach every facility, `feasibleIn3D = true`. The
+  foamview's **peds** dropdown switches between them. Pinned by `test/foam3d.selftest.mjs` (20).
 - **Next:** unify the volumetric foam with the factory (chambers = facility rooms in 3D), and make both
   species walkable in `/forge/walk` (spiderbots on one, you on the other, never crossing).

@@ -33,7 +33,13 @@
 <canvas id="cv"></canvas>
 <div id="hud">
   <h1>volumetric foam · two species</h1>
-  <p class="sub">a 3D chamber foam with <b style="color:var(--mat)">material</b> (spiderbots) and <b style="color:var(--ped)">pedestrian</b> (technicians) physarum grown as <b>disjoint</b> networks that BOTH reach every facility — weaving over &amp; under each other in 3D. Impossible in 2D (TRACKS.md); clean in 3D.</p>
+  <p class="sub"><b style="color:var(--mat)">bots</b> on <b>physarum</b> (demand trunks) · <b style="color:var(--ped)">peds</b> on <b>perfusion</b> (a capillary bed that reaches every chamber) — two growth models, grown <b>disjoint</b>, both reaching every facility, weaving over &amp; under in 3D. Impossible in 2D (TRACKS.md); clean in 3D.</p>
+  <label class="row" title="bots always run physarum (demand-driven trunks). peds: physarum = trip trunks · perfusion = a capillary bed that reaches EVERY chamber (coverage)"><span style="width:46px;flex:none;color:#b9c0cf">peds</span>
+    <select id="pedmode" style="flex:1;background:#0c0f15;color:#e6e8ee;border:1px solid #1e2636;border-radius:6px;padding:5px 7px;font:inherit">
+      <option value="perfusion" selected>perfusion (capillary bed)</option>
+      <option value="physarum">physarum (trip trunks)</option>
+    </select>
+  </label>
   <label class="row"><input type="checkbox" id="t-cells" checked> ◌ show chambers (the foam)</label>
   <label class="row"><input type="checkbox" id="t-foam"> · foam adjacency</label>
   <label class="row"><input type="checkbox" id="t-spin" checked> ⟳ auto-rotate</label>

@@ -38,15 +38,44 @@ export function buildFoam3D(seed, opts = {}) {
   return { nuclei, adj, edges, n, fac, dims: { W, H, D }, d2 };
 }
 
-// grow TWO disjoint physarum species over the 3D graph: MATERIAL (each facility → a freight hub) then
-// PEDESTRIAN (each facility → a personnel hub) through the cells material didn't take. Both reach every
-// facility — the 3D result. Returns per-nucleus species masks + the verdict.
+// PERFUSION growth (angiogenesis / hypoxia-seeking — the foam kernel's seize, on a graph): grow a coverage
+// network from a root that sprouts a capillary toward the FARTHEST under-served cell until every allowed cell
+// is within `reach` hops of the net. Unlike physarum (trip-driven trunks), this is COVERAGE-driven — a
+// capillary bed that oxygenates all the tissue. The right model for pedestrians (people reach everywhere).
+function perfuseNetwork(n, adj, allowed, root, reach, mustReach = []) {
+  const net = new Uint8Array(n); if (root < 0 || !allowed[root]) return net; net[root] = 1;
+  const dist = new Int32Array(n), par = new Int32Array(n);
+  const bfsFromNet = () => { dist.fill(-1); par.fill(-1); const q = []; for (let i = 0; i < n; i++) if (net[i]) { dist[i] = 0; q.push(i); } for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of adj[u]) if (allowed[v] && dist[v] < 0) { dist[v] = dist[u] + 1; par[v] = u; q.push(v); } } };
+  // 1) CONNECT each must-reach (facility) to the net first — so the bed is one connected thing that reaches
+  //    every facility (a capillary to each), before coverage growth.
+  for (const m of mustReach) { if (m < 0 || !allowed[m] || net[m]) continue; bfsFromNet(); if (dist[m] < 0) continue; for (let u = m; u >= 0 && !net[u]; u = par[u]) net[u] = 1; }
+  // 2) PERFUSE: sprout a capillary toward the farthest under-served cell until all tissue is within reach.
+  for (let iter = 0; iter < n + 5; iter++) {
+    bfsFromNet();
+    let far = -1, fd = reach; for (let i = 0; i < n; i++) if (allowed[i] && dist[i] > fd) { fd = dist[i]; far = i; }   // most hypoxic
+    if (far < 0) break;
+    for (let u = far; u >= 0 && !net[u]; u = par[u]) net[u] = 1;
+  }
+  return net;
+}
+// coverage: fraction of allowed cells within `reach` hops of the net.
+function coverageOf(n, adj, allowed, net, reach) {
+  const dist = new Int32Array(n).fill(-1), q = []; for (let i = 0; i < n; i++) if (net[i]) { dist[i] = 0; q.push(i); }
+  for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of adj[u]) if (allowed[v] && dist[v] < 0) { dist[v] = dist[u] + 1; q.push(v); } }
+  let tot = 0, served = 0; for (let i = 0; i < n; i++) if (allowed[i]) { tot++; if (dist[i] >= 0 && dist[i] <= reach) served++; }
+  return tot ? served / tot : 1;
+}
+
+// grow TWO disjoint species over the 3D graph. MATERIAL is always PHYSARUM (bots follow demand — trunk
+// routes between facilities). PEDESTRIAN is `pedMode`: 'physarum' (trip-driven) or 'perfusion' (coverage —
+// a capillary bed reaching everywhere). Either way the two stay disjoint and both reach every facility — the
+// 3D result. Returns per-nucleus species masks + the verdict.
 export function twoSpecies(foam, opts = {}) {
-  const { mu = 1.4, iters = 18, matFrac = 0.12, pedFrac = 0.12 } = opts;
+  const { mu = 1.4, iters = 18, matFrac = 0.12, pedFrac = 0.12, pedMode = 'physarum', reach = 2 } = opts;
   const { n, edges, adj, fac, nuclei, d2 } = foam;
   const graph = makeGraph(n, edges);
 
-  // ── MATERIAL species ──
+  // ── MATERIAL species — physarum (bots on desire lines) ──
   const matHub = fac[0], matDemand = [];
   for (const f of fac) if (f !== matHub) matDemand.push({ a: f, b: matHub, w: 3 });
   const mg = createGrower(graph, matDemand, { mu, condMax: 60, condGain: 6 });
@@ -54,23 +83,32 @@ export function twoSpecies(foam, opts = {}) {
   const matR = finalizeField(graph, mg.state, { roadFrac: matFrac }).isRoad;
   const isMat = new Uint8Array(n); for (let i = 0; i < n; i++) if (matR[i]) isMat[i] = 1; for (const f of fac) isMat[f] = 1;
 
-  // ── PEDESTRIAN species over the complement (non-material cells) ──
-  const sub = [], g2s = new Int32Array(n).fill(-1);
-  for (let i = 0; i < n; i++) if (!isMat[i]) { g2s[i] = sub.length; sub.push(i); }
-  const subEdges = [], s2 = new Set();
-  for (const gi of sub) for (const gj of adj[gi]) { if (isMat[gj]) continue; const a = g2s[gi], b = g2s[gj]; if (a < 0 || b < 0) continue; const key = a < b ? a + ',' + b : b + ',' + a; if (s2.has(key)) continue; s2.add(key); subEdges.push({ a, b, len: Math.sqrt(d2(gi, gj)) }); }
-  const subNearestTo = (gi) => { let best = -1, bd = Infinity; for (let s = 0; s < sub.length; s++) { const g = sub[s], d = d2(g, gi); if (d < bd) { bd = d; best = s; } } return best; };   // sub index nearest a global node
-  const facPed = fac.map((f) => subNearestTo(f));   // pedestrian access per facility (nearest non-material)
-  const pedHub = facPed[facPed.length - 1];          // a far facility's access = personnel hub
-  const pedDemand = []; for (const s of facPed) if (s >= 0 && s !== pedHub) pedDemand.push({ a: pedHub, b: s, w: 3 });
-  const pg = createGrower(makeGraph(sub.length, subEdges), pedDemand, { mu, condMax: 60, condGain: 6 });
-  for (let it = 0; it < iters; it++) pg.step();
-  const pedR = finalizeField(makeGraph(sub.length, subEdges), pg.state, { roadFrac: pedFrac }).isRoad;
-  const isPed = new Uint8Array(n);
-  for (let s = 0; s < sub.length; s++) if (pedR[s]) isPed[sub[s]] = 1;
-  for (const s of facPed) if (s >= 0) isPed[sub[s]] = 1; if (pedHub >= 0) isPed[sub[pedHub]] = 1;
+  // pedestrian access cells (nearest NON-material cell to each facility) + a personnel hub
+  const allowed = new Uint8Array(n); for (let i = 0; i < n; i++) allowed[i] = isMat[i] ? 0 : 1;
+  const nearestAllowed = (gi) => { let best = -1, bd = Infinity; for (let i = 0; i < n; i++) { if (!allowed[i]) continue; const d = d2(i, gi); if (d < bd) { bd = d; best = i; } } return best; };
+  const facPed = fac.map((f) => nearestAllowed(f));
+  const pedHub = facPed[facPed.length - 1];
 
-  return { isMat, isPed, facMat: fac.slice(), facPed: facPed.map((s) => (s >= 0 ? sub[s] : -1)), stats: stats(foam, isMat, isPed, fac, facPed.map((s) => (s >= 0 ? sub[s] : -1))) };
+  // ── PEDESTRIAN species over the complement — physarum OR perfusion ──
+  let isPed = new Uint8Array(n), coverage = null;
+  if (pedMode === 'perfusion') {
+    isPed = perfuseNetwork(n, adj, allowed, pedHub, reach, facPed);      // capillary bed: connect facilities, then cover
+    coverage = coverageOf(n, adj, allowed, isPed, reach);
+  } else {
+    const sub = [], g2s = new Int32Array(n).fill(-1);
+    for (let i = 0; i < n; i++) if (allowed[i]) { g2s[i] = sub.length; sub.push(i); }
+    const subEdges = [], s2 = new Set();
+    for (const gi of sub) for (const gj of adj[gi]) { if (!allowed[gj]) continue; const a = g2s[gi], b = g2s[gj]; if (a < 0 || b < 0) continue; const key = a < b ? a + ',' + b : b + ',' + a; if (s2.has(key)) continue; s2.add(key); subEdges.push({ a, b, len: Math.sqrt(d2(gi, gj)) }); }
+    const subHub = g2s[pedHub] >= 0 ? g2s[pedHub] : 0;
+    const pedDemand = []; for (const f of facPed) if (f >= 0 && g2s[f] >= 0 && g2s[f] !== subHub) pedDemand.push({ a: subHub, b: g2s[f], w: 3 });
+    const pg = createGrower(makeGraph(sub.length, subEdges), pedDemand, { mu, condMax: 60, condGain: 6 });
+    for (let it = 0; it < iters; it++) pg.step();
+    const pedR = finalizeField(makeGraph(sub.length, subEdges), pg.state, { roadFrac: pedFrac }).isRoad;
+    for (let s = 0; s < sub.length; s++) if (pedR[s]) isPed[sub[s]] = 1;
+    for (const s of facPed) if (s >= 0) isPed[s] = 1;
+  }
+
+  return { isMat, isPed, pedMode, facMat: fac.slice(), facPed: facPed.slice(), stats: stats(foam, isMat, isPed, fac, facPed, pedMode, coverage) };
 }
 
 function net(adj, mask, facCells) {
@@ -81,16 +119,16 @@ function net(adj, mask, facCells) {
   let reached = 0; for (const c of facCells) if (c >= 0 && mask[c] && comp[c] === big) reached++;
   return { cells: tot, components: nc, connectedFrac: tot ? bs / tot : 0, reached };
 }
-function stats(foam, isMat, isPed, facMat, facPed) {
+function stats(foam, isMat, isPed, facMat, facPed, pedMode = 'physarum', coverage = null) {
   const { n, adj } = foam; let shared = 0, touch = 0;
   for (let i = 0; i < n; i++) if (isMat[i] && isPed[i]) shared++;
   // do the two species ever sit in ADJACENT cells (a wall between them — fine) — count it as the interface
   for (let i = 0; i < n; i++) if (isPed[i]) { for (const j of adj[i]) if (isMat[j]) { touch++; break; } }
-  const M = net(adj, isMat, facMat), P = net(adj, isPed, facPed), F = facMat.length;
+  const M = net(adj, isMat, facMat), P = net(adj, isPed, facPed.filter((f) => f >= 0)), F = facMat.length;
   return {
-    facilities: F, disjoint: shared === 0, sharedCells: shared,
-    material: { cells: M.cells, connectedFrac: M.connectedFrac, reached: M.reached },
-    pedestrian: { cells: P.cells, components: P.components, connectedFrac: P.connectedFrac, reached: P.reached },
+    facilities: F, disjoint: shared === 0, sharedCells: shared, pedMode,
+    material: { method: 'physarum', cells: M.cells, connectedFrac: M.connectedFrac, reached: M.reached },
+    pedestrian: { method: pedMode, cells: P.cells, components: P.components, connectedFrac: P.connectedFrac, reached: P.reached, coverage },
     interfaceFrac: P.cells ? touch / P.cells : 0,
     // THE 3D RESULT: both species reach every facility while staying disjoint — impossible in 2D.
     feasibleIn3D: M.reached >= F && P.reached >= F && shared === 0,
