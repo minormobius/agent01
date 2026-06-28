@@ -49,6 +49,14 @@ ok(JSON.stringify(A.frame()) === JSON.stringify(B.frame()), 'animator reproducib
 const c1 = JSON.stringify(A.frame()); for (let i = 0; i < 30; i++) A.step(1/60);
 ok(JSON.stringify(A.frame()) !== c1, 'animator frame evolves');
 
+// body patterning is DERIVED from leg count: more pairs → more band cells (the darkest fur shade)
+function bandCells(gen) { const dk = gen.ramps.fur[0]; return polyFrame(gen, 0).filter(c => c.c === dk).length; }
+{
+  const p3 = buildPolyGenome('pat', { legs: 3, segs: 2 }), p5 = buildPolyGenome('pat', { legs: 5, segs: 2 });
+  ok(bandCells(p3) > 0, 'organic body carries patterning');
+  ok(bandCells(p5) > bandCells(p3), `more leg pairs → more band cells (${bandCells(p3)} < ${bandCells(p5)})`);
+}
+
 const svg = polySVG(g, 7);
 ok(svg.startsWith('<svg') && svg.includes('<rect') && svg.endsWith('</svg>'), 'polySVG well-formed');
 

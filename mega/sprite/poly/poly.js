@@ -133,6 +133,34 @@ export function polyFrame(G, t) {
     if (d <= 1) put(x, y, d > 0.72 ? mid : near, 3);
   }
 
+  // BODY PATTERNING — DERIVED from the polypod's own elements, no new gene (cf. the radial eye). The
+  // abdomen carries one transverse band per LEG PAIR (arthropod tergites track segments), a dorsal
+  // midline, and the thorax shows a segment tick at each leg attachment. chassis swaps the organic
+  // bands for panel seams + hazard chevron + accent rivets; the band colour is the body hue's darkest.
+  {
+    const abdomen = segs.reduce((a, s) => (s.rx * s.ry > a.rx * a.ry ? s : a), segs[0]);
+    const pdark = G.mech ? G.dark : fur[0];
+    // band count = leg pairs, but capped by body height so a short wide carapace doesn't crowd
+    const nB = G.mech ? Math.min(3, Math.ceil(P / 2)) : clamp(Math.round(2 * abdomen.ry / 5), 2, P);
+    for (let y = Math.floor(abdomen.y - abdomen.ry); y <= abdomen.y + abdomen.ry; y++)
+      for (let x = Math.floor(abdomen.x - abdomen.rx); x <= abdomen.x + abdomen.rx; x++) {
+        const exn = (x - abdomen.x) / abdomen.rx, eyn = (y - abdomen.y) / abdomen.ry;
+        if (exn * exn + eyn * eyn > 0.9) continue;                  // inside, off the rim
+        if (Math.abs(x - abdomen.x) < 0.8) { put(x, y, pdark, 3.6); continue; }  // dorsal midline
+        const bow = G.mech ? 0 : 0.08 * (1 - exn * exn);           // organic bands bow backward
+        const v = (y - (abdomen.y - abdomen.ry)) / (2 * abdomen.ry) - bow, frac = (v * nB) % 1;
+        if (v > 0.08 && v < 0.95 && frac >= 0 && frac < (G.mech ? 0.1 : 0.16)) put(x, y, pdark, 3.6);
+      }
+    if (thorax !== abdomen) for (let p = 0; p < P; p++) {          // thorax tick per leg row (skip if
+      const ay = lerp(t0, t1, P > 1 ? p / (P - 1) : 0.5);          // the body is one segment — bands suffice)
+      thick(thorax.x - thorax.rx * 0.55, ay, thorax.x + thorax.rx * 0.55, ay, pdark, 1, 3.6);
+    }
+    if (G.mech) {                                                  // rivets + a hazard chevron
+      for (const [dx, dy] of [[0,-1],[0,1],[-1,0],[1,0]]) put(abdomen.x + dx * abdomen.rx * 0.66, abdomen.y + dy * abdomen.ry * 0.66, G.accent, 3.7);
+      const hy = head.y + head.ry * 0.2; put(head.x, hy, G.accent, 4.2); put(head.x - 1, hy - 1, G.accent, 4.2); put(head.x + 1, hy - 1, G.accent, 4.2);
+    }
+  }
+
   // ANTENNAE (ant) — two waving feelers from the head, forward (up)
   if (G.genes.antennae > 0.4) {
     const al = G.unit * 2.0 * G.genes.antennae;
