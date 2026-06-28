@@ -66,5 +66,16 @@ ok('1 frail hero vs an overwhelming pack is not winnable', rd.solvable === false
   ok('even encounter returns a verdict (solvable or capped)', r.solvable === true || r.capped === true || r.solvable === false, JSON.stringify(r));
 }
 
+// ── 7. terrain flows through the oracle (LoS/walls/hazards) — still deterministic, still terminates ──
+{
+  const setup = {
+    player: unit('P', 'rindwalker', { hp: 80, atk: 16 }), foes: [unit('E', 'continuant', { hp: 18, atk: 4, def: 1 })], seed: 1,
+    terrain: [{ kind: 'wall', x: 8, y: 8, r: 1.4 }, { kind: 'hazard', x: 6, y: 10, r: 2, effect: 'burn' }],
+  };
+  const t1 = solveCombat(setup), t2 = solveCombat(setup);
+  ok('oracle is deterministic with terrain', t1.solvable === t2.solvable && t1.par === t2.par, JSON.stringify(t1));
+  ok('terrain encounter returns a verdict', t1.solvable === true || t1.solvable === false || t1.capped === true);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

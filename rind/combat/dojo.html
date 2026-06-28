@@ -48,6 +48,7 @@
   <label>×<input id="fn" type="number" value="1" min="1" max="4" style="width:46px"></label>
   <label>seed <input id="seed" type="number" value="1" style="width:70px"></label>
   <label>power <input id="power" type="number" value="10" style="width:60px"></label>
+  <label>terrain <input id="terr" type="checkbox" checked></label>
   <button id="new">new battle</button>
   <button id="auto">▶ auto-play</button>
   <button id="step">step turn</button>
@@ -92,7 +93,8 @@ function build() {
   const player = mk(pk, 1, 'P');
   const allies = []; for (let i = 1; i < pn; i++) allies.push(mk(pk, 1 + i, 'P' + i));
   const foes = []; for (let i = 0; i < fn; i++) foes.push(mk(fk, 50 + i, 'E' + i));
-  s = E.createBattle({ player, allies, foes, seed });
+  const terrain = $('terr').checked ? E.scatterTerrain(seed * 7 + 11, { walls: 3, hazards: 2 }) : [];
+  s = E.createBattle({ player, allies, foes, seed, terrain });
   SCALE = Math.min(cv.width / s.W, cv.height / s.H);
   sel = null;
   render();
@@ -103,6 +105,13 @@ const isPlayerTurn = () => !s.winner && E.active(s).team === 'player';
 
 function render() {
   ctx.clearRect(0, 0, cv.width, cv.height);
+  // terrain: walls (solid) + hazard fields (translucent, coloured by effect)
+  const HZ = { burn: 'rgba(207,80,80,0.18)', mire: 'rgba(120,180,90,0.18)', emp: 'rgba(110,150,220,0.20)' };
+  for (const t of (s.terrain || [])) {
+    ctx.beginPath(); ctx.arc(px(t.x), py(t.y), t.r * SCALE, 0, 7);
+    if (t.kind === 'wall') { ctx.fillStyle = '#2b2620'; ctx.fill(); ctx.strokeStyle = '#4a4438'; ctx.lineWidth = 1.5; ctx.stroke(); }
+    else { ctx.fillStyle = HZ[t.effect] || 'rgba(200,200,200,0.15)'; ctx.fill(); ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '10px monospace'; ctx.textAlign = 'center'; ctx.fillText(t.effect, px(t.x), py(t.y)); }
+  }
   const act = !s.winner ? E.active(s) : null;
   const lg = isPlayerTurn() ? E.legal(s) : { move: { range: 0 }, skills: {} };
   const tgtIds = new Set(sel && sel !== '__move' && lg.skills[sel] ? lg.skills[sel].targets : []);

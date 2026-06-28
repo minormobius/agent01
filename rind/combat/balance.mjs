@@ -24,6 +24,7 @@ const MAXT = +flag('maxturns', 100);
 const CSV = argv.includes('--csv');
 const PAIR = flag('pair', null);
 const PARTY = +flag('party', 1);   // units per side (NvN) — exercises the multi-agent path
+const TERRAIN = argv.includes('--terrain');   // scatter walls + hazards into every battle
 
 // build a faction-typical combatant: a character rolled to lean its faction's triad domain.
 function combatant(faction, seed, id, name) {
@@ -37,7 +38,8 @@ function battle(pf, ff, seed) {
   const player = combatant(pf, seed * 100 + 1, 'P', 'Player');
   const allies = []; for (let i = 1; i < PARTY; i++) allies.push(combatant(pf, seed * 100 + 1 + i, 'P' + i, 'Ally' + i));
   const foes = []; for (let i = 0; i < PARTY; i++) foes.push(combatant(ff, seed * 100 + 50 + i, 'E' + i, 'Foe' + i));
-  const s = E.createBattle({ player, allies, foes, seed, maxTurns: MAXT });
+  const terrain = TERRAIN ? E.scatterTerrain(seed * 7 + 11, { walls: 3, hazards: 2 }) : [];
+  const s = E.createBattle({ player, allies, foes, seed, maxTurns: MAXT, terrain });
   let g = 0; while (!s.winner && g++ < MAXT * 6) E.runAiTurn(s);
   const hpFrac = (team) => { let hp = 0, mx = 0; for (const u of s.units) if (u.team === team) { hp += Math.max(0, u.hp); mx += u.maxhp; } return mx ? hp / mx : 0; };
   return { winner: s.winner || 'draw', turns: s.turn, timedOut: s.timedOut, hpPlayer: hpFrac('player'), hpFoe: hpFrac('foe') };

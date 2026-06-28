@@ -238,6 +238,40 @@ const A = (faction, over = {}) => ({ id: 'A', name: 'Ally', faction, combat: C(o
   ok('2v2 party battle terminates', !!s.winner, s.winner || 'none');
 }
 
+// ── 4c. terrain: line-of-sight, walls, hazards ──────────────────────────────────────────────────
+// LoS: a wall on the line between caster and foe blocks a ranged lance; a clear line allows it.
+{
+  const blocked = E.createBattle({ player: P('drift', { apow: 20, fluxPool: 30 }), foes: [F('continuant', { hp: 999, def: 0 })], seed: 1, terrain: [{ kind: 'wall', x: 8, y: 8, r: 1.3 }] });
+  while (E.active(blocked).id !== 'P') E.endTurn(blocked);
+  const u = E.active(blocked), foe = E.unitById(blocked, 'E'); u.x = 8; u.y = 10; foe.x = 8; foe.y = 6;   // wall sits between
+  ok('hasLoS false through a wall', !E.hasLoS(blocked, { x: 8, y: 10 }, { x: 8, y: 6 }));
+  ok('LoS-blocked lance is illegal', E.act(blocked, { type: 'skill', skillId: 'lance', targetId: 'E' }).type === 'illegal');
+
+  const clear = E.createBattle({ player: P('drift', { apow: 20, fluxPool: 30 }), foes: [F('continuant', { hp: 999, def: 0 })], seed: 1, terrain: [{ kind: 'wall', x: 3, y: 3, r: 1.3 }] });
+  while (E.active(clear).id !== 'P') E.endTurn(clear);
+  const u2 = E.active(clear), foe2 = E.unitById(clear, 'E'); u2.x = 8; u2.y = 10; foe2.x = 8; foe2.y = 6;   // wall well off the line
+  const r = E.act(clear, { type: 'skill', skillId: 'lance', targetId: 'E' });
+  ok('clear-LoS lance hits', r.type === 'attack' && r.hit, `dmg ${r.dmg}`);
+}
+// walls block movement: a unit can't stand inside one.
+{
+  const s = E.createBattle({ player: P('continuant'), foes: [F('continuant')], seed: 1, terrain: [{ kind: 'wall', x: 8, y: 8, r: 1.5 }] });
+  ok('cannot stand inside a wall', !E.canReach(s, E.unitById(s, 'P'), 8, 8, 99));
+}
+// hazard fields bite at turn start.
+{
+  const s = E.createBattle({ player: P('rindwalker'), foes: [F('continuant')], seed: 1, terrain: [{ kind: 'hazard', x: 8, y: 8, r: 2.5, effect: 'burn' }] });
+  const u = E.unitById(s, 'P'); u.x = 8; u.y = 8; const before = u.hp;
+  let g = 0; do { E.endTurn(s); } while (E.active(s).id !== 'P' && g++ < 12);   // cycle back to P's turn start, still in the field
+  ok('burn hazard sears a unit at turn start', u.hp < before, `${before} → ${u.hp}`);
+}
+// scatterTerrain is deterministic and keeps the spawn bands clear.
+{
+  const a = E.scatterTerrain(5), b = E.scatterTerrain(5);
+  ok('scatterTerrain deterministic', JSON.stringify(a) === JSON.stringify(b) && a.length > 0, `${a.length} features`);
+  ok('scatter centres avoid spawn bands', a.every((t) => t.y >= 2.5 && t.y <= 13.5));
+}
+
 // ── 5. passives ───────────────────────────────────────────────────────────────────────────────
 {
   const d = E.makeUnit({ ...P('drift'), x: 0, y: 0, team: 'player' });

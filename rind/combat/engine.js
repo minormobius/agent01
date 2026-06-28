@@ -108,7 +108,7 @@ export function makeUnit({ id, name, team, faction, character, combat, x, y, spr
 // `det: true` puts the battle in DETERMINISTIC mode — no RNG: every attack lands and deals its
 // EXPECTED value (base × P(hit) × (1+P(crit))), variance = 1. This is what the solvability oracle
 // (solver.js) searches; normal play leaves det false and keeps the seeded rolls.
-export function createBattle({ player, allies = [], foes = [], seed = 1, W = 16, H = 16, maxTurns = 100, det = false }) {
+export function createBattle({ player, allies = [], foes = [], seed = 1, W = 16, H = 16, maxTurns = 100, det = false, terrain = [] }) {
   const units = [];
   const pcs = [player, ...allies];
   const np = pcs.length;
@@ -116,7 +116,7 @@ export function createBattle({ player, allies = [], foes = [], seed = 1, W = 16,
   const n = foes.length;
   foes.forEach((f, i) => units.push(makeUnit({ ...f, team: 'foe', x: f.x ?? (i + 1) * W / (n + 1), y: f.y ?? 1.5 })));
   const order = units.slice().sort((a, b) => (b.speed - a.speed) || (a.team === 'player' ? -1 : 1)).map((u) => u.id);
-  const state = { W, H, units, order, idx: 0, turn: 1, maxTurns, nextId: 1, det, log: [], phase: 'choose', winner: null, timedOut: false, rng: mulberry32(seed >>> 0 || 1) };
+  const state = { W, H, units, order, idx: 0, turn: 1, maxTurns, nextId: 1, det, terrain, log: [], phase: 'choose', winner: null, timedOut: false, rng: mulberry32(seed >>> 0 || 1) };
   beginTurn(state);
   return state;
 }
@@ -132,8 +132,43 @@ export const alliesOf = (s, u) => s.units.filter((x) => x.alive && x.team === u.
 const inBounds = (s, x, y) => x >= UNIT_R && y >= UNIT_R && x <= s.W - UNIT_R && y <= s.H - UNIT_R;
 // would a body centred at (x,y) overlap any other living unit's body?
 export const collides = (s, x, y, except) => s.units.some((u) => u.alive && u !== except && dist(u, { x, y }) < 2 * UNIT_R - 1e-6);
-// a legal stand point near (x,y)? (in bounds + no overlap)
-const standable = (s, x, y, except) => inBounds(s, x, y) && !collides(s, x, y, except);
+
+// ── TERRAIN — walls (block movement + line-of-sight) and hazards (area effects each turn). ────────
+// A feature is a circle: { kind:'wall'|'hazard', x, y, r, effect? }. effect ∈ burn|mire|emp.
+const inWall = (s, x, y, pad = UNIT_R) => (s.terrain || []).some((t) => t.kind === 'wall' && dist(t, { x, y }) < t.r + pad);
+// distance from point C to segment AB < r  (does the shot graze the circle?)
+function segHitsCircle(ax, ay, bx, by, cx, cy, r) {
+  const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+  let t = L2 > 0 ? ((cx - ax) * dx + (cy - ay) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+  return Math.hypot(ax + t * dx - cx, ay + t * dy - cy) < r;
+}
+// clear line of sight from a to b? — blocked iff a wall sits across the segment.
+export function hasLoS(s, a, b) {
+  for (const t of (s.terrain || [])) if (t.kind === 'wall' && segHitsCircle(a.x, a.y, b.x, b.y, t.x, t.y, t.r)) return false;
+  return true;
+}
+const hazardsAt = (s, x, y) => (s.terrain || []).filter((t) => t.kind === 'hazard' && dist(t, { x, y }) <= t.r);
+// ranged/area verbs need a clear shot; melee + ally-support don't.
+const needsLoS = (sk) => (sk.magic || sk.kind === 'agglomerate') && (sk.range || 1) > 1.5;
+export function canTarget(s, u, tgt, sk) { return inRange(u, tgt, sk.range || 1) && (!needsLoS(sk) || hasLoS(s, u, tgt)); }
+
+// a legal stand point near (x,y)? (in bounds + no overlap + not inside a wall)
+const standable = (s, x, y, except) => inBounds(s, x, y) && !collides(s, x, y, except) && !inWall(s, x, y);
+
+// ── deterministic terrain scatter — N walls + M hazards, keeping the spawn bands clear. ──
+export function scatterTerrain(seed, { W = 16, H = 16, walls = 3, hazards = 2 } = {}) {
+  const r = mulberry32((seed >>> 0) || 1), out = [];
+  const place = (kind, rad, effect) => {
+    for (let tries = 0; tries < 30; tries++) {
+      const x = 2 + r() * (W - 4), y = 3 + r() * (H - 6);       // keep off the top/bottom spawn bands
+      if (out.every((o) => dist(o, { x, y }) > o.r + rad + 1)) { out.push({ kind, x, y, r: rad, ...(effect ? { effect } : {}) }); return; }
+    }
+  };
+  const HZ = ['burn', 'mire', 'emp'];
+  for (let i = 0; i < walls; i++) place('wall', 1 + r() * 1.2);
+  for (let i = 0; i < hazards; i++) place('hazard', 1.2 + r() * 1.0, HZ[Math.floor(r() * HZ.length)]);
+  return out;
+}
 
 // move range (a radius now): base from speed, +faction moveBonus (Drift), shrunk to 1 while slowed.
 export function moveRange(u) {
@@ -146,12 +181,21 @@ export function moveRange(u) {
 // can `u` legally stand at (x,y) this move? (within radius R, in bounds, no overlap)
 export function canReach(s, u, x, y, R = moveRange(u)) { return dist(u, { x, y }) <= R + 1e-6 && standable(s, x, y, u); }
 
-// step `u` toward (tx,ty), travelling at most R and stopping `stopAt` short; backs off on collision.
+// step `u` toward (tx,ty), travelling at most R and stopping `stopAt` short. Tries the straight line
+// first, then deflected headings (local obstacle avoidance) so units round walls instead of stalling;
+// returns whichever reachable point gets CLOSEST to the goal. No RNG → deterministic.
 export function moveToward(s, u, tx, ty, R = moveRange(u), stopAt = 0) {
   const d = dist(u, { x: tx, y: ty }); if (d < 1e-6) return { x: u.x, y: u.y };
-  const ux = (tx - u.x) / d, uy = (ty - u.y) / d, travel = Math.min(R, Math.max(0, d - stopAt));
-  for (let t = travel; t > 0; t -= 0.25) { const x = u.x + ux * t, y = u.y + uy * t; if (standable(s, x, y, u)) return { x, y }; }
-  return { x: u.x, y: u.y };
+  const baseAng = Math.atan2(ty - u.y, tx - u.x), travel = Math.min(R, Math.max(0, d - stopAt));
+  let best = { x: u.x, y: u.y }, bestD = d;
+  for (const off of [0, 0.4, -0.4, 0.8, -0.8, 1.3, -1.3]) {        // straight, then deflect around obstacles
+    const a = baseAng + off;
+    for (let t = travel; t > 0.2; t -= 0.25) {
+      const x = u.x + Math.cos(a) * t, y = u.y + Math.sin(a) * t;
+      if (standable(s, x, y, u)) { const dd = dist({ x, y }, { x: tx, y: ty }); if (dd < bestD - 1e-6) { bestD = dd; best = { x, y }; } break; }
+    }
+  }
+  return best;
 }
 // step `u` directly away from (fx,fy), up to R; backs off on collision/bounds.
 export function moveAway(s, u, fx, fy, R = moveRange(u)) {
@@ -185,7 +229,7 @@ export function legal(s) {
     if (cost > u.flux) { skills[id] = { usable: false, reason: 'flux', targets: [] }; continue; }
     let targets = [];
     if (sk.kind === 'attack' || sk.kind === 'control' || sk.kind === 'debuff' || sk.kind === 'siphon' || sk.kind === 'blast' || sk.kind === 'agglomerate') {
-      targets = targetsInRange(s, u, sk.range || 1).map((e) => e.id);   // enemy-targeted (blast/agglomerate centre on a foe)
+      targets = enemiesOf(s, u).filter((e) => canTarget(s, u, e, sk)).map((e) => e.id);   // in range + (if ranged) clear LoS
       skills[id] = { usable: targets.length > 0, targets };
     } else if (sk.kind === 'revive') {
       targets = s.units.filter((x) => !x.alive && x.team === u.team && inRange(u, x, sk.range || 1)).map((x) => x.id);  // downed allies
@@ -272,6 +316,7 @@ export function act(s, action) {
     if (TARGETED.includes(sk.kind)) {
       const t = unitById(s, action.targetId);
       if (!t || !inRange(u, t, sk.range || 1)) return { type: 'illegal' };
+      if (needsLoS(sk) && !hasLoS(s, u, t)) return { type: 'illegal', reason: 'los' };   // a wall blocks the shot
       if (sk.kind === 'revive') { if (t.alive || t.team !== u.team) return { type: 'illegal' }; }
       else if (sk.kind === 'assist') { if (!t.alive || t.team !== u.team || t === u) return { type: 'illegal' }; }
       else { if (!t.alive || t.team === u.team) return { type: 'illegal' }; }   // offensive: a living enemy
@@ -381,6 +426,12 @@ function beginTurn(s) {
   const fac = FACTIONS[u.faction];
   if (fac?.passive?.fluxRegen) u.flux = Math.min(u.maxflux, u.flux + fac.passive.fluxRegen);
   if (fac?.passive?.regenPerTurn && u.hp > 0) u.hp = Math.min(u.maxhp, u.hp + Math.round(u.maxhp * fac.passive.regenPerTurn));
+  // hazard fields: standing in one at turn start bites — burn (HP), mire (slow), emp (flux drain).
+  for (const hz of hazardsAt(s, u.x, u.y)) {
+    if (hz.effect === 'burn') { const b = Math.max(1, Math.round(u.maxhp * 0.07)); u.hp = Math.max(0, u.hp - b); log(s, `${u.name} sears in the field −${b}`, 'hit'); if (u.hp <= 0) { u.alive = false; log(s, `${u.name} falls.`, 'down'); checkEnd(s); } }
+    else if (hz.effect === 'mire') { applyStatus(u, 'slow', 1); log(s, `${u.name} is mired`, 'info'); }
+    else if (hz.effect === 'emp') { const d = Math.min(4, u.flux); if (d) { u.flux -= d; log(s, `${u.name} bleeds ${d} Flux to the field`, 'info'); } }
+  }
   if (u.status.bleed?.turns > 0) {
     const b = Math.max(1, Math.round(u.maxhp * 0.05)); u.hp = Math.max(0, u.hp - b);
     log(s, `${u.name} bleeds −${b}`, 'hit');
@@ -478,8 +529,8 @@ export function aiStep(s, step) {
   }
   if (step.type === '__lance') {
     const tgt = unitById(s, step.targetId);
-    if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, SKILLS.lance.range) && costOf(u, 'lance') <= u.flux) return act(s, { type: 'skill', skillId: 'lance', targetId: tgt.id });
-    if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, 1)) return act(s, { type: 'skill', skillId: 'strike', targetId: tgt.id });  // fallback
+    if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, SKILLS.lance.range) && hasLoS(s, u, tgt) && costOf(u, 'lance') <= u.flux) return act(s, { type: 'skill', skillId: 'lance', targetId: tgt.id });
+    if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, 1)) return act(s, { type: 'skill', skillId: 'strike', targetId: tgt.id });  // fallback (melee ignores LoS)
     return { type: 'noop' };
   }
   if (step.type === '__flit_away') {
@@ -503,5 +554,6 @@ export default {
   createBattle, legal, act, endTurn, aiPlan, aiStep, runAiTurn,
   active, unitById, attackable, targetsInRange, isFlanking,
   dist, inRange, collides, canReach, moveToward, moveAway, UNIT_R,
+  hasLoS, canTarget, scatterTerrain,
   skillsFor, costOf, moveRange, SKILLS, UNIVERSAL, STATUS, makeUnit,
 };

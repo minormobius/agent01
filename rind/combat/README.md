@@ -18,8 +18,8 @@ Nothing in this directory deploys. It's a workbench.
 | `balance.mjs` | The headless balance harness — many seeded AI-vs-AI battles per faction matchup → a win/draw/TTK matrix. The reason the sandbox exists. |
 | `solver.js` | The **solvability oracle** (fable/forge analog) — searches the deterministic combat tree vs the AI to certify a player party can win, with par + margin + a difficulty grade. |
 | `dojo.html` | A visual tuner — pick factions + party sizes, roll a seed, step turns or auto-play, watch the log. |
-| `../test/combat.selftest.mjs` | 38 invariants (determinism, kits, legality, every verb incl. multi-agent, passives, termination). |
-| `../test/solver.selftest.mjs` | 11 invariants (determinism, easy-solvable, hard-unwinnable, det-mode math, grading). |
+| `../test/combat.selftest.mjs` | 45 invariants (determinism, kits, legality, every verb incl. multi-agent, terrain/LoS/hazards, passives, termination). |
+| `../test/solver.selftest.mjs` | 13 invariants (determinism, easy-solvable, hard-unwinnable, det-mode math, grading, terrain). |
 
 `stats.js`/`prng.js` are **vendored copies** (the fork-engine-copy-stats decision): the sandbox stays
 fully standalone and node-testable. If hoop's spine changes, re-sync these — don't let them drift.
@@ -31,6 +31,7 @@ node rind/test/combat.selftest.mjs          # 38 invariants (must be green befor
 node rind/combat/balance.mjs                 # the matchup matrix (300 battles/cell)
 node rind/combat/balance.mjs --n 1000        # tighter numbers
 node rind/combat/balance.mjs --party 2       # NvN party battles (multi-agent path)
+node rind/combat/balance.mjs --terrain       # scatter walls + hazards into every battle
 node rind/combat/balance.mjs --pair drift:rindwalker   # one matchup, verbose
 node rind/combat/balance.mjs --csv           # machine-readable
 node rind/test/solver.selftest.mjs           # the solvability oracle invariants
@@ -92,6 +93,10 @@ edge, **drift ↔ rindwalker** and **rindwalker ↔ continuant** are near-coinfl
   fact the grid hid.
 - **AoE scales superlinearly with party size** (`--party 2`): Drift's `blast` makes it markedly stronger
   at 2v2 than 1v1. Encounter design must account for this.
+- **Terrain needs navigation, not just geometry** (`--terrain`): with walls in play, straight-line
+  movement stalled the AI and draw rates spiked to ~70%. Adding *local deflection* to `moveToward` (round
+  the wall) pulled draws back to baseline and kept the triangle intact — but dense terrain would still
+  need real pathfinding (see roadmap).
 
 Tuning levers live in `factions.js` (move/crit/berserk/regen, kit, discounts) and the `engine.js` skill
 table (mults, costs, ranges, status durations). The harness is the feedback loop.
@@ -102,16 +107,21 @@ The sandbox is being grown toward a deeper game. Shipped: faction styles, the mu
 (summon/revive/assist/blast/agglomerate), range (lance), the AI archetypes, the **solvability oracle**
 (`solver.js`, the fable/forge analog below), and the **continuum board** (Euclidean positions, free-disk
 movement, radii ranges, body collision — `dist`/`moveToward`/`canReach` replaced the old grid layer).
-Still ahead:
+Also shipped: **terrain** — circular **walls** (block movement + line-of-sight) and **hazard fields**
+(`burn`/`mire`/`emp`, applied at turn start). Ranged/area verbs need a clear shot (`hasLoS`); melee and
+ally-support ignore LoS. `scatterTerrain(seed)` lays a deterministic field; `createBattle({terrain})`
+takes it; the oracle and balance harness honour it for free (it's all in the shared engine). Still ahead:
 
-- **Terrain on the continuum.** Cover, hazard fields, elevation/decks, and line-of-sight blockers for
-  ranged attacks — the continuum makes these organic (circles/polygons rather than tagged cells).
 - **Oracle v2.** Today `solver.js` searches a bounded macro-action menu against the AI, quantizing
   continuous positions (`Q`) to dedup. Next: real expectiminimax (robust to RNG, not just expected
   value), a **fragility** read (what fraction of lines lose), and forge-style **encounter generation** —
-  lay out foes + a board, let the oracle certify it solvable at a target difficulty, mint the n-th
+  lay out foes + terrain, let the oracle certify it solvable at a target difficulty, mint the n-th
   encounter as a permalink.
-- **Skill trees.** Seeded from `CONVERSIONS`; unlock kit verbs + passives, gated by items/narrative.
+- **Smarter terrain navigation.** `moveToward` does *local* obstacle deflection (rounds a wall), not
+  full pathfinding — fine for scattered cover, but a maze would still stall the AI. A nav layer (visibility
+  graph / A* over the free space) is the next step if terrain gets dense.
+- **Elevation / decks**, line-of-sight *cover bonuses* (partial), and **skill trees** (seeded from
+  `CONVERSIONS`, unlocking kit verbs + passives, gated by items/narrative).
 - **Skill trees.** The `CONVERSIONS` in `stats.js` are the seeds; unlocks gate via items + narrative
   (the existing progression model). A tree would unlock kit verbs + passives per faction.
 - **Range/terrain depth.** Cover, hazards, elevation (decks), line-of-sight for ranged attacks.

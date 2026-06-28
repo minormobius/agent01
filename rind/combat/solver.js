@@ -80,10 +80,10 @@ function playerPlans(s) {
 
 function engage(s, u, e, atkOpts) {
   for (const id of atkOpts) {
-    const R = E.SKILLS[id].range || 1;
-    if (E.inRange(u, e, R)) return [{ type: 'skill', skillId: id, targetId: e.id }, { type: 'end' }];
-    const p = E.moveToward(s, u, e.x, e.y, E.moveRange(u), R - 0.25);   // close to just inside this skill's range
-    if (E.inRange(p, e, R) && (p.x !== u.x || p.y !== u.y)) return [{ type: 'move', x: p.x, y: p.y }, { type: 'skill', skillId: id, targetId: e.id }, { type: 'end' }];
+    const sk = E.SKILLS[id];
+    if (E.canTarget(s, u, e, sk)) return [{ type: 'skill', skillId: id, targetId: e.id }, { type: 'end' }];   // in range + clear shot
+    const p = E.moveToward(s, u, e.x, e.y, E.moveRange(u), (sk.range || 1) - 0.25);   // close to just inside range
+    if ((p.x !== u.x || p.y !== u.y) && E.canTarget(s, { x: p.x, y: p.y }, e, sk)) return [{ type: 'move', x: p.x, y: p.y }, { type: 'skill', skillId: id, targetId: e.id }, { type: 'end' }];
   }
   return advance(s, u, e);   // couldn't reach to strike → just close in
 }
