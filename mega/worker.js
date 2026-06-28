@@ -4,6 +4,7 @@
 // genome + cell rects). Everything is deterministic from the query, so responses are immutable.
 import { genomeFromParams, frameSVG, frameRects, dirFromKey, DIR8 } from './sprite/core.js';
 import { beeAtlas, beeSVG } from './bees/swarm.js';
+import { buildRadialGenome, radialSVG, radialFrame } from './sprite/radial/radial.js';
 
 const CORS = { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods':'GET,OPTIONS', 'Access-Control-Allow-Headers':'*' };
 const json = (o,status)=> new Response(JSON.stringify(o,null,2), {status:status||200, headers:{'content-type':'application/json; charset=utf-8', ...CORS}});
@@ -34,6 +35,8 @@ function api(url){
       'GET /sprite/api/sprite.svg':'params: seed,size,arch,dir(S..NW),phase,scale,sym,head,legs,eyes,item → image/svg+xml',
       'GET /sprite/api/sprite.json':'same params → genome + cell rects',
       'GET /sprite/api/walk.json':'+ frames → full 8-direction walk-cycle rects',
+      'GET /sprite/api/radial.svg':'radial echinoderm still. params: seed,arms,depth,splay,taper,writhe,glow,accentHue,size,scale → image/svg+xml',
+      'GET /sprite/api/radial.json':'same params → radial genome + rest-pose rects',
     }, archetypes:['balanced','dormitory','company','commons'] });
 
   const g = genomeFromParams(p);
@@ -55,7 +58,20 @@ function api(url){
     for(const d of DIR8){ dirs[d.k]=[]; for(let f=0;f<frames;f++) dirs[d.k].push(frameRects(g,d,f)); }
     return json({ seed:g.seed, size:g.size, frames, dirs });
   }
-  return json({error:'unknown endpoint', endpoints:['sprite.svg','sprite.json','walk.json']}, 404);
+  if(route==='radial.svg' || route==='radial.json'){
+    const rg = buildRadialGenome(p.seed!=null?String(p.seed):'echino:0', {
+      arms:+p.arms||undefined, depth:p.depth!=null?+p.depth:undefined,
+      splay:p.splay!=null?+p.splay:undefined, taper:p.taper!=null?+p.taper:undefined,
+      writhe:p.writhe!=null?+p.writhe:undefined, glow:p.glow!=null?+p.glow:undefined,
+      accentHue:p.accentHue!=null?+p.accentHue:undefined, size:p.size!=null?+p.size:undefined });
+    if(route==='radial.svg'){
+      const scale=Math.max(1,Math.min(48,Math.round(+(p.scale||12))||12));
+      return new Response(radialSVG(rg, scale), {headers:{
+        'content-type':'image/svg+xml; charset=utf-8','cache-control':'public, max-age=31536000, immutable', ...CORS }});
+    }
+    return json({ seed:rg.seed, arms:rg.arms, depth:rg.depth, size:rg.size, rects:radialFrame(rg, null, rg.size) });
+  }
+  return json({error:'unknown endpoint', endpoints:['sprite.svg','sprite.json','walk.json','radial.svg','radial.json']}, 404);
 }
 
 // ── /bees/api/* — the portable BAKE for the swarm. Motion is live in the browser/engine; the
