@@ -157,6 +157,13 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   supply edge along a road-restricted graph (≥90% on-road), so packets stream the grown concourse to the
   fulfillment hub + up the lift, not straight lines. To enable the nav, `packChunk` emits cell `adj` + room
   `doorPairs`, so forge records are **buildWalk-compatible**.
+  **Two decks** (`TRACKS.md`): a probe (`tracks.js`) showed a separate non-intersecting pedestrian track is a
+  **planar impossibility in 2D** (the foam is road+rooms with no interstitial space; the concourse IS the
+  connectivity) — so the answer is the blood-vessel one: **stack two decks** (`deck2.js#twoDeckFactory`) — the
+  material floor + a pedestrian mezzanine (office per facility + catwalks), joined by a **corkscrew ramp** at
+  each facility (`rampPoint`, the voronoi-foam stairwell; the fulfillment ramp continues to the nave). Iso
+  view `hoop.mino.mobi/forge/stack` (explode slider separates the layers; packets on the floor, technicians
+  on the catwalks, cars on the ramps). Pinned by `forge/test/{tracks,deck2}.selftest.mjs`.
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

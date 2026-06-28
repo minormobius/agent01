@@ -185,8 +185,13 @@ the concourse *is* the connectivity (remove it → ~130 isolated room-pockets), 
 everywhere-reaching network can't also be connected. It doesn't degenerate to a spiral; two such nets just
 don't exist in the plane. Blood vessels evade this with the **third dimension** — so the answer is **two
 decks** (material deck + pedestrian deck, joined by lifts at each facility). Pinned by
-`test/tracks.selftest.mjs` (8). Resolution A (two decks) is the proposed build; B (divided concourse) and C
-(regenerate foam with interstitial corridors) are the alternatives in `TRACKS.md`.
+`test/tracks.selftest.mjs` (8). **Resolution A is built** (`deck2.js#twoDeckFactory`): the material floor
+(the forge region) + a pedestrian mezzanine (an office over each facility + catwalks over the trunks),
+joined by a **corkscrew ramp** at each facility (`rampPoint`, a helix deck 0 → deck 1 — the "weird ramp like
+stairs" through the foam; the fulfillment ramp continues to the nave). Isometric view at
+`hoop.mino.mobi/forge/stack` (explode slider pulls the two layers apart; packets ride the floor, technicians
+the catwalks, cars climb the ramps). Pinned by `test/deck2.selftest.mjs` (9). B (divided concourse) and C
+(interstitial corridors) remain alternatives in `TRACKS.md`.
 
 ## Open seams (parked)
 

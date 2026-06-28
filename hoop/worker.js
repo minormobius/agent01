@@ -177,6 +177,10 @@ export default {
     if (url.pathname === '/forge/walk' || url.pathname === '/forge/walk/') {
       return env.ASSETS.fetch(new Request(new URL('/forge/walk.html', url), request));
     }
+    // forge/stack — the two-deck factory: material floor + pedestrian mezzanine, isometric.
+    if (url.pathname === '/forge/stack' || url.pathname === '/forge/stack/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/stack.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

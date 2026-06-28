@@ -51,5 +51,15 @@ material floor, with a drop-shaft at each facility core where a technician meets
 
 - `tracks.js#twoTracks(reg)` — the probe: grows the two-thin-tree attempt and reports the obstruction
   (`disjoint`, `interstitialFrac`, `concourseComplement`, `material/pedestrian.reached`, `feasibleIn2D`).
-- Pinned by `test/tracks.selftest.mjs` (8). **No track feature shipped yet** — this is the feasibility
-  finding that says *which* resolution to build. Resolution A (two decks) is the proposed next step.
+  Pinned by `test/tracks.selftest.mjs` (8).
+- **Resolution A is built** — `deck2.js#twoDeckFactory(seed)` stacks the material floor (the forge region)
+  and a pedestrian mezzanine (an office over each facility + catwalks following the trunks), joined by a
+  **corkscrew ramp** at each facility (`rampPoint` — a helix climbing deck 0 → deck 1; the fulfillment ramp
+  continues to the nave). Non-intersecting because they're at different heights. Live isometric view at
+  `hoop.mino.mobi/forge/stack` (`stack.html` + `stack-app.js`: explode slider to pull the decks apart,
+  zoom/pan; packets ride the floor, technicians the catwalks, cars climb the ramps). Pinned by
+  `test/deck2.selftest.mjs` (9). The ramp is the "weird ramp like stairs" the voronoi foam wanted — the
+  corkscrew through the cells is the deck-to-deck stairwell.
+- **Next:** make the mezzanine a real walkable deck in `/forge/walk` (descend a ramp to the floor), and
+  grow the pedestrian network its OWN way (offices ↔ offices, not just over the freight trunks); B/C remain
+  the alternatives if a single-deck answer is ever wanted.
