@@ -2,7 +2,7 @@
 // the circumference (the ring closes), infinite along the axis (it streams). The directionality: naves on
 // the inner shell, production stratified outward. node hoop/forge/test/infinitefoam.selftest.mjs
 
-import { hubAt, shipWindow, minCrossDistance, DEFAULTS, SHELL } from '../infinitefoam.js';
+import { hubAt, shipWindow, shipStructure, minCrossDistance, DEFAULTS, SHELL } from '../infinitefoam.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -45,6 +45,39 @@ ok(minCrossDistance(win) > DEFAULTS.Tz * 0.15, `the two systems interpenetrate b
 // ── nave density on the inner shell ≈ the field probability ──
 let nN = 0, nH = 0; for (let s = 0; s < 8; s++) { const w = shipWindow(s * 9000, 300); nN += w.naves.length; nH += w.material.hubs.filter((h) => h.ir === 0).length; }
 ok(Math.abs(nN / nH - DEFAULTS.naveProb) < 0.08, `nave density on the inner shell ≈ field probability (${(nN / nH).toFixed(2)} ~ ${DEFAULTS.naveProb})`);
+
+// ── POWER + WATER: the 3rd & 4th path sets — major trunks rising from the lower rind ──
+const wu = shipWindow(0, 300);
+ok(wu.power.hubs.length > 5 && wu.water.hubs.length > 5, `power & water trunk systems are present (${wu.power.hubs.length} / ${wu.water.hubs.length})`);
+ok(wu.power.hubs.some((h) => h.ir === DEFAULTS.Nr - 1), 'power trunks run along the deepest shell (against the lower rind)');
+ok(wu.power.hubs.some((h) => h.ir < DEFAULTS.Nr - 1), 'power risers climb inward to feed production');
+// power & water never share a slot/point (interleaved azimuthally)
+let umin = Infinity; for (const a of wu.power.hubs) for (const b of wu.water.hubs) { const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2; if (d < umin) umin = d; }
+ok(Math.sqrt(umin) > 1, `power & water are interleaved — never coincide (gap ${Math.sqrt(umin).toFixed(0)})`);
+// trunks are deeper (larger ρ) than the production they feed — they come UP from the lower rind
+const trunkRho = wu.power.hubs.filter((h) => h.ir === DEFAULTS.Nr - 1)[0].rho;
+ok(trunkRho > DEFAULTS.R0 + DEFAULTS.Tr, 'trunks sit deep in the rind (outer shells), rising from below');
+// utilities stream too (the seam contract)
+const ua = shipWindow(0, 300), ub = shipWindow(270, 300);
+const upa = new Set(ua.power.hubs.map((h) => h.key));
+ok(ub.power.hubs.some((h) => upa.has(h.key)) && ub.power.hubs.some((h) => !upa.has(h.key)), 'utility trunks stream along the axis (overlap + new ahead)');
+
+// ── RIND STRUCTURE: the {N/k} secant-cable web, hooped + advanced axially ──
+const st = shipStructure(0, 300);
+ok(st.cables.length > 10 && st.hoops.length > 4 && st.stringers.length === (st.opt.Nstr || 9), `structure has cables, hoops & stringers (${st.cables.length}/${st.hoops.length}/${st.stringers.length})`);
+// every cable joins anchors k apart around the ring (the {N/k} star polygon) — and both mirrored families exist
+const sep = (c) => { let d = Math.abs(c.a.i - c.b.i); return Math.min(d, st.N - d); };
+ok(st.cables.every((c) => sep(c) === st.k), `every cable is the k-th chord — an {${st.N}/${st.k}} web`);
+ok(st.cables.some((c) => c.fam === 'A') && st.cables.some((c) => c.fam === 'B'), 'two mirrored families (counter-rotating helices that cross axially)');
+// each cable is a SECANT: it advances axially (b.z > a.z) and cuts across the bore, clearing the centre
+ok(st.cables.every((c) => c.b.z > c.a.z), 'cables advance along the axis (the hyperboloid twist)');
+const segCore = (c) => { const ax = c.b.x - c.a.x, ay = c.b.y - c.a.y, az = c.b.z - c.a.z, L2 = ax * ax + ay * ay + az * az; let t = -(c.a.x * ax + c.a.y * ay + c.a.z * az) / L2; t = Math.max(0, Math.min(1, t)); const x = c.a.x + t * ax, y = c.a.y + t * ay; return Math.hypot(x, y); };
+let nearest = Infinity; for (const c of st.cables) nearest = Math.min(nearest, segCore(c));
+ok(nearest > st.coreClear - 1 && st.coreClear > 0 && st.coreClear < st.ROUT, `cables keep the bore open — nearest approach ≈ coreClear (${nearest.toFixed(0)} ~ ${st.coreClear.toFixed(0)} < ${st.ROUT})`);
+// structure streams: a shared bay agrees across overlapping windows
+const sa = shipStructure(0, 300), sb = shipStructure(360, 300);
+const sak = new Set(sa.cables.map((c) => c.m + '.' + c.i + c.fam));
+ok(sb.cables.some((c) => sak.has(c.m + '.' + c.i + c.fam)), 'the cable web streams — overlapping windows share bays');
 
 console.log(`\ninfinitefoam.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

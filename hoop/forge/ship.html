@@ -7,7 +7,7 @@
 <title>the forge · the infinite ship</title>
 <meta name="description" content="The rind is an O'Neill cylinder's shell, seen down the bore: naves stud the inner skin, production stratifies outward shell by shell, two interpenetrating vessel lattices (material arteries · pedestrian veins) thread it without ever touching. Bounded in radius and circumference, infinite along the axis — fly W/S and the tunnel streams forever." />
 <style>
-  :root { --ink:#e6e8ee; --soft:#8794a6; --accent:#e0772f; --mat:#f4bf62; --ped:#5fd0e0; --nave:#ffd9a0; }
+  :root { --ink:#e6e8ee; --soft:#8794a6; --accent:#e0772f; --mat:#f4bf62; --ped:#5fd0e0; --nave:#ffd9a0; --pow:#b88eff; --wat:#4f8cff; --cable:#7fe6a0; }
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:#03040a; color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:hidden; }
   #cv { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
@@ -18,6 +18,7 @@
   #read { font-size:11px; color:var(--soft); } #read b { color:var(--ink); }
   .key { display:flex; flex-direction:column; gap:3px; margin-top:9px; font-size:10.5px; color:var(--soft); }
   .key .r { display:flex; align-items:center; gap:6px; } .key .sw { width:11px; height:4px; border-radius:2px; flex:none; } .key .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .key .tog { cursor:pointer; user-select:none; transition:opacity .12s; } .key .tog:hover { color:var(--ink); } .key .n { color:#566173; font-size:9px; }
   .crumb { position:fixed; left:12px; bottom:12px; color:var(--soft); font-size:11px; } .crumb a { color:var(--accent); text-decoration:none; }
   .hint { position:fixed; right:12px; bottom:12px; color:#566173; font-size:10.5px; text-align:right; }
   .ctrls { position:fixed; right:12px; top:12px; display:flex; gap:6px; }
@@ -28,17 +29,20 @@
 <canvas id="cv"></canvas>
 <div id="hud">
   <h1>the infinite ship · production</h1>
-  <p class="sub">the rind is the shell of an <b>O'Neill cylinder</b> — you're looking down its <b>bore</b>. The <b style="color:var(--nave)">naves</b> stud the inner skin (<b>up</b> is inward, toward the bioengine); production stratifies <b>outward</b> shell by shell; the lower rind is the dim rim (deferred). Two interpenetrating vessel lattices — <b style="color:var(--mat)">material arteries</b> &amp; <b style="color:var(--ped)">pedestrian veins</b> — thread it, never touching. Bounded in radius &amp; circumference, <b>infinite along the axis</b>.</p>
+  <p class="sub">the rind is the shell of an <b>O'Neill cylinder</b> — you're looking down its <b>bore</b>. The <b style="color:var(--nave)">naves</b> stud the inner skin (<b>up</b> is inward, toward the bioengine); production stratifies <b>outward</b> shell by shell; the lower rind is the dim rim (deferred). Four path sets thread it — <b style="color:var(--mat)">material</b> &amp; <b style="color:var(--ped)">pedestrian</b> mesh, plus <b style="color:var(--pow)">power</b> &amp; <b style="color:var(--wat)">water</b> trunks rising from the lower rind — and the rind's own <b style="color:var(--cable)">secant-cable</b> skeleton carries the load. Bounded in radius &amp; circumference, <b>infinite along the axis</b>.</p>
   <div id="read">—</div>
   <div class="key">
-    <div class="r"><span class="sw" style="background:var(--mat)"></span>material arteries (spiderbots · freight)</div>
-    <div class="r"><span class="sw" style="background:var(--ped)"></span>pedestrian veins (the maintenance crew)</div>
-    <div class="r"><span class="dot" style="background:var(--nave)"></span>a nave — a finite little society (organ)</div>
+    <div class="r tog" id="chip-material"><span class="sw" style="background:var(--mat)"></span><span class="n">1</span> material arteries (freight)</div>
+    <div class="r tog" id="chip-pedestrian"><span class="sw" style="background:var(--ped)"></span><span class="n">2</span> pedestrian veins (the crew)</div>
+    <div class="r tog" id="chip-power"><span class="sw" style="background:var(--pow)"></span><span class="n">3</span> power trunks (from the lower rind)</div>
+    <div class="r tog" id="chip-water"><span class="sw" style="background:var(--wat)"></span><span class="n">4</span> water trunks (from the lower rind)</div>
+    <div class="r tog" id="chip-structure"><span class="sw" style="background:var(--cable)"></span><span class="n">5</span> rind structure (secant cables · beams)</div>
+    <div class="r tog" id="chip-naves"><span class="dot" style="background:var(--nave)"></span><span class="n">6</span> naves — finite little societies</div>
   </div>
 </div>
 <div class="ctrls"><button id="drift">⏸ drift</button><button id="reset">⌖</button></div>
 <div class="crumb"><a href="/">◍ hoop</a> · <a href="/forge">⚙ forge</a> · <a href="/forge/foam3d">⬢ two species</a> · <a href="/forge/tower">⌗ tower</a> · the ship</div>
-<div class="hint">drag to look · WASD + Q/E to fly through · scroll to zoom<br>the ship streams around you — there is no edge</div>
+<div class="hint">drag to look · W/S fly the axis · A/D roll the tube · scroll zoom · 1–6 toggle layers<br>the ship streams around you — there is no edge</div>
 <script type="module" src="./ship-app.js"></script>
 </body>
 </html>

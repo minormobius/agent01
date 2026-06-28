@@ -196,10 +196,18 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   hub/vessel/nave is a pure function of `(iz, ith mod Nth, ir)` + ship seed, so `shipWindow(centerA,span)`
   (a band along the axis × full ring × full thickness) streams forever and overlapping axial windows agree.
   `hoop.mino.mobi/forge/ship` looks **down the bore** (WASD fly axially, A/D roll, the shell wall curving
-  around you, vessels converging to the vanishing point, naves on the inner skin, axis → ∞). Pinned by
-  `forge/test/infinitefoam.selftest.mjs` (15: ring closes, radius bounded, naves inner-only, outward
-  stratification, axial windows agree, two systems never coincide). `/ship` = the whole production layer;
-  `/slices` = a local drop-in. The pipe was the microscope slide, not the ship.
+  around you, vessels converging to the vanishing point, naves on the inner skin, axis → ∞).
+  **Four path sets + structure** (keys 1–6 / legend chips toggle all six layers): the fine **material·pedestrian**
+  mesh, plus **power·water** *major trunks* rising from the lower rind (bold lines along the deepest shell
+  `ir=Nr-1` with radial risers feeding inward — `win.power`/`win.water`, `utilHub`), and the rind's own
+  **secant-cable skeleton** (`shipStructure`) lifted straight from `/rind`'s `research.js`: an `{N/k}` star
+  polygon (N rim anchors → the k-th, each cable a chord/secant across the bore) **advanced one bay axially** →
+  counter-rotating helices that cross (Shukhov hyperboloid), keeping the bore open by `coreClear=ROUT·cos(πk/N)`
+  (the dashed teal core-clearance circle), plus hoops + stringers. Defaults match `/rind` (N=18, k=5). Pinned by
+  `forge/test/infinitefoam.selftest.mjs` (27: ring closes, radius bounded, naves inner-only, outward
+  stratification, axial windows agree, two systems never coincide; power/water deep+interleaved+streaming; the
+  `{N/k}` web, both families, cables advance + clear the core, the web streams). `/ship` = the whole production
+  layer; `/slices` = a local drop-in. The pipe was the microscope slide, not the ship.
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

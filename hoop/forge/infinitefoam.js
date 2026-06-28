@@ -62,6 +62,25 @@ export function shipWindow(centerA, span, o = {}) {
       for (const n of nb) if (inBand(h) || inBand(n)) net.edges.push([h, n]);
     }
   }
+  // power + water: a few bold trunks along the deep shell (ir = Nr-1, against the lower rind) + radial risers
+  // climbing inward to feed production. Major arterials, not mesh.
+  const NT = opt.Ntrunk || NTRUNK, irTrunk = Nr - 1;
+  for (const kind of ['power', 'water']) {
+    const net = out[kind] = { hubs: [], edges: [] }, inBand = (h) => Math.abs(h.a - centerA) <= span;
+    for (let s = 0; s < NT; s++) {
+      let prev = null;
+      for (let iz = iz0; iz <= iz1; iz++) {
+        const h = utilHub(iz, s, irTrunk, kind, opt);
+        if (inBand(h)) net.hubs.push(h);
+        if (prev && (inBand(prev) || inBand(h))) net.edges.push([prev, h]);
+        prev = h;
+        if (((iz + (kind === 'water' ? 1 : 0)) % 3) === 0) {     // a riser every 3 stations (staggered by utility)
+          let pr = h;
+          for (let ir = irTrunk - 1; ir >= 1; ir--) { const r = utilHub(iz, s, ir, kind, opt); if (inBand(r)) net.hubs.push(r); net.edges.push([pr, r]); pr = r; }
+        }
+      }
+    }
+  }
   return out;
 }
 
@@ -69,4 +88,42 @@ export function minCrossDistance(win) {
   let md = Infinity;
   for (const a of win.material.hubs) for (const b of win.pedestrian.hubs) { const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2; if (d < md) md = d; }
   return Math.sqrt(md);
+}
+
+// ── UTILITY TRUNKS: power + water, the 3rd & 4th path sets ────────────────────────────────────────────────
+// Unlike the fine material/pedestrian mesh, these are MAJOR ARTERIALS rising from the lower rind: a few bold
+// trunks running clean & straight along the deepest shell (ir = Nr-1, against the lower rind), with periodic
+// radial RISERS climbing inward to feed production. Power & water are interleaved azimuthally so they never
+// share a slot. Pure functions of (iz, slot, ir) + seed → same seam contract as everything else.
+const NTRUNK = 6;                                  // trunk slots around the ring (per utility)
+function utilHub(iz, slot, ir, kind, o) {
+  const opt = { ...DEFAULTS, ...o }, { Tz, Nth, R0, Tr } = opt, NT = opt.Ntrunk || NTRUNK;
+  const phase = kind === 'power' ? 0 : 0.5;          // interleave the two utilities between slots
+  const ithF = (slot + phase) * (Nth / NT);
+  const a = iz * Tz, phi = (ithF / Nth) * Math.PI * 2, rho = R0 + ir * Tr;
+  return { iz, slot, ir, kind, a, phi, rho, x: rho * Math.cos(phi), y: rho * Math.sin(phi), z: a, key: kind[0] + iz + '.' + slot + '.' + ir };
+}
+
+// ── RIND STRUCTURE: the load path the foam doesn't walk alone (from /rind's research.js) ──────────────────
+// The secant-cable web — an {N/k} star polygon of N rim anchors each joined to the k-th, every cable a CHORD
+// (a secant of the ring) cutting across the bore to carry hoop tension. Here the planar web is ADVANCED one
+// bay along the axis, so the two mirrored families (i→i+k and i→i−k) become counter-rotating helices that
+// CROSS in the traverse (the Shukhov hyperboloid) while still reading as the {N/k} rose down the bore. Plus
+// ring hoops + axial stringers. The cables stay clear of the bore centre by coreClear = ROUT·cos(πk/N).
+export function shipStructure(centerA, span, o = {}) {
+  const opt = { ...DEFAULTS, ...o }, { Tz, Nth, Nr, R0, Tr } = opt;
+  const ROUT = R0 + Nr * Tr, Rin = R0;
+  const N = opt.anchorsN || 18, k = opt.cableK || 5, pitch = (opt.cableBay || 2) * Tz;
+  const ang = Math.PI * k / N, coreClear = ROUT * Math.cos(ang);     // nearest approach of any chord to the axis
+  const anchor = (i, z) => { const th = 2 * Math.PI * (((i % N) + N) % N) / N; return { x: ROUT * Math.cos(th), y: ROUT * Math.sin(th), z, i: ((i % N) + N) % N }; };
+  const out = { N, k, coreClear, ROUT, Rin, hoops: [], stringers: [], cables: [], opt };
+  const iz0 = Math.floor((centerA - span) / Tz) - 1, iz1 = Math.ceil((centerA + span) / Tz) + 1;
+  for (let iz = iz0; iz <= iz1; iz++) { if (iz % 2) continue; const z = iz * Tz; if (Math.abs(z - centerA) <= span + Tz) { out.hoops.push({ z, rho: ROUT, kind: 'outer' }); out.hoops.push({ z, rho: Rin, kind: 'inner' }); } }
+  const Nstr = opt.Nstr || 9, z0 = centerA - span, z1 = centerA + span;
+  for (let s = 0; s < Nstr; s++) { const th = 2 * Math.PI * s / Nstr; out.stringers.push({ x: ROUT * Math.cos(th), y: ROUT * Math.sin(th), z0, z1 }); }
+  const m0 = Math.floor((centerA - span) / pitch) - 1, m1 = Math.ceil((centerA + span) / pitch) + 1;
+  for (let m = m0; m <= m1; m++) { const za = m * pitch, zb = za + pitch; if (zb < centerA - span || za > centerA + span) continue;
+    for (let i = 0; i < N; i++) { out.cables.push({ a: anchor(i, za), b: anchor(i + k, zb), fam: 'A', m, i }); out.cables.push({ a: anchor(i, za), b: anchor(i - k, zb), fam: 'B', m, i }); }
+  }
+  return out;
 }

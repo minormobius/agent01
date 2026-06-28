@@ -284,9 +284,27 @@ runs to ∞ (fly W/S; A/D roll the tube). Pinned by `test/infinitefoam.selftest.
 radius is bounded to `Nr` shells, naves only on `ir 0`, assembly→reclaim stratifies outward, overlapping
 axial windows agree, travel reveals new ship, the two systems never coincide, naves are a Bernoulli field).
 
+**Four path sets, not two.** On top of the fine **material · pedestrian** mesh, two more — **power · water** —
+run as *major arterials* rising from the lower rind: a few bold trunks along the deepest shell (`ir = Nr-1`,
+against the lower rind), with periodic radial **risers** climbing inward to feed production. They're
+interleaved azimuthally (`utilHub`, `NTRUNK` slots) so they never share a slot, and they stream on the same
+seam contract as everything else (`win.power` / `win.water`). Trunk character, not mesh — bold, sparse, deep.
+
+**The rind's own skeleton (toggleable).** `shipStructure(centerA, span)` lays the structure the foam doesn't
+walk alone — straight from `/rind`'s `research.js`: the **secant-cable web**, an `{N/k}` star polygon of `N`
+rim anchors each joined to the k-th, every cable a **chord** (a secant of the ring) cutting across the bore to
+carry hoop tension. Here the planar web is **advanced one bay along the axis**, so the two mirrored families
+(`i→i+k`, `i→i−k`) become **counter-rotating helices that cross** in the traverse (the Shukhov hyperboloid)
+while still reading as the `{N/k}` rose down the bore — and they keep the bore centre open by
+`coreClear = ROUT·cos(πk/N)` (drawn as `/rind`'s dashed teal core-clearance circle). Plus ring **hoops** at the
+shell boundaries and axial **stringers**. Defaults match `/rind`: `N=18`, `k=5`. The `/ship` viewer toggles
+all six layers (keys 1–6 / legend chips); structure-only is the woven hyperboloid, utility-only the trunks.
+Pinned by the same selftest (27 total: power/water present + deep + interleaved + streaming; the `{N/k}` web,
+both families, cables advance + clear the core, the web streams).
+
 So the two scales are complementary: **`/forge/ship`** is the infinite circulation (the whole production
-layer); **`/forge/slices`** is the local plan+section when you drop into one locale. The pipe was never the
-ship — it was the microscope slide.
+layer — four path sets threading a load-bearing secant skeleton); **`/forge/slices`** is the local
+plan+section when you drop into one locale. The pipe was never the ship — it was the microscope slide.
 
 ## Open seams (parked)
 

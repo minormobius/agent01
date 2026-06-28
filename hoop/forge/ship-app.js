@@ -7,7 +7,7 @@
 // Bounded in radius + circumference (the ring closes around you), INFINITE along the axis: fly W/S and the
 // tunnel streams forever, new ship resolving out of the fog ahead.
 
-import { shipWindow, DEFAULTS, SHELL } from './infinitefoam.js';
+import { shipWindow, shipStructure, DEFAULTS, SHELL } from './infinitefoam.js';
 import { ENGINES } from './engines.js';
 
 const $ = (id) => document.getElementById(id);
@@ -18,17 +18,21 @@ const R0 = OPT.R0, ROUT = OPT.R0 + OPT.Nr * OPT.Tr;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0;
-let a0 = 0, win = null;            // a0 = axial position; the player flies along the infinite axis
+let a0 = 0, win = null, struct = null;   // a0 = axial position; the player flies along the infinite axis
 let yaw = 0.0, pitch = 0.13, Z = 1.0, clock = 0, drift = false;
 const keys = new Set();
 const FOC = 560, CAMBACK = 250, NEAR = 26;     // perspective: focal length, camera set-back, near clip
 const MAT = [244, 191, 98], PED = [95, 208, 224], NAVE = [255, 214, 150];
+const POWER = [184, 142, 255], WATER = [79, 140, 255];          // the 3rd & 4th path sets (utility trunks)
+const CABLE = [127, 230, 160], BEAM = [134, 148, 172];          // rind structure: secant cables (held/green), beams
 const roleCol = { nave: NAVE, assembly: [244, 191, 98], refine: [95, 208, 224], foundry: [224, 119, 47], reclaim: [207, 107, 74], lower: [98, 108, 128] };
+// which layers are lit (toggle with the legend chips or keys 1–6)
+const show = { material: true, pedestrian: true, power: true, water: true, structure: true, naves: true };
 
-function rewindow() { win = shipWindow(a0 + SPAN * 0.45, SPAN, OPT); readout(); }   // window biased ahead → a long tunnel
+function rewindow() { const c = a0 + SPAN * 0.45; win = shipWindow(c, SPAN, OPT); struct = shipStructure(c, SPAN, OPT); readout(); }   // window biased ahead → a long tunnel
 function readout() {
   $('read').innerHTML = `axial <b>${a0 | 0}</b> · ahead of you: <b style="color:#ffd696">${win.naves.length} naves</b> on the inner skin · ${win.material.hubs.length} artery hubs<br>` +
-    `<span style="color:#566173">radius bounded (${OPT.Nr} shells) · the ring closes around you · the axis runs to ∞ — fly W/S</span>`;
+    `<span style="color:#566173">4 path sets + an {${struct.N}/${struct.k}} secant web · radius bounded (${OPT.Nr} shells) · the ring closes · axis → ∞ (fly W/S)</span>`;
 }
 
 // PERSPECTIVE down the bore. Camera on the axis at a0, looking along +axis. yaw rolls the tube; pitch tilts
@@ -46,10 +50,16 @@ function proj(p) {
 const fog = (depth) => Math.max(0.04, Math.min(1, 1.15 - (depth - CAMBACK) / (2.1 * SPAN)));  // recede into ∞
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-function ring(rho, z, alpha) {   // a guide circle of the cylinder at radius rho, axial station z
+function ringC(rho, z, alpha, col, dash) {   // a circle of the cylinder at radius rho, axial station z
   ctx.beginPath(); let started = false;
   for (let k = 0; k <= 56; k++) { const a = k / 56 * Math.PI * 2, p = proj({ x: rho * Math.cos(a), y: rho * Math.sin(a), z }); if (p.cull) { started = false; continue; } if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y); }
-  ctx.strokeStyle = `rgba(150,170,200,${alpha})`; ctx.lineWidth = 1; ctx.stroke();
+  ctx.setLineDash(dash || []); ctx.strokeStyle = rgba(col, alpha); ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
+}
+const ring = (rho, z, alpha) => ringC(rho, z, alpha, [150, 170, 200]);
+function polyZ(x, y, z0, z1, col, alpha) {   // an axial beam (stringer) from z0→z1 at fixed (x,y), cull-aware
+  ctx.beginPath(); let started = false; const STEP = OPT.Tz;
+  for (let z = z0; z <= z1 + 1e-3; z += STEP) { const p = proj({ x, y, z }); if (p.cull) { started = false; continue; } if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y); }
+  ctx.strokeStyle = rgba(col, alpha); ctx.lineWidth = 1; ctx.stroke();
 }
 
 function render() {
@@ -58,19 +68,36 @@ function render() {
 
   // guide rings: the inner skin (R0, where the naves live) + the outer rind boundary (ROUT), at a ladder of
   // axial stations marching into the bore → the tube. Far rings dimmer (fog) → it recedes to a vanishing pt.
-  for (let dz = -CAMBACK + 60; dz <= SPAN * 1.6; dz += OPT.Tz * 1.5) { const f = fog(dz + CAMBACK); ring(R0, a0 + dz, 0.26 * f); ring(ROUT, a0 + dz, 0.13 * f); }
+  for (let dz = -CAMBACK + 60; dz <= SPAN * 1.6; dz += OPT.Tz * 1.5) { const f = fog(dz + CAMBACK); ring(R0, a0 + dz, 0.22 * f); ring(ROUT, a0 + dz, 0.10 * f); }
 
-  // drawables: vessels + hubs + naves, painter-sorted far→near
+  // rind STRUCTURE (background members): hoops at the shell boundaries, axial stringers, + the dashed
+  // core-clearance circle (the bore the secant cables keep open — /rind's teal convention). Cables themselves
+  // depth-sort with the vessels below so the woven hyperboloid reads in front of the far wall.
+  if (show.structure && struct) {
+    for (const ho of struct.hoops) { const f = fog((ho.z - a0) + CAMBACK); if (f <= 0.05) continue; ringC(ho.rho, ho.z, (ho.kind === 'outer' ? 0.32 : 0.16) * f, BEAM); }
+    for (const sg of struct.stringers) polyZ(sg.x, sg.y, sg.z0, sg.z1, BEAM, 0.2);
+    for (const dz of [SPAN * 0.15, SPAN * 0.6]) ringC(struct.coreClear, a0 + dz, 0.3 * fog(dz + CAMBACK), [96, 196, 196], [4, 5]);
+  }
+
+  // drawables: vessels + trunks + cables + hubs + naves, painter-sorted far→near
   const items = [];
-  for (const [h, n] of win.material.edges) { const a = proj(h), b = proj(n); if (!a.cull && !b.cull) items.push({ t: 'e', col: MAT, a, b, depth: (a.d + b.d) / 2 }); }
-  for (const [h, n] of win.pedestrian.edges) { const a = proj(h), b = proj(n); if (!a.cull && !b.cull) items.push({ t: 'e', col: PED, a, b, depth: (a.d + b.d) / 2 }); }
-  for (const h of win.material.hubs) { const p = proj(h); if (!p.cull) items.push({ t: h.nave ? 'nave' : 'h', col: roleCol[h.role] || MAT, p, hub: h, depth: p.d }); }
-  for (const h of win.pedestrian.hubs) { const p = proj(h); if (!p.cull) items.push({ t: 'p', col: PED, p, depth: p.d }); }
+  if (show.material) { for (const [h, n] of win.material.edges) { const a = proj(h), b = proj(n); if (!a.cull && !b.cull) items.push({ t: 'e', col: MAT, a, b, depth: (a.d + b.d) / 2 }); }
+    for (const h of win.material.hubs) { const p = proj(h); if (!p.cull) items.push({ t: (h.nave && show.naves) ? 'nave' : 'h', col: roleCol[h.role] || MAT, p, hub: h, depth: p.d }); } }
+  if (show.pedestrian) { for (const [h, n] of win.pedestrian.edges) { const a = proj(h), b = proj(n); if (!a.cull && !b.cull) items.push({ t: 'e', col: PED, a, b, depth: (a.d + b.d) / 2 }); }
+    for (const h of win.pedestrian.hubs) { const p = proj(h); if (!p.cull) items.push({ t: 'p', col: PED, p, depth: p.d }); } }
+  for (const [kind, col, on] of [['power', POWER, show.power], ['water', WATER, show.water]]) if (on) {
+    for (const [h, n] of win[kind].edges) { const a = proj(h), b = proj(n); if (!a.cull && !b.cull) items.push({ t: 'trunk', col, a, b, depth: (a.d + b.d) / 2 }); }
+    for (const h of win[kind].hubs) { const p = proj(h); if (!p.cull) items.push({ t: 'tn', col, p, depth: p.d }); }
+  }
+  if (show.structure && struct) for (const c of struct.cables) { const a = proj(c.a), b = proj(c.b); if (!a.cull && !b.cull) items.push({ t: 'cab', col: CABLE, a, b, depth: (a.d + b.d) / 2 }); }
   items.sort((x, y) => y.depth - x.depth);
 
   for (const it of items) {
     const f = fog(it.depth);
     if (it.t === 'e') { ctx.strokeStyle = rgba(it.col, 0.4 * f); ctx.lineWidth = 1.05 * (0.4 + f); ctx.beginPath(); ctx.moveTo(it.a.x, it.a.y); ctx.lineTo(it.b.x, it.b.y); ctx.stroke(); }
+    else if (it.t === 'trunk') { ctx.strokeStyle = rgba(it.col, 0.66 * f); ctx.lineWidth = 2.1 * (0.45 + f); ctx.beginPath(); ctx.moveTo(it.a.x, it.a.y); ctx.lineTo(it.b.x, it.b.y); ctx.stroke(); }
+    else if (it.t === 'cab') { ctx.strokeStyle = rgba(it.col, 0.6 * f); ctx.lineWidth = 1.2 * (0.4 + f); ctx.beginPath(); ctx.moveTo(it.a.x, it.a.y); ctx.lineTo(it.b.x, it.b.y); ctx.stroke(); }
+    else if (it.t === 'tn') { const p = it.p; ctx.fillStyle = rgba(it.col, 0.85 * f); ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(1.4, 2.6 * p.s), 0, 7); ctx.fill(); }
     else if (it.t === 'nave') { const p = it.p, pulse = 0.7 + 0.3 * Math.sin(clock * 2 + it.hub.ith), r = (7 + 2.5 * pulse) * p.s * 1.1;
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.6); g.addColorStop(0, rgba(NAVE, 0.5 * f)); g.addColorStop(1, rgba(NAVE, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.6, 0, 7); ctx.fill();
       ctx.fillStyle = rgba(NAVE, 0.92 * f); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill(); ctx.strokeStyle = rgba(NAVE, f); ctx.lineWidth = 1.3; ctx.stroke();
@@ -101,8 +128,12 @@ function step(dt) {
   if (along || auto) { a0 += (along + auto) * 170 * dt; rewindow(); }
 }
 
-addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if ('wasd'.includes(k)) { keys.add(k); e.preventDefault(); } });
+const LAYERS = ['material', 'pedestrian', 'power', 'water', 'structure', 'naves'];
+function toggle(layer) { show[layer] = !show[layer]; syncChips(); }
+function syncChips() { for (const L of LAYERS) { const el = $('chip-' + L); if (el) el.style.opacity = show[L] ? '1' : '0.32'; } }
+addEventListener('keydown', (e) => { const k = e.key.toLowerCase(); if ('wasd'.includes(k)) { keys.add(k); e.preventDefault(); return; } const d = '123456'.indexOf(e.key); if (d >= 0) toggle(LAYERS[d]); });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+for (const L of LAYERS) { const el = $('chip-' + L); if (el) el.addEventListener('click', () => toggle(L)); }
 let drag = false, lx = 0, ly = 0;
 cv.addEventListener('pointerdown', (e) => { drag = true; lx = e.clientX; ly = e.clientY; cv.classList.add('drag'); cv.setPointerCapture(e.pointerId); });
 cv.addEventListener('pointermove', (e) => { if (!drag) return; yaw += (e.clientX - lx) * 0.007; pitch = Math.max(-0.5, Math.min(0.7, pitch + (e.clientY - ly) * 0.004)); lx = e.clientX; ly = e.clientY; });
@@ -115,5 +146,5 @@ let _last = 0;
 function frame(ts) { const dt = _last ? Math.min(0.05, (ts - _last) / 1000) : 0; _last = ts; clock += dt; step(dt); render(); requestAnimationFrame(frame); }
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
 addEventListener('resize', resize);
-resize(); rewindow(); requestAnimationFrame(frame);
+resize(); rewindow(); syncChips(); requestAnimationFrame(frame);
 $('drift').textContent = drift ? '⏸ drift' : '▶ drift';
