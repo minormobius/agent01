@@ -220,11 +220,16 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   transit, so you reach the lower rind ONLY through the material transit; the gated walk crosses barrier 1
   before 2. (2) the **white-collar layer** (`WHITE_COLLAR`): the cortex over the autonomic production system —
   perfusion-watch / dispatch / scheduling / gate-control / telemetry / inventory (deck2.js's deck-1 mezzanine,
-  given jobs). (3) the **capillary structure**: each artery a **space-colonization tree** (`spaceColonize`,
-  leaf-venation/angiogenesis) perfusing every chamber + the interstitial tissue (a scattered field → a lush
-  bed). Two beds — material arterial (deck 0) + white-collar crew (deck 1) — whose 2D projections **cross**
-  (`bedsCrossInPlane`) → why they need two decks (the two-species result made concrete). The real foundation for
-  the floor-level task.
+  given jobs). (3) the **capillary structure — a LAVA LAMP**: the white collar needs access to everything the machines do, so
+  it's one half of an interpenetrating pair. The **material bed (deck 0) rises from below** (supply from the
+  lower rind), the **white-collar bed (deck 1) descends from above** (the office), and they **meet at the
+  production floor** — tendrils up, tendrils down, interpenetrating. The weird math: **Rayleigh–Taylor**
+  (lava-lamp plumes), each tendril a **Laplacian/viscous (Saffman–Taylor) finger** = a **Lichtenberg** figure
+  of two opposite-polarity dendrites meeting. Grown by **space colonization** (`spaceColonize`) from opposite
+  roots toward a shared field. `lavaLamp()` tests true interpenetration (each crosses the floor midline) +
+  every machine an **anastomosis** (reached by both → the white collar touches every machine); `bedsCrossInPlane`
+  → they cross in 2D → two decks needed (the per-chamber **drop** IS the white collar's access). The real
+  foundation for the floor-level task.
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The

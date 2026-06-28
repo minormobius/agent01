@@ -12,11 +12,17 @@
 //      fed, or going ischemic?), DISPATCH a tech down a crew capillary to a fault, SCHEDULE the fulfillment
 //      lift, and HOLD THE GATES. They work the mezzanine and look down on the machines (deck2.js's deck 1).
 //
-//   3. THE CAPILLARY STRUCTURE OF THE ARTERIES. Each artery is a space-colonization tree (the leaf-venation /
-//      angiogenesis algorithm): trunk → arteriole → capillaries that perfuse EVERY chamber. There are two
-//      beds — the MATERIAL arterial bed (deck 0) and the WHITE-COLLAR crew bed (deck 1). Their 2D projections
-//      CROSS — which is precisely why they can't be coplanar and must live on separate decks (the two-species
-//      result, made concrete). At each chamber a drop connects the decks (the per-room exchange).
+//   3. THE CAPILLARY STRUCTURE — A LAVA LAMP. The white collar needs access to everything the machines do, so
+//      it isn't a separate plumbing hung from the office: it's one half of an interpenetrating pair. The
+//      MATERIAL arterial bed (deck 0) rises FROM BELOW (supply/utilities up from the lower rind); the
+//      WHITE-COLLAR crew bed (deck 1) descends FROM ABOVE (the office reaching down to every machine). They
+//      MEET at the production floor — tendrils from above, tendrils from below, interpenetrating. This is the
+//      weird math of a lava lamp: the RAYLEIGH–TAYLOR instability (light plumes rising, heavy fingers sinking,
+//      a fractal interface), with each tendril a LAPLACIAN / viscous (Saffman–Taylor) finger — the same growth
+//      as a LICHTENBERG figure, two opposite-polarity dendrites racing to meet. We grow them with space
+//      colonization (a discrete cousin of Laplacian growth) from opposite roots toward a shared field. Their 2D
+//      projections CROSS — so they can't be coplanar; they ride two decks, joined at each machine by a drop
+//      (the per-chamber exchange — that drop IS the white collar's access to the machine).
 //
 // Pure + deterministic from the seed. Node-tested in test/micro.selftest.mjs.
 
@@ -105,19 +111,21 @@ export function buildMicroChunk(seed, opts = {}) {
     const x = gx + (rng() - 0.5) * (W / cols) * jitter, y = gy + (rng() - 0.5) * ((h2 - h1) / rows) * jitter;
     chambers.push({ id: chambers.length, x, y, engine: PRODUCTION[(rng() * PRODUCTION.length) | 0] });
   }
-  // the perfusion FIELD: a capillary bed perfuses tissue, not just discrete rooms. So the attractor set is the
-  // chambers (first, for the coverage test) PLUS scattered interstitial points across the transit band — the
-  // tissue the capillaries fill. The beds grow lush, the way a real vascular bed does.
-  const nTissue = Math.round(nChambers * 2.6), tissue = [];
-  for (let i = 0; i < nTissue; i++) tissue.push({ x: pad * 0.6 + (W - 1.2 * pad) * rng(), y: h1 + 18 + (h2 - h1 - 36) * rng(), tissue: true });
+  // the perfusion FIELD: a capillary bed perfuses tissue, not just discrete rooms. The attractor set is the
+  // chambers (first, for coverage) PLUS scattered interstitial points across the WHOLE production floor — and
+  // BOTH beds grow toward the same field from OPPOSITE ends, so they interpenetrate (the lava lamp).
+  const nTissue = Math.round(nChambers * 3.2), tissue = [];
+  for (let i = 0; i < nTissue; i++) tissue.push({ x: pad * 0.6 + (W - 1.2 * pad) * rng(), y: h1 + 16 + (h2 - h1 - 32) * rng(), tissue: true });
   const field = chambers.concat(tissue);
-  // arterial bed (deck 0): the MATERIAL supply. Root at the office/transit barrier (supply crosses inward),
-  // perfuses every chamber. The drain (waste) collects to the transit/portal barrier — waste goes DOWN.
-  const artRoot = { x: W * 0.42, y: h1 };
+  // THE LAVA LAMP. Two opposing dendritic fields meet at the production floor (Rayleigh–Taylor: light plumes
+  // rising / heavy fingers sinking; the tendrils themselves are Laplacian / viscous fingering — Lichtenberg).
+  //   material arterial bed (deck 0): rises FROM BELOW — supply/utilities come up from the lower rind. Root at
+  //     the transit/portal barrier; grows UP through the floor; waste drains back down (same lower-rind side).
+  const artRoot = { x: W * 0.5, y: h2 };
   const arterial = spaceColonize(artRoot, field, o);
-  const drain = { x: W * 0.58, y: h2 };                          // waste sink at barrier 2 (down to the lower rind)
-  // crew bed (deck 1): the WHITE-COLLAR maintenance capillaries. Root at the office (top), also reaches every
-  // chamber — a tech can get anywhere — but it lives a deck up, so it never shares a channel with the freight.
+  const drain = { x: W * 0.62, y: h2 };                          // waste sink at barrier 2 (down to the lower rind)
+  //   white-collar crew bed (deck 1): descends FROM ABOVE — the office reaches DOWN to every machine, so the
+  //     white collar has access to everything the machines do. Root at the office; grows DOWN through the floor.
   const crewRoot = { x: W * 0.5, y: Math.round(h1 * 0.5) };
   const crew = spaceColonize(crewRoot, field, { ...o, kill: o.kill * 1.1 });
   // offices (the white collar) strung across the office band, each running one job
@@ -147,4 +155,18 @@ export function bedsCrossInPlane(mc) {
   const A = edgesOf(mc.arterial), C = edgesOf(mc.crew);
   for (const [a1, a2] of A) for (const [c1, c2] of C) if (segsCross(a1, a2, c1, c2)) return true;
   return false;
+}
+
+// THE MEETING (the lava-lamp interpenetration): the material field rises from below, the crew field descends
+// from above. They INTERPENETRATE if each pushes tendrils past the floor's midline into the other's half —
+// not just touching at a flat interface. Returns how deep each reaches across the midline, plus the count of
+// chambers that are an "anastomosis" (reached by BOTH fields → the white collar touches that machine).
+export function lavaLamp(mc) {
+  const mid = (mc.bands.transit.y0 + mc.bands.transit.y1) / 2;
+  const matHigh = Math.min(...mc.arterial.nodes.map((n) => n.y));    // how far UP the rising material reaches
+  const crewLow = Math.max(...mc.crew.nodes.map((n) => n.y));        // how far DOWN the descending crew reaches
+  const n = mc.nChambers;
+  const anastomoses = mc.chambers.filter((_, i) => mc.arterial.reached[i] && mc.crew.reached[i]).length;
+  return { mid, matReachesAboveMid: matHigh < mid, crewReachesBelowMid: crewLow > mid, matHigh, crewLow, anastomoses, total: n,
+    interpenetrates: matHigh < mid && crewLow > mid };
 }

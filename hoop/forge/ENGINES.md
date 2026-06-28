@@ -337,16 +337,23 @@ arteries hum lights-out. The white collars are the **cortex over that autonomic 
 *scheduling* (the fulfillment lift, production priority), *gate control* (hold the two barriers), *telemetry*,
 *inventory*. They work the mezzanine and look down on the machines (this is `deck2.js`'s deck 1, given a job).
 
-**3. The capillary structure of the arteries.** Each artery is a **space-colonization tree** (the
-leaf-venation / angiogenesis algorithm, `spaceColonize`): trunk → arteriole → capillaries that **perfuse every
-chamber** — and the whole interstitial *tissue* (a scattered perfusion field), so the bed grows lush like a
-real vascular bed, not a few pipes. There are **two beds**: the **material arterial bed** (deck 0, rooted at
-the office/transit barrier where supply crosses inward, draining waste *down* to the portal) and the
-**white-collar crew bed** (deck 1, rooted at the office, reaching every chamber so a tech can get anywhere).
-Their 2D projections **cross** (`bedsCrossInPlane`, tested) — which is exactly why they **can't be coplanar**
-and must ride two decks (the two-species result, made concrete at the floor). A per-chamber drop links the
-decks (the exchange). Live at `hoop.mino.mobi/forge/micro` (plan view, top = inner/nave, down = outward/lower
-rind; toggle the two beds + the walk). This is the real foundation to build the weird floor-level task into.
+**3. The capillary structure — a lava lamp.** The white collar needs access to *everything* the machines do,
+so it isn't separate plumbing hung from the office — it's one half of an **interpenetrating pair**. The
+**material bed** (deck 0) **rises from below** (supply/utilities up from the lower rind; rooted at the
+transit/portal barrier, waste draining back down); the **white-collar bed** (deck 1) **descends from above**
+(the office reaching down to every machine). They **meet at the production floor**: tendrils from below,
+tendrils from above, interpenetrating. That's the **weird math of a lava lamp** — the **Rayleigh–Taylor
+instability** (light plumes rising, heavy fingers sinking, a fractal interface), each tendril a **Laplacian /
+viscous (Saffman–Taylor) finger**, the same growth as a **Lichtenberg figure** (two opposite-polarity
+dendrites racing to meet). We grow them with **space colonization** (a discrete cousin of Laplacian growth,
+`spaceColonize`) from opposite roots toward a shared perfusion field (chambers + interstitial tissue → a lush
+bed). Tested: `lavaLamp()` confirms material rises *past* the floor midline and the crew descends *past* it
+(true interpenetration, not a flat interface), and every machine is an **anastomosis** — reached by *both*
+fields (the white collar touches every machine). Their 2D projections **cross** (`bedsCrossInPlane`) — which
+is exactly why they **can't be coplanar** and must ride two decks (the two-species result, made concrete); the
+per-chamber **drop** between decks *is* the white collar's access to that machine. Live at
+`hoop.mino.mobi/forge/micro` (plan view, top = inner/nave, down = outward/lower rind; toggle the two fields +
+the walk). The real foundation to build the weird floor-level task into.
 
 ## Open seams (parked)
 

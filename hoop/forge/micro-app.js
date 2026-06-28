@@ -3,7 +3,7 @@
 // portal) with its two barriers, the two capillary beds (material arterial on deck 0, white-collar crew on
 // deck 1 — the crew offset up/left with a soft shadow so it reads as a deck above), and the gated walk.
 
-import { buildMicroChunk, edgesOf, WHITE_COLLAR } from './micro.js';
+import { buildMicroChunk, edgesOf, lavaLamp, WHITE_COLLAR } from './micro.js';
 import { ENGINES } from './engines.js';
 
 const $ = (id) => document.getElementById(id);
@@ -22,9 +22,9 @@ const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255
 
 function build() { mc = buildMicroChunk(seed); fit(); readout(); renderJobs(); }
 function readout() {
-  const cov = mc.chambers.length;
-  $('read').innerHTML = `seed <b>${seed}</b> · <b>${cov} chambers</b>, all perfused · 2 barriers · 2 decks<br>` +
-    `<span style="color:#566173">the arterial & crew beds cross in plan → they can't share a deck</span>`;
+  const ll = lavaLamp(mc);
+  $('read').innerHTML = `seed <b>${seed}</b> · <b>${ll.anastomoses}/${ll.total} machines</b> reached by BOTH fields (the white collar touches every machine)<br>` +
+    `<span style="color:#566173">a lava lamp — material rises, oversight descends, they meet (Rayleigh–Taylor)</span>`;
 }
 function renderJobs() { $('joblist').innerHTML = WHITE_COLLAR.map((w) => `<div class="j"><b>${w.label}</b>${w.blurb}</div>`).join(''); }
 
@@ -57,7 +57,9 @@ function render() {
   // band labels (left margin, rotated-feel via small caps)
   ctx.textAlign = 'left'; ctx.font = '10px ui-monospace,monospace';
   ctx.fillStyle = 'rgba(127,151,192,.8)'; ctx.fillText('OFFICE · white collar', sx(8), sy(office.y0) + 16);
-  ctx.fillStyle = 'rgba(232,150,74,.85)'; ctx.fillText('MATERIAL TRANSIT · the artery floor', sx(8), sy(transit.y0) + 16);
+  ctx.fillStyle = 'rgba(232,150,74,.85)'; ctx.fillText('PRODUCTION FLOOR · material transit · where they meet', sx(8), sy(transit.y0) + 16);
+  { const mid = (transit.y0 + transit.y1) / 2; ctx.strokeStyle = 'rgba(180,170,150,.12)'; ctx.lineWidth = 1; ctx.setLineDash([1, 6]); ctx.beginPath(); ctx.moveTo(sx(0), sy(mid)); ctx.lineTo(sx(W), sy(mid)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(180,170,150,.4)'; ctx.textAlign = 'right'; ctx.font = '8.5px ui-monospace,monospace'; ctx.fillText('↑ material rises · oversight descends ↓', sx(W - 8), sy(mid) - 4); }
   ctx.fillStyle = 'rgba(224,122,106,.9)'; ctx.fillText('LOWER-RIND PORTAL', sx(8), sy(portal.y0) + 16);
   ctx.fillStyle = 'rgba(135,148,166,.55)'; ctx.fillText('inner · nave ↑', sx(W - 92), sy(4) + 12); ctx.fillText('↓ outward · lower rind', sx(W - 128), sy(mc.H) - 8);
 
@@ -85,13 +87,14 @@ function render() {
     ctx.strokeStyle = rgba(CREW, 0.3); ctx.lineWidth = 1; for (const c of mc.chambers) { ctx.beginPath(); ctx.moveTo(sx(c.x), sy(c.y)); ctx.lineTo(sx(c.x) + DECK1.dx, sy(c.y) + DECK1.dy); ctx.stroke(); }
   }
   if (show.arterial) { drawBed(mc.arterial, ART, { dx: 0, dy: 0 });
-    // the arterial root (supply in) + drain (waste out, down to the lower rind)
+    // the arterial root RISES from below (the lower rind) + drain (waste back down)
     ctx.fillStyle = rgba(ART, 0.95); ctx.beginPath(); ctx.arc(sx(mc.artRoot.x), sy(mc.artRoot.y), 5 * scale, 0, 7); ctx.fill();
     ctx.fillStyle = 'rgba(224,122,106,.95)'; ctx.beginPath(); ctx.arc(sx(mc.drain.x), sy(mc.drain.y), 5 * scale, 0, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(232,150,74,.8)'; ctx.textAlign = 'center'; ctx.font = '9px ui-monospace,monospace'; ctx.fillText('supply ▾', sx(mc.artRoot.x), sy(mc.artRoot.y) - 8);
-    ctx.fillStyle = 'rgba(224,122,106,.85)'; ctx.fillText('waste ▾ (down)', sx(mc.drain.x), sy(mc.drain.y) + 16);
+    ctx.fillStyle = 'rgba(232,150,74,.85)'; ctx.textAlign = 'center'; ctx.font = '9px ui-monospace,monospace'; ctx.fillText('supply ▲ rises from the lower rind', sx(mc.artRoot.x), sy(mc.artRoot.y) + 16);
+    ctx.fillStyle = 'rgba(224,122,106,.8)'; ctx.fillText('waste ▾', sx(mc.drain.x), sy(mc.drain.y) + 28);
   }
-  if (show.crew) { ctx.fillStyle = rgba(CREW, 0.95); ctx.beginPath(); ctx.arc(sx(mc.crewRoot.x) + DECK1.dx, sy(mc.crewRoot.y) + DECK1.dy, 5 * scale, 0, 7); ctx.fill(); }
+  if (show.crew) { ctx.fillStyle = rgba(CREW, 0.95); ctx.beginPath(); ctx.arc(sx(mc.crewRoot.x) + DECK1.dx, sy(mc.crewRoot.y) + DECK1.dy, 5 * scale, 0, 7); ctx.fill();
+    ctx.fillStyle = rgba(CREW, 0.85); ctx.textAlign = 'center'; ctx.font = '9px ui-monospace,monospace'; ctx.fillText('oversight ▼ descends from the office', sx(mc.crewRoot.x) + DECK1.dx, sy(mc.crewRoot.y) + DECK1.dy - 9); }
 
   // offices (the white collar) along the office band
   for (const o of mc.offices) { const x = sx(o.x), y = sy(o.y);

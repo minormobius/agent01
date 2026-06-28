@@ -2,7 +2,7 @@
 // barriers, the white-collar layer, and the capillary structure (two space-colonization beds that perfuse
 // every chamber and cross in 2D — hence the two decks). node hoop/forge/test/micro.selftest.mjs
 
-import { buildMicroChunk, spaceColonize, coverage, bedsCrossInPlane, segsCross, edgesOf, WHITE_COLLAR, DEFAULTS } from '../micro.js';
+import { buildMicroChunk, spaceColonize, coverage, bedsCrossInPlane, lavaLamp, segsCross, edgesOf, WHITE_COLLAR, DEFAULTS } from '../micro.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -33,6 +33,14 @@ const cov = coverage(mc);
 ok(cov.arterial === cov.total, `the material arterial bed perfuses every chamber (${cov.arterial}/${cov.total})`);
 ok(cov.crew === cov.total, `the white-collar crew bed reaches every chamber (${cov.crew}/${cov.total})`);
 ok(edgesOf(mc.arterial).length > mc.chambers.length, 'the arterial bed is a real branching tree (more segments than chambers)');
+
+// ── the LAVA LAMP: material rises from below, crew descends from above, they interpenetrate at the floor ──
+ok(mc.artRoot.y > mc.crewRoot.y, 'material is rooted BELOW (rises) and the crew ABOVE (descends)');
+const ll = lavaLamp(mc);
+ok(ll.matReachesAboveMid, 'material tendrils rise PAST the floor midline (plumes up)');
+ok(ll.crewReachesBelowMid, 'crew tendrils descend PAST the floor midline (fingers down)');
+ok(ll.interpenetrates, 'the two fields interpenetrate (not a flat interface — the lava-lamp meeting)');
+ok(ll.anastomoses === ll.total, `every machine is an anastomosis — reached by BOTH fields (${ll.anastomoses}/${ll.total})`);
 
 // ── the two beds CROSS in 2D → they can't be coplanar → the two decks are necessary ──
 ok(bedsCrossInPlane(mc), 'the arterial & crew beds cross in projection — so they must live on separate decks');
