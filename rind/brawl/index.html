@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>brawl · rind</title>
+<meta name="description" content="A continuum tactics brawl on the O'Neill hull — every fight is oracle-certified winnable, scaled to your hero. Pick a faction, summon a foe, hold the field.">
+<style>
+  :root{
+    --ink:#05060a; --panel:#0c0f16; --line:#1d2430; --txt:#cfe3e0; --dim:#8aa;
+    --gold:#ffce78; --teal:#7fd8d0; --violet:#b39bd8; --red:#ff7a6e; --ok:#7fe6a0;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace; --serif:Georgia,'Iowan Old Style',serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(150% 130% at 50% -20%,#0b1118,#05060a 62%);color:var(--txt);font:15px/1.6 var(--serif);min-height:100vh}
+  a{color:var(--gold);text-decoration:none}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 18px 50px}
+  h1{margin:6px 0 0;font:600 28px/1.1 var(--mono);letter-spacing:.5px;color:var(--gold)}
+  h1 .x{color:var(--teal)}
+  .sub{color:var(--dim);font:13px/1.5 var(--mono);margin:6px 0 16px;max-width:64ch}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--txt);padding:8px 12px;transition:border-color .15s,background .15s,transform .1s}
+  button:hover:not(:disabled){border-color:var(--teal)} button:active:not(:disabled){transform:translateY(1px)} button:disabled{opacity:.35;cursor:default}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  /* setup */
+  #setup{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .pick{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:1.4px;color:var(--dim);margin:6px 0 10px}
+  .factions{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:680px){.factions{grid-template-columns:1fr}}
+  .fcard{text-align:left;padding:14px;border-radius:12px}
+  .fcard.on{border-color:var(--c);background:#0f1620;box-shadow:inset 0 0 0 1px var(--c)}
+  .fcard .g{font-size:22px} .fcard .n{font:600 16px/1.2 var(--mono);margin:6px 0 2px} .fcard .d{font:12.5px/1.45 var(--mono);color:var(--dim)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:6px 12px;border-radius:99px;font:12px/1 var(--mono)}
+  .chip.on{border-color:var(--gold);background:#1a1510;color:var(--gold)}
+  .go{margin-top:18px;background:#10201f;border-color:#2c5350;color:var(--teal);font:600 15px/1 var(--mono);padding:12px 20px}
+  /* battle */
+  #battle{display:none;gap:16px;align-items:flex-start;margin-top:6px}
+  #battle.live{display:flex;flex-wrap:wrap}
+  .stage{position:relative}
+  #cv{background:linear-gradient(160deg,#0a0f15,#070a0f);border:1px solid var(--line);border-radius:12px;touch-action:none;display:block}
+  .cert{font:12px/1.5 var(--mono);color:var(--dim);margin:8px 2px 0}
+  .cert b{color:var(--teal)}
+  .side{width:260px;min-width:230px;flex:1}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+  .card h3{margin:0 0 8px;font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:1.2px;color:var(--dim)}
+  .skill{display:flex;justify-content:space-between;width:100%;text-align:left;margin:4px 0;font:13px/1.2 var(--mono)}
+  .skill.sel{border-color:var(--gold);background:#1a1510}
+  .skill .c{color:var(--dim)}
+  .hint{font:12px/1.4 var(--mono);color:var(--dim);min-height:1.4em;margin-top:6px}
+  #log{height:150px;overflow:auto;font:12px/1.5 var(--mono)}
+  #log div{padding:1px 0;border-bottom:1px dotted #161c26}
+  .crit{color:#ffe9a8}.hit{color:#ffb38a}.miss{color:var(--dim)}.down{color:var(--red)}.heal{color:var(--ok)}.win{color:var(--gold)}
+  .ros{font:12px/1.6 var(--mono)}
+  /* overlay */
+  #over{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,6,10,.82);backdrop-filter:blur(3px);z-index:9}
+  #over.on{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px 34px;max-width:440px;text-align:center}
+  .modal h2{margin:0 0 6px;font:600 24px/1.2 var(--mono)}
+  .modal.win h2{color:var(--ok)} .modal.lose h2{color:var(--red)}
+  .modal p{margin:8px 0;font:13px/1.6 var(--mono);color:var(--dim)}
+  .spin{font:13px/1 var(--mono);color:var(--teal)}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="/">mino.mobi</a> / <a href="/index.html">rind</a> / brawl</div>
+<div class="wrap">
+  <h1>br<span class="x">a</span>wl</h1>
+  <div class="sub">Continuum tactics on the hull. Every fight is <b style="color:var(--teal)">oracle-certified winnable</b> — the solver proves a path before you're dropped in. Pick a hand, hold the field, climb the streak.</div>
+
+  <div id="setup">
+    <div class="pick">choose your hand</div>
+    <div class="factions" id="factions"></div>
+    <div class="pick" style="margin-top:18px">opening difficulty</div>
+    <div class="chips" id="diffs"></div>
+    <button class="go" id="summon">⚔ Summon brawl</button>
+  </div>
+
+  <div id="battle">
+    <div class="stage">
+      <canvas id="cv" width="520" height="520"></canvas>
+      <div class="cert" id="cert"></div>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3 id="actName">—</h3><div class="ros" id="actStats"></div></div>
+      <div class="card"><h3>actions</h3><div id="skills"></div><button id="end" style="margin-top:8px;width:100%">end turn ⏭</button></div>
+      <div class="card"><h3>field</h3><div class="ros" id="roster"></div></div>
+      <div class="card"><h3>log</h3><div id="log"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="over"><div class="modal" id="modal"></div></div>
+
+<script type="module">
+import { FACTIONS, FACTION_ORDER, FACTION_LEAN } from '../combat/factions.js';
+import { rollCharacter } from '../combat/stats.js';
+import { generateEncounter } from '../combat/encounter.js';
+import * as E from '../combat/engine.js';
+
+const $ = (s) => document.querySelector(s);
+const cv = $('#cv'), ctx = cv.getContext('2d');
+
+// ── setup screen ──
+let heroFaction = 'drift', opening = 'fair';
+const DIFFS = ['comfortable', 'fair', 'tight', 'brutal'];
+function buildSetup() {
+  $('#factions').innerHTML = FACTION_ORDER.map((f) => {
+    const F = FACTIONS[f];
+    return `<button class="fcard ${f === heroFaction ? 'on' : ''}" data-f="${f}" style="--c:${F.accent}">
+      <div class="g" style="color:${F.accent}">${F.glyph}</div><div class="n" style="color:${F.accent}">${F.label}</div>
+      <div class="d">${F.gloss}</div></button>`;
+  }).join('');
+  $('#diffs').innerHTML = DIFFS.map((d) => `<button class="chip ${d === opening ? 'on' : ''}" data-d="${d}">${d}</button>`).join('');
+  $('#factions').querySelectorAll('button').forEach((b) => b.onclick = () => { heroFaction = b.dataset.f; buildSetup(); });
+  $('#diffs').querySelectorAll('button').forEach((b) => b.onclick = () => { opening = b.dataset.d; buildSetup(); });
+}
+buildSetup();
+
+// ── run state ──
+let hero = null, streak = 0, baseSeed = 1;
+let s = null, enc = null, sel = null, busy = false;
+const LADDER = ['comfortable', 'fair', 'fair', 'tight', 'tight', 'brutal'];
+
+$('#summon').onclick = () => {
+  hero = { faction: heroFaction, name: `${FACTIONS[heroFaction].label}`, power: 11, character: null };
+  streak = 0; baseSeed = 1 + Math.floor(Math.random() * 9000);   // the only unseeded roll: which run
+  startBrawl(opening);
+};
+
+function startBrawl(difficulty) {
+  busy = true;
+  $('#setup').style.display = 'none';
+  $('#battle').classList.add('live');
+  showOver(`<div class="spin">⟳ summoning a ${difficulty} brawl…<br><span style="color:var(--dim)">the solver is proving it winnable</span></div>`, '');
+  hero.character = rollCharacter(baseSeed * 31 + streak, { triad: FACTION_LEAN[hero.faction], power: hero.power });
+  setTimeout(() => {                                   // yield so the spinner paints before the heavy solve
+    enc = generateEncounter(hero, { difficulty, seed: baseSeed * 7 + streak * 13, terrain: true, cap: 9000, tries: 14 });
+    s = E.createBattle(enc.setup);
+    snapHp(); floats.length = 0; sel = null; busy = false;
+    hideOver();
+    const g = enc.grade;
+    $('#cert').innerHTML = `streak <b>${streak}</b> · <b style="color:var(--gold)">${enc.difficulty}</b> · oracle: ${g.solvable ? `certified <b>winnable in ~${g.par} turns</b> (${(100 * g.margin).toFixed(0)}% margin)` : 'uncertified'}${enc.ok ? '' : ' (closest)'}`;
+    syncPanels();
+  }, 40);
+}
+
+// ── animation layer (real-time; engine stays seeded) ──
+const floats = [];                 // {x,y,text,color,born}
+let lastHp = new Map();
+function snapHp() { lastHp = new Map(s.units.map((u) => [u.id, u.hp])); }
+function spawnFloaters() {
+  for (const u of s.units) {
+    const prev = lastHp.get(u.id); if (prev == null) continue;
+    const d = u.hp - prev;
+    if (d < 0) floats.push({ x: u.x, y: u.y, text: `−${-d}`, color: '#ff8a7a', born: performance.now() });
+    else if (d > 0) floats.push({ x: u.x, y: u.y, text: `+${d}`, color: '#9cf0b8', born: performance.now() });
+    if (d !== 0) u._flash = performance.now();
+  }
+  snapHp();
+}
+
+// ── geometry ──
+let SCALE = 32;
+const px = (x) => x * SCALE, py = (y) => y * SCALE;
+const isPlayerTurn = () => s && !s.winner && E.active(s).team === 'player';
+
+// ── draw loop: the CANVAS redraws every frame (animations); the DOM panels sync only on state change. ──
+function frame() { if (s) drawCanvas(); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+const MONO = "ui-monospace,Menlo,Consolas,monospace", SERIF = "Georgia,serif";
+
+function drawCanvas() {
+  SCALE = Math.min(cv.width / s.W, cv.height / s.H);
+  const now = performance.now();
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = 'rgba(120,160,160,0.05)'; ctx.lineWidth = 1;
+  for (let i = 1; i < s.W; i++) { ctx.beginPath(); ctx.moveTo(px(i), 0); ctx.lineTo(px(i), cv.height); ctx.stroke(); }
+  for (let i = 1; i < s.H; i++) { ctx.beginPath(); ctx.moveTo(0, py(i)); ctx.lineTo(cv.width, py(i)); ctx.stroke(); }
+
+  for (const t of (s.terrain || [])) {
+    ctx.beginPath(); ctx.arc(px(t.x), py(t.y), t.r * SCALE, 0, 7);
+    if (t.kind === 'wall') {
+      const g = ctx.createRadialGradient(px(t.x - t.r * .3), py(t.y - t.r * .3), 2, px(t.x), py(t.y), t.r * SCALE);
+      g.addColorStop(0, '#3a3630'); g.addColorStop(1, '#1a1814'); ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = '#4f4838'; ctx.lineWidth = 1.5; ctx.stroke();
+    } else {
+      const pulse = 0.12 + 0.06 * Math.sin(now / 500);
+      ctx.fillStyle = t.effect === 'burn' ? `rgba(255,90,70,${pulse})` : t.effect === 'mire' ? `rgba(120,190,90,${pulse})` : `rgba(110,150,230,${pulse + .03})`;
+      ctx.fill(); ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.font = `${Math.round(SCALE * .42)}px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t.effect, px(t.x), py(t.y));
+    }
+  }
+
+  const act = !s.winner ? E.active(s) : null;
+  const lg = isPlayerTurn() ? E.legal(s) : { move: { range: 0 }, skills: {} };
+  const tgt = new Set(sel && sel !== '__move' && lg.skills[sel] ? lg.skills[sel].targets : []);
+  if (act && sel === '__move' && lg.move.range > 0) ring(act.x, act.y, lg.move.range, 'rgba(127,216,208,0.5)', 'rgba(127,216,208,0.08)');
+  if (act && sel && sel !== '__move') ring(act.x, act.y, E.SKILLS[sel].range || 1, 'rgba(255,122,110,0.5)');
+
+  const R = (E.UNIT_R || .5) * SCALE;
+  for (const u of s.units) {
+    const flash = u._flash && now - u._flash < 220;
+    ctx.globalAlpha = u.alive ? 1 : .3;
+    ctx.beginPath(); ctx.arc(px(u.x), py(u.y), R, 0, 7);
+    const g = ctx.createRadialGradient(px(u.x), py(u.y), 1, px(u.x), py(u.y), R);
+    g.addColorStop(0, flash ? '#fff' : '#10151c'); g.addColorStop(1, '#0a0d12'); ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = (u === act) ? 3 : 2; ctx.strokeStyle = (u === act) ? '#ffce78' : (tgt.has(u.id) ? '#ff7a6e' : u.accent); ctx.stroke();
+    if (u === act) { ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 12; ctx.stroke(); ctx.shadowBlur = 0; }
+    if (u.alive) {
+      ctx.beginPath(); ctx.arc(px(u.x), py(u.y), R + 4, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.max(0, u.hp) / u.maxhp);
+      ctx.strokeStyle = u.hp / u.maxhp > .35 ? '#7fe6a0' : '#ff7a6e'; ctx.lineWidth = 3; ctx.stroke();
+    }
+    ctx.fillStyle = u.accent; ctx.font = `${Math.round(R * 1.3)}px ${SERIF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(u.alive ? u.glyph : '✝', px(u.x), py(u.y));
+    ctx.globalAlpha = 1;
+  }
+
+  for (let i = floats.length - 1; i >= 0; i--) {
+    const f = floats[i], age = (now - f.born) / 900; if (age >= 1) { floats.splice(i, 1); continue; }
+    ctx.globalAlpha = 1 - age; ctx.fillStyle = f.color; ctx.font = `bold ${Math.round(SCALE * .5)}px ${MONO}`; ctx.textAlign = 'center';
+    ctx.fillText(f.text, px(f.x), py(f.y) - R - 6 - age * 22); ctx.globalAlpha = 1;
+  }
+}
+function ring(x, y, r, stroke, fill) {
+  ctx.beginPath(); ctx.arc(px(x), py(y), r * SCALE, 0, 7);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  ctx.setLineDash([5, 4]); ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+}
+
+function syncPanels() {
+  if (!s) return;
+  const act = !s.winner ? E.active(s) : null;
+  const lg = isPlayerTurn() ? E.legal(s) : { move: { range: 0 }, skills: {} };
+  if (s.winner) { $('#actName').textContent = s.winner === 'player' ? 'Field held' : 'You fell'; $('#actStats').innerHTML = ''; }
+  else { const f = FACTIONS[act.faction]; $('#actName').innerHTML = `${act.glyph} ${act.name}`;
+    $('#actStats').innerHTML = `${f ? f.label : 'drone'}<br>HP <b>${act.hp}/${act.maxhp}</b> · Flux <b>${act.flux}/${act.maxflux}</b><br>Atk ${act.atk} · Apow ${act.apow} · Def ${act.def} · Spd ${act.speed}${status(act)}`; }
+  // skills
+  const box = $('#skills');
+  if (!isPlayerTurn()) box.innerHTML = `<div class="hint">${s.winner ? '—' : 'enemy turn…'}</div>`;
+  else {
+    const u = act; let h = `<button class="skill ${sel === '__move' ? 'sel' : ''}" data-act="move" ${u.moved ? 'disabled' : ''}><span>➤ Move</span><span class="c">${E.moveRange(u).toFixed(1)}</span></button>`;
+    for (const id of E.skillsFor(u)) { const m = E.SKILLS[id], st = lg.skills[id] || {}, c = E.costOf(u, id);
+      h += `<button class="skill ${sel === id ? 'sel' : ''}" data-act="skill" data-id="${id}" ${st.usable ? '' : 'disabled'} title="${m.gloss}"><span>${m.glyph} ${m.label}</span><span class="c">${c ? c + '⚡' : ''}${m.range > 1 ? ' r' + m.range : ''}</span></button>`; }
+    box.innerHTML = h;
+    box.querySelectorAll('button').forEach((b) => b.onclick = () => onSkill(b, lg));
+  }
+  $('#end').disabled = !isPlayerTurn();
+  $('#roster').innerHTML = s.units.map((u) => `<div style="opacity:${u.alive ? 1 : .35}">${u.glyph} <b style="color:${u.accent}">${u.name}</b> ${u.alive ? `${u.hp}/${u.maxhp}` : '✝'}${status(u)}</div>`).join('');
+  $('#log').innerHTML = s.log.slice().reverse().map((l) => `<div class="${l.kind}">${l.msg}</div>`).join('');
+  $('#hint').textContent = s.winner ? '' : (isPlayerTurn() ? (sel === '__move' ? 'click in the teal disk to move' : sel ? 'click a highlighted foe' : 'choose Move or a skill') : 'enemy turn…');
+}
+const status = (u) => { const ks = Object.keys(u.status || {}).filter((k) => u.status[k].turns > 0); return ks.length ? ' · ' + ks.map((k) => `${E.STATUS[k]?.glyph || ''}${u.status[k].turns}`).join(' ') : ''; };
+
+function onSkill(b, lg) {
+  if (busy) return;
+  const a = b.dataset.act;
+  if (a === 'move') { sel = sel === '__move' ? null : '__move'; syncPanels(); return; }
+  const id = b.dataset.id, st = lg.skills[id];
+  if (!st.targets.length && E.SKILLS[id].kind !== 'attack') { E.act(s, { type: 'skill', skillId: id }); afterPlayer(); }
+  else { sel = sel === id ? null : id; syncPanels(); }
+}
+
+cv.onpointerdown = (ev) => {
+  if (busy || !isPlayerTurn()) return;
+  const r = cv.getBoundingClientRect(), wx = (ev.clientX - r.left) / SCALE, wy = (ev.clientY - r.top) / SCALE, u = E.active(s);
+  if (sel === '__move') {
+    const p = E.canReach(s, u, wx, wy) ? { x: wx, y: wy } : E.moveToward(s, u, wx, wy, E.moveRange(u), 0);
+    if (p.x !== u.x || p.y !== u.y) { E.act(s, { type: 'move', x: p.x, y: p.y }); sel = null; afterPlayer(); }
+  } else if (sel) {
+    const ts = (E.legal(s).skills[sel] || {}).targets || []; let hit = null, hd = 1e9;
+    for (const id of ts) { const t = E.unitById(s, id); const d = Math.hypot(t.x - wx, t.y - wy); if (d < (E.UNIT_R || .5) * 2.2 && d < hd) { hd = d; hit = t; } }
+    if (hit) { E.act(s, { type: 'skill', skillId: sel, targetId: hit.id }); sel = null; afterPlayer(); }
+  }
+};
+
+$('#end').onclick = () => { if (!busy && isPlayerTurn()) { E.act(s, { type: 'end' }); sel = null; afterPlayer(); } };
+
+// after any player action: animate, then if it's the foe's turn, run foes on a watchable timer.
+function afterPlayer() {
+  spawnFloaters(); syncPanels();
+  if (checkOver()) return;
+  enemyTurnsIfNeeded();
+}
+function enemyTurnsIfNeeded() {
+  if (s.winner || isPlayerTurn()) return;
+  busy = true;
+  const step = () => {
+    if (s.winner) { busy = false; checkOver(); return; }
+    if (isPlayerTurn()) { busy = false; syncPanels(); return; }
+    E.runAiTurn(s); spawnFloaters(); syncPanels();
+    if (checkOver()) { busy = false; return; }
+    setTimeout(step, 480);
+  };
+  setTimeout(step, 420);
+}
+function checkOver() {
+  if (!s.winner) return false;
+  busy = true;
+  if (s.winner === 'player') { streak++; setTimeout(showWin, 700); }
+  else setTimeout(showLose, 700);
+  return true;
+}
+
+// ── overlays ──
+function showOver(html, cls) { const m = $('#modal'); m.className = 'modal ' + (cls || ''); m.innerHTML = html; $('#over').classList.add('on'); }
+function hideOver() { $('#over').classList.remove('on'); }
+function showWin() {
+  const next = LADDER[Math.min(streak, LADDER.length - 1)];
+  showOver(`<h2>Field held</h2><p>Streak <b style="color:var(--gold)">${streak}</b> — the hull is yours.</p>
+    <p>Your hand sharpens: <b>power ${hero.power} → ${hero.power + 1}</b>.</p>
+    <div class="row" style="justify-content:center;margin-top:14px">
+      <button id="next" style="background:#10201f;border-color:#2c5350;color:var(--teal)">Next brawl → ${next}</button>
+      <button id="quit">New hand</button></div>`, 'win');
+  $('#next').onclick = () => { hero.power += 1; hideOver(); startBrawl(next); };
+  $('#quit').onclick = backToSetup;
+}
+function showLose() {
+  showOver(`<h2>You fell</h2><p>The fight was certified winnable in ~${enc.grade.par} turns — the line was there.</p>
+    <p>Streak ended at <b>${streak}</b>.</p>
+    <div class="row" style="justify-content:center;margin-top:14px">
+      <button id="retry" style="background:#10201f;border-color:#2c5350;color:var(--teal)">Retry this brawl</button>
+      <button id="quit">New hand</button></div>`, 'lose');
+  $('#retry').onclick = () => { hideOver(); startBrawl(enc.difficulty); };
+  $('#quit').onclick = backToSetup;
+}
+function backToSetup() { hideOver(); s = null; $('#battle').classList.remove('live'); $('#setup').style.display = ''; buildSetup(); }
+</script>
+</body>
+</html>

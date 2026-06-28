@@ -5,7 +5,11 @@ touching hoop's deploy surface**. Built here on the rind branch because rind is 
 node-test-friendly, and hoop already vendors *from* rind (`wayfind.js`) — so the same discipline
 applies in reverse: build + tune here, then **vendor the matured kernel into hoop**.
 
-Nothing in this directory deploys. It's a workbench.
+The modules here are a workbench. The **playable surface** built on them is `rind/brawl/`
+(`rind.mino.mobi/brawl`) — pick a faction, the encounter generator + oracle summon a certified-winnable
+fight scaled to your hero, and you brawl on the continuum. `combat/dojo.html` is the developer tuner.
+Both are served as static assets by rind's worker (no worker change needed); they ship with rind's
+normal deploy (`deploy-rind.yml` on `main` or the rind owning branch touching `rind/**`).
 
 ## What's here
 
