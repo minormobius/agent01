@@ -21,6 +21,11 @@
   #boardwrap{flex:1;position:relative;min-height:0}
   #board{display:block;width:100%;height:100%;image-rendering:pixelated;touch-action:none}
   #log{height:34px;padding:0 14px;font:11px/34px var(--mono);color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid var(--line)}
+  #tune{display:flex;align-items:center;gap:10px;padding:7px 14px;font:12px/1 var(--mono);color:var(--dim);background:#101218;border-top:1px solid var(--line)}
+  #tune .t{letter-spacing:.06em;color:var(--gold-soft)} #tune b{color:var(--ink);min-width:26px;text-align:center}
+  #tune .dim{color:var(--faint)}
+  #tune button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#22242c;color:var(--ink);font:600 16px/1 var(--sans);cursor:pointer}
+  #tune button:active{transform:scale(.92);background:var(--gold);color:#0f1014}
   #bar{display:flex;gap:8px;padding:10px 12px calc(env(safe-area-inset-bottom) + 12px);background:var(--panel);border-top:1px solid var(--line)}
   #bar button{flex:1;font:600 13px/1.1 var(--sans);background:#22242c;color:var(--ink);border:1px solid var(--line);
        border-radius:10px;padding:12px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
@@ -45,6 +50,11 @@
     <div class="banner" id="banner"><h2 id="bannerT"></h2><button id="again">fight again</button></div>
   </div>
   <div id="log"></div>
+  <div id="tune">
+    <span class="t">swarm footprint</span>
+    <button id="fpD" aria-label="smaller">−</button><b id="fpV">2.4</b><button id="fpU" aria-label="bigger">+</button>
+    <span id="fpR" class="dim"></span>
+  </div>
   <div id="bar"></div>
 </div>
 
@@ -65,8 +75,15 @@ const SWARM_COUNT = 110;
 // attractor tracks the swarm unit's continuous position, so the cloud flows over when it moves;
 // Ember scatters it with a wind impulse.
 const BOIDS_SCALE = 40;
-const SWARM_PARAMS = { follow:155, swirl:26, separation:95, cohesion:8, alignment:10, wander:42,
-  noiseFreq:0.03, maxSpeed:58, drag:0.88, neighborRadius:26, sepRadius:9 };
+// derive the boids forces from the swarm's FOOTPRINT (tiles). The length-scale params (sepRadius,
+// neighborRadius) scale with footprint so the equilibrium cloud ≈ that many tiles wide; the force
+// magnitudes stay fixed. Bigger footprint = looser, wider, more shimmer.
+function boidsParamsFor(F){
+  const len = F * BOIDS_SCALE;                 // footprint in boids world-units
+  return { follow:135, swirl:22, separation:88, cohesion:7, alignment:9,
+    wander:24 + F*12, noiseFreq:0.03, maxSpeed:46 + F*15, drag:0.88,
+    neighborRadius: Math.max(16, len*0.62), sepRadius: Math.max(6, len*0.23) };
+}
 let s, player, swarm, swarmBoids, playerG, atlas, dpr=1, busy=false, fightSeed=7, lastT=0;
 const flashes=[]; // {x,y,txt,col,t0}
 
@@ -79,8 +96,9 @@ function newFight(seed){
   swarm = addSwarm(s, makeSwarmUnit({ seed:'hive:'+seed, x:4, y:3, mass:88 }));
   player = unitById(s, 'P');
   atlas = beeAtlas('hive:'+seed, { headings:12 });
-  swarmBoids = new Swarm({ width:9*BOIDS_SCALE, height:9*BOIDS_SCALE, count:SWARM_COUNT, seed:'hive:'+seed, headings:12, params:SWARM_PARAMS });
+  swarmBoids = new Swarm({ width:9*BOIDS_SCALE, height:9*BOIDS_SCALE, count:SWARM_COUNT, seed:'hive:'+seed, headings:12, params:boidsParamsFor(swarm.footprint) });
   swarmBoids.setTarget((swarm.x+0.5)*BOIDS_SCALE, (swarm.y+0.5)*BOIDS_SCALE);
+  syncFootprint();
   $('#banner').className='banner';
   busy=false;
   // if the swarm somehow won initiative, run its turn first
@@ -171,6 +189,18 @@ function scatterBees(){ if(!swarmBoids) return;            // Ember impulse: blo
   swarmBoids.setParams({ windX:dx/d*220, windY:dy/d*220 });
   setTimeout(()=>swarmBoids&&swarmBoids.setParams({windX:0,windY:0}), 280);
 }
+
+// FOOTPRINT — the one knob. Re-derives the boids spread + the combat pulse radius from it, live.
+function syncFootprint(){ $('#fpV').textContent=swarm.footprint.toFixed(1); $('#fpR').textContent='· pulse r '+swarm.radius; }
+function setFootprint(F){
+  if(!swarm) return;
+  swarm.footprint = Math.max(0.8, Math.min(4, +F.toFixed(1)));
+  swarm.radius = Math.max(1, Math.round(swarm.footprint));   // bigger cloud → wider pulse
+  if(swarmBoids) swarmBoids.setParams(boidsParamsFor(swarm.footprint));
+  syncFootprint(); syncUI();
+}
+$('#fpD').onclick=()=>setFootprint(swarm.footprint-0.3);
+$('#fpU').onclick=()=>setFootprint(swarm.footprint+0.3);
 
 function draw(){
   if(!s) return;

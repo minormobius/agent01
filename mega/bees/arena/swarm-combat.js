@@ -16,16 +16,21 @@ import { enemiesOf, reachable, act } from '../../v092/arena/engine.js';
 const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
 // tunables — exported so a demo/encounter can dial difficulty without forking the math.
-export const SWARM_TUNE = { atk: 7, def: 2, speed: 0.8, accuracy: 1, radius: 2, minStingFrac: 0.45 };
+// `footprint` (in tiles) is the swarm's spatial extent: it drives BOTH the visual boids spread and
+// the pulse radius (a big diffuse cloud threatens more ground than a tight angry knot). It is the
+// single "how big is this swarm" knob; the Chebyshev pulse radius is derived from it.
+export const SWARM_TUNE = { atk: 7, def: 2, speed: 0.8, accuracy: 1, footprint: 2.4, minStingFrac: 0.45 };
+export const footprintToRadius = (f) => Math.max(1, Math.round(f));
 export const EMBER = { label: 'Ember', cost: 6, radius: 2, mult: 1.4, vsSwarm: 2.4, glyph: '✺',
   gloss: 'a wide burning arc — scatters and scorches a swarm (×2.4 vs swarms)' };
 
 // Build the swarm unit. hp = mass. Squishy (low def, no flux) and slow (acts late), but it hits a whole
 // area each turn. Shape matches engine.makeUnit so reachable()/act()/endTurn() treat it as any unit.
-export function makeSwarmUnit({ id = 'swarm', seed = 'hive:0', x, y, mass = 130 } = {}) {
+export function makeSwarmUnit({ id = 'swarm', seed = 'hive:0', x, y, mass = 130, footprint } = {}) {
   const t = SWARM_TUNE;
+  const fp = footprint != null ? footprint : t.footprint;
   return {
-    id, name: 'the swarm', team: 'foe', swarm: true, radius: t.radius,
+    id, name: 'the swarm', team: 'foe', swarm: true, footprint: fp, radius: footprintToRadius(fp),
     glyph: '❋', accent: '#d8b25a', sprite: { seed },
     maxhp: mass, hp: mass, atk: t.atk, def: t.def, speed: t.speed,
     accuracy: t.accuracy, crit: 0, maxflux: 0, flux: 0,
