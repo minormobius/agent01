@@ -97,6 +97,8 @@
 import { FACTIONS, FACTION_ORDER, FACTION_LEAN } from '../combat/factions.js';
 import { rollCharacter } from '../combat/stats.js';
 import { generateEncounter } from '../combat/encounter.js';
+import { crewSprite } from '../combat/crew.js';
+import { frameRects, DIR_OF, xmur3 } from '../combat/sprite-core.js';
 import * as E from '../combat/engine.js';
 
 const $ = (s) => document.querySelector(s);
@@ -138,11 +140,12 @@ function startBrawl(difficulty) {
   setTimeout(() => {                                   // yield so the spinner paints before the heavy solve
     enc = generateEncounter(hero, { difficulty, seed: baseSeed * 7 + streak * 13, terrain: true, cap: 9000, tries: 14 });
     s = E.createBattle(enc.setup);
-    snapHp(); floats.length = 0; sel = null; busy = false;
+    sprites.clear(); sprCache.clear(); snapHp(); floats.length = 0; sel = null; busy = false;
     hideOver();
     const g = enc.grade;
     $('#cert').innerHTML = `streak <b>${streak}</b> · <b style="color:var(--gold)">${enc.difficulty}</b> · oracle: ${g.solvable ? `certified <b>winnable in ~${g.par} turns</b> (${(100 * g.margin).toFixed(0)}% margin)` : 'uncertified'}${enc.ok ? '' : ' (closest)'}`;
     syncPanels();
+    if (!isPlayerTurn() && !s.winner) enemyTurnsIfNeeded();   // a faster foe acts first — kick it off (was the "no controls" deadlock)
   }, 40);
 }
 
@@ -165,6 +168,24 @@ function spawnFloaters() {
 let SCALE = 32;
 const px = (x) => x * SCALE, py = (y) => y * SCALE;
 const isPlayerTurn = () => s && !s.winner && E.active(s).team === 'player';
+
+// ── pixel sprites (vendored sprite engine: crewSprite genome → frameRects → cached offscreen canvas) ──
+const sprites = new Map();   // unit.id → genome (the procedural pixel actor; the sprite set is grown in hoop)
+const sprCache = new Map();  // "id|dir|frame" → offscreen canvas
+function spriteFor(u) {
+  let g = sprites.get(u.id); if (g) return g;
+  const role = u.character?.vocation || (u.summoned ? 'store' : 'move');
+  const seed = (u.character?.n) ?? (xmur3(u.id)() >>> 0);
+  g = crewSprite(seed, role); sprites.set(u.id, g); return g;
+}
+function spriteCanvas(u, dir, frame) {
+  const key = u.id + '|' + dir + '|' + frame; let c = sprCache.get(key); if (c) return c;
+  const g = spriteFor(u), N = g.size, SC = 5;
+  c = document.createElement('canvas'); c.width = N * SC; c.height = N * SC;
+  const x = c.getContext('2d');
+  for (const r of frameRects(g, DIR_OF[dir] || DIR_OF.S, frame)) { x.fillStyle = r.c; x.fillRect(r.x * SC, r.y * SC, SC, SC); }
+  sprCache.set(key, c); return c;
+}
 
 // ── draw loop: the CANVAS redraws every frame (animations); the DOM panels sync only on state change. ──
 function frame() { if (s) drawCanvas(); requestAnimationFrame(frame); }
@@ -201,19 +222,30 @@ function drawCanvas() {
 
   const R = (E.UNIT_R || .5) * SCALE;
   for (const u of s.units) {
+    const cx = px(u.x), cy = py(u.y), footY = cy + R * 0.7;
     const flash = u._flash && now - u._flash < 220;
-    ctx.globalAlpha = u.alive ? 1 : .3;
-    ctx.beginPath(); ctx.arc(px(u.x), py(u.y), R, 0, 7);
-    const g = ctx.createRadialGradient(px(u.x), py(u.y), 1, px(u.x), py(u.y), R);
-    g.addColorStop(0, flash ? '#fff' : '#10151c'); g.addColorStop(1, '#0a0d12'); ctx.fillStyle = g; ctx.fill();
-    ctx.lineWidth = (u === act) ? 3 : 2; ctx.strokeStyle = (u === act) ? '#ffce78' : (tgt.has(u.id) ? '#ff7a6e' : u.accent); ctx.stroke();
-    if (u === act) { ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 12; ctx.stroke(); ctx.shadowBlur = 0; }
+    ctx.globalAlpha = u.alive ? 1 : .32;
+    // ground shadow + team/selection ring at the feet
+    ctx.beginPath(); ctx.ellipse(cx, footY, R * 0.9, R * 0.4, 0, 0, 7); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill();
+    const active = u === act, isTgt = tgt.has(u.id);
+    ctx.beginPath(); ctx.ellipse(cx, footY, R * 0.96, R * 0.43, 0, 0, 7);
+    ctx.lineWidth = flash ? 4 : (active || isTgt ? 3 : 2);
+    ctx.strokeStyle = flash ? '#fff' : (active ? '#ffce78' : (isTgt ? '#ff7a6e' : u.accent));
+    if (active) { ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 12; } ctx.stroke(); ctx.shadowBlur = 0;
+    // the pixel actor (player faces up the hull, foes face down), feet on the ring
     if (u.alive) {
-      ctx.beginPath(); ctx.arc(px(u.x), py(u.y), R + 4, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.max(0, u.hp) / u.maxhp);
-      ctx.strokeStyle = u.hp / u.maxhp > .35 ? '#7fe6a0' : '#ff7a6e'; ctx.lineWidth = 3; ctx.stroke();
+      const pc = spriteCanvas(u, u.team === 'player' ? 'N' : 'S', 0);
+      const hgt = R * 3.0, wid = hgt * (pc.width / pc.height);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(pc, cx - wid / 2, footY - hgt, wid, hgt);
+      ctx.imageSmoothingEnabled = true;
+      // overhead HP bar
+      const bw = R * 1.7, bh = 4, bx = cx - bw / 2, by = footY - hgt - 6;
+      ctx.fillStyle = '#311'; ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = u.hp / u.maxhp > .35 ? '#7fe6a0' : '#ff7a6e'; ctx.fillRect(bx, by, bw * Math.max(0, u.hp) / u.maxhp, bh);
+    } else {
+      ctx.fillStyle = u.accent; ctx.font = `${Math.round(R * 1.4)}px ${SERIF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✝', cx, cy);
     }
-    ctx.fillStyle = u.accent; ctx.font = `${Math.round(R * 1.3)}px ${SERIF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(u.alive ? u.glyph : '✝', px(u.x), py(u.y));
     ctx.globalAlpha = 1;
   }
 

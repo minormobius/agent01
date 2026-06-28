@@ -48,6 +48,7 @@ function heroUnit(hero) {
   return {
     id: 'P', name: hero.name || 'Hero', faction: hero.faction,
     combat: deriveCombat(hero.character, { weapon: hero.weapon || null, armour: hero.armour || null }),
+    character: hero.character,   // carried through for the sprite (makeUnit uses `combat` for stats, ignores this)
   };
 }
 

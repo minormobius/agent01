@@ -19,6 +19,7 @@ normal deploy (`deploy-rind.yml` on `main` or the rind owning branch touching `r
 | `factions.js` | The three faction combat styles as tunable data (passive, kit, cost discounts, AI archetype). |
 | `stats.js` | **Copied** from `hoop/v098/stats.js` (one import path repointed to `./prng.js`). The FLESH·CHASSIS·ANIMA stat spine. |
 | `prng.js` | **Copied** from `hoop/v098/sprite/item/prng.js`. Seeded RNG. |
+| `sprite-core.js` · `crew.js` | **Vendored** pixel-actor engine (sprite genome → `frameRects` → rects). Renders the `/brawl` actors; the sprite set grows upstream — re-sync, don't fork. |
 | `balance.mjs` | The headless balance harness — many seeded AI-vs-AI battles per faction matchup → a win/draw/TTK matrix. The reason the sandbox exists. |
 | `solver.js` | The **solvability oracle** (fable/forge analog) — searches the deterministic combat tree vs the AI to certify a player party can win, with par + margin + a difficulty grade. |
 | `encounter.js` | **Encounter generator** — given a hero (stat + equipment block), summons a foe roster (+ terrain) the oracle certifies is winnable-but-not-trivial at a target difficulty. |
@@ -30,6 +31,12 @@ normal deploy (`deploy-rind.yml` on `main` or the rind owning branch touching `r
 
 `stats.js`/`prng.js` are **vendored copies** (the fork-engine-copy-stats decision): the sandbox stays
 fully standalone and node-testable. If hoop's spine changes, re-sync these — don't let them drift.
+
+`sprite-core.js` + `crew.js` are likewise **vendored** (from `hoop/v098/v3/sprite-core.js` + `hoop/v098/crew.js`,
+themselves vendored from the Sprite Lab at `mega.mino.mobi/sprite`). They render the **pixel actors** in
+`/brawl` (`crewSprite(seed, role)` → genome → `frameRects(g, dir, phase)` → drawable rects). The sprite
+*set* is grown upstream (more heads/items/roles in sprite-core); **re-sync these two files** to pick up
+the expanded set — don't fork them here.
 
 ## Run
 
