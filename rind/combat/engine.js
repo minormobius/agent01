@@ -80,6 +80,7 @@ export const STATUS = {
 
 // the skills a unit can actually use = universal base + its faction's kit (deduped, stable order).
 export function skillsFor(unit) {
+  if (unit.kit) return unit.kit.filter((k) => SKILLS[k]);   // explicit kit (summons) — exactly these, no universal base
   const fac = FACTIONS[unit.faction];
   const kit = fac ? fac.kit : [];
   const seen = new Set(), out = [];
@@ -89,11 +90,12 @@ export function skillsFor(unit) {
 // a unit's actual flux cost for a skill (faction discount applied). Pure.
 export const costOf = (unit, skillId) => discountedCost(unit.faction, skillId, SKILLS[skillId]?.cost || 0);
 
-export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent, summoned = false }) {
+export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent, summoned = false, ai = null, kit = null }) {
   const cm = combat || deriveCombat(character || { attrs: {}, power: 10 });
   const fac = FACTIONS[faction];
   return {
     id, name, team, faction: fac ? faction : null, character, sprite, summoned,
+    ai, kit,   // per-unit overrides (summons): own AI archetype + own skill kit, no faction inheritance
     glyph: glyph || (fac ? fac.glyph : (team === 'player' ? '☻' : '☗')),
     accent: accent || (fac ? fac.accent : (team === 'player' ? '#f4bf62' : '#cf3b3b')),
     maxhp: cm.hp, hp: cm.hp, atk: cm.atk, def: cm.def, speed: cm.speed, accuracy: cm.accuracy, crit: cm.crit,
@@ -372,11 +374,12 @@ export function act(s, action) {
       log(s, `${u.name} ${sk.label} — drags ${moved.length} toward the knot`, 'info');
       return { type: 'agglomerate', unit: u.id, center: { x: ctr.x, y: ctr.y }, moved };
     }
-    if (sk.kind === 'summon') {                 // bring a new allied agent onto the board
+    if (sk.kind === 'summon') {                 // bring a faction-appropriate construct onto the board
+      const spec = FACTIONS[u.faction]?.summon || { name: 'Drone', glyph: '◆', ai: 'aggro', kit: ['strike'], combat: { ...DRONE } };
       const spot = freeNear(s, u) || { x: u.x, y: u.y }, id = `${u.id}~d${s.nextId++}`;
-      const drone = makeUnit({ id, name: `${u.name}'s Drone`, team: u.team, combat: { ...DRONE }, x: spot.x, y: spot.y, glyph: '◆', accent: u.accent, summoned: true });
+      const drone = makeUnit({ id, name: `${u.name}'s ${spec.name}`, team: u.team, combat: { ...spec.combat }, x: spot.x, y: spot.y, glyph: spec.glyph, accent: u.accent, summoned: true, ai: spec.ai, kit: spec.kit });
       s.units.push(drone); s.order.push(id);   // acts when the round wraps to its new slot
-      log(s, `${u.name} summons a drone`, 'info');
+      log(s, `${u.name} summons a ${spec.name}`, 'info');
       return { type: 'summon', unit: u.id, droneId: id };
     }
     if (sk.kind === 'revive') {                 // restart a downed ally at partial integrity
@@ -466,7 +469,7 @@ export function aiPlan(s) {
   // only calls this on the enemy's turn. `target`/`foes` are enemiesOf(active), so it works both ways.
   const u = active(s); if (!u || s.winner) return [{ type: 'end' }];
   if (u.status.stun?.turns > 0) return [{ type: 'end' }];
-  const arche = FACTIONS[u.faction]?.ai || 'aggro';
+  const arche = u.ai || FACTIONS[u.faction]?.ai || 'aggro';
   const foes = enemiesOf(s, u).slice().sort((a, b) => dist(u, a) - dist(u, b));
   const target = foes[0];
   if (!target) return [{ type: 'end' }];

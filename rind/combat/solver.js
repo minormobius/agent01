@@ -61,8 +61,10 @@ function playerPlans(s) {
   if (!atkOpts.includes('strike')) atkOpts.push('strike');
   for (const e of enemies) plans.push(engage(s, u, e, atkOpts));
 
-  // 2) each affordable self/support skill (no target)
-  for (const id of ['mend', 'scavenge', 'brace', 'bulwark', 'harden', 'adrenal', 'summon']) {
+  // 2) each affordable self/support skill (no target). NB: `summon` is intentionally excluded — the
+  // certificate means "winnable with your direct kit"; bringing extra agents only makes it easier, and
+  // searching a growing party would blow up the tree. Summons are gravy in real play, not required.
+  for (const id of ['mend', 'scavenge', 'brace', 'bulwark', 'harden', 'adrenal']) {
     if (can(id)) plans.push([{ type: 'skill', skillId: id }, { type: 'end' }]);
   }
   // 3) revive a downed ally / assist a living ally (if any in range) — keeps the party verbs in-search

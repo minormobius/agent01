@@ -28,6 +28,8 @@ export const FACTIONS = {
     kit: ['bulwark', 'rivet', 'mend', 'summon', 'revive', 'assist'],   // the maintainers rebuild & restore the party
     discount: { harden: 0.5, mend: 0.5, revive: 0.7 },   // anima→chassis, self-repair, and restoring others come cheap
     ai: 'turtle',
+    // Sentry — a stout, slow blocker drone that holds ground and braces (the maintainers' construct).
+    summon: { name: 'Sentry', glyph: '◈', ai: 'turtle', kit: ['strike', 'brace'], combat: { hp: 20, atk: 5, def: 6, speed: 1, accuracy: 0.85, crit: 0.02, fluxPool: 6, apow: 0, power: 6 } },
   },
 
   drift: {
@@ -40,9 +42,11 @@ export const FACTIONS = {
       hitAndRunCrit: 0.22,      // +crit chance on an attack made the same turn it moved
       fluxRegen: 2,             // +Flux/turn — anima is flux-native, so the ranged kite never runs dry
     },
-    kit: ['lance', 'flit', 'feint', 'blast', 'agglomerate', 'siphon'],   // ranged anima offense + the area combo
+    kit: ['lance', 'flit', 'feint', 'blast', 'agglomerate', 'siphon', 'summon'],   // ranged anima offense + the area combo
     discount: { overclock: 0.6, lance: 0.6, blast: 0.75 },   // the anima offense is cheap for Drift
     ai: 'kite',
+    // Echo — a fragile anima decoy that lances from range (the trickster's mirror); glass, kites.
+    summon: { name: 'Echo', glyph: '◇', ai: 'kite', kit: ['strike', 'lance'], combat: { hp: 8, atk: 3, def: 1, speed: 2, accuracy: 0.9, crit: 0.05, fluxPool: 14, apow: 9, power: 6 } },
   },
 
   rindwalker: {
@@ -54,9 +58,11 @@ export const FACTIONS = {
       berserkMax: 0.3,         // up to +45% outgoing damage at 1 HP, scaling with the missing fraction
       regenPerTurn: 0.04,       // heals 6% of max HP at the start of each of its turns
     },
-    kit: ['gore', 'adrenal', 'scavenge'],
+    kit: ['gore', 'adrenal', 'scavenge', 'summon'],
     discount: { adrenal: 0.5 },
     ai: 'aggro',
+    // Hound — a fast, frail salvaged beast that rushes and bites (the hull-diver's pet); pure aggro.
+    summon: { name: 'Hound', glyph: '◆', ai: 'aggro', kit: ['strike'], combat: { hp: 12, atk: 8, def: 2, speed: 3, accuracy: 0.85, crit: 0.06, fluxPool: 0, apow: 0, power: 6 } },
   },
 };
 export const FACTION_ORDER = ['continuant', 'drift', 'rindwalker'];
