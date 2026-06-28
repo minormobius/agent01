@@ -62,6 +62,20 @@
   .modal.win h2{color:var(--ok)} .modal.lose h2{color:var(--red)}
   .modal p{margin:8px 0;font:13px/1.6 var(--mono);color:var(--dim)}
   .spin{font:13px/1 var(--mono);color:var(--teal)}
+  /* tech tree overlay */
+  #tree{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,6,10,.85);backdrop-filter:blur(3px);z-index:10}
+  #tree.on{display:flex}
+  .treebox{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;max-width:560px;width:92%;max-height:86vh;overflow:auto}
+  .treebox h2{margin:0 0 2px;font:600 18px/1.2 var(--mono);color:var(--gold)}
+  .treebox .pts{font:12px/1.5 var(--mono);color:var(--teal);margin-bottom:12px}
+  .tier{margin:12px 0 4px;font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:1.4px;color:var(--dim)}
+  .tnode{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;margin:4px 0;padding:8px 11px;font:12px/1.3 var(--mono)}
+  .tnode .nm{color:var(--txt)} .tnode .gl{color:var(--dim);font-size:11px}
+  .tnode.own{border-color:#2c5350;background:#10201f} .tnode.own .nm{color:var(--teal)}
+  .tnode.buy{border-color:var(--gold);cursor:pointer} .tnode.buy:hover{background:#1a1510}
+  .tnode.lock{opacity:.4}
+  .tnode .cost{font-size:11px;color:var(--gold);white-space:nowrap}
+  .treebox .done{margin-top:14px;width:100%;background:#10201f;border-color:#2c5350;color:var(--teal)}
 </style>
 </head>
 <body>
@@ -83,6 +97,7 @@
       <canvas id="cv" width="520" height="520" draggable="false"></canvas>
       <div class="cert" id="cert"></div>
       <div class="hint" id="hint"></div>
+      <button id="treeBtn" style="margin-top:8px">🜂 tech tree</button>
     </div>
     <div class="side">
       <div class="card"><h3 id="actName">—</h3><div class="ros" id="actStats"></div></div>
@@ -94,6 +109,7 @@
 </div>
 
 <div id="over"><div class="modal" id="modal"></div></div>
+<div id="tree"><div class="treebox" id="treebox"></div></div>
 
 <script type="module">
 import { FACTIONS, FACTION_ORDER, FACTION_LEAN } from '../combat/factions.js';
@@ -101,6 +117,7 @@ import { rollCharacter } from '../combat/stats.js';
 import { generateEncounter } from '../combat/encounter.js';
 import { crewSprite } from '../combat/crew.js';
 import { frameRects, DIR_OF, xmur3 } from '../combat/sprite-core.js';
+import { TREES, startingNodes, canBuy, buildLoadout, nodeById } from '../combat/tree.js';
 import * as E from '../combat/engine.js';
 
 const $ = (s) => document.querySelector(s);
@@ -131,9 +148,10 @@ let mode = 'idle', sel = null, radial = null, drag = false, moved = false;
 const LADDER = ['comfortable', 'fair', 'fair', 'tight', 'tight', 'brutal'];
 
 $('#summon').onclick = () => {
-  hero = { faction: heroFaction, name: `${FACTIONS[heroFaction].label}`, power: 11, character: null };
+  hero = { faction: heroFaction, name: `${FACTIONS[heroFaction].label}`, power: 11, character: null,
+    nodes: new Set(startingNodes(heroFaction)), points: 2 };   // start with 2 points so the first build is a real choice
   streak = 0; baseSeed = 1 + Math.floor(Math.random() * 9000);   // the only unseeded roll: which run
-  startBrawl(opening);
+  openTree({ onDone: () => startBrawl(opening), label: '⚔ to battle' });   // spend opening points first
 };
 
 function startBrawl(difficulty) {
@@ -142,6 +160,7 @@ function startBrawl(difficulty) {
   $('#battle').classList.add('live');
   showOver(`<div class="spin">⟳ summoning a ${difficulty} brawl…<br><span style="color:var(--dim)">the solver is proving it winnable</span></div>`, '');
   hero.character = rollCharacter(baseSeed * 31 + streak, { triad: FACTION_LEAN[hero.faction], power: hero.power });
+  const lo = buildLoadout(hero.faction, hero.nodes); hero.kit = lo.kit; hero.mods = lo.mods;   // tech-tree loadout
   setTimeout(() => {                                   // yield so the spinner paints before the heavy solve
     enc = generateEncounter(hero, { difficulty, seed: baseSeed * 7 + streak * 13, terrain: true, cap: 9000, tries: 14 });
     s = E.createBattle(enc.setup);
@@ -505,14 +524,40 @@ function showOver(html, cls) { const m = $('#modal'); m.className = 'modal ' + (
 function hideOver() { $('#over').classList.remove('on'); }
 function showWin() {
   const next = LADDER[Math.min(streak, LADDER.length - 1)];
-  showOver(`<h2>Field held</h2><p>Streak <b style="color:var(--gold)">${streak}</b> — the hull is yours.</p>
+  hero.points += 1;   // a skill point per victory
+  showOver(`<h2>Field held</h2><p>Streak <b style="color:var(--gold)">${streak}</b> — +1 skill point (<b>${hero.points}</b> to spend).</p>
     <p>Your hand sharpens: <b>power ${hero.power} → ${hero.power + 1}</b>.</p>
     <div class="row" style="justify-content:center;margin-top:14px">
-      <button id="next" style="background:#10201f;border-color:#2c5350;color:var(--teal)">Next brawl → ${next}</button>
+      <button id="next" style="background:#10201f;border-color:#2c5350;color:var(--teal)">🜂 Spend & fight on → ${next}</button>
       <button id="quit">New hand</button></div>`, 'win');
-  $('#next').onclick = () => { hero.power += 1; hideOver(); startBrawl(next); };
+  $('#next').onclick = () => { hero.power += 1; hideOver(); openTree({ onDone: () => startBrawl(next), label: `⚔ next brawl → ${next}` }); };
   $('#quit').onclick = backToSetup;
 }
+
+// ── tech tree overlay ──
+function openTree(opts = {}) { const onDone = opts.onDone || (() => {}), label = opts.label || 'done'; $('#tree').classList.add('on'); renderTree(onDone, label); }
+function hideTree() { $('#tree').classList.remove('on'); }
+function renderTree(onDone, label) {
+  const f = hero.faction, nodes = TREES[f] || [];
+  let h = `<h2>${FACTIONS[f].glyph} ${FACTIONS[f].label} — tech tree</h2><div class="pts">${hero.points} skill point${hero.points === 1 ? '' : 's'} to spend${streak ? ` · streak ${streak}` : ''}</div>`;
+  for (let t = 1; t <= 5; t++) {
+    const tn = nodes.filter((n) => n.tier === t); if (!tn.length) continue;
+    h += `<div class="tier">tier ${t}</div>`;
+    for (const n of tn) {
+      const own = hero.nodes.has(n.id), buy = !own && canBuy(f, hero.nodes, hero.points, n.id);
+      const cls = own ? 'own' : buy ? 'buy' : 'lock';
+      h += `<button class="tnode ${cls}" data-id="${n.id}" ${buy ? '' : 'disabled'}><span><span class="nm">${n.label}</span><br><span class="gl">${n.gloss}</span></span><span class="cost">${own ? '✓' : n.cost ? n.cost + ' pt' : '—'}</span></button>`;
+    }
+  }
+  h += `<button class="done" id="treeDone">${label}</button>`;
+  $('#treebox').innerHTML = h;
+  $('#treebox').querySelectorAll('.tnode.buy').forEach((b) => b.onclick = () => {
+    const id = b.dataset.id, n = nodeById(f, id);
+    if (canBuy(f, hero.nodes, hero.points, id)) { hero.nodes.add(id); hero.points -= n.cost; renderTree(onDone, label); }
+  });
+  $('#treeDone').onclick = () => { hideTree(); onDone(); };
+}
+$('#treeBtn').onclick = () => { if (hero) openTree({ label: 'done' }); };
 function showLose() {
   showOver(`<h2>You fell</h2><p>The fight was certified winnable in ~${enc.grade.par} turns — the line was there.</p>
     <p>Streak ended at <b>${streak}</b>.</p>

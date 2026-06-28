@@ -90,20 +90,24 @@ export function skillsFor(unit) {
 // a unit's actual flux cost for a skill (faction discount applied). Pure.
 export const costOf = (unit, skillId) => discountedCost(unit.faction, skillId, SKILLS[skillId]?.cost || 0);
 
-export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent, summoned = false, ai = null, kit = null }) {
-  const cm = combat || deriveCombat(character || { attrs: {}, power: 10 });
+export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent, summoned = false, ai = null, kit = null, mods = null }) {
+  const cm0 = combat || deriveCombat(character || { attrs: {}, power: 10 });
+  const st = (mods && mods.stat) || {};      // tech-tree stat deltas (tree.js buildLoadout)
+  const cm = { hp: cm0.hp + (st.hp || 0), atk: cm0.atk + (st.atk || 0), def: cm0.def + (st.def || 0), speed: +(cm0.speed + (st.speed || 0)).toFixed(2), accuracy: cm0.accuracy, crit: cm0.crit, fluxPool: cm0.fluxPool + (st.flux || 0), apow: (cm0.apow ?? cm0.atk) + (st.apow || 0), power: cm0.power };
   const fac = FACTIONS[faction];
   return {
     id, name, team, faction: fac ? faction : null, character, sprite, summoned,
-    ai, kit,   // per-unit overrides (summons): own AI archetype + own skill kit, no faction inheritance
+    ai, kit, mods,   // per-unit overrides: AI archetype + skill kit (summons) + tech-tree mods (passive deltas read via passiveOf)
     glyph: glyph || (fac ? fac.glyph : (team === 'player' ? '☻' : '☗')),
     accent: accent || (fac ? fac.accent : (team === 'player' ? '#f4bf62' : '#cf3b3b')),
     maxhp: cm.hp, hp: cm.hp, atk: cm.atk, def: cm.def, speed: cm.speed, accuracy: cm.accuracy, crit: cm.crit,
-    apow: cm.apow ?? cm.atk, maxflux: cm.fluxPool, flux: cm.fluxPool, x, y, alive: true,
+    apow: cm.apow, maxflux: cm.fluxPool, flux: cm.fluxPool, x, y, alive: true,
     moved: false, acted: false, movedThisTurn: false,
     buff: { def: 0, turns: 0, counter: false }, status: {}, extraTurn: false,
   };
 }
+// a unit's effective faction-passive value for `key` = faction base + tech-tree delta (mods.passive).
+function passiveOf(u, key) { return (FACTIONS[u.faction]?.passive?.[key] || 0) + ((u.mods && u.mods.passive && u.mods.passive[key]) || 0); }
 
 // player + optional `allies` (rest of the player party) vs `foes`. Any team size on either side —
 // the win check is "a team has no living units", so summon/revive grow/shrink the party mid-battle.
@@ -175,9 +179,7 @@ export function scatterTerrain(seed, { W = 16, H = 16, walls = 3, hazards = 2 } 
 // move range (a radius now): base from speed, +faction moveBonus (Drift), shrunk to 1 while slowed.
 export function moveRange(u) {
   if (u.status.slow?.turns > 0) return 1;
-  const fac = FACTIONS[u.faction];
-  const bonus = fac?.passive?.moveBonus || 0;
-  return clamp(Math.round(1 + u.speed) + bonus, 2, 5);
+  return clamp(Math.round(1 + u.speed) + passiveOf(u, 'moveBonus'), 2, 6);
 }
 
 // can `u` legally stand at (x,y) this move? (within radius R, in bounds, no overlap)
@@ -248,15 +250,14 @@ export function legal(s) {
 
 // faction berserk multiplier for outgoing damage (Rindwalker: more damage the more hurt it is).
 function berserkMult(u) {
-  const m = FACTIONS[u.faction]?.passive?.berserkMax;
+  const m = passiveOf(u, 'berserkMax');
   if (!m) return 1;
   const missing = 1 - u.hp / Math.max(1, u.maxhp);
   return 1 + m * missing;
 }
 function effectiveDef(u) {
-  const fac = FACTIONS[u.faction];
   let d = u.def + (u.buff.turns > 0 ? u.buff.def : 0);
-  if (fac?.passive?.bracedDefBonus && !u.movedThisTurn) d += fac.passive.bracedDefBonus;   // holds station → harder
+  if (!u.movedThisTurn) d += passiveOf(u, 'bracedDefBonus');   // holds station → harder
   return d;
 }
 
@@ -271,7 +272,7 @@ function resolveAttack(s, atk, tgt, skillId, isCounter = false) {
   if (cost) atk.flux = Math.max(0, atk.flux - cost);
   if (sk.selfHp) { const c = Math.max(1, Math.round(atk.maxhp * sk.selfHp)); atk.hp = Math.max(1, atk.hp - c); }  // gore costs blood (never self-kill)
   // crit: base + Drift hit-and-run bonus when it struck the same turn it moved
-  let critChance = atk.crit + ((FACTIONS[atk.faction]?.passive?.hitAndRunCrit && atk.movedThisTurn) ? FACTIONS[atk.faction].passive.hitAndRunCrit : 0);
+  let critChance = atk.crit + (atk.movedThisTurn ? passiveOf(atk, 'hitAndRunCrit') : 0);
   const flank = !isCounter && !sk.magic && inRange(atk, tgt, 1) && isFlanking(s, atk, tgt);   // melee-only pincer
   const acc = Math.min(1, atk.accuracy + (flank ? 0.1 : 0));
   let hit, crit, variance;
@@ -426,9 +427,8 @@ function beginTurn(s) {
   if (!u) return;
   u.moved = false; u.acted = false; u.movedThisTurn = false;
   if (u.buff.turns > 0) u.buff.turns--;
-  const fac = FACTIONS[u.faction];
-  if (fac?.passive?.fluxRegen) u.flux = Math.min(u.maxflux, u.flux + fac.passive.fluxRegen);
-  if (fac?.passive?.regenPerTurn && u.hp > 0) u.hp = Math.min(u.maxhp, u.hp + Math.round(u.maxhp * fac.passive.regenPerTurn));
+  const fr = passiveOf(u, 'fluxRegen'); if (fr) u.flux = Math.min(u.maxflux, u.flux + fr);
+  const rp = passiveOf(u, 'regenPerTurn'); if (rp && u.hp > 0) u.hp = Math.min(u.maxhp, u.hp + Math.round(u.maxhp * rp));
   // hazard fields: standing in one at turn start bites — burn (HP), mire (slow), emp (flux drain).
   for (const hz of hazardsAt(s, u.x, u.y)) {
     if (hz.effect === 'burn') { const b = Math.max(1, Math.round(u.maxhp * 0.07)); u.hp = Math.max(0, u.hp - b); log(s, `${u.name} sears in the field −${b}`, 'hit'); if (u.hp <= 0) { u.alive = false; log(s, `${u.name} falls.`, 'down'); checkEnd(s); } }

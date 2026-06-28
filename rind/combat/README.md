@@ -24,10 +24,12 @@ normal deploy (`deploy-rind.yml` on `main` or the rind owning branch touching `r
 | `solver.js` | The **solvability oracle** (fable/forge analog) — searches the deterministic combat tree vs the AI to certify a player party can win, with par + margin + a difficulty grade. |
 | `encounter.js` | **Encounter generator** — given a hero (stat + equipment block), summons a foe roster (+ terrain) the oracle certifies is winnable-but-not-trivial at a target difficulty. |
 | `encounter.mjs` | CLI: roll a hero, print a generated fight at one or all difficulties. |
+| `tree.js` | **Tech tree** — per-faction, 5 tiers, exclusive branches. `buildLoadout(faction, owned)` → `{kit, mods}` the engine applies per-unit. In-run (roguelike) points in `/brawl`; data is source-agnostic (could later be ATProto/items). |
 | `dojo.html` | A visual tuner — pick factions + party sizes, roll a seed, step turns or auto-play, watch the log. |
 | `../test/combat.selftest.mjs` | 45 invariants (determinism, kits, legality, every verb incl. multi-agent, terrain/LoS/hazards, passives, termination). |
 | `../test/solver.selftest.mjs` | 13 invariants (determinism, easy-solvable, hard-unwinnable, det-mode math, grading, terrain). |
 | `../test/encounter.selftest.mjs` | 10 invariants (winnable-not-trivial, determinism, difficulty ordering, equipment feeds in, terrain). |
+| `../test/tree.selftest.mjs` | 17 invariants (starting loadout, buy gating, exclusive branches, loadout fold, engine mods apply). |
 
 `stats.js`/`prng.js` are **vendored copies** (the fork-engine-copy-stats decision): the sandbox stays
 fully standalone and node-testable. If hoop's spine changes, re-sync these — don't let them drift.
@@ -158,8 +160,14 @@ takes it; the oracle and balance harness honour it for free (it's all in the sha
 - **Smarter terrain navigation.** `moveToward` does *local* obstacle deflection (rounds a wall), not
   full pathfinding — fine for scattered cover, but a maze would still stall the AI. A nav layer (visibility
   graph / A* over the free space) is the next step if terrain gets dense.
-- **Elevation / decks**, line-of-sight *cover bonuses* (partial), and **skill trees** (seeded from
-  `CONVERSIONS`, unlocking kit verbs + passives, gated by items/narrative).
+- **Elevation / decks** and line-of-sight *cover bonuses* (partial).
+- **Tech tree v2:** per-skill *rank* nodes (Gore II = +mult, Lance II = +range) — needs per-unit skill
+  modifiers in the engine (today's mods cover stat + passive, not per-skill mult/range). And graduating
+  progression from in-run points to **persistent (ATProto)** and **item-driven** unlocks.
+
+*(Shipped: the tech tree — `tree.js`, per-faction 5-tier exclusive-branch trees, in-run points in
+`/brawl`. Faction summons (Sentry/Echo/Hound) are a T4 node. The encounter generator scales to your
+unlocked kit, so a deeper build is met with a tougher fight.)*
 - **Skill trees.** The `CONVERSIONS` in `stats.js` are the seeds; unlocks gate via items + narrative
   (the existing progression model). A tree would unlock kit verbs + passives per faction.
 - **Range/terrain depth.** Cover, hazards, elevation (decks), line-of-sight for ranged attacks.

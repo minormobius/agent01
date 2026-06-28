@@ -49,6 +49,8 @@ function heroUnit(hero) {
     id: 'P', name: hero.name || 'Hero', faction: hero.faction,
     combat: deriveCombat(hero.character, { weapon: hero.weapon || null, armour: hero.armour || null }),
     character: hero.character,   // carried through for the sprite (makeUnit uses `combat` for stats, ignores this)
+    kit: hero.kit || null,       // tech-tree loadout: the verbs this hero has unlocked (else full faction kit)
+    mods: hero.mods || null,     // tech-tree stat/passive deltas
   };
 }
 
