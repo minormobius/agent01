@@ -16,8 +16,10 @@ Nothing in this directory deploys. It's a workbench.
 | `stats.js` | **Copied** from `hoop/v098/stats.js` (one import path repointed to `./prng.js`). The FLESH·CHASSIS·ANIMA stat spine. |
 | `prng.js` | **Copied** from `hoop/v098/sprite/item/prng.js`. Seeded RNG. |
 | `balance.mjs` | The headless balance harness — many seeded AI-vs-AI battles per faction matchup → a win/draw/TTK matrix. The reason the sandbox exists. |
-| `dojo.html` | A visual tuner — pick factions, roll a seed, step turns or auto-play, watch the log. |
-| `../test/combat.selftest.mjs` | 28 invariants (determinism, kits, legality, every verb, every passive, termination). |
+| `solver.js` | The **solvability oracle** (fable/forge analog) — searches the deterministic combat tree vs the AI to certify a player party can win, with par + margin + a difficulty grade. |
+| `dojo.html` | A visual tuner — pick factions + party sizes, roll a seed, step turns or auto-play, watch the log. |
+| `../test/combat.selftest.mjs` | 38 invariants (determinism, kits, legality, every verb incl. multi-agent, passives, termination). |
+| `../test/solver.selftest.mjs` | 11 invariants (determinism, easy-solvable, hard-unwinnable, det-mode math, grading). |
 
 `stats.js`/`prng.js` are **vendored copies** (the fork-engine-copy-stats decision): the sandbox stays
 fully standalone and node-testable. If hoop's spine changes, re-sync these — don't let them drift.
@@ -31,8 +33,25 @@ node rind/combat/balance.mjs --n 1000        # tighter numbers
 node rind/combat/balance.mjs --party 2       # NvN party battles (multi-agent path)
 node rind/combat/balance.mjs --pair drift:rindwalker   # one matchup, verbose
 node rind/combat/balance.mjs --csv           # machine-readable
+node rind/test/solver.selftest.mjs           # the solvability oracle invariants
 open rind/combat/dojo.html                    # the visual tuner (party sizes, step/auto-play)
 ```
+
+### The solvability oracle (`solver.js`)
+
+```js
+import { solveCombat, gradeEncounter } from './solver.js';
+// can the player party beat this AI, played well?
+solveCombat({ player, allies, foes, seed });   // → { solvable, par, margin, nodes, capped }
+gradeEncounter({ player, foes });              // → adds tier: comfortable|fair|tight|brutal|impossible|unknown
+```
+
+`par` = player decisions to the win (≈ optimal, via BFS by ply). `margin` = player HP fraction left at
+the win (comfort). `capped` = hit the node budget → inconclusive, never a false "unwinnable". It runs the
+engine in **deterministic mode** (`det:true`: every blow lands for its expected value) and treats the
+foe as the deterministic AI, so the search is single-agent (forge-style) and reproducible — the same
+encounter always grades the same. This is the loop encounter design runs on once boards/parties make
+hand-tuning impossible.
 
 ## The faction styles (the headline content)
 
@@ -75,20 +94,18 @@ table (mults, costs, ranges, status durations). The harness is the feedback loop
 ## Roadmap — the larger arc (design intent)
 
 The sandbox is being grown toward a deeper game. Shipped so far: faction styles, the multi-agent verb
-set (summon/revive/assist/blast/agglomerate), range (lance), and the AI archetypes. Still ahead:
+set (summon/revive/assist/blast/agglomerate), range (lance), the AI archetypes, and the **solvability
+oracle** (`solver.js`) — the fable/forge analog described below. Still ahead:
 
-- **A solvability engine (the keystone, modelled on `fable/forge`).** forge certifies a puzzle with one
-  **BFS oracle** over a closed, deterministic state space → `{solvable, par, path}` (par = optimal-play
-  length). Combat needs the same so procedurally-generated encounters (with summon/blast/bigger boards,
-  where hand-tuning dies) are provably winnable + graded by difficulty. The combat analog runs the engine
-  in a **deterministic mode** (hits land, damage = expected value), then searches the turn game-tree
-  (minimax / expectiminimax, node-capped like forge) to certify the player party has a forced win and
-  report **par (turns)**, **margin (HP left)**, and **fragility (how many lines lose)** as the difficulty
-  read. This is the next focused build; it benefits from the board model being settled first.
-- **The board beyond the grid (open decision).** Today it's a 9×9 Chebyshev grid. Options: a **bigger
-  grid**, or a **continuum** (Euclidean positions + radii). The engine already routes distance/range
-  through `cheb` and skill `range`/`radius` — abstracting that to a swappable metric (`dist(a,b)`) is the
-  hinge that lets the same verbs run on either. Pick before the oracle, since it shapes the state space.
+- **The board beyond the grid (open decision — pick this next).** Today it's a 9×9 Chebyshev grid.
+  Options: a **bigger grid** (+ terrain/cover/elevation), or a **continuum** (Euclidean positions +
+  radii). The engine routes distance/range through `cheb` and skill `range`/`radius` — abstracting that
+  to a swappable metric (`dist(a,b)`) lets the same verbs (and the oracle) run on either. This is the
+  hinge; the oracle's state space follows from it.
+- **Oracle v2.** Today `solver.js` searches a bounded macro-action menu against the AI. Next: real
+  expectiminimax (so it's robust to RNG, not just expected-value), a **fragility** read (what fraction of
+  lines lose), and forge-style **encounter generation** — lay out foes + a board, let the oracle certify
+  it solvable at a target difficulty, mint the n-th encounter as a permalink.
 - **Skill trees.** The `CONVERSIONS` in `stats.js` are the seeds; unlocks gate via items + narrative
   (the existing progression model). A tree would unlock kit verbs + passives per faction.
 - **Range/terrain depth.** Cover, hazards, elevation (decks), line-of-sight for ranged attacks.

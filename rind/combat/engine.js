@@ -95,7 +95,10 @@ export function makeUnit({ id, name, team, faction, character, combat, x, y, spr
 
 // player + optional `allies` (rest of the player party) vs `foes`. Any team size on either side —
 // the win check is "a team has no living units", so summon/revive grow/shrink the party mid-battle.
-export function createBattle({ player, allies = [], foes = [], seed = 1, W = 9, H = 9, maxTurns = 100 }) {
+// `det: true` puts the battle in DETERMINISTIC mode — no RNG: every attack lands and deals its
+// EXPECTED value (base × P(hit) × (1+P(crit))), variance = 1. This is what the solvability oracle
+// (solver.js) searches; normal play leaves det false and keeps the seeded rolls.
+export function createBattle({ player, allies = [], foes = [], seed = 1, W = 9, H = 9, maxTurns = 100, det = false }) {
   const units = [];
   const pcs = [player, ...allies];
   const np = pcs.length;
@@ -103,7 +106,7 @@ export function createBattle({ player, allies = [], foes = [], seed = 1, W = 9, 
   const n = foes.length;
   foes.forEach((f, i) => units.push(makeUnit({ ...f, team: 'foe', x: f.x ?? Math.round((i + 1) * W / (n + 1)), y: f.y ?? 0 })));
   const order = units.slice().sort((a, b) => (b.speed - a.speed) || (a.team === 'player' ? -1 : 1)).map((u) => u.id);
-  const state = { W, H, units, order, idx: 0, turn: 1, maxTurns, nextId: 1, log: [], phase: 'choose', winner: null, timedOut: false, rng: mulberry32(seed >>> 0 || 1) };
+  const state = { W, H, units, order, idx: 0, turn: 1, maxTurns, nextId: 1, det, log: [], phase: 'choose', winner: null, timedOut: false, rng: mulberry32(seed >>> 0 || 1) };
   beginTurn(state);
   return state;
 }
@@ -210,15 +213,15 @@ function resolveAttack(s, atk, tgt, skillId, isCounter = false) {
   // crit: base + Drift hit-and-run bonus when it struck the same turn it moved
   let critChance = atk.crit + ((FACTIONS[atk.faction]?.passive?.hitAndRunCrit && atk.movedThisTurn) ? FACTIONS[atk.faction].passive.hitAndRunCrit : 0);
   const flank = !isCounter && !sk.magic && cheb(atk, tgt) <= 1 && isFlanking(s, atk, tgt);   // melee-only pincer
-  const acc = atk.accuracy + (flank ? 0.1 : 0);
-  const hit = s.rng() < acc;
-  if (!hit) { log(s, `${atk.name} ${sk.label} — misses ${tgt.name}`, 'miss'); return { hit: false, target: tgt.id }; }
-  const crit = s.rng() < critChance;
-  const variance = 0.8 + s.rng() * 0.4;
+  const acc = Math.min(1, atk.accuracy + (flank ? 0.1 : 0));
+  let hit, crit, variance;
+  if (s.det) { hit = true; crit = false; variance = 1; }            // deterministic: always lands, mean roll
+  else { hit = s.rng() < acc; if (!hit) { log(s, `${atk.name} ${sk.label} — misses ${tgt.name}`, 'miss'); return { hit: false, target: tgt.id }; } crit = s.rng() < critChance; variance = 0.8 + s.rng() * 0.4; }
   let power = (sk.magic ? atk.apow : atk.atk) * (sk.mult || 1) * berserkMult(atk);   // magic scales off apow (anima)
   if (flank) power *= 1.25;                                          // pincered: the flank bonus
   const markBonus = tgt.status.mark?.turns > 0 ? (1 + (tgt.status.mark.amt || 0.25)) : 1;
   let dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * (crit ? 2 : 1)));
+  if (s.det) dmg = Math.max(1, Math.round(dmg * acc * (1 + critChance)));   // fold P(hit)+E(crit) into expected damage
   tgt.hp = Math.max(0, tgt.hp - dmg);
   if (sk.status) applyStatus(tgt, sk.status, sk.sturns || 2, sk.amt);
   log(s, `${atk.name} ${sk.label}${crit ? ' (crit!)' : ''}${flank ? ' (flank)' : ''} → ${tgt.name} −${dmg}`, crit ? 'crit' : 'hit');
@@ -339,11 +342,13 @@ export function act(s, action) {
 
 // per-target magic damage for AoE (Blast) — no flux deduction (the caster paid once) and no counter.
 function dealMagic(s, atk, tgt, mult, label = 'Blast') {
-  if (s.rng() >= atk.accuracy) { log(s, `${atk.name} ${label} — misses ${tgt.name}`, 'miss'); return { hit: false, target: tgt.id }; }
-  const crit = s.rng() < atk.crit, variance = 0.8 + s.rng() * 0.4;
+  let crit, variance;
+  if (s.det) { crit = false; variance = 1; }
+  else { if (s.rng() >= atk.accuracy) { log(s, `${atk.name} ${label} — misses ${tgt.name}`, 'miss'); return { hit: false, target: tgt.id }; } crit = s.rng() < atk.crit; variance = 0.8 + s.rng() * 0.4; }
   const power = atk.apow * mult * berserkMult(atk);
   const markBonus = tgt.status.mark?.turns > 0 ? (1 + (tgt.status.mark.amt || 0.25)) : 1;
-  const dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * (crit ? 2 : 1)));
+  let dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * (crit ? 2 : 1)));
+  if (s.det) dmg = Math.max(1, Math.round(dmg * Math.min(1, atk.accuracy) * (1 + atk.crit)));
   tgt.hp = Math.max(0, tgt.hp - dmg);
   log(s, `${atk.name} ${label}${crit ? ' (crit!)' : ''} → ${tgt.name} −${dmg}`, crit ? 'crit' : 'hit');
   if (tgt.hp <= 0) { tgt.alive = false; log(s, `${tgt.name} falls.`, 'down'); }
