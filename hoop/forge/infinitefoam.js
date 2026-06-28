@@ -1,64 +1,70 @@
-// infinitefoam.js — THE INFINITE PRODUCTION LAYER. Not a hex pipe — the connective tissue the finite naves
-// float in. The naves are bounded little societies (parenchyma, the carbon-pump lobules); production is the
-// interstitium + vasculature BETWEEN them, and THAT is what's infinite. Two interpenetrating vessel
-// lattices — MATERIAL arteries + PEDESTRIAN veins — run forever, never touching (the two-species result,
-// now endless), with naves hanging off the arteries like organs and the eight verticals as glands along
-// the vessels.
+// infinitefoam.js — THE RIND AS A CYLINDRICAL SHELL. The ship is an O'Neill cylinder; the rind is its shell.
+// So the production foam is NOT free 3D — it's "bounded but infinite", with a direction for each axis:
 //
-// The infinity HOOK (the 3D cousin of the 2D seam contract in econ/record.js): every hub, vessel, and nave
-// is a PURE FUNCTION of its lattice coordinate + the ship seed, so the ship streams around the player
-// forever and any two windows agree on their overlap. No global solve, no bounds — just a windowed read of
-// a deterministic field. Pure + node-tested in test/infinitefoam.selftest.mjs.
+//   • RADIAL (ir) — BOUNDED. A stack of shells. Naves dot the INNER surface (ir 0), then the upper-rind
+//     production layers stratify OUTWARD (assembly nearest the naves → refine → foundry → reclaim deepest),
+//     with the lower rind below (ir ≥ Nr, deferred). "Up from a nave" = inward (naves / the bioengine
+//     centre); "down" = outward (lower rind). The formation tower IS this radial gradient.
+//   • AZIMUTHAL (ith) — BOUNDED + PERIODIC. It wraps the circumference and closes: cell (ith) ≡ (ith + Nth).
+//     The ring seam — the cylinder cousin of econ/region.js's "ring closes azimuthally".
+//   • AXIAL (iz) — INFINITE. The big big cylinder streams forever along its length.
+//
+// Every hub/vessel/nave is a pure function of (iz, ith mod Nth, ir) + seed, so the ship streams along the
+// axis forever and any two axial windows agree on their overlap (the seam contract). Two interpenetrating
+// vessel lattices (material arteries · pedestrian veins, half-cell offset) never touch. Node-tested.
 
-// deterministic hash of a 3D lattice cell → [0,1)
 function h3(ix, iy, iz, salt) {
   let h = (salt ^ 0x9e3779b9) >>> 0;
   h = Math.imul(h ^ (ix & 0xfffff), 2654435761); h ^= h >>> 15;
-  h = Math.imul(h ^ (iy & 0xfffff), 2246822519); h ^= h >>> 13;
+  h = Math.imul(h ^ (iy & 0x3ff), 2246822519); h ^= h >>> 13;
   h = Math.imul(h ^ (iz & 0x3ff), 3266489917); h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
 }
 
-export const DEFAULTS = { T: 120, jitter: 0.45, naveProb: 0.16, seed: 1 };
+export const DEFAULTS = { Tz: 90, Nth: 24, Nr: 5, R0: 360, Tr: 46, jitter: 0.42, naveProb: 0.2, seed: 1 };
+// the radial stratification (the tower, laid along the cylinder's radius). ir 0 = the nave shell (inner
+// surface); production stratifies outward; ir ≥ Nr is the lower rind (deferred).
+export const SHELL = ['nave', 'assembly', 'refine', 'foundry', 'reclaim'];
+const REFINERS = ['mill', 'chemworks', 'fab', 'weave'];
 
-// a vessel hub at integer lattice (ix,iy,iz). `species` shifts the lattice by half a cell so the two vessel
-// systems INTERPENETRATE without ever sharing a hub (material at k·T, pedestrian at (k+½)·T).
-export function hubAt(ix, iy, iz, species, o = {}) {
-  const { T, jitter, seed } = { ...DEFAULTS, ...o };
-  const off = species === 'pedestrian' ? 0.5 : 0;
-  const salt = species === 'pedestrian' ? (seed ^ 0x5eed) >>> 0 : seed;
-  const x = (ix + off + 0.5 + (h3(ix, iy, iz, salt ^ 0x11) - 0.5) * jitter) * T;
-  const y = (iy + off + 0.5 + (h3(ix, iy, iz, salt ^ 0x22) - 0.5) * jitter) * T;
-  const z = (iz + off + 0.5 + (h3(ix, iy, iz, salt ^ 0x33) - 0.5) * jitter) * T;
-  // a nave is a material hub the field flags as an organ (a bounded little society on the artery)
-  const nave = species === 'material' && h3(ix, iy, iz, (seed ^ 0x4e617665) >>> 0) < (o.naveProb ?? DEFAULTS.naveProb);
-  // which production vertical is glanded here (only non-nave material hubs run an engine)
-  const gland = species === 'material' && !nave ? GLANDS[(h3(ix, iy, iz, (seed ^ 0x61) >>> 0) * GLANDS.length) | 0] : null;
-  return { ix, iy, iz, species, x, y, z, nave, gland, key: species[0] + ix + ',' + iy + ',' + iz };
+// a vessel hub at lattice (iz axial, ith azimuthal, ir radial). ith is taken mod Nth (the ring closes);
+// ir must be in [0, Nr). `species` shifts the lattice half a cell axially + azimuthally so the two vessel
+// systems interpenetrate without ever sharing a hub.
+export function hubAt(iz, ith, ir, species, o = {}) {
+  const opt = { ...DEFAULTS, ...o }, { Tz, Nth, R0, Tr, jitter, seed } = opt;
+  const itw = ((ith % Nth) + Nth) % Nth;                       // azimuthal wrap — the ring closes
+  const ped = species === 'pedestrian', off = ped ? 0.5 : 0, salt = ped ? (seed ^ 0x5eed) >>> 0 : seed;
+  const a = (iz + off + (h3(iz, itw, ir, salt ^ 0x11) - 0.5) * jitter) * Tz;                 // axial (the infinite dim)
+  const phi = ((itw + off + (h3(iz, itw, ir, salt ^ 0x22) - 0.5) * jitter) / Nth) * Math.PI * 2;   // angle around
+  const rho = R0 + (ir + (h3(iz, itw, ir, salt ^ 0x33) - 0.5) * jitter * 0.5) * Tr;          // radius (bounded shell)
+  const nave = species === 'material' && ir === 0 && h3(iz, itw, ir, (seed ^ 0x4e) >>> 0) < opt.naveProb;
+  const role = SHELL[ir] || 'lower';
+  const gland = species === 'material' && ir > 0 ? (role === 'refine' ? REFINERS[(h3(iz, itw, ir, (seed ^ 0x61) >>> 0) * REFINERS.length) | 0] : (role === 'foundry' ? (h3(iz, itw, ir, seed ^ 0x66) < 0.3 ? 'fluid' : 'foundry') : role)) : null;
+  // world: cylinder axis = world Z (axial); cross-section in world X/Y (radius·angle)
+  return { iz, ith: itw, ir, species, a, phi, rho, x: rho * Math.cos(phi), y: rho * Math.sin(phi), z: a, nave, role, gland, key: species[0] + iz + '.' + itw + '.' + ir };
 }
-export const GLANDS = ['foundry', 'mill', 'chemworks', 'fab', 'weave', 'fluid', 'assembly', 'reclaim'];
 
-// a WINDOW of the infinite ship around a world point: the hubs, the vessel segments (each hub → its +x/+y/+z
-// neighbour in the same lattice), and the naves, within radius R. Streamable: move the centre, read again.
-export function shipWindow(center, R, o = {}) {
-  const opt = { ...DEFAULTS, ...o }, T = opt.T;
-  const lo = (c) => Math.floor((c - R) / T) - 1, hi = (c) => Math.ceil((c + R) / T) + 1;
-  const within = (h) => (h.x - center.x) ** 2 + (h.y - center.y) ** 2 + (h.z - center.z) ** 2 <= R * R;
-  const out = { material: { hubs: [], edges: [] }, pedestrian: { hubs: [], edges: [] }, naves: [], center, R, T };
+// a WINDOW of the cylinder: a BAND along the axis (|axial − centerA| ≤ span) × the FULL ring (all Nth) ×
+// the FULL bounded thickness (all Nr shells). Streams along the axis; the ring + radius are bounded.
+export function shipWindow(centerA, span, o = {}) {
+  const opt = { ...DEFAULTS, ...o }, { Tz, Nth, Nr } = opt;
+  const iz0 = Math.floor((centerA - span) / Tz) - 1, iz1 = Math.ceil((centerA + span) / Tz) + 1;
+  const out = { material: { hubs: [], edges: [] }, pedestrian: { hubs: [], edges: [] }, naves: [], centerA, span, opt };
   for (const species of ['material', 'pedestrian']) {
-    const net = out[species], seen = new Map();
-    const get = (ix, iy, iz) => { const k = ix + ',' + iy + ',' + iz; let h = seen.get(k); if (!h) { h = hubAt(ix, iy, iz, species, opt); seen.set(k, h); } return h; };
-    for (let iz = lo(center.z); iz <= hi(center.z); iz++) for (let iy = lo(center.y); iy <= hi(center.y); iy++) for (let ix = lo(center.x); ix <= hi(center.x); ix++) {
-      const h = get(ix, iy, iz);
-      if (within(h)) { net.hubs.push(h); if (species === 'material' && h.nave) out.naves.push(h); }
-      for (const [dx, dy, dz] of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) { const n = get(ix + dx, iy + dy, iz + dz); if (within(h) || within(n)) net.edges.push([h, n]); }
+    const net = out[species], cache = new Map();
+    const get = (iz, ith, ir) => { const k = iz + '.' + (((ith % Nth) + Nth) % Nth) + '.' + ir; let h = cache.get(k); if (!h) { h = hubAt(iz, ith, ir, species, opt); cache.set(k, h); } return h; };
+    const inBand = (h) => Math.abs(h.a - centerA) <= span;
+    for (let iz = iz0; iz <= iz1; iz++) for (let ith = 0; ith < Nth; ith++) for (let ir = 0; ir < Nr; ir++) {
+      const h = get(iz, ith, ir);
+      if (inBand(h)) { net.hubs.push(h); if (species === 'material' && h.nave) out.naves.push(h); }
+      // vessels: axial +1, azimuthal +1 (wraps), radial +1 (bounded — only within the shell)
+      const nb = [get(iz + 1, ith, ir), get(iz, ith + 1, ir)]; if (ir + 1 < Nr) nb.push(get(iz, ith, ir + 1));
+      for (const n of nb) if (inBand(h) || inBand(n)) net.edges.push([h, n]);
     }
   }
   return out;
 }
 
-// quick stat: do the two vessel systems ever coincide in this window? (they must NOT — the non-touching
-// guarantee, now infinite). Returns the minimum hub-to-hub distance across systems.
 export function minCrossDistance(win) {
   let md = Infinity;
   for (const a of win.material.hubs) for (const b of win.pedestrian.hubs) { const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2; if (d < md) md = d; }

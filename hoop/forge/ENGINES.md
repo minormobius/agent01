@@ -261,16 +261,28 @@ and around them, and *that* is what's infinite. The ship is an endless 3D foam; 
 part precisely because the bounded part (naves) is bounded — they're complements.
 
 This also kills the boring-form problem. You don't read production with floor plans — **you ride the
-circulation.** `infinitefoam.js` is the substrate: two interpenetrating vessel lattices — **material
-arteries · pedestrian veins** — offset half a cell so they *never touch* (the two-species result, now
-infinite and endless), the **naves** hanging off the arteries like organs, the eight verticals **glanded**
-along the vessels. The **infinity hook** is the 3D seam contract (the cousin of `econ/record.js`): every hub,
-vessel, and nave is a **pure function of its lattice coordinate + the ship seed**, so it streams around the
-player forever and any two windows agree on their overlap — no global solve, no bounds, just a windowed read
-(`shipWindow(center, R)`). Live at `hoop.mino.mobi/forge/ship`: fly through the ship's circulation (WASD +
-Q/E), naves glowing as organs, vessels receding into fog — no edge, in any direction. Pinned by
-`test/infinitefoam.selftest.mjs` (13: windows agree on overlap, travel reveals new ship, the two systems
-never coincide, naves are a Bernoulli field at the right density).
+circulation.** But the ship is **not** free 3D — it's an **O'Neill cylinder**, and the rind is its **shell**.
+So `infinitefoam.js` is "**bounded but infinite**", with a *direction* for each axis:
+
+- **RADIAL (`ir`) — BOUNDED.** A stack of `Nr` shells. The **naves dot the inner surface** (`ir 0` — the
+  inner skin; *up* from a nave is inward, toward the bioengine centre), then the upper-rind production
+  **stratifies outward**: `SHELL = [nave, assembly, refine, foundry, reclaim]` — product nearest the naves,
+  raw deepest — with the **lower rind** below (`ir ≥ Nr`, deferred). The formation tower *is* this radial
+  gradient, now laid along the cylinder's radius instead of an arbitrary "up".
+- **AZIMUTHAL (`ith`) — BOUNDED + PERIODIC.** It wraps the circumference and **closes**: cell `ith ≡ ith+Nth`
+  is the same world point. The ring seam — the cylinder cousin of `econ/region.js`'s "ring closes azimuthally".
+- **AXIAL (`iz`) — INFINITE.** The big big cylinder streams forever along its length.
+
+Two interpenetrating vessel lattices — **material arteries · pedestrian veins** — offset half a cell so they
+*never touch* (the two-species result), thread the shell. The **infinity hook** is the seam contract (the
+cousin of `econ/record.js`): every hub, vessel, and nave is a **pure function of `(iz, ith mod Nth, ir)` + the
+ship seed**, so the ship streams along the axis forever and any two axial windows agree on their overlap — no
+global solve, just a windowed read (`shipWindow(centerA, span)` returns a band along the axis × the full ring
+× the full bounded thickness). Live at `hoop.mino.mobi/forge/ship`: you look **down the bore** — the shell
+wall curves around you, vessels converge to the vanishing point, naves glow on the inner skin, and the axis
+runs to ∞ (fly W/S; A/D roll the tube). Pinned by `test/infinitefoam.selftest.mjs` (15: the ring closes,
+radius is bounded to `Nr` shells, naves only on `ir 0`, assembly→reclaim stratifies outward, overlapping
+axial windows agree, travel reveals new ship, the two systems never coincide, naves are a Bernoulli field).
 
 So the two scales are complementary: **`/forge/ship`** is the infinite circulation (the whole production
 layer); **`/forge/slices`** is the local plan+section when you drop into one locale. The pipe was never the

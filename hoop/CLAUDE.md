@@ -186,13 +186,20 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   **The infinity reframe** (`infinitefoam.js`, `/forge/ship`): the slice/hex-prism is only the LOCAL zoom —
   production is really the **infinite interstitium the finite naves float in**. Naves = sparse finite
   inclusions (the bounded little societies); production = the connective **vasculature** between them, endless.
+  But it's **not free 3D** — the ship is an **O'Neill cylinder** and the rind is its **shell**, so the foam is
+  "**bounded but infinite**", directional per axis: **radial `ir` BOUNDED** (`Nr` shells — naves on the inner
+  surface `ir 0`; production stratifies OUTWARD `SHELL=[nave,assembly,refine,foundry,reclaim]`, product near
+  the naves / raw deepest; lower rind `ir≥Nr` deferred; *up from a nave* = inward toward the bioengine);
+  **azimuthal `ith` BOUNDED+PERIODIC** (the ring closes, `ith ≡ ith+Nth`); **axial `iz` INFINITE** (streams).
   Two interpenetrating vessel lattices (material arteries · pedestrian veins, offset ½-cell so they never
-  touch — the two-species result made infinite), naves as organs on the arteries, the 8 verticals glanded
-  along them. **Infinity hook** = the 3D seam contract (cousin of `econ/record.js`): every hub/vessel/nave is
-  a pure function of its lattice coord + ship seed, so `shipWindow(center,R)` streams forever and overlapping
-  windows agree. `hoop.mino.mobi/forge/ship` flies through the circulation (WASD+Q/E, depth fog, no edge).
-  Pinned by `forge/test/infinitefoam.selftest.mjs` (13). `/ship` = the whole production layer; `/slices` = a
-  local drop-in. The pipe was the microscope slide, not the ship.
+  touch — the two-species result). **Infinity hook** = the seam contract (cousin of `econ/record.js`): every
+  hub/vessel/nave is a pure function of `(iz, ith mod Nth, ir)` + ship seed, so `shipWindow(centerA,span)`
+  (a band along the axis × full ring × full thickness) streams forever and overlapping axial windows agree.
+  `hoop.mino.mobi/forge/ship` looks **down the bore** (WASD fly axially, A/D roll, the shell wall curving
+  around you, vessels converging to the vanishing point, naves on the inner skin, axis → ∞). Pinned by
+  `forge/test/infinitefoam.selftest.mjs` (15: ring closes, radius bounded, naves inner-only, outward
+  stratification, axial windows agree, two systems never coincide). `/ship` = the whole production layer;
+  `/slices` = a local drop-in. The pipe was the microscope slide, not the ship.
   **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
   is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
   **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The
