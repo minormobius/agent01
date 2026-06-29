@@ -1,5 +1,5 @@
-// foam3d.selftest.mjs — certify the 3D woven-hyperboloid foam: a connected volumetric chamber graph, the weave
-// (K(6,8)) via counter-rotating helices, two pole hubs, 100% ownership, and the seedable family.
+// foam3d.selftest.mjs — certify the 3D PANCAKE foam: a wide two-layer voronoi disc, the weave (K(6,8)) via
+// counter-rotating spirals, the white hub ABOVE the production hub at centre, 100% ownership, seedable family.
 //   Run: node rind/ops/test/foam3d.selftest.mjs
 
 import { buildFoam3D } from '../foam3d.js';
@@ -8,40 +8,40 @@ let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' + m); } };
 
 const m = buildFoam3D(3);
-const N = m.Nz * m.Nth * m.Nr;
+const N = m.Nrad * m.Nth * m.Nz;
 
-// ── the volumetric foam ──
-ok(m.nuclei.length === N, `volumetric foam: ${N} chambers (${m.Nz}×${m.Nth}×${m.Nr})`);
+// ── the volumetric pancake foam ──
+ok(m.nuclei.length === N, `pancake foam: ${N} chambers (${m.Nrad}×${m.Nth}×${m.Nz} = radial×azimuth×layer)`);
+ok(m.Nz === 2, 'two layers (the pancake is thin)');
+const span = Math.max(...m.nuclei.map((n) => Math.hypot(n.x, n.y))) * 2, thick = Math.max(...m.nuclei.map((n) => n.z)) - Math.min(...m.nuclei.map((n) => n.z));
+ok(span > thick * 3, `it is a PANCAKE — wide (${span | 0}) and thin (${thick | 0})`);
 ok(m.nuclei.every((n) => n.neighbors.length >= 2), 'every chamber has neighbours (3D adjacency)');
-// connected (one component) over the lattice graph
 const seen = new Set([0]), q = [0]; for (let h = 0; h < q.length; h++) for (const v of m.nuclei[q[h]].neighbors) if (!seen.has(v)) { seen.add(v); q.push(v); }
-ok(seen.size === N, 'the 3D foam is one connected component');
-// azimuth wraps (the ring closes): some chamber at ith=0 is adjacent to one at ith=Nth-1
+ok(seen.size === N, 'the foam is one connected component');
 ok(m.nuclei.some((n) => n.ith === 0 && n.neighbors.some((j) => m.nuclei[j].ith === m.Nth - 1)), 'the ring closes (azimuth wraps)');
 
-// ── 100% ownership: every non-hub chamber belongs to a thread ──
+// ── 100% ownership on BOTH layers ──
 const body = m.nuclei.filter((n) => !n.hub);
-ok(body.every((n) => n.owner && (n.owner.kind === 'warp' || n.owner.kind === 'weft')), 'every body chamber is owned by a white or production thread (no gaps)');
-ok(body.some((n) => n.owner.kind === 'warp') && body.some((n) => n.owner.kind === 'weft'), 'both white and production own chambers');
-// over (outer) vs under (inner) both carry both systems — a real 3D weave
-const outer = body.filter((n) => n.over), inner = body.filter((n) => !n.over);
-ok(outer.some((n) => n.owner.kind === 'warp') && outer.some((n) => n.owner.kind === 'weft'), 'OUTER (over) shell carries both systems');
-ok(inner.some((n) => n.owner.kind === 'warp') && inner.some((n) => n.owner.kind === 'weft'), 'INNER (under) shell carries both systems');
+ok(body.every((n) => n.owner && (n.owner.kind === 'warp' || n.owner.kind === 'weft')), 'every body chamber is owned (no gaps)');
+const upper = body.filter((n) => n.over), lower = body.filter((n) => !n.over);
+ok(upper.some((n) => n.owner.kind === 'warp') && upper.some((n) => n.owner.kind === 'weft'), 'UPPER layer carries both systems');
+ok(lower.some((n) => n.owner.kind === 'warp') && lower.some((n) => n.owner.kind === 'weft'), 'LOWER layer carries both systems');
 
-// ── the two hubs at opposite poles ──
-ok(m.nuclei.some((n) => n.hub === 'whub') && m.nuclei.some((n) => n.hub === 'phub'), 'white hub (top cap) + production hub (bottom cap)');
-const wz = m.nuclei.filter((n) => n.hub === 'whub').map((n) => n.zc), pz = m.nuclei.filter((n) => n.hub === 'phub').map((n) => n.zc);
-ok(Math.min(...wz) > Math.max(...pz), 'the hubs are at opposite poles (disconnected — joined only through the weave)');
+// ── the two hubs at the CENTRE, white ABOVE production (the six starts above the eight) ──
+ok(m.nuclei.some((n) => n.hub === 'whub') && m.nuclei.some((n) => n.hub === 'phub'), 'white hub + production hub at the centre');
+const wz = m.nuclei.filter((n) => n.hub === 'whub').map((n) => n.z), pz = m.nuclei.filter((n) => n.hub === 'phub').map((n) => n.z);
+ok(Math.min(...wz) > Math.max(...pz), 'the SIX (white) starts sit ABOVE the EIGHT (production) starts — disconnected hubs');
+ok(m.nuclei.filter((n) => n.hub).every((n) => Math.hypot(n.x, n.y) < m.R * 0.2), 'both hubs are at the centre of the pancake');
 
 // ── K(6,8): every white helix crosses every production helix ──
 ok(m.contactPairs === 48, `every white meets every production — ${m.contactPairs}/48 (K(6,8))`);
 ok(m.whiteThreads.length === 6 && m.whiteThreads.every((t) => t.cells.length > 0), '6 white threads, each a real helical tube of chambers');
 ok(m.prodThreads.length === 8 && m.prodThreads.every((t) => t.cells.length > 0), '8 production threads, each a real helical tube');
 
-// ── tours: enter a white thread at the top, meet all 8 production going down, crossings ordered by height ──
-ok(m.tours.length === 6 && m.tours.every((t) => t.stops.length === 8), 'each white thread tours all 8 production threads');
-ok(m.tours[0].stops.every((s, i, a) => i === 0 || s.zc <= a[i - 1].zc), 'a tour is ordered top→bottom (white hub downward)');
-ok(m.tours[0].stops.every((s) => s.zc >= 0 && s.zc <= 1), 'every crossing lands inside the shell');
+// ── tours: enter a white arm at the centre hub, ride OUT; meet all 8, crossings ordered by radius ──
+ok(m.tours.length === 6 && m.tours.every((t) => t.stops.length === 8), 'each white arm tours all 8 production arms');
+ok(m.tours[0].stops.every((s, i, a) => i === 0 || s.rf >= a[i - 1].rf), 'a tour is ordered centre→rim (hub outward)');
+ok(m.tours[0].stops.every((s) => s.rf >= 0 && s.rf <= 1), 'every crossing lands inside the disc');
 
 // ── seedable family: every seed satisfies K(6,8); the seeds differ ──
 const fam = [1, 2, 3, 7, 11, 42].map((sd) => buildFoam3D(sd));

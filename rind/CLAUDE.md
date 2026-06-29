@@ -15,13 +15,14 @@ JS → emit a frame model → solve for stress):
   graph (`wayfind.js`, certified by `test/wayfind.selftest.mjs`).
 - `walk.html` — first-person walk through a planar cut of the foam.
 - `ops/` — **the production weave** at `rind.mino.mobi/ops/`. **The primary view is now 3D** (`index.html` +
-  `3d-app.js`, kernel `foam3d.js`): the weave resolved in a **volumetric voronoi foam** in the rind shell —
-  6 white + 8 production as **counter-rotating helices** (the rind's Shukhov hyperboloid), white hub at the top
-  pole, production hub at the bottom, the hubs joined only by threading the woven body. Two reads: **orbit** (the
-  global woven shell) and **inhabit thread** — *the mapping tech*: pick a white thread and the shell UNROLLS
-  around it (your thread = a straight spine, the 8 production threads slant across and cross it at numbered
-  stations; the other whites are parallel verticals; reselect → the map re-organises). Seedable family
-  (`foam3d.selftest.mjs`, 19; K(6,8) over 80 seeds). The 2D versions are preserved: `flat.html`/`flat-app.js`
+  `3d-app.js`, kernel `foam3d.js`): the weave resolved in a **volumetric voronoi foam PANCAKE** — a wide, thin,
+  **two-layer** disc, woven from **counter-rotating spirals**. 6 white arms spiral from the **upper-centre** hub,
+  8 production from the **lower-centre** hub (the six starts sit ABOVE the eight); upper/lower layer = over/under;
+  the hubs are joined only by threading the woven body. Counter-rotation ⇒ K(6,8). Two reads: **orbit** (the
+  woven pancake) and **inhabit thread** — *the mapping tech*: pick a white arm and the disc UNROLLS around it
+  (your arm = a straight spine centre→rim, the 8 production arms slant across and cross it at numbered stations;
+  the other whites are parallel verticals; reselect → the map re-organises). Seedable family
+  (`foam3d.selftest.mjs`, 21; K(6,8) over 80 seeds). The 2D versions are preserved: `flat.html`/`flat-app.js`
   (the polar rosette, kernel `weavefloor.js`), `decks.html` (stacked-decks comparison), `weave.html` (loom/tube
   proof). The original surface concept: the upper rind's industrial deck: **8
   production engines** (foundry · chemworks · mill · fab · weave · assembly · fluid · reclaim) placed as

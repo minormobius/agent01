@@ -13,7 +13,7 @@ const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
 let sel = Q.has('w') ? (Q.get('w') | 0) % 6 : 0;
 let view = Q.get('view') === 'thread' ? 'thread' : 'orbit';
-let spin = true, yaw = 0.6, pitch = 0.5, zoom = 1, travel = 1;
+let spin = true, yaw = 0.3, pitch = 1.0, zoom = 1, travel = 0;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0, now = 0;
@@ -40,89 +40,85 @@ function proj(x, y, z, s) {
   return { X: CW / 2 + x1 * s, Y: CH / 2 - z2 * s, depth: y2 };
 }
 function drawOrbit() {
-  const s = Math.min(CW, CH) / (m.R0 * 3.4) * zoom;
+  const s = Math.min(CW, CH) / (m.R * 2.7) * zoom;
   ctx.fillStyle = '#06070c'; ctx.fillRect(0, 0, CW, CH);
-  // chambers back→front
+  // chambers back→front (the pancake foam, two layers)
   const pts = m.nuclei.map((n) => { const p = proj(n.x, n.y, n.z, s); return { n, p }; }).sort((a, b) => a.p.depth - b.p.depth);
-  const dmax = m.R0 * 1.6;
   for (const { n, p } of pts) {
-    const col = ownerColor(n.owner), sh = 0.5 + 0.5 * (p.depth / dmax + 1) / 2;   // far = dimmer
+    const col = ownerColor(n.owner), sh = 0.55 + 0.45 * (p.depth / m.R + 1) / 2;   // far = dimmer
     const selR = (n.owner.kind === 'warp' && n.owner.idx === sel);
-    ctx.fillStyle = rgba(mix(col, BG, n.over ? 0.15 : 0.5), (selR ? 0.95 : 0.7) * sh);
-    const r = (selR ? 3.4 : n.over ? 2.4 : 1.7) * Math.max(0.5, sh) * (s / 0.5);
-    ctx.beginPath(); ctx.arc(p.X, p.Y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = rgba(mix(col, BG, n.over ? 0.12 : 0.46), (selR ? 0.97 : 0.78) * sh);
+    ctx.beginPath(); ctx.arc(p.X, p.Y, (selR ? 4 : n.over ? 3 : 2.2) * Math.max(0.6, sh), 0, 7); ctx.fill();
   }
-  // thread spines as ANALYTIC HELICES (the band-centre curve at the mid-shell) — clean counter-rotating
-  // Shukhov helices: white wind one way, production the other.
-  const helix = (thFn, idx, col, lw, a) => {
+  // thread spines as ANALYTIC SPIRALS in the disc plane (band-centre, mid-layer) — counter-rotating
+  const spiral = (thFn, idx, col, lw, a) => {
     ctx.strokeStyle = rgba(col, a); ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.beginPath();
-    const SAMP = 90; for (let k = 0; k <= SAMP; k++) { const zc = k / SAMP, th = thFn(idx, zc), rho = m.ringR(zc) - m.thick * 0.5, z = (zc - 0.5) * m.L, p = proj(rho * Math.cos(th), rho * Math.sin(th), z, s); k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }
+    const SAMP = 96; for (let k = 0; k <= SAMP; k++) { const rf = k / SAMP, th = thFn(idx, rf), rad = rf * m.R, p = proj(rad * Math.cos(th), rad * Math.sin(th), 0, s); k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }
     ctx.stroke();
   };
-  for (const t of m.wefts) helix(m.thP, t.f, hex(t.color), 2.4, 0.5);
-  for (const t of m.warps) if (t.w !== sel) helix(m.thW, t.w, WARPCOLS[t.w % 6], 2.2, 0.4);
-  helix(m.thW, sel, SELC, 4.5, 0.98);
-  // mark the 8 stations on the selected thread (where each production helix crosses it)
-  for (const st of m.tours[sel].stops) { const th = m.thW(sel, st.zc), rho = m.ringR(st.zc) - m.thick * 0.5, z = (st.zc - 0.5) * m.L, p = proj(rho * Math.cos(th), rho * Math.sin(th), z, s); ctx.fillStyle = rgba(SELC, 0.95); ctx.beginPath(); ctx.arc(p.X, p.Y, 4, 0, 7); ctx.fill(); }
-  // pole hubs
-  const hub = (zc, col, label) => { const z = (zc - 0.5) * m.L, p = proj(0, 0, z, s); ctx.fillStyle = rgba(col, 0.95); ctx.beginPath(); ctx.arc(p.X, p.Y, 9, 0, 7); ctx.fill(); ctx.strokeStyle = rgba(INK, 0.5); ctx.lineWidth = 1.4; ctx.stroke(); ctx.fillStyle = rgba(col, 0.95); ctx.textAlign = 'center'; ctx.font = '11px ui-sans-serif'; ctx.fillText(label, p.X, p.Y - 14); };
-  hub(0.99, HUBW, '△ white hub'); hub(0.01, HUBP, '▽ production hub');
+  for (const t of m.wefts) spiral(m.thP, t.f, hex(t.color), 2.4, 0.5);
+  for (const t of m.warps) if (t.w !== sel) spiral(m.thW, t.w, WARPCOLS[t.w % 6], 2.2, 0.4);
+  spiral(m.thW, sel, SELC, 4.5, 0.98);
+  // the 8 stations on the selected arm (where each production spiral crosses it)
+  for (const st of m.tours[sel].stops) { const th = m.thW(sel, st.rf), rad = st.rf * m.R, p = proj(rad * Math.cos(th), rad * Math.sin(th), 0, s); ctx.fillStyle = rgba(SELC, 0.95); ctx.beginPath(); ctx.arc(p.X, p.Y, 4.5, 0, 7); ctx.fill(); }
+  // the two centre hubs — white ABOVE production (six starts above eight), disconnected
+  const hub = (z, col, label, dy) => { const p = proj(0, 0, z, s); ctx.fillStyle = rgba(col, 0.97); ctx.beginPath(); ctx.arc(p.X, p.Y, 9, 0, 7); ctx.fill(); ctx.strokeStyle = rgba(INK, 0.5); ctx.lineWidth = 1.4; ctx.stroke(); ctx.fillStyle = rgba(col, 0.95); ctx.textAlign = 'center'; ctx.font = '11px ui-sans-serif'; ctx.fillText(label, p.X, p.Y + dy); };
+  hub(m.T / 2, HUBW, '△ white hub (6, upper)', -14); hub(-m.T / 2, HUBP, '▽ production hub (8, lower)', 20);
 }
 
-// ── INHABIT THREAD: unroll the shell around white thread `sel` ──
+// ── INHABIT THREAD: unroll the disc around white arm `sel` (centre/hub at top → rim at bottom) ──
 function drawThread() {
   ctx.fillStyle = '#06070c'; ctx.fillRect(0, 0, CW, CH);
-  const topY = 56, botY = CH - 40, Hh = botY - topY, spineX = CW * 0.40, latScale = (CW * 0.42) / Math.PI * zoom;
-  const sY = (zc) => topY + (1 - zc) * Hh;
-  const latOf = (th, zc) => m.swrap(th - m.thW(sel, zc));        // angular offset from the inhabited thread
+  const topY = 58, botY = CH - 34, Hh = botY - topY, spineX = CW * 0.40, latScale = (CW * 0.42) / Math.PI * zoom;
+  const sY = (rf) => topY + rf * Hh;                              // rf=0 (centre/hub) at top, rf=1 (rim) at bottom
   const X = (lat) => spineX + lat * latScale;
 
-  // foam texture: every chamber, placed by (lateral, height), coloured by owner
+  // foam texture: every chamber, placed by (lateral offset from your arm, radius), coloured by owner
   for (const n of m.nuclei) {
     if (n.hub) continue;
-    const lat = latOf(n.th, n.zc), x = X(lat) + (n.ir - (m.Nr - 1) / 2) * 5, y = sY(n.zc);
+    const lat = m.swrap(n.th - m.thW(sel, n.rf)), x = X(lat) + (n.over ? 4 : -4), y = sY(n.rf);
     if (x < -20 || x > CW + 20) continue;
     const col = ownerColor(n.owner), selR = (n.owner.kind === 'warp' && n.owner.idx === sel);
     ctx.fillStyle = rgba(mix(col, BG, n.over ? 0.2 : 0.5), selR ? 0.95 : 0.66);
     ctx.beginPath(); ctx.arc(x, y, selR ? 3.4 : n.over ? 2.6 : 1.9, 0, 7); ctx.fill();
   }
-  // production threads SLANT across (counter-twist) — draw each as a polyline, splitting on wrap
+  // production arms SLANT across (counter-twist) — polyline, split on wrap
   const SAMP = 60;
-  for (const t of m.prodThreads) { const col = hex(t.color); ctx.strokeStyle = rgba(col, 0.7); ctx.lineWidth = 2.4; ctx.lineCap = 'round';
-    ctx.beginPath(); let px = null; for (let k = 0; k <= SAMP; k++) { const zc = k / SAMP, lat = m.swrap(m.thP(t.f, zc) - m.thW(sel, zc)), x = X(lat), y = sY(zc); if (px !== null && Math.abs(x - px) > CW * 0.5) { ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y); } else if (px === null) ctx.moveTo(x, y); else ctx.lineTo(x, y); px = x; } ctx.stroke();
+  for (const t of m.prodThreads) { const col = hex(t.color); ctx.strokeStyle = rgba(col, 0.72); ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.beginPath(); let px = null; for (let k = 0; k <= SAMP; k++) { const rf = k / SAMP, lat = m.swrap(m.thP(t.f, rf) - m.thW(sel, rf)), x = X(lat), y = sY(rf); if (px !== null && Math.abs(x - px) > CW * 0.5) { ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y); } else if (px === null) ctx.moveTo(x, y); else ctx.lineTo(x, y); px = x; } ctx.stroke();
   }
-  // other white threads = parallel verticals (same twist as you → fixed lateral offset)
-  for (const t of m.whiteThreads) { if (t.w === sel) continue; const lat = m.swrap((t.w - sel) * 2 * Math.PI / 6); const x = X(lat); ctx.strokeStyle = rgba(WARPCOLS[t.w % 6], 0.5); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, sY(0)); ctx.lineTo(x, sY(1)); ctx.stroke(); }
-  // YOUR thread = the bright vertical spine
+  // other white arms = parallel verticals (same twist → fixed lateral offset)
+  for (const t of m.whiteThreads) { if (t.w === sel) continue; const x = X(m.swrap((t.w - sel) * 2 * Math.PI / 6)); ctx.strokeStyle = rgba(WARPCOLS[t.w % 6], 0.5); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, sY(0)); ctx.lineTo(x, sY(1)); ctx.stroke(); }
+  // YOUR arm = the bright vertical spine
   ctx.strokeStyle = rgba(SELC, 0.97); ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(spineX, sY(0)); ctx.lineTo(spineX, sY(1)); ctx.stroke();
 
-  // the 8 stations: where each production thread crosses your spine (top→bottom)
-  const t = m.tours[sel];
-  t.stops.forEach((st, n2) => { const y = sY(st.zc);
+  // the 8 stations: where each production arm crosses your spine (centre → rim)
+  m.tours[sel].stops.forEach((st, n2) => { const y = sY(st.rf);
     ctx.fillStyle = rgba(SELC, 1); ctx.beginPath(); ctx.arc(spineX, y, 10, 0, 7); ctx.fill(); ctx.strokeStyle = rgba([245, 248, 255], 0.95); ctx.lineWidth = 1.8; ctx.stroke();
     ctx.fillStyle = '#1a1406'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 10px ui-monospace'; ctx.fillText(String(n2 + 1), spineX, y); ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = rgba(hex(m.wefts[st.f].color), 0.95); ctx.textAlign = 'left'; ctx.font = '11px ui-monospace'; ctx.fillText(`${m.wefts[st.f].glyph} ${st.label}  ${st.over ? '△ over' : '▽ under'}`, spineX + 16, y + 4);
   });
-  // hubs at the ends of your spine, and the traveller
-  ctx.fillStyle = rgba(HUBW, 0.97); ctx.beginPath(); ctx.arc(spineX, sY(1), 9, 0, 7); ctx.fill(); ctx.fillStyle = rgba(INK, 0.9); ctx.textAlign = 'center'; ctx.font = '11px ui-sans-serif'; ctx.fillText('△ white hub (you enter here)', spineX, sY(1) - 14);
-  ctx.fillStyle = rgba(HUBP, 0.9); ctx.beginPath(); ctx.arc(spineX, sY(0), 8, 0, 7); ctx.fill(); ctx.fillText('▽ production hub — only reached through the weave', spineX, sY(0) + 22);
+  // the centre hub (you enter here, top), the rim (bottom), the traveller
+  ctx.fillStyle = rgba(HUBW, 0.97); ctx.beginPath(); ctx.arc(spineX, sY(0), 9, 0, 7); ctx.fill(); ctx.fillStyle = rgba(INK, 0.9); ctx.textAlign = 'center'; ctx.font = '11px ui-sans-serif'; ctx.fillText('△ white hub — centre, you enter here', spineX, sY(0) - 13);
+  ctx.fillStyle = rgba(HUBP, 0.85); ctx.textAlign = 'center'; ctx.font = '10px ui-monospace'; ctx.fillText('(production hub is the same centre, lower layer — only reached by crossing the weave)', spineX, sY(0) + 30);
+  ctx.fillStyle = rgba(INK, 0.6); ctx.fillText('▽ rim', spineX, sY(1) + 18);
   const ty = sY(travel); ctx.fillStyle = rgba([245, 248, 255], 1); ctx.beginPath(); ctx.arc(spineX, ty, 5.5, 0, 7); ctx.fill(); ctx.strokeStyle = rgba(BG, 0.7); ctx.lineWidth = 1.6; ctx.stroke();
-  ctx.fillStyle = rgba(INK, 0.7); ctx.textAlign = 'right'; ctx.font = '10px ui-monospace'; ctx.fillText('lateral ← unrolled ring → ', CW - 12, topY - 8);
+  ctx.fillStyle = rgba(INK, 0.7); ctx.textAlign = 'right'; ctx.font = '10px ui-monospace'; ctx.fillText('lateral ← unrolled ring →', CW - 12, topY - 8);
 }
 
 function frame(ts) {
   const dt = (ts - now) || 16; now = ts;
   if (view === 'orbit' && spin) yaw += dt * 0.00018;
-  if (view === 'thread') { travel -= dt * 0.00010; if (travel < 0) travel = 1; }
+  if (view === 'thread') { travel += dt * 0.00010; if (travel > 1) travel = 0; }   // ride the arm centre→rim
   (view === 'orbit' ? drawOrbit : drawThread)();
   requestAnimationFrame(frame);
 }
 
 function panels() {
   $('read').innerHTML =
-    `<b>${view === 'orbit' ? 'orbit — the woven shell' : 'inhabit thread — the map from your thread'}</b> · ` +
-    `3D foam ${m.nuclei.length} chambers · <span class="ok">${m.contactPairs}/48 (K(6,8))</span> · counter-rotating helices (seed ${seed}: ${m.family.turnsW.toFixed(2)}/${m.family.turnsP.toFixed(2)} turns)<br>` +
-    `<span>${view === 'orbit' ? 'drag to orbit, scroll to zoom. 6 white helices from the top hub, 8 production from the bottom — they cross everywhere. Click ⟳ to stop the spin; “inhabit thread” to enter one.' : 'your thread is the bright spine; production threads slant across and cross it at the 8 numbered stations (top→bottom). The other white threads are parallel verticals. Pick another surface — the whole map re-organises around it.'}</span>`;
+    `<b>${view === 'orbit' ? 'orbit — the woven pancake' : 'inhabit thread — the map from your arm'}</b> · ` +
+    `3D pancake foam ${m.nuclei.length} chambers, two layers · <span class="ok">${m.contactPairs}/48 (K(6,8))</span> · counter-rotating spirals (seed ${seed}: ${m.family.turnsW.toFixed(2)}/${m.family.turnsP.toFixed(2)} turns)<br>` +
+    `<span>${view === 'orbit' ? 'drag to orbit, scroll to zoom. A wide thin disc: 6 white arms spiral from the upper-centre hub, 8 production from the lower-centre hub — the six starts sit above the eight. Click ⟳ to stop the spin; “inhabit thread” to enter one.' : 'your arm is the bright spine (centre/hub at top → rim at bottom); production arms slant across and cross it at the 8 numbered stations. The other white arms are parallel verticals. Pick another surface — the whole map re-organises around it.'}</span>`;
   $('wsel').innerHTML = m.warps.map((w) => `<div class="w ${w.w === sel ? 'sel' : ''}" data-w="${w.w}"><div class="k">${w.w + 1}</div><div class="lab">${w.label}</div></div>`).join('');
   for (const el of $('wsel').querySelectorAll('.w')) el.addEventListener('click', () => { sel = +el.dataset.w; sync(); });
   const t = m.tours[sel];
