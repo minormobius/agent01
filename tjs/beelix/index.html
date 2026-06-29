@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beelix · a helix of bees · tjs</title>
+<meta name="description" content="A descending helix of bees in three.js: a hive emitter up top, a death plane below that recycles them, and a light pipe that pulses hive→death. The double helix isn't scripted — it falls out of three servo forces (hold radius, hold twist, hold descent). The light pulses ripple a glow + speed wave down the strands.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#06060b; --panel:#101019; --panel2:#16161f; --line:#23232e; --ink:#e6e6f0;
+    --soft:#8a8aa0; --faint:#5f5f74; --accent:#39d6c8; --gold:#ffce6b; --violet:#b57cff;
+    --serif:Georgia,"Iowan Old Style",Cambria,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  .crumb{font-size:13px;letter-spacing:.04em;color:var(--faint);padding:10px 18px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative;z-index:5}
+  .crumb a{color:var(--soft)} .crumb .here{color:var(--accent)} .crumb .spacer{flex:1}
+  .stage-row{display:flex;min-height:calc(100vh - 42px)}
+  @media(max-width:880px){.stage-row{flex-direction:column}}
+  #viewport{position:relative;flex:1;min-height:64vh;background:radial-gradient(120% 100% at 50% 8%,#15131f 0%,#06060b 65%)}
+  #viewport canvas{display:block}
+  .hud{position:absolute;top:12px;left:14px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 5px #000;line-height:1.7}
+  .hud b{color:var(--accent)}
+  .hint{position:absolute;bottom:12px;left:14px;right:14px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 5px #000}
+  aside{width:330px;flex:0 0 330px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;max-height:calc(100vh - 42px);padding:18px 18px 40px}
+  @media(max-width:880px){aside{width:auto;flex:none;border-left:0;border-top:1px solid var(--line);max-height:none}}
+  aside h2{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 4px;font-weight:600}
+  aside .sub{font-size:12px;color:var(--faint);margin:0 0 14px}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+  .presets button{font-size:12px;background:var(--panel2);color:var(--soft);border:1px solid var(--line);border-radius:7px;padding:6px 9px;cursor:pointer;font-family:var(--sans)}
+  .presets button:hover{color:var(--ink);border-color:var(--accent)}
+  .ctl{margin:11px 0}
+  .ctl label{display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:3px}
+  .ctl label .v{color:var(--accent);font-family:var(--mono)}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+  .group{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+  .group.pipe h2{color:var(--gold)}
+  .group.pipe .ctl label .v{color:var(--gold)}
+  .group.pipe input[type=range]{accent-color:var(--gold)}
+  .check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--soft);margin:10px 0;cursor:pointer}
+  .check input{accent-color:var(--accent);width:16px;height:16px}
+  .row{display:flex;gap:8px;margin-top:12px}
+  .row button{flex:1;font-family:var(--sans);font-size:13px;background:var(--accent);color:#06121a;border:0;padding:9px;border-radius:8px;cursor:pointer;font-weight:600}
+  .row button.ghost{background:transparent;color:var(--soft);border:1px solid var(--line);font-weight:500}
+  .row button.ghost:hover{color:var(--ink);border-color:var(--accent)}
+  .docs{max-width:860px;margin:0 auto;padding:30px 22px 80px;border-top:1px solid var(--line)}
+  .docs h2{font-family:var(--serif);font-size:24px;margin:30px 0 8px;font-weight:600}
+  .docs h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:26px 0 6px}
+  .docs p,.docs li{color:#c9c9d6;max-width:70ch}
+  .docs code{font-family:var(--mono);font-size:.86em;background:var(--panel2);padding:.12em .42em;border-radius:4px;color:#e9d9a8}
+  .docs .kicker{letter-spacing:.2em;text-transform:uppercase;font-size:11px;color:var(--gold)}
+  .docs b{color:#f0f0f6}
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi/">mino.mobi</a> / <a href="/">tjs</a> / <span class="here">beelix</span>
+  <span class="spacer"></span>
+  <a href="/swarm/">swarm</a> &nbsp;·&nbsp; <a href="/orb/">orb</a> &nbsp;·&nbsp; <a href="#how">how it works ↓</a>
+</nav>
+
+<div class="stage-row">
+  <div id="viewport">
+    <div class="hud" id="hud"></div>
+    <div class="hint">drag = orbit · scroll = zoom · the helix is emergent — tune the servos at right</div>
+  </div>
+
+  <aside>
+    <h2>Beelix</h2>
+    <p class="sub">A hive emits bees; they spiral down a pulsing light pipe and are recycled at the death plane. The helix is emergent, not keyframed.</p>
+
+    <div class="presets" id="presets"></div>
+
+    <div class="group">
+      <h2>The helix</h2>
+      <div class="sub" style="margin-bottom:8px">three servos: hold radius, hold twist, hold descent</div>
+      <div id="helixSliders"></div>
+    </div>
+
+    <div class="group">
+      <h2>Flow &amp; body</h2>
+      <div id="flowSliders"></div>
+    </div>
+
+    <div class="group pipe">
+      <h2>Light pipe · pulses</h2>
+      <div class="sub" style="margin-bottom:8px">energy rings travel hive→death; each kicks &amp; lights the bees it passes</div>
+      <div id="pulseSliders"></div>
+    </div>
+
+    <label class="check" style="margin-top:14px"><input type="checkbox" id="autorot"> auto-rotate camera</label>
+    <div class="row">
+      <button id="pause">Pause</button>
+      <button id="reset" class="ghost">Reset</button>
+    </div>
+  </aside>
+</div>
+
+<section class="docs" id="how">
+  <div class="kicker">workbench notes</div>
+  <h2>Beelix — a helix that nobody keyframed</h2>
+  <p>A hive at the top is a <b>pooled particle emitter</b>: it spawns bees at a steady rate from a free-list, and the <b>death plane</b> at the bottom recycles any bee that crosses it straight back into that pool — so the population sits at a steady state (≈ emit-rate × fall-time) and the GPU only ever sees live bees. Same kernel shape as the <a href="/swarm/">swarm bench</a>: struct-of-arrays, a pure fixed-<code>1/60&nbsp;s</code> <code>step()</code>, reproducible from <code>(seed, #steps)</code>.</p>
+
+  <h3>The helix is emergent</h3>
+  <p>There is no helix curve in the code. Each bee is driven by three <b>servo forces</b> expressed in the cylindrical frame around the central axis:</p>
+  <ul>
+    <li><b>Radial servo</b> holds <code>r → R</code> — pins every bee to the tube of radius R (no collapse to the axis, no flying out).</li>
+    <li><b>Angular servo</b> holds tangential speed <code>→ ω·R</code> — a steady twist; the sign of ω flips handedness.</li>
+    <li><b>Axial servo</b> holds vertical speed <code>→ −descent</code> — a steady fall from hive to death plane.</li>
+  </ul>
+  <p>Constant descent + constant angular velocity <i>is</i> a helix, mathematically. Spawn the emitter at <b>S evenly-spaced angles</b> and you get an S-strand helix — set strands to 2 for the double helix. Boids <b>separation</b> and a little <b>curl-noise</b> then give each strand its living thickness, so it reads as a rope of bees, not a wire. This is the same lesson as the swarm bench: don't keyframe motion, build the <i>field</i> whose solution is the shape you want, and let agents fall into it.</p>
+
+  <h3>The light pipe couples back</h3>
+  <p>Pulses launch from the hive at a fixed interval and travel down the pipe at <code>pulseSpeed</code>. They aren't just decoration: a bee within <code>pulseBand</code> of a pulse's current height gets a tangential <b>kick</b> and an emissive <b>glow</b> (an <code>iBright</code> per-instance shader term). So a bright, faster wave ripples <i>down</i> the helix in lockstep with the light — the pipe drives the swarm, not the reverse. Turn <code>pulseKick</code> up and the strands visibly surge as each ring passes.</p>
+
+  <h3>Files</h3>
+  <p>Kernel + selftest: <code>tjs/beelix/beelix.js</code>, <code>beelix.selftest.mjs</code> (14 node checks — steady-state population, determinism, the radius-holding helix property, hive→death containment, pulse travel). Bee mesh (shared shader for wing-flap + brightness): <code>tjs/beelix/beemesh.js</code>. The kernel reuses the swarm bench's curl-noise via its <code>_internal</code> export — one copy of the noise math.</p>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { Beelix, DEFAULT_PARAMS } from './beelix.js';
+import { buildBeeMesh } from './beemesh.js';
+
+const host = document.getElementById('viewport');
+const HIVE_Y = 12, DEATH_Y = -12, MAX_BEES = 4000, MAX_PULSES = 16;
+
+/* ---------- renderer / camera / scene ---------- */
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+host.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x06060b);
+scene.fog = new THREE.FogExp2(0x06060b, 0.013);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 600);
+camera.position.set(0, 3, 40);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 10; controls.maxDistance = 150; controls.target.set(0, 0, 0);
+controls.autoRotateSpeed = 0.8;
+
+scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x14140e, 0.8));
+const key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(10, 18, 14); scene.add(key);
+
+/* ---------- light pipe (core + glow shell) ---------- */
+const pipeLen = HIVE_Y - DEATH_Y;
+const pipeCore = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, pipeLen, 20, 1, true),
+  new THREE.MeshBasicMaterial({ color:0x39d6c8, transparent:true, opacity:0.55, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide }));
+pipeCore.position.y = (HIVE_Y + DEATH_Y) / 2; scene.add(pipeCore);
+const pipeGlow = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, pipeLen, 20, 1, true),
+  new THREE.MeshBasicMaterial({ color:0x1f8f9c, transparent:true, opacity:0.10, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.BackSide }));
+pipeGlow.position.y = pipeCore.position.y; scene.add(pipeGlow);
+
+/* ---------- pulse rings (pool) ---------- */
+const pulseRings = [];
+const ringGeo = new THREE.TorusGeometry(0.8, 0.07, 8, 28); ringGeo.rotateX(Math.PI / 2);
+for (let i = 0; i < MAX_PULSES; i++) {
+  const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color:0xbfffff, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false }));
+  m.visible = false; scene.add(m); pulseRings.push(m);
+}
+
+/* ---------- hive (top) ---------- */
+const hive = new THREE.Group();
+const dome = new THREE.Mesh(new THREE.IcosahedronGeometry(2.1, 1),
+  new THREE.MeshStandardMaterial({ color:0xc78a2c, emissive:0xff9b2e, emissiveIntensity:0.7, roughness:0.5, flatShading:true }));
+hive.add(dome);
+const lip = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.18, 10, 28),
+  new THREE.MeshStandardMaterial({ color:0x8a5a1e, emissive:0xffb454, emissiveIntensity:0.5, roughness:0.6 }));
+lip.rotation.x = Math.PI / 2; hive.add(lip);
+hive.add(new THREE.PointLight(0xffc070, 1.3, 30, 1.8));
+hive.position.y = HIVE_Y; scene.add(hive);
+
+/* ---------- death plane (bottom) ---------- */
+const death = new THREE.Group();
+const disc = new THREE.Mesh(new THREE.CircleGeometry(11, 48),
+  new THREE.MeshBasicMaterial({ color:0x140a1c, transparent:true, opacity:0.5, side:THREE.DoubleSide }));
+disc.rotation.x = -Math.PI / 2; death.add(disc);
+const rim = new THREE.Mesh(new THREE.TorusGeometry(11, 0.12, 10, 80),
+  new THREE.MeshBasicMaterial({ color:0xb57cff, transparent:true, opacity:0.8, blending:THREE.AdditiveBlending, depthWrite:false }));
+rim.rotation.x = Math.PI / 2; death.add(rim);
+death.add(new THREE.PointLight(0x9a5cff, 0.7, 24, 2));
+death.position.y = DEATH_Y; scene.add(death);
+const grid = new THREE.GridHelper(40, 24, 0x2a2336, 0x161122);
+grid.position.y = DEATH_Y + 0.02; grid.material.transparent = true; grid.material.opacity = 0.35; scene.add(grid);
+
+/* ---------- bees (instanced) ---------- */
+const { geometry: beeGeo, material: beeMat, wingTime } = buildBeeMesh(THREE, mergeGeometries, { glow:'#ffe39a' });
+const bees = new THREE.InstancedMesh(beeGeo, beeMat, MAX_BEES);
+bees.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+bees.frustumCulled = false;
+const iPhase = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BEES), 1);
+const iBright = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BEES), 1);
+iPhase.setUsage(THREE.DynamicDrawUsage); iBright.setUsage(THREE.DynamicDrawUsage);
+bees.geometry.setAttribute('iPhase', iPhase);
+bees.geometry.setAttribute('iBright', iBright);
+scene.add(bees);
+
+/* ---------- the sim ---------- */
+const params = { ...DEFAULT_PARAMS };
+let sim = new Beelix({ maxBees: MAX_BEES, hiveY: HIVE_Y, deathY: DEATH_Y, seed: 'beelix', params: { ...params } });
+
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(),
+      _s = new THREE.Vector3(1,1,1), _z = new THREE.Vector3(0,0,0), _dir = new THREE.Vector3(), _fwd = new THREE.Vector3(0,0,1);
+function syncInstances(){
+  for (let i = 0; i < MAX_BEES; i++){
+    if (!sim.alive[i]) { _m.compose(_z, _q, _z); bees.setMatrixAt(i, _m); continue; } // dead → scale 0
+    const vx = sim.vx[i], vy = sim.vy[i], vz = sim.vz[i], sp = Math.hypot(vx, vy, vz) || 1;
+    _dir.set(vx/sp, vy/sp, vz/sp); _q.setFromUnitVectors(_fwd, _dir);
+    _p.set(sim.px[i], sim.py[i], sim.pz[i]); _m.compose(_p, _q, _s); bees.setMatrixAt(i, _m);
+    iPhase.array[i] = sim.phase[i]; iBright.array[i] = sim.bright[i];
+  }
+  bees.instanceMatrix.needsUpdate = true; iPhase.needsUpdate = true; iBright.needsUpdate = true;
+}
+function syncPulses(){
+  for (let i = 0; i < MAX_PULSES; i++){
+    const p = sim.pulses[i];
+    if (p){ pulseRings[i].visible = true; pulseRings[i].position.y = p.y; }
+    else pulseRings[i].visible = false;
+  }
+}
+
+/* ---------- UI ---------- */
+const SLIDERS = {
+  helixSliders: [['strands','Strands',1,5,1], ['radius','Radius R',1.5,9,0.1], ['twist','Twist ω',-4,4,0.1], ['descent','Descent',0.5,8,0.1]],
+  flowSliders:  [['emitRate','Emit rate',0,600,10], ['separation','Separation',0,20,0.5], ['wander','Wander',0,10,0.2]],
+  pulseSliders: [['pulseInterval','Interval',0.3,4,0.1], ['pulseSpeed','Speed',2,20,0.5], ['pulseKick','Kick',0,30,0.5]],
+};
+function fmt(k, step){ return (+params[k]).toFixed(step < 1 ? (step < 0.5 ? 2 : 1) : 0); }
+function buildSliders(){
+  for (const [hostId, defs] of Object.entries(SLIDERS)){
+    const box = document.getElementById(hostId);
+    for (const [k,label,min,max,step] of defs){
+      const ctl = document.createElement('div'); ctl.className = 'ctl';
+      ctl.innerHTML = `<label>${label} <span class="v" id="v_${k}">${fmt(k,step)}</span></label>`+
+        `<input type="range" id="s_${k}" min="${min}" max="${max}" step="${step}" value="${params[k]}">`;
+      box.appendChild(ctl);
+      const inp = ctl.querySelector('input'), out = ctl.querySelector('.v');
+      inp.addEventListener('input', () => { params[k] = +inp.value; out.textContent = fmt(k,step); sim.setParams({ [k]: params[k] }); });
+    }
+  }
+}
+function refreshUI(){
+  for (const defs of Object.values(SLIDERS)) for (const [k,, , ,step] of defs){
+    const inp = document.getElementById('s_'+k), out = document.getElementById('v_'+k);
+    if (inp){ inp.value = params[k]; out.textContent = fmt(k,step); }
+  }
+}
+const PRESETS = {
+  'Double helix': { strands:2, radius:5.0, twist:2.2, descent:3.4, separation:3, wander:0.8, emitRate:150, pulseInterval:1.1, pulseSpeed:7, pulseKick:9 },
+  'DNA': { strands:2, radius:4.2, twist:3.0, descent:2.6, separation:2.2, wander:0.5, emitRate:120, pulseInterval:0.9, pulseSpeed:6, pulseKick:7 },
+  'Tight coil': { strands:1, radius:3.0, twist:3.8, descent:2.2, separation:2.5, wander:0.6, emitRate:120, pulseInterval:1.2, pulseSpeed:8, pulseKick:8 },
+  'Triple braid': { strands:3, radius:5.6, twist:1.8, descent:3.6, separation:3, wander:0.9, emitRate:200, pulseInterval:1.0, pulseSpeed:7, pulseKick:10 },
+  'Column (dense)': { strands:4, radius:4.5, twist:1.2, descent:3.2, separation:7, wander:2.6, emitRate:420, pulseInterval:1.0, pulseSpeed:7, pulseKick:11 },
+  'Loose vortex': { strands:1, radius:6.0, twist:1.0, descent:4.6, separation:3, wander:4.0, emitRate:150, pulseInterval:1.4, pulseSpeed:9, pulseKick:6 },
+};
+function applyPreset(name){ Object.assign(params, PRESETS[name]); sim.setParams(params); refreshUI(); }
+function buildPresets(){
+  const box = document.getElementById('presets');
+  for (const name of Object.keys(PRESETS)){
+    const b = document.createElement('button'); b.textContent = name;
+    b.addEventListener('click', () => applyPreset(name)); box.appendChild(b);
+  }
+}
+
+let paused = false;
+document.getElementById('pause').addEventListener('click', e => { paused = !paused; e.target.textContent = paused ? 'Play' : 'Pause'; });
+document.getElementById('reset').addEventListener('click', () => { sim.reset(); });
+document.getElementById('autorot').addEventListener('change', e => { controls.autoRotate = e.target.checked; });
+
+/* ---------- boot ---------- */
+buildSliders(); buildPresets(); applyPreset('Double helix');
+
+/* ---------- loop ---------- */
+const hud = document.getElementById('hud');
+let last = performance.now(), fps = 60, hudT = 0;
+function frame(now){
+  const dt = Math.min((now - last) / 1000, 0.05); last = now;
+  fps += ((1/Math.max(dt,1e-3)) - fps) * 0.1;
+  if (!paused){
+    sim.step(dt);
+    wingTime.value = sim.t;
+    hive.rotation.y += dt * 0.5;
+    pipeCore.material.opacity = 0.45 + 0.12 * Math.sin(sim.t * 6);   // gentle pipe shimmer
+    syncInstances(); syncPulses();
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  hudT += dt;
+  if (hudT > 0.25){ hudT = 0; hud.innerHTML = `<b>${sim.aliveCount}</b> bees · ${fps.toFixed(0)} fps<br>${sim.pulses.length} pulses in the pipe`; }
+  requestAnimationFrame(frame);
+}
+function resize(){
+  const w = host.clientWidth, h = host.clientHeight || host.getBoundingClientRect().height;
+  renderer.setSize(w, h, false); camera.aspect = w / Math.max(h,1); camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
