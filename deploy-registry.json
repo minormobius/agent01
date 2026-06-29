@@ -60,7 +60,8 @@
         "styles.css",
         "scripts/generate-search-catalog.mjs",
         "functions/**",
-        "mappa/**"
+        "mappa/**",
+        "hoop-history/**"
       ]
     },
     {

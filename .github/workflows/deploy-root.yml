@@ -62,6 +62,8 @@ on:
       - 'scripts/build-mappa.mjs'
       # crucible: the "overgenerate, then judge" page (bundled static subsite)
       - 'crucible/**'
+      # hoop-history: the /hoop intellectual-history page (timeline + endpoint census)
+      - 'hoop-history/**'
       - '.github/workflows/deploy-root.yml'
   workflow_dispatch:
     inputs:
