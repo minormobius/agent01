@@ -498,6 +498,7 @@
     import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
     import { importWorldExport } from './story/import.js';   // v096: hoopy's world_export → content_items (first-class) diff
     import { FQ, FQ_ORDER, fqProgress, fqStatus, fqActive, fqOpensRind, fqSignatureExclusive, fqCanWitness } from './story/factionquest.js';   // v100: the NAVE CAMPAIGN — meet the three factions in order; the Drift opens the rind
+    import { CHOICE_FACTIONS, WITNESS_TARGET, FACTION_INFO, witnessCount, allWitnessed, chosenFaction, witnessProgress, isChoiceFaction } from './story/factionchoice.js';   // v100: the UPPER-RIND THRESHOLD — witness each faction ×3, then choose; the choice colors the lower-rind descent
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -784,7 +785,7 @@
     const LOWER_RIND_OFFSET = 12000;   // world units east of the nave — clear of the nave AND the upper rind
     async function maybeBuildLowerRind() {
       if (lowerRindBuilt || !rindBuilt || !world || !walk || !story.ready) return;
-      if ((story.store.getPlayerState(story.playerId).narrative_tier || 1) < 4) return;   // the lower rind opens at the Approach tier
+      if (!chosenFaction(story.store.getFacts(story.playerId))) return;   // the lower rind opens only once you've CHOSEN a faction at the upper-rind threshold (the choice colours the descent — bible)
       if (world._rind && world._rind.idx < world._rind.order.length) return;              // wait until the upper rind has fully streamed
       lowerRindBuilt = true;
       try {
@@ -884,6 +885,74 @@
       if (fqProgress(facts).allDone) return;                       // campaign complete
       const ci = walk.nodeChunk[player], m = (world._nave.meta || [])[ci];
       if (m && m.faction) fqWitnessFaction(m.faction);             // the module enforces order + idempotency
+    }
+
+    // ── THE UPPER-RIND THRESHOLD (v100, factionchoice.js): in the upper rind you witness each NAVE faction
+    //    reflected at scale, three times each — then, at Sevin's threshold, you CHOOSE a faction, and the
+    //    choice colors the descent into the lower rind. The witness event is crystallizing a faction-tagged
+    //    piece of content (NPC / lore / creature) while on the upper rind (deck 1). ──
+    let _factionChoiceOpen = false;
+    function noteFactionWitness(item) {
+      if (!story.ready || playerDeck() !== 1 || !item) return;        // upper rind only
+      const facts = story.store.getFacts(story.playerId);
+      if (chosenFaction(facts) || allWitnessed(facts)) return;        // already at/over the threshold
+      const f = factionOf(item.tags || (item.content && item.content.tags) || []);
+      if (!isChoiceFaction(f) || witnessCount(facts, f) >= WITNESS_TARGET) return;
+      story.store.setFact(story.playerId, 'fw.' + f, witnessCount(facts, f) + 1);
+      const after = story.store.getFacts(story.playerId), info = FACTION_INFO[f];
+      notify(`witnessed ${info.label} at scale (${witnessCount(after, f)}/${WITNESS_TARGET})`, { kind: 'story', ms: 2800 });
+      saveStorySnapshot(); renderQuest();
+      if (allWitnessed(after)) {                                      // the threshold is ready — Sevin presents the choice
+        notify('Sevin leads you to the threshold — the choice is before you', { kind: 'story', ms: 4200 });
+        showFactionChoice();
+      }
+    }
+    // GUARANTEE completability: on the upper rind, keep at least WITNESS_TARGET faction-tagged tier-3 NPCs of
+    // each not-yet-witnessed faction discoverable near the player (mirrors ensureDeckSupply). Throttled.
+    let _witnessSupplyT = 0;
+    function ensureWitnessSupply() {
+      if (!story.ready || !society || player < 0 || playerDeck() !== 1) return;
+      const now = performance.now(); if (now - _witnessSupplyT < 900) return; _witnessSupplyT = now;
+      const facts = story.store.getFacts(story.playerId);
+      if (chosenFaction(facts) || allWitnessed(facts)) return;
+      const disc = getJSONFact('npc.discovered', {});
+      const placed = { continuant: 0, rindwalker: 0, drift: 0 };
+      for (const id of Object.keys(disc)) { const ci = story.store.contentById(id); if (!ci || ci.type !== 'npc') continue; const f = factionOf(ci.tags); if (placed[f] != null && !disc[id]._fw) placed[f]++; }
+      const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
+      const cands = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
+        .filter((c) => !disc[c.id] && isChoiceFaction(factionOf(c.tags)) && meetsState(gstate, c.requires || {}))
+        .sort((a, b) => (a.id < b.id ? -1 : 1));
+      for (const f of CHOICE_FACTIONS) {
+        let want = (WITNESS_TARGET - witnessCount(facts, f)) - placed[f];   // how many more of this faction to surface
+        for (const npc of cands) { if (want <= 0) break; if (factionOf(npc.tags) !== f) continue; if (discoverNpc(npc, px(), py(), 1)) want--; }
+      }
+    }
+    // SEVIN'S THRESHOLD — the choice card: pick a faction; it colors the descent + advances to the Lower Rind.
+    function showFactionChoice() {
+      if (!story.ready || _factionChoiceOpen) return;
+      _factionChoiceOpen = true;
+      const opts = CHOICE_FACTIONS.map((f) => { const i = FACTION_INFO[f];
+        return `<div class="choice fchoice" data-choose-faction="${f}" style="border-left:3px solid ${i.color};padding:9px 12px;margin:7px 0;cursor:pointer">`
+          + `<div style="color:${i.color};font-weight:600">${esc(i.label)} <span style="color:#6b7872;font-weight:400;font-size:11px">· ${esc(i.verbs)}</span></div>`
+          + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin-top:3px">${esc(i.creed)}</div></div>`;
+      }).join('');
+      $('enccard').innerHTML =
+        `<div class="ek">the upper-rind threshold · Sevin</div>` +
+        `<div class="en">Choose a faction</div>` +
+        `<div class="ed" style="font-size:13px">“You have witnessed all three at scale. The deep does not care which truth you carry into it — but you must carry one. Choose, and the descent is coloured by your choosing.”</div>` +
+        `<div style="margin-top:6px">${opts}</div>` +
+        `<div class="ex">choose to descend</div>`;
+      journalOpen = false; $('enc').classList.add('on');
+    }
+    function chooseFaction(faction) {
+      if (!story.ready || !isChoiceFaction(faction)) return;
+      const info = FACTION_INFO[faction];
+      story.store.setFact(story.playerId, 'flag.chosen_faction', faction);
+      const cur = story.store.getPlayerState(story.playerId).narrative_tier || 1;
+      if (cur < 4) story.store.setPlayerTier(story.playerId, 'narrative_tier', 4);   // the choice IS the gate into the Lower Rind
+      _factionChoiceOpen = false; hideEncounter();
+      notify(info.colours, { kind: 'story', ms: 5200 });
+      saveStory();   // → maybeBuildLowerRind opens the deep, coloured by the choice
     }
 
     // ── stamina (drains walking, restored by a bed) + chests (per-chamber persistent storage) ──
@@ -1183,7 +1252,11 @@
           if (t.ox + t.w < fx0 || t.ox > fx1 || t.oy + t.h < fy0 || t.oy > fy1) continue;   // viewport cull (matches drawPainted) — don't blit off-screen fog on a wide deck
           ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); } }
       if (playerDeck() === 1) { ctx.fillStyle = 'rgba(30,70,90,0.22)'; ctx.fillRect(0, 0, W, H); }   // the upper rind: no sun-strip, cool hull-glow wash
-      else if (playerDeck() === 2) { ctx.fillStyle = 'rgba(40,30,70,0.30)'; ctx.fillRect(0, 0, W, H); }   // the lower rind: deeper, machine-sacred violet dark
+      else if (playerDeck() === 2) {   // the lower rind: deeper, machine-sacred violet dark — TINTED by the faction you chose at the threshold (the descent is coloured by your choosing)
+        ctx.fillStyle = 'rgba(40,30,70,0.30)'; ctx.fillRect(0, 0, W, H);
+        const cf = story.ready && chosenFaction(story.store.getFacts(story.playerId));
+        if (cf && FACTION_INFO[cf]) { ctx.fillStyle = FACTION_INFO[cf].color; ctx.globalAlpha = 0.10; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+      }
       if (!walkPath) drawNPC();   // the social web is ambient — skip it while WALKING (its per-route strokes are off the hot path; it reappears the moment you stop)
       drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint();
     }
@@ -1304,7 +1377,7 @@
     function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}${_maxDt > 20 ? ' · max ' + _maxDt.toFixed(0) + 'ms' : ''}${_socMs > 1 ? ' · soc ' + _socMs.toFixed(0) + 'ms' : ''}${_stitchMs > 1 ? ' · stitch ' + _stitchMs.toFixed(0) + 'ms' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
-      ensureDeckSupply(); discoverQuestNpcs();   // keep the deck clearable + surface quest NPCs as you explore (both guarded + throttled)
+      ensureDeckSupply(); discoverQuestNpcs(); ensureWitnessSupply();   // keep the deck clearable + surface quest NPCs + guarantee each faction is witnessable on the upper rind (all guarded + throttled)
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
       let tierTag = '';
@@ -1432,6 +1505,27 @@
             hasWp: !!storyWp,
             howText: prog.done === 0 ? 'Follow the ◇ waypoint to each faction’s ward and walk in to meet them. Witness all three and the way down opens.' : null,
           };
+          if (journalOpen) renderJournal();
+          return;
+        }
+      }
+      // THE UPPER-RIND THRESHOLD is the headline while you're on the upper rind and haven't chosen a faction:
+      // witness each nave faction reflected at scale ×3, then choose at Sevin's threshold (the way down).
+      if (world && world._rind && playerDeck() === 1) {
+        const facts = story.store.getFacts(story.playerId);
+        if (!chosenFaction(facts)) {
+          const prog = witnessProgress(facts), done = prog.filter((p) => p.done).length;
+          const tally = prog.map((p) => `${esc(FQ[p.faction].label)} ${p.n}/${WITNESS_TARGET}`).join(' · ');
+          const ready = allWitnessed(facts);
+          storyWp = null;   // the witnesses are scattered across the Seven's domains — no single waypoint
+          questGuidance = {
+            objective: `<span class="lbl">⚑ The Upper Rind · the threshold</span> <span class="o">— ${ready ? 'choose your faction' : 'witness the three factions at scale'}</span>`
+              + `<span class="qbar"><span style="width:${Math.round(100 * done / 3)}%"></span></span> <span class="mk">${done}/3</span>`,
+            stepText: ready ? 'Sevin’s threshold is ready — choose the faction whose truth you carry into the deep.' : tally,
+            whereWord: null,
+            howText: ready ? null : 'Walk the Seven’s domains and meet who they reflect — each nave faction, three times over.',
+          };
+          if (ready && !_factionChoiceOpen && !$('enc').classList.contains('on')) showFactionChoice();   // re-present the choice if it was dismissed
           if (journalOpen) renderJournal();
           return;
         }
@@ -1828,7 +1922,7 @@
       journalOpen = false;   // a real encounter takes the #enc overlay — not the journal
       $('enc').classList.add('on');
     }
-    const hideEncounter = () => { $('enc').classList.remove('on'); journalOpen = false; _encItem = null; };
+    const hideEncounter = () => { $('enc').classList.remove('on'); journalOpen = false; _encItem = null; _factionChoiceOpen = false; };
     // SPREAD a rumor about the figure you just met → your own repo (append-only outbox). Best-effort; a
     // failure just marks the button, never breaks play.
     // THE shared rumor publisher — every fixture that writes to the player's own story.rumor outbox goes
@@ -1856,6 +1950,9 @@
       return publishRumor(rumor);
     }
     $('enc').addEventListener('click', async (e) => {
+      const fc = e.target.closest('[data-choose-faction]');
+      if (fc) { e.stopPropagation(); chooseFaction(fc.dataset.chooseFaction); return; }   // Sevin's threshold — pick a faction
+      if (_factionChoiceOpen) return;   // the choice is mandatory: a click off the options doesn't dismiss it
       const sp = e.target.closest('[data-spread]');
       if (sp && !sp.disabled) {
         e.stopPropagation();
@@ -1867,10 +1964,10 @@
       }
       hideEncounter();
     });
-    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
+    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && !_factionChoiceOpen && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
     // NPCs fold their reveal INTO the dialogue (one screen, one name — see renderStory); only non-NPC
     // encounters (item / lore / creature / plot_beat) still get the standalone popup.
-    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item && intro.item.type !== 'npc') showEncounter(intro.item); };
+    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) { if (intro.item.type !== 'npc') showEncounter(intro.item); noteFactionWitness(intro.item); } };   // first meeting → encounter card (non-npc) + upper-rind faction-witness tally
     // a generic centre-screen page (deck arrival, the hoopybot level-up) — same overlay, custom layout.
     function showPage(kicker, title, body, foot) {
       _encItem = null;   // a generic page reuses the overlay — no figure to spread word of
@@ -1919,6 +2016,13 @@
     function isGuide(contentId) { const g = guideFor(openingCast, narTier()); return !!(g && contentId && g.id === contentId); }
     function grantLevelAtGuide() {
       const tier = narTier(), d = currentDeck();
+      // TIER 3 → 4 is the upper-rind THRESHOLD: you don't just level up, you CHOOSE a faction (bible). Sevin
+      // (the tier-3 guide) offers the choice once all three are witnessed ×3; until then, she sends you back.
+      if (tier === 3 && !chosenFaction(story.store.getFacts(story.playerId))) {
+        if (allWitnessed(story.store.getFacts(story.playerId))) showFactionChoice();
+        else showPage('the upper-rind threshold · Sevin', 'not yet', '“You have not witnessed all three at scale. Walk the Seven’s domains until each nave faction has shown you its true size — three times over — then return and choose.”', '⏎ / click to continue');
+        return true;
+      }
       if (!story.store.getFact(story.playerId, 'hoopy.paged.' + tier)) return false;   // not cleared yet
       const nd = nextDeck(tier);
       story.store.setPlayerTier(story.playerId, 'narrative_tier', Math.min(DECK_COUNT, tier + 1));
