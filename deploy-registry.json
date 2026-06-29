@@ -170,10 +170,10 @@
       "dir": "biome",
       "endpoint": "biome.mino.mobi",
       "type": "frontend",
-      "branch": "claude/naturalist-random-critter-cf48fm",
+      "branch": "claude/biome-forest-creep-sprites-wnxo6h",
       "uses": [],
       "provides": null,
-      "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Pure static \u2014 model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
+      "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Also serves the gacha (roll a viable ecosystem), the sprite/muscle/balance labs, and OVER (over/ \u2192 biome.mino.mobi/over): roll a biome and walk a living forest whose animals are cast from the gacha catalogue as pixel sprites \u2014 arthropods/pollinators swarm as creeps, vertebrates amble as quadrupeds \u2014 using the mega/sprite critter kernels (vendored under over/sprite/) and the hoop/over eden forest generator (vendored as over/eden.js). Pure static \u2014 model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
       "paths": [
         "biome/**"
       ]

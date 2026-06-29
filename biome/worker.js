@@ -17,6 +17,13 @@ export default {
       });
     }
 
+    // /over is an ES-module page (imports are relative), so a no-slash form must REDIRECT — an internal
+    // rewrite would leave the browser at /over and resolve `./eden.js` to /eden.js (404). Redirect first.
+    if (url.pathname === '/over') {
+      url.pathname = '/over/';
+      return Response.redirect(url.toString(), 308);
+    }
+
     // Pretty endpoints: normalise the no-slash form so the advertised URLs serve the page
     // rather than a 404 (Cloudflare's asset handler resolves the trailing-slash dir index).
     if (url.pathname === '/graph' || url.pathname === '/gacha' || url.pathname === '/sprite' || url.pathname === '/balance' || url.pathname === '/inat') {
