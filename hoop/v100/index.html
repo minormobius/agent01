@@ -482,7 +482,7 @@
     import { drawWallFixture } from './consoles.js';
     import { TRAFFIC_FOOTPRINT, GRAND_ROLES, GRAND_MIN, MIN_ROOM, MAX_FIXTURE_AREA } from './rooms.js';
     import { buildSociety, buildResidents, stepResidents } from './npc.js';
-    import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
+    import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome, ramp, hexHue, rngFor } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose, take, loadGateState, meetsState } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
     import { deriveStoryboard, deriveMilestones, deriveOpeningCast, pickBibleGuides } from './story/progression.js';   // v096: storyboard + advancement + opening cast DERIVED FROM hoopy's content; pickBibleGuides pins the per-zone guide chain (Olo·Solen·Sevin·Luna)
@@ -700,6 +700,13 @@
     // ── DECKS (chutes & ladders): the rind is a lower deck linked to the concourse by a shaft PORT. The
     // render draws only the player's current deck; crossing the shaft (same x,y) flips the deck seamlessly.
     const playerDeck = () => playerDeckOf(world, walk, player);
+    // The narrative tier (the zone ladder, decks.js) maps to a PHYSICAL deck: Commons(1)+Wards(2) are the
+    // Nave (deck 0); the Upper Rind(3) is deck 1; the Lower Rind(4)+Signal Chamber(5) are deck 2. The tier
+    // can run ahead of the feet (you reach tier 3 by witnessing the Drift in the Nave, before you descend) —
+    // so anything that announces a zone (deck card, "you understand it") must check you're actually ON it.
+    const zoneDeckForTier = (t) => (t >= 4 ? 2 : t === 3 ? 1 : 0);
+    // a resident's deck is its home chunk's deck (residents carry no deck field of their own).
+    const residentDeck = (r) => (r && r.homeKey && world && (world.chunks[r.homeKey.ch] || {}).deck) || 0;
     // THE SHAFT is deck-aware: the nave floor and the offset rind floor each have their own shaft (x,y)
     // (the rind is built far away in world coords so its ports can't coincide with the nave's — the
     // crossing is a teleport pair, shaftNodes, not a buildWalk link). Every use of the shaft means "the
@@ -774,7 +781,7 @@
         const hc = polyCentroid(hub.rec.poly), hsc = nearestConcourse(hub.rec, hc.x, hc.y);
         if (!hsc) { rindBuilt = false; return; }
         shafts[0] = { top: { x: sc.x, y: sc.y, node: globalOf(walk, 0, sc.cell) }, bottom: { x: hsc.x, y: hsc.y, node: globalOf(walk, hub.rec.id, hsc.cell) } };   // nave(0) ↔ upper rind(1)
-        reveal(); draw();
+        reveal(); draw(); rebuildSocietySoon();                      // give the new deck a crowd (residents derive their deck from the chunk) so discoverNpc has someone to promote down here
         streamFloorStations(rst, 1, '_rind');                        // Mars · Venus · Jupiter stream in one per tick
       } catch (e) { rindBuilt = false; /* leave the world intact if generation fails */ }
     }
@@ -807,7 +814,7 @@
         const shc = polyCentroid(sat.rec.poly), ssc = nearestConcourse(sat.rec, shc.x, shc.y);
         if (!ssc) { lowerRindBuilt = false; return; }
         shafts[1] = { top: { x: dc.x, y: dc.y, node: globalOf(walk, upHub.id, dc.cell) }, bottom: { x: ssc.x, y: ssc.y, node: globalOf(walk, sat.rec.id, ssc.cell) } };   // upper rind(1) ↔ lower rind(2)
-        reveal(); draw();
+        reveal(); draw(); rebuildSocietySoon();                      // the deep gets its own crowd too
         notify('a second shaft opens — the deep rind, where the Signal Chamber waits', { kind: 'story', ms: 4600 });
         streamFloorStations(lst, 2, '_lowerRind');                   // Sol · Luna · the Signal Chamber stream in
       } catch (e) { lowerRindBuilt = false; }
@@ -818,7 +825,7 @@
       const step = () => {
         if (!world || world[key] !== rst) return;                   // a newer world replaced this one
         const r = rindSolveNext(rst);
-        if (!r) { reveal(); draw(); return; }                       // all four solved
+        if (!r) { reveal(); draw(); rebuildSocietySoon(); return; }  // all four solved — rebuild the crowd over the full floor (its stations now have residents to meet/promote)
         r.rec.deck = deck; r.rec.rind = true;
         try { r.rec.painted = paintChunk(r.rec, SKIN); } catch (e) {}
         // FULL restitch (not incremental stitchAdd): a bounded four-chunk floor, so the O(cells) rebuild is
@@ -832,6 +839,7 @@
     function checkDeckEnter() {
       if (!story.ready) return;
       const pd = playerDeck();
+      maybeArriveDeck();   // announce the zone the first time you physically set foot on its deck (the deck card)
       const flag = pd === 1 ? 'flag.entered_rind' : pd === 2 ? 'flag.lower_rind_entered' : null;   // the descent flags (gates.js WORLD_FACTS)
       if (!flag || story.store.getFact(story.playerId, flag) === true) return;
       story.store.setFact(story.playerId, flag, true); saveStory();
@@ -1433,8 +1441,13 @@
     // player (the camera centres the player, so screen-centre ≈ player). The moment the waypoint rolls
     // into the viewport, the edge arrow gives way to the marker itself, drawn at its true world spot. ──
     function drawWaypoint() {
-      const wp = waypoint || storyWp;   // a manual waypoint overrides; otherwise the active beat's marker points the way
+      let wp = waypoint || storyWp;   // a manual waypoint overrides; otherwise the active beat's marker points the way
       if (!wp || player < 0 || !walk) return;
+      // OFF-DECK GRACE: the decks are offset thousands of world-units apart, so a waypoint to a target on
+      // ANOTHER deck (a guide up in the Nave while you're down in the rind) would point kilometres sideways.
+      // Redirect it to the shaft on THIS deck that heads toward the target — up if the target is far away
+      // (above), the down-shaft otherwise — so "go there" reads as "take the stairs".
+      if (Math.hypot(wp.x - px(), wp.y - py()) > 3000) { const s = shaftUpHere() || shaftDownHere(); if (s) wp = { x: s.x, y: s.y }; else return; }
       const sx = SX(wp.x), sy = SY(wp.y), MARGIN = 46;
       if (onScreen(sx, sy, W, H, MARGIN)) { drawWaypointMarker(sx, sy); return; }   // in view → the marker
       // off-screen → the edge arrow on the bearing, clamped to an inset rect, with a distance read
@@ -1670,7 +1683,7 @@
         // the world yet, promote a nearby resident into them now — so the waypoint resolves and you can go
         // meet them. This is the ONLY way a major NPC enters the world (the crowd never wears their name).
         for (const m of ams) if (m.anchor && !anchors.some((a) => a.key === 'anchor:' + m.anchor)) {
-          const npc = story.store.contentById(m.anchor); if (npc) discoverNpc(npc, px(), py(), playerDeck());
+          const npc = story.store.contentById(m.anchor); if (npc) discoverPlacedNpc(npc, playerDeck());
         }
         storyBigKeys.clear(); for (const m of ams) if (m.resident) storyBigKeys.add(m.resident);
         sbWp = ams.length ? resolveMarker(ams[0]) : null;
@@ -2038,14 +2051,20 @@
     // lacks the rumor grant, it was minted broad elsewhere (the .mino.mobi SSO cookie). Do NOT escalate via
     // the union (that re-shows the scary 50-collection list) — re-sign-in for HOOP_SCOPE ALONE: one short,
     // game-only consent, and you're never asked again. Best-effort: returns false rather than throwing.
+    // TRY THE WRITE FIRST — don't proactively re-auth. `auth.hasScope` is a local guess that reads FALSE for a
+    // cookie-only SSO session even when the worker proxy would accept the write, which forced a needless
+    // re-consent on the first spread. So just attempt putRumor; only if it genuinely fails do we escalate the
+    // rumor grant ONCE per session (a real missing-scope), never on every spread.
+    let _rumorEscalated = false;
     async function publishRumor(rumor) {
       if (!storyUser || !rumor) return false;
-      if (!auth.hasScope('com.minomobi.hoop.story.rumor')) {
-        flashToast('one-time: sign in to the game…', 2400);
-        try { await auth.login(storyUser.handle, { scope: HOOP_SCOPE }); } catch (e) { flashToast('couldn’t sign in — try again', 2600); }
+      try { await putRumor(auth.pds, rumor); return true; }   // works whenever the session/cookie actually carries the grant — no re-auth
+      catch (e) {
+        if (_rumorEscalated || auth.hasScope('com.minomobi.hoop.story.rumor')) { flashToast('couldn’t spread — try again', 2400); return false; }
+        _rumorEscalated = true; flashToast('one-time: granting the game write access…', 2600);
+        try { await auth.login(storyUser.handle, { scope: HOOP_SCOPE }); } catch (e2) {}
         return false;
       }
-      try { await putRumor(auth.pds, rumor); return true; } catch (e) { return false; }
     }
     async function spreadRumor(item) {
       if (!storyUser || !item) return false;
@@ -2109,12 +2128,19 @@
       if (!story.ready) return;
       const d = currentDeck(), k = 'hoopy.arrived.' + d.tier;
       if (story.store.getFact(story.playerId, k)) return;
+      if (zoneDeckForTier(d.tier) !== playerDeck()) return;   // don't announce a zone before you've set foot on its deck (the tier can run ahead of the feet)
       story.store.setFact(story.playerId, k, true); saveStorySnapshot();
       showDeckCard(d, true);
     }
     // hoopybot's verdict — page the player when they've learned enough of the current deck (once per tier).
     function checkHoopy() {
       if (!story.ready) return;
+      // The RIND tiers (3 Upper Rind · 4 Lower Rind · 5 Signal Chamber) are NOT driven by the learn-count
+      // deck-climb — tier 3→4 is the witness-then-CHOOSE threshold (factionchoice.js) and 4→5 is the
+      // chamber-lore/Luna close (conclusion.js). Paging "<zone> — understood / return to your guide" off the
+      // learn-count there told the player they understood the Upper Rind before they'd descended, and sent
+      // them back to Sevin who then said "not yet". Cap the deck-climb paging at the Nave (tiers 1–2).
+      if (narTier() >= 3) return;
       const d = currentDeck(), a = assess(story.store, story.playerId, d);
       const pk = 'hoopy.paged.' + d.tier;
       if (a.ready && !story.store.getFact(story.playerId, pk)) {
@@ -3456,19 +3482,38 @@
         const res = pos.res ? residents.find((r) => hkStr(r.homeKey) === pos.res) : null;
         if (pos.res) _promotedKeys.add(pos.res);
         const genome = (res && res.genome) || buildGenome('hoop-npc:' + id, { role: ROLE_FOR_FACTION[faction] || 'trade', size: 12 });
+        // A PRINCIPAL READS AS ITS FACTION, not its verb. The inherited resident genome is cloth-tinted by the
+        // resident's ROLE (so a Continuant promoted onto a green grow-resident looked green). Recolour the
+        // principal's cloth to the FACTION hue (and tint the ground-ring/nameplate to match). Neutral NPCs keep
+        // their role colour. (clone so the live resident's own genome isn't recoloured.)
+        const fc = FACTION_INFO[faction] && FACTION_INFO[faction].color;
+        let g = genome;
+        if (fc) { try { g = { ...genome, ramps: { ...genome.ramps, cloth: ramp(rngFor('hoop-npc:' + id + '::factioncloth'), hexHue(fc), 52, 10) } }; } catch (e) { g = genome; } }
         anchors.push({ key: 'anchor:' + id, content_id: id, name: (npc.content || {}).name || id, role: (npc.tags || [])[0] || faction || 'drift',
-          color: ANCHOR_COLORS[i % ANCHOR_COLORS.length], x: pos.x, y: pos.y, deck: pos.deck || 0, dir: 'S', genome });
+          color: fc || ANCHOR_COLORS[i % ANCHOR_COLORS.length], x: pos.x, y: pos.y, deck: pos.deck || 0, dir: 'S', genome: g });
         i++;
       }
     }
     // PROMOTE a nearby crowd resident into a named NPC (inherit its genome, pin its content). The little guy
     // it was is suppressed; the discovery is persisted so it survives reload. Idempotent per NPC.
+    // is (x,y) on/adjacent to a shaft end on `deck`? (so we never stand an NPC on the ladder, where a click
+    // crosses the shaft instead of talking). Checks both ends of every shaft that touches this deck.
+    function onShaftCell(x, y, deck) {
+      const R = (SKIN.playerW * 2.2) ** 2;
+      for (const s of shafts) { if (!s) continue;
+        for (const end of [s.top, s.bottom]) { if (!end) continue;
+          // an end is on `deck` if it's the top of shafts[deck] or the bottom of shafts[deck-1]
+          const onThis = (s === shafts[deck] && end === s.top) || (s === shafts[deck - 1] && end === s.bottom);
+          if (onThis && (end.x - x) ** 2 + (end.y - y) ** 2 < R) return true; } }
+      return false;
+    }
     function discoverNpc(npc, x, y, deck) {
       if (!npc || !story.ready || player < 0) return false;
       const disc = getJSONFact('npc.discovered', {});
       if (disc[npc.id]) return false;
       let res = null, bd = Infinity;
-      for (const r of residents) { if ((r.deck || 0) !== (deck || 0)) continue; const k = hkStr(r.homeKey); if (k && _promotedKeys.has(k)) continue;   // don't promote the same little guy twice
+      for (const r of residents) { if (residentDeck(r) !== (deck || 0)) continue; const k = hkStr(r.homeKey); if (k && _promotedKeys.has(k)) continue;   // don't promote the same little guy twice
+        if (onShaftCell(r.x, r.y, deck || 0)) continue;   // never promote a resident standing on the ladder
         const d = (r.x - x) ** 2 + (r.y - y) ** 2; if (d < bd) { bd = d; res = r; } }
       const pos = res ? { x: res.x, y: res.y } : { x, y }, rkey = res ? hkStr(res.homeKey) : null;
       disc[npc.id] = { x: pos.x, y: pos.y, deck: deck || 0, res: rkey };
@@ -3476,6 +3521,19 @@
       if (rkey) _promotedKeys.add(rkey);
       placeAnchors();
       return true;
+    }
+    // WHERE a discovered NPC belongs. A FACTION PRINCIPAL (a faction-tagged NPC) on the Nave belongs in its
+    // faction's WARD, not wherever the player happens to be standing — promoting them near the player dumped
+    // the Continuant head (Factor Merid) into the Commons. Aim the discovery at the ward centroid so
+    // discoverNpc promotes a resident who actually lives there. Falls back to the player when the ward isn't
+    // streamed yet, or for neutral / off-Nave NPCs (the rind has no wards).
+    function discoverPlacedNpc(npc, deck) {
+      let x = px(), y = py();
+      if ((deck || 0) === 0 && world && world._nave && npc) {
+        const f = factionOf(npc.tags);
+        if (f && f !== '_default') { const w = fqWardXY(f); if (w) { x = w.x; y = w.y; } }
+      }
+      return discoverNpc(npc, x, y, deck);
     }
     // PROGRESSION SOLVER (v1) — keep the current deck CLEARABLE. assess() clears a deck when you've
     // crystallized `needed` distinct deck-themed items; with the crowd now ambience, that supply has to come
@@ -3499,7 +3557,7 @@
       const cands = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
         .filter((c) => !disc[c.id] && countsForDeck(c, deck) && meetsState(gstate, c.requires || {}))
         .sort((a, b) => (a.id < b.id ? -1 : 1));
-      for (const npc of cands) { if (want <= 0) break; if (discoverNpc(npc, px(), py(), playerDeck())) want--; }
+      for (const npc of cands) { if (want <= 0) break; if (discoverPlacedNpc(npc, playerDeck())) want--; }
     }
     // Discover any NPC a live QUEST points at (storyboard beat OR side-thread) so its waypoint resolves and
     // you can actually go meet them — covers the "I have a quest for Sevin but she never appears" gap.
@@ -3511,7 +3569,7 @@
         const q = questBank.get(k.slice(6)); if (!q) continue;
         const mk = questMarker(q, names);
         if (mk && mk.anchor && !anchors.some((a) => a.key === 'anchor:' + mk.anchor)) {
-          const npc = story.store.contentById(mk.anchor); if (npc) discoverNpc(npc, px(), py(), playerDeck());
+          const npc = story.store.contentById(mk.anchor); if (npc) discoverPlacedNpc(npc, playerDeck());
         }
       }
     }
@@ -3602,6 +3660,9 @@
         if ((a.deck || 0) !== playerDeck()) continue;   // principals belong to their deck
         const sx = SX(a.x), sy = SY(a.y);
         if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;
+        // FOG: a principal is concealed by darkness like everything else — only drawn when in your LINE OF
+        // SIGHT (the current FOV), not seen through walls. nearestNode runs only for the few on-screen anchors.
+        if (inView && inView.size && walk) { const nd = nearestNode(walk, a.x, a.y, false); if (nd >= 0 && !inView.has(nd)) continue; }
         a.dir = dirKey(px() - a.x, py() - a.y);   // turn to face the player — a sign of life, even standing their post
         ctx.save();
         ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(7, SKIN.playerW * 0.5 * cam.scale), 0, 7); ctx.stroke();   // faction-coloured ground ring (trackable)
