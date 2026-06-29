@@ -449,8 +449,9 @@
   <script type="module">
     import { solveChunk } from './v8/chunkgen.js';
     import { prepareNave, naveSolveNext } from '../nave/nave.js';   // FLOOR 1 = the nave: a central commons + six faction wards (paced solve)
+    import { prepareRind, rindSolveNext } from '../rind/rind.js';   // FLOOR 2 = the rind: a shaft-foot hub + Navigation / Propulsion Drum / Signal Chamber (paced solve, offset deck)
     import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, extendWalk, pathFind, nearestNode, globalOf, sightBall } from './v8/manager.js';
-    import { nearestConcourse, attachShaft, markRindDeck, playerDeckOf } from './descent.js';   // chutes: a deck link is a port
+    import { nearestConcourse, attachShaft, playerDeckOf } from './descent.js';   // chutes: a deck link is a port (the offset rind crosses via a teleport pair, not a shared port)
     import { STAMINA_MAX, clampStamina, fixtureAction, chestDeposit, chestWithdraw, chestOf,
              NOURISH_MAX, HEALTH_MAX, clampNourish, clampHealth, tickSurvival, applyFood } from './sim.js';   // stamina + nourish/health + fixture registry + chest
     import { ARCADE_LAWS, lawIndexForKey, arcadeRules, GOAL_BLURB, newArcadeGame, arcadeMove, arcadeUndo, arcadeReset, arcadeBoard, arcadeReward } from './arcade.js';   // the arcade fixture — forge puzzles (a ruleset per cabinet, play-to-earn)
@@ -697,7 +698,12 @@
     // ── DECKS (chutes & ladders): the rind is a lower deck linked to the concourse by a shaft PORT. The
     // render draws only the player's current deck; crossing the shaft (same x,y) flips the deck seamlessly.
     const playerDeck = () => playerDeckOf(world, walk, player);
-    let shaftXY = null, rindBuilt = false, shaftNodes = null;
+    // THE SHAFT is deck-aware: the nave floor and the offset rind floor each have their own shaft (x,y)
+    // (the rind is built far away in world coords so its ports can't coincide with the nave's — the
+    // crossing is a teleport pair, shaftNodes, not a buildWalk link). Every use of the shaft means "the
+    // shaft on the player's CURRENT deck" — that's what you draw, click to cross, and aim the way-out at.
+    let shaftAt = null, rindBuilt = false, shaftNodes = null;   // shaftAt = { 0:{x,y} (nave), 1:{x,y} (rind hub) }
+    const shaftHere = () => (shaftAt && shaftAt[playerDeck()]) || null;
     // nearest walkable node ON THE CURRENT DECK (decks overlap in (x,y), so a click must not jump decks)
     function nearestDeckNode(x, y) {
       const pd = playerDeck(); let best = -1, bd = Infinity;
@@ -717,24 +723,57 @@
       followCam(); reveal(); draw(); maybeStream();
       return true;
     }
+    // FLOOR 2 = THE RIND. Once the nave is cleared (the Drift quest set narrative_tier ≥ 3) the way down
+    // opens: build the real FOUR-CHUNK rind floor (shaft-foot hub + Navigation / Propulsion Drum / Signal
+    // Chamber) and stream it in paced like the nave wards. It's laid OFFSET far in world coords — the rind's
+    // hub↔station seams share the nave's lattice, so co-locating would leak the player between decks via
+    // buildWalk's coincident-port stitch. Offset → the only crossing is the shaft, a teleport pair (shaftNodes).
+    const RIND_OFFSET = 6000;   // world units east of the nave — clear of every nave/ward chunk
+    function polyCentroid(poly) { let x = 0, y = 0; for (const p of poly) { x += p.x; y += p.y; } return { x: x / poly.length, y: y / poly.length }; }
     async function maybeBuildRind() {
       if (rindBuilt || !world || !walk || !story.ready) return;
       if ((story.store.getPlayerState(story.playerId).narrative_tier || 1) < 3) return;   // the rind opens at his Investigation tier (the climb "down" is his ladder, not a hand-flag)
       rindBuilt = true;
       try {
         const c0 = world.chunks[0];
+        // sink the shaft on the nave commons concourse, near Sevin (the guide who takes you down) if she's placed
         const sevin = anchors.find((a) => a.key === 'anchor:sevin');
         const sc = nearestConcourse(c0, sevin ? sevin.x : px(), sevin ? sevin.y : py());
         if (!sc) { rindBuilt = false; return; }
-        shaftXY = { x: sc.x, y: sc.y };
-        attachShaft(c0, sc.x, sc.y, sc.cell);                       // sink the shaft on the concourse
-        const rseed = (seed ^ 0x9e3779b9) >>> 0;
-        const { rec, painted } = await generate(opts({ seed: rseed, poly: c0.poly, inherit: [{ x: sc.x, y: sc.y }] }));
-        rec.painted = painted; markRindDeck(rec, 1, shaftXY);        // lower deck, links ONLY at the shaft
-        addChunk(world, rec); restitch();
-        shaftNodes = { 0: globalOf(walk, 0, sc.cell), 1: globalOf(walk, rec.id, (rec.ports[0] || {}).cell) };   // the two ends of the chute
+        attachShaft(c0, sc.x, sc.y, sc.cell);                       // mark the nave end of the shaft
+        // lay the rind hub offset east of the nave; the three stations spoke off it on its own lattice
+        const nc = polyCentroid(c0.poly), rseed = (seed ^ 0x9e3779b9) >>> 0;
+        const rst = prepareRind(rseed, { cx: nc.x + RIND_OFFSET, cy: nc.y });
+        world._rind = rst;
+        // solve + place the HUB now (the shaft foot) so the descent has somewhere to land
+        const hub = rindSolveNext(rst); if (!hub) { rindBuilt = false; return; }
+        hub.rec.deck = 1; hub.rec.rind = true;
+        try { hub.rec.painted = paintChunk(hub.rec, SKIN); } catch (e) {}
+        addChunk(world, hub.rec); restitch();
+        const hc = polyCentroid(hub.rec.poly), hsc = nearestConcourse(hub.rec, hc.x, hc.y);
+        if (!hsc) { rindBuilt = false; return; }
+        shaftAt = { 0: { x: sc.x, y: sc.y }, 1: { x: hsc.x, y: hsc.y } };   // the shaft, per deck
+        shaftNodes = { 0: globalOf(walk, 0, sc.cell), 1: globalOf(walk, hub.rec.id, hsc.cell) };   // the two ends of the chute (teleport pair)
         reveal(); draw();
+        streamRindStations(rst);                                     // Navigation · Drum · Signal stream in one per tick
       } catch (e) { rindBuilt = false; /* leave the world intact if generation fails */ }
+    }
+    // stream the three rind stations after the hub — solve + paint + incremental stitch, one per tick (the
+    // nave-ward pacing), all tagged deck 1 so the offset floor renders + routes on its own deck.
+    function streamRindStations(rst) {
+      const step = () => {
+        if (!world || world._rind !== rst) return;                  // a newer world replaced this one
+        const r = rindSolveNext(rst);
+        if (!r) { reveal(); draw(); return; }                       // all four solved
+        r.rec.deck = 1; r.rec.rind = true;
+        try { r.rec.painted = paintChunk(r.rec, SKIN); } catch (e) {}
+        // FULL restitch (not incremental stitchAdd): the rind is a bounded four-chunk floor, so the O(cells)
+        // rebuild is cheap + one-time — and it appends the new chunk's nodes without moving the existing
+        // chunks' base indices, so the shaft teleport pair (computed off chunk 0 + the hub) stays valid.
+        addChunk(world, r.rec); restitch(); reveal(); draw();
+        setTimeout(step, 24);
+      };
+      setTimeout(step, 30);
     }
     function checkDeckEnter() {
       if (!story.ready || playerDeck() !== 1) return;
@@ -932,7 +971,7 @@
     // advance the active walk by `dt` ms, INTERPOLATING the player between path samples (frame-rate
     // independent: 1 chaikin sample per 24ms of progress, so speed is identical at 30 or 60fps). Returns
     // true while moving. Reveal is throttled; streaming is throttled; the RAF loop draws once after this.
-    let _lastStream = 0;
+    let _lastStream = 0, _rindCheckT = 0;
     function advanceWalk(dt) {
       const wp = walkPath, sm = wp.sm; if (!sm || sm.length < 2) { walkPath = null; return false; }
       wp.f += dt / 24;
@@ -1095,8 +1134,8 @@
     }
     // the shaft: a chute marker at the (deck-shared) shaft cell — ▼ down to the rind, ▲ back up to the Nave
     function drawShaft() {
-      if (!shaftXY || !rindBuilt) return;
-      const sx = SX(shaftXY.x), sy = SY(shaftXY.y), up = playerDeck() === 1;
+      const s = shaftHere(); if (!s || !rindBuilt) return;
+      const sx = SX(s.x), sy = SY(s.y), up = playerDeck() === 1;
       ctx.save();
       ctx.strokeStyle = '#7fd8d0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(8, SKIN.playerW * 0.55 * cam.scale), 0, 7); ctx.stroke();
       ctx.fillStyle = '#7fd8d0'; ctx.font = `bold ${Math.max(12, SKIN.playerW * 0.95 * cam.scale) | 0}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1346,7 +1385,7 @@
         objective = `<span class="lbl">⚑</span> <span class="o">Return to ${esc(guideName(guide))}</span> <span class="mk">— they have new guidance for you</span>`;
         // your guides live in the Nave (deck 0). If you've descended into the rind, point the waypoint at the
         // shaft back up, not at the Nave coordinates under your feet (which is why the marker had "no NPC").
-        if (gA && (gA.deck || 0) !== playerDeck() && shaftXY) { hoopWp = { x: shaftXY.x, y: shaftXY.y }; whereWord = `the shaft up to the Nave — ${guideName(guide)} is up there`; }
+        if (gA && (gA.deck || 0) !== playerDeck() && shaftHere()) { const s = shaftHere(); hoopWp = { x: s.x, y: s.y }; whereWord = `the shaft up to the Nave — ${guideName(guide)} is up there`; }
         else if (gA) { hoopWp = { x: gA.x, y: gA.y }; whereWord = guideName(guide); }
         else whereWord = 'where you woke (Bay 14)';
       } else {
@@ -3246,17 +3285,17 @@
     }
     function resolveMarker(m) {
       if (!m) return null;
-      if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); if (!a) return null; return ((a.deck || 0) !== playerDeck() && shaftXY) ? { x: shaftXY.x, y: shaftXY.y } : { x: a.x, y: a.y }; }
+      if (m.anchor) { const a = anchors.find((x) => x.key === 'anchor:' + m.anchor); if (!a) return null; const s = shaftHere(); return ((a.deck || 0) !== playerDeck() && s) ? { x: s.x, y: s.y } : { x: a.x, y: a.y }; }
       if (m.terminal) {
         // a terminal ON THE PLAYER'S DECK is walkable + clickable; if none is here, point at the SHAFT (the way
         // to the other deck), NEVER at an off-deck terminal (that drew a waypoint you couldn't walk to or click).
         let best = null, bd = Infinity; const pd = playerDeck();
         for (const ch of (world ? world.chunks : [])) { if ((ch.deck || 0) !== pd) continue;
           for (const cp of ((ch.painted && ch.painted.comps) || [])) { if (!isTerminal(cp)) continue; const d = (cp.cx - px()) ** 2 + (cp.cy - py()) ** 2; if (d < bd) { bd = d; best = { x: cp.cx, y: cp.cy }; } } }
-        return best || (shaftXY ? { x: shaftXY.x, y: shaftXY.y } : null);
+        return best || (shaftHere() ? { x: shaftHere().x, y: shaftHere().y } : null);
       }
       if (m.place) {   // a LOCATION ref from his plot_beats → a world position (the descent, or a role-matched room)
-        if (m.place === 'rind') return shaftXY ? { x: shaftXY.x, y: shaftXY.y } : null;   // no shaft yet → NO waypoint (the hint text still shows), not a random far room
+        if (m.place === 'rind') { const s = shaftHere(); return s ? { x: s.x, y: s.y } : null; }   // no shaft yet → NO waypoint (the hint text still shows), not a random far room
         for (const [re, role] of PLACE_ROLE) if (re.test(m.place)) { const p = nearestRoomOfRole(role); if (p) return p; }
         return null;   // unresolved → the hint text still shows in the quest log
       }
@@ -3312,11 +3351,12 @@
     cv.addEventListener('click', (e) => {
       if (!world || player < 0) return;
       const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
-      if (shaftXY && rindBuilt) {   // the chute: near it → use it (cross decks); else walk to it
-        const dsh = (shaftXY.x - wx) ** 2 + (shaftXY.y - wy) ** 2;
+      const sH = shaftHere();
+      if (sH && rindBuilt) {   // the chute: near it → use it (cross decks); else walk to it
+        const dsh = (sH.x - wx) ** 2 + (sH.y - wy) ** 2;
         if (dsh < (SKIN.playerW * 1.8) ** 2) {
-          if ((shaftXY.x - px()) ** 2 + (shaftXY.y - py()) ** 2 < (SKIN.playerW * 2.4) ** 2) { crossShaft(); return; }
-          walkTo(shaftXY.x, shaftXY.y); return;
+          if ((sH.x - px()) ** 2 + (sH.y - py()) ** 2 < (SKIN.playerW * 2.4) ** 2) { crossShaft(); return; }
+          walkTo(sH.x, sH.y); return;
         }
       }
       pendingArrival = null;   // a fresh click cancels any queued walk-then-interact
@@ -3371,6 +3411,7 @@
       _fps = _fps ? _fps * 0.9 + (1000 / dt) * 0.1 : 1000 / dt;
       _maxDt = Math.max(_maxDt * 0.95, dt);   // worst recent frame interval — captures the stutter the EMA fps hides
       if (ts - _statusT > 600) { _statusT = ts; if (world) status(); }   // refresh the readout ~1.6×/s
+      if (story.ready && !rindBuilt && ts - _rindCheckT > 800) { _rindCheckT = ts; maybeBuildRind(); }   // the moment the nave is cleared (tier ≥ 3), the way down opens — independent of any save tick
       if (worldCovered()) return;     // an overlay is up — don't paint the hidden world (the big login-screen win)
       const t0 = performance.now();   // time the FULL main-thread frame work (movement + residents + draw)
       const moving = walkPath ? advanceWalk(dt) : false;
