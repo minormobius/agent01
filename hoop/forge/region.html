@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<base href="/forge/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>the forge · a coherent rind region</title>
+<meta name="description" content="Many forge chunks solved at once on one shared foam — a stretch of rind. The conduit network is GROWN by physarum from the production flow: intra-facility activity + the inter-engine supply loop, with trunk arterials emerging across chunk seams (the axial-rail)." />
+<style>
+  :root { --bg:#080a0e; --panel:#0e1219; --panel2:#0b0e14; --line:#1e2636; --ink:#e6e8ee; --soft:#8794a6; --dim:#566173; --gold:#f4bf62; --accent:#e0772f; --green:#8fd06a; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:hidden; }
+  .wrap { display:flex; height:100vh; }
+  #rail { width:300px; flex:none; background:var(--panel); border-right:1px solid var(--line); overflow:auto; padding:14px 13px 30px; }
+  #stage { flex:1; position:relative; min-width:0; background:radial-gradient(130% 130% at 60% 30%, #11140f, #06070a); }
+  #cv { width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #cv.drag { cursor:grabbing; }
+  h1 { font-size:14px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 2px; }
+  .sub { color:var(--soft); font-size:11px; margin:0 0 12px; }
+  .grp { border-top:1px solid var(--line); padding:11px 0 4px; }
+  .grp h2 { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin:0 0 8px; font-weight:600; }
+  select, button { font:inherit; color:var(--ink); background:#0c0f15; border:1px solid var(--line); border-radius:7px; padding:7px 9px; }
+  button { cursor:pointer; } button:hover { border-color:#3a445c; }
+  button.primary { background:rgba(224,119,47,.14); border-color:#7a4a26; color:var(--accent); }
+  .btns { display:flex; gap:7px; margin:9px 0 2px; }
+  label.row { display:flex; align-items:center; gap:8px; margin:7px 0; color:var(--soft); }
+  label.row span.l { width:54px; flex:none; color:#b9c0cf; }
+  input[type=range] { flex:1; accent-color:var(--accent); }
+  label.row b { width:40px; text-align:right; color:var(--ink); }
+  .read { color:var(--soft); margin:7px 0; font-size:11.5px; }
+  .read b { color:var(--ink); }
+  .legend { display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--soft); margin-top:4px; }
+  .legend .row { display:flex; align-items:center; gap:6px; }
+  .legend .sw { width:11px; height:11px; border-radius:3px; flex:none; }
+  .legend .ln { width:16px; height:0; flex:none; border-top-style:solid; }
+  #info { position:absolute; top:12px; right:12px; width:280px; background:rgba(14,18,25,.97); border:1px solid var(--line); border-radius:11px; padding:14px 15px; display:none; box-shadow:0 8px 30px rgba(0,0,0,.5); }
+  #info.on { display:block; }
+  #info h3 { margin:0 0 4px; font-size:14px; }
+  #info .x { float:right; cursor:pointer; color:var(--soft); }
+  #info .note { color:var(--soft); font-size:11.5px; margin:6px 0; }
+  #info .tag { display:inline-block; padding:1px 6px; border-radius:5px; background:rgba(255,255,255,.06); margin:2px 3px 0 0; font-size:10.5px; color:#cfd4de; }
+  .crumb { position:absolute; left:12px; bottom:10px; color:var(--soft); font-size:11px; }
+  .crumb a { color:var(--accent); text-decoration:none; }
+  .hint { position:absolute; right:12px; bottom:10px; color:var(--dim); font-size:10.5px; }
+  .zoombtns { position:absolute; right:12px; top:12px; display:flex; flex-direction:column; gap:6px; }
+  .zoombtns button { width:34px; height:34px; padding:0; font-size:16px; background:rgba(14,18,25,.9); }
+  @media (max-width:760px){ .wrap{flex-direction:column;} #rail{width:100%;height:auto;max-height:46vh;} #stage{height:54vh;} #info{width:calc(100% - 24px);} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="rail">
+    <h1>a coherent rind region</h1>
+    <p class="sub">many forge chunks at once on one shared foam · the conduit network GROWN by physarum from the production flow · trunk arterials emerge across seams</p>
+
+    <div class="grp" style="border-top:none">
+      <h2>the factory</h2>
+      <label class="row"><span class="l">chunks</span><input type="range" id="count" min="3" max="37" step="1" value="19"><b id="countv">19</b></label>
+      <label class="row" title="the physarum feedback exponent: μ<1 keeps redundant parallel streets (a grid); μ>1 collapses traffic onto trunk arterials (a tree). this dial IS 'how much trans-rind trunk'."><span class="l">μ grid·tree</span><input type="range" id="mu" min="0.6" max="1.8" step="0.05" value="1.35"><b id="muv">1.35</b></label>
+      <label class="row" title="ONE fulfillment center per ~19-chunk factory: assign engines to chunks to MINIMISE transport around that single nave hub. assembly+reclaim ring the hub, the refiners sit outside — a radial supply gradient. off = the same engine mix placed at random."><input type="checkbox" id="opt" checked> ⚙ optimise global layout</label>
+      <div class="btns">
+        <button id="roll" class="primary" style="flex:1">🎲 roll factory</button>
+        <button id="reseed" title="same settings, new seed">↻ seed</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>show</h2>
+      <label class="row" title="the anti-soup layer: per-engine ambient light + a core MACHINE per facility + MATERIAL moving along the supply trunks and up the nave lift. Off = flat tint."><input type="checkbox" id="t-rich" checked> ⚙ machines &amp; material</label>
+      <label class="row"><input type="checkbox" id="t-cond" checked> ⇢ grown conduits</label>
+      <label class="row"><input type="checkbox" id="t-supply"> ⛓ inter-engine supply graph</label>
+      <label class="row"><input type="checkbox" id="t-tint" checked> ▦ facility tint</label>
+      <label class="row"><input type="checkbox" id="t-seam"> ⬡ chunk seams</label>
+    </div>
+
+    <div class="grp">
+      <h2>this region</h2>
+      <div class="read" id="metrics">—</div>
+    </div>
+
+    <div class="grp">
+      <h2>conduit tiers</h2>
+      <div class="legend" id="tierlegend"></div>
+    </div>
+
+    <div class="grp">
+      <h2>the emergent axial-rail</h2>
+      <p class="sub" style="font-size:10.5px;line-height:1.55;margin:0">the conduits aren't drawn — they're <b>grown</b>. Every facility's internal flow and the <b>inter-engine supply loop</b> (foundry→mill→assembly→… reclaim→foundry) is trip demand; physarum reinforces the chamber graph until the long cross-chunk hauls collapse into <b>trunk arterials</b> that span seams. That trunk network is the <b>trans-rind transport</b>, computed from what the rind actually moves.</p>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="info"></div>
+    <div class="zoombtns"><button id="zin">＋</button><button id="zout">－</button><button id="zfit" title="fit">⤢</button></div>
+    <div class="crumb"><a href="/">◍ hoop</a> · <a href="/forge">⚙ forge</a> · <a href="/forge/facilities">▣ facilities</a> · region · <a href="/forge/elements">⬡ elements</a></div>
+    <div class="hint">drag to pan · scroll to zoom · click a facility</div>
+  </div>
+</div>
+<script type="module" src="./region-app.js"></script>
+</body>
+</html>

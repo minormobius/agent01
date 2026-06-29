@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>nave · content slots</title>
+<meta name="description" content="Floor 1 (the nave) content-slot manifest + lexicon: the rooms the story engine fills by faction, role and tier, AND a full prose description of every verb — what it means, who staffs it, its supply and social webs — for the model that authors the content pools." />
+<style>
+  :root { --bg:#0a0c10; --panel:#11141b; --line:#222838; --ink:#e6e8ee; --soft:#8a93a6; --gold:#f4bf62; --accent:#7fb0d8; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .wrap { max-width:920px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:19px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); margin:0 0 4px; }
+  h2 { font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin:34px 0 12px; font-weight:600; border-top:1px solid var(--line); padding-top:18px; }
+  p.sub { color:var(--soft); margin:0 0 8px; }
+  a { color:var(--accent); }
+  .note { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:8px; padding:12px 15px; color:var(--soft); font-size:12.5px; margin:14px 0; }
+  .note b { color:var(--ink); }
+  code { background:#0c0f15; border:1px solid var(--line); border-radius:4px; padding:1px 5px; color:#cbd2df; font-size:12.5px; }
+  .lobe { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:13px 15px; margin:9px 0; }
+  .lobe .h { display:flex; align-items:center; gap:9px; margin-bottom:5px; }
+  .sw { width:13px; height:13px; border-radius:3px; flex:none; }
+  .lobe .h b { font-size:14px; }
+  .lobe .body { color:var(--soft); font-size:12.5px; }
+  table { width:100%; border-collapse:collapse; margin:6px 0; font-size:12.5px; }
+  th { text-align:left; color:var(--accent); font-weight:600; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; padding:7px 9px; border-bottom:1px solid var(--line); }
+  td { padding:7px 9px; border-bottom:1px solid #181d27; vertical-align:middle; }
+  tr:hover td { background:rgba(127,176,216,.05); }
+  .tag { display:inline-flex; align-items:center; gap:6px; font-weight:600; color:var(--ink); }
+  .tag .g { font-size:15px; }
+  .tier { display:inline-block; min-width:54px; text-align:center; border-radius:11px; padding:1px 8px; font-size:11px; border:1px solid var(--line); }
+  .t1 { color:#8fd06a; border-color:#3a5a2e; } .t2 { color:#e0c45a; border-color:#5a4f2e; } .t3 { color:#e0905a; border-color:#5a3f2e; }
+  .chip { display:inline-block; border-radius:10px; padding:0 7px; font-size:10.5px; margin:1px 3px 1px 0; }
+  .types { color:var(--soft); font-size:11.5px; }
+  .depth { display:flex; align-items:center; gap:7px; }
+  .bar { width:74px; height:7px; background:#0c0f15; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:linear-gradient(90deg,#3bb0c9,#7fb0d8); }
+  .star { color:var(--gold); }
+  .btns { display:flex; gap:8px; align-items:center; margin:8px 0; }
+  button, input { font:inherit; color:var(--ink); background:#0c0f15; border:1px solid var(--line); border-radius:7px; padding:6px 10px; }
+  button { cursor:pointer; } button:hover { border-color:#3a445c; }
+  input { width:120px; }
+  .samp { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:9px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:11px 13px; }
+  .card .t { font-weight:600; margin-bottom:3px; }
+  .card .m { color:var(--soft); font-size:12px; }
+  .foot { color:#5b6474; font-size:11px; margin-top:30px; }
+  /* lexicon */
+  .res { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px 14px; margin:8px 0; }
+  .res .r { display:flex; gap:10px; padding:6px 0; font-size:12px; color:var(--soft); border-bottom:1px solid #161b26; line-height:1.5; }
+  .res .r:last-child { border-bottom:0; }
+  .res .r b { color:var(--gold); min-width:60px; flex:none; font-weight:600; }
+  .verb { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:13px 15px; margin:9px 0; border-left:3px solid var(--dim); }
+  .verb .vh { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; margin-bottom:2px; }
+  .verb .vg { font-size:17px; }
+  .verb .vn { font-size:14px; font-weight:600; }
+  .verb .vgloss { color:var(--soft); font-size:12.5px; }
+  .verb .meta { color:var(--dim); font-size:11px; letter-spacing:.03em; margin:3px 0 9px; }
+  .verb .row { font-size:12px; color:var(--soft); margin:5px 0; line-height:1.55; }
+  .verb .row b { color:var(--accent); font-weight:600; font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin-right:5px; }
+  .verb .row.note { color:var(--ink); background:var(--panel2); border-radius:6px; padding:7px 9px; margin-top:8px; font-size:11.5px; }
+  .rc { display:inline-flex; align-items:center; gap:3px; background:var(--panel2); border:1px solid #232a3a; border-radius:9px; padding:0 7px 0 5px; margin:1px 3px 1px 0; font-size:11px; color:var(--ink); }
+  .rc .rcg { font-size:12px; }
+  .fac { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:10px 0; border-left:3px solid var(--dim); }
+  .fac .fh b { font-size:15px; }
+  .fac .ftag { color:var(--soft); font-size:12px; }
+  .fac .fmeta { color:var(--dim); font-size:11px; margin:4px 0 9px; }
+  .fac p { margin:7px 0; font-size:12.5px; color:var(--soft); line-height:1.6; }
+  .fac .lbl { color:var(--accent); font-weight:600; font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin-right:5px; }
+  .web { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:9px; padding:12px 15px; margin:9px 0; font-size:12.5px; color:var(--soft); line-height:1.65; }
+  .web b.wh { display:block; color:var(--gold); font-size:11px; letter-spacing:.14em; text-transform:uppercase; margin-bottom:4px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <h1>nave · content slots</h1>
+  <p class="sub">floor 1 — the rooms the story engine fills, by faction · role · tier, plus a <b>full lexicon</b> of what every verb means. The authoring target for the content pools.</p>
+  <div id="body">loading…</div>
+  <p class="foot">generated from <code>nave/manifest.js</code> · regenerate with <code>node hoop/nave/gen-slots.mjs</code> · <a href="/nave">the nave map</a> · <a href="/">mino.mobi</a></p>
+</div>
+<script type="module">
+import { naveManifest } from './manifest.js';
+import { FACTIONS, BIOMES } from './nave.js';
+import { ROLES } from '../v099/econ/econ.js';
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const tierClass = (t) => 't' + t, tierBand = (t) => t === 1 ? 'early' : t === 2 ? 'mid' : 'late';
+const factionColor = (f) => f === 'commons' ? '#c9b07a' : (FACTIONS[f] || {}).color || '#666';
+const factionLabel = (f) => f === 'commons' ? 'Commons' : (FACTIONS[f] || {}).label || f;
+
+let data;
+try { data = await fetch('./slots.json').then((r) => r.json()); } catch (e) { document.getElementById('body').innerHTML = 'could not load slots.json'; throw e; }
+const P = data.profile;
+
+function render() {
+  const maxDepth = Math.max(...P.pools.map((p) => p.avgSlotsPerWorld));
+  let h = '';
+
+  h += `<div class="note">The distribution engine already exists (<code>v099/story/engine.js</code>): a room is anonymous geometry until first touch, then <code>interact()</code> deals ONE tier-legal pool item onto its stable <b>feature_key</b> and freezes it forever. This is the list of <b>slots</b> that engine fills on the nave. Floor 1 is no-baddies → <b>no creature pools</b>.</div>`;
+
+  // guaranteed floors
+  h += `<h2>Guaranteed every world</h2>`;
+  h += `<div class="lobe"><div class="h"><span class="sw" style="background:#c9b07a"></span><b>★ The Commons</b> <span style="color:var(--soft)">— the hub</span></div><div class="body">≥ 1 of <b>every one of the ${P.guaranteed.commons.length} building types</b>, so each exclusive still appears here. Faction-neutral content.</div></div>`;
+  for (const [fk, f] of Object.entries(P.guaranteed.factions)) {
+    h += `<div class="lobe"><div class="h"><span class="sw" style="background:${factionColor(fk)}"></span><b>${esc(FACTIONS[fk].label)}</b> lobe <span style="color:var(--soft)">— over-biases ${f.shared.map((r) => roleChip(r)).join(' ')}</span></div>`;
+    h += `<div class="body">two wards, each guaranteeing <code>dwell</code> + ${f.shared.map((r) => `<code>${r}</code>`).join(' ')} + their exclusive: ${f.wards.map((w) => `<b style="color:${(ROLES[w.exclusive] || {}).color}">${roleGlyph(w.exclusive)} ${w.exclusive}</b> <span style="color:var(--soft)">(${w.level})</span>`).join(' and ')}.</div></div>`;
+  }
+
+  // pool requirements table
+  h += `<h2>Pool requirements — the authoring checklist</h2>`;
+  h += `<p class="sub" style="font-size:12px">One row per role tag. <b>avg slots/world</b> is the mean over ${P.seeds} seeds across the whole nave — author at least that much UNSEEN variety so the draw pool doesn't deplete in one world.</p>`;
+  h += `<table><thead><tr><th>tag</th><th>tier</th><th>factions</th><th>slots / world</th><th>content types</th><th></th></tr></thead><tbody>`;
+  for (const p of P.pools) {
+    h += `<tr>`;
+    h += `<td><span class="tag"><span class="g" style="color:${(ROLES[p.tag] || {}).color}">${esc(p.glyph)}</span> ${esc(p.tag)}</span></td>`;
+    h += `<td><span class="tier ${tierClass(p.tier)}">${tierBand(p.tier)} · ${p.tier}</span></td>`;
+    h += `<td>${p.factions.map((f) => `<span class="chip" style="background:${factionColor(f)}22;color:${factionColor(f)}">${esc(factionLabel(f))}</span>`).join('')}</td>`;
+    h += `<td><div class="depth"><span class="bar"><i style="width:${Math.round(p.avgSlotsPerWorld / maxDepth * 100)}%"></i></span><b>${p.avgSlotsPerWorld}</b></div></td>`;
+    h += `<td class="types">${p.contentTypes.map((t) => `<code>${t}</code>`).join(' ')}</td>`;
+    h += `<td>${p.anchor ? '<span class="star" title="lobe anchor — quest hook">★</span>' : ''}</td>`;
+    h += `</tr>`;
+  }
+  h += `</tbody></table>`;
+
+  // lobe anchors
+  h += `<h2>The six lobe anchors (quest hooks)</h2>`;
+  h += `<p class="sub" style="font-size:12px">The exclusive building in each ward — the obvious home for that lobe's principal / quest-giver and a <code>plot_beat</code>. They map onto the four-quest spine (unlock each lobe + descend to rind).</p>`;
+  for (const b of BIOMES) {
+    h += `<div class="lobe"><div class="h"><span class="sw" style="background:${factionColor(b.faction)}"></span><b style="color:${(ROLES[b.exclusive] || {}).color}">${roleGlyph(b.exclusive)} ${esc(FACTIONS[b.faction].label)} · ${esc(b.exclusive)}</b> <span style="color:var(--soft)">(${b.level} ward)</span></div><div class="body">tag <code>${esc(b.exclusive)}</code> + <code>plot_beat</code></div></div>`;
+  }
+
+  // ── THE LEXICON — what the verbs MEAN (the prose layer for the generating model) ──
+  if (data.lexicon) h += renderLexicon(data.lexicon);
+
+  // sample world
+  h += `<h2>Sample world</h2>`;
+  h += `<div class="btns">seed <input id="seed" type="number" value="${data.sample.seed}"> <button id="roll">roll a world</button> <span id="rstat" style="color:var(--soft);font-size:12px"></span></div>`;
+  h += `<div class="samp" id="sampbody"></div>`;
+
+  document.getElementById('body').innerHTML = h;
+  renderSample(data.sample);
+  document.getElementById('roll').addEventListener('click', rollSample);
+}
+function roleGlyph(r) { return (ROLES[r] || {}).glyph || '·'; }
+function roleChip(r) { return `<code>${r}</code>`; }
+// a clickable-looking role chip (glyph + name, role-coloured) used in the supply-web links
+function roleRef(r) { return `<span class="rc"><span class="rcg" style="color:${(ROLES[r] || {}).color}">${roleGlyph(r)}</span>${esc(r)}</span>`; }
+const HOLD = { exclusive: 'exclusive', shared: 'shared', universal: 'universal', 'commons-only': 'commons only' };
+function renderLexicon(lex) {
+  let h = `<h2>The lexicon — what the verbs mean</h2>`;
+  h += `<div class="note">The slot list above is the skeleton; this is the flesh — written for the <b>generating model</b> (a qwen) that has to digest not just <i>that</i> a <code>worship</code> room exists but what worship <b>is</b>, who staffs it, what flows through it, and who it draws together. The <b>supply</b> links (<code>needs ⇐ / feeds ⇒</code>) are derived from the econ flows; the <b>society</b> line places each verb as a bond seat or a bridge. Same prose ships in <code>slots.json</code> + <code>SLOTS.md</code> for the prompt.</div>`;
+
+  // resource tokens
+  h += `<h3 style="color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:20px 0 8px">Resource tokens — the edges of the web</h3>`;
+  h += `<div class="res">`;
+  for (const [k, v] of Object.entries(lex.resources)) h += `<div class="r"><b>${esc(k)}</b><span>${esc(v)}</span></div>`;
+  h += `</div>`;
+
+  // the thirteen verbs
+  h += `<h3 style="color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:24px 0 8px">The thirteen verbs</h3>`;
+  for (const r of lex.roles) {
+    const pr = r.prose || {}, fcol = r.faction ? factionColor(r.faction) : 'var(--dim)';
+    h += `<div class="verb" style="border-left-color:${(ROLES[r.role] || {}).color}">`;
+    h += `<div class="vh"><span class="vg" style="color:${(ROLES[r.role] || {}).color}">${esc(r.glyph)}</span><span class="vn">${esc(r.role)}</span><span class="vgloss">${esc(pr.gloss || '')}</span></div>`;
+    h += `<div class="meta">tier ${r.tier} · ${HOLD[r.hold] || r.hold}${r.faction ? ` · <span style="color:${fcol}">${esc(factionLabel(r.faction))}</span>` : ''} · takes <code>${esc(r.inputs.join(', ') || '—')}</code> → makes <code>${esc(r.outputs.join(', '))}</code></div>`;
+    if (pr.building) h += `<div class="row"><b>building</b>${esc(pr.building)}</div>`;
+    if (pr.activity) h += `<div class="row"><b>activity</b>${esc(pr.activity)}</div>`;
+    if (pr.npc) h += `<div class="row"><b>resident</b>${esc(pr.npc)}${pr.voice ? ` <span style="color:var(--dim)">— voice: ${esc(pr.voice)}</span>` : ''}</div>`;
+    h += `<div class="row"><b>supply</b>needs ⇐ ${r.needs.length ? r.needs.map(roleRef).join('') : '<span style="color:var(--dim)">nothing (a primary producer)</span>'} &nbsp;·&nbsp; feeds ⇒ ${r.feeds.length ? r.feeds.map(roleRef).join('') : '<span style="color:var(--dim)">a terminal output — its consumer is the floor itself</span>'}</div>`;
+    if (pr.society) h += `<div class="row"><b>society</b>${esc(pr.society)}</div>`;
+    if (pr.note) h += `<div class="row note">${esc(pr.note)}</div>`;
+    h += `</div>`;
+  }
+
+  // the three factions
+  h += `<h3 style="color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:24px 0 8px">The three factions</h3>`;
+  for (const [fk, fp] of Object.entries(lex.factions)) {
+    const f = FACTIONS[fk] || {};
+    h += `<div class="fac" style="border-left-color:${factionColor(fk)}">`;
+    h += `<div class="fh"><b style="color:${factionColor(fk)}">${esc(f.label || fk)}</b> <span class="ftag">— ${esc(fp.tagline)}</span></div>`;
+    h += `<div class="fmeta">exclusives ${(f.exclusives || []).map(roleRef).join('')} · shared ${(f.shared || []).map(roleRef).join('')} · ${esc(fp.palette)}</div>`;
+    h += `<p>${esc(fp.worldview)}</p>`;
+    h += `<p><span class="lbl">why these exclusives</span>${esc(fp.why_exclusives)}</p>`;
+    h += `<p><span class="lbl">why these shared</span>${esc(fp.why_shared)}</p>`;
+    h += `<p><span class="lbl">the lobe’s NPC web</span>${esc(fp.web)}</p>`;
+    h += `</div>`;
+  }
+
+  // the two webs
+  h += `<h3 style="color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:24px 0 8px">The webs — read the floor as a system</h3>`;
+  h += `<div class="web"><b class="wh">supply web</b>${esc(lex.webs.supply)}</div>`;
+  h += `<div class="web"><b class="wh">social web</b>${esc(lex.webs.social)}</div>`;
+  h += `<div class="web"><b class="wh">the regard economy</b>${esc(lex.webs.regard)}</div>`;
+  return h;
+}
+function renderSample(s) {
+  let h = '';
+  for (const ch of s.chunks) {
+    const ex = ch.rooms.find((r) => r.exclusive);
+    h += `<div class="card"><div class="t">${esc(ch.label)}</div><div class="m">${ch.rooms.length} slots${ex ? ` · anchor <code>${esc(ex.key)}</code> (${esc(ex.role)})` : ''}</div></div>`;
+  }
+  document.getElementById('sampbody').innerHTML = h + `<div class="card" style="border-style:dashed"><div class="m">${s.totalRooms} feature slots across ${s.chunks.length} chunks</div></div>`;
+}
+function rollSample() {
+  const seed = (+document.getElementById('seed').value | 0) || 1;
+  const st = document.getElementById('rstat'); st.textContent = 'building…';
+  setTimeout(() => { try { const s = naveManifest(seed); renderSample(s); st.textContent = ''; } catch (e) { st.textContent = 'error: ' + e.message; } }, 20);
+}
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<base href="/forge/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>the elements · closed cycles</title>
+<meta name="description" content="The ship's element ledger as a periodic table — click an element and watch its closed cycle loop back on itself, across the biome (life support) and the forge (industry). Carbon is the pump." />
+<style>
+  :root { --bg:#080a0e; --panel:#0e1219; --panel2:#0b0e14; --line:#1e2636; --ink:#e6e8ee; --soft:#8794a6; --dim:#566173; --gold:#f4bf62; --green:#8fd06a; --steel:#9aa7bb; --accent:#5fd0c0; --bad:#e0635a; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .wrap { display:flex; height:100vh; }
+  #rail { width:330px; flex:none; background:var(--panel); border-right:1px solid var(--line); overflow:auto; padding:14px 14px 28px; }
+  #stage { flex:1; position:relative; min-width:0; background:radial-gradient(130% 120% at 50% 38%, #0d1016, #06070a); }
+  #cv { width:100%; height:100%; display:block; touch-action:none; }
+  h1 { font-size:14px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); margin:0 0 2px; }
+  .sub { color:var(--soft); font-size:11px; margin:0 0 12px; }
+  .grp { border-top:1px solid var(--line); padding:11px 0 4px; }
+  .grp h2 { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin:0 0 8px; font-weight:600; }
+  /* periodic table */
+  .ptable { display:grid; grid-template-columns:repeat(18,1fr); gap:3px; }
+  .cell { aspect-ratio:1; border:1px solid var(--line); border-radius:5px; background:var(--panel2); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; padding:1px; }
+  .cell:hover { border-color:#3a4a5c; }
+  .cell.sel { outline:2px solid var(--gold); outline-offset:-1px; }
+  .cell .sym { font-size:12px; font-weight:700; line-height:1; }
+  .cell .z { font-size:7px; color:var(--dim); line-height:1; }
+  .cell.biotic { background:#10210f; border-color:#2f5a2e; } .cell.biotic .sym { color:var(--green); }
+  .cell.shared { background:#231d0c; border-color:#5a4f2e; } .cell.shared .sym { color:var(--gold); }
+  .cell.industrial { background:#141821; border-color:#33405a; } .cell.industrial .sym { color:var(--steel); }
+  .ctrl label { display:flex; justify-content:space-between; color:var(--soft); font-size:11px; margin-bottom:3px; }
+  .ctrl label b { color:var(--ink); }
+  input[type=range] { width:100%; accent-color:var(--gold); }
+  .verdict { font-size:12px; margin:8px 0; padding:8px 10px; border-radius:7px; background:var(--panel2); border:1px solid var(--line); color:var(--soft); }
+  .verdict b.ok { color:var(--green); } .verdict b.no { color:var(--bad); }
+  .ig { display:flex; align-items:baseline; gap:8px; margin:2px 0 4px; }
+  .ig .s { font-size:22px; font-weight:700; } .ig .n { font-size:14px; } .ig .m { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); }
+  .prods { display:flex; flex-direction:column; gap:4px; }
+  .prod { display:flex; justify-content:space-between; font-size:11.5px; color:var(--soft); }
+  .prod b { color:var(--ink); }
+  .legend { display:flex; flex-wrap:wrap; gap:5px 12px; font-size:10.5px; color:var(--soft); }
+  .legend .row { display:flex; align-items:center; gap:5px; } .sw { width:13px; height:3px; border-radius:2px; }
+  .crumb { color:var(--soft); font-size:11px; margin-top:14px; } .crumb a { color:var(--accent); text-decoration:none; }
+  #railtoggle { display:none; position:absolute; top:10px; left:10px; z-index:25; width:42px;height:42px; align-items:center;justify-content:center; background:rgba(14,18,25,.96); border:1px solid var(--line); border-radius:10px; color:var(--ink); font-size:18px; cursor:pointer; }
+  @media (max-width:780px){ #rail{ position:absolute; z-index:30; top:0;left:0;bottom:0; width:90%; max-width:340px; transform:translateX(-101%); transition:transform .22s; box-shadow:0 0 36px rgba(0,0,0,.6);} #rail.open{transform:none;} #railtoggle{display:flex;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="rail">
+    <h1>the elements</h1>
+    <p class="sub">the ship's matter, element by element. Tap one — its cycle loops back on itself, across <b style="color:var(--green)">biome</b> (life support) and <b style="color:var(--steel)">forge</b> (industry). Carbon is the pump.</p>
+    <div class="ptable" id="ptable"></div>
+    <div class="legend" style="margin-top:8px">
+      <div class="row"><span class="sw" style="background:var(--green)"></span>biotic</div>
+      <div class="row"><span class="sw" style="background:var(--gold)"></span>shared</div>
+      <div class="row"><span class="sw" style="background:var(--steel)"></span>industrial</div>
+    </div>
+
+    <div class="grp">
+      <h2>over-grow the biome</h2>
+      <div class="ctrl"><label>grow factor <b id="gfv">3.0×</b></label><input type="range" id="gf" min="1" max="4" step="0.25" value="3"></div>
+      <div class="verdict" id="verdict">—</div>
+    </div>
+
+    <div class="grp">
+      <h2 id="eltitle">element</h2>
+      <div id="elinfo"></div>
+    </div>
+
+    <div class="grp">
+      <h2>flow legend</h2>
+      <div class="legend">
+        <div class="row"><span class="sw" id="sw-flow"></span>flow</div>
+        <div class="row"><span class="sw" style="background:var(--accent)"></span>recycle / re-fix</div>
+        <div class="row"><span class="sw" style="background:var(--gold)"></span>pump (locked)</div>
+        <div class="row"><span class="sw" style="background:var(--bad)"></span>reserve makeup</div>
+      </div>
+    </div>
+    <p class="crumb">↩ <a href="/">mino.mobi</a> · <a href="/forge">production flow</a> · model: <code>forge/ledger.js</code></p>
+  </div>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <button id="railtoggle" title="elements">☰</button>
+  </div>
+</div>
+<script type="module" src="./elements-app.js"></script>
+</body>
+</html>

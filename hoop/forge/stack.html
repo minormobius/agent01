@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<base href="/forge/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>the forge · two decks</title>
+<meta name="description" content="The factory as two stacked decks: the material floor (carved concourse, machines, spiderbots) below, the pedestrian mezzanine (offices + catwalks, technicians) above, joined by corkscrew ramps at each facility. The non-intersecting two-track answer, in 3D." />
+<style>
+  :root { --ink:#e6e8ee; --soft:#8794a6; --gold:#f4bf62; --accent:#e0772f; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#05060a; color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:hidden; }
+  #cv { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #cv.drag { cursor:grabbing; }
+  #hud { position:fixed; left:12px; top:12px; width:300px; background:rgba(10,13,19,.84); border:1px solid #1e2636; border-radius:10px; padding:12px 14px; }
+  #hud h1 { font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 3px; }
+  #hud .sub { color:var(--soft); font-size:10.5px; margin:0 0 9px; line-height:1.5; }
+  label.row { display:flex; align-items:center; gap:8px; margin:7px 0; color:var(--soft); font-size:11px; }
+  label.row span.l { width:60px; flex:none; color:#b9c0cf; }
+  input[type=range] { flex:1; accent-color:var(--accent); }
+  label.row b { width:34px; text-align:right; color:var(--ink); }
+  .btns { display:flex; gap:7px; margin-top:8px; }
+  button { font:inherit; color:var(--ink); background:#0c0f15; border:1px solid #1e2636; border-radius:7px; padding:7px 9px; cursor:pointer; }
+  button:hover { border-color:#3a445c; }
+  .key { display:flex; flex-direction:column; gap:3px; margin-top:9px; font-size:10.5px; color:var(--soft); }
+  .key .r { display:flex; align-items:center; gap:6px; }
+  .key .sw { width:11px; height:11px; border-radius:3px; flex:none; }
+  .crumb { position:fixed; left:12px; bottom:12px; color:var(--soft); font-size:11px; }
+  .crumb a { color:var(--accent); text-decoration:none; }
+  .hint { position:fixed; right:12px; bottom:12px; color:#566173; font-size:10.5px; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">
+  <h1>the factory · two decks</h1>
+  <p class="sub">7 tiles, stacked. <b>material floor</b> below (concourse · machines · spiderbots) · <b>pedestrian mezzanine</b> above (offices · catwalks · technicians) · joined by <b>corkscrew ramps</b> at each facility. Non-intersecting because they're at different heights — the blood-vessel answer, in 3D.</p>
+  <label class="row" title="pull the decks apart to see both layers (exploded axonometric)"><span class="l">explode</span><input type="range" id="gap" min="0" max="240" step="5" value="130"><b id="gapv">130</b></label>
+  <label class="row"><span class="l">zoom</span><input type="range" id="zoom" min="0.4" max="2.4" step="0.05" value="1"><b id="zoomv">1.0</b></label>
+  <div class="btns"><button id="roll" style="flex:1">🎲 new factory</button><button id="reset">⌂ view</button></div>
+  <div class="key">
+    <div class="r"><span class="sw" style="background:#e0772f"></span>material floor — packets ride the carved trunks</div>
+    <div class="r"><span class="sw" style="background:#9fb4d8"></span>pedestrian mezzanine — catwalks + offices</div>
+    <div class="r"><span class="sw" style="background:#f4bf62"></span>corkscrew ramp — the per-facility exchange</div>
+  </div>
+</div>
+<div class="crumb"><a href="/">◍ hoop</a> · <a href="/forge">⚙ forge</a> · <a href="/forge/region">▦ region</a> · <a href="/forge/walk">⊙ walk</a> · two decks</div>
+<div class="hint">drag to pan · scroll to zoom · explode to separate the decks</div>
+<script type="module" src="./stack-app.js"></script>
+</body>
+</html>
