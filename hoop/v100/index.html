@@ -485,7 +485,7 @@
     import { frameRects, DIR_OF, DIR8, genomeFromParams, buildGenome } from './v3/sprite-core.js';
     import { flattenPool, MemoryStore, interact, talk, choose, take, loadGateState, meetsState } from './story/engine.js';
     import { checkAdvance } from './story/advance.js';   // deterministic milestone tier-advancement (the inference-free 'long rest')
-    import { deriveStoryboard, deriveMilestones, deriveOpeningCast } from './story/progression.js';   // v096: the storyboard + advancement + opening cast are DERIVED FROM hoopy's content, not hand-authored
+    import { deriveStoryboard, deriveMilestones, deriveOpeningCast, pickBibleGuides } from './story/progression.js';   // v096: storyboard + advancement + opening cast DERIVED FROM hoopy's content; pickBibleGuides pins the per-zone guide chain (Olo·Solen·Sevin·Luna)
     import { computeBoard, questLog, activeMarkers, tierFloors } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
     import { DECKS, DECK_COUNT, deckForTier, nextDeck, countsForDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
     import { assess, levelMessage, guideFor, learnedForDeck } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
@@ -733,11 +733,14 @@
     async function maybeBuildRind() {
       if (rindBuilt || !world || !walk || !story.ready) return;
       if ((story.store.getPlayerState(story.playerId).narrative_tier || 1) < 3) return;   // the rind opens at his Investigation tier (the climb "down" is his ladder, not a hand-flag)
+      if (world._nave && world._nave.idx < world._nave.order.length) return;   // wait until the nave has FULLY streamed its seven wards — building the offset rind mid-stream races streamNaveWards' incremental stitch
       rindBuilt = true;
       try {
         const c0 = world.chunks[0];
-        // sink the shaft on the nave commons concourse, near Sevin (the guide who takes you down) if she's placed
-        const sevin = anchors.find((a) => a.key === 'anchor:sevin');
+        // sink the shaft on the nave commons concourse, near SEVIN — the Upper-Rind guide who "takes you into
+        // the shaft" (bible §Advancement). She's the tier-3 guide in the pinned chain; find her placed anchor.
+        const sevinGuide = guideFor(openingCast, 3);
+        const sevin = sevinGuide && anchors.find((a) => a.content_id === sevinGuide.id);
         const sc = nearestConcourse(c0, sevin ? sevin.x : px(), sevin ? sevin.y : py());
         if (!sc) { rindBuilt = false; return; }
         attachShaft(c0, sc.x, sc.y, sc.cell);                       // mark the nave end of the shaft
@@ -1300,7 +1303,7 @@
         try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
         story.ready = true; renderQuest(); ensureAnchors(); syncPulse();   // story is ready — place the principals if society is also built (idempotent)
         try { questBank = buildQuestBank([...story.store.content.values()]); } catch (e) { questBank = new Map(); }   // the side-quest bank (one per rumor seed)
-        try { openingCast = deriveOpeningCast([...story.store.content.values()], 3); } catch (e) {}   // hoopybot's guides, ready even before anchors place
+        try { openingCast = pickBibleGuides([...story.store.content.values()]); } catch (e) {}   // the bible's per-zone guide chain (Olo·Solen·Sevin·Luna), ready even before anchors place
         foldCharacterFromSave();   // the character rides the save now — adopt the saved one, or seed it from local
         syncOwnSaveIfReady();   // if already signed in, your repo save wins over the local buffer
         // a brand-new game FORCES character creation (and a name) before the world opens; resumes skip it
@@ -3167,7 +3170,7 @@
     function placeAnchors() {
       anchors = [];
       if (!society || player < 0 || !story.ready) return;
-      openingCast = deriveOpeningCast([...story.store.content.values()], 3);   // hoopybot's guides (for "return to your guide")
+      openingCast = pickBibleGuides([...story.store.content.values()]);   // the bible's per-zone guide chain (for "return to your guide")
       const disc = getJSONFact('npc.discovered', {});
       let i = 0;
       for (const id of Object.keys(disc)) {
@@ -3263,10 +3266,11 @@
     function ensureAnchors() {
       if (_anchorsDone || !society || !story.ready || player < 0) return;
       _anchorsDone = true;
-      // AUTO-DISCOVER the opening cast at the cradle — the prologue needs the guides present on wake (same
-      // mechanism as every other major NPC, just triggered at start). Positions match the old placement:
-      // the first wakes with you at the cradle; the rest stand at progressively farther chunk-0 rooms.
-      const cast = deriveOpeningCast([...story.store.content.values()], 3), disc = getJSONFact('npc.discovered', {});
+      // AUTO-DISCOVER the bible's guide chain at the cradle — the prologue needs the zone-guides present on
+      // wake. Olo Vashti (tier 1, the Drift broker who found Bay 14) wakes WITH you; Factor Solen (Wards) +
+      // Sevin (Upper Rind) stand at progressively farther Commons rooms. Luna (Lower Rind) is the terminal
+      // AI — contacted in the lower rind, not placed as a person here.
+      const cast = pickBibleGuides([...story.store.content.values()]).slice(0, 3), disc = getJSONFact('npc.discovered', {});
       const r0 = society.rooms.filter((o) => o.ch === 0);
       const byDist = r0.map((o) => ({ o, d: (o.x - px()) ** 2 + (o.y - py()) ** 2 })).sort((a, b) => a.d - b.d);
       cast.forEach((npc, i) => {

@@ -74,6 +74,26 @@ export function deriveOpeningCast(content, n = 3) {
     .slice(0, n);
 }
 
+// THE GUIDE CHAIN (bible §"Advancement — gather to descend"): one load-bearing guide per ZONE, blocking the
+// way down until you've gathered enough. Pinned by name to hoopy's NPCs, in tier order:
+//   tier 1 The Commons → Olo Vashti · 2 The Wards → Factor Solen · 3 The Upper Rind → Sevin · 4 The Lower
+//   Rind → Luna. guideFor()/guideForTier() index this list per tier, so "return to your guide" always names
+// + routes to the right one. Any name not found falls back to a lowest-tier NPC, so the chain never breaks.
+export const BIBLE_GUIDE_NAMES = ['olo', 'solen', 'sevin', 'luna'];
+export function pickBibleGuides(content, names = BIBLE_GUIDE_NAMES, n = names.length) {
+  const npcs = content.filter((c) => c.type === 'npc');
+  const nameOf = (c) => String((c.content || {}).name || '').toLowerCase();
+  const fallback = deriveOpeningCast(content, n + 6);
+  const out = [], used = new Set();
+  let fi = 0;
+  for (let t = 0; t < n; t++) {
+    let g = npcs.find((c) => !used.has(c.id) && nameOf(c).includes(names[t]));
+    if (!g) { while (fi < fallback.length && used.has(fallback[fi].id)) fi++; g = fallback[fi++] || null; }
+    if (g) { out.push(g); used.add(g.id); }
+  }
+  return out;
+}
+
 // content[] → advance.js milestones: a beat that ADVANCES a tier and gates on real flags becomes a tier
 // floor. (Tier-paced beats with no flags produce no milestone — advancement stays flag-driven, his way.)
 export function deriveMilestones(storyboard) {
