@@ -1,8 +1,11 @@
 # rind/ops — the white-collar weave (the theory)
 
 > The design problem, the diagnosis of the gyroid, and the structure we replace it with.
-> Kernel: `weave.js` (pure, deterministic, zero-dep). Proof: `test/weave.selftest.mjs` (41 checks).
-> Page: `index.html` + `weave-app.js` (the loom chart + the woven tube).
+> Kernel: `weave.js` (the K(6,8) plaid). Proof: `test/weave.selftest.mjs` (41 checks).
+> **In practice** — `index.html` + `ops-app.js`: two **voronoi decks** (the `/econ`·`/chunkroller`
+> substrate) with the **8 engines as facilities and live material flow** (`foam.js` voronoi + adjacency,
+> `engines.js` the 8 + supply chain, `layout.js` the decks; `test/decks.selftest.mjs`, 77 checks). The
+> loom-chart / woven-tube proof moved to `weave.html`.
 
 ## The problem
 
