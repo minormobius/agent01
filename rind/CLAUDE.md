@@ -21,11 +21,15 @@ JS → emit a frame model → solve for stress):
   surfaces** woven over all eight. The contact requirement — every ops surface touches every engine — is the
   complete bipartite graph **K(6,8)**, realised as a **plain weave** (warp × weft, not the abandoned `/forge/micro`
   gyroid: a gyroid merges the 6 and the 8 into single sheets and asserts contact by fiat; the weave keeps all
-  14 as distinct followable threads and *derives* completeness). Two voronoi decks (production floor + ops
-  mezzanine); `index.html` + `ops-app.js` is the live schematic, `weave.html` the loom/tube proof. Kernels:
-  `weave.js` (the K(6,8) plaid + per-surface tour), `foam.js` (self-contained voronoi + adjacency), `engines.js`
-  (the 8 + supply chain), `layout.js` (decks). Theory in `ops/WEAVE.md`. Pure static, deterministic, node-tested
-  (`ops/test/weave.selftest.mjs` 41, `ops/test/decks.selftest.mjs` 77).
+  14 as distinct followable threads and *derives* completeness). **The primary view (`index.html` + `ops-app.js`,
+  kernel `weavefloor.js`) is ONE woven fabric across TWO floors**: the 6 warps + 8 wefts are ribbons of voronoi
+  chambers that climb to the **upper** floor where they pass OVER and dip to the **lower** floor where they pass
+  UNDER — so every surface occupies *both* floors and each crossing is a facility where a white surface meets a
+  production line, one on each floor (NOT two stacked decks joined by links through a gap — that earlier render
+  is kept at `decks.html`/`decks-app.js` for comparison). `weave.html` is the loom/tube proof. Kernels: `weave.js`
+  (the K(6,8) plaid + tours), `foam.js` (self-contained voronoi + adjacency), `engines.js` (the 8 + supply chain),
+  `weavefloor.js` (the two-floor weave), `layout.js` (the region-decks comparison). Theory in `ops/WEAVE.md`.
+  Pure static, deterministic, node-tested (`weave` 41, `weavefloor` 35, `decks` 77).
 
 ## The package it belongs to
 
@@ -41,7 +45,8 @@ of hoop; it is the shell, tide/biome are the air/life inside it. Keep the cross-
 node rind/solver/foam-preview.mjs                  # headless foam → frame model preview
 node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no deps)
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
-node rind/ops/test/decks.selftest.mjs              # the two voronoi decks + the engine material flow
+node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
+node rind/ops/test/decks.selftest.mjs              # the region-decks comparison view
 open rind/index.html                               # the tools (+ ops/ — the production weave)
 ```
 

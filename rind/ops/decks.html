@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>rind · ops — the production weave (two decks, live flow)</title>
+<title>rind · ops — region decks (comparison) (two decks, live flow)</title>
 <style>
   :root { --ink:#e8ecf4; --dim:#7e8aa0; --gold:#d9b24a; --bg:#06070c; --panel:#0c0f17; --line:#1b2030; }
   * { box-sizing: border-box; }
@@ -48,17 +48,17 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>rind · ops — the production weave</h1>
-    <span class="crumb"><a href="/">rind</a> / ops &nbsp;·&nbsp; 6 white-collar warps × 8 production wefts, woven between two floors · live material flow</span>
+    <h1>rind · ops — region decks (comparison)</h1>
+    <span class="crumb"><a href="/">rind</a> / ops &nbsp;·&nbsp; two voronoi decks · 8 engines, live material flow · 6 ops surfaces woven over all 8</span>
     <span class="spacer"></span>
-    <span class="crumb"><a href="./weave.html">▦ proof (loom · tube)</a> &nbsp;·&nbsp; <a href="./decks.html">region decks</a></span>
+    <span class="crumb"><a href="./weave.html">▦ weave proof (loom · tube) →</a></span>
   </header>
   <div class="main">
     <div class="stage">
       <div class="controls">
         <button id="flow" class="on">⏵ material flow</button>
         <button id="weaveBtn" class="on">weave</button>
-        <label>floor gap <input id="explode" type="range" min="40" max="280" value="150"></label>
+        <label>explode <input id="explode" type="range" min="0" max="300" value="175"></label>
         <button id="reseed">reseed</button>
         <button id="reset">reset view</button>
       </div>
@@ -76,6 +76,6 @@
     </aside>
   </div>
 </div>
-<script type="module" src="./ops-app.js"></script>
+<script type="module" src="./decks-app.js"></script>
 </body>
 </html>

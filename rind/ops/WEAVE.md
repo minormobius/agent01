@@ -2,10 +2,14 @@
 
 > The design problem, the diagnosis of the gyroid, and the structure we replace it with.
 > Kernel: `weave.js` (the K(6,8) plaid). Proof: `test/weave.selftest.mjs` (41 checks).
-> **In practice** — `index.html` + `ops-app.js`: two **voronoi decks** (the `/econ`·`/chunkroller`
-> substrate) with the **8 engines as facilities and live material flow** (`foam.js` voronoi + adjacency,
-> `engines.js` the 8 + supply chain, `layout.js` the decks; `test/decks.selftest.mjs`, 77 checks). The
-> loom-chart / woven-tube proof moved to `weave.html`.
+> **In practice** — `index.html` + `ops-app.js` (kernel `weavefloor.js`): ONE woven fabric across **two
+> floors** over a **voronoi** substrate (the `/econ`·`/chunkroller` tiling). The 6 warps + 8 wefts are ribbons
+> of chambers that climb to the **upper** floor where they pass OVER and dip to the **lower** floor where they
+> pass UNDER — every surface occupies *both* floors; each crossing is a facility. Material flows along the
+> production ribbons. `test/weavefloor.selftest.mjs` (35) pins that every surface rides both floors and every
+> crossing is one-over-one-under. (An earlier render stacked two flat decks joined by links through the gap —
+> that made the gap a third transit layer and the contact a fan-to-a-point; it's kept at `decks.html` for
+> contrast.) The loom-chart / woven-tube proof is at `weave.html`.
 
 ## The problem
 
