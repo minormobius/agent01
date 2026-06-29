@@ -908,6 +908,10 @@
       const f = factionOf(item.tags || (item.content && item.content.tags) || []);
       if (!isChoiceFaction(f) || witnessCount(facts, f) >= WITNESS_TARGET) return;
       story.store.setFact(story.playerId, 'fw.' + f, witnessCount(facts, f) + 1);
+      // mark THIS placed NPC as witnessed so the waypoint moves on to the next unwitnessed face (a clicked
+      // anchor never re-witnesses, so pointing at it again would be a dead waypoint).
+      const cid = item.content_item_id || item.id;
+      if (cid) { const disc = getJSONFact('npc.discovered', {}); if (disc[cid]) { disc[cid]._fw = true; setJSONFact('npc.discovered', disc); } }
       const after = story.store.getFacts(story.playerId), info = FACTION_INFO[f];
       notify(`witnessed ${info.label} at scale (${witnessCount(after, f)}/${WITNESS_TARGET})`, { kind: 'story', ms: 2800 });
       saveStorySnapshot(); renderQuest();
@@ -935,6 +939,21 @@
         let want = (WITNESS_TARGET - witnessCount(facts, f)) - placed[f];   // how many more of this faction to surface
         for (const npc of cands) { if (want <= 0) break; if (factionOf(npc.tags) !== f) continue; if (discoverNpc(npc, px(), py(), 1)) want--; }
       }
+    }
+    // the nearest placed faction face on the upper rind still worth meeting — a faction whose tally isn't full
+    // AND this particular face not already witnessed (a clicked anchor never re-witnesses). Drives the ◇.
+    function nextWitnessTarget() {
+      if (!story.ready || !anchors.length) return null;
+      const facts = story.store.getFacts(story.playerId), disc = getJSONFact('npc.discovered', {});
+      let best = null, bd = Infinity;
+      for (const a of anchors) {
+        if ((a.deck || 0) !== 1) continue;
+        const f = factionOf((story.store.contentById(a.content_id) || {}).tags || []);
+        if (!isChoiceFaction(f) || witnessCount(facts, f) >= WITNESS_TARGET) continue;   // faction tally already full
+        if (disc[a.content_id] && disc[a.content_id]._fw) continue;                       // this face already witnessed
+        const d = (a.x - px()) ** 2 + (a.y - py()) ** 2; if (d < bd) { bd = d; best = a; }
+      }
+      return best ? { x: best.x, y: best.y } : null;
     }
     // SEVIN'S THRESHOLD — the choice card: pick a faction; it colors the descent + advances to the Lower Rind.
     function showFactionChoice() {
@@ -1618,13 +1637,18 @@
           const prog = witnessProgress(facts), done = prog.filter((p) => p.done).length;
           const tally = prog.map((p) => `${esc(FQ[p.faction].label)} ${p.n}/${WITNESS_TARGET}`).join(' · ');
           const ready = allWitnessed(facts);
-          storyWp = null;   // the witnesses are scattered across the Seven's domains — no single waypoint
+          // POINT THE WAY: the witnesses are people scattered through the Seven's domains. Aim the ◇ at the
+          // nearest faction-marked face you haven't witnessed yet (the supply keeps them stocked nearby), so
+          // "witness the three factions" reads as "go meet that person" instead of an unguided wander.
+          const wt = ready ? null : nextWitnessTarget();
+          storyWp = wt;
           questGuidance = {
             objective: `<span class="lbl">⚑ The Upper Rind · the threshold</span> <span class="o">— ${ready ? 'choose your faction' : 'witness the three factions at scale'}</span>`
               + `<span class="qbar"><span style="width:${Math.round(100 * done / 3)}%"></span></span> <span class="mk">${done}/3</span>`,
             stepText: ready ? 'Sevin’s threshold is ready — choose the faction whose truth you carry into the deep.' : tally,
-            whereWord: null,
-            howText: ready ? null : 'Walk the Seven’s domains and meet who they reflect — each nave faction, three times over.',
+            whereWord: wt ? 'a faction face nearby' : null,
+            hasWp: !!wt,
+            howText: ready ? null : 'These are people, not consoles: walk up to a faction-marked face (◇) and CLICK to speak — meeting them is witnessing them. Each nave faction, three times over.',
           };
           if (ready && !_factionChoiceOpen && !$('enc').classList.contains('on')) showFactionChoice();   // re-present the choice if it was dismissed
           if (journalOpen) renderJournal();
