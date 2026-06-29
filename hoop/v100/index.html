@@ -1190,7 +1190,12 @@
       // each ward to the commons + its sibling, every cross-faction edge a wall. No streaming past it.
       await new Promise((r) => setTimeout(r, 0));   // let the busy spinner paint before the first solve
       const nave = prepareNave(seed); world = nave.world; world._nave = nave;
-      naveSolveNext(nave);   // solve the COMMONS (chunk 0) — the spawn — now; the six wards stream in paced
+      naveSolveNext(nave);   // solve the COMMONS (chunk 0) — the spawn — now
+      // GATE THE WARDS (perf): the six faction wards are the campaign's END STATE — don't build them up front.
+      // Truncate the solve queue to just the commons; ensureFactionWards appends + streams a faction's two
+      // wards only when the quest unlocks it (the active faction, then each as the prior is witnessed). So a
+      // fresh world is ONE chunk to skin/stitch, not seven, and the wards "appear when unlocked".
+      nave.order = [0];   // idx is already 1 (commons consumed) ⇒ naveSolveNext returns -1 until we append
       const c0 = world.chunks[0]; c0.painted = paintChunk(c0, SKIN);
       restitch();
       chunkSpan = (() => { const bb = bboxOf(c0.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
@@ -1198,15 +1203,29 @@
       _anchorsDone = false; ensureChunk0Terminal(); ensureAnchors();   // a terminal exists immediately; the principals land once society + story are ready (ensureAnchors, idempotent)
       renderQuest();   // resolve the storyboard waypoint now that the terminal exists (re-resolved again by ensureAnchors when anchors land)
       busy(false); status(); draw(); rememberSeed();
-      streamNaveWards(nave);
     }
-    // stream the six faction wards in ONE PER TICK after the commons — solve + paint + incremental stitch,
-    // exactly like a normal chunk load, so a new world never chokes on seven skins at once.
+    // the two ward chunk indices each faction owns (chunk = dir+1; siblings 1·2 / 3·4 / 5·6 — nave.js FACTION_BIOMES).
+    const FACTION_WARD_CHUNKS = { rindwalker: [1, 2], continuant: [3, 4], drift: [5, 6] };
+    // build a faction's wards JUST-IN-TIME (idempotent): append its unsolved chunks to the nave's solve queue
+    // and (re)start the paced streamer. Called from the quest as each faction unlocks — solving order is free
+    // since every ward inherits ports from the already-solved commons (CONNECTIONS: commons↔all + siblings).
+    function ensureFactionWards(faction) {
+      if (!world || !world._nave || !faction) return;
+      const st = world._nave, want = FACTION_WARD_CHUNKS[faction]; if (!want) return;
+      let added = false;
+      for (const ci of want) if (!st.recs[ci] && !st.order.includes(ci)) { st.order.push(ci); added = true; }
+      if (added) streamNaveWards(st);
+    }
+    // stream the queued faction wards ONE PER TICK — solve + paint + incremental stitch, like a normal chunk
+    // load. Re-entrant-safe (one drain loop): ensureFactionWards may append while it's mid-run or after it idled.
+    let _naveStreaming = false;
     function streamNaveWards(st) {
+      if (_naveStreaming) return;   // a loop is already draining st.order (it picks up freshly-appended chunks)
+      _naveStreaming = true;
       const step = () => {
-        if (!world || world._nave !== st) return;   // a newer world replaced this one
+        if (!world || world._nave !== st) { _naveStreaming = false; return; }   // a newer world replaced this one
         const ci = naveSolveNext(st);
-        if (ci < 0) { rebuildSocietySoon(); renderQuest(); return; }   // all wards solved → the faction-quest ◇ waypoint can now resolve to its ward (meta is complete)
+        if (ci < 0) { _naveStreaming = false; rebuildSocietySoon(); renderQuest(); return; }   // queue drained → the faction-quest ◇ waypoint resolves to its now-built ward
         const ch = world.chunks[ci];
         try { ch.painted = paintChunk(ch, SKIN); } catch (e) {}
         stitchAdd(ci); reveal(); draw();
@@ -1650,6 +1669,7 @@
       if (world && world._nave && playerDeck() === 0) {
         const facts = story.store.getFacts(story.playerId), prog = fqProgress(facts);
         if (!prog.allDone && prog.active) {
+          ensureFactionWards(prog.active);   // build the active faction's ward just-in-time (gated for perf; idempotent)
           const f = FQ[prog.active], w = fqWardXY(prog.active);
           storyWp = w ? { x: w.x, y: w.y } : null;
           questGuidance = {
@@ -1805,14 +1825,28 @@
     // SAVE OFTEN (hoopy #4: beforeunload is flaky on mobile/crashes, and a frequent save keeps the engine's
     // pulse/rumor projection honest). Periodic flush while dirty + on hide/unload — not a per-action debounce
     // (which could starve during continuous play). Surfaces the real error instead of failing silently.
+    let _saveEscalated = false;
     function flushRepo(force) {
       if (!storyUser || !story.ready || (!_repoDirty && !force)) return;
       _repoDirty = false;
+      const onErr = (e) => {
+        _repoDirty = true; const msg = String((e && e.message) || e); _saveErr = msg; console.error('[hoop] save to PDS failed:', e);
+        // A narrow / cookie-only SSO session (e.g. signed in on another *.mino.mobi site first, then the
+        // portal picked up the cookie) can lack the com.minomobi.hoop.story.save WRITE grant — auth.hasScope
+        // is an unreliable local guess for cookie sessions, so we can't check ahead. On the FIRST auth-shaped
+        // failure, re-mint HOOP_SCOPE once (it returns here) — the same try-then-escalate pattern as rumor
+        // spreading. The LOCAL save always holds, so nothing is lost. Non-auth errors just surface (no redirect).
+        if (!_saveEscalated && /\b(401|403|unauthorized|forbidden|scope|auth)\b/i.test(msg)) {
+          _saveEscalated = true; flashToast('one-time: re-authorising the game to save to your repo…', 3600);
+          try { auth.login(storyUser.handle, { scope: HOOP_SCOPE }); } catch (e2) {}
+        }
+        renderAuthPill();
+      };
       try {
         putSave(auth.pds, worldKey(), story.store.snapshot())
           .then(() => { _lastSync = Date.now(); _saveErr = null; renderAuthPill(); })
-          .catch((e) => { _repoDirty = true; _saveErr = String((e && e.message) || e); console.error('[hoop] save to PDS failed:', e); renderAuthPill(); });
-      } catch (e) { _repoDirty = true; _saveErr = String((e && e.message) || e); console.error('[hoop] save threw:', e); renderAuthPill(); }
+          .catch(onErr);
+      } catch (e) { onErr(e); }
     }
     setInterval(() => flushRepo(false), 12000);
     addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushRepo(true); else syncVerdicts(); });
@@ -3848,6 +3882,9 @@
       renderWho();   // pack is durable now → adopting a character does NOT touch it (see freshCharacter / foldCharacterFromSave)
       // FOLD THE CHARACTER INTO THE SAVE: store it as a fact so it rides story.save to your PDS (cross-device).
       // persist=false when we're adopting FROM a restored save (avoid echoing it straight back).
+      // store the NAME as a plain string fact too — the loader/portal reads it directly (the `character` fact
+      // is a nested object in the snapshot, so a JSON.parse of it threw → every save read as "unnamed traveller").
+      if (story.ready && c && c.name) story.store.setFact(story.playerId, 'name', String(c.name));
       if (persist && story.ready) { story.store.setFact(story.playerId, 'character', c); saveStorySnapshot(); }
     }
     // a BRAND-NEW character from the creator: adopt it AND reset to a fresh starting pack (coins + gems are
@@ -3966,7 +4003,11 @@
       try {
         const players = new Map(st.players || []), p = players.get('local') || {};
         const fe = (st.facts || []).find((e) => e[0] === 'local'), f = new Map(fe ? fe[1] : []);
-        let name = null; const cj = f.get('character'); if (cj) { try { name = JSON.parse(cj).name; } catch (e) {} }
+        // name: prefer the plain `name` fact; fall back to the `character` fact, which in the snapshot is a
+        // nested OBJECT (older saves) — NOT a JSON string, so read it directly (the old JSON.parse always threw).
+        let name = null;
+        const nm = f.get('name'); if (typeof nm === 'string' && nm.trim()) name = nm.trim();
+        if (!name) { const cj = f.get('character'); if (cj) { try { const c = typeof cj === 'string' ? JSON.parse(cj) : cj; name = (c && c.name) || null; } catch (e) {} } }
         const pl = (st.placements || []).find((e) => e[0] === 'local');
         return { name, nar: p.narrative_tier || 1, rev: p.revelation_tier || 1, pow: p.power_tier || 1, xp: p.xp | 0, placed: pl ? pl[1].length : 0, coins: +(f.get('coins') || 0) };
       } catch (e) { return null; }
