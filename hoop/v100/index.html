@@ -894,7 +894,7 @@
       const step = () => {
         if (!world || world._nave !== st) return;   // a newer world replaced this one
         const ci = naveSolveNext(st);
-        if (ci < 0) { rebuildSocietySoon(); return; }
+        if (ci < 0) { rebuildSocietySoon(); renderQuest(); return; }   // all wards solved → the faction-quest ◇ waypoint can now resolve to its ward (meta is complete)
         const ch = world.chunks[ci];
         try { ch.painted = paintChunk(ch, SKIN); } catch (e) {}
         stitchAdd(ci); reveal(); draw();
