@@ -26,7 +26,7 @@ for (const seed of [7, 42]) {
   while ((r = rindSolveNext(rst))) { r.rec.deck = 1; r.rec.rind = true; addChunk(world, r.rec); rindRecs.push(r.rec); }
   ok(rindRecs.length === 4, `seed ${seed}: rind floor is 4 chunks`);
   ok(rindRecs.every((rc) => rc.deck === 1), `seed ${seed}: every rind chunk tagged deck 1`);
-  ok(rst.meta.map((m) => m.station).join(',') === 'hub,nav,drum,signal', `seed ${seed}: stations are hub·nav·drum·signal`);
+  ok(rst.meta.map((m) => m.station).join(',') === 'mercury,mars,venus,jupiter', `seed ${seed}: domains are Mercury·Mars·Venus·Jupiter`);
 
   // OFFSET GUARD: no rind port coincides with any nave port (else buildWalk would link decks → leak)
   const portKey = (p) => Math.round(p.x) + ',' + Math.round(p.y);
@@ -41,10 +41,12 @@ for (const seed of [7, 42]) {
   let rindMinX = 1e9; for (const rc of rindRecs) for (const p of rc.poly) rindMinX = Math.min(rindMinX, p.x);
   ok(rindMinX > naveMaxX, `seed ${seed}: the rind floor sits entirely east of the nave (${Math.round(rindMinX)} > ${Math.round(naveMaxX)})`);
 
-  // infrastructure only — no grow, no play anywhere in the rind
+  // the Seven's verbs re-read at scale: Venus's gardens (grow/heal) + Jupiter's court (govern/play) live
+  // here; NO worship (that is Saturn/Sol, the lower rind).
   const roles = rindRoles();
-  ok(!roles.includes('grow') && !roles.includes('play'), `seed ${seed}: rind is infrastructure-only (no grow/play)`);
-  ok(['move', 'store', 'make', 'mend', 'learn', 'worship'].every((x) => roles.includes(x)), `seed ${seed}: rind carries the infrastructure verbs + the Signal (learn/worship)`);
+  ok(roles.includes('grow') && roles.includes('play'), `seed ${seed}: upper rind carries grow (Venus) + play (Jupiter)`);
+  ok(!roles.includes('worship'), `seed ${seed}: no worship on the upper rind (Saturn/Sol are the lower rind)`);
+  ok(['move', 'trade', 'learn', 'make', 'mend', 'grow', 'heal', 'govern'].every((x) => roles.includes(x)), `seed ${seed}: the four domains' verbs are all placed`);
 
   // walk the combined world: the shaft teleport pair (nave concourse ↔ rind hub concourse) both resolve
   const walk = buildWalk(world);

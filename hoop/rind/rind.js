@@ -1,20 +1,21 @@
-// rind/rind.js — THE RIND: floor 2, the structural underworld below the nave.
+// rind/rind.js — THE RIND: floor 2, the structural skin below the nave — the UPPER RIND.
 //
-// The nave is the lit market-deck where the ship pretends to be a city; the RIND is the cold structural
-// foam between the world and the void — no sun-strip, only the navigation runs, the propulsion drum, and
-// the first whisper of the Signal. It is deck 3 of the story spine (Investigation / "The Vessel"): you
-// reach it by DESCENDING the shaft once you've cleared the nave (narrative_tier ≥ 3). Where the nave is
-// civic, the rind is INFRASTRUCTURE — no farms (grow), no arcades (play); just make, mend, store, move,
-// govern, and at its heart the Signal (worship + learn), the descent's payoff.
+// Per hoopy's bible ("The Seven as Rind Factions"): in the rind you leave the three nave factions and walk
+// into the domain of one of the Seven. The thirteen verbs persist but are RE-READ at the ship's true scale
+// and age — industrial, liminal, machine-sacred: a workshop becomes a forge-cathedral, a chapel a
+// megastructure to a forgotten machine-god. The floor is TAGGED BY WHOSE DOMAIN you are in. The UPPER rind
+// is where the strange is still familiar — four of the Seven: Mercury, Mars, Venus, Jupiter. (The LOWER
+// rind — Saturn · Sol · Luna, and the Signal Chamber Luna keeps — is the deeper floor, built separately.)
 //
-//        ┌──────────┐            A central HUB (the shaft foot) with three stations spoked off it on
-//   nav  │   hub ★  │  drum      alternating hex sides (dirs 0·2·4, so the spokes never touch each other —
-//        └────┬─────┘            only the hub). Hub links to all three; the three don't interlink. The
-//          signal                 hub carries the shaft UP to the nave commons (sunk in-game by descent.js).
+//        ┌──────────┐            Mercury (the arteries) is the HUB — the shaft foot, where you arrive from
+//  mars  │ mercury ★│  venus     the nave and disperse — with three domain-stations spoked off alternating
+//        └────┬─────┘            hex sides (dirs 0·2·4, so the spokes touch only the hub). Hub links to all
+//          jupiter                three; the three don't interlink. The hub carries the shaft UP to the
+//                                 nave commons (sunk in-game by descent.js).
 //
 // Built by composing the SAME v2 engine as the nave (solveChunk + explicit closedSides + inherited seam
 // ports + one shared foam seed), so the floors are siblings, not special cases. Pure (no DOM); node-tested
-// in test/rind.selftest.mjs. The game (v099/index.html) streams it in on descent, paced like the nave wards.
+// in test/rind.selftest.mjs. The game streams it in on descent, paced like the nave wards.
 //
 // NB: this is the GAME's rind FLOOR — the playable cousin of the repo-root `/rind` structural-modelling
 // WING (which models the cylinder's hull/cables). Same name, different layer: one you walk, one you solve.
@@ -26,18 +27,24 @@ import { TRAFFIC_FOOTPRINT, GRAND_MIN, MIN_ROOM } from '../v099/rooms.js';
 import { SAMPLE_SHAPE, shapePoly, shapeSideOf } from '../chunkroller/shapes.js';
 import { latticeVectors } from '../chunkroller/builder.js';
 
-// ── the rind's four stations. Each carries an infrastructure role mix (NO grow/play — the cold hull) +
-// role floors (at least one of each named role) + a `grand` (the station's principal big room). Roles not
-// listed get weight 0, so the rind stays industrial and the nave's civic verbs don't leak down here. ──
+// ── the upper rind's four domains of the Seven. Each re-reads the nave's verbs at scale (bible §"The Seven
+// as Rind Factions"): the verb mix is the domain's verbs cranked, a `grand` is its signature megastructure,
+// and roles not listed get weight 0 so each chunk reads unmistakably as one of the Seven's domains.
+//   • Mercury — signals/transit between zones → move·trade·learn (the humming arteries; the shaft-foot hub).
+//   • Mars    — hull, welding, damage-control → make·mend (the forge-cathedral; repair as rite at scale).
+//   • Venus   — green decks, life-support     → grow·heal (vast strange gardens off any botanist's schedule).
+//   • Jupiter — the long table, court         → govern·play (an abandoned hall of judgment too large to fill).
+// (Grow + play live HERE now — Venus's gardens, Jupiter's court — the bible re-reads every verb at scale;
+// the old "infrastructure only, no grow/play" rind was built off a now-outdated doc.)
 export const RIND_CHUNKS = [
-  { key: 'rind-hub',    label: 'The Shaft Foot',       station: 'hub',    color: '#6b7a82',
-    mix: [['move', 3.0], ['store', 2.0], ['govern', 1.5], ['mend', 1.2], ['dwell', 1.5]], floors: { move: 1, store: 1, dwell: 1 }, grand: ['govern'] },
-  { key: 'rind-nav',    label: 'Navigation',           station: 'nav',    color: '#5570d8',
-    mix: [['learn', 3.0], ['govern', 2.4], ['move', 1.5], ['dwell', 1.0]], floors: { learn: 1, govern: 1, dwell: 1 }, grand: ['learn'] },
-  { key: 'rind-drum',   label: 'The Propulsion Drum',  station: 'drum',   color: '#e0772f',
-    mix: [['make', 3.0], ['mend', 2.4], ['store', 2.0], ['dwell', 1.0]], floors: { make: 1, mend: 1, store: 1, dwell: 1 }, grand: ['make'] },
-  { key: 'rind-signal', label: 'The Signal Chamber',   station: 'signal', color: '#b39bd8',
-    mix: [['worship', 3.0], ['learn', 2.4], ['heal', 1.5], ['dwell', 1.0]], floors: { worship: 1, learn: 1, dwell: 1 }, grand: ['worship'] },
+  { key: 'rind-mercury', label: 'Mercury · the Arteries',       station: 'mercury', color: '#9aa6b2',
+    mix: [['move', 3.0], ['trade', 2.2], ['learn', 2.0], ['store', 1.4], ['dwell', 1.2]], floors: { move: 1, trade: 1, learn: 1, dwell: 1 }, grand: ['move'] },
+  { key: 'rind-mars',    label: 'Mars · the Forge-Cathedral',   station: 'mars',    color: '#b5462f',
+    mix: [['make', 3.0], ['mend', 2.6], ['store', 1.6], ['dwell', 1.0]], floors: { make: 1, mend: 1, dwell: 1 }, grand: ['make'] },
+  { key: 'rind-venus',   label: 'Venus · the Green Deep',       station: 'venus',   color: '#5a9e6f',
+    mix: [['grow', 3.0], ['heal', 2.4], ['serve', 1.5], ['dwell', 1.0]], floors: { grow: 1, heal: 1, dwell: 1 }, grand: ['grow'] },
+  { key: 'rind-jupiter', label: 'Jupiter · the Long Table',     station: 'jupiter', color: '#c2a24a',
+    mix: [['govern', 3.0], ['play', 2.4], ['serve', 1.4], ['dwell', 1.0]], floors: { govern: 1, play: 1, dwell: 1 }, grand: ['govern'] },
 ];
 
 // the hub is chunk 0; the three stations spoke off hex directions 0·2·4 (alternating → mutually
@@ -124,7 +131,9 @@ export function rindLinks(rind) {
   return { walk, linked };
 }
 
-// the union of roles the rind ever places (for the manifest/lexicon cousin + tests): infrastructure only.
+// the union of roles the upper rind ever places (for the manifest/lexicon cousin + tests): the four
+// domains' verbs re-read at scale — make·mend (Mars) · grow·heal (Venus) · govern·play (Jupiter) ·
+// move·trade·learn (Mercury) + store + dwell. (No worship here — that is Saturn/Sol, the lower rind.)
 export function rindRoles() {
   const s = new Set(); for (const c of RIND_CHUNKS) for (const [r] of c.mix) s.add(r);
   return [...s].filter((r) => ROLES[r]).sort();

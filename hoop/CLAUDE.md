@@ -63,20 +63,24 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   solves + spawns first, the six wards stream in paced one-per-tick like normal chunk loads), and
   `maybeStream` is gated on `world._nave` so the bounded floor never streams past its seven wards. The
   standalone `/nave` page stays the design view.
-- `rind/` — **floor 2** at `hoop.mino.mobi/rind`. The structural underworld below the nave (deck 3 of the
-  story spine, "The Vessel"), reached by **descending the shaft** once the nave is cleared
-  (`narrative_tier ≥ 3`). A central **shaft-foot hub** spoked to three stations on alternating hex sides
-  (dirs 0·2·4, so the spokes touch only the hub — a clean **star**): **Navigation** · **The Propulsion
-  Drum** · **The Signal Chamber** (the tier-3 revelation seat). **Infrastructure only** — no `grow`
-  (farms), no `play` (arcades); just make · mend · store · move · govern, and the Signal (worship · learn).
-  `rind.js#buildRind(seed)` composes the **same v2 engine as the nave** (`prepareRind`/`rindSolveNext` pace
-  the four solves; one shared foam seed). Standalone `/rind` view (`index.html` + `rind-app.js`) is a
-  near-clone of the nave view (station · verb · full skin, pan/zoom). Pure + node-tested
-  (`rind/test/rind.selftest.mjs`, 36 checks). See `rind/README.md`. **NB:** this is the game's rind FLOOR,
-  the playable cousin of the repo-root `/rind` structural WING — same name, different layer. **In-game
-  descent wiring is the next step**: `v099/index.html#maybeBuildRind` already gates at tier 3 but builds a
-  single placeholder chunk; swap it for this streamed four-chunk floor, **offset** in world coords (the
-  rind's hub↔station seams share the nave's lattice, so co-locating would leak the player between decks).
+- `rind/` — **floor 2, the UPPER RIND** at `hoop.mino.mobi/rind`. The structural skin below the nave (the
+  bible's **Zone 3, The Upper Rind**), reached by **descending the shaft** once the wards are cleared
+  (`narrative_tier ≥ 3`). Per hoopy's bible (*"The Seven as Rind Factions"*) the rind is **tagged by whose
+  of the Seven's domain you're in**, the verbs re-read at scale: the upper rind is **Mercury** (the arteries
+  — the shaft-foot HUB: move·trade·learn) spoked to **Mars** (forge-cathedral: make·mend) · **Venus** (green
+  deep: grow·heal) · **Jupiter** (the long table: govern·play) on alternating hex sides (dirs 0·2·4, spokes
+  touch only the hub — a clean **star**). **grow + play live here** (Venus's gardens, Jupiter's court — the
+  old "infrastructure-only, no grow/play" rind was built off a now-outdated doc). **No worship up here** —
+  that is Saturn/Sol, the **lower rind** (Saturn·Sol·Luna + the **Signal Chamber** Luna keeps), a deeper
+  floor built separately. `rind.js#buildRind(seed)` composes the **same v2 engine as the nave**
+  (`prepareRind`/`rindSolveNext` pace the four solves; one shared foam seed). Standalone `/rind` view
+  (`index.html` + `rind-app.js`), pan/zoom. Pure + node-tested (`rind/test/rind.selftest.mjs`, 37 checks).
+  See `rind/README.md`. **NB:** the game's rind FLOOR, playable cousin of the repo-root `/rind` structural
+  WING — same name, different layer. **Wired into the v100 game**: `v100/index.html#maybeBuildRind` builds
+  this streamed four-chunk floor **offset** ~6000 world-units east (the hub↔station seams share the nave's
+  lattice, so co-locating would leak the player between decks); the shaft is a teleport pair (`shaftNodes`),
+  deck-aware marker (`shaftAt[deck]`/`shaftHere()`). Combat creeps arm on the rind (deck 1); the nave is
+  baddie-free.
 - `forge/` — **the ship's industrial metabolism** (`forge/forge.js` + `FACTORY.md`), the everything-factory
   of the upper rind modelled as a **closed-loop production economy** — biome's industrial cousin. A
   generation ship is closed (every atom already aboard), so production is **cycling a fixed stock of
