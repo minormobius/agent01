@@ -197,3 +197,143 @@ SECRETS.forEach(s=>{
   c.innerHTML = `<div class="tag">${s.tag}</div><h4>${s.h}</h4><span class="pp">${s.pp}</span><p>${s.p}</p>`;
   sg.appendChild(c);
 });
+
+/* ---------- the ideographic tree ---------- */
+// status: origin | crystal (survived, load-bearing) | dev (in flight) | tossed (reverted/superseded)
+// order matters: it sets the vertical stacking of trunks and branches.
+const TREE = [
+  {id:'root', parent:null, s:'origin', t:'a shared drawing canvas'},
+
+  // GENERATION — how the world is made
+  {id:'det',     parent:'root',  s:'crystal', t:'deterministic generation'},
+  {id:'stitch',  parent:'det',   s:'crystal', t:'infinite chunk stitching'},
+  {id:'stream',  parent:'stitch',s:'crystal', t:'streaming chunks'},
+  {id:'painted', parent:'stitch',s:'crystal', t:'WebGPU painted world'},
+
+  // PERSISTENCE — where state lives
+  {id:'rec',   parent:'root', s:'crystal', t:'place = ATProto record'},
+  {id:'forum', parent:'rec',  s:'crystal', t:'the map is the forum'},
+  {id:'addr',  parent:'rec',  s:'crystal', t:'chambers as stable addresses'},
+  {id:'d1',    parent:'rec',  s:'tossed',  t:'a D1 database backend'},
+
+  // NAVIGATION — how you move & see
+  {id:'walk',   parent:'root', s:'crystal', t:'walk the foam'},
+  {id:'floors', parent:'walk', s:'crystal', t:'multi-floor: a deck link is a port'},
+  {id:'planar', parent:'walk', s:'tossed',  t:'the best-fit planar map cut'},
+  {id:'fan',    parent:'planar',s:'dev',    t:'player-centric wayfinding fan'},
+  {id:'dim',    parent:'walk', s:'tossed',  t:'per-cell dimming overlay'},
+  {id:'hpa',    parent:'walk', s:'crystal', t:'HPA* / postal routing'},
+
+  // SOCIETY & ECONOMY — the living layer
+  {id:'npc',     parent:'root', s:'crystal', t:'NPCs as ID’d residents'},
+  {id:'rdf',     parent:'npc',  s:'crystal', t:'place = role × domain × flows'},
+  {id:'oracle',  parent:'rdf',  s:'crystal', t:'deck → roll → oracle'},
+  {id:'closed',  parent:'npc',  s:'crystal', t:'closed-loop conserved economy'},
+  {id:'reclaim', parent:'closed',s:'crystal',t:'the reclaimer is the decomposer'},
+  {id:'ledger',  parent:'closed',s:'dev',    t:'forge ledger imports biome'},
+  {id:'desire',  parent:'npc',  s:'crystal', t:'desire-line roads (Physarum)'},
+  {id:'cork',    parent:'desire',s:'tossed', t:'top-down corkscrew highway'},
+  {id:'ambient', parent:'npc',  s:'crystal', t:'crowd → ambience; promote souls'},
+
+  // STORY — the narrative spine
+  {id:'tabard',  parent:'root',  s:'crystal', t:'the authored Tabard opening'},
+  {id:'tiers',   parent:'tabard',s:'crystal', t:'revelation tiers — earned, not timed'},
+  {id:'pool',    parent:'tabard',s:'crystal', t:'pool dispatch + PDS saves'},
+  {id:'infguard',parent:'tabard',s:'crystal', t:'inference-free + guarded LLM'},
+  {id:'ashveil', parent:'tabard',s:'tossed',  t:'Ashveil / “the Quiet”'},
+  {id:'keeper',  parent:'tabard',s:'tossed',  t:'the Keeper-derelict tone'},
+  {id:'clamp',   parent:'tabard',s:'tossed',  t:'tier labeler clamped 1–3'},
+
+  // THE FRAME — the unifying idea
+  {id:'oneill', parent:'root',  s:'crystal', t:'the O’Neill cylinder'},
+  {id:'wings',  parent:'oneill',s:'crystal', t:'four wings: hoop·rind·tide·biome'},
+  {id:'shell',  parent:'oneill',s:'dev',     t:'the forge as the shell'},
+  {id:'capill', parent:'shell', s:'dev',     t:'capillaries as woven surfaces'},
+  {id:'sprite', parent:'oneill',s:'dev',     t:'mega/sprite breeds the NPCs'},
+  {id:'brawl',  parent:'oneill',s:'dev',     t:'rind/brawl — combat depth'},
+  {id:'iris',   parent:'oneill',s:'dev',     t:'iris — end-on sibling study'},
+];
+
+const DISCARDS = [
+  {t:'a D1 database backend', k:'the player’s PDS became the store itself; a Director rollup can still be rebuilt from the firehose on demand, but it is never the source of truth.'},
+  {t:'the best-fit planar map cut', k:'superseded by the player-centric wayfinding fan — a shortest-path tree truncated at a view radius, not a fixed plane sliced through the foam.'},
+  {t:'the per-cell dimming overlay', k:'it tanked the framerate; replaced by baked flat geodesic route arrays that render in one stroke per frame.'},
+  {t:'the top-down corkscrew highway', k:'almost nothing — it was “a highway system with no streets, imposed top-down.” ~96–99% of climb infrastructure now emerges as grown desire-line streets.'},
+  {t:'Ashveil / “the Quiet”', k:'nothing — the vendored-engine derelict fiction was replaced wholesale by a living, maintained ship (the Tabard).'},
+  {t:'the Keeper-derelict tone', k:'the “wrong stars” beat, salvaged as a tier-2 “Curve” revelation. The dead-crew/hostile-lurker framing was dropped.'},
+  {t:'the tier labeler clamped 1–3', k:'recalibrated to the Tabard’s five revelation tiers before any inference was pointed at the bible.'},
+];
+
+(function renderTree(){
+  const svg = document.getElementById('tree-svg');
+  if(!svg) return;
+  const SVGNS='http://www.w3.org/2000/svg';
+  const COL=232, ROW=30, PADX=14, PADY=20, R=4.5;
+  const byId={}, kids={};
+  TREE.forEach(n=>{byId[n.id]=n;kids[n.id]=[];});
+  TREE.forEach(n=>{if(n.parent)kids[n.parent].push(n.id);});
+  // depth
+  function depth(id){let d=0,p=byId[id].parent;while(p){d++;p=byId[p].parent;}return d;}
+  TREE.forEach(n=>n._x = PADX + depth(n.id)*COL);
+  // tidy layout: leaves get sequential rows, parents centre on their children
+  let slot=0;
+  (function place(id){
+    const ch=kids[id];
+    if(!ch.length){ byId[id]._y = PADY + slot*ROW; slot++; return; }
+    ch.forEach(place);
+    byId[id]._y = (byId[ch[0]]._y + byId[ch[ch.length-1]]._y)/2;
+  })('root');
+
+  const maxX = Math.max(...TREE.map(n=>n._x));
+  const W = maxX + 270;            // room for the rightmost labels
+  const H = PADY*2 + slot*ROW;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  svg.style.minWidth = W+'px';
+
+  const COLORS={origin:'#e9e4d6',crystal:'#d8a657',dev:'#7fa8d8',tossed:'#c96a5a'};
+  const mk=(tag,attrs)=>{const e=document.createElementNS(SVGNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;};
+
+  // edges first (so nodes sit on top)
+  TREE.forEach(n=>{
+    if(!n.parent) return;
+    const p=byId[n.parent];
+    const x1=p._x, y1=p._y, x2=n._x, y2=n._y, mx=x1+COL/2;
+    const path=mk('path',{d:`M ${x1} ${y1} H ${mx} V ${y2} H ${x2}`,fill:'none',
+      stroke:n.s==='tossed'?'#5a3b36':(n.s==='dev'?'#3c4a63':'#4a402b'),
+      'stroke-width':n.s==='crystal'?2:1.4});
+    if(n.s!=='crystal') path.setAttribute('stroke-dasharray','3 4');
+    svg.appendChild(path);
+  });
+
+  // nodes + labels
+  TREE.forEach(n=>{
+    const c=COLORS[n.s];
+    if(n.s==='origin'){
+      svg.appendChild(mk('circle',{cx:n._x,cy:n._y,r:R+2,fill:'none',stroke:c,'stroke-width':1.5}));
+      svg.appendChild(mk('circle',{cx:n._x,cy:n._y,r:2,fill:c}));
+    }else if(n.s==='tossed'){
+      const g=mk('g',{}); // an x-mark
+      g.appendChild(mk('line',{x1:n._x-3.5,y1:n._y-3.5,x2:n._x+3.5,y2:n._y+3.5,stroke:c,'stroke-width':1.8}));
+      g.appendChild(mk('line',{x1:n._x-3.5,y1:n._y+3.5,x2:n._x+3.5,y2:n._y-3.5,stroke:c,'stroke-width':1.8}));
+      svg.appendChild(g);
+    }else if(n.s==='dev'){
+      svg.appendChild(mk('circle',{cx:n._x,cy:n._y,r:R,fill:'none',stroke:c,'stroke-width':1.8}));
+    }else{
+      svg.appendChild(mk('circle',{cx:n._x,cy:n._y,r:R,fill:c}));
+    }
+    const tx=mk('text',{x:n._x+11,y:n._y+4,'font-size':n.id==='root'?13:12.5,
+      fill:n.s==='tossed'?'#b08a82':(n.s==='origin'?'#e9e4d6':'#cfd3de'),
+      'font-style':n.s==='tossed'?'italic':'normal','font-weight':n.s==='origin'?'600':'400'});
+    tx.textContent=n.t;
+    svg.appendChild(tx);
+  });
+})();
+
+// discards
+const dl = document.getElementById('discards-list');
+if(dl){ DISCARDS.forEach(d=>{
+  const c=el('div','discard');
+  c.innerHTML = `<h4><span class="x">✕</span>${d.t}</h4><p><b>what survived:</b> ${d.k}</p>`;
+  dl.appendChild(c);
+}); }

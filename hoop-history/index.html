@@ -123,6 +123,24 @@
   footer{padding:40px 0 70px;color:var(--faint);font-size:13px;font-family:var(--mono)}
   footer a{color:var(--gold-soft)}
   .endmark{text-align:center;color:var(--gold-soft);font-size:22px;margin:8px 0 0}
+  /* ideographic tree */
+  .tree-legend{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0 0 18px}
+  .tree-legend .lk{font-family:var(--mono);font-size:12px;color:var(--dim);display:flex;align-items:center;gap:8px}
+  .tree-legend .dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+  .dot.crystal{background:var(--gold)}
+  .dot.dev{background:var(--blue)}
+  .dot.tossed{background:var(--rust)}
+  .tree-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:linear-gradient(160deg,var(--panel),var(--bg2));padding:10px 4px}
+  .tree-scroll::-webkit-scrollbar{height:8px}.tree-scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+  #tree-svg{display:block}
+  #tree-svg text{font-family:var(--sans)}
+  .discards-h{font-size:21px;font-weight:600;margin:36px 0 4px}
+  .discards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+  .discard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--rust);border-radius:9px;padding:14px 16px}
+  .discard h4{margin:0 0 4px;font-size:16px;font-weight:600;color:var(--ink)}
+  .discard h4 .x{color:var(--rust);font-family:var(--mono);margin-right:6px}
+  .discard p{margin:0;font-family:var(--sans);font-size:14px;color:var(--dim);max-width:none}
+  .discard p b{color:var(--green);font-weight:600}
   @media(max-width:640px){body{font-size:17px}.ctable .hide-sm{display:none}.ctable th{top:40px}}
 </style>
 </head>
@@ -151,6 +169,7 @@
   <a href="#wings">The four wings</a>
   <a href="#census">The secret endpoints</a>
   <a href="#deepest">Deepest secrets</a>
+  <a href="#tree">Ideographic tree</a>
   <a href="#after">Afterword</a>
 </div></nav>
 
@@ -254,8 +273,22 @@
   <div class="secrets" id="secrets-grid"></div>
 </section>
 
+<section id="tree">
+  <h2><span class="num">VII</span>The ideographic tree</h2>
+  <p class="section-dek">Not the chronology — the phylogeny. One root idea (a shared canvas) branches into six conceptual trunks. Read across to watch each idea develop; the leaves are where they ended up — load-bearing, still in flight, or pruned.</p>
+  <div class="tree-legend">
+    <span class="lk"><span class="dot crystal"></span> crystallized — survived, load-bearing</span>
+    <span class="lk"><span class="dot dev"></span> still developing — in flight</span>
+    <span class="lk"><span class="dot tossed"></span> tossed — reverted or superseded</span>
+  </div>
+  <div class="tree-scroll"><svg id="tree-svg" role="img" aria-label="Ideographic tree of hoop's concepts"></svg></div>
+  <h3 class="discards-h">The discards, and what survived them</h3>
+  <p class="section-dek" style="margin-bottom:18px">An idea tree is most honest about its dead branches. Each pruned concept left something behind.</p>
+  <div class="discards" id="discards-list"></div>
+</section>
+
 <section id="after">
-  <h2><span class="num">VII</span>Afterword — how the plot got away</h2>
+  <h2><span class="num">VIII</span>Afterword — how the plot got away</h2>
   <p>Read forward, the path looks inevitable: canvas → engine → society → story → economy → cylinder. Read as it was lived — 103 commits in three weeks, branching into rind, tide, biome, iris and mega, each spawning its own design memos and dead ends — it is easy to see how the through-line vanished. The plot didn't disappear; it <em>distributed</em>. It is in <span class="path">CLAUDE.md</span> files across six directories, in fifteen version folders nobody deletes, in a divination engine with no front door.</p>
   <p>The single thread, if there is one: <strong>determinism made everything composable.</strong> Because the world is a pure function of a seed, a place can be a forum, a forum can be an ATProto record, a record can be a save, a save can be a story, a story can be priced, a price can be a closed economy, and a closed economy is — definitionally — an O'Neill cylinder. Each step is the previous one taken one altitude higher. That is the whole history. The rest is endpoints.</p>
   <div class="endmark">❧</div>
