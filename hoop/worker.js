@@ -126,6 +126,81 @@ export default {
     if (url.pathname === '/v098/feed' || url.pathname === '/v098/feed/') {
       return env.ASSETS.fetch(new Request(new URL('/v098/feed.html', url), request));
     }
+    // v099 — the development surface (disruptive map/fixture/combat work in flight; v098 stays the stable test surface).
+    if (url.pathname === '/v099/records' || url.pathname === '/v099/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v099/records.html', url), request));
+    }
+    if (url.pathname === '/v099/feed' || url.pathname === '/v099/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v099/feed.html', url), request));
+    }
+    // chunkroller — the chunk-design tool (a /econ cousin for chunks): total view + civic readout + NPC stats + biome sliders.
+    if (url.pathname === '/chunkroller' || url.pathname === '/chunkroller/') {
+      return env.ASSETS.fetch(new Request(new URL('/chunkroller/index.html', url), request));
+    }
+    // chunkroller/tess — the tessellation editor (drag edges into shapes that still tile; export JSON).
+    if (url.pathname === '/chunkroller/tess' || url.pathname === '/chunkroller/tess/') {
+      return env.ASSETS.fetch(new Request(new URL('/chunkroller/tess.html', url), request));
+    }
+    // nave — floor 1: a central commons ringed by six faction wards in three two-chunk lobes.
+    if (url.pathname === '/nave' || url.pathname === '/nave/') {
+      return env.ASSETS.fetch(new Request(new URL('/nave/index.html', url), request));
+    }
+    // nave/slots — the content-slot manifest report (what the story engine fills; the pool-authoring target).
+    if (url.pathname === '/nave/slots' || url.pathname === '/nave/slots/') {
+      return env.ASSETS.fetch(new Request(new URL('/nave/slots.html', url), request));
+    }
+    // v099/spine — the flag-spine spec: load-bearing NPC deck quests + the live deck-stacking demo.
+    if (url.pathname === '/v099/spine' || url.pathname === '/v099/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v099/story/spine.html', url), request));
+    }
+    // rind — floor 2: the structural underworld (shaft-foot hub + Navigation / Drum / Signal stations).
+    if (url.pathname === '/rind' || url.pathname === '/rind/') {
+      return env.ASSETS.fetch(new Request(new URL('/rind/index.html', url), request));
+    }
+    // forge — the production-flow graph: the ship's industrial metabolism (named steps, recycling, bio-regen).
+    if (url.pathname === '/forge' || url.pathname === '/forge/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/index.html', url), request));
+    }
+    // forge/elements — the periodic table → looping-Sankey: every element's closed cycle (biome ⊕ forge).
+    if (url.pathname === '/forge/elements' || url.pathname === '/forge/elements/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/elements.html', url), request));
+    }
+    // forge/facilities — the eight production engines fit into the ship's voronoi foam (1–3 per chunk).
+    if (url.pathname === '/forge/facilities' || url.pathname === '/forge/facilities/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/facilities.html', url), request));
+    }
+    // forge/region — a coherent multi-chunk rind region: physarum-grown conduits + inter-engine supply.
+    if (url.pathname === '/forge/region' || url.pathname === '/forge/region/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/region.html', url), request));
+    }
+    // forge/walk — the playable upper-rind proto: walk an @ around the production floor.
+    if (url.pathname === '/forge/walk' || url.pathname === '/forge/walk/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/walk.html', url), request));
+    }
+    // forge/stack — the two-deck factory: material floor + pedestrian mezzanine, isometric.
+    if (url.pathname === '/forge/stack' || url.pathname === '/forge/stack/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/stack.html', url), request));
+    }
+    // forge/foam3d — the volumetric foamview: two non-touching physarum species in a 3D chamber foam.
+    if (url.pathname === '/forge/foam3d' || url.pathname === '/forge/foam3d/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/foam3d.html', url), request));
+    }
+    // forge/tower — factory formation in 3D: the supply chain stratified into a vertical tower.
+    if (url.pathname === '/forge/tower' || url.pathname === '/forge/tower/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/tower.html', url), request));
+    }
+    // forge/slices — presenting a 3D chunk to the player: plan + section (floor slices + the elevation).
+    if (url.pathname === '/forge/slices' || url.pathname === '/forge/slices/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/slices.html', url), request));
+    }
+    // forge/ship — the INFINITE production layer: fly through the ship's circulation, naves as organs.
+    if (url.pathname === '/forge/ship' || url.pathname === '/forge/ship/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/ship.html', url), request));
+    }
+    // forge/micro — one chunk floor: the office→transit→lower-rind gradient + the capillary structure.
+    if (url.pathname === '/forge/micro' || url.pathname === '/forge/micro/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/micro.html', url), request));
+    }
 
     return env.ASSETS.fetch(request);
   },

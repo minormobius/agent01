@@ -42,6 +42,198 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   (the ratchet's equipotential arc). The figure kernels in `research.js` are pure/zero-dep and
   re-derive each wing's headline physics (hoop is pure-static and can't import a sibling wing at
   runtime); they're pinned by `test/research.selftest.mjs` against the numbers the wings publish.
+- `chunkroller/` — the **chunk-design tool** at `hoop.mino.mobi/chunkroller` (a `/econ` cousin for a single
+  chunk). Rolls a `solveChunk()` and shows a **total top-down view** (cells by role/domain/tier/social
+  lens + roads + ports + glyphs), a **civic vitality readout** (the econ kernel run over the chunk's
+  rooms), **NPC stats** (`stats.js#rollCharacter` per resident → mean triad + per-room dossier), and
+  **biome sliders that bias room creation** via the engine's additive `roleMix` override (`v7/foam.js`
+  `drawRole`/`castCharacter`, default = wild-type `ROLE_MIX`, so the game is unchanged). Seven sliders +
+  named biomes (Commons/Market/Garden/Foundry/Cloister/Civic Seat/Dormitory). The design surface for the
+  bigger map plan (chunk biomes, edge tiles/bounded floors, no-baddies floor 1). See `chunkroller/README.md`.
+- `nave/` — **floor 1** at `hoop.mino.mobi/nave`. The realised floor-1 layout: a central **commons** (≥1 of
+  every building type) ringed by **six faction wards** in **three two-chunk lobes** — Rindwalker · Continuant
+  · Drift. Each faction owns four roles (two exclusive buildings + two shared, weight-0 for everything else),
+  its two biomes carrying the exclusives at two intensity levels. Center links to all six; a ward links only
+  to the center + its sibling; every cross-faction adjacency is a portless wall. `nave.js#buildNave(seed)`
+  composes the v2 engine (`solveChunk` + explicit `closedSides`/inherited ports, one shared foam seed). Three
+  views with pan/zoom: biome (faction tint) · verb (by role) · **full** (the real game skin —
+  `skin.js#paintChunk` per chunk: seeded walls, bones hidden, retiled concourse, baked lighting). Pure +
+  node-tested (`nave/test/nave.selftest.mjs`, 36 checks). See `nave/README.md`. **Wired into the v099 game
+  as floor 1**: `v099/index.html#newWorld` builds the nave via `prepareNave`/`naveSolveNext` (the commons
+  solves + spawns first, the six wards stream in paced one-per-tick like normal chunk loads), and
+  `maybeStream` is gated on `world._nave` so the bounded floor never streams past its seven wards. The
+  standalone `/nave` page stays the design view.
+- `rind/` — **floor 2** at `hoop.mino.mobi/rind`. The structural underworld below the nave (deck 3 of the
+  story spine, "The Vessel"), reached by **descending the shaft** once the nave is cleared
+  (`narrative_tier ≥ 3`). A central **shaft-foot hub** spoked to three stations on alternating hex sides
+  (dirs 0·2·4, so the spokes touch only the hub — a clean **star**): **Navigation** · **The Propulsion
+  Drum** · **The Signal Chamber** (the tier-3 revelation seat). **Infrastructure only** — no `grow`
+  (farms), no `play` (arcades); just make · mend · store · move · govern, and the Signal (worship · learn).
+  `rind.js#buildRind(seed)` composes the **same v2 engine as the nave** (`prepareRind`/`rindSolveNext` pace
+  the four solves; one shared foam seed). Standalone `/rind` view (`index.html` + `rind-app.js`) is a
+  near-clone of the nave view (station · verb · full skin, pan/zoom). Pure + node-tested
+  (`rind/test/rind.selftest.mjs`, 36 checks). See `rind/README.md`. **NB:** this is the game's rind FLOOR,
+  the playable cousin of the repo-root `/rind` structural WING — same name, different layer. **In-game
+  descent wiring is the next step**: `v099/index.html#maybeBuildRind` already gates at tier 3 but builds a
+  single placeholder chunk; swap it for this streamed four-chunk floor, **offset** in world coords (the
+  rind's hub↔station seams share the nave's lattice, so co-locating would leak the player between decks).
+- `forge/` — **the ship's industrial metabolism** (`forge/forge.js` + `FACTORY.md`), the everything-factory
+  of the upper rind modelled as a **closed-loop production economy** — biome's industrial cousin. A
+  generation ship is closed (every atom already aboard), so production is **cycling a fixed stock of
+  conserved commodities**: `scrap →[reclaim]→ stock →[build]→ deployed →[wear]→ scrap`. Conservation is
+  **structural** (paired transfers; mass drift ~1e-12), the **reclaimer is the decomposer** (the recycle
+  valve — under-build it and scrap piles while stock drains: the Biosphere-2 failure, a passing test), and
+  energy is drawn from a fixed budget (tide's `energyLedger().total_GW`) → waste heat. Seven conserved
+  commodities (metal · polymer · silicate · volatiles · water · biomass · trace), five cross-commodity
+  products (structure · fixture · machine · circuit · consumable). The **closure law**: `reclaimCap ≥
+  wearDemand` per commodity. An **oracle** (`oracle()`) scores whether the loop closes (Closed · Lean ·
+  Leaking · Draining · Collapsing), names the keystone valve, and catches the failure modes. Pure +
+  node-tested (`forge/test/forge.selftest.mjs`, 34 checks). The detailed **production graph**
+  (`forge/graph.js`) is the Factorio layer beneath the aggregate: 31 materials (feedstock → intermediates →
+  components → products → scrap) and 25 named **processes** (refine · fabricate · assemble · recycle ·
+  bio-regen · seam), same structural conservation (each process's implicit loss→scrap means output can never
+  exceed input). The **seams are processes**: energy on every machine (the Grow Vat is the big draw — tide),
+  the digest→synth→grow→mill organic loop (biome), the condenser (iris). `solveFlow(demand)` back-props to
+  per-process rates + edge flows and **cascades** recovery (wear→scrap→recycler→feedstock) with
+  composition-accurate wear routing (`compositionOf`); the honest closure read: metal/silica ~95% closed,
+  volatiles closes (bio surplus), water + trace are the makeup leaks (life-support; the scarce keystone).
+  Pinned by `forge/test/graph.selftest.mjs` (82 checks). **Flow page** at `hoop.mino.mobi/forge`
+  (`index.html` + `forge-app.js`): the graph rendered Factorio-style (pools → refine → fabricate → assemble
+  → products, wear → scrap → recyclers/bio-regen looping back; edges family-coloured, width ∝ rate), live
+  deployed-setpoint sliders driving closure bars + energy-vs-budget, and click-a-node → recipe + **wiki**
+  (`forge/wiki.js`, authored prose merged with derived facts). **The needs + unified-ledger layer**
+  (`NEEDS.md`): products are derived from the ship's NEEDS (15 loops of a closed generation ship) →
+  `catalogue.js` (~50 element-tagged product classes over 14 real elements, the periodic-table/Sankey
+  substrate); `needs.js` maps the nave's verbs → loops → a population's demand; and **`ledger.js` is the
+  unified element ledger** — it vendors **biome** verbatim (`vendor/biome/`, copy-never-fork) as the
+  **life-support** half (biome conserves C·H·O·N) and adds the **industrial** half (Si·Fe·…) on ONE ledger,
+  coupled at the shared pools. The **carbon pump is mechanical + a dial**: carbon closes only when biome
+  over-grows (~3×) to feed industry on top of the crew. Pinned by `test/{catalogue,needs,ledger}.selftest.mjs`.
+  **The facilities-in-foam layer** (`ENGINES.md`): the processes are placed in **rind chambers** as the
+  **eight production engines** — foundry (star) · chemworks (cycle) · mill (path) · fab (dag) · weave (comb)
+  · assembly (in-tree) · fluid (flow) · reclaim (fan) — fit into the **same voronoi foam** as the nave & rind.
+  `engines.js` is the engine data (steps · core · activity graph · family); `facility.js#solveForgeChunk`
+  runs the nave's `buildFoam → defineChunk → solveRoomsFirst` pipeline, then partitions the chunk's rooms
+  into **1–3 facilities** by graph-Voronoi (facilities are Voronoi regions OF the chambers — the conceit run
+  one level up), labels each cluster's rooms with its engine's process steps, and routes the activity graph
+  room→room. **The wriggle:** eight distinct topologies in one uniform foam — the topology lives in the flow
+  overlay, not the room shapes. Live at `hoop.mino.mobi/forge/facilities` (`facilities.html` +
+  `facilities-app.js`, a chunkroller cousin: pick ≤3 engines, roll, chambers tinted by facility + shaded by
+  step, flow arrows routed; `?seed=&e=` permalink). Pinned by `forge/test/facility.selftest.mjs` (101 checks).
+  **The coherent-region layer** (`floor.js#buildForgeRegion`): many forge chunks solved at once on one shared
+  foam (the buildNave composition scaled up — 7/19/any count, seamless seams). **The hypoxia/rooms-first
+  concourse solver is GONE for the forge — physarum is the only pather.** Each chunk is just *partitioned*
+  (`partitionChunk`, no road); the concourse is then **grown + carved**: the intra-facility activity flow,
+  the **inter-engine supply graph**, and the nave demand are the trip demand, the flux field
+  (`paint/flux.js`) grows over the whole region's **cell graph**, and `growConduits` carves its superlevel
+  set as the road (expropriating cells, giving frontage + doors — the `econ/roads.js#finalizeRoads` pattern).
+  Commodity tags (`engines.js` intake/output) close the economy across chunks (reclaim → raw →
+  foundry/chemworks/fab/weave → mill → assembly → product → reclaim, validated closed). A **ninth role, the
+  `fulfillment` center** (a logistics hub, **one per ~19-chunk factory**, at the most central chunk) is the
+  **rind↔nave conduit**: assembly product rides **up** the lift to a **NAVE node**, the nave's worn goods come
+  **down** as waste to the reclaim yards — so the factory **supplies a whole nave** (~180 crew/assembly line).
+  With a single hub the layout is **optimised** (`optimizeLayout`): assign engines to chunks to minimise
+  transport around the hub → a **radial supply gradient** (assembly+reclaim ring the hub, refiners outside),
+  ~25–30% below random placement. The heavy long-haul demand (inter-chunk supply + nave lifts) makes
+  physarum's **trunk arterials span the seams = the emergent axial-rail**. It tiles (19→37→larger; one hub per
+  factory). Live at `hoop.mino.mobi/forge/region` (`region.html` + `region-app.js`: chunks/μ sliders, **⚙
+  optimise-layout toggle** with a live transport readout, carved conduits by tier, nave lift, supply overlay,
+  `?seed=&n=&mu=&opt=`). Pinned by `forge/test/region.selftest.mjs` (29 checks).
+  **The anti-soup layer** (`fixtures.js` + `sprites.js`): the foam geometry is uniform by design, so engine
+  identity comes from three non-geometric overlays — **ambient** (per-engine light/floor: foundry hot-orange,
+  fab cold-cyan, weave humid-green…), **fixtures** (a characteristic core machine per engine — crucible ·
+  retort · rollers · litho · loom · conveyor · pump · shredder · nave-lift, all distinct), and **material in
+  motion** (carriers animate along the activity graph so the topology is a *verb*: foundry pulses droplets
+  out, mill streams a billet down, chemworks circulates, reclaim fans out). The **⚙ machines & material**
+  toggle on both `/forge/facilities` and `/forge/region` (default on; off = flat tint = the soup, for
+  comparison) makes each facility read as its own place and the factory a patchwork of districts, not a stew.
+  Pinned by `forge/test/fixtures.selftest.mjs` (31). The eventual home is the v099 game skin
+  (`skin.js#paintChunk` + consoles/FIXTURES) — the forge pages prove the treatment.
+  **Walk it** — `hoop.mino.mobi/forge/walk` (`walk.html` + `walk-app.js`) is a **playable proto**: an @ walks
+  the **full 19-chunk factory** (default; `?n=&seed=&z=`, scroll/pinch zoom), reusing the game's
+  `manager.pathFind`/`nearestNode` over a free-roam nav graph (`floor.js#regionWalk`, 100% connected),
+  click/tap-to-walk + WASD, camera following, the rich skin + the nave lift overhead, a HUD naming the
+  facility you're in. **Material packets ride the carved roads** — `floor.js#supplyRoutes` pathfinds every
+  supply edge along a road-restricted graph (≥90% on-road), so packets stream the grown concourse to the
+  fulfillment hub + up the lift, not straight lines. To enable the nav, `packChunk` emits cell `adj` + room
+  `doorPairs`, so forge records are **buildWalk-compatible**.
+  **Two decks** (`TRACKS.md`): a probe (`tracks.js`) showed a separate non-intersecting pedestrian track is a
+  **planar impossibility in 2D** (the foam is road+rooms with no interstitial space; the concourse IS the
+  connectivity) — so the answer is the blood-vessel one: **stack two decks** (`deck2.js#twoDeckFactory`) — the
+  material floor + a pedestrian mezzanine (office per facility + catwalks), joined by a **corkscrew ramp** at
+  each facility (`rampPoint`, the voronoi-foam stairwell; the fulfillment ramp continues to the nave). Iso
+  view `hoop.mino.mobi/forge/stack` (explode slider separates the layers; packets on the floor, technicians
+  on the catwalks, cars on the ramps). Pinned by `forge/test/{tracks,deck2}.selftest.mjs`.
+  **The rigorous 3D answer** (`foam3d.js`): a real **volumetric chamber foam** (3D nuclei → near-neighbour
+  graph) with **two physarum species** grown as **disjoint** networks that **both reach every facility** —
+  `feasibleIn3D = true`, 10/10 each (vs ~1–3 in 2D). A 1D net has codimension 2 in a volume so it can't
+  separate the space; the complement stays connected and the second species threads it. Rotatable foamview at
+  `hoop.mino.mobi/forge/foam3d` (gold material net weaving past cyan pedestrian net, never touching). Pinned
+  by `forge/test/foam3d.selftest.mjs` (13).
+  **Factory formation in 3D** (`formation3d.js`): with floors, the supply chain rotates from a 2D radial
+  gradient (around the hub) to a **vertical tower** — `engineStage()` derives supply depth (fulfillment 0 …
+  reclaim 5), `formFactory` stratifies it bottom-to-top (reclaim·raw at z=0 where waste falls → foundry →
+  refine → assembly·finish at the top, product up the lift to the nave). Gravity-aligned (heavy low, waste
+  falls). Tradeoff: footprint −~70% (a column not a disc) for transport ×~1.5–2.3 (the climb, scaled by
+  `kVert`) — right for a ship where volume is scarce. Rotatable tower `hoop.mino.mobi/forge/tower` (climb/
+  explode sliders, flat-disc toggle). Pinned by `forge/test/formation3d.selftest.mjs` (14).
+  **Presenting the 3D chunk** (`/forge/slices`): the bounded 3D chunk is a **hex prism** (2D hex × floors,
+  still tessellates; each slice stays the familiar 2D map). The player reads it the way a radiologist reads a
+  body and an architect reads a building — **plan + section**: PLAN = the current floor's 2D foam map
+  (walkable, @ at the lift); SECTION = the elevation (strata reclaim-bottom→assembly-top, the lift threading
+  them, you-are-here). Scrub floors via the lift/ramps. 3D stays legible as N trivial 2D maps + one cut.
+  `slices.html` + `slices-app.js` (presentation over the tested kernels; no new test).
+  **The infinity reframe** (`infinitefoam.js`, `/forge/ship`): the slice/hex-prism is only the LOCAL zoom —
+  production is really the **infinite interstitium the finite naves float in**. Naves = sparse finite
+  inclusions (the bounded little societies); production = the connective **vasculature** between them, endless.
+  But it's **not free 3D** — the ship is an **O'Neill cylinder** and the rind is its **shell**, so the foam is
+  "**bounded but infinite**", directional per axis: **radial `ir` BOUNDED** (`Nr` shells — naves on the inner
+  surface `ir 0`; production stratifies OUTWARD `SHELL=[nave,assembly,refine,foundry,reclaim]`, product near
+  the naves / raw deepest; lower rind `ir≥Nr` deferred; *up from a nave* = inward toward the bioengine);
+  **azimuthal `ith` BOUNDED+PERIODIC** (the ring closes, `ith ≡ ith+Nth`); **axial `iz` INFINITE** (streams).
+  Two interpenetrating vessel lattices (material arteries · pedestrian veins, offset ½-cell so they never
+  touch — the two-species result). **Infinity hook** = the seam contract (cousin of `econ/record.js`): every
+  hub/vessel/nave is a pure function of `(iz, ith mod Nth, ir)` + ship seed, so `shipWindow(centerA,span)`
+  (a band along the axis × full ring × full thickness) streams forever and overlapping axial windows agree.
+  `hoop.mino.mobi/forge/ship` looks **down the bore** (WASD fly axially, A/D roll, the shell wall curving
+  around you, vessels converging to the vanishing point, naves on the inner skin, axis → ∞).
+  **Four path sets + structure** (keys 1–6 / legend chips toggle all six layers): the fine **material·pedestrian**
+  mesh, plus **power·water** *major trunks* rising from the lower rind (bold lines along the deepest shell
+  `ir=Nr-1` with radial risers feeding inward — `win.power`/`win.water`, `utilHub`), and the rind's own
+  **secant-cable skeleton** (`shipStructure`) lifted straight from `/rind`'s `research.js`: an `{N/k}` star
+  polygon (N rim anchors → the k-th, each cable a chord/secant across the bore) **advanced one bay axially** →
+  counter-rotating helices that cross (Shukhov hyperboloid). **k is set so the cables cut THROUGH the inner
+  radius** — `coreClear=ROUT·cos(πk/N)` must fall *inside* R0 or the chords hide behind the inner skin (k=5→379
+  outside R0=360 was the bug; **k=7→202** inside, fully visible) — while leaving a central core for the light
+  pipe (the dashed teal core-clearance circle). Plus hoops + stringers. Defaults N=18, **k=7**. A central
+  **light pipe** (the cylinder's sun) runs the axis; the camera sits slightly off-axis (`CAMR`) so it reads as a
+  glowing line, not an end-on point. Pinned by `forge/test/infinitefoam.selftest.mjs` (29: ring closes, radius
+  bounded, naves inner-only, outward stratification, axial windows agree, two systems never coincide;
+  power/water deep+interleaved+streaming; the `{N/k}` web, both families, cables advance + clear the core + cut
+  through the inner radius, the web streams). **Where it lives in the game:** a **learn-terminal codex view**
+  (the ship-anatomy content shown at a `learn`-role component fixture → `terminal`, `v099/sim.js`
+  `FIXTURE_ACTION`), not a control surface. `/ship` = the whole production layer; `/slices` = a local drop-in.
+  The pipe was the microscope slide, not the ship.
+  **Macro→micro — the chunk floor (`/forge/micro`, `forge/micro.js`, 18-test):** one locale at floor level a
+  nave-dweller walks. (1) a **directional gradient with barriers**: office band (white collar, nave-side) →
+  *barrier 1* → material transit (artery floor) → *barrier 2* → lower-rind portal — the portal touches only
+  transit, so you reach the lower rind ONLY through the material transit; the gated walk crosses barrier 1
+  before 2. (2) the **white-collar layer** (`WHITE_COLLAR`): the cortex over the autonomic production system —
+  perfusion-watch / dispatch / scheduling / gate-control / telemetry / inventory (deck2.js's deck-1 mezzanine,
+  given jobs). (3) the **capillary structure is WOVEN SURFACES, not nodes**: the two systems are broad **sheets that weave**
+  (shown in SECTION). The **white-collar sheet** (leans up → office) and **material sheet** (leans down → lower
+  rind) are a quarter-wave out of phase → they cross **over-under** (a weave), bounding **three broad layers**
+  (white-collar phase / production weave / material phase). A **facility sits at every weave crossing**, touched
+  by both sheets; because each is one broad continuous surface, **every office touches every facility** — broad,
+  not deep (*three layers tops*). The weird math: a woven **triply-periodic minimal surface (the GYROID)** /
+  block-copolymer **lamellar↔gyroid** microphase separation. `weaveStats` (over-under alternates, many crossings)
+  + `contact` (complete office×facility) tested. The real foundation for the floor-level task.
+  **Real v099 wiring (not yet done):** make the forge a deck reached from the rind (`index.html#maybeBuildRind`
+  is the hook) = generate it as a deck offset in world coords + attach the fulfillment lift as the shaft +
+  **port `sprites.js` into `skin.js#paintChunk`** (the big piece — the game skin only knows nave rooms). The
+  standalone proto is the safe testbed first. See `ENGINES.md`. **Next:** wire a forge region into the v099 game as
+  a playable deck (nave/rind cousin); energetics (tide) seam; fixtures + logistics droids riding the trunks.
+  See `ENGINES.md` + `NEEDS.md` + `FACTORY.md`.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a
@@ -173,10 +365,17 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-arcade-fixture-gn8e9j` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-surface-setup-xd0mqo` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
+- **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
+  `/vNNN/records` + `/vNNN/feed` to their `.html`; assets are relative). **`v098` is the stable
+  TEST surface** (hoopy's content/story testbed — leave it stable); **`v099` is the DEVELOPMENT
+  surface** (disruptive map work, new government/worship fixtures, deepened combat). Each surface
+  namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never collide with
+  the test surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/` and
+  `hoop:vNN:`→`hoop:vMM:` in the copy, add the two clean-URL rewrites in `worker.js`.
 - **v096 live inference (phase 2+, NOT yet wired into `worker.js`):** the worker will gain
   `GEMINI_API_KEY` (set out-of-band via `wrangler secret put`, never committed — the borges rule) to
   drive the segregated `story/llm/` adapter. Until set, the adapter is the disabled stub and the game

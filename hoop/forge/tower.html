@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<base href="/forge/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>the forge · factory as a tower</title>
+<meta name="description" content="Factory formation in 3D: the supply chain stratifies into a tower — raw + reclaim at the bottom (waste falls there), refining in the middle, assembly at the top (product rides the lift to the nave). The radial gradient stands up. Trades floor-area for vertical climb." />
+<style>
+  :root { --ink:#e6e8ee; --soft:#8794a6; --accent:#e0772f; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#04050a; color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:hidden; }
+  #cv { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #cv.drag { cursor:grabbing; }
+  #hud { position:fixed; left:12px; top:12px; width:312px; background:rgba(8,11,17,.85); border:1px solid #1e2636; border-radius:10px; padding:12px 14px; }
+  #hud h1 { font-size:12px; letter-spacing:.15em; text-transform:uppercase; color:var(--accent); margin:0 0 3px; }
+  #hud .sub { color:var(--soft); font-size:10.5px; margin:0 0 9px; line-height:1.5; }
+  label.row { display:flex; align-items:center; gap:8px; margin:6px 0; color:var(--soft); font-size:11px; }
+  label.row span.l { width:54px; flex:none; color:#b9c0cf; }
+  input[type=range] { flex:1; accent-color:var(--accent); } label.row b { width:34px; text-align:right; color:var(--ink); }
+  .btns { display:flex; gap:7px; margin-top:8px; } button { font:inherit; color:var(--ink); background:#0c0f15; border:1px solid #1e2636; border-radius:7px; padding:7px 9px; cursor:pointer; } button:hover { border-color:#3a445c; }
+  #read { margin-top:9px; padding:8px 9px; border:1px solid #2a2f3b; border-radius:8px; font-size:11px; color:var(--soft); }
+  #read b { color:#e6e8ee; } #read .win { color:#7fd0a0; } #read .cost { color:#e0a05a; }
+  .crumb { position:fixed; left:12px; bottom:12px; color:var(--soft); font-size:11px; } .crumb a { color:var(--accent); text-decoration:none; }
+  .hint { position:fixed; right:12px; bottom:12px; color:#566173; font-size:10.5px; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">
+  <h1>factory formation · the tower</h1>
+  <p class="sub">in 3D the supply chain stands up: <b>raw + reclaim</b> at the bottom (waste falls there), <b>refining</b> in the middle, <b>assembly</b> at the top — product rides the lift to the nave. The 2D radial gradient becomes a <b>vertical</b> one; a wide disc becomes a compact column.</p>
+  <label class="row" title="how much dearer a unit of vertical climb is vs a flat metre — good conveyors/lifts = low"><span class="l">climb cost</span><input type="range" id="kvert" min="1" max="5" step="0.25" value="2"><b id="kvertv">2.0</b></label>
+  <label class="row" title="pull the floors apart"><span class="l">explode</span><input type="range" id="gap" min="60" max="200" step="10" value="100"><b id="gapv">100</b></label>
+  <label class="row"><input type="checkbox" id="t-spin" checked> ⟳ auto-rotate</label>
+  <label class="row"><input type="checkbox" id="t-flat"> ▦ show the flat 2D disc instead</label>
+  <div class="btns"><button id="roll" style="flex:1">🎲 new</button><button id="reset">⌖ view</button></div>
+  <div id="read">—</div>
+</div>
+<div class="crumb"><a href="/">◍ hoop</a> · <a href="/forge">⚙ forge</a> · <a href="/forge/foam3d">⬢ volumetric</a> · <a href="/forge/stack">⊟ two decks</a> · tower</div>
+<div class="hint">drag to rotate · scroll to zoom</div>
+<script type="module" src="./tower-app.js"></script>
+</body>
+</html>

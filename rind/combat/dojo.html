@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>combat dojo — rind sandbox (continuum)</title>
+<style>
+  :root{ --ink:#e7e2d6; --bg:#14110c; --panel:#1d1913; --gold:#f4bf62; --line:#3a342a; --dim:#9a907c; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 ui-monospace,Menlo,Consolas,monospace; }
+  header{ padding:10px 16px; border-bottom:1px solid var(--line); display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  header b{ color:var(--gold); letter-spacing:.04em; }
+  header .crumb{ color:var(--dim); }
+  a{ color:var(--gold); text-decoration:none; }
+  main{ display:flex; gap:18px; padding:16px; flex-wrap:wrap; align-items:flex-start; }
+  .controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  select,button,input{ background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font:inherit; }
+  button{ cursor:pointer; }
+  button:hover{ border-color:var(--gold); }
+  button:disabled{ opacity:.35; cursor:default; }
+  button.skill{ display:block; width:100%; text-align:left; margin:3px 0; }
+  button.skill.sel{ border-color:var(--gold); background:#2a2418; }
+  #board{ background:#100d09; border:1px solid var(--line); border-radius:8px; touch-action:none; }
+  .side{ width:280px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:12px; }
+  .card h3{ margin:0 0 6px; font-size:13px; color:var(--gold); }
+  .bars{ font-size:12px; color:var(--dim); }
+  .bars b{ color:var(--ink); }
+  #log{ height:220px; overflow:auto; font-size:12px; }
+  #log .l{ padding:1px 0; border-bottom:1px dotted #2a251d; }
+  .crit{ color:#ffd; } .hit{ color:#fb8; } .miss{ color:var(--dim); } .down{ color:#c55; } .heal{ color:#7d7; } .win{ color:var(--gold); }
+  .status-chips{ font-size:11px; color:#d9b; }
+  .tag{ display:inline-block; padding:0 6px; border:1px solid var(--line); border-radius:10px; font-size:11px; color:var(--dim); }
+  .hint{ font-size:11px; color:var(--dim); margin-top:6px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="crumb"><a href="/">mino.mobi</a> / <a href="../index.html">rind</a> / combat</span>
+  <b>⚔ combat dojo</b>
+  <span class="crumb">continuum sandbox over <code>rind/combat/engine.js</code> — vendors into hoop's arena</span>
+</header>
+
+<div class="controls" style="padding:0 16px 8px">
+  <label>player <select id="pf"></select></label>
+  <label>×<input id="pn" type="number" value="1" min="1" max="4" style="width:46px"></label>
+  <label>foe <select id="ff"></select></label>
+  <label>×<input id="fn" type="number" value="1" min="1" max="4" style="width:46px"></label>
+  <label>seed <input id="seed" type="number" value="1" style="width:70px"></label>
+  <label>power <input id="power" type="number" value="10" style="width:60px"></label>
+  <label>terrain <input id="terr" type="checkbox" checked></label>
+  <button id="new">new battle</button>
+  <button id="auto">▶ auto-play</button>
+  <button id="step">step turn</button>
+  <span id="verdict" class="tag"></span>
+</div>
+
+<main>
+  <div>
+    <canvas id="board" width="480" height="480"></canvas>
+    <div class="hint" id="hint"></div>
+  </div>
+  <div class="side">
+    <div class="card" id="activeCard"><h3>—</h3></div>
+    <div class="card"><h3>actions</h3><div id="skills"><em style="color:var(--dim)">new battle to begin</em></div>
+      <button id="end" style="margin-top:8px">end turn ⏭</button></div>
+  </div>
+  <div class="side">
+    <div class="card"><h3>combatants</h3><div id="roster" class="bars"></div></div>
+    <div class="card"><h3>log</h3><div id="log"></div></div>
+  </div>
+</main>
+
+<script type="module">
+import { FACTIONS, FACTION_ORDER, FACTION_LEAN } from './factions.js';
+import { rollCharacter } from './stats.js';
+import * as E from './engine.js';
+
+const $ = (id) => document.getElementById(id);
+const cv = $('board'), ctx = cv.getContext('2d');
+const pf = $('pf'), ff = $('ff');
+for (const f of FACTION_ORDER) { for (const sel of [pf, ff]) { const o = document.createElement('option'); o.value = f; o.textContent = `${FACTIONS[f].glyph} ${FACTIONS[f].label}`; sel.appendChild(o); } }
+ff.selectedIndex = 1;
+
+let s = null, sel = null, autoTimer = null, SCALE = 30;
+
+function build() {
+  stopAuto();
+  const seed = +$('seed').value || 1, power = +$('power').value || 10;
+  const pk = pf.value, fk = ff.value;
+  const pn = Math.max(1, Math.min(4, +$('pn').value || 1)), fn = Math.max(1, Math.min(4, +$('fn').value || 1));
+  const mk = (k, i, tag) => ({ id: tag, name: `${FACTIONS[k].label}${tag === 'P' ? ' (you)' : ' ' + tag}`, faction: k, character: rollCharacter(seed * 100 + i, { triad: FACTION_LEAN[k], power }) });
+  const player = mk(pk, 1, 'P');
+  const allies = []; for (let i = 1; i < pn; i++) allies.push(mk(pk, 1 + i, 'P' + i));
+  const foes = []; for (let i = 0; i < fn; i++) foes.push(mk(fk, 50 + i, 'E' + i));
+  const terrain = $('terr').checked ? E.scatterTerrain(seed * 7 + 11, { walls: 3, hazards: 2 }) : [];
+  s = E.createBattle({ player, allies, foes, seed, terrain });
+  SCALE = Math.min(cv.width / s.W, cv.height / s.H);
+  sel = null;
+  render();
+}
+
+const px = (wx) => wx * SCALE, py = (wy) => wy * SCALE;
+const isPlayerTurn = () => !s.winner && E.active(s).team === 'player';
+
+function render() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  // terrain: walls (solid) + hazard fields (translucent, coloured by effect)
+  const HZ = { burn: 'rgba(207,80,80,0.18)', mire: 'rgba(120,180,90,0.18)', emp: 'rgba(110,150,220,0.20)' };
+  for (const t of (s.terrain || [])) {
+    ctx.beginPath(); ctx.arc(px(t.x), py(t.y), t.r * SCALE, 0, 7);
+    if (t.kind === 'wall') { ctx.fillStyle = '#2b2620'; ctx.fill(); ctx.strokeStyle = '#4a4438'; ctx.lineWidth = 1.5; ctx.stroke(); }
+    else { ctx.fillStyle = HZ[t.effect] || 'rgba(200,200,200,0.15)'; ctx.fill(); ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '10px monospace'; ctx.textAlign = 'center'; ctx.fillText(t.effect, px(t.x), py(t.y)); }
+  }
+  const act = !s.winner ? E.active(s) : null;
+  const lg = isPlayerTurn() ? E.legal(s) : { move: { range: 0 }, skills: {} };
+  const tgtIds = new Set(sel && sel !== '__move' && lg.skills[sel] ? lg.skills[sel].targets : []);
+
+  // move disk
+  if (act && sel === '__move' && lg.move.range > 0) {
+    ctx.fillStyle = 'rgba(120,200,150,0.10)'; ctx.strokeStyle = 'rgba(120,200,150,0.5)'; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(px(act.x), py(act.y), lg.move.range * SCALE, 0, 7); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // selected-skill reach ring
+  if (act && sel && sel !== '__move') {
+    const r = E.SKILLS[sel].range || 1;
+    ctx.strokeStyle = 'rgba(207,80,80,0.45)'; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.arc(px(act.x), py(act.y), r * SCALE, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  for (const u of s.units) {
+    const R = (E.UNIT_R || 0.5) * SCALE;
+    ctx.globalAlpha = u.alive ? 1 : 0.35;
+    ctx.beginPath(); ctx.arc(px(u.x), py(u.y), R, 0, 7);
+    ctx.fillStyle = u.alive ? '#1d1913' : '#0c0a07'; ctx.fill();
+    ctx.lineWidth = (u === act) ? 3 : (tgtIds.has(u.id) ? 3 : 1.5);
+    ctx.strokeStyle = (u === act) ? '#f4bf62' : (tgtIds.has(u.id) ? '#cf3b3b' : u.accent); ctx.stroke();
+    ctx.fillStyle = u.accent; ctx.font = `${Math.round(R * 1.4)}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(u.alive ? u.glyph : '✝', px(u.x), py(u.y));
+    if (u.alive) { // hp bar
+      const w = R * 1.8, h = 3, bx = px(u.x) - w / 2, by = py(u.y) + R + 3;
+      ctx.fillStyle = '#400'; ctx.fillRect(bx, by, w, h);
+      ctx.fillStyle = '#4c4'; ctx.fillRect(bx, by, w * Math.max(0, u.hp) / u.maxhp, h);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // panels
+  const ac = $('activeCard');
+  if (s.winner) ac.innerHTML = `<h3>${s.winner === 'draw' ? 'Draw' : s.winner === 'player' ? 'You win' : 'You fall'}${s.timedOut ? ' (time)' : ''}</h3>`;
+  else { const f = FACTIONS[act.faction]; ac.innerHTML = `<h3>${act.glyph} ${act.name}</h3><div class="bars"><b>${f ? f.label : '—'}</b> — ${f ? f.gloss : 'drone'}<br>HP <b>${act.hp}/${act.maxhp}</b> · Flux <b>${act.flux}/${act.maxflux}</b> · Atk <b>${act.atk}</b> · Apow <b>${act.apow}</b> · Def <b>${act.def}</b> · Spd <b>${act.speed}</b><br>${statusChips(act)}</div>`; }
+  renderSkills(lg);
+  $('roster').innerHTML = s.units.map((u) => `<div style="opacity:${u.alive ? 1 : .35}">${u.glyph} <b style="color:${u.accent}">${u.name}</b> ${u.alive ? `HP ${u.hp}/${u.maxhp} · Flux ${u.flux}` : '✝ down'} ${statusChips(u)}</div>`).join('');
+  $('log').innerHTML = s.log.slice().reverse().map((l) => `<div class="l ${l.kind}">t${l.t}· ${l.msg}</div>`).join('');
+  $('verdict').textContent = s.winner ? `turn ${s.turn} · ${s.winner}${s.timedOut ? ' (timeout)' : ''}` : `turn ${s.turn} · ${act.team === 'player' ? 'your move' : 'enemy'}`;
+  $('hint').textContent = s.winner ? 'battle over — new battle to replay' : (isPlayerTurn() ? (sel === '__move' ? 'click in the green disk to move' : sel ? 'click a highlighted target' : 'pick Move or a skill') : 'enemy turn…');
+  $('end').disabled = !!s.winner || !isPlayerTurn();
+  // auto-run enemy turn after a beat so it's watchable
+  if (!s.winner && E.active(s).team === 'foe' && !autoTimer) setTimeout(() => { if (s && !s.winner && E.active(s).team === 'foe') { E.runAiTurn(s); render(); } }, 280);
+}
+
+function statusChips(u) {
+  const ks = Object.keys(u.status || {}).filter((k) => u.status[k].turns > 0);
+  return ks.length ? '<span class="status-chips">' + ks.map((k) => `${E.STATUS[k]?.glyph || ''}${k}(${u.status[k].turns})`).join(' ') + '</span>' : '';
+}
+
+function renderSkills(lg) {
+  const box = $('skills');
+  if (!isPlayerTurn()) { box.innerHTML = `<em style="color:var(--dim)">${s.winner ? 'battle over' : 'enemy turn…'}</em>`; return; }
+  const u = E.active(s);
+  let html = `<button class="skill ${sel === '__move' ? 'sel' : ''}" data-act="move" ${u.moved ? 'disabled' : ''}>➤ Move (range ${E.moveRange(u).toFixed(1)})${u.moved ? ' — used' : ''}</button>`;
+  for (const id of E.skillsFor(u)) {
+    const meta = E.SKILLS[id], st = lg.skills[id] || {}, cost = E.costOf(u, id);
+    html += `<button class="skill ${sel === id ? 'sel' : ''}" data-act="skill" data-id="${id}" ${st.usable ? '' : 'disabled'} title="${meta.gloss}">${meta.glyph} ${meta.label}${cost ? ` · ${cost}⚡` : ''}${meta.range > 1 ? ` · rng ${meta.range}` : ''}</button>`;
+  }
+  box.innerHTML = html;
+  box.querySelectorAll('button').forEach((b) => b.onclick = () => {
+    const a = b.dataset.act;
+    if (a === 'move') { sel = (sel === '__move') ? null : '__move'; render(); return; }
+    const id = b.dataset.id, st = lg.skills[id];
+    if (!st.targets.length && E.SKILLS[id].kind !== 'attack') { E.act(s, { type: 'skill', skillId: id }); sel = null; render(); }   // self-skill fires now
+    else { sel = (sel === id) ? null : id; render(); }                                                                              // targeted → click a target
+  });
+}
+
+cv.onpointerdown = (ev) => {
+  if (!isPlayerTurn()) return;
+  const rect = cv.getBoundingClientRect();
+  const wx = (ev.clientX - rect.left) / SCALE, wy = (ev.clientY - rect.top) / SCALE;
+  const u = E.active(s);
+  if (sel === '__move') {
+    const p = E.canReach(s, u, wx, wy) ? { x: wx, y: wy } : E.moveToward(s, u, wx, wy, E.moveRange(u), 0);
+    if (p.x !== u.x || p.y !== u.y) { E.act(s, { type: 'move', x: p.x, y: p.y }); sel = null; }
+    render(); return;
+  }
+  if (sel && sel !== '__move') {
+    // nearest unit to the click that is a valid target of the selected skill
+    const targets = (E.legal(s).skills[sel] || {}).targets || [];
+    let hit = null, hd = 1e9;
+    for (const id of targets) { const t = E.unitById(s, id); const d = Math.hypot(t.x - wx, t.y - wy); if (d < (E.UNIT_R || .5) * 2 && d < hd) { hd = d; hit = t; } }
+    if (hit) { E.act(s, { type: 'skill', skillId: sel, targetId: hit.id }); sel = null; render(); }
+  }
+};
+
+function stepTurn() { if (!s || s.winner) return; if (E.active(s).team === 'foe') E.runAiTurn(s); else E.act(s, { type: 'end' }); sel = null; render(); }
+function autoLoop() { if (!s || s.winner) { stopAuto(); return; } E.runAiTurn(s); render(); }
+function startAuto() { if (autoTimer) return; $('auto').textContent = '⏸ pause'; autoTimer = setInterval(autoLoop, 360); }
+function stopAuto() { if (autoTimer) clearInterval(autoTimer); autoTimer = null; $('auto').textContent = '▶ auto-play'; }
+
+$('new').onclick = build;
+$('step').onclick = stepTurn;
+$('end').onclick = () => { E.act(s, { type: 'end' }); sel = null; render(); };
+$('auto').onclick = () => autoTimer ? stopAuto() : startAuto();
+build();
+</script>
+</body>
+</html>

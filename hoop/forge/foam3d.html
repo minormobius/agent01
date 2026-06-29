@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<base href="/forge/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>the forge · volumetric foam · two species</title>
+<meta name="description" content="A volumetric foam (the /foamview model, small + tractable) with TWO physarum species — material (spiderbots) and pedestrian (technicians) — grown as disjoint networks that both reach every facility, weaving over and under each other in 3D. The blood-vessel answer, for real: impossible in 2D, clean in 3D." />
+<style>
+  :root { --ink:#e6e8ee; --soft:#8794a6; --accent:#e0772f; --mat:#f4bf62; --ped:#5fd0e0; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#04050a; color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:hidden; }
+  #cv { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #cv.drag { cursor:grabbing; }
+  #hud { position:fixed; left:12px; top:12px; width:300px; background:rgba(8,11,17,.84); border:1px solid #1e2636; border-radius:10px; padding:12px 14px; }
+  #hud h1 { font-size:12px; letter-spacing:.15em; text-transform:uppercase; color:var(--accent); margin:0 0 3px; }
+  #hud .sub { color:var(--soft); font-size:10.5px; margin:0 0 9px; line-height:1.5; }
+  label.row { display:flex; align-items:center; gap:8px; margin:6px 0; color:var(--soft); font-size:11px; }
+  .btns { display:flex; gap:7px; margin-top:8px; }
+  button { font:inherit; color:var(--ink); background:#0c0f15; border:1px solid #1e2636; border-radius:7px; padding:7px 9px; cursor:pointer; }
+  button:hover { border-color:#3a445c; }
+  #verdict { margin-top:9px; padding:8px 9px; border:1px solid #2a3b2a; border-radius:8px; background:rgba(95,208,138,.06); font-size:11px; }
+  #verdict b { color:#7fd0a0; }
+  .key { display:flex; flex-direction:column; gap:3px; margin-top:9px; font-size:10.5px; color:var(--soft); }
+  .key .r { display:flex; align-items:center; gap:6px; }
+  .key .sw { width:11px; height:4px; border-radius:2px; flex:none; }
+  .crumb { position:fixed; left:12px; bottom:12px; color:var(--soft); font-size:11px; }
+  .crumb a { color:var(--accent); text-decoration:none; }
+  .hint { position:fixed; right:12px; bottom:12px; color:#566173; font-size:10.5px; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">
+  <h1>volumetric foam · two species</h1>
+  <p class="sub"><b style="color:var(--mat)">bots</b> on <b>physarum</b> (demand trunks) · <b style="color:var(--ped)">peds</b> on <b>perfusion</b> (a capillary bed that reaches every chamber) — two growth models, grown <b>disjoint</b>, both reaching every facility, weaving over &amp; under in 3D. Impossible in 2D (TRACKS.md); clean in 3D.</p>
+  <label class="row" title="bots always run physarum (demand-driven trunks). peds: physarum = trip trunks · perfusion = a capillary bed that reaches EVERY chamber (coverage)"><span style="width:46px;flex:none;color:#b9c0cf">peds</span>
+    <select id="pedmode" style="flex:1;background:#0c0f15;color:#e6e8ee;border:1px solid #1e2636;border-radius:6px;padding:5px 7px;font:inherit">
+      <option value="perfusion" selected>perfusion (capillary bed)</option>
+      <option value="physarum">physarum (trip trunks)</option>
+    </select>
+  </label>
+  <label class="row"><input type="checkbox" id="t-cells" checked> ◌ show chambers (the foam)</label>
+  <label class="row"><input type="checkbox" id="t-foam"> · foam adjacency</label>
+  <label class="row"><input type="checkbox" id="t-spin" checked> ⟳ auto-rotate</label>
+  <div class="btns"><button id="roll" style="flex:1">🎲 new foam</button><button id="reset">⌖ view</button></div>
+  <div id="verdict">—</div>
+  <div class="key">
+    <div class="r"><span class="sw" style="background:var(--mat)"></span>material network — never touches…</div>
+    <div class="r"><span class="sw" style="background:var(--ped)"></span>…the pedestrian network</div>
+    <div class="r"><span class="sw" style="background:#fff;height:9px;width:9px;border-radius:50%"></span>facility — both species reach it</div>
+  </div>
+</div>
+<div class="crumb"><a href="/">◍ hoop</a> · <a href="/forge">⚙ forge</a> · <a href="/forge/stack">⊟ two decks</a> · volumetric foam</div>
+<div class="hint">drag to rotate · scroll to zoom</div>
+<script type="module" src="./foam3d-app.js"></script>
+</body>
+</html>

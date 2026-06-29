@@ -7,7 +7,7 @@ name: Deploy g (WebGPU gallery)
 
 on:
   push:
-    branches: [main, 'claude/geomancy-mobile-scroll-layout-SWfD9']
+    branches: [main, 'claude/hourglass-webgpu-sim-awnn6h']
     paths:
       - 'clock/**'
       - 'g/**'

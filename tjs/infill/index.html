@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infill · peel a sphere of 3D-print infill · tjs</title>
+<meta name="description" content="A solid sphere packed with 3D-printer infill — gyroid, Schwarz-P, diamond, Neovius, honeycomb, grid, triangular — that you scroll to peel layer by layer, capping the cut face so you can feel the internal geometry. Raymarched, no build step.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#07070c; --panel:#101019cc; --line:#23232e; --ink:#e6e6f0; --soft:#8a8aa0;
+    --accent:#39d6c8; --accent2:#ffb454;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(130% 130% at 62% 8%, #15151f 0%, #07070c 62%);
+    color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;overflow:hidden;height:100vh}
+  #viewport{position:fixed;inset:0}
+  #viewport canvas{display:block;touch-action:none}
+
+  .crumb{position:fixed;top:14px;left:18px;z-index:5;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
+  .crumb a{color:var(--soft);text-decoration:none}
+  .crumb a:hover{color:var(--accent)}
+  .crumb b{color:var(--ink);font-weight:600}
+
+  .panel{
+    position:fixed;top:46px;right:16px;z-index:5;width:264px;max-height:calc(100vh - 64px);overflow:auto;
+    background:var(--panel);backdrop-filter:blur(9px);
+    border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;
+    box-shadow:0 18px 50px -20px #000}
+  .panel h2{margin:0 0 2px;font-size:15px;font-weight:700}
+  .panel .sub{margin:0 0 12px;font-size:12px;color:var(--soft)}
+  .panel .sub b{color:var(--accent);font-variant-numeric:tabular-nums}
+
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+  .seg.three{grid-template-columns:1fr 1fr 1fr}
+  .seg button{
+    appearance:none;cursor:pointer;font:inherit;font-size:12px;
+    color:var(--soft);background:#0d0d15;border:1px solid var(--line);
+    border-radius:8px;padding:7px 4px;transition:.12s;text-align:center}
+  .seg button:hover{color:var(--ink);border-color:#3a3a4a}
+  .seg button.on{color:var(--bg);background:var(--accent);border-color:var(--accent);font-weight:600}
+
+  .lbl{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);margin:14px 0 6px}
+  .row{margin:11px 0}
+  .row label{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--soft);margin-bottom:5px}
+  .row label b{color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+
+  .swatches{display:flex;gap:7px;margin-top:2px}
+  .swatches button{width:26px;height:26px;border-radius:50%;border:2px solid #0d0d15;cursor:pointer;padding:0;transition:.12s}
+  .swatches button.on{border-color:var(--ink);transform:scale(1.12)}
+
+  .toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--soft);cursor:pointer;margin:9px 0}
+  .toggle input{accent-color:var(--accent);width:15px;height:15px}
+
+  .read{margin-top:13px;padding-top:11px;border-top:1px solid var(--line);font-size:12px;color:var(--soft);
+    display:grid;grid-template-columns:auto auto;gap:3px 10px}
+  .read span:nth-child(even){text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+
+  .hint{position:fixed;bottom:14px;left:0;right:0;z-index:5;text-align:center;font-size:12px;color:var(--soft);pointer-events:none}
+  .hint b{color:var(--accent2)}
+  .blurb{position:fixed;left:18px;bottom:40px;z-index:5;max-width:330px;font-size:12px;color:var(--soft);pointer-events:none}
+  .blurb b{color:var(--ink)}
+  @media (max-width:680px){ .blurb{display:none} .panel{width:224px} }
+
+  /* acoustic dampening panel (bottom-left) */
+  .apanel{position:fixed;left:16px;bottom:14px;z-index:6;width:332px;
+    background:var(--panel);backdrop-filter:blur(9px);border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 18px 50px -20px #000;overflow:hidden}
+  .ahead{padding:11px 14px;font-size:13px;font-weight:600;cursor:pointer;
+    display:flex;justify-content:space-between;align-items:center;color:var(--ink)}
+  .ahead:hover{background:#13131c}
+  .ahead .car{color:var(--accent);font-size:11px}
+  .abody{padding:0 14px 13px}
+  .anote{font-size:11.5px;line-height:1.5;color:var(--soft);margin:2px 0 10px}
+  .anote b{color:var(--accent2)}
+  .arow{display:flex;gap:8px;margin-bottom:9px}
+  .arow select{flex:1;font:inherit;font-size:12px;color:var(--ink);background:#0d0d15;
+    border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+  .arow button{font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+    color:var(--bg);background:var(--accent);border:none;border-radius:8px;padding:6px 14px}
+  .arow button:disabled{background:#2a2a36;color:var(--soft);cursor:default}
+  .aprog{height:4px;background:#0d0d15;border-radius:3px;overflow:hidden;margin-bottom:10px}
+  .aprog #abar{height:100%;width:0;background:var(--accent);transition:width .12s}
+  #aplot{display:block;width:100%;height:172px;background:#0a0a11;border:1px solid var(--line);border-radius:8px}
+  .alegend{font-size:11px;color:var(--soft);margin-top:7px;min-height:14px}
+  .alegend b{color:var(--ink);font-variant-numeric:tabular-nums}
+  @media (max-width:680px){ .apanel{display:none} }
+</style>
+</head>
+<body>
+<div id="viewport"></div>
+<div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / <a href="../">tjs</a> / <b>infill</b></div>
+
+<div class="panel">
+  <h2>Infill</h2>
+  <p class="sub">A 50&nbsp;mm sphere packed with print infill. <b id="dread">— %</b> dense.</p>
+
+  <div class="lbl">Pattern</div>
+  <div class="seg three" id="pat"></div>
+
+  <div class="lbl">Geometry</div>
+  <div class="row">
+    <label>Cell size <b><span id="cellv">6.0</span> mm</b></label>
+    <input id="cell" type="range" min="3" max="16" step="0.5" value="6">
+  </div>
+  <div class="row">
+    <label>Density <b><span id="densv">15</span>%</b></label>
+    <input id="dens" type="range" min="5" max="45" step="1" value="15">
+  </div>
+  <div class="row">
+    <label>Solid shell <b><span id="shellv">off</span></b></label>
+    <input id="shell" type="range" min="0" max="4" step="0.1" value="0">
+  </div>
+  <div class="row">
+    <label>Peel depth <b><span id="peelv">top</span></b></label>
+    <input id="peel" type="range" min="-1.02" max="1.02" step="0.001" value="1.02">
+  </div>
+
+  <div class="lbl">Filament</div>
+  <div class="swatches" id="sw"></div>
+
+  <div class="lbl">Quality</div>
+  <div class="row">
+    <label>Samples / cell <b><span id="qv">16</span></b></label>
+    <input id="q" type="range" min="6" max="28" step="1" value="16">
+  </div>
+
+  <label class="toggle"><input id="spin" type="checkbox"> auto-rotate</label>
+  <label class="toggle"><input id="cage" type="checkbox" checked> show sphere cage</label>
+  <label class="toggle"><input id="layers" type="checkbox" checked> print-layer lines</label>
+
+  <div class="read">
+    <span>pattern</span><span id="rpat">gyroid</span>
+    <span>cell type</span><span id="rtype">open</span>
+    <span>cut face fill</span><span id="rcut">—</span>
+    <span>render</span><span id="rfps">— fps</span>
+  </div>
+</div>
+
+<div class="blurb">
+  <b>What you're looking at.</b> The real 3D-printer infills — the lattice your slicer
+  lays down inside a part — clipped to a ball and sliced. <b>Scroll</b> to peel the
+  layers from the top down; the orange face is the freshly cut cross-section.
+</div>
+<div class="hint"><b>scroll</b> peel · <b>drag</b> rotate · <b>shift+scroll</b> / pinch zoom · <b>↑ ↓</b> peel · <b>space</b> spin</div>
+
+<div class="apanel">
+  <div class="ahead" id="atoggle">Acoustic dampening <span class="car" id="acar">show ▸</span></div>
+  <div class="abody" id="abody" style="display:none">
+    <p class="anote">Coarse FDTD: transmission loss of <em>this</em> orb vs free field, source at centre.
+      Solid is modelled as a dense fluid, so the <b>solid shell</b>, full enclosure and closed
+      cells (the dominant barriers) read true; fine open-cell pore absorption is below this grid —
+      that's the WebGPU job. <span id="acompact"></span></p>
+    <div class="arow">
+      <select id="ares">
+        <option value="48">Fast · 48³</option>
+        <option value="64" selected>Balanced · 64³</option>
+        <option value="80">Fine · 80³ (slow)</option>
+      </select>
+      <button id="arun">Run sim</button>
+    </div>
+    <div class="aprog"><div id="abar"></div></div>
+    <canvas id="aplot" width="600" height="344"></canvas>
+    <div class="alegend" id="alegend">Runs the current pattern · density · shell. ~10–40 s.</div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+   Infill viewer — a sphere of 3D-print infill, raymarched.
+
+   Every pattern is expressed as a single scalar "gdist(p)": a
+   distance-like field that is small near a wall and grows into
+   the voids. A point is solid where gdist(p) < T. Density is set
+   by solving for T (CPU calibration). The sphere clip and the
+   scroll "peel" plane are just two extra half-space tests inside
+   the same march, and the cut face is capped for free — when the
+   ray descends through the peel plane straight into solid, that
+   hit is shaded as a cross-section.
+   ============================================================ */
+
+const R = 25.0;                 // sphere radius (mm) -> 50mm diameter
+const TWO_PI = Math.PI * 2;
+
+// open:true  -> the void phase percolates (flow-through; an acoustic absorber)
+// open:false -> sealed cells (a closed-cell barrier; mass + cavity resonance)
+const PATTERNS = [
+  { id:'gyroid',   name:'Gyroid',     open:true,  blurb:'the slicer favourite — a smooth, isotropic TPMS; two interwoven open channels' },
+  { id:'schwarzp', name:'Schwarz-P',  open:true,  blurb:'plumber’s nightmare — round windows through a cubic cell' },
+  { id:'diamond',  name:'Diamond',    open:true,  blurb:'Schwarz-D — the stiffest of the common TPMS sheets' },
+  { id:'neovius',  name:'Neovius',    open:true,  blurb:'thicker nodes, narrow throats — high surface area' },
+  { id:'honeycomb',name:'Honeycomb',  open:true,  blurb:'true shared-wall hexagonal prisms (Voronoi of a triangular lattice), extruded vertically — open top-to-bottom' },
+  { id:'grid',     name:'Grid',       open:true,  blurb:'cubic — three families of orthogonal walls' },
+  { id:'tri',      name:'Triangular', open:true,  blurb:'shared-wall triangular prisms — stiff, fast to print' },
+  { id:'kelvin',   name:'Kelvin',     open:false, blurb:'closed-cell 3D honeycomb — Voronoi of a BCC lattice = truncated-octahedron foam (Kelvin), every cell sealed' },
+];
+const FILAMENTS = [
+  0xef6c3a, 0x2fb6a8, 0x9b6cff, 0x8bc34a, 0xe0414f, 0x9aa7b4,
+];
+
+/* ---------- CPU mirror of the field, for density calibration ---------- */
+function jmod(a,n){ return a - n*Math.floor(a/n); }
+function wdist(u){ return Math.abs(jmod(u+Math.PI, TWO_PI) - Math.PI); }
+function gdistJS(pat, cell, x, y, z){
+  const f = TWO_PI / cell;
+  const qx=x*f, qy=y*f, qz=z*f;
+  const s=Math.sin, c=Math.cos;
+  switch(pat){
+    case 0: return Math.abs(s(qx)*c(qy) + s(qy)*c(qz) + s(qz)*c(qx));            // gyroid
+    case 1: return Math.abs(c(qx)+c(qy)+c(qz));                                  // schwarz P
+    case 2: return Math.abs(s(qx)*s(qy)*s(qz) + s(qx)*c(qy)*c(qz)               // diamond (D)
+                          + c(qx)*s(qy)*c(qz) + c(qx)*c(qy)*s(qz));
+    case 3: return Math.abs(3*(c(qx)+c(qy)+c(qz)) + 4*c(qx)*c(qy)*c(qz));        // neovius
+    case 4: {                                                                    // honeycomb: shared-wall hex
+      const hh = cell*0.8660254, j = Math.round(z/hh);
+      let d1=1e9, d2=1e9;
+      for(let dj=-1;dj<=1;dj++){ const jj=j+dj, zc=jj*hh, xoff=(jmod(jj,2)?cell*0.5:0), i=Math.round((x-xoff)/cell);
+        for(let di=-1;di<=1;di++){ const xc=(i+di)*cell+xoff, dx=x-xc, dz=z-zc, dd=Math.hypot(dx,dz);
+          if(dd<d1){d2=d1;d1=dd;} else if(dd<d2) d2=dd; } }
+      return d2-d1; }
+    case 5: return Math.min(wdist(qx), Math.min(wdist(qy), wdist(qz)));          // grid / cubic
+    case 6: { const u1=qx, u2=0.5*qx+0.8660254*qz, u3=-0.5*qx+0.8660254*qz;     // triangular prisms
+              return Math.min(wdist(u1), Math.min(wdist(u2), wdist(u3))); }
+    default: {                                                                   // kelvin: closed-cell BCC Voronoi
+      let d1=1e9, d2=1e9;
+      const fcx=Math.floor(x/cell), fcy=Math.floor(y/cell), fcz=Math.floor(z/cell);
+      for(let a=0;a<=1;a++)for(let b=0;b<=1;b++)for(let cc=0;cc<=1;cc++){
+        const dd=Math.hypot(x-(fcx+a)*cell, y-(fcy+b)*cell, z-(fcz+cc)*cell);
+        if(dd<d1){d2=d1;d1=dd;} else if(dd<d2) d2=dd; }
+      const fbx=Math.floor(x/cell-0.5), fby=Math.floor(y/cell-0.5), fbz=Math.floor(z/cell-0.5);
+      for(let a=0;a<=1;a++)for(let b=0;b<=1;b++)for(let cc=0;cc<=1;cc++){
+        const dd=Math.hypot(x-(fbx+a+0.5)*cell, y-(fby+b+0.5)*cell, z-(fbz+cc+0.5)*cell);
+        if(dd<d1){d2=d1;d1=dd;} else if(dd<d2) d2=dd; }
+      return d2-d1; }
+  }
+}
+// A fixed Monte-Carlo cloud of points inside the sphere. Thin lattice walls
+// (grid, triangular) fall between the lines of a regular grid, so a grid
+// sampler under-counts them; random points don't. With a *fixed* cloud the
+// solid fraction is exactly monotone in T, so the bisection below is robust.
+const SAMPLES = (() => {
+  let s = 1337; const rnd = () => { s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; };
+  const out = []; const want = 22000;
+  while(out.length < want*3){
+    const x=(rnd()*2-1)*R, y=(rnd()*2-1)*R, z=(rnd()*2-1)*R;
+    if(x*x+y*y+z*z <= R*R) out.push(x,y,z);
+  }
+  return new Float64Array(out);
+})();
+const N_SAMPLES = SAMPLES.length/3;
+
+// fraction of the sphere that is solid for a given T
+function measureDensity(pat, cell, T){
+  let solid=0;
+  for(let i=0;i<SAMPLES.length;i+=3){
+    if(gdistJS(pat,cell,SAMPLES[i],SAMPLES[i+1],SAMPLES[i+2]) < T) solid++;
+  }
+  return solid/N_SAMPLES;
+}
+// solve T so measured density ≈ target (monotone in T -> bisection)
+function solveT(pat, cell, target){
+  // hi must exceed the field's max: ~13 for TPMS (radian-scaled), ~cell for the
+  // mm-scaled Voronoi patterns (honeycomb, kelvin).
+  let lo=0, hi=Math.max(14, cell*1.3);
+  for(let it=0; it<20; it++){
+    const mid=(lo+hi)/2;
+    if(measureDensity(pat,cell,mid) < target) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+
+/* ---------- scene ---------- */
+const host = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:'high-performance' });
+renderer.setClearColor(0x000000, 0);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.autoClear = false;
+host.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 1, 4000);
+camera.position.set(38, 30, 70);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 32;
+controls.maxDistance = 260;
+controls.target.set(0,0,0);
+controls.autoRotateSpeed = 0.9;
+
+// fullscreen quad scene (raymarch target), drawn with a fixed ortho camera
+const quadCam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const quadScene = new THREE.Scene();
+
+const uniforms = {
+  uCamPos:  { value: new THREE.Vector3() },
+  uRight:   { value: new THREE.Vector3() },
+  uUp:      { value: new THREE.Vector3() },
+  uFwd:     { value: new THREE.Vector3() },
+  uTanFov:  { value: Math.tan(THREE.MathUtils.degToRad(42)/2) },
+  uAspect:  { value: 1 },
+  uR:       { value: R },
+  uPeelY:   { value: R*1.02 },
+  uT:       { value: 0.3 },
+  uShell:   { value: 0.0 },
+  uCell:    { value: 6.0 },
+  uPattern: { value: 0 },
+  uColor:   { value: new THREE.Color(FILAMENTS[0]) },
+  uCapColor:{ value: new THREE.Color() },
+  uSamplesPerCell: { value: 16 },
+  uMaxSteps:{ value: 420 },
+  uLayerH:  { value: 0.8 },
+  uLayersOn:{ value: 1 },
+};
+
+const VERT = /* glsl */`
+  varying vec2 vUv;
+  void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+`;
+
+const FRAG = /* glsl */`
+  precision highp float;
+  varying vec2 vUv;
+  uniform vec3 uCamPos,uRight,uUp,uFwd,uColor,uCapColor;
+  uniform float uTanFov,uAspect,uR,uPeelY,uT,uCell,uLayerH,uShell;
+  uniform int uPattern,uSamplesPerCell,uMaxSteps,uLayersOn;
+  #define PI 3.14159265359
+  #define TWO_PI 6.28318530718
+
+  float wdist(float u){ return abs(mod(u+PI, TWO_PI) - PI); }
+
+  float gdist(vec3 p){
+    float f = TWO_PI / uCell;
+    vec3 q = p * f;
+    if(uPattern==0){
+      return abs(sin(q.x)*cos(q.y) + sin(q.y)*cos(q.z) + sin(q.z)*cos(q.x));
+    } else if(uPattern==1){
+      return abs(cos(q.x)+cos(q.y)+cos(q.z));
+    } else if(uPattern==2){
+      return abs(sin(q.x)*sin(q.y)*sin(q.z) + sin(q.x)*cos(q.y)*cos(q.z)
+               + cos(q.x)*sin(q.y)*cos(q.z) + cos(q.x)*cos(q.y)*sin(q.z));
+    } else if(uPattern==3){
+      return abs(3.0*(cos(q.x)+cos(q.y)+cos(q.z)) + 4.0*cos(q.x)*cos(q.y)*cos(q.z));
+    } else if(uPattern==4){
+      // honeycomb: true shared-wall hex prisms = Voronoi of a triangular lattice
+      // of column centres in the x-z plane, extruded along y. Wall = where the
+      // nearest and 2nd-nearest centres are tied.
+      float hh = uCell * 0.8660254;
+      float j = floor(p.z/hh + 0.5);
+      float d1 = 1e9, d2 = 1e9;
+      for(int dj=-1; dj<=1; dj++){
+        float jj = j + float(dj);
+        float zc = jj*hh;
+        float xoff = mod(jj, 2.0) != 0.0 ? uCell*0.5 : 0.0;
+        float i = floor((p.x - xoff)/uCell + 0.5);
+        for(int di=-1; di<=1; di++){
+          float xc = (i + float(di))*uCell + xoff;
+          float dd = length(vec2(p.x - xc, p.z - zc));
+          if(dd < d1){ d2 = d1; d1 = dd; } else if(dd < d2){ d2 = dd; }
+        }
+      }
+      return d2 - d1;
+    } else if(uPattern==5){
+      return min(wdist(q.x), min(wdist(q.y), wdist(q.z)));
+    } else if(uPattern==6){
+      float u1=q.x, u2=0.5*q.x+0.8660254*q.z, u3=-0.5*q.x+0.8660254*q.z;
+      return min(wdist(u1), min(wdist(u2), wdist(u3)));
+    } else {
+      // kelvin: closed-cell 3D honeycomb = Voronoi membranes of a BCC point set
+      // (truncated-octahedron foam). Sealed cells. Search 8 corner + 8 centre sites.
+      float d1 = 1e9, d2 = 1e9;
+      vec3 fc = floor(p/uCell);
+      for(int a=0;a<=1;a++) for(int b=0;b<=1;b++) for(int c=0;c<=1;c++){
+        float dd = length(p - (fc + vec3(float(a),float(b),float(c)))*uCell);
+        if(dd < d1){ d2 = d1; d1 = dd; } else if(dd < d2){ d2 = dd; }
+      }
+      vec3 fb = floor(p/uCell - 0.5);
+      for(int a=0;a<=1;a++) for(int b=0;b<=1;b++) for(int c=0;c<=1;c++){
+        float dd = length(p - (fb + vec3(float(a),float(b),float(c)) + 0.5)*uCell);
+        if(dd < d1){ d2 = d1; d1 = dd; } else if(dd < d2){ d2 = dd; }
+      }
+      return d2 - d1;
+    }
+  }
+
+  // Unified solidity: > 0 inside printed material. Material = infill wall UNION
+  // solid shell, intersected with the sphere. The peel plane is applied
+  // separately in the march. Surface (solidF == 0) is exactly what we render.
+  float solidF(vec3 p){
+    float r = length(p);
+    float infill = uT - gdist(p);          // >0 inside an infill wall
+    float shell  = r - (uR - uShell);      // >0 inside the shell band (r > R-shell)
+    float mat    = max(infill, shell);      // union of the two solid phases
+    return min(mat, uR - r);                // intersect with the sphere (r < R)
+  }
+
+  vec3 wallNormal(vec3 p){
+    float e = uCell * 0.012;
+    vec2 h = vec2(e, 0.0);
+    return normalize(vec3(
+      solidF(p+h.xyy) - solidF(p-h.xyy),
+      solidF(p+h.yxy) - solidF(p-h.yxy),
+      solidF(p+h.yyx) - solidF(p-h.yyx)));
+  }
+
+  void main(){
+    vec2 ndc = vUv * 2.0 - 1.0;
+    vec3 ro = uCamPos;
+    vec3 rd = normalize(uFwd + ndc.x*uTanFov*uAspect*uRight + ndc.y*uTanFov*uUp);
+
+    // ray vs sphere
+    float bb = dot(ro, rd);
+    float cc = dot(ro, ro) - uR*uR;
+    float disc = bb*bb - cc;
+    if(disc < 0.0) discard;
+    float sq = sqrt(disc);
+    float t0 = -bb - sq;
+    float t1 = -bb + sq;
+    if(t1 < 0.0) discard;
+    t0 = max(t0, 0.0);
+
+    float dt = uCell / float(uSamplesPerCell);
+    float t = t0;
+    vec3  p = ro + rd*t;
+    bool  prevAbovePlane = p.y > uPeelY;     // reason previous sample was empty
+    bool  prevSolid = (p.y <= uPeelY) && (solidF(p) > 0.0);
+
+    float hitT = -1.0;
+    bool  isCap = false;
+
+    // ray may begin already inside solid (camera tucked into the ball): treat as wall
+    if(prevSolid){ hitT = t0; isCap = false; }
+
+    for(int i=0; i<4096; i++){
+      if(hitT >= 0.0) break;
+      if(i >= uMaxSteps) break;
+      t += dt;
+      if(t > t1) break;
+      p = ro + rd*t;
+      bool below = p.y <= uPeelY;
+      bool solid = below && (solidF(p) > 0.0);
+      if(solid && !prevSolid){
+        if(prevAbovePlane){
+          // descended through the peel plane into material -> cut face
+          float tp = (uPeelY - ro.y) / rd.y;          // exact plane crossing
+          vec3 pp = ro + rd*tp;
+          if(tp > t0 && solidF(pp) > 0.0){
+            hitT = tp; isCap = true; break;
+          }
+          // plane point sat in a void: real surface is a wall just below -> fall through
+        }
+        // wall crossing: bisect solidF == 0 between previous (empty) t and current
+        float lo = t - dt, hi = t;
+        for(int b=0;b<6;b++){
+          float m = 0.5*(lo+hi);
+          vec3 pm = ro + rd*m;
+          if((pm.y <= uPeelY) && (solidF(pm) > 0.0)) hi = m; else lo = m;
+        }
+        hitT = hi; isCap = false; break;
+      }
+      prevAbovePlane = !below;
+      prevSolid = solid;
+    }
+
+    if(hitT < 0.0) discard;
+
+    vec3 hp = ro + rd*hitT;
+    vec3 n  = isCap ? vec3(0.0,1.0,0.0) : wallNormal(hp);
+    if(dot(n, -rd) < 0.0 && !isCap) n = -n;        // face the camera on thin walls
+
+    vec3 base = isCap ? uCapColor : uColor;
+
+    // two soft directional lights + ambient
+    vec3 L1 = normalize(vec3(0.45, 0.78, 0.55));
+    vec3 L2 = normalize(vec3(-0.5, 0.25, -0.6));
+    float d = max(dot(n,L1),0.0)*0.95 + max(dot(n,L2),0.0)*0.32;
+    vec3 col = base * (0.26 + d);
+
+    // teal rim light
+    float rim = pow(1.0 - max(dot(n, -rd), 0.0), 3.0);
+    col += rim * 0.22 * vec3(0.22, 0.85, 0.82);
+
+    // depth fade for a little volume cueing
+    col *= mix(1.0, 0.72, clamp((hitT - t0) / (2.0*uR), 0.0, 1.0));
+
+    // FDM print-layer banding on the walls (not the cut face)
+    if(uLayersOn==1 && !isCap){
+      float ly = fract(hp.y / uLayerH);
+      float band = smoothstep(0.0,0.12,ly) * smoothstep(0.0,0.12,1.0-ly);
+      col *= 0.88 + 0.12*band;
+    }
+    if(isCap) col += uCapColor * 0.12;             // freshly-cut glow
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const quadMat = new THREE.ShaderMaterial({
+  uniforms, vertexShader: VERT, fragmentShader: FRAG, depthTest:false, depthWrite:false, transparent:true,
+});
+quadScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), quadMat));
+
+/* ---------- overlay scene: sphere cage + peel ring ---------- */
+const overlay = new THREE.Scene();
+const cage = new THREE.LineSegments(
+  new THREE.WireframeGeometry(new THREE.SphereGeometry(R, 28, 16)),
+  new THREE.LineBasicMaterial({ color:0x39d6c8, transparent:true, opacity:0.10, depthTest:false }));
+overlay.add(cage);
+
+const RING_SEG = 96;
+const ringPos = new Float32Array((RING_SEG+1)*3);
+const ringGeo = new THREE.BufferGeometry();
+ringGeo.setAttribute('position', new THREE.BufferAttribute(ringPos, 3));
+const ring = new THREE.Line(ringGeo, new THREE.LineBasicMaterial({ color:0xffb454, transparent:true, opacity:0.85, depthTest:false }));
+overlay.add(ring);
+
+function updateRing(){
+  const y = uniforms.uPeelY.value;
+  const r2 = R*R - y*y;
+  const visible = r2 > 0.5 && y < R*1.0;
+  ring.visible = visible;
+  if(!visible) return;
+  const r = Math.sqrt(r2);
+  for(let i=0;i<=RING_SEG;i++){
+    const a = i/RING_SEG * TWO_PI;
+    ringPos[i*3]   = Math.cos(a)*r;
+    ringPos[i*3+1] = y;
+    ringPos[i*3+2] = Math.sin(a)*r;
+  }
+  ringGeo.attributes.position.needsUpdate = true;
+}
+
+/* ---------- camera basis -> uniforms ---------- */
+function syncCamera(){
+  camera.updateMatrixWorld();
+  const e = camera.matrixWorld.elements;
+  uniforms.uRight.value.set( e[0],  e[1],  e[2]);
+  uniforms.uUp.value.set(    e[4],  e[5],  e[6]);
+  uniforms.uFwd.value.set(  -e[8], -e[9], -e[10]);
+  uniforms.uCamPos.value.set(e[12], e[13], e[14]);
+  uniforms.uTanFov.value = Math.tan(THREE.MathUtils.degToRad(camera.fov)/2);
+}
+
+/* ---------- capColor: the filament, freshly cut (lighter, warmer) ---------- */
+function setFilament(hex){
+  uniforms.uColor.value.setHex(hex);
+  const cut = new THREE.Color(hex);
+  const hsl = {}; cut.getHSL(hsl);
+  cut.setHSL(hsl.h, Math.min(1, hsl.s*0.9 + 0.05), Math.min(1, hsl.l*0.55 + 0.42));
+  uniforms.uCapColor.value.copy(cut);
+}
+
+/* ---------- density recalibration ---------- */
+let curPat = 0, curCell = 6.0, curDensity = 0.15;
+function recalibrate(){
+  const T = solveT(curPat, curCell, curDensity);
+  uniforms.uT.value = T;
+  const measured = measureDensity(curPat, curCell, T);
+  document.getElementById('dread').textContent = (measured*100).toFixed(0) + ' %';
+  // approximate cut-face fill at current peel: fraction of the disc that is solid
+  document.getElementById('rcut').textContent = (measured*100).toFixed(0) + '% fill';
+}
+// coalesce rapid slider input into one recalibration per frame
+let _recalcQueued = false;
+function requestRecalc(){
+  if(_recalcQueued) return;
+  _recalcQueued = true;
+  requestAnimationFrame(()=>{ _recalcQueued = false; recalibrate(); });
+}
+
+/* ---------- UI ---------- */
+const $ = id => document.getElementById(id);
+
+const patBox = $('pat');
+PATTERNS.forEach((p,i)=>{
+  const b = document.createElement('button');
+  b.textContent = p.name; b.title = p.blurb; b.dataset.i = i;
+  if(i===0) b.classList.add('on');
+  b.onclick = ()=>{
+    patBox.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    curPat = i; uniforms.uPattern.value = i;
+    $('rpat').textContent = p.name.toLowerCase();
+    $('rtype').textContent = p.open ? 'open (flow-through)' : 'closed (sealed)';
+    recalibrate();
+  };
+  patBox.appendChild(b);
+});
+
+const swBox = $('sw');
+FILAMENTS.forEach((hex,i)=>{
+  const b = document.createElement('button');
+  b.style.background = '#'+hex.toString(16).padStart(6,'0');
+  if(i===0) b.classList.add('on');
+  b.onclick = ()=>{
+    swBox.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    setFilament(hex);
+  };
+  swBox.appendChild(b);
+});
+
+$('cell').oninput = e=>{
+  curCell = parseFloat(e.target.value);
+  uniforms.uCell.value = curCell;
+  $('cellv').textContent = curCell.toFixed(1);
+  requestRecalc();
+};
+$('dens').oninput = e=>{
+  curDensity = parseInt(e.target.value)/100;
+  $('densv').textContent = e.target.value;
+  requestRecalc();
+};
+$('shell').oninput = e=>{
+  const v = parseFloat(e.target.value);
+  uniforms.uShell.value = v;
+  $('shellv').textContent = v <= 0 ? 'off' : v.toFixed(1)+' mm';
+};
+$('q').oninput = e=>{
+  uniforms.uSamplesPerCell.value = parseInt(e.target.value);
+  $('qv').textContent = e.target.value;
+};
+$('spin').onchange = e=>{ controls.autoRotate = e.target.checked; };
+$('cage').onchange = e=>{ cage.visible = e.target.checked; };
+$('layers').onchange = e=>{ uniforms.uLayersOn.value = e.target.checked ? 1 : 0; };
+
+const peelEl = $('peel');
+function setPeel(v){
+  v = Math.max(-R*1.02, Math.min(R*1.02, v));
+  uniforms.uPeelY.value = v;
+  peelEl.value = (v/R).toFixed(3);
+  const lbl = v >= R ? 'top' : v <= -R ? 'bottom' : (v>=0?'+':'') + v.toFixed(1)+' mm';
+  $('peelv').textContent = lbl;
+  updateRing();
+}
+peelEl.oninput = e=> setPeel(parseFloat(e.target.value)*R);
+
+// scroll = peel (shift+scroll falls through to OrbitControls zoom)
+renderer.domElement.addEventListener('wheel', (e)=>{
+  if(e.shiftKey) return;                       // let controls dolly
+  e.preventDefault(); e.stopImmediatePropagation();
+  setPeel(uniforms.uPeelY.value - e.deltaY * 0.035);
+}, { passive:false, capture:true });
+
+window.addEventListener('keydown', (e)=>{
+  if(e.key === 'ArrowUp'){   e.preventDefault(); setPeel(uniforms.uPeelY.value + 0.8); }
+  else if(e.key === 'ArrowDown'){ e.preventDefault(); setPeel(uniforms.uPeelY.value - 0.8); }
+  else if(e.code === 'Space'){ e.preventDefault(); controls.autoRotate = !controls.autoRotate; $('spin').checked = controls.autoRotate; }
+});
+
+/* ---------- resize ---------- */
+function resize(){
+  const w = host.clientWidth, h = host.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+  uniforms.uAspect.value = w/h;
+}
+window.addEventListener('resize', resize);
+window.addEventListener('resize', ()=>{ if($('abody').style.display !== 'none'){ sizeCanvas(); lastSim ? redraw() : drawEmpty(); } });
+
+/* ---------- loop ---------- */
+let frames=0, fps=0, tPrev=performance.now();
+function loop(){
+  requestAnimationFrame(loop);
+  controls.update();
+  syncCamera();
+
+  renderer.clear();
+  renderer.render(quadScene, quadCam);
+  if(cage.visible || ring.visible) renderer.render(overlay, camera);
+
+  frames++;
+  const now = performance.now();
+  if(now - tPrev > 500){
+    fps = Math.round(frames * 1000 / (now - tPrev));
+    $('rfps').textContent = fps + ' fps';
+    frames = 0; tPrev = now;
+  }
+}
+
+/* ---------- acoustic dampening panel ---------- */
+const aplot = $('aplot'), actx = aplot.getContext('2d');
+let simWorker = null, simBusy = false, lastSim = null;
+
+function sizeCanvas(){
+  const cssW = aplot.clientWidth || 304, cssH = 172, dpr = Math.min(devicePixelRatio, 2);
+  aplot.width = Math.round(cssW*dpr); aplot.height = Math.round(cssH*dpr);
+  actx.setTransform(dpr, 0, 0, dpr, 0, 0);   // draw in CSS pixels
+  aplot._w = cssW; aplot._h = cssH;
+}
+
+$('atoggle').onclick = ()=>{
+  const b = $('abody');
+  const open = b.style.display === 'none';
+  b.style.display = open ? 'block' : 'none';
+  $('acar').textContent = open ? 'hide ▾' : 'show ▸';
+  if(open){ sizeCanvas(); lastSim ? redraw() : drawEmpty(); }
+};
+
+function ensureWorker(){
+  if(simWorker) return simWorker;
+  simWorker = new Worker(new URL('./sim-worker.js', import.meta.url), { type:'module' });
+  simWorker.onmessage = (e)=>{
+    const m = e.data;
+    if(m.type === 'progress'){
+      const frac = (m.phase === 'reference' ? 0 : 0.5) + m.frac*0.5;
+      $('abar').style.width = (frac*100).toFixed(0)+'%';
+      $('alegend').textContent = (m.phase==='reference' ? 'free-field reference… ' : 'orb… ') + (frac*100).toFixed(0)+'%';
+    } else if(m.type === 'done'){
+      simBusy = false; $('arun').disabled = false; $('abar').style.width = '100%';
+      lastSim = { freqs:m.freqs, tl:m.tlDisplay, meta:m.meta };
+      $('acompact').textContent = 'Compact (≈0 dB) below ~'+m.meta.compactBelow+' Hz.';
+      redraw();
+    } else if(m.type === 'error'){
+      simBusy = false; $('arun').disabled = false; $('alegend').textContent = 'sim error: '+m.message;
+    }
+  };
+  simWorker.onerror = (err)=>{ simBusy=false; $('arun').disabled=false; $('alegend').textContent = 'worker error: '+(err.message||err); };
+  return simWorker;
+}
+
+$('arun').onclick = ()=>{
+  if(simBusy) return;
+  simBusy = true; $('arun').disabled = true; $('abar').style.width = '0%';
+  $('alegend').textContent = 'starting…';
+  sizeCanvas();
+  ensureWorker().postMessage({
+    pattern: curPat, cell: curCell, T: uniforms.uT.value,
+    shell: uniforms.uShell.value, R: R, n: parseInt($('ares').value),
+  });
+};
+
+function drawEmpty(){
+  const w=aplot._w||304, h=aplot._h||172;
+  actx.clearRect(0,0,w,h);
+  actx.fillStyle='#6a6a80'; actx.font='12px sans-serif'; actx.textAlign='center';
+  actx.fillText('press Run to compute TL(f)', w/2, h/2);
+}
+function redraw(){ if(lastSim) drawSpectrum(lastSim.freqs, lastSim.tl, lastSim.meta); }
+
+function drawSpectrum(freqs, tl, meta){
+  const w=aplot._w||304, h=aplot._h||172;
+  const bx0=34, by0=10, bx1=w-8, by1=h-20;
+  const fMin=meta.fMin, fMax=meta.fMax;
+  const maxTL = Math.max(24, Math.ceil(Math.max.apply(null, tl)/6)*6);
+  const X = f => bx0 + (Math.log(f)-Math.log(fMin))/(Math.log(fMax)-Math.log(fMin))*(bx1-bx0);
+  const Y = v => by1 - Math.min(v,maxTL)/maxTL*(by1-by0);
+  actx.clearRect(0,0,w,h);
+  // acoustically-compact (near-field, TL≈0) region
+  actx.fillStyle='rgba(255,180,84,0.07)';
+  actx.fillRect(bx0, by0, Math.max(0, X(meta.compactBelow)-bx0), by1-by0);
+  // dB gridlines
+  actx.font='9px sans-serif'; actx.textAlign='right';
+  const dbStep = Math.max(6, Math.round(maxTL/4/6)*6);
+  for(let v=0; v<=maxTL; v+=dbStep){ const y=Y(v);
+    actx.strokeStyle='#16161f'; actx.lineWidth=1; actx.beginPath(); actx.moveTo(bx0,y); actx.lineTo(bx1,y); actx.stroke();
+    actx.fillStyle='#6a6a80'; actx.fillText(v, bx0-4, y+3); }
+  // freq ticks
+  actx.textAlign='center';
+  for(const f of [250,500,1000,2000,4000,8000]){ if(f<fMin||f>fMax) continue; const x=X(f);
+    actx.strokeStyle='#1c1c28'; actx.beginPath(); actx.moveTo(x,by0); actx.lineTo(x,by1); actx.stroke();
+    actx.fillStyle='#6a6a80'; actx.fillText(f>=1000?(f/1000)+'k':f, x, by1+12); }
+  // TL curve, filled
+  actx.beginPath(); actx.moveTo(X(freqs[0]), by1);
+  for(let i=0;i<freqs.length;i++) actx.lineTo(X(freqs[i]), Y(tl[i]));
+  actx.lineTo(X(freqs[freqs.length-1]), by1); actx.closePath();
+  actx.fillStyle='rgba(57,214,200,0.15)'; actx.fill();
+  actx.beginPath();
+  for(let i=0;i<freqs.length;i++){ const x=X(freqs[i]), y=Y(tl[i]); i?actx.lineTo(x,y):actx.moveTo(x,y); }
+  actx.strokeStyle='#39d6c8'; actx.lineWidth=2; actx.stroke();
+  const peak = Math.max.apply(null, tl);
+  $('alegend').innerHTML = 'peak <b>'+peak.toFixed(0)+' dB</b> · '+meta.n+'³ grid · '+meta.dx.toFixed(2)+' mm/cell · amber = acoustically compact';
+}
+
+setFilament(FILAMENTS[0]);
+$('rtype').textContent = PATTERNS[0].open ? 'open (flow-through)' : 'closed (sealed)';
+recalibrate();
+resize();
+setPeel(R*1.02);
+loop();
+</script>
+</body>
+</html>

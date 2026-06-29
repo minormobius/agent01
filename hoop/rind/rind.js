@@ -1,0 +1,131 @@
+// rind/rind.js — THE RIND: floor 2, the structural underworld below the nave.
+//
+// The nave is the lit market-deck where the ship pretends to be a city; the RIND is the cold structural
+// foam between the world and the void — no sun-strip, only the navigation runs, the propulsion drum, and
+// the first whisper of the Signal. It is deck 3 of the story spine (Investigation / "The Vessel"): you
+// reach it by DESCENDING the shaft once you've cleared the nave (narrative_tier ≥ 3). Where the nave is
+// civic, the rind is INFRASTRUCTURE — no farms (grow), no arcades (play); just make, mend, store, move,
+// govern, and at its heart the Signal (worship + learn), the descent's payoff.
+//
+//        ┌──────────┐            A central HUB (the shaft foot) with three stations spoked off it on
+//   nav  │   hub ★  │  drum      alternating hex sides (dirs 0·2·4, so the spokes never touch each other —
+//        └────┬─────┘            only the hub). Hub links to all three; the three don't interlink. The
+//          signal                 hub carries the shaft UP to the nave commons (sunk in-game by descent.js).
+//
+// Built by composing the SAME v2 engine as the nave (solveChunk + explicit closedSides + inherited seam
+// ports + one shared foam seed), so the floors are siblings, not special cases. Pure (no DOM); node-tested
+// in test/rind.selftest.mjs. The game (v099/index.html) streams it in on descent, paced like the nave wards.
+//
+// NB: this is the GAME's rind FLOOR — the playable cousin of the repo-root `/rind` structural-modelling
+// WING (which models the cylinder's hull/cables). Same name, different layer: one you walk, one you solve.
+
+import { solveChunk } from '../v099/v8/chunkgen.js';
+import { createWorld, addChunk, midKey, buildWalk } from '../v099/v8/manager.js';
+import { ROLES } from '../v099/econ/econ.js';
+import { TRAFFIC_FOOTPRINT, GRAND_MIN, MIN_ROOM } from '../v099/rooms.js';
+import { SAMPLE_SHAPE, shapePoly, shapeSideOf } from '../chunkroller/shapes.js';
+import { latticeVectors } from '../chunkroller/builder.js';
+
+// ── the rind's four stations. Each carries an infrastructure role mix (NO grow/play — the cold hull) +
+// role floors (at least one of each named role) + a `grand` (the station's principal big room). Roles not
+// listed get weight 0, so the rind stays industrial and the nave's civic verbs don't leak down here. ──
+export const RIND_CHUNKS = [
+  { key: 'rind-hub',    label: 'The Shaft Foot',       station: 'hub',    color: '#6b7a82',
+    mix: [['move', 3.0], ['store', 2.0], ['govern', 1.5], ['mend', 1.2], ['dwell', 1.5]], floors: { move: 1, store: 1, dwell: 1 }, grand: ['govern'] },
+  { key: 'rind-nav',    label: 'Navigation',           station: 'nav',    color: '#5570d8',
+    mix: [['learn', 3.0], ['govern', 2.4], ['move', 1.5], ['dwell', 1.0]], floors: { learn: 1, govern: 1, dwell: 1 }, grand: ['learn'] },
+  { key: 'rind-drum',   label: 'The Propulsion Drum',  station: 'drum',   color: '#e0772f',
+    mix: [['make', 3.0], ['mend', 2.4], ['store', 2.0], ['dwell', 1.0]], floors: { make: 1, mend: 1, store: 1, dwell: 1 }, grand: ['make'] },
+  { key: 'rind-signal', label: 'The Signal Chamber',   station: 'signal', color: '#b39bd8',
+    mix: [['worship', 3.0], ['learn', 2.4], ['heal', 1.5], ['dwell', 1.0]], floors: { worship: 1, learn: 1, dwell: 1 }, grand: ['worship'] },
+];
+
+// the hub is chunk 0; the three stations spoke off hex directions 0·2·4 (alternating → mutually
+// non-adjacent, so the only seams are hub↔station). CONNECTIONS are hub→each station.
+export const SPOKE_DIRS = [0, 2, 4];
+const CONNECTIONS = [[0, 1], [0, 2], [0, 3]];
+
+// the side of polygon A (by direction) that abuts polygon B — matched on shared segment midpoints.
+// (Identical to nave.js#sharedSide; the bounded-floor seam contract is shared.)
+function sharedSide(polyA, sideOf, polyB) {
+  const bKeys = new Set(); for (let e = 0; e < polyB.length; e++) bKeys.add(midKey(polyB, e));
+  for (let k = 0; k < 6; k++) { const ks = []; for (let e = 0; e < polyA.length; e++) if (sideOf[e] === k) ks.push(midKey(polyA, e)); if (ks.length && ks.every((x) => bKeys.has(x))) return k; }
+  return -1;
+}
+
+// biome (roleMix/roleFloors/grand) for rind chunk i.
+export function rindBiome(i) {
+  const c = RIND_CHUNKS[i] || RIND_CHUNKS[0];
+  return { key: c.key, label: c.label, station: c.station, color: c.color, roleMix: c.mix, roleFloors: c.floors, grand: c.grand };
+}
+
+// prepare the rind layout (cheap: geometry + topology, no solving). Returns a STATE driven one chunk at a
+// time by rindSolveNext — so the game can pace the four solves on descent (streamed like the nave wards)
+// instead of freezing on a single block. The hub (0) solves first so the stations can inherit its ports.
+export function prepareRind(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, roomSize = 12, cx = W / 2, cy = H / 2 } = {}) {
+  seed = (seed | 0) >>> 0;
+  const R = Math.min(W, H) * 0.46;
+  const poly0 = shapePoly(shape, cx, cy, R), sideOf = shapeSideOf(shape);
+  const T = latticeVectors(poly0, sideOf);
+  const polys = [poly0]; for (const d of SPOKE_DIRS) polys.push(poly0.map((p) => ({ x: p.x + T[d].x, y: p.y + T[d].y })));
+  const activeSides = polys.map(() => new Set());
+  for (const [a, b] of CONNECTIONS) {
+    const sa = sharedSide(polys[a], sideOf, polys[b]), sb = sharedSide(polys[b], sideOf, polys[a]);
+    if (sa >= 0) activeSides[a].add(sa);
+    if (sb >= 0) activeSides[b].add(sb);
+  }
+  return { seed, W, H, cx, cy, sideOf, polys, activeSides, roomSize, recs: [], meta: [], order: polys.map((_, i) => i), idx: 0 };
+}
+
+// solve the NEXT rind chunk; stores it in st.recs[i] and returns { i, rec } (or null when all four done).
+// The caller decides which world to add it to — buildRind adds to a fresh world; the game addChunks each
+// rec into the live world tagged deck = 1. Inherited ports come from already-solved neighbours (the hub).
+export function rindSolveNext(st) {
+  if (st.idx >= st.order.length) return null;
+  const i = st.order[st.idx++], sideOf = st.sideOf;
+  const closed = []; for (let k = 0; k < 6; k++) if (!st.activeSides[i].has(k)) closed.push(k);
+  const inherit = [];
+  for (const [a, b] of CONNECTIONS) {
+    const j = a === i ? b : b === i ? a : -1; if (j < 0 || !st.recs[j]) continue;
+    const sj = sharedSide(st.polys[j], sideOf, st.polys[i]);
+    for (const p of st.recs[j].ports) if (sideOf[p.edge] === sj) inherit.push({ x: p.x, y: p.y });
+  }
+  const bi = rindBiome(i);
+  const rec = solveChunk({
+    poly: st.polys[i], sideOf, inherit, closedSides: closed,
+    seed: (st.seed ^ (i * 0x9e37 + 0x51)) >>> 0, foamSeed: st.seed, W: st.W, H: st.H,
+    roomSize: st.roomSize, footprint: TRAFFIC_FOOTPRINT,
+    grand: bi.grand, grandMin: GRAND_MIN, minRoom: MIN_ROOM, roleMix: bi.roleMix, roleFloors: bi.roleFloors,
+    v2: true, tension: 0.6, portRange: [1, 1],
+  });
+  st.recs[i] = rec;
+  st.meta[i] = { key: bi.key, label: bi.label, station: bi.station, color: bi.color, dir: i === 0 ? -1 : SPOKE_DIRS[i - 1] };
+  return { i, rec };
+}
+
+// build the whole rind in one go (the standalone view + tests). Returns world (4 records), per-chunk meta,
+// the connection graph + bbox. Deterministic from `seed` (one shared foam seed → seamless seams).
+export function buildRind(seed, opts) {
+  const st = prepareRind(seed, opts);
+  const world = createWorld();
+  let r; while ((r = rindSolveNext(st))) addChunk(world, r.rec);
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const ch of world.chunks) for (const p of ch.poly) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+  return { world, meta: st.meta, connections: CONNECTIONS, sideOf: st.sideOf, bbox: { x0, y0, x1, y1 }, seed: st.seed };
+}
+
+// connectivity check (page + tests): which chunk pairs actually share a seam crossing — should equal
+// CONNECTIONS exactly (hub links all three stations; the stations never link to each other).
+export function rindLinks(rind) {
+  const walk = buildWalk(rind.world);
+  const portLoc = rind.world.chunks.map((ch) => new Set(ch.ports.filter((p) => p.cell != null && p.cell >= 0).map((p) => Math.round(p.x) + ',' + Math.round(p.y))));
+  const linked = new Set();
+  for (let a = 0; a < portLoc.length; a++) for (let b = a + 1; b < portLoc.length; b++) { for (const k of portLoc[a]) if (portLoc[b].has(k)) { linked.add(a + '-' + b); break; } }
+  return { walk, linked };
+}
+
+// the union of roles the rind ever places (for the manifest/lexicon cousin + tests): infrastructure only.
+export function rindRoles() {
+  const s = new Set(); for (const c of RIND_CHUNKS) for (const [r] of c.mix) s.add(r);
+  return [...s].filter((r) => ROLES[r]).sort();
+}
