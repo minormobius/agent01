@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>brawl · rind</title>
+<meta name="description" content="A continuum tactics brawl on the O'Neill hull — every fight is oracle-certified winnable, scaled to your hero. Pick a faction, summon a foe, hold the field.">
+<style>
+  :root{
+    --ink:#05060a; --panel:#0c0f16; --line:#1d2430; --txt:#cfe3e0; --dim:#8aa;
+    --gold:#ffce78; --teal:#7fd8d0; --violet:#b39bd8; --red:#ff7a6e; --ok:#7fe6a0;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace; --serif:Georgia,'Iowan Old Style',serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(150% 130% at 50% -20%,#0b1118,#05060a 62%);color:var(--txt);font:15px/1.6 var(--serif);min-height:100vh}
+  a{color:var(--gold);text-decoration:none}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 18px 50px}
+  h1{margin:6px 0 0;font:600 28px/1.1 var(--mono);letter-spacing:.5px;color:var(--gold)}
+  h1 .x{color:var(--teal)}
+  .sub{color:var(--dim);font:13px/1.5 var(--mono);margin:6px 0 16px;max-width:64ch}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--txt);padding:8px 12px;transition:border-color .15s,background .15s,transform .1s}
+  button:hover:not(:disabled){border-color:var(--teal)} button:active:not(:disabled){transform:translateY(1px)} button:disabled{opacity:.35;cursor:default}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  /* setup */
+  #setup{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .pick{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:1.4px;color:var(--dim);margin:6px 0 10px}
+  .factions{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:680px){.factions{grid-template-columns:1fr}}
+  .fcard{text-align:left;padding:14px;border-radius:12px}
+  .fcard.on{border-color:var(--c);background:#0f1620;box-shadow:inset 0 0 0 1px var(--c)}
+  .fcard .g{font-size:22px} .fcard .n{font:600 16px/1.2 var(--mono);margin:6px 0 2px} .fcard .d{font:12.5px/1.45 var(--mono);color:var(--dim)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:6px 12px;border-radius:99px;font:12px/1 var(--mono)}
+  .chip.on{border-color:var(--gold);background:#1a1510;color:var(--gold)}
+  .go{margin-top:18px;background:#10201f;border-color:#2c5350;color:var(--teal);font:600 15px/1 var(--mono);padding:12px 20px}
+  /* battle */
+  #battle{display:none;gap:16px;align-items:flex-start;margin-top:6px}
+  #battle.live{display:flex;flex-wrap:wrap}
+  .stage{position:relative}
+  #cv{background:linear-gradient(160deg,#0a0f15,#070a0f);border:1px solid var(--line);border-radius:12px;display:block;
+    touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-user-drag:none}
+  #battle{ user-select:none; -webkit-user-select:none }   /* a drag from the canvas mustn't start a text selection on the page */
+  .cert{font:12px/1.5 var(--mono);color:var(--dim);margin:8px 2px 0}
+  .cert b{color:var(--teal)}
+  .side{width:260px;min-width:230px;flex:1}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+  .card h3{margin:0 0 8px;font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:1.2px;color:var(--dim)}
+  .skill{display:flex;justify-content:space-between;width:100%;text-align:left;margin:4px 0;font:13px/1.2 var(--mono)}
+  .skill.sel{border-color:var(--gold);background:#1a1510}
+  .skill .c{color:var(--dim)}
+  .hint{font:12px/1.4 var(--mono);color:var(--dim);min-height:1.4em;margin-top:6px}
+  #log{height:150px;overflow:auto;font:12px/1.5 var(--mono)}
+  #log div{padding:1px 0;border-bottom:1px dotted #161c26}
+  .crit{color:#ffe9a8}.hit{color:#ffb38a}.miss{color:var(--dim)}.down{color:var(--red)}.heal{color:var(--ok)}.win{color:var(--gold)}
+  .ros{font:12px/1.6 var(--mono)}
+  /* overlay */
+  #over{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,6,10,.82);backdrop-filter:blur(3px);z-index:9}
+  #over.on{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px 34px;max-width:440px;text-align:center}
+  .modal h2{margin:0 0 6px;font:600 24px/1.2 var(--mono)}
+  .modal.win h2{color:var(--ok)} .modal.lose h2{color:var(--red)}
+  .modal p{margin:8px 0;font:13px/1.6 var(--mono);color:var(--dim)}
+  .spin{font:13px/1 var(--mono);color:var(--teal)}
+  /* tech tree overlay */
+  #tree{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,6,10,.85);backdrop-filter:blur(3px);z-index:10}
+  #tree.on{display:flex}
+  .treebox{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;max-width:560px;width:92%;max-height:86vh;overflow:auto}
+  .treebox h2{margin:0 0 2px;font:600 18px/1.2 var(--mono);color:var(--gold)}
+  .treebox .pts{font:12px/1.5 var(--mono);color:var(--teal);margin-bottom:12px}
+  .tier{margin:12px 0 4px;font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:1.4px;color:var(--dim)}
+  .tnode{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;margin:4px 0;padding:8px 11px;font:12px/1.3 var(--mono)}
+  .tnode .nm{color:var(--txt)} .tnode .gl{color:var(--dim);font-size:11px}
+  .tnode.own{border-color:#2c5350;background:#10201f} .tnode.own .nm{color:var(--teal)}
+  .tnode.buy{border-color:var(--gold);cursor:pointer} .tnode.buy:hover{background:#1a1510}
+  .tnode.lock{opacity:.4}
+  .tnode .cost{font-size:11px;color:var(--gold);white-space:nowrap}
+  .treebox .done{margin-top:14px;width:100%;background:#10201f;border-color:#2c5350;color:var(--teal)}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="/">mino.mobi</a> / <a href="/index.html">rind</a> / brawl</div>
+<div class="wrap">
+  <h1>br<span class="x">a</span>wl</h1>
+  <div class="sub">Continuum tactics on the hull. Every fight is <b style="color:var(--teal)">oracle-certified winnable</b> — the solver proves a path before you're dropped in. Pick a hand, hold the field, climb the streak.</div>
+
+  <div id="setup">
+    <div class="pick">choose your hand</div>
+    <div class="factions" id="factions"></div>
+    <div class="pick" style="margin-top:18px">opening difficulty</div>
+    <div class="chips" id="diffs"></div>
+    <button class="go" id="summon">⚔ Summon brawl</button>
+  </div>
+
+  <div id="battle">
+    <div class="stage">
+      <canvas id="cv" width="520" height="520" draggable="false"></canvas>
+      <div class="cert" id="cert"></div>
+      <div class="hint" id="hint"></div>
+      <button id="treeBtn" style="margin-top:8px">🜂 tech tree</button>
+    </div>
+    <div class="side">
+      <div class="card"><h3 id="actName">—</h3><div class="ros" id="actStats"></div></div>
+      <div class="card"><h3>actions</h3><div id="skills"></div><button id="end" style="margin-top:8px;width:100%">end turn ⏭</button></div>
+      <div class="card"><h3>field</h3><div class="ros" id="roster"></div></div>
+      <div class="card"><h3>log</h3><div id="log"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="over"><div class="modal" id="modal"></div></div>
+<div id="tree"><div class="treebox" id="treebox"></div></div>
+
+<script type="module">
+import { FACTIONS, FACTION_ORDER, FACTION_LEAN } from '../combat/factions.js';
+import { rollCharacter } from '../combat/stats.js';
+import { generateEncounter } from '../combat/encounter.js';
+import { crewSprite } from '../combat/crew.js';
+import { frameRects, DIR_OF, xmur3 } from '../combat/sprite-core.js';
+import { TREES, startingNodes, canBuy, buildLoadout, nodeById } from '../combat/tree.js';
+import * as E from '../combat/engine.js';
+
+const $ = (s) => document.querySelector(s);
+const cv = $('#cv'), ctx = cv.getContext('2d');
+
+// ── setup screen ──
+let heroFaction = 'drift', opening = 'fair';
+const DIFFS = ['comfortable', 'fair', 'tight', 'brutal'];
+function buildSetup() {
+  $('#factions').innerHTML = FACTION_ORDER.map((f) => {
+    const F = FACTIONS[f];
+    return `<button class="fcard ${f === heroFaction ? 'on' : ''}" data-f="${f}" style="--c:${F.accent}">
+      <div class="g" style="color:${F.accent}">${F.glyph}</div><div class="n" style="color:${F.accent}">${F.label}</div>
+      <div class="d">${F.gloss}</div></button>`;
+  }).join('');
+  $('#diffs').innerHTML = DIFFS.map((d) => `<button class="chip ${d === opening ? 'on' : ''}" data-d="${d}">${d}</button>`).join('');
+  $('#factions').querySelectorAll('button').forEach((b) => b.onclick = () => { heroFaction = b.dataset.f; buildSetup(); });
+  $('#diffs').querySelectorAll('button').forEach((b) => b.onclick = () => { opening = b.dataset.d; buildSetup(); });
+}
+buildSetup();
+
+// ── run state ──
+let hero = null, streak = 0, baseSeed = 1;
+let s = null, enc = null, busy = false;
+// interaction: mode 'idle' (nothing) | 'radial' (move-wheel open on the hero) | 'aim' (a skill is
+// chosen, pick a target/tile). `sel` is the aimed skill ('__move' or a skill id) while aiming.
+let mode = 'idle', sel = null, radial = null, drag = false, moved = false;
+const LADDER = ['comfortable', 'fair', 'fair', 'tight', 'tight', 'brutal'];
+
+$('#summon').onclick = () => {
+  hero = { faction: heroFaction, name: `${FACTIONS[heroFaction].label}`, power: 11, character: null,
+    nodes: new Set(startingNodes(heroFaction)), points: 2 };   // start with 2 points so the first build is a real choice
+  streak = 0; baseSeed = 1 + Math.floor(Math.random() * 9000);   // the only unseeded roll: which run
+  openTree({ onDone: () => startBrawl(opening), label: '⚔ to battle' });   // spend opening points first
+};
+
+function startBrawl(difficulty) {
+  busy = true;
+  $('#setup').style.display = 'none';
+  $('#battle').classList.add('live');
+  showOver(`<div class="spin">⟳ summoning a ${difficulty} brawl…<br><span style="color:var(--dim)">the solver is proving it winnable</span></div>`, '');
+  hero.character = rollCharacter(baseSeed * 31 + streak, { triad: FACTION_LEAN[hero.faction], power: hero.power });
+  const lo = buildLoadout(hero.faction, hero.nodes); hero.kit = lo.kit; hero.mods = lo.mods;   // tech-tree loadout
+  setTimeout(() => {                                   // yield so the spinner paints before the heavy solve
+    enc = generateEncounter(hero, { difficulty, seed: baseSeed * 7 + streak * 13, terrain: true, cap: 9000, tries: 14 });
+    s = E.createBattle(enc.setup);
+    sprites.clear(); sprCache.clear(); anims.length = 0; fx.length = 0; snapState(); floats.length = 0; sel = null; mode = 'idle'; radial = null; drag = false; busy = false;
+    hideOver();
+    const g = enc.grade;
+    $('#cert').innerHTML = `streak <b>${streak}</b> · <b style="color:var(--gold)">${enc.difficulty}</b> · oracle: ${g.solvable ? `certified <b>winnable in ~${g.par} turns</b> (${(100 * g.margin).toFixed(0)}% margin)` : 'uncertified'}${enc.ok ? '' : ' (closest)'}`;
+    syncPanels();
+    if (!isPlayerTurn() && !s.winner) enemyTurnsIfNeeded();   // a faster foe acts first — kick it off (was the "no controls" deadlock)
+  }, 40);
+}
+
+// ── animation layer (real-time, cosmetic; the engine resolves synchronously and stays seeded). ──
+// Both effects are DIFF-DRIVEN against a pre-action snapshot — no per-skill math: damage numbers diff
+// HP, slide tweens diff position. One snapshot rule covers move, flit AND agglomerate for free.
+const floats = [];                 // {x,y,text,color,born}
+const anims = [];                  // {id, from, to, t0, dur} slides + {id, kind:'lunge', dx, dy} jabs
+const fx = [];                     // transient cast FX: bolts (projectile), rings (AoE), pulses (self)
+let lastHp = new Map(), lastPos = new Map();
+function snapState() { lastHp = new Map(s.units.map((u) => [u.id, u.hp])); lastPos = new Map(s.units.map((u) => [u.id, { x: u.x, y: u.y }])); }
+function spawnFx() {
+  const now = performance.now();
+  for (const u of s.units) {
+    const ph = lastHp.get(u.id), pp = lastPos.get(u.id);
+    if (ph != null) { const d = u.hp - ph;
+      if (d < 0) floats.push({ x: u.x, y: u.y, text: `−${-d}`, color: '#ff8a7a', born: now });
+      else if (d > 0) floats.push({ x: u.x, y: u.y, text: `+${d}`, color: '#9cf0b8', born: now });
+      if (d !== 0) u._flash = now;
+    }
+    if (pp && (pp.x !== u.x || pp.y !== u.y)) anims.push({ id: u.id, from: { x: pp.x, y: pp.y }, to: { x: u.x, y: u.y }, t0: now, dur: 220 });
+  }
+  snapState();
+}
+// the position a unit is DRAWN at — logical spot, eased slide while moving, + a melee lunge jab.
+function drawPos(u) {
+  const now = performance.now();
+  let x = u.x, y = u.y;
+  const sl = anims.find((a) => a.id === u.id && !a.kind && now - a.t0 < a.dur);
+  if (sl) { const t = (now - sl.t0) / sl.dur, k = 1 - (1 - t) * (1 - t); x = sl.from.x + (sl.to.x - sl.from.x) * k; y = sl.from.y + (sl.to.y - sl.from.y) * k; }
+  const lu = anims.find((a) => a.id === u.id && a.kind === 'lunge' && now - a.t0 < a.dur);
+  if (lu) { const amp = Math.sin(Math.PI * (now - lu.t0) / lu.dur) * 0.55; x += lu.dx * amp; y += lu.dy * amp; }
+  return { x, y };
+}
+// map a resolved engine event → cast FX. One archetype per visual family — not per skill:
+//   melee attack → lunge ·  ranged/magic → projectile bolt ·  blast/agglomerate → ring ·  self → pulse.
+function fxFor(ev) {
+  if (!ev) return;
+  const now = performance.now(), at = (id) => { const u = E.unitById(s, id); return u ? { x: u.x, y: u.y } : null; };
+  if (ev.type === 'attack') {
+    const a = at(ev.unit), t = at(ev.target); if (!a || !t) return;
+    const sk = E.SKILLS[ev.skill] || {};
+    if (sk.magic) fx.push({ kind: 'bolt', from: a, to: t, color: ev.crit ? '#ffe9a8' : '#c9a8ff', t0: now, dur: 120 + Math.hypot(t.x - a.x, t.y - a.y) * 42 });
+    else { const d = Math.hypot(t.x - a.x, t.y - a.y) || 1; anims.push({ id: ev.unit, kind: 'lunge', dx: (t.x - a.x) / d, dy: (t.y - a.y) / d, t0: now, dur: 240 }); }
+  } else if (ev.type === 'blast' && ev.center) fx.push({ kind: 'ring', x: ev.center.x, y: ev.center.y, r0: 0.2, r1: (E.SKILLS.blast.radius || 1) + 0.5, color: '#c9a8ff', t0: now, dur: 360 });
+  else if (ev.type === 'agglomerate' && ev.center) fx.push({ kind: 'ring', x: ev.center.x, y: ev.center.y, r0: (E.SKILLS.agglomerate.radius || 2), r1: 0.3, color: '#b39bd8', t0: now, dur: 380 });
+  else if (['heal', 'buff', 'brace', 'convert'].includes(ev.type)) { const p = at(ev.unit); if (p) fx.push({ kind: 'pulse', x: p.x, y: p.y, color: ev.type === 'heal' ? '#7fe6a0' : ev.type === 'convert' ? '#ff9a76' : '#ffce78', t0: now, dur: 320 }); }
+  else if (ev.type === 'revive') { const p = at(ev.target); if (p) fx.push({ kind: 'pulse', x: p.x, y: p.y, color: '#7fe6a0', t0: now, dur: 400 }); }
+  else if (ev.type === 'summon') { const p = at(ev.droneId); if (p) fx.push({ kind: 'pulse', x: p.x, y: p.y, color: '#7fd8d0', t0: now, dur: 360 }); }
+  else if (['control', 'debuff', 'siphon'].includes(ev.type)) { const p = at(ev.target); if (p) fx.push({ kind: 'pulse', x: p.x, y: p.y, color: '#b39bd8', t0: now, dur: 280 }); }
+}
+
+// ── geometry ──
+let SCALE = 32;
+const px = (x) => x * SCALE, py = (y) => y * SCALE;
+const isPlayerTurn = () => s && !s.winner && E.active(s).team === 'player';
+
+// ── pixel sprites (vendored sprite engine: crewSprite genome → frameRects → cached offscreen canvas) ──
+const sprites = new Map();   // unit.id → genome (the procedural pixel actor; the sprite set is grown in hoop)
+const sprCache = new Map();  // "id|dir|frame" → offscreen canvas
+function spriteFor(u) {
+  let g = sprites.get(u.id); if (g) return g;
+  const role = u.character?.vocation || (u.summoned ? 'store' : 'move');
+  const seed = (u.character?.n) ?? (xmur3(u.id)() >>> 0);
+  g = crewSprite(seed, role); sprites.set(u.id, g); return g;
+}
+function spriteCanvas(u, dir, frame) {
+  const key = u.id + '|' + dir + '|' + frame; let c = sprCache.get(key); if (c) return c;
+  const g = spriteFor(u), N = g.size, SC = 5;
+  c = document.createElement('canvas'); c.width = N * SC; c.height = N * SC;
+  const x = c.getContext('2d');
+  for (const r of frameRects(g, DIR_OF[dir] || DIR_OF.S, frame)) { x.fillStyle = r.c; x.fillRect(r.x * SC, r.y * SC, SC, SC); }
+  sprCache.set(key, c); return c;
+}
+
+// ── draw loop: the CANVAS redraws every frame (animations); the DOM panels sync only on state change. ──
+function frame() { if (s) drawCanvas(); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+const MONO = "ui-monospace,Menlo,Consolas,monospace", SERIF = "Georgia,serif";
+
+function drawCanvas() {
+  SCALE = Math.min(cv.width / s.W, cv.height / s.H);
+  const now = performance.now();
+  for (let i = anims.length - 1; i >= 0; i--) if (now - anims[i].t0 >= anims[i].dur) anims.splice(i, 1);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = 'rgba(120,160,160,0.05)'; ctx.lineWidth = 1;
+  for (let i = 1; i < s.W; i++) { ctx.beginPath(); ctx.moveTo(px(i), 0); ctx.lineTo(px(i), cv.height); ctx.stroke(); }
+  for (let i = 1; i < s.H; i++) { ctx.beginPath(); ctx.moveTo(0, py(i)); ctx.lineTo(cv.width, py(i)); ctx.stroke(); }
+
+  for (const t of (s.terrain || [])) {
+    ctx.beginPath(); ctx.arc(px(t.x), py(t.y), t.r * SCALE, 0, 7);
+    if (t.kind === 'wall') {
+      const g = ctx.createRadialGradient(px(t.x - t.r * .3), py(t.y - t.r * .3), 2, px(t.x), py(t.y), t.r * SCALE);
+      g.addColorStop(0, '#3a3630'); g.addColorStop(1, '#1a1814'); ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = '#4f4838'; ctx.lineWidth = 1.5; ctx.stroke();
+    } else {
+      const pulse = 0.12 + 0.06 * Math.sin(now / 500);
+      ctx.fillStyle = t.effect === 'burn' ? `rgba(255,90,70,${pulse})` : t.effect === 'mire' ? `rgba(120,190,90,${pulse})` : `rgba(110,150,230,${pulse + .03})`;
+      ctx.fill(); ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.font = `${Math.round(SCALE * .42)}px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t.effect, px(t.x), py(t.y));
+    }
+  }
+
+  const act = !s.winner ? E.active(s) : null;
+  const lg = isPlayerTurn() ? E.legal(s) : { move: { range: 0 }, skills: {} };
+  const tgt = new Set(sel && sel !== '__move' && lg.skills[sel] ? lg.skills[sel].targets : []);
+  if (act && sel === '__move' && lg.move.range > 0) ring(act.x, act.y, lg.move.range, 'rgba(127,216,208,0.5)', 'rgba(127,216,208,0.08)');
+  if (act && sel && sel !== '__move') ring(act.x, act.y, E.SKILLS[sel].range || 1, 'rgba(255,122,110,0.5)');
+
+  const R = (E.UNIT_R || .5) * SCALE;
+  for (const u of s.units) {
+    const dp = drawPos(u), cx = px(dp.x), cy = py(dp.y), footY = cy + R * 0.7;
+    const flash = u._flash && now - u._flash < 220;
+    ctx.globalAlpha = u.alive ? 1 : .32;
+    // ground shadow + team/selection ring at the feet
+    ctx.beginPath(); ctx.ellipse(cx, footY, R * 0.9, R * 0.4, 0, 0, 7); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill();
+    const active = u === act, isTgt = tgt.has(u.id);
+    ctx.beginPath(); ctx.ellipse(cx, footY, R * 0.96, R * 0.43, 0, 0, 7);
+    ctx.lineWidth = flash ? 4 : (active || isTgt ? 3 : 2);
+    ctx.strokeStyle = flash ? '#fff' : (active ? '#ffce78' : (isTgt ? '#ff7a6e' : u.accent));
+    if (active) { ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 12; } ctx.stroke(); ctx.shadowBlur = 0;
+    // the pixel actor (player faces up the hull, foes face down), feet on the ring
+    if (u.alive) {
+      const pc = spriteCanvas(u, u.team === 'player' ? 'N' : 'S', 0);
+      const hgt = R * 3.0, wid = hgt * (pc.width / pc.height);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(pc, cx - wid / 2, footY - hgt, wid, hgt);
+      ctx.imageSmoothingEnabled = true;
+      // overhead HP bar
+      const bw = R * 1.7, bh = 4, bx = cx - bw / 2, by = footY - hgt - 6;
+      ctx.fillStyle = '#311'; ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = u.hp / u.maxhp > .35 ? '#7fe6a0' : '#ff7a6e'; ctx.fillRect(bx, by, bw * Math.max(0, u.hp) / u.maxhp, bh);
+    } else {
+      ctx.fillStyle = u.accent; ctx.font = `${Math.round(R * 1.4)}px ${SERIF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✝', cx, cy);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // cast FX: projectile bolts, AoE rings, self-pulses
+  for (let i = fx.length - 1; i >= 0; i--) {
+    const f = fx[i], t = (now - f.t0) / f.dur; if (t >= 1) { fx.splice(i, 1); continue; }
+    if (f.kind === 'bolt') {
+      const x = px(f.from.x + (f.to.x - f.from.x) * t), y = py(f.from.y + (f.to.y - f.from.y) * t);
+      ctx.fillStyle = f.color; ctx.shadowColor = f.color; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+    } else if (f.kind === 'ring') {
+      const r = Math.max(1, (f.r0 + (f.r1 - f.r0) * t) * SCALE);
+      ctx.globalAlpha = 1 - t; ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(px(f.x), py(f.y), r, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+    } else if (f.kind === 'pulse') {
+      const r = R * (0.6 + 1.5 * t); ctx.globalAlpha = 0.85 * (1 - t); ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(px(f.x), py(f.y), r, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+  }
+
+  for (let i = floats.length - 1; i >= 0; i--) {
+    const f = floats[i], age = (now - f.born) / 900; if (age >= 1) { floats.splice(i, 1); continue; }
+    ctx.globalAlpha = 1 - age; ctx.fillStyle = f.color; ctx.font = `bold ${Math.round(SCALE * .5)}px ${MONO}`; ctx.textAlign = 'center';
+    ctx.fillText(f.text, px(f.x), py(f.y) - R - 6 - age * 22); ctx.globalAlpha = 1;
+  }
+
+  if (mode === 'radial' && radial) drawRadial(now);
+}
+
+// ── the radial move-wheel: tokens ringed around the hero; drag-to-pick, drag-out to aim. ──
+const RAD = { ring: 66, token: 17, inner: 22, reach: 104 };
+function radialCenter() { return { x: px(radial.u.x), y: py(radial.u.y) }; }
+function drawRadial(now) {
+  const c = radialCenter();
+  for (const it of radial.items) { it.x = c.x + Math.cos(it.angle) * RAD.ring; it.y = c.y + Math.sin(it.angle) * RAD.ring; }
+  ctx.globalAlpha = 0.92;
+  ctx.beginPath(); ctx.arc(c.x, c.y, RAD.ring, 0, 7); ctx.strokeStyle = 'rgba(127,216,208,0.25)'; ctx.lineWidth = 1; ctx.stroke();
+  for (const it of radial.items) {
+    const hover = radial.hover === it.id;
+    const tr = RAD.token * (hover ? 1.18 : 1);
+    ctx.beginPath(); ctx.arc(it.x, it.y, tr, 0, 7);
+    ctx.fillStyle = it.usable ? (hover ? '#1d2a2a' : '#11161d') : '#0c0f13';
+    ctx.fill();
+    ctx.lineWidth = hover ? 3 : 1.5;
+    ctx.strokeStyle = !it.usable ? '#2a2f38' : hover ? '#ffce78' : (it.id === '__move' ? '#7fd8d0' : it.id === '__end' ? '#9a907c' : '#b9c6c4');
+    if (hover && it.usable) { ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 10; } ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.globalAlpha = it.usable ? 0.92 : 0.4;
+    ctx.fillStyle = !it.usable ? '#6b7480' : it.id === '__move' ? '#7fd8d0' : '#e7e2d6';
+    ctx.font = `${Math.round(tr * 1.15)}px ${SERIF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(it.glyph, it.x, it.y - 1);
+    ctx.globalAlpha = 0.92;
+  }
+  // center: cancel + the hovered skill's name/cost label
+  const lab = radial.hover ? radial.items.find((i) => i.id === radial.hover) : null;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.beginPath(); ctx.arc(c.x, c.y, RAD.inner, 0, 7); ctx.fill();
+  ctx.fillStyle = lab ? (lab.usable ? '#ffce78' : '#6b7480') : '#8aa';
+  ctx.font = `11px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(lab ? lab.label : '✕', c.x, c.y);
+  if (lab && lab.cost) { ctx.fillStyle = '#8aa'; ctx.font = `9px ${MONO}`; ctx.fillText(lab.cost + '⚡', c.x, c.y + 12); }
+  ctx.globalAlpha = 1;
+}
+function ring(x, y, r, stroke, fill) {
+  ctx.beginPath(); ctx.arc(px(x), py(y), r * SCALE, 0, 7);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  ctx.setLineDash([5, 4]); ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+}
+
+function syncPanels() {
+  if (!s) return;
+  const act = !s.winner ? E.active(s) : null;
+  const lg = isPlayerTurn() ? E.legal(s) : { move: { range: 0 }, skills: {} };
+  if (s.winner) { $('#actName').textContent = s.winner === 'player' ? 'Field held' : 'You fell'; $('#actStats').innerHTML = ''; }
+  else { const f = FACTIONS[act.faction]; $('#actName').innerHTML = `${act.glyph} ${act.name}`;
+    $('#actStats').innerHTML = `${f ? f.label : 'drone'}<br>HP <b>${act.hp}/${act.maxhp}</b> · Flux <b>${act.flux}/${act.maxflux}</b><br>Atk ${act.atk} · Apow ${act.apow} · Def ${act.def} · Spd ${act.speed}${status(act)}`; }
+  // skills
+  const box = $('#skills');
+  if (!isPlayerTurn()) box.innerHTML = `<div class="hint">${s.winner ? '—' : 'enemy turn…'}</div>`;
+  else {
+    const u = act; let h = `<button class="skill ${sel === '__move' ? 'sel' : ''}" data-act="move" ${u.moved ? 'disabled' : ''}><span>➤ Move</span><span class="c">${E.moveRange(u).toFixed(1)}</span></button>`;
+    for (const id of E.skillsFor(u)) { const m = E.SKILLS[id], st = lg.skills[id] || {}, c = E.costOf(u, id);
+      h += `<button class="skill ${sel === id ? 'sel' : ''}" data-act="skill" data-id="${id}" ${st.usable ? '' : 'disabled'} title="${m.gloss}"><span>${m.glyph} ${m.label}</span><span class="c">${c ? c + '⚡' : ''}${m.range > 1 ? ' r' + m.range : ''}</span></button>`; }
+    box.innerHTML = h;
+    box.querySelectorAll('button').forEach((b) => b.onclick = () => onSkill(b, lg));
+  }
+  $('#end').disabled = !isPlayerTurn();
+  $('#roster').innerHTML = s.units.map((u) => `<div style="opacity:${u.alive ? 1 : .35}">${u.glyph} <b style="color:${u.accent}">${u.name}</b> ${u.alive ? `${u.hp}/${u.maxhp}` : '✝'}${status(u)}</div>`).join('');
+  $('#log').innerHTML = s.log.slice().reverse().map((l) => `<div class="${l.kind}">${l.msg}</div>`).join('');
+  $('#hint').textContent = s.winner ? '' : !isPlayerTurn() ? 'enemy turn…'
+    : mode === 'radial' ? 'drag to a move · release on it to aim, or out onto a target to cast'
+    : mode === 'aim' ? (sel === '__move' ? 'tap in the teal disk to move (tap your fighter to reopen)' : 'tap a highlighted foe (tap your fighter to reopen)')
+    : 'tap your fighter for the move-wheel';
+}
+const status = (u) => { const ks = Object.keys(u.status || {}).filter((k) => u.status[k].turns > 0); return ks.length ? ' · ' + ks.map((k) => `${E.STATUS[k]?.glyph || ''}${u.status[k].turns}`).join(' ') : ''; };
+
+// ── sidebar buttons: a desktop affordance that drives the same aim machinery as the radial. ──
+function onSkill(b, lg) {
+  if (busy || !isPlayerTurn()) return;
+  const a = b.dataset.act;
+  if (a === 'move') { mode = (mode === 'aim' && sel === '__move') ? 'idle' : 'aim'; sel = mode === 'aim' ? '__move' : null; radial = null; syncPanels(); return; }
+  const id = b.dataset.id;
+  if (((lg.skills[id] || {}).targets || []).length === 0 && E.SKILLS[id].kind !== 'attack') { mode = 'idle'; sel = null; radial = null; const ev = E.act(s, { type: 'skill', skillId: id }); afterPlayer(ev); }
+  else { mode = (mode === 'aim' && sel === id) ? 'idle' : 'aim'; sel = mode === 'aim' ? id : null; radial = null; syncPanels(); }
+}
+
+// ── the radial move-wheel ──
+const evPos = (ev) => { const r = cv.getBoundingClientRect(); const sx = ev.clientX - r.left, sy = ev.clientY - r.top; return { sx, sy, wx: sx / SCALE, wy: sy / SCALE }; };
+const onHero = (wx, wy) => { if (!isPlayerTurn()) return false; const u = E.active(s); return Math.hypot(u.x - wx, u.y - wy) <= (E.UNIT_R || .5) * 1.9; };
+const targetAt = (id, wx, wy) => { const ts = (E.legal(s).skills[id] || {}).targets || []; let best = null, bd = 1e9; for (const tid of ts) { const t = E.unitById(s, tid); const d = Math.hypot(t.x - wx, t.y - wy); if (d < (E.UNIT_R || .5) * 2.4 && d < bd) { bd = d; best = t; } } return best; };
+
+function openRadial() {
+  const u = E.active(s), lg = E.legal(s), ids = ['__move', ...E.skillsFor(u), '__end'], n = ids.length;
+  radial = { u, hover: null, items: ids.map((id, i) => {
+    const usable = id === '__move' ? (!u.moved && lg.move.range > 0) : id === '__end' ? true : !!(lg.skills[id] && lg.skills[id].usable);
+    const meta = id === '__move' ? { glyph: '➤', label: 'Move', cost: 0 } : id === '__end' ? { glyph: '⏭', label: 'End', cost: 0 } : { glyph: E.SKILLS[id].glyph, label: E.SKILLS[id].label, cost: E.costOf(u, id) };
+    return { id, ...meta, usable, angle: -Math.PI / 2 + i * 2 * Math.PI / n, x: 0, y: 0 };
+  }) };
+  mode = 'radial'; sel = null; syncPanels();
+}
+function closeRadial() { mode = 'idle'; radial = null; sel = null; drag = false; syncPanels(); }
+function radialHit(sx, sy) {
+  const c = radialCenter(), d = Math.hypot(sx - c.x, sy - c.y);
+  if (d < RAD.inner) return { kind: 'center' };
+  const ang = Math.atan2(sy - c.y, sx - c.x);
+  let best = radial.items[0], bd = 9;
+  for (const it of radial.items) { const da = Math.abs(((it.angle - ang + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI); if (da < bd) { bd = da; best = it; } }
+  return { kind: d <= RAD.ring + 34 ? 'wedge' : 'reach', skill: best.id };
+}
+function commitSkill(id, reachPt) {
+  const u = E.active(s), lg = E.legal(s);
+  if (id === '__end') { mode = 'idle'; sel = null; radial = null; E.act(s, { type: 'end' }); afterPlayer(); return; }
+  const usable = id === '__move' ? (!u.moved && lg.move.range > 0) : !!(lg.skills[id] && lg.skills[id].usable);
+  if (!usable) { closeRadial(); return; }
+  radial = null;
+  if (id === '__move') {
+    if (reachPt) { const p = E.canReach(s, u, reachPt.wx, reachPt.wy) ? { x: reachPt.wx, y: reachPt.wy } : E.moveToward(s, u, reachPt.wx, reachPt.wy, E.moveRange(u), 0); if (p.x !== u.x || p.y !== u.y) { mode = 'idle'; sel = null; E.act(s, { type: 'move', x: p.x, y: p.y }); afterPlayer(); return; } }
+    mode = 'aim'; sel = '__move'; syncPanels(); return;
+  }
+  if (((lg.skills[id] || {}).targets || []).length === 0) { mode = 'idle'; sel = null; const ev = E.act(s, { type: 'skill', skillId: id }); afterPlayer(ev); return; }   // self / summon
+  if (reachPt) { const t = targetAt(id, reachPt.wx, reachPt.wy); if (t) { mode = 'idle'; sel = null; const ev = E.act(s, { type: 'skill', skillId: id, targetId: t.id }); afterPlayer(ev); return; } }
+  mode = 'aim'; sel = id; syncPanels();
+}
+function handleAim(wx, wy) {
+  const u = E.active(s);
+  if (sel === '__move') { const p = E.canReach(s, u, wx, wy) ? { x: wx, y: wy } : E.moveToward(s, u, wx, wy, E.moveRange(u), 0); if (p.x !== u.x || p.y !== u.y) { mode = 'idle'; sel = null; E.act(s, { type: 'move', x: p.x, y: p.y }); afterPlayer(); } }
+  else if (sel) { const t = targetAt(sel, wx, wy); if (t) { const id = sel; mode = 'idle'; sel = null; const ev = E.act(s, { type: 'skill', skillId: id, targetId: t.id }); afterPlayer(ev); } }
+}
+
+cv.onpointerdown = (ev) => {
+  ev.preventDefault();   // stop the browser starting a text/image selection on drag
+  if (busy || !isPlayerTurn()) return;
+  const p = evPos(ev);
+  if (mode === 'radial') {                       // wheel already open (from a tap) → this tap selects/cancels
+    const ht = radialHit(p.sx, p.sy);
+    if (ht.kind === 'wedge') commitSkill(ht.skill, null); else closeRadial();
+    return;
+  }
+  if (mode === 'aim') {
+    if (onHero(p.wx, p.wy)) { openRadial(); drag = true; moved = false; try { cv.setPointerCapture(ev.pointerId); } catch {} }
+    else handleAim(p.wx, p.wy);
+    return;
+  }
+  if (onHero(p.wx, p.wy)) { openRadial(); drag = true; moved = false; try { cv.setPointerCapture(ev.pointerId); } catch {} }
+};
+cv.onpointermove = (ev) => {
+  if (mode !== 'radial' || !radial) return;
+  ev.preventDefault();
+  const p = evPos(ev), c = radialCenter();
+  if (Math.hypot(p.sx - c.x, p.sy - c.y) > 7) moved = true;
+  const ht = radialHit(p.sx, p.sy); radial.hover = ht.kind === 'center' ? null : ht.skill;
+};
+cv.onpointerup = (ev) => {
+  try { cv.releasePointerCapture(ev.pointerId); } catch {}
+  if (mode !== 'radial' || !drag) { drag = false; return; }
+  drag = false;
+  if (!moved) return;                            // a tap (no drag) leaves the wheel open for tap-select
+  const p = evPos(ev), ht = radialHit(p.sx, p.sy);
+  if (ht.kind === 'center') closeRadial();
+  else if (ht.kind === 'wedge') commitSkill(ht.skill, null);
+  else commitSkill(ht.skill, { wx: p.wx, wy: p.wy });   // dragged out → aim at the release point
+};
+cv.onpointercancel = () => { drag = false; };
+cv.ondragstart = (ev) => ev.preventDefault();   // no native image-drag ghost on the canvas
+// keyboard shortcut: E / Enter / Space ends the turn (desktop)
+window.addEventListener('keydown', (ev) => {
+  if (!s || busy || !isPlayerTurn()) return;
+  if (ev.key === 'e' || ev.key === 'E' || ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); E.act(s, { type: 'end' }); mode = 'idle'; sel = null; radial = null; afterPlayer(); }
+});
+
+$('#end').onclick = () => { if (!busy && isPlayerTurn()) { E.act(s, { type: 'end' }); mode = 'idle'; sel = null; radial = null; afterPlayer(); } };
+
+// after any player action: spawn its cast FX (ev) + the diff FX, then run foes if it's their turn.
+function afterPlayer(ev) {
+  fxFor(ev); spawnFx(); syncPanels();
+  if (checkOver()) return;
+  enemyTurnsIfNeeded();
+}
+function enemyTurnsIfNeeded() {
+  if (s.winner || isPlayerTurn()) return;
+  busy = true;
+  const step = () => {
+    if (s.winner) { busy = false; checkOver(); return; }
+    if (isPlayerTurn()) { busy = false; syncPanels(); return; }
+    for (const e of E.runAiTurn(s)) fxFor(e); spawnFx(); syncPanels();
+    if (checkOver()) { busy = false; return; }
+    setTimeout(step, 480);
+  };
+  setTimeout(step, 420);
+}
+function checkOver() {
+  if (!s.winner) return false;
+  busy = true;
+  if (s.winner === 'player') { streak++; setTimeout(showWin, 700); }
+  else setTimeout(showLose, 700);
+  return true;
+}
+
+// ── overlays ──
+function showOver(html, cls) { const m = $('#modal'); m.className = 'modal ' + (cls || ''); m.innerHTML = html; $('#over').classList.add('on'); }
+function hideOver() { $('#over').classList.remove('on'); }
+function showWin() {
+  const next = LADDER[Math.min(streak, LADDER.length - 1)];
+  hero.points += 1;   // a skill point per victory
+  showOver(`<h2>Field held</h2><p>Streak <b style="color:var(--gold)">${streak}</b> — +1 skill point (<b>${hero.points}</b> to spend).</p>
+    <p>Your hand sharpens: <b>power ${hero.power} → ${hero.power + 1}</b>.</p>
+    <div class="row" style="justify-content:center;margin-top:14px">
+      <button id="next" style="background:#10201f;border-color:#2c5350;color:var(--teal)">🜂 Spend & fight on → ${next}</button>
+      <button id="quit">New hand</button></div>`, 'win');
+  $('#next').onclick = () => { hero.power += 1; hideOver(); openTree({ onDone: () => startBrawl(next), label: `⚔ next brawl → ${next}` }); };
+  $('#quit').onclick = backToSetup;
+}
+
+// ── tech tree overlay ──
+function openTree(opts = {}) { const onDone = opts.onDone || (() => {}), label = opts.label || 'done'; $('#tree').classList.add('on'); renderTree(onDone, label); }
+function hideTree() { $('#tree').classList.remove('on'); }
+function renderTree(onDone, label) {
+  const f = hero.faction, nodes = TREES[f] || [];
+  let h = `<h2>${FACTIONS[f].glyph} ${FACTIONS[f].label} — tech tree</h2><div class="pts">${hero.points} skill point${hero.points === 1 ? '' : 's'} to spend${streak ? ` · streak ${streak}` : ''}</div>`;
+  for (let t = 1; t <= 5; t++) {
+    const tn = nodes.filter((n) => n.tier === t); if (!tn.length) continue;
+    h += `<div class="tier">tier ${t}</div>`;
+    for (const n of tn) {
+      const own = hero.nodes.has(n.id), buy = !own && canBuy(f, hero.nodes, hero.points, n.id);
+      const cls = own ? 'own' : buy ? 'buy' : 'lock';
+      h += `<button class="tnode ${cls}" data-id="${n.id}" ${buy ? '' : 'disabled'}><span><span class="nm">${n.label}</span><br><span class="gl">${n.gloss}</span></span><span class="cost">${own ? '✓' : n.cost ? n.cost + ' pt' : '—'}</span></button>`;
+    }
+  }
+  h += `<button class="done" id="treeDone">${label}</button>`;
+  $('#treebox').innerHTML = h;
+  $('#treebox').querySelectorAll('.tnode.buy').forEach((b) => b.onclick = () => {
+    const id = b.dataset.id, n = nodeById(f, id);
+    if (canBuy(f, hero.nodes, hero.points, id)) { hero.nodes.add(id); hero.points -= n.cost; renderTree(onDone, label); }
+  });
+  $('#treeDone').onclick = () => { hideTree(); onDone(); };
+}
+$('#treeBtn').onclick = () => { if (hero) openTree({ label: 'done' }); };
+function showLose() {
+  showOver(`<h2>You fell</h2><p>The fight was certified winnable in ~${enc.grade.par} turns — the line was there.</p>
+    <p>Streak ended at <b>${streak}</b>.</p>
+    <div class="row" style="justify-content:center;margin-top:14px">
+      <button id="retry" style="background:#10201f;border-color:#2c5350;color:var(--teal)">Retry this brawl</button>
+      <button id="quit">New hand</button></div>`, 'lose');
+  $('#retry').onclick = () => { hideOver(); startBrawl(enc.difficulty); };
+  $('#quit').onclick = backToSetup;
+}
+function backToSetup() { hideOver(); s = null; $('#battle').classList.remove('live'); $('#setup').style.display = ''; buildSetup(); }
+</script>
+</body>
+</html>

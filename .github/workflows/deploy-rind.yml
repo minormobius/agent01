@@ -2,7 +2,7 @@ name: Deploy Rind
 
 on:
   push:
-    branches: [main, 'claude/foam-spiral-ramp-wayfinding-hkgcw2']
+    branches: [main, 'claude/foam-spiral-ramp-wayfinding-hkgcw2', 'claude/hoop-combat-depth-74hhy5']
     paths:
       - 'rind/**'
       - '.github/workflows/deploy-rind.yml'
