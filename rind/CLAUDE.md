@@ -22,16 +22,19 @@ JS → emit a frame model → solve for stress):
   complete bipartite graph **K(6,8)**, realised as a **plain weave** (warp × weft, not the abandoned `/forge/micro`
   gyroid: a gyroid merges the 6 and the 8 into single sheets and asserts contact by fiat; the weave keeps all
   14 as distinct followable threads and *derives* completeness). **The primary view (`index.html` + `ops-app.js`,
-  kernel `weavefloor.js`) is a SPACE-FILLING woven fabric over a 19-CHUNK hex region (centre + 6 + 12, the forge
-  tiling) on TWO floors**: a real plain weave is full-width warp × full-width weft, so every voronoi chamber is
-  one system on the **upper** floor and the other on the **lower** (upper = a woven checkerboard of white-collar +
-  production, lower = its exact complement) → **100% of both floors, no gaps**. Every surface rides both floors;
-  pick one and follow it through all 8; material flows along the production lines. (Two earlier renders kept for
-  contrast: `decks.html`/`decks-app.js` — stacked decks + a link-star, the wrong metaphor; the single-chunk
-  undulating-ribbon version preceded the 19-chunk/100% requirement.) `weave.html` is the loom/tube proof.
-  Kernels: `weave.js` (K(6,8) plaid + tours), `foam.js` (voronoi + adjacency), `engines.js` (the 8 + supply
-  chain), `weavefloor.js` (the 19-chunk two-floor weave), `layout.js` (the region-decks comparison). Theory in
-  `ops/WEAVE.md`. Pure static, deterministic, node-tested (`weave` 41, `weavefloor` 30, `decks` 77).
+  kernel `weavefloor.js`) is a POLAR / spiral weave — a woven rosette over a 19-CHUNK hex region (centre + 6 + 12,
+  the forge tiling) on TWO floors**, fine sub-chunk voronoi. The constraint set it solves: all 6 white-collar
+  meet at the **top-floor centre tile**, all 8 production at the **bottom-floor centre tile**, and those two hubs
+  are **disconnected except through the weave**. Structure: **two counter-rotating spiral families** (the {N/k}
+  Shukhov motif on the floor) — 6 white arms spiral out one way (converge at the top hub), 8 production the other
+  (converge at the bottom hub); counter-rotation ⇒ every white crosses every production (**K(6,8)**), over/under
+  parity ⇒ **100% of both floors**, and the hubs couple only through the field. It's a **seedable FAMILY** (spiral
+  turns + phases per seed; turns-sum ≥ 1 guarantees K(6,8), checked over 80 seeds). (Earlier renders kept for
+  contrast: `decks.html`/`decks-app.js` — stacked decks + a link-star, the wrong metaphor; cartesian/ribbon
+  versions in git history.) `weave.html` is the loom/tube proof. Kernels: `weave.js` (K(6,8) plaid + tours),
+  `foam.js` (voronoi + adjacency), `engines.js` (the 8 + supply chain), `weavefloor.js` (the polar rosette),
+  `layout.js` (region-decks comparison). Theory in `ops/WEAVE.md`. Pure static, deterministic, node-tested
+  (`weave` 41, `weavefloor` 24, `decks` 77).
 
 ## The package it belongs to
 

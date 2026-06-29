@@ -2,16 +2,20 @@
 
 > The design problem, the diagnosis of the gyroid, and the structure we replace it with.
 > Kernel: `weave.js` (the K(6,8) plaid). Proof: `test/weave.selftest.mjs` (41 checks).
-> **In practice** — `index.html` + `ops-app.js` (kernel `weavefloor.js`): a **space-filling** woven fabric
-> over a **19-chunk** hex region (centre + 6 + 12, the forge tiling) on **two floors**, over a **voronoi**
-> substrate. A real plain weave is space-filling — full-width warp and weft — so **every chamber** is one
-> system on the **upper** floor and the other on the **lower** (the upper floor is a woven checkerboard of
-> white-collar + production, the lower its exact complement): **100% of both floors, no gaps**. Every surface
-> rides both floors; pick one and follow it through all 8. Material flows along the production lines.
-> `test/weavefloor.selftest.mjs` (30) pins 19 chunks, full coverage on both floors, and the over/under
-> complement. (Two earlier renders are kept for contrast: `decks.html` — stacked decks + a link-star, the
-> wrong metaphor; and the single-chunk undulating-ribbon version before the 19-chunk/100% requirement.) The
-> loom-chart / woven-tube proof is at `weave.html`.
+> **In practice** — `index.html` + `ops-app.js` (kernel `weavefloor.js`): a **POLAR / spiral weave** — a woven
+> rosette over a **19-chunk** hex region (centre + 6 + 12, the forge tiling) on **two floors**, over a fine
+> (sub-chunk) **voronoi** substrate. The puzzle the render solves: **all 6 white-collar meet at the top-floor
+> centre tile, all 8 production meet at the bottom-floor centre tile, and those two hubs are disconnected
+> except through the weave.** The structure: **two counter-rotating spiral families** (the rind's own {N/k}
+> Shukhov motif on the floor) — 6 white arms spiral out one way (converging at the top hub), 8 production arms
+> the other (converging at the bottom hub). Counter-rotation makes every white arm cross every production arm
+> ⇒ **K(6,8)** preserved; over/under parity puts each crossing on the upper or lower floor ⇒ **100% of both
+> floors**. The hubs share no shaft, so the only path between them is out along a white arm, across in the
+> field, and back along a production arm. It is a **seedable FAMILY** (spiral turns + phases vary per seed,
+> SUM of turns ≥ 1 guarantees K(6,8); verified over 80 seeds). `test/weavefloor.selftest.mjs` (24) pins the
+> hub split, convergence, K(6,8), full coverage, and the family. (Earlier renders kept for contrast:
+> `decks.html` — stacked decks + a link-star, the wrong metaphor; the cartesian checkerboard + the
+> undulating-ribbon versions in git history.) The loom-chart / woven-tube proof is at `weave.html`.
 
 ## The problem
 

@@ -23,7 +23,8 @@ const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[
 const GOLD = [217, 178, 74], INK = [232, 236, 244], BG = [6, 7, 12];
 const WARPCOLS = ['#8fd0e6', '#9aa6e0', '#79c6b4', '#b79ad8', '#7fb6cf', '#a7c1e0'].map(hex);
 const warpCol = (w) => (w === sel ? GOLD : WARPCOLS[w % WARPCOLS.length]);
-const ownerColor = (o) => (o.kind === 'warp' ? warpCol(o.idx) : hex(m.wefts[o.idx].color));
+const HUBW = [210, 226, 240], HUBP = [236, 210, 150];   // white hub (top centre) · production hub (bottom centre)
+const ownerColor = (o) => o.kind === 'warp' ? warpCol(o.idx) : o.kind === 'weft' ? hex(m.wefts[o.idx].color) : o.kind === 'whub' ? HUBW : HUBP;
 
 const TILT = 0.58, SKEW = 0.16;
 function camS() { return Math.min(CW / m.W, CH / m.H) * 0.82 * Z; }
@@ -64,21 +65,22 @@ function renderStatic() {
   for (const ch of m.chunks) { bctx.beginPath(); ch.verts.forEach((v, i) => { const [lx, ly] = local(v[0], v[1]); const p = P(lx, ly, GAP, s); i ? bctx.lineTo(p.X, p.Y) : bctx.moveTo(p.X, p.Y); }); bctx.closePath(); bctx.strokeStyle = rgba([170, 188, 222], 0.6); bctx.lineWidth = 1.5; bctx.stroke(); }
 
   if (weaveOn) {
-    // the selected surface's tour: a numbered facility at each of the 8 production lines, on its floor
+    // the selected white arm's tour: it meets each production arm once, centre→rim, alternating floors
     const t = m.tours[sel];
-    t.stops.forEach((st) => {
-      // representative chamber of patch (sel, f)
-      let best = null, bd = Infinity; for (const c of m.cells) if (c.w === sel && c.f === st.f) { const d = (c.cx - m.W * (sel + 0.5) / 6) ** 2 + (c.cy - m.H * (st.f + 0.5) / 8) ** 2; if (d < bd) { bd = d; best = c; } }
-      if (!best) return; const p = P(best.cx, best.cy, st.floor === 2 ? GAP : 0, s);
-      bctx.fillStyle = rgba(SELC, 1); bctx.beginPath(); bctx.arc(p.X, p.Y, 11 * s, 0, 7); bctx.fill();
+    t.stops.forEach((st, n) => {
+      if (!st.cell) return; const p = P(st.cell.cx, st.cell.cy, st.floor === 2 ? GAP : 0, s);
+      bctx.fillStyle = rgba(SELC, 1); bctx.beginPath(); bctx.arc(p.X, p.Y, 10.5 * s, 0, 7); bctx.fill();
       bctx.strokeStyle = rgba([245, 248, 255], 0.95); bctx.lineWidth = 2; bctx.stroke();
-      bctx.fillStyle = '#1a1406'; bctx.textAlign = 'center'; bctx.textBaseline = 'middle'; bctx.font = `bold ${11 * s}px ui-monospace`; bctx.fillText(String(st.f + 1) + (st.over ? '▲' : '▼'), p.X, p.Y); bctx.textBaseline = 'alphabetic';
+      bctx.fillStyle = '#1a1406'; bctx.textAlign = 'center'; bctx.textBaseline = 'middle'; bctx.font = `bold ${10.5 * s}px ui-monospace`; bctx.fillText((n + 1) + (st.over ? '▲' : '▼'), p.X, p.Y); bctx.textBaseline = 'alphabetic';
     });
-    // core entry at the centre chunk, with a shaft between the floors
-    const a = P(m.entry.x, m.entry.y, 0, s), b = P(m.entry.x, m.entry.y, GAP, s);
-    bctx.strokeStyle = rgba(GOLD, 0.6); bctx.lineWidth = 2.4; bctx.beginPath(); bctx.moveTo(a.X, a.Y); bctx.lineTo(b.X, b.Y); bctx.stroke();
-    bctx.fillStyle = rgba(GOLD, 0.95); bctx.beginPath(); bctx.arc(b.X, b.Y, 7 * s, 0, 7); bctx.fill();
-    bctx.fillStyle = rgba(INK, 0.9); bctx.textAlign = 'center'; bctx.font = `${11 * s}px ui-sans-serif`; bctx.fillText('⇅ core entry', b.X, b.Y - 12 * s);
+    // the two hubs — explicitly DISCONNECTED (no shaft): white hub on the upper floor, production hub on the
+    // lower floor. The only path between them is out along the weave and back.
+    const top = P(m.entry.x, m.entry.y, GAP, s), bot = P(m.entry.x, m.entry.y, 0, s);
+    bctx.fillStyle = rgba(HUBP, 0.95); bctx.beginPath(); bctx.arc(bot.X, bot.Y, 8 * s, 0, 7); bctx.fill();
+    bctx.fillStyle = rgba([20, 16, 8], 0.9); bctx.textAlign = 'center'; bctx.font = `${10 * s}px ui-sans-serif`; bctx.fillText('▽ 8 production', bot.X, bot.Y + 18 * s);
+    bctx.fillStyle = rgba(HUBW, 0.97); bctx.beginPath(); bctx.arc(top.X, top.Y, 9 * s, 0, 7); bctx.fill();
+    bctx.strokeStyle = rgba([245, 248, 255], 0.9); bctx.lineWidth = 1.6; bctx.stroke();
+    bctx.fillStyle = rgba(INK, 0.95); bctx.fillText('△ 6 white-collar hub (enter)', top.X, top.Y - 12 * s);
   }
   // floor labels
   bctx.textAlign = 'left'; bctx.font = `${12 * s}px ui-monospace,monospace`;
@@ -110,13 +112,13 @@ precompute();
 
 function panels() {
   $('read').innerHTML =
-    `<b>K(${K.warps},${K.wefts})</b> woven · <b>19 chunks</b>, ${m.cells.length} chambers · <span class="ok">100% of both floors</span>, no gaps · ` +
-    `the UPPER floor is a woven checkerboard of white-collar + production, the LOWER its exact complement<br>` +
-    `<span>a space-filling plain weave: every chamber is one system on the upper floor and the other on the lower, so every surface rides both floors. Pick a surface (1–6) to follow it through all 8.</span>`;
+    `<b>polar weave</b> · <b>19 chunks</b>, ${m.cells.length} chambers · <span class="ok">${m.contactPairs}/48 contacts (K(6,8))</span> · 100% of both floors · ` +
+    `6 white arms converge at the <b>top-centre hub</b>, 8 production at the <b>bottom-centre hub</b> — joined only through the weave<br>` +
+    `<span>two counter-rotating spiral families (seed ${seed}: ${m.family.turnsW.toFixed(2)}/${m.family.turnsP.toFixed(2)} turns): every white arm crosses every production arm as it spirals out. Reseed for another rosette in the family. Pick a surface (1–6) to follow it.</span>`;
   $('wsel').innerHTML = m.warps.map((w) => `<div class="w ${w.w === sel ? 'sel' : ''}" data-w="${w.w}"><div class="k">${w.w + 1}</div><div class="lab">${w.label}</div></div>`).join('');
   for (const el of $('wsel').querySelectorAll('.w')) el.addEventListener('click', () => { sel = +el.dataset.w; dirty = true; sync(); });
   const t = m.tours[sel];
-  $('itin').innerHTML = t.stops.map((st) => `<div class="stop"><span class="n">${st.f + 1}.</span><span class="g">${st.glyph}</span><span>${st.label}</span><span class="ou">${st.over ? '△ over' : '▽ under'}</span></div>`).join('');
+  $('itin').innerHTML = t.stops.map((st, n) => `<div class="stop"><span class="n">${n + 1}.</span><span class="g">${st.glyph}</span><span>${st.label}</span><span class="ou">${st.over ? '△ over' : '▽ under'}</span></div>`).join('');
   $('elist').innerHTML = m.wefts.map((e) => `<div class="e"><span class="sw" style="background:${e.color}"></span><span><span class="nm">${e.glyph} ${e.label}</span> — <span class="nt">${e.note}</span></span></div>`).join('');
   $('note').innerHTML = `Following <b>${m.warps[sel].label}</b>: from the core it weaves through all ${K.wefts} production lines — <b>over</b> on the upper floor, <b>under</b> on the lower — meeting each once. The whole region (19 chunks) is filled: no chamber is idle on either floor.`;
 }
