@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>rind · ops — the production weave (two decks, live flow)</title>
+<title>rind · ops — flat polar weave (2D) (two decks, live flow)</title>
 <style>
   :root { --ink:#e8ecf4; --dim:#7e8aa0; --gold:#d9b24a; --bg:#06070c; --panel:#0c0f17; --line:#1b2030; }
   * { box-sizing: border-box; }
@@ -48,17 +48,17 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>rind · ops — the woven shell (3D)</h1>
-    <span class="crumb"><a href="/">rind</a> / ops &nbsp;·&nbsp; the weave in 3D — counter-rotating helices in the rind shell · inhabit a thread to read the map from its point of view</span>
+    <h1>rind · ops — flat polar weave (2D)</h1>
+    <span class="crumb"><a href="/">rind</a> / ops &nbsp;·&nbsp; a polar weave — 6 white-collar &amp; 8 production spiral out from two disconnected hubs, woven across two floors · 19 chunks · 100% filled</span>
     <span class="spacer"></span>
-    <span class="crumb"><a href="./flat.html">▦ flat polar (2D)</a> &nbsp;·&nbsp; <a href="./weave.html">proof</a></span>
+    <span class="crumb"><a href="./weave.html">▦ proof (loom · tube)</a> &nbsp;·&nbsp; <a href="./decks.html">region decks</a></span>
   </header>
   <div class="main">
     <div class="stage">
       <div class="controls">
-        <button id="orbit" class="on">orbit</button>
-        <button id="thread">inhabit thread</button>
-        <button id="spin" class="on">⟳ auto</button>
+        <button id="flow" class="on">⏵ material flow</button>
+        <button id="weaveBtn" class="on">weave</button>
+        <label>floor gap <input id="explode" type="range" min="60" max="300" value="165"></label>
         <button id="reseed">reseed</button>
         <button id="reset">reset view</button>
       </div>
@@ -66,7 +66,7 @@
       <div class="read" id="read"></div>
     </div>
     <aside class="rail">
-      <h2>inhabit one white thread</h2>
+      <h2>enter one ops surface</h2>
       <div class="wsel" id="wsel"></div>
       <h2>its tour of the 8 engines</h2>
       <div class="itin" id="itin"></div>
@@ -76,6 +76,6 @@
     </aside>
   </div>
 </div>
-<script type="module" src="./3d-app.js"></script>
+<script type="module" src="./flat-app.js"></script>
 </body>
 </html>

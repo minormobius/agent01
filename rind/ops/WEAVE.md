@@ -1,5 +1,14 @@
 # rind/ops — the white-collar weave (the theory)
 
+> **NOW IN 3D.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the weave in a
+> **volumetric voronoi foam** in the rind shell: 6 white + 8 production as **counter-rotating helices** (the
+> rind's Shukhov hyperboloid), white hub at the top pole / production hub at the bottom, joined only through the
+> woven body. Two reads — **orbit** (the global tangle) and **inhabit thread** (*the mapping tech*: the shell
+> unrolls around your chosen thread — it becomes a straight spine, the 8 production threads slant across and
+> cross it at numbered stations; reselect and the map re-organises around the new thread — the puzzle box).
+> `foam3d.selftest.mjs` (19) + K(6,8) verified over 80 seeds. The 2D lineage below is preserved at
+> `flat.html` (polar rosette) / `decks.html` / `weave.html`.
+>
 > The design problem, the diagnosis of the gyroid, and the structure we replace it with.
 > Kernel: `weave.js` (the K(6,8) plaid). Proof: `test/weave.selftest.mjs` (41 checks).
 > **In practice** — `index.html` + `ops-app.js` (kernel `weavefloor.js`): a **POLAR / spiral weave** — a woven

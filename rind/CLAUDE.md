@@ -14,7 +14,16 @@ JS → emit a frame model → solve for stress):
   plus wayfinding: a drivable spiral ramp → azimuthal road → ramp route through the chamber
   graph (`wayfind.js`, certified by `test/wayfind.selftest.mjs`).
 - `walk.html` — first-person walk through a planar cut of the foam.
-- `ops/` — **the production weave** at `rind.mino.mobi/ops/`. The upper rind's industrial deck: **8
+- `ops/` — **the production weave** at `rind.mino.mobi/ops/`. **The primary view is now 3D** (`index.html` +
+  `3d-app.js`, kernel `foam3d.js`): the weave resolved in a **volumetric voronoi foam** in the rind shell —
+  6 white + 8 production as **counter-rotating helices** (the rind's Shukhov hyperboloid), white hub at the top
+  pole, production hub at the bottom, the hubs joined only by threading the woven body. Two reads: **orbit** (the
+  global woven shell) and **inhabit thread** — *the mapping tech*: pick a white thread and the shell UNROLLS
+  around it (your thread = a straight spine, the 8 production threads slant across and cross it at numbered
+  stations; the other whites are parallel verticals; reselect → the map re-organises). Seedable family
+  (`foam3d.selftest.mjs`, 19; K(6,8) over 80 seeds). The 2D versions are preserved: `flat.html`/`flat-app.js`
+  (the polar rosette, kernel `weavefloor.js`), `decks.html` (stacked-decks comparison), `weave.html` (loom/tube
+  proof). The original surface concept: the upper rind's industrial deck: **8
   production engines** (foundry · chemworks · mill · fab · weave · assembly · fluid · reclaim) placed as
   graph-Voronoi facilities with **live material flow** (each engine's activity graph + the closed
   inter-engine supply chain reclaim→refiners→mill→assembly→fulfillment→reclaim), and **6 white-collar ops
