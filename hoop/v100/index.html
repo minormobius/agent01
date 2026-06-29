@@ -892,7 +892,7 @@
       let ci = -1;
       for (let i = 1; i < meta.length; i++) { const m = meta[i]; if (m && m.faction === faction && m.exclusive === sig) { ci = i; break; } }
       if (ci < 0) for (let i = 1; i < meta.length; i++) { const m = meta[i]; if (m && m.faction === faction) { ci = i; break; } }   // fallback: either ward of the faction
-      const ch = ci >= 0 && world.chunks[ci]; if (!ch || !ch.poly || !ch.poly.length) return null;
+      const ch = ci >= 0 && (world._nave.recs || [])[ci]; if (!ch || !ch.poly || !ch.poly.length) return null;   // recs is NAVE-indexed; world.chunks is push-order (they diverge with gating)
       let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } return { x: x / ch.poly.length, y: y / ch.poly.length, ci };
     }
     // witness a faction (idempotent, order-gated): set the fact, show the guide's card, advance — and when
@@ -927,7 +927,7 @@
       if (playerDeck() !== 0) return;                              // the nave deck only
       const facts = story.store.getFacts(story.playerId);
       if (fqProgress(facts).allDone) return;                       // campaign complete
-      const ci = walk.nodeChunk[player], m = (world._nave.meta || [])[ci];
+      const ch = world.chunks[walk.nodeChunk[player]], m = ch && ch.naveMeta;   // read the meta tagged on the chunk (nodeChunk is a world.chunks index, not the nave index)
       if (m && m.faction) fqWitnessFaction(m.faction);             // the module enforces order + idempotency
     }
 
@@ -1191,6 +1191,7 @@
       await new Promise((r) => setTimeout(r, 0));   // let the busy spinner paint before the first solve
       const nave = prepareNave(seed); world = nave.world; world._nave = nave;
       naveSolveNext(nave);   // solve the COMMONS (chunk 0) — the spawn — now
+      if (nave.recs[0]) nave.recs[0].naveMeta = nave.meta[0];   // tag the chunk with its nave meta (faction/exclusive) — see streamNaveWards
       // GATE THE WARDS (perf): the six faction wards are the campaign's END STATE — don't build them up front.
       // Truncate the solve queue to just the commons; ensureFactionWards appends + streams a faction's two
       // wards only when the quest unlocks it (the active faction, then each as the prior is witnessed). So a
@@ -1226,9 +1227,14 @@
         if (!world || world._nave !== st) { _naveStreaming = false; return; }   // a newer world replaced this one
         const ci = naveSolveNext(st);
         if (ci < 0) { _naveStreaming = false; rebuildSocietySoon(); renderQuest(); return; }   // queue drained → the faction-quest ◇ waypoint resolves to its now-built ward
-        const ch = world.chunks[ci];
-        try { ch.painted = paintChunk(ch, SKIN); } catch (e) {}
-        stitchAdd(ci); reveal(); draw();
+        // NB: ci is the NAVE index; the chunk's world.chunks position is ch.id (addChunk reassigns it to the
+        // push order, which DIVERGES from the nave index once wards are gated out of dir-order). Use the rec
+        // object directly + tag its nave meta on the chunk, so witness/waypoint lookups don't rely on ci==id.
+        const ch = st.recs[ci];
+        if (ch) { ch.naveMeta = st.meta[ci];
+          try { ch.painted = paintChunk(ch, SKIN); } catch (e) {}
+          stitchAdd(ch.id); }
+        reveal(); draw();
         setTimeout(step, 24);
       };
       setTimeout(step, 40);
