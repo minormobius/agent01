@@ -10,8 +10,8 @@
 
 export function startHome(bg, title) {
   const ctx = bg.getContext('2d'), tctx = title.getContext('2d');
-  let CW = 0, CH = 0, TW = 0, TH = 0, DPR = 1;
-  let a0 = 0, yaw = 0, clock = 0, raf = null, stopped = false;
+  let CW = 0, CH = 0, TW = 0, TH = 0;
+  let a0 = 0, yaw = 0, clock = 0, raf = null, stopped = false, _vg = null;
   let ship = null, OPT = null, R0 = 0, ROUT = 0, win = null, struct = null;
 
   // ── ship constants (mirrors ship-app.js) ──
@@ -113,8 +113,7 @@ export function startHome(bg, title) {
       else { const p = it.p, isGland = it.t === 'h' && it.hub.gland, col = (isGland && ship.ENGINES[it.hub.gland]) ? hex(ship.ENGINES[it.hub.gland].color) : it.col;
         ctx.fillStyle = rgba(col, (it.t === 'p' ? 0.5 : 0.82) * f); ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(1.1, (isGland ? 3.0 : 2.0) * p.s), 0, 7); ctx.fill(); }
     }
-    const vg = ctx.createRadialGradient(CW / 2, CH / 2, Math.min(CW, CH) * 0.30, CW / 2, CH / 2, Math.max(CW, CH) * 0.62);
-    vg.addColorStop(0, 'rgba(3,4,10,0)'); vg.addColorStop(1, 'rgba(3,4,10,.92)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, CW, CH);
+    if (_vg) { ctx.fillStyle = _vg; ctx.fillRect(0, 0, CW, CH); }
   }
 
   // FALLBACK bore: concentric receding rings + radial spokes converging to a vanishing point, scrolling in.
@@ -177,22 +176,31 @@ export function startHome(bg, title) {
   }
 
   function resize() {
-    DPR = Math.min(devicePixelRatio || 1, 2);
+    // the BACKDROP is a soft, fogged image → render at DPR 1 (4× less fill at retina, imperceptible here);
+    // the TITLE is crisp text → keep it at the device DPR.
+    const dbg = 1, dt = Math.min(devicePixelRatio || 1, 2);
     let r = bg.getBoundingClientRect(); CW = r.width || innerWidth; CH = r.height || innerHeight;
-    bg.width = CW * DPR | 0; bg.height = CH * DPR | 0; ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    bg.width = CW * dbg | 0; bg.height = CH * dbg | 0; ctx.setTransform(dbg, 0, 0, dbg, 0, 0);
+    _vg = ctx.createRadialGradient(CW / 2, CH / 2, Math.min(CW, CH) * 0.30, CW / 2, CH / 2, Math.max(CW, CH) * 0.62);
+    _vg.addColorStop(0, 'rgba(3,4,10,0)'); _vg.addColorStop(1, 'rgba(3,4,10,.92)');   // cached: the vignette only depends on size
     r = title.getBoundingClientRect(); TW = r.width || innerWidth; TH = r.height || (innerHeight * 0.33);
-    title.width = TW * DPR | 0; title.height = TH * DPR | 0; tctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    title.width = TW * dt | 0; title.height = TH * dt | 0; tctx.setTransform(dt, 0, 0, dt, 0, 0);
     drawTitle();
   }
 
-  let last = 0;
+  // THROTTLED: the backdrop is cosmetic, so render at ~30fps; regenerate the (expensive) ship window only a
+  // few times a second (the camera drifts slowly); refresh the title's shimmer slower still. Keeps the main
+  // thread free so the menu/buttons feel responsive.
+  let last = 0, lastWin = 0, lastTitle = 0;
   function frame(ts) {
     if (stopped) return;
     raf = requestAnimationFrame(frame);
-    const dt = last ? Math.min(0.05, (ts - last) / 1000) : 0; last = ts; clock += dt;
-    a0 += 0.4 * 170 * dt; yaw += dt * 0.03;     // auto-fly down the bore + a slow roll for life
-    if (ship && win) { rewindow(); renderShip(); } else { renderFallback(); }
-    drawTitle();
+    if (last && ts - last < 32) return;                         // ~30fps cap
+    const dt = last ? Math.min(0.08, (ts - last) / 1000) : 0.016; last = ts; clock += dt;
+    a0 += 0.4 * 170 * dt; yaw += dt * 0.03;                     // auto-fly down the bore + a slow roll for life
+    if (ship) { if (ts - lastWin > 130) { lastWin = ts; rewindow(); } if (win) renderShip(); else renderFallback(); }
+    else renderFallback();
+    if (ts - lastTitle > 60) { lastTitle = ts; drawTitle(); }  // ~16fps for the slow specular sweep
   }
 
   addEventListener('resize', resize);
