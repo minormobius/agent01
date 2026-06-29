@@ -1,97 +1,84 @@
-// weavefloor.js — the OPS WEAVE as ONE woven fabric across TWO floors (the fix for the "two stacked decks +
-// a star of links" render). There are not a white floor and a production floor; there are an UPPER floor and a
-// LOWER floor, and every surface WEAVES between them:
+// weavefloor.js — the OPS WEAVE as a SPACE-FILLING fabric over a 19-CHUNK region, on TWO floors, NO GAPS.
 //
-//   • 6 WARP ribbons = the white-collar surfaces, running one way across the footprint.
-//   • 8 WEFT ribbons = the production engines, running the other way.
-//   • plain weave: at crossing (w,f) the warp is OVER iff (w+f) is even. The OVER strand rides the UPPER floor
-//     there; the UNDER strand is on the LOWER floor. So as a warp runs past the 8 wefts it climbs to the upper
-//     floor and dips to the lower one, over and over — it OCCUPIES BOTH FLOORS. Same for every weft.
-//   • each crossing is a FACILITY: a chamber where a white surface and a production line meet, one on each
-//     floor, vertically adjacent. 48 crossings = the 48 contacts of K(6,8) — realised by the weaving itself,
-//     not by a bundle of lines through the gap between two decks.
+// Scale: a hex region of 19 CHUNKS (centre + ring of 6 + ring of 12, the forge tiling) around a core entry.
+// Coverage: a real plain weave is space-filling — full-width warp and full-width weft, so EVERY chamber is
+// either warp-over-weft or weft-over-warp. That tiles BOTH floors 100% (no interstitial gaps):
+//   • 6 WARP lanes (white-collar surfaces) run one way across the whole region; 8 WEFT lanes (production
+//     engines) run the other way. Their grid is a 6×8 field of PATCHES that fills the region.
+//   • plain-weave parity: at patch (w,f) the warp is OVER iff (w+f) even. The OVER strand is on the UPPER
+//     floor there, the UNDER strand on the LOWER floor — so the UPPER floor is a full woven checkerboard of
+//     white-collar and production patches, and the LOWER floor is its exact complement. Both floors 100% used.
+//   • every surface therefore appears on BOTH floors (4 patches over, 4 under for a warp), weaving between
+//     them; each patch is a facility where one white surface and one production line meet, one per floor.
 //
-// Drawn over a real VORONOI foam (the /econ·/chunkroller substrate): each chamber is tagged to the ribbon that
-// runs through it and lifted to that ribbon's floor height. Pure, deterministic, node-tested.
+// One voronoi foam fills the region; each chamber is tagged to its patch and owns a surface on each floor.
+// Pure, deterministic, node-tested.
 
-import { buildFoam, nearestCell, pathCells } from './foam.js';
+import { buildFoam } from './foam.js';
 import { ENGINE_RING, ENGINES, supplyChain } from './engines.js';
 import { buildWeave, contact, WHITE, warpOver } from './weave.js';
 
-export const DEFAULTS = { W: 760, H: 520, GAP: 120, seed: 1, cols: 30, rows: 20, bandFrac: 0.40 };
+export const DEFAULTS = { hexSize: 132, GAP: 150, seed: 1, chamber: 34 };
+const SQRT3 = 1.7320508075688772;
 
-const smooth = (a, b, t) => a + (b - a) * (t * t * (3 - 2 * t));
+// flat-top hex: centre of axial (q,r); membership test; vertices
+const hexCenter = (q, r, s) => ({ x: s * 1.5 * q, y: s * SQRT3 * (r + q / 2) });
+function inHex(px, py, cx, cy, s) { const dx = Math.abs(px - cx), dy = Math.abs(py - cy); return dx <= s && dy <= s * SQRT3 / 2 && dy <= SQRT3 * (s - dx); }
+function hexVerts(cx, cy, s) { const v = []; for (let k = 0; k < 6; k++) { const a = Math.PI / 3 * k; v.push([cx + s * Math.cos(a), cy + s * Math.sin(a)]); } return v; }
 
 export function buildWeaveFloor(seed = DEFAULTS.seed, opts = {}) {
   const o = { ...DEFAULTS, ...opts, seed: (seed >>> 0) };
-  const { W, H, GAP } = o;
+  const s = o.hexSize, GAP = o.GAP;
   const NW = WHITE.length, NF = ENGINE_RING.length;            // 6 warps, 8 wefts
+
+  // ── the 19 chunks: hex of hexes, radius 2 (1 + 6 + 12) ──
+  const chunks = [];
+  for (let q = -2; q <= 2; q++) for (let r = -2; r <= 2; r++) if (Math.abs(q + r) <= 2) { const c = hexCenter(q, r, s); chunks.push({ q, r, cx: c.x, cy: c.y, verts: hexVerts(c.x, c.y, s) }); }
+  // region bbox (+ a small margin)
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  for (const ch of chunks) for (const v of ch.verts) { minx = Math.min(minx, v[0]); miny = Math.min(miny, v[1]); maxx = Math.max(maxx, v[0]); maxy = Math.max(maxy, v[1]); }
+  const W = maxx - minx, H = maxy - miny;
+  const inRegion = (x, y) => chunks.some((ch) => inHex(x, y, ch.cx, ch.cy, s));
+  const chunkAt = (x, y) => { for (let i = 0; i < chunks.length; i++) if (inHex(x, y, chunks[i].cx, chunks[i].cy, s)) return i; return -1; };
 
   const warps = WHITE.map((wc, w) => ({ ...wc, w }));
   const wefts = ENGINE_RING.map((id, f) => ({ id, f, ...ENGINES[id] }));
-  const xOf = (w) => (w + 0.5) / NW * W;                        // warp ribbon centre (x)
-  const yOf = (f) => (f + 0.5) / NF * H;                        // weft ribbon centre (y)
-  const bandW = (W / NW) * o.bandFrac, bandH = (H / NF) * o.bandFrac;   // half-widths
-  const hi = GAP, lo = 0, midZ = GAP / 2;
-  const crossH = (over) => (over ? hi : lo);
+  const ownerColorKind = (kind, idx) => (kind === 'warp' ? warps[idx] : wefts[idx]);
 
-  // ── the undulation: a warp's floor height as it runs down past the 8 wefts (smooth over/under), and a
-  // weft's height as it runs across past the 6 warps. At a crossing the two are guaranteed opposite. ──
-  const ys = wefts.map((_, f) => yOf(f)), xs = warps.map((_, w) => xOf(w));
-  function hWarp(w, y) {
-    if (y <= ys[0]) return crossH(warpOver(w, 0));
-    if (y >= ys[NF - 1]) return crossH(warpOver(w, NF - 1));
-    let f = 0; while (f < NF - 1 && ys[f + 1] <= y) f++;
-    const t = (y - ys[f]) / (ys[f + 1] - ys[f] || 1);
-    return smooth(crossH(warpOver(w, f)), crossH(warpOver(w, f + 1)), t);
-  }
-  function hWeft(f, x) {
-    const wo = (w) => !warpOver(w, f);                         // weft is over iff warp is under
-    if (x <= xs[0]) return crossH(wo(0));
-    if (x >= xs[NW - 1]) return crossH(wo(NW - 1));
-    let w = 0; while (w < NW - 1 && xs[w + 1] <= x) w++;
-    const t = (x - xs[w]) / (xs[w + 1] - xs[w] || 1);
-    return smooth(crossH(wo(w)), crossH(wo(w + 1)), t);
+  // ── one voronoi foam over the bbox; keep only chambers inside the 19-chunk region (100% of it, no gaps) ──
+  const cols = Math.max(10, Math.round(W / o.chamber)), rows = Math.max(8, Math.round(H / o.chamber));
+  const foam = buildFoam(o.seed, { W, H, cols, rows, jitter: 0.55 });
+  const patchW = (x) => Math.min(NW - 1, Math.max(0, Math.floor(NW * (x) / W)));   // x already region-local
+  const patchF = (y) => Math.min(NF - 1, Math.max(0, Math.floor(NF * (y) / H)));
+
+  const cells = [];
+  for (const c of foam.cells) {
+    const gx = c.cx + minx, gy = c.cy + miny;            // global coords (foam is built at 0..W,0..H)
+    if (!inRegion(gx, gy)) continue;
+    const w = patchW(c.cx), f = patchF(c.cy), over = warpOver(w, f);
+    // OVER strand → upper floor; UNDER → lower. parity even ⇒ warp is over.
+    const upper = over ? { kind: 'warp', idx: w } : { kind: 'weft', idx: f };
+    const lower = over ? { kind: 'weft', idx: f } : { kind: 'warp', idx: w };
+    const prodFloor = ((w + f) % 2 === 1) ? 2 : 1;        // production (weft) is over iff (w+f) odd
+    cells.push({ i: c.i, poly: c.poly.map(([x, y]) => [x, y]), cx: c.cx, cy: c.cy, gx, gy, w, f, over, upper, lower, prodFloor, chunk: chunkAt(gx, gy) });
   }
 
-  // ── the voronoi foam; tag every chamber to its ribbon + lift it to that ribbon's floor height ──
-  const foam = buildFoam(o.seed, { W, H, cols: o.cols, rows: o.rows, jitter: 0.55 });
-  const cells = foam.cells.map((c) => {
-    let wstar = 0, dxw = Infinity; for (let w = 0; w < NW; w++) { const d = Math.abs(c.cx - xOf(w)); if (d < dxw) { dxw = d; wstar = w; } }
-    let fstar = 0, dyf = Infinity; for (let f = 0; f < NF; f++) { const d = Math.abs(c.cy - yOf(f)); if (d < dyf) { dyf = d; fstar = f; } }
-    const inWarp = dxw < bandW, inWeft = dyf < bandH;
-    let kind = 'bg', z = lo, floor = 1, w = -1, f = -1, upper = null;
-    if (inWarp && inWeft) { kind = 'cross'; w = wstar; f = fstar; z = hi; floor = 2; upper = warpOver(wstar, fstar) ? 'warp' : 'weft'; } // the visible crossing rides the upper floor; the under-strand ducks below
-    else if (inWarp) { kind = 'warp'; w = wstar; z = hWarp(wstar, c.cy); floor = z > midZ ? 2 : 1; }
-    else if (inWeft) { kind = 'weft'; f = fstar; z = hWeft(fstar, c.cx); floor = z > midZ ? 2 : 1; }
-    return { i: c.i, poly: c.poly, cx: c.cx, cy: c.cy, kind, w, f, z, floor, upper };
-  });
-
-  // crossings = facilities (the contacts). cellIdx = the chamber nearest the crossing point.
-  const crossings = [];
-  for (let w = 0; w < NW; w++) for (let f = 0; f < NF; f++) {
-    const ci = nearestCell(foam, xOf(w), yOf(f)); const over = warpOver(w, f);
-    crossings.push({ w, f, x: xOf(w), y: yOf(f), warpOver: over, upper: over ? 'warp' : 'weft', cell: ci, cx: foam.cells[ci].cx, cy: foam.cells[ci].cy });
-  }
-
-  // ── material flow ALONG each production weft ribbon (its cells, left→right), so material runs the line ──
+  // ── material flow along each production line (weft row f), ordered across the region; rides its floor ──
   const weftFlow = wefts.map((wf) => {
-    const rib = cells.filter((c) => c.kind === 'weft' && c.f === wf.f).sort((a, b) => a.cx - b.cx);
-    const pts = rib.length ? rib : [{ cx: 0, cy: yOf(wf.f) }, { cx: W, cy: yOf(wf.f) }];
-    return { f: wf.f, id: wf.id, color: wf.color, pts };
+    const rib = cells.filter((c) => c.f === wf.f).sort((a, b) => a.cx - b.cx)
+      .map((c) => ({ cx: c.cx, cy: c.cy, z: c.prodFloor === 2 ? GAP : 0 }));
+    return { f: wf.f, id: wf.id, color: wf.color, pts: rib.length >= 2 ? rib : [{ cx: 0, cy: H / 2, z: 0 }, { cx: W, cy: H / 2, z: 0 }] };
   });
-  // the inter-engine supply chain, faint: producer weft → consumer weft (drawn as a side arc by the app)
   const supply = supplyChain().filter((e) => e.from !== 'fulfillment' && e.to !== 'fulfillment')
     .map((e) => ({ ...e, fa: ENGINE_RING.indexOf(e.from), fb: ENGINE_RING.indexOf(e.to), color: ENGINES[e.from].color }));
 
-  // ── tours: enter one warp (white surface), weave down through all 8 wefts; floor alternates over/under ──
+  // ── tours: enter a white surface at the core, weave through all 8 production lines (floor alternates) ──
   const weave = buildWeave(o.seed); const con = contact(weave);
-  const tours = warps.map((wc) => ({
-    w: wc.w, label: wc.label,
-    stops: wefts.map((wf) => ({ f: wf.f, engine: wf.id, label: wf.label, glyph: wf.glyph, over: warpOver(wc.w, wf.f), floor: warpOver(wc.w, wf.f) ? 2 : 1 })),
-  }));
+  const tours = warps.map((wc) => ({ w: wc.w, label: wc.label,
+    stops: wefts.map((wf) => ({ f: wf.f, engine: wf.id, label: wf.label, glyph: wf.glyph, over: warpOver(wc.w, wf.f), floor: warpOver(wc.w, wf.f) ? 2 : 1 })) }));
 
-  return { W, H, GAP, seed: o.seed, NW, NF, warps, wefts, xOf, yOf, bandW, bandH, hWarp, hWeft, foam, cells, crossings, weftFlow, supply, tours, contact: con };
+  const entry = { x: W / 2, y: H / 2 };                  // the core (centre chunk)
+  return { W, H, minx, miny, GAP, hexSize: s, NW, NF, chunks, warps, wefts, foam, cells, weftFlow, supply, tours, entry, contact: con, ownerColorKind, patchW, patchF };
 }
 
 if (typeof globalThis !== 'undefined') globalThis.RindWeaveFloor = { buildWeaveFloor };

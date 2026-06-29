@@ -22,14 +22,16 @@ JS → emit a frame model → solve for stress):
   complete bipartite graph **K(6,8)**, realised as a **plain weave** (warp × weft, not the abandoned `/forge/micro`
   gyroid: a gyroid merges the 6 and the 8 into single sheets and asserts contact by fiat; the weave keeps all
   14 as distinct followable threads and *derives* completeness). **The primary view (`index.html` + `ops-app.js`,
-  kernel `weavefloor.js`) is ONE woven fabric across TWO floors**: the 6 warps + 8 wefts are ribbons of voronoi
-  chambers that climb to the **upper** floor where they pass OVER and dip to the **lower** floor where they pass
-  UNDER — so every surface occupies *both* floors and each crossing is a facility where a white surface meets a
-  production line, one on each floor (NOT two stacked decks joined by links through a gap — that earlier render
-  is kept at `decks.html`/`decks-app.js` for comparison). `weave.html` is the loom/tube proof. Kernels: `weave.js`
-  (the K(6,8) plaid + tours), `foam.js` (self-contained voronoi + adjacency), `engines.js` (the 8 + supply chain),
-  `weavefloor.js` (the two-floor weave), `layout.js` (the region-decks comparison). Theory in `ops/WEAVE.md`.
-  Pure static, deterministic, node-tested (`weave` 41, `weavefloor` 35, `decks` 77).
+  kernel `weavefloor.js`) is a SPACE-FILLING woven fabric over a 19-CHUNK hex region (centre + 6 + 12, the forge
+  tiling) on TWO floors**: a real plain weave is full-width warp × full-width weft, so every voronoi chamber is
+  one system on the **upper** floor and the other on the **lower** (upper = a woven checkerboard of white-collar +
+  production, lower = its exact complement) → **100% of both floors, no gaps**. Every surface rides both floors;
+  pick one and follow it through all 8; material flows along the production lines. (Two earlier renders kept for
+  contrast: `decks.html`/`decks-app.js` — stacked decks + a link-star, the wrong metaphor; the single-chunk
+  undulating-ribbon version preceded the 19-chunk/100% requirement.) `weave.html` is the loom/tube proof.
+  Kernels: `weave.js` (K(6,8) plaid + tours), `foam.js` (voronoi + adjacency), `engines.js` (the 8 + supply
+  chain), `weavefloor.js` (the 19-chunk two-floor weave), `layout.js` (the region-decks comparison). Theory in
+  `ops/WEAVE.md`. Pure static, deterministic, node-tested (`weave` 41, `weavefloor` 30, `decks` 77).
 
 ## The package it belongs to
 

@@ -2,14 +2,16 @@
 
 > The design problem, the diagnosis of the gyroid, and the structure we replace it with.
 > Kernel: `weave.js` (the K(6,8) plaid). Proof: `test/weave.selftest.mjs` (41 checks).
-> **In practice** — `index.html` + `ops-app.js` (kernel `weavefloor.js`): ONE woven fabric across **two
-> floors** over a **voronoi** substrate (the `/econ`·`/chunkroller` tiling). The 6 warps + 8 wefts are ribbons
-> of chambers that climb to the **upper** floor where they pass OVER and dip to the **lower** floor where they
-> pass UNDER — every surface occupies *both* floors; each crossing is a facility. Material flows along the
-> production ribbons. `test/weavefloor.selftest.mjs` (35) pins that every surface rides both floors and every
-> crossing is one-over-one-under. (An earlier render stacked two flat decks joined by links through the gap —
-> that made the gap a third transit layer and the contact a fan-to-a-point; it's kept at `decks.html` for
-> contrast.) The loom-chart / woven-tube proof is at `weave.html`.
+> **In practice** — `index.html` + `ops-app.js` (kernel `weavefloor.js`): a **space-filling** woven fabric
+> over a **19-chunk** hex region (centre + 6 + 12, the forge tiling) on **two floors**, over a **voronoi**
+> substrate. A real plain weave is space-filling — full-width warp and weft — so **every chamber** is one
+> system on the **upper** floor and the other on the **lower** (the upper floor is a woven checkerboard of
+> white-collar + production, the lower its exact complement): **100% of both floors, no gaps**. Every surface
+> rides both floors; pick one and follow it through all 8. Material flows along the production lines.
+> `test/weavefloor.selftest.mjs` (30) pins 19 chunks, full coverage on both floors, and the over/under
+> complement. (Two earlier renders are kept for contrast: `decks.html` — stacked decks + a link-star, the
+> wrong metaphor; and the single-chunk undulating-ribbon version before the 19-chunk/100% requirement.) The
+> loom-chart / woven-tube proof is at `weave.html`.
 
 ## The problem
 

@@ -1,6 +1,6 @@
-// weavefloor.selftest.mjs — certify the woven two-floor fabric: every surface occupies BOTH floors, every
-// crossing has one strand upper + one lower (a real over/under weave), all 48 contacts present.
-//   Run: node rind/ops/test/weavefloor.selftest.mjs
+// weavefloor.selftest.mjs — certify the space-filling two-floor weave over a 19-chunk region:
+//   • 19 chunks, • every chamber owned on BOTH floors (no gaps), • the upper floor is the complement of the
+//   lower (a real over/under weave), • every surface rides both floors. Run: node rind/ops/test/weavefloor.selftest.mjs
 
 import { buildWeaveFloor } from '../weavefloor.js';
 import { warpOver } from '../weave.js';
@@ -9,50 +9,46 @@ let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' + m); } };
 
 const m = buildWeaveFloor(3);
-ok(m.warps.length === 6 && m.wefts.length === 8, '6 warp (white) + 8 weft (production) surfaces');
-ok(m.crossings.length === 48, '48 crossings = the 48 K(6,8) contacts');
 
-// ── the weave is real: at EVERY crossing exactly one strand is upper, one lower ──
-let bad = 0;
-for (const c of m.crossings) { const warpFloor = c.warpOver ? 2 : 1, weftFloor = c.warpOver ? 1 : 2; if (warpFloor === weftFloor) bad++; }
-ok(bad === 0, 'over/under: at every crossing the warp and weft are on opposite floors');
+// ── 19 chunks around a core ──
+ok(m.chunks.length === 19, '19 hex chunks (centre + 6 + 12)');
+ok(m.entry && Math.abs(m.entry.x - m.W / 2) < 1, 'core entry at region centre');
+// every chamber is assigned to one of the 19 chunks
+ok(m.cells.every((c) => c.chunk >= 0 && c.chunk < 19), 'every chamber belongs to a chunk');
+ok(m.cells.length > 600, `region is ~19 chunks big (${m.cells.length} chambers, vs ~one chunk before)`);
 
-// ── every surface OCCUPIES BOTH FLOORS (the fix: not "white on top, production on bottom") ──
-for (let w = 0; w < 6; w++) {
-  const floors = new Set(m.wefts.map((wf) => (warpOver(w, wf.f) ? 2 : 1)));
-  ok(floors.has(1) && floors.has(2), `white surface ${w} rides BOTH floors as it weaves (over some, under others)`);
-}
-for (let f = 0; f < 8; f++) {
-  const floors = new Set(m.warps.map((wc) => (warpOver(wc.w, f) ? 1 : 2)));
-  ok(floors.has(1) && floors.has(2), `production line ${f} rides BOTH floors as it weaves`);
-}
-// and each surface is split ~evenly (4/4 for warps over 8 wefts)
-for (let w = 0; w < 6; w++) { const up = m.wefts.filter((wf) => warpOver(w, wf.f)).length; ok(up === 4, `white ${w}: 4 crossings upper / 4 lower (broad, not deep)`); }
+// ── 100% coverage, no gaps: every chamber owns a surface on BOTH floors ──
+ok(m.cells.every((c) => c.upper && c.lower), 'every chamber is owned on BOTH floors (no empty/bg cells)');
+ok(m.cells.every((c) => c.poly.length >= 3), 'every chamber is a real voronoi polygon');
 
-// ── both floors are populated by BOTH kinds of surface (a woven fabric, not two segregated decks) ──
-const upper = m.cells.filter((c) => c.kind !== 'bg' && c.floor === 2), lower = m.cells.filter((c) => c.kind !== 'bg' && c.floor === 1);
-ok(upper.some((c) => c.kind === 'warp') && upper.some((c) => c.kind === 'weft'), 'UPPER floor carries both white and production chambers');
-ok(lower.some((c) => c.kind === 'warp') && lower.some((c) => c.kind === 'weft'), 'LOWER floor carries both white and production chambers');
+// ── the weave: upper floor is the exact complement of the lower (over/under) ──
+let badComplement = 0;
+for (const c of m.cells) { const sameKind = c.upper.kind === c.lower.kind; if (sameKind) badComplement++; }
+ok(badComplement === 0, 'at every chamber the two floors carry opposite systems (warp over weft, or weft over warp)');
+// parity drives it: warp on upper iff (w+f) even
+ok(m.cells.every((c) => (c.over ? c.upper.kind === 'warp' : c.upper.kind === 'weft')), 'plain-weave parity: warp is upper iff (w+f) even');
 
-// ── the undulation actually moves between the two floors ──
-ok(Math.abs(m.hWarp(0, m.yOf(0)) - m.hWarp(0, m.yOf(1))) > m.GAP * 0.5, 'a warp climbs/dips ~a full floor between consecutive wefts');
-ok(m.hWarp(0, m.yOf(0)) === (warpOver(0, 0) ? m.GAP : 0), 'warp height matches its over/under parity at a crossing');
+// ── both floors carry BOTH systems (a woven fabric, not white-on-top / production-on-bottom) ──
+const up = m.cells, kinds = (sel) => new Set(m.cells.map((c) => c[sel].kind));
+ok(kinds('upper').has('warp') && kinds('upper').has('weft'), 'UPPER floor carries both white-collar and production chambers');
+ok(kinds('lower').has('warp') && kinds('lower').has('weft'), 'LOWER floor carries both white-collar and production chambers');
 
-// ── voronoi substrate intact + ribbons tagged ──
-ok(m.cells.length === m.foam.cells.length && m.cells.every((c) => c.poly.length >= 3), 'every chamber is a real voronoi polygon');
-ok(m.cells.some((c) => c.kind === 'warp') && m.cells.some((c) => c.kind === 'weft') && m.cells.some((c) => c.kind === 'cross'), 'chambers tagged warp / weft / crossing');
+// ── every surface rides BOTH floors as it weaves ──
+for (let w = 0; w < 6; w++) { const fl = new Set(Array.from({ length: 8 }, (_, f) => (warpOver(w, f) ? 2 : 1))); ok(fl.has(1) && fl.has(2), `white surface ${w} weaves across both floors (4 over / 4 under)`); }
+for (let f = 0; f < 8; f++) { const fl = new Set(Array.from({ length: 6 }, (_, w) => (warpOver(w, f) ? 1 : 2))); ok(fl.has(1) && fl.has(2), `production line ${f} weaves across both floors`); }
 
-// ── material flow along production ribbons ──
-ok(m.weftFlow.length === 8 && m.weftFlow.every((wf) => wf.pts.length >= 2), 'each production line is a real ribbon of chambers to flow along');
-ok(m.supply.length >= 8, `inter-engine supply chain present (${m.supply.length} edges)`);
+// ── chunk coverage: every one of the 19 chunks actually holds chambers (the region is filled) ──
+const perChunk = new Array(19).fill(0); for (const c of m.cells) perChunk[c.chunk]++;
+ok(perChunk.every((n) => n > 0), 'all 19 chunks are filled with chambers');
 
-// ── tour: enter a white surface, weave through all 8, floor alternating ──
+// ── material flow + tours intact ──
+ok(m.weftFlow.length === 8 && m.weftFlow.every((wf) => wf.pts.length >= 2), 'each production line is a ribbon to flow along');
 ok(m.tours.length === 6 && m.tours.every((t) => t.stops.length === 8), 'each white surface tours all 8 production lines');
-ok(m.tours[0].stops.filter((s) => s.floor === 2).length === 4, 'a tour alternates floors — 4 over, 4 under');
+ok(m.tours[0].stops.filter((x) => x.floor === 2).length === 4, 'a tour alternates floors (4 over / 4 under)');
 ok(m.contact.everyTouchesEvery, 'K(6,8) holds: every white surface touches every production line');
 
-// determinism
-ok(JSON.stringify(buildWeaveFloor(9).crossings) === JSON.stringify(buildWeaveFloor(9).crossings), 'deterministic from seed');
+// ── determinism ──
+ok(JSON.stringify(buildWeaveFloor(9).cells.map((c) => [c.w, c.f])) === JSON.stringify(buildWeaveFloor(9).cells.map((c) => [c.w, c.f])), 'deterministic from seed');
 
 console.log(`weavefloor.selftest: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

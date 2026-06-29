@@ -1,8 +1,7 @@
-// ops-app.js — the OPS WEAVE as ONE woven fabric across TWO floors. The 6 white-collar surfaces (warp) and 8
-// production lines (weft) are ribbons of voronoi chambers that WEAVE between an upper and a lower floor: each
-// climbs to the upper floor where it passes OVER, dips to the lower where it passes UNDER. Every surface
-// therefore occupies BOTH floors, and every crossing is a facility where a white surface meets a production
-// line, one on each floor. No stacked decks, no star of links through a gap — the contact IS the weaving.
+// ops-app.js — the OPS WEAVE: a SPACE-FILLING woven fabric over a 19-CHUNK region, on TWO floors, no gaps.
+// The 6 white-collar warps and 8 production wefts fill the whole region: the UPPER floor is a woven
+// checkerboard of white-collar and production chambers, the LOWER floor its exact complement. Every surface
+// rides both floors; pick one and follow it weaving through all 8 production lines. Material runs the lines.
 
 import { buildWeaveFloor } from './weavefloor.js';
 import { K } from './weave.js';
@@ -11,122 +10,118 @@ const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
 let sel = Q.has('w') ? (Q.get('w') | 0) % 6 : 0;
-let GAP = 150, flowOn = true, weaveOn = true;
+let GAP = 165, flowOn = true, weaveOn = true;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
-let DPR = 1, CW = 0, CH = 0, panx = 0, pany = 0, Z = 1;
+const buf = document.createElement('canvas'), bctx = buf.getContext('2d');
+let DPR = 1, CW = 0, CH = 0, panx = 0, pany = 0, Z = 1, dirty = true;
 let m = buildWeaveFloor(seed, { GAP });
 
 const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-const GOLD = [217, 178, 74], WHITEC = [176, 206, 224], INK = [232, 236, 244], BG = [6, 7, 12];
-// the 6 white-collar warps get distinct COOL tints so the plaid reads as warp × weft (selected → gold)
+const GOLD = [217, 178, 74], INK = [232, 236, 244], BG = [6, 7, 12];
 const WARPCOLS = ['#8fd0e6', '#9aa6e0', '#79c6b4', '#b79ad8', '#7fb6cf', '#a7c1e0'].map(hex);
 const warpCol = (w) => (w === sel ? GOLD : WARPCOLS[w % WARPCOLS.length]);
+const ownerColor = (o) => (o.kind === 'warp' ? warpCol(o.idx) : hex(m.wefts[o.idx].color));
 
-const TILT = 0.5, SKEW = 0.16;
-function cam() { const s = Math.min(CW / m.W, CH / m.H) * 0.74 * Z; return { s, ox: CW / 2 + panx, oy: CH / 2 + 30 + pany }; }
-function P(x, y, z, c) { const lx = x - m.W / 2, ly = y - m.H / 2; return { X: c.ox + (lx + ly * SKEW) * c.s, Y: c.oy + (ly * TILT - z) * c.s }; }
-const colorOfCell = (cell) => {
-  if (cell.kind === 'bg') return mix(BG, [22, 26, 36], 0.5);
-  if (cell.kind === 'warp') return warpCol(cell.w);
-  if (cell.kind === 'weft') return hex(m.wefts[cell.f].color);
-  // crossing: tint by whoever is over (on top) — a white surface (warp) or a production line (weft)
-  return cell.upper === 'warp' ? warpCol(cell.w) : hex(m.wefts[cell.f].color);
-};
+const TILT = 0.58, SKEW = 0.16;
+function camS() { return Math.min(CW / m.W, CH / m.H) * 0.82 * Z; }
+function P(x, y, z, s) { const lx = x - m.W / 2, ly = y - m.H / 2; return { X: CW / 2 + (lx + ly * SKEW) * s, Y: CH / 2 + 28 + (ly * TILT - z) * s }; }
+const local = (gx, gy) => [gx - m.minx, gy - m.miny];
 
-// material flowing along a weft ribbon: param position over the ordered cells (camera-independent)
+// chambers sorted back→front by depth (cy), computed once per model
+let byDepth = m.cells.map((c, i) => i).sort((a, b) => m.cells[a].cy - m.cells[b].cy);
+
+const SELC = [255, 224, 122];   // bright highlight — distinct from assembly's muted gold (white-outlined too)
+function plate(g, s, z, ownerOf, alpha, dim) {
+  for (const idx of byDepth) {
+    const cell = m.cells[idx], o = ownerOf(cell); let col = ownerColor(o);
+    const isSel = o.kind === 'warp' && o.idx === sel;
+    col = dim ? mix(col, BG, 0.36) : mix(col, INK, 0.08);
+    g.beginPath();
+    for (let k = 0; k < cell.poly.length; k++) { const p = P(cell.poly[k][0], cell.poly[k][1], z, s); k ? g.lineTo(p.X, p.Y) : g.moveTo(p.X, p.Y); }
+    g.closePath();
+    g.fillStyle = rgba(isSel ? SELC : col, alpha); g.fill();
+    g.strokeStyle = isSel ? rgba([245, 248, 255], 0.95) : rgba(mix(col, BG, 0.5), alpha * 0.85); g.lineWidth = isSel ? 2 : 0.7; g.stroke();
+  }
+}
+
+function renderStatic() {
+  const s = camS();
+  bctx.setTransform(DPR, 0, 0, DPR, 0, 0); bctx.clearRect(0, 0, CW, CH);
+  bctx.fillStyle = '#06070c'; bctx.fillRect(0, 0, CW, CH);
+
+  // LOWER floor (the under-strands) — full, dimmed
+  plate(bctx, s, 0, (c) => c.lower, 0.95, true);
+  // chunk hex outlines on the lower floor, faint (the 19 chunks)
+  for (const ch of m.chunks) { bctx.beginPath(); ch.verts.forEach((v, i) => { const [lx, ly] = local(v[0], v[1]); const p = P(lx, ly, 0, s); i ? bctx.lineTo(p.X, p.Y) : bctx.moveTo(p.X, p.Y); }); bctx.closePath(); bctx.strokeStyle = rgba([70, 84, 110], 0.35); bctx.lineWidth = 1; bctx.stroke(); }
+
+  // UPPER floor (the over-strands) — the visible woven checkerboard. Slightly translucent so the LOWER weave
+  // ghosts through (the two woven layers read at once) — translucency, not a spatial gap: coverage stays 100%.
+  plate(bctx, s, GAP, (c) => c.upper, 0.86, false);
+  // chunk hex outlines on the upper floor (the 19 chunks read)
+  for (const ch of m.chunks) { bctx.beginPath(); ch.verts.forEach((v, i) => { const [lx, ly] = local(v[0], v[1]); const p = P(lx, ly, GAP, s); i ? bctx.lineTo(p.X, p.Y) : bctx.moveTo(p.X, p.Y); }); bctx.closePath(); bctx.strokeStyle = rgba([170, 188, 222], 0.6); bctx.lineWidth = 1.5; bctx.stroke(); }
+
+  if (weaveOn) {
+    // the selected surface's tour: a numbered facility at each of the 8 production lines, on its floor
+    const t = m.tours[sel];
+    t.stops.forEach((st) => {
+      // representative chamber of patch (sel, f)
+      let best = null, bd = Infinity; for (const c of m.cells) if (c.w === sel && c.f === st.f) { const d = (c.cx - m.W * (sel + 0.5) / 6) ** 2 + (c.cy - m.H * (st.f + 0.5) / 8) ** 2; if (d < bd) { bd = d; best = c; } }
+      if (!best) return; const p = P(best.cx, best.cy, st.floor === 2 ? GAP : 0, s);
+      bctx.fillStyle = rgba(SELC, 1); bctx.beginPath(); bctx.arc(p.X, p.Y, 11 * s, 0, 7); bctx.fill();
+      bctx.strokeStyle = rgba([245, 248, 255], 0.95); bctx.lineWidth = 2; bctx.stroke();
+      bctx.fillStyle = '#1a1406'; bctx.textAlign = 'center'; bctx.textBaseline = 'middle'; bctx.font = `bold ${11 * s}px ui-monospace`; bctx.fillText(String(st.f + 1) + (st.over ? '▲' : '▼'), p.X, p.Y); bctx.textBaseline = 'alphabetic';
+    });
+    // core entry at the centre chunk, with a shaft between the floors
+    const a = P(m.entry.x, m.entry.y, 0, s), b = P(m.entry.x, m.entry.y, GAP, s);
+    bctx.strokeStyle = rgba(GOLD, 0.6); bctx.lineWidth = 2.4; bctx.beginPath(); bctx.moveTo(a.X, a.Y); bctx.lineTo(b.X, b.Y); bctx.stroke();
+    bctx.fillStyle = rgba(GOLD, 0.95); bctx.beginPath(); bctx.arc(b.X, b.Y, 7 * s, 0, 7); bctx.fill();
+    bctx.fillStyle = rgba(INK, 0.9); bctx.textAlign = 'center'; bctx.font = `${11 * s}px ui-sans-serif`; bctx.fillText('⇅ core entry', b.X, b.Y - 12 * s);
+  }
+  // floor labels
+  bctx.textAlign = 'left'; bctx.font = `${12 * s}px ui-monospace,monospace`;
+  const ul = P(0, m.H, GAP, s), ll = P(0, m.H, 0, s);
+  bctx.fillStyle = rgba([150, 170, 200], 0.85); bctx.fillText('△ upper floor — over', ul.X - 6 * s, ul.Y + 16 * s);
+  bctx.fillStyle = rgba([120, 134, 158], 0.85); bctx.fillText('▽ lower floor — under', ll.X - 6 * s, ll.Y + 16 * s);
+  dirty = false;
+}
+
+function frame(ts) {
+  now = ts;
+  if (dirty) renderStatic();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, CW, CH);
+  ctx.drawImage(buf, panx, pany, CW, CH);
+  // dynamic: material flowing along the production lines (rides each line's floor), drawn with pan applied
+  if (flowOn) { const s = camS(), tt = now * 0.00015;
+    for (let i = 0; i < m.weftFlow.length; i++) { const wf = m.weftFlow[i]; const col = hex(wf.color); const pl = wf._pl; for (let q = 0; q < 4; q++) {
+      const fr = (tt + i * 0.11 + q / 4) % 1; const pos = at(pl, fr); const p = P(pos.x, pos.y, pos.z, s);
+      ctx.fillStyle = rgba(mix(col, INK, 0.35), 0.95); ctx.beginPath(); ctx.arc(p.X + panx, p.Y + pany, 3.2 * s, 0, 7); ctx.fill();
+    } } }
+  requestAnimationFrame(frame);
+}
+
+// polyline param for the flow
 function makePL(pts) { const cum = [0]; let t = 0; for (let i = 1; i < pts.length; i++) { t += Math.hypot(pts[i].cx - pts[i - 1].cx, pts[i].cy - pts[i - 1].cy); cum.push(t); } return { pts, cum, total: t || 1 }; }
-function at(pl, fr) { const target = fr * pl.total; let i = 1; while (i < pl.cum.length && pl.cum[i] < target) i++; if (i >= pl.pts.length) i = pl.pts.length - 1; const a = pl.pts[i - 1], b = pl.pts[i]; const seg = pl.cum[i] - pl.cum[i - 1] || 1; const u = (target - pl.cum[i - 1]) / seg; return { x: a.cx + (b.cx - a.cx) * u, y: a.cy + (b.cy - a.cy) * u, z: a.z + ((b.z || 0) - (a.z || 0)) * u }; }
-function precompute() { for (const wf of m.weftFlow) wf._pl = makePL(wf.pts); }
+function at(pl, fr) { const target = fr * pl.total; let i = 1; while (i < pl.cum.length && pl.cum[i] < target) i++; if (i >= pl.pts.length) i = pl.pts.length - 1; const a = pl.pts[i - 1], b = pl.pts[i]; const seg = pl.cum[i] - pl.cum[i - 1] || 1; const u = (target - pl.cum[i - 1]) / seg; return { x: a.cx + (b.cx - a.cx) * u, y: a.cy + (b.cy - a.cy) * u, z: a.z + (b.z - a.z) * u }; }
+function precompute() { for (const wf of m.weftFlow) wf._pl = makePL(wf.pts); byDepth = m.cells.map((c, i) => i).sort((a, b) => m.cells[a].cy - m.cells[b].cy); }
 precompute();
 
-function floorPlane(z, c, label, labCol) {
-  const corners = [[0, 0], [m.W, 0], [m.W, m.H], [0, m.H]].map((p) => P(p[0], p[1], z, c));
-  ctx.strokeStyle = rgba([60, 72, 96], 0.5); ctx.lineWidth = 1.2; ctx.beginPath();
-  corners.forEach((p, i) => { i ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }); ctx.closePath(); ctx.stroke();
-  ctx.fillStyle = rgba([30, 36, 50], 0.18); ctx.fill();
-  ctx.fillStyle = rgba(labCol, 0.8); ctx.textAlign = 'left'; ctx.font = `${11 * c.s}px ui-monospace,monospace`; ctx.fillText(label, corners[0].X + 4 * c.s, corners[0].Y - 5 * c.s);
-}
-
-function drawScene() {
-  const c = cam();
-  ctx.fillStyle = '#06070c'; ctx.fillRect(0, 0, CW, CH);
-
-  // two reference floors: lower (under) and upper (over)
-  floorPlane(0, c, '▽ lower floor (under)', [120, 134, 158]);
-  floorPlane(GAP, c, '△ upper floor (over)', [150, 170, 200]);
-
-  // all chambers, painter-sorted back→front (far/top of screen first), lifted to their floor height → the
-  // ribbons visibly climb to the upper floor and dip to the lower one: the weave.
-  const order = m.cells.map((cell) => { const p = P(cell.cx, cell.cy, cell.z, c); return { cell, key: p.Y }; }).sort((a, b) => a.key - b.key);
-  for (const { cell } of order) {
-    if (cell.kind === 'bg') continue; // keep the weave clean; bg chambers stay implied by the floor planes
-    const col = colorOfCell(cell), selRibbon = (cell.kind !== 'weft' && cell.w === sel);
-    ctx.beginPath();
-    for (let k = 0; k < cell.poly.length; k++) { const p = P(cell.poly[k][0], cell.poly[k][1], cell.z, c); k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }
-    ctx.closePath();
-    // upper floor = full colour (brightened); lower floor = the same hue, modestly dimmed (still legible, so a
-    // ribbon stays visible as it dips UNDER) — the brightness step is the floor cue.
-    const fill = cell.floor === 2 ? mix(col, INK, 0.12) : mix(col, BG, 0.28);
-    ctx.fillStyle = rgba(fill, selRibbon ? 0.97 : 0.9); ctx.fill();
-    ctx.strokeStyle = rgba(selRibbon ? GOLD : mix(col, BG, 0.45), 0.85); ctx.lineWidth = selRibbon ? 1.7 : 1; ctx.stroke();
-  }
-
-  // crossing stitches: a short post from the lower floor up to the crossing, so you see the two strands meet
-  if (weaveOn) for (const cr of m.crossings) {
-    const a = P(cr.cx, cr.cy, 0, c), b = P(cr.cx, cr.cy, GAP, c); const isSel = cr.w === sel;
-    ctx.strokeStyle = rgba(isSel ? GOLD : [110, 124, 150], isSel ? 0.7 : 0.28); ctx.lineWidth = isSel ? 2 : 1; ctx.beginPath(); ctx.moveTo(a.X, a.Y); ctx.lineTo(b.X, b.Y); ctx.stroke();
-  }
-
-  // ribbon labels: white surfaces at the top edge, production lines at the left edge
-  ctx.textAlign = 'center'; ctx.font = `${10.5 * c.s}px ui-sans-serif`;
-  for (const wc of m.warps) { const p = P(m.xOf(wc.w), -14, GAP, c); ctx.fillStyle = rgba(wc.w === sel ? GOLD : WHITEC, 0.95); ctx.fillText(wc.label, p.X, p.Y); }
-  ctx.textAlign = 'right';
-  for (const wf of m.wefts) { const p = P(-10, m.yOf(wf.f), m.hWeft(wf.f, 0), c); ctx.fillStyle = rgba(hex(wf.color), 0.95); ctx.font = `${10.5 * c.s}px ui-monospace,monospace`; ctx.fillText(wf.glyph + ' ' + wf.label, p.X, p.Y); }
-
-  // ── material flowing along the production lines (rides the undulating ribbon) ──
-  if (flowOn) { const tt = now * 0.00016;
-    for (let i = 0; i < m.weftFlow.length; i++) { const wf = m.weftFlow[i]; const col = hex(wf.color); for (let q = 0; q < 3; q++) {
-      const fr = ((tt) + i * 0.13 + q / 3) % 1; const pos = at(wf._pl, fr); const p = P(pos.x, pos.y, pos.z, c);
-      ctx.fillStyle = rgba(mix(col, INK, 0.3), 0.95); ctx.beginPath(); ctx.arc(p.X, p.Y, 3.4 * c.s, 0, 7); ctx.fill();
-    } } }
-
-  // ── the selected white surface's tour: it weaves down through all 8 production lines, alternating floors ──
-  if (weaveOn) {
-    const t = m.tours[sel];
-    t.stops.forEach((st) => { const cr = m.crossings.find((x) => x.w === sel && x.f === st.f); if (!cr) return; const p = P(cr.cx, cr.cy, st.floor === 2 ? GAP : 0, c);
-      ctx.fillStyle = rgba(GOLD, 0.96); ctx.beginPath(); ctx.arc(p.X, p.Y, 8 * c.s, 0, 7); ctx.fill();
-      ctx.fillStyle = '#1a1406'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `bold ${9 * c.s}px ui-monospace`; ctx.fillText(String(st.f + 1), p.X, p.Y); ctx.textBaseline = 'alphabetic';
-    });
-    // a tech walking the weave: rides the warp ribbon down, climbing to the upper floor / dipping to the lower
-    if (flowOn) {
-      const cyc = (now * 0.00012) % 1, k = Math.floor(cyc * 8), fr = cyc * 8 - k;
-      const a = m.tours[sel].stops[k], b = m.tours[sel].stops[(k + 1) % 8];
-      const ya = m.yOf(a.f), yb = m.yOf(b.f), y = ya + (yb - ya) * fr, za = a.floor === 2 ? GAP : 0, zb = b.floor === 2 ? GAP : 0;
-      const z = za + (zb - za) * (fr * fr * (3 - 2 * fr)), p = P(m.xOf(sel), y, z, c);
-      ctx.fillStyle = rgba(GOLD, 1); ctx.beginPath(); ctx.arc(p.X, p.Y, 5 * c.s, 0, 7); ctx.fill(); ctx.strokeStyle = rgba(BG, 0.6); ctx.lineWidth = 1.4; ctx.stroke();
-    }
-  }
-}
-
 function panels() {
-  const con = m.contact;
   $('read').innerHTML =
-    `<b>K(${K.warps},${K.wefts})</b> · <span class="ok">${m.crossings.length}/48 contacts</span> woven · ` +
-    `<b>6</b> white-collar warps × <b>8</b> production wefts over <b>two floors</b> · every surface rides BOTH floors (4 over / 4 under)<br>` +
-    `<span>a plain weave, not two stacked decks: a white surface climbs to the upper floor where it passes OVER a line, dips to the lower where it passes UNDER — the crossing is the facility. Pick a surface (1–6) to follow its weave.</span>`;
+    `<b>K(${K.warps},${K.wefts})</b> woven · <b>19 chunks</b>, ${m.cells.length} chambers · <span class="ok">100% of both floors</span>, no gaps · ` +
+    `the UPPER floor is a woven checkerboard of white-collar + production, the LOWER its exact complement<br>` +
+    `<span>a space-filling plain weave: every chamber is one system on the upper floor and the other on the lower, so every surface rides both floors. Pick a surface (1–6) to follow it through all 8.</span>`;
   $('wsel').innerHTML = m.warps.map((w) => `<div class="w ${w.w === sel ? 'sel' : ''}" data-w="${w.w}"><div class="k">${w.w + 1}</div><div class="lab">${w.label}</div></div>`).join('');
-  for (const el of $('wsel').querySelectorAll('.w')) el.addEventListener('click', () => { sel = +el.dataset.w; sync(); });
+  for (const el of $('wsel').querySelectorAll('.w')) el.addEventListener('click', () => { sel = +el.dataset.w; dirty = true; sync(); });
   const t = m.tours[sel];
   $('itin').innerHTML = t.stops.map((st) => `<div class="stop"><span class="n">${st.f + 1}.</span><span class="g">${st.glyph}</span><span>${st.label}</span><span class="ou">${st.over ? '△ over' : '▽ under'}</span></div>`).join('');
   $('elist').innerHTML = m.wefts.map((e) => `<div class="e"><span class="sw" style="background:${e.color}"></span><span><span class="nm">${e.glyph} ${e.label}</span> — <span class="nt">${e.note}</span></span></div>`).join('');
-  $('note').innerHTML = `Following <b>${m.warps[sel].label}</b>: it enters and weaves down through all ${K.wefts} production lines — <b>over</b> (riding the upper floor), then <b>under</b> (dipping to the lower), meeting each line once. That alternation is why one surface occupies both floors and touches every engine. The six warps interleave into the tangle but never merge.`;
+  $('note').innerHTML = `Following <b>${m.warps[sel].label}</b>: from the core it weaves through all ${K.wefts} production lines — <b>over</b> on the upper floor, <b>under</b> on the lower — meeting each once. The whole region (19 chunks) is filled: no chamber is idle on either floor.`;
 }
 
 let now = 0;
-function frame(ts) { now = ts; drawScene(); requestAnimationFrame(frame); }
 function sync() {
   $('flow').classList.toggle('on', flowOn); $('weaveBtn').classList.toggle('on', weaveOn);
   const u = new URLSearchParams(); if (seed !== 1) u.set('seed', seed); u.set('w', sel); history.replaceState(null, '', '?' + u.toString());
@@ -134,17 +129,17 @@ function sync() {
 }
 
 $('flow').addEventListener('click', () => { flowOn = !flowOn; sync(); });
-$('weaveBtn').addEventListener('click', () => { weaveOn = !weaveOn; sync(); });
-$('explode').addEventListener('input', (e) => { GAP = +e.target.value; m = buildWeaveFloor(seed, { GAP }); precompute(); });
-$('reseed').addEventListener('click', () => { seed = (seed + 1) >>> 0; m = buildWeaveFloor(seed, { GAP }); precompute(); sync(); });
-$('reset').addEventListener('click', () => { panx = pany = 0; Z = 1; });
-addEventListener('keydown', (e) => { const k = '123456'.indexOf(e.key); if (k >= 0) { sel = k; sync(); } });
+$('weaveBtn').addEventListener('click', () => { weaveOn = !weaveOn; dirty = true; sync(); });
+$('explode').addEventListener('input', (e) => { GAP = +e.target.value; m = buildWeaveFloor(seed, { GAP }); precompute(); dirty = true; });
+$('reseed').addEventListener('click', () => { seed = (seed + 1) >>> 0; m = buildWeaveFloor(seed, { GAP }); precompute(); dirty = true; sync(); });
+$('reset').addEventListener('click', () => { panx = pany = 0; Z = 1; dirty = true; });
+addEventListener('keydown', (e) => { const k = '123456'.indexOf(e.key); if (k >= 0) { sel = k; dirty = true; sync(); } });
 let drag = false, lx = 0, ly = 0;
 cv.addEventListener('pointerdown', (e) => { drag = true; lx = e.clientX; ly = e.clientY; cv.classList.add('drag'); cv.setPointerCapture(e.pointerId); });
 cv.addEventListener('pointermove', (e) => { if (!drag) return; panx += e.clientX - lx; pany += e.clientY - ly; lx = e.clientX; ly = e.clientY; });
 cv.addEventListener('pointerup', (e) => { drag = false; cv.classList.remove('drag'); try { cv.releasePointerCapture(e.pointerId); } catch (_) {} });
-cv.addEventListener('wheel', (e) => { e.preventDefault(); Z = Math.max(0.5, Math.min(4, Z * (e.deltaY < 0 ? 1.1 : 0.9))); }, { passive: false });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); Z = Math.max(0.5, Math.min(4, Z * (e.deltaY < 0 ? 1.1 : 0.9))); dirty = true; }, { passive: false });
 
-function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; for (const cc of [cv, buf]) { cc.width = CW * DPR | 0; cc.height = CH * DPR | 0; } cv.style && (cv.style.width = ''); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); dirty = true; }
 addEventListener('resize', resize);
 resize(); sync(); requestAnimationFrame(frame);
