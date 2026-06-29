@@ -33,6 +33,27 @@ floors + a principal `grand` megastructure (`RIND_CHUNKS` in `rind.js`):
 There is **no worship** on the upper rind — that is **Saturn/Sol**, the lower rind, where the **Signal
 Chamber** (Luna's domain) waits. (See the nave's [`/nave/slots`](/nave/slots) lexicon for what each verb means.)
 
+## The lower rind (bible Zone 4 — `LOWER_RIND_CHUNKS`)
+
+The deeper floor: the deep stasis machinery that predates civilization aboard. Three of the Seven whose
+domains predate the Nave, plus the **Signal Chamber** — Luna's lost inner sanctum, the descent's payoff
+where Luna makes contact through the terminal that uses the name she knows. Same four-chunk star builder
+(`prepareLowerRind`/`buildLowerRind` reuse `rindSolveNext` with the lower-rind biome), **Saturn is the hub**
+(the shaft foot from the upper rind):
+
+| Domain | the Seven | over-biases |
+|---|---|---|
+| **Saturn · the Cold Deep** (hub) | structural deep, the tale-count | `worship` · `store` · `dwell` |
+| **Sol · the Fusion-Heart** | the burning center | `worship` · `make` |
+| **Luna · the Dream-Archive** | navigation, dream-logs | `learn` · `store` |
+| **The Signal Chamber** | Luna's lost sanctum — the chapter's close | `learn` · `worship` |
+
+The register is sacred/archive (worship + learn), no grow/play/heal — the deep is not civic. Pinned by
+`rind/test/lowerrind.selftest.mjs` (34 checks). **Wired into v100**: `maybeBuildLowerRind` builds it at
+`narrative_tier ≥ 4`, offset ~12000 east, reached by descending a **second shaft** from the upper-rind hub
+(the decks are a linear stack — `shafts[k]` joins deck k↔k+1 — so the player walks nave → upper rind →
+lower rind, each crossing a teleport pair).
+
 ## How it's built
 
 `rind.js#buildRind(seed)` composes the **same v2 engine as the nave** (`solveChunk` + explicit

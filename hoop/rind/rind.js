@@ -66,10 +66,35 @@ export function rindBiome(i) {
   return { key: c.key, label: c.label, station: c.station, color: c.color, roleMix: c.mix, roleFloors: c.floors, grand: c.grand };
 }
 
+// ── THE LOWER RIND (bible Zone 4) — the deep stasis machinery that predates civilization aboard. Three of
+// the Seven whose domains predate the Nave (Saturn · Sol · Luna), plus the **Signal Chamber** — Luna's lost
+// inner sanctum, "whose position has been lost to the sands of time," the descent's payoff where Luna makes
+// contact through the terminal that uses the name she knows. Register: cosmic, machine-sacred, stasis-
+// without-witness. Saturn is the HUB (the shaft foot from the upper rind — the keeper of the oldest layer).
+//   • Saturn — cold hull, structural deep, the tale-count → worship·store·dwell (the machine-god register).
+//   • Sol    — the fusion-heart → worship·make (the literal burning center; most sacred, least survivable).
+//   • Luna   — navigation, dream-logs → learn·store (the archives of the ship's dreaming; she knows your name).
+//   • Signal Chamber — Luna's lost sanctum → learn·worship (the contact terminal; the chapter's close).
+export const LOWER_RIND_CHUNKS = [
+  { key: 'lower-saturn', label: 'Saturn · the Cold Deep',     station: 'saturn', color: '#6b6f7a',
+    mix: [['worship', 3.0], ['store', 2.4], ['dwell', 1.8], ['mend', 1.0]], floors: { worship: 1, store: 1, dwell: 1 }, grand: ['worship'] },
+  { key: 'lower-sol',    label: 'Sol · the Fusion-Heart',     station: 'sol',    color: '#e8b54a',
+    mix: [['worship', 3.0], ['make', 2.6], ['mend', 1.6], ['dwell', 1.0]], floors: { worship: 1, make: 1, dwell: 1 }, grand: ['make'] },
+  { key: 'lower-luna',   label: 'Luna · the Dream-Archive',   station: 'luna',   color: '#8aa0c8',
+    mix: [['learn', 3.0], ['store', 2.6], ['dwell', 1.2]], floors: { learn: 1, store: 1, dwell: 1 }, grand: ['learn'] },
+  { key: 'lower-signal', label: 'The Signal Chamber',         station: 'signal', color: '#b39bd8',
+    mix: [['learn', 3.0], ['worship', 2.4], ['store', 1.6], ['dwell', 1.0]], floors: { learn: 1, worship: 1, dwell: 1 }, grand: ['learn'] },
+];
+// biome for lower-rind chunk i (same shape as rindBiome, over LOWER_RIND_CHUNKS).
+export function lowerRindBiome(i) {
+  const c = LOWER_RIND_CHUNKS[i] || LOWER_RIND_CHUNKS[0];
+  return { key: c.key, label: c.label, station: c.station, color: c.color, roleMix: c.mix, roleFloors: c.floors, grand: c.grand };
+}
+
 // prepare the rind layout (cheap: geometry + topology, no solving). Returns a STATE driven one chunk at a
 // time by rindSolveNext — so the game can pace the four solves on descent (streamed like the nave wards)
 // instead of freezing on a single block. The hub (0) solves first so the stations can inherit its ports.
-export function prepareRind(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, roomSize = 12, cx = W / 2, cy = H / 2 } = {}) {
+export function prepareRind(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, roomSize = 12, cx = W / 2, cy = H / 2, biome = rindBiome } = {}) {
   seed = (seed | 0) >>> 0;
   const R = Math.min(W, H) * 0.46;
   const poly0 = shapePoly(shape, cx, cy, R), sideOf = shapeSideOf(shape);
@@ -81,8 +106,14 @@ export function prepareRind(seed, { shape = SAMPLE_SHAPE, W = 900, H = 600, room
     if (sa >= 0) activeSides[a].add(sa);
     if (sb >= 0) activeSides[b].add(sb);
   }
-  return { seed, W, H, cx, cy, sideOf, polys, activeSides, roomSize, recs: [], meta: [], order: polys.map((_, i) => i), idx: 0 };
+  // `biome(i)` maps chunk index → its domain (roleMix/floors/grand/label/station). Default = the UPPER rind
+  // (Mercury/Mars/Venus/Jupiter); prepareLowerRind passes lowerRindBiome (Saturn/Sol/Luna + the Signal
+  // Chamber). The geometry/topology is identical — only the domains differ — so the two floors share this.
+  return { seed, W, H, cx, cy, sideOf, polys, activeSides, roomSize, biome, recs: [], meta: [], order: polys.map((_, i) => i), idx: 0 };
 }
+// prepare the LOWER rind: the same four-chunk star, but the deep domains (Saturn hub · Sol · Luna · the
+// Signal Chamber). Reached by descending a SECOND shaft from the upper rind (the game offsets it again).
+export function prepareLowerRind(seed, opts = {}) { return prepareRind(seed, { ...opts, biome: lowerRindBiome }); }
 
 // solve the NEXT rind chunk; stores it in st.recs[i] and returns { i, rec } (or null when all four done).
 // The caller decides which world to add it to — buildRind adds to a fresh world; the game addChunks each
@@ -97,7 +128,7 @@ export function rindSolveNext(st) {
     const sj = sharedSide(st.polys[j], sideOf, st.polys[i]);
     for (const p of st.recs[j].ports) if (sideOf[p.edge] === sj) inherit.push({ x: p.x, y: p.y });
   }
-  const bi = rindBiome(i);
+  const bi = (st.biome || rindBiome)(i);
   const rec = solveChunk({
     poly: st.polys[i], sideOf, inherit, closedSides: closed,
     seed: (st.seed ^ (i * 0x9e37 + 0x51)) >>> 0, foamSeed: st.seed, W: st.W, H: st.H,
@@ -120,6 +151,9 @@ export function buildRind(seed, opts) {
   for (const ch of world.chunks) for (const p of ch.poly) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
   return { world, meta: st.meta, connections: CONNECTIONS, sideOf: st.sideOf, bbox: { x0, y0, x1, y1 }, seed: st.seed };
 }
+// build the whole LOWER rind in one go (the deep domains). Same shape as buildRind; rindSolveNext reads the
+// lower-rind biome off the state, so the only difference is the domains.
+export function buildLowerRind(seed, opts = {}) { return buildRind(seed, { ...opts, biome: lowerRindBiome }); }
 
 // connectivity check (page + tests): which chunk pairs actually share a seam crossing — should equal
 // CONNECTIONS exactly (hub links all three stations; the stations never link to each other).
@@ -136,5 +170,11 @@ export function rindLinks(rind) {
 // move·trade·learn (Mercury) + store + dwell. (No worship here — that is Saturn/Sol, the lower rind.)
 export function rindRoles() {
   const s = new Set(); for (const c of RIND_CHUNKS) for (const [r] of c.mix) s.add(r);
+  return [...s].filter((r) => ROLES[r]).sort();
+}
+// the union of roles the LOWER rind ever places: the deep domains' verbs — worship·store·dwell (Saturn) ·
+// worship·make (Sol) · learn·store (Luna) · learn·worship (the Signal Chamber). The sacred/archive register.
+export function lowerRindRoles() {
+  const s = new Set(); for (const c of LOWER_RIND_CHUNKS) for (const [r] of c.mix) s.add(r);
   return [...s].filter((r) => ROLES[r]).sort();
 }

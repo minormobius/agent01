@@ -71,16 +71,23 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   deep: grow·heal) · **Jupiter** (the long table: govern·play) on alternating hex sides (dirs 0·2·4, spokes
   touch only the hub — a clean **star**). **grow + play live here** (Venus's gardens, Jupiter's court — the
   old "infrastructure-only, no grow/play" rind was built off a now-outdated doc). **No worship up here** —
-  that is Saturn/Sol, the **lower rind** (Saturn·Sol·Luna + the **Signal Chamber** Luna keeps), a deeper
-  floor built separately. `rind.js#buildRind(seed)` composes the **same v2 engine as the nave**
-  (`prepareRind`/`rindSolveNext` pace the four solves; one shared foam seed). Standalone `/rind` view
-  (`index.html` + `rind-app.js`), pan/zoom. Pure + node-tested (`rind/test/rind.selftest.mjs`, 37 checks).
-  See `rind/README.md`. **NB:** the game's rind FLOOR, playable cousin of the repo-root `/rind` structural
-  WING — same name, different layer. **Wired into the v100 game**: `v100/index.html#maybeBuildRind` builds
-  this streamed four-chunk floor **offset** ~6000 world-units east (the hub↔station seams share the nave's
-  lattice, so co-locating would leak the player between decks); the shaft is a teleport pair (`shaftNodes`),
-  deck-aware marker (`shaftAt[deck]`/`shaftHere()`). Combat creeps arm on the rind (deck 1); the nave is
-  baddie-free.
+  that is Saturn/Sol, the **lower rind** — see below. `rind.js#buildRind(seed)` composes the **same v2
+  engine as the nave** (`prepareRind`/`rindSolveNext` pace the four solves; one shared foam seed). Standalone
+  `/rind` view (`index.html` + `rind-app.js`), pan/zoom. Pure + node-tested (`rind/test/rind.selftest.mjs`,
+  37 checks). **NB:** the game's rind FLOOR, playable cousin of the repo-root `/rind` structural WING — same
+  name, different layer.
+  **The LOWER RIND (bible Zone 4 — `LOWER_RIND_CHUNKS`/`prepareLowerRind`/`buildLowerRind`):** the deep
+  stasis floor — **Saturn** (the cold-deep HUB: worship·store·dwell) · **Sol** (fusion-heart: worship·make) ·
+  **Luna** (dream-archive: learn·store) · **The Signal Chamber** (Luna's lost sanctum, the chapter's close:
+  learn·worship). Same four-chunk star builder (reuses `rindSolveNext` with the lower-rind biome). Node-tested
+  (`rind/test/lowerrind.selftest.mjs`, 34 checks). See `rind/README.md`.
+  **Wired into the v100 game** (`v100/index.html`): the decks are a **linear stack** (0 nave → 1 upper rind →
+  2 lower rind), each adjacent pair joined by one shaft — `shafts[k]` joins deck k↔k+1, each end `{x,y,node}`,
+  crossing a **teleport pair** (the floors are offset — upper ~6000, lower ~12000 east — because their seams
+  share the nave's lattice, so co-locating would leak decks). `maybeBuildRind` builds the upper rind at
+  `narrative_tier ≥ 3`, `maybeBuildLowerRind` the lower at `≥ 4` (each gated on the floor above being fully
+  streamed, to avoid racing the incremental stitch). Deck-aware shaft markers (`shaftUpHere`/`shaftDownHere`)
+  read "up to …/down to …". Combat creeps arm on the rind decks (1·2); the nave (deck 0) is baddie-free.
 - `forge/` — **the ship's industrial metabolism** (`forge/forge.js` + `FACTORY.md`), the everything-factory
   of the upper rind modelled as a **closed-loop production economy** — biome's industrial cousin. A
   generation ship is closed (every atom already aboard), so production is **cycling a fixed stock of
