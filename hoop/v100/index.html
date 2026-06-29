@@ -1217,6 +1217,17 @@
       for (const ci of want) if (!st.recs[ci] && !st.order.includes(ci)) { st.order.push(ci); added = true; }
       if (added) streamNaveWards(st);
     }
+    // THE UNLOCK CHAIN: each faction's ward stays hidden until you've EARNED it. Continuant opens once the
+    // commons quest is done (the tier-1 deck-climb → narrative_tier ≥ 2, introSolved); witnessing Continuant
+    // opens Rindwalker; witnessing Rindwalker opens Drift; witnessing Drift opens the rind (maybeBuildRind).
+    // Idempotent + cheap (ensureFactionWards early-returns once built) — safe to call from renderQuest.
+    function ensureUnlockedWards() {
+      if (!story.ready || !world || !world._nave) return;
+      const facts = story.store.getFacts(story.playerId);
+      if (introSolved()) ensureFactionWards('continuant');                        // commons quest cleared
+      if (fqStatus(facts, 'continuant') === 'witnessed') ensureFactionWards('rindwalker');
+      if (fqStatus(facts, 'rindwalker') === 'witnessed') ensureFactionWards('drift');
+    }
     // stream the queued faction wards ONE PER TICK — solve + paint + incremental stitch, like a normal chunk
     // load. Re-entrant-safe (one drain loop): ensureFactionWards may append while it's mid-run or after it idled.
     let _naveStreaming = false;
@@ -1669,13 +1680,13 @@
     let journalOpen = false;    // the journal reuses the #enc overlay; this distinguishes it from an encounter card
     function renderQuest() {
       if (!story.ready) { questGuidance = null; if (journalOpen) renderJournal(); return; }
-      // THE NAVE CAMPAIGN is the headline objective while you're on floor 1 and haven't yet met all three
-      // factions: seek the active faction's ward (the ◇ waypoint), witness it, repeat — the Drift opens the
-      // way down. It overrides the deck-climb objective here so floor 1 reads as one clear quest.
-      if (world && world._nave && playerDeck() === 0) {
+      ensureUnlockedWards();   // build each faction's ward as the chain unlocks it (commons→continuant→rindwalker→drift)
+      // THE NAVE CAMPAIGN is the headline objective ONCE the commons quest is done (narrative_tier ≥ 2):
+      // seek the active faction's ward (the ◇ waypoint), witness it, repeat — the Drift opens the way down.
+      // Before that (tier 1) the headline is the COMMONS quest (the deck-climb below), which gates Continuant.
+      if (world && world._nave && playerDeck() === 0 && introSolved()) {
         const facts = story.store.getFacts(story.playerId), prog = fqProgress(facts);
         if (!prog.allDone && prog.active) {
-          ensureFactionWards(prog.active);   // build the active faction's ward just-in-time (gated for perf; idempotent)
           const f = FQ[prog.active], w = fqWardXY(prog.active);
           storyWp = w ? { x: w.x, y: w.y } : null;
           questGuidance = {
