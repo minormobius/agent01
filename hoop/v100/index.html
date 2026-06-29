@@ -403,9 +403,43 @@
       .aclose, #story .cl, #battle .bflee, #battle .bclaim, #enc .ecl { padding: 8px 12px; font-size: 13px; }
       .gbtn:active, .bact:active, .act:active, #story .ch button:active, .hibtn:active, .ttab:active, .kchip:active { filter: brightness(1.18); border-color: currentColor; }
     }
+    /* ── THE ENTRY PORTAL ── */
+    #home{position:fixed;inset:0;z-index:60;display:none;background:#03040a;overflow:hidden;font-family:"JetBrains Mono",ui-monospace,monospace}
+    #home.on{display:block}
+    #homebg{position:absolute;inset:0;width:100%;height:100%;display:block}
+    #hometitle{position:absolute;left:0;top:6vh;width:100%;height:30vh;display:block;pointer-events:none}
+    #homemenu{position:absolute;left:50%;top:46vh;transform:translateX(-50%);width:min(440px,90vw);display:flex;flex-direction:column;gap:11px;align-items:stretch;text-align:center}
+    #homefoot{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#46535e;font-size:10.5px;letter-spacing:.5px}
+    .hmbtn{appearance:none;background:rgba(10,16,22,.72);border:1px solid #2c3c47;color:#dfe7e2;font:inherit;font-size:14px;font-weight:600;padding:13px 16px;border-radius:11px;cursor:pointer;letter-spacing:.4px;transition:border-color .12s,color .12s,background .12s;backdrop-filter:blur(2px)}
+    .hmbtn:hover{border-color:#7fd8d0;color:#fff}
+    .hmbtn.prim{background:linear-gradient(180deg,rgba(60,18,14,.85),rgba(30,9,7,.9));border-color:#8e3326;color:#ffd9c8}
+    .hmbtn.prim:hover{border-color:#e23b2e;color:#fff}
+    .hmauth{font-size:12px;color:#9aa8a0;line-height:1.5;padding:9px 12px;border:1px solid #1b2530;border-radius:10px;background:rgba(6,10,14,.6)}
+    .hmauth .act{color:#7fd8d0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+    .hmauth .who{color:#7fd8d0;font-weight:600}
+    .hmwarn{font-size:11px;color:#d8a45c;line-height:1.5}
+    .hmlist{display:flex;flex-direction:column;gap:7px;max-height:34vh;overflow:auto;text-align:left}
+    .hmrow{display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(8,12,17,.7);border:1px solid #20303a;border-radius:9px;padding:9px 11px}
+    .hmrow .nm{font-size:13px;color:#f4bf62;font-weight:600}
+    .hmrow .mt{font-size:10px;color:#7c8a83;margin-top:2px}
+    .hmrow .rb{display:flex;gap:6px}
+    .hmrow button{background:#0f141a;border:1px solid #2c3c47;color:#cfe7df;font:inherit;font-size:11px;padding:5px 9px;border-radius:7px;cursor:pointer}
+    .hmrow button.prim{border-color:#2f7a4a;color:#bfe9cf}
+    .hmrow button.danger{border-color:#5a2630;color:#e0a0a0}
+    .hmrow button:hover{border-color:#7fd8d0;color:#fff}
+    .hmempty{font-size:11.5px;color:#6b7872;padding:10px;text-align:center}
+    .hmback{font-size:12px;color:#7fd8d0;cursor:pointer;background:none;border:0;font:inherit;padding:4px}
 </style>
 </head>
 <body>
+  <!-- THE ENTRY PORTAL — the only auth location. Sign in here, then New Game (→ character creation while the
+       world builds behind it) or Load Game. Shown on boot unless ?play=1 (the in-game entry flag). -->
+  <div id="home">
+    <canvas id="homebg"></canvas>
+    <canvas id="hometitle"></canvas>
+    <div id="homemenu"></div>
+    <div id="homefoot">an O’Neill-cylinder game · chapter one</div>
+  </div>
   <canvas id="mapgl" style="pointer-events:none"></canvas>
   <canvas id="cv"></canvas>
   <div class="hud" id="status">…</div>
@@ -423,7 +457,7 @@
   </div>
   <div id="moremenu">
     <button id="dbgbtn" title="story status (`)">ⓘ story status</button>
-    <button id="newgame" title="resume a save, start a new world, or restart this one">⟲ worlds</button>
+    <button id="newgame" title="return to the home portal (sign in, switch or start a game)">⌂ home</button>
   </div>
   <div class="hud" id="who"></div>
   <div id="dbg"></div>
@@ -503,6 +537,7 @@
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
+    import { startHome } from './home.js';   // the entry portal: ship-bore backdrop + the DOOM "HOOP" wordmark
     import { deriveCombat, TRIAD, TRIAD_ORDER } from './stats.js';
     import { crewSprite, crewStats } from './crew.js';
     import { EquippedView } from './equipped.js';
@@ -1792,10 +1827,11 @@
         else status = `<span title="${esc(uri)}">your save (syncing…)</span>`;
         el.innerHTML = `<span style="color:#7fd8d0">@${esc(storyUser.handle)}</span> — ${status}${pulseTag()} · <span class="act" data-logout>sign out</span>`;
       } else {
-        el.innerHTML = `<span class="act" data-login>sign in</span> to save your game to your PDS${pulseTag()}`;
+        // the PORTAL is the only sign-in location — in-world, point there rather than opening the modal here.
+        el.innerHTML = `<span class="act" data-home>⌂ sign in at the portal</span> — saves are local-only${pulseTag()}`;
       }
       const lo = el.querySelector('[data-logout]'); if (lo) lo.onclick = signOut;
-      const li = el.querySelector('[data-login]'); if (li) li.onclick = signIn;
+      const hm = el.querySelector('[data-home]'); if (hm) hm.onclick = returnHome;
       const pt = el.querySelector('[data-pulse]'); if (pt) pt.onclick = () => toggleDbg(true);
       const rt = el.querySelector('[data-retry]'); if (rt) rt.onclick = () => { _saveErr = null; renderAuthPill(); flushRepo(true); };
       const rl = el.querySelector('[data-relogin]'); if (rl) rl.onclick = () => { _saveErr = null; signIn(); };   // a fresh OAuth re-mints the unified scope (fixes a narrow SSO session)
@@ -1854,6 +1890,7 @@
       storyUser = u ? { did: u.did, handle: u.handle } : null;
       _syncedSave = false; _pfpUrl = null;
       renderAuthPill();
+      if ($('home') && $('home').classList.contains('on')) { try { renderHome(); } catch (e) {} }   // refresh the portal menu after a sign-in round-trip
       syncOwnSaveIfReady();
       loadPfp();
     }
@@ -3993,6 +4030,71 @@
       if (storyUser) { try { auth.pds.deleteRecord(SAVE_NSID, worldKey()).catch(() => {}); } catch (e) {} }
       location.reload();
     }
+    // ── THE ENTRY PORTAL (home screen) — the only auth location. Sequences auth (settled here) → New Game
+    //    (a fresh seed, character creation while the world builds behind it) or Load Game, so auth + creation +
+    //    population no longer race at boot. World ENTRY reloads with ?play=1 (reuses the battle-tested per-seed
+    //    boot path); returning to the portal drops the flag. ──
+    let _homeStop = null, _homeView = 'menu';
+    function showHome() {
+      const el = $('home'); if (!el) return; el.classList.add('on'); _homeView = 'menu';
+      if (!_homeStop) { try { _homeStop = startHome($('homebg'), $('hometitle')); } catch (e) {} }
+      renderHome();
+    }
+    function hideHome() { const el = $('home'); if (el) el.classList.remove('on'); if (_homeStop) { try { _homeStop(); } catch (e) {} _homeStop = null; } }
+    function enterNewGame() {
+      const s = ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0) || 1;
+      try { localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
+      try { sessionStorage.setItem('hoop:forceCreate', '1'); } catch (e) {}   // the fresh world opens straight into (named) character creation
+      rememberSeedTo(s);
+      const u = new URL(location.href); u.searchParams.set('seed', String(s)); u.searchParams.set('play', '1'); location.href = u.toString();
+    }
+    function enterSavedGame(s) {
+      try { sessionStorage.removeItem('hoop:forceCreate'); } catch (e) {}
+      rememberSeedTo(s);
+      const u = new URL(location.href); u.searchParams.set('seed', String(s)); u.searchParams.set('play', '1'); location.href = u.toString();
+    }
+    function returnHome() {   // in-world ⌂ — flush, then boot back to the portal (the only auth location)
+      try { flushRepo(true); } catch (e) {}
+      const u = new URL(location.href); u.searchParams.delete('play'); location.href = u.toString();
+    }
+    async function homeDelete(s) {
+      if (!confirm(`Delete the save for world ${s}? Removes it from ${storyUser ? 'your PDS and ' : ''}this device. Can't be undone.`)) return;
+      localDel(s);
+      if (storyUser) { try { await deleteOwnSave(auth.pds, String(s)); } catch (e) {} }
+      renderHome();
+    }
+    function renderHome() {
+      const menu = $('homemenu'); if (!menu) return;
+      if (_homeView === 'load') { renderHomeLoad(menu); return; }
+      const authRow = storyUser
+        ? `<div class="hmauth">signed in as <span class="who">@${esc(storyUser.handle)}</span> · <span class="act" data-ho-out>sign out</span></div>`
+        : `<div class="hmauth"><span class="act" data-ho-in>Sign in with Bluesky</span> to save to your own repo.<div class="hmwarn">⚠ Play without signing in and your game saves only to THIS browser — it won’t follow you to another device, and you can’t spread rumors. This is the only place to sign in.</div></div>`;
+      menu.innerHTML = authRow
+        + `<button class="hmbtn prim" data-ho-new>▶ New Game</button>`
+        + `<button class="hmbtn" data-ho-load>↺ Load Game</button>`;
+      menu.querySelector('[data-ho-new]').onclick = enterNewGame;
+      menu.querySelector('[data-ho-load]').onclick = () => { _homeView = 'load'; renderHome(); };
+      const si = menu.querySelector('[data-ho-in]'); if (si) si.onclick = signIn;
+      const so = menu.querySelector('[data-ho-out]'); if (so) so.onclick = signOut;
+    }
+    async function renderHomeLoad(menu) {
+      menu.innerHTML = `<button class="hmback" data-ho-back>← back</button><div class="hmlist" id="hmlist"><div class="hmempty">reading saves…</div></div>`;
+      menu.querySelector('[data-ho-back]').onclick = () => { _homeView = 'menu'; renderHome(); };
+      let profiles = []; try { profiles = await gatherProfiles(); } catch (e) {}
+      if (!$('home').classList.contains('on') || _homeView !== 'load') return;   // navigated away while awaiting
+      const list = $('hmlist'); if (!list) return;
+      if (!profiles.length) { list.innerHTML = `<div class="hmempty">No saved games yet — start a New Game.</div>`; return; }
+      list.innerHTML = profiles.map((p) => {
+        const s = summarizeState(p.state), deck = s ? deckForTier(s.nar) : null;
+        const title = s && s.name ? esc(s.name) : 'unnamed traveller';
+        const src = [p.cloud ? '☁' : '', p.local ? '◍' : ''].filter(Boolean).join(' ');
+        const meta = s ? `${esc(deck ? deck.name : 'the Nave')} · deck ${s.nar}/${DECK_COUNT} · ◈${s.coins} · world ${esc(p.world)} ${src}` : `empty save · world ${esc(p.world)} ${src}`;
+        return `<div class="hmrow"><div><div class="nm">${title}</div><div class="mt">${meta}</div></div>`
+          + `<div class="rb"><button class="prim" data-ho-go="${esc(p.world)}">play</button><button class="danger" data-ho-del="${esc(p.world)}">✕</button></div></div>`;
+      }).join('');
+      list.querySelectorAll('[data-ho-go]').forEach((b) => { b.onclick = () => enterSavedGame(b.getAttribute('data-ho-go')); });
+      list.querySelectorAll('[data-ho-del]').forEach((b) => { b.onclick = () => homeDelete(b.getAttribute('data-ho-del')); });
+    }
     function openLoader() { loaderOpen = true; $('loader').classList.add('on'); renderLoader(); }
     function closeLoader() { loaderOpen = false; $('loader').classList.remove('on'); }
     async function renderLoader() {
@@ -4035,10 +4137,14 @@
       list.querySelectorAll('[data-resume]').forEach((b) => { const w = b.getAttribute('data-resume'); if (w) b.onclick = () => switchToWorld(w); });
       list.querySelectorAll('[data-del]').forEach((b) => { b.onclick = () => deleteProfile(b.getAttribute('data-del')); });
     }
-    $('loader').addEventListener('click', (e) => { if (e.target === $('loader')) closeLoader(); });   // click the backdrop to dismiss
-    $('newgame').addEventListener('click', openLoader);
-    addEventListener('keydown', (e) => { if (e.key === 'Escape' && loaderOpen) { e.preventDefault(); closeLoader(); } });
-    loadStory(); resize(); newWorld(); requestAnimationFrame(frame);
+    $('newgame').addEventListener('click', returnHome);   // in-world: ⌂ return to the portal (no in-world worlds loader)
+    // BOOT: the portal gates entry. ?play=1 means "enter a world" (set by the portal's New/Load buttons) →
+    // the existing per-seed boot path (loadStory restores this seed, newWorld builds, forceCreate on new).
+    // Anything else shows the portal first, so auth settles before any world/save activity (no boot race).
+    resize(); requestAnimationFrame(frame);
+    const ENTER = (() => { try { return new URLSearchParams(location.search).get('play') === '1'; } catch (e) { return false; } })();
+    if (ENTER) { loadStory(); newWorld(); }
+    else { showHome(); }
     // bring up the WebGPU cell renderer (crisp vector fills). Async + fully guarded: if it never resolves
     // or WebGPU is missing, the game stays on the baked-raster path with zero change.
     initGpuMap($('mapgl')).then((g) => {
