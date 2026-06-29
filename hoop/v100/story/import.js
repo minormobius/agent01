@@ -86,6 +86,48 @@ export function importRecord(rec, { provider = 'hoopy-export', lane = 'spine' } 
 // invert AXIS_MAP: our engine axis → his source field name (so importRecord reads the right key)
 function invAxis(engineAxis) { for (const [k, v] of Object.entries(AXIS_MAP)) if (v === engineAxis) return k; return engineAxis; }
 
+// ── ROOM BUNDLES (hoopy's 2026-06 refactor) ──────────────────────────────────────────────────────────
+// His newest export replaces the standalone npc/item/lore_fragment types with ONE bundled-per-room type,
+// `room_bundle`, whose `content` nests a full NPC (name + voice + a branching `dialogue.nodes` tree) and a
+// `lore` fragment, plus the room's zone/verb/faction/nave_faction. The engine consumes FLAT items, so a
+// bundle is EXPLODED into the items it already understands: an `npc` (its dialogue tree is byte-compatible
+// with engine.js's talk/choose) + a `lore_fragment`. The placement signal the rest of the game keys on —
+// faction (the nave campaign + the upper-rind witness) and zone (the floor) — is lifted into `tags`:
+// crucially `nave_faction` (the continuant/drift/rindwalker projection) is tagged even when `faction` is a
+// Seven's-domain name (mars/venus/…), so chatter.js#factionOf resolves a rind bundle to its nave faction.
+export function expandRoomBundle(rec, { provider = 'hoopy-export', lane = 'spine' } = {}) {
+  const C = rec.content && typeof rec.content === 'object' ? rec.content : {};
+  const npc = C.npc && typeof C.npc === 'object' ? C.npc : {};
+  const tags = [...new Set([...(rec.tags || []), C.zone, C.faction, C.nave_faction, C.verb].filter(Boolean).map((t) => String(t).toLowerCase()))];
+  const meta = {
+    revelation_tier: parseTier(rec.revelation_tier), narrative_tier: parseTier(rec.narrative_tier), power_tier: parseTier(rec.power_tier),
+    approved: rec.approved != null ? !!rec.approved : (rec.status || 'approved') !== 'pending',
+    status: rec.status === 'pending' ? 'active' : (rec.status === 'retired' ? 'retired' : 'active'),
+    lane, provider,
+  };
+  const requires = parseRequires(rec.requires); if (Object.keys(requires).length) meta.requires = requires;
+  const refs = rec.world_refs || rec.refs; if (refs && refs.length) meta.refs = refs;
+  if (rec.produces) meta.produces = rec.produces;
+  const out = [];
+  if (npc.name || npc.dialogue) {
+    const c = { name: npc.name || C.name || 'someone', description: C.description || npc.voice || '' };
+    if (npc.dialogue) c.dialogue = npc.dialogue;
+    out.push({ id: rec.id || slug(npc.name || C.name), type: 'npc', content: c, tags: tags.slice(), ...meta });
+  }
+  if (C.lore) {
+    out.push({ id: (rec.id || slug(C.name || npc.name)) + ':lore', type: 'lore_fragment',
+      content: { name: C.name ? C.name + ' — lore' : (npc.name ? npc.name + '’s ground' : 'a fragment'), description: String(C.lore) },
+      tags: tags.slice(), ...meta });
+  }
+  return out.length ? out : [importRecord(rec, { provider, lane })];   // never silently drop a bundle
+}
+
+// One source record → one OR MORE engine content_items. A room_bundle explodes (npc + lore); everything
+// else is a 1:1 importRecord. importWorldExport flat-maps this, so the rest of the pipeline is unchanged.
+export function expandRecord(rec, opts = {}) {
+  return (rec && rec.type === 'room_bundle') ? expandRoomBundle(rec, opts) : [importRecord(rec, opts)];
+}
+
 // THE RUNTIME/WORLD FLAG MANIFEST. hoopy's bible defines a flag system whose progression flags are set
 // by the GAME (the opening, the descent, the storyboard's completes_when), NOT by any pool entity — so a
 // pool-only reachability check would (correctly) call them orphans. They are the gates.js "assumed-
@@ -112,5 +154,5 @@ export function importWorldExport(json, opts = {}) {
   else if (Array.isArray(json)) items = json;
   else if (json && typeof json === 'object') items = Object.values(json).filter((v) => v && typeof v === 'object' && v.type);
   else items = [];
-  return { content: items.map((r) => importRecord(r, opts)), bible: (json && json.story_bible) || null };
+  return { content: items.flatMap((r) => expandRecord(r, opts)), bible: (json && json.story_bible) || null };
 }
