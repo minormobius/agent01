@@ -499,6 +499,7 @@
     import { importWorldExport } from './story/import.js';   // v096: hoopy's world_export → content_items (first-class) diff
     import { FQ, FQ_ORDER, fqProgress, fqStatus, fqActive, fqOpensRind, fqSignatureExclusive, fqCanWitness } from './story/factionquest.js';   // v100: the NAVE CAMPAIGN — meet the three factions in order; the Drift opens the rind
     import { CHOICE_FACTIONS, WITNESS_TARGET, FACTION_INFO, witnessCount, allWitnessed, chosenFaction, witnessProgress, isChoiceFaction } from './story/factionchoice.js';   // v100: the UPPER-RIND THRESHOLD — witness each faction ×3, then choose; the choice colors the lower-rind descent
+    import { CHAMBER_LORE_TARGET, chamberLore, signalLocated, chapterComplete, finalChoice, lunaContact, FINAL_CHOICES, weighJourney, concludeEnding } from './story/conclusion.js';   // v100: THE CHAPTER CLOSE — locate the Signal Chamber, Luna's contact, the final decision, an ending fitted to the path
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -597,7 +598,7 @@
     const chunkSeedFor = (poly) => { const c = centroidOf(poly); return (hash2(Math.round(c.x), Math.round(c.y)) ^ seed) >>> 0; };
     const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
 
-    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter(); checkWardArrival();
+    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter(); checkWardArrival(); checkSignalChamber();
       const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); }
       whereAmISoon(); }   // HUD refresh is THROTTLED — whereAmI runs the hoopy oracle + a big innerHTML write; doing it every frame during a walk was the steppy stutter
     let _whereT = 0;
@@ -953,6 +954,93 @@
       _factionChoiceOpen = false; hideEncounter();
       notify(info.colours, { kind: 'story', ms: 5200 });
       saveStory();   // → maybeBuildLowerRind opens the deep, coloured by the choice
+    }
+
+    // ── THE CHAPTER CLOSE (v100, conclusion.js): in the LOWER RIND you gather chamber-lore until you know
+    //    where the lost Signal Chamber is, then go. There Luna makes contact, and the chapter closes on the
+    //    DECISION it was built around — weighed against the whole journey. ──
+    let _concludeOpen = false;   // the contact/choice/ending overlay is up (mandatory, like the faction choice)
+    // how much lore the player has crystallized (the engine's seen-set) — for the journey weigh-up.
+    function loreSeenTotal() {
+      try {
+        const all = [...story.store.content.values()].filter((c) => c.type === 'lore_fragment');
+        const p = story.store.getPlayerState(story.playerId), seen = new Set(p.seen_ids || []);
+        return { loreSeen: all.filter((c) => seen.has(c.id)).length, loreTotal: all.length };
+      } catch (e) { return { loreSeen: 0, loreTotal: 0 }; }
+    }
+    // crystallizing content in the LOWER RIND (deck 2) is chamber-lore — gather CHAMBER_LORE_TARGET to locate
+    // the chamber. Hooked from maybeEncounter alongside the upper-rind witness tally.
+    function noteChamberLore(item) {
+      if (!story.ready || playerDeck() !== 2 || !item) return;
+      const facts = story.store.getFacts(story.playerId);
+      if (signalLocated(facts) || chapterComplete(facts)) return;
+      story.store.setFact(story.playerId, 'cl.gathered', chamberLore(facts) + 1);
+      const after = story.store.getFacts(story.playerId);
+      if (signalLocated(after)) notify('the deep gives up its shape — the Signal Chamber is located (follow the ◇ waypoint)', { kind: 'story', ms: 4400 });
+      else notify(`chamber-lore (${chamberLore(after)}/${CHAMBER_LORE_TARGET})`, { kind: 'story', ms: 2400 });
+      saveStorySnapshot(); renderQuest();
+    }
+    // the Signal Chamber chunk on the lower rind (the 'signal' station of LOWER_RIND_CHUNKS) → an (x,y) waypoint.
+    function signalChamberXY() {
+      if (!world || !world._lowerRind) return null;
+      const meta = world._lowerRind.meta || [];
+      let ci = -1; for (let i = 0; i < meta.length; i++) if (meta[i] && meta[i].station === 'signal') { ci = i; break; }
+      const ch = ci >= 0 && world.chunks.find((c) => (c.deck || 0) === 2 && world._lowerRind.recs[ci] && c.id === world._lowerRind.recs[ci].id);
+      if (!ch || !ch.poly) return null;
+      let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } return { x: x / ch.poly.length, y: y / ch.poly.length, ci };
+    }
+    // per-move check: standing in the LOCATED Signal Chamber → Luna makes contact (once).
+    function checkSignalChamber() {
+      if (!story.ready || !world || !world._lowerRind || player < 0 || !walk) return;
+      if (playerDeck() !== 2) return;
+      const facts = story.store.getFacts(story.playerId);
+      if (chapterComplete(facts) || facts['flag.signal_contact'] === true || !signalLocated(facts)) return;
+      const sc = signalChamberXY(); if (!sc || walk.nodeChunk[player] !== sc.ci) return;   // must be IN the chamber chunk
+      story.store.setFact(story.playerId, 'flag.signal_contact', true); saveStorySnapshot();
+      showLunaContact();
+    }
+    function showLunaContact() {
+      if (!story.ready || _concludeOpen) return;
+      _concludeOpen = true;
+      const name = (playerChar && playerChar.name) || (story.store.getFact(story.playerId, 'character') || {}).name || '';
+      const lc = lunaContact(name);
+      $('enccard').innerHTML =
+        `<div class="ek">${esc(lc.kicker)}</div><div class="en">${esc(lc.title)}</div>` +
+        `<div class="ed" style="font-size:13px">${esc(lc.body)}</div>` +
+        `<button data-luna-go="1" style="margin-top:12px;padding:8px 18px;border:1px solid var(--gold,#f4bf62);background:rgba(244,191,98,.14);color:var(--gold,#f4bf62);border-radius:7px;font:inherit;font-size:13px;cursor:pointer">the choice is yours →</button>`;
+      journalOpen = false; $('enc').classList.add('on');
+    }
+    // THE FINAL DECISION — the question Chapter One is built around. Each option weighs against your journey.
+    function showFinalChoice() {
+      _concludeOpen = true;
+      const facts = story.store.getFacts(story.playerId), cf = chosenFaction(facts);
+      const opts = FINAL_CHOICES.map((c) => {
+        const res = c.resonates ? `<span style="color:${(FACTION_INFO[c.resonates] || {}).color || '#9aa8a0'};font-size:11px"> · ${esc(FACTION_INFO[c.resonates].label)}${cf === c.resonates ? ' (yours)' : ''}</span>` : '';
+        return `<div class="choice" data-final-choice="${c.id}" style="border-left:3px solid ${cf === c.resonates ? (FACTION_INFO[c.resonates].color) : '#3a4650'};padding:9px 12px;margin:7px 0;cursor:pointer">`
+          + `<div style="color:#e7ecea;font-weight:600">${esc(c.label)}${res}</div>`
+          + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin-top:3px">${esc(c.gist)}</div></div>`;
+      }).join('');
+      $('enccard').innerHTML =
+        `<div class="ek">the Signal Chamber · the decision</div><div class="en">What do you say back?</div>` +
+        `<div class="ed" style="font-size:13px">The translator is open. The decision is the one you were rebuilt to make — and only you, now, can make it.</div>` +
+        `<div style="margin-top:6px">${opts}</div><div class="ex">choose to close the chapter</div>`;
+      journalOpen = false; $('enc').classList.add('on');
+    }
+    function concludeChapter(choiceId) {
+      if (!story.ready) return;
+      const choice = FINAL_CHOICES.find((c) => c.id === choiceId); if (!choice) return;
+      story.store.setFact(story.playerId, 'flag.final_choice', choiceId);
+      story.store.setFact(story.playerId, 'flag.chapter_complete', true);
+      const facts = story.store.getFacts(story.playerId), journey = weighJourney(facts, loreSeenTotal());
+      const e = concludeEnding(choiceId, journey);
+      $('enccard').innerHTML =
+        `<div class="ek">${esc(journey.chosen ? FACTION_INFO[journey.chosen].label + ' · ' : '')}the close</div>` +
+        `<div class="en">${esc(e.title)}</div>` +
+        `<div class="ed" style="font-size:13px">${esc(e.review)}\n\n${esc(e.close)}</div>` +
+        `<div class="ex">⏎ / click — Chapter One ends</div>`;
+      _concludeOpen = false;   // the ending card IS dismissable (the chapter is over)
+      $('enc').classList.add('on');
+      saveStory();
     }
 
     // ── stamina (drains walking, restored by a bed) + chests (per-chamber persistent storage) ──
@@ -1530,6 +1618,25 @@
           return;
         }
       }
+      // THE LOWER RIND is the chapter's close: gather chamber-lore to LOCATE the lost Signal Chamber, then go
+      // — Luna is waiting there. (Once the chapter is complete it falls through to the normal readout.)
+      if (world && world._lowerRind && playerDeck() === 2) {
+        const facts = story.store.getFacts(story.playerId);
+        if (!chapterComplete(facts)) {
+          const located = signalLocated(facts), n = chamberLore(facts), sc = located ? signalChamberXY() : null;
+          storyWp = sc ? { x: sc.x, y: sc.y } : null;
+          questGuidance = {
+            objective: `<span class="lbl">⚑ The Lower Rind · the Signal Chamber</span> <span class="o">— ${located ? 'reach the chamber, where Luna waits' : 'locate the lost Signal Chamber'}</span>`
+              + (located ? '' : `<span class="qbar"><span style="width:${Math.round(100 * n / CHAMBER_LORE_TARGET)}%"></span></span> <span class="mk">${n}/${CHAMBER_LORE_TARGET}</span>`),
+            stepText: located ? 'The way is known. Go to the Signal Chamber and the terminal older than the Nave.' : 'Walk Saturn’s deep, Sol’s heart, Luna’s archive — gather chamber-lore until the deep gives up the chamber’s place.',
+            whereWord: located ? 'the Signal Chamber' : null,
+            hasWp: !!storyWp,
+            howText: located ? null : 'Examine the lore of the deep (anything that glows). Three fragments and the chamber’s position resolves.',
+          };
+          if (journalOpen) renderJournal();
+          return;
+        }
+      }
       const d = currentDeck(), tier = narTier(), paged = story.store.getFact(story.playerId, 'hoopy.paged.' + d.tier);
       const chap = (story.sb && story.sb.chapter) || 1;
 
@@ -1922,7 +2029,7 @@
       journalOpen = false;   // a real encounter takes the #enc overlay — not the journal
       $('enc').classList.add('on');
     }
-    const hideEncounter = () => { $('enc').classList.remove('on'); journalOpen = false; _encItem = null; _factionChoiceOpen = false; };
+    const hideEncounter = () => { $('enc').classList.remove('on'); journalOpen = false; _encItem = null; _factionChoiceOpen = false; _concludeOpen = false; };
     // SPREAD a rumor about the figure you just met → your own repo (append-only outbox). Best-effort; a
     // failure just marks the button, never breaks play.
     // THE shared rumor publisher — every fixture that writes to the player's own story.rumor outbox goes
@@ -1952,7 +2059,11 @@
     $('enc').addEventListener('click', async (e) => {
       const fc = e.target.closest('[data-choose-faction]');
       if (fc) { e.stopPropagation(); chooseFaction(fc.dataset.chooseFaction); return; }   // Sevin's threshold — pick a faction
-      if (_factionChoiceOpen) return;   // the choice is mandatory: a click off the options doesn't dismiss it
+      const lg = e.target.closest('[data-luna-go]');
+      if (lg) { e.stopPropagation(); showFinalChoice(); return; }   // Luna's contact → the final decision
+      const fn = e.target.closest('[data-final-choice]');
+      if (fn) { e.stopPropagation(); concludeChapter(fn.dataset.finalChoice); return; }   // the decision → the ending
+      if (_factionChoiceOpen || _concludeOpen) return;   // the threshold + the close are mandatory: a click off the options doesn't dismiss them
       const sp = e.target.closest('[data-spread]');
       if (sp && !sp.disabled) {
         e.stopPropagation();
@@ -1964,10 +2075,10 @@
       }
       hideEncounter();
     });
-    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && !_factionChoiceOpen && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
+    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && !_factionChoiceOpen && !_concludeOpen && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
     // NPCs fold their reveal INTO the dialogue (one screen, one name — see renderStory); only non-NPC
     // encounters (item / lore / creature / plot_beat) still get the standalone popup.
-    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) { if (intro.item.type !== 'npc') showEncounter(intro.item); noteFactionWitness(intro.item); } };   // first meeting → encounter card (non-npc) + upper-rind faction-witness tally
+    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) { if (intro.item.type !== 'npc') showEncounter(intro.item); noteFactionWitness(intro.item); noteChamberLore(intro.item); } };   // first meeting → encounter card (non-npc) + upper-rind faction-witness tally + lower-rind chamber-lore tally
     // a generic centre-screen page (deck arrival, the hoopybot level-up) — same overlay, custom layout.
     function showPage(kicker, title, body, foot) {
       _encItem = null;   // a generic page reuses the overlay — no figure to spread word of
