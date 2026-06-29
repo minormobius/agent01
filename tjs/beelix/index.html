@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Beelix · a helix of bees · tjs</title>
-<meta name="description" content="A descending helix of bees in three.js: a hive emitter up top, a death plane below that recycles them, and a light pipe that pulses hive→death. The double helix isn't scripted — it falls out of three servo forces (hold radius, hold twist, hold descent). The light pulses ripple a glow + speed wave down the strands.">
+<meta name="description" content="A descending helix of bees in three.js: a hive emitter, a death plane that recycles them, and a light pipe. The bees run pure Reynolds boids as self-propelled particles; you control only the light pipe. A faint swirl in the light, amplified by boids alignment, locks them into a coherent helix — set the swirl to 0 to watch raw, unreliable emergence.">
 <script type="importmap">
 {
   "imports": {
@@ -74,29 +74,35 @@
 <div class="stage-row">
   <div id="viewport">
     <div class="hud" id="hud"></div>
-    <div class="hint">drag = orbit · scroll = zoom · the helix is emergent — tune the servos at right</div>
+    <div class="hint">drag = orbit · scroll = zoom · bees = pure boids · you steer only the light · HUD shows the rotation it locks</div>
   </div>
 
   <aside>
     <h2>Beelix</h2>
-    <p class="sub">A hive emits bees; they spiral down a pulsing light pipe and are recycled at the death plane. The helix is emergent, not keyframed.</p>
+    <p class="sub">Bees run pure boids. You steer only the <b style="color:var(--gold)">light pipe</b>; the boids solve into a helix. Set <b>Light swirl</b> to 0 to watch raw (flaky) emergence — bees self-organise a spin only sometimes.</p>
 
     <div class="presets" id="presets"></div>
 
     <div class="group">
-      <h2>The helix</h2>
-      <div class="sub" style="margin-bottom:8px">three servos: hold radius, hold twist, hold descent</div>
-      <div id="helixSliders"></div>
+      <h2>Boids — the engine</h2>
+      <div class="sub" style="margin-bottom:8px">Reynolds rules; alignment is what turns a seeded swirl into a coherent mill</div>
+      <div id="boidSliders"></div>
+    </div>
+
+    <div class="group pipe">
+      <h2>Light pipe — you control this</h2>
+      <div class="sub" style="margin-bottom:8px">the only authored forces. Light swirl is the sole rotational input (sign = handedness)</div>
+      <div id="lightSliders"></div>
     </div>
 
     <div class="group">
       <h2>Flow &amp; body</h2>
-      <div id="flowSliders"></div>
+      <div id="bodySliders"></div>
     </div>
 
     <div class="group pipe">
-      <h2>Light pipe · pulses</h2>
-      <div class="sub" style="margin-bottom:8px">energy rings travel hive→death; each kicks &amp; lights the bees it passes</div>
+      <h2>Pulses</h2>
+      <div class="sub" style="margin-bottom:8px">bright rings travel hive→death; each kicks &amp; lights the bees it passes</div>
       <div id="pulseSliders"></div>
     </div>
 
@@ -110,23 +116,25 @@
 
 <section class="docs" id="how">
   <div class="kicker">workbench notes</div>
-  <h2>Beelix — a helix that nobody keyframed</h2>
-  <p>A hive at the top is a <b>pooled particle emitter</b>: it spawns bees at a steady rate from a free-list, and the <b>death plane</b> at the bottom recycles any bee that crosses it straight back into that pool — so the population sits at a steady state (≈ emit-rate × fall-time) and the GPU only ever sees live bees. Same kernel shape as the <a href="/swarm/">swarm bench</a>: struct-of-arrays, a pure fixed-<code>1/60&nbsp;s</code> <code>step()</code>, reproducible from <code>(seed, #steps)</code>.</p>
+  <h2>Beelix — control the light, solve the boids into a helix</h2>
+  <p>A hive at the top is a <b>pooled particle emitter</b>: it spawns bees from a free-list, and the <b>death plane</b> at the bottom recycles any bee that crosses it straight back into the pool — so the population holds a steady state (≈ emit-rate × fall-time). Same kernel shape as the <a href="/swarm/">swarm bench</a>: struct-of-arrays, a pure fixed-<code>1/60&nbsp;s</code> <code>step()</code>, reproducible from <code>(seed, #steps)</code>.</p>
 
-  <h3>The helix is emergent</h3>
-  <p>There is no helix curve in the code. Each bee is driven by three <b>servo forces</b> expressed in the cylindrical frame around the central axis:</p>
+  <h3>The honest version (and what changed)</h3>
+  <p>An earlier cut of this bench <i>cheated</i>: it drove each bee with analytic servos — hold radius <code>r→R</code>, hold tangential speed <code>→ω·R</code>, hold descent. Those three are the parametric equation of a helix, so the shape was authored, not emergent. This version throws that out. The bees now run <b>real Reynolds boids</b> — separation, alignment, cohesion — as <b>self-propelled, constant-speed</b> particles. The only things authored are the <b style="color:var(--gold)">light pipe</b>'s controls.</p>
+
+  <h3>Why pure boids can't do it alone — and what the light is for</h3>
+  <p>Boids never spontaneously make a helix. Their emergent states are flocks, <b>mills</b> (a spontaneously rotating ring — a fish bait-ball), and swarms. <b>A helix is a mill + descent.</b> Two ingredients make that reachable here:</p>
   <ul>
-    <li><b>Radial servo</b> holds <code>r → R</code> — pins every bee to the tube of radius R (no collapse to the axis, no flying out).</li>
-    <li><b>Angular servo</b> holds tangential speed <code>→ ω·R</code> — a steady twist; the sign of ω flips handedness.</li>
-    <li><b>Axial servo</b> holds vertical speed <code>→ −descent</code> — a steady fall from hive to death plane.</li>
+    <li><b>Self-propulsion (cruise speed).</b> A mill is agents circling at a steady speed; ordinary drag kills circulation and you just get a column. So bees hold a <b>cruise speed</b> (active matter), which lets a rotation sustain.</li>
+    <li><b>A symmetry-breaker.</b> Confined to the pipe by <b>phototaxis</b> (a pull toward the glowing axis — sets no radius) and pulled down by <b>flow</b>, the bees still need <i>something</i> to pick a rotation direction. Left to pure boids (<b>Light swirl = 0</b>) the handedness only locks about half the time — otherwise it's a wandering column or competing CW/CCW domains. That's the genuine, measured behaviour, and you can watch it: the HUD reads the swarm's angular momentum <code>L</code>.</li>
   </ul>
-  <p>Constant descent + constant angular velocity <i>is</i> a helix, mathematically. Spawn the emitter at <b>S evenly-spaced angles</b> and you get an S-strand helix — set strands to 2 for the double helix. Boids <b>separation</b> and a little <b>curl-noise</b> then give each strand its living thickness, so it reads as a rope of bees, not a wire. This is the same lesson as the swarm bench: don't keyframe motion, build the <i>field</i> whose solution is the shape you want, and let agents fall into it.</p>
+  <p>So the light pipe carries one faint rotational input — <b>Light swirl</b> (the pulses spiral by a small amount) — and <b>boids alignment amplifies it</b> into one coherent, repeatable mill that the descent shears into a helix. The swirl's <i>sign</i> sets the handedness (try Counter-spin). Everything else — the radius, the pitch, the rope thickness — stays emergent. Crank the swirl and the light does more of the work; drop it to 0 and you're back to raw, flaky self-organisation. The selftest measures all of this: with a swirl, <code>sign(L)</code> tracks the swirl on every seed; at 0 it just runs.</p>
 
-  <h3>The light pipe couples back</h3>
-  <p>Pulses launch from the hive at a fixed interval and travel down the pipe at <code>pulseSpeed</code>. They aren't just decoration: a bee within <code>pulseBand</code> of a pulse's current height gets a tangential <b>kick</b> and an emissive <b>glow</b> (an <code>iBright</code> per-instance shader term). So a bright, faster wave ripples <i>down</i> the helix in lockstep with the light — the pipe drives the swarm, not the reverse. Turn <code>pulseKick</code> up and the strands visibly surge as each ring passes.</p>
+  <h3>The pulses</h3>
+  <p>Bright rings launch from the hive and travel down at <code>pulseSpeed</code>. A bee within <code>pulseBand</code> of a ring gets a downward <b>kick</b> and an emissive <b>glow</b> (an <code>iBright</code> per-instance shader term), so a bright wave ripples down the column in lockstep with the light.</p>
 
   <h3>Files</h3>
-  <p>Kernel + selftest: <code>tjs/beelix/beelix.js</code>, <code>beelix.selftest.mjs</code> (14 node checks — steady-state population, determinism, the radius-holding helix property, hive→death containment, pulse travel). Bee mesh (shared shader for wing-flap + brightness): <code>tjs/beelix/beemesh.js</code>. The kernel reuses the swarm bench's curl-noise via its <code>_internal</code> export — one copy of the noise math.</p>
+  <p>Kernel + selftest: <code>tjs/beelix/beelix.js</code>, <code>beelix.selftest.mjs</code> (18 node checks — steady-state population &amp; exact pool accounting, determinism, the <b>handedness-follows-swirl</b> control property, tube containment, raw-emergence stability, pulse travel). Bee mesh: <code>tjs/beelix/beemesh.js</code>. Reuses the swarm bench's curl-noise via its <code>_internal</code> export.</p>
 </section>
 
 <script type="module">
@@ -238,8 +246,9 @@ function syncPulses(){
 
 /* ---------- UI ---------- */
 const SLIDERS = {
-  helixSliders: [['strands','Strands',1,5,1], ['radius','Radius R',1.5,9,0.1], ['twist','Twist ω',-4,4,0.1], ['descent','Descent',0.5,8,0.1]],
-  flowSliders:  [['emitRate','Emit rate',0,600,10], ['separation','Separation',0,20,0.5], ['wander','Wander',0,10,0.2]],
+  boidSliders:  [['alignment','Alignment',0,30,0.5], ['cohesion','Cohesion',0,12,0.2], ['separation','Separation',0,20,0.5]],
+  lightSliders: [['pipeSpin','Light swirl',-3,3,0.1], ['photo','Pull to pipe',0,10,0.2], ['flow','Descent',0,6,0.1]],
+  bodySliders:  [['emitRate','Emit rate',0,600,10], ['cruise','Cruise speed',2,14,0.5], ['wander','Wander',0,6,0.2]],
   pulseSliders: [['pulseInterval','Interval',0.3,4,0.1], ['pulseSpeed','Speed',2,20,0.5], ['pulseKick','Kick',0,30,0.5]],
 };
 function fmt(k, step){ return (+params[k]).toFixed(step < 1 ? (step < 0.5 ? 2 : 1) : 0); }
@@ -263,12 +272,12 @@ function refreshUI(){
   }
 }
 const PRESETS = {
-  'Double helix': { strands:2, radius:5.0, twist:2.2, descent:3.4, separation:3, wander:0.8, emitRate:150, pulseInterval:1.1, pulseSpeed:7, pulseKick:9 },
-  'DNA': { strands:2, radius:4.2, twist:3.0, descent:2.6, separation:2.2, wander:0.5, emitRate:120, pulseInterval:0.9, pulseSpeed:6, pulseKick:7 },
-  'Tight coil': { strands:1, radius:3.0, twist:3.8, descent:2.2, separation:2.5, wander:0.6, emitRate:120, pulseInterval:1.2, pulseSpeed:8, pulseKick:8 },
-  'Triple braid': { strands:3, radius:5.6, twist:1.8, descent:3.6, separation:3, wander:0.9, emitRate:200, pulseInterval:1.0, pulseSpeed:7, pulseKick:10 },
-  'Column (dense)': { strands:4, radius:4.5, twist:1.2, descent:3.2, separation:7, wander:2.6, emitRate:420, pulseInterval:1.0, pulseSpeed:7, pulseKick:11 },
-  'Loose vortex': { strands:1, radius:6.0, twist:1.0, descent:4.6, separation:3, wander:4.0, emitRate:150, pulseInterval:1.4, pulseSpeed:9, pulseKick:6 },
+  'Locked helix': { pipeSpin:1.0, alignment:14, cohesion:2.5, separation:6, photo:2.2, flow:0.9, cruise:7, wander:0.5, emitRate:160 },
+  'Raw emergence (swirl 0)': { pipeSpin:0, alignment:16, cohesion:2.5, separation:6, photo:2.2, flow:0.9, cruise:7, wander:0.6, emitRate:160 },
+  'Vortex (strong swirl)': { pipeSpin:2.4, alignment:16, cohesion:3, separation:6, photo:2.4, flow:1.0, cruise:8, wander:0.5, emitRate:180 },
+  'Tight column': { pipeSpin:1.2, alignment:16, cohesion:3, separation:5, photo:4.0, flow:1.0, cruise:6, wander:0.4, emitRate:200 },
+  'Wide & slow': { pipeSpin:1.0, alignment:14, cohesion:2.5, separation:6, photo:1.2, flow:0.6, cruise:7, wander:0.6, emitRate:160 },
+  'Counter-spin (CW)': { pipeSpin:-1.2, alignment:14, cohesion:2.5, separation:6, photo:2.2, flow:0.9, cruise:7, wander:0.5, emitRate:160 },
 };
 function applyPreset(name){ Object.assign(params, PRESETS[name]); sim.setParams(params); refreshUI(); }
 function buildPresets(){
@@ -285,7 +294,7 @@ document.getElementById('reset').addEventListener('click', () => { sim.reset(); 
 document.getElementById('autorot').addEventListener('change', e => { controls.autoRotate = e.target.checked; });
 
 /* ---------- boot ---------- */
-buildSliders(); buildPresets(); applyPreset('Double helix');
+buildSliders(); buildPresets(); applyPreset('Locked helix');
 
 /* ---------- loop ---------- */
 const hud = document.getElementById('hud');
@@ -303,7 +312,8 @@ function frame(now){
   controls.update();
   renderer.render(scene, camera);
   hudT += dt;
-  if (hudT > 0.25){ hudT = 0; hud.innerHTML = `<b>${sim.aliveCount}</b> bees · ${fps.toFixed(0)} fps<br>${sim.pulses.length} pulses in the pipe`; }
+  if (hudT > 0.25){ hudT = 0; const L = sim.angularMomentum(); const spin = Math.abs(L) > 0.8 ? (L > 0 ? 'CCW' : 'CW') : '—';
+    hud.innerHTML = `<b>${sim.aliveCount}</b> bees · ${fps.toFixed(0)} fps<br>rotation <b>${spin}</b> (L=${L.toFixed(1)}) · ${sim.pulses.length} pulses`; }
   requestAnimationFrame(frame);
 }
 function resize(){

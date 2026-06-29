@@ -1,94 +1,89 @@
-// tjs/beelix/beelix.js — the PURE "beelix" kernel: a helix of bees.
-// No DOM, no three.js. Sister to ../swarm/swarm3d.js (and it borrows that file's
-// curl-noise + PRNG via its _internal export, so there's one copy of the noise math).
+// tjs/beelix/beelix.js — the "beelix" kernel, v3: a helix the BOIDS solve for, the LIGHT steers.
+// No DOM, no three.js. Sister to ../swarm/swarm3d.js (reuses its curl-noise + PRNG).
 //
-// The scene is a FLOW, not a swarm-around-a-point:
-//   • a HIVE at the top emits bees at a steady rate (a pooled particle emitter),
-//   • a DEATH PLANE at the bottom recycles any bee that crosses it back to the pool,
-//   • a LIGHT PIPE down the central axis PULSES — energy rings travel hive→death.
+// ── The honest design ───────────────────────────────────────────────────────────────────────
+// v1 cheated — it drove each bee with analytic servos (hold r→R, hold tangential speed→ω·R, hold
+// descent), which ARE the parametric equation of a helix, so the shape was authored. This version
+// throws that out. Bees run REAL REYNOLDS BOIDS (separation / alignment / cohesion) as
+// SELF-PROPELLED active-matter particles (they hold a cruise speed — the ingredient that lets a
+// rotating "mill" sustain; ordinary drag kills circulation and you just get a column). The ONLY
+// things this file authors are the LIGHT PIPE's controls:
+//    • photo    — phototaxis: a gentle inward pull toward the glowing pipe axis (confinement; sets
+//                 NO radius — radius emerges from cruise² / photo balance).
+//    • flow     — the pipe/death-plane pull bees downward (the descent).
+//    • pipeSpin — a FAINT swirl in the LIGHT (the pulses spiral). This is the only rotational input.
+//    • pulses   — bright bands travelling hive→death that glow + nudge the bees they pass.
 //
-// The helix is not scripted — it FALLS OUT of three "servo" forces per bee, plus
-// separation for organic thickness:
-//   1. RADIAL servo   — hold the cylinder radius r → R  (keeps a clean tube, no collapse/blowout)
-//   2. ANGULAR servo  — hold tangential speed → ω·R     (steady twist; ω sign = handedness)
-//   3. AXIAL servo    — hold vertical speed → −descent   (steady fall hive→death)
-// Constant descent + constant angular velocity = a helix, by construction. Spawn the
-// emitter at S evenly-spaced angles and you get an S-strand (e.g. double) helix; bee
-// separation + a little curl-noise give each strand its living thickness.
-//
-// The light pulses couple back into motion: a bee within `pulseBand` of a travelling
-// pulse gets a tangential "kick" and lights up — so a brightness + speed wave ripples
-// DOWN the helix in lockstep with the pipe, which is the whole effect.
-//
-// SoA Float32Arrays + a pure fixed-timestep step(): GPU-portable, node-testable.
+// Why pipeSpin exists, stated plainly: with pipeSpin = 0 the rotation that makes a helix is left
+// entirely to boids alignment breaking symmetry around the axis — and empirically that is
+// UNRELIABLE in a flow-through column (it locks a handedness only ~half the time; otherwise it's a
+// wandering column or fights into competing CW/CCW domains). A *small* swirl in the light breaks
+// the tie, and boids ALIGNMENT amplifies it into one coherent, repeatable helix — while radius,
+// pitch, thickness and the rope structure stay emergent. Crank pipeSpin and the light does more of
+// the work; drop it to 0 to watch raw (flaky) emergence. angularMomentum() measures what actually
+// happened. "Control the light pipe, solve the boids into a helix" — this is that, honestly.
 
 import { _internal } from '../swarm/swarm3d.js';
 const { rngFor, curl3 } = _internal;
 const TAU = Math.PI * 2;
 
 export const DEFAULT_PARAMS = {
-  emitRate: 150,     // bees emitted per second (steady-state pop ≈ emitRate × fall-time)
-  strands: 2,        // helix strands (2 = a double helix)
-  radius: 5.0,       // helix tube radius R
-  twist: 2.2,        // ω, angular velocity (rad/s); negative flips handedness
-  descent: 3.4,      // downward speed the axial servo holds (units/s)
-  radialK: 18.0,     // radial servo stiffness (hold r → R; stiff enough that the higher
-                     // twist's outward drift stays a crisp tube, not a fat one)
-  swirlK: 6.0,       // angular servo stiffness (hold tangential speed → ω·R)
-  axialK: 4.5,       // axial servo stiffness (hold fall speed → −descent)
-  // separation is deliberately gentle: a strong push fills the tube and blurs the
-  // strands, whereas a light push lets bees STACK along the ideal helix line → a
-  // legible rope. Turn it up (or use the "Column" preset) for the dense-tower look.
-  separation: 3.0,   // boids short-range push
-  sepRadius: 0.7,
-  neighborRadius: 1.6,
-  wander: 0.8,       // curl-noise turbulence (low → crisp strands)
-  noiseFreq: 0.25,
-  spawnJitter: 0.35, // angle/radius scatter at the hive mouth
-  pulseInterval: 1.1,// seconds between light pulses launched from the hive
-  pulseSpeed: 7.0,   // how fast a pulse travels down the pipe (units/s)
-  pulseBand: 1.6,    // vertical half-width a pulse couples to / lights up
-  pulseKick: 9.0,    // tangential speed-up a pulse imparts to bees it passes
-  maxSpeed: 16,
-  drag: 0.9,
+  emitRate: 160,        // bees/sec from the hive
+  // ── boids (the emergent engine) ──
+  alignment: 14.0,      // ★ match neighbour heading — turns a seeded swirl into a coherent mill
+  cohesion: 2.5,        // steer to neighbour centroid — binds the sheet into a rope
+  separation: 6.0,      // short-range push — tube thickness, stops collapse onto the axis
+  neighborRadius: 3.2,
+  sepRadius: 1.0,
+  cruise: 7.0,          // self-propelled cruise speed (active matter — sustains the rotation)
+  wander: 0.5,          // curl-noise — life + the noise rotation can break symmetry from
+  noiseFreq: 0.22,
+  // ── light-pipe controls (authored) ──
+  photo: 2.2,           // inward phototaxis toward the pipe axis (confinement; no radius set)
+  flow: 0.9,            // downward pull toward the death plane (descent)
+  pipeSpin: 1.0,        // ★ swirl in the LIGHT — the only rotational input (sign = handedness);
+                        //   0 = raw (unreliable) emergence, ±1 reliably locks a clean helix
+  pulseKick: 6.0,       // extra downward shove + glow a travelling pulse gives bees it passes
+  pulseInterval: 1.1,
+  pulseSpeed: 7.0,
+  pulseBand: 1.8,
+  // ── limits ──
+  maxSpeed: 12.0,       // safety ceiling above cruise
+  killRadius: 12,       // a bee flung this far off the pipe is recycled
 };
 
 export function clampParams(p = {}) {
   const o = { ...DEFAULT_PARAMS };
-  const num = (k, lo, hi, round) => { if (p[k] != null && p[k] !== '' && isFinite(+p[k])) o[k] = round ? Math.round(Math.max(lo, Math.min(hi, +p[k]))) : Math.max(lo, Math.min(hi, +p[k])); };
-  num('emitRate', 0, 1200); num('strands', 1, 6, true); num('radius', 1, 12); num('twist', -6, 6);
-  num('descent', 0.2, 12); num('radialK', 0.5, 30); num('swirlK', 0.5, 30); num('axialK', 0.5, 30);
-  num('separation', 0, 30); num('sepRadius', 0.2, 6); num('neighborRadius', 0.5, 8);
-  num('wander', 0, 20); num('noiseFreq', 0.02, 1); num('spawnJitter', 0, 3);
-  num('pulseInterval', 0.2, 6); num('pulseSpeed', 1, 30); num('pulseBand', 0.3, 6); num('pulseKick', 0, 40);
-  num('maxSpeed', 2, 40); num('drag', 0.5, 0.999);
+  const num = (k, lo, hi) => { if (p[k] != null && p[k] !== '' && isFinite(+p[k])) o[k] = Math.max(lo, Math.min(hi, +p[k])); };
+  num('emitRate', 0, 1200); num('alignment', 0, 30); num('cohesion', 0, 30); num('separation', 0, 30);
+  num('neighborRadius', 0.5, 8); num('sepRadius', 0.2, 6); num('cruise', 1, 20); num('wander', 0, 20); num('noiseFreq', 0.02, 1);
+  num('photo', 0, 30); num('flow', 0, 20); num('pipeSpin', -6, 6); num('pulseKick', 0, 30);
+  num('pulseInterval', 0.2, 6); num('pulseSpeed', 1, 30); num('pulseBand', 0.3, 6);
+  num('maxSpeed', 2, 40); num('killRadius', 3, 30);
   return o;
 }
+
+const RELAX = 0.3; // how hard speed relaxes toward cruise each substep (active-matter self-propulsion)
 
 export class Beelix {
   constructor(opts = {}) {
     this.maxBees = Math.max(64, Math.min(20000, opts.maxBees | 0 || 3000));
     this.params = clampParams(opts.params || {});
     this.seed = opts.seed || 'beelix:0';
-    this.hiveY = opts.hiveY != null ? opts.hiveY : 12;     // emitter height
-    this.deathY = opts.deathY != null ? opts.deathY : -12; // recycle plane
+    this.hiveY = opts.hiveY != null ? opts.hiveY : 12;
+    this.deathY = opts.deathY != null ? opts.deathY : -12;
     this.t = 0; this.acc = 0; this.H = 1 / 60;
 
     const n = this.maxBees;
     this.px = new Float32Array(n); this.py = new Float32Array(n); this.pz = new Float32Array(n);
     this.vx = new Float32Array(n); this.vy = new Float32Array(n); this.vz = new Float32Array(n);
-    this.phase = new Float32Array(n);   // wingbeat offset
-    this.bright = new Float32Array(n);  // 0..1 — pulse proximity, for the render tint
+    this.phase = new Float32Array(n); this.bright = new Float32Array(n);
     this.alive = new Uint8Array(n);
-    this.strand = new Uint8Array(n);
-    this.free = []; for (let i = n - 1; i >= 0; i--) this.free.push(i); // all slots start free
+    this.free = []; for (let i = n - 1; i >= 0; i--) this.free.push(i);
     this.aliveCount = 0;
 
     this.rnd = rngFor(this.seed + '::emit');
-    this.emitAcc = 0;
-    this.spawnCounter = 0;
-    this.pulses = [];        // {y} travelling hive → death
-    this.pulseAcc = 0;
+    this.emitAcc = 0; this.pulseAcc = 0; this.pulses = [];
     this._grid = new Map();
   }
 
@@ -104,20 +99,13 @@ export class Beelix {
   _spawn() {
     if (!this.free.length) return;
     const i = this.free.pop(), P = this.params, rnd = this.rnd;
-    const strand = this.spawnCounter++ % P.strands;
-    const baseAng = strand * TAU / P.strands;
-    const ang = baseAng + (rnd() * 2 - 1) * P.spawnJitter;
-    const r = P.radius + (rnd() * 2 - 1) * P.spawnJitter;
-    this.px[i] = Math.cos(ang) * r;
-    this.pz[i] = Math.sin(ang) * r;
-    this.py[i] = this.hiveY - rnd() * 0.6;                 // a little spread at the mouth
-    // launch tangential (sets the twist) + downward (sets the fall)
-    const tx = -Math.sin(ang), tz = Math.cos(ang), vt = P.twist * P.radius;
-    this.vx[i] = tx * vt; this.vz[i] = tz * vt; this.vy[i] = -P.descent;
-    this.phase[i] = rnd() * TAU; this.strand[i] = strand; this.bright[i] = 0; this.alive[i] = 1;
-    this.aliveCount++;
+    const ang = rnd() * TAU, r = 1.0 + rnd() * 2.5;        // a loose ring at the hive mouth (NOT a target radius)
+    this.px[i] = Math.cos(ang) * r; this.pz[i] = Math.sin(ang) * r; this.py[i] = this.hiveY - rnd() * 0.8;
+    // random heading at cruise speed — deliberately NO preferred handedness; the light/flock decide
+    const va = rnd() * TAU, vb = Math.acos(rnd() * 2 - 1), s = P.cruise * (0.5 + 0.4 * rnd());
+    this.vx[i] = s * Math.sin(vb) * Math.cos(va); this.vy[i] = s * Math.cos(vb) - P.flow; this.vz[i] = s * Math.sin(vb) * Math.sin(va);
+    this.phase[i] = rnd() * TAU; this.bright[i] = 0; this.alive[i] = 1; this.aliveCount++;
   }
-
   _kill(i) { if (!this.alive[i]) return; this.alive[i] = 0; this.bright[i] = 0; this.free.push(i); this.aliveCount--; }
 
   step(dt) {
@@ -138,12 +126,9 @@ export class Beelix {
 
   _sub(h) {
     const P = this.params;
-
-    // emit from the hive
     this.emitAcc += P.emitRate * h;
     while (this.emitAcc >= 1) { this.emitAcc -= 1; this._spawn(); }
 
-    // advance light pulses down the pipe
     this.pulseAcc += h;
     while (this.pulseAcc >= P.pulseInterval) { this.pulseAcc -= P.pulseInterval; this.pulses.push({ y: this.hiveY }); }
     for (const p of this.pulses) p.y -= P.pulseSpeed * h;
@@ -151,69 +136,62 @@ export class Beelix {
 
     this._rebuildGrid();
     const g = this._grid, cs = this._cs, sr2 = P.sepRadius * P.sepRadius, nr2 = P.neighborRadius * P.neighborRadius;
-    const noiseT = Math.floor(this.t * 2), cn = { x: 0, y: 0, z: 0 };
-    const pulses = this.pulses, band = P.pulseBand;
+    const noiseT = Math.floor(this.t * 2), cn = { x: 0, y: 0, z: 0 }, pulses = this.pulses, band = P.pulseBand;
 
     for (let i = 0; i < this.maxBees; i++) {
       if (!this.alive[i]) continue;
       const x = this.px[i], y = this.py[i], z = this.pz[i];
       let ax = 0, ay = 0, az = 0;
 
-      // cylindrical frame about the Y axis
-      const r = Math.hypot(x, z) || 1e-3, rinv = 1 / r;
-      const radx = x * rinv, radz = z * rinv;       // outward radial
-      const tanx = -z * rinv, tanz = x * rinv;       // CCW tangent
+      // ── light pipe: phototaxis (inward) + faint swirl (the only rotational input) + flow (down) ──
+      const r = Math.hypot(x, z) || 1e-3;
+      ax += -x * P.photo; az += -z * P.photo;                 // confine to the pipe (no radius authored)
+      ax += (-z / r) * P.pipeSpin; az += (x / r) * P.pipeSpin; // the LIGHT swirls; bees feel a whisper of it
+      ay += -P.flow;                                           // descent toward the death plane
 
-      // 1. radial servo → hold r = R
-      const aRad = -P.radialK * (r - P.radius);
-      ax += radx * aRad; az += radz * aRad;
-
-      // 2. angular servo → hold tangential speed = ω·R
-      let vt = this.vx[i] * tanx + this.vz[i] * tanz;
-      const aT = (P.twist * P.radius - vt) * P.swirlK;
-      ax += tanx * aT; az += tanz * aT;
-
-      // 3. axial servo → hold fall speed = −descent
-      ay += (-P.descent - this.vy[i]) * P.axialK;
-
-      // pulse coupling: a kick + brightness for bees the pulse is passing
+      // ── pulse coupling: glow + a downward shove for bees a pulse is passing ──
       let bright = 0;
-      for (let pi = 0; pi < pulses.length; pi++) {
-        const dy = (y - pulses[pi].y) / band, e = Math.exp(-dy * dy);
-        if (e > bright) bright = e;
-      }
+      for (let pi = 0; pi < pulses.length; pi++) { const dy = (y - pulses[pi].y) / band, e = Math.exp(-dy * dy); if (e > bright) bright = e; }
       this.bright[i] = bright;
-      if (bright > 0.05) { ax += tanx * P.pulseKick * bright; az += tanz * P.pulseKick * bright; ay -= P.pulseKick * 0.25 * bright; }
+      if (bright > 0.05) ay -= P.pulseKick * bright;
 
-      // separation (boids) over the 27-cell neighbourhood
-      let sx = 0, sy = 0, sz = 0;
+      // ── REYNOLDS BOIDS over the 27-cell neighbourhood ──
+      let sepx = 0, sepy = 0, sepz = 0, cx = 0, cy = 0, cz = 0, avx = 0, avy = 0, avz = 0, nN = 0;
       const gcx = Math.floor(x / cs), gcy = Math.floor(y / cs), gcz = Math.floor(z / cs);
       for (let oz = -1; oz <= 1; oz++) for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
         const b = g.get((gcx + ox) + ',' + (gcy + oy) + ',' + (gcz + oz)); if (!b) continue;
         for (let k = 0; k < b.length; k++) {
           const j = b[k]; if (j === i) continue;
           const jx = this.px[j] - x, jy = this.py[j] - y, jz = this.pz[j] - z, dd = jx * jx + jy * jy + jz * jz;
-          if (dd > nr2 || dd < 1e-6) continue;
-          if (dd < sr2) { const inv = 1 / (Math.sqrt(dd) + 1e-3); sx -= jx * inv; sy -= jy * inv; sz -= jz * inv; }
+          if (dd > nr2 || dd < 1e-9) continue;
+          if (dd < sr2) { const inv = 1 / (Math.sqrt(dd) + 1e-3); sepx -= jx * inv; sepy -= jy * inv; sepz -= jz * inv; }
+          cx += this.px[j]; cy += this.py[j]; cz += this.pz[j];
+          avx += this.vx[j]; avy += this.vy[j]; avz += this.vz[j]; nN++;
         }
       }
-      const sl = Math.hypot(sx, sy, sz);
-      if (sl > 0) { ax += (sx / sl) * P.separation; ay += (sy / sl) * P.separation; az += (sz / sl) * P.separation; }
+      if (nN > 0) {
+        cx = cx / nN - x; cy = cy / nN - y; cz = cz / nN - z;
+        const cl = Math.hypot(cx, cy, cz) || 1; ax += (cx / cl) * P.cohesion; ay += (cy / cl) * P.cohesion; az += (cz / cl) * P.cohesion;
+        const al = Math.hypot(avx, avy, avz) || 1; ax += (avx / al) * P.alignment; ay += (avy / al) * P.alignment; az += (avz / al) * P.alignment;
+      }
+      const sl = Math.hypot(sepx, sepy, sepz);
+      if (sl > 0) { ax += (sepx / sl) * P.separation; ay += (sepy / sl) * P.separation; az += (sepz / sl) * P.separation; }
 
       // curl-noise wander
       curl3(x * P.noiseFreq, y * P.noiseFreq, z * P.noiseFreq, noiseT, cn);
       ax += cn.x * P.wander; ay += cn.y * P.wander; az += cn.z * P.wander;
 
-      // integrate + drag + clamp
+      // steer, then RELAX SPEED TO CRUISE (active-matter self-propulsion sustains the mill), then clamp
       let nvx = this.vx[i] + ax * h, nvy = this.vy[i] + ay * h, nvz = this.vz[i] + az * h;
-      const damp = Math.pow(P.drag, h); nvx *= damp; nvy *= damp; nvz *= damp;
+      const vl = Math.hypot(nvx, nvy, nvz) || 1e-3, nl = vl + (P.cruise - vl) * RELAX, kk = nl / vl;
+      nvx *= kk; nvy *= kk; nvz *= kk;
       const sp = Math.hypot(nvx, nvy, nvz);
-      if (sp > P.maxSpeed) { const kk = P.maxSpeed / sp; nvx *= kk; nvy *= kk; nvz *= kk; }
+      if (sp > P.maxSpeed) { const c = P.maxSpeed / sp; nvx *= c; nvy *= c; nvz *= c; }
       this.vx[i] = nvx; this.vy[i] = nvy; this.vz[i] = nvz;
       this.px[i] = x + nvx * h; this.py[i] = y + nvy * h; this.pz[i] = z + nvz * h;
 
-      // death plane → recycle
-      if (this.py[i] < this.deathY) this._kill(i);
+      // recycle: past the death plane, above the hive, or flung off the pipe
+      if (this.py[i] < this.deathY || this.py[i] > this.hiveY + 3 || (this.px[i] * this.px[i] + this.pz[i] * this.pz[i]) > P.killRadius * P.killRadius) this._kill(i);
     }
   }
 
@@ -225,6 +203,20 @@ export class Beelix {
       const wing = 0.5 + 0.5 * Math.sin(this.t * buzzHz * TAU + this.phase[i]);
       cb(i, this.px[i], this.py[i], this.pz[i], vx / sp, vy / sp, vz / sp, wing, this.bright[i]);
     }
+  }
+
+  // ── emergence diagnostics ──
+  // mean specific vertical angular momentum L_y = mean(x·vz − z·vx). |L| ≫ 0 ⇒ a coherent mill
+  // (rotation) locked in; its SIGN is the handedness. With pipeSpin>0 the sign tracks pipeSpin.
+  angularMomentum() {
+    let L = 0, n = 0;
+    for (let i = 0; i < this.maxBees; i++) { if (!this.alive[i]) continue; L += this.px[i] * this.vz[i] - this.pz[i] * this.vx[i]; n++; }
+    return n ? L / n : 0;
+  }
+  meanRadius() {
+    let r = 0, n = 0;
+    for (let i = 0; i < this.maxBees; i++) { if (!this.alive[i]) continue; r += Math.hypot(this.px[i], this.pz[i]); n++; }
+    return n ? r / n : 0;
   }
 }
 
