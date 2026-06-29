@@ -678,12 +678,12 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/tjs-infill-viewer-4qfyzi",
+      "branch": "claude/3d-bee-swarms-threejs-1yamtu",
       "uses": [],
       "provides": null,
       "status": "MANAGED — new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time.",
       "op": "create",
-      "note": "tjs.mino.mobi — three.js workbenches. Landing at /, benches at /gantry (configurable HBot gantry test bench: seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools), /orb (spherical-symmetry toy: a sphere sliced into n longitudinal lunes (axial Cn) or a polyhedral kaleidoscope — tetra/octa/icosa Schwarz-triangle fundamental domains), and /infill (a 50mm sphere packed with 3D-printer infill — gyroid, Schwarz-P, diamond, Neovius, honeycomb, grid, triangular — raymarched with a scroll-driven peel plane that caps the cut cross-section; CPU Monte-Carlo density calibration; solid-shell toggle; and a coarse in-browser 3D FDTD acoustic panel — transmission loss of the orb vs free field, run in a module worker over a validated reference solver in infill/acoustics.js, WebGPU fine-grid port planned). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
+      "note": "tjs.mino.mobi — three.js workbenches. Landing at /, benches at /gantry (configurable HBot gantry test bench: seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools), /orb (spherical-symmetry toy: a sphere sliced into n longitudinal lunes (axial Cn) or a polyhedral kaleidoscope — tetra/octa/icosa Schwarz-triangle fundamental domains), /infill (a 50mm sphere packed with 3D-printer infill — gyroid, Schwarz-P, diamond, Neovius, honeycomb, grid, triangular — raymarched with a scroll-driven peel plane that caps the cut cross-section; CPU Monte-Carlo density calibration; solid-shell toggle; and a coarse in-browser 3D FDTD acoustic panel — transmission loss of the orb vs free field, run in a module worker over a validated reference solver in infill/acoustics.js, WebGPU fine-grid port planned), and /swarm (a 3D swarm of bees: instanced bee micro-meshes with shader-flapped wings over a live agent sim in swarm3d.js — attractor orbit (radial pull + axis×radial swirl) + Reynolds boids over a 27-cell 3D spatial hash + divergence-free 3D curl-noise + a true stigmergy scent voxel grid bees deposit into / evaporate+diffuse / climb the gradient of; deterministic fixed-1/60s step, node-tested in swarm3d.selftest.mjs; lead-the-swarm pointer steering + scent-field visualisation). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
       "paths": [
         "tjs/**"
       ]
