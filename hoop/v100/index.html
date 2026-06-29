@@ -496,6 +496,7 @@
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
     import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
     import { importWorldExport } from './story/import.js';   // v096: hoopy's world_export → content_items (first-class) diff
+    import { FQ, FQ_ORDER, fqProgress, fqStatus, fqActive, fqOpensRind, fqSignatureExclusive, fqCanWitness } from './story/factionquest.js';   // v100: the NAVE CAMPAIGN — meet the three factions in order; the Drift opens the rind
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -594,7 +595,7 @@
     const chunkSeedFor = (poly) => { const c = centroidOf(poly); return (hash2(Math.round(c.x), Math.round(c.y)) ^ seed) >>> 0; };
     const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
 
-    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter();
+    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter(); checkWardArrival();
       const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); }
       whereAmISoon(); }   // HUD refresh is THROTTLED — whereAmI runs the hoopy oracle + a big innerHTML write; doing it every frame during a walk was the steppy stutter
     let _whereT = 0;
@@ -739,6 +740,57 @@
       if (!story.ready || playerDeck() !== 1) return;
       if (story.store.getFact(story.playerId, 'flag.entered_rind') === true) return;
       story.store.setFact(story.playerId, 'flag.entered_rind', true); saveStory();   // completes b4-descent
+    }
+
+    // ── THE NAVE CAMPAIGN (v100, factionquest.js): meet the three factions in order by walking into each
+    //    faction's ward. The Drift last — witnessing them opens the rind. Pure gate/prose in the module;
+    //    here we resolve the ward to a waypoint, detect arrival off the nave's per-chunk faction meta, and
+    //    show the guide's card. Zero baddies on this floor — the campaign is "walk the wards and see who
+    //    lives there", nothing more. ──
+    // the high ward of a faction (the chunk built around its signature exclusive) → an (x,y) for the waypoint.
+    function fqWardXY(faction) {
+      if (!world || !world._nave) return null;
+      const meta = world._nave.meta || [], sig = fqSignatureExclusive(faction);
+      let ci = -1;
+      for (let i = 1; i < meta.length; i++) { const m = meta[i]; if (m && m.faction === faction && m.exclusive === sig) { ci = i; break; } }
+      if (ci < 0) for (let i = 1; i < meta.length; i++) { const m = meta[i]; if (m && m.faction === faction) { ci = i; break; } }   // fallback: either ward of the faction
+      const ch = ci >= 0 && world.chunks[ci]; if (!ch || !ch.poly || !ch.poly.length) return null;
+      let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } return { x: x / ch.poly.length, y: y / ch.poly.length, ci };
+    }
+    // witness a faction (idempotent, order-gated): set the fact, show the guide's card, advance — and when
+    // the Drift is witnessed, OPEN THE RIND (bump to the Investigation tier so maybeBuildRind sinks the shaft).
+    let _fqNudgeT = 0;
+    function fqWitnessFaction(faction) {
+      if (!story.ready || !FQ[faction]) return;
+      const facts = story.store.getFacts(story.playerId);
+      if (fqStatus(facts, faction) === 'witnessed') return;        // already seen
+      if (!fqCanWitness(facts, faction)) {                          // out of order — nudge toward the active one
+        const act = fqActive(facts), now = performance.now();
+        if (act && now - _fqNudgeT > 6000) { _fqNudgeT = now; notify('the ' + FQ[faction].label + ' ward — but seek the ' + FQ[act].label + ' first (follow the ◇ waypoint)', { kind: 'story', ms: 3400 }); }
+        return;
+      }
+      const f = FQ[faction];
+      story.store.setFact(story.playerId, 'fq.' + faction, 'witnessed');
+      showPage('the Nave · ' + f.label, f.guide, f.witness, '⏎ / click to continue');
+      const after = story.store.getFacts(story.playerId), prog = fqProgress(after);
+      if (fqOpensRind(after)) {
+        const cur = story.store.getPlayerState(story.playerId).narrative_tier || 1;
+        if (cur < 3) story.store.setPlayerTier(story.playerId, 'narrative_tier', 3);   // the rind opens at the Investigation tier
+        story.store.setFact(story.playerId, 'flag.rind_open', true);
+        notify('the way down opens — descend the shaft on the commons concourse', { kind: 'story', ms: 4600 });
+      } else if (prog.active) {
+        notify('next: seek the ' + FQ[prog.active].label, { kind: 'story', ms: 3200 });
+      }
+      saveStory();   // persists + re-renders the quest + (when tier ≥ 3) sinks the rind shaft
+    }
+    // per-move check (called from followCam): are we standing in the active faction's ward? cheap early-outs.
+    function checkWardArrival() {
+      if (!story.ready || !world || !world._nave || player < 0 || !walk) return;
+      if (playerDeck() !== 0) return;                              // the nave deck only
+      const facts = story.store.getFacts(story.playerId);
+      if (fqProgress(facts).allDone) return;                       // campaign complete
+      const ci = walk.nodeChunk[player], m = (world._nave.meta || [])[ci];
+      if (m && m.faction) fqWitnessFaction(m.faction);             // the module enforces order + idempotency
     }
 
     // ── stamina (drains walking, restored by a bed) + chests (per-chamber persistent storage) ──
@@ -1263,6 +1315,26 @@
     let journalOpen = false;    // the journal reuses the #enc overlay; this distinguishes it from an encounter card
     function renderQuest() {
       if (!story.ready) { questGuidance = null; if (journalOpen) renderJournal(); return; }
+      // THE NAVE CAMPAIGN is the headline objective while you're on floor 1 and haven't yet met all three
+      // factions: seek the active faction's ward (the ◇ waypoint), witness it, repeat — the Drift opens the
+      // way down. It overrides the deck-climb objective here so floor 1 reads as one clear quest.
+      if (world && world._nave && playerDeck() === 0) {
+        const facts = story.store.getFacts(story.playerId), prog = fqProgress(facts);
+        if (!prog.allDone && prog.active) {
+          const f = FQ[prog.active], w = fqWardXY(prog.active);
+          storyWp = w ? { x: w.x, y: w.y } : null;
+          questGuidance = {
+            objective: `<span class="lbl">⚑ The Nave · the three factions</span> <span class="o">— seek the ${esc(f.label)}</span>`
+              + `<span class="qbar"><span style="width:${Math.round(100 * prog.done / prog.total)}%"></span></span> <span class="mk">${prog.done}/${prog.total}</span>`,
+            stepText: f.seek,
+            whereWord: `the ${f.label} ward`,
+            hasWp: !!storyWp,
+            howText: prog.done === 0 ? 'Follow the ◇ waypoint to each faction’s ward and walk in to meet them. Witness all three and the way down opens.' : null,
+          };
+          if (journalOpen) renderJournal();
+          return;
+        }
+      }
       const d = currentDeck(), tier = narTier(), paged = story.store.getFact(story.playerId, 'hoopy.paged.' + d.tier);
       const chap = (story.sb && story.sb.chapter) || 1;
 
@@ -2912,7 +2984,13 @@
     //    pack). Lose → you wake at your last bed, shaken (−health/−food). ──
     let battleOpen = false, battleView = null, battleCtx = null;
     const isSlain = (id) => !!(story.ready && story.store.getFact(story.playerId, 'combat.slain.' + id));
-    const isCreepRoom = (cp, ch) => isCreepRole(cp.role) && !isSlain(creepId(ch.id, cp.room));
+    // ZERO BADDIES IN THE NAVE (v100): floor 1 is a peaceable city — no creeps render and none fight there.
+    // Hazard rooms only arm below, on the rind floor (deck ≥ 1). The nave is `world._nave` and the commons
+    // + wards are deck 0, so gate on that. (store/move rooms still exist as places — they just aren't foes here.)
+    const isCreepRoom = (cp, ch) => {
+      if (world && world._nave && (ch.deck || 0) === 0) return false;   // the nave floor is baddie-free
+      return isCreepRole(cp.role) && !isSlain(creepId(ch.id, cp.room));
+    };
     function creepAt(wx, wy) {
       if (!world) return null; let best = null, bd = Infinity; const pd = playerDeck();
       for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
