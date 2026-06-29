@@ -54,7 +54,7 @@ ok(countsForDeck({ id: 'd', tags: ['signal', 'rind'] }, deckForTier(3)), 'rind/s
 const cast = [{ id: 'g1', content: { name: 'Taryn Solis' } }, { id: 'g2', content: { name: 'Corin Vael' } }, { id: 'g3', content: { name: 'Miren Tal' } }];
 ok(guideForTier(cast, 1).id === 'g1' && guideForTier(cast, 2).id === 'g2' && guideForTier(cast, 4).id === 'g1', 'guides cycle the opening cast per tier');
 const msg = levelMessage(nave, 'Taryn Solis');
-ok(/Taryn Solis/.test(msg) && /The Nave/.test(msg) && /The Curve/.test(msg), 'the page names the deck, the guide, and the next rung');
+ok(/Taryn Solis/.test(msg) && /The Commons/.test(msg) && /The Wards/.test(msg), 'the page names the deck (zone), the guide, and the next rung');
 ok(/choice/.test(levelMessage(deckForTier(5), 'X')), 'the final deck has no next rung — only the choice');
 ok(guideFor(cast, 3).id === 'g3', 'guideFor re-exports the tier guide');
 
