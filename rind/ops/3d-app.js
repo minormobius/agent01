@@ -7,6 +7,7 @@
 //           and the whole map re-organises around the new one — the puzzle box.
 
 import { buildFoam3D } from './foam3d.js';
+import { buildChamber } from './chamber.js';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
@@ -18,6 +19,7 @@ let spin = true, yaw = 0.3, pitch = 1.0, zoom = 1, travel = 0;
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0, now = 0;
 let m = buildFoam3D(seed);
+let pickList = [], chamber = null;     // click a chamber → its generated room
 
 const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
@@ -44,6 +46,7 @@ function drawOrbit() {
   ctx.fillStyle = '#06070c'; ctx.fillRect(0, 0, CW, CH);
   // chambers back→front (the pancake foam, two layers)
   const pts = m.nuclei.map((n) => { const p = proj(n.x, n.y, n.z, s); return { n, p }; }).sort((a, b) => a.p.depth - b.p.depth);
+  pickList = pts.map((o) => ({ i: o.n.i, X: o.p.X, Y: o.p.Y }));
   for (const { n, p } of pts) {
     const col = ownerColor(n.owner), sh = 0.55 + 0.45 * (p.depth / m.R + 1) / 2;   // far = dimmer
     const selR = (n.owner.kind === 'warp' && n.owner.idx === sel);
@@ -74,10 +77,12 @@ function drawThread() {
   const X = (lat) => spineX + lat * latScale;
 
   // foam texture: every chamber, placed by (lateral offset from your arm, radius), coloured by owner
+  pickList = [];
   for (const n of m.nuclei) {
     if (n.hub) continue;
     const lat = m.swrap(n.th - m.thW(sel, n.rf)), x = X(lat) + (n.over ? 4 : -4), y = sY(n.rf);
     if (x < -20 || x > CW + 20) continue;
+    pickList.push({ i: n.i, X: x, Y: y });
     const col = ownerColor(n.owner), selR = (n.owner.kind === 'warp' && n.owner.idx === sel);
     ctx.fillStyle = rgba(mix(col, BG, n.over ? 0.2 : 0.5), selR ? 0.95 : 0.66);
     ctx.beginPath(); ctx.arc(x, y, selR ? 3.4 : n.over ? 2.6 : 1.9, 0, 7); ctx.fill();
@@ -106,11 +111,58 @@ function drawThread() {
   ctx.fillStyle = rgba(INK, 0.7); ctx.textAlign = 'right'; ctx.font = '10px ui-monospace'; ctx.fillText('lateral ← unrolled ring →', CW - 12, topY - 8);
 }
 
+// ── MAKE A CHAMBER: draw the generated room of the clicked chamber as an inset plan ──
+function drawChamberInset(ch) {
+  const PW = 296, PH = 300, PX = 14, PY = CH - PH - 12;
+  ctx.fillStyle = 'rgba(8,9,14,0.92)'; ctx.strokeStyle = rgba([40, 48, 66], 1); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.rect(PX, PY, PW, PH); ctx.fill(); ctx.stroke();
+  // fit the room footprint into the upper area
+  let minu = 1e9, maxu = -1e9, minv = 1e9, maxv = -1e9; for (const p of ch.poly) { minu = Math.min(minu, p[0]); maxu = Math.max(maxu, p[0]); minv = Math.min(minv, p[1]); maxv = Math.max(maxv, p[1]); }
+  const w = (maxu - minu) || 1, h = (maxv - minv) || 1, cx = PX + PW / 2, cy = PY + 116, sc = Math.min((PW - 64) / w, 150 / h);
+  const T = (u, v) => [cx + (u - (minu + maxu) / 2) * sc, cy + (v - (minv + maxv) / 2) * sc];
+  const aCol = ch.arm.kind === 'white' || ch.arm.kind === 'whub' ? [150, 200, 220] : ch.arm.color ? hex(ch.arm.color) : [200, 180, 120];
+  // floor
+  ctx.fillStyle = rgba(mix(aCol, BG, ch.layer === 'upper' ? 0.62 : 0.74), 0.5); ctx.beginPath(); ch.poly.forEach((p, i) => { const s = T(p[0], p[1]); i ? ctx.lineTo(s[0], s[1]) : ctx.moveTo(s[0], s[1]); }); ctx.closePath(); ctx.fill();
+  // walls = structural edges, split around each door gap
+  for (let k = 0; k < ch.poly.length; k++) {
+    const a = ch.poly[k], b = ch.poly[(k + 1) % ch.poly.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, dir = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+    const door = ch.doors.find((d) => { const t = ((d.mid[0] - a[0]) * dir[0] + (d.mid[1] - a[1]) * dir[1]); const px = a[0] + dir[0] * t, py = a[1] + dir[1] * t; return t > 0 && t < len && Math.hypot(d.mid[0] - px, d.mid[1] - py) < 2; });
+    ctx.strokeStyle = rgba([150, 162, 186], 0.95); ctx.lineWidth = 3; ctx.lineCap = 'butt';
+    if (!door) { const s1 = T(a[0], a[1]), s2 = T(b[0], b[1]); ctx.beginPath(); ctx.moveTo(s1[0], s1[1]); ctx.lineTo(s2[0], s2[1]); ctx.stroke(); }
+    else { const g1 = [door.mid[0] - dir[0] * door.width / 2, door.mid[1] - dir[1] * door.width / 2], g2 = [door.mid[0] + dir[0] * door.width / 2, door.mid[1] + dir[1] * door.width / 2];
+      const s1 = T(a[0], a[1]), sg1 = T(g1[0], g1[1]), sg2 = T(g2[0], g2[1]), s2 = T(b[0], b[1]);
+      ctx.beginPath(); ctx.moveTo(s1[0], s1[1]); ctx.lineTo(sg1[0], sg1[1]); ctx.moveTo(sg2[0], sg2[1]); ctx.lineTo(s2[0], s2[1]); ctx.stroke();
+      // door label to the neighbour
+      const dc = ch.arm.kind, nc = door.to.kind === 'white' ? [150, 200, 220] : door.to.color ? hex(door.to.color) : [180, 180, 190]; void dc;
+      ctx.fillStyle = rgba(nc, 0.9); ctx.font = '8px ui-monospace'; ctx.textAlign = 'center'; const mid = T(door.mid[0], door.mid[1]); ctx.fillText('▸' + door.to.label.split(' ')[0], mid[0], mid[1] - 3);
+    }
+  }
+  // structural columns at the corners (where doors must never reach)
+  for (const p of ch.poly) { const s = T(p[0], p[1]); ctx.fillStyle = rgba([90, 100, 120], 0.95); ctx.fillRect(s[0] - 2.2, s[1] - 2.2, 4.4, 4.4); }
+  // the fixture at the centre
+  ctx.fillStyle = rgba(aCol, 0.95); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '18px ui-monospace'; ctx.fillText(ch.fixture.glyph, cx, cy); ctx.textBaseline = 'alphabetic';
+  // the stair (facility) to the other layer
+  if (ch.stair) { const sx = cx + 34, sy = cy - 30; ctx.strokeStyle = rgba([235, 235, 245], 0.8); ctx.lineWidth = 1; ctx.strokeRect(sx - 8, sy - 8, 16, 16); for (let g = -6; g <= 6; g += 4) { ctx.beginPath(); ctx.moveTo(sx - 8, sy + g); ctx.lineTo(sx + 8, sy + g); ctx.stroke(); }
+    ctx.fillStyle = rgba([235, 235, 245], 0.95); ctx.font = '9px ui-monospace'; ctx.textAlign = 'left'; ctx.fillText(ch.stair.dir === 'up' ? '▲' : '▼', sx + 11, sy + 3); }
+  // caption
+  ctx.textAlign = 'left'; let ty = PY + PH - 78;
+  ctx.fillStyle = rgba(INK, 0.95); ctx.font = 'bold 11px ui-sans-serif'; ctx.fillText(ch.fixture.label, PX + 12, ty); ty += 16;
+  ctx.fillStyle = rgba([150, 160, 184], 0.95); ctx.font = '10px ui-monospace';
+  ctx.fillText(`${ch.layer} layer · on the ${ch.arm.label} ${ch.arm.kind === 'white' ? 'arm' : ch.arm.kind === 'prod' ? 'line' : 'hub'}`, PX + 12, ty); ty += 14;
+  ctx.fillText(`${ch.doors.length} doors (mid-wall, columns intact)`, PX + 12, ty); ty += 14;
+  if (ch.stair) ctx.fillStyle = rgba(ch.stair.facility ? [110, 207, 138] : [150, 160, 184], 0.95), ctx.fillText(`stair ${ch.stair.dir} → ${ch.stair.to.label}${ch.stair.facility ? '  (the facility)' : ''}`, PX + 12, ty);
+  else ctx.fillStyle = rgba([224, 122, 106], 0.95), ctx.fillText('no stair — a hub, kept disconnected', PX + 12, ty);
+  ty += 16; ctx.fillStyle = rgba([110, 120, 144], 0.9); ctx.font = '9px ui-monospace'; ctx.fillText('click another chamber · ✕ to close', PX + 12, ty);
+  ch._close = { x: PX + PW - 22, y: PY + 8, w: 14, h: 14 };
+  ctx.strokeStyle = rgba([150, 160, 184], 0.8); ctx.strokeRect(ch._close.x, ch._close.y, 14, 14); ctx.fillStyle = rgba([150, 160, 184], 0.9); ctx.textAlign = 'center'; ctx.fillText('✕', ch._close.x + 7, ch._close.y + 11);
+}
+
 function frame(ts) {
   const dt = (ts - now) || 16; now = ts;
   if (view === 'orbit' && spin) yaw += dt * 0.00018;
   if (view === 'thread') { travel += dt * 0.00010; if (travel > 1) travel = 0; }   // ride the arm centre→rim
   (view === 'orbit' ? drawOrbit : drawThread)();
+  if (chamber) drawChamberInset(chamber);
   requestAnimationFrame(frame);
 }
 
@@ -136,13 +188,19 @@ function sync() {
 $('orbit').addEventListener('click', () => { view = 'orbit'; sync(); });
 $('thread').addEventListener('click', () => { view = 'thread'; sync(); });
 $('spin').addEventListener('click', () => { spin = !spin; sync(); });
-$('reseed').addEventListener('click', () => { seed = (seed + 1) >>> 0; m = buildFoam3D(seed); precompute(); sync(); });
+$('reseed').addEventListener('click', () => { seed = (seed + 1) >>> 0; m = buildFoam3D(seed); chamber = null; precompute(); sync(); });
 $('reset').addEventListener('click', () => { yaw = 0.6; pitch = 0.5; zoom = 1; travel = 1; });
 addEventListener('keydown', (e) => { const k = '123456'.indexOf(e.key); if (k >= 0) { sel = k; sync(); } if (e.key === 'v') { view = view === 'orbit' ? 'thread' : 'orbit'; sync(); } });
-let drag = false, lx = 0, ly = 0;
-cv.addEventListener('pointerdown', (e) => { drag = true; lx = e.clientX; ly = e.clientY; cv.classList.add('drag'); cv.setPointerCapture(e.pointerId); });
-cv.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY; if (view === 'orbit') { yaw += dx * 0.008; pitch = Math.max(-1.4, Math.min(1.4, pitch + dy * 0.006)); } else { travel = Math.max(0, Math.min(1, travel - dy * 0.002)); } });
-cv.addEventListener('pointerup', (e) => { drag = false; cv.classList.remove('drag'); try { cv.releasePointerCapture(e.pointerId); } catch (_) {} });
+let drag = false, lx = 0, ly = 0, downX = 0, downY = 0, moved = 0;
+cv.addEventListener('pointerdown', (e) => { drag = true; lx = e.clientX; ly = e.clientY; downX = e.clientX; downY = e.clientY; moved = 0; cv.classList.add('drag'); cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY; moved += Math.abs(dx) + Math.abs(dy); if (view === 'orbit') { yaw += dx * 0.008; pitch = Math.max(-1.4, Math.min(1.4, pitch + dy * 0.006)); } else { travel = Math.max(0, Math.min(1, travel - dy * 0.002)); } });
+cv.addEventListener('pointerup', (e) => { drag = false; cv.classList.remove('drag'); try { cv.releasePointerCapture(e.pointerId); } catch (_) {}
+  if (moved > 6) return;                                          // a drag, not a click
+  const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  if (chamber && chamber._close && px >= chamber._close.x && px <= chamber._close.x + 14 && py >= chamber._close.y && py <= chamber._close.y + 14) { chamber = null; return; }
+  let best = -1, bd = 16 * 16; for (const p of pickList) { const d = (p.X - px) ** 2 + (p.Y - py) ** 2; if (d < bd) { bd = d; best = p.i; } }
+  if (best >= 0) chamber = buildChamber(m, best);
+});
 cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.5, Math.min(3, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); }, { passive: false });
 
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
