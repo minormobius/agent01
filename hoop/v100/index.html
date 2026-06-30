@@ -1090,7 +1090,10 @@
       let ci = -1; for (let i = 0; i < meta.length; i++) if (meta[i] && meta[i].station === 'signal') { ci = i; break; }
       const ch = ci >= 0 && world.chunks.find((c) => (c.deck || 0) === 2 && world._lowerRind.recs[ci] && c.id === world._lowerRind.recs[ci].id);
       if (!ch || !ch.poly) return null;
-      let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } return { x: x / ch.poly.length, y: y / ch.poly.length, ci };
+      // `ci` here is the lower-rind META index (0..3); the chamber check compares against walk.nodeChunk[player],
+      // which is a WORLD.CHUNKS id — so return the chunk's WORLD id (ch.id), not the meta index, or the
+      // "you're standing in the Signal Chamber" test never matches and Luna's contact never fires.
+      let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } return { x: x / ch.poly.length, y: y / ch.poly.length, ci: ch.id };
     }
     // per-move check: standing in the LOCATED Signal Chamber → Luna makes contact (once).
     function checkSignalChamber() {
@@ -1791,9 +1794,9 @@
           const located = signalLocated(facts), n = chamberLore(facts), sc = located ? signalChamberXY() : null;
           storyWp = sc ? { x: sc.x, y: sc.y } : null;
           questGuidance = {
-            objective: `<span class="lbl">⚑ The Lower Rind · the Signal Chamber</span> <span class="o">— ${located ? 'reach the chamber, where Luna waits' : 'locate the lost Signal Chamber'}</span>`
+            objective: `<span class="lbl">⚑ The Lower Rind · the Signal Chamber</span> <span class="o">— ${located ? 'reach the Signal Chamber — Luna will reach you there' : 'locate the lost Signal Chamber'}</span>`
               + (located ? '' : `<span class="qbar"><span style="width:${Math.round(100 * n / CHAMBER_LORE_TARGET)}%"></span></span> <span class="mk">${n}/${CHAMBER_LORE_TARGET}</span>`),
-            stepText: located ? 'The way is known. Go to the Signal Chamber and the terminal older than the Nave.' : 'Walk Saturn’s deep, Sol’s heart, Luna’s archive — gather chamber-lore until the deep gives up the chamber’s place.',
+            stepText: located ? 'The way is known. Stand in the Signal Chamber — Luna’s lost sanctum — and she makes contact through the terminal older than the Nave. (She herself is in her archive; the sanctum is where she reaches you.)' : 'Walk Saturn’s deep, Sol’s heart, Luna’s archive — gather chamber-lore until the deep gives up the chamber’s place.',
             whereWord: located ? 'the Signal Chamber' : null,
             hasWp: !!storyWp,
             howText: located ? null : 'Examine the lore of the deep (anything that glows). Three fragments and the chamber’s position resolves.',
