@@ -77,6 +77,10 @@ ok(exploreTierForXp(0) === 1 && exploreTierForXp(30) === 2 && exploreTierForXp(2
   ok(bn && bn.content.name === 'Vesper Lin' && bn.content.dialogue.nodes.greet, 'bundle → npc with its dialogue tree');
   ok(bl && /carts do not wait/.test(bl.content.description), 'bundle → lore_fragment from content.lore');
   ok(bn.tags.includes('drift') && bn.tags.includes('upper_rind') && bn.tags.includes('move'), 'bundle npc lifts nave_faction/zone/verb into tags');
+  // npc↔lore↔room linkage (so a chamber can bind to its keeper's OWN lore + match a resident by verb)
+  ok(bn.room === 'rb-vesper' && bn.lore === 'rb-vesper:lore' && bn.verb === 'move', 'principal carries room + lore id + verb');
+  ok(bl.room === 'rb-vesper' && bl.npcId === 'rb-vesper', 'lore back-links to its room + keeper');
+  ok(!bn.content.ambient, 'a principal is NOT ambient (it gets placed/embiggened, not voiced as crowd)');
 
   const wand = { id: 'wanderer-x', type: 'wanderer', status: 'active', revelation_tier: 1, narrative_tier: 1, power_tier: 1, tags: [],
     content: { name: 'Varn Dax', line: 'The ink dries before the thought remembers its shape.', verb: 'learn', zone: 'commons', faction: 'neutral', description: 'drifts toward the market' } };

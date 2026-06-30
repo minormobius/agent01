@@ -109,14 +109,19 @@ export function expandRoomBundle(rec, { provider = 'hoopy-export', lane = 'spine
   const requires = parseRequires(rec.requires); if (Object.keys(requires).length) meta.requires = requires;
   const refs = rec.world_refs || rec.refs; if (refs && refs.length) meta.refs = refs;
   if (rec.produces) meta.produces = rec.produces;
+  // KEEP THE BUNDLE A UNIT: the npc + its lore share a `room` id (the bundle's id), and the npc carries its
+  // lore's id. So when a principal is placed in a chamber, that chamber can bind to THIS principal's own lore
+  // (the entry tripwire reveals the keeper's lore, not a random pool pick) — and the lore knows its keeper.
+  const roomId = rec.id || slug(npc.name || C.name) || slug(C.name);
+  const loreId = roomId + ':lore';
   const out = [];
   if (npc.name || npc.dialogue) {
     const c = { name: npc.name || C.name || 'someone', description: C.description || npc.voice || '' };
     if (npc.dialogue) c.dialogue = npc.dialogue;
-    out.push({ id: rec.id || slug(npc.name || C.name), type: 'npc', content: c, tags: tags.slice(), ...meta });
+    out.push({ id: roomId, type: 'npc', content: c, tags: tags.slice(), room: roomId, roomName: C.name || null, ...(C.lore ? { lore: loreId } : {}), verb: C.verb || null, ...meta });
   }
   if (C.lore) {
-    out.push({ id: (rec.id || slug(C.name || npc.name)) + ':lore', type: 'lore_fragment',
+    out.push({ id: loreId, type: 'lore_fragment', room: roomId, npcId: roomId,
       content: { name: C.name ? C.name + ' — lore' : (npc.name ? npc.name + '’s ground' : 'a fragment'), description: String(C.lore) },
       tags: tags.slice(), ...meta });
   }

@@ -997,7 +997,7 @@
       for (const id of Object.keys(disc)) { const ci = story.store.contentById(id); if (!ci || ci.type !== 'npc') continue; const f = factionOf(ci.tags); if (placed[f] != null && !disc[id]._fw) placed[f]++; }
       const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
       const cands = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
-        .filter((c) => !disc[c.id] && isChoiceFaction(factionOf(c.tags)) && meetsState(gstate, c.requires || {}))
+        .filter((c) => !disc[c.id] && !(c.content && c.content.ambient) && isChoiceFaction(factionOf(c.tags)) && meetsState(gstate, c.requires || {}))
         .sort((a, b) => (a.id < b.id ? -1 : 1));
       for (const f of CHOICE_FACTIONS) {
         let want = (WITNESS_TARGET - witnessCount(facts, f)) - placed[f];   // how many more of this faction to surface
@@ -2415,7 +2415,7 @@
       const faction = factionForRole(a.role) || factionOf(a.tags) || '_default';
       const seed = a.featureKey || a.id || a.name;
       const bump = _crowdTalk.get(seed) || 0; _crowdTalk.set(seed, bump + 1);
-      story.active = { agent: a, crowd: true, faction, seed, bump, npcId: null, intro: null };
+      story.active = { agent: a, crowd: true, faction, seed, bump, npcId: null, intro: null, wanderer: wandererFor(seed, faction) };
       story.active.informed = deliverInformed();   // the "next person you talk to" delivers any XP-unlocked beat
       saveStory(); renderStory();
     }
@@ -2453,6 +2453,23 @@
       const bump = (story.active && story.active.intro && story.active.intro.interaction_count) | 0;
       return pickChatter(story.chatter, factionOf(ci.tags), state, agent.featureKey || npcId, bump);
     }
+    // THE WALKING CROWD'S AUTHORED VOICE: a clicked resident speaks an ambient WANDERER's authored line (one of
+    // hoopy's ~240 lil-guy one-liners), STABLE per resident (hashed seed) and faction-matched when possible.
+    // Wanderers are never pinned (discoverNpc rejects them) — they ARE the crowd, just given a voice + name
+    // here. Returns null when the pool is empty → the crowd falls back to procedural chatter.
+    function wandererFor(seed, faction) {
+      if (!story.ready) return null;
+      const p = story.store.getPlayerState(story.playerId);
+      let pool = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
+        .filter((c) => c.content && c.content.ambient);
+      if (!pool.length) return null;
+      if (faction && faction !== '_default') { const fp = pool.filter((c) => factionOf(c.tags) === faction); if (fp.length) pool = fp; }
+      pool.sort((a, b) => (a.id < b.id ? -1 : 1));
+      let h = 2166136261; const s = String(seed || ''); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+      const w = pool[(h >>> 0) % pool.length], c = w.content || {};
+      const line = (c.dialogue && c.dialogue.nodes && c.dialogue.nodes.greet && c.dialogue.nodes.greet.says) || c.description || '';
+      return { id: w.id, name: c.name || null, line };
+    }
     // the story overlay is shown/hidden through one pair so the backdrop + width class stay in lock-step.
     function showStory(mode) {
       const p = $('story'); p.classList.remove('compact', 'wide', 'solo'); p.classList.add(mode || 'wide'); p.classList.add('on');
@@ -2484,12 +2501,14 @@
       if (!story.active) { hideStory(); panel.innerHTML = ''; return; }
       const { agent, npcId, intro } = story.active;
       const glyph = esc(agent.glyph || '☻'), close = `<button class="cl" data-close="1">close ⏎</button>`;
-      if (story.active.crowd) {   // a procedural resident — faction chatter only (no name reuse, no XP)
-        const line = crowdChatter(story.active.faction, story.active.seed, story.active.bump) || 'They meet your eye, nod, and turn back to their work.';
+      if (story.active.crowd) {   // a procedural resident — speaks an authored WANDERER line (faction-matched), or procedural chatter when none. No bind, no XP.
+        const w = story.active.wanderer;
+        const line = (w && w.line) || crowdChatter(story.active.faction, story.active.seed, story.active.bump) || 'They meet your eye, nod, and turn back to their work.';
+        const nm = (w && w.name) || agent.name;   // a wanderer reveals its authored name when you talk to the lil guy
         const fac = story.active.faction !== '_default' ? `<div class="rl">${esc(agent.role || 'resident')} · <span style="color:#9ec6c0">${esc(story.active.faction)}</span></div>` : `<div class="rl">${esc(agent.role || 'resident')}</div>`;
         const inform = story.active.informed ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
         panel.innerHTML = `${close}<div class="stwrap single"><div class="stright">`
-          + `<div class="nm">${glyph} ${esc(agent.name)}</div>${fac}${inform}<p class="says">${esc(line)}</p>`
+          + `<div class="nm">${glyph} ${esc(nm)}</div>${fac}${inform}<p class="says">${esc(line)}</p>`
           + `<div class="ch"><button data-close="1" class="leaveconvo">⏎ leave</button></div></div></div>`;
         showStory('compact');
         return;
@@ -3662,6 +3681,7 @@
     }
     function discoverNpc(npc, x, y, deck) {
       if (!npc || !story.ready || player < 0) return false;
+      if (npc.content && npc.content.ambient) return false;   // WANDERERS (lil guys) are never pinned — they stay the walking crowd, voiced when clicked (openStory)
       const disc = getJSONFact('npc.discovered', {});
       if (disc[npc.id]) return false;
       let res = null, bd = Infinity;
@@ -3708,7 +3728,7 @@
       if (want <= 0) return;
       const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
       const cands = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
-        .filter((c) => !disc[c.id] && countsForDeck(c, deck) && meetsState(gstate, c.requires || {}))
+        .filter((c) => !disc[c.id] && !(c.content && c.content.ambient) && countsForDeck(c, deck) && meetsState(gstate, c.requires || {}))
         .sort((a, b) => (a.id < b.id ? -1 : 1));
       for (const npc of cands) { if (want <= 0) break; if (discoverPlacedNpc(npc, playerDeck())) want--; }
     }
@@ -3717,12 +3737,13 @@
       for (const ch of world.chunks) { if ((ch.deck || 0) !== (deck || 0) || !ch.poly) continue; const bb = ch.bb || (ch.bb = bboxOf(ch.poly)); if (x >= bb.x0 && x <= bb.x1 && y >= bb.y0 && y <= bb.y1) return ch.id; }
       return -1;
     }
-    // OPEN THE TAP: spread AMBIENT named NPCs across EVERY built chamber so each of the ~15 chambers has people
-    // with something to say — not just the quest-relevant few near the player. Tops each painted chamber up to
-    // CHAMBER_NPCS named NPCs from the tier-legal corpus (idempotent via the discovered set; paced so a fresh
-    // floor fills over a few seconds, not in one hitch). The quest supply (deck/witness/ward) runs first; this
-    // fills the rest. NB: most of the corpus's ~138 NPCs were never surfaced before — this is the tap opening.
-    const CHAMBER_NPCS = 4;
+    // THE KEEPER PER CHAMBER: each built chamber gets ONE PRINCIPAL (a room-bundle NPC — NOT an ambient
+    // wanderer) who keeps the room and owns its lore. The ambient population is the WALKING CROWD (residents),
+    // voiced by the authored wanderers on click (openStory) — so a chamber feels alive without pinning a crowd
+    // of statues. Placing a keeper also BINDS the chamber to that keeper's own lore (cl.room.<key>) so entering
+    // reveals THEIR lore (the tripwire), not a random pool pick. Idempotent via the discovered set; paced.
+    const chunkLoreKey = (ch) => { const c = polyCentroid(ch.poly); return Math.round(c.x) + '_' + Math.round(c.y); };
+    const CHAMBER_NPCS = 1;
     let _popT = 0;
     function populateChambers() {
       if (!story.ready || !society || player < 0 || !world) return;
@@ -3731,16 +3752,16 @@
       const haveByChunk = new Map();
       for (const id of Object.keys(disc)) { const d = disc[id]; if (!d) continue; const ci = chunkAt(d.x, d.y, d.deck || 0); if (ci >= 0) haveByChunk.set(ci, (haveByChunk.get(ci) || 0) + 1); }
       const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
+      // PRINCIPALS ONLY (room-bundle NPCs). Wanderers (content.ambient) are excluded — they're the walking
+      // crowd's authored voices, never pinned (discoverNpc rejects them anyway).
       const pool = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
-        .filter((c) => !disc[c.id] && meetsState(gstate, c.requires || {})).sort((a, b) => (a.id < b.id ? -1 : 1));
+        .filter((c) => !disc[c.id] && !(c.content && c.content.ambient) && meetsState(gstate, c.requires || {})).sort((a, b) => (a.id < b.id ? -1 : 1));
       if (!pool.length) return;
       const painted = world.chunks.filter((ch) => ch.painted && ch.poly);
       if (!painted.length) return;
-      // ROUND-ROBIN BY LEVEL so the spread is EVEN, not front-loaded: give every chamber its 1st NPC before
-      // any gets its 2nd, etc. The old fill-chunk-0-to-N greedy loop drained the corpus into the nave and
-      // starved the rind chambers entirely. The level-1 BREADTH pass is uncapped (≤15 cheap promotions) so
-      // every chamber is GUARANTEED at least one resident in the first call; the deeper levels are paced by
-      // MAX so a fresh floor fills over a few seconds rather than in one hitch.
+      // ROUND-ROBIN BY LEVEL so the spread is EVEN, not front-loaded. The level-1 BREADTH pass is uncapped
+      // (≤15 cheap promotions) so every chamber is GUARANTEED its keeper in the first call; deeper levels are
+      // paced by MAX. With CHAMBER_NPCS=1 this is effectively one keeper per chamber.
       let pi = 0, placed = 0;
       const MAX = 12;
       for (let level = 1; level <= CHAMBER_NPCS; level++) {
@@ -3751,7 +3772,12 @@
           if (level > 1 && placed >= MAX) break;                    // breadth (level 1) is uncapped; depth is paced
           if ((haveByChunk.get(ch.id) || 0) >= level) continue;     // this chamber already has `level` — wait its turn
           const cen = polyCentroid(ch.poly), npc = pool[pi++];
-          if (discoverNpc(npc, cen.x, cen.y, ch.deck || 0)) { placed++; haveByChunk.set(ch.id, (haveByChunk.get(ch.id) || 0) + 1); }
+          if (discoverNpc(npc, cen.x, cen.y, ch.deck || 0)) {
+            placed++; haveByChunk.set(ch.id, (haveByChunk.get(ch.id) || 0) + 1);
+            // BIND this chamber's lore to the keeper's OWN lore (first keeper wins), so entry reveals their room.
+            const lk = 'cl.room.' + chunkLoreKey(ch);
+            if (npc.lore && !story.store.getFact(story.playerId, lk)) story.store.setFact(story.playerId, lk, npc.lore);
+          }
         }
       }
     }
@@ -3767,10 +3793,18 @@
       if (_chamberLoreSeen.has(key) || story.store.getFact(story.playerId, 'cl.seen.' + key)) return;
       _chamberLoreSeen.add(key); story.store.setFact(story.playerId, 'cl.seen.' + key, true);
       const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
-      const pool = story.store.queryContent({ type: 'lore_fragment', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier }).filter((c) => meetsState(gstate, c.requires || {}));
-      if (!pool.length) { saveStorySnapshot(); return; }
-      const h = ((Math.round(cen.x) * 73856093) ^ (Math.round(cen.y) * 19349663)) >>> 0;
-      const lore = pool[h % pool.length];
+      // PREFER THE CHAMBER'S OWN LORE: the keeper placed here (populateChambers) bound cl.room.<key> to their
+      // bundled lore — so entering reveals THEIR room's lore. Fall back to a deterministic tier-legal pool pick
+      // for chambers with no keeper yet (or a keeper whose lore isn't tier-legal for the player).
+      let lore = null;
+      const bound = story.store.getFact(story.playerId, 'cl.room.' + key);
+      if (bound) { const lc = story.store.contentById(bound); if (lc && lc.type === 'lore_fragment') lore = lc; }
+      if (!lore) {
+        const pool = story.store.queryContent({ type: 'lore_fragment', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier }).filter((c) => meetsState(gstate, c.requires || {}));
+        if (!pool.length) { saveStorySnapshot(); return; }
+        const h = ((Math.round(cen.x) * 73856093) ^ (Math.round(cen.y) * 19349663)) >>> 0;
+        lore = pool[h % pool.length];
+      }
       try { story.store.markSeen(story.playerId, lore.id); } catch (e) {}   // counts as learned (deck-climb / seen-set)
       noteChamberLore(lore);                                                // lower-rind chamber-lore tally (no-op off deck 2)
       const c = lore.content || {}, txt = String(c.description || c.name || '');
