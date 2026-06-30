@@ -3736,24 +3736,35 @@
     function flagPrincipalResident(npc, chunkId, deck) {
       if (!npc || !residents.length) return null;
       const verb = npc.verb || null;
+      // a candidate is an un-embiggened resident with at least one route stop IN the keeper's chamber; we keep
+      // the in-chamber stop INDICES so we can scope its walked route to the chamber. verb-matched stops first.
       const cands = [];
       for (const r of residents) {
         if (r.principal || _embiggened.has(r.id)) continue;
         if (residentDeck(r) !== (deck || 0)) continue;
         const stops = routeStops(r);
-        let k = verb ? stops.findIndex((s) => s.ch === chunkId && s.role === verb) : -1;
-        if (k < 0) k = stops.findIndex((s) => s.ch === chunkId);   // fallback: any of its stops in the chamber
-        if (k < 0) continue;
-        cands.push({ r, k });
+        const inIdx = stops.map((s, i) => (s.ch === chunkId ? i : -1)).filter((i) => i >= 0);
+        if (!inIdx.length) continue;
+        const verbHit = verb && inIdx.some((i) => stops[i].role === verb);
+        cands.push({ r, inIdx, verbHit });
       }
       if (!cands.length) return null;
-      cands.sort((a, b) => (a.r.id < b.r.id ? -1 : 1));
+      // prefer verb-matched keepers (a 'move' keeper in a transit room), but any in-chamber resident will do.
+      const pref = cands.filter((c) => c.verbHit); const use = pref.length ? pref : cands;
+      use.sort((a, b) => (a.r.id < b.r.id ? -1 : 1));
       let h = 2166136261; const sId = String(npc.id); for (let i = 0; i < sId.length; i++) { h ^= sId.charCodeAt(i); h = Math.imul(h, 16777619); }
-      const pick = cands[(h >>> 0) % cands.length], r = pick.r;
+      const pick = use[(h >>> 0) % use.length], r = pick.r;
       const faction = factionOf(npc.tags), fc = FACTION_INFO[faction] && FACTION_INFO[faction].color;
       if (fc) { try { r.genome = { ...r.genome, ramps: { ...r.genome.ramps, cloth: ramp(rngFor('hoop-npc:' + npc.id + '::factioncloth'), hexHue(fc), 52, 10) } }; } catch (e) {} }
       r.principal = { content_id: npc.id, name: (npc.content || {}).name || npc.id, color: fc || '#d0c07f', loreId: npc.lore || null };
-      r.loreStop = pick.k; r.dwellBias = 3.5;
+      // SCOPE THE WALK TO THE CHAMBER: route = only the in-chamber stop nodes (routeStops order ≡ r.route order).
+      // One stop → it stays put and dwells; two+ → it ambles between its in-chamber buildings. Never a hallway.
+      const newRoute = pick.inIdx.map((i) => r.route[i]).filter((n) => n != null && n >= 0);
+      if (newRoute.length) {
+        r.route = newRoute; r.leg = 0; r.pts = null; r.dwellLeft = 1500 + rngFor('hoop-npc:' + npc.id + '::dwell')() * 4000;
+        const n0 = newRoute[0]; if (walk && walk.pos && n0 < (walk.N || 0)) { r.bx = r.x = walk.pos[2 * n0]; r.by = r.y = walk.pos[2 * n0 + 1]; }
+      }
+      r.dwellBias = 5;   // really dwell: ~5× the normal stop dwell, at its in-chamber spot(s)
       _embiggened.add(r.id);
       return r;
     }
@@ -3826,7 +3837,7 @@
     // of statues. Placing a keeper also BINDS the chamber to that keeper's own lore (cl.room.<key>) so entering
     // reveals THEIR lore (the tripwire), not a random pool pick. Idempotent via the discovered set; paced.
     const chunkLoreKey = (ch) => { const c = polyCentroid(ch.poly); return Math.round(c.x) + '_' + Math.round(c.y); };
-    const CHAMBER_NPCS = 1;
+    const CHAMBER_NPCS = 3;   // keepers per chamber (living principals — they really dwell in-chamber, so a few read as a populated room)
     let _popT = 0;
     function populateChambers() {
       if (!story.ready || !society || player < 0 || !world) return;
