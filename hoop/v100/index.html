@@ -996,9 +996,13 @@
       const now = performance.now(); if (now - _witnessSupplyT < 900) return; _witnessSupplyT = now;
       const facts = story.store.getFacts(story.playerId);
       if (chosenFaction(facts) || allWitnessed(facts)) return;
+      if (!residents.some((r) => r.keeper && residentDeck(r) === 1)) return;   // let the rind's KEEPERS land first (populateChambers runs just before this) so we only top up genuine gaps, not a clump before they arrive
       const disc = getJSONFact('npc.discovered', {});
       const placed = { continuant: 0, rindwalker: 0, drift: 0 };
-      for (const id of Object.keys(disc)) { const ci = story.store.contentById(id); if (!ci || ci.type !== 'npc') continue; const f = factionOf(ci.tags); if (placed[f] != null && !disc[id]._fw) placed[f]++; }
+      // count only UPPER-RIND (deck 1) faces — witnessing happens on the rind, so nave faces (deck 0) don't
+      // count toward coverage here. (The old all-decks count thought a faction was covered by its nave NPCs and
+      // never topped up a faction that the rind's keepers under-represent — the drift soft-lock.)
+      for (const id of Object.keys(disc)) { const dd = disc[id]; if (!dd || (dd.deck || 0) !== 1) continue; const ci = story.store.contentById(id); if (!ci || ci.type !== 'npc') continue; const f = factionOf(ci.tags); if (placed[f] != null && !dd._fw) placed[f]++; }
       const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
       const cands = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
         .filter((c) => !disc[c.id] && !(c.content && c.content.ambient) && isChoiceFaction(factionOf(c.tags)) && meetsState(gstate, c.requires || {}))
@@ -1011,17 +1015,21 @@
     // the nearest placed faction face on the upper rind still worth meeting — a faction whose tally isn't full
     // AND this particular face not already witnessed (a clicked anchor never re-witnesses). Drives the ◇.
     function nextWitnessTarget() {
-      if (!story.ready || !anchors.length) return null;
+      if (!story.ready) return null;
       const facts = story.store.getFacts(story.playerId), disc = getJSONFact('npc.discovered', {});
       let best = null, bd = Infinity;
-      for (const a of anchors) {
-        if ((a.deck || 0) !== 1) continue;
-        const f = factionOf((story.store.contentById(a.content_id) || {}).tags || []);
-        if (!isChoiceFaction(f) || witnessCount(facts, f) >= WITNESS_TARGET) continue;   // faction tally already full
-        if (disc[a.content_id] && disc[a.content_id]._fw) continue;                       // this face already witnessed
-        const d = (a.x - px()) ** 2 + (a.y - py()) ** 2; if (d < bd) { bd = d; best = a; }
-      }
-      return best ? { x: best.x, y: best.y } : null;
+      // a witnessable face = a faction-tagged KEEPER or ANCHOR on the upper rind whose faction isn't full yet
+      // and which you haven't witnessed. Keepers ARE the faces now, so the ◇ must point at them, not only anchors.
+      const consider = (cid, x, y, deck) => {
+        if ((deck || 0) !== 1 || cid == null) return;
+        const f = factionOf((story.store.contentById(cid) || {}).tags || []);
+        if (!isChoiceFaction(f) || witnessCount(facts, f) >= WITNESS_TARGET) return;
+        if (disc[cid] && disc[cid]._fw) return;
+        const d = (x - px()) ** 2 + (y - py()) ** 2; if (d < bd) { bd = d; best = { x, y }; }
+      };
+      for (const a of anchors) consider(a.content_id, a.x, a.y, a.deck);
+      for (const r of residents) if (r.keeper) consider(r.keeper.content_id, r.x, r.y, residentDeck(r));
+      return best;
     }
     // SEVIN'S THRESHOLD — the choice card: pick a faction; it colors the descent + advances to the Lower Rind.
     function showFactionChoice() {
@@ -1612,7 +1620,7 @@
     function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}${_maxDt > 20 ? ' · max ' + _maxDt.toFixed(0) + 'ms' : ''}${_socMs > 1 ? ' · soc ' + _socMs.toFixed(0) + 'ms' : ''}${_stitchMs > 1 ? ' · stitch ' + _stitchMs.toFixed(0) + 'ms' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
-      ensureDeckSupply(); discoverQuestNpcs(); ensureWitnessSupply(); populateChambers();   // keep the deck clearable + surface quest NPCs + guarantee each faction is witnessable + spread ambient NPCs across every built chamber (all guarded + throttled)
+      ensureDeckSupply(); discoverQuestNpcs(); populateChambers(); ensureWitnessSupply();   // keep the deck clearable + surface quest NPCs + spread keepers across every chamber, THEN top up any faction the keepers under-represent for the upper-rind threshold (witness supply runs LAST so it only fills genuine gaps, not a clump before the keepers land). All guarded + throttled.
       maybeChamberLore(walk.nodeChunk[player]);   // fire the CURRENT chamber's lore — covers the chamber you spawned in (followCam's chunk-change hook missed it: story wasn't ready yet on first entry)
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
