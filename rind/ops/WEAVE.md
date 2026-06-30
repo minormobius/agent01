@@ -7,6 +7,11 @@
 > Counter-rotation ⇒ K(6,8). **The threads WEAVE between the two planes** (`zWhite`/`zProd`): a thread rises
 > to the upper plane where it passes OVER a crossing and dips to the lower plane where it passes UNDER, smooth
 > between — so the geometry itself undulates, and wayfinding routes go up-and-down with a bend (not flat hops).
+> **The solver objective (`occupancy.js`):** the voronoi foam is HOMOGENEOUS, so the weave is only "right" if
+> its paths fill the volume. Each path is a **tube of diameter d**; `occupancy(d)` = coverage (fraction of
+> chambers within d/2 of their own thread) − overlap (double-occupied), and the solver maximises it. The
+> **◎ analytic** toggle hides the foam and shows the pure woven tubes; the rim gaps (constant tubes under-fill
+> the fanning wedges) are the next solver target (more windings outward). Pinned by `occupancy.selftest.mjs`.
 > Two reads — **orbit** (the woven pancake) and **inhabit thread** (*the mapping
 > tech*: the disc unrolls around your chosen arm — it becomes a straight spine centre→rim, the 8 production arms
 > slant across and cross it at numbered stations; reselect and the map re-organises — the puzzle box).

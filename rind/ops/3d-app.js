@@ -9,13 +9,14 @@
 import { buildFoam3D } from './foam3d.js';
 import { buildChamber } from './chamber.js';
 import { buildNav, route } from './wayfind.js';
+import { occupancy, bestTube } from './occupancy.js';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
 let sel = Q.has('w') ? (Q.get('w') | 0) % 6 : 0;
 let view = ['thread', 'map'].includes(Q.get('view')) ? Q.get('view') : 'orbit';
-let spin = true, yaw = 0.3, pitch = 1.0, zoom = 1, travel = 0;
+let spin = true, yaw = 0.3, pitch = 1.0, zoom = 1, travel = 0, analyticOnly = false, tubeD = 80;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0, now = 0;
@@ -46,24 +47,27 @@ function proj(x, y, z, s) {
 function drawOrbit() {
   const s = Math.min(CW, CH) / (m.R * 2.7) * zoom;
   ctx.fillStyle = '#06070c'; ctx.fillRect(0, 0, CW, CH);
-  // chambers back→front (the pancake foam, two layers)
-  const pts = m.nuclei.map((n) => { const p = proj(n.x, n.y, n.z, s); return { n, p }; }).sort((a, b) => a.p.depth - b.p.depth);
-  pickList = pts.map((o) => ({ i: o.n.i, X: o.p.X, Y: o.p.Y }));
-  for (const { n, p } of pts) {
-    const col = ownerColor(n.owner), sh = 0.55 + 0.45 * (p.depth / m.R + 1) / 2;   // far = dimmer
-    const selR = (n.owner.kind === 'warp' && n.owner.idx === sel);
-    ctx.fillStyle = rgba(mix(col, BG, n.over ? 0.12 : 0.46), (selR ? 0.97 : 0.78) * sh);
-    ctx.beginPath(); ctx.arc(p.X, p.Y, (selR ? 4 : n.over ? 3 : 2.2) * Math.max(0.6, sh), 0, 7); ctx.fill();
-  }
-  // thread spines as ANALYTIC SPIRALS that WEAVE between the two planes (height = the over/under undulation)
-  const spiral = (thFn, zFn, idx, col, lw, a) => {
-    ctx.strokeStyle = rgba(col, a); ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.beginPath();
-    const SAMP = 130; for (let k = 0; k <= SAMP; k++) { const rf = k / SAMP, th = thFn(idx, rf), rad = rf * m.R, p = proj(rad * Math.cos(th), rad * Math.sin(th), zFn(idx, rf), s); k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }
-    ctx.stroke();
+  // the foam chambers (hidden in analytic-only mode, where we study the pure woven schematic)
+  if (!analyticOnly) {
+    const pts = m.nuclei.map((n) => { const p = proj(n.x, n.y, n.z, s); return { n, p }; }).sort((a, b) => a.p.depth - b.p.depth);
+    pickList = pts.map((o) => ({ i: o.n.i, X: o.p.X, Y: o.p.Y }));
+    for (const { n, p } of pts) {
+      const col = ownerColor(n.owner), sh = 0.55 + 0.45 * (p.depth / m.R + 1) / 2;
+      const selR = (n.owner.kind === 'warp' && n.owner.idx === sel);
+      ctx.fillStyle = rgba(mix(col, BG, n.over ? 0.12 : 0.46), (selR ? 0.97 : 0.78) * sh);
+      ctx.beginPath(); ctx.arc(p.X, p.Y, (selR ? 4 : n.over ? 3 : 2.2) * Math.max(0.6, sh), 0, 7); ctx.fill();
+    }
+  } else pickList = [];
+  // each path is a TUBE of diameter `tubeD` (the analytic solution we fit against): a translucent sleeve at the
+  // tube width + a bright centreline, both WEAVING between the planes (height = the over/under undulation).
+  const spiral = (thFn, zFn, idx, col, a) => {
+    const proj1 = []; const SAMP = 130; for (let k = 0; k <= SAMP; k++) { const rf = k / SAMP, th = thFn(idx, rf); proj1.push(proj(rf * m.R * Math.cos(th), rf * m.R * Math.sin(th), zFn(idx, rf), s)); }
+    if (analyticOnly) { ctx.strokeStyle = rgba(col, a * 0.22); ctx.lineWidth = tubeD * s; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); proj1.forEach((p, k) => k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y)); ctx.stroke(); }
+    ctx.strokeStyle = rgba(col, a); ctx.lineWidth = analyticOnly ? 2.2 : (idx === sel && thFn === m.thW ? 4.5 : 2.2); ctx.lineCap = 'round'; ctx.beginPath(); proj1.forEach((p, k) => k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y)); ctx.stroke();
   };
-  for (const t of m.wefts) spiral(m.thP, m.zProd, t.f, hex(t.color), 2.4, 0.5);
-  for (const t of m.warps) if (t.w !== sel) spiral(m.thW, m.zWhite, t.w, warpCol(t.w), 2.2, 0.4);
-  spiral(m.thW, m.zWhite, sel, SELC, 4.5, 0.98);
+  for (const t of m.wefts) spiral(m.thP, m.zProd, t.f, hex(t.color), 0.6);
+  for (const t of m.warps) if (t.w !== sel) spiral(m.thW, m.zWhite, t.w, warpCol(t.w), analyticOnly ? 0.7 : 0.45);
+  spiral(m.thW, m.zWhite, sel, SELC, 0.98);
   // the 8 stations on the selected arm (where it crosses each production), at its woven height
   for (const st of m.tours[sel].stops) { const th = m.thW(sel, st.rf), rad = st.rf * m.R, p = proj(rad * Math.cos(th), rad * Math.sin(th), m.zWhite(sel, st.rf), s); ctx.fillStyle = rgba(SELC, 0.95); ctx.beginPath(); ctx.arc(p.X, p.Y, 4.5, 0, 7); ctx.fill(); }
   // the two centre hubs — white ABOVE production (six starts above eight), disconnected
@@ -200,8 +204,19 @@ function frame(ts) {
 }
 
 function panels() {
+  if (analyticOnly) {
+    const o = occupancy(m, tubeD), best = bestTube(m);
+    $('read').innerHTML = `<b>analytic schematic — paths as tubes</b> · the foam is hidden; this is the pure woven solution · seed ${seed}<br>` +
+      `<span><b>tube ⌀${tubeD | 0}</b> occupies <b class="ok">${(o.coverage * 100) | 0}%</b> of the volume · overlap ${(o.overlap * 100) | 0}% · score ${(o.score * 100) | 0}. ` +
+      `THE RULE: fill the homogeneous foam — best single tube ⌀${best.diameter | 0} (${(best.coverage * 100) | 0}% cover / ${(best.overlap * 100) | 0}% overlap). Constant tubes under-fill the rim (the wedges fan out) — the next solver step is more windings outward.</span>`;
+    $('wsel').innerHTML = m.factions.map((fac) => { const arms = m.warps.filter((w) => w.faction === fac.id); return `<div style="font-size:10px;color:${fac.color};text-transform:uppercase;letter-spacing:.08em;margin:7px 0 3px">${fac.label}</div>` + arms.map((w) => `<div class="w ${w.w === sel ? 'sel' : ''}" data-w="${w.w}"><div class="k" ${w.w === sel ? '' : `style="background:${fac.color};color:#0a0d14"`}>${w.w + 1}</div><div class="lab">${w.label}</div></div>`).join(''); }).join('');
+    for (const el of $('wsel').querySelectorAll('.w')) el.addEventListener('click', () => { sel = +el.dataset.w; sync(); });
+    $('itin').innerHTML = ''; $('elist').innerHTML = m.wefts.map((e) => `<div class="e"><span class="sw" style="background:${e.color}"></span><span class="nm">${e.glyph} ${e.label}</span></div>`).join('');
+    $('note').innerHTML = `Each of the 14 paths is a <b>tube of diameter ⌀${tubeD | 0}</b>. The objective the solver maximises is volume occupancy (cover the homogeneous foam, don't double up). Drag the tube slider to see coverage vs overlap trade off.`;
+    return;
+  }
   const title = view === 'orbit' ? 'orbit — the woven pancake' : view === 'thread' ? 'inhabit thread — the map from your arm' : 'museum map — wayfinding across the exploded layers';
-  const blurb = view === 'orbit' ? 'drag to orbit, scroll/pinch to zoom. 6 white arms spiral from the upper-centre hub, 8 production from the lower-centre hub — the six starts sit above the eight. Click a chamber to make its room.'
+  const blurb = view === 'orbit' ? 'drag to orbit, scroll/pinch to zoom. 6 white arms spiral from the upper-centre hub, 8 production from the lower-centre hub — the six starts sit above the eight. Click a chamber to make its room. Try “◎ analytic” to see the pure woven schematic.'
     : view === 'thread' ? 'your arm is the bright spine (centre/hub at top → rim at bottom); production arms slant across and cross it at the 8 stations. Pick another surface — the map re-organises around it.'
       : (theRoute ? `route: <b>${theRoute.doors}</b> doors + <b style="color:#ffe07a">${theRoute.stairs}</b> stair(s). Every stair is the route crossing the weave (upper↔lower) — the only way to join the two hubs.` : 'the two layers exploded apart. Click a <b style="color:#6ecf8a">start</b> chamber then an <b style="color:#e678c8">end</b> — the route threads doors and climbs stairs (each stair = crossing the weave). Pinch/scroll to zoom, drag to turn.');
   $('read').innerHTML = `<b>${title}</b> · 3D pancake foam ${m.nuclei.length} chambers, two layers · <span class="ok">${m.contactPairs}/48 (K(6,8))</span> · seed ${seed}<br><span>${blurb}</span>`;
@@ -218,11 +233,13 @@ function panels() {
 }
 
 function sync() {
-  $('orbit').classList.toggle('on', view === 'orbit'); $('thread').classList.toggle('on', view === 'thread'); $('map').classList.toggle('on', view === 'map'); $('spin').classList.toggle('on', spin);
+  $('orbit').classList.toggle('on', view === 'orbit'); $('thread').classList.toggle('on', view === 'thread'); $('map').classList.toggle('on', view === 'map'); $('spin').classList.toggle('on', spin); $('analytic').classList.toggle('on', analyticOnly);
   const u = new URLSearchParams(); if (seed !== 1) u.set('seed', seed); u.set('w', sel); u.set('view', view); history.replaceState(null, '', '?' + u.toString());
   panels();
 }
 
+$('analytic').addEventListener('click', () => { analyticOnly = !analyticOnly; if (analyticOnly) view = 'orbit'; sync(); });
+$('tube').addEventListener('input', (e) => { tubeD = +e.target.value; if (analyticOnly) panels(); });
 $('orbit').addEventListener('click', () => { view = 'orbit'; sync(); });
 $('thread').addEventListener('click', () => { view = 'thread'; sync(); });
 $('map').addEventListener('click', () => { view = 'map'; chamber = null; sync(); });
