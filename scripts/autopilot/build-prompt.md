@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-06-29 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-06-30 by build-brief.mjs — do not edit by hand._
 
 **Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, arena, ask, astro, atlas, atmosphere, atproto-data, aub, audio, auto, axial, aztec, b, bakery, basket, biome, bisk, bogo, borges, borsuk, bounty, branwen, brawl, breeder, cable, canvas, capset, cards, cat, chapter, chess, clock, cluster, corn, crm, crucible, culhwch, cult, curve, data, deck, density, descent, diffract, disk, docs, draw, duck, dyad, echo, econ, elements, empathy, emsim, erdos, fable, feedgen, finance, fixture, flights, flogame, flotorus, flow, flows, fluoddity, fodder, font, forest, forge, fractal, functions, g, gacha, gallery, games, gantry, garden, gawain, gc, gen, geomancy, geometry, globe, golf, graph, grow, guthkatz, hadwiger, hand, heilbronn, helix, hoop, hoop-backend, horned, hotnot, hourglass, iching, inat, infill, ink, inpac, io, iris, ising, isopod, item, j, js, judge, juice, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, mappa, markov, math, meander, mega, mmo, modulo, mol, mole, monthly, morphyx, music, name, noise, notes, novelty, ocr, orb, orfeo, org, orrery, os, owain, pac, packages, paint, pds, pendragon, phasemap, photo, phylo, phylofiction, pizza, playground, pm, pod, pokemon, poll, poly, post01, prism, prop, proteus, pwyll, quad, radial, range, read, recipe, redact, rind, rite, runner, scope, scripts, seek, selection, ship, signal, soil, spark, speclab, splice, sprite, squares, src, sticks, stocks, story, stretch, swarmclip, swarmread, swarmtext, sweat, szemeredi-trotter, tabard, tablet, tabletilt, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, tetro, thread, tide, time, tjs, torpac, torus, track, traffic, vault, viazovska, vitamerlini, voronoi, wars, wave, wc, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
 
 **Catalog saturation** (sites per category): games 66, bluesky 56, data 50, tools 35, work 7.
 
-**Neighborhood spark** (bisk 2026-06-29, 100 members / 183 posts):
+**Neighborhood spark** (bisk 2026-06-30, 100 members / 254 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: idk, glm, llm
-- Top post: "if someone knows AOC's people they might be interested that this is playing pretty well (or, badly for aoc) with a lot o" — @segyges.bsky.social
+- Distinctive words: bluesky, idk, gpt
+- Top post: "the refresh rate on this eink is crazy www.youtube.com/watch?v=oPbO..." — @brennan.computer
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
