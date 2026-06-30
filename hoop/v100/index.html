@@ -854,6 +854,32 @@
         streamFloorStations(lst, 2, '_lowerRind');                   // Sol · Luna · the Signal Chamber stream in
       } catch (e) { lowerRindBuilt = false; }
     }
+    // DEV TEST SHORTCUT (gated on dev mode: visit /v100/?dev=1 once): fast-forward the whole nave→rind arc so
+    // you can walk the LOWER RIND immediately — clear the nave campaign, witness the upper-rind threshold ×3,
+    // CHOOSE a faction, build both rinds, and drop you in the deep. Lives behind the #dbg "story status" panel.
+    const isDevMode = () => { try { return localStorage.getItem('hoop:v100:dev') === '1'; } catch (e) { return false; } };
+    async function devDescend() {
+      if (!story.ready || !world) { flashToast('dev: world not ready', 2400); return; }
+      const s = story.store, pid = story.playerId;
+      flashToast('dev: opening the way to the Lower Rind…', 3200);
+      // 1) clear the nave campaign (commons quest + witness the three nave factions)
+      s.setFact(pid, 'flag.met_olo', true); s.setFact(pid, 'flag.read_terminal', true); s.setFact(pid, 'flag.sevin_believes', true);
+      for (const f of ['continuant', 'rindwalker', 'drift']) s.setFact(pid, 'fq.' + f, 'witnessed');
+      // 2) upper-rind threshold: witness each at scale ×3 + CHOOSE → tier 4 (the Lower Rind)
+      for (const f of ['continuant', 'rindwalker', 'drift']) s.setFact(pid, 'fw.' + f, WITNESS_TARGET);
+      s.setFact(pid, 'flag.chosen_faction', 'drift');
+      if ((s.getPlayerState(pid).narrative_tier || 1) < 4) s.setPlayerTier(pid, 'narrative_tier', 4);
+      for (const f of ['continuant', 'rindwalker', 'drift']) ensureFactionWards(f);   // build every ward → nave reads as fully streamed
+      saveStory(); renderQuest();
+      const wait = (cond, ms = 16000) => new Promise((res) => { const t0 = performance.now(); const tick = () => { if (cond()) return res(true); if (performance.now() - t0 > ms) return res(false); setTimeout(tick, 120); }; tick(); });
+      await wait(() => world._nave && world._nave.idx >= world._nave.order.length);
+      await maybeBuildRind();
+      await wait(() => rindBuilt && world._rind && world._rind.idx >= world._rind.order.length && shafts[0]);
+      await maybeBuildLowerRind();
+      await wait(() => lowerRindBuilt && world._lowerRind && world._lowerRind.idx >= world._lowerRind.order.length && shafts[1] && shafts[1].bottom);
+      if (shafts[1] && shafts[1].bottom) { crossTo(shafts[1].bottom.node); renderQuest(); flashToast('dev: you are on the Lower Rind — gather chamber-lore to find the Signal Chamber', 4200); }
+      else flashToast('dev: rind build timed out — reopen the panel and try again', 4000);
+    }
     // stream the three stations of a rind floor after its hub — solve + paint + FULL restitch, one per tick
     // (the nave-ward pacing). `deck` tags the floor; `key` is the world's pacing-state slot (_rind / _lowerRind).
     function streamFloorStations(rst, deck, key) {
@@ -1850,10 +1876,12 @@
         _repoDirty = true; const msg = String((e && e.message) || e); _saveErr = msg; console.error('[hoop] save to PDS failed:', e);
         // A narrow / cookie-only SSO session (e.g. signed in on another *.mino.mobi site first, then the
         // portal picked up the cookie) can lack the com.minomobi.hoop.story.save WRITE grant — auth.hasScope
-        // is an unreliable local guess for cookie sessions, so we can't check ahead. On the FIRST auth-shaped
-        // failure, re-mint HOOP_SCOPE once (it returns here) — the same try-then-escalate pattern as rumor
-        // spreading. The LOCAL save always holds, so nothing is lost. Non-auth errors just surface (no redirect).
-        if (!_saveEscalated && /\b(401|403|unauthorized|forbidden|scope|auth)\b/i.test(msg)) {
+        // is an unreliable local guess for cookie sessions, so we can't check ahead. This is exactly what the
+        // manual "log out + log back in on the portal" was working around. On the FIRST save failure (any
+        // error EXCEPT a record-too-big one, which a re-auth can't fix) re-mint HOOP_SCOPE once — it returns
+        // here and saves work thereafter. The LOCAL save always holds, so nothing is lost; once per session.
+        const sizeErr = /stateJson|too long|maxlength|maxgraphemes|413|payload too large|record too large|RecordTooLarge/i.test(msg);
+        if (!_saveEscalated && !sizeErr) {
           _saveEscalated = true; flashToast('one-time: re-authorising the game to save to your repo…', 3600);
           try { auth.login(storyUser.handle, { scope: HOOP_SCOPE }); } catch (e2) {}
         }
@@ -2055,8 +2083,14 @@
         + `<a class="act" href="/v100/storyboard/" target="_blank">❖ storyboard</a>`
         + `<a class="act" href="/v100/architecture.html" target="_blank">⌥ data-flow</a>`
         + `<a class="act" href="/v100/records" target="_blank">▤ records</a></div>`);
+      if (isDevMode() && world) {
+        out.push(`<div class="sec"><div class="st">dev — test shortcuts</div>`
+          + `<button data-dev-descend style="background:none;border:1px solid #5a4326;color:#d8a45c;padding:6px 10px;border-radius:7px;cursor:pointer;font:inherit;font-size:11px">▼ fast-forward to the Lower Rind</button>`
+          + `<div class="dim" style="margin-top:4px;font-size:10px">witnesses all factions, chooses Drift, builds both rinds, drops you in the deep.</div></div>`);
+      }
       el.innerHTML = out.join('');
       const cx = el.querySelector('[data-dclose]'); if (cx) cx.onclick = () => toggleDbg(false);
+      const dd = el.querySelector('[data-dev-descend]'); if (dd) dd.onclick = () => { toggleDbg(false); devDescend(); };
     }
     // ── SIGN-IN with handle TYPEAHEAD: a small modal whose input live-searches Bluesky handles via the
     //    public appview (app.bsky.actor.searchActorsTypeahead — unauthed). Replaces the bare prompt(): no
@@ -4200,6 +4234,7 @@
     // the existing per-seed boot path (loadStory restores this seed, newWorld builds, forceCreate on new).
     // Anything else shows the portal first, so auth settles before any world/save activity (no boot race).
     resize(); requestAnimationFrame(frame);
+    try { const dq = new URLSearchParams(location.search).get('dev'); if (dq === '1') localStorage.setItem('hoop:v100:dev', '1'); else if (dq === '0') localStorage.removeItem('hoop:v100:dev'); } catch (e) {}   // ?dev=1 once → the #dbg panel gains a "fast-forward to the Lower Rind" test button (persists; ?dev=0 clears)
     const ENTER = (() => { try { return new URLSearchParams(location.search).get('play') === '1'; } catch (e) { return false; } })();
     if (ENTER) { loadStory(); newWorld(); }
     else { showHome(); }
