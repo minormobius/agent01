@@ -7,12 +7,12 @@ import { buildWeave3D } from './weave3d.js';
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
-let width = 3, spacing = 30, rings = 1, spin = true, showThreads = true;
+let width = 3, spacing = 30, flatR = 0.16, rings = 1, spin = true, showThreads = true;
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0;
-let m = buildWeave3D(seed, { rings, spacing, width });
+let m = buildWeave3D(seed, { rings, spacing, width, flatR });
 
 const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
@@ -38,6 +38,8 @@ function draw() {
   faceHex(0, rgba([90, 106, 140], 0.55), 1.4); faceHex(m.thickness, rgba([120, 138, 178], 0.7), 1.4);
   // vertical edges
   ctx.strokeStyle = rgba([70, 84, 112], 0.4); ctx.lineWidth = 1; for (const v of m.footprint) { const a = proj(v[0], v[1], -zc, s), b = proj(v[0], v[1], zc, s); ctx.beginPath(); ctx.moveTo(a.X, a.Y); ctx.lineTo(b.X, b.Y); ctx.stroke(); }
+  // the FLAT CORE radius (inside it: radial sectors, no weave) — a dashed ring at mid-height
+  if (m.flatR > 0) { ctx.strokeStyle = rgba([217, 178, 74], 0.6); ctx.lineWidth = 1.4; ctx.setLineDash([5, 5]); ctx.beginPath(); const rr = m.flatR * m.R; for (let k = 0; k <= 48; k++) { const an = k / 48 * Math.PI * 2, p = proj(rr * Math.cos(an), rr * Math.sin(an), 0, s); k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); } ctx.stroke(); ctx.setLineDash([]); }
 
   // thread centrelines (the spiral tubes' spines), white above / production below, interlacing
   if (showThreads) {
@@ -60,13 +62,14 @@ function draw() {
 
 function panels() {
   const M = m.metrics;
-  $('widthV').textContent = width; $('densV').textContent = spacing;
+  $('widthV').textContent = width; $('densV').textContent = `${M.nodes} nodes`; $('flatV').textContent = flatR.toFixed(2);
   $('chunks').textContent = `⬡ ${m.chunkCount} chunks`;
   $('levers').innerHTML = `
     <span class="k">path width</span><span class="v">${width} nodes (r=${M.radius.toFixed(0)})</span>
-    <span class="k">nuclei spacing</span><span class="v">${spacing} (a)</span>
+    <span class="k">areal density</span><span class="v">${M.nodes} nodes · a=${spacing}</span>
+    <span class="k">flat core radius</span><span class="v">${flatR.toFixed(2)}·R (no weave inside)</span>
     <span class="k">chunks / footprint</span><span class="v">${m.chunkCount} · hexR ${m.hexR | 0}</span>
-    <span class="k">prism thickness</span><span class="v">${m.thickness.toFixed(0)} (${m.layers} layers)</span>`;
+    <span class="k">prism thickness</span><span class="v">${m.thickness.toFixed(0)} · ${m.layers} layers (pinned)</span>`;
   const pc = (x) => `${(x * 100).toFixed(0)}%`;
   const cls = (bad) => bad ? 'v bad' : 'v ok';
   $('metrics').innerHTML = `
@@ -80,15 +83,17 @@ function panels() {
   $('breaks').innerHTML = M.clean
     ? `<div class="verdict ok">✓ weave intact — every white crosses every production, no thread lost, tubes inside the thickness</div>`
     : `<div class="verdict bad">✗ broken (${M.breaks.length})</div><ul>${M.breaks.map((b) => `<li>${b}</li>`).join('')}</ul>`;
-  $('note').innerHTML = `Each of the 14 threads is a tube ${width} nodes wide claiming the prism's homogeneous nodes. <b>Un-claimed nodes are the interstitial matrix</b> (the future walls/corridors) — not a failure. The math isn't softened: push width thin → crossings miss (K&lt;48); push it past the thickness → white &amp; production merge; thin the nuclei → crossings lose their registering nodes. seed ${seed}.`;
+  $('note').innerHTML = `14 threads, each a tube ${width} nodes wide. Inside the <b style="color:#d9b24a">flat core</b> the offices are radial sectors (no weave); all undulation is in the annulus. Thickness is <b>pinned</b> — areal density only changes node count. <b>Un-claimed nodes are interstitial matrix</b> (future walls/corridors), not a failure. Not softened: thin width → crossings miss (K&lt;48); a width wider than the pinned thickness → white &amp; production merge; too few chunks → the cell is too cramped and threads dissolve. seed ${seed}.`;
 }
 
-function rebuild() { m = buildWeave3D(seed, { rings, spacing, width }); panels(); }
+function rebuild() { m = buildWeave3D(seed, { rings, spacing, width, flatR }); panels(); }
 
 let raf = 0; function frame() { if (spin) yaw += 0.0035; draw(); raf = requestAnimationFrame(frame); }
 
 $('width').addEventListener('input', (e) => { width = +e.target.value; rebuild(); });
-$('dens').addEventListener('input', (e) => { spacing = +e.target.value; rebuild(); });
+// the slider reads as DENSITY: right = denser ⇒ smaller spacing. Thickness stays pinned (areal-only lever).
+$('dens').addEventListener('input', (e) => { spacing = 104 - +e.target.value; rebuild(); });
+$('flat').addEventListener('input', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
 $('spin').addEventListener('click', () => { spin = !spin; $('spin').classList.toggle('on', spin); });
 $('threads').addEventListener('click', () => { showThreads = !showThreads; $('threads').classList.toggle('on', showThreads); });

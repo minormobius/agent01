@@ -33,11 +33,15 @@ export function buildPrism(seed = PRISM_DEFAULTS.seed, opts = {}) {
   const o = { ...PRISM_DEFAULTS, ...opts, seed: (seed >>> 0) };
   const { hexR, spacing: a, layers, jitter } = o;
   const rng = mulberry32((o.seed ^ 0x9e37) >>> 0);
-  const c = a * VPITCH;                 // vertical layer pitch (HCP) — keeps NN distance = a
+  // Vertical layer pitch. Default a·√(2/3) ⇒ isotropic HCP (NN distance = a). Pass an explicit `vpitch` to PIN the
+  // thickness (T = layers·vpitch) independent of the in-plane spacing, so the in-plane `spacing` becomes a pure
+  // AREAL-DENSITY lever (more/fewer nodes per unit area) at constant height. Cells stay floor/ceiling-separated
+  // either way (a cell's vertical extent is ~vpitch, set by the layers, not by `a`).
+  const c = (o.vpitch != null) ? o.vpitch : a * VPITCH;
   const T = layers * c;                 // prism thickness: floor at z=0, ceiling at z=T
   const dy = a * SQRT3 / 2;             // triangular row pitch
   const offB = [a / 2, a * SQRT3 / 6];  // the B-layer in-plane shift (triangle centroid) → ABAB stacking
-  const jx = jitter * a;
+  const jx = jitter * a, jz = jitter * c;   // jitter scales in-plane with `a`, vertically with the layer pitch `c`
 
   // tile a triangular lattice across the hex bounding box, per layer, ABAB-offset, jittered, clipped to the hex
   const nodes = [];
@@ -48,7 +52,7 @@ export function buildPrism(seed = PRISM_DEFAULTS.seed, opts = {}) {
       const bx = a * (i + (((j % 2) + 2) % 2) * 0.5) + ox, by = dy * j + oy;       // triangular layer
       if (!inHex(bx, by, hexR)) continue;
       const x = bx + (rng() - 0.5) * 2 * jx, y = by + (rng() - 0.5) * 2 * jx;
-      const z = Math.max(0.06 * c, Math.min(T - 0.06 * c, z0 + (rng() - 0.5) * 2 * jx));   // jitter z, stay inside
+      const z = Math.max(0.06 * c, Math.min(T - 0.06 * c, z0 + (rng() - 0.5) * 2 * jz));   // jitter z, stay inside
       if (!inHex(x, y, hexR, a * 0.6)) continue;                                  // keep jittered node near footprint
       nodes.push({ i: nodes.length, x, y, z, layer: k });
     }

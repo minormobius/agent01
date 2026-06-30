@@ -20,7 +20,8 @@ const wrap = (a) => ((a % TAU) + TAU) % TAU;
 const angDist = (a, b) => { const d = Math.abs(wrap(a) - wrap(b)); return Math.min(d, TAU - d); };
 function mulberry32(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
-export const WEAVE_DEFAULTS = { rings: 1, spacing: 30, width: 3, jitter: 0.18, layers: 4, seed: 1 };
+export const WEAVE_DEFAULTS = { rings: 1, spacing: 30, width: 3, flatR: 0.16, jitter: 0.18, layers: 4, seed: 1 };
+export const VREF_SPACING = 30;   // the reference areal spacing that pins the prism thickness (4 layers, ~98 tall)
 export const chunkCount = (rings) => 3 * rings * rings + 3 * rings + 1;
 const HEXR_AT = (rings) => 320 * (1.5 * rings + 1) / 2.5;   // rings 0/1/2 → hexR 128 / 320 / 512 (7-chunk = the std cell)
 
@@ -30,33 +31,44 @@ export function buildWeave3D(seed = WEAVE_DEFAULTS.seed, opts = {}) {
   const NW = FACTIONS.flatMap((f) => f.roleIds).length, NF = ENGINE_RING.length;   // 6, 8
   const rng = mulberry32((o.seed ^ 0x77a3) >>> 0);
 
-  const prism = buildPrism(o.seed, { hexR, spacing: a, layers: o.layers, jitter: o.jitter });
+  // PIN the thickness: a fixed vertical pitch (from a reference areal spacing) so the prism stays 4 layers high no
+  // matter the in-plane density — the `spacing` lever then changes AREAL DENSITY only, not the height.
+  const vpitch = VREF_SPACING * Math.sqrt(2 / 3);
+  const prism = buildPrism(o.seed, { hexR, spacing: a, layers: o.layers, jitter: o.jitter, vpitch });
   const { nodes, thickness: T } = prism;
-  const R = hexR, zMid = T / 2, ampZ = 0.46 * T, radius = o.width * a / 2;
+  const R = hexR, zMid = T / 2, ampZ = 0.44 * T, zBias = 0.42 * T, radius = o.width * a / 2;
+  const flatR = Math.max(0, Math.min(0.7, o.flatR));   // radius of flatness (fraction of R): NO weave inside it
 
   // seeded family: counter-rotating spiral turns (more chunks ⇒ more windings), phases, spin
   const baseTurns = 1.0 + 0.9 * rings;
   const turnsW = baseTurns * (0.85 + 0.3 * rng()), turnsP = baseTurns * (0.85 + 0.3 * rng());
   const phaseW = rng() * TAU, phaseP = rng() * TAU, spin = rng() < 0.5 ? 1 : -1, Sxz = turnsW + turnsP;
 
-  // thread centrelines (in-plane spiral + interlacing height): white +cos, production −cos ⇒ where one is high the
-  // other is low (a real over/under weave), at the crossing frequency Sxz so the swap lands on the crossings.
-  const aW = (w, rf) => wrap((w + 0.5) * TAU / NW + phaseW - spin * turnsW * TAU * rf);
-  const aP = (f, rf) => wrap((f + 0.5) * TAU / NF + phaseP + spin * turnsP * TAU * rf);
-  const zW = (w, rf) => zMid + ampZ * Math.cos(TAU * Sxz * rf + w * TAU / NW);
-  const zP = (f, rf) => zMid - ampZ * Math.cos(TAU * Sxz * rf + f * TAU / NF);
+  // THE FLAT CORE. Inside flatR the offices form RADIAL SECTORS (no spin, no undulation): white sits high, the
+  // engines low, each a clean wedge — no hairball. ALL the spiral winding + over/under undulation is remapped into
+  // the OUTER ANNULUS via g(rf): 0 across the flat core, ramping 0→1 from flatR to the rim. So every crossing
+  // (hence all of K(6,8)) happens outside the core, and the centre is just the two hubs' sector fans.
+  const g = (rf) => (rf <= flatR ? 0 : (rf - flatR) / (1 - flatR));
+  const aW = (w, rf) => wrap((w + 0.5) * TAU / NW + phaseW - spin * turnsW * TAU * g(rf));
+  const aP = (f, rf) => wrap((f + 0.5) * TAU / NF + phaseP + spin * turnsP * TAU * g(rf));
+  const zW = (w, rf) => { const gg = g(rf); return zMid + (1 - gg) * zBias + gg * ampZ * Math.cos(TAU * Sxz * gg + w * TAU / NW); };
+  const zP = (f, rf) => { const gg = g(rf); return zMid - (1 - gg) * zBias - gg * ampZ * Math.cos(TAU * Sxz * gg + f * TAU / NF); };
 
   const warps = FACTIONS.flatMap((fac) => fac.roleIds.map((rid) => ({ id: rid, faction: fac.id, factionLabel: fac.label, color: fac.color }))).map((wc, w) => ({ ...wc, w, kind: 'white' }));
   const wefts = ENGINE_RING.map((id, f) => ({ id, f, kind: 'prod', ...ENGINES[id] }));
 
-  // ── assign: a node is claimed by EVERY thread whose tube it falls inside (so collisions surface as contested) ──
+  // ── assign. In the FLAT CORE every node goes to its single nearest sector (clean wedges, never contested). In
+  // the woven annulus a node is claimed by EVERY thread whose tube it falls inside (collisions surface as contested). ──
+  const distW = (w, rf, th, z) => Math.hypot(angDist(th, aW(w, rf)) * rf * R, z - zW(w, rf));
+  const distP = (f, rf, th, z) => Math.hypot(angDist(th, aP(f, rf)) * rf * R, z - zP(f, rf));
   for (const n of nodes) {
     const rf = Math.hypot(n.x, n.y) / R, th = Math.atan2(n.y, n.x);
-    n.rf = rf; const owners = [];
-    for (let w = 0; w < NW; w++) { const arc = angDist(th, aW(w, rf)) * rf * R, dz = n.z - zW(w, rf), d = Math.hypot(arc, dz); if (d <= radius) owners.push({ kind: 'white', idx: w, d }); }
-    for (let f = 0; f < NF; f++) { const arc = angDist(th, aP(f, rf)) * rf * R, dz = n.z - zP(f, rf), d = Math.hypot(arc, dz); if (d <= radius) owners.push({ kind: 'prod', idx: f, d }); }
+    n.rf = rf; n.flat = rf <= flatR; const owners = [];
+    for (let w = 0; w < NW; w++) { const d = distW(w, rf, th, n.z); if (n.flat || d <= radius) owners.push({ kind: 'white', idx: w, d }); }
+    for (let f = 0; f < NF; f++) { const d = distP(f, rf, th, n.z); if (n.flat || d <= radius) owners.push({ kind: 'prod', idx: f, d }); }
     owners.sort((p, q) => p.d - q.d);
-    n.owners = owners; n.nearest = owners[0] || null; n.contested = owners.length > 1;
+    if (n.flat) { n.owners = owners.slice(0, 1); n.nearest = owners[0] || null; n.contested = false; }   // single owner ⇒ a clean sector
+    else { n.owners = owners; n.nearest = owners[0] || null; n.contested = owners.length > 1; }
   }
 
   // ── metrics (raw — nothing clamped) ──
@@ -67,10 +79,12 @@ export function buildWeave3D(seed = WEAVE_DEFAULTS.seed, opts = {}) {
   const prodCounts = Array.from({ length: NF }, (_, f) => nodes.filter((n) => n.nearest && n.nearest.kind === 'prod' && n.nearest.idx === f).length);
   const deadThreads = whiteCounts.filter((c) => c === 0).length + prodCounts.filter((c) => c === 0).length;
 
-  // K(6,8): a contact (w,f) is REALISED iff some node nearest-owned by white w sits within 1.4a (3D) of some node
-  // nearest-owned by production f. Grid-bucket the coloured nodes; scan 27-neighbourhoods. Missing pairs are real
-  // breakage (a crossing with no nodes to register it), not hidden.
-  const cell = 1.4 * a, key = (x, y, z) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
+  // K(6,8): a contact (w,f) is REALISED iff some node nearest-owned by white w sits within one node-step (3D) of
+  // some node nearest-owned by production f. White & production live in different strata, so the contact is a
+  // VERTICAL adjacency (~vpitch apart) — the threshold must use max(in-plane a, vpitch), else a dense in-plane
+  // grid would miss every vertical contact. Grid-bucket the coloured nodes; scan 27-neighbourhoods. Missing pairs
+  // are real breakage (a crossing with no nodes to register it), not hidden.
+  const cell = 1.4 * Math.max(a, vpitch), key = (x, y, z) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
   const grid = new Map();
   for (const n of nodes) if (n.nearest) { const k = key(n.x, n.y, n.z); (grid.get(k) || grid.set(k, []).get(k)).push(n); }
   const contacts = new Set();
@@ -99,9 +113,9 @@ export function buildWeave3D(seed = WEAVE_DEFAULTS.seed, opts = {}) {
   };
 
   return {
-    seed: o.seed, rings, chunkCount: chunkCount(rings), spacing: a, width: o.width, hexR, R, thickness: T, layers: o.layers,
+    seed: o.seed, rings, chunkCount: chunkCount(rings), spacing: a, width: o.width, flatR, hexR, R, thickness: T, layers: o.layers,
     NW, NF, prism, nodes, warps, wefts, footprint: prism.footprint,
-    family: { turnsW, turnsP, phaseW, phaseP, spin }, aW, aP, zW, zP, radius, metrics,
+    family: { turnsW, turnsP, phaseW, phaseP, spin }, aW, aP, zW, zP, g, radius, metrics,
   };
 }
 
