@@ -1,5 +1,16 @@
 # rind/ops — the white-collar weave (the theory)
 
+> **THE SUBSTRATE REBUILD (`prism.html` · `rind.mino.mobi/ops/prism.html`).** The weave is being re-founded on a
+> proper **hexagonal prism of homogeneously spaced nodes** (`prism.js`, HCP packing — every interior node has 12
+> neighbours at the same distance; `prism.selftest.mjs` proves the prism is thick enough that **no Voronoi cell
+> touching the ceiling also touches the floor** — the rigorous "two real floors"; proven minimum 3 layers,
+> default 4). `weave3d.js` then **lays the weave** on it: 6 white + 8 production counter-rotating spiral TUBES
+> claim the prism's nodes, with three honest levers — **width** (nodes per path), **nuclei density** (spacing),
+> **chunks** (1/7/19). The math is not softened: the viewer + `weave3d.selftest.mjs` surface every failure mode —
+> thin tubes drop crossings (K(6,8) < 48), fat tubes exceed the thickness (white & production merge), sparse
+> nuclei lose the nodes that register crossings. Un-claimed nodes are the **interstitial matrix** (future
+> walls/corridors), reported but not a failure. Chambers (Voronoi polyhedra) come next.
+
 > **NOW IN 3D — a PANCAKE.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating
 > spirals**. 6 white arms spiral from the **upper-centre** hub, 8 production from the **lower-centre** hub (the
