@@ -1689,8 +1689,8 @@
         foldCharacterFromSave();   // the character rides the save now — adopt the saved one, or seed it from local
         syncOwnSaveIfReady();   // if already signed in, your repo save wins over the local buffer
         // a brand-new game FORCES character creation (and a name) before the world opens; resumes skip it
-        if (needsForcedCreate()) creator.showForced(() => maybeArriveDeck());
-        else maybeArriveDeck();   // the awakening: the current deck's hand-written character + your guide's hook
+        if (needsForcedCreate()) creator.showForced(() => runOpeningThen(maybeArriveDeck));   // create your android → Bay 14 cold open → deck arrival
+        else runOpeningThen(maybeArriveDeck);   // the awakening: (cold open if never seen) → the current deck's hand-written character + your guide's hook
         try { const h = await fetch('/api/story/health').then((r) => r.json()); storyApi.enabled = !!(h && h.enabled); storyApi.provider = h && h.provider; } catch (e) { storyApi.enabled = false; }   // v096: is live generation available?
       } catch (e) { story.ready = false; }   // graceful: residents still live and walk, just no story panel
     }
@@ -2271,12 +2271,45 @@
         if (ok) flashToast(`☷ you spread word of ${(item && item.name) || 'it'}`, 2400);
         return;
       }
+      if (_opening) { if (advanceOpening()) return; }   // the cold open steps card→card; only the last dismisses
       hideEncounter();
     });
-    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && !_factionChoiceOpen && !_concludeOpen && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); hideEncounter(); } });
+    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && !_factionChoiceOpen && !_concludeOpen && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); if (_opening && advanceOpening()) return; hideEncounter(); } });
     // NPCs fold their reveal INTO the dialogue (one screen, one name — see renderStory); only non-NPC
     // encounters (item / lore / creature / plot_beat) still get the standalone popup.
     const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) { if (intro.item.type !== 'npc') showEncounter(intro.item); noteFactionWitness(intro.item); noteChamberLore(intro.item); } };   // first meeting → encounter card (non-npc) + upper-rind faction-witness tally + lower-rind chamber-lore tally
+    // ── THE COLD OPEN (Bay 14): a scripted intro the first time you wake. The bible's open — you're an android,
+    //    rebuilt in a reconstruction bay no manifest lists, and Olo (the Drift broker who found you) sets you on
+    //    the way. Fires ONCE per save (flag.intro_seen), only at the very start (tier 1, before the seal lifts).
+    let _opening = false, _openingCards = [], _openingIdx = 0, _openingDone = null;
+    const OPENING_CARDS = [
+      { kicker: 'Bay 14 · the reconstruction bay', title: 'you wake', foot: '⏎ / click — and then?',
+        body: 'Cold light, and a cradle in the deep of the Nave — Bay 14, a bay no manifest still lists. You are not the body you remember. You have been rebuilt, and something in the rebuild was changed: there is a translator behind your eyes now, new, and you do not yet know what it is for.\n\nYou sit up. You are not alone.' },
+      { kicker: 'the Commons · a voice', title: 'Olo Vashti', foot: '⏎ / click — begin',
+        body: '“Up at last. Good — I went to some trouble to wake you, and it was worth it only if you are what your marking says you are.”\n\nA broker of the Drift, the one who found Bay 14 and paid the price to bring you back. He nods toward the deck beyond the bay.\n\n“Walk the Commons. Learn its hands — what these people make, mend, trade. When you have understood enough, come back to me. There is a terminal here older than the writ that will tell you what you are, and I will set you on the way down.”' },
+    ];
+    function _renderOpeningCard() {
+      const c = _openingCards[_openingIdx]; if (!c) return;
+      showPage(c.kicker, c.title, c.body, c.foot);
+    }
+    // step card→card; on the LAST card chain to `_openingDone` (the deck arrival). Returns true when it
+    // "handled" the dismiss (advanced or re-rendered the follow-on), false to let the click dismiss into play.
+    function advanceOpening() {
+      _openingIdx++;
+      if (_openingIdx < _openingCards.length) { _renderOpeningCard(); return true; }
+      _opening = false; const done = _openingDone; _openingDone = null;
+      if (done) { done(); return true; }   // the deck arrival re-renders the overlay card
+      return false;
+    }
+    // run the Bay 14 cold open IF it's due (fresh wake), THEN `next`; if not due, run `next` immediately. So
+    // the boot is: character creation → the cold open → the deck arrival.
+    function runOpeningThen(next) {
+      if (!story.ready) { if (next) next(); return; }
+      const facts = story.store.getFacts(story.playerId);
+      if (facts['flag.intro_seen'] || introSolved() || (story.store.getPlayerState(story.playerId).narrative_tier || 1) > 1) { if (next) next(); return; }
+      story.store.setFact(story.playerId, 'flag.intro_seen', true); saveStorySnapshot();
+      _opening = true; _openingCards = OPENING_CARDS; _openingIdx = 0; _openingDone = next || null; _renderOpeningCard();
+    }
     // a generic centre-screen page (deck arrival, the hoopybot level-up) — same overlay, custom layout.
     function showPage(kicker, title, body, foot) {
       _encItem = null;   // a generic page reuses the overlay — no figure to spread word of
