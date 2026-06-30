@@ -21,8 +21,13 @@ JS → emit a frame model → solve for stress):
   the hubs are joined only by threading the woven body. Counter-rotation ⇒ K(6,8). Two reads: **orbit** (the
   woven pancake) and **inhabit thread** — *the mapping tech*: pick a white arm and the disc UNROLLS around it
   (your arm = a straight spine centre→rim, the 8 production arms slant across and cross it at numbered stations;
-  the other whites are parallel verticals; reselect → the map re-organises). **Click any chamber → its generated
-  ROOM** (`chamber.js`): the voronoi cell becomes walls (structural edges) with **doors as mid-wall gaps that
+  the other whites are parallel verticals; reselect → the map re-organises) · and **museum map** — the
+  **wayfinding** toy: the two layers explode apart, click two chambers and a route threads doors and climbs
+  **stairs** (each stair = crossing the weave), pinch/scroll to zoom. The 6 white roles are **two per faction**
+  (Rindwalker · Continuant · Drift — the nave's three lobes + verbs) for **representation**. **Wayfinding is the
+  validation endpoint**: `wayfind.js` `certify()` proves the whole construction navigable AND that the white hub
+  → production hub route is *forced through the weave* (≥1 stair, never a direct shaft) — pinned over 30 seeds by
+  `wayfind.selftest.mjs`. **Click any chamber → its generated ROOM** (`chamber.js`): the voronoi cell becomes walls (structural edges) with **doors as mid-wall gaps that
   never cut a corner column** (the rind rule: doors open plates, not edges), a fixture (ops console / process
   machine / hub), and a **stair to the other-layer partner = the white×production facility** (the K(6,8) contact
   made architectural) — except the two hubs, which get no stair so they stay disconnected. Seedable family

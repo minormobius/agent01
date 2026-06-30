@@ -19,6 +19,12 @@ import { ENGINE_RING, ENGINES, supplyChain } from './engines.js';
 import { WHITE, warpOver } from './weave.js';
 
 export const DEFAULTS = { R: 320, T: 84, Nrad: 21, Nth: 54, Nz: 2, jitter: 0.5, hubRf: 0.10, seed: 1 };
+// the three factions — two white-collar roles each (the nave's lobes + exclusive verbs); gives representation
+export const FACTIONS = [
+  { id: 'rindwalker', label: 'Rindwalker', color: '#9b6b3a', verbs: ['mend', 'worship'], roleIds: ['perfusion', 'telemetry'], creed: 'maintenance is meaning — the floor\'s health-keepers' },
+  { id: 'continuant', label: 'Continuant', color: '#5566b8', verbs: ['govern', 'grow'], roleIds: ['schedule', 'inventory'], creed: 'the voyage must continue — the planners & stewards' },
+  { id: 'drift', label: 'Drift', color: '#3bb0c9', verbs: ['move', 'trade'], roleIds: ['dispatch', 'gate'], creed: 'a floor lives only if things move — the circulators' },
+];
 const TAU = Math.PI * 2;
 const wrap = (a) => ((a % TAU) + TAU) % TAU;
 const swrap = (a) => { a = wrap(a); return a > Math.PI ? a - TAU : a; };
@@ -32,7 +38,11 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
 
   // seeded family: counter-rotating spiral turns (sum ≥ 1 ⇒ K(6,8)) + phases + spin direction
   const turnsW = 0.6 + 0.4 * rng(), turnsP = 0.6 + 0.4 * rng(), phaseW = rng() * TAU, phaseP = rng() * TAU, dir = rng() < 0.5 ? 1 : -1;
-  const warps = WHITE.map((wc, w) => ({ ...wc, w }));
+  // FACTIONS — two white-collar roles each (representation), mapped to the nave's three lobes + their exclusive
+  // verbs. The arms are placed faction-contiguous so each faction owns a 120° sector of the rosette.
+  const byId = Object.fromEntries(WHITE.map((w) => [w.id, w]));
+  const warps = FACTIONS.flatMap((fac) => fac.roleIds.map((rid) => ({ ...byId[rid], faction: fac.id, factionLabel: fac.label, factionColor: fac.color, verbs: fac.verbs })))
+    .map((wc, w) => ({ ...wc, w }));
   const wefts = ENGINE_RING.map((id, f) => ({ id, f, ...ENGINES[id] }));
 
   // the spiral band centres (in-plane), as a function of radial fraction rf ∈ [0,1]
@@ -89,7 +99,7 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   const supply = supplyChain().filter((e) => e.from !== 'fulfillment' && e.to !== 'fulfillment').map((e) => ({ ...e, fa: ENGINE_RING.indexOf(e.from), fb: ENGINE_RING.indexOf(e.to), color: ENGINES[e.from].color }));
 
   return {
-    R, T, Nrad, Nth, Nz, seed: o.seed, NW, NF, warps, wefts, nuclei, whiteThreads, prodThreads,
+    R, T, Nrad, Nth, Nz, seed: o.seed, NW, NF, warps, wefts, factions: FACTIONS, nuclei, whiteThreads, prodThreads,
     tours, supply, contactPairs: pairs.size, contact: { everyTouchesEvery: pairs.size === NW * NF },
     family: { turnsW, turnsP, phaseW, phaseP, dir }, thW, thP, bandW, bandF, crossingRad, swrap,
   };
