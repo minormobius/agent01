@@ -252,13 +252,14 @@ export function talk(store, playerId, npcContentId) {
   const npc = store.contentById(npcContentId);
   if (!npc || npc.type !== 'npc') return { error: 'not an npc' };
   const name = (npc.content || {}).name, tree = (npc.content || {}).dialogue;
-  if (!tree || !tree.nodes) return { npc: name, says: (npc.content || {}).description || 'They regard you in silence.', choices: [], no_tree: true };
+  const ambient = !!(npc.content || {}).ambient;   // wanderers: render the light one-liner popup, not the principal screen
+  if (!tree || !tree.nodes) return { npc: name, says: (npc.content || {}).description || 'They regard you in silence.', choices: [], no_tree: true, ambient };
   const start = tree.start || Object.keys(tree.nodes)[0];
   const st = store.getNpcState(playerId, npcContentId, start);
   const gstate = loadGateState(store, playerId);
   const nodeId = entryNode(tree, st, gstate, start), node = tree.nodes[nodeId] || tree.nodes[start];
   const choices = (node.choices || []).filter((c) => npcVisible(gstate, st, c) && choiceLive(tree, c)).map((c) => ({ id: c.id, text: c.text }));
-  return { npc: name, standing: st.standing, says: node.says || '', node: nodeId, choices };
+  return { npc: name, standing: st.standing, says: node.says || '', node: nodeId, choices, ambient };
 }
 export function choose(store, playerId, npcContentId, choiceId) {
   const npc = store.contentById(npcContentId);

@@ -530,7 +530,7 @@
     import { pickChatter, factionOf, factionForRole } from './story/chatter.js';   // deterministic faction×phase ambient lines for the crowd (no hand-authored copy)
     import { buildProfile, profileFromChunk, requestSidequest, applyResult } from './story/genquest.js';   // v096: the CLIENT side of the live generation lane (worker generates+gates; this folds it in)
     import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
-    import { importWorldExport } from './story/import.js';   // v096: hoopy's world_export → content_items (first-class) diff
+    import { importWorldExport, servePool } from './story/import.js';   // v096: hoopy's world_export → content_items (first-class) diff; servePool = the live-repo serving rules (drop retired, explode room_bundle, map wanderer)
     import { FQ, FQ_ORDER, fqProgress, fqStatus, fqActive, fqOpensRind, fqSignatureExclusive, fqCanWitness } from './story/factionquest.js';   // v100: the NAVE CAMPAIGN — meet the three factions in order; the Drift opens the rind
     import { CHOICE_FACTIONS, WITNESS_TARGET, FACTION_INFO, witnessCount, allWitnessed, chosenFaction, witnessProgress, isChoiceFaction } from './story/factionchoice.js';   // v100: the UPPER-RIND THRESHOLD — witness each faction ×3, then choose; the choice colors the lower-rind descent
     import { CHAMBER_LORE_TARGET, chamberLore, signalLocated, chapterComplete, finalChoice, lunaContact, FINAL_CHOICES, weighJourney, concludeEnding } from './story/conclusion.js';   // v100: THE CHAPTER CLOSE — locate the Signal Chamber, Luna's contact, the final decision, an ending fitted to the path
@@ -1638,7 +1638,10 @@
         let content, poolSrc;
         try {
           const pds = await resolveStoryPds(STORY_SERVICE); storyPds = pds;
-          content = await loadPool(publicClient(pds), STORY_SERVICE.did);
+          // SERVE the raw repo records: drop status:'retired' tombstones, explode room_bundles → npc+lore,
+          // map wanderers → ambient npc. Without this the new model surfaces ZERO npcs (the npcs live inside
+          // unexploded room_bundles + unmapped wanderers; the old standalone npcs are all retired).
+          content = servePool(await loadPool(publicClient(pds), STORY_SERVICE.did));
           if (!content || content.length < 50) throw new Error('service repo pool empty/short');
           poolSrc = 'repo';
         } catch (e) {
@@ -1936,7 +1939,7 @@
     //    retcon eviction in story/verdicts.js), persist the cursor, and redraw the pool if anything changed.
     //    Fully guarded — a verdict sync can never break the game. Needs a signed-in DID (verdicts are tagged). ──
     async function reloadPool() {
-      const content = await loadPool(publicClient(storyPds), STORY_SERVICE.did);
+      const content = servePool(await loadPool(publicClient(storyPds), STORY_SERVICE.did));
       if (!content || !content.length) return;
       const snap = story.store.snapshot();                                   // captured AFTER the digest (keeps evictions)
       story.store = new MemoryStore(content, { features: [...story.store.features.values()] }).restore(snap);
@@ -2517,8 +2520,8 @@
         const inform = (onFirst && story.active.informed) ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
         const right = meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>`;
         // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
-        // an ambient crowd one-liner → a light compact popup.
-        if (!t.no_tree || (t.choices && t.choices.length)) {
+        // an ambient crowd one-liner (no_tree crowd OR a wanderer's one-node `ambient` tree) → a light compact popup.
+        if ((!t.no_tree && !t.ambient) || (t.choices && t.choices.length)) {
           // name/role sit ABOVE a FLIP CARD whose front is the character's own sprite and whose back is the
           // stat block — click the card to flip between sprite ⇄ stats (the sprite can never cover the name).
           const left = `<div class="nm">${esc(npcName)}</div>`

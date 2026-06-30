@@ -73,6 +73,7 @@ export function importRecord(rec, { provider = 'hoopy-export', lane = 'spine' } 
   };
   const dialogue = get('dialogue'); if (dialogue) ci.content.dialogue = dialogue;
   const mechanics = get('mechanics'); if (mechanics) ci.content.mechanics = mechanics;
+  const conclusion = get('conclusion'); if (conclusion) ci.content.conclusion = conclusion;   // plot_beat's ending tree (conclusion.js) — carry it or endings vanish
   const requires = parseRequires(rec.requires);
   if (Object.keys(requires).length) ci.requires = requires;
   const refs = rec.world_refs || rec.refs; if (refs) ci.refs = refs;   // first-class cross-entity refs (spine signal)
@@ -122,10 +123,61 @@ export function expandRoomBundle(rec, { provider = 'hoopy-export', lane = 'spine
   return out.length ? out : [importRecord(rec, { provider, lane })];   // never silently drop a bundle
 }
 
-// One source record → one OR MORE engine content_items. A room_bundle explodes (npc + lore); everything
-// else is a 1:1 importRecord. importWorldExport flat-maps this, so the rest of the pipeline is unchanged.
+// ── WANDERERS (hoopy's 2026-06 ambient layer) ────────────────────────────────────────────────────────
+// A `wanderer` is an AMBIENT one-liner NPC: content.{line, name, verb, zone, faction, description}. It has a
+// single authored `line`, not a branching tree. The engine talks to `npc`s via a dialogue.nodes tree, so we
+// wrap the line as a ONE-NODE tree (greet, no choices) and mark `content.ambient` so the UI renders the light
+// one-liner popup, not a principal's two-pane screen. zone/faction/verb lift into `tags` so placement
+// (chatter.js#factionOf, the chamber spread, the deck-climb) keys on it exactly as it does a bundle's npc.
+export function expandWanderer(rec, { provider = 'hoopy-export', lane = 'spine' } = {}) {
+  const C = rec.content && typeof rec.content === 'object' ? rec.content : {};
+  const tags = [...new Set([...(rec.tags || []), C.zone, C.faction, C.verb].filter(Boolean).map((t) => String(t).toLowerCase()))];
+  const line = String(C.line || C.description || '').trim();
+  const content = { name: C.name || 'a wanderer', description: C.description || line, ambient: true };
+  if (line) content.dialogue = { start: 'greet', nodes: { greet: { says: line, choices: [] } } };
+  const out = {
+    id: rec.id || slug(C.name) || 'wanderer', type: 'npc', content, tags,
+    revelation_tier: parseTier(rec.revelation_tier), narrative_tier: parseTier(rec.narrative_tier), power_tier: parseTier(rec.power_tier),
+    approved: rec.approved != null ? !!rec.approved : (rec.status || 'approved') !== 'pending',
+    status: rec.status === 'pending' ? 'active' : (rec.status === 'retired' ? 'retired' : 'active'),
+    lane, provider,
+  };
+  const requires = parseRequires(rec.requires); if (Object.keys(requires).length) out.requires = requires;
+  const refs = rec.world_refs || rec.refs; if (refs && refs.length) out.refs = refs;
+  return [out];
+}
+
+// One source record → one OR MORE engine content_items. A room_bundle explodes (npc + lore); a wanderer maps
+// to an ambient npc; everything else is a 1:1 importRecord. importWorldExport flat-maps this, so the rest of
+// the pipeline is unchanged.
 export function expandRecord(rec, opts = {}) {
-  return (rec && rec.type === 'room_bundle') ? expandRoomBundle(rec, opts) : [importRecord(rec, opts)];
+  if (!rec) return [];
+  if (rec.type === 'room_bundle') return expandRoomBundle(rec, opts);
+  if (rec.type === 'wanderer') return expandWanderer(rec, opts);
+  return [importRecord(rec, opts)];
+}
+
+// SERVING RULES for the LIVE service repo (the records `loadPool` reads back, already in engine field-shape:
+// {id, type, content, tags, *_tier, status, …}). hoopy's 2026-06 model stores his RAW records there and
+// SOFT-deletes by setting status:'retired' (a "nuke" tombstones in place — the records STAY in listRecords),
+// so a clean served pool is:
+//   1. DROP retired tombstones (else a republish double-serves old + new).
+//   2. EXPLODE room_bundle → npc + lore_fragment   (the principals + their ground).
+//   3. MAP wanderer → ambient npc                  (the authored crowd one-liners).
+//   4. pass everything else through VERBATIM — it is already engine-shaped, and re-normalizing it through
+//      importRecord would drop fields the records legitimately carry (e.g. plot_beat.conclusion, the ending
+//      tree). The two raw types are the only ones the engine can't read directly.
+// Pure; the same rules the engine, gates, and the filter projection all see. Idempotent on an already-served
+// pool (no room_bundle/wanderer/retired left to transform).
+export function servePool(items, opts = {}) {
+  const out = [];
+  for (const ci of items || []) {
+    if (!ci || ci.status === 'retired') continue;
+    if (ci.type === 'room_bundle') { out.push(...expandRoomBundle(ci, opts)); continue; }
+    if (ci.type === 'wanderer') { out.push(...expandWanderer(ci, opts)); continue; }
+    out.push(ci);
+  }
+  return out;
 }
 
 // THE RUNTIME/WORLD FLAG MANIFEST. hoopy's bible defines a flag system whose progression flags are set
@@ -154,5 +206,6 @@ export function importWorldExport(json, opts = {}) {
   else if (Array.isArray(json)) items = json;
   else if (json && typeof json === 'object') items = Object.values(json).filter((v) => v && typeof v === 'object' && v.type);
   else items = [];
-  return { content: items.flatMap((r) => expandRecord(r, opts)), bible: (json && json.story_bible) || null };
+  // serving rule 1 (drop retired tombstones) applies to the fallback export too; expandRecord covers 2–4.
+  return { content: items.filter((r) => r && r.status !== 'retired').flatMap((r) => expandRecord(r, opts)), bible: (json && json.story_bible) || null };
 }
