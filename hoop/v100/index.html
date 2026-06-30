@@ -2386,8 +2386,11 @@
       const s = story.store, key = 'anchor:' + contentId;
       if (!s.featureByKey(key)) s.addFeature({ key, type: 'npc', label: (ci.content || {}).name || contentId, content_id: contentId });
       const intro = interact(s, story.playerId, key);
-      const name = (ci.content || {}).name || contentId;
-      story.active = { agent: meta || { name, role: ci.verb || 'mend', glyph: '☻' }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      const name = (ci.content || {}).name || contentId, faction = factionOf(ci.tags || []);
+      // a REAL rolled sprite (faction-roled, cloth-tinted) — the same genome placeAnchors gives the map figure,
+      // so the opening portrait reads as the person, not the bare ☻ glyph fallback.
+      const agent = meta || { name, role: ci.verb || ROLE_FOR_FACTION[faction] || 'trade', glyph: '☻', genome: npcSpriteGenome(contentId, faction) };
+      story.active = { agent, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       hideEncounter(); renderStory();
       return true;
     }
@@ -3847,6 +3850,17 @@
     const _promotedKeys = new Set();   // resident homeKeys promoted into a named NPC this session — suppressed from the crowd
     const ANCHOR_COLORS = ['#7fd8d0', '#b48a6a', '#c89ad0', '#d0c07f'];
     const ROLE_FOR_FACTION = { continuant: 'mend', drift: 'trade', rindwalker: 'salvage' };
+    // A NAMED NPC's sprite genome: a faction-roled body (or an inherited promoted-resident genome) with its
+    // cloth recoloured to the faction hue. The single source for an anchor/keeper sprite — used by
+    // placeAnchors (the map figure) AND openStoryNpc (the opening chat portrait) so they read identically and
+    // no NPC ever falls back to the bare glyph. Deterministic from the content id.
+    function npcSpriteGenome(id, faction, base) {
+      const g = base || buildGenome('hoop-npc:' + id, { role: ROLE_FOR_FACTION[faction] || 'trade', size: 12 });
+      const fc = FACTION_INFO[faction] && FACTION_INFO[faction].color;
+      if (!fc) return g;
+      try { return { ...g, ramps: { ...g.ramps, cloth: ramp(rngFor('hoop-npc:' + id + '::factioncloth'), hexHue(fc), 52, 10) } }; }
+      catch (e) { return g; }
+    }
     const hkStr = (hk) => hk ? hk.ch + ':' + hk.x + ':' + hk.y : null;   // stable string for a resident homeKey (survives the JSON save)
     // A named NPC exists in the WORLD only once DISCOVERED — the discovered set (persisted as a fact) is the
     // single source of truth for who's placed. placeAnchors rebuilds the anchor list from it; an undiscovered
@@ -3866,14 +3880,11 @@
         // promoted resident has drifted out of the live set (e.g. a returning player whose crowd re-rolled).
         const res = pos.res ? residents.find((r) => hkStr(r.homeKey) === pos.res) : null;
         if (pos.res) _promotedKeys.add(pos.res);
-        const genome = (res && res.genome) || buildGenome('hoop-npc:' + id, { role: ROLE_FOR_FACTION[faction] || 'trade', size: 12 });
-        // A PRINCIPAL READS AS ITS FACTION, not its verb. The inherited resident genome is cloth-tinted by the
-        // resident's ROLE (so a Continuant promoted onto a green grow-resident looked green). Recolour the
-        // anchor's cloth to the FACTION hue (and tint the ground-ring/nameplate to match). Neutral NPCs keep
-        // their role colour. (clone so the live resident's own genome isn't recoloured.)
+        // A PRINCIPAL READS AS ITS FACTION, not its verb: inherit the promoted resident's genome when present
+        // (so it's native to its civ), else a fresh faction-roled body — then recolour cloth to the faction hue
+        // (a Continuant promoted onto a green grow-resident looked green otherwise). npcSpriteGenome does both.
         const fc = FACTION_INFO[faction] && FACTION_INFO[faction].color;
-        let g = genome;
-        if (fc) { try { g = { ...genome, ramps: { ...genome.ramps, cloth: ramp(rngFor('hoop-npc:' + id + '::factioncloth'), hexHue(fc), 52, 10) } }; } catch (e) { g = genome; } }
+        const g = npcSpriteGenome(id, faction, (res && res.genome) || null);
         anchors.push({ key: 'anchor:' + id, content_id: id, name: (npc.content || {}).name || id, role: (npc.tags || [])[0] || faction || 'drift',
           color: fc || ANCHOR_COLORS[i % ANCHOR_COLORS.length], x: pos.x, y: pos.y, deck: pos.deck || 0, dir: 'S', genome: g });
         i++;
