@@ -2417,7 +2417,14 @@
           + `<div style="margin-top:4px;height:5px;background:#10161d;border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:${Math.round(pr.progress * 100)}%;background:#b48a6a"></span></div>`
           + `<div style="color:#6b7872;font-size:10.5px;margin-top:2px">${pr.learned}/${pr.needed} · reward ◈${q.reward}</div></div>`;
       }
-      for (const q of done) body += `<div style="margin:0 0 7px;color:#7fd8d0;font-size:12.5px">✓ ${esc(q.title)} <span style="color:#6b7872">— ◈${q.reward}${q.reveal ? ' · ' + esc(q.reveal.slice(0, 80)) : ''}</span></div>`;
+      // RESOLVED threads keep their TEXT (feedback: "I see rumor names — is there text?"). The deck-climb
+      // resolves threads fast, so the rumor's hook + its revelation now persist on the closed thread, not just
+      // the title.
+      for (const q of done) body += `<div style="margin:0 0 11px;border-left:2px solid #2e6b5e;padding-left:10px">`
+        + `<div style="color:#7fd8d0;font-size:13px">✓ ${esc(q.title)} <span style="color:#6b7872;font-size:11px">— ◈${q.reward}</span></div>`
+        + (q.hook ? `<div style="color:#9aa8a0;font-size:11.5px;line-height:1.5;margin:3px 0">${esc(q.hook.slice(0, 220))}${q.hook.length > 220 ? '…' : ''}</div>` : '')
+        + (q.reveal ? `<div style="color:#e0a86a;font-size:11.5px;font-style:italic;margin-top:2px">“${esc(q.reveal)}”</div>` : '')
+        + `</div>`;
       showPage(`journal · ${open.length} open · ${done.length} resolved`, 'your journal', '');
       $('enccard').querySelector('.ed').innerHTML = body;   // rich list (showPage escapes; we want markup)
       journalOpen = true;   // set AFTER showPage (which clears it) so a live renderQuest refresh keeps the journal
@@ -2550,6 +2557,14 @@
         // not the procedural resident the world spawned (agent.name, e.g. "Cole"). agent.name is only the
         // fallback for a soul with no story figure yet. The role+standing line no longer repeats the name.
         const npcName = t.npc || agent.name;
+        // hidden metadata surfaced (feedback): a keeper carries its ROOM NAME (the chamber it keeps) and a
+        // FACTION (its nave faction). Pull them off the content item so the card can show the room above the
+        // figure's description and the faction beside the standing count.
+        const _ci = story.store.contentById(npcId) || {};
+        const _roomName = _ci.roomName || null;
+        const _fac = factionOf(_ci.tags || []);
+        const _facTag = (_fac && _fac !== '_default' && FACTION_INFO[_fac]) ? ` · <span style="color:${FACTION_INFO[_fac].color}">${esc(FACTION_INFO[_fac].label)}</span>` : '';
+        const _roomLine = _roomName ? `<div class="says" style="border-left:2px solid #6a5a36;padding-left:9px;color:#d8c79a;font-style:normal;font-size:12.5px;letter-spacing:.3px">⌂ ${esc(_roomName)}</div>` : '';
         // ONE SCREEN, FIRST SCREEN ONLY — the figure's reveal (description + hint + "spread word") and any
         // delivered story beat (`informed`) belong to the OPENING screen of the meeting. They show once, then
         // clear as soon as you pick a choice (firstScreen → false), so the note never hangs over the whole
@@ -2563,14 +2578,14 @@
             + (canSpread ? `<button data-spread="1" style="margin:2px 0 8px;padding:6px 14px;border:1px solid #f4bf62;background:rgba(244,191,98,.12);color:#f4bf62;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer">☷ spread word</button>` : '')
           : '';
         const inform = (onFirst && story.active.informed) ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
-        const right = meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>`;
+        const right = _roomLine + meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>`;   // room name (keeper metadata) sits above the description, every visit
         // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
         // an ambient crowd one-liner (no_tree crowd OR a wanderer's one-node `ambient` tree) → a light compact popup.
         if ((!t.no_tree && !t.ambient) || (t.choices && t.choices.length)) {
           // name/role sit ABOVE a FLIP CARD whose front is the character's own sprite and whose back is the
           // stat block — click the card to flip between sprite ⇄ stats (the sprite can never cover the name).
           const left = `<div class="nm">${esc(npcName)}</div>`
-            + `<div class="rl">${esc(agent.role)} · standing ${t.standing | 0}</div>`
+            + `<div class="rl">${esc(agent.role)} · standing ${t.standing | 0}${_facTag}</div>`
             + `<div class="flipcard" id="flipcard" title="click to flip between sprite and stats">`
             +   `<div class="flipinner">`
             +     `<div class="flipface flipfront"><canvas class="portrait" id="storyportrait" width="96" height="96"></canvas></div>`
