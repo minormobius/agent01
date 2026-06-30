@@ -12,11 +12,13 @@
 > `weave3d.selftest.mjs` surface every failure mode — thin tubes drop crossings (K(6,8) < 48), a width wider than
 > the pinned thickness merges white & production, too few chunks cramp the cell until threads dissolve. Un-claimed
 > nodes are the **interstitial matrix** (future walls/corridors), reported but not a failure. **Chambers are now
-> live** (`cells3d.js`): every prism node becomes a per-deck **Voronoi cell** coloured by its claiming thread, with
-> a **door graph** (in-deck shared walls + deck-to-deck adjacency). The viewer toggles visibility per thread (all
-> 14) and by group (whites / ops / matrix), and the **wayfinding** picks two chambers and routes the path that
-> **minimises doors crossed** (BFS in the chamber graph). `cells3d.selftest.mjs` proves the partition + a
-> door-minimal route.
+> live** (`cells3d.js`): every prism node owns a **TRUE 3D Voronoi polyhedron** — the hex prism clipped by every
+> neighbour's bisector half-space — and the cells pack the prism **SOLID** (Σvol/prism = 100%, proven in the
+> selftest; *not* four painted 2D planes). The **door graph** is the real 3D face adjacency (a door = a shared
+> face). The viewer toggles visibility per thread (all 14) and by group (whites / ops / matrix), and the
+> **wayfinding** routes the **fewest THREAD doors** — a door = crossing into a chamber owned by a *different*
+> thread; staying in one thread is free. Because of K(6,8) + the shared core, **anywhere→anywhere ≈ one door**
+> (measured avg ≈ 1.2, max 3). `cells3d.selftest.mjs` pins the solid fill + the single-door reach.
 
 > **NOW IN 3D — a PANCAKE.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating

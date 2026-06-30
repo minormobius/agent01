@@ -25,6 +25,16 @@ const warpCol = (w) => mix(hex(m.warps[w].color), INK, (w % 2) * 0.28);
 const prodCol = (f) => hex(m.wefts[f].color);
 const ownerColor = (o) => o ? (o.kind === 'white' ? warpCol(o.idx) : prodCol(o.idx)) : MATRIX;
 
+// 2D convex hull (monotone chain) — a 3D cell's SILHOUETTE is the hull of its projected vertices
+function convexHull(pts) {
+  if (pts.length < 3) return pts.slice();
+  const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = []; for (const q of p) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  const up = []; for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  lo.pop(); up.pop(); return lo.concat(up);
+}
+
 // the 14 threads + the matrix as toggleable keys
 const whiteKeys = m.warps.map((w) => 'w' + w.w), prodKeys = m.wefts.map((f) => 'p' + f.f);
 const allThreads = [...whiteKeys, ...prodKeys];
@@ -64,10 +74,13 @@ function draw() {
     drawn.sort((a, b) => a.depth - b.depth);
     for (const d of drawn) {
       const c = d.c, col = ownerColor(c.owner), sh = 0.5 + 0.5 * (d.depth / m.R + 1) / 2, inRoute = routeSet && routeSet.has(c.gi);
-      ctx.beginPath(); c.poly.forEach((v, i) => { const p = proj(v[0], v[1], c.z - zc, s); i ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }); ctx.closePath();
-      ctx.fillStyle = rgba(mix(col, BG, c.owner ? 0.12 : 0.5), (inRoute ? 0.96 : 0.66) * sh); ctx.fill();
-      ctx.strokeStyle = rgba(mix(col, BG, 0.55), 0.5 * sh); ctx.lineWidth = 0.6; ctx.stroke();
-      if (inRoute) { ctx.strokeStyle = rgba(GOLD, 0.95); ctx.lineWidth = 1.6; ctx.stroke(); }
+      const hull = convexHull(c.verts.map((v) => { const p = proj(v[0], v[1], v[2] - zc, s); return [p.X, p.Y]; }));   // the polyhedron's silhouette
+      if (hull.length >= 3) {
+        ctx.beginPath(); hull.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
+        ctx.fillStyle = rgba(mix(col, BG, c.owner ? 0.12 : 0.5), (inRoute ? 0.96 : 0.7) * sh); ctx.fill();
+        ctx.strokeStyle = rgba(mix(col, BG, 0.55), 0.45 * sh); ctx.lineWidth = 0.6; ctx.stroke();
+        if (inRoute) { ctx.strokeStyle = rgba(GOLD, 0.95); ctx.lineWidth = 1.7; ctx.stroke(); }
+      }
       pickCells.push({ gi: c.gi, X: d.X, Y: d.Y });
     }
   }
@@ -110,6 +123,7 @@ function panels() {
     <span class="k">on a thread (coverage)</span><span class="v">${pc(M.coverage)}</span>
     <span class="k">interstitial matrix</span><span class="v">${pc(M.orphanPct)}</span>
     <span class="k">contested (≥2 threads)</span><span class="${M.contestedPct > 0.5 ? 'v bad' : 'v'}">${pc(M.contestedPct)}</span>
+    <span class="k">solid fill (Σvol/prism)</span><span class="${cls(cellsModel && Math.abs(cellsModel.fillRatio - 1) > 1e-3)}">${cellsModel ? (cellsModel.fillRatio * 100).toFixed(1) : '—'}%</span>
     <span class="k">dead threads</span><span class="${cls(M.deadThreads > 0)}">${M.deadThreads}/14</span>
     <span class="k">K(6,8) crossings</span><span class="${cls(!M.k68)}">${M.k68Pairs}</span>
     <span class="k">tube ⌀ vs thickness</span><span class="${cls(M.tubeVsThickness > 1)}">${M.tubeVsThickness.toFixed(2)}×</span>`;
@@ -117,12 +131,12 @@ function panels() {
     ? `<div class="verdict ok">✓ weave intact — every white crosses every production, no thread lost, tubes inside the thickness</div>`
     : `<div class="verdict bad">✗ broken (${M.breaks.length})</div><ul>${M.breaks.map((b) => `<li>${b}</li>`).join('')}</ul>`;
   routePanel();
-  $('note').innerHTML = `Each prism node is a <b>Voronoi chamber</b> coloured by the thread that claims it (un-claimed = matrix). Toggle any of the 14, or the groups. <b>⇆ route</b>: click a <b style="color:#6ecf8a">start</b> chamber then an <b style="color:#e678c8">end</b> — the gold path crosses the <b>fewest doors</b> (BFS in the chamber graph: in-deck shared walls + deck-to-deck adjacency). seed ${seed}.`;
+  $('note').innerHTML = `Every prism node owns a true <b>3D Voronoi polyhedron</b> — the cells pack the hex prism <b>solid</b> (Σvol/prism = ${cellsModel ? (cellsModel.fillRatio * 100).toFixed(1) : '—'}%, no gaps), coloured by the thread that claims it. Toggle any of the 14 or the groups. <b>⇆ route</b>: click a <b style="color:#6ecf8a">start</b> then an <b style="color:#e678c8">end</b> chamber — the gold path crosses the <b>fewest thread-doors</b> (a door = a shared face between two <i>different</i> threads; staying in one thread is free). The weave is built so anywhere→anywhere is ≈ one door. seed ${seed}.`;
 }
 function routePanel() {
   if (!routeMode && routeA < 0) { $('routeRead').innerHTML = `<span class="hint">click <b>⇆ route</b>, then two chambers.</span>`; return; }
   if (routeA >= 0 && routeB < 0) { $('routeRead').innerHTML = `<span class="hint">start set — click the <b style="color:#e678c8">end</b> chamber.</span>`; return; }
-  if (theRoute) { $('routeRead').innerHTML = `<span class="big">${theRoute.doors}</span> doors crossed<br><span class="sub">${theRoute.path.length} chambers · ${theRoute.threadChanges} thread changes · the door-minimal path</span>`; return; }
+  if (theRoute) { $('routeRead').innerHTML = `<span class="big">${theRoute.doors}</span> door${theRoute.doors === 1 ? '' : 's'} crossed<br><span class="sub">${theRoute.cells} chambers walked · a <b>door</b> = crossing into another thread (your own corridor is free)</span>`; return; }
   $('routeRead').innerHTML = routeA >= 0 && routeB >= 0 ? `<span class="hint">no route — those chambers are disconnected.</span>` : `<span class="hint">click <b>⇆ route</b>, then two chambers.</span>`;
 }
 
@@ -131,7 +145,7 @@ function rebuild() { m = buildWeave3D(seed, { rings, spacing, width, flatR }); e
 function frame() { if (spin) yaw += 0.0035; draw(); requestAnimationFrame(frame); }
 
 $('width').addEventListener('input', (e) => { width = +e.target.value; rebuild(); });
-$('dens').addEventListener('input', (e) => { spacing = 104 - +e.target.value; rebuild(); });   // right = denser
+$('dens').addEventListener('change', (e) => { spacing = 104 - +e.target.value; rebuild(); });   // right = denser; on release (3D Voronoi rebuild)
 $('flat').addEventListener('input', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
 $('cells').addEventListener('click', () => { showCells = !showCells; $('cells').classList.toggle('on', showCells); });

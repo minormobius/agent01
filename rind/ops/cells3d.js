@@ -1,82 +1,106 @@
-// cells3d.js — VORONOI CHAMBERS for the prism weave. One cell per prism node: per-layer 2D Voronoi clipped to the
-// hexagonal footprint, coloured by the thread that claims the node. Plus the DOOR graph — in-layer shared walls
-// and cross-layer (deck-to-deck) adjacency — and `routeMinDoors`, a wayfinding route that MINIMISES THE NUMBER OF
-// DOORS CROSSED (fewest cells entered = BFS in the cell graph). Pure, deterministic, node-tested.
+// cells3d.js — TRUE 3D VORONOI CHAMBERS over the prism weave. Every prism node owns a convex POLYHEDRON: the
+// hexagonal prism clipped by the perpendicular-bisector half-space of every nearby node. The cells pack the prism
+// SOLID — no gaps, no overlap (Σ cell volume == prism volume, pinned by the selftest) — so every volumetric slice
+// is spoken for. NOT four painted planes.
+//
+// The DOOR graph is the true 3D face adjacency: two chambers share a door iff their polyhedra share a 2D face.
+// `routeMinDoors` counts THREAD doors — crossing into a chamber owned by a DIFFERENT thread is a door; walking
+// your own thread's corridor is free — and finds the path that crosses the fewest. Pure, deterministic, node-tested.
 
-// clip a convex polygon to the half-plane a·x + b·y ≤ c (Sutherland–Hodgman); `cut` ⇒ the two seeds are adjacent
-function clip(poly, a, b, c) {
-  const out = []; let cut = false; const n = poly.length;
-  for (let i = 0; i < n; i++) {
-    const p = poly[i], q = poly[(i + 1) % n];
-    const dp = a * p[0] + b * p[1] - c, dq = a * q[0] + b * q[1] - c;
-    const ip = dp <= 1e-9, iq = dq <= 1e-9;
-    if (ip) out.push(p);
-    if (ip !== iq) { const t = dp / (dp - dq); out.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]); cut = true; }
+const EPS = 1e-6;
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const len = (a) => Math.hypot(a[0], a[1], a[2]);
+const norm = (a) => { const L = len(a) || 1; return [a[0] / L, a[1] / L, a[2] / L]; };
+
+// clip a convex polyhedron (array of faces; each face an ordered ring of [x,y,z]) by the half-space n·x ≤ d.
+// Returns { faces, cut } — `cut` is true iff the plane actually sliced the cell (⇒ a new cap face on plane n).
+function clipByPlane(faces, n, d) {
+  const kept = [], capPts = []; let cut = false;
+  for (const f of faces) {
+    const out = []; const L = f.length; let made = false;
+    for (let i = 0; i < L; i++) {
+      const A = f[i], B = f[(i + 1) % L], sA = dot(n, A) - d, sB = dot(n, B) - d;
+      if (sA <= EPS) out.push(A);
+      if ((sA < -EPS && sB > EPS) || (sA > EPS && sB < -EPS)) { const t = sA / (sA - sB); const P = [A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1]), A[2] + t * (B[2] - A[2])]; out.push(P); capPts.push(P); made = true; }
+    }
+    if (out.length >= 3) kept.push(out);
+    if (made) cut = true;
   }
-  return { poly: out, cut };
+  if (capPts.length >= 3) { const cap = orderRing(capPts, n); if (cap.length >= 3) { kept.push(cap); } }
+  return { faces: kept, cut };
 }
-function area(poly) { let A = 0; for (let i = 0; i < poly.length; i++) { const p = poly[i], q = poly[(i + 1) % poly.length]; A += p[0] * q[1] - q[0] * p[1]; } return Math.abs(A) / 2; }
 
-// ownerKey: a stable id for a node's claiming thread (or the interstitial matrix)
+// order a set of coplanar points (on plane with normal n) into a convex ring by angle around their centroid
+function orderRing(pts, n) {
+  const uniq = [];
+  for (const p of pts) if (!uniq.some((q) => Math.abs(q[0] - p[0]) < 1e-4 && Math.abs(q[1] - p[1]) < 1e-4 && Math.abs(q[2] - p[2]) < 1e-4)) uniq.push(p);
+  if (uniq.length < 3) return [];
+  const c = [0, 0, 0]; for (const p of uniq) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; } c[0] /= uniq.length; c[1] /= uniq.length; c[2] /= uniq.length;
+  let u = cross(n, [0, 0, 1]); if (len(u) < 1e-6) u = cross(n, [0, 1, 0]); u = norm(u); const v = norm(cross(n, u));
+  return uniq.sort((a, b) => Math.atan2(dot(sub(a, c), v), dot(sub(a, c), u)) - Math.atan2(dot(sub(b, c), v), dot(sub(b, c), u)));
+}
+
+function cellVolume(faces) { let V = 0; for (const f of faces) for (let i = 1; i < f.length - 1; i++) V += dot(f[0], cross(f[i], f[i + 1])); return Math.abs(V) / 6; }
+function uniqueVerts(faces) { const out = []; for (const f of faces) for (const p of f) if (!out.some((q) => Math.abs(q[0] - p[0]) < 1e-3 && Math.abs(q[1] - p[1]) < 1e-3 && Math.abs(q[2] - p[2]) < 1e-3)) out.push(p); return out; }
+
 export const ownerKey = (o) => o ? (o.kind === 'white' ? 'w' + o.idx : 'p' + o.idx) : 'matrix';
 
 export function buildCells(model) {
   const { nodes, footprint, spacing: a, thickness, layers } = model;
-  const vpitch = thickness / layers;
-  const cells = []; const nodeCell = new Map();
+  const vpitch = thickness / layers, T = thickness;
 
-  // ── per-layer 2D Voronoi (clip the hex footprint by nearby same-layer nodes) ──
-  const byLayer = Array.from({ length: layers }, () => []);
-  for (const n of nodes) byLayer[n.layer].push(n);
-  const gs = 2.2 * a;
-  for (let L = 0; L < layers; L++) {
-    const ns = byLayer[L], grid = new Map();
-    const bk = (x, y) => `${Math.floor(x / gs)},${Math.floor(y / gs)}`;
-    for (const n of ns) { const k = bk(n.x, n.y); (grid.get(k) || grid.set(k, []).get(k)).push(n); }
-    for (const n of ns) {
-      let poly = footprint.map((v) => [v[0], v[1]]); const cand = [];
-      const bx = Math.floor(n.x / gs), by = Math.floor(n.y / gs);
-      for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) { const bucket = grid.get(`${bx + dx},${by + dy}`); if (!bucket) continue;
-        for (const t of bucket) { if (t === n) continue; const ex = t.x - n.x, ey = t.y - n.y; if (ex * ex + ey * ey > (3 * a) ** 2) continue;
-          const res = clip(poly, ex, ey, ex * (n.x + t.x) / 2 + ey * (n.y + t.y) / 2); poly = res.poly; if (res.cut) cand.push(t); } }
-      const gi = cells.length;
-      cells.push({ gi, nodeIndex: n.i, layer: L, z: n.z, x: n.x, y: n.y, poly, area: area(poly), owner: n.nearest, ownerKey: ownerKey(n.nearest), flat: !!n.flat, cand: cand.map((t) => t.i), adj: new Set() });
-      nodeCell.set(n.i, gi);
+  // the prism as a convex polyhedron: hex top + hex bottom + 6 sides (outward-oriented)
+  const vt = footprint.map((p) => [p[0], p[1], T]), vb = footprint.map((p) => [p[0], p[1], 0]);
+  const prismFaces = [vt.slice(), vb.slice().reverse()];
+  for (let k = 0; k < 6; k++) { const k2 = (k + 1) % 6; prismFaces.push([vb[k], vb[k2], vt[k2], vt[k]]); }
+
+  // a 3D grid over the nodes for neighbour queries
+  const reach = 2.4 * Math.max(a, vpitch), gs = reach, grid = new Map(), gk = (x, y, z) => `${Math.floor(x / gs)},${Math.floor(y / gs)},${Math.floor(z / gs)}`;
+  for (const n of nodes) { const k = gk(n.x, n.y, n.z); (grid.get(k) || grid.set(k, []).get(k)).push(n); }
+
+  const cells = nodes.map((n) => ({ gi: n.i, nodeIndex: n.i, layer: n.layer, x: n.x, y: n.y, z: n.z, owner: n.nearest, ownerKey: ownerKey(n.nearest), flat: !!n.flat, verts: null, volume: 0, adj: new Set() }));
+
+  for (const n of nodes) {
+    let faces = prismFaces.map((f) => f.map((p) => p.slice()));
+    const cand = [];
+    const bx = Math.floor(n.x / gs), by = Math.floor(n.y / gs), bz = Math.floor(n.z / gs);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) { const bucket = grid.get(`${bx + dx},${by + dy},${bz + dz}`); if (!bucket) continue;
+      for (const t of bucket) { if (t === n) continue; const d2 = (t.x - n.x) ** 2 + (t.y - n.y) ** 2 + (t.z - n.z) ** 2; if (d2 > reach * reach) continue; cand.push(t); } }
+    cand.sort((p, q) => ((p.x - n.x) ** 2 + (p.y - n.y) ** 2 + (p.z - n.z) ** 2) - ((q.x - n.x) ** 2 + (q.y - n.y) ** 2 + (q.z - n.z) ** 2));
+    const planes = [];
+    for (const t of cand) { const nx = t.x - n.x, ny = t.y - n.y, nz = t.z - n.z, d = (nx * (n.x + t.x) + ny * (n.y + t.y) + nz * (n.z + t.z)) / 2;
+      const res = clipByPlane(faces, [nx, ny, nz], d); faces = res.faces; planes.push({ t, n: [nx, ny, nz], d, L: Math.hypot(nx, ny, nz) || 1 }); }
+    const cell = cells[n.i]; cell.verts = uniqueVerts(faces); cell.volume = cellVolume(faces); cell.faces = faces;
+    // TRUE face adjacency: neighbour t is a door iff a FINAL face lies on the bisector plane of (n,t)
+    for (const pl of planes) { const tc = cells[pl.t.i]; let onFace = false;
+      for (const f of faces) { let all = f.length >= 3; for (const p of f) if (Math.abs(dot(pl.n, p) - pl.d) / pl.L > 0.5) { all = false; break; } if (all) { onFace = true; break; } }
+      if (onFace) { cell.adj.add(tc.gi); tc.adj.add(cell.gi); }
     }
   }
 
-  // ── in-layer TRUE adjacency: a candidate is a neighbour only if a final polygon edge lies on their bisector ──
-  for (const cell of cells) { const P = cell.poly, nP = P.length;
-    for (const ti of cell.cand) { const tc = cells[nodeCell.get(ti)]; if (!tc) continue;
-      const dx = tc.x - cell.x, dy = tc.y - cell.y, c = dx * (cell.x + tc.x) / 2 + dy * (cell.y + tc.y) / 2, Ln = Math.hypot(dx, dy) || 1, eps = 0.8;
-      for (let k = 0; k < nP; k++) { const p = P[k], q = P[(k + 1) % nP];
-        if (Math.abs(dx * p[0] + dy * p[1] - c) / Ln < eps && Math.abs(dx * q[0] + dy * q[1] - c) / Ln < eps && Math.hypot(q[0] - p[0], q[1] - p[1]) > 1) { cell.adj.add(tc.gi); tc.adj.add(cell.gi); break; } }
-    }
-  }
-
-  // ── cross-layer DOORS: a cell is adjacent to a cell on an adjacent deck whose node sits within one node-step ──
-  const thr = 1.4 * Math.max(a, vpitch), thr2 = thr * thr, g3 = thr;
-  const grid3 = new Map(), k3 = (x, y, z) => `${Math.floor(x / g3)},${Math.floor(y / g3)},${Math.floor(z / g3)}`;
-  for (const c of cells) { const k = k3(c.x, c.y, c.z); (grid3.get(k) || grid3.set(k, []).get(k)).push(c); }
-  for (const c of cells) { const bx = Math.floor(c.x / g3), by = Math.floor(c.y / g3), bz = Math.floor(c.z / g3);
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) { const bucket = grid3.get(`${bx + dx},${by + dy},${bz + dz}`); if (!bucket) continue;
-      for (const t of bucket) { if (t === c || t.layer === c.layer) continue; if ((t.x - c.x) ** 2 + (t.y - c.y) ** 2 + (t.z - c.z) ** 2 <= thr2) { c.adj.add(t.gi); t.adj.add(c.gi); } } } }
-
-  return { cells, vpitch, nodeCell, layers };
+  const prismVolume = footprint.reduce((s, p, i) => { const q = footprint[(i + 1) % footprint.length]; return s + (p[0] * q[1] - q[0] * p[1]); }, 0) / 2 * T;
+  const filled = cells.reduce((s, c) => s + c.volume, 0);
+  return { cells, vpitch, layers, prismVolume: Math.abs(prismVolume), filledVolume: filled, fillRatio: filled / Math.abs(prismVolume) };
 }
 
-// wayfinding that MINIMISES DOOR CROSSINGS: BFS in the cell graph (every edge = one door) ⇒ the path that enters
-// the fewest chambers. Returns { path:[gi…], doors, threadChanges } or null if disconnected.
+// wayfinding that minimises DOORS — a door = crossing into a chamber owned by a DIFFERENT thread (walking your own
+// thread's corridor is free). 0/1-weighted shortest path (0-1 BFS / deque). Returns { path, doors, cells } or null.
 export function routeMinDoors(cellsModel, aGi, bGi) {
   const { cells } = cellsModel;
   if (aGi == null || bGi == null) return null;
-  if (aGi === bGi) return { path: [aGi], doors: 0, threadChanges: 0 };
-  const prev = new Map([[aGi, -1]]), q = [aGi];
-  for (let h = 0; h < q.length; h++) { const cur = q[h]; if (cur === bGi) break; for (const nb of cells[cur].adj) if (!prev.has(nb)) { prev.set(nb, cur); q.push(nb); } }
+  if (aGi === bGi) return { path: [aGi], doors: 0, cells: 1 };
+  const dist = new Map([[aGi, 0]]), prev = new Map([[aGi, -1]]); let dq = [aGi];
+  while (dq.length) {
+    dq.sort((x, y) => dist.get(x) - dist.get(y));      // small graphs ⇒ simple priority; correct 0/1 weights
+    const cur = dq.shift(); if (cur === bGi) break;
+    for (const nb of cells[cur].adj) { const w = cells[nb].ownerKey === cells[cur].ownerKey ? 0 : 1, nd = dist.get(cur) + w;
+      if (nd < (dist.has(nb) ? dist.get(nb) : Infinity)) { dist.set(nb, nd); prev.set(nb, cur); dq.push(nb); } }
+  }
   if (!prev.has(bGi)) return null;
   const path = []; for (let c = bGi; c !== -1; c = prev.get(c)) path.push(c); path.reverse();
-  let threadChanges = 0; for (let i = 1; i < path.length; i++) if (cells[path[i]].ownerKey !== cells[path[i - 1]].ownerKey) threadChanges++;
-  return { path, doors: path.length - 1, threadChanges };
+  return { path, doors: dist.get(bGi), cells: path.length };
 }
 
 if (typeof globalThis !== 'undefined') globalThis.RindCells3D = { buildCells, routeMinDoors, ownerKey };
