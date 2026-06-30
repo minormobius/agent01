@@ -209,7 +209,7 @@ function panels() {
     const o = occupancy(m, tubeD, occPre);
     $('read').innerHTML = `<b>analytic schematic — paths as slope-limited tubes (the solver)</b> · foam hidden · seed ${seed}<br>` +
       `<span><b>tube ⌀${tubeD | 0}</b> occupies <b class="ok">${(o.coverage * 100) | 0}%</b> of the volume (overlap ${(o.overlap * 100) | 0}%, best ⌀${bestT.diameter | 0}) · <b>${m.windings.toFixed(1)} windings</b> · <b>slope ≤ ${(m.maxGrade * 100) | 0}%</b> (hills in spin gravity). ` +
-      `MORE WINDINGS lay more tube-passes → the same tube fills more of the volume, and give the gentle slope room to complete the weave. Dial windings/slope/tube to trade coverage vs overlap.</span>`;
+      `Windings lay more tube-passes — but past a sweet spot (≈2) the slope cap crowds the crossings and FLATTENS the weave, costing z-volume: occupancy peaks at an interior optimum. Dial windings/slope/tube to trade coverage vs overlap.</span>`;
     $('wsel').innerHTML = m.factions.map((fac) => { const arms = m.warps.filter((w) => w.faction === fac.id); return `<div style="font-size:10px;color:${fac.color};text-transform:uppercase;letter-spacing:.08em;margin:7px 0 3px">${fac.label}</div>` + arms.map((w) => `<div class="w ${w.w === sel ? 'sel' : ''}" data-w="${w.w}"><div class="k" ${w.w === sel ? '' : `style="background:${fac.color};color:#0a0d14"`}>${w.w + 1}</div><div class="lab">${w.label}</div></div>`).join(''); }).join('');
     for (const el of $('wsel').querySelectorAll('.w')) el.addEventListener('click', () => { sel = +el.dataset.w; sync(); });
     $('itin').innerHTML = ''; $('elist').innerHTML = m.wefts.map((e) => `<div class="e"><span class="sw" style="background:${e.color}"></span><span class="nm">${e.glyph} ${e.label}</span></div>`).join('');

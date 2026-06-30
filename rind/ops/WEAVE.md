@@ -4,17 +4,22 @@
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating
 > spirals**. 6 white arms spiral from the **upper-centre** hub, 8 production from the **lower-centre** hub (the
 > six starts sit ABOVE the eight); upper/lower layer = over/under; the hubs join only through the woven body.
-> Counter-rotation ⇒ K(6,8). **The threads WEAVE between the two planes** (`zWhite`/`zProd`): a thread rises
-> to the upper plane where it passes OVER a crossing and dips to the lower plane where it passes UNDER, smooth
-> between — so the geometry itself undulates, and wayfinding routes go up-and-down with a bend (not flat hops).
+> Counter-rotation ⇒ K(6,8). **The threads WEAVE between the two planes** (`zWhite`/`zProd`) as a **ZERO-LADDER
+> object** — one continuous controlled-grade surface, **no discrete floors, no vertical access**. A thread's
+> height has a **zero-grade flat exactly AT each crossing** (a peak where it passes OVER, a trough where UNDER),
+> so **the crossing IS the flat landing where a door belongs** (`tours[w].stops` all sit on flats); between
+> crossings it ramps at ≤ `maxGrade` (smoothstep ⇒ the zero grade at every flat is free). The amplitude at each
+> flat is capped by the arc-run to its neighbours, so where crossings crowd the centre the hills stay tiny and
+> **grow toward the rim** — the weave spreads outward, and wayfinding goes up-and-down with a bend, never a stair.
 > **The solver objective (`occupancy.js`):** the voronoi foam is HOMOGENEOUS, so the weave is only "right" if
 > its paths fill the volume. Each path is a **tube of diameter d**; `occupancy(d)` = coverage (fraction of
 > chambers within d/2 of the nearest pass of ANY tube) − overlap (double-occupied), and the solver maximises it.
 > Two levers: a **slope cap** (`maxGrade` — these hills sit in spin gravity) that spreads the undulations toward
-> the rim, and **windings** (`windings`) — more turns lay more tube-passes, so the same tube fills more volume
-> AND a gentle slope gets the horizontal room to complete the weave. The **◎ analytic** toggle hides the foam and
-> shows the pure woven tubes; sliders for tube/slope/windings. Pinned by `occupancy.selftest.mjs` (coverage rises
-> with windings).
+> the rim, and **windings** (`windings`) — more turns lay more tube-passes, BUT past a sweet spot (≈2) the slope
+> cap crowds the crossings and **flattens** the weave, costing z-volume: occupancy peaks at an **interior
+> optimum** in windings (the same shape as `bestTube`'s interior optimum in diameter). The **◎ analytic** toggle
+> hides the foam and shows the pure woven tubes; sliders for tube/slope/windings. Pinned by
+> `occupancy.selftest.mjs` (a modest winding bump fills more; piling them on loses z-volume).
 > Two reads — **orbit** (the woven pancake) and **inhabit thread** (*the mapping
 > tech*: the disc unrolls around your chosen arm — it becomes a straight spine centre→rim, the 8 production arms
 > slant across and cross it at numbered stations; reselect and the map re-organises — the puzzle box).

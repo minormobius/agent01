@@ -19,10 +19,13 @@ ok(ds[0].coverage < ds[ds.length - 1].coverage, 'a thin tube under-fills; a fat 
 ok(occupancy(m, m.R, pre).coverage > 0.95, 'a tube as wide as the disc radius fills essentially the whole volume');
 ok(occupancy(m, 70, pre).overlap >= occupancy(m, 16, pre).overlap, 'overlap grows with diameter');
 
-// ── THE USER'S LEVER: more windings lay more tube-passes ⇒ the same diameter fills MORE of the volume ──
+// ── THE USER'S LEVER: windings lay more tube-passes ⇒ fill more volume — but in the ZERO-LADDER weave the slope
+// cap means too many windings crowd the crossings and FLATTEN the undulation, costing z-volume. So occupancy has
+// an INTERIOR optimum in windings (≈2): a modest bump fills more, but piling on windings past the sweet spot
+// loses the third dimension. (The same shape as bestTube's interior optimum in diameter.) ──
 const cover = (windings, d) => { const mm = buildFoam3D(3, { windings, maxGrade: 0.32 }); return occupancy(mm, d, precompute(mm)).coverage; };
-ok(cover(3, 36) > cover(1, 36) + 0.05, `more windings fill more at a fixed tube (W3 ${(cover(3, 36) * 100) | 0}% > W1 ${(cover(1, 36) * 100) | 0}%)`);
-ok(cover(2, 30) > cover(1, 30), 'even a modest winding bump raises coverage');
+ok(cover(2, 30) > cover(1, 30) + 0.03, `a modest winding bump fills more (W2 ${(cover(2, 30) * 100) | 0}% > W1 ${(cover(1, 30) * 100) | 0}% at ⌀30)`);
+ok(cover(2, 30) > cover(5, 30), `but piling on windings flattens the weave and loses z-volume — an interior optimum (W2 ${(cover(2, 30) * 100) | 0}% > W5 ${(cover(5, 30) * 100) | 0}%)`);
 
 // ── the solver picks a best single diameter (max coverage − overlap), an interior optimum ──
 const best = bestTube(m);

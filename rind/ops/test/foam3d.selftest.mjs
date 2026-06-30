@@ -34,8 +34,11 @@ ok(m.zProd(0, 0) < 0, 'production threads start at the LOWER hub'); ok(m.zWhite(
 let mg = 0; for (let w = 0; w < 6; w++) for (let k = 1; k <= 200; k++) { const rf = k / 200, prf = (k - 1) / 200, dz = Math.abs(m.zWhite(w, rf) - m.zWhite(w, prf)), dsH = Math.hypot(m.R, rf * m.R * m.family.turnsW * 2 * Math.PI) / 200; mg = Math.max(mg, dz / dsH); }
 ok(mg <= m.maxGrade * 1.06, `pedestrian grade ≤ the limit EVERYWHERE (${mg.toFixed(2)} ≤ ${m.maxGrade})`);
 ok(buildFoam3D(3, { maxGrade: 0.2 }).zWhite, 'a tighter grade is accepted (the slider works)');
-let reach = 0, spread = 0; for (let w = 0; w < 6; w++) { let lo = 9e9, hi = -9e9; for (let k = 0; k <= 50; k++) { const z = m.zWhite(w, 0.4 + 0.6 * k / 50); lo = Math.min(lo, z); hi = Math.max(hi, z); } if (hi > m.T * 0.25 && lo < -m.T * 0.25) reach++; if (swing(m.zWhite, w, 0.6, 1) > swing(m.zWhite, w, 0, 0.3) + 5) spread++; }
-ok(reach >= 4, `most threads reach both planes toward the rim (${reach}/6; the cap legitimately damps the cramped centre)`);
+// ZERO-LADDER model: there are no two fixed floors to "reach" — it's one continuous controlled-grade surface
+// that WEAVES. So toward the rim every thread should cross the midplane BOTH ways (over and under = a real weave,
+// not a one-way ramp to a single floor), and its swing should GROW outward (the grade cap damps the cramped centre).
+let weaves = 0, spread = 0; for (let w = 0; w < 6; w++) { let lo = 9e9, hi = -9e9; for (let k = 0; k <= 50; k++) { const z = m.zWhite(w, 0.4 + 0.6 * k / 50); lo = Math.min(lo, z); hi = Math.max(hi, z); } if (hi > 4 && lo < -4) weaves++; if (swing(m.zWhite, w, 0.6, 1) > swing(m.zWhite, w, 0, 0.3) + 5) spread++; }
+ok(weaves >= 4, `most threads WEAVE over and under toward the rim (${weaves}/6 cross the midplane both ways — a weave, not a ramp)`);
 ok(spread >= 4, `SPREAD: undulations grow from centre to rim for most threads (${spread}/6) — the slope cap pushes the weave outward`);
 // tighter grade ⇒ MORE damping at the centre (the spread is stronger when the limit bites harder)
 const tight = buildFoam3D(3, { maxGrade: 0.28 });

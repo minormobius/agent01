@@ -60,21 +60,36 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   const crossP = wefts.map((wf) => { const out = []; for (let w = 0; w < NW; w++) for (const c of crossRfs(w, wf.f)) out.push({ rf: c.rf, w, over: !parityOver(w, wf.f, c.K) }); return out.sort((a, b) => a.rf - b.rf); });
   const crossingRad = (w, f) => { const c = crossW[w].find((x) => x.f === f); return c ? c.rf : 0.5; };
 
-  // ── the WEAVE undulation: a thread rises to the UPPER plane (+A) where it passes OVER a crossing and dips to
-  // the LOWER plane (−A) where UNDER. SLOPE-LIMITED (these hills sit in spin gravity): cap the pedestrian grade
-  // (dz/ds). More windings give more horizontal run, so a gentle cap can still reach full ±A and the weave fills. ──
-  const A = T / 2, grade = o.maxGrade;
+  // ── the WEAVE undulation, as a ZERO-LADDER object: a thread's height has a ZERO-GRADE flat exactly AT each
+  // crossing — a peak where it passes OVER, a trough where UNDER — so the crossing IS the flat landing where a
+  // door belongs. Between crossings it RAMPS at controlled grade (smoothstep ⇒ zero grade at every flat for
+  // free); no stairs, one continuous walkable surface. We undulate over the EIGHT PRINCIPAL crossings of a
+  // thread (one flat per engine, ordered centre→rim) — not the dense multi-winding cloud, whose near-coincident
+  // crossings would pin every flat to a hair's amplitude. The amplitude at each flat is the FULL plane (±A)
+  // unless the run to a neighbour is too short to ramp there within maxGrade — then it shrinks (never steepens),
+  // so the hills are tiny where crossings crowd the centre and grow to the full two-floor swing toward the rim. ──
+  const A = T / 2, grade = o.maxGrade, M = 256;
   const interp = (pts, rf) => { if (rf <= pts[0].rf) return pts[0].z; if (rf >= pts[pts.length - 1].rf) return pts[pts.length - 1].z; let i = 0; while (i < pts.length - 1 && pts[i + 1].rf < rf) i++; const a = pts[i], b = pts[i + 1], t = (rf - a.rf) / ((b.rf - a.rf) || 1); return a.z + (b.z - a.z) * (t * t * (3 - 2 * t)); };
-  const wCtl = warps.map((wc) => { const p = [{ rf: 0, z: A }]; for (const c of crossW[wc.w]) p.push({ rf: c.rf, z: c.over ? A : -A }); p.push({ rf: 1, z: p[p.length - 1].z }); return p; });
-  const pCtl = wefts.map((wf) => { const p = [{ rf: 0, z: -A }]; for (const c of crossP[wf.f]) p.push({ rf: c.rf, z: c.over ? A : -A }); p.push({ rf: 1, z: p[p.length - 1].z }); return p; });
-  // SLOPE-LIMITED undulation: these hills sit in spin gravity, so cap the pedestrian GRADE (dz/ds along the
-  // path). Near the centre there's little horizontal run, so the cap damps the swing there; only out toward the
-  // RIM (where a turn covers more ground) can it reach full ±A — which spreads the undulations outward.
-  const M = 256, drf = 1 / M;
-  const slew = (ctl, turns) => { const lut = new Float64Array(M + 1); let z = ctl[0].z; lut[0] = z; for (let i = 1; i <= M; i++) { const rf = i * drf, dsH = Math.hypot(R, rf * R * turns * TAU); const cap = grade * dsH * drf, tgt = interp(ctl, rf); z += Math.max(-cap, Math.min(cap, tgt - z)); lut[i] = z; } return lut; };
-  const lutAt = (lut, rf) => { const x = Math.max(0, Math.min(1, rf)) * M, i = Math.floor(x), t = x - i; return i >= M ? lut[M] : lut[i] + (lut[i + 1] - lut[i]) * t; };
-  const wLUT = warps.map((wc) => slew(wCtl[wc.w], turnsW)), pLUT = wefts.map((wf) => slew(pCtl[wf.f], turnsP));
-  const zWhite = (w, rf) => lutAt(wLUT[w], rf), zProd = (f, rf) => lutAt(pLUT[f], rf);
+  const arcLUT = (turns) => { const a = new Float64Array(M + 1); let s = 0; for (let i = 1; i <= M; i++) { const rf = i / M; s += Math.hypot(R, rf * R * turns * TAU) / M; a[i] = s; } return a; };
+  const arcAt = (lut, rf) => { const x = Math.max(0, Math.min(1, rf)) * M, i = Math.floor(x), t = x - i; return i >= M ? lut[M] : lut[i] + (lut[i + 1] - lut[i]) * t; };
+  const wArc = arcLUT(turnsW), pArc = arcLUT(turnsP);
+  // collapse crossings nearer than ~half a chamber in rf into one shared flat (windings can stack two crossings
+  // almost on top of each other; one landing serves both) so no ramp is pinned to a hair's amplitude
+  const collapse = (cl) => { const out = []; for (const c of cl) { const p = out[out.length - 1]; if (p && c.rf - p.rf < 0.4 / Nrad) continue; out.push({ rf: c.rf, over: c.over }); } return out; };
+  // build control points: hub flat (signed toward its floor) + EVERY crossing (these span centre→rim, evenly in
+  // rf ⇒ growing in arc-length, so hills spread outward) + rim, each flat's amplitude capped so a smoothstep ramp
+  // to its neighbours holds ≤ maxGrade (smoothstep's peak slope = 1.5·Δz/d; opposite-floor Δz ≈ 2·amp ⇒ amp ≤ grade·d/3)
+  const capCtl = (flats, arcL, hubSign) => {
+    const Sf = (rf) => arcAt(arcL, rf);
+    const seq = [{ rf: 0, s: hubSign }, ...flats.map((c) => ({ rf: c.rf, s: c.over ? 1 : -1 })), { rf: 1, s: flats.length ? (flats[flats.length - 1].over ? 1 : -1) : hubSign }];
+    const amp = seq.map((c, k) => {
+      const dP = k > 0 ? Sf(c.rf) - Sf(seq[k - 1].rf) : Infinity, dN = k < seq.length - 1 ? Sf(seq[k + 1].rf) - Sf(c.rf) : Infinity;
+      return Math.min(A, (grade / 3) * Math.min(dP, dN));
+    });
+    return seq.map((c, k) => ({ rf: c.rf, z: c.s * amp[k] }));
+  };
+  const wCtl = warps.map((wc) => capCtl(collapse(crossW[wc.w]), wArc, 1)), pCtl = wefts.map((wf) => capCtl(collapse(crossP[wf.f]), pArc, -1));
+  const zWhite = (w, rf) => interp(wCtl[w], rf), zProd = (f, rf) => interp(pCtl[f], rf);
 
   // ── the volumetric foam: jittered polar lattice. iz 1 = the WHITE chamber (rides the white thread's weave),
   // iz 0 = the PRODUCTION chamber (rides the production thread). Their heights undulate — the over/under weave. ──
@@ -105,11 +120,17 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   const prodThreads = wefts.map((wf) => ({ ...wf, kind: 'prod', cells: nuclei.filter((n) => !n.hub && n.owner.kind === 'weft' && n.f === wf.f).map((n) => n.i) }));
   const pairs = new Set(); for (const n of nuclei) if (!n.hub) pairs.add(n.w + ':' + n.f);
 
-  // tours: enter a white arm at the centre hub, ride OUT; meet each production at its crossing radius
+  // tours: enter a white arm at the centre hub, ride OUT, meeting all 8 engines once. A thread crosses each
+  // engine several times (once per relative lap), and ALL eight first-meetings happen inside the first lap (the
+  // inner fifth) — so instead of the innermost crossing we SPREAD the tour: engine k is met at the crossing
+  // nearest its slot (k+0.5)/8 of the radius, so the 8 stations march centre→rim, each landing on a woven flat.
   const tours = warps.map((wc) => ({
     w: wc.w, label: wc.label,
-    stops: wefts.map((wf) => { const c = crossW[wc.w].find((x) => x.f === wf.f); return { f: wf.f, engine: wf.id, label: wf.label, glyph: wf.glyph, over: c ? c.over : warpOver(wc.w, wf.f), rf: c ? c.rf : 0.5 }; })
-      .sort((a, b) => a.rf - b.rf),                              // centre (hub) → rim
+    stops: wefts.map((wf) => {
+      const cs = crossW[wc.w].filter((x) => x.f === wf.f), target = (wf.f + 0.5) / NF;
+      const c = cs.length ? cs.reduce((best, x) => (Math.abs(x.rf - target) < Math.abs(best.rf - target) ? x : best)) : null;
+      return { f: wf.f, engine: wf.id, label: wf.label, glyph: wf.glyph, over: c ? c.over : warpOver(wc.w, wf.f), rf: c ? c.rf : 0.5 };
+    }).sort((a, b) => a.rf - b.rf),                            // centre (hub) → rim
   }));
   const supply = supplyChain().filter((e) => e.from !== 'fulfillment' && e.to !== 'fulfillment').map((e) => ({ ...e, fa: ENGINE_RING.indexOf(e.from), fb: ENGINE_RING.indexOf(e.to), color: ENGINES[e.from].color }));
 
