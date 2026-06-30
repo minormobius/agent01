@@ -7,7 +7,7 @@
 
 import { buildLexicon, ROLE_PROSE, FACTION_PROSE, RESOURCES, WEBS, supplyLinks, roleFaction } from '../lexicon.js';
 import { ROLES, DOMAINS } from '../../v099/econ/econ.js';
-import { FACTIONS, BIOMES } from '../nave.js';
+import { FACTIONS, BIOMES, UNIVERSAL } from '../nave.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -42,12 +42,18 @@ ok(supplyLinks('govern').needs.every((r) => ['serve', 'play', 'worship'].include
 ok(supplyLinks('make').needs.join() === 'grow' && supplyLinks('make').feeds.includes('dwell'), 'make: grow → … → dwell (the hinge of the material spine)');
 ok(supplyLinks('dwell').feeds.includes('worship') && supplyLinks('dwell').feeds.includes('serve'), 'dwell emits people into the third places');
 
-// 5) roleFaction matches nave.js exactly (exclusive/shared/universal/commons-only)
+// 5) roleFaction matches nave.js exactly (exclusive/shared/universal/commons-only). The civic triad
+// (make/serve/trade) is a SHARED role still over-biased by its faction, but held 'universal' (floored into
+// every ward), so its hold reads 'universal' while `faction` still names its over-bias owner.
 for (const [fk, f] of Object.entries(FACTIONS)) {
   for (const r of f.exclusives) ok(roleFaction(r).faction === fk && roleFaction(r).hold === 'exclusive', `${r} is a ${fk} exclusive`);
-  for (const r of f.shared) ok(roleFaction(r).faction === fk && roleFaction(r).hold === 'shared', `${r} is a ${fk} shared role`);
+  for (const r of f.shared) {
+    const expect = UNIVERSAL.includes(r) ? 'universal' : 'shared';
+    ok(roleFaction(r).faction === fk && roleFaction(r).hold === expect, `${r} is a ${fk} ${expect} role`);
+  }
 }
 ok(roleFaction('dwell').hold === 'universal', 'dwell is universal');
+for (const u of UNIVERSAL) ok(roleFaction(u).hold === 'universal', `${u} is held universal (the civic triad)`);
 
 // 6) buildLexicon assembles the whole thing for the page/json handoff
 const lex = buildLexicon();

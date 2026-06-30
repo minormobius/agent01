@@ -11,7 +11,7 @@
 // it describes. Pure data + two derivation helpers; node-tested in test/lexicon.selftest.mjs.
 
 import { ROLES, DOMAINS } from '../v099/econ/econ.js';
-import { FACTIONS, BIOMES } from './nave.js';
+import { FACTIONS, BIOMES, UNIVERSAL } from './nave.js';
 
 // ── the resource tokens: the EDGE LABELS of the supply web. Every flow in/out of a building is one of
 // these; knowing what they mean is knowing what the arrows between buildings carry. ──
@@ -213,10 +213,12 @@ export function supplyLinks(role) {
 }
 
 // the faction a role belongs to + how it's held (exclusive / shared / universal / civic-commons-only).
+// The civic triad (make/serve/trade) is held 'universal': floored into every ward, but still OVER-BIASED by
+// the faction that donated it (so `faction` names its over-bias owner — the deepest workshop is Rindwalker's).
 export function roleFaction(role) {
   for (const [fk, f] of Object.entries(FACTIONS)) {
     if (f.exclusives.includes(role)) return { faction: fk, hold: 'exclusive' };
-    if (f.shared.includes(role)) return { faction: fk, hold: 'shared' };
+    if (f.shared.includes(role)) return { faction: fk, hold: UNIVERSAL.includes(role) ? 'universal' : 'shared' };
   }
   return { faction: null, hold: role === 'dwell' ? 'universal' : 'commons-only' };
 }
