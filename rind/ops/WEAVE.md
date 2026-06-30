@@ -141,6 +141,35 @@ The radial thickness the helices wind through is only a few cells: the **2–3 f
 Contrast the gyroid's `contact()`, which returned a hardcoded `true`. Here completeness is **derived from the
 crossings themselves**, so the theory is the thing the test pins.
 
+## How the cells tessellate (`tess.html` · the honeycomb)
+
+One weave-cell is a **hexagon** — `foam3d`'s `rings` cuts it into a **centered-hexagonal number** of chunks
+(`chunkCount(rings) = 3n²+3n+1`: **1 · 7 · 19 · 37 · 61 …**; the `⬡ chunks` button cycles 7/19/37). Hexagons
+**honeycomb**, so the cells tile the rind shell. The interesting part is the *coupling*, and it falls out of a
+coincidence that isn't one:
+
+- **A hexagon has exactly 6 neighbours. The cortex has exactly 6 white arms.** So **each white arm is aimed at
+  one neighbour** — white arm *k* exits cell A through edge *k* and hands off to cell B. The **white weave is the
+  connective tissue** of the lattice; a white role threads engines across many cells, not just its own.
+- **The 8 production engines don't divide a hexagon's 6-fold symmetry, so they stay LOCAL** — each cell's own
+  machinery, its own lower hub. *The floor is islands; the cortex is the sea.* This is also the right semantics:
+  ops surfaces (dispatch, scheduling, telemetry…) are exactly the things that coordinate *across* production
+  blocks; the engines are local plant. The 6-vs-8 mismatch that forced K(6,8) non-planar is the same mismatch
+  that decides what tiles (the 6) and what doesn't (the 8).
+- **What couples across an edge:** white arm *k* of A reaches into B, where it can touch B's 8 engines — so A's
+  whites tour B's engines too. **K(6,8) per cell, plus white→engine reach across every shared edge**; the global
+  fabric is one connected cortex over a field of production islands.
+- **Self-similar (aperture-7).** Seven cells make a bigger hex-flower rotated ≈19.106° — the **same aperture-7
+  nesting Uber's H3** uses to tile the globe. So the weave nests: 7 ops-cells → a district, 7 districts → a
+  region, at every scale the same K(6,8) motif.
+- **On the cylinder.** Honeycomb the plane, then wrap it with an **integer azimuthal period** and the tiling
+  closes around the rind's spin while staying unbounded along the axis.
+
+**Design implication (not yet in the 3D kernel):** to actually hand off, a cell's 6 white arms should terminate
+at the **6 hexagon edge-midpoints** (pinned rim-exits), not at spiral-arbitrary angles. `tess.html` draws the
+idealised honeycomb with that pinning; folding it back into `foam3d` (anchor each white arm's rim-exit to its
+edge, then stitch neighbour hubs) is the next build if we want the lattice to be navigable end-to-end.
+
 ## Open questions (the next turn of theory)
 
 - **Is the cyclic Latin rectangle the right schedule**, or do we want a more scrambled (less regular) weave to

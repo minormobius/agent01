@@ -18,7 +18,12 @@
 import { ENGINE_RING, ENGINES, supplyChain } from './engines.js';
 import { WHITE, warpOver } from './weave.js';
 
-export const DEFAULTS = { R: 320, T: 84, Nrad: 21, Nth: 54, Nz: 2, jitter: 0.5, hubRf: 0.10, maxGrade: 0.32, windings: 2.6, seed: 1 };
+export const DEFAULTS = { R: 320, T: 84, Nrad: 21, Nth: 54, Nz: 2, jitter: 0.5, hubRf: 0.10, maxGrade: 0.32, rings: 2, seed: 1 };
+// a weave-cell is a HEXAGON of chunks — `rings` hex-rings around the centre ⇒ a CENTERED HEXAGONAL NUMBER of
+// chunks: rings 1 → 7, rings 2 → 19, rings 3 → 37 (the forge tiling). It is the tiling unit (see tessellation
+// in WEAVE.md): hexagons honeycomb the rind shell, and 7-chunk cells nest aperture-7 like H3. More rings ⇒ a
+// bigger cell ⇒ more windings to fill it.
+export const chunkCount = (rings) => 3 * rings * rings + 3 * rings + 1;
 // the three factions — two white-collar roles each (the nave's lobes + exclusive verbs); gives representation
 export const FACTIONS = [
   { id: 'rindwalker', label: 'Rindwalker', color: '#9b6b3a', verbs: ['mend', 'worship'], roleIds: ['perfusion', 'telemetry'], creed: 'maintenance is meaning — the floor\'s health-keepers' },
@@ -32,13 +37,15 @@ function mulberry32(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; 
 
 export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   const o = { ...DEFAULTS, ...opts, seed: (seed >>> 0) };
-  const { R, T, Nrad, Nth, Nz, hubRf } = o;
+  const { R, T, Nrad, Nth, Nz, hubRf, rings } = o;
   const NW = WHITE.length, NF = ENGINE_RING.length;
   const rng = mulberry32((o.seed ^ 0x3d0f) >>> 0);
+  // a bigger cell (more chunk-rings) wants more windings to fill it; explicit `windings` overrides
+  const windings = opts.windings != null ? opts.windings : 1.0 + 0.8 * rings;
 
   // seeded family: counter-rotating spiral WINDINGS (more turns ⇒ more horizontal run ⇒ a gentle slope can still
   // complete a full weave, and the extra passes fill the rim) + phases + spin direction
-  const turnsW = o.windings * (0.85 + 0.3 * rng()), turnsP = o.windings * (0.85 + 0.3 * rng()), phaseW = rng() * TAU, phaseP = rng() * TAU, dir = rng() < 0.5 ? 1 : -1;
+  const turnsW = windings * (0.85 + 0.3 * rng()), turnsP = windings * (0.85 + 0.3 * rng()), phaseW = rng() * TAU, phaseP = rng() * TAU, dir = rng() < 0.5 ? 1 : -1;
   // FACTIONS — two white-collar roles each (representation), mapped to the nave's three lobes + their exclusive
   // verbs. The arms are placed faction-contiguous so each faction owns a 120° sector of the rosette.
   const byId = Object.fromEntries(WHITE.map((w) => [w.id, w]));
@@ -59,6 +66,16 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   const crossW = warps.map((wc) => { const out = []; for (let f = 0; f < NF; f++) for (const c of crossRfs(wc.w, f)) out.push({ rf: c.rf, f, over: parityOver(wc.w, f, c.K) }); return out.sort((a, b) => a.rf - b.rf); });
   const crossP = wefts.map((wf) => { const out = []; for (let w = 0; w < NW; w++) for (const c of crossRfs(w, wf.f)) out.push({ rf: c.rf, w, over: !parityOver(w, wf.f, c.K) }); return out.sort((a, b) => a.rf - b.rf); });
   const crossingRad = (w, f) => { const c = crossW[w].find((x) => x.f === f); return c ? c.rf : 0.5; };
+
+  // ── the chunk tiling this cell is laid over: a hexagon of `rings` hex-rings (a centered-hexagonal number of
+  // chunks), inscribed in the disc, centred at the origin. Pure overlay geometry — the weave fills the disc
+  // regardless; the chunks show the tessellation unit. hexSize set so the outermost chunk just reaches the rim. ──
+  const SQRT3 = Math.sqrt(3), hexSize = R / (1.5 * rings + 1);
+  const hexCenter = (q, r) => ({ x: hexSize * 1.5 * q, y: hexSize * SQRT3 * (r + q / 2) });
+  const hexVerts = (cx, cy) => { const v = []; for (let k = 0; k < 6; k++) { const a = Math.PI / 3 * k; v.push([cx + hexSize * Math.cos(a), cy + hexSize * Math.sin(a)]); } return v; };
+  const chunks = [];
+  for (let q = -rings; q <= rings; q++) for (let r = -rings; r <= rings; r++) if (Math.abs(q + r) <= rings) { const c = hexCenter(q, r); chunks.push({ q, r, cx: c.x, cy: c.y, verts: hexVerts(c.x, c.y), ring: (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2 }); }
+  const macroHex = hexVerts(0, 0).map(([x, y]) => [x / hexSize * (R), y / hexSize * (R)]); // the cell's own hex boundary (circumradius R)
 
   // ── the WEAVE undulation, as a ZERO-LADDER object: a thread's height has a ZERO-GRADE flat exactly AT each
   // crossing — a peak where it passes OVER, a trough where UNDER — so the crossing IS the flat landing where a
@@ -137,7 +154,8 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   return {
     R, T, Nrad, Nth, Nz, seed: o.seed, NW, NF, warps, wefts, factions: FACTIONS, nuclei, whiteThreads, prodThreads,
     tours, supply, contactPairs: pairs.size, contact: { everyTouchesEvery: pairs.size === NW * NF },
-    family: { turnsW, turnsP, phaseW, phaseP, dir }, maxGrade: grade, windings: o.windings, thW, thP, bandW, bandF, crossingRad, zWhite, zProd, swrap,
+    family: { turnsW, turnsP, phaseW, phaseP, dir }, maxGrade: grade, windings, rings, chunkCount: chunkCount(rings), chunks, macroHex, hexSize,
+    thW, thP, bandW, bandF, crossingRad, zWhite, zProd, swrap,
   };
 }
 

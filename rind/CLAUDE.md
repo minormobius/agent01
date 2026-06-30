@@ -30,8 +30,13 @@ JS → emit a frame model → solve for stress):
   `wayfind.selftest.mjs`. **Click any chamber → its generated ROOM** (`chamber.js`): the voronoi cell becomes walls (structural edges) with **doors as mid-wall gaps that
   never cut a corner column** (the rind rule: doors open plates, not edges), a fixture (ops console / process
   machine / hub), and a **stair to the other-layer partner = the white×production facility** (the K(6,8) contact
-  made architectural) — except the two hubs, which get no stair so they stay disconnected. Seedable family
-  (`foam3d.selftest.mjs`, 21 + `chamber.selftest.mjs`, 31; K(6,8) over 80 seeds). The 2D versions are preserved: `flat.html`/`flat-app.js`
+  made architectural) — except the two hubs, which get no stair so they stay disconnected. A weave-cell is a
+  **hexagon of chunks** — `foam3d`'s `rings` param (the `⬡ chunks` button) cuts it into a **centered-hexagonal
+  number** (1·7·19·37, `3n²+3n+1`); a bigger cell gets more windings. **`tess.html`/`tess-app.js`** shows how the
+  cells **tessellate**: a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
+  to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
+  aperture-7 (H3-style), wrapping the cylinder. Seedable family
+  (`foam3d.selftest.mjs`, 44 + `chamber.selftest.mjs`, 31; K(6,8) over 80 seeds). The 2D versions are preserved: `flat.html`/`flat-app.js`
   (the polar rosette, kernel `weavefloor.js`), `decks.html` (stacked-decks comparison), `weave.html` (loom/tube
   proof). The original surface concept: the upper rind's industrial deck: **8
   production engines** (foundry · chemworks · mill · fab · weave · assembly · fluid · reclaim) placed as

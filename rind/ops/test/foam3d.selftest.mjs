@@ -69,5 +69,13 @@ const sigs = new Set(fam.map((x) => `${x.family.turnsW.toFixed(3)}:${x.family.ph
 ok(sigs.size >= 5, `genuinely different woven hyperboloids (${sigs.size}/6 distinct)`);
 ok(JSON.stringify(buildFoam3D(9).nuclei.map((n) => n.owner)) === JSON.stringify(buildFoam3D(9).nuclei.map((n) => n.owner)), 'deterministic per seed');
 
+// ── the chunk tiling: a hexagon of `rings` rings ⇒ a centered-hexagonal number of chunks, K(6,8) at every size ──
+import { chunkCount } from '../foam3d.js';
+ok([0, 1, 2, 3, 4].map(chunkCount).join(',') === '1,7,19,37,61', 'chunkCount = centered-hexagonal numbers (1,7,19,37,61)');
+for (const rings of [1, 2, 3]) { const mm = buildFoam3D(3, { rings }); ok(mm.chunks.length === chunkCount(rings) && mm.chunkCount === chunkCount(rings), `rings ${rings} ⇒ ${chunkCount(rings)} chunks`); ok(mm.contactPairs === 48, `rings ${rings} still K(6,8)`); ok(mm.chunks.every((c) => c.verts.length === 6), `rings ${rings} chunks are hexagons`); }
+ok(buildFoam3D(3, { rings: 1 }).windings < buildFoam3D(3, { rings: 3 }).windings, 'a bigger cell (more rings) gets more windings to fill it');
+ok(buildFoam3D(3, { rings: 1, windings: 4 }).windings === 4, 'explicit windings overrides the per-ring default');
+ok(buildFoam3D(3, { rings: 2 }).macroHex.length === 6, 'the cell carries its own hexagon boundary (macroHex)');
+
 console.log(`foam3d.selftest: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

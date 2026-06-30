@@ -16,11 +16,12 @@ const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
 let sel = Q.has('w') ? (Q.get('w') | 0) % 6 : 0;
 let view = ['thread', 'map'].includes(Q.get('view')) ? Q.get('view') : 'orbit';
-let spin = true, yaw = 0.3, pitch = 1.0, zoom = 1, travel = 0, analyticOnly = false, tubeD = 44, gradeVal = 0.32, windVal = 2.6;
+let rings = Q.has('rings') ? Math.max(1, Math.min(3, Q.get('rings') | 0)) : 2, showChunks = true;   // 1→7, 2→19, 3→37 chunks
+let spin = true, yaw = 0.3, pitch = 1.0, zoom = 1, travel = 0, analyticOnly = false, tubeD = 44, gradeVal = 0.32, windVal = +(1.0 + 0.8 * rings).toFixed(2);
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0, now = 0;
-let m = buildFoam3D(seed, { maxGrade: gradeVal, windings: windVal });
+let m = buildFoam3D(seed, { maxGrade: gradeVal, windings: windVal, rings });
 let occPre = occPrecompute(m), bestT = bestTube(m);   // cached solver metric (recomputed only on rebuild)
 let pickList = [], chamber = null;     // click a chamber → its generated room
 let nav = buildNav(m), routeA = -1, routeB = -1, theRoute = null;   // museum-map wayfinding
@@ -48,6 +49,14 @@ function proj(x, y, z, s) {
 function drawOrbit() {
   const s = Math.min(CW, CH) / (m.R * 2.7) * zoom;
   ctx.fillStyle = '#06070c'; ctx.fillRect(0, 0, CW, CH);
+  // the CHUNK tiling this weave-cell is laid over — a hexagon of `rings` hex-rings (7 / 19 / 37 chunks). Faint
+  // hexes on the lower plane + the cell's own macro-hexagon boundary on both planes (it is the tessellation unit).
+  if (showChunks) {
+    const poly = (verts, z, stroke, lw) => { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.beginPath(); verts.forEach((v, i) => { const p = proj(v[0], v[1], z, s); i ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }); ctx.closePath(); ctx.stroke(); };
+    for (const ch of m.chunks) poly(ch.verts, -m.T / 2, rgba([96, 120, 158], 0.55), 1.1);
+    poly(m.macroHex, -m.T / 2, rgba([168, 188, 226], 0.7), 1.8);
+    poly(m.macroHex, m.T / 2, rgba([168, 188, 226], 0.42), 1.3);
+  }
   // the foam chambers (hidden in analytic-only mode, where we study the pure woven schematic)
   if (!analyticOnly) {
     const pts = m.nuclei.map((n) => { const p = proj(n.x, n.y, n.z, s); return { n, p }; }).sort((a, b) => a.p.depth - b.p.depth);
@@ -235,6 +244,7 @@ function panels() {
 
 function sync() {
   $('orbit').classList.toggle('on', view === 'orbit'); $('thread').classList.toggle('on', view === 'thread'); $('map').classList.toggle('on', view === 'map'); $('spin').classList.toggle('on', spin); $('analytic').classList.toggle('on', analyticOnly);
+  $('chunks').textContent = `⬡ ${m.chunkCount} chunks`; $('chunks').classList.toggle('on', rings !== 2);
   const u = new URLSearchParams(); if (seed !== 1) u.set('seed', seed); u.set('w', sel); u.set('view', view); history.replaceState(null, '', '?' + u.toString());
   panels();
 }
@@ -248,7 +258,8 @@ $('spin').addEventListener('click', () => { spin = !spin; sync(); });
 $('reseed').addEventListener('click', () => { seed = (seed + 1) >>> 0; rebuild(); });
 $('grade').addEventListener('change', (e) => { gradeVal = (+e.target.value) / 100; rebuild(); });
 $('wind').addEventListener('change', (e) => { windVal = (+e.target.value) / 10; rebuild(); });
-function rebuild() { m = buildFoam3D(seed, { maxGrade: gradeVal, windings: windVal }); nav = buildNav(m); occPre = occPrecompute(m); bestT = bestTube(m); chamber = null; routeA = routeB = -1; theRoute = null; precompute(); sync(); }
+function rebuild() { m = buildFoam3D(seed, { maxGrade: gradeVal, windings: windVal, rings }); nav = buildNav(m); occPre = occPrecompute(m); bestT = bestTube(m); chamber = null; routeA = routeB = -1; theRoute = null; precompute(); sync(); }
+$('chunks').addEventListener('click', () => { rings = (rings % 3) + 1; windVal = +(1.0 + 0.8 * rings).toFixed(2); $('wind').value = Math.round(windVal * 10); rebuild(); });
 $('reset').addEventListener('click', () => { yaw = 0.3; pitch = 1.0; zoom = 1; travel = 0; routeA = routeB = -1; theRoute = null; });
 addEventListener('keydown', (e) => { const k = '123456'.indexOf(e.key); if (k >= 0) { sel = k; sync(); } if (e.key === 'v') { view = view === 'orbit' ? 'thread' : 'orbit'; sync(); } });
 let drag = false, lx = 0, ly = 0, moved = 0;
@@ -274,4 +285,5 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.5, M
 
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
 addEventListener('resize', resize);
+$('wind').value = Math.round(windVal * 10); $('grade').value = Math.round(gradeVal * 100);
 resize(); sync(); requestAnimationFrame(frame);
