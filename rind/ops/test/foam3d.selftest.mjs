@@ -27,6 +27,12 @@ const upper = body.filter((n) => n.over), lower = body.filter((n) => !n.over);
 ok(upper.some((n) => n.owner.kind === 'warp') && upper.some((n) => n.owner.kind === 'weft'), 'UPPER layer carries both systems');
 ok(lower.some((n) => n.owner.kind === 'warp') && lower.some((n) => n.owner.kind === 'weft'), 'LOWER layer carries both systems');
 
+// ── the threads WEAVE between the two planes (the analytic ideal): a thread's height undulates over/under ──
+for (let w = 0; w < 6; w++) { let lo = 9e9, hi = -9e9; for (let k = 0; k <= 40; k++) { const z = m.zWhite(w, k / 40); lo = Math.min(lo, z); hi = Math.max(hi, z); } ok(hi > m.T * 0.3 && lo < -m.T * 0.3, `white thread ${w} weaves between BOTH planes (z from ${lo | 0} to ${hi | 0})`); }
+ok(m.zProd(0, 0) < 0, 'production threads start at the LOWER hub'); ok(m.zWhite(0, 0) > 0, 'white threads start at the UPPER hub');
+// the chambers ride the weave: a white thread's chambers occupy both physical layers (over and under)
+for (let w = 0; w < 3; w++) { const zs = m.nuclei.filter((n) => !n.hub && n.owner.kind === 'warp' && n.w === w).map((n) => n.z); ok(Math.max(...zs) > 0 && Math.min(...zs) < 0, `white thread ${w}'s chambers ride over AND under (the weave)`); }
+
 // ── the two hubs at the CENTRE, white ABOVE production (the six starts above the eight) ──
 ok(m.nuclei.some((n) => n.hub === 'whub') && m.nuclei.some((n) => n.hub === 'phub'), 'white hub + production hub at the centre');
 const wz = m.nuclei.filter((n) => n.hub === 'whub').map((n) => n.z), pz = m.nuclei.filter((n) => n.hub === 'phub').map((n) => n.z);

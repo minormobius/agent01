@@ -57,24 +57,30 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
     return 0.5;
   }
 
-  // ── the volumetric foam: jittered polar lattice (radial × azimuthal × layer), thin in z = the pancake ──
+  // ── the WEAVE undulation (the analytic ideal): a thread's height as it spirals out — it rises to the UPPER
+  // plane (+A) where it passes OVER a crossing and dips to the LOWER plane (−A) where it passes UNDER, smooth
+  // between, so the thread physically WEAVES between the two planes instead of lying flat on one. A white and a
+  // production thread at a shared crossing are on opposite planes (one over, one under). ──
+  const A = T / 2;
+  const interp = (pts, rf) => { if (rf <= pts[0].rf) return pts[0].z; if (rf >= pts[pts.length - 1].rf) return pts[pts.length - 1].z; let i = 0; while (i < pts.length - 1 && pts[i + 1].rf < rf) i++; const a = pts[i], b = pts[i + 1], t = (rf - a.rf) / ((b.rf - a.rf) || 1); return a.z + (b.z - a.z) * (t * t * (3 - 2 * t)); };
+  const wCtl = warps.map((wc) => { const p = [{ rf: 0, z: A }]; for (const wf of wefts) p.push({ rf: crossingRad(wc.w, wf.f), z: warpOver(wc.w, wf.f) ? A : -A }); p.sort((a, b) => a.rf - b.rf); p.push({ rf: 1, z: p[p.length - 1].z }); return p; });
+  const pCtl = wefts.map((wf) => { const p = [{ rf: 0, z: -A }]; for (const wc of warps) p.push({ rf: crossingRad(wc.w, wf.f), z: warpOver(wc.w, wf.f) ? -A : A }); p.sort((a, b) => a.rf - b.rf); p.push({ rf: 1, z: p[p.length - 1].z }); return p; });
+  const zWhite = (w, rf) => interp(wCtl[w], rf), zProd = (f, rf) => interp(pCtl[f], rf);
+
+  // ── the volumetric foam: jittered polar lattice. iz 1 = the WHITE chamber (rides the white thread's weave),
+  // iz 0 = the PRODUCTION chamber (rides the production thread). Their heights undulate — the over/under weave. ──
   const id = (ir, ith, iz) => ir * Nth * Nz + ((ith % Nth + Nth) % Nth) * Nz + iz;
   const nuclei = [];
   for (let ir = 0; ir < Nrad; ir++) for (let ith = 0; ith < Nth; ith++) for (let iz = 0; iz < Nz; iz++) {
     const rf = (ir + 0.5 + (rng() - 0.5) * o.jitter) / Nrad;
     const th = wrap((ith + 0.5 + (rng() - 0.5) * o.jitter) / Nth * TAU);
-    const z = ((iz + 0.5) / Nz - 0.5) * T;                       // thin vertical (two layers)
     const rad = rf * R, x = rad * Math.cos(th), y = rad * Math.sin(th);
-    const over = iz >= Nz / 2;                                   // upper layer = over, lower = under
-    const w = bandW(th, rf), f = bandF(th, rf), even = (w + f) % 2 === 0;
-    const ownerKind = (over === even) ? 'warp' : 'weft';
-    let owner = ownerKind === 'warp' ? { kind: 'warp', idx: w } : { kind: 'weft', idx: f };
-    let hub = null;
-    if (rf < hubRf) {                                            // the centre tile, split by layer
-      if (over) { hub = 'whub'; owner = { kind: 'whub' }; }       // upper-centre = white hub (the six starts, ABOVE)
-      else { hub = 'phub'; owner = { kind: 'phub' }; }            // lower-centre = production hub (the eight, BELOW)
-    }
-    nuclei.push({ i: id(ir, ith, iz), ir, ith, iz, rf, th, x, y, z, rad, over, w, f, even, owner, hub });
+    const w = bandW(th, rf), f = bandF(th, rf);
+    let owner, z, hub = null;
+    if (iz === 1) { owner = { kind: 'warp', idx: w }; z = zWhite(w, rf); }
+    else { owner = { kind: 'weft', idx: f }; z = zProd(f, rf); }
+    if (rf < hubRf) { if (iz === 1) { hub = 'whub'; owner = { kind: 'whub' }; z = A; } else { hub = 'phub'; owner = { kind: 'phub' }; z = -A; } }
+    nuclei.push({ i: id(ir, ith, iz), ir, ith, iz, rf, th, x, y, z, rad, over: z > 0, w, f, owner, hub });
   }
   for (const n of nuclei) n.neighbors = [];
   const add = (a, b) => { if (nuclei[a] && nuclei[b]) { nuclei[a].neighbors.push(b); nuclei[b].neighbors.push(a); } };
@@ -101,7 +107,7 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   return {
     R, T, Nrad, Nth, Nz, seed: o.seed, NW, NF, warps, wefts, factions: FACTIONS, nuclei, whiteThreads, prodThreads,
     tours, supply, contactPairs: pairs.size, contact: { everyTouchesEvery: pairs.size === NW * NF },
-    family: { turnsW, turnsP, phaseW, phaseP, dir }, thW, thP, bandW, bandF, crossingRad, swrap,
+    family: { turnsW, turnsP, phaseW, phaseP, dir }, thW, thP, bandW, bandF, crossingRad, zWhite, zProd, swrap,
   };
 }
 

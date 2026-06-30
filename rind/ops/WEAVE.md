@@ -4,7 +4,10 @@
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating
 > spirals**. 6 white arms spiral from the **upper-centre** hub, 8 production from the **lower-centre** hub (the
 > six starts sit ABOVE the eight); upper/lower layer = over/under; the hubs join only through the woven body.
-> Counter-rotation ⇒ K(6,8). Two reads — **orbit** (the woven pancake) and **inhabit thread** (*the mapping
+> Counter-rotation ⇒ K(6,8). **The threads WEAVE between the two planes** (`zWhite`/`zProd`): a thread rises
+> to the upper plane where it passes OVER a crossing and dips to the lower plane where it passes UNDER, smooth
+> between — so the geometry itself undulates, and wayfinding routes go up-and-down with a bend (not flat hops).
+> Two reads — **orbit** (the woven pancake) and **inhabit thread** (*the mapping
 > tech*: the disc unrolls around your chosen arm — it becomes a straight spine centre→rim, the 8 production arms
 > slant across and cross it at numbered stations; reselect and the map re-organises — the puzzle box).
 > `foam3d.selftest.mjs` (21) + K(6,8) verified over 80 seeds. The 2D lineage below is preserved at

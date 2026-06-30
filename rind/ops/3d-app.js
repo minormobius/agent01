@@ -55,17 +55,17 @@ function drawOrbit() {
     ctx.fillStyle = rgba(mix(col, BG, n.over ? 0.12 : 0.46), (selR ? 0.97 : 0.78) * sh);
     ctx.beginPath(); ctx.arc(p.X, p.Y, (selR ? 4 : n.over ? 3 : 2.2) * Math.max(0.6, sh), 0, 7); ctx.fill();
   }
-  // thread spines as ANALYTIC SPIRALS in the disc plane (band-centre, mid-layer) — counter-rotating
-  const spiral = (thFn, idx, col, lw, a) => {
+  // thread spines as ANALYTIC SPIRALS that WEAVE between the two planes (height = the over/under undulation)
+  const spiral = (thFn, zFn, idx, col, lw, a) => {
     ctx.strokeStyle = rgba(col, a); ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.beginPath();
-    const SAMP = 96; for (let k = 0; k <= SAMP; k++) { const rf = k / SAMP, th = thFn(idx, rf), rad = rf * m.R, p = proj(rad * Math.cos(th), rad * Math.sin(th), 0, s); k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }
+    const SAMP = 130; for (let k = 0; k <= SAMP; k++) { const rf = k / SAMP, th = thFn(idx, rf), rad = rf * m.R, p = proj(rad * Math.cos(th), rad * Math.sin(th), zFn(idx, rf), s); k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }
     ctx.stroke();
   };
-  for (const t of m.wefts) spiral(m.thP, t.f, hex(t.color), 2.4, 0.5);
-  for (const t of m.warps) if (t.w !== sel) spiral(m.thW, t.w, warpCol(t.w), 2.2, 0.4);
-  spiral(m.thW, sel, SELC, 4.5, 0.98);
-  // the 8 stations on the selected arm (where each production spiral crosses it)
-  for (const st of m.tours[sel].stops) { const th = m.thW(sel, st.rf), rad = st.rf * m.R, p = proj(rad * Math.cos(th), rad * Math.sin(th), 0, s); ctx.fillStyle = rgba(SELC, 0.95); ctx.beginPath(); ctx.arc(p.X, p.Y, 4.5, 0, 7); ctx.fill(); }
+  for (const t of m.wefts) spiral(m.thP, m.zProd, t.f, hex(t.color), 2.4, 0.5);
+  for (const t of m.warps) if (t.w !== sel) spiral(m.thW, m.zWhite, t.w, warpCol(t.w), 2.2, 0.4);
+  spiral(m.thW, m.zWhite, sel, SELC, 4.5, 0.98);
+  // the 8 stations on the selected arm (where it crosses each production), at its woven height
+  for (const st of m.tours[sel].stops) { const th = m.thW(sel, st.rf), rad = st.rf * m.R, p = proj(rad * Math.cos(th), rad * Math.sin(th), m.zWhite(sel, st.rf), s); ctx.fillStyle = rgba(SELC, 0.95); ctx.beginPath(); ctx.arc(p.X, p.Y, 4.5, 0, 7); ctx.fill(); }
   // the two centre hubs — white ABOVE production (six starts above eight), disconnected
   const hub = (z, col, label, dy) => { const p = proj(0, 0, z, s); ctx.fillStyle = rgba(col, 0.97); ctx.beginPath(); ctx.arc(p.X, p.Y, 9, 0, 7); ctx.fill(); ctx.strokeStyle = rgba(INK, 0.5); ctx.lineWidth = 1.4; ctx.stroke(); ctx.fillStyle = rgba(col, 0.95); ctx.textAlign = 'center'; ctx.font = '11px ui-sans-serif'; ctx.fillText(label, p.X, p.Y + dy); };
   hub(m.T / 2, HUBW, '△ white hub (6, upper)', -14); hub(-m.T / 2, HUBP, '▽ production hub (8, lower)', 20);
@@ -162,7 +162,7 @@ function drawChamberInset(ch) {
 // ── MUSEUM MAP: the two layers exploded apart; click two chambers → a wayfinding route across the weave ──
 function drawMap() {
   const s = Math.min(CW, CH) / (m.R * 2.7) * zoom, G = m.R * 0.52;
-  const zMap = (n) => (n.over ? G : -G);
+  const zMap = (n) => n.z * (G / (m.T / 2));      // amplify the weave undulation to the exploded gap
   ctx.fillStyle = '#06070c'; ctx.fillRect(0, 0, CW, CH);
   // the two layer discs (faint rings)
   for (const lz of [-G, G]) { ctx.strokeStyle = rgba([60, 72, 96], 0.4); ctx.lineWidth = 1; ctx.beginPath(); for (let k = 0; k <= 64; k++) { const a = k / 64 * Math.PI * 2, p = proj(m.R * Math.cos(a), m.R * Math.sin(a), lz, s); k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); } ctx.stroke(); }
