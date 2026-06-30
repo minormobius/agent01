@@ -33,6 +33,18 @@
   .breaks .verdict { font-weight: 700; } .breaks .verdict.ok { color: var(--ok); } .breaks .verdict.bad { color: var(--bad); }
   .breaks ul { margin: 6px 0 0; padding-left: 16px; } .breaks li { color: var(--bad); margin: 3px 0; }
   .note { font-size: 11px; color: var(--dim); margin-top: 12px; border-top: 1px solid var(--line); padding-top: 9px; }
+  .grpbtns { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .grpbtns button { background: #11151f; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 11.5px; cursor: pointer; }
+  .grpbtns button:hover { border-color: var(--gold); color: var(--gold); }
+  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+  .chip { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; font-size: 11px; user-select: none; }
+  .chip.off { opacity: .35; }
+  .chip .sw { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+  .chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .route-read { font-variant-numeric: tabular-nums; }
+  .route-read .big { font-size: 22px; font-weight: 700; color: var(--gold); }
+  .route-read .sub { color: var(--dim); font-size: 11.5px; }
+  .route-read .hint { color: var(--dim); }
 </style>
 </head>
 <body>
@@ -48,14 +60,27 @@
         <span class="grp">areal density <input id="dens" type="range" min="14" max="90" value="74"> <b id="densV">·</b></span>
         <span class="grp">flat core <input id="flat" type="range" min="0" max="60" value="16"> <b id="flatV">0.16</b>R</span>
         <button id="chunks" title="1 / 7 / 19 chunks (centered-hexagonal)">⬡ 7 chunks</button>
+        <button id="cells" class="on">▦ cells</button>
+        <button id="route" title="click two chambers — route minimises doors crossed">⇆ route</button>
         <button id="spin" class="on">⟳ auto</button>
-        <button id="threads" class="on">centrelines</button>
+        <button id="threads">centrelines</button>
         <button id="reseed">reseed</button>
         <button id="reset">reset view</button>
       </div>
       <canvas id="cv"></canvas>
     </div>
     <aside class="rail">
+      <h2>chambers — show / hide</h2>
+      <div class="grpbtns" id="grpbtns">
+        <button data-grp="all">all 14</button>
+        <button data-grp="whites">whites (6)</button>
+        <button data-grp="ops">ops (8)</button>
+        <button data-grp="matrix">matrix</button>
+        <button data-grp="none">none</button>
+      </div>
+      <div class="chips" id="chips"></div>
+      <h2>wayfinding — fewest doors</h2>
+      <div class="route-read" id="routeRead"></div>
       <h2>the levers</h2>
       <div class="met" id="levers"></div>
       <h2>what the weave does to the nodes</h2>

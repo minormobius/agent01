@@ -11,8 +11,12 @@
 > annulus, killing the centre hairball), and **chunks** (1/7/19). The math is not softened: the viewer +
 > `weave3d.selftest.mjs` surface every failure mode — thin tubes drop crossings (K(6,8) < 48), a width wider than
 > the pinned thickness merges white & production, too few chunks cramp the cell until threads dissolve. Un-claimed
-> nodes are the **interstitial matrix** (future walls/corridors), reported but not a failure. Chambers (Voronoi
-> polyhedra) come next.
+> nodes are the **interstitial matrix** (future walls/corridors), reported but not a failure. **Chambers are now
+> live** (`cells3d.js`): every prism node becomes a per-deck **Voronoi cell** coloured by its claiming thread, with
+> a **door graph** (in-deck shared walls + deck-to-deck adjacency). The viewer toggles visibility per thread (all
+> 14) and by group (whites / ops / matrix), and the **wayfinding** picks two chambers and routes the path that
+> **minimises doors crossed** (BFS in the chamber graph). `cells3d.selftest.mjs` proves the partition + a
+> door-minimal route.
 
 > **NOW IN 3D — a PANCAKE.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating
