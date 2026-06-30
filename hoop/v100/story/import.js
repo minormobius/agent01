@@ -118,6 +118,12 @@ export function expandRoomBundle(rec, { provider = 'hoopy-export', lane = 'spine
   if (npc.name || npc.dialogue) {
     const c = { name: npc.name || C.name || 'someone', description: C.description || npc.voice || '' };
     if (npc.dialogue) c.dialogue = npc.dialogue;
+    // a LOAD-BEARING anchor (Olo/Solen/Sevin/Luna) carries hoopy's {tier, gates} block + its zone/faction —
+    // keep them on the served npc so anchors.js can derive the advancement chain from the served pool (the
+    // explode otherwise drops them, leaving the chain empty). Harmless on ordinary keepers (no load_bearing).
+    if (C.load_bearing && typeof C.load_bearing === 'object') c.load_bearing = C.load_bearing;
+    if (C.zone) c.zone = C.zone;
+    if (C.nave_faction) c.nave_faction = C.nave_faction;
     out.push({ id: roomId, type: 'npc', content: c, tags: tags.slice(), room: roomId, roomName: C.name || null, ...(C.lore ? { lore: loreId } : {}), verb: C.verb || null, ...meta });
   }
   if (C.lore) {
