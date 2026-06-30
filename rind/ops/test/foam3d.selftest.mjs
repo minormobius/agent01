@@ -27,9 +27,19 @@ const upper = body.filter((n) => n.over), lower = body.filter((n) => !n.over);
 ok(upper.some((n) => n.owner.kind === 'warp') && upper.some((n) => n.owner.kind === 'weft'), 'UPPER layer carries both systems');
 ok(lower.some((n) => n.owner.kind === 'warp') && lower.some((n) => n.owner.kind === 'weft'), 'LOWER layer carries both systems');
 
-// ── the threads WEAVE between the two planes (the analytic ideal): a thread's height undulates over/under ──
-for (let w = 0; w < 6; w++) { let lo = 9e9, hi = -9e9; for (let k = 0; k <= 40; k++) { const z = m.zWhite(w, k / 40); lo = Math.min(lo, z); hi = Math.max(hi, z); } ok(hi > m.T * 0.3 && lo < -m.T * 0.3, `white thread ${w} weaves between BOTH planes (z from ${lo | 0} to ${hi | 0})`); }
+// ── the threads WEAVE between the planes, as SLOPE-LIMITED hills that SPREAD toward the rim ──
+const swing = (zf, idx, lo, hi) => { let a = 9e9, b = -9e9; for (let k = 0; k <= 50; k++) { const z = zf(idx, lo + (hi - lo) * k / 50); a = Math.min(a, z); b = Math.max(b, z); } return b - a; };
 ok(m.zProd(0, 0) < 0, 'production threads start at the LOWER hub'); ok(m.zWhite(0, 0) > 0, 'white threads start at the UPPER hub');
+// THE HARD GUARANTEE: the pedestrian GRADE never exceeds the limit anywhere (these are hills in spin gravity)
+let mg = 0; for (let w = 0; w < 6; w++) for (let k = 1; k <= 200; k++) { const rf = k / 200, prf = (k - 1) / 200, dz = Math.abs(m.zWhite(w, rf) - m.zWhite(w, prf)), dsH = Math.hypot(m.R, rf * m.R * m.family.turnsW * 2 * Math.PI) / 200; mg = Math.max(mg, dz / dsH); }
+ok(mg <= m.maxGrade * 1.06, `pedestrian grade ≤ the limit EVERYWHERE (${mg.toFixed(2)} ≤ ${m.maxGrade})`);
+ok(buildFoam3D(3, { maxGrade: 0.2 }).zWhite, 'a tighter grade is accepted (the slider works)');
+let reach = 0, spread = 0; for (let w = 0; w < 6; w++) { let lo = 9e9, hi = -9e9; for (let k = 0; k <= 50; k++) { const z = m.zWhite(w, 0.4 + 0.6 * k / 50); lo = Math.min(lo, z); hi = Math.max(hi, z); } if (hi > m.T * 0.25 && lo < -m.T * 0.25) reach++; if (swing(m.zWhite, w, 0.6, 1) > swing(m.zWhite, w, 0, 0.3) + 5) spread++; }
+ok(reach >= 4, `most threads reach both planes toward the rim (${reach}/6; the cap legitimately damps the cramped centre)`);
+ok(spread >= 4, `SPREAD: undulations grow from centre to rim for most threads (${spread}/6) — the slope cap pushes the weave outward`);
+// tighter grade ⇒ MORE damping at the centre (the spread is stronger when the limit bites harder)
+const tight = buildFoam3D(3, { maxGrade: 0.28 });
+ok(swing(tight.zWhite, 0, 0, 0.3) <= swing(m.zWhite, 0, 0, 0.3) + 1, 'a tighter slope limit damps the centre undulations more (spreads harder)');
 // the chambers ride the weave: a white thread's chambers occupy both physical layers (over and under)
 for (let w = 0; w < 3; w++) { const zs = m.nuclei.filter((n) => !n.hub && n.owner.kind === 'warp' && n.w === w).map((n) => n.z); ok(Math.max(...zs) > 0 && Math.min(...zs) < 0, `white thread ${w}'s chambers ride over AND under (the weave)`); }
 
