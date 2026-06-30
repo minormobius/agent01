@@ -2595,6 +2595,10 @@
         // figure's description and the faction beside the standing count.
         const _ci = story.store.contentById(npcId) || {};
         const _roomName = _ci.roomName || null;
+        // a KEEPER carries its OWN room-bundle verb (_ci.verb) — show THAT under the name, not the
+        // procedural resident's job role (agent.role = the verb of whatever room the keeper is standing
+        // in). The two diverge whenever a keeper is seated in a chamber whose role ≠ its bundle verb.
+        const _roleLabel = _ci.verb || agent.role;
         const _fac = factionOf(_ci.tags || []);
         const _facTag = (_fac && _fac !== '_default' && FACTION_INFO[_fac]) ? ` · <span style="color:${FACTION_INFO[_fac].color}">${esc(FACTION_INFO[_fac].label)}</span>` : '';
         const _roomLine = _roomName ? `<div class="says" style="border-left:2px solid #6a5a36;padding-left:9px;color:#d8c79a;font-style:normal;font-size:12.5px;letter-spacing:.3px">⌂ ${esc(_roomName)}</div>` : '';
@@ -2618,7 +2622,7 @@
           // name/role sit ABOVE a FLIP CARD whose front is the character's own sprite and whose back is the
           // stat block — click the card to flip between sprite ⇄ stats (the sprite can never cover the name).
           const left = `<div class="nm">${esc(npcName)}</div>`
-            + `<div class="rl">${esc(agent.role)} · standing ${t.standing | 0}${_facTag}</div>`
+            + `<div class="rl">${esc(_roleLabel)} · standing ${t.standing | 0}${_facTag}</div>`
             + `<div class="flipcard" id="flipcard" title="click to flip between sprite and stats">`
             +   `<div class="flipinner">`
             +     `<div class="flipface flipfront"><canvas class="portrait" id="storyportrait" width="96" height="96"></canvas></div>`
@@ -2629,7 +2633,7 @@
           drawPortraitSprite(agent);
         } else {
           panel.innerHTML = `${close}<div class="stwrap single"><div class="stright">`
-            + `<div class="nm">${glyph} ${esc(npcName)}</div><div class="rl">${esc(agent.role)}</div>${right}</div></div>`;
+            + `<div class="nm">${glyph} ${esc(npcName)}</div><div class="rl">${esc(_roleLabel)}</div>${right}</div></div>`;
           showStory('compact');
         }
         return;
