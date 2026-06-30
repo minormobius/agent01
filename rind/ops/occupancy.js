@@ -1,42 +1,52 @@
 // occupancy.js — THE SOLVER OBJECTIVE. A voronoi foam distributes chambers HOMOGENEOUSLY through the volume,
-// so the analytic weave is only "right" if its paths OCCUPY that volume — leave no chamber stranded far from a
-// path, and don't pile paths on top of each other. So we define each path as a TUBE of diameter d and measure:
+// so the analytic weave is only "right" if its paths OCCUPY that volume. Each path is a TUBE of diameter d;
+// a chamber is FILLED if it lies within d/2 of the nearest pass of ANY thread's tube (the weave as a whole),
+// and DOUBLE-OCCUPIED if within d/2 of two distinct threads. We measure:
 //
-//   • coverage — fraction of chambers within d/2 of THEIR OWN thread's centreline (the volume the weave fills),
-//   • overlap  — fraction also within d/2 of ANOTHER thread (wasted, double-occupied volume),
+//   • coverage — fraction of chambers filled (the volume the weave occupies),
+//   • overlap  — fraction double-occupied (wasted, piled-up tube),
 //   • score    — coverage − overlap (what the solver maximises: fill the volume, don't double up).
 //
-// The current 6+8 fixed spirals are constant-ANGULAR-width wedges, so a constant-DIAMETER tube under-fills the
-// rim (the wedges fan out) — `occupancy()` makes that visible and `bestTube()` finds the best single diameter;
-// the next solver step (more windings / branching toward the rim) is what pushes coverage to 1. Pure, tested.
+// This is why MORE WINDINGS help: a tighter spiral lays more tube-passes across the disc, so the same diameter
+// fills more of the homogeneous foam (especially the rim). We precompute each chamber's distance to its nearest
+// and 2nd-nearest distinct thread ONCE, so scanning diameters (bestTube) is cheap. Pure, deterministic, tested.
 
-// nearest in-plane distance from a chamber to a thread centreline at the same radius (the tube is along θ,z)
-function distToThread(m, n, kind, idx) {
-  const th = kind === 'warp' ? m.thW(idx, n.rf) : m.thP(idx, n.rf);
-  const z = kind === 'warp' ? m.zWhite(idx, n.rf) : m.zProd(idx, n.rf);
-  return Math.hypot(n.rad * m.swrap(n.th - th), n.z - z);
+function threadSamples(m, S = 90) {
+  const out = [];
+  for (let w = 0; w < m.NW; w++) { const pts = []; for (let k = 0; k <= S; k++) { const rf = k / S, th = m.thW(w, rf), rad = rf * m.R; pts.push([rad * Math.cos(th), rad * Math.sin(th), m.zWhite(w, rf)]); } out.push(pts); }
+  for (let f = 0; f < m.NF; f++) { const pts = []; for (let k = 0; k <= S; k++) { const rf = k / S, th = m.thP(f, rf), rad = rf * m.R; pts.push([rad * Math.cos(th), rad * Math.sin(th), m.zProd(f, rf)]); } out.push(pts); }
+  return out;
 }
 
-export function occupancy(m, diameter) {
-  const r = diameter / 2; let covered = 0, overlap = 0, N = 0;
+// per-chamber nearest + 2nd-nearest DISTINCT-thread distance (computed once; diameters scan over this)
+export function precompute(m) {
+  const threads = threadSamples(m), idx = [], d1 = [], d2 = [];
   for (const n of m.nuclei) {
-    if (n.hub) continue; N++;
-    const dOwn = distToThread(m, n, n.owner.kind, n.owner.idx);
-    let dOther = Infinity;
-    for (let w = 0; w < m.NW; w++) if (!(n.owner.kind === 'warp' && n.owner.idx === w)) dOther = Math.min(dOther, distToThread(m, n, 'warp', w));
-    for (let f = 0; f < m.NF; f++) if (!(n.owner.kind === 'weft' && n.owner.idx === f)) dOther = Math.min(dOther, distToThread(m, n, 'weft', f));
-    if (dOwn <= r) covered++;
-    if (dOwn <= r && dOther <= r) overlap++;
+    if (n.hub) continue;
+    let best = Infinity, second = Infinity;
+    for (const pts of threads) {
+      let dm = Infinity; for (const p of pts) { const d = (p[0] - n.x) ** 2 + (p[1] - n.y) ** 2 + (p[2] - n.z) ** 2; if (d < dm) dm = d; }
+      dm = Math.sqrt(dm);
+      if (dm < best) { second = best; best = dm; } else if (dm < second) second = dm;
+    }
+    idx.push(n.i); d1.push(best); d2.push(second);
   }
-  const coverage = covered / N, ov = overlap / N;
-  return { diameter, coverage, overlap: ov, score: coverage - ov, N };
+  return { d1, d2, N: d1.length };
 }
 
-// scan diameters, return the one that maximises coverage − overlap (the best single-tube fill)
-export function bestTube(m, lo = 6, hi = 200, steps = 48) {
-  let best = null;
-  for (let k = 0; k <= steps; k++) { const d = lo + (hi - lo) * k / steps, o = occupancy(m, d); if (!best || o.score > best.score) best = o; }
+export function occupancy(m, diameter, pre) {
+  pre = pre || precompute(m);
+  const r = diameter / 2; let cov = 0, ov = 0;
+  for (let i = 0; i < pre.N; i++) { if (pre.d1[i] <= r) cov++; if (pre.d2[i] <= r) ov++; }
+  const coverage = cov / pre.N, overlap = ov / pre.N;
+  return { diameter, coverage, overlap, score: coverage - overlap, N: pre.N };
+}
+
+// scan diameters, return the one maximising coverage − overlap (fill the volume without doubling up)
+export function bestTube(m, lo = 6, hi = 140, steps = 40) {
+  const pre = precompute(m); let best = null;
+  for (let k = 0; k <= steps; k++) { const d = lo + (hi - lo) * k / steps, o = occupancy(m, d, pre); if (!best || o.score > best.score) best = o; }
   return best;
 }
 
-if (typeof globalThis !== 'undefined') globalThis.RindOccupancy = { occupancy, bestTube };
+if (typeof globalThis !== 'undefined') globalThis.RindOccupancy = { precompute, occupancy, bestTube };

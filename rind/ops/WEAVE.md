@@ -9,9 +9,12 @@
 > between — so the geometry itself undulates, and wayfinding routes go up-and-down with a bend (not flat hops).
 > **The solver objective (`occupancy.js`):** the voronoi foam is HOMOGENEOUS, so the weave is only "right" if
 > its paths fill the volume. Each path is a **tube of diameter d**; `occupancy(d)` = coverage (fraction of
-> chambers within d/2 of their own thread) − overlap (double-occupied), and the solver maximises it. The
-> **◎ analytic** toggle hides the foam and shows the pure woven tubes; the rim gaps (constant tubes under-fill
-> the fanning wedges) are the next solver target (more windings outward). Pinned by `occupancy.selftest.mjs`.
+> chambers within d/2 of the nearest pass of ANY tube) − overlap (double-occupied), and the solver maximises it.
+> Two levers: a **slope cap** (`maxGrade` — these hills sit in spin gravity) that spreads the undulations toward
+> the rim, and **windings** (`windings`) — more turns lay more tube-passes, so the same tube fills more volume
+> AND a gentle slope gets the horizontal room to complete the weave. The **◎ analytic** toggle hides the foam and
+> shows the pure woven tubes; sliders for tube/slope/windings. Pinned by `occupancy.selftest.mjs` (coverage rises
+> with windings).
 > Two reads — **orbit** (the woven pancake) and **inhabit thread** (*the mapping
 > tech*: the disc unrolls around your chosen arm — it becomes a straight spine centre→rim, the 8 production arms
 > slant across and cross it at numbered stations; reselect and the map re-organises — the puzzle box).

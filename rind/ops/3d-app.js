@@ -9,18 +9,19 @@
 import { buildFoam3D } from './foam3d.js';
 import { buildChamber } from './chamber.js';
 import { buildNav, route } from './wayfind.js';
-import { occupancy, bestTube } from './occupancy.js';
+import { occupancy, bestTube, precompute as occPrecompute } from './occupancy.js';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
 let sel = Q.has('w') ? (Q.get('w') | 0) % 6 : 0;
 let view = ['thread', 'map'].includes(Q.get('view')) ? Q.get('view') : 'orbit';
-let spin = true, yaw = 0.3, pitch = 1.0, zoom = 1, travel = 0, analyticOnly = false, tubeD = 80, gradeVal = 0.5;
+let spin = true, yaw = 0.3, pitch = 1.0, zoom = 1, travel = 0, analyticOnly = false, tubeD = 44, gradeVal = 0.32, windVal = 2.6;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0, now = 0;
-let m = buildFoam3D(seed, { maxGrade: gradeVal });
+let m = buildFoam3D(seed, { maxGrade: gradeVal, windings: windVal });
+let occPre = occPrecompute(m), bestT = bestTube(m);   // cached solver metric (recomputed only on rebuild)
 let pickList = [], chamber = null;     // click a chamber → its generated room
 let nav = buildNav(m), routeA = -1, routeB = -1, theRoute = null;   // museum-map wayfinding
 
@@ -205,10 +206,10 @@ function frame(ts) {
 
 function panels() {
   if (analyticOnly) {
-    const o = occupancy(m, tubeD), best = bestTube(m);
-    $('read').innerHTML = `<b>analytic schematic — paths as slope-limited tubes</b> · the foam is hidden; this is the pure woven solution · seed ${seed}<br>` +
-      `<span><b>tube ⌀${tubeD | 0}</b> occupies <b class="ok">${(o.coverage * 100) | 0}%</b> of the volume (overlap ${(o.overlap * 100) | 0}%, best ⌀${best.diameter | 0}) · <b>pedestrian slope ≤ ${(m.maxGrade * 100) | 0}%</b> (these hills sit in spin gravity). ` +
-      `The slope cap damps the cramped centre and lets the undulations reach full height only toward the RIM — spreading the weave outward (which is what fills the rim). Tighten the slope to spread harder; the deeper fix is more windings outward.</span>`;
+    const o = occupancy(m, tubeD, occPre);
+    $('read').innerHTML = `<b>analytic schematic — paths as slope-limited tubes (the solver)</b> · foam hidden · seed ${seed}<br>` +
+      `<span><b>tube ⌀${tubeD | 0}</b> occupies <b class="ok">${(o.coverage * 100) | 0}%</b> of the volume (overlap ${(o.overlap * 100) | 0}%, best ⌀${bestT.diameter | 0}) · <b>${m.windings.toFixed(1)} windings</b> · <b>slope ≤ ${(m.maxGrade * 100) | 0}%</b> (hills in spin gravity). ` +
+      `MORE WINDINGS lay more tube-passes → the same tube fills more of the volume, and give the gentle slope room to complete the weave. Dial windings/slope/tube to trade coverage vs overlap.</span>`;
     $('wsel').innerHTML = m.factions.map((fac) => { const arms = m.warps.filter((w) => w.faction === fac.id); return `<div style="font-size:10px;color:${fac.color};text-transform:uppercase;letter-spacing:.08em;margin:7px 0 3px">${fac.label}</div>` + arms.map((w) => `<div class="w ${w.w === sel ? 'sel' : ''}" data-w="${w.w}"><div class="k" ${w.w === sel ? '' : `style="background:${fac.color};color:#0a0d14"`}>${w.w + 1}</div><div class="lab">${w.label}</div></div>`).join(''); }).join('');
     for (const el of $('wsel').querySelectorAll('.w')) el.addEventListener('click', () => { sel = +el.dataset.w; sync(); });
     $('itin').innerHTML = ''; $('elist').innerHTML = m.wefts.map((e) => `<div class="e"><span class="sw" style="background:${e.color}"></span><span class="nm">${e.glyph} ${e.label}</span></div>`).join('');
@@ -246,7 +247,8 @@ $('map').addEventListener('click', () => { view = 'map'; chamber = null; sync();
 $('spin').addEventListener('click', () => { spin = !spin; sync(); });
 $('reseed').addEventListener('click', () => { seed = (seed + 1) >>> 0; rebuild(); });
 $('grade').addEventListener('change', (e) => { gradeVal = (+e.target.value) / 100; rebuild(); });
-function rebuild() { m = buildFoam3D(seed, { maxGrade: gradeVal }); nav = buildNav(m); chamber = null; routeA = routeB = -1; theRoute = null; precompute(); sync(); }
+$('wind').addEventListener('change', (e) => { windVal = (+e.target.value) / 10; rebuild(); });
+function rebuild() { m = buildFoam3D(seed, { maxGrade: gradeVal, windings: windVal }); nav = buildNav(m); occPre = occPrecompute(m); bestT = bestTube(m); chamber = null; routeA = routeB = -1; theRoute = null; precompute(); sync(); }
 $('reset').addEventListener('click', () => { yaw = 0.3; pitch = 1.0; zoom = 1; travel = 0; routeA = routeB = -1; theRoute = null; });
 addEventListener('keydown', (e) => { const k = '123456'.indexOf(e.key); if (k >= 0) { sel = k; sync(); } if (e.key === 'v') { view = view === 'orbit' ? 'thread' : 'orbit'; sync(); } });
 let drag = false, lx = 0, ly = 0, moved = 0;

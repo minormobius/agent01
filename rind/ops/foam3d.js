@@ -18,7 +18,7 @@
 import { ENGINE_RING, ENGINES, supplyChain } from './engines.js';
 import { WHITE, warpOver } from './weave.js';
 
-export const DEFAULTS = { R: 320, T: 84, Nrad: 21, Nth: 54, Nz: 2, jitter: 0.5, hubRf: 0.10, maxGrade: 0.5, seed: 1 };
+export const DEFAULTS = { R: 320, T: 84, Nrad: 21, Nth: 54, Nz: 2, jitter: 0.5, hubRf: 0.10, maxGrade: 0.32, windings: 2.6, seed: 1 };
 // the three factions — two white-collar roles each (the nave's lobes + exclusive verbs); gives representation
 export const FACTIONS = [
   { id: 'rindwalker', label: 'Rindwalker', color: '#9b6b3a', verbs: ['mend', 'worship'], roleIds: ['perfusion', 'telemetry'], creed: 'maintenance is meaning — the floor\'s health-keepers' },
@@ -36,8 +36,9 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   const NW = WHITE.length, NF = ENGINE_RING.length;
   const rng = mulberry32((o.seed ^ 0x3d0f) >>> 0);
 
-  // seeded family: counter-rotating spiral turns (sum ≥ 1 ⇒ K(6,8)) + phases + spin direction
-  const turnsW = 0.6 + 0.4 * rng(), turnsP = 0.6 + 0.4 * rng(), phaseW = rng() * TAU, phaseP = rng() * TAU, dir = rng() < 0.5 ? 1 : -1;
+  // seeded family: counter-rotating spiral WINDINGS (more turns ⇒ more horizontal run ⇒ a gentle slope can still
+  // complete a full weave, and the extra passes fill the rim) + phases + spin direction
+  const turnsW = o.windings * (0.85 + 0.3 * rng()), turnsP = o.windings * (0.85 + 0.3 * rng()), phaseW = rng() * TAU, phaseP = rng() * TAU, dir = rng() < 0.5 ? 1 : -1;
   // FACTIONS — two white-collar roles each (representation), mapped to the nave's three lobes + their exclusive
   // verbs. The arms are placed faction-contiguous so each faction owns a 120° sector of the rosette.
   const byId = Object.fromEntries(WHITE.map((w) => [w.id, w]));
@@ -50,21 +51,22 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   const thP = (f, rf) => wrap((f + 0.5) * TAU / NF + phaseP + dir * turnsP * TAU * rf);
   const bandW = (th, rf) => Math.min(NW - 1, Math.max(0, Math.floor(NW * wrap(th - phaseW + dir * turnsW * TAU * rf) / TAU)));
   const bandF = (th, rf) => Math.min(NF - 1, Math.max(0, Math.floor(NF * wrap(th - phaseP - dir * turnsP * TAU * rf) / TAU)));
-  // radial fraction where white w crosses production f (band centres coincide) — a station along the arm
-  function crossingRad(w, f) {
-    const c = ((w + 0.5) / NW - (f + 0.5) / NF) + (phaseW - phaseP) / TAU, slope = dir * (turnsW + turnsP);
-    for (let n = -2; n <= 2; n++) { const rf = (c - n) / slope; if (rf >= 0.02 && rf <= 1) return rf; }
-    return 0.5;
-  }
+  // ALL crossings of a thread (with windings, two threads cross several times). Over/under ALTERNATES along the
+  // winding index K so it reads as a true plain weave, and white-over ⟺ production-under at every shared crossing.
+  const S = turnsW + turnsP, ph = (phaseW - phaseP) / TAU, Kmax = Math.ceil(Math.abs(S)) + 2;
+  const parityOver = (w, f, K) => (((w + f + K) % 2) + 2) % 2 === 0;
+  const crossRfs = (w, f) => { const out = []; for (let K = -Kmax; K <= Kmax; K++) { const rf = (((w + 0.5) / NW - (f + 0.5) / NF) + ph - K) / (dir * S); if (rf > 0.02 && rf < 0.999) out.push({ rf, K }); } return out; };
+  const crossW = warps.map((wc) => { const out = []; for (let f = 0; f < NF; f++) for (const c of crossRfs(wc.w, f)) out.push({ rf: c.rf, f, over: parityOver(wc.w, f, c.K) }); return out.sort((a, b) => a.rf - b.rf); });
+  const crossP = wefts.map((wf) => { const out = []; for (let w = 0; w < NW; w++) for (const c of crossRfs(w, wf.f)) out.push({ rf: c.rf, w, over: !parityOver(w, wf.f, c.K) }); return out.sort((a, b) => a.rf - b.rf); });
+  const crossingRad = (w, f) => { const c = crossW[w].find((x) => x.f === f); return c ? c.rf : 0.5; };
 
-  // ── the WEAVE undulation (the analytic ideal): a thread's height as it spirals out — it rises to the UPPER
-  // plane (+A) where it passes OVER a crossing and dips to the LOWER plane (−A) where it passes UNDER, smooth
-  // between, so the thread physically WEAVES between the two planes instead of lying flat on one. A white and a
-  // production thread at a shared crossing are on opposite planes (one over, one under). ──
+  // ── the WEAVE undulation: a thread rises to the UPPER plane (+A) where it passes OVER a crossing and dips to
+  // the LOWER plane (−A) where UNDER. SLOPE-LIMITED (these hills sit in spin gravity): cap the pedestrian grade
+  // (dz/ds). More windings give more horizontal run, so a gentle cap can still reach full ±A and the weave fills. ──
   const A = T / 2, grade = o.maxGrade;
   const interp = (pts, rf) => { if (rf <= pts[0].rf) return pts[0].z; if (rf >= pts[pts.length - 1].rf) return pts[pts.length - 1].z; let i = 0; while (i < pts.length - 1 && pts[i + 1].rf < rf) i++; const a = pts[i], b = pts[i + 1], t = (rf - a.rf) / ((b.rf - a.rf) || 1); return a.z + (b.z - a.z) * (t * t * (3 - 2 * t)); };
-  const wCtl = warps.map((wc) => { const p = [{ rf: 0, z: A }]; for (const wf of wefts) p.push({ rf: crossingRad(wc.w, wf.f), z: warpOver(wc.w, wf.f) ? A : -A }); p.sort((a, b) => a.rf - b.rf); p.push({ rf: 1, z: p[p.length - 1].z }); return p; });
-  const pCtl = wefts.map((wf) => { const p = [{ rf: 0, z: -A }]; for (const wc of warps) p.push({ rf: crossingRad(wc.w, wf.f), z: warpOver(wc.w, wf.f) ? -A : A }); p.sort((a, b) => a.rf - b.rf); p.push({ rf: 1, z: p[p.length - 1].z }); return p; });
+  const wCtl = warps.map((wc) => { const p = [{ rf: 0, z: A }]; for (const c of crossW[wc.w]) p.push({ rf: c.rf, z: c.over ? A : -A }); p.push({ rf: 1, z: p[p.length - 1].z }); return p; });
+  const pCtl = wefts.map((wf) => { const p = [{ rf: 0, z: -A }]; for (const c of crossP[wf.f]) p.push({ rf: c.rf, z: c.over ? A : -A }); p.push({ rf: 1, z: p[p.length - 1].z }); return p; });
   // SLOPE-LIMITED undulation: these hills sit in spin gravity, so cap the pedestrian GRADE (dz/ds along the
   // path). Near the centre there's little horizontal run, so the cap damps the swing there; only out toward the
   // RIM (where a turn covers more ground) can it reach full ±A — which spreads the undulations outward.
@@ -106,7 +108,7 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   // tours: enter a white arm at the centre hub, ride OUT; meet each production at its crossing radius
   const tours = warps.map((wc) => ({
     w: wc.w, label: wc.label,
-    stops: wefts.map((wf) => ({ f: wf.f, engine: wf.id, label: wf.label, glyph: wf.glyph, over: warpOver(wc.w, wf.f), rf: crossingRad(wc.w, wf.f) }))
+    stops: wefts.map((wf) => { const c = crossW[wc.w].find((x) => x.f === wf.f); return { f: wf.f, engine: wf.id, label: wf.label, glyph: wf.glyph, over: c ? c.over : warpOver(wc.w, wf.f), rf: c ? c.rf : 0.5 }; })
       .sort((a, b) => a.rf - b.rf),                              // centre (hub) → rim
   }));
   const supply = supplyChain().filter((e) => e.from !== 'fulfillment' && e.to !== 'fulfillment').map((e) => ({ ...e, fa: ENGINE_RING.indexOf(e.from), fb: ENGINE_RING.indexOf(e.to), color: ENGINES[e.from].color }));
@@ -114,7 +116,7 @@ export function buildFoam3D(seed = DEFAULTS.seed, opts = {}) {
   return {
     R, T, Nrad, Nth, Nz, seed: o.seed, NW, NF, warps, wefts, factions: FACTIONS, nuclei, whiteThreads, prodThreads,
     tours, supply, contactPairs: pairs.size, contact: { everyTouchesEvery: pairs.size === NW * NF },
-    family: { turnsW, turnsP, phaseW, phaseP, dir }, maxGrade: grade, thW, thP, bandW, bandF, crossingRad, zWhite, zProd, swrap,
+    family: { turnsW, turnsP, phaseW, phaseP, dir }, maxGrade: grade, windings: o.windings, thW, thP, bandW, bandF, crossingRad, zWhite, zProd, swrap,
   };
 }
 
