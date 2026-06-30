@@ -119,6 +119,9 @@ export function stepResidents(agents, walk, dtMs, { cx = 0, cy = 0, radius = Inf
     if (i >= a.pts.length - 1) {                             // arrived → dwell, then next leg
       const end = a.pts[a.pts.length - 1]; a.bx = end[0]; a.by = end[1];
       a.pts = null; a.leg = (a.leg + 1) % a.route.length; a.dwellLeft = 1200 + a.rng() * 4000;
+      // PRINCIPAL DWELL BIAS: a keeper lingers far longer at its lore room (the verb-matched stop) so it spends
+      // the BULK of its time there but still ambles to its other places. No-op for ordinary residents.
+      if (a.loreStop != null && a.leg === a.loreStop) a.dwellLeft *= (a.dwellBias || 1);
     } else {
       const A = a.pts[i], B = a.pts[i + 1];
       a.dir = dirKey(B[0] - A[0], B[1] - A[1]); a.phase = (a.phase + dt * 0.012) % 1e6;

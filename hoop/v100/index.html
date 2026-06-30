@@ -668,7 +668,8 @@
         residents = fresh.map((a) => prev.get(a.id) || a);
         cullResidents();
         _socMs = performance.now() - t0;   // the deferred social rebuild (buildSociety pathFinds + residents) — does it still block when it fires?
-        ensureAnchors();   // society is now built — place the principals if story is also ready (idempotent)
+        ensureAnchors();      // society is now built — place the pinned gates if story is also ready (idempotent)
+        applyPrincipals();    // re-flag the LIVING ambient keepers onto affiliated residents (residents re-rolled)
       };
       if (typeof requestIdleCallback === 'function') requestIdleCallback(go, { timeout: 600 }); else setTimeout(go, 60);
     }
@@ -687,7 +688,10 @@
       nearResidents = residents.filter((a) => { const hk = a.homeKey; if (!hk) return false;
         if (_promotedKeys.has(hkStr(hk))) return false;   // this little guy was promoted into a named NPC — drawn as an anchor instead
         if (((world.chunks[hk.ch] || {}).deck || 0) !== pd) return false;
-        return (hk.x - cx) ** 2 + (hk.y - cy) ** 2 < R; });
+        // a PRINCIPAL keeper dwells at its LORE room (work/third), which may be far from its home — cull it by
+        // its CURRENT position, not its home, or it would vanish when you're standing right beside it.
+        const qx = a.principal ? a.x : hk.x, qy = a.principal ? a.y : hk.y;
+        return (qx - cx) ** 2 + (qy - cy) ** 2 < R; });
     }
     // IMPASSABLE fixtures (v091): the bones cells under a room's floor fixture + its central component
     // are non-navigable. Computed once per chunk from its painted result (the nearest bones cell to each
@@ -1523,17 +1527,28 @@
       // stands near player scale with a tracking ring. storyBigKeys is refreshed from the board in
       // renderQuest — today the beat markers point at the principals (drawn as anchors), so the crowd is
       // uniform; a future beat marker {resident:key} embiggens exactly that crowd member.
-      const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale;
+      const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale, prinH = SKIN.playerW * 1.45 * cam.scale;
+      const plates = [];   // principal nameplates, drawn after all sprites so a sprite never covers a name
       for (const a of nearResidents) {   // near + current-deck set (culled in cullResidents)
         const sx = SX(a.x), sy = SY(a.y);
         if (sx < -60 || sy < -120 || sx > W + 60 || sy > H + 40) continue;   // viewport cull
-        const merit = storyBigKeys.has(a.featureKey), h = merit ? meritH : baseH;
+        const prin = a.principal, merit = storyBigKeys.has(a.featureKey), h = prin ? prinH : (merit ? meritH : baseH);
         const moving = !!a.pts && a.dwellLeft <= 0, frame = moving ? (a.phase | 0) % frames : null;
         const cvs = spriteCanvas(a.genome, a.dir, frame), w = h * (cvs.width / cvs.height);
         ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);     // ground point at the feet
-        if (merit) { ctx.imageSmoothingEnabled = true; ctx.strokeStyle = 'rgba(127,216,208,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx, sy, Math.max(6, SKIN.playerW * 0.42 * cam.scale), 0, 7); ctx.stroke(); ctx.imageSmoothingEnabled = false; }
+        if (prin) {   // a LIVING principal keeper — faction ring + a nameplate (queued)
+          ctx.imageSmoothingEnabled = true; ctx.strokeStyle = prin.color || '#d0c07f'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(7, SKIN.playerW * 0.5 * cam.scale), 0, 7); ctx.stroke(); ctx.imageSmoothingEnabled = false;
+          plates.push({ sx, sy, h, name: prin.name, color: prin.color || '#d0c07f' });
+        } else if (merit) { ctx.imageSmoothingEnabled = true; ctx.strokeStyle = 'rgba(127,216,208,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx, sy, Math.max(6, SKIN.playerW * 0.42 * cam.scale), 0, 7); ctx.stroke(); ctx.imageSmoothingEnabled = false; }
       }
       ctx.imageSmoothingEnabled = true;
+      for (const pl of plates) {   // nameplate ABOVE the head, on a dark pill (mirrors drawAnchors)
+        ctx.font = 'bold 11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const ny = pl.sy - pl.h * 0.92 - Math.max(11, pl.h * 0.22), tw = ctx.measureText(pl.name).width;
+        ctx.fillStyle = 'rgba(6,9,13,0.72)';
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pl.sx - tw / 2 - 5, ny - 8, tw + 10, 16, 5); ctx.fill(); }
+        ctx.fillStyle = pl.color; ctx.fillText(pl.name, pl.sx, ny);
+      }
     }
     function strokePolyW(pts) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(SX(pts[i][0]), SY(pts[i][1])); else ctx.moveTo(SX(pts[i][0]), SY(pts[i][1])); } ctx.stroke(); }
     // map a movement delta to one of the 8 sprite directions
@@ -3648,6 +3663,7 @@
       for (const id of Object.keys(disc)) {
         const npc = story.store.contentById(id); if (!npc) continue;
         const pos = disc[id] || {}, faction = factionOf(npc.tags);
+        if (pos.mobile) continue;   // a LIVING principal-resident (applyPrincipals re-flags it) — not a pinned anchor
         // INHERIT the promoted resident's genome so the figure reads as native to its civ; the embiggen is
         // the anchor draw's job (drawAnchors renders at ~1.45×). Fall back to a faction-roled genome if the
         // promoted resident has drifted out of the live set (e.g. a returning player whose crowd re-rolled).
@@ -3708,6 +3724,73 @@
       }
       return discoverNpc(npc, x, y, deck);
     }
+    // ── LIVING PRINCIPALS (stage 2): an ambient keeper is NOT a pinned statue — it's an AFFILIATED resident,
+    // EMBIGGENED. We pick a resident whose civ route (home/work/third) touches a building whose role matches
+    // the bundle's verb in the keeper's chamber, flag it a principal (authored name + dialogue + its lore),
+    // and bias its dwell so it spends the bulk of its time at that lore room but still ambles to its other
+    // places (npc.js#stepResidents). Its metadata is preserved, not bulldozed. Load-bearing GATES stay pinned
+    // anchors (discoverNpc) for clean waypoints — only the populateChambers keepers go mobile. The binding is
+    // RE-DERIVED deterministically each session (residents are deterministic), so no resident id is persisted.
+    const _embiggened = new Set();   // resident ids currently embiggened as principals (re-derived per session)
+    const routeStops = (r) => [r.homeKey, r.workKey, r.thirdKey].filter((s) => s && s.doorG != null && s.doorG >= 0);
+    function flagPrincipalResident(npc, chunkId, deck) {
+      if (!npc || !residents.length) return null;
+      const verb = npc.verb || null;
+      const cands = [];
+      for (const r of residents) {
+        if (r.principal || _embiggened.has(r.id)) continue;
+        if (residentDeck(r) !== (deck || 0)) continue;
+        const stops = routeStops(r);
+        let k = verb ? stops.findIndex((s) => s.ch === chunkId && s.role === verb) : -1;
+        if (k < 0) k = stops.findIndex((s) => s.ch === chunkId);   // fallback: any of its stops in the chamber
+        if (k < 0) continue;
+        cands.push({ r, k });
+      }
+      if (!cands.length) return null;
+      cands.sort((a, b) => (a.r.id < b.r.id ? -1 : 1));
+      let h = 2166136261; const sId = String(npc.id); for (let i = 0; i < sId.length; i++) { h ^= sId.charCodeAt(i); h = Math.imul(h, 16777619); }
+      const pick = cands[(h >>> 0) % cands.length], r = pick.r;
+      const faction = factionOf(npc.tags), fc = FACTION_INFO[faction] && FACTION_INFO[faction].color;
+      if (fc) { try { r.genome = { ...r.genome, ramps: { ...r.genome.ramps, cloth: ramp(rngFor('hoop-npc:' + npc.id + '::factioncloth'), hexHue(fc), 52, 10) } }; } catch (e) {} }
+      r.principal = { content_id: npc.id, name: (npc.content || {}).name || npc.id, color: fc || '#d0c07f', loreId: npc.lore || null };
+      r.loreStop = pick.k; r.dwellBias = 3.5;
+      _embiggened.add(r.id);
+      return r;
+    }
+    // place an ambient keeper as a LIVING principal (persist that it's placed; the resident is re-found each
+    // session by applyPrincipals). Returns true if a resident was embiggened.
+    function embiggenPrincipal(npc, chunkId, deck) {
+      const disc = getJSONFact('npc.discovered', {});
+      if (disc[npc.id]) return false;
+      if (npc.content && npc.content.ambient) return false;   // wanderers never become principals
+      if (!flagPrincipalResident(npc, chunkId, deck)) return false;
+      disc[npc.id] = { mobile: true, deck: deck || 0, ch: chunkId };
+      setJSONFact('npc.discovered', disc);
+      return true;
+    }
+    // RE-DERIVE the living principals after a social rebuild / on reload (residents re-roll; the discovered set
+    // persists). Idempotent: skips principals already flagged on a live resident.
+    function applyPrincipals() {
+      if (!story.ready || !residents.length) return;
+      const disc = getJSONFact('npc.discovered', {});
+      for (const id of Object.keys(disc)) {
+        const d = disc[id]; if (!d || !d.mobile) continue;
+        if (residents.some((r) => r.principal && r.principal.content_id === id)) continue;
+        const npc = story.store.contentById(id); if (npc) flagPrincipalResident(npc, d.ch, d.deck || 0);
+      }
+    }
+    function openPrincipalResident(r) {
+      if (!story.ready || !r.principal) return;
+      const s = story.store, key = 'principal:' + r.principal.content_id;
+      if (!s.featureByKey(key)) s.addFeature({ key, type: 'npc', label: r.principal.name, content_id: r.principal.content_id });
+      const intro = interact(s, story.playerId, key);
+      maybeEncounter(intro);
+      if (intro.status === 'crystallized' && intro.item && intro.item.type === 'npc') maybeOpenQuest(intro.item.content_item_id, intro.item.name);
+      story.active = { agent: { name: r.principal.name, role: r.role, glyph: r.glyph, genome: r.genome }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      story.active.informed = deliverInformed();
+      saveStory(); renderStory();
+      if (isGuide(r.principal.content_id)) grantLevelAtGuide();
+    }
     // PROGRESSION SOLVER (v1) — keep the current deck CLEARABLE. assess() clears a deck when you've
     // crystallized `needed` distinct deck-themed items; with the crowd now ambience, that supply has to come
     // from DISCOVERED named NPCs. So as you explore, promote enough deck-themed corpus NPCs (gate-passing,
@@ -3750,7 +3833,7 @@
       const now = performance.now(); if (now - _popT < 1000) return; _popT = now;
       const disc = getJSONFact('npc.discovered', {});
       const haveByChunk = new Map();
-      for (const id of Object.keys(disc)) { const d = disc[id]; if (!d) continue; const ci = chunkAt(d.x, d.y, d.deck || 0); if (ci >= 0) haveByChunk.set(ci, (haveByChunk.get(ci) || 0) + 1); }
+      for (const id of Object.keys(disc)) { const d = disc[id]; if (!d) continue; const ci = d.mobile ? d.ch : chunkAt(d.x, d.y, d.deck || 0); if (ci != null && ci >= 0) haveByChunk.set(ci, (haveByChunk.get(ci) || 0) + 1); }   // mobile keepers carry `ch` (no x/y) — count them by chamber so each gets ONE, not a fresh keeper every call
       const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
       // PRINCIPALS ONLY (room-bundle NPCs). Wanderers (content.ambient) are excluded — they're the walking
       // crowd's authored voices, never pinned (discoverNpc rejects them anyway).
@@ -3771,8 +3854,9 @@
           if (pi >= pool.length) break;
           if (level > 1 && placed >= MAX) break;                    // breadth (level 1) is uncapped; depth is paced
           if ((haveByChunk.get(ch.id) || 0) >= level) continue;     // this chamber already has `level` — wait its turn
-          const cen = polyCentroid(ch.poly), npc = pool[pi++];
-          if (discoverNpc(npc, cen.x, cen.y, ch.deck || 0)) {
+          const npc = pool[pi++];
+          // EMBIGGEN a LIVING affiliated resident (stage 2) rather than pin a statue — the keeper paces its room.
+          if (embiggenPrincipal(npc, ch.id, ch.deck || 0)) {
             placed++; haveByChunk.set(ch.id, (haveByChunk.get(ch.id) || 0) + 1);
             // BIND this chamber's lore to the keeper's OWN lore (first keeper wins), so entry reveals their room.
             const lk = 'cl.room.' + chunkLoreKey(ch);
@@ -3955,7 +4039,7 @@
       const a = anchorAt(wx, wy);
       if (a) { walkThenInteract(a.x, a.y, () => openAnchor(a)); return; }
       const who = residentAt(wx, wy);
-      if (who) { walkThenInteract(who.x, who.y, () => openStory(who)); return; }
+      if (who) { walkThenInteract(who.x, who.y, () => (who.principal ? openPrincipalResident(who) : openStory(who))); return; }
       const term = componentAt(wx, wy);
       if (term) { walkThenInteract(term.cp.cx, term.cp.cy, () => openTerminal(term.cp, term.ch)); return; }
       const arc = arcadeAt(wx, wy);
