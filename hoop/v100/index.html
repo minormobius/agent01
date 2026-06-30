@@ -534,6 +534,7 @@
     import { FQ, FQ_ORDER, fqProgress, fqStatus, fqActive, fqOpensRind, fqSignatureExclusive, fqCanWitness } from './story/factionquest.js';   // v100: the NAVE CAMPAIGN — meet the three factions in order; the Drift opens the rind
     import { CHOICE_FACTIONS, WITNESS_TARGET, FACTION_INFO, witnessCount, allWitnessed, chosenFaction, witnessProgress, isChoiceFaction } from './story/factionchoice.js';   // v100: the UPPER-RIND THRESHOLD — witness each faction ×3, then choose; the choice colors the lower-rind descent
     import { CHAMBER_LORE_TARGET, chamberLore, signalLocated, chapterComplete, finalChoice, lunaContact, FINAL_CHOICES, weighJourney, concludeEnding } from './story/conclusion.js';   // v100: THE CHAPTER CLOSE — locate the Signal Chamber, Luna's contact, the final decision, an ending fitted to the path
+    import { anchorChain, anchorForTier, gateSetters, advanceState, nextKeeper, tierFromClears, endingBeat, chosenDisposition, chosenFactionFlag } from './story/anchors.js';   // v100: hoopy's ANCHOR-TURN-IN advancement — keeper flags gate an anchor's turn-in; the turn-in sets flag.deck.<deck>.cleared (the level-up) + directs you on
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -835,7 +836,7 @@
     const LOWER_RIND_OFFSET = 12000;   // world units east of the nave — clear of the nave AND the upper rind
     async function maybeBuildLowerRind() {
       if (lowerRindBuilt || !rindBuilt || !world || !walk || !story.ready) return;
-      if (!chosenFaction(story.store.getFacts(story.playerId))) return;   // the lower rind opens only once you've CHOSEN a faction at the upper-rind threshold (the choice colours the descent — bible)
+      if (!cf(story.store.getFacts(story.playerId))) return;   // the lower rind opens only once you've CHOSEN a faction at Sevin's turn-in (flag.chose.* — the choice colours the descent — bible)
       if (world._rind && world._rind.idx < world._rind.order.length) return;              // wait until the upper rind has fully streamed
       lowerRindBuilt = true;
       try {
@@ -869,13 +870,13 @@
       if (!story.ready || !world) { flashToast('dev: world not ready', 2400); return; }
       const s = story.store, pid = story.playerId;
       flashToast('dev: opening the way to the Lower Rind…', 3200);
-      // 1) clear the nave campaign (commons quest + witness the three nave factions)
-      s.setFact(pid, 'flag.met_olo', true); s.setFact(pid, 'flag.read_terminal', true); s.setFact(pid, 'flag.sevin_believes', true);
-      for (const f of ['continuant', 'rindwalker', 'drift']) s.setFact(pid, 'fq.' + f, 'witnessed');
-      // 2) upper-rind threshold: witness each at scale ×3 + CHOOSE → tier 4 (the Lower Rind)
-      for (const f of ['continuant', 'rindwalker', 'drift']) s.setFact(pid, 'fw.' + f, WITNESS_TARGET);
-      s.setFact(pid, 'flag.chosen_faction', 'drift');
-      if ((s.getPlayerState(pid).narrative_tier || 1) < 4) s.setPlayerTier(pid, 'narrative_tier', 4);
+      // NEW MODEL (anchors.js): set every anchor's keeper gate flags + its deck-clear flag, plus Sevin's
+      // faction choice and Luna's disposition (which select the ending) — then let checkAdvancement climb the
+      // tiers off the cleared flags exactly as a real turn-in would.
+      for (const a of (story.anchors || [])) { for (const g of a.gates) s.setFact(pid, g, true); if (a.clearedFlag) s.setFact(pid, a.clearedFlag, true); }
+      s.setFact(pid, 'flag.chose.drift', true);            // Sevin's turn-in — the faction that colours the descent
+      s.setFact(pid, 'flag.signal.disposition', 'answer'); // Luna's turn-in — selects the conclusion plot_beat
+      checkAdvancement();                                   // climb to the deep off the cleared flags (caps at DECK_COUNT)
       for (const f of ['continuant', 'rindwalker', 'drift']) ensureFactionWards(f);   // build every ward → nave reads as fully streamed
       saveStory(); renderQuest();
       const wait = (cond, ms = 16000) => new Promise((res) => { const t0 = performance.now(); const tick = () => { if (cond()) return res(true); if (performance.now() - t0 > ms) return res(false); setTimeout(tick, 120); }; tick(); });
@@ -884,8 +885,29 @@
       await wait(() => rindBuilt && world._rind && world._rind.idx >= world._rind.order.length && shafts[0]);
       await maybeBuildLowerRind();
       await wait(() => lowerRindBuilt && world._lowerRind && world._lowerRind.idx >= world._lowerRind.order.length && shafts[1] && shafts[1].bottom);
-      if (shafts[1] && shafts[1].bottom) { crossTo(shafts[1].bottom.node); renderQuest(); flashToast('dev: you are on the Lower Rind — gather chamber-lore to find the Signal Chamber', 4200); }
+      if (shafts[1] && shafts[1].bottom) {
+        crossTo(shafts[1].bottom.node); renderQuest();
+        // land IN the Signal Chamber (not just on the lower rind) so the ending plays: every gate + Luna's
+        // disposition are set, so checkSignalChamber fires the conclusion plot_beat on arrival.
+        try {
+          const sc = signalChamberXY();
+          const ch = sc && world.chunks.find((c) => (c.deck || 0) === 2 && c.id === sc.ci);
+          const cc = ch && nearestConcourse(ch, sc.x, sc.y);
+          if (cc) { crossTo(globalOf(walk, ch.id, cc.cell)); }
+        } catch (e) {}
+        renderQuest(); flashToast('dev: you are in the Signal Chamber — the close awaits', 4200);
+      }
       else flashToast('dev: rind build timed out — reopen the panel and try again', 4000);
+    }
+    // DEV: set the ACTIVE anchor's keeper gate flags (as if you'd talked to every keeper of this tier's zone),
+    // so you can walk back to the anchor and turn in — the step-by-step cousin of the full fast-forward.
+    function devSetGates() {
+      if (!story.ready || !story.anchors) { flashToast('dev: not ready', 1800); return; }
+      const st = advanceState(story.anchors, story.store.getFacts(story.playerId), narTier());
+      if (!st) { flashToast('dev: no active anchor for this tier', 2200); return; }
+      for (const g of st.anchor.gates) story.store.setFact(story.playerId, g, true);
+      saveStory(); renderQuest();
+      flashToast(`dev: set ${st.anchor.gates.length} keeper flags — return to ${st.anchor.name} to turn in`, 3800);
     }
     // stream the three stations of a rind floor after its hub — solve + paint + FULL restitch, one per tick
     // (the nave-ward pacing). `deck` tags the floor; `key` is the world's pacing-state slot (_rind / _lowerRind).
@@ -954,15 +976,12 @@
       }
       saveStory();   // persists + re-renders the quest + (when tier ≥ 3) sinks the rind shaft
     }
-    // per-move check (called from followCam): are we standing in the active faction's ward? cheap early-outs.
-    function checkWardArrival() {
-      if (!story.ready || !world || !world._nave || player < 0 || !walk) return;
-      if (playerDeck() !== 0) return;                              // the nave deck only
-      const facts = story.store.getFacts(story.playerId);
-      if (fqProgress(facts).allDone) return;                       // campaign complete
-      const ch = world.chunks[walk.nodeChunk[player]], m = ch && ch.naveMeta;   // read the meta tagged on the chunk (nodeChunk is a world.chunks index, not the nave index)
-      if (m && m.faction) fqWitnessFaction(m.faction);             // the module enforces order + idempotency
-    }
+    // RETIRED (hoopy's anchor-turn-in model): the nave campaign no longer witnesses a faction by ENTERING
+    // its ward — that auto-cleared a ward merely by walking the chunk (a Solen popup on entry). Advancement
+    // is now keeper-driven: you find each ward's keeper, talk to them (their dialogue sets the gate flag),
+    // then turn in at the anchor (Olo in the commons, Solen in the wards). Left as a no-op so followCam's
+    // per-move call costs nothing; the call site stays for symmetry with checkDeckEnter/checkSignalChamber.
+    function checkWardArrival() { /* intentionally empty — see the anchor-turn-in advancement above */ }
 
     // ── THE UPPER-RIND THRESHOLD (v100, factionchoice.js): in the upper rind you witness each NAVE faction
     //    reflected at scale, three times each — then, at Sevin's threshold, you CHOOSE a faction, and the
@@ -1095,15 +1114,58 @@
       // "you're standing in the Signal Chamber" test never matches and Luna's contact never fires.
       let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } return { x: x / ch.poly.length, y: y / ch.poly.length, ci: ch.id };
     }
-    // per-move check: standing in the LOCATED Signal Chamber → Luna makes contact (once).
+    // per-move check (hoopy's close): once Luna's turn-in is done (lower rind cleared, a disposition chosen),
+    // standing in the Signal Chamber plays the ENDING — the conclusion plot_beat for your (faction × disposition)
+    // pair, a "not-really-branching" dialogue tree (anchors.js#endingBeat). One-shot, gated by chapter_complete.
     function checkSignalChamber() {
       if (!story.ready || !world || !world._lowerRind || player < 0 || !walk) return;
-      if (playerDeck() !== 2) return;
+      if (playerDeck() !== 2 || _concludeOpen) return;
       const facts = story.store.getFacts(story.playerId);
-      if (chapterComplete(facts) || facts['flag.signal_contact'] === true || !signalLocated(facts)) return;
+      if (facts['flag.chapter_complete'] === true || !facts['flag.deck.lower_rind.cleared']) return;   // the close opens only after Luna's turn-in
       const sc = signalChamberXY(); if (!sc || walk.nodeChunk[player] !== sc.ci) return;   // must be IN the chamber chunk
-      story.store.setFact(story.playerId, 'flag.signal_contact', true); saveStorySnapshot();
-      showLunaContact();
+      const beat = endingBeat([...story.store.content.values()], cf(facts), chosenDisposition(facts));
+      if (!beat) return;   // no conclusion beat in the pool → nothing to play (procedural fallback)
+      showEndingBeat(beat);
+    }
+    // ── THE ENDING PLAYER: walks a conclusion plot_beat's `content.conclusion.tree` node-by-node in the
+    //    centre overlay (the trees converge — every choice goto's the same next node), then closes the chapter.
+    let _endBeat = null, _endNode = null;
+    function showEndingBeat(beat) {
+      const tree = beat && beat.content && beat.content.conclusion && beat.content.conclusion.tree;
+      if (!tree || !tree.nodes || _concludeOpen) return;
+      _concludeOpen = true; _endBeat = beat; _endNode = tree.start || (tree.nodes.open ? 'open' : Object.keys(tree.nodes)[0]);
+      renderEndingNode();
+    }
+    function renderEndingNode() {
+      const tree = _endBeat.content.conclusion.tree, node = tree.nodes[_endNode];
+      if (!node) return finishEnding();
+      const choices = node.choices || [];
+      const btnStyle = 'display:block;width:100%;text-align:left;margin:6px 0;padding:9px 12px;border:1px solid #3a4650;background:rgba(244,191,98,.06);color:#e7ecea;border-radius:7px;font:inherit;font-size:13px;cursor:pointer';
+      const btns = choices.length
+        ? choices.map((c, i) => `<button data-end-choice="${i}" style="${btnStyle}">${esc(c.text)}</button>`).join('')
+        : `<button data-end-fin="1" style="margin-top:10px;padding:8px 18px;border:1px solid var(--gold,#f4bf62);background:rgba(244,191,98,.14);color:var(--gold,#f4bf62);border-radius:7px;font:inherit;font-size:13px;cursor:pointer">⏎ — Chapter One ends</button>`;
+      const tone = (_endBeat.content.conclusion.tone) || 'the answer';
+      $('enccard').innerHTML =
+        `<div class="ek">the Signal Chamber · ${esc(tone)}</div><div class="en">${esc(_endBeat.content.name || '')}</div>` +
+        `<div class="ed" style="font-size:13px">${esc(node.says || '')}</div><div style="margin-top:8px">${btns}</div>`;
+      journalOpen = false; $('enc').classList.add('on');
+    }
+    function endingChoose(i) {
+      const tree = _endBeat.content.conclusion.tree, node = tree.nodes[_endNode], ch = (node.choices || [])[i];
+      const goto = ch && ch.goto;
+      if (goto && tree.nodes[goto] && goto !== _endNode) { _endNode = goto; renderEndingNode(); }
+      else finishEnding();
+    }
+    function finishEnding() {
+      story.store.setFact(story.playerId, 'flag.chapter_complete', true);
+      _concludeOpen = false;   // the final card IS dismissable — the chapter is over
+      const e = _endBeat.content;
+      $('enccard').innerHTML =
+        `<div class="ek">${esc(cf(story.store.getFacts(story.playerId)) ? (FACTION_INFO[cf(story.store.getFacts(story.playerId))] || {}).label + ' · ' : '')}the close</div>` +
+        `<div class="en">${esc(e.name || '')}</div>` +
+        `<div class="ed" style="font-size:13px">${esc(e.description || '')}</div>` +
+        `<div class="ex">⏎ / click — Chapter One ends</div>`;
+      $('enc').classList.add('on'); saveStory(); whereAmI(); renderQuest();
     }
     function showLunaContact() {
       if (!story.ready || _concludeOpen) return;
@@ -1680,6 +1742,11 @@
         // the storyboard is DERIVED from his plot_beats (the climb "out and down" is his story). The
         // hand-authored storyboard.json is only a fallback when his content carries no plot_beats.
         story.sb = deriveStoryboard(content);
+        // hoopy's ANCHOR-TURN-IN advancement chain (Olo·Solen·Sevin·Luna), derived from his load_bearing
+        // content: the per-tier gates (keeper flags), the deck-clear flag each turn-in sets (the level-up),
+        // and the gate→keeper map (so the quest can point a waypoint at an unmet keeper). Pure derivation.
+        try { story.anchors = anchorChain(content); story.gateSetters = gateSetters(content); }
+        catch (e) { story.anchors = []; story.gateSetters = {}; }
         if (!story.sb.beats.length) { try { story.sb = await fetch(new URL('./story/storyboard.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.sb = null; } }
         story.milestones = story.sb ? deriveMilestones(story.sb) : [];   // tier advancement = his flag-gated beats (empty until his export wires triggers)
         try { story.chatter = await fetch(new URL('./story/chatter.json', import.meta.url)).then((r) => r.json()); } catch (e) { story.chatter = null; }
@@ -1687,6 +1754,7 @@
         try { questBank = buildQuestBank([...story.store.content.values()]); } catch (e) { questBank = new Map(); }   // the side-quest bank (one per rumor seed)
         try { openingCast = pickBibleGuides([...story.store.content.values()]); } catch (e) {}   // the bible's per-zone guide chain (Olo·Solen·Sevin·Luna), ready even before anchors place
         foldCharacterFromSave();   // the character rides the save now — adopt the saved one, or seed it from local
+        try { checkAdvancement(); } catch (e) {}   // a restored save may hold a turn-in flag earned past its stored tier — reconcile on load
         syncOwnSaveIfReady();   // if already signed in, your repo save wins over the local buffer
         // a brand-new game FORCES character creation (and a name) before the world opens; resumes skip it
         if (needsForcedCreate()) creator.showForced(() => runOpeningThen(maybeArriveDeck));   // create your android → Bay 14 cold open → deck arrival
@@ -1737,69 +1805,69 @@
     // in words; (4) HOW — the verb to use when you're new. Lines 2-4 appear only when they add something.
     let questGuidance = null;   // the computed objective/step/where/how, rendered inside the JOURNAL now (not a HUD block)
     let journalOpen = false;    // the journal reuses the #enc overlay; this distinguishes it from an encounter card
+    // WHERE a content NPC currently stands (a pinned anchor, a living keeper resident, or a persisted
+    // discovery) → {x,y,deck}, or null if it isn't placed in the loaded world yet.
+    function locateNpc(cid) {
+      if (!cid) return null;
+      const a = anchors.find((x) => x.content_id === cid); if (a) return { x: a.x, y: a.y, deck: a.deck || 0 };
+      const r = residents.find((rr) => rr.keeper && rr.keeper.content_id === cid); if (r) return { x: r.x, y: r.y, deck: residentDeck(r) };
+      const disc = (getJSONFact('npc.discovered', {}) || {})[cid]; if (disc && disc.x != null) return { x: disc.x, y: disc.y, deck: disc.deck || 0 };
+      return null;
+    }
+    // a quest waypoint toward `loc`: its position if it's on THIS deck, else the shaft off this deck (so the
+    // marker leads you toward the right floor instead of pointing through it). null when nothing is known yet.
+    function questWpToward(loc) {
+      if (!loc) return null;
+      if ((loc.deck || 0) === playerDeck()) return { x: loc.x, y: loc.y };
+      const s = shaftHere(); return s ? { x: s.x, y: s.y } : null;
+    }
     function renderQuest() {
       if (!story.ready) { questGuidance = null; if (journalOpen) renderJournal(); return; }
       ensureUnlockedWards();   // build each faction's ward as the chain unlocks it (commons→continuant→rindwalker→drift)
-      // THE NAVE CAMPAIGN is the headline objective ONCE the commons quest is done (narrative_tier ≥ 2):
-      // seek the active faction's ward (the ◇ waypoint), witness it, repeat — the Drift opens the way down.
-      // Before that (tier 1) the headline is the COMMONS quest (the deck-climb below), which gates Continuant.
-      if (world && world._nave && playerDeck() === 0 && introSolved()) {
-        const facts = story.store.getFacts(story.playerId), prog = fqProgress(facts);
-        if (!prog.allDone && prog.active) {
-          const f = FQ[prog.active], w = fqWardXY(prog.active);
-          storyWp = w ? { x: w.x, y: w.y } : null;
-          questGuidance = {
-            objective: `<span class="lbl">⚑ The Nave · the three factions</span> <span class="o">— seek the ${esc(f.label)}</span>`
-              + `<span class="qbar"><span style="width:${Math.round(100 * prog.done / prog.total)}%"></span></span> <span class="mk">${prog.done}/${prog.total}</span>`,
-            stepText: f.seek,
-            whereWord: `the ${f.label} ward`,
-            hasWp: !!storyWp,
-            howText: prog.done === 0 ? 'Follow the ◇ waypoint to each faction’s ward and walk in to meet them. Witness all three and the way down opens.' : null,
-          };
+      // ── HOOPY'S ANCHOR-TURN-IN READOUT (anchors.js): the headline is the ACTIVE ANCHOR for this tier.
+      //    Phase 1 — find the tier's KEEPERS (their dialogue sets the gate flags); phase 2 — RETURN to the
+      //    anchor to turn in (the level-up). The waypoint points at the next unmet keeper, or at the anchor.
+      if (story.anchors && story.anchors.length) {
+        const facts = story.store.getFacts(story.playerId), tier = narTier();
+        const st = advanceState(story.anchors, facts, tier);
+        if (st && !st.turnedIn) {
+          const a = st.anchor;
+          if (!st.allGatesSet) {
+            const nk = nextKeeper(story.anchors, story.gateSetters, facts, tier);
+            const loc = nk && locateNpc(nk.contentId);
+            storyWp = questWpToward(loc);
+            questGuidance = {
+              objective: `<span class="lbl">⚑ The ${esc(zoneWord(a.zone))} · ${esc(a.name)}’s charge</span> <span class="o">— find the keepers of the ${esc(zoneWord(a.zone))}</span>`
+                + `<span class="qbar"><span style="width:${Math.round(100 * st.gatesSet / Math.max(1, st.gatesTotal))}%"></span></span> <span class="mk">${st.gatesSet}/${st.gatesTotal}</span>`,
+              stepText: nk ? `Seek ${nk.name}${nk.room ? ' — keeper of ' + nk.room : ''}${nk.verb ? ' (' + nk.verb + ')' : ''}. What they tell you, ${a.name} needs to hear.`
+                           : `Walk the ${zoneWord(a.zone)} and speak with its keepers — each one brings ${a.name} another piece.`,
+              whereWord: (loc && (loc.deck || 0) === playerDeck()) ? (nk.room || nk.name) : `the ${zoneWord(a.zone)}`,
+              hasWp: !!storyWp,
+              howText: `These are people, not consoles. Explore the ${zoneWord(a.zone)}, find the keepers (◇), and CLICK to speak. When you have heard them all, return to ${a.name}.`,
+            };
+          } else {
+            const loc = locateNpc(a.id);
+            storyWp = questWpToward(loc);
+            questGuidance = {
+              objective: `<span class="lbl">⚑ Return to ${esc(a.name)}</span> <span class="o">— turn in: you have heard the ${esc(zoneWord(a.zone))}</span>`,
+              stepText: `You have spoken with every keeper of the ${zoneWord(a.zone)}. Return to ${a.name}${a.room ? ' in ' + a.room : ''} — and turn in what you carry.`,
+              whereWord: (loc && (loc.deck || 0) === playerDeck()) ? (a.room || a.name) : a.name,
+              hasWp: !!storyWp,
+              howText: a.next ? `Turn in to ${a.name}; they set you toward ${a.next.name}.` : `Turn in to ${a.name} — and answer the chamber.`,
+            };
+          }
           if (journalOpen) renderJournal();
           return;
         }
-      }
-      // THE UPPER-RIND THRESHOLD is the headline while you're on the upper rind and haven't chosen a faction:
-      // witness each nave faction reflected at scale ×3, then choose at Sevin's threshold (the way down).
-      if (world && world._rind && playerDeck() === 1) {
-        const facts = story.store.getFacts(story.playerId);
-        if (!chosenFaction(facts)) {
-          const prog = witnessProgress(facts), done = prog.filter((p) => p.done).length;
-          const tally = prog.map((p) => `${esc(FQ[p.faction].label)} ${p.n}/${WITNESS_TARGET}`).join(' · ');
-          const ready = allWitnessed(facts);
-          // POINT THE WAY: the witnesses are people scattered through the Seven's domains. Aim the ◇ at the
-          // nearest faction-marked face you haven't witnessed yet (the supply keeps them stocked nearby), so
-          // "witness the three factions" reads as "go meet that person" instead of an unguided wander.
-          const wt = ready ? null : nextWitnessTarget();
-          storyWp = wt;
+        // THE CLOSE: Luna's turn-in is done (lower rind cleared, a disposition chosen) → go to the Signal
+        // Chamber, where the ending plot_beat (faction × disposition) plays.
+        if (facts['flag.deck.lower_rind.cleared'] && !facts['flag.chapter_complete']) {
+          const sc = (playerDeck() === 2) ? signalChamberXY() : null;
+          storyWp = sc ? { x: sc.x, y: sc.y } : questWpToward({ x: 0, y: 0, deck: 2 });
           questGuidance = {
-            objective: `<span class="lbl">⚑ The Upper Rind · the threshold</span> <span class="o">— ${ready ? 'choose your faction' : 'witness the three factions at scale'}</span>`
-              + `<span class="qbar"><span style="width:${Math.round(100 * done / 3)}%"></span></span> <span class="mk">${done}/3</span>`,
-            stepText: ready ? 'Sevin’s threshold is ready — choose the faction whose truth you carry into the deep.' : tally,
-            whereWord: wt ? 'a faction face nearby' : null,
-            hasWp: !!wt,
-            howText: ready ? null : 'These are people, not consoles: walk up to a faction-marked face (◇) and CLICK to speak — meeting them is witnessing them. Each nave faction, three times over.',
-          };
-          if (ready && !_factionChoiceOpen && !$('enc').classList.contains('on')) showFactionChoice();   // re-present the choice if it was dismissed
-          if (journalOpen) renderJournal();
-          return;
-        }
-      }
-      // THE LOWER RIND is the chapter's close: gather chamber-lore to LOCATE the lost Signal Chamber, then go
-      // — Luna is waiting there. (Once the chapter is complete it falls through to the normal readout.)
-      if (world && world._lowerRind && playerDeck() === 2) {
-        const facts = story.store.getFacts(story.playerId);
-        if (!chapterComplete(facts)) {
-          const located = signalLocated(facts), n = chamberLore(facts), sc = located ? signalChamberXY() : null;
-          storyWp = sc ? { x: sc.x, y: sc.y } : null;
-          questGuidance = {
-            objective: `<span class="lbl">⚑ The Lower Rind · the Signal Chamber</span> <span class="o">— ${located ? 'reach the Signal Chamber — Luna will reach you there' : 'locate the lost Signal Chamber'}</span>`
-              + (located ? '' : `<span class="qbar"><span style="width:${Math.round(100 * n / CHAMBER_LORE_TARGET)}%"></span></span> <span class="mk">${n}/${CHAMBER_LORE_TARGET}</span>`),
-            stepText: located ? 'The way is known. Stand in the Signal Chamber — Luna’s lost sanctum — and she makes contact through the terminal older than the Nave. (She herself is in her archive; the sanctum is where she reaches you.)' : 'Walk Saturn’s deep, Sol’s heart, Luna’s archive — gather chamber-lore until the deep gives up the chamber’s place.',
-            whereWord: located ? 'the Signal Chamber' : null,
-            hasWp: !!storyWp,
-            howText: located ? null : 'Examine the lore of the deep (anything that glows). Three fragments and the chamber’s position resolves.',
+            objective: `<span class="lbl">⚑ The Signal Chamber</span> <span class="o">— go to the chamber and answer</span>`,
+            stepText: 'Luna has shown you the way. Stand in the Signal Chamber — the answer you gave her waits there to be spoken into the dark.',
+            whereWord: sc ? 'the Signal Chamber' : 'the deep', hasWp: !!storyWp, howText: null,
           };
           if (journalOpen) renderJournal();
           return;
@@ -1970,6 +2038,7 @@
       const snap = story.store.snapshot();                                   // captured AFTER the digest (keeps evictions)
       story.store = new MemoryStore(content, { features: [...story.store.features.values()] }).restore(snap);
       try { story.sb = deriveStoryboard(content) || story.sb; } catch (e) {}
+      try { story.anchors = anchorChain(content); story.gateSetters = gateSetters(content); } catch (e) {}   // keep the advancement chain in step with a republished pool
     }
     let _verdictBusy = false;
     async function syncVerdicts() {
@@ -2116,14 +2185,26 @@
         + `<a class="act" href="/v100/storyboard/" target="_blank">❖ storyboard</a>`
         + `<a class="act" href="/v100/architecture.html" target="_blank">⌥ data-flow</a>`
         + `<a class="act" href="/v100/records" target="_blank">▤ records</a></div>`);
+      if (story.ready && story.anchors && story.anchors.length) {
+        const st = advanceState(story.anchors, story.store.getFacts(story.playerId), narTier());
+        out.push(`<div class="sec"><div class="st">advancement (anchor turn-in)</div>`);
+        if (st) {
+          out.push(row('active anchor', `${esc(st.anchor.name)} <span class="dim">· tier ${st.anchor.tier} · ${esc(st.anchor.zone || '')}</span>`));
+          out.push(row('keeper gates', `${st.gatesSet}/${st.gatesTotal}${st.allGatesSet ? ' <span class="ok">✦ turn-in ready</span>' : ''}`));
+          if (st.turnedIn) out.push(row('turned in', '<span class="ok">✓ — advancing</span>'));
+        } else out.push(row('active anchor', '<span class="dim">— (no anchor at this tier)</span>'));
+        out.push(`</div>`);
+      }
       if (isDevMode() && world) {
         out.push(`<div class="sec"><div class="st">dev — test shortcuts</div>`
-          + `<button data-dev-descend style="background:none;border:1px solid #5a4326;color:#d8a45c;padding:6px 10px;border-radius:7px;cursor:pointer;font:inherit;font-size:11px">▼ fast-forward to the Lower Rind</button>`
-          + `<div class="dim" style="margin-top:4px;font-size:10px">witnesses all factions, chooses Drift, builds both rinds, drops you in the deep.</div></div>`);
+          + `<button data-dev-gates style="background:none;border:1px solid #3a5a36;color:#7fb86c;padding:6px 10px;border-radius:7px;cursor:pointer;font:inherit;font-size:11px;margin-right:6px">✦ set this tier’s keeper flags</button>`
+          + `<button data-dev-descend style="background:none;border:1px solid #5a4326;color:#d8a45c;padding:6px 10px;border-radius:7px;cursor:pointer;font:inherit;font-size:11px">▼ fast-forward to the close</button>`
+          + `<div class="dim" style="margin-top:4px;font-size:10px">set-gates: fills the active anchor’s gates so you can turn in. fast-forward: clears every tier + Drift + answer, drops you in the Signal Chamber for the ending.</div></div>`);
       }
       el.innerHTML = out.join('');
       const cx = el.querySelector('[data-dclose]'); if (cx) cx.onclick = () => toggleDbg(false);
       const dd = el.querySelector('[data-dev-descend]'); if (dd) dd.onclick = () => { toggleDbg(false); devDescend(); };
+      const dg = el.querySelector('[data-dev-gates]'); if (dg) dg.onclick = () => { devSetGates(); renderDbg(); };
     }
     // ── SIGN-IN with handle TYPEAHEAD: a small modal whose input live-searches Bluesky handles via the
     //    public appview (app.bsky.actor.searchActorsTypeahead — unauthed). Replaces the bare prompt(): no
@@ -2193,7 +2274,9 @@
         const floors = tierFloors(computeBoard(story.sb, story.store, story.playerId)), p = story.store.getPlayerState(story.playerId);
         const cur = p.revelation_tier || 1; if ((floors.revelation_tier || 1) > cur) { story.store.setPlayerTier(story.playerId, 'revelation_tier', floors.revelation_tier); flashTier({ axis: 'revelation_tier', from: cur, to: floors.revelation_tier }); }
       }
-      checkHoopy();   // hoopybot: has the player learned enough of this deck to be paged for the next rung?
+      // hoopybot's learn-count deck-climb paging is RETIRED — the level-up is now the anchor turn-in
+      // (find a tier's keepers → their dialogue sets the gate flags → turn in at the anchor). checkAdvancement()
+      // (fired after each dialogue choice) drives the tier; the keeper-flag gates replace the learn-count.
       checkQuests();  // side quests: resolve any thread whose theme the player has now chased enough
       whereAmI(); renderQuest();   // refresh the tier readout + the storyboard-derived quest log
       if (introSolved()) { maybeStream(); maybeBuildRind(); maybeBuildLowerRind(); }   // unseal: stream the Nave + sink the rind shafts (upper at tier 3, lower at tier 4)
@@ -2260,7 +2343,11 @@
       const lg = e.target.closest('[data-luna-go]');
       if (lg) { e.stopPropagation(); showFinalChoice(); return; }   // Luna's contact → the final decision
       const fn = e.target.closest('[data-final-choice]');
-      if (fn) { e.stopPropagation(); concludeChapter(fn.dataset.finalChoice); return; }   // the decision → the ending
+      if (fn) { e.stopPropagation(); concludeChapter(fn.dataset.finalChoice); return; }   // the decision → the ending (legacy)
+      const ec = e.target.closest('[data-end-choice]');
+      if (ec) { e.stopPropagation(); endingChoose(+ec.dataset.endChoice); return; }   // hoopy's conclusion-tree ending → walk the tree
+      const ef = e.target.closest('[data-end-fin]');
+      if (ef) { e.stopPropagation(); finishEnding(); return; }   // the tree's terminal node → close the chapter
       if (_factionChoiceOpen || _concludeOpen) return;   // the threshold + the close are mandatory: a click off the options doesn't dismiss them
       const sp = e.target.closest('[data-spread]');
       if (sp && !sp.disabled) {
@@ -2277,17 +2364,39 @@
     addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && !_factionChoiceOpen && !_concludeOpen && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); if (_opening && advanceOpening()) return; hideEncounter(); } });
     // NPCs fold their reveal INTO the dialogue (one screen, one name — see renderStory); only non-NPC
     // encounters (item / lore / creature / plot_beat) still get the standalone popup.
-    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item) { if (intro.item.type !== 'npc') showEncounter(intro.item); noteFactionWitness(intro.item); noteChamberLore(intro.item); } };   // first meeting → encounter card (non-npc) + upper-rind faction-witness tally + lower-rind chamber-lore tally
+    const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item && intro.item.type !== 'npc') showEncounter(intro.item); };   // first meeting → encounter card (non-npc). The upper-rind witness + lower-rind chamber-lore TALLIES are retired — advancement is keeper-flag + anchor-turn-in driven (anchors.js), not crystallize-counting.
     // ── THE COLD OPEN (Bay 14): a scripted intro the first time you wake. The bible's open — you're an android,
     //    rebuilt in a reconstruction bay no manifest lists, and Olo (the Drift broker who found you) sets you on
     //    the way. Fires ONCE per save (flag.intro_seen), only at the very start (tier 1, before the seal lifts).
-    let _opening = false, _openingCards = [], _openingIdx = 0, _openingDone = null;
+    let _opening = false, _openingCards = [], _openingIdx = 0, _openingDone = null, _afterOlo = null;
+    // The cold open is now a SINGLE scene card (the wake) that hands straight into a MANDATORY CHAT WITH
+    // OLO — his real dialogue tree (anchors.js tier-1 anchor), not a paraphrase. His greet IS the mandate
+    // ("Walk the Commons…"); closing it drops you into Bay 14 to play. (hoopy: "open in Bay 14 with a
+    // mandatory chat with Olo".)
     const OPENING_CARDS = [
       { kicker: 'Bay 14 · the reconstruction bay', title: 'you wake', foot: '⏎ / click — and then?',
-        body: 'Cold light, and a cradle in the deep of the Nave — Bay 14, a bay no manifest still lists. You are not the body you remember. You have been rebuilt, and something in the rebuild was changed: there is a translator behind your eyes now, new, and you do not yet know what it is for.\n\nYou sit up. You are not alone.' },
-      { kicker: 'the Commons · a voice', title: 'Olo Vashti', foot: '⏎ / click — begin',
-        body: '“Up at last. Good — I went to some trouble to wake you, and it was worth it only if you are what your marking says you are.”\n\nA broker of the Drift, the one who found Bay 14 and paid the price to bring you back. He nods toward the deck beyond the bay.\n\n“Walk the Commons. Learn its hands — what these people make, mend, trade. When you have understood enough, come back to me. There is a terminal here older than the writ that will tell you what you are, and I will set you on the way down.”' },
+        body: 'Cold light, and a cradle in the deep of the Nave — Bay 14, a bay no manifest still lists. You are not the body you remember. You have been rebuilt, and something in the rebuild was changed: there is a translator behind your eyes now, new, and you do not yet know what it is for.\n\nYou sit up. You are not alone — a figure leans against the column, patient as aeons.' },
     ];
+    // open an NPC's dialogue by content id, regardless of where it's placed in the world (used for the
+    // mandatory opening chat with Olo). Mirrors openAnchor's story.active shape; the engine crystallizes the
+    // figure so its name/portrait read true. Returns false if the figure isn't in the pool.
+    function openStoryNpc(contentId, meta) {
+      if (!story.ready || !contentId) return false;
+      const ci = story.store.contentById(contentId); if (!ci) return false;
+      const s = story.store, key = 'anchor:' + contentId;
+      if (!s.featureByKey(key)) s.addFeature({ key, type: 'npc', label: (ci.content || {}).name || contentId, content_id: contentId });
+      const intro = interact(s, story.playerId, key);
+      const name = (ci.content || {}).name || contentId;
+      story.active = { agent: meta || { name, role: ci.verb || 'mend', glyph: '☻' }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
+      hideEncounter(); renderStory();
+      return true;
+    }
+    // the mandatory opening chat: drop into Olo's real dialogue; when the player closes it, proceed to `then`.
+    function openOloMandatory(then) {
+      const a = story.anchors && anchorForTier(story.anchors, 1);
+      if (!a || !openStoryNpc(a.id)) { if (then) then(); return; }
+      _afterOlo = then || null;   // the close handler ($('story') data-close) fires this once, then plays on
+    }
     function _renderOpeningCard() {
       const c = _openingCards[_openingIdx]; if (!c) return;
       showPage(c.kicker, c.title, c.body, c.foot);
@@ -2308,7 +2417,8 @@
       const facts = story.store.getFacts(story.playerId);
       if (facts['flag.intro_seen'] || introSolved() || (story.store.getPlayerState(story.playerId).narrative_tier || 1) > 1) { if (next) next(); return; }
       story.store.setFact(story.playerId, 'flag.intro_seen', true); saveStorySnapshot();
-      _opening = true; _openingCards = OPENING_CARDS; _openingIdx = 0; _openingDone = next || null; _renderOpeningCard();
+      // wake card → mandatory Olo chat → `next` (deck arrival). The done() chains the Olo chat in.
+      _opening = true; _openingCards = OPENING_CARDS; _openingIdx = 0; _openingDone = () => openOloMandatory(next); _renderOpeningCard();
     }
     // a generic centre-screen page (deck arrival, the hoopybot level-up) — same overlay, custom layout.
     function showPage(kicker, title, body, foot) {
@@ -2329,6 +2439,28 @@
     let openingCast = [];   // his Arrival NPCs (set in placeAnchors) — the guides you report back to
     const narTier = () => (story.ready ? (story.store.getPlayerState(story.playerId).narrative_tier || 1) : 1);
     const currentDeck = () => deckForTier(narTier());
+    // ── HOOPY'S ANCHOR-TURN-IN ADVANCEMENT (anchors.js): the level-up is a FLAG, not a code path. Each
+    //    anchor's gated turn-in dialogue sets flag.deck.<deck>.cleared; that flag advances narrative_tier to
+    //    the anchor's tier+1. CHOSEN FACTION is the narrow flag.chose.<faction> (Sevin's turn-in) — fall back
+    //    to the legacy flag.chosen_faction for old saves so a mid-flight game isn't stranded. ──
+    const cf = (facts) => chosenFactionFlag(facts) || chosenFaction(facts);   // the v100 chosen faction (flag.chose.*) ∪ legacy
+    // After a dialogue choice (or on load): if an anchor turn-in cleared a deck, bump the tier, re-floor the
+    // world (which sinks the next shaft), and direct the player to the next anchor. Idempotent — only fires
+    // on a genuine increase.
+    function checkAdvancement() {
+      if (!story.ready || !story.anchors || !story.anchors.length) return;
+      const facts = story.store.getFacts(story.playerId);
+      const cur = narTier(), target = tierFromClears(story.anchors, facts, cur, DECK_COUNT);
+      if (target <= cur) return;
+      story.store.setPlayerTier(story.playerId, 'narrative_tier', target);
+      saveStory();   // persists + re-floors (maybeBuildRind at 3 / maybeBuildLowerRind at 4) + re-renders the quest
+      const cleared = anchorForTier(story.anchors, cur);   // the anchor we just turned in to
+      const next = cleared && cleared.next;
+      if (next) notify(`${cleared.name} sets you on — seek ${next.name} in the ${zoneWord(next.zone)}`, { kind: 'story', ms: 5200 });
+      whereAmI();
+    }
+    const ZONE_WORDS = { commons: 'Commons', wards: 'wards', upper_rind: 'Upper Rind', lower_rind: 'Lower Rind' };
+    const zoneWord = (z) => ZONE_WORDS[z] || z || 'deep';
     const guideName = (g) => (g && (g.content || {}).name) || 'your guide';
     function showDeckCard(deck, withHook) {
       if (!deck) return;
@@ -2655,7 +2787,7 @@
     $('story').addEventListener('click', (e) => {
       const fc = e.target.closest('.flipcard'); if (fc) { fc.classList.toggle('flipped'); return; }   // sprite ⇄ stats
       const cl = e.target.closest('[data-close]'), ch = e.target.closest('[data-cid]');
-      if (cl) { story.active = null; renderStory(); return; }
+      if (cl) { story.active = null; renderStory(); if (_afterOlo) { const fn = _afterOlo; _afterOlo = null; fn(); } return; }   // closing the mandatory opening chat with Olo proceeds into Bay 14
       const sp = e.target.closest('[data-spread]');   // spread word of the figure you're talking to (folded-in reveal)
       if (sp && !sp.disabled && story.active && story.active.intro && story.active.intro.item) {
         const item = story.active.intro.item; sp.disabled = true; sp.textContent = '☷ spreading…';
@@ -2676,6 +2808,8 @@
           addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack(); flashPickup(it);
         }
         saveStory(); if (r && r.ended) { story.active = null; } renderStory();
+        checkAdvancement();   // an anchor turn-in (set flag.deck.<deck>.cleared) is the level-up — bump the tier + direct on
+        if (r && r.ended && _afterOlo) { const fn = _afterOlo; _afterOlo = null; fn(); }   // ending the mandatory Olo chat via his "ack" choice also proceeds into Bay 14
       }
     });
     // a brief toast when something enters the pack
@@ -3872,7 +4006,8 @@
       story.active = { agent: { name: r.keeper.name, role: r.role, glyph: r.glyph, genome: r.genome }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();
       saveStory(); renderStory();
-      if (isGuide(r.keeper.content_id)) grantLevelAtGuide();
+      // an anchor IS just an NPC now: its dialogue carries the gated turn-in choice (anchors.js). Opening
+      // the dialogue is enough — picking the turn-in fires choose() → checkAdvancement(). No special path.
     }
     // PROGRESSION SOLVER (v1) — keep the current deck CLEARABLE. assess() clears a deck when you've
     // crystallized `needed` distinct deck-themed items; with the crowd now ambience, that supply has to come
@@ -3974,8 +4109,7 @@
         const h = ((Math.round(cen.x) * 73856093) ^ (Math.round(cen.y) * 19349663)) >>> 0;
         lore = pool[h % pool.length];
       }
-      try { story.store.markSeen(story.playerId, lore.id); } catch (e) {}   // counts as learned (deck-climb / seen-set)
-      noteChamberLore(lore);                                                // lower-rind chamber-lore tally (no-op off deck 2)
+      try { story.store.markSeen(story.playerId, lore.id); } catch (e) {}   // counts as learned (seen-set)
       const c = lore.content || {}, txt = String(c.description || c.name || '');
       notify('▒ the chamber speaks — ' + txt.slice(0, 150) + (txt.length > 150 ? '…' : ''), { kind: 'story', ms: 5400 });
       saveStorySnapshot();
@@ -4072,8 +4206,7 @@
       if (intro.status === 'crystallized' && intro.item && intro.item.type === 'npc') maybeOpenQuest(intro.item.content_item_id, intro.item.name);   // they tip you to a rumor
       story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph, genome: a.genome }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();   // an anchor can also be the one who informs you
-      saveStory(); renderStory();
-      if (isGuide(a.content_id)) grantLevelAtGuide();   // your guide, while you're paged → advance + next guidance
+      saveStory(); renderStory();   // the anchor's dialogue carries its gated turn-in (anchors.js) — picking it advances via checkAdvancement()
     }
     function drawAnchors() {
       const h = SKIN.playerW * 1.45 * cam.scale;   // anchors stand at ~player scale (figures of merit, not map pins)
