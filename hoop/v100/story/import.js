@@ -121,8 +121,14 @@ export function expandRoomBundle(rec, { provider = 'hoopy-export', lane = 'spine
     out.push({ id: roomId, type: 'npc', content: c, tags: tags.slice(), room: roomId, roomName: C.name || null, ...(C.lore ? { lore: loreId } : {}), verb: C.verb || null, ...meta });
   }
   if (C.lore) {
+    // hoopy's 2026-06 model nests lore as an OBJECT {name, description} (not a bare string). Pull the prose out
+    // — String(C.lore) on the object yielded the "[object Object]" the chamber was "speaking" — and prefer the
+    // lore's OWN name (e.g. "The Fractured Guide-Rail") for the fragment's title.
+    const L = (C.lore && typeof C.lore === 'object') ? C.lore : { description: String(C.lore || '') };
+    const loreText = String(L.description || L.name || '');
+    const loreName = L.name || (C.name ? C.name + ' — lore' : (npc.name ? npc.name + '’s ground' : 'a fragment'));
     out.push({ id: loreId, type: 'lore_fragment', room: roomId, npcId: roomId,
-      content: { name: C.name ? C.name + ' — lore' : (npc.name ? npc.name + '’s ground' : 'a fragment'), description: String(C.lore) },
+      content: { name: loreName, description: loreText },
       tags: tags.slice(), ...meta });
   }
   return out.length ? out : [importRecord(rec, { provider, lane })];   // never silently drop a bundle

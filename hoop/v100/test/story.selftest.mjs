@@ -68,14 +68,17 @@ ok(exploreTierForXp(0) === 1 && exploreTierForXp(30) === 2 && exploreTierForXp(2
     id: 'rb-vesper', type: 'room_bundle', status: 'active', revelation_tier: 1, narrative_tier: 2, power_tier: 1,
     tags: ['upper_rind', 'mercury', 'move'],
     content: { name: 'The Arterial Line', zone: 'upper_rind', faction: 'mercury', nave_faction: 'drift', verb: 'move',
-      lore: 'The carts do not wait for ghosts.', description: 'a transit chamber',
+      // hoopy's 2026-06 model nests lore as an OBJECT {name, description}, NOT a bare string
+      lore: { name: 'The Fractured Guide-Rail', description: 'The carts do not wait for ghosts.' }, description: 'a transit chamber',
       npc: { name: 'Vesper Lin', voice: 'brisk', dialogue: { start: 'greet', nodes: { greet: { says: 'You block the line.', choices: [{ id: 'q', goto: 'greet', text: 'Sorry.' }] } } } } },
   };
   const exploded = expandRoomBundle(bundle);
   ok(exploded.length === 2, 'room_bundle explodes into two items');
   const bn = exploded.find((x) => x.type === 'npc'), bl = exploded.find((x) => x.type === 'lore_fragment');
   ok(bn && bn.content.name === 'Vesper Lin' && bn.content.dialogue.nodes.greet, 'bundle → npc with its dialogue tree');
-  ok(bl && /carts do not wait/.test(bl.content.description), 'bundle → lore_fragment from content.lore');
+  ok(bl && /carts do not wait/.test(bl.content.description), 'bundle → lore_fragment text from object lore.description');
+  ok(bl && bl.content.name === 'The Fractured Guide-Rail', 'lore_fragment uses the lore object’s OWN name');
+  ok(bl && !/\[object Object\]/.test(bl.content.description) && !/\[object Object\]/.test(bl.content.name), 'object lore is never stringified to [object Object]');
   ok(bn.tags.includes('drift') && bn.tags.includes('upper_rind') && bn.tags.includes('move'), 'bundle npc lifts nave_faction/zone/verb into tags');
   // npc↔lore↔room linkage (so a chamber can bind to its keeper's OWN lore + match a resident by verb)
   ok(bn.room === 'rb-vesper' && bn.lore === 'rb-vesper:lore' && bn.verb === 'move', 'principal carries room + lore id + verb');
