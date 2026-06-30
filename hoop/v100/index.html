@@ -634,7 +634,7 @@
     const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, footprint: TRAFFIC_FOOTPRINT, grand: GRAND_ROLES, grandMin: GRAND_MIN, minRoom: MIN_ROOM, skin: SKIN, ...extra });
 
     function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); checkDeckEnter(); checkWardArrival(); checkSignalChamber();
-      const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); }
+      const pc = walk ? walk.nodeChunk[player] : -1; if (pc !== lastResChunk) { lastResChunk = pc; cullResidents(); maybeChamberLore(pc); }
       whereAmISoon(); }   // HUD refresh is THROTTLED — whereAmI runs the hoopy oracle + a big innerHTML write; doing it every frame during a walk was the steppy stutter
     let _whereT = 0;
     function whereAmISoon() { const now = performance.now(); if (now - _whereT < 250) return; _whereT = now; whereAmI(); }
@@ -706,7 +706,10 @@
       for (let i = 0; i < bones.length; i++) { if (doorSet.has(i) || ch.road[i]) continue; const bx = bones[i].x, by = bones[i].y; for (const p of pts) if ((p.x - bx) ** 2 + (p.y - by) ** 2 < thr2) { set.add(i); break; } }
       return set;
     }
-    const blockedOf = (chunkId, local) => { const ch = world.chunks[chunkId]; if (!ch) return false; if (!ch._blocked) ch._blocked = computeBlocked(ch); return ch._blocked.has(local); };
+    // FIXTURES ARE TRANSPARENT TO WALKING. Marking the bones cells under a fixture/console as impassable could
+    // fence off a whole region (an inaccessible space the @ can never reach), so we no longer block them — the
+    // @ walks through fixtures. (computeBlocked is kept for reference; the impassable-fixture model is off.)
+    const blockedOf = () => false;
     // PERF: only re-bake fog for chunks whose fog can actually have CHANGED — the current deck, near the
     // player (sightBall only touches nearby cells; far chunks' fog is static once seen). This runs on every
     // walked step, so scoping it (rather than all world.chunks) is a real movement-smoothness win.
@@ -1594,7 +1597,8 @@
     function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}${_maxDt > 20 ? ' · max ' + _maxDt.toFixed(0) + 'ms' : ''}${_socMs > 1 ? ' · soc ' + _socMs.toFixed(0) + 'ms' : ''}${_stitchMs > 1 ? ' · stitch ' + _stitchMs.toFixed(0) + 'ms' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
-      ensureDeckSupply(); discoverQuestNpcs(); ensureWitnessSupply();   // keep the deck clearable + surface quest NPCs + guarantee each faction is witnessable on the upper rind (all guarded + throttled)
+      ensureDeckSupply(); discoverQuestNpcs(); ensureWitnessSupply(); populateChambers();   // keep the deck clearable + surface quest NPCs + guarantee each faction is witnessable + spread ambient NPCs across every built chamber (all guarded + throttled)
+      maybeChamberLore(walk.nodeChunk[player]);   // fire the CURRENT chamber's lore — covers the chamber you spawned in (followCam's chunk-change hook missed it: story wasn't ready yet on first entry)
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
       let tierTag = '';
@@ -3704,6 +3708,71 @@
         .filter((c) => !disc[c.id] && countsForDeck(c, deck) && meetsState(gstate, c.requires || {}))
         .sort((a, b) => (a.id < b.id ? -1 : 1));
       for (const npc of cands) { if (want <= 0) break; if (discoverPlacedNpc(npc, playerDeck())) want--; }
+    }
+    // which built chunk contains (x,y) on `deck` (by bbox) — used to count/spread NPCs per chamber.
+    function chunkAt(x, y, deck) {
+      for (const ch of world.chunks) { if ((ch.deck || 0) !== (deck || 0) || !ch.poly) continue; const bb = ch.bb || (ch.bb = bboxOf(ch.poly)); if (x >= bb.x0 && x <= bb.x1 && y >= bb.y0 && y <= bb.y1) return ch.id; }
+      return -1;
+    }
+    // OPEN THE TAP: spread AMBIENT named NPCs across EVERY built chamber so each of the ~15 chambers has people
+    // with something to say — not just the quest-relevant few near the player. Tops each painted chamber up to
+    // CHAMBER_NPCS named NPCs from the tier-legal corpus (idempotent via the discovered set; paced so a fresh
+    // floor fills over a few seconds, not in one hitch). The quest supply (deck/witness/ward) runs first; this
+    // fills the rest. NB: most of the corpus's ~138 NPCs were never surfaced before — this is the tap opening.
+    const CHAMBER_NPCS = 4;
+    let _popT = 0;
+    function populateChambers() {
+      if (!story.ready || !society || player < 0 || !world) return;
+      const now = performance.now(); if (now - _popT < 1000) return; _popT = now;
+      const disc = getJSONFact('npc.discovered', {});
+      const haveByChunk = new Map();
+      for (const id of Object.keys(disc)) { const d = disc[id]; if (!d) continue; const ci = chunkAt(d.x, d.y, d.deck || 0); if (ci >= 0) haveByChunk.set(ci, (haveByChunk.get(ci) || 0) + 1); }
+      const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
+      const pool = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
+        .filter((c) => !disc[c.id] && meetsState(gstate, c.requires || {})).sort((a, b) => (a.id < b.id ? -1 : 1));
+      if (!pool.length) return;
+      const painted = world.chunks.filter((ch) => ch.painted && ch.poly);
+      if (!painted.length) return;
+      // ROUND-ROBIN BY LEVEL so the spread is EVEN, not front-loaded: give every chamber its 1st NPC before
+      // any gets its 2nd, etc. The old fill-chunk-0-to-N greedy loop drained the corpus into the nave and
+      // starved the rind chambers entirely. The level-1 BREADTH pass is uncapped (≤15 cheap promotions) so
+      // every chamber is GUARANTEED at least one resident in the first call; the deeper levels are paced by
+      // MAX so a fresh floor fills over a few seconds rather than in one hitch.
+      let pi = 0, placed = 0;
+      const MAX = 12;
+      for (let level = 1; level <= CHAMBER_NPCS; level++) {
+        if (pi >= pool.length) break;
+        if (level > 1 && placed >= MAX) break;
+        for (const ch of painted) {
+          if (pi >= pool.length) break;
+          if (level > 1 && placed >= MAX) break;                    // breadth (level 1) is uncapped; depth is paced
+          if ((haveByChunk.get(ch.id) || 0) >= level) continue;     // this chamber already has `level` — wait its turn
+          const cen = polyCentroid(ch.poly), npc = pool[pi++];
+          if (discoverNpc(npc, cen.x, cen.y, ch.deck || 0)) { placed++; haveByChunk.set(ch.id, (haveByChunk.get(ch.id) || 0) + 1); }
+        }
+      }
+    }
+    // CHAMBER-LORE TRIPWIRE: entering a chamber for the first time reveals its lore (a deterministic tier-legal
+    // lore_fragment, keyed by the chamber's stable centroid so it fires once). The reveal is a toast (not a
+    // modal — it shouldn't break your stride), it's marked SEEN (counts toward the deck-climb), and on the
+    // LOWER RIND it feeds noteChamberLore → so simply walking Saturn/Sol/Luna gathers the chamber-lore that
+    // locates the Signal Chamber. `ci` is a world.chunks index (from walk.nodeChunk).
+    const _chamberLoreSeen = new Set();
+    function maybeChamberLore(ci) {
+      if (!story.ready || ci < 0 || !world || !world.chunks[ci] || !world.chunks[ci].painted) return;
+      const ch = world.chunks[ci], cen = polyCentroid(ch.poly), key = Math.round(cen.x) + '_' + Math.round(cen.y);
+      if (_chamberLoreSeen.has(key) || story.store.getFact(story.playerId, 'cl.seen.' + key)) return;
+      _chamberLoreSeen.add(key); story.store.setFact(story.playerId, 'cl.seen.' + key, true);
+      const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
+      const pool = story.store.queryContent({ type: 'lore_fragment', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier }).filter((c) => meetsState(gstate, c.requires || {}));
+      if (!pool.length) { saveStorySnapshot(); return; }
+      const h = ((Math.round(cen.x) * 73856093) ^ (Math.round(cen.y) * 19349663)) >>> 0;
+      const lore = pool[h % pool.length];
+      try { story.store.markSeen(story.playerId, lore.id); } catch (e) {}   // counts as learned (deck-climb / seen-set)
+      noteChamberLore(lore);                                                // lower-rind chamber-lore tally (no-op off deck 2)
+      const c = lore.content || {}, txt = String(c.description || c.name || '');
+      notify('▒ the chamber speaks — ' + txt.slice(0, 150) + (txt.length > 150 ? '…' : ''), { kind: 'story', ms: 5400 });
+      saveStorySnapshot();
     }
     // Discover any NPC a live QUEST points at (storyboard beat OR side-thread) so its waypoint resolves and
     // you can actually go meet them — covers the "I have a quest for Sevin but she never appears" gap.
