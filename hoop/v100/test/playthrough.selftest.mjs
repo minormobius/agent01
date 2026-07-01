@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { solveChunk } from '../v8/chunkgen.js';
 import { MemoryStore, dispatch, interact, listPlacements, poolCensus, flattenPool } from '../story/engine.js';
 import { putSave, loadSave, SAVE_NSID } from '../story/atproto.js';
-import * as Arena from '../arena/engine.js';
+import * as Arena from '../arena/engine-grid.js';   // this playthrough drives the GRID engine (reachable/attack); the in-game battle is continuum (arena/engine.js), covered by continuum.selftest
 import { creepFor, spoilsFor, CREEP_ROLES } from '../arena/encounter.js';
 import { shopStock, sellPrice } from '../shop.js';
 import { rollGem, socketCap, growGems, canGrow } from '../gems.js';

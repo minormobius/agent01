@@ -3749,7 +3749,7 @@
       const deck = ch.deck || 0, id = creepId(ch.id, cp.room);
       const foe = creepFor(seed, ch.id, cp.room, deck);
       let bseed = 2166136261; for (const ch2 of id) bseed = Math.imul(bseed ^ ch2.charCodeAt(0), 16777619);
-      const state = createBattle({ player: buildPlayerUnit(c), foes: [foe], seed: bseed >>> 0, W: 9, H: 9 });
+      const state = createBattle({ player: buildPlayerUnit(c), foes: [foe], seed: bseed >>> 0, W: 14, H: 10 });
       battleCtx = { ch, cp, id, deck };
       battleOpen = true; $('battle').classList.add('on');
       if (!battleView) battleView = new BattleOverlay($('battle'), { spriteFor: battleSpriteFor });

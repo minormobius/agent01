@@ -1,6 +1,9 @@
-// combat.selftest — the arena engine (createBattle / act / turns / win-loss / AI / determinism) plus the
-// in-world encounter layer (deterministic creeps, deck scaling, spoils). The engine had no test; this pins it.
-import { createBattle, act, endTurn, legal, active, reachable, attackable, aiPlan, aiStep, unitById, SKILLS, SKILL_ORDER } from '../arena/engine.js';
+// combat.selftest — the GRID arena engine (createBattle / act / turns / win-loss / AI / determinism) plus
+// the in-world encounter layer (deterministic creeps, deck scaling, spoils).
+// NB: the in-game battle moved to the CONTINUUM engine (arena/engine.js); the grid engine lives on as
+// arena/engine-grid.js for the standalone /arena demo page — this suite pins THAT. The continuum engine is
+// pinned by continuum.selftest.mjs here + the 45-invariant rind/test/combat.selftest.mjs it was vendored from.
+import { createBattle, act, endTurn, legal, active, reachable, attackable, aiPlan, aiStep, unitById, SKILLS, SKILL_ORDER } from '../arena/engine-grid.js';
 import { CREEP_ROLES, isCreepRole, creepId, creepFor, spoilsFor } from '../arena/encounter.js';
 import { rollCharacter, deriveCombat } from '../stats.js';
 

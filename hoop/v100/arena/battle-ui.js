@@ -46,15 +46,16 @@ export class BattleOverlay {
   }
   stop() { if (this.raf) cancelAnimationFrame(this.raf), this.raf = null; }
 
-  // ── geometry ──
+  // ── CONTINUUM geometry: the board is a free Euclidean field S.W×S.H world units; `sc` is px per unit
+  //    (a body is UNIT_R≈0.5 units across). No tiles — positions are floats.
   _board() {
     const W = this.W, H = this.H, pad = 26, topH = 44, barH = 92, availW = W - pad * 2, availH = H - topH - barH - pad;
-    const ts = Math.max(16, Math.min(Math.floor(availW / this.S.W), Math.floor(availH / this.S.H)));
-    const bw = ts * this.S.W, bh = ts * this.S.H, ox = (W - bw) / 2, oy = topH + Math.max(0, (availH - bh) / 2);
-    return { ts, ox, oy, bw, bh };
+    const sc = Math.max(10, Math.min(availW / this.S.W, availH / this.S.H));
+    const bw = sc * this.S.W, bh = sc * this.S.H, ox = (W - bw) / 2, oy = topH + Math.max(0, (availH - bh) / 2);
+    return { sc, ox, oy, bw, bh };
   }
-  _tileC(b, x, y) { return [b.ox + (x + 0.5) * b.ts, b.oy + (y + 0.5) * b.ts]; }
-  _tileAt(px, py) { const b = this._board(); const x = Math.floor((px - b.ox) / b.ts), y = Math.floor((py - b.oy) / b.ts); return (x >= 0 && y >= 0 && x < this.S.W && y < this.S.H) ? { x, y } : null; }
+  _wc(b, x, y) { return [b.ox + x * b.sc, b.oy + y * b.sc]; }
+  _toWorld(b, px, py) { return { x: (px - b.ox) / b.sc, y: (py - b.oy) / b.sc }; }
 
   _spriteCanvas(genome, dir, frame) {
     const key = genome.seed + '|' + dir + '|' + frame; let c = this.sprCache.get(key); if (c) return c;
@@ -80,84 +81,125 @@ export class BattleOverlay {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (this.cv.width !== Math.floor(this.W * this.dpr)) { this.cv.width = this.W * this.dpr; this.cv.height = this.H * this.dpr; this.cv.style.width = this.W + 'px'; this.cv.style.height = this.H + 'px'; }
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.clearRect(0, 0, this.W, this.H);
-    if (!this.S) return; const S = this.S, b = this._board();
+    if (!this.S) return; const S = this.S, b = this._board(), R = E.UNIT_R * b.sc;
     this._chamfer(b.ox - 14, b.oy - 14, b.bw + 28, b.bh + 28, '#2b3a44', '#070a0e', 2);
     this._chamfer(b.ox - 8, b.oy - 8, b.bw + 16, b.bh + 16, '#f4bf62', null, 1);
-    const L = (S.phase === 'choose') ? E.legal(S) : { move: [], targets: [], skills: [] };
-    const reach = new Set(L.move.map((t) => t.x + ',' + t.y));
-    const atkSet = new Set(L.targets.map((id) => { const u = E.unitById(S, id); return u.x + ',' + u.y; }));
-    for (let y = 0; y < S.H; y++) for (let x = 0; x < S.W; x++) {
-      const px = b.ox + x * b.ts, py = b.oy + y * b.ts, k = x + ',' + y;
-      ctx.fillStyle = ((x + y) & 1) ? 'rgba(20,28,36,.5)' : 'rgba(13,19,26,.5)'; ctx.fillRect(px + 1, py + 1, b.ts - 2, b.ts - 2);
-      if (reach.has(k)) { ctx.strokeStyle = 'rgba(244,191,98,.55)'; ctx.lineWidth = 1.4; ctx.strokeRect(px + 2.5, py + 2.5, b.ts - 5, b.ts - 5); }
-      if (atkSet.has(k)) { ctx.strokeStyle = '#cf3b3b'; ctx.lineWidth = 2; ctx.strokeRect(px + 2, py + 2, b.ts - 4, b.ts - 4); }
+    ctx.save(); ctx.beginPath(); ctx.rect(b.ox, b.oy, b.bw, b.bh); ctx.clip();
+    ctx.fillStyle = 'rgba(14,20,27,.6)'; ctx.fillRect(b.ox, b.oy, b.bw, b.bh);
+    // a faint reference grid so distance/scale read on the free board
+    ctx.strokeStyle = 'rgba(40,54,66,.28)'; ctx.lineWidth = 1;
+    for (let x = 1; x < S.W; x++) { const [px] = this._wc(b, x, 0); ctx.beginPath(); ctx.moveTo(px, b.oy); ctx.lineTo(px, b.oy + b.bh); ctx.stroke(); }
+    for (let y = 1; y < S.H; y++) { const [, py] = this._wc(b, 0, y); ctx.beginPath(); ctx.moveTo(b.ox, py); ctx.lineTo(b.ox + b.bw, py); ctx.stroke(); }
+    // TERRAIN: walls block movement + shots; hazard fields bite each turn (burn/mire/emp tinted).
+    for (const t of (S.terrain || [])) {
+      const [tx, ty] = this._wc(b, t.x, t.y);
+      if (t.kind === 'wall') { ctx.fillStyle = '#171c24'; ctx.beginPath(); ctx.arc(tx, ty, t.r * b.sc, 0, 7); ctx.fill(); ctx.strokeStyle = '#3a4650'; ctx.lineWidth = 1.5; ctx.stroke(); }
+      else { const col = t.effect === 'burn' ? '207,59,59' : t.effect === 'mire' ? '90,168,69' : '110,150,220'; ctx.fillStyle = `rgba(${col},.16)`; ctx.strokeStyle = `rgba(${col},.5)`; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(tx, ty, t.r * b.sc, 0, 7); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); }
     }
-    const au = E.active(S); if (au && au.alive) { ctx.strokeStyle = au.team === 'player' ? '#f4bf62' : '#cf3b3b'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(b.ox + au.x * b.ts + 2, b.oy + au.y * b.ts + 2, b.ts - 4, b.ts - 4); ctx.setLineDash([]); }
+    const au = E.active(S), myTurn = S.phase === 'choose' && au && au.team === 'player';
+    const L = myTurn ? E.legal(S) : null;
+    // MOVE DISK — the free-step reach of the active player (a radius, not a set of tiles)
+    if (L && L.move.range > 0) { const [ax, ay] = this._wc(b, au.x, au.y); ctx.fillStyle = 'rgba(244,191,98,.08)'; ctx.strokeStyle = 'rgba(244,191,98,.4)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(ax, ay, L.move.range * b.sc, 0, 7); ctx.fill(); ctx.stroke(); }
+    // RANGE RING + TARGETS for the selected skill (ranged skills show their reach; targets pulse red)
+    if (L && this.sel && L.skills[this.sel] && L.skills[this.sel].usable) {
+      const sk = E.SKILLS[this.sel]; const [ax, ay] = this._wc(b, au.x, au.y);
+      if ((sk.range || 1) > 1.5) { ctx.strokeStyle = 'rgba(179,155,216,.35)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(ax, ay, sk.range * b.sc, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+      const pulse = 0.5 + 0.5 * Math.sin(this.phase / 8);
+      for (const id of L.skills[this.sel].targets) { const t = E.unitById(S, id); if (!t) continue; const [tx, ty] = this._wc(b, t.x, t.y); ctx.strokeStyle = `rgba(207,59,59,${0.5 + pulse * 0.45})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tx, ty, R * 1.5, 0, 7); ctx.stroke(); }
+    }
+    ctx.restore();
+    // UNITS — painters' order by y; body shadow disk + sprite + bars + status + active ring.
     const order = S.units.filter((u) => u.alive).slice().sort((a, c) => a.y - c.y);
     for (const u of order) {
       let dx = u.x, dy = u.y;
       if (this.anim && this.anim.id === u.id) { const t = Math.min(1, (performance.now() - this.anim.start) / this.anim.dur); dx = this.anim.from.x + (this.anim.to.x - this.anim.from.x) * t; dy = this.anim.from.y + (this.anim.to.y - this.anim.from.y) * t; }
-      const cx = b.ox + (dx + 0.5) * b.ts, cy = b.oy + (dy + 0.5) * b.ts;
+      const [cx, cy] = this._wc(b, dx, dy);
+      // ground shadow disk (reads the body + team)
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(cx, cy + R * 0.7, R * 1.05, R * 0.5, 0, 0, 7); ctx.fill();
+      if (au && au.id === u.id) { ctx.strokeStyle = u.team === 'player' ? '#f4bf62' : '#cf3b3b'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(cx, cy, R * 1.35, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
       const g = this.spriteFor(u);
       if (g) { const moving = this.anim && this.anim.id === u.id, frame = moving ? (Math.floor(this.phase / 6) % 4) : null;
-        const pc = this._spriteCanvas(g, u.team === 'player' ? 'N' : 'S', frame), hgt = b.ts * 1.5, wid = hgt * (pc.width / pc.height);
-        ctx.imageSmoothingEnabled = false; ctx.drawImage(pc, cx - wid / 2, cy - hgt * 0.78, wid, hgt); ctx.imageSmoothingEnabled = true;
-      } else { ctx.fillStyle = u.team === 'player' ? '#f4bf62' : '#cf3b3b'; ctx.font = `${b.ts * 0.7}px ui-monospace,monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(u.team === 'player' ? '☻' : (u.glyph || '☠'), cx, cy); }
-      this._drawBars(cx, cy - b.ts * 1.5 * 0.78 - 7, u, b.ts);
+        const pc = this._spriteCanvas(g, u.team === 'player' ? 'N' : 'S', frame), hgt = b.sc * 2.2, wid = hgt * (pc.width / pc.height);
+        ctx.imageSmoothingEnabled = false; ctx.drawImage(pc, cx - wid / 2, cy + R * 0.7 - hgt, wid, hgt); ctx.imageSmoothingEnabled = true;
+      } else { ctx.fillStyle = u.accent || (u.team === 'player' ? '#f4bf62' : '#cf3b3b'); ctx.font = `${R * 1.6}px ui-monospace,monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(u.glyph || (u.team === 'player' ? '☻' : '☠'), cx, cy); }
+      this._drawBars(cx, cy - b.sc * 2.2 + R * 0.7 - 8, u, b.sc);
     }
   }
-  _drawBars(cx, top, u, ts) {
-    const ctx = this.ctx, w = ts * 0.9, h = 4, x = cx - w / 2;
+  _drawBars(cx, top, u, sc) {
+    const ctx = this.ctx, w = Math.max(24, sc * 1.5), h = 4, x = cx - w / 2;
     ctx.fillStyle = '#0a0e13'; ctx.fillRect(x - 1, top - 1, w + 2, h + 2);
     ctx.fillStyle = u.team === 'player' ? '#5aa845' : '#cf3b3b'; ctx.fillRect(x, top, w * Math.max(0, u.hp / u.maxhp), h);
     ctx.strokeStyle = '#1b2530'; ctx.lineWidth = .6; ctx.strokeRect(x, top, w, h);
     if (u.maxflux > 0) { ctx.fillStyle = '#b39bd8'; ctx.fillRect(x, top + h + 1, w * Math.max(0, u.flux / u.maxflux), 2); }
     ctx.fillStyle = u.team === 'player' ? '#f4bf62' : '#cf8b8b'; ctx.font = '9px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.fillText(u.name + ' ' + u.hp, cx, top - 4);
+    // status glyphs (bleed/stun/mark/slow) ride just under the bar
+    const st = Object.keys(u.status || {}).filter((k) => u.status[k] && u.status[k].turns > 0);
+    if (st.length) { ctx.font = '10px ui-monospace,monospace'; ctx.fillStyle = '#e0a86a'; ctx.fillText(st.map((k) => (E.STATUS[k] && E.STATUS[k].glyph) || '•').join(' '), cx, top + h + 12); }
   }
 
   // ── action bar + input ──
+  // which skills need a TARGET clicked (vs self skills that fire from the bar button).
+  _targeted(sk) { return ['attack', 'control', 'debuff', 'siphon', 'blast', 'agglomerate', 'revive', 'assist'].includes(sk.kind); }
   _renderBar() {
     const S = this.S, u = E.active(S), can = S && S.phase === 'choose' && u && u.team === 'player';
-    const L = can ? E.legal(S) : { skills: [], targets: [] };
-    const btns = E.SKILL_ORDER.map((k) => {
-      const sk = E.SKILLS[k], usable = can && L.skills.includes(k), isSel = (sk.kind === 'attack') && this.sel === k;
-      return `<button class="bact ${isSel ? 'sel' : ''}" data-skill="${k}" ${usable ? '' : 'disabled'}>${sk.glyph} ${sk.label}${sk.cost ? ` <span class="bc">✣${sk.cost}</span>` : ''}</button>`;
+    const L = can ? E.legal(S) : { skills: {} };
+    const ids = u ? E.skillsFor(u) : [];
+    const btns = ids.map((k) => {
+      const sk = E.SKILLS[k], info = L.skills[k], usable = can && info && info.usable, isSel = this.sel === k, cost = u ? E.costOf(u, k) : sk.cost;
+      const hint = isSel && this._targeted(sk) ? ' style="outline:1px solid #f4bf62"' : '';
+      return `<button class="bact ${isSel ? 'sel' : ''}" data-skill="${k}" title="${esc(sk.gloss || '')}"${hint} ${usable ? '' : 'disabled'}>${sk.glyph} ${sk.label}${cost ? ` <span class="bc">✣${cost}</span>` : ''}</button>`;
     }).join('');
     this.elBar.innerHTML = btns + `<button class="bact" data-end="1" ${can ? '' : 'disabled'}>End ⏎</button>`;
     this.elBar.querySelectorAll('[data-skill]').forEach((bn) => bn.addEventListener('click', () => this._onSkill(bn.dataset.skill)));
-    this.elBar.querySelector('[data-end]').addEventListener('click', () => { if (!this.busy) { E.endTurn(this.S); this._afterTurn(); } });
+    this.elBar.querySelector('[data-end]').addEventListener('click', () => { if (!this.busy) { this.sel = 'strike'; E.endTurn(this.S); this._afterTurn(); } });
   }
   _onSkill(k) {
     const sk = E.SKILLS[k], u = E.active(this.S); if (this.busy || !u || u.team !== 'player' || this.S.phase !== 'choose') return;
-    if (sk.kind === 'attack') { this.sel = k; this._renderBar(); return; }
-    const ev = E.act(this.S, { type: 'skill', skillId: k }); this._afterAction(ev);
+    const info = E.legal(this.S).skills[k]; if (!info || !info.usable) return;
+    if (this._targeted(sk)) { this.sel = k; this._renderBar(); return; }   // arm it — the next unit-click is the target
+    const ev = E.act(this.S, { type: 'skill', skillId: k });               // self skill (heal/buff/brace/convert/reposition/summon) fires now
+    if (ev.type === 'reposition') this._repos = true;                       // flit reopened the move slot — the next click is the extra step
+    this._afterAction(ev);
   }
   _onClick(e) {
     if (this.busy || !this.S || this.S.phase !== 'choose') return;
     const u = E.active(this.S); if (!u || u.team !== 'player') return;
-    const r = this.cv.getBoundingClientRect(), t = this._tileAt(e.clientX - r.left, e.clientY - r.top); if (!t) return;
-    const foe = this.S.units.find((x) => x.alive && x.team === 'foe' && x.x === t.x && x.y === t.y);
-    if (foe) { const ev = E.act(this.S, { type: 'attack', targetId: foe.id, skillId: this.sel }); if (ev.type === 'attack') { this.anim = null; this._afterAction(ev); } return; }
-    const ev = E.act(this.S, { type: 'move', x: t.x, y: t.y });
-    if (ev.type === 'move') { this.anim = { id: ev.unit, from: ev.from, to: ev.to, start: performance.now(), dur: 200 }; setTimeout(() => { this.anim = null; this._afterAction(ev); }, 210); }
+    const b = this._board(), r = this.cv.getBoundingClientRect();
+    const p = this._toWorld(b, e.clientX - r.left, e.clientY - r.top);
+    const sk = E.SKILLS[this.sel] || E.SKILLS.strike;
+    const hit = this.S.units.find((x) => x.alive && E.dist(x, p) <= E.UNIT_R * 1.6);   // a body under the click?
+    // a TARGETED skill armed → clicking a valid target fires it
+    if (this._targeted(sk)) {
+      const info = E.legal(this.S).skills[this.sel];
+      if (hit && info && info.targets.includes(hit.id)) { const ev = E.act(this.S, { type: 'skill', skillId: this.sel, targetId: hit.id }); if (ev.type !== 'illegal') { this.sel = 'strike'; this._afterAction(ev); } return; }
+      // a MELEE attack clicked on empty ground = a move toward there; a RANGED skill clicked off-target = ignore
+      if ((sk.range || 1) > 1.5) return;
+    }
+    // MOVE: step to the click within reach (or as far toward it as the reach allows), rounding walls
+    const flit = this._repos, R = flit ? E.SKILLS.flit.extra : E.moveRange(u);
+    const dest = E.canReach(this.S, u, p.x, p.y, R) ? p : E.moveToward(this.S, u, p.x, p.y, R, 0);
+    if (E.dist(u, dest) < 0.1) return;
+    const ev = E.act(this.S, { type: flit ? 'flit-move' : 'move', x: dest.x, y: dest.y });
+    if (ev.type === 'move' || ev.type === 'flit-move') { this._repos = false; this.anim = { id: ev.unit, from: ev.from, to: ev.to, start: performance.now(), dur: 220 }; setTimeout(() => { this.anim = null; this._afterAction(ev); }, 230); }
   }
   _afterAction(ev) {
     this._syncTop(); this._renderBar();
     if (this.S.winner) return this._finish(this.S.winner);
     const u = E.active(this.S);
-    if (u && u.moved && u.acted) { this.busy = true; setTimeout(() => { this.busy = false; E.endTurn(this.S); this._afterTurn(); }, 240); }
+    if (u && u.moved && u.acted && !this._repos) { this.busy = true; setTimeout(() => { this.busy = false; this.sel = 'strike'; E.endTurn(this.S); this._afterTurn(); }, 260); }   // spent both slots → the turn ends
   }
-  _afterTurn() { this._syncTop(); this._renderBar(); if (this.S.winner) return this._finish(this.S.winner); if (E.active(this.S).team === 'foe') this._runEnemy(); }
+  _afterTurn() { this.sel = 'strike'; this._repos = false; this._syncTop(); this._renderBar(); if (this.S.winner) return this._finish(this.S.winner); if (E.active(this.S).team === 'foe') this._runEnemy(); }
   async _runEnemy() {
     this.busy = true; this._renderBar();
     while (this.S.phase === 'enemy' && !this.S.winner) {
       for (const step of E.aiPlan(this.S)) {
         if (this.S.winner) break;
+        const u = E.active(this.S);
         if (step.type === 'end') { E.endTurn(this.S); break; }
-        if (step.type === 'move') { const u = E.active(this.S); this.anim = { id: u.id, from: { x: u.x, y: u.y }, to: { x: step.x, y: step.y }, start: performance.now(), dur: 200 }; E.aiStep(this.S, step); await wait(230); this.anim = null; }
-        else { E.aiStep(this.S, step); this._syncTop(); await wait(340); }
+        if (step.type === 'move') { this.anim = { id: u.id, from: { x: u.x, y: u.y }, to: { x: step.x, y: step.y }, start: performance.now(), dur: 220 }; E.aiStep(this.S, step); await wait(250); this.anim = null; }
+        else { E.aiStep(this.S, step); this._syncTop(); await wait(330); }
       }
-      await wait(110);
+      await wait(120);
     }
     this.busy = false; this._syncTop(); this._renderBar();
     if (this.S.winner) this._finish(this.S.winner);

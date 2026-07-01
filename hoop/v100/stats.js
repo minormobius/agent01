@@ -200,7 +200,11 @@ export function deriveCombat(character, { weapon = null, armour = null } = {}) {
   const accuracy = +(0.6 + a.cogit * 0.018).toFixed(2);                       // cognition → hit chance
   const crit = +(0.03 + a.nerve * 0.006).toFixed(3);                          // nerve → crit
   const fluxPool = ri(a.flux * 1.5 + a.core * 0.5);                           // technomagic budget
-  return { hp, atk, def, speed, accuracy, crit, fluxPool, power: character.power };
+  // apow — ANIMA spell power: the damage scalar for technomagic (ranged/AoE) attacks, the anima cousin of
+  // `atk`. Lance/Blast scale off this, so anima-heavy casts (Drift) get real ranged offense. (Backported
+  // from the rind/combat kernel when the continuum engine was vendored in.)
+  const apow = ri(BASE_ATK + a.cogit * 0.35 + a.core * 0.3 + a.flux * 0.2);
+  return { hp, atk, def, speed, accuracy, crit, fluxPool, apow, power: character.power };
 }
 
 const STATS = { TRIAD, ATTRS, VOCATIONS, CASTS, CONVERSIONS, rollCharacter, deriveAttrs, deriveCombat, castOf };
