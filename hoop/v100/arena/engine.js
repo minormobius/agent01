@@ -90,7 +90,7 @@ export function skillsFor(unit) {
 // a unit's actual flux cost for a skill (faction discount applied). Pure.
 export const costOf = (unit, skillId) => discountedCost(unit.faction, skillId, SKILLS[skillId]?.cost || 0);
 
-export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent, summoned = false, ai = null, kit = null, mods = null }) {
+export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent, summoned = false, ai = null, kit = null, mods = null, body = 'solid', footprint = 1 }) {
   const cm0 = combat || deriveCombat(character || { attrs: {}, power: 10 });
   const st = (mods && mods.stat) || {};      // tech-tree stat deltas (tree.js buildLoadout)
   const cm = { hp: cm0.hp + (st.hp || 0), atk: cm0.atk + (st.atk || 0), def: cm0.def + (st.def || 0), speed: +(cm0.speed + (st.speed || 0)).toFixed(2), accuracy: cm0.accuracy, crit: cm0.crit, fluxPool: cm0.fluxPool + (st.flux || 0), apow: (cm0.apow ?? cm0.atk) + (st.apow || 0), power: cm0.power };
@@ -98,6 +98,7 @@ export function makeUnit({ id, name, team, faction, character, combat, x, y, spr
   return {
     id, name, team, faction: fac ? faction : null, character, sprite, summoned,
     ai, kit, mods,   // per-unit overrides: AI archetype + skill kit (summons) + tech-tree mods (passive deltas read via passiveOf)
+    body, footprint,   // DISTRIBUTED BODY: body:'swarm' resists single-target hits + occupies a HP-scaled area (footprint)
     glyph: glyph || (fac ? fac.glyph : (team === 'player' ? '☻' : '☗')),
     accent: accent || (fac ? fac.accent : (team === 'player' ? '#f4bf62' : '#cf3b3b')),
     maxhp: cm.hp, hp: cm.hp, atk: cm.atk, def: cm.def, speed: cm.speed, accuracy: cm.accuracy, crit: cm.crit,
@@ -261,6 +262,18 @@ function effectiveDef(u) {
   return d;
 }
 
+// ── DISTRIBUTED BODY (the swarm) ─────────────────────────────────────────────────────────────────
+// A swarm is a CLOUD, not a point. A single-target blow (sword, bolt) catches only the few bees in its
+// path → heavy RESIST; an AoE (Blast) engulfs the whole cloud → BONUS. This is what makes a sword feel
+// wrong on a swarm and a blast feel right. It's RESIST, never immunity, so single-target grinding still
+// works (slowly) and the solver can always certify. The cloud also SHRINKS as it dies: its area (sting
+// reach) tracks HP, so a dwindling swarm is easier to escape and stings less.
+export const SWARM_POINT_RESIST = 0.5;    // single-target damage vs a swarm body ×0.5
+export const SWARM_AREA_BONUS = 1.35;     // area (Blast) damage vs a swarm body ×1.35 — 2.7× a poke
+const isSwarm = (u) => u && u.body === 'swarm';
+// the swarm's live area radius: base footprint scaled by remaining size (fuller cloud = wider reach).
+export function swarmReach(u) { const hp = u.maxhp > 0 ? u.hp / u.maxhp : 1; return (u.footprint || 1.9) * (0.45 + 0.55 * hp); }
+
 function applyStatus(tgt, kind, turns, amt) {
   const cur = tgt.status[kind];
   tgt.status[kind] = { turns: Math.max(turns, cur?.turns || 0), amt: amt ?? cur?.amt };
@@ -283,6 +296,7 @@ function resolveAttack(s, atk, tgt, skillId, isCounter = false) {
   const markBonus = tgt.status.mark?.turns > 0 ? (1 + (tgt.status.mark.amt || 0.25)) : 1;
   let dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * (crit ? 2 : 1)));
   if (s.det) dmg = Math.max(1, Math.round(dmg * acc * (1 + critChance)));   // fold P(hit)+E(crit) into expected damage
+  if (isSwarm(tgt)) dmg = Math.max(1, Math.round(dmg * SWARM_POINT_RESIST));   // a point blow catches only a few bees
   tgt.hp = Math.max(0, tgt.hp - dmg);
   if (sk.status) applyStatus(tgt, sk.status, sk.sturns || 2, sk.amt);
   log(s, `${atk.name} ${sk.label}${crit ? ' (crit!)' : ''}${flank ? ' (flank)' : ''} → ${tgt.name} −${dmg}`, crit ? 'crit' : 'hit');
@@ -293,6 +307,25 @@ function resolveAttack(s, atk, tgt, skillId, isCounter = false) {
     resolveAttack(s, tgt, atk, 'strike', true);
   }
   return { hit: true, crit, dmg, target: tgt.id, flank };
+}
+
+// the SWARM's area sting: every foe inside the (HP-shrunk) cloud takes a physical chip. A dwindling swarm
+// stings weaker AND over a smaller reach (swarmReach), so killing bees genuinely defangs it — the "handle
+// it without AoE" answer is attrition + kiting out of the cloud.
+function swarmSting(s, u) {
+  u.acted = true;
+  const R = swarmReach(u), hpFrac = u.maxhp > 0 ? u.hp / u.maxhp : 1;
+  const hits = enemiesOf(s, u).filter((e) => inRange(u, e, R));
+  const results = hits.map((e) => {
+    const power = u.atk * (0.35 + 0.4 * hpFrac) * berserkMult(u);
+    let dmg = Math.max(1, Math.round((power - effectiveDef(e) * 0.5) * (s.det ? Math.min(1, u.accuracy) : (0.8 + s.rng() * 0.4))));
+    e.hp = Math.max(0, e.hp - dmg);
+    if (e.hp <= 0) { e.alive = false; log(s, `${e.name} falls.`, 'down'); }
+    return { hit: true, dmg, target: e.id };
+  });
+  log(s, `${u.name} stings — ${results.length} caught in the cloud`, 'hit');
+  checkEnd(s);
+  return { type: 'sting', unit: u.id, results, center: { x: u.x, y: u.y }, radius: R };
 }
 
 // apply one action for the active unit. Returns an event for the UI to animate.
@@ -409,6 +442,7 @@ function dealMagic(s, atk, tgt, mult, label = 'Blast') {
   const markBonus = tgt.status.mark?.turns > 0 ? (1 + (tgt.status.mark.amt || 0.25)) : 1;
   let dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * (crit ? 2 : 1)));
   if (s.det) dmg = Math.max(1, Math.round(dmg * Math.min(1, atk.accuracy) * (1 + atk.crit)));
+  if (isSwarm(tgt)) dmg = Math.round(dmg * SWARM_AREA_BONUS);   // area magic engulfs the whole cloud
   tgt.hp = Math.max(0, tgt.hp - dmg);
   log(s, `${atk.name} ${label}${crit ? ' (crit!)' : ''} → ${tgt.name} −${dmg}`, crit ? 'crit' : 'hit');
   if (tgt.hp <= 0) { tgt.alive = false; log(s, `${tgt.name} falls.`, 'down'); }
@@ -515,7 +549,7 @@ export function aiPlan(s) {
       seq.push({ type: '__lance', targetId: target.id });
     } else {
       if (!inRange(u, target, 1)) closeTo(2 * UNIT_R);
-      seq.push({ type: '__attack_adjacent', targetId: target.id });
+      seq.push({ type: '__sting', targetId: target.id });   // the cloud STINGS everyone inside its reach — an area chip, not a single poke
     }
   } else { // aggro (rindwalker / default)
     if (!inRange(u, target, 1)) closeTo(2 * UNIT_R);
@@ -540,6 +574,11 @@ export function aiStep(s, step) {
       return act(s, { type: 'skill', skillId: id, targetId: tgt.id });
     }
     return { type: 'noop' };
+  }
+  if (step.type === '__sting') {   // the SWARM's signature: sting every foe standing inside the cloud
+    if (!u || u.acted) return { type: 'noop' };
+    if (enemiesOf(s, u).some((e) => inRange(u, e, swarmReach(u)))) return swarmSting(s, u);
+    return { type: 'noop' };       // the player kited clear of the cloud — a wasted buzz (the kite counterplay)
   }
   if (step.type === '__feint_adjacent') {
     const tgt = unitById(s, step.targetId);

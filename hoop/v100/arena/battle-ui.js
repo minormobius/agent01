@@ -79,7 +79,8 @@ export class BattleOverlay {
   // a swarm unit is a LIVE boids cloud (v3/swarm.js): one small sim per unit, its bees stamped each frame
   // over a footprint of board — so the swarm literally OCCUPIES a spread, and never buzzes the same way twice.
   _drawBoids(ctx, u, cx, cy, b, genome) {
-    const D = Math.max(44, 3.4 * b.sc);                       // on-board diameter (a wide diffuse cloud)
+    const hpFrac = u.maxhp > 0 ? Math.max(0.15, u.hp / u.maxhp) : 1;   // the cloud SHRINKS as it dies (mirrors swarmReach)
+    const D = Math.max(30, 3.4 * b.sc * (0.55 + 0.45 * hpFrac));       // on-board diameter (a wide diffuse cloud)
     let sw = this.swarms.get(u.id);
     if (!sw || sw._D !== Math.round(D)) { sw = new Swarm({ width: D, height: D, count: genome.count || 22, seed: genome.seed }); sw._D = Math.round(D); this.swarms.set(u.id, sw); }
     sw.setTarget(D / 2, D / 2); sw.step(this._dt);

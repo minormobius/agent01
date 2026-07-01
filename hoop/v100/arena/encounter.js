@@ -67,7 +67,7 @@ export function creepFor(worldSeed, chunkId, room, deck = 0) {
   // overrides the universal set (engine.skillsFor reads it); `ai:'swarm'` (engine aiPlan) picks blast vs
   // lance by how clustered the targets are; `mods` gives it the flux + apow to cast and thins its guard.
   const swarm = plan === 'swarm'
-    ? { kit: ['strike', 'lance', 'blast'], ai: 'swarm', footprint: 1.9, mods: { stat: { flux: 18, apow: 5, def: -1, hp: -4 }, passive: { fluxRegen: 3 } } }
+    ? { kit: ['strike', 'lance', 'blast'], ai: 'swarm', body: 'swarm', footprint: 1.9, mods: { stat: { flux: 18, apow: 5, def: -1, hp: -4 }, passive: { fluxRegen: 3 } } }
     : {};
   // a humanoid creep may be a PERSON MORPH: normal · robot (grey/red-eye) · wraith (pale-blue). Deterministic.
   const morph = plan === 'humanoid' ? [null, null, 'robot', 'wraith'][(fseed >>> 14) % 4] : null;
