@@ -19,7 +19,7 @@ const TAU = Math.PI * 2;
 const wrap = (a) => ((a % TAU) + TAU) % TAU;
 function mulberry32(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
-export const WEAVE_DEFAULTS = { rings: 1, spacing: 30, width: 6, flatR: 0.16, jitter: 0.18, layers: 4, seed: 1 };
+export const WEAVE_DEFAULTS = { rings: 1, spacing: 30, width: 6, flatR: 0.16, maxGrade: 0.6, jitter: 0.18, layers: 4, seed: 1 };
 export const VREF_SPACING = 30;   // reference areal spacing that pins the prism thickness (4 decks, ~98 tall)
 export const chunkCount = (rings) => 3 * rings * rings + 3 * rings + 1;
 const HEXR_AT = (rings) => 320 * (1.5 * rings + 1) / 2.5;   // rings 0/1/2 → hexR 128 / 320 / 512
@@ -43,19 +43,43 @@ export function buildGeometry(seed = WEAVE_DEFAULTS.seed, opts = {}) {
   };
 }
 
-// ── the centrelines (flat core → spiral + over/under undulation). Pure functions of the family + flatR. ──
+// ── the centrelines: a TRUE over/under weave outside a flat no-weave core. Each thread's height has a ZERO-GRADE
+// flat AT every crossing (a peak where it passes OVER, a trough where UNDER, by plain-weave parity), grade-limited
+// ramps between, amplitude growing toward the rim (crossings crowd the centre) — ported from foam3d. White-over ⟺
+// production-under at every shared crossing, so white and production genuinely swap top/bottom as they weave. ──
 export function weaveLines(geo, opts = {}) {
   const { family, thickness: T, R, NW, NF } = geo;
   const flatR = Math.max(0, Math.min(0.7, opts.flatR ?? WEAVE_DEFAULTS.flatR));
-  const zMid = T / 2, ampZ = 0.20 * T, zBias = 0.34 * T, Sxz = family.turnsW + family.turnsP, { turnsW, turnsP, phaseW, phaseP, spin } = family;
+  const maxGrade = opts.maxGrade ?? WEAVE_DEFAULTS.maxGrade;
+  const zMid = T / 2, Amax = 0.46 * T, zBias = 0.42 * T, { turnsW, turnsP, phaseW, phaseP, spin } = family;
+  const S = turnsW + turnsP, ph = (phaseW - phaseP) / TAU, Kmax = Math.ceil(Math.abs(S)) + 2;
   const g = (rf) => (rf <= flatR ? 0 : (rf - flatR) / (1 - flatR));
+  const rfOfG = (gg) => flatR + gg * (1 - flatR);
   const aW = (w, rf) => wrap((w + 0.5) * TAU / NW + phaseW - spin * turnsW * TAU * g(rf));
   const aP = (f, rf) => wrap((f + 0.5) * TAU / NF + phaseP + spin * turnsP * TAU * g(rf));
-  const zW = (w, rf) => { const gg = g(rf); return zMid + (1 - gg) * zBias + gg * ampZ * Math.cos(TAU * Sxz * gg + w * TAU / NW); };
-  const zP = (f, rf) => { const gg = g(rf); return zMid - (1 - gg) * zBias - gg * ampZ * Math.cos(TAU * Sxz * gg + f * TAU / NF); };
+  const parityOver = (w, f, k) => ((((w + f + k) % 2) + 2) % 2) === 0;   // white-over ⟺ (w+f+k) even
+  // all crossings of a thread (solve aW(w,·)=aP(f,·) mod TAU per winding k), as {rf, over}, sorted centre→rim
+  const crossW = (w) => { const out = []; for (let f = 0; f < NF; f++) for (let k = -Kmax; k <= Kmax; k++) { const gg = ((w + 0.5) / NW - (f + 0.5) / NF + ph - k) / (spin * S); if (gg > 0.015 && gg < 0.999) out.push({ rf: rfOfG(gg), over: parityOver(w, f, k) }); } return out.sort((a, b) => a.rf - b.rf); };
+  const crossP = (f) => { const out = []; for (let w = 0; w < NW; w++) for (let k = -Kmax; k <= Kmax; k++) { const gg = ((w + 0.5) / NW - (f + 0.5) / NF + ph - k) / (spin * S); if (gg > 0.015 && gg < 0.999) out.push({ rf: rfOfG(gg), over: !parityOver(w, f, k) }); } return out.sort((a, b) => a.rf - b.rf); };
+  // horizontal arc-length LUT (for grade capping) + collapse crossings closer than a hair so no ramp is pinned tiny
+  const arcLUT = (turns) => { const M = 200, a = new Float64Array(M + 1); let s = 0; for (let i = 1; i <= M; i++) { const rf = i / M; s += Math.hypot(R, rf * R * turns * TAU) / M; a[i] = s; } return a; };
+  const wArc = arcLUT(turnsW), pArc = arcLUT(turnsP);
+  const arcAt = (lut, rf) => { const M = lut.length - 1, x = Math.max(0, Math.min(1, rf)) * M, i = Math.floor(x), t = x - i; return i >= M ? lut[M] : lut[i] + (lut[i + 1] - lut[i]) * t; };
+  const collapse = (cl) => { const out = []; for (const c of cl) { const p = out[out.length - 1]; if (p && c.rf - p.rf < 0.6 / geo.layers / 6) continue; out.push(c); } return out; };
+  // control points: flat-core hub (signed toward its floor) + each crossing (a zero-grade flat) + rim; every flat's
+  // amplitude capped so a smoothstep ramp to its neighbours holds ≤ maxGrade (peak slope = 1.5·Δz/d; Δz≈2·amp ⇒ amp≤grade·d/3)
+  const capCtl = (cl, arc, hubSign) => {
+    const flats = collapse(cl), Sf = (rf) => arcAt(arc, rf);
+    const seq = [{ rf: flatR, s: hubSign }, ...flats.map((c) => ({ rf: c.rf, s: c.over ? 1 : -1 })), { rf: 1, s: flats.length ? (flats[flats.length - 1].over ? 1 : -1) : hubSign }];
+    const amp = seq.map((c, k) => { const dP = k > 0 ? Sf(c.rf) - Sf(seq[k - 1].rf) : Infinity, dN = k < seq.length - 1 ? Sf(seq[k + 1].rf) - Sf(c.rf) : Infinity; return Math.min(k === 0 ? zBias : Amax, (maxGrade / 3) * Math.min(dP, dN)); });
+    return seq.map((c, k) => ({ rf: c.rf, z: zMid + c.s * amp[k] }));
+  };
+  const interp = (pts, rf) => { if (rf <= pts[0].rf) return pts[0].z; if (rf >= pts[pts.length - 1].rf) return pts[pts.length - 1].z; let i = 0; while (i < pts.length - 1 && pts[i + 1].rf < rf) i++; const a = pts[i], b = pts[i + 1], t = (rf - a.rf) / ((b.rf - a.rf) || 1); return a.z + (b.z - a.z) * (t * t * (3 - 2 * t)); };
+  const wCtl = Array.from({ length: NW }, (_, w) => capCtl(crossW(w), wArc, 1)), pCtl = Array.from({ length: NF }, (_, f) => capCtl(crossP(f), pArc, -1));
+  const zW = (w, rf) => interp(wCtl[w], rf), zP = (f, rf) => interp(pCtl[f], rf);
   const lineW = (w, rf) => [rf * R * Math.cos(aW(w, rf)), rf * R * Math.sin(aW(w, rf)), zW(w, rf)];
   const lineP = (f, rf) => [rf * R * Math.cos(aP(f, rf)), rf * R * Math.sin(aP(f, rf)), zP(f, rf)];
-  return { flatR, g, aW, aP, zW, zP, lineW, lineP };
+  return { flatR, maxGrade, g, aW, aP, zW, zP, lineW, lineP };
 }
 
 // ── STAGE 3: spines (connected paths) + geodesic grow ⇒ continuous regions ──

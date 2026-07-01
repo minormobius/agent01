@@ -28,6 +28,14 @@
 > that fragment a thread. A bounded **repair pass** bridges what it can *without* breaking continuity (continuity
 > wins the tie), so K(6,8) lands ~44–48/48 (48 on many seeds) and is reported raw. Three-stage API:
 > `buildGeometry` → `buildCells` → `layWeave` (geometry+Voronoi cached; the flood re-runs cheaply on width/flatR).
+>
+> **A TRUE over/under weave (`weaveLines`, ported from foam3d).** Outside the flat no-weave core each thread
+> undulates ceiling↔floor with a **zero-grade flat at every crossing** (peak = over, trough = under, plain-weave
+> parity), grade-limited ramps between, amplitude growing toward the rim (crossings crowd the centre). So **top
+> threads genuinely become bottom threads** — white sweeps ~0→100% of the thickness — while the `maxGrade` cap
+> keeps it walkable (measured ≤ ~0.44). The flat core (rf < flatR) stays white-high / production-low, no weave.
+> The honest cost: a real weave separates a few crossings by a deck too far to touch, so K(6,8) is a touch lower
+> than the flat two-deck version (best in the roomier families, e.g. 19-chunk / width-4: 46–48/48).
 
 > **NOW IN 3D — a PANCAKE.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating
