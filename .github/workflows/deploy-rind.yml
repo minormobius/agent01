@@ -2,7 +2,7 @@ name: Deploy Rind
 
 on:
   push:
-    branches: [main, 'claude/rind-deploy-surface-layout-fknwls']
+    branches: [main, 'claude/rind-deploy-endpoint-aj9ky5']
     paths:
       - 'rind/**'
       - '.github/workflows/deploy-rind.yml'

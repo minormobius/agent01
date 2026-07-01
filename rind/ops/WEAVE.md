@@ -1,5 +1,34 @@
 # rind/ops — the white-collar weave (the theory)
 
+> **THE ONE-DOOR RESOLUTION (`onedoor.html` · `rind.mino.mobi/ops/onedoor.html`; kernel `onedoor.js`, proof
+> `test/onedoor.selftest.mjs`).** The hard spec line — *wayfinding from ANY point in the chunk to ANY other point
+> passes through only ONE door, including the two central hubs* — is now true **by construction and proven**, not
+> "≈ one door". Why it was stuck: the per-thread door graph (`cells3d.routeMinDoors`) counts a door as *crossing
+> into a different **thread***, and the 6 white arms all spiral the same way out of the top hub so **no white arm
+> ever crosses another white arm** — white·i → white·j shares no door and must detour through a production arm (2
+> doors); same for the 8 production arms; the interstitial matrix is a third region on top. So same-colour trips
+> cost ≥2 and the honest max was up to 4. It's a property of how doors are **counted**, not of the geometry.
+> **The fix collapses the walkable space to exactly TWO door-free concourses joined only by controlled doors:** the
+> WHITE concourse = the 6 arms **+ the nave (top) hub**, ONE connected door-free region (open plates throughout);
+> the PRODUCTION concourse = the 8 arms + the bottom hub, ONE connected door-free region on the floor stratum; and
+> **the only doors in the whole chunk are the 48 K(6,8) crossings**, each a single **zero-grade** doorway at the
+> flat the weave already lands there — every other white/production plate is a **wall** (the rind rule: walls are
+> the default, doors are deliberately-placed gaps). Then within a colour → **0 doors**, across colours → **exactly
+> 1** (walk your concourse free to the nearest crossing, cross once, walk free), so **max over ALL pairs, incl. both
+> hubs, = 1** — the structural proof (two 0-connected regions + ≥1 door ⇒ max 1) *and* an exhaustive-ish measurement
+> agree, pinned across seeds/widths/chunks. The "6 arms / 8 arms" survive as a wayfinding **identity overlay** (which
+> arm tours which engines — the tour is unchanged), not as walls. **How it's built** (`onedoor.js`): (a)
+> `assignConcourses` hard-binds every ARM-owned cell to its colour — so NO K crossing is ever lost — and floods only
+> the interstitial matrix to the nearest colour, which stitches the same-colour arms into one component through their
+> hub; (b) `placeDoors` opens, per (w,f), the single flattest white-w↔prod-f adjacency (the zero-grade doorway); (c)
+> `certify` proves whiteConnected ∧ prodConnected ∧ maxDoors===1 ∧ hubs-one-door. **Honest tensions kept raw:**
+> K lands **~44–48/48** (a few crossings have no adjacency — widen / add decks) and a handful of doors are genuine
+> over/under **stairs** rather than zero-grade (drawn dashed-red) — these are QUALITY metrics, reported but *not*
+> part of the one-door proof, which holds no matter how many of the 48 a seed opens. The next lever, if we want
+> 48/48 truly at grade, is a **meet-at-grade weave** (both threads pass through mid-height with a flat at each
+> crossing instead of over/under parity) — a local `onedoor` centreline variant that would not touch `prism`'s
+> over/under art piece.
+
 > **THE SUBSTRATE REBUILD (`prism.html` · `rind.mino.mobi/ops/prism.html`).** The weave is being re-founded on a
 > proper **hexagonal prism of homogeneously spaced nodes** (`prism.js`, HCP packing — every interior node has 12
 > neighbours at the same distance; `prism.selftest.mjs` proves the prism is thick enough that **no Voronoi cell

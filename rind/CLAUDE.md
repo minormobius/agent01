@@ -32,7 +32,11 @@ JS → emit a frame model → solve for stress):
   machine / hub), and a **stair to the other-layer partner = the white×production facility** (the K(6,8) contact
   made architectural) — except the two hubs, which get no stair so they stay disconnected. A weave-cell is a
   **hexagon of chunks** — `foam3d`'s `rings` param (the `⬡ chunks` button) cuts it into a **centered-hexagonal
-  number** (1·7·19·37, `3n²+3n+1`); a bigger cell gets more windings. **`tess.html`/`tess-app.js`** shows how the
+  number** (1·7·19·37, `3n²+3n+1`); a bigger cell gets more windings. **`onedoor.html`/`onedoor-app.js`** (kernel `onedoor.js`) is the **one-door endpoint**: it re-poses the *same* prism
+  weave as **two door-free concourses** (6 white arms + nave hub · 8 production arms + bottom hub) joined only by the
+  48 zero-grade K(6,8) doors — so **any room → any room is ≤1 door, including the hubs**, proven by
+  `onedoor.selftest.mjs` (the per-thread graph in `cells3d` only reaches "≈1 door", max up to 4, because same-colour
+  arms never cross; the concourse layer fixes it by construction). **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate**: a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family
@@ -73,6 +77,7 @@ of hoop; it is the shell, tide/biome are the air/life inside it. Keep the cross-
 ( cd rind/solver/cylinder-solver && cargo test )   # the solver math, offline
 node rind/solver/foam-preview.mjs                  # headless foam → frame model preview
 node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no deps)
+node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any→any ≤1 door incl. hubs (two concourses)
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
 node rind/ops/test/decks.selftest.mjs              # the region-decks comparison view
