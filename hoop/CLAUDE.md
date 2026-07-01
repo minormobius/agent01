@@ -376,17 +376,22 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-surface-setup-xd0mqo` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-v101-audit-docs-xb82fs` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
-  `/vNNN/records` + `/vNNN/feed` to their `.html`; assets are relative). **`v098` is the stable
-  TEST surface** (hoopy's content/story testbed — leave it stable); **`v099` is the DEVELOPMENT
-  surface** (disruptive map work, new government/worship fixtures, deepened combat). Each surface
-  namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never collide with
-  the test surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/` and
-  `hoop:vNN:`→`hoop:vMM:` in the copy, add the two clean-URL rewrites in `worker.js`.
+  `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v101` is the
+  DEVELOPMENT surface** (carries the audited story engine: scaled storyboard pacing, external-reps
+  gate channel, end-goto validator fix, both-schemas importer). v098/v099 are frozen priors. Each
+  surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
+  collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
+  and `hoop:vNN:`→`hoop:vMM:` in the copy, add the clean-URL rewrites in `worker.js`.
+- **World docs at `/docs`** (`hoop/docs/index.html`): the world-side documentation — the whole
+  scope of the world (decks, story spine, minigames, food economy), every workflow that feeds it,
+  the v101 audit findings, and the roadmap (overworld; garden/cafe/kitchen overhaul). Keep it
+  current when the surfaces or workflows change.
 - **v096 live inference (phase 2+, NOT yet wired into `worker.js`):** the worker will gain
   `GEMINI_API_KEY` (set out-of-band via `wrangler secret put`, never committed — the borges rule) to
   drive the segregated `story/llm/` adapter. Until set, the adapter is the disabled stub and the game

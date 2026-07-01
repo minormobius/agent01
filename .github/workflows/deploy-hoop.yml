@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-v100-deploy-pifsq9']
+    branches: [main, 'claude/hoop-v101-audit-docs-xb82fs']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'
