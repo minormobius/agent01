@@ -44,6 +44,12 @@
 > ~100% of crossings show white & production ≥ 0.8 deck apart, alternating over/under — while the width tube stays
 > thick enough (~2 decks) to keep them touching, so continuity + K(6,8) survive. Peel the top decks (viewer's
 > "peel" slider) to watch office threads pass over and under the production threads.
+>
+> **THREAD COUNTS are a lever too (Nyquist).** A white thread crosses all NF productions per lap, so its over/under
+> z-signal runs at ~NF cycles/lap; at NF=8 that aliases below the node grid ("one swirl"). Drop to a **3×3** (the
+> `weave` slider) and crossings-per-lap fall ~2.7×, each thread gets ~2.6× the nodes (725 vs 278), and the weave
+> resolves cleanly — K(3,3)=9/9, continuous, foam solid. `NW`/`NF` clamp to [2 … 6/8] and default to the full
+> K(6,8); `buildGeometry` just slices the warp/weft lists. Pinned in `weave3d.selftest`.
 
 > **NOW IN 3D — a PANCAKE.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating

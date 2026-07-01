@@ -52,6 +52,15 @@ ok(sepFrac(wv8) >= 0.8, `★ 8 decks resolve the weave — ${(sepFrac(wv8) * 100
 ok(sepFrac(wv8) > sepFrac(wv4), 'more decks ⇒ more crossings resolved (thickness is the lever)');
 ok(wv8.metrics.continuous && wv8.metrics.contacts >= 44, `still continuous + K(6,8) intact at 8 decks (${wv8.metrics.k68Pairs})`);
 
+// ══ THREAD-COUNT lever (Nyquist): fewer threads ⇒ fewer crossings/lap ⇒ the weave resolves, each thread gets more
+// nodes, and the smaller complete bipartite graph K(NW,NF) is realised in full. ══
+const w33 = buildWeave3D(3, { rings: 2, spacing: 34, width: 4, flatR: 0.25, layers: 8, NW: 3, NF: 3 });
+ok(w33.NW === 3 && w33.NF === 3 && w33.warps.length === 3 && w33.wefts.length === 3, 'the thread-count lever builds a 3×3 weave');
+ok(w33.metrics.continuous && w33.metrics.k68, `3×3 realises the full K(3,3) = ${w33.metrics.k68Pairs}, continuous`);
+const nodesPer = (m) => { const c = m.metrics.counts.filter((x) => x > 0); return c.reduce((a, b) => a + b, 0) / c.length; };
+ok(nodesPer(w33) > 1.8 * nodesPer(wv8), `3×3 gives far more nodes per thread than 6×8 (${nodesPer(w33) | 0} vs ${nodesPer(wv8) | 0}) — resolution headroom`);
+ok(buildWeave3D(3, { NW: 2, NF: 2 }).metrics.k68 && buildWeave3D(3, { NW: 6, NF: 8 }).NW === 6, 'thread counts clamp to [2 … full] and default to K(6,8)');
+
 // ══ WIDTH lever: too thin ⇒ corridors leave matrix (and may miss crossings); wide ⇒ fills solid ══
 ok(M({ width: 3 }).matrixPct > M({ width: 12 }).matrixPct, 'thinner corridors leave more interstitial matrix');
 ok(M({ width: 12 }).matrixPct < 0.02, 'a wide weave fills essentially solid (matrix → 0)');

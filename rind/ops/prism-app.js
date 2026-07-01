@@ -8,7 +8,7 @@ import { buildCells, routeMinDoors, ownerKey } from './cells3d.js';
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
-let width = 6, spacing = 30, flatR = 0.16, rings = 1, layers = 8, spin = true, showThreads = false, showCells = true, routeMode = false, peel = 0;
+let width = 6, spacing = 30, flatR = 0.16, rings = 1, layers = 8, NW = 6, NF = 8, spin = true, showThreads = false, showCells = true, routeMode = false, peel = 0;
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -21,7 +21,7 @@ const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255
 const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const INK = [232, 236, 244], BG = [6, 7, 12], MATRIX = [44, 52, 70], GOLD = [255, 224, 122];
-geo = buildGeometry(seed, { rings, spacing, layers });   // initial geometry — warps/wefts are stable across every lever
+geo = buildGeometry(seed, { rings, spacing, layers, NW, NF });   // initial geometry
 const warpCol = (w) => mix(hex(geo.warps[w].color), INK, (w % 2) * 0.28);
 const prodCol = (f) => hex(geo.wefts[f].color);
 const ownerColor = (o) => o ? (o.kind === 'white' ? warpCol(o.idx) : prodCol(o.idx)) : MATRIX;
@@ -36,12 +36,19 @@ function convexHull(pts) {
   lo.pop(); up.pop(); return lo.concat(up);
 }
 
-// the 14 threads + the matrix as toggleable keys (stable — from geo)
-const whiteKeys = geo.warps.map((w) => 'w' + w.w), prodKeys = geo.wefts.map((f) => 'p' + f.f);
-const allThreads = [...whiteKeys, ...prodKeys];
+// the threads + the matrix as toggleable keys — REFRESHED when the thread counts (NW/NF) change
+let whiteKeys = [], prodKeys = [], allThreads = [], threadKey = '';
+const visible = new Set();   // threads on, matrix hidden
 const labelOf = (k) => k === 'matrix' ? 'matrix' : k[0] === 'w' ? geo.warps[+k.slice(1)].id : geo.wefts[+k.slice(1)].label;
 const colorKey = (k) => k === 'matrix' ? MATRIX : k[0] === 'w' ? warpCol(+k.slice(1)) : prodCol(+k.slice(1));
-const visible = new Set(allThreads);   // start: 14 threads on, matrix hidden
+function refreshThreads() {
+  whiteKeys = geo.warps.map((w) => 'w' + w.w); prodKeys = geo.wefts.map((f) => 'p' + f.f); allThreads = [...whiteKeys, ...prodKeys];
+  const key = allThreads.join(',');
+  if (key !== threadKey) { threadKey = key; visible.clear(); for (const k of allThreads) visible.add(k); buildChips();   // reset visibility on a count change
+    const gw = $('grpbtns').querySelector('[data-grp="whites"]'), go = $('grpbtns').querySelector('[data-grp="ops"]');
+    if (gw) gw.textContent = `whites (${whiteKeys.length})`; if (go) go.textContent = `ops (${prodKeys.length})`;
+  }
+}
 
 function proj(x, y, z, s) {
   const cy = Math.cos(yaw), sy = Math.sin(yaw); const x1 = x * cy - y * sy, y1 = x * sy + y * cy;
@@ -124,10 +131,10 @@ function panels() {
     <span class="k">on a thread (coverage)</span><span class="v">${pc(M.coverage)}</span>
     <span class="k">interstitial matrix</span><span class="v">${pc(M.matrixPct)}</span>
     <span class="k">dead threads</span><span class="${cls(M.deadThreads > 0)}">${M.deadThreads}/14</span>
-    <span class="k">K(6,8) crossings</span><span class="${cls(!M.k68)}">${M.k68Pairs}</span>
+    <span class="k">K(${geo.NW},${geo.NF}) crossings</span><span class="${cls(!M.k68)}">${M.k68Pairs}</span>
     <span class="k">anywhere→anywhere doors</span><span class="v">${M.avgDoors.toFixed(2)} avg · ${M.maxDoors} max</span>`;
   $('breaks').innerHTML = M.clean
-    ? `<div class="verdict ok">✓ every thread is one continuous corridor, every white touches every production (K(6,8)), foam solid</div>`
+    ? `<div class="verdict ok">✓ every thread is one continuous corridor, every white touches every production (K(${geo.NW},${geo.NF})), foam solid</div>`
     : `<div class="verdict bad">✗ ${M.breaks.length} issue${M.breaks.length === 1 ? '' : 's'}</div><ul>${M.breaks.map((b) => `<li>${b}</li>`).join('')}</ul>`;
   routePanel();
   $('note').innerHTML = `A TRUE over/under weave: outside the flat core every thread undulates ceiling↔floor with a zero-grade flat at each crossing (a peak where it goes over, a trough where under) — <b>top threads become bottom threads</b>, grade-capped so it stays walkable. Each thread is grown as ONE connected corridor (fair watershed over the 3D Voronoi foam) so it never fragments — <b>continuity guaranteed</b>; the cells pack the prism <b>solid</b> (${cellsModel ? (cellsModel.fillRatio * 100).toFixed(1) : '—'}%). <b>⇆ route</b>: click a <b style="color:#6ecf8a">start</b> then an <b style="color:#e678c8">end</b> — fewest thread-doors (your own corridor is free); anywhere→anywhere ≈ one door. seed ${seed}.`;
@@ -140,8 +147,9 @@ function routePanel() {
 }
 
 function rebuild() {
-  const key = `${seed}|${rings}|${spacing}|${layers}`;
-  if (key !== geomKey || !cellsModel) { geo = buildGeometry(seed, { rings, spacing, layers }); cellsModel = buildCells(geo); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
+  const key = `${seed}|${rings}|${spacing}|${layers}|${NW}|${NF}`;
+  if (key !== geomKey || !cellsModel) { geo = buildGeometry(seed, { rings, spacing, layers, NW, NF }); cellsModel = buildCells(geo); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
+  refreshThreads();
   const lines = weaveLines(geo, { flatR }), lay = layWeave(geo, cellsModel, lines, { width });   // cheap: re-runs on width/flatR only
   m = { ...geo, ...lines, flatR: lines.flatR, width, cells: cellsModel.cells, cellsModel, metrics: lay.metrics };
   if (routeA >= 0 && routeB >= 0) recomputeRoute();
@@ -153,6 +161,8 @@ function frame() { if (spin) yaw += 0.0035; draw(); requestAnimationFrame(frame)
 $('width').addEventListener('change', (e) => { width = +e.target.value; rebuild(); });   // on release (flood + K-repair)
 $('dens').addEventListener('change', (e) => { spacing = 104 - +e.target.value; rebuild(); });   // right = denser; rebuilds the 3D Voronoi
 $('decks').addEventListener('change', (e) => { layers = +e.target.value; $('decksV').textContent = layers; rebuild(); });   // thickness lever (rebuilds Voronoi)
+$('nw').addEventListener('change', (e) => { NW = +e.target.value; $('nwnfV').textContent = `${NW}×${NF}`; rebuild(); });   // thread-count lever (Nyquist)
+$('nf').addEventListener('change', (e) => { NF = +e.target.value; $('nwnfV').textContent = `${NW}×${NF}`; rebuild(); });
 $('flat').addEventListener('change', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
 $('peel').addEventListener('input', (e) => { peel = (+e.target.value) / 100; $('peelV').textContent = `${((1 - peel) * geo.layers).toFixed(1)} decks`; });   // pure view — no rebuild
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
@@ -190,4 +200,6 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.5, M
 
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; }
 addEventListener('resize', resize);
-$('width').value = width; $('decks').value = layers; $('decksV').textContent = layers; $('peelV').textContent = `${geo.layers.toFixed(1)} decks`; rebuild(); buildChips(); resize(); frame();
+$('width').value = width; $('decks').value = layers; $('decksV').textContent = layers;
+$('nw').value = NW; $('nf').value = NF; $('nwnfV').textContent = `${NW}×${NF}`; $('peelV').textContent = `${geo.layers.toFixed(1)} decks`;
+rebuild(); resize(); frame();
