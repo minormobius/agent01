@@ -138,7 +138,8 @@
     <tr><th>Loop</th><th>How</th></tr>
     <tr><td><b>The Director pulse</b></td><td>a cron (§7) folds every player's <code>story.save</code> records into one world-pulse record on morphyx; the game and the generation lane read it as "what the world is feeling" — the steer.</td></tr>
     <tr><td><b>The rumor mill</b></td><td>players publish <code>story.rumor</code> records (sightings · divinations · inkblots); verdict sweeps apply retcons and notices back into live saves on load, refocus, and a 60&nbsp;s poll.</td></tr>
-    <tr><td><b>The generation lane</b></td><td>optional (<code>/api/story/sidequest</code>, Gemini behind a secret): the worker generates a personal side-quest arc, runs it through the <i>same</i> review gate, and the browser freezes approved arcs to the player's own repo. No key ⇒ the adapter is a disabled stub and the game is purely procedural.</td></tr>
+    <tr><td><b>The generation lane</b> <span class="tag open">retired experiment</span></td><td>a one-off v096 test we moved away from — <b>there is no inference in the hot path, by design</b>. The <code>/api/story/sidequest</code> worker route still exists (fully guarded; a stub without its key) but no shipped surface drives it. All live content is authored canon through the review gate.</td></tr>
+    <tr><td><b>The solvability oracle</b></td><td><code>story/solvable.js</code> — proves from content alone that every tier's turn-in can actually be reached: every gate has a keeper, every keeper is placeable when needed, every zone is open in time (§8). Its runtime half (<code>requiredKeeperIds</code>) force-places the active anchor's keepers past the tier filter. Run it against the live pool: <code>node hoop/scripts/prove-solvable.mjs</code>.</td></tr>
     <tr><td><b>The spine guarantee</b></td><td>each deck carries a load-bearing NPC quest (<code>story/deckquest.js</code>); the deck-stacking guarantee keeps every deck's quest completable regardless of order. Spec + demo at <a href="/v101/spine">/v101/spine</a>.</td></tr>
   </table>
   <p class="lead">Deep dives: <a href="/v101/records">records &amp; lexicons</a> (the ATProto contract),
@@ -204,7 +205,9 @@
   <code>chunkroller</code> · <code>forge</code> ~400 checks). All green as of the v101 audit. The known gap:
   no DOM/canvas coverage — a Playwright lane is a roadmap item (§9).</p>
   <pre><span class="c"># run everything (from the repo root)</span>
-for t in hoop/test/*.selftest.mjs hoop/v101/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done</pre>
+for t in hoop/test/*.selftest.mjs hoop/v101/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
+<span class="c"># prove the LIVE campaign is progressable (reads the morphyx pool, read-only, exits non-zero on a wall)</span>
+node hoop/scripts/prove-solvable.mjs</pre>
 
   <h2 id="audit">8 · The v101 audit — findings &amp; fixes</h2>
   <p class="lead">A full sweep over the game, the story engine, the corpus, the tests and the
@@ -219,6 +222,7 @@ for t in hoop/test/*.selftest.mjs hoop/v101/test/*.selftest.mjs; do node "$t" ||
     <tr><td><b>The review gate had no channel for faction rep.</b> One NPC gates on <code>min_rep: drift ≥ 1</code>; rep is granted by the game's campaign, never by pool records — so the reachability check called it an orphan and BLOCKed the canon.</td><td><code>gates.js</code> accepts <code>external.reps</code>; <code>WORLD_REPS</code> declares the runtime-granted factions; <code>worldExternal(content)</code> also unions the <i>derived</i> runtime boundary (~90 journey flags) so the static manifest can't rot again.</td></tr>
     <tr><td><b>The dialogue validator flagged vacuous gotos.</b> hoopy's convention stamps ending choices with a filler <code>goto</code> + <code>effects.end</code>; the walker never follows it, but the static check raised 53 false ERRORs.</td><td><code>validate.js</code> skips the goto check on choices that end the conversation.</td></tr>
     <tr><td><b>Two root test suites had been red since June 18</b> (they pinned the old 75-record export after the corpus swap).</td><td>rewritten against the 600-record reality; all 90 suites green.</td></tr>
+    <tr><td><b>The Kaelen Voss soft-lock — the first chunk was unsolvable.</b> The quest waypoint names its keeper from content ("find Kaelen Voss, keeper of the Rivet Chancel"), but placement draws from the tier-filtered pool — and Kaelen Voss is a narrative_tier-2 NPC gating the <i>tier-1</i> turn-in. Named by the quest, invisible to placement: he could never spawn. The same class recurs at tier 3 (two tier-4 keepers).</td><td>the <b>quest solvability oracle</b> (<code>story/solvable.js</code>, 21-check selftest incl. a frozen pin of the live chain): proves every tier's gates have a placeable, reachable keeper — the story-side cousin of the puzzle certifier and the combat solver. Its runtime half (<code>requiredKeeperIds</code>) makes <code>populateChambers</code> force-place the active anchor's unmet gate setters past the tier filter, scattered across the deck's chambers. <code>hoop/scripts/prove-solvable.mjs</code> runs the proof against the live pool.</td></tr>
   </table>
 
   <h3>For hoopy — content defects in the canon <span class="tag content">14 NPCs</span></h3>
@@ -234,6 +238,20 @@ for t in hoop/test/*.selftest.mjs hoop/v101/test/*.selftest.mjs; do node "$t" ||
   <p class="lead">Most look like endings missing their <code>end: true</code> flag (gotos named
   <code>leave</code>/<code>leave_v</code>) or references to nodes that were renamed. The exact list is
   pinned by <code>hoop/test/import.selftest.mjs</code> — fixing one in the corpus will show up there.</p>
+  <h3>For hoopy — the solvability oracle's findings on the live pool <span class="tag content">2 dead gates</span></h3>
+  <p class="lead">Running <code>prove-solvable.mjs</code> against the live morphyx pool (1309 records,
+  4 anchors): two turn-in gates have <b>no setter anywhere in the pool</b> — no code can fix these,
+  only content:</p>
+  <table>
+    <tr><th>Gate</th><th>Blocks</th><th>What's needed</th></tr>
+    <tr><td><code>flag.rind.rindwalker_scale_a</code></td><td>Sevin's tier-3 turn-in (the faction choice)</td><td>a keeper NPC in the upper rind whose dialogue sets it</td></tr>
+    <tr><td><code>flag.signal.chamber_key</code></td><td>Luna's tier-4 turn-in (the chapter close)</td><td>a keeper NPC in the lower rind whose dialogue sets it</td></tr>
+  </table>
+  <p class="lead">Also worth retuning (the game now tolerates these by force-placing, but the tiers read
+  as authoring slips): <b>Kaelen Voss</b> (The Rivet Chancel) is narrative_tier 2 on a tier-1 gate;
+  <b>Joran Vell</b> (The Tensile Granary) and <b>Tamsin Rook</b> (The Cambium Ward) are tier 4 on tier-3
+  gates. The frozen pin lives at <code>v101/test/fixtures/live-chain.json</code> — after repairing the
+  pool, re-freeze it and the selftest's defect list shrinks with it.</p>
 
   <h3>Known-open (documented, deliberate) <span class="tag open">open</span></h3>
   <table>
@@ -277,7 +295,7 @@ for t in hoop/test/*.selftest.mjs hoop/v101/test/*.selftest.mjs; do node "$t" ||
     <tr><td><a href="/research.html">/research.html</a></td><td>the scientific dossier over the three modelling wings</td></tr>
     <tr><td><code>/ws</code></td><td>the live-presence WebSocket (HoopRoom Durable Object; identity via the shared auth worker)</td></tr>
     <tr><td><code>/api/presence/health</code> · <code>/api/story/health</code></td><td>health checks</td></tr>
-    <tr><td><code>/api/story/sidequest</code> · <code>/api/story/embed</code></td><td>the guarded generation lane (POST; disabled stub without a key)</td></tr>
+    <tr><td><code>/api/story/sidequest</code> · <code>/api/story/embed</code></td><td>the retired v096 generation-lane experiment (POST; guarded stub — no shipped surface calls it; the hot path is inference-free by design)</td></tr>
   </table>
 
   <p class="lead" style="margin-top:34px; border-top:1px solid var(--line); padding-top:14px;">

@@ -384,7 +384,11 @@ despite the name. It stayed with hoop, not rind.)
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
   the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v101` is the
   DEVELOPMENT surface** (carries the audited story engine: scaled storyboard pacing, external-reps
-  gate channel, end-goto validator fix, both-schemas importer). v098/v099 are frozen priors. Each
+  gate channel, end-goto validator fix, both-schemas importer, and the **quest solvability oracle**
+  `v101/story/solvable.js` — proves every anchor tier's gates have a placeable keeper; its
+  `requiredKeeperIds` makes `populateChambers` force-place load-bearing keepers past the tier filter
+  (the Kaelen Voss soft-lock fix). Prove the live pool: `node hoop/scripts/prove-solvable.mjs`).
+  v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
   and `hoop:vNN:`→`hoop:vMM:` in the copy, add the clean-URL rewrites in `worker.js`.

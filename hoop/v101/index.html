@@ -537,6 +537,7 @@
     import { CHOICE_FACTIONS, WITNESS_TARGET, FACTION_INFO, witnessCount, allWitnessed, chosenFaction, witnessProgress, isChoiceFaction } from './story/factionchoice.js';   // v100: the UPPER-RIND THRESHOLD — witness each faction ×3, then choose; the choice colors the lower-rind descent
     import { CHAMBER_LORE_TARGET, chamberLore, signalLocated, chapterComplete, finalChoice, lunaContact, FINAL_CHOICES, weighJourney, concludeEnding } from './story/conclusion.js';   // v100: THE CHAPTER CLOSE — locate the Signal Chamber, Luna's contact, the final decision, an ending fitted to the path
     import { anchorChain, anchorForTier, gateSetters, advanceState, nextKeeper, tierFromClears, endingBeat, chosenDisposition, chosenFactionFlag } from './story/anchors.js';   // v100: hoopy's ANCHOR-TURN-IN advancement — keeper flags gate an anchor's turn-in; the turn-in sets flag.deck.<deck>.cleared (the level-up) + directs you on
+    import { requiredKeeperIds } from './story/solvable.js';   // v101: the quest solvability oracle's runtime half — the active anchor's unmet gate setters, force-placed past the tier filter (the Kaelen Voss fix)
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -4211,9 +4212,30 @@
       // crowd's authored voices, never pinned (discoverNpc rejects them anyway).
       const pool = story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
         .filter((c) => !disc[c.id] && !(c.content && c.content.ambient) && meetsState(gstate, c.requires || {})).sort((a, b) => (a.id < b.id ? -1 : 1));
-      if (!pool.length) return;
       const painted = world.chunks.filter((ch) => ch.painted && ch.poly);
       if (!painted.length) return;
+      // LOAD-BEARING KEEPERS FIRST (solvable.js): the active anchor's unmet gate setters MUST be
+      // seated regardless of the tier filter above — queryContent hides e.g. a narrative_tier-2
+      // keeper whose flag gates the tier-1 turn-in (the Kaelen Voss / Rivet Chancel soft-lock: the
+      // quest names a keeper the pool could never place). Fetch them BY ID and seat each in a
+      // hash-scattered chamber on the player's deck (quota-exempt — they ARE the quest). Runs before
+      // the pool early-return: required keepers are usually NOT in the tier-filtered pool at all.
+      try {
+        const facts = story.store.getFacts(story.playerId);
+        for (const rid of requiredKeeperIds(story.anchors || [], story.gateSetters || {}, facts, p.narrative_tier || 1)) {
+          if (disc[rid]) continue;
+          const npc = story.store.contentById(rid);
+          if (!npc || (npc.content && npc.content.ambient)) continue;
+          const pd = playerDeck();
+          const cands = painted.filter((ch) => (ch.deck || 0) === pd).concat(painted.filter((ch) => (ch.deck || 0) !== pd));
+          const off = cands.length ? hashId(npc.id) % cands.length : 0;   // scatter, don't clump — exploration stays the forcing function
+          for (let i = 0; i < cands.length; i++) {
+            const ch = cands[(off + i) % cands.length];
+            if (embiggenKeeper(npc, ch.id, ch.deck || 0)) { haveByChunk.set(ch.id, (haveByChunk.get(ch.id) || 0) + 1); break; }
+          }
+        }
+      } catch (e) {}
+      if (!pool.length) return;
       // ROUND-ROBIN BY LEVEL so the spread is EVEN, not front-loaded. The level-1 BREADTH pass is uncapped
       // (≤15 cheap promotions) so every chamber is GUARANTEED its keeper in the first call; deeper levels are
       // paced by MAX. Level 1 seeds every chamber with its first keeper before any gets a second.
