@@ -1,6 +1,6 @@
 // nave.selftest.mjs — floor 1's seven-chunk faction arrangement.
 //   node hoop/nave/test/nave.selftest.mjs
-import { buildNave, naveLinks, FACTIONS, BIOMES, biomeForChunk } from '../nave.js';
+import { buildNave, naveLinks, FACTIONS, BIOMES, biomeForChunk, UNIVERSAL } from '../nave.js';
 import { ROLES } from '../../v099/econ/econ.js';
 
 let pass = 0, fail = 0;
@@ -53,10 +53,13 @@ for (let i = 1; i <= 6; i++) {
   const rs = rolesIn(i), m = nave.meta[i], f = FACTIONS[m.faction];
   ok(rs.has('dwell'), `ward ${i} (${m.key}) has housing`);
   ok(rs.has(m.exclusive), `ward ${i} (${m.key}) has its exclusive ${m.exclusive}`);
-  // no role outside {dwell} ∪ faction.shared ∪ faction.exclusives
-  const allowed = new Set(['dwell', ...f.shared, ...f.exclusives]);
+  // every ward carries the universal civic triad (produce · care · exchange) — so the dwell→work→third loop
+  // closes in every ward (serve is the third-place that the Rindwalker·mend ward used to lack).
+  for (const u of UNIVERSAL) ok(rs.has(u), `ward ${i} (${m.key}) has the universal '${u}'`);
+  // no role outside {dwell} ∪ universal ∪ faction.shared ∪ faction.exclusives
+  const allowed = new Set(['dwell', ...UNIVERSAL, ...f.shared, ...f.exclusives]);
   const rogue = [...rs].filter((r) => !allowed.has(r));
-  ok(rogue.length === 0, `ward ${i} (${m.key}) has only its faction's roles (rogue: ${rogue.join(',') || 'none'})`);
+  ok(rogue.length === 0, `ward ${i} (${m.key}) has only its faction's roles + the civic triad (rogue: ${rogue.join(',') || 'none'})`);
 }
 
 // 7) determinism
