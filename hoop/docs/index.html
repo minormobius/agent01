@@ -222,26 +222,20 @@ node hoop/scripts/prove-solvable.mjs</pre>
     <tr><td><b>The review gate had no channel for faction rep.</b> One NPC gates on <code>min_rep: drift ≥ 1</code>; rep is granted by the game's campaign, never by pool records — so the reachability check called it an orphan and BLOCKed the canon.</td><td><code>gates.js</code> accepts <code>external.reps</code>; <code>WORLD_REPS</code> declares the runtime-granted factions; <code>worldExternal(content)</code> also unions the <i>derived</i> runtime boundary (~90 journey flags) so the static manifest can't rot again.</td></tr>
     <tr><td><b>The dialogue validator flagged vacuous gotos.</b> hoopy's convention stamps ending choices with a filler <code>goto</code> + <code>effects.end</code>; the walker never follows it, but the static check raised 53 false ERRORs.</td><td><code>validate.js</code> skips the goto check on choices that end the conversation.</td></tr>
     <tr><td><b>Two root test suites had been red since June 18</b> (they pinned the old 75-record export after the corpus swap).</td><td>rewritten against the 600-record reality; all 90 suites green.</td></tr>
+    <tr><td><b>Tombstoned records were being referenced.</b> hoopy soft-deletes in place — a nuked record stays in <code>listRecords</code> with <code>status:'retired'</code>. The audit's own tooling gated a <i>stale</i> statusless export and flagged retired NPCs (e.g. a level-2 Elara Vance) as live defects. The live game was always correct (<code>servePool</code> drops retired); the tooling wasn't.</td><td>one <code>isTombstoned()</code> predicate now covers every tombstone form (<code>retired</code>/<code>tombstoned</code>/<code>deleted</code> + explicit flags); <code>servePool</code> applies it before anything is gated; and it's pinned against real served data (a tombstoned keeper is dropped, its gate reported honestly dead — never flagged as a live NPC).</td></tr>
     <tr><td><b>The Kaelen Voss soft-lock — the first chunk was unsolvable.</b> The quest waypoint names its keeper from content ("find Kaelen Voss, keeper of the Rivet Chancel"), but placement draws from the tier-filtered pool — and Kaelen Voss is a narrative_tier-2 NPC gating the <i>tier-1</i> turn-in. Named by the quest, invisible to placement: he could never spawn. The same class recurs at tier 3 (two tier-4 keepers).</td><td>the <b>quest solvability oracle</b> (<code>story/solvable.js</code>, 21-check selftest incl. a frozen pin of the live chain): proves every tier's gates have a placeable, reachable keeper — the story-side cousin of the puzzle certifier and the combat solver. Its runtime half (<code>requiredKeeperIds</code>) makes <code>populateChambers</code> force-place the active anchor's unmet gate setters past the tier filter, scattered across the deck's chambers. <code>hoop/scripts/prove-solvable.mjs</code> runs the proof against the live pool.</td></tr>
   </table>
 
-  <h3>For hoopy — content defects in the canon <span class="tag content">14 NPCs</span></h3>
-  <p class="lead">With the manifest fixed, the review gate closes every reachability question on the
-  720-record corpus except <b>20 genuinely broken dialogue gotos</b>: choices that advance to a node
-  that doesn't exist and do <i>not</i> end the conversation. The runtime degrades gracefully (the
-  conversation falls back to its start — a reset, not a crash), but each is a dead end the player can
-  feel. The NPCs to repair:</p>
-  <p class="lead"><code>Olo Vashti</code> · <code>Factor Merid Solen</code> · <code>Elara Vance</code> ·
-  <code>Tamsin Rill</code> · <code>Cassian Vell</code> · <code>Kael</code> · <code>Cassian</code> ·
-  <code>Miren Solas</code> · <code>Jory Bram</code> · <code>Vora</code> · <code>Cassia Morn</code> ·
-  <code>Wren</code> · <code>Zephyr</code> · <code>Veyra Sol</code></p>
-  <p class="lead">Most look like endings missing their <code>end: true</code> flag (gotos named
-  <code>leave</code>/<code>leave_v</code>) or references to nodes that were renamed. The exact list is
-  pinned by <code>hoop/test/import.selftest.mjs</code> — fixing one in the corpus will show up there.</p>
+  <h3>For hoopy — broken dialogue gotos: none on live content <span class="tag fixed">clean</span></h3>
+  <p class="lead">An earlier draft of this page listed ~14 NPCs with broken dialogue gotos. That list was
+  <b>stale</b> — it was computed over a pre-tombstone snapshot, and <b>every one of those records has since
+  been tombstoned</b> (they were flagged only because the tooling read retired records). On the live
+  <i>served</i> pool (tombstones dropped) there are <b>zero</b> broken gotos. Nothing to repair here — the
+  tooling was reading nuked content, which is now fixed above.</p>
   <h3>For hoopy — the solvability oracle's findings on the live pool <span class="tag content">2 dead gates</span></h3>
-  <p class="lead">Running <code>prove-solvable.mjs</code> against the live morphyx pool (1309 records,
-  4 anchors): two turn-in gates have <b>no setter anywhere in the pool</b> — no code can fix these,
-  only content:</p>
+  <p class="lead">Running <code>prove-solvable.mjs</code> against the live morphyx pool (1309 records →
+  the served <b>active</b> pool once ~720 tombstones are dropped; 4 anchors): two turn-in gates have <b>no
+  active setter anywhere in the pool</b> — no code can fix these, only content:</p>
   <table>
     <tr><th>Gate</th><th>Blocks</th><th>What's needed</th></tr>
     <tr><td><code>flag.rind.rindwalker_scale_a</code></td><td>Sevin's tier-3 turn-in (the faction choice)</td><td>a keeper NPC in the upper rind whose dialogue sets it</td></tr>

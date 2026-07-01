@@ -174,22 +174,35 @@ export function expandRecord(rec, opts = {}) {
   return [importRecord(rec, opts)];
 }
 
+// THE TOMBSTONE PREDICATE — the single source of truth for "this record is soft-deleted, never serve it."
+// hoopy soft-deletes in place (the record STAYS in listRecords), so every read path MUST agree on what a
+// tombstone looks like or a nuked record leaks back into the game (this is exactly the "flagging a retired
+// NPC as level two" bug: the tooling gated a record hoopy had already tombstoned). We accept every
+// convention seen or likely — the canonical `status:'retired'`, plus `tombstoned`/`deleted`, plus an
+// explicit `tombstone:true` flag and a `deletedAt` timestamp — so a future tombstone form can't slip past.
+const TOMBSTONE_STATUS = new Set(['retired', 'tombstoned', 'deleted']);
+export function isTombstoned(ci) {
+  if (!ci) return true;
+  return TOMBSTONE_STATUS.has(ci.status) || ci.tombstone === true || ci.deleted === true || ci.deletedAt != null;
+}
+
 // SERVING RULES for the LIVE service repo (the records `loadPool` reads back, already in engine field-shape:
 // {id, type, content, tags, *_tier, status, …}). hoopy's 2026-06 model stores his RAW records there and
 // SOFT-deletes by setting status:'retired' (a "nuke" tombstones in place — the records STAY in listRecords),
 // so a clean served pool is:
-//   1. DROP retired tombstones (else a republish double-serves old + new).
+//   1. DROP tombstones (isTombstoned — else a republish double-serves old + new, and stale/nuked content
+//      leaks back into the gate, the oracle, and the game).
 //   2. EXPLODE room_bundle → npc + lore_fragment   (the principals + their ground).
 //   3. MAP wanderer → ambient npc                  (the authored crowd one-liners).
 //   4. pass everything else through VERBATIM — it is already engine-shaped, and re-normalizing it through
 //      importRecord would drop fields the records legitimately carry (e.g. plot_beat.conclusion, the ending
 //      tree). The two raw types are the only ones the engine can't read directly.
 // Pure; the same rules the engine, gates, and the filter projection all see. Idempotent on an already-served
-// pool (no room_bundle/wanderer/retired left to transform).
+// pool (no room_bundle/wanderer/tombstone left to transform).
 export function servePool(items, opts = {}) {
   const out = [];
   for (const ci of items || []) {
-    if (!ci || ci.status === 'retired') continue;
+    if (isTombstoned(ci)) continue;
     if (ci.type === 'room_bundle') { out.push(...expandRoomBundle(ci, opts)); continue; }
     if (ci.type === 'wanderer') { out.push(...expandWanderer(ci, opts)); continue; }
     out.push(ci);

@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { proveProgression, requiredKeeperIds, ZONE_TIER } from '../story/solvable.js';
 import { anchorChain, gateSetters } from '../story/anchors.js';
-import { servePool } from '../story/import.js';
+import { servePool, isTombstoned } from '../story/import.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -111,6 +111,29 @@ const conclusion = { id: 'pb-end', type: 'plot_beat', status: 'active', tags: ['
   noTurnin.content.npc.dialogue.nodes.turnin.choices = [{ id: 'fin', text: 'done', effects: { end: true } }];
   const rep = proveProgression([noTurnin, keeper('k1', 'Kip', 'commons', 'flag.commons.x'), conclusion]);
   ok(codes(rep, 'error').includes('anchor_no_turnin'), 'an anchor whose turn-in clears nothing is caught (anchor_no_turnin)');
+}
+
+// ── 2b. TOMBSTONES ARE NEVER REFERENCED (the "flagging a retired NPC" bug) ──
+// hoopy soft-deletes in place: a nuked record STAYS in listRecords with status:'retired'. Every read
+// path must drop it, or a tombstoned NPC/gate gets flagged as live (a keeper you're told to find who no
+// longer exists). isTombstoned is the single predicate; servePool applies it before anything else sees
+// the pool. Pinned across every tombstone convention so a future form can't leak.
+{
+  ok(isTombstoned({ status: 'retired' }) && isTombstoned({ status: 'tombstoned' }) && isTombstoned({ status: 'deleted' }), 'retired/tombstoned/deleted statuses are tombstones');
+  ok(isTombstoned({ tombstone: true }) && isTombstoned({ deleted: true }) && isTombstoned({ deletedAt: '2026-07-01' }), 'explicit tombstone flags/timestamps are tombstones');
+  ok(!isTombstoned({ status: 'active' }) && !isTombstoned({}), 'active (and status-less) records are live');
+  // a tombstoned keeper — even one that sets a live gate — must NOT survive serving, so the oracle/game
+  // can never name it. (Kaelen Voss ships as an ACTIVE room_bundle; a stray retired npc copy is dropped.)
+  const live = anchor('a1', 'Olo', 1, 'commons', ['flag.commons.x'], 'commons');
+  const deadKeeper = { ...keeper('k-dead', 'Ghost of Kaelen', 'commons', 'flag.commons.x'), status: 'retired' };
+  const liveKeeper = keeper('k-live', 'Kip', 'commons', 'flag.commons.x');
+  const served = servePool([live, deadKeeper, liveKeeper]);
+  ok(!served.some((c) => c.id === 'k-dead'), 'servePool drops a tombstoned keeper before the pool is ever gated');
+  ok(gateSetters(served)['flag.commons.x']?.name === 'Kip', 'the gate resolves to the LIVE keeper, never the tombstoned one');
+  // and if the tombstone were the ONLY setter, the gate is honestly reported dead (not silently satisfied)
+  const orphaned = servePool([live, deadKeeper]);
+  ok(proveProgression([...orphaned, conclusion]).errors.some((i) => i.code === 'gate_no_setter'),
+    'a gate whose only setter is tombstoned is reported dead, not falsely closed');
 }
 
 // ── 3. requiredKeeperIds — the runtime bypass list ──

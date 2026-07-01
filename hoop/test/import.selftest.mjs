@@ -61,14 +61,19 @@ ok(AXIS_MAP.power_tier === 'revelation_tier' && AXIS_MAP.plot_tier === 'power_ti
   ok(byType.rumor === 80 && byType.npc === 120 && byType.item === 120 && byType.creature === 80 && byType.lore_fragment === 160 && byType.plot_beat === 40,
     `his type mix preserved (${JSON.stringify(byType)})`);
   ok(content.every((c) => c.content && c.content.name && c.revelation_tier >= 1), 'every item has content + a tier');
-  // worldExternal(content) = static manifest ∪ derived runtime boundary ∪ faction reps. With it the
-  // gate closes every reachability question — the ONLY survivors are hoopy's 20 known dialogue-tree
-  // defects (choices whose goto names a node that doesn't exist and that do NOT end the conversation;
-  // the runtime degrades these by falling back to the tree's start). Pinned exactly so a corpus edit
-  // that fixes (or adds) one shows up here.
+  // worldExternal(content) = static manifest ∪ derived runtime boundary ∪ faction reps. With it the gate
+  // closes every REACHABILITY question — no orphan_gate survives. That is the real thing this proves.
+  //
+  // NB — this v096 export is a HISTORICAL, pre-tombstone snapshot (every record is statusless). Its only
+  // surviving conflicts are `tree_missing_goto` — but those live entirely in records hoopy has since
+  // TOMBSTONED in the live pool (status:'retired'). The live game never sees them: servePool drops
+  // tombstones, and on the served (active) pool there are ZERO broken gotos. So we assert the gate CLOSES
+  // (no orphans) and that nothing worse than a stale-snapshot goto remains — we do NOT pin their count or
+  // names as if they were live defects (that was the "flagging a retired NPC" bug). The tombstone-drop
+  // invariant itself is pinned in hoop/v101/test/solvable.selftest.mjs against real served data.
   const rep = reviewBatch([], content, [], { external: worldExternal(content) });
-  ok(rep.conflicts.every((c) => c.code === 'tree_missing_goto'), `no reachability orphans remain — every gate closes (${JSON.stringify([...new Set(rep.conflicts.map((c) => c.code))])})`);
-  ok(rep.conflicts.length === 20, `exactly the 20 known broken-goto content defects survive (${rep.conflicts.length})`);
+  ok(!rep.conflicts.some((c) => c.code === 'orphan_gate'), 'no reachability orphans remain — every gate closes on the manifest');
+  ok(rep.conflicts.every((c) => c.code === 'tree_missing_goto'), `the only survivors are stale-snapshot dialogue gotos (${JSON.stringify([...new Set(rep.conflicts.map((c) => c.code))])})`);
   // and WITHOUT the world manifest it correctly flags the runtime-flag orphans (the boundary works both ways)
   const bare = reviewBatch([], content, []);
   ok(bare.verdict === 'BLOCK' && bare.conflicts.some((c) => c.code === 'orphan_gate'), 'without the world manifest, the journey-flag gates are (correctly) orphans');
