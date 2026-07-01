@@ -8,7 +8,7 @@ import { buildCells, routeMinDoors, ownerKey } from './cells3d.js';
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
-let width = 6, spacing = 30, flatR = 0.16, rings = 1, spin = true, showThreads = false, showCells = true, routeMode = false;
+let width = 6, spacing = 30, flatR = 0.16, rings = 1, spin = true, showThreads = false, showCells = true, routeMode = false, peel = 0;
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -59,15 +59,17 @@ function draw() {
 
   // prism faces + vertical edges
   const faceHex = (z, col, lw) => { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); m.footprint.forEach((v, i) => { const p = proj(v[0], v[1], z - zc, s); i ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); }); ctx.closePath(); ctx.stroke(); };
-  faceHex(0, rgba([90, 106, 140], 0.4), 1.2); faceHex(m.thickness, rgba([120, 138, 178], 0.5), 1.2);
-  ctx.strokeStyle = rgba([70, 84, 112], 0.3); ctx.lineWidth = 1; for (const v of m.footprint) { const a = proj(v[0], v[1], -zc, s), b = proj(v[0], v[1], zc, s); ctx.beginPath(); ctx.moveTo(a.X, a.Y); ctx.lineTo(b.X, b.Y); ctx.stroke(); }
+  const cutoff = (1 - peel) * m.thickness + m.thickness * 1e-3;   // peel top: hide chambers whose node z is above this
+  faceHex(0, rgba([90, 106, 140], 0.4), 1.2); faceHex(peel > 0 ? cutoff : m.thickness, rgba([120, 138, 178], 0.5), 1.2);
+  ctx.strokeStyle = rgba([70, 84, 112], 0.3); ctx.lineWidth = 1; for (const v of m.footprint) { const a = proj(v[0], v[1], -zc, s), b = proj(v[0], v[1], (peel > 0 ? cutoff : m.thickness) - zc, s); ctx.beginPath(); ctx.moveTo(a.X, a.Y); ctx.lineTo(b.X, b.Y); ctx.stroke(); }
+  if (peel > 0) faceHex(cutoff, rgba(GOLD, 0.45), 1.3);           // the cut plane
   if (m.flatR > 0) { ctx.strokeStyle = rgba(GOLD, 0.4); ctx.lineWidth = 1.2; ctx.setLineDash([5, 5]); ctx.beginPath(); const rr = m.flatR * m.R; for (let k = 0; k <= 48; k++) { const an = k / 48 * Math.PI * 2, p = proj(rr * Math.cos(an), rr * Math.sin(an), 0, s); k ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y); } ctx.stroke(); ctx.setLineDash([]); }
 
   pickCells = [];
   if (showCells && cellsModel) {
     // depth-sort the VISIBLE chambers (far → near) and fill their Voronoi polygons at their deck height
     const drawn = [];
-    for (const c of cellsModel.cells) { if (!visible.has(c.ownerKey)) continue; const pc = proj(c.x, c.y, c.z - zc, s); drawn.push({ c, depth: pc.depth, X: pc.X, Y: pc.Y }); }
+    for (const c of cellsModel.cells) { if (!visible.has(c.ownerKey) || c.z > cutoff) continue; const pc = proj(c.x, c.y, c.z - zc, s); drawn.push({ c, depth: pc.depth, X: pc.X, Y: pc.Y }); }
     drawn.sort((a, b) => a.depth - b.depth);
     for (const d of drawn) {
       const c = d.c, col = ownerColor(c.owner), sh = 0.5 + 0.5 * (d.depth / m.R + 1) / 2, inRoute = routeSet && routeSet.has(c.gi);
@@ -151,6 +153,7 @@ function frame() { if (spin) yaw += 0.0035; draw(); requestAnimationFrame(frame)
 $('width').addEventListener('change', (e) => { width = +e.target.value; rebuild(); });   // on release (flood + K-repair)
 $('dens').addEventListener('change', (e) => { spacing = 104 - +e.target.value; rebuild(); });   // right = denser; rebuilds the 3D Voronoi
 $('flat').addEventListener('change', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
+$('peel').addEventListener('input', (e) => { peel = (+e.target.value) / 100; $('peelV').textContent = `${((1 - peel) * geo.layers).toFixed(1)} decks`; });   // pure view — no rebuild
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
 $('cells').addEventListener('click', () => { showCells = !showCells; $('cells').classList.toggle('on', showCells); });
 $('route').addEventListener('click', () => { routeMode = !routeMode; $('route').classList.toggle('on', routeMode); if (!routeMode) { routeA = routeB = -1; theRoute = routeSet = null; } routePanel(); });
