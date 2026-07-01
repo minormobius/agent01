@@ -503,10 +503,11 @@
     import { shopStock, buyPrice, sellPrice, SHOP_SIZE } from './shop.js';   // the WARES market at the same desk — buy gear, sell loot
     import { CRYSTAL_SYSTEMS, RARITY_COLOR, RARITY_TIER, rollGem, gemBonus, sumBonus, socketCap, canGrow, growGems, gemGlyph, cssOf } from './gems.js';   // THE LAPIDARY (mend) — crystallography gem improvement
     import { DISH_MIN, DISH_MAX, cookScore, cookDish } from './garden/kitchen.js';   // the dwelling's storage fixture, grown into a KITCHEN — cook crops into flavor-scored dishes
-    import { createBattle } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
+    import { createBattle, UNIVERSAL } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, certifyPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight; certifyPack = the solver gate)
     import { buildSwarmGenome } from './v3/swarm.js';   // a player SUMMON renders as a grey/black robot drone swarm
     import { BattleOverlay } from './arena/battle-ui.js';   // the tactical-board UI, shared with /arena
+    import { newRun, loadoutOf, stageFoes, resolveStage, buyNode, treeView, finishRun } from './arena/run.js';   // the TRAINER fixture: a roguelike combat gauntlet over the per-faction tech tree (arena/tree.js)
     import { autoEquip, defaultPlan, slotForItem, SLOTS } from './bodyplan.js';   // equip the player/creep for battle
     import { rollItem } from './sprite/item/genome.js';   // mint a loot item from a spoils seed
     import { bakeFog } from './v8/bake.js';
@@ -1428,6 +1429,10 @@
         // the worship room's secondary fixture — geomancy in sand — marks its wall console with 🜨 at the tip.
         if (F.tip && fixtureAction((ch.rooms[F.room] || {}).role, 'wall') === 'geomancy') {
           g.save(); g.fillStyle = '#e0c98a'; g.font = `${Math.max(7, (SKIN.playerW || 6) * 0.9)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('🜨', F.tip.x, F.tip.y); g.restore();
+        }
+        // the play room's secondary fixture — the TRAINER (a combat training platform) — marks its wall console with ⚔ at the tip.
+        if (F.tip && fixtureAction((ch.rooms[F.room] || {}).role, 'wall') === 'trainer') {
+          g.save(); g.fillStyle = '#e58f6a'; g.font = `${Math.max(7, (SKIN.playerW || 6) * 0.9)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⚔', F.tip.x, F.tip.y); g.restore();
         }
       }
       for (const cp of P.comps) {
@@ -2700,6 +2705,7 @@
       if (story.active && story.active.chest) return renderChest();
       if (story.active && story.active.terminal) return renderTerminalPanel(panel);
       if (story.active && story.active.cafe) return renderCafePanel(panel);
+      if (story.active && story.active.trainer) return renderTrainerPanel(panel);
       if (!story.active) { hideStory(); panel.innerHTML = ''; return; }
       const { agent, npcId, intro } = story.active;
       const glyph = esc(agent.glyph || '☻'), close = `<button class="cl" data-close="1">close ⏎</button>`;
@@ -2800,6 +2806,10 @@
       }
       const eat = e.target.closest('[data-eat]');
       if (eat && story.active && story.active.cafe) { eatFood(+eat.dataset.eat); return; }
+      const tr = e.target.closest('[data-trainer]');
+      if (tr && story.active && story.active.trainer) { if (tr.dataset.trainer === 'start') beginRun(); else if (tr.dataset.trainer === 'fight') trainerFight(); return; }
+      const buy = e.target.closest('[data-buy]');
+      if (buy && story.active && story.active.trainer && trainerRun) { if (buyNode(trainerRun, buy.dataset.buy)) renderStory(); return; }
       const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
       if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack(); setChests(chestDeposit(getChests(), chestGid, it)); saveStory(); renderChest(); } return; }
       if (wd && chestGid) { const i = +wd.dataset.withdraw, r = chestWithdraw(getChests(), chestGid, i); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); persistPack(); saveStory(); renderChest(); } return; }
@@ -2929,6 +2939,14 @@
       if (!world) return null; const pd = playerDeck();
       for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
         for (const F of (P.fixtures || [])) { const role = (ch.rooms[F.room] || {}).role; if (fixtureAction(role, 'wall') !== 'geomancy' || !F.tip) continue;
+          if ((F.tip.x - wx) ** 2 + (F.tip.y - wy) ** 2 < (SKIN.playerW * 2.4) ** 2) return { x: F.tip.x, y: F.tip.y }; } }
+      return null;
+    }
+    // the play room's SECONDARY fixture: the TRAINER lives on the grown wall console (like geomancy/chest).
+    function trainerAt(wx, wy) {
+      if (!world) return null; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const F of (P.fixtures || [])) { const role = (ch.rooms[F.room] || {}).role; if (fixtureAction(role, 'wall') !== 'trainer' || !F.tip) continue;
           if ((F.tip.x - wx) ** 2 + (F.tip.y - wy) ** 2 < (SKIN.playerW * 2.4) ** 2) return { x: F.tip.x, y: F.tip.y }; } }
       return null;
     }
@@ -3745,12 +3763,18 @@
       const dom = playerChar && playerChar.cast && playerChar.cast.dominant;
       return TRIAD_FACTION[dom] || 'rindwalker';
     }
-    function buildPlayerUnit(c) {
+    function buildPlayerUnit(c, loadout) {
       const eq = effectiveEquip();   // fight with your ACTUAL gear (manually equipped, else auto-best)
       const combat = deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand });
       const gb = sumBonus([].concat(eq.mainhand && eq.mainhand.gems || [], eq.body && eq.body.gems || [], eq.offhand && eq.offhand.gems || []));
       combat.hp += gb.hp; combat.atk += gb.atk; combat.def += gb.def; combat.fluxPool += gb.flux;   // socketed-gem crystallography
-      return { id: 0, name: c.name, character: c, combat, faction: playerFaction(), sprite: { seed: c.sprite.seed, role: c.vocation }, glyph: '☻' };
+      const u = { id: 0, name: c.name, character: c, combat, faction: playerFaction(), sprite: { seed: c.sprite.seed, role: c.vocation }, glyph: '☻' };
+      // in the TRAINER gauntlet the hero fights with their tech-tree BUILD. The tree is ADDITIVE over the
+      // universal kit (so a fresh run is never weaker than a baseline fighter — it just lacks the tree's
+      // special verbs); owning nodes grants extra verbs (lance/blast/summon/gore…) + stat/passive mods.
+      // World fights pass no loadout, so the player keeps the plain universal ∪ faction kit.
+      if (loadout) { u.kit = [...new Set([...UNIVERSAL, ...loadout.kit])]; u.mods = loadout.mods; }
+      return u;
     }
     function teleportTo(x, y) {
       const nd = nearestDeckNode(x, y); if (nd < 0 || !walk) return;
@@ -3795,6 +3819,103 @@
         flashBusy('⚔ you fall — and wake in your quarters, shaken (−health, −food)', 3600);
       }
       battleCtx = null;
+    }
+
+    // ── THE TRAINER (play.wall fixture): a roguelike combat GAUNTLET over the per-faction tech tree
+    //    (arena/tree.js + arena/run.js). Step in → fight an escalating, solver-gated ladder → each win
+    //    banks tree POINTS (spend between fights) + drops a REWARD ITEM into your pack + a coin bounty; a
+    //    loss ends the run. The tree build lives and dies with the run (roguelike), so it never touches
+    //    the world's persistent combat. Reward LOOT always persists. PERSISTENCE HOOK below.
+    let trainerRun = null, trainerRunCount = 0, trainerBattleCtx = null, lastRunSummary = null;
+    const TRAINER_PERSIST = false;   // false = roguelike (build resets each run). Flip → a durable tech-tree build.
+    // the persistence seam: seed a run FROM / save it BACK to a per-faction build on story facts. Only these
+    // two functions change to turn roguelike → persistent (see tree.js/run.js headers — source-agnostic).
+    function loadTrainerBuild(faction) {
+      if (!TRAINER_PERSIST || !story.ready) return {};
+      const saved = getJSONFact('trainer.build.' + faction, null);
+      return saved && Array.isArray(saved.owned) ? { owned: saved.owned, points: saved.points | 0 } : {};
+    }
+    function saveTrainerBuild(run) {
+      if (!TRAINER_PERSIST || !story.ready) return;
+      const fin = finishRun(run);
+      story.store.setFact(story.playerId, 'trainer.build.' + run.faction, JSON.stringify({ owned: fin.owned, points: fin.points }));
+      saveStory();
+    }
+    function openTrainer() {
+      if (!story.ready) return;
+      const c = playerChar || loadCharacter();
+      if (!c) { flashBusy('⚔ roll a character first — ⛨ equip'); return; }
+      if (trainerRun && trainerRun.faction !== playerFaction()) trainerRun = null;   // a run is per-faction
+      story.active = { trainer: true }; renderStory();
+    }
+    function beginRun() {
+      const faction = playerFaction();
+      let rs = 2166136261; for (const ch of (worldKey() + ':train:' + (++trainerRunCount))) rs = Math.imul(rs ^ ch.charCodeAt(0), 16777619);
+      trainerRun = newRun(faction, { seed: rs >>> 0, ...loadTrainerBuild(faction) });
+      lastRunSummary = null; renderStory();
+    }
+    function trainerFight() {
+      if (!trainerRun || trainerRun.over || battleOpen) return;
+      const c = playerChar || loadCharacter(); if (!c) return;
+      const player = buildPlayerUnit(c, loadoutOf(trainerRun));   // fight with your TECH-TREE build (kit + mods)
+      const { foes, seed, deck } = stageFoes(trainerRun, player, { packFor: creepPack, certify: certifyPack });
+      trainerBattleCtx = { stage: trainerRun.stage, deck };
+      const state = createBattle({ player, foes, seed, W: 14, H: 10 });
+      story.active = null; hideStory();
+      battleOpen = true; $('battle').classList.add('on');
+      if (!battleView) battleView = new BattleOverlay($('battle'), { spriteFor: battleSpriteFor });
+      battleView.start(state, resolveTrainerBattle);
+    }
+    function resolveTrainerBattle(winner) {
+      battleOpen = false; $('battle').classList.remove('on');
+      const ctx = trainerBattleCtx || { stage: 0, deck: 0 }; trainerBattleCtx = null;
+      const won = winner === 'player';
+      const sp = spoilsFor(trainerRun.seed, ctx.stage, 0, ctx.deck);   // reward: an item seed + a coin bounty
+      const r = resolveStage(trainerRun, won, sp.itemSeed);
+      if (won) {
+        let it = null; try { it = rollItem(sp.itemSeed); } catch (e) {}
+        if (it) { addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack(); }   // loot ALWAYS persists
+        setCoins(getCoins() + sp.coins);
+        flashBusy(`⚔ stage ${ctx.stage + 1} cleared — +${r.points}⬡ point${r.points === 1 ? '' : 's'} · +◈${sp.coins}${it ? ` · ${it.name}` : ''}`, 3200);
+      } else {
+        flashBusy('⚔ you fall — the run ends. The loot you banked is yours to keep.', 3200);
+      }
+      if (trainerRun.over) { lastRunSummary = finishRun(trainerRun); saveTrainerBuild(trainerRun); }
+      saveStory(); draw();
+      story.active = { trainer: true }; renderStory();
+    }
+    const TRAINER_BRANCH_COL = { A: '#e0a86a', B: '#7fb8d8' };
+    function renderTrainerPanel(panel) {
+      const faction = trainerRun ? trainerRun.faction : playerFaction();
+      const close = `<button class="cl" data-close="1">close ⏎</button>`;
+      const head = `<div class="nm" style="color:#e58f6a">⚔ the training platform</div>`;
+      if (!trainerRun || trainerRun.over) {   // idle / between-runs: last-run summary + begin
+        let sum = '';
+        if (lastRunSummary) { const L = lastRunSummary;
+          sum = `<p class="says" style="font-style:normal;font-size:12px;color:${L.cleared ? '#8fd0a0' : '#c9a86a'}">${L.cleared ? 'You topped the ladder.' : 'The run ended.'} Reached stage ${L.stage + 1}, banked ${L.rewards.length} spoil${L.rewards.length === 1 ? '' : 's'}.</p>`; }
+        panel.innerHTML = close + head
+          + `<div class="rl">${esc(faction)} · a roguelike combat gauntlet${TRAINER_PERSIST ? '' : ' — the build resets each run'}</div>`
+          + sum
+          + `<p class="says" style="font-style:normal;font-size:12px;color:#9aa8a0">Fight an escalating, solver-tuned ladder. Each win banks a skill point (spend it on your ${esc(faction)} tree between fights) and drops a reward item into your pack. A loss ends the run — but the loot is yours.</p>`
+          + `<div style="margin-top:8px"><button data-trainer="start" style="background:#241b15;color:#f0a86a;border:1px solid #6a4a3a;border-radius:6px;font:inherit;font-size:13px;padding:8px 14px;cursor:pointer">▶ begin a run</button></div>`;
+        showStory('solo'); return;
+      }
+      const v = treeView(trainerRun), tiers = {};
+      for (const n of v.nodes) (tiers[n.tier] || (tiers[n.tier] = [])).push(n);
+      let tree = '';
+      for (const t of Object.keys(tiers).sort((a, b) => a - b)) {
+        const row = tiers[t].map((n) => {
+          const bcol = n.branch ? TRAINER_BRANCH_COL[n.branch] : '#cfd8d2', owned = n.state === 'owned', buyable = n.state === 'buyable';
+          const bg = owned ? '#1a2a1e' : buyable ? '#241f15' : '#15171b', bd = owned ? '#3a6a48' : buyable ? '#6a5a3a' : '#222b33', fg = owned ? '#8fd0a0' : buyable ? '#f4bf62' : '#52606a';
+          return `<button ${buyable ? `data-buy="${esc(n.id)}"` : 'disabled'} title="${esc(n.gloss || '')}" style="text-align:left;background:${bg};color:${fg};border:1px solid ${bd};border-radius:6px;font:inherit;font-size:11.5px;padding:5px 8px;cursor:${buyable ? 'pointer' : 'default'};display:flex;justify-content:space-between;gap:8px"><span style="color:${bcol}">${esc(n.label)}</span><span style="flex:0 0 auto">${owned ? '✓' : '⬡' + n.cost}</span></button>`;
+        }).join('');
+        tree += `<div style="margin-top:6px"><div style="font-size:10px;color:#6b7872;text-transform:uppercase;letter-spacing:.06em">tier ${t}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:3px">${row}</div></div>`;
+      }
+      panel.innerHTML = close + head
+        + `<div class="rl">${esc(faction)} · stage <b style="color:#cfd8d2">${trainerRun.stage + 1}</b> · streak ${trainerRun.streak} · <b style="color:#f4bf62">⬡ ${v.points}</b></div>`
+        + `<div style="margin-top:6px"><button data-trainer="fight" style="background:#2a1518;color:#f08a8a;border:1px solid #6a3a3a;border-radius:6px;font:inherit;font-size:13px;padding:8px 14px;cursor:pointer">⚔ fight stage ${trainerRun.stage + 1}</button></div>`
+        + `<div style="margin-top:4px">${tree}</div>`;
+      showStory('solo');
     }
 
     // ── the CAFE: a serve-role component is a food counter (the third live fixture). Each cafe is the
@@ -4292,6 +4413,8 @@
       if (term) { walkThenInteract(term.cp.cx, term.cp.cy, () => openTerminal(term.cp, term.ch)); return; }
       const arc = arcadeAt(wx, wy);
       if (arc) { walkThenInteract(arc.cp.cx, arc.cp.cy, () => openArcade(arc.cp, arc.ch)); return; }
+      const trn = trainerAt(wx, wy);
+      if (trn) { walkThenInteract(trn.x, trn.y, () => openTrainer()); return; }
       const orc = oracleAt(wx, wy);
       if (orc) { walkThenInteract(orc.cp.cx, orc.cp.cy, () => openOracle(fixtureCtx())); return; }
       const geo = geomancyAt(wx, wy);

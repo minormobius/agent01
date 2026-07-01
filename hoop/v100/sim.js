@@ -53,9 +53,13 @@ export function applyFood(s, food) {
 // worship: the central ORACLE is the yarrow yijing; its SECONDARY (grown wall) fixture is GEOMANCY-in-sand.
 // govern → 'inkblot' (the Rorschach seal-stand). All three publish to story.rumor (oracle/geomancy as
 // kind:'divination', inkblot as kind:'inkblot').
+// play: the central ARCADE cabinet (abstract puzzle-to-earn-coins); its SECONDARY (grown wall) fixture is
+// the TRAINER — a training platform that opens a roguelike combat gauntlet (arena/run.js): win an
+// escalating solver-gated ladder to bank tech-tree points + reward items. The two are siblings, the
+// same way worship carries oracle+geomancy and dwell carries bed+chest — play is the EARNING verb.
 export const FIXTURE_ACTION = {
   component: { learn: 'terminal', govern: 'inkblot', worship: 'oracle', dwell: 'bed', grow: 'garden', play: 'arcade', serve: 'food', trade: 'trade' },
-  wall: { dwell: 'chest', worship: 'geomancy' },
+  wall: { dwell: 'chest', worship: 'geomancy', play: 'trainer' },
 };
 export function fixtureAction(role, kind) { return (FIXTURE_ACTION[kind] || {})[role] || null; }
 export const isTerminalRole = (role) => fixtureAction(role, 'component') === 'terminal';
