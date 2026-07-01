@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#13241a" />
+<title>biome · over — the living forest</title>
+<style>
+  :root { --ink:#eaf6f2; --dim:#9fbdb6; --gold:#ffd98a; --teal:#7fe8d8; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: #0e1d14; color: var(--ink); font: 13px/1.5 ui-monospace, "JetBrains Mono", monospace; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; }
+  #hud { position: fixed; top: 8px; left: 10px; max-width: 64vw; color: var(--dim); text-shadow: 0 1px 3px #000; pointer-events: none; }
+  #hud b { color: var(--gold); }
+  #hud .blurb { color: #7da890; }
+  .topr { position: fixed; top: 8px; right: 10px; text-align: right; text-shadow: 0 1px 3px #000; }
+  .topr a, .topr button { color: var(--teal); text-decoration: none; background: rgba(10,28,18,.55); border: 1px solid #1d3a28; border-radius: 8px; padding: 4px 9px; font: inherit; cursor: pointer; margin-left: 6px; }
+  .topr button:hover, .topr a:hover { border-color: var(--teal); }
+  #info { position: fixed; bottom: 12px; left: 10px; max-width: 70vw; color: var(--dim); background: rgba(10,28,18,.6); border: 1px solid #1d3a28; border-radius: 9px; padding: 7px 11px; backdrop-filter: blur(5px); }
+  #info b { color: var(--teal); }
+  #info .cast { color: #cfe7df; margin-top: 3px; line-height: 1.7; }
+  #info .sw { color: var(--gold); }
+  #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">— <b id="bname">rolling…</b><br><span class="blurb" id="bblurb"></span><br><span class="blurb">click = walk · scroll = zoom · cross water at the ⌇ bridges</span></div>
+<div class="topr"><a id="back" href="/">↩ biome</a><button id="reroll" title="roll a new biome">↻ reroll</button></div>
+<div id="info">…</div>
+<div id="err"></div>
+<script type="module">
+import { makeEden } from './eden.js';
+import { rollBiome } from './fauna.js';
+import { buildPolyGenome, polyFrame, FAMILIES as POLY_FAM } from './sprite/poly/poly.js';
+import { buildQuadGenome, quadFrame, FAMILIES as QUAD_FAM } from './sprite/quad/quad.js';
+import { buildAxialGenome, axialFrame, FAMILIES as AXIAL_FAM } from './sprite/axial/axial.js';
+import { buildRadialGenome, radialFrame } from './sprite/radial/radial.js';
+
+const $ = (id) => document.getElementById(id);
+const showErr = (m) => { $('err').style.display = 'block'; $('err').textContent = String(m); };
+addEventListener('error', (e) => showErr('page: ' + e.message));
+
+try {
+
+const TAU = Math.PI * 2;
+const qs = new URLSearchParams(location.search);
+const N = (parseInt(qs.get('n'), 10) || 1) >>> 0;          // the roll number — a permalink contract (/over/?n=…)
+$('reroll').onclick = () => { location.search = '?n=' + ((Math.random() * 1e6) | 0); };  // the one allowed unseeded roll: which page to open
+
+// ── roll the biome from biome's own organism catalog, then grow its forest ──
+const catalog = await (await fetch('../gacha/catalog.json')).json();
+const ROLL = rollBiome(N, catalog);
+const PAL = ROLL.biome.palette;
+const E = makeEden(N, ROLL.edenOpts), TILE = E.TILE;
+$('bname').textContent = ROLL.biome.kicker + ' ' + ROLL.biome.name;
+$('bblurb').textContent = ROLL.biome.blurb;
+
+const sp = E.spawn();
+const AT = { gx: sp.gx, gy: sp.gy };
+let path = null, zoom = 0.72;
+const SPEED = 240;
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; }
+addEventListener('resize', resize); resize();
+const tileOf = (g) => Math.floor(g / TILE);
+
+// ── sprite flipbooks: bake each cast species' animation once (pure → canvases), keyed by species id ──
+const FRAMES = 12, CELL = 3;                                // baked at 3 device-px per sprite-pixel
+const BOOK = new Map();                                     // id → { frames:[canvas], w, h, flip }
+function genomeFor(d) {
+  if (d.plan === 'poly')  return buildPolyGenome(d.seed,  { ...POLY_FAM[d.family],  ...d.genes });
+  if (d.plan === 'quad')  return buildQuadGenome(d.seed,  { ...QUAD_FAM[d.family],  ...d.genes });
+  if (d.plan === 'axial') return buildAxialGenome(d.seed, { ...AXIAL_FAM[d.family], ...d.genes });
+  return buildRadialGenome(d.seed, d.genes);               // radial: no FAMILIES preset
+}
+function rectsFor(d, G, k) {
+  const t = k / FRAMES;
+  if (d.plan === 'poly')  return polyFrame(G, t);
+  if (d.plan === 'quad')  return quadFrame(G, t, false);
+  if (d.plan === 'axial') return axialFrame(G, t);
+  const arms = G.arms, th = new Float64Array(arms);        // radial: synthesize an outward-travelling phase wave
+  for (let i = 0; i < arms; i++) th[i] = TAU * t + i * (G.genes.waveDelay || 0.7);
+  return radialFrame(G, th, G.size);
+}
+function bake(d) {
+  const G = genomeFor(d);
+  const gw = G.w || G.size, gh = G.h || G.size;
+  const frames = [];
+  for (let k = 0; k < FRAMES; k++) {
+    const c = document.createElement('canvas'); c.width = gw * CELL; c.height = gh * CELL;
+    const x = c.getContext('2d');
+    for (const r of rectsFor(d, G, k)) { x.fillStyle = r.c; x.fillRect(r.x * CELL, r.y * CELL, CELL, CELL); }
+    frames.push(c);
+  }
+  // axial & quad read in profile → face their heading; top-down poly + radial don't flip.
+  const flip = d.plan === 'quad' || d.plan === 'axial';
+  const worldW = d.size, worldH = d.size * gh / gw;
+  BOOK.set(d.id, { frames, gw, gh, worldW, worldH, flip });
+}
+for (const d of ROLL.cast) bake(d);
+const SPECIES = Object.fromEntries(ROLL.cast.map((d) => [d.id, d]));
+
+// ── render ──
+const groveC = `rgb(${PAL.grove[0] + 16},${PAL.grove[1] + 30},${PAL.grove[2] + 18})`;
+const groveAlt = `rgb(${PAL.grove[0] + 26},${PAL.grove[1] + 40},${PAL.grove[2] + 24})`;
+const shadeC = `rgb(${Math.max(0, PAL.grove[0] - 8)},${PAL.grove[1] + 2},${Math.max(0, PAL.grove[2] - 2)})`;
+const WATER = `rgb(${PAL.water[0]},${PAL.water[1]},${PAL.water[2]})`, DEEP = `rgb(${PAL.deep[0]},${PAL.deep[1]},${PAL.deep[2]})`;
+const SHORE = 'rgba(190,230,222,.32)', BRIDGE = '#8a6a44';
+function lerpC(a, b, t) { return [a[0] + (b[0] - a[0]) * t | 0, a[1] + (b[1] - a[1]) * t | 0, a[2] + (b[2] - a[2]) * t | 0]; }
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = PAL.ground; ctx.fillRect(0, 0, W, H);
+  const z = zoom, viewR = Math.max(W, H) / z;
+  const G = 46;
+  for (let sy = 0; sy < H; sy += G) for (let sx = 0; sx < W; sx += G) {
+    const gx = (sx + G / 2 - W / 2) / z + AT.gx, gy = (sy + G / 2 - H / 2) / z + AT.gy;
+    const w = E.wetness(gx, gy), c = lerpC(PAL.meadow, PAL.grove, Math.min(1, w * 1.1));
+    ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; ctx.fillRect(sx, sy, G + 1, G + 1);
+  }
+  ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - AT.gx * z), DPR * (H / 2 - AT.gy * z));
+
+  // water + streams + bridges
+  const lakes = E.lakesNear(AT.gx, AT.gy, viewR + TILE * 1.7);
+  for (const l of lakes) { const ring = E.lakeRing(l, 54); ctx.beginPath(); ctx.moveTo(ring[0][0], ring[0][1]); for (let i = 1; i < ring.length; i++) ctx.lineTo(ring[i][0], ring[i][1]); ctx.closePath(); const g = ctx.createRadialGradient(l.cx, l.cy, l.r * 0.2, l.cx, l.cy, l.r); g.addColorStop(0, DEEP); g.addColorStop(1, WATER); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = SHORE; ctx.lineWidth = 3 / z; ctx.stroke(); }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const streams = [];
+  for (const l of lakes) for (const st of E.lakeStreams(l)) streams.push(st);
+  for (const st of streams) { const P = st.pts; ctx.strokeStyle = WATER; ctx.lineWidth = st.width * 2; ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]); for (let i = 1; i < P.length; i++) ctx.lineTo(P[i][0], P[i][1]); ctx.stroke(); ctx.strokeStyle = 'rgba(170,222,232,.4)'; ctx.lineWidth = Math.max(0.6, st.width * 0.7); ctx.stroke(); }
+  for (const st of streams) { const P = st.pts; for (let i = 16; i < P.length - 8; i += 24) { const x = P[i][0], y = P[i][1], a = Math.atan2(P[i][1] - P[i - 1][1], P[i][0] - P[i - 1][0]) + Math.PI / 2, len = st.width * 2.4 + 8; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = BRIDGE; ctx.fillRect(-len, -3, len * 2, 6); ctx.strokeStyle = 'rgba(40,26,14,.6)'; ctx.lineWidth = 0.8; for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(k / 3 * len, -3); ctx.lineTo(k / 3 * len, 3); ctx.stroke(); } ctx.restore(); } }
+
+  // forest — a density field; cull to the viewport
+  const x0 = AT.gx - viewR / 2 - 80, x1 = AT.gx + viewR / 2 + 80, y0 = AT.gy - viewR / 2 - 80, y1 = AT.gy + viewR / 2 + 80;
+  for (let az = tileOf(x0); az <= tileOf(x1); az++) for (let ax = tileOf(y0); ax <= tileOf(y1); ax++) {
+    for (const t of E.tileTrees(az, ax)) {
+      if (t[0] < x0 || t[0] > x1 || t[1] < y0 || t[1] > y1) continue;
+      ctx.fillStyle = 'rgba(8,20,12,.5)'; ctx.beginPath(); ctx.arc(t[0] + t[2] * 0.3, t[1] + t[2] * 0.5, t[2] * 0.9, 0, 7); ctx.fill();
+      ctx.fillStyle = (Math.floor(t[0] + t[1]) & 3) ? groveC : groveAlt; ctx.beginPath(); ctx.arc(t[0], t[1], t[2], 0, 7); ctx.fill();
+      ctx.fillStyle = shadeC; ctx.beginPath(); ctx.arc(t[0] - t[2] * 0.3, t[1] - t[2] * 0.3, t[2] * 0.45, 0, 7); ctx.fill();
+    }
+  }
+  drawCritters(x0, x1, y0, y1);
+  if (path) { ctx.strokeStyle = 'rgba(255,217,138,.45)'; ctx.lineWidth = 2 / z; ctx.setLineDash([6 / z, 6 / z]); ctx.beginPath(); ctx.moveTo(AT.gx, AT.gy); let acc = 0; for (let i = 1; i < path.pts.length; i++) { acc += path.seg[i - 1]; if (acc > path.t) ctx.lineTo(path.pts[i][0], path.pts[i][1]); } ctx.stroke(); ctx.setLineDash([]); }
+  ctx.fillStyle = '#ffe9a8'; ctx.shadowColor = 'rgba(255,217,138,.9)'; ctx.shadowBlur = 12; ctx.font = 'bold 17px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', AT.gx, AT.gy); ctx.shadowBlur = 0;
+}
+
+// ── fauna: per-tile groups of the rolled cast. Swarms (creeps, nectarivores) cluster around a drifting
+//    anchor and jitter; troops loosely follow; the rare big solitary animal wanders alone. ──
+const tileCache = new Map();
+function h2(x, y, k) { let n = Math.imul((x | 0) ^ 0x9e37, 0x2c1b3c6d) ^ Math.imul((y | 0) ^ 0x85eb, 0x27d4eb2f) ^ Math.imul(k | 0, 0x165667b1) ^ N; n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n ^= n >>> 13; return (n >>> 0) / 4294967296; }
+function passSample(ox, oy, seed) { for (let t = 0; t < 26; t++) { const gx = ox + (0.08 + 0.84 * h2(seed, t, 1)) * TILE, gy = oy + (0.08 + 0.84 * h2(seed, t, 2)) * TILE; if (E.passable(gx, gy)) return { gx, gy }; } return null; }
+function critsOf(az, ax) {
+  const tk = az + ',' + ax; if (tileCache.has(tk)) return tileCache.get(tk);
+  const ox = az * TILE, oy = ax * TILE, anchors = [], members = [];
+  let budget = 46;                                          // cap critters per tile
+  ROLL.cast.forEach((d, idx) => {
+    const appear = d.social === 'swarm' ? 0.72 : d.social === 'troop' ? 0.5 : (d.pop.sparse ?? 0.3);
+    if (h2(az, ax, idx * 131 + 7) > appear) return;
+    const scatter = d.social === 'swarm' ? Math.max(26, d.size * 1.4) : 60;
+    for (let g = 0; g < d.pop.groups; g++) {
+      const a = passSample(ox, oy, idx * 977 + g * 31 + 3); if (!a) continue;
+      const anchor = { gx: a.gx, gy: a.gy, hx: a.gx, hy: a.gy, ang: h2(az, ax, idx * 7 + g) * TAU, scatter, speed: d.speed };
+      anchors.push(anchor);
+      for (let m = 0; m < d.pop.groupSize && budget > 0; m++, budget--) {
+        const off = h2(az + m, ax, idx * 13 + g + m) * TAU, rr = scatter * (0.2 + 0.8 * h2(ax, az + m, idx + m));
+        members.push({ d, A: anchor, gx: a.gx + Math.cos(off) * rr, gy: a.gy + Math.sin(off) * rr, ang: off, ph: h2(m, idx, g) * FRAMES, face: false, vx: 0 });
+      }
+    }
+  });
+  const out = { anchors, members };
+  return (tileCache.set(tk, out), out);
+}
+function drawCritters(x0, x1, y0, y1) {
+  const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  const inView = [];
+  for (let az = tileOf(x0); az <= tileOf(x1); az++) for (let ax = tileOf(y0); ax <= tileOf(y1); ax++)
+    for (const n of critsOf(az, ax).members) { if (n.gx < x0 || n.gx > x1 || n.gy < y0 || n.gy > y1) continue; inView.push(n); }
+  inView.sort((a, b) => a.gy - b.gy);                       // simple painter's depth
+  for (const n of inView) {
+    const bk = BOOK.get(n.d.id); if (!bk) continue;
+    const w = bk.worldW, h = bk.worldH, k = (n.ph | 0) % FRAMES, img = bk.frames[k];
+    const dx = n.gx - w / 2, dy = n.gy - h / 2;
+    if (bk.flip && n.face) { ctx.save(); ctx.translate(n.gx + w / 2, dy); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); ctx.restore(); }
+    else ctx.drawImage(img, dx, dy, w, h);
+  }
+  ctx.imageSmoothingEnabled = sm;
+}
+function driftFauna(dt, x0, x1, y0, y1) {
+  for (let az = tileOf(x0); az <= tileOf(x1); az++) for (let ax = tileOf(y0); ax <= tileOf(y1); ax++) {
+    const { anchors, members } = critsOf(az, ax);
+    for (const A of anchors) {                              // the group drifts as a slow Brownian wander
+      A.ang += (Math.random() - 0.5) * dt * 1.4;
+      const tx = A.hx + Math.cos(A.ang) * 90, ty = A.hy + Math.sin(A.ang) * 90;
+      if (E.passable(tx, ty)) { const s = Math.min(1, dt * A.speed / 90); A.gx += (tx - A.gx) * s; A.gy += (ty - A.gy) * s; A.hx = A.gx; A.hy = A.gy; }
+    }
+    for (const n of members) {                              // each member jitters around its anchor
+      n.ph += dt * n.d.cadence * 6;
+      n.ang += (Math.random() - 0.5) * dt * 3;
+      const tx = n.A.gx + Math.cos(n.ang) * n.A.scatter, ty = n.A.gy + Math.sin(n.ang) * n.A.scatter;
+      if (E.passable(tx, ty)) { const px = n.gx; const s = Math.min(1, dt * 0.9); n.gx += (tx - n.gx) * s; n.gy += (ty - n.gy) * s; n.vx = n.gx - px; if (Math.abs(n.vx) > 0.05) n.face = n.vx < 0; }
+    }
+  }
+}
+
+// ── input + grid-A* movement (verbatim from hoop/over — routes between trees & to the bridges) ──
+cv.addEventListener('click', (e) => pathTo((e.clientX - W / 2) / zoom + AT.gx, (e.clientY - H / 2) / zoom + AT.gy));
+addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.28, Math.min(2.4, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); }, { passive: false });
+function minHeap() { const a = []; const up = (i) => { while (i) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break;[a[p], a[i]] = [a[i], a[p]]; i = p; } }; const down = (i) => { for (;;) { let l = i * 2 + 1, r = l + 1, s = i; if (l < a.length && a[l][0] < a[s][0]) s = l; if (r < a.length && a[r][0] < a[s][0]) s = r; if (s === i) break;[a[s], a[i]] = [a[i], a[s]]; i = s; } }; return { push(d, n) { a.push([d, n]); up(a.length - 1); }, pop() { const t = a[0], l = a.pop(); if (a.length) { a[0] = l; down(0); } return t; }, size: () => a.length }; }
+function clearLine(a, b) { const d = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.ceil(d / 6); for (let i = 1; i < n; i++) { const t = i / n; if (!E.passable(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) return false; } return true; }
+function stringPull(pts) { if (pts.length < 3) return pts; const out = [pts[0]]; let anchor = 0; for (let i = 2; i < pts.length; i++) if (!clearLine(pts[anchor], pts[i])) { out.push(pts[i - 1]); anchor = i - 1; } out.push(pts[pts.length - 1]); return out; }
+function pathTo(tx, ty) {
+  const CELL2 = 8, MAR = 6 * CELL2, CAP = 1500;
+  let gx = tx, gy = ty; const dd = Math.hypot(tx - AT.gx, ty - AT.gy) || 1; if (dd > CAP) { gx = AT.gx + (tx - AT.gx) / dd * CAP; gy = AT.gy + (ty - AT.gy) / dd * CAP; }
+  const minx = Math.min(AT.gx, gx) - MAR, miny = Math.min(AT.gy, gy) - MAR, maxx = Math.max(AT.gx, gx) + MAR, maxy = Math.max(AT.gy, gy) + MAR;
+  const C = Math.ceil((maxx - minx) / CELL2), Rr = Math.ceil((maxy - miny) / CELL2), NN = C * Rr;
+  const pass = new Uint8Array(NN); for (let cy = 0; cy < Rr; cy++) for (let cx = 0; cx < C; cx++) pass[cy * C + cx] = E.passable(minx + (cx + 0.5) * CELL2, miny + (cy + 0.5) * CELL2) ? 1 : 0;
+  const snap = (wx, wy) => { let cx = Math.min(C - 1, Math.max(0, Math.floor((wx - minx) / CELL2))), cy = Math.min(Rr - 1, Math.max(0, Math.floor((wy - miny) / CELL2))); if (pass[cy * C + cx]) return cy * C + cx; for (let r = 1; r < 16; r++) for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) { const nx = cx + a, ny = cy + b; if (nx >= 0 && ny >= 0 && nx < C && ny < Rr && pass[ny * C + nx]) return ny * C + nx; } return cy * C + cx; };
+  const S = snap(AT.gx, AT.gy), T = snap(gx, gy), ex = T % C, ey = T / C | 0;
+  const g = new Float64Array(NN).fill(Infinity), came = new Int32Array(NN).fill(-1), heur = (u) => Math.hypot(u % C - ex, (u / C | 0) - ey) * CELL2;
+  const open = minHeap(); g[S] = 0; open.push(heur(S), S);
+  const D = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.4142], [1, -1, 1.4142], [-1, 1, 1.4142], [-1, -1, 1.4142]];
+  let found = false, exp = 0;
+  while (open.size()) { const u = open.pop()[1]; if (u === T) { found = true; break; } if (++exp > 90000) break; const ux = u % C, uy = u / C | 0;
+    for (const [dx, dy, w] of D) { const nx = ux + dx, ny = uy + dy; if (nx < 0 || ny < 0 || nx >= C || ny >= Rr) continue; const v = ny * C + nx; if (!pass[v]) continue; if (dx && dy && (!pass[uy * C + nx] || !pass[ny * C + ux])) continue; const ng = g[u] + w * CELL2; if (ng < g[v]) { g[v] = ng; came[v] = u; open.push(ng + heur(v), v); } } }
+  let end = T; if (!found) { let bd = Infinity; for (let u = 0; u < NN; u++) if (g[u] < Infinity) { const d = Math.hypot(u % C - ex, (u / C | 0) - ey); if (d < bd) { bd = d; end = u; } } }
+  const cells = []; for (let u = end; u >= 0; u = came[u]) cells.push(u); cells.reverse();
+  if (cells.length < 2) { path = null; return; }
+  let pts = cells.map((u) => [minx + (u % C + 0.5) * CELL2, miny + ((u / C | 0) + 0.5) * CELL2]); pts[0] = [AT.gx, AT.gy];
+  pts = stringPull(pts);
+  const seg = []; let total = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
+  path = { pts, seg, total, t: 0 };
+}
+function step(dt) {
+  if (!path) return; path.t += SPEED * dt; const { pts, seg, total } = path;
+  if (path.t >= total) { AT.gx = pts[pts.length - 1][0]; AT.gy = pts[pts.length - 1][1]; path = null; return; }
+  let acc = 0, i = 1; while (i < pts.length && acc + seg[i - 1] < path.t) { acc += seg[i - 1]; i++; }
+  const f = (path.t - acc) / seg[i - 1]; AT.gx = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f; AT.gy = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f;
+}
+
+// ── prefetch tiles ahead; HUD ──
+const warmed = new Set(); let warmQ = [];
+function queueWarm() { const a = tileOf(AT.gx), b = tileOf(AT.gy); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const k = (a + i) + ',' + (b + j); if (!warmed.has(k)) { warmed.add(k); warmQ.push([a + i, b + j]); } } }
+const castLine = ROLL.cast.map((d) => (d.social === 'swarm' ? '<span class="sw">' + d.common + '</span>' : d.common)).join(' · ');
+let last = 0, warmT = 0, infoT = 0;
+function tick(ts) {
+  const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
+  step(dt);
+  const viewR = Math.max(W, H) / zoom, x0 = AT.gx - viewR / 2 - 80, x1 = AT.gx + viewR / 2 + 80, y0 = AT.gy - viewR / 2 - 80, y1 = AT.gy + viewR / 2 + 80;
+  driftFauna(dt, x0, x1, y0, y1);
+  draw();
+  if (ts - warmT > 120) { warmT = ts; queueWarm(); if (warmQ.length) { const [a, b] = warmQ.shift(); E.tileTrees(a, b); } }
+  if (ts - infoT > 500) { infoT = ts; const a = tileOf(AT.gx), b = tileOf(AT.gy); const pl = ROLL.stats.plans; $('info').innerHTML = 'roll <b>#' + N + '</b> · sector <b>(' + a + ',' + b + ')</b> · ' + ROLL.stats.castSize + ' species (' + ROLL.stats.swarms + ' swarming) · ' + Object.entries(pl).map(([k, v]) => v + ' ' + k).join(' · ') + '<div class="cast">' + castLine + '</div>'; }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+} catch (e) { showErr((e && e.stack) || e); }
+</script>
+</body>
+</html>

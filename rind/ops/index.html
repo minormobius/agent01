@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>rind · ops — the production weave (two decks, live flow)</title>
+<style>
+  :root { --ink:#e8ecf4; --dim:#7e8aa0; --gold:#d9b24a; --bg:#06070c; --panel:#0c0f17; --line:#1b2030; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
+  a { color: var(--gold); }
+  .wrap { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+  header { padding: 9px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; }
+  header .crumb { color: var(--dim); font-size: 12px; }
+  header .crumb a { text-decoration: none; }
+  header .spacer { flex: 1; }
+  .main { display: grid; grid-template-columns: 1fr 300px; min-height: 0; }
+  @media (max-width: 860px) { .main { grid-template-columns: 1fr; } .rail { display: none; } }
+  .stage { position: relative; min-height: 0; }
+  canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  canvas.drag { cursor: grabbing; }
+  .controls { position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; z-index: 2; }
+  .controls button, .controls label { background: #11151f; color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; font-size: 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .controls button.on { border-color: var(--gold); color: var(--gold); }
+  .controls input[type=range] { width: 90px; }
+  .read { position: absolute; left: 12px; bottom: 12px; right: 12px; font-size: 11.5px; color: var(--dim); background: rgba(8,9,14,.72); padding: 6px 9px; border-radius: 7px; border: 1px solid var(--line); pointer-events: none; }
+  .read b { color: var(--ink); } .read .ok { color: #6fcf8a; }
+  .rail { border-left: 1px solid var(--line); padding: 13px; overflow: auto; background: var(--panel); }
+  .rail h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 6px 0 7px; }
+  .wsel { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .wsel .w { display: flex; align-items: center; gap: 8px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; background: #0a0d14; }
+  .wsel .w.sel { border-color: var(--gold); background: #14130c; }
+  .wsel .w .k { width: 15px; height: 15px; border-radius: 50%; background: #2a3346; color: #cdd6e8; font-size: 10px; display: grid; place-items: center; flex: 0 0 auto; }
+  .wsel .w.sel .k { background: var(--gold); color: #1a1406; }
+  .wsel .w .lab { font-size: 12.5px; }
+  .itin { font-size: 12px; margin-bottom: 12px; }
+  .itin .stop { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
+  .itin .stop .n { width: 15px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .itin .stop .g { width: 16px; text-align: center; }
+  .elist { font-size: 11.5px; }
+  .elist .e { display: flex; gap: 7px; padding: 3px 0; align-items: baseline; }
+  .elist .e .sw { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; position: relative; top: 1px; }
+  .elist .e .nm { color: var(--ink); } .elist .e .nt { color: var(--dim); }
+  .note { font-size: 11px; color: var(--dim); margin-top: 10px; border-top: 1px solid var(--line); padding-top: 9px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>rind · ops — the woven shell (3D)</h1>
+    <span class="crumb"><a href="/">rind</a> / ops &nbsp;·&nbsp; the weave in 3D — counter-rotating helices in the rind shell · inhabit a thread to read the map from its point of view</span>
+    <span class="spacer"></span>
+    <span class="crumb"><a href="./prism.html">⬡ lay-the-weave (prism)</a> &nbsp;·&nbsp; <a href="./tess.html">tessellation</a> &nbsp;·&nbsp; <a href="./flat.html">▦ flat polar (2D)</a> &nbsp;·&nbsp; <a href="./weave.html">proof</a></span>
+  </header>
+  <div class="main">
+    <div class="stage">
+      <div class="controls">
+        <button id="orbit" class="on">orbit</button>
+        <button id="thread">inhabit thread</button>
+        <button id="map">museum map</button>
+        <button id="analytic">◎ analytic</button>
+        <button id="chunks" title="cycle the chunk tiling: 7 / 19 / 37 (centered-hexagonal numbers) — the tessellation unit">⬡ 19 chunks</button>
+        <label>tube ⌀ <input id="tube" type="range" min="6" max="120" value="44"></label>
+        <label>slope ≤ <input id="grade" type="range" min="18" max="80" value="32"></label>
+        <label>windings <input id="wind" type="range" min="10" max="60" value="26"></label>
+        <button id="spin" class="on">⟳ auto</button>
+        <button id="reseed">reseed</button>
+        <button id="reset">reset view</button>
+      </div>
+      <canvas id="cv"></canvas>
+      <div class="read" id="read"></div>
+    </div>
+    <aside class="rail">
+      <h2>inhabit one white thread</h2>
+      <div class="wsel" id="wsel"></div>
+      <h2>its tour of the 8 engines</h2>
+      <div class="itin" id="itin"></div>
+      <h2>the eight engines</h2>
+      <div class="elist" id="elist"></div>
+      <div class="note" id="note"></div>
+    </aside>
+  </div>
+</div>
+<script type="module" src="./3d-app.js"></script>
+</body>
+</html>

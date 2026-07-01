@@ -33,6 +33,13 @@ export const FACTIONS = {
   continuant: { label: 'Continuant', color: '#33408f', exclusives: ['govern', 'grow'], shared: ['serve', 'heal'] },
   drift: { label: 'Drift', color: '#3bb0c9', exclusives: ['learn', 'play'], shared: ['move', 'trade'] },
 };
+// THE CIVIC TRIAD — produce · care · exchange. One SHARED verb donated by each faction (make=Rindwalker,
+// serve=Continuant, trade=Drift) is made UNIVERSAL: floored into every ward so each has a workshop, a
+// service-house, and a market. `serve` is a third-place → every ward now closes the dwell→work→third commute
+// loop (the Rindwalker·mend ward had no third-place at all); `trade` is the market (the strongest weak-tie
+// generator); `make` is the production/employment base. Exclusives are untouched — a faction still
+// over-biases its own donated verb (deepest workshop is Rindwalker's, etc.), so identity is preserved.
+export const UNIVERSAL = ['make', 'serve', 'trade'];
 
 // the six faction biomes, in NEIGHBOUR ORDER (dir 0..5). Adjacent pairs (0,1)(2,3)(4,5) are siblings, so
 // each faction's two biomes sit side by side and form one lobe. `level` is the relative intensity.
@@ -50,13 +57,16 @@ const BIOME_OF_DIR = Object.fromEntries(BIOMES.map((b) => [b.dir, b]));
 // `high` cranks the faction bias; `mild` keeps more housing and a lighter hand (the two relative levels).
 function biomeMix(b) {
   const f = FACTIONS[b.faction];
-  const w = b.level === 'high' ? { dwell: 2.4, shared: 2.4, excl: 3.0 } : { dwell: 4.0, shared: 1.5, excl: 2.0 };
+  const w = b.level === 'high' ? { dwell: 3.4, shared: 2.4, excl: 3.0 } : { dwell: 5.2, shared: 1.5, excl: 2.0 };
   const mix = [['dwell', w.dwell], [b.exclusive, w.excl]];
   for (const r of f.shared) mix.push([r, w.shared]);
-  return mix;
+  return mix;   // the civic triad is a FLOOR, not a mix weight — see biomeFloors. Keeping it out of the weighted
+                // mix preserves HOUSING density (the triad doesn't crowd out dwell), so the crowd stays large.
 }
-// the role FLOORS for a faction biome: at least one of housing + the shared roles + the exclusive.
-function biomeFloors(b) { const f = FACTIONS[b.faction], fl = { dwell: 1, [b.exclusive]: 1 }; for (const r of f.shared) fl[r] = 1; return fl; }
+// the role FLOORS for a faction biome: housing + the shared roles + the exclusive + the universal civic triad.
+// The triad rides as a guaranteed MINIMUM (one workshop · service-house · market per ward, closing the
+// dwell→work→third loop) WITHOUT a mix weight — so it adds the missing third-place without thinning the crowd.
+function biomeFloors(b) { const f = FACTIONS[b.faction], fl = { dwell: 1, [b.exclusive]: 1 }; for (const r of f.shared) fl[r] = 1; for (const r of UNIVERSAL) fl[r] = 1; return fl; }
 
 // the COMMONS: at least one of EVERY building type (so every exclusive still appears here), wild-type mix.
 const COMMONS_FLOORS = Object.fromEntries(Object.keys(ROLES).map((r) => [r, 1]));

@@ -133,6 +133,17 @@ export default {
     if (url.pathname === '/v099/feed' || url.pathname === '/v099/feed/') {
       return env.ASSETS.fetch(new Request(new URL('/v099/feed.html', url), request));
     }
+    // v100 — the PLAYABLE-NAVE surface: faction-quest progression (Rindwalker → Continuant → Drift) that
+    // opens the streamed four-chunk rind once the Drift quest is done. Zero baddies in the nave.
+    if (url.pathname === '/v100/records' || url.pathname === '/v100/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v100/records.html', url), request));
+    }
+    if (url.pathname === '/v100/feed' || url.pathname === '/v100/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v100/feed.html', url), request));
+    }
+    if (url.pathname === '/v100/spine' || url.pathname === '/v100/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v100/story/spine.html', url), request));
+    }
     // chunkroller — the chunk-design tool (a /econ cousin for chunks): total view + civic readout + NPC stats + biome sliders.
     if (url.pathname === '/chunkroller' || url.pathname === '/chunkroller/') {
       return env.ASSETS.fetch(new Request(new URL('/chunkroller/index.html', url), request));

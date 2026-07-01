@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#04050a" />
+  <meta name="description" content="mega v092 — the Arena. Turn-based combat: your rolled sprite against NPC sprites on an art-deco tactical board. Tap to move, tap a foe to strike, spend Flux on technomagic. Built on the FLESH·CHASSIS·ANIMA stat spine." />
+  <title>v092 — arena</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; } html, body { height: 100%; margin: 0; }
+    body { background: #04050a; color: #dfe7e2; font-family: "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+    #wrap { position: fixed; inset: 0; display: flex; flex-direction: column; }
+    #top { display: flex; align-items: center; gap: 12px; padding: 8px 14px; font-size: 12px; color: #9aa8a0; border-bottom: 1px solid #141c24; }
+    #top a { color: #7fd8d0; text-decoration: none; } #top a:hover { color: #f4bf62; }
+    #top .turn { color: #f4bf62; } #top .ph { margin-left: auto; color: #7fd8d0; letter-spacing: .5px; }
+    #stage { flex: 1; position: relative; }
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
+    #log { position: absolute; top: 8px; right: 8px; width: min(230px, 40vw); max-height: 42%; overflow-y: auto; font-size: 10.5px; line-height: 1.5; color: #8b9892; background: rgba(6,9,14,.6); border: 1px solid #141c24; border-radius: 8px; padding: 8px 10px; pointer-events: none; }
+    #log .hit { color: #dfe7e2; } #log .crit { color: #f4bf62; } #log .miss { color: #6b7872; } #log .heal { color: #5aa845; } #log .buff { color: #7fd8d0; } #log .down, #log .lose { color: #cf5b5b; } #log .win { color: #f4bf62; }
+    #bar { display: flex; gap: 7px; padding: 9px 12px; justify-content: center; flex-wrap: wrap; border-top: 1px solid #141c24; background: rgba(6,9,14,.5); }
+    .act { background: #0d1117; border: 1px solid #20303a; color: #cfd8d2; font: inherit; font-size: 12px; padding: 7px 13px; border-radius: 0; clip-path: polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%); cursor: pointer; transition: .12s; }
+    .act:hover:not(:disabled) { border-color: #7fd8d0; color: #fff; }
+    .act.sel { border-color: #f4bf62; color: #f4bf62; box-shadow: inset 0 0 0 1px #f4bf62; }
+    .act:disabled { opacity: .32; cursor: default; }
+    .act .c { color: #b39bd8; font-size: 10px; }
+    #over { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; background: rgba(3,4,7,.86); z-index: 5; }
+    #over.on { display: flex; }
+    #over .res { font-size: 26px; letter-spacing: 2px; } #over .res.win { color: #f4bf62; } #over .res.lose { color: #cf5b5b; }
+    #over button { background: #11202c; border: 1px solid #2f5a6a; color: #bfe9ef; font: inherit; font-size: 13px; padding: 9px 18px; border-radius: 8px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="top">
+      <a href="../">◍ world</a>
+      <span class="who" id="who"></span>
+      <span class="turn" id="turn"></span>
+      <span class="ph" id="phase"></span>
+    </div>
+    <div id="stage">
+      <canvas id="cv"></canvas>
+      <div id="log"></div>
+      <div id="over"><div class="res" id="ores"></div><div id="osub" style="font-size:12px;color:#9aa8a0"></div>
+        <div style="display:flex;gap:10px"><button id="again">again ⟳</button><a href="../" style="text-decoration:none"><button>back to world</button></a></div></div>
+    </div>
+    <div id="bar"></div>
+  </div>
+
+  <script type="module">
+    import * as E from './engine-grid.js';   // the standalone /arena demo stays on the grid engine; the in-game battle uses the continuum engine.js
+    import { rollCharacter, deriveCombat, TRIAD } from '../stats.js';
+    import { loadCharacter } from '../character.js';
+    import { crewSprite } from '../crew.js';
+    import { packForCharacter } from '../pack.js';
+    import { autoEquip, defaultPlan } from '../bodyplan.js';
+    import { frameRects, DIR_OF } from '../v3/sprite-core.js';
+
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+    let W = 0, H = 0, dpr = 1, S = null, sel = 'strike', anim = null, phase = 0, busy = false;
+    const sprCache = new Map();
+
+    // ── build the battle: your character (saved or rolled) vs 1–2 NPC crew ──
+    function spriteGenome(seed, role) { const k = seed + '|' + role; let g = sprCache.get(k); if (!g) { g = crewSprite(seed, role, { size: 17 }); sprCache.set(k, g); } return g; }
+    function buildPlayer() {
+      const c = loadCharacter() || rollCharacter((Math.random() * 1e9) | 0, {});
+      const pack = packForCharacter(c, 9), eq = autoEquip(defaultPlan(), pack);
+      const combat = deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand });
+      return { id: 0, name: c.name, character: c, combat, sprite: { seed: c.sprite.seed, role: c.vocation }, glyph: '☻', accent: TRIAD[c.cast.dominant].accent, weapon: eq.mainhand };
+    }
+    const FOE_ROLES = ['move', 'govern', 'make', 'worship', 'serve'];
+    const FOE_NAMES = ['Raider', 'Sentry', 'Revenant', 'Picket', 'Scrapper', 'Warden-9'];
+    function buildFoes(n, seed) {
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        const fseed = (seed * 2654435761 + i * 40503) >>> 0, role = FOE_ROLES[fseed % FOE_ROLES.length];
+        const c = rollCharacter(fseed, { vocation: role });
+        const eq = autoEquip(defaultPlan(), packForCharacter(c, 7));          // foes are crew too — armed/armoured
+        const combat = deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand });
+        out.push({ id: i + 1, name: FOE_NAMES[i % FOE_NAMES.length], character: c, combat, sprite: { seed: 'foe' + fseed, role } });
+      }
+      return out;
+    }
+    function newBattle() {
+      const seed = (Date.now() >>> 0) ^ 0x51ed, foes = buildFoes(1 + (seed % 2), seed);   // 1–2 foes
+      S = E.createBattle({ player: buildPlayer(), foes, seed, W: 9, H: 9 });
+      sel = 'strike'; anim = null; busy = false; $('over').classList.remove('on');
+      renderBar(); syncTop(); if (E.active(S).team === 'foe') runEnemy();
+    }
+
+    // ── layout: a chamfered art-deco board centred in the stage ──
+    function board() {
+      const pad = 30, availW = W - pad * 2, availH = H - 76 - pad * 2;
+      const ts = Math.max(18, Math.min(Math.floor(availW / S.W), Math.floor(availH / S.H)));
+      const bw = ts * S.W, bh = ts * S.H, ox = (W - bw) / 2, oy = pad + Math.max(0, (availH - bh) / 2);
+      return { ts, ox, oy, bw, bh };
+    }
+    const tileC = (b, x, y) => [b.ox + (x + 0.5) * b.ts, b.oy + (y + 0.5) * b.ts];
+    function tileAt(px, py) { const b = board(); const x = Math.floor((px - b.ox) / b.ts), y = Math.floor((py - b.oy) / b.ts); return (x >= 0 && y >= 0 && x < S.W && y < S.H) ? { x, y } : null; }
+
+    function drawChamfer(x, y, w, h, c, fill, lw) { const k = 12; ctx.beginPath(); ctx.moveTo(x + k, y); ctx.lineTo(x + w - k, y); ctx.lineTo(x + w, y + k); ctx.lineTo(x + w, y + h - k); ctx.lineTo(x + w - k, y + h); ctx.lineTo(x + k, y + h); ctx.lineTo(x, y + h - k); ctx.lineTo(x, y + k); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (c) { ctx.strokeStyle = c; ctx.lineWidth = lw || 1.5; ctx.stroke(); } }
+
+    function spriteCanvas(genome, dir, frame) {
+      const key = genome.seed + '|' + dir + '|' + frame; let c = sprCache.get('px' + key); if (c) return c;
+      const N = genome.size, SC = 4, cvs = document.createElement('canvas'); cvs.width = N * SC; cvs.height = N * SC; const g = cvs.getContext('2d');
+      for (const r of frameRects(genome, DIR_OF[dir] || DIR_OF.S, frame)) { g.fillStyle = r.c; g.fillRect(r.x * SC, r.y * SC, SC, SC); }
+      sprCache.set('px' + key, cvs); return cvs;
+    }
+
+    function draw() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      if (cv.width !== Math.floor(W * dpr)) { cv.width = W * dpr; cv.height = H * dpr; }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, W, H);
+      if (!S) return;
+      const b = board();
+      // the art-deco stage: chamfered backdrop + chevron frame
+      drawChamfer(b.ox - 14, b.oy - 14, b.bw + 28, b.bh + 28, '#2b3a44', '#070a0e', 2);
+      drawChamfer(b.ox - 8, b.oy - 8, b.bw + 16, b.bh + 16, '#f4bf62', null, 1);
+      ctx.globalAlpha = 0.5; for (let i = 0; i < S.W; i++) { const cx = b.ox + (i + 0.5) * b.ts; ctx.strokeStyle = '#101820'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, b.oy); ctx.lineTo(cx, b.oy + b.bh); ctx.stroke(); } ctx.globalAlpha = 1;
+      // tiles
+      const L = (S.phase === 'choose') ? E.legal(S) : { move: [], targets: [], skills: [] };
+      const reach = new Set(L.move.map((t) => t.x + ',' + t.y));
+      const atkSet = new Set(L.targets.map((id) => { const u = E.unitById(S, id); return u.x + ',' + u.y; }));
+      for (let y = 0; y < S.H; y++) for (let x = 0; x < S.W; x++) {
+        const px = b.ox + x * b.ts, py = b.oy + y * b.ts, k = x + ',' + y;
+        ctx.fillStyle = ((x + y) & 1) ? 'rgba(20,28,36,.5)' : 'rgba(13,19,26,.5)'; ctx.fillRect(px + 1, py + 1, b.ts - 2, b.ts - 2);
+        if (reach.has(k)) { ctx.strokeStyle = 'rgba(244,191,98,.55)'; ctx.lineWidth = 1.4; ctx.strokeRect(px + 2.5, py + 2.5, b.ts - 5, b.ts - 5); }
+        if (atkSet.has(k)) { ctx.strokeStyle = '#cf3b3b'; ctx.lineWidth = 2; ctx.strokeRect(px + 2, py + 2, b.ts - 4, b.ts - 4); }
+      }
+      // active-unit ring
+      const au = E.active(S); if (au && au.alive) { const [cx, cy] = tileC(b, au.x, au.y); ctx.strokeStyle = au.team === 'player' ? '#f4bf62' : '#cf3b3b'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(b.ox + au.x * b.ts + 2, b.oy + au.y * b.ts + 2, b.ts - 4, b.ts - 4); ctx.setLineDash([]); }
+      // units (back rows first)
+      const order = S.units.filter((u) => u.alive).slice().sort((a, c) => a.y - c.y);
+      for (const u of order) {
+        let dx = u.x, dy = u.y;
+        if (anim && anim.id === u.id) { const t = Math.min(1, (performance.now() - anim.start) / anim.dur); dx = anim.from.x + (anim.to.x - anim.from.x) * t; dy = anim.from.y + (anim.to.y - anim.from.y) * t; }
+        const cx = b.ox + (dx + 0.5) * b.ts, cy = b.oy + (dy + 0.5) * b.ts;
+        const g = spriteGenome(u.sprite.seed, u.sprite.role), dir = u.team === 'player' ? 'N' : 'S';
+        const moving = anim && anim.id === u.id, frame = moving ? (Math.floor(phase / 6) % 4) : null;
+        const pc = spriteCanvas(g, dir, frame), hgt = b.ts * 1.5, wid = hgt * (pc.width / pc.height);
+        ctx.imageSmoothingEnabled = false; ctx.drawImage(pc, cx - wid / 2, cy - hgt * 0.78, wid, hgt); ctx.imageSmoothingEnabled = true;
+        drawBars(cx, cy - hgt * 0.78 - 7, u, b.ts);
+      }
+    }
+    function drawBars(cx, top, u, ts) {
+      const w = ts * 0.9, h = 4, x = cx - w / 2;
+      ctx.fillStyle = '#0a0e13'; ctx.fillRect(x - 1, top - 1, w + 2, h + 2);
+      ctx.fillStyle = u.team === 'player' ? '#5aa845' : '#cf3b3b'; ctx.fillRect(x, top, w * Math.max(0, u.hp / u.maxhp), h);
+      ctx.strokeStyle = '#1b2530'; ctx.lineWidth = .6; ctx.strokeRect(x, top, w, h);
+      if (u.maxflux > 0) { ctx.fillStyle = '#b39bd8'; const fw = w * Math.max(0, u.flux / u.maxflux); ctx.fillRect(x, top + h + 1, fw, 2); }
+      ctx.fillStyle = u.team === 'player' ? '#f4bf62' : '#cf8b8b'; ctx.font = '8px JetBrains Mono'; ctx.textAlign = 'center'; ctx.fillText(u.name + ' ' + u.hp, cx, top - 4);
+    }
+
+    // ── action bar ──
+    function renderBar() {
+      const u = E.active(S), can = S && S.phase === 'choose' && u && u.team === 'player';
+      const L = can ? E.legal(S) : { skills: [], targets: [] };
+      const btns = E.SKILL_ORDER.map((k) => {
+        const sk = E.SKILLS[k], usable = can && L.skills.includes(k) && (sk.kind !== 'attack' || true);
+        const isSel = (sk.kind === 'attack') && sel === k;
+        return `<button class="act ${isSel ? 'sel' : ''}" data-skill="${k}" ${usable ? '' : 'disabled'}>${sk.glyph} ${sk.label}${sk.cost ? ` <span class="c">✣${sk.cost}</span>` : ''}</button>`;
+      }).join('');
+      $('bar').innerHTML = btns + `<button class="act" data-end="1" ${can ? '' : 'disabled'}>End ⏎</button>`;
+      $('bar').querySelectorAll('[data-skill]').forEach((bn) => bn.addEventListener('click', () => onSkill(bn.dataset.skill)));
+      $('bar').querySelector('[data-end]').addEventListener('click', () => { if (!busy) { E.endTurn(S); afterTurn(); } });
+    }
+    function onSkill(k) {
+      const sk = E.SKILLS[k]; const u = E.active(S); if (busy || !u || u.team !== 'player' || S.phase !== 'choose') return;
+      if (sk.kind === 'attack') { sel = k; renderBar(); return; }        // arm the strike; tap a foe to land it
+      const ev = E.act(S, { type: 'skill', skillId: k }); pulse(); afterAction(ev);
+    }
+
+    // ── input ──
+    cv.addEventListener('click', (e) => {
+      if (busy || !S || S.phase !== 'choose') return;
+      const u = E.active(S); if (!u || u.team !== 'player') return;
+      const r = cv.getBoundingClientRect(), t = tileAt(e.clientX - r.left, e.clientY - r.top); if (!t) return;
+      const foe = S.units.find((x) => x.alive && x.team === 'foe' && x.x === t.x && x.y === t.y);
+      if (foe) { const ev = E.act(S, { type: 'attack', targetId: foe.id, skillId: sel }); if (ev.type === 'attack') { anim = null; pulse(); afterAction(ev); } return; }
+      const ev = E.act(S, { type: 'move', x: t.x, y: t.y });
+      if (ev.type === 'move') { anim = { id: ev.unit, from: ev.from, to: ev.to, start: performance.now(), dur: 200 }; setTimeout(() => { anim = null; afterAction(ev); }, 210); }
+    });
+
+    function afterAction(ev) {
+      syncTop(); renderBar();
+      if (S.winner) return finish();
+      const u = E.active(S);
+      if (u && u.moved && u.acted) { busy = true; setTimeout(() => { busy = false; E.endTurn(S); afterTurn(); }, 260); }   // turn spent → pass
+    }
+    function afterTurn() { syncTop(); renderBar(); if (S.winner) return finish(); if (E.active(S).team === 'foe') runEnemy(); }
+
+    async function runEnemy() {
+      busy = true; renderBar();
+      while (S.phase === 'enemy' && !S.winner) {
+        const plan = E.aiPlan(S);
+        for (const step of plan) {
+          if (S.winner) break;
+          if (step.type === 'end') { E.endTurn(S); break; }
+          if (step.type === 'move') { const u = E.active(S); anim = { id: u.id, from: { x: u.x, y: u.y }, to: { x: step.x, y: step.y }, start: performance.now(), dur: 200 }; E.aiStep(S, step); await wait(240); anim = null; }
+          else { E.aiStep(S, step); pulse(); syncTop(); await wait(360); }
+        }
+        await wait(120);
+      }
+      busy = false; syncTop(); renderBar();
+      if (S.winner) finish();
+    }
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    function pulse() { /* hook for a hit flash; kept minimal */ }
+
+    function syncTop() {
+      if (!S) return;
+      const me = S.units.find((u) => u.team === 'player');
+      $('who').innerHTML = me ? `${esc(me.name)} · ✚${me.hp}/${me.maxhp} · ✣${me.flux}` : '';
+      $('turn').textContent = `turn ${S.turn}`;
+      $('phase').textContent = S.phase === 'choose' ? 'your move' : S.phase === 'enemy' ? 'enemy…' : '';
+      $('log').innerHTML = S.log.slice(-14).map((l) => `<div class="${l.kind}">${esc(l.msg)}</div>`).join('');
+      $('log').scrollTop = 1e6;
+    }
+    function finish() {
+      const win = S.winner === 'player';
+      $('ores').textContent = win ? 'VICTORY' : 'DEFEAT'; $('ores').className = 'res ' + (win ? 'win' : 'lose');
+      $('osub').textContent = win ? 'The arena is yours.' : 'You fall. Rise and try again.';
+      $('over').classList.add('on');
+    }
+
+    function resize() { W = Math.max(160, window.innerWidth); H = Math.max(160, window.innerHeight); }
+    addEventListener('resize', resize);
+    $('again').addEventListener('click', newBattle);
+    function loop() { phase++; draw(); requestAnimationFrame(loop); }
+    resize(); newBattle(); requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

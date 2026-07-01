@@ -170,10 +170,10 @@
       "dir": "biome",
       "endpoint": "biome.mino.mobi",
       "type": "frontend",
-      "branch": "claude/naturalist-random-critter-cf48fm",
+      "branch": "claude/biome-forest-creep-sprites-wnxo6h",
       "uses": [],
       "provides": null,
-      "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Pure static \u2014 model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
+      "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Also serves the gacha (roll a viable ecosystem), the sprite/muscle/balance labs, and OVER (over/ \u2192 biome.mino.mobi/over): roll a biome and walk a living forest whose animals are cast from the gacha catalogue as pixel sprites \u2014 arthropods/pollinators swarm as creeps, vertebrates amble as quadrupeds \u2014 using the mega/sprite critter kernels (vendored under over/sprite/) and the hoop/over eden forest generator (vendored as over/eden.js). Pure static \u2014 model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
       "paths": [
         "biome/**"
       ]
@@ -183,10 +183,10 @@
       "dir": "rind",
       "endpoint": "rind.mino.mobi",
       "type": "frontend",
-      "branch": "claude/foam-spiral-ramp-wayfinding-hkgcw2",
+      "branch": "claude/rind-deploy-surface-layout-fknwls",
       "uses": [],
       "provides": null,
-      "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam + wayfinding: drivable spiral-ramp / azimuthal-road routes through the chamber graph), walk.html (walk a planar cut through the foam). Geometry generated in JS (foam.js/foam3d.js/wayfind.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static \u2014 no D1/DO/secrets.",
+      "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam + wayfinding: drivable spiral-ramp / azimuthal-road routes through the chamber graph), walk.html (walk a planar cut through the foam). rind/ops/ is the OPS WEAVE: the 6 white-collar surfaces woven over the 8 production engines as the complete bipartite K(6,8) (a plain weave, not the old gyroid), drawn as two voronoi decks with a live material-flow schematic of the 8. Geometry generated in JS (foam.js/foam3d.js/wayfind.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static \u2014 no D1/DO/secrets.",
       "paths": [
         "rind/**",
         ".github/workflows/deploy-rind.yml"
@@ -548,7 +548,7 @@
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-surface-setup-xd0mqo",
+      "branch": "claude/hoop-v100-deploy-pifsq9",
       "uses": [],
       "provides": null,
       "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface.",
@@ -678,12 +678,12 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/tjs-infill-viewer-4qfyzi",
+      "branch": "claude/3d-bee-swarms-threejs-1yamtu",
       "uses": [],
       "provides": null,
       "status": "MANAGED — new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time.",
       "op": "create",
-      "note": "tjs.mino.mobi — three.js workbenches. Landing at /, benches at /gantry (configurable HBot gantry test bench: seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools), /orb (spherical-symmetry toy: a sphere sliced into n longitudinal lunes (axial Cn) or a polyhedral kaleidoscope — tetra/octa/icosa Schwarz-triangle fundamental domains), and /infill (a 50mm sphere packed with 3D-printer infill — gyroid, Schwarz-P, diamond, Neovius, honeycomb, grid, triangular — raymarched with a scroll-driven peel plane that caps the cut cross-section; CPU Monte-Carlo density calibration; solid-shell toggle; and a coarse in-browser 3D FDTD acoustic panel — transmission loss of the orb vs free field, run in a module worker over a validated reference solver in infill/acoustics.js, WebGPU fine-grid port planned). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
+      "note": "tjs.mino.mobi — three.js workbenches. Landing at /, benches at /gantry (configurable HBot gantry test bench: seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools), /orb (spherical-symmetry toy: a sphere sliced into n longitudinal lunes (axial Cn) or a polyhedral kaleidoscope — tetra/octa/icosa Schwarz-triangle fundamental domains), /infill (a 50mm sphere packed with 3D-printer infill — gyroid, Schwarz-P, diamond, Neovius, honeycomb, grid, triangular — raymarched with a scroll-driven peel plane that caps the cut cross-section; CPU Monte-Carlo density calibration; solid-shell toggle; and a coarse in-browser 3D FDTD acoustic panel — transmission loss of the orb vs free field, run in a module worker over a validated reference solver in infill/acoustics.js, WebGPU fine-grid port planned), and /swarm (a 3D swarm of bees: instanced bee micro-meshes with shader-flapped wings over a live agent sim in swarm3d.js — attractor orbit (radial pull + axis×radial swirl) + Reynolds boids over a 27-cell 3D spatial hash + divergence-free 3D curl-noise + a true stigmergy scent voxel grid bees deposit into / evaporate+diffuse / climb the gradient of; deterministic fixed-1/60s step, node-tested in swarm3d.selftest.mjs; lead-the-swarm pointer steering + scent-field visualisation), and /beelix (a descending helix of bees emerging from BOIDS, not authored geometry: a hive particle-emitter up top, a death plane below that recycles bees into the pool, and a central light pipe. Bees run real Reynolds boids (separation/alignment/cohesion) as self-propelled constant-cruise active-matter particles; the ONLY authored forces are the light pipe's — phototaxis (inward confinement, sets no radius), downward flow, and a faint Light-swirl (pipeSpin) which is the sole rotational input. Pure boids in a flow-through column lock a handedness only ~half the time (raw emergence is unreliable); the faint light swirl breaks the tie and boids alignment AMPLIFIES it into a coherent mill that the descent shears into a helix — radius/pitch/thickness stay emergent, swirl sign sets handedness. HUD reads the swarm angular momentum L so you can watch it lock. Travelling light pulses kick+glow bees they pass. Instanced bees via shared beelix/beemesh.js; reuses swarm3d's curl-noise; node-tested in beelix.selftest.mjs (18 checks incl. sign(L)=sign(swirl) on every seed). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
       "paths": [
         "tjs/**"
       ]

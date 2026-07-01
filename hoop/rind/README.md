@@ -1,43 +1,67 @@
-# rind — floor 2 (`hoop.mino.mobi/rind`)
+# rind — floor 2, the UPPER RIND (`hoop.mino.mobi/rind`)
 
-The **rind** is floor 2 of the ship: the **cold structural underworld** below the nave. Where the nave is
-the lit market-deck where the ship pretends to be a city, the rind is the foam between the world and the
-void — no sun-strip, only the navigation runs, the propulsion drum, and the first whisper of the Signal.
-It is **deck 3 of the story spine** (Investigation / "The Vessel"): you reach it by **descending the shaft**
-once you've cleared the nave (`narrative_tier ≥ 3`, which the load-bearing deck quest advances you to).
+The **rind** is floor 2 of the ship: the **structural skin** below the nave. Per hoopy's bible (*"The Seven
+as Rind Factions"*), in the rind you leave the three nave factions and walk into the **domain of one of the
+Seven** — the thirteen verbs persist but are **re-read at the ship's true scale and age**: a workshop
+becomes a forge-cathedral, a chapel a megastructure to a forgotten machine-god. The **upper rind** is where
+the strange is still familiar — four of the Seven: **Mercury · Mars · Venus · Jupiter**. (The **lower rind**
+— Saturn · Sol · Luna, and the Signal Chamber Luna keeps — is the deeper floor, built separately.) It is the
+bible's **Zone 3 (The Upper Rind)**: you reach it by **descending the shaft** once you've cleared the wards
+(`narrative_tier ≥ 3`).
 
 ```
-        ┌──────────┐            A central HUB (the shaft foot) with three stations spoked off it on
-   nav  │  hub  ★  │  drum      alternating hex sides (dirs 0·2·4 → the spokes never touch each other,
-        └────┬─────┘            only the hub). Hub links to all three; the three don't interlink — a
-          signal                clean star. The hub carries the shaft UP to the nave commons.
+        ┌──────────┐            Mercury (the arteries) is the HUB — the shaft foot, where you arrive from
+  mars  │ mercury ★│  venus     the nave and disperse — with three domain-stations spoked off alternating
+        └────┬─────┘            hex sides (dirs 0·2·4 → the spokes touch only the hub). Hub links to all
+          jupiter               three; the three don't interlink — a clean star. The hub carries the shaft
+                                UP to the nave commons.
 ```
 
-## The four stations (infrastructure, not civic)
+## The four domains of the Seven (the verbs re-read at scale)
 
-Where the nave runs all thirteen verbs, the rind runs only the **infrastructure** ones — **no grow** (no
-farms in the cold hull), **no play** (no arcades down here). Each station carries a role mix + floors + a
-principal `grand` room (`RIND_CHUNKS` in `rind.js`):
+Every verb is re-read as one of the Seven's domains — including **grow** (Venus's gardens) and **play**
+(Jupiter's court), which the old "infrastructure-only" rind wrongly banned. Each domain carries a role mix +
+floors + a principal `grand` megastructure (`RIND_CHUNKS` in `rind.js`):
 
-| Station | character | over-biases |
+| Domain | the Seven | megastructure | over-biases |
+|---|---|---|---|
+| **Mercury · the Arteries** (hub) | signals/transit between zones | the humming transit halls | `move` · `trade` · `learn` |
+| **Mars · the Forge-Cathedral** | hull, welding, damage-control | repair as rite at continental scale | `make` · `mend` |
+| **Venus · the Green Deep** | green decks, life-support | vast strange gardens off any schedule | `grow` · `heal` |
+| **Jupiter · the Long Table** | the court | an abandoned hall of judgment too large to fill | `govern` · `play` |
+
+There is **no worship** on the upper rind — that is **Saturn/Sol**, the lower rind, where the **Signal
+Chamber** (Luna's domain) waits. (See the nave's [`/nave/slots`](/nave/slots) lexicon for what each verb means.)
+
+## The lower rind (bible Zone 4 — `LOWER_RIND_CHUNKS`)
+
+The deeper floor: the deep stasis machinery that predates civilization aboard. Three of the Seven whose
+domains predate the Nave, plus the **Signal Chamber** — Luna's lost inner sanctum, the descent's payoff
+where Luna makes contact through the terminal that uses the name she knows. Same four-chunk star builder
+(`prepareLowerRind`/`buildLowerRind` reuse `rindSolveNext` with the lower-rind biome), **Saturn is the hub**
+(the shaft foot from the upper rind):
+
+| Domain | the Seven | over-biases |
 |---|---|---|
-| **The Shaft Foot** (hub) | transit + control — where you arrive | `move` · `store` · `govern` · `mend` |
-| **Navigation** | the nav runs, the Seven's instruments | `learn` · `govern` · `move` |
-| **The Propulsion Drum** | the engine, fuel, repair | `make` · `mend` · `store` |
-| **The Signal Chamber** | the descent's payoff — devotion + study + the toll it takes | `worship` · `learn` · `heal` |
+| **Saturn · the Cold Deep** (hub) | structural deep, the tale-count | `worship` · `store` · `dwell` |
+| **Sol · the Fusion-Heart** | the burning center | `worship` · `make` |
+| **Luna · the Dream-Archive** | navigation, dream-logs | `learn` · `store` |
+| **The Signal Chamber** | Luna's lost sanctum — the chapter's close | `learn` · `worship` |
 
-The **Signal Chamber** is the natural tier-3 revelation seat (its `grand` is `worship`, a `lore_fragment` +
-`plot_beat` slot): where doctrine meets the Signal, the floor's deepest plot lives. (See the nave's
-[`/nave/slots`](/nave/slots) lexicon for what each verb means.)
+The register is sacred/archive (worship + learn), no grow/play/heal — the deep is not civic. Pinned by
+`rind/test/lowerrind.selftest.mjs` (34 checks). **Wired into v100**: `maybeBuildLowerRind` builds it at
+`narrative_tier ≥ 4`, offset ~12000 east, reached by descending a **second shaft** from the upper-rind hub
+(the decks are a linear stack — `shafts[k]` joins deck k↔k+1 — so the player walks nave → upper rind →
+lower rind, each crossing a teleport pair).
 
 ## How it's built
 
 `rind.js#buildRind(seed)` composes the **same v2 engine as the nave** (`solveChunk` + explicit
 `closedSides` for the walls + inherited seam ports + one shared foam seed → seamless seams), so the two
 floors are siblings, not special cases. `prepareRind(seed)` + `rindSolveNext(st)` pace the four solves one
-chunk at a time — what the game streams in on descent (hub first, then the stations), exactly like the nave
-streams its wards. Pure (no DOM); node-tested in `test/rind.selftest.mjs` (36 checks — the star topology,
-the infrastructure character, role floors, the Signal payoff, determinism).
+chunk at a time — what the game streams in on descent (the Mercury hub first, then the domain-stations),
+exactly like the nave streams its wards. Pure (no DOM); node-tested in `test/rind.selftest.mjs` (37 checks —
+the star topology, the Seven's-domains character incl. grow/play, role floors, Jupiter's grand, determinism).
 
 The standalone **`/rind`** page (`index.html` + `rind-app.js`) is a near-clone of the nave view: three
 views with pan/zoom — **station** (tint by station) · **verb** (by role) · **full** (the real game skin,
@@ -49,14 +73,16 @@ This is the GAME's rind **floor** — the playable cousin of the repo-root [`/ri
 **wing** (which models the cylinder's hull, cables and secants). Same name, different layer: one you walk,
 one you solve.
 
-## The descent (in-game wiring — next)
+## The descent (in-game wiring — DONE in v100)
 
-The standalone view is the geometry proof; wiring the rind into the live `v099` game as the shaft
-destination is the follow-up. The gate already exists (`v099/index.html#maybeBuildRind` fires at
-`narrative_tier ≥ 3`); the change is to replace the single placeholder chunk with this streamed four-chunk
-floor. The one care: the rind floor must be **offset** from the nave in world coordinates — its internal
-hub↔station seams sit on the same hex lattice as the nave's, so co-locating the floors would collide their
-ports and leak the player between decks at the boundaries. Offset + a dual shaft-marker (down on the nave
-side, up on the rind side) keeps the chute the only crossing.
+Wired into the **v100** game as the shaft destination. `v100/index.html#maybeBuildRind` fires at
+`narrative_tier ≥ 3` (set when the nave campaign completes) and builds this streamed four-chunk floor via
+`prepareRind`/`rindSolveNext` (the Mercury hub first, then the three domain-stations, paced like the nave
+wards). The floor is laid **offset** ~6000 world-units east of the nave — its internal hub↔station seams sit
+on the same hex lattice as the nave's, so co-locating would collide ports and leak the player between decks;
+offset makes the **shaft a teleport pair** (`shaftNodes`), the only crossing. A **deck-aware shaft marker**
+(`shaftAt[deck]`/`shaftHere()`) reads "down to the rind" on the nave and "up to the Nave" on the rind.
+Combat **creeps arm on the rind** (deck 1); the nave stays baddie-free. Pinned by
+`v100/test/rind-floor.selftest.mjs`. The standalone `/rind` page stays the geometry/design proof.
 
 Served at `/rind` via `worker.js`; deploys with `hoop/**` on the owning branch.

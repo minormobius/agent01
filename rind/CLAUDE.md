@@ -14,6 +14,51 @@ JS → emit a frame model → solve for stress):
   plus wayfinding: a drivable spiral ramp → azimuthal road → ramp route through the chamber
   graph (`wayfind.js`, certified by `test/wayfind.selftest.mjs`).
 - `walk.html` — first-person walk through a planar cut of the foam.
+- `ops/` — **the production weave** at `rind.mino.mobi/ops/`. **The primary view is now 3D** (`index.html` +
+  `3d-app.js`, kernel `foam3d.js`): the weave resolved in a **volumetric voronoi foam PANCAKE** — a wide, thin,
+  **two-layer** disc, woven from **counter-rotating spirals**. 6 white arms spiral from the **upper-centre** hub,
+  8 production from the **lower-centre** hub (the six starts sit ABOVE the eight); upper/lower layer = over/under;
+  the hubs are joined only by threading the woven body. Counter-rotation ⇒ K(6,8). Two reads: **orbit** (the
+  woven pancake) and **inhabit thread** — *the mapping tech*: pick a white arm and the disc UNROLLS around it
+  (your arm = a straight spine centre→rim, the 8 production arms slant across and cross it at numbered stations;
+  the other whites are parallel verticals; reselect → the map re-organises) · and **museum map** — the
+  **wayfinding** toy: the two layers explode apart, click two chambers and a route threads doors and climbs
+  **stairs** (each stair = crossing the weave), pinch/scroll to zoom. The 6 white roles are **two per faction**
+  (Rindwalker · Continuant · Drift — the nave's three lobes + verbs) for **representation**. **Wayfinding is the
+  validation endpoint**: `wayfind.js` `certify()` proves the whole construction navigable AND that the white hub
+  → production hub route is *forced through the weave* (≥1 stair, never a direct shaft) — pinned over 30 seeds by
+  `wayfind.selftest.mjs`. **Click any chamber → its generated ROOM** (`chamber.js`): the voronoi cell becomes walls (structural edges) with **doors as mid-wall gaps that
+  never cut a corner column** (the rind rule: doors open plates, not edges), a fixture (ops console / process
+  machine / hub), and a **stair to the other-layer partner = the white×production facility** (the K(6,8) contact
+  made architectural) — except the two hubs, which get no stair so they stay disconnected. A weave-cell is a
+  **hexagon of chunks** — `foam3d`'s `rings` param (the `⬡ chunks` button) cuts it into a **centered-hexagonal
+  number** (1·7·19·37, `3n²+3n+1`); a bigger cell gets more windings. **`tess.html`/`tess-app.js`** shows how the
+  cells **tessellate**: a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
+  to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
+  aperture-7 (H3-style), wrapping the cylinder. Seedable family
+  (`foam3d.selftest.mjs`, 44 + `chamber.selftest.mjs`, 31; K(6,8) over 80 seeds). The 2D versions are preserved: `flat.html`/`flat-app.js`
+  (the polar rosette, kernel `weavefloor.js`), `decks.html` (stacked-decks comparison), `weave.html` (loom/tube
+  proof). The original surface concept: the upper rind's industrial deck: **8
+  production engines** (foundry · chemworks · mill · fab · weave · assembly · fluid · reclaim) placed as
+  graph-Voronoi facilities with **live material flow** (each engine's activity graph + the closed
+  inter-engine supply chain reclaim→refiners→mill→assembly→fulfillment→reclaim), and **6 white-collar ops
+  surfaces** woven over all eight. The contact requirement — every ops surface touches every engine — is the
+  complete bipartite graph **K(6,8)**, realised as a **plain weave** (warp × weft, not the abandoned `/forge/micro`
+  gyroid: a gyroid merges the 6 and the 8 into single sheets and asserts contact by fiat; the weave keeps all
+  14 as distinct followable threads and *derives* completeness). **The primary view (`index.html` + `ops-app.js`,
+  kernel `weavefloor.js`) is a POLAR / spiral weave — a woven rosette over a 19-CHUNK hex region (centre + 6 + 12,
+  the forge tiling) on TWO floors**, fine sub-chunk voronoi. The constraint set it solves: all 6 white-collar
+  meet at the **top-floor centre tile**, all 8 production at the **bottom-floor centre tile**, and those two hubs
+  are **disconnected except through the weave**. Structure: **two counter-rotating spiral families** (the {N/k}
+  Shukhov motif on the floor) — 6 white arms spiral out one way (converge at the top hub), 8 production the other
+  (converge at the bottom hub); counter-rotation ⇒ every white crosses every production (**K(6,8)**), over/under
+  parity ⇒ **100% of both floors**, and the hubs couple only through the field. It's a **seedable FAMILY** (spiral
+  turns + phases per seed; turns-sum ≥ 1 guarantees K(6,8), checked over 80 seeds). (Earlier renders kept for
+  contrast: `decks.html`/`decks-app.js` — stacked decks + a link-star, the wrong metaphor; cartesian/ribbon
+  versions in git history.) `weave.html` is the loom/tube proof. Kernels: `weave.js` (K(6,8) plaid + tours),
+  `foam.js` (voronoi + adjacency), `engines.js` (the 8 + supply chain), `weavefloor.js` (the polar rosette),
+  `layout.js` (region-decks comparison). Theory in `ops/WEAVE.md`. Pure static, deterministic, node-tested
+  (`weave` 41, `weavefloor` 24, `decks` 77).
 
 ## The package it belongs to
 
@@ -28,7 +73,10 @@ of hoop; it is the shell, tide/biome are the air/life inside it. Keep the cross-
 ( cd rind/solver/cylinder-solver && cargo test )   # the solver math, offline
 node rind/solver/foam-preview.mjs                  # headless foam → frame model preview
 node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no deps)
-open rind/index.html                               # the three tools
+node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
+node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
+node rind/ops/test/decks.selftest.mjs              # the region-decks comparison view
+open rind/index.html                               # the tools (+ ops/ — the production weave)
 ```
 
 Structural correctness lives in the Rust crate's `cargo test`; the wayfinding (spiral ramps +
