@@ -167,6 +167,32 @@ export function routeOneDoor(graph, aGi, bGi) {
   return { path, doors: dist.get(bGi) };
 }
 
+// GRADE-AWARE route: minimise doors FIRST (a door costs a huge fixed amount), then walk the gentlest path — steps
+// steeper than the pedestrian cap are penalised hard, so the route ramps along the concourse instead of taking a
+// near-vertical shortcut between stacked cells (which is what plain door-minimisation did — grade 7+). Same door
+// count as routeOneDoor (≤1), but a walkable path. Returns { path, doors, maxGrade }.
+export function routeGraded(graph, aGi, bGi, gradeCap = 0.6) {
+  const cells = graph.cells;
+  if (aGi == null || bGi == null) return null;
+  if (aGi === bGi) return { path: [aGi], doors: 0, maxGrade: 0 };
+  const DOOR = 1e7;
+  const stepCost = (u, v, isDoor) => { const a = cells[u], b = cells[v], dz = Math.abs(a.z - b.z), dh = Math.hypot(a.x - b.x, a.y - b.y) || 1e-6, g = dz / dh; return (isDoor ? DOOR : 0) + dz * (1 + (g > gradeCap ? 60 : 0)) + 0.05 * dh; };
+  const dist = new Map([[aGi, 0]]), prev = new Map([[aGi, -1]]), viaDoor = new Map([[aGi, false]]);
+  const heap = [[0, aGi]];
+  const hpush = (x) => { heap.push(x); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const hpop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let s = i; if (l < heap.length && heap[l][0] < heap[s][0]) s = l; if (r < heap.length && heap[r][0] < heap[s][0]) s = r; if (s === i) break; [heap[s], heap[i]] = [heap[i], heap[s]]; i = s; } } return top; };
+  while (heap.length) {
+    const [d, u] = hpop(); if (d > (dist.has(u) ? dist.get(u) : Infinity)) continue; if (u === bGi) break;
+    const relax = (v, isDoor) => { const nd = d + stepCost(u, v, isDoor); if (nd < (dist.has(v) ? dist.get(v) : Infinity)) { dist.set(v, nd); prev.set(v, u); viaDoor.set(v, isDoor); hpush([nd, v]); } };
+    for (const v of graph.free[u]) relax(v, false);
+    for (const v of graph.doorAdj[u]) relax(v, true);
+  }
+  if (!prev.has(bGi)) return null;
+  const path = []; for (let c = bGi; c !== -1; c = prev.get(c)) path.push(c); path.reverse();
+  let doors = 0, maxGrade = 0; for (let i = 1; i < path.length; i++) { if (viaDoor.get(path[i])) doors++; const a = cells[path[i - 1]], b = cells[path[i]], dz = Math.abs(a.z - b.z), dh = Math.hypot(a.x - b.x, a.y - b.y) || 1e-6; maxGrade = Math.max(maxGrade, dz / dh); }
+  return { path, doors, maxGrade };
+}
+
 const centreOf = (cells, set) => { let best = -1, bd = Infinity; for (const gi of set) { const c = cells[gi], d = c.x * c.x + c.y * c.y; if (d < bd) { bd = d; best = gi; } } return best; };
 
 // ── THE CERTIFICATE — the offline proof that the construction meets the whole spec, maxDoors and all ──

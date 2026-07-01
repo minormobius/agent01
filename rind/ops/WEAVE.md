@@ -45,7 +45,16 @@
 > solid). With both, the on-curve substrate is provably one-door (pinned in `onedoor.selftest.mjs` over 6 seeds:
 > K=48/48, all doors at grade, both concourses one region, max = 1). `filler: 0` is the instructive pure-curve case:
 > K=48 and 100% fill but the concourses fragment and one-door FAILS — the interstitial filler is what bridges the
-> crossing-chopped pieces back together.
+> crossing-chopped pieces back together. On-curve is the **default** view; a `〜 curves` overlay draws the 14 analytic
+> centrelines (with a dot at each rim exit) so you can read the ideal seeding curve against the grown cells and see
+> all 14 threads reach the outer surface.
+>
+> **GRADE-AWARE ROUTING (`routeGraded`).** Plain door-minimisation (`routeOneDoor`) counts only doors, so within a
+> concourse it happily takes a near-vertical shortcut between stacked cells (measured grade 7–35 — it *looked* like
+> routing broke the walkable-grade rule, because it did). `routeGraded` keeps doors as the hard primary objective
+> (still ≤ 1) but adds a steep-step penalty, so among equal-door paths it walks the gentlest one — measured max grade
+> drops to ~0.3–0.6 (at the pedestrian cap) with the same door count. The route read-out shows the path's max grade,
+> green when walkable. Pinned in `onedoor.selftest.mjs`.
 
 > **THE SUBSTRATE REBUILD (`prism.html` · `rind.mino.mobi/ops/prism.html`).** The weave is being re-founded on a
 > proper **hexagonal prism of homogeneously spaced nodes** (`prism.js`, HCP packing — every interior node has 12

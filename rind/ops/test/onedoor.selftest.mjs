@@ -3,7 +3,7 @@
 // The one-door layer collapses the walkable space to TWO connected door-free concourses joined only by the 48 K(6,8)
 // crossing-doors ⇒ 0 within a colour, exactly 1 across. Pinned across seeds/widths/chunks. Run: node …/onedoor.selftest.mjs
 
-import { buildOneDoor, assignConcourses, placeDoors, buildDoorGraph, routeOneDoor, certify } from '../onedoor.js';
+import { buildOneDoor, assignConcourses, placeDoors, buildDoorGraph, routeOneDoor, routeGraded, certify } from '../onedoor.js';
 import { buildWeave3D } from '../weave3d.js';
 import { routeMinDoors } from '../cells3d.js';
 import { buildCurveModel } from '../curveseed.js';
@@ -102,6 +102,23 @@ ok(cm.curveCount > 0 && cm.fillerCount > 0 && cm.nucleiCount === cm.curveCount +
 ok(buildCurveModel(5, { filler: 0 }).cells.every((c) => c.owner), 'on-curve filler=0 is pure thread cells (no matrix) — the instructive fragmented case');
 const cc2 = certify(buildCurveModel(3, { rings: 1, flatR: 0.16, layers: 8, pitch: 36 }));
 ok(cc2.doorPairs === cc.doorPairs && cc2.whiteCells === cc.whiteCells, 'on-curve is deterministic per seed');
+
+// ══ GRADE-AWARE ROUTING: plain door-minimisation takes near-vertical shortcuts between stacked cells (grade ≫ cap);
+// routeGraded keeps the SAME door count but walks a pedestrian-grade path. ══
+const gm = buildCurveModel(42, { rings: 1, flatR: 0.16, layers: 8, pitch: 36 }), gc = certify(gm), gcells = gm.cells;
+const gradeOf = (path) => { let g = 0; for (let i = 1; i < path.length; i++) { const a = gcells[path[i - 1]], b = gcells[path[i]]; g = Math.max(g, Math.abs(a.z - b.z) / (Math.hypot(a.x - b.x, a.y - b.y) || 1e-6)); } return g; };
+let sameDoors = true, gradedWalkable = true, doorMinSteep = false;
+for (let t = 0; t < 8; t++) {
+  const A = gcells[(t * 137) % gcells.length].gi, B = gcells[(t * 331 + 50) % gcells.length].gi;
+  const r1 = routeOneDoor(gc.graph, A, B), r2 = routeGraded(gc.graph, A, B, gm.maxGrade || 0.6);
+  if (!r1 || !r2) continue;
+  if (r2.doors !== r1.doors) sameDoors = false;
+  if (r2.maxGrade > 1.2) gradedWalkable = false;
+  if (gradeOf(r1.path) > 2) doorMinSteep = true;
+}
+ok(doorMinSteep, 'plain door-minimisation really does take steep (grade > 2) shortcuts — the problem being fixed');
+ok(sameDoors, 'grade-aware routing crosses the SAME number of doors (still ≤ 1) as door-minimisation');
+ok(gradedWalkable, '★ grade-aware routing walks a pedestrian-grade path (max grade ≤ ~1.2, near the cap) — routing no longer breaks the grade requirement');
 
 console.log(`onedoor.selftest: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

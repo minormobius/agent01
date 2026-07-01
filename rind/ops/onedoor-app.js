@@ -5,14 +5,14 @@
 
 import { buildGeometry, weaveLines, layWeave } from './weave3d.js';
 import { buildCells } from './cells3d.js';
-import { certify, routeOneDoor } from './onedoor.js';
+import { certify, routeGraded } from './onedoor.js';
 import { buildCurveModel } from './curveseed.js';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
 let width = 6, spacing = 30, flatR = 0.16, rings = 1, layers = 8, NW = 6, NF = 8;
-let spin = true, byConcourse = true, showDoors = true, routeMode = false, peel = 0, solid = true, substrate = 'hcp';
+let spin = true, byConcourse = true, showDoors = true, routeMode = false, peel = 0, solid = true, substrate = 'curve', showCurves = true;
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -50,7 +50,7 @@ function proj(x, y, z, s) {
   return { X: CW / 2 + x1 * s, Y: CH / 2 - z2 * s, depth: y2 };
 }
 
-function recomputeRoute() { theRoute = (cert && routeA >= 0 && routeB >= 0) ? routeOneDoor(cert.graph, routeA, routeB) : null; routeSet = theRoute ? new Set(theRoute.path) : null; }
+function recomputeRoute() { theRoute = (cert && routeA >= 0 && routeB >= 0) ? routeGraded(cert.graph, routeA, routeB, m.maxGrade || 0.6) : null; routeSet = theRoute ? new Set(theRoute.path) : null; }
 
 function draw() {
   const s = Math.min(CW, CH) / (m.R * 2.5) * zoom, zc = m.thickness / 2;
@@ -97,6 +97,21 @@ function draw() {
       const mx = (pa.X + pb.X) / 2, my = (pa.Y + pb.Y) / 2;
       ctx.fillStyle = rgba(col, 0.95); ctx.beginPath(); ctx.arc(mx, my, steep ? 2.4 : 3.4, 0, 7); ctx.fill();
     }
+  }
+
+  // the ANALYTIC SEEDING CURVES — the 14 thread centrelines (lineW / lineP) the nuclei are placed along. Drawn on
+  // top so you can read the ideal curve against the grown cells, and a dot at each rim exit so all 14 are visible on
+  // the outer surface. Coloured by thread.
+  if (showCurves && m.lineW) {
+    const spine = (lineFn, idx, col) => {
+      ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = 2.1; ctx.lineCap = 'round'; ctx.beginPath();
+      const N = 140; let last = null;
+      for (let k = 0; k <= N; k++) { const rf = 0.014 + 0.986 * k / N, p = lineFn(idx, rf); if (p[2] > cutoff) { last = null; continue; } const P = proj(p[0], p[1], p[2] - zc, s); last ? ctx.lineTo(P.X, P.Y) : ctx.moveTo(P.X, P.Y); last = P; }
+      ctx.stroke();
+      const e = lineFn(idx, 1); if (e[2] <= cutoff) { const P = proj(e[0], e[1], e[2] - zc, s); ctx.fillStyle = rgba(col, 1); ctx.beginPath(); ctx.arc(P.X, P.Y, 3.4, 0, 7); ctx.fill(); ctx.strokeStyle = rgba(BG, 0.9); ctx.lineWidth = 1; ctx.stroke(); }
+    };
+    for (let f = 0; f < m.NF; f++) spine(m.lineP, f, prodCol(f));
+    for (let w = 0; w < m.NW; w++) spine(m.lineW, w, warpCol(w));
   }
 
   if (theRoute && cellsModel) {
@@ -146,7 +161,7 @@ function panels() {
 }
 function routePanel() {
   if (routeA >= 0 && routeB < 0) { $('routeRead').innerHTML = `<span class="hint">start set — click the <b style="color:#e678c8">end</b> room.</span>`; return; }
-  if (theRoute) { const d = theRoute.doors; $('routeRead').innerHTML = `<span class="big">${d} door${d === 1 ? '' : 's'}</span><br><span class="sub">${d === 0 ? 'same concourse — a free walk, no door' : 'across the concourses — one zero-grade door'} · ${theRoute.path.length} rooms</span>`; return; }
+  if (theRoute) { const d = theRoute.doors, g = theRoute.maxGrade, steep = g > (cert.gradeCap || 0.6) * 1.05; $('routeRead').innerHTML = `<span class="big">${d} door${d === 1 ? '' : 's'}</span><br><span class="sub">${d === 0 ? 'same concourse — a free walk' : 'across the concourses — one zero-grade door'} · ${theRoute.path.length} rooms · <b style="color:${steep ? 'var(--bad)' : 'var(--ok)'}">grade ${g.toFixed(2)}</b> ${steep ? '(steep!)' : '(walkable)'}</span>`; return; }
   $('routeRead').innerHTML = routeMode ? `<span class="hint">click a <b style="color:#6ecf8a">start</b> room, then an <b style="color:#e678c8">end</b> room — it is always ≤ 1 door.</span>` : `<span class="hint">click <b>⇆ route</b>, then any two rooms.</span>`;
 }
 
@@ -184,6 +199,7 @@ $('substrate').addEventListener('click', () => { substrate = substrate === 'hcp'
 $('mode').addEventListener('click', () => { byConcourse = !byConcourse; $('mode').classList.toggle('on', byConcourse); $('mode').textContent = byConcourse ? '◧ 2 concourses' : `◧ ${NW + NF} threads`; });
 $('solid').addEventListener('click', () => { solid = !solid; $('solid').classList.toggle('on', solid); $('solid').textContent = solid ? '⬢ solid' : '⬡ ghost'; });
 $('doors').addEventListener('click', () => { showDoors = !showDoors; $('doors').classList.toggle('on', showDoors); });
+$('curves').addEventListener('click', () => { showCurves = !showCurves; $('curves').classList.toggle('on', showCurves); });
 $('route').addEventListener('click', () => { routeMode = !routeMode; $('route').classList.toggle('on', routeMode); if (!routeMode) { routeA = routeB = -1; theRoute = routeSet = null; } routePanel(); });
 $('spin').addEventListener('click', () => { spin = !spin; $('spin').classList.toggle('on', spin); });
 $('reseed').addEventListener('click', () => { seed = (seed + 1) >>> 0; rebuild(); });
@@ -209,4 +225,5 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.5, M
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; }
 addEventListener('resize', resize);
 $('width').value = width; $('decks').value = layers; $('decksV').textContent = layers; $('nw').value = NW; $('nf').value = NF; $('nwnfV').textContent = `${NW}×${NF}`; $('peelV').textContent = `${geo.layers.toFixed(1)} decks`;
+$('substrate').textContent = substrate === 'hcp' ? '▦ HCP lattice' : '✳ on-curve'; $('substrate').classList.toggle('on', substrate === 'curve');
 rebuild(); resize(); frame();
