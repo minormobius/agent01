@@ -501,6 +501,22 @@ export function aiPlan(s) {
       seq.push({ type: '__attack_adjacent', targetId: target.id });
     }
     if (canUse('flit')) seq.push({ type: '__flit_away', fromId: target.id });
+  } else if (arche === 'swarm') {
+    // the swarm ENGULFS: if two+ foes cluster, BLAST the densest knot (AoE); else lance the nearest from
+    // range; else close and sting. The anti-cluster answer — it punishes a bunched player+summon. (v100
+    // divergence from the rind kernel: a swarm archetype that actually spends the AoE verb.)
+    let bestC = null, bestN = 0;
+    if (canUse('blast')) for (const e of foes) { const n = foes.filter((x) => inRange(x, e, SKILLS.blast.radius || 1)).length; if (n > bestN) { bestN = n; bestC = e; } }
+    if (canUse('blast') && bestN >= 2) {
+      if (!inRange(u, bestC, SKILLS.blast.range)) closeTo(SKILLS.blast.range - REACH_PAD);
+      seq.push({ type: '__blast', targetId: bestC.id });
+    } else if (canUse('lance')) {
+      if (!inRange(u, target, SKILLS.lance.range)) closeTo(SKILLS.lance.range - REACH_PAD);
+      seq.push({ type: '__lance', targetId: target.id });
+    } else {
+      if (!inRange(u, target, 1)) closeTo(2 * UNIT_R);
+      seq.push({ type: '__attack_adjacent', targetId: target.id });
+    }
   } else { // aggro (rindwalker / default)
     if (!inRange(u, target, 1)) closeTo(2 * UNIT_R);
     if (hurt < 0.35 && canUse('scavenge')) seq.push({ type: 'skill', skillId: 'scavenge' });
@@ -534,6 +550,13 @@ export function aiStep(s, step) {
     const tgt = unitById(s, step.targetId);
     if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, SKILLS.lance.range) && hasLoS(s, u, tgt) && costOf(u, 'lance') <= u.flux) return act(s, { type: 'skill', skillId: 'lance', targetId: tgt.id });
     if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, 1)) return act(s, { type: 'skill', skillId: 'strike', targetId: tgt.id });  // fallback (melee ignores LoS)
+    return { type: 'noop' };
+  }
+  if (step.type === '__blast') {   // AoE: engulf the marked cluster; fall back to lance, then a sting
+    const tgt = unitById(s, step.targetId);
+    if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, SKILLS.blast.range) && hasLoS(s, u, tgt) && costOf(u, 'blast') <= u.flux) return act(s, { type: 'skill', skillId: 'blast', targetId: tgt.id });
+    if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, SKILLS.lance.range) && hasLoS(s, u, tgt) && costOf(u, 'lance') <= u.flux) return act(s, { type: 'skill', skillId: 'lance', targetId: tgt.id });
+    if (u && tgt && tgt.alive && !u.acted && inRange(u, tgt, 1)) return act(s, { type: 'skill', skillId: 'strike', targetId: tgt.id });
     return { type: 'noop' };
   }
   if (step.type === '__flit_away') {

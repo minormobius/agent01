@@ -61,11 +61,16 @@ function playerPlans(s) {
   if (!atkOpts.includes('strike')) atkOpts.push('strike');
   for (const e of enemies) plans.push(engage(s, u, e, atkOpts));
 
-  // 2) each affordable self/support skill (no target). NB: `summon` is intentionally excluded — the
-  // certificate means "winnable with your direct kit"; bringing extra agents only makes it easier, and
-  // searching a growing party would blow up the tree. Summons are gravy in real play, not required.
+  // 2) each affordable self/support skill (no target).
   for (const id of ['mend', 'scavenge', 'brace', 'bulwark', 'harden', 'adrenal']) {
     if (can(id)) plans.push([{ type: 'skill', skillId: id }, { type: 'end' }]);
+  }
+  // 2b) SUMMON is COUNTED (v100 divergence from the rind kernel, where it was excluded): a lone hero vs a
+  // pack needs the ally to even the action economy, so the oracle must certify with it in hand. Bounded to
+  // ONE extra body (party ≤ 2) so the tree stays finite — the drone then fights via the AI branch (u.ai),
+  // not the player macro menu. This is what makes bigger multi-opponent fights certifiable.
+  if (can('summon') && s.units.filter((x) => x.team === u.team && x.alive).length < 2) {
+    plans.push([{ type: 'skill', skillId: 'summon' }, { type: 'end' }]);
   }
   // 3) revive a downed ally / assist a living ally (if any in range) — keeps the party verbs in-search
   const downed = s.units.find((x) => !x.alive && x.team === u.team && E.inRange(u, x, 1));
@@ -113,7 +118,7 @@ export function solveCombat(setup, opts = {}) {
       const u = E.active(node.s);
       if (!u) continue;
 
-      if (u.team !== 'player') {                 // foe (or summoned non-controlled) → the deterministic AI plays
+      if (u.team !== 'player' || u.ai) {         // a foe — OR a summoned, AI-driven ally — plays the deterministic AI
         const ns = cloneState(node.s); E.runAiTurn(ns);
         const k = stateKey(ns);
         if (!seen.has(k)) {

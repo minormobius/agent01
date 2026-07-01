@@ -62,12 +62,12 @@ export function creepFor(worldSeed, chunkId, room, deck = 0) {
   const beast = plan === 'humanoid' ? null : beastGenome(plan, fseed, deck);
   const name = beast ? BEASTS[plan].names[(fseed >>> 12) % BEASTS[plan].names.length] : FOE_NAMES[fseed % FOE_NAMES.length];
   const glyph = beast ? BEASTS[plan].glyph : GLYPHS[(fseed >>> 3) % GLYPHS.length];
-  // SWARM MOVESET — a bee swarm plays nothing like a humanoid bruiser: fragile, flux-rich, and it STINGS
-  // FROM RANGE (Lance) rather than trading blows. `kit` overrides the universal set (engine.skillsFor
-  // reads it); `ai:'kite'` closes only to lance range and holds; `mods` gives it the flux + apow to sting
-  // and thins its guard. Humanoids keep the universal melee kit (no override).
+  // SWARM MOVESET — a bee swarm plays nothing like a humanoid bruiser: fragile, flux-rich, and it fights
+  // with AREA — BLAST (engulf a whole cluster) when foes bunch, else LANCE from range, else sting. `kit`
+  // overrides the universal set (engine.skillsFor reads it); `ai:'swarm'` (engine aiPlan) picks blast vs
+  // lance by how clustered the targets are; `mods` gives it the flux + apow to cast and thins its guard.
   const swarm = plan === 'swarm'
-    ? { kit: ['strike', 'lance'], ai: 'kite', mods: { stat: { flux: 14, apow: 4, def: -1, hp: -4 }, passive: { fluxRegen: 3 } } }
+    ? { kit: ['strike', 'lance', 'blast'], ai: 'swarm', footprint: 1.9, mods: { stat: { flux: 18, apow: 5, def: -1, hp: -4 }, passive: { fluxRegen: 3 } } }
     : {};
   return {
     id: 1, name, character, combat, weapon: eq.mainhand,
@@ -81,12 +81,13 @@ export function creepFor(worldSeed, chunkId, room, deck = 0) {
 // (deeper decks bring more), deterministic. The LEAD (index 0) is the room's canonical creep — its id
 // tracks the cleared flag + the map glyph; the extras are seeded off the room so they vary (a humanoid
 // might be flanked by a bee swarm). Ids are unique (1..n) as createBattle expects.
-export const MAX_PACK = 2;   // capped at 2 so the solver oracle can certify EVERY fight (a 3-foe continuum
-                             // BFS blows the node budget → uncertifiable). Deeper decks get tougher via
-                             // per-foe stat scaling (creepFor), not more bodies. Raise when the solver is faster.
+// Fights are 1..3 foes. The solver now COUNTS the player's summon (solver.js), which evens the action
+// economy enough that most 3-foe fights certify; the rest fall back to a safe scale-down. Deeper decks
+// bias toward larger packs AND scale per-foe stats.
+export const MAX_PACK = 3;
 export function creepPack(worldSeed, chunkId, room, deck = 0) {
   const pseed = fnv('pack:' + (worldSeed >>> 0) + ':' + chunkId + ':' + room);
-  const n = 1 + ((pseed >>> 20) % MAX_PACK);   // 1..MAX_PACK
+  const n = 1 + ((pseed >>> 20) % 2) + ((deck | 0) >= 2 && (pseed >>> 22) % 2 ? 1 : 0);   // 1..3 (deck ≥2 can add a third)
   const pack = [];
   for (let i = 0; i < n; i++) {
     const cr = creepFor(worldSeed, chunkId, i === 0 ? room : room + ':m' + i, deck);   // extras get a sub-room seed

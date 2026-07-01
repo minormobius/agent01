@@ -4,7 +4,7 @@
 // (45 checks: verbs, status, flanking, terrain, LoS, termination) live in rind/test/combat.selftest.mjs.
 //   node hoop/v100/test/continuum.selftest.mjs
 
-import { createBattle, legal, active, runAiTurn, skillsFor, costOf, moveRange, UNIT_R, dist, SKILLS, act } from '../arena/engine.js';
+import { createBattle, legal, active, runAiTurn, endTurn, skillsFor, costOf, moveRange, UNIT_R, dist, SKILLS, act } from '../arena/engine.js';
 import { FACTIONS } from '../arena/factions.js';
 import { creepFor, creepPack, certifyPack } from '../arena/encounter.js';
 import { gradeEncounter } from '../arena/solver.js';
@@ -69,12 +69,22 @@ ok(UNIT_R > 0 && dist({ x: 0, y: 0 }, { x: 3, y: 4 }) === 5, 'continuum geometry
   ok(tuned.foes[0].combat.hp < 9999, 'certifyPack scales an overwhelming pack down');
 }
 
-// ── 7. SWARM MOVESET: a bee swarm overrides the universal kit with its own (strike + ranged lance) ──
+// ── 7. SWARM MOVESET + AoE: a bee swarm fights with AREA (blast) on a clustered player+ally ──
 {
   let sw = null; for (let c = 0; c < 200 && !sw; c++) for (let r = 0; r < 40; r++) { const cr = creepFor(9, c, r, 1); if (cr.plan === 'swarm') { sw = cr; break; } }
-  ok(sw && Array.isArray(sw.kit) && sw.kit.includes('lance') && !sw.kit.includes('brace'), 'a swarm carries its own ranged kit (lance), not the universal melee set');
-  ok(sw.ai === 'kite', 'a swarm uses the kite AI (sting from range)');
+  ok(sw && Array.isArray(sw.kit) && sw.kit.includes('blast') && sw.kit.includes('lance') && !sw.kit.includes('brace'), 'a swarm carries an AoE+ranged kit (blast, lance), not the universal melee set');
+  ok(sw.ai === 'swarm', 'a swarm uses the swarm AI (engulf clusters)');
   ok(skillsFor({ kit: sw.kit }).join() === sw.kit.join(), 'engine.skillsFor honours the swarm’s explicit kit');
+  // the swarm BLASTS a clustered player+ally (AoE hits both) — the anti-bunching mechanic
+  sw.id = 1;
+  const pc = rollCharacter(3, {}), player = { id: 0, name: 'H', faction: 'rindwalker', character: pc, combat: deriveCombat(pc), sprite: { seed: 'p', role: 'm' } };
+  const ally = { id: 2, name: 'Drone', faction: null, combat: { hp: 14, atk: 6, def: 2, speed: 1, accuracy: 0.85, crit: 0.02, fluxPool: 0, apow: 0, power: 6 }, sprite: { seed: 'd', role: 'm' } };
+  const S = createBattle({ player, allies: [ally], foes: [sw], seed: 5, W: 14, H: 10 });
+  const p = S.units.find((u) => u.id === 0), a = S.units.find((u) => u.id === 2), s = S.units.find((u) => u.id === 1);
+  p.x = 7; p.y = 5; a.x = 7.5; a.y = 5.3; s.x = 7.2; s.y = 8; s.flux = 20;
+  while (active(S).id !== 1 && !S.winner) endTurn(S);
+  const b = { p: p.hp, a: a.hp }; runAiTurn(S);
+  ok(p.hp < b.p && a.hp < b.a, 'the swarm’s blast is AoE — it hits BOTH the player and the ally at once');
 }
 
 // ── 8. player SUMMON → a grey/black ROBOT swarm sprite (distinct palette from the amber enemy swarm) ──
