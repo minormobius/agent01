@@ -4444,8 +4444,50 @@
       waypoint = (wp && Number.isFinite(wp.x) && Number.isFinite(wp.y)) ? { x: wp.x, y: wp.y } : null;
       try { waypoint ? localStorage.setItem('mega:v093:waypoint', JSON.stringify(waypoint)) : localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
     }
+    const stripTags = (s) => String(s == null ? '' : s).replace(/<[^>]*>/g, '');
+    const inDeckBBox = (x, y, deck) => { if (!world) return false; for (const ch of world.chunks) { if ((ch.deck || 0) !== deck) continue; const bb = ch.bb || (ch.bb = bboxOf(ch.poly)); if (x >= bb.x0 && x <= bb.x1 && y >= bb.y0 && y <= bb.y1) return true; } return false; };
+    // OBLIGATION + QUEST marks the minimap draws as glyphs (no other glyphs on the map). Current deck only.
+    //   chest holding items · garden with plants · the bed you last slept in · the active quest (lesser waypoint).
+    function miniMarks() {
+      const out = []; if (!story.ready || !world) return out;
+      const pd = playerDeck(), chests = getChests();
+      for (const ch of world.chunks) {
+        const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const F of (P.fixtures || [])) {
+          const role = (ch.rooms[F.room] || {}).role;
+          if (fixtureAction(role, 'wall') !== 'chest' || !F.tip) continue;
+          const items = chestOf(chests, 'ch' + ch.id + ':r' + F.room);
+          if (items && items.length) out.push({ x: F.tip.x, y: F.tip.y, kind: 'chest', glyph: '▣', color: '#e0c98a', label: 'storage chest', sub: items.length + ' item' + (items.length === 1 ? '' : 's') + ' stored' });
+        }
+        for (const cp of (P.comps || [])) {
+          if (isTerminal(cp) || fixtureAction(cp.role, 'component') !== 'garden') continue;
+          const plots = getJSONFact('garden.plots.' + gardenKeyOf(cp, ch), null), planted = plots ? plots.filter(Boolean).length : 0;
+          if (planted) out.push({ x: cp.cx, y: cp.cy, kind: 'garden', glyph: '❀', color: '#8fe07a', label: 'garden', sub: planted + '/' + PLOTS_PER_GARDEN + ' plots planted' });
+        }
+      }
+      const home = getJSONFact('combat.home', null);
+      if (home && Number.isFinite(home.x) && inDeckBBox(home.x, home.y, pd)) out.push({ x: home.x, y: home.y, kind: 'bed', glyph: '✚', color: '#9ee6df', label: 'your bed', sub: 'where you last slept' });
+      if (storyWp && Number.isFinite(storyWp.x)) {
+        const q = questGuidance || {}, obj = stripTags(q.objective).replace(/\s+/g, ' ').trim();
+        out.push({ x: storyWp.x, y: storyWp.y, kind: 'quest', color: '#f4bf62', label: (obj || 'your quest').slice(0, 64), sub: stripTags(q.stepText || q.whereWord || 'follow the marker').slice(0, 130) });
+      }
+      return out;
+    }
+    // hover context for a world point: the nearest room's VERB + MATTER, and any STORY figure living there.
+    function miniRoomInfo(wx, wy) {
+      if (!story.ready || !society) return null;
+      const pd = playerDeck();
+      let best = null, bd = Infinity;
+      for (const r of society.rooms) { const ch = world.chunks[r.ch]; if (!ch || (ch.deck || 0) !== pd) continue; const d = (r.x - wx) ** 2 + (r.y - wy) ** 2; if (d < bd) { bd = d; best = r; } }
+      if (!best || bd > 150 * 150) return null;                       // pointing at bare extent → nothing
+      const info = { verb: best.role, matter: best.domain || null, story: null };
+      const R2 = 95 * 95;
+      for (const a of (anchors || [])) { if ((a.deck || 0) !== pd) continue; if ((a.x - best.x) ** 2 + (a.y - best.y) ** 2 < R2) { info.story = a.name; break; } }
+      if (!info.story) for (const rr of residents) { if (rr.keeper && residentDeck(rr) === pd && (rr.x - best.x) ** 2 + (rr.y - best.y) ** 2 < R2) { info.story = rr.keeper.name; break; } }
+      return info;
+    }
     const minimap = new MiniMap({
-      getState: () => ({ world, walk, seen, society, px: px(), py: py(), waypoint }),
+      getState: () => ({ world, walk, seen, society, deck: playerDeck(), px: px(), py: py(), waypoint, marks: miniMarks(), roomAt: miniRoomInfo }),
       onWaypoint: setWaypoint,
     });
     $('mapbtn').addEventListener('click', () => minimap.toggle());
