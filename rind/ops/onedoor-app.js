@@ -11,7 +11,7 @@ const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
 let width = 6, spacing = 30, flatR = 0.16, rings = 1, layers = 8, NW = 6, NF = 8;
-let spin = true, byConcourse = true, showDoors = true, routeMode = false, peel = 0;
+let spin = true, byConcourse = true, showDoors = true, routeMode = false, peel = 0, solid = true;
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -26,10 +26,12 @@ const INK = [232, 236, 244], BG = [6, 7, 12], GOLD = [255, 224, 122], WHITE_C = 
 geo = buildGeometry(seed, { rings, spacing, layers, NW, NF });
 const warpCol = (w) => mix(hex(geo.warps[w].color), INK, (w % 2) * 0.28);
 const prodCol = (f) => hex(geo.wefts[f].color);
-// concourse colour (default) OR the arm's own colour (◧ toggle)
+// concourse colour (2 colours, default) OR each thread's own colour (the N×M = 6+8 = 14-colour map). In arm mode
+// every chamber is coloured — matrix cells inherit their nearest arm (cert stamps c.armFill), so no cell reads grey.
 function cellColor(c) {
   if (byConcourse) return cert && cert.color[c.gi] === 'white' ? WHITE_C : PROD_C;
-  return c.owner ? (c.owner.kind === 'white' ? warpCol(c.owner.idx) : prodCol(c.owner.idx)) : [44, 52, 70];
+  const a = c.owner || c.armFill;
+  return a ? (a.kind === 'white' ? warpCol(a.idx) : prodCol(a.idx)) : [70, 80, 100];
 }
 
 function convexHull(pts) {
@@ -66,13 +68,16 @@ function draw() {
     for (const c of cellsModel.cells) { if (c.z > cutoff) continue; const pc = proj(c.x, c.y, c.z - zc, s); drawn.push({ c, depth: pc.depth, X: pc.X, Y: pc.Y }); }
     drawn.sort((a, b) => a.depth - b.depth);
     for (const d of drawn) {
-      const c = d.c, col = cellColor(c), sh = 0.5 + 0.5 * (d.depth / m.R + 1) / 2, inRoute = routeSet && routeSet.has(c.gi);
-      const isW = byConcourse && cert && cert.color[c.gi] === 'white', baseA = byConcourse ? (isW ? 0.9 : 0.5) : 0.66;   // lift white so a compact white concourse stays legible against production
+      const c = d.c, col = cellColor(c), sh = 0.55 + 0.45 * (d.depth / m.R + 1) / 2, inRoute = routeSet && routeSet.has(c.gi);
+      const isW = byConcourse && cert && cert.color[c.gi] === 'white';
+      // SOLID (opaque, for inspecting the polyhedra — peel to see inside) vs ghost (translucent, see the whole weave)
+      const bgMix = solid ? (isW ? 0.02 : 0.06) : (isW ? 0.04 : 0.2);
+      const alpha = inRoute ? 0.99 : solid ? 0.985 : byConcourse ? (isW ? 0.9 : 0.5) : 0.66;
       const hull = convexHull(c.verts.map((v) => { const p = proj(v[0], v[1], v[2] - zc, s); return [p.X, p.Y]; }));
       if (hull.length >= 3) {
         ctx.beginPath(); hull.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
-        ctx.fillStyle = rgba(mix(col, BG, isW ? 0.04 : 0.2), (inRoute ? 0.97 : baseA) * sh); ctx.fill();
-        ctx.strokeStyle = rgba(mix(col, BG, 0.5), 0.4 * sh); ctx.lineWidth = 0.6; ctx.stroke();
+        ctx.fillStyle = rgba(mix(col, BG, bgMix), alpha * sh); ctx.fill();
+        ctx.strokeStyle = rgba(solid ? mix(col, BG, 0.62) : mix(col, BG, 0.5), (solid ? 0.85 : 0.4) * sh); ctx.lineWidth = solid ? 0.8 : 0.6; ctx.stroke();
         if (inRoute) { ctx.strokeStyle = rgba(GOLD, 0.95); ctx.lineWidth = 1.8; ctx.stroke(); }
       }
       pickCells.push({ gi: c.gi, X: d.X, Y: d.Y });
@@ -156,7 +161,8 @@ $('nf').addEventListener('change', (e) => { NF = +e.target.value; $('nwnfV').tex
 $('flat').addEventListener('change', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
 $('peel').addEventListener('input', (e) => { peel = (+e.target.value) / 100; $('peelV').textContent = `${((1 - peel) * geo.layers).toFixed(1)} decks`; });
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
-$('mode').addEventListener('click', () => { byConcourse = !byConcourse; $('mode').classList.toggle('on', byConcourse); $('mode').textContent = byConcourse ? '◧ concourse' : '◧ by arm'; });
+$('mode').addEventListener('click', () => { byConcourse = !byConcourse; $('mode').classList.toggle('on', byConcourse); $('mode').textContent = byConcourse ? '◧ 2 concourses' : `◧ ${NW + NF} threads`; });
+$('solid').addEventListener('click', () => { solid = !solid; $('solid').classList.toggle('on', solid); $('solid').textContent = solid ? '⬢ solid' : '⬡ ghost'; });
 $('doors').addEventListener('click', () => { showDoors = !showDoors; $('doors').classList.toggle('on', showDoors); });
 $('route').addEventListener('click', () => { routeMode = !routeMode; $('route').classList.toggle('on', routeMode); if (!routeMode) { routeA = routeB = -1; theRoute = routeSet = null; } routePanel(); });
 $('spin').addEventListener('click', () => { spin = !spin; $('spin').classList.toggle('on', spin); });

@@ -46,18 +46,21 @@ export function assignConcourses(model) {
 
   // (ii) flood the matrix. Multi-source BFS by hop distance from all owned cells; ties (same hop count) break toward
   // the stratum the matrix cell sits in (upper→white, lower→prod) so the fill reads as two strata, not a jagged seam.
-  const dist = new Array(N).fill(Infinity), frontier = [];
-  for (const c of cells) if (color[c.gi]) { dist[c.gi] = 0; frontier.push(c.gi); }
+  // We ALSO carry the nearest ARM (owner) along the flood, so every cell — matrix included — has a thread identity for
+  // the N×M (14-colour) view, not just its concourse. `arm` = the owning thread {kind,idx} propagated to matrix cells.
+  const dist = new Array(N).fill(Infinity), arm = new Array(N).fill(null), frontier = [];
+  for (const c of cells) if (color[c.gi]) { dist[c.gi] = 0; arm[c.gi] = c.owner; frontier.push(c.gi); }
   for (let h = 0; h < frontier.length; h++) {
     const gi = frontier[h];
     for (const nb of cells[gi].adj) {
       if (color[nb] !== null) continue;
-      if (dist[nb] === Infinity) { dist[nb] = dist[gi] + 1; color[nb] = color[gi]; frontier.push(nb); }
-      else if (dist[nb] === dist[gi] + 1 && color[nb] !== color[gi]) { const want = cells[nb].z >= zMid ? 'white' : 'prod'; if (color[gi] === want) color[nb] = want; }   // tie-break by stratum
+      if (dist[nb] === Infinity) { dist[nb] = dist[gi] + 1; color[nb] = color[gi]; arm[nb] = arm[gi]; frontier.push(nb); }
+      else if (dist[nb] === dist[gi] + 1 && color[nb] !== color[gi]) { const want = cells[nb].z >= zMid ? 'white' : 'prod'; if (color[gi] === want) { color[nb] = want; arm[nb] = arm[gi]; } }   // tie-break by stratum
     }
   }
   // any cell the BFS somehow missed (isolated) → nearest by stratum, so the partition is always complete
   for (const c of cells) if (color[c.gi] === null) color[c.gi] = c.z >= zMid ? 'white' : 'prod';
+  for (const c of cells) c.armFill = c.owner || arm[c.gi];   // thread identity for every chamber (matrix inherits its nearest arm)
 
   // the hubs (for reporting + the "including hubs" test): the central cells of each stratum
   const coreR = Math.max(model.flatR * R, 1.6 * model.spacing);
