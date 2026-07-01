@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>rind · ops — inhabit a thread (nexus walker)</title>
+<style>
+  :root { --ink:#e8ecf4; --dim:#7e8aa0; --gold:#d9b24a; --bg:#06070c; --panel:#0c0f17; --line:#1b2030; --ok:#6fcf8a; --white:#e6e9f2; --prod:#57a6d6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
+  a { color: var(--gold); text-decoration: none; }
+  .wrap { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+  header { padding: 9px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; }
+  header .crumb { color: var(--dim); font-size: 12px; }
+  .main { display: grid; grid-template-columns: 1fr 300px; min-height: 0; }
+  @media (max-width: 860px) { .main { grid-template-columns: 1fr; } .rail { display: none; } }
+  .stage { position: relative; min-height: 0; }
+  canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
+  .rail { border-left: 1px solid var(--line); padding: 14px; overflow: auto; background: var(--panel); font-size: 12.5px; }
+  .rail h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 14px 0 7px; } .rail h2:first-child { margin-top: 0; }
+  .now { font-size: 17px; font-weight: 700; }
+  .now .sub { font-size: 12px; color: var(--dim); font-weight: 400; }
+  .doorlist { display: flex; flex-direction: column; gap: 5px; }
+  .doorlist .d { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+  .doorlist .d:hover { border-color: var(--gold); }
+  .doorlist .d.here { border-color: var(--gold); background: #14120b; }
+  .doorlist .d .sw { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+  .doorlist .d .lab { flex: 1; } .doorlist .d .rf { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 11px; }
+  .keys { color: var(--dim); font-size: 11.5px; line-height: 1.7; }
+  .keys b { color: var(--ink); background: #11151f; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font-family: ui-monospace, monospace; }
+  .trail { font-size: 11.5px; color: var(--dim); word-break: break-word; }
+  .trail b { color: var(--gold); }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>rind · ops — inhabit a thread</h1>
+    <span class="crumb"><a href="./">← ops</a> &nbsp;·&nbsp; <a href="./onedoor.html">⌸ one door</a> &nbsp;·&nbsp; you are the <b style="color:var(--gold)">@</b> — your thread is walled but for its doors and the nexus; cross a door and the map becomes the new thread's</span>
+  </header>
+  <div class="main">
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="loading" id="loading">building the weave…</div>
+    </div>
+    <aside class="rail">
+      <h2>you are on</h2>
+      <div class="now" id="now"></div>
+      <h2>doors off this thread</h2>
+      <div class="doorlist" id="doors"></div>
+      <h2>controls</h2>
+      <div class="keys">
+        <b>←</b>/<b>A</b> toward nexus · <b>→</b>/<b>D</b> toward rim<br>
+        <b>Enter</b> cross the door you're on, or enter the nexus<br>
+        click a <b>room</b> to walk there · click a <b>door</b> to cross
+      </div>
+      <h2>your trail</h2>
+      <div class="trail" id="trail"></div>
+    </aside>
+  </div>
+</div>
+<script type="module" src="./nexus-app.js"></script>
+</body>
+</html>

@@ -42,6 +42,9 @@ JS → emit a frame model → solve for stress):
   on-curve` toggle): the HCP lattice claimed by the watershed, and **on-curve** (`curveseed.js`) — nuclei seeded
   ALONG the analytic thread curves, then polyhedra grown to fill; on-curve lands the full K(6,8)=48 with every door
   zero-grade, its concourses made connected by a geodesic hub-flood (`assignConcoursesFlood`) + orphan stitching.
+  **`nexus.html`/`nexus-app.js` is the FIRST-PERSON navigator (proto)**: you are the `@` on ONE thread — its own
+  chambers strung along its curve into a walkable surface, walled but for its doors + the nexus; start at the white
+  nexus, walk an arm, and crossing a door re-centres the whole map on the crossed thread (navigation = mapping).
   **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate**: a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
