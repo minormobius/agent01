@@ -98,7 +98,8 @@
 > resolves cleanly — K(3,3)=9/9, continuous, foam solid. `NW`/`NF` clamp to [2 … 6/8] and default to the full
 > K(6,8); `buildGeometry` just slices the warp/weft lists. Pinned in `weave3d.selftest`.
 
-> **NOW IN 3D — a PANCAKE.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the
+> **NOW IN 3D — a PANCAKE.** The primary 3D view (`orbit.html` + `3d-app.js`, kernel `foam3d.js`; `index.html` is
+> now the ops landing hub) resolves the
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating
 > spirals**. 6 white arms spiral from the **upper-centre** hub, 8 production from the **lower-centre** hub (the
 > six starts sit ABOVE the eight); upper/lower layer = over/under; the hubs join only through the woven body.

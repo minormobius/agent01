@@ -14,8 +14,10 @@ JS → emit a frame model → solve for stress):
   plus wayfinding: a drivable spiral ramp → azimuthal road → ramp route through the chamber
   graph (`wayfind.js`, certified by `test/wayfind.selftest.mjs`).
 - `walk.html` — first-person walk through a planar cut of the foam.
-- `ops/` — **the production weave** at `rind.mino.mobi/ops/`. **The primary view is now 3D** (`index.html` +
-  `3d-app.js`, kernel `foam3d.js`): the weave resolved in a **volumetric voronoi foam PANCAKE** — a wide, thin,
+- `ops/` — **the production weave** at `rind.mino.mobi/ops/`. **`ops/index.html` is the LANDING HUB** — a card
+  index of every ops view (link here first; it's what `/ops/` serves). **The primary 3D view is `orbit.html`**
+  (`3d-app.js`, kernel `foam3d.js`) — moved off `index.html` when the hub was added: the weave resolved in a
+  **volumetric voronoi foam PANCAKE** — a wide, thin,
   **two-layer** disc, woven from **counter-rotating spirals**. 6 white arms spiral from the **upper-centre** hub,
   8 production from the **lower-centre** hub (the six starts sit ABOVE the eight); upper/lower layer = over/under;
   the hubs are joined only by threading the woven body. Counter-rotation ⇒ K(6,8). Two reads: **orbit** (the
