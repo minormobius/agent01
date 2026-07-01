@@ -3728,7 +3728,7 @@
           if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
       return best;
     }
-    const battleSpriteFor = (u) => { try { return crewSprite(u.sprite.seed, u.sprite.role, {}); } catch (e) { return null; } };
+    const battleSpriteFor = (u) => { try { return (u.sprite && u.sprite.genome) ? u.sprite.genome : crewSprite(u.sprite.seed, u.sprite.role, {}); } catch (e) { return null; } };   // a beast carries its own prebuilt genome (tagged _plan); a humanoid mints a crew sprite
     function buildPlayerUnit(c) {
       const eq = effectiveEquip();   // fight with your ACTUAL gear (manually equipped, else auto-best)
       const combat = deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand });

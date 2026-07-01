@@ -6,6 +6,13 @@
 
 import * as E from './engine.js';
 import { frameRects, DIR_OF } from '../v3/sprite-core.js';
+// beast body-plan renderers (vendored Sprite Lab kernels) — a creep genome tagged `_plan` is drawn by its
+// matching frame fn (grid genome.w×genome.h, cells {x,y,c}), animated off the walk `frame` as a phase t.
+import { polyFrame } from '../v3/poly.js';
+import { quadFrame } from '../v3/quad.js';
+import { axialFrame } from '../v3/axial.js';
+import { isopodFrame } from '../v3/isopod.js';
+const BEAST_FRAME = { poly: polyFrame, axial: axialFrame, isopod: isopodFrame, quad: (g, t) => quadFrame(g, t, true) };   // quad faces LEFT (toward the player)
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -51,8 +58,16 @@ export class BattleOverlay {
 
   _spriteCanvas(genome, dir, frame) {
     const key = genome.seed + '|' + dir + '|' + frame; let c = this.sprCache.get(key); if (c) return c;
-    const N = genome.size, SC = 4, cvs = document.createElement('canvas'); cvs.width = N * SC; cvs.height = N * SC; const g = cvs.getContext('2d');
-    for (const r of frameRects(genome, DIR_OF[dir] || DIR_OF.S, frame)) { g.fillStyle = r.c; g.fillRect(r.x * SC, r.y * SC, SC, SC); }
+    const SC = 4; let cvs, rects, W, H;
+    const beast = genome._plan && BEAST_FRAME[genome._plan];
+    if (beast) {                                            // a beast plan: own grid + t-parameterised gait
+      W = genome.w; H = genome.h; const t = frame == null ? 0 : (frame % 4) / 4;
+      rects = beast(genome, t);
+    } else {                                                // the humanoid crew sprite: 8-dir frame rects
+      W = H = genome.size; rects = frameRects(genome, DIR_OF[dir] || DIR_OF.S, frame);
+    }
+    cvs = document.createElement('canvas'); cvs.width = W * SC; cvs.height = H * SC; const g = cvs.getContext('2d');
+    for (const r of rects) { g.fillStyle = r.c; g.fillRect(r.x * SC, r.y * SC, SC, SC); }
     this.sprCache.set(key, cvs); return cvs;
   }
   _chamfer(x, y, w, h, c, fill, lw) { const ctx = this.ctx, k = 12; ctx.beginPath(); ctx.moveTo(x + k, y); ctx.lineTo(x + w - k, y); ctx.lineTo(x + w, y + k); ctx.lineTo(x + w, y + h - k); ctx.lineTo(x + w - k, y + h); ctx.lineTo(x + k, y + h); ctx.lineTo(x, y + h - k); ctx.lineTo(x, y + k); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (c) { ctx.strokeStyle = c; ctx.lineWidth = lw || 1.5; ctx.stroke(); } }
