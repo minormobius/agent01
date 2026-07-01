@@ -4,10 +4,14 @@
 // (45 checks: verbs, status, flanking, terrain, LoS, termination) live in rind/test/combat.selftest.mjs.
 //   node hoop/v100/test/continuum.selftest.mjs
 
-import { createBattle, legal, active, runAiTurn, skillsFor, costOf, moveRange, UNIT_R, dist, SKILLS } from '../arena/engine.js';
+import { createBattle, legal, active, runAiTurn, skillsFor, costOf, moveRange, UNIT_R, dist, SKILLS, act } from '../arena/engine.js';
 import { FACTIONS } from '../arena/factions.js';
-import { creepFor } from '../arena/encounter.js';
+import { creepFor, creepPack, certifyPack } from '../arena/encounter.js';
+import { gradeEncounter } from '../arena/solver.js';
+import { buildSwarmGenome } from '../v3/swarm.js';
 import { rollCharacter, deriveCombat } from '../stats.js';
+import { packForCharacter } from '../pack.js';
+import { autoEquip, defaultPlan } from '../bodyplan.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -48,6 +52,42 @@ ok(UNIT_R > 0 && dist({ x: 0, y: 0 }, { x: 3, y: 4 }) === 5, 'continuum geometry
   let guard = 0; while (!B.winner && guard++ < 500) runAiTurn(B);
   ok(!!B.winner, 'AI-vs-AI battle terminates');
   ok(['player', 'foe', 'draw'].includes(B.winner), 'winner is player | foe | draw');
+}
+
+// ── 6. THE SOLVER ORACLE: grades a fight, and certifyPack tunes a pack winnable-but-not-trivial ──
+{
+  const c = rollCharacter(7, {}), eq = autoEquip(defaultPlan(), packForCharacter(c, 9));
+  const player = { id: 0, name: 'Hero', faction: 'rindwalker', character: c, combat: deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand }), sprite: { seed: 'p', role: c.vocation } };
+  const g = gradeEncounter({ player, foes: [creepFor(9, 5, 3, 1)], seed: 7, W: 14, H: 10 }, { cap: 16000 });
+  ok(['comfortable', 'fair', 'tight', 'brutal', 'trivial', 'impossible', 'unknown'].includes(g.tier), 'gradeEncounter returns a difficulty tier');
+  const cert = certifyPack(player, creepPack(9, 5, 3, 1), { seed: 7 });
+  ok(cert && Array.isArray(cert.foes) && cert.foes.length >= 1, 'certifyPack returns a tuned foe pack');
+  ok(cert.tier !== 'impossible', 'certifyPack never ships a provably-impossible fight (biases safe)');
+  // it's a GATE: an absurdly overscaled pack (huge foes) gets tuned down off "impossible"
+  const huge = creepPack(9, 5, 3, 1).map((f) => ({ ...f, combat: { ...f.combat, hp: 9999, atk: 999 } }));
+  const tuned = certifyPack(player, huge, { seed: 7, tries: 4 });
+  ok(tuned.foes[0].combat.hp < 9999, 'certifyPack scales an overwhelming pack down');
+}
+
+// ── 7. SWARM MOVESET: a bee swarm overrides the universal kit with its own (strike + ranged lance) ──
+{
+  let sw = null; for (let c = 0; c < 200 && !sw; c++) for (let r = 0; r < 40; r++) { const cr = creepFor(9, c, r, 1); if (cr.plan === 'swarm') { sw = cr; break; } }
+  ok(sw && Array.isArray(sw.kit) && sw.kit.includes('lance') && !sw.kit.includes('brace'), 'a swarm carries its own ranged kit (lance), not the universal melee set');
+  ok(sw.ai === 'kite', 'a swarm uses the kite AI (sting from range)');
+  ok(skillsFor({ kit: sw.kit }).join() === sw.kit.join(), 'engine.skillsFor honours the swarm’s explicit kit');
+}
+
+// ── 8. player SUMMON → a grey/black ROBOT swarm sprite (distinct palette from the amber enemy swarm) ──
+{
+  const enemy = buildSwarmGenome('e1'), robot = buildSwarmGenome('e1', { robot: true });
+  ok(enemy.colors.thorax !== robot.colors.thorax && /210/.test(robot.colors.thorax), 'robot swarm uses the grey/steel palette, not amber');
+  // a rindwalker player has Summon in its kit; using it spawns a summoned unit (rendered as the robot swarm)
+  const pcs = rollCharacter(3, {});
+  const S = createBattle({ player: { id: 0, name: 'H', faction: 'rindwalker', character: pcs, combat: deriveCombat(pcs), sprite: { seed: 'p', role: 'make' } }, foes: [creepFor(1, 1, 1, 1)], seed: 5, W: 14, H: 10 });
+  const pu = S.units.find((u) => u.team === 'player'); pu.flux = 20;
+  ok(skillsFor(pu).includes('summon'), 'the faction player can Summon');
+  act(S, { type: 'skill', skillId: 'summon' });
+  ok(S.units.some((u) => u.summoned), 'Summon brings a summoned unit onto the board (drawn as a robot swarm)');
 }
 
 console.log(`\ncontinuum.selftest: ${pass} passed, ${fail} failed`);

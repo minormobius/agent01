@@ -32,19 +32,17 @@ for (let chunk = 0; chunk < 40; chunk++) for (let room = 0; room < 40; room++) {
 }
 ok(seen.has('humanoid') && seen.has('swarm'), 'both plans occur across the room space');
 
-// ── 4. MULTI-OPPONENT packs: 1–3 foes, unique ids, deeper decks bring more, lead matches the room ──
+// ── 4. MULTI-OPPONENT packs: 1–2 foes (capped so the solver can certify every fight), unique ids, lead
+//    matches the room. Deeper decks get tougher via per-foe stat scaling, not more bodies. ──
+let sawTwo = false;
 for (let chunk = 0; chunk < 30; chunk++) for (let room = 0; room < 20; room++) {
   const pk = creepPack(5, chunk, room, 1);
-  ok(pk.length >= 1 && pk.length <= 3, `pack size ${pk.length} in 1..3`);
+  ok(pk.length >= 1 && pk.length <= 2, `pack size ${pk.length} in 1..2`);
+  if (pk.length === 2) sawTwo = true;
   ok(new Set(pk.map((f) => f.id)).size === pk.length, 'pack ids are unique');
   ok(pk[0].sprite.seed === creepFor(5, chunk, room, 1).sprite.seed, 'pack lead is the room’s canonical creep');
 }
-{
-  const shallow = creepPack(1, 2, 2, 0), deep = creepPack(1, 2, 2, 3);
-  ok(deep.length >= shallow.length, 'a deep deck never brings fewer foes');
-  const anyBigger = Array.from({ length: 12 }, (_, i) => creepPack(1, i, 0, 3).length).some((n) => n === 3);
-  ok(anyBigger, 'deck ≥2 can field a 3-foe pack');
-}
+ok(sawTwo, 'multi-opponent packs occur (a 2-foe fight is fielded)');
 
 // ── 5. deck depth scales the fight; spoils untouched ──
 const sh = creepFor(1, 2, 2, 0), dp = creepFor(1, 2, 2, 3);

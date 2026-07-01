@@ -33,6 +33,18 @@ function beeColors(seed) {
     wingB: 'rgba(210,216,232,0.30)',
   };
 }
+// the ROBOT drone-swarm palette: grey/black metal, steel wings — a player's summoned construct (vs the
+// organic amber of an enemy bee swarm), so the two read apart at a glance.
+function robotColors(seed) {
+  const rnd = rngFor(seed + '::rbt'), lum = 44 + rnd() * 8;
+  return {
+    head: 'hsl(210 6% 10%)',                       // near-black sensor head
+    thorax: `hsl(210 5% ${lum.toFixed(0)}%)`,       // brushed grey body
+    abdo: `hsl(210 6% ${(lum - 16).toFixed(0)}%)`,  // darker grey tail
+    wingA: 'rgba(196,206,216,0.8)',                 // steel rotor
+    wingB: 'rgba(150,160,172,0.28)',
+  };
+}
 // rotate a base cell by angle, snap to the pixel lattice; head pixel wins collisions (legible silhouette).
 function rotateCells(cells, ang, colors) {
   const c = Math.cos(ang), s = Math.sin(ang), seen = new Map();
@@ -49,7 +61,7 @@ function beeCells(angle, wing, colors) { return rotateCells([...BODY, ...WINGS[w
 // ── the SWARM sprite: a deterministic cloud of bees in a w×h box, each with a home point + orbit phase ──
 export const FAMILIES = { swarm: {} };   // (parity with the other kernels; one look for now)
 export function buildSwarmGenome(seed, genes = {}) {
-  const rnd = rngFor('swarm:' + seed), colors = beeColors('swarm:' + seed);
+  const rnd = rngFor('swarm:' + seed), colors = genes.robot ? robotColors('swarm:' + seed) : beeColors('swarm:' + seed);
   const count = Math.max(8, Math.min(40, genes.count || 22));
   const w = genes.w || 30, h = genes.h || 26, cx = w / 2, cy = h / 2, rad = Math.min(w, h) * 0.42;
   const bees = [];

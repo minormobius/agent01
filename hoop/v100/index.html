@@ -504,7 +504,8 @@
     import { CRYSTAL_SYSTEMS, RARITY_COLOR, RARITY_TIER, rollGem, gemBonus, sumBonus, socketCap, canGrow, growGems, gemGlyph, cssOf } from './gems.js';   // THE LAPIDARY (mend) — crystallography gem improvement
     import { DISH_MIN, DISH_MAX, cookScore, cookDish } from './garden/kitchen.js';   // the dwelling's storage fixture, grown into a KITCHEN — cook crops into flavor-scored dishes
     import { createBattle } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
-    import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight)
+    import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, certifyPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight; certifyPack = the solver gate)
+    import { buildSwarmGenome } from './v3/swarm.js';   // a player SUMMON renders as a grey/black robot drone swarm
     import { BattleOverlay } from './arena/battle-ui.js';   // the tactical-board UI, shared with /arena
     import { autoEquip, defaultPlan, slotForItem, SLOTS } from './bodyplan.js';   // equip the player/creep for battle
     import { rollItem } from './sprite/item/genome.js';   // mint a loot item from a spoils seed
@@ -3728,13 +3729,28 @@
           if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
       return best;
     }
-    const battleSpriteFor = (u) => { try { return (u.sprite && u.sprite.genome) ? u.sprite.genome : crewSprite(u.sprite.seed, u.sprite.role, {}); } catch (e) { return null; } };   // a beast carries its own prebuilt genome (tagged _plan); a humanoid mints a crew sprite
+    const _summonSwarmSprite = new Map();
+    const battleSpriteFor = (u) => {
+      try {
+        if (u.summoned) { let g = _summonSwarmSprite.get(u.id); if (!g) { g = buildSwarmGenome(String(u.id), { robot: true }); _summonSwarmSprite.set(u.id, g); } return g; }   // a SUMMON is a grey/black robot drone swarm
+        return (u.sprite && u.sprite.genome) ? u.sprite.genome : crewSprite(u.sprite.seed, u.sprite.role, {});   // beast → its own genome; humanoid → a crew sprite
+      } catch (e) { return null; }
+    };
+    // the player fights in a FACTION STYLE (so they get a kit with signature verbs incl. Summon): their
+    // CHOSEN faction (flag.chose.*) once picked, else the style their build leans to (cast dominant triad).
+    const TRIAD_FACTION = { chassis: 'continuant', anima: 'drift', flesh: 'rindwalker' };
+    function playerFaction() {
+      const chosen = story.ready ? cf(story.store.getFacts(story.playerId)) : null;
+      if (chosen) return chosen;
+      const dom = playerChar && playerChar.cast && playerChar.cast.dominant;
+      return TRIAD_FACTION[dom] || 'rindwalker';
+    }
     function buildPlayerUnit(c) {
       const eq = effectiveEquip();   // fight with your ACTUAL gear (manually equipped, else auto-best)
       const combat = deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand });
       const gb = sumBonus([].concat(eq.mainhand && eq.mainhand.gems || [], eq.body && eq.body.gems || [], eq.offhand && eq.offhand.gems || []));
       combat.hp += gb.hp; combat.atk += gb.atk; combat.def += gb.def; combat.fluxPool += gb.flux;   // socketed-gem crystallography
-      return { id: 0, name: c.name, character: c, combat, sprite: { seed: c.sprite.seed, role: c.vocation }, glyph: '☻' };
+      return { id: 0, name: c.name, character: c, combat, faction: playerFaction(), sprite: { seed: c.sprite.seed, role: c.vocation }, glyph: '☻' };
     }
     function teleportTo(x, y) {
       const nd = nearestDeckNode(x, y); if (nd < 0 || !walk) return;
@@ -3747,9 +3763,12 @@
       const c = playerChar || loadCharacter();
       if (!c) { flashBusy('⚔ roll a character first — ⛨ equip'); return; }
       const deck = ch.deck || 0, id = creepId(ch.id, cp.room);
-      const foes = creepPack(seed, ch.id, cp.room, deck);   // the hazard room's whole pack (1–3 foes) — a multi-opponent fight
+      const pack = creepPack(seed, ch.id, cp.room, deck);   // the hazard room's whole pack (1–3 foes) — a multi-opponent fight
       let bseed = 2166136261; for (const ch2 of id) bseed = Math.imul(bseed ^ ch2.charCodeAt(0), 16777619);
-      const state = createBattle({ player: buildPlayerUnit(c), foes, seed: bseed >>> 0, W: 14, H: 10 });
+      const player = buildPlayerUnit(c);
+      // THE SOLVER GATE: certify + tune the pack so it's provably winnable-but-not-trivial for THIS hero.
+      let foes = pack; try { const cert = certifyPack(player, pack, { seed: bseed >>> 0 }); foes = cert.foes || pack; } catch (e) {}
+      const state = createBattle({ player, foes, seed: bseed >>> 0, W: 14, H: 10 });
       battleCtx = { ch, cp, id, deck };
       battleOpen = true; $('battle').classList.add('on');
       if (!battleView) battleView = new BattleOverlay($('battle'), { spriteFor: battleSpriteFor });
