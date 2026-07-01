@@ -211,6 +211,7 @@ footer a:hover { color: var(--sky); }
 </section>
 
 <nav class="catnav">
+  <a href="/map/" style="color:var(--sky); border-color:var(--sky);">✦ walk the map</a>
   <a href="#social">Social apps</a>
   <a href="#network">Network &amp; community</a>
   <a href="#analysis">Account analysis</a>
@@ -221,12 +222,13 @@ footer a:hover { color: var(--sky); }
 
 <!-- ─────────────── SOCIAL APPS ─────────────── -->
 <section id="social">
-  <div class="section-label"><span>Social apps — your own thing on ATProto</span><span class="count">12</span></div>
+  <div class="section-label"><span>Social apps — your own thing on ATProto</span><span class="count">13</span></div>
   <p class="section-blurb">These write records: votes, voice posts, answers, edits. Sign in with Bluesky; the data lands on a PDS, not our servers.</p>
   <ul class="projects">
     <li><div class="name-row"><a href="https://poll.mino.mobi">poll</a><span class="tag sky">writes</span><span class="tag">blind sigs</span></div><div class="desc">Anonymous polling with RSA blind signatures — the host can't link your identity to your vote. Public like-based mode too.</div></li>
     <li><div class="name-row"><a href="https://airchat.mino.mobi">airchat</a><span class="tag sky">writes</span><span class="tag">voice</span></div><div class="desc">Voice-first social on ATProto. Browser records, Whisper transcribes, the audio blob lives on your PDS.</div></li>
     <li><div class="name-row"><a href="https://mino.mobi/answers/">answers</a><span class="tag sky">writes</span><span class="tag">Q&amp;A</span></div><div class="desc">Ask anything, answered by the ATmosphere — questions, answers, votes and best-answer selection as ATProto records.</div></li>
+    <li><div class="name-row"><a href="/feedgen/">feedgen</a><span class="tag sky">writes</span><span class="tag">feeds</span></div><div class="desc">No-code feed builder — stack inputs and filters, preview live, publish a real Bluesky feed served by this very domain. Feeds live entirely on ATProto.</div></li>
     <li><div class="name-row"><a href="https://rite.mino.mobi">rite</a><span class="tag sky">writes</span><span class="tag">prose</span></div><div class="desc">Sentence-editing drill plus eight surfaces over Bluesky prose. The hub for the eight sub-tools below.</div></li>
     <li><div class="name-row"><a href="https://rite.mino.mobi/fodder/">fodder</a><span class="parent">rite</span></div><div class="desc">Tinder-style swipe deck crowdsourcing new corpus sentences mined from Project Gutenberg.</div></li>
     <li><div class="name-row"><a href="https://rite.mino.mobi/redact/">redact</a><span class="parent">rite</span></div><div class="desc">Redactle over a Bluesky user's longest prose threads — guess the censored words.</div></li>
@@ -275,11 +277,12 @@ footer a:hover { color: var(--sky); }
 
 <!-- ─────────────── THREADS ─────────────── -->
 <section id="threads">
-  <div class="section-label"><span>Threads &amp; conversations</span><span class="count">2</span></div>
+  <div class="section-label"><span>Threads &amp; conversations</span><span class="count">3</span></div>
   <p class="section-blurb">A conversation tree, rendered.</p>
   <ul class="projects">
     <li><div class="name-row"><a href="https://mino.mobi/weft/">weft</a><span class="tag">tidy-tree</span></div><div class="desc">Thread analysis — a tidy-tree canvas view of any Bluesky conversation with contributor weighting and YAML export for LLMs.</div></li>
     <li><div class="name-row"><a href="https://photo.mino.mobi/#/thread">thread</a><span class="parent">photo</span></div><div class="desc">Threaded post viewer — full conversation tree with quote-post expansion.</div></li>
+    <li><div class="name-row"><a href="/tetr/">tetr</a><span class="tag">game</span></div><div class="desc">Thread tetris — real threads quantized into hex polyominoes by their reply structure; clear rows, tap a settled hex to read the post.</div></li>
   </ul>
 </section>
 
