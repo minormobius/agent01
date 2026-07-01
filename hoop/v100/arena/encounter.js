@@ -69,11 +69,14 @@ export function creepFor(worldSeed, chunkId, room, deck = 0) {
   const swarm = plan === 'swarm'
     ? { kit: ['strike', 'lance', 'blast'], ai: 'swarm', footprint: 1.9, mods: { stat: { flux: 18, apow: 5, def: -1, hp: -4 }, passive: { fluxRegen: 3 } } }
     : {};
+  // a humanoid creep may be a PERSON MORPH: normal · robot (grey/red-eye) · wraith (pale-blue). Deterministic.
+  const morph = plan === 'humanoid' ? [null, null, 'robot', 'wraith'][(fseed >>> 14) % 4] : null;
+  const morphName = morph === 'robot' ? 'Sentinel-' + (fseed % 90 + 9) : morph === 'wraith' ? 'Wraith' : name;
   return {
-    id: 1, name, character, combat, weapon: eq.mainhand,
-    // sprite: humanoid → {seed, role} (index.html mints a crew sprite); beast → {plan, genome} (prebuilt)
-    sprite: beast ? { seed: beast.genome.seed, plan, family: beast.family, genome: beast.genome } : { seed: 'foe' + fseed, role: vocation },
-    glyph, accent: '#cf3b3b', level, vocation, plan, ...swarm,
+    id: 1, name: morph ? morphName : name, character, combat, weapon: eq.mainhand,
+    // sprite: humanoid → {seed, role, morph} (index.html mints a crew sprite); beast → {plan, genome} (prebuilt)
+    sprite: beast ? { seed: beast.genome.seed, plan, family: beast.family, genome: beast.genome } : { seed: 'foe' + fseed, role: vocation, morph },
+    glyph, accent: '#cf3b3b', level, vocation, plan, morph, ...swarm,
   };
 }
 

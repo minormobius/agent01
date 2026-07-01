@@ -204,7 +204,7 @@ export function frameRects(g, dir, phase){
 function faceCells(push, g, N, hb, turn, face, center, dy){
   if(face===-1) return;                          // back & back-¾: hair cap carries it
   dy=dy||0;
-  const F=g.face||{eye:'dot',mouth:'line',brow:false}, dark="#0a0b0e", big=N>=15;
+  const F=g.face||{eye:'dot',mouth:'line',brow:false}, dark=F.eyeColor||"#0a0b0e", big=N>=15;   // eyeColor override (robot red / wraith blue); default near-black
   const eyeDX=Math.max(1,Math.round(N*0.16))+(F.eye==='wide'?1:0);
   const baseRow=Math.max(0,Math.min(hb-2,Math.round(hb*0.42)));
   const eyeRow=baseRow+dy, mr=Math.min(hb-1, baseRow+Math.max(1,Math.round(N*0.13)))+dy;

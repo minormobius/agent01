@@ -3733,7 +3733,7 @@
     const battleSpriteFor = (u) => {
       try {
         if (u.summoned) { let g = _summonSwarmSprite.get(u.id); if (!g) { g = buildSwarmGenome(String(u.id), { robot: true }); _summonSwarmSprite.set(u.id, g); } return g; }   // a SUMMON is a grey/black robot drone swarm
-        return (u.sprite && u.sprite.genome) ? u.sprite.genome : crewSprite(u.sprite.seed, u.sprite.role, {});   // beast → its own genome; humanoid → a crew sprite
+        return (u.sprite && u.sprite.genome) ? u.sprite.genome : crewSprite(u.sprite.seed, u.sprite.role, { morph: u.sprite && u.sprite.morph });   // beast → its own genome; humanoid → a crew sprite (opt. robot/wraith morph)
       } catch (e) { return null; }
     };
     // the player fights in a FACTION STYLE (so they get a kit with signature verbs incl. Summon): their
