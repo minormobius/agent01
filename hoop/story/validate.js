@@ -62,7 +62,10 @@ export function validateTree(tree) {
     for (const c of (node.choices || [])) {
       if (seenIds.has(c.id)) issues.push(issue(ERROR, 'duplicate_choice_id', `choice id ${JSON.stringify(c.id)} appears more than once`, nodeId, c.id));
       seenIds.add(c.id);
-      if (c.goto != null && !(c.goto in nodes)) issues.push(issue(ERROR, 'missing_goto', `choice goto ${JSON.stringify(c.goto)} names a node that doesn't exist`, nodeId, c.id));
+      // an ending choice's goto is vacuous (walk() treats effects.end as terminal and never follows
+      // it) — hoopy's corpus stamps ending choices with a filler goto (its own choice id), so only
+      // flag a missing goto on choices that would actually try to advance to it.
+      if (c.goto != null && !(c.effects || {}).end && !(c.goto in nodes)) issues.push(issue(ERROR, 'missing_goto', `choice goto ${JSON.stringify(c.goto)} names a node that doesn't exist`, nodeId, c.id));
     }
   }
   const { reachableNodes, availableChoices } = walk(tree);
