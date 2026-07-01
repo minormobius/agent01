@@ -76,7 +76,10 @@ async function handleStory(request, env, url) {
       bible, profile: body.profile || {}, existing: body.existing || [], features: body.features || [],
       match: body.match || {}, descriptor: body.descriptor,
       pulse: body.pulse || await getPulse(env),   // the Director's pulse steers the arc (browser may override)
-      external: body.external || worldExternal(),  // world/runtime flags so generated gates aren't false orphans
+      // world/runtime flags so generated gates aren't false orphans. Passing the nearby pool slice
+      // unions in the DERIVED boundary (flags the pool requires but never produces — runtime-set),
+      // so arcs chaining onto the 600-record corpus's journey-flag gates aren't falsely blocked.
+      external: body.external || worldExternal(body.existing || []),
     });
     return json(result, result.ok ? 200 : 200);   // a clean BLOCK is a 200 with verdict — not an error
   }
@@ -143,6 +146,22 @@ export default {
     }
     if (url.pathname === '/v100/spine' || url.pathname === '/v100/spine/') {
       return env.ASSETS.fetch(new Request(new URL('/v100/story/spine.html', url), request));
+    }
+    // v101 — the CURRENT DEVELOPMENT surface (v100 stays the stable prior): carries the audited story
+    // engine (scaled storyboard pacing, external reps channel, end-goto validator fix) + the world docs.
+    if (url.pathname === '/v101/records' || url.pathname === '/v101/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/records.html', url), request));
+    }
+    if (url.pathname === '/v101/feed' || url.pathname === '/v101/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/feed.html', url), request));
+    }
+    if (url.pathname === '/v101/spine' || url.pathname === '/v101/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/story/spine.html', url), request));
+    }
+    // docs — the WORLD-SIDE documentation: the whole scope of the world (decks, systems, minigames),
+    // every workflow that feeds it, the v101 audit findings, and the roadmap. The examination surface.
+    if (url.pathname === '/docs' || url.pathname === '/docs/') {
+      return env.ASSETS.fetch(new Request(new URL('/docs/index.html', url), request));
     }
     // chunkroller — the chunk-design tool (a /econ cousin for chunks): total view + civic readout + NPC stats + biome sliders.
     if (url.pathname === '/chunkroller' || url.pathname === '/chunkroller/') {
