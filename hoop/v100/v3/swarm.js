@@ -87,4 +87,61 @@ export function swarmFrame(G, t) {
   return [...seen.values()].map(({ x, y, c }) => ({ x, y, c }));
 }
 
-export default { buildSwarmGenome, swarmFrame, FAMILIES };
+// ── THE BOIDS SIM (vendored from mega/bees/swarm.js — the real swarm MOTION for the battle board) ──────
+// Appearance (above) is baked; MOTION is a live boids-lite + curl-noise agent sim, so the cloud reacts and
+// never repeats. Struct-of-arrays + a pure fixed-timestep step(). The battle overlay steps one small sim
+// per swarm unit and stamps beeCells at each bee — so a swarm literally occupies a spread of board.
+
+export { beeCells };   // the overlay stamps one bee at each boid position
+
+// velocity heading → atlas bin (kept for parity with the lab; the overlay derives the bee angle live).
+export function headingBin(angle, headings) { let a = angle % TAU; if (a < 0) a += TAU; return Math.round((a / TAU) * headings) % headings; }
+
+// cheap deterministic value-noise → curl, for divergence-free turbulence (bees swirl, don't drain to a sink).
+function hash2(ix, iy, t) { let h = (ix * 374761393 + iy * 668265263 + t * 2246822519) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+const smoothN = (u) => u * u * (3 - 2 * u);
+function vnoise(x, y, t) { const ix = Math.floor(x), iy = Math.floor(y), fx = smoothN(x - ix), fy = smoothN(y - iy); const a = hash2(ix, iy, t), b = hash2(ix + 1, iy, t), c = hash2(ix, iy + 1, t), d = hash2(ix + 1, iy + 1, t); return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy; }
+function curl(x, y, t) { const e = 0.35, dPdy = (vnoise(x, y + e, t) - vnoise(x, y - e, t)) / (2 * e), dPdx = (vnoise(x + e, y, t) - vnoise(x - e, y, t)) / (2 * e); return { x: dPdy, y: -dPdx }; }
+
+// battle-tuned params: a tight, buzzing knot that orbits the unit's centre (scaled for a small px box).
+export const BATTLE_SWARM_PARAMS = { follow: 46, swirl: 40, cohesion: 6, alignment: 10, separation: 70, wander: 62, noiseFreq: 0.05, noiseDrift: 0.7, windX: 0, windY: 0, maxSpeed: 48, drag: 0.86, neighborRadius: 15, sepRadius: 6 };
+
+export class Swarm {
+  constructor(opts = {}) {
+    this.w = opts.width || 120; this.h = opts.height || 120;
+    this.count = Math.max(1, Math.min(200, opts.count | 0 || 22));
+    this.params = { ...BATTLE_SWARM_PARAMS, ...(opts.params || {}) };
+    this.headings = 8; this.seed = opts.seed || 'hive:0';
+    this.target = { x: this.w * 0.5, y: this.h * 0.5 };
+    this.t = 0; this.acc = 0; this.H = 1 / 60;
+    const n = this.count;
+    this.px = new Float32Array(n); this.py = new Float32Array(n); this.vx = new Float32Array(n); this.vy = new Float32Array(n); this.phase = new Uint8Array(n);
+    const rnd = rngFor(this.seed + '::init');
+    for (let i = 0; i < n; i++) { const a = rnd() * TAU, r = rnd() * Math.min(this.w, this.h) * 0.3; this.px[i] = this.target.x + Math.cos(a) * r; this.py[i] = this.target.y + Math.sin(a) * r; const sp = 8 + rnd() * 18, va = rnd() * TAU; this.vx[i] = Math.cos(va) * sp; this.vy[i] = Math.sin(va) * sp; this.phase[i] = (rnd() * 256) | 0; }
+    this._grid = new Map();
+  }
+  setTarget(x, y) { this.target.x = x; this.target.y = y; }
+  step(dt) { this.acc += Math.min(dt, 0.1); let guard = 0; while (this.acc >= this.H && guard++ < 8) { this._sub(this.H); this.acc -= this.H; this.t += this.H; } }
+  _rebuildGrid() { const g = this._grid; g.clear(); const cs = Math.max(6, this.params.neighborRadius); this._cs = cs; for (let i = 0; i < this.count; i++) { const key = Math.floor(this.px[i] / cs) + ',' + Math.floor(this.py[i] / cs); let bk = g.get(key); if (!bk) { bk = []; g.set(key, bk); } bk.push(i); } }
+  _sub(h) {
+    const P = this.params, g = this._grid, cs = (this._rebuildGrid(), this._cs);
+    const nr2 = P.neighborRadius * P.neighborRadius, sr2 = P.sepRadius * P.sepRadius, noiseT = Math.floor(this.t * P.noiseDrift), tx = this.target.x, ty = this.target.y, margin = 6;
+    for (let i = 0; i < this.count; i++) {
+      const x = this.px[i], y = this.py[i]; let ax = 0, ay = 0;
+      let dx = tx - x, dy = ty - y, d = Math.hypot(dx, dy) || 1e-3;
+      ax += (dx / d) * P.follow; ay += (dy / d) * P.follow; ax += (-dy / d) * P.swirl; ay += (dx / d) * P.swirl;
+      let sepx = 0, sepy = 0, cx = 0, cy = 0, ax2 = 0, ay2 = 0, nN = 0; const gcx = Math.floor(x / cs), gcy = Math.floor(y / cs);
+      for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) { const bucket = g.get((gcx + ox) + ',' + (gcy + oy)); if (!bucket) continue; for (let b = 0; b < bucket.length; b++) { const j = bucket[b]; if (j === i) continue; const jx = this.px[j] - x, jy = this.py[j] - y, dd = jx * jx + jy * jy; if (dd > nr2) continue; if (dd < sr2) { const inv = 1 / (Math.sqrt(dd) + 1e-3); sepx -= jx * inv; sepy -= jy * inv; } cx += this.px[j]; cy += this.py[j]; ax2 += this.vx[j]; ay2 += this.vy[j]; nN++; } }
+      if (nN > 0) { cx = cx / nN - x; cy = cy / nN - y; const cl = Math.hypot(cx, cy) || 1; ax += (cx / cl) * P.cohesion; ay += (cy / cl) * P.cohesion; const al = Math.hypot(ax2, ay2) || 1; ax += (ax2 / al) * P.alignment; ay += (ay2 / al) * P.alignment; }
+      const sl = Math.hypot(sepx, sepy); if (sl > 0) { ax += (sepx / sl) * P.separation; ay += (sepy / sl) * P.separation; }
+      const cn = curl(x * P.noiseFreq, y * P.noiseFreq, noiseT); ax += cn.x * P.wander; ay += cn.y * P.wander; ax += P.windX; ay += P.windY;
+      if (x < margin) ax += (margin - x) * 2; else if (x > this.w - margin) ax += (this.w - margin - x) * 2;
+      if (y < margin) ay += (margin - y) * 2; else if (y > this.h - margin) ay += (this.h - margin - y) * 2;
+      let vx = this.vx[i] + ax * h, vy = this.vy[i] + ay * h; const damp = Math.pow(P.drag, h); vx *= damp; vy *= damp; const sp = Math.hypot(vx, vy); if (sp > P.maxSpeed) { const k = P.maxSpeed / sp; vx *= k; vy *= k; } this.vx[i] = vx; this.vy[i] = vy; this.px[i] = x + vx * h; this.py[i] = y + vy * h;
+    }
+  }
+  // read each bee for drawing: cb(px, py, angle, wing, i). Pure — never mutates. Wing shimmers off a buzz clock.
+  forEachBee(cb, buzzHz = 20) { const slot = Math.floor(this.t * buzzHz); for (let i = 0; i < this.count; i++) { cb(this.px[i], this.py[i], Math.atan2(this.vy[i], this.vx[i]), (slot + this.phase[i]) & 1, i); } }
+}
+
+export default { buildSwarmGenome, swarmFrame, FAMILIES, Swarm, beeCells, BATTLE_SWARM_PARAMS };

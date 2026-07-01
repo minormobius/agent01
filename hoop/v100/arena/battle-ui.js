@@ -12,7 +12,7 @@ import { polyFrame } from '../v3/poly.js';
 import { quadFrame } from '../v3/quad.js';
 import { axialFrame } from '../v3/axial.js';
 import { isopodFrame } from '../v3/isopod.js';
-import { swarmFrame } from '../v3/swarm.js';
+import { swarmFrame, Swarm, beeCells } from '../v3/swarm.js';   // swarm units draw as a LIVE boids cloud on the board
 const BEAST_FRAME = { swarm: swarmFrame, poly: polyFrame, axial: axialFrame, isopod: isopodFrame, quad: (g, t) => quadFrame(g, t, true) };   // quad faces LEFT (toward the player). swarm/poly/isopod are omni; only humanoid+swarm are on the live roster (encounter.js)
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -22,7 +22,7 @@ export class BattleOverlay {
   constructor(root, { spriteFor }) {
     this.root = root; this.spriteFor = spriteFor;
     this.S = null; this.sel = 'strike'; this.anim = null; this.phase = 0; this.busy = false;
-    this.raf = null; this.sprCache = new Map(); this.onResolve = null; this.W = 0; this.H = 0; this.dpr = 1;
+    this.raf = null; this.sprCache = new Map(); this.swarms = new Map(); this._dt = 1 / 60; this._lastT = 0; this.onResolve = null; this.W = 0; this.H = 0; this.dpr = 1;
     root.innerHTML =
       `<div class="btop"><span class="bwho"></span><span class="bturn"></span><span class="bphase"></span>`
       + `<button class="bflee" title="flee — counts as defeat">flee ⏎</button></div>`
@@ -40,6 +40,7 @@ export class BattleOverlay {
 
   start(state, onResolve) {
     this.S = state; this.onResolve = onResolve; this.sel = 'strike'; this.anim = null; this.busy = false; this._resolved = false;
+    this.swarms.clear(); this._lastT = 0;
     this.elOver.classList.remove('on');
     this._renderBar(); this._syncTop();
     if (!this.raf) this.raf = requestAnimationFrame(this._loop);
@@ -74,7 +75,20 @@ export class BattleOverlay {
   }
   _chamfer(x, y, w, h, c, fill, lw) { const ctx = this.ctx, k = 12; ctx.beginPath(); ctx.moveTo(x + k, y); ctx.lineTo(x + w - k, y); ctx.lineTo(x + w, y + k); ctx.lineTo(x + w, y + h - k); ctx.lineTo(x + w - k, y + h); ctx.lineTo(x + k, y + h); ctx.lineTo(x, y + h - k); ctx.lineTo(x, y + k); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (c) { ctx.strokeStyle = c; ctx.lineWidth = lw || 1.5; ctx.stroke(); } }
 
-  _loop() { this.phase++; this._draw(); this.raf = requestAnimationFrame(this._loop); }
+  _loop() { const now = performance.now(); this._dt = this._lastT ? Math.min(0.05, (now - this._lastT) / 1000) : 1 / 60; this._lastT = now; this.phase++; this._draw(); this.raf = requestAnimationFrame(this._loop); }
+  // a swarm unit is a LIVE boids cloud (v3/swarm.js): one small sim per unit, its bees stamped each frame
+  // over a footprint of board — so the swarm literally OCCUPIES a spread, and never buzzes the same way twice.
+  _drawBoids(ctx, u, cx, cy, b, genome) {
+    const D = Math.max(44, 3.4 * b.sc);                       // on-board diameter (a wide diffuse cloud)
+    let sw = this.swarms.get(u.id);
+    if (!sw || sw._D !== Math.round(D)) { sw = new Swarm({ width: D, height: D, count: genome.count || 22, seed: genome.seed }); sw._D = Math.round(D); this.swarms.set(u.id, sw); }
+    sw.setTarget(D / 2, D / 2); sw.step(this._dt);
+    const col = genome.colors || {}, half = D / 2, bs = Math.max(1.6, b.sc * 0.085);
+    sw.forEachBee((px, py, ang, wing) => {
+      const bx = cx + (px - half), by = cy + (py - half);
+      for (const cell of beeCells(ang, wing, col)) { ctx.fillStyle = cell.c; ctx.fillRect(bx + cell.x * bs - bs / 2, by + cell.y * bs - bs / 2, bs + 0.5, bs + 0.5); }
+    });
+  }
 
   _draw() {
     const ctx = this.ctx, r = this.root.getBoundingClientRect();
@@ -119,6 +133,7 @@ export class BattleOverlay {
       ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(cx, cy + R * 0.7, R * 1.05, R * 0.5, 0, 0, 7); ctx.fill();
       if (au && au.id === u.id) { ctx.strokeStyle = u.team === 'player' ? '#f4bf62' : '#cf3b3b'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(cx, cy, R * 1.35, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
       const g = this.spriteFor(u);
+      if (g && g._plan === 'swarm') { this._drawBoids(ctx, u, cx, cy, b, g); this._drawBars(cx, cy - b.sc * 1.7 - 8, u, b.sc); continue; }   // a swarm is a LIVE boids cloud, not a static sprite
       if (g) { const moving = this.anim && this.anim.id === u.id, frame = moving ? (Math.floor(this.phase / 6) % 4) : null;
         const pc = this._spriteCanvas(g, u.team === 'player' ? 'N' : 'S', frame), hgt = b.sc * 2.2, wid = hgt * (pc.width / pc.height);
         ctx.imageSmoothingEnabled = false; ctx.drawImage(pc, cx - wid / 2, cy + R * 0.7 - hgt, wid, hgt); ctx.imageSmoothingEnabled = true;
