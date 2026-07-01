@@ -222,6 +222,7 @@ node biome/cycles/test/maximal.selftest.mjs       # 14 checks: intermingled web 
 node biome/gacha/test/gacha.selftest.mjs          # 13 checks: ECOSYSTEM GACHA engine — catalog, deterministic rolls, conservation, valid wiring, rarity spread
 node biome/sprite/test/sprite.selftest.mjs        # 20 checks: SPRITE engine — classifier total, deterministic build/pose, finite geometry, mass→size
 node biome/sprite/test/muscle.selftest.mjs        # 9 checks: MUSCLE solver — bare collapses, grown stands, antagonised, minimal, deterministic
+node biome/over/test/over.selftest.mjs            # 23 checks: OVER — eden determinism + density, planFor totality, rollBiome determinism + lively cast + swarm allometry
 node biome/cycles/test/builder.selftest.mjs       # 23 checks: presets compile/close/conserve/stable, validation, share codec, graceful failure
 ( cd biome/cycles/solver && cargo test )          # 6 checks: the Rust stability kernel
 # or all the node tests at once:
@@ -232,14 +233,46 @@ The self-tests are the contract — run them before every push.
 
 ## Deploy
 
-- Push `biome/**` on `main` or `claude/oneill-cylinder-refactor-xjknww` → `deploy-biome.yml`
-  runs `wrangler deploy`. The sandbox cannot deploy; push and let the Action run. Verify the
-  log binds `biome.mino.mobi (custom domain)` (the golden rule).
+- Push `biome/**` on `main` or `claude/biome-forest-creep-sprites-wnxo6h` (the current owning branch —
+  see `deploy-registry.json`) → `deploy-biome.yml` runs `wrangler deploy`. The sandbox cannot deploy;
+  push and let the Action run. Verify the log binds `biome.mino.mobi (custom domain)` (the golden rule).
 - **Stability wasm:** edit the Rust under `cycles/solver/` → `build-biome-solver.yml` rebuilds
   `cycles/solver/pkg/**`, commits it, and dispatches `deploy-biome.yml`. Don't hand-edit the
   committed `pkg/`.
 - Ownership is in `deploy-registry.json` (surface `biome`). Edit the registry, then
   `node scripts/gen-deploy-triggers.mjs --write` + `node scripts/lint-deploy-registry.mjs`.
+
+## Over — the living forest (`over/`) — live at `biome.mino.mobi/over`
+
+**Roll a biome and walk it.** Where the gacha rolls a web to *score* its viability, `over/` rolls one to
+*inhabit*: a seed picks a biome, grows its forest, and casts the biome's real animals as animated pixel
+sprites that wander it — "a forest alive with creep sprites and swarms." Three pieces, all client-side:
+
+- `over/eden.js` — **the forest generator**, VENDORED from `hoop/over/eden.js` (the game wing's "level
+  zero"). Pure + deterministic: mega-lakes → winding tributary streams → variable-density Poisson-disk
+  forest → bridges, with `passable()`/`wetness()`/`lakesNear()`/`tileTrees()`/`spawn()`. The only change
+  from hoop's copy is a `treeSpacing` opt so a rolled biome dials canopy density. **Re-sync from hoop,
+  don't fork** (same rule as the repo's other vendored kernels).
+- `over/sprite/` — **the critter kernels**, VENDORED from `mega/sprite/` (the megaproject's pixel-creature
+  lab): `core.js` + `wave.js` (shared) and four body plans — `poly/` (arthropods: ant/spider/crab),
+  `quad/` (legged vertebrates: hound/boar/bear), `axial/` (worm/snake/eel), `radial/` (echinoderm). Each
+  is a pure `build*Genome` + `*Frame` generator returning `[{x,y,c}]` pixels. Re-sync from mega, don't fork.
+- `over/fauna.js` — **the bridge** (the new, biome-owned logic). `rollBiome(n, catalog)` reads biome's own
+  `gacha/catalog.json`, picks a biome archetype (meadow/thicket/wetland/heath/grove/fen — each with a
+  palette, `treeSpacing`, and habitat/guild bias), then casts ~10 animals. `planFor(org)` maps every
+  catalogue animal to a body plan by its biology (genus sniff + guild + mass + thermy): arthropods &
+  pollinators → poly, worms/fish → axial, mammals/reptiles/birds → quad. Allometry (à la `cycles/`) sets
+  size/speed/cadence and the **social mode** — tiny ecto inverts & nectarivores SWARM (the creeps),
+  mid-size animals form troops, big ones go solitary. Pure + node-testable; reuses `gacha/prng.js`.
+- `over/index.html` — the page. Bakes each cast species' sprite into a 12-frame flipbook, spawns
+  swarms/troops per tile (clustering around drifting anchors), click-to-walk A* between the trees and
+  across the bridges, biome palette, `?n=<seed>` permalink + reroll. Same `#err` overlay as `/graph`.
+  The worker **redirects** no-slash `/over` → `/over/` (it's an ES-module page; an internal rewrite would
+  break the relative imports — unlike the rewrite used for `/gacha`,`/sprite`, etc.).
+
+Pinned by `over/test/over.selftest.mjs` (23 checks). NB the `radial` plan is vendored + wired but currently
+unused (no catalogue animal sniffs as an echinoderm); the branch is smoke-tested and waits for a future
+jellyfish/sea-star entry. Adding an organism to the catalogue auto-casts it — `planFor` is total.
 
 ## The ecosystem gacha (`gacha/`) — live at `biome.mino.mobi/gacha` (Phases 0–1)
 
