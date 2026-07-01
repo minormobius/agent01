@@ -2,27 +2,28 @@
 // coloured by the thread that claims it. Per-thread visibility (all 14) + group toggles (whites / ops / matrix).
 // Wayfinding picks two chambers and routes the path that MINIMISES DOORS CROSSED. Three+ honest levers below.
 
-import { buildWeave3D } from './weave3d.js';
+import { buildGeometry, weaveLines, layWeave } from './weave3d.js';
 import { buildCells, routeMinDoors, ownerKey } from './cells3d.js';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
-let width = 3, spacing = 30, flatR = 0.16, rings = 1, spin = true, showThreads = false, showCells = true, routeMode = false;
+let width = 6, spacing = 30, flatR = 0.16, rings = 1, spin = true, showThreads = false, showCells = true, routeMode = false;
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0;
-let m = buildWeave3D(seed, { rings, spacing, width, flatR });
-let cellsModel = null, geomKey = '';
+// three cached stages: geometry+Voronoi (heavy, by geomKey) → lay-weave (cheap, on width/flatR)
+let geo = null, cellsModel = null, geomKey = '', m = null;
 let routeA = -1, routeB = -1, theRoute = null, routeSet = null, pickCells = [];
 
 const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const INK = [232, 236, 244], BG = [6, 7, 12], MATRIX = [44, 52, 70], GOLD = [255, 224, 122];
-const warpCol = (w) => mix(hex(m.warps[w].color), INK, (w % 2) * 0.28);
-const prodCol = (f) => hex(m.wefts[f].color);
+geo = buildGeometry(seed, { rings, spacing });   // initial geometry — warps/wefts are stable across every lever
+const warpCol = (w) => mix(hex(geo.warps[w].color), INK, (w % 2) * 0.28);
+const prodCol = (f) => hex(geo.wefts[f].color);
 const ownerColor = (o) => o ? (o.kind === 'white' ? warpCol(o.idx) : prodCol(o.idx)) : MATRIX;
 
 // 2D convex hull (monotone chain) — a 3D cell's SILHOUETTE is the hull of its projected vertices
@@ -35,10 +36,10 @@ function convexHull(pts) {
   lo.pop(); up.pop(); return lo.concat(up);
 }
 
-// the 14 threads + the matrix as toggleable keys
-const whiteKeys = m.warps.map((w) => 'w' + w.w), prodKeys = m.wefts.map((f) => 'p' + f.f);
+// the 14 threads + the matrix as toggleable keys (stable — from geo)
+const whiteKeys = geo.warps.map((w) => 'w' + w.w), prodKeys = geo.wefts.map((f) => 'p' + f.f);
 const allThreads = [...whiteKeys, ...prodKeys];
-const labelOf = (k) => k === 'matrix' ? 'matrix' : k[0] === 'w' ? m.warps[+k.slice(1)].id : m.wefts[+k.slice(1)].label;
+const labelOf = (k) => k === 'matrix' ? 'matrix' : k[0] === 'w' ? geo.warps[+k.slice(1)].id : geo.wefts[+k.slice(1)].label;
 const colorKey = (k) => k === 'matrix' ? MATRIX : k[0] === 'w' ? warpCol(+k.slice(1)) : prodCol(+k.slice(1));
 const visible = new Set(allThreads);   // start: 14 threads on, matrix hidden
 
@@ -48,12 +49,8 @@ function proj(x, y, z, s) {
   return { X: CW / 2 + x1 * s, Y: CH / 2 - z2 * s, depth: y2 };
 }
 
-function ensureCells() {
-  const key = `${seed}|${rings}|${spacing}`;
-  if (key !== geomKey || !cellsModel) { cellsModel = buildCells(m); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
-  else { for (const c of cellsModel.cells) { c.owner = m.nodes[c.nodeIndex].nearest; c.ownerKey = ownerKey(c.owner); } if (routeA >= 0 && routeB >= 0) recomputeRoute(); }
-}
 function recomputeRoute() { theRoute = (routeA >= 0 && routeB >= 0) ? routeMinDoors(cellsModel, routeA, routeB) : null; routeSet = theRoute ? new Set(theRoute.path) : null; }
+void ownerKey;
 
 function draw() {
   const s = Math.min(CW, CH) / (m.R * 2.5) * zoom, zc = m.thickness / 2;
@@ -110,28 +107,28 @@ function updateChips() { for (const el of $('chips').querySelectorAll('.chip')) 
 function panels() {
   const M = m.metrics;
   $('widthV').textContent = width; $('densV').textContent = `${M.nodes} nodes`; $('flatV').textContent = flatR.toFixed(2);
-  $('chunks').textContent = `⬡ ${m.chunkCount} chunks`;
+  $('chunks').textContent = `⬡ ${geo.chunkCount} chunks`;
   $('levers').innerHTML = `
-    <span class="k">path width</span><span class="v">${width} nodes (r=${M.radius.toFixed(0)})</span>
+    <span class="k">path width</span><span class="v">${width} nodes (r=${M.tubeR.toFixed(0)})</span>
     <span class="k">areal density</span><span class="v">${M.nodes} chambers · a=${spacing}</span>
     <span class="k">flat core radius</span><span class="v">${flatR.toFixed(2)}·R (no weave inside)</span>
-    <span class="k">chunks / footprint</span><span class="v">${m.chunkCount} · hexR ${m.hexR | 0}</span>
-    <span class="k">prism thickness</span><span class="v">${m.thickness.toFixed(0)} · ${m.layers} layers (pinned)</span>`;
+    <span class="k">chunks / footprint</span><span class="v">${geo.chunkCount} · hexR ${geo.hexR | 0}</span>
+    <span class="k">prism thickness</span><span class="v">${geo.thickness.toFixed(0)} · ${geo.layers} decks (pinned)</span>`;
   const pc = (x) => `${(x * 100).toFixed(0)}%`, cls = (bad) => bad ? 'v bad' : 'v ok';
   $('metrics').innerHTML = `
     <span class="k">chambers</span><span class="v">${M.nodes}</span>
-    <span class="k">on a thread (coverage)</span><span class="v">${pc(M.coverage)}</span>
-    <span class="k">interstitial matrix</span><span class="v">${pc(M.orphanPct)}</span>
-    <span class="k">contested (≥2 threads)</span><span class="${M.contestedPct > 0.5 ? 'v bad' : 'v'}">${pc(M.contestedPct)}</span>
+    <span class="k">★ CONTINUITY (each thread 1 corridor)</span><span class="${cls(!M.continuous)}">${M.continuous ? '✓ solid' : '✗ ' + M.discontinuous + ' broke'}</span>
     <span class="k">solid fill (Σvol/prism)</span><span class="${cls(cellsModel && Math.abs(cellsModel.fillRatio - 1) > 1e-3)}">${cellsModel ? (cellsModel.fillRatio * 100).toFixed(1) : '—'}%</span>
+    <span class="k">on a thread (coverage)</span><span class="v">${pc(M.coverage)}</span>
+    <span class="k">interstitial matrix</span><span class="v">${pc(M.matrixPct)}</span>
     <span class="k">dead threads</span><span class="${cls(M.deadThreads > 0)}">${M.deadThreads}/14</span>
     <span class="k">K(6,8) crossings</span><span class="${cls(!M.k68)}">${M.k68Pairs}</span>
-    <span class="k">tube ⌀ vs thickness</span><span class="${cls(M.tubeVsThickness > 1)}">${M.tubeVsThickness.toFixed(2)}×</span>`;
+    <span class="k">anywhere→anywhere doors</span><span class="v">${M.avgDoors.toFixed(2)} avg · ${M.maxDoors} max</span>`;
   $('breaks').innerHTML = M.clean
-    ? `<div class="verdict ok">✓ weave intact — every white crosses every production, no thread lost, tubes inside the thickness</div>`
-    : `<div class="verdict bad">✗ broken (${M.breaks.length})</div><ul>${M.breaks.map((b) => `<li>${b}</li>`).join('')}</ul>`;
+    ? `<div class="verdict ok">✓ every thread is one continuous corridor, every white touches every production (K(6,8)), foam solid</div>`
+    : `<div class="verdict bad">✗ ${M.breaks.length} issue${M.breaks.length === 1 ? '' : 's'}</div><ul>${M.breaks.map((b) => `<li>${b}</li>`).join('')}</ul>`;
   routePanel();
-  $('note').innerHTML = `Every prism node owns a true <b>3D Voronoi polyhedron</b> — the cells pack the hex prism <b>solid</b> (Σvol/prism = ${cellsModel ? (cellsModel.fillRatio * 100).toFixed(1) : '—'}%, no gaps), coloured by the thread that claims it. Toggle any of the 14 or the groups. <b>⇆ route</b>: click a <b style="color:#6ecf8a">start</b> then an <b style="color:#e678c8">end</b> chamber — the gold path crosses the <b>fewest thread-doors</b> (a door = a shared face between two <i>different</i> threads; staying in one thread is free). The weave is built so anywhere→anywhere is ≈ one door. seed ${seed}.`;
+  $('note').innerHTML = `Each thread is grown as ONE connected corridor (a fair watershed flood over the 3D Voronoi foam), so it never fragments — <b>continuity is guaranteed</b>. The cells pack the prism <b>solid</b> (${cellsModel ? (cellsModel.fillRatio * 100).toFixed(1) : '—'}%). Toggle any of the 14 threads or the groups. <b>⇆ route</b>: click a <b style="color:#6ecf8a">start</b> then an <b style="color:#e678c8">end</b> — the gold path crosses the <b>fewest thread-doors</b> (staying in one corridor is free); the weave makes anywhere→anywhere ≈ one door. seed ${seed}.`;
 }
 function routePanel() {
   if (!routeMode && routeA < 0) { $('routeRead').innerHTML = `<span class="hint">click <b>⇆ route</b>, then two chambers.</span>`; return; }
@@ -140,13 +137,20 @@ function routePanel() {
   $('routeRead').innerHTML = routeA >= 0 && routeB >= 0 ? `<span class="hint">no route — those chambers are disconnected.</span>` : `<span class="hint">click <b>⇆ route</b>, then two chambers.</span>`;
 }
 
-function rebuild() { m = buildWeave3D(seed, { rings, spacing, width, flatR }); ensureCells(); panels(); }
+function rebuild() {
+  const key = `${seed}|${rings}|${spacing}`;
+  if (key !== geomKey || !cellsModel) { geo = buildGeometry(seed, { rings, spacing }); cellsModel = buildCells(geo); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
+  const lines = weaveLines(geo, { flatR }), lay = layWeave(geo, cellsModel, lines, { width });   // cheap: re-runs on width/flatR only
+  m = { ...geo, ...lines, flatR: lines.flatR, width, cells: cellsModel.cells, cellsModel, metrics: lay.metrics };
+  if (routeA >= 0 && routeB >= 0) recomputeRoute();
+  panels();
+}
 
 function frame() { if (spin) yaw += 0.0035; draw(); requestAnimationFrame(frame); }
 
-$('width').addEventListener('input', (e) => { width = +e.target.value; rebuild(); });
-$('dens').addEventListener('change', (e) => { spacing = 104 - +e.target.value; rebuild(); });   // right = denser; on release (3D Voronoi rebuild)
-$('flat').addEventListener('input', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
+$('width').addEventListener('change', (e) => { width = +e.target.value; rebuild(); });   // on release (flood + K-repair)
+$('dens').addEventListener('change', (e) => { spacing = 104 - +e.target.value; rebuild(); });   // right = denser; rebuilds the 3D Voronoi
+$('flat').addEventListener('change', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
 $('cells').addEventListener('click', () => { showCells = !showCells; $('cells').classList.toggle('on', showCells); });
 $('route').addEventListener('click', () => { routeMode = !routeMode; $('route').classList.toggle('on', routeMode); if (!routeMode) { routeA = routeB = -1; theRoute = routeSet = null; } routePanel(); });
@@ -182,4 +186,4 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.5, M
 
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; }
 addEventListener('resize', resize);
-ensureCells(); buildChips(); resize(); panels(); frame();
+$('width').value = width; rebuild(); buildChips(); resize(); frame();

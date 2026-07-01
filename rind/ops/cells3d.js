@@ -86,17 +86,17 @@ export function buildCells(model) {
 }
 
 // wayfinding that minimises DOORS — a door = crossing into a chamber owned by a DIFFERENT thread (walking your own
-// thread's corridor is free). 0/1-weighted shortest path (0-1 BFS / deque). Returns { path, doors, cells } or null.
+// thread's corridor is free). Edge weight 0 (same owner) / 1 (different) ⇒ Dial's algorithm (bucket queue), since
+// the door count is a small integer. Returns { path, doors, cells } or null.
 export function routeMinDoors(cellsModel, aGi, bGi) {
   const { cells } = cellsModel;
   if (aGi == null || bGi == null) return null;
   if (aGi === bGi) return { path: [aGi], doors: 0, cells: 1 };
-  const dist = new Map([[aGi, 0]]), prev = new Map([[aGi, -1]]); let dq = [aGi];
-  while (dq.length) {
-    dq.sort((x, y) => dist.get(x) - dist.get(y));      // small graphs ⇒ simple priority; correct 0/1 weights
-    const cur = dq.shift(); if (cur === bGi) break;
-    for (const nb of cells[cur].adj) { const w = cells[nb].ownerKey === cells[cur].ownerKey ? 0 : 1, nd = dist.get(cur) + w;
-      if (nd < (dist.has(nb) ? dist.get(nb) : Infinity)) { dist.set(nb, nd); prev.set(nb, cur); dq.push(nb); } }
+  const dist = new Map([[aGi, 0]]), prev = new Map([[aGi, -1]]), buckets = [[aGi]];
+  for (let d = 0; d < buckets.length; d++) { const bucket = buckets[d]; if (!bucket) continue;
+    for (let i = 0; i < bucket.length; i++) { const cur = bucket[i]; if (dist.get(cur) !== d) continue;   // stale bucket entry
+      for (const nb of cells[cur].adj) { const w = cells[nb].ownerKey === cells[cur].ownerKey ? 0 : 1, nd = d + w;
+        if (nd < (dist.has(nb) ? dist.get(nb) : Infinity)) { dist.set(nb, nd); prev.set(nb, cur); (buckets[nd] || (buckets[nd] = [])).push(nb); } } }
   }
   if (!prev.has(bGi)) return null;
   const path = []; for (let c = bGi; c !== -1; c = prev.get(c)) path.push(c); path.reverse();

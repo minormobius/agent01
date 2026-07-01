@@ -11,14 +11,23 @@
 > annulus, killing the centre hairball), and **chunks** (1/7/19). The math is not softened: the viewer +
 > `weave3d.selftest.mjs` surface every failure mode — thin tubes drop crossings (K(6,8) < 48), a width wider than
 > the pinned thickness merges white & production, too few chunks cramp the cell until threads dissolve. Un-claimed
-> nodes are the **interstitial matrix** (future walls/corridors), reported but not a failure. **Chambers are now
-> live** (`cells3d.js`): every prism node owns a **TRUE 3D Voronoi polyhedron** — the hex prism clipped by every
-> neighbour's bisector half-space — and the cells pack the prism **SOLID** (Σvol/prism = 100%, proven in the
-> selftest; *not* four painted 2D planes). The **door graph** is the real 3D face adjacency (a door = a shared
-> face). The viewer toggles visibility per thread (all 14) and by group (whites / ops / matrix), and the
-> **wayfinding** routes the **fewest THREAD doors** — a door = crossing into a chamber owned by a *different*
-> thread; staying in one thread is free. Because of K(6,8) + the shared core, **anywhere→anywhere ≈ one door**
-> (measured avg ≈ 1.2, max 3). `cells3d.selftest.mjs` pins the solid fill + the single-door reach.
+> nodes are the **interstitial matrix** (future walls/corridors), reported but not a failure. Chambers are a
+> **TRUE 3D Voronoi** (`cells3d.js`): every node owns a polyhedron (hex prism clipped by each neighbour's bisector),
+> packing the prism **SOLID** (Σvol/prism = 100%; *not* painted planes). The **door graph** is the real 3D face
+> adjacency; **wayfinding** routes the fewest THREAD doors (staying in one corridor is free) — **anywhere→anywhere
+> ≈ one door**.
+>
+> **CONTINUITY (the current invariant).** Threads used to fragment (a "corridor" was ~20 disconnected pieces),
+> because assignment was proximity-to-a-curve, which ignores the discrete adjacency graph. Fixed in `weave3d.js`:
+> each thread is grown as ONE connected corridor by a **fair priority watershed** over the Voronoi graph — every
+> thread floods out from a distinct hub seed, the globally nearest unclaimed cell is taken next, and a region only
+> ever expands from its own cells. A flood from a seed is connected and claims only unclaimed cells, so **every
+> thread is exactly one walkable component — continuity is guaranteed by construction** (pinned across all
+> seeds/widths in `weave3d.selftest.mjs`; 0 dead threads, foam still 100% solid). **The one honest tension:**
+> complete K(6,8) and full continuity conflict in discrete space — closing the last crossings would need flips
+> that fragment a thread. A bounded **repair pass** bridges what it can *without* breaking continuity (continuity
+> wins the tie), so K(6,8) lands ~44–48/48 (48 on many seeds) and is reported raw. Three-stage API:
+> `buildGeometry` → `buildCells` → `layWeave` (geometry+Voronoi cached; the flood re-runs cheaply on width/flatR).
 
 > **NOW IN 3D — a PANCAKE.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating
