@@ -73,6 +73,36 @@ export function assignConcourses(model) {
   return { color, whiteHub, prodHub, zMid };
 }
 
+// ── STAGE A′: concourse assignment by a GEODESIC FLOOD from the two hubs (for substrates whose nearest-curve owners
+// fragment — e.g. curveseed.js). A competitive Dijkstra grows WHITE from the top-centre hub cap and PRODUCTION from
+// the bottom-centre cap; each cell is claimed by the front reaching it cheapest, expanding only from its own colour.
+// A Dijkstra forest from a connected seed ⇒ every cell is adjacent to the same-colour cell that claimed it ⇒ each
+// concourse is ONE connected region BY CONSTRUCTION, whatever the substrate. Affinity (own-arm ≈ free, matrix cheap,
+// other-arm dear) keeps the 2-colouring aligned with the woven threads, so K contacts survive. Carries arm identity
+// for the N×M view. Guarantees connectivity where hard-binding nearest-curve owners cannot.
+export function assignConcoursesFlood(model) {
+  const cells = model.cells, N = cells.length, zMid = model.thickness / 2, R = model.R;
+  const isWhite = (c) => c.owner && c.owner.kind === 'white', isProd = (c) => c.owner && c.owner.kind === 'prod';
+  const coreR = Math.max(model.flatR * R, 2.2 * (model.pitch || model.spacing));
+  const whiteHub = new Set(), prodHub = new Set();
+  for (const c of cells) if (Math.hypot(c.x, c.y) <= coreR) { if (c.z >= zMid) whiteHub.add(c.gi); else prodHub.add(c.gi); }
+  if (!whiteHub.size) { const c = cells.filter((c) => c.z >= zMid).sort((a, b) => (a.x * a.x + a.y * a.y) - (b.x * b.x + b.y * b.y))[0]; if (c) whiteHub.add(c.gi); }
+  if (!prodHub.size) { const c = cells.filter((c) => c.z < zMid).sort((a, b) => (a.x * a.x + a.y * a.y) - (b.x * b.x + b.y * b.y))[0]; if (c) prodHub.add(c.gi); }
+
+  const color = new Array(N).fill(null), arm = new Array(N).fill(null), cost = new Array(N).fill(Infinity);
+  const aff = (c, col) => { const mine = col === 'white' ? isWhite(c) : isProd(c), other = col === 'white' ? isProd(c) : isWhite(c); return mine ? 0.02 : other ? 6 : 1; };
+  const heap = [];
+  const hpush = (x) => { heap.push(x); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const hpop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let s = i; if (l < heap.length && heap[l][0] < heap[s][0]) s = l; if (r < heap.length && heap[r][0] < heap[s][0]) s = r; if (s === i) break; [heap[s], heap[i]] = [heap[i], heap[s]]; i = s; } } return top; };
+  for (const gi of whiteHub) { color[gi] = 'white'; cost[gi] = 0; arm[gi] = cells[gi].owner; }
+  for (const gi of prodHub) if (color[gi] == null) { color[gi] = 'prod'; cost[gi] = 0; arm[gi] = cells[gi].owner; }
+  const relax = (gi) => { for (const nb of cells[gi].adj) { const nc = cost[gi] + aff(cells[nb], color[gi]); if (nc < cost[nb]) { cost[nb] = nc; color[nb] = color[gi]; arm[nb] = arm[gi] || cells[nb].owner; hpush([nc, nb]); } } };
+  for (const gi of [...whiteHub, ...prodHub]) relax(gi);
+  while (heap.length) { const [c, gi] = hpop(); if (c > cost[gi]) continue; relax(gi); }
+  for (const c of cells) { if (color[c.gi] == null) color[c.gi] = c.z >= zMid ? 'white' : 'prod'; c.concourse = color[c.gi]; c.armFill = c.owner || arm[c.gi]; }
+  return { color, whiteHub, prodHub, zMid };
+}
+
 // connected components of a colour under SAME-COLOUR face adjacency (the free-walk graph of a concourse)
 function componentsOf(cells, color, which) {
   const set = new Set(cells.filter((c) => color[c.gi] === which).map((c) => c.gi)), seen = new Set();
@@ -140,8 +170,11 @@ export function routeOneDoor(graph, aGi, bGi) {
 const centreOf = (cells, set) => { let best = -1, bd = Infinity; for (const gi of set) { const c = cells[gi], d = c.x * c.x + c.y * c.y; if (d < bd) { bd = d; best = gi; } } return best; };
 
 // ── THE CERTIFICATE — the offline proof that the construction meets the whole spec, maxDoors and all ──
-export function certify(model) {
-  const { color, whiteHub, prodHub, zMid } = assignConcourses(model);
+export function certify(model, opts = {}) {
+  // hard-bind nearest-curve owners (HCP substrate — proven) vs a geodesic hub-flood (curve substrate, whose nearest-
+  // curve owners fragment). The flood guarantees two connected concourses on any substrate.
+  const useFlood = opts.concourse ? opts.concourse === 'flood' : model.substrate === 'curve';
+  const { color, whiteHub, prodHub, zMid } = useFlood ? assignConcoursesFlood(model) : assignConcourses(model);
   const cells = model.cells, N = cells.length;
 
   // (1) the two concourses PARTITION every chamber, each is exactly ONE connected door-free region

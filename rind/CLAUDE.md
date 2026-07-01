@@ -36,7 +36,11 @@ JS → emit a frame model → solve for stress):
   weave as **two door-free concourses** (6 white arms + nave hub · 8 production arms + bottom hub) joined only by the
   48 zero-grade K(6,8) doors — so **any room → any room is ≤1 door, including the hubs**, proven by
   `onedoor.selftest.mjs` (the per-thread graph in `cells3d` only reaches "≈1 door", max up to 4, because same-colour
-  arms never cross; the concourse layer fixes it by construction). **`tess.html`/`tess-app.js`** shows how the
+  arms never cross; the concourse layer fixes it by construction). It runs over **two substrates** (the `▦ HCP / ✳
+  on-curve` toggle): the HCP lattice claimed by the watershed, and **on-curve** (`curveseed.js`) — nuclei seeded
+  ALONG the analytic thread curves, then polyhedra grown to fill; on-curve lands the full K(6,8)=48 with every door
+  zero-grade, its concourses made connected by a geodesic hub-flood (`assignConcoursesFlood`) + orphan stitching.
+  **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate**: a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family

@@ -6,12 +6,13 @@
 import { buildGeometry, weaveLines, layWeave } from './weave3d.js';
 import { buildCells } from './cells3d.js';
 import { certify, routeOneDoor } from './onedoor.js';
+import { buildCurveModel } from './curveseed.js';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
 let width = 6, spacing = 30, flatR = 0.16, rings = 1, layers = 8, NW = 6, NF = 8;
-let spin = true, byConcourse = true, showDoors = true, routeMode = false, peel = 0, solid = true;
+let spin = true, byConcourse = true, showDoors = true, routeMode = false, peel = 0, solid = true, substrate = 'hcp';
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -125,15 +126,23 @@ function panels() {
   $('verdict').innerHTML = cert.oneDoorOk
     ? `✓ any point → any point is ONE door — including the two hubs. Two door-free concourses, joined only by the K-doors.${caveats.length ? `<ul style="color:var(--dim)">${caveats.map((c) => `<li style="color:var(--dim)">${c}</li>`).join('')}</ul>` : ''}`
     : `✗ the one-door thesis broke:<ul>${cert.breaks.map((b) => `<li>${b}</li>`).join('')}</ul>`;
+  const sub = substrate === 'curve'
+    ? `<span class="k">substrate</span><span class="v">on-curve · ${m.curveCount} on curves + ${m.fillerCount} fill</span>
+       <span class="k">rooms · pitch</span><span class="v">${m.cells.length} · ${m.pitch | 0}</span>`
+    : `<span class="k">substrate</span><span class="v">HCP lattice · flood</span>
+       <span class="k">rooms · path width</span><span class="v">${m.cells.length} · ${width} wide</span>`;
   $('levers').innerHTML = `
-    <span class="k">path width</span><span class="v">${width} rooms</span>
-    <span class="k">areal density</span><span class="v">${m.cells.length} rooms · a=${spacing}</span>
+    ${sub}
+    <span class="k">areal density</span><span class="v">a=${spacing}</span>
     <span class="k">decks (thickness)</span><span class="v">${geo.layers} · ${geo.thickness.toFixed(0)}</span>
     <span class="k">flat core</span><span class="v">${flatR.toFixed(2)}·R</span>
     <span class="k">chunks</span><span class="v">${geo.chunkCount} · hexR ${geo.hexR | 0}</span>
     <span class="k">avg doors (any→any)</span><span class="v">${cert.avgDoors.toFixed(2)} · ${cert.sampledPairs} pairs</span>`;
   routePanel();
-  $('note').innerHTML = `The 6 white arms + the <b>nave hub</b> are ONE door-free concourse; the 8 production arms + the bottom hub are another. Every other white↔production plate is a wall — the only doors are the ${cert.doorPairs} K(${geo.NW},${geo.NF}) crossings, each a <b>zero-grade</b> gate at the flat the weave lands. So walking your concourse is free, and any crossing to the other side is a single door. <b>⇆ route</b>: click any two rooms. seed ${seed}. Steep gates (dashed red) are honest over/under crossings — widen or add decks to bring them to grade.`;
+  const subNote = substrate === 'curve'
+    ? `<b>On-curve substrate:</b> the Voronoi nuclei are seeded ALONG the analytic thread curves (pitch ${m.pitch | 0}) with a sparse filler, then the polyhedra grow to fill the prism. Concourses are assigned by a geodesic flood from the two hubs (guaranteeing one connected region each). This substrate lands the full K(${geo.NW},${geo.NF}) with every door at grade.`
+    : `<b>HCP substrate:</b> a homogeneous lattice claimed by the fair watershed; concourses hard-bind the arms + flood the matrix.`;
+  $('note').innerHTML = `The 6 white arms + the <b>nave hub</b> are ONE door-free concourse; the 8 production arms + the bottom hub are another. Every other white↔production plate is a wall — the only doors are the ${cert.doorPairs} K(${geo.NW},${geo.NF}) crossings, each a <b>zero-grade</b> gate at the flat the weave lands. So walking your concourse is free, and any crossing is a single door. <b>⇆ route</b>: click any two rooms. seed ${seed}. ${subNote}`;
 }
 function routePanel() {
   if (routeA >= 0 && routeB < 0) { $('routeRead').innerHTML = `<span class="hint">start set — click the <b style="color:#e678c8">end</b> room.</span>`; return; }
@@ -142,11 +151,21 @@ function routePanel() {
 }
 
 function rebuild() {
-  const key = `${seed}|${rings}|${spacing}|${layers}|${NW}|${NF}`;
-  if (key !== geomKey || !cellsModel) { geo = buildGeometry(seed, { rings, spacing, layers, NW, NF }); cellsModel = buildCells(geo); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
-  const lines = weaveLines(geo, { flatR }), lay = layWeave(geo, cellsModel, lines, { width });
-  m = { ...geo, ...lines, flatR: lines.flatR, width, cells: cellsModel.cells, cellsModel, metrics: lay.metrics };
-  cert = certify(m);
+  if (substrate === 'curve') {
+    // nuclei seeded ALONG the analytic curves, polyhedra grown to fill (curveseed.js). Each build is self-contained.
+    const pitch = Math.max(24, spacing);
+    const key = `curve|${seed}|${rings}|${pitch}|${layers}|${NW}|${NF}|${flatR}`;
+    if (key !== geomKey) { routeA = routeB = -1; theRoute = routeSet = null; }
+    geomKey = key;
+    m = buildCurveModel(seed, { rings, layers, NW, NF, flatR, pitch }); geo = m; cellsModel = m.cellsModel;
+    cert = certify(m);
+  } else {
+    const key = `hcp|${seed}|${rings}|${spacing}|${layers}|${NW}|${NF}`;
+    if (key !== geomKey || !cellsModel) { geo = buildGeometry(seed, { rings, spacing, layers, NW, NF }); cellsModel = buildCells(geo); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
+    const lines = weaveLines(geo, { flatR }), lay = layWeave(geo, cellsModel, lines, { width });
+    m = { ...geo, ...lines, flatR: lines.flatR, width, cells: cellsModel.cells, cellsModel, metrics: lay.metrics };
+    cert = certify(m);
+  }
   if (routeA >= 0 && routeB >= 0) recomputeRoute();
   panels();
 }
@@ -161,6 +180,7 @@ $('nf').addEventListener('change', (e) => { NF = +e.target.value; $('nwnfV').tex
 $('flat').addEventListener('change', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
 $('peel').addEventListener('input', (e) => { peel = (+e.target.value) / 100; $('peelV').textContent = `${((1 - peel) * geo.layers).toFixed(1)} decks`; });
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
+$('substrate').addEventListener('click', () => { substrate = substrate === 'hcp' ? 'curve' : 'hcp'; $('substrate').textContent = substrate === 'hcp' ? '▦ HCP lattice' : '✳ on-curve'; $('substrate').classList.toggle('on', substrate === 'curve'); geomKey = ''; rebuild(); });
 $('mode').addEventListener('click', () => { byConcourse = !byConcourse; $('mode').classList.toggle('on', byConcourse); $('mode').textContent = byConcourse ? '◧ 2 concourses' : `◧ ${NW + NF} threads`; });
 $('solid').addEventListener('click', () => { solid = !solid; $('solid').classList.toggle('on', solid); $('solid').textContent = solid ? '⬢ solid' : '⬡ ghost'; });
 $('doors').addEventListener('click', () => { showDoors = !showDoors; $('doors').classList.toggle('on', showDoors); });

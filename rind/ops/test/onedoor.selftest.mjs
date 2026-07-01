@@ -6,6 +6,7 @@
 import { buildOneDoor, assignConcourses, placeDoors, buildDoorGraph, routeOneDoor, certify } from '../onedoor.js';
 import { buildWeave3D } from '../weave3d.js';
 import { routeMinDoors } from '../cells3d.js';
+import { buildCurveModel } from '../curveseed.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' + m); } };
@@ -73,6 +74,34 @@ ok(a1.measuredMax === a2.measuredMax && a1.doorPairs === a2.doorPairs && a1.whit
 ok(base.model.NW === 6 && base.model.NF === 8, '6 white + 8 production threads (the K(6,8) identity survives as an overlay)');
 const asg = assignConcourses(base.model); ok(asg.whiteHub.size > 0 && asg.prodHub.size > 0, 'both hubs are non-empty');
 const pd = placeDoors(base.model, asg.color); ok(pd.doors.length > 0 && buildDoorGraph(base.model, asg.color, pd.doors).N === base.model.cells.length, 'door graph spans every chamber');
+
+// ══ THE ON-CURVE SUBSTRATE (curveseed.js): nuclei seeded ALONG the analytic curves, polyhedra grown to fill. The
+// one-door tech must hold here too — via the geodesic hub-flood (nearest-curve owners fragment) + graph stitching.
+// This substrate lands the FULL K(6,8)=48 with EVERY door at grade (nuclei sit on the curves), on every seed. ══
+const cseeds = [1, 2, 3, 7, 11, 42];
+let cAllOne = true, cWorstMax = 0, cAllK48 = true, cAllGrade = true, cAllConn = true;
+for (const s of cseeds) {
+  const m = buildCurveModel(s, { rings: 1, flatR: 0.16, layers: 8, pitch: 36 });
+  const cells = m.cells, seen = new Set([cells[0].gi]), q = [cells[0].gi];
+  for (let h = 0; h < q.length; h++) for (const nb of cells[q[h]].adj) if (!seen.has(nb)) { seen.add(nb); q.push(nb); }
+  if (seen.size !== cells.length) cAllConn = false;
+  const c = certify(m);
+  cWorstMax = Math.max(cWorstMax, c.measuredMax);
+  if (!c.oneDoorOk) cAllOne = false;
+  if (!c.k48) cAllK48 = false;
+  if (c.steepDoors !== 0) cAllGrade = false;
+}
+ok(cAllConn, 'on-curve: the grown polyhedra pack the prism as ONE connected solid (orphan slivers stitched in)');
+ok(cAllOne && cWorstMax === 1, `★ on-curve substrate ALSO proves one door — nuclei on the curves, grown to fill, max ${cWorstMax} over all seeds`);
+ok(cAllK48, '★ on-curve lands the FULL K(6,8) = 48/48 on every seed (nuclei on the curves realise every crossing)');
+ok(cAllGrade, '★ on-curve: EVERY door is zero-grade (no over/under stairs — the crossings sit on the curves)');
+const cm = buildCurveModel(3, { rings: 1, flatR: 0.16, layers: 8, pitch: 36 });
+const cc = certify(cm);
+ok(cc.whiteComps === 1 && cc.prodComps === 1, 'on-curve: each concourse is ONE region (geodesic hub-flood guarantees it)');
+ok(cm.curveCount > 0 && cm.fillerCount > 0 && cm.nucleiCount === cm.curveCount + cm.fillerCount, 'on-curve: nuclei = on-curve + filler, accounted');
+ok(buildCurveModel(5, { filler: 0 }).cells.every((c) => c.owner), 'on-curve filler=0 is pure thread cells (no matrix) — the instructive fragmented case');
+const cc2 = certify(buildCurveModel(3, { rings: 1, flatR: 0.16, layers: 8, pitch: 36 }));
+ok(cc2.doorPairs === cc.doorPairs && cc2.whiteCells === cc.whiteCells, 'on-curve is deterministic per seed');
 
 console.log(`onedoor.selftest: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

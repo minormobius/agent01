@@ -28,6 +28,24 @@
 > 48/48 truly at grade, is a **meet-at-grade weave** (both threads pass through mid-height with a flat at each
 > crossing instead of over/under parity) — a local `onedoor` centreline variant that would not touch `prism`'s
 > over/under art piece.
+>
+> **TWO SUBSTRATES (the `▦ HCP / ✳ on-curve` toggle · kernel `curveseed.js`).** The one-door tech is substrate-
+> agnostic — the same certificate runs over two different ways of getting the Voronoi nuclei: **(HCP)** the prism's
+> homogeneous lattice claimed by the fair watershed (above); **(on-curve)** nuclei seeded DIRECTLY ALONG the 14
+> analytic thread curves at an arc `pitch`, plus a sparse HCP filler, then the polyhedra GROW to fill the prism.
+> On-curve is the more curve-native substrate and lands the spec *better*: because a nucleus sits on its thread, it
+> realises the **full K(6,8) = 48/48** and **every door is zero-grade** on every seed (the crossings are on the
+> curves, not a deck apart). The catch it exposed — and the general lesson — is that **nearest-curve ownership
+> fragments**: the over/under weave chops each thread into Voronoi islands at its crossings, so hard-binding those
+> owners gives dozens of concourse pieces, not one. Two fixes make it whole: **(1)** concourses are assigned by a
+> **geodesic flood from the two hubs** (`assignConcoursesFlood` — a Dijkstra forest from a connected seed is
+> connected by construction, so each concourse is ONE region on any substrate), and **(2)** the sparse filler +
+> an orphan-**stitch** pass (buildCells' 0.5 face tolerance drops a few genuine faces, leaving degree-0 slivers and
+> small floating clusters — `stitchComponents` links every offcut to its nearest cell so the foam is one connected
+> solid). With both, the on-curve substrate is provably one-door (pinned in `onedoor.selftest.mjs` over 6 seeds:
+> K=48/48, all doors at grade, both concourses one region, max = 1). `filler: 0` is the instructive pure-curve case:
+> K=48 and 100% fill but the concourses fragment and one-door FAILS — the interstitial filler is what bridges the
+> crossing-chopped pieces back together.
 
 > **THE SUBSTRATE REBUILD (`prism.html` · `rind.mino.mobi/ops/prism.html`).** The weave is being re-founded on a
 > proper **hexagonal prism of homogeneously spaced nodes** (`prism.js`, HCP packing — every interior node has 12
