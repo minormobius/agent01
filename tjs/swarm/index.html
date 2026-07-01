@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swarm · 3D bees, boids + stigmergy · tjs</title>
+<meta name="description" content="A 3D swarm of bees in three.js: instanced micro-meshes driven by a live agent sim — attractor orbit + Reynolds boids + divergence-free curl-noise + a true stigmergy scent field bees deposit into and climb. Lead the swarm, raise the pheromone, watch lanes self-organise.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#07070c; --panel:#101019; --panel2:#16161f; --line:#23232e; --ink:#e6e6f0;
+    --soft:#8a8aa0; --faint:#5f5f74; --accent:#39d6c8; --accent2:#ffb454; --gold:#ffce6b;
+    --serif:Georgia,"Iowan Old Style",Cambria,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  .crumb{font-size:13px;letter-spacing:.04em;color:var(--faint);padding:10px 18px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative;z-index:5}
+  .crumb a{color:var(--soft)} .crumb .here{color:var(--accent)} .crumb .spacer{flex:1}
+  .stage-row{display:flex;min-height:calc(100vh - 42px)}
+  @media(max-width:880px){.stage-row{flex-direction:column}}
+  #viewport{position:relative;flex:1;min-height:62vh;background:radial-gradient(120% 90% at 50% 15%,#13131f 0%,#07070c 70%)}
+  #viewport canvas{display:block}
+  .hud{position:absolute;top:12px;left:14px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 5px #000;line-height:1.7}
+  .hud b{color:var(--accent)}
+  .hint{position:absolute;bottom:12px;left:14px;right:14px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 5px #000}
+  aside{width:330px;flex:0 0 330px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;max-height:calc(100vh - 42px);padding:18px 18px 40px}
+  @media(max-width:880px){aside{width:auto;flex:none;border-left:0;border-top:1px solid var(--line);max-height:none}}
+  aside h2{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 4px;font-weight:600}
+  aside .sub{font-size:12px;color:var(--faint);margin:0 0 14px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:8px 0 14px}
+  .seg button{flex:1;background:transparent;color:var(--soft);border:0;padding:8px 4px;font-size:12px;cursor:pointer;font-family:var(--sans)}
+  .seg button.on{background:var(--accent);color:#06121a;font-weight:600}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+  .presets button{font-size:12px;background:var(--panel2);color:var(--soft);border:1px solid var(--line);border-radius:7px;padding:6px 9px;cursor:pointer;font-family:var(--sans)}
+  .presets button:hover{color:var(--ink);border-color:var(--accent)}
+  .ctl{margin:11px 0}
+  .ctl label{display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:3px}
+  .ctl label .v{color:var(--accent);font-family:var(--mono)}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+  .group{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+  .group.stig{border-color:#3a2f12}
+  .group.stig h2{color:var(--gold)}
+  .group.stig .ctl label .v{color:var(--gold)}
+  .group.stig input[type=range]{accent-color:var(--gold)}
+  .check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--soft);margin:10px 0;cursor:pointer}
+  .check input{accent-color:var(--gold);width:16px;height:16px}
+  .row{display:flex;gap:8px;margin-top:12px}
+  .row button{flex:1;font-family:var(--sans);font-size:13px;background:var(--accent);color:#06121a;border:0;padding:9px;border-radius:8px;cursor:pointer;font-weight:600}
+  .row button.ghost{background:transparent;color:var(--soft);border:1px solid var(--line);font-weight:500}
+  .row button.ghost:hover{color:var(--ink);border-color:var(--accent)}
+  /* docs */
+  .docs{max-width:860px;margin:0 auto;padding:30px 22px 80px;border-top:1px solid var(--line)}
+  .docs h2{font-family:var(--serif);font-size:24px;margin:30px 0 8px;font-weight:600}
+  .docs h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:26px 0 6px}
+  .docs p{color:#c9c9d6;max-width:70ch}
+  .docs code{font-family:var(--mono);font-size:.86em;background:var(--panel2);padding:.12em .42em;border-radius:4px;color:#e9d9a8}
+  .docs .kicker{letter-spacing:.2em;text-transform:uppercase;font-size:11px;color:var(--accent2)}
+  .docs ul{color:#c9c9d6;max-width:70ch} .docs li{margin:5px 0}
+  .docs b{color:#f0f0f6}
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--gold);border:1px solid #3a2f12;background:#171307;border-radius:5px;padding:1px 7px;margin-right:4px}
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi/">mino.mobi</a> / <a href="/">tjs</a> / <span class="here">swarm</span>
+  <span class="spacer"></span>
+  <a href="/orb/">orb</a> &nbsp;·&nbsp; <a href="/infill/">infill</a> &nbsp;·&nbsp; <a href="#how">how it works ↓</a>
+</nav>
+
+<div class="stage-row">
+  <div id="viewport">
+    <div class="hud" id="hud"></div>
+    <div class="hint" id="hint">drag&nbsp;= orbit camera · scroll = zoom · switch to <b>Lead swarm</b> to steer the flower</div>
+  </div>
+
+  <aside>
+    <h2>The swarm</h2>
+    <p class="sub">Instanced bee meshes over a live 3D agent sim. Same kernel CPU-side as a WebGPU compute pass would run.</p>
+
+    <div class="seg" id="modeSeg">
+      <button data-mode="orbit" class="on">Orbit camera</button>
+      <button data-mode="lead">Lead swarm</button>
+    </div>
+
+    <div class="presets" id="presets"></div>
+
+    <div class="ctl"><label>Bees <span class="v" id="vCount">900</span></label><input type="range" id="count" min="100" max="4000" step="100" value="900"></div>
+
+    <div class="group">
+      <h2>Attractor</h2>
+      <div class="sub" style="margin-bottom:8px">a flower: radial pull + tangential swirl ⇒ orbit, not collapse</div>
+      <div id="attrSliders"></div>
+    </div>
+
+    <div class="group">
+      <h2>Boids · local rules</h2>
+      <div class="sub" style="margin-bottom:8px">Reynolds, over the 3D neighbourhood (direct perception)</div>
+      <div id="boidSliders"></div>
+    </div>
+
+    <div class="group">
+      <h2>Wander</h2>
+      <div id="wanderSliders"></div>
+    </div>
+
+    <div class="group stig">
+      <h2>Stigmergy · scent field</h2>
+      <div class="sub" style="margin-bottom:8px">indirect: bees deposit into a voxel grid, it evaporates &amp; diffuses, bees climb its gradient — lanes self-organise</div>
+      <label class="check"><input type="checkbox" id="scentViz"> show scent field</label>
+      <div id="stigSliders"></div>
+    </div>
+
+    <div class="row">
+      <button id="pause">Pause</button>
+      <button id="reset" class="ghost">Reset</button>
+    </div>
+    <div class="row"><button id="recenter" class="ghost">Center flower</button></div>
+  </aside>
+</div>
+
+<section class="docs" id="how">
+  <div class="kicker">workbench notes</div>
+  <h2>How swarms — and stigmergic agents — work in 3D</h2>
+  <p>A swarm is two separate problems, and keeping them apart is the whole trick. <b>Appearance</b> is what one bee looks like; at swarm scale a bee is a handful of triangles and its identity doesn't matter, so we bake <i>one</i> bee mesh and hand it to a <code>THREE.InstancedMesh</code> that stamps it N times in a single draw call. <b>Motion</b> is where each bee <i>is</i> — and that is never a baked loop (a loop either synchronises every bee, which looks uncanny, or rides fixed rails that ignore the flower and the cursor). It's a live agent sim, recomputed every frame, in <code>swarm3d.js</code>: pure struct-of-arrays with a fixed-timestep <code>step()</code>, the exact shape a WebGPU compute pass or a Rust loop wants.</p>
+
+  <h3>Going from 2D to 3D</h3>
+  <p>The mechanics port almost mechanically — the dimension count is just a constant. Three things actually change:</p>
+  <ul>
+    <li><b>Neighbour search.</b> The uniform spatial hash gains a z axis, so each bee scans the <b>27</b> surrounding grid cells instead of 9. Same O(n) average cost; the constant grows.</li>
+    <li><b>Turbulence.</b> In 2D a single scalar potential gives divergence-free <i>curl</i> noise. In 3D a scalar isn't enough — you need a <b>vector potential</b> Ψ=(Pₓ,P_y,P_z) and take <code>curl(Ψ)</code>. That's automatically source/sink-free, so bees swirl through the field instead of all draining into one point. (The bench's selftest checks ∇·F ≈ 0.)</li>
+    <li><b>Swirl is a cross product.</b> "Orbit the flower" in 2D is a 90° rotation of the radial vector. In 3D it's <code>axis × radial</code>: pick an axis, and the tangential force lays the orbit in the plane perpendicular to it — that's what makes the torus you see.</li>
+  </ul>
+
+  <h3>Three tiers of coordination, cheapest first</h3>
+  <p><span class="pill">1</span><b>Field / attractor.</b> A global pull toward a target plus the swirl above. Cheap, global, no bee-to-bee anything. This alone gives a credible orbiting cloud.</p>
+  <p><span class="pill">2</span><b>Boids — direct perception.</b> Reynolds' three local rules: <b>separation</b> (short-range push, the strongest), <b>cohesion</b> (toward the neighbour centroid), <b>alignment</b> (match neighbour heading). Each bee senses only neighbours within a radius. This is emergence from <i>direct</i> sensing — every bee reads its neighbours each tick.</p>
+  <p><span class="pill">3</span><b>Stigmergy — indirect, environment-mediated.</b> This is the one people mean by "how do ants/termites/bees <i>really</i> coordinate," and it's qualitatively different from boids. No agent talks to another. Instead each bee <b>deposits</b> a marker (here: "scent") into a shared medium — a 3D voxel grid — and reads the medium back. The grid has its own physics: scent <b>evaporates</b> (a forgetting rate) and <b>diffuses</b> (spreads to neighbours). Bees steer up the local gradient. The result: where a few bees pass, scent pools; the pooling pulls more bees; their deposits reinforce it — a positive feedback that condenses diffuse traffic into <b>lanes and recruitment trails</b> that no bee planned and no central controller drew. Turn the field on in the panel and watch ropes of flight form and dissolve.</p>
+
+  <h3>Why stigmergy is the important idea</h3>
+  <p>Boids is coordination through <i>perception</i> — it needs every agent to sense every neighbour, which is the part that gets expensive and brittle at scale. Stigmergy is coordination through <i>the world</i>: the environment becomes a shared, decaying memory, so an agent that arrives later "reads" the work of agents long gone. That decouples agents in time and space, which is exactly why real colonies use it — ant pheromone trails, termite mound construction (a deposited pellet makes the next pellet more likely <i>there</i>), bee nest-site recruitment. The two evaporation/diffusion knobs are doing real work: <b>evaporation</b> sets the memory's half-life (too slow and stale trails never clear; too fast and nothing accumulates), and <b>diffusion</b> sets how sharp vs. smeared the trails read. Tune them and you're tuning a distributed memory, not an animation.</p>
+
+  <h3>The determinism contract</h3>
+  <p>Everything — spawn, PRNG (xmur3→mulberry32), noise, the scent field — is seeded and runs on a fixed <code>1/60&nbsp;s</code> substep, so the sim is reproducible from <code>(seed, #steps)</code> on any machine regardless of render FPS. That's the same portable-asset property the sister <a href="https://mega.mino.mobi/bees/">2D Bee Lab</a> and the <a href="https://mega.mino.mobi/sprite/">Sprite Lab</a> rely on. The CPU kernel here is a faithful preview of a GPU port — the SoA + pure-step shape transfers straight to a compute shader. Kernel + selftest: <code>tjs/swarm/swarm3d.js</code>, <code>swarm3d.selftest.mjs</code>.</p>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { Swarm3D, DEFAULT_PARAMS } from './swarm3d.js';
+
+/* ============================================================
+   Swarm bench — 3D bees. Appearance is baked once into an
+   InstancedMesh; motion is the live Swarm3D agent sim (boids +
+   curl-noise + a stigmergy scent grid). See #how below.
+   ============================================================ */
+
+const host = document.getElementById('viewport');
+
+/* ---------- renderer / camera / scene ---------- */
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+host.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07070c);
+scene.fog = new THREE.FogExp2(0x07070c, 0.012);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 600);
+camera.position.set(0, 9, 38);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 8;
+controls.maxDistance = 140;
+controls.target.set(0, 0, 0);
+
+scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x14140e, 0.85));
+const key = new THREE.DirectionalLight(0xffffff, 1.05); key.position.set(12, 24, 10); scene.add(key);
+
+// faint floor grid for depth
+const grid = new THREE.GridHelper(80, 40, 0x1c2430, 0x141821);
+grid.position.y = -DEFAULT_PARAMS.bounds; grid.material.transparent = true; grid.material.opacity = 0.5; scene.add(grid);
+
+/* ---------- the flower (attractor marker) ---------- */
+const flower = new THREE.Group();
+const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.7, 20, 16),
+  new THREE.MeshStandardMaterial({ color:0xffce6b, emissive:0xffa733, emissiveIntensity:1.4, roughness:0.4 }));
+flower.add(bulb);
+const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 18, 14),
+  new THREE.MeshBasicMaterial({ color:0xffb454, transparent:true, opacity:0.12, blending:THREE.AdditiveBlending, depthWrite:false }));
+flower.add(halo);
+const flowerLight = new THREE.PointLight(0xffc98a, 1.1, 26, 1.6); flower.add(flowerLight);
+scene.add(flower);
+
+/* ---------- bake ONE bee mesh (body + wings + bands), then instance it ---------- */
+const FLAP_FREQ = 38.0, FLAP_AMP = 0.9;       // wing-flap shader constants
+function buildBeeGeometry(){
+  // body: an amber ellipsoid pointing +Z, with a dark head tip and abdomen bands.
+  const body = new THREE.SphereGeometry(0.5, 12, 9);
+  body.scale(0.42, 0.4, 0.95);
+  paintBody(body);
+  // wings: two small quads rooted at the thorax, lying near-flat with a rest dihedral
+  // so they read as wings (not flat grey panels) and flap symmetrically in the shader.
+  const mkWing = () => {
+    const g = new THREE.PlaneGeometry(0.5, 0.3);
+    g.translate(0.25, 0, 0);          // root the inner edge near x=0, blade extends outward
+    g.rotateX(-Math.PI/2);            // lie in the XZ plane
+    g.rotateZ(0.32);                  // outer edge lifts → a shallow V at rest
+    g.translate(0.06, 0.14, 0.04);
+    return g;
+  };
+  const wl = mkWing(); tagWing(wl, +1);
+  const wr = mkWing(); wr.scale(-1, 1, 1); tagWing(wr, -1);   // mirror to the other side
+  const geo = mergeGeometries([body, wl, wr], false);
+  geo.scale(0.85, 0.85, 0.85);
+  return geo;
+}
+function ensureAttr(g){
+  const n = g.attributes.position.count;
+  if(!g.attributes.color)  g.setAttribute('color',  new THREE.BufferAttribute(new Float32Array(n*3), 3));
+  if(!g.attributes.aWing)  g.setAttribute('aWing',  new THREE.BufferAttribute(new Float32Array(n),   1));
+}
+function paintBody(g){
+  ensureAttr(g);
+  const pos = g.attributes.position, col = g.attributes.color, c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const z = pos.getZ(i);                       // -0.4(abdomen) .. +0.4(head)
+    if(z > 0.22)         c.setHex(0x201810);      // dark head
+    else {                                        // banded amber abdomen/thorax
+      const band = Math.sin(z * 30) > 0.1;
+      c.set(band ? '#2a2118' : '#f0a93a');
+    }
+    col.setXYZ(i, c.r, c.g, c.b);
+    g.attributes.aWing.setX(i, 0);
+  }
+}
+function tagWing(g, sign){
+  ensureAttr(g);
+  const col = g.attributes.color, c = new THREE.Color('#a7b0c4');
+  for(let i=0;i<col.count;i++){ col.setXYZ(i, c.r, c.g, c.b); g.attributes.aWing.setX(i, sign); }
+}
+
+const beeGeo = buildBeeGeometry();
+const beeMat = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.55, metalness:0.0, side:THREE.DoubleSide });
+const wingTime = { value: 0 };
+beeMat.onBeforeCompile = (shader) => {
+  shader.uniforms.uTime = wingTime;
+  shader.vertexShader =
+    'uniform float uTime;\nattribute float aWing;\nattribute float iPhase;\n' + shader.vertexShader;
+  shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
+    `#include <begin_vertex>
+     if (abs(aWing) > 0.5) {
+       float ang = sin(uTime * ${FLAP_FREQ.toFixed(1)} + iPhase) * ${FLAP_AMP} * aWing;
+       float ca = cos(ang), sa = sin(ang);
+       transformed = vec3(ca*transformed.x - sa*transformed.y, sa*transformed.x + ca*transformed.y, transformed.z);
+     }`);
+};
+
+/* ---------- scent field visualisation (points at voxel centres, additive) ---------- */
+let scentPoints = null;
+function buildScentViz(sw){
+  if(scentPoints){ scene.remove(scentPoints); scentPoints.geometry.dispose(); scentPoints.material.dispose(); }
+  const R = sw.sres, o = sw.sorigin, cs = sw.scell, v = R*R*R;
+  const pos = new Float32Array(v*3), col = new Float32Array(v*3);
+  let k = 0;
+  for(let z=0;z<R;z++) for(let y=0;y<R;y++) for(let x=0;x<R;x++){
+    pos[k*3]   = o + (x+0.5)*cs; pos[k*3+1] = o + (y+0.5)*cs; pos[k*3+2] = o + (z+0.5)*cs; k++;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+  const m = new THREE.PointsMaterial({ size: cs*0.8, vertexColors:true, transparent:true,
+    blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true });
+  scentPoints = new THREE.Points(g, m); scentPoints.visible = false; scene.add(scentPoints);
+}
+function updateScentViz(sw){
+  if(!scentPoints || !scentPoints.visible) return;
+  const sc = sw.scent, col = scentPoints.geometry.attributes.color, peak = sw.scentPeak() || 1;
+  for(let k=0;k<sc.length;k++){
+    const s = sc[k] / peak;                       // 0..1; additive ⇒ near-black is invisible
+    if(s < 0.03){ col.array[k*3]=col.array[k*3+1]=col.array[k*3+2]=0; continue; }
+    col.array[k*3]   = 0.22*s + 0.9*s*s;          // warm gold ramp at the hot core
+    col.array[k*3+1] = 0.85*s;
+    col.array[k*3+2] = 0.55*s - 0.3*s*s;
+  }
+  col.needsUpdate = true;
+}
+
+/* ---------- the sim + instanced mesh ---------- */
+let swarm, bees;
+function makeSwarm(count){
+  swarm = new Swarm3D({ count, seed:'tjs-bees', params: { ...params }, scentRes: 22 });
+  if(bees){ scene.remove(bees); bees.dispose(); }
+  bees = new THREE.InstancedMesh(beeGeo, beeMat, count);
+  bees.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const iPhase = new Float32Array(count);
+  for(let i=0;i<count;i++) iPhase[i] = swarm.phase[i];
+  bees.geometry.setAttribute('iPhase', new THREE.InstancedBufferAttribute(iPhase, 1));
+  scene.add(bees);
+  buildScentViz(swarm);
+  if(document.getElementById('scentViz').checked) scentPoints.visible = true;
+}
+
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(),
+      _s = new THREE.Vector3(1,1,1), _dir = new THREE.Vector3(), _fwd = new THREE.Vector3(0,0,1);
+function syncInstances(){
+  swarm.forEachBee((i, px, py, pz, hx, hy, hz) => {
+    _dir.set(hx, hy, hz);
+    _q.setFromUnitVectors(_fwd, _dir);
+    _p.set(px, py, pz);
+    _m.compose(_p, _q, _s);
+    bees.setMatrixAt(i, _m);
+  });
+  bees.instanceMatrix.needsUpdate = true;
+}
+
+/* ---------- parameters + UI ---------- */
+const params = { ...DEFAULT_PARAMS };
+const SLIDERS = {
+  attrSliders:   [['follow','Follow',0,30,0.5], ['swirl','Swirl',-30,30,0.5]],
+  boidSliders:   [['cohesion','Cohesion',0,12,0.2], ['alignment','Alignment',0,12,0.2], ['separation','Separation',0,30,0.5], ['neighborRadius','Neighbour radius',0.8,8,0.1]],
+  wanderSliders: [['wander','Wander',0,30,0.5], ['noiseFreq','Noise scale',0.04,0.6,0.01], ['maxSpeed','Max speed',2,20,0.5]],
+  stigSliders:   [['stigmergyGain','Gradient follow',0,30,0.5], ['deposit','Deposit',0,6,0.1], ['evaporate','Retention',0.05,0.99,0.01], ['diffuse','Diffuse',0,0.35,0.01]],
+};
+function buildSliders(){
+  for(const [hostId, defs] of Object.entries(SLIDERS)){
+    const box = document.getElementById(hostId);
+    for(const [k,label,min,max,step] of defs){
+      const ctl = document.createElement('div'); ctl.className = 'ctl';
+      ctl.innerHTML = `<label>${label} <span class="v" id="v_${k}">${(+params[k]).toFixed(step<0.1?2:1)}</span></label>`+
+        `<input type="range" id="s_${k}" min="${min}" max="${max}" step="${step}" value="${params[k]}">`;
+      box.appendChild(ctl);
+      const inp = ctl.querySelector('input'), out = ctl.querySelector('.v');
+      inp.addEventListener('input', () => {
+        params[k] = +inp.value; out.textContent = (+inp.value).toFixed(step<0.1?2:1);
+        swarm.setParams({ [k]: params[k] });
+      });
+    }
+  }
+}
+function refreshSliderUI(){
+  for(const defs of Object.values(SLIDERS)) for(const [k,, , ,step] of defs){
+    const inp = document.getElementById('s_'+k), out = document.getElementById('v_'+k);
+    if(inp){ inp.value = params[k]; out.textContent = (+params[k]).toFixed(step<0.1?2:1); }
+  }
+}
+
+const PRESETS = {
+  'Orbit a flower': { follow:6, swirl:7, cohesion:1.6, alignment:2.4, separation:9, wander:6, stigmergyGain:0, deposit:1, evaporate:0.55, diffuse:0.16, maxSpeed:9 },
+  'Recruitment trails': { follow:3.5, swirl:1.5, cohesion:1.0, alignment:1.6, separation:7, wander:5, stigmergyGain:14, deposit:3, evaporate:0.7, diffuse:0.1, maxSpeed:8 },
+  'Tornado': { follow:9, swirl:22, cohesion:1.2, alignment:3, separation:8, wander:3, stigmergyGain:0, deposit:1, maxSpeed:13 },
+  'Loose scatter': { follow:2, swirl:2, cohesion:0.6, alignment:1, separation:5, wander:16, stigmergyGain:0, maxSpeed:10 },
+};
+function applyPreset(name){
+  Object.assign(params, PRESETS[name]);
+  swarm.setParams(params);
+  refreshSliderUI();
+  // recruitment preset reads best with the field shown
+  const viz = document.getElementById('scentViz');
+  if(name === 'Recruitment trails' && !viz.checked){ viz.checked = true; scentPoints.visible = true; }
+}
+function buildPresets(){
+  const box = document.getElementById('presets');
+  for(const name of Object.keys(PRESETS)){
+    const b = document.createElement('button'); b.textContent = name;
+    b.addEventListener('click', () => applyPreset(name)); box.appendChild(b);
+  }
+}
+
+/* ---------- lead-the-swarm pointer steering ---------- */
+let mode = 'orbit', dragging = false;
+const raycaster = new THREE.Raycaster(), ptr = new THREE.Vector2(), dragPlane = new THREE.Plane(), hit = new THREE.Vector3(), camDir = new THREE.Vector3();
+function setMode(m){
+  mode = m; controls.enabled = (m === 'orbit');
+  document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  document.getElementById('hint').innerHTML = m === 'lead'
+    ? 'drag = <b>steer the flower</b> (bees follow) · switch to Orbit camera to look around'
+    : 'drag = orbit camera · scroll = zoom · switch to <b>Lead swarm</b> to steer the flower';
+}
+function pointerToTarget(e){
+  const r = host.getBoundingClientRect();
+  ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+  ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+  raycaster.setFromCamera(ptr, camera);
+  camera.getWorldDirection(camDir);
+  dragPlane.setFromNormalAndCoplanarPoint(camDir, flower.position);
+  if(raycaster.ray.intersectPlane(dragPlane, hit)){
+    const lim = params.bounds * 0.85, L = hit.length();
+    if(L > lim) hit.multiplyScalar(lim / L);
+    swarm.setTarget(hit.x, hit.y, hit.z);
+    flower.position.copy(hit);
+  }
+}
+host.addEventListener('pointerdown', e => { if(mode==='lead'){ dragging = true; pointerToTarget(e); } });
+host.addEventListener('pointermove', e => { if(mode==='lead' && dragging) pointerToTarget(e); });
+addEventListener('pointerup', () => dragging = false);
+document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+/* ---------- buttons ---------- */
+let paused = false;
+document.getElementById('pause').addEventListener('click', e => { paused = !paused; e.target.textContent = paused ? 'Play' : 'Pause'; });
+document.getElementById('reset').addEventListener('click', () => { makeSwarm(swarm.count); });
+document.getElementById('recenter').addEventListener('click', () => { swarm.setTarget(0,0,0); flower.position.set(0,0,0); });
+document.getElementById('count').addEventListener('input', e => {
+  document.getElementById('vCount').textContent = e.target.value; makeSwarm(+e.target.value);
+});
+document.getElementById('scentViz').addEventListener('change', e => { if(scentPoints) scentPoints.visible = e.target.checked; });
+
+/* ---------- boot ---------- */
+buildSliders(); buildPresets();
+makeSwarm(900);
+applyPreset('Orbit a flower');
+
+/* ---------- loop ---------- */
+const hud = document.getElementById('hud');
+let last = performance.now(), fps = 60, hudT = 0;
+function frame(now){
+  const dt = Math.min((now - last) / 1000, 0.05); last = now;
+  fps += ((1/Math.max(dt,1e-3)) - fps) * 0.1;
+
+  if(!paused){
+    swarm.step(dt);
+    wingTime.value = swarm.t;
+    flower.rotation.y += dt * 0.6;
+    syncInstances();
+    updateScentViz(swarm);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+
+  hudT += dt;
+  if(hudT > 0.25){
+    hudT = 0;
+    hud.innerHTML = `<b>${swarm.count}</b> bees · ${fps.toFixed(0)} fps<br>`+
+      `stigmergy ${params.stigmergyGain>0?'<b>on</b>':'off'} · scent peak ${swarm.scentPeak().toFixed(1)}`;
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- resize ---------- */
+function resize(){
+  const w = host.clientWidth, h = host.clientHeight || host.getBoundingClientRect().height;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(h,1); camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
