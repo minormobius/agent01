@@ -504,7 +504,7 @@
     import { CRYSTAL_SYSTEMS, RARITY_COLOR, RARITY_TIER, rollGem, gemBonus, sumBonus, socketCap, canGrow, growGems, gemGlyph, cssOf } from './gems.js';   // THE LAPIDARY (mend) — crystallography gem improvement
     import { DISH_MIN, DISH_MAX, cookScore, cookDish } from './garden/kitchen.js';   // the dwelling's storage fixture, grown into a KITCHEN — cook crops into flavor-scored dishes
     import { createBattle } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
-    import { CREEP_ROLES, isCreepRole, creepId, creepFor, spoilsFor } from './arena/encounter.js';   // hazard-room creeps
+    import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight)
     import { BattleOverlay } from './arena/battle-ui.js';   // the tactical-board UI, shared with /arena
     import { autoEquip, defaultPlan, slotForItem, SLOTS } from './bodyplan.js';   // equip the player/creep for battle
     import { rollItem } from './sprite/item/genome.js';   // mint a loot item from a spoils seed
@@ -3747,9 +3747,9 @@
       const c = playerChar || loadCharacter();
       if (!c) { flashBusy('⚔ roll a character first — ⛨ equip'); return; }
       const deck = ch.deck || 0, id = creepId(ch.id, cp.room);
-      const foe = creepFor(seed, ch.id, cp.room, deck);
+      const foes = creepPack(seed, ch.id, cp.room, deck);   // the hazard room's whole pack (1–3 foes) — a multi-opponent fight
       let bseed = 2166136261; for (const ch2 of id) bseed = Math.imul(bseed ^ ch2.charCodeAt(0), 16777619);
-      const state = createBattle({ player: buildPlayerUnit(c), foes: [foe], seed: bseed >>> 0, W: 14, H: 10 });
+      const state = createBattle({ player: buildPlayerUnit(c), foes, seed: bseed >>> 0, W: 14, H: 10 });
       battleCtx = { ch, cp, id, deck };
       battleOpen = true; $('battle').classList.add('on');
       if (!battleView) battleView = new BattleOverlay($('battle'), { spriteFor: battleSpriteFor });

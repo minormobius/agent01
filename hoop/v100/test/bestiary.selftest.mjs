@@ -1,42 +1,54 @@
-// bestiary.selftest.mjs — the creep BODY PLANS: a creep is still rolled hostile crew (stats/loot), but
-// its sprite may now be a beast (poly/quad/axial/isopod) drawn by the vendored Sprite Lab kernels. Pins
-// that every plan builds a frame-renderable genome, the pick is deterministic, and stats stay intact.
-//   node hoop/v100/test/bestiary.selftest.mjs
+// bestiary.selftest.mjs — the creep BODY PLANS + multi-opponent packs. A creep is rolled hostile crew
+// (stats/loot); its SPRITE is either a humanoid scrapper or a bee SWARM (the two live plans). Pins that
+// each plan builds a frame-renderable genome, the pick is deterministic, packs are 1–3 and deck-scaled,
+// and stats stay intact.  node hoop/v100/test/bestiary.selftest.mjs
 
-import { creepFor, spoilsFor, CREEP_PLANS } from '../arena/encounter.js';
-import { polyFrame } from '../v3/poly.js';
-import { quadFrame } from '../v3/quad.js';
-import { axialFrame } from '../v3/axial.js';
-import { isopodFrame } from '../v3/isopod.js';
+import { creepFor, creepPack, spoilsFor, CREEP_PLANS } from '../arena/encounter.js';
+import { swarmFrame } from '../v3/swarm.js';
 
-const FRAME = { poly: polyFrame, quad: (g, t) => quadFrame(g, t, true), axial: axialFrame, isopod: isopodFrame };
+const FRAME = { swarm: swarmFrame };   // the live beast plans (humanoid uses the crew sprite, no beast frame)
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
 
-// ── 1. determinism: same (seed, chunk, room, deck) → identical creep sprite + plan + name ──
-const a = creepFor(42, 7, 3, 1), b = creepFor(42, 7, 3, 1);
-ok(a.plan === b.plan && a.name === b.name && a.sprite.seed === b.sprite.seed, 'creepFor is deterministic (plan/name/sprite seed)');
-ok(a.combat && a.combat.hp > 0 && a.combat.atk > 0, 'creep still carries a rolled-crew combat block');
+// ── 1. the roster is exactly humanoid + swarm (the other plans are vendored but off) ──
+ok(new Set(CREEP_PLANS).size === 2 && CREEP_PLANS.includes('humanoid') && CREEP_PLANS.includes('swarm'), 'roster is humanoid + swarm: ' + [...new Set(CREEP_PLANS)].join(','));
 
-// ── 2. every plan appears across the room space, and each beast builds a renderable genome ──
+// ── 2. determinism: same (seed, chunk, room, deck) → identical creep ──
+const a = creepFor(42, 7, 3, 1), b = creepFor(42, 7, 3, 1);
+ok(a.plan === b.plan && a.name === b.name && a.sprite.seed === b.sprite.seed, 'creepFor is deterministic');
+ok(a.combat && a.combat.hp > 0 && a.combat.atk > 0, 'creep carries a rolled-crew combat block');
+
+// ── 3. both plans occur, and a swarm builds a renderable cloud genome ──
 const seen = new Set();
 for (let chunk = 0; chunk < 40; chunk++) for (let room = 0; room < 40; room++) {
   const cr = creepFor(9, chunk, room, 1);
-  ok(CREEP_PLANS.includes(cr.plan), `plan '${cr.plan}' is a known body plan`);
+  ok(CREEP_PLANS.includes(cr.plan), `plan '${cr.plan}' is on the roster`);
   seen.add(cr.plan);
-  if (cr.plan === 'humanoid') { ok(cr.sprite.role && !cr.sprite.genome, 'humanoid creep → crew sprite {seed, role}, no prebuilt genome'); continue; }
+  if (cr.plan === 'humanoid') { ok(cr.sprite.role && !cr.sprite.genome, 'humanoid → crew sprite {seed, role}, no prebuilt genome'); continue; }
   const g = cr.sprite.genome;
-  ok(g && g._plan === cr.plan && g.seed && g.w > 0 && g.h > 0, `${cr.plan}: genome tagged _plan + has grid dims + a cache seed`);
-  const cells = FRAME[cr.plan](g, 0.25);
-  ok(Array.isArray(cells) && cells.length > 20 && cells.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && c.c), `${cr.plan}: frame renders non-empty {x,y,c} cells`);
+  ok(g && g._plan === 'swarm' && g.seed && g.w > 0 && g.h > 0, 'swarm: genome tagged _plan + grid dims + cache seed');
+  const cells = swarmFrame(g, 0.25);
+  ok(Array.isArray(cells) && cells.length > 20 && cells.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && c.c), 'swarm: frame renders a non-empty cloud of {x,y,c} cells');
 }
-ok(CREEP_PLANS.every((p) => seen.has(p)), 'all five body plans occur across the room space: ' + [...seen].sort().join(','));
+ok(seen.has('humanoid') && seen.has('swarm'), 'both plans occur across the room space');
 
-// ── 3. deck depth still scales the fight (deeper bites harder), independent of plan ──
-const shallow = creepFor(1, 2, 2, 0), deep = creepFor(1, 2, 2, 3);
-ok(deep.combat.hp > shallow.combat.hp && deep.level > shallow.level, 'deeper decks scale hp + level');
+// ── 4. MULTI-OPPONENT packs: 1–3 foes, unique ids, deeper decks bring more, lead matches the room ──
+for (let chunk = 0; chunk < 30; chunk++) for (let room = 0; room < 20; room++) {
+  const pk = creepPack(5, chunk, room, 1);
+  ok(pk.length >= 1 && pk.length <= 3, `pack size ${pk.length} in 1..3`);
+  ok(new Set(pk.map((f) => f.id)).size === pk.length, 'pack ids are unique');
+  ok(pk[0].sprite.seed === creepFor(5, chunk, room, 1).sprite.seed, 'pack lead is the room’s canonical creep');
+}
+{
+  const shallow = creepPack(1, 2, 2, 0), deep = creepPack(1, 2, 2, 3);
+  ok(deep.length >= shallow.length, 'a deep deck never brings fewer foes');
+  const anyBigger = Array.from({ length: 12 }, (_, i) => creepPack(1, i, 0, 3).length).some((n) => n === 3);
+  ok(anyBigger, 'deck ≥2 can field a 3-foe pack');
+}
 
-// ── 4. spoils untouched ──
+// ── 5. deck depth scales the fight; spoils untouched ──
+const sh = creepFor(1, 2, 2, 0), dp = creepFor(1, 2, 2, 3);
+ok(dp.combat.hp > sh.combat.hp && dp.level > sh.level, 'deeper decks scale hp + level');
 const sp = spoilsFor(1, 2, 2, 1);
 ok(sp.itemSeed >= 0 && sp.coins > 0, 'spoilsFor still yields an item seed + coins');
 

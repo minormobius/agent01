@@ -12,7 +12,8 @@ import { polyFrame } from '../v3/poly.js';
 import { quadFrame } from '../v3/quad.js';
 import { axialFrame } from '../v3/axial.js';
 import { isopodFrame } from '../v3/isopod.js';
-const BEAST_FRAME = { poly: polyFrame, axial: axialFrame, isopod: isopodFrame, quad: (g, t) => quadFrame(g, t, true) };   // quad faces LEFT (toward the player)
+import { swarmFrame } from '../v3/swarm.js';
+const BEAST_FRAME = { swarm: swarmFrame, poly: polyFrame, axial: axialFrame, isopod: isopodFrame, quad: (g, t) => quadFrame(g, t, true) };   // quad faces LEFT (toward the player). swarm/poly/isopod are omni; only humanoid+swarm are on the live roster (encounter.js)
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));

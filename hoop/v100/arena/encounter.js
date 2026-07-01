@@ -6,13 +6,11 @@
 import { rollCharacter, deriveCombat } from '../stats.js';
 import { packForCharacter } from '../pack.js';
 import { autoEquip, defaultPlan } from '../bodyplan.js';
-// the non-humanoid BODY PLANS (vendored from the Sprite Lab, mega.mino.mobi/sprite): poly (ant/spider/
-// crab), quad (hound/boar/bear), axial (worm/snake/eel), isopod (pill-bug/mech-pod). A creep is still
-// rolled hostile CREW for stats/loot — only its SPRITE changes, so balance is untouched, the variety isn't.
-import { buildPolyGenome, FAMILIES as POLY_FAM } from '../v3/poly.js';
-import { buildQuadGenome, FAMILIES as QUAD_FAM } from '../v3/quad.js';
-import { buildAxialGenome, FAMILIES as AXIAL_FAM } from '../v3/axial.js';
-import { buildIsopodGenome, FAMILIES as ISOPOD_FAM } from '../v3/isopod.js';
+// Creep SPRITES are, for now, restricted to two types: the humanoid rolled-crew scrapper, and the
+// BEE SWARM (v3/swarm.js, vendored from the Sprite Lab's bee kernel). A creep is still rolled hostile
+// CREW for stats/loot — only its sprite changes. The other body plans (poly/quad/axial/isopod) stay
+// vendored in v3/ but are OFF the roster until they're polished — re-add them to BEASTS to bring back.
+import { buildSwarmGenome } from '../v3/swarm.js';
 
 // hazard roles: rooms with no friendly component fixture (holds + transit ducts), where scrappers lurk.
 // (make/mend are deliberately left out — they're reserved for the crafting/repair fixtures.)
@@ -32,19 +30,16 @@ export const creepId = (chunkId, room) => 'cr' + chunkId + ':r' + room;
 //    is tagged `_plan` so the battle overlay knows which frame renderer to call, and given a stable `.seed`
 //    so its sprite caches per-foe. Only the sprite changes — stats/loot stay the rolled-crew model. ──
 const BEASTS = {
-  poly:   { build: buildPolyGenome,   fam: POLY_FAM,   names: ['Skitterer', 'Chelae', 'Web-picket', 'Ironmite'],   glyph: '❉' },
-  quad:   { build: buildQuadGenome,   fam: QUAD_FAM,   names: ['Maw-hound', 'Tusk-boar', 'Rend-bear', 'Chassis-hound'], glyph: '⊛' },
-  axial:  { build: buildAxialGenome,  fam: AXIAL_FAM,  names: ['Rust-serpent', 'Duct-eel', 'Coil-wraith', 'Mechworm'], glyph: '∿' },
-  isopod: { build: buildIsopodGenome, fam: ISOPOD_FAM, names: ['Carapace', 'Woodlouse-hulk', 'Deep-pod', 'Mech-pod'], glyph: '⬢' },
+  swarm: { build: buildSwarmGenome, fam: null, names: ['Sting-cloud', 'Hive-scatter', 'Drone-swarm', 'Wrath-of-bees'], glyph: '✸' },
 };
-export const CREEP_PLANS = ['humanoid', 'poly', 'quad', 'axial', 'isopod'];
-// build a beast genome for `plan` from `fseed` — pick a family preset, lean mech on deep decks; tag _plan+seed.
+// the roster: mostly humanoid scrappers, with bee swarms mixed in.
+export const CREEP_PLANS = ['humanoid', 'humanoid', 'swarm'];
+// build a beast genome for `plan` from `fseed` — pick a family preset (if the plan has them); tag _plan+seed.
 function beastGenome(plan, fseed, deck) {
   const B = BEASTS[plan]; if (!B) return null;
-  const keys = Object.keys(B.fam), key = keys[(fseed >>> 4) % keys.length];
-  const genes = { ...(B.fam[key] || {}) };
-  if ((deck | 0) >= 2 && 'chassis' in genes === false) genes.chassis = 0.7;   // the deep rind turns them steel
-  else if ((deck | 0) >= 2 && typeof genes.chassis === 'number') genes.chassis = Math.max(genes.chassis, 0.7);
+  const keys = B.fam ? Object.keys(B.fam) : [], key = keys.length ? keys[(fseed >>> 4) % keys.length] : plan;
+  const genes = { ...((B.fam && B.fam[key]) || {}) };
+  if ((deck | 0) >= 2 && typeof genes.chassis === 'number') genes.chassis = Math.max(genes.chassis, 0.7);   // the deep rind turns them steel
   const g = B.build('foe' + fseed + ':' + plan, genes);
   g._plan = plan; g.seed = 'foe' + fseed + ':' + plan; g._family = key;
   return { genome: g, family: key };
@@ -72,6 +67,22 @@ export function creepFor(worldSeed, chunkId, room, deck = 0) {
     sprite: beast ? { seed: beast.genome.seed, plan, family: beast.family, genome: beast.genome } : { seed: 'foe' + fseed, role: vocation },
     glyph, accent: '#cf3b3b', level, vocation, plan,
   };
+}
+
+// a PACK of creeps for a hazard room — the in-world fights are now MULTI-OPPONENT. Returns 1–3 foes
+// (deeper decks bring more), deterministic. The LEAD (index 0) is the room's canonical creep — its id
+// tracks the cleared flag + the map glyph; the extras are seeded off the room so they vary (a humanoid
+// might be flanked by a bee swarm). Ids are unique (1..n) as createBattle expects.
+export function creepPack(worldSeed, chunkId, room, deck = 0) {
+  const pseed = fnv('pack:' + (worldSeed >>> 0) + ':' + chunkId + ':' + room);
+  const n = 1 + ((pseed >>> 20) % 2) + ((deck | 0) >= 2 ? 1 : 0);   // 1..3 (deck ≥2 adds one)
+  const pack = [];
+  for (let i = 0; i < n; i++) {
+    const cr = creepFor(worldSeed, chunkId, i === 0 ? room : room + ':m' + i, deck);   // extras get a sub-room seed
+    cr.id = i + 1;
+    pack.push(cr);
+  }
+  return pack;
 }
 
 // loot dropped on a win: a seed for rollItem (so index.html mints the genome item) + a coin bounty.
