@@ -51,7 +51,10 @@ export function weaveLines(geo, opts = {}) {
   const { family, thickness: T, R, NW, NF } = geo;
   const flatR = Math.max(0, Math.min(0.7, opts.flatR ?? WEAVE_DEFAULTS.flatR));
   const maxGrade = opts.maxGrade ?? WEAVE_DEFAULTS.maxGrade;
-  const zMid = T / 2, Amax = 0.46 * T, zBias = 0.42 * T, { turnsW, turnsP, phaseW, phaseP, spin } = family;
+  // amplitudes in DECK units (vpitch), decoupled from total thickness: a FLOOR so the weave never flattens to one
+  // swirl near the centre, a ceiling so white & production stay close enough (thick threads overlap) to keep contact.
+  const vp = geo.vpitch, zMid = T / 2, Amin = 0.9 * vp, Amax = Math.min(0.46 * T, 1.7 * vp), zBias = Math.min(0.42 * T, (geo.layers / 2 - 0.5) * vp);
+  const { turnsW, turnsP, phaseW, phaseP, spin } = family;
   const S = turnsW + turnsP, ph = (phaseW - phaseP) / TAU, Kmax = Math.ceil(Math.abs(S)) + 2;
   const g = (rf) => (rf <= flatR ? 0 : (rf - flatR) / (1 - flatR));
   const rfOfG = (gg) => flatR + gg * (1 - flatR);
@@ -71,7 +74,9 @@ export function weaveLines(geo, opts = {}) {
   const capCtl = (cl, arc, hubSign) => {
     const flats = collapse(cl), Sf = (rf) => arcAt(arc, rf);
     const seq = [{ rf: flatR, s: hubSign }, ...flats.map((c) => ({ rf: c.rf, s: c.over ? 1 : -1 })), { rf: 1, s: flats.length ? (flats[flats.length - 1].over ? 1 : -1) : hubSign }];
-    const amp = seq.map((c, k) => { const dP = k > 0 ? Sf(c.rf) - Sf(seq[k - 1].rf) : Infinity, dN = k < seq.length - 1 ? Sf(seq[k + 1].rf) - Sf(c.rf) : Infinity; return Math.min(k === 0 ? zBias : Amax, (maxGrade / 3) * Math.min(dP, dN)); });
+    const amp = seq.map((c, k) => { const dP = k > 0 ? Sf(c.rf) - Sf(seq[k - 1].rf) : Infinity, dN = k < seq.length - 1 ? Sf(seq[k + 1].rf) - Sf(c.rf) : Infinity;
+      if (k === 0) return Math.min(zBias, (maxGrade / 3) * dN);                 // flat-core hub, capped by run to first crossing
+      return Math.min(Amax, Math.max(Amin, (maxGrade / 3) * Math.min(dP, dN))); });   // crossings: floor so it never flattens
     return seq.map((c, k) => ({ rf: c.rf, z: zMid + c.s * amp[k] }));
   };
   const interp = (pts, rf) => { if (rf <= pts[0].rf) return pts[0].z; if (rf >= pts[pts.length - 1].rf) return pts[pts.length - 1].z; let i = 0; while (i < pts.length - 1 && pts[i + 1].rf < rf) i++; const a = pts[i], b = pts[i + 1], t = (rf - a.rf) / ((b.rf - a.rf) || 1); return a.z + (b.z - a.z) * (t * t * (3 - 2 * t)); };

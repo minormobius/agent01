@@ -42,6 +42,16 @@ ok(lo < 0.3 * Tw && hi > 0.7 * Tw, '★ white dives to the floor AND rises to th
 ok(maxg <= wv.maxGrade * 1.15, `pedestrian grade stays within the cap (${maxg.toFixed(2)} ≤ ${wv.maxGrade})`);
 ok(wv.flatR === 0.25, 'the flat no-weave core is preserved (rf < flatR)');
 
+// ══ THICKNESS is the lever: more decks RESOLVE the over/under (white & production separate at crossings, not one
+// swirl). At 8 decks most crossings show them ≥ 0.8 deck apart; at 4 decks fewer do. ══
+const sepFrac = (L) => { const NW = 6, NF = 8, fam = L.family, S = fam.turnsW + fam.turnsP, ph = (fam.phaseW - fam.phaseP) / (2 * Math.PI), Kmax = Math.ceil(S) + 2, rfOfG = (g) => L.flatR + g * (1 - L.flatR); let sep = 0, tot = 0;
+  for (let w = 0; w < NW; w++) for (let f = 0; f < NF; f++) { let best = null, bd = 9; for (let k = -Kmax; k <= Kmax; k++) { const g = ((w + 0.5) / NW - (f + 0.5) / NF + ph - k) / (fam.spin * S); if (g > 0.02 && g < 0.99) { const rf = rfOfG(g), d = Math.abs(rf - (f + 0.5) / NF); if (d < bd) { bd = d; best = rf; } } } if (best != null) { if (Math.abs(L.zW(w, best) - L.zP(f, best)) >= 0.8 * L.vpitch) sep++; tot++; } } return sep / tot; };
+const wv8 = buildWeave3D(3, { rings: 2, spacing: 34, width: 4, flatR: 0.25, layers: 8 }), wv4 = buildWeave3D(3, { rings: 2, spacing: 34, width: 4, flatR: 0.25, layers: 4 });
+ok(wv8.layers === 8 && Math.abs(wv8.thickness - 8 * wv8.vpitch) < 1, 'the decks lever thickens the prism (8 decks)');
+ok(sepFrac(wv8) >= 0.8, `★ 8 decks resolve the weave — ${(sepFrac(wv8) * 100) | 0}% of crossings show white & production ≥0.8 deck apart (over/under, not one swirl)`);
+ok(sepFrac(wv8) > sepFrac(wv4), 'more decks ⇒ more crossings resolved (thickness is the lever)');
+ok(wv8.metrics.continuous && wv8.metrics.contacts >= 44, `still continuous + K(6,8) intact at 8 decks (${wv8.metrics.k68Pairs})`);
+
 // ══ WIDTH lever: too thin ⇒ corridors leave matrix (and may miss crossings); wide ⇒ fills solid ══
 ok(M({ width: 3 }).matrixPct > M({ width: 12 }).matrixPct, 'thinner corridors leave more interstitial matrix');
 ok(M({ width: 12 }).matrixPct < 0.02, 'a wide weave fills essentially solid (matrix → 0)');

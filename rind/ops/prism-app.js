@@ -8,7 +8,7 @@ import { buildCells, routeMinDoors, ownerKey } from './cells3d.js';
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
-let width = 6, spacing = 30, flatR = 0.16, rings = 1, spin = true, showThreads = false, showCells = true, routeMode = false, peel = 0;
+let width = 6, spacing = 30, flatR = 0.16, rings = 1, layers = 8, spin = true, showThreads = false, showCells = true, routeMode = false, peel = 0;
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -21,7 +21,7 @@ const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255
 const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const INK = [232, 236, 244], BG = [6, 7, 12], MATRIX = [44, 52, 70], GOLD = [255, 224, 122];
-geo = buildGeometry(seed, { rings, spacing });   // initial geometry — warps/wefts are stable across every lever
+geo = buildGeometry(seed, { rings, spacing, layers });   // initial geometry — warps/wefts are stable across every lever
 const warpCol = (w) => mix(hex(geo.warps[w].color), INK, (w % 2) * 0.28);
 const prodCol = (f) => hex(geo.wefts[f].color);
 const ownerColor = (o) => o ? (o.kind === 'white' ? warpCol(o.idx) : prodCol(o.idx)) : MATRIX;
@@ -140,8 +140,8 @@ function routePanel() {
 }
 
 function rebuild() {
-  const key = `${seed}|${rings}|${spacing}`;
-  if (key !== geomKey || !cellsModel) { geo = buildGeometry(seed, { rings, spacing }); cellsModel = buildCells(geo); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
+  const key = `${seed}|${rings}|${spacing}|${layers}`;
+  if (key !== geomKey || !cellsModel) { geo = buildGeometry(seed, { rings, spacing, layers }); cellsModel = buildCells(geo); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
   const lines = weaveLines(geo, { flatR }), lay = layWeave(geo, cellsModel, lines, { width });   // cheap: re-runs on width/flatR only
   m = { ...geo, ...lines, flatR: lines.flatR, width, cells: cellsModel.cells, cellsModel, metrics: lay.metrics };
   if (routeA >= 0 && routeB >= 0) recomputeRoute();
@@ -152,6 +152,7 @@ function frame() { if (spin) yaw += 0.0035; draw(); requestAnimationFrame(frame)
 
 $('width').addEventListener('change', (e) => { width = +e.target.value; rebuild(); });   // on release (flood + K-repair)
 $('dens').addEventListener('change', (e) => { spacing = 104 - +e.target.value; rebuild(); });   // right = denser; rebuilds the 3D Voronoi
+$('decks').addEventListener('change', (e) => { layers = +e.target.value; $('decksV').textContent = layers; rebuild(); });   // thickness lever (rebuilds Voronoi)
 $('flat').addEventListener('change', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
 $('peel').addEventListener('input', (e) => { peel = (+e.target.value) / 100; $('peelV').textContent = `${((1 - peel) * geo.layers).toFixed(1)} decks`; });   // pure view — no rebuild
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
@@ -189,4 +190,4 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.5, M
 
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; }
 addEventListener('resize', resize);
-$('width').value = width; rebuild(); buildChips(); resize(); frame();
+$('width').value = width; $('decks').value = layers; $('decksV').textContent = layers; $('peelV').textContent = `${geo.layers.toFixed(1)} decks`; rebuild(); buildChips(); resize(); frame();

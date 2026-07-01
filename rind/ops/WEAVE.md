@@ -36,6 +36,14 @@
 > keeps it walkable (measured ≤ ~0.44). The flat core (rf < flatR) stays white-high / production-low, no weave.
 > The honest cost: a real weave separates a few crossings by a deck too far to touch, so K(6,8) is a touch lower
 > than the flat two-deck version (best in the roomier families, e.g. 19-chunk / width-4: 46–48/48).
+>
+> **THICKNESS is the lever that resolves it (the "one swirl" fix).** With only 4 decks the grade-cap collapses the
+> weave amplitude to ~zero near the centre, so white and production sit at the *same* height there — one swirl, no
+> visible over/under. Two changes: an **amplitude FLOOR** (≥ ~0.9 deck, so the weave never flattens) and a **decks
+> lever** (`layers`, 4–12; the prism thickens at pinned deck-pitch). At **8 decks** the weave is fully resolved —
+> ~100% of crossings show white & production ≥ 0.8 deck apart, alternating over/under — while the width tube stays
+> thick enough (~2 decks) to keep them touching, so continuity + K(6,8) survive. Peel the top decks (viewer's
+> "peel" slider) to watch office threads pass over and under the production threads.
 
 > **NOW IN 3D — a PANCAKE.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating
