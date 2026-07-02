@@ -117,7 +117,7 @@ export function drawPlant(ctx, m, ox, oy, u) {
 // ── the whole plot: soil bed + laid-out flora, with a warm ambient. `plot` = buildPlotFlora output. ──
 export function renderPlot(ctx, W, H, plot, { soil, seed = 7, soilTop } = {}) {
   const props = soil || soilProps(0.4, 0.35, 0.25, 0.3);
-  soilTop = soilTop != null ? soilTop : H * 0.42;
+  soilTop = soilTop != null ? soilTop : H * 0.64;   // soil is the lower ~third — a bed, not half the frame
   // sky/air wash above the soil (a soft dawn)
   const sky = ctx.createLinearGradient(0, 0, 0, soilTop); sky.addColorStop(0, '#12100c'); sky.addColorStop(1, '#25201a');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, soilTop);

@@ -12,7 +12,7 @@
 // an NPC's garden reproduces exactly. Coordinates: base at (0,0) on the soil surface; +y UP (shoot),
 // −y DOWN (root); x centred; normalized plot-units. Node-tested (test/flora.selftest.mjs).
 
-import { forage, crownCloud, rootCloud, phyllotaxis, vogelSpiral } from './grow.js';
+import { forage, crownCloud, rootCloud, phyllotaxis, vogelSpiral, GOLDEN_ANGLE } from './grow.js';
 
 function xmur3(s) { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; } return () => { h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return (h ^= h >>> 16) >>> 0; }; }
 function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -65,6 +65,8 @@ export function paletteOf(d) {
 // per-form target dimensions (at full growth)
 const H_MAX = { broadleaf: 1.15, conifer: 1.1, reed: 1.0, grain: 0.7, stalk: 0.7, shrub: 0.42, vine: 0.5, rosette: 0.26, herbClump: 0.3, fungusCap: 0.34 };
 const SP_MAX = { broadleaf: 0.6, conifer: 0.4, shrub: 0.34, vine: 0.7, rosette: 0.3, reed: 0.12, grain: 0.14, herbClump: 0.24, stalk: 0.18, fungusCap: 0.2 };
+// per-form MAX trunk radius (the Murray-law clamp — a tree trunk is fat, a herb stem thin)
+const MAXR = { broadleaf: 0.055, conifer: 0.05, shrub: 0.03, vine: 0.022, rosette: 0.02, reed: 0.012, grain: 0.012, herbClump: 0.018, stalk: 0.02, fungusCap: 0.05 };
 
 // ── buildPlant(descriptor, { stage=1, seed=1 }) → the model the renderer strokes ──
 // { form, stage, palette, height, spread, rootDepth, branches[seg], roots[seg], leaves[], flowers[], fruits[], cap, tuber }
@@ -82,9 +84,10 @@ export function buildPlant(d = {}, { stage = 1, seed = 1 } = {}) {
     stageLabel: stage < 0.15 ? 'sprout' : stage < 0.55 ? 'growing' : ripe ? 'ripe' : 'flowering',
     palette: pal, height, spread, rootDepth, branches: [], roots: [], leaves: [], flowers: [], fruits: [], cap: null, tuber: null };
 
+  const rMax = (MAXR[form] || 0.025) * lerp(0.45, 1, stage);   // thinner when young; the Murray clamp
   // roots — a foraging network toward the soil water/nutrient cloud (down). Every plant has one.
   const rootNet = forage({ base: { x: 0, y: 0 }, attractors: rootCloud(form, { depth: rootDepth, spread, n: Math.round(lerp(5, 30, stage)), seed: seed * 29 }),
-    dirBias: { x: 0, y: -0.45 }, influence: Math.max(0.25, spread * 1.6), kill: 0.05, step: lerp(0.03, 0.055, stage), maxNodes: 150, seed: seed * 29 });
+    dirBias: { x: 0, y: -0.45 }, influence: Math.max(0.25, spread * 1.6), kill: 0.05, step: lerp(0.03, 0.055, stage), maxNodes: 150, maxRadius: rMax * 0.7, seed: seed * 29 });
   model.roots = rootNet.segments;
 
   if (form === 'fungusCap') {
@@ -97,23 +100,33 @@ export function buildPlant(d = {}, { stage = 1, seed = 1 } = {}) {
   // shoot — a foraging network toward the light-cloud the growth-form scatters (up)
   const nCrown = Math.round(lerp(6, form === 'broadleaf' ? 48 : 34, stage) * (form === 'reed' || form === 'grain' ? 0.6 : 1));
   const shoot = forage({ base: { x: 0, y: 0.01 }, attractors: crownCloud(form, { height, spread, n: nCrown, seed: seed * 13 }),
-    dirBias: { x: 0, y: 0.4 }, influence: Math.max(0.28, spread * 1.7), kill: 0.05, step: lerp(0.03, 0.06, stage), maxNodes: form === 'broadleaf' ? 280 : 160, seed: seed * 13 });
+    dirBias: { x: 0, y: 0.4 }, influence: Math.max(0.28, spread * 1.7), kill: 0.05, step: lerp(0.03, 0.06, stage), maxNodes: form === 'broadleaf' ? 280 : 160, maxRadius: rMax, seed: seed * 13 });
   model.branches = shoot.segments;
   const tips = shoot.tips.length ? shoot.tips : [shoot.nodes.length - 1];
 
   if (form === 'rosette') model.tuber = { x: 0, y: -rootDepth * 0.5, r: lerp(0.02, 0.12, stage), kind: /onion|leek|garlic/i.test(model.name) ? 'bulb' : 'taproot' };
 
-  // leaves — phyllotaxis (golden angle). Rosette: a basal whorl. Others: along the shoot tips.
-  if (form !== 'reed' && form !== 'grain') {
+  // leaves — phyllotaxis (golden angle), populating the FOLIAGE-BEARING TWIGS (every thin distal node,
+  // children ≤ 1), not just the branch tips — so leaf area tracks the canopy (an LAI-like density) and a
+  // grown plant reads lush, not bare. Rosette = a basal leaf whorl over the taproot.
+  if (form !== 'reed' && form !== 'grain' && form !== 'fungusCap') {
     if (form === 'rosette') {
-      const nl = Math.round(lerp(4, 9, stage)), ph = phyllotaxis(nl, { base: R() * 6.283 });
-      for (const p of ph) model.leaves.push({ x: Math.cos(p.roll) * spread * 0.12, y: height * 0.08, len: lerp(0.08, 0.22, stage), wid: 0.6, ang: p.roll, base: true });
+      const nl = Math.round(lerp(5, 12, stage)), ph = phyllotaxis(nl, { base: R() * 6.283 });
+      for (const p of ph) model.leaves.push({ x: Math.cos(p.roll) * spread * 0.12, y: height * 0.08, len: lerp(0.09, 0.24, stage), wid: 0.62, ang: p.roll, base: true });
     } else {
-      const nl = Math.min(tips.length, Math.round(lerp(4, form === 'broadleaf' ? 44 : 16, stage))), ph = phyllotaxis(nl, { base: R() * 6.283 });
-      for (let k = 0; k < nl; k++) {
-        const n = shoot.nodes[tips[k % tips.length]], pr = n.parent >= 0 ? shoot.nodes[n.parent] : { x: n.x, y: n.y - 0.05 };
-        const ang = Math.atan2(n.y - pr.y, n.x - pr.x) + ph[k].side * 0.6;
-        model.leaves.push({ x: n.x, y: n.y, len: lerp(0.03, form === 'broadleaf' ? 0.09 : 0.07, stage), wid: form === 'broadleaf' ? 0.6 : 0.4, ang, side: ph[k].side });
+      const twig = [];
+      for (let i = 1; i < shoot.nodes.length; i++) if (shoot.nodes[i].children <= 1) twig.push(i);   // twigs + tips
+      const cap = Math.round(lerp(8, form === 'broadleaf' ? 200 : 70, stage));
+      const stepK = twig.length > cap ? Math.ceil(twig.length / cap) : 1;
+      const size = form === 'broadleaf' ? lerp(0.02, 0.05, stage) : lerp(0.026, 0.06, stage);
+      const base = R() * 6.283;
+      let k = 0;
+      for (let t = 0; t < twig.length; t += stepK) {
+        const n = shoot.nodes[twig[t]], pr = n.parent >= 0 ? shoot.nodes[n.parent] : { x: n.x, y: n.y - 0.05 };
+        const roll = base + k * GOLDEN_ANGLE, side = Math.sin(roll) >= 0 ? 1 : -1;   // phyllotactic divergence
+        const ang = Math.atan2(n.y - pr.y, n.x - pr.x) + side * (0.5 + 0.4 * Math.abs(Math.cos(roll)));
+        model.leaves.push({ x: n.x, y: n.y, len: size * (0.8 + 0.4 * ((k * 0.6180339) % 1)), wid: form === 'broadleaf' ? 0.55 : 0.42, ang, side });
+        k++;
       }
     }
   }

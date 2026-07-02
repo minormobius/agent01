@@ -44,7 +44,7 @@ export function phyllotaxis(n, { base = 0 } = {}) {
 //   attractors:[{x,y}] the resource cloud it grows toward (light above / water below)
 //   dirBias:{x,y}      a gentle global pull (gravitropism / phototropism), magnitude ~0..1
 // nodes carry {x,y,parent,radius}; segments {x0,y0,x1,y1,w0,w1}; tips = leaf-node indices.
-export function forage({ base = { x: 0, y: 0 }, attractors = [], influence = 0.5, kill = 0.06, step = 0.045, dirBias = { x: 0, y: 0 }, maxNodes = 240, seed = 1 } = {}) {
+export function forage({ base = { x: 0, y: 0 }, attractors = [], influence = 0.5, kill = 0.06, step = 0.045, dirBias = { x: 0, y: 0 }, maxNodes = 240, maxRadius = 0.05, seed = 1 } = {}) {
   const R = rngFor('forage#' + seed);
   const nodes = [{ x: base.x, y: base.y, parent: -1, children: 0 }];
   const live = attractors.map((a) => ({ x: a.x, y: a.y }));
@@ -85,6 +85,11 @@ export function forage({ base = { x: 0, y: 0 }, attractors = [], influence = 0.5
   for (let i = nodes.length - 1; i >= 0; i--) {
     if (nodes[i].children === 0) rad[i] = r0;
     else { let s = 0; for (let j = 0; j < nodes.length; j++) if (nodes[j].parent === i) s += Math.pow(rad[j], K); rad[i] = Math.pow(s, 1 / K); }
+    // CLAMP the trunk radius. Murray's law compounds up the tree, and when a stage happens to grow one
+    // dominant hub (a subtree that's a big fraction of all leaves) its radius spikes ~10× for that one
+    // tick, then redistributes next stage — the "one member way too thick, gone next tick" bug. A cap
+    // keeps a fat trunk fat without letting a transient hub balloon; thin twigs are unaffected.
+    if (rad[i] > maxRadius) rad[i] = maxRadius;
   }
   const segments = [], tips = [];
   for (let i = 1; i < nodes.length; i++) { const p = nodes[i].parent; segments.push({ x0: nodes[p].x, y0: nodes[p].y, x1: nodes[i].x, y1: nodes[i].y, w0: rad[p], w1: rad[i] }); }

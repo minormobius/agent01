@@ -37,6 +37,7 @@ ok(['herbClump', 'stalk'].includes(growthForm({ name: 'Betony', qualities: 'cold
 {
   const p = buildPlant({ name: 'Sage', qualities: 'hot & dry', planet: 'Jupiter', reagentClass: 'plant' }, { stage: 1, seed: 3 });
   ok(p.branches.length >= 3 && p.leaves.length >= 4 && p.roots.length >= 3, 'a grown plant has a branch network, leaves, and a root network');
+  ok(p.branches.every((b) => b.w0 <= 0.06 && b.w1 <= 0.06), 'no radius spike — the Murray clamp caps every segment (the "one member 10× too thick" bug)');
   ok(p.roots.every((r) => r.y1 <= 0.02), 'the root network stays at/below the soil line (the foraging goes DOWN)');
   ok(p.roots.some((r) => r.y1 < -0.05), 'the roots forage well below the surface (the microscope substrate)');
   ok(p.leaves.every((l) => l.y > 0), 'leaves are ABOVE the soil line');
@@ -56,6 +57,7 @@ ok(['herbClump', 'stalk'].includes(growthForm({ name: 'Betony', qualities: 'cold
   ok(radish.tuber && radish.tuber.r > 0, 'a root crop swells a tuber below ground');
   const apple = buildPlant({ name: 'Apple', crop: 'fruit' }, { stage: 1, seed: 5 });
   ok(apple.fruits.length >= 1, 'a ripe fruit tree bears fruit');
+  ok(apple.leaves.length >= 30, `a grown tree is LUSH — leaves populate the twigs, not just tips (${apple.leaves.length})`);
   const agaric = buildPlant({ name: 'Fly agaric', reagentClass: 'fungal', kind: 'fungus' }, { stage: 1, seed: 5 });
   ok(agaric.cap && agaric.cap.r > 0 && agaric.leaves.length === 0, 'a fungus has a cap and no leaves');
 }

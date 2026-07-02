@@ -32,6 +32,7 @@
     <div class="ctl"><label>moisture <b id="lw">damp</b></label><input id="wet" type="range" min="0" max="100" value="30" /></div>
     <div class="ctl"><label>growth <b id="lg">ripe</b></label><input id="stage" type="range" min="5" max="100" value="90" /></div>
     <div class="ctl"><label>&nbsp;</label><button id="reseed">↻ reseed the bed</button></div>
+    <div class="ctl"><label>&nbsp;</label><button id="random">🎲 random garden</button></div>
   </div>
   <div class="plants" id="picker"></div>
 </div>
@@ -66,6 +67,14 @@ const clayEl=document.getElementById('clay'), wetEl=document.getElementById('wet
 const lc=document.getElementById('lc'), lw=document.getElementById('lw'), lg=document.getElementById('lg');
 [clayEl,wetEl,stageEl].forEach((e)=>e.addEventListener('input',draw));
 document.getElementById('reseed').addEventListener('click',()=>{ seed=(seed*1103515245+12345)>>>0; draw(); });
+// 🎲 random garden — reroll the whole bed (plants, stages, soil, seed) to eyeball the generator
+document.getElementById('random').addEventListener('click',()=>{
+  seed=(seed*1103515245+12345)>>>0;
+  const rng=(()=>{let a=seed;return()=>{a=(a*1103515245+12345)>>>0;return a/4294967296;};})();
+  const pool=[...CAST.keys()]; chosen=[]; while(chosen.length<6&&pool.length){ chosen.push(pool.splice(Math.floor(rng()*pool.length),1)[0]); }
+  clayEl.value=Math.floor(rng()*100); wetEl.value=Math.floor(rng()*100); stageEl.value=20+Math.floor(rng()*80);
+  renderPicker(); draw();
+});
 addEventListener('resize',draw);
 
 // the plant picker — click to toggle which of the cast fill the bed's 6 slots
