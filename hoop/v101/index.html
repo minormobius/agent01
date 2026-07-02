@@ -2825,7 +2825,14 @@
             + (canSpread ? `<button data-spread="1" style="margin:2px 0 8px;padding:6px 14px;border:1px solid #f4bf62;background:rgba(244,191,98,.12);color:#f4bf62;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer">☷ spread word</button>` : '')
           : '';
         const inform = (onFirst && story.active.informed) ? `<p class="says" style="color:#f4bf62">${esc(story.active.informed)}</p>` : '';
-        const right = _roomLine + meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>`;   // room name (keeper metadata) sits above the description, every visit
+        // ⚘ gift a draught → +standing (the alchemy social payoff). Only for a placed NPC you can gift to.
+        const _preps = heldPreps();
+        const giftRow = (_preps.length)
+          ? (story.active.giftOpen
+              ? `<div class="ch" style="margin-top:6px">` + _preps.map(({ it, i }) => `<button data-giveprep="${i}" style="border-color:#6a5a9a;color:#c6b0f0" title="${esc(it.lore || '')}">⚘ ${esc(it.name)}</button>`).join('') + `<button data-gift="0">cancel</button></div>`
+              : `<button data-gift="1" style="margin-top:8px;padding:5px 12px;border:1px solid #6a5a9a;background:rgba(120,100,170,.1);color:#c6b0f0;border-radius:7px;font:inherit;font-size:12px;cursor:pointer">⚘ gift a draught</button>`)
+          : '';
+        const right = _roomLine + meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>` + giftRow;   // room name (keeper metadata) sits above the description, every visit
         // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
         // an ambient crowd one-liner (no_tree crowd OR a wanderer's one-node `ambient` tree) → a light compact popup.
         if ((!t.no_tree && !t.ambient) || (t.choices && t.choices.length)) {
@@ -2872,6 +2879,10 @@
         spreadRumor(item).then((ok) => { sp.textContent = ok ? '☷ word spread' : '✕ couldn’t spread'; if (ok) flashToast(`☷ you spread word of ${item.name || 'them'}`, 2400); });
         return;
       }
+      const gf = e.target.closest('[data-gift]');
+      if (gf && story.active) { story.active.giftOpen = gf.dataset.gift === '1'; renderStory(); return; }
+      const gp = e.target.closest('[data-giveprep]');
+      if (gp && story.active && story.active.npcId) { giftPrepToNpc(story.active.npcId, +gp.dataset.giveprep); return; }
       const eat = e.target.closest('[data-eat]');
       if (eat && story.active && story.active.cafe) { eatFood(+eat.dataset.eat); return; }
       const tr = e.target.closest('[data-trainer]');
@@ -3646,6 +3657,22 @@
       pack.pack.splice(idx, 1); pack.setPack(pack.pack); persistPack(); saveStory();
       pack._renderDetail && pack._renderDetail();
       notify(`⚗ quaffed ${it.name} — ${msgs.join(' · ')}`, { kind: 'life', ms: 2800 });
+    }
+
+    // ── GIFTING preparations to NPCs for STANDING — the social payoff of the alchemy vertical. Giving a
+    //    draught to a placed figure raises your standing with them (store.setNpcState); a Jupiter/largesse
+    //    draught (use.gift.standing) lands harder. Standing is the story engine's own reputation value — the
+    //    hook hoopy's content gates on. ──
+    const heldPreps = () => pack.pack.map((it, i) => (isPrep(it) ? { it, i } : null)).filter(Boolean);
+    function giftPrepToNpc(npcId, idx) {
+      const it = pack.pack[idx]; if (!isPrep(it) || !npcId) return;
+      const use = it.mechanics.use || {}, bonus = (use.gift && use.gift.standing) || 0, delta = 1 + bonus;
+      const st = story.store.getNpcState(story.playerId, npcId, null) || { standing: 0, flags: {}, current_node: null };
+      story.store.setNpcState(story.playerId, npcId, { standing: (st.standing || 0) + delta, flags: st.flags || {}, current_node: st.current_node });
+      pack.pack.splice(idx, 1); pack.setPack(pack.pack); persistPack();
+      if (story.active) story.active.giftOpen = false;
+      saveStory(); renderStory();
+      notify(`⚘ gifted ${it.name} — standing +${delta}${bonus ? ' (largesse)' : ''}`, { kind: 'life', ms: 2800 });
     }
 
     // ── THE OVERWORLD OVERLAY — the ladder's destination: the ship's outer grow-deck, the whole curated
