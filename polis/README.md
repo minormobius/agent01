@@ -154,7 +154,7 @@ nucleus can die.
 | `mappaWorld.js` | **The real mappa engine as terrain source** (imports `../mappa/engine.js`, not forked): `rollMappaWorld(seed)` generates a planet, `selectRegion()` auto-picks the city-richest temperate window, `makeSampler()` returns a planar IDW sampler of mappa's real elevation/temperature/moisture/biome over the region. |
 | `mesh.js` | `buildMesh(seed, region, sampler)` — the detailed **Voronoi mosaic** carrying real mappa terrain (finer than mappa's own cells): jittered seeds, nearest-seed adjacency, sampled terrain, rivers; `cellState(cell, env)` colours by mappa biome + era (sea level/temp). |
 | `arteries.js` | `makeArteries(mesh)` — Physarum flux on the cell graph: gravity demand → conductance adapts → the inter-town network as the traffic field's superlevel set. |
-| `chronicle.js` | `runChronicle(seed, mesh)` — the timeline: climate + tech clocks, staged nucleation, economy growth (reuses `economy.js`), artery growth, tech-wave events — precomputed for replay. |
+| `chronicle.js` | `runChronicle(seed, mesh, {world})` — the timeline: the **causal climate** (`../mappa/climate-forcing.js`) + the tech clock, staged nucleation **gated to the deglaciation** (cities seed as the ice retreats), economy growth (reuses `economy.js`), artery growth, tech-wave events, and **climate catastrophes** (volcanic winters / grand minima / super-eruptions) as size-dependent shocks — precomputed for replay. |
 | `economy.js` | Founding engine → base multiplier → logistic growth toward a tech-lifted ceiling; agglomeration; flourishing (bloom/dusk); `conquer()` shock. Reused by the chronicle. |
 | `substrate.js` · `site.js` · `sim.js` | The **v1 grid proto** (the earlier square-grid vertical slice) — kept and node-tested; superseded as the main page by the mesh pipeline above. |
 | `test/chronicle.selftest.mjs` | 15 checks on the living-map pipeline (region, mesh, climate, nucleation, hierarchy, arteries, waves). |
@@ -164,6 +164,38 @@ nucleus can die.
 *(Still to come as the theory hardens into the sim: `tech.js` (the cards DAG +
 effects), `finance.js` (the cost-of-capital gate + crisis shock — see THEORY.md),
 `flourish.js` (port hoop/econ's `scoreSociety`), and live conquest/plague events.)*
+
+## The causal climate — why the ice retreats, and why a civilization can fall
+
+The climate is not an arbitrary curve; it reacts to **causes the generated planet
+actually has**. This lives in [`../mappa/climate-forcing.js`](../mappa/climate-forcing.js)
+(a mappa module — the *world* owns its climate) and feeds `chronicle.js`:
+
+- **Orbital (Milankovitch).** Insolation paced by the **world's own axial tilt**
+  (obliquity ~41 kyr) + precession under an eccentricity envelope. The window opens in a
+  glacial and **deglaciates** across it — the slow metronome that ends the ice age.
+- **Volcanic.** Stratospheric-aerosol **winters erupt from the world's own volcanoes**
+  (`world.volc`): a sharp cooling that washes out over a few years, with a rare
+  **super-eruption** (Toba-scale) that can bury a century.
+- **Solar.** **Grand minima** — multi-decade dark periods of a dimmer sun (Maunder /
+  Little-Ice-Age analogues), a shallow broad cooling.
+
+The state variable is **ice volume, which lags temperature by millennia** (ice sheets
+melt slowly). So deglaciation is a smooth ramp and **sea level tracks it**, but a
+volcanic winter is a spike the ice barely feels. Ice-albedo feedback makes the glacial
+colder and the deglaciation sharper.
+
+This drives the sim on the theory's **two clocks**: the *continuous* backbone
+(deglaciation → habitability → nucleation; **cities can only seed once regional ice
+drops past a threshold** — the causal claim that civilization begins at the end of the
+ice age) and *discrete* shocks (a super-eruption or grand minimum hits the live urban
+system, size-dependent like conquest — a diversified metropolis endures on locational
+inertia, a small mono-functional town is **cast back into the dark**). Everything is
+deterministic from `(world, seed)`: same planet ⇒ same climate history.
+
+`computeClimate(geo, forcing)` (also in `mappa/engine.js`) is the companion piece — it
+turns any forcing into a climate *field*; `climate-forcing.js` is where the forcing
+*comes from*. Both are node-tested (`mappa/test/climate*.selftest.mjs`).
 
 ## Deploy
 

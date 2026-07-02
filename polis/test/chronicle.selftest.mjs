@@ -66,13 +66,18 @@ ok(mesh.cells.length > 800, `mesh retiles the region into many cells (${mesh.cel
   ok(t.history[t.founded + 2] > 0 && t.history[c.ticks - 1] >= t.history[t.founded + 2], 'the lead town grows over its lifetime');
 }
 
-// 7 — arteries form: the network gains strong edges as towns grow
+// 7 — arteries form: the network strengthens as the city system grows from a nascent
+// civilization to its peak. (Measured nascent → peak, not mid → end: nucleation is
+// climate-gated to the deglaciation, and a late catastrophe can thin the network — so
+// the final tick may be post-collapse. Peak population is the honest maturity mark.)
 {
   const c = runChronicle(SEED, mesh);
-  const early = c.ticks * 0.5 | 0, late = c.ticks - 1;
-  let earlyStrong = 0, lateStrong = 0;
-  for (let i = 0; i < c.E; i++) { if (c.artStrength[early * c.E + i] > 40) earlyStrong++; if (c.artStrength[late * c.E + i] > 40) lateStrong++; }
-  ok(lateStrong > earlyStrong, `inter-town arteries thicken over time (strong edges ${earlyStrong} → ${lateStrong})`);
+  const totPop = (k) => c.towns.reduce((a, t) => a + (t.history[k] || 0), 0);
+  const founded = c.towns.filter((t) => t.founded >= 0).map((t) => t.founded);
+  const nascent = Math.min(...founded) + 3;
+  let peak = 0, pk = -1; for (let k = 0; k < c.ticks; k++) { const p = totPop(k); if (p > pk) { pk = p; peak = k; } }
+  const strong = (k) => { let s = 0; for (let i = 0; i < c.E; i++) if (c.artStrength[k * c.E + i] > 40) s++; return s; };
+  ok(strong(peak) > strong(nascent), `inter-town arteries thicken as the system matures (strong edges ${strong(nascent)} → ${strong(peak)})`);
 }
 
 // 8 — tech waves fire as the clock advances
@@ -95,6 +100,27 @@ ok(mesh.cells.length > 800, `mesh retiles the region into many cells (${mesh.cel
   // the event types we expect are represented
   const types = new Set(a.events.map((e) => e.type));
   ok(types.has('plague') || types.has('conquest') || types.has('crisis'), 'shocks are drawn from {plague, conquest, crisis}');
+}
+
+// 10 — causal climate: civilization nucleates as the ice retreats, and a civilized-era
+// super-eruption can cast it back into the dark.
+{
+  const c = runChronicle(SEED, mesh, { world });
+  const founded = c.towns.filter((t) => t.founded >= 0);
+  ok(founded.every((t) => c.env[t.founded].ice < 0.65), 'no town nucleates under the ice sheets (founding gated to the deglaciation)');
+  ok(founded.every((t) => c.env[t.founded].year > -8000), `the first cities are post-glacial (earliest founding ${Math.min(...founded.map((t) => c.env[t.founded].year))} — after the ice age)`);
+
+  // a world whose super-eruption strikes a mature civilization → a system-wide dark age
+  const dseed = 308852, dworld = rollMappaWorld(dseed);
+  const dmesh = buildMesh(dseed, selectRegion(dworld), makeSampler(dworld, selectRegion(dworld)));
+  const D = runChronicle(dseed, dmesh, { world: dworld });
+  const su = D.events.find((e) => e.type === 'super-eruption');
+  ok(!!su, 'a super-eruption fires as a discrete climate shock');
+  if (su) {
+    const totPop = (k) => D.towns.reduce((a, t) => a + (t.history[k] || 0), 0);
+    const before = totPop(su.tick - 1), low = Math.min(...Array.from({ length: 5 }, (_, i) => totPop(su.tick + i)));
+    ok(before > 0 && low < before * 0.9, `the super-eruption casts the civilization back (system pop ${before} → ${low}, −${Math.round((1 - low / before) * 100)}%)`);
+  }
 }
 
 console.log(`\n${fail === 0 ? '✓ all green' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);

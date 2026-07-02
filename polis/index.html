@@ -188,10 +188,18 @@ function draw() {
   const curx = BM + tick / (C.ticks - 1) * BW; cx.strokeStyle = '#fff'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(curx, BY - 7); cx.lineTo(curx, BY + 7); cx.stroke();
 
   const eraName = yearEra(e.year);
-  eraEl.innerHTML = `<span class="y">${e.year < 0 ? -e.year + ' BCE' : e.year + ' CE'}</span> · ${eraName} <span class="s">· sea ${e.seaLevel.toFixed(2)} · tech ${e.tech.toFixed(2)}</span>`;
+  eraEl.innerHTML = `<span class="y">${e.year < 0 ? -e.year + ' BCE' : e.year + ' CE'}</span> · ${eraName} <span class="s">· ${e.regime || '—'} · ${e.tempShift >= 0 ? '+' : ''}${e.tempShift.toFixed(1)}°C · tech ${e.tech.toFixed(2)}</span>`;
 }
-const EVENT_COLOR = { plague: '#7fae74', conquest: '#d05a3a', crisis: '#e0c060' };
-function EVENT_LABEL(ev) { return ev.type === 'plague' ? '☠ plague' : ev.type === 'conquest' ? '⚔ ' + ev.note : '$ financial crisis'; }
+const EVENT_COLOR = { plague: '#7fae74', conquest: '#d05a3a', crisis: '#e0c060', 'super-eruption': '#ff7a3c', eruption: '#d98a4a', 'grand-minimum': '#7fb0d8' };
+function EVENT_LABEL(ev) {
+  if (ev.type === 'plague') return '☠ plague';
+  if (ev.type === 'conquest') return '⚔ ' + ev.note;
+  if (ev.type === 'crisis') return '$ financial crisis';
+  if (ev.type === 'super-eruption') return '🌋 ' + ev.note;
+  if (ev.type === 'eruption') return '🌋 ' + ev.note;
+  if (ev.type === 'grand-minimum') return '❄ ' + ev.note;
+  return ev.note || ev.type;
+}
 
 function yearEra(y) {
   if (y < -9000) return 'Ice Age'; if (y < -3000) return 'Neolithic'; if (y < -800) return 'Bronze Age';
@@ -240,7 +248,7 @@ function roll(seed) {
       const region = selectRegion(world);
       const sampler = makeSampler(world, region);
       const mesh = buildMesh(seed >>> 0, region, sampler);
-      C = runChronicle(seed >>> 0, mesh, { ticks: 160 });
+      C = runChronicle(seed >>> 0, mesh, { ticks: 160, world });   // world → volcanic winters erupt from its real volcanoes
       timeIn.max = C.ticks - 1; tick = Math.round((C.ticks - 1) * 0.84); timeIn.value = tick; sel = -1; // open on a developed era; scrub left for the ice age
       document.getElementById('panel').classList.remove('show');
       setLegend();

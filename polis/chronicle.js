@@ -11,19 +11,42 @@ import { hash2 } from './prng.js';
 import { habitable } from './mesh.js';
 import { makeArteries } from './arteries.js';
 import { step as growStep, conquer, flourish, tierOf } from './economy.js';
+import { buildClimate } from '../mappa/climate-forcing.js';
 
 const KPP = 2600, IMPORT_PP = 9000;
+// the causal claim: cities nucleate as the ice retreats (end of the ice age), not
+// during the glacial maximum. Gate ALL founding on regional ice volume dropping past
+// this (a cross-world signal — every world deglaciates past it), so a warm-cell town
+// can't seed under the ice sheets. Markets keep an additional warmth gate on top.
+const ICE_FOUND = 0.65;
 
-// climate + tech over the run: tick 0 = deep ice age, end = near future
-function envAt(k, ticks, seed) {
-  const f = k / (ticks - 1);                                   // 0..1
-  // calendar runs deep time fast, recent centuries slow, so the high-tech eras land in
-  // CE (not anachronistic BCE): a concave map from -12000 BCE → +2100 CE
-  const year = Math.round(-12000 + 14100 * (1 - Math.pow(1 - f, 2.5)));
-  const seaLevel = -0.03 + 0.045 * (1 / (1 + Math.exp(-(f - 0.45) / 0.16))); // ice age: sea retreats (-0.03) → future: rises (+0.015), around mappa's sharp shore (0)
-  const tempShift = -7 + 9 * (1 / (1 + Math.exp(-(f - 0.42) / 0.18)));     // °C: ice age ~ −6 (a realistic glacial, not a whiteout) → warm ~ +2
-  const tech = 1 / (1 + Math.exp(-(f - 0.62) / 0.12));         // the master clock, late-accelerating
-  return { f, year, seaLevel, tempShift, tech };
+// the calendar: deep time fast, recent centuries slow, so the high-tech eras land in
+// CE (not anachronistic BCE) — a concave map from -12000 BCE → +2100 CE. Matches the
+// climate-forcing window, so forcingAt(year) covers every tick.
+function yearAt(f) { return Math.round(-12000 + 14100 * (1 - Math.pow(1 - f, 2.5))); }
+// the tech clock is ORTHOGONAL to climate (technology, not weather): late-accelerating.
+function techAt(f) { return 1 / (1 + Math.exp(-(f - 0.62) / 0.12)); }
+
+// A CLIMATE CATASTROPHE hits the live urban system: a super-eruption / volcanic winter
+// / grand solar minimum. Size-dependent, like conquest — a diversified metropolis
+// endures on locational inertia; a small mono-functional town can be cast back to
+// nothing (the dark age). Deterministic (the shock is scheduled from the seed).
+function applyClimateShock(k, sh, towns, events) {
+  const alive = towns.filter((t) => t.alive && t.pop > 0);
+  if (!alive.length) return;
+  const sev = sh.kind === 'super-eruption' ? Math.min(0.85, 0.30 + sh.mag * 0.055)
+            : sh.kind === 'eruption' ? Math.min(0.5, 0.10 + sh.mag * 0.06)
+            : Math.min(0.35, 0.08 + sh.mag * 0.16);                        // grand-minimum: milder, broad
+  for (const t of alive) {
+    const diversify = Math.min(1, t.trade * 0.4 + Math.min(1, t.pop / 4e4)); // trade + scale = resilience
+    t.pop *= 1 - sev * (1 - 0.7 * diversify);
+    const mono = (t.engine === 'staple' || t.engine === 'fortress' || t.engine === 'market');
+    if (sh.kind === 'super-eruption' && mono && t.pop < 900) t.alive = t.pop > 40;  // cast back to nothing
+  }
+  const focus = alive.slice().sort((a, b) => b.pop - a.pop)[0];
+  const note = sh.kind === 'super-eruption' ? 'super-eruption · volcanic winter'
+             : sh.kind === 'eruption' ? 'volcanic winter' : 'grand solar minimum';
+  events.push({ tick: k, type: sh.kind, cell: focus.cell, note });
 }
 
 // mesh-aware hinterland surplus: fertility summed over cells within `hops` of a cell
@@ -95,8 +118,25 @@ function candidates(mesh, count) {
 // engine → tech gate for founding (when the era can support it)
 const TECH_GATE = { gateway: 0, staple: 0.02, fortress: 0, 'break-of-bulk': 0.05, market: 0.12 };
 
-export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18 } = {}) {
-  const env = []; for (let k = 0; k < ticks; k++) env.push(envAt(k, ticks, seed));
+export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, world = null, climate = null } = {}) {
+  // the CAUSAL climate: a deglaciation backbone with volcanic/solar oscillations,
+  // driven by this planet's own tilt + volcanoes. Passed a world → eruptions are
+  // sourced from its real volcanoes; without one, a deterministic default still runs.
+  const clim = climate || buildClimate(world, { seed });
+  const env = [];
+  for (let k = 0; k < ticks; k++) {
+    const f = k / (ticks - 1), year = yearAt(f), fo = clim.forcingAt(year);
+    env.push({ f, year, seaLevel: fo.seaLevelOffset, tempShift: fo.tempOffset, tech: techAt(f), ice: fo.ice, regime: fo.regime });
+  }
+  // schedule climate catastrophes onto ticks (nearest-year). Only NOTABLE eruptions
+  // (and every super-eruption / grand minimum) become discrete shocks.
+  const yearToTick = (yr) => { let bk = 0, bd = Infinity; for (let k = 0; k < ticks; k++) { const d = Math.abs(env[k].year - yr); if (d < bd) { bd = d; bk = k; } } return bk; };
+  const climateShocks = [];
+  for (const ev of clim.events) {
+    if (ev.year < env[0].year || ev.year > env[ticks - 1].year) continue;
+    if (ev.kind === 'eruption' && ev.mag < 2.4) continue;
+    climateShocks.push({ tick: yearToTick(ev.year), kind: ev.kind, mag: ev.mag || ev.depth || 1 });
+  }
   const cand = candidates(mesh, count);
 
   // build town shells; found them lazily when habitable + tech-gated
@@ -151,7 +191,7 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18 } =
     for (const t of towns) {
       if (t.alive || aliveCount >= allowed) continue;
       const c = mesh.cells[t.cell];
-      if (habitable(c, e) && e.tech >= (TECH_GATE[t.engine] || 0) && (t.engine !== 'market' || e.tempShift > -0.05)) {
+      if (e.ice < ICE_FOUND && habitable(c, e) && e.tech >= (TECH_GATE[t.engine] || 0) && (t.engine !== 'market' || e.tempShift > -0.05)) {
         t.surplus = surplusAround(mesh, t.cell, e);
         const bt = baseAndTrade(mesh, c, t.engine, t.surplus);
         t.base = bt.base; t.trade = bt.trade; t.K0 = t.surplus * KPP * 0.5; t.pop = 6; t.alive = true; t.founded = k; aliveCount++;
@@ -164,6 +204,7 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18 } =
     }
     // 3 — the shocks (mutate pops; logistic recovery resumes next tick)
     applyEvents(k, e);
+    for (const sh of climateShocks) if (sh.tick === k) applyClimateShock(k, sh, towns, events);
     // 4 — record
     for (const t of towns) if (t.alive) { t.history[k] = Math.max(0, Math.round(t.pop)); t.flourishHist[k] = Math.round(t.flourishVal || flourish(t)); }
     // 5 — arteries grow on the live town field
