@@ -555,7 +555,8 @@
     import { buildInstance as mBuild } from './morph/instance.js';
     import { solve as mSolve, analyzePath as mAnalyze } from './morph/solver.js';
     import { gradeInstance as mGrade, headlineUsed as mHeadline } from './morph/difficulty.js';
-    import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest, makeGarden } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce; makeGarden = the random NPC-placed first view
+    import { PLANTS_PER_BED, cropById, emptyGarden, growth, plantAt, plantable, plantNear, readyPlants, harvestPlant, makeGarden, bedKeepouts } from './garden/garden.js';   // the GROW fixture — one bed, planted in continuum; makeGarden = the random NPC-planted first view
+    import { renderBed, screenToBed } from './garden/bed-render.js';   // the continuum-bed renderer (soil + keep-out zones + every plant at its (x,y))
     import { TIER_FOIL, PULL_COST, biomeForKey, progress as bxProgress, pullRng, pull as bxPull } from './garden/gacha.js';   // the TRADE fixture — gacha-pull seeds from one biome, collect to CLOSE it
     import { shopStock, buyPrice, sellPrice, SHOP_SIZE } from './shop.js';   // the WARES market at the same desk — buy gear, sell loot
     import { CRYSTAL_SYSTEMS, RARITY_COLOR, RARITY_TIER, rollGem, gemBonus, sumBonus, socketCap, canGrow, growGems, gemGlyph, cssOf } from './gems.js';   // THE LAPIDARY (mend) — crystallography gem improvement
@@ -3447,17 +3448,18 @@
     const getPantry = () => getJSONFact('garden.pantry', {});
     const setPantry = (o) => setJSONFact('garden.pantry', o);
     const gardenKeyOf = (cp, ch) => 'g' + ch.id + ':r' + cp.room;
-    // A garden's FIRST view is a random assortment a gardening NPC already planted (deterministic from
-    // the plot key), not an empty bed — the world looks tended. Once touched it persists in the save.
-    const getPlots = (key) => {
-      const saved = getJSONFact('garden.plots.' + key, null);
-      if (saved) return saved;
-      let h = 2166136261; for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
-      const npc = makeGarden(h >>> 0, gardenArk, getDay());
-      setJSONFact('garden.plots.' + key, npc);   // freeze the NPC's planting so it's stable
+    // A garden's FIRST view is a bed a gardening NPC already planted full (deterministic from the bed key),
+    // not bare soil — the world looks tended. Once touched it persists in the save. (`garden.bed.*` is the
+    // continuum-bed namespace; the older slot-array `garden.plots.*` facts are left behind, not migrated.)
+    const bedKeySeed = (key) => { let h = 2166136261; for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+    const getBed = (key) => {
+      const saved = getJSONFact('garden.bed.' + key, null);
+      if (saved && saved.plants) return saved;
+      const npc = makeGarden(bedKeySeed(key), gardenArk, getDay());
+      setJSONFact('garden.bed.' + key, npc);   // freeze the NPC's planting so it's stable
       return npc;
     };
-    const setPlots = (key, plots) => setJSONFact('garden.plots.' + key, plots);
+    const setBed = (key, bed) => setJSONFact('garden.bed.' + key, bed);
 
     let gardenArk = null, _arkP = null;
     function ensureArk() { if (gardenArk) return Promise.resolve(gardenArk); if (!_arkP) _arkP = fetch(new URL('./garden/ark.json', import.meta.url)).then((r) => r.json()).then((a) => (gardenArk = a)).catch(() => null); return _arkP; }
@@ -3492,73 +3494,89 @@
     }
     function closeGarden() { gardenOpen = false; $('garden').classList.remove('on'); }
     const cropName = (id) => { const c = cropById(gardenArk, id); return c ? c.common : id; };
+    let gardenSelSeed = null;   // the seed currently selected to plant (click a seed chip, then the bed)
+    const gardenBedCanvas = () => $('gardenbed');
+    // build the render items (a flora model per plant at its (x,y)) + draw the bed. Guarded.
+    function drawGardenBed() {
+      const cv = gardenBedCanvas(); if (!cv || !gardenArk) return;
+      const day = getDay(), bed = getBed(gardenKey), keepouts = bedKeepouts(bed.seed);
+      const items = bed.plants.map((p) => {
+        const crop = cropById(gardenArk, p.seedId); if (!crop) return null;
+        const g = growth(p, crop, day), corr = findReagent(crop.sciName) || findReagent(crop.common);
+        let hh = 2166136261; const k = (p.id || '') + crop.id; for (let j = 0; j < k.length; j++) { hh ^= k.charCodeAt(j); hh = Math.imul(hh, 16777619); }
+        const model = buildPlant(descriptorForCrop(crop, corr), { stage: Math.max(0.12, g.stage), seed: (hh >>> 0) % 100000 });
+        return { x: p.x, y: p.y, model, ready: g.ready, label: crop.common };
+      }).filter(Boolean);
+      try {
+        const dpr = Math.min(2, window.devicePixelRatio || 1), wpx = cv.clientWidth || 520, hpx = cv.clientHeight || 380;
+        cv.width = Math.max(1, wpx * dpr); cv.height = Math.max(1, hpx * dpr);
+        const cx = cv.getContext('2d'); cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        renderBed(cx, wpx, hpx, { keepouts, items, seed: bed.seed % 9999 });
+      } catch (e) { /* keep the fixture alive */ }
+    }
     function renderGarden() {
       const card = $('gardencard'); gardenOpen = true; $('garden').classList.add('on');
       if (!gardenArk) { card.innerHTML = `<button class="aclose" data-gclose="1">close ⏎</button><div class="alaw">The plot is fallow.</div>`; return; }
-      const day = getDay(), plots = getPlots(gardenKey), seeds = getSeeds(), pantry = getPantry();
+      const day = getDay(), bed = getBed(gardenKey), seeds = getSeeds(), pantry = getPantry();
       const seedEntries = Object.entries(seeds).filter(([, n]) => n > 0);
-      const plotCards = plots.map((p, i) => {
-        if (!p) {
-          const opts = seedEntries.length
-            ? seedEntries.map(([id, n]) => `<button class="gseed" data-plant="${i}" data-seed="${esc(id)}">🌱 ${esc(cropName(id))} <span style="color:#6b7872">(${n})</span></button>`).join('')
-            : `<div class="gdim">no seeds — find a trade desk</div>`;
-          return `<div class="gplot gempty"><div class="gph">plot ${i + 1} · empty</div>${opts}</div>`;
-        }
-        const crop = cropById(gardenArk, p.seedId), g = growth(p, crop, day);
-        // each plant on its OWN plot: a procedural flora canvas on soil with a label window (rendered below)
-        const cnv = `<canvas class="gcanvas" data-slot="${i}" style="width:100%;height:112px;display:block;border-radius:6px;background:#0b0906"></canvas>`;
-        if (g.ready) return `<div class="gplot gready">${cnv}<div class="gsub" style="color:#8fe0a0">✓ ripe</div><button class="gbtn" data-harvest="${i}">harvest +${crop.yield}</button></div>`;
-        return `<div class="gplot">${cnv}<div class="gbar"><span style="width:${Math.round(g.stage * 100)}%"></span></div><div class="gsub">${g.daysLeft} day${g.daysLeft === 1 ? '' : 's'} to ripen</div></div>`;
-      }).join('');
+      if (gardenSelSeed && !(seeds[gardenSelSeed] > 0)) gardenSelSeed = null;
+      const ripe = readyPlants(bed, gardenArk, day).length;
+      const seedRow = seedEntries.length
+        ? seedEntries.map(([id, n]) => `<button class="gseed${gardenSelSeed === id ? ' on' : ''}" data-seed="${esc(id)}" style="${gardenSelSeed === id ? 'border-color:var(--gold,#f4bf62);color:#fff' : ''}">🌱 ${esc(cropName(id))} <span style="color:#6b7872">(${n})</span></button>`).join('')
+        : `<div class="gdim">no seeds — find a trade desk</div>`;
       const pantryEntries = Object.entries(pantry).filter(([, n]) => n > 0);
       const pantryHtml = pantryEntries.length
         ? pantryEntries.map(([id, n]) => { const c = cropById(gardenArk, id); return `<button class="gbtn gpan" data-eat="${esc(id)}">${esc(cropName(id))} ×${n} · eat +${c ? c.nourish : 6}</button>`; }).join('')
-        : `<div class="gdim">empty — harvest a ripe plot</div>`;
+        : `<div class="gdim">empty — harvest a ripe plant</div>`;
+      const hint = gardenSelSeed ? `planting <b style="color:#8fe0a0">${esc(cropName(gardenSelSeed))}</b> — click a clear patch of bed` : (ripe ? `<b style="color:#8fe0a0">${ripe} ripe</b> — click a ✓ plant to harvest, or pick a seed to plant` : 'pick a seed, then click the bed to plant');
       card.innerHTML =
         `<button class="aclose" data-gclose="1">close ⏎</button>` +
         `<div class="ahead">❀ THE GARDEN</div>` +
-        `<div class="alaw">a grow-deck plot</div>` +
-        `<div class="ameta">day ${day} · ${plots.filter(Boolean).length}/${PLOTS_PER_GARDEN} plots planted · rest in your dwelling (a bed) to pass a day</div>` +
-        `<div class="ggrid">${plotCards}</div>` +
+        `<div class="alaw">one bed, planted by hand</div>` +
+        `<div class="ameta">day ${day} · ${bed.plants.length} plant${bed.plants.length === 1 ? '' : 's'} in the bed · rest in your dwelling (a bed) to pass a day</div>` +
+        `<canvas id="gardenbed" style="width:100%;height:min(56vh,420px);display:block;border-radius:8px;background:#0b0906;cursor:crosshair;margin:8px 0;touch-action:none"></canvas>` +
+        `<div class="ameta" style="color:#9a8f7a">${hint}</div>` +
+        `<div class="ghead2">seeds</div><div class="gpantry">${seedRow}</div>` +
         `<div class="ghead2">pantry</div><div class="gpantry">${pantryHtml}</div>` +
-        `<div class="ameta" style="margin-top:12px;color:#6b7872">seeds from the biome ark (iNaturalist) · Esc to leave</div>`;
-      // draw each occupied plot's plant procedurally (growth-form + Galenic palette on its own soil,
-      // named in the soil window). Fully guarded — a canvas hiccup never breaks the fixture.
-      try {
-        card.querySelectorAll('canvas.gcanvas').forEach((cv) => {
-          const i = +cv.dataset.slot, pp = plots[i]; if (!pp) return;
-          const crop = cropById(gardenArk, pp.seedId); if (!crop) return;
-          const g = growth(pp, crop, day), corr = findReagent(crop.sciName) || findReagent(crop.common);
-          let hh = 2166136261; const key = crop.id + ':' + i; for (let k = 0; k < key.length; k++) { hh ^= key.charCodeAt(k); hh = Math.imul(hh, 16777619); }
-          const plant = buildPlant(descriptorForCrop(crop, corr), { stage: Math.max(0.12, g.stage), seed: (hh >>> 0) % 100000 });
-          const dpr = Math.min(2, window.devicePixelRatio || 1), wpx = cv.clientWidth || 120, hpx = cv.clientHeight || 112;
-          cv.width = Math.max(1, wpx * dpr); cv.height = Math.max(1, hpx * dpr);
-          const cx = cv.getContext('2d'); cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          renderSinglePlot(cx, wpx, hpx, plant, { label: crop.common, ready: g.ready, seed: (hh >>> 0) % 9999 });
-        });
-      } catch (e) { /* keep the fixture alive */ }
+        `<div class="ameta" style="margin-top:10px;color:#6b7872">the pale strip is a path, the blue a pond, the grey stones — you can't plant on them · seeds from the biome ark (iNaturalist) · Esc to leave</div>`;
+      drawGardenBed();
+      // planting / harvesting happen on the bed canvas itself (click a clear patch to plant, a ✓ plant to harvest)
+      const cv = gardenBedCanvas();
+      if (cv) cv.addEventListener('pointerdown', (e) => {
+        const r = cv.getBoundingClientRect(), b = screenToBed(cv.clientWidth, cv.clientHeight, e.clientX - r.left, e.clientY - r.top);
+        const day2 = getDay(), curBed = getBed(gardenKey);
+        // harvest: clicking on/near a ripe plant takes it
+        const near = plantNear(curBed, b.x, b.y);
+        if (near >= 0) {
+          const pp = curBed.plants[near], crop = cropById(gardenArk, pp.seedId), g = growth(pp, crop, day2);
+          if (g.ready) {
+            const res = harvestPlant(curBed, near, gardenArk, day2);
+            if (res) {
+              setBed(gardenKey, res.bed);
+              const pan = getPantry(); pan[res.cropId] = (pan[res.cropId] || 0) + res.yield; setPantry(pan);   // the INGREDIENT
+              const sd = getSeeds(); sd[res.cropId] = (sd[res.cropId] || 0) + (res.seeds || 1); setSeeds(sd);   // and the SEED
+              saveStory(); renderGarden();
+              notify(`❀ harvested ${cropName(res.cropId)} — +${res.yield} to pantry, +${res.seeds} seed`, { kind: 'life', ms: 2600 });
+            }
+            return;
+          }
+          // clicked a still-growing plant → tell them how long, don't plant on top of it
+          notify(`${cropName(pp.seedId)} — ${g.daysLeft} day${g.daysLeft === 1 ? '' : 's'} to ripen`, { kind: 'life', ms: 1800 });
+          return;
+        }
+        // plant: a seed must be selected + in stock + the spot clear
+        if (!gardenSelSeed) { notify('pick a seed first (below the bed)', { kind: 'life', ms: 1800 }); return; }
+        const sd = getSeeds(); if (!(sd[gardenSelSeed] > 0)) { gardenSelSeed = null; renderGarden(); return; }
+        if (!plantable(curBed, b.x, b.y)) { notify('can’t plant there — a path, pond, stone, or too close to another plant', { kind: 'life', ms: 2200 }); return; }
+        sd[gardenSelSeed]--; setSeeds(sd);
+        setBed(gardenKey, plantAt(curBed, b.x, b.y, gardenSelSeed, day2));
+        saveStory(); renderGarden();
+      });
     }
     $('garden').addEventListener('click', (e) => {
       if (e.target === $('garden') || e.target.closest('[data-gclose]')) { closeGarden(); return; }
-      const pl = e.target.closest('[data-plant]'), hv = e.target.closest('[data-harvest]'), et = e.target.closest('[data-eat]');
-      if (pl) {
-        const slot = +pl.dataset.plant, sid = pl.dataset.seed, seeds = getSeeds();
-        if (!(seeds[sid] > 0)) return;
-        seeds[sid]--; setSeeds(seeds);
-        setPlots(gardenKey, plant(getPlots(gardenKey), slot, sid, getDay()));
-        saveStory(); renderGarden(); return;
-      }
-      if (hv) {
-        const r = harvest(getPlots(gardenKey), +hv.dataset.harvest, gardenArk, getDay());
-        if (r) {
-          setPlots(gardenKey, r.plots);
-          const pan = getPantry(); pan[r.cropId] = (pan[r.cropId] || 0) + r.yield; setPantry(pan);   // the INGREDIENT
-          const seeds = getSeeds(); seeds[r.cropId] = (seeds[r.cropId] || 0) + (r.seeds || 1); setSeeds(seeds);   // and the SEED — replant without a trade desk
-          saveStory(); renderGarden();
-          notify(`❀ harvested ${cropName(r.cropId)} — +${r.yield} to pantry, +${r.seeds} seed`, { kind: 'life', ms: 2600 });
-        }
-        return;
-      }
+      const sw = e.target.closest('[data-seed]'), et = e.target.closest('[data-eat]');
+      if (sw) { const id = sw.dataset.seed; gardenSelSeed = (gardenSelSeed === id) ? null : id; renderGarden(); return; }
       if (et) {
         const id = et.dataset.eat, pan = getPantry(); if (!(pan[id] > 0)) return;
         const crop = cropById(gardenArk, id); if (!crop) return;
@@ -5350,8 +5368,8 @@
         }
         for (const cp of (P.comps || [])) {
           if (isTerminal(cp) || fixtureAction(cp.role, 'component') !== 'garden') continue;
-          const plots = getJSONFact('garden.plots.' + gardenKeyOf(cp, ch), null), planted = plots ? plots.filter(Boolean).length : 0;
-          if (planted) out.push({ x: cp.cx, y: cp.cy, kind: 'garden', glyph: '❀', color: '#8fe07a', label: 'garden', sub: planted + '/' + PLOTS_PER_GARDEN + ' plots planted' });
+          const bed = getJSONFact('garden.bed.' + gardenKeyOf(cp, ch), null), planted = (bed && bed.plants) ? bed.plants.length : 0;
+          out.push({ x: cp.cx, y: cp.cy, kind: 'garden', glyph: '❀', color: '#8fe07a', label: 'garden', sub: planted ? planted + ' plants' : 'a bed' });
         }
       }
       const home = getJSONFact('combat.home', null);

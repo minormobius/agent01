@@ -1,8 +1,10 @@
-// garden.selftest — the GROW kernel: ark integrity, growth math, plant/harvest, deterministic starters.
+// garden.selftest — the GROW kernel: ark integrity, growth math, one-bed continuum plant/harvest with
+// keep-out zones, and deterministic starters.
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest, starterSeeds, makeGarden } from '../garden/garden.js';
+import { PLANTS_PER_BED, MIN_SPACING, BED_MARGIN, cropById, emptyGarden, growth, plantAt, plantable, plantNear,
+  readyPlants, harvestPlant, bedKeepouts, inKeepout, starterSeeds, makeGarden } from '../garden/garden.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ark = JSON.parse(readFileSync(join(HERE, '../garden/ark.json'), 'utf8'));
@@ -27,30 +29,52 @@ ok(growth(plot, crop, 10 + crop.growthDays).ready, 'matures exactly at growthDay
 ok(growth(plot, crop, 10 + crop.growthDays + 5).stage === 1, 'stage caps at 1');
 ok(growth(plot, crop, 12).daysLeft === crop.growthDays - 2, 'daysLeft counts down');
 
-// 3. plant + harvest lifecycle
-let plots = emptyGarden();
-ok(plots.length === PLOTS_PER_GARDEN && plots.every((p) => p === null), 'empty garden is all open slots');
-plots = plant(plots, 2, crop.id, 0);
-ok(plots[2] && plots[2].seedId === crop.id, 'plant fills the chosen slot');
-ok(plant(plots, 2, crop.id, 0)[2].day === 0, 'planting an occupied slot is a no-op');
-ok(readySlots(plots, ark, 1).length === 0, 'nothing ready before maturity');
-ok(readySlots(plots, ark, crop.growthDays).length === 1, 'one slot ready at maturity');
-const h = harvest(plots, 2, ark, crop.growthDays);
+// 3. keep-out zones — derived from the bed seed, deterministic, and they reject planting
+{
+  const k1 = bedKeepouts(1234), k2 = bedKeepouts(1234);
+  ok(JSON.stringify(k1) === JSON.stringify(k2), 'keep-outs are deterministic from the bed seed');
+  ok(k1.path && k1.path.pts.length > 1 && k1.blobs.length >= 1, 'a bed has a path + at least a pond');
+  const pond = k1.blobs.find((b) => b.kind === 'pond');
+  ok(pond && inKeepout(k1, pond.x, pond.y), 'the pond centre is inside a keep-out');
+  ok(JSON.stringify(bedKeepouts(9)) !== JSON.stringify(k1), 'a different bed seed → a different keep-out layout');
+}
+
+// 4. one-bed continuum plant + harvest lifecycle
+let bed = emptyGarden(5);
+ok(bed.plants.length === 0 && bed.seed === 5, 'an empty bed has no plants and remembers its seed');
+// find a plantable spot (avoid the keep-outs deterministically)
+const ko = bedKeepouts(bed.seed);
+let spot = null; for (let gx = 1; gx <= 9 && !spot; gx++) for (let gy = 1; gy <= 9 && !spot; gy++) { const x = gx / 10, y = gy / 10; if (plantable(bed, x, y, ko)) spot = { x, y }; }
+ok(spot, 'the bed has plantable ground');
+bed = plantAt(bed, spot.x, spot.y, crop.id, 0);
+ok(bed.plants.length === 1 && bed.plants[0].seedId === crop.id, 'plantAt places a plant at a free (x,y)');
+ok(!plantable(bed, spot.x + MIN_SPACING * 0.3, spot.y, ko), 'you cannot plant crowding an existing plant (spacing)');
+ok(plantAt(bed, spot.x + MIN_SPACING * 0.3, spot.y, crop.id, 0).plants.length === 1, 'a crowded plantAt is a no-op copy');
+ok(!plantable(bed, 0.001, 0.001, ko), 'you cannot plant in the bed margin');
+const pondB = ko.blobs.find((b) => b.kind === 'pond');
+ok(!plantable(bed, pondB.x, pondB.y, ko), 'you cannot plant in the pond (a keep-out)');
+ok(plantNear(bed, spot.x, spot.y) === 0, 'plantNear finds the plant under the cursor');
+ok(readyPlants(bed, ark, 1).length === 0, 'nothing ready before maturity');
+ok(readyPlants(bed, ark, crop.growthDays).length === 1, 'one plant ready at maturity');
+const h = harvestPlant(bed, 0, ark, crop.growthDays);
 ok(h && h.cropId === crop.id && h.yield === crop.yield, 'harvest returns the crop + yield');
 ok(h.seeds >= 1 && h.seeds <= 3, `harvest also yields SEED to replant (${h.seeds})`);
-ok(h.plots[2] === null, 'harvested slot is cleared');
-ok(harvest(plots, 2, ark, 1) === null, 'cannot harvest before ready');
+ok(h.bed.plants.length === 0, 'the harvested plant is removed from the bed');
+ok(harvestPlant(bed, 0, ark, 1) === null, 'cannot harvest before ready');
 
-// 3b. makeGarden — the random NPC-placed first view
+// 4b. makeGarden — the random NPC-planted first view (one full bed)
 {
   const g1 = makeGarden(42, ark, 100), g2 = makeGarden(42, ark, 100);
-  ok(g1.length === PLOTS_PER_GARDEN, 'makeGarden fills a full-size bed');
-  ok(JSON.stringify(g1) === JSON.stringify(g2), 'an NPC garden is deterministic from its seed');
-  ok(JSON.stringify(makeGarden(7, ark, 100)) !== JSON.stringify(g1), 'a different NPC seeds a different garden');
-  const planted = g1.filter(Boolean);
-  ok(planted.length >= 1 && planted.length < PLOTS_PER_GARDEN, 'some plots planted, some left fallow (a tended, not packed, bed)');
-  ok(planted.every((p) => cropById(ark, p.seedId)), 'every planted slot is a real ark crop');
-  const stages = planted.map((p) => growth(p, cropById(ark, p.seedId), 100).stage);
+  ok(JSON.stringify(g1) === JSON.stringify(g2), 'an NPC bed is deterministic from its seed');
+  ok(JSON.stringify(makeGarden(7, ark, 100)) !== JSON.stringify(g1), 'a different NPC seeds a different bed');
+  ok(g1.plants.length >= 6 && g1.plants.length <= PLANTS_PER_BED, `the bed is planted full (${g1.plants.length} plants)`);
+  ok(g1.plants.every((p) => cropById(ark, p.seedId)), 'every plant is a real ark crop');
+  const kg = bedKeepouts(g1.seed);
+  ok(g1.plants.every((p) => !inKeepout(kg, p.x, p.y) && p.x >= BED_MARGIN && p.x <= 1 - BED_MARGIN), 'no NPC plant lands in a keep-out or the margin');
+  // no two plants closer than the spacing
+  let crowded = false; for (let i = 0; i < g1.plants.length; i++) for (let j = i + 1; j < g1.plants.length; j++) { const a = g1.plants[i], b = g1.plants[j]; if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 < (MIN_SPACING * 0.999) ** 2) crowded = true; }
+  ok(!crowded, 'NPC plants respect the spacing (no two crammed together)');
+  const stages = g1.plants.map((p) => growth(p, cropById(ark, p.seedId), 100).stage);
   ok(new Set(stages.map((s) => Math.round(s * 3))).size >= 2, 'the bed shows a MIX of growth stages (staggered planting)');
 }
 
