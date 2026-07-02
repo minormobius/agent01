@@ -116,7 +116,7 @@ export function drawPlant(ctx, m, ox, oy, u) {
     ctx.save(); ctx.shadowColor = P.flower; ctx.shadowBlur = f.kind === 'umbel' ? 0 : 4;
     if (f.kind === 'ear' || f.kind === 'spike') { ctx.fillStyle = P.flower; ctx.beginPath(); ctx.ellipse(fx, fy, r * 0.6, r * 1.6, 0, 0, 7); ctx.fill(); }
     else if (f.kind === 'umbel') {   // a lace of tiny florets (fennel/dill) — NOT a big disc
-      ctx.fillStyle = P.flower; const dot = Math.max(0.6, r * u * 0.14);
+      ctx.fillStyle = P.flower; const dot = Math.max(0.6, r * 0.16);   // r is ALREADY in px (f.r*u); the old `r*u*0.14` double-scaled → 112px "orb" florets
       for (const fl of (f.florets || [])) { ctx.beginPath(); ctx.arc(X(fl.x), Y(fl.y), dot, 0, 7); ctx.fill(); }
     }
     else if (f.kind === 'daisy') {   // small petal ring + disk
