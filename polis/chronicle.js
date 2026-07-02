@@ -8,7 +8,7 @@
 // Pure + deterministic; node + browser.
 
 import { hash2 } from './prng.js';
-import { habitable, moistAt } from './mesh.js';
+import { habitable, moistAt, computeRivers } from './mesh.js';
 import { makeArteries } from './arteries.js';
 import { step as growStep, conquer, flourish, tierOf } from './economy.js';
 import { buildClimate } from '../mappa/climate-forcing.js';
@@ -56,7 +56,16 @@ function surplusAround(mesh, cellId, env, hops = 5) {
     const next = [];
     for (const id of frontier) {
       const c = mesh.cells[id];
-      if (c.elev >= env.seaLevel) { const above = c.elev - env.seaLevel; sum += Math.max(0, moistAt(c, env) * (1 - Math.min(1, above * 2.2))); }
+      if (c.elev >= env.seaLevel) {
+        const above = Math.min(1, (c.elev - env.seaLevel) * 2.2), M = moistAt(c, env);
+        let fert = Math.max(0, M * (1 - above));
+        // river IRRIGATION: a flowing channel waters dry land (the Nile in the desert).
+        // Scales with discharge, matters most where rain is scarce — and VANISHES when the
+        // river dies, so an aridification collapses the irrigation civilization's food base.
+        const rw = env.riverW ? env.riverW[c.id] : 0;
+        if (rw > 0) fert += Math.min(0.7, rw * 0.16) * (1 - M) * (1 - above);
+        sum += fert;
+      }
       for (const n of c.neigh) if (!seen.has(n)) { seen.add(n); next.push(n); }
     }
     frontier = next;
@@ -128,6 +137,11 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, wo
     const f = k / (ticks - 1), year = yearAt(f), fo = clim.forcingAt(year);
     env.push({ f, year, seaLevel: fo.seaLevelOffset, tempShift: fo.tempOffset, humidity: fo.humidity, tech: techAt(f), ice: fo.ice, regime: fo.regime });
   }
+  // per-era river discharge (mass-conserving, wetness-driven) — precomputed once per tick
+  // so rivers swell, shrink and die as the climate turns. Attached to each era for the
+  // renderer (cellState reads env.riverW) and for river-fed fertility below.
+  const NC = mesh.cells.length, riverW = new Float32Array(ticks * NC);
+  for (let k = 0; k < ticks; k++) { riverW.set(computeRivers(mesh, env[k]), k * NC); env[k].riverW = riverW.subarray(k * NC, (k + 1) * NC); }
   // schedule climate catastrophes onto ticks (nearest-year). Only NOTABLE eruptions
   // (and every super-eruption / grand minimum) become discrete shocks.
   const yearToTick = (yr) => { let bk = 0, bd = Infinity; for (let k = 0; k < ticks; k++) { const d = Math.abs(env[k].year - yr); if (d < bd) { bd = d; bk = k; } } return bk; };

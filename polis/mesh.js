@@ -45,7 +45,9 @@ export function buildMesh(seed, region, sampler, { spacing = 0.95, sampleScale =
   // per-cell REAL terrain from the mappa sampler
   for (const c of cells) { const s = sampler.sample(c.wx, c.wy); c.elev = s.elev; c.moist = s.moist; c.temp = s.temp; c.seas = s.seas; c.biome = s.biome; c.res = s.res; }
 
-  // rivers: steepest-descent flow accumulation over land (mappa shore = elev 0)
+  // DRAINAGE NETWORK (geology — built once): steepest-descent down-pointers + the
+  // high→low processing order + a unit-catchment flow (the PERENNIAL river, used as a
+  // stable siting signal). Per-era discharge routes through this fixed topology below.
   const baseSea = 0;
   const order = cells.map((c) => c.id).sort((a, b) => cells[b].elev - cells[a].elev);
   for (const c of cells) c.flow = 1;
@@ -54,7 +56,39 @@ export function buildMesh(seed, region, sampler, { spacing = 0.95, sampleScale =
   const riverThresh = fl.length ? Math.max(5, fl[Math.floor(fl.length * 0.92)]) : 1e9;
   for (const c of cells) c.river = (c.elev >= baseSea && c.flow >= riverThresh) ? 1 : 0;
 
-  return { seed, region, cells, cols, rows, sw, sh, label, baseSea };
+  return { seed, region, cells, cols, rows, sw, sh, label, baseSea, order };
+}
+
+const RIVER_MIN = 3.5;   // discharge below which a channel is ephemeral (no perennial river)
+
+// per-era river DISCHARGE: mass-conserving accumulation of runoff down the FIXED
+// drainage network (c.down), with TRANSMISSION LOSS in arid reaches so a drying river
+// dies from its mouth inland (a wadi / an endorheic marsh), and a humid river runs full
+// to the sea, gaining downstream. Topology is geology; discharge is climate — recompute
+// per era. Returns per-cell channel WIDTH (0 = no perennial river this era).
+export function computeRivers(mesh, env) {
+  const cells = mesh.cells, N = cells.length, sea = env.seaLevel || 0;
+  const disch = new Float32Array(N);
+  for (const c of cells) {
+    if (c.elev < sea) continue;                              // ocean / flooded
+    const T = c.temp + (env.tempShift || 0);
+    let ro = moistAt(c, env) - 0.12;                         // precipitation minus baseline evapotranspiration
+    if (T < 0) ro *= 0.25;                                   // frozen: precip locked as ice/snow → little runoff
+    disch[c.id] = Math.max(0, ro);
+  }
+  for (const id of mesh.order) {                             // high → low: mass flows downhill and accumulates
+    const c = cells[id];
+    if (c.elev < sea) continue;
+    const j = c.down;
+    if (j >= 0 && cells[j].elev >= sea) {
+      const M = moistAt(cells[j], env);                      // downstream wetness
+      const loss = Math.max(0, Math.min(0.6, (0.26 - M) * 1.4));  // humid → ~conserve; arid → soak up / evaporate
+      disch[j] += disch[id] * (1 - loss);
+    }
+  }
+  const width = new Float32Array(N);
+  for (let i = 0; i < N; i++) width[i] = disch[i] >= RIVER_MIN ? Math.min(5, 0.5 + Math.sqrt(disch[i]) * 0.9) : 0;
+  return width;
 }
 
 // hsl → rgb (mappa biome palette is hsl)
@@ -80,7 +114,11 @@ export function cellState(c, env) {
   if (Teff < -2) return { water: 0, rgb: [156, 162, 156] };               // tundra
   const b = BIOMES[classify(Teff, M, c.elev)] || BIOMES[8];
   let rgb = hsl(b.h, b.s, b.l);
-  if (c.river) rgb = [Math.round(rgb[0] * 0.55 + 47 * 0.45), Math.round(rgb[1] * 0.55 + 111 * 0.45), Math.round(rgb[2] * 0.55 + 134 * 0.45)];
+  // per-era river: a flowing channel tints blue (stronger with discharge); a perennial
+  // channel that has gone dry this era reads as an incised DRY VALLEY (a wadi / paleochannel).
+  const rw = env.riverW ? env.riverW[c.id] : (c.river ? 2 : 0);
+  if (rw > 0) { const k = Math.min(0.6, 0.28 + rw * 0.09); rgb = [Math.round(rgb[0] * (1 - k) + 47 * k), Math.round(rgb[1] * (1 - k) + 111 * k), Math.round(rgb[2] * (1 - k) + 134 * k)]; }
+  else if (c.river) { rgb = [Math.round(rgb[0] * 0.78 + 120 * 0.22), Math.round(rgb[1] * 0.78 + 98 * 0.22), Math.round(rgb[2] * 0.78 + 66 * 0.22)]; }
   return { water: 0, rgb };
 }
 

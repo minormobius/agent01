@@ -2,7 +2,7 @@
 //   node polis/test/chronicle.selftest.mjs
 
 import { rollMappaWorld, selectRegion, makeSampler } from '../mappaWorld.js';
-import { buildMesh, cellState, habitable, moistAt } from '../mesh.js';
+import { buildMesh, cellState, habitable, moistAt, computeRivers } from '../mesh.js';
 import { runChronicle } from '../chronicle.js';
 
 let pass = 0, fail = 0;
@@ -137,6 +137,25 @@ ok(mesh.cells.length > 800, `mesh retiles the region into many cells (${mesh.cel
   const cell = mesh.cells.reduce((a, cc) => (cc.elev > 0.05 && !cc.river && cc.moist > (a ? a.moist : -1)) ? cc : a, null) || mesh.cells[0];
   const surp = (env) => { let s = 0, seen = new Set([cell.id]), fr = [cell.id]; for (let h = 0; h <= 5; h++) { const nx = []; for (const id of fr) { const cc = mesh.cells[id]; if (cc.elev >= env.seaLevel) s += moistAt(cc, env) * (1 - Math.min(1, (cc.elev - env.seaLevel) * 2.2)); for (const n of cc.neigh) if (!seen.has(n)) { seen.add(n); nx.push(n); } } fr = nx; } return s; };
   ok(surp(wet) > surp(dry) * 1.1, `hinterland fertility tracks wetness (surplus ${surp(dry).toFixed(0)} arid → ${surp(wet).toFixed(0)} pluvial)`);
+}
+
+// 12 — rivers respond to climate: discharge is mass-conserving, swells in a pluvial and
+// dies back (mouth → inland) in an aridification, leaving dry valleys.
+{
+  const c = runChronicle(SEED, mesh, { world });
+  let wet = null, dry = null;
+  for (const e of c.env) { if (e.year < -6000) continue; if (!wet || e.humidity > wet.humidity) wet = e; if (!dry || e.humidity < dry.humidity) dry = e; }
+  const wetW = computeRivers(mesh, wet), dryW = computeRivers(mesh, dry);
+  const count = (w) => { let n = 0; for (let i = 0; i < w.length; i++) if (w[i] > 0) n++; return n; };
+  ok(count(wetW) > count(dryW) * 1.3, `rivers swell in the pluvial and die back in the arid era (${count(wetW)} → ${count(dryW)} channel cells)`);
+  let died = 0; for (const cc of mesh.cells) if (wetW[cc.id] > 0 && dryW[cc.id] === 0) died++;
+  ok(died > 0, `river reaches dry to wadis / dry valleys in the aridification (${died} cells)`);
+  // MASS CONSERVATION: in a lossless humid climate, runoff in ≈ discharge out (to sea/sinks)
+  let runoffIn = 0; const d2 = new Float32Array(mesh.cells.length);
+  for (const cc of mesh.cells) { if (cc.elev < 0) continue; const ro = Math.max(0, Math.min(1, cc.moist * 3.0) - 0.12); d2[cc.id] = ro; runoffIn += ro; }
+  let out = 0;
+  for (const id of mesh.order) { const cc = mesh.cells[id]; if (cc.elev < 0) continue; const j = cc.down; const M = j >= 0 ? Math.min(1, mesh.cells[j].moist * 3.0) : 1; const loss = Math.max(0, Math.min(0.6, (0.26 - M) * 1.4)); if (j >= 0 && mesh.cells[j].elev >= 0) d2[j] += d2[id] * (1 - loss); else out += d2[id]; }
+  ok(out > runoffIn * 0.95, `discharge conserves mass through the network (${runoffIn.toFixed(0)} in → ${out.toFixed(0)} out, ${(out / runoffIn * 100).toFixed(0)}%)`);
 }
 
 console.log(`\n${fail === 0 ? '✓ all green' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);

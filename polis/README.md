@@ -198,6 +198,19 @@ wetness — a drying region's cities lose their food ceiling and contract, while
 **gateway** that imports food endures. Wetness is thus a third path (beside volcano and
 plague) by which a civilization can be **cast back**.
 
+**Rivers carry the climate through the land.** The drainage *network* (down-slope
+topology) is geology — carved once. The *discharge* through it is climate: each cell's
+runoff (precipitation − evaporation, near-zero when frozen) is **routed downstream
+conserving mass**, so a trunk river integrates its whole catchment. In humid reaches it
+runs full to the sea and gains downstream; in arid reaches **transmission loss** (soak +
+evaporation) bleeds it, so in an aridification a river **dies from its mouth inland**,
+leaving incised **dry valleys** (wadis / paleochannels the renderer still shows). A
+flowing channel through dry land is **irrigation** (the Nile in the desert): it lifts
+local fertility in proportion to its discharge — and when the river dies, that food base
+dies with it, collapsing the irrigation civilization. `computeRivers(mesh, env)` in
+[`mesh.js`](mesh.js) recomputes discharge per era; `chronicle.js` precomputes it per tick
+and feeds it to both the map and the surplus model.
+
 This drives the sim on the theory's **two clocks**: the *continuous* backbone
 (deglaciation → habitability → nucleation; **cities can only seed once regional ice
 drops past a threshold** — the causal claim that civilization begins at the end of the
