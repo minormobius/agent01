@@ -61,34 +61,63 @@ const A = (id, common, sciName, guild, mass_g, habitats, bands, o = {}) => ({
 const QUALITY_BAND = { 'hot & dry': 'heath', 'hot & moist': 'meadow', 'cold & moist': 'fen', 'cold & dry': 'thicket' };
 const BAND_HAB = { heath: ['land'], meadow: ['land'], fen: ['shore', 'land'], thicket: ['land', 'soil'], physic: ['land'] };
 const slugId = (s) => 'herb_' + String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+// EDIBLE herbs — the kitchen-garden crops among the 55 (roots/bulbs/greens/cucurbits): they carry a
+// real harvest index + feed the crew. The rest are pure PHYSIC herbs (reagents, marginal leaf yield).
+// This is what makes the physic garden also a working vegetable plot — food AND medicine on one bed.
+const EDIBLE_ROOT = new Set(['radish', 'parsnip', 'leek', 'onion', 'garlic']);       // roots & bulbs, high yield
+const EDIBLE_LEAF = new Set(['lettuce', 'orache', 'sorrel', 'purslane', 'nettle', 'cabbage', 'mustard', 'gourd', 'melon']); // greens & cucurbits
 export const HERBS = (CORRESPONDENCES.plants || []).map((p) => {
   const band = (p.qualities && QUALITY_BAND[p.qualities]) || 'physic';
   const hab = BAND_HAB[band] || ['land'];
-  return P(slugId(p.slug || p.plant), p.plant, p.bot, hab, ['physic', band],
-    { fix: 1.3, turn: 0.032, hi: 0.14, area: 1600, dens: 9, poll: true },
-    { reagent: true, reagentClass: 'plant', planet: p.planet || null, qualities: p.qualities || null });
+  const slug = p.slug || slugId(p.plant);
+  const edibleRoot = EDIBLE_ROOT.has(slug), edibleLeaf = EDIBLE_LEAF.has(slug);
+  const hi = edibleRoot ? 0.40 : edibleLeaf ? 0.28 : 0.18;   // roots feed hardest; leaves middling; physic herbs marginal
+  // A physic herb is a SMALL bed, not a field — keep its photosynthetic footprint tiny so it stays
+  // ~neutral to the farm's calorie closure (it inflates neither crew demand nor food; it's a reagent
+  // that happens to be a producer). The edible crops carry the real area + yield.
+  const area = edibleRoot ? 2000 : edibleLeaf ? 1400 : 700;
+  return P(slugId(slug), p.plant, p.bot, hab, ['physic', band],
+    { fix: 1.4, turn: 0.033, hi, area, dens: 9, poll: true },
+    { reagent: true, reagentClass: 'plant', planet: p.planet || null, qualities: p.qualities || null,
+      edible: edibleRoot || edibleLeaf, physic: !(edibleRoot || edibleLeaf) });
 });
 
+// ── the STAPLE farm crops: the calorie base. The overworld IS the ship's farm (crew nutrition +
+// bioprocessing), so it carries real staples — period-appropriate roots, grains, legumes, an oil-seed,
+// a tuber (the Capitulare's beans & peas among them). High harvest index; legumes fix nitrogen. Not
+// alchemical (no correspondence) — plain food producers. ──
+export const STAPLES = [
+  P('crop_broadbean',  'Broad bean',       'Vicia faba',              ['land'], ['physic', 'meadow'], { fix: 1.9, turn: 0.035, hi: 0.35, area: 2600, dens: 9 }, { crop: 'legume' }),
+  P('crop_pea',        'Field pea',        'Pisum sativum',           ['land'], ['physic', 'meadow'], { fix: 1.8, turn: 0.036, hi: 0.32, area: 2400, dens: 10 }, { crop: 'legume' }),
+  P('crop_turnip',     'Turnip',           'Brassica rapa',           ['land'], ['physic', 'meadow'], { fix: 1.5, turn: 0.033, hi: 0.45, area: 2400, dens: 9 }, { crop: 'root' }),
+  P('crop_barley',     'Barley',           'Hordeum vulgare',         ['land'], ['meadow'],           { fix: 1.6, turn: 0.030, hi: 0.40, area: 3000, dens: 8 }, { crop: 'grain' }),
+  P('crop_rye',        'Rye',              'Secale cereale',          ['land'], ['meadow', 'heath'],  { fix: 1.5, turn: 0.030, hi: 0.38, area: 3000, dens: 8 }, { crop: 'grain' }),
+  P('crop_flax',       'Flax',             'Linum usitatissimum',     ['land'], ['meadow'],           { fix: 1.4, turn: 0.030, hi: 0.30, area: 2200, dens: 9 }, { crop: 'oil' }),
+  P('crop_sunchoke',   'Jerusalem artichoke','Helianthus tuberosus',  ['land'], ['physic', 'meadow'], { fix: 1.6, turn: 0.034, hi: 0.50, area: 2500, dens: 7, poll: true }, { crop: 'tuber' }),
+];
+
 // ── trees: a variety producing FRUIT & NUT (the Capitulare orchard). Fruit trees are pollination-gated
-// (poll:true — no bees, no fruit); nut trees are wind/other. Standing biomass, low turnover. ──
+// (poll:true — no bees, no fruit); nut trees are wind/other. In the overworld an orchard is a GARNISH,
+// not the calorie base — so their footprint (area) is kept modest, else a grove-heavy roll inflates the
+// modeled crew demand faster than the staples can feed it. Nuts are calorie-dense (a touch more yield). ──
 export const TREES = [
   // fruit
-  P('tree_apple',   'Apple',        'Malus domestica',    ['land'], 'grove', { fix: 1.1, turn: 0.0068, hi: 0.02, area: 6000, dens: 40, poll: true }, { crop: 'fruit', reagent: false }),
-  P('tree_pear',    'Pear',         'Pyrus communis',     ['land'], 'grove', { fix: 1.0, turn: 0.0065, hi: 0.02, area: 5500, dens: 36, poll: true }, { crop: 'fruit' }),
-  P('tree_cherry',  'Cherry',       'Prunus avium',       ['land'], 'grove', { fix: 1.0, turn: 0.0080, hi: 0.02, area: 5000, dens: 34, poll: true }, { crop: 'fruit' }),
-  P('tree_plum',    'Plum',         'Prunus domestica',   ['land'], 'grove', { fix: 1.0, turn: 0.0080, hi: 0.02, area: 4500, dens: 34, poll: true }, { crop: 'fruit' }),
-  P('tree_peach',   'Peach',        'Prunus persica',     ['land'], 'grove', { fix: 1.0, turn: 0.0090, hi: 0.02, area: 4000, dens: 30, poll: true }, { crop: 'fruit' }),
-  P('tree_fig',     'Fig',          'Ficus carica',       ['land'], 'grove', { fix: 1.1, turn: 0.0070, hi: 0.03, area: 4500, dens: 30, poll: true }, { crop: 'fruit' }),
-  P('tree_mulberry','Mulberry',     'Morus nigra',        ['land'], 'grove', { fix: 1.1, turn: 0.0075, hi: 0.03, area: 5000, dens: 30, poll: false }, { crop: 'fruit' }),
-  P('tree_quince',  'Quince',       'Cydonia oblonga',    ['land'], 'grove', { fix: 0.9, turn: 0.0070, hi: 0.02, area: 4000, dens: 28, poll: true }, { crop: 'fruit' }),
-  P('tree_medlar',  'Medlar',       'Mespilus germanica', ['land'], 'grove', { fix: 0.9, turn: 0.0070, hi: 0.02, area: 3800, dens: 26, poll: true }, { crop: 'fruit' }),
-  P('tree_sorb',    'Service-tree', 'Sorbus domestica',   ['land'], 'grove', { fix: 0.9, turn: 0.0060, hi: 0.02, area: 4500, dens: 28, poll: true }, { crop: 'fruit' }),
-  // nut
-  P('tree_hazel',   'Hazel',        'Corylus avellana',   ['land'], ['grove', 'thicket'], { fix: 1.1, turn: 0.0090, hi: 0.03, area: 3500, dens: 30, poll: false }, { crop: 'nut' }),
-  P('tree_walnut',  'Walnut',       'Juglans regia',      ['land'], 'grove', { fix: 1.0, turn: 0.0060, hi: 0.02, area: 7000, dens: 44, poll: false }, { crop: 'nut' }),
-  P('tree_chestnut','Sweet chestnut','Castanea sativa',   ['land'], 'grove', { fix: 1.0, turn: 0.0055, hi: 0.02, area: 7000, dens: 46, poll: false }, { crop: 'nut' }),
-  P('tree_almond',  'Almond',       'Prunus dulcis',      ['land'], 'grove', { fix: 1.0, turn: 0.0085, hi: 0.03, area: 3800, dens: 30, poll: true }, { crop: 'nut' }),
-  P('tree_pine',    'Stone pine',   'Pinus pinea',        ['land'], ['grove', 'heath'], { fix: 0.9, turn: 0.0045, hi: 0.02, area: 8000, dens: 50, poll: false }, { crop: 'nut' }),
+  P('tree_apple',   'Apple',        'Malus domestica',    ['land'], 'grove', { fix: 1.1, turn: 0.0068, hi: 0.04, area: 2400, dens: 18, poll: true }, { crop: 'fruit', reagent: false }),
+  P('tree_pear',    'Pear',         'Pyrus communis',     ['land'], 'grove', { fix: 1.0, turn: 0.0065, hi: 0.04, area: 2300, dens: 18, poll: true }, { crop: 'fruit' }),
+  P('tree_cherry',  'Cherry',       'Prunus avium',       ['land'], 'grove', { fix: 1.0, turn: 0.0080, hi: 0.04, area: 2200, dens: 18, poll: true }, { crop: 'fruit' }),
+  P('tree_plum',    'Plum',         'Prunus domestica',   ['land'], 'grove', { fix: 1.0, turn: 0.0080, hi: 0.04, area: 2100, dens: 18, poll: true }, { crop: 'fruit' }),
+  P('tree_peach',   'Peach',        'Prunus persica',     ['land'], 'grove', { fix: 1.0, turn: 0.0090, hi: 0.04, area: 2000, dens: 16, poll: true }, { crop: 'fruit' }),
+  P('tree_fig',     'Fig',          'Ficus carica',       ['land'], 'grove', { fix: 1.1, turn: 0.0070, hi: 0.05, area: 2200, dens: 16, poll: true }, { crop: 'fruit' }),
+  P('tree_mulberry','Mulberry',     'Morus nigra',        ['land'], 'grove', { fix: 1.1, turn: 0.0075, hi: 0.05, area: 2300, dens: 16, poll: false }, { crop: 'fruit' }),
+  P('tree_quince',  'Quince',       'Cydonia oblonga',    ['land'], 'grove', { fix: 0.9, turn: 0.0070, hi: 0.04, area: 2000, dens: 16, poll: true }, { crop: 'fruit' }),
+  P('tree_medlar',  'Medlar',       'Mespilus germanica', ['land'], 'grove', { fix: 0.9, turn: 0.0070, hi: 0.04, area: 1900, dens: 14, poll: true }, { crop: 'fruit' }),
+  P('tree_sorb',    'Service-tree', 'Sorbus domestica',   ['land'], 'grove', { fix: 0.9, turn: 0.0060, hi: 0.04, area: 2100, dens: 16, poll: true }, { crop: 'fruit' }),
+  // nut (calorie-dense — a little more harvest)
+  P('tree_hazel',   'Hazel',        'Corylus avellana',   ['land'], ['grove', 'thicket'], { fix: 1.1, turn: 0.0090, hi: 0.06, area: 1900, dens: 16, poll: false }, { crop: 'nut' }),
+  P('tree_walnut',  'Walnut',       'Juglans regia',      ['land'], 'grove', { fix: 1.0, turn: 0.0060, hi: 0.06, area: 2800, dens: 22, poll: false }, { crop: 'nut' }),
+  P('tree_chestnut','Sweet chestnut','Castanea sativa',   ['land'], 'grove', { fix: 1.0, turn: 0.0055, hi: 0.07, area: 2800, dens: 22, poll: false }, { crop: 'nut' }),
+  P('tree_almond',  'Almond',       'Prunus dulcis',      ['land'], 'grove', { fix: 1.0, turn: 0.0085, hi: 0.06, area: 2000, dens: 16, poll: true }, { crop: 'nut' }),
+  P('tree_pine',    'Stone pine',   'Pinus pinea',        ['land'], ['grove', 'heath'], { fix: 0.9, turn: 0.0045, hi: 0.05, area: 3000, dens: 24, poll: false }, { crop: 'nut' }),
   // bay is an aromatic (a culinary/perfume plant), but it is NOT one of the 55 herbs in the read/alch
   // overlay, so it carries no Galenic/planetary correspondence — an aromatic, not (yet) a live reagent.
   P('tree_bay',     'Bay laurel',   'Laurus nobilis',     ['land'], ['grove', 'physic'], { fix: 1.0, turn: 0.0070, hi: 0, area: 3000, dens: 24, poll: false }, { aromatic: true }),
@@ -136,7 +165,10 @@ export const FAUNA = [
   A('caddis',     'Caddisfly larva',  'Limnephilus lunatus',   'detritivore', 0.05,['lake'],        'benthic', { plan: 'poly' }),
   A('crayfish',   'Crayfish',         'Astacus astacus',       'omnivore',  80,    ['lake', 'shore'],'benthic', { harv: true, plan: 'poly' }),
   A('dragonfly',  'Dragonfly nymph',  'Aeshna cyanea',         'carnivore', 1,     ['lake'],        'benthic', { plan: 'poly' }),
+  // GOOD FOOD FISH — the crew's aquaculture protein (a cull straight into the food store):
   A('tench',      'Tench',            'Tinca tinca',           'omnivore',  400,   ['lake'],        'benthic', { harv: true, plan: 'axial' }),
+  A('carp',       'Common carp',      'Cyprinus carpio',       'omnivore',  2000,  ['lake'],        'benthic', { harv: true, plan: 'axial' }),
+  A('roach',      'Roach',            'Rutilus rutilus',       'omnivore',  200,   ['lake'],        'benthic', { harv: true, plan: 'axial' }),
   A('leech',      'Medicinal leech',  'Hirudo medicinalis',    'carnivore', 2,     ['lake', 'shore'],'benthic', { plan: 'axial', reagent: true, baroque: true }),
   // CROSSOVER — amphibians (+ eel, olm) bridge chthonic & benthic: the eye-of-newt reagents
   A('newt',       'Smooth newt',      'Lissotriton vulgaris',  'carnivore', 3,     ['lake', 'land'], ['benthic', 'chthonic', 'fen'], { plan: 'quad', reagent: true, baroque: true }),
@@ -144,18 +176,33 @@ export const FAUNA = [
   A('toad',       'Common toad',      'Bufo bufo',             'carnivore', 40,    ['land', 'lake', 'soil'], ['fen', 'chthonic', 'benthic'], { plan: 'quad', reagent: true, baroque: true }),
   A('eel',        'European eel',     'Anguilla anguilla',     'carnivore', 300,   ['lake', 'shore'],['benthic', 'fen'], { harv: true, plan: 'axial' }),
   A('olm',        'Olm',              'Proteus anguinus',      'carnivore', 15,    ['lake'],         ['benthic', 'chthonic'], { plan: 'axial', reagent: true, baroque: true }),
-  // BIRDS — the cross-web upper trophic layer (they fly, so they couple bands): insectivores eat the
-  // swarms & spiders, frugivores disperse the grove's fruit, the raptor & heron cap the web.
+  // BIRDS — the cross-web upper layer (they fly, so they couple bands). Songbirds (robin/thrush/tit)
+  // are insectivores/frugivores that disperse the grove; the GAME FOWL (partridge/quail/goose/mallard)
+  // are EDIBLE — a bird that eats the spiders & insects and returns it to the crew as poultry (the
+  // insect→fowl→crew path), plus the goose grazes producers. The kestrel & heron cap the web.
   A('robin',      'Robin',            'Erithacus rubecula',    'omnivore',  18,    ['land', 'air'],  ['thicket', 'grove', 'meadow'], { thermy: 'endo', plan: 'quad' }),
   A('thrush',     'Song thrush',      'Turdus philomelos',     'omnivore',  70,    ['land', 'air'],  ['grove', 'thicket'], { thermy: 'endo', plan: 'quad' }),
   A('bluetit',    'Blue tit',         'Cyanistes caeruleus',   'carnivore', 11,    ['land', 'air'],  ['grove', 'thicket'], { thermy: 'endo', plan: 'quad' }),
+  A('partridge',  'Grey partridge',   'Perdix perdix',         'omnivore',  400,   ['land', 'air'],  ['meadow', 'heath', 'grove'], { thermy: 'endo', harv: true, plan: 'quad' }),
+  A('quail',      'Common quail',     'Coturnix coturnix',     'omnivore',  100,   ['land', 'air'],  ['meadow', 'physic'], { thermy: 'endo', harv: true, plan: 'quad' }),
+  A('goose',      'Greylag goose',    'Anser anser',           'herbivore', 3500,  ['lake', 'shore', 'land', 'air'], ['fen', 'meadow'], { thermy: 'endo', harv: true, plan: 'quad' }),
   A('mallard',    'Mallard',          'Anas platyrhynchos',    'omnivore',  1100,  ['lake', 'shore', 'air'], ['fen', 'benthic'], { thermy: 'endo', harv: true, plan: 'quad' }),
   A('kestrel',    'Kestrel',          'Falco tinnunculus',     'carnivore', 200,   ['air', 'land'],  ['meadow', 'heath'], { thermy: 'endo', plan: 'quad' }),
   A('heron',      'Grey heron',       'Ardea cinerea',         'carnivore', 1500,  ['lake', 'shore', 'air'], ['fen', 'benthic'], { thermy: 'endo', plan: 'quad' }),
 ];
 
 // the whole palette (game-facing: carries band/plan/reagent metadata)
-export const ORGANISMS = [...HERBS, ...TREES, ...FUNGI, ...FAUNA];
+export const ORGANISMS = [...HERBS, ...STAPLES, ...TREES, ...FUNGI, ...FAUNA];
+
+// THE CANONICAL FARM. A single closed plot is a community DRAWN from the palette (biome's assembler over
+// a seed), the same way biome ships its 5 cafe biomes by searching seeds for closers — random 14–34-
+// species draws essentially never fully close for ANY palette (biome's own 149-deck closes 0/40 at
+// random). Searching this palette, seed 21 is a LEGENDARY, STABLE, fully-closing farm: it feeds ~82
+// crew, holds the air (O₂ 21 kPa, CO₂ ~200 ppm), and recovers from shocks — out-performing biome's own
+// deck (whose best closer is an unstable Epic). This is the overworld's canonical farm; the plants→
+// terrain layer + the gacha draw from `rollDesign(CANONICAL_FARM_SEED, toCatalog())`. Pinned by the
+// closure selftest so a palette edit that breaks the closer is caught.
+export const CANONICAL_FARM_SEED = 21;
 
 // organisms by band (for the terrain layer + the gacha's per-band pools)
 export function organismsInBand(band) { return ORGANISMS.filter((o) => (o.bands || []).includes(band)); }
@@ -163,10 +210,47 @@ export function organismsInBand(band) { return ORGANISMS.filter((o) => (o.bands 
 export const REAGENTS = ORGANISMS.filter((o) => o.reagent);
 
 // ── toCatalog(): strip the game metadata → the plain biome-catalog array the assembler/solver read.
-// This is the bridge that lets "does it close?" be answered by biome's own viability oracle. ─────────
+// This is the bridge that lets "does it close?" be answered by biome's own viability oracle.
+//
+// THE PHYSIC-GARDEN CAP. All 55 alch herbs GROW in the overworld (terrain + garden + reagents), but a
+// physic garden is a small CORNER of the farm, not half its fields. The pure-medicinal herbs are
+// ecologically redundant in the box model (same guild/habitat/near-identical params) and calorically
+// marginal, so flooding the food web with 43 of them just mis-weights the producer draw toward
+// "medicine" and misreports the farm as unable to feed its crew. We pass a REPRESENTATIVE sample of
+// them (spanning the bands) to the model — the standard collapse of redundant producers — while the
+// EDIBLE herbs, staples, orchard, fungi and fauna (the actual calorie base) all pass through. The game
+// roster (ORGANISMS) is untouched; this only shapes what the closure MODEL sees. ────────────────────
+// THE PLOT MODEL. The palette is the OVERWORLD's biodiversity — every herb, every spider, every
+// amphibian, the whole orchard. But a single CLOSED PLOT (the sealed box the viability oracle scores)
+// samples a REPRESENTATIVE few of each over-represented guild, not the entire species list crammed into
+// one box: a physic garden is a corner (not half the fields), an orchard is a garnish (not 16 fields),
+// and predators are the light PEST-CONTROL / stabilizing term (a few, not all 17 — a 17-carnivore box
+// starves its own predators). So the model catalog collapses each over-full guild to a representative
+// sample (spanning bands, deterministic); the staples, edible crops, fungi and food fish/fowl — the
+// actual calorie base — all pass through whole. The GAME roster (ORGANISMS) is untouched: the terrain,
+// the reagents, the combat creeps still see the full palette. This only shapes what CLOSURE sees.
+export const PHYSIC_MODEL_CAP = 8;
+export const TREE_MODEL_CAP = 5;
+export const CARNIVORE_MODEL_CAP = 6;   // predators are the stabilizing term — a few, not the whole zoo
+const repSample = (list, cap) => {                      // one per non-physic band first, then fill (deterministic)
+  const seen = new Set(), rep = [];
+  for (const o of list) { const b = (o.bands || []).find((x) => x !== 'physic') || 'physic'; if (!seen.has(b)) { seen.add(b); rep.push(o); } }
+  for (const o of list) { if (rep.length >= cap) break; if (!rep.includes(o)) rep.push(o); }
+  return new Set(rep.slice(0, cap).map((o) => o.id));
+};
 export function toCatalog() {
-  return ORGANISMS.map((o) => {
-    const { bands, plan, reagent, reagentClass, baroque, swarm, planet, qualities, crop, aromatic, ...cat } = o;
+  const keepPhysic = repSample(ORGANISMS.filter((o) => o.physic), PHYSIC_MODEL_CAP);
+  const treeIds = new Set(TREES.map((t) => t.id));
+  const keepTree = repSample(TREES, TREE_MODEL_CAP);
+  const carn = ORGANISMS.filter((o) => o.guild === 'carnivore');
+  const keepCarn = repSample(carn, CARNIVORE_MODEL_CAP);
+  const carnIds = new Set(carn.map((o) => o.id));
+  return ORGANISMS.filter((o) =>
+    (!o.physic || keepPhysic.has(o.id)) &&
+    (!treeIds.has(o.id) || keepTree.has(o.id)) &&
+    (!carnIds.has(o.id) || keepCarn.has(o.id))
+  ).map((o) => {
+    const { bands, plan, reagent, reagentClass, baroque, swarm, planet, qualities, crop, aromatic, edible, physic: _p, ...cat } = o;
     return cat;
   });
 }
