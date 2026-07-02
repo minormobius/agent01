@@ -174,6 +174,32 @@
     /* the ARCADE — a dedicated fullscreen cabinet screen (à la the inventory), high contrast */
     #arc, #garden, #trade, #kitchen { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 35%, rgba(12,9,18,0.96), rgba(4,4,8,0.99)); pointer-events: auto; }
     #garden { background: radial-gradient(120% 120% at 50% 32%, rgba(10,18,12,0.96), rgba(3,6,4,0.99)); }
+    /* the smithy: the make-room WALL crafting overlay (⚒), forge-orange */
+    #smith { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 32%, rgba(24,16,8,0.96), rgba(6,4,2,0.99)); pointer-events: auto; }
+    #smith.on { display: flex; align-items: center; justify-content: center; }
+    #smith .acard { width: min(620px, 94vw); max-height: 94vh; max-height: 94dvh; overflow-y: auto; text-align: center; padding: calc(26px + env(safe-area-inset-top)) 20px calc(30px + env(safe-area-inset-bottom)); }
+    #smith .ahead { font-size: 13px; letter-spacing: 1px; color: #f0a860; }
+    #smith .alaw { font-size: 21px; font-weight: 600; color: #f4bf62; margin: 4px 0 2px; }
+    #smith .ameta { font-size: 11.5px; color: #b09a7a; margin-bottom: 4px; }
+    #smith .aclose { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); z-index: 3; background: rgba(18,12,6,0.8); border: 1px solid #4d3a24; border-radius: 8px; color: #d8c8b0; font: inherit; font-size: 12px; padding: 6px 11px; cursor: pointer; } #smith .aclose:hover { border-color: #f0a860; color: #f0a860; }
+    #smith .stabs { display: flex; gap: 6px; justify-content: center; margin: 4px 0 12px; }
+    #smith .stab { background: #18120a; border: 1px solid #2a2015; color: #b09a7a; font: inherit; font-size: 12px; padding: 6px 16px; border-radius: 8px; cursor: pointer; } #smith .stab.on { background: #2a1c10; border-color: #e0904a; color: #f0c088; }
+    #smith .wallet { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin: 6px 0 12px; }
+    #smith .coin { display: inline-flex; align-items: center; gap: 4px; background: #14100a; border: 1px solid #2a2015; border-radius: 7px; padding: 3px 8px; font-size: 11.5px; color: #cbbfa8; } #smith .coin b { color: #f4bf62; }
+    #smith .shead { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: #8a7050; margin: 12px 0 5px; }
+    #smith .sgrid { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+    #smith .kgl { font-size: 9.5px; color: #6b5a3a; width: 100%; margin: 4px 0 1px; letter-spacing: .4px; }
+    #smith .schip { border: 1px solid #2a2015; border-radius: 7px; padding: 4px 9px; font-size: 11.5px; color: #b09a7a; cursor: pointer; } #smith .schip:hover { border-color: #6a4a2a; color: #e8dcc0; } #smith .schip.on { border-color: #e0904a; color: #f0c088; background: #241708; }
+    #smith .schip.dim { opacity: .32; cursor: not-allowed; }
+    #smith .sslider { margin: 12px auto; max-width: 300px; font-size: 12px; color: #b09a7a; } #smith .sslider input { width: 100%; }
+    #smith .preview { background: #16100a; border: 1px solid #2a2015; border-radius: 10px; padding: 12px; margin: 12px auto 4px; max-width: 460px; display: flex; gap: 12px; align-items: center; text-align: left; }
+    #smith .preview canvas { width: 72px; height: 72px; flex: 0 0 72px; image-rendering: pixelated; background: #0a0806; border-radius: 8px; }
+    #smith .pv-n { font-size: 14px; font-weight: 600; color: #f4bf62; } #smith .pv-m { font-size: 10.5px; color: #b09a7a; }
+    #smith .pv-cost { font-size: 12px; color: #cbbfa8; margin-top: 5px; } #smith .pv-cost .lack { color: #e0805a; }
+    #smith .grade { display: inline-block; min-width: 18px; text-align: center; border-radius: 4px; font-weight: 700; font-size: 10.5px; padding: 1px 4px; color: #0b0906; }
+    #smith .forge { background: #2a1c10; color: #f0c088; border: 1px solid #6a4a2a; font: inherit; font-size: 14px; padding: 9px 22px; border-radius: 9px; cursor: pointer; margin-top: 10px; } #smith .forge:hover { border-color: #e0904a; color: #fff; } #smith .forge:disabled { opacity: .4; cursor: not-allowed; }
+    #smith .brow { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #cbbfa8; padding: 5px 0; border-bottom: 1px solid #2a2015; } #smith .brow .g { font-size: 15px; }
+    #smith .bbtn { background: #18120a; color: #b09a7a; border: 1px solid #2a2015; font: inherit; font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; } #smith .bbtn:hover { border-color: #e0904a; color: #f0c088; }
     /* the alchemy bench: a make-room crafting overlay (⚗), violet-tinted */
     #bench { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 32%, rgba(16,12,24,0.96), rgba(4,3,8,0.99)); pointer-events: auto; }
     #bench.on { display: flex; align-items: center; justify-content: center; }
@@ -495,6 +521,7 @@
   <div id="arc"><div class="acard" id="arccard"></div></div>
   <div id="garden"><div class="acard" id="gardencard"></div></div>
   <div id="bench"><div class="acard" id="benchcard"></div></div>
+  <div id="smith"><div class="acard" id="smithcard"></div></div>
   <div id="over"><canvas id="overcanvas"></canvas><button class="aclose" data-overclose="1">close ⏎</button><div id="overhud"></div></div>
   <div id="trade"><div class="acard" id="tradecard"></div></div>
   <div id="kitchen"><div class="acard" id="kitchencard"></div></div>
@@ -540,6 +567,7 @@
     import { drawOverworld } from './over/over-render.js';               // the overworld silhouette renderer (growth-form + Galenic palette at landscape scale)
     import { findReagent, prepare, PREPARATIONS } from './alch/alchemy.js';   // the alchemy kernel — reagent correspondence → temperament colour; prepare() = the bench's brew
     import { deriveRecipes, describeEffect } from './alch/cookbook.js';  // the cookbook — suggested recipes + effect readout for the make-room bench
+    import { COMMODITIES as SMITH_COMMODITIES, commodityMeta, availableMaterials, erasUpTo, techCeilingForTier, craftItem as smithCraft, craftCost, dismantle as smithDismantle, canAfford, shortfall, spend as smithSpend, earn as smithEarn } from './craft/smith.js';   // the SMITHY — the make-room WALL fixture: forge equipment from the ship's commodities
     import { createBattle, UNIVERSAL } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, certifyPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight; certifyPack = the solver gate)
     import { buildSwarmGenome } from './v3/swarm.js';   // a player SUMMON renders as a grey/black robot drone swarm
@@ -547,6 +575,8 @@
     import { newRun, loadoutOf, stageFoes, resolveStage, buyNode, treeView, finishRun } from './arena/run.js';   // the TRAINER fixture: a roguelike combat gauntlet over the per-faction tech tree (arena/tree.js)
     import { autoEquip, defaultPlan, slotForItem, SLOTS } from './bodyplan.js';   // equip the player/creep for battle
     import { rollItem } from './sprite/item/genome.js';   // mint a loot item from a spoils seed
+    import { PHYLA, PHYLUM_ORDER, KINGDOMS, KINGDOM_ORDER, MATERIALS } from './sprite/item/taxa.js';   // the item taxonomy — the smithy's body-plan + material menus
+    import { drawSprite as drawItemSprite } from './sprite/item/sprite.js';   // draw a crafted item's sprite in the smithy preview
     import { bakeFog } from './v8/bake.js';
     import { initGpuMap } from './gpumap.js';   // optional WebGPU vector renderer for the cell fills (crisp at any zoom); null ⇒ baked-raster fallback
     import { paintChunk, SKIN_DEFAULTS } from './skin.js';
@@ -1488,6 +1518,10 @@
         // the play room's secondary fixture — the TRAINER (a combat training platform) — marks its wall console with ⚔ at the tip.
         if (F.tip && fixtureAction((ch.rooms[F.room] || {}).role, 'wall') === 'trainer') {
           g.save(); g.fillStyle = '#e58f6a'; g.font = `${Math.max(7, (SKIN.playerW || 6) * 0.9)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⚔', F.tip.x, F.tip.y); g.restore();
+        }
+        // the make room's secondary fixture — the SMITHY (forge equipment from commodities) — marks its wall console with ⚒ at the tip.
+        if (F.tip && fixtureAction((ch.rooms[F.room] || {}).role, 'wall') === 'smithy') {
+          g.save(); g.fillStyle = '#e0904a'; g.font = `${Math.max(7, (SKIN.playerW || 6) * 0.9)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⚒', F.tip.x, F.tip.y); g.restore();
         }
       }
       for (const cp of P.comps) {
@@ -2916,6 +2950,7 @@
       if (arcadeOpen) { closeArcade(); return; }
       if (gardenOpen) { closeGarden(); return; }
       if (benchOpen) { closeBench(); return; }
+      if (smithOpen) { closeSmithy(); return; }
       if (overOpen) { closeOverworld(); return; }
       if (tradeOpen) { closeTrade(); return; }
       if (lapidaryOpen) { closeLapidary(); return; }
@@ -3028,6 +3063,14 @@
       if (!world) return null; const pd = playerDeck();
       for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
         for (const F of (P.fixtures || [])) { const role = (ch.rooms[F.room] || {}).role; if (fixtureAction(role, 'wall') !== 'trainer' || !F.tip) continue;
+          if ((F.tip.x - wx) ** 2 + (F.tip.y - wy) ** 2 < (SKIN.playerW * 2.4) ** 2) return { x: F.tip.x, y: F.tip.y }; } }
+      return null;
+    }
+    // the make room's SECONDARY fixture: the SMITHY on the grown wall console (make's component is the alchemy bench).
+    function smithyAt(wx, wy) {
+      if (!world) return null; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const F of (P.fixtures || [])) { const role = (ch.rooms[F.room] || {}).role; if (fixtureAction(role, 'wall') !== 'smithy' || !F.tip) continue;
           if ((F.tip.x - wx) ** 2 + (F.tip.y - wy) ** 2 < (SKIN.playerW * 2.4) ** 2) return { x: F.tip.x, y: F.tip.y }; } }
       return null;
     }
@@ -3718,6 +3761,101 @@
       if (story.active) story.active.giftOpen = false;
       saveStory(); renderStory();
       notify(`⚘ gifted ${it.name} — standing +${delta}${bonus ? ' (largesse)' : ''}`, { kind: 'life', ms: 2800 });
+    }
+
+    // ── THE SMITHY (make-role WALL fixture ⚒) — the make verb for EQUIPMENT. Forge a genome item from the
+    //    ship's production COMMODITIES: pick a body-plan, an era (story-gated by your narrative tier), a
+    //    material and how much care; pay in commodities; the item drops into your pack. BREAK unwanted gear
+    //    back into commodities (a loss). The alchemy bench's harder-metal cousin. Pure kernel in craft/smith.js. ──
+    const SMITH_START = { metal: 40, polymer: 12, silicate: 15, volatiles: 10, water: 10, biomass: 20, trace: 6 };
+    const getCommods = () => getJSONFact('craft.commodities', null) || { ...SMITH_START };
+    const setCommods = (o) => setJSONFact('craft.commodities', o);
+    const isGear = (it) => it && !it.alch && slotForItem(it) && (it.genome || it.stats);   // an equippable genome item (not a preparation/key-less)
+    let smithOpen = false, smithTab = 'forge', smithPhylum = 'blade', smithMaterial = null, smithEra = null, smithQuality = 0.65;
+    const smithCeiling = () => techCeilingForTier(narrativeTier());
+    const smithEras = () => erasUpTo(smithCeiling());
+    function smithFixEra() { const es = smithEras(); if (!smithEra || !es.some((e) => e.id === smithEra)) smithEra = es[es.length - 1].id; }
+    function smithFixMaterial() { const e = smithEras().find((x) => x.id === smithEra) || smithEras()[0]; const avail = availableMaterials(smithPhylum, e.tech); if (!avail.includes(smithMaterial)) smithMaterial = avail[0]; }
+    function smithSpec() { const e = smithEras().find((x) => x.id === smithEra) || smithEras()[0]; return { phylum: smithPhylum, material: smithMaterial, tech: e.tech, quality: smithQuality, seed: (getJSONFact('craft.forged', 0) | 0) + 1 }; }
+    function openSmithy() {
+      if (!story.ready) return;
+      if (getJSONFact('craft.commodities', null) == null) setCommods({ ...SMITH_START });   // seed the starting stock once
+      story.store.setFact(story.playerId, 'flag.found_smithy', true);
+      smithTab = 'forge'; smithFixEra(); smithFixMaterial(); smithOpen = true; renderSmithy();
+    }
+    function closeSmithy() { smithOpen = false; $('smith').classList.remove('on'); }
+    const GRADE_C = { junk: '#566066', meagre: '#9b6b3a', fair: '#7fd8d0', solid: '#5aa845', superb: '#f4bf62', mythic: '#b39bd8' };
+    function renderSmithy() {
+      const card = $('smithcard'); smithOpen = true; $('smith').classList.add('on');
+      const wallet = getCommods();
+      const walletHtml = SMITH_COMMODITIES.map((c) => `<span class="coin">${c.glyph} <b>${wallet[c.id] || 0}</b></span>`).join('');
+      const tabs = `<div class="stabs"><button class="stab ${smithTab === 'forge' ? 'on' : ''}" data-stab="forge">⚒ Forge</button><button class="stab ${smithTab === 'break' ? 'on' : ''}" data-stab="break">⊟ Break down</button></div>`;
+      let body;
+      if (smithTab === 'forge') {
+        smithFixEra(); smithFixMaterial();
+        const phylaHtml = KINGDOM_ORDER.map((k) => {
+          const ph = PHYLUM_ORDER.filter((p) => PHYLA[p].kingdom === k && PHYLA[p].loot !== false);
+          if (!ph.length) return '';
+          return `<div class="kgl">${KINGDOMS[k].glyph} ${k}</div>` + ph.map((p) => `<span class="schip ${smithPhylum === p ? 'on' : ''}" data-ph="${p}">${esc(PHYLA[p].species[0])}</span>`).join('');
+        }).join('');
+        const eraHtml = smithEras().map((e) => `<span class="schip ${smithEra === e.id ? 'on' : ''}" data-era="${e.id}" title="${esc(e.note)}">${esc(e.label)}</span>`).join('');
+        const e = smithEras().find((x) => x.id === smithEra);
+        const avail = availableMaterials(smithPhylum, e.tech).slice(0, 12);
+        const matHtml = avail.map((m) => `<span class="schip ${smithMaterial === m ? 'on' : ''}" data-mat="${m}" title="${MATERIALS[m].class}">${esc(MATERIALS[m].name)}</span>`).join('');
+        const spec = smithSpec(), it = smithCraft(spec), cost = craftCost(spec), lack = shortfall(wallet, cost), afford = canAfford(wallet, cost);
+        const costHtml = Object.entries(cost).map(([k, v]) => `<span class="${lack[k] ? 'lack' : ''}">${commodityMeta(k).glyph}${v}</span>`).join(' ');
+        const qlabel = smithQuality < 0.35 ? 'rough' : smithQuality < 0.6 ? 'fair' : smithQuality < 0.85 ? 'fine' : 'masterwork';
+        body =
+          `<div class="shead">body-plan</div><div class="sgrid">${phylaHtml}</div>` +
+          `<div class="shead">era · your rank unlocks up to ${esc((smithEras().slice(-1)[0] || {}).label || '')}</div><div class="sgrid">${eraHtml}</div>` +
+          `<div class="shead">material</div><div class="sgrid">${matHtml}</div>` +
+          `<div class="sslider">quality — <b style="color:#f4bf62">${qlabel}</b><input id="smithq" type="range" min="10" max="100" value="${Math.round(smithQuality * 100)}" /></div>` +
+          `<div class="preview"><canvas id="smithsprite" width="72" height="72"></canvas><div><div class="pv-n"><span class="grade" style="background:${GRADE_C[it.grade]}">${it.grade[0].toUpperCase()}</span> ${esc(it.name)}</div><div class="pv-m">${esc(it.era)} · ${esc(it.matter)} · worth ${it.worth} · pot ${it.stats.potency} · dur ${it.stats.durability}</div><div class="pv-cost">cost · ${costHtml}</div></div></div>` +
+          `<button class="forge" data-forge="1" ${afford ? '' : 'disabled'}>⚒ forge${afford ? '' : ' — short ' + Object.entries(lack).map(([k, v]) => `${commodityMeta(k).glyph}${v}`).join(' ')}</button>`;
+      } else {
+        const gear = pack.pack.map((it, i) => ({ it, i })).filter(({ it }) => isGear(it));
+        body = gear.length
+          ? gear.map(({ it, i }) => { const back = smithDismantle(it); return `<div class="brow"><span class="grade" style="background:${GRADE_C[it.grade] || '#566066'}">${(it.grade || 'j')[0].toUpperCase()}</span><span style="flex:1;color:#cbbfa8">${it.glyph || '◆'} ${esc(it.name)}</span><button class="bbtn" data-break="${i}">break → ${Object.entries(back).map(([k, v]) => `${commodityMeta(k).glyph}${v}`).join(' ')}</button></div>`; }).join('')
+          : `<div class="ameta" style="color:#8a7050;margin-top:14px">no gear to break down — win fights, buy wares, or forge some (then change your mind)</div>`;
+      }
+      card.innerHTML =
+        `<button class="aclose" data-sclose="1">close ⏎</button>` +
+        `<div class="ahead">⚒ THE SMITHY</div><div class="alaw">forge equipment</div>` +
+        `<div class="ameta">the make verb for gear — spend the ship's commodities · <a href="/smith" target="_blank" style="color:#f0a860">the smithy testbed ↗</a></div>` +
+        `<div class="wallet">${walletHtml}</div>` + tabs + body;
+      if (smithTab === 'forge') {
+        const cv = $('smithsprite'); if (cv) { const g = cv.getContext('2d'); g.imageSmoothingEnabled = false; try { drawItemSprite(g, smithCraft(smithSpec()), { x: 6, y: 6, size: 60, frame: false }); } catch (e) {} }
+      }
+    }
+    $('smith').addEventListener('click', (e) => {
+      if (e.target === $('smith') || e.target.closest('[data-sclose]')) { closeSmithy(); return; }
+      const tb = e.target.closest('[data-stab]'), ph = e.target.closest('[data-ph]'), er = e.target.closest('[data-era]'), mt = e.target.closest('[data-mat]'), fg = e.target.closest('[data-forge]'), bk = e.target.closest('[data-break]');
+      if (tb) { smithTab = tb.dataset.stab; renderSmithy(); return; }
+      if (ph) { smithPhylum = ph.dataset.ph; smithFixMaterial(); renderSmithy(); return; }
+      if (er) { smithEra = er.dataset.era; smithFixMaterial(); renderSmithy(); return; }
+      if (mt) { smithMaterial = mt.dataset.mat; renderSmithy(); return; }
+      if (fg) { doForge(); return; }
+      if (bk) { doDismantle(+bk.dataset.break); return; }
+    });
+    // quality slider (event delegation won't catch input; bind on render)
+    $('smith').addEventListener('input', (e) => { if (e.target && e.target.id === 'smithq') { smithQuality = +e.target.value / 100; renderSmithy(); } });
+    function doForge() {
+      const wallet = getCommods(), spec = smithSpec(), cost = craftCost(spec);
+      if (!canAfford(wallet, cost)) return;
+      const it = smithCraft(spec);
+      setCommods(smithSpend(wallet, cost));
+      setJSONFact('craft.forged', ((getJSONFact('craft.forged', 0) | 0) + 1));   // bump the individual-item seed
+      addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack();
+      saveStory(); renderSmithy();
+      notify(`⚒ forged ${it.name} (${it.gradeLabel}) → pack (i) — equip at ⛨`, { kind: 'pickup', ms: 3200 });
+    }
+    function doDismantle(i) {
+      const it = pack.pack[i]; if (!isGear(it)) return;
+      const back = smithDismantle(it);
+      setCommods(smithEarn(getCommods(), back));
+      pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack();
+      saveStory(); renderSmithy();
+      notify(`⊟ broke down ${it.name} → ${Object.entries(back).map(([k, v]) => `${commodityMeta(k).glyph}${v}`).join(' ')}`, { kind: 'life', ms: 2800 });
     }
 
     // ── THE OVERWORLD OVERLAY — the ladder's destination: the ship's outer grow-deck, the whole curated
@@ -4841,6 +4979,8 @@
       if (grd) { walkThenInteract(grd.cp.cx, grd.cp.cy, () => openGarden(grd.cp, grd.ch)); return; }
       const bnc = benchAt(wx, wy);
       if (bnc) { walkThenInteract(bnc.cp.cx, bnc.cp.cy, () => openBench(bnc.cp, bnc.ch)); return; }
+      const smy = smithyAt(wx, wy);
+      if (smy) { walkThenInteract(smy.x, smy.y, () => openSmithy()); return; }
       const trd = tradeAt(wx, wy);
       if (trd) { walkThenInteract(trd.cp.cx, trd.cp.cy, () => openTrade(trd.cp, trd.ch)); return; }
       const cre = creepAt(wx, wy);
@@ -4855,11 +4995,11 @@
 
     // is a fullscreen overlay/modal covering the world? then the animation loop need not render behind it.
     function worldCovered() {
-      if (arcadeOpen || gardenOpen || benchOpen || overOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen || loaderOpen) return true;
+      if (arcadeOpen || gardenOpen || benchOpen || smithOpen || overOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen || loaderOpen) return true;
       if (oracleOpen() || geomancyOpen() || inkblotOpen()) return true;               // the worship oracle / sand-stand / govern seal-stand overlays
       if (minimap.open || equip.open || (creator && creator.open)) return true;
       if (document.querySelector('.himodal')) return true;                          // the sign-in handle box
-      return ['story', 'enc', 'arc', 'garden', 'bench', 'over', 'trade', 'kitchen', 'lapidary', 'battle'].some((id) => { const el = $(id); return el && el.classList.contains('on'); });
+      return ['story', 'enc', 'arc', 'garden', 'bench', 'smith', 'over', 'trade', 'kitchen', 'lapidary', 'battle'].some((id) => { const el = $(id); return el && el.classList.contains('on'); });
     }
     // the animation loop — step the residents' commute, then render. PERF: render ONLY when there is motion
     // to show (residents animating). Player movement redraws via walkTo's own 24ms tick; map-changing actions

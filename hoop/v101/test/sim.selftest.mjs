@@ -23,7 +23,8 @@ ok('worship wall → geomancy (the secondary fixture)', fixtureAction('worship',
 ok('govern central → inkblot', fixtureAction('govern', 'component') === 'inkblot');
 ok('isTerminalRole is learn only (govern/worship have their own fixtures now)', isTerminalRole('learn') && !isTerminalRole('govern') && !isTerminalRole('worship') && !isTerminalRole('dwell'));
 ok('make central → alchemy (the bench)', fixtureAction('make', 'component') === 'alchemy');
-ok('unmapped → null', fixtureAction('mend', 'component') === null && fixtureAction('learn', 'wall') === null);
+ok('make wall → smithy (the forge bench)', fixtureAction('make', 'wall') === 'smithy');
+ok('unmapped → null', fixtureAction('mend', 'component') === null && fixtureAction('mend', 'wall') === null);
 
 // chest: per-chamber persistent storage, deposit/withdraw are pure
 {
