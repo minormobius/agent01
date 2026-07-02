@@ -61,11 +61,11 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 <script type="module">
 import { rollMappaWorld } from './mappaWorld.js';
 import { buildClimate } from '../mappa/climate-forcing.js';
-import { pickContinent, runHinterland } from './continent.js';
+import { pickContinent, runHinterland, settlements, tradeLinks } from './continent.js';
 
 const cv = document.getElementById('map'), cx = cv.getContext('2d');
 const seedIn = document.getElementById('seed'), timeIn = document.getElementById('time'), eraEl = document.getElementById('era'), statEl = document.getElementById('stat'), overlay = document.getElementById('overlay');
-let C = null, cont = null, poly = null, W = 0, H = 0, tick = 0, playing = false, raf = 0, mode = 'pop', maxDens = 1;
+let C = null, cont = null, poly = null, centers = null, W = 0, H = 0, tick = 0, playing = false, raf = 0, mode = 'pop', maxDens = 1;
 const PAD = 22;
 
 const lonOf = (v) => Math.atan2(v[1], v[0]), latOf = (v) => Math.asin(Math.max(-1, Math.min(1, v[2])));
@@ -87,6 +87,7 @@ function project() {
   cv.width = W; cv.height = H;
   const sc = Math.min((W - 2 * PAD) / rw, (H - 2 * PAD) / rh), ox = (W - rw * sc) / 2, oy = (H - rh * sc) / 2;
   poly = raw.map((pts) => pts.map(([x, y]) => [ox + (x - x0) * sc, oy + (y - y0) * sc]));
+  centers = poly.map((pts) => { let cxs = 0, cys = 0; for (const p of pts) { cxs += p[0]; cys += p[1]; } return pts.length ? [cxs / pts.length, cys / pts.length] : null; });
 }
 
 // colour ramps
@@ -112,6 +113,27 @@ function draw() {
     cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) cx.lineTo(pts[k][0], pts[k][1]); cx.closePath();
     cx.fillStyle = C.landH[base + i] ? cellFill(i, base) : DROWN; cx.fill();
   }
+  // SETTLEMENTS + TRADE NETWORK — emergent cities at the density peaks, linked by the
+  // migration/resource routes (heavier along coasts & rivers). Hidden in 'coast' mode.
+  if (mode !== 'land') {
+    const sett = settlements(C, tick, { max: 16 }), links = tradeLinks(cont, sett);
+    cx.lineCap = 'round';
+    let maxW = 1; for (const l of links) if (l.w > maxW) maxW = l.w;
+    for (const l of links) { const A = centers[sett[l.a].l], B = centers[sett[l.b].l]; if (!A || !B) continue;
+      cx.beginPath(); cx.moveTo(A[0], A[1]); cx.lineTo(B[0], B[1]);
+      cx.strokeStyle = `rgba(240,214,150,${0.10 + 0.4 * l.w / maxW})`; cx.lineWidth = 0.5 + 3.2 * l.w / maxW; cx.stroke(); }
+    const maxPop = sett.length ? sett[0].pop : 1;
+    sett.forEach((s, ni) => { const c = centers[s.l]; if (!c) return;
+      const r = 2 + Math.sqrt(s.pop / maxPop) * 6.5;
+      cx.beginPath(); cx.arc(c[0], c[1], r, 0, 7); cx.fillStyle = '#f4e2b0'; cx.strokeStyle = '#2a1c0a'; cx.lineWidth = 1; cx.fill(); cx.stroke(); });
+    cx.font = '600 11px ui-sans-serif,system-ui'; cx.textAlign = 'center';
+    sett.slice(0, 9).forEach((s) => { const c = centers[s.l]; if (!c) return; const r = 2 + Math.sqrt(s.pop / maxPop) * 6.5;
+      cx.lineWidth = 3; cx.strokeStyle = 'rgba(8,6,3,0.85)'; cx.strokeText(s.name, c[0], c[1] - r - 3); cx.fillStyle = '#f8eed4'; cx.fillText(s.name, c[0], c[1] - r - 3); });
+    cx.textAlign = 'left';
+  }
+  // dark-age caption when a harvest failure is biting
+  if (e.shock > 0) { cx.font = '600 13px ui-monospace,monospace'; cx.textAlign = 'center'; cx.fillStyle = '#ff8a5a';
+    cx.fillText((e.shock > 6 ? '🌋 volcanic winter' : '❄ cold years') + ' · harvest failure', W / 2, 26); cx.textAlign = 'left'; }
   // climate ribbon: population, land area, sea level over the run
   const BM = 30, BW = W - 2 * BM, RY1 = H - 10, RY0 = H - 40, RH = RY1 - RY0, xAt = (k) => BM + k / (C.ticks - 1) * BW;
   let maxPop = 1, maxLand = 1; for (const en of C.env) { if (en.totalPop > maxPop) maxPop = en.totalPop; if (en.land > maxLand) maxLand = en.land; }
@@ -121,6 +143,7 @@ function draw() {
   cx.fillStyle = 'rgba(120,160,110,0.20)'; cx.fill();
   cx.beginPath(); for (let k = 0; k < C.ticks; k++) { const X = xAt(k), Y = RY1 - C.env[k].totalPop / maxPop * RH; k ? cx.lineTo(X, Y) : cx.moveTo(X, Y); } // population
   cx.strokeStyle = 'rgba(230,170,90,0.95)'; cx.lineWidth = 1.5; cx.stroke();
+  for (const s of C.shocks) { const x = xAt(s.tick); cx.strokeStyle = s.kind === 'super-eruption' ? 'rgba(255,122,60,0.9)' : 'rgba(127,176,216,0.75)'; cx.lineWidth = 1.3; cx.beginPath(); cx.moveTo(x, RY0); cx.lineTo(x, RY1); cx.stroke(); }
   const curx = xAt(tick); cx.strokeStyle = '#fff'; cx.lineWidth = 1.3; cx.beginPath(); cx.moveTo(curx, RY0 - 3); cx.lineTo(curx, RY1 + 2); cx.stroke();
 
   const yr = e.year < 0 ? (-e.year + ' BCE') : (e.year + ' CE');

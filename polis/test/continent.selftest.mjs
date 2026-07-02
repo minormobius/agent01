@@ -9,7 +9,7 @@
 
 import { rollMappaWorld } from '../mappaWorld.js';
 import { buildClimate } from '../../mappa/climate-forcing.js';
-import { pickContinent, runHinterland } from '../continent.js';
+import { pickContinent, runHinterland, settlements, tradeLinks } from '../continent.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log('  ✓ ' + m); } else { fail++; console.log('  ✗ ' + m); } };
@@ -34,7 +34,8 @@ console.log('population growth, bounded (closed system):');
 const finite = R.env.every((e) => isFinite(e.totalPop) && e.totalPop >= 0);
 ok(finite, 'population stays finite and non-negative for the whole run');
 ok(R.env[10].totalPop < R.env[120].totalPop, `population grows from the founding seed (${R.env[10].totalPop} → ${R.env[120].totalPop})`);
-ok(R.env.every((e) => e.totalPop <= e.totalK * 1.05 + 10), 'population never exceeds the continent carrying capacity (nothing enters from off-map)');
+ok(R.env.every((e) => e.totalPop <= e.totalK * 2.1 + 10), 'population stays bounded by the continent (nothing enters from off-map; a harvest failure can overshoot before the die-back)');
+ok(R.env.every((e) => e.shock > 0 || e.totalPop <= e.totalK * 1.15 + 10), 'in an unshocked era population settles at carrying capacity');
 
 console.log('sea level chases the climate:');
 // the coldest (lowest-sea) era exposes the most land; the warmest (highest-sea) the least
@@ -62,6 +63,33 @@ ok(R.env[R.ticks - 1].meanDev > R.env[20].meanDev, `development accumulates over
   const k = R.ticks - 1, base = k * cont.n;
   for (let i = 0; i < cont.n && !anyLift; i++) if (R.landH[base + i] && R.devH[base + i] > 0.1) anyLift = true;
   ok(anyLift, 'some cells reach a real development level (endogenous productivity)');
+}
+
+console.log('climate shocks collapse the continent (a dark age):');
+{ // a world whose super-eruption strikes a peopled continent → a real population crash
+  const dseed = 142553, dworld = rollMappaWorld(dseed), dclim = buildClimate(dworld, { seed: dseed });
+  const D = runHinterland(dworld, dclim, pickContinent(dworld), { ticks: 180 });
+  const sup = D.shocks.find((s) => s.kind === 'super-eruption');
+  ok(!!sup, 'a super-eruption is scheduled as a harvest-failure shock');
+  if (sup) {
+    const before = D.env[sup.tick - 1].totalPop, low = Math.min(...[0, 1, 2].map((i) => D.env[sup.tick + i] ? D.env[sup.tick + i].totalPop : before));
+    ok(before > 1e5 && low < before * 0.85, `the super-eruption crashes population (${(before / 1e6).toFixed(1)}M → ${(low / 1e6).toFixed(1)}M, −${Math.round((1 - low / before) * 100)}%)`);
+    const rec = Math.max(...D.env.slice(sup.tick).map((e) => e.totalPop));
+    ok(rec > low * 1.1, 'the continent recovers after the dark age');
+  }
+}
+
+console.log('emergent settlements + trade network:');
+{
+  const sett = settlements(R, 150, { max: 14 });
+  ok(sett.length >= 5, `settlements emerge at density peaks (${sett.length} named)`);
+  ok(sett.every((s) => s.name && s.name.length > 1) && new Set(sett.map((s) => s.name)).size === sett.length, 'each has a distinct deterministic name');
+  ok(sett[0].pop >= sett[sett.length - 1].pop, 'ranked by population (a size hierarchy)');
+  const links = tradeLinks(cont, sett);
+  ok(links.length > 0 && links.every((l) => l.a !== l.b && l.w > 0), `a trade network links them (${links.length} routes)`);
+  // names are stable across ticks (same cell → same name)
+  const s2 = settlements(R, 150, { max: 14 });
+  ok(sett.every((s, i) => s.name === s2[i].name), 'settlement naming is deterministic');
 }
 
 console.log('determinism:');

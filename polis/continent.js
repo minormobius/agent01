@@ -18,8 +18,21 @@
 // Pure + deterministic (same world+seed ⇒ same history); node + browser.
 
 import { buildClimate } from '../mappa/climate-forcing.js';
+import { mulberry32 } from './prng.js';
 
 const yearAt = (f) => Math.round(-12000 + 14100 * (1 - Math.pow(1 - f, 2.5)));
+
+// a deterministic settlement name from (seed, global cell index) — stable across ticks
+const ON = ['b', 'd', 't', 'k', 'm', 'n', 's', 'r', 'v', 'th', 'br', 'tr', 'st', 'gr', 'l', 'p', 'h', 'f', 'dr', 'kh'];
+const NU = ['a', 'e', 'i', 'o', 'u', 'a', 'e', 'ei', 'ou', 'ae', 'y', 'ia'];
+const CO = ['n', 'r', 'm', 's', 'l', 'th', 'nd', 'rk', 'st', 'll', '', '', 'x', 'sh'];
+function cityName(seed, g) {
+  const rnd = mulberry32(((seed * 2654435761) ^ (g * 40503) ^ 0x9e37) >>> 0);
+  const syl = 2 + ((rnd() * 2) | 0);
+  let s = '';
+  for (let i = 0; i < syl; i++) s += ON[(rnd() * ON.length) | 0] + NU[(rnd() * NU.length) | 0] + CO[(rnd() * CO.length) | 0];
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 // key a sphere point to match river-segment endpoints against cell centres (both engines
 // round identically — see mappa viewer's computeAnthro)
@@ -87,23 +100,49 @@ const K = {
 
 // run the closed-system hinterlands history over the continent.
 export function runHinterland(world, climate, cont, { ticks = 180 } = {}) {
-  const clim = climate || buildClimate(world, { seed: world.meta.seed });
+  const seed = world.meta.seed;
+  const clim = climate || buildClimate(world, { seed });
   const n = cont.n;
   const pop = new Float32Array(n), dev = new Float32Array(n);
   const popH = new Float32Array(ticks * n), devH = new Float32Array(ticks * n), landH = new Uint8Array(ticks * n), fertH = new Float32Array(ticks * n);
   const env = [];
   let devPoints = 0, seeded = false;
 
+  // DISCRETE CLIMATE SHOCKS → per-tick cooling the smooth backbone misses. A volcanic
+  // winter / super-eruption / grand minimum is a sharp veil the 25-yr forcing series
+  // averages away; inject it from clim.events (exact years + magnitudes) so it crashes
+  // fertility → capacity → population — a dark age the continent slowly recovers from.
+  const tickYear = Array.from({ length: ticks }, (_, k) => yearAt(k / (ticks - 1)));
+  const nearestTick = (yr) => { let bk = 0, bd = Infinity; for (let k = 0; k < ticks; k++) { const d = Math.abs(tickYear[k] - yr); if (d < bd) { bd = d; bk = k; } } return bk; };
+  const shockTemp = new Float32Array(ticks);
+  const shocks = [];
+  for (const ev of (clim.events || [])) {
+    if (ev.year < tickYear[0] || ev.year > tickYear[ticks - 1]) continue;
+    if (ev.kind === 'eruption' && ev.mag < 2.4) continue;
+    const k = nearestTick(ev.year);
+    const cool = ev.kind === 'super-eruption' ? Math.min(11, 3 + ev.mag * 0.9)
+      : ev.kind === 'eruption' ? Math.min(5, ev.mag * 0.8)
+        : (ev.depth || 0.6) * 2.0;                                   // grand minimum
+    shockTemp[k] += cool;
+    if (ev.kind === 'grand-minimum') { if (k > 0) shockTemp[k - 1] += cool * 0.5; if (k < ticks - 1) shockTemp[k + 1] += cool * 0.5; }
+    if (ev.kind === 'super-eruption' && k < ticks - 1) shockTemp[k + 1] += cool * 0.5;   // the veil lingers a tick
+    shocks.push({ tick: k, kind: ev.kind, cool: +cool.toFixed(1) });
+  }
+
   for (let k = 0; k < ticks; k++) {
     const f = k / (ticks - 1), year = yearAt(f), fo = clim.forcingAt(year);
     const sea = fo.seaLevelOffset, tShift = fo.tempOffset, hum = fo.humidity;
+    // a shock is a HARVEST FAILURE (cold summers wreck crops continent-wide), not just a
+    // shift of the temperate band — so it bites even fertile temperate land. A super-
+    // eruption fails most of the harvest; capacity crashes and population with it.
+    const harvest = Math.max(0.12, 1 - shockTemp[k] * 0.09);
     // 1 — active land (sea level chases climate) + fertility + capacity
     const active = new Uint8Array(n), fert = new Float32Array(n), Keff = new Float32Array(n);
     let totalK = 0;
     for (let i = 0; i < n; i++) {
       if (cont.elev[i] < sea) continue;                                     // drowned this era
       active[i] = 1;
-      const fr = fertilityOf(cont, i, sea, tShift, hum); fert[i] = fr;
+      const fr = fertilityOf(cont, i, sea, tShift, hum) * harvest; fert[i] = fr;
       const base = K.KPP * fr * cont.area[i] * (1 + K.DEVK * dev[i]);
       const trade = K.TRADE * (cont.coast[i] + 0.5 * cont.river[i]) * (1 + dev[i]) * cont.area[i];
       Keff[i] = base + trade; totalK += Keff[i];
@@ -148,8 +187,45 @@ export function runHinterland(world, climate, cont, { ticks = 180 } = {}) {
       dev[i] = Math.min(K.DEV_CAP, dev[i] + spend * (pop[i] / totalPop) * K.DEV_EFFECT / Math.max(0.05, cont.area[i]));
     // 7 — record
     let tpop = 0, tdev = 0, lc = 0; for (let i = 0; i < n; i++) { popH[k * n + i] = pop[i]; devH[k * n + i] = dev[i]; landH[k * n + i] = active[i]; fertH[k * n + i] = fert[i]; tpop += pop[i]; if (active[i]) { tdev += dev[i]; lc++; } }
-    env.push({ year, seaLevel: sea, tempShift: tShift, humidity: hum, regime: fo.regime,
+    env.push({ year, seaLevel: sea, tempShift: tShift, humidity: hum, regime: fo.regime, shock: +shockTemp[k].toFixed(1),
       land: lc, totalPop: Math.round(tpop), meanDev: lc ? +(tdev / lc).toFixed(3) : 0, totalK: Math.round(totalK), devPoints: Math.round(devPoints) });
   }
-  return { ticks, n, env, popH, devH, landH, fertH, cont };
+  return { seed, ticks, n, env, popH, devH, landH, fertH, shocks, cont };
+}
+
+// emergent SETTLEMENTS at a tick: the local density maxima (a town sits at the peak of
+// its neighbourhood), named deterministically and stable across ticks.
+export function settlements(res, tick, { max = 16, minPop = 60 } = {}) {
+  const cont = res.cont, n = cont.n, base = tick * n, out = [];
+  for (let i = 0; i < n; i++) {
+    if (!res.landH[base + i]) continue;
+    const p = res.popH[base + i]; if (p < minPop) continue;
+    const d = p / Math.max(0.05, cont.area[i]);
+    let isMax = true;
+    for (const j of cont.adj[i]) if (res.landH[base + j] && res.popH[base + j] / Math.max(0.05, cont.area[j]) > d) { isMax = false; break; }
+    if (isMax) out.push({ l: i, g: cont.cells[i], pop: Math.round(p), dens: d, coast: !!cont.coast[i], river: !!cont.river[i] });
+  }
+  out.sort((a, b) => b.pop - a.pop);
+  const top = out.slice(0, max);
+  for (const c of top) c.name = cityName(res.seed, c.g);
+  return top;
+}
+
+// the TRADE / migration network between settlements: each links to its nearest few
+// others, weighted by the lesser population (the gravity of the pair) and made heavier
+// along cheap corridors (both on a coast or both on a river). A proxy for the resource
+// flows the sim runs cell-by-cell, rendered at the city scale.
+export function tradeLinks(cont, sett, { maxPer = 3 } = {}) {
+  const V = cont.world.V, seen = new Set(), links = [];
+  for (let a = 0; a < sett.length; a++) {
+    const va = V[sett[a].g], near = [];
+    for (let b = 0; b < sett.length; b++) { if (a === b) continue; const vb = V[sett[b].g]; near.push([b, va[0] * vb[0] + va[1] * vb[1] + va[2] * vb[2]]); }
+    near.sort((x, y) => y[1] - x[1]);
+    for (const [b] of near.slice(0, maxPer)) {
+      const key = a < b ? a + '_' + b : b + '_' + a; if (seen.has(key)) continue; seen.add(key);
+      const ease = 1 + ((sett[a].river && sett[b].river) ? 0.9 : 0) + ((sett[a].coast && sett[b].coast) ? 0.5 : 0);
+      links.push({ a, b, w: Math.min(sett[a].pop, sett[b].pop) * ease });
+    }
+  }
+  return links;
 }
