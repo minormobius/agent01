@@ -174,6 +174,27 @@
     /* the ARCADE — a dedicated fullscreen cabinet screen (à la the inventory), high contrast */
     #arc, #garden, #trade, #kitchen { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 35%, rgba(12,9,18,0.96), rgba(4,4,8,0.99)); pointer-events: auto; }
     #garden { background: radial-gradient(120% 120% at 50% 32%, rgba(10,18,12,0.96), rgba(3,6,4,0.99)); }
+    /* the alchemy bench: a make-room crafting overlay (⚗), violet-tinted */
+    #bench { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 32%, rgba(16,12,24,0.96), rgba(4,3,8,0.99)); pointer-events: auto; }
+    #bench.on { display: flex; align-items: center; justify-content: center; }
+    #bench .acard { width: min(600px, 94vw); max-height: 94vh; max-height: 94dvh; overflow-y: auto; text-align: center; padding: calc(26px + env(safe-area-inset-top)) 22px calc(30px + env(safe-area-inset-bottom)); }
+    #bench .ahead { font-size: 13px; letter-spacing: 1px; color: #c6b0f0; }
+    #bench .alaw { font-size: 21px; font-weight: 600; color: #f4bf62; margin: 4px 0 2px; }
+    #bench .ameta { font-size: 11.5px; color: #a89ac0; margin-bottom: 4px; }
+    #bench .aclose { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); z-index: 3; background: rgba(12,10,18,0.8); border: 1px solid #3c344d; border-radius: 8px; color: #cfc8d8; font: inherit; font-size: 12px; padding: 6px 11px; cursor: pointer; } #bench .aclose:hover { border-color: #c6b0f0; color: #c6b0f0; }
+    #bench .bhead2 { font-size: 10.5px; letter-spacing: .5px; text-transform: uppercase; color: #8a7fb0; margin: 16px 0 6px; }
+    #bench .bgrid { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    #bench .rchip { border: 1px solid #2e2740; border-radius: 8px; padding: 6px 10px; font-size: 12px; color: #cbc2e0; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+    #bench .rchip:hover { border-color: #6a5a9a; } #bench .rchip.on { border-color: #c6b0f0; color: #fff; background: #241c38; }
+    #bench .rchip .n { color: #8a7fb0; font-size: 10.5px; } #bench .rchip.dim { opacity: .4; cursor: not-allowed; }
+    #bench .vchip { border: 1px solid #2e2740; border-radius: 14px; padding: 4px 12px; font-size: 12px; color: #a89ac0; cursor: pointer; } #bench .vchip.on { border-color: #f4bf62; color: #f4bf62; }
+    #bench .preview { background: #140f1e; border: 1px solid #2e2740; border-radius: 10px; padding: 12px; margin: 14px auto 4px; max-width: 460px; }
+    #bench .preview .pg { font-size: 22px; } #bench .preview .pe { color: #a6f0c0; font-size: 13px; margin-top: 4px; } #bench .preview .pgr { font-size: 11px; color: #a89ac0; }
+    #bench .grade { display: inline-block; min-width: 20px; text-align: center; border-radius: 4px; font-weight: 700; font-size: 11px; padding: 1px 4px; }
+    #bench .gS{background:#5a4a7a;color:#e6d8ff;} #bench .gA{background:#3f6a4a;color:#c8f0d2;} #bench .gB{background:#3a5a6a;color:#c8e6f0;} #bench .gC{background:#5a5030;color:#f0e0a0;} #bench .gD{background:#4a3a2a;color:#e0c8a0;} #bench .gF{background:#3a2a2a;color:#d0a0a0;}
+    #bench .brew { background: #2a2140; color: #e6d8ff; border: 1px solid #6a5a9a; font: inherit; font-size: 14px; padding: 9px 22px; border-radius: 8px; cursor: pointer; margin-top: 12px; } #bench .brew:hover { border-color: #c6b0f0; color: #fff; } #bench .brew:disabled { opacity: .4; cursor: not-allowed; }
+    #bench .rec { display: inline-block; border: 1px solid #2e2740; border-radius: 8px; padding: 6px 10px; margin: 3px; font-size: 11.5px; color: #cbc2e0; cursor: pointer; text-align: left; } #bench .rec:hover { border-color: #6a5a9a; } #bench .rec.dim { opacity: .35; cursor: not-allowed; }
+    #bench .rec .re { color: #8fd0a0; display: block; font-size: 10.5px; }
     /* the overworld: a full-bleed landscape canvas (the outer grow-deck), reached by the ladder in the Continuants ward */
     #over { position: fixed; inset: 0; display: none; z-index: 36; background: #0d1620; pointer-events: auto; }
     #over.on { display: block; }
@@ -473,6 +494,7 @@
   <div id="story"></div>
   <div id="arc"><div class="acard" id="arccard"></div></div>
   <div id="garden"><div class="acard" id="gardencard"></div></div>
+  <div id="bench"><div class="acard" id="benchcard"></div></div>
   <div id="over"><canvas id="overcanvas"></canvas><button class="aclose" data-overclose="1">close ⏎</button><div id="overhud"></div></div>
   <div id="trade"><div class="acard" id="tradecard"></div></div>
   <div id="kitchen"><div class="acard" id="kitchencard"></div></div>
@@ -516,7 +538,8 @@
     import { soilProps } from './worship/lib/soil.js';                   // the soil substrate (grain/moisture/cracks)
     import { makeOverworld } from './over/overworld.js';                 // the OVERWORLD kernel — the ecology grown wild across terrain bands (the ladder in the Continuants ward climbs here)
     import { drawOverworld } from './over/over-render.js';               // the overworld silhouette renderer (growth-form + Galenic palette at landscape scale)
-    import { findReagent } from './alch/alchemy.js';                     // an alch herb's correspondence → its temperament colour
+    import { findReagent, prepare, PREPARATIONS } from './alch/alchemy.js';   // the alchemy kernel — reagent correspondence → temperament colour; prepare() = the bench's brew
+    import { deriveRecipes, describeEffect } from './alch/cookbook.js';  // the cookbook — suggested recipes + effect readout for the make-room bench
     import { createBattle, UNIVERSAL } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, certifyPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight; certifyPack = the solver gate)
     import { buildSwarmGenome } from './v3/swarm.js';   // a player SUMMON renders as a grey/black robot drone swarm
@@ -1479,6 +1502,7 @@
         else if (isOracle(cp)) { g.save(); g.strokeStyle = '#8a7fd8'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#b6a8f0'; g.font = `${Math.max(8, cp.r * 1.2)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('☯', cp.cx, cp.cy); g.restore(); }
         else if (isInkblot(cp)) { g.save(); g.strokeStyle = '#9aa7c0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#c2c8d6'; g.font = `${Math.max(8, cp.r * 1.2)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('❦', cp.cx, cp.cy); g.restore(); }
         else if (isGarden(cp)) { g.save(); g.strokeStyle = '#6fc06a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#8fe07a'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('❀', cp.cx, cp.cy); g.restore(); }
+        else if (isBench(cp)) { g.save(); g.strokeStyle = '#a98fd0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#c6b0f0'; g.font = `${Math.max(8, cp.r * 1.2)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⚗', cp.cx, cp.cy); g.restore(); }
         else if (isTrade(cp)) { g.save(); g.strokeStyle = '#d8b25a'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#e6c878'; g.font = `${Math.max(8, cp.r * 1.15)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⇄', cp.cx, cp.cy); g.restore(); }
         else if (isCreepRoom(cp, ch)) { g.save(); g.strokeStyle = '#cf3b3b'; g.lineWidth = 1.6 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.6, 0, 7); g.stroke(); g.fillStyle = '#e05a5a'; g.font = `${Math.max(9, cp.r * 1.3)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('☠', cp.cx, cp.cy); g.restore(); }
         else if (cp.role === 'mend') { g.save(); g.strokeStyle = '#7fd8d0'; g.lineWidth = 1.4 / RPX; g.beginPath(); g.arc(cp.cx, cp.cy, cp.r * 1.55, 0, 7); g.stroke(); g.fillStyle = '#9ee6df'; g.font = `${Math.max(8, cp.r * 1.2)}px ui-monospace, monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⬡', cp.cx, cp.cy); g.restore(); }
@@ -2880,6 +2904,7 @@
       if (e.key !== 'Escape') return;
       if (arcadeOpen) { closeArcade(); return; }
       if (gardenOpen) { closeGarden(); return; }
+      if (benchOpen) { closeBench(); return; }
       if (overOpen) { closeOverworld(); return; }
       if (tradeOpen) { closeTrade(); return; }
       if (lapidaryOpen) { closeLapidary(); return; }
@@ -3390,6 +3415,18 @@
           if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
       return best;
     }
+    // THE ALCHEMY BENCH — the make-role component fixture (⚗). Combine reagents from your pantry into a
+    // preparation with a derived effect. Cousin of gardenAt/isGarden.
+    const isBench = (cp) => !isTerminal(cp) && fixtureAction(cp.role, 'component') === 'alchemy';
+    function benchAt(wx, wy) {
+      if (!world) return null;
+      let best = null, bd = Infinity; const pd = playerDeck();
+      for (const ch of world.chunks) { const P = ch.painted; if (!P || (ch.deck || 0) !== pd) continue;
+        for (const cp of (P.comps || [])) { if (!isBench(cp)) continue;
+          const rr = (cp.r * 2.0) ** 2, d = (cp.cx - wx) ** 2 + (cp.cy - wy) ** 2;
+          if (d < rr && d < bd) { bd = d; best = { cp, ch }; } } }
+      return best;
+    }
     let gardenOpen = false, gardenKey = null;
     async function openGarden(cp, ch) {
       if (!story.ready) return;
@@ -3477,6 +3514,93 @@
         return;
       }
     });
+
+    // ── THE ALCHEMY BENCH (make-role component ⚗) — the crafting corner. Reagents come from your PANTRY
+    //    (grow the Physic Garden herbs, harvest → pantry), combine up to three, choose a vessel, and the
+    //    correspondence kernel derives the effect + grade (alch/alchemy.js prepare()). Brewing consumes the
+    //    reagents and drops a PREPARATION item into your pack, ready for the arena/social systems that read
+    //    mechanics.use. The cookbook's exemplar recipes are one-tap fills. Content (names/lore) is hoopy's;
+    //    this is pure mechanism over stable keys. ──
+    const VESSELS = ['draught', 'salve', 'smoke', 'oil'];   // the four delivery archetypes (self/touch/ranged/mechanical)
+    let benchOpen = false, benchGid = null, benchSel = [], benchPrep = 'draught';
+    const reagentNameFor = (id) => { const c = cropById(gardenArk, id); return c ? (c.sciName || c.common) : id; };
+    const reagentFor = (id) => { const c = cropById(gardenArk, id); return c && (findReagent(c.sciName) || findReagent(c.common)); };
+    // the alchemically-live entries of the pantry: { id, count, reagent, name }
+    function pantryReagents() {
+      return Object.entries(getPantry()).filter(([, n]) => n > 0)
+        .map(([id, n]) => { const r = reagentFor(id); return r ? { id, count: n, reagent: r, name: cropName(id) } : null; })
+        .filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+    }
+    async function openBench(cp, ch) {
+      if (!story.ready) return;
+      await ensureArk(); if (!gardenArk) return;
+      story.store.setFact(story.playerId, 'flag.found_bench', true);
+      benchGid = 'b' + ch.id + ':r' + cp.room; benchSel = []; benchPrep = 'draught'; benchOpen = true; renderBench();
+    }
+    function closeBench() { benchOpen = false; $('bench').classList.remove('on'); }
+    function benchPreview() { return prepare(benchSel.map(reagentNameFor), benchPrep); }
+    function renderBench() {
+      const card = $('benchcard'); benchOpen = true; $('bench').classList.add('on');
+      const have = pantryReagents();
+      const heldSlugs = new Set(have.map((h) => h.reagent.slug));
+      const slugToId = {}; for (const h of have) if (slugToId[h.reagent.slug] == null) slugToId[h.reagent.slug] = h.id;
+      // reagent chips (from the pantry) — click to select up to 3
+      const reagentRow = have.length
+        ? have.map((h) => { const on = benchSel.includes(h.id), full = benchSel.length >= 3 && !on;
+            return `<span class="rchip ${on ? 'on' : ''} ${full ? 'dim' : ''}" data-reagent="${esc(h.id)}">${h.reagent.glyph || '🜁'} ${esc(h.name)} <span class="n">×${h.count}${h.reagent.planet ? ' · ' + h.reagent.planet[0] : ''}</span></span>`; }).join('')
+        : `<div class="ameta" style="color:#8a7fb0">no reagents in your pantry. Grow the <b>Physic Garden</b> herbs (pull their seeds at a trade desk, plant &amp; harvest in a garden) — harvested herbs become reagents here.</div>`;
+      // vessel chips
+      const vesselRow = VESSELS.map((v) => `<span class="vchip ${benchPrep === v ? 'on' : ''}" data-vessel="${v}">${esc(PREPARATIONS[v].vessel)} <span style="opacity:.6">(${PREPARATIONS[v].deliver})</span></span>`).join('');
+      // preview
+      const pv = benchSel.length ? benchPreview() : null;
+      const previewHtml = !benchSel.length
+        ? `<div class="ameta">select 1–3 reagents to see the brew</div>`
+        : pv.ok
+          ? `<div class="pg">${pv.glyphs || '⚗'}</div><div><span class="grade g${pv.grade}">${pv.grade}</span> <b style="color:#e6d8ff">${esc(pv.label)} ${esc(pv.vessel)}</b></div><div class="pe">${esc(describeEffect(pv))}</div><div class="pgr">coherence ${(pv.coherence * 100) | 0}% · potency ${pv.potency}</div>`
+          : `<div class="ameta" style="color:#d0a0a0">${esc(pv.reason || 'these do not brew')}</div>`;
+      // suggested recipes (cookbook), tappable if you hold all their reagents
+      const recipes = deriveRecipes().map((r) => {
+        const slugs = r.reagents.map((n) => { const rr = findReagent(n); return rr ? rr.slug : null; });
+        const holdAll = slugs.every((s) => s && heldSlugs.has(s));
+        const ids = slugs.map((s) => slugToId[s]).filter((x) => x != null);
+        return { r, holdAll, ids };
+      });
+      const recipeRow = recipes.map(({ r, holdAll, ids }) =>
+        `<span class="rec ${holdAll ? '' : 'dim'}" ${holdAll ? `data-recipe="${esc(ids.join(','))}" data-vessel2="${esc(r.preparation)}"` : ''}>${r.glyph} <b>${esc(r.vessel)}</b> · ${esc(r.key)}<span class="re">${esc(r.reagents.join(' + '))} → ${esc(r.effect)}</span></span>`).join('');
+      card.innerHTML =
+        `<button class="aclose" data-bclose="1">close ⏎</button>` +
+        `<div class="ahead">⚗ THE ALCHEMY BENCH</div>` +
+        `<div class="alaw">brew a preparation</div>` +
+        `<div class="ameta">combine reagents from your pantry · the vessel sets the reach · <a href="/alch" target="_blank" style="color:#c6b0f0">the cookbook ↗</a></div>` +
+        `<div class="bhead2">reagents (from your pantry — pick up to 3)</div><div class="bgrid">${reagentRow}</div>` +
+        `<div class="bhead2">vessel</div><div class="bgrid">${vesselRow}</div>` +
+        `<div class="preview">${previewHtml}</div>` +
+        `<button class="brew" data-brew="1" ${pv && pv.ok ? '' : 'disabled'}>⚗ brew${pv && pv.ok ? ` — ${pv.grade} ${esc(pv.vessel)}` : ''}</button>` +
+        `<div class="bhead2">recipes you can make (from the cookbook)</div><div class="bgrid" style="flex-direction:column;align-items:stretch">${recipeRow}</div>`;
+    }
+    $('bench').addEventListener('click', (e) => {
+      if (e.target === $('bench') || e.target.closest('[data-bclose]')) { closeBench(); return; }
+      const rg = e.target.closest('[data-reagent]'), vs = e.target.closest('[data-vessel]'), rc = e.target.closest('[data-recipe]'), br = e.target.closest('[data-brew]');
+      if (rg) { const id = rg.dataset.reagent; if (benchSel.includes(id)) benchSel = benchSel.filter((x) => x !== id); else if (benchSel.length < 3) benchSel = [...benchSel, id]; renderBench(); return; }
+      if (vs) { benchPrep = vs.dataset.vessel; renderBench(); return; }
+      if (rc) { benchSel = rc.dataset.recipe.split(',').filter(Boolean); benchPrep = rc.dataset.vessel2 || 'draught'; renderBench(); return; }
+      if (br) { doBrew(); return; }
+    });
+    function doBrew() {
+      const pv = benchPreview(); if (!pv || !pv.ok) return;
+      const pan = getPantry();
+      for (const id of benchSel) { if (!(pan[id] > 0)) return; }   // guard: still have every reagent
+      for (const id of benchSel) pan[id]--;                         // consume one of each
+      setPantry(pan);
+      const item = {
+        name: `${pv.label} ${pv.vessel}`, kind: 'preparation', kingdom: 'sustain', phylum: pv.phylum,
+        glyph: pv.glyphs || '⚗', grade: pv.grade, lore: describeEffect(pv),
+        mechanics: pv.mechanics, alch: true, stats: { value: Math.round(6 + pv.potency * 4) },
+      };
+      addToPack(pack.pack, item); pack.setPack(pack.pack); persistPack();
+      benchSel = []; saveStory(); renderBench();
+      notify(`⚗ brewed ${item.name} — ${describeEffect(pv)} → pack (i)`, { kind: 'pickup', ms: 3000 });
+    }
 
     // ── THE OVERWORLD OVERLAY — the ladder's destination: the ship's outer grow-deck, the whole curated
     //    ecology grown wild across terrain bands (over/overworld.js). A full-bleed pan/zoom landscape, seeded
@@ -4553,6 +4677,8 @@
       if (caf) { walkThenInteract(caf.cp.cx, caf.cp.cy, () => openCafe(caf.cp, caf.ch)); return; }
       const grd = gardenAt(wx, wy);
       if (grd) { walkThenInteract(grd.cp.cx, grd.cp.cy, () => openGarden(grd.cp, grd.ch)); return; }
+      const bnc = benchAt(wx, wy);
+      if (bnc) { walkThenInteract(bnc.cp.cx, bnc.cp.cy, () => openBench(bnc.cp, bnc.ch)); return; }
       const trd = tradeAt(wx, wy);
       if (trd) { walkThenInteract(trd.cp.cx, trd.cp.cy, () => openTrade(trd.cp, trd.ch)); return; }
       const cre = creepAt(wx, wy);
@@ -4567,11 +4693,11 @@
 
     // is a fullscreen overlay/modal covering the world? then the animation loop need not render behind it.
     function worldCovered() {
-      if (arcadeOpen || gardenOpen || overOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen || loaderOpen) return true;
+      if (arcadeOpen || gardenOpen || benchOpen || overOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen || loaderOpen) return true;
       if (oracleOpen() || geomancyOpen() || inkblotOpen()) return true;               // the worship oracle / sand-stand / govern seal-stand overlays
       if (minimap.open || equip.open || (creator && creator.open)) return true;
       if (document.querySelector('.himodal')) return true;                          // the sign-in handle box
-      return ['story', 'enc', 'arc', 'garden', 'trade', 'kitchen', 'lapidary', 'battle'].some((id) => { const el = $(id); return el && el.classList.contains('on'); });
+      return ['story', 'enc', 'arc', 'garden', 'bench', 'over', 'trade', 'kitchen', 'lapidary', 'battle'].some((id) => { const el = $(id); return el && el.classList.contains('on'); });
     }
     // the animation loop — step the residents' commute, then render. PERF: render ONLY when there is motion
     // to show (residents animating). Player movement redraws via walkTo's own 24ms tick; map-changing actions

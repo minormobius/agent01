@@ -58,7 +58,7 @@ export function applyFood(s, food) {
 // escalating solver-gated ladder to bank tech-tree points + reward items. The two are siblings, the
 // same way worship carries oracle+geomancy and dwell carries bed+chest — play is the EARNING verb.
 export const FIXTURE_ACTION = {
-  component: { learn: 'terminal', govern: 'inkblot', worship: 'oracle', dwell: 'bed', grow: 'garden', play: 'arcade', serve: 'food', trade: 'trade' },
+  component: { learn: 'terminal', govern: 'inkblot', worship: 'oracle', dwell: 'bed', grow: 'garden', play: 'arcade', serve: 'food', trade: 'trade', make: 'alchemy' },
   wall: { dwell: 'chest', worship: 'geomancy', play: 'trainer' },
 };
 export function fixtureAction(role, kind) { return (FIXTURE_ACTION[kind] || {})[role] || null; }

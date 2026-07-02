@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { FOOD_POOL } from '../../../cards/js/pools/yum-pool.js';
+import { HERBS } from '../over/ecology.js';   // the 55 alch reagent-herbs — the PHYSIC GARDEN biome (the crafting supply)
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const biomesDoc = JSON.parse(readFileSync(join(HERE, '../food/biomes.json'), 'utf8'));
@@ -86,6 +87,36 @@ const biomes = biomesDoc.biomes.map((b) => {
     crops: crops.sort((a, b2) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b2.rarity) || a.common.localeCompare(b2.common)),
   };
 }).filter((b) => b.crops.length >= 2);   // a biome needs a real seed pool to be a collectable
+
+// ── THE PHYSIC GARDEN — a biome built from the 55 alch reagent-herbs (over/ecology.js). This is the
+// crafting supply: growing + harvesting these fills the pantry with reagents the make-room bench brews
+// into preparations. Herbs are quick (small footprint) and marginal-nourish (they're medicine, not the
+// calorie base); physic (pure-medicinal) herbs feed less than the edible ones. Each carries its planet +
+// qualities so cropById surfaces them; the bench resolves the correspondence by binomial (findReagent). ──
+function herbCrop(h) {
+  const hi = h.harvestIndex || 0.18;
+  const growthDays = clamp(2 + (fnv(h.id) % 3), 2, 4);        // herbs run quick
+  const yld = clamp(Math.round(2 + hi * 6), 2, 6);
+  const nourish = h.edible ? clamp(Math.round(6 + hi * 12), 6, 16) : clamp(Math.round(3 + hi * 6), 3, 7);
+  return {
+    id: h.id, common: h.common, sciName: h.sciName, thumb: '',   // drawn procedurally (flora.js), no photo
+    growthDays, yield: yld, nourish, kcal: 0, yumName: null, category: 'HERB',
+    reagent: true, planet: h.planet || null, qualities: h.qualities || null, physic: !!h.physic,
+  };
+}
+const physicCrops = HERBS.map(herbCrop);
+{
+  const ranked = physicCrops.map((c) => ({ c, prestige: c.growthDays * c.nourish + (fnv(c.id) % 5) })).sort((a, b) => a.prestige - b.prestige);
+  ranked.forEach((e, i) => { const rar = rarityForRank(i / Math.max(1, ranked.length - 1)); e.c.rarity = rar; e.c.weight = RARITY_WEIGHT[rar]; e.c.seedCost = clamp(Math.round(e.c.growthDays * 2 + e.c.yield + RARITY_ORDER.indexOf(rar) * 3), 5, 30); });
+  const physicBiome = {
+    id: 'physic', name: 'The Physic Garden', seed: 137, theme: 'physic', tier: 'Rare', interest: 70,
+    foil: TIER_FOIL.Rare, crew: 0,
+    blurb: `the alchemist's beds · ${physicCrops.length} reagent-herbs to gather · the crafting supply`,
+    crops: physicCrops.slice().sort((a, b2) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b2.rarity) || a.common.localeCompare(b2.common)),
+  };
+  biomes.push(physicBiome);
+  for (const c of physicCrops) if (!allCrops.has(c.id)) allCrops.set(c.id, { id: c.id, common: c.common, sciName: c.sciName, thumb: c.thumb, growthDays: c.growthDays, yield: c.yield, nourish: c.nourish, kcal: c.kcal, yumName: c.yumName, category: c.category, reagent: true, planet: c.planet, qualities: c.qualities });
+}
 
 const crops = [...allCrops.values()].sort((a, b) => a.common.localeCompare(b.common));
 const cropIndex = {}; for (const c of crops) cropIndex[c.id] = c;
