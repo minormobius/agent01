@@ -1,0 +1,101 @@
+// chronicle.selftest.mjs — pins the mesh-based living-map pipeline.
+//   node polis/test/chronicle.selftest.mjs
+
+import { rollMappaWorld, selectRegion, makeSampler } from '../mappaWorld.js';
+import { buildMesh, cellState, habitable } from '../mesh.js';
+import { runChronicle } from '../chronicle.js';
+
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) { pass++; console.log('  ✓ ' + m); } else { fail++; console.log('  ✗ ' + m); } };
+
+const SEED = 20260618;
+const world = rollMappaWorld(SEED);
+const region = selectRegion(world);
+const sampler = makeSampler(world, region);
+const mesh = buildMesh(SEED, region, sampler);
+
+// 1 — region selection + mesh sanity
+ok(region.score > 0 && region.x1 > region.x0 && region.y1 > region.y0, 'a city-rich region is selected');
+ok(mesh.cells.length > 800, `mesh retiles the region into many cells (${mesh.cells.length})`);
+{
+  const land = mesh.cells.filter((c) => c.elev >= mesh.baseSea).length;
+  const water = mesh.cells.length - land;
+  ok(land > 0 && water > 0, 'region has both land and water (a coastline)');
+  ok(mesh.cells.some((c) => c.river), 'rivers form on the cell graph');
+}
+
+// 2 — adjacency is symmetric and the land graph is connected
+{
+  let sym = true; for (const c of mesh.cells) for (const n of c.neigh) if (!mesh.cells[n].neigh.includes(c.id)) sym = false;
+  ok(sym, 'Voronoi adjacency is symmetric');
+}
+
+// 3 — the climate functions respond to the era (region-independent mechanism)
+{
+  // a frozen cell paints as glacier; a cold cell becomes habitable only when warmed
+  ok(cellState({ elev: 0.1, temp: -12, moist: 0.3, biome: 8, river: 0 }, { seaLevel: 0, tempShift: 0 }).ice, 'cellState paints a glacier for a frozen cell');
+  ok(!habitable({ elev: 0.1, temp: 3 }, { tempShift: -9 }) && habitable({ elev: 0.1, temp: 3 }, { tempShift: 4 }), 'habitability tracks the era temperature');
+  // on the real region: the ice age is at least as frozen as the modern era
+  const cold = (shift) => mesh.cells.filter((c) => c.elev >= 0 && c.temp + shift < -2).length;
+  ok(cold(-6) >= cold(2), `the ice age is at least as frozen as the modern era (${cold(-6)} ≥ ${cold(2)})`);
+}
+
+// 4 — full chronicle: determinism
+{
+  const a = runChronicle(SEED, mesh), b = runChronicle(SEED, mesh);
+  const sig = (r) => r.towns.map((t) => [t.cell, t.founded, t.pop].join(',')).join('|');
+  ok(sig(a) === sig(b), 'the chronicle is deterministic (same seed+mesh → same history)');
+}
+
+// 5 — staged nucleation: towns appear over time, not all at tick 0
+{
+  const c = runChronicle(SEED, mesh);
+  const founded = c.towns.filter((t) => t.founded >= 0);
+  ok(founded.length >= 4, `several towns are founded (${founded.length})`);
+  const foundTicks = founded.map((t) => t.founded);
+  ok(Math.max(...foundTicks) > Math.min(...foundTicks), 'nucleation is staged across eras (not all at once)');
+  ok(founded.some((t) => t.founded > c.ticks * 0.3), 'some townships appear only in later (warmer/teched) eras');
+}
+
+// 6 — towns grow over their lifetime; a size hierarchy emerges
+{
+  const c = runChronicle(SEED, mesh);
+  const live = c.towns.filter((t) => t.pop > 0).sort((a, b) => b.pop - a.pop);
+  ok(live.length >= 4 && live[0].pop > live[live.length - 1].pop * 1.3, 'a town size hierarchy emerges (centres of gravity)');
+  const t = live[0];
+  ok(t.history[t.founded + 2] > 0 && t.history[c.ticks - 1] >= t.history[t.founded + 2], 'the lead town grows over its lifetime');
+}
+
+// 7 — arteries form: the network gains strong edges as towns grow
+{
+  const c = runChronicle(SEED, mesh);
+  const early = c.ticks * 0.5 | 0, late = c.ticks - 1;
+  let earlyStrong = 0, lateStrong = 0;
+  for (let i = 0; i < c.E; i++) { if (c.artStrength[early * c.E + i] > 40) earlyStrong++; if (c.artStrength[late * c.E + i] > 40) lateStrong++; }
+  ok(lateStrong > earlyStrong, `inter-town arteries thicken over time (strong edges ${earlyStrong} → ${lateStrong})`);
+}
+
+// 8 — tech waves fire as the clock advances
+{
+  const c = runChronicle(SEED, mesh);
+  ok(c.waves.length >= 2, `tech waves ripple out as eras unlock (${c.waves.length} waves)`);
+}
+
+// 9 — discrete shocks fire, are deterministic, and dent a town's population (downturns)
+{
+  const a = runChronicle(SEED, mesh), b = runChronicle(SEED, mesh);
+  ok(a.events.length >= 3, `discrete shocks fire over the run (${a.events.length}: ${[...new Set(a.events.map((e) => e.type))].join(', ')})`);
+  ok(JSON.stringify(a.events) === JSON.stringify(b.events), 'the shock sequence is deterministic');
+  // at least one town's history shows a real dip (a downturn, not just monotone growth)
+  let dipped = false;
+  for (const t of a.towns) for (let k = (t.founded > 0 ? t.founded + 2 : 2); k < a.ticks; k++) {
+    if (t.history[k - 1] > 100 && t.history[k] < t.history[k - 1] * 0.9) { dipped = true; break; }
+  }
+  ok(dipped, 'a town suffers a real population downturn (shock → dip → recovery)');
+  // the event types we expect are represented
+  const types = new Set(a.events.map((e) => e.type));
+  ok(types.has('plague') || types.has('conquest') || types.has('crisis'), 'shocks are drawn from {plague, conquest, crisis}');
+}
+
+console.log(`\n${fail === 0 ? '✓ all green' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);
+if (fail) process.exit(1);
