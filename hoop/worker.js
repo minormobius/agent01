@@ -169,6 +169,11 @@ export default {
     if (url.pathname === '/over' || url.pathname === '/over/') {
       return env.ASSETS.fetch(new Request(new URL('/v101/over/index.html', url), request));
     }
+    // over/demo — the STANDING DEMO: a self-touring attract-mode over the overworld (auto-pan camera
+    // drifting across the bands, cycling seeds, naming what it passes). Runs itself, no input; a screen.
+    if (url.pathname === '/over/demo' || url.pathname === '/over/demo/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/over/demo.html', url), request));
+    }
     // alch — the ALCHEMIST'S COOKBOOK: the correspondence→effect grammar (humour/planet/metal/vessel),
     // every live reagent with its derived effect + pairings, and exemplar recipes computed by actually
     // running the alchemy kernel. Mechanism reference for the bench in the make rooms.
