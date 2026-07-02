@@ -27,7 +27,10 @@ const HEXR_AT = (rings) => 320 * (1.5 * rings + 1) / 2.5;   // rings 0/1/2 → h
 // ── STAGE 1: the prism + the seeded spiral family ──
 export function buildGeometry(seed = WEAVE_DEFAULTS.seed, opts = {}) {
   const o = { ...WEAVE_DEFAULTS, ...opts, seed: (seed >>> 0) };
-  const rings = o.rings, a = o.spacing, hexR = HEXR_AT(rings);
+  // hexScale lets the disc BREATHE: expand the diameter while keeping the mesh (node pitch) fixed, so crossings sit
+  // farther apart and the deck-height over/under ramps get gentler (each thread lingers near mid-height longer ⇒
+  // more at-grade contact). turnScale loosens the spirals the same way (fewer turns ⇒ crossings spread radially).
+  const rings = o.rings, a = o.spacing, hexR = HEXR_AT(rings) * (o.hexScale ?? 1);
   // thread counts are a LEVER (fewer threads ⇒ fewer crossings/lap ⇒ the over/under z-signal is lower-frequency and
   // resolvable by the node grid — Nyquist — and each thread gets more nodes). Default the full K(6,8).
   const NWmax = FACTIONS.flatMap((f) => f.roleIds).length, NFmax = ENGINE_RING.length;
@@ -35,7 +38,7 @@ export function buildGeometry(seed = WEAVE_DEFAULTS.seed, opts = {}) {
   const rng = mulberry32((o.seed ^ 0x77a3) >>> 0);
   const vpitch = VREF_SPACING * Math.sqrt(2 / 3);
   const prism = buildPrism(o.seed, { hexR, spacing: a, layers: o.layers, jitter: o.jitter, vpitch });
-  const baseTurns = 1.0 + 0.9 * rings;
+  const baseTurns = (1.0 + 0.9 * rings) * (o.turnScale ?? 1);
   const family = { turnsW: baseTurns * (0.85 + 0.3 * rng()), turnsP: baseTurns * (0.85 + 0.3 * rng()), phaseW: rng() * TAU, phaseP: rng() * TAU, spin: rng() < 0.5 ? 1 : -1 };
   const warps = FACTIONS.flatMap((fac) => fac.roleIds.map((rid) => ({ id: rid, faction: fac.id, factionLabel: fac.label, color: fac.color }))).map((wc, w) => ({ ...wc, w, kind: 'white' })).slice(0, NW);
   const wefts = ENGINE_RING.map((id, f) => ({ id, f, kind: 'prod', ...ENGINES[id] })).slice(0, NF);

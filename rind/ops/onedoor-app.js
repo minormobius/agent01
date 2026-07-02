@@ -133,6 +133,7 @@ function panels() {
     <span class="k">partition (no third region)</span><span class="${cls(!cert.noMatrix)}">${cert.noMatrix ? '✓ complete' : '✗ gap'}</span>
     <span class="k">K(${geo.NW},${geo.NF}) doors opened</span><span class="${cls(!cert.k48)}">${cert.doorPairs}/${geo.NW * geo.NF}</span>
     <span class="k">of them, zero-grade (walkable)</span><span class="${cls(cert.steepDoors > 0)}">${cert.atGradeDoors}/${cert.doorCount}${cert.steepDoors ? ' · ' + cert.steepDoors + ' stair' : ''}</span>
+    <span class="k">★ zero-ladder world</span><span class="${cls(cert.steepDoors > 0)}">${cert.steepDoors === 0 ? '✓ no stairs' : '✗ ' + cert.steepDoors + ' stair' + (cert.steepDoors === 1 ? '' : 's') + ' — fewer threads'}</span>
     <span class="k">central hubs → each other</span><span class="${cls(!cert.hubsOneDoor)}">${cert.hubRoute ? cert.hubRoute.doors + ' door' : '—'}</span>
     <span class="k">inside a hub (max doors)</span><span class="${cls(cert.hubInternalMax !== 0)}">${cert.hubInternalMax}</span>`;
   $('verdict').className = cert.oneDoorOk ? 'verdict ok' : 'verdict bad';
