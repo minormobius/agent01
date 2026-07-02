@@ -32,6 +32,8 @@ const state = { mode: 'nexus', color: 'white', sel: 0, thread: null, gi: -1, tra
 const view = { cx: 0, cy: 0, scale: 1 };
 
 const armsOf = (color) => [...threads.values()].filter((t) => t.kind === color).sort((a, b) => a.idx - b.idx);
+const siblingsOf = (t) => armsOf(t.kind).filter((s) => s !== t);
+const atNexus = () => rfOf(state.gi) < 0.14;   // near the centre hub ⇒ the like-threads open up
 const threadColor = (t) => t.kind === 'white' ? warpCol(t.idx) : prodCol(t.idx);
 const threadLabel = (t) => t.kind === 'white' ? `white arm · ${m.warps[t.idx].id}` : `production · ${m.wefts[t.idx].id}`;
 const rfOf = (gi) => Math.hypot(cells[gi].x, cells[gi].y) / m.R;
@@ -86,10 +88,18 @@ function render() {
   // (2) YOUR thread — its chambers, the walkable corridor (walls = the outline)
   for (const gi of t.cells) { const sh = 0.45 + 0.55 * (cells[gi].z / T); drawCell(gi, rgba(mix(col, BG, 0.12), 0.94 * sh), rgba(mix(col, BG, 0.5), 0.5), 0.7); }
 
-  // (3) the nexus end + the door gates
+  // (2b) THE NEXUS opens onto ALL like threads — draw each sibling arm's near-nexus reach (its own colour), brighter
+  // when you're standing at the hub. The nexus is a free junction between same-colour threads (no door), so these are
+  // all reachable at zero cost — they should be visible right here.
+  const near = atNexus();
+  for (const s of siblingsOf(t)) { const scol = threadColor(s), seen = new Map([[s.nexusGi, 0]]), q = [s.nexusGi];
+    for (let h = 0; h < q.length; h++) { const dd = seen.get(q[h]); if (dd >= PEEK + 2) continue; for (const nb of stepNbrs(q[h], s)) if (!seen.has(nb)) { seen.set(nb, dd + 1); q.push(nb); } }
+    for (const [sgi, depth] of seen) { const a = (near ? 0.6 : 0.22) * (1 - depth / (PEEK + 3)); drawCell(sgi, rgba(mix(scol, BG, 0.4), a), null, 0); } }
+
+  // (3) the nexus hub + the door gates
   const np = P(cells[t.nexusGi].x, cells[t.nexusGi].y);
-  ctx.fillStyle = rgba(GOLD, 0.14); ctx.beginPath(); ctx.arc(np[0], np[1], 14, 0, 7); ctx.fill();
-  ctx.fillStyle = rgba(GOLD, 0.85); ctx.font = '10px ui-sans-serif'; ctx.textAlign = 'center'; ctx.fillText('NEXUS', np[0], np[1] - 17);
+  ctx.fillStyle = rgba(GOLD, near ? 0.22 : 0.12); ctx.beginPath(); ctx.arc(np[0], np[1], near ? 20 : 14, 0, 7); ctx.fill();
+  ctx.fillStyle = rgba(GOLD, 0.9); ctx.font = '10px ui-sans-serif'; ctx.textAlign = 'center'; ctx.fillText(near ? 'NEXUS — all ' + armsOf(t.kind).length + ' ' + t.kind + ' arms' : 'NEXUS', np[0], np[1] - (near ? 24 : 17));
   for (const [gi] of t.doorAt) { const p = P(cells[gi].x, cells[gi].y), here = gi === state.gi; ctx.fillStyle = rgba(GOLD, here ? 1 : 0.85); ctx.beginPath(); ctx.arc(p[0], p[1], here ? 6 : 4, 0, 7); ctx.fill(); if (here) { ctx.strokeStyle = rgba(INK, 0.9); ctx.lineWidth = 1.5; ctx.stroke(); } }
 
   // (4) the @ — you
@@ -115,6 +125,7 @@ function updateHUD() {
     $('now').innerHTML = `<span style="color:${rgba(state.color === 'white' ? [230, 233, 242] : [87, 166, 214], 1)}">${state.color === 'white' ? 'WHITE NEXUS' : 'PRODUCTION NEXUS'}</span><br><span class="sub">pick an arm to walk out — ← → choose, Enter to enter</span>`;
     $('doors').innerHTML = arms.map((a, i) => `<div class="d ${i === state.sel ? 'here' : ''}" data-arm="${i}"><span class="sw" style="background:${rgba(threadColor(a), 1)}"></span><span class="lab">${threadLabel(a)}</span></div>`).join('');
     for (const el of $('doors').querySelectorAll('.d')) el.addEventListener('click', () => { state.sel = +el.dataset.arm; enter(); });
+    $('nexlist').innerHTML = '';
     $('trail').innerHTML = state.trail.length ? state.trail.map((s) => `<b>${s}</b>`).join(' → ') : '(at the white nexus)';
     return;
   }
@@ -123,6 +134,11 @@ function updateHUD() {
   const rows = [...t.doorAt.entries()].sort((a, b) => rfOf(a[0]) - rfOf(b[0])).map(([gi, d]) => { const other = threads.get(d.toKey), here = gi === state.gi; return `<div class="d ${here ? 'here' : ''}" data-gi="${gi}"><span class="sw" style="background:${rgba(threadColor(other), 1)}"></span><span class="lab">${here ? '▶ cross to ' : 'to '}${threadLabel(other)}</span><span class="rf">${(rfOf(gi) * 100) | 0}%</span></div>`; }).join('');
   $('doors').innerHTML = rows;
   for (const el of $('doors').querySelectorAll('.d')) el.addEventListener('click', () => { const gi = +el.dataset.gi; if (gi === state.gi) cross(); else setWalk(gi); });
+  // the nexus opens onto every like thread (same concourse — free). List them; click to head there (walk to the hub
+  // first if you're not already on it, then step onto the sibling arm).
+  const sibs = siblingsOf(t);
+  $('nexlist').innerHTML = sibs.map((s) => `<div class="d" data-sib="${s.key}"><span class="sw" style="background:${rgba(threadColor(s), 1)}"></span><span class="lab">${threadLabel(s)}</span><span class="rf">free</span></div>`).join('');
+  for (const el of $('nexlist').querySelectorAll('.d')) el.addEventListener('click', () => enterSibling(el.dataset.sib));
   $('trail').innerHTML = state.trail.map((s) => `<b>${s}</b>`).join(' → ');
 }
 
@@ -132,6 +148,8 @@ function moveDir(dx, dy) { const t = curThread(), nbrs = stepNbrs(state.gi, t); 
   if (best >= 0 && bs > 0.2) { state.gi = best; state.walk = null; updateHUD(); } }
 function cross() { const t = curThread(), d = t.doorAt.get(state.gi); if (!d) return; state.trail.push(threadLabel(t).split(' · ')[1] || t.key); state.walk = null; state.thread = d.toKey; state.gi = d.farGi; fitTo(threads.get(d.toKey).cells); updateHUD(); }
 function enter() { const t = armsOf(state.color)[state.sel]; state.mode = 'thread'; state.thread = t.key; state.gi = t.nexusGi; state.trail.push(state.color === 'white' ? 'white nexus' : 'prod nexus'); fitTo(t.cells); updateHUD(); }
+// step into a like thread through the nexus — free (same door-free concourse). No door crossed.
+function enterSibling(key) { const s = threads.get(key); if (!s) return; state.trail.push('◇' + (threadLabel(s).split(' · ')[1] || key)); state.walk = null; state.thread = key; state.gi = s.nexusGi; fitTo(s.cells); updateHUD(); }
 function toNexus() { const t = curThread(); state.mode = 'nexus'; state.color = t.kind; state.sel = t.idx; state.walk = null; updateHUD(); }
 
 addEventListener('keydown', (e) => {
