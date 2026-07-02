@@ -180,6 +180,11 @@ export default {
     if (url.pathname === '/alch' || url.pathname === '/alch/' || url.pathname === '/cookbook' || url.pathname === '/cookbook/') {
       return env.ASSETS.fetch(new Request(new URL('/v101/alch/index.html', url), request));
     }
+    // smith — the SMITHY testbed: craft equipment from the ship's commodities (the item genome + the
+    // material→commodity economy + tech-era gating). The design page before the make-room wall fixture.
+    if (url.pathname === '/smith' || url.pathname === '/smith/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/craft/index.html', url), request));
+    }
     // docs — the WORLD-SIDE documentation: the whole scope of the world (decks, systems, minigames),
     // every workflow that feeds it, the v101 audit findings, and the roadmap. The examination surface.
     if (url.pathname === '/docs' || url.pathname === '/docs/') {
