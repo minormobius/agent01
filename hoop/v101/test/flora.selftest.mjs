@@ -5,7 +5,7 @@
 // the organism) and the GALENIC PALETTE (colour from the correspondence) — plus growth staging, the
 // below-soil roots, and determinism (an NPC's garden must reproduce from its seed).
 
-import { buildPlant, buildPlotFlora, growthForm, paletteOf, TEMPERAMENT_PALETTE, PLANET_FLOWER } from '../garden/flora.js';
+import { buildPlant, buildPlotFlora, growthForm, paletteOf, leafShapeFor, TEMPERAMENT_PALETTE, PLANET_FLOWER } from '../garden/flora.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -82,6 +82,32 @@ ok(['herbClump', 'stalk'].includes(growthForm({ name: 'Betony', qualities: 'cold
   const plot = buildPlotFlora(descs, { stages: [1, 0.6, 1, 0.4], seed: 7, cols: 3 });
   ok(plot.length === 4 && plot.every((s) => s.plant && s.x >= 0 && s.x <= 1), 'a plot lays out every slot with a positioned plant');
   ok(new Set(plot.map((s) => s.plant.form)).size === 4, 'the four slots read as four distinct forms');
+}
+
+// ── leaf shape diversity, orientation, rosette foliage, footprint (the review fixes) ──
+{
+  // rosettes are NOT leafless (the radish/parsnip NaN-angle bug)
+  const radish = buildPlant({ name: 'Radish', crop: 'root', edible: true }, { stage: 1, seed: 2 });
+  const parsnip = buildPlant({ name: 'Parsnip', crop: 'root', edible: true }, { stage: 1, seed: 2 });
+  ok(radish.leaves.length >= 4 && parsnip.leaves.length >= 4, 'rosettes (radish/parsnip) grow leaves — not leafless');
+
+  // distinct leaf shapes across species
+  ok(leafShapeFor('conifer', 'Stone pine') === 'needle', 'a conifer → needle leaves');
+  ok(leafShapeFor('herbClump', 'Fennel') === 'pinnate', 'fennel → pinnate (feathery) leaves');
+  ok(leafShapeFor('vine', 'Bottle gourd') === 'palmate', 'a gourd → palmate leaves');
+  ok(leafShapeFor('rosette', 'Leek') === 'strap', 'a leek → strap leaves');
+  const shapes = new Set(['Fennel', 'Sage', 'Bottle gourd', 'Radish', 'Stone pine'].map((n) => buildPlant({ name: n, qualities: 'hot & dry' }, { stage: 1, seed: 1 }).leaves[0]?.shape).filter(Boolean));
+  ok(shapes.size >= 3, `leaf shape varies across species (${[...shapes].join(', ')})`);
+
+  // leaves point up-and-out, never droop into the soil
+  const tree = buildPlant({ name: 'Apple', crop: 'fruit' }, { stage: 1, seed: 4 });
+  ok(tree.leaves.every((l) => l.theta == null || Math.sin(l.theta) > -0.2), 'leaves point up-and-out (no drooping into the soil)');
+  ok(tree.leaves.every((l) => l.shape), 'every leaf carries a shape');
+
+  // footprint: a canopy radius so plants can be spaced apart
+  ok(tree.footprint > 0 && tree.footprint <= 1, 'a plant has a footprint (canopy radius) for non-overlapping layout');
+  const herb = buildPlant({ name: 'Mint', qualities: 'cold & moist' }, { stage: 1, seed: 4 });
+  ok(tree.footprint > herb.footprint, 'a tree has a wider footprint than a herb');
 }
 
 console.log(`flora.selftest: ${pass} passed, ${fail} failed`);

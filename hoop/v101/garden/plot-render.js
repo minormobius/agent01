@@ -67,6 +67,24 @@ export function drawSoil(ctx, W, H, soilTop, props, seed = 7) {
   ctx.strokeStyle = rgba(shade(surf, 1.25), 0.9); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, soilTop); ctx.lineTo(W, soilTop); ctx.stroke();
 }
 
+// ── a leaf silhouette, drawn in a local frame with the blade running along +x from the origin.
+// Distinct shapes so a fennel (pinnate/feathery) doesn't read like a sage (ovate). ──
+function drawLeaf(ctx, shape, len, wid, P) {
+  const blade = (L, W, ctrl = 0.5) => { ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(L * ctrl, -W / 2, L, 0); ctx.quadraticCurveTo(L * ctrl, W / 2, 0, 0); ctx.fill(); };
+  ctx.fillStyle = P.leaf;
+  switch (shape) {
+    case 'needle': ctx.strokeStyle = P.leaf; ctx.lineWidth = Math.max(1, wid); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len, 0); ctx.stroke(); return;
+    case 'strap': blade(len, Math.max(2, wid), 0.7); break;                        // long, near-parallel-sided
+    case 'lance': blade(len, wid, 0.32); break;                                    // narrow, pointed
+    case 'round': ctx.beginPath(); ctx.arc(len * 0.45, 0, Math.max(2, wid * 0.6), 0, 7); ctx.fill(); break;
+    case 'lobed': { blade(len, wid, 0.5); ctx.save(); for (const s of [-1, 1]) { ctx.rotate(0); const a = s * 0.5; ctx.beginPath(); ctx.moveTo(len * 0.35, s * wid * 0.1); ctx.quadraticCurveTo(len * 0.55 + Math.cos(a) * len * 0.2, s * wid * 0.6, len * 0.7, s * wid * 0.15); ctx.quadraticCurveTo(len * 0.5, s * wid * 0.1, len * 0.35, s * wid * 0.1); ctx.fill(); } ctx.restore(); break; }
+    case 'palmate': { const fingers = 5; for (let i = 0; i < fingers; i++) { const a = (i / (fingers - 1) - 0.5) * 1.3; ctx.save(); ctx.rotate(a); blade(len * (0.7 + 0.3 * (1 - Math.abs(i / (fingers - 1) - 0.5) * 2)), wid * 0.4, 0.4); ctx.restore(); } return; }
+    case 'pinnate': { ctx.strokeStyle = P.stem; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len, 0); ctx.stroke(); const pairs = 4 + Math.round(len / 8); for (let i = 1; i <= pairs; i++) { const t = i / (pairs + 1), px = len * t, ll = wid * (1 - t * 0.4); for (const s of [-1, 1]) { ctx.save(); ctx.translate(px, 0); ctx.rotate(s * 0.9); blade(ll, ll * 0.5, 0.4); ctx.restore(); } } return; }
+    default: blade(len, wid, 0.45);                                               // ovate
+  }
+  ctx.strokeStyle = P.leafHi; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(len * 0.05, 0); ctx.lineTo(len * 0.92, 0); ctx.stroke();   // midrib
+}
+
 // ── a plant, drawn from its flora.js model, at (ox,oy)=base on the soil surface; `u`=plot-units→px ──
 export function drawPlant(ctx, m, ox, oy, u) {
   const P = m.palette;
@@ -83,12 +101,11 @@ export function drawPlant(ctx, m, ox, oy, u) {
     ctx.strokeStyle = P.stem; ctx.lineWidth = Math.max(0.8, s.w1 * u); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
     if (s.w0 * u > 2.5) { ctx.strokeStyle = rgba({ r: 1, g: 1, b: 0.9 }, 0.16); ctx.lineWidth = Math.max(0.5, s.w0 * u * 0.35); ctx.beginPath(); ctx.moveTo(x0 - 0.8, y0); ctx.lineTo(x1 - 0.6, y1); ctx.stroke(); }
   }
-  // LEAVES — filled blades with a lit midrib
+  // LEAVES — distinct silhouettes by shape, oriented by the plant's plot-space theta (up-and-out)
   for (const l of m.leaves) {
-    const lx = X(l.x), ly = Y(l.y), len = l.len * u, wid = len * l.wid, a = l.ang + (l.side < 0 ? Math.PI : 0) - Math.PI / 2 + l.curl * 0.3;
-    ctx.save(); ctx.translate(lx, ly); ctx.rotate(a);
-    ctx.fillStyle = P.leaf; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(wid, len * 0.4, 0, len); ctx.quadraticCurveTo(-wid, len * 0.4, 0, 0); ctx.fill();
-    ctx.strokeStyle = P.leafHi; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(0, len * 0.06); ctx.lineTo(0, len * 0.94); ctx.stroke();
+    const lx = X(l.x), ly = Y(l.y), len = (l.len || 0.04) * u, wid = len * (l.wid || 0.45);
+    ctx.save(); ctx.translate(lx, ly); ctx.rotate(-(l.theta != null ? l.theta : Math.PI / 2));   // local +x = the leaf's direction
+    drawLeaf(ctx, l.shape || 'ovate', len, Math.max(1.5, wid), P);
     ctx.restore();
   }
   // FLOWERS — petal fans, glowing in the ruling planet's colour (yarrow's emissive touch)
@@ -96,11 +113,13 @@ export function drawPlant(ctx, m, ox, oy, u) {
     const fx = X(f.x), fy = Y(f.y), r = f.r * u;
     ctx.save(); ctx.shadowColor = P.flower; ctx.shadowBlur = 6;
     if (f.kind === 'ear' || f.kind === 'spike') { ctx.fillStyle = P.flower; ctx.beginPath(); ctx.ellipse(fx, fy, r * 0.6, r * 1.6, 0, 0, 7); ctx.fill(); }
-    else if (f.kind === 'composite') {   // a phyllotactic head: petal ring + Vogel-spiral florets
-      ctx.fillStyle = P.flower; const pet = 13; for (let i = 0; i < pet; i++) { const a = i / pet * Math.PI * 2; ctx.beginPath(); ctx.ellipse(fx + Math.cos(a) * r, fy + Math.sin(a) * r, r * 0.9, r * 0.32, a, 0, 7); ctx.fill(); }
-      ctx.fillStyle = '#caa23a'; for (const fl of (f.florets || [])) { ctx.beginPath(); ctx.arc(X(fl.x), Y(fl.y), Math.max(0.5, r * u * 0.06), 0, 7); ctx.fill(); }
+    else if (f.kind === 'umbel') {   // a lace of tiny florets (fennel/dill) — NOT a big disc
+      ctx.fillStyle = P.flower; const dot = Math.max(0.6, r * u * 0.14);
+      for (const fl of (f.florets || [])) { ctx.beginPath(); ctx.arc(X(fl.x), Y(fl.y), dot, 0, 7); ctx.fill(); }
     }
-    else { ctx.fillStyle = P.flower; const pet = f.petals || 5; for (let i = 0; i < pet; i++) { const a = i / pet * Math.PI * 2; ctx.beginPath(); ctx.ellipse(fx + Math.cos(a) * r, fy + Math.sin(a) * r, r * 0.7, r * 0.4, a, 0, 7); ctx.fill(); } ctx.fillStyle = '#f8e6a0'; ctx.beginPath(); ctx.arc(fx, fy, r * 0.5, 0, 7); ctx.fill(); }
+    else if (f.kind === 'daisy') {   // small petal ring + disk
+      ctx.fillStyle = P.flower; const pet = f.petals || 12; for (let i = 0; i < pet; i++) { const a = i / pet * Math.PI * 2; ctx.beginPath(); ctx.ellipse(fx + Math.cos(a) * r * 0.8, fy + Math.sin(a) * r * 0.8, r * 0.7, r * 0.26, a, 0, 7); ctx.fill(); } ctx.fillStyle = '#e8c24a'; ctx.beginPath(); ctx.arc(fx, fy, r * 0.5, 0, 7); ctx.fill(); }
+    else { ctx.fillStyle = P.flower; const pet = f.petals || 5; for (let i = 0; i < pet; i++) { const a = i / pet * Math.PI * 2; ctx.beginPath(); ctx.ellipse(fx + Math.cos(a) * r * 0.9, fy + Math.sin(a) * r * 0.9, r * 0.6, r * 0.34, a, 0, 7); ctx.fill(); } ctx.fillStyle = '#f8e6a0'; ctx.beginPath(); ctx.arc(fx, fy, r * 0.42, 0, 7); ctx.fill(); }
     ctx.restore();
   }
   // FRUIT
@@ -122,14 +141,21 @@ export function renderPlot(ctx, W, H, plot, { soil, seed = 7, soilTop } = {}) {
   const sky = ctx.createLinearGradient(0, 0, 0, soilTop); sky.addColorStop(0, '#12100c'); sky.addColorStop(1, '#25201a');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, soilTop);
   drawSoil(ctx, W, H, soilTop, props, seed);
-  // lay the plants along the bed: x across the width, base ON the soil surface; further-back rows dimmer
+  // lay the plants along the bed: x across the width, base ON the soil surface; further-back rows dimmer.
+  // Each plant is scaled to FIT ITS CELL by its footprint (canopy radius) so no two grow on top of each
+  // other, and so a big tree auto-shrinks to share the bed instead of swallowing its neighbours.
   const rows = {}; for (const s of plot) (rows[s.row] = rows[s.row] || []).push(s);
   const rowKeys = Object.keys(rows).map(Number).sort((a, b) => b - a);   // back rows first
-  const u = Math.min(W, H) * 0.42;                                       // plot-unit → px
+  const cols = Math.max(1, Math.max(...plot.map((s) => s.col)) + 1);
+  const cellHalf = (W / cols) * 0.47;
+  const baseU = Math.min(W, H) * 0.42;
+  const airPx = soilTop * 0.95;
   for (const rk of rowKeys) {
     for (const s of rows[rk]) {
+      const fp = Math.max(0.12, s.plant.footprint || 0.2), rowScale = rk > 0 ? 0.82 : 1;
+      const u = Math.min(baseU * rowScale, cellHalf / fp, airPx / Math.max(0.2, s.plant.height));   // fit width AND height
       const ox = s.x * W, oy = soilTop + (rk * 6) - 2;
-      ctx.save(); if (rk > 0) ctx.globalAlpha = 0.85; drawPlant(ctx, s.plant, ox, oy, u * (rk > 0 ? 0.82 : 1)); ctx.restore();
+      ctx.save(); if (rk > 0) ctx.globalAlpha = 0.85; drawPlant(ctx, s.plant, ox, oy, u); ctx.restore();
     }
   }
   // warm vignette

@@ -62,6 +62,25 @@ export function paletteOf(d) {
   return { stem: base.stem, leaf: base.leaf, leafHi: base.leafHi, flower, root: '#c9b48c' };
 }
 
+// ── leaf SHAPE — a small botanical taxonomy so a fennel doesn't look like a sage. The renderer draws
+// each silhouette distinctly; width is the shape's aspect. Inferred from form + species name. ──
+const L_NEEDLE = /thyme|rosemary|savory|hyssop|juniper|savin/i;
+const L_STRAP = /leek|onion|garlic|chive|iris|flag|cattail|reed/i;
+const L_PINNATE = /fennel|dill|lovage|celery|coriander|caraway|angelica|parsnip|carrot|wormwood|southernwood|mugwort|tansy|yarrow|chamomile|feverfew|agrimon|rue|vetch/i;
+const L_PALMATE = /gourd|melon|cucumber|pumpkin|squash|hemp|mallow|marshmallow|fig|maple|ricinus/i;
+const L_LOBED = /oak|hawthorn|radish|mustard|rocket|dandelion|sow.?thistle|borage|bugloss/i;
+export const LEAF_WID = { needle: 0.06, strap: 0.14, lance: 0.26, ovate: 0.5, lobed: 0.58, palmate: 0.8, pinnate: 0.42, round: 0.95 };
+export function leafShapeFor(form, name = '') {
+  if (form === 'conifer' || L_NEEDLE.test(name)) return 'needle';
+  if (L_STRAP.test(name)) return 'strap';
+  if (L_PINNATE.test(name)) return 'pinnate';
+  if (L_PALMATE.test(name) || form === 'vine') return 'palmate';
+  if (L_LOBED.test(name)) return 'lobed';
+  if (form === 'rosette') return 'strap';
+  if (form === 'shrub') return 'lance';
+  return 'ovate';
+}
+
 // per-form target dimensions (at full growth)
 const H_MAX = { broadleaf: 1.15, conifer: 1.1, reed: 1.0, grain: 0.7, stalk: 0.7, shrub: 0.42, vine: 0.5, rosette: 0.26, herbClump: 0.3, fungusCap: 0.34 };
 const SP_MAX = { broadleaf: 0.6, conifer: 0.4, shrub: 0.34, vine: 0.7, rosette: 0.3, reed: 0.12, grain: 0.14, herbClump: 0.24, stalk: 0.18, fungusCap: 0.2 };
@@ -106,39 +125,51 @@ export function buildPlant(d = {}, { stage = 1, seed = 1 } = {}) {
 
   if (form === 'rosette') model.tuber = { x: 0, y: -rootDepth * 0.5, r: lerp(0.02, 0.12, stage), kind: /onion|leek|garlic/i.test(model.name) ? 'bulb' : 'taproot' };
 
-  // leaves — phyllotaxis (golden angle), populating the FOLIAGE-BEARING TWIGS (every thin distal node,
-  // children ≤ 1), not just the branch tips — so leaf area tracks the canopy (an LAI-like density) and a
-  // grown plant reads lush, not bare. Rosette = a basal leaf whorl over the taproot.
+  // leaves — phyllotaxis (golden angle) on the FOLIAGE TWIGS, culled by IRRADIANCE (a leaf lives where
+  // light reaches — the lit shell of the crown, not the shaded interior or the trunk). Each leaf carries
+  // a plot-space direction `theta` (points up-and-out, never into the soil) + a `shape`. Rosette = a
+  // basal fan over the taproot.
+  const shape = leafShapeFor(form, model.name), lwid = LEAF_WID[shape] || 0.45;
   if (form !== 'reed' && form !== 'grain' && form !== 'fungusCap') {
     if (form === 'rosette') {
-      const nl = Math.round(lerp(5, 12, stage)), ph = phyllotaxis(nl, { base: R() * 6.283 });
-      for (const p of ph) model.leaves.push({ x: Math.cos(p.roll) * spread * 0.12, y: height * 0.08, len: lerp(0.09, 0.24, stage), wid: 0.62, ang: p.roll, base: true });
+      const nl = Math.round(lerp(5, 12, stage));
+      for (let i = 0; i < nl; i++) { const t = nl > 1 ? i / (nl - 1) : 0.5; const theta = lerp(Math.PI * 0.16, Math.PI * 0.84, t) + (R() - 0.5) * 0.15;
+        model.leaves.push({ x: (t - 0.5) * spread * 0.3, y: height * 0.06, theta, len: lerp(0.09, 0.24, stage) * (0.85 + 0.3 * ((i * 0.37) % 1)), wid: lwid, shape }); }
     } else {
       const twig = [];
       for (let i = 1; i < shoot.nodes.length; i++) if (shoot.nodes[i].children <= 1) twig.push(i);   // twigs + tips
-      const cap = Math.round(lerp(8, form === 'broadleaf' ? 200 : 70, stage));
-      const stepK = twig.length > cap ? Math.ceil(twig.length / cap) : 1;
-      const size = form === 'broadleaf' ? lerp(0.02, 0.05, stage) : lerp(0.026, 0.06, stage);
+      // IRRADIANCE SURVIVORSHIP: score each twig by exposure (height + radial offset from the axis)
+      // minus shade (twigs above & near it); keep the best-lit fraction → foliage forms a canopy SHELL.
+      const expo = twig.map((i) => { const n = shoot.nodes[i]; let shade = 0; for (const j of twig) { const m = shoot.nodes[j]; if (m.y > n.y + 0.02 && Math.abs(m.x - n.x) < 0.08 && m.y - n.y < 0.25) shade++; } return { i, e: n.y + Math.abs(n.x) * 0.6 - shade * 0.05 }; });
+      expo.sort((a, b) => b.e - a.e);
+      const keep = Math.max(3, Math.round(expo.length * lerp(0.4, 0.8, stage)));
+      const size = form === 'broadleaf' ? lerp(0.025, 0.055, stage) : lerp(0.03, 0.07, stage);
       const base = R() * 6.283;
       let k = 0;
-      for (let t = 0; t < twig.length; t += stepK) {
-        const n = shoot.nodes[twig[t]], pr = n.parent >= 0 ? shoot.nodes[n.parent] : { x: n.x, y: n.y - 0.05 };
-        const roll = base + k * GOLDEN_ANGLE, side = Math.sin(roll) >= 0 ? 1 : -1;   // phyllotactic divergence
-        const ang = Math.atan2(n.y - pr.y, n.x - pr.x) + side * (0.5 + 0.4 * Math.abs(Math.cos(roll)));
-        model.leaves.push({ x: n.x, y: n.y, len: size * (0.8 + 0.4 * ((k * 0.6180339) % 1)), wid: form === 'broadleaf' ? 0.55 : 0.42, ang, side });
+      for (const { i } of expo.slice(0, keep)) {
+        const n = shoot.nodes[i], pr = n.parent >= 0 ? shoot.nodes[n.parent] : { x: n.x, y: n.y - 0.05 };
+        const branchAng = Math.atan2(n.y - pr.y, n.x - pr.x), roll = base + k * GOLDEN_ANGLE, side = Math.sin(roll) >= 0 ? 1 : -1;
+        let theta = branchAng + side * lerp(0.5, 1.0, Math.abs(Math.cos(roll)));   // splay up-and-out from the twig
+        if (Math.sin(theta) < -0.15) theta = -theta;                                // mirror upward — never droop into the soil
+        model.leaves.push({ x: n.x, y: n.y, theta, len: size * (0.8 + 0.4 * ((k * 0.6180339) % 1)), wid: lwid, shape });
         k++;
       }
     }
   }
 
-  // flowers — a Vogel-spiral composite head (chamomile/fennel/tansy…) or a petal floret, at shoot tips
+  // flowers — an UMBEL (tiny florets in a flat cluster: fennel/dill/lovage), a DAISY (petal ring + disk:
+  // chamomile/tansy/yarrow) or a simple floret. Small, at shoot tips — an umbellifer is a lace of dots,
+  // not a giant gold disc.
   if (flowering) {
-    const composite = /chamomile|aster|daisy|tansy|yarrow|fennel|dill|feverfew|marigold|agrimon/i.test(model.name);
-    const nf = Math.max(1, Math.round(lerp(1, form === 'shrub' || form === 'herbClump' ? 6 : 3, stage)));
+    const name = model.name;
+    const umbel = /fennel|dill|lovage|celery|coriander|caraway|angelica|parsnip|carrot/i.test(name);
+    const daisy = /chamomile|tansy|yarrow|feverfew|marigold|aster|daisy|agrimon/i.test(name);
+    const nf = Math.max(1, Math.round(lerp(1, form === 'shrub' || form === 'herbClump' ? 5 : 3, stage)));
     for (let k = 0; k < Math.min(nf, tips.length); k++) {
-      const n = shoot.nodes[tips[k]], r = lerp(0.014, 0.03, R());
-      if (composite) model.flowers.push({ x: n.x, y: n.y, r, petals: 13, kind: 'composite', florets: vogelSpiral(14 + Math.floor(R() * 10), r * 0.5).map((p) => ({ x: n.x + p.x, y: n.y + p.y })) });
-      else model.flowers.push({ x: n.x, y: n.y, r, petals: 5, kind: 'floret' });
+      const n = shoot.nodes[tips[k]], r = lerp(0.009, 0.017, R());
+      if (umbel) model.flowers.push({ x: n.x, y: n.y, r, kind: 'umbel', florets: vogelSpiral(9 + Math.floor(R() * 7), r * 0.7).map((p) => ({ x: n.x + p.x, y: n.y + p.y })) });
+      else if (daisy) model.flowers.push({ x: n.x, y: n.y, r, kind: 'daisy', petals: 12 });
+      else model.flowers.push({ x: n.x, y: n.y, r, kind: 'floret', petals: 5 });
     }
   }
   // fruit — ripe orchard/vine
@@ -146,6 +177,12 @@ export function buildPlant(d = {}, { stage = 1, seed = 1 } = {}) {
     const nf = form === 'vine' ? 1 : 3 + Math.floor(R() * 4);
     for (let k = 0; k < nf; k++) { const n = shoot.nodes[tips[(k * 3) % tips.length]]; model.fruits.push({ x: form === 'vine' ? n.x * 0.6 : n.x, y: form === 'vine' ? 0.02 : n.y, r: lerp(form === 'vine' ? 0.05 : 0.02, form === 'vine' ? 0.1 : 0.045, R()), ripe: true }); }
   }
+  // FOOTPRINT — the plant's canopy radius (plot units): the widest reach of any branch or leaf from the
+  // axis. The layout uses it to give each plant its own space so they don't grow on top of one another.
+  let fp = spread * 0.5;
+  for (const b of model.branches) fp = Math.max(fp, Math.abs(b.x1));
+  for (const l of model.leaves) fp = Math.max(fp, Math.abs(l.x) + l.len * 0.7);
+  model.footprint = fp;
   return model;
 }
 
