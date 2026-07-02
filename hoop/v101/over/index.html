@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<base href="/v101/over/" />
+<title>The Overworld — the ship's outer grow-deck</title>
+<style>
+  :root { --bg:#0b0906; --ink:#e8e0d0; --dim:#9a8f7a; --gold:#f4bf62; --line:#241d14; --panel:#12100a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; line-height:1.5; }
+  .wrap { max-width:1200px; margin:0 auto; padding:20px 16px 60px; }
+  .crumb { font-size:12px; color:var(--dim); margin-bottom:10px; } .crumb a { color:#b48a6a; }
+  h1 { font-size:20px; color:var(--gold); margin:0 0 2px; } .lead { color:var(--dim); font-size:13px; margin:0 0 14px; }
+  #over { width:100%; height:600px; display:block; border:1px solid var(--line); border-radius:10px; background:#0d1620; cursor:grab; touch-action:none; }
+  #over:active { cursor:grabbing; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; margin:12px 0; align-items:center; }
+  .ctl { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:12px; }
+  .ctl label { color:var(--dim); display:block; margin-bottom:4px; } .ctl input[type=range]{ width:130px; vertical-align:middle; } .ctl b { color:var(--gold); }
+  button { background:#241f15; color:var(--gold); border:1px solid #6a5a3a; font:inherit; font-size:12px; padding:7px 13px; border-radius:6px; cursor:pointer; } button:hover{ border-color:var(--gold); color:#fff; }
+  .legend { font-size:11.5px; color:var(--dim); margin-top:10px; }
+  .swatch { display:inline-flex; align-items:center; gap:5px; margin:0 10px 5px 0; } .swatch i { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .hint { font-size:11px; color:#6b7872; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">◍ hoop</a> · <a href="/docs">world docs</a> · <a href="/garden/plot">garden plot</a> · overworld</div>
+  <h1>The Overworld</h1>
+  <p class="lead">The ship's outer grow-deck — the whole curated ecology grown <em>wild</em>, not in beds. A moisture-and-elevation field carves coherent terrain (dry heath, sunlit meadow, orchard grove, deep thicket, reed fen, open water); every band grows its own slice of the palette. These are the same plants the garden fixture grows, drawn here as silhouettes that keep the <em>soul</em> of each — a broadleaf towers, a fennel is feathery, an aromatic is a grey mound, a reed is blue blades. Deterministic from a seed, so an NPC's overworld reproduces exactly. Drag to pan, scroll to zoom.</p>
+  <canvas id="over"></canvas>
+  <div class="row">
+    <div class="ctl"><label>seed <b id="ls">21</b></label><input id="seed" type="range" min="1" max="120" value="21" /></div>
+    <div class="ctl"><label>density <b id="ld">normal</b></label><input id="dens" type="range" min="40" max="220" value="100" /></div>
+    <div class="ctl"><label>&nbsp;</label><button id="reroll">🎲 new landscape</button></div>
+    <div class="ctl"><label>&nbsp;</label><button id="recenter">⌖ recenter</button></div>
+    <div class="ctl"><span id="count" style="color:var(--gold)"></span></div>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="hint">the canonical farm is seed 21 — the closing food-web the viability oracle scores. every other seed is a fresh draw from the same palette.</div>
+</div>
+
+<script type="module">
+import { makeOverworld, bandMeta, SURFACE_BANDS } from './overworld.js';
+import { drawOverworld } from './over-render.js';
+
+const cv = document.getElementById('over'), ctx = cv.getContext('2d');
+const seedEl = document.getElementById('seed'), densEl = document.getElementById('dens');
+const ls = document.getElementById('ls'), ld = document.getElementById('ld'), countEl = document.getElementById('count');
+const W = 2000, H = 1300;                          // world extent
+let world = null, cam = { x: 0, y: 0, z: 0.55 };
+
+function build() {
+  const seed = +seedEl.value, density = +densEl.value / 100;
+  world = makeOverworld(seed, { w: W, h: H, density });
+  ls.textContent = seed; ld.textContent = density < 0.7 ? 'sparse' : density > 1.4 ? 'lush' : 'normal';
+  countEl.textContent = `${world.plants.length} plants · ${world.fauna.length} creatures`;
+  // permalink
+  try { history.replaceState(null, '', `?seed=${seed}&d=${+densEl.value}`); } catch (e) {}
+  draw();
+}
+function size() { const dpr = Math.min(2, devicePixelRatio || 1); const w = cv.clientWidth, h = cv.clientHeight; cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { w, h }; }
+function draw() { if (!world) return; const { w, h } = size(); drawOverworld(ctx, w, h, world, cam); }
+
+function recenter() { const { w, h } = size(); cam.x = W / 2 - (w / cam.z) / 2; cam.y = H / 2 - (h / cam.z) / 2; draw(); }
+
+// pan (drag) + zoom (wheel/pinch)
+let drag = null;
+cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', (e) => { if (!drag) return; cam.x = drag.cx - (e.clientX - drag.x) / cam.z; cam.y = drag.cy - (e.clientY - drag.y) / cam.z; draw(); });
+cv.addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const wx = cam.x + mx / cam.z, wy = cam.y + my / cam.z; cam.z = Math.max(0.25, Math.min(3, cam.z * (e.deltaY < 0 ? 1.12 : 0.89)));
+  cam.x = wx - mx / cam.z; cam.y = wy - my / cam.z; draw(); }, { passive: false });
+
+document.getElementById('reroll').addEventListener('click', () => { seedEl.value = 1 + Math.floor(Math.random() * 120); build(); });
+document.getElementById('recenter').addEventListener('click', recenter);
+[seedEl, densEl].forEach((e) => e.addEventListener('input', build));
+addEventListener('resize', draw);
+
+// terrain legend
+const TINT = { heath:'#a89a5a', meadow:'#7fb04e', grove:'#5f9e45', thicket:'#3f6e3a', fen:'#5e8a62', benthic:'#39627e' };
+document.getElementById('legend').innerHTML = 'terrain · ' + SURFACE_BANDS.map((b) => { const m = bandMeta(b); return `<span class="swatch"><i style="background:${TINT[b]}"></i>${m ? m.name : b}</span>`; }).join('');
+
+// query permalink
+const q = new URLSearchParams(location.search);
+if (q.get('seed')) seedEl.value = q.get('seed'); if (q.get('d')) densEl.value = q.get('d');
+build(); recenter();
+</script>
+</body>
+</html>

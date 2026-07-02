@@ -163,6 +163,12 @@ export default {
     if (url.pathname === '/garden/plot' || url.pathname === '/garden/plot/') {
       return env.ASSETS.fetch(new Request(new URL('/v101/garden/plot.html', url), request));
     }
+    // over — the OVERWORLD: the ship's outer grow-deck, the whole curated ecology grown wild across
+    // terrain bands (meadow/grove/thicket/heath/fen/water), each plant a silhouette keeping its
+    // growth-form + Galenic palette. The landscape cousin of the garden plot; pan/zoom, seed permalink.
+    if (url.pathname === '/over' || url.pathname === '/over/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/over/index.html', url), request));
+    }
     // docs — the WORLD-SIDE documentation: the whole scope of the world (decks, systems, minigames),
     // every workflow that feeds it, the v101 audit findings, and the roadmap. The examination surface.
     if (url.pathname === '/docs' || url.pathname === '/docs/') {
