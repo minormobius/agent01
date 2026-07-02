@@ -197,9 +197,10 @@ const centreOf = (cells, set) => { let best = -1, bd = Infinity; for (const gi o
 
 // ── THE CERTIFICATE — the offline proof that the construction meets the whole spec, maxDoors and all ──
 export function certify(model, opts = {}) {
-  // hard-bind nearest-curve owners (HCP substrate — proven) vs a geodesic hub-flood (curve substrate, whose nearest-
-  // curve owners fragment). The flood guarantees two connected concourses on any substrate.
-  const useFlood = opts.concourse ? opts.concourse === 'flood' : model.substrate === 'curve';
+  // hard-bind the arms + flood the matrix (works when the threads are CONTINUOUS — HCP, and curve+watershed — and
+  // preserves every K contact) vs a geodesic hub-flood (needed only when ownership is nearest-nucleus, whose threads
+  // fragment). Choose by whether the threads are continuous: fragmented ⇒ flood, else hard-bind.
+  const useFlood = opts.concourse ? opts.concourse === 'flood' : model.ownership === 'nearest';
   const { color, whiteHub, prodHub, zMid } = useFlood ? assignConcoursesFlood(model) : assignConcourses(model);
   const cells = model.cells, N = cells.length;
 
@@ -207,6 +208,15 @@ export function certify(model, opts = {}) {
   const noMatrix = cells.every((c) => color[c.gi] === 'white' || color[c.gi] === 'prod');
   const W = componentsOf(cells, color, 'white'), P = componentsOf(cells, color, 'prod');
   const whiteConnected = W.comps === 1 && W.size > 0, prodConnected = P.comps === 1 && P.size > 0;
+
+  // (1b) PER-SPIRAL VORONOI CONTINUITY (the core requirement): each thread's OWN cells form ONE connected component
+  // in the true face-adjacency graph. Guaranteed by the geodesic watershed; impossible under nearest-nucleus.
+  const byThread = new Map();
+  for (const c of cells) if (c.owner) { const k = c.owner.kind === 'white' ? 'w' + c.owner.idx : 'p' + c.owner.idx; (byThread.get(k) || byThread.set(k, []).get(k)).push(c.gi); }
+  let threadsContinuous = 0, worstThreadComps = 0; const threadCount = byThread.size;
+  for (const gis of byThread.values()) { const set = new Set(gis), seen = new Set(); let comps = 0;
+    for (const gi of gis) { if (seen.has(gi)) continue; comps++; const q = [gi]; seen.add(gi); for (let h = 0; h < q.length; h++) for (const nb of cells[q[h]].adj) if (set.has(nb) && !seen.has(nb)) { seen.add(nb); q.push(nb); } }
+    if (comps === 1) threadsContinuous++; worstThreadComps = Math.max(worstThreadComps, comps); }
 
   // (2) the doors: all 48 K(6,8) crossings realised as at-grade doorways
   const { doors, missing, doorPairs } = placeDoors(model, color);
@@ -251,6 +261,7 @@ export function certify(model, opts = {}) {
     noMatrix, whiteConnected, prodConnected, whiteComps: W.comps, prodComps: P.comps,
     whiteCells: W.size, prodCells: P.size,
     doors, doorCount: doors.length, k48, doorPairs, missing, maxGrade, avgGrade, atGradeDoors, steepDoors, gradeCap,
+    threadsContinuous, threadCount, worstThreadComps, spiralsContinuous: threadsContinuous === threadCount,
     structuralMax1, measuredMax, avgDoors: sampled ? sumDoors / sampled : 0, sampledPairs: sampled, unreachable,
     hubsOneDoor, hubInternalMax, hubRoute, whiteHub, prodHub, oneDoor, breaks,
     color, graph,

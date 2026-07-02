@@ -93,13 +93,22 @@ for (const s of cseeds) {
 }
 ok(cAllConn, 'on-curve: the grown polyhedra pack the prism as ONE connected solid (orphan slivers stitched in)');
 ok(cAllOne && cWorstMax === 1, `★ on-curve substrate ALSO proves one door — nuclei on the curves, grown to fill, max ${cWorstMax} over all seeds`);
-ok(cAllK48, '★ on-curve lands the FULL K(6,8) = 48/48 on every seed (nuclei on the curves realise every crossing)');
-ok(cAllGrade, '★ on-curve: EVERY door is zero-grade (no over/under stairs — the crossings sit on the curves)');
+
+// ══ PER-SPIRAL VORONOI CONTINUITY — the core requirement. The DEFAULT (geodesic watershed) makes every one of the
+// 14 spirals ONE connected Voronoi corridor; nearest-nucleus ownership NEVER does (it's sliced at every crossing). ══
+let allSpirals = true, allK = true, allGr = true;
+for (const s of cseeds) { const c = certify(buildCurveModel(s, { rings: 1, flatR: 0.16, layers: 8, pitch: 36, width: 6 }));
+  if (!c.spiralsContinuous) allSpirals = false; if (c.doorPairs < 44) allK = false; if (c.atGradeDoors / c.doorCount < 0.85) allGr = false; }
+ok(allSpirals, '★ curve+watershed: EVERY spiral is ONE continuous Voronoi corridor (14/14) on every seed — the core requirement');
+ok(allK, '★ curve+watershed still lands K(6,8) ≥ 44/48 (hard-bound concourses preserve the crossings)');
+ok(allGr, 'curve+watershed keeps the doors at grade (≥85%)');
+const near = certify(buildCurveModel(42, { rings: 1, flatR: 0.16, layers: 8, pitch: 36, ownership: 'nearest' }));
+ok(!near.spiralsContinuous && near.threadsContinuous === 0, `nearest-nucleus ownership is the CONTRAST: 0/${near.threadCount} spirals continuous — sliced at every crossing (why watershed is the fix, not more room)`);
 const cm = buildCurveModel(3, { rings: 1, flatR: 0.16, layers: 8, pitch: 36 });
 const cc = certify(cm);
 ok(cc.whiteComps === 1 && cc.prodComps === 1, 'on-curve: each concourse is ONE region (geodesic hub-flood guarantees it)');
 ok(cm.curveCount > 0 && cm.fillerCount > 0 && cm.nucleiCount === cm.curveCount + cm.fillerCount, 'on-curve: nuclei = on-curve + filler, accounted');
-ok(buildCurveModel(5, { filler: 0 }).cells.every((c) => c.owner), 'on-curve filler=0 is pure thread cells (no matrix) — the instructive fragmented case');
+ok(buildCurveModel(5, { filler: 0, ownership: 'nearest' }).cells.every((c) => c.owner), 'on-curve nearest+filler=0 is pure thread cells (no matrix) — the instructive fragmented case');
 const cc2 = certify(buildCurveModel(3, { rings: 1, flatR: 0.16, layers: 8, pitch: 36 }));
 ok(cc2.doorPairs === cc.doorPairs && cc2.whiteCells === cc.whiteCells, 'on-curve is deterministic per seed');
 

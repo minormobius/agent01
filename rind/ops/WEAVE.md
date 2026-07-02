@@ -49,6 +49,19 @@
 > centrelines (with a dot at each rim exit) so you can read the ideal seeding curve against the grown cells and see
 > all 14 threads reach the outer surface.
 >
+> **PER-SPIRAL VORONOI CONTINUITY — the core requirement, and it's an OWNERSHIP property, not a seeding or room one
+> (the `◐ watershed / ◑ nearest` toggle).** Each of the 14 spirals must be ONE connected component in the true
+> face-adjacency graph. Measured finding: assigning each chamber to its **nearest nucleus** (plain Euclidean Voronoi)
+> gives **0/14** continuous at every setting — at each crossing the other spiral's nucleus is simply closer and
+> *slices* your thread — and **more room makes it worse**: 7→19 hexes went 22→57 fragments per thread, more decks did
+> nothing. Room can't fix it because the crossings are topological (K(6,8) is non-planar), not a crowding problem.
+> The cure is how ownership is assigned: a **geodesic watershed** (grow each thread from its nexus seed, only ever
+> claiming a cell adjacent to one it already owns — `layWeave`) is connected *by construction*. Running that same
+> watershed on the curve-seeded nuclei is the sweet spot — **14/14 spirals continuous, K≈45–48, doors at grade,
+> balanced coverage, and one-door all at once** (the DEFAULT: `ownership:'watershed'`; certify hard-binds the
+> now-continuous arms so no K contact is lost, floods only the matrix). `◑ nearest` is kept as the instructive
+> counter-example. Pinned in `onedoor.selftest.mjs` (`spiralsContinuous`).
+>
 > **GRADE-AWARE ROUTING (`routeGraded`).** Plain door-minimisation (`routeOneDoor`) counts only doors, so within a
 > concourse it happily takes a near-vertical shortcut between stacked cells (measured grade 7–35 — it *looked* like
 > routing broke the walkable-grade rule, because it did). `routeGraded` keeps doors as the hard primary objective

@@ -16,7 +16,7 @@
 // Consumes the SAME geometry as prism/onedoor (buildGeometry + weaveLines); emits a model shaped like buildWeave3D's
 // so onedoor's certify / assignConcourses / placeDoors run over it unchanged. Pure, deterministic.
 
-import { buildGeometry, weaveLines } from './weave3d.js';
+import { buildGeometry, weaveLines, layWeave } from './weave3d.js';
 import { buildCells, ownerKey } from './cells3d.js';
 import { buildPrism } from './prism.js';
 
@@ -28,7 +28,14 @@ function mulberry32(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; 
 // to bridge them the two concourses fragment and one-door fails. A sparse HCP filler (owner = matrix) grown into the
 // gaps is what reconnects each concourse (onedoor.assignConcourses floods the matrix), restoring one-door. filler=0
 // is the pure-curve substrate (K perfect, concourses fragmented — instructive but NOT one-door).
-export const CURVE_DEFAULTS = { pitch: 36, jitter: 0.22, filler: 1.0, tube: 0 };
+// `ownership`: how each chamber is assigned to a thread.
+//   'watershed' (DEFAULT) — a geodesic flood grows each thread as a CONNECTED region from its nexus seed, only ever
+//      claiming a cell adjacent to one it already owns ⇒ EVERY spiral is one continuous Voronoi corridor by
+//      construction (the core requirement). Curve-seeded nuclei keep it balanced + curve-aligned + K≈48 + at-grade.
+//   'nearest' — each chamber owned by its nearest nucleus's thread (plain Euclidean Voronoi). Instructive but NEVER
+//      continuous: at every crossing the other spiral's nucleus is closer and slices the thread (0/14 continuous,
+//      and MORE hexes make it worse, not better — the crossings are topological, not a crowding problem).
+export const CURVE_DEFAULTS = { pitch: 36, jitter: 0.22, filler: 1.0, tube: 0, ownership: 'watershed', width: 6 };
 
 const norm3 = (a) => { const L = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / L, a[1] / L, a[2] / L]; };
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -122,6 +129,8 @@ export function buildCurveModel(seed = 1, opts = {}) {
 
   const cellsModel = buildCells({ nodes, footprint, spacing: reachSpacing, thickness: T, layers });
   const cells = cellsModel.cells;
+  // buildCells owns each cell by its NEAREST nucleus (Euclidean Voronoi). Keep that only for ownership:'nearest';
+  // otherwise re-own by the geodesic WATERSHED so every spiral is one connected corridor (see CURVE_DEFAULTS).
 
   // STITCH the graph into ONE connected solid. buildCells' face-adjacency test (a 0.5 relative-distance tolerance) can
   // drop genuine shared faces on irregular point sets, leaving degree-0 slivers AND small floating clusters cut off
@@ -130,8 +139,14 @@ export function buildCurveModel(seed = 1, opts = {}) {
   // components and one-door fails. Cheap: the offcuts are few and small.
   stitchComponents(cells);
 
+  // RE-OWN by the geodesic watershed (unless ownership:'nearest') so every spiral is ONE connected corridor. layWeave
+  // grows each thread from its nexus seed, claiming only cells adjacent to its own — connected by construction. We
+  // feed it the curve nuclei (so its node write-back lands on the right array) and pitch as the spacing (tubeR scale).
+  const ownership = opts.ownership ?? CURVE_DEFAULTS.ownership;
+  if (ownership !== 'nearest') layWeave({ ...geo, spacing: pitch, nodes }, cellsModel, lines, { width: opts.width ?? CURVE_DEFAULTS.width });
+
   return {
-    ...geo, ...lines, flatR, substrate: 'curve', pitch, spacing: reachSpacing,
+    ...geo, ...lines, flatR, substrate: 'curve', ownership, pitch, spacing: reachSpacing,
     nodes, cells, cellsModel, nucleiCount: nodes.length, curveCount, fillerCount: nodes.length - curveCount,
   };
 }

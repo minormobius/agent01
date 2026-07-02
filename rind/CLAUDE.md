@@ -41,7 +41,10 @@ JS → emit a frame model → solve for stress):
   arms never cross; the concourse layer fixes it by construction). It runs over **two substrates** (the `▦ HCP / ✳
   on-curve` toggle): the HCP lattice claimed by the watershed, and **on-curve** (`curveseed.js`) — nuclei seeded
   ALONG the analytic thread curves, then polyhedra grown to fill; on-curve lands the full K(6,8)=48 with every door
-  zero-grade, its concourses made connected by a geodesic hub-flood (`assignConcoursesFlood`) + orphan stitching.
+  zero-grade. **Per-spiral Voronoi continuity is an OWNERSHIP property** (`◐ watershed / ◑ nearest`): nearest-nucleus
+  gives 0/14 continuous (sliced at every crossing; more hexes makes it WORSE), so the default re-owns curve nuclei by
+  the geodesic **watershed** (`layWeave`) ⇒ 14/14 spirals continuous + K≈45–48 + at-grade + one-door together
+  (`certify.spiralsContinuous`). Concourses connected by hard-bind+matrix-flood when continuous, else the hub-flood.
   **`nexus.html`/`nexus-app.js` is the FIRST-PERSON navigator (proto)**: you are the `@` on ONE thread — its own
   chambers strung along its curve into a walkable surface, walled but for its doors + the nexus; start at the white
   nexus, walk an arm, and crossing a door re-centres the whole map on the crossed thread (navigation = mapping).
