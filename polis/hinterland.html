@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0c0a07">
+<title>polis · hinterlands — a continent as a closed system</title>
+<meta name="description" content="A whole mappa continent run as a natural closed system through deep time: climate sets fertility, population grows and migrates to the routes, surplus becomes development points, and the coastline breathes as sea level chases the climate.">
+<style>
+:root{--gold:#a9802f;--gold2:#c79a48;--parch:#e8dcc0;--mut:#9c8a6c;--line:#2c2316}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
+body{background:#060809;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+#stage{position:fixed;inset:0;display:grid;place-items:center;background:#05080a}
+#map{max-width:100vw;max-height:100vh;cursor:crosshair;touch-action:none;box-shadow:0 0 60px #000a}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:10px;padding:10px 14px;pointer-events:none;background:linear-gradient(#060809dd,#06080900);flex-wrap:wrap}
+header a{pointer-events:auto;color:var(--gold);text-decoration:none;font-weight:700;letter-spacing:.05em}
+header .t{pointer-events:auto;color:#b7a988;font-size:12.5px}
+.seg{pointer-events:auto;display:inline-flex;gap:2px;background:#140f08c8;border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{background:none;border:0;color:#b7a988;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11.5px}
+.seg button.on{background:#2a2114;color:var(--gold)}
+.ctl{pointer-events:auto;display:flex;align-items:center;gap:6px;background:#140f08c8;border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+#seed{width:92px;background:#0d0a05;border:1px solid #3a2e1c;color:var(--parch);border-radius:5px;padding:3px 6px;font:12px ui-monospace,monospace;outline:none}
+.btn{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+.btn:hover{border-color:var(--gold)}
+footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 14px;pointer-events:none;background:linear-gradient(#06080900,#060809ee)}
+.scrub{pointer-events:auto;display:flex;align-items:center;gap:9px;flex:1;max-width:560px}
+.scrub input[type=range]{flex:1;accent-color:var(--gold)}
+.era{font:12px ui-monospace,monospace;color:var(--parch);min-width:230px}
+.era .y{color:var(--gold2)}.era .s{color:#8c7a5c}
+.legend{pointer-events:auto;display:flex;gap:9px;flex-wrap:wrap;margin-left:auto;font-size:11px;color:#9c8a6c}
+.legend span{display:inline-flex;align-items:center;gap:4px}.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+#stat{position:fixed;top:48px;left:14px;z-index:6;background:#120d07e8;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font:12px/1.5 ui-monospace,monospace;color:#cbb890;min-width:186px}
+#stat b{color:var(--gold2);font-weight:600}#stat .k{color:#8c7a5c}
+#overlay{position:fixed;inset:0;z-index:9;display:grid;place-items:center;background:#060809f2;color:var(--gold2);font:13px ui-monospace,monospace;letter-spacing:.06em;text-align:center;padding:20px}
+#overlay.hide{display:none}
+.note{position:fixed;left:14px;bottom:56px;z-index:6;max-width:340px;font-size:11px;color:#8c7a5c;pointer-events:none}
+.note a{color:var(--gold2);pointer-events:auto}
+@media (max-width:720px){.legend{display:none}.note{display:none}#stat{font-size:11px;min-width:150px}}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="map"></canvas></div>
+<header>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="./" style="pointer-events:auto;color:#b7a988;font-weight:400;font-size:12.5px;text-decoration:none">polis ↗</a>
+  <span class="t">hinterlands — a whole continent as a closed system</span>
+  <span class="seg" id="layers">
+    <button data-m="pop" class="on" title="population density">people</button><button data-m="dev" title="development level (infrastructure / productivity)">development</button><button data-m="fert" title="era fertility (climate carrying capacity)">fertility</button><button data-m="land" title="just the coastline — watch it breathe as sea level chases climate">coast</button>
+  </span>
+  <span class="ctl"><input id="seed" value="20260618" inputmode="numeric"><button class="btn" id="go">roll</button><button class="btn" id="rnd">↻ new</button></span>
+</header>
+<div id="stat"></div>
+<footer>
+  <div class="scrub"><button class="btn" id="play">▶</button>
+    <input type="range" id="time" min="0" max="179" value="0"><span class="era" id="era"></span></div>
+  <div class="legend" id="legend"></div>
+</footer>
+<div class="note">A whole mappa continent — a natural closed system. Climate sets fertility → population grows and <b>migrates to the routes</b> → surplus becomes <b>development points</b> reinvested in the places people live. The coast <b>breathes as sea level chases the climate</b>. Same seed → same history. <a href="./docs/">Theory →</a></div>
+<div id="overlay">solving the continent…</div>
+
+<script type="module">
+import { rollMappaWorld } from './mappaWorld.js';
+import { buildClimate } from '../mappa/climate-forcing.js';
+import { pickContinent, runHinterland } from './continent.js';
+
+const cv = document.getElementById('map'), cx = cv.getContext('2d');
+const seedIn = document.getElementById('seed'), timeIn = document.getElementById('time'), eraEl = document.getElementById('era'), statEl = document.getElementById('stat'), overlay = document.getElementById('overlay');
+let C = null, cont = null, poly = null, W = 0, H = 0, tick = 0, playing = false, raf = 0, mode = 'pop', maxDens = 1;
+const PAD = 22;
+
+const lonOf = (v) => Math.atan2(v[1], v[0]), latOf = (v) => Math.asin(Math.max(-1, Math.min(1, v[2])));
+const wrap = (d) => { while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+
+// project the continent's mappa Voronoi polygons to a flat equirectangular map, fit to a canvas
+function project() {
+  const world = cont.world;
+  let sx = 0, sy = 0; for (const g of cont.cells) { const v = world.V[g]; sx += Math.cos(lonOf(v)); sy += Math.sin(lonOf(v)); }
+  const lon0 = Math.atan2(sy, sx);                                   // circular-mean longitude (handles the antimeridian)
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  const raw = cont.cells.map((g) => (world.cells[g] || []).map((v) => {
+    const x = wrap(lonOf(v) - lon0) * Math.cos(latOf(world.V[g])), y = -latOf(v);
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; return [x, y];
+  }));
+  const rw = x1 - x0, rh = y1 - y0, asp = rw / rh;
+  W = Math.min(1180, Math.round((window.innerWidth) * 0.96)); H = Math.round(W / asp);
+  if (H > window.innerHeight * 0.9) { H = Math.round(window.innerHeight * 0.9); W = Math.round(H * asp); }
+  cv.width = W; cv.height = H;
+  const sc = Math.min((W - 2 * PAD) / rw, (H - 2 * PAD) / rh), ox = (W - rw * sc) / 2, oy = (H - rh * sc) / 2;
+  poly = raw.map((pts) => pts.map(([x, y]) => [ox + (x - x0) * sc, oy + (y - y0) * sc]));
+}
+
+// colour ramps
+const lerp = (a, b, t) => [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
+const popRGB = (d) => { const t = Math.min(1, Math.log10(1 + d) / Math.log10(1 + maxDens)); return t < 0.5 ? lerp([40, 44, 40], [200, 150, 60], t / 0.5) : lerp([200, 150, 60], [246, 232, 190], (t - 0.5) / 0.5); };
+const devRGB = (d) => lerp([44, 46, 52], [150, 120, 232], Math.min(1, d / 2));
+const fertRGB = (f) => lerp([150, 130, 92], [56, 140, 96], Math.min(1, f));
+const SEA = 'rgb(20,42,56)', DROWN = 'rgb(30,64,84)';
+
+function cellFill(i, base) {
+  if (mode === 'land') return 'rgb(120,150,96)';
+  if (mode === 'pop') { const a = cont.area[i]; const rgb = popRGB(C.popH[base + i] / Math.max(0.05, a)); return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`; }
+  if (mode === 'dev') { const rgb = devRGB(C.devH[base + i]); return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`; }
+  const rgb = fertRGB(C.fertH[base + i]); return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
+
+function draw() {
+  if (!C) return;
+  const e = C.env[tick], base = tick * cont.n;
+  cx.fillStyle = SEA; cx.fillRect(0, 0, W, H);
+  for (let i = 0; i < cont.n; i++) {
+    const pts = poly[i]; if (!pts || pts.length < 3) continue;
+    cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) cx.lineTo(pts[k][0], pts[k][1]); cx.closePath();
+    cx.fillStyle = C.landH[base + i] ? cellFill(i, base) : DROWN; cx.fill();
+  }
+  // climate ribbon: population, land area, sea level over the run
+  const BM = 30, BW = W - 2 * BM, RY1 = H - 10, RY0 = H - 40, RH = RY1 - RY0, xAt = (k) => BM + k / (C.ticks - 1) * BW;
+  let maxPop = 1, maxLand = 1; for (const en of C.env) { if (en.totalPop > maxPop) maxPop = en.totalPop; if (en.land > maxLand) maxLand = en.land; }
+  cx.fillStyle = 'rgba(10,14,18,0.55)'; cx.fillRect(BM - 6, RY0 - 4, BW + 12, RH + 12);
+  cx.beginPath(); cx.moveTo(BM, RY1);                                              // land-area fill (the breathing coast)
+  for (let k = 0; k < C.ticks; k++) cx.lineTo(xAt(k), RY1 - C.env[k].land / maxLand * RH); cx.lineTo(W - BM, RY1); cx.closePath();
+  cx.fillStyle = 'rgba(120,160,110,0.20)'; cx.fill();
+  cx.beginPath(); for (let k = 0; k < C.ticks; k++) { const X = xAt(k), Y = RY1 - C.env[k].totalPop / maxPop * RH; k ? cx.lineTo(X, Y) : cx.moveTo(X, Y); } // population
+  cx.strokeStyle = 'rgba(230,170,90,0.95)'; cx.lineWidth = 1.5; cx.stroke();
+  const curx = xAt(tick); cx.strokeStyle = '#fff'; cx.lineWidth = 1.3; cx.beginPath(); cx.moveTo(curx, RY0 - 3); cx.lineTo(curx, RY1 + 2); cx.stroke();
+
+  const yr = e.year < 0 ? (-e.year + ' BCE') : (e.year + ' CE');
+  eraEl.innerHTML = `<span class="y">${yr}</span> · ${e.regime} <span class="s">· sea ${e.seaLevel.toFixed(3)} · ${e.tempShift >= 0 ? '+' : ''}${e.tempShift.toFixed(1)}°C</span>`;
+  statEl.innerHTML = `<b>${e.totalPop.toLocaleString()}</b> <span class="k">people</span><br><b>${e.land}</b> <span class="k">land cells</span> / ${cont.n}<br>capacity <b>${e.totalK.toLocaleString()}</b><br>dev points <b>${e.devPoints.toLocaleString()}</b> · mean <b>${e.meanDev}</b>`;
+}
+
+function setLegend() {
+  const leg = document.getElementById('legend'), g = (s) => s.map(([c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('');
+  if (mode === 'pop') leg.innerHTML = g([['rgb(40,44,40)', 'empty'], ['rgb(200,150,60)', 'settled'], ['rgb(246,232,190)', 'dense'], [DROWN, 'drowned']]);
+  else if (mode === 'dev') leg.innerHTML = g([['rgb(44,46,52)', 'undeveloped'], ['rgb(150,120,232)', 'developed'], [DROWN, 'drowned']]);
+  else if (mode === 'fert') leg.innerHTML = g([['rgb(150,130,92)', 'arid'], ['rgb(56,140,96)', 'fertile'], [DROWN, 'drowned']]);
+  else leg.innerHTML = g([['rgb(120,150,96)', 'land'], [DROWN, 'drowned'], [SEA, 'sea']]);
+}
+
+function roll(seed) {
+  clearTimeout(raf); playing = false; document.getElementById('play').textContent = '▶';
+  overlay.classList.remove('hide'); overlay.textContent = 'solving the continent…';
+  setTimeout(() => {
+    try {
+      const world = rollMappaWorld(seed >>> 0), clim = buildClimate(world, { seed: seed >>> 0 });
+      cont = pickContinent(world);
+      C = runHinterland(world, clim, cont, { ticks: 180 });
+      maxDens = 1; for (let k = 0; k < C.ticks; k++) { const b = k * cont.n; for (let i = 0; i < cont.n; i++) if (C.landH[b + i]) maxDens = Math.max(maxDens, C.popH[b + i] / Math.max(0.05, cont.area[i])); }
+      project(); timeIn.max = C.ticks - 1; tick = Math.round((C.ticks - 1) * 0.82); timeIn.value = tick;
+      setLegend(); draw(); overlay.classList.add('hide');
+    } catch (err) { overlay.textContent = 'error: ' + (err && err.message ? err.message : err); console.error(err); }
+  }, 30);
+}
+timeIn.addEventListener('input', () => { tick = +timeIn.value; draw(); });
+document.getElementById('play').addEventListener('click', function () { playing = !playing; this.textContent = playing ? '❚❚' : '▶'; if (playing) loop(); });
+function loop() { if (!playing) return; tick = (tick + 1) % C.ticks; timeIn.value = tick; draw(); raf = setTimeout(() => requestAnimationFrame(loop), 90); }
+document.getElementById('layers').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; mode = b.dataset.m; for (const x of b.parentNode.children) x.classList.toggle('on', x === b); setLegend(); draw(); });
+document.getElementById('go').addEventListener('click', () => roll(+seedIn.value || 1));
+document.getElementById('rnd').addEventListener('click', () => { const s = (Math.random() * 1e9) >>> 0; seedIn.value = s; roll(s); });
+window.addEventListener('resize', () => { if (C) { project(); draw(); } });
+roll(+seedIn.value);
+</script>
+</body>
+</html>
