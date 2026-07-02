@@ -102,6 +102,15 @@ for (const s of cseeds) { const c = certify(buildCurveModel(s, { rings: 1, flatR
 ok(allSpirals, '★ curve+watershed: EVERY spiral is ONE continuous Voronoi corridor (14/14) on every seed — the core requirement');
 ok(allK, '★ curve+watershed still lands K(6,8) ≥ 44/48 (hard-bound concourses preserve the crossings)');
 ok(allGr, 'curve+watershed keeps the doors at grade (≥85%)');
+// ══ ZERO-LADDER 6×8 — the payoff of letting the spirals BREATHE. No knob (more nodes/decks/width) reaches it, but
+// loosening the turns (turnScale ~0.35) spreads the crossings radially so EVERY one of the 48 doors lands at grade,
+// with full K(6,8), every spiral continuous, and one door — all at once, on every seed. ══
+let zeroAll = true, keepAll = true;
+for (const s of [1, 42]) { const c = certify(buildCurveModel(s, { rings: 1, flatR: 0.16, layers: 8, pitch: 36, width: 6, NW: 6, NF: 8, turnScale: 0.35 }));
+  if (c.steepDoors !== 0) zeroAll = false; if (!(c.k48 && c.spiralsContinuous && c.oneDoorOk)) keepAll = false; }
+ok(zeroAll, '★ 6×8 becomes a ZERO-LADDER world when the spirals breathe (turnScale 0.35): every one of the 48 doors at grade, no stairs');
+ok(keepAll, '★ …while keeping full K(6,8)=48, every spiral continuous, and one door — all at once');
+
 const near = certify(buildCurveModel(42, { rings: 1, flatR: 0.16, layers: 8, pitch: 36, ownership: 'nearest' }));
 ok(!near.spiralsContinuous && near.threadsContinuous === 0, `nearest-nucleus ownership is the CONTRAST: 0/${near.threadCount} spirals continuous — sliced at every crossing (why watershed is the fix, not more room)`);
 const cm = buildCurveModel(3, { rings: 1, flatR: 0.16, layers: 8, pitch: 36 });

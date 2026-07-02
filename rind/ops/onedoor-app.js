@@ -11,7 +11,7 @@ import { buildCurveModel } from './curveseed.js';
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
-let width = 6, spacing = 30, flatR = 0.16, rings = 1, layers = 8, NW = 6, NF = 8;
+let width = 6, spacing = 30, flatR = 0.16, rings = 1, layers = 8, NW = 6, NF = 8, breathe = 0.35;   // breathe = turnScale (0.35 ⇒ zero-ladder 6×8)
 let spin = true, byConcourse = true, showDoors = true, routeMode = false, peel = 0, solid = true, substrate = 'curve', showCurves = true, ownership = 'watershed', gradeMode = 'overunder';
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
@@ -171,14 +171,14 @@ function rebuild() {
   if (substrate === 'curve') {
     // nuclei seeded ALONG the analytic curves, polyhedra grown to fill (curveseed.js). Each build is self-contained.
     const pitch = Math.max(24, spacing);
-    const key = `curve|${seed}|${rings}|${pitch}|${layers}|${NW}|${NF}|${flatR}|${width}|${ownership}|${gradeMode}`;
+    const key = `curve|${seed}|${rings}|${pitch}|${layers}|${NW}|${NF}|${flatR}|${width}|${ownership}|${gradeMode}|${breathe}`;
     if (key !== geomKey) { routeA = routeB = -1; theRoute = routeSet = null; }
     geomKey = key;
-    m = buildCurveModel(seed, { rings, layers, NW, NF, flatR, pitch, width, ownership, grade: gradeMode === 'overunder' ? undefined : gradeMode }); geo = m; cellsModel = m.cellsModel;
+    m = buildCurveModel(seed, { rings, layers, NW, NF, flatR, pitch, width, ownership, turnScale: breathe, grade: gradeMode === 'overunder' ? undefined : gradeMode }); geo = m; cellsModel = m.cellsModel;
     cert = certify(m);
   } else {
-    const key = `hcp|${seed}|${rings}|${spacing}|${layers}|${NW}|${NF}`;
-    if (key !== geomKey || !cellsModel) { geo = buildGeometry(seed, { rings, spacing, layers, NW, NF }); cellsModel = buildCells(geo); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
+    const key = `hcp|${seed}|${rings}|${spacing}|${layers}|${NW}|${NF}|${breathe}`;
+    if (key !== geomKey || !cellsModel) { geo = buildGeometry(seed, { rings, spacing, layers, NW, NF, turnScale: breathe }); cellsModel = buildCells(geo); geomKey = key; routeA = routeB = -1; theRoute = routeSet = null; }
     const lines = weaveLines(geo, { flatR }), lay = layWeave(geo, cellsModel, lines, { width });
     m = { ...geo, ...lines, flatR: lines.flatR, width, cells: cellsModel.cells, cellsModel, metrics: lay.metrics };
     cert = certify(m);
@@ -195,6 +195,7 @@ $('decks').addEventListener('change', (e) => { layers = +e.target.value; $('deck
 $('nw').addEventListener('change', (e) => { NW = +e.target.value; $('nwnfV').textContent = `${NW}×${NF}`; rebuild(); });
 $('nf').addEventListener('change', (e) => { NF = +e.target.value; $('nwnfV').textContent = `${NW}×${NF}`; rebuild(); });
 $('flat').addEventListener('change', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
+$('breathe').addEventListener('change', (e) => { breathe = (+e.target.value) / 100; $('breatheV').textContent = breathe.toFixed(2); rebuild(); });
 $('peel').addEventListener('input', (e) => { peel = (+e.target.value) / 100; $('peelV').textContent = `${((1 - peel) * geo.layers).toFixed(1)} decks`; });
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
 $('substrate').addEventListener('click', () => { substrate = substrate === 'hcp' ? 'curve' : 'hcp'; $('substrate').textContent = substrate === 'hcp' ? '▦ HCP lattice' : '✳ on-curve'; $('substrate').classList.toggle('on', substrate === 'curve'); const cs = substrate === 'curve' ? '' : 'none'; $('ownership').style.display = cs; $('grademode').style.display = cs; geomKey = ''; rebuild(); });
@@ -229,5 +230,6 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.5, M
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(devicePixelRatio || 1, 2); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; }
 addEventListener('resize', resize);
 $('width').value = width; $('decks').value = layers; $('decksV').textContent = layers; $('nw').value = NW; $('nf').value = NF; $('nwnfV').textContent = `${NW}×${NF}`; $('peelV').textContent = `${geo.layers.toFixed(1)} decks`;
+$('breathe').value = Math.round(breathe * 100); $('breatheV').textContent = breathe.toFixed(2);
 $('substrate').textContent = substrate === 'hcp' ? '▦ HCP lattice' : '✳ on-curve'; $('substrate').classList.toggle('on', substrate === 'curve');
 rebuild(); resize(); frame();

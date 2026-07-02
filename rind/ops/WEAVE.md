@@ -68,6 +68,20 @@
 > (still ≤ 1) but adds a steep-step penalty, so among equal-door paths it walks the gentlest one — measured max grade
 > drops to ~0.3–0.6 (at the pedestrian cap) with the same door count. The route read-out shows the path's max grade,
 > green when walkable. Pinned in `onedoor.selftest.mjs`.
+>
+> **THE ZERO-LADDER 6×8 (the `breathe` lever = `turnScale`).** The last residue was ~2–3 K-doors landing as over/under
+> stairs rather than at grade. Measured that NO knob removes them — more nodes (worse when densest), thickness, width,
+> and the flat/meet z-profiles all leave ~2–4 — because a door lives on the shared FACE between a white and a
+> production cell, and in a thick weave some of those faces are horizontal (a hatch) not vertical (a wall). Two things
+> DO reach zero, and they're the same mechanism (more radial room per crossing ⇒ gentler ramps ⇒ threads linger at
+> mid-height ⇒ they meet side-by-side, a walkable wall, instead of stacking): **(a) fewer threads** — ≤ 4×4 hits
+> steep=0 with full K; and **(b) loosening the spirals at the FULL 6×8** — `turnScale ~0.35` (fewer turns spreads the
+> crossings radially; "let the tight curves breathe — it's an infinite world"). At `turnScale ≤ 0.35`, 6×8 is a TRUE
+> zero-ladder world on every seed: **every one of the 48 doors at grade, full K(6,8)=48, every spiral continuous, one
+> door** — all at once (pinned in `onedoor.selftest.mjs`; the onedoor view defaults to `breathe 0.35` with a
+> `zero-ladder ✓` readout). Note it is NOT the diameter: expanding hexR at fixed turns keeps the crossings just as
+> crowded in rf and does NOT help (`hexScale` alone measured no better) — it's the turn count (crossings-per-lap)
+> that matters. Below `turnScale ~0.28` the spirals stop crossing (Σturns < 1) and K breaks, so ~0.3–0.4 is the band.
 
 > **THE SUBSTRATE REBUILD (`prism.html` · `rind.mino.mobi/ops/prism.html`).** The weave is being re-founded on a
 > proper **hexagonal prism of homogeneously spaced nodes** (`prism.js`, HCP packing — every interior node has 12

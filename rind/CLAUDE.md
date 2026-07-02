@@ -45,6 +45,11 @@ JS → emit a frame model → solve for stress):
   gives 0/14 continuous (sliced at every crossing; more hexes makes it WORSE), so the default re-owns curve nuclei by
   the geodesic **watershed** (`layWeave`) ⇒ 14/14 spirals continuous + K≈45–48 + at-grade + one-door together
   (`certify.spiralsContinuous`). Concourses connected by hard-bind+matrix-flood when continuous, else the hub-flood.
+  **ZERO-LADDER**: the last over/under stair-doors yield not to any knob (nodes/decks/width/z-profile all measured no
+  help) but to LOOSENING the spirals (`breathe`=`turnScale`~0.35 — "let the tight curves breathe, it's an infinite
+  world"): fewer turns spread the crossings radially so all 48 doors land at grade. At `turnScale ≤ 0.35`, 6×8 is a
+  full zero-ladder world (48 doors at grade + full K(6,8) + 14/14 continuous + one door); the onedoor view defaults to
+  `breathe 0.35` with a `zero-ladder ✓` readout (`certify.steepDoors`).
   **`nexus.html`/`nexus-app.js` is the FIRST-PERSON navigator (proto)**: you are the `@` on ONE thread — its own
   chambers strung along its curve into a walkable surface, walled but for its doors + the nexus; start at the white
   nexus, walk an arm, and crossing a door re-centres the whole map on the crossed thread (navigation = mapping).
