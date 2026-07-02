@@ -568,6 +568,7 @@
     import { findReagent, prepare, PREPARATIONS } from './alch/alchemy.js';   // the alchemy kernel — reagent correspondence → temperament colour; prepare() = the bench's brew
     import { deriveRecipes, describeEffect } from './alch/cookbook.js';  // the cookbook — suggested recipes + effect readout for the make-room bench
     import { COMMODITIES as SMITH_COMMODITIES, commodityMeta, availableMaterials, erasUpTo, techCeilingForTier, craftItem as smithCraft, craftCost, dismantle as smithDismantle, canAfford, shortfall, spend as smithSpend, earn as smithEarn } from './craft/smith.js';   // the SMITHY — the make-room WALL fixture: forge equipment from the ship's commodities
+    import { temper as mendTemper, reforge as mendReforge, upgrade as mendUpgrade, canUpgrade, temperCost, reforgeCost, upgradeCost } from './craft/mend.js';   // MEND — work an item's genome at the lapidary: temper · reforge · upgrade
     import { createBattle, UNIVERSAL } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, certifyPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight; certifyPack = the solver gate)
     import { buildSwarmGenome } from './v3/swarm.js';   // a player SUMMON renders as a grey/black robot drone swarm
@@ -4081,10 +4082,10 @@
         + `<div class="tn">${esc(gem.mineral)}</div><div class="tr" style="color:${rc}">${esc(gem.rarity)}</div>`
         + `<div class="gbz">${bonusStr(gemBonus(gem))}</div></div>`;
     }
-    const lapTabsHTML = () => { const t = (id, l) => `<button class="ttab${lapTab === id ? ' on' : ''}" data-laptab="${id}">${l}</button>`; return `<div class="ttabs">${t('pull', '◈ Pull')}${t('socket', '⬡ Socket')}${t('grow', '△ Grow')}</div>`; };
+    const lapTabsHTML = () => { const t = (id, l) => `<button class="ttab${lapTab === id ? ' on' : ''}" data-laptab="${id}">${l}</button>`; return `<div class="ttabs">${t('pull', '◈ Pull')}${t('socket', '⬡ Socket')}${t('grow', '△ Grow')}${t('reforge', '⚒ Reforge')}</div>`; };
     function renderLapidary() {
       const card = $('lapidarycard'); lapidaryOpen = true; $('lapidary').classList.add('on');
-      const body = lapTab === 'socket' ? socketSectionHTML() : lapTab === 'grow' ? growSectionHTML() : pullSectionHTML();
+      const body = lapTab === 'socket' ? socketSectionHTML() : lapTab === 'grow' ? growSectionHTML() : lapTab === 'reforge' ? reforgeSectionHTML() : pullSectionHTML();
       card.innerHTML = `<button class="aclose" data-mclose="1">close ⏎</button><div class="tfoil" style="background:#7fd8d0"></div>`
         + `<div class="ahead" style="color:#7fd8d0">⬡ THE LAPIDARY</div><div class="alaw" style="color:#7fd8d0">cut · set · grow</div>` + lapTabsHTML() + body;
     }
@@ -4148,10 +4149,56 @@
       const uids = new Set(picks.map((g) => g.uid)); const remain = gems.filter((g) => !uids.has(g.uid)); remain.push(res.gem);
       setGems(remain); lapGemSel = []; lapReveal = res.gem; saveStory(); renderLapidary(); whereAmI(); flashBusy(`△ grew a ${res.grewTo} ${res.gem.mineral}`, 3200);
     }
+    // ── REFORGE (the MEND verb worked on the item's own genome): temper a stat, reforge the piece, or
+    //    upgrade its tech era — each paid in the ship's commodities (the same wallet the smithy spends). ──
+    function reforgeSectionHTML() {
+      const wallet = getCommods();
+      const items = pack.pack.map((it, i) => ({ it, i })).filter(({ it }) => isGear(it));
+      const rows = items.length ? items.map(({ it, i }) => `<div class="srow${lapItemSel === i ? ' on' : ''}" data-itemsel="${i}"><span class="srn">${it.glyph || '◆'} ${esc(it.name || 'a thing')}</span><span class="sdots" style="color:#9aa8a0">${it.era ? esc(it.era) : ''} · pot ${it.stats ? it.stats.potency : '—'}</span></div>`).join('') : `<div class="gdim">no gear to mend — forge or find some first</div>`;
+      const sel = lapItemSel >= 0 && isGear(pack.pack[lapItemSel]) ? pack.pack[lapItemSel] : null;
+      const walletHtml = SMITH_COMMODITIES.map((c) => `<span style="margin:0 5px;font-size:11px;color:#9aa8a0">${c.glyph}${wallet[c.id] || 0}</span>`).join('');
+      let actions = '';
+      if (sel) {
+        const ceiling = techCeilingForTier(narrativeTier());
+        const act = (label, glyph, cost, afford, key, extra = '') => {
+          const cstr = Object.entries(cost).map(([k, v]) => `${commodityMeta(k).glyph}${v}`).join(' ');
+          return `<button class="gbtn" style="margin:3px;min-width:150px" data-mend="${key}" ${afford ? '' : 'disabled'}>${glyph} ${label}${extra}<br><span style="font-size:10px;color:#9aa8a0">${cstr}${afford ? '' : ' · short'}</span></button>`;
+        };
+        const tD = temperCost(sel), tP = temperCost(sel), rC = reforgeCost(sel), uC = upgradeCost(sel), canUp = canUpgrade(sel, ceiling);
+        actions = `<div class="ameta" style="margin-top:8px">${esc(sel.name)} · ${esc(sel.era || '')} · pot ${sel.stats.potency} · dur ${sel.stats.durability} · worth ${sel.worth}</div>`
+          + `<div style="margin-top:8px">`
+          + act('Temper edge', '⚒', tP, canAfford(wallet, tP), 'temper:potency', ' <span style="color:#e0772f">+pot</span>')
+          + act('Temper hide', '⚒', tD, canAfford(wallet, tD), 'temper:durability', ' <span style="color:#5aa845">+dur</span>')
+          + act('Reforge', '♺', rC, canAfford(wallet, rC), 'reforge', '')
+          + (canUp ? act('Upgrade era', '✦', uC, canAfford(wallet, uC), 'upgrade', '') : `<button class="gbtn" style="margin:3px;min-width:150px" disabled>✦ Upgrade era<br><span style="font-size:10px;color:#6b7872">${sel.era === 'ship-grade' ? 'already ship-grade' : 'raise your rank first'}</span></button>`)
+          + `</div>`;
+      }
+      return `<div class="ameta">work the piece itself — temper a stat, reforge it finer, or advance its tech era. Paid in the ship's commodities.</div>`
+        + `<div style="margin:6px 0 2px">${walletHtml}</div>`
+        + `<div class="ghead2" style="color:#7fd8d0;margin-top:10px">your gear</div><div class="srows">${rows}</div>`
+        + (sel ? actions : `<div class="ameta" style="margin-top:6px;color:#6b7872">pick a piece of gear ↑</div>`)
+        + `<div class="ameta" style="margin-top:8px;color:#6b7872">commodities come from the ⚒ smithy (forge/break-down) · Esc to leave</div>`;
+    }
+    function doMend(op) {
+      const it = lapItemSel >= 0 ? pack.pack[lapItemSel] : null; if (!isGear(it)) return;
+      const wallet = getCommods(), seed = ((getJSONFact('craft.forged', 0) | 0) + 1);
+      let out = null, cost = null;
+      if (op.startsWith('temper:')) { const tr = op.slice(7); cost = temperCost(it); out = mendTemper(it, tr, { seed }); }
+      else if (op === 'reforge') { cost = reforgeCost(it); out = mendReforge(it, { seed }); }
+      else if (op === 'upgrade') { cost = upgradeCost(it); out = mendUpgrade(it, techCeilingForTier(narrativeTier()), { seed }); }
+      if (!out || !cost || !canAfford(wallet, cost)) return;
+      out.gems = it.gems || [];   // sockets survive the rework
+      setCommods(smithSpend(wallet, cost));
+      setJSONFact('craft.forged', seed);
+      pack.pack[lapItemSel] = out; pack.setPack(pack.pack); persistPack();
+      saveStory(); renderLapidary();
+      notify(`⚒ ${op.startsWith('temper') ? 'tempered' : op === 'upgrade' ? 'upgraded' : 'reforged'} → ${out.name} (${out.gradeLabel})`, { kind: 'pickup', ms: 3000 });
+    }
     $('lapidary').addEventListener('click', (e) => {
       if (e.target === $('lapidary') || e.target.closest('[data-mclose]')) { closeLapidary(); return; }
       const tab = e.target.closest('[data-laptab]'); if (tab) { lapTab = tab.dataset.laptab; lapGemSel = []; lapReveal = null; renderLapidary(); return; }
       if (e.target.closest('[data-gpull]')) { doGemPull(); return; }
+      const mend = e.target.closest('[data-mend]'); if (mend) { doMend(mend.dataset.mend); return; }
       const isel = e.target.closest('[data-itemsel]'); if (isel) { lapItemSel = +isel.dataset.itemsel; renderLapidary(); return; }
       const gsel = e.target.closest('[data-gemsel]'); if (gsel) { lapGemSel = [+gsel.dataset.gemsel]; renderLapidary(); return; }
       const grsel = e.target.closest('[data-growsel]'); if (grsel) { const gi = +grsel.dataset.growsel, at = lapGemSel.indexOf(gi); if (at >= 0) lapGemSel.splice(at, 1); else if (lapGemSel.length < 3) lapGemSel.push(gi); renderLapidary(); return; }
