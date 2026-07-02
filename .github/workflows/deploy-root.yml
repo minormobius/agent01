@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/merge-candidate-pr-ud9g8s']
+    branches: [main, 'claude/polis-hinterlands-deploy-pckogt']
     paths:
       - 'index.html'
       - 'styles.css'

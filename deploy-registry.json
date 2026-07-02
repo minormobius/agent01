@@ -32,7 +32,7 @@
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/merge-candidate-pr-ud9g8s",
+      "branch": "claude/polis-hinterlands-deploy-pckogt",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED \u2014 verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
