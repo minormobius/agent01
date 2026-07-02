@@ -76,9 +76,16 @@ JS → emit a frame model → solve for stress):
   one rim edge**, so a continuous warp thread is *hub → seam → neighbour-hub*, the whites chaining the hubs across
   the web. Under plain translation the same family lands adjacent across each seam (green beside green); a
   **bridge** joins each centre exit to its nearest neighbour exit, closing the gap so the families thread
-  continuously. Trace one family to isolate it. (A `mateTransform`/`hexSym` "weave" — rotate+mirror a chunk to
-  mate seams by a hexagon symmetry — is kept in the kernel + selftest but off by the visual default, since the
-  mirror flips chirality; translation + bridges reads cleaner.) **`tess.html`/`tess-app.js`** shows how the
+  continuously. Trace one family to isolate it. **Beyond seven chunks** (`hexPatch`, `chunkColor`, `patchSeams`,
+  `patchMismatch`): the hex centres are a triangular lattice, 3-colourable (`(i−j) mod 3`); the view tiles an
+  N-ring patch (7/19/37), tints the three **phases**, marks every corner where three chunks meet as a **nexus**,
+  and lets you rotate a phase by 60° (`phase` cycles off / *CW60-dispersed* / *pinwheel*). Measured finding:
+  phase rotation lowers the *overall* seam mismatch (it reorients the production threads) but the **white-only
+  mismatch is rotation-invariant** — the 6 whites exit 60° apart (a C6-symmetric set), so rotating a chunk maps
+  that set onto itself and cannot move where whites meet; only a reflection moves white exits (and that's the
+  `mateTransform`/`hexSym` mirror, kept in the kernel but off the default since you preferred no flip). So pure
+  rotation improves production interfaces + reshuffles which family lands at a seam, but doesn't make the three
+  white families geometrically coincide — the bridges still carry that. **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate** (the schematic): a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family

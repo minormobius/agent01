@@ -77,7 +77,7 @@ export function hexSym(p, rot, flip) {
 }
 
 // each thread's rim exit point + which edge it lands on (for mating seams)
-function rimExits(model) {
+export function rimExits(model) {
   const R = model.R, Ri = R * SQRT3 / 2, out = [];
   const add = (kind, idx) => {
     const line = kind === 'white' ? (rf) => model.lineW(idx, rf) : (rf) => model.lineP(idx, rf);
@@ -123,6 +123,60 @@ export function mateTransform(model, k) {
   let best = { rot: 0, flip: 0, score: Infinity };
   for (let flip = 0; flip <= 1; flip++) for (let rot = 0; rot < 6; rot++) { const sc = score(rot, flip); if (sc < best.score) best = { rot, flip, score: sc }; }
   return { ...best, identityScore: score(0, 0), R, offset: Cb };
+}
+
+// ── the honeycomb as a 3-coloured lattice (to tile beyond seven chunks) ──────────────────────
+// The hex CENTRES form a triangular lattice (basis a1,a2 = the first two neighbour offsets); every
+// chunk is (i,j). A triangular lattice is 3-colourable — colour = (i−j) mod 3 — so the tiling splits
+// into three interleaved phases, each itself a triangular lattice (spacing 3R). Rotating one phase
+// (the "dispersed phase") by a fixed 60° uses ROTATIONS on the 3-colouring instead of reflections,
+// which — unlike reflections — compose consistently around a vertex (3 chunks, all 3 colours meet).
+export const chunkColor = (i, j) => (((i - j) % 3) + 3) % 3;
+export const NB_STEPS = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, -1], [-1, 1]];   // the 6 lattice neighbours
+export function hexPatch(R, rings) {
+  const a1 = neighbourOffset(0, R), a2 = neighbourOffset(1, R), out = [];
+  for (let i = -2 * rings - 1; i <= 2 * rings + 1; i++) for (let j = -2 * rings - 1; j <= 2 * rings + 1; j++) {
+    const d = (Math.abs(i) + Math.abs(j) + Math.abs(i + j)) / 2;      // hex (cube) distance from origin
+    if (d > rings) continue;
+    out.push({ i, j, cx: i * a1[0] + j * a2[0], cy: i * a1[1] + j * a2[1], color: chunkColor(i, j), dist: d });
+  }
+  return out;
+}
+// adjacent chunk pairs within a patch (each unordered seam once)
+export function patchSeams(patch) {
+  const at = new Map(patch.map((p) => [`${p.i},${p.j}`, p]));
+  const seams = [];
+  for (const p of patch) for (const [di, dj] of NB_STEPS) {
+    if (di < 0 || (di === 0 && dj < 0)) continue;                     // canonical direction ⇒ each seam once
+    const q = at.get(`${p.i + di},${p.j + dj}`); if (q) seams.push([p, q]);
+  }
+  return seams;
+}
+// like-with-like mismatch across one seam between two ORIENTED, placed chunks {cx,cy,rot,flip}
+export function seamMismatch(exits, R, A, B) {
+  const M = [(A.cx + B.cx) / 2, (A.cy + B.cy) / 2], dx = B.cx - A.cx, dy = B.cy - A.cy, L = Math.hypot(dx, dy) || 1;
+  const px = -dy / L, py = dx / L, V0 = [M[0] - px * R / 2, M[1] - py * R / 2], V1 = [M[0] + px * R / 2, M[1] + py * R / 2];
+  const distSeg = (p) => { const ex = V1[0] - V0[0], ey = V1[1] - V0[1], l2 = ex * ex + ey * ey; let t = ((p[0] - V0[0]) * ex + (p[1] - V0[1]) * ey) / l2; t = Math.max(0, Math.min(1, t)); return Math.hypot(p[0] - (V0[0] + ex * t), p[1] - (V0[1] + ey * t)); };
+  const place = (pl) => exits.map((e) => { const q = hexSym([e.x, e.y], pl.rot || 0, pl.flip || 0); return { kind: e.kind, x: q[0] + pl.cx, y: q[1] + pl.cy }; }).filter((w) => distSeg([w.x, w.y]) < 0.16 * R);
+  const EA = place(A), EB = place(B);
+  if (!EA.length || !EB.length) return { score: 0, n: 0 };
+  const near = (a, list) => { let bd = Infinity; for (const b of list) { const d = Math.hypot(a.x - b.x, a.y - b.y) + (b.kind === a.kind ? 0 : 0.5 * R); if (d < bd) bd = d; } return bd; };
+  let s = 0, n = 0; for (const a of EA) { s += near(a, EB); n++; } for (const b of EB) { s += near(b, EA); n++; }
+  return { score: s / n, n };
+}
+// mean seam mismatch over a whole patch, given a per-colour rotation phaseRot=[r0,r1,r2] (units of 60°)
+export function patchMismatch(model, patch, phaseRot = [0, 0, 0], opts = {}) {
+  let exits = rimExits(model); const R = model.R;
+  if (opts.kind) exits = exits.filter((e) => e.kind === opts.kind);
+  const placed = patch.map((p) => ({ ...p, rot: phaseRot[p.color] | 0, flip: 0 }));
+  const at = new Map(placed.map((p) => [`${p.i},${p.j}`, p]));
+  let s = 0, n = 0, clean = 0;
+  for (const [A0, B0] of patchSeams(placed)) {
+    const A = at.get(`${A0.i},${A0.j}`), B = at.get(`${B0.i},${B0.j}`);
+    const m = seamMismatch(exits, R, A, B); if (!m.n) continue;
+    s += m.score; n++; if (m.score < 0.14 * R) clean++;
+  }
+  return { mean: n ? s / n : 0, seams: n, clean, cleanFrac: n ? clean / n : 0 };
 }
 
 // ── extract, per hex edge, the threads that reach it ────────────────────────────────────────
@@ -276,4 +330,4 @@ export function solveTessellation(model, opts = {}) {
   return { R: model.R, edges, interfaces, warp };
 }
 
-if (typeof globalThis !== 'undefined') globalThis.RindTessWeave = { hexExits, warpBijection, dominantWhiteEdges, solveInterfaces, traceWarp, solveTessellation, threadCurve, truePath, hexSym, mateTransform, edgeNormal, edgeTangent, edgeNormalAng, neighbourOffset, hexVerts, edgeSeg };
+if (typeof globalThis !== 'undefined') globalThis.RindTessWeave = { hexExits, warpBijection, dominantWhiteEdges, solveInterfaces, traceWarp, solveTessellation, threadCurve, truePath, hexSym, mateTransform, rimExits, chunkColor, hexPatch, patchSeams, seamMismatch, patchMismatch, edgeNormal, edgeTangent, edgeNormalAng, neighbourOffset, hexVerts, edgeSeg };

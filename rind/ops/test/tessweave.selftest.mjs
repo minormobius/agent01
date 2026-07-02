@@ -4,7 +4,7 @@
 // emergent global strand families); production supplies the cross-kind K-DOORS reaching across
 // seams; and the whole solve is deterministic and antipodally symmetric.
 import { buildCurveModel } from '../curveseed.js';
-import { solveTessellation, hexExits, solveInterfaces, dominantWhiteEdges, neighbourOffset, threadCurve, truePath, hexSym, mateTransform } from '../tessweave.js';
+import { solveTessellation, hexExits, solveInterfaces, dominantWhiteEdges, neighbourOffset, threadCurve, truePath, hexSym, mateTransform, hexPatch, chunkColor, patchSeams, patchMismatch } from '../tessweave.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.log('  ✗ ' + m); } };
@@ -130,6 +130,30 @@ ok(allSixEdges, 'all six edges carry threads on every seed');
   let symOk = true;
   for (let k = 0; k < 3; k++) { const a = mateTransform(m, k), b = mateTransform(m, k + 3); if (Math.abs(a.score - b.score) > 0.06 * m.R) symOk = false; }
   ok(symOk, 'antipodal seams report matching mate scores');
+}
+
+// ── the 3-coloured lattice + phase rotation (tiling beyond seven chunks) ──────────
+{
+  const m = buildCurveModel(7, OPTS);
+  ok(hexPatch(m.R, 1).length === 7, 'hexPatch 1-ring = 7 chunks');
+  ok(hexPatch(m.R, 2).length === 19, 'hexPatch 2-ring = 19 chunks');
+  ok(hexPatch(m.R, 3).length === 37, 'hexPatch 3-ring = 37 chunks');
+
+  // proper 3-colouring: adjacent chunks never share a colour
+  const patch = hexPatch(m.R, 3);
+  let properColouring = true;
+  for (const [A, B] of patchSeams(patch)) if (chunkColor(A.i, A.j) === chunkColor(B.i, B.j)) properColouring = false;
+  ok(properColouring, '(i−j) mod 3 is a proper 3-colouring (no adjacent same-colour)');
+
+  // white-only mismatch is ROTATION-INVARIANT (the 6 whites are a C6-symmetric exit set)
+  const wId = patchMismatch(m, patch, [0, 0, 0], { kind: 'white' }).mean;
+  const wYours = patchMismatch(m, patch, [5, 0, 0], { kind: 'white' }).mean;
+  const wPin = patchMismatch(m, patch, [0, 2, 1], { kind: 'white' }).mean;
+  ok(Math.abs(wId - wYours) < 1e-6 && Math.abs(wId - wPin) < 1e-6, `white-only mismatch invariant under phase rotation (${wId.toFixed(0)})`);
+
+  // all-14 mismatch: phase rotation reorients production and can only help or hold
+  const all0 = patchMismatch(m, patch, [0, 0, 0]).mean, allPin = patchMismatch(m, patch, [0, 2, 1]).mean;
+  ok(allPin <= all0 + 1e-6, `phase rotation does not worsen overall mismatch (${allPin.toFixed(0)} ≤ ${all0.toFixed(0)})`);
 }
 
 console.log(`\n  tessweave: ${pass} passed, ${fail} failed`);

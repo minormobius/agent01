@@ -49,13 +49,15 @@
   <div class="main">
     <div class="stage">
       <div class="controls">
-        <button id="tiles" class="on">honeycomb (7)</button>
+        <button id="rings">2-ring</button>
+        <button id="phase">phase: off</button>
         <button id="pathmode" class="on">true paths</button>
         <button id="bridges" class="on">bridges</button>
         <button id="trace">trace a family</button>
         <span class="sep"></span>
-        <button id="iface">interfaces</button>
-        <button id="color" class="on">14 colours</button>
+        <button id="phasecol" class="on">phase colour</button>
+        <button id="nexus" class="on">nexus corners</button>
+        <button id="cells">cells</button>
         <span class="sep"></span>
         <button id="seedDn">seed −</button><button id="seedUp">seed +</button>
       </div>
@@ -69,10 +71,10 @@
       <p><b class="k">White = continuity.</b> The hex has 6 edges; the cortex has 6 whites. Each white's rim-most cell claims one edge — an exact <b>1-white-per-edge bijection</b>. Translation-tiling turns each owned white into a straight global strand, so the 6 whites collapse to <b>3 families</b>: one azimuthal ring + two counter-rotating helices (the emergence, over the real Voronoi weave).</p>
       <p><b class="door">Production = K-doors.</b> 8 engines don't divide the hex's 6-fold symmetry, so they can't all splice; they stay local and, where they graze the rim, abut the neighbour's <i>other-kind</i> thread — a cross-kind <b>K-door</b>. That is the K(6,8) contact reaching across the seam.</p>
       <p>Continuity here is realised the way it is everywhere in rind: not literal curve-joining but <span class="k">door-adjacency</span> between the rim cells that abut across the seam. Position along the edge decides which cell meets which.</p>
-      <h2>true paths vs desire paths</h2>
-      <p>The smooth spiral is the thread's <b>desire path</b> — the analytic curve the Voronoi nuclei were seeded along. Its <span class="k">true path</span> is the chain of chambers it actually <b>owns</b> after the watershed, stepping hub → rim through owned-cell adjacency. It's jagged where the desire curve is smooth; that jaggedness is the real corridor a walker would follow. Toggle <b>true paths ⇄ desire spirals</b> to compare.</p>
-      <h2>bridges — like with like</h2>
-      <p>Each white runs from the central hub to <b>one</b> rim edge, so a continuous warp thread is <span class="k">hub → seam → neighbour-hub</span>. Under plain translation the same family lands adjacent across each seam (green beside green), just short of touching. A <b>bridge</b> joins each centre exit to its nearest neighbour exit — closing the gap so the families thread continuously through the web, on and on.</p>
+      <h2>beyond seven — the 3-coloured lattice</h2>
+      <p>The hex centres form a <b>triangular lattice</b>, which is <span class="k">3-colourable</span> (colour = <code>(i−j) mod 3</code>). Each colour is a <b>phase</b>: an interleaved sub-lattice. Rotating one phase by a fixed 60° uses <b>rotations, not reflections</b> — and rotations compose consistently around a vertex (three chunks, all three colours, meet at every corner), so unlike the mirror it can't frustrate. <b>phase</b> cycles: off · <i>CW60 dispersed</i> (your proposal — the centre-colour rotated clockwise 60°) · <i>pinwheel</i> (the min-mismatch scheme found by search). <b>rings</b> grows the patch (7 → 19 → 37 chunks).</p>
+      <h2>what the numbers say</h2>
+      <p><b>Corners become nexus points</b> — every vertex where three chunks meet (gold rings). Phase rotation lowers the overall <span class="k">seam mismatch</span> by reorienting the production threads — but the <b>white-only</b> mismatch is <i>rotation-invariant</i>: the 6 whites exit 60° apart (a C6-symmetric set), so rotating a chunk maps that set onto itself and can't move where whites meet. Rotation relabels which <b>family</b> lands at a seam and reorients the spiral arms; it doesn't move the white exit points. (A mirror would — but you preferred no flip.) Watch the readout as you cycle phases.</p>
       <h2>the interface certificate</h2>
       <div class="cert" id="cert"></div>
       <h2>reading it</h2>
