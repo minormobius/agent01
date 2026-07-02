@@ -567,7 +567,7 @@
     import { drawOverworld } from './over/over-render.js';               // the overworld silhouette renderer (growth-form + Galenic palette at landscape scale)
     import { findReagent, prepare, PREPARATIONS } from './alch/alchemy.js';   // the alchemy kernel — reagent correspondence → temperament colour; prepare() = the bench's brew
     import { deriveRecipes, describeEffect } from './alch/cookbook.js';  // the cookbook — suggested recipes + effect readout for the make-room bench
-    import { COMMODITIES as SMITH_COMMODITIES, commodityMeta, availableMaterials, erasUpTo, techCeilingForTier, craftItem as smithCraft, craftCost, dismantle as smithDismantle, canAfford, shortfall, spend as smithSpend, earn as smithEarn } from './craft/smith.js';   // the SMITHY — the make-room WALL fixture: forge equipment from the ship's commodities
+    import { COMMODITIES as SMITH_COMMODITIES, commodityMeta, availableMaterials, erasUpTo, techCeilingForTier, craftItem as smithCraft, craftCost, dismantle as smithDismantle, canAfford, shortfall, spend as smithSpend, earn as smithEarn, buyCommodityPrice, sellCommodityPrice } from './craft/smith.js';   // the SMITHY — the make-room WALL fixture: forge equipment from the ship's commodities
     import { temper as mendTemper, reforge as mendReforge, upgrade as mendUpgrade, canUpgrade, temperCost, reforgeCost, upgradeCost } from './craft/mend.js';   // MEND — work an item's genome at the lapidary: temper · reforge · upgrade
     import { createBattle, UNIVERSAL } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, certifyPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight; certifyPack = the solver gate)
@@ -3920,11 +3920,80 @@
       if (tradeOpen) renderTrade();                                       // re-render once the biome is known (packs tab)
     }
     function closeTrade() { tradeOpen = false; lastPull = null; $('trade').classList.remove('on'); }
-    const tradeTabsHTML = () => { const t = (id, label) => `<button class="ttab${tradeTab === id ? ' on' : ''}" data-ttab="${id}">${label}</button>`; return `<div class="ttabs">${t('wares', '⇄ Wares')}${t('packs', '❀ Seed packs')}${t('apothecary', '⚗ Apothecary')}</div>`; };
+    const tradeTabsHTML = () => { const t = (id, label) => `<button class="ttab${tradeTab === id ? ' on' : ''}" data-ttab="${id}">${label}</button>`; return `<div class="ttabs">${t('wares', '⇄ Wares')}${t('packs', '❀ Seed')}${t('apothecary', '⚗ Draughts')}${t('materials', '⬡ Materials')}${t('commissions', '✎ Commissions')}</div>`; };
     function renderTrade() {
       const card = $('tradecard'); tradeOpen = true; $('trade').classList.add('on');
-      const body = tradeTab === 'wares' ? waresSectionHTML() : tradeTab === 'apothecary' ? apothecarySectionHTML() : packsSectionHTML();
+      const body = tradeTab === 'wares' ? waresSectionHTML() : tradeTab === 'apothecary' ? apothecarySectionHTML() : tradeTab === 'materials' ? materialsSectionHTML() : tradeTab === 'commissions' ? commissionsSectionHTML() : packsSectionHTML();
       card.innerHTML = `<button class="aclose" data-tclose="1">close ⏎</button>` + tradeTabsHTML() + body;
+    }
+    // ── THE MATERIALS MARKET — buy/sell the ship's commodities (the smithy's feedstock). Trace is dear;
+    //    bulk stock is cheap. So you can buy your way to a craft, or sell surplus from dismantling. ──
+    function materialsSectionHTML() {
+      const wallet = getCommods(), coins = getCoins();
+      const rows = SMITH_COMMODITIES.map((c) => {
+        const bp = buyCommodityPrice(c.id), sp = sellCommodityPrice(c.id), have = wallet[c.id] || 0;
+        return `<div class="wsell"><span class="wsg" style="color:#cbbfa8">${c.glyph}</span><span class="wsn">${c.name} <span style="color:#6b7872">×${have}</span></span>`
+          + `<button class="gbtn" data-cbuy="${c.id}" ${coins >= bp ? '' : 'disabled'} style="margin-left:auto">buy ◈${bp}</button>`
+          + `<button class="gbtn" data-csell="${c.id}" ${have > 0 ? '' : 'disabled'}>sell ◈${sp}</button></div>`;
+      }).join('');
+      return `<div class="tfoil" style="background:#8fa0b0"></div>`
+        + `<div class="ahead" style="color:#aebac6">⬡ THE MATERIALS MARKET</div><div class="alaw" style="color:#aebac6">the ship's commodities</div>`
+        + `<div class="ameta">raw stock for the ⚒ smithy — forge &amp; reforge draw on these. Trace (✦) is the scarce keystone.</div>`
+        + `<div class="wsells" style="max-width:440px">${rows}</div>`
+        + `<div class="ameta" style="margin-top:10px;color:#6b7872">◈ ${coins} · Esc to leave</div>`;
+    }
+    // ── COMMISSIONS — craft-to-order. The desk posts deterministic requests (per world-day); deliver a
+    //    held item that meets the spec (kind + worth) → coins + a trace bounty (the reward feeds ship-grade
+    //    crafting). Filled commissions ride the save for the day. ──
+    const EQUIP_KINGDOMS = ['strike', 'ward', 'channel', 'adorn', 'light'];   // the kingdoms that make a wearable commission
+    function commissionsFor(deskKey, epoch) {
+      let h = 2166136261; for (const ch of deskKey + ':' + epoch) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+      let s = h >>> 0; const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+      const out = [];
+      for (let i = 0; i < 3; i++) {
+        const kingdom = EQUIP_KINGDOMS[(rng() * EQUIP_KINGDOMS.length) | 0];
+        const minWorth = 40 + Math.floor(rng() * 45);
+        const reward = Math.round(minWorth * 0.9 + 8), trace = 1 + Math.floor(minWorth / 30);
+        out.push({ i, kingdom, minWorth, reward, trace });
+      }
+      return out;
+    }
+    const commissionMatches = (it, c) => isGear(it) && it.kingdom === c.kingdom && (it.worth || 0) >= c.minWorth;
+    function commissionsSectionHTML() {
+      const epoch = getDay(), list = commissionsFor(tradeKey, epoch), done = new Set(getJSONFact('commish.' + tradeKey + '.' + epoch, []));
+      const rows = list.map((c) => {
+        if (done.has(c.i)) return `<div class="wsell" style="opacity:.5"><span class="wsn">✓ ${esc(KINGDOMS[c.kingdom].does.split(' —')[0])} · filled</span></div>`;
+        const match = pack.pack.map((it, idx) => ({ it, idx })).find(({ it }) => commissionMatches(it, c));
+        return `<div class="wsell"><span class="wsg" style="color:${KINGDOMS[c.kingdom].accent}">${KINGDOMS[c.kingdom].glyph}</span>`
+          + `<span class="wsn">a <b>${esc(c.kingdom)}</b> piece · worth ≥ ${c.minWorth} <span style="color:#6b7872">→ ◈${c.reward} + ✦${c.trace}</span></span>`
+          + (match ? `<button class="gbtn" data-fill="${c.i}" data-item="${match.idx}" style="margin-left:auto">deliver ${esc(match.it.name)}</button>` : `<span style="margin-left:auto;color:#6b7872;font-size:11px">forge one to fill</span>`)
+          + `</div>`;
+      }).join('');
+      return `<div class="tfoil" style="background:#d8b25a"></div>`
+        + `<div class="ahead" style="color:#e6c878">✎ COMMISSIONS</div><div class="alaw" style="color:#e6c878">craft to order</div>`
+        + `<div class="ameta">the desk wants gear made — deliver a piece that meets the spec for coins + trace (✦, the keystone that buys ship-grade crafting). Fresh requests each day.</div>`
+        + `<div class="wsells" style="max-width:460px">${rows}</div>`
+        + `<div class="ameta" style="margin-top:10px;color:#6b7872">◈ ${getCoins()} · Esc to leave</div>`;
+    }
+    function doBuyCommodity(id) {
+      const bp = buyCommodityPrice(id), coins = getCoins(); if (coins < bp) return;
+      setCoins(coins - bp); setCommods(smithEarn(getCommods(), { [id]: 1 }));
+      saveStory(); renderTrade(); whereAmI();
+    }
+    function doSellCommodity(id) {
+      const wallet = getCommods(); if (!(wallet[id] > 0)) return;
+      setCommods(smithSpend(wallet, { [id]: 1 })); setCoins(getCoins() + sellCommodityPrice(id));
+      saveStory(); renderTrade(); whereAmI();
+    }
+    function doFillCommission(ci, itemIdx) {
+      const epoch = getDay(), list = commissionsFor(tradeKey, epoch), c = list.find((x) => x.i === ci); if (!c) return;
+      const it = pack.pack[itemIdx]; if (!commissionMatches(it, c)) return;
+      const done = getJSONFact('commish.' + tradeKey + '.' + epoch, []); if (done.includes(ci)) return;
+      pack.pack.splice(itemIdx, 1); pack.setPack(pack.pack); persistPack();     // the desk takes the piece
+      setCoins(getCoins() + c.reward); setCommods(smithEarn(getCommods(), { trace: c.trace }));
+      done.push(ci); setJSONFact('commish.' + tradeKey + '.' + epoch, done);
+      saveStory(); renderTrade(); whereAmI();
+      notify(`✎ commission filled — delivered ${it.name} → ◈${c.reward} + ✦${c.trace} trace`, { kind: 'pickup', ms: 3200 });
     }
     // ── THE APOTHECARY — ready-made basic preparations for coins (the bootstrap before your Physic Garden
     //    is going), and a place to sell the potions you brew. Stock is deterministic (the cookbook's exemplar
@@ -4034,6 +4103,9 @@
       const tab = e.target.closest('[data-ttab]'); if (tab) { tradeTab = tab.dataset.ttab; renderTrade(); return; }
       const bb = e.target.closest('[data-buy]'); if (bb) { doBuy(+bb.dataset.buy); return; }
       const ab = e.target.closest('[data-abuy]'); if (ab) { doBuyPrep(+ab.dataset.abuy); return; }
+      const cb = e.target.closest('[data-cbuy]'); if (cb) { doBuyCommodity(cb.dataset.cbuy); return; }
+      const cs = e.target.closest('[data-csell]'); if (cs) { doSellCommodity(cs.dataset.csell); return; }
+      const fl = e.target.closest('[data-fill]'); if (fl) { doFillCommission(+fl.dataset.fill, +fl.dataset.item); return; }
       const sb = e.target.closest('[data-sell]'); if (sb) { doSell(+sb.dataset.sell); return; }
       const pb = e.target.closest('[data-pull]'); if (!pb || !tradeBiome) return;
       const b = tradeBiome, pulls = getPullCount(b.id), free = pulls === 0, cost = free ? 0 : PULL_COST, coins = getCoins();

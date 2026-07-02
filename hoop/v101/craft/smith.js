@@ -40,6 +40,12 @@ export const commodityMeta = (() => { const m = Object.fromEntries(COMMODITIES.m
 // each material CLASS → its primary commodity.
 const CLASS_PRIMARY = { organic: 'biomass', mineral: 'silicate', metal: 'metal', synthetic: 'polymer', exotic: 'trace' };
 
+// ── commodity coin prices at a materials market (the trade desk). Trace is dear (the scarce keystone);
+//    biomass/metal/silicate are cheap bulk stock. Sell recovers half (the desk buys low). ──
+export const COMMODITY_PRICE = { metal: 2, polymer: 3, silicate: 2, volatiles: 3, water: 1, biomass: 2, trace: 9 };
+export const buyCommodityPrice = (id) => COMMODITY_PRICE[id] || 2;
+export const sellCommodityPrice = (id) => Math.max(1, Math.round((COMMODITY_PRICE[id] || 2) * 0.5));
+
 // ── materialRecipe(materialId) → the commodity mix a UNIT of that material costs (before size/tech scaling).
 // Derived from the material's class + its own value/weight (so adding a material to taxa auto-derives). ──
 export function materialRecipe(materialId) {

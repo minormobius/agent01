@@ -5,6 +5,7 @@ import {
   availableMaterials, buildCraftGenome, craftItem, craftCost, dismantle, RECLAIM_FRACTION,
   canAfford, shortfall, spend, earn,
 } from '../craft/smith.js';
+import { COMMODITY_PRICE, buyCommodityPrice, sellCommodityPrice } from '../craft/smith.js';
 import { MATERIALS, PHYLA, PHYLUM_ORDER } from '../sprite/item/taxa.js';
 
 let pass = 0, fail = 0;
@@ -74,6 +75,11 @@ ok(erasUpTo(techCeilingForTier(5)).some((e) => e.id === 'ship-grade'), 'ship-gra
 // 7. determinism — same spec → same item + same cost (the atproto/permalink contract)
 ok(JSON.stringify(craftItem({ phylum: 'rod', material: 'crystal', tech: 0.8, quality: 0.5, seed: 42 })) === JSON.stringify(craftItem({ phylum: 'rod', material: 'crystal', tech: 0.8, quality: 0.5, seed: 42 })), 'craftItem is deterministic');
 ok(JSON.stringify(craftCost({ phylum: 'rod', material: 'crystal', tech: 0.8, quality: 0.5 })) === JSON.stringify(craftCost({ phylum: 'rod', material: 'crystal', tech: 0.8, quality: 0.5 })), 'craftCost is deterministic');
+
+// 7b. commodity market prices — real, trace is the dearest, sell recovers less than buy
+ok(COMMODITY_IDS.every((id) => buyCommodityPrice(id) > 0), 'every commodity has a buy price');
+ok(buyCommodityPrice('trace') > buyCommodityPrice('metal') && buyCommodityPrice('trace') > buyCommodityPrice('biomass'), 'trace is the dearest commodity');
+ok(sellCommodityPrice('metal') < buyCommodityPrice('metal'), 'the desk buys low (sell < buy)');
 
 // 8. wallet math — afford / shortfall / spend / earn
 {
