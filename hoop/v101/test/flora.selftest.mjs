@@ -36,9 +36,11 @@ ok(['herbClump', 'stalk'].includes(growthForm({ name: 'Betony', qualities: 'cold
 // ── the model has the parts a renderer needs, and staging scales them ──
 {
   const p = buildPlant({ name: 'Sage', qualities: 'hot & dry', planet: 'Jupiter', reagentClass: 'plant' }, { stage: 1, seed: 3 });
-  ok(p.stems.length >= 1 && p.leaves.length >= 4 && p.roots.length >= 2, 'a grown plant has stems, leaves, and roots');
-  ok(p.roots.every((r) => r.y1 < 0), 'roots go BELOW the soil line (−y) — the microscope substrate');
+  ok(p.branches.length >= 3 && p.leaves.length >= 4 && p.roots.length >= 3, 'a grown plant has a branch network, leaves, and a root network');
+  ok(p.roots.every((r) => r.y1 <= 0.02), 'the root network stays at/below the soil line (the foraging goes DOWN)');
+  ok(p.roots.some((r) => r.y1 < -0.05), 'the roots forage well below the surface (the microscope substrate)');
   ok(p.leaves.every((l) => l.y > 0), 'leaves are ABOVE the soil line');
+  ok(p.branches.every((b) => b.w0 >= b.w1 - 1e-9), 'branches taper (Murray: base wider than tip)');
   ok(p.palette.stem && p.palette.leaf && p.palette.flower, 'the model carries its palette');
 }
 {

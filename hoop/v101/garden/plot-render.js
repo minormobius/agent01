@@ -27,7 +27,14 @@ function vnoise(x, y, seed) {
 export function drawSoil(ctx, W, H, soilTop, props, seed = 7) {
   const N = 96, mask = crackMask(N, 8 + props.grain.scale, seed);
   const cell = W / N;
-  const img = ctx.createImageData(W, H);
+  // Render to an OFFSCREEN canvas at CSS size, then drawImage it — putImageData writes in DEVICE
+  // pixels and ignores the DPR setTransform on the main context (that was the "soil is a small square
+  // off to the left" bug: a CSS-sized ImageData landed in the top-left device-pixel corner). drawImage
+  // respects the transform, so the bed fills the full width at any DPR.
+  const off = (typeof OffscreenCanvas !== 'undefined') ? new OffscreenCanvas(W, H)
+    : Object.assign(document.createElement('canvas'), { width: W, height: H });
+  const octx = off.getContext('2d');
+  const img = octx.createImageData(W, H);
   const surf = props.color, deep = shade(surf, 0.62);   // the profile darkens with depth
   for (let py = 0; py < H; py++) {
     const belowFrac = clamp01((py - soilTop) / Math.max(1, H - soilTop));   // 0 at surface → 1 at bottom
@@ -54,7 +61,8 @@ export function drawSoil(ctx, W, H, soilTop, props, seed = 7) {
       const o = (py * W + px) * 4; img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = aBase;
     }
   }
-  ctx.putImageData(img, 0, 0);
+  octx.putImageData(img, 0, 0);
+  ctx.drawImage(off, 0, 0, W, H);   // respects the main context's DPR transform
   // a crisp soil surface line with a lit lip
   ctx.strokeStyle = rgba(shade(surf, 1.25), 0.9); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, soilTop); ctx.lineTo(W, soilTop); ctx.stroke();
 }
@@ -63,16 +71,17 @@ export function drawSoil(ctx, W, H, soilTop, props, seed = 7) {
 export function drawPlant(ctx, m, ox, oy, u) {
   const P = m.palette;
   const X = (x) => ox + x * u, Y = (y) => oy - y * u;    // +y up
-  // ROOTS first (below the surface, in the earth — faint, the microscope)
+  // ROOTS first — the below-soil foraging network (grow.js), drawn faint in the earth (the microscope).
+  // Segments taper by Murray's law just like the branches; pale, translucent, so they read as fibrous.
   ctx.lineCap = 'round';
-  for (const r of m.roots) { ctx.strokeStyle = rgba({ r: 0.79, g: 0.70, b: 0.55 }, 0.55); ctx.lineWidth = Math.max(0.6, r.w0 * u); ctx.beginPath(); ctx.moveTo(X(r.x0), Y(r.y0)); ctx.quadraticCurveTo(X(r.x0 + (r.x1 - r.x0) * 0.5), Y((r.y0 + r.y1) * 0.5), X(r.x1), Y(r.y1)); ctx.stroke(); }
+  for (const r of m.roots) { ctx.strokeStyle = rgba({ r: 0.82, g: 0.72, b: 0.55 }, 0.5); ctx.lineWidth = Math.max(0.5, r.w1 * u * 0.9); ctx.beginPath(); ctx.moveTo(X(r.x0), Y(r.y0)); ctx.lineTo(X(r.x1), Y(r.y1)); ctx.stroke(); }
   if (m.tuber) { const tx = X(m.tuber.x), ty = Y(m.tuber.y), rr = m.tuber.r * u; ctx.fillStyle = m.tuber.kind === 'bulb' ? '#e8e0c8' : '#d8b57a'; ctx.beginPath(); ctx.ellipse(tx, ty, rr * 0.7, rr, 0, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(90,70,40,.5)'; ctx.lineWidth = 1; ctx.stroke(); }
-  // STEMS — tapered, lit on one edge (stalk-render's roundness cue)
-  for (const s of m.stems) {
+  // BRANCHES — the shoot foraging network (grow.js): each segment a tapered stroke, Murray-thick at the
+  // base, thin at the twigs; a lit edge on the thicker limbs for roundness (stalk-render's cue).
+  for (const s of m.branches) {
     const x0 = X(s.x0), y0 = Y(s.y0), x1 = X(s.x1), y1 = Y(s.y1);
-    const cx = (x0 + x1) / 2 + s.bend * u * 0.4, cy = (y0 + y1) / 2;
-    ctx.strokeStyle = P.stem; ctx.lineWidth = Math.max(1, s.w0 * u); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(cx, cy, x1, y1); ctx.stroke();
-    ctx.strokeStyle = rgba({ r: 1, g: 1, b: 0.9 }, 0.18); ctx.lineWidth = Math.max(0.5, s.w0 * u * 0.4); ctx.beginPath(); ctx.moveTo(x0 - 1, y0); ctx.quadraticCurveTo(cx - 1, cy, x1 - 0.5, y1); ctx.stroke();
+    ctx.strokeStyle = P.stem; ctx.lineWidth = Math.max(0.8, s.w1 * u); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    if (s.w0 * u > 2.5) { ctx.strokeStyle = rgba({ r: 1, g: 1, b: 0.9 }, 0.16); ctx.lineWidth = Math.max(0.5, s.w0 * u * 0.35); ctx.beginPath(); ctx.moveTo(x0 - 0.8, y0); ctx.lineTo(x1 - 0.6, y1); ctx.stroke(); }
   }
   // LEAVES — filled blades with a lit midrib
   for (const l of m.leaves) {
@@ -87,6 +96,10 @@ export function drawPlant(ctx, m, ox, oy, u) {
     const fx = X(f.x), fy = Y(f.y), r = f.r * u;
     ctx.save(); ctx.shadowColor = P.flower; ctx.shadowBlur = 6;
     if (f.kind === 'ear' || f.kind === 'spike') { ctx.fillStyle = P.flower; ctx.beginPath(); ctx.ellipse(fx, fy, r * 0.6, r * 1.6, 0, 0, 7); ctx.fill(); }
+    else if (f.kind === 'composite') {   // a phyllotactic head: petal ring + Vogel-spiral florets
+      ctx.fillStyle = P.flower; const pet = 13; for (let i = 0; i < pet; i++) { const a = i / pet * Math.PI * 2; ctx.beginPath(); ctx.ellipse(fx + Math.cos(a) * r, fy + Math.sin(a) * r, r * 0.9, r * 0.32, a, 0, 7); ctx.fill(); }
+      ctx.fillStyle = '#caa23a'; for (const fl of (f.florets || [])) { ctx.beginPath(); ctx.arc(X(fl.x), Y(fl.y), Math.max(0.5, r * u * 0.06), 0, 7); ctx.fill(); }
+    }
     else { ctx.fillStyle = P.flower; const pet = f.petals || 5; for (let i = 0; i < pet; i++) { const a = i / pet * Math.PI * 2; ctx.beginPath(); ctx.ellipse(fx + Math.cos(a) * r, fy + Math.sin(a) * r, r * 0.7, r * 0.4, a, 0, 7); ctx.fill(); } ctx.fillStyle = '#f8e6a0'; ctx.beginPath(); ctx.arc(fx, fy, r * 0.5, 0, 7); ctx.fill(); }
     ctx.restore();
   }
