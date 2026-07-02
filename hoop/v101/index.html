@@ -3659,10 +3659,17 @@
     //    no self-quaff. ──
     const isPrep = (it) => !!(it && it.alch && it.mechanics && it.mechanics.use);
     const isSelfQuaff = (it) => isPrep(it) && (it.mechanics.use.deliver === 'self' || !!it.mechanics.use.lubricant);
-    // the self-heal/buff draughts, shaped for the arena bar: [{ name, glyph, use, effect }]
+    // the preparations usable in a fight, shaped for the arena bar: [{ name, glyph, use, effect, mode }].
+    // mode 'quaff' = a self heal/buff draught you drink; mode 'doff' = a flask/smoke/salve you THROW.
     function battleItems() {
-      return pack.pack.map((it) => isSelfQuaff(it) && it.mechanics.use.combat && ['heal', 'buff'].includes(it.mechanics.use.combat.kind)
-        ? { name: it.name, glyph: it.glyph || '⚗', use: it.mechanics.use, effect: it.lore || '' } : null).filter(Boolean);
+      return pack.pack.map((it) => {
+        if (!isPrep(it) || !it.mechanics.use.combat) return null;
+        const u = it.mechanics.use, k = u.combat.kind;
+        const mode = (u.deliver === 'self' && (k === 'heal' || k === 'buff')) ? 'quaff'
+          : (u.deliver !== 'self' && ['attack', 'debuff', 'control', 'heal'].includes(k)) ? 'doff' : null;
+        if (!mode) return null;
+        return { name: it.name, glyph: it.glyph || '⚗', use: u, effect: it.lore || '', mode };
+      }).filter(Boolean);
     }
     // remove one matching preparation from the pack after it's quaffed in a fight (by name — items are equal).
     function consumeBattleItem(it) {

@@ -5,6 +5,7 @@
 // spriteFor(unit) so the overlay stays decoupled from whichever sprite engine the caller uses.
 
 import * as E from './engine.js';
+import { arcPoint, spin } from './trajectory.js';   // the lob path for thrown preparations (the /flux trajectory cousin)
 import { frameRects, DIR_OF } from '../v3/sprite-core.js';
 // beast body-plan renderers (vendored Sprite Lab kernels) — a creep genome tagged `_plan` is drawn by its
 // matching frame fn (grid genome.w×genome.h, cells {x,y,c}), animated off the walk `frame` as a phase t.
@@ -44,6 +45,7 @@ export class BattleOverlay {
     // from the pack after it's quaffed. Alchemy's bench output — heal/buff draughts you can drink mid-fight.
     this.items = Array.isArray(opts.items) ? opts.items.slice() : [];
     this.onConsume = opts.onConsume || null;
+    this.selItem = -1; this.proj = null;   // an armed throwable's index + the in-flight projectile
     this.swarms.clear(); this._lastT = 0;
     this.elOver.classList.remove('on');
     this._renderBar(); this._syncTop();
@@ -127,6 +129,14 @@ export class BattleOverlay {
       const pulse = 0.5 + 0.5 * Math.sin(this.phase / 8);
       for (const id of L.skills[this.sel].targets) { const t = E.unitById(S, id); if (!t) continue; const [tx, ty] = this._wc(b, t.x, t.y); ctx.strokeStyle = `rgba(207,59,59,${0.5 + pulse * 0.45})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tx, ty, R * 1.5, 0, 7); ctx.stroke(); }
     }
+    // RANGE RING + TARGETS for an ARMED THROWABLE (violet reach, targets pulse gold) — the doff cousin of the above
+    if (myTurn && this.selItem >= 0 && this.items[this.selItem]) {
+      const it = this.items[this.selItem], use = it.use, cc = use.combat || {}, range = cc.range || use.range || 4;
+      const [ax, ay] = this._wc(b, au.x, au.y);
+      ctx.strokeStyle = 'rgba(198,176,240,.4)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(ax, ay, range * b.sc, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      const pulse = 0.5 + 0.5 * Math.sin(this.phase / 8);
+      for (const id of this._doffTargets(it)) { const t = E.unitById(S, id); if (!t) continue; const [tx, ty] = this._wc(b, t.x, t.y); ctx.strokeStyle = `rgba(244,191,98,${0.5 + pulse * 0.45})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tx, ty, R * 1.6, 0, 7); ctx.stroke(); }
+    }
     ctx.restore();
     // UNITS — painters' order by y; body shadow disk + sprite + bars + status + active ring.
     const order = S.units.filter((u) => u.alive).slice().sort((a, c) => a.y - c.y);
@@ -144,6 +154,19 @@ export class BattleOverlay {
         ctx.imageSmoothingEnabled = false; ctx.drawImage(pc, cx - wid / 2, cy + R * 0.7 - hgt, wid, hgt); ctx.imageSmoothingEnabled = true;
       } else { ctx.fillStyle = u.accent || (u.team === 'player' ? '#f4bf62' : '#cf3b3b'); ctx.font = `${R * 1.6}px ui-monospace,monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(u.glyph || (u.team === 'player' ? '☻' : '☠'), cx, cy); }
       this._drawBars(cx, cy - b.sc * 2.2 + R * 0.7 - 8, u, b.sc);
+    }
+    // a thrown preparation in flight — lob it over the board along the trajectory arc (the /flux cousin)
+    if (this.proj) {
+      const t = Math.min(1, (performance.now() - this.proj.start) / this.proj.dur);
+      const pos = arcPoint(this.proj.from, this.proj.to, t), [px, py] = this._wc(b, pos.x, pos.y);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(198,176,240,.45)'; ctx.lineWidth = 1.5; ctx.beginPath();       // a fading trail
+      for (let k = 0; k <= 12; k++) { const q = arcPoint(this.proj.from, this.proj.to, (k / 12) * t), [qx, qy] = this._wc(b, q.x, q.y); k ? ctx.lineTo(qx, qy) : ctx.moveTo(qx, qy); }
+      ctx.stroke();
+      ctx.translate(px, py); ctx.rotate(spin(this.proj.from, this.proj.to, t));
+      ctx.shadowColor = '#c6b0f0'; ctx.shadowBlur = 8; ctx.fillStyle = '#e6d8ff'; ctx.font = `${b.sc * 1.15}px ui-monospace,monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(this.proj.it.glyph || '⚗', 0, 0);
+      ctx.restore();
     }
   }
   _drawBars(cx, top, u, sc) {
@@ -170,10 +193,14 @@ export class BattleOverlay {
       const hint = isSel && this._targeted(sk) ? ' style="outline:1px solid #f4bf62"' : '';
       return `<button class="bact ${isSel ? 'sel' : ''}" data-skill="${k}" title="${esc(sk.gloss || '')}"${hint} ${usable ? '' : 'disabled'}>${sk.glyph} ${sk.label}${cost ? ` <span class="bc">✣${cost}</span>` : ''}</button>`;
     }).join('');
-    // consumable quaff buttons (self draughts from the pack) — usable while it's your turn and you haven't acted
-    const canQuaff = can && u && !u.acted;
-    const items = (this.items || []).map((it, i) =>
-      `<button class="bact bitem" data-item="${i}" title="${esc(it.effect || '')}" style="border-color:#6a5a9a;color:#c6b0f0" ${canQuaff ? '' : 'disabled'}>${it.glyph || '⚗'} ${esc(it.name)}</button>`).join('');
+    // consumable buttons (from the pack) — QUAFF a self draught or DOFF (throw) a flask/smoke/salve. Usable
+    // while it's your turn and you haven't acted; a doff arms targeting (the next unit-click is the throw).
+    const canUse = can && u && !u.acted;
+    const items = (this.items || []).map((it, i) => {
+      const doff = it.mode === 'doff', armed = this.selItem === i, verb = doff ? '✦' : '⚗';
+      const hint = armed ? ' style="border-color:#f4bf62;color:#f4d99a;outline:1px solid #f4bf62"' : ' style="border-color:#6a5a9a;color:#c6b0f0"';
+      return `<button class="bact bitem ${armed ? 'sel' : ''}" data-item="${i}" title="${esc((doff ? 'throw · ' : 'quaff · ') + (it.effect || ''))}"${hint} ${canUse ? '' : 'disabled'}>${verb} ${esc(it.name)}</button>`;
+    }).join('');
     this.elBar.innerHTML = btns + items + `<button class="bact" data-end="1" ${can ? '' : 'disabled'}>End ⏎</button>`;
     this.elBar.querySelectorAll('[data-skill]').forEach((bn) => bn.addEventListener('click', () => this._onSkill(bn.dataset.skill)));
     this.elBar.querySelectorAll('[data-item]').forEach((bn) => bn.addEventListener('click', () => this._onItem(+bn.dataset.item)));
@@ -187,24 +214,55 @@ export class BattleOverlay {
     if (ev.type === 'reposition') this._repos = true;                       // flit reopened the move slot — the next click is the extra step
     this._afterAction(ev);
   }
-  // quaff a consumable preparation on yourself (heal/buff) — fires from the bar like a self skill, then the
-  // item is removed from the pack via onConsume. A non-self quaff comes back illegal and is left in the pack.
+  // use a consumable from the bar. QUAFF (self) fires now; DOFF (throw) arms targeting — the next click on a
+  // valid unit lobs it (a projectile arcs over, then the effect resolves). The item is dropped from the pack
+  // via onConsume on a successful use.
   _onItem(i) {
     const u = E.active(this.S); if (this.busy || !u || u.team !== 'player' || this.S.phase !== 'choose' || u.acted) return;
     const it = this.items[i]; if (!it) return;
-    const ev = E.act(this.S, { type: 'item', use: it.use });
+    if (it.mode === 'doff') { this.selItem = (this.selItem === i ? -1 : i); this.sel = null; this._renderBar(); return; }   // arm/disarm the throw
+    const ev = E.act(this.S, { type: 'item', use: it.use });   // quaff — fires now
     if (ev.type === 'illegal') return;
-    this.items.splice(i, 1);                        // spent — drop it from the in-battle list
-    if (this.onConsume) { try { this.onConsume(it); } catch (e) {} }   // remove one from the real pack
+    this.selItem = -1; this.items.splice(i, 1);
+    if (this.onConsume) { try { this.onConsume(it); } catch (e) {} }
     this._afterAction(ev);
+  }
+  // the units a throwable can land on: an offensive flask/smoke → enemies in range; a salve → allies in range.
+  _doffTargets(it) {
+    const u = E.active(this.S); if (!u || !it) return [];
+    const use = it.use, c = use.combat || {}, range = c.range || use.range || 4;
+    const heal = c.kind === 'heal';
+    return this.S.units.filter((x) => x.alive && (heal ? x.team === u.team : x.team !== u.team) && E.inRange(u, x, range)).map((x) => x.id);
+  }
+  // launch the armed throwable at `targetId`: animate the lob, then resolve the item act on landing.
+  _throwAt(i, targetId) {
+    const u = E.active(this.S), it = this.items[i], tgt = E.unitById(this.S, targetId);
+    if (!u || !it || !tgt) return;
+    this.busy = true; this.selItem = -1;
+    this.proj = { it, from: { x: u.x, y: u.y }, to: { x: tgt.x, y: tgt.y }, start: performance.now(), dur: 460 };
+    this._renderBar();
+    setTimeout(() => {
+      this.proj = null; this.busy = false;
+      const ev = E.act(this.S, { type: 'item', use: it.use, targetId });
+      if (ev.type === 'illegal') { this._renderBar(); return; }
+      const idx = this.items.indexOf(it); if (idx >= 0) this.items.splice(idx, 1);
+      if (this.onConsume) { try { this.onConsume(it); } catch (e) {} }
+      this._afterAction(ev);
+    }, 480);
   }
   _onClick(e) {
     if (this.busy || !this.S || this.S.phase !== 'choose') return;
     const u = E.active(this.S); if (!u || u.team !== 'player') return;
     const b = this._board(), r = this.cv.getBoundingClientRect();
     const p = this._toWorld(b, e.clientX - r.left, e.clientY - r.top);
-    const sk = E.SKILLS[this.sel] || E.SKILLS.strike;
     const hit = this.S.units.find((x) => x.alive && E.dist(x, p) <= E.UNIT_R * 1.6);   // a body under the click?
+    // a THROWABLE armed → clicking a valid target lobs it
+    if (this.selItem >= 0) {
+      const it = this.items[this.selItem];
+      if (hit && it && this._doffTargets(it).includes(hit.id)) { this._throwAt(this.selItem, hit.id); return; }
+      return;   // an armed throw ignores empty ground / invalid targets (no accidental move)
+    }
+    const sk = E.SKILLS[this.sel] || E.SKILLS.strike;
     // a TARGETED skill armed → clicking a valid target fires it
     if (this._targeted(sk)) {
       const info = E.legal(this.S).skills[this.sel];

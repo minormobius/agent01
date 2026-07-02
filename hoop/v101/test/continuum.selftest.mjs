@@ -117,5 +117,23 @@ ok(UNIT_R > 0 && dist({ x: 0, y: 0 }, { x: 3, y: 4 }) === 5, 'continuum geometry
   ok(ev3.type === 'illegal', 'a caustic (non-self) preparation cannot be self-quaffed in a fight');
 }
 
+// ── DOFF: throwing a preparation at a target (caustic flask / sedative smoke / salve to an ally) ──
+{
+  const c = rollCharacter(11, {});
+  const S = createBattle({ player: { id: 0, name: 'H', faction: 'continuant', character: c, combat: deriveCombat(c), sprite: { seed: 'p', role: 'make' } }, foes: [creepFor(2, 1, 5, 4)], seed: 3, W: 14, H: 10, det: true });
+  const u = S.units.find((x) => x.team === 'player'); while (active(S) !== u) endTurn(S);
+  const foe = S.units.find((x) => x.team === 'foe'); foe.x = u.x + 2; foe.y = u.y; const hp0 = foe.hp;
+  u.acted = false;
+  const ev = act(S, { type: 'item', use: { deliver: 'range', range: 5, combat: { kind: 'attack', damage: 9, status: 'bleed' } }, targetId: foe.id });
+  ok(ev.type === 'item' && ev.use === 'throw' && foe.hp < hp0 && foe.status.bleed, 'a thrown caustic flask damages the target + applies bleed');
+  ok(u.acted === true, 'a throw spends the action slot');
+  u.acted = false; foe.x = u.x + 9; foe.y = u.y + 9;
+  const ev2 = act(S, { type: 'item', use: { range: 2, combat: { kind: 'attack', damage: 5 } }, targetId: foe.id });
+  ok(ev2.type === 'illegal' && ev2.reason === 'range', 'a throw beyond its reach is illegal');
+  u.acted = false; u.hp = Math.max(1, u.maxhp - 20);
+  const ev3 = act(S, { type: 'item', use: { range: 4, combat: { kind: 'heal', amount: 12 } }, targetId: u.id });
+  ok(ev3.type === 'item' && ev3.use === 'salve' && u.hp > u.maxhp - 20, 'a salve tossed to an ally (self) heals');
+}
+
 console.log(`\ncontinuum.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

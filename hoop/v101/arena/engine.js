@@ -344,13 +344,48 @@ export function act(s, action) {
     return { type: 'move', unit: u.id, from, to: { x: u.x, y: u.y } };
   }
 
-  // QUAFF a consumable preparation (the alchemy bench's output). A SELF draught only — heal or a rousing
-  // (+atk) / fortifying (+Def) buff. It costs no flux (it's a consumable) but spends the action slot, like a
-  // self skill. Non-self combat kinds (caustic attack / sedative debuff) and social/lubricant effects aren't
-  // quaffable in a fight — those are thrown, burned, or drunk out of combat. `use` is mechanics.use.
+  // USE a consumable preparation (the alchemy bench's output). Two modes, both spending the action slot at
+  // no flux cost. `use` is mechanics.use.
+  //   QUAFF (no targetId) — a SELF draught: heal or a rousing(+atk)/fortifying(+Def) buff.
+  //   DOFF  (targetId)    — a THROW: a caustic flask (damage + status) or sedative smoke (debuff) at an
+  //     enemy, or a salve tossed to heal an ally. Potions LOB (arcaway), so no line-of-sight is required;
+  //     `use.range` sets the reach and `use.radius` an area splash around the landing cell.
   if (action.type === 'item') {
     if (u.acted) return { type: 'illegal' };
-    const c = (action.use && action.use.combat) || null;
+    const use = action.use || {}, c = use.combat || null;
+
+    if (action.targetId != null) {   // ── DOFF (a targeted throw) ──
+      const tgt = unitById(s, action.targetId); if (!tgt || !tgt.alive || !c) return { type: 'illegal' };
+      const range = c.range || use.range || 4;
+      if (!inRange(u, tgt, range)) return { type: 'illegal', reason: 'range' };
+      if (c.kind === 'heal') {   // a salve to an ally (or yourself)
+        if (tgt.team !== u.team) return { type: 'illegal' };
+        const h = Math.max(1, Math.round(c.amount || 0)); tgt.hp = Math.min(tgt.maxhp, tgt.hp + h); u.acted = true;
+        log(s, `${u.name} salves ${tgt.name} +${h}`, 'heal');
+        return { type: 'item', use: 'salve', unit: u.id, target: tgt.id, amount: h };
+      }
+      if (tgt.team === u.team) return { type: 'illegal' };   // offensive throws hit enemies only
+      const radius = c.radius || use.radius || 0;
+      const victims = radius > 0 ? enemiesOf(s, u).filter((e) => inRange(tgt, e, radius)) : [tgt];
+      if (!victims.includes(tgt)) victims.push(tgt);
+      const hits = [];
+      for (const e of victims) {
+        if (c.kind === 'attack') {
+          let dmg = Math.max(1, Math.round(c.damage || 0)); if (isSwarm(e)) dmg = Math.max(1, Math.round(dmg * SWARM_POINT_RESIST));
+          e.hp = Math.max(0, e.hp - dmg); if (c.status) applyStatus(e, c.status, c.sturns || 3);
+          if (e.hp <= 0) { e.alive = false; log(s, `${e.name} falls.`, 'down'); }
+          hits.push({ id: e.id, dmg, status: c.status || null });
+        } else if (c.kind === 'debuff' || c.kind === 'control') {
+          applyStatus(e, c.status, c.turns || 2); hits.push({ id: e.id, status: c.status });
+        }
+      }
+      if (!hits.length) return { type: 'illegal', reason: 'no-effect' };
+      u.acted = true; checkEnd(s);
+      log(s, `${u.name} hurls a ${c.kind === 'attack' ? 'flask' : 'smoke'} at ${tgt.name}${radius ? ' (splash)' : ''}`, c.kind === 'attack' ? 'hit' : 'info');
+      return { type: 'item', use: 'throw', kind: c.kind, unit: u.id, target: tgt.id, hits, radius };
+    }
+
+    // ── QUAFF (self) ──
     if (c && c.kind === 'heal') {
       const heal = Math.max(1, Math.round(c.amount || 0));
       u.hp = Math.min(u.maxhp, u.hp + heal); u.acted = true;
