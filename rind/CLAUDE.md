@@ -85,7 +85,17 @@ JS → emit a frame model → solve for stress):
   that set onto itself and cannot move where whites meet; only a reflection moves white exits (and that's the
   `mateTransform`/`hexSym` mirror, kept in the kernel but off the default since you preferred no flip). So pure
   rotation improves production interfaces + reshuffles which family lands at a seam, but doesn't make the three
-  white families geometrically coincide — the bridges still carry that. **`tess.html`/`tess-app.js`** shows how the
+  white families geometrically coincide — the bridges still carry that.
+  **`floor.html`/`floor-app.js` — THE DEMO FLOOR (the tessellation inhabited)**: drives the vendored **hoop/v100
+  foam-and-rooms engine** (`rind/ops/v100/`, six modules copied from `hoop/v100` with flattened imports — see
+  `v100/VENDOR.md`; vendored because the rind worker only serves `rind/**`) over the hex lattice. Each chunk becomes
+  a **district** of Voronoi rooms + a concourse (`solveChunk`, v2 rooms-first); the manager reflects neighbours
+  across shared edges and stitches ONE cross-chunk **walk graph** (`buildWalk`), so a 7- or 19-hex honeycomb is one
+  connected floor you walk (WASD/click, follow-camera). Districts abut at **seam doors** (edge-midpoint ports) and
+  the corners where three chunks meet are the **nexus mixing points** ("greedy corners — don't care about
+  single-species threads; a nexus mixes regardless"). Residents dwell in role-coloured rooms (⚒/⚕/▣…), spider-droids
+  (the `sprites/` kernel) haul the concourse. Proven navigable: `test/floor.selftest.mjs` (7-flower connects, all
+  districts reachable from one start, 6 nexus corners, deterministic). **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate** (the schematic): a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family
@@ -128,6 +138,7 @@ node rind/solver/foam-preview.mjs                  # headless foam → frame mod
 node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no deps)
 node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any→any ≤1 door incl. hubs (two concourses)
 node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
+node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR: v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
 node rind/ops/test/decks.selftest.mjs              # the region-decks comparison view
