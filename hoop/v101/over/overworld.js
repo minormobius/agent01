@@ -141,8 +141,111 @@ export function makeOverworld(seed = 1, { w = 1600, h = 1000, density = 1 } = {}
   return { seed, w, h, cell, cols, rows, bands, bandKeys, plants, fauna };
 }
 
+// ── CHUNKED ROAM (the playable overworld) ─────────────────────────────────────────────────────────────
+// makeOverworld() above is the whole-map STILL (the standalone /over page, the demo tour). The in-game
+// overworld is instead ROAMED: an unbounded landscape streamed in CHUNKS around a walking player. A chunk
+// is generated deterministically from (seed, cx, cy) — leave a chunk and return and it is byte-identical
+// (roam-and-return), the same atproto/permalink contract the still-map holds. Terrain is the SAME global
+// bandAt() field, so chunk seams are invisible. Ground is tiled with a VORONOI of a global jittered site
+// grid (organic cells, seamless across chunks) instead of the still-map's square band grid.
+
+export const CHUNK = 768;                 // world px per chunk edge
+const SITE_PITCH = 132;                   // voronoi site spacing (world px)
+
+// is a plant worth stopping to gather? (a reagent-herb, a crop, an edible) — the forage hook.
+const gatherableOrg = (o) => !!(o && (o.harvestable || o.reagent || o.reagentClass || o.crop || o.edible));
+
+// a GLOBAL jittered site grid → the same site for a given cell on every machine (so a chunk's voronoi
+// meets its neighbour's exactly). Each site takes its band from the terrain field at its own position.
+function siteFor(gi, gj, S) {
+  const r = rngFor('site:' + S + ':' + gi + ':' + gj);
+  const x = (gi + 0.5 + (r() - 0.5) * 0.72) * SITE_PITCH, y = (gj + 0.5 + (r() - 0.5) * 0.72) * SITE_PITCH;
+  return { x, y, band: bandAt(x, y, S) };
+}
+// clip a convex polygon to the half-plane { p : nx·px + ny·py <= c } (Sutherland–Hodgman, one edge).
+function clipHalf(poly, nx, ny, c) {
+  const out = [], n = poly.length;
+  for (let i = 0; i < n; i++) {
+    const a = poly[i], b = poly[(i + 1) % n];
+    const da = nx * a[0] + ny * a[1] - c, db = nx * b[0] + ny * b[1] - c;
+    if (da <= 0) out.push(a);
+    if ((da < 0) !== (db < 0)) { const t = da / (da - db); out.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]); }
+  }
+  return out;
+}
+// voronoiCells(seed, x0, y0, size) → [{ band, poly:[[x,y]…], cx, cy }] partitioning the [x0,x0+size]² tile.
+// Each site's cell is the tile rect clipped by the perpendicular bisector against every nearby site; the
+// cells tile the chunk with no gaps or overlaps. Computed once per chunk (cached on the chunk), so drawing
+// is just polygon fills — fast. Because sites are global + deterministic, cells match across chunk seams.
+export function voronoiCells(seed, x0, y0, size, pitch = SITE_PITCH) {
+  const S = (seed >>> 0) || 1;
+  const gi0 = Math.floor((x0 - pitch) / pitch), gi1 = Math.ceil((x0 + size + pitch) / pitch);
+  const gj0 = Math.floor((y0 - pitch) / pitch), gj1 = Math.ceil((y0 + size + pitch) / pitch);
+  const sites = [];
+  for (let gj = gj0; gj <= gj1; gj++) for (let gi = gi0; gi <= gi1; gi++) sites.push(siteFor(gi, gj, S));
+  const rect = [[x0, y0], [x0 + size, y0], [x0 + size, y0 + size], [x0, y0 + size]];
+  const far2 = (2.6 * pitch) ** 2, cells = [];
+  for (const s of sites) {
+    if (s.x < x0 - pitch || s.x > x0 + size + pitch || s.y < y0 - pitch || s.y > y0 + size + pitch) continue;
+    let poly = rect;
+    for (const t of sites) {
+      if (t === s) continue;
+      const dx = t.x - s.x, dy = t.y - s.y; if (dx * dx + dy * dy > far2) continue;
+      poly = clipHalf(poly, dx, dy, dx * (s.x + t.x) / 2 + dy * (s.y + t.y) / 2);
+      if (poly.length < 3) break;
+    }
+    if (poly.length >= 3) cells.push({ band: s.band, poly, cx: s.x, cy: s.y });
+  }
+  return cells;
+}
+
+// makeChunk(seed, cx, cy, opts) → one deterministic chunk of the roamed overworld.
+//   { cx, cy, x0, y0, chunk, plants:[…], fauna:[…], cells:[…] }  (plants/fauna in WORLD coords)
+// plants: { id, x, y, band, orgId, form, foot, h, size, gather } — gather=true if worth foraging.
+// fauna:  { id, x, y, orgId, plan, band, swarm, fight } — fight=true for a swarm/predator (a bee to fight).
+export function makeChunk(seed, cx, cy, { chunk = CHUNK, density = 1 } = {}) {
+  const S = (seed >>> 0) || 1, x0 = cx * chunk, y0 = cy * chunk;
+  const rng = rngFor('over:' + S + ':' + cx + ':' + cy);
+  const plants = [], placed = [];
+  const grid = 30 / Math.max(0.4, density);
+  const fits = (x, y, r) => { for (const p of placed) { const dx = p.x - x, dy = p.y - y; if (dx * dx + dy * dy < (p.r + r) * 0.55 * ((p.r + r) * 0.55)) return false; } return true; };
+  for (const pass of ['canopy', 'under']) {
+    const step = pass === 'canopy' ? grid * 2.6 : grid;
+    for (let y = y0 + step * 0.5; y < y0 + chunk; y += step) for (let x = x0 + step * 0.5; x < x0 + chunk; x += step) {
+      const jx = x + (rng() - 0.5) * step * 0.9, jy = y + (rng() - 0.5) * step * 0.9;
+      if (jx < x0 || jx >= x0 + chunk || jy < y0 || jy >= y0 + chunk) continue;   // keep plants in-rect (no seam double-density)
+      const band = bandAt(jx, jy, S);
+      if (band === 'benthic') continue;
+      const pool = producersInBand(band); if (!pool.length) continue;
+      const o = pool[(rng() * pool.length) | 0];
+      const form = growthForm(descriptorForOrganism(o));
+      const isTree = form === 'broadleaf' || form === 'conifer';
+      if (pass === 'canopy' ? !isTree : isTree) continue;
+      const foot = (FORM_FOOT[form] || 14) * (0.8 + rng() * 0.5);
+      if (!fits(jx, jy, foot)) continue;
+      const size = 0.62 + rng() * 0.38;
+      plants.push({ id: cx + ':' + cy + ':' + plants.length, x: jx, y: jy, band, orgId: o.id, form, foot: Math.round(foot), h: Math.round((FORM_H[form] || 40) * size), size: +size.toFixed(3), gather: gatherableOrg(o) });
+      placed.push({ x: jx, y: jy, r: foot });
+    }
+  }
+  plants.sort((a, b) => a.y - b.y);
+  const fauna = [];
+  const n = Math.round((chunk * chunk) / 90000 * 3 * density);
+  for (let i = 0; i < n; i++) {
+    const x = x0 + rng() * chunk, y = y0 + rng() * chunk, band = bandAt(x, y, S);
+    const pool = organismsInBand(band).filter((o) => o.kind === 'animal');
+    if (!pool.length) continue;
+    const o = pool[(rng() * pool.length) | 0];
+    fauna.push({ id: cx + ':' + cy + ':f' + fauna.length, x, y, orgId: o.id, plan: o.plan || 'quad', band, swarm: !!o.swarm, fight: !!(o.swarm || o.plan === 'poly') });
+  }
+  return { cx, cy, x0, y0, chunk, plants, fauna, cells: voronoiCells(S, x0, y0, chunk) };
+}
+
+// is a world point walkable? (open water is not — you skirt the lake, you don't stroll on it.)
+export const isWater = (x, y, seed) => bandAt(x, y, (seed >>> 0) || 1) === 'benthic';
+
 // tiny lookups the renderer + page share
 export const bandMeta = (key) => BANDS[key] || null;
 export const organismById = (() => { const m = Object.fromEntries(ORGANISMS.map((o) => [o.id, o])); return (id) => m[id] || null; })();
 
-export default { SURFACE_BANDS, bandAt, makeOverworld, descriptorForOrganism, bandMeta, organismById };
+export default { SURFACE_BANDS, bandAt, makeOverworld, makeChunk, voronoiCells, isWater, CHUNK, descriptorForOrganism, bandMeta, organismById };

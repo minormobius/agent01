@@ -158,4 +158,71 @@ export function drawOverworld(ctx, W, H, world, cam = { x: 0, y: 0, z: 1 }) {
   }
 }
 
-export default { drawOverworld };
+// ── THE ROAMED VIEW (roam.js) — voronoi ground + streamed chunk plants/fauna + the player ─────────────
+// Same silhouettes as the still-map, but the ground is the chunk's VORONOI cells (organic patches) and a
+// walking player `@` is drawn at world-centre. Only resident chunks within the viewport draw, so cost is
+// bounded by what's on screen, not by the whole world — the fix for the "it's slooow" painting.
+function drawVoronoiGround(ctx, W, H, roam, cam) {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, SKY[0]); g.addColorStop(1, SKY[1]);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const z = cam.z;
+  for (const c of roam.chunks.values()) {
+    // cull whole chunks outside the viewport
+    const sx0 = (c.x0 - cam.x) * z, sy0 = (c.y0 - cam.y) * z, sc = c.chunk * z;
+    if (sx0 > W || sy0 > H || sx0 + sc < 0 || sy0 + sc < 0) continue;
+    for (const cell of c.cells) {
+      const tint = BAND_TINT[cell.band] || BAND_TINT.meadow;
+      const t = ((cell.cy % 1200) / 1200); const jit = (((cell.cx | 0) * 73 ^ (cell.cy | 0) * 179) & 7) / 7 * 0.08 - 0.04;
+      ctx.fillStyle = shade(tint[0], (1 - Math.min(1, t)) * (1 + jit) + Math.min(1, t) * 0.72 + jit);
+      ctx.beginPath();
+      const p0 = cell.poly[0]; ctx.moveTo((p0[0] - cam.x) * z, (p0[1] - cam.y) * z);
+      for (let i = 1; i < cell.poly.length; i++) ctx.lineTo((cell.poly[i][0] - cam.x) * z, (cell.poly[i][1] - cam.y) * z);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+}
+
+function drawPlayer(ctx, sx, sy, z) {
+  const r = Math.max(7, 9 * z);
+  ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.9, r * 0.9, r * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+  // a small hooded figure: body + head, gold-rimmed so it reads against any band
+  ctx.fillStyle = '#20242c'; ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = Math.max(1.4, 1.8 * z);
+  ctx.beginPath(); ctx.moveTo(sx, sy - r * 1.9); ctx.lineTo(sx + r * 0.8, sy); ctx.lineTo(sx - r * 0.8, sy); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#e8e0d0'; ctx.beginPath(); ctx.arc(sx, sy - r * 1.9, r * 0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#f4bf62'; ctx.beginPath(); ctx.arc(sx, sy - r * 1.9, r * 0.5, 0, Math.PI * 2); ctx.stroke();
+}
+
+// drawRoam(ctx, W, H, roam, cam, opts) — the whole roamed frame. opts.forage / opts.encounter highlight
+// the current interactable (a soft ring). The player sits wherever cam is centred (host keeps them centred).
+export function drawRoam(ctx, W, H, roam, cam = { x: 0, y: 0, z: 1 }, opts = {}) {
+  const z = cam.z || 1;
+  drawVoronoiGround(ctx, W, H, roam, cam);
+  // gather all in-view plants across resident chunks, y-sort globally, draw.
+  const vis = [];
+  for (const c of roam.chunks.values()) for (const p of c.plants) {
+    const sx = (p.x - cam.x) * z, sy = (p.y - cam.y) * z;
+    if (sx < -80 || sx > W + 80 || sy < -20 || sy > H + p.h * z + 40) continue;
+    vis.push(p);
+  }
+  vis.sort((a, b) => a.y - b.y);
+  const hi = opts.forage;
+  for (const p of vis) {
+    const sx = (p.x - cam.x) * z, sy = (p.y - cam.y) * z;
+    if (p.gather && !roam.gathered.has(p.id)) { // a faint forage glint
+      ctx.fillStyle = (hi && hi.id === p.id) ? 'rgba(244,191,98,0.9)' : 'rgba(244,191,98,0.35)';
+      ctx.beginPath(); ctx.arc(sx, sy - Math.max(3, 4 * z), Math.max(1.5, 2 * z), 0, Math.PI * 2); ctx.fill();
+    }
+    drawPlant(ctx, p, sx, sy, z);
+  }
+  const foe = opts.encounter;
+  for (const c of roam.chunks.values()) for (const f of c.fauna) {
+    if (roam.gathered.has('foe:' + f.id)) continue;
+    const sx = (f.x - cam.x) * z, sy = (f.y - cam.y) * z;
+    if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) continue;
+    if (f.fight && foe && foe.id === f.id) { ctx.strokeStyle = 'rgba(220,90,70,0.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(10, 12 * z), 0, Math.PI * 2); ctx.stroke(); }
+    drawFauna(ctx, f, sx, sy, z);
+  }
+  drawPlayer(ctx, (roam.player.x - cam.x) * z, (roam.player.y - cam.y) * z, z);
+}
+
+export default { drawOverworld, drawRoam };

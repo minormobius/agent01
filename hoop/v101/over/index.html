@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <base href="/v101/over/" />
-<title>The Overworld — the ship's outer grow-deck</title>
+<title>The Overworld — roam the ship's outer grow-deck</title>
 <style>
   :root { --bg:#0b0906; --ink:#e8e0d0; --dim:#9a8f7a; --gold:#f4bf62; --line:#241d14; --panel:#12100a; }
   * { box-sizing: border-box; }
@@ -12,80 +12,117 @@
   .wrap { max-width:1200px; margin:0 auto; padding:20px 16px 60px; }
   .crumb { font-size:12px; color:var(--dim); margin-bottom:10px; } .crumb a { color:#b48a6a; }
   h1 { font-size:20px; color:var(--gold); margin:0 0 2px; } .lead { color:var(--dim); font-size:13px; margin:0 0 14px; }
-  #over { width:100%; height:600px; display:block; border:1px solid var(--line); border-radius:10px; background:#0d1620; cursor:grab; touch-action:none; }
-  #over:active { cursor:grabbing; }
+  .stage { position:relative; }
+  #over { width:100%; height:600px; display:block; border:1px solid var(--line); border-radius:10px; background:#0d1620; cursor:crosshair; touch-action:none; }
+  #hud { position:absolute; left:12px; bottom:12px; right:12px; font-size:12px; color:var(--ink); background:rgba(8,10,14,0.62); border:1px solid var(--line); border-radius:8px; padding:7px 11px; pointer-events:none; }
+  #hud b { color:var(--gold); }
   .row { display:flex; flex-wrap:wrap; gap:12px; margin:12px 0; align-items:center; }
   .ctl { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:12px; }
   .ctl label { color:var(--dim); display:block; margin-bottom:4px; } .ctl input[type=range]{ width:130px; vertical-align:middle; } .ctl b { color:var(--gold); }
   button { background:#241f15; color:var(--gold); border:1px solid #6a5a3a; font:inherit; font-size:12px; padding:7px 13px; border-radius:6px; cursor:pointer; } button:hover{ border-color:var(--gold); color:#fff; }
   .legend { font-size:11.5px; color:var(--dim); margin-top:10px; }
   .swatch { display:inline-flex; align-items:center; gap:5px; margin:0 10px 5px 0; } .swatch i { width:12px; height:12px; border-radius:3px; display:inline-block; }
-  .hint { font-size:11px; color:#6b7872; margin-top:6px; }
+  .keys { font-size:11px; color:#6b7872; margin-top:6px; } .keys kbd { background:#1c1810; border:1px solid #3a3120; border-radius:4px; padding:1px 5px; color:var(--gold); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="crumb"><a href="/">◍ hoop</a> · <a href="/docs">world docs</a> · <a href="/garden/plot">garden plot</a> · <a href="/alch">cookbook</a> · overworld · <a href="/over/demo">▶ standing demo</a></div>
-  <h1>The Overworld</h1>
-  <p class="lead">The ship's outer grow-deck — the whole curated ecology grown <em>wild</em>, not in beds. A moisture-and-elevation field carves coherent terrain (dry heath, sunlit meadow, orchard grove, deep thicket, reed fen, open water); every band grows its own slice of the palette. These are the same plants the garden fixture grows, drawn here as silhouettes that keep the <em>soul</em> of each — a broadleaf towers, a fennel is feathery, an aromatic is a grey mound, a reed is blue blades. Deterministic from a seed, so an NPC's overworld reproduces exactly. Drag to pan, scroll to zoom.</p>
-  <canvas id="over"></canvas>
+  <h1>The Overworld — roam the grow-deck</h1>
+  <p class="lead">The ship's outer grow-deck, <em>walked</em>. You're the gold-rimmed figure; the ecology grows <em>wild</em> around you across a voronoi of terrain bands (dry heath, sunlit meadow, orchard grove, deep thicket, reed fen, open water you can't cross). The world streams in <b>chunks</b> as you move — roam out and back and it's the same landscape, deterministic from the seed. Two verbs up here: <b>gather</b> a herb (into your pantry, to brew at a bench) and <b>face</b> a bee-swarm or spider. Same plants the garden grows, each keeping the <em>soul</em> of its growth-form.</p>
+  <div class="stage">
+    <canvas id="over"></canvas>
+    <div id="hud"></div>
+  </div>
+  <div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows to walk · <b>click</b> to walk there (click a herb to gather it) · <kbd>E</kbd> gather · <kbd>F</kbd> face a creature · scroll to zoom</div>
   <div class="row">
     <div class="ctl"><label>seed <b id="ls">21</b></label><input id="seed" type="range" min="1" max="120" value="21" /></div>
     <div class="ctl"><label>density <b id="ld">normal</b></label><input id="dens" type="range" min="40" max="220" value="100" /></div>
     <div class="ctl"><label>&nbsp;</label><button id="reroll">🎲 new landscape</button></div>
-    <div class="ctl"><label>&nbsp;</label><button id="recenter">⌖ recenter</button></div>
+    <div class="ctl"><label>&nbsp;</label><button id="findme">⌖ find me</button></div>
     <div class="ctl"><span id="count" style="color:var(--gold)"></span></div>
   </div>
   <div class="legend" id="legend"></div>
-  <div class="hint">the canonical farm is seed 21 — the closing food-web the viability oracle scores. every other seed is a fresh draw from the same palette.</div>
 </div>
 
 <script type="module">
-import { makeOverworld, bandMeta, SURFACE_BANDS } from './overworld.js';
-import { drawOverworld } from './over-render.js';
+import { createRoam, stepPlayer, forageTarget, forage, encounterTarget, foeOf, defeat, residentChunks } from './roam.js';
+import { drawRoam } from './over-render.js';
+import { bandMeta, bandAt, organismById, SURFACE_BANDS } from './overworld.js';
 
 const cv = document.getElementById('over'), ctx = cv.getContext('2d');
 const seedEl = document.getElementById('seed'), densEl = document.getElementById('dens');
-const ls = document.getElementById('ls'), ld = document.getElementById('ld'), countEl = document.getElementById('count');
-const W = 2000, H = 1300;                          // world extent
-let world = null, cam = { x: 0, y: 0, z: 0.55 };
+const ls = document.getElementById('ls'), ld = document.getElementById('ld'), countEl = document.getElementById('count'), hud = document.getElementById('hud');
+let roam = null, cam = { x: 0, y: 0, z: 2.4 }, keys = new Set(), clickTarget = null, autoForage = false, foraged = 0, faced = 0, t0 = 0, last = 0, flash = 0;
+const SPEED = 158, ZMIN = 0.5, ZMAX = 3;
 
 function build() {
   const seed = +seedEl.value, density = +densEl.value / 100;
-  world = makeOverworld(seed, { w: W, h: H, density });
+  roam = createRoam(seed, { keep: 1, density });
   ls.textContent = seed; ld.textContent = density < 0.7 ? 'sparse' : density > 1.4 ? 'lush' : 'normal';
-  countEl.textContent = `${world.plants.length} plants · ${world.fauna.length} creatures`;
-  // permalink
+  foraged = 0; faced = 0; clickTarget = null; cam.z = 2.4; center();
   try { history.replaceState(null, '', `?seed=${seed}&d=${+densEl.value}`); } catch (e) {}
-  draw();
 }
-function size() { const dpr = Math.min(2, devicePixelRatio || 1); const w = cv.clientWidth, h = cv.clientHeight; cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { w, h }; }
-function draw() { if (!world) return; const { w, h } = size(); drawOverworld(ctx, w, h, world, cam); }
+function size() { const dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight; cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { w, h }; }
+function center() { const w = cv.clientWidth, h = cv.clientHeight; cam.x = roam.player.x - (w / cam.z) / 2; cam.y = roam.player.y - (h / cam.z) / 2; }
+function toWorld(e) { const r = cv.getBoundingClientRect(); return { x: cam.x + (e.clientX - r.left) / cam.z, y: cam.y + (e.clientY - r.top) / cam.z }; }
 
-function recenter() { const { w, h } = size(); cam.x = W / 2 - (w / cam.z) / 2; cam.y = H / 2 - (h / cam.z) / 2; draw(); }
+let forageT = null, foe = null;
+function doForage() { if (!roam || !forageT) return; const y = forage(roam, forageT); forageT = null; if (y) { foraged++; countEl.textContent = `${foraged} foraged · ${faced} faced`; } }
+function doFight() { if (!roam || !foe) return; defeat(roam, foe); foe = null; faced++; flash = 1; countEl.textContent = `${foraged} foraged · ${faced} faced`; }
 
-// pan (drag) + zoom (wheel/pinch)
-let drag = null;
-cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y }; cv.setPointerCapture(e.pointerId); });
-cv.addEventListener('pointermove', (e) => { if (!drag) return; cam.x = drag.cx - (e.clientX - drag.x) / cam.z; cam.y = drag.cy - (e.clientY - drag.y) / cam.z; draw(); });
-cv.addEventListener('pointerup', () => { drag = null; });
-cv.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
-  const wx = cam.x + mx / cam.z, wy = cam.y + my / cam.z; cam.z = Math.max(0.25, Math.min(3, cam.z * (e.deltaY < 0 ? 1.12 : 0.89)));
-  cam.x = wx - mx / cam.z; cam.y = wy - my / cam.z; draw(); }, { passive: false });
+function frame(now) {
+  if (!roam) { requestAnimationFrame(frame); return; }
+  if (!t0) t0 = now;
+  const dt = Math.min(0.05, (last ? (now - last) : 16) / 1000); last = now;
+  let mx = 0, my = 0;
+  if (keys.has('arrowup') || keys.has('w')) my -= 1;
+  if (keys.has('arrowdown') || keys.has('s')) my += 1;
+  if (keys.has('arrowleft') || keys.has('a')) mx -= 1;
+  if (keys.has('arrowright') || keys.has('d')) mx += 1;
+  if (mx || my) { clickTarget = null; autoForage = false; }
+  else if (clickTarget) { const dx = clickTarget.x - roam.player.x, dy = clickTarget.y - roam.player.y, d = Math.hypot(dx, dy);
+    if (d > 5) { mx = dx / d; my = dy / d; } else { clickTarget = null; if (autoForage) { forageT = forageTarget(roam); doForage(); autoForage = false; } } }
+  if (mx || my) { const n = Math.hypot(mx, my) || 1; stepPlayer(roam, (mx / n) * SPEED * dt, (my / n) * SPEED * dt); }
+  const { w, h } = size();
+  const tx = roam.player.x - (w / cam.z) / 2, ty = roam.player.y - (h / cam.z) / 2, k = Math.min(1, dt * 9);
+  cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k;
+  forageT = forageTarget(roam); foe = forageT ? null : encounterTarget(roam);
+  drawRoam(ctx, w, h, roam, cam, { forage: forageT, encounter: foe, t: (now - t0) / 1000 });
+  if (flash > 0) { flash = Math.max(0, flash - dt * 3); ctx.fillStyle = `rgba(224,106,90,${flash * 0.28})`; ctx.fillRect(0, 0, w, h); }
+  const b = bandAt(roam.player.x, roam.player.y, roam.seed), bm = bandMeta(b);
+  let np = 0; for (const c of residentChunks(roam)) np += c.plants.length;
+  let hint = 'WASD / arrows / click to roam · scroll zoom';
+  if (forageT) { const o = organismById(forageT.orgId); hint = `⌁ press <b>E</b> to gather <b>${o ? (o.common || o.id) : 'this'}</b>`; }
+  else if (foe) { const o = organismById(foe.orgId); hint = `⚔ press <b>F</b> to face the <b>${o ? (o.common || o.id) : 'swarm'}</b>`; }
+  hud.innerHTML = `${bm ? bm.kicker + ' ' + bm.name : 'the overworld'} · ${np} plants near · ${hint}`;
+  countEl.textContent = `${foraged} foraged · ${faced} faced`;
+  requestAnimationFrame(frame);
+}
+
+cv.addEventListener('pointerdown', (e) => { if (!roam) return; const wp = toWorld(e);
+  let near = null, nd = (46 / cam.z) ** 2 + 900;
+  for (const c of residentChunks(roam)) for (const p of c.plants) { if (!p.gather || roam.gathered.has(p.id)) continue; const d = (p.x - wp.x) ** 2 + (p.y - wp.y) ** 2; if (d < nd) { nd = d; near = p; } }
+  if (near) { clickTarget = { x: near.x, y: near.y }; autoForage = true; } else { clickTarget = wp; autoForage = false; } });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundingClientRect(), mxs = e.clientX - r.left, mys = e.clientY - r.top, wx = cam.x + mxs / cam.z, wy = cam.y + mys / cam.z; cam.z = Math.max(ZMIN, Math.min(ZMAX, cam.z * (e.deltaY < 0 ? 1.12 : 0.89))); cam.x = wx - mxs / cam.z; cam.y = wy - mys / cam.z; }, { passive: false });
+addEventListener('keydown', (e) => { if (e.metaKey || e.ctrlKey) return; const k = e.key.toLowerCase();
+  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); e.preventDefault(); return; }
+  if (k === 'e' || k === ' ') { forageT = forageTarget(roam); doForage(); e.preventDefault(); return; }
+  if (k === 'f') { foe = encounterTarget(roam); doFight(); e.preventDefault(); return; } });
+addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 
 document.getElementById('reroll').addEventListener('click', () => { seedEl.value = 1 + Math.floor(Math.random() * 120); build(); });
-document.getElementById('recenter').addEventListener('click', recenter);
+document.getElementById('findme').addEventListener('click', center);
 [seedEl, densEl].forEach((e) => e.addEventListener('input', build));
-addEventListener('resize', draw);
 
 // terrain legend
 const TINT = { heath:'#a89a5a', meadow:'#7fb04e', grove:'#5f9e45', thicket:'#3f6e3a', fen:'#5e8a62', benthic:'#39627e' };
 document.getElementById('legend').innerHTML = 'terrain · ' + SURFACE_BANDS.map((b) => { const m = bandMeta(b); return `<span class="swatch"><i style="background:${TINT[b]}"></i>${m ? m.name : b}</span>`; }).join('');
 
-// query permalink
 const q = new URLSearchParams(location.search);
 if (q.get('seed')) seedEl.value = q.get('seed'); if (q.get('d')) densEl.value = q.get('d');
-build(); recenter();
+build();
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>

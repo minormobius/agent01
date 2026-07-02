@@ -563,8 +563,9 @@
     import { buildPlant, descriptorForCrop } from './garden/flora.js';   // the procedural PLANT model (growth-form + Galenic palette + phyllotactic foliage), drawn per plot
     import { renderSinglePlot } from './garden/plot-render.js';          // one plant on its own soil tile with a label window
     import { soilProps } from './worship/lib/soil.js';                   // the soil substrate (grain/moisture/cracks)
-    import { makeOverworld } from './over/overworld.js';                 // the OVERWORLD kernel — the ecology grown wild across terrain bands (the ladder in the Continuants ward climbs here)
-    import { drawOverworld } from './over/over-render.js';               // the overworld silhouette renderer (growth-form + Galenic palette at landscape scale)
+    import { makeOverworld, organismById as overOrg, bandAt as overBandAt, bandMeta as overBandMeta } from './over/overworld.js';   // the OVERWORLD kernel — the ecology grown wild across terrain bands (the ladder in the Continuants ward climbs here)
+    import { drawOverworld, drawRoam } from './over/over-render.js';     // the overworld renderers — still-map + the roamed view (voronoi ground, streamed chunks, the player)
+    import { createRoam, stepPlayer, ensureAround, forageTarget, forage as roamForage, encounterTarget, foeOf, defeat as roamDefeat } from './over/roam.js';   // the ROAM manager — walk the outer deck, forage plants, meet creatures
     import { findReagent, prepare, PREPARATIONS } from './alch/alchemy.js';   // the alchemy kernel — reagent correspondence → temperament colour; prepare() = the bench's brew
     import { deriveRecipes, describeEffect } from './alch/cookbook.js';  // the cookbook — suggested recipes + effect readout for the make-room bench
     import { COMMODITIES as SMITH_COMMODITIES, commodityMeta, availableMaterials, erasUpTo, techCeilingForTier, craftItem as smithCraft, craftCost, dismantle as smithDismantle, canAfford, shortfall, spend as smithSpend, earn as smithEarn, buyCommodityPrice, sellCommodityPrice } from './craft/smith.js';   // the SMITHY — the make-room WALL fixture: forge equipment from the ship's commodities
@@ -3859,33 +3860,104 @@
       notify(`⊟ broke down ${it.name} → ${Object.entries(back).map(([k, v]) => `${commodityMeta(k).glyph}${v}`).join(' ')}`, { kind: 'life', ms: 2800 });
     }
 
-    // ── THE OVERWORLD OVERLAY — the ladder's destination: the ship's outer grow-deck, the whole curated
-    //    ecology grown wild across terrain bands (over/overworld.js). A full-bleed pan/zoom landscape, seeded
-    //    from the WORLD seed so it's stable per world (an NPC's overworld reproduces). Same plants as the
-    //    garden fixture, drawn as silhouettes that keep the growth-form + Galenic palette — the "soul." ──
-    let overOpen = false, overData = null, overCam = { x: 0, y: 0, z: 0.6 }, _overDrag = null;
-    const OVER_W = 2200, OVER_H = 1500;
+    // ── THE OVERWORLD OVERLAY — the ladder's destination: the ship's outer grow-deck, ROAMED. You are
+    //    injected as a walking figure into the ecology grown wild (over/roam.js): WASD/arrows/click move you,
+    //    the camera follows, chunks stream in around you (walk out and back, it's the same landscape), the
+    //    ground is a voronoi of terrain bands, and the deck offers two verbs — GATHER a plant (into your
+    //    pantry, brewable at a ⚗ bench) and FACE a creature (a bee-swarm/spider). Seeded from the WORLD seed
+    //    so an NPC's overworld reproduces. Only what's on-screen draws, so it's cheap. ──
+    let overOpen = false, roam = null, overCam = { x: 0, y: 0, z: 2.4 }, _overRAF = 0, _overT0 = 0, _overLast = 0;
+    let overForage = null, overFoe = null, overClickTarget = null, _autoForage = false, _overFlash = 0;
+    const overKeys = new Set();
+    const OVER_SPEED = 158, OVER_ZMIN = 0.5, OVER_ZMAX = 3, OVER_Z_DEFAULT = 2.4;   // 2 wheel-clicks out from max
     const overCanvas = () => $('overcanvas');
     function overSize() { const cv2 = overCanvas(), dpr = Math.min(2, devicePixelRatio || 1), w = cv2.clientWidth || innerWidth, h = cv2.clientHeight || innerHeight; cv2.width = Math.max(1, w * dpr); cv2.height = Math.max(1, h * dpr); const cx = cv2.getContext('2d'); cx.setTransform(dpr, 0, 0, dpr, 0, 0); return { cx, w, h }; }
-    function drawOver() { if (!overOpen || !overData) return; try { const { cx, w, h } = overSize(); drawOverworld(cx, w, h, overData, overCam); } catch (e) {} }
-    function overRecenter() { const cv2 = overCanvas(), w = cv2.clientWidth || innerWidth, h = cv2.clientHeight || innerHeight; overCam.x = OVER_W / 2 - (w / overCam.z) / 2; overCam.y = OVER_H / 2 - (h / overCam.z) / 2; drawOver(); }
-    function openOverworld() {
-      try { overData = makeOverworld((seed ^ 0x0ACE) >>> 0, { w: OVER_W, h: OVER_H }); } catch (e) { overData = null; }
-      overOpen = true; $('over').classList.add('on');
-      if (story.ready) story.store.setFact(story.playerId, 'flag.climbed_overworld', true);
-      $('overhud').innerHTML = overData ? `the overworld · <b>${overData.plants.length}</b> plants across the grow-deck · drag to pan, scroll to zoom · Esc to climb down` : 'the overworld';
-      overRecenter();
+    function overCenter() { if (!roam) return; const cv2 = overCanvas(), w = cv2.clientWidth || innerWidth, h = cv2.clientHeight || innerHeight; overCam.x = roam.player.x - (w / overCam.z) / 2; overCam.y = roam.player.y - (h / overCam.z) / 2; }
+    // sciName / common → the garden-ark crop id, so a foraged herb lands in the pantry the bench reads.
+    let _arkBySci = null;
+    function arkIdFor(y) {
+      if (!gardenArk) return null;
+      if (!_arkBySci) { _arkBySci = {}; for (const c of (gardenArk.crops || [])) { if (c.sciName) _arkBySci[c.sciName.toLowerCase()] = c.id; if (c.common) _arkBySci['~' + c.common.toLowerCase()] = c.id; } }
+      return (y.sciName && _arkBySci[y.sciName.toLowerCase()]) || (y.name && _arkBySci['~' + y.name.toLowerCase()]) || null;
     }
-    function closeOverworld() { overOpen = false; $('over').classList.remove('on'); }
+    function doForage() {
+      if (!roam || !overForage) return;
+      const y = roamForage(roam, overForage); overForage = null; if (!y) return;
+      const arkId = arkIdFor(y);
+      if (arkId) { const p = getPantry(); p[arkId] = (p[arkId] | 0) + 1; setPantry(p); saveStory(); notify(`❀ foraged ${y.name} — +1 to your pantry (brew it at a ⚗ bench)`, { kind: 'life', ms: 2600 }); }
+      else notify(`❀ foraged ${y.name}`, { kind: 'life', ms: 2000 });
+    }
+    function doFight() {
+      if (!roam || !overFoe) return;
+      const foe = foeOf(overFoe); roamDefeat(roam, overFoe); overFoe = null; _overFlash = 1;
+      // a foraged creature yields its own reagent line (bee → animal reagent) — a hook for the baroque table.
+      notify(`⚔ you drove off the ${foe.name}${foe.swarm ? ' swarm' : ''}${foe.reagentClass ? ' · +1 ' + foe.name + ' (reagent)' : ''}`, { kind: 'combat', ms: 2600 });
+    }
+    function overHud() {
+      if (!roam) return;
+      const b = overBandAt(roam.player.x, roam.player.y, roam.seed), bm = overBandMeta(b);
+      let hint = '<span style="color:#8a9">WASD / arrows / click to roam · scroll zoom · Esc to climb down</span>';
+      if (overForage) { const o = overOrg(overForage.orgId); hint = `⌁ press <b style="color:#f4bf62">E</b> to gather <b>${o ? (o.common || o.id) : 'this'}</b>`; }
+      else if (overFoe) { const o = overOrg(overFoe.orgId); hint = `⚔ press <b style="color:#e06a5a">F</b> to face the <b>${o ? (o.common || o.id) : 'swarm'}</b>`; }
+      $('overhud').innerHTML = `${bm ? bm.kicker + ' ' + bm.name : 'the overworld'} · ${hint}`;
+    }
+    function overLoop(now) {
+      if (!overOpen || !roam) { _overRAF = 0; return; }
+      now = now || performance.now();
+      const dt = Math.min(0.05, (_overLast ? (now - _overLast) : 16) / 1000); _overLast = now;
+      let mx = 0, my = 0;
+      if (overKeys.has('arrowup') || overKeys.has('w')) my -= 1;
+      if (overKeys.has('arrowdown') || overKeys.has('s')) my += 1;
+      if (overKeys.has('arrowleft') || overKeys.has('a')) mx -= 1;
+      if (overKeys.has('arrowright') || overKeys.has('d')) mx += 1;
+      if (mx || my) { overClickTarget = null; _autoForage = false; }
+      else if (overClickTarget) {
+        const dx = overClickTarget.x - roam.player.x, dy = overClickTarget.y - roam.player.y, d = Math.hypot(dx, dy);
+        if (d > 5) { mx = dx / d; my = dy / d; } else { overClickTarget = null; if (_autoForage) { overForage = forageTarget(roam); doForage(); _autoForage = false; } }
+      }
+      if (mx || my) { const n = Math.hypot(mx, my) || 1; stepPlayer(roam, (mx / n) * OVER_SPEED * dt, (my / n) * OVER_SPEED * dt); }
+      const cv2 = overCanvas(), w = cv2.clientWidth || innerWidth, h = cv2.clientHeight || innerHeight;
+      const tx = roam.player.x - (w / overCam.z) / 2, ty = roam.player.y - (h / overCam.z) / 2, k = Math.min(1, dt * 9);
+      overCam.x += (tx - overCam.x) * k; overCam.y += (ty - overCam.y) * k;
+      overForage = forageTarget(roam); overFoe = overForage ? null : encounterTarget(roam);
+      try { const { cx } = overSize(); drawRoam(cx, w, h, roam, overCam, { forage: overForage, encounter: overFoe, t: (now - _overT0) / 1000 });
+        if (_overFlash > 0) { _overFlash = Math.max(0, _overFlash - dt * 3); cx.fillStyle = `rgba(224,106,90,${_overFlash * 0.28})`; cx.fillRect(0, 0, w, h); } } catch (e) {}
+      overHud();
+      _overRAF = requestAnimationFrame(overLoop);
+    }
+    function openOverworld() {
+      try { roam = createRoam((seed ^ 0x0ACE) >>> 0, { keep: 1 }); } catch (e) { roam = null; }
+      overOpen = true; $('over').classList.add('on');
+      overCam.z = OVER_Z_DEFAULT; overKeys.clear(); overClickTarget = null; _autoForage = false; _overLast = 0; _overT0 = performance.now();
+      if (story.ready) story.store.setFact(story.playerId, 'flag.climbed_overworld', true);
+      ensureArk(); _arkBySci = null;
+      overCenter();
+      if (!_overRAF) _overRAF = requestAnimationFrame(overLoop);
+    }
+    function closeOverworld() { overOpen = false; $('over').classList.remove('on'); overKeys.clear(); if (_overRAF) { cancelAnimationFrame(_overRAF); _overRAF = 0; } }
     $('over').addEventListener('click', (e) => { if (e.target.closest('[data-overclose]')) closeOverworld(); });
     (() => {
       const cv2 = overCanvas();
-      cv2.addEventListener('pointerdown', (e) => { _overDrag = { x: e.clientX, y: e.clientY, cx: overCam.x, cy: overCam.y }; try { cv2.setPointerCapture(e.pointerId); } catch (_) {} });
-      cv2.addEventListener('pointermove', (e) => { if (!_overDrag) return; overCam.x = _overDrag.cx - (e.clientX - _overDrag.x) / overCam.z; overCam.y = _overDrag.cy - (e.clientY - _overDrag.y) / overCam.z; drawOver(); });
-      cv2.addEventListener('pointerup', () => { _overDrag = null; });
-      cv2.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv2.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, wx = overCam.x + mx / overCam.z, wy = overCam.y + my / overCam.z; overCam.z = Math.max(0.3, Math.min(3, overCam.z * (e.deltaY < 0 ? 1.12 : 0.89))); overCam.x = wx - mx / overCam.z; overCam.y = wy - my / overCam.z; drawOver(); }, { passive: false });
+      const toWorld = (e) => { const r = cv2.getBoundingClientRect(); return { x: overCam.x + (e.clientX - r.left) / overCam.z, y: overCam.y + (e.clientY - r.top) / overCam.z }; };
+      cv2.addEventListener('pointerdown', (e) => {
+        if (!overOpen || !roam) return; const wp = toWorld(e);
+        // click a gatherable plant → walk to it and gather on arrival; else just walk there.
+        let near = null, nd = (46 / overCam.z) ** 2 + 900;
+        for (const c of roam.chunks.values()) for (const p of c.plants) { if (!p.gather || roam.gathered.has(p.id)) continue; const d = (p.x - wp.x) ** 2 + (p.y - wp.y) ** 2; if (d < nd) { nd = d; near = p; } }
+        if (near) { overClickTarget = { x: near.x, y: near.y }; _autoForage = true; } else { overClickTarget = wp; _autoForage = false; }
+      });
+      cv2.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv2.getBoundingClientRect(), mxs = e.clientX - r.left, mys = e.clientY - r.top, wx = overCam.x + mxs / overCam.z, wy = overCam.y + mys / overCam.z; overCam.z = Math.max(OVER_ZMIN, Math.min(OVER_ZMAX, overCam.z * (e.deltaY < 0 ? 1.12 : 0.89))); overCam.x = wx - mxs / overCam.z; overCam.y = wy - mys / overCam.z; }, { passive: false });
     })();
-    addEventListener('resize', () => { if (overOpen) drawOver(); });
+    // roam movement + verbs — captured early (before the global letter-key handlers) and swallowed so
+    // 'e'/'f'/'w'… don't leak to equip/pack/etc. while you're up top.
+    addEventListener('keydown', (e) => {
+      if (!overOpen || e.metaKey || e.ctrlKey || typing()) return;
+      const k = e.key.toLowerCase();
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { overKeys.add(k); e.preventDefault(); e.stopImmediatePropagation(); return; }
+      if (k === 'e' || k === ' ') { overForage = forageTarget(roam); doForage(); e.preventDefault(); e.stopImmediatePropagation(); return; }
+      if (k === 'f') { overFoe = encounterTarget(roam); doFight(); e.preventDefault(); e.stopImmediatePropagation(); return; }
+    });
+    addEventListener('keyup', (e) => { if (!overOpen) return; overKeys.delete(e.key.toLowerCase()); });
 
     // ── THE TRADE DESK (trade-role component) — the TRADE corner of the triangle: a gacha bound to ONE
     //    biome (a viability-scored, closeable food web). Spend ◈ coins to pull SEEDS from that biome's crop
