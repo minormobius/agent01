@@ -34,6 +34,76 @@ export const edgeTangent = (k) => { const a = edgeNormalAng(k); return [-Math.si
 // centre of the neighbour tile sharing edge k: 2·Ri along the outward normal = R·√3 along it.
 export const neighbourOffset = (k, R) => { const n = edgeNormal(k); return [R * SQRT3 * n[0], R * SQRT3 * n[1]]; };
 export const hexVerts = (R) => { const v = []; for (let k = 0; k < 6; k++) { const a = 60 * k * DEG; v.push([R * Math.cos(a), R * Math.sin(a)]); } return v; };
+// edge k spans vertex k → vertex k+1 (normal at 30+60k sits between vertices at 60k and 60(k+1))
+export const edgeSeg = (R, k) => { const v = hexVerts(R); return [v[k], v[(k + 1) % 6]]; };
+
+// ── the real spiral thread as a polyline (centre → rim) ─────────────────────────────────────
+// Samples the analytic thread curve (weave3d's lineW/lineP) so the warp is drawn in ALL its
+// spiralling, not as a straight chord. Returns [[x,y], …] from the flat-core edge out to the rim.
+export function threadCurve(model, kind, idx, n = 72) {
+  const line = kind === 'white' ? (rf) => model.lineW(idx, rf) : (rf) => model.lineP(idx, rf);
+  const rf0 = (model.flatR ?? 0.16) + 0.01, out = [];
+  for (let i = 0; i <= n; i++) { const rf = rf0 + (1 - rf0) * i / n; const p = line(rf); out.push([p[0], p[1]]); }
+  return out;
+}
+
+// ── hexagon symmetry (the 12 dihedral reorientations that keep a hex on the grid) ───────────
+// A point in the base tile frame, rotated by rot·60° and optionally mirrored (negate y). These are
+// the reorientations a neighbouring chunk can take while staying edge-aligned to the honeycomb.
+export function hexSym(p, rot, flip) {
+  let x = p[0], y = flip ? -p[1] : p[1];
+  const a = rot * 60 * DEG, c = Math.cos(a), s = Math.sin(a);
+  return [x * c - y * s, x * s + y * c];
+}
+
+// each thread's rim exit point + which edge it lands on (for mating seams)
+function rimExits(model) {
+  const R = model.R, Ri = R * SQRT3 / 2, out = [];
+  const add = (kind, idx) => {
+    const line = kind === 'white' ? (rf) => model.lineW(idx, rf) : (rf) => model.lineP(idx, rf);
+    const p = line(0.999);
+    let bestK = 0, bestIn = Infinity, bestT = 0;
+    for (let k = 0; k < 6; k++) { const n = edgeNormal(k), tg = edgeTangent(k); const inw = Math.abs(Ri - (p[0] * n[0] + p[1] * n[1])); if (inw < bestIn) { bestIn = inw; bestK = k; bestT = (p[0] * tg[0] + p[1] * tg[1]) / (R / 2); } }
+    out.push({ kind, idx, x: p[0], y: p[1], edge: bestK, t: bestT });
+  };
+  for (let w = 0; w < model.NW; w++) add('white', w);
+  for (let f = 0; f < model.NF; f++) add('prod', f);
+  return out;
+}
+
+// ── mate a neighbouring chunk to a shared edge: LIKE WITH LIKE ───────────────────────────────
+// Translation-tiling leaves every white biased to the same side of its edge, so opposite edges
+// don't line up (measured elsewhere). Reorienting the neighbour by a hexagon symmetry (rot·60° ±
+// mirror) can instead land its rim exits ON TOP of the centre's exits at the shared edge, same
+// kind — so the spirals thread continuously across the seam. This searches the 12 symmetries and
+// returns the one that minimises the like-with-like seam mismatch (and the identity score, to show
+// the improvement). `dist` is 0 at a perfect mate.
+export function mateTransform(model, k) {
+  const R = model.R, Cb = neighbourOffset(k, R), [V0, V1] = edgeSeg(R, k);
+  const exits = rimExits(model);
+  const onSeg = (p) => { // distance from point to the shared edge segment
+    const ex = V1[0] - V0[0], ey = V1[1] - V0[1], L2 = ex * ex + ey * ey;
+    let tt = ((p[0] - V0[0]) * ex + (p[1] - V0[1]) * ey) / L2; tt = Math.max(0, Math.min(1, tt));
+    return Math.hypot(p[0] - (V0[0] + ex * tt), p[1] - (V0[1] + ey * tt));
+  };
+  const Aedge = exits.filter((e) => e.edge === k);                 // centre's exits on this edge
+  const seamTol = 0.14 * R;
+  const score = (rot, flip) => {
+    // neighbour exits, reoriented about its own centre then placed
+    const B = exits.map((e) => { const q = hexSym([e.x, e.y], rot, flip); return { kind: e.kind, x: q[0] + Cb[0], y: q[1] + Cb[1] }; })
+      .filter((b) => onSeg([b.x, b.y]) < seamTol);
+    if (!B.length || !Aedge.length) return Infinity;
+    let s = 0;
+    for (const a of Aedge) {
+      let bd = Infinity; for (const b of B) { const same = b.kind === a.kind; const d = Math.hypot(a.x - b.x, a.y - b.y) + (same ? 0 : 0.5 * R); if (d < bd) bd = d; }
+      s += bd;
+    }
+    return s / Aedge.length;
+  };
+  let best = { rot: 0, flip: 0, score: Infinity };
+  for (let flip = 0; flip <= 1; flip++) for (let rot = 0; rot < 6; rot++) { const sc = score(rot, flip); if (sc < best.score) best = { rot, flip, score: sc }; }
+  return { ...best, identityScore: score(0, 0), R, offset: Cb };
+}
 
 // ── extract, per hex edge, the threads that reach it ────────────────────────────────────────
 // A rim cell (radial fraction > band) is assigned to the edge whose LINE it is closest to (least
@@ -186,4 +256,4 @@ export function solveTessellation(model, opts = {}) {
   return { R: model.R, edges, interfaces, warp };
 }
 
-if (typeof globalThis !== 'undefined') globalThis.RindTessWeave = { hexExits, warpBijection, dominantWhiteEdges, solveInterfaces, traceWarp, solveTessellation, edgeNormal, edgeTangent, edgeNormalAng, neighbourOffset, hexVerts };
+if (typeof globalThis !== 'undefined') globalThis.RindTessWeave = { hexExits, warpBijection, dominantWhiteEdges, solveInterfaces, traceWarp, solveTessellation, threadCurve, hexSym, mateTransform, edgeNormal, edgeTangent, edgeNormalAng, neighbourOffset, hexVerts, edgeSeg };

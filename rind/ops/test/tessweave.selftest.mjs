@@ -4,7 +4,7 @@
 // emergent global strand families); production supplies the cross-kind K-DOORS reaching across
 // seams; and the whole solve is deterministic and antipodally symmetric.
 import { buildCurveModel } from '../curveseed.js';
-import { solveTessellation, hexExits, solveInterfaces, dominantWhiteEdges, neighbourOffset } from '../tessweave.js';
+import { solveTessellation, hexExits, solveInterfaces, dominantWhiteEdges, neighbourOffset, threadCurve, hexSym, mateTransform } from '../tessweave.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.log('  ✗ ' + m); } };
@@ -77,6 +77,46 @@ ok(allSixEdges, 'all six edges carry threads on every seed');
   const cont = (e) => e.pairs.filter((p) => p.kind === 'continuity').length;
   for (let k = 0; k < 3; k++) if (Math.abs(cont(interfaces.perEdge[k]) - cont(interfaces.perEdge[k + 3])) > 3) symOk = false;
   ok(symOk, 'antipodal edges report matching continuity census (same shared edge)');
+}
+
+// ── the spiral tracer + the mating transform ─────────────────────────────────────
+{
+  const m = buildCurveModel(7, OPTS);
+  // threadCurve runs from the flat core out to the rim
+  const c = threadCurve(m, 'white', 0);
+  const r0 = Math.hypot(c[0][0], c[0][1]) / m.R, r1 = Math.hypot(c[c.length - 1][0], c[c.length - 1][1]) / m.R;
+  ok(c.length > 10 && r0 < 0.5 && r1 > 0.9, `threadCurve spirals centre(${r0.toFixed(2)})→rim(${r1.toFixed(2)})`);
+
+  // hexSym: identity, period-6, flip is an involution
+  const p = [37, -11];
+  ok(hexSym(p, 0, 0)[0] === p[0] && hexSym(p, 0, 0)[1] === p[1], 'hexSym(rot0,flip0) is identity');
+  const s6 = hexSym(p, 6, 0);
+  ok(Math.hypot(s6[0] - p[0], s6[1] - p[1]) < 1e-9, 'hexSym rot·6 ≡ identity');
+  const ff = hexSym(hexSym(p, 0, 1), 0, 1);
+  ok(Math.hypot(ff[0] - p[0], ff[1] - p[1]) < 1e-9, 'hexSym flip is an involution');
+}
+
+// mating a neighbour reorients it to reduce like-with-like seam mismatch, every seed & edge
+{
+  let allBetter = true, everFlip = false, worst = 0;
+  for (const s of [1, 7, 21, 40]) {
+    const m = buildCurveModel(s, OPTS);
+    for (let k = 0; k < 6; k++) {
+      const t = mateTransform(m, k);
+      if (!(t.score <= t.identityScore + 1e-6)) allBetter = false;
+      if (t.flip) everFlip = true;
+      worst = Math.max(worst, t.score / (t.identityScore || 1));
+    }
+  }
+  ok(allBetter, `mateTransform never worse than translation (worst ratio ${worst.toFixed(2)})`);
+  ok(everFlip, 'mating uses a mirror (the chiral spirals need reflecting to thread like-with-like)');
+}
+// antipodal edges get consistent mating (opposite edges are the same seam)
+{
+  const m = buildCurveModel(7, OPTS);
+  let symOk = true;
+  for (let k = 0; k < 3; k++) { const a = mateTransform(m, k), b = mateTransform(m, k + 3); if (Math.abs(a.score - b.score) > 0.06 * m.R) symOk = false; }
+  ok(symOk, 'antipodal seams report matching mate scores');
 }
 
 console.log(`\n  tessweave: ${pass} passed, ${fail} failed`);
