@@ -2,7 +2,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest, starterSeeds } from '../garden/garden.js';
+import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest, starterSeeds, makeGarden } from '../garden/garden.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ark = JSON.parse(readFileSync(join(HERE, '../garden/ark.json'), 'utf8'));
@@ -37,8 +37,22 @@ ok(readySlots(plots, ark, 1).length === 0, 'nothing ready before maturity');
 ok(readySlots(plots, ark, crop.growthDays).length === 1, 'one slot ready at maturity');
 const h = harvest(plots, 2, ark, crop.growthDays);
 ok(h && h.cropId === crop.id && h.yield === crop.yield, 'harvest returns the crop + yield');
+ok(h.seeds >= 1 && h.seeds <= 3, `harvest also yields SEED to replant (${h.seeds})`);
 ok(h.plots[2] === null, 'harvested slot is cleared');
 ok(harvest(plots, 2, ark, 1) === null, 'cannot harvest before ready');
+
+// 3b. makeGarden — the random NPC-placed first view
+{
+  const g1 = makeGarden(42, ark, 100), g2 = makeGarden(42, ark, 100);
+  ok(g1.length === PLOTS_PER_GARDEN, 'makeGarden fills a full-size bed');
+  ok(JSON.stringify(g1) === JSON.stringify(g2), 'an NPC garden is deterministic from its seed');
+  ok(JSON.stringify(makeGarden(7, ark, 100)) !== JSON.stringify(g1), 'a different NPC seeds a different garden');
+  const planted = g1.filter(Boolean);
+  ok(planted.length >= 1 && planted.length < PLOTS_PER_GARDEN, 'some plots planted, some left fallow (a tended, not packed, bed)');
+  ok(planted.every((p) => cropById(ark, p.seedId)), 'every planted slot is a real ark crop');
+  const stages = planted.map((p) => growth(p, cropById(ark, p.seedId), 100).stage);
+  ok(new Set(stages.map((s) => Math.round(s * 3))).size >= 2, 'the bed shows a MIX of growth stages (staggered planting)');
+}
 
 // 4. deterministic starter bag
 const a = starterSeeds(7, ark), b = starterSeeds(7, ark);

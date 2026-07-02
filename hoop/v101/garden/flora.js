@@ -197,4 +197,15 @@ export function buildPlotFlora(descriptors, { stages = [], seed = 1, cols = 3 } 
   });
 }
 
-export default { TEMPERAMENT_PALETTE, PLANET_FLOWER, growthForm, paletteOf, buildPlant, buildPlotFlora };
+// descriptorForCrop — adapt a garden-ark crop (id/common/sciName/category) into a flora descriptor.
+// `corr` (optional) is the alch correspondence for its binomial ({qualities, planet} from
+// alchemy.findReagent) — supply it and an alch herb keeps its temperament colour; omit it and a staple
+// colours by crop kind. The category maps to the growth-form's crop tag.
+const CATEGORY_CROP = { GRAIN: 'grain', LEGUME: 'legume', OIL: 'oil', ROOT: 'root', TUBER: 'tuber', FRUIT: 'fruit', NUT: 'nut' };
+export function descriptorForCrop(crop = {}, corr = null) {
+  return { id: crop.id, name: crop.common || crop.id, sciName: crop.sciName || '',
+    crop: CATEGORY_CROP[crop.category] || crop.crop || null, edible: true,
+    qualities: corr && corr.qualities, planet: corr && corr.planet };
+}
+
+export default { TEMPERAMENT_PALETTE, PLANET_FLOWER, growthForm, paletteOf, buildPlant, buildPlotFlora, descriptorForCrop, leafShapeFor };

@@ -165,4 +165,26 @@ export function renderPlot(ctx, W, H, plot, { soil, seed = 7, soilTop } = {}) {
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.35)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
 
-export default { drawSoil, drawPlant, renderPlot };
+// ── a SINGLE plant on its own soil tile, with a LABEL WINDOW cut into the soil at the bottom. This is
+// the per-plot cell of the game garden: each plant gets its own plot, named. `plant` is a flora model. ──
+export function renderSinglePlot(ctx, W, H, plant, { soil, label, seed = 7, ready = false } = {}) {
+  const props = soil || soilProps(0.4, 0.35, 0.25, 0.3);
+  const labelH = Math.max(16, H * 0.13);
+  const soilTop = H - Math.max(labelH + 8, H * 0.34);   // soil is the lower third; the plant stands on it
+  const sky = ctx.createLinearGradient(0, 0, 0, soilTop); sky.addColorStop(0, '#12100c'); sky.addColorStop(1, '#25201a');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, soilTop);
+  drawSoil(ctx, W, H, soilTop, props, seed);
+  if (plant) {
+    const fp = Math.max(0.14, plant.footprint || 0.25);
+    const u = Math.min((W * 0.44) / fp, (soilTop * 0.92) / Math.max(0.2, plant.height), Math.min(W, H) * 0.9);
+    drawPlant(ctx, plant, W / 2, soilTop, u);
+  }
+  // the LABEL WINDOW — a carved sill in the soil with the plant's name (a bottom window in the soil)
+  ctx.fillStyle = 'rgba(6,7,10,0.82)'; ctx.fillRect(0, H - labelH, W, labelH);
+  ctx.strokeStyle = 'rgba(244,191,98,0.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, H - labelH + 0.5); ctx.lineTo(W, H - labelH + 0.5); ctx.stroke();
+  ctx.fillStyle = ready ? '#8fe0a0' : '#e8e0d0'; ctx.font = `${Math.max(9, Math.round(labelH * 0.42))}px "JetBrains Mono", ui-monospace, monospace`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText((label || (plant && plant.name) || '') + (ready ? ' ✓' : ''), W / 2, H - labelH / 2, W - 8);
+}
+
+export default { drawSoil, drawPlant, renderPlot, renderSinglePlot };

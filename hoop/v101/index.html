@@ -498,11 +498,15 @@
     import { buildInstance as mBuild } from './morph/instance.js';
     import { solve as mSolve, analyzePath as mAnalyze } from './morph/solver.js';
     import { gradeInstance as mGrade, headlineUsed as mHeadline } from './morph/difficulty.js';
-    import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce
+    import { PLOTS_PER_GARDEN, cropById, emptyGarden, growth, plant, readySlots, harvest, makeGarden } from './garden/garden.js';   // the GROW fixture — plant biome-ark seeds, sleep to grow, harvest produce; makeGarden = the random NPC-placed first view
     import { TIER_FOIL, PULL_COST, biomeForKey, progress as bxProgress, pullRng, pull as bxPull } from './garden/gacha.js';   // the TRADE fixture — gacha-pull seeds from one biome, collect to CLOSE it
     import { shopStock, buyPrice, sellPrice, SHOP_SIZE } from './shop.js';   // the WARES market at the same desk — buy gear, sell loot
     import { CRYSTAL_SYSTEMS, RARITY_COLOR, RARITY_TIER, rollGem, gemBonus, sumBonus, socketCap, canGrow, growGems, gemGlyph, cssOf } from './gems.js';   // THE LAPIDARY (mend) — crystallography gem improvement
     import { DISH_MIN, DISH_MAX, cookScore, cookDish } from './garden/kitchen.js';   // the dwelling's storage fixture, grown into a KITCHEN — cook crops into flavor-scored dishes
+    import { buildPlant, descriptorForCrop } from './garden/flora.js';   // the procedural PLANT model (growth-form + Galenic palette + phyllotactic foliage), drawn per plot
+    import { renderSinglePlot } from './garden/plot-render.js';          // one plant on its own soil tile with a label window
+    import { soilProps } from './worship/lib/soil.js';                   // the soil substrate (grain/moisture/cracks)
+    import { findReagent } from './alch/alchemy.js';                     // an alch herb's correspondence → its temperament colour
     import { createBattle, UNIVERSAL } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, certifyPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight; certifyPack = the solver gate)
     import { buildSwarmGenome } from './v3/swarm.js';   // a player SUMMON renders as a grey/black robot drone swarm
@@ -3323,7 +3327,16 @@
     const getPantry = () => getJSONFact('garden.pantry', {});
     const setPantry = (o) => setJSONFact('garden.pantry', o);
     const gardenKeyOf = (cp, ch) => 'g' + ch.id + ':r' + cp.room;
-    const getPlots = (key) => getJSONFact('garden.plots.' + key, null) || emptyGarden();
+    // A garden's FIRST view is a random assortment a gardening NPC already planted (deterministic from
+    // the plot key), not an empty bed — the world looks tended. Once touched it persists in the save.
+    const getPlots = (key) => {
+      const saved = getJSONFact('garden.plots.' + key, null);
+      if (saved) return saved;
+      let h = 2166136261; for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+      const npc = makeGarden(h >>> 0, gardenArk, getDay());
+      setJSONFact('garden.plots.' + key, npc);   // freeze the NPC's planting so it's stable
+      return npc;
+    };
     const setPlots = (key, plots) => setJSONFact('garden.plots.' + key, plots);
 
     let gardenArk = null, _arkP = null;
@@ -3360,9 +3373,10 @@
           return `<div class="gplot gempty"><div class="gph">plot ${i + 1} · empty</div>${opts}</div>`;
         }
         const crop = cropById(gardenArk, p.seedId), g = growth(p, crop, day);
-        const img = crop && crop.thumb ? `<img class="gthumb" src="${esc(crop.thumb)}" alt="" loading="lazy" />` : '';
-        if (g.ready) return `<div class="gplot gready">${img}<div class="gph">${esc(crop.common)}</div><div class="gsub" style="color:#8fe0a0">✓ ripe</div><button class="gbtn" data-harvest="${i}">harvest +${crop.yield}</button></div>`;
-        return `<div class="gplot">${img}<div class="gph">${esc(crop.common)}</div><div class="gbar"><span style="width:${Math.round(g.stage * 100)}%"></span></div><div class="gsub">${g.daysLeft} day${g.daysLeft === 1 ? '' : 's'} to ripen</div></div>`;
+        // each plant on its OWN plot: a procedural flora canvas on soil with a label window (rendered below)
+        const cnv = `<canvas class="gcanvas" data-slot="${i}" style="width:100%;height:112px;display:block;border-radius:6px;background:#0b0906"></canvas>`;
+        if (g.ready) return `<div class="gplot gready">${cnv}<div class="gsub" style="color:#8fe0a0">✓ ripe</div><button class="gbtn" data-harvest="${i}">harvest +${crop.yield}</button></div>`;
+        return `<div class="gplot">${cnv}<div class="gbar"><span style="width:${Math.round(g.stage * 100)}%"></span></div><div class="gsub">${g.daysLeft} day${g.daysLeft === 1 ? '' : 's'} to ripen</div></div>`;
       }).join('');
       const pantryEntries = Object.entries(pantry).filter(([, n]) => n > 0);
       const pantryHtml = pantryEntries.length
@@ -3376,6 +3390,21 @@
         `<div class="ggrid">${plotCards}</div>` +
         `<div class="ghead2">pantry</div><div class="gpantry">${pantryHtml}</div>` +
         `<div class="ameta" style="margin-top:12px;color:#6b7872">seeds from the biome ark (iNaturalist) · Esc to leave</div>`;
+      // draw each occupied plot's plant procedurally (growth-form + Galenic palette on its own soil,
+      // named in the soil window). Fully guarded — a canvas hiccup never breaks the fixture.
+      try {
+        card.querySelectorAll('canvas.gcanvas').forEach((cv) => {
+          const i = +cv.dataset.slot, pp = plots[i]; if (!pp) return;
+          const crop = cropById(gardenArk, pp.seedId); if (!crop) return;
+          const g = growth(pp, crop, day), corr = findReagent(crop.sciName) || findReagent(crop.common);
+          let hh = 2166136261; const key = crop.id + ':' + i; for (let k = 0; k < key.length; k++) { hh ^= key.charCodeAt(k); hh = Math.imul(hh, 16777619); }
+          const plant = buildPlant(descriptorForCrop(crop, corr), { stage: Math.max(0.12, g.stage), seed: (hh >>> 0) % 100000 });
+          const dpr = Math.min(2, window.devicePixelRatio || 1), wpx = cv.clientWidth || 120, hpx = cv.clientHeight || 112;
+          cv.width = Math.max(1, wpx * dpr); cv.height = Math.max(1, hpx * dpr);
+          const cx = cv.getContext('2d'); cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          renderSinglePlot(cx, wpx, hpx, plant, { label: crop.common, ready: g.ready, seed: (hh >>> 0) % 9999 });
+        });
+      } catch (e) { /* keep the fixture alive */ }
     }
     $('garden').addEventListener('click', (e) => {
       if (e.target === $('garden') || e.target.closest('[data-gclose]')) { closeGarden(); return; }
@@ -3389,7 +3418,13 @@
       }
       if (hv) {
         const r = harvest(getPlots(gardenKey), +hv.dataset.harvest, gardenArk, getDay());
-        if (r) { setPlots(gardenKey, r.plots); const pan = getPantry(); pan[r.cropId] = (pan[r.cropId] || 0) + r.yield; setPantry(pan); saveStory(); renderGarden(); }
+        if (r) {
+          setPlots(gardenKey, r.plots);
+          const pan = getPantry(); pan[r.cropId] = (pan[r.cropId] || 0) + r.yield; setPantry(pan);   // the INGREDIENT
+          const seeds = getSeeds(); seeds[r.cropId] = (seeds[r.cropId] || 0) + (r.seeds || 1); setSeeds(seeds);   // and the SEED — replant without a trade desk
+          saveStory(); renderGarden();
+          notify(`❀ harvested ${cropName(r.cropId)} — +${r.yield} to pantry, +${r.seeds} seed`, { kind: 'life', ms: 2600 });
+        }
         return;
       }
       if (et) {

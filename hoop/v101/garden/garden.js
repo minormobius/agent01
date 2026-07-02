@@ -7,7 +7,7 @@
 // garden grows while you live. When a plot is ready you HARVEST it for `yield` units of produce into your
 // pantry (eat raw now; the kitchen will cook it into recipes later). Plots and pantry live in the save.
 
-export const PLOTS_PER_GARDEN = 6;
+export const PLOTS_PER_GARDEN = 12;   // a fuller bed — more capacity
 
 export const cropById = (ark, id) => (ark && ark.cropIndex && ark.cropIndex[id]) || ((ark && ark.crops || []).find((c) => c.id === id)) || null;
 
@@ -38,13 +38,34 @@ export function readySlots(plots, ark, day) {
   return out;
 }
 
-// harvest `slot` if ready → { plots (slot cleared), cropId, yield } or null (not ready / empty).
+// harvest `slot` if ready → { plots (slot cleared), cropId, yield, seeds } or null (not ready / empty).
+// A harvest yields BOTH the ingredient (yield units into the pantry) AND seed (1–3, so the gardener can
+// replant without a trade desk — the loop sustains itself the way a real kitchen garden saves seed).
 export function harvest(plots, slot, ark, day) {
   const p = (plots || [])[slot]; if (!p) return null;
   const crop = cropById(ark, p.seedId); if (!crop) return null;
   if (!growth(p, crop, day).ready) return null;
   const next = plots.slice(); next[slot] = null;
-  return { plots: next, cropId: crop.id, yield: crop.yield | 0 };
+  return { plots: next, cropId: crop.id, yield: crop.yield | 0, seeds: Math.max(1, Math.min(3, crop.yield | 0)) };
+}
+
+// makeGarden — a random NPC-PLACED garden (the first view of a plot a gardener tends): fill a random
+// subset of slots with random crops, each planted at a staggered past DAY so the bed shows a natural
+// mix of growth stages (some sprouting, some ripe). Deterministic from (seed, day), so the same NPC
+// grows the same garden on every machine and across saves. Returns a plots array.
+export function makeGarden(seed, ark, day = 0, { fill = 0.7 } = {}) {
+  const crops = (ark && ark.crops) || [];
+  const plots = emptyGarden();
+  if (!crops.length) return plots;
+  let s = (seed >>> 0) || 1;
+  const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  for (let i = 0; i < plots.length; i++) {
+    if (rng() > fill) continue;                                   // some plots left fallow
+    const crop = crops[Math.floor(rng() * crops.length)];
+    const age = Math.floor(rng() * Math.max(1, (crop.growthDays | 0) * 1.35));   // staggered maturity
+    plots[i] = { seedId: crop.id, day: (day | 0) - age };
+  }
+  return plots;
 }
 
 // a deterministic STARTER seed bag (so the garden is playable before the trade desk exists): pick `n`
