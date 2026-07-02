@@ -3569,15 +3569,22 @@
         : pv.ok
           ? `<div class="pg">${pv.glyphs || '⚗'}</div><div><span class="grade g${pv.grade}">${pv.grade}</span> <b style="color:#e6d8ff">${esc(pv.label)} ${esc(pv.vessel)}</b></div><div class="pe">${esc(describeEffect(pv))}</div><div class="pgr">coherence ${(pv.coherence * 100) | 0}% · potency ${pv.potency}</div>`
           : `<div class="ameta" style="color:#d0a0a0">${esc(pv.reason || 'these do not brew')}</div>`;
-      // suggested recipes (cookbook), tappable if you hold all their reagents
-      const recipes = deriveRecipes().map((r) => {
+      // KNOWN recipes (mastery) are one-tap fills (dim if you lack the reagents); UNKNOWN recipes are a
+      // mystery — you see the effect family but not the herbs, and discover them by experiment (or the
+      // /alch cookbook). Mastery is story-seeded and grows as you brew.
+      const known = discoveredSet(), all = deriveRecipes();
+      const recipes = all.map((r) => {
+        const isKnown = known.has(recipeKey(r));
         const slugs = r.reagents.map((n) => { const rr = findReagent(n); return rr ? rr.slug : null; });
         const holdAll = slugs.every((s) => s && heldSlugs.has(s));
         const ids = slugs.map((s) => slugToId[s]).filter((x) => x != null);
-        return { r, holdAll, ids };
+        return { r, isKnown, holdAll, ids };
       });
-      const recipeRow = recipes.map(({ r, holdAll, ids }) =>
-        `<span class="rec ${holdAll ? '' : 'dim'}" ${holdAll ? `data-recipe="${esc(ids.join(','))}" data-vessel2="${esc(r.preparation)}"` : ''}>${r.glyph} <b>${esc(r.vessel)}</b> · ${esc(r.key)}<span class="re">${esc(r.reagents.join(' + '))} → ${esc(r.effect)}</span></span>`).join('');
+      const nKnown = recipes.filter((x) => x.isKnown).length;
+      const recipeRow = recipes.map(({ r, isKnown, holdAll, ids }) =>
+        isKnown
+          ? `<span class="rec ${holdAll ? '' : 'dim'}" ${holdAll ? `data-recipe="${esc(ids.join(','))}" data-vessel2="${esc(r.preparation)}"` : ''}>✦ ${r.glyph} <b>${esc(r.vessel)}</b> · ${esc(r.key)}<span class="re">${esc(r.reagents.join(' + '))} → ${esc(r.effect)}</span></span>`
+          : `<span class="rec dim" title="experiment with reagents to discover this — or consult the cookbook">🔒 <b>a ${esc(r.family)} ${esc(r.vessel)}</b><span class="re">${esc(r.effect)} · undiscovered — brew it to learn it</span></span>`).join('');
       card.innerHTML =
         `<button class="aclose" data-bclose="1">close ⏎</button>` +
         `<div class="ahead">⚗ THE ALCHEMY BENCH</div>` +
@@ -3587,7 +3594,7 @@
         `<div class="bhead2">vessel</div><div class="bgrid">${vesselRow}</div>` +
         `<div class="preview">${previewHtml}</div>` +
         `<button class="brew" data-brew="1" ${pv && pv.ok ? '' : 'disabled'}>⚗ brew${pv && pv.ok ? ` — ${pv.grade} ${esc(pv.vessel)}` : ''}</button>` +
-        `<div class="bhead2">recipes you can make (from the cookbook)</div><div class="bgrid" style="flex-direction:column;align-items:stretch">${recipeRow}</div>`;
+        `<div class="bhead2">recipes · ${nKnown}/${all.length} discovered</div><div class="bgrid" style="flex-direction:column;align-items:stretch">${recipeRow}</div>`;
     }
     $('bench').addEventListener('click', (e) => {
       if (e.target === $('bench') || e.target.closest('[data-bclose]')) { closeBench(); return; }
@@ -3597,20 +3604,51 @@
       if (rc) { benchSel = rc.dataset.recipe.split(',').filter(Boolean); benchPrep = rc.dataset.vessel2 || 'draught'; renderBench(); return; }
       if (br) { doBrew(); return; }
     });
+    // a prepared brew → a pack item (shared by the bench and the apothecary shelf).
+    function prepToItem(pv) {
+      return { name: `${pv.label} ${pv.vessel}`, kind: 'preparation', kingdom: 'sustain', phylum: pv.phylum,
+        glyph: pv.glyphs || '⚗', grade: pv.grade, lore: describeEffect(pv),
+        mechanics: pv.mechanics, alch: true, stats: { value: Math.round(6 + pv.potency * 4) } };
+    }
+    // ── RECIPE MASTERY — which cookbook recipes you KNOW. Baseline is story-driven (your narrative tier
+    //    reveals recipes in order); the set then expands ORGANICALLY as you brew the right combinations.
+    //    A known recipe is a one-tap fill at the bench; an unknown one is a mystery you discover by
+    //    experiment (the /alch cookbook is the out-of-game reference). ──
+    const recipeKey = (r) => `${r.family}:${r.axis}`;
+    const narrativeTier = () => (story.ready && (story.store.getPlayerState(story.playerId).narrative_tier || 1)) | 0;
+    function discoveredSet() {
+      const set = new Set(getJSONFact('alch.discovered', []));
+      const all = deriveRecipes();                                  // baseline: the first `tier` recipes (heal is #1), story-driven
+      for (let i = 0; i < Math.max(1, narrativeTier()) && i < all.length; i++) set.add(recipeKey(all[i]));
+      return set;
+    }
+    function addDiscovered(key) {
+      const arr = getJSONFact('alch.discovered', []); if (arr.includes(key)) return false;
+      arr.push(key); setJSONFact('alch.discovered', arr); return true;
+    }
+    // does the current bench selection match a cookbook recipe? (same reagent-set + vessel) → the recipe.
+    function brewMatchesRecipe() {
+      const sel = benchSel.map(reagentNameFor).map((n) => { const r = findReagent(n); return r ? r.slug : null; }).filter(Boolean).sort();
+      if (!sel.length) return null;
+      for (const r of deriveRecipes()) {
+        if (r.preparation !== benchPrep) continue;
+        const rs = r.reagents.map((n) => { const rr = findReagent(n); return rr ? rr.slug : null; }).filter(Boolean).sort();
+        if (rs.length === sel.length && rs.every((s, i) => s === sel[i])) return r;
+      }
+      return null;
+    }
     function doBrew() {
       const pv = benchPreview(); if (!pv || !pv.ok) return;
       const pan = getPantry();
       for (const id of benchSel) { if (!(pan[id] > 0)) return; }   // guard: still have every reagent
+      const match = brewMatchesRecipe(), discovered = match && addDiscovered(recipeKey(match));   // organic discovery
       for (const id of benchSel) pan[id]--;                         // consume one of each
       setPantry(pan);
-      const item = {
-        name: `${pv.label} ${pv.vessel}`, kind: 'preparation', kingdom: 'sustain', phylum: pv.phylum,
-        glyph: pv.glyphs || '⚗', grade: pv.grade, lore: describeEffect(pv),
-        mechanics: pv.mechanics, alch: true, stats: { value: Math.round(6 + pv.potency * 4) },
-      };
+      const item = prepToItem(pv);
       addToPack(pack.pack, item); pack.setPack(pack.pack); persistPack();
       benchSel = []; saveStory(); renderBench();
       notify(`⚗ brewed ${item.name} — ${describeEffect(pv)} → pack (i)`, { kind: 'pickup', ms: 3000 });
+      if (discovered) notify(`✦ recipe discovered — ${match.vessel} of ${match.key}! it's now a one-tap at any bench`, { kind: 'life', ms: 3600 });
     }
 
     // ── USING PREPARATIONS — the consume verb, self, in & out of combat. A preparation carries
@@ -3736,11 +3774,42 @@
       if (tradeOpen) renderTrade();                                       // re-render once the biome is known (packs tab)
     }
     function closeTrade() { tradeOpen = false; lastPull = null; $('trade').classList.remove('on'); }
-    const tradeTabsHTML = () => { const t = (id, label) => `<button class="ttab${tradeTab === id ? ' on' : ''}" data-ttab="${id}">${label}</button>`; return `<div class="ttabs">${t('wares', '⇄ Wares')}${t('packs', '❀ Seed packs')}</div>`; };
+    const tradeTabsHTML = () => { const t = (id, label) => `<button class="ttab${tradeTab === id ? ' on' : ''}" data-ttab="${id}">${label}</button>`; return `<div class="ttabs">${t('wares', '⇄ Wares')}${t('packs', '❀ Seed packs')}${t('apothecary', '⚗ Apothecary')}</div>`; };
     function renderTrade() {
       const card = $('tradecard'); tradeOpen = true; $('trade').classList.add('on');
-      const body = tradeTab === 'wares' ? waresSectionHTML() : packsSectionHTML();
+      const body = tradeTab === 'wares' ? waresSectionHTML() : tradeTab === 'apothecary' ? apothecarySectionHTML() : packsSectionHTML();
       card.innerHTML = `<button class="aclose" data-tclose="1">close ⏎</button>` + tradeTabsHTML() + body;
+    }
+    // ── THE APOTHECARY — ready-made basic preparations for coins (the bootstrap before your Physic Garden
+    //    is going), and a place to sell the potions you brew. Stock is deterministic (the cookbook's exemplar
+    //    recipes, actually prepared), priced above what crafting costs so the bench stays the better deal. ──
+    const GRADE_COIN = { S: 20, A: 14, B: 9, C: 5, D: 2, F: 0 };
+    function apothecaryStock() {
+      const pick = deriveRecipes().filter((r) => r.family === 'combat' || (r.family === 'social' && ['Venus', 'Mercury'].includes(r.axis)));
+      return pick.map((r, i) => { const pv = prepare(r.reagents, r.preparation); if (!pv.ok) return null;
+        return { slot: i, key: r.key, item: prepToItem(pv), price: 12 + pv.potency * 4 + (GRADE_COIN[pv.grade] || 0) }; }).filter(Boolean);
+    }
+    function apothecarySectionHTML() {
+      const coins = getCoins(), stock = apothecaryStock();
+      const cells = stock.map((e) => `<div class="tcell" style="border-color:#6a5a9a55">`
+        + `<div class="wglyph" style="color:#c6b0f0">${esc(e.item.glyph || '⚗')}</div>`
+        + `<div class="tn" title="${esc(e.item.lore || '')}">${esc(e.item.name)}</div>`
+        + `<div class="tr" style="color:#c6b0f0">${esc(e.item.lore || '')}</div>`
+        + `<button class="gbtn wbuy" data-abuy="${e.slot}" ${coins >= e.price ? '' : 'disabled'}>◈${e.price}</button></div>`).join('');
+      const preps = pack.pack.map((it, i) => ({ it, i })).filter(({ it }) => isPrep(it));
+      const sellRows = preps.length ? preps.map(({ it, i }) => `<div class="wsell"><span class="wsg" style="color:#c6b0f0">${esc(it.glyph || '⚗')}</span><span class="wsn">${esc(it.name)}</span><button class="gbtn wsellb" data-sell="${i}">sell ◈${sellPrice(it)}</button></div>`).join('') : `<div class="gdim">no preparations to sell — brew some at a ⚗ make-room bench</div>`;
+      return `<div class="tfoil" style="background:#a98fd0"></div>`
+        + `<div class="ahead" style="color:#c6b0f0">⚗ THE APOTHECARY</div><div class="alaw" style="color:#c6b0f0">ready-made draughts</div>`
+        + `<div class="ameta">buy a basic preparation to get started — but brewing your own at a make-room bench is cheaper and stronger</div>`
+        + `<div class="ggrid tgrid wgrid">${cells}</div>`
+        + `<div class="ghead2" style="color:#a98fd0;margin-top:18px">sell your brews</div><div class="wsells">${sellRows}</div>`
+        + `<div class="ameta" style="margin-top:10px;color:#6b7872">◈ ${coins} · Esc to leave</div>`;
+    }
+    function doBuyPrep(slot) {
+      const e = apothecaryStock().find((x) => x.slot === slot); if (!e) return;
+      const coins = getCoins(); if (coins < e.price) { flashBusy(`◍ not enough coins (◈${e.price})`); return; }
+      setCoins(coins - e.price); addToPack(pack.pack, { ...e.item }); pack.setPack(pack.pack); persistPack();
+      saveStory(); renderTrade(); whereAmI(); flashPickup(e.item);
     }
     // ── WARES — the shop. Buy seeded gear (drops into your pack → equip at ⛨) + sell loot for coins.
     //    Shelf is deterministic per desk + restocks on the garden day (sleeping). ──
@@ -3818,6 +3887,7 @@
       if (e.target === $('trade') || e.target.closest('[data-tclose]')) { closeTrade(); return; }
       const tab = e.target.closest('[data-ttab]'); if (tab) { tradeTab = tab.dataset.ttab; renderTrade(); return; }
       const bb = e.target.closest('[data-buy]'); if (bb) { doBuy(+bb.dataset.buy); return; }
+      const ab = e.target.closest('[data-abuy]'); if (ab) { doBuyPrep(+ab.dataset.abuy); return; }
       const sb = e.target.closest('[data-sell]'); if (sb) { doSell(+sb.dataset.sell); return; }
       const pb = e.target.closest('[data-pull]'); if (!pb || !tradeBiome) return;
       const b = tradeBiome, pulls = getPullCount(b.id), free = pulls === 0, cost = free ? 0 : PULL_COST, coins = getCoins();
