@@ -8,6 +8,7 @@
 
 import { buildCurveModel } from './curveseed.js';
 import { certify } from './onedoor.js';
+import { buildPolyGenome, polyFrame, FAMILIES } from './sprites/poly.js';   // the polypod critter kernel (vendored from mega/sprite)
 
 const $ = (id) => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -27,7 +28,7 @@ function convexHull(pts) {
   lo.pop(); up.pop(); return lo.concat(up);
 }
 
-let m, cert, cells, threads, warpCol, prodCol;
+let m, cert, cells, threads, warpCol, prodCol, DROID = null, npcs = [];
 const state = { mode: 'nexus', color: 'white', sel: 0, thread: null, gi: -1, trail: [], walk: null };
 const view = { cx: 0, cy: 0, scale: 1 };
 
@@ -54,6 +55,41 @@ const stepNbrs = (gi, t) => [...cells[gi].adj].filter((nb) => t.cells.has(nb));
 function pathWithin(t, a, b) { if (a === b) return [a]; const prev = new Map([[a, -1]]), q = [a]; for (let h = 0; h < q.length; h++) { if (q[h] === b) break; for (const nb of stepNbrs(q[h], t)) if (!prev.has(nb)) { prev.set(nb, q[h]); q.push(nb); } } if (!prev.has(b)) return null; const p = []; for (let c = b; c !== -1; c = prev.get(c)) p.push(c); return p.reverse(); }
 // the chambers of the neighbour thread visible through a door (BFS out from the far cell, up to PEEK deep)
 function peekOf(door) { const N = threads.get(door.toKey); const seen = new Map([[door.farGi, 0]]), q = [door.farGi]; for (let h = 0; h < q.length; h++) { const d = seen.get(q[h]); if (d >= PEEK) continue; for (const nb of stepNbrs(q[h], N)) if (!seen.has(nb)) { seen.set(nb, d + 1); q.push(nb); } } return { key: door.toKey, cells: seen }; }
+
+// ── SPIDER-DROID NPCs — polypod spiderbots serving the LOGISTICS function, patrolling the production threads. Each
+// wanders its thread's corridor web (BFS to a random room, walk it, pick another), body lit by the gait, facing its
+// heading. The rooms-as-offices web is the graph; the droids are what live on it. (White threads: white-collar NPCs
+// are a later pass — the droids are logistics.) ──
+const randCell = (t) => { const a = [...t.cells]; return a[(Math.random() * a.length) | 0]; };
+function retargetNPC(n, t) { for (let tries = 0; tries < 6; tries++) { const dst = randCell(t); if (dst === n.gi) continue; const p = pathWithin(t, n.gi, dst); if (p && p.length > 1) { n.path = p; n.seg = 0; n.prog = 0; return; } } n.path = [n.gi]; n.seg = 0; n.prog = 0; }
+function spawnNPCs() {
+  npcs = []; const t = curThread(); if (!t || t.kind !== 'prod') return;   // spider-droids = logistics = production threads
+  const count = Math.max(3, Math.min(7, (t.cells.size / 40) | 0));
+  for (let i = 0; i < count; i++) { const n = { gi: randCell(t), path: null, seg: 0, prog: 0, t: Math.random(), spd: 0.010 + Math.random() * 0.010, rot: 0 }; retargetNPC(n, t); npcs.push(n); }
+}
+function updateNPCs() {
+  const t = curThread(); if (!t || t.kind !== 'prod') { npcs = []; return; }
+  for (const n of npcs) {
+    n.t += n.spd * 1.6;                                   // gait phase
+    if (!n.path || n.path.length < 2) { retargetNPC(n, t); continue; }
+    n.prog += n.spd * 40 / Math.max(1, view.scale);      // advance along the segment (world-speed ~constant)
+    while (n.prog >= 1 && n.path && n.seg < n.path.length - 1) { n.prog -= 1; n.seg++; n.gi = n.path[n.seg]; }
+    if (n.seg >= n.path.length - 1) retargetNPC(n, t);
+  }
+}
+function drawNPCs() {
+  if (!DROID || !npcs.length) return;
+  const droidW = m.pitch * 0.95, s = droidW / DROID.w * view.scale, ps = Math.max(1, s), rad = DROID.w * s * 0.42;
+  for (const n of npcs) {
+    const A = cells[n.path ? n.path[n.seg] : n.gi], B = cells[n.path && n.seg < n.path.length - 1 ? n.path[n.seg + 1] : (n.path ? n.path[n.seg] : n.gi)];
+    const wx = A.x + (B.x - A.x) * n.prog, wy = A.y + (B.y - A.y) * n.prog, sp = P(wx, wy);
+    const sa = P(A.x, A.y), sb = P(B.x, B.y), dx = sb[0] - sa[0], dy = sb[1] - sa[1];
+    if (dx * dx + dy * dy > 0.5) n.rot = Math.atan2(dy, dx) + Math.PI / 2;   // face travel (sprite head is up = -y)
+    ctx.fillStyle = rgba(BG, 0.62); ctx.beginPath(); ctx.arc(sp[0], sp[1], rad, 0, 7); ctx.fill();   // dark backing so it reads on any thread colour
+    const cos = Math.cos(n.rot), sin = Math.sin(n.rot), pix = polyFrame(DROID, n.t);
+    for (const p of pix) { const ox = p.x - DROID.cx, oy = p.y - DROID.cy, rx = ox * cos - oy * sin, ry = ox * sin + oy * cos; ctx.fillStyle = p.c; ctx.fillRect(sp[0] + rx * s - ps / 2, sp[1] + ry * s - ps / 2, ps, ps); }
+  }
+}
 
 function fitTo(giList) {
   let minx = 9e9, maxx = -9e9, miny = 9e9, maxy = -9e9;
@@ -102,6 +138,9 @@ function render() {
   ctx.fillStyle = rgba(GOLD, 0.9); ctx.font = '10px ui-sans-serif'; ctx.textAlign = 'center'; ctx.fillText(near ? 'NEXUS — all ' + armsOf(t.kind).length + ' ' + t.kind + ' arms' : 'NEXUS', np[0], np[1] - (near ? 24 : 17));
   for (const [gi] of t.doorAt) { const p = P(cells[gi].x, cells[gi].y), here = gi === state.gi; ctx.fillStyle = rgba(GOLD, here ? 1 : 0.85); ctx.beginPath(); ctx.arc(p[0], p[1], here ? 6 : 4, 0, 7); ctx.fill(); if (here) { ctx.strokeStyle = rgba(INK, 0.9); ctx.lineWidth = 1.5; ctx.stroke(); } }
 
+  // (3b) the SPIDER-DROIDS patrolling this thread (logistics)
+  drawNPCs();
+
   // (4) the @ — you
   const yp = P(you.x, you.y);
   ctx.fillStyle = rgba(BG, 0.82); ctx.beginPath(); ctx.arc(yp[0], yp[1], 11, 0, 7); ctx.fill();
@@ -146,10 +185,10 @@ function setWalk(dst) { const p = pathWithin(curThread(), state.gi, dst); if (p 
 function moveDir(dx, dy) { const t = curThread(), nbrs = stepNbrs(state.gi, t); if (!nbrs.length) return; const yp = P(cells[state.gi].x, cells[state.gi].y);
   let best = -1, bs = -Infinity; for (const nb of nbrs) { const p = P(cells[nb].x, cells[nb].y), vx = p[0] - yp[0], vy = p[1] - yp[1], L = Math.hypot(vx, vy) || 1, s = (vx * dx + vy * dy) / L; if (s > bs) { bs = s; best = nb; } }
   if (best >= 0 && bs > 0.2) { state.gi = best; state.walk = null; updateHUD(); } }
-function cross() { const t = curThread(), d = t.doorAt.get(state.gi); if (!d) return; state.trail.push(threadLabel(t).split(' · ')[1] || t.key); state.walk = null; state.thread = d.toKey; state.gi = d.farGi; fitTo(threads.get(d.toKey).cells); updateHUD(); }
-function enter() { const t = armsOf(state.color)[state.sel]; state.mode = 'thread'; state.thread = t.key; state.gi = t.nexusGi; state.trail.push(state.color === 'white' ? 'white nexus' : 'prod nexus'); fitTo(t.cells); updateHUD(); }
+function cross() { const t = curThread(), d = t.doorAt.get(state.gi); if (!d) return; state.trail.push(threadLabel(t).split(' · ')[1] || t.key); state.walk = null; state.thread = d.toKey; state.gi = d.farGi; fitTo(threads.get(d.toKey).cells); updateHUD(); spawnNPCs(); }
+function enter() { const t = armsOf(state.color)[state.sel]; state.mode = 'thread'; state.thread = t.key; state.gi = t.nexusGi; state.trail.push(state.color === 'white' ? 'white nexus' : 'prod nexus'); fitTo(t.cells); updateHUD(); spawnNPCs(); }
 // step into a like thread through the nexus — free (same door-free concourse). No door crossed.
-function enterSibling(key) { const s = threads.get(key); if (!s) return; state.trail.push('◇' + (threadLabel(s).split(' · ')[1] || key)); state.walk = null; state.thread = key; state.gi = s.nexusGi; fitTo(s.cells); updateHUD(); }
+function enterSibling(key) { const s = threads.get(key); if (!s) return; state.trail.push('◇' + (threadLabel(s).split(' · ')[1] || key)); state.walk = null; state.thread = key; state.gi = s.nexusGi; fitTo(s.cells); updateHUD(); spawnNPCs(); }
 function toNexus() { const t = curThread(); state.mode = 'nexus'; state.color = t.kind; state.sel = t.idx; state.walk = null; updateHUD(); }
 
 addEventListener('keydown', (e) => {
@@ -179,7 +218,7 @@ function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(deviceP
 addEventListener('resize', resize);
 
 let frameN = 0;
-function loop() { frameN++; if (state.walk && frameN % 4 === 0) { state.walk.i++; if (state.walk.i < state.walk.path.length) { state.gi = state.walk.path[state.walk.i]; updateHUD(); } else state.walk = null; } render(); requestAnimationFrame(loop); }
+function loop() { frameN++; if (state.walk && frameN % 4 === 0) { state.walk.i++; if (state.walk.i < state.walk.path.length) { state.gi = state.walk.path[state.walk.i]; updateHUD(); } else state.walk = null; } if (state.mode === 'thread') updateNPCs(); render(); requestAnimationFrame(loop); }
 
 const Q = new URLSearchParams(location.search), seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 42;
 setTimeout(() => {
@@ -187,6 +226,7 @@ setTimeout(() => {
   cert = certify(m); cells = m.cells;
   warpCol = (w) => mix(hex(m.warps[w].color), INK, (w % 2) * 0.28); prodCol = (f) => hex(m.wefts[f].color);
   threads = buildThreads();
+  DROID = buildPolyGenome('rind-logi', { ...FAMILIES.spiderbot, w: 26, h: 26 });   // the logistics spider-droid
   $('loading').style.display = 'none';
   resize(); updateHUD(); loop();
 }, 40);
