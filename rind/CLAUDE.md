@@ -53,7 +53,10 @@ JS → emit a frame model → solve for stress):
   **`nexus.html`/`nexus-app.js` is the FIRST-PERSON navigator (proto)**: you are the `@` on ONE thread — its own
   chambers strung along its curve into a walkable surface, walled but for its doors + the nexus; start at the white
   nexus, walk an arm, and crossing a door re-centres the whole map on the crossed thread (navigation = mapping).
-  **`tess.html`/`tess-app.js`** shows how the
+  **`helix.html`/`helix-app.js` — the EMERGENT cylinder helix**: keep local hex cohesion but chain the white
+  edge-handoffs across the wrapped honeycomb and the six directions resolve into three global families — azimuthal
+  **rings** (E–W) + two counter-rotating **helices** (NE–SW, NW–SE) that cross = the cylinder weave, emergent;
+  expansion is just more rows of hexes. Unrolled ↔ wrapped-on-cylinder, trace one strand. **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate**: a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family
