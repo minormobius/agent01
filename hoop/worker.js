@@ -169,6 +169,12 @@ export default {
     if (url.pathname === '/over' || url.pathname === '/over/') {
       return env.ASSETS.fetch(new Request(new URL('/v101/over/index.html', url), request));
     }
+    // alch — the ALCHEMIST'S COOKBOOK: the correspondence→effect grammar (humour/planet/metal/vessel),
+    // every live reagent with its derived effect + pairings, and exemplar recipes computed by actually
+    // running the alchemy kernel. Mechanism reference for the bench in the make rooms.
+    if (url.pathname === '/alch' || url.pathname === '/alch/' || url.pathname === '/cookbook' || url.pathname === '/cookbook/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/alch/index.html', url), request));
+    }
     // docs — the WORLD-SIDE documentation: the whole scope of the world (decks, systems, minigames),
     // every workflow that feeds it, the v101 audit findings, and the roadmap. The examination surface.
     if (url.pathname === '/docs' || url.pathname === '/docs/') {
