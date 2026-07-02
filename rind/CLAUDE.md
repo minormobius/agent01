@@ -56,8 +56,21 @@ JS → emit a frame model → solve for stress):
   **`helix.html`/`helix-app.js` — the EMERGENT cylinder helix**: keep local hex cohesion but chain the white
   edge-handoffs across the wrapped honeycomb and the six directions resolve into three global families — azimuthal
   **rings** (E–W) + two counter-rotating **helices** (NE–SW, NW–SE) that cross = the cylinder weave, emergent;
-  expansion is just more rows of hexes. Unrolled ↔ wrapped-on-cylinder, trace one strand. **`tess.html`/`tess-app.js`** shows how the
-  cells **tessellate**: a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
+  expansion is just more rows of hexes. Unrolled ↔ wrapped-on-cylinder, trace one strand.
+  **`tessweave.html`/`tessweave-app.js` (kernel `tessweave.js`) — the tessellation SOLVED over the real threads**:
+  where `tess.html` is a schematic, this honeycombs the *actual* single-hex Voronoi weave (`curveseed.js`, 14
+  threads) and solves the **thread-to-thread interfaces** at every shared edge. Two halves, computed and proven
+  (`test/tessweave.selftest.mjs`, 51 assertions over 7 seeds): (1) the 6 **whites** each claim one edge by their
+  rim-most cell — an exact **1-white-per-edge bijection** (the warp) — and translation-tiling turns each owned
+  white into a straight global strand, so the 6 collapse to **3 families** (one azimuthal ring + two
+  counter-rotating helices — the same emergence as `helix.html`, now over the real weave); (2) the 8 **engines**
+  don't divide the hex's 6-fold antipodal symmetry, so they can't all splice — they stay local and, where they
+  graze the rim, abut the neighbour's *other-kind* thread as cross-kind **K-doors** (the K(6,8) contact reaching
+  across the seam). Continuity across a seam is realised the way it is everywhere in rind — **door-adjacency**
+  between abutting rim cells, not literal curve-joining (the spiral chirality biases every white to one side of
+  its edge, so opposite edges don't mirror-align). The view tiles the hex 7-up, colours all 14 threads, draws the
+  3 warp families + per-seam doors/continuity ticks, and traces one family across the tiling. **`tess.html`/`tess-app.js`** shows how the
+  cells **tessellate** (the schematic): a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family
   (`foam3d.selftest.mjs`, 44 + `chamber.selftest.mjs`, 31; K(6,8) over 80 seeds). The 2D versions are preserved: `flat.html`/`flat-app.js`
@@ -98,6 +111,7 @@ of hoop; it is the shell, tide/biome are the air/life inside it. Keep the cross-
 node rind/solver/foam-preview.mjs                  # headless foam → frame model preview
 node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no deps)
 node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any→any ≤1 door incl. hubs (two concourses)
+node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
 node rind/ops/test/decks.selftest.mjs              # the region-decks comparison view

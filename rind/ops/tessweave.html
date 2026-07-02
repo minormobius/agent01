@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>rind · ops — the tessellating weave, solved</title>
+<style>
+  :root { --ink:#e8ecf4; --dim:#7e8aa0; --gold:#d9b24a; --bg:#06070c; --panel:#0c0f17; --line:#1b2030; --ok:#6fcf8a; --door:#e6c15a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
+  a { color: var(--gold); }
+  .wrap { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+  header { padding: 9px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; }
+  header .crumb { color: var(--dim); font-size: 12px; }
+  header .crumb a { text-decoration: none; }
+  header .spacer { flex: 1; }
+  .main { display: grid; grid-template-columns: 1fr 320px; min-height: 0; }
+  @media (max-width: 900px) { .main { grid-template-columns: 1fr; } .rail { display: none; } }
+  .stage { position: relative; min-height: 0; }
+  canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  canvas.drag { cursor: grabbing; }
+  .controls { position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; z-index: 2; max-width: calc(100% - 24px); }
+  .controls button { background: #11151f; color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; font-size: 12px; cursor: pointer; }
+  .controls button.on { border-color: var(--gold); color: var(--gold); }
+  .controls .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
+  .read { position: absolute; left: 12px; bottom: 12px; right: 12px; font-size: 11.5px; color: var(--dim); background: rgba(8,9,14,.78); padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line); pointer-events: none; }
+  .read b { color: var(--ink); } .read .ok { color: var(--ok); } .read .door { color: var(--door); }
+  .rail { border-left: 1px solid var(--line); padding: 14px; overflow: auto; background: var(--panel); font-size: 12.5px; }
+  .rail h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 14px 0 6px; }
+  .rail h2:first-child { margin-top: 0; }
+  .rail p { margin: 6px 0; color: #c2cadb; }
+  .rail .k { color: var(--gold); font-weight: 600; }
+  .rail code { background: #0a0d14; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 11.5px; }
+  .cert { font-variant-numeric: tabular-nums; }
+  .cert .row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; border-bottom: 1px dotted #182036; }
+  .cert .row .v { color: var(--ink); font-weight: 600; }
+  .pass { color: var(--ok); } .warn { color: var(--door); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>rind · ops — the tessellating weave, solved</h1>
+    <span class="crumb"><a href="./">← ops</a> &nbsp;·&nbsp; <a href="./tess.html">⬢ schematic</a> &nbsp;·&nbsp; <a href="./helix.html">✺ helix</a> &nbsp;·&nbsp; <a href="./onedoor.html">⌸ one door</a></span>
+    <span class="spacer"></span>
+    <span class="crumb">14 real Voronoi threads · edge = interface · warp splices, engines door</span>
+  </header>
+  <div class="main">
+    <div class="stage">
+      <div class="controls">
+        <button id="tiles" class="on">honeycomb (7)</button>
+        <button id="warp" class="on">warp families</button>
+        <button id="iface" class="on">interfaces</button>
+        <button id="trace">trace a family</button>
+        <span class="sep"></span>
+        <button id="color" class="on">14 colours</button>
+        <span class="sep"></span>
+        <button id="seedDn">seed −</button><button id="seedUp">seed +</button>
+      </div>
+      <canvas id="cv"></canvas>
+      <div class="read" id="read"></div>
+    </div>
+    <aside class="rail">
+      <h2>the question</h2>
+      <p>One hex packs <span class="k">14 threads</span> — 6 white + 8 production. Honeycomb it to make the world infinite. <b>What happens to a thread where tile A's edge meets tile B's?</b></p>
+      <h2>the solve</h2>
+      <p><b class="k">White = continuity.</b> The hex has 6 edges; the cortex has 6 whites. Each white's rim-most cell claims one edge — an exact <b>1-white-per-edge bijection</b>. Translation-tiling turns each owned white into a straight global strand, so the 6 whites collapse to <b>3 families</b>: one azimuthal ring + two counter-rotating helices (the emergence, over the real Voronoi weave).</p>
+      <p><b class="door">Production = K-doors.</b> 8 engines don't divide the hex's 6-fold symmetry, so they can't all splice; they stay local and, where they graze the rim, abut the neighbour's <i>other-kind</i> thread — a cross-kind <b>K-door</b>. That is the K(6,8) contact reaching across the seam.</p>
+      <p>Continuity here is realised the way it is everywhere in rind: not literal curve-joining but <span class="k">door-adjacency</span> between the rim cells that abut across the seam. Position along the edge decides which cell meets which.</p>
+      <h2>the interface certificate</h2>
+      <div class="cert" id="cert"></div>
+      <h2>reading it</h2>
+      <p>Grey hex = the tile. Coloured dots = the 14 threads. Bold coloured chords across seams = the 3 warp families. <span class="door">◆</span> on a seam = a K-door (cross-kind); <span class="ok">▬</span> = a same-kind continuity step. Drag to pan, scroll to zoom.</p>
+    </aside>
+  </div>
+</div>
+<script type="module" src="./tessweave-app.js"></script>
+</body>
+</html>
