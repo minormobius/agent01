@@ -82,8 +82,28 @@ export function weaveLines(geo, opts = {}) {
       return Math.min(Amax, Math.max(Amin, (maxGrade / 3) * Math.min(dP, dN))); });   // crossings: floor so it never flattens
     return seq.map((c, k) => ({ rf: c.rf, z: zMid + c.s * amp[k] }));
   };
+  // MEET-AT-GRADE profile (opts.grade==='meet'): every crossing sits at zMid (a shared flat ⇒ a ZERO-GRADE door),
+  // and each thread bulges to ITS OWN side (white up, production down) only BETWEEN crossings — so a door is never a
+  // stair, yet the two colours stay separated between crossings. The hub keeps its z-bias (white high / prod low at
+  // the centre) so the two nexuses never touch. Continuity is no longer the over/under's job — the watershed owns it,
+  // which is exactly what frees us to flatten the crossings. `colorSign` = +1 white / −1 production.
+  const capCtlMeet = (cl, arc, colorSign) => {
+    const flats = collapse(cl), Sf = (rf) => arcAt(arc, rf), xs = [flatR, ...flats.map((c) => c.rf), 1], pts = [];
+    for (let i = 0; i < xs.length; i++) {
+      pts.push({ rf: xs[i], z: zMid + (i === 0 ? colorSign * zBias : 0) });          // hub biased; every crossing + rim at grade
+      if (i < xs.length - 1) { const run = Sf(xs[i + 1]) - Sf(xs[i]), amp = Math.min(Amax, Math.max(Amin, (maxGrade / 3) * (run / 2)));
+        pts.push({ rf: (xs[i] + xs[i + 1]) / 2, z: zMid + colorSign * amp }); }      // a between-crossings bulge to the thread's own side
+    }
+    return pts;
+  };
+  // FLAT profile (opts.grade==='flat'): the whole weave sits at zMid EXCEPT the hub keeps its z-bias so the two
+  // nexuses stay apart. No over/under, no between-crossings bulge ⇒ every white↔production adjacency is at grade
+  // (a true zero-ladder world) — IF the watershed can still keep every spiral continuous in a near-planar band.
+  const capCtlFlat = (cl, arc, colorSign) => { const flats = collapse(cl), firstRf = flats.length ? flats[0].rf : (flatR + 1) / 2; return [{ rf: flatR, z: zMid + colorSign * zBias }, { rf: (flatR + firstRf) / 2, z: zMid }, { rf: 1, z: zMid }]; };
   const interp = (pts, rf) => { if (rf <= pts[0].rf) return pts[0].z; if (rf >= pts[pts.length - 1].rf) return pts[pts.length - 1].z; let i = 0; while (i < pts.length - 1 && pts[i + 1].rf < rf) i++; const a = pts[i], b = pts[i + 1], t = (rf - a.rf) / ((b.rf - a.rf) || 1); return a.z + (b.z - a.z) * (t * t * (3 - 2 * t)); };
-  const wCtl = Array.from({ length: NW }, (_, w) => capCtl(crossW(w), wArc, 1)), pCtl = Array.from({ length: NF }, (_, f) => capCtl(crossP(f), pArc, -1));
+  const pick = (cl, arc, sign) => opts.grade === 'flat' ? capCtlFlat(cl, arc, sign) : opts.grade === 'meet' ? capCtlMeet(cl, arc, sign) : capCtl(cl, arc, sign);
+  const wCtl = Array.from({ length: NW }, (_, w) => pick(crossW(w), wArc, 1));
+  const pCtl = Array.from({ length: NF }, (_, f) => pick(crossP(f), pArc, -1));
   const zW = (w, rf) => interp(wCtl[w], rf), zP = (f, rf) => interp(pCtl[f], rf);
   const lineW = (w, rf) => [rf * R * Math.cos(aW(w, rf)), rf * R * Math.sin(aW(w, rf)), zW(w, rf)];
   const lineP = (f, rf) => [rf * R * Math.cos(aP(f, rf)), rf * R * Math.sin(aP(f, rf)), zP(f, rf)];

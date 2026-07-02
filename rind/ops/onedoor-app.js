@@ -12,7 +12,7 @@ const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 1;
 let width = 6, spacing = 30, flatR = 0.16, rings = 1, layers = 8, NW = 6, NF = 8;
-let spin = true, byConcourse = true, showDoors = true, routeMode = false, peel = 0, solid = true, substrate = 'curve', showCurves = true, ownership = 'watershed';
+let spin = true, byConcourse = true, showDoors = true, routeMode = false, peel = 0, solid = true, substrate = 'curve', showCurves = true, ownership = 'watershed', gradeMode = 'overunder';
 let yaw = 0.4, pitch = 0.95, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -170,10 +170,10 @@ function rebuild() {
   if (substrate === 'curve') {
     // nuclei seeded ALONG the analytic curves, polyhedra grown to fill (curveseed.js). Each build is self-contained.
     const pitch = Math.max(24, spacing);
-    const key = `curve|${seed}|${rings}|${pitch}|${layers}|${NW}|${NF}|${flatR}|${width}|${ownership}`;
+    const key = `curve|${seed}|${rings}|${pitch}|${layers}|${NW}|${NF}|${flatR}|${width}|${ownership}|${gradeMode}`;
     if (key !== geomKey) { routeA = routeB = -1; theRoute = routeSet = null; }
     geomKey = key;
-    m = buildCurveModel(seed, { rings, layers, NW, NF, flatR, pitch, width, ownership }); geo = m; cellsModel = m.cellsModel;
+    m = buildCurveModel(seed, { rings, layers, NW, NF, flatR, pitch, width, ownership, grade: gradeMode === 'overunder' ? undefined : gradeMode }); geo = m; cellsModel = m.cellsModel;
     cert = certify(m);
   } else {
     const key = `hcp|${seed}|${rings}|${spacing}|${layers}|${NW}|${NF}`;
@@ -196,8 +196,9 @@ $('nf').addEventListener('change', (e) => { NF = +e.target.value; $('nwnfV').tex
 $('flat').addEventListener('change', (e) => { flatR = (+e.target.value) / 100; rebuild(); });
 $('peel').addEventListener('input', (e) => { peel = (+e.target.value) / 100; $('peelV').textContent = `${((1 - peel) * geo.layers).toFixed(1)} decks`; });
 $('chunks').addEventListener('click', () => { rings = (rings + 1) % 3; rebuild(); });
-$('substrate').addEventListener('click', () => { substrate = substrate === 'hcp' ? 'curve' : 'hcp'; $('substrate').textContent = substrate === 'hcp' ? '▦ HCP lattice' : '✳ on-curve'; $('substrate').classList.toggle('on', substrate === 'curve'); $('ownership').style.display = substrate === 'curve' ? '' : 'none'; geomKey = ''; rebuild(); });
+$('substrate').addEventListener('click', () => { substrate = substrate === 'hcp' ? 'curve' : 'hcp'; $('substrate').textContent = substrate === 'hcp' ? '▦ HCP lattice' : '✳ on-curve'; $('substrate').classList.toggle('on', substrate === 'curve'); const cs = substrate === 'curve' ? '' : 'none'; $('ownership').style.display = cs; $('grademode').style.display = cs; geomKey = ''; rebuild(); });
 $('ownership').addEventListener('click', () => { ownership = ownership === 'watershed' ? 'nearest' : 'watershed'; $('ownership').textContent = ownership === 'watershed' ? '◐ watershed' : '◑ nearest'; $('ownership').classList.toggle('on', ownership === 'nearest'); geomKey = ''; rebuild(); });
+$('grademode').addEventListener('click', () => { gradeMode = gradeMode === 'overunder' ? 'flat' : gradeMode === 'flat' ? 'meet' : 'overunder'; $('grademode').textContent = { overunder: '≋ over/under', flat: '≋ flat', meet: '≋ meet-grade' }[gradeMode]; $('grademode').classList.toggle('on', gradeMode !== 'overunder'); geomKey = ''; rebuild(); });
 $('mode').addEventListener('click', () => { byConcourse = !byConcourse; $('mode').classList.toggle('on', byConcourse); $('mode').textContent = byConcourse ? '◧ 2 concourses' : `◧ ${NW + NF} threads`; });
 $('solid').addEventListener('click', () => { solid = !solid; $('solid').classList.toggle('on', solid); $('solid').textContent = solid ? '⬢ solid' : '⬡ ghost'; });
 $('doors').addEventListener('click', () => { showDoors = !showDoors; $('doors').classList.toggle('on', showDoors); });
