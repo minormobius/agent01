@@ -41,10 +41,12 @@ function buildThreads() {
   for (const t of T.values()) { let best = -1, bd = Infinity; for (const gi of t.cells) { const c = cells[gi], r = c.x * c.x + c.y * c.y; if (r < bd) { bd = r; best = gi; } } t.nexusGi = best; }
   return T;
 }
-function pathWithin(t, a, b) {
+// avoidDoors: never route THROUGH a door cell (except as the destination), so an autopath across
+// your office can't trip a portal mid-way — you only cross a door when you actually target it.
+function pathWithin(t, a, b, avoidDoors) {
   if (a === b) return [a];
   const prev = new Map([[a, -1]]), q = [a];
-  for (let h = 0; h < q.length; h++) { if (q[h] === b) break; for (const nb of stepNbrs(q[h], t)) if (!prev.has(nb)) { prev.set(nb, q[h]); q.push(nb); } }
+  for (let h = 0; h < q.length; h++) { if (q[h] === b) break; for (const nb of stepNbrs(q[h], t)) { if (prev.has(nb)) continue; if (avoidDoors && nb !== b && t.doorAt.has(nb)) continue; prev.set(nb, q[h]); q.push(nb); } }
   if (!prev.has(b)) return null;
   const p = []; for (let c = b; c !== -1; c = prev.get(c)) p.push(c); return p.reverse();
 }
@@ -206,24 +208,25 @@ function drawDroidAt(nn) {
   for (const q of px) { ctx.fillStyle = q.c; ctx.fillRect(p[0] + (q.x - DROID.cx) * s, p[1] + (q.y - DROID.cy) * s, s + 0.5, s + 0.5); }
 }
 
-// ── movement: everything funnels through moveTo, which crosses SEAMLESSLY at a door ──
-function moveTo(gi) {
-  if (gi === state.gi) return false;
+// ── movement: arrive() crosses ONLY on a deliberate step (a WASD nudge, or the FINAL cell of a walk) ──
+// so autopathing across your office never trips a portal in passing.
+function arrive(gi, allowCross) {
+  if (gi === state.gi) return;
   state.gi = gi;
   if (gi !== state.enteredAt) state.enteredAt = -1;                 // we've left the cell we just crossed into
   const d = curThread().doorAt.get(gi);
-  if (d && state.enteredAt === -1) { crossThrough(d); return true; }
-  afterMove(); return false;
+  if (allowCross && d && state.enteredAt === -1) { state.walk = null; crossThrough(d); return; }
+  afterMove();
 }
 function crossThrough(d) { const t = curThread(); state.trail.push(threadLabel(t)); if (state.trail.length > 8) state.trail.shift(); state.enteredAt = d.farGi; rebuild(d.toKey, d.farGi); }
-function afterMove() { state.atNexus = rfOf(state.gi) < (m.flatR || 0.16) + 0.06; updateHUD(); }
+function afterMove() { state.atNexus = curThread().synthetic || rfOf(state.gi) < (m.flatR || 0.16) + 0.06; updateHUD(); }
 function moveDir(dx, dy) {
   const t = curThread(), nbrs = stepNbrs(state.gi, t); if (!nbrs.length) return;
   const here = cells[state.gi]; let best = -1, bs = 0.25;
   for (const nb of nbrs) { const c = cells[nb], vx = c.x - here.x, vy = c.y - here.y, L = Math.hypot(vx, vy) || 1, s = (vx * dx + vy * dy) / L; if (s > bs) { bs = s; best = nb; } }
-  if (best >= 0) moveTo(best);
+  if (best >= 0) arrive(best, true);        // a WASD step onto a door is a deliberate crossing
 }
-function setWalk(dst) { const p = pathWithin(curThread(), state.gi, dst); if (p && p.length > 1) state.walk = { path: p, i: 0 }; }
+function setWalk(dst) { const t = curThread(); const p = pathWithin(t, state.gi, dst, true) || pathWithin(t, state.gi, dst, false); if (p && p.length > 1) state.walk = { path: p, i: 0 }; }
 function enterSibling(key) { const s = threads.get(key); if (!s) return; state.trail.push('✦' + threadLabel(curThread())); state.enteredAt = s.nexusGi; rebuild(key, s.nexusGi); }
 
 // ── HUD ──
@@ -268,7 +271,7 @@ addEventListener('resize', resize);
 let frameN = 0;
 function loop() {
   frameN++;
-  if (state.walk && frameN % 4 === 0) { state.walk.i++; if (state.walk.i < state.walk.path.length) { if (moveTo(state.walk.path[state.walk.i])) state.walk = null; } else state.walk = null; }
+  if (state.walk && frameN % 4 === 0) { state.walk.i++; if (state.walk.i < state.walk.path.length) { arrive(state.walk.path[state.walk.i], state.walk.i === state.walk.path.length - 1); } else state.walk = null; }
   if (office) { updateNPCs(); render(); }
   requestAnimationFrame(loop);
 }
