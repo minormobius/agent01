@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { proveProgression, requiredKeeperIds, ZONE_TIER } from '../story/solvable.js';
 import { anchorChain, gateSetters } from '../story/anchors.js';
-import { servePool, isTombstoned } from '../story/import.js';
+import { servePool, isTombstoned, dedupeRawIds } from '../story/import.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -158,33 +158,71 @@ const conclusion = { id: 'pb-end', type: 'plot_beat', status: 'active', tags: ['
   const chain = anchorChain(served);
   ok(chain.length === 4 && chain.map((a) => a.tier).join(',') === '1,2,3,4', 'the live chain: four anchors, tiers 1..4 (Olo → Solen → Sevin → Luna)');
 
-  // as the shipped surface runs it (requiredKeeperIds bypass wired): the tier-mismatch setters are
-  // WARNs; what remains BLOCKing is pure content — two gates no one in the pool sets.
+  // THE KAELEN VOSS ROOT CAUSE (the playtest soft-lock): the pool ships TWO distinct "Kaelen Voss"
+  // room_bundles — "The Rivet Chancel" (tier-1, sets the tier-1 gate flag.commons.rindwalker_face) and
+  // "The Fulcrum Cell" (tier-2, sets flag.ward.rindwalker_known). Both slugged to `kaelen-voss` and
+  // COLLIDED in the store's contentById Map, so the tier-2 one shadowed the tier-1 keeper — talking to the
+  // placed Kaelen set the wrong flag and the tier-1 gate never fired. servePool's dedupeRawIds now gives
+  // each a STABLE unique id, so gateSetters, requiredKeeperIds and the store all resolve the right keeper.
+  const setters = gateSetters(served);
+  const byId = new Map(served.map((c) => [c.id, c]));
+  const kaeIds = served.filter((c) => c.type === 'npc' && (c.content || {}).name === 'Kaelen Voss').map((c) => c.id);
+  ok(kaeIds.length === 2 && new Set(kaeIds).size === 2, `the two Kaelen Voss keepers get distinct ids — got ${JSON.stringify(kaeIds)}`);
+  const kaeFace = byId.get(setters['flag.commons.rindwalker_face'] && setters['flag.commons.rindwalker_face'].contentId);
+  ok(kaeFace && (kaeFace.content || {}).name === 'Kaelen Voss' && (kaeFace.narrative_tier || 1) === 1,
+    'flag.commons.rindwalker_face is set by the tier-1 Rivet Chancel Kaelen (no longer shadowed by the tier-2 Fulcrum Cell)');
+
+  // with de-collided ids every keeper sits at its OWN narrative_tier, so NONE is tier-invisible — the three
+  // former setter_invisible WARNs (Kaelen, Tamsin Rook, Joran Vell) were pure collision artifacts (the tier-2
+  // twin's tier bled onto the tier-1 gate). What remains BLOCKing is pure content: two gates no one sets.
   const rep = proveProgression(served, { forcePlaced: true });
+  const warns = rep.issues.filter((i) => i.level === 'warn' && i.code === 'setter_invisible').map((i) => i.gate).sort();
+  ok(warns.length === 0, `no keeper is tier-invisible after de-collision — got ${JSON.stringify(warns)}`);
   const errs = rep.errors.map((i) => i.tier + ':' + i.code + ':' + (i.gate || '')).sort();
   ok(JSON.stringify(errs) === JSON.stringify([
     '3:gate_no_setter:flag.rind.rindwalker_scale_a',
     '4:gate_no_setter:flag.signal.chamber_key',
   ]), `the live pool's remaining BLOCKs are the two setter-less gates (hoopy's to fill) — got ${JSON.stringify(errs)}`);
-  const warns = rep.issues.filter((i) => i.level === 'warn' && i.code === 'setter_invisible').map((i) => i.gate).sort();
-  ok(JSON.stringify(warns) === JSON.stringify([
-    'flag.commons.rindwalker_face',        // Kaelen Voss, narrative_tier 2 on the tier-1 anchor — the playtest soft-lock
-    'flag.rind.continuant_scale_b',        // Tamsin Rook, tier 4 on the tier-3 anchor
-    'flag.rind.rindwalker_scale_c',        // Joran Vell, tier 4 on the tier-3 anchor
-  ]), `the three tier-invisible keepers are force-placed (WARN) — got ${JSON.stringify(warns)}`);
 
-  // WITHOUT the bypass (a surface that only draws from the tier-filtered pool), tier 1 itself BLOCKs —
-  // the exact bug the playtest hit: "find Kaelen Voss, keeper of the Rivet Chancel", who cannot spawn.
+  // and WITHOUT the force-place bypass the pool is solvable to those same content gaps — tier 1 no longer
+  // BLOCKs, because the tier-1 gate's setter is genuinely a tier-1 keeper (not a shadowed tier-2 twin).
   const bare = proveProgression(served);
-  ok(bare.errors.some((i) => i.tier === 1 && i.code === 'setter_invisible' && /Kaelen Voss/.test(i.msg)),
-    'without the bypass the oracle proves tier 1 unsolvable — the Kaelen Voss / Rivet Chancel soft-lock');
+  ok(!bare.errors.some((i) => i.tier === 1), 'tier 1 no longer BLOCKs — the Kaelen Voss soft-lock is gone even without the bypass');
 
-  // and the runtime list a fresh player needs at tier 1 includes Kaelen Voss (the one the filter hides).
-  const setters = gateSetters(served);
+  // the runtime list a fresh player needs at tier 1 still names all three commons keepers, Kaelen included.
   const req = requiredKeeperIds(chain, setters, {}, 1);
-  const byId = new Map(served.map((c) => [c.id, c]));
-  ok(req.length === 3 && req.some((id) => /Kaelen Voss/.test(((byId.get(id) || {}).content || {}).npc?.name || ((byId.get(id) || {}).content || {}).name || '')),
+  ok(req.length === 3 && req.some((id) => /Kaelen Voss/.test(((byId.get(id) || {}).content || {}).name || '')),
     'requiredKeeperIds at tier 1 lists all three commons keepers, Kaelen Voss included');
+}
+
+// ── 5. dedupeRawIds — the stability contract (atproto permalinks depend on it) ──
+{
+  // two room_bundles with the same npc name but different content → same base id, must split.
+  const mk = (room, zone, tier) => ({ type: 'room_bundle', narrative_tier: tier, status: 'active',
+    content: { name: room, zone, npc: { name: 'Kaelen Voss', dialogue: { start: 'g', nodes: { g: { says: room, choices: [] } } } } } });
+  const a = mk('The Rivet Chancel', 'commons', 1), b = mk('The Fulcrum Cell', 'wards', 2), lone = mk('Alone', 'commons', 1);
+  lone.content.npc.name = 'Solene';
+
+  const d1 = dedupeRawIds([a, b, lone]);
+  ok(d1[0].id && d1[1].id && d1[0].id !== d1[1].id, 'two colliding records get DISTINCT ids');
+  ok(!d1[2].id || d1[2].id === undefined, 'a non-colliding record is left untouched (no forced id)');
+  ok(d1[0].id.startsWith('kaelen-voss-') && d1[1].id.startsWith('kaelen-voss-'), 'colliding ids keep the readable base + a hash suffix');
+
+  // ORDER-INDEPENDENCE: the id a record gets depends only on its own content, not pool order.
+  const d2 = dedupeRawIds([b, lone, a]);
+  const idOf = (arr, room) => arr.find((r) => r.content.name === room).id;
+  ok(idOf(d1, 'The Rivet Chancel') === idOf(d2, 'The Rivet Chancel')
+    && idOf(d1, 'The Fulcrum Cell') === idOf(d2, 'The Fulcrum Cell'), 'reordering the pool does NOT change any id (order-independent / atproto-stable)');
+
+  // an EXPLICIT id is authoritative — never rewritten even under collision.
+  const withId = { ...mk('The Rivet Chancel', 'commons', 1), id: 'kaelen-voss' };
+  const d3 = dedupeRawIds([withId, b]);
+  ok(d3[0].id === 'kaelen-voss', 'an explicit id is never rewritten (it may be a cross-ref target)');
+
+  // IDEMPOTENCE: running it again on the deduped set is a no-op (served pools re-serve unchanged).
+  const withIds = d1.map((r, i) => r.id ? r : { ...r, id: 'lone-' + i });
+  const d4 = dedupeRawIds(withIds);
+  ok(withIds.every((r, i) => r.id === d4[i].id), 'dedupeRawIds is idempotent on an already-unique pool');
 }
 
 console.log(`solvable.selftest: ${pass} passed, ${fail} failed`);

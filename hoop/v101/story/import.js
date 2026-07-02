@@ -186,6 +186,72 @@ export function isTombstoned(ci) {
   return TOMBSTONE_STATUS.has(ci.status) || ci.tombstone === true || ci.deleted === true || ci.deletedAt != null;
 }
 
+// ── STABLE ID DE-COLLISION (the Kaelen Voss soft-lock, systemic fix) ─────────────────────────────────
+// hoopy's raw records frequently carry NO `id`, so every id-derivation below (importRecord line ~62,
+// expandRoomBundle ~115, expandWanderer ~156) falls back to `slug(name)`. Distinct records with the same
+// name then derive the SAME id and COLLIDE in the runtime store's `contentById` Map (last-write-wins) — so
+// only one survives and the rest are silently shadowed. The load-bearing case: TWO "Kaelen Voss" room
+// bundles ("The Rivet Chancel", tier-1, sets flag.commons.rindwalker_face; "The Fulcrum Cell", tier-2, sets
+// flag.ward.rindwalker_known) both slug to `kaelen-voss`. The store keeps the tier-2 one, so talking to the
+// tier-1 keeper never fires its gate — an unbreakable soft-lock. (Also ~181 empty-name records all slugged
+// to '' and collapsed to a single entry.) gateSetters/requiredKeeperIds/the store all re-derive from
+// servePool's output, so a STABLE unique id per record makes the quest oracle and the runtime store agree.
+//
+// The base id each record WOULD derive (mirrors the three fallbacks above). Explicit `rec.id` wins.
+function baseIdOf(rec) {
+  if (!rec) return '';
+  if (rec.id) return rec.id;
+  const C = rec.content && typeof rec.content === 'object' ? rec.content : null;
+  if (rec.type === 'room_bundle') {
+    const cc = C || {}; const npc = cc.npc && typeof cc.npc === 'object' ? cc.npc : {};
+    return slug(npc.name || cc.name) || slug(cc.name);
+  }
+  if (rec.type === 'wanderer') { const cc = C || {}; return slug(cc.name) || 'wanderer'; }
+  const name = C && C.name != null ? C.name : rec.name;
+  return slug(name);
+}
+// A content fingerprint — the DISTINGUISHING fields, canonicalised so it doesn't depend on JSON key order
+// (two records from the same atproto record fingerprint identically; two different records differ). The two
+// Kaelens differ in zone / load_bearing.tier / dialogue, so they fingerprint apart.
+function recFingerprint(rec) {
+  const C = rec && rec.content && typeof rec.content === 'object' ? rec.content : (rec || {});
+  const npc = C.npc && typeof C.npc === 'object' ? C.npc : {};
+  return [
+    rec && rec.type || '', C.name || (rec && rec.name) || '', npc.name || '',
+    C.zone || '', C.faction || '', C.nave_faction || '', C.verb || '',
+    typeof C.description === 'string' ? C.description : '',
+    JSON.stringify(npc.dialogue || C.dialogue || ''),
+    JSON.stringify(C.load_bearing || ''), JSON.stringify(C.lore || ''),
+    String((rec && rec.narrative_tier) ?? ''), String((rec && rec.revelation_tier) ?? ''), String((rec && rec.power_tier) ?? ''),
+  ].join('');
+}
+// a deterministic short hash (~40 bits, base36) — FNV-ish double-mix, no Math.random/Date (atproto-stable).
+function shortHash(s) {
+  let h1 = 0x811c9dc5, h2 = 0x1000193;
+  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0; h2 = Math.imul(h2 ^ c, 0x85ebca6b) >>> 0; }
+  return (h1.toString(36) + h2.toString(36)).slice(0, 8);
+}
+// Assign a STABLE, ORDER-INDEPENDENT unique id to every record whose derived base id collides with another's.
+// Each colliding record's suffix depends ONLY on its own content (its fingerprint hash), so the mapping is
+// independent of pool order and of what else is in the pool — permalinks stay stable. Records with a unique
+// base, or an explicit `rec.id` (authoritative — a real cross-ref target), are left untouched. Idempotent:
+// an already-served pool has explicit ids, so nothing collides and nothing changes.
+export function dedupeRawIds(items) {
+  const list = items || [];
+  const groups = new Map();
+  for (let i = 0; i < list.length; i++) { const b = baseIdOf(list[i]); if (!groups.has(b)) groups.set(b, []); groups.get(b).push(i); }
+  const out = list.slice();
+  for (const [base, idxs] of groups) {
+    if (idxs.length < 2) continue;                 // a unique base — stable, leave it
+    for (const i of idxs) {
+      const rec = list[i];
+      if (rec && rec.id) continue;                 // an explicit id is authoritative — never rewrite it
+      out[i] = { ...rec, id: `${base || 'x'}-${shortHash(recFingerprint(rec))}` };
+    }
+  }
+  return out;
+}
+
 // SERVING RULES for the LIVE service repo (the records `loadPool` reads back, already in engine field-shape:
 // {id, type, content, tags, *_tier, status, …}). hoopy's 2026-06 model stores his RAW records there and
 // SOFT-deletes by setting status:'retired' (a "nuke" tombstones in place — the records STAY in listRecords),
@@ -200,9 +266,12 @@ export function isTombstoned(ci) {
 // Pure; the same rules the engine, gates, and the filter projection all see. Idempotent on an already-served
 // pool (no room_bundle/wanderer/tombstone left to transform).
 export function servePool(items, opts = {}) {
+  // drop tombstones FIRST (so a retired record can't force a live one to be renamed), then de-collide the
+  // LIVE ids (the Kaelen fix) before exploding — so npc id, lore id (`<id>:lore`), and every cross-ref
+  // derive from the deduped, unique base.
+  const live = (items || []).filter((ci) => !isTombstoned(ci));
   const out = [];
-  for (const ci of items || []) {
-    if (isTombstoned(ci)) continue;
+  for (const ci of dedupeRawIds(live)) {
     if (ci.type === 'room_bundle') { out.push(...expandRoomBundle(ci, opts)); continue; }
     if (ci.type === 'wanderer') { out.push(...expandWanderer(ci, opts)); continue; }
     out.push(ci);
@@ -264,6 +333,8 @@ export function importWorldExport(json, opts = {}) {
   else if (Array.isArray(json)) items = json;
   else if (json && typeof json === 'object') items = Object.values(json).filter((v) => v && typeof v === 'object' && v.type);
   else items = [];
-  // serving rule 1 (drop retired tombstones) applies to the fallback export too; expandRecord covers 2–4.
-  return { content: items.filter((r) => r && r.status !== 'retired').flatMap((r) => expandRecord(r, opts)), bible: (json && json.story_bible) || null };
+  // serving rule 1 (drop retired tombstones) applies to the fallback export too; dedupeRawIds de-collides
+  // the live ids (the Kaelen fix) before expandRecord covers 2–4.
+  const live = items.filter((r) => r && r.status !== 'retired');
+  return { content: dedupeRawIds(live).flatMap((r) => expandRecord(r, opts)), bible: (json && json.story_bible) || null };
 }
