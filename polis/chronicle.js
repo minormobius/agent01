@@ -8,7 +8,7 @@
 // Pure + deterministic; node + browser.
 
 import { hash2 } from './prng.js';
-import { habitable } from './mesh.js';
+import { habitable, moistAt } from './mesh.js';
 import { makeArteries } from './arteries.js';
 import { step as growStep, conquer, flourish, tierOf } from './economy.js';
 import { buildClimate } from '../mappa/climate-forcing.js';
@@ -56,7 +56,7 @@ function surplusAround(mesh, cellId, env, hops = 5) {
     const next = [];
     for (const id of frontier) {
       const c = mesh.cells[id];
-      if (c.elev >= env.seaLevel) { const above = c.elev - env.seaLevel; sum += Math.max(0, c.moist * (1 - Math.min(1, above * 2.2))); }
+      if (c.elev >= env.seaLevel) { const above = c.elev - env.seaLevel; sum += Math.max(0, moistAt(c, env) * (1 - Math.min(1, above * 2.2))); }
       for (const n of c.neigh) if (!seen.has(n)) { seen.add(n); next.push(n); }
     }
     frontier = next;
@@ -126,7 +126,7 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, wo
   const env = [];
   for (let k = 0; k < ticks; k++) {
     const f = k / (ticks - 1), year = yearAt(f), fo = clim.forcingAt(year);
-    env.push({ f, year, seaLevel: fo.seaLevelOffset, tempShift: fo.tempOffset, tech: techAt(f), ice: fo.ice, regime: fo.regime });
+    env.push({ f, year, seaLevel: fo.seaLevelOffset, tempShift: fo.tempOffset, humidity: fo.humidity, tech: techAt(f), ice: fo.ice, regime: fo.regime });
   }
   // schedule climate catastrophes onto ticks (nearest-year). Only NOTABLE eruptions
   // (and every super-eruption / grand minimum) become discrete shocks.

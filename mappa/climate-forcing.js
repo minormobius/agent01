@@ -154,6 +154,21 @@ function integrate(d, y0, y1, dt) {
     const seaLevelOffset = K.SEA_LOW + (K.SEA_HIGH - K.SEA_LOW) * (1 - ice);
     series.push({ year, tempOffset, seaLevelOffset, ice, orbital: O, solar, volc });
   }
+  // WETNESS (humidity) — a multiplier on the whole moisture field. Two terms:
+  //  · a Clausius-Clapeyron floor: warm air holds more moisture, so a glacial is arid
+  //    and an interglacial wetter;
+  //  · a PLUVIAL PULSE — a broad humid period peaking early in the interglacial then
+  //    declining, tied to THIS world's deglaciation timing. This is the Holocene Humid
+  //    Period → aridification arc (the wet founding window of Mesopotamia / the Sahara,
+  //    then the drying that stressed the Bronze-Age cities). Every world gets its own.
+  let degYear = series[series.length - 1].year;
+  for (const s of series) if (s.ice < 0.5) { degYear = s.year; break; }
+  const pluvialPeak = degYear + 1200, pluvialWidth = 2700;
+  for (const s of series) {
+    const warmth = Math.max(0, Math.min(1, (s.tempOffset - (-6)) / 10));
+    const pluvial = 0.5 * Math.exp(-(((s.year - pluvialPeak) / pluvialWidth) ** 2));
+    s.humidity = Math.max(0.5, Math.min(1.5, 0.62 + 0.55 * warmth + pluvial));
+  }
   return series;
 }
 
@@ -187,6 +202,7 @@ export function buildClimate(world, opts = {}) {
       tempOffset: a.tempOffset + (b.tempOffset - a.tempOffset) * t,
       seaLevelOffset: a.seaLevelOffset + (b.seaLevelOffset - a.seaLevelOffset) * t,
       ice: a.ice + (b.ice - a.ice) * t,
+      humidity: a.humidity + (b.humidity - a.humidity) * t,
       orbital: a.orbital + (b.orbital - a.orbital) * t,
       solar: a.solar + (b.solar - a.solar) * t,
       volc: a.volc + (b.volc - a.volc) * t,

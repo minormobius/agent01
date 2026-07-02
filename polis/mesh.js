@@ -11,7 +11,7 @@
 // mappa elevation convention: 0 = shore, + = land, − = sea. Temperature is °C.
 
 import { hash2 } from './prng.js';
-import { BIOMES } from './mappaWorld.js';
+import { BIOMES, classify } from './mappaWorld.js';
 
 export function buildMesh(seed, region, sampler, { spacing = 0.95, sampleScale = 6 } = {}) {
   const { x0, y0, x1, y1 } = region, RW = x1 - x0, RH = y1 - y0;
@@ -43,7 +43,7 @@ export function buildMesh(seed, region, sampler, { spacing = 0.95, sampleScale =
   cells.forEach((c) => { c.neigh = [...neigh[c.id]]; });
 
   // per-cell REAL terrain from the mappa sampler
-  for (const c of cells) { const s = sampler.sample(c.wx, c.wy); c.elev = s.elev; c.moist = s.moist; c.temp = s.temp; c.biome = s.biome; c.res = s.res; }
+  for (const c of cells) { const s = sampler.sample(c.wx, c.wy); c.elev = s.elev; c.moist = s.moist; c.temp = s.temp; c.seas = s.seas; c.biome = s.biome; c.res = s.res; }
 
   // rivers: steepest-descent flow accumulation over land (mappa shore = elev 0)
   const baseSea = 0;
@@ -64,15 +64,21 @@ function hsl(h, s, l) {
   return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
 }
 
-// per-era cell state: water + colour. seaLevel is a threshold around mappa's shore (0):
-// negative in the ice age (sea retreats), positive in the future (sea rises). tempShift °C.
+// this cell's WETNESS in the era: static moisture scaled by the era's humidity
+// (Holocene Humid Period wet ↔ aridification dry). Clamped to [0,1].
+export function moistAt(c, env) { return Math.max(0, Math.min(1, c.moist * (env.humidity ?? 1))); }
+
+// per-era cell state: water + colour. The biome is RE-DERIVED each era from the era's
+// temperature (static + tempShift) and wetness (static × humidity), so forests, steppe
+// and desert MIGRATE as the climate turns — a region greens in a pluvial and browns in
+// an aridification. seaLevel threshold moves the shore (ice-age retreat / warm rise).
 export function cellState(c, env) {
   const seaLevel = env.seaLevel || 0, tShift = env.tempShift || 0;
   if (c.elev < seaLevel) { const d = Math.max(0, Math.min(1, (seaLevel - c.elev) / 0.4)); return { water: 1, rgb: [21 + (1 - d) * 16, 50 + (1 - d) * 18, 64 + (1 - d) * 14] }; }
-  const tEff = c.temp + tShift;
-  if (tEff < -8) return { water: 0, ice: 1, rgb: [210, 218, 224] };       // glacier in cold eras
-  if (tEff < -2) return { water: 0, rgb: [156, 162, 156] };               // tundra
-  const b = BIOMES[c.biome] || BIOMES[8];
+  const T = c.temp + tShift, M = moistAt(c, env), Teff = T - 0.32 * (c.seas || 0);
+  if (Teff < -8) return { water: 0, ice: 1, rgb: [210, 218, 224] };       // glacier in cold eras
+  if (Teff < -2) return { water: 0, rgb: [156, 162, 156] };               // tundra
+  const b = BIOMES[classify(Teff, M, c.elev)] || BIOMES[8];
   let rgb = hsl(b.h, b.s, b.l);
   if (c.river) rgb = [Math.round(rgb[0] * 0.55 + 47 * 0.45), Math.round(rgb[1] * 0.55 + 111 * 0.45), Math.round(rgb[2] * 0.55 + 134 * 0.45)];
   return { water: 0, rgb };

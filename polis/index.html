@@ -67,7 +67,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 
 <script type="module">
 import { rollMappaWorld, selectRegion, makeSampler } from './mappaWorld.js';
-import { buildMesh, cellState } from './mesh.js';
+import { buildMesh, cellState, moistAt } from './mesh.js';
 import { runChronicle } from './chronicle.js';
 import { tierOf } from './economy.js';
 
@@ -114,13 +114,13 @@ function useColor(c, tick, env) {
   if (c.res === 'ore') return USE_COLOR.mine;
   const fr = best.d / best.reach;
   if (fr < 0.26) return USE_COLOR.intensive;
-  if (fr < 0.56) return c.moist < 0.3 ? USE_COLOR.pasture : USE_COLOR.crop;   // arid near land → grazing not crops
+  if (fr < 0.56) return moistAt(c, env) < 0.3 ? USE_COLOR.pasture : USE_COLOR.crop;   // arid era near land → grazing not crops
   if (fr < 0.82) return USE_COLOR.pasture;
   return USE_COLOR.forest;
 }
 
 function frameImage(mode, tick, env) {
-  const key = mode + '|' + (mode === 'use' ? tick : `${Math.round(env.seaLevel * 200)}_${Math.round(env.tempShift)}`);
+  const key = mode + '|' + (mode === 'use' ? tick : `${Math.round(env.seaLevel * 200)}_${Math.round(env.tempShift)}_${Math.round((env.humidity || 1) * 20)}`);
   if (mode !== 'use' && terrainCache.has(key)) return terrainCache.get(key);
   const m = C.mesh, img = cx.createImageData(W, H), data = img.data;
   const colors = m.cells.map((c) => {
@@ -187,8 +187,8 @@ function draw() {
   for (const ev of C.events) { const x = BM + ev.tick / (C.ticks - 1) * BW; cx.strokeStyle = EVENT_COLOR[ev.type] || '#fff'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x, BY - 5); cx.lineTo(x, BY + 5); cx.stroke(); }
   const curx = BM + tick / (C.ticks - 1) * BW; cx.strokeStyle = '#fff'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(curx, BY - 7); cx.lineTo(curx, BY + 7); cx.stroke();
 
-  const eraName = yearEra(e.year);
-  eraEl.innerHTML = `<span class="y">${e.year < 0 ? -e.year + ' BCE' : e.year + ' CE'}</span> · ${eraName} <span class="s">· ${e.regime || '—'} · ${e.tempShift >= 0 ? '+' : ''}${e.tempShift.toFixed(1)}°C · tech ${e.tech.toFixed(2)}</span>`;
+  const eraName = yearEra(e.year), wet = (e.humidity || 1) > 1.22 ? ' · pluvial' : (e.humidity || 1) < 0.82 ? ' · arid' : '';
+  eraEl.innerHTML = `<span class="y">${e.year < 0 ? -e.year + ' BCE' : e.year + ' CE'}</span> · ${eraName} <span class="s">· ${e.regime || '—'}${wet} · ${e.tempShift >= 0 ? '+' : ''}${e.tempShift.toFixed(1)}°C · tech ${e.tech.toFixed(2)}</span>`;
 }
 const EVENT_COLOR = { plague: '#7fae74', conquest: '#d05a3a', crisis: '#e0c060', 'super-eruption': '#ff7a3c', eruption: '#d98a4a', 'grand-minimum': '#7fb0d8' };
 function EVENT_LABEL(ev) {

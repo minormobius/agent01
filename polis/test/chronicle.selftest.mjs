@@ -2,7 +2,7 @@
 //   node polis/test/chronicle.selftest.mjs
 
 import { rollMappaWorld, selectRegion, makeSampler } from '../mappaWorld.js';
-import { buildMesh, cellState, habitable } from '../mesh.js';
+import { buildMesh, cellState, habitable, moistAt } from '../mesh.js';
 import { runChronicle } from '../chronicle.js';
 
 let pass = 0, fail = 0;
@@ -121,6 +121,22 @@ ok(mesh.cells.length > 800, `mesh retiles the region into many cells (${mesh.cel
     const before = totPop(su.tick - 1), low = Math.min(...Array.from({ length: 5 }, (_, i) => totPop(su.tick + i)));
     ok(before > 0 && low < before * 0.9, `the super-eruption casts the civilization back (system pop ${before} → ${low}, −${Math.round((1 - low / before) * 100)}%)`);
   }
+}
+
+// 11 — wetness migrates biomes and carrying capacity (the Mesopotamia arc): the region
+// greens in a pluvial and browns as it aridifies, and hinterland fertility follows.
+{
+  const c = runChronicle(SEED, mesh, { world });
+  let wet = null, dry = null;
+  for (const e of c.env) { if (e.year < -6000) continue; if (!wet || e.humidity > wet.humidity) wet = e; if (!dry || e.humidity < dry.humidity) dry = e; }
+  ok(wet.humidity > dry.humidity + 0.1, `the region has a pluvial and a drier era (humidity ${dry.humidity.toFixed(2)} … ${wet.humidity.toFixed(2)})`);
+  // forest cover (warm + wet land) expands in the pluvial, contracts when it dries
+  const forest = (env) => mesh.cells.filter((cc) => cc.elev >= env.seaLevel && moistAt(cc, env) > 0.5 && (cc.temp + env.tempShift - 0.32 * (cc.seas || 0)) > 2).length;
+  ok(forest(wet) > forest(dry), `forests migrate with wetness (${forest(wet)} → ${forest(dry)} cells, pluvial → arid)`);
+  // hinterland carrying capacity around a fertile inland cell rises in the pluvial
+  const cell = mesh.cells.reduce((a, cc) => (cc.elev > 0.05 && !cc.river && cc.moist > (a ? a.moist : -1)) ? cc : a, null) || mesh.cells[0];
+  const surp = (env) => { let s = 0, seen = new Set([cell.id]), fr = [cell.id]; for (let h = 0; h <= 5; h++) { const nx = []; for (const id of fr) { const cc = mesh.cells[id]; if (cc.elev >= env.seaLevel) s += moistAt(cc, env) * (1 - Math.min(1, (cc.elev - env.seaLevel) * 2.2)); for (const n of cc.neigh) if (!seen.has(n)) { seen.add(n); nx.push(n); } } fr = nx; } return s; };
+  ok(surp(wet) > surp(dry) * 1.1, `hinterland fertility tracks wetness (surplus ${surp(dry).toFixed(0)} arid → ${surp(wet).toFixed(0)} pluvial)`);
 }
 
 console.log(`\n${fail === 0 ? '✓ all green' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);

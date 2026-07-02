@@ -10,9 +10,9 @@
 // Pure + deterministic (mappa is seed-stable); node + browser. From /polis/ the engine
 // is one directory over at ../mappa/engine.js (same origin under the root site).
 
-import { generateWorld, BIOMES } from '../mappa/engine.js';
+import { generateWorld, BIOMES, classify, BI } from '../mappa/engine.js';
 
-export { BIOMES };
+export { BIOMES, classify, BI };
 
 const S = 60;                                            // planar units per radian
 const lonOf = (v) => Math.atan2(v[1], v[0]);
@@ -76,7 +76,7 @@ export function makeSampler(w, region) {
     if (x < region.x0 - margin || x > region.x1 + margin || y < region.y0 - margin || y > region.y1 + margin) continue;
     // resource from mappa: volcanic/high-relief cells carry ore
     const res = (w.volc && w.volc[i] > 0.5) || w.elev[i] > 0.5 ? (w.elev[i] > 0.35 ? 'ore' : 'clay') : null;
-    pts.push({ x, y, elev: w.elev[i], moist: w.moisture[i], temp: w.temperature[i], biome: w.biome[i], res });
+    pts.push({ x, y, elev: w.elev[i], moist: w.moisture[i], temp: w.temperature[i], seas: w.seasonality[i], biome: w.biome[i], res });
   }
   const RW = region.x1 - region.x0, RH = region.y1 - region.y0;
   const bw = Math.max(4, Math.round(RW / 2)), bh = Math.max(4, Math.round(RH / 2));
@@ -92,10 +92,10 @@ export function makeSampler(w, region) {
   };
   // IDW over the nearest 3 mappa cells (smooth terrain); nearest for the categorical biome
   function sample(x, y) {
-    const near = nearestK(x, y, 3); if (!near.length) return { elev: -0.2, moist: 0, temp: 5, biome: 0, res: null };
-    let we = 0, e = 0, mo = 0, te = 0; const n0 = pts[near[0][1]];
-    for (const [d2, k] of near) { const wgt = 1 / (d2 + 0.01); we += wgt; e += wgt * pts[k].elev; mo += wgt * pts[k].moist; te += wgt * pts[k].temp; }
-    return { elev: e / we, moist: mo / we, temp: te / we, biome: n0.biome, res: n0.res };
+    const near = nearestK(x, y, 3); if (!near.length) return { elev: -0.2, moist: 0, temp: 5, seas: 10, biome: 0, res: null };
+    let we = 0, e = 0, mo = 0, te = 0, se = 0; const n0 = pts[near[0][1]];
+    for (const [d2, k] of near) { const wgt = 1 / (d2 + 0.01); we += wgt; e += wgt * pts[k].elev; mo += wgt * pts[k].moist; te += wgt * pts[k].temp; se += wgt * pts[k].seas; }
+    return { elev: e / we, moist: mo / we, temp: te / we, seas: se / we, biome: n0.biome, res: n0.res };
   }
   return { region, pts, sample, count: pts.length };
 }

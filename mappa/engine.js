@@ -90,8 +90,8 @@ export const BIOMES = [
   {id:'sea_ice',       name:'sea ice',             h:198,s:12,l:84}, // frozen ocean surface
   {id:'glacier',       name:'glacier / ice cap',   h:200,s:14,l:90}, // permanent land ice
 ];
-const BI = Object.fromEntries(BIOMES.map((b,i)=>[b.id,i]));
-function classify(T, M, elevAbove){ // T °C, M 0..1, elevAbove = elevation above sea
+export const BI = Object.fromEntries(BIOMES.map((b,i)=>[b.id,i]));
+export function classify(T, M, elevAbove){ // T °C, M 0..1, elevAbove = elevation above sea
   if(T<-14) return BI.glacier;                  // permanent ice cap (coldest land)
   if(elevAbove>0.72) return T<1?BI.snow:BI.alpine;
   if(T<-9) return BI.ice;                        // continental ice sheet
@@ -308,7 +308,9 @@ export function generateWorld(seed, opts={}){
 // rotationRate, a global tempOffset (°C, e.g. a glacial), or a seaLevelOffset
 // (shifts the effective shore → ice-age sea retreat / warm-era flooding).
 //   geo     : {N, V, adj, elev, water}   (water: 0 land, 1 ocean, 2 lake)
-//   forcing : {seed, solar=1, axialTilt, rotationRate, tempOffset=0, seaLevelOffset=0}
+//   forcing : {seed, solar=1, axialTilt, rotationRate, tempOffset=0, seaLevelOffset=0, humidity=1}
+//     humidity scales the whole moisture field (wet pluvial vs arid phase — e.g. the
+//     Holocene Humid Period vs a glacial/aridification); default 1 → baseline.
 // returns {temperature, moisture, seasonality, biome, windCells, coriolisSign, aOmega, Omega}
 export function computeClimate(geo, forcing){
   const {N, V, adj, elev, water} = geo;
@@ -317,6 +319,7 @@ export function computeClimate(geo, forcing){
   const rotationRate = forcing.rotationRate;
   const tOff = forcing.tempOffset || 0;
   const seaOff = forcing.seaLevelOffset || 0;
+  const hum = forcing.humidity ?? 1;
   // effective per-era water mask: seaOff===0 → the geology mask verbatim (baseline,
   // bit-identical). Otherwise reclassify by the shifted shore: below → ocean, a lake
   // stays a lake if still above sea, everything else (incl. exposed shelf) is land.
@@ -375,6 +378,7 @@ export function computeClimate(geo, forcing){
     const band=0.5+0.5*Math.cos(windCells*Math.PI*Math.min(1,alat));
     let M=Math.max(0,Math.min(1, A[i]*0.42 + coast*0.20 + band*0.36 + oro[i]*0.45 - Math.max(0,elev[i])*0.12
         + (fbm3(V[i][0]*2-4,V[i][1]*2,V[i][2]*2,seed+11)-0.5)*0.22));
+    if(hum!==1) M=Math.max(0,Math.min(1, M*hum));    // pluvial/arid scaling (Holocene Humid Period ↔ aridification)
     moisture[i]=M;
     // seasonality: axial tilt × latitude × continentality → annual winter depth
     const contl = w2[i]===1?0 : Math.min(1, distSea[i]/Math.max(3,maxD*0.5));

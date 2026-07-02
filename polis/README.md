@@ -179,11 +179,24 @@ actually has**. This lives in [`../mappa/climate-forcing.js`](../mappa/climate-f
   **super-eruption** (Toba-scale) that can bury a century.
 - **Solar.** **Grand minima** — multi-decade dark periods of a dimmer sun (Maunder /
   Little-Ice-Age analogues), a shallow broad cooling.
+- **Wetness (the pluvial).** A **humidity** curve scales the whole moisture field: an
+  arid glacial → a broad **pluvial peak** early in *this world's* interglacial → a decline
+  toward the present. This is the **Holocene Humid Period → aridification** arc — the wet
+  founding window of Mesopotamia / a green Sahara, then the drying (the ~4.2-kyr event)
+  that stressed the Bronze-Age cities. The peak is placed at the world's own deglaciation.
 
 The state variable is **ice volume, which lags temperature by millennia** (ice sheets
-melt slowly). So deglaciation is a smooth ramp and **sea level tracks it**, but a
-volcanic winter is a spike the ice barely feels. Ice-albedo feedback makes the glacial
-colder and the deglaciation sharper.
+melt slowly). So deglaciation is a smooth ramp and **sea level tracks it** (coastlines
+advance as the ice melts), but a volcanic winter is a spike the ice barely feels.
+Ice-albedo feedback makes the glacial colder and the deglaciation sharper.
+
+**Biomes migrate.** Each cell's biome is re-derived every era from its era temperature
+(static + shift) and era **wetness** (static × humidity): forests, steppe and desert
+advance and retreat as the climate turns, so a region **greens in a pluvial and browns
+in an aridification**. Hinterland fertility (the carrying capacity `K`) follows the same
+wetness — a drying region's cities lose their food ceiling and contract, while a coastal
+**gateway** that imports food endures. Wetness is thus a third path (beside volcano and
+plague) by which a civilization can be **cast back**.
 
 This drives the sim on the theory's **two clocks**: the *continuous* backbone
 (deglaciation → habitability → nucleation; **cities can only seed once regional ice
