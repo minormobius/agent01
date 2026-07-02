@@ -94,7 +94,8 @@ export function buildPlant(d = {}, { stage = 1, seed = 1 } = {}) {
   const form = growthForm(d);
   const pal = paletteOf(d);
   const R = rngFor((d.name || d.sciName || 'plant') + '#' + seed);
-  const flowering = stage > 0.55 && form !== 'reed' && form !== 'grain';
+  // rosettes are root/leaf crops — harvested for the root before they bolt, so they don't flower.
+  const flowering = stage > 0.55 && form !== 'reed' && form !== 'grain' && form !== 'rosette';
   const ripe = stage >= 0.95;
   const height = lerp(0.06, H_MAX[form] || 0.35, stage);
   const spread = lerp(0.05, SP_MAX[form] || 0.22, stage);

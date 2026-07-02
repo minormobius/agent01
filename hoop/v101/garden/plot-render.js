@@ -111,7 +111,9 @@ export function drawPlant(ctx, m, ox, oy, u) {
   // FLOWERS — petal fans, glowing in the ruling planet's colour (yarrow's emissive touch)
   for (const f of m.flowers) {
     const fx = X(f.x), fy = Y(f.y), r = f.r * u;
-    ctx.save(); ctx.shadowColor = P.flower; ctx.shadowBlur = 6;
+    // NO glow on an umbel — its many clustered florets would smear into one big soft orb (the "huge
+    // white/pink orb" bug). A single daisy/floret gets a small emissive touch; the umbel stays crisp.
+    ctx.save(); ctx.shadowColor = P.flower; ctx.shadowBlur = f.kind === 'umbel' ? 0 : 4;
     if (f.kind === 'ear' || f.kind === 'spike') { ctx.fillStyle = P.flower; ctx.beginPath(); ctx.ellipse(fx, fy, r * 0.6, r * 1.6, 0, 0, 7); ctx.fill(); }
     else if (f.kind === 'umbel') {   // a lace of tiny florets (fennel/dill) — NOT a big disc
       ctx.fillStyle = P.flower; const dot = Math.max(0.6, r * u * 0.14);

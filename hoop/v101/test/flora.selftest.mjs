@@ -90,6 +90,7 @@ ok(['herbClump', 'stalk'].includes(growthForm({ name: 'Betony', qualities: 'cold
   const radish = buildPlant({ name: 'Radish', crop: 'root', edible: true }, { stage: 1, seed: 2 });
   const parsnip = buildPlant({ name: 'Parsnip', crop: 'root', edible: true }, { stage: 1, seed: 2 });
   ok(radish.leaves.length >= 4 && parsnip.leaves.length >= 4, 'rosettes (radish/parsnip) grow leaves — not leafless');
+  ok(radish.flowers.length === 0 && parsnip.flowers.length === 0, 'root-crop rosettes do NOT flower (harvested for the root before bolting — no stray orbs)');
 
   // distinct leaf shapes across species
   ok(leafShapeFor('conifer', 'Stone pine') === 'needle', 'a conifer → needle leaves');
