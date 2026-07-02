@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04050a">
+<title>rind · ops — your thread, an office</title>
+<style>
+  :root { --ink:#dfe7e2; --dim:#6b7872; --teal:#7fd8d0; --gold:#f4bf62; --bg:#04050a; --panel:#0b1016; --line:#141c24; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.5 "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+  a { color: var(--teal); text-decoration: none; } a:hover { color: var(--gold); }
+  .wrap { display: grid; grid-template-columns: 1fr 300px; height: 100%; }
+  @media (max-width: 860px) { .wrap { grid-template-columns: 1fr; } .rail { display: none; } }
+  #stage { position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  .hud { position: absolute; pointer-events: none; user-select: none; z-index: 3; }
+  #top { top: 8px; left: 12px; font-size: 12px; color: var(--dim); }
+  #top a { pointer-events: auto; } #top b { color: var(--gold); }
+  #hint { bottom: 8px; left: 12px; color: var(--dim); font-size: 11px; }
+  #hint b { color: var(--teal); }
+  .rail { border-left: 1px solid var(--line); background: var(--panel); padding: 14px; overflow: auto; }
+  .rail h1 { font-size: 15px; margin: 0 0 2px; }
+  .rail .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); }
+  .rail h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--teal); margin: 16px 0 6px; }
+  .rail .now { font-size: 13px; color: var(--ink); margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: #070b0f; }
+  .rail .now .role { color: var(--gold); font-weight: 600; }
+  .rail .now .sub { color: var(--dim); font-size: 11px; }
+  .door { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .door:hover, .door.here { background: #0f1620; } .door.here { outline: 1px solid var(--gold); }
+  .door .sw { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+  .door .lab { flex: 1; color: #c2cadb; } .door.here .lab { color: var(--gold); }
+  .door .rf { color: var(--dim); font-size: 10px; }
+  .rail p { color: #8aa39a; font-size: 11.5px; line-height: 1.5; }
+  .trail { color: var(--dim); font-size: 11px; margin-top: 8px; word-break: break-word; }
+  .trail b { color: var(--teal); }
+  #load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 20; color: var(--teal); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud" id="top"><a href="./">← ops</a> · <a href="./floor.html">▦ god-view</a> · <a href="./nexus.html">@ bare walk</a> · <b>your thread — an office</b></div>
+    <div class="hud" id="hint">move: <b>WASD</b> / <b>click</b> · <b>Enter</b> on a gold door = cross into that thread · at the nexus, pick a sibling</div>
+    <div id="load">building your office…</div>
+  </div>
+  <aside class="rail">
+    <h1 id="oname">—</h1>
+    <div class="kind" id="okind"></div>
+    <div class="now" id="now"></div>
+    <h2>doors — the other threads</h2>
+    <p style="margin:0 0 6px">Every other thread is only a <b style="color:var(--gold)">door</b> in your wall until you cross it. Then <i>it</i> becomes your office and this one is a door behind you.</p>
+    <div id="doors"></div>
+    <h2 id="sibhdr" style="display:none">nexus — sibling offices</h2>
+    <div id="sibs"></div>
+    <div class="trail" id="trail"></div>
+  </aside>
+</div>
+<script type="module" src="./office-app.js"></script>
+</body>
+</html>

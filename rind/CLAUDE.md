@@ -95,7 +95,17 @@ JS → emit a frame model → solve for stress):
   the corners where three chunks meet are the **nexus mixing points** ("greedy corners — don't care about
   single-species threads; a nexus mixes regardless"). Residents dwell in role-coloured rooms (⚒/⚕/▣…), spider-droids
   (the `sprites/` kernel) haul the concourse. Proven navigable: `test/floor.selftest.mjs` (7-flower connects, all
-  districts reachable from one start, 6 nexus corners, deterministic). **`tess.html`/`tess-app.js`** shows how the
+  districts reachable from one start, 6 nexus corners, deterministic). **BUT** the god-view is the wrong lens for
+  this map — **the map is only what's reachable from your thread**. **`office.html`/`office-app.js` — YOUR THREAD IS
+  AN OFFICE** is the right engine: it renders ONLY the current thread, partitioned into a full v100-style office
+  (rooms via `assignZones` over the thread's own cell subgraph + role glyphs from `v100/econ.js` ROLES + a hallway
+  spine from the nexus to the rim), and every OTHER thread is only a **door** in your wall (a gold gate ringed in the
+  neighbour's colour with a sightline stub — NOT its rooms). Cross a door and that thread becomes your office,
+  re-centred (`rebuild(toKey, farGi)`); the nexus opens onto all sibling offices of the same kind. It's
+  `nexus.html`'s thread-relative re-centring, upgraded from bare cells to modelled offices — K(6,8) first-person
+  (a white office = 8 doors, a production office = 6). Built on `curveseed` + `onedoor.certify` (the 48 doors) +
+  the vendored `v100/` room toolkit; `test/office.selftest.mjs` pins it (rooms tile each thread, hallway connects
+  nexus→rim, every door re-centres onto a neighbour-owned cell, deterministic). **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate** (the schematic): a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family
@@ -138,7 +148,8 @@ node rind/solver/foam-preview.mjs                  # headless foam → frame mod
 node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no deps)
 node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any→any ≤1 door incl. hubs (two concourses)
 node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
-node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR: v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
+node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR (god-view): v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
+node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office: each thread partitions into rooms; K(6,8) doors to other threads; cross re-centres
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
 node rind/ops/test/decks.selftest.mjs              # the region-decks comparison view

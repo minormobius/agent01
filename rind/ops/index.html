@@ -60,15 +60,23 @@
 
   <h2>walk it — the navigator</h2>
   <div class="grid">
-    <a class="card feature" href="./floor.html">
-      <div class="top"><span class="ico">▦</span><span class="name">the demo floor</span><span class="tag">v100 · walk</span></div>
-      <p>The tessellation, <b>inhabited</b>. The hoop <b>v100 foam engine</b> grows a district of Voronoi rooms +
-        a concourse in every hex chunk, tiles them into a honeycomb (7 or 19), abuts them at <b>seam doors</b>, and
-        forces the corners where three chunks meet into <b>nexus mixing points</b> (greedy corners — species don't
-        matter, a nexus mixes regardless). Walk it with WASD / click through 300+ rooms; residents dwell, spider
-        droids haul the concourse. The whole floor is one connected walk graph, proven navigable
-        (<code>floor.selftest.mjs</code>).</p>
-      <div class="path">rind.mino.mobi/ops/floor.html</div>
+    <a class="card feature" href="./office.html">
+      <div class="top"><span class="ico">▤</span><span class="name">your thread — an office</span><span class="tag">v100 · walk</span></div>
+      <p>The right engine for this map: <b>the map is only what's reachable from your thread</b>. Your thread renders
+        in full as an <b>office of rooms</b> (the v100 foam partition — role rooms + a hallway spine), and every other
+        thread is only a <b>door</b> in your wall — not a standing room. Cross a door and <i>that</i> thread becomes
+        your office, re-centred; the one you left is a door behind you. The nexus opens onto all sibling offices.
+        K(6,8) made first-person: a white office has 8 doors, a production office 6. Proven
+        (<code>office.selftest.mjs</code>).</p>
+      <div class="path">rind.mino.mobi/ops/office.html</div>
+    </a>
+    <a class="card" href="./floor.html">
+      <div class="top"><span class="ico">▦</span><span class="name">the demo floor — god-view</span><span class="tag">v100 · walk</span></div>
+      <p>The counterpoint: <b>all</b> threads standing at once. The v100 foam engine grows a district of rooms +
+        a concourse in every hex chunk, tiled into a honeycomb (7/19), abutting at seam doors, corners forced into
+        <b>nexus mixing points</b>. Walk 300+ rooms across one connected floor — the whole tessellation inhabited
+        simultaneously (vs the office's thread-at-a-time view). Proven navigable (<code>floor.selftest.mjs</code>).</p>
+      <div class="path">/ops/floor.html</div>
     </a>
     <a class="card feature" href="./nexus.html">
       <div class="top"><span class="ico">@</span><span class="name">inhabit a thread</span><span class="tag">proto · walk</span></div>
