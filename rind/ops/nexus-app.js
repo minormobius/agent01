@@ -33,7 +33,7 @@ const view = { cx: 0, cy: 0, scale: 1 };
 
 const armsOf = (color) => [...threads.values()].filter((t) => t.kind === color).sort((a, b) => a.idx - b.idx);
 const siblingsOf = (t) => armsOf(t.kind).filter((s) => s !== t);
-const atNexus = () => rfOf(state.gi) < 0.14;   // near the centre hub ⇒ the like-threads open up
+const atNexus = () => rfOf(state.gi) < (m.flatR || 0.16) + 0.06;   // inside the flat lobby ⇒ the like-threads open up
 const threadColor = (t) => t.kind === 'white' ? warpCol(t.idx) : prodCol(t.idx);
 const threadLabel = (t) => t.kind === 'white' ? `white arm · ${m.warps[t.idx].id}` : `production · ${m.wefts[t.idx].id}`;
 const rfOf = (gi) => Math.hypot(cells[gi].x, cells[gi].y) / m.R;
@@ -183,7 +183,7 @@ function loop() { frameN++; if (state.walk && frameN % 4 === 0) { state.walk.i++
 
 const Q = new URLSearchParams(location.search), seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 42;
 setTimeout(() => {
-  m = buildCurveModel(seed, { rings: 1, flatR: 0.16, layers: 8, pitch: 36, width: 6, NW: 6, NF: 8, turnScale: 0.35 });   // the breathy, zero-ladder, 7-chunk world
+  m = buildCurveModel(seed, { rings: 1, flatR: 0.35, layers: 8, pitch: 28, width: 6, NW: 6, NF: 8, turnScale: 0.35 });   // breathy zero-ladder 7-chunk world: a flat LOBBY (flatR 0.35), doors pushed to the wings, denser mesh (~3200 rooms)
   cert = certify(m); cells = m.cells;
   warpCol = (w) => mix(hex(m.warps[w].color), INK, (w % 2) * 0.28); prodCol = (f) => hex(m.wefts[f].color);
   threads = buildThreads();

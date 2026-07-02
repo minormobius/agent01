@@ -121,6 +121,11 @@ function componentsOf(cells, color, which) {
 // pairs have none (a real K break, reported raw — never faked). ──
 export function placeDoors(model, color) {
   const cells = model.cells, NW = model.NW, NF = model.NF;
+  // THE LOBBY: no door inside the flat core. The two nexuses stack at the centre (white high, production low); a
+  // door there would be a shortcut straight between them — forbidden (you must go OUT along an arm and cross in the
+  // field). So a white↔production adjacency only counts as a door beyond the lobby radius. Real crossings live in the
+  // annulus, so K is unaffected; only the spurious centre hub-touch is dropped.
+  const lobbyR2 = (model.flatR * model.R) ** 2;
   const best = new Map(); // "w:f" -> {a,b,w,f,grade,dz,horiz}
   for (const c of cells) {
     if (!(c.owner && c.owner.kind === 'white') || color[c.gi] !== 'white') continue;
@@ -128,6 +133,7 @@ export function placeDoors(model, color) {
     for (const nb of c.adj) {
       const q = cells[nb];
       if (!(q.owner && q.owner.kind === 'prod') || color[nb] !== 'prod') continue;
+      const mx = (c.x + q.x) / 2, my = (c.y + q.y) / 2; if (mx * mx + my * my < lobbyR2) continue;   // inside the lobby — not a door
       const f = q.owner.idx, key = w + ':' + f;
       const dz = Math.abs(c.z - q.z), horiz = Math.hypot(c.x - q.x, c.y - q.y), grade = horiz > 1e-6 ? dz / horiz : Infinity;
       const prev = best.get(key);
