@@ -20,6 +20,9 @@ header .t{pointer-events:auto;color:#b7a988;font-size:12.5px}
 #seed{width:96px;background:#0d0a05;border:1px solid #3a2e1c;color:var(--parch);border-radius:5px;padding:3px 6px;font:12px ui-monospace,monospace;outline:none}
 .btn{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
 .btn:hover{border-color:var(--gold)}.btn.on{border-color:var(--gold);color:var(--gold)}
+.seg{pointer-events:auto;display:inline-flex;gap:2px;background:#140f08c8;border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{background:none;border:0;color:#b7a988;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11.5px}
+.seg button.on{background:#2a2114;color:var(--gold)}
 footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 14px;pointer-events:none;background:linear-gradient(#070a0c00,#070a0cee)}
 .scrub{pointer-events:auto;display:flex;align-items:center;gap:9px;flex:1;max-width:560px}
 .scrub input[type=range]{flex:1;accent-color:var(--gold)}
@@ -48,7 +51,10 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
   <a href="https://mino.mobi/">mino.mobi</a>
   <a href="./docs/" class="d" style="font-weight:400;text-decoration:none">docs ↗</a>
   <span class="t">polis — a world, a region, a city economy through time</span>
-  <span class="ctl"><button class="btn" id="useBtn" title="toggle the hinterland land-use map">⊞ land use</button><input id="seed" value="20260618" inputmode="numeric"><button class="btn" id="go">roll</button><button class="btn" id="rnd">↻ new world</button></span>
+  <span class="seg" id="layers" title="recolour the map by climate layer">
+    <button data-m="terrain" class="on">terrain</button><button data-m="wetness" title="era wetness: arid → wet (the pluvial / aridification)">wetness</button><button data-m="rivers" title="era river discharge; dry channels show as dry valleys">rivers</button><button data-m="temp" title="era temperature: glacial cold → interglacial warm">temp</button><button data-m="use" title="hinterland land use around each town">land&nbsp;use</button>
+  </span>
+  <span class="ctl"><input id="seed" value="20260618" inputmode="numeric"><button class="btn" id="go">roll</button><button class="btn" id="rnd">↻ new world</button></span>
 </header>
 <div id="panel">
   <button class="close" id="close">×</button>
@@ -119,20 +125,33 @@ function useColor(c, tick, env) {
   return USE_COLOR.forest;
 }
 
+// per-layer cell colour. terrain/use as before; wetness/temp/rivers surface the climate
+// fields directly so the causal story is legible on the map.
+const dimRGB = (rgb) => [rgb[0] * 0.45 + 24, rgb[1] * 0.45 + 24, rgb[2] * 0.45 + 20];
+const lerpRGB = (a, b, t) => [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
+const wetRGB = (M) => lerpRGB([176, 146, 86], [58, 138, 104], Math.max(0, Math.min(1, M)));                 // arid tan → wet green
+const tempRGB = (T) => lerpRGB([74, 120, 205], [214, 86, 66], Math.max(0, Math.min(1, (T + 15) / 45)));      // cold blue → warm red
+const riverRGB = (rw) => { const k = Math.min(1, 0.35 + rw * 0.12); return [Math.round(30 + 24 * (1 - k)), Math.round(96 * k + 40 * (1 - k)), Math.round(150 * k + 60 * (1 - k))]; };
+function cellColor(c, mode, tick, env) {
+  const st = cellState(c, env);
+  if (st.water) return st.rgb;
+  if (mode === 'wetness') return wetRGB(moistAt(c, env));
+  if (mode === 'temp') return tempRGB(c.temp + (env.tempShift || 0));
+  if (mode === 'rivers') { const rw = env.riverW ? env.riverW[c.id] : (c.river ? 2 : 0); if (rw > 0) return riverRGB(rw); if (c.river) return [120, 96, 60]; return dimRGB(st.rgb); }
+  if (mode === 'use') { const u = useColor(c, tick, env); return u || dimRGB(st.rgb); }
+  return st.rgb;                                                                                             // terrain
+}
+
 function frameImage(mode, tick, env) {
-  const key = mode + '|' + (mode === 'use' ? tick : `${Math.round(env.seaLevel * 200)}_${Math.round(env.tempShift)}_${Math.round((env.humidity || 1) * 20)}`);
-  if (mode !== 'use' && terrainCache.has(key)) return terrainCache.get(key);
+  const perTick = mode === 'use' || mode === 'rivers';
+  const key = mode + '|' + (perTick ? tick : `${Math.round(env.seaLevel * 200)}_${Math.round(env.tempShift)}_${Math.round((env.humidity || 1) * 20)}`);
+  if (!perTick && terrainCache.has(key)) return terrainCache.get(key);
   const m = C.mesh, img = cx.createImageData(W, H), data = img.data;
-  const colors = m.cells.map((c) => {
-    const st = cellState(c, env);
-    if (mode === 'terrain' || st.water) return st.rgb;
-    const u = useColor(c, tick, env);
-    return u || [st.rgb[0] * 0.45 + 26, st.rgb[1] * 0.45 + 26, st.rgb[2] * 0.45 + 22]; // wild = dimmed terrain
-  });
+  const colors = m.cells.map((c) => cellColor(c, mode, tick, env));
   for (let p = 0; p < W * H; p++) { const rgb = colors[label[p]], o = p * 4; data[o] = rgb[0]; data[o + 1] = rgb[1]; data[o + 2] = rgb[2]; data[o + 3] = 255; }
   for (let py = 0; py < H; py++) for (let px = 0; px < W - 1; px++) { if (label[py * W + px] !== label[py * W + px + 1]) { const o = (py * W + px) * 4; data[o] *= 0.7; data[o + 1] *= 0.7; data[o + 2] *= 0.7; } }
   const off = document.createElement('canvas'); off.width = W; off.height = H; off.getContext('2d').putImageData(img, 0, 0);
-  if (mode !== 'use') terrainCache.set(key, off); return off;
+  if (!perTick) terrainCache.set(key, off); return off;
 }
 
 function draw() {
@@ -180,12 +199,22 @@ function draw() {
   const cur = C.events.filter((ev) => ev.tick <= tick && tick - ev.tick <= 4).sort((a, b) => b.tick - a.tick)[0];
   if (cur) { cx.font = '600 13px ui-monospace,monospace'; cx.textAlign = 'center'; cx.fillStyle = EVENT_COLOR[cur.type] || '#fff'; cx.fillText(EVENT_LABEL(cur), W / 2, 26); cx.textAlign = 'left'; }
 
-  // on-canvas event timeline at the bottom (perfectly aligned; click to jump)
-  const BM = 34, BY = H - 12, BW = W - 2 * BM;
-  cx.strokeStyle = 'rgba(180,168,132,0.35)'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(BM, BY); cx.lineTo(W - BM, BY); cx.stroke();
-  for (const w of C.waves) { const x = BM + w.tick / (C.ticks - 1) * BW; cx.fillStyle = 'rgba(220,180,90,0.5)'; cx.fillRect(x - 1, BY - 2, 2, 4); }
-  for (const ev of C.events) { const x = BM + ev.tick / (C.ticks - 1) * BW; cx.strokeStyle = EVENT_COLOR[ev.type] || '#fff'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x, BY - 5); cx.lineTo(x, BY + 5); cx.stroke(); }
-  const curx = BM + tick / (C.ticks - 1) * BW; cx.strokeStyle = '#fff'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(curx, BY - 7); cx.lineTo(curx, BY + 7); cx.stroke();
+  // CLIMATE RIBBON — the causal drivers across the whole run, aligned to the map:
+  // ice retreat (pale fill), temperature (warm line), wetness (green line), with event
+  // ticks (volcanic/solar/plague/conquest) and the playhead. Click anywhere to jump.
+  const BM = 34, BW = W - 2 * BM, RY1 = H - 12, RY0 = H - 40, RH = RY1 - RY0;
+  const xAt = (k) => BM + k / (C.ticks - 1) * BW;
+  const yAt = (v, lo, hi) => RY1 - Math.max(0, Math.min(1, (v - lo) / (hi - lo))) * RH;
+  cx.beginPath(); cx.moveTo(BM, RY1);                                                   // ice volume fill
+  for (let k = 0; k < C.ticks; k++) cx.lineTo(xAt(k), RY1 - (C.env[k].ice || 0) * RH);
+  cx.lineTo(W - BM, RY1); cx.closePath(); cx.fillStyle = 'rgba(150,180,205,0.16)'; cx.fill();
+  cx.beginPath(); for (let k = 0; k < C.ticks; k++) { const X = xAt(k), Y = yAt(C.env[k].tempShift, -8, 3); k ? cx.lineTo(X, Y) : cx.moveTo(X, Y); } // temperature
+  cx.strokeStyle = 'rgba(224,150,90,0.9)'; cx.lineWidth = 1.4; cx.stroke();
+  cx.beginPath(); for (let k = 0; k < C.ticks; k++) { const X = xAt(k), Y = yAt(C.env[k].humidity || 1, 0.5, 1.5); k ? cx.lineTo(X, Y) : cx.moveTo(X, Y); } // wetness
+  cx.strokeStyle = 'rgba(120,190,120,0.9)'; cx.lineWidth = 1.4; cx.stroke();
+  for (const w of C.waves) { const x = xAt(w.tick); cx.fillStyle = 'rgba(220,180,90,0.5)'; cx.fillRect(x - 1, RY1 - 3, 2, 3); }
+  for (const ev of C.events) { const x = xAt(ev.tick); cx.strokeStyle = EVENT_COLOR[ev.type] || '#fff'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(x, RY0); cx.lineTo(x, RY1); cx.stroke(); }
+  const curx = xAt(tick); cx.strokeStyle = '#fff'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(curx, RY0 - 2); cx.lineTo(curx, RY1 + 2); cx.stroke();
 
   const eraName = yearEra(e.year), wet = (e.humidity || 1) > 1.22 ? ' · pluvial' : (e.humidity || 1) < 0.82 ? ' · arid' : '';
   eraEl.innerHTML = `<span class="y">${e.year < 0 ? -e.year + ' BCE' : e.year + ' CE'}</span> · ${eraName} <span class="s">· ${e.regime || '—'}${wet} · ${e.tempShift >= 0 ? '+' : ''}${e.tempShift.toFixed(1)}°C · tech ${e.tech.toFixed(2)}</span>`;
@@ -226,7 +255,7 @@ function panel(n) {
 cv.addEventListener('click', (ev) => {
   if (!C) return; const rect = cv.getBoundingClientRect(), sx = W / rect.width, sy = H / rect.height;
   const mx = (ev.clientX - rect.left) * sx, my = (ev.clientY - rect.top) * sy;
-  if (my >= H - 24) {                                   // clicked the bottom timeline → jump
+  if (my >= H - 44) {                                   // clicked the climate ribbon → jump
     const BM = 34, BW = W - 2 * BM; tick = Math.max(0, Math.min(C.ticks - 1, Math.round((mx - BM) / BW * (C.ticks - 1))));
     timeIn.value = tick; sel >= 0 ? panel(sel) : draw(); return;
   }
@@ -257,11 +286,19 @@ function roll(seed) {
   }, 40);
 }
 function setLegend() {
-  const leg = document.getElementById('legend'), useBtn = document.getElementById('useBtn');
-  if (mode === 'use') { leg.innerHTML = [['intensive', '#c4be50'], ['cropland', '#cea656'], ['pasture', '#9cb078'], ['forest', '#46643a'], ['mine', '#965c3a'], ['wild', '#3a3a32']].map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join(''); useBtn.classList.add('on'); }
-  else { leg.innerHTML = Object.entries(ENGINE_COLOR).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join(''); useBtn.classList.remove('on'); }
+  const leg = document.getElementById('legend');
+  const grad = (stops) => stops.map(([c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('');
+  if (mode === 'use') leg.innerHTML = grad([['#c4be50', 'intensive'], ['#cea656', 'cropland'], ['#9cb078', 'pasture'], ['#46643a', 'forest'], ['#965c3a', 'mine'], ['#3a3a32', 'wild']]);
+  else if (mode === 'wetness') leg.innerHTML = grad([['rgb(176,146,86)', 'arid'], ['rgb(117,142,95)', 'semi'], ['rgb(58,138,104)', 'wet']]);
+  else if (mode === 'temp') leg.innerHTML = grad([['rgb(74,120,205)', 'cold'], ['rgb(144,103,135)', 'mild'], ['rgb(214,86,66)', 'warm']]);
+  else if (mode === 'rivers') leg.innerHTML = grad([['rgb(54,120,150)', 'river'], ['rgb(120,96,60)', 'dry valley'], ['#3a3a32', 'land']]);
+  else leg.innerHTML = Object.entries(ENGINE_COLOR).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join('');
 }
-document.getElementById('useBtn').addEventListener('click', () => { mode = mode === 'use' ? 'terrain' : 'use'; setLegend(); draw(); });
+document.getElementById('layers').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  mode = b.dataset.m; for (const x of b.parentNode.children) x.classList.toggle('on', x === b);
+  setLegend(); draw();
+});
 document.getElementById('go').addEventListener('click', () => roll(+seedIn.value || 1));
 document.getElementById('rnd').addEventListener('click', () => { const s = (Math.random() * 1e9) >>> 0; seedIn.value = s; roll(s); });  // pick WHICH deterministic world to view
 roll(+seedIn.value);
