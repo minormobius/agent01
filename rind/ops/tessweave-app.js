@@ -1,31 +1,29 @@
-// tessweave-app.js — the tessellating weave, SOLVED, drawn in all its spiralling. Renders the real
-// single-hex Voronoi weave (curveseed.js, 14 threads), honeycombs it, and shows the thread-to-thread
-// interfaces (tessweave.js). Each white spirals from the central hub to ONE rim edge, so a continuous
-// warp thread is hub → seam → neighbour-hub: the whites chain the hubs together across the web. In
-// WEAVE mode each neighbouring chunk is reoriented by a hexagon symmetry (rotate + mirror) so its
-// spirals mate the centre's LIKE WITH LIKE at the shared edge — the families thread continuously.
+// tessweave-app.js — the tessellating weave, drawn along the threads' TRUE paths. Renders the real
+// single-hex Voronoi weave (curveseed.js, 14 threads), honeycombs it by translation, and traces each
+// white's actual owned-cell corridor (tessweave.truePath) hub → rim — jagged where the analytic
+// "desire" spiral (threadCurve) is smooth. Same-family exits sit adjacent across each seam, so a
+// BRIDGE joins them, threading every family continuously through the web. Top-down 2D, pan/zoom.
 
 import { buildCurveModel } from './curveseed.js';
-import { solveTessellation, threadCurve, hexSym, mateTransform, neighbourOffset, edgeNormalAng } from './tessweave.js';
+import { solveTessellation, truePath, threadCurve, neighbourOffset, edgeNormalAng } from './tessweave.js';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
 let seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 7;
 const OPTS = { rings: 1, layers: 8, flatR: 0.35, pitch: 28, width: 6, NW: 6, NF: 8, turnScale: 0.35 };
 
-let showTiles = true, showSpiral = true, weave = true, showIface = false, traceFam = -1, color14 = true;
+let showTiles = true, pathTrue = true, bridges = true, showIface = false, traceFam = -1, color14 = true;
 let panX = 0, panY = 0, zoom = 1;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0;
-let m = null, sol = null, mates = null, whiteFam = null;
+let m = null, sol = null, whiteFam = null;
 
 const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const INK = [232, 236, 244];
-// 3 warp-family colours (ring + 2 helices) — echo helix.html: green ring, blue + rose helices
-const FAM = [[120, 210, 140], [96, 160, 236], [230, 132, 172]];
+const FAM = [[120, 210, 140], [96, 160, 236], [230, 132, 172]];   // 3 warp families
 const whiteCol = (w) => mix(hex(m.warps[w].color), INK, 0.35 + (w % 2) * 0.12);
 const prodCol = (f) => hex(m.wefts[f].color);
 function cellColor(c) {
@@ -38,30 +36,21 @@ function cellColor(c) {
 function rebuild() {
   m = buildCurveModel(seed, OPTS);
   sol = solveTessellation(m);
-  mates = []; for (let k = 0; k < 6; k++) mates.push(mateTransform(m, k));
   whiteFam = new Array(m.NW).fill(0);
   sol.warp.axes.forEach((ax, i) => ax.whites.forEach((w) => { if (w != null) whiteFam[w] = i; }));
   draw();
 }
 
-// world → screen. Central hex fits a fraction of the min dimension; +pan/zoom.
-function tf() {
-  const s = Math.min(CW, CH) / (m.R * 2 * 1.7) * zoom;
-  return { s, ox: CW / 2 + panX, oy: CH / 2 + panY };
-}
+function tf() { const s = Math.min(CW, CH) / (m.R * 2 * 1.7) * zoom; return { s, ox: CW / 2 + panX, oy: CH / 2 + panY }; }
 const W2S = (x, y, T) => ({ X: T.ox + x * T.s, Y: T.oy - y * T.s });
 
-// tile descriptors: centre + 6 neighbours. In weave mode a neighbour carries its mate transform.
+// centre + 6 neighbours, placed by pure translation (no reorientation — you preferred no flip)
 function tiles() {
-  const list = [{ cx: 0, cy: 0, rot: 0, flip: 0, k: -1 }];
-  if (showTiles) for (let k = 0; k < 6; k++) {
-    const o = neighbourOffset(k, m.R), mt = mates[k];
-    list.push({ cx: o[0], cy: o[1], rot: weave ? mt.rot : 0, flip: weave ? mt.flip : 0, k });
-  }
+  const list = [{ cx: 0, cy: 0, k: -1 }];
+  if (showTiles) for (let k = 0; k < 6; k++) { const o = neighbourOffset(k, m.R); list.push({ cx: o[0], cy: o[1], k }); }
   return list;
 }
-// a point in the base tile frame → world, under this tile's placement/orientation
-function tileWorld(tile, px, py) { const q = hexSym([px, py], tile.rot, tile.flip); return [q[0] + tile.cx, q[1] + tile.cy]; }
+const tileWorld = (tile, px, py) => [px + tile.cx, py + tile.cy];
 
 function drawHex(tile, T, col, lw, fill) {
   ctx.beginPath();
@@ -80,26 +69,36 @@ function drawCells(tile, T, alpha) {
   }
 }
 
-// draw a white thread's real spiral (base curve, reoriented by the tile) — dark backing then colour
-function drawSpiral(tile, w, T, col, lw, alpha) {
-  const pts = threadCurve(m, 'white', w).map(([x, y]) => { const q = tileWorld(tile, x, y); return W2S(q[0], q[1], T); });
+// draw a white thread's path (true corridor or desire spiral, base pts) reoriented onto a tile
+function drawPath(basePts, tile, T, col, lw, alpha) {
+  const pts = basePts.map(([x, y]) => { const q = tileWorld(tile, x, y); return W2S(q[0], q[1], T); });
+  if (pts.length < 2) return;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y));
   ctx.strokeStyle = rgba([4, 6, 10], 0.7 * alpha); ctx.lineWidth = lw + 3; ctx.stroke();
   ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.X, p.Y) : ctx.moveTo(p.X, p.Y));
   ctx.strokeStyle = rgba(col, alpha); ctx.lineWidth = lw; ctx.stroke();
-  // rim exit dot (the seam junction)
-  const e = pts[pts.length - 1];
+  const e = pts[pts.length - 1], h = pts[0];
   ctx.beginPath(); ctx.arc(e.X, e.Y, lw * 1.25, 0, 7); ctx.fillStyle = rgba(col, alpha); ctx.strokeStyle = rgba([4, 6, 10], 0.8 * alpha); ctx.lineWidth = 1.2; ctx.fill(); ctx.stroke();
-  // hub dot at the centre end
-  const h = pts[0];
   ctx.beginPath(); ctx.arc(h.X, h.Y, lw * 0.9, 0, 7); ctx.fillStyle = rgba(mix(col, INK, 0.4), alpha * 0.9); ctx.fill();
 }
 
-// a point on centre-tile edge k at along-edge parameter t∈[-1,1]
+// a bridge across a seam: join the centre exit to the nearest neighbour exit (same family), bowed
+function drawBridge(Pc, Pn, col, T, active) {
+  const A = W2S(Pc[0], Pc[1], T), B = W2S(Pn[0], Pn[1], T);
+  const dx = B.X - A.X, dy = B.Y - A.Y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, bow = Math.min(16, L * 0.28);
+  const cx = (A.X + B.X) / 2 + nx * bow, cy = (A.Y + B.Y) / 2 + ny * bow;
+  ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.quadraticCurveTo(cx, cy, B.X, B.Y);
+  ctx.strokeStyle = rgba([4, 6, 10], active ? 0.7 : 0.3); ctx.lineWidth = active ? 5.5 : 3.5; ctx.stroke();
+  ctx.setLineDash([2, 4]);
+  ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.quadraticCurveTo(cx, cy, B.X, B.Y);
+  ctx.strokeStyle = rgba(col, active ? 0.98 : 0.4); ctx.lineWidth = active ? 3 : 2; ctx.stroke();
+  ctx.setLineDash([]);
+}
+
 function edgePoint(k, t) {
-  const a = edgeNormalAng(k), Ri = m.R * Math.sqrt(3) / 2;
-  const nx = Math.cos(a), ny = Math.sin(a), tx = -Math.sin(a), ty = Math.cos(a);
+  const a = edgeNormalAng(k), Ri = m.R * Math.sqrt(3) / 2, nx = Math.cos(a), ny = Math.sin(a), tx = -Math.sin(a), ty = Math.cos(a);
   return [Ri * nx + tx * t * (m.R / 2), Ri * ny + ty * t * (m.R / 2)];
 }
 
@@ -107,31 +106,38 @@ function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#06070c'; ctx.fillRect(0, 0, CW, CH);
   const T = tf(), TS = tiles();
-  const overlayOn = showSpiral || showIface;
 
-  // tiles: neighbours dim, centre bright; dim cells when an overlay is on
   for (const tile of TS) {
     const isC = tile.k === -1;
     drawHex(tile, T, rgba([90, 106, 140], isC ? 0.55 : 0.28), isC ? 1.6 : 1.1, rgba([10, 12, 18], isC ? 0.0 : 0.35));
-    drawCells(tile, T, (isC ? 1 : 0.42) * (overlayOn ? 0.6 : 1));
+    drawCells(tile, T, (isC ? 1 : 0.42) * 0.6);
   }
-  if (overlayOn) { ctx.fillStyle = 'rgba(6,7,12,0.32)'; ctx.fillRect(0, 0, CW, CH); }
+  ctx.fillStyle = 'rgba(6,7,12,0.32)'; ctx.fillRect(0, 0, CW, CH);
 
-  // ── the warp families as REAL spirals, threading each hub out to its edges ──
-  if (showSpiral) {
-    for (const tile of TS) {
-      const isC = tile.k === -1;
-      for (let w = 0; w < m.NW; w++) {
-        const fam = whiteFam[w], traced = traceFam < 0 || traceFam === fam;
-        const col = FAM[fam];
-        const lw = traced ? (isC ? 3.4 : 2.8) : 1.4;
-        const alpha = (traced ? (isC ? 1 : 0.85) : 0.16);
-        drawSpiral(tile, w, T, col, lw, alpha);
-      }
+  // base white paths (once), then draw on every tile
+  const base = []; for (let w = 0; w < m.NW; w++) base[w] = pathTrue ? truePath(m, 'white', w) : threadCurve(m, 'white', w);
+  const exitOf = (tile, w) => { const p = base[w][base[w].length - 1]; return tileWorld(tile, p[0], p[1]); };
+
+  for (const tile of TS) {
+    const isC = tile.k === -1;
+    for (let w = 0; w < m.NW; w++) {
+      const fam = whiteFam[w], traced = traceFam < 0 || traceFam === fam, col = FAM[fam];
+      drawPath(base[w], tile, T, col, traced ? (isC ? 3.2 : 2.6) : 1.3, traced ? (isC ? 1 : 0.82) : 0.15);
     }
   }
 
-  // ── translation-interface glyphs on the centre seams (the "before" solve) ──
+  // ── bridges: join each centre seam-exit to the nearest neighbour exit (like with like) ──
+  if (bridges && showTiles) {
+    const centre = TS[0];
+    for (const tile of TS) {
+      if (tile.k < 0) continue;
+      const owner = sol.interfaces.warp.perEdge[tile.k]; if (!owner) continue;
+      const fam = whiteFam[owner.idx], Pc = exitOf(centre, owner.idx);
+      let bw = -1, bd = Infinity; for (let w = 0; w < m.NW; w++) { const Pn = exitOf(tile, w); const d = Math.hypot(Pc[0] - Pn[0], Pc[1] - Pn[1]); if (d < bd) { bd = d; bw = w; } }
+      drawBridge(Pc, exitOf(tile, bw), FAM[fam], T, traceFam < 0 || traceFam === fam);
+    }
+  }
+
   if (showIface) {
     for (const e of sol.interfaces.perEdge) for (const p of e.pairs) {
       const ep = edgePoint(e.k, p.a.t), P = W2S(ep[0], ep[1], T);
@@ -155,19 +161,18 @@ function draw() {
 function readout() {
   const c = sol.interfaces.census;
   const fam = sol.warp.axes.map((a, i) => `<span style="color:rgb(${FAM[i].join(',')})">●</span>W${a.whites[0]}·W${a.whites[1]}`).join('  ');
-  const meanMate = mates.reduce((s, t) => s + t.score, 0) / 6, meanId = mates.reduce((s, t) => s + t.identityScore, 0) / 6;
   $('read').innerHTML =
     `seed <b>${seed}</b> · <b>14</b> threads · warp: ${fam} &nbsp;|&nbsp; ` +
-    (weave ? `<span class="ok">weave ON</span> — chunks rotated+mirrored, seam mismatch <b>${meanMate.toFixed(0)}</b> (was ${meanId.toFixed(0)})`
-           : `weave OFF — translation tiling, seam mismatch <b>${meanId.toFixed(0)}</b>`);
+    `<b>${pathTrue ? 'true paths' : 'desire spirals'}</b> — ${pathTrue ? 'actual Voronoi corridors, hub→rim' : 'the analytic seeding curves'}` +
+    (bridges ? ` · <span class="ok">bridges on</span> (families joined across seams)` : '');
   const bij = sol.interfaces.warp.perEdge.filter(Boolean).length;
   const row = (label, val, good) => `<div class="row"><span>${label}</span><span class="v ${good == null ? '' : good ? 'pass' : 'warn'}">${val}</span></div>`;
   $('cert').innerHTML =
     row('white bijection', `${bij}/6 edges`, bij === 6) +
     row('warp families', `${sol.warp.families} (ring + 2 helices)`, sol.warp.families === 3) +
     row('all 6 whites', sol.warp.allCovered ? 'covered' : 'gap', sol.warp.allCovered) +
-    row('mate transform', weave ? 'rotate + mirror' : 'translation', null) +
-    row('seam mismatch', `${meanMate.toFixed(0)} vs ${meanId.toFixed(0)} id`, meanMate < meanId) +
+    row('path shown', pathTrue ? 'true (Voronoi corridor)' : 'desire (analytic spiral)', null) +
+    row('bridges', bridges ? 'families joined' : 'off', null) +
     row('same-kind continuity', `${c.sameKind}`, c.sameKind > 0) +
     row('cross-kind K-doors', `${c.crossKind}`, c.hasKDoors);
 }
@@ -183,10 +188,10 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); const f = Math.exp(-e.
 
 const toggle = (id, get, set) => $(id).addEventListener('click', () => { set(!get()); $(id).classList.toggle('on', get()); draw(); });
 toggle('tiles', () => showTiles, (v) => showTiles = v);
-toggle('weave', () => weave, (v) => weave = v);
-toggle('spiral', () => showSpiral, (v) => showSpiral = v);
+toggle('bridges', () => bridges, (v) => bridges = v);
 toggle('iface', () => showIface, (v) => showIface = v);
 toggle('color', () => color14, (v) => color14 = v);
+$('pathmode').addEventListener('click', () => { pathTrue = !pathTrue; $('pathmode').classList.toggle('on', pathTrue); $('pathmode').textContent = pathTrue ? 'true paths' : 'desire spirals'; draw(); });
 $('trace').addEventListener('click', () => { traceFam = (traceFam + 2) % 4 - 1; $('trace').classList.toggle('on', traceFam >= 0); $('trace').textContent = traceFam < 0 ? 'trace a family' : `family ${traceFam + 1}/3`; draw(); });
 $('seedUp').addEventListener('click', () => { seed = (seed + 1) >>> 0; rebuild(); });
 $('seedDn').addEventListener('click', () => { seed = (seed - 1) >>> 0; rebuild(); });

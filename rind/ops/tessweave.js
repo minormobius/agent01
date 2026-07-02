@@ -47,6 +47,26 @@ export function threadCurve(model, kind, idx, n = 72) {
   return out;
 }
 
+// ── the TRUE path of a thread: its actual Voronoi corridor, not the analytic desire curve ───
+// threadCurve draws the analytic seeding curve (the smooth spiral the nuclei were seeded along —
+// a "desire path"). The thread's TRUE path is the chain of chambers it actually OWNS after the
+// watershed, hub → rim, stepping only through owned-cell adjacency. It is jagged where the desire
+// curve is smooth — that jaggedness is the real corridor. Returns the spine as [[x,y], …].
+export function truePath(model, kind, idx) {
+  const owned = model.cells.filter((c) => c.owner && c.owner.kind === kind && c.owner.idx === idx);
+  if (!owned.length) return [];
+  const set = new Set(owned.map((c) => c.gi));
+  const rad = (c) => Math.hypot(c.x, c.y);
+  let start = owned[0], end = owned[0];
+  for (const c of owned) { if (rad(c) < rad(start)) start = c; if (rad(c) > rad(end)) end = c; }
+  // BFS through the owned subgraph from the hub-most cell to the rim-most cell
+  const prev = new Map([[start.gi, -1]]); const q = [start.gi]; let head = 0;
+  while (head < q.length) { const g = q[head++]; if (g === end.gi) break; for (const nb of model.cells[g].adj) if (set.has(nb) && !prev.has(nb)) { prev.set(nb, g); q.push(nb); } }
+  if (!prev.has(end.gi)) return owned.slice().sort((a, b) => rad(a) - rad(b)).map((c) => [c.x, c.y]); // disconnected fallback
+  const path = []; let g = end.gi; while (g !== -1) { const c = model.cells[g]; path.push([c.x, c.y]); g = prev.get(g); }
+  return path.reverse();
+}
+
 // ── hexagon symmetry (the 12 dihedral reorientations that keep a hex on the grid) ───────────
 // A point in the base tile frame, rotated by rot·60° and optionally mirrored (negate y). These are
 // the reorientations a neighbouring chunk can take while staying edge-aligned to the honeycomb.
@@ -256,4 +276,4 @@ export function solveTessellation(model, opts = {}) {
   return { R: model.R, edges, interfaces, warp };
 }
 
-if (typeof globalThis !== 'undefined') globalThis.RindTessWeave = { hexExits, warpBijection, dominantWhiteEdges, solveInterfaces, traceWarp, solveTessellation, threadCurve, hexSym, mateTransform, edgeNormal, edgeTangent, edgeNormalAng, neighbourOffset, hexVerts, edgeSeg };
+if (typeof globalThis !== 'undefined') globalThis.RindTessWeave = { hexExits, warpBijection, dominantWhiteEdges, solveInterfaces, traceWarp, solveTessellation, threadCurve, truePath, hexSym, mateTransform, edgeNormal, edgeTangent, edgeNormalAng, neighbourOffset, hexVerts, edgeSeg };

@@ -68,13 +68,17 @@ JS → emit a frame model → solve for stress):
   graze the rim, abut the neighbour's *other-kind* thread as cross-kind **K-doors** (the K(6,8) contact reaching
   across the seam). Continuity across a seam is realised the way it is everywhere in rind — **door-adjacency**
   between abutting rim cells, not literal curve-joining (the spiral chirality biases every white to one side of
-  its edge, so opposite edges don't mirror-align). The view draws the 14 threads' **real spirals** (`threadCurve`
-  samples `weave3d`'s `lineW`/`lineP`) — each white runs **hub → one rim edge**, so a continuous warp thread is
-  *hub → seam → neighbour-hub*, the whites chaining the hubs across the web. **Weave mode** (`mateTransform`,
-  `hexSym`) reorients each neighbouring chunk by a **hexagon symmetry (rotate + mirror** — the plain-weave
-  over/under made spatial) so its spirals land on the centre's LIKE WITH LIKE at the shared edge — the families
-  thread continuously; the selftest proves mating never worsens the seam mismatch and always needs a mirror (the
-  chiral spirals must be reflected). Trace one family to isolate it across the tiling. **`tess.html`/`tess-app.js`** shows how the
+  its edge, so opposite edges don't mirror-align). The view distinguishes each thread's **true path** vs its
+  **desire path**: the *desire* path is the analytic seeding curve (`threadCurve` samples `weave3d`'s
+  `lineW`/`lineP`), the smooth spiral the nuclei were seeded along; the **true path** (`truePath`) is the chain of
+  chambers the thread actually OWNS after the watershed, stepping hub → rim through owned-cell adjacency — jagged
+  where the desire curve is smooth (the real corridor a walker follows; default view). Each white runs **hub →
+  one rim edge**, so a continuous warp thread is *hub → seam → neighbour-hub*, the whites chaining the hubs across
+  the web. Under plain translation the same family lands adjacent across each seam (green beside green); a
+  **bridge** joins each centre exit to its nearest neighbour exit, closing the gap so the families thread
+  continuously. Trace one family to isolate it. (A `mateTransform`/`hexSym` "weave" — rotate+mirror a chunk to
+  mate seams by a hexagon symmetry — is kept in the kernel + selftest but off by the visual default, since the
+  mirror flips chirality; translation + bridges reads cleaner.) **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate** (the schematic): a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family

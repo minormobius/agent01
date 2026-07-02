@@ -4,7 +4,7 @@
 // emergent global strand families); production supplies the cross-kind K-DOORS reaching across
 // seams; and the whole solve is deterministic and antipodally symmetric.
 import { buildCurveModel } from '../curveseed.js';
-import { solveTessellation, hexExits, solveInterfaces, dominantWhiteEdges, neighbourOffset, threadCurve, hexSym, mateTransform } from '../tessweave.js';
+import { solveTessellation, hexExits, solveInterfaces, dominantWhiteEdges, neighbourOffset, threadCurve, truePath, hexSym, mateTransform } from '../tessweave.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.log('  ✗ ' + m); } };
@@ -86,6 +86,19 @@ ok(allSixEdges, 'all six edges carry threads on every seed');
   const c = threadCurve(m, 'white', 0);
   const r0 = Math.hypot(c[0][0], c[0][1]) / m.R, r1 = Math.hypot(c[c.length - 1][0], c[c.length - 1][1]) / m.R;
   ok(c.length > 10 && r0 < 0.5 && r1 > 0.9, `threadCurve spirals centre(${r0.toFixed(2)})→rim(${r1.toFixed(2)})`);
+
+  // truePath — the real owned-cell corridor: every point sits on a cell OWNED by that thread, and it
+  // runs hub→rim. It is (almost always) jaggier than the smooth desire curve at equal sampling.
+  let allTrueOwned = true, spanOk = true;
+  for (let w = 0; w < m.NW; w++) {
+    const tp = truePath(m, 'white', w);
+    const owned = new Set(m.cells.filter((cc) => cc.owner && cc.owner.kind === 'white' && cc.owner.idx === w).map((cc) => `${Math.round(cc.x)},${Math.round(cc.y)}`));
+    for (const p of tp) if (!owned.has(`${Math.round(p[0])},${Math.round(p[1])}`)) { allTrueOwned = false; break; }
+    const a = Math.hypot(tp[0][0], tp[0][1]) / m.R, b = Math.hypot(tp[tp.length - 1][0], tp[tp.length - 1][1]) / m.R;
+    if (!(a < 0.5 && b > 0.85 && tp.length >= 4)) spanOk = false;
+  }
+  ok(allTrueOwned, 'truePath steps only through cells the thread actually owns');
+  ok(spanOk, 'truePath runs hub→rim for every white');
 
   // hexSym: identity, period-6, flip is an involution
   const p = [37, -11];
