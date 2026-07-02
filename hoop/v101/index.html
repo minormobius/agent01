@@ -3602,6 +3602,52 @@
       notify(`⚗ brewed ${item.name} — ${describeEffect(pv)} → pack (i)`, { kind: 'pickup', ms: 3000 });
     }
 
+    // ── USING PREPARATIONS — the consume verb, self, in & out of combat. A preparation carries
+    //    mechanics.use (from prepare()); the pack's ⚗ button quaffs/applies it OUT of combat, and the arena
+    //    bar quaffs the same self-heal/buff draughts IN a fight (engine `item` act). A SELF draught (deliver
+    //    'self') heals + buffs; a social draught sets a conversation-hook flag (content reads it later); an
+    //    oil tunes the chassis. Non-self preparations (a caustic smoke, a salve) are for throwing/gifting —
+    //    no self-quaff. ──
+    const isPrep = (it) => !!(it && it.alch && it.mechanics && it.mechanics.use);
+    const isSelfQuaff = (it) => isPrep(it) && (it.mechanics.use.deliver === 'self' || !!it.mechanics.use.lubricant);
+    // the self-heal/buff draughts, shaped for the arena bar: [{ name, glyph, use, effect }]
+    function battleItems() {
+      return pack.pack.map((it) => isSelfQuaff(it) && it.mechanics.use.combat && ['heal', 'buff'].includes(it.mechanics.use.combat.kind)
+        ? { name: it.name, glyph: it.glyph || '⚗', use: it.mechanics.use, effect: it.lore || '' } : null).filter(Boolean);
+    }
+    // remove one matching preparation from the pack after it's quaffed in a fight (by name — items are equal).
+    function consumeBattleItem(it) {
+      const i = pack.pack.findIndex((p) => isPrep(p) && p.name === it.name); if (i < 0) return;
+      pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack(); saveStory();
+    }
+    // the pack's ⚗ button label for a preparation (null → no use button).
+    function usePrepInfo(it) {
+      if (!isPrep(it)) return null;
+      const u = it.mechanics.use;
+      if (u.deliver === 'self') {
+        const bits = [];
+        if (u.combat && u.combat.kind === 'heal') bits.push(`heal +${Math.round(u.combat.amount || 0)}`);
+        else if (u.combat && u.combat.kind === 'buff') bits.push(`prime +${Math.round(u.combat.amount || 0)} ${u.combat.stat || 'def'}`);
+        if (u.social) bits.push(`feel more ${u.social.stat}`);
+        return { label: '⚗ quaff', note: bits.join(' · ') || 'a draught' };
+      }
+      if (u.lubricant) return { label: '⚗ apply oil', note: `tune the chassis` };
+      return { label: '', note: '' };   // caustic/sedate/salve — throw or gift, not a self-quaff
+    }
+    // quaff/apply a preparation from the pack, OUT of combat. Applies to sim state + sets the social hook.
+    function quaffPrep(it, idx) {
+      if (!isPrep(it)) return;
+      const u = it.mechanics.use, msgs = [];
+      if (u.combat && u.combat.kind === 'heal') { const h = Math.max(1, Math.round(u.combat.amount || 0)); story.store.setFact(story.playerId, 'sim.health', clampHealth(getHealth() + h)); msgs.push(`+${h} health`); }
+      else if (u.combat && u.combat.kind === 'buff') { setJSONFact('alch.primed', { stat: u.combat.stat || 'def', amount: u.combat.amount || 0, turns: u.combat.turns || 2 }); msgs.push(`primed +${Math.round(u.combat.amount || 0)} ${u.combat.stat || 'def'} for your next fight`); }
+      if (u.social) { setJSONFact('alch.social', { stat: u.social.stat, anima: u.social.anima, amount: u.social.amount, planet: u.social.planet || null, day: getDay() }); msgs.push(`you feel more ${u.social.stat}`); }   // THE CONVERSATION HOOK — content reads flag alch.social
+      if (u.lubricant) { setStam(getStam() + 8); msgs.push(`chassis oiled (+stamina)`); }
+      if (!msgs.length) { notify('nothing to quaff — throw this at a foe or gift it', { kind: 'life', ms: 2400 }); return; }
+      pack.pack.splice(idx, 1); pack.setPack(pack.pack); persistPack(); saveStory();
+      pack._renderDetail && pack._renderDetail();
+      notify(`⚗ quaffed ${it.name} — ${msgs.join(' · ')}`, { kind: 'life', ms: 2800 });
+    }
+
     // ── THE OVERWORLD OVERLAY — the ladder's destination: the ship's outer grow-deck, the whole curated
     //    ecology grown wild across terrain bands (over/overworld.js). A full-bleed pan/zoom landscape, seeded
     //    from the WORLD seed so it's stable per world (an NPC's overworld reproduces). Same plants as the
@@ -4023,8 +4069,19 @@
       const state = createBattle({ player, foes, seed: bseed >>> 0, W: 14, H: 10 });
       battleCtx = { ch, cp, id, deck };
       battleOpen = true; $('battle').classList.add('on');
+      applyPrimedTo(state);
       if (!battleView) battleView = new BattleOverlay($('battle'), { spriteFor: battleSpriteFor });
-      battleView.start(state, resolveBattle);
+      battleView.start(state, resolveBattle, { items: battleItems(), onConsume: consumeBattleItem });
+    }
+    // apply an out-of-combat "primed" buff draught (alch.primed) to the player unit at battle start, then clear it.
+    function applyPrimedTo(state) {
+      const p = getJSONFact('alch.primed', null); if (!p || !state) return;
+      const u = (state.units || []).find((x) => x.team === 'player'); if (!u) return;
+      const amt = Math.max(1, Math.round(p.amount || 0)), turns = (p.turns || 2) + 1, b = u.buff || { def: 0, atk: 0, turns: 0, counter: false };
+      if (p.stat === 'atk') u.buff = { def: b.def || 0, atk: (b.atk || 0) + amt, turns: Math.max(b.turns || 0, turns), counter: !!b.counter };
+      else u.buff = { def: (b.def || 0) + amt, atk: b.atk || 0, turns: Math.max(b.turns || 0, turns), counter: !!b.counter };
+      story.store.setFact(story.playerId, 'alch.primed', '');   // consumed
+      notify(`⚗ the tonic takes hold — +${amt} ${p.stat || 'def'}`, { kind: 'life', ms: 2200 });
     }
     function resolveBattle(winner) {
       battleOpen = false; $('battle').classList.remove('on');
@@ -4091,8 +4148,9 @@
       const state = createBattle({ player, foes, seed, W: 14, H: 10 });
       story.active = null; hideStory();
       battleOpen = true; $('battle').classList.add('on');
+      applyPrimedTo(state);
       if (!battleView) battleView = new BattleOverlay($('battle'), { spriteFor: battleSpriteFor });
-      battleView.start(state, resolveTrainerBattle);
+      battleView.start(state, resolveTrainerBattle, { items: battleItems(), onConsume: consumeBattleItem });
     }
     function resolveTrainerBattle(winner) {
       battleOpen = false; $('battle').classList.remove('on');
@@ -4805,7 +4863,7 @@
     function refreshEquipViews() { try { if (equip && equip.open) equip.refresh(); } catch (e) {} try { if (pack && pack.open) pack._renderDetail(); } catch (e) {} }
 
     // ── the pack: a Voronoi-cylinder inventory of genomed items ──
-    const pack = new Inventory({ pack: (playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)), title: 'pack', equipInfo, onEquip: onEquipToggle });
+    const pack = new Inventory({ pack: (playerChar ? packForCharacter(playerChar, 9) : startingPack(seed, 9)), title: 'pack', equipInfo, onEquip: onEquipToggle, useInfo: (it) => usePrepInfo(it), onUse: (it, i) => quaffPrep(it, i) });
     // the pack is now DURABLE — bought wares, combat loot, and socketed gems persist. Restore it on load
     // (the snapshot's item array), and re-save it on every mutation via persistPack().
     const persistPack = () => { if (story.ready) { ensureUids(pack.pack); story.store.setFact(story.playerId, 'pack.items', JSON.stringify(pack.pack)); story.store.setFact(story.playerId, 'pack.equip', JSON.stringify(equipChoice)); } };

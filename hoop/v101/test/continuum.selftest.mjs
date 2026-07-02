@@ -100,5 +100,22 @@ ok(UNIT_R > 0 && dist({ x: 0, y: 0 }, { x: 3, y: 4 }) === 5, 'continuum geometry
   ok(S.units.some((u) => u.summoned), 'Summon brings a summoned unit onto the board (drawn as a robot swarm)');
 }
 
+// ── quaffing a preparation in a fight (the `item` act) — self heal + rousing (+atk) buff ──
+{
+  const c = rollCharacter(7, {});
+  const S = createBattle({ player: { id: 0, name: 'H', faction: 'continuant', character: c, combat: deriveCombat(c), sprite: { seed: 'p', role: 'make' } }, foes: [creepFor(2, 1, 1, 1)], seed: 3, W: 14, H: 10, det: true });
+  const u = S.units.find((x) => x.team === 'player'); while (active(S) !== u) endTurn(S);   // make sure it's the player's turn
+  u.hp = 5; u.acted = false;
+  const ev = act(S, { type: 'item', use: { deliver: 'self', combat: { kind: 'heal', amount: 12 } } });
+  ok(ev.type === 'item' && ev.use === 'heal' && u.hp === Math.min(u.maxhp, 17), 'quaffing a heal draught restores HP (capped at max)');
+  ok(u.acted === true, 'a quaff spends the action slot');
+  u.acted = false;
+  const ev2 = act(S, { type: 'item', use: { deliver: 'self', combat: { kind: 'buff', stat: 'atk', amount: 5, turns: 2 } } });
+  ok(ev2.type === 'item' && u.buff.atk === 5 && u.buff.turns > 0, 'a rousing tonic grants a timed +atk buff');
+  u.acted = false;
+  const ev3 = act(S, { type: 'item', use: { deliver: 'range', combat: { kind: 'attack', damage: 8 } } });
+  ok(ev3.type === 'illegal', 'a caustic (non-self) preparation cannot be self-quaffed in a fight');
+}
+
 console.log(`\ncontinuum.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

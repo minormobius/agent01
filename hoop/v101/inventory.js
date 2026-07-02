@@ -62,9 +62,10 @@ export function buildLayout(count, C, Hs) {
 
 // ── THE VIEW ───────────────────────────────────────────────────────────────────────────────────
 export class Inventory {
-  constructor({ pack = [], onClose = null, title = 'pack', equipInfo = null, onEquip = null } = {}) {
+  constructor({ pack = [], onClose = null, title = 'pack', equipInfo = null, onEquip = null, useInfo = null, onUse = null } = {}) {
     this.pack = pack; this.onClose = onClose; this.title = title;
     this.equipInfo = equipInfo; this.onEquip = onEquip;   // controller hooks for the inventory⇆equipment link
+    this.useInfo = useInfo; this.onUse = onUse;           // consumable hooks (alchemy preparations: quaff/apply)
     this.rot = 0; this.target = 0; this.focus = 0; this.open = false;
     this.drag = null; this.raf = null; this.dpr = 1; this.layout = null;
     this._build();
@@ -259,11 +260,19 @@ export class Inventory {
           ${item.lore ? `<div style="font-size:11px;color:#cbb6e6;margin-top:8px;line-height:1.5;border-left:2px solid ${item.frame};padding-left:8px">${esc(item.lore)}</div>` : ''}
           <div style="font-size:11px;color:#cfd8d2;margin-top:8px;line-height:1.5;font-style:italic">${esc(item.headline || '')}</div>
         </div>
-      </div>${this._equipBtnHTML(item)}`;
+      </div>${this._equipBtnHTML(item)}${this._useBtnHTML(item)}`;
     const sc = this.elCard.querySelector('#invsprite');
     if (sc) { const g = sc.getContext('2d'); g.imageSmoothingEnabled = false; try { drawSprite(g, item, { x: 12, y: 12, size: 96, frame: false }); } catch (e) {} }
     const eb = this.elCard.querySelector('#inveq');
     if (eb && this.onEquip) eb.addEventListener('click', () => this.onEquip(item));
+    const ub = this.elCard.querySelector('#invuse');
+    if (ub && this.onUse) ub.addEventListener('click', () => this.onUse(item, this.focus));
+  }
+  // the USE button (only for consumable preparations). useInfo(item) → { label, note? } or null.
+  _useBtnHTML(item) {
+    const info = this.useInfo ? this.useInfo(item) : null;
+    if (!info || !info.label) return '';
+    return `<button id="invuse" style="pointer-events:auto;margin-top:8px;width:100%;background:#1a1428;border:1px solid #6a5a9a;color:#c6b0f0;font:inherit;font-size:12.5px;padding:9px;border-radius:9px;cursor:pointer">${esc(info.label)}${info.note ? ` <span style="opacity:.7">· ${esc(info.note)}</span>` : ''}</button>`;
   }
   // the EQUIP button (only for items that fit a body slot). Default action installs into the slot, swapping
   // whatever was there; if this item is already worn, it toggles to unequip. pointer-events:auto because the

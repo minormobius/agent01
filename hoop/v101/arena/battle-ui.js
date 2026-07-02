@@ -38,8 +38,12 @@ export class BattleOverlay {
     this._loop = this._loop.bind(this);
   }
 
-  start(state, onResolve) {
+  start(state, onResolve, opts = {}) {
     this.S = state; this.onResolve = onResolve; this.sel = 'strike'; this.anim = null; this.busy = false; this._resolved = false;
+    // consumable self-quaff preparations (from the pack): [{ name, glyph, use }]. onConsume(i) removes one
+    // from the pack after it's quaffed. Alchemy's bench output — heal/buff draughts you can drink mid-fight.
+    this.items = Array.isArray(opts.items) ? opts.items.slice() : [];
+    this.onConsume = opts.onConsume || null;
     this.swarms.clear(); this._lastT = 0;
     this.elOver.classList.remove('on');
     this._renderBar(); this._syncTop();
@@ -166,8 +170,13 @@ export class BattleOverlay {
       const hint = isSel && this._targeted(sk) ? ' style="outline:1px solid #f4bf62"' : '';
       return `<button class="bact ${isSel ? 'sel' : ''}" data-skill="${k}" title="${esc(sk.gloss || '')}"${hint} ${usable ? '' : 'disabled'}>${sk.glyph} ${sk.label}${cost ? ` <span class="bc">✣${cost}</span>` : ''}</button>`;
     }).join('');
-    this.elBar.innerHTML = btns + `<button class="bact" data-end="1" ${can ? '' : 'disabled'}>End ⏎</button>`;
+    // consumable quaff buttons (self draughts from the pack) — usable while it's your turn and you haven't acted
+    const canQuaff = can && u && !u.acted;
+    const items = (this.items || []).map((it, i) =>
+      `<button class="bact bitem" data-item="${i}" title="${esc(it.effect || '')}" style="border-color:#6a5a9a;color:#c6b0f0" ${canQuaff ? '' : 'disabled'}>${it.glyph || '⚗'} ${esc(it.name)}</button>`).join('');
+    this.elBar.innerHTML = btns + items + `<button class="bact" data-end="1" ${can ? '' : 'disabled'}>End ⏎</button>`;
     this.elBar.querySelectorAll('[data-skill]').forEach((bn) => bn.addEventListener('click', () => this._onSkill(bn.dataset.skill)));
+    this.elBar.querySelectorAll('[data-item]').forEach((bn) => bn.addEventListener('click', () => this._onItem(+bn.dataset.item)));
     this.elBar.querySelector('[data-end]').addEventListener('click', () => { if (!this.busy) { this.sel = 'strike'; E.endTurn(this.S); this._afterTurn(); } });
   }
   _onSkill(k) {
@@ -176,6 +185,17 @@ export class BattleOverlay {
     if (this._targeted(sk)) { this.sel = k; this._renderBar(); return; }   // arm it — the next unit-click is the target
     const ev = E.act(this.S, { type: 'skill', skillId: k });               // self skill (heal/buff/brace/convert/reposition/summon) fires now
     if (ev.type === 'reposition') this._repos = true;                       // flit reopened the move slot — the next click is the extra step
+    this._afterAction(ev);
+  }
+  // quaff a consumable preparation on yourself (heal/buff) — fires from the bar like a self skill, then the
+  // item is removed from the pack via onConsume. A non-self quaff comes back illegal and is left in the pack.
+  _onItem(i) {
+    const u = E.active(this.S); if (this.busy || !u || u.team !== 'player' || this.S.phase !== 'choose' || u.acted) return;
+    const it = this.items[i]; if (!it) return;
+    const ev = E.act(this.S, { type: 'item', use: it.use });
+    if (ev.type === 'illegal') return;
+    this.items.splice(i, 1);                        // spent — drop it from the in-battle list
+    if (this.onConsume) { try { this.onConsume(it); } catch (e) {} }   // remove one from the real pack
     this._afterAction(ev);
   }
   _onClick(e) {

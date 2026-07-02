@@ -291,7 +291,8 @@ function resolveAttack(s, atk, tgt, skillId, isCounter = false) {
   let hit, crit, variance;
   if (s.det) { hit = true; crit = false; variance = 1; }            // deterministic: always lands, mean roll
   else { hit = s.rng() < acc; if (!hit) { log(s, `${atk.name} ${sk.label} — misses ${tgt.name}`, 'miss'); return { hit: false, target: tgt.id }; } crit = s.rng() < critChance; variance = 0.8 + s.rng() * 0.4; }
-  let power = (sk.magic ? atk.apow : atk.atk) * (sk.mult || 1) * berserkMult(atk);   // magic scales off apow (anima)
+  const atkBuff = (atk.buff && atk.buff.turns > 0 ? (atk.buff.atk || 0) : 0);        // a rousing draught (+atk) rides the same buff timer as +Def
+  let power = ((sk.magic ? atk.apow : atk.atk) + atkBuff) * (sk.mult || 1) * berserkMult(atk);   // magic scales off apow (anima)
   if (flank) power *= 1.25;                                          // pincered: the flank bonus
   const markBonus = tgt.status.mark?.turns > 0 ? (1 + (tgt.status.mark.amt || 0.25)) : 1;
   let dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * (crit ? 2 : 1)));
@@ -341,6 +342,31 @@ export function act(s, action) {
     const from = { x: u.x, y: u.y }; u.x = action.x; u.y = action.y; u.movedThisTurn = true;
     if (!isFlit) u.moved = true;
     return { type: 'move', unit: u.id, from, to: { x: u.x, y: u.y } };
+  }
+
+  // QUAFF a consumable preparation (the alchemy bench's output). A SELF draught only — heal or a rousing
+  // (+atk) / fortifying (+Def) buff. It costs no flux (it's a consumable) but spends the action slot, like a
+  // self skill. Non-self combat kinds (caustic attack / sedative debuff) and social/lubricant effects aren't
+  // quaffable in a fight — those are thrown, burned, or drunk out of combat. `use` is mechanics.use.
+  if (action.type === 'item') {
+    if (u.acted) return { type: 'illegal' };
+    const c = (action.use && action.use.combat) || null;
+    if (c && c.kind === 'heal') {
+      const heal = Math.max(1, Math.round(c.amount || 0));
+      u.hp = Math.min(u.maxhp, u.hp + heal); u.acted = true;
+      log(s, `${u.name} quaffs a draught +${heal}`, 'heal');
+      return { type: 'item', use: 'heal', unit: u.id, amount: heal };
+    }
+    if (c && c.kind === 'buff') {
+      const amt = Math.max(1, Math.round(c.amount || 0)), turns = (c.turns || 2) + 1;
+      const cur = u.buff && u.buff.turns > 0 ? u.buff : { def: 0, atk: 0, counter: false };
+      if (c.stat === 'atk') u.buff = { def: cur.def || 0, atk: (cur.atk || 0) + amt, turns: Math.max(cur.turns || 0, turns), counter: !!cur.counter };
+      else u.buff = { def: (cur.def || 0) + amt, atk: cur.atk || 0, turns: Math.max(cur.turns || 0, turns), counter: !!cur.counter };
+      u.acted = true;
+      log(s, `${u.name} quaffs a tonic +${amt} ${c.stat === 'atk' ? 'Atk' : 'Def'}`, 'buff');
+      return { type: 'item', use: 'buff', unit: u.id, stat: c.stat === 'atk' ? 'atk' : 'def', amount: amt };
+    }
+    return { type: 'illegal', reason: 'not-a-self-quaff' };
   }
 
   if (action.type === 'skill') {
