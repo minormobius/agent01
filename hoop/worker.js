@@ -158,6 +158,11 @@ export default {
     if (url.pathname === '/v101/spine' || url.pathname === '/v101/spine/') {
       return env.ASSETS.fetch(new Request(new URL('/v101/story/spine.html', url), request));
     }
+    // garden/plot — the high-detail GARDEN PLOT demo: the soil substrate (grain/moisture/cracks) + the
+    // flora grown on it, each plant coloured by its Galenic temperament. The plants-first design toy.
+    if (url.pathname === '/garden/plot' || url.pathname === '/garden/plot/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/garden/plot.html', url), request));
+    }
     // docs — the WORLD-SIDE documentation: the whole scope of the world (decks, systems, minigames),
     // every workflow that feeds it, the v101 audit findings, and the roadmap. The examination surface.
     if (url.pathname === '/docs' || url.pathname === '/docs/') {
