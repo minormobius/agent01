@@ -174,6 +174,13 @@
     /* the ARCADE — a dedicated fullscreen cabinet screen (à la the inventory), high contrast */
     #arc, #garden, #trade, #kitchen { position: fixed; inset: 0; display: none; z-index: 36; background: radial-gradient(120% 120% at 50% 35%, rgba(12,9,18,0.96), rgba(4,4,8,0.99)); pointer-events: auto; }
     #garden { background: radial-gradient(120% 120% at 50% 32%, rgba(10,18,12,0.96), rgba(3,6,4,0.99)); }
+    /* the overworld: a full-bleed landscape canvas (the outer grow-deck), reached by the ladder in the Continuants ward */
+    #over { position: fixed; inset: 0; display: none; z-index: 36; background: #0d1620; pointer-events: auto; }
+    #over.on { display: block; }
+    #overcanvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; } #overcanvas:active { cursor: grabbing; }
+    #overhud { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 2; background: rgba(8,14,20,0.8); border: 1px solid #2a4230; border-radius: 8px; color: #cfe0d2; font-size: 11.5px; padding: 6px 12px; text-align: center; pointer-events: none; }
+    #overhud b { color: #8fe07a; }
+    #over .aclose { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); z-index: 3; background: rgba(10,13,18,0.8); border: 1px solid #34424d; border-radius: 8px; color: #cfd8d2; font: inherit; font-size: 12px; padding: 6px 11px; cursor: pointer; } #over .aclose:hover { border-color: #8fe07a; color: #8fe07a; }
     #trade { background: radial-gradient(120% 120% at 50% 32%, rgba(18,15,8,0.96), rgba(6,5,3,0.99)); }
     #kitchen { background: radial-gradient(120% 120% at 50% 32%, rgba(20,14,9,0.96), rgba(6,4,3,0.99)); }
     #arc.on, #garden.on, #trade.on, #kitchen.on { display: flex; align-items: center; justify-content: center; }
@@ -466,6 +473,7 @@
   <div id="story"></div>
   <div id="arc"><div class="acard" id="arccard"></div></div>
   <div id="garden"><div class="acard" id="gardencard"></div></div>
+  <div id="over"><canvas id="overcanvas"></canvas><button class="aclose" data-overclose="1">close ⏎</button><div id="overhud"></div></div>
   <div id="trade"><div class="acard" id="tradecard"></div></div>
   <div id="kitchen"><div class="acard" id="kitchencard"></div></div>
   <div id="lapidary"><div class="acard" id="lapidarycard"></div></div>
@@ -506,6 +514,8 @@
     import { buildPlant, descriptorForCrop } from './garden/flora.js';   // the procedural PLANT model (growth-form + Galenic palette + phyllotactic foliage), drawn per plot
     import { renderSinglePlot } from './garden/plot-render.js';          // one plant on its own soil tile with a label window
     import { soilProps } from './worship/lib/soil.js';                   // the soil substrate (grain/moisture/cracks)
+    import { makeOverworld } from './over/overworld.js';                 // the OVERWORLD kernel — the ecology grown wild across terrain bands (the ladder in the Continuants ward climbs here)
+    import { drawOverworld } from './over/over-render.js';               // the overworld silhouette renderer (growth-form + Galenic palette at landscape scale)
     import { findReagent } from './alch/alchemy.js';                     // an alch herb's correspondence → its temperament colour
     import { createBattle, UNIVERSAL } from './arena/engine.js';   // the turn-based combat engine (the arena, now in-world)
     import { CREEP_ROLES, isCreepRole, creepId, creepFor, creepPack, certifyPack, spoilsFor } from './arena/encounter.js';   // hazard-room creeps (creepPack = the multi-opponent fight; certifyPack = the solver gate)
@@ -769,6 +779,22 @@
     const shaftDownHere = () => { const d = playerDeck(), s = shafts[d]; return s ? { x: s.top.x, y: s.top.y, toNode: s.bottom.node, dir: 'down' } : null; };   // the shaft going down from here
     const shaftUpHere = () => { const d = playerDeck(), s = d > 0 ? shafts[d - 1] : null; return s ? { x: s.bottom.x, y: s.bottom.y, toNode: s.top.node, dir: 'up' } : null; };   // the shaft going up from here
     const shaftHere = () => shaftUpHere() || shaftDownHere();   // "the way off this deck" — prefer UP (toward the guides/nave) for the waypoint helpers
+    // THE OVERWORLD LADDER — a PASSIVE climb from the Continuants ward (nave deck) up to the ship's outer
+    // grow-deck. Not a shaft (no offset teleport-deck): the overworld is its own overlay surface, the
+    // landscape cousin of the garden fixture. Placed once the Continuants ward is built (its unlock is the
+    // only gate — no quest flag). On the nave deck at (x,y); clicking it opens the overworld overlay.
+    let overLadder = null;   // { x, y, cell, chunkId }
+    function maybePlaceOverLadder() {
+      if (overLadder || !world || !world._nave || !walk) return;
+      const ci = FACTION_WARD_CHUNKS.continuant[0];       // the first Continuants ward chunk (nave index)
+      const rec = world._nave.recs[ci];
+      if (!rec || !rec.cells || (rec.deck || 0) !== 0) return;   // built + on the nave deck
+      const c = polyCentroid(rec.poly), lc = nearestConcourse(rec, c.x, c.y);
+      if (!lc) return;
+      overLadder = { x: lc.x, y: lc.y, cell: lc.cell, chunkId: rec.id };
+    }
+    // the ladder as seen from the current deck: only on the nave (deck 0), and only once its cell is revealed.
+    const overLadderHere = () => (overLadder && playerDeck() === 0 && seen.has(globalOf(walk, overLadder.chunkId, overLadder.cell))) ? overLadder : null;
     // nearest walkable node ON THE CURRENT DECK (decks overlap in (x,y), so a click must not jump decks)
     function nearestDeckNode(x, y) {
       const pd = playerDeck(); let best = -1, bd = Infinity;
@@ -1340,6 +1366,7 @@
       if (introSolved()) ensureFactionWards('continuant');                        // commons quest cleared
       if (fqStatus(facts, 'continuant') === 'witnessed') ensureFactionWards('rindwalker');
       if (fqStatus(facts, 'rindwalker') === 'witnessed') ensureFactionWards('drift');
+      maybePlaceOverLadder();   // idempotent — drop the passive overworld ladder once the Continuants ward exists
     }
     // stream the queued faction wards ONE PER TICK — solve + paint + incremental stitch, like a normal chunk
     // load. Re-entrant-safe (one drain loop): ensureFactionWards may append while it's mid-run or after it idled.
@@ -1357,7 +1384,7 @@
         const ch = st.recs[ci];
         if (ch) { ch.naveMeta = st.meta[ci];
           try { ch.painted = paintChunk(ch, SKIN); } catch (e) {}
-          stitchAdd(ch.id); }
+          stitchAdd(ch.id); maybePlaceOverLadder(); }   // once the Continuants ward is stitched, drop the passive overworld ladder on it
         reveal(); draw();
         setTimeout(step, 24);
       };
@@ -1561,7 +1588,7 @@
         if (cf && FACTION_INFO[cf]) { ctx.fillStyle = FACTION_INFO[cf].color; ctx.globalAlpha = 0.10; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
       }
       if (!walkPath) drawNPC();   // the social web is ambient — skip it while WALKING (its per-route strokes are off the hot path; it reappears the moment you stop)
-      drawShaft(); drawPlayer(); drawAnchors(); drawWaypoint();
+      drawShaft(); drawOverLadder(); drawPlayer(); drawAnchors(); drawWaypoint();
     }
     // the shaft: a chute marker at the (deck-shared) shaft cell — ▼ down to the rind, ▲ back up to the Nave
     // names for each deck (for the shaft labels): 0 the Nave, 1 the (upper) rind, 2 the lower rind.
@@ -1580,6 +1607,17 @@
       const pd = playerDeck();
       const up = shaftUpHere(); if (up) drawShaftMarker(up, 'up to ' + (DECK_NAME[pd - 1] || 'the Nave'));
       const down = shaftDownHere(); if (down) drawShaftMarker(down, 'down to ' + (DECK_NAME[pd + 1] || 'the deep'));
+    }
+    // the OVERWORLD LADDER marker — a green ▲ (distinct from the teal shaft) in the Continuants ward, "up to the overworld"
+    function drawOverLadder() {
+      const L = overLadderHere(); if (!L) return;
+      const sx = SX(L.x), sy = SY(L.y), r = Math.max(8, SKIN.playerW * 0.55 * cam.scale);
+      ctx.save();
+      ctx.strokeStyle = '#8fe07a'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.arc(sx, sy, r, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#8fe07a'; ctx.font = `bold ${Math.max(12, SKIN.playerW * 0.95 * cam.scale) | 0}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('▲', sx, sy);
+      ctx.fillStyle = '#dfe7e2'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText('up to the overworld', sx, sy - Math.max(15, SKIN.playerW * 0.8 * cam.scale));
+      ctx.restore();
     }
     function strokeNodes(arr, gateSeen) { ctx.beginPath(); let pen = false; for (const g of arr) { if (gateSeen && !seen.has(g)) { pen = false; continue; } const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; if (pen) ctx.lineTo(SX(x), SY(y)); else { ctx.moveTo(SX(x), SY(y)); pen = true; } } ctx.stroke(); }
     function drawNPC() {
@@ -2842,6 +2880,7 @@
       if (e.key !== 'Escape') return;
       if (arcadeOpen) { closeArcade(); return; }
       if (gardenOpen) { closeGarden(); return; }
+      if (overOpen) { closeOverworld(); return; }
       if (tradeOpen) { closeTrade(); return; }
       if (lapidaryOpen) { closeLapidary(); return; }
       if (kitchenOpen) { closeKitchen(); return; }
@@ -3438,6 +3477,34 @@
         return;
       }
     });
+
+    // ── THE OVERWORLD OVERLAY — the ladder's destination: the ship's outer grow-deck, the whole curated
+    //    ecology grown wild across terrain bands (over/overworld.js). A full-bleed pan/zoom landscape, seeded
+    //    from the WORLD seed so it's stable per world (an NPC's overworld reproduces). Same plants as the
+    //    garden fixture, drawn as silhouettes that keep the growth-form + Galenic palette — the "soul." ──
+    let overOpen = false, overData = null, overCam = { x: 0, y: 0, z: 0.6 }, _overDrag = null;
+    const OVER_W = 2200, OVER_H = 1500;
+    const overCanvas = () => $('overcanvas');
+    function overSize() { const cv2 = overCanvas(), dpr = Math.min(2, devicePixelRatio || 1), w = cv2.clientWidth || innerWidth, h = cv2.clientHeight || innerHeight; cv2.width = Math.max(1, w * dpr); cv2.height = Math.max(1, h * dpr); const cx = cv2.getContext('2d'); cx.setTransform(dpr, 0, 0, dpr, 0, 0); return { cx, w, h }; }
+    function drawOver() { if (!overOpen || !overData) return; try { const { cx, w, h } = overSize(); drawOverworld(cx, w, h, overData, overCam); } catch (e) {} }
+    function overRecenter() { const cv2 = overCanvas(), w = cv2.clientWidth || innerWidth, h = cv2.clientHeight || innerHeight; overCam.x = OVER_W / 2 - (w / overCam.z) / 2; overCam.y = OVER_H / 2 - (h / overCam.z) / 2; drawOver(); }
+    function openOverworld() {
+      try { overData = makeOverworld((seed ^ 0x0ACE) >>> 0, { w: OVER_W, h: OVER_H }); } catch (e) { overData = null; }
+      overOpen = true; $('over').classList.add('on');
+      if (story.ready) story.store.setFact(story.playerId, 'flag.climbed_overworld', true);
+      $('overhud').innerHTML = overData ? `the overworld · <b>${overData.plants.length}</b> plants across the grow-deck · drag to pan, scroll to zoom · Esc to climb down` : 'the overworld';
+      overRecenter();
+    }
+    function closeOverworld() { overOpen = false; $('over').classList.remove('on'); }
+    $('over').addEventListener('click', (e) => { if (e.target.closest('[data-overclose]')) closeOverworld(); });
+    (() => {
+      const cv2 = overCanvas();
+      cv2.addEventListener('pointerdown', (e) => { _overDrag = { x: e.clientX, y: e.clientY, cx: overCam.x, cy: overCam.y }; try { cv2.setPointerCapture(e.pointerId); } catch (_) {} });
+      cv2.addEventListener('pointermove', (e) => { if (!_overDrag) return; overCam.x = _overDrag.cx - (e.clientX - _overDrag.x) / overCam.z; overCam.y = _overDrag.cy - (e.clientY - _overDrag.y) / overCam.z; drawOver(); });
+      cv2.addEventListener('pointerup', () => { _overDrag = null; });
+      cv2.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv2.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, wx = overCam.x + mx / overCam.z, wy = overCam.y + my / overCam.z; overCam.z = Math.max(0.3, Math.min(3, overCam.z * (e.deltaY < 0 ? 1.12 : 0.89))); overCam.x = wx - mx / overCam.z; overCam.y = wy - my / overCam.z; drawOver(); }, { passive: false });
+    })();
+    addEventListener('resize', () => { if (overOpen) drawOver(); });
 
     // ── THE TRADE DESK (trade-role component) — the TRADE corner of the triangle: a gacha bound to ONE
     //    biome (a viability-scored, closeable food web). Spend ◈ coins to pull SEEDS from that biome's crop
@@ -4462,6 +4529,9 @@
           walkTo(end.x, end.y); return;
         }
       }
+      // the overworld ladder (Continuants ward, nave deck): click near it → walk over → climb to the overworld overlay
+      const L = overLadderHere();
+      if (L && (L.x - wx) ** 2 + (L.y - wy) ** 2 < (SKIN.playerW * 1.8) ** 2) { walkThenInteract(L.x, L.y, openOverworld); return; }
       pendingArrival = null;   // a fresh click cancels any queued walk-then-interact
       const a = anchorAt(wx, wy);
       if (a) { walkThenInteract(a.x, a.y, () => openAnchor(a)); return; }
@@ -4497,7 +4567,7 @@
 
     // is a fullscreen overlay/modal covering the world? then the animation loop need not render behind it.
     function worldCovered() {
-      if (arcadeOpen || gardenOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen || loaderOpen) return true;
+      if (arcadeOpen || gardenOpen || overOpen || tradeOpen || kitchenOpen || battleOpen || lapidaryOpen || loaderOpen) return true;
       if (oracleOpen() || geomancyOpen() || inkblotOpen()) return true;               // the worship oracle / sand-stand / govern seal-stand overlays
       if (minimap.open || equip.open || (creator && creator.open)) return true;
       if (document.querySelector('.himodal')) return true;                          // the sign-in handle box
