@@ -183,7 +183,7 @@ function loop() { frameN++; if (state.walk && frameN % 4 === 0) { state.walk.i++
 
 const Q = new URLSearchParams(location.search), seed = Q.has('seed') ? (Q.get('seed') | 0) >>> 0 : 42;
 setTimeout(() => {
-  m = buildCurveModel(seed, { rings: 1, flatR: 0.35, layers: 8, pitch: 28, width: 6, NW: 6, NF: 8, turnScale: 0.35 });   // breathy zero-ladder 7-chunk world: a flat LOBBY (flatR 0.35), doors pushed to the wings, denser mesh (~3200 rooms)
+  m = buildCurveModel(seed, { rings: 1, flatR: 0.35, layers: 8, pitch: 28, width: 6, NW: 6, NF: 8, turnScale: 0.35, lobby: true });   // breathy zero-ladder 7-chunk world: a flat LOBBY (flatR 0.35, no doors inside), doors pushed to the wings, denser mesh (~3200 rooms)
   cert = certify(m); cells = m.cells;
   warpCol = (w) => mix(hex(m.warps[w].color), INK, (w % 2) * 0.28); prodCol = (f) => hex(m.wefts[f].color);
   threads = buildThreads();

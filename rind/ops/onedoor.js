@@ -121,11 +121,11 @@ function componentsOf(cells, color, which) {
 // pairs have none (a real K break, reported raw — never faked). ──
 export function placeDoors(model, color) {
   const cells = model.cells, NW = model.NW, NF = model.NF;
-  // THE LOBBY: no door inside the flat core. The two nexuses stack at the centre (white high, production low); a
-  // door there would be a shortcut straight between them — forbidden (you must go OUT along an arm and cross in the
-  // field). So a white↔production adjacency only counts as a door beyond the lobby radius. Real crossings live in the
-  // annulus, so K is unaffected; only the spurious centre hub-touch is dropped.
-  const lobbyR2 = (model.flatR * model.R) ** 2;
+  // THE LOBBY (opt-in: model.lobby): no door inside the flat core. The two nexuses stack at the centre (white high,
+  // production low); a door there would be a shortcut straight between them — forbidden (you go OUT along an arm and
+  // cross in the field). Only safe when the weave is BREATHY (crossings already beyond the core, e.g. turnScale~0.35);
+  // on a tight weave real crossings cluster near the centre and this would drop K, so it stays off by default.
+  const lobbyR2 = model.lobby ? (model.flatR * model.R) ** 2 : 0;
   const best = new Map(); // "w:f" -> {a,b,w,f,grade,dz,horiz}
   for (const c of cells) {
     if (!(c.owner && c.owner.kind === 'white') || color[c.gi] !== 'white') continue;

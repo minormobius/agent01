@@ -146,7 +146,7 @@ export function buildCurveModel(seed = 1, opts = {}) {
   if (ownership !== 'nearest') layWeave({ ...geo, spacing: pitch, nodes }, cellsModel, lines, { width: opts.width ?? CURVE_DEFAULTS.width });
 
   return {
-    ...geo, ...lines, flatR, substrate: 'curve', ownership, pitch, spacing: reachSpacing,
+    ...geo, ...lines, flatR, substrate: 'curve', ownership, lobby: !!opts.lobby, pitch, spacing: reachSpacing,
     nodes, cells, cellsModel, nucleiCount: nodes.length, curveCount, fillerCount: nodes.length - curveCount,
   };
 }
