@@ -144,6 +144,12 @@ curl 'https://rite.mino.mobi/api/names/cultures'   # catalog of cultures / setti
 (favorite sounds Zipf-boosted so they recur, a fixed handful of ending morphemes, register shifts adopted
 set-wide). That's what makes 300 names read as one world rather than 300 rolls of the same dice. Uniqueness
 is enforced hard: no duplicates, no name within edit distance 1 of another, no name a prefix of another.</p>
+<p>Epithets (<code>kind=full</code>) are generated too, not listed: each setting carries a small grammar
+(<code>the {times}-{part}</code> &rarr; <em>the Twice-Buried</em>, <code>{count}-{body}</code> &rarr;
+<em>Nine-Fingers</em>, <code>{noun}{bond}</code> &rarr; <em>Stormsworn</em>&hellip;) whose word banks and
+templates the charter subsamples per seed &mdash; and the <code>of {place}</code> template mints a toponym
+from the same charter, so a hero can hail from a place that sounds like their own world. No epithet repeats
+within a set.</p>
 
 <footer>
   Runs entirely client-side on this page (the browser imports the same <a href="/names/engine.js">engine.js</a> the
@@ -209,6 +215,7 @@ function run() {
   for (const n of ch.favorites.nuclei) chips.push(`-${n}-`);
   for (const e of ch.endings) chips.push(`-${e}`);
   for (const s of ch.shifts) chips.push(s);
+  if (ch.epithets) for (const t of new Set(ch.epithets.templates)) chips.push(t);
   $('charter').innerHTML = 'this seed&rsquo;s dialect: ' +
     chips.map((c) => `<span class="chip">${esc(c)}</span>`).join('') +
     (ch.harmony ? ' <span class="chip">vowel harmony</span>' : '');

@@ -233,12 +233,32 @@ export const CULTURES = {
 // and — for the `full` kind — how a whole name is assembled (epithets,
 // call-sign hyphens). `shifts` are [regex, replacement, probability that this
 // charter adopts the shift at all]; adopted shifts apply to every name.
+//
+// EPITHETS ARE GENERATED, not listed. Each setting carries an epithet
+// GRAMMAR: weighted templates over word banks. Template tokens:
+//   {adj} {noun} {part} {ing} {body} {loc} {bond}  → drawn from the banks
+//   {times}  → adverbial numbers  (the Twice-Buried, the Seven-Times-Hanged)
+//   {count}  → cardinal numbers   (Nine-Fingers, Forty-Scars)
+//   {place}  → a toponym MINTED FROM THE SAME CHARTER — so an epithet can
+//              reference the set's own geography ("of Abergwyn")
+// The charter subsamples both banks and templates, so each seed has an
+// epithet STYLE; within a set no epithet repeats.
+
+const TIMES = ['Once', 'Twice', 'Twice', 'Thrice', 'Thrice', 'Seven-Times'];
+const COUNT = ['Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Nine', 'Nine', 'Eleven', 'Twelve', 'Forty'];
 
 export const SETTINGS = {
   classical: {
-    label: 'Classical', blurb: 'The culture as itself. No transform.',
-    shifts: [], sylBias: 0,
-    epithets: null, joiner: ' ',
+    label: 'Classical', blurb: 'The culture as itself. No sound transforms; the odd sober epithet.',
+    shifts: [], sylBias: 0, joiner: ' ',
+    epithet: {
+      prob: 0.15,
+      adj: ['Great', 'Wise', 'Just', 'Elder', 'Younger', 'Silent', 'Golden', 'Patient', 'Merciless', 'Fortunate'],
+      noun: ['Oath', 'Wolf', 'Laurel', 'Sea', 'Marble', 'Lion', 'Serpent', 'Olive'],
+      part: ['Exiled', 'Crowned', 'Returned', 'Remembered', 'Unconquered', 'Deified'],
+      bond: ['bane', 'friend', 'sworn'],
+      templates: ['the {adj}', 'the {adj}', 'the {adj}', 'the {adj}', 'the {times}-{part}', 'of {place}', 'of {place}', '{noun}{bond}'],
+    },
   },
   fantasy: {
     label: 'High Fantasy', blurb: 'Archaicized: y for i, ae digraphs, and a chance of an epithet in place of a family name.',
@@ -247,9 +267,18 @@ export const SETTINGS = {
       [/e(?=[dlnr])/, 'ae', 0.35],
       [/c(?=[aou])/, 'k', 0.4],         // fantasy loves a hard k
     ],
-    sylBias: 0,
-    epithets: ['the Bold', 'the Grey', 'the Unbowed', 'the Wanderer', 'of the Ash Gate', 'of the Long Watch', 'Thrice-Crowned', 'the Quiet', 'of the West Marches', 'Oathkeeper', 'the Younger', 'Stormsworn'],
-    epithetProb: 0.3, joiner: ' ',
+    sylBias: 0, joiner: ' ',
+    epithet: {
+      prob: 0.32,
+      adj: ['Bold', 'Grey', 'Unbowed', 'Quiet', 'Deathless', 'Crownless', 'Sunless', 'Wild', 'Stern', 'Tall', 'Grim'],
+      noun: ['Storm', 'Oath', 'Raven', 'Winter', 'Ash', 'Thorn', 'Iron', 'Dragon', 'Ember', 'Star', 'Wolf', 'Rune'],
+      part: ['Crowned', 'Buried', 'Drowned', 'Forsworn', 'Exiled', 'Blessed', 'Cursed', 'Unmade', 'Returned', 'Bitten'],
+      ing: ['Wandering', 'Watching', 'Burning', 'Sleeping', 'Laughing', 'Hungering'],
+      body: ['Fingers', 'Eyes', 'Hearts', 'Lives', 'Names', 'Shadows', 'Ravens', 'Winters'],
+      loc: ['Gate', 'Watch', 'March', 'Keep', 'Ford', 'Barrow', 'Vale'],
+      bond: ['sworn', 'born', 'blood', 'keeper', 'bane', 'song', 'brand', 'friend'],
+      templates: ['the {adj}', 'the {adj}', 'the {times}-{part}', 'the {times}-{part}', '{count}-{body}', 'of the {adj} {loc}', 'of {place}', '{noun}{bond}', '{noun}{bond}', 'the Ever-{ing}'],
+    },
   },
   scifi: {
     label: 'Spacer', blurb: 'Clipped for comms: c hardens to k, qu to q, names run a syllable short, full names hyphenate like call signs.',
@@ -259,8 +288,17 @@ export const SETTINGS = {
       [/ph/, 'f', 0.7],
       [/[aeiou]$/, '', 0.45],           // clip trailing vowel
     ],
-    sylBias: -1,
-    epithets: null, joiner: '-',
+    sylBias: -1, joiner: '-',
+    epithet: {
+      prob: 0.18,
+      adj: ['Cold', 'Still', 'Long', 'Slow', 'Outer', 'Deep', 'Weightless', 'Redlined', 'Silent', 'Sunward'],
+      noun: ['Void', 'Drift', 'Vector', 'Torch', 'Hull', 'Static', 'Flare', 'Vacuum', 'Orbit', 'Ice'],
+      part: ['Vented', 'Burned', 'Salvaged', 'Flagged', 'Grounded'],
+      body: ['Burns', 'Gs', 'Suns', 'Klicks', 'Hulls', 'Lives'],
+      loc: ['Belt', 'Reach', 'Dark', 'Lanes', 'Dock', 'Burn', 'Haul'],
+      bond: ['born', 'runner', 'breaker', 'rigger'],
+      templates: ['the {adj}', '{count}-{body}', '{count}-{body}', '{noun}{bond}', '{noun}{bond}', 'of the {adj} {loc}', 'of the {adj} {loc}', 'the {times}-{part}'],
+    },
   },
   fey: {
     label: 'Feywild', blurb: 'Softened and stretched: doubled vowels, c for k, liquid glides; full names flow unhyphenated.',
@@ -269,9 +307,18 @@ export const SETTINGS = {
       [/([ae])(?=[^aeiou][aeiou])/, '$1$1', 0.4],
       [/r(?=[aeiou])/, 'rh', 0.3],
     ],
-    sylBias: 1,
-    epithets: ['of the Hollow Hill', 'Dewsworn', 'of the Third Ring', 'Moth-Mothered', 'the Ever-Laughing', 'of No Shadow'],
-    epithetProb: 0.22, joiner: ' ',
+    sylBias: 1, joiner: ' ',
+    epithet: {
+      prob: 0.28,
+      adj: ['Unseen', 'Dappled', 'Honeyed', 'Nameless', 'Moonlit', 'Barefoot', 'Backwards', 'Hollow'],
+      noun: ['Moth', 'Dew', 'Briar', 'Bell', 'Owl', 'Toad', 'Thistle', 'Cobweb', 'Hazel'],
+      part: ['Mothered', 'Kissed', 'Promised', 'Stolen', 'Spoken', 'Forgotten', 'Invited'],
+      ing: ['Laughing', 'Dancing', 'Listening', 'Smiling', 'Forgetting'],
+      body: ['Names', 'Shadows', 'Wishes', 'Teeth', 'Winters'],
+      loc: ['Hill', 'Ring', 'Court', 'Wood', 'Stair', 'Meadow'],
+      bond: ['touched', 'spoken', 'sworn', 'mothered'],
+      templates: ['the Ever-{ing}', 'the Ever-{ing}', 'of No {noun}', 'of the {adj} {loc}', '{noun}{bond}', '{noun}{bond}', 'the {adj}', '{count}-{body}', 'the {times}-{part}'],
+    },
   },
   wasteland: {
     label: 'Wasteland', blurb: "Worn down by use: unstressed vowels collapse to apostrophes, soft endings shear off.",
@@ -280,9 +327,18 @@ export const SETTINGS = {
       [/[aeiou]$/, '', 0.5],
       [/th/, 't', 0.35],
     ],
-    sylBias: 0,
-    epithets: ['Nine-Fingers', 'of the Glass Flats', 'Rustborn', 'the Twice-Buried', 'Saltblood', 'of the Last Road'],
-    epithetProb: 0.25, joiner: ' ',
+    sylBias: 0, joiner: ' ',
+    epithet: {
+      prob: 0.3,
+      adj: ['Lucky', 'Hollow', 'Patient', 'Rusted', 'Dry', 'Quiet', 'Crooked', 'Careful'],
+      noun: ['Rust', 'Salt', 'Glass', 'Dust', 'Wire', 'Bone', 'Smoke', 'Tar', 'Lead', 'Ash'],
+      part: ['Buried', 'Hanged', 'Sold', 'Burned', 'Bitten', 'Skinned', 'Forgiven'],
+      ing: ['Walking', 'Digging', 'Smiling', 'Starving'],
+      body: ['Fingers', 'Teeth', 'Lives', 'Scars', 'Dogs', 'Knives'],
+      loc: ['Flats', 'Road', 'Wells', 'Pits', 'Fence', 'Crossing'],
+      bond: ['born', 'blood', 'eater', 'walker'],
+      templates: ['{count}-{body}', '{count}-{body}', 'the {times}-{part}', 'the {times}-{part}', '{noun}{bond}', 'of the {adj} {loc}', 'the {adj}', 'the Ever-{ing}'],
+    },
   },
 };
 
@@ -369,7 +425,26 @@ function buildCharter(rng, culture, setting, kind) {
     place: culture.placePre || null,
   };
 
+  // Epithet charter (full kind only): subsample the grammar's banks AND its
+  // templates, so each seed speaks a different epithet style. The {place}
+  // token needs the culture's toponym endings even when kind !== place.
+  let epithet = null;
+  if (kind === 'full' && setting.epithet) {
+    const spec = setting.epithet;
+    epithet = { prob: spec.prob, times: TIMES, count: COUNT };
+    for (const bank of ['adj', 'noun', 'part', 'ing', 'body', 'loc', 'bond']) {
+      if (spec[bank]) epithet[bank] = subsample(rng, spec[bank].slice(), 0.65, Math.min(3, spec[bank].length));
+    }
+    // Drop templates whose banks this setting doesn't carry, then subsample.
+    const usable = spec.templates.filter((t) =>
+      [...t.matchAll(/\{(\w+)\}/g)].every(([, tok]) => tok === 'place' || tok === 'times' || tok === 'count' || epithet[tok]));
+    epithet.templates = subsample(rng, usable.slice(), 0.65, Math.min(3, usable.length));
+  }
+
   return {
+    epithet,
+    placeEndings: subsample(rng, (culture.place || []).slice(), 0.6, Math.min(3, (culture.place || []).length)),
+    usedEpithets: new Set(),
     onsets, nuclei, codas,
     favorites: { onsets: favOnsets, nuclei: favNuclei },
     endings, familyEndings,
@@ -381,10 +456,26 @@ function buildCharter(rng, culture, setting, kind) {
     syl: culture.syl.map((s) => Math.max(1, s + setting.sylBias)),
     codaMid: culture.codaMid, codaFin: culture.codaFin,
     ortho: culture.ortho || [],
-    epithets: setting.epithets ? subsample(rng, setting.epithets.slice(), 0.7, 4) : null,
-    epithetProb: setting.epithetProb || 0,
     joiner: setting.joiner || ' ',
   };
+}
+
+// ---------- epithet synthesis ----------
+//
+// Expand one of the charter's templates from its banks. Within a set an
+// epithet never repeats — a world can hold one Nine-Fingers. Returns null if
+// a fresh one can't be found quickly; the caller falls back to a family name.
+
+function makeEpithet(rng, ch) {
+  const e = ch.epithet;
+  for (let t = 0; t < 4; t++) {
+    const s = pick(rng, e.templates).replace(/\{(\w+)\}/g, (_, tok) => {
+      if (tok === 'place') return polish(buildStem(rng, ch, ch.placeEndings, 0.85), ch);
+      return pick(rng, e[tok]);
+    });
+    if (!ch.usedEpithets.has(s)) { ch.usedEpithets.add(s); return s; }
+  }
+  return null;
 }
 
 // ---------- stem synthesis ----------
@@ -442,8 +533,9 @@ function polish(name, ch) {
 function makeName(rng, ch, kind) {
   if (kind === 'full') {
     const given = buildPart(rng, ch, ch.endings, ch.endProb);
-    if (ch.epithets && rng() < ch.epithetProb) {
-      return given + ' ' + pick(rng, ch.epithets);
+    if (ch.epithet && rng() < ch.epithet.prob) {
+      const ep = makeEpithet(rng, ch);
+      if (ep) return given + ' ' + ep;
     }
     let family = buildPart(rng, ch, ch.familyEndings, 0.8);
     if (ch.pre.family && rng() < ch.preProb) family = capJoin(pick(rng, ch.pre.family), family);
@@ -521,7 +613,7 @@ export function generateSet(opts = {}) {
     attempts++;
     const name = makeName(rng, ch, kind);
     const key = normKey(name);
-    if (key.length < 3 || key.length > (kind === 'full' ? 26 : 14)) continue;
+    if (key.length < 3 || key.length > (kind === 'full' ? 34 : 14)) continue;
     if (seen.has(key)) continue;
     let ok = true;
     if (attempts < tier3) {
@@ -547,7 +639,7 @@ export function generateSet(opts = {}) {
       endings: ch.endings,
       familyEndings: ch.familyEndings || undefined,
       shifts: ch.shifts.map(([re, repl]) => `${re.source} → ${repl || '∅'}`),
-      epithets: ch.epithets || undefined,
+      epithets: ch.epithet ? { templates: ch.epithet.templates } : undefined,
       harmony: !!ch.harmony,
     },
     names,

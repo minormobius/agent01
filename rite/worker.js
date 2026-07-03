@@ -36,7 +36,7 @@ export default {
       if (url.pathname === '/api/health') {
         return json({
           ok: true,
-          version: 'names-v1',
+          version: 'names-v2',
           routes: [
             '/api/sentence', '/api/grade',
             '/api/fodder/next', '/api/fodder/vote', '/api/fodder/promoted',

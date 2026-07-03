@@ -88,6 +88,27 @@ console.log('— blends, catalog, errors —');
   check(capped.requested <= 1000, `count capped at 1000 (requested field: ${capped.requested})`);
 }
 
+console.log('— generated epithets —');
+{
+  const s = generateSet({ seed: 'flourish', culture: 'norse', setting: 'wasteland', kind: 'full', count: 300 });
+  const flourished = s.names.filter((n) => / (the |of |Ever-|No )/.test(n) || /[a-z] [A-Z][a-z]+-[A-Z]/.test(n) || / \S+(born|blood|eater|walker|sworn|keeper|bane|song|brand|friend|runner|breaker|rigger|touched|spoken|mothered)$/.test(n));
+  check(flourished.length >= 30, `epithets occur at scale (${flourished.length}/300 flourished names)`);
+  const eps = flourished.map((n) => n.split(' ').slice(1).join(' '));
+  const uniq = new Set(eps).size;
+  check(uniq === eps.length, `no epithet repeats within a set (${uniq}/${eps.length} distinct)`);
+  check(s.names.every((n) => !/[{}]/.test(n)), 'no unexpanded template tokens');
+  const a = generateSet({ seed: 'flourish', culture: 'norse', setting: 'wasteland', kind: 'full', count: 300 });
+  check(JSON.stringify(a.names) === JSON.stringify(s.names), 'epithet generation is deterministic');
+  // every setting that carries a grammar produces epithets
+  for (const setting of Object.keys(SETTINGS)) {
+    const t = generateSet({ seed: 'flourish2', culture: 'frankish', setting, kind: 'full', count: 200 });
+    const withEp = t.names.filter((n) => n.split(' ').length > 2 || / (the|of|No) /.test(n + ' ')).length;
+    if (withEp === 0) { failures++; console.error(`    no epithets in ${setting}`); }
+    if (t.names.some((n) => /[{}]/.test(n))) { failures++; console.error(`    unexpanded token in ${setting}`); }
+  }
+  check(true, 'all settings carry working epithet grammars');
+}
+
 console.log('— flavor smoke (eyeball these) —');
 for (const [culture, setting] of [['norse', 'classical'], ['veil', 'fantasy'], ['nihon', 'classical'], ['desertic', 'classical'], ['steppe', 'scifi'], ['brythonic', 'wasteland']]) {
   const s = generateSet({ seed: 'taste', culture, setting, kind: 'full', count: 8 });
