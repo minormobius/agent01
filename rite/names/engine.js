@@ -257,7 +257,9 @@ export const SETTINGS = {
       noun: ['Oath', 'Wolf', 'Laurel', 'Sea', 'Marble', 'Lion', 'Serpent', 'Olive'],
       part: ['Exiled', 'Crowned', 'Returned', 'Remembered', 'Unconquered', 'Deified'],
       bond: ['bane', 'friend', 'sworn'],
-      templates: ['the {adj}', 'the {adj}', 'the {adj}', 'the {adj}', 'the {times}-{part}', 'of {place}', 'of {place}', '{noun}{bond}'],
+      role: ['Archon', 'Oracle', 'Prefect', 'Tyrant', 'Augur', 'Consul'],
+      templates: ['the {adj}', 'the {adj}', 'the {adj}', 'the {adj}', 'the {times}-{part}', 'of {place}', 'of {place}', '{noun}{bond}', 'the {noun}-{part}'],
+      titles: ['{role} of {place}', '{role} of {place}', '{role} of the {noun}', 'First {role} of {place}'],
     },
   },
   fantasy: {
@@ -277,7 +279,9 @@ export const SETTINGS = {
       body: ['Fingers', 'Eyes', 'Hearts', 'Lives', 'Names', 'Shadows', 'Ravens', 'Winters'],
       loc: ['Gate', 'Watch', 'March', 'Keep', 'Ford', 'Barrow', 'Vale'],
       bond: ['sworn', 'born', 'blood', 'keeper', 'bane', 'song', 'brand', 'friend'],
-      templates: ['the {adj}', 'the {adj}', 'the {times}-{part}', 'the {times}-{part}', '{count}-{body}', 'of the {adj} {loc}', 'of {place}', '{noun}{bond}', '{noun}{bond}', 'the Ever-{ing}'],
+      role: ['Warden', 'Keeper', 'Thane', 'Marshal', 'Seer', 'Reeve', 'Knight', 'Shepherd'],
+      templates: ['the {adj}', 'the {adj}', 'the {times}-{part}', 'the {times}-{part}', '{count}-{body}', 'of the {adj} {loc}', 'of {place}', '{noun}{bond}', '{noun}{bond}', 'the Ever-{ing}', 'the {noun}-{part}', '{noun}-{part}-and-{part}'],
+      titles: ['{role} of {place}', '{role} of {place}', '{role} of the {adj} {loc}', 'High {role} of {place}', 'Last {role} of the {loc}', '{role} of the {count} {body}'],
     },
   },
   scifi: {
@@ -297,7 +301,9 @@ export const SETTINGS = {
       body: ['Burns', 'Gs', 'Suns', 'Klicks', 'Hulls', 'Lives'],
       loc: ['Belt', 'Reach', 'Dark', 'Lanes', 'Dock', 'Burn', 'Haul'],
       bond: ['born', 'runner', 'breaker', 'rigger'],
-      templates: ['the {adj}', '{count}-{body}', '{count}-{body}', '{noun}{bond}', '{noun}{bond}', 'of the {adj} {loc}', 'of the {adj} {loc}', 'the {times}-{part}'],
+      role: ['Captain', 'Warden', 'Chief', 'Broker', 'Foreman', 'Marshal'],
+      templates: ['the {adj}', '{count}-{body}', '{count}-{body}', '{noun}{bond}', '{noun}{bond}', 'of the {adj} {loc}', 'of the {adj} {loc}', 'the {times}-{part}', 'the {noun}-{part}'],
+      titles: ['{role} of {place}', '{role} of {place}', '{role} of the {adj} {loc}', 'First {role} of the {loc}', '{role} of the {count} {body}'],
     },
   },
   fey: {
@@ -317,7 +323,9 @@ export const SETTINGS = {
       body: ['Names', 'Shadows', 'Wishes', 'Teeth', 'Winters'],
       loc: ['Hill', 'Ring', 'Court', 'Wood', 'Stair', 'Meadow'],
       bond: ['touched', 'spoken', 'sworn', 'mothered'],
-      templates: ['the Ever-{ing}', 'the Ever-{ing}', 'of No {noun}', 'of the {adj} {loc}', '{noun}{bond}', '{noun}{bond}', 'the {adj}', '{count}-{body}', 'the {times}-{part}'],
+      role: ['Herald', 'Piper', 'Speaker', 'Doorkeeper', 'Gardener', 'Warden'],
+      templates: ['the Ever-{ing}', 'the Ever-{ing}', 'of No {noun}', 'of the {adj} {loc}', '{noun}{bond}', '{noun}{bond}', 'the {adj}', '{count}-{body}', 'the {times}-{part}', 'the {noun}-{part}', '{noun}-{part}-and-{part}'],
+      titles: ['{role} of the {adj} {loc}', '{role} of {place}', '{role} of {place}', '{role} of the {count} {body}', 'Last {role} of the {loc}'],
     },
   },
   wasteland: {
@@ -337,7 +345,9 @@ export const SETTINGS = {
       body: ['Fingers', 'Teeth', 'Lives', 'Scars', 'Dogs', 'Knives'],
       loc: ['Flats', 'Road', 'Wells', 'Pits', 'Fence', 'Crossing'],
       bond: ['born', 'blood', 'eater', 'walker'],
-      templates: ['{count}-{body}', '{count}-{body}', 'the {times}-{part}', 'the {times}-{part}', '{noun}{bond}', 'of the {adj} {loc}', 'the {adj}', 'the Ever-{ing}'],
+      role: ['Boss', 'Judge', 'Warden', 'Ferryman', 'Keeper'],
+      templates: ['{count}-{body}', '{count}-{body}', 'the {times}-{part}', 'the {times}-{part}', '{noun}{bond}', 'of the {adj} {loc}', 'the {adj}', 'the Ever-{ing}', 'the {noun}-{part}', '{noun}-{part}-and-{part}'],
+      titles: ['{role} of {place}', '{role} of {place}', '{role} of the {adj} {loc}', '{role} of the {loc}', 'Last {role} of the {loc}'],
     },
   },
 };
@@ -347,6 +357,7 @@ export const KINDS = {
   family: { label: 'Family names', blurb: 'Surnames, houses, patronymics.' },
   place: { label: 'Place names', blurb: 'Settlements, regions, landmarks.' },
   full: { label: 'Full names', blurb: 'Given + family (or epithet, if the setting carries them).' },
+  title: { label: 'Titles & offices', blurb: 'Standalone honorifics — Warden of the Glass Flats. Toponyms minted from the same charter.' },
 };
 
 // ---------- charter: the per-seed sub-dialect ----------
@@ -386,6 +397,9 @@ function resolveCulture(cultureKey) {
   // plenty — more just turns to mud.
   const [a, b] = [CULTURES[parts[0]], CULTURES[parts[1]]];
   const cat = (k) => [...(a[k] || []), ...(b[k] || [])];
+  // Optional banks must merge to null, not [] — an empty array is truthy and
+  // downstream "has this bank?" checks would pick undefined out of it.
+  const opt = (k) => { const v = cat(k); return v.length ? v : null; };
   return {
     key: parts.slice(0, 2).join('+'),
     label: `${a.label} × ${b.label}`,
@@ -394,7 +408,7 @@ function resolveCulture(cultureKey) {
     onsets: cat('onsets'), nuclei: cat('nuclei'), codas: cat('codas'),
     codaMid: (a.codaMid + b.codaMid) / 2, codaFin: (a.codaFin + b.codaFin) / 2,
     given: cat('given'), family: cat('family'), place: cat('place'),
-    familyPre: cat('familyPre'), placePre: cat('placePre'),
+    familyPre: opt('familyPre'), placePre: opt('placePre'),
     harmony: a.harmony || b.harmony || null,
     ortho: [...(a.ortho || []), ...(b.ortho || [])],
   };
@@ -425,20 +439,25 @@ function buildCharter(rng, culture, setting, kind) {
     place: culture.placePre || null,
   };
 
-  // Epithet charter (full kind only): subsample the grammar's banks AND its
-  // templates, so each seed speaks a different epithet style. The {place}
+  // Epithet charter (full + title kinds): subsample the grammar's banks AND
+  // its templates, so each seed speaks a different epithet style. The {place}
   // token needs the culture's toponym endings even when kind !== place.
   let epithet = null;
-  if (kind === 'full' && setting.epithet) {
+  if ((kind === 'full' || kind === 'title') && setting.epithet) {
     const spec = setting.epithet;
     epithet = { prob: spec.prob, times: TIMES, count: COUNT };
-    for (const bank of ['adj', 'noun', 'part', 'ing', 'body', 'loc', 'bond']) {
+    for (const bank of ['adj', 'noun', 'part', 'ing', 'body', 'loc', 'bond', 'role']) {
       if (spec[bank]) epithet[bank] = subsample(rng, spec[bank].slice(), 0.65, Math.min(3, spec[bank].length));
     }
+    const hasBanks = (t) =>
+      [...t.matchAll(/\{(\w+)\}/g)].every(([, tok]) => tok === 'place' || tok === 'times' || tok === 'count' || epithet[tok]);
     // Drop templates whose banks this setting doesn't carry, then subsample.
-    const usable = spec.templates.filter((t) =>
-      [...t.matchAll(/\{(\w+)\}/g)].every(([, tok]) => tok === 'place' || tok === 'times' || tok === 'count' || epithet[tok]));
+    const usable = spec.templates.filter(hasBanks);
     epithet.templates = subsample(rng, usable.slice(), 0.65, Math.min(3, usable.length));
+    // Title templates are NOT subsampled: the {place}-bearing ones are the
+    // only generative escape hatch, and a 300-title set needs it — the finite
+    // templates alone span well under 300 combinations.
+    if (kind === 'title') epithet.titles = (spec.titles || []).filter(hasBanks);
   }
 
   return {
@@ -463,15 +482,21 @@ function buildCharter(rng, culture, setting, kind) {
 // ---------- epithet synthesis ----------
 //
 // Expand one of the charter's templates from its banks. Within a set an
-// epithet never repeats — a world can hold one Nine-Fingers. Returns null if
-// a fresh one can't be found quickly; the caller falls back to a family name.
+// epithet never repeats — a world can hold one Nine-Fingers. Within a single
+// expansion a bank never repeats a word either, so the second-order "deed"
+// templates ({noun}-{part}-and-{part}) can't yield Buried-and-Buried.
+// Returns null if a fresh one can't be found quickly; the caller falls back.
 
-function makeEpithet(rng, ch) {
+function makeEpithet(rng, ch, templates) {
   const e = ch.epithet;
   for (let t = 0; t < 4; t++) {
-    const s = pick(rng, e.templates).replace(/\{(\w+)\}/g, (_, tok) => {
+    const drawn = {};
+    const s = pick(rng, templates).replace(/\{(\w+)\}/g, (_, tok) => {
       if (tok === 'place') return polish(buildStem(rng, ch, ch.placeEndings, 0.85), ch);
-      return pick(rng, e[tok]);
+      let v = pick(rng, e[tok]);
+      if (drawn[tok] && drawn[tok].has(v)) v = pick(rng, e[tok]); // one re-pick per repeat
+      (drawn[tok] || (drawn[tok] = new Set())).add(v);
+      return v;
     });
     if (!ch.usedEpithets.has(s)) { ch.usedEpithets.add(s); return s; }
   }
@@ -531,14 +556,21 @@ function polish(name, ch) {
 }
 
 function makeName(rng, ch, kind) {
+  if (kind === 'title') {
+    if (ch.epithet && ch.epithet.titles && ch.epithet.titles.length) {
+      const t = makeEpithet(rng, ch, ch.epithet.titles);
+      if (t) return t;
+    }
+    return buildPart(rng, ch, ch.placeEndings, 0.85); // degenerate fallback: a bare toponym
+  }
   if (kind === 'full') {
     const given = buildPart(rng, ch, ch.endings, ch.endProb);
     if (ch.epithet && rng() < ch.epithet.prob) {
-      const ep = makeEpithet(rng, ch);
+      const ep = makeEpithet(rng, ch, ch.epithet.templates);
       if (ep) return given + ' ' + ep;
     }
     let family = buildPart(rng, ch, ch.familyEndings, 0.8);
-    if (ch.pre.family && rng() < ch.preProb) family = capJoin(pick(rng, ch.pre.family), family);
+    if (ch.pre.family && ch.pre.family.length && rng() < ch.preProb) family = capJoin(pick(rng, ch.pre.family), family);
     return given + ch.joiner + family;
   }
   let s = buildPart(rng, ch, ch.endings, ch.endProb);
@@ -613,7 +645,7 @@ export function generateSet(opts = {}) {
     attempts++;
     const name = makeName(rng, ch, kind);
     const key = normKey(name);
-    if (key.length < 3 || key.length > (kind === 'full' ? 34 : 14)) continue;
+    if (key.length < 3 || key.length > (kind === 'full' || kind === 'title' ? 34 : 14)) continue;
     if (seen.has(key)) continue;
     let ok = true;
     if (attempts < tier3) {
@@ -639,7 +671,7 @@ export function generateSet(opts = {}) {
       endings: ch.endings,
       familyEndings: ch.familyEndings || undefined,
       shifts: ch.shifts.map(([re, repl]) => `${re.source} → ${repl || '∅'}`),
-      epithets: ch.epithet ? { templates: ch.epithet.templates } : undefined,
+      epithets: ch.epithet ? { templates: kind === 'title' ? ch.epithet.titles : ch.epithet.templates } : undefined,
       harmony: !!ch.harmony,
     },
     names,

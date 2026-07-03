@@ -57,8 +57,41 @@ console.log('— full sweep: every culture × setting × kind (count 60) —');
         if (s.count < 60) { shortfalls++; console.error(`    shortfall: ${culture}/${setting}/${kind} → ${s.count}/60`); }
         const keys = s.names.map(norm);
         if (new Set(keys).size !== keys.length) { failures++; console.error(`    dup in ${culture}/${setting}/${kind}`); }
+        if (s.names.some((n) => n.includes('undefined'))) { failures++; console.error(`    'undefined' leaked in ${culture}/${setting}/${kind}`); }
       }
   check(shortfalls === 0, `${combos} combos all deliver full sets`);
+}
+
+console.log('— blend sweep: merged wardrobes never leak undefined (the steppe+hellenic bug) —');
+{
+  const cultures = Object.keys(CULTURES);
+  let bad = 0, combos = 0;
+  for (let i = 0; i < cultures.length; i++) {
+    const blend = `${cultures[i]}+${cultures[(i + 3) % cultures.length]}`;
+    for (const kind of Object.keys(KINDS)) {
+      combos++;
+      const s = generateSet({ seed: 'blendbug', culture: blend, setting: 'fantasy', kind, count: 60 });
+      if (s.names.some((n) => n.includes('undefined'))) { bad++; console.error(`    undefined in ${blend}/${kind}`); }
+      if (s.count < 60) { bad++; console.error(`    shortfall ${blend}/${kind}: ${s.count}/60`); }
+    }
+  }
+  const regress = generateSet({ seed: 'x', culture: 'steppe+hellenic', setting: 'classical', kind: 'full', count: 300 });
+  check(!regress.names.some((n) => n.includes('undefined')), 'steppe+hellenic full ×300 is clean (the reported bug)');
+  check(bad === 0, `${combos} blend combos clean`);
+}
+
+console.log('— titles —');
+{
+  let bad = 0;
+  for (const setting of Object.keys(SETTINGS)) {
+    const s = generateSet({ seed: 'office', culture: 'norse', setting, kind: 'title', count: 300 });
+    if (s.count < 300) { bad++; console.error(`    title shortfall in ${setting}: ${s.count}/300`); }
+    if (s.names.some((n) => /[{}]|undefined/.test(n))) { bad++; console.error(`    bad title in ${setting}`); }
+  }
+  check(bad === 0, '300-title sets fill for every setting, no leaks');
+  const s = generateSet({ seed: 'office', culture: 'brythonic', setting: 'wasteland', kind: 'title', count: 300 });
+  const withPlace = s.names.filter((n) => / of [A-Z]/.test(n)).length;
+  check(withPlace > 50, `minted-toponym titles occur at scale (${withPlace}/300 "of <Place>")`);
 }
 
 console.log('— tight-space stress: every culture at 300, worst-case kinds —');
@@ -110,9 +143,19 @@ console.log('— generated epithets —');
 }
 
 console.log('— flavor smoke (eyeball these) —');
-for (const [culture, setting] of [['norse', 'classical'], ['veil', 'fantasy'], ['nihon', 'classical'], ['desertic', 'classical'], ['steppe', 'scifi'], ['brythonic', 'wasteland']]) {
+for (const [culture, setting] of [['norse', 'classical'], ['veil', 'fantasy'], ['nihon', 'classical'], ['desertic', 'classical'], ['steppe', 'scifi'], ['brythonic', 'wasteland'], ['steppe+hellenic', 'fantasy']]) {
   const s = generateSet({ seed: 'taste', culture, setting, kind: 'full', count: 8 });
   console.log(`  ${culture}/${setting}/full: ${s.names.join(' · ')}`);
+}
+for (const [culture, setting] of [['norse', 'fantasy'], ['romance', 'classical'], ['mesoa', 'wasteland'], ['veil', 'fey'], ['steppe', 'scifi']]) {
+  const s = generateSet({ seed: 'office', culture, setting, kind: 'title', count: 6 });
+  console.log(`  ${culture}/${setting}/title: ${s.names.join(' · ')}`);
+}
+{
+  // deeds are rare — trawl a big fantasy set for second-order forms
+  const s = generateSet({ seed: 'saga', culture: 'frankish', setting: 'fantasy', kind: 'full', count: 300 });
+  const deeds = s.names.filter((n) => /the [A-Z][a-z]+-[A-Z]|-and-/.test(n));
+  console.log(`  deeds in frankish/fantasy ×300 (${deeds.length}): ${deeds.slice(0, 6).join(' · ')}`);
 }
 
 if (failures) { console.error(`\n${failures} FAILURE(S)`); process.exit(1); }

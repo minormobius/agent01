@@ -137,7 +137,7 @@ curl 'https://rite.mino.mobi/api/names/cultures'   # catalog of cultures / setti
   <tr><td><code>seed</code></td><td>any string. Omit it and the server mints one (returned in the response with a permalink).</td></tr>
   <tr><td><code>culture</code></td><td>a phonotactic wardrobe. Blend two with <code>+</code>, e.g. <code>norse+romance</code>.</td></tr>
   <tr><td><code>setting</code></td><td>register transform: <code>classical</code>, <code>fantasy</code>, <code>scifi</code>, <code>fey</code>, <code>wasteland</code>.</td></tr>
-  <tr><td><code>kind</code></td><td><code>given</code>, <code>family</code>, <code>place</code>, or <code>full</code>.</td></tr>
+  <tr><td><code>kind</code></td><td><code>given</code>, <code>family</code>, <code>place</code>, <code>full</code>, or <code>title</code> (standalone offices &mdash; <em>Warden of the Glass Flats</em>).</td></tr>
   <tr><td><code>count</code></td><td>1&ndash;1000, default 300.</td></tr>
 </table>
 <p>Every set is generated under a per-seed <strong>charter</strong> &mdash; a sub-dialect of the culture
@@ -149,7 +149,9 @@ is enforced hard: no duplicates, no name within edit distance 1 of another, no n
 <em>Nine-Fingers</em>, <code>{noun}{bond}</code> &rarr; <em>Stormsworn</em>&hellip;) whose word banks and
 templates the charter subsamples per seed &mdash; and the <code>of {place}</code> template mints a toponym
 from the same charter, so a hero can hail from a place that sounds like their own world. No epithet repeats
-within a set.</p>
+within a set. Rare second-order <em>deeds</em> compose two banks (<em>the Thorn-Cursed</em>,
+<em>Ember-Buried-and-Drowned</em>), and <code>kind=title</code> runs the same grammar standalone
+(<em>Last Knight of the Vale</em>, <em>Speaker of the Forty Names</em>).</p>
 
 <footer>
   Runs entirely client-side on this page (the browser imports the same <a href="/names/engine.js">engine.js</a> the
