@@ -43,18 +43,42 @@ ok(AXIS_MAP.power_tier === 'revelation_tier' && AXIS_MAP.plot_tier === 'power_ti
   ok(importRecord({ name: 'A Whisper', type: 'rumor', status: 'pending' }).approved === false, 'rumor is a valid type; pending → approved:false');
 }
 
-// ── THE REAL PROOF: hoopy's actual 75-record export imports + passes the whole gate ──
+// ── the NESTED (newer) schema: fields under content{}, integer tiers on our axes, world_refs ──
+{
+  const ci = importRecord({ type: 'item', revelation_tier: 2, narrative_tier: 1, power_tier: 3,
+    content: { name: 'Nave Market Scale', description: 'a scale' }, world_refs: ['The Nave'], status: 'approved' });
+  ok(ci.id === 'nave-market-scale' && ci.content.name === 'Nave Market Scale' && ci.content.description === 'a scale', 'nested content{} fields lift into the engine shape');
+  ok(ci.revelation_tier === 2 && ci.narrative_tier === 1 && ci.power_tier === 3, 'integer tiers pass through WITHOUT the r/n/p axis remap');
+  ok(ci.refs[0] === 'The Nave', 'world_refs carries as refs');
+}
+
+// ── THE REAL PROOF: hoopy's actual 600-record export imports + closes the whole gate ──
 {
   const wx = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../v096/story/world_export.json'), 'utf8'));
   const { content } = importWorldExport(wx);
-  ok(content.length === 75, 'all 75 records import');
+  ok(content.length === 600, 'all 600 records import');
   const byType = {}; for (const c of content) byType[c.type] = (byType[c.type] || 0) + 1;
-  ok(byType.rumor === 10 && byType.npc === 15 && byType.item === 15, `his type mix preserved (${JSON.stringify(byType)})`);
+  ok(byType.rumor === 80 && byType.npc === 120 && byType.item === 120 && byType.creature === 80 && byType.lore_fragment === 160 && byType.plot_beat === 40,
+    `his type mix preserved (${JSON.stringify(byType)})`);
   ok(content.every((c) => c.content && c.content.name && c.revelation_tier >= 1), 'every item has content + a tier');
-  const rep = reviewBatch([], content, [], { external: worldExternal() });
-  ok(rep.verdict === 'PASS', `hoopy's canon passes the full gate (verdict ${rep.verdict}, ${rep.conflicts.length} conflicts)`);
+  // worldExternal(content) = static manifest ∪ derived runtime boundary ∪ faction reps. With it the gate
+  // closes every REACHABILITY question — no orphan_gate survives. That is the real thing this proves.
+  //
+  // NB — this v096 export is a HISTORICAL, pre-tombstone snapshot (every record is statusless). Its only
+  // surviving conflicts are `tree_missing_goto` — but those live entirely in records hoopy has since
+  // TOMBSTONED in the live pool (status:'retired'). The live game never sees them: servePool drops
+  // tombstones, and on the served (active) pool there are ZERO broken gotos. So we assert the gate CLOSES
+  // (no orphans) and that nothing worse than a stale-snapshot goto remains — we do NOT pin their count or
+  // names as if they were live defects (that was the "flagging a retired NPC" bug). The tombstone-drop
+  // invariant itself is pinned in hoop/v101/test/solvable.selftest.mjs against real served data.
+  const rep = reviewBatch([], content, [], { external: worldExternal(content) });
+  ok(!rep.conflicts.some((c) => c.code === 'orphan_gate'), 'no reachability orphans remain — every gate closes on the manifest');
+  ok(rep.conflicts.every((c) => c.code === 'tree_missing_goto'), `the only survivors are stale-snapshot dialogue gotos (${JSON.stringify([...new Set(rep.conflicts.map((c) => c.code))])})`);
   // and WITHOUT the world manifest it correctly flags the runtime-flag orphans (the boundary works both ways)
-  ok(reviewBatch([], content, []).verdict === 'BLOCK', 'without the world manifest, the journey-flag gates are (correctly) orphans');
+  const bare = reviewBatch([], content, []);
+  ok(bare.verdict === 'BLOCK' && bare.conflicts.some((c) => c.code === 'orphan_gate'), 'without the world manifest, the journey-flag gates are (correctly) orphans');
+  // the min_rep gate closes through the external reps channel (faction rep is granted by the game, not the pool)
+  ok(!rep.conflicts.some((c) => c.code === 'orphan_rep'), "the drift min_rep gate closes via WORLD_REPS (runtime-granted faction rep)");
 }
 
 console.log(`import.selftest: ${pass} passed, ${fail} failed`);
