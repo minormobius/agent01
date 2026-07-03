@@ -182,10 +182,21 @@ function drawVoronoiGround(ctx, W, H, roam, cam) {
   }
 }
 
-function drawPlayer(ctx, sx, sy, z) {
+// the player. If the host passes its rolled character sprite (opts.playerSprite — the SAME sprite the ship
+// deck draws, so identity carries into the overworld), draw that over a lantern glow; else a hooded stand-in.
+function drawPlayer(ctx, sx, sy, z, sprite) {
   const r = Math.max(7, 9 * z);
-  ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.9, r * 0.9, r * 0.34, 0, 0, Math.PI * 2); ctx.fill();
-  // a small hooded figure: body + head, gold-rimmed so it reads against any band
+  ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.28, r * 0.9, r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+  if (sprite && sprite.width) {
+    // the lantern (the player's true glow), then the rolled sprite standing over it — as on the ship deck
+    ctx.save(); ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = r * 2.4;
+    ctx.fillStyle = '#fff7e6'; ctx.beginPath(); ctx.arc(sx, sy, r * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    const h = Math.max(20, 26 * z), w = h * (sprite.width / sprite.height);
+    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(sprite, sx - w / 2, sy - h * 0.92, w, h);
+    ctx.imageSmoothingEnabled = sm;
+    return;
+  }
   ctx.fillStyle = '#20242c'; ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = Math.max(1.4, 1.8 * z);
   ctx.beginPath(); ctx.moveTo(sx, sy - r * 1.9); ctx.lineTo(sx + r * 0.8, sy); ctx.lineTo(sx - r * 0.8, sy); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#e8e0d0'; ctx.beginPath(); ctx.arc(sx, sy - r * 1.9, r * 0.5, 0, Math.PI * 2); ctx.fill();
@@ -222,7 +233,7 @@ export function drawRoam(ctx, W, H, roam, cam = { x: 0, y: 0, z: 1 }, opts = {})
     if (f.fight && foe && foe.id === f.id) { ctx.strokeStyle = 'rgba(220,90,70,0.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(10, 12 * z), 0, Math.PI * 2); ctx.stroke(); }
     drawFauna(ctx, f, sx, sy, z);
   }
-  drawPlayer(ctx, (roam.player.x - cam.x) * z, (roam.player.y - cam.y) * z, z);
+  drawPlayer(ctx, (roam.player.x - cam.x) * z, (roam.player.y - cam.y) * z, z, opts.playerSprite);
 }
 
 export default { drawOverworld, drawRoam };
