@@ -13,7 +13,13 @@
 //   POST /api/fodder/admin/mine     -> manual mining trigger (X-Admin-Key required)
 //   GET  /api/health                -> liveness + commit marker
 //
+// Names routes (procedural name-set engine, served at /names/):
+//   GET  /api/names                 -> one coherent set of names (see names/engine.js)
+//   GET  /api/names/cultures        -> catalog of cultures / settings / kinds
+//
 // Cron (every 6h) mines verbose sentences from Project Gutenberg.
+
+import { generateSet, catalog as namesCatalog } from './names/engine.js';
 
 const SYLLABLE_RE = /[aeiouy]+/g;
 
@@ -30,7 +36,7 @@ export default {
       if (url.pathname === '/api/health') {
         return json({
           ok: true,
-          version: 'wc-odds-v1',
+          version: 'names-v1',
           routes: [
             '/api/sentence', '/api/grade',
             '/api/fodder/next', '/api/fodder/vote', '/api/fodder/promoted',
@@ -38,6 +44,7 @@ export default {
             '/api/ask/check', '/api/ask/index', '/api/ask/query', '/api/ask/map', '/api/ask/thread',
             '/api/signal/check', '/api/signal/index', '/api/signal/query', '/api/signal/map', '/api/signal/target',
             '/api/wc/odds',
+            '/api/names', '/api/names/cultures',
           ],
           bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
         });
@@ -71,6 +78,11 @@ export default {
       // group (served at /wc/). Proxies + normalizes Polymarket's per-team
       // "advance to knockout stages" market so the page dodges CORS.
       if (url.pathname === '/api/wc/odds')                                return wcOdds(env);
+
+      // Names: procedural name-set engine (served at /names/). Pure compute,
+      // no D1/AI — and a public API, so CORS is open on these two routes.
+      if (url.pathname === '/api/names')                                  return namesSet(url);
+      if (url.pathname === '/api/names/cultures')                         return json(namesCatalog(), 200, NAMES_CORS);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -2126,4 +2138,38 @@ async function wcOdds(env) {
   };
   _wcCache = { at: now, data };
   return json(data, 200, { 'Cache-Control': 'public, max-age=120' });
+}
+
+// ============================================================
+// Names — procedural name-set engine (rite.mino.mobi/names/)
+// ============================================================
+//
+// The engine itself lives in names/engine.js (shared verbatim with the
+// browser UI and the node selftest). The worker is just the HTTP face:
+// param parsing, CORS, and cache headers. Deterministic requests (seed
+// supplied) are cacheable; seedless requests mint a random seed so the
+// caller gets a permalink back.
+
+const NAMES_CORS = { 'Access-Control-Allow-Origin': '*' };
+
+function namesSet(url) {
+  const q = url.searchParams;
+  const hadSeed = q.has('seed') && q.get('seed') !== '';
+  const seed = hadSeed ? q.get('seed') : crypto.randomUUID().slice(0, 8);
+  try {
+    const set = generateSet({
+      seed,
+      culture: q.get('culture') || undefined,
+      setting: q.get('setting') || undefined,
+      kind: q.get('kind') || undefined,
+      count: q.get('count') || undefined,
+    });
+    set.permalink = `https://rite.mino.mobi/names/?seed=${encodeURIComponent(set.seed)}&culture=${encodeURIComponent(set.culture)}&setting=${set.setting}&kind=${set.kind}&count=${set.requested}`;
+    return json(set, 200, {
+      ...NAMES_CORS,
+      'Cache-Control': hadSeed ? 'public, max-age=86400' : 'no-store',
+    });
+  } catch (e) {
+    return json({ error: String(e && e.message || e) }, 400, NAMES_CORS);
+  }
 }

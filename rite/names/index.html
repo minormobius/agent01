@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>names &mdash; procedural name-set generator</title>
+<meta name="description" content="One seed, one coherent set of 300 names: pick a culture, a setting, and a kind, and get a namebook that reads as if it came from a single invented world. Runs as an API too.">
+<meta property="og:title" content="names">
+<meta property="og:description" content="Mint a coherent set of 300 names from an invented culture — thematically linked, all unique, all distinct. With an API.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/names/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --card-bg: #fff; --chip-bg: #f0ede6;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --card-bg: #1a1a1a; --chip-bg: #222;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); font-size: 17px; line-height: 1.55;
+  padding: 1.5rem 1rem 4rem; min-height: 100vh;
+}
+.wrap { max-width: 900px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.2rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.subtitle a { color: var(--accent); }
+h2 { font-size: 1.2rem; margin: 2.2rem 0 0.6rem; font-weight: 700; }
+a { color: var(--accent); }
+code, pre { font-family: var(--mono); font-size: 0.82em; }
+pre {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 0.8rem 1rem; overflow-x: auto; line-height: 1.5;
+}
+.controls {
+  display: flex; flex-wrap: wrap; gap: 0.7rem 1rem; align-items: flex-end;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 0.9rem 1rem; margin: 1rem 0;
+}
+.ctl { display: flex; flex-direction: column; gap: 0.2rem; }
+.ctl label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-family: var(--mono); }
+select, input[type=text], input[type=number] {
+  font-family: var(--serif); font-size: 0.95rem; color: var(--text);
+  background: var(--bg); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+}
+input[type=text] { width: 9rem; } input[type=number] { width: 5.5rem; }
+button {
+  font-family: var(--serif); font-size: 0.95rem; cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 6px; padding: 0.38rem 0.9rem;
+  background: var(--bg); color: var(--text);
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+button:hover { border-color: var(--accent); }
+.blurbline { font-size: 0.88rem; color: var(--muted); font-style: italic; margin: 0.2rem 0 0; min-height: 1.2em; }
+.charter { margin: 0.8rem 0 0.4rem; font-size: 0.85rem; color: var(--muted); }
+.charter .chip {
+  display: inline-block; font-family: var(--mono); font-size: 0.78rem; font-style: normal;
+  background: var(--chip-bg); border: 1px solid var(--rule); border-radius: 999px;
+  padding: 0.05rem 0.55rem; margin: 0.12rem 0.15rem 0.12rem 0; color: var(--text);
+}
+.meta { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: baseline; margin: 1.2rem 0 0.5rem; }
+.meta .count { font-weight: 700; }
+.meta .tools { margin-left: auto; display: flex; gap: 0.4rem; }
+.meta .tools button { font-size: 0.82rem; padding: 0.25rem 0.6rem; }
+#grid {
+  columns: 5 150px; column-gap: 1.2rem;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 1rem 1.2rem;
+}
+#grid .n {
+  display: block; break-inside: avoid; cursor: pointer; border-radius: 4px;
+  padding: 0.07rem 0.3rem; font-size: 0.95rem;
+}
+#grid .n:hover { background: var(--accent-faint); }
+#grid .n.copied { color: var(--accent); font-weight: 700; }
+.apidoc td { padding: 0.2rem 0.8rem 0.2rem 0; vertical-align: top; font-size: 0.9rem; }
+.apidoc code { white-space: nowrap; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 600px) { #grid { columns: 2 120px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>names<span class="dot">.</span></h1>
+  <p class="subtitle">One seed &rarr; one coherent set of 300 names: thematically linked, all unique, all distinct.
+  A <a href="/">rite</a> surface &middot; sister to the <a href="/name/">name-family essay</a> &middot; <a href="#api">API</a></p>
+</header>
+
+<div class="controls">
+  <div class="ctl"><label for="culture">culture</label><select id="culture"></select></div>
+  <div class="ctl"><label for="blend">blend with</label><select id="blend"><option value="">&mdash;</option></select></div>
+  <div class="ctl"><label for="setting">setting</label><select id="setting"></select></div>
+  <div class="ctl"><label for="kind">kind</label><select id="kind"></select></div>
+  <div class="ctl"><label for="count">count</label><input type="number" id="count" min="1" max="1000" value="300"></div>
+  <div class="ctl"><label for="seed">seed</label><input type="text" id="seed" spellcheck="false"></div>
+  <button id="reroll" title="new random seed">&#127922;</button>
+  <button id="go" class="primary">Generate</button>
+</div>
+<p class="blurbline" id="blurb"></p>
+
+<div class="charter" id="charter"></div>
+
+<div class="meta">
+  <span class="count" id="meta-count"></span>
+  <span id="meta-note" style="color:var(--muted); font-size:0.85rem;"></span>
+  <span class="tools">
+    <button id="copyall">copy all</button>
+    <button id="dl-txt">.txt</button>
+    <button id="dl-json">.json</button>
+    <button id="permalink">permalink</button>
+  </span>
+</div>
+<div id="grid"></div>
+
+<h2 id="api">The API</h2>
+<p>Everything on this page is also a public JSON API (CORS open). The engine is deterministic:
+the same <code>seed</code> returns the same set forever, so a URL <em>is</em> a namebook.</p>
+<pre>curl 'https://rite.mino.mobi/api/names?seed=tabard&amp;culture=norse&amp;setting=classical&amp;kind=given&amp;count=300'
+curl 'https://rite.mino.mobi/api/names?seed=frontier&amp;culture=steppe+veil&amp;setting=scifi&amp;kind=full&amp;count=120'
+curl 'https://rite.mino.mobi/api/names/cultures'   # catalog of cultures / settings / kinds</pre>
+<table class="apidoc">
+  <tr><td><code>seed</code></td><td>any string. Omit it and the server mints one (returned in the response with a permalink).</td></tr>
+  <tr><td><code>culture</code></td><td>a phonotactic wardrobe. Blend two with <code>+</code>, e.g. <code>norse+romance</code>.</td></tr>
+  <tr><td><code>setting</code></td><td>register transform: <code>classical</code>, <code>fantasy</code>, <code>scifi</code>, <code>fey</code>, <code>wasteland</code>.</td></tr>
+  <tr><td><code>kind</code></td><td><code>given</code>, <code>family</code>, <code>place</code>, or <code>full</code>.</td></tr>
+  <tr><td><code>count</code></td><td>1&ndash;1000, default 300.</td></tr>
+</table>
+<p>Every set is generated under a per-seed <strong>charter</strong> &mdash; a sub-dialect of the culture
+(favorite sounds Zipf-boosted so they recur, a fixed handful of ending morphemes, register shifts adopted
+set-wide). That's what makes 300 names read as one world rather than 300 rolls of the same dice. Uniqueness
+is enforced hard: no duplicates, no name within edit distance 1 of another, no name a prefix of another.</p>
+
+<footer>
+  Runs entirely client-side on this page (the browser imports the same <a href="/names/engine.js">engine.js</a> the
+  worker serves) &mdash; the API exists for everything that isn't a browser. Part of <a href="/">rite.mino.mobi</a>.
+</footer>
+
+</div>
+
+<script type="module">
+import { generateSet, catalog } from './engine.js';
+
+const $ = (id) => document.getElementById(id);
+const cat = catalog();
+
+// -- populate controls --
+for (const [k, v] of Object.entries(cat.cultures)) {
+  $('culture').add(new Option(v.label, k));
+  $('blend').add(new Option(v.label, k));
+}
+for (const [k, v] of Object.entries(cat.settings)) $('setting').add(new Option(v.label, k));
+for (const [k, v] of Object.entries(cat.kinds)) $('kind').add(new Option(v.label, k));
+
+// -- state from URL --
+const q = new URLSearchParams(location.search);
+const cultureParam = (q.get('culture') || 'norse').split('+');
+$('culture').value = cat.cultures[cultureParam[0]] ? cultureParam[0] : 'norse';
+$('blend').value = cultureParam[1] && cat.cultures[cultureParam[1]] ? cultureParam[1] : '';
+if (cat.settings[q.get('setting')]) $('setting').value = q.get('setting');
+if (cat.kinds[q.get('kind')]) $('kind').value = q.get('kind');
+if (q.get('count')) $('count').value = Math.max(1, Math.min(1000, +q.get('count') || 300));
+$('seed').value = q.get('seed') || randomSeed();
+
+function randomSeed() {
+  // the only unseeded roll: choosing WHICH deterministic page to open
+  return Math.random().toString(36).slice(2, 10);
+}
+
+let current = null;
+
+function params() {
+  const culture = $('culture').value + ($('blend').value && $('blend').value !== $('culture').value ? '+' + $('blend').value : '');
+  return {
+    seed: $('seed').value.trim() || 'minomobi',
+    culture,
+    setting: $('setting').value,
+    kind: $('kind').value,
+    count: Math.max(1, Math.min(1000, +$('count').value || 300)),
+  };
+}
+
+function run() {
+  const p = params();
+  current = generateSet(p);
+  const url = `?seed=${encodeURIComponent(p.seed)}&culture=${encodeURIComponent(p.culture)}&setting=${p.setting}&kind=${p.kind}&count=${p.count}`;
+  history.replaceState(null, '', url);
+
+  $('blurb').textContent = cat.cultures[$('culture').value].blurb +
+    ($('blend').value && $('blend').value !== $('culture').value ? ` — blended with ${cat.cultures[$('blend').value].label}.` : '');
+
+  const ch = current.charter;
+  const chips = [];
+  for (const o of ch.favorites.onsets) chips.push(`${o || '∅'}-`);
+  for (const n of ch.favorites.nuclei) chips.push(`-${n}-`);
+  for (const e of ch.endings) chips.push(`-${e}`);
+  for (const s of ch.shifts) chips.push(s);
+  $('charter').innerHTML = 'this seed&rsquo;s dialect: ' +
+    chips.map((c) => `<span class="chip">${esc(c)}</span>`).join('') +
+    (ch.harmony ? ' <span class="chip">vowel harmony</span>' : '');
+
+  $('meta-count').textContent = `${current.count} names`;
+  $('meta-note').textContent = current.count < current.requested
+    ? `(the phonotactic space ran dry before ${current.requested} — try a blend or a bigger culture)` : 'click any name to copy it';
+
+  $('grid').innerHTML = current.names.map((n) => `<span class="n">${esc(n)}</span>`).join('');
+}
+
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+$('go').onclick = run;
+$('reroll').onclick = () => { $('seed').value = randomSeed(); run(); };
+for (const id of ['culture', 'blend', 'setting', 'kind']) $(id).onchange = run;
+$('count').onchange = run;
+$('seed').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
+
+$('grid').addEventListener('click', (e) => {
+  const el = e.target.closest('.n');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent);
+  el.classList.add('copied');
+  setTimeout(() => el.classList.remove('copied'), 700);
+});
+
+$('copyall').onclick = () => current && navigator.clipboard.writeText(current.names.join('\n'));
+$('dl-txt').onclick = () => current && download(`names-${current.seed}.txt`, current.names.join('\n'), 'text/plain');
+$('dl-json').onclick = () => current && download(`names-${current.seed}.json`, JSON.stringify(current, null, 2), 'application/json');
+$('permalink').onclick = () => navigator.clipboard.writeText(location.href);
+
+function download(fname, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+run();
+</script>
+</body>
+</html>
