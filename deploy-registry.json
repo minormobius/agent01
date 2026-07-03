@@ -32,7 +32,7 @@
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/polis-hinterlands-deploy-pckogt",
+      "branch": "claude/merge-candidate-prep-xhf6dt",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED \u2014 verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
@@ -53,7 +53,8 @@
         "time",
         "wiki",
         "mappa",
-        "polis"
+        "polis",
+        "hoop-history"
       ],
       "note": "Assets worker `minomobi` serving directory '.'. Bundles the landing page + ~19 pure-static subsites into ONE deploy. Currently Cloudflare git-autodeploy from main (no Action). Target: explicit deploy-root.yml. WARNING: the bundled static subsites cannot be deployed independently of each other \u2014 see tension note in the chat.",
       "paths": [
@@ -62,7 +63,8 @@
         "scripts/generate-search-catalog.mjs",
         "functions/**",
         "mappa/**",
-        "polis/**"
+        "polis/**",
+        "hoop-history/**"
       ]
     },
     {

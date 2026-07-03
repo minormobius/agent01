@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/polis-hinterlands-deploy-pckogt']
+    branches: [main, 'claude/merge-candidate-prep-xhf6dt']
     paths:
       - 'index.html'
       - 'styles.css'
@@ -64,6 +64,8 @@ on:
       - 'polis/**'
       # crucible: the "overgenerate, then judge" page (bundled static subsite)
       - 'crucible/**'
+      # hoop-history: the /hoop intellectual-history page (timeline + endpoint census)
+      - 'hoop-history/**'
       - '.github/workflows/deploy-root.yml'
   workflow_dispatch:
     inputs:

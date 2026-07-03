@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hoop — an intellectual history</title>
+<meta name="description" content="How a collaborative drawing canvas became a deterministic, ATProto-backed O'Neill-cylinder game: the timeline, the four-wing decomposition, and a full accounting of every buried endpoint deep in the repo.">
+<meta property="og:title" content="hoop — an intellectual history">
+<meta property="og:description" content="The path from a blank canvas to an infinite O'Neill-cylinder game — and a census of the 82 pages, most of them buried, that mark the way.">
+<style>
+  :root{
+    --bg:#0d0f14; --bg2:#12151d; --panel:#161a24; --panel2:#1b2030;
+    --ink:#e9e4d6; --dim:#9aa0b0; --faint:#646b80;
+    --gold:#d8a657; --gold-soft:#b88a44; --copper:#c47b54;
+    --green:#8fbf7f; --blue:#7fa8d8; --violet:#a98fd8; --rust:#c96a5a;
+    --line:#262c3a; --line2:#333b4d;
+    --mono:"SFMono-Regular",ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#161b27 0%,var(--bg) 55%);color:var(--ink);
+       font-family:var(--serif);font-size:18px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:var(--gold);text-decoration:none}
+  a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+  .wrap{max-width:980px;margin:0 auto;padding:0 22px}
+  .crumb{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);
+         padding:18px 0 0}
+  .crumb a{color:var(--faint)}.crumb a:hover{color:var(--gold)}
+
+  /* hero */
+  header.hero{padding:54px 0 30px;border-bottom:1px solid var(--line)}
+  .kicker{font-family:var(--mono);font-size:12.5px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold-soft);margin:0 0 14px}
+  h1{font-size:clamp(38px,7vw,68px);line-height:1.02;margin:0;font-weight:600;letter-spacing:-.01em}
+  h1 .sub{display:block;font-size:clamp(17px,2.4vw,22px);color:var(--dim);font-weight:400;font-style:italic;margin-top:14px;letter-spacing:0}
+  .lede{color:var(--dim);font-size:19px;max-width:70ch;margin:22px 0 0}
+  .stats{display:flex;flex-wrap:wrap;gap:10px 8px;margin:28px 0 0;font-family:var(--mono);font-size:12px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 13px;color:var(--dim)}
+  .stat b{color:var(--gold);font-weight:600}
+
+  /* toc */
+  nav.toc{position:sticky;top:0;z-index:20;background:rgba(13,15,20,.86);backdrop-filter:blur(9px);
+          border-bottom:1px solid var(--line);margin-top:0}
+  nav.toc .wrap{display:flex;gap:4px;overflow-x:auto;padding-top:10px;padding-bottom:10px;scrollbar-width:none}
+  nav.toc .wrap::-webkit-scrollbar{display:none}
+  nav.toc a{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--dim);white-space:nowrap;
+            padding:5px 11px;border-radius:7px}
+  nav.toc a:hover{background:var(--panel);color:var(--ink);text-decoration:none}
+
+  section{padding:50px 0;border-bottom:1px solid var(--line)}
+  h2{font-size:clamp(26px,4vw,36px);margin:0 0 6px;font-weight:600;letter-spacing:-.01em}
+  h2 .num{font-family:var(--mono);font-size:14px;color:var(--gold-soft);letter-spacing:.1em;display:block;margin-bottom:8px}
+  .section-dek{color:var(--faint);font-style:italic;margin:0 0 30px;max-width:68ch}
+  p{max-width:74ch}
+  .pull{font-family:var(--serif);font-size:23px;line-height:1.5;color:var(--ink);border-left:3px solid var(--gold);
+        padding:6px 0 6px 22px;margin:26px 0;font-style:italic;max-width:66ch}
+  .cite{display:block;font-family:var(--mono);font-style:normal;font-size:12px;color:var(--faint);letter-spacing:.04em;margin-top:10px}
+  code,.path{font-family:var(--mono);font-size:.85em;background:var(--panel2);border:1px solid var(--line);
+             border-radius:5px;padding:1px 6px;color:var(--gold)}
+
+  /* timeline */
+  .tl{position:relative;margin:10px 0 0;padding-left:30px}
+  .tl::before{content:"";position:absolute;left:8px;top:8px;bottom:8px;width:2px;
+              background:linear-gradient(var(--gold),var(--copper),var(--violet))}
+  .epoch{position:relative;margin:0 0 34px}
+  .epoch::before{content:"";position:absolute;left:-29px;top:6px;width:14px;height:14px;border-radius:50%;
+                 background:var(--gold);box-shadow:0 0 0 4px var(--bg),0 0 0 5px var(--line2)}
+  .epoch .when{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--gold-soft);text-transform:uppercase}
+  .epoch h3{margin:3px 0 8px;font-size:22px;font-weight:600}
+  .epoch p{color:var(--dim);margin:0 0 10px;font-size:17px}
+  .vtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .vtag{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--panel);border:1px solid var(--line);
+        border-radius:6px;padding:3px 8px}
+  .vtag b{color:var(--gold)}
+
+  /* version lineage strip */
+  .lineage{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px;margin-top:8px}
+  .vcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .vcard .v{font-family:var(--mono);color:var(--gold);font-size:13px;font-weight:600}
+  .vcard .nm{font-style:italic;color:var(--ink);font-size:15px;margin:1px 0 6px}
+  .vcard .d{color:var(--dim);font-size:14px;line-height:1.5;font-family:var(--sans)}
+
+  /* wings */
+  .wings{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:8px}
+  .wing{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;position:relative;overflow:hidden}
+  .wing::after{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--accent,var(--gold))}
+  .wing .role{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent,var(--gold))}
+  .wing h3{margin:6px 0 2px;font-size:21px}
+  .wing .dom{font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .wing p{color:var(--dim);font-size:15px;font-family:var(--sans);margin:10px 0 0;max-width:none}
+
+  /* census */
+  .censusbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 18px}
+  .censusbar .lbl{font-family:var(--mono);font-size:12px;color:var(--faint);margin-right:4px}
+  .fbtn{font-family:var(--mono);font-size:12px;color:var(--dim);background:var(--panel);border:1px solid var(--line);
+        border-radius:7px;padding:5px 11px;cursor:pointer;transition:.12s}
+  .fbtn:hover{color:var(--ink);border-color:var(--line2)}
+  .fbtn.on{background:var(--gold);color:#1a1206;border-color:var(--gold);font-weight:600}
+  .ctable{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  .ctable th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+             color:var(--faint);border-bottom:1px solid var(--line2);padding:8px 10px;position:sticky;top:42px;background:var(--bg)}
+  .ctable td{border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top;font-family:var(--sans);color:var(--dim)}
+  .ctable td.p{font-family:var(--mono);font-size:12.5px;color:var(--ink);white-space:nowrap}
+  .ctable tr:hover td{background:var(--panel)}
+  .badge{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-radius:5px;padding:2px 7px;white-space:nowrap}
+  .b-nav{background:rgba(143,191,127,.14);color:var(--green);border:1px solid rgba(143,191,127,.3)}
+  .b-route{background:rgba(127,168,216,.14);color:var(--blue);border:1px solid rgba(127,168,216,.3)}
+  .b-buried{background:rgba(201,106,90,.14);color:var(--rust);border:1px solid rgba(201,106,90,.3)}
+  .b-sib{background:rgba(169,143,216,.14);color:var(--violet);border:1px solid rgba(169,143,216,.3)}
+  .countline{font-family:var(--mono);font-size:12px;color:var(--faint);margin:14px 0 0}
+
+  /* secrets highlight */
+  .secrets{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:24px}
+  .secret{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:16px 17px}
+  .secret .tag{font-family:var(--mono);font-size:11px;color:var(--copper);letter-spacing:.08em}
+  .secret h4{margin:7px 0 5px;font-size:18px;font-weight:600}
+  .secret .pp{font-family:var(--mono);font-size:11.5px;color:var(--gold);display:block;margin-bottom:7px}
+  .secret p{color:var(--dim);font-size:14.5px;font-family:var(--sans);margin:0;max-width:none}
+
+  .note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--copper);border-radius:8px;
+        padding:14px 18px;color:var(--dim);font-size:15px;font-family:var(--sans);margin-top:18px}
+  footer{padding:40px 0 70px;color:var(--faint);font-size:13px;font-family:var(--mono)}
+  footer a{color:var(--gold-soft)}
+  .endmark{text-align:center;color:var(--gold-soft);font-size:22px;margin:8px 0 0}
+  /* ideographic tree */
+  .tree-legend{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0 0 18px}
+  .tree-legend .lk{font-family:var(--mono);font-size:12px;color:var(--dim);display:flex;align-items:center;gap:8px}
+  .tree-legend .dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+  .dot.crystal{background:var(--gold)}
+  .dot.dev{background:var(--blue)}
+  .dot.tossed{background:var(--rust)}
+  .tree-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:linear-gradient(160deg,var(--panel),var(--bg2));padding:10px 4px}
+  .tree-scroll::-webkit-scrollbar{height:8px}.tree-scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+  #tree-svg{display:block}
+  #tree-svg text{font-family:var(--sans)}
+  .discards-h{font-size:21px;font-weight:600;margin:36px 0 4px}
+  .discards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+  .discard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--rust);border-radius:9px;padding:14px 16px}
+  .discard h4{margin:0 0 4px;font-size:16px;font-weight:600;color:var(--ink)}
+  .discard h4 .x{color:var(--rust);font-family:var(--mono);margin-right:6px}
+  .discard p{margin:0;font-family:var(--sans);font-size:14px;color:var(--dim);max-width:none}
+  .discard p b{color:var(--green);font-weight:600}
+  @media(max-width:640px){body{font-size:17px}.ctable .hide-sm{display:none}.ctable th{top:40px}}
+</style>
+</head>
+<body>
+
+<div class="crumb wrap"><a href="/">mino.mobi</a> &nbsp;/&nbsp; hoop &nbsp;/&nbsp; an intellectual history</div>
+
+<header class="hero"><div class="wrap">
+  <p class="kicker">A self-archaeology · the O'Neill cylinder package</p>
+  <h1>hoop<span class="sub">how a shared drawing canvas became an infinite, deterministic O'Neill-cylinder game — and the trail of buried endpoints it left behind.</span></h1>
+  <p class="lede">Twenty-one days. One hundred and three commits to <span class="path">hoop/</span> alone, and as many again across the wings it spun off. Somewhere in there the plot got away from its author. This page reconstructs the path: the timeline, the conceptual splits, and a full census of every page deep in the repo — most of them never linked from anywhere.</p>
+  <div class="stats">
+    <span class="stat"><b>2026-06-08</b> → <b>06-28</b> · 21 days</span>
+    <span class="stat"><b>103</b> commits to hoop/</span>
+    <span class="stat"><b>82</b> pages built</span>
+    <span class="stat"><b>~9</b> linked from anywhere</span>
+    <span class="stat"><b>4</b> physics wings + 1 satellite</span>
+    <span class="stat"><b>1</b> cylinder</span>
+  </div>
+</div></header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#thesis">The thesis</a>
+  <a href="#timeline">The timeline</a>
+  <a href="#lineage">Version lineage</a>
+  <a href="#wings">The four wings</a>
+  <a href="#census">The secret endpoints</a>
+  <a href="#deepest">Deepest secrets</a>
+  <a href="#tree">Ideographic tree</a>
+  <a href="#after">Afterword</a>
+</div></nav>
+
+<main class="wrap">
+
+<section id="thesis">
+  <h2><span class="num">I</span>The thesis that never moved</h2>
+  <p class="section-dek">Everything that follows is one idea, pursued through a widening lens. The idea was fixed on day one.</p>
+  <p>hoop began on <strong>2026-06-08</strong> as a single commit — <span class="path">862b43e9 · "Add hoop.mino.mobi — collaborative design space for the infinite game"</span> — a shared canvas with live presence. But the canvas was always a cover story for something larger, stated plainly in its own design notes:</p>
+  <blockquote class="pull">"The infinite game. A collaborative design space where <em>the map is the forum</em>: you walk an <span class="path">@</span> around a glyph world stitched from an endless, deterministic ship engine; every glowing node is a <em>place</em> that anchors one long-running conversation thread, and every place and message is an ATProto record."
+  <span class="cite">hoop/CLAUDE.md</span></blockquote>
+  <p>The load-bearing constraint — the one that explains nearly every later decision — is <strong>determinism</strong>. The world is not stored; it is computed, identically, everywhere:</p>
+  <blockquote class="pull">"<span class="path">(shipSeed, chunkCoord, genomeSnapshot)</span> → identical rooms on every machine and across ATProto repos. Don't introduce unseeded randomness into generation — it breaks reproducibility and atproto-persistability."
+  <span class="cite">hoop/CLAUDE.md · §Invariants</span></blockquote>
+  <p>That single rule is why there is no database (the player's PDS <em>is</em> the store), why a place can be a permalinked forum thread, why an NPC can survive the world re-rolling underneath it, and — eventually — why the whole thing could be reframed as an <strong>O'Neill cylinder</strong>: a closed system, so a conserved economy; a fixed geometry, so a computable one.</p>
+</section>
+
+<section id="timeline">
+  <h2><span class="num">II</span>The timeline — five epochs in three weeks</h2>
+  <p class="section-dek">From a blank canvas to a three-floor cylinder with story, economy, production and combat — June 8 to 28.</p>
+  <div class="tl">
+
+    <div class="epoch">
+      <div class="when">Epoch 1 · Jun 8–11 · the canvas & the research</div>
+      <h3>A shared canvas discovers it is a ship</h3>
+      <p>A collaborative design space with live presence (the <span class="path">HoopRoom</span> Durable Object, author avatars from DID). Within two days it grew a <em>deterministic infinite ship engine</em> — chunked frontier, drifting genome, per-room gravity — and a 3D foam viewer you could walk. Then the decisive structural move on <strong>Jun 11</strong>: <span class="path">7b8819fc · "refactor: split O'Neill cylinder package into four wings (hoop/rind/tide/biome)"</span>. The game keeps the name; structure, climate and ecology each leave to become their own surface.</p>
+      <div class="vtags"><span class="vtag"><b>v2</b> the solved world</span><span class="vtag"><b>v3</b> the stitch</span></div>
+    </div>
+
+    <div class="epoch">
+      <div class="when">Epoch 2 · Jun 12–13 · ecosystems & lore</div>
+      <h3>The map fills with people and economies</h3>
+      <p>Two threads braid here. <em>Econ</em> arrives — towns modelled as ecosystems, a place as "a role (verb) × a domain (matter) × flows (in/out)," scored by a viability oracle borrowed from biome's gacha pattern. And <em>the STITCH</em>: seamless tiled-world navigation, NPCs as ID'd residents with schedules, multi-floor stairs and ladders. The sprite lab is promoted to breed NPCs from hoop's own civic genome.</p>
+      <div class="vtags"><span class="vtag"><b>v4</b> furnished</span><span class="vtag"><b>v5</b> halls-first</span><span class="vtag"><b>v6</b> halls sandbox</span><span class="vtag"><b>v7</b> hex chunks</span><span class="vtag"><b>v8</b> the world</span></div>
+    </div>
+
+    <div class="epoch">
+      <div class="when">Epoch 3 · Jun 14–19 · the story engine & Chapter One</div>
+      <h3>A narrative spine, inference-free by default</h3>
+      <p>The world gets a story without surrendering determinism. <strong>v094</strong> hand-authors the opening — Bay 14, the Tabard mystery, the Three Factions, the Seven, and five revelation tiers from "it's a city" to "I was built for this." <strong>v095</strong> wires a pool-based content engine with per-player saves to the player's PDS and a rumour outbox. <strong>v096</strong> adds <em>optional</em> live LLM side-quests (Gemini 2.5 Flash), fully guarded — if inference is off, the game still runs. Records monitoring and a publish spec land alongside.</p>
+      <div class="vtags"><span class="vtag"><b>v090</b> painted</span><span class="vtag"><b>v091</b> lived-in</span><span class="vtag"><b>v094</b> Chapter One opening</span><span class="vtag"><b>v095</b> content loop</span><span class="vtag"><b>v096</b> live inference</span></div>
+    </div>
+
+    <div class="epoch">
+      <div class="when">Epoch 4 · Jun 22–25 · polish & hierarchy</div>
+      <h3>It becomes a playable loop, then a fast one</h3>
+      <p>Systems converge into one experience: turn-based combat, a shop economy with durable gear, gem-socketing (Lapidary), inventory, multi-profile saves. Then the home-stretch passes — the nav-mesh restitch goes from O(54 chunks) to O(1), a full mobile audit, and an NPC restructure where the crowd becomes ambience and only discovered souls get promoted to named characters. The worship oracle fixtures appear.</p>
+      <div class="vtags"><span class="vtag"><b>v097</b> the Tabard (testimony)</span><span class="vtag"><b>v098</b> home stretch</span><span class="vtag"><b>v099</b> development surface</span></div>
+    </div>
+
+    <div class="epoch">
+      <div class="when">Epoch 5 · Jun 26–28 · the forge & the cylinder, realized</div>
+      <h3>Production becomes the interstitium the floors float in</h3>
+      <p>The last week builds the <em>industrial metabolism</em>: <span class="path">/forge</span>, a closed-loop production economy (<span class="path">scrap →[reclaim]→ stock →[build]→ deployed →[wear]→ scrap</span>) whose ledger vendors biome verbatim as the life-support half. The floors are named — <span class="path">/nave</span> (floor 1, the faction commons) and <span class="path">/rind</span> (floor 2, the cold structural underworld). Then the forge goes volumetric and is finally reframed as the O'Neill shell itself: "bounded but infinite," the rind a production tissue the naves float in. The final commit, <strong>Jun 28</strong>: <span class="path">91939b23 · "forge/micro: the capillary structure is WOVEN SURFACES, not nodes."</span></p>
+      <div class="vtags"><span class="vtag">rind/brawl combat</span><span class="vtag">forge ship-bore view</span><span class="vtag">PR #54, #55 → main</span></div>
+    </div>
+
+  </div>
+  <div class="note">Merge cadence: the v098 work shipped via <strong>PR #54</strong> (2026-06-25); the <span class="path">forge</span> + <span class="path">rind/brawl</span> work consolidated to <code>main</code> via <strong>PR #55</strong> (2026-06-29). hoop's own deploy (<span class="path">deploy-hoop.yml</span>) and the structural wing's (<span class="path">deploy-rind.yml</span>) both run green on each merge.</div>
+</section>
+
+<section id="lineage">
+  <h2><span class="num">III</span>The version lineage</h2>
+  <p class="section-dek">Fifteen playable iterations, each a fossil of one decision. They are all still served — see the census.</p>
+  <div class="lineage" id="lineage-grid"></div>
+</section>
+
+<section id="wings">
+  <h2><span class="num">IV</span>The four wings + the satellite</h2>
+  <p class="section-dek">"The GAME wing of the O'Neill cylinder modelling package (structure=rind, thermodynamics=tide, ecosystem=biome)." Each wing is a self-contained physics model with its own time scale; hoop is the witness that visits them all.</p>
+  <div class="wings" id="wings-grid"></div>
+  <div class="note"><strong>Why it split.</strong> rind is <em>static</em> structural mechanics; tide is <em>dynamical</em> climate; biome is <em>ecological</em> time; hoop is <em>narrative</em> time. Four different clocks couldn't share one surface. They re-converge through shared geometry (the cylinder) and shared conserved matter (carbon, water, force, energy) — the forge ledger literally imports biome's food-web as its life-support half.</div>
+</section>
+
+<section id="census">
+  <h2><span class="num">V</span>The secret endpoints deep in the repo</h2>
+  <p class="section-dek">82 pages were built. The homepage links about nine of them. The rest is a maker's workbench left running in public — design tools, abandoned experiments, the entire browsable history, and a few things that are genuinely strange.</p>
+  <div class="censusbar">
+    <span class="lbl">filter:</span>
+    <button class="fbtn on" data-f="all">all</button>
+    <button class="fbtn" data-f="nav">linked&nbsp;<span class="badge b-nav">nav</span></button>
+    <button class="fbtn" data-f="route">routed&nbsp;<span class="badge b-route">route</span></button>
+    <button class="fbtn" data-f="buried">buried&nbsp;<span class="badge b-buried">buried</span></button>
+    <button class="fbtn" data-f="sib">siblings&nbsp;<span class="badge b-sib">sib</span></button>
+  </div>
+  <table class="ctable">
+    <thead><tr><th>path</th><th>what it is</th><th class="hide-sm">group</th><th>status</th></tr></thead>
+    <tbody id="census-body"></tbody>
+  </table>
+  <p class="countline" id="census-count"></p>
+  <div class="note"><strong>How to read "status".</strong>
+    <span class="badge b-nav">nav</span> linked from the hoop homepage ·
+    <span class="badge b-route">route</span> a clean URL the worker special-cases (<span class="path">/nave /forge /rind /chunkroller /v096–/v099</span>) but no page links to ·
+    <span class="badge b-buried">buried</span> reachable only if you already know the path ·
+    <span class="badge b-sib">sib</span> a separate sibling surface on its own domain (rind, mega/sprite).</div>
+</section>
+
+<section id="deepest">
+  <h2><span class="num">VI</span>The deepest secrets</h2>
+  <p class="section-dek">If you only open six of the buried doors, open these.</p>
+  <div class="secrets" id="secrets-grid"></div>
+</section>
+
+<section id="tree">
+  <h2><span class="num">VII</span>The ideographic tree</h2>
+  <p class="section-dek">Not the chronology — the phylogeny. One root idea (a shared canvas) branches into six conceptual trunks. Read across to watch each idea develop; the leaves are where they ended up — load-bearing, still in flight, or pruned.</p>
+  <div class="tree-legend">
+    <span class="lk"><span class="dot crystal"></span> crystallized — survived, load-bearing</span>
+    <span class="lk"><span class="dot dev"></span> still developing — in flight</span>
+    <span class="lk"><span class="dot tossed"></span> tossed — reverted or superseded</span>
+  </div>
+  <div class="tree-scroll"><svg id="tree-svg" role="img" aria-label="Ideographic tree of hoop's concepts"></svg></div>
+  <h3 class="discards-h">The discards, and what survived them</h3>
+  <p class="section-dek" style="margin-bottom:18px">An idea tree is most honest about its dead branches. Each pruned concept left something behind.</p>
+  <div class="discards" id="discards-list"></div>
+</section>
+
+<section id="after">
+  <h2><span class="num">VIII</span>Afterword — how the plot got away</h2>
+  <p>Read forward, the path looks inevitable: canvas → engine → society → story → economy → cylinder. Read as it was lived — 103 commits in three weeks, branching into rind, tide, biome, iris and mega, each spawning its own design memos and dead ends — it is easy to see how the through-line vanished. The plot didn't disappear; it <em>distributed</em>. It is in <span class="path">CLAUDE.md</span> files across six directories, in fifteen version folders nobody deletes, in a divination engine with no front door.</p>
+  <p>The single thread, if there is one: <strong>determinism made everything composable.</strong> Because the world is a pure function of a seed, a place can be a forum, a forum can be an ATProto record, a record can be a save, a save can be a story, a story can be priced, a price can be a closed economy, and a closed economy is — definitionally — an O'Neill cylinder. Each step is the previous one taken one altitude higher. That is the whole history. The rest is endpoints.</p>
+  <div class="endmark">❧</div>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  Compiled from the repo's own git history, design memos and route tables · a <a href="/">mino.mobi</a> self-archaeology.<br>
+  Live wings: <a href="https://hoop.mino.mobi">hoop</a> · <a href="https://rind.mino.mobi">rind</a> · <a href="https://tide.mino.mobi">tide</a> · <a href="https://biome.mino.mobi">biome</a> · <a href="https://iris.mino.mobi">iris</a> · <a href="https://mega.mino.mobi/sprite/">mega/sprite</a>
+</div></footer>
+
+<script src="data.js"></script>
+</body>
+</html>
