@@ -1,5 +1,88 @@
 # rind/ops — the white-collar weave (the theory)
 
+> **THE ONE-DOOR RESOLUTION (`onedoor.html` · `rind.mino.mobi/ops/onedoor.html`; kernel `onedoor.js`, proof
+> `test/onedoor.selftest.mjs`).** The hard spec line — *wayfinding from ANY point in the chunk to ANY other point
+> passes through only ONE door, including the two central hubs* — is now true **by construction and proven**, not
+> "≈ one door". Why it was stuck: the per-thread door graph (`cells3d.routeMinDoors`) counts a door as *crossing
+> into a different **thread***, and the 6 white arms all spiral the same way out of the top hub so **no white arm
+> ever crosses another white arm** — white·i → white·j shares no door and must detour through a production arm (2
+> doors); same for the 8 production arms; the interstitial matrix is a third region on top. So same-colour trips
+> cost ≥2 and the honest max was up to 4. It's a property of how doors are **counted**, not of the geometry.
+> **The fix collapses the walkable space to exactly TWO door-free concourses joined only by controlled doors:** the
+> WHITE concourse = the 6 arms **+ the nave (top) hub**, ONE connected door-free region (open plates throughout);
+> the PRODUCTION concourse = the 8 arms + the bottom hub, ONE connected door-free region on the floor stratum; and
+> **the only doors in the whole chunk are the 48 K(6,8) crossings**, each a single **zero-grade** doorway at the
+> flat the weave already lands there — every other white/production plate is a **wall** (the rind rule: walls are
+> the default, doors are deliberately-placed gaps). Then within a colour → **0 doors**, across colours → **exactly
+> 1** (walk your concourse free to the nearest crossing, cross once, walk free), so **max over ALL pairs, incl. both
+> hubs, = 1** — the structural proof (two 0-connected regions + ≥1 door ⇒ max 1) *and* an exhaustive-ish measurement
+> agree, pinned across seeds/widths/chunks. The "6 arms / 8 arms" survive as a wayfinding **identity overlay** (which
+> arm tours which engines — the tour is unchanged), not as walls. **How it's built** (`onedoor.js`): (a)
+> `assignConcourses` hard-binds every ARM-owned cell to its colour — so NO K crossing is ever lost — and floods only
+> the interstitial matrix to the nearest colour, which stitches the same-colour arms into one component through their
+> hub; (b) `placeDoors` opens, per (w,f), the single flattest white-w↔prod-f adjacency (the zero-grade doorway); (c)
+> `certify` proves whiteConnected ∧ prodConnected ∧ maxDoors===1 ∧ hubs-one-door. **Honest tensions kept raw:**
+> K lands **~44–48/48** (a few crossings have no adjacency — widen / add decks) and a handful of doors are genuine
+> over/under **stairs** rather than zero-grade (drawn dashed-red) — these are QUALITY metrics, reported but *not*
+> part of the one-door proof, which holds no matter how many of the 48 a seed opens. The next lever, if we want
+> 48/48 truly at grade, is a **meet-at-grade weave** (both threads pass through mid-height with a flat at each
+> crossing instead of over/under parity) — a local `onedoor` centreline variant that would not touch `prism`'s
+> over/under art piece.
+>
+> **TWO SUBSTRATES (the `▦ HCP / ✳ on-curve` toggle · kernel `curveseed.js`).** The one-door tech is substrate-
+> agnostic — the same certificate runs over two different ways of getting the Voronoi nuclei: **(HCP)** the prism's
+> homogeneous lattice claimed by the fair watershed (above); **(on-curve)** nuclei seeded DIRECTLY ALONG the 14
+> analytic thread curves at an arc `pitch`, plus a sparse HCP filler, then the polyhedra GROW to fill the prism.
+> On-curve is the more curve-native substrate and lands the spec *better*: because a nucleus sits on its thread, it
+> realises the **full K(6,8) = 48/48** and **every door is zero-grade** on every seed (the crossings are on the
+> curves, not a deck apart). The catch it exposed — and the general lesson — is that **nearest-curve ownership
+> fragments**: the over/under weave chops each thread into Voronoi islands at its crossings, so hard-binding those
+> owners gives dozens of concourse pieces, not one. Two fixes make it whole: **(1)** concourses are assigned by a
+> **geodesic flood from the two hubs** (`assignConcoursesFlood` — a Dijkstra forest from a connected seed is
+> connected by construction, so each concourse is ONE region on any substrate), and **(2)** the sparse filler +
+> an orphan-**stitch** pass (buildCells' 0.5 face tolerance drops a few genuine faces, leaving degree-0 slivers and
+> small floating clusters — `stitchComponents` links every offcut to its nearest cell so the foam is one connected
+> solid). With both, the on-curve substrate is provably one-door (pinned in `onedoor.selftest.mjs` over 6 seeds:
+> K=48/48, all doors at grade, both concourses one region, max = 1). `filler: 0` is the instructive pure-curve case:
+> K=48 and 100% fill but the concourses fragment and one-door FAILS — the interstitial filler is what bridges the
+> crossing-chopped pieces back together. On-curve is the **default** view; a `〜 curves` overlay draws the 14 analytic
+> centrelines (with a dot at each rim exit) so you can read the ideal seeding curve against the grown cells and see
+> all 14 threads reach the outer surface.
+>
+> **PER-SPIRAL VORONOI CONTINUITY — the core requirement, and it's an OWNERSHIP property, not a seeding or room one
+> (the `◐ watershed / ◑ nearest` toggle).** Each of the 14 spirals must be ONE connected component in the true
+> face-adjacency graph. Measured finding: assigning each chamber to its **nearest nucleus** (plain Euclidean Voronoi)
+> gives **0/14** continuous at every setting — at each crossing the other spiral's nucleus is simply closer and
+> *slices* your thread — and **more room makes it worse**: 7→19 hexes went 22→57 fragments per thread, more decks did
+> nothing. Room can't fix it because the crossings are topological (K(6,8) is non-planar), not a crowding problem.
+> The cure is how ownership is assigned: a **geodesic watershed** (grow each thread from its nexus seed, only ever
+> claiming a cell adjacent to one it already owns — `layWeave`) is connected *by construction*. Running that same
+> watershed on the curve-seeded nuclei is the sweet spot — **14/14 spirals continuous, K≈45–48, doors at grade,
+> balanced coverage, and one-door all at once** (the DEFAULT: `ownership:'watershed'`; certify hard-binds the
+> now-continuous arms so no K contact is lost, floods only the matrix). `◑ nearest` is kept as the instructive
+> counter-example. Pinned in `onedoor.selftest.mjs` (`spiralsContinuous`).
+>
+> **GRADE-AWARE ROUTING (`routeGraded`).** Plain door-minimisation (`routeOneDoor`) counts only doors, so within a
+> concourse it happily takes a near-vertical shortcut between stacked cells (measured grade 7–35 — it *looked* like
+> routing broke the walkable-grade rule, because it did). `routeGraded` keeps doors as the hard primary objective
+> (still ≤ 1) but adds a steep-step penalty, so among equal-door paths it walks the gentlest one — measured max grade
+> drops to ~0.3–0.6 (at the pedestrian cap) with the same door count. The route read-out shows the path's max grade,
+> green when walkable. Pinned in `onedoor.selftest.mjs`.
+>
+> **THE ZERO-LADDER 6×8 (the `breathe` lever = `turnScale`).** The last residue was ~2–3 K-doors landing as over/under
+> stairs rather than at grade. Measured that NO knob removes them — more nodes (worse when densest), thickness, width,
+> and the flat/meet z-profiles all leave ~2–4 — because a door lives on the shared FACE between a white and a
+> production cell, and in a thick weave some of those faces are horizontal (a hatch) not vertical (a wall). Two things
+> DO reach zero, and they're the same mechanism (more radial room per crossing ⇒ gentler ramps ⇒ threads linger at
+> mid-height ⇒ they meet side-by-side, a walkable wall, instead of stacking): **(a) fewer threads** — ≤ 4×4 hits
+> steep=0 with full K; and **(b) loosening the spirals at the FULL 6×8** — `turnScale ~0.35` (fewer turns spreads the
+> crossings radially; "let the tight curves breathe — it's an infinite world"). At `turnScale ≤ 0.35`, 6×8 is a TRUE
+> zero-ladder world on every seed: **every one of the 48 doors at grade, full K(6,8)=48, every spiral continuous, one
+> door** — all at once (pinned in `onedoor.selftest.mjs`; the onedoor view defaults to `breathe 0.35` with a
+> `zero-ladder ✓` readout). Note it is NOT the diameter: expanding hexR at fixed turns keeps the crossings just as
+> crowded in rf and does NOT help (`hexScale` alone measured no better) — it's the turn count (crossings-per-lap)
+> that matters. Below `turnScale ~0.28` the spirals stop crossing (Σturns < 1) and K breaks, so ~0.3–0.4 is the band.
+
 > **THE SUBSTRATE REBUILD (`prism.html` · `rind.mino.mobi/ops/prism.html`).** The weave is being re-founded on a
 > proper **hexagonal prism of homogeneously spaced nodes** (`prism.js`, HCP packing — every interior node has 12
 > neighbours at the same distance; `prism.selftest.mjs` proves the prism is thick enough that **no Voronoi cell
@@ -51,7 +134,8 @@
 > resolves cleanly — K(3,3)=9/9, continuous, foam solid. `NW`/`NF` clamp to [2 … 6/8] and default to the full
 > K(6,8); `buildGeometry` just slices the warp/weft lists. Pinned in `weave3d.selftest`.
 
-> **NOW IN 3D — a PANCAKE.** The primary view (`index.html` + `3d-app.js`, kernel `foam3d.js`) resolves the
+> **NOW IN 3D — a PANCAKE.** The primary 3D view (`orbit.html` + `3d-app.js`, kernel `foam3d.js`; `index.html` is
+> now the ops landing hub) resolves the
 > weave in a **volumetric voronoi foam pancake**: a wide, thin, **two-layer** disc woven from **counter-rotating
 > spirals**. 6 white arms spiral from the **upper-centre** hub, 8 production from the **lower-centre** hub (the
 > six starts sit ABOVE the eight); upper/lower layer = over/under; the hubs join only through the woven body.

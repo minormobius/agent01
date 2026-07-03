@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>hoop v096 · the story data-flow</title>
+<meta name="description" content="The full architectural data-flow of hoop v096: how the Tabard bible is wired into the infinite game — the segregated inference lane, the review gate, the filterable atproto quasi-database, and the inference-free hot path. Click any node for detail." />
+<style>
+  :root { --bg:#0d0f12; --ink:#dfe6e2; --dim:#8a968f; --gold:#e6c46a; --line:#3a443e;
+    --src:#e0a86a; --gen:#b58cf0; --gate:#f0c66a; --truth:#5fd0c8; --hot:#7fd07f; --client:#6aa8e0; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:14px/1.5 ui-sans-serif,system-ui,sans-serif; }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; font-weight:650; letter-spacing:.2px; }
+  header .sub { color:var(--dim); font-size:12.5px; }
+  header a { color:var(--gold); text-decoration:none; }
+  .wrap { display:flex; height:calc(100% - 53px); }
+  .stage { flex:1; position:relative; overflow:hidden; cursor:grab; }
+  .stage:active { cursor:grabbing; }
+  svg { width:100%; height:100%; display:block; touch-action:none; }
+  .node rect { rx:7; stroke-width:1.5; transition:filter .12s, opacity .12s; cursor:pointer; }
+  .node:hover rect { filter:brightness(1.35); }
+  .node .t { font-weight:650; font-size:12.5px; fill:var(--ink); pointer-events:none; }
+  .node .s { font-size:10px; fill:var(--dim); pointer-events:none; }
+  .edge { fill:none; stroke:var(--line); stroke-width:1.6; marker-end:url(#arr); }
+  .edge.dash { stroke-dasharray:5 4; stroke:#6a5a8a; }
+  .edge.req { stroke:#3a5a70; }
+  .elabel { fill:var(--dim); font-size:9.5px; }
+  aside { width:330px; border-left:1px solid var(--line); padding:16px 18px; overflow:auto; background:#0f1216; }
+  aside h2 { font-size:14px; margin:0 0 4px; }
+  aside .tag { display:inline-block; font-size:10px; padding:1px 7px; border-radius:9px; margin-bottom:10px; }
+  aside p { color:#c4cdc7; font-size:12.5px; }
+  aside .hint { color:var(--dim); font-size:11.5px; margin-top:14px; border-top:1px solid var(--line); padding-top:10px; }
+  .legend { display:flex; gap:13px; flex-wrap:wrap; font-size:11px; color:var(--dim); }
+  .legend span { display:inline-flex; align-items:center; gap:5px; }
+  .legend i { width:10px; height:10px; border-radius:3px; display:inline-block; }
+  .inv { margin-top:14px; }
+  .inv li { color:#b8c2bb; font-size:11.5px; margin:3px 0; }
+  code { color:var(--gold); font-size:11.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>◍ hoop v096 — the story data-flow</h1>
+  <span class="sub">how the Tabard bible is wired into the infinite game · <a href="/v101/">← the world</a> · <a href="/v101/storyboard/">storyboard</a></span>
+  <span class="legend">
+    <span><i style="background:var(--src)"></i>source</span>
+    <span><i style="background:var(--gen)"></i>generation (worker)</span>
+    <span><i style="background:var(--gate)"></i>gate</span>
+    <span><i style="background:var(--truth)"></i>truth · atproto</span>
+    <span><i style="background:var(--hot)"></i>hot path (no LLM)</span>
+    <span><i style="background:var(--client)"></i>client</span>
+  </span>
+</header>
+<div class="wrap">
+  <div class="stage" id="stage">
+    <svg id="svg" viewBox="0 0 1720 900" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#5a665e" />
+        </marker>
+      </defs>
+      <g id="edges"></g>
+      <g id="nodes"></g>
+    </svg>
+  </div>
+  <aside id="panel">
+    <h2 id="pt">Click a node</h2>
+    <div id="pbody"><p>This is the live architecture of v096's story system — every box is a real file or atproto collection. Click any node to read what it does and where it lives. Drag to pan, scroll to zoom.</p></div>
+    <ul class="inv" id="inv"></ul>
+    <div class="hint">The whole inference lane is <b>additive + guarded</b>: with no <code>GEMINI_API_KEY</code> the adapter is the disabled stub and the game is purely procedural. Delete <code>story/llm/</code> and hoop still runs.</div>
+  </aside>
+</div>
+<script type="module">
+// ── the graph: real files / collections, coloured by lane. x,y are top-left of a 210×66 box. ──
+const W = 210, H = 66, lane = { src:'--src', gen:'--gen', gate:'--gate', truth:'--truth', hot:'--hot', client:'--client' };
+const N = {
+  bible:   { x: 30,  y: 70,  lane:'src',   t:'📖 Tabard bible', s:'story/bible.md',
+    d:'The canon. Vendored verbatim from hoop-backend/ingestion/chapter1_bible.md (re-sync, never fork). 15KB — small enough to stuff WHOLE into the prompt, so there is no RAG/vector infra. The Seven, the factions, Bay 14, the 1..5 revelation & narrative ladders.' },
+  chunk:   { x: 30,  y: 470, lane:'src',   t:'🏙 chunk characteristics', s:'econ buildings + civ web',
+    d:'The world is procedurally THICK: each chunk has a building programme (roles × domains × footprints) and a multiplex civ web (bridges, third-places, vitality). profileFromChunk() distils the WHOLE chunk — every room\'s role/domain + the lived population + the society edges touching it — into a rich ChunkProfile the spine matches against.' },
+  adapter: { x: 320, y: 250, lane:'gen',   t:'🔌 segregated adapter', s:'story/llm/ (gemini · local · off)',
+    d:'One interface, swappable providers, hard off-switch. Gemini 2.5 Flash is live (the borges hook); huwupy\'s local model drops into local.js (OpenAI-compatible serve + nomic embeddings). generate()/embed() never throw. \'off\' ⇒ procedural fallback. Rippable: delete the dir, the game still runs.' },
+  prompt:  { x: 320, y: 70,  lane:'gen',   t:'📝 prompt builder', s:'story/prompt.js',
+    d:'Bible (whole) + the chunk\'s thickness + the nearby pool → {system, prompt, schema}. A repair-pass builder feeds the gate\'s conflict report straight back to the model. Pure + node-tested.' },
+  spine:   { x: 320, y: 470, lane:'gen',   t:'🧭 spine match', s:'story/spine.js',
+    d:'huwupy\'s idea: embed the chunk descriptor + each content item, retrieve nearest by cosine kNN (brute-force, small corpus). thicknessGap>0 ⇒ the best match is too thin for this rich place → GENERATE a thicker arc. Deterministic lexicalEmbed fallback; a neural embedder injects via /api/story/embed.' },
+  gate:    { x: 620, y: 250, lane:'gate',  t:'✅ the gate', s:'review · gates · validate',
+    d:'Before anything is frozen: structural fields + tier range (1..5), every NPC dialogue tree clean (validate.js), no orphan quests introduced (gates.js reachability), no id-collision that orphans a player\'s crystallized saves (review.js). BLOCK ⇒ one repair pass. NOTHING is frozen unless the verdict is PASS.' },
+  spineRepo:{ x: 900, y: 70, lane:'truth', t:'🗄 shared spine', s:'service repo · story.content (lane:spine)',
+    d:'The authored canon pool, in a service repo (morphyx). Read by anyone via public listRecords — permissionless to play. Sourced from hoopy\'s world_export (creature/item/lore/npc/plot_beat/rumor) via story/import.js — his 75-record canon passes the full gate. The offline seeder + the generation lane write here under one publisher key.' },
+  saveRepo:{ x: 900, y: 250, lane:'truth', t:'👤 per-player', s:'player repo · story.save + story.content (lane:sidequest)',
+    d:'A player\'s durable state + their personal live-generated side-quests, written to THEIR OWN repo (user-owned, $0 to us). The hybrid canon: shared spine + personal side-quests. localStorage buffers the hot path; atproto is the batched durable target.' },
+  pulse:   { x: 900, y: 470, lane:'truth', t:'🌐 Director pulse', s:'service repo · story.pulse',
+    d:'A disposable cross-player rollup — what the whole playerbase is doing — folded from the firehose of saves (Jetstream consumer). Rebuildable by replay; never a source of truth. THE STEER: the worker reads it (cached ~5min) and steerFromPulse() biases generation toward where the playerbase actually is — stuck at a tier ⇒ write the bridge; a chamber runs hot ⇒ deepen there.' },
+  filter:  { x: 1180, y: 70, lane:'hot',   t:'🔎 filter projection', s:'story/filter.js',
+    d:'The totally-filterable quasi-DB. Derives a VIEW of the pool: lane (spine/sidequest), provider (drop local:* wholesale), tier. Spine-wins merge. So an experimental/swappable model\'s output stays cleanly separable and rippable.' },
+  engine:  { x: 1180, y: 250, lane:'hot',  t:'⚙️ engine — NO LLM', s:'story/engine.js',
+    d:'The inference-free hot path. dispatch (tier-gated, tag-biased) → crystallize/recall. THE KEYSTONE: first touch freezes a binding on a feature_key (a chamber address) — every later touch recalls the same item, forever. Deterministic, atproto-stable.' },
+  advance: { x: 1180, y: 470, lane:'hot',  t:'📈 advance + storyboard', s:'advance.js · board.js',
+    d:'The inference-free \'long rest\': a player crosses a tier FLOOR when they HOLD earned story state (facts/items/rep). Declarative storyboard beats derive the quest log + map markers. Monotonic, deterministic.' },
+  client:  { x: 1460, y: 250, lane:'client', t:'🖥 v096 client', s:'index.html · ✨ weave',
+    d:'The playable surface. Click a resident → crystallize their thread. ✨ weave → genquest.js builds a ChunkProfile, POSTs /api/story/sidequest, folds the approved arc into the live pool (store.addContent) and crystallizes its principal. Guarded: a SKIP/BLOCK changes nothing.' },
+  rumor:   { x: 1460, y: 70,  lane:'client', t:'☷ rumor outbox', s:'player repo · story.rumor (write-only)',
+    d:'A player SPREADS a rumor (the "☷ spread word" encounter action) → an append-only record in THEIR OWN repo, naming its subject (a content id) by reference. Write-only: the client never reads its own rumors. The engine tails the firehose for these and MAY answer with a verdict (retcon/notice, possibly to other players) or new shared content — both channels the client already consumes. Its own lexicon, not a save field: a rumor is an event (TID-keyed), not part of the latest-wins save aggregate. Cross-player / PvP is a future engine surface.' },
+};
+// edges: [from, to, kind?, label?]   kind: ''(flow) | 'dash'(feedback/steer) | 'req'(client request)
+const E = [
+  ['bible','prompt'], ['chunk','spine'], ['chunk','prompt','','profile'], ['spine','prompt','','thickness'],
+  ['spineRepo','spine','req','corpus'], ['prompt','adapter'], ['adapter','gate'],
+  ['gate','saveRepo','','PASS → freeze'], ['gate','prompt','dash','BLOCK → repair'],
+  ['spineRepo','filter'], ['saveRepo','filter'], ['filter','engine'], ['engine','advance'],
+  ['engine','client'], ['client','adapter','req','POST /api/story/sidequest'],
+  ['saveRepo','pulse','','fold'], ['pulse','prompt','dash','steer'],
+  ['client','rumor','req','spread word'], ['rumor','gate','dash','engine tails → verdict / content'],
+];
+const INV = {
+  bible:['Stuffed whole — no RAG, no pgvector, no embeddings DB.'],
+  engine:['No LLM in the hot path.','Determinism: (seed, chunk, genome) → identical world across machines + atproto repos.'],
+  spineRepo:['Permissionless read: public listRecords, no auth.'],
+  saveRepo:['Permissionless write: the player owns their repo. No central server required.'],
+  adapter:['Rippable: delete story/llm/ and the game still runs (procedural fallback).','Swap Gemini ↔ huwupy\'s local serve with one env var.'],
+  gate:['Nothing is frozen unless the gate verdict is PASS.'],
+  filter:['Every record carries provenance (lane/provider/genState) — the pool is a filterable view.'],
+};
+const cv = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const cx = (id) => N[id].x + W / 2, cy = (id) => N[id].y + H / 2;
+const NS = 'http://www.w3.org/2000/svg';
+const mk = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+
+// edges — a gentle cubic between the right edge of `from` and the left edge of `to` (or nearest sides)
+const eg = document.getElementById('edges');
+for (const [a, b, kind, label] of E) {
+  const x1 = N[a].x < N[b].x ? N[a].x + W : N[a].x, y1 = cy(a);
+  const x2 = N[a].x < N[b].x ? N[b].x : N[b].x + W, y2 = cy(b);
+  const mx = (x1 + x2) / 2;
+  const d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+  eg.appendChild(mk('path', { d, class: 'edge ' + (kind || '') }));
+  if (label) { const t = mk('text', { x: mx, y: (y1 + y2) / 2 - 4, 'text-anchor': 'middle', class: 'elabel' }); t.textContent = label; eg.appendChild(t); }
+}
+// nodes
+const ng = document.getElementById('nodes');
+for (const id in N) {
+  const n = N[id], g = mk('g', { class: 'node', transform: `translate(${n.x},${n.y})` });
+  g.appendChild(mk('rect', { width: W, height: H, fill: cv(lane[n.lane]) + '22', stroke: cv(lane[n.lane]) }));
+  const t1 = mk('text', { x: 12, y: 26, class: 't' }); t1.textContent = n.t; g.appendChild(t1);
+  const t2 = mk('text', { x: 12, y: 45, class: 's' }); t2.textContent = n.s; g.appendChild(t2);
+  g.addEventListener('click', () => select(id));
+  ng.appendChild(g);
+}
+function select(id) {
+  const n = N[id];
+  document.getElementById('pt').textContent = n.t.replace(/^\S+\s/, '');
+  const c = cv(lane[n.lane]);
+  document.getElementById('pbody').innerHTML =
+    `<span class="tag" style="background:${c}28;color:${c}">${n.s}</span><p>${n.d}</p>`;
+  const inv = document.getElementById('inv'); inv.innerHTML = '';
+  for (const li of (INV[id] || [])) { const e = document.createElement('li'); e.textContent = li; inv.appendChild(e); }
+}
+
+// pan + zoom (transform the two <g>s together via a viewBox tweak)
+const svg = document.getElementById('svg'); let vb = { x: 0, y: 0, w: 1720, h: 900 }, drag = null;
+const apply = () => svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+svg.addEventListener('wheel', (e) => { e.preventDefault(); const k = e.deltaY > 0 ? 1.1 : 0.9;
+  const r = svg.getBoundingClientRect(), mx = vb.x + (e.clientX - r.left) / r.width * vb.w, my = vb.y + (e.clientY - r.top) / r.height * vb.h;
+  vb.x = mx - (mx - vb.x) * k; vb.y = my - (my - vb.y) * k; vb.w *= k; vb.h *= k; apply(); }, { passive: false });
+svg.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, vx: vb.x, vy: vb.y }; });
+addEventListener('pointermove', (e) => { if (!drag) return; const r = svg.getBoundingClientRect();
+  vb.x = drag.vx - (e.clientX - drag.x) / r.width * vb.w; vb.y = drag.vy - (e.clientY - drag.y) / r.height * vb.h; apply(); });
+addEventListener('pointerup', () => { drag = null; });
+select('bible');
+</script>
+</body>
+</html>

@@ -25,14 +25,14 @@
         "deal",
         "tetro"
       ],
-      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. Live wings: /puzz \u2014 seeded, certified-unique logic puzzles (binairo + nonogram), a real solver certifying uniqueness, fairness, and grading from deduction techniques; /knack \u2014 canvas minigames, one composable discrete-move engine -> six genres, each certified solvable by a BFS solver that finds optimal par; /flux \u2014 continuous-space physics puzzles (no grid): aim one launch through gravity wells/magnets/goo/bumpers, a solver sweeps the 2D launch space to map winning basins, grading by shot precision; /gyre \u2014 flux in 3D: the ball constrained to a torus surface (intrinsic-coordinate geodesic integration + tangent-projected forces, hand-rolled 3D canvas in the torus-pack style), winding numbers of the winning shot are part of the interest battery. flux JS engine is mirrored in fable/flux/engine-rs (Rust) and cross-checked in CI by build-flux-catalog.yml, which commits fable/flux/data/catalog.json. /morph \u2014 a generator of puzzle GENERATORS (one level up): samples a game GENOME (substrate/topology incl. torus/M\u00f6bius/Klein/hex \u00d7 law \u00d7 goal \u00d7 aesthetic) and instantiates a concrete puzzle a single invariant BFS oracle certifies solvable; two knobs (new game = new genome, new puzzle = new instance). /drift \u2014 puzzles in MEANING-space (tier-4 substrate): the board is a committed kNN graph over 7k MiniLM word embeddings (built by scripts/build-drift-graph.mjs, cult-basis pattern; regenerate ONLY via manual build-drift-graph.yml \u2014 it re-rolls every permalink); Ladder = BFS-certified semantic crossings with measured par, Fold = margin-certified word families. /forge \u2014 the rung above morph: a FOUNDRY that mints new LAWS OF MOTION from a closed rule-DSL, fingerprints each by behaviour (state-space/branching/irreversibility/mutation/stride/drift), and admits only laws measurably novel vs the hand-written ones AND certifiable into playable puzzles by the one BFS oracle (novelty-search / MAP-Elites lineage). The generator-generator then runs on a law no one wrote. /deal \u2014 generated 2-player CARD GAMES certified by a TRIBUNAL of simulated opponents (the adversarial/hidden-info oracle family: seeded bot-vs-bot playouts prove terminates + rewards-skill + fair before shipping); the engine is a pure reducer (init/legalMoves/apply) so any game lifts into the games.mino.mobi DO rooms / hoop / ar transports for human-vs-human later \u2014 the certifying bot is also your opponent. Guest cabinet (NOT part of the seeded/certified thesis): /tetro — a human-authored React tetromino sandbox (a contributed Claude artifact; pre-transpiled to a global IIFE, React+Tailwind from CDN), listed under the worker health `guests[]`, not `wings[]`. Planned: /city (extends mappa), /character (sci-fi NPC systems)."
+      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. Live wings: /puzz \u2014 seeded, certified-unique logic puzzles (binairo + nonogram), a real solver certifying uniqueness, fairness, and grading from deduction techniques; /knack \u2014 canvas minigames, one composable discrete-move engine -> six genres, each certified solvable by a BFS solver that finds optimal par; /flux \u2014 continuous-space physics puzzles (no grid): aim one launch through gravity wells/magnets/goo/bumpers, a solver sweeps the 2D launch space to map winning basins, grading by shot precision; /gyre \u2014 flux in 3D: the ball constrained to a torus surface (intrinsic-coordinate geodesic integration + tangent-projected forces, hand-rolled 3D canvas in the torus-pack style), winding numbers of the winning shot are part of the interest battery. flux JS engine is mirrored in fable/flux/engine-rs (Rust) and cross-checked in CI by build-flux-catalog.yml, which commits fable/flux/data/catalog.json. /morph \u2014 a generator of puzzle GENERATORS (one level up): samples a game GENOME (substrate/topology incl. torus/M\u00f6bius/Klein/hex \u00d7 law \u00d7 goal \u00d7 aesthetic) and instantiates a concrete puzzle a single invariant BFS oracle certifies solvable; two knobs (new game = new genome, new puzzle = new instance). /drift \u2014 puzzles in MEANING-space (tier-4 substrate): the board is a committed kNN graph over 7k MiniLM word embeddings (built by scripts/build-drift-graph.mjs, cult-basis pattern; regenerate ONLY via manual build-drift-graph.yml \u2014 it re-rolls every permalink); Ladder = BFS-certified semantic crossings with measured par, Fold = margin-certified word families. /forge \u2014 the rung above morph: a FOUNDRY that mints new LAWS OF MOTION from a closed rule-DSL, fingerprints each by behaviour (state-space/branching/irreversibility/mutation/stride/drift), and admits only laws measurably novel vs the hand-written ones AND certifiable into playable puzzles by the one BFS oracle (novelty-search / MAP-Elites lineage). The generator-generator then runs on a law no one wrote. /deal \u2014 generated 2-player CARD GAMES certified by a TRIBUNAL of simulated opponents (the adversarial/hidden-info oracle family: seeded bot-vs-bot playouts prove terminates + rewards-skill + fair before shipping); the engine is a pure reducer (init/legalMoves/apply) so any game lifts into the games.mino.mobi DO rooms / hoop / ar transports for human-vs-human later \u2014 the certifying bot is also your opponent. Guest cabinet (NOT part of the seeded/certified thesis): /tetro \u2014 a human-authored React tetromino sandbox (a contributed Claude artifact; pre-transpiled to a global IIFE, React+Tailwind from CDN), listed under the worker health `guests[]`, not `wings[]`. Planned: /city (extends mappa), /character (sci-fi NPC systems)."
     },
     {
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/merge-candidate-prep-xhf6dt",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED \u2014 verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
@@ -52,7 +52,9 @@
         "phylo",
         "time",
         "wiki",
-        "mappa"
+        "mappa",
+        "polis",
+        "hoop-history"
       ],
       "note": "Assets worker `minomobi` serving directory '.'. Bundles the landing page + ~19 pure-static subsites into ONE deploy. Currently Cloudflare git-autodeploy from main (no Action). Target: explicit deploy-root.yml. WARNING: the bundled static subsites cannot be deployed independently of each other \u2014 see tension note in the chat.",
       "paths": [
@@ -60,7 +62,9 @@
         "styles.css",
         "scripts/generate-search-catalog.mjs",
         "functions/**",
-        "mappa/**"
+        "mappa/**",
+        "polis/**",
+        "hoop-history/**"
       ]
     },
     {
@@ -98,7 +102,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/bsky-closest-circle-3ofbo0",
+      "branch": "claude/social-tools-map-stack-review-odoveu",
       "uses": [],
       "provides": null,
       "paths": [
@@ -109,9 +113,12 @@
         "spark",
         "dyad",
         "gc",
-        "squares"
+        "squares",
+        "feedgen",
+        "tetr",
+        "map"
       ],
-      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts \u2014 likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions), squares at /squares (closest-circle picture toy — a seed handle's most-interacted-with accounts over the last week, ringed around their avatar in those accounts' most-liked image of the week; click a tile to recenter on it), and gc at /gc (block-intelligence tools + API \u2014 /gc block matrix: accounts vs posters \u2192 who directly blocks whom; /gc/mutuals: mutuals or followers of X who block Y; /gc/blockers: everyone blocking a named user; /gc/api docs the read-only JSON API at /api/gc/{relation,matrix,who-blocks,blockers}). #1/#2 read raw app.bsky.graph.block records (the worker also serves them server-side via b/lib/gc.js); network-wide blocker sets (#3 + the blocker side of #2) come from the clearsky.services index. All read-only public data, no auth, CORS open. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired \u2014 detach in dashboard + delete the mino-atmosphere worker)."
+      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts \u2014 likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions), squares at /squares (closest-circle picture toy — a seed handle's most-interacted-with accounts over the last week, ringed around their avatar in those accounts' most-liked image of the week; click a tile to recenter on it), the quarter at /map (walkable pixel-glyph catalogue of EVERY social/ATProto tool across mino.mobi \u2014 districts by function, the road east climbs complexity tiers I\u2013IV, per-tool stack + live-health cards; data in b/map/tools.js, companion audit in docs/SOCIAL-STACK-AUDIT.md), thread tetris at /tetr (real threads quantized into hex polyominoes), and gc at /gc (block-intelligence tools + API \u2014 /gc block matrix: accounts vs posters \u2192 who directly blocks whom; /gc/mutuals: mutuals or followers of X who block Y; /gc/blockers: everyone blocking a named user; /gc/api docs the read-only JSON API at /api/gc/{relation,matrix,who-blocks,blockers}). #1/#2 read raw app.bsky.graph.block records (the worker also serves them server-side via b/lib/gc.js); network-wide blocker sets (#3 + the blocker side of #2) come from the clearsky.services index. All read-only public data, no auth, CORS open. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired \u2014 detach in dashboard + delete the mino-atmosphere worker)."
     },
     {
       "surface": "auth",
@@ -183,10 +190,10 @@
       "dir": "rind",
       "endpoint": "rind.mino.mobi",
       "type": "frontend",
-      "branch": "claude/rind-deploy-surface-layout-fknwls",
+      "branch": "claude/rind-deploy-endpoint-aj9ky5",
       "uses": [],
       "provides": null,
-      "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam + wayfinding: drivable spiral-ramp / azimuthal-road routes through the chamber graph), walk.html (walk a planar cut through the foam). rind/ops/ is the OPS WEAVE: the 6 white-collar surfaces woven over the 8 production engines as the complete bipartite K(6,8) (a plain weave, not the old gyroid), drawn as two voronoi decks with a live material-flow schematic of the 8. Geometry generated in JS (foam.js/foam3d.js/wayfind.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static \u2014 no D1/DO/secrets.",
+      "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam + wayfinding: drivable spiral-ramp / azimuthal-road routes through the chamber graph), walk.html (walk a planar cut through the foam). rind/ops/ is the OPS WEAVE: the 6 white-collar surfaces woven over the 8 production engines as the complete bipartite K(6,8) (a plain weave, not the old gyroid). Its one-door endpoint (rind/ops/onedoor.html, kernel onedoor.js) re-poses the weave as two door-free concourses joined only by the 48 zero-grade K-doors, so any room to any room is one door incl. the hubs (proven, onedoor.selftest.mjs). Geometry generated in JS (foam.js/foam3d.js/wayfind.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static \u2014 no D1/DO/secrets.",
       "paths": [
         "rind/**",
         ".github/workflows/deploy-rind.yml"
@@ -197,10 +204,10 @@
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-solver-djdpdm",
+      "branch": "claude/tide-npc-civic-web-nhgzas",
       "uses": [],
       "provides": null,
-      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: profile/ (the centrifugal barometer \u2014 radial gravity g(r)=\u03c9\u00b2r + isothermal pressure P(r)=P_axis\u00b7e^{S(r/R)\u00b2} from radius/spin/non-spinning-pressure), atmosphere/ (1-D radial column \u2014 temp/humidity/CO\u2082 vs altitude, Mie fog optics), fountain/ (azimuthal cross-section \u2014 rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger \u2014 reactors\u2192light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static \u2014 every model runs client-side, no D1/DO/secrets.",
+      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: profile/ (the centrifugal barometer \u2014 radial gravity g(r)=\u03c9\u00b2r + isothermal pressure P(r)=P_axis\u00b7e^{S(r/R)\u00b2} from radius/spin/non-spinning-pressure), atmosphere/ (1-D radial column \u2014 temp/humidity/CO\u2082 vs altitude, Mie fog optics), fountain/ (azimuthal cross-section \u2014 rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger \u2014 reactors\u2192light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Also hosts goss/ (tide.mino.mobi/goss) \u2014 the civic web viewer over the hoop econ society (vendored kernel): NPCs + their relationships to places, emergent tribes, romance, and the two tension axes (tribalism, narcissism of small differences) emitting social-drama seeds. Pure static \u2014 every model runs client-side, no D1/DO/secrets.",
       "paths": [
         "tide/**",
         ".github/workflows/deploy-tide.yml"
@@ -513,7 +520,7 @@
       "dir": "rite",
       "endpoint": "rite.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/font-generator-demo-f3pdfa",
+      "branch": "claude/procedural-name-generator-2qqwfq",
       "uses": [
         "atpolls-db"
       ],
@@ -548,10 +555,10 @@
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-v100-deploy-pifsq9",
+      "branch": "claude/hoop-v101-audit-docs-xb82fs",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface.",
+      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface. VERSIONED SURFACES: v100 is the stable playable-nave snapshot; v101 (dev, current) carries the audited story engine (scaled storyboard pacing, external-reps gate channel, end-goto validator fix) + the world-side docs page at /docs (whole world scope, workflows, audit, roadmap).",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
@@ -681,9 +688,9 @@
       "branch": "claude/3d-bee-swarms-threejs-1yamtu",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time.",
+      "status": "MANAGED \u2014 new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time.",
       "op": "create",
-      "note": "tjs.mino.mobi — three.js workbenches. Landing at /, benches at /gantry (configurable HBot gantry test bench: seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools), /orb (spherical-symmetry toy: a sphere sliced into n longitudinal lunes (axial Cn) or a polyhedral kaleidoscope — tetra/octa/icosa Schwarz-triangle fundamental domains), /infill (a 50mm sphere packed with 3D-printer infill — gyroid, Schwarz-P, diamond, Neovius, honeycomb, grid, triangular — raymarched with a scroll-driven peel plane that caps the cut cross-section; CPU Monte-Carlo density calibration; solid-shell toggle; and a coarse in-browser 3D FDTD acoustic panel — transmission loss of the orb vs free field, run in a module worker over a validated reference solver in infill/acoustics.js, WebGPU fine-grid port planned), and /swarm (a 3D swarm of bees: instanced bee micro-meshes with shader-flapped wings over a live agent sim in swarm3d.js — attractor orbit (radial pull + axis×radial swirl) + Reynolds boids over a 27-cell 3D spatial hash + divergence-free 3D curl-noise + a true stigmergy scent voxel grid bees deposit into / evaporate+diffuse / climb the gradient of; deterministic fixed-1/60s step, node-tested in swarm3d.selftest.mjs; lead-the-swarm pointer steering + scent-field visualisation), and /beelix (a descending helix of bees emerging from BOIDS, not authored geometry: a hive particle-emitter up top, a death plane below that recycles bees into the pool, and a central light pipe. Bees run real Reynolds boids (separation/alignment/cohesion) as self-propelled constant-cruise active-matter particles; the ONLY authored forces are the light pipe's — phototaxis (inward confinement, sets no radius), downward flow, and a faint Light-swirl (pipeSpin) which is the sole rotational input. Pure boids in a flow-through column lock a handedness only ~half the time (raw emergence is unreliable); the faint light swirl breaks the tie and boids alignment AMPLIFIES it into a coherent mill that the descent shears into a helix — radius/pitch/thickness stay emergent, swirl sign sets handedness. HUD reads the swarm angular momentum L so you can watch it lock. Travelling light pulses kick+glow bees they pass. Instanced bees via shared beelix/beemesh.js; reuses swarm3d's curl-noise; node-tested in beelix.selftest.mjs (18 checks incl. sign(L)=sign(swirl) on every seed). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
+      "note": "tjs.mino.mobi \u2014 three.js workbenches. Landing at /, benches at /gantry (configurable HBot gantry test bench: seven-segment jerk-limited motion profiles, open-loop stepper torque-vs-pullout-envelope dynamic analysis, two Z lead-screw axes with gripper/pipettor tools), /orb (spherical-symmetry toy: a sphere sliced into n longitudinal lunes (axial Cn) or a polyhedral kaleidoscope \u2014 tetra/octa/icosa Schwarz-triangle fundamental domains), /infill (a 50mm sphere packed with 3D-printer infill \u2014 gyroid, Schwarz-P, diamond, Neovius, honeycomb, grid, triangular \u2014 raymarched with a scroll-driven peel plane that caps the cut cross-section; CPU Monte-Carlo density calibration; solid-shell toggle; and a coarse in-browser 3D FDTD acoustic panel \u2014 transmission loss of the orb vs free field, run in a module worker over a validated reference solver in infill/acoustics.js, WebGPU fine-grid port planned), and /swarm (a 3D swarm of bees: instanced bee micro-meshes with shader-flapped wings over a live agent sim in swarm3d.js \u2014 attractor orbit (radial pull + axis\u00d7radial swirl) + Reynolds boids over a 27-cell 3D spatial hash + divergence-free 3D curl-noise + a true stigmergy scent voxel grid bees deposit into / evaporate+diffuse / climb the gradient of; deterministic fixed-1/60s step, node-tested in swarm3d.selftest.mjs; lead-the-swarm pointer steering + scent-field visualisation), and /beelix (a descending helix of bees emerging from BOIDS, not authored geometry: a hive particle-emitter up top, a death plane below that recycles bees into the pool, and a central light pipe. Bees run real Reynolds boids (separation/alignment/cohesion) as self-propelled constant-cruise active-matter particles; the ONLY authored forces are the light pipe's \u2014 phototaxis (inward confinement, sets no radius), downward flow, and a faint Light-swirl (pipeSpin) which is the sole rotational input. Pure boids in a flow-through column lock a handedness only ~half the time (raw emergence is unreliable); the faint light swirl breaks the tie and boids alignment AMPLIFIES it into a coherent mill that the descent shears into a helix \u2014 radius/pitch/thickness stay emergent, swirl sign sets handedness. HUD reads the swarm angular momentum L so you can watch it lock. Travelling light pulses kick+glow bees they pass. Instanced bees via shared beelix/beemesh.js; reuses swarm3d's curl-noise; node-tested in beelix.selftest.mjs (18 checks incl. sign(L)=sign(swirl) on every seed). Pure static, CDN three.js importmap (no build), no D1/secrets beyond shared Cloudflare creds.",
       "paths": [
         "tjs/**"
       ]
@@ -917,7 +924,7 @@
       "paths": [
         "aub/**"
       ],
-      "note": "Ecdysium (aubrika/ecdysium) — a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown. Assets-only worker `aub` serving a static dist (web shell + macroquad JS bundle + game assets + the wasm), assembled at deploy time by deploy-aub.yml. Only upstream change is a getrandom `js` feature for the wasm target. Save/load no-ops in-browser (std::fs unavailable) but the game plays."
+      "note": "Ecdysium (aubrika/ecdysium) \u2014 a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown. Assets-only worker `aub` serving a static dist (web shell + macroquad JS bundle + game assets + the wasm), assembled at deploy time by deploy-aub.yml. Only upstream change is a getrandom `js` feature for the wasm target. Save/load no-ops in-browser (std::fs unavailable) but the game plays."
     }
   ],
   "unmanaged": {

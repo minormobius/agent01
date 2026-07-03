@@ -13,6 +13,12 @@
 //   priority-flood lakes + flow-accumulation rivers.
 //
 // Deterministic: same seed ⇒ same world, in node and the browser.
+//
+// The climate stage (winds → moisture → temperature → biomes) is factored into the
+// exported computeClimate(geo, forcing) — a pure, rng-free function of the fixed
+// geology + an explicit forcing. generateWorld calls it once; consumers (polis) can
+// re-run it on a frozen region through many climates (glacials, warm-houses, shifting
+// shorelines) at ~30× the speed of a full world. See computeClimate at end of file.
 
 // ---- prng + vec3 ------------------------------------------------------------
 export function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -84,8 +90,8 @@ export const BIOMES = [
   {id:'sea_ice',       name:'sea ice',             h:198,s:12,l:84}, // frozen ocean surface
   {id:'glacier',       name:'glacier / ice cap',   h:200,s:14,l:90}, // permanent land ice
 ];
-const BI = Object.fromEntries(BIOMES.map((b,i)=>[b.id,i]));
-function classify(T, M, elevAbove){ // T °C, M 0..1, elevAbove = elevation above sea
+export const BI = Object.fromEntries(BIOMES.map((b,i)=>[b.id,i]));
+export function classify(T, M, elevAbove){ // T °C, M 0..1, elevAbove = elevation above sea
   if(T<-14) return BI.glacier;                  // permanent ice cap (coldest land)
   if(elevAbove>0.72) return T<1?BI.snow:BI.alpine;
   if(T<-9) return BI.ice;                        // continental ice sheet
@@ -271,6 +277,55 @@ export function generateWorld(seed, opts={}){
   // is; the sign sets the Coriolis deflection (retrograde ⇒ prevailing winds flip).
   const _rrMag=0.5+rnd()*1.4, _rrSign=rnd()<0.12?-1:1;          // always draw (RNG stream stable under override)
   const rotationRate = opts.rotationRate ?? (_rrMag*_rrSign);
+  // 6+6b. climate → computeClimate() (extracted, re-runnable on fixed geology).
+  const clim = computeClimate({N, V, adj, elev, water}, {seed, solar, axialTilt, rotationRate});
+  const {temperature, moisture, seasonality, biome, windCells, coriolisSign, aOmega} = clim;
+
+  // plate-boundary segments (for tectonic view)
+  const bounds=[];for(const[k,ts]of e2t){if(ts.length!==2)continue;const[a,b]=k.split(',').map(Number);if(plate[a]===plate[b])continue;bounds.push({a:cc[ts[0]],b:cc[ts[1]],c:(conv[a]+conv[b])/2})}
+
+  let oceanA=0,totA=0;for(let i=0;i<N;i++){totA+=area[i];if(water[i]!==0)oceanA+=area[i]}
+  return {
+    meta:{seed,N,plateCount,oceanFraction:+oceanFraction.toFixed(3),waterFrac:+waterFrac.toFixed(3),
+      seaCoverage:+(oceanA/totA).toFixed(3),axialTilt:+axialTilt.toFixed(3),
+      axialTiltDeg:Math.round(axialTilt*180/Math.PI),solar:+solar.toFixed(3),
+      planetRadius:+planetRadius.toFixed(3),age,ageSpan:+ageSpan.toFixed(3),seaLevelRaw:+sl.toFixed(4),
+      rotationRate:+rotationRate.toFixed(3),windCells,coriolisSign,dayLengthRel:+(1/aOmega).toFixed(3)},
+    N, V, cells, adj, area, plate, plateType:Uint8Array.from({length:N},(_,i)=>ptype(i)),
+    plates:plates.map(p=>({center:p.center,oceanic:p.oceanic,axis:p.axis,speed:p.speed})),
+    elev, water, temperature, moisture, seasonality, biome, conv, volc, bounds, rivers,
+    _euler:{tris:tris.length, Vc:N+1},
+  };
+}
+
+// ---- computeClimate: the re-runnable climate engine ------------------------
+// Steps 6 + 6b factored out of generateWorld so the SAME fixed geology (elev,
+// water, adjacency) can be run through many climates. Draws NO rng — all its
+// variation is seed-indexed fbm3 + the explicit forcing, so it is a pure function
+// of (geometry, forcing). Called once by generateWorld (forcing = the world's own
+// params → bit-identical to the old inline code) and repeatedly by consumers that
+// want an era climate on a frozen region (polis): pass a different solar / tilt /
+// rotationRate, a global tempOffset (°C, e.g. a glacial), or a seaLevelOffset
+// (shifts the effective shore → ice-age sea retreat / warm-era flooding).
+//   geo     : {N, V, adj, elev, water}   (water: 0 land, 1 ocean, 2 lake)
+//   forcing : {seed, solar=1, axialTilt, rotationRate, tempOffset=0, seaLevelOffset=0, humidity=1}
+//     humidity scales the whole moisture field (wet pluvial vs arid phase — e.g. the
+//     Holocene Humid Period vs a glacial/aridification); default 1 → baseline.
+// returns {temperature, moisture, seasonality, biome, windCells, coriolisSign, aOmega, Omega}
+export function computeClimate(geo, forcing){
+  const {N, V, adj, elev, water} = geo;
+  const {seed, axialTilt} = forcing;
+  const solar = forcing.solar ?? 1.0;
+  const rotationRate = forcing.rotationRate;
+  const tOff = forcing.tempOffset || 0;
+  const seaOff = forcing.seaLevelOffset || 0;
+  const hum = forcing.humidity ?? 1;
+  // effective per-era water mask: seaOff===0 → the geology mask verbatim (baseline,
+  // bit-identical). Otherwise reclassify by the shifted shore: below → ocean, a lake
+  // stays a lake if still above sea, everything else (incl. exposed shelf) is land.
+  const w2 = new Uint8Array(N);
+  if(seaOff===0){ w2.set(water); }
+  else for(let i=0;i<N;i++){ w2[i] = elev[i] < seaOff ? 1 : (water[i]===2 ? 2 : 0); }
   const Omega = Math.abs(rotationRate)<0.05 ? (rotationRate<0?-0.05:0.05) : rotationRate;
   const aOmega=Math.abs(Omega), coriolisSign=Omega<0?-1:1;
   const windCells=Math.max(1,Math.min(6,Math.round(3*Math.sqrt(aOmega)))); // circulation cells per hemisphere
@@ -295,19 +350,19 @@ export function generateWorld(seed, opts={}){
     let bj=-1,bd=0.2;for(const j of adj[i]){let dx=V[j][0]-V[i][0],dy=V[j][1]-V[i][1],dz=V[j][2]-V[i][2];const dl=Math.hypot(dx,dy,dz)||1;const d=(dx*wx+dy*wy+dz*wz)/dl;if(d>bd){bd=d;bj=j}}upwind[i]=bj}
   // advect ocean humidity downwind: decays over land, replenished over sea, rains
   // out on ascent → windward coasts wet, deep interiors & lee sides dry. Directional.
-  const ocean=new Uint8Array(N);for(let i=0;i<N;i++)ocean[i]=water[i]===1?1:0;
+  const ocean=new Uint8Array(N);for(let i=0;i<N;i++)ocean[i]=w2[i]===1?1:0;
   let A=new Float32Array(N);for(let i=0;i<N;i++)A[i]=ocean[i]?1:0;
   for(let it=0;it<16;it++){const An=Float32Array.from(A);
     for(let i=0;i<N;i++){if(ocean[i]){An[i]=1;continue}const j=upwind[i];if(j<0)continue;
       const climb=Math.max(0,elev[i]-elev[j]);                      // orographic rain-out steepens decay
-      An[i]=Math.max(An[i], A[j]*(0.93-Math.min(0.5,climb*3.0)) + (water[i]===2?0.05:0))}
+      An[i]=Math.max(An[i], A[j]*(0.93-Math.min(0.5,climb*3.0)) + (w2[i]===2?0.05:0))}
     A=An}
   // orographic term: windward ascent wetter, lee descent (rain shadow) drier
   const oro=new Float32Array(N);for(let i=0;i<N;i++){const j=upwind[i];oro[i]=j<0?0:Math.max(-0.5,Math.min(0.6,(elev[i]-elev[j])*4.0))}
 
   // 6b. temperature + moisture(v2) + seasonality → biomes ----------------------
   const temperature=new Float32Array(N), moisture=new Float32Array(N), seasonality=new Float32Array(N), biome=new Uint8Array(N);
-  const distSea=new Int16Array(N).fill(-1);{const q=[];for(let i=0;i<N;i++)if(water[i]===1){distSea[i]=0;q.push(i)}
+  const distSea=new Int16Array(N).fill(-1);{const q=[];for(let i=0;i<N;i++)if(w2[i]===1){distSea[i]=0;q.push(i)}
     for(let h=0;h<q.length;h++){const i=q[h];for(const j of adj[i])if(distSea[j]<0){distSea[j]=distSea[i]+1;q.push(j)}}}
   let maxD=1;for(let i=0;i<N;i++)if(distSea[i]>maxD)maxD=distSea[i];
   for(let i=0;i<N;i++){
@@ -315,7 +370,7 @@ export function generateWorld(seed, opts={}){
     let T=28 - 45*Math.pow(alat,1.25) + (solar-1)*38;  // mean annual temperature (solar luminosity shifts it)
     if(water[i]===0)T-=Math.max(0,elev[i])*42;     // altitude lapse on land
     T+=(fbm3(V[i][0]*3+9,V[i][1]*3,V[i][2]*3,seed+5)-0.5)*5;
-    temperature[i]=T;
+    T+=tOff; temperature[i]=T;
     // moisture v2 = advected ocean air (A, directional) + a soft isotropic coastal
     // floor + circulation rainfall bands (rising branches of the cells wet, sinking
     // subtropics/poles dry) + orographic relief (windward wet / lee rain-shadow)
@@ -323,31 +378,17 @@ export function generateWorld(seed, opts={}){
     const band=0.5+0.5*Math.cos(windCells*Math.PI*Math.min(1,alat));
     let M=Math.max(0,Math.min(1, A[i]*0.42 + coast*0.20 + band*0.36 + oro[i]*0.45 - Math.max(0,elev[i])*0.12
         + (fbm3(V[i][0]*2-4,V[i][1]*2,V[i][2]*2,seed+11)-0.5)*0.22));
+    if(hum!==1) M=Math.max(0,Math.min(1, M*hum));    // pluvial/arid scaling (Holocene Humid Period ↔ aridification)
     moisture[i]=M;
     // seasonality: axial tilt × latitude × continentality → annual winter depth
-    const contl = water[i]===1?0 : Math.min(1, distSea[i]/Math.max(3,maxD*0.5));
+    const contl = w2[i]===1?0 : Math.min(1, distSea[i]/Math.max(3,maxD*0.5));
     const seas = (axialTilt/0.41) * (8 + 34*Math.pow(alat,1.1)) * (0.55+0.75*contl);
     seasonality[i]=seas;
     const Teff = T - 0.32*seas; // growing-season-limited temperature for biomes
     // sea ice: ocean surface below seawater freezing (~−2 °C) → frozen polar cap
-    biome[i]= water[i]===1 ? (T<-2?BI.sea_ice:(elev[i]>-0.12?BI.ocean_shelf:BI.ocean_deep))
-            : water[i]===2 ? (T<-6?BI.glacier:BI.lake)
+    biome[i]= w2[i]===1 ? (T<-2?BI.sea_ice:(elev[i]>-0.12?BI.ocean_shelf:BI.ocean_deep))
+            : w2[i]===2 ? (T<-6?BI.glacier:BI.lake)
             : classify(Teff,M,elev[i]);
   }
-
-  // plate-boundary segments (for tectonic view)
-  const bounds=[];for(const[k,ts]of e2t){if(ts.length!==2)continue;const[a,b]=k.split(',').map(Number);if(plate[a]===plate[b])continue;bounds.push({a:cc[ts[0]],b:cc[ts[1]],c:(conv[a]+conv[b])/2})}
-
-  let oceanA=0,totA=0;for(let i=0;i<N;i++){totA+=area[i];if(water[i]!==0)oceanA+=area[i]}
-  return {
-    meta:{seed,N,plateCount,oceanFraction:+oceanFraction.toFixed(3),waterFrac:+waterFrac.toFixed(3),
-      seaCoverage:+(oceanA/totA).toFixed(3),axialTilt:+axialTilt.toFixed(3),
-      axialTiltDeg:Math.round(axialTilt*180/Math.PI),solar:+solar.toFixed(3),
-      planetRadius:+planetRadius.toFixed(3),age,ageSpan:+ageSpan.toFixed(3),seaLevelRaw:+sl.toFixed(4),
-      rotationRate:+rotationRate.toFixed(3),windCells,coriolisSign,dayLengthRel:+(1/aOmega).toFixed(3)},
-    N, V, cells, adj, area, plate, plateType:Uint8Array.from({length:N},(_,i)=>ptype(i)),
-    plates:plates.map(p=>({center:p.center,oceanic:p.oceanic,axis:p.axis,speed:p.speed})),
-    elev, water, temperature, moisture, seasonality, biome, conv, volc, bounds, rivers,
-    _euler:{tris:tris.length, Vc:N+1},
-  };
+  return {temperature, moisture, seasonality, biome, windCells, coriolisSign, aOmega, Omega};
 }

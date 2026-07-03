@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hoop · World Docs</title>
+  <meta name="description" content="The world-side documentation for hoop, the infinite game: the whole scope of the world (decks, story spine, minigames, economy), every workflow that feeds it, the v101 audit, and the roadmap." />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#04050a; --ink:#dfe7e2; --faint:#9aa8a0; --dim:#6b7872; --gold:#f4bf62; --teal:#7fd8d0; --copper:#b48a6a; --line:#1b2530; --panel:#0b0f15; --red:#e08a8a; --green:#8fd89a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: "JetBrains Mono", ui-monospace, monospace; line-height: 1.6; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 28px 20px 80px; }
+    a { color: var(--teal); }
+    h1 { font-size: 24px; color: var(--gold); margin: 0 0 4px; }
+    h2 { font-size: 16px; color: var(--teal); margin: 38px 0 10px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+    h3 { font-size: 13.5px; color: var(--copper); margin: 18px 0 6px; }
+    .lead { color: var(--faint); font-size: 13px; }
+    code, .mono { font-family: inherit; background: #10161d; color: #cfe3dd; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+    pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 12px; color: #cfe3dd; }
+    pre .c { color: var(--dim); }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12.5px; }
+    th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--teal); font-weight: 600; }
+    td b { color: var(--gold); font-weight: 600; }
+    .pill { display: inline-block; font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 20px; padding: 2px 9px; margin: 0 4px 4px 0; }
+    .who { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 8px 0; font-size: 13px; }
+    .who b { color: var(--gold); }
+    .crumb { font-size: 12px; color: var(--dim); margin-bottom: 14px; }
+    .crumb a { color: var(--copper); }
+    .toc { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; font-size: 12.5px; columns: 2; }
+    .toc a { display: block; color: var(--faint); text-decoration: none; padding: 1px 0; }
+    .toc a:hover { color: var(--teal); }
+    .ok { color: var(--green); } .warn { color: var(--gold); } .bad { color: var(--red); }
+    .tag { font-size: 10.5px; border-radius: 4px; padding: 1px 6px; font-weight: 600; }
+    .tag.fixed { background: #10241a; color: var(--green); border: 1px solid #1d4030; }
+    .tag.open { background: #241f10; color: var(--gold); border: 1px solid #4a3d1d; }
+    .tag.content { background: #241014; color: var(--red); border: 1px solid #4a1d28; }
+    @media (max-width: 640px) { .toc { columns: 1; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">◍ hoop</a> · world docs · <a href="/v101/">play v101 ↗</a> · <a href="/v101/records">records</a> · <a href="/v101/feed">live feed</a> · <a href="/v101/spine">spine</a></div>
+
+  <h1>The World — Documentation</h1>
+  <p class="lead">The whole scope of <b>hoop</b>, the infinite game: the ship and its decks, the story
+  engine and how hoopy's canon plugs into it, the minigames, the food economy, <b>every workflow</b>
+  that feeds the world, the <b>v101 audit</b>, and the road ahead. This page is the examination
+  surface — if you want to know how the world works or what ships it, start here.</p>
+
+  <div class="toc">
+    <a href="#world">1 · The world at a glance</a>
+    <a href="#surfaces">2 · The versioned surfaces</a>
+    <a href="#decks">3 · The deck stack</a>
+    <a href="#story">4 · The story spine — hoopy's canon</a>
+    <a href="#minigames">5 · Minigames</a>
+    <a href="#food">6 · Garden · cafe · kitchen</a>
+    <a href="#workflows">7 · The workflows</a>
+    <a href="#audit">8 · The v101 audit</a>
+    <a href="#roadmap">9 · Roadmap — the next additive tasks</a>
+    <a href="#endpoints">10 · Endpoint map</a>
+  </div>
+
+  <h2 id="world">1 · The world at a glance</h2>
+  <p class="lead">The Tabard is a generation ship — an O'Neill cylinder — and hoop is the game you
+  play inside it: a Caves-of-Qud-flavoured glyph world where <b>the map is the forum</b>. You walk an
+  <code>@</code> through a Voronoi-foam city; places anchor conversation threads; every place, message
+  and story save is an <b>ATProto record</b> in somebody's own repo. The game is one wing of a
+  four-part modelling package — the other three wings model the ship for real:</p>
+  <table>
+    <tr><th>Wing</th><th>Surface</th><th>What it models</th></tr>
+    <tr><td><b>The game</b></td><td><a href="/">hoop.mino.mobi</a> (this site)</td><td>the infinite game — the lived-in world</td></tr>
+    <tr><td>The structure</td><td><a href="https://rind.mino.mobi">rind.mino.mobi</a></td><td>the foam space-frame shell + frame solver</td></tr>
+    <tr><td>The thermodynamics</td><td><a href="https://tide.mino.mobi">tide.mino.mobi</a></td><td>the radial atmosphere, fountain &amp; sun, water/energy ledger</td></tr>
+    <tr><td>The ecosystem</td><td><a href="https://biome.mino.mobi">biome.mino.mobi</a></td><td>the closed food-web box model (feeds the cafe, §6)</td></tr>
+  </table>
+  <p class="lead">The playable game (§2) sits on a deterministic engine: the world is a pure function
+  of <code>(seed, chunk, genome)</code>, so every machine derives the same ship for ever and a
+  permalink means something. Around the playable surfaces the site carries a ring of
+  <b>design-tool wings</b> — <a href="/chunkroller">chunkroller</a> (roll one chunk),
+  <a href="/nave">/nave</a> (floor-1 design view), <a href="/rind">/rind</a> (floor-2 design view),
+  <a href="/forge">/forge</a> (the industrial metabolism, eleven sub-pages), <a href="/paint/">/paint</a>
+  (rendering playground), <a href="/econ/">/econ</a> (economies-as-ecosystems lab), and the
+  <a href="/research.html">research dossier</a>. They are the workshop; the game is the product.</p>
+
+  <h2 id="surfaces">2 · The versioned surfaces</h2>
+  <p class="lead">Each <code>/vNNN/</code> is an independently served snapshot with its own
+  localStorage namespace (<code>hoop:vNNN:…</code>), so saves never collide across versions. The
+  discipline: one stable surface for hoopy's content/story testing, one development surface for
+  disruptive work.</p>
+  <table>
+    <tr><th>Surface</th><th>Role</th><th>What it carries</th></tr>
+    <tr><td><a href="/v098/">v098</a></td><td>legacy stable</td><td>hoopy's earlier content/story testbed — kept frozen</td></tr>
+    <tr><td><a href="/v099/">v099</a></td><td>prior dev</td><td>map/fixture/combat work that became v100</td></tr>
+    <tr><td><a href="/v100/">v100</a></td><td><b>stable</b></td><td>the playable nave: faction campaign (Rindwalker → Continuant → Drift), the three-deck stack, the chapter-one conclusion</td></tr>
+    <tr><td><a href="/v101/">v101</a></td><td><b>development</b> (current)</td><td>v100 + the audited story engine (§8): scaled storyboard pacing, the external-reps gate channel, the end-goto validator fix, the both-schemas importer</td></tr>
+  </table>
+  <p class="lead">Older snapshots (v090–v097) remain on disk and playable at their paths; they are
+  history, not maintained. The engine-parts directories (<code>v2…v8</code>) are the kernel lineage
+  the current engine imports from — <code>v8/</code> is live load-bearing code, not a snapshot.</p>
+
+  <h2 id="decks">3 · The deck stack</h2>
+  <p class="lead">The playable world is a <b>linear stack of decks</b>, each an unbounded Voronoi-foam
+  floor, joined by shafts ("a chute is a port"). Descent is story-gated — the way down opens as the
+  narrative tier climbs.</p>
+  <table>
+    <tr><th>Deck</th><th>Name</th><th>What it is</th><th>Opens at</th></tr>
+    <tr><td>↑</td><td><b>the overworld</b></td><td>the ship's outer grow-deck, <b>roamed</b> — you're injected as a walking figure into the curated ecology grown wild; WASD/arrows/click move you, the camera follows, the world streams in <b>chunks</b> (walk out and back, it's the same landscape), the ground is a <b>voronoi</b> of terrain bands (meadow/grove/thicket/heath/fen/water you can't cross). Two verbs up top: <b>gather</b> a herb (into your pantry, brewable at a ⚗ bench) and <b>face</b> a bee-swarm/spider. Each plant keeps its growth-form + Galenic palette. Live at <a href="/over">/over</a>; reached in-game by a <b>passive ladder in the Continuants ward</b>.</td><td>Continuants unlock</td></tr>
+    <tr><td>0</td><td><b>the nave</b></td><td>floor 1: a central commons (≥1 of every building type) ringed by six faction wards in three two-chunk lobes — Rindwalker · Continuant · Drift. Zero baddies; the peaceable city.</td><td>start</td></tr>
+    <tr><td>1</td><td><b>the upper rind</b></td><td>the arteries under the city, tagged by the Seven: <b>Mercury</b> hub (move·trade·learn) spoked to <b>Mars</b> (forge-cathedral), <b>Venus</b> (green deep), <b>Jupiter</b> (the long table). Combat arms here.</td><td>narrative tier ≥ 3</td></tr>
+    <tr><td>2</td><td><b>the lower rind</b></td><td>the deep stasis floor: <b>Saturn</b> cold-deep hub, <b>Sol</b> fusion-heart, <b>Luna</b> dream-archive, and the <b>Signal Chamber</b> — the chapter's close.</td><td>narrative tier ≥ 4 + a chosen faction</td></tr>
+  </table>
+  <p class="lead">Mechanics worth knowing: decks are laid at world-coordinate offsets (upper ~6000,
+  lower ~12000 east) because they share the nave's seam lattice — co-locating would leak floors into
+  each other through the walk-graph stitch. Each adjacent pair is joined by exactly one shaft whose
+  ends are a teleport pair. Deck floors stream chunk-by-chunk; the down-shaft only opens once the
+  floor above has fully streamed (building mid-stream races the incremental stitch). A dev shortcut
+  (<code>?dev=1</code>) fast-forwards the whole descent for testing.</p>
+
+  <h2 id="story">4 · The story spine — how hoopy's canon plugs in</h2>
+  <p class="lead">All narrative content is authored by hoopy as a <b>world export</b> — currently a
+  <b>720-record corpus</b> (<code>v101/story/world_export.json</code>: 90 plot beats, 138 NPCs with
+  full dialogue trees, 167 lore fragments, 126 items, 116 rumors, 83 creatures). The game engine is
+  <b>inference-free in the hot path</b>: everything the player meets is either authored canon or
+  gate-checked generated content, never a live model call.</p>
+  <h3>The pipeline, source → screen</h3>
+  <table>
+    <tr><th>Stage</th><th>Module</th><th>What happens</th></tr>
+    <tr><td>1 · import</td><td><code>story/import.js</code></td><td>hoopy's export → engine <code>content_item</code>s. Handles both his schemas (flat r/n/p-tier records and the newer nested-<code>content{}</code> integer-tier form). <code>servePool</code> explodes room-bundles/wanderers.</td></tr>
+    <tr><td>2 · gate</td><td><code>story/review.js</code> + <code>gates.js</code> + <code>validate.js</code></td><td>the review gate: schema/tier checks, dialogue-tree FSM validation, and <b>reachability</b> — every <code>requires</code> flag/item/rep must be producible by the pool or declared on the runtime boundary (<code>worldExternal</code>). Verdict PASS/BLOCK, nothing broken ships.</td></tr>
+    <tr><td>3 · serve</td><td><code>story/atproto.js</code></td><td>the pool is published as <code>com.minomobi.hoop.story.content</code> records on the <b>morphyx</b> service repo; the game reads it live (shared across v100/v101 — the service repo is not version-namespaced).</td></tr>
+    <tr><td>4 · run</td><td><code>story/engine.js</code></td><td>the runtime store: talk/choose/take, dialogue FSM, gate state, XP. Crystallizing content fires <code>flag.*</code> producers.</td></tr>
+    <tr><td>5 · advance</td><td><code>story/anchors.js</code> + <code>progression.js</code> + <code>board.js</code></td><td>two axes, deliberately split: <b>revelation</b> (auto, exploration XP) and <b>narrative</b> (human-paced — anchor turn-ins set <code>flag.deck.&lt;deck&gt;.cleared</code>, the level-up). The storyboard, quest log, waypoints and opening cast are all <b>derived from his plot beats</b>, not hand-authored.</td></tr>
+  </table>
+  <h3>The live loops around the game</h3>
+  <table>
+    <tr><th>Loop</th><th>How</th></tr>
+    <tr><td><b>The Director pulse</b></td><td>a cron (§7) folds every player's <code>story.save</code> records into one world-pulse record on morphyx; the game and the generation lane read it as "what the world is feeling" — the steer.</td></tr>
+    <tr><td><b>The rumor mill</b></td><td>players publish <code>story.rumor</code> records (sightings · divinations · inkblots); verdict sweeps apply retcons and notices back into live saves on load, refocus, and a 60&nbsp;s poll.</td></tr>
+    <tr><td><b>The generation lane</b> <span class="tag open">retired experiment</span></td><td>a one-off v096 test we moved away from — <b>there is no inference in the hot path, by design</b>. The <code>/api/story/sidequest</code> worker route still exists (fully guarded; a stub without its key) but no shipped surface drives it. All live content is authored canon through the review gate.</td></tr>
+    <tr><td><b>The solvability oracle</b></td><td><code>story/solvable.js</code> — proves from content alone that every tier's turn-in can actually be reached: every gate has a keeper, every keeper is placeable when needed, every zone is open in time (§8). Its runtime half (<code>requiredKeeperIds</code>) force-places the active anchor's keepers past the tier filter. Run it against the live pool: <code>node hoop/scripts/prove-solvable.mjs</code>.</td></tr>
+    <tr><td><b>The spine guarantee</b></td><td>each deck carries a load-bearing NPC quest (<code>story/deckquest.js</code>); the deck-stacking guarantee keeps every deck's quest completable regardless of order. Spec + demo at <a href="/v101/spine">/v101/spine</a>.</td></tr>
+  </table>
+  <p class="lead">Deep dives: <a href="/v101/records">records &amp; lexicons</a> (the ATProto contract),
+  <a href="/v101/architecture.html">the story data-flow diagram</a>, <a href="/v101/feed">the live
+  records feed</a>, <a href="/v101/storyboard/">the storyboard</a>.</p>
+
+  <h2 id="minigames">5 · Minigames</h2>
+  <p class="lead">Every minigame is reached <b>in-world</b> by clicking a fixture in a themed room
+  (the fixture→action table lives in <code>sim.js</code>). All engines are pure, deterministic and
+  node-tested; the caveats column is the honest state (see §8 for the balance numbers).</p>
+  <table>
+    <tr><th>Minigame</th><th>Fixture / room</th><th>Engine</th><th>State</th></tr>
+    <tr><td><b>Arcade</b> (logic puzzles)</td><td><code>play</code>-role cabinet</td><td><code>arcade.js</code> (22 laws) — default engine is the <code>morph</code> sampler; <code>?forge=1</code> opts into the forge-codex arcade</td><td><span class="tag open">proto engine gated</span></td></tr>
+    <tr><td><b>Combat</b> (grid battles)</td><td>creeps on decks 1–2</td><td><code>arena/</code> — engine, encounters, faction kits, a solver</td><td><span class="tag open">unbalanced — see §8</span></td></tr>
+    <tr><td><b>Trainer</b> (roguelike gauntlet)</td><td>trainer fixture</td><td><code>arena/run.js</code> + faction tech tree</td><td>shipped</td></tr>
+    <tr><td><b>Lapidary</b> (gem + item mend)</td><td><code>mend</code>-role fixture</td><td><code>gems.js</code> (crystallography) + <code>craft/mend.js</code></td><td>shipped — Pull/Socket/Grow crystals, plus a <b>⚒ Reforge</b> tab: temper a stat, reforge finer, or upgrade the tech era (paid in commodities). See §9·2b.</td></tr>
+    <tr><td><b>Garden</b> (grow)</td><td><code>grow</code>-role fixture</td><td><code>garden/garden.js</code></td><td>§6 — overhaul target</td></tr>
+    <tr><td><b>Kitchen</b> (cook)</td><td>dwelling storage fixture</td><td><code>garden/kitchen.js</code> (flavor-coherence scoring)</td><td>§6 — overhaul target</td></tr>
+    <tr><td><b>Trade desk</b> (trade)</td><td>trade desk</td><td><code>garden/gacha.js</code> + <code>shop.js</code> + <code>craft/smith.js</code></td><td>shipped — five tabs: ⇄ Wares (gear) · ❀ Seed packs · ⚗ Draughts (apothecary) · <b>⬡ Materials</b> (buy/sell commodities) · <b>✎ Commissions</b> (craft-to-order → coins + trace). See §9·2b.</td></tr>
+    <tr><td><b>Alchemy bench</b> (make ⚗)</td><td><code>make</code>-role <em>component</em> fixture</td><td><code>alch/alchemy.js</code> (correspondence→effect) + <code>alch/cookbook.js</code></td><td>shipped — combine pantry reagents → a graded preparation (heal/damage/buff/debuff · social · lubricant); <a href="/alch">cookbook</a>. <b>Recipe mastery:</b> known recipes (story-tier baseline, expands as you brew) are one-tap; unknown ones are a 🔒 mystery to discover by experiment.</td></tr>
+    <tr><td><b>Smithy</b> (make ⚒)</td><td><code>make</code>-role <em>wall</em> fixture</td><td><code>craft/smith.js</code> over the item genome (<code>sprite/item/</code>)</td><td>shipped — the make verb for EQUIPMENT. Pick a body-plan + era (story-gated: salvage→ship-grade) + material + quality → forge a genome item, paying in the ship's <b>commodities</b> (material→commodity economy: organic↔biomass, metal↔metal, exotic/precious/crystal↔<b>trace</b>). BREAK-down tab dismantles gear back into commodities (a loss). Testbed: <a href="/smith">/smith</a>.</td></tr>
+    <tr><td><b>Quaff / doff a preparation</b></td><td>pack ⚗ (out of combat) · arena bar (in a fight)</td><td>engine <code>item</code> act + <code>arena/trajectory.js</code> (the lob)</td><td>shipped — <b>quaff</b> a self draught (heal/buff, mid-fight or primed) · <b>doff</b> (throw) a caustic flask / sedative smoke at a foe or a salve to an ally, arcing over on a projectile trajectory. A social draught sets the <code>alch.social</code> conversation-hook flag; an oil tunes the chassis.</td></tr>
+    <tr><td><b>Gift for standing</b></td><td>NPC conversation (⚘)</td><td><code>giftPrepToNpc</code> → <code>store.setNpcState</code></td><td>shipped — gifting a draught raises standing (largesse draughts more); the reputation hook content gates on</td></tr>
+    <tr><td><b>Apothecary</b></td><td>trade desk (⚗ tab)</td><td><code>apothecaryStock</code> (cookbook recipes, prepared)</td><td>shipped — buy ready-made basic preparations + sell your brews</td></tr>
+    <tr><td><b>Cafe</b> (eat)</td><td><code>serve</code>-role counter</td><td><code>food/</code> — larder baked from biome's real viability oracle</td><td>§6 — overhaul target</td></tr>
+    <tr><td><b>Oracle</b> (yijing) &amp; <b>Geomancy</b></td><td><code>worship</code> room</td><td><code>worship/oracle.js</code>, <code>scry.js</code></td><td>shipped</td></tr>
+    <tr><td><b>Inkblot</b> (divination)</td><td><code>govern</code> seal-stand</td><td><code>govern/inkblot.js</code></td><td>shipped</td></tr>
+  </table>
+  <p class="lead">Orphan: <code>hoop/minigame/</code> (an older standalone forge-puzzle opener with an
+  offline-minted codex) is <b>not imported by v100/v101</b> — the game rolled its own
+  <code>arcade.js</code>. Flagged in §8; candidates are fold-in or retire.</p>
+
+  <h2 id="food">6 · Garden · cafe · kitchen — the food economy today</h2>
+  <p class="lead">A <b>trade ↔ grow ↔ dwell triangle</b>, all deterministic and data-injected:</p>
+  <table>
+    <tr><th>Piece</th><th>Loop</th><th>Data</th></tr>
+    <tr><td><b>Garden</b></td><td>plant in one of 6 plots → <b>sleep</b> in your dwelling to advance the day → crops mature over <code>growthDays</code> → harvest to pantry. A deterministic starter seed-bag makes it playable before any trade desk.</td><td><code>garden/ark.json</code> (built offline by <code>build-ark.mjs</code>)</td></tr>
+    <tr><td><b>Gacha / trade desk</b></td><td>each desk binds to one biome; spend 12 ◈ to pull seeds (new-crop bias 4× so collections converge); collecting every crop <b>closes</b> the biome.</td><td>same ark, <code>gacha.js</code></td></tr>
+    <tr><td><b>Kitchen</b></td><td>cook 2–4 crops into a dish scored by <b>flavor coherence</b> (avg pairwise cosine of compound embeddings, graded S→F); a coherent dish out-nourishes raw crops.</td><td><code>garden/kitchen.json</code> (offline embeddings)</td></tr>
+    <tr><td><b>Cafe</b></td><td>spend coins (arcade/quest earnings) → stamina/nourishment. A hearty plate is 2 coins — food is maintenance, not a money sink.</td><td><code>food/biomes.json</code> — baked from the <b>biome wing's real viability oracle</b></td></tr>
+  </table>
+  <p class="lead">Honest weaknesses (why §9 lists the overhaul): the loop is <b>mechanically sound but
+  shallow</b> — sleep-to-grow gives no reason to return at a cadence, dishes don't do anything beyond
+  nourishment (no buffs, no gifting, no quest hooks), the cafe is a vending machine rather than a
+  place, nutrition is a gloss not a model (only biome <i>viability</i> is real), and the three pieces
+  don't feed each other's stories — a harvested crop has no path to a cafe menu, a great dish has no
+  audience. The economy caveats in §8 (arcade payouts vs costs) compound it.</p>
+
+  <h2 id="workflows">7 · The workflows — everything that ships or feeds the world</h2>
+  <p class="lead">hoop is deployed and fed entirely by GitHub Actions — the sandbox never deploys.
+  Six workflows touch this surface. <b>The deploy rule:</b> a push to the owning branch (per
+  <code>deploy-registry.json</code> — currently <code>claude/hoop-v101-audit-docs-xb82fs</code>) or
+  <code>main</code> touching <code>hoop/**</code> ships to production. There is no staging.</p>
+  <table>
+    <tr><th>Workflow</th><th>Trigger</th><th>What it does</th><th>Secrets</th></tr>
+    <tr><td><b>deploy-hoop.yml</b></td><td>push to <code>main</code> / owning branch touching <code>hoop/**</code>; manual</td><td><code>wrangler deploy</code> from <code>hoop/</code> (worker + assets + HoopRoom DO migration) → syncs <code>GEMINI_API_KEY</code> onto the worker if set (else the story lane stays a stub) → curl-verifies <code>/api/story/health</code>. Verify the log binds <code>hoop.mino.mobi (custom domain)</code> — the golden rule.</td><td>Cloudflare pair; <code>GEMINI_API_KEY</code> optional</td></tr>
+    <tr><td><b>hoop-director.yml</b></td><td>cron <code>*/15 * * * *</code> (default branch only) + manual (<code>dry</code>, <code>window</code>)</td><td>the <b>world-pulse Director</b>: <code>scripts/hoop-director.mjs</code> sweeps player <code>story.save</code> records and folds them into the singleton <code>story.pulse</code> record on morphyx — the steer the worker/game read. Dormant until it lives on <code>main</code>.</td><td>morphyx handle + app password</td></tr>
+    <tr><td><b>seed-hoop.yml</b></td><td>manual (author choice, dry) + push on its script</td><td>seeds the canonical design map as <code>hoop.place</code> / <code>hoop.message</code> records.</td><td>Bluesky account trio</td></tr>
+    <tr><td><b>seed-story.yml</b></td><td>manual + push on <code>story/pool.json</code> et al.</td><td>publishes <code>story/pool.json</code> → <code>story.content</code> records on morphyx.</td><td>morphyx pair</td></tr>
+    <tr><td><b>seed-hoop-pool.yml</b></td><td>manual (author choice) + push on the corpus</td><td>publishes hoopy's full world-export corpus → <code>story.content</code> records — the canon seeding path.</td><td>morphyx pair</td></tr>
+    <tr><td><b>mirror-hoop-tangled.yml</b></td><td>manual + push on <code>hoop/**</code> (specific branches)</td><td>publishes the static frontend as the remixable tangled repo <code>quoopy</code> (git-on-ATProto), rewriting root-absolute paths.</td><td><code>TANGLED_SSH_KEY_MORPHYX</code></td></tr>
+  </table>
+  <h3>The test lanes (what gates a change)</h3>
+  <p class="lead">Everything testable headlessly is a node selftest, runnable from a clean checkout with
+  no install: <b>46 suites</b> at <code>hoop/test/</code> (engine kernels, story engine, econ/nav/postal),
+  <b>44</b> at <code>hoop/v101/test/</code> (the live surface: world, spine, combat, minigames, the
+  simulated-player integration run), plus per-wing suites (<code>nave</code> 36 · <code>rind</code> 37+34 ·
+  <code>chunkroller</code> · <code>forge</code> ~400 checks). All green as of the v101 audit. The known gap:
+  no DOM/canvas coverage — a Playwright lane is a roadmap item (§9).</p>
+  <pre><span class="c"># run everything (from the repo root)</span>
+for t in hoop/test/*.selftest.mjs hoop/v101/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
+<span class="c"># prove the LIVE campaign is progressable (reads the morphyx pool, read-only, exits non-zero on a wall)</span>
+node hoop/scripts/prove-solvable.mjs</pre>
+
+  <h2 id="audit">8 · The v101 audit — findings &amp; fixes</h2>
+  <p class="lead">A full sweep over the game, the story engine, the corpus, the tests and the
+  workflows, done at the v101 handover. Four engine defects were found and <b>fixed in v101 and the
+  root engine</b> (v100 and earlier stay frozen as-shipped); the rest are documented here honestly.</p>
+
+  <h3>Fixed in v101 <span class="tag fixed">shipped</span></h3>
+  <table>
+    <tr><th>Finding</th><th>Fix</th></tr>
+    <tr><td><b>Storyboard pacing didn't scale.</b> <code>deriveStoryboard</code> paced exposure beats with <code>min_power: 1 + i</code> — written for the 5-beat export. Against the 90-beat corpus, 85 beats demanded power tiers 6–90 (cap is 5): permanently uncompletable, the derived tier climb stalled in act I.</td><td>the ramp now scales across the whole storyboard (1→5 over N beats; identical behaviour at N=5). Full exposure carries the climb to Resolution.</td></tr>
+    <tr><td><b>The root importer couldn't read the current canon.</b> The 600/720-record corpus (nested <code>content{}</code>, integer tiers, <code>world_refs</code>) landed in June but only the vendored copies were taught the new schema — the root engine (the deployed worker's) still read the flat form: names, tiers, dialogue and refs all dropped.</td><td>root <code>story/import.js</code> brought up to the both-schemas importer; markers, cast and milestones derive correctly again.</td></tr>
+    <tr><td><b>The review gate had no channel for faction rep.</b> One NPC gates on <code>min_rep: drift ≥ 1</code>; rep is granted by the game's campaign, never by pool records — so the reachability check called it an orphan and BLOCKed the canon.</td><td><code>gates.js</code> accepts <code>external.reps</code>; <code>WORLD_REPS</code> declares the runtime-granted factions; <code>worldExternal(content)</code> also unions the <i>derived</i> runtime boundary (~90 journey flags) so the static manifest can't rot again.</td></tr>
+    <tr><td><b>The dialogue validator flagged vacuous gotos.</b> hoopy's convention stamps ending choices with a filler <code>goto</code> + <code>effects.end</code>; the walker never follows it, but the static check raised 53 false ERRORs.</td><td><code>validate.js</code> skips the goto check on choices that end the conversation.</td></tr>
+    <tr><td><b>Two root test suites had been red since June 18</b> (they pinned the old 75-record export after the corpus swap).</td><td>rewritten against the 600-record reality; all 90 suites green.</td></tr>
+    <tr><td><b>Tombstoned records were being referenced.</b> hoopy soft-deletes in place — a nuked record stays in <code>listRecords</code> with <code>status:'retired'</code>. The audit's own tooling gated a <i>stale</i> statusless export and flagged retired NPCs (e.g. a level-2 Elara Vance) as live defects. The live game was always correct (<code>servePool</code> drops retired); the tooling wasn't.</td><td>one <code>isTombstoned()</code> predicate now covers every tombstone form (<code>retired</code>/<code>tombstoned</code>/<code>deleted</code> + explicit flags); <code>servePool</code> applies it before anything is gated; and it's pinned against real served data (a tombstoned keeper is dropped, its gate reported honestly dead — never flagged as a live NPC).</td></tr>
+    <tr><td><b>The Kaelen Voss soft-lock — an ID COLLISION shadowed the keeper.</b> Root cause (found in the second playtest, "I talk to her and the event isn't registered"): hoopy's raw records usually carry no <code>id</code>, so every derivation falls back to <code>slug(name)</code>. TWO distinct "Kaelen Voss" room-bundles — <i>The Rivet Chancel</i> (tier-1, sets the tier-1 gate <code>flag.commons.rindwalker_face</code>) and <i>The Fulcrum Cell</i> (tier-2, sets <code>flag.ward.rindwalker_known</code>) — both slugged to <code>kaelen-voss</code> and COLLIDED in the store's <code>contentById</code> map. The tier-2 twin won (last-write-wins), so talking to the placed Kaelen set the wrong flag and the tier-1 gate never fired. (~40 colliding ids + ~181 empty-name records collapsing to one entry — systemic.) The earlier "tier-2 keeper on a tier-1 gate" reading was itself an artifact of the same collision (the tier-2 twin's tier bleeding onto the tier-1 gate).</td><td><b><code>dedupeRawIds</code></b> — a pure, order-independent pre-pass in <code>servePool</code>: any record whose derived base id collides gets a stable unique id (base + a content-fingerprint hash), permalink-stable and idempotent. <code>gateSetters</code>/<code>requiredKeeperIds</code>/the store all re-derive from <code>servePool</code>, so they now resolve the right keeper. The <b>quest solvability oracle</b> (<code>story/solvable.js</code>) still guards the class; with de-collided ids no keeper is tier-invisible (the three former force-place WARNs were all collision artifacts). <code>hoop/scripts/prove-solvable.mjs</code> runs the proof against the live pool.</td></tr>
+  </table>
+
+  <h3>For hoopy — broken dialogue gotos: none on live content <span class="tag fixed">clean</span></h3>
+  <p class="lead">An earlier draft of this page listed ~14 NPCs with broken dialogue gotos. That list was
+  <b>stale</b> — it was computed over a pre-tombstone snapshot, and <b>every one of those records has since
+  been tombstoned</b> (they were flagged only because the tooling read retired records). On the live
+  <i>served</i> pool (tombstones dropped) there are <b>zero</b> broken gotos. Nothing to repair here — the
+  tooling was reading nuked content, which is now fixed above.</p>
+  <h3>For hoopy — the solvability oracle's findings on the live pool <span class="tag content">2 dead gates</span></h3>
+  <p class="lead">Running <code>prove-solvable.mjs</code> against the live morphyx pool (1309 records →
+  the served <b>active</b> pool once ~720 tombstones are dropped; 4 anchors): two turn-in gates have <b>no
+  active setter anywhere in the pool</b> — no code can fix these, only content:</p>
+  <table>
+    <tr><th>Gate</th><th>Blocks</th><th>What's needed</th></tr>
+    <tr><td><code>flag.rind.rindwalker_scale_a</code></td><td>Sevin's tier-3 turn-in (the faction choice)</td><td>a keeper NPC in the upper rind whose dialogue sets it</td></tr>
+    <tr><td><code>flag.signal.chamber_key</code></td><td>Luna's tier-4 turn-in (the chapter close)</td><td>a keeper NPC in the lower rind whose dialogue sets it</td></tr>
+  </table>
+  <p class="lead">These two are the <i>only</i> remaining blocks. The former "tier-mismatch" retuning
+  notes (Kaelen Voss, Joran Vell, Tamsin Rook reading as tier-N-on-tier-M) are <b>resolved</b>: they were
+  ID-collision artifacts (two same-named bundles sharing one <code>slug(name)</code> id), now fixed by
+  <code>dedupeRawIds</code> in <code>servePool</code> — with unique stable ids every keeper sits at its own
+  tier and none is tier-invisible. The frozen pin lives at <code>v101/test/fixtures/live-chain.json</code>.</p>
+
+  <h3>Known-open (documented, deliberate) <span class="tag open">open</span></h3>
+  <table>
+    <tr><th>Item</th><th>State</th></tr>
+    <tr><td><b>Combat balance</b></td><td>the simulated player loses ~5/7 deck-1 fights — creeps over-tuned or starting gear weak. Creep density, the deck multiplier and the defeat penalty (−25 hp / −10 food) are all open dials. The minigame caveat from the handover note.</td></tr>
+    <tr><td><b>Economy price curves</b></td><td>shop <code>PRICE_K</code>, gem-pull cost vs socket payoff, arcade payouts vs food/gacha costs — related, tune together with §6's overhaul.</td></tr>
+    <tr><td><b>Deckquest handoff</b></td><td>the load-bearing-NPC flag-quest layer is shipped and tested but its final index.html wiring steps are listed as "the remaining handoff" in <code>story/SPINE.md</code> — verify before building on it.</td></tr>
+    <tr><td><b>Save-size ceiling</b></td><td>heavy item genomes push saves toward the 100&nbsp;KB PDS record ceiling; re-roll seeds instead of carrying full genomes is the sketched fix.</td></tr>
+    <tr><td><b>Orphan protos</b></td><td><code>hoop/minigame/</code> (superseded by <code>arcade.js</code>). The old hydrology overworld proto <code>hoop/over/eden.js</code> + <code>hoop/over/index.html</code> is superseded by the shipped <code>v101/over/</code> overworld (the clean <code>/over</code> URL now serves the new one); eden.js is not deleted — its draining-lake hydrology is earmarked to feed the new terrain field (§9·1).</td></tr>
+    <tr><td><b>Render caches</b></td><td>four per-frame caches (society web, painted blit, GPU seam lines, static layering) listed in POLISH.md; mobile landscape/touch-tooltip work likewise.</td></tr>
+    <tr><td><b>Shared service repo</b></td><td>v100 and v101 read the same live morphyx pool/pulse/verdict feed (the service repo is not version-namespaced). Intended, but worth knowing when testing content on the dev surface.</td></tr>
+  </table>
+
+  <h2 id="roadmap">9 · Roadmap — the next additive tasks</h2>
+  <table>
+    <tr><th>Task</th><th>Where it stands · what it needs</th></tr>
+    <tr><td><b>1 · The overworld</b> <span style="color:#8fe07a">(shipped, roamed)</span></td><td><b>Live at <a href="/over">/over</a> and wired into the game</b> — the ship's outer grow-deck, now <b>walked</b>: you're injected as a figure into the curated ecology (<code>v101/over/ecology.js</code>) grown wild across a moisture+elevation terrain field, each plant a silhouette keeping its growth-form + Galenic palette (the "soul"), the same flora the garden grows. The playtest ("it's a painting, I'm not moving, it's slooow") drove a rewrite: <code>over/roam.js</code> (a player + chunks streamed on demand and pruned when far — a chunk is a pure function of (seed,cx,cy), so roam-and-return is byte-identical), a <b>voronoi</b> ground tiling (<code>voronoiCells</code>, organic patches seamless across chunk seams, replacing the square band grid), viewport-culled rendering (<code>drawRoam</code> — only what's on screen draws, the "slooow" fix), default zoom two clicks from max, and two roam verbs — <b>forage</b> a herb (deposits into the pantry by sciName→ark match) and <b>face</b> a swarm/spider. Pure + node-tested (<code>test/roam.selftest.mjs</code> + <code>overworld.selftest.mjs</code>). <b>Next passes:</b> fold in <code>hoop/over/eden.js</code>'s draining-lake hydrology so the water bands are real watersheds; cast the ambient fauna through the real sprite pack (<code>sprite/item/</code>) instead of glyphs; escalate the encounter from a light drive-off to the full arena combat.</td></tr>
+    <tr><td><b>2 · Garden · cafe · kitchen overhaul</b></td><td>Make the food economy <i>fun and useful</i> (§6 lists why it isn't yet). The design directions on the table: give dishes effects beyond nourishment (buffs, gifts NPCs react to, quest-hook ingredients); connect the triangle (grown crops reach cafe menus; the cafe becomes a place with regulars and chatter rather than a vending counter); give the garden a return cadence that isn't sleep-spam; let the kitchen's flavor-coherence scoring feed visible mastery (recipes, a repertoire); and tie it to the overworld — foraging wild ingredients above (<b style="color:#8fe07a">shipped:</b> gather herbs while roaming, they land in the pantry), growing cultivated ones below. <b style="color:#8fe07a">The garden is now one bed planted in continuum</b> (<code>garden/garden.js</code> + <code>bed-render.js</code>): pick a seed, click a clear patch to plant it anywhere, clear of the bed's <b>keep-out zones</b> (a path, a pond, stones) and its neighbours; click a ripe plant to harvest — replacing the old grid of 12 slot-cards. <b style="color:#8fe07a">The alchemy vertical is shipped end-to-end:</b> a <b>Physic Garden</b> biome (the 55 alch reagent-herbs, growable through the same gacha→garden→pantry loop) feeds the <b>alchemy bench</b> in the make rooms (⚗, §5), which brews graded preparations via the correspondence kernel; you then <b>use</b> them (quaff self-heal/buff draughts mid-fight or out of combat), <b>gift</b> them to NPCs for standing, <b>trade</b> them at the apothecary, and grow a <b>recipe-mastery</b> repertoire (story-seeded, expands by experiment). A social draught sets the <code>alch.social</code> flag — the <b>conversation hook</b> content reads. The <a href="/alch">cookbook</a> is the reference. Combat use is <b>quaff + doff</b> (self draughts drunk, flasks/smokes/salves thrown on a real projectile arc — <code>arena/trajectory.js</code>, the grid cousin of fable's /flux launch sim). Still open: dishes-with-effects in the kitchen, cafe regulars, forageable overworld stands, and the return-cadence fix.</td></tr>
+    <tr><td><b>2b · Item economy — make/mend/trade</b> <span style="color:#8fe07a">(shipped)</span></td><td>The item genome (<code>sprite/item/</code>: 10 kingdoms × phyla × 22 tech-gated materials, medieval↔ship-grade name skin) is now a full player economy across all three verbs. <b>make</b> — the <b>Smithy</b> (§5, make's wall fixture ⚒, <code>craft/smith.js</code>) forges genome equipment from the ship's 7 forge commodities: a material→commodity map (organic↔biomass, metal↔metal, exotic/precious/crystal↔<b>trace</b>), tech-era gated by narrative tier, with a break-down loop (loot→commodities). Testbed <a href="/smith">/smith</a>. <b>mend</b> — the lapidary's <b>⚒ Reforge</b> tab (<code>craft/mend.js</code>): temper a stat, reforge the piece finer, or upgrade its tech era, paid in commodities (items don't wear, so mend is improvement, not repair). <b>trade</b> — a <b>⬡ Materials market</b> (buy/sell commodities, trace dear) + <b>✎ Commissions</b> (the desk posts deterministic craft-to-order requests per day → deliver a matching piece → coins + a trace bounty that funds ship-grade crafting). The loop closes: loot→dismantle→commodities→forge→equip / reforge / sell / fill-commission, organics from the garden, exotics gated behind trace + story tier. hoopy authors named/key items against the taxonomy's <code>loot:false</code> lane; the genome mints the gear. <b>Next passes:</b> an item wear model (would make "repair" real); commissions tied to specific NPCs for standing (they're desk-board coins today).</td></tr>
+    <tr><td><b>3 · Deckquest completion</b></td><td>finish SPINE.md's "remaining handoff" wiring so the load-bearing NPC layer drives hoopy-bot's level checks end-to-end.</td></tr>
+    <tr><td><b>4 · Combat + economy tuning pass</b></td><td>drive the playthrough harness over the dials until the simulated deck-1 win rate lands where it should; retune prices with it.</td></tr>
+    <tr><td><b>5 · A DOM/canvas test lane</b></td><td>Playwright over the real page — the one thing the node suites can't see.</td></tr>
+  </table>
+
+  <h2 id="endpoints">10 · Endpoint map</h2>
+  <p class="lead">Everything the hoop worker serves, in one table. (Clean URLs are worker rewrites;
+  everything else is static assets. The full site-wide registry lives in
+  <code>deploy-registry.json</code> at the repo root.)</p>
+  <table>
+    <tr><th>Endpoint</th><th>What</th></tr>
+    <tr><td><a href="/">/</a></td><td>the original preview game (map-is-the-forum; places + threads on ATProto)</td></tr>
+    <tr><td><a href="/docs">/docs</a></td><td>this page</td></tr>
+    <tr><td><a href="/v101/">/v101/</a></td><td><b>the current development surface</b> — with <a href="/v101/records">/records</a>, <a href="/v101/feed">/feed</a>, <a href="/v101/spine">/spine</a>, <a href="/v101/storyboard/">/storyboard</a>, <a href="/v101/architecture.html">/architecture</a></td></tr>
+    <tr><td><a href="/v100/">/v100/</a></td><td>the stable surface (same sub-pages)</td></tr>
+    <tr><td><a href="/v098/">/v098/</a> · <a href="/v099/">/v099/</a> · /v09x/</td><td>frozen prior surfaces</td></tr>
+    <tr><td><a href="/over">/over</a> · <a href="/over/demo">/over/demo</a> · <a href="/garden/plot">/garden/plot</a></td><td>the overworld, roamed (walk, forage, face creatures) · its standing self-touring demo · the garden-plot flora-fidelity toy</td></tr>
+    <tr><td><a href="/alch">/alch</a> (=<a href="/cookbook">/cookbook</a>) · <a href="/smith">/smith</a></td><td>the alchemist's cookbook (bench reference) · the smithy testbed (equipment crafting from commodities)</td></tr>
+    <tr><td><a href="/nave">/nave</a> · <a href="/nave/slots">/nave/slots</a></td><td>floor-1 design view · the content-slot manifest</td></tr>
+    <tr><td><a href="/rind">/rind</a></td><td>floor-2 design view (the game floor — the structural wing is rind.mino.mobi)</td></tr>
+    <tr><td><a href="/chunkroller">/chunkroller</a> · <a href="/chunkroller/tess">/tess</a></td><td>the chunk-design tool · the tessellation editor</td></tr>
+    <tr><td><a href="/forge">/forge</a> + 10 sub-pages</td><td>the industrial metabolism: <a href="/forge/elements">elements</a>, <a href="/forge/facilities">facilities</a>, <a href="/forge/region">region</a>, <a href="/forge/walk">walk</a>, <a href="/forge/stack">stack</a>, <a href="/forge/foam3d">foam3d</a>, <a href="/forge/tower">tower</a>, <a href="/forge/slices">slices</a>, <a href="/forge/ship">ship</a>, <a href="/forge/micro">micro</a></td></tr>
+    <tr><td><a href="/paint/">/paint/</a> · <a href="/econ/">/econ/</a> · <a href="/econ/foam/">/econ/foam/</a></td><td>the rendering playground · the economies-as-ecosystems lab</td></tr>
+    <tr><td><a href="/research.html">/research.html</a></td><td>the scientific dossier over the three modelling wings</td></tr>
+    <tr><td><code>/ws</code></td><td>the live-presence WebSocket (HoopRoom Durable Object; identity via the shared auth worker)</td></tr>
+    <tr><td><code>/api/presence/health</code> · <code>/api/story/health</code></td><td>health checks</td></tr>
+    <tr><td><code>/api/story/sidequest</code> · <code>/api/story/embed</code></td><td>the retired v096 generation-lane experiment (POST; guarded stub — no shipped surface calls it; the hot path is inference-free by design)</td></tr>
+  </table>
+
+  <p class="lead" style="margin-top:34px; border-top:1px solid var(--line); padding-top:14px;">
+  maintained on the hoop deploy surface · updated with the v101 audit ·
+  <a href="/v101/">play</a> · <a href="/">home</a></p>
+</div>
+</body>
+</html>

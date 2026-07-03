@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
+    branches: [main, 'claude/merge-candidate-prep-xhf6dt']
     paths:
       - 'index.html'
       - 'styles.css'
@@ -60,8 +60,12 @@ on:
       # mappa: the world engine (engine.js + viewer.js + projection.js + sites.js)
       - 'mappa/**'
       - 'scripts/build-mappa.mjs'
+      # polis: procedural city-history — mappa's follow-on (substrate → city growth theory)
+      - 'polis/**'
       # crucible: the "overgenerate, then judge" page (bundled static subsite)
       - 'crucible/**'
+      # hoop-history: the /hoop intellectual-history page (timeline + endpoint census)
+      - 'hoop-history/**'
       - '.github/workflows/deploy-root.yml'
   workflow_dispatch:
     inputs:

@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/font-generator-demo-f3pdfa'
+      - 'claude/procedural-name-generator-2qqwfq'
     paths:
       - 'rite/**'
       - 'poll/apps/api/migrations/0014_fodder.sql'

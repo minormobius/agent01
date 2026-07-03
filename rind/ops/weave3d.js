@@ -27,7 +27,10 @@ const HEXR_AT = (rings) => 320 * (1.5 * rings + 1) / 2.5;   // rings 0/1/2 → h
 // ── STAGE 1: the prism + the seeded spiral family ──
 export function buildGeometry(seed = WEAVE_DEFAULTS.seed, opts = {}) {
   const o = { ...WEAVE_DEFAULTS, ...opts, seed: (seed >>> 0) };
-  const rings = o.rings, a = o.spacing, hexR = HEXR_AT(rings);
+  // hexScale lets the disc BREATHE: expand the diameter while keeping the mesh (node pitch) fixed, so crossings sit
+  // farther apart and the deck-height over/under ramps get gentler (each thread lingers near mid-height longer ⇒
+  // more at-grade contact). turnScale loosens the spirals the same way (fewer turns ⇒ crossings spread radially).
+  const rings = o.rings, a = o.spacing, hexR = HEXR_AT(rings) * (o.hexScale ?? 1);
   // thread counts are a LEVER (fewer threads ⇒ fewer crossings/lap ⇒ the over/under z-signal is lower-frequency and
   // resolvable by the node grid — Nyquist — and each thread gets more nodes). Default the full K(6,8).
   const NWmax = FACTIONS.flatMap((f) => f.roleIds).length, NFmax = ENGINE_RING.length;
@@ -35,7 +38,7 @@ export function buildGeometry(seed = WEAVE_DEFAULTS.seed, opts = {}) {
   const rng = mulberry32((o.seed ^ 0x77a3) >>> 0);
   const vpitch = VREF_SPACING * Math.sqrt(2 / 3);
   const prism = buildPrism(o.seed, { hexR, spacing: a, layers: o.layers, jitter: o.jitter, vpitch });
-  const baseTurns = 1.0 + 0.9 * rings;
+  const baseTurns = (1.0 + 0.9 * rings) * (o.turnScale ?? 1);
   const family = { turnsW: baseTurns * (0.85 + 0.3 * rng()), turnsP: baseTurns * (0.85 + 0.3 * rng()), phaseW: rng() * TAU, phaseP: rng() * TAU, spin: rng() < 0.5 ? 1 : -1 };
   const warps = FACTIONS.flatMap((fac) => fac.roleIds.map((rid) => ({ id: rid, faction: fac.id, factionLabel: fac.label, color: fac.color }))).map((wc, w) => ({ ...wc, w, kind: 'white' })).slice(0, NW);
   const wefts = ENGINE_RING.map((id, f) => ({ id, f, kind: 'prod', ...ENGINES[id] })).slice(0, NF);
@@ -82,8 +85,28 @@ export function weaveLines(geo, opts = {}) {
       return Math.min(Amax, Math.max(Amin, (maxGrade / 3) * Math.min(dP, dN))); });   // crossings: floor so it never flattens
     return seq.map((c, k) => ({ rf: c.rf, z: zMid + c.s * amp[k] }));
   };
+  // MEET-AT-GRADE profile (opts.grade==='meet'): every crossing sits at zMid (a shared flat ⇒ a ZERO-GRADE door),
+  // and each thread bulges to ITS OWN side (white up, production down) only BETWEEN crossings — so a door is never a
+  // stair, yet the two colours stay separated between crossings. The hub keeps its z-bias (white high / prod low at
+  // the centre) so the two nexuses never touch. Continuity is no longer the over/under's job — the watershed owns it,
+  // which is exactly what frees us to flatten the crossings. `colorSign` = +1 white / −1 production.
+  const capCtlMeet = (cl, arc, colorSign) => {
+    const flats = collapse(cl), Sf = (rf) => arcAt(arc, rf), xs = [flatR, ...flats.map((c) => c.rf), 1], pts = [];
+    for (let i = 0; i < xs.length; i++) {
+      pts.push({ rf: xs[i], z: zMid + (i === 0 ? colorSign * zBias : 0) });          // hub biased; every crossing + rim at grade
+      if (i < xs.length - 1) { const run = Sf(xs[i + 1]) - Sf(xs[i]), amp = Math.min(Amax, Math.max(Amin, (maxGrade / 3) * (run / 2)));
+        pts.push({ rf: (xs[i] + xs[i + 1]) / 2, z: zMid + colorSign * amp }); }      // a between-crossings bulge to the thread's own side
+    }
+    return pts;
+  };
+  // FLAT profile (opts.grade==='flat'): the whole weave sits at zMid EXCEPT the hub keeps its z-bias so the two
+  // nexuses stay apart. No over/under, no between-crossings bulge ⇒ every white↔production adjacency is at grade
+  // (a true zero-ladder world) — IF the watershed can still keep every spiral continuous in a near-planar band.
+  const capCtlFlat = (cl, arc, colorSign) => { const flats = collapse(cl), firstRf = flats.length ? flats[0].rf : (flatR + 1) / 2; return [{ rf: flatR, z: zMid + colorSign * zBias }, { rf: (flatR + firstRf) / 2, z: zMid }, { rf: 1, z: zMid }]; };
   const interp = (pts, rf) => { if (rf <= pts[0].rf) return pts[0].z; if (rf >= pts[pts.length - 1].rf) return pts[pts.length - 1].z; let i = 0; while (i < pts.length - 1 && pts[i + 1].rf < rf) i++; const a = pts[i], b = pts[i + 1], t = (rf - a.rf) / ((b.rf - a.rf) || 1); return a.z + (b.z - a.z) * (t * t * (3 - 2 * t)); };
-  const wCtl = Array.from({ length: NW }, (_, w) => capCtl(crossW(w), wArc, 1)), pCtl = Array.from({ length: NF }, (_, f) => capCtl(crossP(f), pArc, -1));
+  const pick = (cl, arc, sign) => opts.grade === 'flat' ? capCtlFlat(cl, arc, sign) : opts.grade === 'meet' ? capCtlMeet(cl, arc, sign) : capCtl(cl, arc, sign);
+  const wCtl = Array.from({ length: NW }, (_, w) => pick(crossW(w), wArc, 1));
+  const pCtl = Array.from({ length: NF }, (_, f) => pick(crossP(f), pArc, -1));
   const zW = (w, rf) => interp(wCtl[w], rf), zP = (f, rf) => interp(pCtl[f], rf);
   const lineW = (w, rf) => [rf * R * Math.cos(aW(w, rf)), rf * R * Math.sin(aW(w, rf)), zW(w, rf)];
   const lineP = (f, rf) => [rf * R * Math.cos(aP(f, rf)), rf * R * Math.sin(aP(f, rf)), zP(f, rf)];

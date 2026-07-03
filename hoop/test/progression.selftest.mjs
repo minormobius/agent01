@@ -16,37 +16,44 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
 const wx = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../v096/story/world_export.json'), 'utf8'));
 const { content } = importWorldExport(wx);
 
-// ── derive a storyboard from his plot_beats ──
+// ── derive a storyboard from his plot_beats (the 600-record corpus carries 40) ──
 {
   const sb = deriveStoryboard(content);
-  ok(sb._derived && sb.beats.length === 5, 'storyboard derived from his 5 plot_beats');
+  ok(sb._derived && sb.beats.length === 40, 'storyboard derived from his 40 plot_beats');
   ok(sb.beats.every((b) => b.title && b.advances && b.advances.narrative_tier), 'every beat has a title + a tier it advances');
   // ordered by the climb (narrative tier non-decreasing)
   const ns = sb.beats.map((b) => b.advances.narrative_tier);
   ok(ns.every((n, i) => i === 0 || n >= ns[i - 1]), 'beats are ordered by the climb (narrative tier ascending)');
+  ok(Math.max(...ns) === 5 && sb.acts.length === 5, 'the arc now climbs all five acts (Arrival → Resolution)');
   // sequential chain: each beat (after the first) requires the prior
   ok(sb.beats.slice(1).every((b, i) => (b.requires.beats || [])[0] === sb.beats[i].id), 'beats chain sequentially (requires prior beat)');
   ok(sb.acts.length >= 1 && sb.acts[0].label.includes('Arrival'), 'acts carry the bible ladder names (Arrival…)');
 
   // markers point at his locations (terminal / rind / named place), each with a hint
   const markers = sb.beats.map((b) => b.marker).filter(Boolean);
-  ok(markers.some((m) => m.terminal), 'a beat marker resolves his "Tabard Terminal" ref → a terminal');
-  ok(markers.some((m) => m.place === 'rind'), 'a beat marker resolves his "Rind Access Shaft"/"Signal Chamber" → the rind');
-  ok(markers.some((m) => m.place && m.place !== 'rind'), 'a beat marker resolves a named place (his "Industrial Margin")');
+  ok(markers.length === 40, 'every beat resolves a marker (his world_refs carry the locations)');
+  ok(markers.some((m) => m.terminal), 'a beat marker resolves a terminal ref → a terminal');
+  ok(markers.some((m) => m.place === 'rind'), 'a beat marker resolves his rind/Signal-Chamber refs → the rind');
+  ok(markers.some((m) => m.place && m.place !== 'rind'), 'a beat marker resolves a named place');
   ok(markers.every((m) => m.hint), 'every marker carries a hint for the quest log');
 
   // board.js consumes the derived storyboard unchanged
   const store = new MemoryStore(content, { features: [] });
   const board = computeBoard(sb, store, 'p1');
-  ok(board.length === 5 && board[0].status, 'board.js computes the derived storyboard (status per beat)');
+  ok(board.length === 40 && board[0].status, 'board.js computes the derived storyboard (status per beat)');
   ok(board.some((b) => b.status === 'active'), 'a beat is active');
 
   // EXPOSURE drives the climb: tier-paced beats complete as power (XP from crystallizing his content)
-  // rises, and tierFloors lifts narrative/revelation — the way "out" (tier 2) and "down" (tier 3) open.
+  // rises, and tierFloors lifts narrative/revelation. The min_power ramp scales across the WHOLE
+  // storyboard (1→5 over the 40 beats) — the old `1 + i` pacing left every beat past the 4th
+  // uncompletable once his corpus outgrew the 5-beat export (power tiers cap at 5).
   ok(tierFloors(computeBoard(sb, store, 'p1')).narrative_tier === 1, 'at power 1, only the opening tier holds');
-  store.setPlayerXp('p1', 300, 5);   // simulate exposure → power tier 5
+  store.setPlayerXp('p1', 180, 3);   // simulate exposure → power tier 3
+  const mid = tierFloors(computeBoard(sb, store, 'p1'));
+  ok(mid.narrative_tier === 3 && mid.revelation_tier === 3, 'exposure (power↑) lifts narrative + revelation through his beats to tier 3');
+  store.setPlayerXp('p1', 300, 5);   // full exposure → power tier 5
   const climbed = tierFloors(computeBoard(sb, store, 'p1'));
-  ok(climbed.narrative_tier === 3 && climbed.revelation_tier === 3, 'exposure (power↑) lifts narrative + revelation through his beats to tier 3');
+  ok(climbed.narrative_tier === 5 && climbed.revelation_tier === 5, 'full exposure carries the climb to Resolution (tier 5) — no beat is stranded');
 }
 
 // ── the opening cast is his Arrival NPCs (not the hand-pinned Olo/Sevin fixture) ──
@@ -61,9 +68,12 @@ const { content } = importWorldExport(wx);
 // ── world flags derived from his content (replaces the static manifest) ──
 {
   const wf = deriveWorldFlags(content);
-  ok(wf.facts.includes('flag.player_rebuilt') && wf.facts.includes('flag.signal_resonance'), 'derived world flags include the journey flags his pool gates on');
-  ok(wf.items.includes('translation_apparatus'), 'derived world items include the player-intrinsic apparatus');
-  ok(!wf.facts.includes('flag.bay14_truth'), 'a flag his content DOES produce is NOT a world flag (correctly excluded)');
+  ok(wf.facts.includes('flag.signal_resonance') && wf.facts.includes('flag.descended_lower_rind'), 'derived world flags include the journey flags his pool gates on');
+  ok(wf.items.includes('rind_compass'), 'derived world items include the player-journey gear his pool gates on');
+  // flag.player_rebuilt migrated: the 600-record corpus no longer gates on it, so it (correctly)
+  // drops out of the DERIVED manifest — the static WORLD_FACTS keeps covering the opening.
+  ok(!wf.facts.includes('flag.player_rebuilt'), 'a flag nothing gates on any more is no longer derived');
+  ok(!wf.facts.includes('flag.signal_heard'), 'a flag his content DOES produce is NOT a world flag (correctly excluded)');
 }
 
 // ── milestones: flag-gated beats become tier floors; tier-paced ones do not (advancement stays his) ──

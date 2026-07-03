@@ -41,6 +41,7 @@ const BEES = [
   { n:"fractal", u:"https://photo.mino.mobi/fractal/" },
   { n:"ternary2", u:"https://mino.mobi/ternary2/" },
   { n:"ternary3", u:"https://mino.mobi/ternary3/" },
+  { n:"map", u:"https://b.mino.mobi/map/" },
 ];
 
 // Total particles: the first BEES.length are the visible/linked bees; the rest
@@ -66,8 +67,7 @@ function init() {
   if (!stage) return;
   try { eng = new FluoddityEngine(384, SWARM); }
   catch (e) { return fail(e && e.message || 'WebGL2 unavailable'); }
-  eng.cfg = spread(defaultConfig());
-  try { eng.reset(eng.cfg); } catch (_) {}
+  eng.load(spread(defaultConfig()));
   ctx = field.getContext('2d');
   makeBees();
   makeButton();
@@ -102,8 +102,7 @@ function makeButton() {
 
 // Roll a fresh genome: a new swarm personality. Keep the spread spawn.
 function randomHive() {
-  eng.cfg = spread(randomConfig());
-  try { eng.reset(eng.cfg); } catch (_) {}
+  eng.load(spread(randomConfig()));
 }
 
 function resize() {

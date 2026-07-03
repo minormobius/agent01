@@ -3,7 +3,8 @@
 // Mercator (true projection, VECTOR — crisp at any zoom), Tectonic (plates).
 // Cells are precomputed once and drawn as polygons; labels are screen-space,
 // constant size, decluttered.
-import { generateWorld, BIOMES, setTriangulator } from './engine.js';
+import { generateWorld, BIOMES, setTriangulator, computeClimate, BI } from './engine.js';
+import { buildClimate } from './climate-forcing.js';
 import { projectAtlas } from './projection.js';
 import { SITES, WINGS } from './sites.js';
 import { worldSignals } from './lib/world-signals.js';
@@ -38,6 +39,10 @@ let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
 let world=null, atlas=null, proj='orb', layer='biome', atlasOn=true;
 let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[], subMode=null, minerals=[], digsites=[];
 let paleoT=0, paleoPlaying=false, paleoDir=1; // deep-time scrub: 0 = present, 1 = full drift back; dir for ping-pong play
+// CLIMATE layer: run THIS world through its own deep-time climate (buildClimate) and
+// re-derive the field per era (computeClimate). climYear scrubs -12000 BCE → +2100 CE.
+let climHist=null, climField=null, climFo=null, climYear=0, climSub='biome', climPlaying=false;
+const CLIM_Y0=-12000, CLIM_Y1=2100;
 let signals=null, worldTitle=''; // interestingness battery output + the world's auto-name
 let loadedRecord=null; // when a world was opened from a PDS record: the publisher's note/title
 // ore commodities and where they form (filled in computeMinerals) — id, label, colour
@@ -113,7 +118,7 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
 function genJS(g){return generateWorld(seed,{N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,rotationRate:g.rotationRate??undefined})}
 function build(){const g=genome;let w=null;
   if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,g.rotationRate??0,EMPTY))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
-  world=w||genJS(g);driftT=(world.meta&&world.meta.ageSpan)||0.5;
+  world=w||genJS(g);driftT=(world.meta&&world.meta.ageSpan)||0.5;climHist=null;climField=null;
   atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
   MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw()}
 const EMPTY=new Float64Array(0);
@@ -134,7 +139,7 @@ function refineDetail(){if(!world)return;const cp=featurePointsOf(world);if(!cp.
   setTimeout(()=>{const g=genome;let w=null;
     if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,RN,g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,g.rotationRate??0,cp))}catch(e){console.warn('refine failed',e);w=null}}
     if(!w)w=generateWorld(seed,{N:RN,oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,rotationRate:g.rotationRate??undefined,refinePoints:cp,refinePer:6});
-    world=w;driftT=(world.meta&&world.meta.ageSpan)||0.5;atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5));
+    world=w;driftT=(world.meta&&world.meta.ageSpan)||0.5;climHist=null;climField=null;atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5));
     MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw();
     if(statusEl)statusEl.style.opacity=0;},20)}
 function fit(){S=Math.max(W/MW,H/MH);ox=(W-MW*S)/2;oy=(H-MH*S)/2}
@@ -323,6 +328,14 @@ function topoHSL(i){const e=world.elev[i],b=world.biome[i];
   if(t<0.5){const u=t/0.5;return[100-u*42,44-u*6,42+u*9]}      // green → tan
   const u=(t-0.5)/0.5;return[58-u*32,38-u*26,51+u*35]}          // tan → brown → snow
 const CIV_SEA=[206,40,40];
+// ---- CLIMATE layer: this world's deep-time climate, re-derived per era ----------
+function climGeo(){return{N:world.N,V:world.V,adj:world.adj,elev:world.elev,water:world.water}}
+function ensureClim(){if(!world)return;if(!climHist)climHist=buildClimate(world,{seed});recomputeClim()}
+function recomputeClim(){if(!world||!climHist)return;const fo=climHist.forcingAt(climYear);climFo=fo;
+  climField=computeClimate(climGeo(),{seed,solar:(world.meta&&world.meta.solar)||1,axialTilt:world.meta.axialTilt,rotationRate:world.meta.rotationRate,tempOffset:fo.tempOffset,seaLevelOffset:fo.seaLevelOffset,humidity:fo.humidity})}
+const climIsSea=bi=>bi===BI.ocean_deep||bi===BI.ocean_shelf||bi===BI.lake||bi===BI.sea_ice;
+function wetHSL(M){const m=Math.max(0,Math.min(1,M));return[45+m*105,24+m*26,58-m*20]}      // arid tan → grassland → wet green
+function tempHSL(T){const f=Math.max(0,Math.min(1,(T+18)/48));return[222-f*222,44,46]}       // cold blue → warm red
 function recolor(){const N=world.N;cellFill=new Array(N);cellBase=new Array(N);
   for(let i=0;i<N;i++){
     if(layer==='tectonic'){const p=world.plate[i];cellFill[i]=world.plateType[i]===0?hsl((p*47)%360,24,world.water[i]?30:46):hsl(210,30,24+(p%4)*3);cellBase[i]=[0,0,0];continue}
@@ -343,6 +356,15 @@ function recolor(){const N=world.N;cellFill=new Array(N);cellBase=new Array(N);
       cellFill[i]=hsl(c[0],c[1],Math.max(6,Math.min(92,c[2]+shadeOf(i)*42)));continue}
     if(layer==='paleo'){ // present biome colours (so a continent stays recognisable as it drifts)
       const b=BIOMES[world.biome[i]];const c=[b.h,Math.round(b.s*0.92),b.l];cellBase[i]=c;cellFill[i]=hsl(...c);continue}
+    if(layer==='climate'){ // era climate: biome / wetness / temperature re-derived per era
+      if(!climField){const c=[210,18,15];cellBase[i]=c;cellFill[i]=hsl(...c);continue}
+      const bi=climField.biome[i],sea=climIsSea(bi);
+      if(climSub==='wet'){if(sea){const c=[205,26,22];cellBase[i]=c;cellFill[i]=hsl(...c);continue}
+        const c=wetHSL(climField.moisture[i]);cellBase[i]=c;cellFill[i]=hsl(c[0],c[1],Math.max(6,Math.min(94,c[2]+shadeOf(i)*20)));continue}
+      if(climSub==='temp'){if(sea&&bi!==BI.sea_ice){const c=[210,22,20];cellBase[i]=c;cellFill[i]=hsl(...c);continue}
+        const c=tempHSL(climField.temperature[i]);cellBase[i]=c;cellFill[i]=hsl(...c);continue}
+      const b=BIOMES[bi]||BIOMES[8];cellBase[i]=[b.h,b.s,b.l];
+      let lm=b.l;if(!sea)lm=Math.max(4,Math.min(96,b.l+shadeOf(i)*45));cellFill[i]=hsl(b.h,b.s,lm);continue}
     const c=cellHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm)}
 }
 function tracePoly(pts,dx){ctx.beginPath();ctx.moveTo(pts[0][0]+dx,pts[0][1]);for(let k=1;k<pts.length;k++)ctx.lineTo(pts[k][0]+dx,pts[k][1]);ctx.closePath()}
@@ -605,12 +627,15 @@ document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{
   if(b.dataset.proj){ proj=b.dataset.proj; if(layer==='civ'||layer==='tectonic')layer='biome'; }
   else { layer=b.dataset.layer; if(layer==='civ'||layer==='tectonic')proj='flat'; }
   syncModeButtons();
-  const isPaleo=layer==='paleo';
+  const isPaleo=layer==='paleo', isClim=layer==='climate';
   document.getElementById('paleoScrub').style.display=isPaleo?'flex':'none';
-  document.getElementById('chronScrub').style.display=isPaleo?'none':'flex';
+  document.getElementById('climScrub').style.display=isClim?'flex':'none';
+  document.getElementById('chronScrub').style.display=(isPaleo||isClim)?'none':'flex';
   if(!isPaleo&&paleoPlaying){paleoPlaying=false;document.getElementById('paleoPlay').textContent='▶ drift'}
+  if(!isClim&&climPlaying){climPlaying=false;document.getElementById('climPlay').textContent='▶ climate'}
+  if(isClim){climYear=CLIM_Y0+(CLIM_Y1-CLIM_Y0)*(+document.getElementById('climT').value/1000);ensureClim();document.getElementById('climEra').textContent=climLabel()}
   tkey.classList.toggle('show',layer==='tectonic');tip.style.opacity=0;hot=selected=null;recolor();
-  if(proj==='orb'&&!isPaleo){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
+  if(proj==='orb'&&!isPaleo&&!isClim){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
 document.getElementById('atlas').onclick=e=>{atlasOn=!atlasOn;e.target.classList.toggle('on',atlasOn);recolor();buildLegend();draw()};
 function regen(){if(statusEl){statusEl.textContent='forging world…';statusEl.style.opacity=1}setTimeout(()=>{build();if(statusEl)statusEl.style.opacity=0},20)}
 document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;clearShareURL();regen()};
@@ -694,6 +719,15 @@ pEl.addEventListener('input',()=>{paleoT=+pEl.value/1000;pEra.textContent=paleoL
 pPlay.onclick=()=>{paleoPlaying=!paleoPlaying;if(paleoPlaying){pPlay.textContent='⏸';paleoStep()}else pPlay.textContent='▶ drift'};
 function paleoStep(){if(!paleoPlaying)return;paleoT+=paleoDir*0.004;if(paleoT>=1){paleoT=1;paleoDir=-1}else if(paleoT<=0){paleoT=0;paleoDir=1}
   pEl.value=paleoT*1000;pEra.textContent=paleoLabel();draw();requestAnimationFrame(paleoStep)}
+// --- climate deep-time scrub: run THIS world through an ice age → interglacial ---
+const cEl=document.getElementById('climT'),cEra=document.getElementById('climEra'),cPlay=document.getElementById('climPlay');
+function climLabel(){if(!climFo)return'…';const y=Math.round(climFo.year!=null?climFo.year:climYear),yr=y<0?(-y+' BCE'):(y+' CE');
+  const wet=climFo.humidity>1.22?' · pluvial':climFo.humidity<0.82?' · arid':'';
+  return yr+' · '+(climFo.regime||'—')+wet+' · '+(climFo.tempOffset>=0?'+':'')+climFo.tempOffset.toFixed(1)+'° · '+Math.round(climFo.ice*100)+'% ice'}
+cEl.addEventListener('input',()=>{climYear=CLIM_Y0+(CLIM_Y1-CLIM_Y0)*(+cEl.value/1000);recomputeClim();cEra.textContent=climLabel();if(layer==='climate'){recolor();draw()}});
+cPlay.onclick=()=>{climPlaying=!climPlaying;if(climPlaying){cPlay.textContent='⏸';climStep()}else cPlay.textContent='▶ climate'};
+function climStep(){if(!climPlaying)return;let v=+cEl.value+5;if(v>=1000){v=1000;climPlaying=false;cPlay.textContent='▶ climate'}
+  cEl.value=v;climYear=CLIM_Y0+(CLIM_Y1-CLIM_Y0)*(v/1000);recomputeClim();cEra.textContent=climLabel();if(layer==='climate'){recolor();draw()}if(climPlaying)requestAnimationFrame(climStep)}
 function buildLegend(){legendEl.innerHTML='';if(layer==='tectonic')return;
   if(layer==='topo'){
     for(const[lab,col]of[['deep',[222,60,16]],['sea',[205,56,42]],['shore',[100,44,42]],['hills',[58,38,51]],['highland',[40,28,62]],['snow',[26,12,86]]]){
@@ -710,6 +744,10 @@ function buildLegend(){legendEl.innerHTML='';if(layer==='tectonic')return;
     return}
   if(layer==='paleo'){for(const[lab,col]of[['equator','#e9c45a'],['tropics','#dc965a'],['polar circle','#96b9dc']]){const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+col+'"></span>'+lab;legendEl.appendChild(c)}
     const n=document.createElement('span');n.className='chip';n.style.cursor='default';n.textContent='drag ▶ to rewind the plates · ◇ = dig site';legendEl.appendChild(n);return}
+  if(layer==='climate'){ // sub-mode toggle: biome / wetness / temperature
+    for(const[k,lab]of[['biome','biomes'],['wet','wetness'],['temp','temperature']]){const c=document.createElement('span');c.className='chip'+(climSub===k?'':' off');
+      c.textContent=lab;c.onclick=()=>{climSub=k;buildLegend();recolor();draw()};legendEl.appendChild(c)}
+    const n=document.createElement('span');n.className='chip';n.style.cursor='default';n.textContent='drag ▶ through the ice age → interglacial';legendEl.appendChild(n);return}
   if(atlasOn){for(const w of WINGS){const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,55,58)+'"></span>'+w.label;
     c.onclick=()=>{if(active.size===1&&active.has(w.id))active=new Set(WINGS.map(x=>x.id));else active=new Set([w.id]);for(const ch of legendEl.children)if(ch.dataset.w)ch.classList.toggle('off',!active.has(ch.dataset.w));recolor();draw()};legendEl.appendChild(c)}}
   else{const seen=new Set();for(let i=0;i<world.N;i++)seen.add(world.biome[i]);for(let bi=3;bi<BIOMES.length;bi++){if(!seen.has(bi))continue;const b=BIOMES[bi];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(b.h,b.s,b.l)+'"></span>'+b.name;legendEl.appendChild(c)}}}

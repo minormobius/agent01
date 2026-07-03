@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>the quarter — a walkable city of the Bluesky tools</title>
+<meta name="description" content="Every Bluesky / ATProto tool at mino.mobi as a walkable pixel city. Districts by function, buildings by tool, the avenue east climbs the complexity tiers. Your passport remembers where you've been.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="the quarter — a walkable city of the Bluesky tools">
+<meta property="og:description" content="Walk the ATmosphere: districts by function, buildings by tool, complexity rising east. Windows light up where you've been.">
+<meta property="og:url" content="https://b.mino.mobi/map/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:#e9e3d3; --panel:rgba(246,240,225,0.88); --line:#c9c0aa;
+  --ink:#2a2620; --dim:#6b6354;
+  --brass:#8b6d2f; --brass-soft:#a98b4a;
+  --sky:#3d7692;
+  --green:#4e8f5f; --amber:#c08a2e;
+  --mono:'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+body {
+  background:var(--paper); color:var(--ink); font-family:var(--mono);
+  -webkit-font-smoothing:antialiased;
+}
+#world { position:fixed; inset:0; display:block; cursor:crosshair; }
+
+/* chrome — paper panels floating over the canvas */
+.topbar {
+  position:fixed; top:0; left:0; right:0; z-index:10;
+  display:flex; align-items:center; gap:0.8rem; padding:0.55rem 0.9rem;
+  background:var(--panel); border-bottom:1px solid var(--line);
+  backdrop-filter:blur(6px); pointer-events:none;
+}
+.topbar > * { pointer-events:auto; }
+.crumb {
+  font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase;
+  color:var(--dim); text-decoration:none;
+}
+.crumb:hover { color:var(--sky); }
+.brand { font-size:0.78rem; font-weight:700; letter-spacing:0.06em; color:var(--ink); }
+.brand .fly { color:var(--sky); }
+.tagline { font-size:0.6rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim); }
+.spacer { flex:1; }
+#passbtn {
+  font-family:var(--mono); font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--brass); background:none; border:1px solid var(--brass-soft); border-radius:999px;
+  padding:0.28rem 0.7rem; cursor:pointer;
+}
+#passbtn:hover { background:rgba(139,109,47,0.1); }
+.audit-link {
+  font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--dim);
+  text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:0.28rem 0.7rem;
+}
+.audit-link:hover { color:var(--brass); border-color:var(--brass-soft); }
+
+.hint {
+  position:fixed; top:3.1rem; left:50%; transform:translateX(-50%); z-index:9;
+  font-size:0.6rem; letter-spacing:0.08em; color:var(--dim);
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  padding:0.3rem 0.85rem; backdrop-filter:blur(5px); white-space:nowrap;
+  transition:opacity 0.6s ease;
+}
+.hint b { color:var(--brass); font-weight:600; }
+.hint.faded { opacity:0; pointer-events:none; }
+
+/* info rail — the tool card */
+#card {
+  position:fixed; right:0.9rem; bottom:0.9rem; z-index:10; width:296px; max-width:calc(100vw - 1.8rem);
+  background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  backdrop-filter:blur(7px); padding:0.9rem 1rem; display:none;
+  box-shadow:0 4px 18px rgba(60,52,40,0.18);
+}
+#card.open { display:block; }
+#card .kicker {
+  font-size:0.56rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--dim);
+  display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.35rem;
+}
+#card h2 {
+  font-size:1.05rem; font-weight:700; letter-spacing:0.02em; color:var(--brass);
+  display:flex; align-items:baseline; gap:0.5rem;
+}
+#card h2 .glyph { font-size:1.2rem; }
+#card .desc { font-size:0.68rem; line-height:1.55; color:var(--ink); margin:0.5rem 0 0.6rem; }
+#card .chips { display:flex; flex-wrap:wrap; gap:0.3rem; margin-bottom:0.6rem; }
+#card .chip {
+  font-size:0.54rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--dim);
+  border:1px solid var(--line); border-radius:999px; padding:0.14rem 0.45rem;
+}
+#card .chip.write { color:var(--sky); border-color:var(--sky); }
+#card .tier-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.55rem; }
+#card .tier-label { font-size:0.56rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim); }
+#card .pips { display:flex; gap:3px; }
+#card .pip { width:14px; height:5px; border-radius:2px; background:var(--line); }
+#card .pip.on { background:var(--brass); }
+#card .status { display:flex; align-items:center; gap:0.4rem; font-size:0.56rem; color:var(--dim); margin-bottom:0.7rem; flex-wrap:wrap; }
+#card .dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
+#card .dot.warn { background:var(--amber); }
+#card .stamped { color:var(--amber); font-weight:600; }
+#card .visit {
+  display:inline-block; font-size:0.62rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+  color:#f6f0e1; background:var(--brass); border-radius:999px; padding:0.4rem 0.9rem; text-decoration:none;
+}
+#card .visit:hover { background:var(--ink); }
+#card .visit-hint { font-size:0.54rem; color:var(--dim); margin-left:0.5rem; }
+
+/* the passport */
+#passport {
+  position:fixed; left:0.9rem; bottom:0.9rem; z-index:11; width:330px; max-width:calc(100vw - 1.8rem);
+  max-height:calc(100vh - 5rem); overflow-y:auto;
+  background:var(--panel); border:1px solid var(--brass-soft); border-radius:10px;
+  backdrop-filter:blur(7px); padding:0.9rem 1rem; display:none;
+  box-shadow:0 4px 18px rgba(60,52,40,0.2);
+}
+#passport.open { display:block; }
+#passport .ptitle {
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:0.6rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--dim);
+}
+#passport .pclose { background:none; border:none; color:var(--dim); font-size:1rem; cursor:pointer; font-family:var(--mono); }
+#passport .pclose:hover { color:var(--ink); }
+#passport .prank {
+  font-size:1.15rem; font-weight:700; color:var(--brass); margin:0.2rem 0 0.1rem; letter-spacing:0.02em;
+}
+#passport .pscore { font-size:0.6rem; color:var(--dim); margin-bottom:0.75rem; line-height:1.5; }
+#passport .pnote { display:block; font-size:0.54rem; color:var(--dim); opacity:0.8; margin-top:0.2rem; }
+#passport .prow { margin-bottom:0.6rem; }
+#passport .phead {
+  display:flex; justify-content:space-between; font-size:0.56rem; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--dim); margin-bottom:0.25rem;
+}
+#passport .stamps { display:flex; flex-wrap:wrap; gap:0.22rem; }
+#passport .stamp {
+  width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+  font-size:0.72rem; color:var(--line); border:1px dashed var(--line); border-radius:5px;
+}
+#passport .stamp.found { color:var(--dim); border-style:solid; }
+#passport .stamp.used {
+  color:var(--brass); border:1.5px solid var(--brass); background:rgba(192,138,46,0.12);
+  transform:rotate(-4deg);
+}
+
+@media (max-width: 640px) {
+  .hint { display:none; }
+  .tagline { display:none; }
+  #card { right:0.5rem; left:auto; bottom:0.5rem; width:min(296px, calc(100vw - 1rem)); }
+  #passport { left:0.5rem; right:0.5rem; bottom:0.5rem; width:auto; }
+}
+</style>
+</head>
+<body>
+<canvas id="world"></canvas>
+
+<div class="topbar">
+  <a class="crumb" href="/">← b.mino.mobi</a>
+  <span class="brand">the quarter<span class="fly"> ✦</span></span>
+  <span class="tagline">a walkable city of the bluesky tools — complexity rises east</span>
+  <span class="spacer"></span>
+  <button id="passbtn" title="passport (P)"><span id="passchip">⌘ passport</span></button>
+  <a class="audit-link" href="https://github.com/minormobius/agent01/blob/main/docs/SOCIAL-STACK-AUDIT.md">stack audit</a>
+</div>
+
+<div class="hint" id="hint"><b>←↑↓→</b> / <b>WASD</b> walk · <b>click</b> to travel · <b>Enter</b> to visit · <b>P</b> passport</div>
+
+<aside id="card" aria-live="polite"></aside>
+<aside id="passport" aria-label="Your passport — which tools you've found and used"></aside>
+
+<script type="module" src="./map.js"></script>
+</body>
+</html>

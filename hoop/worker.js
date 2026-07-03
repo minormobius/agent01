@@ -76,7 +76,10 @@ async function handleStory(request, env, url) {
       bible, profile: body.profile || {}, existing: body.existing || [], features: body.features || [],
       match: body.match || {}, descriptor: body.descriptor,
       pulse: body.pulse || await getPulse(env),   // the Director's pulse steers the arc (browser may override)
-      external: body.external || worldExternal(),  // world/runtime flags so generated gates aren't false orphans
+      // world/runtime flags so generated gates aren't false orphans. Passing the nearby pool slice
+      // unions in the DERIVED boundary (flags the pool requires but never produces — runtime-set),
+      // so arcs chaining onto the 600-record corpus's journey-flag gates aren't falsely blocked.
+      external: body.external || worldExternal(body.existing || []),
     });
     return json(result, result.ok ? 200 : 200);   // a clean BLOCK is a 200 with verdict — not an error
   }
@@ -143,6 +146,49 @@ export default {
     }
     if (url.pathname === '/v100/spine' || url.pathname === '/v100/spine/') {
       return env.ASSETS.fetch(new Request(new URL('/v100/story/spine.html', url), request));
+    }
+    // v101 — the CURRENT DEVELOPMENT surface (v100 stays the stable prior): carries the audited story
+    // engine (scaled storyboard pacing, external reps channel, end-goto validator fix) + the world docs.
+    if (url.pathname === '/v101/records' || url.pathname === '/v101/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/records.html', url), request));
+    }
+    if (url.pathname === '/v101/feed' || url.pathname === '/v101/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/feed.html', url), request));
+    }
+    if (url.pathname === '/v101/spine' || url.pathname === '/v101/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/story/spine.html', url), request));
+    }
+    // garden/plot — the high-detail GARDEN PLOT demo: the soil substrate (grain/moisture/cracks) + the
+    // flora grown on it, each plant coloured by its Galenic temperament. The plants-first design toy.
+    if (url.pathname === '/garden/plot' || url.pathname === '/garden/plot/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/garden/plot.html', url), request));
+    }
+    // over — the OVERWORLD: the ship's outer grow-deck, the whole curated ecology grown wild across
+    // terrain bands (meadow/grove/thicket/heath/fen/water), each plant a silhouette keeping its
+    // growth-form + Galenic palette. The landscape cousin of the garden plot; pan/zoom, seed permalink.
+    if (url.pathname === '/over' || url.pathname === '/over/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/over/index.html', url), request));
+    }
+    // over/demo — the STANDING DEMO: a self-touring attract-mode over the overworld (auto-pan camera
+    // drifting across the bands, cycling seeds, naming what it passes). Runs itself, no input; a screen.
+    if (url.pathname === '/over/demo' || url.pathname === '/over/demo/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/over/demo.html', url), request));
+    }
+    // alch — the ALCHEMIST'S COOKBOOK: the correspondence→effect grammar (humour/planet/metal/vessel),
+    // every live reagent with its derived effect + pairings, and exemplar recipes computed by actually
+    // running the alchemy kernel. Mechanism reference for the bench in the make rooms.
+    if (url.pathname === '/alch' || url.pathname === '/alch/' || url.pathname === '/cookbook' || url.pathname === '/cookbook/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/alch/index.html', url), request));
+    }
+    // smith — the SMITHY testbed: craft equipment from the ship's commodities (the item genome + the
+    // material→commodity economy + tech-era gating). The design page before the make-room wall fixture.
+    if (url.pathname === '/smith' || url.pathname === '/smith/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/craft/index.html', url), request));
+    }
+    // docs — the WORLD-SIDE documentation: the whole scope of the world (decks, systems, minigames),
+    // every workflow that feeds it, the v101 audit findings, and the roadmap. The examination surface.
+    if (url.pathname === '/docs' || url.pathname === '/docs/') {
+      return env.ASSETS.fetch(new Request(new URL('/docs/index.html', url), request));
     }
     // chunkroller — the chunk-design tool (a /econ cousin for chunks): total view + civic readout + NPC stats + biome sliders.
     if (url.pathname === '/chunkroller' || url.pathname === '/chunkroller/') {

@@ -50,7 +50,11 @@ export function deriveStoryboard(content, { chapter = 1 } = {}) {
     return {
       id: c.id, act: 'act-' + o.n, title: name, log: desc, done: desc,
       requires: i > 0 ? { beats: [ord[i - 1].c.id] } : {},                 // sequential chain
-      completes_when: trig.length ? { facts: flagsToFacts(trig) } : { min_power: 1 + i },   // flag-gated when his export wires it; EXPOSURE-paced (XP from crystallizing his content) until then
+      // flag-gated when his export wires it; EXPOSURE-paced (XP from crystallizing his content) until
+      // then. The ramp scales across the WHOLE storyboard (1→5 over N beats) — the old `1 + i` was
+      // written for the 5-beat export and left every beat past the 4th uncompletable once his corpus
+      // grew to 40/90 beats (power tiers cap at 5).
+      completes_when: trig.length ? { facts: flagsToFacts(trig) } : { min_power: 1 + Math.floor((i * 5) / Math.max(ord.length, 5)) },
       advances: { narrative_tier: o.n, revelation_tier: o.r },
       marker: deriveMarker(c, npcNames),
       reveals: c.revelation_hint || desc,
@@ -87,18 +91,7 @@ export function deriveMilestones(storyboard) {
   return out;
 }
 
-// content[] → the world/runtime flag manifest, DERIVED (replaces import.js's static WORLD_FACTS): the
-// facts/items his pool gates on that nothing in the pool produces — set by the runtime/storyboard
-// (the journey flags) or player-intrinsic. This is what feeds the gate's assumed-satisfiable boundary.
-export function deriveWorldFlags(content) {
-  const produced = new Set(), pool = new Set(), reqF = new Set(), reqI = new Set();
-  for (const c of content) {
-    for (const f of (c.produces && c.produces.sets) || []) produced.add(f);
-    const nodes = (c.content && c.content.dialogue && c.content.dialogue.nodes) || {};
-    for (const n of Object.values(nodes)) for (const ch of (n.choices || [])) for (const k of Object.keys((ch.effects && ch.effects.set_facts) || {})) produced.add(k);
-    if (c.type === 'item') { pool.add(((c.content || {}).name || '').toLowerCase()); for (const t of c.tags || []) pool.add(String(t).toLowerCase()); }
-    for (const k of Object.keys((c.requires && c.requires.facts) || {})) reqF.add(k);
-    for (const it of (c.requires && c.requires.items) || []) reqI.add(String(it).toLowerCase());
-  }
-  return { facts: [...reqF].filter((f) => !produced.has(f)), items: [...reqI].filter((i) => !pool.has(i)) };
-}
+// content[] → the world/runtime flag manifest, DERIVED. The implementation moved to import.js
+// (worldExternal(content) unions it with the static manifest for the gate); re-exported here so the
+// derivation keeps living beside its siblings and existing importers don't move.
+export { deriveWorldFlags } from './import.js';

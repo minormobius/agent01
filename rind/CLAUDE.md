@@ -14,8 +14,10 @@ JS → emit a frame model → solve for stress):
   plus wayfinding: a drivable spiral ramp → azimuthal road → ramp route through the chamber
   graph (`wayfind.js`, certified by `test/wayfind.selftest.mjs`).
 - `walk.html` — first-person walk through a planar cut of the foam.
-- `ops/` — **the production weave** at `rind.mino.mobi/ops/`. **The primary view is now 3D** (`index.html` +
-  `3d-app.js`, kernel `foam3d.js`): the weave resolved in a **volumetric voronoi foam PANCAKE** — a wide, thin,
+- `ops/` — **the production weave** at `rind.mino.mobi/ops/`. **`ops/index.html` is the LANDING HUB** — a card
+  index of every ops view (link here first; it's what `/ops/` serves). **The primary 3D view is `orbit.html`**
+  (`3d-app.js`, kernel `foam3d.js`) — moved off `index.html` when the hub was added: the weave resolved in a
+  **volumetric voronoi foam PANCAKE** — a wide, thin,
   **two-layer** disc, woven from **counter-rotating spirals**. 6 white arms spiral from the **upper-centre** hub,
   8 production from the **lower-centre** hub (the six starts sit ABOVE the eight); upper/lower layer = over/under;
   the hubs are joined only by threading the woven body. Counter-rotation ⇒ K(6,8). Two reads: **orbit** (the
@@ -32,8 +34,79 @@ JS → emit a frame model → solve for stress):
   machine / hub), and a **stair to the other-layer partner = the white×production facility** (the K(6,8) contact
   made architectural) — except the two hubs, which get no stair so they stay disconnected. A weave-cell is a
   **hexagon of chunks** — `foam3d`'s `rings` param (the `⬡ chunks` button) cuts it into a **centered-hexagonal
-  number** (1·7·19·37, `3n²+3n+1`); a bigger cell gets more windings. **`tess.html`/`tess-app.js`** shows how the
-  cells **tessellate**: a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
+  number** (1·7·19·37, `3n²+3n+1`); a bigger cell gets more windings. **`onedoor.html`/`onedoor-app.js`** (kernel `onedoor.js`) is the **one-door endpoint**: it re-poses the *same* prism
+  weave as **two door-free concourses** (6 white arms + nave hub · 8 production arms + bottom hub) joined only by the
+  48 zero-grade K(6,8) doors — so **any room → any room is ≤1 door, including the hubs**, proven by
+  `onedoor.selftest.mjs` (the per-thread graph in `cells3d` only reaches "≈1 door", max up to 4, because same-colour
+  arms never cross; the concourse layer fixes it by construction). It runs over **two substrates** (the `▦ HCP / ✳
+  on-curve` toggle): the HCP lattice claimed by the watershed, and **on-curve** (`curveseed.js`) — nuclei seeded
+  ALONG the analytic thread curves, then polyhedra grown to fill; on-curve lands the full K(6,8)=48 with every door
+  zero-grade. **Per-spiral Voronoi continuity is an OWNERSHIP property** (`◐ watershed / ◑ nearest`): nearest-nucleus
+  gives 0/14 continuous (sliced at every crossing; more hexes makes it WORSE), so the default re-owns curve nuclei by
+  the geodesic **watershed** (`layWeave`) ⇒ 14/14 spirals continuous + K≈45–48 + at-grade + one-door together
+  (`certify.spiralsContinuous`). Concourses connected by hard-bind+matrix-flood when continuous, else the hub-flood.
+  **ZERO-LADDER**: the last over/under stair-doors yield not to any knob (nodes/decks/width/z-profile all measured no
+  help) but to LOOSENING the spirals (`breathe`=`turnScale`~0.35 — "let the tight curves breathe, it's an infinite
+  world"): fewer turns spread the crossings radially so all 48 doors land at grade. At `turnScale ≤ 0.35`, 6×8 is a
+  full zero-ladder world (48 doors at grade + full K(6,8) + 14/14 continuous + one door); the onedoor view defaults to
+  `breathe 0.35` with a `zero-ladder ✓` readout (`certify.steepDoors`).
+  **`nexus.html`/`nexus-app.js` is the FIRST-PERSON navigator (proto)**: you are the `@` on ONE thread — its own
+  chambers strung along its curve into a walkable surface, walled but for its doors + the nexus; start at the white
+  nexus, walk an arm, and crossing a door re-centres the whole map on the crossed thread (navigation = mapping).
+  **`helix.html`/`helix-app.js` — the EMERGENT cylinder helix**: keep local hex cohesion but chain the white
+  edge-handoffs across the wrapped honeycomb and the six directions resolve into three global families — azimuthal
+  **rings** (E–W) + two counter-rotating **helices** (NE–SW, NW–SE) that cross = the cylinder weave, emergent;
+  expansion is just more rows of hexes. Unrolled ↔ wrapped-on-cylinder, trace one strand.
+  **`tessweave.html`/`tessweave-app.js` (kernel `tessweave.js`) — the tessellation SOLVED over the real threads**:
+  where `tess.html` is a schematic, this honeycombs the *actual* single-hex Voronoi weave (`curveseed.js`, 14
+  threads) and solves the **thread-to-thread interfaces** at every shared edge. Two halves, computed and proven
+  (`test/tessweave.selftest.mjs`, 51 assertions over 7 seeds): (1) the 6 **whites** each claim one edge by their
+  rim-most cell — an exact **1-white-per-edge bijection** (the warp) — and translation-tiling turns each owned
+  white into a straight global strand, so the 6 collapse to **3 families** (one azimuthal ring + two
+  counter-rotating helices — the same emergence as `helix.html`, now over the real weave); (2) the 8 **engines**
+  don't divide the hex's 6-fold antipodal symmetry, so they can't all splice — they stay local and, where they
+  graze the rim, abut the neighbour's *other-kind* thread as cross-kind **K-doors** (the K(6,8) contact reaching
+  across the seam). Continuity across a seam is realised the way it is everywhere in rind — **door-adjacency**
+  between abutting rim cells, not literal curve-joining (the spiral chirality biases every white to one side of
+  its edge, so opposite edges don't mirror-align). The view distinguishes each thread's **true path** vs its
+  **desire path**: the *desire* path is the analytic seeding curve (`threadCurve` samples `weave3d`'s
+  `lineW`/`lineP`), the smooth spiral the nuclei were seeded along; the **true path** (`truePath`) is the chain of
+  chambers the thread actually OWNS after the watershed, stepping hub → rim through owned-cell adjacency — jagged
+  where the desire curve is smooth (the real corridor a walker follows; default view). Each white runs **hub →
+  one rim edge**, so a continuous warp thread is *hub → seam → neighbour-hub*, the whites chaining the hubs across
+  the web. Under plain translation the same family lands adjacent across each seam (green beside green); a
+  **bridge** joins each centre exit to its nearest neighbour exit, closing the gap so the families thread
+  continuously. Trace one family to isolate it. **Beyond seven chunks** (`hexPatch`, `chunkColor`, `patchSeams`,
+  `patchMismatch`): the hex centres are a triangular lattice, 3-colourable (`(i−j) mod 3`); the view tiles an
+  N-ring patch (7/19/37), tints the three **phases**, marks every corner where three chunks meet as a **nexus**,
+  and lets you rotate a phase by 60° (`phase` cycles off / *CW60-dispersed* / *pinwheel*). Measured finding:
+  phase rotation lowers the *overall* seam mismatch (it reorients the production threads) but the **white-only
+  mismatch is rotation-invariant** — the 6 whites exit 60° apart (a C6-symmetric set), so rotating a chunk maps
+  that set onto itself and cannot move where whites meet; only a reflection moves white exits (and that's the
+  `mateTransform`/`hexSym` mirror, kept in the kernel but off the default since you preferred no flip). So pure
+  rotation improves production interfaces + reshuffles which family lands at a seam, but doesn't make the three
+  white families geometrically coincide — the bridges still carry that.
+  **`floor.html`/`floor-app.js` — THE DEMO FLOOR (the tessellation inhabited)**: drives the vendored **hoop/v100
+  foam-and-rooms engine** (`rind/ops/v100/`, six modules copied from `hoop/v100` with flattened imports — see
+  `v100/VENDOR.md`; vendored because the rind worker only serves `rind/**`) over the hex lattice. Each chunk becomes
+  a **district** of Voronoi rooms + a concourse (`solveChunk`, v2 rooms-first); the manager reflects neighbours
+  across shared edges and stitches ONE cross-chunk **walk graph** (`buildWalk`), so a 7- or 19-hex honeycomb is one
+  connected floor you walk (WASD/click, follow-camera). Districts abut at **seam doors** (edge-midpoint ports) and
+  the corners where three chunks meet are the **nexus mixing points** ("greedy corners — don't care about
+  single-species threads; a nexus mixes regardless"). Residents dwell in role-coloured rooms (⚒/⚕/▣…), spider-droids
+  (the `sprites/` kernel) haul the concourse. Proven navigable: `test/floor.selftest.mjs` (7-flower connects, all
+  districts reachable from one start, 6 nexus corners, deterministic). **BUT** the god-view is the wrong lens for
+  this map — **the map is only what's reachable from your thread**. **`office.html`/`office-app.js` — YOUR THREAD IS
+  AN OFFICE** is the right engine: it renders ONLY the current thread, partitioned into a full v100-style office
+  (rooms via `assignZones` over the thread's own cell subgraph + role glyphs from `v100/econ.js` ROLES + a hallway
+  spine from the nexus to the rim), and every OTHER thread is only a **door** in your wall (a gold gate ringed in the
+  neighbour's colour with a sightline stub — NOT its rooms). Cross a door and that thread becomes your office,
+  re-centred (`rebuild(toKey, farGi)`); the nexus opens onto all sibling offices of the same kind. It's
+  `nexus.html`'s thread-relative re-centring, upgraded from bare cells to modelled offices — K(6,8) first-person
+  (a white office = 8 doors, a production office = 6). Built on `curveseed` + `onedoor.certify` (the 48 doors) +
+  the vendored `v100/` room toolkit; `test/office.selftest.mjs` pins it (rooms tile each thread, hallway connects
+  nexus→rim, every door re-centres onto a neighbour-owned cell, deterministic). **`tess.html`/`tess-app.js`** shows how the
+  cells **tessellate** (the schematic): a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family
   (`foam3d.selftest.mjs`, 44 + `chamber.selftest.mjs`, 31; K(6,8) over 80 seeds). The 2D versions are preserved: `flat.html`/`flat-app.js`
@@ -73,6 +146,10 @@ of hoop; it is the shell, tide/biome are the air/life inside it. Keep the cross-
 ( cd rind/solver/cylinder-solver && cargo test )   # the solver math, offline
 node rind/solver/foam-preview.mjs                  # headless foam → frame model preview
 node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no deps)
+node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any→any ≤1 door incl. hubs (two concourses)
+node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
+node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR (god-view): v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
+node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office: each thread partitions into rooms; K(6,8) doors to other threads; cross re-centres
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
 node rind/ops/test/decks.selftest.mjs              # the region-decks comparison view

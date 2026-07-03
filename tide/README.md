@@ -194,6 +194,19 @@ The iconic O'Neill view — looking "up" and seeing land curve overhead — but 
 altitude (from Module 2), and a compute-shader `(r,θ)` slice showing Coriolis-organised
 convection rolls. Fed by this wing's validated state, so it visualises physics, not assumptions.
 
+## Goss — the civic web viewer (`goss/`) — an odd tenant
+
+Not thermodynamics: `tide.mino.mobi/goss` hosts the **civic web viewer + social-drama
+substrate** grown out of the hoop/chunkroller NPC work. The hoop econ society (vendored
+verbatim under `goss/vendor/` — copy-never-fork) is rendered as a force-laid **web** instead of
+a map: every NPC and their relationships to the places. On top, `goss/gossip.js` layers
+deterministic demographics + naming + kinship (the engine has none), the person↔person tie
+graph, **emergent tribes** (label propagation — no faction is assigned at the NPC level
+anywhere in the engine), a romance layer, and the two tension axes — **tribalism** and the
+**narcissism of small differences** — emitting typed, evidence-bearing drama seeds (the
+proto-oracle). Deterministic from `?seed=`; kernel is pure and node-tested (38 checks). Full
+design memo in [`goss/README.md`](goss/README.md).
+
 ## Layout
 
 ```
@@ -208,8 +221,11 @@ tide/
 │   ├── index.html · sim/fountain.mjs · sim/light.mjs · test/{fountain,light}.selftest.mjs
 ├── ratchet/                      # MODULE 2c — lake topology: equipotential arcs + ratchet teeth
 │   ├── index.html · sim/ratchet.mjs · test/ratchet.selftest.mjs
-└── systems/                      # MODULE 4 — water & energy ledger
-    └── sim/resources.mjs · test/resources.selftest.mjs
+├── systems/                      # MODULE 4 — water & energy ledger
+│   └── sim/resources.mjs · test/resources.selftest.mjs
+└── goss/                         # the odd tenant — civic web viewer + drama substrate
+    ├── index.html · app.js · gossip.js · test/gossip.selftest.mjs
+    └── vendor/{econ,paint}/      # verbatim hoop/v099 econ kernel — re-sync, never fork
 ```
 
 `shared/geometry.mjs` is **the canonical cylinder** for this wing: atmosphere, fountain and
