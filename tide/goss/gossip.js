@@ -34,7 +34,7 @@
 // Pure, zero-DOM, node-tested (test/gossip.selftest.mjs). Same (seed) ⇒ same town, same names,
 // same tribes, same gossip, forever.
 
-import { buildWorld, buildSociety, socialMetrics, scoreSociety, DEFAULT_GENOME, ROLES } from './vendor/econ/econ.js';
+import { buildWorld, buildSociety, socialMetrics, scoreSociety, DEFAULT_GENOME, ROLES, DOMAINS, makePlace } from './vendor/econ/econ.js';
 import { mulberry32 } from './vendor/paint/voronoi.js';
 
 // ── seeded hashing ────────────────────────────────────────────────────────────────────────────
@@ -186,10 +186,12 @@ export function findTribes(field, enriched, web, seed) {
   if (big.length) for (const [l, m] of groups) {
     if (bigSet.has(l)) continue;
     for (const i of m) {
+      // fold into the strongest-TIED big tribe only; an unconnected fragment stays its own tribe
+      // (dumping it into an arbitrary big tribe would let a "tribe" span components — e.g. wards).
       const score = new Map();
       for (const e of web.adj.get(i) || []) { const tl = label[e.to]; if (bigSet.has(tl) && tl !== l) score.set(tl, (score.get(tl) || 0) + e.w); }
-      let best = big[0], bw = -1; for (const [tl, w] of score) if (w > bw) { best = tl; bw = w; }
-      label[i] = best;
+      let best = -1, bw = -1; for (const [tl, w] of score) if (w > bw || (w === bw && tl < best)) { best = tl; bw = w; }
+      if (best >= 0) label[i] = best;
     }
   }
   // canonical tribe ids in first-seen order; profile + totem + name per tribe.
@@ -208,6 +210,11 @@ export function findTribes(field, enriched, web, seed) {
   for (const T of tribes) {
     let totem = null, tw = -1;
     for (const [pid, w] of T.placeW) { const pl = placeById.get(pid); if (!pl || pl.role === 'dwell') continue; if (w > tw || (w === tw && pid < totem)) { totem = pid; tw = w; } }
+    if (totem == null && T.members.length) {                  // hermit fragment: fall back to its commonest home
+      const homes = new Map();
+      for (const i of T.members) { const h = enriched.people[i].home; homes.set(h, (homes.get(h) || 0) + 1); }
+      totem = [...homes.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+    }
     T.totem = totem;
     const r = mulberry32(hash(seed, 4241, T.id, totem == null ? 0 : totem) || 1);
     T.name = totem != null ? `the ${placeName(placeById.get(totem), seed)} ${pick(r, TRIBE_SUFFIX)}` : `the unplaced ${pick(r, TRIBE_SUFFIX)}`;
@@ -390,19 +397,145 @@ export function findDramas(field, enriched, tribal, romance, tension, seed) {
 }
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-// ── ASSEMBLE — the whole goss build. One call, one seed, the entire social weather. ──────────
+// ── THE PIPELINE — layers 1–6 over any (field, society). The substrate is pluggable. ─────────
+function runPipeline(field, society, seed) {
+  const metrics = socialMetrics(field, society);
+  const vital = scoreSociety(field, society, metrics);
+  const enriched = enrichPeople(society, seed);
+  // if the substrate tags places with a ward/faction (the nave), people inherit their home's.
+  const placeById = new Map(field.places.map((p) => [p.id, p]));
+  for (const p of enriched.people) { const home = placeById.get(p.home); if (home && home.ward != null) { p.ward = home.ward; p.faction = home.faction; } }
+  const web = weaveTies(society, enriched);
+  const tribal = findTribes(field, enriched, web, seed);
+  const romance = findRomance(enriched, web, tribal, seed);
+  const tension = findTension(field, society, enriched, web, tribal);
+  const dramas = findDramas(field, enriched, tribal, romance, tension, seed);
+  return { seed, world: field, society, metrics, vital, enriched, web, tribal, romance, tension, dramas };
+}
+
+// ── ASSEMBLE — the econ-town build. One call, one seed, the entire social weather. ───────────
 export function buildGoss({ seed = 1, cells = 2600, W = 900, H = 600, genome = DEFAULT_GENOME } = {}) {
   const world = buildWorld({ W, H, cells, seed, genome });
   const society = buildSociety(world, { seed, genome });
-  const metrics = socialMetrics(world, society);
-  const vital = scoreSociety(world, society, metrics);
-  const enriched = enrichPeople(society, seed);
-  const web = weaveTies(society, enriched);
-  const tribal = findTribes(world, enriched, web, seed);
-  const romance = findRomance(enriched, web, tribal, seed);
-  const tension = findTension(world, society, enriched, web, tribal);
-  const dramas = findDramas(world, enriched, tribal, romance, tension, seed);
-  return { seed, world, society, metrics, vital, enriched, web, tribal, romance, tension, dramas };
+  return runPipeline(world, society, seed);
+}
+
+// ── THE NAVE SUBSTRATE — chunk rooms in, the chunkroller sampling, two pollination modes ─────
+// How hoop chunks sample econ (measured, hoop/chunkroller/civic.js is the reference): a chunk's
+// rooms[] are adapted into econ places (fieldFromRooms) and econ's buildSociety is RE-ROLLED over
+// them — the engine's own cast (room.people, the sprites that walk the deck) is a separate, thinner
+// population (npc.js only wires dwell→nearest-work/third). Chunkroller scores each chunk ALONE:
+// societies do NOT cross-pollinate anywhere in the engine today. The one exception is the live
+// game's cosmetic commute web, which picks nearest workplaces across ALL loaded chunks by pure
+// Euclidean distance — ignoring ward walls entirely.
+//
+// buildGossNave runs the same sampling over a baked nave (data/nave-<seed>.json) in two modes:
+//   'sealed' — engine-faithful: seven independent societies (buildSociety per ward), zero cross-
+//              ward ties. Tribes can never span a ward. Per-ward vitality, as chunkroller scores it.
+//   'floor'  — the what-if: one society over all seven chunks' rooms; hats (jobs, parishes, clubs)
+//              cross wards by nearest-distance, like the game's commute web. One floor vitality.
+// Both are deterministic from the nave's baked seed.
+
+const domObj = (id) => DOMAINS.find((d) => d.id === id) || DOMAINS[0];
+
+// chunkroller's civic.js fieldFromRooms, replicated over the vendored econ (+ ward/faction tags,
+// + a place-id offset so per-ward fields can merge into one global namespace).
+export function fieldFromRooms(rooms, W, H, idBase = 0) {
+  const places = rooms.map((room, i) => {
+    const pl = makePlace(idBase + i, room.role, domObj(room.domain));
+    pl.x = room.x; pl.y = room.y; pl.footprint = room.fp || 1;
+    pl.ward = room.ward != null ? room.ward : null; pl.faction = room.faction || null;
+    return pl;
+  });
+  const spacing = Math.max(5, Math.sqrt((W * H) / Math.max(1, places.length)));
+  const byRes = new Map();
+  for (const pl of places) for (const r of pl.out) { let a = byRes.get(r); if (!a) { a = []; byRes.set(r, a); } a.push(pl); }
+  const edges = []; let need = 0, met = 0;
+  for (const pl of places) for (const r of [...new Set(pl.in)]) {
+    need++;
+    const list = byRes.get(r); if (!list) continue;
+    let best = null, bd = Infinity;
+    for (const q of list) { if (q.id === pl.id) continue; const d = (q.x - pl.x) ** 2 + (q.y - pl.y) ** 2; if (d < bd) { bd = d; best = q; } }
+    if (best) { met++; edges.push({ from: pl.id, to: best.id, r, fx: pl.x, fy: pl.y, tx: best.x, ty: best.y }); }
+  }
+  const counts = {}; for (const pl of places) counts[pl.role] = (counts[pl.role] || 0) + 1;
+  return { W, H, spacing, places, edges, byRes, counts, need, met, closure: need ? met / need : 1 };
+}
+
+// merge per-ward fields + societies into one global namespace (people re-indexed, place ids already
+// disjoint via idBase). The merged web has NO cross-ward anything — that's the point of sealed mode.
+function mergeWards(fields, societies) {
+  const field = {
+    W: fields[0].W, H: fields[0].H, places: [], edges: [], byRes: new Map(), counts: {}, need: 0, met: 0,
+  };
+  const society = { people: [], placeMembers: new Map(), affiliations: 0 };
+  for (let w = 0; w < fields.length; w++) {
+    const f = fields[w], s = societies[w], pOff = society.people.length;
+    field.places.push(...f.places); field.edges.push(...f.edges);
+    for (const [r, list] of f.byRes) { let a = field.byRes.get(r); if (!a) { a = []; field.byRes.set(r, a); } a.push(...list); }
+    for (const k in f.counts) field.counts[k] = (field.counts[k] || 0) + f.counts[k];
+    field.need += f.need; field.met += f.met;
+    for (const p of s.people) society.people.push({ ...p, idx: p.idx + pOff });
+    for (const [pid, members] of s.placeMembers) society.placeMembers.set(pid, members.map((i) => i + pOff));
+    society.affiliations += s.affiliations;
+  }
+  field.closure = field.need ? field.met / field.need : 1;
+  field.spacing = Math.max(5, Math.sqrt((field.W * field.H) / Math.max(1, field.places.length)));
+  const P = society.people.length || 1;
+  society.avgHats = society.affiliations / P;
+  society.thirdsFrac = society.people.filter((p) => p.hats.some((h) => ['worship', 'club', 'sport'].includes(h.kind))).length / P;
+  return { field, society };
+}
+
+export function buildGossNave(nave, { mode = 'floor' } = {}) {
+  const seed = nave.seed;
+  const { x0, y0, x1, y1 } = nave.bbox;
+  const W = Math.ceil(x1 - x0), H = Math.ceil(y1 - y0);
+  const wardRooms = nave.chunks.map((ch, w) => ch.rooms.map((r) => ({ ...r, x: r.x - x0, y: r.y - y0, ward: w, faction: ch.meta.faction })));
+  const enginePeople = nave.chunks.map((ch) => ch.rooms.reduce((s, r) => s + (r.people ? r.people.length : 0), 0));
+  let out;
+  if (mode === 'sealed') {
+    // seven independent societies — the engine truth (chunkroller scores each chunk alone).
+    const fields = [], societies = [], wards = [];
+    let idBase = 0;
+    for (let w = 0; w < wardRooms.length; w++) {
+      const f = fieldFromRooms(wardRooms[w], W, H, idBase); idBase += wardRooms[w].length;
+      const s = buildSociety(f, { seed: (seed ^ (w * 0x9e37 + 0x51)) >>> 0 });
+      const m = socialMetrics(f, s), v = scoreSociety(f, s, m);
+      fields.push(f); societies.push(s);
+      wards.push({ ward: w, meta: nave.chunks[w].meta, people: s.people.length, engine: enginePeople[w], vitality: Math.round(v.vitality), tier: v.tier });
+    }
+    const merged = mergeWards(fields, societies);
+    out = runPipeline(merged.field, merged.society, seed);
+    out.wards = wards;
+  } else {
+    // one floor — hats cross wards by nearest-distance (the game's Euclidean commute rule writ large).
+    const rooms = wardRooms.flat();
+    const field = fieldFromRooms(rooms, W, H);
+    const society = buildSociety(field, { seed });
+    out = runPipeline(field, society, seed);
+    out.wards = nave.chunks.map((ch, w) => ({ ward: w, meta: ch.meta, people: out.enriched.people.filter((p) => p.ward === w).length, engine: enginePeople[w] }));
+  }
+  out.mode = mode; out.nave = { bbox: nave.bbox, shift: { x: x0, y: y0 }, connections: nave.connections, polys: nave.chunks.map((ch) => ch.poly.map(([px, py]) => [px - x0, py - y0])), meta: nave.chunks.map((ch) => ch.meta) };
+  out.enginePeople = enginePeople.reduce((a, b) => a + b, 0);
+  out.alignment = factionTribeAlignment(out.enriched, out.tribal);
+  return out;
+}
+
+// designed factions vs emergent tribes — how well does the web's own clustering recover the
+// designer's wards? Per tribe, the faction split of its members; overall alignment = the
+// population-weighted share sitting in their tribe's majority faction (1 = tribes ≡ factions).
+export function factionTribeAlignment(enriched, tribal) {
+  if (!enriched.people.length || enriched.people[0].faction == null) return null;
+  const perTribe = tribal.tribes.map((t) => {
+    const split = {};
+    for (const i of t.members) { const f = enriched.people[i].faction || '?'; split[f] = (split[f] || 0) + 1; }
+    const top = Object.entries(split).sort((a, b) => b[1] - a[1])[0];
+    return { tribe: t.id, split, majority: top ? top[0] : null, purity: t.members.length ? (top ? top[1] : 0) / t.members.length : 0 };
+  });
+  const aligned = perTribe.reduce((s, r) => s + r.purity * tribal.tribes[r.tribe].members.length, 0);
+  const P = enriched.people.length || 1;
+  return { perTribe, overall: aligned / P };
 }
 
 export { ROLES };

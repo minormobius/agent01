@@ -3,7 +3,10 @@
 // dossiers, and the drama feed ("the goss") on the rail. All model logic lives in gossip.js —
 // this file only lays out and draws what buildGoss returns.
 
-import { buildGoss, placeName, ROLES } from './gossip.js';
+import { buildGoss, buildGossNave, placeName, ROLES } from './gossip.js';
+
+const BAKED_NAVE_SEEDS = [1, 2, 3, 5, 7, 11, 42, 99];   // data/nave-<seed>.json — bake more with tools/bake-nave.mjs
+const FACTION_FALLBACK = { commons: '#c9b07a', rindwalker: '#9b6b3a', continuant: '#33408f', drift: '#3bb0c9' };
 
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const tip = document.getElementById('tip');
@@ -18,13 +21,28 @@ let romInvolved = new Set();        // souls with any romance edge (the rest dim
 let contestedByPlace = new Map(), defectorSet = new Set();
 let view = { x: 0, y: 0, k: 1 };
 let lens = 'tribes';
+let sub = 'town', mode = 'sealed';          // substrate (town | nave) + nave pollination mode
+let contentW = 900, contentH = 600;         // extent of the current substrate (for fitView)
 let highlight = null;               // Set of node keys, or null
 let selected = null;                // node key
 let alpha = 0;                      // layout temperature
 
 // ── build + derive draw data ──────────────────────────────────────────────────────────────────
-function build(seed) {
-  G = buildGoss({ seed });
+async function build(seed) {
+  if (sub === 'nave') {
+    const res = await fetch(`data/nave-${seed}.json`);
+    if (!res.ok) {
+      document.getElementById('dossier').innerHTML =
+        `<div class="nm">no baked nave for seed ${seed}</div><div class="meta">baked seeds: ${BAKED_NAVE_SEEDS.join(', ')} — add more with tools/bake-nave.mjs</div>`;
+      document.getElementById('dossier').style.display = 'block';
+      return;
+    }
+    G = buildGossNave(await res.json(), { mode });
+    contentW = G.world.W; contentH = G.world.H;
+  } else {
+    G = buildGoss({ seed });
+    contentW = 900; contentH = 600;
+  }
   nodes = []; nodeAt = new Map(); springs = []; romEdges = [];
   const P = G.enriched.people;
   for (const pl of G.world.places) {
@@ -93,7 +111,8 @@ function relax(iters) {
 // ── view / draw ───────────────────────────────────────────────────────────────────────────────
 function fitView() {
   const w = cv.clientWidth || 800, h = cv.clientHeight || 600;
-  view.k = Math.min(w / 1050, h / 720); view.x = w / 2 - 450 * view.k; view.y = h / 2 - 300 * view.k;
+  view.k = Math.min(w / (contentW * 1.17), h / (contentH * 1.2));
+  view.x = w / 2 - (contentW / 2) * view.k; view.y = h / 2 - (contentH / 2) * view.k;
 }
 function resize() {
   cv.width = cv.clientWidth * devicePixelRatio; cv.height = cv.clientHeight * devicePixelRatio;
@@ -106,6 +125,17 @@ function draw() {
   ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight);
   if (!G) return;
   const P = G.enriched.people;
+  // ward outlines (nave substrate) — the DESIGNED partition, under the emergent web
+  if (G.nave) {
+    for (let w = 0; w < G.nave.polys.length; w++) {
+      const col = G.nave.meta[w].color || FACTION_FALLBACK[G.nave.meta[w].faction] || '#556';
+      ctx.beginPath();
+      G.nave.polys[w].forEach(([px, py], i) => { const X = sx(px), Y = sy(py); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); });
+      ctx.closePath();
+      ctx.fillStyle = hexA(col, 0.05); ctx.fill();
+      ctx.strokeStyle = hexA(col, 0.45); ctx.lineWidth = 1.2; ctx.stroke(); ctx.lineWidth = 1;
+    }
+  }
   // ties (person-person) — lens decides which and how hot
   ctx.lineWidth = 1;
   if (lens === 'web') {
@@ -195,7 +225,31 @@ function renderRail() {
   document.getElementById('vtier').textContent = G.vital.tier;
   document.getElementById('vnote').textContent =
     `${G.enriched.people.length} souls · ${G.enriched.households.length} households · ${G.world.places.length} places · ` +
-    `${G.web.ties.length} ties · polarization ${(G.tension.polarization * 100).toFixed(0)}%`;
+    `${G.web.ties.length} ties · polarization ${(G.tension.polarization * 100).toFixed(0)}%` +
+    (G.nave ? ` · engine roster ${G.enginePeople} (the cast that walks the deck — a separate population)` : '');
+  // the wards block (nave substrate): the designed partition vs what emerges
+  const wb = document.getElementById('wardsblock');
+  wb.style.display = G.nave ? 'block' : 'none';
+  if (G.nave) {
+    const wd = document.getElementById('wards'); wd.innerHTML = '';
+    for (const w of G.wards) {
+      const col = w.meta.color || FACTION_FALLBACK[w.meta.faction] || '#556';
+      const el = document.createElement('div'); el.className = 'tribe';
+      el.innerHTML = `<span class="sw" style="background:${col}"></span><span>${esc(w.meta.key)}</span>` +
+        `<span class="sz">${w.people}p${w.vitality != null ? ` · ${w.vitality} ${esc(w.tier)}` : ''}</span>`;
+      el.onclick = () => {
+        const on = el.classList.toggle('on');
+        [...wd.children].forEach((c) => { if (c !== el) c.classList.remove('on'); });
+        highlight = on ? new Set(G.enriched.people.filter((p) => p.ward === w.ward).map((p) => 'p' + p.idx)) : null;
+        draw();
+      };
+      wd.appendChild(el);
+    }
+    document.getElementById('alignment').textContent = G.alignment
+      ? `designed factions vs emergent tribes: ${(G.alignment.overall * 100).toFixed(0)}% aligned ` +
+        (mode === 'sealed' ? '(sealed wards — tribes can only form inside a ward)' : '(one floor — hats cross wards by nearest distance, like the game’s commute web)')
+      : '';
+  }
   const tr = document.getElementById('tribes'); tr.innerHTML = '';
   G.tribal.tribes.forEach((t) => {
     const el = document.createElement('div'); el.className = 'tribe';
@@ -240,7 +294,8 @@ function showDossier(node) {
     const partner = G.romance.partnerOf[p.idx];
     const myDramas = G.dramas.filter((d) => (d.people || []).includes(p.idx));
     html += `<div class="nm">${esc(p.name)}</div>` +
-      `<div class="meta">${p.age} · ${p.pronouns.join('/')} · ${p.kinship} of the ${esc(p.surname)} household · <span style="color:${tribeColor(node.tribe)}">${esc(t.name)}</span></div><ul>`;
+      `<div class="meta">${p.age} · ${p.pronouns.join('/')} · ${p.kinship} of the ${esc(p.surname)} household · <span style="color:${tribeColor(node.tribe)}">${esc(t.name)}</span>` +
+      (p.faction ? ` · ${esc(p.faction)} ward` : '') + `</div><ul>`;
     if (partner >= 0) html += `<li><span class="k">partner</span> ${esc(P[partner].name)}</li>`;
     if (hh) html += `<li><span class="k">household</span> ${hh.members.filter((i) => i !== p.idx).map((i) => esc(P[i].given)).join(', ') || '(alone)'}</li>`;
     for (const h of p.hats) {
@@ -318,20 +373,46 @@ document.querySelectorAll('#lenses .chip').forEach((c) => c.addEventListener('cl
   c.classList.add('on'); lens = c.dataset.lens; draw();
 }));
 const seedInput = document.getElementById('seed');
-document.getElementById('roll').addEventListener('click', () => { seedInput.value = 1 + Math.floor(Math.random() * 99999); reroll(); });
+const subSelect = document.getElementById('sub');
+document.getElementById('roll').addEventListener('click', () => {
+  seedInput.value = sub === 'nave'
+    ? BAKED_NAVE_SEEDS[Math.floor(Math.random() * BAKED_NAVE_SEEDS.length)]
+    : 1 + Math.floor(Math.random() * 99999);
+  reroll();
+});
 seedInput.addEventListener('change', reroll);
+subSelect.addEventListener('change', () => {
+  sub = subSelect.value;
+  document.getElementById('modes').style.display = sub === 'nave' ? 'flex' : 'none';
+  if (sub === 'nave' && !BAKED_NAVE_SEEDS.includes(parseInt(seedInput.value, 10))) seedInput.value = 7;
+  reroll();
+});
+document.querySelectorAll('#modes .chip').forEach((c) => c.addEventListener('click', () => {
+  document.querySelectorAll('#modes .chip').forEach((x) => x.classList.remove('on'));
+  c.classList.add('on'); mode = c.dataset.mode; reroll();
+}));
 function reroll() {
   const s = Math.max(1, parseInt(seedInput.value, 10) || 1);
-  history.replaceState(null, '', '?seed=' + s);
-  build(s); draw();
+  history.replaceState(null, '', `?sub=${sub}&seed=${s}` + (sub === 'nave' ? `&mode=${mode}` : ''));
+  build(s).then(() => draw());
 }
 
 // ── boot ──────────────────────────────────────────────────────────────────────────────────────
 window.addEventListener('resize', () => { resize(); draw(); });
 resize();
-const urlSeed = parseInt(new URLSearchParams(location.search).get('seed'), 10);
+const q = new URLSearchParams(location.search);
+const urlSeed = parseInt(q.get('seed'), 10);
 if (urlSeed) seedInput.value = urlSeed;
-build(Math.max(1, parseInt(seedInput.value, 10) || 7));
+if (q.get('sub') === 'nave') {
+  sub = 'nave'; subSelect.value = 'nave';
+  document.getElementById('modes').style.display = 'flex';
+  if (q.get('mode') === 'floor') {
+    mode = 'floor';
+    document.querySelectorAll('#modes .chip').forEach((c) => c.classList.toggle('on', c.dataset.mode === 'floor'));
+  }
+  if (!BAKED_NAVE_SEEDS.includes(parseInt(seedInput.value, 10))) seedInput.value = 7;
+}
+build(Math.max(1, parseInt(seedInput.value, 10) || 7)).then(() => draw());
 (function tick() {
   if (alpha > 0) { relax(3); draw(); }
   requestAnimationFrame(tick);

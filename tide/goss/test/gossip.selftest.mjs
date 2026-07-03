@@ -1,5 +1,8 @@
 // gossip.selftest.mjs — the goss kernel contract. Run: node tide/goss/test/gossip.selftest.mjs
-import { buildGoss, enrichPeople, placeName } from '../gossip.js';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { buildGoss, buildGossNave, enrichPeople, placeName } from '../gossip.js';
 
 let n = 0, fail = 0;
 const check = (label, ok) => { n++; if (!ok) { fail++; console.error(`  ✗ ${label}`); } else console.log(`  ✓ ${label}`); };
@@ -65,6 +68,25 @@ check('both tension axes reach the feed (FEUD + a romance type)', types.has('FEU
 // ── naming utility ───────────────────────────────────────────────────────────────────────────
 check('placeName deterministic', placeName(g.world.places[3], 7) === placeName(g.world.places[3], 7));
 check('enrichPeople standalone reruns clean', enrichPeople(g.society, 7).people[0].name === P[0].name);
+
+// ── THE NAVE SUBSTRATE — baked floor 1, the chunkroller sampling, both pollination modes ─────
+const nave = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'nave-7.json'), 'utf8'));
+const gs = buildGossNave(nave, { mode: 'sealed' });
+const gf = buildGossNave(nave, { mode: 'floor' });
+const gs2 = buildGossNave(nave, { mode: 'sealed' });
+check('nave determinism (sealed)', JSON.stringify(gs.dramas) === JSON.stringify(gs2.dramas));
+check('nave is a much smaller graph than the town', gs.enriched.people.length < P.length * 0.7);
+check('every nave soul carries ward + faction', gs.enriched.people.every((p) => p.ward != null && p.faction));
+check('SEALED: societies never cross-pollinate (zero cross-ward ties)',
+  gs.web.ties.every((t) => gs.enriched.people[t.a].ward === gs.enriched.people[t.b].ward));
+check('SEALED: no tribe spans a ward', gs.tribal.tribes.every((t) => new Set(t.members.map((i) => gs.enriched.people[i].ward)).size === 1));
+check('SEALED: per-ward vitality present (chunkroller sampling)', gs.wards.length === 7 && gs.wards.every((w) => w.vitality >= 0 && w.tier));
+check('SEALED: alignment ≈ 1 (tribes nest inside wards)', gs.alignment.overall > 0.95);
+check('FLOOR: hats cross wards (the Euclidean commute rule)', gf.web.ties.some((t) => gf.enriched.people[t.a].ward !== gf.enriched.people[t.b].ward));
+check('FLOOR: alignment drops (the walls are not in the hat assignment)', gf.alignment.overall < gs.alignment.overall);
+check('engine roster carried alongside (the OTHER population)', gs.enginePeople > 0 && gs.enginePeople === gf.enginePeople);
+check('nave dramas fire in both modes', gs.dramas.length > 0 && gf.dramas.length > 0);
+check('ward polys + meta exposed for the viewer', gs.nave.polys.length === 7 && gs.nave.meta.every((m) => m.faction));
 
 console.log(`\n${n - fail}/${n} checks passed`);
 if (fail) process.exit(1);

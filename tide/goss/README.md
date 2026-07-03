@@ -68,6 +68,44 @@ naming authority, these banks are one file to swap.
    ranked by heat — FEUD (near-twin tribes), SCHISM (contested third place), STAR-CROSSED
    (spark across the coldest boundary), AFFAIR, TRIANGLE, RIVALS, DEFECTOR, MATCH.
 
+## The nave substrate — how hoop chunks actually sample econ (and the two populations)
+
+The viewer's substrate select offers **nave · floor 1** alongside the econ town: hoop's real
+floor 1 (commons + six faction wards), baked to `data/nave-<seed>.json` by
+`tools/bake-nave.mjs` (node-only — it imports the live hoop engine, which the tide worker can
+never serve; re-baking a seed is a byte-identical no-op).
+
+**The sampling, verified in code.** Chunks do not "sample" econ people at all — there are TWO
+parallel populations:
+
+1. **The engine roster** — `room.people`, cast by the engine onto each room (the sprites that
+   actually walk the deck; `v099/npc.js` wires them only dwell → nearest-work + nearest-third).
+2. **The chunkroller re-roll** — `chunkroller/civic.js` adapts a chunk's rooms into econ places
+   (`fieldFromRooms`) and re-runs econ's `buildSociety` over them, ignoring `room.people`
+   entirely. This is where the civic vitality readout comes from, and it's the sampling goss
+   reproduces (rich multiplex hats → interesting drama). The rail shows both counts.
+
+**Cross-pollination: no — with one Euclidean asterisk.** Chunkroller scores each chunk *alone*
+(`scoreChunk` per chunk); societies never mix. The one exception is the live game's cosmetic
+commute web (`npc.js#buildSociety`), which links dwellings to the nearest workplace across ALL
+loaded chunks by straight-line distance — ignoring ward walls entirely.
+
+**The graphs really are much smaller.** Measured at seed 7: the whole nave is ~290 rooms /
+77 dwellings → ~222 econ souls (~243 engine), 10–87 per ward — versus ~485 souls in the
+default econ town. A single ward's web is tiny (a govern ward can be 9 people).
+
+**Two pollination modes** bracket reality (`buildGossNave(nave, { mode })`):
+
+- **`sealed`** (default, engine-faithful): seven independent `buildSociety` runs, **zero
+  cross-ward ties** — pinned in the selftest. Tribes can only form inside a ward
+  (faction↔tribe alignment ≈ 100%); each ward gets its own chunkroller-style vitality.
+  Wards fragment internally into 2–4 micro-tribes — the interesting drama scale.
+- **`floor`** (the what-if): one society over all seven chunks; hats cross wards by nearest
+  distance (the game's Euclidean rule writ large). At seed 7 over half the ties cross wards,
+  tribes fuse into one mega-tribe + a holdout (alignment ~44%), and floor vitality jumps
+  68 → 88 — cross-pollination is measurably good for the floor. If the walls should matter,
+  the hat assignment needs to be route-distance-aware, not Euclidean (a finding for hoop).
+
 ## Toward the real oracle (the theory isn't settled — this is the scaffold)
 
 The drama layer is deliberately cheap to reshape: every drama carries its **evidence** (the
@@ -79,10 +117,9 @@ the templates without touching layers 1–5. Candidate directions:
 - **The two tensions as one dial.** Tribalism and NSD are both functions of `(similarity, link)`
   per pair — a 2-D tension field. The oracle may be a phase diagram: high-sim/low-link = feud,
   low-sim/low-link = mere strangers, high-sim/high-link = one tribe about to schism.
-- **Chunk fidelity.** The substrate here is econ's `buildWorld`; the same kernel runs unchanged
-  over a real chunk record via chunkroller's `fieldFromRooms` adapter (rooms → places). Wiring a
-  solved chunk (or the nave, with its designed wards vs these emergent tribes — a lovely
-  contrast) in as an alternative substrate is a small adapter, not a redesign.
+- **Chunk fidelity — done.** The nave substrate above runs the kernel over hoop's real floor 1
+  via the `fieldFromRooms` adapter; the designed-wards-vs-emergent-tribes contrast is now a
+  measured number (the alignment readout). Other floors (upper/lower rind) bake the same way.
 - **hoopy.** The drama seeds are structured JSON with prose sketch lines — exactly the shape an
   LLM pass (the borges/v096 pattern: procedural bones, model retelling, frozen per seed) could
   expand into actual scenes.
@@ -91,8 +128,10 @@ the templates without touching layers 1–5. Candidate directions:
 
 | File | Role |
 |---|---|
-| `gossip.js` | the kernel — all six layers, pure, zero-DOM |
-| `index.html` + `app.js` | the viewer — force-laid web, lenses (⛺ tribes · ♥ romance · ⚔ tension · ☷ raw web), dossiers, the goss feed. `?seed=` permalink |
+| `gossip.js` | the kernel — all six layers + the nave substrate (`fieldFromRooms`, `buildGossNave`, `factionTribeAlignment`), pure, zero-DOM |
+| `index.html` + `app.js` | the viewer — substrate select (econ town · nave floor 1), sealed/floor mode chips, force-laid web, lenses (⛺ tribes · ♥ romance · ⚔ tension · ☷ raw web), ward outlines + per-ward vitality, dossiers, the goss feed. `?sub=&seed=&mode=` permalink |
+| `tools/bake-nave.mjs` | node-only baker: hoop nave → `data/nave-<seed>.json` (rooms + engine roster + ward polys) |
+| `data/nave-*.json` | baked nave floors (seeds 1 2 3 5 7 11 42 99, ~26 KB each) |
 | `vendor/econ/econ.js` | verbatim `hoop/v099/econ/econ.js` — re-sync, never fork |
 | `vendor/paint/voronoi.js` | verbatim `hoop/v099/paint/voronoi.js` — same rule |
-| `test/gossip.selftest.mjs` | 38 checks — determinism, demographic sanity, emergent tribes, romance invariants, both tension axes, evidence-bearing dramas |
+| `test/gossip.selftest.mjs` | 50 checks — determinism, demographic sanity, emergent tribes, romance invariants, both tension axes, evidence-bearing dramas, and the nave contract (zero cross-ward ties sealed / crossing floor, alignment 1→drop, per-ward vitality) |

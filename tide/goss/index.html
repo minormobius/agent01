@@ -18,6 +18,8 @@
   #top .brand{font-weight:700;color:var(--gold);white-space:nowrap}
   #top .brand small{color:var(--dim);font-weight:400;margin-left:8px}
   #top input{width:84px;background:#09121a;border:1px solid var(--line);color:var(--txt);font:13px var(--mono);padding:3px 7px;border-radius:5px}
+  #top select{background:#09121a;border:1px solid var(--line);color:var(--txt);font:13px var(--mono);padding:3px 7px;border-radius:5px}
+  #modes{display:flex}
   button,.chip{background:#101d27;border:1px solid var(--line);color:var(--txt);font:12.5px var(--mono);
     padding:4px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
   button:hover,.chip:hover{border-color:#3a6a86}
@@ -64,8 +66,16 @@
 <body>
   <div id="top">
     <span class="brand">⁂ goss<small>the civic web — who knows whom, and what it's turning into</small></span>
+    <select id="sub" title="substrate">
+      <option value="town">econ town</option>
+      <option value="nave">nave · floor 1</option>
+    </select>
     <input id="seed" type="number" value="7" title="seed" />
     <button id="roll" title="new seed">🎲 roll</button>
+    <div id="modes" style="display:none;gap:6px">
+      <span class="chip on" data-mode="sealed" title="engine-faithful: seven independent societies, zero cross-ward ties">⛔ sealed wards</span>
+      <span class="chip" data-mode="floor" title="the what-if: one society over all seven chunks; hats cross wards by nearest distance">⚭ one floor</span>
+    </div>
     <div id="lenses">
       <span class="chip on" data-lens="tribes">⛺ tribes</span>
       <span class="chip" data-lens="romance">♥ romance</span>
@@ -81,6 +91,11 @@
       <h2>civic vitality</h2>
       <div class="vital"><span class="n" id="vnum">—</span><span class="t" id="vtier"></span></div>
       <div class="note" id="vnote"></div>
+      <div id="wardsblock" style="display:none">
+        <h2>the wards <span style="color:var(--dim);font-weight:400;text-transform:none">(designed — nave floor 1)</span></h2>
+        <div id="wards"></div>
+        <div class="note" id="alignment"></div>
+      </div>
       <h2>the tribes <span style="color:var(--dim);font-weight:400;text-transform:none">(emergent — nothing is assigned)</span></h2>
       <div id="tribes"></div>
       <div class="note">Tribes are label-propagation communities of the tie web. Nobody was told which one they belong to.</div>

@@ -24,7 +24,11 @@ the canonical geometry in `shared/geometry.mjs`:
   demographics/naming/kinship, the person↔person tie graph, EMERGENT tribes (label propagation
   — no faction is assigned at the NPC level anywhere in the engine), romance, and the two
   tension axes (tribalism · narcissism of small differences) emitting typed drama seeds — the
-  proto-oracle. Read `goss/README.md` before touching it.
+  proto-oracle. A second substrate loads hoop's real **nave floor 1** from baked JSON
+  (`goss/data/nave-*.json`, baked by the node-only `goss/tools/bake-nave.mjs` — re-run it after
+  hoop nave/engine changes) with two pollination modes: `sealed` (engine truth — chunk societies
+  never mix, pinned in the selftest) and `floor` (one society, hats cross wards Euclidean, like
+  the game's commute web). Read `goss/README.md` before touching it.
 - Module 3 (WebGPU interior visualiser) — planned.
 
 The defining physics: **up (toward the axis) is hot, not cold** → permanent stratification →
