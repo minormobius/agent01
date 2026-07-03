@@ -658,6 +658,7 @@
     let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0, _drawMs = 0, _statusT = 0, _fps = 0, _stitchMs = 0, _maxDt = 0, _socMs = 0;   // perf diagnosis: frame-work ms · fps · worst-frame ms · last social-rebuild ms · stitch ms
     const story = { store: null, ready: false, playerId: 'local', active: null };
     let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
+    let storyWpTarget = null;           // when the waypoint points at an NPC, its {cid} — so the marker FOLLOWS a moving keeper live (not the stale snapshot)
     const storyBigKeys = new Set();     // resident featureKeys an active beat marks → embiggen (storyboard-relevant only)
     const spriteCache = new Map();
     const pp = { x: 0, y: 0 };   // the player's CONTINUOUS position (glides; not snapped to a cell centre)
@@ -1779,7 +1780,7 @@
     // player (the camera centres the player, so screen-centre ≈ player). The moment the waypoint rolls
     // into the viewport, the edge arrow gives way to the marker itself, drawn at its true world spot. ──
     function drawWaypoint() {
-      let wp = waypoint || storyWp;   // a manual waypoint overrides; otherwise the active beat's marker points the way
+      let wp = waypoint || liveWp();   // a manual waypoint overrides; else the active beat's marker (following a moving keeper live)
       if (!wp || player < 0 || !walk) return;
       // OFF-DECK GRACE: the decks are offset thousands of world-units apart, so a waypoint to a target on
       // ANOTHER deck (a guide up in the Nave while you're down in the rind) would point kilometres sideways.
@@ -1952,8 +1953,19 @@
       if ((loc.deck || 0) === playerDeck()) return { x: loc.x, y: loc.y };
       const s = shaftHere(); return s ? { x: s.x, y: s.y } : null;
     }
+    // the LIVE waypoint: if the quest points at an NPC (a keeper/anchor) who is on this deck, re-resolve
+    // their position every frame so the marker FOLLOWS them as they walk (locateNpc returns a live keeper's
+    // resident position). Off-deck or non-NPC targets fall back to the snapshot storyWp (a shaft, a chamber).
+    function liveWp() {
+      if (storyWpTarget && storyWpTarget.cid) {
+        const loc = locateNpc(storyWpTarget.cid);
+        if (loc && Number.isFinite(loc.x) && (loc.deck || 0) === playerDeck()) return { x: loc.x, y: loc.y };
+      }
+      return storyWp;
+    }
     function renderQuest() {
       if (!story.ready) { questGuidance = null; if (journalOpen) renderJournal(); return; }
+      storyWpTarget = null;    // cleared each resolve; set only when the waypoint points at an NPC (so it can follow them)
       ensureUnlockedWards();   // build each faction's ward as the chain unlocks it (commons→continuant→rindwalker→drift)
       // ── HOOPY'S ANCHOR-TURN-IN READOUT (anchors.js): the headline is the ACTIVE ANCHOR for this tier.
       //    Phase 1 — find the tier's KEEPERS (their dialogue sets the gate flags); phase 2 — RETURN to the
@@ -1967,6 +1979,7 @@
             const nk = nextKeeper(story.anchors, story.gateSetters, facts, tier);
             const loc = nk && locateNpc(nk.contentId);
             storyWp = questWpToward(loc);
+            storyWpTarget = nk ? { cid: nk.contentId } : null;   // a keeper is a mobile resident — follow them live
             questGuidance = {
               objective: `<span class="lbl">⚑ The ${esc(zoneWord(a.zone))} · ${esc(a.name)}’s charge</span> <span class="o">— find the keepers of the ${esc(zoneWord(a.zone))}</span>`
                 + `<span class="qbar"><span style="width:${Math.round(100 * st.gatesSet / Math.max(1, st.gatesTotal))}%"></span></span> <span class="mk">${st.gatesSet}/${st.gatesTotal}</span>`,
@@ -1979,6 +1992,7 @@
           } else {
             const loc = locateNpc(a.id);
             storyWp = questWpToward(loc);
+            storyWpTarget = { cid: a.id };   // the anchor turn-in target (static, but follow for consistency)
             questGuidance = {
               objective: `<span class="lbl">⚑ Return to ${esc(a.name)}</span> <span class="o">— turn in: you have heard the ${esc(zoneWord(a.zone))}</span>`,
               stepText: `You have spoken with every keeper of the ${zoneWord(a.zone)}. Return to ${a.name}${a.room ? ' in ' + a.room : ''} — and turn in what you carry.`,
@@ -5404,9 +5418,10 @@
       }
       const home = getJSONFact('combat.home', null);
       if (home && Number.isFinite(home.x) && inDeckBBox(home.x, home.y, pd)) out.push({ x: home.x, y: home.y, kind: 'bed', glyph: '✚', color: '#9ee6df', label: 'your bed', sub: 'where you last slept' });
-      if (storyWp && Number.isFinite(storyWp.x)) {
+      const mwp = liveWp();   // follow a moving keeper on the minimap too
+      if (mwp && Number.isFinite(mwp.x)) {
         const q = questGuidance || {}, obj = stripTags(q.objective).replace(/\s+/g, ' ').trim();
-        out.push({ x: storyWp.x, y: storyWp.y, kind: 'quest', color: '#f4bf62', label: (obj || 'your quest').slice(0, 64), sub: stripTags(q.stepText || q.whereWord || 'follow the marker').slice(0, 130) });
+        out.push({ x: mwp.x, y: mwp.y, kind: 'quest', color: '#f4bf62', label: (obj || 'your quest').slice(0, 64), sub: stripTags(q.stepText || q.whereWord || 'follow the marker').slice(0, 130) });
       }
       return out;
     }
