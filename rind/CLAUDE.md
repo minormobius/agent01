@@ -96,22 +96,28 @@ JS → emit a frame model → solve for stress):
   single-species threads; a nexus mixes regardless"). Residents dwell in role-coloured rooms (⚒/⚕/▣…), spider-droids
   (the `sprites/` kernel) haul the concourse. Proven navigable: `test/floor.selftest.mjs` (7-flower connects, all
   districts reachable from one start, 6 nexus corners, deterministic). **BUT** the god-view is the wrong lens for
-  this map — **the map is only what's reachable from your thread**. **`office.html`/`office-app.js` — YOUR THREAD IS
-  AN OFFICE** is the right engine (kernel **`officeweave.js`** — the page and the selftest drive the same module):
-  it renders ONLY the current thread as a full walled office, and every OTHER thread is only a **door** in your wall.
-  Cross a door and that thread becomes your office, re-centred (`rebuild(toKey, farGi)`); the nexus opens onto all
-  sibling offices — K(6,8) first-person (a white office = 8 doors, a production office = 6). **Now over SEVEN
-  HEXAGONS**: the weave-cell is extended by aperture-7 (`hexScale = √7`, the H3 nesting, twist ≈19.106°) so every
-  thread lands ~2.4× the chambers with the FULL onedoor certificate intact (K 48/48, 14/14 continuous, all doors at
-  grade, one-door — pinned per seed); the seven child hexes persist as **districts** (a 7-way chamber partition +
-  the dashed flower overlay + HUD readout). And the office partition **hews to hoop/v101** (vendored policy
-  `ops/v101/rooms.js`, see its VENDOR.md): traffic-sized rooms, a grand anchor at the nexus, MIN_ROOM bulldozing,
-  a carved HALL spine with real **walls** and one lit **threshold** per room (a spanning tree rooted at the hall),
-  light pooled per room from self-emitting components + bollards, half-scale residents with separation. Movement
-  respects the walls (`passable()`); walls render on the 2D map's own Voronoi adjacency (the 3D adjacency projects
-  interleaved). Built on `curveseed` + `onedoor.certify` (48 doors, endpoint-deduped for first-person use) + the
-  vendored `v100/` room toolkit; `test/office.selftest.mjs` pins it (certificate at ×7, districts, rooms tile each
-  thread, walled reachability, traffic sizing, grand anchors, door re-centring, deterministic). **`tess.html`/`tess-app.js`** shows how the
+  this map — **the map is only what you can SEE from where you stand**. **`office.html`/`office-app.js` — YOUR
+  THREAD IS AN OFFICE · LINE OF SIGHT** is the right engine (kernel **`officeweave.js`** — the page and the
+  selftest drive the same module). Threads are PHYSICAL: each renders in its owning hue (solid, persistent,
+  bending out); walls carry REAL GAPS at every door and the kernel rasterises those same trimmed walls into an
+  occlusion grid (`buildSight`), so sight rays pass through doorways and the thread beyond SPILLS INTO VIEW in
+  its own colour. CROSSING IS A NO-OP — one global walk graph (`buildGlobalWalk`: office walls + the 48 K-doors +
+  the open plazas); walking through a door is just walking, and "which thread am I on" = who owns the chamber
+  underfoot. What you leave fades behind you (visibility decays toward line-of-sight — no memory, no minimap;
+  remembering the plan would tangle the levels). Sight is LEVEL-LOCAL: floor tiles are the 2D Voronoi of each
+  cell against its level-mates only (|Δz| < 2.2 decks), walls only exist between same-level flanks, occlusion is
+  two stratum grids, and the renderer hides cells outside your walkable z-window — the other threads pass above/
+  below unseen and surface exactly where the weave lands at grade: the doors. The PLAZAS have no walls at all
+  (the certified door-free concourses, walked): the six whites share one open lobby floor, the eight engines
+  mirror it below. **Over SEVEN HEXAGONS**: aperture-7 (`hexScale = √7`, H3 twist ≈19.106°), ~2.4× the chambers
+  per thread, FULL onedoor certificate intact (K 48/48, 14/14 continuous, at grade, one-door — pinned); the
+  seven child hexes persist as **districts** (partition + overlay + HUD). The office partition **hews to
+  hoop/v101** (vendored `ops/v101/rooms.js`): traffic-sized rooms, grand anchor at the nexus, MIN_ROOM
+  bulldozing, a carved HALL spine with one lit threshold per room (spanning tree rooted at the hall), light
+  pooled per room from self-emitting components + bollards, half-scale residents with boids separation. Built on
+  `curveseed` + `onedoor.certify` (48 doors, endpoint-deduped) + the vendored `v100/` room toolkit;
+  `test/office.selftest.mjs` (36) pins certificate-at-×7, districts, room tiling, walled reachability, global
+  no-op walk, zero-K-door concourses, door see-through, walled-room concealment, K-door spill, determinism. **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate** (the schematic): a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family
@@ -155,7 +161,7 @@ node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no
 node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any→any ≤1 door incl. hubs (two concourses)
 node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
 node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR (god-view): v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
-node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office, over SEVEN HEXAGONS (aperture-7 ×7, certificate intact); v101 walled rooms; K(6,8) doors re-centre
+node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office, over SEVEN HEXAGONS; line-of-sight (walls hide, doors spill); crossing is a no-op walk
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
 node rind/ops/test/decks.selftest.mjs              # the region-decks comparison view

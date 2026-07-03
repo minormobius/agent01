@@ -22,10 +22,26 @@
 > the hall — walls are the default, doors are deliberately-placed gaps), light **pools per room** from a
 > self-emitting component (+ warm bollards along the hall), and residents walk at half scale with boids
 > separation. Movement respects the walls (`passable()` is the walk graph; reachability of every chamber from the
-> nexus is pinned). Rendering note: the 3D face adjacency projects to INTERLEAVED floor tiles (only ~9% of
-> 3D-adjacent pairs share a 2D tile edge — measured), so walls are laid on the 2D map's OWN Voronoi adjacency
-> (each tile edge attributed to the neighbour whose bisector cut it, 99.8% attribution) and the 3D doorways
-> surface as threshold markers.
+> nexus is pinned).
+>
+> **LINE OF SIGHT (the third move — the portal mechanic is retired).** The map is what you can SEE. Every thread
+> renders in its owning hue (solid, persistent, bending out); the walls carry **real gaps** at every door, and the
+> kernel rasterises those same trimmed walls into an **occlusion grid** (`buildSight`) — so sight rays pass through
+> the doorways and the thread beyond **spills into view** in its own colour, more of it as you approach. **Crossing
+> is a no-op**: one global walk graph (`buildGlobalWalk` — office walls + the 48 K-doors + the open plazas) means
+> walking through a door is just walking; "which thread am I on" = who owns the chamber underfoot. What you leave
+> **fades out behind you** (visibility decays toward line-of-sight; no memory, no minimap — remembering the plan
+> would tangle the levels). Sight is **level-local**: the plan interleaves both strata, so (a) the floor tiles are
+> the 2D Voronoi of each cell against its LEVEL-MATES only (|Δz| < 2.2 decks — tiling against everything shreds
+> each level into a sponge, measured median flank Δz ≈ 2.8 decks), (b) an edge is only a wall when its flanks abut
+> on one level, (c) the occlusion is TWO grids (upper/lower stratum; near-grade walls stamp both), and (d) the
+> renderer hides cells outside your walkable z-window — the other-parity threads pass above and below unseen and
+> surface exactly where the weave brings them to grade, which is where the doors are. **The plazas are the
+> exception that proves onedoor**: the flat core is the certified door-free concourse, so it carries NO walls at
+> all and its level is your KIND — the six white threads visibly share one open lobby floor (walk from any white
+> onto any other; the engine plaza mirrors it below). The hub is no longer a synthetic portal room — it is a place.
+> All pinned: global reach of every owned chamber, both concourses joined with zero K-doors and zero cross-kind
+> leaks, door see-through, walled-room concealment, K-door spill (`office.selftest.mjs`, 36 checks).
 
 > **THE ONE-DOOR RESOLUTION (`onedoor.html` · `rind.mino.mobi/ops/onedoor.html`; kernel `onedoor.js`, proof
 > `test/onedoor.selftest.mjs`).** The hard spec line — *wayfinding from ANY point in the chunk to ANY other point

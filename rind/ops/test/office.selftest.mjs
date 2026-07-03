@@ -1,16 +1,20 @@
-// office.selftest.mjs — the SEVEN-HEXAGON thread-office engine (kernel: officeweave.js — the page
-// drives the same module, so there is no app/test mirror to drift). Proves:
+// office.selftest.mjs — the SEVEN-HEXAGON thread-office engine, LINE-OF-SIGHT edition (kernel:
+// officeweave.js — the page drives the same module, so there is no app/test mirror to drift). Proves:
 //   • the weave EXTENDED TO SEVEN HEXAGONS (aperture-7, hexScale √7) keeps the FULL onedoor
 //     certificate — K(6,8)=48/48, 14/14 spirals continuous, every door at grade, one-door — while
 //     every thread lands ~2.4× the chambers ("thicken everything up");
-//   • the seven child hexagons are real DISTRICTS: a 7-way partition, all populated, the hub in
+//   • the seven child hexagons are real DISTRICTS: a 7-way partition, all populated, the spawn in
 //     the centre one, and every white thread spanning several;
 //   • each thread partitions into a v101-style office: hall + traffic-sized walled rooms, one
 //     door per room (a spanning tree rooted at the hall), MIN_ROOM bulldozed, a grand anchor at
 //     the nexus, light baked per room — and the WALLED walk graph still reaches every chamber;
-//   • K(6,8) first-person: every other thread is only a door (whites 8, production 6), every
-//     door re-centres onto a neighbour-owned cell, and autopaths never trip a portal in passing.
-import { buildOfficeWorld, OFFICE_DEFAULTS, HALL, WHITE_ROLES, PROD_ROLES } from '../officeweave.js';
+//   • CROSSING IS A NO-OP: one global walk graph (office walls + the 48 K-doors + the open
+//     plazas) reaches every owned chamber; the plaza joins the same-kind threads with ZERO
+//     K-doors (onedoor's door-free concourse, walked);
+//   • SIGHT: the occlusion grid is rasterised from the same trimmed walls that are drawn — a
+//     walled-off room is hidden, the room behind its own door is seen, and another thread
+//     genuinely SPILLS INTO VIEW through a K-door gap.
+import { buildOfficeWorld, OFFICE_DEFAULTS, HALL, WHITE_ROLES, PROD_ROLES, plazaRf } from '../officeweave.js';
 import { GRAND_ROLES, MIN_ROOM, HUB_ROLES, QUIET_ROLES } from '../v101/rooms.js';
 import { ROLES } from '../v100/econ.js';
 
@@ -36,8 +40,7 @@ ok(sizes[7] >= 450, `threads thickened: median ${sizes[7]} chambers (was ≈230 
   const counts = new Array(7).fill(0);
   for (const c of cells) counts[districts.of[c.gi]]++;
   ok(counts.every((n) => n > 0), `all 7 districts populated (${counts.join('/')})`);
-  const hub = threads.get('HUB');
-  ok(districts.of[hub.nexusGi] === 0, 'the nexus lobby sits in the centre district');
+  ok(districts.of[world.spawnGi] === 0, 'the spawn (the white plaza) sits in the centre district');
   let spanOk = true;
   for (const t of threads.values()) { if (t.kind !== 'white' || t.synthetic) continue; const ds = new Set(); for (const gi of t.cells) ds.add(districts.of[gi]); if (ds.size < 3) spanOk = false; }
   ok(spanOk, 'every white thread spans ≥3 districts (the office crosses the flower)');
@@ -45,10 +48,9 @@ ok(sizes[7] >= 450, `threads thickened: median ${sizes[7]} chambers (was ≈230 
 }
 
 // ── the thread model: K(6,8) first-person ──
-ok(threads.size === 15, `14 threads + the hub (${threads.size})`);
+ok(threads.size === 14, `the 14 real threads, no synthetic hub (${threads.size})`);
 let whiteDoors = true, prodDoors = true, doorsValid = true;
 for (const t of threads.values()) {
-  if (t.synthetic) continue;
   if (t.kind === 'white' && t.doorAt.size !== 8) whiteDoors = false;
   if (t.kind === 'prod' && t.doorAt.size !== 6) prodDoors = false;
   for (const [gi, d] of t.doorAt) { const nb = threads.get(d.toKey); if (!nb || nb.kind === t.kind || !nb.cells.has(d.farGi) || !t.cells.has(gi)) doorsValid = false; }
@@ -131,6 +133,58 @@ ok(reachedAll, 'every sampled office cell is reachable from the nexus');
   ok(p && p[p.length - 1] === doorGi, 'a walk targeting a door still ends on it (deliberate crossing works)');
 }
 
+// ── the GLOBAL walk graph: crossing is a no-op, and everything is walkable ──
+{
+  const owned = cells.filter((c) => c.owner).length;
+  const seen = new Set([world.spawnGi]), q = [world.spawnGi];
+  for (let h = 0; h < q.length; h++) for (const nb of world.walk.stepNbrs(q[h])) if (!seen.has(nb)) { seen.add(nb); q.push(nb); }
+  ok(seen.size === owned, `the global walk reaches every owned chamber (${seen.size}/${owned}; ${cells.length - owned} unowned offcuts excluded)`);
+  // the PLAZA is the door-free same-kind concourse: from W0's nexus, never crossing a K-door,
+  // every white nexus is reachable and no production chamber is ever touched — onedoor's white
+  // concourse, now literally walked. Same for the production plaza on the lower stratum.
+  const concourse = (startKey, kind) => {
+    const s0 = threads.get(startKey).nexusGi, s = new Set([s0]), qq = [s0];
+    for (let h = 0; h < qq.length; h++) for (const nb of cells[qq[h]].adj) {
+      if (s.has(nb) || !world.walk.passable(qq[h], nb) || world.walk.kDoors.has(qq[h] + '|' + nb)) continue;
+      s.add(nb); qq.push(nb);
+    }
+    let nex = 0, leaked = 0;
+    for (const t of threads.values()) if (t.kind === kind && s.has(t.nexusGi)) nex++;
+    for (const gi of s) if (cells[gi].owner.kind !== kind) leaked++;
+    return { nex, leaked };
+  };
+  const wC = concourse('W0', 'white'), pC = concourse('P0', 'prod');
+  ok(wC.nex === 6 && wC.leaked === 0, `the white plaza joins all 6 white nexuses with ZERO K-doors and no production leak (${wC.nex}/6, ${wC.leaked} leaked)`);
+  ok(pC.nex === 8 && pC.leaked === 0, `the production plaza joins all 8 engine nexuses likewise (${pC.nex}/8, ${pC.leaked} leaked)`);
+}
+
+// ── SIGHT: the occlusion grid is the drawn walls — walls hide, doors spill ──
+{
+  const S = world.sight;
+  let doorSee = 0;
+  for (const p of world.doorPts) { const a = cells[p.a], b = cells[p.b]; if (S.visible(a.x, a.y, b.x, b.y, a.z)) doorSee++; }
+  ok(doorSee / world.doorPts.length > 0.85, `sight passes through the door gaps (${doorSee}/${world.doorPts.length})`);
+  // from the hall threshold of W0's first door: the room behind its own door is (partly) seen…
+  const off = world.office('W0'), d0 = off.doors[0];
+  const hallCell = off.roomOf.get(d0.a) === HALL ? d0.a : d0.b;
+  const roomId = off.roomOf.get(d0.a) === HALL ? off.roomOf.get(d0.b) : off.roomOf.get(d0.a);
+  const room = off.rooms.find((r) => r.id === roomId), hc = cells[hallCell];
+  let seenIn = 0; for (const g of room.cells) { const c = cells[g]; if (S.visible(hc.x, hc.y, c.x, c.y, hc.z)) seenIn++; }
+  ok(seenIn > 0, `the room behind its door is seen through the gap (${seenIn}/${room.cells.length} chambers)`);
+  // …while a walled-off room on the same level nearby stays hidden
+  const sameLevel = (r) => Math.abs(cells[r.compGi].z - hc.z) < m.vpitch * 1.5;
+  const other = off.rooms.find((r) => r.id !== roomId && sameLevel(r) && Math.hypot(r.cx - hc.x, r.cy - hc.y) > m.pitch * 4 && Math.hypot(r.cx - hc.x, r.cy - hc.y) < m.pitch * 8);
+  if (other) {
+    let leak = 0; for (const g of other.cells) { const c = cells[g]; if (S.visible(hc.x, hc.y, c.x, c.y, hc.z)) leak++; }
+    ok(leak / other.cells.length <= 0.34, `a walled-off room nearby stays (mostly) hidden (${leak}/${other.cells.length} visible)`);
+  }
+  // and standing at a K-door, the OTHER THREAD spills into view through the gap
+  const t0 = threads.get('W0'), [kGi, kd] = [...t0.doorAt.entries()][0], kc = cells[kGi], N = threads.get(kd.toKey);
+  let spill = 0;
+  for (const g of N.cells) { const c = cells[g]; if (Math.hypot(c.x - kc.x, c.y - kc.y) < m.pitch * 10 && S.visible(kc.x, kc.y, c.x, c.y, kc.z)) spill++; }
+  ok(spill > 0, `another thread spills into view through its K-door (${spill} chambers of ${kd.toKey} in sight)`);
+}
+
 // ── determinism ──
 {
   const w2 = buildOfficeWorld(7, { probes: 0 });
@@ -138,6 +192,7 @@ ok(reachedAll, 'every sampled office cell is reachable from the nexus');
   const sig = (off) => JSON.stringify({ rooms: off.rooms.map((r) => [r.role, r.cells.length, r.grand ? 1 : 0]), doors: off.doors.map((d) => [d.a, d.b]), spine: off.spinePath });
   ok(sig(a) === sig(b), 'the office partition is deterministic');
   ok(w2.cert.doorCount === cert.doorCount && w2.cells.length === cells.length, 'the world is deterministic');
+  ok(w2.walls.length === world.walls.length && w2.doorPts.length === world.doorPts.length && w2.spawnGi === world.spawnGi, 'walls, door points and spawn are deterministic');
 }
 
 console.log(`\n  office (seven hexagons, v101): ${pass} passed, ${fail} failed`);
