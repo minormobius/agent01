@@ -19,6 +19,9 @@
   #top a { pointer-events: auto; } #top b { color: var(--gold); }
   #hint { bottom: 8px; left: 12px; color: var(--dim); font-size: 11px; }
   #hint b { color: var(--teal); }
+  .controls { position: absolute; left: 12px; top: 30px; display: flex; gap: 6px; z-index: 4; }
+  .controls button { pointer-events: auto; background: #0d1117; color: var(--ink); border: 1px solid var(--line); border-radius: 0; clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); padding: 5px 11px; font: inherit; font-size: 11px; cursor: pointer; }
+  .controls button.on { border-color: var(--gold); color: var(--gold); }
   .rail { border-left: 1px solid var(--line); background: var(--panel); padding: 14px; overflow: auto; }
   .rail h1 { font-size: 15px; margin: 0 0 2px; }
   .rail .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); }
@@ -42,7 +45,11 @@
   <div id="stage">
     <canvas id="cv"></canvas>
     <div class="hud" id="top"><a href="./">← ops</a> · <a href="./floor.html">▦ god-view</a> · <a href="./nexus.html">@ bare walk</a> · <b>your thread — an office</b></div>
-    <div class="hud" id="hint">move: <b>WASD</b> / <b>click</b> · walk into a neighbour's chamber and you're simply <b>on that thread</b> · at the nexus, pick a sibling</div>
+    <div class="controls">
+      <button id="cam" class="on">⊕ follow</button>
+      <button id="dbg" class="on">debug</button>
+    </div>
+    <div class="hud" id="hint">move: <b>WASD</b> / <b>click</b> · scroll to zoom · walk into a neighbour's chamber and you're simply <b>on that thread</b></div>
     <div id="load">building your office…</div>
   </div>
   <aside class="rail">

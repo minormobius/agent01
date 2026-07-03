@@ -23,6 +23,7 @@ const PROD_ROLES = ['make', 'make', 'store', 'mend', 'make', 'move', 'trade', 'g
 let m, cert, cells, threads, warpCol, prodCol, DROID = null, floorPoly = null;
 const state = { thread: null, gi: -1, atNexus: false, enteredAt: -1, trail: [], walk: null };
 const view = { cx: 0, cy: 0, scale: 1 };
+let camFollow = true, debug = true, zoom = 2.7;   // default: follow the player, zoomed to v100 room-scale, debug overlay on
 let office = null, npcs = [];
 
 const armsOf = (kind) => [...threads.values()].filter((t) => t.kind === kind && !t.synthetic).sort((a, b) => a.idx - b.idx);
@@ -94,7 +95,7 @@ function buildOffice(t) {
   }
   // at the NEXUS, show the six threads in FULL — six portals radiating across the chunk
   if (t.synthetic) { peek.length = 0; peekSet.clear(); for (const [gi, d] of t.doorAt) { const N = threads.get(d.toKey), col = threadColor(N); for (const g of N.cells) { peek.push({ gi: g, col, door: gi }); peekSet.add(g); } } }
-  return { rooms, roomOf, spine, rim, peek, peekSet };
+  return { rooms, roomOf, spine, spinePath, rim, peek, peekSet };
 }
 
 function rebuild(threadKey, gi) {
@@ -164,25 +165,39 @@ function drawChunk() {
 function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, CW, CH);
   const t = curThread(), TC = threadColor(t), isHub = !!t.synthetic;
+  const marg = m.pitch * 2 * view.scale;
+  const vis = (gi) => { const c = cells[gi]; const sx = CW / 2 + (c.x - view.cx) * view.scale, sy = CH / 2 + (c.y - view.cy) * view.scale; return sx > -marg && sx < CW + marg && sy > -marg && sy < CH + marg; };
   drawChunk();
-  // the neighbours' first chambers (peeks) — dim, behind the current thread
-  for (const p of office.peek) { if (t.cells.has(p.gi)) continue; fillFloor(p.gi, rgba(mix(DARK, p.col, 0.34), 0.92), rgba(mix(DARK, p.col, 0.55), 0.5)); }
-  // the current thread floor — ONE colour, rooms only slightly varied, hallway darker (a neutral slate for the hub)
-  const BASE = isHub ? [54, 66, 82] : TC;
+  // SUBSTRATE — the whole foam, dim, so there are no black gaps and every tile reads (culled to viewport)
+  const subFill = 'rgba(12,15,21,0.97)', subEdge = debug ? 'rgba(48,60,78,0.55)' : 'rgba(32,40,52,0.25)';
+  for (const c of cells) { if (vis(c.gi)) fillFloor(c.gi, subFill, subEdge); }
+  // the neighbours' first chambers (peeks) — clearly ANOTHER thread (its colour, sharp edge)
+  for (const p of office.peek) { if (t.cells.has(p.gi) || !vis(p.gi)) continue; fillFloor(p.gi, rgba(mix(DARK, p.col, 0.5), 0.98), rgba(mix(p.col, INK, 0.2), 0.65)); }
+  // YOUR thread — bright, one colour, SHARP room edges (the sharp divide against the dim substrate)
+  const BASE = isHub ? [70, 86, 108] : TC;
   for (const gi of t.cells) {
+    if (!vis(gi)) continue;
     const onSpine = office.spine.has(gi), r = office.roomOf.get(gi);
-    const fill = onSpine ? mix(DARK, BASE, 0.14) : mix(DARK, BASE, 0.30 + (r ? r.shade : 0));
-    fillFloor(gi, rgba(fill, isHub ? 0.9 : 0.98), rgba(mix(DARK, BASE, 0.5), 0.35));
+    const fill = onSpine ? mix(DARK, BASE, 0.32) : mix(DARK, BASE, 0.68 + (r ? r.shade : 0));
+    fillFloor(gi, rgba(fill, 1), rgba(mix(BASE, INK, 0.45), 0.85));
+  }
+  // DEBUG: draw the thread's corridor (spine) and the live walk path as bright lines
+  if (debug) {
+    if (office.spinePath && office.spinePath.length > 1) { ctx.beginPath(); office.spinePath.forEach((g, i) => { const p = P(cells[g].x, cells[g].y); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }); ctx.strokeStyle = rgba(mix(BASE, INK, 0.4), 0.55); ctx.lineWidth = Math.max(1.5, 2.5 * view.scale); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); }
+    if (state.walk) { const pa = state.walk.path; ctx.beginPath(); for (let i = Math.max(0, state.walk.i); i < pa.length; i++) { const p = P(cells[pa[i]].x, cells[pa[i]].y); i === Math.max(0, state.walk.i) ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]); } ctx.strokeStyle = rgba([120, 224, 180], 0.95); ctx.lineWidth = Math.max(2, 3 * view.scale); ctx.lineCap = 'round'; ctx.stroke(); }
   }
   // muted role glyphs (not on the hub lobby)
-  if (!isHub && view.scale > 0.4) for (const r of office.rooms) { const p = P(r.cx, r.cy); ctx.fillStyle = rgba(mix(TC, INK, 0.6), 0.22); ctx.font = `${Math.max(8, 12 * view.scale) | 0}px "JetBrains Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(r.glyph, p[0], p[1]); }
+  if (!isHub && view.scale > 0.4) for (const r of office.rooms) { if (!vis(r.cells[0])) continue; const p = P(r.cx, r.cy); ctx.fillStyle = rgba(mix(TC, INK, 0.6), debug ? 0.5 : 0.25); ctx.font = `${Math.max(8, 12 * view.scale) | 0}px "JetBrains Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(r.glyph, p[0], p[1]); }
   // doors: a subtle gold seam mid-thread (hidden portal); at the nexus the six are bright labelled portals
   for (const [gi, d] of t.doorAt) {
     const c = cells[gi], far = cells[d.farGi], p = P((c.x + far.x) / 2, (c.y + far.y) / 2), ncol = threadColor(threads.get(d.toKey));
     if (isHub) {
-      ctx.beginPath(); ctx.arc(p[0], p[1], Math.max(6, 9 * view.scale), 0, 7); ctx.fillStyle = rgba(ncol, 0.9); ctx.fill();
-      ctx.beginPath(); ctx.arc(p[0], p[1], Math.max(6, 9 * view.scale) + 2, 0, 7); ctx.strokeStyle = rgba(GOLD, 0.9); ctx.lineWidth = 1.6; ctx.stroke();
-      if (view.scale > 0.4) { ctx.fillStyle = rgba(INK, 0.85); ctx.font = `${Math.max(9, 11 * view.scale) | 0}px "JetBrains Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(threadLabel(threads.get(d.toKey)), p[0], p[1] - Math.max(11, 15 * view.scale)); }
+      const rr = Math.max(6, 9 * view.scale);
+      ctx.beginPath(); ctx.arc(p[0], p[1], rr, 0, 7); ctx.fillStyle = rgba(ncol, 0.9); ctx.fill();
+      ctx.beginPath(); ctx.arc(p[0], p[1], rr + 2, 0, 7); ctx.strokeStyle = rgba(GOLD, 0.9); ctx.lineWidth = 1.6; ctx.stroke();
+      // fan the label OUTWARD (toward the thread's interior) so the six don't stack at the centre
+      const fp = P(far.x, far.y); let dx = fp[0] - p[0], dy = fp[1] - p[1]; const L = Math.hypot(dx, dy) || 1; const off = rr + 22;
+      ctx.fillStyle = rgba(INK, 0.92); ctx.font = `${Math.max(10, 12 * view.scale) | 0}px "JetBrains Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(threadLabel(threads.get(d.toKey)), p[0] + dx / L * off, p[1] + dy / L * off);
     } else { ctx.beginPath(); ctx.arc(p[0], p[1], Math.max(2, 3 * view.scale), 0, 7); ctx.fillStyle = rgba(mix(GOLD, ncol, 0.4), 0.7); ctx.fill(); }
   }
   // NPCs
@@ -266,12 +281,17 @@ cv.addEventListener('pointerdown', (e) => {
   for (const p of office.peek) { const c = cells[p.gi], dd = (c.x - wx) ** 2 + (c.y - wy) ** 2; if (dd < bd) { bd = dd; best = p.door; } }
   if (best >= 0) setWalk(best);
 });
-function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; if (m) fitChunk(); }
+cv.addEventListener('wheel', (e) => { e.preventDefault(); const f = Math.exp(-e.deltaY * 0.0012); if (camFollow) zoom = Math.max(0.4, Math.min(5, zoom * f)); else view.scale = Math.max(0.3, Math.min(5, view.scale * f)); }, { passive: false });
+function setCam(follow) { camFollow = follow; $('cam').textContent = follow ? '⊕ follow' : '⬡ chunk'; $('cam').classList.toggle('on', follow); if (follow) { view.scale = zoom; const c = cells[state.gi]; view.cx = c.x; view.cy = c.y; } else fitChunk(); }
+function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; if (m && !camFollow) fitChunk(); }
 addEventListener('resize', resize);
+if ($('cam')) $('cam').addEventListener('click', () => setCam(!camFollow));
+if ($('dbg')) $('dbg').addEventListener('click', () => { debug = !debug; $('dbg').classList.toggle('on', debug); });
 let frameN = 0;
 function loop() {
   frameN++;
   if (state.walk && frameN % 4 === 0) { state.walk.i++; if (state.walk.i < state.walk.path.length) { arrive(state.walk.path[state.walk.i], state.walk.i === state.walk.path.length - 1); } else state.walk = null; }
+  if (camFollow && state.gi >= 0) { view.scale = zoom; const c = cells[state.gi]; view.cx += (c.x - view.cx) * 0.2; view.cy += (c.y - view.cy) * 0.2; }
   if (office) { updateNPCs(); render(); }
   requestAnimationFrame(loop);
 }
@@ -288,5 +308,6 @@ threads.set('HUB', buildHub());          // the six-thread top nexus
 precomputeFloors();
 resize();
 rebuild('HUB', threads.get('HUB').nexusGi);   // START at the nexus — six white threads, six portals
+setCam(camFollow);                             // centre on the player at v100 zoom (follow), else fit the chunk
 $('load').style.display = 'none';
 loop();
