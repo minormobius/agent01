@@ -1,5 +1,32 @@
 # rind/ops — the white-collar weave (the theory)
 
+> **THE SEVEN-HEXAGON OFFICE (`office.html` · kernel `officeweave.js`, proof `test/office.selftest.mjs`).**
+> The thread-office ("your thread is an office") re-founded on two moves. **(1) Thicken by aperture-7.** The
+> threads read too tight because the whole 14-thread weave was packed into one hexagon. The fix is the weave's own
+> self-similarity clause (see "How the cells tessellate"): extend the weave-cell to **seven hexagons** — the H3
+> aperture-7 parent (area ×7 ⇒ `hexScale = √7`, the child flower rotated `atan(√3/5) ≈ 19.106°`). Same 14 threads,
+> same topology, ~2.4× the chambers per thread (median ≈550 vs ≈230) and physically broader corridors — and the
+> FULL onedoor certificate survives untouched on every seed tested: **K(6,8) = 48/48, 14/14 spirals continuous,
+> every door at grade, one-door** (pinned). The seven child hexagons persist as **DISTRICTS**: a true 7-way Voronoi
+> partition of the chambers (nearest child-centre), drawn as the dashed flower overlay and read back by the HUD —
+> an office genuinely *spans* districts now. (`certify` gained an additive `probes` opt so the page can rest on
+> the structural one-door proof at load time; the selftests keep the measured sampling.) One honest seam:
+> `placeDoors` picks each K-pair's door independently, and at ×7 two pairs can land on the SAME chamber — a cell
+> can only be one door first-person, so `officeweave.dedupeDoors` relocates the collider to the next-flattest
+> adjacency of the same two threads (the certificate's own doors are untouched). **(2) Hew to hoop/v101.** The
+> office partition adopts the v101 room programme (vendored policy `v101/rooms.js` — see `v101/VENDOR.md`):
+> **traffic-sized rooms** (zone weights = `TRAFFIC_FOOTPRINT`, so civic hubs claim more chambers than dwellings —
+> measured and pinned), a **grand anchor** at the nexus end (GRAND role on whites, the engine core on production),
+> **MIN_ROOM bulldozing**, and the v101 world-painter read: the hallway spine is carved out as the HALL, every
+> room boundary is a **wall** except **one lit threshold per room** (a spanning tree of the region graph rooted at
+> the hall — walls are the default, doors are deliberately-placed gaps), light **pools per room** from a
+> self-emitting component (+ warm bollards along the hall), and residents walk at half scale with boids
+> separation. Movement respects the walls (`passable()` is the walk graph; reachability of every chamber from the
+> nexus is pinned). Rendering note: the 3D face adjacency projects to INTERLEAVED floor tiles (only ~9% of
+> 3D-adjacent pairs share a 2D tile edge — measured), so walls are laid on the 2D map's OWN Voronoi adjacency
+> (each tile edge attributed to the neighbour whose bisector cut it, 99.8% attribution) and the 3D doorways
+> surface as threshold markers.
+
 > **THE ONE-DOOR RESOLUTION (`onedoor.html` · `rind.mino.mobi/ops/onedoor.html`; kernel `onedoor.js`, proof
 > `test/onedoor.selftest.mjs`).** The hard spec line — *wayfinding from ANY point in the chunk to ANY other point
 > passes through only ONE door, including the two central hubs* — is now true **by construction and proven**, not

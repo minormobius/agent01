@@ -1,108 +1,144 @@
-// office.selftest.mjs — the THREAD-RELATIVE office engine. Proves: each thread partitions into a
-// full office of rooms (rooms cover the thread, a hallway spine connects the nexus to the rim),
-// every OTHER thread is reachable only as a door (K(6,8): each white has 8 doors, each prod 6), and
-// every door re-centres onto a cell the neighbour thread actually owns. Mirrors office-app.js's model.
-import { buildCurveModel } from '../curveseed.js';
-import { certify } from '../onedoor.js';
-import { assignZones } from '../v100/voronoi.js';
+// office.selftest.mjs — the SEVEN-HEXAGON thread-office engine (kernel: officeweave.js — the page
+// drives the same module, so there is no app/test mirror to drift). Proves:
+//   • the weave EXTENDED TO SEVEN HEXAGONS (aperture-7, hexScale √7) keeps the FULL onedoor
+//     certificate — K(6,8)=48/48, 14/14 spirals continuous, every door at grade, one-door — while
+//     every thread lands ~2.4× the chambers ("thicken everything up");
+//   • the seven child hexagons are real DISTRICTS: a 7-way partition, all populated, the hub in
+//     the centre one, and every white thread spanning several;
+//   • each thread partitions into a v101-style office: hall + traffic-sized walled rooms, one
+//     door per room (a spanning tree rooted at the hall), MIN_ROOM bulldozed, a grand anchor at
+//     the nexus, light baked per room — and the WALLED walk graph still reaches every chamber;
+//   • K(6,8) first-person: every other thread is only a door (whites 8, production 6), every
+//     door re-centres onto a neighbour-owned cell, and autopaths never trip a portal in passing.
+import { buildOfficeWorld, OFFICE_DEFAULTS, HALL, WHITE_ROLES, PROD_ROLES } from '../officeweave.js';
+import { GRAND_ROLES, MIN_ROOM, HUB_ROLES, QUIET_ROLES } from '../v101/rooms.js';
 import { ROLES } from '../v100/econ.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.log('  ✗ ' + m); } };
 
-const m = buildCurveModel(7, { rings: 1, flatR: 0.35, layers: 8, pitch: 28, width: 6, NW: 6, NF: 8, turnScale: 0.35, lobby: true });
-const cert = certify(m, { concourse: 'flood' });
-const cells = m.cells;
+const world = buildOfficeWorld(7, { probes: 24 });
+const { m, cert, cells, threads, districts } = world;
 
-// ── build the thread model (as office-app does) ──
-function buildThreads() {
-  const T = new Map();
-  const get = (kind, idx) => { const k = (kind === 'white' ? 'W' : 'P') + idx; if (!T.has(k)) T.set(k, { key: k, kind, idx, cells: new Set(), doorAt: new Map(), nexusGi: -1 }); return T.get(k); };
-  for (const c of cells) if (c.owner) get(c.owner.kind, c.owner.idx).cells.add(c.gi);
-  for (const d of cert.doors) { get('white', d.w).doorAt.set(d.a, { toKey: 'P' + d.f, farGi: d.b }); get('prod', d.f).doorAt.set(d.b, { toKey: 'W' + d.w, farGi: d.a }); }
-  for (const t of T.values()) { let best = -1, bd = Infinity; for (const gi of t.cells) { const c = cells[gi], r = c.x * c.x + c.y * c.y; if (r < bd) { bd = r; best = gi; } } t.nexusGi = best; }
-  return T;
+// ── the seven-hexagon extension keeps the whole certificate ──
+ok(Math.abs(m.R / 320 - Math.sqrt(7)) < 1e-9, `the weave spans the aperture-7 hexagon (R = 320·√7, got ${m.R.toFixed(1)})`);
+ok(cert.k48 && cert.doorCount === 48, `K(6,8) complete: 48/48 doors (${cert.doorCount})`);
+ok(cert.spiralsContinuous, `all 14 spirals continuous (${cert.threadsContinuous}/${cert.threadCount})`);
+ok(cert.steepDoors === 0, `zero-ladder: every door at grade (${cert.steepDoors} steep)`);
+ok(cert.oneDoorOk && cert.measuredMax <= 1 && cert.unreachable === 0, `one-door holds at ×7 (measured max ${cert.measuredMax})`);
+
+// thickened: median chambers per thread ≥ ~2× the single-hex weave's ≈230
+const sizes = [...threads.values()].filter((t) => !t.synthetic).map((t) => t.cells.size).sort((a, b) => a - b);
+ok(sizes[7] >= 450, `threads thickened: median ${sizes[7]} chambers (was ≈230 in the single hex)`);
+
+// ── the seven districts ──
+{
+  const counts = new Array(7).fill(0);
+  for (const c of cells) counts[districts.of[c.gi]]++;
+  ok(counts.every((n) => n > 0), `all 7 districts populated (${counts.join('/')})`);
+  const hub = threads.get('HUB');
+  ok(districts.of[hub.nexusGi] === 0, 'the nexus lobby sits in the centre district');
+  let spanOk = true;
+  for (const t of threads.values()) { if (t.kind !== 'white' || t.synthetic) continue; const ds = new Set(); for (const gi of t.cells) ds.add(districts.of[gi]); if (ds.size < 3) spanOk = false; }
+  ok(spanOk, 'every white thread spans ≥3 districts (the office crosses the flower)');
+  ok(districts.hexes.length === 7 && districts.hexes.every((h) => h.length === 6), 'the district overlay is 7 child hexagons');
 }
-const threads = buildThreads();
-const stepNbrs = (gi, t) => [...cells[gi].adj].filter((nb) => t.cells.has(nb));
-const rfOf = (gi) => Math.hypot(cells[gi].x, cells[gi].y) / m.R;
-function pathWithin(t, a, b, avoidDoors) { if (a === b) return [a]; const prev = new Map([[a, -1]]), q = [a]; for (let h = 0; h < q.length; h++) { if (q[h] === b) break; for (const nb of stepNbrs(q[h], t)) { if (prev.has(nb)) continue; if (avoidDoors && nb !== b && t.doorAt.has(nb)) continue; prev.set(nb, q[h]); q.push(nb); } } if (!prev.has(b)) return null; const p = []; for (let c = b; c !== -1; c = prev.get(c)) p.push(c); return p.reverse(); }
 
-ok(threads.size === 14, `14 threads (6 white + 8 prod) (${threads.size})`);
-ok([...threads.values()].filter((t) => t.kind === 'white').length === 6 && [...threads.values()].filter((t) => t.kind === 'prod').length === 8, '6 white + 8 production');
-
-// ── K(6,8): every OTHER thread is only a door ──
-let whiteDoors = true, prodDoors = true;
-for (const t of threads.values()) { if (t.kind === 'white' && t.doorAt.size !== 8) whiteDoors = false; if (t.kind === 'prod' && t.doorAt.size !== 6) prodDoors = false; }
+// ── the thread model: K(6,8) first-person ──
+ok(threads.size === 15, `14 threads + the hub (${threads.size})`);
+let whiteDoors = true, prodDoors = true, doorsValid = true;
+for (const t of threads.values()) {
+  if (t.synthetic) continue;
+  if (t.kind === 'white' && t.doorAt.size !== 8) whiteDoors = false;
+  if (t.kind === 'prod' && t.doorAt.size !== 6) prodDoors = false;
+  for (const [gi, d] of t.doorAt) { const nb = threads.get(d.toKey); if (!nb || nb.kind === t.kind || !nb.cells.has(d.farGi) || !t.cells.has(gi)) doorsValid = false; }
+}
 ok(whiteDoors, 'each white office has 8 doors (one to every production thread)');
 ok(prodDoors, 'each production office has 6 doors (one to every white thread)');
-
-// every door leads to the OTHER kind and re-centres onto a cell that neighbour actually owns
-let doorsValid = true;
-for (const t of threads.values()) for (const [gi, d] of t.doorAt) { const nb = threads.get(d.toKey); if (!nb || nb.kind === t.kind || !nb.cells.has(d.farGi) || !t.cells.has(gi)) doorsValid = false; }
 ok(doorsValid, 'every door crosses to the other kind and re-centres onto a neighbour-owned cell');
 
-// ── the office partition (per thread) ──
-function buildOffice(t) {
-  const gis = [...t.cells], li = new Map(gis.map((g, i) => [g, i])), subEdges = [];
-  for (const g of gis) for (const nb of stepNbrs(g, t)) if (nb > g && li.has(nb)) subEdges.push({ a: li.get(g), b: li.get(nb) });
-  const nZones = Math.max(3, Math.round(gis.length / 12));
-  const zone = assignZones(gis.length, subEdges, new Array(nZones).fill(1), (m.seed ^ (t.kind === 'white' ? 0x1111 : 0x2222) ^ (t.idx * 0x9e37)) >>> 0);
-  const roomOf = new Map(), rooms = new Map();
-  gis.forEach((g, i) => { const z = zone[i]; roomOf.set(g, z); rooms.set(z, (rooms.get(z) || 0) + 1); });
-  let rim = t.nexusGi, br = -1; for (const g of t.cells) { const r = rfOf(g); if (r > br) { br = r; rim = g; } }
-  const spine = pathWithin(t, t.nexusGi, rim);
-  return { roomOf, rooms, spine, rim, nZones };
-}
-
-let coverOk = true, nonEmpty = true, spineOk = true, roleOk = true;
+// ── the v101 office partition, per thread ──
+let coverOk = true, minRoomOk = true, treeOk = true, reachOk = true, grandOk = true, litOk = true, roleOk = true, connOk = true;
+const roleSizes = new Map();   // role → [cells counts] aggregated over all offices (for traffic sizing)
 for (const t of threads.values()) {
-  const off = buildOffice(t);
-  if (off.roomOf.size !== t.cells.size) coverOk = false;                 // every chamber lands in a room
-  for (const [z, n] of off.rooms) if (n < 1) nonEmpty = false;
-  if (!off.spine || off.spine.length < 2) spineOk = false;               // hallway connects nexus → rim
-  // spine stays inside the thread
-  if (off.spine) for (const g of off.spine) if (!t.cells.has(g)) spineOk = false;
+  const off = world.office(t.key);
+  // partition: every chamber is hall or exactly one room
+  let covered = off.hall.size;
+  for (const r of off.rooms) covered += r.cells.length;
+  if (covered !== t.cells.size) coverOk = false;
+  for (const r of off.rooms) {
+    if (r.cells.length < MIN_ROOM) minRoomOk = false;
+    (roleSizes.get(r.role) || roleSizes.set(r.role, []).get(r.role)).push(r.cells.length);
+    // each room is one connected clump
+    const set = new Set(r.cells), seen = new Set([r.cells[0]]), q = [r.cells[0]];
+    for (let h = 0; h < q.length; h++) for (const nb of cells[q[h]].adj) if (set.has(nb) && !seen.has(nb)) { seen.add(nb); q.push(nb); }
+    if (seen.size !== set.size) connOk = false;
+    if (!ROLES[r.role] || !ROLES[r.role].glyph) roleOk = false;
+    if ((off.lum.get(r.compGi) || 0) <= 0) litOk = false;
+  }
+  // doors form a spanning tree rooted at the hall: one door per room, all rooms reached
+  if (off.doors.length !== off.rooms.length) treeOk = false;
+  // the WALLED graph still reaches every chamber from the nexus
+  const seen = new Set([t.nexusGi]), q = [t.nexusGi];
+  for (let h = 0; h < q.length; h++) for (const nb of off.stepNbrs(q[h])) if (!seen.has(nb)) { seen.add(nb); q.push(nb); }
+  if (seen.size !== t.cells.size) reachOk = false;
+  // grand anchor at the nexus end
+  if (!t.synthetic) {
+    const nc = cells[t.nexusGi];
+    let anchor = null, ad = Infinity;
+    for (const r of off.rooms) for (const g of r.cells) { const c = cells[g], d = (c.x - nc.x) ** 2 + (c.y - nc.y) ** 2; if (d < ad) { ad = d; anchor = r; } }
+    if (!anchor || !anchor.grand) grandOk = false;
+    else if (t.kind === 'white' && !GRAND_ROLES.includes(anchor.role)) grandOk = false;
+    else if (t.kind === 'prod' && anchor.role !== 'make') grandOk = false;
+  }
 }
-ok(coverOk, 'the office partition covers every chamber of the thread (rooms tile the thread)');
-ok(nonEmpty, 'no empty rooms');
-ok(spineOk, 'a hallway spine connects the nexus to the rim, inside the thread');
-
-// roles resolve to glyphs
-const WHITE_ROLES = ['govern', 'serve', 'learn', 'trade', 'dwell', 'play', 'heal', 'store'];
-const PROD_ROLES = ['make', 'store', 'mend', 'move', 'trade', 'grow'];
-for (const r of [...WHITE_ROLES, ...PROD_ROLES]) if (!ROLES[r] || !ROLES[r].glyph) roleOk = false;
+ok(coverOk, 'hall + rooms partition every chamber of each thread');
+ok(connOk, 'every room is one connected clump');
+ok(minRoomOk, `no room under MIN_ROOM = ${MIN_ROOM} chambers (v101 bulldozing)`);
+ok(treeOk, 'doors form a spanning tree rooted at the hall (one door per room, all rooms reached)');
+ok(reachOk, 'the WALLED walk graph reaches every chamber from the nexus');
+ok(grandOk, 'the nexus room is the grand anchor (GRAND role on whites, the engine core on production)');
+ok(litOk, 'every room component is lit (the baked pool reaches it)');
 ok(roleOk, 'every office role resolves to a v100 glyph');
 
-// determinism
-const a = buildOffice(threads.get('W0')), b = buildOffice(threads.get('W0'));
-ok(a.roomOf.size === b.roomOf.size && a.nZones === b.nZones && JSON.stringify(a.spine) === JSON.stringify(b.spine), 'office partition is deterministic');
+// traffic sizing (v101): busy civic hubs claim more chambers than quiet rooms, in aggregate
+{
+  const mean = (roles) => { let s = 0, n = 0; for (const r of roles) for (const v of roleSizes.get(r) || []) { s += v; n++; } return n ? s / n : 0; };
+  const hubMean = mean(HUB_ROLES.filter((r) => WHITE_ROLES.includes(r) || PROD_ROLES.includes(r)));
+  const quietMean = mean(QUIET_ROLES.filter((r) => WHITE_ROLES.includes(r) || PROD_ROLES.includes(r)));
+  ok(hubMean > quietMean, `traffic-sized rooms: hub roles avg ${hubMean.toFixed(1)} > quiet roles avg ${quietMean.toFixed(1)} chambers`);
+}
 
-// ── NAVIGABILITY: autopathing must not trip a portal in passing ──
-// A door-avoiding path only ever lands on a door as its final cell (the destination) — never an
-// interior step — so click-to-walk across an office can't teleport you through a portal mid-route.
+// ── navigability: autopaths never trip a portal in passing ──
 let navOk = true, reachedAll = true;
 for (const t of threads.values()) {
-  const gis = [...t.cells];
-  // sample destinations: the rim, and a few cells around the office
+  const off = world.office(t.key), gis = [...t.cells];
+  const rfOf = (gi) => Math.hypot(cells[gi].x, cells[gi].y);
   const samples = [gis.reduce((bg, g) => rfOf(g) > rfOf(bg) ? g : bg, t.nexusGi), gis[(gis.length / 3) | 0], gis[(gis.length * 2 / 3) | 0], gis[gis.length - 1]];
   for (const dst of samples) {
-    if (t.doorAt.has(dst)) continue;                       // only test NON-door destinations
-    const pa = pathWithin(t, t.nexusGi, dst, true);        // the autopath actually used
-    const p = pa || pathWithin(t, t.nexusGi, dst, false);  // runtime fallback (safe: arrive won't cross interior)
+    if (t.doorAt.has(dst)) continue;
+    const pa = off.pathWithin(t.nexusGi, dst, true);
+    const p = pa || off.pathWithin(t.nexusGi, dst, false);
     if (!p) { reachedAll = false; continue; }
-    if (pa) for (const g of pa) if (t.doorAt.has(g)) navOk = false;   // door-avoiding path to a non-door dst touches NO door
+    if (pa) for (const g of pa) if (t.doorAt.has(g)) navOk = false;
   }
 }
 ok(navOk, 'door-avoiding autopaths never pass THROUGH a portal (only end on one if it is the target)');
-ok(reachedAll, 'every sampled office cell is still reachable from the nexus');
-
-// a path whose DESTINATION is a door still ends on that door (so deliberate crossings work)
+ok(reachedAll, 'every sampled office cell is reachable from the nexus');
 {
-  const t = threads.get('W0'), doorGi = [...t.doorAt.keys()][0];
-  const p = pathWithin(t, t.nexusGi, doorGi, true);
+  const t = threads.get('W0'), off = world.office('W0'), doorGi = [...t.doorAt.keys()][0];
+  const p = off.pathWithin(t.nexusGi, doorGi, true);
   ok(p && p[p.length - 1] === doorGi, 'a walk targeting a door still ends on it (deliberate crossing works)');
 }
 
-console.log(`\n  office: ${pass} passed, ${fail} failed`);
+// ── determinism ──
+{
+  const w2 = buildOfficeWorld(7, { probes: 0 });
+  const a = world.office('W0'), b = w2.office('W0');
+  const sig = (off) => JSON.stringify({ rooms: off.rooms.map((r) => [r.role, r.cells.length, r.grand ? 1 : 0]), doors: off.doors.map((d) => [d.a, d.b]), spine: off.spinePath });
+  ok(sig(a) === sig(b), 'the office partition is deterministic');
+  ok(w2.cert.doorCount === cert.doorCount && w2.cells.length === cells.length, 'the world is deterministic');
+}
+
+console.log(`\n  office (seven hexagons, v101): ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
