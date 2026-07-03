@@ -1423,6 +1423,27 @@
       if (fqStatus(facts, 'continuant') === 'witnessed') ensureFactionWards('rindwalker');
       if (fqStatus(facts, 'rindwalker') === 'witnessed') ensureFactionWards('drift');
       maybePlaceOverLadder();   // idempotent — drop the passive overworld ladder once the Continuants ward exists
+      relocateGuidesToWards();  // once a faction's lobe is built, move its guide-anchor from the commons into it
+    }
+    // The faction GUIDE-ANCHORS (Factor Solen · Sevin) are seated in the commons at wake for the prologue,
+    // before any ward exists (ensureAnchors runs at tier 1). Once a faction's WARD LOBE streams in, move its
+    // guide into it — so the Continuant head stands in the Continuant pair (chunks 3·4) and the Rindwalker
+    // head in the Rindwalker pair (1·2), instead of all three clumped in the commons. Olo Vashti (the Drift
+    // broker who wakes you) stays in the commons — he's the intro guide; Luna is the lower-rind AI, not a
+    // nave person. Idempotent per guide (the `_fw` flag), and a no-op until the lobe is actually built.
+    const WARD_GUIDE_FACTIONS = ['continuant', 'rindwalker'];
+    function relocateGuidesToWards() {
+      if (!story.ready || !world || !world._nave) return;
+      let guides; try { guides = pickBibleGuides([...story.store.content.values()]); } catch (e) { return; }
+      const disc = getJSONFact('npc.discovered', {}); let moved = false;
+      for (const f of WARD_GUIDE_FACTIONS) {
+        const g = guides.find((c) => factionOf(c.tags) === f || (c.content && c.content.nave_faction) === f);
+        if (!g) continue;
+        const dd = disc[g.id]; if (!dd || dd._fw) continue;      // not discovered yet, or already in its lobe
+        const w = fqWardXY(f); if (!w) continue;                 // the lobe isn't built yet — try again next tick
+        dd.x = w.x; dd.y = w.y; dd.deck = 0; dd._fw = true; moved = true;
+      }
+      if (moved) { setJSONFact('npc.discovered', disc); placeAnchors(); if (world) draw(); }
     }
     // stream the queued faction wards ONE PER TICK — solve + paint + incremental stitch, like a normal chunk
     // load. Re-entrant-safe (one drain loop): ensureFactionWards may append while it's mid-run or after it idled.
@@ -5071,9 +5092,10 @@
       if (_anchorsDone || !society || !story.ready || player < 0) return;
       _anchorsDone = true;
       // AUTO-DISCOVER the bible's guide chain at the cradle — the prologue needs the zone-guides present on
-      // wake. Olo Vashti (tier 1, the Drift broker who found Bay 14) wakes WITH you; Factor Solen (Wards) +
-      // Sevin (Upper Rind) stand at progressively farther Commons rooms. Luna (Lower Rind) is the terminal
-      // AI — contacted in the lower rind, not placed as a person here.
+      // wake. Olo Vashti (tier 1, the Drift broker who found Bay 14) wakes WITH you and STAYS in the commons;
+      // Factor Solen + Sevin stand at farther Commons rooms for now, then relocateGuidesToWards moves them
+      // into their faction lobe (Continuant 3·4 / Rindwalker 1·2) the moment that ward streams in. Luna
+      // (Lower Rind) is the terminal AI — contacted in the lower rind, not placed as a person here.
       const cast = pickBibleGuides([...story.store.content.values()]).slice(0, 3), disc = getJSONFact('npc.discovered', {});
       const r0 = society.rooms.filter((o) => o.ch === 0);
       const byDist = r0.map((o) => ({ o, d: (o.x - px()) ** 2 + (o.y - py()) ** 2 })).sort((a, b) => a.d - b.d);
