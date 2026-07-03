@@ -17,6 +17,14 @@ the canonical geometry in `shared/geometry.mjs`:
 - `ratchet/` — lake topology: equipotential-arc surfaces (never secants) + the ratchet teeth that
   make lakes possible and route the runoff (home, or forward into the next lake — the river).
 - `systems/` — water & energy ledger (reactors → light + jets; conserving water box; fish).
+- `goss/` — **an odd tenant, deliberately hosted here**: the civic web viewer + social-drama
+  substrate (`tide.mino.mobi/goss`). Not thermodynamics — the hoop econ society (vendored
+  kernel, copy-never-fork: `goss/vendor/econ/` + `goss/vendor/paint/` from `hoop/v099/`)
+  rendered as a force-laid WEB instead of a map. `goss/gossip.js` layers deterministic
+  demographics/naming/kinship, the person↔person tie graph, EMERGENT tribes (label propagation
+  — no faction is assigned at the NPC level anywhere in the engine), romance, and the two
+  tension axes (tribalism · narcissism of small differences) emitting typed drama seeds — the
+  proto-oracle. Read `goss/README.md` before touching it.
 - Module 3 (WebGPU interior visualiser) — planned.
 
 The defining physics: **up (toward the axis) is hot, not cold** → permanent stratification →
@@ -41,6 +49,7 @@ node tide/fountain/test/fountain.selftest.mjs     # 25 checks
 node tide/fountain/test/light.selftest.mjs        # 15 checks
 node tide/ratchet/test/ratchet.selftest.mjs       # 20 checks
 node tide/systems/test/resources.selftest.mjs     # 17 checks
+node tide/goss/test/gossip.selftest.mjs           # 38 checks
 # or all at once:
 for t in tide/*/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
@@ -49,7 +58,7 @@ The self-tests are the contract — run them before every push.
 
 ## Deploy
 
-- Push `tide/**` on `main` or `claude/oneill-cylinder-solver-djdpdm` → `deploy-tide.yml`
+- Push `tide/**` on `main` or `claude/tide-npc-civic-web-nhgzas` (the current owning branch) → `deploy-tide.yml`
   runs `wrangler deploy`. The sandbox cannot deploy; push and let the Action run. Verify the
   log binds `tide.mino.mobi (custom domain)` (the golden rule).
 - Ownership is in `deploy-registry.json` (surface `tide`). Edit the registry, then
