@@ -2,86 +2,168 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>rind · ops — the production weave (two decks, live flow)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rind · ops — the production weave</title>
 <style>
-  :root { --ink:#e8ecf4; --dim:#7e8aa0; --gold:#d9b24a; --bg:#06070c; --panel:#0c0f17; --line:#1b2030; }
+  :root { --ink:#e8ecf4; --dim:#7e8aa0; --gold:#d9b24a; --bg:#06070c; --panel:#0c0f17; --line:#1b2030; --white:#e6e9f2; --prod:#57a6d6; --ok:#6fcf8a; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
-  a { color: var(--gold); }
-  .wrap { display: grid; grid-template-rows: auto 1fr; height: 100%; }
-  header { padding: 9px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  header h1 { font-size: 15px; margin: 0; font-weight: 650; }
-  header .crumb { color: var(--dim); font-size: 12px; }
-  header .crumb a { text-decoration: none; }
-  header .spacer { flex: 1; }
-  .main { display: grid; grid-template-columns: 1fr 300px; min-height: 0; }
-  @media (max-width: 860px) { .main { grid-template-columns: 1fr; } .rail { display: none; } }
-  .stage { position: relative; min-height: 0; }
-  canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
-  canvas.drag { cursor: grabbing; }
-  .controls { position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; z-index: 2; }
-  .controls button, .controls label { background: #11151f; color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; font-size: 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
-  .controls button.on { border-color: var(--gold); color: var(--gold); }
-  .controls input[type=range] { width: 90px; }
-  .read { position: absolute; left: 12px; bottom: 12px; right: 12px; font-size: 11.5px; color: var(--dim); background: rgba(8,9,14,.72); padding: 6px 9px; border-radius: 7px; border: 1px solid var(--line); pointer-events: none; }
-  .read b { color: var(--ink); } .read .ok { color: #6fcf8a; }
-  .rail { border-left: 1px solid var(--line); padding: 13px; overflow: auto; background: var(--panel); }
-  .rail h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 6px 0 7px; }
-  .wsel { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-  .wsel .w { display: flex; align-items: center; gap: 8px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; background: #0a0d14; }
-  .wsel .w.sel { border-color: var(--gold); background: #14130c; }
-  .wsel .w .k { width: 15px; height: 15px; border-radius: 50%; background: #2a3346; color: #cdd6e8; font-size: 10px; display: grid; place-items: center; flex: 0 0 auto; }
-  .wsel .w.sel .k { background: var(--gold); color: #1a1406; }
-  .wsel .w .lab { font-size: 12.5px; }
-  .itin { font-size: 12px; margin-bottom: 12px; }
-  .itin .stop { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
-  .itin .stop .n { width: 15px; color: var(--dim); font-variant-numeric: tabular-nums; }
-  .itin .stop .g { width: 16px; text-align: center; }
-  .elist { font-size: 11.5px; }
-  .elist .e { display: flex; gap: 7px; padding: 3px 0; align-items: baseline; }
-  .elist .e .sw { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; position: relative; top: 1px; }
-  .elist .e .nm { color: var(--ink); } .elist .e .nt { color: var(--dim); }
-  .note { font-size: 11px; color: var(--dim); margin-top: 10px; border-top: 1px solid var(--line); padding-top: 9px; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.6 ui-sans-serif, system-ui, sans-serif; }
+  a { color: var(--gold); text-decoration: none; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 20px 20px 60px; }
+  header .crumb { color: var(--dim); font-size: 12.5px; }
+  h1 { font-size: 24px; margin: 10px 0 4px; font-weight: 680; letter-spacing: -.01em; }
+  .lede { color: var(--dim); font-size: 14px; margin: 0 0 6px; max-width: 720px; }
+  .lede b { color: var(--ink); font-weight: 600; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--dim); margin: 28px 0 12px; border-bottom: 1px solid var(--line); padding-bottom: 7px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .card { display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 14px 15px; transition: border-color .12s, transform .12s; position: relative; }
+  .card:hover { border-color: var(--gold); transform: translateY(-1px); }
+  .card .top { display: flex; align-items: center; gap: 9px; margin-bottom: 5px; }
+  .card .ico { font-size: 17px; width: 22px; text-align: center; flex: 0 0 auto; }
+  .card .name { color: var(--ink); font-weight: 650; font-size: 15px; }
+  .card .tag { margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+  .card p { margin: 0; color: var(--dim); font-size: 12.8px; line-height: 1.5; }
+  .card.feature { border-color: #3a3320; background: linear-gradient(180deg, #14120b, var(--panel)); grid-column: 1 / -1; }
+  .card.feature .name { color: var(--gold); font-size: 17px; }
+  .card .path { color: #566173; font-size: 11px; font-variant-numeric: tabular-nums; margin-top: 8px; }
+  .swatches { display: inline-flex; gap: 4px; vertical-align: middle; margin-left: 2px; }
+  .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .foot { color: var(--dim); font-size: 12px; margin-top: 34px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .foot a { color: var(--dim); text-decoration: underline; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>rind · ops — the woven shell (3D)</h1>
-    <span class="crumb"><a href="/">rind</a> / ops &nbsp;·&nbsp; the weave in 3D — counter-rotating helices in the rind shell · inhabit a thread to read the map from its point of view</span>
-    <span class="spacer"></span>
-    <span class="crumb"><a href="./prism.html">⬡ lay-the-weave (prism)</a> &nbsp;·&nbsp; <a href="./tess.html">tessellation</a> &nbsp;·&nbsp; <a href="./flat.html">▦ flat polar (2D)</a> &nbsp;·&nbsp; <a href="./weave.html">proof</a></span>
+    <span class="crumb"><a href="/">rind</a> / ops</span>
+    <h1>the production weave</h1>
+    <p class="lede">Six white-collar ops surfaces woven over eight production engines — the complete bipartite graph
+      <b>K(6,8)</b>, realised as a real weave (not the abandoned gyroid). Every white surface reaches every engine;
+      the whole thing lives in the rind's Voronoi foam in 2–3 walkable floors. These are the views, newest first.</p>
   </header>
-  <div class="main">
-    <div class="stage">
-      <div class="controls">
-        <button id="orbit" class="on">orbit</button>
-        <button id="thread">inhabit thread</button>
-        <button id="map">museum map</button>
-        <button id="analytic">◎ analytic</button>
-        <button id="chunks" title="cycle the chunk tiling: 7 / 19 / 37 (centered-hexagonal numbers) — the tessellation unit">⬡ 19 chunks</button>
-        <label>tube ⌀ <input id="tube" type="range" min="6" max="120" value="44"></label>
-        <label>slope ≤ <input id="grade" type="range" min="18" max="80" value="32"></label>
-        <label>windings <input id="wind" type="range" min="10" max="60" value="26"></label>
-        <button id="spin" class="on">⟳ auto</button>
-        <button id="reseed">reseed</button>
-        <button id="reset">reset view</button>
-      </div>
-      <canvas id="cv"></canvas>
-      <div class="read" id="read"></div>
-    </div>
-    <aside class="rail">
-      <h2>inhabit one white thread</h2>
-      <div class="wsel" id="wsel"></div>
-      <h2>its tour of the 8 engines</h2>
-      <div class="itin" id="itin"></div>
-      <h2>the eight engines</h2>
-      <div class="elist" id="elist"></div>
-      <div class="note" id="note"></div>
-    </aside>
+
+  <h2>the answer — one door</h2>
+  <div class="grid">
+    <a class="card feature" href="./onedoor.html">
+      <div class="top"><span class="ico">⌸</span><span class="name">one door</span><span class="tag">proof · 3D</span></div>
+      <p>The hard requirement made true and <b>proven</b>: any point in the chunk to any other passes through only
+        <b>one door — including the two central hubs</b>. The walkable space collapses to two door-free concourses —
+        the 6 arms + the nave hub <span class="swatches"><span class="sw" style="background:var(--white)"></span></span>,
+        the 8 arms + the bottom hub <span class="swatches"><span class="sw" style="background:var(--prod)"></span></span> —
+        joined only by the 48 zero-grade K(6,8) doors <span class="swatches"><span class="sw" style="background:var(--gold)"></span></span>.
+        Route any two rooms live; colour by concourse or all 14 threads; solid or ghost. Two substrates: an <b>HCP
+        lattice</b> claimed by flood, or nuclei seeded <b>on the analytic curves</b> then grown to fill (full K=48,
+        every door at grade).</p>
+      <div class="path">rind.mino.mobi/ops/onedoor.html</div>
+    </a>
+  </div>
+
+  <h2>walk it — the navigator</h2>
+  <div class="grid">
+    <a class="card feature" href="./office.html">
+      <div class="top"><span class="ico">▤</span><span class="name">your thread — an office</span><span class="tag">v100 · walk</span></div>
+      <p>The right engine for this map: <b>the map is only what's reachable from your thread</b>. Your thread renders
+        in full as an <b>office of rooms</b> (the v100 foam partition — role rooms + a hallway spine), and every other
+        thread is only a <b>door</b> in your wall — not a standing room. Cross a door and <i>that</i> thread becomes
+        your office, re-centred; the one you left is a door behind you. The nexus opens onto all sibling offices.
+        K(6,8) made first-person: a white office has 8 doors, a production office 6. Proven
+        (<code>office.selftest.mjs</code>).</p>
+      <div class="path">rind.mino.mobi/ops/office.html</div>
+    </a>
+    <a class="card" href="./floor.html">
+      <div class="top"><span class="ico">▦</span><span class="name">the demo floor — god-view</span><span class="tag">v100 · walk</span></div>
+      <p>The counterpoint: <b>all</b> threads standing at once. The v100 foam engine grows a district of rooms +
+        a concourse in every hex chunk, tiled into a honeycomb (7/19), abutting at seam doors, corners forced into
+        <b>nexus mixing points</b>. Walk 300+ rooms across one connected floor — the whole tessellation inhabited
+        simultaneously (vs the office's thread-at-a-time view). Proven navigable (<code>floor.selftest.mjs</code>).</p>
+      <div class="path">/ops/floor.html</div>
+    </a>
+    <a class="card feature" href="./nexus.html">
+      <div class="top"><span class="ico">@</span><span class="name">inhabit a thread</span><span class="tag">proto · walk</span></div>
+      <p>Navigation <i>is</i> mapping. You are the <b>@</b>, standing in one thread — its own chambers strung along
+        its curve into one walkable surface, <b>walled but for its doors and the nexus</b>. Start at the <b>white
+        nexus</b>, pick an arm, walk it out toward the rim past the doors where it crosses each production line —
+        <b>cross a door and the whole map becomes the new thread's</b>, re-centred on the crossing (and spiralling
+        the other way). The one-door structure, made first-person.</p>
+      <div class="path">/ops/nexus.html</div>
+    </a>
+  </div>
+
+  <h2>tessellate it — the infinite world</h2>
+  <div class="grid">
+    <a class="card feature" href="./tessweave.html">
+      <div class="top"><span class="ico">⬡</span><span class="name">the tessellating weave, solved</span><span class="tag">proof · 2D</span></div>
+      <p>The real answer to <i>how does the world go infinite</i>. Honeycomb the single hex and solve what
+        happens to its <b>14 threads</b> where tile A's edge meets tile B's. Two halves, computed from the
+        real Voronoi weave and proven (<code>tessweave.selftest.mjs</code>): the 6 <b>whites</b> form an exact
+        1-per-edge bijection that translation-tiling turns into <b>3 global strand families</b> (one ring + two
+        helices — the emergence, over the real weave); the 8 <b>engines</b> can't divide the hex's 6-fold
+        symmetry, so they stay local and supply the cross-kind <b>K-doors</b> that reach across every seam.
+        Trace a family across the tiles; watch the interface census live.</p>
+      <div class="path">/ops/tessweave.html</div>
+    </a>
+  </div>
+
+  <h2>the weave in space</h2>
+  <div class="grid">
+    <a class="card" href="./orbit.html">
+      <div class="top"><span class="ico">◍</span><span class="name">orbit — the woven shell</span><span class="tag">3D</span></div>
+      <p>The primary 3D read: 6 white + 8 production counter-rotating spirals in a volumetric Voronoi pancake.
+        <b>Orbit</b> the shell, <b>inhabit a thread</b> to unroll the map from its point of view, or explode the
+        <b>museum map</b> and route through doors and stairs.</p>
+      <div class="path">/ops/orbit.html</div>
+    </a>
+    <a class="card" href="./prism.html">
+      <div class="top"><span class="ico">⬡</span><span class="name">lay the weave (on the prism)</span><span class="tag">3D</span></div>
+      <p>The substrate rebuild: 6+8 tubes claim a hexagonal prism of homogeneous HCP nodes. Push the levers —
+        width, areal density, decks, thread counts, flat core — and watch continuity, K(6,8) and the over/under weave
+        break and resolve. True 3D Voronoi chambers, packed solid.</p>
+      <div class="path">/ops/prism.html</div>
+    </a>
+    <a class="card" href="./tess.html">
+      <div class="top"><span class="ico">⬢</span><span class="name">tessellation</span><span class="tag">2D</span></div>
+      <p>How one hex weave-cell tiles the rind shell: a hexagon has 6 neighbours and the cortex has 6 white arms, so
+        each arm hands off to one neighbour (the white weave is the connective tissue; the 8 engines stay local).
+        Aperture-7 self-similar, H3-style.</p>
+      <div class="path">/ops/tess.html</div>
+    </a>
+    <a class="card" href="./helix.html">
+      <div class="top"><span class="ico">✺</span><span class="name">the helix emerges</span><span class="tag">2D / cylinder</span></div>
+      <p>Local hexes, global helix. Chain the white edge-handoffs across the wrapped honeycomb and the six directions
+        resolve into three families — azimuthal <b>rings</b> and two counter-rotating <b>helices</b> — the cylinder
+        weave, emergent. Unroll it or wrap it onto the tube; trace one strand and watch it spiral. Expansion = more
+        rows of hexes.</p>
+      <div class="path">/ops/helix.html</div>
+    </a>
+  </div>
+
+  <h2>the 2D lineage &amp; proofs</h2>
+  <div class="grid">
+    <a class="card" href="./flat.html">
+      <div class="top"><span class="ico">▦</span><span class="name">flat polar rosette</span><span class="tag">2D</span></div>
+      <p>The original polar spiral weave: 6 white &amp; 8 production spiral out from two disconnected hubs, woven
+        across two floors over a 19-chunk hex region. Where the K(6,8) idea first became a picture.</p>
+      <div class="path">/ops/flat.html</div>
+    </a>
+    <a class="card" href="./weave.html">
+      <div class="top"><span class="ico">🧵</span><span class="name">the loom</span><span class="tag">proof</span></div>
+      <p>The K(6,8) plaid as a woven-tube proof — warp × weft, every white crosses every production exactly once,
+        over-under by plain-weave parity. The kernel the whole apparatus is built on.</p>
+      <div class="path">/ops/weave.html</div>
+    </a>
+    <a class="card" href="./decks.html">
+      <div class="top"><span class="ico">▤</span><span class="name">region decks</span><span class="tag">2D · legacy</span></div>
+      <p>An earlier region-decks comparison with a live material-flow schematic of the 8 engines — the wrong
+        metaphor (stacked decks + a link-star), kept for contrast with the weave.</p>
+      <div class="path">/ops/decks.html</div>
+    </a>
+  </div>
+
+  <div class="foot">
+    The theory — the diagnosis of the gyroid, the reframe to K(6,8), the plain weave, the one-door resolution and the
+    two substrates — is written up in <a href="https://github.com/minormobius/agent01/blob/main/rind/ops/WEAVE.md">WEAVE.md</a>.
+    rind is the <b style="color:var(--ink)">structure</b> wing of the O'Neill cylinder package · <a href="/">back to rind</a>.
   </div>
 </div>
-<script type="module" src="./3d-app.js"></script>
 </body>
 </html>
