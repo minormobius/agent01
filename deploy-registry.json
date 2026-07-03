@@ -513,7 +513,7 @@
       "dir": "rite",
       "endpoint": "rite.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/font-generator-demo-f3pdfa",
+      "branch": "claude/procedural-name-generator-2qqwfq",
       "uses": [
         "atpolls-db"
       ],
