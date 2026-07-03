@@ -96,15 +96,21 @@ default econ town. A single ward's web is tiny (a govern ward can be 9 people).
 
 **Two pollination modes** bracket reality (`buildGossNave(nave, { mode })`):
 
-- **`sealed`** (default, engine-faithful): seven independent `buildSociety` runs, **zero
-  cross-ward ties** — pinned in the selftest. Tribes can only form inside a ward
+- **`floor`** (default — **the unified web**): one society over all seven chunks; hats cross
+  wards by nearest distance (the game's Euclidean rule writ large). Measured healthier than
+  sealed on **every** baked seed — mean vitality 69.5 → 85.9, closure 0.71 → 0.99, and
+  ward-spanning dramas ~5× — see **[`UNIFIED.md`](UNIFIED.md)** for the full study (health,
+  drama reach, and the hoop-v101 chunk-loading compatibility findings), reproducible via
+  `node tide/goss/tools/study-unified.mjs`.
+- **`sealed`** (engine-faithful, `?mode=sealed`): seven independent `buildSociety` runs,
+  **zero cross-ward ties** — pinned in the selftest. Tribes can only form inside a ward
   (faction↔tribe alignment ≈ 100%); each ward gets its own chunkroller-style vitality.
   Wards fragment internally into 2–4 micro-tribes — the interesting drama scale.
-- **`floor`** (the what-if): one society over all seven chunks; hats cross wards by nearest
-  distance (the game's Euclidean rule writ large). At seed 7 over half the ties cross wards,
-  tribes fuse into one mega-tribe + a holdout (alignment ~44%), and floor vitality jumps
-  68 → 88 — cross-pollination is measurably good for the floor. If the walls should matter,
-  the hat assignment needs to be route-distance-aware, not Euclidean (a finding for hoop).
+
+The honest caveat: pure Euclidean unification can over-mix (at seeds 5·7 the floor fuses
+into two mega-tribes and the near-twin-feud texture flattens). If the walls should matter,
+the hat assignment needs to be route-distance-aware, not Euclidean (a finding for hoop) —
+sealed and floor are the brackets; route-aware is the target.
 
 ## Toward the real oracle (the theory isn't settled — this is the scaffold)
 
@@ -131,6 +137,8 @@ the templates without touching layers 1–5. Candidate directions:
 | `gossip.js` | the kernel — all six layers + the nave substrate (`fieldFromRooms`, `buildGossNave`, `factionTribeAlignment`), pure, zero-DOM |
 | `index.html` + `app.js` | the viewer — substrate select (econ town · nave floor 1), sealed/floor mode chips, force-laid web, lenses (⛺ tribes · ♥ romance · ⚔ tension · ☷ raw web), ward outlines + per-ward vitality, dossiers, the goss feed. `?sub=&seed=&mode=` permalink |
 | `tools/bake-nave.mjs` | node-only baker: hoop nave → `data/nave-<seed>.json` (rooms + engine roster + ward polys) |
+| `tools/study-unified.mjs` | node-only, read-only: the seven-webs→one-web study (sealed vs unified health/drama over every baked seed, the v101 unlock-chain churn, solve-order independence) — results in `UNIFIED.md` |
+| `UNIFIED.md` | the findings: unified wins on health everywhere, drama reach ~5×, and the two v101 compatibility rules (sibling solve order · reveal-don't-re-roll) |
 | `data/nave-*.json` | baked nave floors (seeds 1 2 3 5 7 11 42 99, ~26 KB each) |
 | `vendor/econ/econ.js` | verbatim `hoop/v099/econ/econ.js` — re-sync, never fork |
 | `vendor/paint/voronoi.js` | verbatim `hoop/v099/paint/voronoi.js` — same rule |

@@ -204,7 +204,7 @@
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
       "type": "frontend",
-      "branch": "claude/tide-npc-civic-web-nhgzas",
+      "branch": "claude/nave-unified-web-6plmae",
       "uses": [],
       "provides": null,
       "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: profile/ (the centrifugal barometer \u2014 radial gravity g(r)=\u03c9\u00b2r + isothermal pressure P(r)=P_axis\u00b7e^{S(r/R)\u00b2} from radius/spin/non-spinning-pressure), atmosphere/ (1-D radial column \u2014 temp/humidity/CO\u2082 vs altitude, Mie fog optics), fountain/ (azimuthal cross-section \u2014 rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger \u2014 reactors\u2192light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Also hosts goss/ (tide.mino.mobi/goss) \u2014 the civic web viewer over the hoop econ society (vendored kernel): NPCs + their relationships to places, emergent tribes, romance, and the two tension axes (tribalism, narcissism of small differences) emitting social-drama seeds. Pure static \u2014 every model runs client-side, no D1/DO/secrets.",
