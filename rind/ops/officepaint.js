@@ -24,7 +24,7 @@ import { growWallFixtures, drawWallFixture, ROLE_CONSOLE } from './v101/consoles
 import { mulberry32 } from './v100/voronoi.js';
 import { HALL, plazaRf } from './officeweave.js';
 
-export const PAINT_DEFAULTS = { chunk: 384, scale: 3 };
+export const PAINT_DEFAULTS = { chunk: 384, scale: 2.5 };   // 2.5 px/world — crisp at the half-zoom view, ~40% less canvas memory
 const WALL_RGB = [27, 32, 41], DOOR_RGB = [120, 92, 50], ROAD_RGB = [44, 70, 60], DARK = [8, 11, 16];
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };

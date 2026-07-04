@@ -12,7 +12,7 @@
 //
 // The model is officeweave.js (kernel; node-tested). This file renders and drives it.
 
-import { buildOfficeWorld, HALL, plazaRf } from './officeweave.js';
+import { buildOfficeWorld, HALL, plazaRf, LEVEL_BAND } from './officeweave.js';
 import { buildPolyGenome, polyFrame, FAMILIES } from './sprites/poly.js';
 import { buildGenome, frameRects, dirFromKey, hexHue } from './sprites/core.js';
 import { drawDevice } from './v101/v5/deco.js';
@@ -33,7 +33,7 @@ let world, m, cells, threads;
 let cellPath = null, cellBox = null, subPath = null;
 const state = { gi: -1, key: null, walk: null };
 const view = { cx: 0, cy: 0, scale: 1 };
-let camFollow = true, debug = false, showDistricts = false, zoom = 1.9;
+let camFollow = true, debug = false, showDistricts = false, zoom = 1.0;   // half-zoom: the view holds the whole sight field
 let vis = null, npcsBy = null, DROID = null, fogCv = null;
 const paintCache = new Map();   // `${ix},${iy},${stratum}` → offscreen canvas (the v101 retile+bake)
 const stratOf = () => cells[state.gi].z >= m.thickness / 2 ? 'U' : 'L';
@@ -64,7 +64,11 @@ const threadColor = (t) => t.kind === 'white' ? mix(hex(m.warps[t.idx].color), I
 const threadLabel = (t) => t.kind === 'white' ? `${m.warps[t.idx].id}` : `${m.wefts[t.idx].id}`;
 const rfOf = (gi) => Math.hypot(cells[gi].x, cells[gi].y) / m.R;
 const districtOf = (gi) => world.districts.of[gi];
-const FOG_R = () => m.pitch * 12, Z_WIN = () => m.vpitch * 2.6;   // see your own level (walkable steps ≤ ~2.2 decks); the far stratum stays unseen
+// SIGHT RANGE: far — the fog radius overflows the half-zoom viewport, so everything the player
+// could see is shown; walls + doors do ALL the gating. Z_WIN matches LEVEL_BAND exactly: a
+// boundary with no wall (another level) is exactly a boundary you cannot see across, so distance
+// never leaks another thread except through its door.
+const FOG_R = () => m.pitch * 26, Z_WIN = () => m.vpitch * LEVEL_BAND;
 
 // ── render geometry: Path2D + bbox per tile from the kernel's floor map ──
 function bakePaths() {
@@ -94,7 +98,7 @@ function updateVis(frameN) {
     }
     vis.target[state.gi] = 1;
   }
-  const up = 0.22, down = 0.055;   // what you see appears fast; what you leave fades out behind you
+  const up = 0.22, down = 0.07;   // what you see appears fast; what recedes closes off to black behind you
   for (let i = 0; i < vis.v.length; i++) { const t = vis.target[i], v = vis.v[i]; vis.v[i] = t > v ? Math.min(t, v + up) : Math.max(t, v - down); }
 }
 const vOf = (gi) => camFollow ? vis.v[gi] : 1;   // the chunk camera is the dev god-lens (no fog)
@@ -378,7 +382,9 @@ function moveDir(dx, dy) {
   for (const nb of nbrs) { const c = cells[nb], vx = c.x - here.x, vy = c.y - here.y, L = Math.hypot(vx, vy) || 1, s = (vx * dx + vy * dy) / L; if (s > bs) { bs = s; best = nb; } }
   if (best >= 0) { state.walk = null; arrive(best); }
 }
-function setWalk(dst) { const p = world.walk.pathBetween(state.gi, dst); if (p && p.length > 1) state.walk = { path: p, i: 0 }; }
+// the route may only cross SEEN space (v > threshold) — no tunnelling a shortcut through the
+// unknown. If the seen field offers no route, the click does nothing: go look first.
+function setWalk(dst) { const p = world.walk.pathBetween(state.gi, dst, (gi) => vis.v[gi] < 0.04); if (p && p.length > 1) state.walk = { path: p, i: 0 }; }
 
 // ── HUD ──
 function updateHUD() {
@@ -419,7 +425,8 @@ addEventListener('keydown', (e) => {
 cv.addEventListener('pointerdown', (e) => {
   const r = cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top;
   const wx = view.cx + (sx - CW / 2) / view.scale, wy = view.cy + (sy - CH / 2) / view.scale;
-  let best = -1, bd = Infinity;   // you can only walk where you can SEE
+  // STRICT: only a visible chamber UNDER the pointer is clickable — a click in the abyss is nothing
+  let best = -1, bd = (m.pitch * 1.25) ** 2;
   for (const c of cells) { if (vOf(c.gi) <= 0.25) continue; const dd = (c.x - wx) ** 2 + (c.y - wy) ** 2; if (dd < bd) { bd = dd; best = c.gi; } }
   if (best >= 0) setWalk(best);
 });
