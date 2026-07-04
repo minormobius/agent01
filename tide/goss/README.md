@@ -8,6 +8,10 @@ Pure static, no build, zero deps. The model kernel (`gossip.js`) is pure + node-
 (`index.html` + `app.js`) only draws what `buildGoss(seed)` returns. Same seed ⇒ same town, same
 names, same tribes, same gossip, forever.
 
+**Sister site: [`../case/`](../case/README.md)** — procedurally generated murder mysteries read
+off this web (motive from the drama layer, alibis from the six-watch day, a solvability oracle,
+and a case chain that scars the web). The first consumer of goss's layers as a library.
+
 ```bash
 node tide/goss/test/gossip.selftest.mjs   # 38 checks
 ```
