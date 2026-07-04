@@ -27,7 +27,7 @@ const pockets = new Map();                // key → { p, paint, bake, cellPath,
 const state = { key: null, node: -1, walk: null, fade: 0, pending: null };
 const view = { cx: 0, cy: 0, scale: 1 };
 let zoom = 1.15, DROID = null;
-const SIGHT_HOPS = 34;
+const SIGHT_HOPS = 20;   // restrictive — a room's worth of sight; the doors do the revealing
 
 const threadColor = (key) => key === 'CW' ? TEAL : key === 'CP' ? [200, 150, 90] : key[0] === 'W' ? mix(hex(world.warps[+key.slice(1)].color), INK, 0.3) : hex(world.wefts[+key.slice(1)].color);
 
@@ -37,7 +37,7 @@ function ensure(key) {
   if (b) return b;
   const p = world.pocket(key);
   const paint = paintChunk(p.rec, {});
-  const scale = 2, bake = document.createElement('canvas');
+  const scale = Math.min(2, 3400 / Math.max(p.W, p.H)), bake = document.createElement('canvas');
   bake.width = Math.ceil(p.W * scale); bake.height = Math.ceil(p.H * scale);
   const bc = bake.getContext('2d'); bc.scale(scale, scale);
   bc.fillStyle = '#04050a'; bc.fillRect(0, 0, p.W, p.H);
@@ -53,6 +53,7 @@ function ensure(key) {
   const cellPath = p.rec.cells.map((c) => { const path = new Path2D(); c.poly.forEach((v, i) => i ? path.lineTo(v[0], v[1]) : path.moveTo(v[0], v[1])); path.closePath(); return path; });
   b = { key, p, paint, bake, scale, cellPath, vis: new Float32Array(p.walk.N), ball: new Set(), npcs: makeNPCs(key, p) };
   pockets.set(key, b);
+  if (pockets.size > 7) for (const k of pockets.keys()) { if (k !== state.key && k !== key) { pockets.delete(k); break; } }
   return b;
 }
 
@@ -137,15 +138,35 @@ function render() {
   ctx.drawImage(cur.bake, 0, 0, cur.p.W, cur.p.H);
   // district arches — the seven hexes read along the strip
   ctx.setLineDash([10, 8]); ctx.lineWidth = 1.6 / view.scale;
-  for (const a of cur.p.arches) { ctx.strokeStyle = rgba(TEAL, 0.4); ctx.beginPath(); ctx.moveTo(a.x, 6); ctx.lineTo(a.x, cur.p.H - 6); ctx.stroke(); }
+  for (const a of cur.p.arches) { ctx.strokeStyle = rgba(TEAL, 0.4); ctx.beginPath(); ctx.moveTo(a.x1, a.y1); ctx.lineTo(a.x2, a.y2); ctx.stroke(); }
   ctx.setLineDash([]);
-  // door markers: a gate in the target thread's hue
+  // doors: THE PEEK — walking past, you look INTO the adjacent pocket through the doorway: a disc
+  // of the neighbour's floor, aligned so its reciprocal door sits in the frame (walk in and you're
+  // standing where you were looking). Ringed in the target thread's hue.
   for (const d of cur.p.doors) {
     const v = cur.vis[d.node]; if (v <= 0.05) continue;
     const x = w.pos[2 * d.node], y = w.pos[2 * d.node + 1], col = threadColor(d.toKey);
-    ctx.globalAlpha = v;
-    ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.fillStyle = rgba(mix([8, 11, 16], col, 0.55), 0.95); ctx.fill();
-    ctx.strokeStyle = rgba(GOLD, 0.9); ctx.lineWidth = 2 / view.scale; ctx.beginPath(); ctx.arc(x, y, 14, 0, 7); ctx.stroke();
+    const tb = pockets.get(d.toKey);
+    if (tb && v > 0.2) {
+      const r = reciprocalDoor(world, state.key, d);
+      if (r) {
+        const tw = tb.p.walk, tx = tw.pos[2 * r.node], ty = tw.pos[2 * r.node + 1];
+        const pr = 64;
+        ctx.save(); ctx.globalAlpha = Math.min(1, v) * 0.92;
+        ctx.beginPath(); ctx.arc(x, y, pr, 0, 7); ctx.clip();
+        ctx.translate(x - tx, y - ty);
+        ctx.drawImage(tb.bake, 0, 0, tb.p.W, tb.p.H);
+        ctx.restore();
+        ctx.globalAlpha = Math.min(1, v);
+        ctx.strokeStyle = rgba(col, 0.85); ctx.lineWidth = 3 / view.scale;
+        ctx.beginPath(); ctx.arc(x, y, pr, 0, 7); ctx.stroke();
+      }
+    } else {
+      ctx.globalAlpha = v;
+      ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.fillStyle = rgba(mix([8, 11, 16], col, 0.55), 0.95); ctx.fill();
+    }
+    ctx.globalAlpha = Math.min(1, v);
+    ctx.strokeStyle = rgba(GOLD, 0.9); ctx.lineWidth = 2 / view.scale; ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.stroke();
   }
   ctx.globalAlpha = 1;
   // residents
@@ -220,6 +241,9 @@ function loop() {
   fadeVis();
   render();
   if (frameN % 30 === 0) updateHUD();
+  if (frameN % 45 === 0 && !state.pending) {
+    for (const d of cur.p.doors) if (cur.vis[d.node] > 0.2 && !pockets.has(d.toKey)) { ensure(d.toKey); break; }   // one neighbour per interval — the peek warms as you approach
+  }
   requestAnimationFrame(loop);
 }
 

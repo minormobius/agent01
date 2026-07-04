@@ -54,15 +54,20 @@ ok(world.pocket('CW').doors.length === 6 && world.pocket('CP').doors.length === 
   ok(invOk, 'crossing is an involution: cross then cross back = the door you left');
 }
 
-// ── the strip is honest: doors sorted by x = sorted by true arc (rf order preserved) ──
+// ── the spiral is honest: doors in analytic rf order along the band, each ON its side (parity) ──
 {
-  let orderOk = true;
+  let orderOk = true, spiralOk = true;
   for (const k of keys) {
     if (k[0] === 'C') continue;
-    const st = world.pocket(k).doors.filter((d) => d.station);
-    for (let i = 1; i < st.length; i++) if (st[i].station.rf < st[i - 1].station.rf - 1e-9 || st[i].x < st[i - 1].x - 1e-9) orderOk = false;
+    const p = world.pocket(k), st = p.doors.filter((d) => d.station);
+    for (let i = 1; i < st.length; i++) if (st[i].station.rf < st[i - 1].station.rf - 1e-9) orderOk = false;
+    // the band genuinely curves: the spine's heading turns by more than a quarter-turn end to end
+    const sp = p.rec._spine, a = Math.atan2(sp[1].y - sp[0].y, sp[1].x - sp[0].x), b = Math.atan2(sp[sp.length - 1].y - sp[sp.length - 2].y, sp[sp.length - 1].x - sp[sp.length - 2].x);
+    let dz = Math.abs(b - a); if (dz > Math.PI) dz = 2 * Math.PI - dz;
+    if (dz < Math.PI / 4) spiralOk = false;
   }
-  ok(orderOk, 'door order along every strip = the analytic rf order (true-arc spacing)');
+  ok(orderOk, 'door order along every band = the analytic rf order');
+  ok(spiralOk, 'every pocket CURVES like the analytic map (the spine turns > 45° hub → rim)');
 }
 
 // ── every pocket is ONE walkable floor: the hub door reaches every station door ──

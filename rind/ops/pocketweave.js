@@ -66,7 +66,9 @@ function arcLUT(R, turns, flatR) {
   for (let i = 1; i <= M; i++) { const rf = i / M; s += Math.hypot(R, rf * R * turns * TAU) / M; a[i] = s; }
   const at = (rf) => { const x = Math.max(0, Math.min(1, rf)) * M, i = Math.floor(x), t = x - i; return i >= M ? a[M] : a[i] + (a[i + 1] - a[i]) * t; };
   const s0 = at(flatR), s1 = at(1);
-  return (rf) => (at(rf) - s0) / (s1 - s0);   // 0 at the hub end of the weave, 1 at the rim
+  const fn = (rf) => (at(rf) - s0) / (s1 - s0);   // 0 at the hub end of the weave, 1 at the rim
+  fn.total = s1 - s0;                              // absolute arc (analytic units) for the spiral scale
+  return fn;
 }
 
 // nearest CONCOURSE cell of a solved chunk to a point, skipping cells already used as doors
@@ -93,13 +95,30 @@ function buildPocket(world, key) {
     rec = solveChunk({ seed, foamSeed: seed, v2: true, shape: 'hex', W, H, cellSize: o.cellSize, roomSize: o.roomSize, concourseWidth: o.concourseWidth, roleMix: kind === 'prod' ? PROD_MIX : null });
   } else {
     const idx = +key.slice(1);
+    const arc = kind === 'white' ? world.arcW : world.arcP;
     const myStations = world.stations.filter((s) => (kind === 'white' ? s.w : s.f) === idx)
-      .map((s) => ({ ...s, u: kind === 'white' ? world.arcW(s.rf) : world.arcP(s.rf) }))
+      .map((s) => ({ ...s, u: arc(s.rf) }))
       .sort((a, b) => a.u - b.u);
-    W = Math.max(o.minW, Math.min(o.maxW, 400 + o.perStation * myStations.length)); H = o.H;
-    const poly = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
+    // THE SPIRAL: the pocket curves the way the analytic map does — the band follows the thread's
+    // own centreline (lineW/lineP), scaled so its arc length is the nave-scale target. Doors sit
+    // ON the curve; parity picks the outer (over) or inner (under) edge of the band.
+    const targetArc = Math.max(o.minW, Math.min(o.maxW, 400 + o.perStation * myStations.length));
+    const sc = targetArc / arc.total, halfW = o.H / 2;
+    const line = kind === 'white' ? (rf) => world.lines.lineW(idx, rf) : (rf) => world.lines.lineP(idx, rf);
+    const M2 = 56, spine = [];
+    for (let i = 0; i <= M2; i++) { const rf = world.lines.flatR + (1 - world.lines.flatR) * i / M2, p = line(rf); spine.push({ rf, x: p[0] * sc, y: p[1] * sc }); }
+    for (let i = 0; i <= M2; i++) { const a = spine[Math.max(0, i - 1)], b = spine[Math.min(M2, i + 1)], L = Math.hypot(b.x - a.x, b.y - a.y) || 1; spine[i].nx = -(b.y - a.y) / L; spine[i].ny = (b.x - a.x) / L; }
+    let mx = 1e9, my = 1e9, Mx = -1e9, My = -1e9;
+    for (const p of spine) { mx = Math.min(mx, p.x - halfW); my = Math.min(my, p.y - halfW); Mx = Math.max(Mx, p.x + halfW); My = Math.max(My, p.y + halfW); }
+    const sx = 30 - mx, sy = 30 - my;
+    for (const p of spine) { p.x += sx; p.y += sy; }
+    W = Mx - mx + 60; H = My - my + 60;
+    const poly = [
+      ...spine.map((p) => ({ x: p.x + p.nx * halfW, y: p.y + p.ny * halfW })),
+      ...[...spine].reverse().map((p) => ({ x: p.x - p.nx * halfW, y: p.y - p.ny * halfW })),
+    ];
     rec = solveChunk({ seed, foamSeed: seed, v2: true, poly, W, H, cellSize: o.cellSize, roomSize: o.roomSize, concourseWidth: o.concourseWidth, roleMix: kind === 'prod' ? PROD_MIX : null });
-    rec._stations = myStations;
+    rec._stations = myStations; rec._spine = spine; rec._halfW = halfW;
   }
   const w = createWorld(); addChunk(w, rec);
   const walk = buildWalk(w);
@@ -119,18 +138,26 @@ function buildPocket(world, key) {
   } else {
     // the hub door (left end → the commons) + one station door per crossing, at true-arc x,
     // parity picking the wall side
-    const hub = nearestRoad(rec, o.margin * 0.45, H / 2, used);
+    const spine = rec._spine, halfW = rec._halfW, M2 = spine.length - 1;
+    const at = (u) => spine[Math.max(0, Math.min(M2, Math.round(u * M2)))];
+    const uOf = (rf) => { const flatR = world.lines.flatR; return (rf - flatR) / (1 - flatR); };   // spine is rf-uniform
+    const hubP = spine[0];
+    const hub = nearestRoad(rec, hubP.x, hubP.y, used);
     if (hub >= 0) { used.add(hub); pocket.hubDoor = hub; const d = { cell: hub, node: hub, toKey: kind === 'white' ? 'CW' : 'CP', station: null, label: 'the commons' }; pocket.doors.push(d); pocket.doorAt.set(hub, d); }
-    const usable = W - 2 * o.margin;
     let lastDistrict = -1;
     for (const s of rec._stations) {
-      const x = o.margin + s.u * usable, y = s.over ? H * 0.1 : H * 0.9;
+      const sp = at(uOf(s.rf)), side = s.over ? 1 : -1;
+      const x = sp.x + sp.nx * side * halfW * 0.72, y = sp.y + sp.ny * side * halfW * 0.72;
       const cell = nearestRoad(rec, x, y, used);
       if (cell < 0) continue; used.add(cell);
       const toKey = (kind === 'white' ? 'P' + s.f : 'W' + s.w);
       const d = { cell, node: cell, toKey, station: s, label: toKey, x, over: s.over, district: s.district };
       pocket.doors.push(d); pocket.doorAt.set(cell, d);
-      if (s.district !== lastDistrict) { pocket.arches.push({ x: x - o.perStation * 0.35, district: s.district }); lastDistrict = s.district; }
+      if (s.district !== lastDistrict) {
+        const a = at(Math.max(0, uOf(s.rf) - 0.03));
+        pocket.arches.push({ x1: a.x + a.nx * halfW, y1: a.y + a.ny * halfW, x2: a.x - a.nx * halfW, y2: a.y - a.ny * halfW, district: s.district });
+        lastDistrict = s.district;
+      }
     }
   }
   return pocket;
