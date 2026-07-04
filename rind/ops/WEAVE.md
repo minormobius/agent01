@@ -41,7 +41,23 @@
 > all and its level is your KIND — the six white threads visibly share one open lobby floor (walk from any white
 > onto any other; the engine plaza mirrors it below). The hub is no longer a synthetic portal room — it is a place.
 > All pinned: global reach of every owned chamber, both concourses joined with zero K-doors and zero cross-kind
-> leaks, door see-through, walled-room concealment, K-door spill (`office.selftest.mjs`, 36 checks).
+> leaks, door see-through, walled-room concealment, K-door spill (`office.selftest.mjs`, 38 checks).
+>
+> **THE v101 PAINT (`officepaint.js` + the vendored `v101/` art modules — see `v101/VENDOR.md`).** The full hoop/v101
+> world-painter, chunked by sight. The chamber tiles are BONES: `planChunk` (pure, deterministic, seam-agreeing)
+> injects a fresh player-scaled Voronoi mesh per 384-unit paint-chunk — tight wall nuclei along the kernel's trimmed
+> walls (thin stone with real body, door gaps intact), graded floor darts from a global position-hashed lattice
+> (seamless across chunks), door-bridge nuclei — then `bakeChunk` splats an OCCLUDED light field through the same
+> tiling (v5/lights) and paints every tile albedo × light. **Albedo is the THREAD's hue — solid threads survive; the
+> ROLE enters through the light** (wall lamps + components are tinted by room role, so a govern room reads as indigo
+> lamplight pooling on schedule-blue floor). Rooms carry v101 furniture: a superformula deco COMPONENT
+> (`v5/deco.deviceGenome`, luminescence derived from its construction), 1–2 grown WALL LAMPS (sconce/coral/crystal),
+> and a voronoi-grown WALL FIXTURE (`consoles.growWallFixtures` — claims the room's own tiles, corner-anchored,
+> door-clear, gold-seamed, its crown lit by the bake). Residents are v101 SPRITE PEOPLE (the already-vendored
+> `sprites/core.js` kernel): seed-stable pixel genomes roled to their workplace, 8 facings, walk cycle, commuting
+> home → work → third place. Chunks bake once on first sight (≈150 ms, one per frame, LRU-capped) into offscreen
+> canvases per stratum; the LOS fog composites above as a gap-free destination-out mask, so the paint fades exactly
+> like the world. The plaza paints kind-locally (U = the white concourse), matching the sight rule — no confetti.
 
 > **THE ONE-DOOR RESOLUTION (`onedoor.html` · `rind.mino.mobi/ops/onedoor.html`; kernel `onedoor.js`, proof
 > `test/onedoor.selftest.mjs`).** The hard spec line — *wayfinding from ANY point in the chunk to ANY other point

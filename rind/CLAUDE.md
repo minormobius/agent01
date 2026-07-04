@@ -114,10 +114,15 @@ JS → emit a frame model → solve for stress):
   seven child hexes persist as **districts** (partition + overlay + HUD). The office partition **hews to
   hoop/v101** (vendored `ops/v101/rooms.js`): traffic-sized rooms, grand anchor at the nexus, MIN_ROOM
   bulldozing, a carved HALL spine with one lit threshold per room (spanning tree rooted at the hall), light
-  pooled per room from self-emitting components + bollards, half-scale residents with boids separation. Built on
+  pooled per room from self-emitting components + bollards, half-scale residents with boids separation. **Painted v101** (`officepaint.js` +
+  vendored `ops/v101/{consoles.js,v5/}`): a player-scaled retile + occluded light bake per 384-unit paint-chunk,
+  baked once on first sight and composited under the gap-free LOS fog — albedo = thread hue, the ROLE enters via
+  the light (role-tinted wall lamps + superformula deco components) and the voronoi-grown wall fixtures; residents
+  are sprite people from `sprites/core.js` commuting home→work→third place. Built on
   `curveseed` + `onedoor.certify` (48 doors, endpoint-deduped) + the vendored `v100/` room toolkit;
-  `test/office.selftest.mjs` (36) pins certificate-at-×7, districts, room tiling, walled reachability, global
-  no-op walk, zero-K-door concourses, door see-through, walled-room concealment, K-door spill, determinism. **`tess.html`/`tess-app.js`** shows how the
+  `test/office.selftest.mjs` (38) pins certificate-at-×7, districts, room tiling, walled reachability, global
+  no-op walk, zero-K-door concourses, door see-through, walled-room concealment, K-door spill, art genomes,
+  determinism. **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate** (the schematic): a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family

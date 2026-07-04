@@ -289,10 +289,18 @@ function buildOfficeFor(world, t) {
 // band). The plan interleaves both strata, and tiling against everything shreds each level's floor
 // into a sponge; tiled per level, each level's tiles cover the plan continuously, and the other
 // stratum genuinely passes beneath your floor unseen. ──
+// Inside the PLAZA the level is your KIND, not your z (the flat core is two clean stacked floors
+// by intent — the same rule sight uses), so plaza tiles tile against same-kind mates and each
+// kind's plaza floor covers the plan completely.
 export const LEVEL_BAND = 2.2;   // in vpitch units — matches the wall band and the walkable step ceiling
 export function buildFloorMap(world) {
   const { m, cells } = world;
   const zBand = LEVEL_BAND * m.vpitch;
+  const pR = plazaRf(m) * m.R, pR2 = pR * pR;
+  const inPlaza = (c) => c.x * c.x + c.y * c.y < pR2;
+  const levelMates = (c, o) => (inPlaza(c) && inPlaza(o) && c.owner && o.owner)
+    ? c.owner.kind === o.owner.kind
+    : Math.abs(o.z - c.z) < zBand;
   const fp = m.footprint;
   const clipToHex = (poly) => {
     let out = poly;
@@ -311,7 +319,7 @@ export function buildFloorMap(world) {
   const polys = new Map(), edges = new Map();
   for (const c of cells) {
     const bx = Math.floor(c.x / gs), by = Math.floor(c.y / gs), near = [];
-    for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) { const b = grid.get(`${bx + dx},${by + dy}`); if (b) for (const o of b) if (o !== c && Math.abs(o.z - c.z) < zBand) near.push(o); }
+    for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) { const b = grid.get(`${bx + dx},${by + dy}`); if (b) for (const o of b) if (o !== c && levelMates(c, o)) near.push(o); }
     const poly = clipToHex(clipCell({ x: c.x, y: c.y }, near, R));
     polys.set(c.gi, poly);
     if (poly.length < 3) continue;

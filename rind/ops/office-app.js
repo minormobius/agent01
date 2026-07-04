@@ -17,6 +17,7 @@ import { buildPolyGenome, polyFrame, FAMILIES } from './sprites/poly.js';
 import { buildGenome, frameRects, dirFromKey, hexHue } from './sprites/core.js';
 import { drawDevice } from './v101/v5/deco.js';
 import { drawWallLight } from './v101/v5/lights.js';
+import { planChunk, bakeChunk, PAINT_DEFAULTS } from './officepaint.js';
 
 const $ = (id) => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -33,7 +34,29 @@ let cellPath = null, cellBox = null, subPath = null;
 const state = { gi: -1, key: null, walk: null };
 const view = { cx: 0, cy: 0, scale: 1 };
 let camFollow = true, debug = false, showDistricts = false, zoom = 1.9;
-let vis = null, npcsBy = null, DROID = null;
+let vis = null, npcsBy = null, DROID = null, fogCv = null;
+const paintCache = new Map();   // `${ix},${iy},${stratum}` → offscreen canvas (the v101 retile+bake)
+const stratOf = () => cells[state.gi].z >= m.thickness / 2 ? 'U' : 'L';
+const hueOf = (key) => threadColor(threads.get(key));
+// bake at most ONE paint-chunk per frame, nearest-first, only what the viewport can reach
+function schedulePaint() {
+  if (!camFollow) return;
+  const PC = PAINT_DEFAULTS.chunk, s = stratOf(), me = cells[state.gi];
+  const rx = Math.min(CW / 2 / view.scale + PC * 0.5, FOG_R() + PC * 0.5);
+  const ix0 = Math.floor((view.cx - rx) / PC), ix1 = Math.floor((view.cx + rx) / PC);
+  const iy0 = Math.floor((view.cy - rx) / PC), iy1 = Math.floor((view.cy + rx) / PC);
+  let best = null, bd = Infinity;
+  for (let iy = iy0; iy <= iy1; iy++) for (let ix = ix0; ix <= ix1; ix++) {
+    const key = ix + ',' + iy + ',' + s;
+    if (paintCache.has(key)) continue;
+    const cx = (ix + 0.5) * PC, cy = (iy + 0.5) * PC, d = (cx - me.x) ** 2 + (cy - me.y) ** 2;
+    if (d < bd) { bd = d; best = { ix, iy, key }; }
+  }
+  if (!best) return;
+  const plan = planChunk(world, best.ix, best.iy, s);
+  paintCache.set(best.key, plan.tiles.length ? { cv: bakeChunk(world, plan, { hueOf, seed: world.seed }), x0: best.ix * PC, y0: best.iy * PC } : { cv: null });
+  if (paintCache.size > 48) paintCache.delete(paintCache.keys().next().value);   // LRU-ish bound
+}
 
 const keyOf = (gi) => world.walk.keyOf(gi);
 const curThread = () => threads.get(state.key);
@@ -185,16 +208,8 @@ function render(agents) {
   ctx.fillStyle = 'rgba(9,12,17,0.6)'; ctx.fill();
   ctx.strokeStyle = rgba([120, 142, 172], 0.35); ctx.lineWidth = 1.6 / view.scale; ctx.stroke();
   ctx.strokeStyle = 'rgba(30,37,48,0.28)'; ctx.lineWidth = 1 / view.scale; ctx.stroke(subPath);
-  if (showDistricts || !camFollow) {
-    ctx.lineWidth = 1.4 / view.scale; ctx.setLineDash([8 / view.scale, 7 / view.scale]);
-    world.districts.hexes.forEach((h, i) => {
-      ctx.beginPath(); h.forEach((v, k) => k ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1])); ctx.closePath();
-      ctx.strokeStyle = rgba(mix(TEAL, [120, 142, 172], 0.55), i === districtOf(state.gi) ? 0.6 : 0.24); ctx.stroke();
-    });
-    ctx.setLineDash([]);
-  }
-  // FLOORS — every visible chamber in its OWNING THREAD'S solid hue (the thread persists and
-  // bends out; the office structure shows as shading: hall darker, rooms lighter, light pools)
+  // FLOORS (the coarse chamber layer — the fallback under the paint, and the god-lens view).
+  // Drawn at full value; the FOG MASK below does all the fading, so paint and fallback fade alike.
   for (const c of cells) {
     const v = vOf(c.gi);
     if (v <= 0.02 || !inView(c.gi)) continue;
@@ -205,12 +220,10 @@ function render(agents) {
     const shade = rid === HALL ? 0.30 : 0.52 + (off.rooms[roomIdxOf(off, rid)] || { shade: 0 }).shade;
     const g = 0.34 + 0.66 * Math.min(1, lum);
     const base = mix(DARK, hue, shade);
-    ctx.globalAlpha = Math.min(1, v);
     ctx.fillStyle = rgba([base[0] * g, base[1] * g, base[2] * g], 1);
     ctx.fill(p);
   }
-  ctx.globalAlpha = 1;
-  // WALLS — the trimmed pieces; alpha follows the brighter flank's visibility (fade with the map)
+  // WALLS — the trimmed pieces (hidden under the paint layer where a chunk is baked)
   ctx.lineCap = 'round'; ctx.lineWidth = m.pitch * 0.13;
   for (const s of world.walls) {
     const v = Math.max(vOf(s.a), s.b >= 0 ? vOf(s.b) : 0);
@@ -218,7 +231,7 @@ function render(agents) {
     const mx = (s.x1 + s.x2) / 2, my = (s.y1 + s.y2) / 2;
     if (mx < vx0 || mx > vx1 || my < vy0 || my > vy1) continue;
     const offA = keyOf(s.a) && world.office(keyOf(s.a)), lum = offA ? (offA.lum.get(s.a) || 0) : 0;
-    ctx.strokeStyle = rgba(mix(WALL, INK, 0.07 + clamp(lum, 0, 1) * 0.24), 0.9 * v);
+    ctx.strokeStyle = rgba(mix(WALL, INK, 0.07 + clamp(lum, 0, 1) * 0.24), 0.9);
     ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke();
   }
   // DOOR THRESHOLDS — warm markers in the gaps (K-doors ringed gold: another thread beyond)
@@ -226,11 +239,49 @@ function render(agents) {
     const v = Math.max(vOf(p.a), vOf(p.b));
     if (v <= 0.05) continue;
     const mx = p.x, my = p.y; if (mx < vx0 || mx > vx1 || my < vy0 || my > vy1) continue;
-    ctx.globalAlpha = v;
     ctx.fillStyle = rgba(DOOR_RGB, 0.95); ctx.beginPath(); ctx.arc(p.x, p.y, m.pitch * 0.11, 0, 7); ctx.fill();
     if (p.kind === 'K') { ctx.strokeStyle = rgba(GOLD, 0.85); ctx.lineWidth = 1.6 / view.scale; ctx.beginPath(); ctx.arc(p.x, p.y, m.pitch * 0.19, 0, 7); ctx.stroke(); }
   }
-  ctx.globalAlpha = 1;
+  // THE PAINT — the v101 retile+bake, chunked by sight (covers the coarse layers where ready)
+  if (camFollow) {
+    const PC = PAINT_DEFAULTS.chunk, s = stratOf();
+    for (const [k, pc] of paintCache) {
+      if (!pc.cv || !k.endsWith(',' + s)) continue;
+      if (pc.x0 + PC < vx0 || pc.x0 > vx1 || pc.y0 + PC < vy0 || pc.y0 > vy1) continue;
+      ctx.drawImage(pc.cv, pc.x0, pc.y0, PC, PC);
+    }
+  }
+  // THE FOG MASK — visibility does the fading here, over paint and fallback alike (no memory).
+  // Gap-free by construction: an offscreen sheet of darkness with holes PUNCHED where you can see
+  // (destination-out, alpha = visibility) — the unknown is dark even where the tiling has slivers.
+  if (camFollow && fogCv) {
+    const fc = fogCv.getContext('2d');
+    fc.setTransform(DPR, 0, 0, DPR, 0, 0);
+    fc.globalCompositeOperation = 'source-over';
+    fc.clearRect(0, 0, CW, CH);
+    fc.fillStyle = 'rgba(4,5,10,0.97)'; fc.fillRect(0, 0, CW, CH);
+    fc.setTransform(DPR * view.scale, 0, 0, DPR * view.scale, DPR * (CW / 2 - view.cx * view.scale), DPR * (CH / 2 - view.cy * view.scale));
+    fc.globalCompositeOperation = 'destination-out';
+    for (const c of cells) {
+      const v = vis.v[c.gi];
+      if (v <= 0.02 || !inView(c.gi)) continue;
+      const p = cellPath.get(c.gi); if (!p) continue;
+      fc.fillStyle = `rgba(0,0,0,${Math.min(1, v)})`;
+      fc.fill(p);
+    }
+    fc.globalCompositeOperation = 'source-over';
+    screenT();
+    ctx.drawImage(fogCv, 0, 0, CW, CH);
+    worldT();
+  }
+  if (showDistricts || !camFollow) {
+    ctx.lineWidth = 1.4 / view.scale; ctx.setLineDash([8 / view.scale, 7 / view.scale]);
+    world.districts.hexes.forEach((h, i) => {
+      ctx.beginPath(); h.forEach((v, k) => k ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1])); ctx.closePath();
+      ctx.strokeStyle = rgba(mix(TEAL, [120, 142, 172], 0.55), i === districtOf(state.gi) ? 0.6 : 0.24); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  }
   // COMPONENTS (v101 superformula deco medallions — luminescence from construction), WALL LAMPS
   // (sconce/coral/crystal, drawn growing inward off the membrane, glowing in the room's hue) and
   // BOLLARDS — the light sources, seen only where you see the floor
@@ -374,7 +425,7 @@ cv.addEventListener('pointerdown', (e) => {
 });
 cv.addEventListener('wheel', (e) => { e.preventDefault(); const f = Math.exp(-e.deltaY * 0.0012); if (camFollow) zoom = Math.max(0.25, Math.min(5, zoom * f)); else view.scale = Math.max(0.15, Math.min(5, view.scale * f)); }, { passive: false });
 function setCam(follow) { camFollow = follow; $('cam').textContent = follow ? '⊕ follow' : '⬡ god'; $('cam').classList.toggle('on', follow); if (follow) { view.scale = zoom; const c = cells[state.gi]; view.cx = c.x; view.cy = c.y; } else fitChunk(); }
-function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; if (m && !camFollow) fitChunk(); }
+function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; if (!fogCv) fogCv = document.createElement('canvas'); fogCv.width = cv.width; fogCv.height = cv.height; if (m && !camFollow) fitChunk(); }
 addEventListener('resize', resize);
 if ($('cam')) $('cam').addEventListener('click', () => setCam(!camFollow));
 if ($('dbg')) $('dbg').addEventListener('click', () => { debug = !debug; $('dbg').classList.toggle('on', debug); });
@@ -385,6 +436,7 @@ function loop() {
   if (state.walk && frameN % 4 === 0) { state.walk.i++; if (state.walk.i < state.walk.path.length) arrive(state.walk.path[state.walk.i]); else state.walk = null; }
   if (camFollow && state.gi >= 0) { view.scale = zoom; const c = cells[state.gi]; view.cx += (c.x - view.cx) * 0.2; view.cy += (c.y - view.cy) * 0.2; }
   updateVis(frameN);
+  if (frameN > 30) schedulePaint();   // one retile+bake per frame, after the first fade settles
   const agents = stepNPCs();
   render(agents);
   if (frameN % 30 === 0) refreshSightList();   // the in-sight rail tracks what you can see
