@@ -58,6 +58,19 @@
 > home → work → third place. Chunks bake once on first sight (≈150 ms, one per frame, LRU-capped) into offscreen
 > canvases per stratum; the LOS fog composites above as a gap-free destination-out mask, so the paint fades exactly
 > like the world. The plaza paints kind-locally (U = the white concourse), matching the sight rule — no confetti.
+>
+> **THE POCKET DIMENSION (`pocket.html` · kernel `pocketweave.js`, proof `test/pocket.selftest.mjs`).** The honest
+> cheat: true metric scale was never load-bearing, so each thread becomes a POCKET — a nave-scale strip floor solved
+> by the v100 rooms-and-concourse engine and painted by the VERBATIM vendored `v101/skin.js#paintChunk` (the full
+> skin the foam could never feed). The TOPOLOGY is exact and purely analytic (no foam needed — `buildGeometry` +
+> `weaveLines` only, ~ms): every K(6,8) crossing is a STATION solved in closed form (`solveStations`) with an exact
+> rf, over/under parity (which wall the door is on) and district (arches along the strip); doors sit in TRUE-ARC
+> order; crossing lands you at the RECIPROCAL station and crossing back returns you (involution, pinned). The hub
+> ends attach to two COMMONS pockets (the nave pattern) so the plazas stay walked; one-door survives by
+> construction. Walking/fog/pathing are v100's own kit (`buildWalk`/`pathFind`/`sightBall` — vision flows the
+> concourse and through doors); residents are sprite people on the walk graph. Pockets solve lazily per thread,
+> deterministic from (seed, threadKey). `office.html` remains the ANALYTIC MAP layer (cross-linked both ways) —
+> same world, two charts: the map that tells the truth about the tangle, and the floor you can actually live in.
 
 > **THE ONE-DOOR RESOLUTION (`onedoor.html` · `rind.mino.mobi/ops/onedoor.html`; kernel `onedoor.js`, proof
 > `test/onedoor.selftest.mjs`).** The hard spec line — *wayfinding from ANY point in the chunk to ANY other point

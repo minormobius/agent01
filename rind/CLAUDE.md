@@ -166,6 +166,7 @@ node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no
 node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any→any ≤1 door incl. hubs (two concourses)
 node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
 node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR (god-view): v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
+node rind/ops/test/pocket.selftest.mjs             # ★ THE POCKET DIMENSION: the weave's exact topology at nave scale (48 analytic stations, reciprocity, arc order, one-door)
 node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office, over SEVEN HEXAGONS; line-of-sight (walls hide, doors spill); crossing is a no-op walk
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
