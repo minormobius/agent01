@@ -56,6 +56,7 @@ independent witnesses, so alibis can neither be trusted nor falsified).
 |---|---|
 | `casegen.js` | the kernel — schedules, grievances, ground truth, clue planting, the solvability oracle, the chain. Pure, zero-DOM. |
 | `index.html` + `app.js` | the viewer — presentation only; all logic is kernel output |
+| `docs/index.html` | **live documentation** (`/case/docs/`) — the whole goss→case stack explained, with figures computed in-browser by the real kernels (society vitals, sealed-vs-unified bars, case № 1's closure replayed clue by clue, a four-case chain run). Change seed/substrate in its topbar and the page recomputes. |
 | `test/casegen.selftest.mjs` | 23 checks — determinism, closure ≡ {culprit}, culprit never eliminated, alibi honesty, pacing, chain scars, cast-once identity, 10-substrate coverage |
 
 ## Where this goes next
