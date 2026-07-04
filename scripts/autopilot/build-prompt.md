@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-07-03 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-07-04 by build-brief.mjs — do not edit by hand._
 
 **Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, arena, ask, astro, atlas, atmosphere, atproto-data, aub, audio, auto, axial, aztec, b, bakery, basket, beelix, biome, bisk, bogo, borges, borsuk, bounty, branwen, brawl, breeder, cable, canvas, capset, cards, cat, chapter, chess, clock, cluster, corn, crm, crucible, culhwch, cult, curve, data, deck, density, descent, diffract, disk, docs, draw, duck, dyad, echo, econ, elements, empathy, emsim, erdos, fable, feedgen, finance, fixture, flights, flogame, flotorus, flow, flows, fluoddity, fodder, font, forest, forge, fractal, functions, g, gacha, gallery, games, gantry, garden, gawain, gc, gen, geomancy, geometry, globe, golf, goss, graph, grow, guthkatz, hadwiger, hand, heilbronn, helix, history, hoop, hoop-backend, hoop-history, horned, hotnot, hourglass, iching, inat, infill, ink, inpac, io, iris, ising, isopod, item, j, js, judge, juice, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, mappa, markov, math, meander, mega, mmo, modulo, mol, mole, monthly, morphyx, music, name, names, noise, notes, novelty, ocr, ops, orb, orfeo, org, orrery, os, over, owain, pac, packages, paint, pds, pendragon, phasemap, photo, phylo, phylofiction, pizza, playground, pm, pod, pokemon, polis, poll, poly, post01, prism, prop, proteus, pwyll, quad, quarter, radial, range, read, recipe, redact, rind, rite, runner, scope, scripts, seek, selection, ship, signal, soil, spark, speclab, splice, sprite, squares, src, sticks, stocks, story, stretch, swarm, swarmclip, swarmread, swarmtext, sweat, szemeredi-trotter, tabard, tablet, tabletilt, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, tetro, thread, tide, time, tjs, torpac, torus, track, traffic, trainer, vault, viazovska, vitamerlini, voronoi, wars, wave, wc, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
 
 **Catalog saturation** (sites per category): games 66, bluesky 60, data 54, tools 37, work 7.
 
-**Neighborhood spark** (bisk 2026-07-03, 100 members / 187 posts):
+**Neighborhood spark** (bisk 2026-07-04, 100 members / 253 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: norv, atproto, fable
-- Top post: "Companies ”voluntarily” giving the US shares to avoid making the president mad is among the worst forms of capitalism I " — @eugenevinitsky.bsky.social
+- Distinctive words: sveltesky, letta, bluesky
+- Top post: "coming soon: automatic PDS detection. selfhosters rejoice!" — @samuel.fm
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
