@@ -14,6 +14,9 @@
 
 import { buildOfficeWorld, HALL, plazaRf } from './officeweave.js';
 import { buildPolyGenome, polyFrame, FAMILIES } from './sprites/poly.js';
+import { buildGenome, frameRects, dirFromKey, hexHue } from './sprites/core.js';
+import { drawDevice } from './v101/v5/deco.js';
+import { drawWallLight } from './v101/v5/lights.js';
 
 const $ = (id) => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -84,15 +87,39 @@ const P = (x, y) => [CW / 2 + (x - view.cx) * view.scale, CH / 2 + (y - view.cy)
 const worldT = () => ctx.setTransform(DPR * view.scale, 0, 0, DPR * view.scale, DPR * (CW / 2 - view.cx * view.scale), DPR * (CH / 2 - view.cy * view.scale));
 const screenT = () => ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
-// ── NPCs: one small crew per thread, persistent (they live there whether you look or not) ──
+// ── NPCs: one small crew per thread, persistent (they live there whether you look or not).
+// Residents are v101 SPRITE PEOPLE: a seed-stable pixel genome roled to their HOME room, walking a
+// commute loop home → work → third place (the grand room) through the walled office. Droids stay
+// the poly spiderbots on production threads. ──
+const DKEYS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+const dirKeyOf = (dx, dy) => { if (!dx && !dy) return 'S'; let k = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)); k = ((k % 8) + 8) % 8; return DKEYS[k]; };
 function ensureNPCs(key) {
   if (npcsBy.has(key)) return npcsBy.get(key);
   const t = threads.get(key), off = world.office(key), droid = t.kind === 'prod';
   if (!DROID) DROID = buildPolyGenome('rind-office', { ...FAMILIES.spiderbot, w: 20, h: 20 });
   const list = [];
-  const roomCell = () => { const rs = off.rooms; if (!rs.length) { const a = [...t.cells]; return a[(Math.random() * a.length) | 0]; } const r = rs[(Math.random() * rs.length) | 0]; return r.cells[(Math.random() * r.cells.length) | 0]; };
+  const rs = off.rooms;
+  const cellIn = (r, rng) => r.cells[(rng() * r.cells.length) | 0];
+  const roomCell = () => { if (!rs.length) { const a = [...t.cells]; return a[(Math.random() * a.length) | 0]; } const r = rs[(Math.random() * rs.length) | 0]; return r.cells[(Math.random() * r.cells.length) | 0]; };
+  const homes = rs.filter((r) => r.role === 'dwell'), works = rs.filter((r) => r.role !== 'dwell'), grand = rs.find((r) => r.grand);
   const n = Math.min(8, Math.max(4, (t.cells.size / 80) | 0));
-  for (let i = 0; i < n; i++) { const gi = roomCell(); list.push({ gi, x: cells[gi].x, y: cells[gi].y, bx: cells[gi].x, by: cells[gi].y, sepx: 0, sepy: 0, path: [gi], seg: 0, prog: 0, dwell: (Math.random() * 300) | 0, droid, ph: i * 1.7, off, roomCell }); }
+  for (let i = 0; i < n; i++) {
+    const id = `rind-office:${world.seed}:${key}#${i}`;
+    let stops = null, role = 'move', genome = null;
+    if (!droid && rs.length) {
+      // a deterministic person: home dwelling (or any room), their workplace, their third place
+      const h = ((x) => { let s = 0; for (const ch of x) s = (s * 31 + ch.charCodeAt(0)) >>> 0; return s; })(id);
+      const rng = (() => { let a = h; return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t2 = Math.imul(a ^ (a >>> 15), 1 | a); t2 = (t2 + Math.imul(t2 ^ (t2 >>> 7), 61 | t2)) ^ t2; return ((t2 ^ (t2 >>> 14)) >>> 0) / 4294967296; }; })();
+      const home = homes.length ? homes[(rng() * homes.length) | 0] : rs[(rng() * rs.length) | 0];
+      const work = works.length ? works[(rng() * works.length) | 0] : home;
+      role = work.role;
+      stops = [cellIn(home, rng), cellIn(work, rng)];
+      if (grand && grand !== work) stops.push(cellIn(grand, rng));
+      genome = buildGenome(id, { role, size: 13 });
+    }
+    const gi = stops ? stops[0] : roomCell();
+    list.push({ gi, x: cells[gi].x, y: cells[gi].y, bx: cells[gi].x, by: cells[gi].y, sepx: 0, sepy: 0, path: [gi], seg: 0, prog: 0, dwell: (Math.random() * 300) | 0, droid, ph: i * 1.7, off, roomCell, stops, leg: 0, genome, dir: 'S', phase: 0 });
+  }
   npcsBy.set(key, list);
   return list;
 }
@@ -114,11 +141,17 @@ function stepNPCs() {
     if ((nn.bx - me.x) ** 2 + (nn.by - me.y) ** 2 > R2) continue;   // far agents stay frozen
     if (nn.dwell > 0) { nn.dwell--; continue; }
     if (nn.seg >= nn.path.length - 1) {
-      for (let k = 0; k < 6; k++) { const dst = nn.roomCell(); const p = nn.off.pathWithin(nn.gi, dst, true); if (p && p.length > 1) { nn.path = p; nn.seg = 0; nn.prog = 0; break; } }
-      nn.dwell = 120 + ((Math.random() * 400) | 0); continue;
+      // residents walk their commute loop; droids haul between random work cells
+      for (let k = 0; k < 6; k++) {
+        const dst = nn.stops ? nn.stops[(nn.leg = (nn.leg + 1) % nn.stops.length)] : nn.roomCell();
+        const p = nn.off.pathWithin(nn.gi, dst, true);
+        if (p && p.length > 1) { nn.path = p; nn.seg = 0; nn.prog = 0; break; }
+      }
+      nn.dwell = (nn.stops ? 300 : 120) + ((Math.random() * (nn.stops ? 900 : 400)) | 0); continue;
     }
     nn.prog += nn.droid ? 0.05 : 0.035; if (nn.prog >= 1) { nn.prog = 0; nn.seg++; nn.gi = nn.path[Math.min(nn.seg, nn.path.length - 1)]; }
     const a = cells[nn.path[nn.seg]], b = cells[nn.path[Math.min(nn.seg + 1, nn.path.length - 1)]];
+    nn.dir = dirKeyOf(b.x - a.x, b.y - a.y); nn.phase += 0.16;
     nn.bx = a.x + (b.x - a.x) * nn.prog; nn.by = a.y + (b.y - a.y) * nn.prog;
   }
   // v101 npc.js's boids separation, inlined: render point = base + clamped push, so residents
@@ -198,37 +231,45 @@ function render(agents) {
     if (p.kind === 'K') { ctx.strokeStyle = rgba(GOLD, 0.85); ctx.lineWidth = 1.6 / view.scale; ctx.beginPath(); ctx.arc(p.x, p.y, m.pitch * 0.19, 0, 7); ctx.stroke(); }
   }
   ctx.globalAlpha = 1;
-  // COMPONENTS + BOLLARDS — the light sources, seen only where you see the floor
+  // COMPONENTS (v101 superformula deco medallions — luminescence from construction), WALL LAMPS
+  // (sconce/coral/crystal, drawn growing inward off the membrane, glowing in the room's hue) and
+  // BOLLARDS — the light sources, seen only where you see the floor
   for (const key of threads.keys()) {
     const off = world.office(key);
     for (const r of off.rooms) {
       const v = vOf(r.compGi); if (v <= 0.15 || !inView(r.compGi)) continue;
-      const c = cells[r.compGi], col = hex(r.color), rad = m.pitch * (r.grand ? 2.2 : 1.5);
+      const c = cells[r.compGi], col = hex(r.color), lum = off.lum.get(r.compGi) || 0;
+      const rad = m.pitch * (r.grand ? 2.2 : 1.5) * (0.7 + 0.5 * r.emit);
       ctx.globalAlpha = v;
       const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, rad);
-      g.addColorStop(0, rgba(col, r.grand ? 0.32 : 0.2)); g.addColorStop(1, rgba(col, 0));
+      g.addColorStop(0, rgba(col, (r.grand ? 0.3 : 0.18) * (0.5 + r.emit))); g.addColorStop(1, rgba(col, 0));
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x, c.y, rad, 0, 7); ctx.fill();
-      ctx.beginPath(); ctx.arc(c.x, c.y, m.pitch * (r.grand ? 0.30 : 0.22), 0, 7);
-      ctx.fillStyle = rgba(mix(col, INK, 0.25), 0.95); ctx.fill();
-      ctx.strokeStyle = rgba(GOLD, r.grand ? 0.9 : 0.45); ctx.lineWidth = 1.4 / view.scale; ctx.stroke();
+      drawDevice(ctx, c.x, c.y, m.pitch * (r.grand ? 0.58 : 0.42), r.deco, { lit: Math.min(1.4, 0.5 + lum * 0.6 + r.emit * 0.35), accent: r.color });
     }
     for (const e of off.emitters) {
-      if (e.kind !== 'bollard') continue;
-      const v = vOf(e.gi); if (v <= 0.15 || !inView(e.gi)) continue;
-      ctx.globalAlpha = v;
-      const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, m.pitch * 1.2);
-      g.addColorStop(0, rgba(GOLD, 0.2)); g.addColorStop(1, rgba(GOLD, 0));
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, e.y, m.pitch * 1.2, 0, 7); ctx.fill();
-      ctx.fillStyle = rgba(GOLD, 0.85); ctx.beginPath(); ctx.arc(e.x, e.y, m.pitch * 0.07, 0, 7); ctx.fill();
+      const v = vOf(e.gi);
+      if (e.kind === 'lamp') {
+        if (v <= 0.15 || !inView(e.gi)) continue;
+        const lum = off.lum.get(e.gi) || 0;
+        ctx.globalAlpha = v;
+        drawWallLight(ctx, e, { hue: hexHue(e.color), lit: Math.min(1.2, 0.55 + lum * 0.6) });
+      } else if (e.kind === 'bollard') {
+        if (v <= 0.15 || !inView(e.gi)) continue;
+        ctx.globalAlpha = v;
+        const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, m.pitch * 1.2);
+        g.addColorStop(0, rgba(GOLD, 0.2)); g.addColorStop(1, rgba(GOLD, 0));
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, e.y, m.pitch * 1.2, 0, 7); ctx.fill();
+        ctx.fillStyle = rgba(GOLD, 0.85); ctx.beginPath(); ctx.arc(e.x, e.y, m.pitch * 0.07, 0, 7); ctx.fill();
+      }
     }
   }
   ctx.globalAlpha = 1;
   if (debug && state.walk) { const pa = state.walk.path; ctx.beginPath(); for (let i = Math.max(0, state.walk.i); i < pa.length; i++) { const c = cells[pa[i]]; i === Math.max(0, state.walk.i) ? ctx.moveTo(c.x, c.y) : ctx.lineTo(c.x, c.y); } ctx.strokeStyle = rgba([120, 224, 180], 0.9); ctx.lineWidth = 3; ctx.stroke(); }
-  // NPCs — only the ones you can see
+  // NPCs — only the ones you can see (sprite people on white threads, droids on production)
   for (const nn of agents) {
     const v = vOf(nn.gi); if (v <= 0.25 || !inView(nn.gi)) continue;
     ctx.globalAlpha = v;
-    if (nn.droid) drawDroidAt(nn); else drawPerson(nn.x, nn.y, m.pitch * 0.26);
+    if (nn.droid) drawDroidAt(nn); else if (nn.genome) drawResident(nn); else drawPerson(nn.x, nn.y, m.pitch * 0.26);
   }
   ctx.globalAlpha = 1;
 
@@ -253,6 +294,13 @@ function render(agents) {
 }
 const roomIdxCache = new Map();
 function roomIdxOf(off, rid) { let i = roomIdxCache.get(off); if (!i) { i = new Map(off.rooms.map((r, k) => [r.id, k])); roomIdxCache.set(off, i); } return i.get(rid); }
+// a v101 pixel person: seed-stable genome, 8 facings, walk-cycle pose — drawn at ~0.42·pitch tall
+function drawResident(nn) {
+  const g = nn.genome, N = g.size, s = (m.pitch * 0.42) / N;
+  ctx.fillStyle = 'rgba(4,6,10,0.45)'; ctx.beginPath(); ctx.ellipse(nn.x, nn.y + N * s * 0.34, N * s * 0.3, N * s * 0.16, 0, 0, 7); ctx.fill();
+  const px = frameRects(g, dirFromKey(nn.dir), nn.phase);
+  for (const q of px) { ctx.fillStyle = q.c; ctx.fillRect(nn.x + (q.x - N / 2) * s, nn.y + (q.y - N / 2) * s, s + 0.12, s + 0.12); }
+}
 function drawPerson(x, y, r) {
   const col = [206, 214, 222];
   ctx.fillStyle = 'rgba(4,6,10,0.55)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.15, r * 0.5, r * 0.72, 0, 0, 7); ctx.fill();

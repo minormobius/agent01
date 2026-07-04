@@ -103,6 +103,21 @@ ok(grandOk, 'the nexus room is the grand anchor (GRAND role on whites, the engin
 ok(litOk, 'every room component is lit (the baked pool reaches it)');
 ok(roleOk, 'every office role resolves to a v100 glyph');
 
+// v101 art genomes: every room carries a deco component (superformula genome + derived emit)
+// and grows at least one wall lamp on its membrane
+{
+  let decoOk = true, lampOk = true;
+  for (const t of threads.values()) {
+    const off = world.office(t.key);
+    for (const r of off.rooms) {
+      if (!r.deco || !(r.deco.sym >= 3) || !(r.emit > 0 && r.emit <= 1)) decoOk = false;
+      if (!r.lamps || !r.lamps.length || !r.lamps[0].model) lampOk = false;
+    }
+  }
+  ok(decoOk, 'every room has a deco component genome with construction-derived emit');
+  ok(lampOk, 'every room grows at least one wall lamp (v101 sconce/coral/crystal genome)');
+}
+
 // traffic sizing (v101): busy civic hubs claim more chambers than quiet rooms, in aggregate
 {
   const mean = (roles) => { let s = 0, n = 0; for (const r of roles) for (const v of roleSizes.get(r) || []) { s += v; n++; } return n ? s / n : 0; };

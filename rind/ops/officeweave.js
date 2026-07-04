@@ -38,6 +38,8 @@ import { certify } from './onedoor.js';
 import { ROLES } from './v100/econ.js';
 import { assignZones, mulberry32, clipCell } from './v100/voronoi.js';
 import { TRAFFIC_FOOTPRINT, GRAND_ROLES, MIN_ROOM } from './v101/rooms.js';
+import { deviceGenome } from './v101/v5/deco.js';
+import { lightGenome } from './v101/v5/lights.js';
 
 const TAU = Math.PI * 2;
 export const SEVEN = Math.sqrt(7);                       // aperture-7: area ×7 ⇒ circumradius ×√7
@@ -183,7 +185,9 @@ function buildOfficeFor(world, t) {
     }
   }
 
-  // finalize rooms: centroid, glyph, colour, shade, residents
+  // finalize rooms: centroid, glyph, colour, shade, residents — and the v101 COMPONENT genome
+  // (a superformula deco medallion whose LUMINESCENCE derives from its construction: higher
+  // symmetry / rosette / sunburst reads as more energised, so it glows brighter — skin.js's rule)
   const live = rooms.filter((r) => r.cells.length);
   for (const r of live) {
     let cx = 0, cy = 0; for (const g of r.cells) { cx += cells[g].x; cy += cells[g].y; }
@@ -194,6 +198,8 @@ function buildOfficeFor(world, t) {
     let best = r.cells[0], bd = Infinity;
     for (const g of r.cells) { const c = cells[g], d = (c.x - r.cx) ** 2 + (c.y - r.cy) ** 2; if (d < bd) { bd = d; best = g; } }
     r.compGi = best;   // the self-emitting central component sits here
+    r.deco = deviceGenome(mulberry32((sd ^ (r.id * 733 + 13)) >>> 0), {});
+    r.emit = Math.max(0.3, Math.min(1, 0.35 + (r.deco.sym / 12) * 0.5 + (r.deco.rosette ? 0.18 : 0) + (r.deco.sun ? 0.12 : 0)));
   }
 
   // 5. DOORS — one per spanning-tree edge of the region graph rooted at the hall, flattest first
@@ -239,15 +245,30 @@ function buildOfficeFor(world, t) {
     const p = []; for (let c = b; c !== -1; c = prev.get(c)) p.push(c); return p.reverse();
   };
 
-  // 6. BAKED LIGHT — components pool light in their room; bollards light the hall; the doors glow.
+  // 6. BAKED LIGHT — components pool light in their room; WALL LAMPS (v101 sconce/coral/crystal
+  // genomes, drawn by the page via drawWallLight) grow on each room's membrane in the room's hue;
+  // bollards light the hall; the doors glow.
   const emitters = [];
-  for (const r of live) emitters.push({ gi: r.compGi, x: cells[r.compGi].x, y: cells[r.compGi].y, kind: 'comp', room: r.id, color: r.color });
+  for (const r of live) emitters.push({ gi: r.compGi, x: cells[r.compGi].x, y: cells[r.compGi].y, kind: 'comp', room: r.id, color: r.color, emit: r.emit });
+  for (const r of live) {
+    const wallCells = r.cells.filter((g) => { for (const nb of stepAdj(g)) if (roomOf.get(nb) !== r.id) return true; return false; });
+    if (!wallCells.length) continue;
+    const first = wallCells[(rng() * wallCells.length) | 0], picks = [first];
+    if (wallCells.length > 3) { let far = first, fd = -1; const f = cells[first]; for (const g of wallCells) { const c = cells[g], d = (c.x - f.x) ** 2 + (c.y - f.y) ** 2; if (d > fd) { fd = d; far = g; } } if (far !== first) picks.push(far); }
+    r.lamps = [];
+    for (const g of picks) {
+      const c = cells[g]; let nx = r.cx - c.x, ny = r.cy - c.y; const L = Math.hypot(nx, ny) || 1; nx /= L; ny /= L;
+      const gm = lightGenome(rng), len = m.pitch * 0.55 * gm.len;
+      const lamp = { gi: g, x: c.x, y: c.y, nx, ny, len, model: gm, tip: { x: c.x + nx * len * 0.82, y: c.y + ny * len * 0.82 }, kind: 'lamp', room: r.id, color: r.color };
+      r.lamps.push(lamp); emitters.push(lamp);
+    }
+  }
   const bollardEvery = 3;
   spinePath.forEach((g, i) => { if (i % bollardEvery === 0) emitters.push({ gi: g, x: cells[g].x, y: cells[g].y, kind: 'bollard', room: HALL, color: '#f4bf62' }); });
   const lum = new Map(gis.map((g) => [g, 0]));
-  const R2c = (m.pitch * 3.2) ** 2, R2b = (m.pitch * 2.4) ** 2;
+  const R2c = (m.pitch * 3.2) ** 2, R2b = (m.pitch * 2.4) ** 2, R2l = (m.pitch * 2.6) ** 2;
   for (const e of emitters) {
-    const R2 = e.kind === 'comp' ? R2c : R2b;
+    const R2 = e.kind === 'comp' ? R2c : e.kind === 'lamp' ? R2l : R2b;
     for (const g of gis) {
       const z = roomOf.get(g), ez = e.room;
       if (z !== ez && !(z === HALL && e.kind === 'bollard')) continue;   // light pools per region
