@@ -151,7 +151,7 @@ function render() {
       const r = reciprocalDoor(world, state.key, d);
       if (r) {
         const tw = tb.p.walk, tx = tw.pos[2 * r.node], ty = tw.pos[2 * r.node + 1];
-        const pr = 64;
+        const pr = 46;   // sized to the half-width band — a doorway, not a window-wall
         ctx.save(); ctx.globalAlpha = Math.min(1, v) * 0.92;
         ctx.beginPath(); ctx.arc(x, y, pr, 0, 7); ctx.clip();
         ctx.translate(x - tx, y - ty);

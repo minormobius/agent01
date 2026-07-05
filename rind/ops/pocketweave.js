@@ -23,14 +23,14 @@
 
 import { buildGeometry, weaveLines } from './weave3d.js';
 import { solveChunk } from './v100/chunkgen.js';
-import { createWorld, addChunk, buildWalk } from './v100/manager.js';
+import { createWorld, addChunk, buildWalk, pathFind } from './v100/manager.js';
 import { districtCentres, SEVEN, OFFICE_DEFAULTS } from './officeweave.js';
 
 const TAU = Math.PI * 2;
 export const POCKET_DEFAULTS = {
   rings: 1, turnScale: 0.35, hexScale: SEVEN, NW: 6, NF: 8, layers: 8, flatR: 0.35,
   spacing: 150,                        // thin the (unused) prism nodes — only the analytic layer matters here
-  H: 440, margin: 150, perStation: 260, minW: 1500, maxW: 2800,
+  H: 220, margin: 150, perStation: 260, minW: 1500, maxW: 2800, alcove: 100, alcoveW: 0.032,
   cellSize: 16, roomSize: 15, concourseWidth: 2,
   commonsW: 940, commonsH: 640,
 };
@@ -105,17 +105,26 @@ function buildPocket(world, key) {
     const targetArc = Math.max(o.minW, Math.min(o.maxW, 400 + o.perStation * myStations.length));
     const sc = targetArc / arc.total, halfW = o.H / 2;
     const line = kind === 'white' ? (rf) => world.lines.lineW(idx, rf) : (rf) => world.lines.lineP(idx, rf);
-    const M2 = 56, spine = [];
+    const M2 = 72, spine = [];
     for (let i = 0; i <= M2; i++) { const rf = world.lines.flatR + (1 - world.lines.flatR) * i / M2, p = line(rf); spine.push({ rf, x: p[0] * sc, y: p[1] * sc }); }
     for (let i = 0; i <= M2; i++) { const a = spine[Math.max(0, i - 1)], b = spine[Math.min(M2, i + 1)], L = Math.hypot(b.x - a.x, b.y - a.y) || 1; spine[i].nx = -(b.y - a.y) / L; spine[i].ny = (b.x - a.x) / L; }
+    // STATION ALCOVES: the band is thin, and each portal bulges OFF the spiral on its parity side —
+    // a small lobe you walk OUT of the band to reach, so crossing reads as stepping into a room.
+    const uFlat = world.lines.flatR, uOfRf = (rf) => (rf - uFlat) / (1 - uFlat);
+    const bumpAt = (u, side) => {
+      let b = 0;
+      for (const st of myStations) { if ((st.over ? 1 : -1) !== side) continue; const d = Math.abs(u - uOfRf(st.rf)) / o.alcoveW; if (d < 1) b = Math.max(b, o.alcove * (1 - d) * (1 - d) * (3 - 2 * (1 - d) < 1 ? 1 : 1)); }
+      return b;
+    };
+    const pad = halfW + o.alcove;
     let mx = 1e9, my = 1e9, Mx = -1e9, My = -1e9;
-    for (const p of spine) { mx = Math.min(mx, p.x - halfW); my = Math.min(my, p.y - halfW); Mx = Math.max(Mx, p.x + halfW); My = Math.max(My, p.y + halfW); }
+    for (const p of spine) { mx = Math.min(mx, p.x - pad); my = Math.min(my, p.y - pad); Mx = Math.max(Mx, p.x + pad); My = Math.max(My, p.y + pad); }
     const sx = 30 - mx, sy = 30 - my;
     for (const p of spine) { p.x += sx; p.y += sy; }
     W = Mx - mx + 60; H = My - my + 60;
     const poly = [
-      ...spine.map((p) => ({ x: p.x + p.nx * halfW, y: p.y + p.ny * halfW })),
-      ...[...spine].reverse().map((p) => ({ x: p.x - p.nx * halfW, y: p.y - p.ny * halfW })),
+      ...spine.map((p, i) => ({ x: p.x + p.nx * (halfW + bumpAt(i / M2, 1)), y: p.y + p.ny * (halfW + bumpAt(i / M2, 1)) })),
+      ...[...spine].reverse().map((p, i) => { const u = (M2 - i) / M2; return { x: p.x - p.nx * (halfW + bumpAt(u, -1)), y: p.y - p.ny * (halfW + bumpAt(u, -1)) }; }),
     ];
     rec = solveChunk({ seed, foamSeed: seed, v2: true, poly, W, H, cellSize: o.cellSize, roomSize: o.roomSize, concourseWidth: o.concourseWidth, roleMix: kind === 'prod' ? PROD_MIX : null });
     rec._stations = myStations; rec._spine = spine; rec._halfW = halfW;
@@ -146,9 +155,22 @@ function buildPocket(world, key) {
     if (hub >= 0) { used.add(hub); pocket.hubDoor = hub; const d = { cell: hub, node: hub, toKey: kind === 'white' ? 'CW' : 'CP', station: null, label: 'the commons' }; pocket.doors.push(d); pocket.doorAt.set(hub, d); }
     let lastDistrict = -1;
     for (const s of rec._stations) {
-      const sp = at(uOf(s.rf)), side = s.over ? 1 : -1;
-      const x = sp.x + sp.nx * side * halfW * 0.72, y = sp.y + sp.ny * side * halfW * 0.72;
-      const cell = nearestRoad(rec, x, y, used);
+      const sp = at(uOf(s.rf)), side = s.over ? 1 : -1, reach = halfW + world.opts.alcove * 0.55;
+      const x = sp.x + sp.nx * side * reach, y = sp.y + sp.ny * side * reach;
+      // deepest WALKABLE cell of the alcove (concourse or doored room), REACHABILITY-CHECKED:
+      // rare solver offcuts leave an isolated pocket of cells — try nearest candidates until one
+      // actually walks from the hub door (deterministic; bounded).
+      const cand = [];
+      for (let i = 0; i < rec.cells.length; i++) {
+        if (used.has(i)) continue;
+        const rid = rec.roomOf[i];
+        if (!rec.road[i] && (rid < 0 || !rec.rooms[rid] || rec.rooms[rid].door < 0)) continue;
+        const c = rec.cells[i]; cand.push([((c.x - x) ** 2 + (c.y - y) ** 2), i]);
+      }
+      cand.sort((a, b) => a[0] - b[0]);
+      let cell = -1;
+      const src = pocket.hubDoor >= 0 ? pocket.hubDoor : (cand.length ? cand[0][1] : -1);
+      for (let t = 0; t < Math.min(14, cand.length); t++) { const i = cand[t][1]; if (src < 0 || i === src || pathFind(pocket.walk, src, i)) { cell = i; break; } }
       if (cell < 0) continue; used.add(cell);
       const toKey = (kind === 'white' ? 'P' + s.f : 'W' + s.w);
       const d = { cell, node: cell, toKey, station: s, label: toKey, x, over: s.over, district: s.district };
