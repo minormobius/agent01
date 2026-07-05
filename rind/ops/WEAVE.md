@@ -68,8 +68,18 @@
 > order; crossing lands you at the RECIPROCAL station and crossing back returns you (involution, pinned). The hub
 > ends attach to two COMMONS pockets (the nave pattern) so the plazas stay walked; one-door survives by
 > construction. Walking/fog/pathing are v100's own kit (`buildWalk`/`pathFind`/`sightBall` — vision flows the
-> concourse and through doors); residents are sprite people on the walk graph. Pockets solve lazily per thread,
-> deterministic from (seed, threadKey). `office.html` remains the ANALYTIC MAP layer (cross-linked both ways) —
+> concourse and through doors); residents are sprite people on the walk graph. **THE CHUNKS**: a thread is NOT one
+> monolithic solve — its spine is cut into 2–5 SEGMENTS (cuts snapped away from station alcoves), each solved
+> lazily as its own v100 chunk, but all sharing ONE `foamSeed` per thread so they slice the SAME global 3D Voronoi
+> foam: seams abut bit-identically (v101's voronoi-continuity discipline, applied to the faux threads). Each cut
+> carries one SEAM PORT at the spine point, `inherit`-ed by both sides, so the concourses meet across the seam
+> (a bulkhead doorway) and the walk stitches via `extendWalk`. Door placement is SEGMENT-LOCAL (anchored at the
+> hub end or the seam port) and therefore solve-order independent — a pocket first touched via its middle segment
+> (a door preview) places the same doors as one solved hub → rim; pinned. The page streams accordingly: enter a
+> pocket and only the segment you land in solves+bakes; the rest arrive one per interval; a door PREVIEW warms
+> exactly one segment of its target (the commons no longer swallows six whole bands). Clicking anywhere inside a
+> preview disc walks you to that portal and through — the whole peek is the affordance. Pockets are deterministic
+> from (seed, threadKey). `office.html` remains the ANALYTIC MAP layer (cross-linked both ways) —
 > same world, two charts: the map that tells the truth about the tangle, and the floor you can actually live in.
 
 > **THE ONE-DOOR RESOLUTION (`onedoor.html` · `rind.mino.mobi/ops/onedoor.html`; kernel `onedoor.js`, proof

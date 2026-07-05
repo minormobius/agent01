@@ -4,6 +4,11 @@
 // through doors; walls block it), and walks it with the v100 walk graph. Doors are nave doors; a
 // station door crosses to the reciprocal station of the other thread (fade out, fade in — the
 // no-memory rule covers the seam). The analytic map remains the truth: office.html is the map layer.
+//
+// STREAMING: a thread is 2–5 CHUNK SEGMENTS (pocketweave cuts the spine; one foamSeed per thread
+// keeps the voronoi continuous across seams). The page solves + bakes ONE segment at a time — the
+// segment you enter through first, the rest as you linger — and a door PREVIEW warms only the
+// single segment its reciprocal door sits in. The commons no longer swallows six whole bands.
 
 import { buildPocketWorld, reciprocalDoor } from './pocketweave.js';
 import { paintChunk } from './v101/skin.js';
@@ -23,7 +28,7 @@ const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[
 const INK = [232, 236, 244], GOLD = [244, 191, 98], TEAL = [127, 216, 208];
 
 let world, cur = null;                    // cur = the active pocket bundle
-const pockets = new Map();                // key → { p, paint, bake, cellPath, vis, npcs }
+const pockets = new Map();                // key → { p, bakes, cellPath, vis, ball, npcs }
 const state = { key: null, node: -1, walk: null, fade: 0, pending: null, lastInput: 0 };
 const view = { cx: 0, cy: 0, scale: 1 };
 let zoom = 1.15, DROID = null;
@@ -31,15 +36,51 @@ const SIGHT_HOPS = 20;   // restrictive — a room's worth of sight; the doors d
 
 const threadColor = (key) => key[0] === 'X' ? [222, 184, 116] : key === 'CW' ? TEAL : key === 'CP' ? [200, 150, 90] : key[0] === 'W' ? mix(hex(world.warps[+key.slice(1)].color), INK, 0.3) : hex(world.wefts[+key.slice(1)].color);
 
-// ── enter/build a pocket: solve, paint with the FULL v101 skin, bake once, arm the fog ──
+// ── bundles: a pocket SHELL now, chunks on demand ──
 function ensure(key) {
   let b = pockets.get(key);
   if (b) return b;
-  const p = world.pocket(key);
-  const paint = paintChunk(p.rec, {});
-  const scale = Math.min(2, 3400 / Math.max(p.W, p.H)), bake = document.createElement('canvas');
-  bake.width = Math.ceil(p.W * scale); bake.height = Math.ceil(p.H * scale);
-  const bc = bake.getContext('2d'); bc.scale(scale, scale);
+  b = { key, p: world.pocket(key), bakes: new Map(), cellPath: new Map(), vis: null, ball: new Set(), npcs: [] };
+  pockets.set(key, b);
+  if (pockets.size > 7) for (const k of pockets.keys()) { if (k !== state.key && k !== key) { pockets.delete(k); break; } }
+  return b;
+}
+function sync(b) {
+  const w = b.p.walk; if (!w) return;
+  if (!b.vis || b.vis.length < w.N) { const nv = new Float32Array(w.N); if (b.vis) nv.set(b.vis); b.vis = nv; }
+}
+// solve + bake ONE segment of a pocket (the streaming unit)
+function ensureSegB(b, si) {
+  const g = b.p.ensureSeg(si);
+  sync(b);
+  if (!b.bakes.has(g.chunkId)) bakeChunkOf(b, g.chunkId);
+  if (b === cur) refreshSight();
+  return g;
+}
+// which segment of the target does this door's preview need?
+function needSeg(tp, d) {
+  if (d.station && (d.toKey[0] === 'W' || d.toKey[0] === 'P')) return tp.segOf(d.station);
+  return 0;   // interfaces, commons, hub ends: segment 0
+}
+// the reciprocal door WITHOUT solving anything — null until the target segment exists
+function findRecip(tp, d) {
+  if (d.toKey[0] === 'X') return tp.doors.find((x) => x.toKey === state.key) || null;
+  if (d.station) return tp.doors.find((x) => x.station && x.station.w === d.station.w && x.station.f === d.station.f) || null;
+  if (state.key === 'CW' || state.key === 'CP') return tp.doors.find((x) => !x.station) || null;
+  return tp.doors.find((x) => x.toKey === state.key) || null;
+}
+
+// ── bake one chunk with the FULL v101 skin: retile, fixtures, sconces, deco components ──
+function bakeChunkOf(b, chunkId) {
+  if (b.bakes.has(chunkId)) return;
+  const rec = b.p.world.chunks[chunkId];
+  const paint = paintChunk(rec, {});
+  const m = 44, x0 = rec.region.x0 - m, y0 = rec.region.y0 - m;
+  const bw = rec.region.x1 - rec.region.x0 + 2 * m, bh = rec.region.y1 - rec.region.y0 + 2 * m;
+  const scale = Math.min(2, 3400 / Math.max(bw, bh));
+  const bake = document.createElement('canvas');
+  bake.width = Math.ceil(bw * scale); bake.height = Math.ceil(bh * scale);
+  const bc = bake.getContext('2d'); bc.scale(scale, scale); bc.translate(-x0, -y0);
   for (const c of paint.paintCells) { bc.fillStyle = c.color; bc.beginPath(); c.poly.forEach((v, i) => i ? bc.lineTo(v[0], v[1]) : bc.moveTo(v[0], v[1])); bc.closePath(); bc.fill(); }
   const scene = { paintCells: paint.paintCells, wallSpacing: paint.wallSpacing, roomSpacing: paint.roomSpacing };
   for (const F of paint.fixtures) drawWallFixture(bc, scene, F, { accent: F.accent, hue: F.hue, litAt: () => 0.9 });
@@ -49,27 +90,25 @@ function ensure(key) {
     bc.fillStyle = rgba(INK, 0.75); bc.font = '10px "JetBrains Mono", monospace'; bc.textAlign = 'center'; bc.textBaseline = 'middle';
     bc.fillText(c.glyph || '', c.cx, c.cy - c.r - 8);
   }
-  const cellPath = p.rec.cells.map((c) => { const path = new Path2D(); c.poly.forEach((v, i) => i ? path.lineTo(v[0], v[1]) : path.moveTo(v[0], v[1])); path.closePath(); return path; });
-  b = { key, p, paint, bake, scale, cellPath, vis: new Float32Array(p.walk.N), ball: new Set(), npcs: makeNPCs(key, p) };
-  pockets.set(key, b);
-  if (pockets.size > 7) for (const k of pockets.keys()) { if (k !== state.key && k !== key) { pockets.delete(k); break; } }
-  return b;
+  b.bakes.set(chunkId, { cv: bake, x0, y0, w: bw, h: bh });
+  b.cellPath.set(chunkId, rec.cells.map((c) => { const path = new Path2D(); c.poly.forEach((v, i) => i ? path.lineTo(v[0], v[1]) : path.moveTo(v[0], v[1])); path.closePath(); return path; }));
+  addNPCsForChunk(b, chunkId);
 }
 
 // ── residents: sprite people commuting room↔room on the walk graph; droids on the engine floors ──
-function makeNPCs(key, p) {
-  const droid = key[0] === 'P';
+function addNPCsForChunk(b, chunkId) {
+  const rec = b.p.world.chunks[chunkId], base = b.p.walk.base[chunkId];
+  const droid = b.key[0] === 'P';
   if (!DROID) DROID = buildPolyGenome('rind-pocket', { ...FAMILIES.spiderbot, w: 20, h: 20 });
-  const rooms = p.rec.rooms.filter((r) => r.door >= 0 && r.cells.length);
-  const out = [], n = Math.min(10, Math.max(4, (p.rec.cells.length / 260) | 0));
+  const rooms = rec.rooms.filter((r) => r.door >= 0 && r.cells.length).map((r) => ({ role: r.role, cells: r.cells.map((c) => base + c) }));
+  if (!rooms.length) return;
+  const w = b.p.walk, n = Math.min(6, Math.max(2, (rec.cells.length / 300) | 0));
   for (let i = 0; i < n; i++) {
-    const id = `pocket:${world.seed}:${key}#${i}`;
-    const role = rooms.length ? rooms[(i * 7) % rooms.length].role : 'move';
-    const home = rooms.length ? rooms[(i * 7) % rooms.length] : null;
-    const node = home ? home.cells[0] : 0;
-    out.push({ node, x: p.walk.pos[2 * node], y: p.walk.pos[2 * node + 1], path: null, seg: 0, prog: 0, dwell: (i * 97) % 300, dir: 'S', phase: 0, ph: i * 1.7, droid, rooms, genome: droid ? null : buildGenome(id, { role, size: 13 }) });
+    const id = `pocket:${world.seed}:${b.key}:${chunkId}#${i}`;
+    const home = rooms[(i * 7) % rooms.length];
+    const node = home.cells[0];
+    b.npcs.push({ node, x: w.pos[2 * node], y: w.pos[2 * node + 1], path: null, seg: 0, prog: 0, dwell: (i * 97) % 300, dir: 'S', phase: 0, ph: i * 1.7, droid, rooms, genome: droid ? null : buildGenome(id, { role: home.role, size: 13 }) });
   }
-  return out;
 }
 function stepNPCs(b) {
   const w = b.p.walk;
@@ -94,9 +133,9 @@ const DKEYS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
 const dirKeyOf = (dx, dy) => { if (!dx && !dy) return 'S'; let k = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)); k = ((k % 8) + 8) % 8; return DKEYS[k]; };
 
 // ── the fog: v100's sightBall — vision flows the concourse and through doors, walls block ──
-function refreshSight() { cur.ball = sightBall(cur.p.walk, state.node, SIGHT_HOPS); }
+function refreshSight() { if (state.node < 0) return; cur.ball = sightBall(cur.p.walk, state.node, SIGHT_HOPS); }
 function fadeVis() {
-  const v = cur.vis;
+  const v = cur.vis; if (!v) return;
   for (let i = 0; i < v.length; i++) { const t = cur.ball.has(i) ? 1 : 0; v[i] = t > v[i] ? Math.min(t, v[i] + 0.2) : Math.max(t, v[i] - 0.06); }
 }
 
@@ -104,19 +143,23 @@ function fadeVis() {
 function arrive(node) {
   if (node === state.node) return;
   state.node = node;
-  const d = cur.p.doorAt.get(cur.p.walk.nodeLocal[node]);
+  const d = cur.p.doorAt.get(node);
   if (d) { crossThrough(d); return; }
   refreshSight(); updateHUD();
 }
 function crossThrough(d) {
-  const r = reciprocalDoor(world, state.key, d);
+  const r = reciprocalDoor(world, state.key, d);   // lazily solves EXACTLY the segment we land in
   const quick = d.toKey[0] === 'X' || state.key[0] === 'X';   // foyer hops barely blink — it was already in view
   state.pending = { key: d.toKey, node: r ? r.node : 0, cap: quick ? 0.5 : 1 };
   state.walk = null;
 }
 function finishCross() {
   const { key, node } = state.pending; state.pending = null;
-  cur = ensure(key); state.key = key; state.node = node;
+  cur = ensure(key); state.key = key;
+  sync(cur);
+  const cid = cur.p.walk.nodeChunk[node];
+  if (!cur.bakes.has(cid)) bakeChunkOf(cur, cid);
+  state.node = node;
   cur.vis.fill(0); refreshSight();
   const w = cur.p.walk; view.cx = w.pos[2 * node]; view.cy = w.pos[2 * node + 1];
   updateHUD();
@@ -135,28 +178,22 @@ function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, CW, CH);
   const w = cur.p.walk;
   ctx.setTransform(DPR * view.scale, 0, 0, DPR * view.scale, DPR * (CW / 2 - view.cx * view.scale), DPR * (CH / 2 - view.cy * view.scale));
-  // the space BEYOND each door, drawn first — our own floor then covers it everywhere but the gap
+  // the space BEYOND each door, drawn first — our own floor then covers it everywhere but the gap.
+  // Alignment: our door == their door; every baked segment of the target draws at that offset.
   for (const d of cur.p.doors) {
     const v = cur.vis[d.node]; if (v <= 0.15) continue;
-    const tb = pockets.get(d.toKey); if (!tb) continue;
-    const r = reciprocalDoor(world, state.key, d); if (!r) continue;
+    const tb = pockets.get(d.toKey); if (!tb || !tb.p.walk || !tb.bakes.size) continue;
+    const r = findRecip(tb.p, d); if (!r) continue;
     const x = w.pos[2 * d.node], y = w.pos[2 * d.node + 1];
-    const tw = tb.p.walk, tx = tw.pos[2 * r.node], ty = tw.pos[2 * r.node + 1];
-    const S = d.toKey[0] === 'X' ? 210 : 150, sb = tb.scale;
+    const tw = tb.p.walk, ox = x - tw.pos[2 * r.node], oy = y - tw.pos[2 * r.node + 1];
+    const S = d.toKey[0] === 'X' ? 210 : 150;
     ctx.save(); ctx.globalAlpha = Math.min(1, v) * 0.92;
     ctx.beginPath(); ctx.arc(x, y, S * 0.95, 0, 7); ctx.clip();
-    // clip the source rect to the bake WITHOUT losing alignment (a naive clamp shifts the whole
-    // preview when the reciprocal door sits near the bake edge — every interface chamber does)
-    let sX = (tx - S) * sb, sY = (ty - S) * sb, sW = 2 * S * sb, sH = 2 * S * sb, dX = x - S, dY = y - S, dW = 2 * S, dH = 2 * S;
-    if (sX < 0) { dX -= sX / sb; dW += sX / sb; sW += sX; sX = 0; }
-    if (sY < 0) { dY -= sY / sb; dH += sY / sb; sH += sY; sY = 0; }
-    if (sX + sW > tb.bake.width) { const ov = sX + sW - tb.bake.width; sW -= ov; dW -= ov / sb; }
-    if (sY + sH > tb.bake.height) { const ov = sY + sH - tb.bake.height; sH -= ov; dH -= ov / sb; }
-    if (sW > 1 && sH > 1) ctx.drawImage(tb.bake, sX, sY, sW, sH, dX, dY, dW, dH);
+    for (const bk of tb.bakes.values()) ctx.drawImage(bk.cv, bk.x0 + ox, bk.y0 + oy, bk.w, bk.h);
     ctx.restore();
     d._peek = { x, y, S, v };
   }
-  ctx.drawImage(cur.bake, 0, 0, cur.p.W, cur.p.H);
+  for (const bk of cur.bakes.values()) ctx.drawImage(bk.cv, bk.x0, bk.y0, bk.w, bk.h);
   // district arches — the seven hexes read along the strip
   ctx.setLineDash([10, 8]); ctx.lineWidth = 1.6 / view.scale;
   for (const a of cur.p.arches) { ctx.strokeStyle = rgba(TEAL, 0.4); ctx.beginPath(); ctx.moveTo(a.x1, a.y1); ctx.lineTo(a.x2, a.y2); ctx.stroke(); }
@@ -193,7 +230,8 @@ function render() {
     const v = cur.vis[i]; if (v <= 0.02) continue;
     const x = w.pos[2 * i], y = w.pos[2 * i + 1];
     if (x < vx0 - 20 || x > vx1 + 20 || y < vy0 - 20 || y > vy1 + 20) continue;
-    fc.fillStyle = `rgba(0,0,0,${Math.min(1, v)})`; fc.fill(cur.cellPath[w.nodeLocal[i]]);
+    const paths = cur.cellPath.get(w.nodeChunk[i]); if (!paths) continue;
+    fc.fillStyle = `rgba(0,0,0,${Math.min(1, v)})`; fc.fill(paths[w.nodeLocal[i]]);
   }
   for (const d of cur.p.doors) {   // the doors breathe a soft hole in the fog — the foyer beyond shows through
     if (!d._peek) continue;
@@ -219,15 +257,16 @@ function render() {
 
 // ── HUD ──
 function updateHUD() {
-  const p = cur.p, local = p.walk.nodeLocal[state.node], rid = p.rec.roomOf[local];
-  const room = rid >= 0 ? p.rec.rooms[rid] : null;
+  const p = cur.p, w = p.walk, cid = w.nodeChunk[state.node], local = w.nodeLocal[state.node];
+  const rec = p.world.chunks[cid], rid = rec.roomOf[local];
+  const room = rid >= 0 ? rec.rooms[rid] : null;
   $('oname').textContent = world.label(state.key); $('oname').style.color = rgba(threadColor(state.key), 1);
   $('okind').textContent = state.key[0] === 'X' ? 'the INTERFACE — one chamber, shared by both threads'
     : state.key === 'CW' ? 'the commons — six white threads attach here' : state.key === 'CP' ? 'the works floor — eight engines attach here'
     : state.key[0] === 'W' ? 'white-collar ops · a pocket floor (walk it hub → rim)' : 'production · an engine floor (droids)';
   $('now').innerHTML = room ? `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.people && room.people.length ? room.people.length + ' resident(s)' : 'a work room'}</div>`
     : `<span class="role">the concourse</span><div class="sub">stations ahead — each door is another thread</div>`;
-  const seen = p.doors.filter((d) => cur.vis[d.node] > 0.2);
+  const seen = p.doors.filter((d) => cur.vis && d.node < cur.vis.length && cur.vis[d.node] > 0.2);
   $('doors').innerHTML = seen.length
     ? seen.map((d) => { const s = d.station, k = d.other || d.toKey; return `<div class="door" data-n="${d.node}"><span class="sw" style="background:${rgba(threadColor(k), 1)}"></span><span class="lab">${world.label(k)}</span><span class="rf">${s ? '⬡' + (s.district + 1) + (s.over ? ' · over' : ' · under') : 'hub'}</span></div>`; }).join('')
     : '<p style="margin:4px 0">no doors in sight — walk the concourse.</p>';
@@ -273,7 +312,7 @@ function slide() {
   const zHere = sp[k].z;
   let best = -1, bs = 0.45;
   for (const nb of w.adj[state.node]) {
-    if (cur.p.doorAt.has(w.nodeLocal[nb])) continue;              // gravity never pushes you through a door
+    if (cur.p.doorAt.has(nb)) continue;                           // gravity never pushes you through a door
     const nx2 = w.pos[2 * nb], ny2 = w.pos[2 * nb + 1];
     if (zAt(nx2, ny2) > zHere - 0.8) continue;                    // MONOTONE: only steps that genuinely descend (kills the trough bounce)
     const vx = nx2 - here[0], vy = ny2 - here[1], Ln = Math.hypot(vx, vy) || 1, sc = (vx * dx + vy * dy) / Ln;
@@ -287,11 +326,20 @@ function loop() {
   if (!state.pending && !state.walk && frameN - state.lastInput > 50 && frameN % 14 === 0) slide();
   const w = cur.p.walk;
   view.scale = zoom; view.cx += (w.pos[2 * state.node] - view.cx) * 0.18; view.cy += (w.pos[2 * state.node + 1] - view.cy) * 0.18;
+  sync(cur);
   fadeVis();
   render();
   if (frameN % 30 === 0) updateHUD();
   if (frameN % 45 === 0 && !state.pending) {
-    for (const d of cur.p.doors) if (cur.vis[d.node] > 0.2 && !pockets.has(d.toKey)) { ensure(d.toKey); break; }   // one neighbour per interval — the peek warms as you approach
+    // STREAM: first finish the floor underfoot (one segment per interval), then warm ONE visible
+    // door's preview — a single segment of its target, never a whole thread.
+    const un = cur.p.segs.findIndex((s) => !s.solved);
+    if (un >= 0) ensureSegB(cur, un);
+    else for (const d of cur.p.doors) {
+      if (cur.vis[d.node] <= 0.2) continue;
+      const tb = ensure(d.toKey), si = needSeg(tb.p, d), g = tb.p.segs[si];
+      if (!g.solved || !tb.bakes.has(g.chunkId)) { ensureSegB(tb, si); break; }
+    }
   }
   requestAnimationFrame(loop);
 }
@@ -301,6 +349,7 @@ const seed = (new URLSearchParams(location.search).get('seed') | 0) >>> 0 || 7;
 await new Promise((r) => setTimeout(r, 30));
 world = buildPocketWorld(seed);
 cur = ensure('CW'); state.key = 'CW';
+ensureSegB(cur, 0);
 state.node = nearestNode(cur.p.walk, cur.p.W / 2, cur.p.H / 2);
 resize();
 refreshSight();
