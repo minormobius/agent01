@@ -132,14 +132,21 @@ function buildPocket(world, key) {
     norm();
     // FUCK UP THE SPIRAL: seeded noise on the directionality — a smooth wobble along the normal
     // (three incommensurate sines), then recompute the headings. Deterministic per thread.
-    const wrng = mulberry32((seed ^ 0x7abc) >>> 0), p1 = wrng() * TAU, p2 = wrng() * TAU, p3 = wrng() * TAU;
+    const wrng = mulberry32((seed ^ 0x7abc) >>> 0), p1 = wrng() * TAU, p2 = wrng() * TAU, p3 = wrng() * TAU, p4 = wrng() * TAU, p5 = wrng() * TAU;
     const amp = halfW * o.wobble;
     for (let i = 0; i <= M2; i++) {
       const u = i / M2, taper = Math.min(1, 4 * u) * Math.min(1, 4 * (1 - u));   // pin the two ends
-      const wv = (Math.sin(u * TAU * 2.3 + p1) * 0.5 + Math.sin(u * TAU * 4.7 + p2) * 0.33 + Math.sin(u * TAU * 8.1 + p3) * 0.22) * amp * taper;
+      const wv = (Math.sin(u * TAU * 2.3 + p1) * 0.5 + Math.sin(u * TAU * 4.7 + p2) * 0.33 + Math.sin(u * TAU * 8.1 + p3) * 0.22
+        + Math.sin(u * TAU * 16.3 + p4) * 0.12 + Math.sin(u * TAU * 27.7 + p5) * 0.07) * amp * taper;   // + high-frequency jitter on the heading
       spine[i].x += spine[i].nx * wv; spine[i].y += spine[i].ny * wv;
     }
     norm();
+    // WIDTH noise, independent per edge (high-frequency): the two banks wander separately
+    const q1 = wrng() * TAU, q2 = wrng() * TAU, q3 = wrng() * TAU, q4 = wrng() * TAU;
+    const edgeNoise = (u, side) => {
+      const a = side > 0 ? q1 : q3, b = side > 0 ? q2 : q4;
+      return Math.max(-halfW * 0.3, (Math.sin(u * TAU * 11.7 + a) + Math.sin(u * TAU * 19.3 + b) * 0.6) * halfW * 0.16);
+    };
     // STATION ALCOVES: the band is thin, and each portal bulges OFF the spiral on its parity side —
     // a small lobe you walk OUT of the band to reach, so crossing reads as stepping into a room.
     const uFlat = world.lines.flatR, uOfRf = (rf) => (rf - uFlat) / (1 - uFlat);
@@ -159,8 +166,8 @@ function buildPocket(world, key) {
     for (const p of spine) { p.x += sx; p.y += sy; }
     W = Mx - mx + 60; H = My - my + 60;
     const poly = [
-      ...spine.map((p, i) => ({ x: p.x + p.nx * (halfW + bumpAt(i / M2, 1)), y: p.y + p.ny * (halfW + bumpAt(i / M2, 1)) })),
-      ...[...spine].reverse().map((p, i) => { const u = (M2 - i) / M2; return { x: p.x - p.nx * (halfW + bumpAt(u, -1)), y: p.y - p.ny * (halfW + bumpAt(u, -1)) }; }),
+      ...spine.map((p, i) => { const u = i / M2, off = halfW + bumpAt(u, 1) + edgeNoise(u, 1); return { x: p.x + p.nx * off, y: p.y + p.ny * off }; }),
+      ...[...spine].reverse().map((p, i) => { const u = (M2 - i) / M2, off = halfW + bumpAt(u, -1) + edgeNoise(u, -1); return { x: p.x - p.nx * off, y: p.y - p.ny * off }; }),
     ];
     rec = solveChunk({ seed, foamSeed: seed, v2: true, poly, W, H, cellSize: o.cellSize, roomSize: o.roomSize, concourseWidth: o.concourseWidth, roleMix: kind === 'prod' ? PROD_MIX : null });
     rec._stations = myStations; rec._spine = spine; rec._halfW = halfW;

@@ -40,7 +40,6 @@ function ensure(key) {
   const scale = Math.min(2, 3400 / Math.max(p.W, p.H)), bake = document.createElement('canvas');
   bake.width = Math.ceil(p.W * scale); bake.height = Math.ceil(p.H * scale);
   const bc = bake.getContext('2d'); bc.scale(scale, scale);
-  bc.fillStyle = '#04050a'; bc.fillRect(0, 0, p.W, p.H);
   for (const c of paint.paintCells) { bc.fillStyle = c.color; bc.beginPath(); c.poly.forEach((v, i) => i ? bc.lineTo(v[0], v[1]) : bc.moveTo(v[0], v[1])); bc.closePath(); bc.fill(); }
   const scene = { paintCells: paint.paintCells, wallSpacing: paint.wallSpacing, roomSpacing: paint.roomSpacing };
   for (const F of paint.fixtures) drawWallFixture(bc, scene, F, { accent: F.accent, hue: F.hue, litAt: () => 0.9 });
@@ -111,7 +110,8 @@ function arrive(node) {
 }
 function crossThrough(d) {
   const r = reciprocalDoor(world, state.key, d);
-  state.pending = { key: d.toKey, node: r ? r.node : 0 };
+  const quick = d.toKey[0] === 'X' || state.key[0] === 'X';   // foyer hops barely blink — it was already in view
+  state.pending = { key: d.toKey, node: r ? r.node : 0, cap: quick ? 0.5 : 1 };
   state.walk = null;
 }
 function finishCross() {
@@ -135,38 +135,35 @@ function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, CW, CH);
   const w = cur.p.walk;
   ctx.setTransform(DPR * view.scale, 0, 0, DPR * view.scale, DPR * (CW / 2 - view.cx * view.scale), DPR * (CH / 2 - view.cy * view.scale));
+  // the space BEYOND each door, drawn first — our own floor then covers it everywhere but the gap
+  for (const d of cur.p.doors) {
+    const v = cur.vis[d.node]; if (v <= 0.15) continue;
+    const tb = pockets.get(d.toKey); if (!tb) continue;
+    const r = reciprocalDoor(world, state.key, d); if (!r) continue;
+    const x = w.pos[2 * d.node], y = w.pos[2 * d.node + 1];
+    const tw = tb.p.walk, tx = tw.pos[2 * r.node], ty = tw.pos[2 * r.node + 1];
+    const S = d.toKey[0] === 'X' ? 210 : 150, sb = tb.scale;
+    ctx.save(); ctx.globalAlpha = Math.min(1, v) * 0.92;
+    ctx.beginPath(); ctx.arc(x, y, S * 0.95, 0, 7); ctx.clip();
+    ctx.drawImage(tb.bake, Math.max(0, (tx - S) * sb), Math.max(0, (ty - S) * sb), 2 * S * sb, 2 * S * sb, x - S, y - S, 2 * S, 2 * S);
+    ctx.restore();
+    d._peek = { x, y, S, v };
+  }
   ctx.drawImage(cur.bake, 0, 0, cur.p.W, cur.p.H);
   // district arches — the seven hexes read along the strip
   ctx.setLineDash([10, 8]); ctx.lineWidth = 1.6 / view.scale;
   for (const a of cur.p.arches) { ctx.strokeStyle = rgba(TEAL, 0.4); ctx.beginPath(); ctx.moveTo(a.x1, a.y1); ctx.lineTo(a.x2, a.y2); ctx.stroke(); }
   ctx.setLineDash([]);
-  // doors: THE PEEK — walking past, you look INTO the adjacent pocket through the doorway: a disc
-  // of the neighbour's floor, aligned so its reciprocal door sits in the frame (walk in and you're
-  // standing where you were looking). Ringed in the target thread's hue.
+  // doors: INVISIBLE portals — the MOVE CHAMBER. No circle, no ring: the space beyond the gap is
+  // simply the next floor, drawn inline (aligned so its reciprocal door meets ours) and revealed by
+  // a soft hole in the fog. Behind you: your thread. Ahead: the foyer. Both gated by the chamber.
   for (const d of cur.p.doors) {
     const v = cur.vis[d.node]; if (v <= 0.05) continue;
-    const x = w.pos[2 * d.node], y = w.pos[2 * d.node + 1], col = threadColor(d.toKey);
-    const tb = pockets.get(d.toKey);
-    if (tb && v > 0.2) {
-      const r = reciprocalDoor(world, state.key, d);
-      if (r) {
-        const tw = tb.p.walk, tx = tw.pos[2 * r.node], ty = tw.pos[2 * r.node + 1];
-        const pr = 46;   // sized to the half-width band — a doorway, not a window-wall
-        ctx.save(); ctx.globalAlpha = Math.min(1, v) * 0.92;
-        ctx.beginPath(); ctx.arc(x, y, pr, 0, 7); ctx.clip();
-        ctx.translate(x - tx, y - ty);
-        ctx.drawImage(tb.bake, 0, 0, tb.p.W, tb.p.H);
-        ctx.restore();
-        ctx.globalAlpha = Math.min(1, v);
-        ctx.strokeStyle = rgba(col, 0.85); ctx.lineWidth = 3 / view.scale;
-        ctx.beginPath(); ctx.arc(x, y, pr, 0, 7); ctx.stroke();
-      }
-    } else {
-      ctx.globalAlpha = v;
-      ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.fillStyle = rgba(mix([8, 11, 16], col, 0.55), 0.95); ctx.fill();
-    }
-    ctx.globalAlpha = Math.min(1, v);
-    ctx.strokeStyle = rgba(GOLD, 0.9); ctx.lineWidth = 2 / view.scale; ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.stroke();
+    const x = w.pos[2 * d.node], y = w.pos[2 * d.node + 1];
+    // the move-verb chamber marker — subtle: a faint threshold glyph, nothing more
+    ctx.globalAlpha = Math.min(0.55, v * 0.55);
+    ctx.fillStyle = rgba(INK, 0.8); ctx.font = '11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('↕', x, y);
   }
   ctx.globalAlpha = 1;
   // residents
@@ -191,6 +188,13 @@ function render() {
     if (x < vx0 - 20 || x > vx1 + 20 || y < vy0 - 20 || y > vy1 + 20) continue;
     fc.fillStyle = `rgba(0,0,0,${Math.min(1, v)})`; fc.fill(cur.cellPath[w.nodeLocal[i]]);
   }
+  for (const d of cur.p.doors) {   // the doors breathe a soft hole in the fog — the foyer beyond shows through
+    if (!d._peek) continue;
+    const pk = d._peek; d._peek = null;
+    const g = fc.createRadialGradient(pk.x, pk.y, 0, pk.x, pk.y, pk.S * 0.9);
+    g.addColorStop(0, `rgba(0,0,0,${Math.min(1, pk.v) * 0.95})`); g.addColorStop(0.7, `rgba(0,0,0,${Math.min(1, pk.v) * 0.6})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    fc.fillStyle = g; fc.beginPath(); fc.arc(pk.x, pk.y, pk.S * 0.9, 0, 7); fc.fill();
+  }
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.drawImage(fogCv, 0, 0, CW, CH);
   // player
@@ -199,8 +203,9 @@ function render() {
   ctx.fillStyle = rgba(GOLD, 1); ctx.font = `bold ${Math.max(13, 15 * view.scale) | 0}px "JetBrains Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', pp[0], pp[1]);
   // the crossing fade (the pocket seam, covered by the no-memory rule)
   if (state.pending || state.fade > 0) {
-    state.fade = Math.min(1.2, state.fade + (state.pending ? 0.09 : -0.06));
-    if (state.pending && state.fade >= 1) finishCross();
+    const cap = state.pending ? state.pending.cap : 1;
+    state.fade = Math.min(cap + 0.2, state.fade + (state.pending ? 0.16 : -0.09));
+    if (state.pending && state.fade >= cap) finishCross();
     if (state.fade > 0) { ctx.fillStyle = `rgba(2,3,6,${Math.min(1, state.fade)})`; ctx.fillRect(0, 0, CW, CH); }
   } else if (state.fade < 0) state.fade = 0;
 }
@@ -242,15 +247,19 @@ function slide() {
   const w = cur.p.walk, px = w.pos[2 * state.node], py = w.pos[2 * state.node + 1];
   let k = 1, bd = Infinity;
   for (let i = 1; i < sp.length - 1; i++) { const d = (sp[i].x - px) ** 2 + (sp[i].y - py) ** 2; if (d < bd) { bd = d; k = i; } }
-  const dz = sp[k + 1].z - sp[k - 1].z;
-  if (Math.abs(dz) < 2) return;                                  // a flat — no drift
+  const dz = sp[k + 1].z - sp[k - 1].z, ds = Math.hypot(sp[k + 1].x - sp[k - 1].x, sp[k + 1].y - sp[k - 1].y) || 1;
+  if (Math.abs(dz / ds) < 0.14) return;                          // gentler than the slip grade — no drift
   const tx = sp[k + 1].x - sp[k - 1].x, ty = sp[k + 1].y - sp[k - 1].y, L = Math.hypot(tx, ty) || 1;
   const sgn = dz > 0 ? -1 : 1;                                    // downhill
   const dx = tx / L * sgn, dy = ty / L * sgn, here = [px, py];
+  const zAt = (x, y) => { let kk = 1, bb = Infinity; for (let i = 1; i < sp.length - 1; i++) { const d = (sp[i].x - x) ** 2 + (sp[i].y - y) ** 2; if (d < bb) { bb = d; kk = i; } } return sp[kk].z; };
+  const zHere = sp[k].z;
   let best = -1, bs = 0.45;
   for (const nb of w.adj[state.node]) {
     if (cur.p.doorAt.has(w.nodeLocal[nb])) continue;              // gravity never pushes you through a door
-    const vx = w.pos[2 * nb] - here[0], vy = w.pos[2 * nb + 1] - here[1], Ln = Math.hypot(vx, vy) || 1, sc = (vx * dx + vy * dy) / Ln;
+    const nx2 = w.pos[2 * nb], ny2 = w.pos[2 * nb + 1];
+    if (zAt(nx2, ny2) > zHere - 0.8) continue;                    // MONOTONE: only steps that genuinely descend (kills the trough bounce)
+    const vx = nx2 - here[0], vy = ny2 - here[1], Ln = Math.hypot(vx, vy) || 1, sc = (vx * dx + vy * dy) / Ln;
     if (sc > bs) { bs = sc; best = nb; }
   }
   if (best >= 0) arrive(best);
