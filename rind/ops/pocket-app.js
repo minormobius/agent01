@@ -145,7 +145,14 @@ function render() {
     const S = d.toKey[0] === 'X' ? 210 : 150, sb = tb.scale;
     ctx.save(); ctx.globalAlpha = Math.min(1, v) * 0.92;
     ctx.beginPath(); ctx.arc(x, y, S * 0.95, 0, 7); ctx.clip();
-    ctx.drawImage(tb.bake, Math.max(0, (tx - S) * sb), Math.max(0, (ty - S) * sb), 2 * S * sb, 2 * S * sb, x - S, y - S, 2 * S, 2 * S);
+    // clip the source rect to the bake WITHOUT losing alignment (a naive clamp shifts the whole
+    // preview when the reciprocal door sits near the bake edge — every interface chamber does)
+    let sX = (tx - S) * sb, sY = (ty - S) * sb, sW = 2 * S * sb, sH = 2 * S * sb, dX = x - S, dY = y - S, dW = 2 * S, dH = 2 * S;
+    if (sX < 0) { dX -= sX / sb; dW += sX / sb; sW += sX; sX = 0; }
+    if (sY < 0) { dY -= sY / sb; dH += sY / sb; sH += sY; sY = 0; }
+    if (sX + sW > tb.bake.width) { const ov = sX + sW - tb.bake.width; sW -= ov; dW -= ov / sb; }
+    if (sY + sH > tb.bake.height) { const ov = sY + sH - tb.bake.height; sH -= ov; dH -= ov / sb; }
+    if (sW > 1 && sH > 1) ctx.drawImage(tb.bake, sX, sY, sW, sH, dX, dY, dW, dH);
     ctx.restore();
     d._peek = { x, y, S, v };
   }
@@ -234,7 +241,17 @@ cv.addEventListener('pointerdown', (e) => {
   const r = cv.getBoundingClientRect(), wx = view.cx + (e.clientX - r.left - CW / 2) / view.scale, wy = view.cy + (e.clientY - r.top - CH / 2) / view.scale;
   const w = cur.p.walk; let best = -1, bd = 26 * 26;
   for (let i = 0; i < w.N; i++) { if (cur.vis[i] <= 0.25) continue; const d = (w.pos[2 * i] - wx) ** 2 + (w.pos[2 * i + 1] - wy) ** 2; if (d < bd) { bd = d; best = i; } }
-  if (best >= 0) setWalk(best);
+  if (best >= 0) { setWalk(best); return; }
+  // the WHOLE preview is the affordance: a click anywhere inside a door's peek disc — the visible
+  // slice of the next floor — walks you to that portal and through. No pixel-hunting the threshold.
+  let bD = null, bDist = Infinity;
+  for (const d of cur.p.doors) {
+    if (cur.vis[d.node] <= 0.15) continue;
+    const S = (d.toKey[0] === 'X' ? 210 : 150) * 0.95;
+    const dist = Math.hypot(w.pos[2 * d.node] - wx, w.pos[2 * d.node + 1] - wy);
+    if (dist < S && dist < bDist) { bDist = dist; bD = d; }
+  }
+  if (bD) setWalk(bD.node);
 });
 cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.4, Math.min(3, zoom * Math.exp(-e.deltaY * 0.0012))); }, { passive: false });
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; if (!fogCv) fogCv = document.createElement('canvas'); fogCv.width = cv.width; fogCv.height = cv.height; }
@@ -290,4 +307,5 @@ refreshSight();
 view.cx = cur.p.walk.pos[2 * state.node]; view.cy = cur.p.walk.pos[2 * state.node + 1]; view.scale = zoom;
 updateHUD();
 $('load').style.display = 'none';
+globalThis.__pocket = { state, view, get cur() { return cur; }, get world() { return world; } };   // headless-test handle
 loop();
