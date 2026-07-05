@@ -17,6 +17,20 @@ ok(world.stations.length === 48, `48 analytic stations — K(6,8) complete (${wo
 ok(world.stations.every((s) => s.rf > world.lines.flatR && s.rf < 1), 'every station sits in the weave annulus');
 ok(world.stations.every((s) => s.district >= 0 && s.district < 7), 'every station knows its district');
 
+// ── THE FACTION AXES: six faction biomes ↔ six white threads, interleaved around the ring ──
+{
+  const ws = world.warps;
+  ok(ws.length === 6 && ws.every((w) => w.ward && w.ward.key && w.faction), 'every white thread carries a faction ward (a nave biome)');
+  ok(new Set(ws.map((w) => w.ward.key)).size === 6, 'six DISTINCT faction biomes — one per thread');
+  let adjOk = true, biOk = true;
+  for (let w = 0; w < 6; w++) {
+    if (ws[w].faction === ws[(w + 1) % 6].faction) adjOk = false;
+    if (ws[w].faction !== ws[(w + 3) % 6].faction) biOk = false;
+  }
+  ok(adjOk, 'NO thread is adjacent to its own faction');
+  ok(biOk, 'each faction BISECTS the group — its two threads antipodal, the axis crossing the nexus');
+}
+
 // build all 16 pockets (14 threads + 2 commons), all segments
 const keys = [];
 for (let w = 0; w < 6; w++) keys.push('W' + w);

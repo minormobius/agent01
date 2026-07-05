@@ -84,7 +84,19 @@
 > MINIMAP: a corner inset of the ANALYTIC weave — all 14 lines in thread colours, your thread highlighted, a gold
 > dot at your TRUE position (nearest spine sample → rf → the point on your line; an interface sits at its exact
 > station crossing; the commons at the hub). The metric is faked; the map tells the truth. `?at=` boots any pocket.
-> Pockets are deterministic
+> THE FACTION AXES: the six white threads carry the six NAVE BIOMES (hoop/nave wards, two per faction at
+> high/mild intensity), INTERLEAVED around the ring (R·C·D·R·C·D) so no thread neighbours its own faction and
+> each faction's two threads sit antipodal — the faction's axis bisects the weave, crossing the nexus (the
+> minimap shows your twin when you ride a white). THE COMMODITY TRANSFER, embodied: on an engine floor the
+> spider droids alternate intake trips (hub door → the shelves) and output trips (the make rooms → the hub),
+> each parcel wearing its producer-engine's colour; on the works floor they walk the DERIVED inter-engine
+> supply chain door → door — and fulfillment IS the nexus (product flows into the progression chamber, waste
+> flows out to reclaim). THE GRADE is severe (`gradeScale` amplifies the analytic over/under z; slides bite
+> sooner, monotone descent via continuous spine-z interpolation). TIER 2 UNDERFOOT: concourse tiles are
+> POLISHED OBSIDIAN (lacquered near-black; the baked light ghosts through as reflection; sparse tally rows
+> etched in — the ledger of breath, misread by outsiders as grain yields), and on the eight engine floors the
+> room tiles take the engine's own hue — the production vertical, colour-coded. The office page's concourse
+> albedo went obsidian to match. Pockets are deterministic
 > from (seed, threadKey). `office.html` remains the ANALYTIC MAP layer (cross-linked both ways) —
 > same world, two charts: the map that tells the truth about the tangle, and the floor you can actually live in.
 

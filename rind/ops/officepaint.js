@@ -26,6 +26,7 @@ import { HALL, plazaRf } from './officeweave.js';
 
 export const PAINT_DEFAULTS = { chunk: 384, scale: 2.5 };   // 2.5 px/world — crisp at the half-zoom view, ~40% less canvas memory
 const WALL_RGB = [27, 32, 41], DOOR_RGB = [120, 92, 50], ROAD_RGB = [44, 70, 60], DARK = [8, 11, 16];
+const OBSIDIAN = [12, 13, 21];   // tier 2: the polished obsidian ledger — concourse floors reflect the light, not the hue
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -185,9 +186,10 @@ export function bakeChunk(world, plan, { hueOf, scale = PAINT_DEFAULTS.scale, se
     if (t.wall) { base = WALL_RGB; g = clamp(0.3 + wallLum(t.x, t.y) * 0.62, 0, 1.35); }
     else if (t.door) { base = DOOR_RGB; g = clamp(0.55 + floorLum(t.x, t.y) * 0.9, 0, 1.5); }
     else if (!t.key) { base = DARK; g = 0.6; }
-    else {
-      const hue = hueOf(t.key);
-      base = t.room < 0 ? mix(DARK, mix(hue, ROAD_RGB, 0.35), 0.52) : mix(DARK, hue, 0.58);
+    else if (t.room < 0) {   // the concourse: obsidian underfoot, polished — a wider specular range so pooled light reads as reflection
+      base = OBSIDIAN; g = clamp(0.35 + floorLum(t.x, t.y) * 1.5, 0, 2.2);
+    } else {
+      base = mix(DARK, hueOf(t.key), 0.58);
       g = clamp(0.46 + floorLum(t.x, t.y) * 0.95, 0, 1.55);
     }
     ctx.fillStyle = `rgb(${clamp(base[0] * g, 0, 255) | 0},${clamp(base[1] * g, 0, 255) | 0},${clamp(base[2] * g, 0, 255) | 0})`;

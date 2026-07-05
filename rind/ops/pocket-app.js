@@ -11,6 +11,7 @@
 // single segment its reciprocal door sits in. The commons no longer swallows six whole bands.
 
 import { buildPocketWorld, reciprocalDoor } from './pocketweave.js';
+import { ENGINES, ENGINE_RING, supplyChain } from './engines.js';
 import { paintChunk } from './v101/skin.js';
 import { drawWallFixture } from './v101/consoles.js';
 import { drawDevice } from './v101/v5/deco.js';
@@ -35,6 +36,12 @@ let zoom = 1.15, DROID = null;
 const SIGHT_HOPS = 20;   // restrictive — a room's worth of sight; the doors do the revealing
 
 const threadColor = (key) => key[0] === 'X' ? [222, 184, 116] : key === 'CW' ? TEAL : key === 'CP' ? [200, 150, 90] : key[0] === 'W' ? mix(hex(world.warps[+key.slice(1)].color), INK, 0.3) : hex(world.wefts[+key.slice(1)].color);
+// each commodity wears its PRODUCER's colour (metal = foundry orange, coolant = fluid blue …)
+const COMMODITY_COLOR = (() => {
+  const m = { waste: '#8a8f98' };
+  for (const id of ENGINE_RING) for (const c of (ENGINES[id].output || [])) m[c] = ENGINES[id].color;
+  return m;
+})();
 
 // ── bundles: a pocket SHELL now, chunks on demand ──
 function ensure(key) {
@@ -82,6 +89,27 @@ function bakeChunkOf(b, chunkId) {
   bake.width = Math.ceil(bw * scale); bake.height = Math.ceil(bh * scale);
   const bc = bake.getContext('2d'); bc.scale(scale, scale); bc.translate(-x0, -y0);
   for (const c of paint.paintCells) { bc.fillStyle = c.color; bc.beginPath(); c.poly.forEach((v, i) => i ? bc.lineTo(v[0], v[1]) : bc.moveTo(v[0], v[1])); bc.closePath(); bc.fill(); }
+  // TIER 2 — the polished obsidian ledger. Concourse tiles are lacquered near-black; the baked
+  // light ghosts through the polish as reflections; a few tiles carry a glassy sheen; and sparse
+  // tally rows are etched in — the ledger of breath, misread by outsiders as grain yields. On the
+  // eight engine floors the ROOM tiles take the engine's own hue: the production vertical, colour-coded.
+  const engineFloor = b.key[0] === 'P';
+  const tintC = threadColor(b.key);
+  for (let i = 0; i < rec.cells.length; i++) {
+    const c = rec.cells[i];
+    const trace = () => { bc.beginPath(); c.poly.forEach((v, j) => j ? bc.lineTo(v[0], v[1]) : bc.moveTo(v[0], v[1])); bc.closePath(); };
+    if (rec.road[i]) {
+      trace(); bc.fillStyle = 'rgba(5,6,11,0.62)'; bc.fill();
+      const h = (Math.imul(i + 1, 2654435761) >>> 0) % 1000;
+      if (h < 150) { trace(); bc.fillStyle = 'rgba(165,185,230,0.055)'; bc.fill(); }   // the polish catches a light
+      if (h >= 945) {                                                                   // the etched tallies
+        bc.fillStyle = 'rgba(205,220,240,0.11)'; bc.font = '5px "JetBrains Mono", monospace'; bc.textAlign = 'center'; bc.textBaseline = 'middle';
+        bc.fillText('||| |', c.x, c.y);
+      }
+    } else if (engineFloor && rec.roomOf[i] >= 0) {
+      trace(); bc.fillStyle = rgba(tintC, 0.13); bc.fill();
+    }
+  }
   const scene = { paintCells: paint.paintCells, wallSpacing: paint.wallSpacing, roomSpacing: paint.roomSpacing };
   for (const F of paint.fixtures) drawWallFixture(bc, scene, F, { accent: F.accent, hue: F.hue, litAt: () => 0.9 });
   for (const L of paint.lights) drawWallLight(bc, L, { hue: L.hue, lit: L.lit });
@@ -100,7 +128,7 @@ function bakeChunkOf(b, chunkId) {
 // ── residents: sprite people commuting room↔room on the walk graph; droids on the engine floors ──
 function addNPCsForChunk(b, chunkId) {
   const rec = b.p.world.chunks[chunkId], base = b.p.walk.base[chunkId];
-  const droid = b.key[0] === 'P';
+  const droid = b.key[0] === 'P' || b.key === 'CP';
   if (!DROID) DROID = buildPolyGenome('rind-pocket', { ...FAMILIES.spiderbot, w: 20, h: 20 });
   const rooms = rec.rooms.filter((r) => r.door >= 0 && r.cells.length).map((r) => ({ role: r.role, cells: r.cells.map((c) => base + c) }));
   if (!rooms.length) return;
@@ -112,16 +140,56 @@ function addNPCsForChunk(b, chunkId) {
     b.npcs.push({ node, x: w.pos[2 * node], y: w.pos[2 * node + 1], path: null, seg: 0, prog: 0, dwell: (i * 97) % 300, dir: 'S', phase: 0, ph: i * 1.7, droid, rooms, genome: droid ? null : buildGenome(id, { role: home.role, size: 13 }) });
   }
 }
+// THE PHYSICAL COMMODITY TRANSFER (the forge's supply-chain model, walked). On an ENGINE floor a
+// droid alternates trips: intake arrives at the hub door and is shelved in a store room; output
+// leaves the make rooms for the hub — the chain, embodied. On the WORKS floor droids walk the
+// derived inter-engine supply chain door → door — and FULFILLMENT IS THE NEXUS: product flows into
+// the progression chamber, waste flows out of it to reclaim. Each commodity wears its producer's colour.
+function nextHaul(b, nn) {
+  if (b.key === 'CP') {
+    if (!b.chain) {
+      const doorOf = {};
+      for (const d of b.p.doors) if (d.toKey[0] === 'P') { const eng = world.wefts[+d.toKey.slice(1)]; if (eng) doorOf[eng.id] = d.node; }
+      if (b.nexus) doorOf.fulfillment = b.nexus.node;
+      b.chain = supplyChain().map((e) => ({ from: doorOf[e.from], to: doorOf[e.to], commodity: e.commodity }))
+        .filter((e) => e.from != null && e.to != null);
+    }
+    if (!b.chain.length) return null;
+    const e = b.chain[(Math.random() * b.chain.length) | 0];
+    return [{ to: e.from, carry: null }, { to: e.to, carry: COMMODITY_COLOR[e.commodity] || '#9aa3b2' }];
+  }
+  const eng = world.wefts[+b.key.slice(1)]; if (!eng) return null;
+  const hub = b.p.hubDoor >= 0 ? b.p.hubDoor : (b.p.doors[0] ? b.p.doors[0].node : -1);
+  if (hub < 0) return null;
+  const pick = (roles) => { const rs = nn.rooms.filter((r) => roles.includes(r.role)); const use = rs.length ? rs : nn.rooms; const r = use[(Math.random() * use.length) | 0]; return r.cells[(Math.random() * r.cells.length) | 0]; };
+  nn.trip = (nn.trip || 0) + 1;
+  const goods = (nn.trip % 2 ? eng.intake : eng.output) || [];
+  const carry = COMMODITY_COLOR[goods[(Math.random() * Math.max(1, goods.length)) | 0]] || '#9aa3b2';
+  return nn.trip % 2
+    ? [{ to: hub, carry: null }, { to: pick(['store', 'make']), carry }]      // intake: hub → shelves
+    : [{ to: pick(['make', 'store']), carry: null }, { to: hub, carry }];     // output: works → the chain
+}
 function stepNPCs(b) {
   const w = b.p.walk;
   for (const nn of b.npcs) {
     if (nn.dwell > 0) { nn.dwell--; continue; }
     if (!nn.path || nn.seg >= nn.path.length - 1) {
-      const rs = nn.rooms;
-      const dst = rs.length ? rs[(Math.random() * rs.length) | 0].cells[(Math.random() * 4) | 0] ?? rs[0].cells[0] : nn.node;
-      nn.path = pathFind(w, nn.node, dst); nn.seg = 0; nn.prog = 0;
-      nn.dwell = 200 + ((Math.random() * 700) | 0);
-      if (!nn.path || nn.path.length < 2) { nn.path = null; continue; }
+      if (nn.droid) {
+        if (nn.path && nn.legs && nn.legs.length) {   // a completed walk retires its leg (the hand-off dwell)
+          nn.legs.shift(); nn.carry = null; nn.path = null; nn.dwell = 60 + ((Math.random() * 90) | 0); continue;
+        }
+        if (!nn.legs || !nn.legs.length) nn.legs = nextHaul(b, nn);
+        if (!nn.legs || !nn.legs.length) { nn.dwell = 240; continue; }
+        const leg = nn.legs[0]; nn.carry = leg.carry;
+        nn.path = pathFind(w, nn.node, leg.to); nn.seg = 0; nn.prog = 0;
+        if (!nn.path || nn.path.length < 2) { nn.path = null; nn.legs.shift(); nn.carry = null; nn.dwell = 60; continue; }
+      } else {
+        const rs = nn.rooms;
+        const dst = rs.length ? rs[(Math.random() * rs.length) | 0].cells[(Math.random() * 4) | 0] ?? rs[0].cells[0] : nn.node;
+        nn.path = pathFind(w, nn.node, dst); nn.seg = 0; nn.prog = 0;
+        nn.dwell = 200 + ((Math.random() * 700) | 0);
+        if (!nn.path || nn.path.length < 2) { nn.path = null; continue; }
+      }
     }
     nn.prog += nn.droid ? 0.06 : 0.04;
     if (nn.prog >= 1) { nn.prog = 0; nn.seg++; nn.node = nn.path[Math.min(nn.seg, nn.path.length - 1)]; }
@@ -231,7 +299,13 @@ function render() {
   for (const nn of cur.npcs) {
     const v = cur.vis[nn.node]; if (v <= 0.25) continue;
     ctx.globalAlpha = v;
-    if (nn.droid) { const t = performance.now() / 1000 + nn.ph, px = polyFrame(DROID, t); ctx.fillStyle = 'rgba(4,6,10,0.7)'; ctx.beginPath(); ctx.arc(nn.x, nn.y, 8, 0, 7); ctx.fill(); for (const q of px) { ctx.fillStyle = q.c; ctx.fillRect(nn.x + (q.x - DROID.cx) * 0.9, nn.y + (q.y - DROID.cy) * 0.9, 1.05, 1.05); } }
+    if (nn.droid) {
+      const t = performance.now() / 1000 + nn.ph, px = polyFrame(DROID, t); ctx.fillStyle = 'rgba(4,6,10,0.7)'; ctx.beginPath(); ctx.arc(nn.x, nn.y, 8, 0, 7); ctx.fill(); for (const q of px) { ctx.fillStyle = q.c; ctx.fillRect(nn.x + (q.x - DROID.cx) * 0.9, nn.y + (q.y - DROID.cy) * 0.9, 1.05, 1.05); }
+      if (nn.carry) {   // the hauled commodity, riding the droid's back in its producer's colour
+        ctx.fillStyle = nn.carry; ctx.fillRect(nn.x - 2.4, nn.y - 10.5, 4.8, 4.8);
+        ctx.strokeStyle = 'rgba(232,236,244,0.5)'; ctx.lineWidth = 0.6; ctx.strokeRect(nn.x - 2.4, nn.y - 10.5, 4.8, 4.8);
+      }
+    }
     else { const g = nn.genome, N = g.size, s = 16 * 0.9 / N, px = frameRects(g, dirFromKey(nn.dir), nn.phase); ctx.fillStyle = 'rgba(4,6,10,0.45)'; ctx.beginPath(); ctx.ellipse(nn.x, nn.y + N * s * 0.34, N * s * 0.3, N * s * 0.16, 0, 0, 7); ctx.fill(); for (const q of px) { ctx.fillStyle = q.c; ctx.fillRect(nn.x + (q.x - N / 2) * s, nn.y + (q.y - N / 2) * s, s + 0.12, s + 0.12); } }
   }
   ctx.globalAlpha = 1;
@@ -277,13 +351,14 @@ function updateHUD() {
   const rec = p.world.chunks[cid], rid = rec.roomOf[local];
   const room = rid >= 0 ? rec.rooms[rid] : null;
   $('oname').textContent = world.label(state.key); $('oname').style.color = rgba(threadColor(state.key), 1);
+  const warp = state.key[0] === 'W' && state.key !== 'CW' ? world.warps[+state.key.slice(1)] : null;
   $('okind').textContent = state.key[0] === 'X' ? 'the INTERFACE — one chamber, shared by both threads'
     : state.key === 'CW' ? 'the commons — six white threads attach here' : state.key === 'CP' ? 'the works floor — eight engines attach here'
-    : state.key[0] === 'W' ? 'white-collar ops · a pocket floor (walk it hub → rim)' : 'production · an engine floor (droids)';
+    : warp && warp.ward ? `${warp.factionLabel} · ward of ${warp.ward.exclusive} (${warp.ward.level}) — the twin thread lies dead opposite` : state.key[0] === 'W' ? 'white-collar ops · a pocket floor (walk it hub → rim)' : 'production · an engine floor (droids haul the chain)';
   $('now').innerHTML = room ? (room.nexus
     ? `<span class="role">◈ the nexus</span><div class="sub">the works floor's heart — player progression (coming online)</div>`
     : `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.people && room.people.length ? room.people.length + ' resident(s)' : 'a work room'}</div>`)
-    : `<span class="role">the concourse</span><div class="sub">stations ahead — each door is another thread</div>`;
+    : `<span class="role">the concourse</span><div class="sub">${state.key[0] === 'P' || state.key === 'CP' ? 'polished obsidian underfoot — the ledger of breath, misread as grain yields' : 'stations ahead — each door is another thread'}</div>`;
   const seen = p.doors.filter((d) => cur.vis && d.node < cur.vis.length && cur.vis[d.node] > 0.2);
   $('doors').innerHTML = seen.length
     ? seen.map((d) => { const s = d.station, k = d.other || d.toKey; return `<div class="door" data-n="${d.node}"><span class="sw" style="background:${rgba(threadColor(k), 1)}"></span><span class="lab">${world.label(k)}</span><span class="rf">${s ? '⬡' + (s.district + 1) + (s.over ? ' · over' : ' · under') : 'hub'}</span></div>`; }).join('')
@@ -343,7 +418,11 @@ function drawMinimap() {
   mctx.drawImage(mmBase, 0, 0);
   mctx.setTransform(d, 0, 0, d, 0, 0);
   const S = mmScale(), k = state.key;
-  if (k[0] === 'W' && k !== 'CW') mmLine(mctx, 'W', +k.slice(1), S, rgba(threadColor(k), 0.95), 2);
+  if (k[0] === 'W' && k !== 'CW') {
+    const wi = +k.slice(1), sib = (wi + 3) % world.geo.NW;   // the faction's twin — antipodal, the axis bisects
+    if (world.geo.NW === 6 && world.warps[sib].faction === world.warps[wi].faction) mmLine(mctx, 'W', sib, S, rgba(threadColor('W' + sib), 0.55), 1.4);
+    mmLine(mctx, 'W', wi, S, rgba(threadColor(k), 0.95), 2);
+  }
   else if (k[0] === 'P' && k !== 'CP') mmLine(mctx, 'P', +k.slice(1), S, rgba(threadColor(k), 0.95), 2);
   else if (k[0] === 'X') {
     const [w0, f0] = k.slice(1).split(':').map(Number);
@@ -391,13 +470,26 @@ function slide() {
   const tx = sp[k + 1].x - sp[k - 1].x, ty = sp[k + 1].y - sp[k - 1].y, L = Math.hypot(tx, ty) || 1;
   const sgn = dz > 0 ? -1 : 1;                                    // downhill
   const dx = tx / L * sgn, dy = ty / L * sgn, here = [px, py];
-  const zAt = (x, y) => { let kk = 1, bb = Infinity; for (let i = 1; i < sp.length - 1; i++) { const d = (sp[i].x - x) ** 2 + (sp[i].y - y) ** 2; if (d < bb) { bb = d; kk = i; } } return sp[kk].z; };
-  const zHere = sp[k].z;
+  // CONTINUOUS z along the spine (project onto the polyline, interpolate) — the old nearest-sample
+  // read made neighbouring cells share one z and killed most slides; monotone descent stays.
+  const zSm = (x, y) => {
+    let kk = 1, bb = Infinity;
+    for (let i = 1; i < sp.length - 1; i++) { const d = (sp[i].x - x) ** 2 + (sp[i].y - y) ** 2; if (d < bb) { bb = d; kk = i; } }
+    let z = sp[kk].z, bs2 = Infinity;
+    for (const [a, b2] of [[Math.max(0, kk - 1), kk], [kk, Math.min(sp.length - 1, kk + 1)]]) {
+      const A = sp[a], B = sp[b2], vx = B.x - A.x, vy = B.y - A.y, dd = vx * vx + vy * vy || 1;
+      let t = ((x - A.x) * vx + (y - A.y) * vy) / dd; t = Math.max(0, Math.min(1, t));
+      const qx = A.x + vx * t, qy = A.y + vy * t, d = (x - qx) ** 2 + (y - qy) ** 2;
+      if (d < bs2) { bs2 = d; z = A.z + (B.z - A.z) * t; }
+    }
+    return z;
+  };
+  const zHere = zSm(px, py);
   let best = -1, bs = 0.45;
   for (const nb of w.adj[state.node]) {
     if (cur.p.doorAt.has(nb)) continue;                           // gravity never pushes you through a door
     const nx2 = w.pos[2 * nb], ny2 = w.pos[2 * nb + 1];
-    if (zAt(nx2, ny2) > zHere - 0.8) continue;                    // MONOTONE: only steps that genuinely descend (kills the trough bounce)
+    if (zSm(nx2, ny2) > zHere - 0.5) continue;                    // MONOTONE: only steps that genuinely descend (kills the trough bounce)
     const vx = nx2 - here[0], vy = ny2 - here[1], Ln = Math.hypot(vx, vy) || 1, sc = (vx * dx + vy * dy) / Ln;
     if (sc > bs) { bs = sc; best = nb; }
   }
@@ -406,7 +498,7 @@ function slide() {
 function loop() {
   frameN++;
   if (!state.pending && state.walk && frameN % 3 === 0) { state.walk.i++; if (state.walk.i < state.walk.path.length) arrive(state.walk.path[state.walk.i]); else state.walk = null; }
-  if (!state.pending && !state.walk && frameN - state.lastInput > 50 && frameN % 14 === 0) slide();
+  if (!state.pending && !state.walk && frameN - state.lastInput > 50 && frameN % 10 === 0) slide();   // severe grade: slides bite sooner
   const w = cur.p.walk;
   view.scale = zoom; view.cx += (w.pos[2 * state.node] - view.cx) * 0.18; view.cy += (w.pos[2 * state.node + 1] - view.cy) * 0.18;
   sync(cur);

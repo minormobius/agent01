@@ -49,6 +49,7 @@ export const POCKET_DEFAULTS = {
   commonsW: 940, commonsH: 640,
   bridgeW: 330, bridgeH: 280, wobble: 0.55,   // the interface chambers + the spine's directional noise
   segArc: 800,                         // target nave-units of band per CHUNK segment (2–5 segments per thread)
+  gradeScale: 2.2,                     // SEVERE grade: the analytic over/under z, amplified — more of the band slides
 };
 const PROD_MIX = [['make', 26], ['store', 12], ['mend', 9], ['move', 7], ['dwell', 9], ['trade', 5], ['grow', 5], ['serve', 3], ['learn', 2]];
 
@@ -202,7 +203,7 @@ function buildPocket(world, key) {
   const line = kind === 'white' ? (rf) => world.lines.lineW(idx, rf) : (rf) => world.lines.lineP(idx, rf);
   const zline = kind === 'white' ? (rf) => world.lines.zW(idx, rf) : (rf) => world.lines.zP(idx, rf);
   const M2 = 72, spine = [];
-  for (let i = 0; i <= M2; i++) { const rf = world.lines.flatR + (1 - world.lines.flatR) * i / M2, p = line(rf); spine.push({ rf, x: p[0] * sc, y: p[1] * sc, z: zline(rf) }); }
+  for (let i = 0; i <= M2; i++) { const rf = world.lines.flatR + (1 - world.lines.flatR) * i / M2, p = line(rf); spine.push({ rf, x: p[0] * sc, y: p[1] * sc, z: zline(rf) * o.gradeScale }); }
   const norm = () => { for (let i = 0; i <= M2; i++) { const a = spine[Math.max(0, i - 1)], b = spine[Math.min(M2, i + 1)], L = Math.hypot(b.x - a.x, b.y - a.y) || 1; spine[i].nx = -(b.y - a.y) / L; spine[i].ny = (b.x - a.x) / L; } };
   norm();
   // FUCK UP THE SPIRAL: seeded noise on the directionality — a smooth wobble along the normal
