@@ -24,6 +24,7 @@
 import { buildGeometry, weaveLines } from './weave3d.js';
 import { solveChunk } from './v100/chunkgen.js';
 import { createWorld, addChunk, buildWalk, pathFind } from './v100/manager.js';
+import { mulberry32 } from './v100/voronoi.js';
 import { districtCentres, SEVEN, OFFICE_DEFAULTS } from './officeweave.js';
 
 const TAU = Math.PI * 2;
@@ -33,6 +34,7 @@ export const POCKET_DEFAULTS = {
   H: 220, margin: 150, perStation: 260, minW: 1500, maxW: 2800, alcove: 100, alcoveW: 0.032,
   cellSize: 16, roomSize: 15, concourseWidth: 2,
   commonsW: 940, commonsH: 640,
+  bridgeW: 330, bridgeH: 280, wobble: 0.55,   // the interface chambers + the spine's directional noise
 };
 const PROD_MIX = [['make', 26], ['store', 12], ['mend', 9], ['move', 7], ['dwell', 9], ['trade', 5], ['grow', 5], ['serve', 3], ['learn', 2]];
 
@@ -88,8 +90,26 @@ function threadSeed(seed, key) { let h = seed >>> 0; for (const ch of key) h = (
 function buildPocket(world, key) {
   const o = world.opts, seed = threadSeed(world.seed, key);
   const isCommons = key === 'CW' || key === 'CP';
-  const kind = key[0] === 'W' || key === 'CW' ? 'white' : 'prod';
+  const isBridge = key[0] === 'X';
+  const kind = isBridge ? 'bridge' : (key[0] === 'W' || key === 'CW' ? 'white' : 'prod');
   let rec, W, H;
+  if (isBridge) {
+    // THE INTERFACE CHAMBER — one room, shared by both threads. Seeded ONLY by (world.seed, w, f),
+    // so whichever side you enter from, it is the SAME solved record: the serious imposition, kept.
+    const [bw, bf] = key.slice(1).split(':').map(Number);
+    W = o.bridgeW; H = o.bridgeH;
+    rec = solveChunk({ seed, foamSeed: seed, v2: true, shape: 'hex', W, H, cellSize: o.cellSize, roomSize: 11, concourseWidth: 2 });
+    const st = world.stations.find((s) => s.w === bw && s.f === bf) || null;
+    const w0 = createWorld(); addChunk(w0, rec);
+    const walk0 = buildWalk(w0);
+    const pocket0 = { key, kind, rec, walk: walk0, W, H, doors: [], doorAt: new Map(), hubDoor: -1, arches: [], spine: null };
+    const used0 = new Set();
+    const dW = nearestRoad(rec, W * 0.16, H / 2, used0);
+    if (dW >= 0) { used0.add(dW); const d = { cell: dW, node: dW, toKey: 'W' + bw, other: 'W' + bw, station: st, label: 'W' + bw }; pocket0.doors.push(d); pocket0.doorAt.set(dW, d); }
+    const dP = nearestRoad(rec, W * 0.84, H / 2, used0);
+    if (dP >= 0) { used0.add(dP); const d = { cell: dP, node: dP, toKey: 'P' + bf, other: 'P' + bf, station: st, label: 'P' + bf }; pocket0.doors.push(d); pocket0.doorAt.set(dP, d); }
+    return pocket0;
+  }
   if (isCommons) {
     W = o.commonsW; H = o.commonsH;
     rec = solveChunk({ seed, foamSeed: seed, v2: true, shape: 'hex', W, H, cellSize: o.cellSize, roomSize: o.roomSize, concourseWidth: o.concourseWidth, roleMix: kind === 'prod' ? PROD_MIX : null });
@@ -105,15 +125,31 @@ function buildPocket(world, key) {
     const targetArc = Math.max(o.minW, Math.min(o.maxW, 400 + o.perStation * myStations.length));
     const sc = targetArc / arc.total, halfW = o.H / 2;
     const line = kind === 'white' ? (rf) => world.lines.lineW(idx, rf) : (rf) => world.lines.lineP(idx, rf);
+    const zline = kind === 'white' ? (rf) => world.lines.zW(idx, rf) : (rf) => world.lines.zP(idx, rf);
     const M2 = 72, spine = [];
-    for (let i = 0; i <= M2; i++) { const rf = world.lines.flatR + (1 - world.lines.flatR) * i / M2, p = line(rf); spine.push({ rf, x: p[0] * sc, y: p[1] * sc }); }
-    for (let i = 0; i <= M2; i++) { const a = spine[Math.max(0, i - 1)], b = spine[Math.min(M2, i + 1)], L = Math.hypot(b.x - a.x, b.y - a.y) || 1; spine[i].nx = -(b.y - a.y) / L; spine[i].ny = (b.x - a.x) / L; }
+    for (let i = 0; i <= M2; i++) { const rf = world.lines.flatR + (1 - world.lines.flatR) * i / M2, p = line(rf); spine.push({ rf, x: p[0] * sc, y: p[1] * sc, z: zline(rf) }); }
+    const norm = () => { for (let i = 0; i <= M2; i++) { const a = spine[Math.max(0, i - 1)], b = spine[Math.min(M2, i + 1)], L = Math.hypot(b.x - a.x, b.y - a.y) || 1; spine[i].nx = -(b.y - a.y) / L; spine[i].ny = (b.x - a.x) / L; } };
+    norm();
+    // FUCK UP THE SPIRAL: seeded noise on the directionality — a smooth wobble along the normal
+    // (three incommensurate sines), then recompute the headings. Deterministic per thread.
+    const wrng = mulberry32((seed ^ 0x7abc) >>> 0), p1 = wrng() * TAU, p2 = wrng() * TAU, p3 = wrng() * TAU;
+    const amp = halfW * o.wobble;
+    for (let i = 0; i <= M2; i++) {
+      const u = i / M2, taper = Math.min(1, 4 * u) * Math.min(1, 4 * (1 - u));   // pin the two ends
+      const wv = (Math.sin(u * TAU * 2.3 + p1) * 0.5 + Math.sin(u * TAU * 4.7 + p2) * 0.33 + Math.sin(u * TAU * 8.1 + p3) * 0.22) * amp * taper;
+      spine[i].x += spine[i].nx * wv; spine[i].y += spine[i].ny * wv;
+    }
+    norm();
     // STATION ALCOVES: the band is thin, and each portal bulges OFF the spiral on its parity side —
     // a small lobe you walk OUT of the band to reach, so crossing reads as stepping into a room.
     const uFlat = world.lines.flatR, uOfRf = (rf) => (rf - uFlat) / (1 - uFlat);
     const bumpAt = (u, side) => {
       let b = 0;
-      for (const st of myStations) { if ((st.over ? 1 : -1) !== side) continue; const d = Math.abs(u - uOfRf(st.rf)) / o.alcoveW; if (d < 1) b = Math.max(b, o.alcove * (1 - d) * (1 - d) * (3 - 2 * (1 - d) < 1 ? 1 : 1)); }
+      for (const st of myStations) {
+        const d = Math.abs(u - uOfRf(st.rf)) / o.alcoveW; if (d >= 1) continue;
+        const k = (1 - d) * (1 - d);
+        b = Math.max(b, o.alcove * k * ((st.over ? 1 : -1) === side ? 1 : 0.45));   // out-bulge + in-bulge: the chamber straddles the band
+      }
       return b;
     };
     const pad = halfW + o.alcove;
@@ -131,7 +167,7 @@ function buildPocket(world, key) {
   }
   const w = createWorld(); addChunk(w, rec);
   const walk = buildWalk(w);
-  const pocket = { key, kind, rec, walk, W, H, doors: [], doorAt: new Map(), hubDoor: -1, arches: [] };
+  const pocket = { key, kind, rec, walk, W, H, doors: [], doorAt: new Map(), hubDoor: -1, arches: [], spine: rec._spine || null };
 
   const used = new Set();
   if (isCommons) {
@@ -172,8 +208,9 @@ function buildPocket(world, key) {
       const src = pocket.hubDoor >= 0 ? pocket.hubDoor : (cand.length ? cand[0][1] : -1);
       for (let t = 0; t < Math.min(14, cand.length); t++) { const i = cand[t][1]; if (src < 0 || i === src || pathFind(pocket.walk, src, i)) { cell = i; break; } }
       if (cell < 0) continue; used.add(cell);
-      const toKey = (kind === 'white' ? 'P' + s.f : 'W' + s.w);
-      const d = { cell, node: cell, toKey, station: s, label: toKey, x, over: s.over, district: s.district };
+      const other = (kind === 'white' ? 'P' + s.f : 'W' + s.w);
+      const toKey = 'X' + s.w + ':' + s.f;   // every crossing passes through its shared interface chamber
+      const d = { cell, node: cell, toKey, other, station: s, label: other, x, over: s.over, district: s.district };
       pocket.doors.push(d); pocket.doorAt.set(cell, d);
       if (s.district !== lastDistrict) {
         const a = at(Math.max(0, uOf(s.rf) - 0.03));
@@ -188,13 +225,14 @@ function buildPocket(world, key) {
 // the reciprocal door: where crossing at `door` from `fromKey` lands you in the target pocket
 export function reciprocalDoor(world, fromKey, door) {
   const target = world.pocket(door.toKey);
-  if (door.station) {
+  if (door.toKey[0] === 'X') return target.doors.find((d) => d.toKey === fromKey) || target.doors[0];   // step INTO the interface, at your own side
+  if (door.station) {                                                          // step OUT of the interface: the thread's station door
     const s = door.station;
     for (const d of target.doors) if (d.station && d.station.w === s.w && d.station.f === s.f) return d;
   } else if (fromKey === 'CW' || fromKey === 'CP') {
-    return target.doors.find((d) => !d.station) || target.doors[0];           // pocket's hub door
+    return target.doors.find((d) => !d.station) || target.doors[0];            // pocket's hub door
   }
-  return target.doors.find((d) => d.toKey === fromKey) || target.doors[0];    // commons door back to us
+  return target.doors.find((d) => d.toKey === fromKey) || target.doors[0];     // commons door back to us
 }
 
 export function buildPocketWorld(seed = 7, opts = {}) {
@@ -210,7 +248,7 @@ export function buildPocketWorld(seed = 7, opts = {}) {
     pockets: new Map(),
   };
   world.pocket = (key) => { let p = world.pockets.get(key); if (!p) { p = buildPocket(world, key); world.pockets.set(key, p); } return p; };
-  world.label = (key) => key === 'CW' ? 'the ops commons' : key === 'CP' ? 'the works floor' : key[0] === 'W' ? geo.warps[+key.slice(1)].id : geo.wefts[+key.slice(1)].id;
+  world.label = (key) => key[0] === 'X' ? 'the interface' : key === 'CW' ? 'the ops commons' : key === 'CP' ? 'the works floor' : key[0] === 'W' ? geo.warps[+key.slice(1)].id : geo.wefts[+key.slice(1)].id;
   return world;
 }
 

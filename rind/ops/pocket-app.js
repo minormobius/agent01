@@ -24,12 +24,12 @@ const INK = [232, 236, 244], GOLD = [244, 191, 98], TEAL = [127, 216, 208];
 
 let world, cur = null;                    // cur = the active pocket bundle
 const pockets = new Map();                // key → { p, paint, bake, cellPath, vis, npcs }
-const state = { key: null, node: -1, walk: null, fade: 0, pending: null };
+const state = { key: null, node: -1, walk: null, fade: 0, pending: null, lastInput: 0 };
 const view = { cx: 0, cy: 0, scale: 1 };
 let zoom = 1.15, DROID = null;
 const SIGHT_HOPS = 20;   // restrictive — a room's worth of sight; the doors do the revealing
 
-const threadColor = (key) => key === 'CW' ? TEAL : key === 'CP' ? [200, 150, 90] : key[0] === 'W' ? mix(hex(world.warps[+key.slice(1)].color), INK, 0.3) : hex(world.wefts[+key.slice(1)].color);
+const threadColor = (key) => key[0] === 'X' ? [222, 184, 116] : key === 'CW' ? TEAL : key === 'CP' ? [200, 150, 90] : key[0] === 'W' ? mix(hex(world.warps[+key.slice(1)].color), INK, 0.3) : hex(world.wefts[+key.slice(1)].color);
 
 // ── enter/build a pocket: solve, paint with the FULL v101 skin, bake once, arm the fog ──
 function ensure(key) {
@@ -210,20 +210,22 @@ function updateHUD() {
   const p = cur.p, local = p.walk.nodeLocal[state.node], rid = p.rec.roomOf[local];
   const room = rid >= 0 ? p.rec.rooms[rid] : null;
   $('oname').textContent = world.label(state.key); $('oname').style.color = rgba(threadColor(state.key), 1);
-  $('okind').textContent = state.key === 'CW' ? 'the commons — six white threads attach here' : state.key === 'CP' ? 'the works floor — eight engines attach here'
+  $('okind').textContent = state.key[0] === 'X' ? 'the INTERFACE — one chamber, shared by both threads'
+    : state.key === 'CW' ? 'the commons — six white threads attach here' : state.key === 'CP' ? 'the works floor — eight engines attach here'
     : state.key[0] === 'W' ? 'white-collar ops · a pocket floor (walk it hub → rim)' : 'production · an engine floor (droids)';
   $('now').innerHTML = room ? `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.people && room.people.length ? room.people.length + ' resident(s)' : 'a work room'}</div>`
     : `<span class="role">the concourse</span><div class="sub">stations ahead — each door is another thread</div>`;
   const seen = p.doors.filter((d) => cur.vis[d.node] > 0.2);
   $('doors').innerHTML = seen.length
-    ? seen.map((d) => { const s = d.station; return `<div class="door" data-n="${d.node}"><span class="sw" style="background:${rgba(threadColor(d.toKey), 1)}"></span><span class="lab">${world.label(d.toKey)}</span><span class="rf">${s ? '⬡' + (s.district + 1) + (s.over ? ' · over' : ' · under') : 'hub'}</span></div>`; }).join('')
+    ? seen.map((d) => { const s = d.station, k = d.other || d.toKey; return `<div class="door" data-n="${d.node}"><span class="sw" style="background:${rgba(threadColor(k), 1)}"></span><span class="lab">${world.label(k)}</span><span class="rf">${s ? '⬡' + (s.district + 1) + (s.over ? ' · over' : ' · under') : 'hub'}</span></div>`; }).join('')
     : '<p style="margin:4px 0">no doors in sight — walk the concourse.</p>';
   for (const el of $('doors').querySelectorAll('.door')) el.addEventListener('click', () => setWalk(+el.dataset.n));
 }
 
 // ── input + loop ──
-addEventListener('keydown', (e) => { const d = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] }[e.key]; if (d) { moveDir(d[0], d[1]); e.preventDefault(); } });
+addEventListener('keydown', (e) => { const d = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] }[e.key]; if (d) { state.lastInput = frameN; moveDir(d[0], d[1]); e.preventDefault(); } });
 cv.addEventListener('pointerdown', (e) => {
+  state.lastInput = frameN;
   const r = cv.getBoundingClientRect(), wx = view.cx + (e.clientX - r.left - CW / 2) / view.scale, wy = view.cy + (e.clientY - r.top - CH / 2) / view.scale;
   const w = cur.p.walk; let best = -1, bd = 26 * 26;
   for (let i = 0; i < w.N; i++) { if (cur.vis[i] <= 0.25) continue; const d = (w.pos[2 * i] - wx) ** 2 + (w.pos[2 * i + 1] - wy) ** 2; if (d < bd) { bd = d; best = i; } }
@@ -233,9 +235,30 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.4, M
 function resize() { const r = cv.getBoundingClientRect(); DPR = Math.min(2, devicePixelRatio || 1); CW = r.width; CH = r.height; cv.width = CW * DPR | 0; cv.height = CH * DPR | 0; if (!fogCv) fogCv = document.createElement('canvas'); fogCv.width = cv.width; fogCv.height = cv.height; }
 addEventListener('resize', resize);
 let frameN = 0;
+// the GRADE: threads run uphill and downhill (the analytic over/under z rides the spine). Stand
+// still and you SLIDE with it — a gentle drift down the corridor, never through a portal.
+function slide() {
+  const sp = cur.p.spine; if (!sp) return;
+  const w = cur.p.walk, px = w.pos[2 * state.node], py = w.pos[2 * state.node + 1];
+  let k = 1, bd = Infinity;
+  for (let i = 1; i < sp.length - 1; i++) { const d = (sp[i].x - px) ** 2 + (sp[i].y - py) ** 2; if (d < bd) { bd = d; k = i; } }
+  const dz = sp[k + 1].z - sp[k - 1].z;
+  if (Math.abs(dz) < 2) return;                                  // a flat — no drift
+  const tx = sp[k + 1].x - sp[k - 1].x, ty = sp[k + 1].y - sp[k - 1].y, L = Math.hypot(tx, ty) || 1;
+  const sgn = dz > 0 ? -1 : 1;                                    // downhill
+  const dx = tx / L * sgn, dy = ty / L * sgn, here = [px, py];
+  let best = -1, bs = 0.45;
+  for (const nb of w.adj[state.node]) {
+    if (cur.p.doorAt.has(w.nodeLocal[nb])) continue;              // gravity never pushes you through a door
+    const vx = w.pos[2 * nb] - here[0], vy = w.pos[2 * nb + 1] - here[1], Ln = Math.hypot(vx, vy) || 1, sc = (vx * dx + vy * dy) / Ln;
+    if (sc > bs) { bs = sc; best = nb; }
+  }
+  if (best >= 0) arrive(best);
+}
 function loop() {
   frameN++;
   if (!state.pending && state.walk && frameN % 3 === 0) { state.walk.i++; if (state.walk.i < state.walk.path.length) arrive(state.walk.path[state.walk.i]); else state.walk = null; }
+  if (!state.pending && !state.walk && frameN - state.lastInput > 50 && frameN % 14 === 0) slide();
   const w = cur.p.walk;
   view.scale = zoom; view.cx += (w.pos[2 * state.node] - view.cx) * 0.18; view.cy += (w.pos[2 * state.node + 1] - view.cy) * 0.18;
   fadeVis();
