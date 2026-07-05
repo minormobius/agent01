@@ -106,6 +106,16 @@ ok(world.pocket('CW').doors.length === 6 && world.pocket('CP').doors.length === 
   ok(pd && pd.toKey === sd.toKey, 'both threads reach the SAME chamber (one record per station, either side)');
 }
 
+// ── THE NEXUS: the works floor's centrepiece chamber, reserved for player progression ──
+{
+  const cp = world.pocket('CP'), rec = cp.segs[0].rec;
+  const nx = rec.rooms.filter((r) => r.nexus);
+  ok(nx.length === 1 && nx[0].door >= 0 && nx[0].glyph === '◈', 'the works floor has exactly ONE nexus chamber (doored, gilded ◈)');
+  const base = cp.walk.base[cp.segs[0].chunkId];
+  ok(nx.length === 1 && !!pathFind(cp.walk, cp.doors[0].node, base + nx[0].cells[0]), 'the nexus is walkable from the engine doors (the progression room is reachable)');
+  ok(!world.pocket('CW').segs[0].rec.rooms.some((r) => r.nexus), 'the nexus is PRODUCTION-side only (the ops commons has none)');
+}
+
 // ── the grade: the spine carries the analytic over/under z (uphill and downhill) ──
 {
   const sp = world.pocket('W0').spine, zs = sp.map((p) => p.z);

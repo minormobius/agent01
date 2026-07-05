@@ -38,12 +38,16 @@
   .trail { color: var(--dim); font-size: 11px; margin-top: 8px; word-break: break-word; }
   .trail b { color: var(--teal); }
   #load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 20; color: var(--teal); }
+  #mm { position: absolute; inset: auto; right: 10px; bottom: 10px; width: 170px; height: 170px; border: 1px solid var(--line); border-radius: 9px; background: rgba(7,11,15,0.84); z-index: 3; pointer-events: none; }
+  #mmcap { position: absolute; right: 14px; bottom: 184px; z-index: 3; color: var(--dim); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div id="stage">
     <canvas id="cv"></canvas>
+    <canvas id="mm"></canvas>
+    <div id="mmcap">the weave · you</div>
     <div class="hud" id="top"><a href="./">← ops</a> · <a href="./floor.html">▦ god-view</a> · <a href="./nexus.html">@ bare walk</a> · <a href="./office.html">⧉ analytic map</a> · <b>the pocket dimension — the weave at nave scale</b></div>
     <div class="hud" id="hint">move: <b>WASD</b> / <b>click what you can see</b> · scroll to zoom · walk through a door and you're simply <b>on that thread</b></div>
     <div id="load">folding the pocket dimension…</div>
@@ -53,7 +57,7 @@
     <div class="kind" id="okind"></div>
     <div class="now" id="now"></div>
     <h2>doors — in sight</h2>
-    <p style="margin:0 0 6px">Each thread is a <b>nave-scale floor</b> — the metric is faked, the <b style="color:var(--teal)">topology is exact</b>: doors sit at the analytic stations in true-arc order, over-crossings on the north wall, under on the south, district arches where the strip crosses the seven hexes. Cross a door and you arrive at the <b style="color:var(--gold)">reciprocal station</b> of the other thread (cross back and you return). Vision flows the concourse and through doors; walls block it; what recedes goes dark.</p>
+    <p style="margin:0 0 6px">Each thread is a <b>nave-scale floor</b> — the metric is faked, the <b style="color:var(--teal)">topology is exact</b>: doors sit at the analytic stations in true-arc order, over-crossings on the north wall, under on the south, district arches where the strip crosses the seven hexes. Cross a door and you arrive at the <b style="color:var(--gold)">reciprocal station</b> of the other thread (cross back and you return). Vision flows the concourse and through doors; walls block it; what recedes goes dark. The inset map is the <b>analytic weave</b> — the metric is faked but your position on it is true. On the works floor, the gilded <b style="color:var(--gold)">◈ nexus</b> chamber is reserved for progression.</p>
     <div id="doors"></div>
   </aside>
 </div>

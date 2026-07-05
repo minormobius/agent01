@@ -78,7 +78,13 @@
 > (a door preview) places the same doors as one solved hub → rim; pinned. The page streams accordingly: enter a
 > pocket and only the segment you land in solves+bakes; the rest arrive one per interval; a door PREVIEW warms
 > exactly one segment of its target (the commons no longer swallows six whole bands). Clicking anywhere inside a
-> preview disc walks you to that portal and through — the whole peek is the affordance. Pockets are deterministic
+> preview disc walks you to that portal and through — the whole peek is the affordance. THE NEXUS: the works
+> floor's centrepiece chamber (biggest doored room nearest the hex centre, gilded — paint, lamps and fixtures all
+> read it) is reserved for player progression; marked deterministically in the CP solve, pinned reachable. THE
+> MINIMAP: a corner inset of the ANALYTIC weave — all 14 lines in thread colours, your thread highlighted, a gold
+> dot at your TRUE position (nearest spine sample → rf → the point on your line; an interface sits at its exact
+> station crossing; the commons at the hub). The metric is faked; the map tells the truth. `?at=` boots any pocket.
+> Pockets are deterministic
 > from (seed, threadKey). `office.html` remains the ANALYTIC MAP layer (cross-linked both ways) —
 > same world, two charts: the map that tells the truth about the tangle, and the floor you can actually live in.
 

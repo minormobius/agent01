@@ -92,6 +92,8 @@ function bakeChunkOf(b, chunkId) {
   }
   b.bakes.set(chunkId, { cv: bake, x0, y0, w: bw, h: bh });
   b.cellPath.set(chunkId, rec.cells.map((c) => { const path = new Path2D(); c.poly.forEach((v, i) => i ? path.lineTo(v[0], v[1]) : path.moveTo(v[0], v[1])); path.closePath(); return path; }));
+  const base = b.p.walk.base[chunkId];
+  for (const r of rec.rooms) if (r.nexus) b.nexus = { x: r.x, y: r.y, node: base + (r.door >= 0 ? r.door : r.cells[0]) };
   addNPCsForChunk(b, chunkId);
 }
 
@@ -198,6 +200,20 @@ function render() {
   ctx.setLineDash([10, 8]); ctx.lineWidth = 1.6 / view.scale;
   for (const a of cur.p.arches) { ctx.strokeStyle = rgba(TEAL, 0.4); ctx.beginPath(); ctx.moveTo(a.x1, a.y1); ctx.lineTo(a.x2, a.y2); ctx.stroke(); }
   ctx.setLineDash([]);
+  // THE NEXUS — the works floor's progression chamber: a slow gold pulse over the gilded room
+  if (cur.nexus) {
+    const v = cur.vis[cur.nexus.node] || 0;
+    if (v > 0.1) {
+      const pulse = 0.5 + 0.5 * Math.sin(frameN * 0.06);
+      ctx.globalAlpha = v * (0.3 + 0.3 * pulse);
+      ctx.strokeStyle = rgba(GOLD, 1); ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(cur.nexus.x, cur.nexus.y, 26 + pulse * 6, 0, 7); ctx.stroke();
+      ctx.globalAlpha = Math.min(0.9, v);
+      ctx.fillStyle = rgba(GOLD, 1); ctx.font = '13px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('◈', cur.nexus.x, cur.nexus.y);
+      ctx.globalAlpha = 1;
+    }
+  }
   // doors: INVISIBLE portals — the MOVE CHAMBER. No circle, no ring: the space beyond the gap is
   // simply the next floor, drawn inline (aligned so its reciprocal door meets ours) and revealed by
   // a soft hole in the fog. Behind you: your thread. Ahead: the foyer. Both gated by the chamber.
@@ -264,13 +280,80 @@ function updateHUD() {
   $('okind').textContent = state.key[0] === 'X' ? 'the INTERFACE — one chamber, shared by both threads'
     : state.key === 'CW' ? 'the commons — six white threads attach here' : state.key === 'CP' ? 'the works floor — eight engines attach here'
     : state.key[0] === 'W' ? 'white-collar ops · a pocket floor (walk it hub → rim)' : 'production · an engine floor (droids)';
-  $('now').innerHTML = room ? `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.people && room.people.length ? room.people.length + ' resident(s)' : 'a work room'}</div>`
+  $('now').innerHTML = room ? (room.nexus
+    ? `<span class="role">◈ the nexus</span><div class="sub">the works floor's heart — player progression (coming online)</div>`
+    : `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.people && room.people.length ? room.people.length + ' resident(s)' : 'a work room'}</div>`)
     : `<span class="role">the concourse</span><div class="sub">stations ahead — each door is another thread</div>`;
   const seen = p.doors.filter((d) => cur.vis && d.node < cur.vis.length && cur.vis[d.node] > 0.2);
   $('doors').innerHTML = seen.length
     ? seen.map((d) => { const s = d.station, k = d.other || d.toKey; return `<div class="door" data-n="${d.node}"><span class="sw" style="background:${rgba(threadColor(k), 1)}"></span><span class="lab">${world.label(k)}</span><span class="rf">${s ? '⬡' + (s.district + 1) + (s.over ? ' · over' : ' · under') : 'hub'}</span></div>`; }).join('')
     : '<p style="margin:4px 0">no doors in sight — walk the concourse.</p>';
   for (const el of $('doors').querySelectorAll('.door')) el.addEventListener('click', () => setWalk(+el.dataset.n));
+}
+
+// ── THE MINIMAP: the ANALYTIC weave (the map that tells the truth), with you on it. The pocket
+// fakes the metric, so the inset shows your TRUE position: nearest spine sample → rf → the point
+// on your thread's own analytic line; an interface sits at its exact station crossing; the
+// commons at the hub. Static weave baked once; your thread highlights, the gold dot is you. ──
+const mm = $('mm'), mctx = mm ? mm.getContext('2d') : null;
+const MMS = 170;
+let mmBase = null;
+function mmLine(c2, kind, idx, S, colStr, lw) {
+  c2.strokeStyle = colStr; c2.lineWidth = lw; c2.beginPath();
+  for (let i = 0; i <= 48; i++) {
+    const rf = world.lines.flatR + (1 - world.lines.flatR) * i / 48;
+    const p = kind === 'W' ? world.lines.lineW(idx, rf) : world.lines.lineP(idx, rf);
+    const x = MMS / 2 + p[0] * S, y = MMS / 2 + p[1] * S;
+    i ? c2.lineTo(x, y) : c2.moveTo(x, y);
+  }
+  c2.stroke();
+}
+function mmScale() { return (MMS / 2 - 8) / world.geo.R; }
+function mmBake() {
+  const d = Math.min(2, devicePixelRatio || 1);
+  mmBase = document.createElement('canvas'); mmBase.width = mmBase.height = MMS * d;
+  const c2 = mmBase.getContext('2d'); c2.scale(d, d);
+  const S = mmScale();
+  c2.strokeStyle = 'rgba(127,216,208,0.3)'; c2.lineWidth = 1;
+  c2.beginPath(); c2.arc(MMS / 2, MMS / 2, world.lines.flatR * world.geo.R * S, 0, 7); c2.stroke();
+  for (let i = 0; i < 6; i++) mmLine(c2, 'W', i, S, rgba(threadColor('W' + i), 0.38), 1);
+  for (let j = 0; j < 8; j++) mmLine(c2, 'P', j, S, rgba(threadColor('P' + j), 0.38), 1);
+}
+function mmPos() {   // the player's ANALYTIC [x,y]
+  const k = state.key;
+  if (k === 'CW' || k === 'CP') return [0, 0];
+  if (k[0] === 'X') {
+    const [w0, f0] = k.slice(1).split(':').map(Number);
+    const st = world.stations.find((s) => s.w === w0 && s.f === f0);
+    return st ? world.lines.lineW(w0, st.rf) : [0, 0];
+  }
+  const sp = cur.p.spine; if (!sp) return [0, 0];
+  const w = cur.p.walk, px = w.pos[2 * state.node], py = w.pos[2 * state.node + 1];
+  let bi = 0, bd = Infinity;
+  for (let i = 0; i < sp.length; i++) { const d = (sp[i].x - px) ** 2 + (sp[i].y - py) ** 2; if (d < bd) { bd = d; bi = i; } }
+  const idx = +k.slice(1);
+  return k[0] === 'W' ? world.lines.lineW(idx, sp[bi].rf) : world.lines.lineP(idx, sp[bi].rf);
+}
+function drawMinimap() {
+  if (!mm) return;
+  const d = Math.min(2, devicePixelRatio || 1);
+  if (!mmBase) mmBake();
+  if (mm.width !== MMS * d) { mm.width = mm.height = MMS * d; }
+  mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.clearRect(0, 0, mm.width, mm.height);
+  mctx.drawImage(mmBase, 0, 0);
+  mctx.setTransform(d, 0, 0, d, 0, 0);
+  const S = mmScale(), k = state.key;
+  if (k[0] === 'W' && k !== 'CW') mmLine(mctx, 'W', +k.slice(1), S, rgba(threadColor(k), 0.95), 2);
+  else if (k[0] === 'P' && k !== 'CP') mmLine(mctx, 'P', +k.slice(1), S, rgba(threadColor(k), 0.95), 2);
+  else if (k[0] === 'X') {
+    const [w0, f0] = k.slice(1).split(':').map(Number);
+    mmLine(mctx, 'W', w0, S, rgba(threadColor('W' + w0), 0.85), 1.6);
+    mmLine(mctx, 'P', f0, S, rgba(threadColor('P' + f0), 0.85), 1.6);
+  } else { mctx.strokeStyle = rgba(TEAL, 0.9); mctx.lineWidth = 2; mctx.beginPath(); mctx.arc(MMS / 2, MMS / 2, world.lines.flatR * world.geo.R * S, 0, 7); mctx.stroke(); }
+  const p = mmPos(), x = MMS / 2 + p[0] * S, y = MMS / 2 + p[1] * S;
+  const pulse = 0.5 + 0.5 * Math.sin(frameN * 0.1);
+  mctx.beginPath(); mctx.arc(x, y, 4 + pulse * 2.5, 0, 7); mctx.strokeStyle = rgba(GOLD, 0.4 + 0.4 * pulse); mctx.lineWidth = 1.2; mctx.stroke();
+  mctx.beginPath(); mctx.arc(x, y, 2.2, 0, 7); mctx.fillStyle = rgba(GOLD, 1); mctx.fill();
 }
 
 // ── input + loop ──
@@ -329,6 +412,7 @@ function loop() {
   sync(cur);
   fadeVis();
   render();
+  if (frameN % 2 === 0) drawMinimap();
   if (frameN % 30 === 0) updateHUD();
   if (frameN % 45 === 0 && !state.pending) {
     // STREAM: first finish the floor underfoot (one segment per interval), then warm ONE visible
@@ -345,10 +429,12 @@ function loop() {
 }
 
 // ── boot ──
-const seed = (new URLSearchParams(location.search).get('seed') | 0) >>> 0 || 7;
+const params = new URLSearchParams(location.search);
+const seed = (params.get('seed') | 0) >>> 0 || 7;
+const at = /^(CW|CP|W[0-5]|P[0-7])$/.test(params.get('at') || '') ? params.get('at') : 'CW';
 await new Promise((r) => setTimeout(r, 30));
 world = buildPocketWorld(seed);
-cur = ensure('CW'); state.key = 'CW';
+cur = ensure(at); state.key = at;
 ensureSegB(cur, 0);
 state.node = nearestNode(cur.p.walk, cur.p.W / 2, cur.p.H / 2);
 resize();

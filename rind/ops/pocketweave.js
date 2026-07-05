@@ -149,6 +149,19 @@ function buildPocket(world, key) {
       const rec = isBridge
         ? solveChunk({ seed, foamSeed: seed, v2: true, shape: 'hex', W, H, cellSize: o.cellSize, roomSize: 11, concourseWidth: 2 })
         : solveChunk({ seed, foamSeed: seed, v2: true, shape: 'hex', W, H, cellSize: o.cellSize, roomSize: o.roomSize, concourseWidth: o.concourseWidth, roleMix: kind === 'prod' ? PROD_MIX : null });
+      if (key === 'CP') {
+        // THE NEXUS — the works floor's centrepiece chamber, reserved for player progression
+        // (marked now, wired later): the biggest doored room nearest the hex centre, gilded so
+        // the paint, lamps and fixtures all read it as the special room. Deterministic; pinned.
+        let bi = -1, bs = -Infinity;
+        for (let i = 0; i < rec.rooms.length; i++) {
+          const r = rec.rooms[i];
+          if (r.door < 0 || !r.cells.length) continue;
+          const s = r.cells.length - Math.hypot(r.x - W / 2, r.y - H / 2) * 0.6;
+          if (s > bs) { bs = s; bi = i; }
+        }
+        if (bi >= 0) { const r = rec.rooms[bi]; r.nexus = true; r.role = 'nexus'; r.glyph = '◈'; r.color = '#f4bf62'; }
+      }
       attach(pocket, g, rec);
       const base = pocket.walk.base[g.chunkId], used = new Set();
       if (isBridge) {
