@@ -376,18 +376,35 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-v101-audit-docs-xb82fs` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-v102-reauth-gc096v` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
-  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v101` is the
-  DEVELOPMENT surface** (carries the audited story engine: scaled storyboard pacing, external-reps
-  gate channel, end-goto validator fix, both-schemas importer, and the **quest solvability oracle**
-  `v101/story/solvable.js` — proves every anchor tier's gates have a placeable keeper; its
-  `requiredKeeperIds` makes `populateChambers` force-place load-bearing keepers past the tier filter
-  (the Kaelen Voss soft-lock fix). Prove the live pool: `node hoop/scripts/prove-solvable.mjs`).
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v102` is the
+  DEVELOPMENT surface** (v101, now a frozen prior, plus the v102 pass):
+  - **Auth resilience (the reauth-on-return fix).** Two bugs made app-switching demand a re-login:
+    (1) `flushRepo`'s save-failure handler re-minted HOOP_SCOPE — a full OAuth redirect — on ANY
+    error, and the `visibilitychange→hidden` flush fires exactly when you background the app, so
+    the OS-killed fetch read as a scope failure and navigated the page to the consent screen. Now
+    only a definitive auth/scope error escalates, never while hidden. (2) the shared client lib's
+    `init()` deleted the stored token on any transient network failure; it now only clears on a
+    definitive 401, keeps a cached identity for offline grace, and slides the 30-day worker session
+    daily via `/api/refresh` (which nothing called before — active players hard-expired monthly).
+    Lib fix is in `packages/oauth-client/auth.js`, re-synced verbatim into `vendor/auth.js`.
+  - **The strengthened quest solvability oracle** (`v102/story/solvable.js`): proves every anchor
+    tier's gates have a placeable keeper AND (new) that each setter's flag-setting choice is
+    REACHABLE in its dialogue (`setter_flag_unreachable` — an orphaned node or an unearnable
+    choice-gate used to pass). Its `requiredKeeperIds` makes `populateChambers` force-place
+    load-bearing keepers past the tier filter (the Kaelen Voss soft-lock fix), and v102's
+    placement loop **self-heals stale placements** (the Miren Tallow lock: a keeper recorded
+    `npc.discovered` whose living resident failed to re-derive existed nowhere and was never
+    re-placed — now detected and re-seated). For gates the pool PROVABLY cannot satisfy
+    (`waivableGates`; the live morphyx pool currently lacks setters for t3
+    `flag.rind.rindwalker_scale_a` and t4 `flag.signal.chamber_key`), the surface **waives the
+    gate at runtime with a notice** instead of walling the campaign. Prove the live pool:
+    `node hoop/scripts/prove-solvable.mjs`.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

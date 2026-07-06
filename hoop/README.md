@@ -116,6 +116,6 @@ walk there · **N** (or the footer button) drops a node where you stand.
 
 `.github/workflows/deploy-hoop.yml` runs `npx wrangler deploy` from `hoop/` on
 push to `main` or the owning branch in `deploy-registry.json` (currently
-`claude/hoop-v101-audit-docs-xb82fs`) touching `hoop/**`.
+`claude/hoop-v102-reauth-gc096v`) touching `hoop/**`.
 Pure static Worker — no D1, no secrets beyond the shared Cloudflare credentials.
 Verify the deploy log binds `hoop.mino.mobi (custom domain)` (the golden rule).

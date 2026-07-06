@@ -31,6 +31,9 @@
 
 const DEFAULT_AUTH_URL = 'https://auth.mino.mobi';
 const SESSION_KEY = 'mino_auth_session';
+const USER_CACHE_KEY = 'mino_auth_user';         // last-known {did,handle,scope} — offline/transient-failure grace
+const REFRESH_STAMP_KEY = 'mino_auth_refreshed'; // last sliding-refresh time (ms) — throttles /api/refresh
+const REFRESH_EVERY_MS = 24 * 60 * 60 * 1000;    // slide the 30-day session at most once a day
 
 // --- Scope helpers (pure; exported for node testing) ---
 // Scope strings are space-separated tokens: 'atproto', 'repo:<nsid>', 'blob:<mime>',
@@ -110,14 +113,30 @@ export class AuthClient {
     // 3. Validate — always attempt, even with no local token, so a cookie-only
     //    SSO session is discovered. _fetchMe sends credentials; the worker reads
     //    the .mino.mobi cookie when no Bearer header is present.
+    //
+    //    TRANSIENT failures must not log you out. A page resuming from the
+    //    background (mobile app-switch), a radio still waking up, or a worker 5xx
+    //    all land here as a rejected fetch — none of them mean the session is
+    //    dead. Only a definitive 401 from the worker invalidates the token;
+    //    anything else keeps the token and falls back to the cached identity, so
+    //    the next successful /api/me (or PDS call) re-validates for real.
     try {
       const user = await this._fetchMe();
       this._user = user;
-    } catch {
-      // No valid session from token or cookie.
-      this._token = null;
-      this._user = null;
-      this._removeToken();
+      this._saveUserCache(user);
+      this._maybeSlideSession();   // fire-and-forget: keep the 30-day session rolling for active users
+    } catch (err) {
+      if (err && err.status === 401) {
+        // The worker answered: this session is gone. Clear everything.
+        this._token = null;
+        this._user = null;
+        this._removeToken();
+        this._removeUserCache();
+      } else {
+        // Network error / 5xx — keep the token; surface the last-known user (if
+        // any) so the UI doesn't flash signed-out on a transient blip.
+        this._user = this._loadUserCache();
+      }
     }
     this._notify();
 
@@ -190,6 +209,7 @@ export class AuthClient {
     this._token = null;
     this._user = null;
     this._removeToken();
+    this._removeUserCache();
     this._notify();
   }
 
@@ -298,8 +318,42 @@ export class AuthClient {
       credentials: 'include',
       headers,
     });
-    if (!res.ok) throw new Error('Session invalid');
+    if (!res.ok) {
+      // Carry the status so init() can tell "session is dead" (401) apart from
+      // "the worker/network hiccuped" (anything else). Only the former may log out.
+      const err = new Error(res.status === 401 ? 'Session invalid' : `auth worker HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
     return res.json();
+  }
+
+  // Sliding session renewal: the worker's sessions hard-expire after 30 days
+  // unless /api/refresh touches them — and nothing used to call it, so even a
+  // daily player got signed out monthly. Fire-and-forget, throttled to once a
+  // day across tabs via localStorage; failures are ignored (the next init tries
+  // again).
+  _maybeSlideSession() {
+    try {
+      const last = Number(localStorage.getItem(REFRESH_STAMP_KEY) || 0);
+      if (Date.now() - last < REFRESH_EVERY_MS) return;
+      localStorage.setItem(REFRESH_STAMP_KEY, String(Date.now()));
+    } catch { return; }
+    const headers = {};
+    if (this._token) headers['Authorization'] = `Bearer ${this._token}`;
+    fetch(`${this.authUrl}/api/refresh`, { method: 'POST', credentials: 'include', headers }).catch(() => {});
+  }
+
+  _saveUserCache(user) {
+    try { localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user)); } catch { /* no-op */ }
+  }
+
+  _loadUserCache() {
+    try { return JSON.parse(localStorage.getItem(USER_CACHE_KEY) || 'null'); } catch { return null; }
+  }
+
+  _removeUserCache() {
+    try { localStorage.removeItem(USER_CACHE_KEY); } catch { /* no-op */ }
   }
 
   /**
@@ -330,6 +384,7 @@ export class AuthClient {
       this._token = null;
       this._user = null;
       this._removeToken();
+      this._removeUserCache();
       this._notify();
       throw new Error('Session expired — please log in again');
     }
