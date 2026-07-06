@@ -29,7 +29,7 @@
 <div class="wrap">
   <div class="crumb"><a href="/">◍ hoop</a> · <a href="/docs">world docs</a> · <a href="/garden/plot">garden plot</a> · <a href="/alch">cookbook</a> · overworld · <a href="/over/demo">▶ standing demo</a></div>
   <h1>The Overworld — roam the grow-deck</h1>
-  <p class="lead">The ship's outer grow-deck, <em>walked</em>. You're the gold-rimmed figure; the ecology grows <em>wild</em> around you across a voronoi of terrain bands (dry heath, sunlit meadow, orchard grove, deep thicket, reed fen, open water you can't cross). The world streams in <b>chunks</b> as you move — roam out and back and it's the same landscape, deterministic from the seed. Two verbs up here: <b>gather</b> a herb (into your pantry, to brew at a bench) and <b>face</b> a bee-swarm or spider. Same plants the garden grows, each keeping the <em>soul</em> of its growth-form.</p>
+  <p class="lead">The ship's outer grow-deck, <em>walked</em>. You're the gold-rimmed figure; the ecology grows <em>wild</em> around you across a voronoi of terrain bands (dry heath, sunlit meadow, orchard grove, deep thicket, reed fen, open water you can't cross). The world streams in <b>chunks</b> as you move — roam out and back and it's the same landscape, deterministic from the seed. Two verbs up here: <b>gather</b> a herb (into your pantry, to brew at a bench) and <b>face</b> the fauna — bee swarms <em>hunt you</em> in boids fashion once you stray inside their radius (outrun the leash and they drift home), and spiders strike the moment you step on them. Same plants the garden grows, each keeping the <em>soul</em> of its growth-form.</p>
   <div class="stage">
     <canvas id="over"></canvas>
     <div id="hud"></div>
@@ -47,6 +47,7 @@
 
 <script type="module">
 import { createRoam, stepPlayer, forageTarget, forage, encounterTarget, foeOf, defeat, residentChunks } from './roam.js';
+import { createMenace, stepMenace, spiderUnderfoot } from './menace.js';
 import { drawRoam } from './over-render.js';
 import { bandMeta, bandAt, organismById, SURFACE_BANDS } from './overworld.js';
 
@@ -54,11 +55,13 @@ const cv = document.getElementById('over'), ctx = cv.getContext('2d');
 const seedEl = document.getElementById('seed'), densEl = document.getElementById('dens');
 const ls = document.getElementById('ls'), ld = document.getElementById('ld'), countEl = document.getElementById('count'), hud = document.getElementById('hud');
 let roam = null, cam = { x: 0, y: 0, z: 2.4 }, keys = new Set(), clickTarget = null, autoForage = false, foraged = 0, faced = 0, t0 = 0, last = 0, flash = 0;
+let menace = null, menaceView = null, atkCd = 0;   // the living-menace sim (boids swarms + underfoot spiders)
 const SPEED = 158, ZMIN = 0.5, ZMAX = 3;
 
 function build() {
   const seed = +seedEl.value, density = +densEl.value / 100;
   roam = createRoam(seed, { keep: 1, density });
+  menace = createMenace(); menaceView = null; atkCd = 0;
   ls.textContent = seed; ld.textContent = density < 0.7 ? 'sparse' : density > 1.4 ? 'lush' : 'normal';
   foraged = 0; faced = 0; clickTarget = null; cam.z = 2.4; center();
   try { history.replaceState(null, '', `?seed=${seed}&d=${+densEl.value}`); } catch (e) {}
@@ -88,12 +91,22 @@ function frame(now) {
   const tx = roam.player.x - (w / cam.z) / 2, ty = roam.player.y - (h / cam.z) / 2, k = Math.min(1, dt * 9);
   cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k;
   forageT = forageTarget(roam); foe = forageT ? null : encounterTarget(roam);
-  drawRoam(ctx, w, h, roam, cam, { forage: forageT, encounter: foe, t: (now - t0) / 1000 });
+  // the LIVING MENACE: flocks chase inside their aggro radius; spiders strike underfoot. Contact = auto-face.
+  try {
+    const mv = menace ? stepMenace(menace, roam, dt) : null; menaceView = mv ? mv.swarms : null;
+    if (now > atkCd) {
+      const sp = spiderUnderfoot(roam);
+      const hit = sp || (mv && mv.engage);
+      if (hit) { atkCd = now + 1400; defeat(roam, hit); faced++; flash = 1; if (foe && foe.id === hit.id) foe = null; }
+    }
+  } catch (e) { menaceView = null; }
+  drawRoam(ctx, w, h, roam, cam, { forage: forageT, encounter: foe, t: (now - t0) / 1000, menace: menaceView });
   if (flash > 0) { flash = Math.max(0, flash - dt * 3); ctx.fillStyle = `rgba(224,106,90,${flash * 0.28})`; ctx.fillRect(0, 0, w, h); }
   const b = bandAt(roam.player.x, roam.player.y, roam.seed), bm = bandMeta(b);
   let np = 0; for (const c of residentChunks(roam)) np += c.plants.length;
   let hint = 'WASD / arrows / click to roam · scroll zoom';
-  if (forageT) { const o = organismById(forageT.orgId); hint = `⌁ press <b>E</b> to gather <b>${o ? (o.common || o.id) : 'this'}</b>`; }
+  if ((menaceView || []).some((x) => x.aggro)) hint = '<b>⚠ a swarm is on you</b> — run beyond its leash, or take the sting';
+  else if (forageT) { const o = organismById(forageT.orgId); hint = `⌁ press <b>E</b> to gather <b>${o ? (o.common || o.id) : 'this'}</b>`; }
   else if (foe) { const o = organismById(foe.orgId); hint = `⚔ press <b>F</b> to face the <b>${o ? (o.common || o.id) : 'swarm'}</b>`; }
   hud.innerHTML = `${bm ? bm.kicker + ' ' + bm.name : 'the overworld'} · ${np} plants near · ${hint}`;
   countEl.textContent = `${foraged} foraged · ${faced} faced`;

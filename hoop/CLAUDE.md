@@ -413,6 +413,16 @@ despite the name. It stayed with hoop, not rind.)
     natural verb (plant / brew / forge / clear stage one) completes it and pays coins — organic use
     counts even before the gimme unlocks, so nobody is re-tutorialised. Pure + node-tested
     (`v102/test/onboard.selftest.mjs`); the surface owns grants/hooks/ink.
+  - **The overworld's living menace** (`v102/over/menace.js`): fauna stop being scenery. Bee
+    swarms wake when you stray inside their aggro radius (240 px) and hunt you as a **boids
+    flock** (cohesion·separation·alignment·pursuit, seeded jitter — deterministic), leashed to
+    their home flowers (460 px — outrun it and they drift home and settle); contact auto-fires
+    the ambush. **Spiders never chase — they strike the moment you step on them.** An ambush
+    stings stamina (−8 swarm / −10 spider), then resolves as the usual drive-off + reagent;
+    cooldown-gated so a thicket can't stun-lock. Wired into both the in-game overlay and the
+    standalone `/over` page; flocks render as bee particles with a threat ring on the centroid.
+    Pure + node-tested (`v102/test/menace.selftest.mjs`, 18 checks — named `menace` because the
+    arena already owns `swarm.selftest` for the distributed-body creep).
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

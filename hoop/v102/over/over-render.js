@@ -226,12 +226,33 @@ export function drawRoam(ctx, W, H, roam, cam = { x: 0, y: 0, z: 1 }, opts = {})
     drawPlant(ctx, p, sx, sy, z);
   }
   const foe = opts.encounter;
+  // an AIRBORNE flock (over/menace.js) replaces its static hive glyph — don't draw the swarm twice.
+  const airborne = new Set((opts.menace || []).map((s) => s.faunaId));
   for (const c of roam.chunks.values()) for (const f of c.fauna) {
-    if (roam.gathered.has('foe:' + f.id)) continue;
+    if (roam.gathered.has('foe:' + f.id) || airborne.has(f.id)) continue;
     const sx = (f.x - cam.x) * z, sy = (f.y - cam.y) * z;
     if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) continue;
     if (f.fight && foe && foe.id === f.id) { ctx.strokeStyle = 'rgba(220,90,70,0.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(10, 12 * z), 0, Math.PI * 2); ctx.stroke(); }
     drawFauna(ctx, f, sx, sy, z);
+  }
+  // the living menace: each boid a bee — a bright body with a smoked wing-blur behind its heading.
+  // Aggro flocks run hot (gold), homing flocks cool off (paler, no ring).
+  for (const s of (opts.menace || [])) {
+    for (const b of s.boids) {
+      const sx = (b.x - cam.x) * z, sy = (b.y - cam.y) * z;
+      if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) continue;
+      const v = Math.hypot(b.vx, b.vy) || 1;
+      ctx.strokeStyle = s.aggro ? 'rgba(60,50,20,0.55)' : 'rgba(60,50,20,0.3)';
+      ctx.lineWidth = Math.max(0.6, 0.8 * z);
+      ctx.beginPath(); ctx.moveTo(sx - (b.vx / v) * 3.4 * z, sy - (b.vy / v) * 3.4 * z); ctx.lineTo(sx, sy); ctx.stroke();
+      ctx.fillStyle = s.aggro ? 'rgba(244,200,90,0.95)' : 'rgba(226,200,130,0.7)';
+      ctx.beginPath(); ctx.arc(sx, sy, Math.max(0.9, 1.3 * z), 0, Math.PI * 2); ctx.fill();
+    }
+    if (s.aggro) {   // the threat ring rides the flock centroid, not the hive
+      const cx2 = (s.cx - cam.x) * z, cy2 = (s.cy - cam.y) * z;
+      ctx.strokeStyle = 'rgba(220,90,70,0.55)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx2, cy2, Math.max(10, 13 * z), 0, Math.PI * 2); ctx.stroke();
+    }
   }
   drawPlayer(ctx, (roam.player.x - cam.x) * z, (roam.player.y - cam.y) * z, z, opts.playerSprite);
 }

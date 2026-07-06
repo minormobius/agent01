@@ -567,6 +567,7 @@
     import { makeOverworld, organismById as overOrg, bandAt as overBandAt, bandMeta as overBandMeta } from './over/overworld.js';   // the OVERWORLD kernel — the ecology grown wild across terrain bands (the ladder in the Continuants ward climbs here)
     import { drawOverworld, drawRoam } from './over/over-render.js';     // the overworld renderers — still-map + the roamed view (voronoi ground, streamed chunks, the player)
     import { createRoam, stepPlayer, ensureAround, forageTarget, forage as roamForage, encounterTarget, foeOf, defeat as roamDefeat } from './over/roam.js';   // the ROAM manager — walk the outer deck, forage plants, meet creatures
+    import { createMenace, stepMenace, spiderUnderfoot } from './over/menace.js';   // the LIVING MENACE — boids bee swarms that chase inside their aggro radius; spiders that strike underfoot
     import { findReagent, prepare, PREPARATIONS } from './alch/alchemy.js';   // the alchemy kernel — reagent correspondence → temperament colour; prepare() = the bench's brew
     import { deriveRecipes, describeEffect } from './alch/cookbook.js';  // the cookbook — suggested recipes + effect readout for the make-room bench
     import { COMMODITIES as SMITH_COMMODITIES, commodityMeta, availableMaterials, erasUpTo, techCeilingForTier, craftItem as smithCraft, craftCost, dismantle as smithDismantle, canAfford, shortfall, spend as smithSpend, earn as smithEarn, buyCommodityPrice, sellCommodityPrice } from './craft/smith.js';   // the SMITHY — the make-room WALL fixture: forge equipment from the ship's commodities
@@ -3947,6 +3948,7 @@
     //    so an NPC's overworld reproduces. Only what's on-screen draws, so it's cheap. ──
     let overOpen = false, roam = null, overCam = { x: 0, y: 0, z: 2.4 }, _overRAF = 0, _overT0 = 0, _overLast = 0;
     let overForage = null, overFoe = null, overClickTarget = null, _autoForage = false, _overFlash = 0;
+    let overMenace = null, _overMenaceView = null, _overAtkCd = 0;   // the living-menace sim + its render view + the ambush cooldown
     let overDir = 'S', overPhase = 0;   // the roamed player's facing + walk-cycle phase (reuses the ship sprite)
     const overKeys = new Set();
     const OVER_SPEED = 158, OVER_ZMIN = 0.5, OVER_ZMAX = 3, OVER_Z_DEFAULT = 2.4;   // 2 wheel-clicks out from max
@@ -3973,11 +3975,27 @@
       // a foraged creature yields its own reagent line (bee → animal reagent) — a hook for the baroque table.
       notify(`⚔ you drove off the ${foe.name}${foe.swarm ? ' swarm' : ''}${foe.reagentClass ? ' · +1 ' + foe.name + ' (reagent)' : ''}`, { kind: 'combat', ms: 2600 });
     }
+    // THE AMBUSH — the menace caught you (a flock made contact, or you stepped on a spider). Unlike the
+    // F-prompt drive-off, this one costs you: a stamina sting, then the same resolution (the creature is
+    // spent, its reagent yielded). Cooldown-gated by the caller so a dense thicket can't stun-lock.
+    function overAmbush(f, kind) {
+      if (!roam || !f) return;
+      const foe = foeOf(f); roamDefeat(roam, f); if (overFoe && overFoe.id === f.id) overFoe = null;
+      _overFlash = 1;
+      const sting = kind === 'spider' ? 10 : 8;
+      if (story.ready) { story.store.setFact(story.playerId, 'sim.stamina', Math.max(0, (getStam() | 0) - sting)); saveStory(); }
+      notify(kind === 'spider'
+        ? `🕷 a ${foe.name} strikes from the litter — you crush it (−${sting} stam)${foe.reagentClass ? ' · +1 ' + foe.name + ' (reagent)' : ''}`
+        : `⚔ the ${foe.name} swarm catches you — stung! (−${sting} stam) · driven off${foe.reagentClass ? ' · +1 ' + foe.name + ' (reagent)' : ''}`,
+        { kind: 'combat', ms: 3000 });
+    }
     function overHud() {
       if (!roam) return;
       const b = overBandAt(roam.player.x, roam.player.y, roam.seed), bm = overBandMeta(b);
       let hint = '<span style="color:#8a9">WASD / arrows / click to roam · scroll zoom · Esc to climb down</span>';
-      if (overForage) { const o = overOrg(overForage.orgId); hint = `⌁ press <b style="color:#f4bf62">E</b> to gather <b>${o ? (o.common || o.id) : 'this'}</b>`; }
+      const hot = (_overMenaceView || []).some((s) => s.aggro);
+      if (hot) hint = `<b style="color:#e06a5a">⚠ a swarm is on you</b> — run beyond its leash, or stand and take the sting`;
+      else if (overForage) { const o = overOrg(overForage.orgId); hint = `⌁ press <b style="color:#f4bf62">E</b> to gather <b>${o ? (o.common || o.id) : 'this'}</b>`; }
       else if (overFoe) { const o = overOrg(overFoe.orgId); hint = `⚔ press <b style="color:#e06a5a">F</b> to face the <b>${o ? (o.common || o.id) : 'swarm'}</b>`; }
       $('overhud').innerHTML = `${bm ? bm.kicker + ' ' + bm.name : 'the overworld'} · ${hint}`;
     }
@@ -4001,15 +4019,27 @@
       const tx = roam.player.x - (w / overCam.z) / 2, ty = roam.player.y - (h / overCam.z) / 2, k = Math.min(1, dt * 9);
       overCam.x += (tx - overCam.x) * k; overCam.y += (ty - overCam.y) * k;
       overForage = forageTarget(roam); overFoe = overForage ? null : encounterTarget(roam);
+      // THE LIVING MENACE (over/menace.js): step the flocks; a contact or an underfoot spider auto-fires
+      // the ambush (cooldown-gated — a dense thicket can't chain-sting you every frame).
+      try {
+        const mv = overMenace ? stepMenace(overMenace, roam, dt) : null;
+        _overMenaceView = mv ? mv.swarms : null;
+        if (now > _overAtkCd) {
+          const sp = spiderUnderfoot(roam);
+          if (sp) { _overAtkCd = now + 1400; overAmbush(sp, 'spider'); }
+          else if (mv && mv.engage) { _overAtkCd = now + 1400; overAmbush(mv.engage, 'swarm'); }
+        }
+      } catch (e) { _overMenaceView = null; }
       // carry the player's OWN rolled sprite into the overworld (identity consistency with the ship deck)
       let overSpr = null; try { if (playerGenome) overSpr = spriteCanvas(playerGenome, overDir, moving ? (overPhase | 0) % 4 : null); } catch (e) {}
-      try { const { cx } = overSize(); drawRoam(cx, w, h, roam, overCam, { forage: overForage, encounter: overFoe, t: (now - _overT0) / 1000, playerSprite: overSpr });
+      try { const { cx } = overSize(); drawRoam(cx, w, h, roam, overCam, { forage: overForage, encounter: overFoe, t: (now - _overT0) / 1000, playerSprite: overSpr, menace: _overMenaceView });
         if (_overFlash > 0) { _overFlash = Math.max(0, _overFlash - dt * 3); cx.fillStyle = `rgba(224,106,90,${_overFlash * 0.28})`; cx.fillRect(0, 0, w, h); } } catch (e) {}
       overHud();
       _overRAF = requestAnimationFrame(overLoop);
     }
     function openOverworld() {
       try { roam = createRoam((seed ^ 0x0ACE) >>> 0, { keep: 1 }); } catch (e) { roam = null; }
+      overMenace = createMenace(); _overMenaceView = null; _overAtkCd = 0;   // fresh flocks per climb — nothing chases you up the ladder
       overOpen = true; $('over').classList.add('on');
       overCam.z = OVER_Z_DEFAULT; overKeys.clear(); overClickTarget = null; _autoForage = false; _overLast = 0; _overT0 = performance.now();
       if (story.ready) story.store.setFact(story.playerId, 'flag.climbed_overworld', true);
