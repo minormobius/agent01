@@ -405,6 +405,14 @@ despite the name. It stayed with hoop, not rind.)
     `flag.rind.rindwalker_scale_a` and t4 `flag.signal.chamber_key`), the surface **waives the
     gate at runtime with a notice** instead of walling the campaign. Prove the live pool:
     `node hoop/scripts/prove-solvable.mjs`.
+  - **The onboarding engine** (`v102/story/onboard.js` — the little gimmes): the four deep systems
+    are revealed ONE at a time, gated to hoopy's narrative tier ladder — ❀ garden (tier 1) → ⚗
+    bench (tier 2) → ⚒ smithy (tier 3) → ⚔ gauntlet (tier 3). Each gimme grants its guaranteed
+    first win (starter seeds; two live reagents; the smith wallet already affords a forge), points
+    a teal ✧ marker at the nearest fixture chamber, and rides the journal as a single card. The
+    natural verb (plant / brew / forge / clear stage one) completes it and pays coins — organic use
+    counts even before the gimme unlocks, so nobody is re-tutorialised. Pure + node-tested
+    (`v102/test/onboard.selftest.mjs`); the surface owns grants/hooks/ink.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

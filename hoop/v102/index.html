@@ -608,6 +608,7 @@
     import { CHAMBER_LORE_TARGET, chamberLore, signalLocated, chapterComplete, finalChoice, lunaContact, FINAL_CHOICES, weighJourney, concludeEnding } from './story/conclusion.js';   // v100: THE CHAPTER CLOSE — locate the Signal Chamber, Luna's contact, the final decision, an ending fitted to the path
     import { anchorChain, anchorForTier, gateSetters, advanceState, nextKeeper, tierFromClears, endingBeat, chosenDisposition, chosenFactionFlag } from './story/anchors.js';   // v100: hoopy's ANCHOR-TURN-IN advancement — keeper flags gate an anchor's turn-in; the turn-in sets flag.deck.<deck>.cleared (the level-up) + directs you on
     import { requiredKeeperIds, proveProgression, waivableGates } from './story/solvable.js';   // the quest solvability oracle's runtime half — force-place the active anchor's unmet gate setters past the tier filter (the Kaelen Voss fix); v102 adds the provably-dead-gate WAIVER (a content gap shortens the tier instead of soft-locking it)
+    import { GIMMES, activeGimme, gimmeProgress, starterCrops, givenFlag as obGivenFlag, doneFlag as obDoneFlag } from './story/onboard.js';   // the ONBOARDING ENGINE: one little gimme at a time (garden → bench → smithy → gauntlet), gated to hoopy's tier ladder
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
@@ -1671,7 +1672,7 @@
         if (cf && FACTION_INFO[cf]) { ctx.fillStyle = FACTION_INFO[cf].color; ctx.globalAlpha = 0.10; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
       }
       if (!walkPath) drawNPC();   // the social web is ambient — skip it while WALKING (its per-route strokes are off the hot path; it reappears the moment you stop)
-      drawShaft(); drawOverLadder(); drawPlayer(); drawAnchors(); drawWaypoint();
+      drawShaft(); drawOverLadder(); drawPlayer(); drawAnchors(); drawWaypoint(); drawGimmeMarker();
     }
     // the shaft: a chute marker at the (deck-shared) shaft cell — ▼ down to the rind, ▲ back up to the Nave
     // names for each deck (for the shaft labels): 0 the Nave, 1 the (upper) rind, 2 the lower rind.
@@ -1817,7 +1818,7 @@
     function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}${_maxDt > 20 ? ' · max ' + _maxDt.toFixed(0) + 'ms' : ''}${_socMs > 1 ? ' · soc ' + _socMs.toFixed(0) + 'ms' : ''}${_stitchMs > 1 ? ' · stitch ' + _stitchMs.toFixed(0) + 'ms' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
-      ensureDeckSupply(); discoverQuestNpcs(); populateChambers(); ensureWitnessSupply(); waiveDeadGates();   // keep the deck clearable + surface quest NPCs + spread keepers across every chamber, THEN top up any faction the keepers under-represent for the upper-rind threshold (witness supply runs LAST so it only fills genuine gaps, not a clump before the keepers land), then waive any gate the pool provably cannot satisfy. All guarded + throttled.
+      ensureDeckSupply(); discoverQuestNpcs(); populateChambers(); ensureWitnessSupply(); waiveDeadGates(); tickGimmes();   // keep the deck clearable + surface quest NPCs + spread keepers across every chamber, THEN top up any faction the keepers under-represent for the upper-rind threshold (witness supply runs LAST so it only fills genuine gaps, not a clump before the keepers land), then waive any gate the pool provably cannot satisfy + pace the onboarding gimmes. All guarded + throttled.
       maybeChamberLore(walk.nodeChunk[player]);   // fire the CURRENT chamber's lore — covers the chamber you spawned in (followCam's chunk-change hook missed it: story wasn't ready yet on first entry)
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
@@ -2736,6 +2737,8 @@
       // the MAIN quest guidance (objective/step/where/how) leads the journal, then the side-quest threads
       const guide = guidanceHTML();
       let body = guide ? `<div style="margin:0 0 16px;padding-bottom:13px;border-bottom:1px solid #1b2530">${guide}</div>` : '';
+      const ob = obHTML();   // the onboarding gimme card (one at a time) sits between the main quest and the side threads
+      if (ob) body += `<div style="margin:0 0 16px;padding-bottom:13px;border-bottom:1px solid #1b2530">${ob}</div>`;
       if (open.length || done.length) body += `<div style="color:#7fd8d0;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:9px">side threads</div>`;
       if (!open.length && !done.length) body += guide ? '<div style="color:#6b7872;font-size:12px">No side threads yet. Talk to the people of the deck — someone will mention something worth chasing.</div>' : 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.';
       for (const q of open) {
@@ -3626,6 +3629,7 @@
         sd[gardenSelSeed]--; setSeeds(sd);
         setBed(gardenKey, plantAt(curBed, b.x, b.y, gardenSelSeed, day2));
         saveStory(); renderGarden();
+        obDone('garden');   // onboarding: the first planted seed IS the garden gimme
       });
     }
     $('garden').addEventListener('click', (e) => {
@@ -3767,6 +3771,7 @@
       benchSel = []; saveStory(); renderBench();
       notify(`⚗ brewed ${item.name} — ${describeEffect(pv)} → pack (i)`, { kind: 'pickup', ms: 3000 });
       if (discovered) notify(`✦ recipe discovered — ${match.vessel} of ${match.key}! it's now a one-tap at any bench`, { kind: 'life', ms: 3600 });
+      obDone('alchemy');   // onboarding: the first brew IS the bench gimme
     }
 
     // ── USING PREPARATIONS — the consume verb, self, in & out of combat. A preparation carries
@@ -3923,6 +3928,7 @@
       addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack();
       saveStory(); renderSmithy();
       notify(`⚒ forged ${it.name} (${it.gradeLabel}) → pack (i) — equip at ⛨`, { kind: 'pickup', ms: 3200 });
+      obDone('smith');   // onboarding: the first forge IS the smithy gimme
     }
     function doDismantle(i) {
       const it = pack.pack[i]; if (!isGear(it)) return;
@@ -4673,6 +4679,7 @@
         if (it) { addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack(); }   // loot ALWAYS persists
         setCoins(getCoins() + sp.coins);
         flashBusy(`⚔ stage ${ctx.stage + 1} cleared — +${r.points}⬡ point${r.points === 1 ? '' : 's'} · +◈${sp.coins}${it ? ` · ${it.name}` : ''}`, 3200);
+        obDone('trainer');   // onboarding: the first cleared stage IS the gauntlet gimme
       } else {
         flashBusy('⚔ you fall — the run ends. The loot you banked is yours to keep.', 3200);
       }
@@ -5097,6 +5104,103 @@
         }
         if (waived) { saveStorySnapshot(); renderQuest(); }
       } catch (e) {}
+    }
+    // ── THE ONBOARDING ENGINE (v102, story/onboard.js): the little gimmes. Four deep systems — garden,
+    // bench, smithy, gauntlet — revealed ONE at a time, each gated to hoopy's narrative tier ladder
+    // (garden 1 · bench 2 · smithy 3 · gauntlet 3) so the depth arrives at the story's pace, not as a
+    // wall. When a gimme surfaces, the player is GRANTED its guaranteed first win (seeds for the bed,
+    // two live reagents for the bench; the smithy's starter wallet already affords a forge) and a ✧
+    // marker points at the nearest room that carries the fixture. The natural verb — plant, brew,
+    // forge, clear stage one — completes it (organic use counts even before the gimme unlocks) and
+    // pays a coin reward. The engine is pure and node-tested; this block is the grants + hooks + ink.
+    let _obT = 0, _obActive = null;
+    function nearestRoleChamber(role) {
+      if (!world || player < 0) return null;
+      const pd = playerDeck(); let best = null;
+      for (const ch of world.chunks) {
+        if (!ch.painted || !ch.poly || (ch.deck || 0) !== pd) continue;
+        if (!(ch.rooms || []).some((r) => r && r.role === role)) continue;
+        const c = polyCentroid(ch.poly), d = Math.hypot(c.x - px(), c.y - py());
+        if (!best || d < best.d) best = { x: c.x, y: c.y, d };
+      }
+      return best;
+    }
+    const obWhereWord = (loc) => !loc ? 'somewhere on a deck below' : (loc.d < 700 ? 'close by' : loc.d < 2400 ? 'a short walk away' : 'across the deck');
+    async function obGrant(g) {
+      story.store.setFact(story.playerId, obGivenFlag(g.id), true);   // gate FIRST — the awaits below must not double-fire
+      let gave = '';
+      try {
+        if (g.id === 'garden') {
+          await ensureArk();
+          const picks = starterCrops(gardenArk, 2);
+          if (picks.length) { const sd = getSeeds(); for (const c of picks) sd[c.id] = (sd[c.id] || 0) + 2; setSeeds(sd); gave = ` Two seed packets are in your pouch — ${picks.map((c) => c.common).join(' & ')}.`; }
+        } else if (g.id === 'alchemy') {
+          await ensureArk();
+          const picks = starterCrops(gardenArk, 2);
+          if (picks.length) { const pan = getPantry(); for (const c of picks) pan[c.id] = (pan[c.id] || 0) + 2; setPantry(pan); gave = ` Two of each reagent are in your pantry — ${picks.map((c) => c.common).join(' & ')}.`; }
+        } else if (g.id === 'smith') {
+          gave = ' Your commodity wallet already covers a first forge.';
+        }
+      } catch (e) {}
+      saveStorySnapshot();
+      notify(`✧ a little gimme — ${g.name}: ${g.title}.${gave} (j: journal)`, { kind: 'story', ms: 7000 });
+      if (journalOpen) renderJournal();
+    }
+    function obDone(id) {
+      if (!story.ready || story.store.getFact(story.playerId, obDoneFlag(id))) return;
+      const g = GIMMES.find((x) => x.id === id); if (!g) return;
+      story.store.setFact(story.playerId, obDoneFlag(id), true);
+      setCoins(getCoins() + g.reward);
+      notify(`✧ ${g.icon} ${g.title} — done · +◈${g.reward}`, { kind: 'pickup', ms: 4200 });
+      saveStorySnapshot();
+      if (journalOpen) renderJournal();
+    }
+    function tickGimmes() {
+      if (!story.ready || !world || player < 0) return;
+      const now = performance.now(); if (now - _obT < 2000) return; _obT = now;
+      try {
+        const facts = story.store.getFacts(story.playerId);
+        _obActive = activeGimme(facts, narTier());
+        if (_obActive && !facts[obGivenFlag(_obActive.id)]) obGrant(_obActive);
+      } catch (e) { _obActive = null; }
+    }
+    // the journal's gimme card: the ONE active gimme, its task, where its fixture waits, the reward —
+    // plus a ✓ row for what's already been tasted. Rendered by renderJournal.
+    function obHTML() {
+      if (!story.ready) return '';
+      const facts = story.store.getFacts(story.playerId), tier = narTier();
+      const g = activeGimme(facts, tier), prog = gimmeProgress(facts, tier);
+      if (!g && !prog.done) return '';
+      let h = `<div style="color:#7fd8d0;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:9px">✧ little gimmes · ${prog.done}/${prog.total}</div>`;
+      if (g) {
+        const loc = nearestRoleChamber(g.role);
+        h += `<div style="margin:0 0 13px;border-left:2px solid #7fd8d0;padding-left:10px">`
+          + `<div style="color:#7fd8d0;font-size:13.5px">${g.icon} ${esc(g.name)} — ${esc(g.title)} <span style="color:#6b7872;font-size:11px">· reward ◈${g.reward}</span></div>`
+          + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin:3px 0">${esc(g.blurb)}</div>`
+          + `<div style="color:#f4bf62;font-size:12px;line-height:1.5">${esc(g.task)}</div>`
+          + `<div style="color:#9aa8a0;font-size:11px;margin-top:2px">⌖ ${esc(g.where)} — ${esc(obWhereWord(loc))}${loc ? ' (the ✧ on your map)' : ''}</div></div>`;
+      }
+      const done = GIMMES.filter((x) => facts[obDoneFlag(x.id)]);
+      if (done.length) h += `<div style="color:#6b7872;font-size:11px;margin-bottom:2px">${done.map((x) => `✓ ${x.icon} ${esc(x.name)}`).join(' · ')}</div>`;
+      const later = GIMMES.filter((x) => tier < x.tier && !facts[obDoneFlag(x.id)]).length;
+      if (later) h += `<div style="color:#3f4a46;font-size:10.5px">${later} more unlock${later === 1 ? 's' : ''} as the story deepens</div>`;
+      return h;
+    }
+    // the ✧ marker: a soft teal pulse on the nearest fixture chamber for the active gimme. Drawn only
+    // when ON SCREEN — the main quest keeps the edge arrows; the journal carries the gimme's bearing.
+    function drawGimmeMarker() {
+      if (!_obActive) return;
+      const loc = nearestRoleChamber(_obActive.role); if (!loc) return;
+      const sx = SX(loc.x), sy = SY(loc.y);
+      if (!onScreen(sx, sy, W, H, 30)) return;
+      const t = (performance.now() % 1600) / 1600;
+      ctx.save();
+      ctx.strokeStyle = `rgba(127,216,208,${(1 - t) * 0.55})`; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(sx, sy, 8 + t * 8, 0, 7); ctx.stroke();
+      ctx.fillStyle = '#7fd8d0'; ctx.shadowColor = 'rgba(127,216,208,0.8)'; ctx.shadowBlur = 7;
+      ctx.font = '13px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('✧', sx, sy - 1);
+      ctx.restore();
     }
     // CHAMBER-LORE TRIPWIRE: entering a chamber for the first time reveals its lore (a deterministic tier-legal
     // lore_fragment, keyed by the chamber's stable centroid so it fires once). The reveal is a toast (not a

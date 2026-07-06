@@ -95,7 +95,7 @@
     <tr><td><a href="/v099/">v099</a></td><td>prior dev</td><td>map/fixture/combat work that became v100</td></tr>
     <tr><td><a href="/v100/">v100</a></td><td><b>stable</b></td><td>the playable nave: faction campaign (Rindwalker → Continuant → Drift), the three-deck stack, the chapter-one conclusion</td></tr>
     <tr><td><a href="/v101/">v101</a></td><td>prior dev</td><td>v100 + the audited story engine (§8): scaled storyboard pacing, the external-reps gate channel, the end-goto validator fix, the both-schemas importer</td></tr>
-    <tr><td><a href="/v102/">v102</a></td><td><b>development</b> (current)</td><td>v101 + the reauth-resilience pass (auth survives app-switching + backgrounded saves never redirect to consent; sliding session refresh) + the strengthened solvability oracle (dialogue-reachability proof, stale-keeper placement self-heal — the Miren Tallow lock, provably-dead-gate waiver)</td></tr>
+    <tr><td><a href="/v102/">v102</a></td><td><b>development</b> (current)</td><td>v101 + the reauth-resilience pass (auth survives app-switching + backgrounded saves never redirect to consent; sliding session refresh) + the strengthened solvability oracle (dialogue-reachability proof, stale-keeper placement self-heal — the Miren Tallow lock, provably-dead-gate waiver) + the onboarding engine (little gimmes: garden → bench → smithy → gauntlet, one at a time on the tier ladder)</td></tr>
   </table>
   <p class="lead">Older snapshots (v090–v097) remain on disk and playable at their paths; they are
   history, not maintained. The engine-parts directories (<code>v2…v8</code>) are the kernel lineage
@@ -151,6 +151,14 @@
   <p class="lead">Every minigame is reached <b>in-world</b> by clicking a fixture in a themed room
   (the fixture→action table lives in <code>sim.js</code>). All engines are pure, deterministic and
   node-tested; the caveats column is the honest state (see §8 for the balance numbers).</p>
+  <p class="lead"><b>The onboarding engine (v102, <code>story/onboard.js</code>)</b> paces the reveal:
+  the four deep systems surface as <b>little gimmes</b>, one at a time, gated to the narrative tier
+  ladder — ❀ garden (tier 1) → ⚗ bench (tier 2) → ⚒ smithy (tier 3) → ⚔ gauntlet (tier 3). Each
+  gimme grants its guaranteed first win (starter seeds; two live reagents; the smith wallet already
+  affords a forge), points a teal ✧ map marker at the nearest fixture room, and rides the journal
+  (<code>j</code>) as one card. The natural verb — plant, brew, forge, clear stage one — completes it
+  for coins, and organic use counts even before the gimme unlocks. Pure + node-tested
+  (<code>test/onboard.selftest.mjs</code>).</p>
   <table>
     <tr><th>Minigame</th><th>Fixture / room</th><th>Engine</th><th>State</th></tr>
     <tr><td><b>Arcade</b> (logic puzzles)</td><td><code>play</code>-role cabinet</td><td><code>arcade.js</code> (22 laws) — default engine is the <code>morph</code> sampler; <code>?forge=1</code> opts into the forge-codex arcade</td><td><span class="tag open">proto engine gated</span></td></tr>
