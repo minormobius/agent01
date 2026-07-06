@@ -413,6 +413,14 @@ despite the name. It stayed with hoop, not rind.)
     natural verb (plant / brew / forge / clear stage one) completes it and pays coins — organic use
     counts even before the gimme unlocks, so nobody is re-tutorialised. Pure + node-tested
     (`v102/test/onboard.selftest.mjs`); the surface owns grants/hooks/ink.
+  - **Side threads seek PEOPLE** (v102, `quests.js seekCandidates` + `questCounted`): a thread
+    resolves by meeting theme-corroborating content — overwhelmingly people — but its old marker
+    fell back to terminals/place hints (rooms) whenever the rumor text didn't name an NPC. Now
+    every open thread resolves a live SEEK TARGET (the nearest placed, not-yet-counted, non-ambient
+    corroborator; `discoverQuestNpcs` seats one from the tier-legal pool when none is placed), the
+    journal names them ("⌖ seek <name> — they know this thread"), and a per-thread **◇ track**
+    toggle pins the map waypoint on them, followed live like a keeper (the tracked thread wins the
+    ◇; resolving it releases it). Waypoints point at people, not rooms — matching the main quest.
   - **The overworld's living menace** (`v102/over/menace.js`): fauna stop being scenery. Bee
     swarms wake when you stray inside their aggro radius (240 px) and hunt you as a **boids
     flock** (cohesion·separation·alignment·pursuit, seeded jitter — deterministic), leashed to

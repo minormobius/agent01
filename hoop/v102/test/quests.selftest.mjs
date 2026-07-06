@@ -6,7 +6,7 @@
 // best-overlapping unopened quest; progress counts corroborating encounters and resolves at the goal;
 // everything is deterministic + reward scales with tier.
 
-import { questForSeed, buildQuestBank, questThemes, corroborates, questProgress, pickQuestForNpc, questMarker, QUEST_GOAL } from '../story/quests.js';
+import { questForSeed, buildQuestBank, questThemes, corroborates, questProgress, pickQuestForNpc, questMarker, questCounted, seekCandidates, QUEST_GOAL } from '../story/quests.js';
 import { MemoryStore, interact } from '../story/engine.js';
 
 let pass = 0, fail = 0;
@@ -61,6 +61,38 @@ ok(JSON.stringify(questForSeed(rumor('r', ['luna']))) === JSON.stringify(questFo
 const names = new Map([['taryn solis', 'npc-taryn']]);
 ok(questMarker(questForSeed(rumor('r', ['x'], 1, ['Taryn Solis'])), names).anchor === 'npc-taryn', 'marker resolves a named NPC ref');
 ok(questMarker(questForSeed(rumor('r', ['x'], 1, ['The Signal Chamber'])), names).place === 'rind', 'marker routes deep refs to the rind/descent');
+
+// ── 5. SEEK PEOPLE (v102): a thread's waypoint chases a person, not a room ──
+{
+  const pool = [
+    npc('opener', ['luna', 'drift']),
+    npc('c1', ['luna', 'sleep']),
+    npc('c2', ['luna']),
+    npc('off', ['signal']),
+    rumor('luna1', ['luna', 'mythographs']),
+  ];
+  const wanderer = { ...npc('amb', ['luna']), content: { name: 'NPC amb', ambient: true } };
+  const s = new MemoryStore([...pool, wanderer], { features: [] });
+  const q = buildQuestBank(pool).get('luna1');
+
+  const all = [...pool, wanderer];
+  const c0 = questCounted(s, 'p', q);
+  ok(c0.size === 0, 'nothing counted before any encounter');
+  let seeks = seekCandidates(q, all, c0);
+  ok(seeks.map((c) => c.id).join(',') === 'c1,c2,opener', 'seek candidates: every on-theme NPC, deterministic by id — off-theme and rumors excluded');
+  ok(!seeks.some((c) => c.id === 'amb'), 'a wanderer (ambient) is never a seek target — an ambient voice cannot hold a waypoint');
+
+  // meeting a corroborator counts them OUT of the seek set (the ◇ moves to the next person)
+  s.addFeature({ key: 'fopener', type: 'npc', content_id: 'opener' }); interact(s, 'p', 'fopener');
+  const c1 = questCounted(s, 'p', q);
+  ok(c1.has('opener'), 'the met corroborator is counted');
+  seeks = seekCandidates(q, all, c1);
+  ok(seeks.map((c) => c.id).join(',') === 'c1,c2', 'a counted person drops out of the seek set — the waypoint moves on');
+
+  // exhausting the theme leaves no target (the thread is resolvable/resolved — nothing to point at)
+  for (const id of ['c1', 'c2']) { s.addFeature({ key: 'f' + id, type: 'npc', content_id: id }); interact(s, 'p', 'f' + id); }
+  ok(seekCandidates(q, all, questCounted(s, 'p', q)).length === 0, 'a resolved theme has no one left to seek');
+}
 
 console.log(`\nquests.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

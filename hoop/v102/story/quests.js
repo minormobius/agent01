@@ -70,6 +70,28 @@ export function questProgress(store, playerId, quest) {
   return { learned, needed: quest.needed, done: learned >= quest.needed, progress: Math.min(1, quest.needed ? learned / quest.needed : 1) };
 }
 
+// the content ids already counted toward a quest (distinct corroborating placements) — the filter the
+// seek logic uses so a waypoint never points at someone you've already learned.
+export function questCounted(store, playerId, quest) {
+  const ids = new Set();
+  for (const pl of store.listPlacements(playerId)) {
+    const ci = store.contentById(pl.content_item_id);
+    if (ci && corroborates(ci, quest)) ids.add(ci.id);
+  }
+  return ids;
+}
+
+// PEOPLE OF INTEREST for an open thread — waypoints point at PEOPLE, not rooms. From `npcs`, those
+// whose tags corroborate the theme and who aren't yet counted, deterministic by id; the host picks
+// the nearest placed one to chase (and seats one when none is placed). Wanderers are excluded — an
+// ambient voice can't hold a waypoint.
+export function seekCandidates(quest, npcs, counted) {
+  return (npcs || [])
+    .filter((c) => c && c.type === 'npc' && !(c.content && c.content.ambient)
+      && corroborates(c, quest) && !(counted && counted.has(c.id)))
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+}
+
 // the best unopened quest an NPC can tip you to: most theme overlap with the NPC's tags, tie-break by
 // seed id (deterministic). `taken(seedId)` is true when the quest is already open or done.
 export function pickQuestForNpc(bank, npcCi, taken) {

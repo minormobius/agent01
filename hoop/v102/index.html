@@ -596,7 +596,7 @@
     import { computeBoard, questLog, activeMarkers, tierFloors } from './story/board.js';   // the storyboard kernel → the quest log + waypoint (same source as /storyboard/)
     import { DECKS, DECK_COUNT, deckForTier, nextDeck, countsForDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
     import { assess, levelMessage, guideFor, learnedForDeck } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
-    import { buildQuestBank, questProgress, pickQuestForNpc, questMarker } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to
+    import { buildQuestBank, questProgress, pickQuestForNpc, questMarker, questCounted, seekCandidates } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to; seekCandidates = the PEOPLE a thread's waypoint chases (v102: side-quest waypoints point at people, not rooms)
     import { AuthClient } from '../vendor/auth.js';   // shared OAuth (verbatim copy of packages/oauth-client) — sign in to save to YOUR repo
     import { loadOwnSave, putSave, SAVE_NSID, loadPool, publicClient, loadPulse, listOwnSaves, deleteOwnSave, putRumor } from './story/atproto.js';   // the per-player save lane + the SHARED pool read + the cross-player pulse + own-save enumeration + the rumor outbox (com.minomobi.hoop.story.*)
     import { loadVerdicts, digestVerdicts } from './story/verdicts.js';   // the rumor-mill / async-result feed: apply retcons + notices, redraw on change
@@ -1959,6 +1959,10 @@
     // their position every frame so the marker FOLLOWS them as they walk (locateNpc returns a live keeper's
     // resident position). Off-deck or non-NPC targets fall back to the snapshot storyWp (a shaft, a chamber).
     function liveWp() {
+      // a TRACKED side thread wins the ◇ (the player's explicit choice) — and it follows a PERSON,
+      // exactly like a keeper waypoint. drawWaypoint's off-deck grace redirects to the shaft as usual.
+      const tr = trackedSeek();
+      if (tr) { const loc = locateNpc(tr.cid); if (loc && Number.isFinite(loc.x)) return { x: loc.x, y: loc.y }; }
       if (storyWpTarget && storyWpTarget.cid) {
         const loc = locateNpc(storyWpTarget.cid);
         if (loc && Number.isFinite(loc.x) && (loc.deck || 0) === playerDeck()) return { x: loc.x, y: loc.y };
@@ -2708,6 +2712,7 @@
         if (questProgress(story.store, story.playerId, q).done) {
           story.store.setFact(story.playerId, 'sq.done.' + seedId, true);
           setCoins(getCoins() + q.reward); resolved.push(q);
+          if (story.store.getFact(story.playerId, 'sq.track') === seedId) { story.store.setFact(story.playerId, 'sq.track', null); _sqSeek = null; }   // a resolved thread releases the ◇
         }
       }
       if (resolved.length) { saveStorySnapshot(); const q = resolved[0]; flashToast(`✒ thread resolved — “${q.title}” +◈${q.reward}${resolved.length > 1 ? ` (+${resolved.length - 1} more)` : ''}`, 3600); whereAmI(); }
@@ -2742,13 +2747,21 @@
       if (ob) body += `<div style="margin:0 0 16px;padding-bottom:13px;border-bottom:1px solid #1b2530">${ob}</div>`;
       if (open.length || done.length) body += `<div style="color:#7fd8d0;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:9px">side threads</div>`;
       if (!open.length && !done.length) body += guide ? '<div style="color:#6b7872;font-size:12px">No side threads yet. Talk to the people of the deck — someone will mention something worth chasing.</div>' : 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.';
+      const trackedId = story.store.getFact(story.playerId, 'sq.track');
       for (const q of open) {
         const pr = questProgress(story.store, story.playerId, q), mk = questMarker(q, names);
-        body += `<div style="margin:0 0 13px;border-left:2px solid #b48a6a;padding-left:10px">`
+        // v102: the thread's lead is a PERSON — the nearest placed corroborator you haven't counted.
+        // ⌖ track pins the map ◇ on them (followed live); the old place hint is the fallback wording.
+        const seek = questSeekTarget(q);
+        const tracked = trackedId === q.seedId;
+        const seekLine = seek ? `⌖ seek <b style="color:#e0c48a">${esc(seek.name)}</b> — they know this thread`
+          : (mk && mk.hint ? `⌖ ${esc(mk.hint)}` : '');
+        const trackBtn = `<span class="act" data-sqtrack="${esc(q.seedId)}" style="cursor:pointer;color:${tracked ? '#7fd8d0' : '#6b7872'}">${tracked ? '◇ tracking — tap to stop' : '◇ track'}</span>`;
+        body += `<div style="margin:0 0 13px;border-left:2px solid ${tracked ? '#7fd8d0' : '#b48a6a'};padding-left:10px">`
           + `<div style="color:#f4bf62;font-size:13.5px">${esc(q.title)}</div>`
           + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin:3px 0">${esc((q.hook || '').slice(0, 200))}${q.hook.length > 200 ? '…' : ''}</div>`
-          + `<div style="color:#9aa8a0;font-size:11px">look into: ${esc(q.themes.join(', '))}${mk && mk.hint ? ` · ⌖ ${esc(mk.hint)}` : ''}</div>`
-          + `<div style="margin-top:4px;height:5px;background:#10161d;border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:${Math.round(pr.progress * 100)}%;background:#b48a6a"></span></div>`
+          + `<div style="color:#9aa8a0;font-size:11px">look into: ${esc(q.themes.join(', '))}${seekLine ? ` · ${seekLine}` : ''} · ${trackBtn}</div>`
+          + `<div style="margin-top:4px;height:5px;background:#10161d;border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:${Math.round(pr.progress * 100)}%;background:${tracked ? '#7fd8d0' : '#b48a6a'}"></span></div>`
           + `<div style="color:#6b7872;font-size:10.5px;margin-top:2px">${pr.learned}/${pr.needed} · reward ◈${q.reward}</div></div>`;
       }
       // RESOLVED threads keep their TEXT (feedback: "I see rumor names — is there text?"). The deck-climb
@@ -2760,7 +2773,17 @@
         + (q.reveal ? `<div style="color:#e0a86a;font-size:11.5px;font-style:italic;margin-top:2px">“${esc(q.reveal)}”</div>` : '')
         + `</div>`;
       showPage(`journal · ${open.length} open · ${done.length} resolved`, 'your journal', '');
-      $('enccard').querySelector('.ed').innerHTML = body;   // rich list (showPage escapes; we want markup)
+      const ed = $('enccard').querySelector('.ed');
+      ed.innerHTML = body;   // rich list (showPage escapes; we want markup)
+      // ⌖ track toggle — pin/release the map ◇ on a thread's person of interest.
+      for (const el of ed.querySelectorAll('[data-sqtrack]')) el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.dataset.sqtrack;
+        const cur = story.store.getFact(story.playerId, 'sq.track');
+        story.store.setFact(story.playerId, 'sq.track', cur === id ? null : id);
+        _sqSeek = null; _sqSeekT = 0;   // re-resolve the seek target immediately
+        saveStorySnapshot(); renderJournal();
+      };
       journalOpen = true;   // set AFTER showPage (which clears it) so a live renderQuest refresh keeps the journal
     }
     const toggleJournal = () => { if (journalOpen) hideEncounter(); else renderJournal(); };
@@ -5261,17 +5284,63 @@
       notify('▒ the chamber speaks — ' + txt.slice(0, 150) + (txt.length > 150 ? '…' : ''), { kind: 'story', ms: 5400 });
       saveStorySnapshot();
     }
+    // ── SIDE THREADS SEEK PEOPLE (v102). A thread resolves by MEETING theme-corroborating content —
+    // overwhelmingly people — so its waypoint should chase a PERSON, the way the main quest chases its
+    // keepers. The old markers fell back to terminals and place hints (rooms) whenever the rumor text
+    // didn't happen to name an NPC. Now every open thread resolves a SEEK TARGET: the nearest placed,
+    // not-yet-counted NPC whose tags corroborate the theme (quests.js seekCandidates); when none is
+    // placed, discoverQuestNpcs seats one from the tier-legal pool. The journal names them, and ⌖ track
+    // pins the map ◇ on them (they're followed live, like a keeper).
+    function questSeekTarget(q) {
+      if (!story.ready || !q) return null;
+      const counted = questCounted(story.store, story.playerId, q);
+      const disc = getJSONFact('npc.discovered', {});
+      const placed = Object.keys(disc).map((id) => story.store.contentById(id)).filter(Boolean);
+      let best = null, bd = Infinity;
+      for (const c of seekCandidates(q, placed, counted)) {
+        const loc = locateNpc(c.id); if (!loc || !Number.isFinite(loc.x)) continue;
+        // prefer someone on THIS deck; among those, the nearest (off-deck still beats nobody)
+        const d = ((loc.deck || 0) === playerDeck() ? 0 : 1e12) + (loc.x - px()) ** 2 + (loc.y - py()) ** 2;
+        if (d < bd) { bd = d; best = { cid: c.id, name: (c.content || {}).name || c.id, loc }; }
+      }
+      return best;
+    }
+    // the tracked thread's live seek target (cached ~1 s — liveWp asks every frame).
+    let _sqSeekT = 0, _sqSeek = null;
+    function trackedSeek() {
+      if (!story.ready || !questBank) return null;
+      const id = story.store.getFact(story.playerId, 'sq.track'); if (!id) return null;
+      const now = performance.now();
+      if (now - _sqSeekT > 1000) {
+        _sqSeekT = now;
+        const q = questBank.get(id);
+        _sqSeek = (q && !story.store.getFact(story.playerId, 'sq.done.' + id)) ? questSeekTarget(q) : null;
+      }
+      return _sqSeek;
+    }
     // Discover any NPC a live QUEST points at (storyboard beat OR side-thread) so its waypoint resolves and
     // you can actually go meet them — covers the "I have a quest for Sevin but she never appears" gap.
+    let _dqT = 0;
     function discoverQuestNpcs() {
       if (!story.ready || !society || player < 0 || !questBank) return;
       const names = npcNameMap(), facts = story.store.getFacts(story.playerId);
+      const now = performance.now(); const deep = now - _dqT > 1500; if (deep) _dqT = now;
       for (const k of Object.keys(facts)) {
         if (!k.startsWith('sq.on.') || facts['sq.done.' + k.slice(6)]) continue;
         const q = questBank.get(k.slice(6)); if (!q) continue;
         const mk = questMarker(q, names);
         if (mk && mk.anchor && !anchors.some((a) => a.key === 'anchor:' + mk.anchor)) {
           const npc = story.store.contentById(mk.anchor); if (npc) discoverPlacedNpc(npc, playerDeck());
+        }
+        // v102: a thread with NO locatable person of interest gets one SEATED — pick the first tier-legal,
+        // gate-passing corroborator from the pool and place them (throttled; one per thread per pass).
+        if (deep && !questSeekTarget(q)) {
+          const p = story.store.getPlayerState(story.playerId), gstate = loadGateState(story.store, story.playerId);
+          const disc = getJSONFact('npc.discovered', {});
+          const counted = questCounted(story.store, story.playerId, q);
+          const pool = seekCandidates(q, story.store.queryContent({ type: 'npc', revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
+            .filter((c) => !disc[c.id] && meetsState(gstate, c.requires || {})), counted);
+          if (pool.length) discoverPlacedNpc(pool[0], playerDeck());
         }
       }
     }
