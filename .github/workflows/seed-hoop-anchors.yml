@@ -1,0 +1,49 @@
+name: Seed Hoop anchor briefings (atproto)
+
+# Splices the AUTHORED anchor briefings (hoop/story/anchor-briefings.json) into the live
+# load-bearing anchor records on the service repo, so each anchor SETS the one turn-in gate
+# no keeper in the pool provides (Sevin/t3 flag.rind.rindwalker_scale_a, Luna/t4
+# flag.signal.chamber_key). Fixes the two gate_no_setter errors the solvability oracle
+# reports — the campaign becomes provably progressable with real content, not the waiver.
+# Idempotent + non-destructive: only ADDS the briefing choice, preserving every other field.
+on:
+  workflow_dispatch:
+    inputs:
+      author:
+        description: 'Which service account holds the pool'
+        type: choice
+        default: morphyx
+        options: [morphyx, modulo, main]
+      dry:
+        description: 'Dry run (fetch + patch + print, no write)'
+        type: boolean
+        default: false
+  # Auto-publish when the authored briefings or the seeder change (idempotent overwrite),
+  # scoped to the owning branch + these paths only (mirrors seed-hoop-pool.yml).
+  push:
+    branches: ['claude/hoop-v103-npc-reform-shk88h']
+    paths:
+      - 'hoop/story/anchor-briefings.json'
+      - 'hoop/scripts/seed-anchor-briefings.mjs'
+      - '.github/workflows/seed-hoop-anchors.yml'
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Seed anchor briefings
+        env:
+          # Default (and the push-trigger path, where inputs are empty) → morphyx.
+          HOOP_STORY_HANDLE: >-
+            ${{ inputs.author == 'modulo' && secrets.BLUESKY_MODULO_HANDLE
+              || inputs.author == 'main' && secrets.BLUESKY_HANDLE
+              || secrets.BLUESKY_MORPHYX_HANDLE }}
+          HOOP_STORY_PASSWORD: >-
+            ${{ inputs.author == 'modulo' && secrets.BLUESKY_MODULO_APP_PASSWORD
+              || inputs.author == 'main' && secrets.BLUESKY_APP_PASSWORD
+              || secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: node hoop/scripts/seed-anchor-briefings.mjs ${{ inputs.dry && '--dry' || '' }}

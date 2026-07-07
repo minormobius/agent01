@@ -477,6 +477,16 @@ despite the name. It stayed with hoop, not rind.)
     equivalent: `node hoop/scripts/prove-solvable.mjs`. NB: the oracle proves the *content contract* (setter
     exists, tier-legal, dialogue-reachable, zone-deck open); it does NOT prove the *surface's* placement is
     deck-correct — that gap is what the Elias Thorne bug lived in, now closed in `populateChambers`.
+  - **Anchor briefings — the two setter-less gates get REAL setters** (`hoop/story/anchor-briefings.json` +
+    `scripts/seed-anchor-briefings.mjs` + `.github/workflows/seed-hoop-anchors.yml`). The oracle reported two
+    `gate_no_setter` errors on the live pool — `flag.rind.rindwalker_scale_a` (Sevin/t3) and
+    `flag.signal.chamber_key` (Luna/t4): no keeper set them, so they relied on the runtime waiver. Now the
+    ANCHOR sets its own ungated gate — a "briefing" choice spliced onto the anchor's greet node (Sevin opening
+    the rind's first scale; Luna handing down the chamber's cadence), the beat where the guide sends you off.
+    The seeder fetches each live anchor record, adds the briefing choice+node to its dialogue (idempotent,
+    non-destructive — preserves every other field), and `putRecord`s it back to morphyx. With both in place
+    `proveProgression` is PASS / 0 errors (verified in-memory against the live pool). Seeds in Actions (morphyx
+    app-password), not the sandbox; auto-fires on push to those paths.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
