@@ -1050,6 +1050,17 @@
       if (!world || !world._nave || !faction || faction === '_default') return [];
       return world.chunks.filter((c) => c.painted && c.poly && c.naveMeta && c.naveMeta.faction === faction).map((c) => c.id);
     }
+    // can the player reach an anchor keeper RIGHT NOW? A faction keeper is reachable once its ward has streamed
+    // (naveWardChunkIds non-empty); a neutral/commons keeper always is. Off the nave (rind/signal anchors) the
+    // ward gate doesn't apply, so treat them reachable. Used to steer nextKeeper past keepers in unopened wards.
+    function keeperReachable(k) {
+      if (!k) return false;
+      if (!world || !world._nave) return true;                         // not on the nave floor → no ward gating
+      const npc = story.store.contentById(k.contentId);
+      const f = k.navefac || (npc ? factionOf(npc.tags) : null);
+      if (!f || f === '_default') return true;                         // neutral keeper (commons) — always reachable
+      return naveWardChunkIds(f).length > 0;                           // its faction ward is built
+    }
     // witness a faction (idempotent, order-gated): set the fact, show the guide's card, advance — and when
     // the Drift is witnessed, OPEN THE RIND (bump to the Investigation tier so maybeBuildRind sinks the shaft).
     let _fqNudgeT = 0;
@@ -2005,7 +2016,10 @@
         if (st && !st.turnedIn) {
           const a = st.anchor;
           if (!st.allGatesSet) {
-            const nk = nextKeeper(story.anchors, story.gateSetters, facts, tier);
+            // v103 (the Factor Solen bug): prefer a keeper whose faction ward is OPEN. Solen's charge spans the
+            // three wards, but the nave opens them one at a time (FQ order) — so pointing at a keeper in a ward
+            // that hasn't streamed yet gave a dead waypoint "just as the area unlocks". keeperReachable gates it.
+            const nk = nextKeeper(story.anchors, story.gateSetters, facts, tier, { reachable: keeperReachable });
             const loc = nk && locateNpc(nk.contentId);
             storyWp = questWpToward(loc);
             storyWpTarget = nk ? { cid: nk.contentId } : null;   // a keeper is a mobile resident — follow them live
@@ -5144,12 +5158,14 @@
             if (alive) continue;
             delete disc[rid]; setJSONFact('npc.discovered', disc);
           }
-          // FRESH placement: seat in the keeper's OWN ward when it's built, else scatter (old behaviour) so a
-          // keeper whose ward hasn't streamed yet still appears somewhere — the re-seat above moves it home once
-          // the ward opens. Scatter (hash offset) keeps exploration the forcing function within the ward too.
+          // FRESH placement: a FACTION keeper seats only in its OWN ward — and is DEFERRED (no scatter) until
+          // that ward streams (else it strands in the commons and the waypoint points at the wrong chamber —
+          // the Factor Solen bug; the ward-reachability gate on nextKeeper won't even surface it yet). A neutral
+          // keeper (no faction) still scatters. Once the ward opens, the deferred keeper seats in it next tick.
           const pd = playerDeck();
-          const fallback = painted.filter((ch) => (ch.deck || 0) === pd).concat(painted.filter((ch) => (ch.deck || 0) !== pd)).map((ch) => ch.id);
-          const cands = keeperSeatChunks(wardIds, fallback).map((id) => world.chunks.find((c) => c.id === id)).filter(Boolean);
+          const scatter = painted.filter((ch) => (ch.deck || 0) === pd).concat(painted.filter((ch) => (ch.deck || 0) !== pd)).map((ch) => ch.id);
+          const seatIds = keeperSeatChunks(wardIds, (kf && kf !== '_default') ? [] : scatter);
+          const cands = seatIds.map((id) => world.chunks.find((c) => c.id === id)).filter(Boolean);
           const off = cands.length ? hashId(npc.id) % cands.length : 0;   // scatter, don't clump — exploration stays the forcing function
           for (let i = 0; i < cands.length; i++) {
             const ch = cands[(off + i) % cands.length];

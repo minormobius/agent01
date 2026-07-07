@@ -68,6 +68,8 @@ ok(JSON.stringify(keeperSeatChunks([3, 4], [0, 5, 6])) === JSON.stringify([3, 4]
 // …and falls back to the scatter set when its ward hasn't streamed yet (so it still appears somewhere)
 ok(JSON.stringify(keeperSeatChunks([], [0, 5, 6])) === JSON.stringify([0, 5, 6]), 'a keeper whose ward is not built yet falls back to the scatter chambers');
 ok(JSON.stringify(keeperSeatChunks(null, [0])) === JSON.stringify([0]), 'a null ward list falls back cleanly');
+// a FACTION keeper whose ward is not built passes fallback [] → DEFER (seat nowhere until the ward streams)
+ok(JSON.stringify(keeperSeatChunks([], [])) === JSON.stringify([]), 'a faction keeper with no built ward and no fallback DEFERS (empty seat list)');
 // a placed mobile keeper stranded in the commons (chunk 0) while its ward (3,4) is now built → RE-SEAT
 ok(needsWardReseat({ mobile: true, currentChunk: 0, wardChunkIds: [3, 4] }), 'a keeper stranded in the commons after its ward opened needs a re-seat');
 ok(needsWardReseat({ mobile: true, currentChunk: 5, wardChunkIds: [3, 4] }), 'a keeper stranded in the WRONG ward needs a re-seat');

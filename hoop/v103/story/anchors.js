@@ -116,11 +116,24 @@ export function advanceState(chain, facts, tier) {
 
 // the next keeper to find = the setter of the first unmet gate (so the waypoint has a target). Falls
 // back to null (no known setter → an exploration objective with no pin).
-export function nextKeeper(chain, setters, facts, tier) {
+//
+// v103 (the Factor Solen bug): an anchor like Solen spans the "wards" zone — its gates name keepers in the
+// three faction wards. But the nave opens those wards ONE AT A TIME in FQ order (continuant → rindwalker →
+// drift), so the first unmet gate can name a keeper whose ward hasn't streamed yet — the waypoint then points
+// at a keeper who cannot be placed ("a bad waypoint just as the area unlocks"). `opts.reachable(keeper)` lets
+// the surface prefer a gate the player can ACTUALLY reach now (its ward is built); the first reachable unmet
+// gate wins, and only if NONE is reachable do we fall back to the first unmet (never null while a gate is open
+// — the readout still shows the zone hint). Without `opts` the behaviour is identical to before (back-compat).
+export function nextKeeper(chain, setters, facts, tier, opts = {}) {
   const st = advanceState(chain, facts, tier);
   if (!st || st.allGatesSet) return null;
-  for (const g of st.unmetGates) if (setters[g]) return { flag: g, ...setters[g] };
-  return null;
+  const keepers = st.unmetGates.filter((g) => setters[g]).map((g) => ({ flag: g, ...setters[g] }));
+  if (!keepers.length) return null;
+  if (typeof opts.reachable === 'function') {
+    const reachable = keepers.find((k) => opts.reachable(k));
+    if (reachable) return reachable;
+  }
+  return keepers[0];
 }
 
 // ── the level-up: cleared flags → narrative tier ───────────────────────────────────────────────────

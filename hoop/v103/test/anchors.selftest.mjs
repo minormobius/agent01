@@ -91,6 +91,17 @@ st = advanceState(chain, facts, 1);
 ok(st.allGatesSet && !st.turnedIn, 'all gates met → turn-in available, not yet turned in');
 ok(nextKeeper(chain, setters, facts, 1) === null, 'no keeper to find once all gates are met');
 
+// ── 4b. nextKeeper reachability (the Factor Solen bug): prefer a keeper whose ward is open ──
+let f2 = {};
+const first = nextKeeper(chain, setters, f2, 1);                                    // no opts → first unmet
+const other = ['flag.commons.drift_face', 'flag.commons.continuant_face'].find((g) => g !== first.flag);
+// a predicate that only the SECOND unmet gate's setter satisfies (its ward is "open", the first's is not)
+const reach = (k) => k.flag === other;
+ok(nextKeeper(chain, setters, f2, 1, { reachable: reach }).flag === other, 'nextKeeper skips the unreachable first gate for a reachable later one');
+ok(nextKeeper(chain, setters, f2, 1, { reachable: () => false }).flag === first.flag, 'when NO gate is reachable, nextKeeper falls back to the first unmet (never null while a gate is open)');
+ok(nextKeeper(chain, setters, f2, 1, { reachable: () => true }).flag === first.flag, 'when all are reachable, nextKeeper keeps the first unmet (back-compat order)');
+ok(nextKeeper(chain, setters, f2, 1).flag === first.flag, 'no reachable predicate → identical to before (back-compat)');
+
 // ── 5. the level-up: cleared flag → tier+1 (capped) ──
 ok(tierFromClears(chain, facts, 1) === 1, 'gates met but NOT turned in → tier unchanged');
 facts['flag.deck.commons.cleared'] = true;
