@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>case — mysteries off the civic web</title>
+<meta name="description" content="Procedurally generated murder mysteries read off the goss civic web: motives from the drama layer, alibis from the day's watches, witness independence from weak ties — every case certified solvable, every closed case scarring the web the next case grows from." />
+<style>
+  :root{
+    --bg:#0a1016; --panel:#0d161d; --line:#1c2b36; --txt:#cfdde6; --dim:#5f7684;
+    --gold:#d9b24a; --hot:#e0567a; --cold:#3bb0c9; --ok:#5aa845; --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font:14px/1.5 var(--mono);overflow:hidden}
+  a{color:var(--cold);text-decoration:none}
+  #top{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+  #top .brand{font-weight:700;color:var(--gold);white-space:nowrap}
+  #top .brand small{color:var(--dim);font-weight:400;margin-left:8px}
+  #top input{width:84px;background:#09121a;border:1px solid var(--line);color:var(--txt);font:13px var(--mono);padding:3px 7px;border-radius:5px}
+  #top select{background:#09121a;border:1px solid var(--line);color:var(--txt);font:13px var(--mono);padding:3px 7px;border-radius:5px}
+  button{background:#101d27;border:1px solid var(--line);color:var(--txt);font:12.5px var(--mono);
+    padding:4px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
+  button:hover{border-color:#3a6a86}
+  button.gold{border-color:var(--gold);color:var(--gold)}
+  button:disabled{opacity:.4;cursor:default}
+  #top .home{margin-left:auto;color:var(--dim);font-size:12px;display:flex;gap:12px}
+  #main{display:flex;height:calc(100% - 45px)}
+  #stage{flex:1;position:relative;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  #rail{width:420px;border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:12px;flex-shrink:0}
+  #rail h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:16px 0 6px}
+  #rail h2:first-child{margin-top:0}
+  .caseHd .no{color:var(--dim);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+  .caseHd .ti{color:var(--gold);font-weight:700;font-size:16px;margin:1px 0 2px}
+  .caseHd .town{color:var(--dim);font-size:12px}
+  .card{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:8px}
+  .card .nm{color:var(--gold);font-weight:700}
+  .card .meta{color:var(--dim);font-size:12px;margin:1px 0 4px}
+  .card .ln{font-size:12.5px;line-height:1.45}
+  .clue{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+  .clue .hd{display:flex;gap:8px;align-items:baseline}
+  .clue .ty{font-size:10.5px;letter-spacing:.1em;font-weight:700;color:var(--cold)}
+  .clue .ty.body{color:var(--hot)} .clue .ty.means{color:var(--gold)} .clue .ty.sighting{color:#b39bd8} .clue .ty.trace{color:var(--ok)}
+  .clue .ti{font-weight:700;font-size:13px;margin:2px 0}
+  .clue .ln{color:var(--txt);font-size:12.5px;line-height:1.5}
+  .clue .out{color:var(--hot);font-size:11.5px;margin-top:3px}
+  .susp{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;transition:opacity .25s}
+  .susp .hd{display:flex;gap:8px;align-items:baseline}
+  .susp .nm{font-weight:700;font-size:13.5px}
+  .susp .tag{margin-left:auto;font-size:10.5px;letter-spacing:.08em}
+  .susp .mv{color:var(--dim);font-size:12px;line-height:1.45;margin:3px 0}
+  .susp .mv b{color:var(--hot);font-weight:700;font-size:10.5px;letter-spacing:.08em}
+  .susp .cl{font-size:12px;color:var(--txt)}
+  .susp .cl .k{color:var(--dim)}
+  .susp .row{display:flex;gap:6px;margin-top:6px;align-items:center}
+  .susp .note{font-size:11.5px;color:var(--dim)}
+  .susp.out{opacity:.42}
+  .susp.out .nm{text-decoration:line-through}
+  .susp.culprit{border-color:var(--gold)}
+  .susp.wrong{border-color:var(--hot)}
+  .verdict{border:1px solid var(--gold);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+  .verdict .hd{color:var(--gold);font-weight:700;letter-spacing:.08em;font-size:12px;text-transform:uppercase}
+  .verdict .ln{font-size:12.5px;line-height:1.5;margin-top:4px}
+  .verdict.cold{border-color:var(--hot)} .verdict.cold .hd{color:var(--hot)}
+  .morgue{font-size:12px;color:var(--dim);padding:3px 0;border-bottom:1px dashed var(--line)}
+  .morgue b{color:var(--txt)}
+  .note{color:var(--dim);font-size:11.5px;line-height:1.5;margin-top:4px}
+  .strikes{color:var(--hot);font-size:11.5px;margin-left:8px}
+  @media(max-width:820px){#rail{width:320px}}
+</style>
+</head>
+<body>
+  <div id="top">
+    <span class="brand">⚖ case<small>mysteries read off the civic web — every one certified solvable</small></span>
+    <select id="sub" title="substrate">
+      <option value="nave" selected>nave · floor 1</option>
+      <option value="town">econ town</option>
+    </select>
+    <input id="seed" type="number" value="7" title="seed" />
+    <button id="roll" title="new casebook">🎲 new book</button>
+    <span id="chainlbl" style="color:var(--dim);font-size:12px"></span>
+    <span class="home">
+      <a href="./docs/" title="how it all works — live documentation, figures computed by the real kernels">✍ docs</a>
+      <a id="gosslink" href="../goss/" title="read this same web in the goss viewer">⁂ goss</a>
+      <a href="/">☁ tide</a>
+    </span>
+  </div>
+  <div id="main">
+    <div id="stage"><canvas id="cv"></canvas></div>
+    <div id="rail"></div>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

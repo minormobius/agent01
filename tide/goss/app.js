@@ -21,7 +21,10 @@ let romInvolved = new Set();        // souls with any romance edge (the rest dim
 let contestedByPlace = new Map(), defectorSet = new Set();
 let view = { x: 0, y: 0, k: 1 };
 let lens = 'tribes';
-let sub = 'town', mode = 'sealed';          // substrate (town | nave) + nave pollination mode
+let sub = 'town', mode = 'floor';           // substrate (town | nave) + nave pollination mode — the
+                                            // UNIFIED floor web is the default (measured healthier on
+                                            // every baked seed — see UNIFIED.md); ?mode=sealed keeps the
+                                            // engine-faithful seven-webs view a permalink away.
 let contentW = 900, contentH = 600;         // extent of the current substrate (for fitView)
 let highlight = null;               // Set of node keys, or null
 let selected = null;                // node key
@@ -406,10 +409,8 @@ if (urlSeed) seedInput.value = urlSeed;
 if (q.get('sub') === 'nave') {
   sub = 'nave'; subSelect.value = 'nave';
   document.getElementById('modes').style.display = 'flex';
-  if (q.get('mode') === 'floor') {
-    mode = 'floor';
-    document.querySelectorAll('#modes .chip').forEach((c) => c.classList.toggle('on', c.dataset.mode === 'floor'));
-  }
+  if (q.get('mode') === 'sealed') mode = 'sealed';
+  document.querySelectorAll('#modes .chip').forEach((c) => c.classList.toggle('on', c.dataset.mode === mode));
   if (!BAKED_NAVE_SEEDS.includes(parseInt(seedInput.value, 10))) seedInput.value = 7;
 }
 build(Math.max(1, parseInt(seedInput.value, 10) || 7)).then(() => draw());
