@@ -1050,15 +1050,26 @@
       if (!world || !world._nave || !faction || faction === '_default') return [];
       return world.chunks.filter((c) => c.painted && c.poly && c.naveMeta && c.naveMeta.faction === faction).map((c) => c.id);
     }
-    // can the player reach an anchor keeper RIGHT NOW? A faction keeper is reachable once its ward has streamed
-    // (naveWardChunkIds non-empty); a neutral/commons keeper always is. Off the nave (rind/signal anchors) the
-    // ward gate doesn't apply, so treat them reachable. Used to steer nextKeeper past keepers in unopened wards.
+    // Is this keeper a NAVE WARD keeper — the only class the faction-ward seating applies to? Keepers carry a
+    // zone: commons (chunk 0) · wards (the six faction wards, deck 0) · upper_rind (deck 1) · lower_rind (deck
+    // 2). CRUCIAL: an UPPER-RIND keeper still carries a nave-faction tag (the rind is "tagged by whose of the
+    // Seven's domain you're in"), so faction alone would wrongly route Elias Thorne (zone upper_rind, tag
+    // continuant) into the NAVE continuant ward on the wrong DECK — the tier-3 stall. Only zone ∈ {ward,wards}
+    // belongs in a faction ward; commons/rind/signal keepers are seated by the plain deck scatter.
+    const WARD_KEEPER_ZONES = new Set(['ward', 'wards']);
+    function keeperZone(npc) { return String((npc && (npc.zone || (npc.content && npc.content.zone))) || '').toLowerCase(); }
+    function isWardKeeper(npc) { return WARD_KEEPER_ZONES.has(keeperZone(npc)); }
+    // can the player reach an anchor keeper RIGHT NOW? A WARD keeper is reachable once its faction ward has
+    // streamed (naveWardChunkIds non-empty). Commons/rind/signal keepers aren't ward-gated — they open with
+    // their deck (which the anchor's own tier already governs), so they're reachable here. Steers nextKeeper
+    // past keepers in unopened wards without stranding rind keepers (whose ward, correctly, doesn't exist).
     function keeperReachable(k) {
       if (!k) return false;
       if (!world || !world._nave) return true;                         // not on the nave floor → no ward gating
       const npc = story.store.contentById(k.contentId);
+      if (!isWardKeeper(npc)) return true;                             // commons / upper_rind / lower_rind keeper
       const f = k.navefac || (npc ? factionOf(npc.tags) : null);
-      if (!f || f === '_default') return true;                         // neutral keeper (commons) — always reachable
+      if (!f || f === '_default') return true;                         // ward keeper with no faction — always reachable
       return naveWardChunkIds(f).length > 0;                           // its faction ward is built
     }
     // witness a faction (idempotent, order-gated): set the fact, show the guide's card, advance — and when
@@ -5147,10 +5158,13 @@
         for (const rid of reqKeeperIds) {
           const npc = story.store.contentById(rid);
           if (!npc || (npc.content && npc.content.ambient)) continue;
-          // v103 KEEPER-WARD REFORM (the Factor Solen bug): a load-bearing keeper is a FACTION principal, so it
-          // belongs in its own ward. `wardIds` are that ward's built chambers — empty until the ward streams.
+          // v103 KEEPER-WARD REFORM (the Factor Solen bug): a WARD keeper (zone ∈ {ward,wards}) is a faction
+          // principal, so it belongs in its own faction ward. `wardIds` = that ward's built chambers, empty
+          // until it streams. CRUCIAL (the Elias Thorne tier-3 fix): only WARD keepers get this — an upper-rind
+          // keeper carries a nave-faction tag too, so faction alone would route it to the nave (wrong deck).
+          const ward = isWardKeeper(npc);
           const kf = factionOf(npc.tags);
-          const wardIds = (kf && kf !== '_default') ? naveWardChunkIds(kf) : [];
+          const wardIds = (ward && kf && kf !== '_default') ? naveWardChunkIds(kf) : [];
           if (disc[rid]) {
             // v103 SELF-HEAL (the Miren Tallow lock): "placed" must mean FINDABLE. A mobile keeper's
             // discovered entry carries no coordinates — it exists only through a live embiggened
@@ -5174,13 +5188,15 @@
             if (alive) continue;
             delete disc[rid]; setJSONFact('npc.discovered', disc);
           }
-          // FRESH placement: a FACTION keeper seats only in its OWN ward — and is DEFERRED (no scatter) until
-          // that ward streams (else it strands in the commons and the waypoint points at the wrong chamber —
-          // the Factor Solen bug; the ward-reachability gate on nextKeeper won't even surface it yet). A neutral
-          // keeper (no faction) still scatters. Once the ward opens, the deferred keeper seats in it next tick.
+          // FRESH placement: a WARD keeper seats only in its OWN ward — DEFERRED (no scatter) until that ward
+          // streams (else it strands in the commons and the waypoint points at the wrong chamber — the Solen
+          // bug; nextKeeper's reachability gate won't surface it yet). Everyone ELSE — commons keepers, RIND /
+          // signal keepers, neutral keepers — scatters on the player's current deck (the old, correct behaviour
+          // that put Elias Thorne on the upper-rind deck where the waypoint expects him). Deferred ward keepers
+          // seat once their ward opens (next tick / the re-seat above).
           const pd = playerDeck();
           const scatter = painted.filter((ch) => (ch.deck || 0) === pd).concat(painted.filter((ch) => (ch.deck || 0) !== pd)).map((ch) => ch.id);
-          const seatIds = keeperSeatChunks(wardIds, (kf && kf !== '_default') ? [] : scatter);
+          const seatIds = (ward && kf && kf !== '_default') ? keeperSeatChunks(wardIds, []) : keeperSeatChunks([], scatter);
           const cands = seatIds.map((id) => world.chunks.find((c) => c.id === id)).filter(Boolean);
           const off = cands.length ? hashId(npc.id) % cands.length : 0;   // scatter, don't clump — exploration stays the forcing function
           for (let i = 0; i < cands.length; i++) {

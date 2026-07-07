@@ -459,7 +459,24 @@ despite the name. It stayed with hoop, not rind.)
       the opening of those chunks"). Now a keeper seats in its own ward when built (`keeperSeatChunks`, else
       the scatter fallback), and a mobile keeper stranded outside its ward once the ward opens is **re-seated**
       into it (`needsWardReseat` + `reseatKeeper`) — the keeper cousin of `relocateGuidesToWards`.
-      Pure + node-tested (`v103/test/promote.selftest.mjs`, 37 checks).
+      Pure + node-tested (`v103/test/promote.selftest.mjs`, 37 checks). **Scope (the Elias Thorne tier-3
+      fix):** the faction-ward seating applies ONLY to WARD keepers (`zone ∈ {ward,wards}`). An UPPER-RIND
+      keeper carries a nave-faction tag too (the rind is "tagged by whose of the Seven's domain you're in"),
+      so faction alone would route Elias Thorne (zone `upper_rind`, tag `continuant`) into the nave continuant
+      ward on the WRONG DECK. `isWardKeeper` gates it; commons/rind/signal keepers use the plain deck scatter.
+    - **`nextKeeper` follows the ward-unlock order** (the Factor Solen bug): an anchor's gates can span wards
+      that open sequentially (FQ: continuant→rindwalker→drift), so `nextKeeper` takes an optional
+      `reachable(keeper)` predicate; the surface's `keeperReachable` prefers a keeper whose faction ward is
+      built (ward keepers) / whose deck is open (rind keepers), so the ◇ never points into an unopened ward.
+    - **DEV `?wards=all`** (sticky; `?wards=off` clears) streams all six wards at once and force-places every
+      tier's keepers — for eyeballing whether keepers place. Does not set gates or witness factions.
+  - **Quest completability board** at `hoop.mino.mobi/v103/quests` (`v103/quests.html`, also `/quests`): reads
+    the live morphyx pool and renders every anchor tier's gates, the keeper that sets each, and the oracle
+    verdict (`story/solvable.js#proveProgression`) PLUS a **placement class** column (which deck/zone each
+    keeper is seated on) — so a gate that passes the content proof but would be mis-placed is visible. Node
+    equivalent: `node hoop/scripts/prove-solvable.mjs`. NB: the oracle proves the *content contract* (setter
+    exists, tier-legal, dialogue-reachable, zone-deck open); it does NOT prove the *surface's* placement is
+    deck-correct — that gap is what the Elias Thorne bug lived in, now closed in `populateChambers`.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

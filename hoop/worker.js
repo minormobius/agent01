@@ -183,6 +183,11 @@ export default {
     if (url.pathname === '/v103/spine' || url.pathname === '/v103/spine/') {
       return env.ASSETS.fetch(new Request(new URL('/v103/story/spine.html', url), request));
     }
+    // quests — the QUEST COMPLETABILITY board: every anchor tier's gates, the keeper that sets each, and
+    // whether the campaign is provably progressable from the live pool (the oracle + the placement class).
+    if (url.pathname === '/v103/quests' || url.pathname === '/v103/quests/' || url.pathname === '/quests' || url.pathname === '/quests/') {
+      return env.ASSETS.fetch(new Request(new URL('/v103/quests.html', url), request));
+    }
     // garden/plot — the high-detail GARDEN PLOT demo: the soil substrate (grain/moisture/cracks) + the
     // flora grown on it, each plant coloured by its Galenic temperament. The plants-first design toy.
     // (Bare dev aliases track the current development surface — now v103.)
