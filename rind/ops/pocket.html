@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04050a">
+<title>rind · ops — the pocket dimension</title>
+<style>
+  :root { --ink:#dfe7e2; --dim:#6b7872; --teal:#7fd8d0; --gold:#f4bf62; --bg:#04050a; --panel:#0b1016; --line:#141c24; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.5 "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+  a { color: var(--teal); text-decoration: none; } a:hover { color: var(--gold); }
+  .wrap { display: grid; grid-template-columns: 1fr 300px; height: 100%; }
+  @media (max-width: 860px) { .wrap { grid-template-columns: 1fr; } .rail { display: none; } }
+  #stage { position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  .hud { position: absolute; pointer-events: none; user-select: none; z-index: 3; }
+  #top { top: 8px; left: 12px; font-size: 12px; color: var(--dim); }
+  #top a { pointer-events: auto; } #top b { color: var(--gold); }
+  #hint { bottom: 8px; left: 12px; color: var(--dim); font-size: 11px; }
+  #hint b { color: var(--teal); }
+  .controls { position: absolute; left: 12px; top: 30px; display: flex; gap: 6px; z-index: 4; }
+  .controls button { pointer-events: auto; background: #0d1117; color: var(--ink); border: 1px solid var(--line); border-radius: 0; clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); padding: 5px 11px; font: inherit; font-size: 11px; cursor: pointer; }
+  .controls button.on { border-color: var(--gold); color: var(--gold); }
+  .rail { border-left: 1px solid var(--line); background: var(--panel); padding: 14px; overflow: auto; }
+  .rail h1 { font-size: 15px; margin: 0 0 2px; }
+  .rail .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); }
+  .rail h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--teal); margin: 16px 0 6px; }
+  .rail .now { font-size: 13px; color: var(--ink); margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: #070b0f; }
+  .rail .now .role { color: var(--gold); font-weight: 600; }
+  .rail .now .sub { color: var(--dim); font-size: 11px; }
+  .door { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .door:hover, .door.here { background: #0f1620; } .door.here { outline: 1px solid var(--gold); }
+  .door .sw { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+  .door .lab { flex: 1; color: #c2cadb; } .door.here .lab { color: var(--gold); }
+  .door .rf { color: var(--dim); font-size: 10px; }
+  .rail p { color: #8aa39a; font-size: 11.5px; line-height: 1.5; }
+  .trail { color: var(--dim); font-size: 11px; margin-top: 8px; word-break: break-word; }
+  .trail b { color: var(--teal); }
+  #load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 20; color: var(--teal); }
+  #mm { position: absolute; inset: auto; right: 10px; bottom: 10px; width: 170px; height: 170px; border: 1px solid var(--line); border-radius: 9px; background: rgba(7,11,15,0.84); z-index: 3; pointer-events: none; }
+  #mmcap { position: absolute; right: 14px; bottom: 184px; z-index: 3; color: var(--dim); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <canvas id="mm"></canvas>
+    <div id="mmcap">the weave · you</div>
+    <div class="hud" id="top"><a href="./">← ops</a> · <a href="./floor.html">▦ god-view</a> · <a href="./nexus.html">@ bare walk</a> · <a href="./office.html">⧉ analytic map</a> · <b>the pocket dimension — the weave at nave scale</b></div>
+    <div class="hud" id="hint">move: <b>WASD</b> / <b>click what you can see</b> · scroll to zoom · walk through a door and you're simply <b>on that thread</b></div>
+    <div id="load">folding the pocket dimension…</div>
+  </div>
+  <aside class="rail">
+    <h1 id="oname">—</h1>
+    <div class="kind" id="okind"></div>
+    <div class="now" id="now"></div>
+    <h2>doors — in sight</h2>
+    <p style="margin:0 0 6px">Each thread is a <b>nave-scale floor</b> — the metric is faked, the <b style="color:var(--teal)">topology is exact</b>: doors sit at the analytic stations in true-arc order, over-crossings on the north wall, under on the south, district arches where the strip crosses the seven hexes. Cross a door and you arrive at the <b style="color:var(--gold)">reciprocal station</b> of the other thread (cross back and you return). Vision flows the concourse and through doors; walls block it; what recedes goes dark. The inset map is the <b>analytic weave</b> — the metric is faked but your position on it is true. On the works floor, the gilded <b style="color:var(--gold)">◈ nexus</b> chamber is reserved for progression.</p>
+    <div id="doors"></div>
+  </aside>
+</div>
+<script type="module" src="./pocket-app.js"></script>
+</body>
+</html>

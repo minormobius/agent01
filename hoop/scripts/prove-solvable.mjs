@@ -6,14 +6,14 @@
 //   node hoop/scripts/prove-solvable.mjs --json      # machine-readable report
 //
 // Exits non-zero when the campaign is NOT provably progressable, so this can gate a content publish
-// (seed-hoop-pool / seed-story) the same way the selftests gate a deploy. The v101 surface force-places
+// (seed-hoop-pool / seed-story) the same way the selftests gate a deploy. The v102 surface force-places
 // tier-invisible keepers (requiredKeeperIds), so the default run treats those as WARNs; --strict shows
 // what a surface WITHOUT the bypass would suffer.
 //
 // Read-only: public listRecords against the service PDS. No secrets.
 
-import { servePool } from '../v101/story/import.js';
-import { proveProgression } from '../v101/story/solvable.js';
+import { servePool } from '../v102/story/import.js';
+import { proveProgression } from '../v102/story/solvable.js';
 
 const SERVICE_DID = process.env.HOOP_SERVICE_DID || 'did:plc:yivyyp54vddf7qf2lpsikhe4';   // morphyx
 const NSID = 'com.minomobi.hoop.story.content';

@@ -2,7 +2,7 @@ name: Deploy Tide
 
 on:
   push:
-    branches: [main, 'claude/tide-npc-civic-web-nhgzas']
+    branches: [main, 'claude/nave-unified-web-6plmae']
     paths:
       - 'tide/**'
       - '.github/workflows/deploy-tide.yml'

@@ -41,7 +41,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="crumb"><a href="/">◍ hoop</a> · world docs · <a href="/v101/">play v101 ↗</a> · <a href="/v101/records">records</a> · <a href="/v101/feed">live feed</a> · <a href="/v101/spine">spine</a></div>
+  <div class="crumb"><a href="/">◍ hoop</a> · world docs · <a href="/v102/">play v102 ↗</a> · <a href="/v102/records">records</a> · <a href="/v102/feed">live feed</a> · <a href="/v102/spine">spine</a></div>
 
   <h1>The World — Documentation</h1>
   <p class="lead">The whole scope of <b>hoop</b>, the infinite game: the ship and its decks, the story
@@ -94,7 +94,8 @@
     <tr><td><a href="/v098/">v098</a></td><td>legacy stable</td><td>hoopy's earlier content/story testbed — kept frozen</td></tr>
     <tr><td><a href="/v099/">v099</a></td><td>prior dev</td><td>map/fixture/combat work that became v100</td></tr>
     <tr><td><a href="/v100/">v100</a></td><td><b>stable</b></td><td>the playable nave: faction campaign (Rindwalker → Continuant → Drift), the three-deck stack, the chapter-one conclusion</td></tr>
-    <tr><td><a href="/v101/">v101</a></td><td><b>development</b> (current)</td><td>v100 + the audited story engine (§8): scaled storyboard pacing, the external-reps gate channel, the end-goto validator fix, the both-schemas importer</td></tr>
+    <tr><td><a href="/v101/">v101</a></td><td>prior dev</td><td>v100 + the audited story engine (§8): scaled storyboard pacing, the external-reps gate channel, the end-goto validator fix, the both-schemas importer</td></tr>
+    <tr><td><a href="/v102/">v102</a></td><td><b>development</b> (current)</td><td>v101 + the reauth-resilience pass (auth survives app-switching + backgrounded saves never redirect to consent; sliding session refresh) + the strengthened solvability oracle (dialogue-reachability proof, stale-keeper placement self-heal — the Miren Tallow lock, provably-dead-gate waiver) + the onboarding engine (little gimmes: garden → bench → smithy → gauntlet, one at a time on the tier ladder)</td></tr>
   </table>
   <p class="lead">Older snapshots (v090–v097) remain on disk and playable at their paths; they are
   history, not maintained. The engine-parts directories (<code>v2…v8</code>) are the kernel lineage
@@ -120,7 +121,7 @@
 
   <h2 id="story">4 · The story spine — how hoopy's canon plugs in</h2>
   <p class="lead">All narrative content is authored by hoopy as a <b>world export</b> — currently a
-  <b>720-record corpus</b> (<code>v101/story/world_export.json</code>: 90 plot beats, 138 NPCs with
+  <b>720-record corpus</b> (<code>v102/story/world_export.json</code>: 90 plot beats, 138 NPCs with
   full dialogue trees, 167 lore fragments, 126 items, 116 rumors, 83 creatures). The game engine is
   <b>inference-free in the hot path</b>: everything the player meets is either authored canon or
   gate-checked generated content, never a live model call.</p>
@@ -129,7 +130,7 @@
     <tr><th>Stage</th><th>Module</th><th>What happens</th></tr>
     <tr><td>1 · import</td><td><code>story/import.js</code></td><td>hoopy's export → engine <code>content_item</code>s. Handles both his schemas (flat r/n/p-tier records and the newer nested-<code>content{}</code> integer-tier form). <code>servePool</code> explodes room-bundles/wanderers.</td></tr>
     <tr><td>2 · gate</td><td><code>story/review.js</code> + <code>gates.js</code> + <code>validate.js</code></td><td>the review gate: schema/tier checks, dialogue-tree FSM validation, and <b>reachability</b> — every <code>requires</code> flag/item/rep must be producible by the pool or declared on the runtime boundary (<code>worldExternal</code>). Verdict PASS/BLOCK, nothing broken ships.</td></tr>
-    <tr><td>3 · serve</td><td><code>story/atproto.js</code></td><td>the pool is published as <code>com.minomobi.hoop.story.content</code> records on the <b>morphyx</b> service repo; the game reads it live (shared across v100/v101 — the service repo is not version-namespaced).</td></tr>
+    <tr><td>3 · serve</td><td><code>story/atproto.js</code></td><td>the pool is published as <code>com.minomobi.hoop.story.content</code> records on the <b>morphyx</b> service repo; the game reads it live (shared across v100/v101/v102 — the service repo is not version-namespaced).</td></tr>
     <tr><td>4 · run</td><td><code>story/engine.js</code></td><td>the runtime store: talk/choose/take, dialogue FSM, gate state, XP. Crystallizing content fires <code>flag.*</code> producers.</td></tr>
     <tr><td>5 · advance</td><td><code>story/anchors.js</code> + <code>progression.js</code> + <code>board.js</code></td><td>two axes, deliberately split: <b>revelation</b> (auto, exploration XP) and <b>narrative</b> (human-paced — anchor turn-ins set <code>flag.deck.&lt;deck&gt;.cleared</code>, the level-up). The storyboard, quest log, waypoints and opening cast are all <b>derived from his plot beats</b>, not hand-authored.</td></tr>
   </table>
@@ -137,19 +138,28 @@
   <table>
     <tr><th>Loop</th><th>How</th></tr>
     <tr><td><b>The Director pulse</b></td><td>a cron (§7) folds every player's <code>story.save</code> records into one world-pulse record on morphyx; the game and the generation lane read it as "what the world is feeling" — the steer.</td></tr>
+    <tr><td><b>Side threads seek people</b></td><td>a rumor thread resolves by <em>meeting</em> theme-corroborating people, so (v102) its journal entry names a live person of interest (the nearest placed, not-yet-counted corroborator — one is seated from the tier-legal pool if none is placed) and a per-thread <b>◇ track</b> toggle pins the map waypoint on them, followed live like a keeper. Waypoints point at people, not rooms.</td></tr>
     <tr><td><b>The rumor mill</b></td><td>players publish <code>story.rumor</code> records (sightings · divinations · inkblots); verdict sweeps apply retcons and notices back into live saves on load, refocus, and a 60&nbsp;s poll.</td></tr>
     <tr><td><b>The generation lane</b> <span class="tag open">retired experiment</span></td><td>a one-off v096 test we moved away from — <b>there is no inference in the hot path, by design</b>. The <code>/api/story/sidequest</code> worker route still exists (fully guarded; a stub without its key) but no shipped surface drives it. All live content is authored canon through the review gate.</td></tr>
     <tr><td><b>The solvability oracle</b></td><td><code>story/solvable.js</code> — proves from content alone that every tier's turn-in can actually be reached: every gate has a keeper, every keeper is placeable when needed, every zone is open in time (§8). Its runtime half (<code>requiredKeeperIds</code>) force-places the active anchor's keepers past the tier filter. Run it against the live pool: <code>node hoop/scripts/prove-solvable.mjs</code>.</td></tr>
-    <tr><td><b>The spine guarantee</b></td><td>each deck carries a load-bearing NPC quest (<code>story/deckquest.js</code>); the deck-stacking guarantee keeps every deck's quest completable regardless of order. Spec + demo at <a href="/v101/spine">/v101/spine</a>.</td></tr>
+    <tr><td><b>The spine guarantee</b></td><td>each deck carries a load-bearing NPC quest (<code>story/deckquest.js</code>); the deck-stacking guarantee keeps every deck's quest completable regardless of order. Spec + demo at <a href="/v102/spine">/v102/spine</a>.</td></tr>
   </table>
-  <p class="lead">Deep dives: <a href="/v101/records">records &amp; lexicons</a> (the ATProto contract),
-  <a href="/v101/architecture.html">the story data-flow diagram</a>, <a href="/v101/feed">the live
-  records feed</a>, <a href="/v101/storyboard/">the storyboard</a>.</p>
+  <p class="lead">Deep dives: <a href="/v102/records">records &amp; lexicons</a> (the ATProto contract),
+  <a href="/v102/architecture.html">the story data-flow diagram</a>, <a href="/v102/feed">the live
+  records feed</a>, <a href="/v102/storyboard/">the storyboard</a>.</p>
 
   <h2 id="minigames">5 · Minigames</h2>
   <p class="lead">Every minigame is reached <b>in-world</b> by clicking a fixture in a themed room
   (the fixture→action table lives in <code>sim.js</code>). All engines are pure, deterministic and
   node-tested; the caveats column is the honest state (see §8 for the balance numbers).</p>
+  <p class="lead"><b>The onboarding engine (v102, <code>story/onboard.js</code>)</b> paces the reveal:
+  the four deep systems surface as <b>little gimmes</b>, one at a time, gated to the narrative tier
+  ladder — ❀ garden (tier 1) → ⚗ bench (tier 2) → ⚒ smithy (tier 3) → ⚔ gauntlet (tier 3). Each
+  gimme grants its guaranteed first win (starter seeds; two live reagents; the smith wallet already
+  affords a forge), points a teal ✧ map marker at the nearest fixture room, and rides the journal
+  (<code>j</code>) as one card. The natural verb — plant, brew, forge, clear stage one — completes it
+  for coins, and organic use counts even before the gimme unlocks. Pure + node-tested
+  (<code>test/onboard.selftest.mjs</code>).</p>
   <table>
     <tr><th>Minigame</th><th>Fixture / room</th><th>Engine</th><th>State</th></tr>
     <tr><td><b>Arcade</b> (logic puzzles)</td><td><code>play</code>-role cabinet</td><td><code>arcade.js</code> (22 laws) — default engine is the <code>morph</code> sampler; <code>?forge=1</code> opts into the forge-codex arcade</td><td><span class="tag open">proto engine gated</span></td></tr>
@@ -169,7 +179,7 @@
     <tr><td><b>Inkblot</b> (divination)</td><td><code>govern</code> seal-stand</td><td><code>govern/inkblot.js</code></td><td>shipped</td></tr>
   </table>
   <p class="lead">Orphan: <code>hoop/minigame/</code> (an older standalone forge-puzzle opener with an
-  offline-minted codex) is <b>not imported by v100/v101</b> — the game rolled its own
+  offline-minted codex) is <b>not imported by v100/v101/v102</b> — the game rolled its own
   <code>arcade.js</code>. Flagged in §8; candidates are fold-in or retire.</p>
 
   <h2 id="food">6 · Garden · cafe · kitchen — the food economy today</h2>
@@ -191,7 +201,7 @@
   <h2 id="workflows">7 · The workflows — everything that ships or feeds the world</h2>
   <p class="lead">hoop is deployed and fed entirely by GitHub Actions — the sandbox never deploys.
   Six workflows touch this surface. <b>The deploy rule:</b> a push to the owning branch (per
-  <code>deploy-registry.json</code> — currently <code>claude/hoop-v101-audit-docs-xb82fs</code>) or
+  <code>deploy-registry.json</code> — currently <code>claude/hoop-v102-reauth-gc096v</code>) or
   <code>main</code> touching <code>hoop/**</code> ships to production. There is no staging.</p>
   <table>
     <tr><th>Workflow</th><th>Trigger</th><th>What it does</th><th>Secrets</th></tr>
@@ -205,12 +215,12 @@
   <h3>The test lanes (what gates a change)</h3>
   <p class="lead">Everything testable headlessly is a node selftest, runnable from a clean checkout with
   no install: <b>46 suites</b> at <code>hoop/test/</code> (engine kernels, story engine, econ/nav/postal),
-  <b>44</b> at <code>hoop/v101/test/</code> (the live surface: world, spine, combat, minigames, the
+  <b>44</b> at <code>hoop/v102/test/</code> (the live surface: world, spine, combat, minigames, the
   simulated-player integration run), plus per-wing suites (<code>nave</code> 36 · <code>rind</code> 37+34 ·
   <code>chunkroller</code> · <code>forge</code> ~400 checks). All green as of the v101 audit. The known gap:
   no DOM/canvas coverage — a Playwright lane is a roadmap item (§9).</p>
   <pre><span class="c"># run everything (from the repo root)</span>
-for t in hoop/test/*.selftest.mjs hoop/v101/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
+for t in hoop/test/*.selftest.mjs hoop/v102/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 <span class="c"># prove the LIVE campaign is progressable (reads the morphyx pool, read-only, exits non-zero on a wall)</span>
 node hoop/scripts/prove-solvable.mjs</pre>
 
@@ -250,7 +260,7 @@ node hoop/scripts/prove-solvable.mjs</pre>
   notes (Kaelen Voss, Joran Vell, Tamsin Rook reading as tier-N-on-tier-M) are <b>resolved</b>: they were
   ID-collision artifacts (two same-named bundles sharing one <code>slug(name)</code> id), now fixed by
   <code>dedupeRawIds</code> in <code>servePool</code> — with unique stable ids every keeper sits at its own
-  tier and none is tier-invisible. The frozen pin lives at <code>v101/test/fixtures/live-chain.json</code>.</p>
+  tier and none is tier-invisible. The frozen pin lives at <code>v102/test/fixtures/live-chain.json</code>.</p>
 
   <h3>Known-open (documented, deliberate) <span class="tag open">open</span></h3>
   <table>
@@ -259,15 +269,15 @@ node hoop/scripts/prove-solvable.mjs</pre>
     <tr><td><b>Economy price curves</b></td><td>shop <code>PRICE_K</code>, gem-pull cost vs socket payoff, arcade payouts vs food/gacha costs — related, tune together with §6's overhaul.</td></tr>
     <tr><td><b>Deckquest handoff</b></td><td>the load-bearing-NPC flag-quest layer is shipped and tested but its final index.html wiring steps are listed as "the remaining handoff" in <code>story/SPINE.md</code> — verify before building on it.</td></tr>
     <tr><td><b>Save-size ceiling</b></td><td>heavy item genomes push saves toward the 100&nbsp;KB PDS record ceiling; re-roll seeds instead of carrying full genomes is the sketched fix.</td></tr>
-    <tr><td><b>Orphan protos</b></td><td><code>hoop/minigame/</code> (superseded by <code>arcade.js</code>). The old hydrology overworld proto <code>hoop/over/eden.js</code> + <code>hoop/over/index.html</code> is superseded by the shipped <code>v101/over/</code> overworld (the clean <code>/over</code> URL now serves the new one); eden.js is not deleted — its draining-lake hydrology is earmarked to feed the new terrain field (§9·1).</td></tr>
+    <tr><td><b>Orphan protos</b></td><td><code>hoop/minigame/</code> (superseded by <code>arcade.js</code>). The old hydrology overworld proto <code>hoop/over/eden.js</code> (+ its page, now <code>hoop/over/eden.html</code> — renamed in v102 because as <code>index.html</code> it SHADOWED the worker’s <code>/over</code> rewrite: the assets router answers before the worker, so the clean URL served the old proto since v101) is superseded by the shipped <code>v102/over/</code> overworld; eden.js is not deleted — its draining-lake hydrology is earmarked to feed the new terrain field (§9·1).</td></tr>
     <tr><td><b>Render caches</b></td><td>four per-frame caches (society web, painted blit, GPU seam lines, static layering) listed in POLISH.md; mobile landscape/touch-tooltip work likewise.</td></tr>
-    <tr><td><b>Shared service repo</b></td><td>v100 and v101 read the same live morphyx pool/pulse/verdict feed (the service repo is not version-namespaced). Intended, but worth knowing when testing content on the dev surface.</td></tr>
+    <tr><td><b>Shared service repo</b></td><td>v100/v101/v102 read the same live morphyx pool/pulse/verdict feed (the service repo is not version-namespaced). Intended, but worth knowing when testing content on the dev surface.</td></tr>
   </table>
 
   <h2 id="roadmap">9 · Roadmap — the next additive tasks</h2>
   <table>
     <tr><th>Task</th><th>Where it stands · what it needs</th></tr>
-    <tr><td><b>1 · The overworld</b> <span style="color:#8fe07a">(shipped, roamed)</span></td><td><b>Live at <a href="/over">/over</a> and wired into the game</b> — the ship's outer grow-deck, now <b>walked</b>: you're injected as a figure into the curated ecology (<code>v101/over/ecology.js</code>) grown wild across a moisture+elevation terrain field, each plant a silhouette keeping its growth-form + Galenic palette (the "soul"), the same flora the garden grows. The playtest ("it's a painting, I'm not moving, it's slooow") drove a rewrite: <code>over/roam.js</code> (a player + chunks streamed on demand and pruned when far — a chunk is a pure function of (seed,cx,cy), so roam-and-return is byte-identical), a <b>voronoi</b> ground tiling (<code>voronoiCells</code>, organic patches seamless across chunk seams, replacing the square band grid), viewport-culled rendering (<code>drawRoam</code> — only what's on screen draws, the "slooow" fix), default zoom two clicks from max, and two roam verbs — <b>forage</b> a herb (deposits into the pantry by sciName→ark match) and <b>face</b> a swarm/spider. Pure + node-tested (<code>test/roam.selftest.mjs</code> + <code>overworld.selftest.mjs</code>). <b>Next passes:</b> fold in <code>hoop/over/eden.js</code>'s draining-lake hydrology so the water bands are real watersheds; cast the ambient fauna through the real sprite pack (<code>sprite/item/</code>) instead of glyphs; escalate the encounter from a light drive-off to the full arena combat.</td></tr>
+    <tr><td><b>1 · The overworld</b> <span style="color:#8fe07a">(shipped, roamed)</span></td><td><b>Live at <a href="/over">/over</a> and wired into the game</b> — the ship's outer grow-deck, now <b>walked</b>: you're injected as a figure into the curated ecology (<code>v102/over/ecology.js</code>) grown wild across a moisture+elevation terrain field, each plant a silhouette keeping its growth-form + Galenic palette (the "soul"), the same flora the garden grows. The playtest ("it's a painting, I'm not moving, it's slooow") drove a rewrite: <code>over/roam.js</code> (a player + chunks streamed on demand and pruned when far — a chunk is a pure function of (seed,cx,cy), so roam-and-return is byte-identical), a <b>voronoi</b> ground tiling (<code>voronoiCells</code>, organic patches seamless across chunk seams, replacing the square band grid), viewport-culled rendering (<code>drawRoam</code> — only what's on screen draws, the "slooow" fix), default zoom two clicks from max, and two roam verbs — <b>forage</b> a herb (deposits into the pantry by sciName→ark match) and <b>face</b> the fauna, which now fight back (v102 <code>over/menace.js</code>): bee swarms wake inside their aggro radius and hunt you as a boids flock, leashed to their flowers; spiders strike the moment you step on them; contact auto-fires the ambush (a stamina sting + the drive-off). Pure + node-tested (<code>test/roam.selftest.mjs</code> + <code>overworld.selftest.mjs</code>). <b>Next passes:</b> fold in <code>hoop/over/eden.js</code>'s draining-lake hydrology so the water bands are real watersheds; cast the ambient fauna through the real sprite pack (<code>sprite/item/</code>) instead of glyphs; escalate the ambush from the stamina-sting drive-off to the full arena combat (the pursuit + step-on triggers shipped in v102 — the resolution is the remaining half).</td></tr>
     <tr><td><b>2 · Garden · cafe · kitchen overhaul</b></td><td>Make the food economy <i>fun and useful</i> (§6 lists why it isn't yet). The design directions on the table: give dishes effects beyond nourishment (buffs, gifts NPCs react to, quest-hook ingredients); connect the triangle (grown crops reach cafe menus; the cafe becomes a place with regulars and chatter rather than a vending counter); give the garden a return cadence that isn't sleep-spam; let the kitchen's flavor-coherence scoring feed visible mastery (recipes, a repertoire); and tie it to the overworld — foraging wild ingredients above (<b style="color:#8fe07a">shipped:</b> gather herbs while roaming, they land in the pantry), growing cultivated ones below. <b style="color:#8fe07a">The garden is now one bed planted in continuum</b> (<code>garden/garden.js</code> + <code>bed-render.js</code>): pick a seed, click a clear patch to plant it anywhere, clear of the bed's <b>keep-out zones</b> (a path, a pond, stones) and its neighbours; click a ripe plant to harvest — replacing the old grid of 12 slot-cards. <b style="color:#8fe07a">The alchemy vertical is shipped end-to-end:</b> a <b>Physic Garden</b> biome (the 55 alch reagent-herbs, growable through the same gacha→garden→pantry loop) feeds the <b>alchemy bench</b> in the make rooms (⚗, §5), which brews graded preparations via the correspondence kernel; you then <b>use</b> them (quaff self-heal/buff draughts mid-fight or out of combat), <b>gift</b> them to NPCs for standing, <b>trade</b> them at the apothecary, and grow a <b>recipe-mastery</b> repertoire (story-seeded, expands by experiment). A social draught sets the <code>alch.social</code> flag — the <b>conversation hook</b> content reads. The <a href="/alch">cookbook</a> is the reference. Combat use is <b>quaff + doff</b> (self draughts drunk, flasks/smokes/salves thrown on a real projectile arc — <code>arena/trajectory.js</code>, the grid cousin of fable's /flux launch sim). Still open: dishes-with-effects in the kitchen, cafe regulars, forageable overworld stands, and the return-cadence fix.</td></tr>
     <tr><td><b>2b · Item economy — make/mend/trade</b> <span style="color:#8fe07a">(shipped)</span></td><td>The item genome (<code>sprite/item/</code>: 10 kingdoms × phyla × 22 tech-gated materials, medieval↔ship-grade name skin) is now a full player economy across all three verbs. <b>make</b> — the <b>Smithy</b> (§5, make's wall fixture ⚒, <code>craft/smith.js</code>) forges genome equipment from the ship's 7 forge commodities: a material→commodity map (organic↔biomass, metal↔metal, exotic/precious/crystal↔<b>trace</b>), tech-era gated by narrative tier, with a break-down loop (loot→commodities). Testbed <a href="/smith">/smith</a>. <b>mend</b> — the lapidary's <b>⚒ Reforge</b> tab (<code>craft/mend.js</code>): temper a stat, reforge the piece finer, or upgrade its tech era, paid in commodities (items don't wear, so mend is improvement, not repair). <b>trade</b> — a <b>⬡ Materials market</b> (buy/sell commodities, trace dear) + <b>✎ Commissions</b> (the desk posts deterministic craft-to-order requests per day → deliver a matching piece → coins + a trace bounty that funds ship-grade crafting). The loop closes: loot→dismantle→commodities→forge→equip / reforge / sell / fill-commission, organics from the garden, exotics gated behind trace + story tier. hoopy authors named/key items against the taxonomy's <code>loot:false</code> lane; the genome mints the gear. <b>Next passes:</b> an item wear model (would make "repair" real); commissions tied to specific NPCs for standing (they're desk-board coins today).</td></tr>
     <tr><td><b>3 · Deckquest completion</b></td><td>finish SPINE.md's "remaining handoff" wiring so the load-bearing NPC layer drives hoopy-bot's level checks end-to-end.</td></tr>
@@ -283,7 +293,8 @@ node hoop/scripts/prove-solvable.mjs</pre>
     <tr><th>Endpoint</th><th>What</th></tr>
     <tr><td><a href="/">/</a></td><td>the original preview game (map-is-the-forum; places + threads on ATProto)</td></tr>
     <tr><td><a href="/docs">/docs</a></td><td>this page</td></tr>
-    <tr><td><a href="/v101/">/v101/</a></td><td><b>the current development surface</b> — with <a href="/v101/records">/records</a>, <a href="/v101/feed">/feed</a>, <a href="/v101/spine">/spine</a>, <a href="/v101/storyboard/">/storyboard</a>, <a href="/v101/architecture.html">/architecture</a></td></tr>
+    <tr><td><a href="/v102/">/v102/</a></td><td><b>the current development surface</b> — with <a href="/v102/records">/records</a>, <a href="/v102/feed">/feed</a>, <a href="/v102/spine">/spine</a>, <a href="/v102/storyboard/">/storyboard</a>, <a href="/v102/architecture.html">/architecture</a></td></tr>
+    <tr><td><a href="/v101/">/v101/</a></td><td>prior dev surface (same sub-pages)</td></tr>
     <tr><td><a href="/v100/">/v100/</a></td><td>the stable surface (same sub-pages)</td></tr>
     <tr><td><a href="/v098/">/v098/</a> · <a href="/v099/">/v099/</a> · /v09x/</td><td>frozen prior surfaces</td></tr>
     <tr><td><a href="/over">/over</a> · <a href="/over/demo">/over/demo</a> · <a href="/garden/plot">/garden/plot</a></td><td>the overworld, roamed (walk, forage, face creatures) · its standing self-touring demo · the garden-plot flora-fidelity toy</td></tr>
@@ -300,8 +311,8 @@ node hoop/scripts/prove-solvable.mjs</pre>
   </table>
 
   <p class="lead" style="margin-top:34px; border-top:1px solid var(--line); padding-top:14px;">
-  maintained on the hoop deploy surface · updated with the v101 audit ·
-  <a href="/v101/">play</a> · <a href="/">home</a></p>
+  maintained on the hoop deploy surface · updated with the v102 pass (reauth resilience + the strengthened solvability oracle) ·
+  <a href="/v102/">play</a> · <a href="/">home</a></p>
 </div>
 </body>
 </html>

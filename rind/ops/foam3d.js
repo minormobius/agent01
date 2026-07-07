@@ -24,11 +24,13 @@ export const DEFAULTS = { R: 320, T: 84, Nrad: 21, Nth: 54, Nz: 2, jitter: 0.5, 
 // in WEAVE.md): hexagons honeycomb the rind shell, and 7-chunk cells nest aperture-7 like H3. More rings ⇒ a
 // bigger cell ⇒ more windings to fill it.
 export const chunkCount = (rings) => 3 * rings * rings + 3 * rings + 1;
-// the three factions — two white-collar roles each (the nave's lobes + exclusive verbs); gives representation
+// the three factions — two white-collar roles each (the nave's lobes + exclusive verbs); gives representation.
+// `wards` are the faction's two NAVE BIOMES (hoop/nave/nave.js BIOMES — high + mild intensity), aligned
+// positionally with roleIds: each white thread carries one ward. Additive — nothing existing reads it.
 export const FACTIONS = [
-  { id: 'rindwalker', label: 'Rindwalker', color: '#9b6b3a', verbs: ['mend', 'worship'], roleIds: ['perfusion', 'telemetry'], creed: 'maintenance is meaning — the floor\'s health-keepers' },
-  { id: 'continuant', label: 'Continuant', color: '#5566b8', verbs: ['govern', 'grow'], roleIds: ['schedule', 'inventory'], creed: 'the voyage must continue — the planners & stewards' },
-  { id: 'drift', label: 'Drift', color: '#3bb0c9', verbs: ['move', 'trade'], roleIds: ['dispatch', 'gate'], creed: 'a floor lives only if things move — the circulators' },
+  { id: 'rindwalker', label: 'Rindwalker', color: '#9b6b3a', verbs: ['mend', 'worship'], roleIds: ['perfusion', 'telemetry'], wards: [{ key: 'rind-mend', exclusive: 'mend', level: 'mild' }, { key: 'rind-worship', exclusive: 'worship', level: 'high' }], creed: 'maintenance is meaning — the floor\'s health-keepers' },
+  { id: 'continuant', label: 'Continuant', color: '#5566b8', verbs: ['govern', 'grow'], roleIds: ['schedule', 'inventory'], wards: [{ key: 'cont-govern', exclusive: 'govern', level: 'high' }, { key: 'cont-grow', exclusive: 'grow', level: 'mild' }], creed: 'the voyage must continue — the planners & stewards' },
+  { id: 'drift', label: 'Drift', color: '#3bb0c9', verbs: ['move', 'trade'], roleIds: ['dispatch', 'gate'], wards: [{ key: 'drift-learn', exclusive: 'learn', level: 'high' }, { key: 'drift-play', exclusive: 'play', level: 'mild' }], creed: 'a floor lives only if things move — the circulators' },
 ];
 const TAU = Math.PI * 2;
 const wrap = (a) => ((a % TAU) + TAU) % TAU;

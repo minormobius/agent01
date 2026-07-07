@@ -26,9 +26,20 @@ the canonical geometry in `shared/geometry.mjs`:
   tension axes (tribalism · narcissism of small differences) emitting typed drama seeds — the
   proto-oracle. A second substrate loads hoop's real **nave floor 1** from baked JSON
   (`goss/data/nave-*.json`, baked by the node-only `goss/tools/bake-nave.mjs` — re-run it after
-  hoop nave/engine changes) with two pollination modes: `sealed` (engine truth — chunk societies
-  never mix, pinned in the selftest) and `floor` (one society, hats cross wards Euclidean, like
-  the game's commute web). Read `goss/README.md` before touching it.
+  hoop nave/engine changes) with two pollination modes: `floor` (default — the UNIFIED web: one
+  society, hats cross wards Euclidean, like the game's commute web; measured healthier than sealed
+  on every baked seed — see `goss/UNIFIED.md` + `goss/tools/study-unified.mjs`) and `sealed`
+  (engine truth — chunk societies never mix, pinned in the selftest). Read `goss/README.md`
+  before touching it.
+- `case/` — **goss's sister** (`tide.mino.mobi/case`): procedurally generated murder mysteries
+  read off the civic web. Motive from the drama layer (red herrings = genuine grievance,
+  innocent), time from a six-watch day over each soul's hats, alibis cleared only by
+  INDEPENDENT witnesses (weak ties as evidentiary value), means typed by place role, and a
+  **solvability oracle** (the clue list's deductive closure must converge on exactly the
+  culprit — unsolvable cases never leave the kernel). The **chain**: closing a case removes
+  victim + culprit and re-runs the relational layers over the survivors (demographics cast
+  once — nobody renamed by a death); a seed is a casebook, `?sub=&seed=&case=` a permalink.
+  Read `case/README.md` before touching it.
 - Module 3 (WebGPU interior visualiser) — planned.
 
 The defining physics: **up (toward the axis) is hot, not cold** → permanent stratification →
@@ -54,6 +65,7 @@ node tide/fountain/test/light.selftest.mjs        # 15 checks
 node tide/ratchet/test/ratchet.selftest.mjs       # 20 checks
 node tide/systems/test/resources.selftest.mjs     # 17 checks
 node tide/goss/test/gossip.selftest.mjs           # 38 checks
+node tide/case/test/casegen.selftest.mjs          # 23 checks (60 cases certified)
 # or all at once:
 for t in tide/*/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
@@ -62,7 +74,7 @@ The self-tests are the contract — run them before every push.
 
 ## Deploy
 
-- Push `tide/**` on `main` or `claude/tide-npc-civic-web-nhgzas` (the current owning branch) → `deploy-tide.yml`
+- Push `tide/**` on `main` or `claude/nave-unified-web-6plmae` (the current owning branch) → `deploy-tide.yml`
   runs `wrangler deploy`. The sandbox cannot deploy; push and let the Action run. Verify the
   log binds `tide.mino.mobi (custom domain)` (the golden rule).
 - Ownership is in `deploy-registry.json` (surface `tide`). Edit the registry, then
