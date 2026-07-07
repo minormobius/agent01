@@ -96,16 +96,33 @@ JS → emit a frame model → solve for stress):
   single-species threads; a nexus mixes regardless"). Residents dwell in role-coloured rooms (⚒/⚕/▣…), spider-droids
   (the `sprites/` kernel) haul the concourse. Proven navigable: `test/floor.selftest.mjs` (7-flower connects, all
   districts reachable from one start, 6 nexus corners, deterministic). **BUT** the god-view is the wrong lens for
-  this map — **the map is only what's reachable from your thread**. **`office.html`/`office-app.js` — YOUR THREAD IS
-  AN OFFICE** is the right engine: it renders ONLY the current thread, partitioned into a full v100-style office
-  (rooms via `assignZones` over the thread's own cell subgraph + role glyphs from `v100/econ.js` ROLES + a hallway
-  spine from the nexus to the rim), and every OTHER thread is only a **door** in your wall (a gold gate ringed in the
-  neighbour's colour with a sightline stub — NOT its rooms). Cross a door and that thread becomes your office,
-  re-centred (`rebuild(toKey, farGi)`); the nexus opens onto all sibling offices of the same kind. It's
-  `nexus.html`'s thread-relative re-centring, upgraded from bare cells to modelled offices — K(6,8) first-person
-  (a white office = 8 doors, a production office = 6). Built on `curveseed` + `onedoor.certify` (the 48 doors) +
-  the vendored `v100/` room toolkit; `test/office.selftest.mjs` pins it (rooms tile each thread, hallway connects
-  nexus→rim, every door re-centres onto a neighbour-owned cell, deterministic). **`tess.html`/`tess-app.js`** shows how the
+  this map — **the map is only what you can SEE from where you stand**. **`office.html`/`office-app.js` — YOUR
+  THREAD IS AN OFFICE · LINE OF SIGHT** is the right engine (kernel **`officeweave.js`** — the page and the
+  selftest drive the same module). Threads are PHYSICAL: each renders in its owning hue (solid, persistent,
+  bending out); walls carry REAL GAPS at every door and the kernel rasterises those same trimmed walls into an
+  occlusion grid (`buildSight`), so sight rays pass through doorways and the thread beyond SPILLS INTO VIEW in
+  its own colour. CROSSING IS A NO-OP — one global walk graph (`buildGlobalWalk`: office walls + the 48 K-doors +
+  the open plazas); walking through a door is just walking, and "which thread am I on" = who owns the chamber
+  underfoot. What you leave fades behind you (visibility decays toward line-of-sight — no memory, no minimap;
+  remembering the plan would tangle the levels). Sight is LEVEL-LOCAL: floor tiles are the 2D Voronoi of each
+  cell against its level-mates only (|Δz| < 2.2 decks), walls only exist between same-level flanks, occlusion is
+  two stratum grids, and the renderer hides cells outside your walkable z-window — the other threads pass above/
+  below unseen and surface exactly where the weave lands at grade: the doors. The PLAZAS have no walls at all
+  (the certified door-free concourses, walked): the six whites share one open lobby floor, the eight engines
+  mirror it below. **Over SEVEN HEXAGONS**: aperture-7 (`hexScale = √7`, H3 twist ≈19.106°), ~2.4× the chambers
+  per thread, FULL onedoor certificate intact (K 48/48, 14/14 continuous, at grade, one-door — pinned); the
+  seven child hexes persist as **districts** (partition + overlay + HUD). The office partition **hews to
+  hoop/v101** (vendored `ops/v101/rooms.js`): traffic-sized rooms, grand anchor at the nexus, MIN_ROOM
+  bulldozing, a carved HALL spine with one lit threshold per room (spanning tree rooted at the hall), light
+  pooled per room from self-emitting components + bollards, half-scale residents with boids separation. **Painted v101** (`officepaint.js` +
+  vendored `ops/v101/{consoles.js,v5/}`): a player-scaled retile + occluded light bake per 384-unit paint-chunk,
+  baked once on first sight and composited under the gap-free LOS fog — albedo = thread hue, the ROLE enters via
+  the light (role-tinted wall lamps + superformula deco components) and the voronoi-grown wall fixtures; residents
+  are sprite people from `sprites/core.js` commuting home→work→third place. Built on
+  `curveseed` + `onedoor.certify` (48 doors, endpoint-deduped) + the vendored `v100/` room toolkit;
+  `test/office.selftest.mjs` (38) pins certificate-at-×7, districts, room tiling, walled reachability, global
+  no-op walk, zero-K-door concourses, door see-through, walled-room concealment, K-door spill, art genomes,
+  determinism. **`tess.html`/`tess-app.js`** shows how the
   cells **tessellate** (the schematic): a hexagon has 6 neighbours and the cortex has 6 white arms, so each white arm hands off
   to one neighbour (the white weave is the connective tissue) while the 8 engines stay local — self-similar
   aperture-7 (H3-style), wrapping the cylinder. Seedable family
@@ -149,7 +166,8 @@ node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no
 node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any→any ≤1 door incl. hubs (two concourses)
 node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
 node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR (god-view): v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
-node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office: each thread partitions into rooms; K(6,8) doors to other threads; cross re-centres
+node rind/ops/test/pocket.selftest.mjs             # ★ THE POCKET DIMENSION: 48 stations, reciprocity, arc order, one-door, CHUNKED threads, the CP ◈ nexus, FACTION AXES (six nave biomes ↔ six whites, antipodal — no same-faction adjacency)
+node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office, over SEVEN HEXAGONS; line-of-sight (walls hide, doors spill); crossing is a no-op walk
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
 node rind/ops/test/decks.selftest.mjs              # the region-decks comparison view
@@ -162,14 +180,15 @@ The pages themselves are exercised by eye (open them).
 
 ## Deploy
 
-- **Site:** push `rind/**` on `main` or `claude/oneill-cylinder-refactor-xjknww` →
-  `deploy-rind.yml` runs `wrangler deploy`. The sandbox **cannot** deploy; push and let the
-  Action run. Verify the log binds `rind.mino.mobi (custom domain)` (the golden rule).
+- **Site:** push `rind/**` on `main` or `claude/rind-deploy-weaving-map-8b5gje` (the current
+  owning branch — see `deploy-registry.json`) → `deploy-rind.yml` runs `wrangler deploy`. The
+  sandbox **cannot** deploy; push and let the Action run. Verify the log binds
+  `rind.mino.mobi (custom domain)` (the golden rule).
 - **Solver wasm:** edit the Rust under `solver/cylinder-solver{,-wasm}/` → `build-cylinder-solver.yml`
   rebuilds `solver/pkg/**`, commits it, and dispatches `deploy-rind.yml`. Don't hand-edit
   `solver/pkg/` — it's generated.
 - Ownership lives in `deploy-registry.json` (surface `rind`, branch
-  `claude/oneill-cylinder-refactor-xjknww`). Change the branch there, then run
+  `claude/rind-deploy-weaving-map-8b5gje`). Change the branch there, then run
   `node scripts/gen-deploy-triggers.mjs --write` + `node scripts/lint-deploy-registry.mjs`.
 
 ## Invariants — do not break

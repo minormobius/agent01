@@ -190,7 +190,7 @@
       "dir": "rind",
       "endpoint": "rind.mino.mobi",
       "type": "frontend",
-      "branch": "claude/rind-deploy-endpoint-aj9ky5",
+      "branch": "claude/rind-deploy-weaving-map-8b5gje",
       "uses": [],
       "provides": null,
       "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam + wayfinding: drivable spiral-ramp / azimuthal-road routes through the chamber graph), walk.html (walk a planar cut through the foam). rind/ops/ is the OPS WEAVE: the 6 white-collar surfaces woven over the 8 production engines as the complete bipartite K(6,8) (a plain weave, not the old gyroid). Its one-door endpoint (rind/ops/onedoor.html, kernel onedoor.js) re-poses the weave as two door-free concourses joined only by the 48 zero-grade K-doors, so any room to any room is one door incl. the hubs (proven, onedoor.selftest.mjs). Geometry generated in JS (foam.js/foam3d.js/wayfind.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static \u2014 no D1/DO/secrets.",

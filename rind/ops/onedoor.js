@@ -235,11 +235,14 @@ export function certify(model, opts = {}) {
 
   // (3) THE HEADLINE: max doors over ALL pairs === 1. Structural proof: two 0-connected regions joined by ≥1 door
   // ⇒ 0 within a colour, exactly 1 across ⇒ max 1. We assert the structure AND measure it exhaustively-ish.
+  // opts.probes tunes the measurement grid (default 60 ⇒ ~60² routed pairs); 0 skips the sampling entirely and the
+  // certificate rests on the structural proof alone — what a page wants at load time (the selftests keep the default).
   const graph = buildDoorGraph(model, color, doors);
   const structuralMax1 = whiteConnected && prodConnected && doors.length > 0;
   let measuredMax = 0, sampled = 0, sumDoors = 0, unreachable = 0;
-  const step = Math.max(1, Math.floor(N / 60));                       // ~60² sampled pairs, spread across the chunk
-  const probes = []; for (let i = 0; i < N; i += step) probes.push(cells[i].gi);
+  const nProbes = Math.max(0, opts.probes ?? 60);
+  const step = Math.max(1, Math.floor(N / Math.max(1, nProbes)));     // ~probes² sampled pairs, spread across the chunk
+  const probes = []; if (nProbes > 0) for (let i = 0; i < N; i += step) probes.push(cells[i].gi);
   for (const a of probes) for (const b of probes) { if (a === b) continue; const r = routeOneDoor(graph, a, b); if (!r) { unreachable++; continue; } measuredMax = Math.max(measuredMax, r.doors); sumDoors += r.doors; sampled++; }
 
   // (4) "including central hubs": every hub cell is 0 doors from its concourse; the two hubs are exactly 1 apart

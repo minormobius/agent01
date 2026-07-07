@@ -40,7 +40,16 @@ export function buildGeometry(seed = WEAVE_DEFAULTS.seed, opts = {}) {
   const prism = buildPrism(o.seed, { hexR, spacing: a, layers: o.layers, jitter: o.jitter, vpitch });
   const baseTurns = (1.0 + 0.9 * rings) * (o.turnScale ?? 1);
   const family = { turnsW: baseTurns * (0.85 + 0.3 * rng()), turnsP: baseTurns * (0.85 + 0.3 * rng()), phaseW: rng() * TAU, phaseP: rng() * TAU, spin: rng() < 0.5 ? 1 : -1 };
-  const warps = FACTIONS.flatMap((fac) => fac.roleIds.map((rid) => ({ id: rid, faction: fac.id, factionLabel: fac.label, color: fac.color }))).map((wc, w) => ({ ...wc, w, kind: 'white' })).slice(0, NW);
+  // THE FACTION AXES: interleave the factions around the ring (R·C·D·R·C·D) so NO thread neighbours
+  // its own faction and each faction's two threads sit ANTIPODAL (w, w+3) — the faction's axis
+  // BISECTS the weave, crossing the nexus. Each thread carries its faction's WARD (a nave biome,
+  // high/mild) and shades the faction colour by ward intensity so the six read distinctly.
+  const shade = (hx, k) => '#' + [1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(hx.slice(i, i + 2), 16) * k))).toString(16).padStart(2, '0')).join('');
+  const warps = Array.from({ length: NW }, (_, w) => {
+    const fac = FACTIONS[w % FACTIONS.length], slot = Math.floor(w / FACTIONS.length) % fac.roleIds.length;
+    const ward = (fac.wards || [])[slot] || null;
+    return { id: fac.roleIds[slot], faction: fac.id, factionLabel: fac.label, facColor: fac.color, ward, color: shade(fac.color, ward && ward.level === 'high' ? 1.24 : 0.86), w, kind: 'white' };
+  });
   const wefts = ENGINE_RING.map((id, f) => ({ id, f, kind: 'prod', ...ENGINES[id] })).slice(0, NF);
   return {
     seed: o.seed, rings, chunkCount: chunkCount(rings), spacing: a, jitter: o.jitter, layers: o.layers,

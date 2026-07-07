@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#04050a">
-<title>rind · ops — your thread, an office · seven hexagons</title>
+<title>rind · ops — the pocket dimension</title>
 <style>
   :root { --ink:#dfe7e2; --dim:#6b7872; --teal:#7fd8d0; --gold:#f4bf62; --bg:#04050a; --panel:#0b1016; --line:#141c24; }
   * { box-sizing: border-box; }
@@ -38,30 +38,29 @@
   .trail { color: var(--dim); font-size: 11px; margin-top: 8px; word-break: break-word; }
   .trail b { color: var(--teal); }
   #load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 20; color: var(--teal); }
+  #mm { position: absolute; inset: auto; right: 10px; bottom: 10px; width: 170px; height: 170px; border: 1px solid var(--line); border-radius: 9px; background: rgba(7,11,15,0.84); z-index: 3; pointer-events: none; }
+  #mmcap { position: absolute; right: 14px; bottom: 184px; z-index: 3; color: var(--dim); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div id="stage">
     <canvas id="cv"></canvas>
-    <div class="hud" id="top"><a href="./">← ops</a> · <a href="./floor.html">▦ god-view</a> · <a href="./nexus.html">@ bare walk</a> · <a href="./pocket.html">⧉ pocket walk</a> · <b>your thread — an office · the map is what you see</b></div>
-    <div class="controls">
-      <button id="cam" class="on">⊕ follow</button>
-      <button id="dis">⬡ districts</button>
-      <button id="dbg">debug</button>
-    </div>
+    <canvas id="mm"></canvas>
+    <div id="mmcap">the weave · you</div>
+    <div class="hud" id="top"><a href="./">← ops</a> · <a href="./floor.html">▦ god-view</a> · <a href="./nexus.html">@ bare walk</a> · <a href="./office.html">⧉ analytic map</a> · <b>the pocket dimension — the weave at nave scale</b></div>
     <div class="hud" id="hint">move: <b>WASD</b> / <b>click what you can see</b> · scroll to zoom · walk through a door and you're simply <b>on that thread</b></div>
-    <div id="load">weaving seven hexagons… (the ×7 foam takes a few seconds)</div>
+    <div id="load">folding the pocket dimension…</div>
   </div>
   <aside class="rail">
     <h1 id="oname">—</h1>
     <div class="kind" id="okind"></div>
     <div class="now" id="now"></div>
     <h2>doors — in sight</h2>
-    <p style="margin:0 0 6px">Each thread is a <b>solid colour</b> that bends out; sight passes <b style="color:var(--gold)">through the door gaps</b>, so the thread beyond spills into view in its own hue. Walk through and you're simply on it — what you leave fades behind you. No minimap: the map is your line of sight. (Sight is level-local — the other threads pass above and below unseen, and surface exactly where the weave brings them to grade: the doors.)</p>
+    <p style="margin:0 0 6px">Each thread is a <b>nave-scale floor</b> — the metric is faked, the <b style="color:var(--teal)">topology is exact</b>: doors sit at the analytic stations in true-arc order, over-crossings on the north wall, under on the south, district arches where the strip crosses the seven hexes. Cross a door and you arrive at the <b style="color:var(--gold)">reciprocal station</b> of the other thread (cross back and you return). Vision flows the concourse and through doors; walls block it; what recedes goes dark. The inset map is the <b>analytic weave</b> — the metric is faked but your position on it is true. On the works floor, the gilded <b style="color:var(--gold)">◈ nexus</b> chamber is reserved for progression.</p>
     <div id="doors"></div>
   </aside>
 </div>
-<script type="module" src="./office-app.js"></script>
+<script type="module" src="./pocket-app.js"></script>
 </body>
 </html>

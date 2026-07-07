@@ -1,5 +1,105 @@
 # rind/ops — the white-collar weave (the theory)
 
+> **THE SEVEN-HEXAGON OFFICE (`office.html` · kernel `officeweave.js`, proof `test/office.selftest.mjs`).**
+> The thread-office ("your thread is an office") re-founded on two moves. **(1) Thicken by aperture-7.** The
+> threads read too tight because the whole 14-thread weave was packed into one hexagon. The fix is the weave's own
+> self-similarity clause (see "How the cells tessellate"): extend the weave-cell to **seven hexagons** — the H3
+> aperture-7 parent (area ×7 ⇒ `hexScale = √7`, the child flower rotated `atan(√3/5) ≈ 19.106°`). Same 14 threads,
+> same topology, ~2.4× the chambers per thread (median ≈550 vs ≈230) and physically broader corridors — and the
+> FULL onedoor certificate survives untouched on every seed tested: **K(6,8) = 48/48, 14/14 spirals continuous,
+> every door at grade, one-door** (pinned). The seven child hexagons persist as **DISTRICTS**: a true 7-way Voronoi
+> partition of the chambers (nearest child-centre), drawn as the dashed flower overlay and read back by the HUD —
+> an office genuinely *spans* districts now. (`certify` gained an additive `probes` opt so the page can rest on
+> the structural one-door proof at load time; the selftests keep the measured sampling.) One honest seam:
+> `placeDoors` picks each K-pair's door independently, and at ×7 two pairs can land on the SAME chamber — a cell
+> can only be one door first-person, so `officeweave.dedupeDoors` relocates the collider to the next-flattest
+> adjacency of the same two threads (the certificate's own doors are untouched). **(2) Hew to hoop/v101.** The
+> office partition adopts the v101 room programme (vendored policy `v101/rooms.js` — see `v101/VENDOR.md`):
+> **traffic-sized rooms** (zone weights = `TRAFFIC_FOOTPRINT`, so civic hubs claim more chambers than dwellings —
+> measured and pinned), a **grand anchor** at the nexus end (GRAND role on whites, the engine core on production),
+> **MIN_ROOM bulldozing**, and the v101 world-painter read: the hallway spine is carved out as the HALL, every
+> room boundary is a **wall** except **one lit threshold per room** (a spanning tree of the region graph rooted at
+> the hall — walls are the default, doors are deliberately-placed gaps), light **pools per room** from a
+> self-emitting component (+ warm bollards along the hall), and residents walk at half scale with boids
+> separation. Movement respects the walls (`passable()` is the walk graph; reachability of every chamber from the
+> nexus is pinned).
+>
+> **LINE OF SIGHT (the third move — the portal mechanic is retired).** The map is what you can SEE. Every thread
+> renders in its owning hue (solid, persistent, bending out); the walls carry **real gaps** at every door, and the
+> kernel rasterises those same trimmed walls into an **occlusion grid** (`buildSight`) — so sight rays pass through
+> the doorways and the thread beyond **spills into view** in its own colour, more of it as you approach. **Crossing
+> is a no-op**: one global walk graph (`buildGlobalWalk` — office walls + the 48 K-doors + the open plazas) means
+> walking through a door is just walking; "which thread am I on" = who owns the chamber underfoot. What you leave
+> **fades out behind you** (visibility decays toward line-of-sight; no memory, no minimap — remembering the plan
+> would tangle the levels). Sight is **level-local**: the plan interleaves both strata, so (a) the floor tiles are
+> the 2D Voronoi of each cell against its LEVEL-MATES only (|Δz| < 2.2 decks — tiling against everything shreds
+> each level into a sponge, measured median flank Δz ≈ 2.8 decks), (b) an edge is only a wall when its flanks abut
+> on one level, (c) the occlusion is TWO grids (upper/lower stratum; near-grade walls stamp both), and (d) the
+> renderer hides cells outside your walkable z-window — the other-parity threads pass above and below unseen and
+> surface exactly where the weave brings them to grade, which is where the doors are. **The plazas are the
+> exception that proves onedoor**: the flat core is the certified door-free concourse, so it carries NO walls at
+> all and its level is your KIND — the six white threads visibly share one open lobby floor (walk from any white
+> onto any other; the engine plaza mirrors it below). The hub is no longer a synthetic portal room — it is a place.
+> All pinned: global reach of every owned chamber, both concourses joined with zero K-doors and zero cross-kind
+> leaks, door see-through, walled-room concealment, K-door spill (`office.selftest.mjs`, 38 checks).
+>
+> **THE v101 PAINT (`officepaint.js` + the vendored `v101/` art modules — see `v101/VENDOR.md`).** The full hoop/v101
+> world-painter, chunked by sight. The chamber tiles are BONES: `planChunk` (pure, deterministic, seam-agreeing)
+> injects a fresh player-scaled Voronoi mesh per 384-unit paint-chunk — tight wall nuclei along the kernel's trimmed
+> walls (thin stone with real body, door gaps intact), graded floor darts from a global position-hashed lattice
+> (seamless across chunks), door-bridge nuclei — then `bakeChunk` splats an OCCLUDED light field through the same
+> tiling (v5/lights) and paints every tile albedo × light. **Albedo is the THREAD's hue — solid threads survive; the
+> ROLE enters through the light** (wall lamps + components are tinted by room role, so a govern room reads as indigo
+> lamplight pooling on schedule-blue floor). Rooms carry v101 furniture: a superformula deco COMPONENT
+> (`v5/deco.deviceGenome`, luminescence derived from its construction), 1–2 grown WALL LAMPS (sconce/coral/crystal),
+> and a voronoi-grown WALL FIXTURE (`consoles.growWallFixtures` — claims the room's own tiles, corner-anchored,
+> door-clear, gold-seamed, its crown lit by the bake). Residents are v101 SPRITE PEOPLE (the already-vendored
+> `sprites/core.js` kernel): seed-stable pixel genomes roled to their workplace, 8 facings, walk cycle, commuting
+> home → work → third place. Chunks bake once on first sight (≈150 ms, one per frame, LRU-capped) into offscreen
+> canvases per stratum; the LOS fog composites above as a gap-free destination-out mask, so the paint fades exactly
+> like the world. The plaza paints kind-locally (U = the white concourse), matching the sight rule — no confetti.
+>
+> **THE POCKET DIMENSION (`pocket.html` · kernel `pocketweave.js`, proof `test/pocket.selftest.mjs`).** The honest
+> cheat: true metric scale was never load-bearing, so each thread becomes a POCKET — a nave-scale strip floor solved
+> by the v100 rooms-and-concourse engine and painted by the VERBATIM vendored `v101/skin.js#paintChunk` (the full
+> skin the foam could never feed). The TOPOLOGY is exact and purely analytic (no foam needed — `buildGeometry` +
+> `weaveLines` only, ~ms): every K(6,8) crossing is a STATION solved in closed form (`solveStations`) with an exact
+> rf, over/under parity (which wall the door is on) and district (arches along the strip); doors sit in TRUE-ARC
+> order; crossing lands you at the RECIPROCAL station and crossing back returns you (involution, pinned). The hub
+> ends attach to two COMMONS pockets (the nave pattern) so the plazas stay walked; one-door survives by
+> construction. Walking/fog/pathing are v100's own kit (`buildWalk`/`pathFind`/`sightBall` — vision flows the
+> concourse and through doors); residents are sprite people on the walk graph. **THE CHUNKS**: a thread is NOT one
+> monolithic solve — its spine is cut into 2–5 SEGMENTS (cuts snapped away from station alcoves), each solved
+> lazily as its own v100 chunk, but all sharing ONE `foamSeed` per thread so they slice the SAME global 3D Voronoi
+> foam: seams abut bit-identically (v101's voronoi-continuity discipline, applied to the faux threads). Each cut
+> carries one SEAM PORT at the spine point, `inherit`-ed by both sides, so the concourses meet across the seam
+> (a bulkhead doorway) and the walk stitches via `extendWalk`. Door placement is SEGMENT-LOCAL (anchored at the
+> hub end or the seam port) and therefore solve-order independent — a pocket first touched via its middle segment
+> (a door preview) places the same doors as one solved hub → rim; pinned. The page streams accordingly: enter a
+> pocket and only the segment you land in solves+bakes; the rest arrive one per interval; a door PREVIEW warms
+> exactly one segment of its target (the commons no longer swallows six whole bands). Clicking anywhere inside a
+> preview disc walks you to that portal and through — the whole peek is the affordance. THE NEXUS: the works
+> floor's centrepiece chamber (biggest doored room nearest the hex centre, gilded — paint, lamps and fixtures all
+> read it) is reserved for player progression; marked deterministically in the CP solve, pinned reachable. THE
+> MINIMAP: a corner inset of the ANALYTIC weave — all 14 lines in thread colours, your thread highlighted, a gold
+> dot at your TRUE position (nearest spine sample → rf → the point on your line; an interface sits at its exact
+> station crossing; the commons at the hub). The metric is faked; the map tells the truth. `?at=` boots any pocket.
+> THE FACTION AXES: the six white threads carry the six NAVE BIOMES (hoop/nave wards, two per faction at
+> high/mild intensity), INTERLEAVED around the ring (R·C·D·R·C·D) so no thread neighbours its own faction and
+> each faction's two threads sit antipodal — the faction's axis bisects the weave, crossing the nexus (the
+> minimap shows your twin when you ride a white). THE COMMODITY TRANSFER, embodied: on an engine floor the
+> spider droids alternate intake trips (hub door → the shelves) and output trips (the make rooms → the hub),
+> each parcel wearing its producer-engine's colour; on the works floor they walk the DERIVED inter-engine
+> supply chain door → door — and fulfillment IS the nexus (product flows into the progression chamber, waste
+> flows out to reclaim). THE GRADE is severe (`gradeScale` amplifies the analytic over/under z; slides bite
+> sooner, monotone descent via continuous spine-z interpolation). TIER 2 UNDERFOOT: concourse tiles are
+> POLISHED OBSIDIAN (lacquered near-black; the baked light ghosts through as reflection; sparse tally rows
+> etched in — the ledger of breath, misread by outsiders as grain yields), and on the eight engine floors the
+> room tiles take the engine's own hue — the production vertical, colour-coded. The office page's concourse
+> albedo went obsidian to match. Pockets are deterministic
+> from (seed, threadKey). `office.html` remains the ANALYTIC MAP layer (cross-linked both ways) —
+> same world, two charts: the map that tells the truth about the tangle, and the floor you can actually live in.
+
 > **THE ONE-DOOR RESOLUTION (`onedoor.html` · `rind.mino.mobi/ops/onedoor.html`; kernel `onedoor.js`, proof
 > `test/onedoor.selftest.mjs`).** The hard spec line — *wayfinding from ANY point in the chunk to ANY other point
 > passes through only ONE door, including the two central hubs* — is now true **by construction and proven**, not
