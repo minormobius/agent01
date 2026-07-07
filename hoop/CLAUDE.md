@@ -450,7 +450,16 @@ despite the name. It stayed with hoop, not rind.)
       absent ref, and when the pool can seat nobody the surface **emergency-promotes** a deterministic stand-in
       (`emergencyNpc` — same name → same atproto-stable id, tier-legal, theme-tagged, clickable) so a resident
       can be promoted into the role and the ◇ resolves to someone walkable (the "Elias Vance who is absent"
-      case). Pure + node-tested (`v103/test/promote.selftest.mjs`, 29 checks).
+      case).
+    - **Load-bearing keepers sit in — and relocate to — their OWN ward** (the Factor Solen bug: "a waypoint
+      pinned in a chamber while the journal said find Kaelen Voss"). A gate-setter keeper is a faction
+      principal, but `populateChambers` hash-scattered them across whatever chambers were painted, so a
+      Continuant keeper force-placed *before* its ward streamed landed in the commons (or a wrong ward) and
+      — recorded "placed" — never moved; the waypoint then pointed at the wrong chamber ("it has to do with
+      the opening of those chunks"). Now a keeper seats in its own ward when built (`keeperSeatChunks`, else
+      the scatter fallback), and a mobile keeper stranded outside its ward once the ward opens is **re-seated**
+      into it (`needsWardReseat` + `reseatKeeper`) — the keeper cousin of `relocateGuidesToWards`.
+      Pure + node-tested (`v103/test/promote.selftest.mjs`, 37 checks).
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

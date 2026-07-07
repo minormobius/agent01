@@ -597,7 +597,7 @@
     import { DECKS, DECK_COUNT, deckForTier, nextDeck, countsForDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
     import { assess, levelMessage, guideFor, learnedForDeck } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
     import { buildQuestBank, questProgress, pickQuestForNpc, questMarker, questCounted, seekCandidates } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to; seekCandidates = the PEOPLE a thread's waypoint chases (v103: side-quest waypoints point at people, not rooms)
-    import { emergencyNpc, personRef } from './story/promote.js';   // v103 npc reform: mint a stand-in when a person-objective can locate/seat nobody, so a waypoint never degrades to a room
+    import { emergencyNpc, personRef, keeperSeatChunks, needsWardReseat } from './story/promote.js';   // v103 npc reform: mint a stand-in when a person-objective can locate/seat nobody; seat/relocate load-bearing keepers into their own ward (the Factor Solen waypoint bug)
     import { AuthClient } from '../vendor/auth.js';   // shared OAuth (verbatim copy of packages/oauth-client) — sign in to save to YOUR repo
     import { loadOwnSave, putSave, SAVE_NSID, loadPool, publicClient, loadPulse, listOwnSaves, deleteOwnSave, putRumor } from './story/atproto.js';   // the per-player save lane + the SHARED pool read + the cross-player pulse + own-save enumeration + the rumor outbox (com.minomobi.hoop.story.*)
     import { loadVerdicts, digestVerdicts } from './story/verdicts.js';   // the rumor-mill / async-result feed: apply retcons + notices, redraw on change
@@ -1042,6 +1042,13 @@
       if (ci < 0) for (let i = 1; i < meta.length; i++) { const m = meta[i]; if (m && m.faction === faction) { ci = i; break; } }   // fallback: either ward of the faction
       const ch = ci >= 0 && (world._nave.recs || [])[ci]; if (!ch || !ch.poly || !ch.poly.length) return null;   // recs is NAVE-indexed; world.chunks is push-order (they diverge with gating)
       let x = 0, y = 0; for (const p of ch.poly) { x += p.x; y += p.y; } return { x: x / ch.poly.length, y: y / ch.poly.length, ci };
+    }
+    // the world.chunks ids of a faction's BUILT, painted ward chambers (naveMeta.faction is the canonical
+    // 'continuant'/'rindwalker'/'drift' tag streamNaveWards stamps on each ward chunk). Empty until the ward
+    // streams — that's the signal a faction keeper's ward isn't ready yet (keeperSeatChunks falls back).
+    function naveWardChunkIds(faction) {
+      if (!world || !world._nave || !faction || faction === '_default') return [];
+      return world.chunks.filter((c) => c.painted && c.poly && c.naveMeta && c.naveMeta.faction === faction).map((c) => c.id);
     }
     // witness a faction (idempotent, order-gated): set the fact, show the guide's card, advance — and when
     // the Drift is witnessed, OPEN THE RIND (bump to the Investigation tier so maybeBuildRind sinks the shaft).
@@ -5008,6 +5015,21 @@
       setJSONFact('npc.discovered', disc);
       return true;
     }
+    // v103 RELOCATE a keeper who is ALREADY placed (disc set) into `chunkId` — the fix for a load-bearing
+    // faction keeper stranded outside its ward (the Factor Solen waypoint bug). Unlike embiggenKeeper this does
+    // NOT bail on the existing discovered flag: it binds a resident in the target chunk FIRST, then drops the
+    // stranded resident's keeper flag and re-points the discovered record at the new chamber. No-op (false) if
+    // no resident can be seated in the target chunk (retried next tick as the ward fills). Returns true on move.
+    function reseatKeeper(npc, chunkId, deck) {
+      const prior = residents.find((r) => r.keeper && r.keeper.content_id === npc.id);
+      const nr = flagKeeperResident(npc, chunkId, deck || 0);   // picks a resident in chunkId (never the embiggened `prior`)
+      if (!nr) return false;
+      if (prior && prior !== nr) { prior.keeper = null; prior.dwellBias = 0; _embiggened.delete(prior.id); }
+      const disc = getJSONFact('npc.discovered', {});
+      disc[npc.id] = { mobile: true, deck: deck || 0, ch: chunkId };
+      setJSONFact('npc.discovered', disc);
+      return true;
+    }
     // RE-DERIVE the living keepers after a social rebuild / on reload (residents re-roll; the discovered set
     // persists). Idempotent: skips keepers already flagged on a live resident.
     function applyKeepers() {
@@ -5093,6 +5115,12 @@
       try {
         const facts = story.store.getFacts(story.playerId);
         for (const rid of requiredKeeperIds(story.anchors || [], story.gateSetters || {}, facts, p.narrative_tier || 1)) {
+          const npc = story.store.contentById(rid);
+          if (!npc || (npc.content && npc.content.ambient)) continue;
+          // v103 KEEPER-WARD REFORM (the Factor Solen bug): a load-bearing keeper is a FACTION principal, so it
+          // belongs in its own ward. `wardIds` are that ward's built chambers — empty until the ward streams.
+          const kf = factionOf(npc.tags);
+          const wardIds = (kf && kf !== '_default') ? naveWardChunkIds(kf) : [];
           if (disc[rid]) {
             // v103 SELF-HEAL (the Miren Tallow lock): "placed" must mean FINDABLE. A mobile keeper's
             // discovered entry carries no coordinates — it exists only through a live embiggened
@@ -5106,13 +5134,22 @@
             const alive = anchors.some((a) => a.content_id === rid)
               || residents.some((r) => r.keeper && r.keeper.content_id === rid)
               || (d && d.x != null);
+            // v103 WARD RE-SEAT: a keeper stranded outside its (now-built) ward — the "waypoint pinned in the
+            // wrong chamber after the ward opened" bug — gets relocated INTO its ward here (mirrors
+            // relocateGuidesToWards for the pinned guide-anchors). Only mobile keepers; pinned ones are guides.
+            if (alive && needsWardReseat({ mobile: d && d.mobile, currentChunk: d && d.ch, wardChunkIds: wardIds })) {
+              for (const cid of wardIds) if (reseatKeeper(npc, cid, 0)) { haveByChunk.set(cid, (haveByChunk.get(cid) || 0) + 1); break; }
+              continue;
+            }
             if (alive) continue;
             delete disc[rid]; setJSONFact('npc.discovered', disc);
           }
-          const npc = story.store.contentById(rid);
-          if (!npc || (npc.content && npc.content.ambient)) continue;
+          // FRESH placement: seat in the keeper's OWN ward when it's built, else scatter (old behaviour) so a
+          // keeper whose ward hasn't streamed yet still appears somewhere — the re-seat above moves it home once
+          // the ward opens. Scatter (hash offset) keeps exploration the forcing function within the ward too.
           const pd = playerDeck();
-          const cands = painted.filter((ch) => (ch.deck || 0) === pd).concat(painted.filter((ch) => (ch.deck || 0) !== pd));
+          const fallback = painted.filter((ch) => (ch.deck || 0) === pd).concat(painted.filter((ch) => (ch.deck || 0) !== pd)).map((ch) => ch.id);
+          const cands = keeperSeatChunks(wardIds, fallback).map((id) => world.chunks.find((c) => c.id === id)).filter(Boolean);
           const off = cands.length ? hashId(npc.id) % cands.length : 0;   // scatter, don't clump — exploration stays the forcing function
           for (let i = 0; i < cands.length; i++) {
             const ch = cands[(off + i) % cands.length];

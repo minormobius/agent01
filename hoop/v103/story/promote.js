@@ -94,4 +94,28 @@ export function needsPromotion({ personName = null, located = false, seatable = 
   return !!personName && !located && !seatable;
 }
 
-export default { promotedId, isPromoted, namesAPerson, personRef, emergencyNpc, needsPromotion };
+// ── keeper-in-ward placement (the Factor Solen bug) ──────────────────────────────────────────────────────
+// A LOAD-BEARING keeper (a gate-setter the main-quest waypoint points at) is a FACTION principal, so it belongs
+// in its faction's WARD. But the nave streams ward-by-ward as the campaign unlocks, and a keeper force-placed
+// while its ward hasn't streamed yet lands in the commons (or a wrong ward) and — because it is recorded
+// "placed" — never moves. The waypoint then faithfully points at the WRONG chamber. (The pinned guide-anchors
+// already relocate when their lobe opens; the mobile keepers never did.) These two pure helpers decide where a
+// keeper should sit and whether a placed one is now stranded, so the surface's relocation is node-testable.
+
+// The chambers a fresh keeper should be seated in: its OWN ward's built chambers when any exist, else the
+// scatter fallback (so a keeper whose ward hasn't streamed yet still appears somewhere — and gets relocated
+// once the ward opens). `wardChunkIds` / `fallbackChunkIds` are world.chunks ids.
+export function keeperSeatChunks(wardChunkIds, fallbackChunkIds) {
+  const ward = (wardChunkIds || []).filter((x) => x != null);
+  return ward.length ? ward.slice() : (fallbackChunkIds || []).filter((x) => x != null).slice();
+}
+
+// Is a placed MOBILE keeper STRANDED outside its own ward now that the ward is built? True ⇒ re-seat it into a
+// ward chamber. False when it isn't mobile, has no known ward yet (nothing streamed — leave it where it is),
+// or already sits in one of its ward chambers.
+export function needsWardReseat({ mobile = false, currentChunk = null, wardChunkIds = [] } = {}) {
+  const ward = (wardChunkIds || []).filter((x) => x != null);
+  return !!mobile && ward.length > 0 && !ward.includes(currentChunk);
+}
+
+export default { promotedId, isPromoted, namesAPerson, personRef, emergencyNpc, needsPromotion, keeperSeatChunks, needsWardReseat };

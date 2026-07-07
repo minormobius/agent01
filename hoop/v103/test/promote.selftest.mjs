@@ -6,7 +6,7 @@
 // thread's refs (only an ABSENT person, never a known NPC); a minted stand-in is deterministic, tier-legal,
 // theme-tagged, non-ambient, clickable, and folds into the live pool so seekCandidates/discoverNpc accept it.
 
-import { promotedId, isPromoted, namesAPerson, personRef, emergencyNpc, needsPromotion } from '../story/promote.js';
+import { promotedId, isPromoted, namesAPerson, personRef, emergencyNpc, needsPromotion, keeperSeatChunks, needsWardReseat } from '../story/promote.js';
 import { seekCandidates, questForSeed, corroborates } from '../story/quests.js';
 import { MemoryStore, interact } from '../story/engine.js';
 
@@ -61,6 +61,19 @@ ok(needsPromotion({ personName: 'Elias Vance', located: false, seatable: false }
 ok(!needsPromotion({ personName: 'Elias Vance', located: true, seatable: false }), 'no promotion when the person is already placed');
 ok(!needsPromotion({ personName: 'Elias Vance', located: false, seatable: true }), 'no promotion when the pool can seat someone');
 ok(!needsPromotion({ personName: null, located: false, seatable: false }), 'no promotion when the objective is not a person');
+
+// ── 7. keeper-in-ward placement (the Factor Solen "waypoint in the wrong chamber" bug) ──
+// a fresh keeper prefers its OWN ward's chambers when they're built…
+ok(JSON.stringify(keeperSeatChunks([3, 4], [0, 5, 6])) === JSON.stringify([3, 4]), 'a keeper seats in its own ward when the ward is built');
+// …and falls back to the scatter set when its ward hasn't streamed yet (so it still appears somewhere)
+ok(JSON.stringify(keeperSeatChunks([], [0, 5, 6])) === JSON.stringify([0, 5, 6]), 'a keeper whose ward is not built yet falls back to the scatter chambers');
+ok(JSON.stringify(keeperSeatChunks(null, [0])) === JSON.stringify([0]), 'a null ward list falls back cleanly');
+// a placed mobile keeper stranded in the commons (chunk 0) while its ward (3,4) is now built → RE-SEAT
+ok(needsWardReseat({ mobile: true, currentChunk: 0, wardChunkIds: [3, 4] }), 'a keeper stranded in the commons after its ward opened needs a re-seat');
+ok(needsWardReseat({ mobile: true, currentChunk: 5, wardChunkIds: [3, 4] }), 'a keeper stranded in the WRONG ward needs a re-seat');
+ok(!needsWardReseat({ mobile: true, currentChunk: 3, wardChunkIds: [3, 4] }), 'a keeper already in its ward is left alone');
+ok(!needsWardReseat({ mobile: true, currentChunk: 0, wardChunkIds: [] }), 'no re-seat while the ward has not streamed yet (nothing to move into)');
+ok(!needsWardReseat({ mobile: false, currentChunk: 0, wardChunkIds: [3, 4] }), 'a pinned (non-mobile) anchor is not re-seated by this path (relocateGuidesToWards owns it)');
 
 console.log(`\npromote.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
