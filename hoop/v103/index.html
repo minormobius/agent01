@@ -1438,12 +1438,24 @@
     // commons quest is done (the tier-1 deck-climb → narrative_tier ≥ 2, introSolved); witnessing Continuant
     // opens Rindwalker; witnessing Rindwalker opens Drift; witnessing Drift opens the rind (maybeBuildRind).
     // Idempotent + cheap (ensureFactionWards early-returns once built) — safe to call from renderQuest.
+    // DEV: `?wards=all` streams ALL six faction wards immediately (sticky; `?wards=off` clears) — the "unlock
+    // all seven chunks right away" lever, for checking whether keepers/guides actually place. It does NOT set
+    // gates or witness factions (so the keepers stay "to find" and you can watch them appear); it only builds.
+    const unlockAllWards = () => { try {
+      const q = new URLSearchParams(location.search).get('wards');
+      if (q === 'all') { localStorage.setItem('hoop:v103:wards', 'all'); return true; }
+      if (q === 'off') { localStorage.removeItem('hoop:v103:wards'); return false; }
+      return localStorage.getItem('hoop:v103:wards') === 'all';
+    } catch (e) { return false; } };
     function ensureUnlockedWards() {
       if (!story.ready || !world || !world._nave) return;
       const facts = story.store.getFacts(story.playerId);
-      if (introSolved()) ensureFactionWards('continuant');                        // commons quest cleared
-      if (fqStatus(facts, 'continuant') === 'witnessed') ensureFactionWards('rindwalker');
-      if (fqStatus(facts, 'rindwalker') === 'witnessed') ensureFactionWards('drift');
+      if (unlockAllWards()) { ensureFactionWards('continuant'); ensureFactionWards('rindwalker'); ensureFactionWards('drift'); }   // DEV: build all six wards now
+      else {
+        if (introSolved()) ensureFactionWards('continuant');                      // commons quest cleared
+        if (fqStatus(facts, 'continuant') === 'witnessed') ensureFactionWards('rindwalker');
+        if (fqStatus(facts, 'rindwalker') === 'witnessed') ensureFactionWards('drift');
+      }
       maybePlaceOverLadder();   // idempotent — drop the passive overworld ladder once the Continuants ward exists
       relocateGuidesToWards();  // once a faction's lobe is built, move its guide-anchor from the commons into it
     }
@@ -5128,7 +5140,11 @@
       // the pool early-return: required keepers are usually NOT in the tier-filtered pool at all.
       try {
         const facts = story.store.getFacts(story.playerId);
-        for (const rid of requiredKeeperIds(story.anchors || [], story.gateSetters || {}, facts, p.narrative_tier || 1)) {
+        // Normally only the ACTIVE tier's keepers are force-placed. DEV `?wards=all` gathers EVERY tier's
+        // keepers so you can eyeball whether all of them appear across the now-open wards (not just Solen's).
+        const keeperTiers = unlockAllWards() ? [...new Set((story.anchors || []).map((a) => a.tier))] : [p.narrative_tier || 1];
+        const reqKeeperIds = [...new Set(keeperTiers.flatMap((t) => requiredKeeperIds(story.anchors || [], story.gateSetters || {}, facts, t)))];
+        for (const rid of reqKeeperIds) {
           const npc = story.store.contentById(rid);
           if (!npc || (npc.content && npc.content.ambient)) continue;
           // v103 KEEPER-WARD REFORM (the Factor Solen bug): a load-bearing keeper is a FACTION principal, so it
