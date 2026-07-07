@@ -376,14 +376,16 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-v102-reauth-gc096v` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-v103-npc-reform-shk88h` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
-  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v102` is the
-  DEVELOPMENT surface** (v101, now a frozen prior, plus the v102 pass):
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v103` is the
+  DEVELOPMENT surface** (v102, now a frozen prior, plus the v103 NPC-reform pass — see its own bullet
+  below; the bare dev aliases `/over`, `/garden/plot`, `/alch`, `/smith` now resolve to v103). The v102
+  pass (the frozen prior) was:
   - **Auth resilience (the reauth-on-return fix).** Two bugs made app-switching demand a re-login:
     (1) `flushRepo`'s save-failure handler re-minted HOOP_SCOPE — a full OAuth redirect — on ANY
     error, and the `visibilitychange→hidden` flush fires exactly when you background the app, so
@@ -431,6 +433,24 @@ despite the name. It stayed with hoop, not rind.)
     standalone `/over` page; flocks render as bee particles with a threat ring on the centroid.
     Pure + node-tested (`v102/test/menace.selftest.mjs`, 18 checks — named `menace` because the
     arena already owns `swarm.selftest` for the distributed-body creep).
+  - **The v103 NPC-REFORM pass** (the current dev surface). Two changes:
+    - **The nave's civic web is UNIFIED** (`v103/story/genquest.js#profileFromNave`, the reciprocal of
+      tide/goss's `UNIFIED.md`). The engine, chunkroller, and the old `profileFromChunk` all read the nave
+      (commons + six wards) as **seven sealed societies** — "the nave scored as seven fragments." goss
+      measured the whole nave as ONE civ web healthier on every baked seed (a ward short a parish *imports*
+      from a neighbour). `profileFromNave` now reads the nave the same way — one society over EVERY loaded
+      nave chunk with the cross-ward commute edges — **revealed, not re-rolled** (a streaming ward only
+      appends, so the reading grows monotone as wards unseal; `UNIFIED.md §C2`). The surface's `profileHere`
+      uses it whenever the player stands in the nave (deck 0); `?civ=sealed` keeps the engine-truth per-chunk
+      read (parity with goss's `?mode=sealed`). Pure + node-tested (`v103/test/civic.selftest.mjs`, 12 checks).
+    - **Waypoints always target PEOPLE** (`v103/story/promote.js`). A person-objective (a main-quest keeper
+      or a side-thread's person of interest) that the world could neither locate nor seat from the pool used
+      to DEGRADE its marker to a room (`questMarker` fell through to a terminal / the rind / a role-matched
+      place) — the "waypoint chases a room" bug. `questMarker` now emits a `person` marker for a named-but-
+      absent ref, and when the pool can seat nobody the surface **emergency-promotes** a deterministic stand-in
+      (`emergencyNpc` — same name → same atproto-stable id, tier-legal, theme-tagged, clickable) so a resident
+      can be promoted into the role and the ◇ resolves to someone walkable (the "Elias Vance who is absent"
+      case). Pure + node-tested (`v103/test/promote.selftest.mjs`, 29 checks).
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

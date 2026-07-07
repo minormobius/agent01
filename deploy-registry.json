@@ -555,10 +555,10 @@
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-v102-reauth-gc096v",
+      "branch": "claude/hoop-v103-npc-reform-shk88h",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface. VERSIONED SURFACES: v100 is the stable playable-nave snapshot; v101 (dev, current) carries the audited story engine (scaled storyboard pacing, external-reps gate channel, end-goto validator fix) + the world-side docs page at /docs (whole world scope, workflows, audit, roadmap).",
+      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface. VERSIONED SURFACES: v100 is the stable playable-nave snapshot; v102 is the prior dev snapshot; v103 (dev, current) is the NPC-REFORM pass \u2014 the nave's civic web read as ONE unified floor society (tide/goss's UNIFIED default, revealed ward-by-ward) + waypoints that always target PEOPLE (emergency-promoting a deterministic stand-in when the named NPC is absent, so a marker never degrades to chasing a room).",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
