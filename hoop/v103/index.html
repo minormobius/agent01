@@ -2039,20 +2039,27 @@
     // marker leads you toward the right floor instead of pointing through it). null when nothing is known yet.
     function questWpToward(loc) {
       if (!loc) return null;
-      if ((loc.deck || 0) === playerDeck()) return { x: loc.x, y: loc.y };
-      const s = shaftHere(); return s ? { x: s.x, y: s.y } : null;
+      const pd = playerDeck(), td = loc.deck || 0;
+      if (td === pd) return { x: loc.x, y: loc.y };
+      // Head toward the TARGET's deck. The decks are a linear stack (0 nave → 1 upper rind → 2 lower rind), so
+      // a target BELOW you takes the DOWN shaft, ABOVE takes the UP shaft. shaftHere() alone preferred UP —
+      // which pointed you back toward the nave when Luna / the Signal Chamber were below you (the end-game
+      // "waypoint points up to the nave" bug). Chains through the stack: each descent re-resolves the next.
+      const s = td > pd ? (shaftDownHere() || shaftUpHere()) : (shaftUpHere() || shaftDownHere());
+      return s ? { x: s.x, y: s.y } : null;
     }
     // the LIVE waypoint: if the quest points at an NPC (a keeper/anchor) who is on this deck, re-resolve
     // their position every frame so the marker FOLLOWS them as they walk (locateNpc returns a live keeper's
     // resident position). Off-deck or non-NPC targets fall back to the snapshot storyWp (a shaft, a chamber).
     function liveWp() {
-      // a TRACKED side thread wins the ◇ (the player's explicit choice) — and it follows a PERSON,
-      // exactly like a keeper waypoint. drawWaypoint's off-deck grace redirects to the shaft as usual.
+      // a TRACKED side thread wins the ◇ (the player's explicit choice) — and it follows a PERSON, exactly
+      // like a keeper waypoint: on this deck → their live position; off-deck → the shaft TOWARD their deck
+      // (questWpToward is deck-direction-aware, so a target below points you down, not back up to the nave).
       const tr = trackedSeek();
-      if (tr) { const loc = locateNpc(tr.cid); if (loc && Number.isFinite(loc.x)) return { x: loc.x, y: loc.y }; }
+      if (tr) { const loc = locateNpc(tr.cid); if (loc && Number.isFinite(loc.x)) return (loc.deck || 0) === playerDeck() ? { x: loc.x, y: loc.y } : questWpToward(loc); }
       if (storyWpTarget && storyWpTarget.cid) {
         const loc = locateNpc(storyWpTarget.cid);
-        if (loc && Number.isFinite(loc.x) && (loc.deck || 0) === playerDeck()) return { x: loc.x, y: loc.y };
+        if (loc && Number.isFinite(loc.x)) return (loc.deck || 0) === playerDeck() ? { x: loc.x, y: loc.y } : questWpToward(loc);
       }
       return storyWp;
     }
@@ -2103,8 +2110,11 @@
         // THE CLOSE: Luna's turn-in is done (lower rind cleared, a disposition chosen) → go to the Signal
         // Chamber, where the ending plot_beat (faction × disposition) plays.
         if (facts['flag.deck.lower_rind.cleared'] && !facts['flag.chapter_complete']) {
-          const sc = (playerDeck() === 2) ? signalChamberXY() : null;
-          storyWp = sc ? { x: sc.x, y: sc.y } : questWpToward({ x: 0, y: 0, deck: 2 });
+          const onDeck2 = playerDeck() === 2;
+          const sc = onDeck2 ? signalChamberXY() : null;
+          // on the lower rind → point at the chamber (or nothing if it isn't located yet — never {0,0}, which
+          // is the far-off nave origin); above it → the DOWN shaft toward deck 2 (questWpToward is now dir-aware).
+          storyWp = sc ? { x: sc.x, y: sc.y } : (onDeck2 ? null : questWpToward({ x: 0, y: 0, deck: 2 }));
           questGuidance = {
             objective: `<span class="lbl">⚑ The Signal Chamber</span> <span class="o">— go to the chamber and answer</span>`,
             stepText: 'Luna has shown you the way. Stand in the Signal Chamber — the answer you gave her waits there to be spoken into the dark.',
