@@ -459,11 +459,17 @@ despite the name. It stayed with hoop, not rind.)
       the opening of those chunks"). Now a keeper seats in its own ward when built (`keeperSeatChunks`, else
       the scatter fallback), and a mobile keeper stranded outside its ward once the ward opens is **re-seated**
       into it (`needsWardReseat` + `reseatKeeper`) — the keeper cousin of `relocateGuidesToWards`.
-      Pure + node-tested (`v103/test/promote.selftest.mjs`, 37 checks). **Scope (the Elias Thorne tier-3
-      fix):** the faction-ward seating applies ONLY to WARD keepers (`zone ∈ {ward,wards}`). An UPPER-RIND
-      keeper carries a nave-faction tag too (the rind is "tagged by whose of the Seven's domain you're in"),
-      so faction alone would route Elias Thorne (zone `upper_rind`, tag `continuant`) into the nave continuant
-      ward on the WRONG DECK. `isWardKeeper` gates it; commons/rind/signal keepers use the plain deck scatter.
+      Pure + node-tested (`v103/test/promote.selftest.mjs`, 37 checks). **A keeper seats on its ZONE's deck
+      (the Elias Thorne / Corin Vale fixes):** `keeperTargetChunkIds(npc)` = the faction ward for a WARD keeper
+      (`zone ∈ {ward,wards}`, deck 0), else the built chambers of the keeper's zone-deck (`ZONE_DECK`:
+      upper_rind→1, lower_rind/signal→2). A rind keeper carries a nave-faction tag too (the rind is "tagged by
+      whose of the Seven's domain you're in"), so faction alone routed Elias Thorne to the nave; and the old
+      scatter dumped rind keepers on the PLAYER's deck, so Corin Vale landed in the nave when you sought him
+      from there ("waypoint points nowhere in the nave"). Now every keeper seats on its own deck (deferred if
+      that deck isn't built), `keeperReachable` gates `nextKeeper` on the deck being built, and a mis-decked
+      mobile keeper is re-seated onto its deck. **Rind guides relocate too:** `relocateGuidesToWards` now moves
+      the pinned tier-3 guide (Sevin) onto the upper-rind deck once it's sunk (`RIND_GUIDE_TIERS`), so "Seek
+      Sevin" leads UP the shaft instead of stranding her in the commons (Luna is a mobile keeper on deck 2).
     - **`nextKeeper` follows the ward-unlock order** (the Factor Solen bug): an anchor's gates can span wards
       that open sequentially (FQ: continuant→rindwalker→drift), so `nextKeeper` takes an optional
       `reachable(keeper)` predicate; the surface's `keeperReachable` prefers a keeper whose faction ward is

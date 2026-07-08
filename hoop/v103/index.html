@@ -597,7 +597,7 @@
     import { DECKS, DECK_COUNT, deckForTier, nextDeck, countsForDeck } from './story/decks.js';   // the deck spine — each deck is a hand-written narrative tier
     import { assess, levelMessage, guideFor, learnedForDeck } from './story/hoopy.js';   // hoopybot — the leveling oracle (narrative tier = "learned enough of the right things")
     import { buildQuestBank, questProgress, pickQuestForNpc, questMarker, questCounted, seekCandidates } from './story/quests.js';   // deterministic side quests — rumors the people you meet tip you to; seekCandidates = the PEOPLE a thread's waypoint chases (v103: side-quest waypoints point at people, not rooms)
-    import { emergencyNpc, personRef, keeperSeatChunks, needsWardReseat } from './story/promote.js';   // v103 npc reform: mint a stand-in when a person-objective can locate/seat nobody; seat/relocate load-bearing keepers into their own ward (the Factor Solen waypoint bug)
+    import { emergencyNpc, personRef, needsWardReseat } from './story/promote.js';   // v103 npc reform: mint a stand-in when a person-objective can locate/seat nobody; seat/relocate load-bearing keepers onto their zone's deck (Solen / Elias Thorne / Corin Vale waypoint bugs)
     import { AuthClient } from '../vendor/auth.js';   // shared OAuth (verbatim copy of packages/oauth-client) — sign in to save to YOUR repo
     import { loadOwnSave, putSave, SAVE_NSID, loadPool, publicClient, loadPulse, listOwnSaves, deleteOwnSave, putRumor } from './story/atproto.js';   // the per-player save lane + the SHARED pool read + the cross-player pulse + own-save enumeration + the rumor outbox (com.minomobi.hoop.story.*)
     import { loadVerdicts, digestVerdicts } from './story/verdicts.js';   // the rumor-mill / async-result feed: apply retcons + notices, redraw on change
@@ -1057,20 +1057,31 @@
     // continuant) into the NAVE continuant ward on the wrong DECK — the tier-3 stall. Only zone ∈ {ward,wards}
     // belongs in a faction ward; commons/rind/signal keepers are seated by the plain deck scatter.
     const WARD_KEEPER_ZONES = new Set(['ward', 'wards']);
+    // a keeper's zone → the DECK it belongs on: commons + wards = the nave (deck 0); upper_rind = deck 1;
+    // lower_rind/signal = deck 2. This is the fix for "the waypoint points nowhere in the nave": a rind keeper
+    // must be seated on the RIND deck, never on whatever deck the player happens to be standing on.
+    const ZONE_DECK = { commons: 0, ward: 0, wards: 0, nave: 0, upper_rind: 1, rind: 1, lower_rind: 2, signal: 2 };
     function keeperZone(npc) { return String((npc && (npc.zone || (npc.content && npc.content.zone))) || '').toLowerCase(); }
+    function keeperDeck(npc) { const d = ZONE_DECK[keeperZone(npc)]; return d != null ? d : 0; }
     function isWardKeeper(npc) { return WARD_KEEPER_ZONES.has(keeperZone(npc)); }
-    // can the player reach an anchor keeper RIGHT NOW? A WARD keeper is reachable once its faction ward has
-    // streamed (naveWardChunkIds non-empty). Commons/rind/signal keepers aren't ward-gated — they open with
-    // their deck (which the anchor's own tier already governs), so they're reachable here. Steers nextKeeper
-    // past keepers in unopened wards without stranding rind keepers (whose ward, correctly, doesn't exist).
+    // the chunk ids a keeper belongs in: a WARD keeper → its faction ward (deck 0); everyone else → the built,
+    // painted chambers of its ZONE's deck. Empty ⇒ that deck/ward isn't built yet (defer + not-yet-reachable).
+    function keeperTargetChunkIds(npc) {
+      if (!npc || !world || !world._nave) return [];
+      const kf = factionOf(npc.tags);
+      if (isWardKeeper(npc) && kf && kf !== '_default') return naveWardChunkIds(kf);
+      const deck = keeperDeck(npc);
+      return world.chunks.filter((c) => c.painted && c.poly && (c.deck || 0) === deck).map((c) => c.id);
+    }
+    // can the player reach an anchor keeper RIGHT NOW? Reachable ⇔ its target chunks are built (its faction
+    // ward has streamed, or its rind deck exists). Steers nextKeeper to a keeper you can actually walk to,
+    // and never surfaces a rind keeper before the rind is sunk.
     function keeperReachable(k) {
       if (!k) return false;
-      if (!world || !world._nave) return true;                         // not on the nave floor → no ward gating
+      if (!world || !world._nave) return true;                         // not on the nave floor → no gating
       const npc = story.store.contentById(k.contentId);
-      if (!isWardKeeper(npc)) return true;                             // commons / upper_rind / lower_rind keeper
-      const f = k.navefac || (npc ? factionOf(npc.tags) : null);
-      if (!f || f === '_default') return true;                         // ward keeper with no faction — always reachable
-      return naveWardChunkIds(f).length > 0;                           // its faction ward is built
+      if (!npc) return true;
+      return keeperTargetChunkIds(npc).length > 0;
     }
     // witness a faction (idempotent, order-gated): set the fact, show the guide's card, advance — and when
     // the Drift is witnessed, OPEN THE RIND (bump to the Investigation tier so maybeBuildRind sinks the shaft).
@@ -1477,6 +1488,16 @@
     // broker who wakes you) stays in the commons — he's the intro guide; Luna is the lower-rind AI, not a
     // nave person. Idempotent per guide (the `_fw` flag), and a no-op until the lobe is actually built.
     const WARD_GUIDE_FACTIONS = ['continuant', 'rindwalker'];
+    // a chamber position on a built rind deck (the hub chunk streams first, so the first painted deck-N chunk
+    // is the shaft-foot — where the player arrives). Null until that deck is sunk.
+    function rindDeckChamberXY(deck) {
+      const ch = (world && world.chunks || []).find((c) => c.painted && c.poly && (c.deck || 0) === deck);
+      return ch ? polyCentroid(ch.poly) : null;
+    }
+    // the tier-3/4 guides live in their RIND deck, not the commons (Sevin in the upper rind, Luna in the lower
+    // rind) — the deck cousin of the ward relocation. Sevin is a pinned guide-anchor; Luna is usually a mobile
+    // keeper (skipped here, placed by populateChambers on deck 2).
+    const RIND_GUIDE_TIERS = [{ tier: 3, deck: 1 }, { tier: 4, deck: 2 }];
     function relocateGuidesToWards() {
       if (!story.ready || !world || !world._nave) return;
       let guides; try { guides = pickBibleGuides([...story.store.content.values()]); } catch (e) { return; }
@@ -1487,6 +1508,15 @@
         const dd = disc[g.id]; if (!dd || dd._fw) continue;      // not discovered yet, or already in its lobe
         const w = fqWardXY(f); if (!w) continue;                 // the lobe isn't built yet — try again next tick
         dd.x = w.x; dd.y = w.y; dd.deck = 0; dd._fw = true; moved = true;
+      }
+      // RIND GUIDES: move Sevin's pin onto the upper-rind deck once it's sunk, so "Seek Sevin" leads UP the
+      // shaft to the rind (she can't be found in the nave) instead of leaving her stranded in the commons.
+      for (const { tier, deck } of RIND_GUIDE_TIERS) {
+        const a = (story.anchors || []).find((x) => x.tier === tier);
+        if (!a) continue;
+        const dd = disc[a.id]; if (!dd || dd._rind || dd.mobile) continue;   // not a pinned guide, or already moved
+        const c = rindDeckChamberXY(deck); if (!c) continue;                 // rind deck not built yet — retry next tick
+        dd.x = c.x; dd.y = c.y; dd.deck = deck; dd._rind = true; moved = true;
       }
       if (moved) { setJSONFact('npc.discovered', disc); placeAnchors(); if (world) draw(); }
     }
@@ -1861,7 +1891,7 @@
     function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}${_maxDt > 20 ? ' · max ' + _maxDt.toFixed(0) + 'ms' : ''}${_socMs > 1 ? ' · soc ' + _socMs.toFixed(0) + 'ms' : ''}${_stitchMs > 1 ? ' · stitch ' + _stitchMs.toFixed(0) + 'ms' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
-      ensureDeckSupply(); discoverQuestNpcs(); populateChambers(); ensureWitnessSupply(); waiveDeadGates(); tickGimmes();   // keep the deck clearable + surface quest NPCs + spread keepers across every chamber, THEN top up any faction the keepers under-represent for the upper-rind threshold (witness supply runs LAST so it only fills genuine gaps, not a clump before the keepers land), then waive any gate the pool provably cannot satisfy + pace the onboarding gimmes. All guarded + throttled.
+      ensureDeckSupply(); discoverQuestNpcs(); populateChambers(); ensureWitnessSupply(); relocateGuidesToWards(); waiveDeadGates(); tickGimmes();   // keep the deck clearable + surface quest NPCs + spread keepers across every chamber, THEN top up any faction the keepers under-represent for the upper-rind threshold (witness supply runs LAST so it only fills genuine gaps, not a clump before the keepers land), relocate rind guides onto their deck the moment it's built, then waive any gate the pool provably cannot satisfy + pace the onboarding gimmes. All guarded + throttled.
       maybeChamberLore(walk.nodeChunk[player]);   // fire the CURRENT chamber's lore — covers the chamber you spawned in (followCam's chunk-change hook missed it: story wasn't ready yet on first entry)
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
@@ -5158,13 +5188,12 @@
         for (const rid of reqKeeperIds) {
           const npc = story.store.contentById(rid);
           if (!npc || (npc.content && npc.content.ambient)) continue;
-          // v103 KEEPER-WARD REFORM (the Factor Solen bug): a WARD keeper (zone ∈ {ward,wards}) is a faction
-          // principal, so it belongs in its own faction ward. `wardIds` = that ward's built chambers, empty
-          // until it streams. CRUCIAL (the Elias Thorne tier-3 fix): only WARD keepers get this — an upper-rind
-          // keeper carries a nave-faction tag too, so faction alone would route it to the nave (wrong deck).
-          const ward = isWardKeeper(npc);
-          const kf = factionOf(npc.tags);
-          const wardIds = (ward && kf && kf !== '_default') ? naveWardChunkIds(kf) : [];
+          // v103 KEEPER PLACEMENT (Solen + Elias Thorne + Corin Vale): a keeper belongs in its ZONE's chambers —
+          // a WARD keeper in its faction ward (deck 0), a rind keeper on the rind DECK, a commons keeper on the
+          // nave. `targetChunks` encodes that; `targetDeck` is the deck to bind the resident on. Empty target ⇒
+          // the deck/ward isn't built yet → DEFER (don't strand the keeper on the player's current deck).
+          const targetChunks = keeperTargetChunkIds(npc);
+          const targetDeck = keeperDeck(npc);
           if (disc[rid]) {
             // v103 SELF-HEAL (the Miren Tallow lock): "placed" must mean FINDABLE. A mobile keeper's
             // discovered entry carries no coordinates — it exists only through a live embiggened
@@ -5178,26 +5207,21 @@
             const alive = anchors.some((a) => a.content_id === rid)
               || residents.some((r) => r.keeper && r.keeper.content_id === rid)
               || (d && d.x != null);
-            // v103 WARD RE-SEAT: a keeper stranded outside its (now-built) ward — the "waypoint pinned in the
-            // wrong chamber after the ward opened" bug — gets relocated INTO its ward here (mirrors
-            // relocateGuidesToWards for the pinned guide-anchors). Only mobile keepers; pinned ones are guides.
-            if (alive && needsWardReseat({ mobile: d && d.mobile, currentChunk: d && d.ch, wardChunkIds: wardIds })) {
-              for (const cid of wardIds) if (reseatKeeper(npc, cid, 0)) { haveByChunk.set(cid, (haveByChunk.get(cid) || 0) + 1); break; }
+            // v103 RE-SEAT: a MOBILE keeper stranded outside its target chambers — a ward keeper seated before
+            // its ward opened (the Solen bug), OR a rind keeper mis-seated on the nave (the Corin Vale bug) —
+            // gets relocated onto its target deck here (the keeper cousin of relocateGuidesToWards; pinned
+            // guide-anchors are moved by that function instead).
+            if (alive && needsWardReseat({ mobile: d && d.mobile, currentChunk: d && d.ch, wardChunkIds: targetChunks })) {
+              for (const cid of targetChunks) if (reseatKeeper(npc, cid, targetDeck)) { haveByChunk.set(cid, (haveByChunk.get(cid) || 0) + 1); break; }
               continue;
             }
             if (alive) continue;
             delete disc[rid]; setJSONFact('npc.discovered', disc);
           }
-          // FRESH placement: a WARD keeper seats only in its OWN ward — DEFERRED (no scatter) until that ward
-          // streams (else it strands in the commons and the waypoint points at the wrong chamber — the Solen
-          // bug; nextKeeper's reachability gate won't surface it yet). Everyone ELSE — commons keepers, RIND /
-          // signal keepers, neutral keepers — scatters on the player's current deck (the old, correct behaviour
-          // that put Elias Thorne on the upper-rind deck where the waypoint expects him). Deferred ward keepers
-          // seat once their ward opens (next tick / the re-seat above).
-          const pd = playerDeck();
-          const scatter = painted.filter((ch) => (ch.deck || 0) === pd).concat(painted.filter((ch) => (ch.deck || 0) !== pd)).map((ch) => ch.id);
-          const seatIds = (ward && kf && kf !== '_default') ? keeperSeatChunks(wardIds, []) : keeperSeatChunks([], scatter);
-          const cands = seatIds.map((id) => world.chunks.find((c) => c.id === id)).filter(Boolean);
+          // FRESH placement: seat in the keeper's TARGET chambers (its faction ward, or its rind/commons deck).
+          // DEFERRED when empty — the deck/ward hasn't streamed yet — so a rind keeper is never scatter-dumped
+          // onto the nave (the "waypoint points nowhere in the nave" bug); it seats once its deck exists.
+          const cands = targetChunks.map((id) => world.chunks.find((c) => c.id === id)).filter(Boolean);
           const off = cands.length ? hashId(npc.id) % cands.length : 0;   // scatter, don't clump — exploration stays the forcing function
           for (let i = 0; i < cands.length; i++) {
             const ch = cands[(off + i) % cands.length];
