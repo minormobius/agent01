@@ -224,3 +224,102 @@ export const SCENARIOS = [
 export function scenarioById(id) {
   return SCENARIOS.find((s) => s.id === id) || SCENARIOS[0];
 }
+
+// ── The curriculum ("Duolingo for conversation") ─────────────────────────────
+// Bite-sized challenges, grouped into units by the skill they drill. Each
+// challenge is short (aim ~4-6 of your turns), pins one focus axis, and adds a
+// concrete OBJECTIVE the AI judge evaluates pass/fail — so completion is about
+// achieving something, not just chatting. Ordered easy → hard within the path.
+
+export const UNITS = [
+  { id: 'listen',    title: 'Listening',  icon: '👂', color: 'var(--accent)',   blurb: 'Draw people out.' },
+  { id: 'balance',   title: 'Balance',    icon: '⚖️', color: 'var(--accent-3)', blurb: 'Share the floor.' },
+  { id: 'warmth',    title: 'Warmth',     icon: '🔥', color: 'var(--accent-2)', blurb: 'Grace under pressure.' },
+  { id: 'precision', title: 'Precision',  icon: '🎯', color: '#f0a3c0',         blurb: 'Relevant and clear.' },
+];
+
+// pass = the focus axis (0-20) must clear this to complete the challenge, AND
+// the objective must be met. Both gates → the lesson counts as done.
+export const CHALLENGES = [
+  // Unit 1 — Listening
+  {
+    id: 'l1-icebreak', unit: 'listen', title: 'Break the ice', emoji: '🧊',
+    persona: 'host', scenario: 'party', focus: 'listening', pass: 12,
+    brief: 'Meet someone new and get a real conversation going.',
+    goal: 'Ask 2+ open questions and follow up on an answer.',
+    tip: 'Open questions start with how/what/why. Then react to what you hear — don’t just move to your next question.',
+    objective: 'The user asked at least two open-ended (not yes/no) questions AND visibly followed up on something the partner said.',
+  },
+  {
+    id: 'l2-drawout', unit: 'listen', title: 'Draw out the quiet one', emoji: '🌾',
+    persona: 'wallflower', scenario: 'coffee', focus: 'listening', pass: 13,
+    brief: 'Your partner is shy and gives short answers. Get them to open up.',
+    goal: 'Get the partner to share something personal.',
+    tip: 'Generic questions get one-word answers. Ask something specific, or share a little of yourself first to make it safe.',
+    objective: 'By the end the shy partner volunteered a personal detail, opinion, or feeling — drawn out by the user’s specific, open questions or self-disclosure.',
+  },
+  // Unit 2 — Balance
+  {
+    id: 'b1-reclaim', unit: 'balance', title: 'Rein in the rambler', emoji: '🌀',
+    persona: 'rambler', scenario: 'newcolleague', focus: 'balance', pass: 12,
+    brief: 'Your partner talks a lot and wanders. Steer without being rude.',
+    goal: 'Redirect the conversation and get them to ask about you.',
+    tip: 'Acknowledge, then pivot: “That reminds me —” or “Before I forget, can I ask…”. Reclaim the floor warmly.',
+    objective: 'The user steered the conversation back on-topic at least once AND got the partner to ask the user a question in return.',
+  },
+  {
+    id: 'b2-reciprocate', unit: 'balance', title: 'Two-way street', emoji: '↔️',
+    persona: 'interrogator', scenario: 'party', focus: 'balance', pass: 12,
+    brief: 'Your partner keeps firing questions but shares nothing. Even it out.',
+    goal: 'Turn one-sided Q&A into mutual exchange.',
+    tip: 'After you answer, hand a question back — “How about you?” — and gently notice if they dodge.',
+    objective: 'The user got the guarded partner to disclose something about themselves, shifting the exchange from one-sided questioning toward mutual.',
+  },
+  // Unit 3 — Warmth
+  {
+    id: 'w1-disagree', unit: 'warmth', title: 'Disagree warmly', emoji: '⚔️',
+    persona: 'debater', scenario: 'coffee', focus: 'warmth', pass: 13,
+    brief: 'Your partner pushes back on everything. Hold your view without a fight.',
+    goal: 'State a real disagreement while keeping it warm.',
+    tip: 'Acknowledge their point before countering. “I see why you’d say that — where I land differently is…”. Repair any friction.',
+    objective: 'The user expressed a genuine disagreement or differing view while keeping a warm tone — acknowledging the partner, softening, or repairing friction rather than escalating.',
+  },
+  {
+    id: 'w2-welcome', unit: 'warmth', title: 'Warm welcome', emoji: '🏡',
+    persona: 'wallflower', scenario: 'neighbor', focus: 'warmth', pass: 12,
+    brief: 'A reserved new neighbor. Set the tone for years of good rapport.',
+    goal: 'Make them feel genuinely welcome.',
+    tip: 'Warmth is specific: a real offer, shared ground, a bit of yourself. Make it easy for them to say yes.',
+    objective: 'The user built rapport and put the reserved partner at ease — through warm acknowledgment, a concrete offer, or finding common ground.',
+  },
+  // Unit 4 — Precision (Relevance & Clarity)
+  {
+    id: 'p1-onthread', unit: 'precision', title: 'Stay on thread', emoji: '🧵',
+    persona: 'rambler', scenario: 'party', focus: 'relevance', pass: 13,
+    brief: 'The partner throws out tangents. Keep every reply connected.',
+    goal: 'Tie each reply to what was just said.',
+    tip: 'Before answering, name the thread you’re picking up: “Back to the trip you mentioned…”. Don’t chase every tangent.',
+    objective: 'The user’s replies consistently connected to the partner’s previous turn — picking up threads rather than pivoting to unrelated topics.',
+  },
+  {
+    id: 'p2-plainly', unit: 'precision', title: 'Say it plainly', emoji: '✂️',
+    persona: 'interrogator', scenario: 'newcolleague', focus: 'clarity', pass: 13,
+    brief: 'Rapid-fire questions. Answer clearly — right-sized, no rambling.',
+    goal: 'Give clear, complete, concise answers.',
+    tip: 'One idea per turn. Complete but not padded; specific, not cryptic. If you catch yourself rambling, land the plane.',
+    objective: 'The user’s turns were clear and appropriately sized — informative and complete without rambling, and not so terse they were cryptic.',
+  },
+];
+
+export function challengeById(id) {
+  return CHALLENGES.find((c) => c.id === id) || null;
+}
+
+// Stars from a scored challenge result. Encouraging by design: clearing the
+// gates is 2★; a standout focus performance is 3★; partial credit is 1★.
+export function challengeStars({ passed, objectiveMet, focusScore, focusPass, total }) {
+  if (passed && focusScore >= 16 && total >= 65) return 3;
+  if (passed) return 2;
+  if (objectiveMet || focusScore >= focusPass) return 1;
+  return 0;
+}

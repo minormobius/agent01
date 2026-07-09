@@ -20,9 +20,13 @@ import {
   RUBRIC,
   PERSONAS,
   SCENARIOS,
+  UNITS,
+  CHALLENGES,
   personaById,
   scenarioById,
   scoreBand,
+  challengeById,
+  challengeStars,
 } from './lib/rubric.js';
 
 const MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -44,15 +48,16 @@ export default {
       if (pathname === '/api/chat/health') {
         return json({
           ok: true,
-          version: 'chat-v1',
+          version: 'chat-v2-challenges',
           rubric: RUBRIC.version,
+          challenges: CHALLENGES.length,
           model: MODEL,
           bindings: { ai: !!env.AI, assets: !!env.ASSETS },
         });
       }
 
       if (pathname === '/api/chat/config') {
-        return json({ rubric: RUBRIC, personas: PERSONAS, scenarios: SCENARIOS });
+        return json({ rubric: RUBRIC, personas: PERSONAS, scenarios: SCENARIOS, units: UNITS, challenges: CHALLENGES });
       }
 
       if (pathname === '/api/chat/turn' && request.method === 'POST') {
@@ -121,8 +126,11 @@ async function botTurn(request, env) {
 // ── AI judge: score the transcript against the rubric ────────────────────────
 async function scoreTranscript(request, env) {
   const body = await safeJson(request);
-  const persona = personaById(body.persona);
-  const scenario = scenarioById(body.scenario);
+  const challenge = body.challengeId ? challengeById(body.challengeId) : null;
+  // In challenge mode the persona/scenario come from the challenge, so the
+  // objective and the role-play can't be spoofed by the client.
+  const persona = personaById(challenge ? challenge.persona : body.persona);
+  const scenario = scenarioById(challenge ? challenge.scenario : body.scenario);
   const transcript = Array.isArray(body.transcript) ? body.transcript : [];
 
   // Render the transcript with speaker labels the judge can reason over.
@@ -143,16 +151,24 @@ async function scoreTranscript(request, env) {
     )
     .join('\n');
 
+  const objLine = challenge
+    ? `\nCHALLENGE OBJECTIVE (evaluate strictly): ${challenge.objective}\nDecide objective_met (true/false) and give a one-sentence objective_note citing the specific evidence.`
+    : '';
+  const shape = challenge
+    ? `{"axes":[{"key":"relevance","score":0,"evidence":"","tip":""}, ...one per axis in order...],"objective_met":true,"objective_note":"","summary":"..."}`
+    : `{"axes":[{"key":"relevance","score":0,"evidence":"","tip":""}, ...one per axis in order...],"summary":"one or two sentences of overall feedback addressed to YOU"}`;
+
   const system = [
     `You are a rigorous but encouraging conversation coach. You score ONLY the person labeled "YOU" in the transcript — never the character "${persona.name}".`,
     `The setting was: ${scenario.setup}`,
     `Score these five axes independently:`,
     axisSpec,
+    objLine,
     ``,
     `For each axis give an integer 0..max, a one-sentence "evidence" that quotes or paraphrases a specific moment from YOU, and a one-sentence "tip" for next time.`,
     `Be calibrated: an average competent conversation should land around 12-15 per axis, not maxed. Reserve high scores for genuinely skilled moves.`,
     `Respond with STRICT JSON only, no prose, no markdown fences, exactly this shape:`,
-    `{"axes":[{"key":"relevance","score":0,"evidence":"","tip":""}, ...one object per axis in the order given...],"summary":"one or two sentences of overall feedback addressed to YOU"}`,
+    shape,
   ].join('\n');
 
   const out = await env.AI.run(MODEL, {
@@ -191,7 +207,7 @@ async function scoreTranscript(request, env) {
   });
 
   const band = scoreBand(total);
-  return json({
+  const result = {
     total,
     band: band.title,
     band_note: band.note,
@@ -199,7 +215,36 @@ async function scoreTranscript(request, env) {
     axes,
     persona: persona.name,
     scenario: scenario.name,
-  });
+  };
+
+  if (challenge) {
+    const focusAxis = axes.find((a) => a.key === challenge.focus) || axes[0];
+    const objectiveMet = parsed.objective_met === true;
+    const passed = objectiveMet && focusAxis.score >= challenge.pass;
+    const stars = challengeStars({
+      passed,
+      objectiveMet,
+      focusScore: focusAxis.score,
+      focusPass: challenge.pass,
+      total,
+    });
+    result.challenge = {
+      id: challenge.id,
+      title: challenge.title,
+      focus: challenge.focus,
+      focus_label: focusAxis.label,
+      focus_score: focusAxis.score,
+      focus_max: focusAxis.max,
+      pass: challenge.pass,
+      goal: challenge.goal,
+    };
+    result.objective_met = objectiveMet;
+    result.objective_note = String(parsed.objective_note || '').slice(0, 300);
+    result.passed = passed;
+    result.stars = stars;
+  }
+
+  return json(result);
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
