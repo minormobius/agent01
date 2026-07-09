@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Theory &amp; rubric · chat</title>
+<meta name="description" content="The conversation theory behind chat's scoring rubric — Grice, turn-taking, active listening, face-work — and how the rubric is developed." />
+<link rel="stylesheet" href="/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>" />
+<style>
+  .toc { position:sticky; top:70px; font-size:14px; }
+  .toc a { display:block; color:var(--ink-soft); padding:4px 0; }
+  .toc a:hover { color:var(--ink); text-decoration:none; }
+  .layout { display:grid; grid-template-columns: 200px 1fr; gap:36px; margin-top:24px; align-items:start; }
+  @media (max-width: 820px){ .layout { grid-template-columns:1fr; } .toc { position:static; display:flex; gap:14px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:12px; } }
+  h2 { margin-top:8px; scroll-margin-top:80px; }
+  h3 { scroll-margin-top:80px; }
+  .doc p, .doc li { color:var(--ink-soft); }
+  .doc strong { color:var(--ink); }
+  blockquote { border-left:3px solid var(--accent); margin:16px 0; padding:4px 0 4px 16px; color:var(--ink-soft); font-style:italic; }
+
+  .axis-card { border:1px solid var(--line); border-radius:12px; padding:18px; margin:14px 0; background:var(--panel); }
+  .axis-card .head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .axis-card h3 { margin:0; }
+  .axis-card .max { color:var(--accent-2); font-weight:700; font-family:var(--mono); }
+  .axis-card .src { font-size:13px; color:var(--ink-dim); margin:4px 0 12px; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:8px; }
+  @media (max-width:560px){ .cols { grid-template-columns:1fr; } }
+  .cols ul { margin:6px 0; padding-left:18px; }
+  .cols .rew b { color:var(--good); } .cols .pen b { color:var(--bad); }
+  .weights { display:flex; gap:6px; margin:18px 0; height:34px; border-radius:8px; overflow:hidden; }
+  .weights div { display:flex; align-items:center; justify-content:center; font-size:12px; color:#06231d; font-weight:700; }
+  table.dev { width:100%; border-collapse:collapse; font-size:14px; margin:12px 0; }
+  table.dev th, table.dev td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+  table.dev th { color:var(--ink); }
+  code { font-family:var(--mono); background:var(--panel-2); padding:1px 6px; border-radius:5px; font-size:13px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="dot"></span> chat<span class="crumb">&nbsp;· mino.mobi</span></div>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/robo/">Practice</a>
+    <a href="/docs/" class="active">Theory</a>
+  </nav>
+</header>
+
+<main class="wrap doc">
+  <div class="hero" style="padding:34px 0 6px">
+    <div class="eyebrow">Theory &amp; rubric</div>
+    <h1 style="font-size:clamp(28px,5vw,42px)">Why these five axes?</h1>
+    <p class="lede" style="font-size:17px">Scoring a conversation only means something if the axes are grounded. Each one below operationalizes a real result from linguistics and psychology — and it’s the <em>same</em> rubric the trainer scores you on, loaded from one shared source.</p>
+  </div>
+
+  <div class="layout">
+    <nav class="toc">
+      <a href="#why">The premise</a>
+      <a href="#rubric">The rubric</a>
+      <a href="#grice">Grice</a>
+      <a href="#turntaking">Turn-taking</a>
+      <a href="#listening">Active listening</a>
+      <a href="#face">Face-work</a>
+      <a href="#development">Rubric development</a>
+      <a href="#reading">Further reading</a>
+    </nav>
+
+    <div>
+      <section id="why">
+        <h2>The premise: conversation is synchronous</h2>
+        <p>A social-media post is asynchronous — you draft it, revise it, delete it, and perform a curated self. A conversation is <strong>real-time</strong>: you take turns on the order of milliseconds, you can’t un-say things, and success is <em>inter-subjective</em> — it depends on how the other people felt, not on what you intended.</p>
+        <p>That’s why the ground truth for conversation quality can’t be self-graded. In multiplayer, it’s peer ratings. In this trainer, it’s an AI judge applying explicit, theory-backed criteria to the transcript. Either way, the axes have to be principled — otherwise the score is noise.</p>
+      </section>
+
+      <hr class="sep" />
+
+      <section id="rubric">
+        <h2>The rubric</h2>
+        <p>Five axes, each scored <strong>0–20</strong> by the judge, summing to 100. They’re rendered here directly from <code>/lib/rubric.js</code> — the same module the worker builds its judge prompt from, so the docs can never drift from the scoring.</p>
+        <div class="weights" id="weights"></div>
+        <div id="axes"></div>
+      </section>
+
+      <hr class="sep" />
+
+      <section id="grice">
+        <h2>Grice’s cooperative principle</h2>
+        <p>H.P. Grice argued that conversation works because speakers tacitly cooperate, following four <strong>maxims</strong>:</p>
+        <ul>
+          <li><strong>Quantity</strong> — be as informative as required, and no more.</li>
+          <li><strong>Quality</strong> — don’t say what you believe false or lack evidence for.</li>
+          <li><strong>Relation</strong> — be relevant.</li>
+          <li><strong>Manner</strong> — be clear, brief, and orderly; avoid ambiguity.</li>
+        </ul>
+        <p>Two of our axes come straight from here: <strong>Relevance</strong> (the maxim of Relation) and <strong>Clarity</strong> (Quantity + Manner together — the right amount, said plainly). Violations aren’t always failures — Grice noted that flouting a maxim on purpose is how irony and implicature work — but in practice conversation the maxims are a solid default.</p>
+      </section>
+
+      <section id="turntaking">
+        <h2>Turn-taking</h2>
+        <p>Sacks, Schegloff &amp; Jefferson’s 1974 model showed conversation is governed by a precise, locally-managed system for <strong>who talks when</strong>: one party talks at a time, transitions happen at “transition-relevance places,” gaps and overlaps are minimized, and speaker change recurs. It’s astonishingly orderly given nobody’s in charge.</p>
+        <p>Our <strong>Balance</strong> axis operationalizes this: are you sharing the floor proportionally, yielding cleanly, and sizing turns to the moment — rather than monologuing or starving the exchange with one-word replies? Group size changes the dynamics sharply (a dyad has no exit; a quad splinters), which is why the multiplayer roadmap treats 2/3/4 players as distinct modes.</p>
+      </section>
+
+      <section id="listening">
+        <h2>Active listening &amp; “yes-and”</h2>
+        <p>Rogers &amp; Farson’s <em>active listening</em> is the discipline of demonstrating understanding — reflecting content back, paraphrasing, and asking open questions that invite elaboration. Improv contributes the complementary reflex: <strong>“yes-and”</strong> — accept your partner’s offer, then build on it, rather than blocking with “yes-but.”</p>
+        <p>Our <strong>Listening</strong> axis rewards visible building: callbacks, paraphrase, open questions, accepting-and-adding. It’s the single highest-leverage skill for the quiet-partner and interrogator drills — you can’t force someone open, but a specific open question usually does it.</p>
+      </section>
+
+      <section id="face">
+        <h2>Face-work &amp; politeness</h2>
+        <p>Goffman’s <em>face</em> — the public self-image everyone tries to maintain — and Brown &amp; Levinson’s politeness theory describe how we protect each other’s social standing. Many conversational acts are inherently <em>face-threatening</em> (disagreement, correction, refusal); skilled speakers soften them, and repair friction when it appears.</p>
+        <p>Our <strong>Warmth</strong> axis captures this: acknowledgment, encouragement, disagreeing without diminishing, and <em>repair</em> — gracefully fixing a misunderstanding is one of the most rewarded moves in the whole rubric. The Debater drill exists to train warmth under pressure.</p>
+      </section>
+
+      <hr class="sep" />
+
+      <section id="development">
+        <h2>Rubric development</h2>
+        <p>The rubric is versioned and lives in one file. This is where it’s tuned — the axes, weights, and the reward/penalize signals fed to the judge all come from <code>chat/lib/rubric.js</code>. Changing scoring means editing that module; the trainer and these docs both update on the next deploy, in lockstep.</p>
+        <table class="dev">
+          <tr><th>Property</th><th>Role in scoring</th></tr>
+          <tr><td><code>axes[].max</code></td><td>Per-axis ceiling; the weights bar above is these values.</td></tr>
+          <tr><td><code>axes[].theory</code> / <code>source</code></td><td>Shown to you on every score, and injected into the judge prompt as the axis definition.</td></tr>
+          <tr><td><code>axes[].look_for</code></td><td>The <b class="ev" style="color:var(--good)">reward</b> signals the judge is told to credit.</td></tr>
+          <tr><td><code>axes[].avoid</code></td><td>The <b style="color:var(--bad)">penalize</b> signals the judge is told to dock.</td></tr>
+          <tr><td><code>BANDS</code></td><td>Score → title (<em>Finding your feet</em> → <em>Magnetic</em>).</td></tr>
+        </table>
+        <p><strong>Calibration.</strong> The judge is instructed that an average competent conversation lands around 12–15 per axis, reserving the top of the range for genuinely skilled moves — otherwise LLM judges cluster everything near the ceiling. This is the current version’s single most important tuning knob, and the first thing to revisit as we gather real transcripts.</p>
+        <p><strong>Live config.</strong> The machine-readable rubric is served at <a href="/api/chat/config"><code>/api/chat/config</code></a> — the exact JSON the worker and both pages consume.</p>
+        <blockquote>Roadmap for the rubric: swap the single AI judge for a small panel (score, then adversarially check), fold in cheap structural metrics computed client-side (turn-share, question ratio, latency), and — once multiplayer lands — blend in peer ratings from the exit survey. The axes should stay stable; the <em>evidence</em> feeding them gets richer.</blockquote>
+      </section>
+
+      <section id="reading">
+        <h2>Further reading</h2>
+        <ul>
+          <li>Grice, H.P. — <em>“Logic and Conversation”</em> (1975)</li>
+          <li>Sacks, Schegloff &amp; Jefferson — <em>“A Simplest Systematics for the Organization of Turn-Taking for Conversation”</em> (1974)</li>
+          <li>Rogers, C. &amp; Farson, R. — <em>“Active Listening”</em> (1957)</li>
+          <li>Brown, P. &amp; Levinson, S. — <em>Politeness: Some Universals in Language Usage</em> (1987)</li>
+          <li>Goffman, E. — <em>“On Face-Work”</em> (1955)</li>
+          <li>Johnstone, K. — <em>Impro</em> (1979) — the “yes-and” reflex</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer class="foot"><div class="wrap"><a href="/">← chat</a> · <a href="/robo/">Practice</a></div></footer>
+
+<script type="module">
+import { RUBRIC } from '/lib/rubric.js';
+
+const palette = ['var(--accent)','var(--accent-2)','var(--accent-3)','#7dd3a0','#f0a3c0'];
+
+// weights bar
+document.getElementById('weights').innerHTML = RUBRIC.axes.map((a,i) =>
+  `<div style="flex:${a.max}; background:${palette[i%palette.length]}">${a.label} · ${a.max}</div>`
+).join('');
+
+// axis cards
+document.getElementById('axes').innerHTML = RUBRIC.axes.map((a,i) => `
+  <div class="axis-card" id="axis-${a.key}">
+    <div class="head">
+      <h3 style="color:${palette[i%palette.length]}">${a.label}</h3>
+      <span class="max">0–${a.max}</span>
+    </div>
+    <div class="src">${a.theory} &nbsp;·&nbsp; <span class="dim">${a.source}</span></div>
+    <p style="margin:.2em 0 .6em">${a.one_liner}</p>
+    <div class="cols">
+      <div class="rew"><b>Rewarded ✓</b><ul>${a.look_for.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+      <div class="pen"><b>Penalized ✕</b><ul>${a.avoid.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+    </div>
+  </div>`).join('');
+</script>
+</body>
+</html>

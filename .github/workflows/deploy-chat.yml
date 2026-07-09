@@ -1,0 +1,46 @@
+name: Deploy Chat (conversation dojo)
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/conversation-practice-website-he3t8x'
+    paths:
+      - 'chat/**'
+      - '.github/workflows/deploy-chat.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify worker is live
+        # The deploy step above is the source of truth; don't fail on slow edge
+        # propagation. Confirm the custom domain answers and AI is bound.
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            HEALTH=$(curl -fsS https://chat.mino.mobi/api/chat/health || true)
+            if echo "$HEALTH" | grep -q '"ok":true'; then
+              echo "$HEALTH"
+              echo "✓ chat worker is live"
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"
+            sleep 4
+          done
+          echo "⚠️ /api/chat/health didn't respond within 20s — edge propagation may be slow, continuing."
