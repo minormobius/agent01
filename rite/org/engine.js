@@ -495,22 +495,31 @@ export function generateOrg(opts = {}) {
   };
 }
 
-// Matrix dotted-lines: annotate mid-tree nodes with a second, cross-branch
-// reporting relationship. Pure decoration, walked over the built tree.
+// Matrix dotted-lines: give a mid-tree node a second, cross-branch reporting
+// relationship pointing at a REAL node in another department, so the graph
+// views can draw the actual cross-link. Pure decoration over the built tree.
 function applyMatrix(root, ctx) {
-  const branches = ctx.charter.branches;
-  if (branches.length < 2) return;
-  const walk = (node) => {
-    if (node.dept && node.rankIdx >= 3 && !ctx.vertical.ranks[node.rankIdx].leaf) {
-      const rng = rngFrom(`${node.id}|dotted`);
-      if (rng() < 0.4) {
-        const others = branches.filter((b) => b.name !== node.dept);
-        if (others.length) node.dotted = `dotted-line to ${pick(rng, others).chief}`;
-      }
-    }
-    if (node.reports) for (const k of node.reports) walk(k);
-  };
-  walk(root);
+  const byDept = new Map();
+  const all = [];
+  (function collect(n) {
+    if (n.dept) { if (!byDept.has(n.dept)) byDept.set(n.dept, []); byDept.get(n.dept).push(n); }
+    all.push(n);
+    if (n.reports) for (const k of n.reports) collect(k);
+  })(root);
+  if (byDept.size < 2) return;
+  const depts = [...byDept.keys()];
+  for (const node of all) {
+    if (!node.dept || node.rankIdx < 3 || ctx.vertical.ranks[node.rankIdx].leaf) continue;
+    const rng = rngFrom(`${node.id}|dotted`);
+    if (rng() >= 0.4) continue;
+    const others = depts.filter((d) => d !== node.dept);
+    if (!others.length) continue;
+    const td = others[Math.floor(rng() * others.length)];
+    const pool = byDept.get(td);
+    const target = pool[Math.floor(rng() * pool.length)];
+    node.dotted = `dotted-line to ${target.name} · ${td}`;
+    node.dottedTo = target.id;
+  }
 }
 
 // ---------- the infinite lens: expand one node, one level ----------

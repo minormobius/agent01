@@ -106,6 +106,36 @@ button:hover { border-color: var(--accent); }
 }
 .row .drill:hover { background: var(--accent-faint); }
 .collapsed > .kids { display: none; }
+.diagram {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px;
+  margin: 0.3rem 0 0.9rem; overflow: hidden;
+}
+.diagram .dhead {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; align-items: center;
+  padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--rule); font-size: 0.8rem; color: var(--muted);
+}
+.diagram .dhead .seg { display: flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; }
+.diagram .dhead .seg button {
+  border: none; border-radius: 0; border-right: 1px solid var(--rule); padding: 0.28rem 0.7rem; font-size: 0.85rem;
+}
+.diagram .dhead .seg button:last-child { border-right: none; }
+.diagram .dhead .seg button.on { background: var(--accent); color: #fff; font-weight: 700; }
+.diagram .dhead .hint { margin-left: auto; font-family: var(--mono); font-size: 0.72rem; }
+#canvas { display: block; width: 100%; height: 62vh; min-height: 320px; max-height: 640px; cursor: grab; }
+#canvas:active { cursor: grabbing; }
+.dinfo {
+  padding: 0.55rem 0.8rem; border-top: 1px solid var(--rule); font-size: 0.9rem;
+  display: flex; flex-wrap: wrap; gap: 0.3rem 0.7rem; align-items: baseline; min-height: 1.2rem;
+}
+.dinfo[hidden] { display: none; }
+.dinfo .dtier {
+  font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--accent); background: var(--accent-faint); border-radius: 4px; padding: 0.02rem 0.3rem;
+}
+.dinfo .dnm { font-weight: 700; }
+.dinfo .dttl { color: var(--muted); font-style: italic; }
+.dinfo .ddot { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); width: 100%; }
+.dinfo button { margin-left: auto; font-size: 0.8rem; padding: 0.2rem 0.6rem; }
 .apidoc td { padding: 0.2rem 0.8rem 0.2rem 0; vertical-align: top; font-size: 0.9rem; }
 .apidoc code { white-space: nowrap; }
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.85rem; }
@@ -141,6 +171,21 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 </div>
 <div class="stats" id="stats"></div>
 
+<div class="diagram">
+  <div class="dhead">
+    <span class="seg" id="layouts">
+      <button data-mode="radial" class="on">radial</button>
+      <button data-mode="tree">tree</button>
+      <button data-mode="icicle">icicle</button>
+      <button data-mode="force">force</button>
+    </span>
+    <button id="fit">fit</button>
+    <span class="hint">drag&nbsp;·&nbsp;pinch/scroll&nbsp;·&nbsp;tap a node</span>
+  </div>
+  <canvas id="canvas"></canvas>
+  <div class="dinfo" id="dinfo" hidden></div>
+</div>
+
 <div id="tree"></div>
 
 <h2 id="api">The API</h2>
@@ -175,13 +220,15 @@ on any node below to fall through it.</p>
 
 <footer>
   Runs entirely client-side on this page (the browser imports the same <a href="/org/engine.js">engine.js</a> the
-  worker serves) &mdash; the API exists for everything that isn&rsquo;t a browser. Part of <a href="/">rite.mino.mobi</a>.
+  worker serves; the diagram is <a href="/org/diagram.js">diagram.js</a>, canvas, no deps) &mdash; the API exists for
+  everything that isn&rsquo;t a browser. Part of <a href="/">rite.mino.mobi</a>.
 </footer>
 
 </div>
 
 <script type="module">
 import { generateOrg, expandOrgNode, catalog } from './engine.js';
+import { OrgDiagram } from './diagram.js';
 
 const $ = (id) => document.getElementById(id);
 const cat = catalog();
@@ -199,6 +246,46 @@ function randomSeed() { return Math.random().toString(36).slice(2, 10); }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 
 let current = null;
+
+// The infinite lens, shared by the diagram and the text outline: expand a node
+// in place (idempotent) using the engine's wrapping node endpoint.
+function expandInPlace(node) {
+  if (node.reports && node.reports.length) return true;
+  try {
+    const p = params();
+    const r = expandOrgNode({ seed: p.seed, vertical: p.vertical, shape: p.shape, id: node.id });
+    node.reports = r.node.reports;
+    return true;
+  } catch (e) { return false; }
+}
+
+// -- diagram --
+const diagram = new OrgDiagram($('canvas'), { onSelect: showInfo });
+
+function showInfo(node) {
+  const bar = $('dinfo');
+  if (!node) { bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false;
+  const loaded = node.reports && node.reports.length;
+  bar.innerHTML =
+    `<span class="dtier">${esc(node.tier)}</span>` +
+    `<span class="dnm">${esc(node.name)}</span>` +
+    `<span class="dttl">${esc(node.title)}</span>` +
+    (node.dotted ? `<span class="ddot">↔ ${esc(node.dotted)}</span>` : '') +
+    `<button id="dinfo-drill">${loaded ? 'reports loaded' : 'drill ↓'}</button>`;
+  const btn = $('dinfo-drill');
+  btn.disabled = !!loaded;
+  btn.onclick = () => {
+    if (expandInPlace(node)) { diagram.refresh(); showInfo(node); }
+  };
+}
+
+$('layouts').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-mode]'); if (!b) return;
+  for (const x of $('layouts').children) x.classList.toggle('on', x === b);
+  diagram.setMode(b.dataset.mode);
+});
+$('fit').onclick = () => { diagram.fit(); diagram.draw(); };
 
 function params() {
   return {
@@ -228,6 +315,8 @@ function run() {
   const root = renderNode(current.root, 0);
   $('tree').innerHTML = '';
   $('tree').appendChild(root);
+
+  diagram.setData(current.root);
 }
 
 // Build the DOM for a node and (recursively) its already-loaded reports.
@@ -278,12 +367,8 @@ function renderNode(node, depth) {
 
 // Lazy-expand one level via the engine's infinite lens.
 function drillInto(node, wrap, drill) {
-  const p = params();
-  let res;
-  try {
-    res = expandOrgNode({ seed: p.seed, vertical: p.vertical, shape: p.shape, id: node.id });
-  } catch (e) { drill.textContent = '✗'; drill.title = String(e.message || e); return; }
-  node.reports = res.node.reports;
+  if (!expandInPlace(node)) { drill.textContent = '✗'; return; }
+  diagram.refresh();
   drill.remove();
   const caret = wrap.querySelector('.caret');
   caret.classList.remove('leaf');
