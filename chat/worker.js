@@ -31,6 +31,32 @@ import {
 
 const MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
+// JSON-mode schema for the judge. Constrains the model to a parseable shape so
+// the scorer never has to guess at prose. objective_* are optional (free mode
+// omits them).
+const SCORE_SCHEMA = {
+  type: 'object',
+  properties: {
+    axes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          key: { type: 'string' },
+          score: { type: 'integer' },
+          evidence: { type: 'string' },
+          tip: { type: 'string' },
+        },
+        required: ['key', 'score', 'evidence', 'tip'],
+      },
+    },
+    objective_met: { type: 'boolean' },
+    objective_note: { type: 'string' },
+    summary: { type: 'string' },
+  },
+  required: ['axes', 'summary'],
+};
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
@@ -171,19 +197,36 @@ async function scoreTranscript(request, env) {
     shape,
   ].join('\n');
 
-  const out = await env.AI.run(MODEL, {
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: `TRANSCRIPT:\n${rendered}` },
-    ],
-    max_tokens: 900,
-    temperature: 0.2,
-  });
+  const messages = [
+    { role: 'system', content: system },
+    { role: 'user', content: `TRANSCRIPT:\n${rendered}` },
+  ];
 
-  const raw = (out && (out.response || out.result)) || '';
-  const parsed = extractJson(raw);
+  // Force the model to emit JSON matching our schema — the reliable fix for
+  // "couldn't parse": it can't wrap the answer in prose or a code fence, and
+  // the generous max_tokens keeps a 5-axis answer from truncating mid-object.
+  let parsed = null;
+  try {
+    const out = await env.AI.run(MODEL, {
+      messages,
+      max_tokens: 1400,
+      temperature: 0.2,
+      response_format: { type: 'json_schema', json_schema: SCORE_SCHEMA },
+    });
+    parsed = extractJson((out && (out.response || out.result)) || out);
+  } catch {
+    parsed = null;
+  }
+
+  // Backstop: if JSON-mode isn't honored for any reason, retry once plain and
+  // lean on the tolerant parser (fences, trailing commas, truncation repair).
   if (!parsed || !Array.isArray(parsed.axes)) {
-    return json({ error: 'could not parse judge output', raw: String(raw).slice(0, 500) }, 502);
+    const out2 = await env.AI.run(MODEL, { messages, max_tokens: 1400, temperature: 0.2 });
+    parsed = extractJson((out2 && (out2.response || out2.result)) || '');
+  }
+
+  if (!parsed || !Array.isArray(parsed.axes)) {
+    return json({ error: 'could not parse judge output' }, 502);
   }
 
   // Normalize against the rubric so the client always gets a complete, bounded
@@ -260,22 +303,54 @@ function cleanReply(s) {
 
 function extractJson(s) {
   if (!s) return null;
+  // JSON-mode can hand back an already-parsed object.
+  if (typeof s === 'object') {
+    if (Array.isArray(s.axes)) return s;
+    if (s.response && typeof s.response === 'object') return s.response;
+    s = typeof s.response === 'string' ? s.response : JSON.stringify(s);
+  }
   let t = String(s).trim();
   // Peel markdown code fences if present.
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) t = fence[1].trim();
-  try {
-    return JSON.parse(t);
-  } catch {}
-  // Fall back to the first {...} balanced-ish slice.
+
+  const tryParse = (x) => { try { return JSON.parse(x); } catch { return null; } };
+
+  let out = tryParse(t);
+  if (out) return out;
+
+  // Slice to the outermost object.
   const first = t.indexOf('{');
-  const last = t.lastIndexOf('}');
-  if (first !== -1 && last > first) {
-    try {
-      return JSON.parse(t.slice(first, last + 1));
-    } catch {}
+  if (first === -1) return null;
+  let body = t.slice(first);
+  const last = body.lastIndexOf('}');
+  if (last !== -1) {
+    out = tryParse(body.slice(0, last + 1));
+    if (out) return out;
   }
-  return null;
+
+  // Repair pass for a truncated response: walk the text tracking string state
+  // and a bracket stack, then close whatever was left open, innermost first.
+  let repaired = body;
+  const stack = [];
+  let inStr = false, esc = false;
+  for (const ch of repaired) {
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === '{' || ch === '[') stack.push(ch);
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+  if (inStr) repaired += '"';
+  for (let i = stack.length - 1; i >= 0; i--) {
+    repaired = repaired.replace(/,\s*$/, ''); // no dangling comma before a close
+    repaired += stack[i] === '{' ? '}' : ']';
+  }
+  return tryParse(repaired.replace(/,\s*([}\]])/g, '$1'));
 }
 
 function clampInt(v, lo, hi, dflt) {
