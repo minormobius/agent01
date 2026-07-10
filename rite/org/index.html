@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>org &mdash; procedural org-chart generator</title>
+<meta name="description" content="One seed, one whole organisation: pick a vertical (corporation, legion, duchy, crime family, abbey, university, curia) and a shape (pyramid, flat, matrix, cellular, fractal) and get a full chart of ranks, titles, and named people. The bottom never bottoms out — drill any worker and they're the apex of their own shadow org, forever. Runs as an API too.">
+<meta property="og:title" content="org">
+<meta property="og:description" content="Mint a whole org chart from a seed — ranks, titles, and people, from CEO to the clerk who is secretly a CEO. An infinite, deterministic company. With an API.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/org/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --card-bg: #fff; --chip-bg: #f0ede6; --line: #d8d3c8;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --card-bg: #1a1a1a; --chip-bg: #222; --line: #333;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); font-size: 17px; line-height: 1.55;
+  padding: 1.5rem 1rem 4rem; min-height: 100vh;
+}
+.wrap { max-width: 960px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.2rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.subtitle a { color: var(--accent); }
+h2 { font-size: 1.2rem; margin: 2.2rem 0 0.6rem; font-weight: 700; }
+a { color: var(--accent); }
+code, pre { font-family: var(--mono); font-size: 0.82em; }
+pre {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 0.8rem 1rem; overflow-x: auto; line-height: 1.5;
+}
+.controls {
+  display: flex; flex-wrap: wrap; gap: 0.7rem 1rem; align-items: flex-end;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 0.9rem 1rem; margin: 1rem 0;
+}
+.ctl { display: flex; flex-direction: column; gap: 0.2rem; }
+.ctl label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-family: var(--mono); }
+select, input[type=text], input[type=number] {
+  font-family: var(--serif); font-size: 0.95rem; color: var(--text);
+  background: var(--bg); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+}
+input[type=text] { width: 9rem; } input[type=number] { width: 4.5rem; }
+button {
+  font-family: var(--serif); font-size: 0.95rem; cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 6px; padding: 0.38rem 0.9rem;
+  background: var(--bg); color: var(--text);
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+button:hover { border-color: var(--accent); }
+.blurbline { font-size: 0.88rem; color: var(--muted); font-style: italic; margin: 0.2rem 0 0; min-height: 1.2em; }
+.orgbar { margin: 1.1rem 0 0.3rem; display: flex; flex-wrap: wrap; gap: 0.5rem 0.8rem; align-items: baseline; }
+.orgbar .oname { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; }
+.orgbar .tools { margin-left: auto; display: flex; gap: 0.4rem; }
+.orgbar .tools button { font-size: 0.82rem; padding: 0.25rem 0.6rem; }
+.stats { margin: 0.2rem 0 0.6rem; font-size: 0.85rem; color: var(--muted); }
+.stats .chip {
+  display: inline-block; font-family: var(--mono); font-size: 0.75rem; font-style: normal;
+  background: var(--chip-bg); border: 1px solid var(--rule); border-radius: 999px;
+  padding: 0.05rem 0.55rem; margin: 0.12rem 0.15rem 0.12rem 0; color: var(--text);
+}
+#tree {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 0.8rem 1rem; overflow-x: auto;
+}
+.node { position: relative; }
+.node .kids { margin-left: 1.15rem; padding-left: 0.85rem; border-left: 1px solid var(--line); }
+.row {
+  display: flex; align-items: baseline; gap: 0.4rem; padding: 0.12rem 0.3rem;
+  border-radius: 5px; white-space: nowrap;
+}
+.row:hover { background: var(--accent-faint); }
+.row .caret {
+  cursor: pointer; width: 1.1em; flex: none; color: var(--muted); font-size: 0.8rem;
+  user-select: none; text-align: center;
+}
+.row .caret.leaf { cursor: default; color: var(--line); }
+.row .nm { font-weight: 600; }
+.row .ttl { color: var(--muted); font-style: italic; }
+.row .ttl::before { content: "— "; }
+.row .tier {
+  font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--accent); background: var(--accent-faint); border-radius: 4px; padding: 0.02rem 0.3rem; flex: none;
+}
+.row.sub .nm { color: var(--accent); }
+.row .dotted { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+.row .drill {
+  font-family: var(--mono); font-size: 0.72rem; cursor: pointer; color: var(--accent);
+  border: 1px dashed var(--accent); border-radius: 5px; padding: 0 0.35rem; margin-left: 0.2rem;
+}
+.row .drill:hover { background: var(--accent-faint); }
+.collapsed > .kids { display: none; }
+.apidoc td { padding: 0.2rem 0.8rem 0.2rem 0; vertical-align: top; font-size: 0.9rem; }
+.apidoc code { white-space: nowrap; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>org<span class="dot">.</span></h1>
+  <p class="subtitle">One seed &rarr; one whole organisation: a ladder of ranks, real titles, and named people, from the top box to the one at the bottom that is secretly a top box.
+  A <a href="/">rite</a> surface &middot; sister to <a href="/names/">names</a> &middot; <a href="#api">API</a></p>
+</header>
+
+<div class="controls">
+  <div class="ctl"><label for="vertical">vertical</label><select id="vertical"></select></div>
+  <div class="ctl"><label for="shape">shape</label><select id="shape"></select></div>
+  <div class="ctl"><label for="depth">depth</label><input type="number" id="depth" min="1" max="12" value="4"></div>
+  <div class="ctl"><label for="seed">seed</label><input type="text" id="seed" spellcheck="false"></div>
+  <button id="reroll" title="new random seed">&#127922;</button>
+  <button id="go" class="primary">Generate</button>
+</div>
+<p class="blurbline" id="blurb"></p>
+
+<div class="orgbar">
+  <span class="oname" id="oname"></span>
+  <span class="tools">
+    <button id="expandall">expand all</button>
+    <button id="collapseall">collapse to 2</button>
+    <button id="dl-json">.json</button>
+    <button id="permalink">permalink</button>
+  </span>
+</div>
+<div class="stats" id="stats"></div>
+
+<div id="tree"></div>
+
+<h2 id="api">The API</h2>
+<p>Everything on this page is also a public JSON API (CORS open). The engine is deterministic:
+the same <code>seed</code> + node id returns the same company forever, so a URL <em>is</em> a permanent
+address inside an unbounded org.</p>
+<pre>curl 'https://rite.mino.mobi/api/org?seed=acme&amp;vertical=corp&amp;shape=pyramid&amp;depth=4'
+curl 'https://rite.mino.mobi/api/org?seed=legion&amp;vertical=military&amp;shape=tall&amp;depth=6'
+curl 'https://rite.mino.mobi/api/org/node?seed=acme&amp;vertical=corp&amp;shape=fractal&amp;id=r.2.1.0'  # the infinite lens
+curl 'https://rite.mino.mobi/api/org/verticals'   # catalog of verticals + shapes</pre>
+<table class="apidoc">
+  <tr><td><code>vertical</code></td><td>the industry &mdash; its rank ladder and title vocabulary. <code>corp</code>, <code>startup</code>, <code>military</code>, <code>feudal</code>, <code>crime</code>, <code>monastic</code>, <code>academic</code>, <code>ecclesiastic</code>.</td></tr>
+  <tr><td><code>shape</code></td><td>the topology laid over it: <code>pyramid</code>, <code>tall</code>, <code>flat</code>, <code>wide</code>, <code>matrix</code> (dotted lines), <code>cellular</code>, <code>fractal</code> (endless).</td></tr>
+  <tr><td><code>seed</code></td><td>any string. Omit it and the server mints one (returned with a permalink).</td></tr>
+  <tr><td><code>depth</code></td><td>1&ndash;12, default 4. The bounded tree stops here; <code>/node</code> keeps going past it.</td></tr>
+  <tr><td><code>names</code></td><td>optional &mdash; override the culture the people are named from (any <a href="/names/">names</a> culture, e.g. <code>norse</code>, <code>nihon</code>, <code>desertic</code>).</td></tr>
+  <tr><td><code>id</code></td><td><code>/node</code> only: a node address like <code>r.2.1.0</code> (root, its 3rd report, that one's 2nd, that one's 1st). Returns the node + one level of reports.</td></tr>
+</table>
+<p>Each org is generated under a per-seed <strong>charter</strong> &mdash; which of the vertical's
+departments this particular company actually runs, plus its own name. The <strong>vertical</strong>
+supplies the titles (a corp&rsquo;s <em>Senior Director of Platform</em>, a legion&rsquo;s
+<em>Colonel, 3rd Regiment</em>, a duchy&rsquo;s <em>Margrave of Aldermoor</em>); the
+<strong>shape</strong> supplies the tree (a <em>flat</em> org drops middle management, a
+<em>matrix</em> adds dotted-line bosses, a <em>cellular</em> one compartments into small crews).
+The people are minted by the <a href="/names/">names</a> engine, so a crime family reads
+<em>Salvatore the Rusted</em> and a duchy reads <em>Roderick the Grim</em>.</p>
+<p><strong>The infinite chart.</strong> A normal org bottoms out at the individual contributor.
+This one wraps: ask <code>/node</code> for any leaf and the clerk turns out to be the apex of their own
+shadow sub-organisation, with its own C-suite, its own middle managers, its own clerks &mdash; all the
+way down. Click <span style="font-family:var(--mono);font-size:0.8em;color:var(--accent);border:1px dashed var(--accent);border-radius:5px;padding:0 0.3em;">drill</span>
+on any node below to fall through it.</p>
+
+<footer>
+  Runs entirely client-side on this page (the browser imports the same <a href="/org/engine.js">engine.js</a> the
+  worker serves) &mdash; the API exists for everything that isn&rsquo;t a browser. Part of <a href="/">rite.mino.mobi</a>.
+</footer>
+
+</div>
+
+<script type="module">
+import { generateOrg, expandOrgNode, catalog } from './engine.js';
+
+const $ = (id) => document.getElementById(id);
+const cat = catalog();
+
+for (const [k, v] of Object.entries(cat.verticals)) $('vertical').add(new Option(v.label, k));
+for (const [k, v] of Object.entries(cat.shapes)) $('shape').add(new Option(v.label, k));
+
+const q = new URLSearchParams(location.search);
+if (cat.verticals[q.get('vertical')]) $('vertical').value = q.get('vertical');
+if (cat.shapes[q.get('shape')]) $('shape').value = q.get('shape');
+if (q.get('depth')) $('depth').value = Math.max(1, Math.min(12, +q.get('depth') || 4));
+$('seed').value = q.get('seed') || randomSeed();
+
+function randomSeed() { return Math.random().toString(36).slice(2, 10); }
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+let current = null;
+
+function params() {
+  return {
+    seed: $('seed').value.trim() || 'acme',
+    vertical: $('vertical').value,
+    shape: $('shape').value,
+    depth: Math.max(1, Math.min(12, +$('depth').value || 4)),
+  };
+}
+
+function run() {
+  const p = params();
+  current = generateOrg(p);
+  history.replaceState(null, '', `?seed=${encodeURIComponent(p.seed)}&vertical=${p.vertical}&shape=${p.shape}&depth=${p.depth}`);
+
+  $('blurb').textContent = `${cat.verticals[p.vertical].blurb}  ·  ${cat.shapes[p.shape].blurb}`;
+  $('oname').textContent = current.orgName;
+
+  const chips = [];
+  chips.push(`${current.nodeCount} people`);
+  chips.push(`depth ${current.depth}`);
+  if (current.truncatedCount) chips.push(`${current.truncatedCount} boxes trimmed`);
+  for (const b of current.branches) chips.push(b);
+  $('stats').innerHTML = 'named by <em>' + esc(current.names) + '</em> · ' +
+    chips.map((c) => `<span class="chip">${esc(c)}</span>`).join('');
+
+  const root = renderNode(current.root, 0);
+  $('tree').innerHTML = '';
+  $('tree').appendChild(root);
+}
+
+// Build the DOM for a node and (recursively) its already-loaded reports.
+function renderNode(node, depth) {
+  const wrap = document.createElement('div');
+  wrap.className = 'node';
+  wrap.dataset.id = node.id;
+
+  const hasKids = node.reports && node.reports.length;
+  const row = document.createElement('div');
+  row.className = 'row' + (node.subOrg ? ' sub' : '');
+
+  const caret = document.createElement('span');
+  caret.className = 'caret' + (hasKids ? '' : ' leaf');
+  caret.textContent = hasKids ? '▾' : '·';
+  if (hasKids) caret.onclick = () => wrap.classList.toggle('collapsed');
+  row.appendChild(caret);
+
+  row.insertAdjacentHTML('beforeend',
+    `<span class="tier">${esc(node.tier)}</span>` +
+    `<span class="nm">${esc(node.name)}</span>` +
+    `<span class="ttl">${esc(node.title)}</span>` +
+    (node.dotted ? ` <span class="dotted">(${esc(node.dotted)})</span>` : ''));
+
+  // Any node can be fallen through: a truncated box, or a leaf that the
+  // engine will wrap into a shadow sub-org. Show a drill affordance when there
+  // are no children loaded yet.
+  if (!hasKids) {
+    const drill = document.createElement('span');
+    drill.className = 'drill';
+    drill.textContent = node.truncated ? 'more ↓' : 'drill ↓';
+    drill.title = node.truncated ? 'load the reports trimmed by the depth/size budget'
+                                 : 'fall through — this worker is the apex of their own shadow org';
+    drill.onclick = () => drillInto(node, wrap, drill);
+    row.appendChild(drill);
+  }
+
+  wrap.appendChild(row);
+
+  if (hasKids) {
+    const kids = document.createElement('div');
+    kids.className = 'kids';
+    for (const k of node.reports) kids.appendChild(renderNode(k, depth + 1));
+    wrap.appendChild(kids);
+  }
+  return wrap;
+}
+
+// Lazy-expand one level via the engine's infinite lens.
+function drillInto(node, wrap, drill) {
+  const p = params();
+  let res;
+  try {
+    res = expandOrgNode({ seed: p.seed, vertical: p.vertical, shape: p.shape, id: node.id });
+  } catch (e) { drill.textContent = '✗'; drill.title = String(e.message || e); return; }
+  node.reports = res.node.reports;
+  drill.remove();
+  const caret = wrap.querySelector('.caret');
+  caret.classList.remove('leaf');
+  caret.textContent = '▾';
+  caret.onclick = () => wrap.classList.toggle('collapsed');
+  const kids = document.createElement('div');
+  kids.className = 'kids';
+  for (const k of node.reports) kids.appendChild(renderNode(k, 0));
+  wrap.appendChild(kids);
+}
+
+$('expandall').onclick = () => document.querySelectorAll('.node.collapsed').forEach((n) => n.classList.remove('collapsed'));
+$('collapseall').onclick = () => {
+  // collapse everything deeper than the top two levels
+  document.querySelectorAll('#tree > .node .node .node').forEach((n) => n.classList.add('collapsed'));
+};
+$('dl-json').onclick = () => current && download(`org-${current.seed}-${current.vertical}.json`, JSON.stringify(current, null, 2), 'application/json');
+$('permalink').onclick = () => navigator.clipboard.writeText(location.href);
+
+$('go').onclick = run;
+$('reroll').onclick = () => { $('seed').value = randomSeed(); run(); };
+for (const id of ['vertical', 'shape']) $(id).onchange = run;
+$('depth').onchange = run;
+$('seed').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
+
+function download(fname, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = fname; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+run();
+</script>
+</body>
+</html>
