@@ -33,6 +33,7 @@
 // the Cloudflare worker, the browser, and node (selftest in engine.selftest.mjs).
 
 import { generateSet } from '../names/engine.js';
+import { makePerson, personCatalog } from './person.js';
 
 // ---------- seeded PRNG (xmur3 + mulberry32, same lineage as names) ----------
 
@@ -483,13 +484,17 @@ export function generateOrg(opts = {}) {
 
   if (shape.dotted) applyMatrix(root, ctx);
 
+  // Put people in the boxes and roll up how the org performs (default on).
+  const withPeople = opts.people === undefined ? true : !(opts.people === false || opts.people === '0' || opts.people === 'false');
+  const performance = withPeople ? attachOrgPerformance(root, vertical, seed) : undefined;
+
   return {
     seed, vertical: vertical.key, verticalLabel: vertical.label, verticalBlurb: vertical.blurb,
     shape: shapeKey, shapeLabel: shape.label, shapeBlurb: shape.blurb,
     names: nameCulture, orgName: ctx.charter.orgName,
     branches: ctx.charter.branches.map((b) => b.name),
     depth: reached, requestedDepth: depth, nodeCount: count, maxNodes, truncatedCount: truncated,
-    headcount,
+    headcount, performance,
     root,
     permalink: `https://rite.mino.mobi/org/?seed=${encodeURIComponent(seed)}&vertical=${vertical.key}&shape=${shapeKey}&depth=${depth}`,
   };
@@ -520,6 +525,129 @@ function applyMatrix(root, ctx) {
     node.dotted = `dotted-line to ${target.name} · ${td}`;
     node.dottedTo = target.id;
   }
+}
+
+// ---------- performance: put people in the boxes, then see how the org runs ----------
+//
+// Every box gets a PERSON (person.js — intrinsic, deterministic). Then the org
+// DYNAMICS are rolled over the whole tree: a boss's leadership multiplies their
+// reports, an overloaded span leaks throughput, every management layer skims an
+// overhead tax, and morale flows down from manager quality and workload. The
+// upshot is that the SAME people under a different `shape` perform differently —
+// a flat org saves the depth tax but overloads its managers; a tall one keeps
+// spans sane but taxes every layer. The org-level score borrows econ's vitality
+// tiers (Thriving/Healthy/Stable/Fragile/Failing) so it rhymes with hoop/econ.
+
+function idealSpan(vertical, rankIdx) {
+  const s = vertical.ranks[rankIdx] && vertical.ranks[rankIdx].span;
+  if (!s) return 4;
+  return Math.max(1, (s[0] + s[1]) / 2);
+}
+
+// Morale + flight risk for one node given its manager's leadership quality.
+// Shared by the whole-tree rollup and the single-node (infinite) lens.
+function seatMetrics(node, managerQ, vertical, rankCount) {
+  const reports = node.reports || [];
+  const isMgr = reports.length > 0;
+  const load = isMgr ? reports.length / idealSpan(vertical, node.rankIdx) : 0.75;
+  const p = node.person;
+  const tn = rankCount > 1 ? node.rankIdx / (rankCount - 1) : 0;
+  const gap = p.attrs.ambition / 100 - (1 - tn);      // ambitious but junior → unhappy
+  let morale = 52 + (managerQ - 1.0) * 45 - Math.max(0, load - 1) * 30
+    - Math.max(0, gap) * 18 + (p.attrs.integrity - 50) * 0.10;
+  morale += (rngFrom(`${node.id}|morale`)() - 0.5) * 10;
+  morale = Math.max(2, Math.min(100, Math.round(morale)));
+  const unmet = Math.max(0, Math.min(100, p.attrs.ambition - (1 - tn) * 100));
+  let risk = 0.42 * (100 - morale) + 0.34 * unmet + 0.14 * (100 - p.attrs.integrity)
+    + 0.10 * Math.max(0, 100 - p.tenure * 6);
+  risk = Math.max(0, Math.min(100, Math.round(risk)));
+  return { load: +load.toFixed(2), morale, flightRisk: risk, reports: reports.length };
+}
+
+function attachOrgPerformance(root, vertical, seed) {
+  const pctx = { seed, vertical: vertical.key, rankCount: vertical.ranks.length };
+  const all = [];
+  (function walk(n) { n.person = makePerson(n, pctx); all.push(n); if (n.reports) for (const k of n.reports) walk(k); })(root);
+
+  // Pass A (top-down): load + morale + flight risk, manager quality flowing down.
+  (function down(n, managerQ) {
+    n.perf = seatMetrics(n, managerQ, vertical, pctx.rankCount);
+    for (const k of (n.reports || [])) down(k, n.person.leadership);
+  })(root, 1.0);
+
+  // Pass B (bottom-up): effective output. A manager amplifies the sum of their
+  // reports' effective output by their leadership, dinged by span overload and
+  // a per-layer overhead tax; ICs' output is scaled by their own morale.
+  (function up(n) {
+    const reports = n.reports || [];
+    const p = n.person, perf = n.perf;
+    let teamSize = 1;
+    if (reports.length) {
+      let childSum = 0;
+      for (const k of reports) { up(k); childSum += k.perf.effective; teamSize += k.perf.teamSize; }
+      // Gentle per-layer factors near 1.0 so the fraction that survives the
+      // hierarchy stays legible (a healthy org ~0.6–0.85, not vanishing).
+      const leadMod = 0.9 + (p.leadership - 1.0) * 0.35;       // ~0.86 (poor) … ~1.08 (great)
+      const spanPenalty = Math.max(0.55, Math.min(1, 1 - Math.max(0, perf.load - 1) * 0.22));
+      const depthTax = 0.985;                                  // each management layer skims ~1.5%
+      const ownShare = p.output * 0.15 * (0.6 + 0.4 * perf.morale / 100);
+      perf.effective = +(childSum * leadMod * spanPenalty * depthTax + ownShare).toFixed(1);
+      perf.spanPenalty = +spanPenalty.toFixed(2);
+    } else {
+      perf.effective = +(p.output * (0.6 + 0.4 * perf.morale / 100)).toFixed(1);
+    }
+    perf.teamSize = teamSize;
+  })(root);
+
+  const leaves = all.filter((n) => !(n.reports && n.reports.length));
+  const mgrs = all.filter((n) => n.reports && n.reports.length);
+  const avg = (f) => all.reduce((s, n) => s + f(n), 0) / all.length;
+  const grossOutput = leaves.reduce((s, n) => s + n.person.output, 0) + mgrs.reduce((s, n) => s + n.person.output * 0.15, 0);
+  const effectiveOutput = root.perf.effective;
+  const efficiency = grossOutput > 0 ? effectiveOutput / grossOutput : 0;
+  const overloaded = mgrs.filter((n) => n.perf.load > 1.3);
+  const overloadFrac = mgrs.length ? overloaded.length / mgrs.length : 0;
+  const flightRiskNodes = all.filter((n) => n.perf.flightRisk > 55);
+  const attritionRate = flightRiskNodes.length / all.length;
+  const managerRatio = mgrs.length / all.length;
+  const avgSpan = mgrs.length ? mgrs.reduce((s, n) => s + n.perf.reports, 0) / mgrs.length : 0;
+  const maxSpan = mgrs.reduce((m, n) => Math.max(m, n.perf.reports), 0);
+  const balance = Math.max(0, Math.min(1, 1 - Math.abs(managerRatio - 0.25) / 0.5));
+  const score01 = 0.34 * Math.max(0, Math.min(1, efficiency)) + 0.24 * (avg((n) => n.perf.morale) / 100)
+    + 0.18 * (1 - overloadFrac) + 0.14 * (1 - attritionRate) + 0.10 * balance;
+  const score = Math.round(Math.max(0, Math.min(1, score01)) * 100);
+  const tier = score >= 85 ? 'Thriving' : score >= 70 ? 'Healthy' : score >= 55 ? 'Stable' : score >= 38 ? 'Fragile' : 'Failing';
+
+  const brief = (n) => n && { id: n.id, name: n.name, title: n.title };
+  const top = all.slice().sort((a, b) => b.person.output - a.person.output)[0];
+  const bottleneck = mgrs.filter((n) => n.perf.teamSize > 2)
+    .sort((a, b) => (b.perf.load * b.perf.teamSize) - (a.perf.load * a.perf.teamSize))[0];
+  const risks = flightRiskNodes.slice().sort((a, b) => b.perf.flightRisk - a.perf.flightRisk).slice(0, 5);
+
+  return {
+    headcount: all.length, managers: mgrs.length, ics: leaves.length,
+    managerRatio: +managerRatio.toFixed(3), avgSpan: +avgSpan.toFixed(1), maxSpan,
+    grossOutput: Math.round(grossOutput), effectiveOutput: Math.round(effectiveOutput), efficiency: +efficiency.toFixed(3),
+    avgMorale: Math.round(avg((n) => n.perf.morale)), avgSkill: Math.round(avg((n) => n.person.attrs.skill)),
+    avgTenure: +avg((n) => n.person.tenure).toFixed(1), avgAge: Math.round(avg((n) => n.person.age)),
+    overloadedManagers: overloaded.length, overloadFrac: +overloadFrac.toFixed(2),
+    flightRisks: flightRiskNodes.length, attritionRate: +attritionRate.toFixed(3),
+    score, tier,
+    highlights: {
+      topPerformer: top && { ...brief(top), output: top.person.output, cast: top.person.cast },
+      bottleneck: bottleneck && { ...brief(bottleneck), reports: bottleneck.perf.reports, load: bottleneck.perf.load, teamSize: bottleneck.perf.teamSize },
+      flightRisks: risks.map((n) => ({ ...brief(n), flightRisk: n.perf.flightRisk })),
+    },
+    note: 'computed over the loaded tree (depth/budget-bounded); drilling via /api/org/node reveals more people. Same seed+people, different shape → different numbers.',
+  };
+}
+
+// The mappa bridge: an org can be reproducibly SITED into a generated world.
+// mappa seeds mulberry32 with a raw integer; rite hashes a string first, so a
+// stable string built from the world seed + a city gives a deterministic org
+// seed bound to that place. (Forward hook for the city sim — not used here.)
+export function siteSeed(worldSeed, cityName, cellIndex) {
+  return `${worldSeed}:${cityName}:${cellIndex ?? 0}`;
 }
 
 // ---------- the infinite lens: expand one node, one level ----------
@@ -556,6 +684,19 @@ export function expandOrgNode(opts = {}) {
   const reports = childrenOf(node, ctx, true);
   const out = { ...node, reports };
 
+  // Give the node and its reports people, and a LOCAL performance snapshot: the
+  // node is its reports' manager, so their morale/effective are meaningful even
+  // without the whole tree. (Org-wide metrics need the full tree — see /api/org.)
+  const withPeople = opts.people === undefined ? true : !(opts.people === false || opts.people === '0' || opts.people === 'false');
+  if (withPeople) {
+    const pctx = { seed, vertical: vertical.key, rankCount: vertical.ranks.length };
+    const rankCount = vertical.ranks.length;
+    out.person = makePerson(out, pctx);
+    for (const k of out.reports) k.person = makePerson(k, pctx);
+    out.perf = seatMetrics(out, 1.0, vertical, rankCount);       // manager quality unknown in isolation → neutral
+    for (const k of out.reports) k.perf = seatMetrics(k, out.person.leadership, vertical, rankCount);
+  }
+
   return {
     seed, vertical: vertical.key, verticalLabel: vertical.label,
     shape: shapeKey, shapeLabel: shape.label,
@@ -576,6 +717,7 @@ export function catalog() {
     }])),
     shapes: Object.fromEntries(Object.entries(SHAPES).map(([k, v]) => [k, { label: v.label, blurb: v.blurb }])),
     names: 'people are named by the /names/ engine; override the culture with ?names=<culture>',
+    people: personCatalog(),
     defaults: { vertical: 'corp', shape: 'pyramid', depth: DEFAULT_DEPTH, maxNodes: DEFAULT_MAX_NODES },
     maxDepth: MAX_DEPTH, maxNodes: MAX_MAX_NODES,
   };
@@ -584,5 +726,5 @@ export function catalog() {
 // Browser <script type="module"> and worker use the exports directly; node
 // selftests reach it via globalThis.
 if (typeof globalThis !== 'undefined') {
-  globalThis.ORG = { generateOrg, expandOrgNode, catalog, VERTICALS, SHAPES };
+  globalThis.ORG = { generateOrg, expandOrgNode, catalog, siteSeed, VERTICALS, SHAPES };
 }

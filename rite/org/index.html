@@ -136,6 +136,37 @@ button:hover { border-color: var(--accent); }
 .dinfo .dttl { color: var(--muted); font-style: italic; }
 .dinfo .ddot { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); width: 100%; }
 .dinfo button { margin-left: auto; font-size: 0.8rem; padding: 0.2rem 0.6rem; }
+.scorecard {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 0.7rem 0.9rem; margin: 0.3rem 0 0.6rem;
+}
+.scorecard[hidden] { display: none; }
+.scorecard .tierline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 0.7rem; }
+.scorecard .tier { font-size: 1.15rem; font-weight: 700; }
+.scorecard .tier .badge { font-family: var(--mono); font-size: 0.72rem; padding: 0.05rem 0.4rem; border-radius: 5px; color: #fff; }
+.scorecard .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 0.4rem; margin-top: 0.6rem; }
+.scorecard .kpi { background: var(--bg); border: 1px solid var(--rule); border-radius: 7px; padding: 0.35rem 0.5rem; }
+.scorecard .kpi .v { font-size: 1.05rem; font-weight: 700; }
+.scorecard .kpi .k { font-family: var(--mono); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.scorecard .hl { margin-top: 0.5rem; font-size: 0.85rem; color: var(--muted); }
+.scorecard .hl b { color: var(--text); font-weight: 600; }
+.dhead .clr { display: flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; }
+.dhead .clr select { font-size: 0.82rem; padding: 0.2rem 0.35rem; }
+.pcard { width: 100%; }
+.pcard .phead { display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; align-items: baseline; }
+.pcard .pcast { color: var(--accent); font-weight: 700; }
+.pcard .pmeta { color: var(--muted); font-size: 0.85rem; }
+.pcard .attrs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.12rem 0.55rem; margin: 0.45rem 0 0.2rem; }
+.pcard .attr { display: flex; align-items: center; gap: 0.25rem; font-size: 0.78rem; min-width: 0; }
+.pcard .attr .an { width: 3rem; flex: none; color: var(--muted); font-family: var(--mono); font-size: 0.64rem; text-transform: uppercase; }
+.pcard .attr .bar { flex: 1; min-width: 8px; height: 6px; background: var(--chip-bg); border-radius: 3px; overflow: hidden; }
+.pcard .attr .bar i { display: block; height: 100%; background: var(--accent); }
+.pcard .attr .av { width: 1.4rem; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 460px) { .pcard .attrs { grid-template-columns: repeat(2, 1fr); } }
+.pcard .pmetrics { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.35rem; }
+.pcard .pm { font-family: var(--mono); font-size: 0.72rem; background: var(--chip-bg); border: 1px solid var(--rule); border-radius: 999px; padding: 0.05rem 0.5rem; }
+.pcard .ptraits { margin-top: 0.3rem; font-size: 0.82rem; font-style: italic; color: var(--muted); }
+.pcard .pdrill { margin-top: 0.4rem; }
 .apidoc td { padding: 0.2rem 0.8rem 0.2rem 0; vertical-align: top; font-size: 0.9rem; }
 .apidoc code { white-space: nowrap; }
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.85rem; }
@@ -171,6 +202,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 </div>
 <div class="stats" id="stats"></div>
 
+<div class="scorecard" id="scorecard" hidden></div>
+
 <div class="diagram">
   <div class="dhead">
     <span class="seg" id="layouts">
@@ -179,8 +212,18 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <button data-mode="icicle">icicle</button>
       <button data-mode="force">force</button>
     </span>
+    <label class="clr">colour
+      <select id="colorby">
+        <option value="rank">by rank</option>
+        <option value="morale">morale</option>
+        <option value="output">output</option>
+        <option value="competence">competence</option>
+        <option value="load">manager load</option>
+        <option value="flight">flight risk</option>
+      </select>
+    </label>
     <button id="fit">fit</button>
-    <span class="hint">drag&nbsp;·&nbsp;pinch/scroll&nbsp;·&nbsp;tap a node</span>
+    <span class="hint" id="clegend">tap a node</span>
   </div>
   <canvas id="canvas"></canvas>
   <div class="dinfo" id="dinfo" hidden></div>
@@ -192,10 +235,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 <p>Everything on this page is also a public JSON API (CORS open). The engine is deterministic:
 the same <code>seed</code> + node id returns the same company forever, so a URL <em>is</em> a permanent
 address inside an unbounded org.</p>
-<pre>curl 'https://rite.mino.mobi/api/org?seed=acme&amp;vertical=corp&amp;shape=pyramid&amp;depth=4'
-curl 'https://rite.mino.mobi/api/org?seed=legion&amp;vertical=military&amp;shape=tall&amp;depth=6'
+<pre>curl 'https://rite.mino.mobi/api/org?seed=acme&amp;vertical=corp&amp;shape=pyramid&amp;depth=4'   # tree + people + performance
+curl 'https://rite.mino.mobi/api/org?seed=acme&amp;vertical=corp&amp;shape=flat&amp;depth=4'      # same seed, worse shape
 curl 'https://rite.mino.mobi/api/org/node?seed=acme&amp;vertical=corp&amp;shape=fractal&amp;id=r.2.1.0'  # the infinite lens
-curl 'https://rite.mino.mobi/api/org/verticals'   # catalog of verticals + shapes</pre>
+curl 'https://rite.mino.mobi/api/org/person?seed=acme&amp;vertical=corp&amp;id=r.2.1'   # one person + metrics
+curl 'https://rite.mino.mobi/api/org/verticals'   # catalog of verticals, shapes, attributes</pre>
 <table class="apidoc">
   <tr><td><code>vertical</code></td><td>the industry &mdash; its rank ladder and title vocabulary. <code>corp</code>, <code>startup</code>, <code>military</code>, <code>feudal</code>, <code>crime</code>, <code>monastic</code>, <code>academic</code>, <code>ecclesiastic</code>.</td></tr>
   <tr><td><code>shape</code></td><td>the topology laid over it: <code>pyramid</code>, <code>tall</code>, <code>flat</code>, <code>wide</code>, <code>matrix</code> (dotted lines), <code>cellular</code>, <code>fractal</code> (endless).</td></tr>
@@ -212,6 +256,17 @@ supplies the titles (a corp&rsquo;s <em>Senior Director of Platform</em>, a legi
 <em>matrix</em> adds dotted-line bosses, a <em>cellular</em> one compartments into small crews).
 The people are minted by the <a href="/names/">names</a> engine, so a crime family reads
 <em>Salvatore the Rusted</em> and a duchy reads <em>Roderick the Grim</em>.</p>
+<p><strong>People &amp; performance.</strong> Every box holds a <em>person</em> — deterministic from the seed:
+demographics, a work-triad (<em>craft / drive / wit</em> — the hands, the fire, the mind) expressed into
+nine attributes, a temperament (<em>Architect, Operator, Grinder…</em>), a quirk or two, and a
+<a href="/names/">vocation</a> drawn from the same civic verbs the wider world uses. Then the whole tree is
+rolled up into how the org <em>performs</em>: a boss's leadership multiplies their reports, an overloaded
+span leaks throughput, every management layer skims an overhead tax, and morale flows down from manager
+quality and workload. So the <strong>same people under a different shape score differently</strong> — a
+<code>flat</code> org saves the depth tax but overloads its managers into a <em>Failing</em> grade; a
+<code>tall</code> one keeps spans sane. Tap any box for its person; use the <strong>colour</strong> selector
+to paint the whole chart by morale, output, competence, manager load, or flight risk. The org grade borrows
+econ's vitality tiers (<em>Thriving · Healthy · Stable · Fragile · Failing</em>).</p>
 <p><strong>The infinite chart.</strong> A normal org bottoms out at the individual contributor.
 This one wraps: ask <code>/node</code> for any leaf and the clerk turns out to be the apex of their own
 shadow sub-organisation, with its own C-suite, its own middle managers, its own clerks &mdash; all the
@@ -220,7 +275,8 @@ on any node below to fall through it.</p>
 
 <footer>
   Runs entirely client-side on this page (the browser imports the same <a href="/org/engine.js">engine.js</a> the
-  worker serves; the diagram is <a href="/org/diagram.js">diagram.js</a>, canvas, no deps) &mdash; the API exists for
+  worker serves; the people are <a href="/org/person.js">person.js</a>, the diagram is
+  <a href="/org/diagram.js">diagram.js</a>, canvas, no deps) &mdash; the API exists for
   everything that isn&rsquo;t a browser. Part of <a href="/">rite.mino.mobi</a>.
 </footer>
 
@@ -262,29 +318,55 @@ function expandInPlace(node) {
 // -- diagram --
 const diagram = new OrgDiagram($('canvas'), { onSelect: showInfo });
 
+const ATTR_LABEL = { skill: 'skill', rigor: 'rigor', experience: 'exp', energy: 'energy', ambition: 'ambit', grit: 'grit', judgment: 'judg', rapport: 'rapport', integrity: 'integ' };
+const ATTR_SHOW = ['skill', 'rigor', 'experience', 'energy', 'ambition', 'grit', 'judgment', 'rapport', 'integrity'];
+
 function showInfo(node) {
   const bar = $('dinfo');
   if (!node) { bar.hidden = true; bar.innerHTML = ''; return; }
   bar.hidden = false;
   const loaded = node.reports && node.reports.length;
-  bar.innerHTML =
+  const p = node.person, pf = node.perf;
+  let html =
+    `<div class="pcard"><div class="phead">` +
     `<span class="dtier">${esc(node.tier)}</span>` +
     `<span class="dnm">${esc(node.name)}</span>` +
     `<span class="dttl">${esc(node.title)}</span>` +
-    (node.dotted ? `<span class="ddot">↔ ${esc(node.dotted)}</span>` : '') +
-    `<button id="dinfo-drill">${loaded ? 'reports loaded' : 'drill ↓'}</button>`;
+    `</div>`;
+  if (p) {
+    html += `<div class="pmeta"><span class="pcast">${esc(p.cast)}</span> · age ${p.age} · ${p.tenure}y tenure · ${esc(p.vocationTag)}` +
+      (p.dept ? ` · ${esc(p.dept)}` : '') + `</div>`;
+    html += `<div class="attrs">` + ATTR_SHOW.map((k) => {
+      const v = p.attrs[k];
+      return `<span class="attr"><span class="an">${ATTR_LABEL[k]}</span><span class="bar"><i style="width:${v}%"></i></span><span class="av">${v}</span></span>`;
+    }).join('') + `</div>`;
+    html += `<div class="pmetrics">` +
+      `<span class="pm">output ${p.output}</span>` +
+      `<span class="pm">lead ×${p.leadership}</span>` +
+      (pf ? `<span class="pm">morale ${pf.morale}</span>` : '') +
+      (pf && pf.reports ? `<span class="pm">load ${pf.load} (${pf.reports} reports)</span>` : '') +
+      (pf ? `<span class="pm">flight ${pf.flightRisk}</span>` : '') +
+      `</div>`;
+    if (p.traits && p.traits.length) html += `<div class="ptraits">“${p.traits.map((t) => esc(t.label)).join(', ')}” — ${esc(p.traits[0].gloss)}</div>`;
+  }
+  if (node.dotted) html += `<div class="pmeta">↔ ${esc(node.dotted)}</div>`;
+  html += `<div class="pdrill"><button id="dinfo-drill">${loaded ? 'reports loaded' : 'drill ↓ (their reports)'}</button></div></div>`;
+  bar.innerHTML = html;
   const btn = $('dinfo-drill');
   btn.disabled = !!loaded;
-  btn.onclick = () => {
-    if (expandInPlace(node)) { diagram.refresh(); showInfo(node); }
-  };
+  btn.onclick = () => { if (expandInPlace(node)) { diagram.refresh(); showInfo(node); } };
 }
 
+const CLEGEND = {
+  rank: 'tap a node', morale: 'red low · green high morale', output: 'red low · green high output',
+  competence: 'red low · green high skill', load: 'green = healthy span · red = overloaded', flight: 'green = settled · red = flight risk',
+};
 $('layouts').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-mode]'); if (!b) return;
   for (const x of $('layouts').children) x.classList.toggle('on', x === b);
   diagram.setMode(b.dataset.mode);
 });
+$('colorby').onchange = () => { diagram.setColorMode($('colorby').value); $('clegend').textContent = CLEGEND[$('colorby').value]; };
 $('fit').onclick = () => { diagram.fit(); diagram.draw(); };
 
 function params() {
@@ -312,11 +394,43 @@ function run() {
   $('stats').innerHTML = 'named by <em>' + esc(current.names) + '</em> · ' +
     chips.map((c) => `<span class="chip">${esc(c)}</span>`).join('');
 
+  renderScorecard(current.performance);
+
   const root = renderNode(current.root, 0);
   $('tree').innerHTML = '';
   $('tree').appendChild(root);
 
   diagram.setData(current.root);
+  diagram.setColorMode($('colorby').value);
+}
+
+const TIER_COLOR = { Thriving: '#2e9e5b', Healthy: '#5aa84e', Stable: '#b7902f', Fragile: '#c9772f', Failing: '#c23b3b' };
+
+function renderScorecard(perf) {
+  const el = $('scorecard');
+  if (!perf) { el.hidden = true; return; }
+  el.hidden = false;
+  const h = perf.highlights || {};
+  const kpi = (k, v) => `<div class="kpi"><div class="v">${v}</div><div class="k">${k}</div></div>`;
+  el.innerHTML =
+    `<div class="tierline"><span class="tier">${perf.tier} ` +
+    `<span class="badge" style="background:${TIER_COLOR[perf.tier] || '#888'}">${perf.score}/100</span></span>` +
+    `<span class="pmeta" style="color:var(--muted);font-size:0.85rem">how this org performs — same people, a different shape scores differently</span></div>` +
+    `<div class="kpis">` +
+    kpi('headcount', perf.headcount) +
+    kpi('efficiency', Math.round(perf.efficiency * 100) + '%') +
+    kpi('avg morale', perf.avgMorale) +
+    kpi('avg span', perf.avgSpan) +
+    kpi('overloaded', perf.overloadedManagers + '/' + perf.managers) +
+    kpi('attrition', Math.round(perf.attritionRate * 100) + '%') +
+    kpi('mgr ratio', Math.round(perf.managerRatio * 100) + '%') +
+    kpi('avg age', perf.avgAge) +
+    `</div>` +
+    `<div class="hl">` +
+    (h.topPerformer ? `★ top performer: <b>${esc(h.topPerformer.name)}</b> (${esc(h.topPerformer.title)}, ${esc(h.topPerformer.cast)}, output ${h.topPerformer.output}). ` : '') +
+    (h.bottleneck ? `⚠ bottleneck: <b>${esc(h.bottleneck.name)}</b> (${esc(h.bottleneck.title)}) — ${h.bottleneck.reports} reports, load ${h.bottleneck.load}. ` : '') +
+    (h.flightRisks && h.flightRisks.length ? `⚑ flight risk: ${h.flightRisks.slice(0, 3).map((r) => `<b>${esc(r.name)}</b> (${r.flightRisk})`).join(', ')}.` : '') +
+    `</div>`;
 }
 
 // Build the DOM for a node and (recursively) its already-loaded reports.

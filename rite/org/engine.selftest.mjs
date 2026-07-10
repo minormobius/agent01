@@ -3,7 +3,7 @@
 // budget, the infinite (wrapping) node lens across every vertical × shape, and
 // error paths. Run before touching engine.js.
 
-import { generateOrg, expandOrgNode, catalog, VERTICALS, SHAPES } from './engine.js';
+import { generateOrg, expandOrgNode, catalog, siteSeed, VERTICALS, SHAPES } from './engine.js';
 
 let failures = 0;
 function check(cond, msg) {
@@ -139,6 +139,79 @@ console.log('— catalog + error paths —');
   check(capped.requestedDepth <= 12 && capped.maxNodes <= 6000, 'depth and maxNodes are capped');
 }
 
+console.log('— people: every box has a coherent person —');
+{
+  const o = generateOrg({ seed: 'people', vertical: 'corp', shape: 'pyramid', depth: 4 });
+  let missing = 0, badTriad = 0, badAttr = 0, missingPerf = 0;
+  walk(o.root, (n) => {
+    if (!n.person) { missing++; return; }
+    const tr = n.person.triad;
+    if (Math.abs((tr.craft + tr.drive + tr.wit) - 1) > 0.02) badTriad++;
+    for (const k of Object.keys(n.person.attrs)) if (n.person.attrs[k] < 1 || n.person.attrs[k] > 100) badAttr++;
+    if (!n.perf || typeof n.perf.morale !== 'number' || typeof n.perf.effective !== 'number') missingPerf++;
+  });
+  check(missing === 0, 'every box carries a person');
+  check(badTriad === 0, 'every triad sums to 1');
+  check(badAttr === 0, 'every attribute is within 1..100');
+  check(missingPerf === 0, 'every box has rolled-up perf (morale + effective)');
+  // seniority: apex should out-power a random IC on average competence
+  const apex = o.root.person;
+  const ics = []; walk(o.root, (n) => { if (!(n.reports && n.reports.length)) ics.push(n.person); });
+  const avgIcSkill = ics.reduce((s, p) => s + p.attrs.skill, 0) / ics.length;
+  check(apex.power >= 9, `apex is high-power (${apex.power})`);
+  check(apex.attrs.judgment >= avgIcSkill - 20, 'leaders lean judgment (wit) vs ICs lean craft');
+}
+
+console.log('— determinism of people —');
+{
+  const a = generateOrg({ seed: 'detp', vertical: 'crime', shape: 'cellular', depth: 4 });
+  const b = generateOrg({ seed: 'detp', vertical: 'crime', shape: 'cellular', depth: 4 });
+  check(JSON.stringify(a) === JSON.stringify(b), 'same seed → byte-identical people + performance');
+  // pick a real deep id from the tree
+  let deep = a.root; while (deep.reports && deep.reports.length) deep = deep.reports[0];
+  const n1 = expandOrgNode({ seed: 'detp', vertical: 'crime', shape: 'cellular', id: deep.id });
+  check(n1.node.person && n1.node.person.cast, `single-node lens carries a person (${n1.node.person.cast})`);
+  check(n1.node.reports.every((k) => k.person && k.perf), 'drilled reports carry person + local perf');
+}
+
+console.log('— the org performs: shape changes the numbers —');
+{
+  const base = { seed: 'perf', vertical: 'corp', depth: 5, maxNodes: 2500 };
+  const shapes = ['pyramid', 'tall', 'flat', 'wide'].map((shape) => {
+    const o = generateOrg({ ...base, shape });
+    return { shape, ...o.performance };
+  });
+  for (const s of shapes) {
+    check(s.score >= 0 && s.score <= 100, `${s.shape}: score in range (${s.score} ${s.tier}, eff ${s.efficiency}, morale ${s.avgMorale})`);
+    check(['Thriving', 'Healthy', 'Stable', 'Fragile', 'Failing'].includes(s.tier), `${s.shape}: valid tier`);
+  }
+  // the whole point: same people, different shape → genuinely different performance
+  const scores = new Set(shapes.map((s) => s.score));
+  check(scores.size > 1, `shapes produce different scores (${shapes.map((s) => s.shape + ':' + s.score).join(', ')})`);
+  // wide should overload managers harder than tall
+  const wide = shapes.find((s) => s.shape === 'wide'), tall = shapes.find((s) => s.shape === 'tall');
+  check(wide.avgSpan > tall.avgSpan, `wide has bigger spans than tall (${wide.avgSpan} vs ${tall.avgSpan})`);
+  // highlights present
+  const o = generateOrg({ ...base, shape: 'pyramid' });
+  check(o.performance.highlights.topPerformer && o.performance.highlights.topPerformer.output > 0, 'names a top performer');
+}
+
+console.log('— people can be turned off —');
+{
+  const o = generateOrg({ seed: 'nop', vertical: 'corp', depth: 3, people: false });
+  check(!o.performance, 'people:false skips the performance rollup');
+  check(!o.root.person, 'people:false leaves boxes empty');
+}
+
+console.log('— siteSeed bridge (mappa) —');
+{
+  const s1 = siteSeed(42, 'Aldermoor', 137);
+  const s2 = siteSeed(42, 'Aldermoor', 137);
+  check(s1 === s2 && s1.includes('Aldermoor'), `siteSeed is stable (${s1})`);
+  const o = generateOrg({ seed: s1, vertical: 'feudal', shape: 'pyramid', depth: 3 });
+  check(o.orgName && o.performance, 'an org sites reproducibly onto a world seed');
+}
+
 console.log('— flavor smoke (eyeball these) —');
 for (const [vertical, shape] of [['corp', 'pyramid'], ['military', 'tall'], ['feudal', 'pyramid'], ['crime', 'cellular'], ['academic', 'flat'], ['ecclesiastic', 'pyramid'], ['monastic', 'pyramid'], ['startup', 'flat']]) {
   const o = generateOrg({ seed: 'taste', vertical, shape, depth: 3, maxNodes: 60 });
@@ -146,6 +219,28 @@ for (const [vertical, shape] of [['corp', 'pyramid'], ['military', 'tall'], ['fe
   walk(o.root, (n, d) => { if (sample.length < 5) sample.push(`${'  '.repeat(d)}${n.name} — ${n.title}`); });
   console.log(`\n  ${o.orgName} [${vertical}/${shape}]`);
   for (const s of sample) console.log('  ' + s);
+}
+{
+  console.log('\n  — people in the boxes (feudal/pyramid, top of the chart) —');
+  const o = generateOrg({ seed: 'court', vertical: 'feudal', shape: 'pyramid', depth: 3, maxNodes: 40 });
+  const rows = [];
+  walk(o.root, (n, d) => {
+    if (rows.length < 6) {
+      const p = n.person;
+      rows.push(`${'  '.repeat(d)}${n.name} (${n.title}) — ${p.cast}, age ${p.age}, ${p.vocationTag}; skill ${p.attrs.skill} judg ${p.attrs.judgment} · morale ${n.perf.morale}${p.traits[0] ? ' · ' + p.traits[0].label : ''}`);
+    }
+  });
+  for (const r of rows) console.log('  ' + r);
+  const perf = o.performance;
+  console.log(`  ORG: ${perf.tier} (${perf.score}/100) · ${perf.headcount} people · eff ${perf.efficiency} · morale ${perf.avgMorale} · attrition ${(perf.attritionRate * 100).toFixed(0)}%`);
+}
+{
+  console.log('\n  — same corp, four shapes, how it performs —');
+  for (const shape of ['pyramid', 'tall', 'flat', 'wide', 'cellular']) {
+    const o = generateOrg({ seed: 'compare', vertical: 'corp', shape, depth: 5, maxNodes: 2500 });
+    const p = o.performance;
+    console.log(`  ${shape.padEnd(9)} ${p.tier.padEnd(9)} score ${String(p.score).padStart(3)} · eff ${p.efficiency} · morale ${p.avgMorale} · avgSpan ${p.avgSpan} · overloaded ${p.overloadedManagers}/${p.managers} · attrition ${(p.attritionRate * 100).toFixed(0)}%`);
+  }
 }
 {
   console.log('\n  — an infinite descent (corp/fractal, following the 0th report) —');

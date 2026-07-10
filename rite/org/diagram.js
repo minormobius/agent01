@@ -27,6 +27,7 @@ export class OrgDiagram {
     this.ctx = canvas.getContext('2d');
     this.onSelect = opts.onSelect || (() => {});
     this.mode = 'radial';
+    this.colorMode = 'rank';
     this.root = null;
     this.scale = 1; this.tx = 0; this.ty = 0;
     this.laid = []; this.links = []; this.byId = new Map();
@@ -43,7 +44,26 @@ export class OrgDiagram {
 
   setData(root) { this.root = root; this.selected = null; this.onSelect(null); this.relayout(); this.fit(); this.draw(); }
   setMode(mode) { this.mode = mode; this.selected = null; this.onSelect(null); this.relayout(); this.fit(); this.draw(); }
+  setColorMode(m) { this.colorMode = m; this.draw(); }  // recolour without relaying out
   refresh() { this.relayout(); this.draw(); }           // keep the current view
+
+  // Per-node fill under the active colour lens. null → fall back to the
+  // rank/depth accent shading. Good metrics ramp red→green; "bad" metrics
+  // (load, flight risk) ramp green→red.
+  _fill(e) {
+    const m = this.colorMode;
+    if (m === 'rank') return null;
+    const p = e.node.person, pf = e.node.perf;
+    let v = null, bad = false;
+    if (m === 'morale') v = pf ? pf.morale / 100 : null;
+    else if (m === 'output') v = p ? p.output / 100 : null;
+    else if (m === 'competence') v = p ? p.attrs.skill / 100 : null;
+    else if (m === 'load') { v = pf ? Math.min(1, (pf.load || 0) / 2) : null; bad = true; }
+    else if (m === 'flight') { v = pf ? pf.flightRisk / 100 : null; bad = true; }
+    if (v == null) return { style: '#8a8a8a', alpha: 0.4 };
+    const g = bad ? 1 - v : v;                            // 1 = good (green)
+    return { style: `hsl(${Math.round(g * 125)} 62% 48%)`, alpha: 0.92 };
+  }
 
   _resize() {
     const r = this.canvas.getBoundingClientRect();
@@ -247,10 +267,11 @@ export class OrgDiagram {
       const isSub = e.node.subOrg;
       const depthT = this.maxDepth ? e.depth / this.maxDepth : 0;
       ctx.globalAlpha = 1;
+      const fill = this._fill(e);
       if (this.mode === 'icicle') {
         const x = this._sx(e.rx), y = this._sy(e.ry), w = e.rw * this.scale, h = e.rh * this.scale;
-        ctx.fillStyle = accent;
-        ctx.globalAlpha = 0.22 + 0.5 * (1 - depthT);
+        if (fill) { ctx.fillStyle = fill.style; ctx.globalAlpha = fill.alpha; }
+        else { ctx.fillStyle = accent; ctx.globalAlpha = 0.22 + 0.5 * (1 - depthT); }
         ctx.fillRect(x, y, w, h);
         ctx.globalAlpha = 1;
         if (e === this.selected) { ctx.strokeStyle = gold; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h); }
@@ -265,8 +286,8 @@ export class OrgDiagram {
       const r = Math.max(2.4, (8.5 - e.depth * 0.7)) * Math.min(1.6, Math.max(0.7, this.scale));
       const cx = this._sx(e.wx), cy = this._sy(e.wy);
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU);
-      ctx.fillStyle = isSub ? gold : accent;
-      ctx.globalAlpha = 0.35 + 0.55 * (1 - depthT);
+      if (fill) { ctx.fillStyle = fill.style; ctx.globalAlpha = fill.alpha; }
+      else { ctx.fillStyle = isSub ? gold : accent; ctx.globalAlpha = 0.35 + 0.55 * (1 - depthT); }
       ctx.fill();
       ctx.globalAlpha = 1;
       if (e === this.selected) { ctx.lineWidth = 2; ctx.strokeStyle = gold; ctx.stroke(); }
