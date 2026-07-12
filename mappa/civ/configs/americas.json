@@ -1,0 +1,8 @@
+{
+  "$comment": "Forager sweep across a thawing corridor (Beringia). Fast, mobile foragers; warming opens the high-latitude passage and a two-continent expansion follows.",
+  "agent": { "b0": 0.45, "dispersalGain": 2.6, "corridorWeight": 1.1, "densityWeight": 1.4 },
+  "culture": { "subsistence": 0, "seedTech": ["fire"], "normWeights": [0.6,0.45,0.55,0.85,0.35,0.35,0.5,0.55], "innovationBase": 0.0045 },
+  "seeding": { "nucleusCount": 1, "founders": 60 },
+  "climate": { "preset": "beringia" },
+  "popScale": 600
+}

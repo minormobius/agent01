@@ -1,0 +1,1 @@
+{ "$comment": "high-ocean world — for maritime / austronesian runs", "seed": 13, "n": 1500, "genome": { "oceanFraction": 0.72 } }

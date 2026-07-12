@@ -1,0 +1,8 @@
+{
+  "$comment": "The classic demic farming wave: foragers who innovate agriculture and fill the arable belts. Stable climate, balanced norms.",
+  "agent": { "b0": 0.42, "dispersalGain": 1.7, "subWeight": 1.5 },
+  "culture": { "subsistence": 0, "seedTech": ["fire"], "normWeights": [0.6,0.45,0.55,0.5,0.35,0.4,0.55,0.6], "innovationBase": 0.006 },
+  "seeding": { "nucleusCount": 2, "founders": 120 },
+  "climate": { "preset": "stable" },
+  "popScale": 650
+}
