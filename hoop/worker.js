@@ -183,38 +183,52 @@ export default {
     if (url.pathname === '/v103/spine' || url.pathname === '/v103/spine/') {
       return env.ASSETS.fetch(new Request(new URL('/v103/story/spine.html', url), request));
     }
-    // quests — the QUEST COMPLETABILITY board: every anchor tier's gates, the keeper that sets each, and
-    // whether the campaign is provably progressable from the live pool (the oracle + the placement class).
-    if (url.pathname === '/v103/quests' || url.pathname === '/v103/quests/' || url.pathname === '/quests' || url.pathname === '/quests/') {
+    if (url.pathname === '/v103/quests' || url.pathname === '/v103/quests/') {
       return env.ASSETS.fetch(new Request(new URL('/v103/quests.html', url), request));
+    }
+    // v104 — the CURRENT DEVELOPMENT surface (v103 stays the frozen test surface): FUNGIBLE keepers — a gate
+    // can have many satisfiers; the waypoint points at the nearest PLACED one (unifying the main quest with the
+    // side-thread seek model), so content diversity lands and the "which duplicate NPC" ambiguity dissolves.
+    if (url.pathname === '/v104/records' || url.pathname === '/v104/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/records.html', url), request));
+    }
+    if (url.pathname === '/v104/feed' || url.pathname === '/v104/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/feed.html', url), request));
+    }
+    if (url.pathname === '/v104/spine' || url.pathname === '/v104/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/story/spine.html', url), request));
+    }
+    // quests — the QUEST COMPLETABILITY board (bare alias tracks the current dev surface — now v104).
+    if (url.pathname === '/v104/quests' || url.pathname === '/v104/quests/' || url.pathname === '/quests' || url.pathname === '/quests/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/quests.html', url), request));
     }
     // garden/plot — the high-detail GARDEN PLOT demo: the soil substrate (grain/moisture/cracks) + the
     // flora grown on it, each plant coloured by its Galenic temperament. The plants-first design toy.
     // (Bare dev aliases track the current development surface — now v103.)
     if (url.pathname === '/garden/plot' || url.pathname === '/garden/plot/') {
-      return env.ASSETS.fetch(new Request(new URL('/v103/garden/plot.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v104/garden/plot.html', url), request));
     }
     // over — the OVERWORLD: the ship's outer grow-deck, the whole curated ecology grown wild across
     // terrain bands (meadow/grove/thicket/heath/fen/water), each plant a silhouette keeping its
     // growth-form + Galenic palette. The landscape cousin of the garden plot; pan/zoom, seed permalink.
     if (url.pathname === '/over' || url.pathname === '/over/') {
-      return env.ASSETS.fetch(new Request(new URL('/v103/over/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v104/over/index.html', url), request));
     }
     // over/demo — the STANDING DEMO: a self-touring attract-mode over the overworld (auto-pan camera
     // drifting across the bands, cycling seeds, naming what it passes). Runs itself, no input; a screen.
     if (url.pathname === '/over/demo' || url.pathname === '/over/demo/') {
-      return env.ASSETS.fetch(new Request(new URL('/v103/over/demo.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v104/over/demo.html', url), request));
     }
     // alch — the ALCHEMIST'S COOKBOOK: the correspondence→effect grammar (humour/planet/metal/vessel),
     // every live reagent with its derived effect + pairings, and exemplar recipes computed by actually
     // running the alchemy kernel. Mechanism reference for the bench in the make rooms.
     if (url.pathname === '/alch' || url.pathname === '/alch/' || url.pathname === '/cookbook' || url.pathname === '/cookbook/') {
-      return env.ASSETS.fetch(new Request(new URL('/v103/alch/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v104/alch/index.html', url), request));
     }
     // smith — the SMITHY testbed: craft equipment from the ship's commodities (the item genome + the
     // material→commodity economy + tech-era gating). The design page before the make-room wall fixture.
     if (url.pathname === '/smith' || url.pathname === '/smith/') {
-      return env.ASSETS.fetch(new Request(new URL('/v103/craft/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v104/craft/index.html', url), request));
     }
     // docs — the WORLD-SIDE documentation: the whole scope of the world (decks, systems, minigames),
     // every workflow that feeds it, the v101 audit findings, and the roadmap. The examination surface.

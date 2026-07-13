@@ -382,9 +382,10 @@ despite the name. It stayed with hoop, not rind.)
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
-  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v103` is the
-  DEVELOPMENT surface** (v102, now a frozen prior, plus the v103 NPC-reform pass — see its own bullet
-  below; the bare dev aliases `/over`, `/garden/plot`, `/alch`, `/smith` now resolve to v103). The v102
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v104` is the
+  DEVELOPMENT surface** (the FUNGIBLE-KEEPER pass — see its bullet below; the bare dev aliases `/over`,
+  `/garden/plot`, `/alch`, `/smith`, `/quests` now resolve to v104). **`v103` is a FROZEN test surface** —
+  the NPC-reform pass, playable end-to-end (kept live so hoopy can keep testing it); don't touch it. The v102
   pass (the frozen prior) was:
   - **Auth resilience (the reauth-on-return fix).** Two bugs made app-switching demand a re-login:
     (1) `flushRepo`'s save-failure handler re-minted HOOP_SCOPE — a full OAuth redirect — on ANY
@@ -493,6 +494,23 @@ despite the name. It stayed with hoop, not rind.)
     non-destructive — preserves every other field), and `putRecord`s it back to morphyx. With both in place
     `proveProgression` is PASS / 0 errors (verified in-memory against the live pool). Seeds in Actions (morphyx
     app-password), not the sandbox; auto-fires on push to those paths.
+- **The v104 FUNGIBLE-KEEPER pass** (the current dev surface; v103 stays frozen for testing). A gate is no
+  longer bound to ONE exact keeper — it can be satisfied by ANY of several room bundles (hoopy's diversity
+  model: "ten room bundles per faction chunk, ≥3 fulfill the conditions"), unifying the main quest with the
+  side-thread `seekCandidates` model. Changes:
+  - **`anchors.js#gateSettersMulti`** — `{ gate: [every setter, …] }` (deduped, id-sorted). `gateSetters`
+    (first-only) stays for the oracle. **`nextKeeper`** now carries the full satisfier list (`nk.setters`) and
+    filters it by the `reachable` predicate (evaluated per-setter). **`solvable.js#requiredGateSetters`** — the
+    active tier's unmet gates each with their full setter-id list. All pure + node-tested (`test/fungible.selftest.mjs`).
+  - **Surface**: `renderQuest` points the ◇ at the **nearest PLACED satisfier** of the active gate (any unlocks
+    it, so the marker always leads to a reachable person — and duplicate-named keepers like the two "Kaelen
+    Voss" stop mattering). `populateChambers` guarantees ≥1 satisfier of each unmet gate is placed + findable
+    (fungible: skip the gate if any satisfier is already up), re-seating a stranded one — replacing the
+    force-place-one-hardcoded-keeper logic.
+  - **`/quests`** gains a **satisfiers** column (per-gate setter count: ≥3 green = the diversity target, 1–2
+    amber = thin, 0 red = no setter) so hoopy can verify his multi-setter draw. Forward-compatible: with today's
+    1-setter-per-gate content it behaves exactly as before (verified against the live pool — names the correct
+    Fulcrum Cell Kaelen); diversity lands automatically once hoopy authors ≥2 setters per gate.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
