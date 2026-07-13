@@ -72,6 +72,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const maxAgeT = Math.max(fertileMaxT + 1, Math.round(72 / ty));
   const disperseWindow = Math.max(1, fertileMaxT - adultT);
   const popScale = cfg.popScale;
+  const industrialMinPop = cfg.industrialMinPop ?? 5000;
 
   // ---- cultures + languages (carry identity across individual turnover) ----------
   const cultures = [];   // {id, sub, tech, norms(Float32Array), lang, parentLang, parentCulture, birthTick, origin, landmass, extinct, mutationRate, innovationBase, splitThreshold, agriDone, industryDone}
@@ -453,6 +454,11 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       if (wgt > bestW) { bestW = wgt; pickC = c; }
     }
     if (pickC < 0) return;
+    // SCALE GATE: the industrial tier (mechanisation → steam → electricity) is a
+    // civilizational achievement, not one lucky megacity. A culture must be a large,
+    // urbanised society (total members ≥ industrialMinPop) before it can innovate it —
+    // so a small 25k-agent world can't trip into the industrial age off a single valley.
+    if (TIER[pickC] >= 4 && cultMembers[cu.id] < industrialMinPop) return;
     // accept with a rate that falls STEEPLY with tier — each rung is a harder invention,
     // so tier-4/5 (mechanisation → industry) takes an order of magnitude longer than
     // tier-1 (the neolithic package). This is what makes industry late and rare.
@@ -555,8 +561,8 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       const surplus = AGRI_PKGS.has(cu.sub) && pop > kEff(c, cu.sub) * 0.5;
       if (surplus && pop > 40 && cu.norms[NORM_I.hierarchy] > 0.3) { polity[c] = 1; chief++; }
       if (polity[c] === 1 && has(cu.tech, CAP.writing) && pop > 120) { polity[c] = 2; stateCells++; }
-      // firm / industrial takeoff: mechanised + steam + urban
-      if (has(cu.tech, CAP.mechanisation) && has(cu.tech, CAP.steamPower) && pop > 150) {
+      // firm / industrial takeoff: mechanised + steam + an urban city in a large culture
+      if (has(cu.tech, CAP.mechanisation) && has(cu.tech, CAP.steamPower) && pop > 200 && cultMembers[d] >= industrialMinPop) {
         firmCells++;
         if (!cu.industryDone) {
           cu.industryDone = true;

@@ -86,7 +86,9 @@ Config sources: `--config <path.json | token>` (omit → defaults). All offline.
 - **Climate** is a set of time-varying fields; a drying event or a thaw shifts `K`, density
   stress spikes, and a migration pulse *emerges*.
 - **Institutions** (band → chiefdom → state → firm) are emergent aggregates; industrial
-  takeoff is firms + urban-K on a mechanised, steam-powered megacity.
+  takeoff is firms + urban-K on a mechanised, steam-powered megacity — **scale-gated** by
+  `industrialMinPop` (a config knob) so only a large, urbanised culture can reach it, not
+  one lucky valley in a small world.
 - **Stigmergy** (a per-cell meme field + activity field) is the O(n) coordination substrate:
   memes diffuse agent → environment → agent; innovation scales with connectivity.
 - **civ-signals** scores variety / contrast / structure / story-potential and screens out
@@ -120,3 +122,9 @@ playback is ~90 KB and fully deterministic.
 
 The worker (`../../civ/worker.js`) imports this engine unchanged. Note determinism is
 load-bearing: never introduce `Math.random` / `Date.now` into the core.
+
+**Cross-view liquidity.** A run's identity is `(world, config|preset, civSeed, ticks)`,
+carried in the page URL. The dashboard, the particle playground, and the mappa map all
+read/write those params, so the ★ you roll on one is the exact run you open on another —
+and the "world on mappa" link (`?seed=N` or `?w=<token>`) opens the same planet. Same
+config ⇒ same chronicle, so the score and history match across surfaces by construction.

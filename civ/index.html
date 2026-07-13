@@ -51,7 +51,7 @@
   <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="https://mino.mobi/mappa/">mappa</a> · civ</div>
   <h1><span class="g">civ</span> — civilization evolution</h1>
   <p class="sub">A deterministic, coevolutionary agent-based civilization simulation on a generated <a href="https://mino.mobi/mappa/">mappa</a> world. Individuals turn over by birth and death; lineages, cultures and institutions carry identity across ten millennia. Nothing about eras is scripted — <b>agriculture and industry are emergent phase transitions</b>. Headless-first: everything here is one call to the CORS-open, no-key API.</p>
-  <p class="sub" style="margin-top:10px"><a href="/view.html" style="font-weight:700">▶ Particle playback →</a> &nbsp;watch the population move across the map through the whole run — play forward and backward, zoom in, and click a particle to see its deal.</p>
+  <p class="sub" style="margin-top:10px"><a id="toview" href="/view.html" style="font-weight:700">▶ Particle playback →</a> &nbsp;·&nbsp; <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">the world on mappa ↗</a> &nbsp;— the same run carries across all three by its link (world + config + seed + ticks). Watch the population move across the map, or inspect the planet it runs on.</p>
 </header>
 <main>
   <div class="wrap">
@@ -71,6 +71,7 @@
       </div>
       <label for="ticks">Ticks — <span id="ticksv">900</span> (≈ <span id="years">2250</span> yr)</label>
       <input id="ticks" type="range" min="200" max="1500" step="100" value="900">
+      <input type="hidden" id="lastconfig">
       <button id="run">Run civilization →</button>
       <button id="sweepbtn" class="ghost">Quality-diversity sweep</button>
       <div class="status" id="status"></div>
@@ -86,7 +87,19 @@
 <script type="module">
 const $ = s => document.querySelector(s);
 const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
-$('#ticks').addEventListener('input', () => { $('#ticksv').textContent = $('#ticks').value; $('#years').textContent = Math.round($('#ticks').value * 2.5); });
+
+// ---- shared URL state (liquidity across dashboard / playground / mappa) ----------
+// A run's identity is (world, config|preset, civSeed, ticks) — carry it in the URL so
+// the ★ you rolled here is the exact run you open on the playground or the world on mappa.
+function stateFromControls() { return { world: $('#world').value.trim() || '7', preset: $('#preset').value, civSeed: ($('#civseed').value || '1'), ticks: $('#ticks').value, config: $('#lastconfig').value || '' }; }
+function qs(st) { const p = new URLSearchParams(); p.set('world', st.world); if (st.preset) p.set('preset', st.preset); else if (st.config) p.set('config', st.config); p.set('civSeed', st.civSeed); p.set('ticks', st.ticks); return p.toString(); }
+function writeURL(st) { try { history.replaceState(null, '', '?' + qs(st)); } catch (e) {} }
+function mappaHref(world) { const m = String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/' + (m ? ('?seed=' + m[1]) : ('?w=' + encodeURIComponent(world))); }
+function syncLinks() { const st = stateFromControls(); $('#toview').href = '/view.html?' + qs(st); $('#tomappa').href = mappaHref(st.world); }
+function applyURL() { const p = new URLSearchParams(location.search); if (p.get('world')) $('#world').value = p.get('world'); if (p.has('preset')) $('#preset').value = p.get('preset'); if (p.get('config')) $('#lastconfig').value = p.get('config'); if (p.get('civSeed')) $('#civseed').value = p.get('civSeed'); if (p.get('ticks')) { $('#ticks').value = p.get('ticks'); $('#ticksv').textContent = p.get('ticks'); $('#years').textContent = Math.round(p.get('ticks') * 2.5); } return p; }
+
+$('#ticks').addEventListener('input', () => { $('#ticksv').textContent = $('#ticks').value; $('#years').textContent = Math.round($('#ticks').value * 2.5); syncLinks(); });
+for (const id of ['#preset', '#world', '#civseed']) $(id).addEventListener('change', () => { if (id === '#preset') $('#lastconfig').value = ''; syncLinks(); });
 
 async function api(path) {
   const r = await fetch(path);
@@ -94,15 +107,15 @@ async function api(path) {
   return r.json();
 }
 
-$('#run').addEventListener('click', async () => {
-  const preset = $('#preset').value, world = $('#world').value.trim() || '1', civseed = $('#civseed').value.trim() || '1', ticks = $('#ticks').value;
-  const q = new URLSearchParams({ world, civSeed: civseed, ticks });
-  if (preset) q.set('preset', preset);
-  setBusy(true, 'Running ' + ticks + ' ticks…');
-  try { renderRun(await api('/api/civ/run?' + q)); }
+async function runCiv() {
+  const st = stateFromControls();
+  writeURL(st); syncLinks();               // the address bar IS the permalink to this run
+  setBusy(true, 'Running ' + st.ticks + ' ticks…');
+  try { renderRun(await api('/api/civ/run?' + qs(st))); }
   catch (e) { $('#status').textContent = 'error: ' + e.message; }
   finally { setBusy(false); }
-});
+}
+$('#run').addEventListener('click', runCiv);
 
 $('#sweepbtn').addEventListener('click', async () => {
   const world = $('#world').value.trim() || '1';
@@ -136,7 +149,8 @@ function renderRun(d) {
   add(f.agriOrigins, 'agri origins'); add(f.industrialOrigins, 'industrial origins');
   add(f.homelands, 'homelands'); add(f.peakStates, 'peak states');
   o.appendChild(facts);
-  o.appendChild(el('div', 'muted', `★${d.score} · hash ${d.hash} · ${d.ms}ms · config token ${d.config.slice(0, 28)}…`));
+  $('#lastconfig').value = d.config; syncLinks(); // links now carry this exact run
+  o.appendChild(el('div', 'muted', `★${d.score} · hash ${d.hash} · ${d.ms}ms · this URL is the permalink · open in ▶ playground or on mappa via the header links`));
 }
 
 function renderSweep(d) {
@@ -166,6 +180,12 @@ function drawSeries(cv, s) {
 }
 
 function escapeDesc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/★(\d+)/, '<span class="score">★$1</span>'); }
+
+// ---- init: apply a shared link's params, keep cross-links live, auto-run if arriving
+// on a permalink (so the ★ someone shared is exactly what loads here) ----------------
+const _params = applyURL();
+syncLinks();
+if (_params.get('world') || _params.get('config')) runCiv();
 </script>
 </body>
 </html>
