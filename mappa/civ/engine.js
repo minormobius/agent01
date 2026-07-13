@@ -14,7 +14,7 @@ import {
   NCAP, CAP, CAPS, bit, has, candidates, PREREQ, TIER, vecTier, popcount,
   PKG, NPKG, PKG_ID, subMult, pkgUnlocked,
 } from './caps.js';
-import { loadCivWorld, cellK } from './world.js';
+import { loadCivWorld, cellK, RES_METAL, RES_WEALTH } from './world.js';
 import { normalizeConfig, NORM_I } from './config.js';
 import { makeClimate } from './climate.js';
 
@@ -86,6 +86,8 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       birthTick: tick, origin: proto.origin, landmass: proto.landmass,
       extinct: false, mutationRate: proto.mutationRate, innovationBase: proto.innovationBase,
       splitThreshold: proto.splitThreshold, agriDone: AGRI_PKGS.has(proto.sub), industryDone: false,
+      // polity lifecycle (a culture that reaches statehood is a dynasty with a rise/peak/fall)
+      everState: false, firstStateTick: -1, peakPop: 0, peakTick: 0, peakTerritory: 0, fellTick: -1, peakTier: 0,
     };
     cultures.push(c); return c;
   }
@@ -219,14 +221,18 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   function worldSnapshot() {
     const lon = new Array(N), lat = new Array(N);
     for (let i = 0; i < N; i++) { const v = w.V[i]; lon[i] = +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(2); lat[i] = +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(2); }
-    return { N, lon, lat, water: Array.from(w.water), biome: Array.from(w.biome), landmass: Array.from(w.landmass) };
+    return {
+      N, lon, lat, water: Array.from(w.water), biome: Array.from(w.biome), landmass: Array.from(w.landmass),
+      // named resource nodes (static geology) — the map marks them, the sim contests them
+      resources: (w.resourceNodes || []).map(nd => ({ cell: nd.cell, kind: nd.kind, name: nd.name })),
+    };
   }
   function captureFrame() {
-    const cell = [], popc = [], cu = [], sub = [], tier = [], present = new Set();
-    for (let c = 0; c < N; c++) { const d = cellDom[c]; if (d < 0 || cellPop[c] <= 0) continue; const C = cultures[d]; cell.push(c); popc.push(cellPop[c]); cu.push(d); sub.push(C.sub); tier.push(vecTier(C.tech)); present.add(d); }
+    const cell = [], popc = [], cu = [], sub = [], tier = [], pol = [], present = new Set();
+    for (let c = 0; c < N; c++) { const d = cellDom[c]; if (d < 0 || cellPop[c] <= 0) continue; const C = cultures[d]; cell.push(c); popc.push(cellPop[c]); cu.push(d); sub.push(C.sub); tier.push(vecTier(C.tech)); pol.push(polity[c]); present.add(d); }
     const cid = [], csub = [], ctier = [], ctech = [], clang = [], csize = [];
     for (const id of present) { const C = cultures[id]; cid.push(id); csub.push(C.sub); ctier.push(vecTier(C.tech)); ctech.push(C.tech >>> 0); clang.push(C.lang); csize.push(cultMembers[id] || 0); }
-    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
+    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
   }
 
   function step() {
@@ -342,7 +348,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const doSplit = (tick & 7) === 0;
     for (let i = 0; i < cultures.length; i++) {
       const cu = cultures[i]; if (cu.extinct) continue;
-      if (cultMembers[i] === 0) { cu.extinct = true; pushEvent(tick, 'extinction', { culture: i }); continue; }
+      if (cultMembers[i] === 0) { cu.extinct = true; if (cu.everState && cu.fellTick < 0) cu.fellTick = tick; pushEvent(tick, 'extinction', { culture: i }); continue; }
       if (cultBestCell[i] >= 0) innovate(cu, cultBestCell[i]);
       subsistenceUpgrade(cu);
       if (doSplit) maybeSplit(cu);
@@ -462,7 +468,11 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     // accept with a rate that falls STEEPLY with tier — each rung is a harder invention,
     // so tier-4/5 (mechanisation → industry) takes an order of magnitude longer than
     // tier-1 (the neolithic package). This is what makes industry late and rare.
-    const potential = Math.log2(1 + pop) * (0.15 + Math.min(2, act));
+    // Named resources ACCELERATE the tech they feed: a city on a metal node innovates
+    // metallurgy/machines faster; a wealth node (gold/salt) speeds it via trade/connectivity.
+    const rc = w.resource ? w.resource[cell] : 0;
+    const resAccel = RES_METAL.has(rc) ? 1.7 : RES_WEALTH.has(rc) ? 1.3 : 1;
+    const potential = Math.log2(1 + pop) * (0.15 + Math.min(2, act)) * resAccel;
     const pInnov = cu.innovationBase * cu.norms[NORM_I.innovation] * potential * TIER_DIFFICULTY[TIER[pickC]];
     if (R.innov() >= Math.min(0.22, pInnov)) return;
     cu.tech |= bit(pickC); onTechUnlock(cell, cu, pickC, 'innovation');
@@ -553,14 +563,20 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   // ---- institutions: household→band→chiefdom→state→firm (emergent) ---------------
   let stateMax = 0, lastCollapseTick = -100;
   const polity = new Int8Array(N); // 0 band, 1 chiefdom, 2 state-tier cell
+  const nNodes = w.resourceNodes ? w.resourceNodes.length : 0;
+  const resourceControl = new Int32Array(nNodes).fill(-1); // culture id holding each named node
+  const resCaptureTick = new Int32Array(nNodes).fill(-999); // cooldown so frontier flicker isn't "history"
+  let cultStateCells = new Int32Array(64);
   function institutions() {
     polity.fill(0);
+    if (cultStateCells.length < cultures.length) cultStateCells = new Int32Array(cultures.length * 2);
+    else cultStateCells.fill(0, 0, cultures.length);
     let chief = 0, stateCells = 0, firmCells = 0;
     for (let c = 0; c < N; c++) {
       const d = cellDom[c]; if (d < 0) continue; const cu = cultures[d]; const pop = cellPop[c];
       const surplus = AGRI_PKGS.has(cu.sub) && pop > kEff(c, cu.sub) * 0.5;
       if (surplus && pop > 40 && cu.norms[NORM_I.hierarchy] > 0.3) { polity[c] = 1; chief++; }
-      if (polity[c] === 1 && has(cu.tech, CAP.writing) && pop > 120) { polity[c] = 2; stateCells++; }
+      if (polity[c] === 1 && has(cu.tech, CAP.writing) && pop > 120) { polity[c] = 2; stateCells++; cultStateCells[d]++; }
       // firm / industrial takeoff: mechanised + steam + an urban city in a large culture
       if (has(cu.tech, CAP.mechanisation) && has(cu.tech, CAP.steamPower) && pop > 200 && cultMembers[d] >= industrialMinPop) {
         firmCells++;
@@ -573,9 +589,29 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         }
       }
     }
+    // ---- polity lifecycle: a culture that reaches statehood is a DYNASTY with a
+    // rise, a peak, and a fall — the spine of the political history ------------------
+    for (let i = 0; i < cultures.length; i++) {
+      const cu = cultures[i]; if (cu.extinct) continue;
+      const size = cultMembers[i] || 0; const terr = cultTerritory[i] ? cultTerritory[i].length : 0;
+      const t = vecTier(cu.tech); if (t > cu.peakTier) cu.peakTier = t;
+      if (terr > cu.peakTerritory) cu.peakTerritory = terr;
+      if (cultStateCells[i] > 0 && !cu.everState) { cu.everState = true; cu.firstStateTick = tick; pushEvent(tick, 'polityRise', { culture: i, seat: cultBestCell[i], landmass: cu.landmass, tick }); }
+      if (size > cu.peakPop) { cu.peakPop = size; cu.peakTick = tick; }
+      if (cu.everState && cu.fellTick < 0 && cu.peakPop > 400 && size < 0.25 * cu.peakPop) { cu.fellTick = tick; pushEvent(tick, 'polityFall', { culture: i, peak: cu.peakPop, at: tick }); }
+    }
+    // ---- named-resource control: who holds each node, and captures over time --------
+    if (nNodes) for (let k = 0; k < nNodes; k++) {
+      const nd = w.resourceNodes[k], holder = cellDom[nd.cell];
+      if (holder === resourceControl[k]) continue;
+      const prev = resourceControl[k]; resourceControl[k] = holder;
+      // emit only genuine conquests: a real polity takes it from another, spaced in time,
+      // so the log records history — not the flicker of a contested frontier cell.
+      if (holder >= 0 && prev >= 0 && (cultMembers[holder] || 0) > 400 && tick - resCaptureTick[k] > 60) {
+        resCaptureTick[k] = tick; pushEvent(tick, 'resourceCaptured', { node: k, name: nd.name, kind: nd.kind, from: prev, to: holder });
+      }
+    }
     // count contiguous state components (distinct polities) for the diversity signal.
-    // Events fire only on a NEW maximum (a genuinely more-fragmented world) or a real
-    // collapse (a sharp drop from the running peak) — the series carries the rest.
     const stateComp = countStateComponents();
     if (stateComp > stateMax) { stateMax = stateComp; pushEvent(tick, 'stateFormation', { states: stateComp }); }
     else if (stateComp <= stateMax - 3 && tick - lastCollapseTick > 40) { lastCollapseTick = tick; pushEvent(tick, 'collapse', { from: stateMax, to: stateComp }); stateMax = stateComp; }
@@ -619,13 +655,13 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   }
   function keyframe() {
     const sizes = [];
-    for (let i = 0; i < cultures.length; i++) if (!cultures[i].extinct && cultMembers[i] > 0) sizes.push({ id: i, n: cultMembers[i], sub: PKG[cultures[i].sub].id, tier: vecTier(cultures[i].tech), lang: cultures[i].lang });
+    for (let i = 0; i < cultures.length; i++) if (!cultures[i].extinct && cultMembers[i] > 0) { const cu = cultures[i]; sizes.push({ id: i, n: cultMembers[i], sub: cu.sub, tier: vecTier(cu.tech), lang: cu.lang, parent: cu.parentCulture, birth: cu.birthTick, state: cu.everState ? 1 : 0 }); }
     sizes.sort((a, b) => b.n - a.n);
     // subsistence distribution
     const subDist = new Array(NPKG).fill(0);
     for (let i = 0; i < cultures.length; i++) if (!cultures[i].extinct) subDist[cultures[i].sub] += cultMembers[i];
     chronicle.keyframes.push({
-      t: tick, pop: liveN, cultures: sizes.length, top: sizes.slice(0, 8),
+      t: tick, pop: liveN, cultures: sizes.length, top: sizes.slice(0, 24),
       inst: { ...lastInst }, subDist, languages: languages.length,
       maxTier: sizes.reduce((m, s) => Math.max(m, s.tier), 0),
     });
@@ -643,9 +679,21 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     }
     for (let t = 0; t < liveN; t++) popByLand[w.landmass[A.cell[live[t]]]] += 1;
     surviving.sort((a, b) => b.size - a.size);
+    // dynasties: every culture that ever reached statehood, with its rise/peak/fall.
+    const polities = [];
+    for (let i = 0; i < cultures.length; i++) {
+      const cu = cultures[i]; if (!cu.everState) continue;
+      polities.push({ id: i, lang: cu.lang, parent: cu.parentCulture, landmass: cu.landmass,
+        rose: cu.firstStateTick, peakPop: cu.peakPop, peakTick: cu.peakTick, peakTerritory: cu.peakTerritory,
+        peakTier: cu.peakTier, fell: cu.fellTick, alive: !cu.extinct && (cultMembers[i] || 0) > 0,
+        size: cultMembers[i] || 0, sub: cu.sub, seat: cultBestCell[i] ?? cu.origin });
+    }
+    polities.sort((a, b) => b.peakPop - a.peakPop);
+    // named resources + who currently holds each
+    const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k] }));
     return {
       pop: liveN,
-      cultures: surviving,
+      cultures: surviving, polities, resources,
       languages: languages.map(l => ({ id: l.id, parent: l.parent, birthTick: l.birthTick })),
       subDist, popByLandmass: Array.from(popByLand),
       occupiedLandmasses: popByLand.reduce((a, v) => a + (v > 0 ? 1 : 0), 0),

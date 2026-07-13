@@ -51,7 +51,7 @@
   <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="https://mino.mobi/mappa/">mappa</a> · civ</div>
   <h1><span class="g">civ</span> — civilization evolution</h1>
   <p class="sub">A deterministic, coevolutionary agent-based civilization simulation on a generated <a href="https://mino.mobi/mappa/">mappa</a> world. Individuals turn over by birth and death; lineages, cultures and institutions carry identity across ten millennia. Nothing about eras is scripted — <b>agriculture and industry are emergent phase transitions</b>. Headless-first: everything here is one call to the CORS-open, no-key API.</p>
-  <p class="sub" style="margin-top:10px"><a id="toview" href="/view.html" style="font-weight:700">▶ Particle playback →</a> &nbsp;·&nbsp; <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">the world on mappa ↗</a> &nbsp;— the same run carries across all three by its link (world + config + seed + ticks). Watch the population move across the map, or inspect the planet it runs on.</p>
+  <p class="sub" style="margin-top:10px"><a id="toview" href="/view.html" style="font-weight:700">▶ Particle playback →</a> &nbsp;·&nbsp; <a id="todev" href="/develop.html" style="font-weight:700">📈 Development →</a> &nbsp;·&nbsp; <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">the world on mappa ↗</a> &nbsp;— the same run carries across all of them by its link (world + config + seed + ticks). Watch the population move across the map, trace the rise and fall of dynasties, or inspect the planet it runs on.</p>
 </header>
 <main>
   <div class="wrap">
@@ -95,7 +95,7 @@ function stateFromControls() { return { world: $('#world').value.trim() || '7', 
 function qs(st) { const p = new URLSearchParams(); p.set('world', st.world); if (st.preset) p.set('preset', st.preset); else if (st.config) p.set('config', st.config); p.set('civSeed', st.civSeed); p.set('ticks', st.ticks); return p.toString(); }
 function writeURL(st) { try { history.replaceState(null, '', '?' + qs(st)); } catch (e) {} }
 function mappaHref(world) { const m = String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/' + (m ? ('?seed=' + m[1]) : ('?w=' + encodeURIComponent(world))); }
-function syncLinks() { const st = stateFromControls(); $('#toview').href = '/view.html?' + qs(st); $('#tomappa').href = mappaHref(st.world); }
+function syncLinks() { const st = stateFromControls(), q = qs(st); $('#toview').href = '/view.html?' + q; $('#todev').href = '/develop.html?' + q; $('#tomappa').href = mappaHref(st.world); }
 function applyURL() { const p = new URLSearchParams(location.search); if (p.get('world')) $('#world').value = p.get('world'); if (p.has('preset')) $('#preset').value = p.get('preset'); if (p.get('config')) $('#lastconfig').value = p.get('config'); if (p.get('civSeed')) $('#civseed').value = p.get('civSeed'); if (p.get('ticks')) { $('#ticks').value = p.get('ticks'); $('#ticksv').textContent = p.get('ticks'); $('#years').textContent = Math.round(p.get('ticks') * 2.5); } return p; }
 
 $('#ticks').addEventListener('input', () => { $('#ticksv').textContent = $('#ticks').value; $('#years').textContent = Math.round($('#ticks').value * 2.5); syncLinks(); });

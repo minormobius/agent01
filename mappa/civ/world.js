@@ -8,8 +8,30 @@
 // we get carrying capacity K(cell, culture) — the quantity the whole demography and
 // dispersal engine runs on. We consume mappa's geology; we never recompute it.
 
-import { BIOMES } from '../engine.js';
+import { BIOMES, mulberry32 } from '../engine.js';
 import { NPKG, PKG_ID, subMult, pkgUnlocked } from './caps.js';
+
+// ---- named resources (mappa's mineral logic, ported compact) --------------------
+// Ore follows plate context (mappa/viewer.js computeMinerals): porphyry copper/iron on
+// the volcanic subduction arcs, tin in granite highlands, gold as river placers below
+// the ore, gems deep in the stable craton, salt in arid basins, and fertile deltas at
+// big river mouths. These become NAMED nodes that concentrate carrying capacity and
+// accelerate the tech they feed — objects worth settling on and (later) fighting over.
+export const RESOURCES = ['none', 'copper', 'iron', 'tin', 'gold', 'gems', 'salt', 'delta'];
+export const RES = Object.fromEntries(RESOURCES.map((r, i) => [r, i]));
+export const RES_METAL = new Set([RES.copper, RES.iron, RES.tin]);   // → metallurgy / industry
+export const RES_WEALTH = new Set([RES.gold, RES.gems, RES.salt]);    // → trade / connectivity
+// which tech a metal accelerates (bit index handled in engine)
+function toponym(seed) {
+  const r = mulberry32(seed >>> 0);
+  const on = 'ktrmnvbsldpghy', vo = 'aeiouae';
+  const pick = s => s[Math.floor(r() * s.length)];
+  let n = pick(on).toUpperCase() + pick(vo);
+  const syl = 1 + Math.floor(r() * 2);
+  for (let i = 0; i < syl; i++) n += pick(on) + pick(vo);
+  if (r() < 0.4) n += pick(on);
+  return n;
+}
 
 const BI = Object.fromEntries(BIOMES.map((b, i) => [b.id, i]));
 // habitability weight per biome index (parallel to engine BIOMES order) — same
@@ -158,13 +180,74 @@ export function loadCivWorld(world) {
   const seaOff = new Int32Array(N + 1), seaIdx = new Int32Array(SE);
   for (let i = 0, k = 0; i < N; i++) { seaOff[i] = k; for (const j of seaLinkArr[i]) seaIdx[k++] = j; } seaOff[N] = SE;
 
+  // ---- named resources + carrying-capacity bonus ---------------------------------
+  const { resource, resourceNodes, resBonusK } = computeResources({
+    N, V, land, coast, lakeAdj, river, elev, moisture, biome, nbrOff, nbrIdx,
+    volc: world.volc, plate: world.plate, seed: (meta.seed >>> 0) || 1,
+  });
+
   return {
     N, V, water, elev, biome, temperature, moisture, meta,
     nbrOff, nbrIdx, area, areaNorm, land, coast, lakeAdj, river, slope, hab, subViab,
     landmass, nLandmass: landmass.reduce((a, b) => Math.max(a, b), -1) + 1,
-    seaOff, seaIdx,
+    seaOff, seaIdx, resource, resourceNodes, resBonusK,
     rivers: world.rivers || [], plates: world.plates || [],
   };
+}
+
+// Classify per-cell resources from geology + pick the prominent NAMED nodes. Mirrors
+// mappa/viewer.js computeMinerals: plate-boundary distance separates arc (volcanic) from
+// craton (interior); volcanism marks the ore arcs; rivers carry placers.
+function computeResources(w) {
+  const { N, land, coast, lakeAdj, river, elev, moisture, biome, nbrOff, nbrIdx, volc, plate, seed } = w;
+  const resource = new Uint8Array(N), resBonusK = new Float32Array(N).fill(1);
+  if (!volc || !plate) return { resource, resourceNodes: [], resBonusK }; // data-fixture path: no geology → no minerals
+  // hop-distance from a plate boundary over land → craton interior is far
+  const bdist = new Int32Array(N).fill(-1); const q = [];
+  for (let i = 0; i < N; i++) { if (!land[i]) continue; let bnd = false; for (let k = nbrOff[i]; k < nbrOff[i + 1]; k++) if (plate[nbrIdx[k]] !== plate[i]) { bnd = true; break; } if (bnd) { bdist[i] = 0; q.push(i); } }
+  for (let h = 0; h < q.length; h++) { const i = q[h]; for (let k = nbrOff[i]; k < nbrOff[i + 1]; k++) { const j = nbrIdx[k]; if (land[j] && bdist[j] < 0) { bdist[j] = bdist[i] + 1; q.push(j); } } }
+  let bmax = 1; for (let i = 0; i < N; i++) if (bdist[i] > bmax) bmax = bdist[i];
+  const craton = i => (bdist[i] < 0 ? 0 : bdist[i] / bmax);
+  // per-cell classification (first match wins; a cell holds at most one headline resource)
+  for (let i = 0; i < N; i++) {
+    if (!land[i]) continue;
+    const v = volc[i] || 0, cr = craton(i), e = elev[i], M = moisture[i];
+    let r = RES.none;
+    if (river[i] && coast[i]) r = RES.delta;                         // fertile river-mouth
+    else if (v > 0.45) r = RES.copper;                              // strong arc → porphyry copper
+    else if (v > 0.22) r = RES.iron;                               // weaker arc / ophiolite → iron
+    else if (e > 0.5 && cr > 0.45) r = RES.tin;                     // granite highland → tin
+    else if (river[i] && cr > 0.5) r = RES.gold;                    // cratonic river placer → gold
+    else if (M < 0.16 && (lakeAdj[i] || e < 0.12)) r = RES.salt;    // arid basin → salt
+    else if (cr > 0.85 && e > 0.35) r = RES.gems;                  // deep craton highland → gems
+    resource[i] = r;
+  }
+  // pick prominent, spatially-separated NAMED nodes per type (like viewer's labelling)
+  const CAP_PER = { copper: 4, iron: 4, tin: 3, gold: 4, gems: 2, salt: 3, delta: 4 };
+  const nodes = [];
+  for (let t = 1; t < RESOURCES.length; t++) {
+    const cand = [];
+    for (let i = 0; i < N; i++) if (resource[i] === t) cand.push(i);
+    // score: metals by volcanism/craton, delta by river presence — favour the strongest
+    cand.sort((a, b) => scoreRes(t, b, w, craton) - scoreRes(t, a, w, craton));
+    let placed = 0;
+    for (const i of cand) {
+      let ok = true;
+      for (const nd of nodes) { const d = w.V[i][0] * w.V[nd.cell][0] + w.V[i][1] * w.V[nd.cell][1] + w.V[i][2] * w.V[nd.cell][2]; if (d > 0.985) { ok = false; break; } }
+      if (!ok) continue;
+      nodes.push({ cell: i, type: t, kind: RESOURCES[t], name: toponym(seed * 131 + i) });
+      resBonusK[i] = t === RES.delta ? 1.6 : 1.25; // resource sites hold denser populations
+      if (++placed >= (CAP_PER[RESOURCES[t]] || 3)) break;
+    }
+  }
+  return { resource, resourceNodes: nodes, resBonusK };
+}
+function scoreRes(t, i, w, craton) {
+  const v = w.volc[i] || 0;
+  if (t === RES.copper || t === RES.iron) return v;
+  if (t === RES.tin || t === RES.gems) return craton(i) + w.elev[i];
+  if (t === RES.gold || t === RES.salt) return craton(i);
+  return (w.river[i] ? 1 : 0) + (w.coast[i] ? 1 : 0);
 }
 
 // Generalise the Ethno single-mode classifier into a CONTINUOUS 0..1 viability for
@@ -215,5 +298,6 @@ function deriveMoist(N, biome) {
 export function cellK(w, cell, pkg, popScale) {
   const v = w.subViab[cell * NPKG + pkg];
   if (v <= 0) return 0;
-  return w.areaNorm[cell] * w.hab[cell] * subMult(pkg) * v * popScale;
+  const resB = w.resBonusK ? w.resBonusK[cell] : 1; // resource sites hold denser populations
+  return w.areaNorm[cell] * w.hab[cell] * subMult(pkg) * v * popScale * resB;
 }

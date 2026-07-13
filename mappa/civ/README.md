@@ -114,11 +114,38 @@ GET  /api/civ/health
 
 The **particle playback viewer** (`../../civ/view.html`) fetches `/api/civ/frames` and
 renders the population as a particle swarm on the map through the whole run — play
-forward/backward, scrub, zoom/pan, colour by culture / subsistence / era / density,
-event markers on the timeline, and click a particle to inspect its cell's "deal"
-(dominant culture, subsistence, era, population, tech capabilities, language). Frames are
-compact per-cell snapshots (opt in via `run(ticks, { frames:true, every })`), so the whole
-playback is ~90 KB and fully deterministic.
+forward/backward, scrub, zoom/pan, colour by culture / **political** (territory ×
+sovereignty) / subsistence / era / density, named-resource markers, event markers on the
+timeline, and click a particle to inspect its cell's "deal" (dominant culture, subsistence,
+era, population, sovereignty, resource, tech capabilities, language). Frames are compact
+per-cell snapshots (opt in via `run(ticks, { frames:true, every })`), so the whole playback
+is ~90 KB and fully deterministic.
+
+The **development view** (`../../civ/develop.html`) reads `/api/civ/run` and shows the
+fine-grained history: a lineage-sorted **streamgraph** ("river of peoples" — each band a
+culture, thickness = population, children branching from parents, population/share toggle,
+event markers), a **dynasties table** (every culture that reached statehood, with its
+rise / peak / fall), and a **named-resources table** (who holds each ore/gold/salt/delta
+node). Culture colour is the same hue across every view, so a lineage is recognisable on
+the map, in the river, and in the tables.
+
+### Political structure, history, resources (what's emergent vs. derived)
+
+- **Political map** — `cellDom` (dominant culture per cell) is the ethnolinguistic
+  territory; `polity[c]` (band → chiefdom → state) adds sovereignty. Contiguous same-culture
+  state cells are the sovereign states (`countStateComponents`). All emergent, not drawn.
+- **History** — the event log + keyframe series are the annals; **polity lifecycle** turns
+  them dynastic: every culture that reaches statehood records `firstStateTick`, `peakPop`,
+  `peakTerritory`, `fellTick` → the dynasties table + `polityRise`/`polityFall` events.
+- **Named resources** — derived from mappa's geology (arc volcanism → copper/iron, granite
+  highlands → tin, cratonic rivers → gold, arid basins → salt, river mouths → deltas). They
+  **concentrate carrying capacity** (`resBonusK`, so cities cluster on them) and **accelerate
+  the tech they feed** (`resAccel` in `innovate`, so a culture on a metal node industrialises
+  sooner). Control is tracked per node with `resourceCaptured` conquest events. This is the
+  seam for future resource-driven war.
+- **Religion / ideology** — deliberately *not yet* modelled; the design note is to add it as
+  a second orthogonal meme-phylogeny (a `beliefId` diffusing through the same stigmergic
+  field, decoupled from language) so its map cuts *across* the political and linguistic ones.
 
 The worker (`../../civ/worker.js`) imports this engine unchanged. Note determinism is
 load-bearing: never introduce `Math.random` / `Date.now` into the core.
