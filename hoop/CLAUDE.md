@@ -511,6 +511,15 @@ despite the name. It stayed with hoop, not rind.)
     amber = thin, 0 red = no setter) so hoopy can verify his multi-setter draw. Forward-compatible: with today's
     1-setter-per-gate content it behaves exactly as before (verified against the live pool — names the correct
     Fulcrum Cell Kaelen); diversity lands automatically once hoopy authors ≥2 setters per gate.
+  - **v104 QoL pass** (playability polish from hoopy's notes): (1) **paging** — a toast fires the moment an
+    anchor's turn-in opens (`hoopy.paged.turnin.*`, once per anchor), so you don't have to open the journal to
+    learn your guide wants you back; (2) **brief-then-send** — for tier ≥ 2 the ◇ sends you to the anchor FIRST
+    to receive the charge (gated on `hoopy.met.anchor.*`, set in openAnchor/openKeeper; falls through if the
+    anchor isn't locatable), fixing "Solen feels redundant"; (3) **full rumors** in the journal (no more 200-char
+    truncation); (4) **legible nameplates** — `lightenHex` mixes a dark faction hue toward white (the Continuant
+    navy `#33408f` was near-invisible); (5) the **overworld ladder yields** to a keeper/anchor standing on it
+    (you can talk to Solen instead of always climbing); (6) **duplicate nameplates** append the room (the two
+    "Kaelen Voss" are now "Kaelen Voss · Fulcrum Cell" vs "· Rivet Chancel").
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

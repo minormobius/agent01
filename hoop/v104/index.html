@@ -1799,6 +1799,14 @@
       for (const r of frameRects(genome, DIR_OF[dir] || DIR_OF.S, frame)) { g.fillStyle = r.c; g.fillRect(r.x * S, r.y * S, S, S); }
       spriteCache.set(key, cvs); return c = cvs;
     }
+    // mix a hex colour toward white by t∈[0,1] — used so a nameplate reads on the dark pill even when the
+    // faction colour is dark (the Continuant navy #33408f was near-illegible; hoopy's "blue names hard to read").
+    function lightenHex(hex, t) {
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex || '#ede7d6';
+      const n = parseInt(m[1], 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+      r = Math.round(r + (255 - r) * t); g = Math.round(g + (255 - g) * t); b = Math.round(b + (255 - b) * t);
+      return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+    }
     function drawResidents() {
       if (!residents.length || !walk) return;
       ctx.imageSmoothingEnabled = false;
@@ -1807,6 +1815,13 @@
       // renderQuest — today the beat markers point at the anchors, so the crowd is
       // uniform; a future beat marker {resident:key} embiggens exactly that crowd member.
       const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale, prinH = SKIN.playerW * 1.45 * cam.scale;
+      // DISAMBIGUATE duplicate names (the two "Kaelen Voss" — hoopy's confusion): a name shared by ≥2 placed
+      // principals on this deck gets its ROOM appended so you can tell them apart.
+      const nameCount = new Map();
+      for (const rr of nearResidents) if (rr.keeper && rr.keeper.name) nameCount.set(rr.keeper.name, (nameCount.get(rr.keeper.name) || 0) + 1);
+      for (const an of anchors) if ((an.deck || 0) === playerDeck() && an.name) nameCount.set(an.name, (nameCount.get(an.name) || 0) + 1);
+      const roomOf = (cid) => { try { const c = story.store.contentById(cid); return (c && c.content && c.content.name) || ''; } catch (e) { return ''; } };
+      const plateName = (name, cid) => { if (nameCount.get(name) > 1) { const rm = roomOf(cid).replace(/^The\s+/i, ''); if (rm && rm !== name) return name + ' · ' + rm; } return name; };
       const plates = [];   // keeper nameplates, drawn after all sprites so a sprite never covers a name
       for (const a of nearResidents) {   // near + current-deck set (culled in cullResidents)
         const sx = SX(a.x), sy = SY(a.y);
@@ -1817,7 +1832,7 @@
         ctx.drawImage(cvs, sx - w / 2, sy - h * 0.92, w, h);     // ground point at the feet
         if (prin) {   // a LIVING keeper — faction ring + a nameplate (queued)
           ctx.imageSmoothingEnabled = true; ctx.strokeStyle = prin.color || '#d0c07f'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, Math.max(7, SKIN.playerW * 0.5 * cam.scale), 0, 7); ctx.stroke(); ctx.imageSmoothingEnabled = false;
-          plates.push({ sx, sy, h, name: prin.name, color: prin.color || '#d0c07f' });
+          plates.push({ sx, sy, h, name: plateName(prin.name, prin.content_id), color: prin.color || '#d0c07f' });
         } else if (merit) { ctx.imageSmoothingEnabled = true; ctx.strokeStyle = 'rgba(127,216,208,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx, sy, Math.max(6, SKIN.playerW * 0.42 * cam.scale), 0, 7); ctx.stroke(); ctx.imageSmoothingEnabled = false; }
       }
       ctx.imageSmoothingEnabled = true;
@@ -1826,7 +1841,7 @@
         const ny = pl.sy - pl.h * 0.92 - Math.max(11, pl.h * 0.22), tw = ctx.measureText(pl.name).width;
         ctx.fillStyle = 'rgba(6,9,13,0.72)';
         if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pl.sx - tw / 2 - 5, ny - 8, tw + 10, 16, 5); ctx.fill(); }
-        ctx.fillStyle = pl.color; ctx.fillText(pl.name, pl.sx, ny);
+        ctx.fillStyle = lightenHex(pl.color, 0.5); ctx.fillText(pl.name, pl.sx, ny);   // lightened so a dark faction hue stays legible
       }
     }
     function strokePolyW(pts) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(SX(pts[i][0]), SY(pts[i][1])); else ctx.moveTo(SX(pts[i][0]), SY(pts[i][1])); } ctx.stroke(); }
@@ -2075,6 +2090,25 @@
         const st = advanceState(story.anchors, facts, tier);
         if (st && !st.turnedIn) {
           const a = st.anchor;
+          // BRIEF-THEN-SEND (v104, hoopy's "Solen feels redundant"): before the keeper hunt, send the player to
+          // the anchor to receive the charge — so meeting them matters. Only when the anchor is locatable AND
+          // not yet met (talking sets hoopy.met.anchor.* in openAnchor); otherwise fall through to the hunt so a
+          // hard-to-place anchor never soft-locks the tier.
+          const aMet = facts['hoopy.met.anchor.' + a.id] === true;
+          const aLocBrief = (aMet || tier < 2) ? null : locateNpc(a.id);   // tier 1 (Olo) is the prologue — leave it
+          if (aLocBrief && !st.allGatesSet) {
+            storyWp = questWpToward(aLocBrief);
+            storyWpTarget = { cid: a.id };
+            questGuidance = {
+              objective: `<span class="lbl">⚑ Seek ${esc(a.name)}</span> <span class="o">— they will set you your charge in the ${esc(zoneWord(a.zone))}</span>`,
+              stepText: `Find ${a.name}${a.room ? ' in ' + a.room : ''} and hear what they ask of you — they name the keepers you must seek.`,
+              whereWord: (aLocBrief.deck || 0) === playerDeck() ? (a.room || a.name) : a.name,
+              hasWp: !!storyWp,
+              howText: `Go to ${a.name} first (follow the ◇), and CLICK to speak.`,
+            };
+            if (journalOpen) renderJournal();
+            return;
+          }
           if (!st.allGatesSet) {
             // v104 (the Factor Solen bug): prefer a keeper whose faction ward is OPEN. Solen's charge spans the
             // three wards, but the nave opens them one at a time (FQ order) — so pointing at a keeper in a ward
@@ -2105,6 +2139,13 @@
             const loc = locateNpc(a.id);
             storyWp = questWpToward(loc);
             storyWpTarget = { cid: a.id };   // the anchor turn-in target (static, but follow for consistency)
+            // PAGE the player (a toast) the moment the turn-in opens, so they don't have to open the journal to
+            // learn their guide wants them back (hoopy: "used to be you got paged"). Once per anchor.
+            const pk = 'hoopy.paged.turnin.' + a.id;
+            if (!story.store.getFact(story.playerId, pk)) {
+              story.store.setFact(story.playerId, pk, true);
+              try { notify(`${a.name} is ready for you — return to ${a.room || 'them'} and turn in what you carry. (follow the ◇)`, { kind: 'story', ms: 4600 }); } catch (e) {}
+            }
             questGuidance = {
               objective: `<span class="lbl">⚑ Return to ${esc(a.name)}</span> <span class="o">— turn in: you have heard the ${esc(zoneWord(a.zone))}</span>`,
               stepText: `You have spoken with every keeper of the ${zoneWord(a.zone)}. Return to ${a.name}${a.room ? ' in ' + a.room : ''} — and turn in what you carry.`,
@@ -2868,7 +2909,7 @@
         const trackBtn = `<span class="act" data-sqtrack="${esc(q.seedId)}" style="cursor:pointer;color:${tracked ? '#7fd8d0' : '#6b7872'}">${tracked ? '◇ tracking — tap to stop' : '◇ track'}</span>`;
         body += `<div style="margin:0 0 13px;border-left:2px solid ${tracked ? '#7fd8d0' : '#b48a6a'};padding-left:10px">`
           + `<div style="color:#f4bf62;font-size:13.5px">${esc(q.title)}</div>`
-          + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin:3px 0">${esc((q.hook || '').slice(0, 200))}${q.hook.length > 200 ? '…' : ''}</div>`
+          + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin:3px 0">${esc(q.hook || '')}</div>`
           + `<div style="color:#9aa8a0;font-size:11px">look into: ${esc(q.themes.join(', '))}${seekLine ? ` · ${seekLine}` : ''} · ${trackBtn}</div>`
           + `<div style="margin-top:4px;height:5px;background:#10161d;border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:${Math.round(pr.progress * 100)}%;background:${tracked ? '#7fd8d0' : '#b48a6a'}"></span></div>`
           + `<div style="color:#6b7872;font-size:10.5px;margin-top:2px">${pr.learned}/${pr.needed} · reward ◈${q.reward}</div></div>`;
@@ -2878,7 +2919,7 @@
       // the title.
       for (const q of done) body += `<div style="margin:0 0 11px;border-left:2px solid #2e6b5e;padding-left:10px">`
         + `<div style="color:#7fd8d0;font-size:13px">✓ ${esc(q.title)} <span style="color:#6b7872;font-size:11px">— ◈${q.reward}</span></div>`
-        + (q.hook ? `<div style="color:#9aa8a0;font-size:11.5px;line-height:1.5;margin:3px 0">${esc(q.hook.slice(0, 220))}${q.hook.length > 220 ? '…' : ''}</div>` : '')
+        + (q.hook ? `<div style="color:#9aa8a0;font-size:11.5px;line-height:1.5;margin:3px 0">${esc(q.hook)}</div>` : '')
         + (q.reveal ? `<div style="color:#e0a86a;font-size:11.5px;font-style:italic;margin-top:2px">“${esc(q.reveal)}”</div>` : '')
         + `</div>`;
       showPage(`journal · ${open.length} open · ${done.length} resolved`, 'your journal', '');
@@ -5134,6 +5175,9 @@
       const intro = interact(s, story.playerId, key);
       maybeEncounter(intro);
       if (intro.status === 'crystallized' && intro.item && intro.item.type === 'npc') maybeOpenQuest(intro.item.content_item_id, intro.item.name);
+      // if this keeper IS an anchor (Luna is a mobile keeper AND the tier-4 anchor), mark it met so brief-then-
+      // send stops pointing at it and the keeper hunt begins.
+      if (story.anchors && story.anchors.some((an) => an.id === r.keeper.content_id)) s.setFact(story.playerId, 'hoopy.met.anchor.' + r.keeper.content_id, true);
       story.active = { agent: { name: r.keeper.name, role: r.role, glyph: r.glyph, genome: r.genome }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();
       saveStory(); renderStory();
@@ -5566,6 +5610,7 @@
       const intro = interact(s, story.playerId, a.key);
       maybeEncounter(intro);   // first meeting → its description fills the screen
       if (intro.status === 'crystallized' && intro.item && intro.item.type === 'npc') maybeOpenQuest(intro.item.content_item_id, intro.item.name);   // they tip you to a rumor
+      s.setFact(story.playerId, 'hoopy.met.anchor.' + a.content_id, true);   // brief-then-send: mark this anchor met so the charge starts (renderQuest)
       story.active = { agent: { name: a.name, role: a.role, glyph: a.glyph, genome: a.genome }, npcId: intro.item && intro.item.type === 'npc' ? intro.item.content_item_id : null, intro };
       story.active.informed = deliverInformed();   // an anchor can also be the one who informs you
       saveStory(); renderStory();   // the anchor's dialogue carries its gated turn-in (anchors.js) — picking it advances via checkAdvancement()
@@ -5594,7 +5639,7 @@
         const ny = sy - h * 0.92 - Math.max(11, h * 0.22), tw = ctx.measureText(a.name).width;
         ctx.fillStyle = 'rgba(6,9,13,0.72)';
         if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(sx - tw / 2 - 5, ny - 8, tw + 10, 16, 5); ctx.fill(); }
-        ctx.fillStyle = a.color;
+        ctx.fillStyle = lightenHex(a.color, 0.5);   // legible nameplate even for a dark faction hue
         ctx.fillText(a.name, sx, ny);
         ctx.restore();
       }
@@ -5615,13 +5660,15 @@
           walkTo(end.x, end.y); return;
         }
       }
-      // the overworld ladder (Continuants ward, nave deck): click near it → walk over → climb to the overworld overlay
-      const L = overLadderHere();
-      if (L && (L.x - wx) ** 2 + (L.y - wy) ** 2 < (SKIN.playerW * 1.8) ** 2) { walkThenInteract(L.x, L.y, openOverworld); return; }
-      pendingArrival = null;   // a fresh click cancels any queued walk-then-interact
+      // the overworld ladder (Continuants ward, nave deck): click near it → walk over → climb to the overworld
+      // overlay. But it YIELDS to a keeper/anchor standing on it — otherwise a guide (Solen) seated on the ladder
+      // is unreachable, the click always climbing instead of talking (hoopy: "can't talk to them").
       const a = anchorAt(wx, wy);
-      if (a) { walkThenInteract(a.x, a.y, () => openAnchor(a)); return; }
       const who = residentAt(wx, wy);
+      const L = overLadderHere();
+      if (L && (L.x - wx) ** 2 + (L.y - wy) ** 2 < (SKIN.playerW * 1.8) ** 2 && !a && !(who && who.keeper)) { walkThenInteract(L.x, L.y, openOverworld); return; }
+      pendingArrival = null;   // a fresh click cancels any queued walk-then-interact
+      if (a) { walkThenInteract(a.x, a.y, () => openAnchor(a)); return; }
       if (who) { walkThenInteract(who.x, who.y, () => (who.keeper ? openKeeper(who) : openStory(who))); return; }
       const term = componentAt(wx, wy);
       if (term) { walkThenInteract(term.cp.cx, term.cp.cy, () => openTerminal(term.cp, term.ch)); return; }
