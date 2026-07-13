@@ -105,8 +105,18 @@ GET  /api/civ/run?world=<seed|token>&preset=<name>&config=<token>&civSeed=1&tick
      → { meta, score, descriptor, flags, highlights, signals, facts, chronicle }
 GET|POST /api/civ/sweep  { world, method:"qd"|"grid"|"random", budget, ticks }
      → { archive:[ { config, score, descriptor, coords, facts } ], meta }
+GET  /api/civ/frames?world=&preset=&civSeed=1&ticks=1000&maxFrames=48
+     → { world_mesh, dict, frames:[per-cell snapshots], events, meta }   # particle playback
 GET  /api/civ/health
 ```
+
+The **particle playback viewer** (`../../civ/view.html`) fetches `/api/civ/frames` and
+renders the population as a particle swarm on the map through the whole run — play
+forward/backward, scrub, zoom/pan, colour by culture / subsistence / era / density,
+event markers on the timeline, and click a particle to inspect its cell's "deal"
+(dominant culture, subsistence, era, population, tech capabilities, language). Frames are
+compact per-cell snapshots (opt in via `run(ticks, { frames:true, every })`), so the whole
+playback is ~90 KB and fully deterministic.
 
 The worker (`../../civ/worker.js`) imports this engine unchanged. Note determinism is
 load-bearing: never introduce `Math.random` / `Date.now` into the core.

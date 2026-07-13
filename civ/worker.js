@@ -14,7 +14,7 @@ import { loadWorldSpec, chronicleHash } from '../mappa/civ/chronicle.js';
 import { decodeCivConfig, normalizeConfig, encodeCivConfig } from '../mappa/civ/config.js';
 
 // CPU-cap: the API server is bounded; the browser/CLI build runs larger.
-const CAP = { runTicks: 1500, runN: 1200, sweepBudget: 40, sweepTicks: 700 };
+const CAP = { runTicks: 1500, runN: 1200, sweepBudget: 40, sweepTicks: 700, frameTicks: 1500, maxFrames: 60 };
 
 // inlined presets (mirror mappa/civ/configs/*.json) so the endpoint can take ?preset=.
 const PRESETS = {
@@ -67,6 +67,24 @@ function doRun(params) {
   };
 }
 
+// particle-playback data: world mesh + per-frame per-cell snapshots + events.
+function doFrames(params) {
+  const world = resolveWorld(params);
+  const cfg = resolveConfig(params);
+  const civSeed = (Math.round(num(params.get('civSeed') ?? params.get('civseed'), 1)) >>> 0) || 1;
+  const ticks = clamp(Math.round(num(params.get('ticks'), 1000)), 1, CAP.frameTicks);
+  const maxFrames = clamp(Math.round(num(params.get('maxFrames'), 48)), 8, CAP.maxFrames);
+  const every = Math.max(1, Math.ceil(ticks / maxFrames));
+  const t0 = Date.now();
+  const ch = createSim(world, cfg, civSeed).run(ticks, { frames: true, every });
+  const sig = civSignals(ch);
+  return {
+    api: 'mappa.civ/v1', world: params.get('world') ?? '1', config: encodeCivConfig(cfg), civSeed, ticks,
+    tickYears: ch.meta.tickYears, score: sig.score, descriptor: sig.descriptor, flags: sig.flags,
+    world_mesh: ch.world, dict: ch.dict, frames: ch.frames, events: ch.events, meta: ch.meta, ms: Date.now() - t0,
+  };
+}
+
 function doSweep(params, body) {
   const src = body || {};
   const worldArg = src.world ?? params.get('world') ?? '1';
@@ -88,6 +106,7 @@ export default {
     try {
       if (p === '/api/civ/health') return json({ ok: true, site: 'civ', caps: CAP, presets: Object.keys(PRESETS) });
       if (p === '/api/civ/run') return json(doRun(url.searchParams), 200, true);
+      if (p === '/api/civ/frames') return json(doFrames(url.searchParams), 200, true);
       if (p === '/api/civ/sweep') {
         let body = null;
         if (request.method === 'POST') { try { body = await request.json(); } catch { /* fall back to query params */ } }

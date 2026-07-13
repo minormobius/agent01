@@ -207,8 +207,26 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   }
 
   // ---- the tick ------------------------------------------------------------------
-  let tick = 0, totalTicks = 0;
+  let tick = 0, totalTicks = 0, captureEvery = 0;
   const dispSrc = []; const dispTgt = []; // dispersers recorded during demography
+
+  // ---- particle-frame capture (for the browser playback viewer) ------------------
+  // A compact per-cell snapshot per captured frame: occupied cells with their
+  // population + dominant culture, plus a small dict of the cultures present at that
+  // frame (so a selected particle can show "its deal"). Per-cell (not per-agent) keeps
+  // it deterministic and scalable — the client scatters a particle swarm per cell.
+  function worldSnapshot() {
+    const lon = new Array(N), lat = new Array(N);
+    for (let i = 0; i < N; i++) { const v = w.V[i]; lon[i] = +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(2); lat[i] = +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(2); }
+    return { N, lon, lat, water: Array.from(w.water), biome: Array.from(w.biome), landmass: Array.from(w.landmass) };
+  }
+  function captureFrame() {
+    const cell = [], popc = [], cu = [], sub = [], tier = [], present = new Set();
+    for (let c = 0; c < N; c++) { const d = cellDom[c]; if (d < 0 || cellPop[c] <= 0) continue; const C = cultures[d]; cell.push(c); popc.push(cellPop[c]); cu.push(d); sub.push(C.sub); tier.push(vecTier(C.tech)); present.add(d); }
+    const cid = [], csub = [], ctier = [], ctech = [], clang = [], csize = [];
+    for (const id of present) { const C = cultures[id]; cid.push(id); csub.push(C.sub); ctier.push(vecTier(C.tech)); ctech.push(C.tech >>> 0); clang.push(C.lang); csize.push(cultMembers[id] || 0); }
+    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
+  }
 
   function step() {
     climate.step(tick, totalTicks);
@@ -347,6 +365,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     // ---- chronicle series + keyframes ---------------------------------------------
     recordSeries(dispersers, admixture);
     if (tick % cfg.keyframeEvery === 0 || tick === totalTicks - 1) keyframe();
+    if (captureEvery && (tick % captureEvery === 0 || tick === totalTicks - 1)) captureFrame();
 
     // recycle this tick's dead slots (deferred so births above never aliased them)
     for (let k = 0; k < deadPending.length; k++) freeStack.push(deadPending[k]);
@@ -631,9 +650,17 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   return {
     w, cfg, climate, chronicle, cultures, languages, orgs,
     get tick() { return tick; }, get population() { return liveN; },
-    run(nTicks) {
+    run(nTicks, opts = {}) {
       totalTicks = nTicks;
       chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, climate: (cfg.climate && cfg.climate.preset) || cfg.climate || 'stable' };
+      // optional particle-frame capture for the playback viewer (opts.frames enables it;
+      // opts.every sets the interval, default = the keyframe interval).
+      if (opts.frames) {
+        captureEvery = Math.max(1, opts.every || cfg.keyframeEvery);
+        chronicle.frames = [];
+        chronicle.world = worldSnapshot();
+        chronicle.dict = { caps: CAPS.slice(), packages: PKG.map(p => p.id) };
+      }
       for (let k = 0; k < nTicks; k++) step();
       chronicle.meta.peakAgentSlots = A.n; // ≈ peak concurrent living (free-list recycled)
       chronicle.meta.finalPop = liveN; chronicle.meta.finalCultures = cultures.filter((c, i) => !c.extinct && cultMembers[i] > 0).length;
