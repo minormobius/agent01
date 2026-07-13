@@ -14,7 +14,7 @@ import {
   NCAP, CAP, CAPS, bit, has, candidates, PREREQ, TIER, vecTier, popcount,
   PKG, NPKG, PKG_ID, subMult, pkgUnlocked,
 } from './caps.js';
-import { loadCivWorld, cellK, RES_METAL, RES_WEALTH } from './world.js';
+import { loadCivWorld, cellK, RES_METAL, RES_WEALTH, RESOURCES } from './world.js';
 import { normalizeConfig, NORM_I } from './config.js';
 import { makeClimate } from './climate.js';
 
@@ -60,7 +60,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     demo: stream(seed, 'demography'), disp: stream(seed, 'dispersal'),
     enc: stream(seed, 'encounter'), innov: stream(seed, 'innovation'),
     split: stream(seed, 'culture-split'), org: stream(seed, 'institution'),
-    seed: stream(seed, 'seeding'), misc: stream(seed, 'misc'),
+    war: stream(seed, 'war'), seed: stream(seed, 'seeding'), misc: stream(seed, 'misc'),
   };
 
   const climate = makeClimate(cfg.climate, w);
@@ -92,8 +92,52 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     cultures.push(c); return c;
   }
 
-  // ---- institutions (programmable aggregates; act once per org, never per member) -
-  const orgs = []; // {id, type, seat, culture, birthTick, members, pool}
+  // ---- institutions: COMPOSITE ACTORS (the recursive up/down abstraction layer) ---
+  // An institution is an agent whose body is a set of lower actors. Membership is two
+  // pointers — agent.org points up to its most-specific institution, inst.parent points
+  // up the chain (guild/firm/warband → band → state → [dynasty=culture]) — so the whole
+  // hierarchy aggregates bottom-up in O(n). Institutions PERSIST as named entities while
+  // their member agents flow through them (a firm outlives its workers). They hold a
+  // treasury, run a ruleset, and act/interact once per tick (firms produce & compete,
+  // warbands wage war over resources/territory, states tax & stabilise).
+  // The persisted NAMED actors the user named — companies, guilds, armies — plus the
+  // state (culture-keyed so its identity is stable as its capital moves). The household
+  // (an unaffiliated agent, org=-1) is the base actor; agents flow through the rest.
+  const INST = { GUILD: 0, FIRM: 1, WARBAND: 2, STATE: 3 };
+  const INST_NAME = ['guild', 'firm', 'warband', 'state'];
+  const insts = [];              // ALL institution entities ever created (id-indexed, for lookup)
+  let liveInsts = [];            // just the currently-live ones (per-tick work is O(live), not O(ever))
+  const orgs = insts;            // exposed alias
+  const instAt = new Map();      // `type:seat:culture` → live inst id (localised actors)
+  const stateInst = new Map();   // culture id → its state inst id (stable identity)
+  const iKey = (type, seat, cu) => type + ':' + seat + ':' + cu;
+  function instName(type, seat, cu) {
+    const r = stream((seed ^ (seat * 2654435761) ^ (cu * 40503) ^ (type * 97)) >>> 0, 'inst-name');
+    const on = 'ktrmnvbslpgdh', vo = 'aeiouoa', pick = s => s[Math.floor(r() * s.length)];
+    let t = pick(on).toUpperCase() + pick(vo); for (let i = 0, n = 1 + Math.floor(r() * 2); i < n; i++) t += pick(on) + pick(vo);
+    if (type === INST.STATE) return 'the ' + t + ' State';
+    if (type === INST.FIRM) { const rc = w.resource && w.resource[seat]; const rn = rc ? RESOURCES[rc] : ''; return (rn ? rn[0].toUpperCase() + rn.slice(1) + ' ' : '') + t + ' Company'; }
+    if (type === INST.GUILD) return 'the ' + t + ' Guild';
+    if (type === INST.WARBAND) return t + "'s Host";
+    return t;
+  }
+  function makeInst(type, seat, cu, parent, key) {
+    const id = insts.length;
+    const it = { id, type, culture: cu, seat, parent: parent ?? -1, birthTick: tick, dissolvedTick: -1, name: instName(type, seat, cu), memberCount: 0, pool: 0, strength: 0, peakMembers: 0, lastSeen: tick, wealth: 0, captures: 0 };
+    insts.push(it); liveInsts.push(it); if (key != null) instAt.set(key, id);
+    if (type === INST.FIRM || type === INST.STATE) pushEvent(tick, 'institutionFounded', { inst: id, kind: INST_NAME[type], name: it.name, culture: cu, seat });
+    return it;
+  }
+  function ensureLocal(type, seat, cu, parent) { // guild/firm/warband, keyed by cell+culture
+    const k = iKey(type, seat, cu); const id = instAt.get(k);
+    if (id != null && insts[id].dissolvedTick < 0) { const it = insts[id]; it.lastSeen = tick; it.parent = parent; return it; }
+    return makeInst(type, seat, cu, parent, k);
+  }
+  function ensureState(cu) { // one per dynasty, seat follows the capital
+    const id = stateInst.get(cu); const seat = cultBestCell[cu];
+    if (id != null && insts[id].dissolvedTick < 0) { const it = insts[id]; it.lastSeen = tick; if (seat >= 0) it.seat = seat; return it; }
+    const it = makeInst(INST.STATE, seat >= 0 ? seat : cultures[cu].origin, cu, -1, null); stateInst.set(cu, it.id); return it;
+  }
 
   // ---- stigmergy fields (the O(n) coordination substrate) ------------------------
   const memeField = new Float32Array(N * NCAP); // per-cell accumulated tech trace
@@ -615,7 +659,9 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const stateComp = countStateComponents();
     if (stateComp > stateMax) { stateMax = stateComp; pushEvent(tick, 'stateFormation', { states: stateComp }); }
     else if (stateComp <= stateMax - 3 && tick - lastCollapseTick > 40) { lastCollapseTick = tick; pushEvent(tick, 'collapse', { from: stateMax, to: stateComp }); stateMax = stateComp; }
-    lastInst = { chief, stateCells, firmCells, states: stateComp };
+    // build the composite-actor layer (bands/guilds/firms/warbands/states) on top of it
+    const iStats = buildInstitutions();
+    lastInst = { chief, stateCells, firmCells, states: stateComp, ...iStats };
   }
   let lastInst = { chief: 0, stateCells: 0, firmCells: 0, states: 0 };
   function countStateComponents() {
@@ -625,6 +671,97 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       for (let h = 0; h < q.length; h++) { const i = q[h]; for (let k = w.nbrOff[i]; k < w.nbrOff[i + 1]; k++) { const j = w.nbrIdx[k]; if (!seen[j] && polity[j] >= 2 && cellDom[j] === cellDom[i]) { seen[j] = 1; q.push(j); } } }
     }
     return comps;
+  }
+
+  // ---- the composite-actor layer: institutions self-assemble, aggregate, act, war --
+  const BAND_MIN = 30;
+  const hash01 = id => { let h = Math.imul((id ^ 0x9e3779b9) >>> 0, 2654435761); h ^= h >>> 15; return (h >>> 0) / 4294967296; };
+  const isFrontier = (c, d) => { for (let k = w.nbrOff[c]; k < w.nbrOff[c + 1]; k++) { const j = w.nbrIdx[k]; const dj = cellDom[j]; if (dj >= 0 && dj !== d) return true; } return false; };
+  const techBonus = tech => (has(tech, CAP.metallurgy) ? 0.35 : 0) + (has(tech, CAP.wheel) ? 0.2 : 0) + (has(tech, CAP.mechanisation) ? 0.7 : 0);
+  const warCooldown = new Map(); // inst id → last-war tick (throttle events)
+  function buildInstitutions() {
+    // reset live-institution accumulators (O(live), not O(ever-created))
+    for (const it of liveInsts) { it.memberCount = 0; it.wealth = 0; it.strength = 0; }
+    // one state per dynasty (culture that reached statehood)
+    for (let i = 0; i < cultures.length; i++) { const cu = cultures[i]; if (!cu.extinct && cu.everState) ensureState(i); }
+    // per significant settlement: the specialised actors its capabilities unlock, then
+    // assign every resident agent's org pointer to its most-specific institution (or the
+    // household, org=-1 — the base actor).
+    for (let c = 0; c < N; c++) {
+      const d = cellDom[c]; if (d < 0) continue; const pop = cellPop[c]; if (pop < BAND_MIN) continue;
+      const cu = cultures[d];
+      const stateId = cu.everState ? (stateInst.get(d) ?? -1) : -1;
+      const parent = stateId != null ? stateId : -1;
+      const surplus = AGRI_PKGS.has(cu.sub) && pop > kEff(c, cu.sub) * 0.5;
+      const guild = (surplus && pop > 90 && (has(cu.tech, CAP.writing) || has(cu.tech, CAP.masonry) || has(cu.tech, CAP.metallurgy))) ? ensureLocal(INST.GUILD, c, d, parent) : null;
+      const firm = (has(cu.tech, CAP.mechanisation) && has(cu.tech, CAP.steamPower) && pop > 200 && cultMembers[d] >= industrialMinPop) ? ensureLocal(INST.FIRM, c, d, parent) : null;
+      const warband = (isFrontier(c, d) && cu.norms[NORM_I.hierarchy] > 0.4 && pop > 70) ? ensureLocal(INST.WARBAND, c, d, parent) : null;
+      // assign roles by a stable per-agent hash; households (org=-1) are everyone else.
+      const s = cellStart[c], e = cellStart[c + 1];
+      for (let t = s; t < e; t++) {
+        const id = cellOrder[t]; if (!(A.flags[id] & ALIVE) || A.cell[id] !== c) continue;
+        const h = hash01(id); let org = stateId; // default: a subject of the state (or -1, household)
+        if (warband && h < 0.14) org = warband.id;
+        else if (firm && h < 0.55) org = firm.id;
+        else if (guild && h < 0.66) org = guild.id;
+        A.org[id] = org; if (org >= 0) { const it = insts[org]; it.memberCount++; it.wealth += A.wealth[id]; }
+      }
+    }
+    // roll specialised actors up into their state, then each actor acts.
+    for (const it of liveInsts) if (it.type !== INST.STATE && it.parent >= 0) { const p = insts[it.parent]; if (p && p.dissolvedTick < 0) { p.memberCount += it.memberCount; p.wealth += it.wealth; } }
+    let firmCount = 0, guildCount = 0, warCount = 0, stateCount = 0;
+    for (const it of liveInsts) {
+      if (it.memberCount > it.peakMembers) it.peakMembers = it.memberCount;
+      it.pool = it.pool * 0.98 + it.wealth * 0.03; // treasury tracks sustained wealth
+      const cu = cultures[it.culture];
+      if (it.type === INST.FIRM) { firmCount++; activityField[it.seat] += 0.4; }            // firms drive economic activity
+      else if (it.type === INST.GUILD) { guildCount++; activityField[it.seat] += 0.2; }       // guilds pool knowledge
+      else if (it.type === INST.WARBAND) { warCount++; it.strength = it.memberCount * (1 + techBonus(cu.tech)) * (1 + Math.min(1.5, it.pool * 0.02)); }
+      else stateCount++;
+    }
+    // WAR: each warband may strike an adjacent rival cell once per tick — preferring the
+    // named resources. Organised conflict over territory & ore, resolved by strength.
+    for (const it of liveInsts) if (it.type === INST.WARBAND && it.strength >= 20) warOnce(it);
+    // dissolve institutions only after a GRACE period without support (hysteresis, so a
+    // real institution weathers a temporary dip instead of flickering in and out), then
+    // compact the live list so per-tick work stays O(live).
+    const GRACE = 24;
+    let dissolved = false;
+    for (const it of liveInsts) {
+      if (tick - it.lastSeen <= GRACE) continue;
+      it.dissolvedTick = tick; dissolved = true;
+      if (it.type === INST.STATE) stateInst.delete(it.culture); else instAt.delete(iKey(it.type, it.seat, it.culture));
+      if ((it.type === INST.FIRM || it.type === INST.STATE) && it.peakMembers > 150) pushEvent(tick, 'institutionFell', { inst: it.id, kind: INST_NAME[it.type], name: it.name, peak: it.peakMembers });
+    }
+    if (dissolved) liveInsts = liveInsts.filter(it => it.dissolvedTick < 0);
+    return { firms: firmCount, guilds: guildCount, warbands: warCount, statesEnt: stateCount, insts: insts.length };
+  }
+  function warOnce(wb) {
+    const c = wb.seat, d = wb.culture;
+    // pick target: an adjacent rival-held cell, preferring resource nodes / weaker defenders
+    let best = -1, bestScore = -1e9, bestRes = -1;
+    for (let k = w.nbrOff[c]; k < w.nbrOff[c + 1]; k++) {
+      const j = w.nbrIdx[k], e = cellDom[j]; if (e < 0 || e === d) continue;
+      const defWb = instAt.get(iKey(INST.WARBAND, j, e)); const defStr = defWb != null && insts[defWb].dissolvedTick < 0 ? insts[defWb].strength : cellPop[j] * 0.45 * (1 + techBonus(cultures[e].tech));
+      const res = w.resource ? w.resource[j] : 0; const score = (res ? 3 : 0) - defStr * 0.01 + (wb.strength - defStr) * 0.02;
+      if (score > bestScore) { bestScore = score; best = j; bestRes = res; }
+    }
+    if (best < 0) return;
+    const e = cellDom[best];
+    const defWb = instAt.get(iKey(INST.WARBAND, best, e));
+    const defStr = defWb != null && insts[defWb].dissolvedTick < 0 ? insts[defWb].strength : cellPop[best] * 0.45 * (1 + techBonus(cultures[e].tech));
+    if (wb.strength > defStr * (0.85 + 0.4 * R.war())) {
+      // conquest: annex the cell by converting/displacing a few of its residents to d
+      const s = cellStart[best], en = cellStart[best + 1]; let hit = 0;
+      for (let t = s; t < en && hit < 5; t++) { const rid = cellOrder[t]; if ((A.flags[rid] & ALIVE) && A.cell[rid] === best && A.culture[rid] === e) { if (R.war() < 0.5) A.culture[rid] = d; else kill(rid); hit++; } }
+      wb.captures++; wb.pool *= 0.7; // spoils spent
+      // record as history only the meaningful conquests — a named resource seized, or a
+      // sampled land-grab — spaced per warband, so the log is annals not a kill-feed.
+      if (hit && tick - (warCooldown.get(wb.id) || -999) > 80 && (bestRes || R.war() < 0.04)) {
+        warCooldown.set(wb.id, tick);
+        pushEvent(tick, 'war', { attacker: wb.name, attackerCulture: d, defenderCulture: e, cell: best, resource: bestRes ? RESOURCES[bestRes] : null, outcome: 'conquest' });
+      }
+    }
   }
 
   // ---- stigmergy decay + neighbour smoothing (roads/memes/markets) ---------------
@@ -691,9 +828,18 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     polities.sort((a, b) => b.peakPop - a.peakPop);
     // named resources + who currently holds each
     const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k] }));
+    // the NOTABLE composite actors across the whole run — companies, guilds, armies,
+    // states — alive or since-dissolved (warbands are transient, so a fought-and-fell host
+    // is history too). Ranked by significance; each carries its alive/fell status.
+    const notability = it => it.type === INST.STATE ? it.peakMembers * 3 : it.type === INST.WARBAND ? it.captures * 40 + it.peakMembers : it.peakMembers;
+    const institutions = insts
+      .filter(it => it.type === INST.STATE ? it.peakMembers > 0 : it.type === INST.WARBAND ? it.captures >= 1 : it.peakMembers > 40)
+      .sort((a, b) => notability(b) - notability(a))
+      .slice(0, 140)
+      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
     return {
       pop: liveN,
-      cultures: surviving, polities, resources,
+      cultures: surviving, polities, resources, institutions,
       languages: languages.map(l => ({ id: l.id, parent: l.parent, birthTick: l.birthTick })),
       subDist, popByLandmass: Array.from(popByLand),
       occupiedLandmasses: popByLand.reduce((a, v) => a + (v > 0 ? 1 : 0), 0),

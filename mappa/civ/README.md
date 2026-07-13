@@ -143,6 +143,20 @@ the map, in the river, and in the tables.
   the tech they feed** (`resAccel` in `innovate`, so a culture on a metal node industrialises
   sooner). Control is tracked per node with `resourceCaptured` conquest events. This is the
   seam for future resource-driven war.
+- **Institutions as composite actors (the recursive up/down layer)** — an institution is
+  an *agent whose body is a set of lower actors*. Two pointers realise the hierarchy in
+  O(n): `agent.org` points up to its most-specific institution, `inst.parent` points up the
+  chain (`guild / firm / warband → state → [dynasty = culture]`); an unaffiliated agent is a
+  household (the base actor). Institutions **self-assemble** where capabilities + surplus +
+  pressure allow (guilds in writing/metallurgy cities, firms on mechanised megacities,
+  warbands on contested frontiers, one state per dynasty), **persist as named entities**
+  while members flow through them (a firm outlives its workers; hysteresis keeps them stable),
+  hold a **treasury**, and **act/interact once per tick**: firms drive economic activity,
+  guilds pool knowledge, states tax + stabilise, and **warbands wage organised war over the
+  named resources and territory** (`war` events — "Vobe's Host took salt from culture #1").
+  Surfaced in the development view's institutions table (companies / guilds / armies / states,
+  with treasury, strength, conquests, alive/fell). Deterministic; per-tick work is O(live
+  institutions). A pastoral kurgan run is all warbands; an industrial run grows companies.
 - **Religion / ideology** — deliberately *not yet* modelled; the design note is to add it as
   a second orthogonal meme-phylogeny (a `beliefId` diffusing through the same stigmergic
   field, decoupled from language) so its map cuts *across* the political and linguistic ones.

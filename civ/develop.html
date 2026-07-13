@@ -79,6 +79,17 @@
       </tr></thead><tbody></tbody></table></div>
     </div>
   </div>
+
+  <div class="card">
+    <div class="head">
+      <div><h2>Institutions <span class="sub" id="instcount"></span></h2>
+        <p class="sub">The composite actors that self-assemble from agents — companies on the ore, guilds in the cities, warbands on the frontier, states over them all. An agent belongs to its most-specific institution; each rolls up to its state (the dynasty). Click a row to trace its culture.</p></div>
+      <div class="modes" id="ifilter"><b data-k="" class="on">all</b><b data-k="state">states</b><b data-k="firm">companies</b><b data-k="guild">guilds</b><b data-k="warband">warbands</b></div>
+    </div>
+    <div style="overflow:auto;max-height:380px"><table id="insttab"><thead><tr>
+      <th>kind</th><th>name</th><th>culture</th><th class="num">members</th><th class="num">peak</th><th class="num">treasury</th><th class="num">strength</th><th class="num">conquests</th><th class="num">founded</th><th>status</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
 </main>
 <div class="tt" id="tt"></div>
 
@@ -155,7 +166,7 @@ function drawStream(){
     bands.push({id,t0,b0});
   }
   // event markers
-  const evCol={agriculture:'#5bd18b',industry:'#e6a34a',migrationPulse:'#5aa9e6',collapse:'#e5686b',polityRise:'#a98bd6'};
+  const evCol={agriculture:'#5bd18b',industry:'#e6a34a',migrationPulse:'#5aa9e6',collapse:'#e5686b',polityRise:'#a98bd6',war:'#e5686b',institutionFounded:'#6fd0c0'};
   const evLabel={agriculture:'agriculture',industry:'industry',collapse:'collapse'};
   ctx.font='10px sans-serif'; ctx.textAlign='center';
   const Tt=DATA.ticks||1;
@@ -193,7 +204,28 @@ function renderTables(){
     tr.innerHTML=`<td>${RES_ICON[r.kind]||''} ${r.kind}</td><td>${r.name}</td><td>${holder}</td>`;
     rt.appendChild(tr);
   }
+  renderInsts();
 }
+const INST_ICON={state:'🏛️',firm:'🏭',guild:'⚒️',warband:'⚔️'};
+function renderInsts(){
+  const f=DATA.chronicle.final, yr=t=>Math.round(t*tickYears).toLocaleString();
+  const it=$('#insttab').querySelector('tbody'); it.innerHTML='';
+  const rows=(f.institutions||[]).filter(x=>!instFilter||x.kind===instFilter);
+  $('#instcount').textContent='('+(f.institutions||[]).length+')';
+  for(const o of rows){
+    const tr=document.createElement('tr'); tr.className='dyn'; tr.dataset.id=o.culture;
+    tr.innerHTML=`<td>${INST_ICON[o.kind]||''} ${o.kind}</td><td>${o.name}</td>`
+      +`<td><span class="sw" style="background:${cultureCol(o.culture)}"></span>#${o.culture}</td>`
+      +`<td class="num">${o.members.toLocaleString()}</td><td class="num">${o.peak.toLocaleString()}</td>`
+      +`<td class="num">${o.pool.toLocaleString()}</td><td class="num">${o.strength?o.strength.toLocaleString():'—'}</td>`
+      +`<td class="num">${o.captures||'—'}</td><td class="num">${yr(o.founded)}</td>`
+      +`<td>${o.alive?'<span class="pill alive">active</span>':'<span class="pill fell">fell '+yr(o.fell)+'</span>'}</td>`;
+    tr.onclick=()=>{ hlCulture=hlCulture===o.culture?null:o.culture; refreshHL(); drawStream(); };
+    it.appendChild(tr);
+  }
+}
+let instFilter='';
+$('#ifilter').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; instFilter=b.dataset.k; [...$('#ifilter').children].forEach(x=>x.classList.toggle('on',x===b)); renderInsts(); });
 function refreshHL(){ document.querySelectorAll('tr.dyn').forEach(tr=>tr.classList.toggle('hl',+tr.dataset.id===hlCulture)); }
 
 // ---- interaction ----------------------------------------------------------------
