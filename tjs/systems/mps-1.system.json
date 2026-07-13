@@ -1,0 +1,114 @@
+{
+  "_note": "Vendored, merged export of AscentialPlatform/systems/mps-1 (system-description.schema.yaml). Trimmed to what the homunculus needs: motion axes + kinematics, the two tool-bearing active elements, the deck + labware (worldExport shapes), and a sample motor profile. The canonical generator lives in AscentialPlatform/tools/render-system (see HOMUNCULUS.md, follow-ups). Lengths in mm; FLTD deck frame is Z-up.",
+  "meta": { "id": "mps-1", "name": "Magnetophoretic Prep Stand, mark 1", "version": "0.1.0", "date": "2026-05-20" },
+  "chassis": { "footprint_mm": { "x_mm": 563, "y_mm": 666, "z_mm": 1167 }, "mass_kg": 45.4, "power_class": "bench" },
+
+  "kinematics": [
+    { "id": "gantry-hbot", "type": "hbot", "motors": ["gantry-hbot-a", "gantry-hbot-b"], "outputs": ["gantry-x", "gantry-y"],
+      "transform_notes": "Standard HBot: X = (A + B)/2, Y = (A - B)/2." }
+  ],
+
+  "axes": [
+    { "id": "gantry-hbot-a", "kind": "rotary", "drive": { "board": "copley-quad-2", "channel": 0, "motor_type": "bldc" },
+      "limits": { "v_max_deg_s": 7200, "stroke_deg": 0 }, "homing": { "dir": "positive", "switch": "index" } },
+    { "id": "gantry-hbot-b", "kind": "rotary", "drive": { "board": "copley-quad-2", "channel": 1, "motor_type": "bldc" },
+      "limits": { "v_max_deg_s": 7200, "stroke_deg": 0 }, "homing": { "dir": "positive", "switch": "index" } },
+
+    { "id": "gantry-x", "kind": "linear", "limits": { "stroke_mm": 800, "v_max_mm_s": 1000, "a_max_mm_s2": 8000, "j_max_mm_s3": 80000 } },
+    { "id": "gantry-y", "kind": "linear", "limits": { "stroke_mm": 500, "v_max_mm_s": 1000, "a_max_mm_s2": 8000, "j_max_mm_s3": 80000 } },
+
+    { "id": "pipettor-z", "kind": "linear", "parent_axis": "gantry-y",
+      "drive": { "board": "copley-quad-gantry", "channel": 0, "motor_type": "stepper" },
+      "limits": { "stroke_mm": 250, "v_max_mm_s": 600, "a_max_mm_s2": 4000, "j_max_mm_s3": 40000 },
+      "homing": { "dir": "positive", "switch": "limit" } },
+    { "id": "gripper-z", "kind": "linear", "parent_axis": "gantry-y",
+      "drive": { "board": "copley-quad-gantry", "channel": 1, "motor_type": "stepper" },
+      "limits": { "stroke_mm": 250, "v_max_mm_s": 600, "a_max_mm_s2": 4000, "j_max_mm_s3": 40000 },
+      "homing": { "dir": "positive", "switch": "limit" } },
+
+    { "id": "dispenser-x", "kind": "linear",
+      "drive": { "board": "copley-quad-3", "channel": 0, "motor_type": "stepper" },
+      "limits": { "stroke_mm": 600, "v_max_mm_s": 800, "a_max_mm_s2": 6000, "j_max_mm_s3": 60000 },
+      "homing": { "dir": "positive", "switch": "limit" } },
+
+    { "id": "mixer-y", "kind": "linear",
+      "drive": { "board": "copley-quad-3", "channel": 1, "motor_type": "stepper" },
+      "limits": { "stroke_mm": 500, "v_max_mm_s": 600, "a_max_mm_s2": 4000, "j_max_mm_s3": 40000 },
+      "homing": { "dir": "positive", "switch": "limit" } },
+    { "id": "mixer-seats-z", "kind": "linear", "parent_axis": "mixer-y",
+      "drive": { "board": "cct2-1", "channel": 0, "motor_type": "stepper" },
+      "limits": { "stroke_mm": 60, "v_max_mm_s": 200, "a_max_mm_s2": 2000, "j_max_mm_s3": 20000 } },
+    { "id": "mixer-seats-rotation", "kind": "rotary", "parent_axis": "mixer-y",
+      "drive": { "board": "mixer-rotation-motor-driver", "channel": 0, "motor_type": "bldc" },
+      "limits": { "v_max_deg_s": 3600, "stroke_deg": 0 } },
+
+    { "id": "aspirator-z", "kind": "linear",
+      "drive": { "board": "copley-quad-2", "channel": 2, "motor_type": "stepper" },
+      "limits": { "stroke_mm": 200, "v_max_mm_s": 400, "a_max_mm_s2": 3000, "j_max_mm_s3": 30000 } }
+  ],
+
+  "active_elements": [
+    { "id": "pipettor", "kind": "pipettor", "mounted_on": "pipettor-z", "driven_by": { "board": "usb-hub" } },
+    { "id": "gripper", "kind": "gripper", "mounted_on": "gripper-z", "driven_by": { "board": "copley-quad-gantry", "channel": 2 } }
+  ],
+
+  "deck": {
+    "id": "mps-1-deck",
+    "displayName": "MPS-1 deck",
+    "slots": [
+      { "id": "slot-sample-rack",   "displayName": "Sample tube rack", "anchorMm": { "x": 100, "y": 100, "z": 0 },  "accepts": ["sample-tube-rack-24"] },
+      { "id": "slot-xtube-supply",  "displayName": "Xtube supply",     "anchorMm": { "x": 250, "y": 100, "z": 0 },  "accepts": ["xtube-rack-48"] },
+      { "id": "slot-tips-1000",     "displayName": "1000 µL tips",     "anchorMm": { "x": 100, "y": 250, "z": 0 },  "accepts": ["tip-box-96-1000ul"] },
+      { "id": "slot-tips-50",       "displayName": "50 µL tips",       "anchorMm": { "x": 250, "y": 250, "z": 0 },  "accepts": ["tip-box-96-50ul"] },
+      { "id": "slot-bead-reservoir","displayName": "Magnetic-bead reservoir", "anchorMm": { "x": 400, "y": 100, "z": 0 }, "accepts": ["bead-reservoir"] },
+      { "id": "slot-coldplate",     "displayName": "Cold plate",       "anchorMm": { "x": 400, "y": 250, "z": 0 },  "accepts": ["coldplate-tray-96"] },
+      { "id": "slot-cap-park",      "displayName": "Xtube cap park",   "anchorMm": { "x": 550, "y": 100, "z": 0 },  "accepts": ["cap-park-rack"] },
+      { "id": "slot-trash",         "displayName": "Trash",            "anchorMm": { "x": 700, "y": 700, "z": 0 },  "accepts": ["trash-bin"] },
+      { "id": "slot-mixer-seat-1",  "displayName": "Mixer seat 1 (Y-mobile)", "anchorMm": { "x": 700, "y": 400, "z": 50 }, "accepts": ["xtube"] },
+      { "id": "slot-mixer-seat-2",  "displayName": "Mixer seat 2 (Y-mobile)", "anchorMm": { "x": 700, "y": 450, "z": 50 }, "accepts": ["xtube"] }
+    ],
+    "axisAnchors": {
+      "gantry-x":    { "deckRef": "slot-sample-rack", "offsetMm": { "x": 0, "y": 0, "z": 250 } },
+      "gantry-y":    { "deckRef": "slot-sample-rack", "offsetMm": { "x": 0, "y": 0, "z": 250 } },
+      "dispenser-x": { "deckRef": "slot-mixer-seat-1", "offsetMm": { "x": -300, "y": 0, "z": 200 } },
+      "mixer-y":     { "deckRef": "slot-mixer-seat-1", "offsetMm": { "x": 0, "y": 0, "z": 0 } },
+      "aspirator-z": { "deckRef": "slot-mixer-seat-1", "offsetMm": { "x": 200, "y": 0, "z": 200 } }
+    }
+  },
+
+  "labware": [
+    { "id": "sample-tube-rack-24", "displayName": "Sample tube rack, 24", "kind": "rack",
+      "footprintMm": { "x": 127.76, "y": 85.48, "z": 80 },
+      "positions": { "layout": "grid", "rows": 4, "cols": 6, "pitchMm": { "x": 18.0, "y": 18.0 } } },
+    { "id": "xtube-rack-48", "displayName": "Xtube supply rack, 48", "kind": "rack",
+      "footprintMm": { "x": 127.76, "y": 85.48, "z": 60 },
+      "positions": { "layout": "grid", "rows": 6, "cols": 8, "pitchMm": { "x": 14.5, "y": 14.0 } } },
+    { "id": "tip-box-96-1000ul", "displayName": "1000 µL tip box, 96", "kind": "tip-box",
+      "footprintMm": { "x": 127.76, "y": 85.48, "z": 70 },
+      "positions": { "layout": "grid", "rows": 8, "cols": 12, "pitchMm": { "x": 9.0, "y": 9.0 } } },
+    { "id": "tip-box-96-50ul", "displayName": "50 µL tip box, 96", "kind": "tip-box",
+      "footprintMm": { "x": 127.76, "y": 85.48, "z": 50 },
+      "positions": { "layout": "grid", "rows": 8, "cols": 12, "pitchMm": { "x": 9.0, "y": 9.0 } } },
+    { "id": "xtube", "displayName": "Xtube consumable", "kind": "tube",
+      "footprintMm": { "x": 12, "y": 12, "z": 50 },
+      "positions": { "layout": "explicit", "list": [{ "id": "bore", "xMm": 6, "yMm": 6 }] } },
+    { "id": "coldplate-tray-96", "displayName": "Cold plate, 96-well", "kind": "plate",
+      "footprintMm": { "x": 127.76, "y": 85.48, "z": 20 },
+      "positions": { "layout": "grid", "rows": 8, "cols": 12, "pitchMm": { "x": 9.0, "y": 9.0 } } },
+    { "id": "bead-reservoir", "displayName": "Magnetic-bead reservoir", "kind": "plate",
+      "footprintMm": { "x": 90, "y": 90, "z": 30 },
+      "positions": { "layout": "grid", "rows": 2, "cols": 2, "pitchMm": { "x": 30, "y": 30 } } }
+  ],
+
+  "motor_profiles": {
+    "nema11_2.1A": {
+      "id": "nema11_2.1A", "model": "NEMA-11 Stepper", "frameSize": "NEMA-11",
+      "currentRatedA": 2.1, "currentPeakA": 2.5, "holdingTorqueNm": 0.14,
+      "rotorInertiaKgCm2": 0.045, "stepsPerRev": 200,
+      "torqueCurve": [
+        { "rpm": 0, "nm": 0.14 }, { "rpm": 300, "nm": 0.13 }, { "rpm": 600, "nm": 0.11 },
+        { "rpm": 1000, "nm": 0.08 }, { "rpm": 1500, "nm": 0.05 }
+      ]
+    }
+  }
+}
