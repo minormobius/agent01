@@ -14,7 +14,7 @@ import {
   NCA, GRID, NC, NCELLS, NEIGHBORS, decodeB64f32, decodeB64u8, splitWeights, unpackShape, mulberry32,
 } from './nca.js';
 import { components, bodyStats, latticeToWorld } from './body.js';
-import { Clock, createKin, applyVerb } from './gaits.js';
+import { Clock, createKin, applyVerb, resolveCollisions } from './gaits.js';
 import { Builder, cellOf, mirrorCell, encodeStructure, decodeStructure } from './builder.js';
 import { WEIGHTS_B64 } from './weights.js';
 import { SHAPES_B64, LABELS, CLASSES, NUM_SHAPES } from './shapes.js';
@@ -177,6 +177,35 @@ for (const g of golden) {
   // determinism
   const a = run(2, 4, 9).kin.pos, b = run(2, 4, 9).kin.pos;
   check('verbs deterministic by seed', a[0] === b[0] && a[2] === b[2]);
+}
+
+// ---------------------------------------------------------------- collisions
+{
+  const mk = (x, z, yaw, speed, { mass = 100, mobile = true, airborne = false, radius = 3 } = {}) => {
+    const kin = createKin(1);
+    kin.pos = [x, 0, z]; kin.yaw = yaw; kin.speed = speed;
+    return { kin, radius, mass, mobile, airborne };
+  };
+  // head-on cars: separated after resolve, hard impact reported
+  const a = mk(-2, 0, 0, 6), b = mk(2, 0, Math.PI, 6);
+  const impacts = resolveCollisions([a, b]);
+  const d = Math.hypot(b.kin.pos[0] - a.kin.pos[0], b.kin.pos[2] - a.kin.pos[2]);
+  check('collision separates overlapping bodies', d >= 6.29, `d ${d.toFixed(2)}`);
+  check('head-on crash reports an impact', impacts.length === 1 && impacts[0].closing > 10,
+    `closing ${impacts[0]?.closing.toFixed(1)}`);
+  // car vs house: house never budges, car does all the yielding
+  const car = mk(-2, 0, 0, 6, { mass: 100 });
+  const house = mk(2, 0, 0, 0, { mass: 400, mobile: false });
+  resolveCollisions([car, house]);
+  check('house never budges', house.kin.pos[0] === 2 && house.kin.pos[2] === 0);
+  check('car yields fully to the house', Math.hypot(car.kin.pos[0] + 2, car.kin.pos[2]) > 2);
+  // gentle graze: separated but no damage-grade impact
+  const s1 = mk(-3, 0, 0, 0.5), s2 = mk(3, 0, Math.PI, 0.5);
+  check('gentle graze is not a crash', resolveCollisions([s1, s2]).length === 0);
+  // airborne planes fly over everything
+  const plane = mk(0, 0, 0, 10, { airborne: true }), truck = mk(0.5, 0, 0, 6);
+  check('airborne bodies pass over', resolveCollisions([plane, truck]).length === 0
+    && plane.kin.pos[0] === 0 && truck.kin.pos[0] === 0.5);
 }
 
 // ---------------------------------------------------------------- builder

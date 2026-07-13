@@ -216,3 +216,50 @@ export function applyVerb(kin, S, dt) {
   kin.twitch = 0.10 * S.entropy * wakeRamp;
   return kin;
 }
+
+// ---------------------------------------------------------------- collisions
+// Mass-weighted circle shoving on the ground plane. bodies: [{ kin, radius,
+// mass, mobile, airborne }]. Mutates kin.pos/yaw of mobile bodies so nobody
+// overlaps; immobile bodies (houses, guitars) never budge — you bounce off a
+// house. Returns hard impacts (closing speed above threshold) so the caller
+// can turn a real crash into damage: [{ i, j, x, z, closing }].
+export function resolveCollisions(bodies, { closingThresh = 3.0, margin = 0.3 } = {}) {
+  const impacts = [];
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      const A = bodies[i], B = bodies[j];
+      if (A.airborne || B.airborne) continue;
+      const dx = B.kin.pos[0] - A.kin.pos[0];
+      const dz = B.kin.pos[2] - A.kin.pos[2];
+      const d = Math.hypot(dx, dz);
+      const minD = A.radius + B.radius + margin;
+      if (d >= minD) continue;
+      const nx = d > 1e-6 ? dx / d : 1, nz = d > 1e-6 ? dz / d : 0;
+      const overlap = minD - d;
+      // closing speed BEFORE separation, from headings
+      const vAx = Math.cos(A.kin.yaw) * A.kin.speed, vAz = Math.sin(A.kin.yaw) * A.kin.speed;
+      const vBx = Math.cos(B.kin.yaw) * B.kin.speed, vBz = Math.sin(B.kin.yaw) * B.kin.speed;
+      const closing = (vAx - vBx) * nx + (vAz - vBz) * nz;
+      // mass weighting; immobile bodies have infinite mass
+      let wA = 0, wB = 0;
+      if (A.mobile && B.mobile) { wA = B.mass / (A.mass + B.mass); wB = 1 - wA; }
+      else if (A.mobile) wA = 1;
+      else if (B.mobile) wB = 1;
+      A.kin.pos[0] -= nx * overlap * wA; A.kin.pos[2] -= nz * overlap * wA;
+      B.kin.pos[0] += nx * overlap * wB; B.kin.pos[2] += nz * overlap * wB;
+      // glancing deflection: each mobile body steers to slide off, not grind
+      if (A.mobile) {
+        const side = Math.sign(Math.cos(A.kin.yaw) * nz - Math.sin(A.kin.yaw) * nx) || 1;
+        A.kin.yaw -= side * Math.min(0.5, overlap * 0.4);
+      }
+      if (B.mobile) {
+        const side = Math.sign(Math.cos(B.kin.yaw) * -nz - Math.sin(B.kin.yaw) * -nx) || 1;
+        B.kin.yaw -= side * Math.min(0.5, overlap * 0.4);
+      }
+      if (closing > closingThresh) {
+        impacts.push({ i, j, x: A.kin.pos[0] + nx * A.radius, z: A.kin.pos[2] + nz * A.radius, closing });
+      }
+    }
+  }
+  return impacts;
+}

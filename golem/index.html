@@ -147,6 +147,9 @@
     <li><span class="pill">verb = the lead class</span> <b>Cars drive</b> (wandering, suspension bouncing on the clock). <b>Planes</b> taxi, climb, fly a banking circuit, land, repeat. <b>Boats</b> sail — water appears beneath them. <b>Chairs and tables waddle</b>, rocking on their legs in clock-step. <b>Guitars</b> go nowhere and pluck pentatonic notes on every clock beat. <b>Houses refuse</b>: one shiver, a settle of a few centimetres, chimney smoke. Identity ≠ mobility, and the house knows it.</li>
   </ul>
 
+  <h3>Collisions</h3>
+  <p>Creatures share the world physically: footprint circles, mass-weighted shoving (mass = brick count), with a rule that matters — <b>houses and guitars never budge</b>. A car glances off another car, but it bounces off a house entirely; airborne planes pass over everything. And a genuine crash — closing speed above a threshold, not a graze — <b>knocks the brick nearest the point of impact off both parties</b>. Crash damage feeds straight back into the gossip layer: lose the wrong bricks and a car's consensus wavers, its throttle drops, and a bad enough wreck splits it outright.</p>
+
   <h3>Mitosis</h3>
   <p>Erase works on awake creatures too. Cut a car in half and the connected components become <b>independent creatures</b>: each keeps its cubes' beliefs (continuity of self — the states are carried over, not reset), runs its own gossip, syncs its own clock, and acts on its own verdict. One half may still believe <i>Car</i> and limp on; the other may decide it's a <i>Chair</i> now and waddle away. Fragments smaller than three cubes don't survive — they tumble off as debris.</p>
 
@@ -162,7 +165,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { NCA, GRID, NC, NCELLS, decodeB64f32, decodeB64u8, splitWeights, unpackShape, mulberry32 } from './js/nca.js';
 import { components, bodyStats, latticeToWorld } from './js/body.js';
-import { Clock, createKin, applyVerb, VERB_NAMES, WORLD_RADIUS } from './js/gaits.js';
+import { Clock, createKin, applyVerb, resolveCollisions, VERB_NAMES, WORLD_RADIUS } from './js/gaits.js';
 import { Builder, cellOf, coordsOf, mirrorCell, encodeStructure, decodeStructure } from './js/builder.js';
 import { WEIGHTS_B64 } from './js/weights.js';
 import { SHAPES_B64, LABELS, CLASSES, NUM_SHAPES } from './js/shapes.js';
@@ -441,6 +444,33 @@ function composeInstances(t) {
   mesh.count = n;
   mesh.instanceMatrix.needsUpdate = true;
   mesh.instanceColor.needsUpdate = true;
+}
+
+// world XZ of one cube (no theatrics offsets) — used to find crash-point bricks
+function cellWorldXZ(cr, cell, q) {
+  const w = latticeToWorld(cell);
+  if (cr.garage) tmpV.set(w[0], 0, w[2]);
+  else tmpV.set(w[0] - cr.stats.centroid[0], 0, w[2] - cr.stats.centroid[2]);
+  tmpV.applyQuaternion(q);
+  return [tmpV.x + cr.kin.pos[0], tmpV.z + cr.kin.pos[2]];
+}
+
+// a hard crash knocks the brick nearest the point of impact off the creature
+function knockBrick(cr, x, z) {
+  if (cr.nca.live.length <= 1) return;
+  const q = creatureQuat(cr, new THREE.Quaternion());
+  let best = -1, bestD = Infinity;
+  for (const cell of cr.nca.live) {
+    const [cx, cz] = cellWorldXZ(cr, cell, q);
+    const d = (cx - x) * (cx - x) + (cz - z) * (cz - z);
+    if (d < bestD) { bestD = d; best = cell; }
+  }
+  if (best < 0) return;
+  spawnDebris(cr, best);
+  cr.nca.damage(best);
+  cr.clock.rebuild(cr.nca.live);
+  cr.stats = bodyStats(cr.nca);
+  maybeSplit(cr);
 }
 
 function spawnDebris(cr, cell) {
@@ -773,6 +803,28 @@ function frame(now) {
   }
   for (let i = waterI; i < waters.length; i++) {
     waters[i].material.opacity = Math.max(0, waters[i].material.opacity - dt);
+  }
+
+  // collisions: mass-weighted shoving; a real crash knocks bricks off both
+  {
+    const bodies = creatures
+      .filter((c) => c.awake && c.nca.live.length)
+      .map((c) => ({
+        kin: c.kin,
+        radius: c.stats.radius + 0.5,
+        mass: c.nca.live.length,
+        mobile: !(c.stats.lead === 4 || c.stats.lead === 5), // houses & guitars don't budge
+        airborne: c.kin.flags.airborne,
+        cr: c,
+      }));
+    for (const im of resolveCollisions(bodies)) {
+      for (const b of [bodies[im.i], bodies[im.j]]) {
+        const cr = b.cr;
+        if (t - (cr.lastImpact || 0) < 0.9) continue; // one knock per crash, not per frame
+        cr.lastImpact = t;
+        knockBrick(cr, im.x, im.z);
+      }
+    }
   }
 
   // panel refresh (cheap, throttled)
