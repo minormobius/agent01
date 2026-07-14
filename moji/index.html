@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>moji — the emoji wiki · every emoji, pastable</title>
+<meta name="description" content="Every Unicode emoji in one pastable table. Search by name, click to copy, and open a page per emoji with code points, the Emoji version it debuted in, and platform-support timelines (Apple, Google, Microsoft, Samsung, WhatsApp, Twitter/X).">
+<meta property="og:title" content="moji — the emoji wiki">
+<meta property="og:description" content="Every emoji, pastable. Search, click to copy, and see platform support per emoji.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#b8862f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%98%80%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">moji<span class="dot">.</span><small>emoji wiki</small></a>
+    <div class="search-wrap">
+      <svg class="search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" class="search" type="search" autocomplete="off" spellcheck="false" placeholder="Search 3,900+ emoji — “rocket”, “smiling”, “U+1F600”…">
+    </div>
+    <a class="crumb" href="https://mino.mobi">↖ mino.mobi</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Every emoji, pastable.</h1>
+    <p><span class="stat" id="totalStat">…</span> emoji from <span id="uverStat">Unicode</span>. Click any glyph to copy it. Open a glyph’s page for its code points, the version it debuted in, and which platforms render it.</p>
+  </section>
+
+  <nav class="chips" id="chips" aria-label="Jump to category"></nav>
+
+  <div id="results"></div>
+  <div id="empty" class="empty hidden">
+    <div class="big">🫥</div>
+    <p>No emoji matches <strong id="emptyq"></strong>.</p>
+  </div>
+
+  <footer>
+    <p>Data: Unicode <a href="https://www.unicode.org/reports/tr51/">UTS&nbsp;#51</a> emoji test file (<span id="uverFoot">—</span>). Platform-support timelines are approximate first-ship dates per Unicode &amp; Emojipedia. Emoji glyphs render in your own device’s font — the same emoji looks different on each platform.</p>
+    <p><a href="https://mino.mobi">mino.mobi</a> · a minomobi property</p>
+  </footer>
+</main>
+
+<div class="toast" id="toast"><span class="g" id="toastGlyph">✓</span><span id="toastMsg">Copied</span></div>
+
+<script>
+const RESULTS = document.getElementById('results');
+const CHIPS = document.getElementById('chips');
+const Q = document.getElementById('q');
+const EMPTY = document.getElementById('empty');
+const TOAST = document.getElementById('toast');
+
+let DATA = null;
+let nodesFlat = [];   // { el, hay } for search
+
+function slugify(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+
+fetch('/data/emoji.json').then(r=>r.json()).then(data=>{
+  DATA = data;
+  document.getElementById('totalStat').textContent = data.count.toLocaleString();
+  document.getElementById('uverStat').textContent = 'Unicode ' + data.unicodeVersion;
+  document.getElementById('uverFoot').textContent = 'v' + data.unicodeVersion + ', ' + data.date;
+  render();
+});
+
+function render(){
+  const chipFrag = document.createDocumentFragment();
+  const frag = document.createDocumentFragment();
+
+  DATA.groups.forEach((g, gi) => {
+    const gslug = slugify(g.name);
+    const total = g.subgroups.reduce((a,s)=>a+s.idx.length,0);
+
+    const chip = document.createElement('a');
+    chip.className = 'chip'; chip.href = '#g-'+gslug; chip.textContent = g.name;
+    chipFrag.appendChild(chip);
+
+    const gsec = document.createElement('section');
+    gsec.className = 'group'; gsec.dataset.group = gi;
+
+    const gh = document.createElement('div');
+    gh.className = 'group-h'; gh.id = 'g-'+gslug;
+    gh.innerHTML = `<h2>${g.name}</h2><span class="count">${total.toLocaleString()}</span>`;
+    gsec.appendChild(gh);
+
+    g.subgroups.forEach(sub => {
+      const sh = document.createElement('div');
+      sh.className = 'subgroup-h';
+      sh.textContent = sub.name.replace(/-/g,' ');
+      gsec.appendChild(sh);
+
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      let html = '';
+      for (const ei of sub.idx) {
+        const em = DATA.emojis[ei];
+        html += `<a class="em-btn glyph" href="/e/${em.id}" data-e="${ei}" title="${em.n} — click to copy, ⌘/Ctrl-click to open page" aria-label="${em.n}">${em.e}</a>`;
+      }
+      grid.innerHTML = html;
+      // attach search index + copy handlers
+      grid.querySelectorAll('.em-btn').forEach(el => {
+        const em = DATA.emojis[+el.dataset.e];
+        const hay = (em.n + ' ' + sub.name.replace(/-/g,' ') + ' ' + g.name + ' ' + em.cp.join(' ')).toLowerCase();
+        nodesFlat.push({ el, hay });
+        el.addEventListener('click', ev => {
+          if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button === 1) return; // let the link open the page
+          ev.preventDefault();
+          copyEmoji(em, el);
+        });
+      });
+      gsec.appendChild(grid);
+    });
+
+    frag.appendChild(gsec);
+  });
+
+  CHIPS.appendChild(chipFrag);
+  RESULTS.appendChild(frag);
+
+  // deep link: /?q=rocket
+  const q0 = new URLSearchParams(location.search).get('q');
+  if (q0) { Q.value = q0; runSearch(); }
+}
+
+async function copyEmoji(em, el){
+  try { await navigator.clipboard.writeText(em.e); }
+  catch { const t=document.createElement('textarea'); t.value=em.e; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  el.classList.add('copied');
+  setTimeout(()=>el.classList.remove('copied'), 900);
+  document.getElementById('toastGlyph').textContent = em.e;
+  document.getElementById('toastMsg').textContent = 'Copied ' + em.n;
+  TOAST.classList.add('show');
+  clearTimeout(copyEmoji._t);
+  copyEmoji._t = setTimeout(()=>TOAST.classList.remove('show'), 1400);
+}
+
+// ── search ──
+let raf = 0;
+Q.addEventListener('input', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(runSearch); });
+function runSearch(){
+  const q = Q.value.trim().toLowerCase().replace(/^u\+/,'').replace(/\s+/g,' ');
+  let shown = 0;
+  if (!q) {
+    for (const n of nodesFlat) n.el.classList.remove('hidden');
+    shown = nodesFlat.length;
+  } else {
+    const terms = q.split(' ');
+    for (const n of nodesFlat) {
+      const ok = terms.every(t => n.hay.includes(t));
+      n.el.classList.toggle('hidden', !ok);
+      if (ok) shown++;
+    }
+  }
+  // hide empty subgroups + groups + chips-less state
+  document.querySelectorAll('#results .grid').forEach(grid => {
+    const any = grid.querySelector('.em-btn:not(.hidden)');
+    grid.classList.toggle('hidden', !any);
+    grid.previousElementSibling && grid.previousElementSibling.classList.toggle('hidden', !any); // subgroup header
+  });
+  document.querySelectorAll('#results .group').forEach(sec => {
+    const any = sec.querySelector('.grid:not(.hidden)');
+    sec.classList.toggle('hidden', !any);
+  });
+  EMPTY.classList.toggle('hidden', shown !== 0);
+  CHIPS.classList.toggle('hidden', !!q);
+  if (shown === 0) document.getElementById('emptyq').textContent = '“' + Q.value.trim() + '”';
+}
+
+// keyboard: "/" focuses search
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== Q) { e.preventDefault(); Q.focus(); }
+  if (e.key === 'Escape' && document.activeElement === Q) { Q.value=''; runSearch(); Q.blur(); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+name: Deploy moji (emoji wiki)
+
+on:
+  push:
+    branches: [main, 'claude/emoji-wiki-platform-support-v6ubju']
+    paths:
+      - 'moji/**'
+      - '.github/workflows/deploy-moji.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: moji
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify the wiki is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://moji.mino.mobi/ | grep -qi 'emoji wiki'; then
+              echo "✓ moji is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ moji didn't respond within 20s — edge propagation may be slow, continuing."

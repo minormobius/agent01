@@ -1,0 +1,46 @@
+name: Deploy Civ
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/mappa-civ-agent-sim-hghwlt'
+    paths:
+      - 'civ/**'
+      - 'mappa/civ/**'
+      - 'mappa/engine.js'
+      - 'mappa/lib/world-share.js'
+      - '.github/workflows/deploy-civ.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: civ
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Build client-side compute bundle (civ/lib/civ-engine.js)
+        working-directory: .
+        run: npm install esbuild && node scripts/build-civ-engine.mjs
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify worker is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://civ.mino.mobi/api/civ/health | grep -q '"ok":true'; then
+              echo "✓ civ is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ civ didn't respond to /api/civ/health within 20s — edge propagation may be slow, continuing."

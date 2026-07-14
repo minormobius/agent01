@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "reef",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-21",
+  // reef.mino.mobi — judge procedurally generated voxel sea creatures
+  // (Tinder-style deck); votes gate the training corpus for the reef NCA.
+  // Shares atpolls-db (migration 0032_reef.sql) like rite/airchat.
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atpolls-db",
+      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
+    }
+  ],
+  "routes": [
+    { "pattern": "reef.mino.mobi", "custom_domain": true }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.mappa.civ",
+  "description": "A shared mappa CIVILIZATION run: a deterministic coevolutionary agent-based civilization simulation on a mappa world. The whole run is a pure function of (world, config, civSeed, ticks) — this record IS the run; a reader regenerates the chronicle. `config` is the base64url civConfig token (agent + culture + seeding + climate); `world` identifies the mappa world (a seed or a com.minomobi.mappa.world token). The interestingness fields are a cached snapshot of the civ-signals battery for discovery/sorting; advisory, not authoritative (the reader can recompute).",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["world", "config", "civSeed", "ticks", "createdAt"],
+        "properties": {
+          "world": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "The mappa world the civilization runs on: a seed (e.g. '7'), a 'seed:N' string, or a com.minomobi.mappa.world base64url token. Regenerated deterministically by the engine."
+          },
+          "config": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "The civConfig, base64url-encoded. Continuous knobs are fixed-point ×1000. Holds three orthogonal blocks (agent / culture / seeding) plus a climate hook, popScale and keyframe interval."
+          },
+          "civSeed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295,
+            "description": "The civilization RNG seed. Selects one deterministic sample path; same (world, config, civSeed, ticks) ⇒ byte-identical chronicle, on any machine."
+          },
+          "ticks": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200000,
+            "description": "Number of tick steps to run (≈ 2.5 real years per tick by default; a full 10-millennia arc ≈ 4000 ticks)."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "An evocative name for the civilization."
+          },
+          "descriptor": {
+            "type": "string",
+            "maxLength": 240,
+            "description": "One-line auto-summary from civ-signals, e.g. 'A modern world over three separated homelands, 13 surviving cultures — two independent industrial takeoffs, a deep language phylogeny. ★88.'"
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Cached interestingness score (0–100) from civ-signals.js. Advisory; for sorting a discovery feed."
+          },
+          "flags": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 40 },
+            "maxLength": 12,
+            "description": "Cached degeneracy tags (e.g. 'instant-extinction', 'single-hegemon-sweep', 'stuck-foraging', 'monoculture', 'runaway-population', 'static')."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 600,
+            "description": "Optional human note from whoever published the run."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>civ — development</title>
+<style>
+  :root{ --bg:#0a0e15; --panel:#121924; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; --good:#5bd18b; --bad:#e5686b; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  a{ color:var(--acc); }
+  header{ display:flex; align-items:center; gap:12px; padding:9px 16px; border-bottom:1px solid var(--edge); flex-wrap:wrap; }
+  header .brand{ font-weight:800; } header .brand .g{ color:var(--gold); }
+  header .crumb{ color:var(--dim); font-size:12px; }
+  header select,header input{ background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:7px; padding:5px 8px; font:inherit; }
+  header input[type=text]{ width:60px; } header input[type=number]{ width:72px; }
+  button{ background:var(--gold); color:#1a1206; border:0; border-radius:7px; padding:6px 12px; font-weight:700; cursor:pointer; }
+  button:disabled{ opacity:.5; cursor:wait; }
+  main{ max-width:1180px; margin:0 auto; padding:14px 16px 60px; }
+  .status{ color:var(--dim); font-size:13px; min-height:20px; margin:2px 0 10px; }
+  .status .score{ color:var(--gold); font-weight:800; }
+  .card{ background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:12px 14px; margin-bottom:16px; }
+  h2{ font-size:15px; margin:0 0 4px; } .sub{ color:var(--dim); font-size:12.5px; margin:0 0 8px; }
+  .modes{ display:flex; gap:5px; margin-left:auto; }
+  .modes b{ cursor:pointer; padding:2px 8px; border:1px solid var(--edge); border-radius:6px; color:var(--dim); font-weight:600; font-size:12px; }
+  .modes b.on{ color:var(--gold); border-color:var(--gold); }
+  .head{ display:flex; align-items:center; gap:10px; }
+  canvas{ width:100%; display:block; border-radius:8px; background:#080b12; margin-top:6px; cursor:crosshair; }
+  .cols{ display:grid; grid-template-columns:1.35fr 1fr; gap:16px; }
+  @media(max-width:860px){ .cols{ grid-template-columns:1fr; } }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  th,td{ text-align:left; padding:5px 7px; border-bottom:1px solid var(--edge); white-space:nowrap; }
+  th{ color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+  td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  tr.dyn{ cursor:pointer; } tr.dyn:hover{ background:#182231; } tr.hl{ background:#20304a !important; }
+  .sw{ display:inline-block; width:10px; height:10px; border-radius:3px; vertical-align:-1px; margin-right:5px; }
+  .pill{ display:inline-block; border-radius:5px; padding:1px 6px; font-size:11px; }
+  .alive{ background:#16261c; color:var(--good); } .fell{ background:#2a1a1c; color:var(--bad); }
+  .era0{color:#8b98a9}.era1{color:#9cc96f}.era2{color:#c9a86f}.era3{color:#d0a0d0}.era4{color:#e6a34a}.era5{color:#e6d24a}
+  .cap{ display:inline-block; background:#16261c; color:var(--good); border-radius:5px; padding:1px 6px; font-size:11px; margin:1px 3px 1px 0; }
+  .facts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; }
+  .fact{ background:#0b0f16; border:1px solid var(--edge); border-radius:8px; padding:8px 10px; }
+  .fact b{ display:block; font-size:19px; } .fact span{ font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.4px; }
+  .exr{ display:inline-flex; align-items:center; gap:7px; background:#0b0f16; border:1px solid var(--edge); border-radius:8px; padding:5px 9px; margin:3px 6px 3px 0; font-size:12px; }
+  .exr .knob{ color:var(--dim); } .exr .knob b{ color:var(--ink); }
+  .rules{ font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
+  .tt{ position:fixed; pointer-events:none; background:rgba(10,14,21,.95); border:1px solid var(--edge); border-radius:8px; padding:7px 9px; font-size:12px; display:none; z-index:10; max-width:220px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand"><span class="g">civ</span> development</span>
+  <span class="crumb"><a id="todash" href="/">← dashboard</a> · <a id="toview" href="/view.html">▶ playground</a> · <a id="tofred" href="/fred.html">FRED</a> · <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">mappa ↗</a></span>
+  <select id="preset" title="preset"><option value="">default</option><option value="neolithic">neolithic</option><option value="kurgan">kurgan</option><option value="bantu">bantu</option><option value="austronesian">austronesian</option><option value="americas">americas</option></select>
+  <label class="crumb">world <input id="world" type="text" value="7"></label>
+  <label class="crumb">seed <input id="civseed" type="number" value="1"></label>
+  <label class="crumb">ticks <input id="ticks" type="number" value="1000" step="100" min="200" max="1500"></label>
+  <input type="hidden" id="lastconfig">
+  <button id="load">Load run</button>
+</header>
+<main>
+  <div class="status" id="status">Loading a run…</div>
+
+  <div class="card">
+    <div class="head">
+      <div><h2>The river of peoples</h2><p class="sub">Every band is a culture; thickness is its population through time; children branch from their parent lineage. Colour = culture identity (the same hue it wears on the map). Click a band to trace it.</p></div>
+      <div class="modes" id="modes"><b data-m="culture" class="on">culture</b><b data-m="sub">subsistence</b><b data-m="era">era</b></div>
+      <div class="modes" id="scales" style="margin-left:8px"><b data-s="pop" class="on">population</b><b data-s="share">share</b></div>
+    </div>
+    <canvas id="stream" height="360"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Economy</h2>
+    <p class="sub">Firms &amp; guilds produce wares, priced by supply &amp; demand; revenue pays wages (→ wealth) and builds capital (→ more output). Institution rulesets evolve — the <b>exemplars</b> are the most successful, imitated by new institutions with drift.</p>
+    <div class="facts" id="econstats"></div>
+    <div id="exemplars" style="margin-top:8px"></div>
+  </div>
+
+  <div class="cols">
+    <div class="card">
+      <h2>Dynasties <span class="sub" id="dyncount"></span></h2>
+      <p class="sub">Every culture that reached statehood — its rise, peak, and fall.</p>
+      <div style="overflow:auto;max-height:420px"><table id="dyntab"><thead><tr>
+        <th>dynasty</th><th>lang</th><th>subsist</th><th>peak era</th><th class="num">rose</th><th class="num">peak pop</th><th class="num">territory</th><th>status</th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Named resources <span class="sub" id="rescount"></span></h2>
+      <p class="sub">Mappa's geology — ore on the volcanic arcs, gold in cratonic rivers, deltas at river mouths. Cities cluster on them; whoever holds them develops faster.</p>
+      <div style="overflow:auto;max-height:420px"><table id="restab"><thead><tr>
+        <th>resource</th><th>name</th><th>held by</th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <div><h2>Institutions <span class="sub" id="instcount"></span></h2>
+        <p class="sub">The composite actors that self-assemble from agents — companies on the ore, guilds in the cities, warbands on the frontier, states over them all. An agent belongs to its most-specific institution; each rolls up to its state (the dynasty). Click a row to trace its culture.</p></div>
+      <div class="modes" id="ifilter"><b data-k="" class="on">all</b><b data-k="state">states</b><b data-k="firm">companies</b><b data-k="guild">guilds</b><b data-k="warband">warbands</b></div>
+    </div>
+    <div style="overflow:auto;max-height:380px"><table id="insttab"><thead><tr>
+      <th>kind</th><th>name</th><th>leader</th><th>culture</th><th class="num">members</th><th class="num">treasury</th><th class="num">capital</th><th class="num">strength</th><th class="num">conq.</th><th>ruleset (tax·wage·merit·invest)</th><th>status</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Great persons <span class="sub" id="gpcount"></span></h2>
+    <p class="sub">Named individuals who led an institution to eminence — reputation is earned (credentials + office + standing) and runs in families (apprenticeship + sexual selection). Each carries a résumé.</p>
+    <div style="overflow:auto;max-height:360px"><table id="gptab"><thead><tr>
+      <th>name</th><th>led</th><th>culture</th><th class="num">reputation</th><th class="num">era yr</th><th>résumé (credentials)</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Faiths <span class="sub" id="faithcount"></span></h2>
+    <p class="sub">Belief is a second heritable program — orthogonal to culture &amp; language, so it cuts <i>across</i> them. A prophet founds a faith in a city; it converts by contact (universalizing creeds spread fastest), passes mother→child, and <b>schisms</b> into sects. A faith spanning many cultures is a <b>world religion</b>; one ≈ its culture is folk. Late-era faiths read as philosophies / ideologies. Doctrine axes couple to the sim: <b>moral</b> → cohesion &amp; fertility, <b>martial</b> → holy war, <b>universal</b> → conversion reach.</p>
+    <div style="overflow:auto;max-height:420px"><table id="faithtab"><thead><tr>
+      <th>faith</th><th>register</th><th>doctrine (lead)</th><th>from</th><th class="num">followers</th><th class="num">cultures</th><th class="num">lands</th><th class="num">born</th><th>profile</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+</main>
+<div class="tt" id="tt"></div>
+
+<script type="module">
+import { cachedFetch } from './lib/civ-cache.js';
+const $=s=>document.querySelector(s);
+const SUBS=['forager','pastoral','horticulture','plough','irrigation','maritime'];
+const SUB_COL=[[96,15,52],[44,42,60],[108,48,44],[46,62,56],[176,52,46],[205,60,52]];
+const ERA=['forager','neolithic','bronze','classical','industrial','modern'];
+const RES_ICON={copper:'🟤',iron:'⬛',tin:'⬜',gold:'🟡',gems:'💎',salt:'🧂',delta:'🌊'};
+const hsl=(h,s,l,a=1)=>`hsl(${h} ${s}% ${l}% / ${a})`;
+const cultureHue=id=>(id*137.508)%360;
+const cultureCol=(id,a=1)=>hsl(cultureHue(id),60,56,a);
+let DATA=null, mode='culture', scale='pop', tickYears=2.5, hlCulture=null, bands=null, SG=null;
+
+// ---- shared URL liquidity -------------------------------------------------------
+function curState(){ return {world:$('#world').value.trim()||'7',preset:$('#preset').value,civSeed:$('#civseed').value||'1',ticks:$('#ticks').value||'1000',config:$('#lastconfig').value||''}; }
+function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); return p.toString(); }
+function mappaHref(w){ const m=String(w).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(w))); }
+function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/?'+q; $('#toview').href='/view.html?'+q; $('#tofred').href='/fred.html?'+q; $('#tomappa').href=mappaHref(st.world); }
+function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); }
+for(const id of ['#preset','#world','#civseed','#ticks']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
+
+// ---- streamgraph ("river of peoples") -------------------------------------------
+// lineage-sorted, centered stacking; band thickness = population; colour = identity.
+function lineageOrder(cultureMeta){
+  // build parent→children, DFS from roots (parent<0 or parent unknown) by birth tick
+  const kids=new Map(); const roots=[];
+  for(const [id,m] of cultureMeta){ const p=m.parent; if(p!=null && p>=0 && cultureMeta.has(p)) (kids.get(p)||kids.set(p,[]).get(p)).push(id); else roots.push(id); }
+  const byBirth=(a,b)=>(cultureMeta.get(a).birth-cultureMeta.get(b).birth)||(a-b);
+  roots.sort(byBirth); for(const [,arr] of kids) arr.sort(byBirth);
+  const order=[]; const walk=id=>{ order.push(id); for(const c of (kids.get(id)||[])) walk(c); };
+  for(const r of roots) walk(r); return order;
+}
+function drawStream(){
+  const cv=$('#stream'), ctx=cv.getContext('2d'); const dpr=Math.min(2,devicePixelRatio||1);
+  const W=cv.clientWidth, H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H); if(!DATA) return;
+  const kfs=DATA.chronicle.keyframes; if(!kfs.length) return;
+  // gather culture meta + per-keyframe sizes
+  const meta=new Map();
+  for(const kf of kfs) for(const c of kf.top){ if(!meta.has(c.id)) meta.set(c.id,{parent:c.parent,birth:c.birth,sub:c.sub,tier:c.tier,lang:c.lang}); }
+  const order=lineageOrder(meta);
+  const sizeAt=kfs.map(kf=>{ const m=new Map(); for(const c of kf.top) m.set(c.id,c); return m; });
+  const T=kfs.length, padL=6, padR=6, padT=8, padB=18;
+  const x=i=>padL+(W-padL-padR)*(T>1?i/(T-1):0);
+  // share mode normalises each column to its total, so lineage branching stays legible
+  // even under a hegemon; population mode shows absolute growth.
+  const share=scale==='share';
+  const totals=kfs.map(kf=>{ let s=0; for(const c of kf.top) s+=c.n; return s||1; });
+  const val=(i,c)=>c ? (share ? c.n/totals[i] : c.n) : 0;
+  const maxTotal=share?1:Math.max(...kfs.map(kf=>kf.pop),1);
+  const yscale=(H-padT-padB)/maxTotal;
+  // per-keyframe cumulative baselines (centered)
+  bands=[];
+  const colOf=(id)=>{ if(mode==='culture') return cultureCol(id, id===hlCulture||hlCulture==null?0.9:0.28);
+    const m=meta.get(id); if(mode==='sub'){ const s=SUB_COL[m.sub]||[0,0,50]; return hsl(s[0],s[1],s[2],hlCulture==null||id===hlCulture?0.9:0.3); }
+    const t=m.tier; return hsl(210-t*40,55,44+t*7, hlCulture==null||id===hlCulture?0.9:0.3); };
+  // compute stacked y for each culture across time
+  const yTop=new Map(), yBot=new Map();
+  for(let i=0;i<T;i++){ const tot=share?1:kfs[i].pop; let acc=-tot/2;
+    for(const id of order){ const s=val(i,sizeAt[i].get(id)); const y0=acc, y1=acc+s; acc=y1;
+      if(!yTop.has(id)){ yTop.set(id,new Array(T)); yBot.set(id,new Array(T)); }
+      yTop.get(id)[i]=y0; yBot.get(id)[i]=y1; } }
+  const cy=H/2-padB/2, Y=v=>cy+v*yscale;
+  SG={cy,yscale,padL,padR,W,H,T}; // geometry snapshot for hit-testing
+  // draw each band as a filled ribbon
+  for(const id of order){
+    const t0=yTop.get(id), b0=yBot.get(id); let any=false; for(let i=0;i<T;i++) if(b0[i]-t0[i]>0){any=true;break;} if(!any) continue;
+    ctx.beginPath(); ctx.moveTo(x(0),Y(t0[0]));
+    for(let i=0;i<T;i++) ctx.lineTo(x(i),Y(t0[i]));
+    for(let i=T-1;i>=0;i--) ctx.lineTo(x(i),Y(b0[i]));
+    ctx.closePath(); ctx.fillStyle=colOf(id); ctx.fill();
+    if(id===hlCulture){ ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.stroke(); }
+    bands.push({id,t0,b0});
+  }
+  // event markers
+  const evCol={agriculture:'#5bd18b',industry:'#e6a34a',migrationPulse:'#5aa9e6',collapse:'#e5686b',polityRise:'#a98bd6',war:'#e5686b',institutionFounded:'#6fd0c0',beliefFounded:'#c77dff',schism:'#e07ec2'};
+  const evLabel={agriculture:'agriculture',industry:'industry',collapse:'collapse'};
+  ctx.font='10px sans-serif'; ctx.textAlign='center';
+  const Tt=DATA.ticks||1;
+  for(const e of DATA.chronicle.events){ const col=evCol[e.type]; if(!col) continue; const px=padL+(W-padL-padR)*e.t/Tt;
+    ctx.strokeStyle=col+'99'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(px,padT); ctx.lineTo(px,H-padB); ctx.stroke();
+    if(evLabel[e.type]){ ctx.fillStyle=col; ctx.fillText(evLabel[e.type],px,H-6); } }
+}
+function streamHit(mx,my){
+  if(!DATA||!bands||!SG) return null;
+  const i=Math.max(0,Math.min(SG.T-1,Math.round((mx-SG.padL)/((SG.W-SG.padL-SG.padR)/(SG.T>1?SG.T-1:1)))));
+  for(const bd of bands){ const y0=SG.cy+bd.t0[i]*SG.yscale, y1=SG.cy+bd.b0[i]*SG.yscale; if(my>=y0&&my<=y1&&y1-y0>0.5) return bd.id; }
+  return null;
+}
+
+// ---- tables ---------------------------------------------------------------------
+function renderTables(){
+  const f=DATA.chronicle.final; const yr=t=>t<0?'—':Math.round(t*tickYears).toLocaleString();
+  // dynasties
+  const tb=$('#dyntab').querySelector('tbody'); tb.innerHTML='';
+  $('#dyncount').textContent='('+f.polities.length+')';
+  for(const p of f.polities){
+    const tr=document.createElement('tr'); tr.className='dyn'; tr.dataset.id=p.id;
+    tr.innerHTML=`<td><span class="sw" style="background:${cultureCol(p.id)}"></span>#${p.id}</td>`
+      +`<td>L${p.lang}</td><td>${SUBS[p.sub]}</td><td class="era${p.peakTier}">${ERA[p.peakTier]}</td>`
+      +`<td class="num">${yr(p.rose)}</td><td class="num">${p.peakPop.toLocaleString()}</td><td class="num">${p.peakTerritory}</td>`
+      +`<td>${p.alive?'<span class="pill alive">alive</span>':'<span class="pill fell">fell '+yr(p.fell)+'</span>'}</td>`;
+    tr.onclick=()=>{ hlCulture=hlCulture===p.id?null:p.id; refreshHL(); drawStream(); };
+    tb.appendChild(tr);
+  }
+  // resources
+  const rt=$('#restab').querySelector('tbody'); rt.innerHTML=''; $('#rescount').textContent='('+f.resources.length+')';
+  for(const r of f.resources){
+    const tr=document.createElement('tr');
+    const holder=r.holder>=0?`<span class="sw" style="background:${cultureCol(r.holder)}"></span>#${r.holder}`:'<span class="sub">unheld</span>';
+    tr.innerHTML=`<td>${RES_ICON[r.kind]||''} ${r.kind}</td><td>${r.name}</td><td>${holder}</td>`;
+    rt.appendChild(tr);
+  }
+  renderInsts(); renderGreat(); renderEcon(); renderFaiths();
+}
+const beliefHue=id=>(id*97.3+43)%360;
+const REG_ICON={folk:'🌿',temple:'⛩️',scripture:'📜',philosophy:'🏛️',ideology:'✊'};
+function renderFaiths(){
+  const f=DATA.chronicle.final, B=f.beliefs||[], axes=f.beliefAxes||[], yr=t=>Math.round(t*tickYears).toLocaleString();
+  const byId={}; for(const b of B) byId[b.id]=b;
+  const tb=$('#faithtab').querySelector('tbody'); tb.innerHTML=''; $('#faithcount').textContent='('+B.length+' surviving)';
+  for(const b of B){
+    const tr=document.createElement('tr');
+    const col=`hsl(${beliefHue(b.id)} 64% 62%)`;
+    const from=b.parent>=0&&byId[b.parent]?('↳ '+byId[b.parent].name):('#'+b.founderCulture);
+    // doctrine profile: a compact bar per axis
+    const prof=axes.map(a=>{ const v=b.doctrine[a]||0; return `<span title="${a} ${v.toFixed(2)}" style="display:inline-block;width:8px;height:${3+Math.round(v*13)}px;background:${col};opacity:${0.35+v*0.65};vertical-align:bottom;margin-right:1px"></span>`; }).join('');
+    const world=b.cultures>=3?' 🌍':'';
+    tr.innerHTML=`<td><span class="sw" style="background:${col}"></span><b>${b.name}</b>${world}</td>`
+      +`<td>${REG_ICON[b.register]||''} ${b.register}</td>`
+      +`<td><b style="color:${col}">${b.lead}</b></td>`
+      +`<td>${from}</td>`
+      +`<td class="num">${b.followers.toLocaleString()}</td><td class="num">${b.cultures}</td><td class="num">${b.landmasses}</td>`
+      +`<td class="num">${yr(b.birthTick)}</td>`
+      +`<td>${prof}</td>`;
+    tb.appendChild(tr);
+  }
+  if(!B.length) tb.innerHTML='<tr><td colspan="9" style="color:var(--dim)">no organized faith emerged (needs cities in the bronze era+)</td></tr>';
+}
+function renderEcon(){
+  const e=DATA.chronicle.final.economy; if(!e){ $('#econcard')&&($('#econcard').style.display='none'); return; }
+  const st=$('#econstats'); st.innerHTML='';
+  const add=(v,s)=>{ const c=document.createElement('div'); c.className='fact'; c.innerHTML=`<b>${v}</b><span>${s}</span>`; st.appendChild(c); };
+  add(e.gini.toFixed(3),'wealth inequality (Gini)'); add(e.meanWealth.toFixed(2),'mean wealth'); add(e.maxWealth.toFixed(1),'richest');
+  add(e.meanPrice.toFixed(2),'mean wares price'); add(e.totalOutput.toLocaleString(),'total output');
+  if(e.market){ const m=e.market; add(m.stockIndex.toLocaleString(),'stock index'); add((m.interestRate*100).toFixed(1)+'%','interest rate'); add((m.debtToGdp*100).toFixed(1)+'%','debt / GDP'); }
+  const ex=$('#exemplars'); ex.innerHTML='<span class="sub">evolved exemplar rulesets (imitated by new institutions): </span><br>';
+  const ICON={guild:'⚒️',firm:'🏭',warband:'⚔️',state:'🏛️'};
+  for(const [k,r] of Object.entries(e.exemplars||{})){
+    const el=document.createElement('span'); el.className='exr';
+    el.innerHTML=`${ICON[k]||''} <b>${k}</b> <span class="knob">tax <b>${(r.tax*100|0)}%</b></span><span class="knob">wage <b>${(r.wage*100|0)}%</b></span><span class="knob">merit <b>${(r.merit*100|0)}%</b></span><span class="knob">invest <b>${(r.invest*100|0)}%</b></span>`;
+    ex.appendChild(el);
+  }
+}
+const INST_ICON={state:'🏛️',firm:'🏭',guild:'⚒️',warband:'⚔️'};
+function renderInsts(){
+  const f=DATA.chronicle.final, yr=t=>Math.round(t*tickYears).toLocaleString();
+  const it=$('#insttab').querySelector('tbody'); it.innerHTML='';
+  const rows=(f.institutions||[]).filter(x=>!instFilter||x.kind===instFilter);
+  $('#instcount').textContent='('+(f.institutions||[]).length+')';
+  for(const o of rows){
+    const tr=document.createElement('tr'); tr.className='dyn'; tr.dataset.id=o.culture;
+    const r=o.rules, rules=r?`<span class="rules">${(r.tax*100|0)}·${(r.wage*100|0)}·${(r.merit*100|0)}·${(r.invest*100|0)}</span>`:'—';
+    tr.innerHTML=`<td>${INST_ICON[o.kind]||''} ${o.kind}</td><td>${o.name}</td><td>${o.leader?o.leader:'<span class="sub">—</span>'}</td>`
+      +`<td><span class="sw" style="background:${cultureCol(o.culture)}"></span>#${o.culture}</td>`
+      +`<td class="num">${o.members.toLocaleString()}</td>`
+      +`<td class="num">${o.pool.toLocaleString()}</td><td class="num">${o.capital?o.capital.toLocaleString():'—'}</td><td class="num">${o.strength?o.strength.toLocaleString():'—'}</td>`
+      +`<td class="num">${o.captures||'—'}</td><td>${rules}</td>`
+      +`<td>${o.alive?'<span class="pill alive">active</span>':'<span class="pill fell">fell '+yr(o.fell)+'</span>'}</td>`;
+    tr.onclick=()=>{ hlCulture=hlCulture===o.culture?null:o.culture; refreshHL(); drawStream(); };
+    it.appendChild(tr);
+  }
+}
+let instFilter='';
+$('#ifilter').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; instFilter=b.dataset.k; [...$('#ifilter').children].forEach(x=>x.classList.toggle('on',x===b)); renderInsts(); });
+const ROLE_ICON={state:'🏛️',firm:'🏭',guild:'⚒️',warband:'⚔️'};
+function renderGreat(){
+  const f=DATA.chronicle.final, CR=f.credNames||[], yr=t=>Math.round(t*tickYears).toLocaleString();
+  const gt=$('#gptab').querySelector('tbody'); gt.innerHTML=''; $('#gpcount').textContent='('+(f.greatPeople||[]).length+')';
+  for(const g of (f.greatPeople||[])){
+    const creds=CR.filter((c,i)=>g.cred&(1<<i));
+    const tr=document.createElement('tr'); tr.className='dyn'; tr.dataset.id=g.culture;
+    tr.innerHTML=`<td><b>${g.name}</b></td><td>${ROLE_ICON[g.role]||''} ${g.role} · ${g.inst}</td>`
+      +`<td><span class="sw" style="background:${cultureCol(g.culture)}"></span>#${g.culture}</td>`
+      +`<td class="num">${g.rep.toFixed(2)}</td><td class="num">${yr(g.tick)}</td>`
+      +`<td>${creds.length?creds.map(c=>`<span class="cap">${c}</span>`).join(''):'<span class="sub">—</span>'}</td>`;
+    tr.onclick=()=>{ hlCulture=hlCulture===g.culture?null:g.culture; refreshHL(); drawStream(); };
+    gt.appendChild(tr);
+  }
+}
+function refreshHL(){ document.querySelectorAll('tr.dyn').forEach(tr=>tr.classList.toggle('hl',+tr.dataset.id===hlCulture)); }
+
+// ---- interaction ----------------------------------------------------------------
+const tt=$('#tt');
+$('#stream').addEventListener('mousemove',e=>{ const r=e.target.getBoundingClientRect(); const id=streamHit(e.clientX-r.left,e.clientY-r.top);
+  if(id!=null){ const f=DATA.chronicle.final; const p=(f.polities||[]).find(x=>x.id===id);
+    tt.style.display='block'; tt.style.left=(e.clientX+12)+'px'; tt.style.top=(e.clientY+12)+'px';
+    tt.innerHTML=`<b style="color:${cultureCol(id)}">culture #${id}</b>`+(p?`<br>${SUBS[p.sub]} · ${ERA[p.peakTier]}<br>peak ${p.peakPop.toLocaleString()} · L${p.lang}${p.alive?'':' · fell'}`:'<br>(minor culture)');
+    $('#stream').style.cursor='pointer';
+  } else { tt.style.display='none'; $('#stream').style.cursor='crosshair'; } });
+$('#stream').addEventListener('mouseleave',()=>{ tt.style.display='none'; });
+$('#stream').addEventListener('click',e=>{ const r=e.target.getBoundingClientRect(); const id=streamHit(e.clientX-r.left,e.clientY-r.top); hlCulture=(id!=null&&id===hlCulture)?null:id; refreshHL(); drawStream(); });
+$('#modes').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; mode=b.dataset.m; [...$('#modes').children].forEach(x=>x.classList.toggle('on',x===b)); drawStream(); });
+$('#scales').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; scale=b.dataset.s; [...$('#scales').children].forEach(x=>x.classList.toggle('on',x===b)); drawStream(); });
+addEventListener('resize',()=>{ if(DATA) drawStream(); });
+
+// ---- load -----------------------------------------------------------------------
+async function load(){
+  const st=curState(); try{ history.replaceState(null,'','?'+qsOf(st)); }catch(e){} syncLinks();
+  $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks…'; hlCulture=null;
+  try{
+    const {json,cached,local}=await cachedFetch('/api/civ/run?'+qsOf(st));
+    DATA=json; tickYears=DATA.meta.tickYears||2.5; if(DATA.config){$('#lastconfig').value=DATA.config; syncLinks();}
+    $('#status').innerHTML=`<span class="score">★${DATA.score}</span> — ${DATA.descriptor}${cached?' · <b style="color:var(--good)">cached</b>':local?' · <b style="color:var(--acc)">computed locally</b>':''}`;
+    renderTables(); drawStream();
+  }catch(e){ $('#status').textContent='error: '+e.message; }
+  finally{ $('#load').disabled=false; }
+}
+$('#load').onclick=load;
+applyURL(); syncLinks(); load();
+</script>
+</body>
+</html>

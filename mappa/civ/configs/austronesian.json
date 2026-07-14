@@ -1,0 +1,8 @@
+{
+  "$comment": "Maritime island-hopping expansion. Sail-capable founders cross the sea links; best on a high-ocean world (worlds/archipelago.json). High mobility.",
+  "agent": { "b0": 0.44, "dispersalGain": 2.0, "corridorWeight": 1.4 },
+  "culture": { "subsistence": 0, "seedTech": ["fire","sail"], "normWeights": [0.6,0.5,0.55,0.9,0.35,0.45,0.55,0.6], "innovationBase": 0.006 },
+  "seeding": { "nucleusCount": 1, "founders": 60 },
+  "climate": { "preset": "stable" },
+  "popScale": 650
+}

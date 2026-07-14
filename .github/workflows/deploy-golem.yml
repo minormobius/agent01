@@ -1,0 +1,38 @@
+name: Deploy golem (smart-brick builder world)
+
+# golem.mino.mobi — Minecraft-like builder over cube3D's smart cellular bricks:
+# build a body, it classifies itself (real ESP32 firmware weights), wake it and
+# it acts like what it thinks it is. Pure static ES modules, no build step.
+
+on:
+  push:
+    branches: [main, 'claude/cube3d-browser-port-ufh9gy']
+    paths:
+      - 'golem/**'
+      - '.github/workflows/deploy-golem.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Selftest (nca parity, body, gaits, builder)
+        run: node golem/js/golem.selftest.mjs
+
+      - name: Vendor reef biome assets
+        # The reef biome imports the trained reef model and the species
+        # generator. Single source of truth is reef/ (games/auth.js pattern);
+        # golem/js/vendor/ is gitignored and assembled at deploy time.
+        run: |
+          mkdir -p golem/js/vendor
+          cp reef/model/weights-reef.js reef/js/species.js golem/js/vendor/
+          ls -la golem/js/vendor/
+
+      - name: Deploy to Cloudflare
+        working-directory: golem
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

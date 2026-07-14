@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>golem · build a swarm, wake it up</title>
+<meta name="description" content="A Minecraft-like builder over cube3D's smart cellular bricks. Assemble cubes; each runs the real trained ESP32 network and gossips with neighbours until the swarm decides what it is — then wake it: cars drive, planes fly, boats sail, chairs waddle, guitars sing, houses refuse to move. Cut a creature in half and each half lives on.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#07070c; --panel:#101019; --panel2:#16161f; --line:#23232e; --ink:#e6e6f0;
+    --soft:#8a8aa0; --faint:#5f5f74; --accent:#39d6c8; --accent2:#ffb454; --gold:#ffce6b; --danger:#ff6a7a;
+    --serif:Georgia,"Iowan Old Style",Cambria,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  .crumb{font-size:13px;letter-spacing:.04em;color:var(--faint);padding:10px 18px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative;z-index:5}
+  .crumb a{color:var(--soft)} .crumb .here{color:var(--accent)} .crumb .spacer{flex:1}
+  .stage-row{display:flex;min-height:calc(100vh - 42px)}
+  @media(max-width:880px){.stage-row{flex-direction:column}}
+  #viewport{position:relative;flex:1;min-height:60vh;background:radial-gradient(120% 90% at 50% 15%,#13131f 0%,#07070c 70%);touch-action:none}
+  #viewport canvas{display:block}
+  .hud{position:absolute;top:12px;left:14px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 5px #000;line-height:1.7}
+  .hud b{color:var(--accent)}
+  .hint{position:absolute;bottom:12px;left:14px;right:14px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 5px #000}
+  aside{width:340px;flex:0 0 340px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;max-height:calc(100vh - 42px);padding:18px 18px 40px}
+  @media(max-width:880px){aside{width:auto;flex:none;border-left:0;border-top:1px solid var(--line);max-height:none}}
+  aside h2{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 4px;font-weight:600}
+  aside .sub{font-size:12px;color:var(--faint);margin:0 0 12px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:8px 0 10px}
+  .seg button{flex:1;background:transparent;color:var(--soft);border:0;padding:9px 4px;font-size:12.5px;cursor:pointer;font-family:var(--sans)}
+  .seg button.on{background:var(--accent);color:#06121a;font-weight:600}
+  .seg button.eraseon{background:var(--danger);color:#1a0608;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .chips button{font-size:12px;background:var(--panel2);color:var(--soft);border:1px solid var(--line);border-radius:7px;padding:6px 9px;cursor:pointer;font-family:var(--sans);display:flex;align-items:center;gap:6px}
+  .chips button:hover{color:var(--ink);border-color:var(--accent)}
+  .chips .dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+  .row{display:flex;gap:8px;margin-top:10px}
+  .row button{flex:1;font-family:var(--sans);font-size:13px;background:var(--accent);color:#06121a;border:0;padding:9px;border-radius:8px;cursor:pointer;font-weight:600}
+  .row button:disabled{opacity:.35;cursor:default}
+  .row button.ghost{background:transparent;color:var(--soft);border:1px solid var(--line);font-weight:500}
+  .row button.ghost:hover:not(:disabled){color:var(--ink);border-color:var(--accent)}
+  .row button.wake{background:var(--gold);color:#1a1206;font-size:14px;padding:11px}
+  .check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--soft);margin:10px 0;cursor:pointer}
+  .check input{accent-color:var(--accent);width:16px;height:16px}
+  .group{border-top:1px solid var(--line);margin-top:14px;padding-top:11px}
+  .bars{margin-top:6px}
+  .bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px}
+  .bar .name{width:52px;color:var(--soft);font-family:var(--mono);font-size:11px}
+  .bar .track{flex:1;height:10px;background:var(--panel2);border-radius:5px;overflow:hidden}
+  .bar .fill{height:100%;width:0%;border-radius:5px;transition:width .18s}
+  .bar .pct{width:40px;text-align:right;color:var(--faint);font-family:var(--mono);font-size:11px}
+  .bar.lead .name{color:var(--ink)} .bar.lead .pct{color:var(--accent)}
+  .status{font-size:13px;color:#c9c9d6;margin:8px 0 2px;min-height:38px}
+  .status b{color:var(--gold)}
+  .docs{max-width:860px;margin:0 auto;padding:30px 22px 80px;border-top:1px solid var(--line)}
+  .docs h2{font-family:var(--serif);font-size:24px;margin:30px 0 8px;font-weight:600}
+  .docs h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:26px 0 6px}
+  .docs p{color:#c9c9d6;max-width:70ch}
+  .docs code{font-family:var(--mono);font-size:.86em;background:var(--panel2);padding:.12em .42em;border-radius:4px;color:#e9d9a8}
+  .docs .kicker{letter-spacing:.2em;text-transform:uppercase;font-size:11px;color:var(--accent2)}
+  .docs ul{color:#c9c9d6;max-width:70ch} .docs li{margin:5px 0}
+  .docs b{color:#f0f0f6}
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--gold);border:1px solid #3a2f12;background:#171307;border-radius:5px;padding:1px 7px;margin-right:4px}
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi/">mino.mobi</a> / <span class="here">golem</span>
+  <span class="spacer"></span>
+  <a href="https://tjs.mino.mobi/cube/">the cube bench</a> &nbsp;·&nbsp; <a href="#how">how it works ↓</a>
+</nav>
+
+<div class="stage-row">
+  <div id="viewport">
+    <div class="hud" id="hud"></div>
+    <div class="hint" id="hint"></div>
+  </div>
+
+  <aside>
+    <h2>Golem</h2>
+    <p class="sub">Build a body from smart bricks. Each cube runs a real trained <a href="https://github.com/rmorenoga/cube3D">cube3D</a>-architecture network and gossips with its neighbours until the swarm decides what it is. Then wake it — and it acts like what it thinks it is.</p>
+
+    <div class="seg" id="biomeSeg" style="display:none">
+      <button data-biome="workshop" class="on">🔧 Workshop</button>
+      <button data-biome="reef">🐟 Reef</button>
+    </div>
+
+    <div class="seg" id="modeSeg">
+      <button data-mode="build" class="on">Build</button>
+      <button data-mode="erase">Erase</button>
+      <button data-mode="select">Select</button>
+    </div>
+
+    <label class="check"><input type="checkbox" id="symmetry" checked> mirror symmetry (left–right)</label>
+    <div class="row">
+      <button id="undo" class="ghost">↶ Undo</button>
+      <button id="redo" class="ghost">↷ Redo</button>
+      <button id="clear" class="ghost">Clear</button>
+    </div>
+
+    <div class="group">
+      <h2>Start from</h2>
+      <p class="sub" style="margin-bottom:6px" id="chipNote">a random real shape from the training set — then edit it</p>
+      <div class="chips" id="classChips"></div>
+    </div>
+
+    <div class="group">
+      <h2>The swarm's mind</h2>
+      <div class="status" id="status"></div>
+      <div class="bars" id="bars"></div>
+      <div class="row"><button id="wake" class="wake" disabled>Wake it</button></div>
+      <div class="row">
+        <button id="recall" class="ghost" disabled>Recall selected</button>
+        <button id="despawn" class="ghost" disabled>Remove selected</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Share</h2>
+      <div class="row">
+        <button id="share" class="ghost">Copy link to this build</button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<section class="docs" id="how">
+  <div class="kicker">workbench notes</div>
+  <h2>Build a swarm; it decides what it is; it acts like it</h2>
+  <p>This is the <a href="https://tjs.mino.mobi/cube/">cube bench</a> grown into a world. The bricks are the same: each living cube runs the exact ~26k-parameter neural cellular automaton lifted from the <a href="https://github.com/rmorenoga/cube3D">cube3D</a> ESP32 firmware, holding a 28-channel state and gossiping with its 6 face-neighbours until every cube independently concludes what the whole body is — plane, chair, car, table, house, guitar, or boat. No cube ever sees the shape. The new part: <b>you</b> build the body, Minecraft-style, while it thinks out loud — and when you wake it, its identity becomes a verb.</p>
+
+  <h3>The build loop</h3>
+  <p>Tap a face to snap a cube onto it (tap the pad to start). The consensus bars run live while you build: place a slab and watch <i>Table</i> rise; add a backrest and <i>Chair</i> overtakes it; stretch the slab, lose the back, add stub wheels and it flips to <i>Car</i>. Mirror symmetry is on by default because vehicles are symmetric and thumbs are imprecise. Every build is a permalink — the whole 15³ structure is 563 characters of URL.</p>
+
+  <h3>Actuation — identity as a verb, decentralised where it counts</h3>
+  <p>When you wake a creature, three local mechanisms decide how it moves. None of them is a script with a global view:</p>
+  <ul>
+    <li><span class="pill">throttle = conviction</span> The body's speed is gated by the <b>vote</b>: the fraction of cubes agreeing on the lead class. A confused swarm barely creeps; near-unanimity drives at full speed. Smash pieces off mid-drive and it falters exactly as much as its classification does. Undecided cubes also <b>fidget</b> — twitch amplitude is belief entropy — so a fresh build visibly trembles, then steadies as consensus locks.</li>
+    <li><span class="pill">clock = Kuramoto</span> The gait rhythm comes from a phase oscillator in every cube, coupled to its face-neighbours (plus the sway of the shared body — a mean-field term with a mechanical excuse). From random phases they synchronise in a couple of seconds into a shared clock <i>no one owns</i>. Bounce, waddle steps, bobbing, guitar plucks all ride this clock. Cut a body in half and each half's clock re-syncs independently.</li>
+    <li><span class="pill">verb = the lead class</span> <b>Cars drive</b> (wandering, suspension bouncing on the clock). <b>Planes</b> taxi, climb, fly a banking circuit, land, repeat. <b>Boats</b> sail — water appears beneath them. <b>Chairs and tables waddle</b>, rocking on their legs in clock-step. <b>Guitars</b> go nowhere and pluck pentatonic notes on every clock beat. <b>Houses refuse</b>: one shiver, a settle of a few centimetres, chimney smoke. Identity ≠ mobility, and the house knows it.</li>
+  </ul>
+
+  <h3>The reef biome</h3>
+  <p>The biome switch swaps the entire vocabulary: same engine, same 28-channel state, different 26k parameters. The <b>Reef</b> loads a model we trained ourselves (<a href="https://reef.mino.mobi/model/">model card: 95% held-out majority accuracy</a>) on procedurally grown sea creatures — a corpus curated by crowd swipes at <a href="https://reef.mino.mobi/">reef.mino.mobi</a>. The verbs go aquatic: <b>fish school</b> (each steers toward nearby fish — the school is emergent, no leader), the <b>eel undulates</b> with a genuine traveling wave — one shared Kuramoto clock plus a spatial phase lag along the body, which is exactly how biological swimming pattern generators work — <b>rays glide</b> banking, <b>jellyfish pulse</b> upward on the clock beat and sink between, <b>turtles paddle</b>, <b>anemones sway</b>, and <b>coral grows</b>: it uses the builder's own <code>place()</code> primitive to add a brick every few beats, the new cube joining blank and being recruited by gossip like any other. Swimmers own the vertical axis, so collisions become 3D — a fish passes over a turtle, but two fish at the same depth still bump.</p>
+
+  <h3>Collisions</h3>
+  <p>Creatures share the world physically: footprint circles, mass-weighted shoving (mass = brick count), with a rule that matters — <b>houses and guitars never budge</b>. A car glances off another car, but it bounces off a house entirely; airborne planes pass over everything. And a genuine crash — closing speed above a threshold, not a graze — <b>knocks the brick nearest the point of impact off both parties</b>. Crash damage feeds straight back into the gossip layer: lose the wrong bricks and a car's consensus wavers, its throttle drops, and a bad enough wreck splits it outright.</p>
+
+  <h3>Mitosis</h3>
+  <p>Erase works on awake creatures too. Cut a car in half and the connected components become <b>independent creatures</b>: each keeps its cubes' beliefs (continuity of self — the states are carried over, not reset), runs its own gossip, syncs its own clock, and acts on its own verdict. One half may still believe <i>Car</i> and limp on; the other may decide it's a <i>Chair</i> now and waddle away. Fragments smaller than three cubes don't survive — they tumble off as debris.</p>
+
+  <h3>Honesty notes</h3>
+  <p>The classifier is the real, unmodified firmware network, and it was trained on ShapeNet voxelisations — it has never seen your build. It will happily be wrong, disagree with itself, or flip classes as you edit; the bars don't lie. Locomotion, by contrast, is theatre with decentralised controls: the body moves as one rigid thing (real modular cubes would pivot or slide lattice-wise — a much harder, slower dance), but <i>whether</i>, <i>how fast</i>, and <i>to what rhythm</i> are all read off per-cube local state. The docs on the cube bench cover the port's fidelity: parity with the original TF graph to <code>&lt;5×10⁻⁶</code>, 99.4% per-cube accuracy over the repo's full dataset.</p>
+
+  <h3>Engine</h3>
+  <p>No build step, no physics engine, no WASM — plain ES modules over <code>Float32Array</code>s, one <code>THREE.InstancedMesh</code> for every cube of every creature. The four modules are pure and node-tested (<code>node golem/js/golem.selftest.mjs</code> — 37 checks): <code>nca.js</code> (the firmware network + place/damage/extract), <code>body.js</code> (connected components, vote census, principal axis), <code>gaits.js</code> (Kuramoto field + the seven verbs, deterministic by seed), <code>builder.js</code> (symmetric edits, undo, the permalink codec).</p>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { NCA, GRID, NC, NCELLS, NEIGHBORS, decodeB64f32, decodeB64u8, splitWeights, unpackShape, mulberry32 } from './js/nca.js';
+import { components, bodyStats, latticeToWorld } from './js/body.js';
+import { Clock, createKin, applyVerb, applyVerbReef, resolveCollisions, VERB_NAMES, REEF_VERB_NAMES, REEF_STATIONARY, WORLD_RADIUS } from './js/gaits.js';
+import { Builder, cellOf, coordsOf, mirrorCell, encodeStructure, decodeStructure } from './js/builder.js';
+import { WEIGHTS_B64 } from './js/weights.js';
+import { SHAPES_B64, LABELS, CLASSES, NUM_SHAPES } from './js/shapes.js';
+
+const H = (GRID - 1) / 2;
+const UNDECIDED = new THREE.Color('#4a4a5c');
+const packed = decodeB64u8(SHAPES_B64);
+const byClass = CLASSES.map(() => []);
+LABELS.forEach((l, i) => byClass[l].push(i));
+
+// ---------- biomes ----------
+// Workshop: the original cube3D firmware weights + ShapeNet templates.
+// Reef: our trained marine model + the procedural species generator —
+// vendored from reef/ at deploy time (golem/js/vendor/, gitignored).
+const BIOMES = {
+  workshop: {
+    title: 'Workshop',
+    classes: CLASSES,
+    colors: ['#6ab7ff', '#ffb454', '#ff6a7a', '#b08bff', '#ffe066', '#39d6c8', '#7ee787'],
+    weights: splitWeights(decodeB64f32(WEIGHTS_B64)),
+    verbNames: VERB_NAMES,
+    apply: applyVerb,
+    stationary: [4, 5], // house, guitar
+    swims: false,
+    template: (k) => unpackShape(packed, byClass[k][Math.floor(Math.random() * byClass[k].length)]),
+    chipNote: 'a random real shape from the training set — then edit it',
+  },
+};
+try {
+  const [{ WEIGHTS_B64: RW }, sp] = await Promise.all([
+    import('./js/vendor/weights-reef.js'),
+    import('./js/vendor/species.js'),
+  ]);
+  BIOMES.reef = {
+    title: 'Reef',
+    classes: sp.SPECIES,
+    emoji: sp.SPECIES_EMOJI,
+    colors: ['#6ab7ff', '#7ee787', '#b08bff', '#ff9ad5', '#ffe066', '#ff6a7a', '#39d6c8'],
+    weights: splitWeights(decodeB64f32(RW)),
+    verbNames: REEF_VERB_NAMES,
+    apply: applyVerbReef,
+    stationary: REEF_STATIONARY, // coral, anemone
+    swims: true,
+    template: (k) => sp.generate(k, Math.floor(Math.random() * 800)),
+    chipNote: 'a procedurally grown specimen — the corpus the reef model was trained on',
+  };
+} catch (e) {
+  console.warn('reef biome assets not vendored — workshop only', e);
+}
+let biomeName = 'workshop';
+let B = BIOMES.workshop;
+let classCol = B.colors.map((c) => new THREE.Color(c));
+
+// ---------- three ----------
+const viewport = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+viewport.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x07070c, 55, 95);
+const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 300);
+camera.position.set(20, 16, 24);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 4, 0);
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.maxDistance = 80;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.4); key.position.set(18, 30, 14); scene.add(key);
+const rim = new THREE.DirectionalLight(0x88aaff, 0.5); rim.position.set(-20, 8, -18); scene.add(rim);
+
+// ground + garage pad
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(WORLD_RADIUS + 14, 64),
+  new THREE.MeshLambertMaterial({ color: 0x0d0d15 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.02;
+scene.add(ground);
+scene.add(new THREE.PolarGridHelper(WORLD_RADIUS + 14, 12, 10, 64, 0x1c1c28, 0x14141e));
+const pad = new THREE.Mesh(
+  new THREE.PlaneGeometry(GRID, GRID),
+  new THREE.MeshBasicMaterial({ color: 0x39d6c8, transparent: true, opacity: 0.06 })
+);
+pad.rotation.x = -Math.PI / 2;
+pad.position.y = 0.005;
+scene.add(pad);
+const padBox = new THREE.Box3Helper(
+  new THREE.Box3(new THREE.Vector3(-GRID / 2, 0, -GRID / 2), new THREE.Vector3(GRID / 2, GRID, GRID / 2)),
+  0x1f4f4a
+);
+scene.add(padBox);
+const padGrid = new THREE.GridHelper(GRID, GRID, 0x1f4f4a, 0x173030);
+padGrid.position.y = 0.01;
+scene.add(padGrid);
+
+// instanced cubes
+const MAX_INST = 8192;
+const geo = new THREE.BoxGeometry(0.92, 0.92, 0.92);
+const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial(), MAX_INST);
+mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_INST * 3), 3);
+mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+mesh.frustumCulled = false;
+scene.add(mesh);
+
+// ghost preview cube
+const ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x39d6c8, transparent: true, opacity: 0.35 }));
+const ghost2 = ghost.clone();
+ghost.visible = ghost2.visible = false;
+scene.add(ghost, ghost2);
+
+// selection ring
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(0.9, 1.0, 48),
+  new THREE.MeshBasicMaterial({ color: 0xffce6b, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+);
+ring.rotation.x = -Math.PI / 2;
+ring.visible = false;
+scene.add(ring);
+
+// debris
+const MAX_DEBRIS = 300;
+const debrisMesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.9 }), MAX_DEBRIS);
+debrisMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_DEBRIS * 3), 3);
+debrisMesh.count = 0;
+debrisMesh.frustumCulled = false;
+scene.add(debrisMesh);
+const debris = [];
+
+// water discs (pool of 4)
+const waters = Array.from({ length: 4 }, () => {
+  const m = new THREE.Mesh(
+    new THREE.CircleGeometry(13, 40),
+    new THREE.MeshBasicMaterial({ color: 0x1b4d6b, transparent: true, opacity: 0 })
+  );
+  m.rotation.x = -Math.PI / 2;
+  m.position.y = 0.06;
+  scene.add(m);
+  return m;
+});
+
+// smoke
+const MAX_SMOKE = 160;
+const smokeGeo = new THREE.BufferGeometry();
+const smokePos = new Float32Array(MAX_SMOKE * 3);
+smokeGeo.setAttribute('position', new THREE.BufferAttribute(smokePos, 3));
+const smokeMat = new THREE.PointsMaterial({ color: 0x9a9ab0, size: 0.5, transparent: true, opacity: 0.45, depthWrite: false });
+const smokePts = new THREE.Points(smokeGeo, smokeMat);
+smokePts.frustumCulled = false;
+scene.add(smokePts);
+const smoke = []; // {x,y,z,age}
+
+// ---------- audio ----------
+let audioCtx = null;
+function pluck(freq) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const lp = audioCtx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 1800;
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.12, t);
+  gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.9);
+  osc.connect(lp).connect(gain).connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + 1);
+}
+
+// ---------- creatures ----------
+let nextId = 1;
+const creatures = []; // {id, nca, clock, kin, stats, garage, awake, seed}
+let selected = null;  // a roaming creature, or null
+
+function newCreature(structure, { garage = false, kin = null, seed = null } = {}) {
+  const nca = new NCA(B.weights);
+  nca.setStructure(structure);
+  const s = seed ?? (nextId * 7919 + 13);
+  const c = {
+    id: nextId++,
+    nca,
+    clock: new Clock(nca.live, s),
+    kin: kin ?? createKin(s),
+    stats: bodyStats(nca),
+    garage,
+    awake: !garage,
+    seed: s,
+    acc: Math.random(), // stagger gossip ticks
+  };
+  if (garage) { c.kin.pos = [0, 0, 0]; c.kin.yaw = 0; }
+  creatures.push(c);
+  return c;
+}
+
+const builder = new Builder();
+let garageCreature = null;
+
+function initGarage(structure = null) {
+  builder.structure.fill(0);
+  builder.undoStack.length = builder.redoStack.length = 0;
+  if (structure) builder.load(structure);
+  garageCreature = newCreature(builder.structure.slice(), { garage: true });
+  refreshPanel();
+}
+
+function syncGarage(delta) {
+  if (!delta || !garageCreature) return;
+  for (const c of delta.placed) garageCreature.nca.place(c);
+  for (const c of delta.removed) garageCreature.nca.damage(c);
+  garageCreature.clock.rebuild(garageCreature.nca.live);
+  garageCreature.stats = bodyStats(garageCreature.nca);
+  refreshPanel();
+}
+
+// split an awake creature into its connected components
+function maybeSplit(cr) {
+  const comps = components(cr.nca.structure);
+  if (comps.length <= 1) return;
+  const idx = creatures.indexOf(cr);
+  if (idx >= 0) creatures.splice(idx, 1);
+  if (selected === cr) selected = null;
+  for (const comp of comps) {
+    if (comp.length < 3) { // too small to live — becomes debris
+      for (const cell of comp) spawnDebris(cr, cell);
+      continue;
+    }
+    const child = {
+      id: nextId++,
+      nca: cr.nca.extract(comp),
+      clock: null,
+      kin: { ...cr.kin, pos: [...cr.kin.pos], flags: { ...cr.kin.flags }, s1: cr.kin.s1 + comp.length, s2: cr.kin.s2 },
+      stats: null,
+      garage: false,
+      awake: true,
+      seed: cr.seed + comp.length,
+      acc: Math.random(),
+    };
+    child.clock = new Clock(child.nca.live, child.seed);
+    // carry the parent's phases so the clock doesn't restart from chaos
+    for (let i = 0; i < child.clock.cells.length; i++) {
+      const cell = child.clock.cells[i];
+      const pi = cr.clock.idx[cell];
+      if (pi >= 0) child.clock.phases[i] = cr.clock.phases[pi];
+    }
+    child.stats = bodyStats(child.nca);
+    creatures.push(child);
+  }
+}
+
+// ---------- transforms ----------
+const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler();
+const tmpV = new THREE.Vector3(), ONE = new THREE.Vector3(1, 1, 1);
+const col = new THREE.Color();
+
+function creatureQuat(cr, q) {
+  tmpE.set(cr.kin.pitch, -cr.kin.yaw, cr.kin.roll, 'YZX');
+  return q.setFromEuler(tmpE);
+}
+
+// world matrix of one cube of one creature, with gait + twitch offsets.
+// Garage builds render in raw lattice coordinates (so taps, ghosts and cubes
+// all agree); roaming creatures render ground-snapped about their base center.
+const instMap = []; // parallel to instance index: {cr, cell}
+function composeInstances(t) {
+  let n = 0;
+  instMap.length = 0;
+  const q = new THREE.Quaternion();
+  const isReef = biomeName === 'reef';
+  for (const cr of creatures) {
+    const { kin, stats } = cr;
+    creatureQuat(cr, q);
+    const baseY = kin.pos[1] + kin.bounce - kin.settle;
+    const waddler = !isReef && (stats.lead === 1 || stats.lead === 3);
+    const psi = cr.clock.order().psi;
+    const legPulseP = Math.max(0, Math.sin(psi)) * kin.speed * 0.1;
+    const legPulseN = Math.max(0, -Math.sin(psi)) * kin.speed * 0.1;
+    // reef theatrics, precomputed per creature
+    const swimmerWave = isReef && cr.awake && (stats.lead === 0 || stats.lead === 1); // fish, eel
+    const rayFlap = isReef && cr.awake && stats.lead === 2;
+    const jellyPulse = isReef && cr.awake && stats.lead === 3;
+    const anemoneSway = isReef && cr.awake && stats.lead === 6;
+    const waveAmp = stats.lead === 1 ? 0.38 : 0.18;
+    const f0 = stats.forward[0], f2 = stats.forward[2];
+    for (const cell of cr.nca.live) {
+      if (n >= MAX_INST) break;
+      const w = latticeToWorld(cell);
+      if (cr.garage) {
+        tmpV.set(w[0], w[1] + H + 0.5, w[2]); // raw lattice: a2=0 sits on the pad
+      } else {
+        tmpV.set(w[0] - stats.centroid[0], w[1] - stats.minY + 0.5, w[2] - stats.centroid[2]);
+      }
+      // per-cube theatrics
+      if (kin.shimmer > 0) tmpV.x += kin.shimmer * Math.sin(t * 22 + w[1] * 2.2);
+      if (waddler && cr.awake && w[1] < stats.minY + 1.5) {
+        // alternate diagonal "legs" lift on the clock
+        tmpV.y += ((Math.round(w[0]) + Math.round(w[2])) & 1) ? legPulseP : legPulseN;
+      }
+      if (swimmerWave) {
+        // the CPG trick: one shared clock + a spatial phase lag along the
+        // body axis = a traveling wave down the eel (subtler on fish)
+        const along = tmpV.x * f0 + tmpV.z * f2;
+        const lat = waveAmp * Math.sin(2 * psi + along * 1.1) * Math.min(1, kin.speed);
+        tmpV.x += -f2 * lat;
+        tmpV.z += f0 * lat;
+      } else if (rayFlap) {
+        const latDist = Math.abs(tmpV.x * -f2 + tmpV.z * f0);
+        tmpV.y += 0.22 * Math.sin(2 * psi) * (latDist / Math.max(1, stats.radius)) * Math.min(1, kin.speed + 0.3);
+      } else if (jellyPulse) {
+        tmpV.y += (w[1] - stats.minY) * 0.10 * Math.sin(psi);
+      } else if (anemoneSway) {
+        const hgt = w[1] - stats.minY;
+        tmpV.x += 0.16 * hgt * 0.25 * Math.sin(psi * 0.8 + hgt * 0.7);
+        tmpV.z += 0.16 * hgt * 0.25 * Math.cos(psi * 0.6 + hgt * 0.9);
+      }
+      if (kin.twitch > 0) {
+        const h1 = Math.sin(cell * 12.9898 + Math.floor(t * 14) * 78.233) * 43758.5453;
+        tmpV.x += kin.twitch * ((h1 % 1) - 0.5);
+        tmpV.y += kin.twitch * (((h1 * 1.7) % 1) - 0.5) * 0.6;
+        tmpV.z += kin.twitch * (((h1 * 2.3) % 1) - 0.5);
+      }
+      tmpV.applyQuaternion(q);
+      tmpV.x += kin.pos[0]; tmpV.y += baseY; tmpV.z += kin.pos[2];
+      tmpM.compose(tmpV, q, ONE);
+      mesh.setMatrixAt(n, tmpM);
+      // color by vote × confidence
+      const vote = cr.nca.vote(cell);
+      const conf = cr.nca.confidence(cell);
+      const tt = Math.min(1, Math.max(0, (conf - 1 / NC) / (0.85 - 1 / NC)));
+      col.copy(UNDECIDED).lerp(classCol[vote], tt);
+      mesh.setColorAt(n, col);
+      instMap.push({ cr, cell });
+      n++;
+    }
+  }
+  mesh.count = n;
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.instanceColor.needsUpdate = true;
+}
+
+// world XZ of one cube (no theatrics offsets) — used to find crash-point bricks
+function cellWorldXZ(cr, cell, q) {
+  const w = latticeToWorld(cell);
+  if (cr.garage) tmpV.set(w[0], 0, w[2]);
+  else tmpV.set(w[0] - cr.stats.centroid[0], 0, w[2] - cr.stats.centroid[2]);
+  tmpV.applyQuaternion(q);
+  return [tmpV.x + cr.kin.pos[0], tmpV.z + cr.kin.pos[2]];
+}
+
+// a hard crash knocks the brick nearest the point of impact off the creature
+function knockBrick(cr, x, z) {
+  if (cr.nca.live.length <= 1) return;
+  const q = creatureQuat(cr, new THREE.Quaternion());
+  let best = -1, bestD = Infinity;
+  for (const cell of cr.nca.live) {
+    const [cx, cz] = cellWorldXZ(cr, cell, q);
+    const d = (cx - x) * (cx - x) + (cz - z) * (cz - z);
+    if (d < bestD) { bestD = d; best = cell; }
+  }
+  if (best < 0) return;
+  spawnDebris(cr, best);
+  cr.nca.damage(best);
+  cr.clock.rebuild(cr.nca.live);
+  cr.stats = bodyStats(cr.nca);
+  maybeSplit(cr);
+}
+
+function spawnDebris(cr, cell) {
+  const w = latticeToWorld(cell);
+  const q = creatureQuat(cr, new THREE.Quaternion());
+  const p = cr.garage
+    ? new THREE.Vector3(w[0], w[1] + H + 0.5, w[2])
+    : new THREE.Vector3(w[0] - cr.stats.centroid[0], w[1] - cr.stats.minY + 0.5, w[2] - cr.stats.centroid[2]);
+  p.applyQuaternion(q);
+  p.x += cr.kin.pos[0]; p.y += cr.kin.pos[1]; p.z += cr.kin.pos[2];
+  const vote = cr.nca.vote(cell);
+  debris.push({
+    pos: p, age: 0,
+    vel: new THREE.Vector3((Math.random() - 0.5) * 7, 5 + Math.random() * 3, (Math.random() - 0.5) * 7),
+    rot: new THREE.Euler(), rotVel: new THREE.Vector3((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8),
+    color: col.copy(UNDECIDED).lerp(classCol[vote], 0.7).clone(),
+  });
+  if (debris.length > MAX_DEBRIS) debris.shift();
+}
+
+// ---------- UI ----------
+const $ = (id) => document.getElementById(id);
+let mode = 'build';
+let symmetry = true;
+
+const HINTS = {
+  build: 'tap the pad or a cube face to add a brick · drag = orbit · pinch = zoom',
+  erase: 'tap a cube to knock it off — works on roaming creatures too (cut one in half!)',
+  select: 'tap a creature to inspect its mind',
+};
+$('hint').textContent = HINTS.build;
+
+const modeSeg = $('modeSeg');
+modeSeg.querySelectorAll('button').forEach((b) => {
+  b.onclick = () => {
+    mode = b.dataset.mode;
+    modeSeg.querySelectorAll('button').forEach((x) => x.classList.remove('on', 'eraseon'));
+    b.classList.add(mode === 'erase' ? 'eraseon' : 'on');
+    $('hint').textContent = HINTS[mode];
+    ghost.visible = ghost2.visible = false;
+  };
+});
+$('symmetry').onchange = (e) => { symmetry = e.target.checked; };
+$('undo').onclick = () => syncGarage(builder.undo());
+$('redo').onclick = () => syncGarage(builder.redo());
+$('clear').onclick = () => { builder.load(new Uint8Array(NCELLS)); rebuildGarageFromBuilder(); };
+
+function rebuildGarageFromBuilder() {
+  // hard resync (used by clear/template load — fresh beliefs)
+  if (!garageCreature) return;
+  garageCreature.nca.setStructure(builder.structure);
+  garageCreature.clock.rebuild(garageCreature.nca.live);
+  garageCreature.stats = bodyStats(garageCreature.nca);
+  refreshPanel();
+}
+
+// template chips + consensus bars — rebuilt on biome switch
+const chipsEl = $('classChips');
+const barsEl = $('bars');
+let barFills = [], barPcts = [], barRows = [];
+function buildPanelForBiome() {
+  chipsEl.innerHTML = '';
+  B.classes.forEach((name, k) => {
+    const b = document.createElement('button');
+    const em = B.emoji ? B.emoji[k] + ' ' : '';
+    b.innerHTML = `<span class="dot" style="background:${B.colors[k]}"></span>${em}${name}`;
+    b.onclick = () => {
+      builder.load(B.template(k));
+      deselect(); // panel returns to the build
+      rebuildGarageFromBuilder();
+    };
+    chipsEl.appendChild(b);
+  });
+  $('chipNote').textContent = B.chipNote;
+  barsEl.innerHTML = '';
+  barFills = []; barPcts = []; barRows = [];
+  B.classes.forEach((name, k) => {
+    const row = document.createElement('div');
+    row.className = 'bar';
+    row.innerHTML = `<span class="name">${name}</span><span class="track"><span class="fill" style="background:${B.colors[k]}"></span></span><span class="pct"></span>`;
+    barsEl.appendChild(row);
+    barRows.push(row);
+    barFills.push(row.querySelector('.fill'));
+    barPcts.push(row.querySelector('.pct'));
+  });
+}
+buildPanelForBiome();
+
+function refreshPanel() {
+  const inspect = selected ?? garageCreature;
+  if (!inspect) return;
+  const st = inspect.stats;
+  for (let k = 0; k < NC; k++) {
+    barFills[k].style.width = `${(st.votes[k] * 100).toFixed(1)}%`;
+    barPcts[k].textContent = `${(st.votes[k] * 100).toFixed(0)}%`;
+    barRows[k].classList.toggle('lead', k === st.lead && st.consensus > 0);
+  }
+  const n = inspect.nca.live.length;
+  const who = inspect === garageCreature ? 'Your build' : `Creature #${inspect.id}`;
+  if (n === 0) {
+    $('status').innerHTML = `${who}: empty. Tap the pad to lay the first brick.`;
+  } else if (st.consensus < 0.5) {
+    $('status').innerHTML = `${who} (${n} bricks) is <b>undecided</b> — the swarm is still arguing.`;
+  } else {
+    $('status').innerHTML = `${who} (${n} bricks) is ${(st.consensus * 100).toFixed(0)}% sure it's a <b>${B.classes[st.lead]}</b> — a ${B.classes[st.lead].toLowerCase()} <b>${B.verbNames[st.lead]}</b>.`;
+  }
+  // Wake always reflects the build on the pad, whatever is selected
+  const gs = garageCreature?.stats;
+  const wakeable = !!garageCreature && garageCreature.nca.live.length >= 3 && gs.consensus >= 0.5;
+  $('wake').disabled = !wakeable;
+  $('wake').textContent = wakeable ? `Wake the ${B.classes[gs.lead]}` : 'Wake it';
+  $('recall').disabled = !(selected && !garageCreatureHasCubes());
+  $('despawn').disabled = !selected;
+}
+
+function deselect() {
+  selected = null;
+  ring.visible = false;
+}
+
+const garageCreatureHasCubes = () => garageCreature && garageCreature.nca.live.length > 0;
+
+$('wake').onclick = () => {
+  if (!garageCreature || garageCreature.nca.live.length < 3) return;
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} }
+  const cr = garageCreature;
+  cr.garage = false;
+  cr.awake = true;
+  cr.kin = createKin(cr.seed);
+  cr.kin.yaw = Math.atan2(cr.stats.forward[2], cr.stats.forward[0]); // set off along its own long axis
+  // movers drive themselves off the pad; non-movers (house, guitar, coral,
+  // anemone) get delivered to a spot just outside it — then stay, as is their way
+  const stationary = B.stationary.includes(cr.stats.lead);
+  const d = stationary ? GRID * 1.15 : 0;
+  cr.kin.pos = [Math.cos(cr.kin.yaw) * d, 0, Math.sin(cr.kin.yaw) * d];
+  if (B.swims && !stationary) { cr.kin.alt = 2; cr.kin.pos[1] = 2; } // swimmers push off into the water
+  garageCreature = null;
+  selected = cr; // keep watching its mind while it goes
+  initGarage();
+};
+$('recall').onclick = () => {
+  if (!selected || garageCreatureHasCubes()) return;
+  // the selected creature parks back on the pad and goes back to sleep
+  const idx = creatures.indexOf(garageCreature);
+  if (idx >= 0) creatures.splice(idx, 1);
+  selected.garage = true;
+  selected.awake = false;
+  selected.kin.pos = [0, 0, 0];
+  selected.kin.yaw = 0;
+  selected.kin.alt = 0;
+  garageCreature = selected;
+  builder.structure.set(selected.nca.structure);
+  builder.undoStack.length = builder.redoStack.length = 0;
+  selected = null;
+  ring.visible = false;
+  refreshPanel();
+};
+$('despawn').onclick = () => {
+  if (!selected) return;
+  for (const cell of [...selected.nca.live]) spawnDebris(selected, cell);
+  const idx = creatures.indexOf(selected);
+  if (idx >= 0) creatures.splice(idx, 1);
+  selected = null;
+  ring.visible = false;
+  refreshPanel();
+};
+// ---------- biome switch ----------
+function applyBiomeSkin() {
+  if (biomeName === 'reef') {
+    scene.fog.color.set(0x06222e); scene.fog.near = 35; scene.fog.far = 78;
+    ground.material.color.set(0x123038);
+    key.color.set(0x9fd8ff); key.intensity = 1.2;
+    rim.color.set(0x1c6f8a); rim.intensity = 0.8;
+    viewport.style.background = 'radial-gradient(120% 90% at 50% 15%,#0c3140 0%,#04141c 70%)';
+  } else {
+    scene.fog.color.set(0x07070c); scene.fog.near = 55; scene.fog.far = 95;
+    ground.material.color.set(0x0d0d15);
+    key.color.set(0xffffff); key.intensity = 1.4;
+    rim.color.set(0x88aaff); rim.intensity = 0.5;
+    viewport.style.background = 'radial-gradient(120% 90% at 50% 15%,#13131f 0%,#07070c 70%)';
+  }
+}
+
+function setBiome(name) {
+  if (!BIOMES[name] || name === biomeName) return;
+  biomeName = name;
+  B = BIOMES[name];
+  classCol = B.colors.map((c) => new THREE.Color(c));
+  // fresh world: every creature belongs to one vocabulary
+  creatures.length = 0;
+  debris.length = 0;
+  smoke.length = 0;
+  selected = null;
+  ring.visible = false;
+  applyBiomeSkin();
+  buildPanelForBiome();
+  document.querySelectorAll('#biomeSeg button').forEach((x) =>
+    x.classList.toggle('on', x.dataset.biome === name));
+  initGarage();
+  builder.load(B.template(name === 'reef' ? 0 : 2)); // starter: a fish / a car
+  rebuildGarageFromBuilder();
+  updateHud();
+}
+if (BIOMES.reef) {
+  $('biomeSeg').style.display = 'flex';
+  document.querySelectorAll('#biomeSeg button').forEach((b) => {
+    b.onclick = () => setBiome(b.dataset.biome);
+  });
+}
+
+$('share').onclick = async () => {
+  const url = `${location.origin}${location.pathname}#b=${encodeStructure(builder.structure)}&m=${biomeName}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    $('share').textContent = 'Copied!';
+  } catch {
+    location.hash = `b=${encodeStructure(builder.structure)}&m=${biomeName}`;
+    $('share').textContent = 'Link is in the URL bar';
+  }
+  setTimeout(() => { $('share').textContent = 'Copy link to this build'; }, 1600);
+};
+
+// ---------- picking ----------
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const padPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+function pick(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObject(mesh, false)[0];
+  if (hit && hit.instanceId !== undefined && hit.instanceId < instMap.length) {
+    return { kind: 'cube', ...instMap[hit.instanceId], normal: hit.face.normal.clone().transformDirection(mesh.matrixWorld), point: hit.point };
+  }
+  const pt = new THREE.Vector3();
+  if (ray.ray.intersectPlane(padPlane, pt) && Math.abs(pt.x) <= GRID / 2 && Math.abs(pt.z) <= GRID / 2) {
+    return { kind: 'pad', point: pt };
+  }
+  return null;
+}
+
+// candidate garage lattice cell for a build tap
+function buildTarget(p) {
+  if (!p) return -1;
+  if (p.kind === 'pad') {
+    const a0 = Math.round(p.point.x + H), a1 = Math.round(p.point.z + H);
+    if (a0 < 0 || a0 >= GRID || a1 < 0 || a1 >= GRID) return -1;
+    return cellOf(a0, a1, 0);
+  }
+  if (p.kind === 'cube' && p.cr === garageCreature) {
+    // neighbor cell in the direction of the tapped face (garage is unrotated)
+    const [a0, a1, a2] = coordsOf(p.cell);
+    const n = p.normal;
+    let b0 = a0, b1 = a1, b2 = a2;
+    if (Math.abs(n.x) > Math.abs(n.y) && Math.abs(n.x) > Math.abs(n.z)) b0 += Math.sign(n.x);
+    else if (Math.abs(n.y) > Math.abs(n.z)) b2 += Math.sign(n.y);
+    else b1 += Math.sign(n.z);
+    if (b0 < 0 || b0 >= GRID || b1 < 0 || b1 >= GRID || b2 < 0 || b2 >= GRID) return -1;
+    return cellOf(b0, b1, b2);
+  }
+  return -1;
+}
+
+// distinguish tap from orbit-drag
+let downPos = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { downPos = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!downPos) return;
+  const moved = Math.hypot(e.clientX - downPos[0], e.clientY - downPos[1]);
+  downPos = null;
+  if (moved > 6) return; // was a drag
+  const p = pick(e);
+  if (mode === 'build') {
+    const target = buildTarget(p);
+    if (target >= 0 && garageCreature) {
+      if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} }
+      deselect();
+      syncGarage({ placed: builder.place(target, symmetry), removed: [] });
+    }
+  } else if (mode === 'erase') {
+    if (p && p.kind === 'cube') {
+      const cr = p.cr;
+      if (cr === garageCreature) {
+        const removed = builder.remove(p.cell, symmetry);
+        for (const c of removed) spawnDebris(cr, c); // color read before damage
+        syncGarage({ placed: [], removed });
+      } else {
+        spawnDebris(cr, p.cell);
+        cr.nca.damage(p.cell);
+        cr.clock.rebuild(cr.nca.live);
+        cr.stats = bodyStats(cr.nca);
+        if (cr.nca.live.length === 0) {
+          const idx = creatures.indexOf(cr);
+          if (idx >= 0) creatures.splice(idx, 1);
+          if (selected === cr) { selected = null; ring.visible = false; }
+        } else {
+          maybeSplit(cr);
+        }
+        refreshPanel();
+      }
+    }
+  } else if (mode === 'select') {
+    if (p && p.kind === 'cube' && p.cr !== garageCreature) {
+      selected = p.cr;
+    } else {
+      selected = null;
+      ring.visible = false;
+    }
+    refreshPanel();
+  }
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (mode !== 'build' || e.pointerType === 'touch') { ghost.visible = ghost2.visible = false; return; }
+  const target = buildTarget(pick(e));
+  if (target < 0) { ghost.visible = ghost2.visible = false; return; }
+  const [a0, a1, a2] = coordsOf(target);
+  ghost.position.set(a0 - H, a2 + 0.5, a1 - H);
+  ghost.visible = true;
+  if (symmetry) {
+    const m = mirrorCell(target);
+    if (m !== target) {
+      const [m0, m1, m2] = coordsOf(m);
+      ghost2.position.set(m0 - H, m2 + 0.5, m1 - H);
+      ghost2.visible = true;
+    } else ghost2.visible = false;
+  } else ghost2.visible = false;
+});
+
+// ---------- loop ----------
+function resize() {
+  const w = viewport.clientWidth, h = viewport.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(viewport);
+resize();
+
+const GOSSIP_HZ = 10;
+let last = performance.now();
+let panelAcc = 0;
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - last) / 1000);
+  const t = now / 1000;
+  last = now;
+
+  let waterI = 0;
+  for (const cr of creatures) {
+    // gossip
+    cr.acc += dt * GOSSIP_HZ;
+    let steps = Math.min(3, Math.floor(cr.acc));
+    cr.acc -= Math.floor(cr.acc);
+    if (steps > 0 && cr.nca.live.length) {
+      while (steps--) cr.nca.step(0.5);
+      cr.stats = bodyStats(cr.nca);
+    }
+    // clock + verb
+    cr.clock.step(dt);
+    if (cr.awake) {
+      const { r, psi } = cr.clock.order();
+      const S = { lead: cr.stats.lead, consensus: cr.stats.consensus, entropy: cr.stats.entropy, r, psi };
+      // fish school: steer gently toward the centroid of nearby fish
+      if (biomeName === 'reef' && cr.stats.lead === 0) {
+        let cx = 0, cz = 0, nf = 0;
+        for (const o of creatures) {
+          if (o === cr || !o.awake || o.stats.lead !== 0) continue;
+          const d = Math.hypot(o.kin.pos[0] - cr.kin.pos[0], o.kin.pos[2] - cr.kin.pos[2]);
+          if (d < 20) { cx += o.kin.pos[0]; cz += o.kin.pos[2]; nf++; }
+        }
+        if (nf) {
+          const want = Math.atan2(cz / nf - cr.kin.pos[2], cx / nf - cr.kin.pos[0]);
+          let diff = want - cr.kin.yaw;
+          while (diff > Math.PI) diff -= 2 * Math.PI;
+          while (diff < -Math.PI) diff += 2 * Math.PI;
+          S.cohesion = Math.max(-0.5, Math.min(0.5, diff)) * 0.8;
+        }
+      }
+      B.apply(cr.kin, S, dt);
+      if (cr.kin.flags.pluck) pluck(cr.kin.flags.pluck);
+      // coral builds itself: one new brick per growth beat, upward-biased
+      if (cr.kin.flags.grow && cr.nca.live.length < 380) {
+        const candidates = [];
+        for (const cell of cr.nca.live) {
+          const up = NEIGHBORS[cell * 7 + 6]; // lattice a2+1 = world up
+          if (up >= 0 && !cr.nca.structure[up]) candidates.push(up);
+          if (Math.random() < 0.25) {
+            for (const d of [1, 2, 3, 4]) {
+              const nb = NEIGHBORS[cell * 7 + d];
+              if (nb >= 0 && !cr.nca.structure[nb]) candidates.push(nb);
+            }
+          }
+        }
+        if (candidates.length) {
+          cr.nca.place(candidates[Math.floor(Math.random() * candidates.length)]);
+          cr.clock.rebuild(cr.nca.live);
+          cr.stats = bodyStats(cr.nca);
+        }
+      }
+      if (cr.kin.flags.water && waterI < waters.length) {
+        const w = waters[waterI++];
+        w.position.x = cr.kin.pos[0]; w.position.z = cr.kin.pos[2];
+        w.material.opacity = Math.min(0.5, w.material.opacity + dt);
+      }
+      if (cr.kin.flags.smoke && Math.random() < 0.25 && smoke.length < MAX_SMOKE) {
+        const topY = -cr.stats.minY + 0.5 + (cr.stats.centroid[1] - cr.stats.minY) * 2 + 1;
+        smoke.push({ x: cr.kin.pos[0], y: topY, z: cr.kin.pos[2], age: 0 });
+      }
+    } else {
+      // in the garage: fidget with entropy but stay put
+      cr.kin.twitch = 0.08 * cr.stats.entropy;
+    }
+  }
+  for (let i = waterI; i < waters.length; i++) {
+    waters[i].material.opacity = Math.max(0, waters[i].material.opacity - dt);
+  }
+
+  // collisions: mass-weighted shoving; a real crash knocks bricks off both
+  {
+    const bodies = creatures
+      .filter((c) => c.awake && c.nca.live.length)
+      .map((c) => ({
+        kin: c.kin,
+        radius: c.stats.radius + 0.5,
+        mass: c.nca.live.length,
+        mobile: !B.stationary.includes(c.stats.lead), // houses, guitars, corals, anemones don't budge
+        airborne: c.kin.flags.airborne,
+        y: c.kin.pos[1] + c.stats.height / 2,
+        h: c.stats.height,
+        cr: c,
+      }));
+    for (const im of resolveCollisions(bodies)) {
+      for (const b of [bodies[im.i], bodies[im.j]]) {
+        const cr = b.cr;
+        if (t - (cr.lastImpact || 0) < 0.9) continue; // one knock per crash, not per frame
+        cr.lastImpact = t;
+        knockBrick(cr, im.x, im.z);
+      }
+    }
+  }
+
+  // panel refresh (cheap, throttled)
+  panelAcc += dt;
+  if (panelAcc > 0.25) { panelAcc = 0; refreshPanel(); updateHud(); }
+
+  composeInstances(t);
+
+  // selection ring
+  if (selected) {
+    ring.visible = true;
+    ring.position.set(selected.kin.pos[0], 0.05, selected.kin.pos[2]);
+    ring.scale.setScalar(Math.max(2.5, selected.stats.radius + 1.6));
+  }
+
+  // debris physics
+  if (debris.length) {
+    let alive = 0;
+    for (const d of debris) {
+      d.age += dt;
+      if (d.age > 2.2) continue;
+      d.vel.y -= 22 * dt;
+      d.pos.addScaledVector(d.vel, dt);
+      d.rot.x += d.rotVel.x * dt; d.rot.y += d.rotVel.y * dt; d.rot.z += d.rotVel.z * dt;
+      tmpQ.setFromEuler(d.rot);
+      tmpM.compose(d.pos, tmpQ, ONE);
+      debrisMesh.setMatrixAt(alive, tmpM);
+      debrisMesh.setColorAt(alive, d.color);
+      alive++;
+    }
+    debrisMesh.count = alive;
+    debrisMesh.instanceMatrix.needsUpdate = true;
+    if (debrisMesh.instanceColor) debrisMesh.instanceColor.needsUpdate = true;
+    while (debris.length && debris[0].age > 2.2) debris.shift();
+  } else debrisMesh.count = 0;
+
+  // smoke
+  {
+    let i = 0;
+    for (const s of smoke) {
+      s.age += dt;
+      s.y += dt * 1.6;
+      s.x += dt * 0.3 * Math.sin(s.age * 2);
+      smokePos[i * 3] = s.x; smokePos[i * 3 + 1] = s.y; smokePos[i * 3 + 2] = s.z;
+      i++;
+    }
+    while (smoke.length && smoke[0].age > 3) smoke.shift();
+    smokeGeo.setDrawRange(0, smoke.length);
+    smokeGeo.attributes.position.needsUpdate = true;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+function updateHud() {
+  const roaming = creatures.filter((c) => c.awake).length;
+  const bricks = creatures.reduce((s, c) => s + c.nca.live.length, 0);
+  $('hud').innerHTML = `creatures roaming: <b>${roaming}</b> · bricks alive: ${bricks}`;
+}
+
+// ---------- boot ----------
+const hash = new URLSearchParams(location.hash.slice(1));
+if (hash.get('m') === 'reef' && BIOMES.reef) {
+  biomeName = 'reef';
+  B = BIOMES.reef;
+  classCol = B.colors.map((c) => new THREE.Color(c));
+  applyBiomeSkin();
+  buildPanelForBiome();
+  document.querySelectorAll('#biomeSeg button').forEach((x) =>
+    x.classList.toggle('on', x.dataset.biome === 'reef'));
+}
+const fromLink = hash.get('b') ? decodeStructure(hash.get('b')) : null;
+initGarage(fromLink);
+if (!fromLink) {
+  // seed the pad with a starter so the first visit isn't a void
+  builder.load(B.template(biomeName === 'reef' ? 0 : 2)); // a fish / a car
+  rebuildGarageFromBuilder();
+}
+refreshPanel();
+updateHud();
+requestAnimationFrame(frame);
+
+// debug/selftest handle (used by the headless smoke test)
+window.__golem = { creatures, builder, maybeSplit, get garage() { return garageCreature; }, get selected() { return selected; } };
+</script>
+</body>
+</html>

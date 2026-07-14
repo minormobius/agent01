@@ -1,0 +1,8 @@
+{
+  "$comment": "Pastoral replacement sweep down a climate-opened steppe corridor. Herding founders, high mobility + xenophobia (replacement-heavy), the kurgan drying event.",
+  "agent": { "b0": 0.4, "dispersalGain": 2.4, "corridorWeight": 1.2, "densityWeight": 1.0 },
+  "culture": { "subsistence": 0, "seedTech": ["fire","herding"], "normWeights": [0.5,0.35,0.5,0.85,0.72,0.5,0.5,0.4], "innovationBase": 0.005 },
+  "seeding": { "nucleusCount": 1, "founders": 70 },
+  "climate": { "preset": "kurgan" },
+  "popScale": 620
+}

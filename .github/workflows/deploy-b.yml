@@ -2,7 +2,7 @@ name: Deploy b (Bluesky corner)
 
 on:
   push:
-    branches: [main, 'claude/social-tools-map-stack-review-odoveu']
+    branches: [main, 'claude/bsky-unique-bigrams-trigrams-ve0fvz']
     paths:
       - 'b/**'
       - '.github/workflows/deploy-b.yml'
