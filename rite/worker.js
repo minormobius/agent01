@@ -20,6 +20,7 @@
 // Cron (every 6h) mines verbose sentences from Project Gutenberg.
 
 import { generateSet, catalog as namesCatalog } from './names/engine.js';
+import { generateOrg, expandOrgNode, catalog as orgCatalog } from './org/engine.js';
 
 const SYLLABLE_RE = /[aeiouy]+/g;
 
@@ -45,6 +46,7 @@ export default {
             '/api/signal/check', '/api/signal/index', '/api/signal/query', '/api/signal/map', '/api/signal/target',
             '/api/wc/odds',
             '/api/names', '/api/names/cultures',
+            '/api/org', '/api/org/node', '/api/org/person', '/api/org/verticals',
           ],
           bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
         });
@@ -83,6 +85,14 @@ export default {
       // no D1/AI — and a public API, so CORS is open on these two routes.
       if (url.pathname === '/api/names')                                  return namesSet(url);
       if (url.pathname === '/api/names/cultures')                         return json(namesCatalog(), 200, NAMES_CORS);
+
+      // Org: procedural org-chart engine (served at /org/). Sister to names —
+      // pure compute, CORS open. /node is the infinite lens (any id expands one
+      // level, wrapping at the bottom into a shadow sub-org, forever).
+      if (url.pathname === '/api/org')                                    return orgSet(url);
+      if (url.pathname === '/api/org/node')                              return orgNode(url);
+      if (url.pathname === '/api/org/person')                            return orgPerson(url);
+      if (url.pathname === '/api/org/verticals')                         return json(orgCatalog(), 200, NAMES_CORS);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -2169,6 +2179,84 @@ function namesSet(url) {
       ...NAMES_CORS,
       'Cache-Control': hadSeed ? 'public, max-age=86400' : 'no-store',
     });
+  } catch (e) {
+    return json({ error: String(e && e.message || e) }, 400, NAMES_CORS);
+  }
+}
+
+// ============================================================
+// Org — procedural org-chart engine (rite.mino.mobi/org/)
+// ============================================================
+//
+// Engine lives in org/engine.js (shared verbatim with the browser page and the
+// node selftest). The worker is just the HTTP face: param parsing, CORS, cache.
+// A seeded request is a permanent address in an unbounded company, so it's
+// cacheable; a seedless request mints a seed and returns a permalink.
+
+function orgSet(url) {
+  const q = url.searchParams;
+  const hadSeed = q.has('seed') && q.get('seed') !== '';
+  const seed = hadSeed ? q.get('seed') : crypto.randomUUID().slice(0, 8);
+  try {
+    const org = generateOrg({
+      seed,
+      vertical: q.get('vertical') || undefined,
+      shape: q.get('shape') || undefined,
+      depth: q.get('depth') || undefined,
+      maxNodes: q.get('maxNodes') || undefined,
+      names: q.get('names') || undefined,
+    });
+    return json(org, 200, {
+      ...NAMES_CORS,
+      'Cache-Control': hadSeed ? 'public, max-age=86400' : 'no-store',
+    });
+  } catch (e) {
+    return json({ error: String(e && e.message || e) }, 400, NAMES_CORS);
+  }
+}
+
+function orgNode(url) {
+  const q = url.searchParams;
+  const hadSeed = q.has('seed') && q.get('seed') !== '';
+  const seed = hadSeed ? q.get('seed') : crypto.randomUUID().slice(0, 8);
+  try {
+    const node = expandOrgNode({
+      seed,
+      vertical: q.get('vertical') || undefined,
+      shape: q.get('shape') || undefined,
+      id: q.get('id') || undefined,
+      names: q.get('names') || undefined,
+    });
+    return json(node, 200, {
+      ...NAMES_CORS,
+      'Cache-Control': hadSeed ? 'public, max-age=86400' : 'no-store',
+    });
+  } catch (e) {
+    return json({ error: String(e && e.message || e) }, 400, NAMES_CORS);
+  }
+}
+
+// Just the person in one box (id defaults to the apex). A thin face over the
+// node lens — the whole person + their local performance snapshot.
+function orgPerson(url) {
+  const q = url.searchParams;
+  const hadSeed = q.has('seed') && q.get('seed') !== '';
+  const seed = hadSeed ? q.get('seed') : crypto.randomUUID().slice(0, 8);
+  try {
+    const r = expandOrgNode({
+      seed,
+      vertical: q.get('vertical') || undefined,
+      shape: q.get('shape') || undefined,
+      id: q.get('id') || undefined,
+      names: q.get('names') || undefined,
+    });
+    const n = r.node;
+    return json({
+      seed: r.seed, vertical: r.vertical, shape: r.shape, orgName: r.orgName,
+      id: n.id, name: n.name, title: n.title, tier: n.tier, dept: n.dept || null,
+      person: n.person, perf: n.perf, path: r.path,
+      permalink: r.permalink,
+    }, 200, { ...NAMES_CORS, 'Cache-Control': hadSeed ? 'public, max-age=86400' : 'no-store' });
   } catch (e) {
     return json({ error: String(e && e.message || e) }, 400, NAMES_CORS);
   }
