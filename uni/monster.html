@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monstrous Moonshine — the 194 symmetries of the Monster · uni</title>
+<meta name="description" content="A pastable dictionary of all 194 conjugacy classes of the Monster group and their McKay–Thompson series (the correlating symmetries from the moonshine module V♮): the Conway–Norton genus-zero group for each class. Sourced and cross-checked.">
+<meta name="theme-color" content="#5b57e0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%F0%9F%91%B9%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .m-hero { padding: 30px 0 6px; }
+  .m-hero h1 { font-family: var(--serif); font-weight: 700; font-size: clamp(26px,5vw,40px); margin: 0 0 8px; letter-spacing: -.02em; }
+  .m-hero p { margin: 0 0 10px; color: var(--muted); max-width: 74ch; font-size: 15.5px; }
+  .m-hero .stat { color: var(--accent); font-weight: 600; }
+  .m-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 10px; margin: 18px 0; }
+  .m-fact { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .m-fact .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); }
+  .m-fact .v { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--accent); margin-top: 2px; }
+  .m-fact .v.sm { font-size: 12.5px; font-weight: 500; color: var(--ink); word-break: break-all; }
+  .callout { background: var(--accent-bg); border: 1px solid var(--accent-soft); border-radius: 12px; padding: 14px 16px; margin: 14px 0; font-size: 14.5px; }
+  .callout code { font-family: var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  .jrow { font-family: var(--mono); font-size: 13.5px; overflow-x: auto; white-space: nowrap; color: var(--ink); padding: 4px 0; }
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0 12px; position: sticky; top: 60px; z-index: 20; background: color-mix(in srgb, var(--bg) 90%, transparent); padding: 6px 0; }
+  .toolbar .count { color: var(--faint); font-size: 13px; margin-left: auto; font-variant-numeric: tabular-nums; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); background: var(--panel); }
+  table.m { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.m th, table.m td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  table.m th { color: var(--faint); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; position: sticky; top: 108px; background: var(--panel); cursor: pointer; user-select: none; }
+  table.m th:hover { color: var(--accent); }
+  table.m tr:last-child td { border-bottom: none; }
+  table.m td.cls { font-family: var(--mono); font-weight: 700; }
+  table.m td.ord { font-family: var(--mono); color: var(--muted); text-align: right; }
+  table.m td.grp { font-family: var(--mono); color: var(--accent); font-weight: 600; }
+  table.m tr.hl { background: var(--accent-bg); }
+  table.m td .tag { font-family: var(--sans); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--accent-soft); color: var(--accent); border-radius: 5px; padding: 0 5px; margin-left: 6px; }
+  table.m td .tag.ogg { border-color: #c9a227; color: #b8860b; }
+  @media (prefers-color-scheme: dark) { table.m td .tag.ogg { color: #e0b64a; border-color: #6b5518; } }
+  table.m tbody tr { cursor: pointer; }
+  table.m tbody tr:hover { background: var(--accent-bg); }
+  .notation dt { font-family: var(--mono); font-weight: 700; color: var(--accent); margin-top: 8px; }
+  .notation dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  .src { font-size: 13px; color: var(--faint); }
+  .src b { color: var(--muted); font-weight: 600; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">uni<span class="dot">.</span><small>unicode browser</small></a>
+    <div class="search-wrap">
+      <svg class="search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" class="search" type="search" autocomplete="off" spellcheck="false" placeholder="Filter classes — 2A, order 24, 60+, Fricke…">
+    </div>
+    <a class="crumb" href="https://mino.mobi">↖ mino.mobi</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="m-hero">
+    <h1>Monstrous Moonshine</h1>
+    <p>The Monster group’s <em>symmetries</em> number about 8×10⁵³ — far too many to list. But up to change of basis there are exactly <span class="stat" id="nClasses">194</span> <strong>types</strong> of symmetry, its conjugacy classes. This is the pastable dictionary of all of them, each paired with its <strong>McKay–Thompson series</strong> — the modular function the moonshine module V♮ assigns to it, named by the genus-zero group it is a Hauptmodul of. <span id="nSeries">194</span> classes → <span class="stat" id="nDistinct">171</span> distinct series.</p>
+  </section>
+
+  <div class="m-facts">
+    <div class="m-fact"><div class="k">Conjugacy classes</div><div class="v" id="fClasses">194</div></div>
+    <div class="m-fact"><div class="k">Distinct series</div><div class="v" id="fSeries">171</div></div>
+    <div class="m-fact"><div class="k">Element orders</div><div class="v" id="fOrders">73</div></div>
+    <div class="m-fact"><div class="k">|Monster|</div><div class="v sm" id="fFact">…</div></div>
+  </div>
+
+  <div class="callout" id="mckay"></div>
+  <div class="callout">
+    <strong>Class 1A → the <em>j</em>-function.</strong> The identity’s McKay–Thompson series is J = j − 744, whose coefficients are the graded dimensions of V♮:
+    <div class="jrow" id="jrow"></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="copyAll">⧉ Copy table (TSV)</button>
+    <button class="btn" id="copyMd">⧉ Copy as Markdown</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="m" id="tbl">
+      <thead><tr>
+        <th data-k="cls">Class</th>
+        <th data-k="order">Order</th>
+        <th data-k="group">McKay–Thompson series Tɡ  ·  moonshine group</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <section style="margin-top:28px">
+    <h2 style="font-family:var(--serif);font-size:20px">Reading the group symbols</h2>
+    <dl class="notation" id="notation"></dl>
+    <p style="color:var(--muted);font-size:14px;margin-top:12px">Every one of these groups is <strong>genus zero</strong> — that is the content of the moonshine theorem (conjectured by Conway–Norton, proved by Borcherds). The 15 primes whose Fricke group Γ₀(p)+ is genus zero are exactly the <strong>supersingular primes</strong> <span id="ssp" style="font-family:var(--mono)"></span> — the prime divisors of |Monster| (Ogg’s observation, the “Jack Daniel’s problem”). Their prime-order classes are tagged <span class="tag ogg" style="position:relative;top:-1px">Ogg</span>.</p>
+  </section>
+
+  <footer>
+    <p class="src" id="sources"></p>
+    <p>Verified: 194 classes cross-checked against the ATLAS; 171 distinct series and 73 orders both match textbook invariants. <a href="/">← uni</a> · <a href="https://mino.mobi">mino.mobi</a></p>
+  </footer>
+</main>
+
+<div class="toast" id="toast" style="position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:.18s;z-index:90">Copied</div>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const TOAST = $('toast');
+let DATA = null, rows = [], sortK = 'cls', sortDir = 1;
+
+fetch('/data/monster.json').then(r => r.json()).then(d => {
+  DATA = d;
+  $('nClasses').textContent = d.monster.classes;
+  $('nSeries').textContent = d.monster.classes;
+  $('nDistinct').textContent = d.monster.distinctSeries;
+  $('fClasses').textContent = d.monster.classes;
+  $('fSeries').textContent = d.monster.distinctSeries;
+  $('fOrders').textContent = d.monster.distinctOrders;
+  $('fFact').textContent = d.monster.factorization;
+  $('mckay').innerHTML = `<strong>McKay’s spark (1978).</strong> <code>${d.mckay}</code>`;
+  $('ssp').textContent = d.supersingularPrimes.join(', ');
+  const c = d.jFunction.coeffs.map(([p, a]) => {
+    const q = p === -1 ? 'q⁻¹' : p === 0 ? '' : p === 1 ? 'q' : 'q' + sup(p);
+    const co = p === -1 ? '' : a === 0 ? null : (a === 1 ? '' : a.toLocaleString());
+    if (a === 0) return null;
+    return (p < 0 ? '' : ' + ') + (co !== '' && co != null ? co + ' ' : '') + q;
+  }).filter(Boolean).join('');
+  $('jrow').textContent = 'J(τ) = ' + c + ' + …';
+  $('notation').innerHTML = d.notation.map(([s, m]) => `<dt>${s}</dt><dd>${m}</dd>`).join('');
+  $('sources').innerHTML = '<b>Sources.</b> ' + d.sources.map(([w, s]) => `${w}: ${s}`).join(' · ');
+  rows = d.classes.slice();
+  render();
+});
+function sup(n){ const m={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'}; return String(n).split('').map(c=>m[c]||c).join(''); }
+
+function ordVal(c){ return c.order; }
+function cmp(a, b){
+  if (sortK === 'cls') { const d = a.order - b.order; return (d || a.cls.localeCompare(b.cls)) * sortDir; }
+  if (sortK === 'order') return (a.order - b.order || a.cls.localeCompare(b.cls)) * sortDir;
+  if (sortK === 'group') return (a.group.localeCompare(b.group) || a.order - b.order) * sortDir;
+  return 0;
+}
+
+function render(){
+  const q = $('q').value.trim().toLowerCase().replace(/^order\s*/,'');
+  let list = rows.slice().sort(cmp);
+  if (q) list = list.filter(c =>
+    c.cls.toLowerCase().includes(q) || String(c.order) === q || c.group.toLowerCase().includes(q) ||
+    (q === 'fricke' && c.fricke) || (q === 'ogg' && c.ogg));
+  $('count').textContent = `${list.length} of ${rows.length} classes`;
+  $('tbody').innerHTML = list.map(c => {
+    const tags = (c.fricke ? '<span class="tag">Fricke</span>' : '') + (c.ogg ? '<span class="tag ogg">Ogg</span>' : '');
+    return `<tr data-cls="${c.cls}" data-grp="${c.group}"${c.note ? ` title="${c.note}"` : ''}>
+      <td class="cls">${c.cls}</td><td class="ord">${c.order}</td>
+      <td class="grp">${c.group}${tags}</td></tr>`;
+  }).join('');
+  $('tbody').querySelectorAll('tr').forEach(tr => tr.addEventListener('click', () => {
+    copy(`${tr.dataset.cls}\t${tr.dataset.grp}`, `Copied ${tr.dataset.cls} → ${tr.dataset.grp}`);
+  }));
+  window._list = list;
+}
+
+$('q').addEventListener('input', render);
+document.querySelectorAll('th[data-k]').forEach(th => th.addEventListener('click', () => {
+  const k = th.dataset.k; sortDir = (sortK === k) ? -sortDir : 1; sortK = k; render();
+}));
+
+$('copyAll').addEventListener('click', () => {
+  const t = 'Class\tOrder\tMcKay-Thompson series (moonshine group)\n' +
+    window._list.map(c => `${c.cls}\t${c.order}\t${c.group}`).join('\n');
+  copy(t, `Copied ${window._list.length} rows (TSV)`);
+});
+$('copyMd').addEventListener('click', () => {
+  const t = '| Class | Order | McKay–Thompson series |\n|---|---|---|\n' +
+    window._list.map(c => `| ${c.cls} | ${c.order} | ${c.group} |`).join('\n');
+  copy(t, `Copied ${window._list.length} rows (Markdown)`);
+});
+
+async function copy(text, msg){
+  try { await navigator.clipboard.writeText(text); }
+  catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  TOAST.textContent = msg; TOAST.style.opacity = '1'; TOAST.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(copy._t); copy._t = setTimeout(() => { TOAST.style.opacity = '0'; TOAST.style.transform = 'translateX(-50%) translateY(20px)'; }, 1400);
+}
+document.addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== $('q')) { e.preventDefault(); $('q').focus(); } });
+</script>
+</body>
+</html>

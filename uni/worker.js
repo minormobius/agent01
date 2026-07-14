@@ -19,6 +19,7 @@ export default {
     let target = null;
     if (/^\/b\/[^/]+\/?$/.test(p)) target = '/block';
     else if (/^\/c\/[^/]+\/?$/.test(p)) target = '/char';
+    else if (p === '/monster' || p === '/monster/') target = '/monster';
 
     if (target) {
       const res = await env.ASSETS.fetch(new Request(new URL(target, url.origin), request));
