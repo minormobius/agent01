@@ -138,7 +138,15 @@ ok(UNIT_R > 0 && dist({ x: 0, y: 0 }, { x: 3, y: 4 }) === 5, 'continuum geometry
 // ── v104 unified language: PLANET RPS — element over element (faction still sets the school) ──
 {
   const { elementMult, ELEMENT_FAVOURED, ELEMENT_YIELDED } = await import('../arena/engine.js');
-  const { advantage, PLANET_ORDER } = await import('../planets.js');
+  const { advantage, PLANET_ORDER, bodyOf } = await import('../planets.js');
+  const { FACTION_LEAN } = await import('../arena/factions.js');
+  // faction↔body coherence: the combat style's domain + breeding lean must match planets.js's derived body
+  // (continuant→flesh, rindwalker→chassis, drift→anima). This pins the resolved mismatch so it can't drift.
+  for (const k of ['continuant', 'rindwalker', 'drift']) {
+    ok(FACTIONS[k].domain === bodyOf(k), `${k} combat domain (${FACTIONS[k].domain}) matches its planets.js body (${bodyOf(k)})`);
+    const leanDom = Object.entries(FACTION_LEAN[k]).sort((a, b) => b[1] - a[1])[0][0];
+    ok(leanDom === bodyOf(k), `${k} breeding lean is dominant in its own body (${leanDom})`);
+  }
   // saturn rules jupiter (the next in the Chaldean cycle); jupiter yields to saturn
   ok(elementMult('saturn', 'jupiter') === ELEMENT_FAVOURED, 'attacker whose planet rules the defender hits harder (saturn ▸ jupiter)');
   ok(elementMult('jupiter', 'saturn') === ELEMENT_YIELDED, 'attacker whose planet yields hits softer (jupiter ◃ saturn)');

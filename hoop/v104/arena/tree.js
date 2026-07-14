@@ -20,20 +20,21 @@ const P = (id, tier, label, passive, gloss, extra = {}) => ({ id, tier, cost: ex
 
 export const TREES = {
   continuant: [
+    // FLESH — vitality & resilience (the continuants: bleed for power, regen, fight harder hurt).
     V('c.strike', 1, 'Strike', 'strike', 'a plain blow'),
     V('c.brace', 1, 'Brace', 'brace', 'guard and answer'),
-    V('c.rivet', 2, 'Rivet', 'rivet', 'pin a foe to the deck', { req: ['c.brace'] }),
-    V('c.mend', 2, 'Mend', 'mend', 'close your wounds', { req: ['c.brace'] }),
-    P('c.reservoir', 2, 'Reservoir', { fluxRegen: 1 }, 'a deeper core — +1 Flux/turn', { req: ['c.strike'] }),
-    V('c.summon', 4, 'Sentry', 'summon', 'call a stout blocker drone', { req: ['c.mend'] }),
-    // ── Path · Warden (hold the line) ──
-    V('c.bulwark', 3, 'Warden ▸ Bulwark', 'bulwark', 'become a redoubt — heavy +Def & counter', { branch: 'A', req: ['c.rivet'] }),
-    P('c.redoubt', 4, 'Warden ▸ Redoubt', { bracedDefBonus: 3 }, 'tougher still while you hold station', { branch: 'A', req: ['c.bulwark'] }),
-    S('c.bastion', 5, 'Warden ▸ Bastion', { hp: 16, def: 3 }, 'a walking bulkhead', { branch: 'A', req: ['c.redoubt'] }),
-    // ── Path · Steward (sustain the party) ──
-    V('c.revive', 3, 'Steward ▸ Revive', 'revive', 'raise a downed ally', { branch: 'B', req: ['c.mend'] }),
-    V('c.assist', 4, 'Steward ▸ Assist', 'assist', 'hand an ally an extra turn', { branch: 'B', req: ['c.revive'] }),
-    P('c.wellspring', 5, 'Steward ▸ Wellspring', { fluxRegen: 2 }, 'the core never runs dry', { branch: 'B', req: ['c.assist'] }),
+    V('c.gore', 2, 'Gore', 'gore', 'bleed for power', { req: ['c.strike'] }),
+    V('c.adrenal', 2, 'Adrenal', 'adrenal', 'spend life for Flux', { req: ['c.strike'] }),
+    P('c.hide', 2, 'Thick Hide', { regenPerTurn: 0.03 }, 'knits faster between blows', { req: ['c.brace'] }),
+    V('c.summon', 4, 'Hound', 'summon', 'call a fast salvaged beast', { req: ['c.gore'] }),
+    // ── Path · Berserker (the more hurt, the harder) ──
+    P('c.bloodlust', 3, 'Berserker ▸ Bloodlust', { berserkMax: 0.2 }, 'rage climbs higher as you fall', { branch: 'A', req: ['c.gore'] }),
+    S('c.brutality', 4, 'Berserker ▸ Brutality', { atk: 3 }, 'heavier hands — +Atk', { branch: 'A', req: ['c.bloodlust'] }),
+    S('c.juggernaut', 5, 'Berserker ▸ Juggernaut', { hp: 14, atk: 2 }, 'an avalanche of meat', { branch: 'A', req: ['c.brutality'] }),
+    // ── Path · Reaver (sustain & salvage) ──
+    V('c.scavenge', 3, 'Reaver ▸ Scavenge', 'scavenge', 'a deep self-repair', { branch: 'B', req: ['c.adrenal'] }),
+    P('c.regen', 4, 'Reaver ▸ Mending', { regenPerTurn: 0.05 }, 'the hull gives back faster', { branch: 'B', req: ['c.scavenge'] }),
+    S('c.warlord', 5, 'Reaver ▸ Warlord', { hp: 18, flux: 6 }, 'endless and well-fed', { branch: 'B', req: ['c.regen'] }),
   ],
   drift: [
     V('d.strike', 1, 'Strike', 'strike', 'a plain blow'),
@@ -52,20 +53,21 @@ export const TREES = {
     P('d.phantom', 5, 'Trickster ▸ Phantom', { hitAndRunCrit: 0.18 }, 'a blur — vicious hit-and-run', { branch: 'B', req: ['d.mercury'] }),
   ],
   rindwalker: [
+    // CHASSIS — attrition & control (the makers: hold the hull, brace, pin, outlast, restore).
     V('r.strike', 1, 'Strike', 'strike', 'a plain blow'),
     V('r.brace', 1, 'Brace', 'brace', 'guard and answer'),
-    V('r.gore', 2, 'Gore', 'gore', 'bleed for power', { req: ['r.strike'] }),
-    V('r.adrenal', 2, 'Adrenal', 'adrenal', 'spend life for Flux', { req: ['r.strike'] }),
-    P('r.hide', 2, 'Thick Hide', { regenPerTurn: 0.03 }, 'knits faster between blows', { req: ['r.brace'] }),
-    V('r.summon', 4, 'Hound', 'summon', 'call a fast salvaged beast', { req: ['r.gore'] }),
-    // ── Path · Berserker (the more hurt, the harder) ──
-    P('r.bloodlust', 3, 'Berserker ▸ Bloodlust', { berserkMax: 0.2 }, 'rage climbs higher as you fall', { branch: 'A', req: ['r.gore'] }),
-    S('r.brutality', 4, 'Berserker ▸ Brutality', { atk: 3 }, 'heavier hands — +Atk', { branch: 'A', req: ['r.bloodlust'] }),
-    S('r.juggernaut', 5, 'Berserker ▸ Juggernaut', { hp: 14, atk: 2 }, 'an avalanche of meat', { branch: 'A', req: ['r.brutality'] }),
-    // ── Path · Reaver (sustain & salvage) ──
-    V('r.scavenge', 3, 'Reaver ▸ Scavenge', 'scavenge', 'a deep self-repair', { branch: 'B', req: ['r.adrenal'] }),
-    P('r.regen', 4, 'Reaver ▸ Mending', { regenPerTurn: 0.05 }, 'the hull gives back faster', { branch: 'B', req: ['r.scavenge'] }),
-    S('r.warlord', 5, 'Reaver ▸ Warlord', { hp: 18, flux: 6 }, 'endless and well-fed', { branch: 'B', req: ['r.regen'] }),
+    V('r.rivet', 2, 'Rivet', 'rivet', 'pin a foe to the deck', { req: ['r.brace'] }),
+    V('r.mend', 2, 'Mend', 'mend', 'close your wounds', { req: ['r.brace'] }),
+    P('r.reservoir', 2, 'Reservoir', { fluxRegen: 1 }, 'a deeper core — +1 Flux/turn', { req: ['r.strike'] }),
+    V('r.summon', 4, 'Sentry', 'summon', 'call a stout blocker drone', { req: ['r.mend'] }),
+    // ── Path · Warden (hold the line) ──
+    V('r.bulwark', 3, 'Warden ▸ Bulwark', 'bulwark', 'become a redoubt — heavy +Def & counter', { branch: 'A', req: ['r.rivet'] }),
+    P('r.redoubt', 4, 'Warden ▸ Redoubt', { bracedDefBonus: 3 }, 'tougher still while you hold station', { branch: 'A', req: ['r.bulwark'] }),
+    S('r.bastion', 5, 'Warden ▸ Bastion', { hp: 16, def: 3 }, 'a walking bulkhead', { branch: 'A', req: ['r.redoubt'] }),
+    // ── Path · Steward (sustain the party) ──
+    V('r.revive', 3, 'Steward ▸ Revive', 'revive', 'raise a downed ally', { branch: 'B', req: ['r.mend'] }),
+    V('r.assist', 4, 'Steward ▸ Assist', 'assist', 'hand an ally an extra turn', { branch: 'B', req: ['r.revive'] }),
+    P('r.wellspring', 5, 'Steward ▸ Wellspring', { fluxRegen: 2 }, 'the core never runs dry', { branch: 'B', req: ['r.assist'] }),
   ],
 };
 

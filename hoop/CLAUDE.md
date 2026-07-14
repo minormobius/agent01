@@ -562,12 +562,16 @@ despite the name. It stayed with hoop, not rind.)
       `planets.js`'s balanced heptagram — the attacker whose planet rules the defender's hits ×1.25, yields
       ×0.8, neutral ×1 when either side is planet-less (so the demo/harness/un-migrated content is unaffected).
       Units carry `planet` (from `character.planet`); creeps get a deterministic planet from their seed.
-    **Known latent mismatch to resolve:** `arena/factions.js` labels its `domain` continuant→chassis /
-    rindwalker→flesh, the OPPOSITE of the confirmed `planets.js` derivation (continuant→flesh /
-    rindwalker→chassis; drift→anima agrees). `domain` is a label only (never read mechanically), but the
-    combat STYLES were tuned to the old mapping (continuant=brace/def, rindwalker=bleed/berserk). Aligning
-    them means either relabel (narrative-only) or swap the two styles (a real rebalance) — a design call, left
-    for the user, not silently flipped.
+    **Faction↔body coherence (resolved by style swap).** `arena/factions.js` + `arena/tree.js` used to pair
+    continuant→chassis / rindwalker→flesh — the OPPOSITE of the confirmed `planets.js` derivation. Fixed by
+    swapping the two combat STYLES (not just the labels) so each faction plays its body: **continuant→FLESH**
+    now runs RISK & RESILIENCE (gore/adrenal/berserk/regen, aggro AI, Hound summon, Berserker/Reaver trees);
+    **rindwalker→CHASSIS** now runs ATTRITION & CONTROL (brace/rivet/bulwark/mend/revive, turtle AI, Sentry
+    summon, Warden/Steward trees); **drift→ANIMA** unchanged. Glyphs/accents/leans/glosses moved with the
+    style; the swap only reassigns proven-tuned payloads, so per-style balance is unchanged. This actually
+    coheres with the civic narrative (continuant grows·heals = the living meat; rindwalker makes·mends·stores
+    = the frame). Pinned by a guard in `continuum.selftest` (`FACTIONS[k].domain === bodyOf(k)`) so it can't
+    silently drift again.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

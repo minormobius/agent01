@@ -2,9 +2,13 @@
 //
 // Each faction is one of the triad domains (stats.js FLESH·CHASSIS·ANIMA) turned into a temperament:
 //
-//   continuant → CHASSIS  — the maintainers. ATTRITION & CONTROL: hold ground, brace, pin, outlast.
+//   continuant → FLESH    — the continuants.  RISK & RESILIENCE:   bleed for power, regen, fight harder hurt.
 //   drift      → ANIMA    — the traders.     TEMPO & TRICKERY:    reposition, feint, burst, siphon.
-//   rindwalker → FLESH    — the hull-divers.  RISK & RESILIENCE:   bleed for power, regen, berserk.
+//   rindwalker → CHASSIS  — the makers.       ATTRITION & CONTROL: hold ground, brace, pin, outlast.
+//
+// (The faction↔body pairing is the one derived in planets.js from each faction's civic verbs — continuant
+//  grows·heals·serves = the living meat; rindwalker makes·mends·stores = the frame; drift learns·plays·
+//  trades = the ghost — and each faction's STYLE follows its body. Drift agrees either way.)
 //
 // A faction is pure data: a `passive` (always-on hooks the engine reads), a `kit` (signature skill ids
 // it adds to the universal base set), `discount`s (per-skill flux-cost multipliers — "what comes cheap
@@ -16,20 +20,19 @@
 // ── THE THREE STYLES ────────────────────────────────────────────────────────────────────────────
 export const FACTIONS = {
   continuant: {
-    key: 'continuant', label: 'Continuant', domain: 'chassis',
-    glyph: '⬡', accent: '#7fd8d0',
-    gloss: 'the maintainers — hold the line, brace, outlast',
-    // passive Maintenance: tougher while it holds station; the core keeps the flux topped up.
+    key: 'continuant', label: 'Continuant', domain: 'flesh',
+    glyph: '❤', accent: '#cf3b3b',
+    gloss: 'the continuants — deep vitality; bleed for power, regen, fight harder hurt',
+    // passive Living-continuity: damage climbs as its own HP falls (the meat that will not stop); knits between blows.
     passive: {
-      bracedDefBonus: 2,        // +Def whenever it has not moved this turn (a unit that holds is harder to dent)
-      counterOnBrace: true,     // braced + hit by an adjacent attacker → it strikes back
-      fluxRegen: 2,             // +Flux at the start of each of its turns (slow, steady technomagic budget)
+      berserkMax: 0.3,         // up to +45% outgoing damage at 1 HP, scaling with the missing fraction
+      regenPerTurn: 0.04,       // heals 6% of max HP at the start of each of its turns
     },
-    kit: ['bulwark', 'rivet', 'mend', 'summon', 'revive', 'assist'],   // the maintainers rebuild & restore the party
-    discount: { harden: 0.5, mend: 0.5, revive: 0.7 },   // anima→chassis, self-repair, and restoring others come cheap
-    ai: 'turtle',
-    // Sentry — a stout, slow blocker drone that holds ground and braces (the maintainers' construct).
-    summon: { name: 'Sentry', glyph: '◈', ai: 'turtle', kit: ['strike', 'brace'], combat: { hp: 20, atk: 5, def: 6, speed: 1, accuracy: 0.85, crit: 0.02, fluxPool: 6, apow: 0, power: 6 } },
+    kit: ['gore', 'adrenal', 'scavenge', 'summon'],
+    discount: { adrenal: 0.5 },
+    ai: 'aggro',
+    // Hound — a fast, frail salvaged beast that rushes and bites (the flesh faction's pet); pure aggro.
+    summon: { name: 'Hound', glyph: '◆', ai: 'aggro', kit: ['strike'], combat: { hp: 12, atk: 8, def: 2, speed: 3, accuracy: 0.85, crit: 0.06, fluxPool: 0, apow: 0, power: 6 } },
   },
 
   drift: {
@@ -50,19 +53,20 @@ export const FACTIONS = {
   },
 
   rindwalker: {
-    key: 'rindwalker', label: 'Rindwalker', domain: 'flesh',
-    glyph: '❤', accent: '#cf3b3b',
-    gloss: 'the hull-divers — bleed for power, regen, fight harder hurt',
-    // passive Hull-sense: damage climbs as its own HP falls (berserk); knits between blows.
+    key: 'rindwalker', label: 'Rindwalker', domain: 'chassis',
+    glyph: '⬡', accent: '#7fd8d0',
+    gloss: 'the makers — hold the hull, brace, pin, outlast',
+    // passive Sacred-maintenance: tougher while it holds station; the core keeps the flux topped up.
     passive: {
-      berserkMax: 0.3,         // up to +45% outgoing damage at 1 HP, scaling with the missing fraction
-      regenPerTurn: 0.04,       // heals 6% of max HP at the start of each of its turns
+      bracedDefBonus: 2,        // +Def whenever it has not moved this turn (a unit that holds is harder to dent)
+      counterOnBrace: true,     // braced + hit by an adjacent attacker → it strikes back
+      fluxRegen: 2,             // +Flux at the start of each of its turns (slow, steady technomagic budget)
     },
-    kit: ['gore', 'adrenal', 'scavenge', 'summon'],
-    discount: { adrenal: 0.5 },
-    ai: 'aggro',
-    // Hound — a fast, frail salvaged beast that rushes and bites (the hull-diver's pet); pure aggro.
-    summon: { name: 'Hound', glyph: '◆', ai: 'aggro', kit: ['strike'], combat: { hp: 12, atk: 8, def: 2, speed: 3, accuracy: 0.85, crit: 0.06, fluxPool: 0, apow: 0, power: 6 } },
+    kit: ['bulwark', 'rivet', 'mend', 'summon', 'revive', 'assist'],   // the makers rebuild & restore the party
+    discount: { harden: 0.5, mend: 0.5, revive: 0.7 },   // anima→chassis, self-repair, and restoring others come cheap
+    ai: 'turtle',
+    // Sentry — a stout, slow blocker drone that holds ground and braces (the makers' construct).
+    summon: { name: 'Sentry', glyph: '◈', ai: 'turtle', kit: ['strike', 'brace'], combat: { hp: 20, atk: 5, def: 6, speed: 1, accuracy: 0.85, crit: 0.02, fluxPool: 6, apow: 0, power: 6 } },
   },
 };
 export const FACTION_ORDER = ['continuant', 'drift', 'rindwalker'];
@@ -71,9 +75,9 @@ export const isFaction = (k) => Object.prototype.hasOwnProperty.call(FACTIONS, k
 // The triad domain a roll should LEAN to come out as this faction (lets the balance harness breed a
 // faction-typical character: a Continuant should be chassis-heavy, a Rindwalker flesh-heavy, etc.).
 export const FACTION_LEAN = {
-  continuant: { flesh: 0.2, chassis: 0.65, anima: 0.15 },
+  continuant: { flesh: 0.65, chassis: 0.2, anima: 0.15 },
   drift:      { flesh: 0.15, chassis: 0.2, anima: 0.65 },
-  rindwalker: { flesh: 0.65, chassis: 0.2, anima: 0.15 },
+  rindwalker: { flesh: 0.2, chassis: 0.65, anima: 0.15 },
 };
 
 // Apply a faction's per-skill discount to a base flux cost (floored at 0, rounded). Pure.
