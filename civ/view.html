@@ -71,6 +71,7 @@
         <b data-m="culture" class="on">culture</b><b data-m="political">political</b><b data-m="sub">subsistence</b><b data-m="era">era</b><b data-m="density">density</b>
       </div>
       <label class="k" style="margin-top:4px"><input type="checkbox" id="showres" checked style="vertical-align:-2px"> named resources</label>
+      <label class="k"><input type="checkbox" id="showppl" checked style="vertical-align:-2px"> notable people</label>
       <div id="legkeys"></div>
       <div class="k" style="color:var(--dim);margin-top:6px">scroll = zoom · drag = pan · click = inspect</div>
     </div>
@@ -157,9 +158,19 @@ function render(){
       if(view.z>2.2){ ctx.fillStyle='#cdd6e0'; ctx.fillText(nd.name, x, y-s-2); }
     }
   }
+  // NOTABLE PEOPLE: the frame's highest-reputation individuals as haloed stars, named
+  // when zoomed. Click one to read their résumé. Size scales with reputation.
+  if($('#showppl').checked && f.people){
+    for(const p of f.people){ const x=cellSX[p.cell], y=cellSY[p.cell]; if(x<-8||x>W+8||y<-8||y>H+8) continue;
+      const rr=3+Math.min(4,p.rep*1.1); ctx.fillStyle=hsl(cultureHue(p.cu),70,64,0.95); ctx.strokeStyle='#0b0f16'; ctx.lineWidth=1.2;
+      star(ctx,x,y,rr,rr*0.45); ctx.fill(); ctx.stroke();
+      if(view.z>2.0){ ctx.fillStyle='#e6edf3'; ctx.textAlign='center'; ctx.font='10px sans-serif'; ctx.fillText(p.name,x,y-rr-2); }
+    }
+  }
   // selection ring
   if(sel!=null){ const x=cellSX[sel], y=cellSY[sel]; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(x,y,10,0,6.283); ctx.stroke(); }
 }
+function star(ctx,cx,cy,ro,ri){ ctx.beginPath(); for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, r=i%2?ri:ro; const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r; i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.closePath(); }
 
 // ---- timeline / events ----------------------------------------------------------
 function drawEventBar(){
@@ -206,12 +217,26 @@ $('#closeins').onclick=()=>{ $('#inspect').style.display='none'; sel=null; rende
 
 // pick nearest occupied cell to a click point
 function pick(px,py){ const f=DATA.frames[frame]; let best=-1,bd=1e9; for(let k=0;k<f.cell.length;k++){ const c=f.cell[k],dx=cellSX[c]-px,dy=cellSY[c]-py,d=dx*dx+dy*dy; if(d<bd){bd=d;best=c;} } return bd<400?best:-1; }
+// pick nearest notable person to a click point (their résumé)
+function pickPerson(px,py){ const f=DATA.frames[frame]; if(!f.people||!$('#showppl').checked) return null; let best=null,bd=1e9; for(const p of f.people){ const dx=cellSX[p.cell]-px,dy=cellSY[p.cell]-py,d=dx*dx+dy*dy; if(d<bd){bd=d;best=p;} } return bd<400?best:null; }
+function showResume(p){
+  sel=p.cell; const box=$('#inspect'), body=$('#insbody'), CR=(DATA.dict&&DATA.dict.creds)||[];
+  const creds=CR.filter((c,i)=>p.cred&(1<<i));
+  const row=(t,v)=>`<div class="row"><span class="t">${t}</span><span>${v}</span></div>`;
+  body.innerHTML=`<h3>${p.name} <span class="t" style="font-weight:400">of #${p.cu}</span></h3>`
+    +row('reputation', '★ '+p.rep.toFixed(2))
+    +row('age', p.age+' yr')
+    +row('culture', '<span style="color:'+hsl(cultureHue(p.cu),70,64)+'">#'+p.cu+'</span>')
+    +`<hr style="border-color:var(--edge)"><div class="t" style="margin-bottom:3px">résumé</div>`
+    +`<div class="caps">${creds.length?creds.map(c=>`<span class="cap">${c}</span>`).join(''):'<span class="t">a commoner</span>'}</div>`;
+  box.style.display='block';
+}
 
 // ---- interaction ----------------------------------------------------------------
 let drag=null;
 cv.addEventListener('mousedown',e=>{ drag={x:e.offsetX,y:e.offsetY,vx:view.x,vy:view.y,moved:0}; });
 addEventListener('mousemove',e=>{ if(!drag)return; const r=cv.getBoundingClientRect(); const ox=e.clientX-r.left,oy=e.clientY-r.top; view.x=drag.vx+(ox-drag.x); view.y=drag.vy+(oy-drag.y); drag.moved+=Math.abs(ox-drag.x)+Math.abs(oy-drag.y); render(); });
-addEventListener('mouseup',e=>{ if(drag && drag.moved<4){ const c=pick(drag.x,drag.y); if(c>=0) inspectCell(c); else {sel=null;$('#inspect').style.display='none';} render(); } drag=null; });
+addEventListener('mouseup',e=>{ if(drag && drag.moved<4){ const p=pickPerson(drag.x,drag.y); if(p){ showResume(p); } else { const c=pick(drag.x,drag.y); if(c>=0) inspectCell(c); else {sel=null;$('#inspect').style.display='none';} } render(); } drag=null; });
 cv.addEventListener('wheel',e=>{ e.preventDefault(); const f=e.deltaY<0?1.15:1/1.15; const mx=e.offsetX,my=e.offsetY; view.x=mx-(mx-view.x)*f; view.y=my-(my-view.y)*f; view.z*=f; render(); },{passive:false});
 
 // ---- transport ------------------------------------------------------------------
@@ -235,7 +260,7 @@ function buildLegend(){
   else h='<div class="k" style="color:var(--dim)">warm = dense population</div>';
   el.innerHTML=h;
 }
-$('#showres').addEventListener('change',render);
+$('#showres').addEventListener('change',render); $('#showppl').addEventListener('change',render);
 
 // ---- shared URL state (liquidity with the dashboard + mappa) --------------------
 function curState(){ return { world:$('#world').value.trim()||'7', preset:$('#preset').value, civSeed:$('#civseed').value||'1', ticks:$('#ticks').value||'1000', config:$('#lastconfig').value||'' }; }

@@ -38,12 +38,13 @@ function makeAgents(cap) {
     culture: new Uint32Array(cap), org: new Int32Array(cap),
     sex: new Uint8Array(cap), flags: new Uint8Array(cap),
     wealth: new Float32Array(cap), health: new Float32Array(cap), status: new Float32Array(cap),
+    cred: new Uint16Array(cap),   // credential bitset — the agent's résumé (skills/offices earned)
   };
   return A;
 }
 function growAgents(A) {
   const cap = A.cap * 2;
-  for (const k of ['birthTick', 'deathTick', 'cell', 'parentA', 'parentB', 'culture', 'org', 'sex', 'flags', 'wealth', 'health', 'status']) {
+  for (const k of ['birthTick', 'deathTick', 'cell', 'parentA', 'parentB', 'culture', 'org', 'sex', 'flags', 'wealth', 'health', 'status', 'cred']) {
     const old = A[k], next = new old.constructor(cap); next.set(old); A[k] = next;
   }
   A.cap = cap;
@@ -60,7 +61,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     demo: stream(seed, 'demography'), disp: stream(seed, 'dispersal'),
     enc: stream(seed, 'encounter'), innov: stream(seed, 'innovation'),
     split: stream(seed, 'culture-split'), org: stream(seed, 'institution'),
-    war: stream(seed, 'war'), seed: stream(seed, 'seeding'), misc: stream(seed, 'misc'),
+    war: stream(seed, 'war'), rep: stream(seed, 'reputation'), seed: stream(seed, 'seeding'), misc: stream(seed, 'misc'),
   };
 
   const climate = makeClimate(cfg.climate, w);
@@ -105,11 +106,35 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   // (an unaffiliated agent, org=-1) is the base actor; agents flow through the rest.
   const INST = { GUILD: 0, FIRM: 1, WARBAND: 2, STATE: 3 };
   const INST_NAME = ['guild', 'firm', 'warband', 'state'];
+
+  // ---- credentials: the agent RÉSUMÉ — claims an institution issues, an agent holds ----
+  // Portable (carried on migration → skilled people seed crafts elsewhere) and heritable
+  // (apprenticeship → skill lineages). A credential embodies a capability, so a credentialed
+  // migrant deposits it into the destination's meme field (person-borne diffusion).
+  const CRED = ['farmer', 'herder', 'sailor', 'smith', 'scribe', 'mason', 'engineer', 'trader', 'soldier', 'officer', 'master', 'elder', 'citizen'];
+  const CREDI = Object.fromEntries(CRED.map((c, i) => [c, i]));
+  const NCRED = CRED.length;
+  const cbit = i => (1 << i) >>> 0;
+  const chas = (v, i) => (v & cbit(i)) !== 0;
+  const popcount16 = v => { let c = 0; for (v &= 0xffff; v; v &= v - 1) c++; return c; };
+  // credential → the capability it carries (for embodied diffusion). Others carry none.
+  const CRED_CAP = new Int8Array(NCRED).fill(-1);
+  CRED_CAP[CREDI.smith] = CAP.metallurgy; CRED_CAP[CREDI.scribe] = CAP.writing; CRED_CAP[CREDI.mason] = CAP.masonry;
+  CRED_CAP[CREDI.sailor] = CAP.sail; CRED_CAP[CREDI.engineer] = CAP.mechanisation; CRED_CAP[CREDI.trader] = CAP.wheel;
+  // a name for a notable individual (deterministic per agent id) — history gets names
+  function personName(id) {
+    const r = stream((seed ^ (id * 2246822519)) >>> 0, 'person');
+    const on = 'ktrmnvbslpgdhwz', vo = 'aeiouaei', pick = s => s[Math.floor(r() * s.length)];
+    let t = pick(on).toUpperCase() + pick(vo); for (let i = 0, n = 1 + Math.floor(r() * 2); i < n; i++) t += pick(on) + pick(vo);
+    return t;
+  }
   const insts = [];              // ALL institution entities ever created (id-indexed, for lookup)
   let liveInsts = [];            // just the currently-live ones (per-tick work is O(live), not O(ever))
   const orgs = insts;            // exposed alias
   const instAt = new Map();      // `type:seat:culture` → live inst id (localised actors)
   const stateInst = new Map();   // culture id → its state inst id (stable identity)
+  const greatPeople = [];        // named individuals who led an institution to eminence — history's names
+  const greatSeen = new Set();
   const iKey = (type, seat, cu) => type + ':' + seat + ':' + cu;
   function instName(type, seat, cu) {
     const r = stream((seed ^ (seat * 2654435761) ^ (cu * 40503) ^ (type * 97)) >>> 0, 'inst-name');
@@ -123,7 +148,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   }
   function makeInst(type, seat, cu, parent, key) {
     const id = insts.length;
-    const it = { id, type, culture: cu, seat, parent: parent ?? -1, birthTick: tick, dissolvedTick: -1, name: instName(type, seat, cu), memberCount: 0, pool: 0, strength: 0, peakMembers: 0, lastSeen: tick, wealth: 0, captures: 0 };
+    const it = { id, type, culture: cu, seat, parent: parent ?? -1, birthTick: tick, dissolvedTick: -1, name: instName(type, seat, cu), memberCount: 0, pool: 0, strength: 0, peakMembers: 0, lastSeen: tick, wealth: 0, captures: 0, leader: -1, leaderRep: 0, reputation: 0 };
     insts.push(it); liveInsts.push(it); if (key != null) instAt.set(key, id);
     if (type === INST.FIRM || type === INST.STATE) pushEvent(tick, 'institutionFounded', { inst: id, kind: INST_NAME[type], name: it.name, culture: cu, seat });
     return it;
@@ -159,6 +184,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     A.birthTick[i] = o.birthTick; A.deathTick[i] = -1; A.cell[i] = o.cell;
     A.parentA[i] = o.parentA; A.parentB[i] = o.parentB; A.culture[i] = o.culture; A.org[i] = -1;
     A.sex[i] = o.sex; A.flags[i] = ALIVE; A.wealth[i] = o.wealth; A.health[i] = o.health; A.status[i] = o.status;
+    A.cred[i] = o.cred || 0;
     return i;
   }
   function kill(i) { A.flags[i] &= ~ALIVE; A.deathTick[i] = tick; deadPending.push(i); }
@@ -276,7 +302,16 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     for (let c = 0; c < N; c++) { const d = cellDom[c]; if (d < 0 || cellPop[c] <= 0) continue; const C = cultures[d]; cell.push(c); popc.push(cellPop[c]); cu.push(d); sub.push(C.sub); tier.push(vecTier(C.tech)); pol.push(polity[c]); present.add(d); }
     const cid = [], csub = [], ctier = [], ctech = [], clang = [], csize = [];
     for (const id of present) { const C = cultures[id]; cid.push(id); csub.push(C.sub); ctier.push(vecTier(C.tech)); ctech.push(C.tech >>> 0); clang.push(C.lang); csize.push(cultMembers[id] || 0); }
-    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
+    // the frame's NOTABLE PEOPLE — the highest-reputation living individuals, with their
+    // résumé (credentials + standing), so the map can name and inspect them.
+    const K = 24, topId = new Int32Array(K), topRep = new Float32Array(K); let nt = 0;
+    for (let t = 0; t < liveN; t++) {
+      const id = live[t], r = A.status[id]; if (nt < K) { topId[nt] = id; topRep[nt] = r; nt++; if (nt === K) { for (let a = 1; a < K; a++) { const vi = topId[a], vr = topRep[a]; let b = a - 1; while (b >= 0 && topRep[b] > vr) { topId[b + 1] = topId[b]; topRep[b + 1] = topRep[b]; b--; } topId[b + 1] = vi; topRep[b + 1] = vr; } } continue; }
+      if (r > topRep[0]) { let b = 0; while (b < K - 1 && topRep[b + 1] < r) { topId[b] = topId[b + 1]; topRep[b] = topRep[b + 1]; b++; } topId[b] = id; topRep[b] = r; }
+    }
+    const people = [];
+    for (let a = nt - 1; a >= 0; a--) { const id = topId[a]; people.push({ cell: A.cell[id], name: personName(id), cu: A.culture[id], rep: +A.status[id].toFixed(2), cred: A.cred[id], age: Math.round((tick - A.birthTick[id]) * ty) }); }
+    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, people, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
   }
 
   function step() {
@@ -327,20 +362,35 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       for (let t = s; t < e; t++) {
         const id = cellOrder[t]; if (!(A.flags[id] & ALIVE)) continue;
         const age = tick - A.birthTick[id];
-        // working: accrue a little wealth/status by subsistence yield × institution boost
+        // working: accrue wealth + REPUTATION (status) by subsistence yield, credentials
+        // held, and age; and earn the subsistence credential of one's living.
         if (age >= adultT) {
           const yield_ = 0.02 * (0.4 + subMult(pkg)) * Math.min(1.5, K / Math.max(1, pop));
           A.wealth[id] = Math.min(3, A.wealth[id] + yield_);
-          A.status[id] = Math.min(3, A.status[id] * 0.99 + yield_ * 0.5);
+          const nc = popcount16(A.cred[id]);
+          A.status[id] = Math.min(4, A.status[id] * 0.985 + yield_ * 0.5 + nc * 0.02);
+          const scred = pkg === PKG_ID.pastoral ? CREDI.herder : pkg === PKG_ID.maritime ? CREDI.sailor : AGRI_PKGS.has(pkg) ? CREDI.farmer : -1;
+          if (scred >= 0 && !chas(A.cred[id], scred) && R.rep() < 0.06) A.cred[id] |= cbit(scred);
+          if (age > maxAgeT * 0.6 && A.status[id] > 1.6 && !chas(A.cred[id], CREDI.elder) && R.rep() < 0.05) A.cred[id] |= cbit(CREDI.elder);
         }
         if (A.sex[id] === 1 && age >= adultT && age <= fertileMaxT && nf > 0 && R.demo() < birthRate) {
-          const dad = fmales[irnd(R.demo, nf)];
+          // SEXUAL SELECTION: father by a small reputation tournament (high-standing males
+          // father more) → reputation lineages accumulate, so some agents matter. The base
+          // draw stays on R.demo (keeping the demographic path identical); the tournament
+          // candidates come from R.rep so adding selection never perturbs births/deaths.
+          let dad = fmales[irnd(R.demo, nf)];
+          for (let q = 0; q < 2; q++) { const cand = fmales[irnd(R.rep, nf)]; if (A.status[cand] > A.status[dad]) dad = cand; }
           const mCu = A.culture[id], fCu = A.culture[dad];
           if (mCu !== fCu) admixture++;
+          // apprenticeship: the child inherits each parental credential with a chance, and
+          // its parents' mean standing — skill + reputation run in families.
+          let icred = 0; const pc = (A.cred[id] | A.cred[dad]) & 0xffff;
+          for (let b = 0; b < NCRED; b++) if ((pc & cbit(b)) && R.rep() < 0.32) icred |= cbit(b);
           const child = alloc({
             birthTick: tick, cell: c, parentA: id, parentB: dad, culture: mCu,
             sex: R.demo() < 0.5 ? 0 : 1,
-            wealth: 0.1, health: Math.min(1, 0.7 + 0.2 * A.health[id]), status: 0.1 + 0.3 * A.status[id],
+            wealth: 0.1, health: Math.min(1, 0.7 + 0.2 * A.health[id]), status: 0.1 + 0.3 * (A.status[id] + A.status[dad]) * 0.5,
+            cred: icred,
           });
           pushNL(child);
         }
@@ -362,6 +412,11 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       const id = dispSrc[k], from = A.cell[id], to = dispTgt[k];
       A.cell[id] = to; dispersers++;
       activityField[to] += 0.03; activityField[from] += 0.01; // laid trail (grown roads)
+      // EMBODIED DIFFUSION: a credentialed migrant carries their craft — deposit the
+      // capabilities their credentials embody into the destination's meme field, so skilled
+      // people seed development where they settle (person-borne, complementing place-borne trace).
+      const cr = A.cred[id];
+      if (cr) { const base = to * NCAP; for (let b = 0; b < NCRED; b++) if ((cr & cbit(b)) && CRED_CAP[b] >= 0) memeField[base + CRED_CAP[b]] += 0.5; }
       // encounter: incomer meets the target cell's pre-move dominant culture
       const resCu = cellDom[to];
       if (resCu >= 0 && resCu !== A.culture[id]) encounter(id, to, resCu);
@@ -681,7 +736,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const warCooldown = new Map(); // inst id → last-war tick (throttle events)
   function buildInstitutions() {
     // reset live-institution accumulators (O(live), not O(ever-created))
-    for (const it of liveInsts) { it.memberCount = 0; it.wealth = 0; it.strength = 0; }
+    for (const it of liveInsts) { it.memberCount = 0; it.wealth = 0; it.strength = 0; it.leaderRep = 0; it.reputation = 0; }
     // one state per dynasty (culture that reached statehood)
     for (let i = 0; i < cultures.length; i++) { const cu = cultures[i]; if (!cu.extinct && cu.everState) ensureState(i); }
     // per significant settlement: the specialised actors its capabilities unlock, then
@@ -697,27 +752,53 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       const firm = (has(cu.tech, CAP.mechanisation) && has(cu.tech, CAP.steamPower) && pop > 200 && cultMembers[d] >= industrialMinPop) ? ensureLocal(INST.FIRM, c, d, parent) : null;
       const warband = (isFrontier(c, d) && cu.norms[NORM_I.hierarchy] > 0.4 && pop > 70) ? ensureLocal(INST.WARBAND, c, d, parent) : null;
       // assign roles by a stable per-agent hash; households (org=-1) are everyone else.
+      // Each role ISSUES its credential (the résumé accrues through participation), and the
+      // highest-reputation member becomes the institution's leader (its elite / great person).
       const s = cellStart[c], e = cellStart[c + 1];
+      const hasMetal = has(cu.tech, CAP.metallurgy), hasWrite = has(cu.tech, CAP.writing), hasMason = has(cu.tech, CAP.masonry), hasMech = has(cu.tech, CAP.mechanisation);
       for (let t = s; t < e; t++) {
         const id = cellOrder[t]; if (!(A.flags[id] & ALIVE) || A.cell[id] !== c) continue;
         const h = hash01(id); let org = stateId; // default: a subject of the state (or -1, household)
         if (warband && h < 0.14) org = warband.id;
         else if (firm && h < 0.55) org = firm.id;
         else if (guild && h < 0.66) org = guild.id;
-        A.org[id] = org; if (org >= 0) { const it = insts[org]; it.memberCount++; it.wealth += A.wealth[id]; }
+        A.org[id] = org;
+        if (org >= 0) {
+          const it = insts[org]; it.memberCount++; it.wealth += A.wealth[id];
+          const rep = A.status[id]; it.reputation += rep;
+          if (rep > it.leaderRep) { it.leaderRep = rep; it.leader = id; }
+          // issue credentials by role (rng-gated → earned over a tenure)
+          if (R.rep() < 0.05) {
+            if (it.type === INST.GUILD) { if (hasMetal && !chas(A.cred[id], CREDI.smith)) A.cred[id] |= cbit(CREDI.smith); else if (hasWrite && !chas(A.cred[id], CREDI.scribe)) A.cred[id] |= cbit(CREDI.scribe); else if (hasMason && !chas(A.cred[id], CREDI.mason)) A.cred[id] |= cbit(CREDI.mason); if (rep > 1.8) A.cred[id] |= cbit(CREDI.master); }
+            else if (it.type === INST.FIRM) { if (hasMech) A.cred[id] |= cbit(CREDI.engineer); A.cred[id] |= cbit(CREDI.trader); }
+            else if (it.type === INST.WARBAND) { A.cred[id] |= cbit(CREDI.soldier); if (it.captures > 0 && rep > 1.5) A.cred[id] |= cbit(CREDI.officer); }
+            else if (it.type === INST.STATE && rep > 1.2) A.cred[id] |= cbit(CREDI.citizen);
+          }
+        }
       }
     }
-    // roll specialised actors up into their state, then each actor acts.
-    for (const it of liveInsts) if (it.type !== INST.STATE && it.parent >= 0) { const p = insts[it.parent]; if (p && p.dissolvedTick < 0) { p.memberCount += it.memberCount; p.wealth += it.wealth; } }
+    // roll specialised actors up into their state (members, wealth, reputation, and the
+    // strongest leader becomes the state's), then each actor acts.
+    for (const it of liveInsts) if (it.type !== INST.STATE && it.parent >= 0) { const p = insts[it.parent]; if (p && p.dissolvedTick < 0) { p.memberCount += it.memberCount; p.wealth += it.wealth; p.reputation += it.reputation; if (it.leaderRep > p.leaderRep) { p.leaderRep = it.leaderRep; p.leader = it.leader; } } }
     let firmCount = 0, guildCount = 0, warCount = 0, stateCount = 0;
     for (const it of liveInsts) {
       if (it.memberCount > it.peakMembers) it.peakMembers = it.memberCount;
-      it.pool = it.pool * 0.98 + it.wealth * 0.03; // treasury tracks sustained wealth
+      it.pool = it.pool * 0.98 + it.wealth * 0.03;                    // treasury tracks sustained wealth
+      it.reputation = it.memberCount > 0 ? it.reputation / it.memberCount : 0; // → mean standing (its "brand")
       const cu = cultures[it.culture];
       if (it.type === INST.FIRM) { firmCount++; activityField[it.seat] += 0.4; }            // firms drive economic activity
       else if (it.type === INST.GUILD) { guildCount++; activityField[it.seat] += 0.2; }       // guilds pool knowledge
-      else if (it.type === INST.WARBAND) { warCount++; it.strength = it.memberCount * (1 + techBonus(cu.tech)) * (1 + Math.min(1.5, it.pool * 0.02)); }
+      else if (it.type === INST.WARBAND) { warCount++; it.strength = it.memberCount * (1 + techBonus(cu.tech)) * (1 + Math.min(1.5, it.pool * 0.02)) * (1 + Math.min(0.7, it.leaderRep * 0.18)); } // a great captain multiplies the host
       else stateCount++;
+      // history's names: an eminent leader (very high reputation) is recorded once, with
+      // their résumé, as a great person of their age.
+      if (it.leader >= 0 && it.leaderRep > 2.4) {
+        const gk = it.leader + '@' + A.birthTick[it.leader];
+        if (!greatSeen.has(gk) && (A.flags[it.leader] & ALIVE)) {
+          greatSeen.add(gk);
+          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader), culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
+        }
+      }
     }
     // WAR: each warband may strike an adjacent rival cell once per tick — preferring the
     // named resources. Organised conflict over territory & ore, resolved by strength.
@@ -836,10 +917,13 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       .filter(it => it.type === INST.STATE ? it.peakMembers > 0 : it.type === INST.WARBAND ? it.captures >= 1 : it.peakMembers > 40)
       .sort((a, b) => notability(b) - notability(a))
       .slice(0, 140)
-      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
+      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader) : null, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
+    // history's great persons, most eminent first
+    const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120);
     return {
       pop: liveN,
       cultures: surviving, polities, resources, institutions,
+      greatPeople: great, credNames: CRED,
       languages: languages.map(l => ({ id: l.id, parent: l.parent, birthTick: l.birthTick })),
       subDist, popByLandmass: Array.from(popByLand),
       occupiedLandmasses: popByLand.reduce((a, v) => a + (v > 0 ? 1 : 0), 0),
@@ -859,7 +943,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         captureEvery = Math.max(1, opts.every || cfg.keyframeEvery);
         chronicle.frames = [];
         chronicle.world = worldSnapshot();
-        chronicle.dict = { caps: CAPS.slice(), packages: PKG.map(p => p.id) };
+        chronicle.dict = { caps: CAPS.slice(), packages: PKG.map(p => p.id), creds: CRED.slice() };
       }
       for (let k = 0; k < nTicks; k++) step();
       chronicle.meta.peakAgentSlots = A.n; // ≈ peak concurrent living (free-list recycled)

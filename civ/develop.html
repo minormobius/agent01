@@ -37,6 +37,7 @@
   .pill{ display:inline-block; border-radius:5px; padding:1px 6px; font-size:11px; }
   .alive{ background:#16261c; color:var(--good); } .fell{ background:#2a1a1c; color:var(--bad); }
   .era0{color:#8b98a9}.era1{color:#9cc96f}.era2{color:#c9a86f}.era3{color:#d0a0d0}.era4{color:#e6a34a}.era5{color:#e6d24a}
+  .cap{ display:inline-block; background:#16261c; color:var(--good); border-radius:5px; padding:1px 6px; font-size:11px; margin:1px 3px 1px 0; }
   .tt{ position:fixed; pointer-events:none; background:rgba(10,14,21,.95); border:1px solid var(--edge); border-radius:8px; padding:7px 9px; font-size:12px; display:none; z-index:10; max-width:220px; }
 </style>
 </head>
@@ -87,7 +88,15 @@
       <div class="modes" id="ifilter"><b data-k="" class="on">all</b><b data-k="state">states</b><b data-k="firm">companies</b><b data-k="guild">guilds</b><b data-k="warband">warbands</b></div>
     </div>
     <div style="overflow:auto;max-height:380px"><table id="insttab"><thead><tr>
-      <th>kind</th><th>name</th><th>culture</th><th class="num">members</th><th class="num">peak</th><th class="num">treasury</th><th class="num">strength</th><th class="num">conquests</th><th class="num">founded</th><th>status</th>
+      <th>kind</th><th>name</th><th>leader</th><th>culture</th><th class="num">members</th><th class="num">peak</th><th class="num">treasury</th><th class="num">strength</th><th class="num">conquests</th><th>status</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Great persons <span class="sub" id="gpcount"></span></h2>
+    <p class="sub">Named individuals who led an institution to eminence — reputation is earned (credentials + office + standing) and runs in families (apprenticeship + sexual selection). Each carries a résumé.</p>
+    <div style="overflow:auto;max-height:360px"><table id="gptab"><thead><tr>
+      <th>name</th><th>led</th><th>culture</th><th class="num">reputation</th><th class="num">era yr</th><th>résumé (credentials)</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
 </main>
@@ -204,7 +213,7 @@ function renderTables(){
     tr.innerHTML=`<td>${RES_ICON[r.kind]||''} ${r.kind}</td><td>${r.name}</td><td>${holder}</td>`;
     rt.appendChild(tr);
   }
-  renderInsts();
+  renderInsts(); renderGreat();
 }
 const INST_ICON={state:'🏛️',firm:'🏭',guild:'⚒️',warband:'⚔️'};
 function renderInsts(){
@@ -214,11 +223,11 @@ function renderInsts(){
   $('#instcount').textContent='('+(f.institutions||[]).length+')';
   for(const o of rows){
     const tr=document.createElement('tr'); tr.className='dyn'; tr.dataset.id=o.culture;
-    tr.innerHTML=`<td>${INST_ICON[o.kind]||''} ${o.kind}</td><td>${o.name}</td>`
+    tr.innerHTML=`<td>${INST_ICON[o.kind]||''} ${o.kind}</td><td>${o.name}</td><td>${o.leader?o.leader:'<span class="sub">—</span>'}</td>`
       +`<td><span class="sw" style="background:${cultureCol(o.culture)}"></span>#${o.culture}</td>`
       +`<td class="num">${o.members.toLocaleString()}</td><td class="num">${o.peak.toLocaleString()}</td>`
       +`<td class="num">${o.pool.toLocaleString()}</td><td class="num">${o.strength?o.strength.toLocaleString():'—'}</td>`
-      +`<td class="num">${o.captures||'—'}</td><td class="num">${yr(o.founded)}</td>`
+      +`<td class="num">${o.captures||'—'}</td>`
       +`<td>${o.alive?'<span class="pill alive">active</span>':'<span class="pill fell">fell '+yr(o.fell)+'</span>'}</td>`;
     tr.onclick=()=>{ hlCulture=hlCulture===o.culture?null:o.culture; refreshHL(); drawStream(); };
     it.appendChild(tr);
@@ -226,6 +235,21 @@ function renderInsts(){
 }
 let instFilter='';
 $('#ifilter').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; instFilter=b.dataset.k; [...$('#ifilter').children].forEach(x=>x.classList.toggle('on',x===b)); renderInsts(); });
+const ROLE_ICON={state:'🏛️',firm:'🏭',guild:'⚒️',warband:'⚔️'};
+function renderGreat(){
+  const f=DATA.chronicle.final, CR=f.credNames||[], yr=t=>Math.round(t*tickYears).toLocaleString();
+  const gt=$('#gptab').querySelector('tbody'); gt.innerHTML=''; $('#gpcount').textContent='('+(f.greatPeople||[]).length+')';
+  for(const g of (f.greatPeople||[])){
+    const creds=CR.filter((c,i)=>g.cred&(1<<i));
+    const tr=document.createElement('tr'); tr.className='dyn'; tr.dataset.id=g.culture;
+    tr.innerHTML=`<td><b>${g.name}</b></td><td>${ROLE_ICON[g.role]||''} ${g.role} · ${g.inst}</td>`
+      +`<td><span class="sw" style="background:${cultureCol(g.culture)}"></span>#${g.culture}</td>`
+      +`<td class="num">${g.rep.toFixed(2)}</td><td class="num">${yr(g.tick)}</td>`
+      +`<td>${creds.length?creds.map(c=>`<span class="cap">${c}</span>`).join(''):'<span class="sub">—</span>'}</td>`;
+    tr.onclick=()=>{ hlCulture=hlCulture===g.culture?null:g.culture; refreshHL(); drawStream(); };
+    gt.appendChild(tr);
+  }
+}
 function refreshHL(){ document.querySelectorAll('tr.dyn').forEach(tr=>tr.classList.toggle('hl',+tr.dataset.id===hlCulture)); }
 
 // ---- interaction ----------------------------------------------------------------

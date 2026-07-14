@@ -157,6 +157,20 @@ the map, in the river, and in the tables.
   Surfaced in the development view's institutions table (companies / guilds / armies / states,
   with treasury, strength, conquests, alive/fell). Deterministic; per-tick work is O(live
   institutions). A pastoral kurgan run is all warbands; an industrial run grows companies.
+- **Credentials + reputation (the individual layer)** — every agent carries a `cred` bitset
+  (its **résumé**: skills/offices earned) and a reputation (`status`). Credentials are *issued*
+  by institutions through participation (a guild issues `smith`/`scribe`/`master`, a firm
+  `engineer`/`trader`, a warband `soldier`/`officer`, a state `citizen`), are **portable**
+  (a credentialed migrant deposits its skills' capabilities into the destination's meme field —
+  person-borne diffusion), and **heritable** (apprenticeship: children inherit parents' creds).
+  Reputation accrues from credentials + wealth + office and **drives individual selection**:
+  who **leads** an institution (its elite / great person), and — via a reputation tournament
+  in mating (on a separate RNG stream, so it never perturbs demography) — who reproduces more,
+  so **reputation lineages** accumulate and *some agents matter*. Institutions get a mean
+  reputation (their "brand") that feeds war (a great captain multiplies a host). Surfaced as
+  named **great persons** with résumés (develop view) and clickable **notable people** on the
+  map (playground) — e.g. "Labigo of #2, ★3.39, age 73 — farmer/smith/scribe/mason/trader/
+  master/elder". Deterministic, O(n) (bit-ops folded into existing passes).
 - **Religion / ideology** — deliberately *not yet* modelled; the design note is to add it as
   a second orthogonal meme-phylogeny (a `beliefId` diffusing through the same stigmergic
   field, decoupled from language) so its map cuts *across* the political and linguistic ones.
