@@ -4,6 +4,11 @@
   "main": "worker.js",
   "compatibility_date": "2026-02-20",
   "compatibility_flags": ["nodejs_compat"],
+  // A 1500-tick run grows to ~55k agents and costs ~10-15s of Worker CPU; the sim is bounded
+  // (ticks ≤ 1500, mesh ≤ 1200 cells, POP_CAP), so lift the CPU ceiling above the ~default that
+  // /api/civ/frames?ticks=1500 was tripping (503). Results are content-addressed + client-cached,
+  // so the cost is paid once per distinct run.
+  "limits": { "cpu_ms": 120000 },
   "assets": {
     "directory": ".",
     "binding": "ASSETS"
