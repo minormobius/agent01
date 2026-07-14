@@ -227,7 +227,7 @@
   </section>
 
   <footer>
-    This plan is a proposal to react to, not a locked spec — the colours and the exact per-cell flavor are yours and hoopy's to tune. The structure it rests on (planet → verb → triad, faction → body, the 3×7 grid) is what's load-bearing, and it already lives as code in <code>hoop/v104/planets.js</code> (node-tested), which the game verticals will migrate onto. The one open call: confirm faction → body (continuant·FLESH / rindwalker·CHASSIS / drift·ANIMA), and whether the seven planets stay a free second axis (any faction × any planet) or each faction keeps a home cluster.
+    <strong style="color:var(--gold)">Confirmed &amp; in code.</strong> This is now the model in <code>hoop/v104/planets.js</code> (node-tested): faction → body (continuant·FLESH / rindwalker·CHASSIS / drift·ANIMA, the leans derived from each faction's verbs), and the seven planets as a free second axis — any faction × any planet, all 21 reachable. Colours and the exact per-cell flavor stay tunable; the structure is settled. Next the game verticals migrate onto it (creation reads the grid; forge/brew/gems/combat call <code>planetOf</code>).
   </footer>
 </div></div>
 
@@ -304,9 +304,9 @@
   // ── detail plate ──
   var plate = document.getElementById("plate");
   function pct(x){ return Math.round(x*100); }
-  function leanFor(f){ // faction body → the triad share (clean split: dominant domain heavy, others floored)
-    var base={flesh:.2,chassis:.2,anima:.2}; base[f.domain]=.6; return base;
-  }
+  // faction body → the triad share, DERIVED in planets.js from each faction's civic verbs (not invented).
+  var LEANS = { continuant:{flesh:.53,chassis:.18,anima:.30}, rindwalker:{flesh:.20,chassis:.48,anima:.33}, drift:{flesh:.33,chassis:.23,anima:.45} };
+  function leanFor(f){ return LEANS[f.key]; }
   function render(fk,pk){
     var f=facByKey[fk], p=byKey[pk], d=DOMAIN[f.domain], lean=leanFor(f);
     // combat matchups for this planet

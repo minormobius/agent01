@@ -520,17 +520,24 @@ despite the name. It stayed with hoop, not rind.)
     navy `#33408f` was near-invisible); (5) the **overworld ladder yields** to a keeper/anchor standing on it
     (you can talk to Solen instead of always climbing); (6) **duplicate nameplates** append the room (the two
     "Kaelen Voss" are now "Kaelen Voss · Fulcrum Cell" vs "· Rivet Chancel").
-  - **`v104/planets.js` — THE SEVEN, the unified design-language keystone** (start of the demo-tier
-    consolidation of skills · items · alchemy · crafting · combat into one alphabet). Every reagent/material/
-    gem/skill/item/enemy carries ONE planet (☉☽☿♀♂♃♄), replacing alchemy's humour/metal/vessel, crafting's
-    material-family, and gems' crystal-system. Each planet carries glyph · metal · colour · governed verbs ·
-    nave faction, and a FLESH/CHASSIS/ANIMA lean **derived** from its verbs' `stats.js` VOCATIONS (not
-    invented — tuning a verb re-tunes every vertical). `FACTION_PLANETS` is a clean 2+3+2 partition of the
-    Seven so a faction choice UNLOCKS its planets' recipes + combat moves; `advantage()` is a balanced 7-way
-    rulership RPS; `blendLean()` is the character-creation species (1–2 planets). Pure + node-tested
-    (`test/planets.selftest.mjs`, 39 checks). Strawman colours + the ANIMA-heavy lean skew are for tuning; the
-    planet→verb→triad + faction→planet SHAPE is load-bearing. Verticals migrate onto it next (alch/craft/gems/
-    arena/character all call `planetOf`).
+  - **`v104/planets.js` — THE SEVEN, the unified design-language keystone** (the demo-tier consolidation of
+    character · skills · items · alchemy · crafting · combat into one alphabet). Two orthogonal axes name
+    everything, and a thing is a **(faction, planet)** pair — 3 × 7 = **21 identities** — replacing alchemy's
+    humour/metal/vessel, crafting's material-family, and gems' crystal-system:
+    - **FACTION → BODY** (the triad axis): continuant·FLESH · rindwalker·CHASSIS · drift·ANIMA. The body lean
+      is **derived** from each faction's own civic verbs' `stats.js` VOCATIONS, so it's grounded and lands the
+      right domain per faction with **no skew** (this is why the triad moved off the planets — deriving it on
+      the planets came out 5/7 ANIMA). `bodyOf`/`bodyLean`/`factionOfBody`.
+    - **PLANET → FLAVOR** (the register axis): the Seven, each with glyph · metal · colour · governed verbs ·
+      temperament · humour. `planetOf(tag)` funnels any vocabulary (name/Sun-Moon/metal/glyph/verb) → key;
+      `advantage()` is a balanced 7-way rulership RPS (Chaldean cycle); `matchups()` splits the six.
+    - **`identityOf(faction, planet)`** composes the species ("The Iron Wright" = rindwalker × mars) with its
+      body lean + flavor + combat matchups; `allIdentities()` = the 21. `blend`/free axis — any faction × any
+      planet is reachable (no home-cluster gating). Pure + node-tested (`test/planets.selftest.mjs`, 33 checks).
+    The plan lives at **`hoop.mino.mobi/plan`** (`v104/plan.html`, also `/v104/plan`): the interactive 3×7
+    grid, per-cell body/flavor detail, the five verticals mapped, the rulership heptagram. Colours + per-cell
+    flavor stay tunable; the shape is settled. Verticals migrate onto it next (creation reads the grid;
+    forge/brew/gems/combat call `planetOf`/`identityOf`).
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
