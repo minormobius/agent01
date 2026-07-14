@@ -73,6 +73,10 @@ export const TOOLS = [
     url: '/dyad/',
     desc: 'A dyadline — every recorded interaction between two accounts, both directions, on one timeline.',
     chips: ['raw PDS reads'], data: '12 parallel repo scans + AppView' },
+  { id: 'unique', name: 'unique', glyph: '❋', district: 'commons', tier: 3, status: 'up',
+    url: '/unique/',
+    desc: 'Phrases only they’ve ever posted — bigrams/trigrams a handle used exactly once that nobody else on Bluesky has. Free once-used pre-filter, then a streamed parallel search fan-out.',
+    chips: ['worker fan-out', 'service token', 'NDJSON stream'], data: 'PDS listRecords + authed searchPosts' },
 
   // ── graph quarter ───────────────────────────────────────────────────────
   { id: 'zoom', name: 'zoom', glyph: '◎', district: 'graph', tier: 2, status: 'up',

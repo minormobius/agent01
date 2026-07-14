@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>unique — phrases only you have ever posted</title>
+<meta name="description" content="Every two- and three-word phrase a Bluesky account has used exactly once — that no one else on the whole network has ever posted. Hapax legomena, mined from a repo and checked against platform-wide search.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="unique — phrases only you have ever posted">
+<meta property="og:description" content="Two- and three-word phrases used exactly once on all of Bluesky.">
+<meta property="og:url" content="https://b.mino.mobi/unique/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12);
+  --gold: #b8860b; --good: #2e7d4f; --good-faint: rgba(46,125,79,0.08);
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --sky: #6ec1e4; --sky-faint: rgba(110, 193, 228, 0.10);
+    --gold: #d8b85a; --good: #6fd0a0; --good-faint: rgba(111,208,160,0.09);
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+  max-width: 760px; margin: 0 auto; padding: 2.4rem 1.4rem 6rem;
+}
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.4rem;
+}
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .fly { color: var(--sky); }
+.tagline {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.5rem;
+}
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.2rem 0 0; border-radius: 2px; }
+.lede { font-size: 1.02rem; color: var(--muted); margin-top: 1.2rem; max-width: 62ch; }
+.lede b { color: var(--text); font-weight: 600; }
+.lede .term { font-style: italic; color: var(--gold); }
+
+form { margin: 2rem 0 1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+input[type=text] {
+  flex: 1 1 240px; min-width: 200px; font-family: var(--mono); font-size: 0.95rem;
+  padding: 0.7rem 0.85rem; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+}
+input[type=text]:focus { outline: none; border-color: var(--sky); }
+button {
+  font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em;
+  padding: 0.7rem 1.2rem; border: 1px solid var(--sky); border-radius: 6px;
+  background: var(--sky); color: #fff; cursor: pointer; transition: opacity .15s;
+}
+button:hover { opacity: 0.88; }
+button.ghost { background: transparent; color: var(--sky); }
+button:disabled { opacity: 0.4; cursor: default; }
+.modes { display: flex; gap: 0.4rem; margin: 0 0 1.6rem; flex-wrap: wrap; }
+.modes label {
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); border: 1px solid var(--rule); border-radius: 20px;
+  padding: 0.3rem 0.8rem; cursor: pointer; user-select: none;
+}
+.modes input { display: none; }
+.modes input:checked + label { color: var(--sky); border-color: var(--sky); background: var(--sky-faint); }
+
+#status { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); min-height: 1.4em; margin-bottom: 0.4rem; }
+#status .err { color: #c0392b; }
+.bar { height: 4px; background: var(--rule); border-radius: 3px; overflow: hidden; margin: 0.6rem 0 1.4rem; opacity: 0; transition: opacity .2s; }
+.bar.on { opacity: 1; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--sky); transition: width .2s ease; }
+
+.summary { display: flex; gap: 1.6rem; flex-wrap: wrap; margin: 0.4rem 0 1.6rem; }
+.summary .stat { font-family: var(--mono); }
+.summary .stat b { display: block; font-size: 1.5rem; color: var(--sky); font-weight: 600; }
+.summary .stat.found b { color: var(--good); }
+.summary .stat span { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+.results { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+.results li {
+  border: 1px solid var(--rule); border-left: 3px solid var(--good);
+  border-radius: 7px; padding: 0.8rem 1rem; background: var(--good-faint);
+}
+.results li .phrase { font-family: var(--mono); font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; word-break: break-word; }
+.results li .phrase .n { font-size: 0.6rem; color: var(--muted); margin-left: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.results li .snip { font-size: 0.92rem; color: var(--muted); margin: 0.35rem 0 0.5rem; }
+.results li a { font-family: var(--mono); font-size: 0.7rem; color: var(--sky); text-decoration: none; }
+.results li a:hover { text-decoration: underline; }
+.results li .foreign { color: var(--gold); font-family: var(--mono); font-size: 0.66rem; }
+.empty { color: var(--muted); font-style: italic; margin-top: 1rem; }
+footer { margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.72rem; color: var(--muted); line-height: 1.8; }
+footer a { color: var(--sky); text-decoration: none; }
+</style>
+</head>
+<body>
+<a class="crumb" href="/">← b · the bluesky corner</a>
+<h1><span class="fly">unique</span></h1>
+<div class="tagline">phrases only you have ever posted</div>
+<div class="sky-rule"></div>
+<p class="lede">
+  Give a handle. This finds every two- and three-word phrase they've used <b>exactly once</b> that
+  <b>no one else on all of Bluesky has ever posted</b> — their <span class="term">hapax legomena</span>,
+  the fingerprints of a voice. Repo is harvested at the edge; only the phrases they never repeated
+  themselves are checked against platform-wide search, in parallel, streamed back as they land.
+</p>
+
+<form id="f">
+  <input type="text" id="handle" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <button type="submit" id="go">find</button>
+  <button type="button" id="stop" class="ghost" style="display:none">stop</button>
+</form>
+<div class="modes">
+  <input type="radio" name="mode" id="m-tri" value="trigram" checked><label for="m-tri">trigrams · 3 words</label>
+  <input type="radio" name="mode" id="m-bi" value="bigram"><label for="m-bi">bigrams · 2 words</label>
+  <input type="radio" name="mode" id="m-both" value="both"><label for="m-both">both</label>
+</div>
+
+<div id="status"></div>
+<div class="bar" id="bar"><i></i></div>
+<div class="summary" id="summary" style="display:none">
+  <div class="stat"><b id="s-checked">0</b><span>checked</span></div>
+  <div class="stat"><b id="s-total">0</b><span>candidates</span></div>
+  <div class="stat found"><b id="s-found">0</b><span>unique</span></div>
+</div>
+<ul class="results" id="results"></ul>
+<div class="empty" id="empty" style="display:none"></div>
+
+<footer>
+  <b>How it works.</b> A phrase can only be globally unique if its author used it exactly once —
+  anything they repeated is already ≥2 uses on the network. That free pre-filter throws away the bulk
+  of the n-grams with zero queries; only the survivors hit search. Trigrams are far likelier to be
+  unique than bigrams, so they're the default. "Unique" means exactly one indexed post contains the
+  phrase; the search index lags and honours opt-outs, so treat it as a strong hint, not a proof.
+  Read-only public data · part of <a href="/">b.mino.mobi</a>.
+</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const results = $('results'), statusEl = $('status'), bar = $('bar'), barI = bar.querySelector('i');
+let abort = null;
+
+function setStatus(msg, isErr) { statusEl.innerHTML = isErr ? `<span class="err">${msg}</span>` : msg; }
+function postUrl(uri) {
+  // at://did/app.bsky.feed.post/rkey  ->  bsky.app permalink
+  const m = /^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/.exec(uri || '');
+  return m ? `https://bsky.app/profile/${m[1]}/post/${m[2]}` : '#';
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+function hi(text, phrase) {
+  // bold the matched phrase inside the snippet (loose, case-insensitive)
+  const words = phrase.split(' ').map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^\\p{L}\\p{N}]+');
+  try { return esc(text).replace(new RegExp(words, 'iu'), (m) => `<b>${m}</b>`); } catch { return esc(text); }
+}
+
+function addResult(v) {
+  const li = document.createElement('li');
+  const foreign = v.mine === false ? `<span class="foreign">· first posted by @${esc(v.post.handle || v.post.did)}</span>` : '';
+  li.innerHTML =
+    `<div class="phrase">${esc(v.g)}<span class="n">${v.n}-gram</span> ${foreign}</div>` +
+    `<div class="snip">${hi(v.post.text || '', v.g)}</div>` +
+    `<a href="${postUrl(v.post.uri)}" target="_blank" rel="noopener">see the one post →</a>`;
+  results.appendChild(li);
+}
+
+async function run(ev) {
+  ev.preventDefault();
+  if (abort) { abort.abort(); abort = null; }
+  const handle = $('handle').value.trim();
+  if (!handle) return;
+  const mode = document.querySelector('input[name=mode]:checked').value;
+
+  results.innerHTML = ''; $('empty').style.display = 'none';
+  $('summary').style.display = 'none'; bar.classList.remove('on'); barI.style.width = '0';
+  $('go').disabled = true; $('stop').style.display = 'inline-block';
+  abort = new AbortController();
+  const signal = abort.signal;
+
+  try {
+    setStatus('resolving + scanning the repo…');
+    const scanRes = await fetch('/api/unique/scan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handle, mode }), signal,
+    });
+    const scan = await scanRes.json();
+    if (!scanRes.ok || scan.error) throw new Error(scan.error || ('scan failed (' + scanRes.status + ')'));
+
+    const cands = scan.candidates || [];
+    $('s-total').textContent = scan.total.toLocaleString();
+    $('summary').style.display = 'flex';
+    if (!cands.length) {
+      setStatus(`scanned ${scan.posts.toLocaleString()} posts — no once-used ${mode === 'both' ? 'phrases' : mode + 's'} to check.`);
+      finish(); return;
+    }
+    const capped = scan.total > cands.length;
+    setStatus(`scanned ${scan.posts.toLocaleString()} posts${scan.scannedAll ? '' : ' (most recent)'} · ` +
+      `${scan.total.toLocaleString()} candidate ${mode === 'both' ? 'phrases' : mode + 's'} used exactly once` +
+      `${capped ? ` · checking the top ${cands.length.toLocaleString()}` : ''} · verifying against search…`);
+    bar.classList.add('on');
+
+    let checked = 0, found = 0;
+    const BATCH = 100;
+    for (let i = 0; i < cands.length; i += BATCH) {
+      if (signal.aborted) break;
+      const slice = cands.slice(i, i + BATCH);
+      const r = await fetch('/api/unique/search', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidates: slice, did: scan.did }), signal,
+      });
+      if (!r.ok || !r.body) throw new Error('search failed (' + r.status + ')');
+      const reader = r.body.getReader();
+      const dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+          if (!line) continue;
+          let v; try { v = JSON.parse(line); } catch { continue; }
+          if (v.done) continue;
+          checked++;
+          if (v.status === 'unique') { found++; addResult(v); }
+          $('s-checked').textContent = checked.toLocaleString();
+          $('s-found').textContent = found.toLocaleString();
+          barI.style.width = Math.round(100 * checked / cands.length) + '%';
+        }
+      }
+    }
+    barI.style.width = '100%';
+    if (found === 0 && !signal.aborted) { $('empty').textContent = 'No platform-unique phrases surfaced in this batch.'; $('empty').style.display = 'block'; }
+    setStatus(signal.aborted ? `stopped — ${found.toLocaleString()} unique found in ${checked.toLocaleString()} checked.`
+      : `done — ${found.toLocaleString()} phrase${found === 1 ? '' : 's'} unique on all of Bluesky, out of ${checked.toLocaleString()} checked.`);
+  } catch (e) {
+    if (e.name !== 'AbortError') setStatus(esc(String(e.message || e)), true);
+  } finally { finish(); }
+}
+function finish() { $('go').disabled = false; $('stop').style.display = 'none'; abort = null; }
+
+$('f').addEventListener('submit', run);
+$('stop').addEventListener('click', () => { if (abort) abort.abort(); });
+// deep-link: /unique/?handle=alice.bsky.social
+const qh = new URLSearchParams(location.search).get('handle');
+if (qh) { $('handle').value = qh; $('f').requestSubmit(); }
+</script>
+</body>
+</html>
