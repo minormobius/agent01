@@ -9,17 +9,23 @@
 
 import { rollCharacter, rollTriad, rollCharacteristics, normTriad, deriveCombat, deriveAttrs, applyCharacteristics,
          TRIAD, TRIAD_ORDER, ATTRS, ATTR_ORDER, VOCATIONS, VOCATION_ORDER, castOf } from './stats.js';
-import { FACTIONS, FACTION_ORDER, PLANETS, READING_ORDER, bodyLean, identityOf } from './planets.js';
+import { PLANETS, READING_ORDER, matchups } from './planets.js';
 import { ROLES, frameRects, DIR_OF } from './v3/sprite-core.js';
 import { crewSprite } from './crew.js';
 
-// v104 unified language: class creation is a single pick in the 3×7 identity grid — a FACTION (body/triad)
-// and a PLANET (flavor). The vocation (which still dresses the sprite + hints the starting kit) is DERIVED
-// from the cell: the planet verb the faction also owns, else the planet's primary verb.
-const vocationFor = (faction, planet) => {
-  const fv = (FACTIONS[faction] || {}).verbs || [], pv = (PLANETS[planet] || {}).verbs || [];
-  return pv.find((v) => fv.includes(v)) || pv[0] || fv[0] || 'dwell';
-};
+// v104 unified language — creation picks a VERB × a PLANET (NOT a faction: faction is the main-quest fork
+// you choose at Sevin's threshold, so it must not be pre-spent here). The VERB is your vocation — it sets
+// your BODY (its own triad lean's dominant domain), your kit, your civic role. The PLANET is your flavor
+// register (metal/colour/temperament/combat-matchup). Body × planet = the 21 identity flavors, reached
+// through the verb. The verbs group under the three bodies exactly as planets.js derives the factions from
+// them, so the two layers stay consistent without committing an allegiance.
+const capital = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+const bodyOfLean = (lean) => TRIAD_ORDER.slice().sort((a, b) => (lean[b] || 0) - (lean[a] || 0))[0];
+const bodyOfVocation = (v) => bodyOfLean((VOCATIONS[v] || {}).lean || {});
+const identityName = (v, p) => 'The ' + ((PLANETS[p] || {}).adj || '') + ' ' + capital((VOCATIONS[v] || {}).tag || v);
+// the 13 verbs bucketed under the body their lean lands in (flesh: dwell/grow/serve/heal/move; chassis:
+// make/mend/store; anima: trade/play/learn/worship/govern) — the picker's three columns.
+const VERBS_BY_BODY = (() => { const g = { flesh: [], chassis: [], anima: [] }; for (const v of VOCATION_ORDER) g[bodyOfVocation(v)].push(v); return g; })();
 
 const STORE_KEY = 'mega:v092:character';
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -39,10 +45,9 @@ export class CharacterCreator {
     // working draft
     this.seed = (seed >>> 0) || 1;
     this.spriteSeed = mix(this.seed, 1);
-    this.faction = null;                           // the BODY axis (triad); null until rolled/picked
-    this.planet = null;                            // the FLAVOR axis; null until rolled/picked
-    this.vocation = null;                          // DERIVED from (faction, planet) — dresses the sprite + hints the kit
-    this.triad = null;                            // weights; null ⇒ the faction's body lean
+    this.vocation = null;                          // the VERB — your body/kit/role; null until rolled/picked
+    this.planet = null;                            // the FLAVOR register; null until rolled/picked
+    this.triad = null;                            // weights; null ⇒ the vocation's own lean (faction is NOT set here)
     this.chars = null;                            // characteristics
     this.charName = null;                          // PLAYER-OWNED name (string); null ⇒ use the rolled name
     this._build();
@@ -74,8 +79,10 @@ export class CharacterCreator {
             <button class="chbtn" id="chrerollSprite">⟳ body</button>
             <button class="chbtn" id="chrerollQuirks">⟳ quirks</button>
           </div>
-          <div class="chh">IDENTITY <span style="color:#6b7872">· body × flavor · one of 21</span></div>
-          <div id="chgrid" style="margin-top:9px"></div>
+          <div class="chh">VOCATION <span style="color:#6b7872">· what you do aboard · sets your body</span></div>
+          <div id="chvocs" style="margin-top:9px"></div>
+          <div class="chh" style="margin-top:14px">REGISTER <span style="color:#6b7872">· planetary flavor · one of seven</span></div>
+          <div id="chplanets" style="margin-top:9px"></div>
           <div id="chidgloss" style="font-size:10.5px;color:#9aa8a0;margin-top:9px;min-height:30px;line-height:1.45"></div>
           <div class="chh" style="margin-top:16px">BLEND <span style="color:#6b7872">· fine-tune the body</span></div>
           <div id="chtriad" style="margin-top:8px"></div>
@@ -96,15 +103,19 @@ export class CharacterCreator {
         #char .chsprite{float:left;width:172px;height:172px;image-rendering:pixelated;background:radial-gradient(circle at 50% 42%,#0c1118,#06080c);border:1px solid #1b2530;border-radius:14px;margin:2px 20px 12px 0}
         #char .chrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
         @media (max-width:560px){ #char .chsprite{width:118px;height:118px;margin:2px 14px 10px 0} }
-        #char .idrow{display:grid;grid-template-columns:74px repeat(7,1fr);gap:4px;align-items:center;margin-bottom:4px}
-        #char .idlbl{font-size:10px;line-height:1.15;text-align:right;padding-right:5px}
-        #char .idlbl b{display:block;font-size:11.5px}
-        #char .idlbl small{color:#6b7872;letter-spacing:.08em}
-        #char .idcell{aspect-ratio:1;min-height:0;background:#0d1117;border:1px solid #1b2530;color:var(--pc);font-size:16px;border-radius:7px;cursor:pointer;position:relative;transition:transform .1s,border-color .1s}
-        #char .idcell::before{content:"";position:absolute;inset:0;border-radius:7px;background:var(--pc);opacity:.1}
-        #char .idcell:hover{border-color:var(--pc);transform:translateY(-1px)}
-        #char .idcell.on{border-color:#f4bf62;box-shadow:0 0 0 1px #f4bf62}
-        #char .idcell.on::before{opacity:.24}
+        #char #chvocs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+        #char .vocgrp{min-width:0}
+        #char .vocgh{font-size:9.5px;letter-spacing:.1em;padding-bottom:3px;border-bottom:1px solid #1b2530;margin-bottom:5px}
+        #char .voc{display:flex;align-items:center;gap:5px;width:100%;text-align:left;background:#0d1117;border:1px solid #1b2530;color:#cfd8d2;font:inherit;font-size:10.5px;padding:4px 6px;border-radius:6px;cursor:pointer;margin-bottom:4px;transition:border-color .1s}
+        #char .voc .vg{font-size:12px;color:var(--bc)}
+        #char .voc:hover{border-color:var(--bc)}
+        #char .voc.on{border-color:#f4bf62;background:#161d12;color:#fff;box-shadow:0 0 0 1px #f4bf62}
+        #char #chplanets{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+        #char .pcell{aspect-ratio:1;min-height:0;background:#0d1117;border:1px solid #1b2530;color:var(--pc);font-size:16px;border-radius:7px;cursor:pointer;position:relative;transition:transform .1s,border-color .1s}
+        #char .pcell::before{content:"";position:absolute;inset:0;border-radius:7px;background:var(--pc);opacity:.1}
+        #char .pcell:hover{border-color:var(--pc);transform:translateY(-1px)}
+        #char .pcell.on{border-color:#f4bf62;box-shadow:0 0 0 1px #f4bf62}
+        #char .pcell.on::before{opacity:.24}
         #char #chnameinput:focus{border-color:#7fd8d0}
         #char input[type=range]{width:100%;accent-color:#7fd8d0}
       </style>`;
@@ -128,23 +139,28 @@ export class CharacterCreator {
   }
 
   _buildIdentity() {
-    const host = this.root.querySelector('#chgrid');
-    let html = '';
-    for (const f of FACTION_ORDER) {
-      const F = FACTIONS[f], acc = TRIAD[F.body].accent;
-      html += `<div class="idrow"><div class="idlbl" style="color:${acc}"><b>${esc(F.name)}</b><small>${F.body.toUpperCase()}</small></div>`;
-      for (const p of READING_ORDER) {
-        const P = PLANETS[p];
-        html += `<button class="idcell" data-f="${f}" data-p="${p}" title="The ${esc(P.adj)} ${esc(F.role)} · ${esc(P.metal)}" style="--pc:${P.colour}">${P.glyph}</button>`;
-      }
-      html += `</div>`;
-    }
-    host.innerHTML = html;
-    host.querySelectorAll('.idcell').forEach((b) => b.addEventListener('click', () => {
-      this.faction = b.dataset.f; this.planet = b.dataset.p;
-      this.triad = { ...bodyLean(this.faction) };            // picking a body sets the blend to its lean (still tunable)
+    // VOCATION picker — the 13 verbs in three body columns (flesh · chassis · anima).
+    const vhost = this.root.querySelector('#chvocs');
+    vhost.innerHTML = TRIAD_ORDER.map((body) => {
+      const T = TRIAD[body];
+      const verbs = (VERBS_BY_BODY[body] || []).map((v) => {
+        const R = ROLES[v] || { glyph: '·' };
+        return `<button class="voc" data-voc="${v}" title="${esc(VOCATIONS[v].tag)} — ${esc(VOCATIONS[v].gloss)}" style="--bc:${T.accent}"><span class="vg">${R.glyph}</span><span>${esc(v)}</span></button>`;
+      }).join('');
+      return `<div class="vocgrp"><div class="vocgh" style="color:${T.accent}">${T.glyph} ${T.label.toUpperCase()}</div>${verbs}</div>`;
+    }).join('');
+    vhost.querySelectorAll('.voc').forEach((b) => b.addEventListener('click', () => {
+      this.vocation = b.dataset.voc;
+      this.triad = normTriad({ ...(VOCATIONS[this.vocation].lean) });   // your verb sets the body (still tunable below)
       this._sync();
     }));
+    // REGISTER picker — the seven planets (flavor only; no body commitment).
+    const phost = this.root.querySelector('#chplanets');
+    phost.innerHTML = READING_ORDER.map((p) => {
+      const P = PLANETS[p];
+      return `<button class="pcell" data-p="${p}" title="${esc(P.adj)} · ${esc(P.metal)}" style="--pc:${P.colour}">${P.glyph}</button>`;
+    }).join('');
+    phost.querySelectorAll('.pcell').forEach((b) => b.addEventListener('click', () => { this.planet = b.dataset.p; this._sync(); }));
   }
 
   _buildTriad() {
@@ -167,10 +183,10 @@ export class CharacterCreator {
   _reroll(all) {
     this.seed = all ? ((this.seed * 1664525 + 1013904223) >>> 0 || 1) : this.seed;
     this.spriteSeed = mix(this.seed, 1);
-    if (all || !this.faction) {
-      this.faction = FACTION_ORDER[this.seed % FACTION_ORDER.length];
+    if (all || !this.vocation) {
+      this.vocation = VOCATION_ORDER[this.seed % VOCATION_ORDER.length];
       this.planet = READING_ORDER[(this.seed >>> 4) % READING_ORDER.length];
-      this.triad = { ...bodyLean(this.faction) };
+      this.triad = normTriad({ ...(VOCATIONS[this.vocation].lean) });
       this.chars = rollCharacteristics(this.seed, 2);
     }
     if (all) this.charName = null;                 // a fresh person → a fresh suggested name
@@ -184,16 +200,16 @@ export class CharacterCreator {
 
   // build the live character from the working draft
   _draft() {
-    const faction = this.faction || 'continuant', planet = this.planet || 'venus';
-    const vocation = vocationFor(faction, planet);
-    this.vocation = vocation;                                // keep in sync for _rollName / readouts
-    const triad = this.triad || bodyLean(faction);
+    const vocation = this.vocation || 'dwell', planet = this.planet || 'venus';
+    const triad = this.triad || normTriad({ ...(VOCATIONS[vocation].lean) });
     const c = rollCharacter(this.seed, {
       vocation, triad, characteristics: this.chars || rollCharacteristics(this.seed, 2),
       sprite: { seed: `mega:char:${this.spriteSeed}`, role: vocation, arch: 'balanced', size: 17 },
     });
-    const id = identityOf(faction, planet);                  // stamp the unified-language tags onto the character
-    if (id) { c.faction = faction; c.planet = planet; c.identity = id.name; c.body = id.body; c.metal = id.metal; c.planetColour = id.colour; c.glyph = id.glyph; }
+    // stamp the unified-language tags: BODY from the verb, FLAVOR from the planet. Faction is NOT set here —
+    // it's the main-quest fork (chosen at Sevin's threshold), so a fresh character carries no allegiance yet.
+    const P = PLANETS[planet], body = bodyOfVocation(vocation);
+    if (P) { c.planet = planet; c.body = body; c.metal = P.metal; c.planetColour = P.colour; c.glyph = P.glyph; c.identity = identityName(vocation, planet); }
     const nm = this.charName != null ? String(this.charName).trim() : '';   // the player's typed name wins over the rolled one
     if (nm) c.name = nm;
     return c;
@@ -201,12 +217,14 @@ export class CharacterCreator {
 
   _sync() {                                                 // full refresh (selection, sliders, readouts, sprite)
     const c = this._draft(); this._c = c;
-    // identity highlight + gloss (the selected cell in the 3×7 grid)
-    this.root.querySelectorAll('.idcell').forEach((b) => b.classList.toggle('on', b.dataset.f === c.faction && b.dataset.p === c.planet));
-    const id = identityOf(c.faction, c.planet);
-    if (id) this.root.querySelector('#chidgloss').innerHTML =
-      `<b style="color:${id.colour}">${id.glyph} ${esc(id.name)}</b> — <b style="color:${TRIAD[id.body].accent}">${id.body.toUpperCase()}</b> body · <b>${esc(id.metal)}</b> flavor. `
-      + `<span style="color:#6b7872">${esc(VOCATIONS[c.vocation].gloss)}. kit leans <b style="color:#f4bf62">${esc(c.kit)}</b>.</span>`;
+    // highlight the chosen verb + planet, then read the identity out of (body, planet)
+    this.root.querySelectorAll('.voc').forEach((b) => b.classList.toggle('on', b.dataset.voc === c.vocation));
+    this.root.querySelectorAll('.pcell').forEach((b) => b.classList.toggle('on', b.dataset.p === c.planet));
+    const P = PLANETS[c.planet], body = c.body;
+    if (P) this.root.querySelector('#chidgloss').innerHTML =
+      `<b style="color:${P.colour}">${P.glyph} ${esc(c.identity)}</b> — <b style="color:${TRIAD[body].accent}">${body.toUpperCase()}</b> body · <b>${esc(P.metal)}</b> flavor. `
+      + `<span style="color:#6b7872">${esc(VOCATIONS[c.vocation].gloss)}. kit leans <b style="color:#f4bf62">${esc(c.kit)}</b>. `
+      + `<span style="color:#59606a">faction — your allegiance — is chosen later, at the threshold.</span></span>`;
     // sliders to current triad
     TRIAD_ORDER.forEach((d) => { const s = this.root.querySelector(`[data-tri="${d}"]`); if (s) s.value = Math.round(c.triad[d] * 100); });
     this._syncReadout();

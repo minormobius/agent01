@@ -4749,7 +4749,7 @@
     };
     // the player fights in a FACTION STYLE (so they get a kit with signature verbs incl. Summon): their
     // CHOSEN faction (flag.chose.*) once picked, else the style their build leans to (cast dominant triad).
-    const TRIAD_FACTION = { chassis: 'continuant', anima: 'drift', flesh: 'rindwalker' };
+    const TRIAD_FACTION = { flesh: 'continuant', chassis: 'rindwalker', anima: 'drift' };   // body → provisional combat faction (planets.js: continuant=flesh · rindwalker=chassis · drift=anima), until the threshold choice sets flag.chosen_faction
     function playerFaction() {
       const chosen = story.ready ? cf(story.store.getFacts(story.playerId)) : null;
       if (chosen) return chosen;
