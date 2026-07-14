@@ -20,12 +20,15 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/merge-candidate-prep-xhf6dt']
+    branches: [main, 'claude/fractal-office-landing-t6hcs6']
     paths:
       - 'index.html'
       - 'styles.css'
       - 'functions/**'
       - 'scripts/generate-search-catalog.mjs'
+      # office: the fractal "office of offices" site map served at mino.mobi/office/
+      - 'office/**'
+      - 'scripts/build-office.mjs'
       # geometry-pack page under active development on this branch — keep the
       # canonical mino.mobi/meander/ in sync with edits (also ships via
       # deploy-math to math.mino.mobi). Carve back out once it stabilizes.
