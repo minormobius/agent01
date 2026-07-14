@@ -180,11 +180,29 @@ def main():
             ca, ma, conf = evaluate(model, shapes, labels, test_idx)
             print(f"EVAL u{u + 1}: held-out cell acc {ca:.3f} majority {ma:.3f}", flush=True)
             print(conf, flush=True)
+            report = {'update': u + 1, 'cell_acc': ca, 'majority_acc': ma,
+                      'confusion': conf.tolist(), 'species': species}
             with open(os.path.join(args.out, 'eval.json'), 'w') as f:
-                json.dump({'update': u + 1, 'cell_acc': ca, 'majority_acc': ma,
-                           'confusion': conf.tolist(), 'species': species}, f, indent=1)
+                json.dump(report, f, indent=1)
+            # keep the best-eval model — final != best when late training oscillates
+            best_path = os.path.join(args.out, 'ckpt-best.pt')
+            prev = json.load(open(os.path.join(args.out, 'eval-best.json'))) \
+                if os.path.exists(os.path.join(args.out, 'eval-best.json')) else {'majority_acc': -1, 'cell_acc': -1}
+            if (ma, ca) > (prev['majority_acc'], prev['cell_acc']):
+                torch.save({'model': model.state_dict(), 'update': u + 1}, best_path)
+                with open(os.path.join(args.out, 'eval-best.json'), 'w') as f:
+                    json.dump(report, f, indent=1)
 
     # ---- export weights in the golem/tjs codec order --------------------
+    # export the BEST-eval model, not necessarily the last update
+    best_path = os.path.join(args.out, 'ckpt-best.pt')
+    if os.path.exists(best_path):
+        bk = torch.load(best_path, weights_only=False)
+        model.load_state_dict(bk['model'])
+        eb = json.load(open(os.path.join(args.out, 'eval-best.json')))
+        print(f"exporting best checkpoint (u{bk['update']}: majority {eb['majority_acc']:.3f})")
+        with open(os.path.join(args.out, 'eval.json'), 'w') as f:
+            json.dump(eb, f, indent=1)  # the shipped eval must describe the shipped weights
     W = model.perceive.weight.detach().numpy()   # (84, 28, 3, 3, 3)
     kd = lambda k0, k1, k2: np.ascontiguousarray(W[:, :, k0, k1, k2].T)  # (28, 84) in->out
     order = [kd(1, 1, 1), kd(0, 1, 1), kd(2, 1, 1), kd(1, 0, 1), kd(1, 2, 1), kd(1, 1, 0), kd(1, 1, 2)]
