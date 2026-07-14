@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>civ — particle playback</title>
+<style>
+  :root{ --bg:#080b11; --panel:#121924; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; --good:#5bd18b; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; overflow:hidden; }
+  #app{ display:flex; flex-direction:column; height:100%; }
+  header{ display:flex; align-items:center; gap:12px; padding:8px 14px; border-bottom:1px solid var(--edge); flex-wrap:wrap; }
+  header .brand{ font-weight:800; } header .brand .g{ color:var(--gold); }
+  header .crumb{ color:var(--dim); font-size:12px; }
+  header select,header input{ background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:7px; padding:5px 8px; font:inherit; }
+  header input[type=text]{ width:66px; }
+  header input[type=number]{ width:74px; }
+  button{ background:var(--gold); color:#1a1206; border:0; border-radius:7px; padding:6px 12px; font-weight:700; cursor:pointer; }
+  button.ghost{ background:transparent; color:var(--acc); border:1px solid var(--edge); font-weight:600; }
+  button:disabled{ opacity:.5; cursor:wait; }
+  .grow{ flex:1; }
+  main{ position:relative; flex:1; min-height:0; }
+  canvas{ display:block; width:100%; height:100%; cursor:crosshair; }
+  #legend{ position:absolute; top:10px; left:10px; background:rgba(18,25,36,.86); border:1px solid var(--edge); border-radius:9px; padding:8px 10px; font-size:12px; max-width:210px; }
+  #legend .k{ display:flex; align-items:center; gap:6px; margin:2px 0; }
+  #legend .sw{ width:11px; height:11px; border-radius:3px; }
+  #legend .modes{ display:flex; gap:4px; margin:6px 0 4px; flex-wrap:wrap; }
+  #legend .modes b{ cursor:pointer; padding:2px 6px; border:1px solid var(--edge); border-radius:6px; color:var(--dim); font-weight:600; }
+  #legend .modes b.on{ color:var(--gold); border-color:var(--gold); }
+  #inspect{ position:absolute; top:10px; right:10px; width:264px; background:rgba(18,25,36,.94); border:1px solid var(--edge); border-radius:10px; padding:12px; font-size:13px; display:none; }
+  #inspect h3{ margin:0 0 6px; font-size:14px; }
+  #inspect .row{ display:flex; justify-content:space-between; gap:8px; margin:3px 0; }
+  #inspect .row .t{ color:var(--dim); } #inspect .caps{ margin-top:6px; }
+  #inspect .cap{ display:inline-block; background:#16261c; color:var(--good); border-radius:5px; padding:1px 6px; font-size:11px; margin:2px 3px 0 0; }
+  #inspect .x{ position:absolute; top:8px; right:10px; color:var(--dim); cursor:pointer; }
+  footer{ border-top:1px solid var(--edge); padding:8px 14px; }
+  .transport{ display:flex; align-items:center; gap:8px; }
+  .transport button{ background:#1b2534; color:var(--ink); border:1px solid var(--edge); font-weight:700; min-width:38px; }
+  .transport button.play{ background:var(--gold); color:#1a1206; border:0; }
+  #scrub{ flex:1; }
+  .tlabel{ font-variant-numeric:tabular-nums; color:var(--dim); min-width:150px; font-size:12px; }
+  #track{ position:relative; height:14px; margin-top:6px; }
+  #evbar{ position:absolute; inset:0; }
+  #evbar i{ position:absolute; top:2px; width:2px; height:10px; border-radius:1px; }
+  #status{ color:var(--dim); font-size:12px; }
+  .desc{ color:var(--ink); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="brand"><span class="g">civ</span> particle playback</span>
+    <span class="crumb"><a id="todash" href="/" style="color:var(--acc)">← dashboard</a> · <a id="todev" href="/develop.html" style="color:var(--acc)">development</a> · <a id="tofred" href="/fred.html" style="color:var(--acc)">FRED</a> · <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener" style="color:var(--acc)">mappa ↗</a></span>
+    <select id="preset" title="preset">
+      <option value="">default</option><option value="neolithic">neolithic</option>
+      <option value="kurgan">kurgan</option><option value="bantu">bantu</option>
+      <option value="austronesian">austronesian</option><option value="americas">americas</option>
+    </select>
+    <label class="crumb">world <input id="world" type="text" value="7"></label>
+    <label class="crumb">seed <input id="civseed" type="number" value="1"></label>
+    <label class="crumb">ticks <input id="ticks" type="number" value="1000" step="100" min="200" max="1500"></label>
+    <button id="load">Load run</button>
+    <input type="hidden" id="lastconfig">
+    <span id="status" class="grow"></span>
+  </header>
+
+  <main>
+    <canvas id="cv"></canvas>
+    <div id="legend">
+      <div class="modes" id="modes">
+        <b data-m="culture" class="on">culture</b><b data-m="political">political</b><b data-m="belief">belief</b><b data-m="sub">subsistence</b><b data-m="era">era</b><b data-m="wealth">wealth</b><b data-m="market">market</b><b data-m="density">density</b>
+      </div>
+      <div class="modes" id="fillmodes" style="margin-top:4px"><b data-f="regions" class="on">regions</b><b data-f="particles">particles</b></div>
+      <label class="k" style="margin-top:4px"><input type="checkbox" id="showres" checked style="vertical-align:-2px"> named resources</label>
+      <label class="k"><input type="checkbox" id="showppl" checked style="vertical-align:-2px"> notable people</label>
+      <label class="k"><input type="checkbox" id="showmig" checked style="vertical-align:-2px"> migration flows</label>
+      <div id="legkeys"></div>
+      <div class="k" style="color:var(--dim);margin-top:6px">scroll = zoom · drag = pan · click = inspect</div>
+    </div>
+    <div id="inspect"><span class="x" id="closeins">✕</span><div id="insbody"></div></div>
+  </main>
+
+  <footer>
+    <div class="transport">
+      <button id="rev" title="play backward">◀◀</button>
+      <button id="stepb" title="step back">◀</button>
+      <button id="play" class="play" title="play/pause">▶</button>
+      <button id="stepf" title="step forward">▶</button>
+      <button id="fwd" title="play forward">▶▶</button>
+      <input id="scrub" class="grow" type="range" min="0" max="0" value="0">
+      <span class="tlabel" id="tlabel">—</span>
+      <select id="speed" title="speed"><option>2</option><option selected>6</option><option>12</option><option>20</option></select>
+    </div>
+    <div id="track"><div id="evbar"></div></div>
+    <div id="status2" class="desc" style="margin-top:6px;color:var(--dim)"></div>
+  </footer>
+</div>
+
+<script type="module">
+import { cachedFetch } from './lib/civ-cache.js';
+const $ = s => document.querySelector(s);
+const cv = $('#cv'), ctx = cv.getContext('2d');
+// mappa biome palette (index-parallel to engine BIOMES): [h,s,l]
+const BIOMES = [[212,48,16],[198,46,30],[202,46,42],[205,10,90],[150,12,60],[150,26,33],[42,16,56],[74,34,52],[112,32,37],[142,38,31],[44,56,62],[64,44,51],[92,44,40],[134,50,29],[28,8,70],[0,0,94],[198,12,84],[200,14,90]];
+const BIOME_NAME = ['deep ocean','shelf sea','lake','ice sheet','tundra','boreal forest','cold desert','grassland/steppe','temperate forest','temperate rainforest','desert','savanna','tropical seasonal','tropical rainforest','alpine','snowcap','sea ice','glacier'];
+const SUBS = ['forager','pastoral','horticulture','plough','irrigation','maritime'];
+const SUB_COL = [[96,15,52],[44,42,60],[108,48,44],[46,62,56],[176,52,46],[205,60,52]];
+const ERA_NAME = ['forager','neolithic','bronze','classical','industrial','modern'];
+const hsl = (h,s,l,a=1)=>`hsl(${h} ${s}% ${l}% / ${a})`;
+const cultureHue = id => (id*137.508)%360;
+const beliefHue = id => (id*97.3+43)%360;
+
+let DATA=null, view={z:1,x:0,y:0}, mode='culture', fillMode='regions', frame=0, pos=0, tween=0, playing=0, dir=1, sel=null, raf=0;
+let BASE=1000, cellSX=null, cellSY=null;
+
+// ---- deterministic per-cell jitter (stable swarm within a frame) ----------------
+function hash2(a,b){ let h=(a*374761393+b*668265263)|0; h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967296; }
+
+// ---- projection (equirectangular + zoom/pan) ------------------------------------
+function proj(lon,lat){ const sx=(lon+180)/360, sy=(90-lat)/180; return [ view.x + sx*BASE*view.z, view.y + sy*(BASE/2)*view.z ]; }
+function fit(){ const W=cv.width,H=cv.height; view.z=Math.min(W/BASE, H/(BASE/2))*0.98; view.x=(W-BASE*view.z)/2; view.y=(H-(BASE/2)*view.z)/2; }
+function resize(){ const r=cv.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1); cv.width=r.width*dpr; cv.height=r.height*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); cv.width=r.width; cv.height=r.height; }
+
+function precomputeCells(){ const w=DATA.world_mesh; cellSX=new Float32Array(w.N); cellSY=new Float32Array(w.N); }
+function updateCellScreens(){ const w=DATA.world_mesh; for(let i=0;i<w.N;i++){ const p=proj(w.lon[i],w.lat[i]); cellSX[i]=p[0]; cellSY[i]=p[1]; } }
+
+// ---- colour per cell in the current frame ---------------------------------------
+function cellColor(f, k, alpha){
+  if(mode==='culture'){ const h=cultureHue(f.cu[k]); return hsl(h,62,58,alpha); }
+  if(mode==='political'){ const p=f.pol?f.pol[k]:0; return hsl(cultureHue(f.cu[k]), 30+p*26, 26+p*20, alpha); } // territory by culture, brightness = sovereignty (band→chiefdom→state)
+  if(mode==='belief'){ const b=f.bel?f.bel[k]:-1; if(b<0||b==null) return hsl(0,0,32,alpha*0.8); return hsl(beliefHue(b),64,58,alpha); } // hue = faith; grey = no organized belief
+  if(mode==='sub'){ const c=SUB_COL[f.sub[k]]||[0,0,60]; return hsl(c[0],c[1],c[2],alpha); }
+  if(mode==='era'){ const t=f.tier[k]; return hsl(210-t*40, 55, 40+t*8, alpha); }
+  if(mode==='wealth'){ const wv=Math.min(1,(f.wlth?f.wlth[k]:0)/2.2); return hsl(140*wv, 62, 24+wv*46, alpha); } // dark→bright green = poor→rich
+  if(mode==='market'){ const p=Math.min(1,((f.prc?f.prc[k]:1)-0.3)/2.7); return hsl(50-p*50, 75, 34+p*22, alpha); }   // yellow(cheap)→red(dear)
+  // density
+  const d=Math.min(1, f.popc[k]/600); return hsl(20+ (1-d)*40, 80, 30+d*45, alpha);
+}
+const RES_COL={copper:[24,60,52],iron:[210,6,60],tin:[210,6,80],gold:[48,85,58],gems:[300,60,66],salt:[0,0,88],delta:[195,60,52]};
+
+// ---- render ---------------------------------------------------------------------
+function render(){
+  const W=cv.width,H=cv.height; ctx.fillStyle='#070a10'; ctx.fillRect(0,0,W,H);
+  if(!DATA){ return; }
+  const w=DATA.world_mesh; updateCellScreens();
+  const f=DATA.frames[frame]; if(!f) return;
+  const regions = fillMode==='regions' && w.cells;
+  if(regions){
+    // ---- VORONOI REGIONS: fill mappa's actual cells (unified design language) ------
+    // project a cell's polygon; cull off-screen + antimeridian-wrapped cells
+    const half=BASE*view.z*0.5;
+    const tracePoly=(flat)=>{ let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; const n=flat.length; ctx.beginPath();
+      for(let j=0;j<n;j+=2){ const p=proj(flat[j],flat[j+1]); if(p[0]<x0)x0=p[0]; if(p[0]>x1)x1=p[0]; if(p[1]<y0)y0=p[1]; if(p[1]>y1)y1=p[1]; if(j)ctx.lineTo(p[0],p[1]); else ctx.moveTo(p[0],p[1]); }
+      ctx.closePath(); if(x1-x0>half || x1<0||x0>W||y1<0||y0>H) return false; return true; };
+    // background: every cell as its polygon — ocean dark, land biome-tinted
+    for(let i=0;i<w.N;i++){ const wa=w.water[i]; const flat=w.cells[i]; if(!flat) continue;
+      if(!tracePoly(flat)) continue;
+      if(wa===1) ctx.fillStyle='#0a1622'; else if(wa===2) ctx.fillStyle=hsl(205,46,17); else { const b=BIOMES[w.biome[i]]||[0,0,20]; ctx.fillStyle=hsl(b[0],b[1]*0.5,b[2]*0.5); }
+      ctx.fill();
+      if(view.z>3.2){ ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=0.5; ctx.stroke(); } // faint cell borders when zoomed (the tessellation)
+    }
+    // occupied cells filled by the active colour mode
+    for(let k=0;k<f.cell.length;k++){ const flat=w.cells[f.cell[k]]; if(!flat) continue; if(!tracePoly(flat)) continue; ctx.fillStyle=cellColor(f,k,0.92); ctx.fill(); }
+    // coastline: stroke land↔ocean cell polygons for a crisp continent edge
+    if(w.coast){ ctx.strokeStyle='rgba(200,216,232,.32)'; ctx.lineWidth=1;
+      for(const i of w.coast){ const flat=w.cells[i]; if(!flat) continue; if(tracePoly(flat)) ctx.stroke(); } }
+  } else {
+    // ---- PARTICLE SWARM: scatter per occupied cell ∝ population -------------------
+    const cellPx=Math.max(1.4, Math.sqrt(0.5/w.N)*BASE*view.z*1.5);
+    for(let i=0;i<w.N;i++){ if(w.water[i]!==0) continue; const x=cellSX[i],y=cellSY[i]; if(x<-cellPx||x>W+cellPx||y<-cellPx||y>H+cellPx) continue;
+      const b=BIOMES[w.biome[i]]||[0,0,20]; ctx.fillStyle=hsl(b[0],b[1]*0.5,b[2]*0.62,0.82); ctx.fillRect(x-cellPx/2,y-cellPx/2,cellPx,cellPx); }
+    if(w.coast){ const cr=Math.max(1.2,cellPx*0.62); ctx.fillStyle='rgba(196,214,232,.5)';
+      for(const i of w.coast){ const x=cellSX[i],y=cellSY[i]; if(x<-cr||x>W+cr||y<-cr||y>H+cr) continue; ctx.fillRect(x-cr/2,y-cr/2,cr,cr); } }
+    let totalPop=f.pop||1; const target=13000; const scale=Math.min(1, target/totalPop);
+    const jr=Math.max(2, 6*view.z);
+    for(let k=0;k<f.cell.length;k++){ const c=f.cell[k], x=cellSX[c], y=cellSY[c]; if(x<-6||x>W+6||y<-6||y>H+6) continue;
+      let n=Math.round(f.popc[k]*scale); if(n<1)n=1; if(n>140)n=140;
+      ctx.fillStyle=cellColor(f,k,0.85);
+      for(let j=0;j<n;j++){ const a=hash2(c,j)*6.283, rr=Math.sqrt(hash2(c,j+9973))*jr; const px=x+Math.cos(a)*rr, py=y+Math.sin(a)*rr; ctx.fillRect(px,py,1.4,1.4); }
+    }
+  }
+  // MIGRATION: travellers float from cell to cell along this transition's strongest flows.
+  // Edges belong to the destination frame (flows that produced it); we lerp along them by the
+  // sub-frame `tween`, so particles visibly leave one cell and arrive at another during play.
+  const nf=DATA.frames[frame+1];
+  if(nf&&nf.mig&&nf.mig.length&&$('#showmig').checked){ const m=nf.mig; const ease=tween<0.5?2*tween*tween:1-Math.pow(-2*tween+2,2)/2;
+    for(let e=0;e<m.length;e+=3){ const from=m[e],to=m[e+1],ct=m[e+2]; const x0=cellSX[from],y0=cellSY[from],x1=cellSX[to],y1=cellSY[to];
+      if((x0<-8&&x1<-8)||(x0>W+8&&x1>W+8)||(y0<-8&&y1<-8)||(y0>H+8&&y1>H+8)) continue;
+      const trav=Math.min(6,1+Math.round(Math.sqrt(ct))); const ki=f.cell.indexOf(from); const cuHue=cultureHue(ki>=0?f.cu[ki]:0);
+      for(let j=0;j<trav;j++){ const off=(hash2(from*131+to,j)-0.5)*0.16; const t=Math.max(0,Math.min(1,ease+off));
+        // slight perpendicular arc so parallel travellers fan out
+        const dx=x1-x0,dy=y1-y0, pnx=-dy,pny=dx, plen=Math.hypot(pnx,pny)||1; const bow=(hash2(from,to*7+j)-0.5)*10*Math.sin(t*Math.PI);
+        const px=x0+dx*t+pnx/plen*bow, py=y0+dy*t+pny/plen*bow;
+        const tx=x0+dx*(t-0.06), ty=y0+dy*(t-0.06);
+        ctx.strokeStyle=hsl(cuHue,70,70,0.5); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(px,py); ctx.stroke();
+        ctx.fillStyle=hsl(cuHue,85,72,0.95); ctx.fillRect(px-1,py-1,2.2,2.2); }
+    }
+  }
+  // named resource markers (static geology): a coloured diamond per node, labelled when zoomed
+  if($('#showres').checked && w.resources){
+    ctx.textAlign='center'; ctx.font='10px sans-serif';
+    for(const nd of w.resources){ const x=cellSX[nd.cell], y=cellSY[nd.cell]; if(x<-8||x>W+8||y<-8||y>H+8) continue;
+      const c=RES_COL[nd.kind]||[0,0,80]; const s=Math.max(3,3.5*Math.min(2,view.z));
+      ctx.save(); ctx.translate(x,y); ctx.rotate(0.785); ctx.fillStyle=hsl(c[0],c[1],c[2],0.95); ctx.strokeStyle='#0b0f16'; ctx.lineWidth=1; ctx.fillRect(-s/2,-s/2,s,s); ctx.strokeRect(-s/2,-s/2,s,s); ctx.restore();
+      if(view.z>2.2){ ctx.fillStyle='#cdd6e0'; ctx.fillText(nd.name, x, y-s-2); }
+    }
+  }
+  // NOTABLE PEOPLE: the frame's highest-reputation individuals as haloed stars, named
+  // when zoomed. Click one to read their résumé. Size scales with reputation.
+  if($('#showppl').checked && f.people){
+    for(const p of f.people){ const x=cellSX[p.cell], y=cellSY[p.cell]; if(x<-8||x>W+8||y<-8||y>H+8) continue;
+      const rr=3+Math.min(4,p.rep*1.1); ctx.fillStyle=hsl(cultureHue(p.cu),70,64,0.95); ctx.strokeStyle='#0b0f16'; ctx.lineWidth=1.2;
+      star(ctx,x,y,rr,rr*0.45); ctx.fill(); ctx.stroke();
+      if(view.z>2.0){ ctx.fillStyle='#e6edf3'; ctx.textAlign='center'; ctx.font='10px sans-serif'; ctx.fillText(p.name,x,y-rr-2); }
+    }
+  }
+  // selection ring
+  if(sel!=null){ const x=cellSX[sel], y=cellSY[sel]; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(x,y,10,0,6.283); ctx.stroke(); }
+}
+function star(ctx,cx,cy,ro,ri){ ctx.beginPath(); for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, r=i%2?ri:ro; const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r; i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.closePath(); }
+
+// ---- timeline / events ----------------------------------------------------------
+function drawEventBar(){
+  const bar=$('#evbar'); bar.innerHTML=''; if(!DATA) return;
+  const T=DATA.ticks||1; const col={agriculture:'#5bd18b',industry:'#d9a441',migrationPulse:'#5aa9e6',cultureSplit:'#a98bd6',collapse:'#e5686b',stateFormation:'#6fd0c0',techUnlock:'#c7b16a',beliefFounded:'#c77dff',schism:'#e07ec2',financialCrisis:'#e5686b',marketBoom:'#5bd18b'};
+  for(const e of DATA.events){ const i=document.createElement('i'); i.style.left=(100*e.t/T)+'%'; i.style.background=col[e.type]||'#556'; i.title=`t${e.t} ${e.type}`+(e.cap?(' '+e.cap):'')+(e.package?(' '+e.package):''); bar.appendChild(i); }
+}
+function frameLabel(){
+  const f=DATA.frames[frame]; const yr=Math.round(f.t*(DATA.tickYears||2.5));
+  $('#tlabel').textContent=`t ${f.t} · ~${yr.toLocaleString()} yr · frame ${frame+1}/${DATA.frames.length} · pop ${f.pop.toLocaleString()}`;
+  // nearby events feed
+  const near=DATA.events.filter(e=>Math.abs(e.t-f.t)<=(DATA.frames[1]?DATA.frames[1].t-DATA.frames[0].t:40));
+  $('#status2').textContent = near.length ? ('near: '+near.slice(0,4).map(e=>e.type+(e.cap?(':'+e.cap):e.package?(':'+e.package):'')).join(' · ')) : '';
+}
+
+// ---- inspector ------------------------------------------------------------------
+function inspectCell(c){
+  sel=c; const f=DATA.frames[frame], w=DATA.world_mesh;
+  const k=f.cell.indexOf(c);
+  const box=$('#inspect'), body=$('#insbody');
+  if(k<0){ box.style.display='none'; sel=null; return; }
+  const cuId=f.cu[k]; const ci=f.cultures.id.indexOf(cuId);
+  const tech=ci>=0?f.cultures.tech[ci]:0; const lang=ci>=0?f.cultures.lang[ci]:'—'; const size=ci>=0?f.cultures.size[ci]:'—';
+  const caps=DATA.dict.caps.map((n,bi)=> (tech>>>0)&(1<<bi)?n:null).filter(Boolean);
+  const POL=['—','chiefdom','state']; const sov=f.pol?POL[f.pol[k]]:'—';
+  const res=(w.resources||[]).find(nd=>nd.cell===c);
+  const row=(t,v)=>`<div class="row"><span class="t">${t}</span><span>${v}</span></div>`;
+  body.innerHTML = `<h3>cell ${c}</h3>`
+    + row('biome', BIOME_NAME[w.biome[c]])
+    + row('landmass', w.landmass[c])
+    + row('cell population', f.popc[k].toLocaleString())
+    + row('sovereignty', sov)
+    + (res?row('resource', `<b style="color:var(--gold)">${res.kind}</b> · ${res.name}`):'')
+    + `<hr style="border-color:var(--edge)">`
+    + row('culture', '#'+cuId)
+    + row('subsistence', SUBS[f.sub[k]])
+    + row('era', ERA_NAME[f.tier[k]])
+    + row('culture size', (size||0).toLocaleString())
+    + row('language', 'L'+lang)
+    + (()=>{ const b=f.bel?f.bel[k]:-1; if(b==null||b<0) return row('faith','—'); const bi=f.beliefs&&f.beliefs[b]; return row('faith', bi?`<b style="color:${hsl(beliefHue(b),64,64)}">${bi.name}</b> · ${bi.lead}`:('#'+b)); })()
+    + `<div class="caps">${caps.length?caps.map(c=>`<span class="cap">${c}</span>`).join(''):'<span class="t">—</span>'}</div>`;
+  box.style.display='block';
+}
+$('#closeins').onclick=()=>{ $('#inspect').style.display='none'; sel=null; render(); };
+
+// pick nearest occupied cell to a click point
+function pick(px,py){ const f=DATA.frames[frame]; let best=-1,bd=1e9; for(let k=0;k<f.cell.length;k++){ const c=f.cell[k],dx=cellSX[c]-px,dy=cellSY[c]-py,d=dx*dx+dy*dy; if(d<bd){bd=d;best=c;} } return bd<400?best:-1; }
+// pick nearest notable person to a click point (their résumé)
+function pickPerson(px,py){ const f=DATA.frames[frame]; if(!f.people||!$('#showppl').checked) return null; let best=null,bd=1e9; for(const p of f.people){ const dx=cellSX[p.cell]-px,dy=cellSY[p.cell]-py,d=dx*dx+dy*dy; if(d<bd){bd=d;best=p;} } return bd<400?best:null; }
+function showResume(p){
+  sel=p.cell; const box=$('#inspect'), body=$('#insbody'), CR=(DATA.dict&&DATA.dict.creds)||[];
+  const creds=CR.filter((c,i)=>p.cred&(1<<i));
+  const row=(t,v)=>`<div class="row"><span class="t">${t}</span><span>${v}</span></div>`;
+  body.innerHTML=`<h3>${p.name} <span class="t" style="font-weight:400">of #${p.cu}</span></h3>`
+    +row('reputation', '★ '+p.rep.toFixed(2))
+    +row('age', p.age+' yr')
+    +row('culture', '<span style="color:'+hsl(cultureHue(p.cu),70,64)+'">#'+p.cu+'</span>')
+    +`<hr style="border-color:var(--edge)"><div class="t" style="margin-bottom:3px">résumé</div>`
+    +`<div class="caps">${creds.length?creds.map(c=>`<span class="cap">${c}</span>`).join(''):'<span class="t">a commoner</span>'}</div>`;
+  box.style.display='block';
+}
+
+// ---- interaction ----------------------------------------------------------------
+let drag=null;
+cv.addEventListener('mousedown',e=>{ drag={x:e.offsetX,y:e.offsetY,vx:view.x,vy:view.y,moved:0}; });
+addEventListener('mousemove',e=>{ if(!drag)return; const r=cv.getBoundingClientRect(); const ox=e.clientX-r.left,oy=e.clientY-r.top; view.x=drag.vx+(ox-drag.x); view.y=drag.vy+(oy-drag.y); drag.moved+=Math.abs(ox-drag.x)+Math.abs(oy-drag.y); render(); });
+addEventListener('mouseup',e=>{ if(drag && drag.moved<4){ const p=pickPerson(drag.x,drag.y); if(p){ showResume(p); } else { const c=pick(drag.x,drag.y); if(c>=0) inspectCell(c); else {sel=null;$('#inspect').style.display='none';} } render(); } drag=null; });
+cv.addEventListener('wheel',e=>{ e.preventDefault(); const f=e.deltaY<0?1.15:1/1.15; const mx=e.offsetX,my=e.offsetY; view.x=mx-(mx-view.x)*f; view.y=my-(my-view.y)*f; view.z*=f; render(); },{passive:false});
+
+// ---- transport ------------------------------------------------------------------
+function setFrame(i){ if(!DATA)return; frame=Math.max(0,Math.min(DATA.frames.length-1,i)); pos=frame; tween=0; $('#scrub').value=frame; if(sel!=null) inspectCell(sel); frameLabel(); render(); }
+$('#scrub').addEventListener('input',e=>{ playing=0; $('#play').textContent='▶'; setFrame(+e.target.value); });
+$('#stepf').onclick=()=>setFrame(frame+1); $('#stepb').onclick=()=>setFrame(frame-1);
+$('#play').onclick=()=>{ playing=playing?0:1; dir=1; $('#play').textContent=playing?'❚❚':'▶'; };
+$('#fwd').onclick=()=>{ playing=1; dir=1; $('#play').textContent='❚❚'; };
+$('#rev').onclick=()=>{ playing=1; dir=-1; $('#play').textContent='❚❚'; };
+let last=0;
+// continuous playback: advance a float position so migration travellers move smoothly between
+// frames. `frame` (integer) still drives the swarm/inspector/label; `tween` is the sub-frame.
+function loop(ts){ raf=requestAnimationFrame(loop); const dt=Math.min(0.1,(ts-last)/1000); last=ts; if(!playing||!DATA) return;
+  const fps=+$('#speed').value; pos+=dir*dt*fps;
+  const maxp=DATA.frames.length-1;
+  if(pos>=maxp){ pos=maxp; playing=0; $('#play').textContent='▶'; }
+  if(pos<=0){ pos=0; playing=0; $('#play').textContent='▶'; }
+  const nf=Math.floor(pos); tween=pos-nf;
+  if(nf!==frame){ frame=nf; $('#scrub').value=frame; frameLabel(); if(sel!=null) inspectCell(sel); }
+  render();
+}
+
+// ---- modes ----------------------------------------------------------------------
+$('#modes').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; mode=b.dataset.m; [...$('#modes').children].forEach(x=>x.classList.toggle('on',x===b)); buildLegend(); render(); });
+function buildLegend(){
+  const el=$('#legkeys'); let h='';
+  if(mode==='sub') h=SUBS.map((s,i)=>`<div class="k"><span class="sw" style="background:${hsl(SUB_COL[i][0],SUB_COL[i][1],SUB_COL[i][2])}"></span>${s}</div>`).join('');
+  else if(mode==='era') h=ERA_NAME.map((s,i)=>`<div class="k"><span class="sw" style="background:${hsl(210-i*40,55,40+i*8)}"></span>${s}</div>`).join('');
+  else if(mode==='culture') h='<div class="k" style="color:var(--dim)">hue = culture identity</div>';
+  else if(mode==='political') h='<div class="k" style="color:var(--dim)">hue = culture · brightness = sovereignty</div><div class="k" style="color:var(--dim)">dim tribes → bright states</div>';
+  else if(mode==='belief') h='<div class="k" style="color:var(--dim)">hue = faith (religion / ideology)</div><div class="k" style="color:var(--dim)">grey = no organized belief</div>';
+  else if(mode==='wealth') h='<div class="k" style="color:var(--dim)">dark → bright green = poor → rich</div>';
+  else if(mode==='market') h='<div class="k" style="color:var(--dim)">yellow → red = cheap → dear wares</div>';
+  else h='<div class="k" style="color:var(--dim)">warm = dense population</div>';
+  el.innerHTML=h;
+}
+$('#showres').addEventListener('change',render); $('#showppl').addEventListener('change',render); $('#showmig').addEventListener('change',render);
+$('#fillmodes').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; fillMode=b.dataset.f; [...$('#fillmodes').children].forEach(x=>x.classList.toggle('on',x===b)); render(); });
+
+// ---- shared URL state (liquidity with the dashboard + mappa) --------------------
+function curState(){ return { world:$('#world').value.trim()||'7', preset:$('#preset').value, civSeed:$('#civseed').value||'1', ticks:$('#ticks').value||'1000', config:$('#lastconfig').value||'' }; }
+function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); return p.toString(); }
+function mappaHref(world){ const m=String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(world))); }
+function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/?'+q; $('#todev').href='/develop.html?'+q; $('#tofred').href='/fred.html?'+q; $('#tomappa').href=mappaHref(st.world); }
+function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); }
+for(const id of ['#preset','#world','#civseed','#ticks']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
+
+// ---- load -----------------------------------------------------------------------
+async function load(){
+  const st=curState();
+  const q=new URLSearchParams(qsOf(st)); q.set('maxFrames','48'); q.delete('preset'); if(st.preset)q.set('preset',st.preset);
+  try{ history.replaceState(null,'','?'+qsOf(st)); }catch(e){} syncLinks(); // the URL is the permalink
+  $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks + capturing frames…';
+  try{
+    const {json,cached,local}=await cachedFetch('/api/civ/frames?'+q);
+    DATA=json;
+    // worlds without polygon geometry (data fixtures) can't do regions — fall back to particles
+    if(!DATA.world_mesh.cells){ fillMode='particles'; $('#fillmodes').style.display='none'; } else $('#fillmodes').style.display='';
+    if(DATA.config){ $('#lastconfig').value=DATA.config; syncLinks(); } // links carry this exact run
+    BASE=1000; precomputeCells(); fit(); frame=0; pos=0; tween=0; sel=null; $('#inspect').style.display='none';
+    $('#scrub').max=DATA.frames.length-1; $('#scrub').value=0;
+    $('#status').innerHTML=`★${DATA.score} — ${DATA.descriptor}${cached?' · <b style="color:var(--good)">cached</b>':local?' · <b style="color:var(--good)">computed locally</b>':''}`;
+    drawEventBar(); buildLegend(); setFrame(0);
+  }catch(e){ $('#status').textContent='error: '+e.message; }
+  finally{ $('#load').disabled=false; }
+}
+$('#load').onclick=load;
+addEventListener('resize',()=>{ resize(); if(DATA){ updateCellScreens(); render(); } });
+applyURL(); syncLinks();
+resize(); buildLegend(); requestAnimationFrame(loop); load();
+</script>
+</body>
+</html>

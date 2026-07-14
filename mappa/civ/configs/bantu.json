@@ -1,0 +1,8 @@
+{
+  "$comment": "A fast horticultural expansion sweep: hoe-farming founders with high dispersal, absorbing foragers as they go (convert-heavy, high receptivity).",
+  "agent": { "b0": 0.46, "dispersalGain": 2.2, "subWeight": 1.7, "corridorWeight": 1.0 },
+  "culture": { "subsistence": 0, "seedTech": ["fire","horticulture"], "normWeights": [0.65,0.55,0.6,0.7,0.3,0.45,0.5,0.7], "innovationBase": 0.006 },
+  "seeding": { "nucleusCount": 1, "founders": 70 },
+  "climate": { "preset": "stable" },
+  "popScale": 700
+}

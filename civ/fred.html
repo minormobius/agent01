@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>civ — FRED</title>
+<style>
+  :root{ --bg:#0a0e15; --panel:#121924; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; --good:#5bd18b; --bad:#e5686b; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  a{ color:var(--acc); }
+  header{ display:flex; align-items:center; gap:12px; padding:9px 16px; border-bottom:1px solid var(--edge); flex-wrap:wrap; }
+  header .brand{ font-weight:800; } header .brand .g{ color:var(--gold); }
+  header .crumb{ color:var(--dim); font-size:12px; }
+  header select,header input{ background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:7px; padding:5px 8px; font:inherit; }
+  header input[type=text]{ width:60px; } header input[type=number]{ width:72px; }
+  button{ background:var(--gold); color:#1a1206; border:0; border-radius:7px; padding:6px 12px; font-weight:700; cursor:pointer; }
+  button:disabled{ opacity:.5; cursor:wait; }
+  .status{ color:var(--dim); font-size:13px; min-height:20px; padding:6px 16px 0; }
+  .status .score{ color:var(--gold); font-weight:800; }
+  main{ display:grid; grid-template-columns:298px 1fr; gap:0; min-height:calc(100vh - 92px); }
+  @media(max-width:900px){ main{ grid-template-columns:1fr; } }
+
+  /* ---- catalog sidebar ---- */
+  aside{ border-right:1px solid var(--edge); padding:12px 12px 40px; overflow:auto; max-height:calc(100vh - 92px); }
+  @media(max-width:900px){ aside{ max-height:none; border-right:0; border-bottom:1px solid var(--edge); } }
+  aside h3{ font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px; }
+  .search{ width:100%; background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:8px; padding:7px 10px; font:inherit; margin-bottom:10px; }
+  .catgroup{ margin-bottom:6px; }
+  .catgroup > summary{ cursor:pointer; list-style:none; padding:5px 6px; border-radius:6px; font-weight:700; font-size:12px; color:var(--gold); display:flex; align-items:center; gap:6px; }
+  .catgroup > summary::-webkit-details-marker{ display:none; }
+  .catgroup > summary .n{ color:var(--dim); font-weight:500; font-size:11px; margin-left:auto; }
+  .catgroup > summary:hover{ background:#182231; }
+  .srow{ display:flex; align-items:center; gap:7px; padding:3px 6px 3px 12px; border-radius:6px; cursor:pointer; font-size:12.5px; }
+  .srow:hover{ background:#182231; }
+  .srow.on{ background:#1a2740; }
+  .srow .chk{ width:12px; height:12px; border-radius:3px; border:1.5px solid var(--dim); flex:0 0 auto; }
+  .srow.on .chk{ border-color:transparent; }
+  .srow .lbl{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .srow .spark{ width:52px; height:16px; flex:0 0 auto; opacity:.85; }
+  .srow .unit{ color:var(--dim); font-size:10px; }
+
+  /* ---- chart panel ---- */
+  section{ padding:12px 16px 60px; overflow:auto; }
+  .card{ background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:12px 14px; margin-bottom:16px; }
+  .head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  h2{ font-size:15px; margin:0; } .sub{ color:var(--dim); font-size:12.5px; margin:2px 0 8px; }
+  .modes{ display:flex; gap:5px; margin-left:auto; flex-wrap:wrap; }
+  .modes b{ cursor:pointer; padding:2px 9px; border:1px solid var(--edge); border-radius:6px; color:var(--dim); font-weight:600; font-size:12px; user-select:none; }
+  .modes b.on{ color:var(--gold); border-color:var(--gold); }
+  canvas{ display:block; width:100%; }
+  #chart{ height:400px; background:#080b12; border-radius:8px; margin-top:6px; cursor:crosshair; }
+  #brush{ height:52px; background:#080b12; border-radius:8px; margin-top:8px; cursor:ew-resize; }
+  .legend{ display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+  .lg{ display:inline-flex; align-items:center; gap:6px; background:#0b0f16; border:1px solid var(--edge); border-radius:7px; padding:3px 8px; font-size:12px; }
+  .lg .dot{ width:10px; height:10px; border-radius:3px; } .lg .x{ color:var(--dim); cursor:pointer; font-weight:700; }
+  .lg .x:hover{ color:var(--bad); }
+  .lg .val{ color:var(--dim); font-variant-numeric:tabular-nums; }
+  .empty{ color:var(--dim); text-align:center; padding:40px 0; }
+  .facts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:8px; margin-top:2px; }
+  .fact{ background:#0b0f16; border:1px solid var(--edge); border-radius:8px; padding:8px 10px; }
+  .fact b{ display:block; font-size:18px; } .fact span{ font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.4px; }
+  .sm-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; margin-top:8px; }
+  .sm{ background:#0b0f16; border:1px solid var(--edge); border-radius:9px; padding:7px 8px 4px; }
+  .sm .t{ font-size:11.5px; color:var(--ink); margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sm .t span{ color:var(--dim); font-size:10px; }
+  .sm canvas{ height:74px; }
+  .tt{ position:fixed; pointer-events:none; background:rgba(8,11,18,.97); border:1px solid var(--edge); border-radius:8px; padding:7px 9px; font-size:12px; display:none; z-index:20; max-width:260px; box-shadow:0 6px 24px rgba(0,0,0,.5); }
+  .tt .r{ display:flex; align-items:center; gap:6px; } .tt .r .dot{ width:8px; height:8px; border-radius:2px; }
+  .tt .r b{ margin-left:auto; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand"><span class="g">civ</span> FRED</span>
+  <span class="crumb"><a id="todash" href="/">← dashboard</a> · <a id="toview" href="/view.html">▶ playground</a> · <a id="todev" href="/develop.html">⌗ development</a> · <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">mappa ↗</a></span>
+  <select id="preset" title="preset"><option value="">default</option><option value="neolithic">neolithic</option><option value="kurgan">kurgan</option><option value="bantu">bantu</option><option value="austronesian">austronesian</option><option value="americas">americas</option></select>
+  <label class="crumb">world <input id="world" type="text" value="7"></label>
+  <label class="crumb">seed <input id="civseed" type="number" value="1"></label>
+  <label class="crumb">ticks <input id="ticks" type="number" value="1000" step="100" min="200" max="1500"></label>
+  <input type="hidden" id="lastconfig">
+  <button id="load">Load run</button>
+</header>
+<div class="status" id="status">Loading a run…</div>
+
+<main>
+  <aside>
+    <h3>Series catalog</h3>
+    <input class="search" id="search" placeholder="search 60+ series…" autocomplete="off">
+    <div id="catalog"></div>
+  </aside>
+
+  <section>
+    <div class="card">
+      <div class="head">
+        <div><h2>Overlay chart</h2></div>
+        <div class="modes" id="xf">
+          <b data-x="level" class="on">level</b><b data-x="index">index=100</b><b data-x="pct">% change</b><b data-x="log">log</b>
+        </div>
+      </div>
+      <p class="sub" id="charthint">Pick series from the catalogue on the left to plot them. Different units get their own axis (left / right). Drag on the chart to zoom the time range; the strip below is a range brush.</p>
+      <canvas id="chart"></canvas>
+      <canvas id="brush"></canvas>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="card">
+      <div class="head"><div><h2>Macro dashboard</h2><p class="sub">The headline series at the end of the run — one click loads it into the overlay.</p></div></div>
+      <div class="facts" id="macro"></div>
+    </div>
+
+    <div class="card">
+      <div class="head">
+        <div><h2>Cross-tab explorer</h2></div>
+        <select id="family" style="margin-left:auto;background:#0b0f16;color:var(--ink);border:1px solid var(--edge);border-radius:7px;padding:5px 8px;font:inherit"></select>
+        <div class="modes" id="xtmode"><b data-m="small" class="on">small multiples</b><b data-m="overlay">overlay</b><b data-m="stack">stacked share</b></div>
+      </div>
+      <p class="sub" id="xthint">Every measure cut by a dimension — population by subsistence, output by institution, wealth by era, the individual firm equities. The registry drives this; new cross-tabs appear here automatically.</p>
+      <div id="xtbody"></div>
+    </div>
+  </section>
+</main>
+<div class="tt" id="tt"></div>
+
+<script type="module">
+import { cachedFetch } from './lib/civ-cache.js';
+const $=s=>document.querySelector(s);
+let DATA=null, F=null, tickYears=2.5;
+let SEL=[];                    // selected series keys (overlay)
+let transform='level';
+let range=null;               // [i0,i1] index window (inclusive)
+let hoverI=-1;
+const PAL=['#5aa9e6','#d9a441','#5bd18b','#e5686b','#b98be5','#e6a34a','#4ec9c9','#e67ec2','#9cc96f','#c98b5a','#7f9cf5','#e6d24a','#8b98a9','#68d0e5','#d06fd0','#9bd15b'];
+const colorOf=(k,i)=>PAL[i%PAL.length];
+const fmt=v=>{ if(v==null||!isFinite(v)) return '—'; const a=Math.abs(v); if(a>=1e6) return (v/1e6).toFixed(2)+'M'; if(a>=1e4) return Math.round(v).toLocaleString(); if(a>=100) return v.toFixed(0); if(a>=1) return v.toFixed(2); return v.toFixed(3); };
+const yr=t=>Math.round(t*tickYears);
+const yrLbl=t=>{ const y=yr(t); return Math.abs(y)>=1000?(y/1000).toFixed(y%1000?1:0)+'k':String(y); };
+
+// ---- URL liquidity (shared across views) ---------------------------------------
+function curState(){ return {world:$('#world').value.trim()||'7',preset:$('#preset').value,civSeed:$('#civseed').value||'1',ticks:$('#ticks').value||'1000',config:$('#lastconfig').value||''}; }
+function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); return p.toString(); }
+function mappaHref(w){ const m=String(w).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(w))); }
+function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/?'+q; $('#toview').href='/view.html?'+q; $('#todev').href='/develop.html?'+q; $('#tomappa').href=mappaHref(st.world); }
+function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); if(p.get('series'))SEL=p.get('series').split(',').filter(Boolean); if(p.get('xf'))transform=p.get('xf'); }
+for(const id of ['#preset','#world','#civseed','#ticks']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
+function pushState(){ try{ const st=curState(); const p=new URLSearchParams(qsOf(st)); if(SEL.length)p.set('series',SEL.join(',')); if(transform!=='level')p.set('xf',transform); history.replaceState(null,'','?'+p.toString()); }catch(e){} }
+
+// ---- transforms ----------------------------------------------------------------
+// registry-driven: any series → a comparable array under the active transform.
+function transformVals(data, xf, i0){
+  if(xf==='index'){ let base=0; for(let i=i0;i<data.length;i++){ if(data[i]){ base=data[i]; break; } } if(!base) base=1; return data.map(v=>v/base*100); }
+  if(xf==='pct'){ const out=data.map((v,i)=> i? (data[i-1]? (v/data[i-1]-1)*100 : null) : null); return out; }
+  if(xf==='log'){ return data.map(v=> v>0? Math.log10(v) : null); }
+  return data.slice();
+}
+// which axis a unit sits on (level mode → up to two axes by unit; else one shared axis)
+function axisPlan(sel){
+  if(transform!=='level'){ return { multi:false, units:[], axisOf:()=>0 }; }
+  const units=[]; for(const s of sel){ if(!units.includes(s.unit)) units.push(s.unit); }
+  const axisOf=u=> units.indexOf(u)===1?1:0;   // 2nd distinct unit → right axis; rest → left
+  return { multi:units.length>1, units, axisOf };
+}
+function niceTicks(lo,hi,n=5){ if(!(hi>lo)){ hi=lo+1; } const raw=(hi-lo)/n; const mag=Math.pow(10,Math.floor(Math.log10(raw))); const norm=raw/mag; const step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag; const start=Math.ceil(lo/step)*step; const out=[]; for(let v=start; v<=hi+1e-9; v+=step) out.push(+v.toFixed(6)); return {step,out}; }
+
+// ---- the core chart renderer (reused for overlay + cross-tab overlay) -----------
+function drawChart(cv, seriesList, opt={}){
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const W=cv.clientWidth, H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr;
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const T=F.t, i0=range?range[0]:0, i1=range?range[1]:T.length-1;
+  const plan=axisPlan(seriesList);
+  // transformed values + per-axis extents over [i0..i1]
+  const rows=seriesList.map((s,idx)=>({ ...s, vals:transformVals(s.data,transform,i0), color:s.color||colorOf(s.key,idx), axis:plan.axisOf(s.unit) }));
+  const ext=[[Infinity,-Infinity],[Infinity,-Infinity]];
+  for(const r of rows){ for(let i=i0;i<=i1;i++){ const v=r.vals[i]; if(v==null||!isFinite(v)) continue; const a=plan.multi?r.axis:0; if(v<ext[a][0])ext[a][0]=v; if(v>ext[a][1])ext[a][1]=v; } }
+  for(const a of [0,1]){ if(ext[a][0]===Infinity){ ext[a]=[0,1]; } if(ext[a][0]===ext[a][1]){ ext[a][0]-=1; ext[a][1]+=1; } if(transform==='level'||transform==='index'){ if(ext[a][0]>0) ext[a][0]=0; } const pad=(ext[a][1]-ext[a][0])*0.06; ext[a][1]+=pad; if(transform==='pct'||transform==='log') ext[a][0]-=pad; }
+  const padL=52, padR=plan.multi?54:14, padT=10, padB=22;
+  const x=i=> padL + (W-padL-padR)*( (i1===i0)?0.5:(i-i0)/(i1-i0) );
+  const yA=(v,a)=> padT + (H-padT-padB)*(1-(v-ext[a][0])/(ext[a][1]-ext[a][0]));
+  // gridlines + left axis
+  g.font='10px ui-sans-serif,system-ui'; g.textBaseline='middle';
+  const tk=niceTicks(ext[0][0],ext[0][1],5);
+  g.strokeStyle='#1a2634'; g.lineWidth=1;
+  for(const v of tk.out){ const yy=yA(v,0); g.beginPath(); g.moveTo(padL,yy); g.lineTo(W-padR,yy); g.stroke(); g.fillStyle='#8b98a9'; g.textAlign='right'; g.fillText(fmtAxis(v),padL-6,yy); }
+  if(plan.multi){ const tr=niceTicks(ext[1][0],ext[1][1],5); g.fillStyle='#8b98a9'; g.textAlign='left'; for(const v of tr.out){ const yy=yA(v,1); g.fillText(fmtAxis(v),W-padR+6,yy); } }
+  // x ticks (years)
+  g.textAlign='center'; g.textBaseline='top'; g.fillStyle='#8b98a9';
+  const nX=Math.min(6,i1-i0); for(let k=0;k<=nX;k++){ const i=Math.round(i0+(i1-i0)*k/Math.max(1,nX)); const xx=x(i); g.fillText(yrLbl(T[i])+'y', xx, H-padB+5); }
+  // lines
+  g.lineWidth=1.8; g.lineJoin='round';
+  for(const r of rows){ g.strokeStyle=r.color; g.beginPath(); let started=false; for(let i=i0;i<=i1;i++){ const v=r.vals[i]; if(v==null||!isFinite(v)){ started=false; continue; } const px=x(i), py=yA(v,plan.multi?r.axis:0); if(!started){ g.moveTo(px,py); started=true; } else g.lineTo(px,py); } g.stroke(); }
+  // hover crosshair
+  if(opt.hover && hoverI>=i0 && hoverI<=i1){ const xx=x(hoverI); g.strokeStyle='#3a4a5e'; g.lineWidth=1; g.beginPath(); g.moveTo(xx,padT); g.lineTo(xx,H-padB); g.stroke(); for(const r of rows){ const v=r.vals[hoverI]; if(v==null||!isFinite(v))continue; g.fillStyle=r.color; const py=yA(v,plan.multi?r.axis:0); g.beginPath(); g.arc(xx,py,3,0,7); g.fill(); } }
+  cv._geom={i0,i1,x,padL,padR,W};
+  return rows;
+}
+function fmtAxis(v){ if(transform==='pct') return (v>0?'+':'')+v.toFixed(0)+'%'; if(transform==='log') return '10^'+v.toFixed(1); return fmt(v); }
+// the unit a legend value carries under the active transform (level → raw unit)
+function xfUnit(rawUnit){ return transform==='index'?'=100':transform==='pct'?'% Δ':transform==='log'?'log₁₀ '+rawUnit:rawUnit; }
+
+// ---- overlay chart (main) ------------------------------------------------------
+function renderChart(){
+  const cv=$('#chart'); const sel=SEL.map((k,i)=>({ key:k, ...F.series[k], color:colorOf(k,i) })).filter(s=>s.data);
+  $('#charthint').style.display = sel.length? 'none':'block';
+  if(!sel.length){ const g=cv.getContext('2d'); cv.width=cv.clientWidth; cv.height=cv.clientHeight; g.clearRect(0,0,cv.width,cv.height); $('#legend').innerHTML=''; drawBrush(); return; }
+  const rows=drawChart(cv, sel, {hover:true});
+  // legend with live hover value
+  const li=(hoverI>=0)?hoverI:(range?range[1]:F.t.length-1);
+  $('#legend').innerHTML = rows.map(r=>{ const v=r.vals[li]; return `<span class="lg"><span class="dot" style="background:${r.color}"></span>${r.label} <span class="val">${fmt(v)}</span> <span class="unit" style="color:var(--dim)">${xfUnit(r.unit)}</span> <span class="x" data-k="${r.key}">✕</span></span>`; }).join('');
+  $('#legend').querySelectorAll('.x').forEach(x=>x.onclick=()=>toggle(x.dataset.k));
+  drawBrush();
+}
+
+// ---- range brush strip ---------------------------------------------------------
+function drawBrush(){
+  const cv=$('#brush'); const dpr=Math.min(2,window.devicePixelRatio||1);
+  const W=cv.clientWidth, H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr;
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const T=F.t; if(!T||!T.length) return;
+  // faint full-range shape of the first selected series (or population)
+  const guideKey=SEL[0]||'pop'; const gs=F.series[guideKey]; const d=gs?gs.data:T.map(()=>0);
+  let lo=Infinity,hi=-Infinity; for(const v of d){ if(v<lo)lo=v; if(v>hi)hi=v; } if(lo===hi){lo-=1;hi+=1;}
+  const x=i=> (W)*(i/(T.length-1)); const y=v=> 4+(H-8)*(1-(v-lo)/(hi-lo));
+  g.fillStyle='#132030'; g.beginPath(); g.moveTo(0,H); for(let i=0;i<T.length;i++)g.lineTo(x(i),y(d[i])); g.lineTo(W,H); g.closePath(); g.fill();
+  g.strokeStyle='#2a3a4e'; g.lineWidth=1; g.beginPath(); for(let i=0;i<T.length;i++){ const px=x(i),py=y(d[i]); i?g.lineTo(px,py):g.moveTo(px,py);} g.stroke();
+  // window
+  const i0=range?range[0]:0, i1=range?range[1]:T.length-1;
+  const wx0=x(i0), wx1=x(i1);
+  g.fillStyle='rgba(217,164,65,.14)'; g.fillRect(wx0,0,wx1-wx0,H);
+  g.strokeStyle='var(--gold)'; g.strokeStyle='#d9a441'; g.lineWidth=1.5; g.strokeRect(wx0+.5,.5,Math.max(2,wx1-wx0-1),H-1);
+  cv._geom={W,n:T.length};
+}
+(function brushDrag(){
+  const cv=$('#brush'); let mode=null;
+  const idxAt=e=>{ const r=cv.getBoundingClientRect(); const n=(cv._geom&&cv._geom.n)||F.t.length; return Math.max(0,Math.min(n-1, Math.round((e.clientX-r.left)/r.width*(n-1)))); };
+  cv.addEventListener('mousedown',e=>{ const T=F.t; const i0=range?range[0]:0,i1=range?range[1]:T.length-1; const i=idxAt(e); const r=cv.getBoundingClientRect(); const px=i/(T.length-1)*r.width; const p0=i0/(T.length-1)*r.width, p1=i1/(T.length-1)*r.width; mode = Math.abs(px-p0)<8?'l':Math.abs(px-p1)<8?'r':(px>p0&&px<p1)?'m':'new'; cv._anchor=i; if(mode==='new'){ range=[i,i]; } drawBrush(); e.preventDefault(); });
+  window.addEventListener('mousemove',e=>{ if(!mode) return; const T=F.t; const i=idxAt(e); let [a,b]=range?range:[0,T.length-1]; if(mode==='l')a=Math.min(i,b-1); else if(mode==='r')b=Math.max(i,a+1); else if(mode==='new'){ a=Math.min(cv._anchor,i); b=Math.max(cv._anchor,i); } else if(mode==='m'){ const w=b-a; a=Math.max(0,Math.min(T.length-1-w,i-Math.round(w/2))); b=a+w; } range=[Math.max(0,a),Math.min(T.length-1,b)]; if(range[0]>=range[1]) range[1]=range[0]+1; renderChart(); });
+  window.addEventListener('mouseup',()=>{ if(mode==='new'&&range&&range[1]-range[0]<2)range=null; mode=null; renderChart(); });
+})();
+// drag-to-zoom + hover on the main chart
+(function chartInteract(){
+  const cv=$('#chart'); let dragX=null;
+  const idxAt=e=>{ const gm=cv._geom; if(!gm) return -1; const r=cv.getBoundingClientRect(); const px=e.clientX-r.left; const {i0,i1,padL,W,padR}=gm; const frac=(px-padL)/(W-padL-padR); return Math.round(i0+(i1-i0)*Math.max(0,Math.min(1,frac))); };
+  cv.addEventListener('mousemove',e=>{ hoverI=idxAt(e); renderChart(); showTT(e); });
+  cv.addEventListener('mouseleave',()=>{ hoverI=-1; $('#tt').style.display='none'; renderChart(); });
+  cv.addEventListener('mousedown',e=>{ dragX=idxAt(e); });
+  window.addEventListener('mouseup',e=>{ if(dragX==null) return; const j=idxAt(e); if(j>=0&&Math.abs(j-dragX)>=2){ range=[Math.min(dragX,j),Math.max(dragX,j)]; renderChart(); } dragX=null; });
+  cv.addEventListener('dblclick',()=>{ range=null; renderChart(); });
+  function showTT(e){ if(!SEL.length||hoverI<0){ $('#tt').style.display='none'; return; } const sel=SEL.map((k,i)=>({key:k,...F.series[k],color:colorOf(k,i)})).filter(s=>s.data); const i0=range?range[0]:0; const rows=sel.map(s=>({...s,v:transformVals(s.data,transform,i0)[hoverI]})); const tt=$('#tt'); tt.innerHTML=`<div style="color:var(--dim);margin-bottom:3px">year ${yr(F.t[hoverI]).toLocaleString()}</div>`+rows.map(r=>`<div class="r"><span class="dot" style="background:${r.color}"></span>${r.label} <b>${fmt(r.v)}</b></div>`).join(''); tt.style.display='block'; const pad=14; let L=e.clientX+pad, Tp=e.clientY+pad; if(L+270>innerWidth)L=e.clientX-270; if(Tp+rows.length*20+30>innerHeight)Tp=e.clientY-rows.length*20-40; tt.style.left=L+'px'; tt.style.top=Tp+'px'; }
+})();
+
+// ---- catalog sidebar -----------------------------------------------------------
+function sparkline(cv, data, col){ const dpr=Math.min(2,window.devicePixelRatio||1); const W=52,H=16; cv.width=W*dpr; cv.height=H*dpr; const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); let lo=Infinity,hi=-Infinity; for(const v of data){ if(v<lo)lo=v; if(v>hi)hi=v; } if(lo===hi){lo-=1;hi+=1;} g.strokeStyle=col; g.lineWidth=1; g.beginPath(); for(let i=0;i<data.length;i++){ const x=W*i/(data.length-1), y=1+(H-2)*(1-(data[i]-lo)/(hi-lo)); i?g.lineTo(x,y):g.moveTo(x,y); } g.stroke(); }
+function buildCatalog(){
+  const q=($('#search').value||'').toLowerCase().trim();
+  const byCat={}; const cats=F.categories||[...new Set(Object.values(F.series).map(s=>s.cat))];
+  for(const k in F.series){ const s=F.series[k]; if(q && !(s.label.toLowerCase().includes(q)||k.toLowerCase().includes(q)||s.cat.toLowerCase().includes(q))) continue; (byCat[s.cat]=byCat[s.cat]||[]).push(k); }
+  const order=cats.filter(c=>byCat[c]);
+  const el=$('#catalog'); el.innerHTML='';
+  for(const cat of order){ const keys=byCat[cat]; const d=document.createElement('details'); d.className='catgroup'; d.open = !!q || keys.length<=8 || ['Population','Output','Prices','Money & markets','Distribution'].includes(cat);
+    d.innerHTML=`<summary>${cat}<span class="n">${keys.length}</span></summary>`;
+    for(const k of keys){ const s=F.series[k]; const row=document.createElement('div'); row.className='srow'+(SEL.includes(k)?' on':''); row.dataset.k=k;
+      const ci=SEL.indexOf(k); const col=ci>=0?colorOf(k,ci):'#5aa9e6';
+      row.innerHTML=`<span class="chk" style="${SEL.includes(k)?`background:${col}`:''}"></span><span class="lbl" title="${s.label}">${s.label}</span><canvas class="spark"></canvas>`;
+      row.onclick=()=>toggle(k);
+      d.appendChild(row); sparkline(row.querySelector('.spark'), s.data, SEL.includes(k)?col:'#4a5a6e');
+    }
+    el.appendChild(d);
+  }
+}
+function toggle(k){ const i=SEL.indexOf(k); if(i>=0) SEL.splice(i,1); else { if(SEL.length>=8){ SEL.shift(); } SEL.push(k); } pushState(); buildCatalog(); renderChart(); }
+$('#search').addEventListener('input',buildCatalog);
+
+// ---- transform toggles ---------------------------------------------------------
+$('#xf').querySelectorAll('b').forEach(b=>b.onclick=()=>{ transform=b.dataset.x; $('#xf').querySelectorAll('b').forEach(x=>x.classList.toggle('on',x===b)); pushState(); renderChart(); });
+
+// ---- macro dashboard -----------------------------------------------------------
+const MACRO=[['pop','pop'],['gdp','GDP'],['gdp_pc','GDP / capita'],['gini','Gini'],['price','price lvl'],['stocks','stocks'],['rate','rate'],['debtgdp','debt/GDP'],['capital','capital'],['firms','firms']];
+function renderMacro(){ const el=$('#macro'); el.innerHTML=''; for(const [k,lbl] of MACRO){ const s=F.series[k]; if(!s)continue; const v=s.data[s.data.length-1]; const div=document.createElement('div'); div.className='fact'; div.style.cursor='pointer'; div.innerHTML=`<b>${fmt(v)}</b><span>${lbl}</span>`; div.onclick=()=>toggle(k); el.appendChild(div); } }
+
+// ---- cross-tab explorer --------------------------------------------------------
+let xtMode='small', xtFamily=null;
+function families(){ const cats=F.categories||[]; return cats.filter(c=>c.includes('×')||/equit/i.test(c)); }
+function renderFamilySelect(){ const sel=$('#family'); const fams=families(); sel.innerHTML=fams.map(c=>`<option>${c}</option>`).join(''); if(!xtFamily||!fams.includes(xtFamily)) xtFamily=fams[0]; sel.value=xtFamily; sel.onchange=()=>{ xtFamily=sel.value; renderXtab(); }; }
+$('#xtmode').querySelectorAll('b').forEach(b=>b.onclick=()=>{ xtMode=b.dataset.m; $('#xtmode').querySelectorAll('b').forEach(x=>x.classList.toggle('on',x===b)); renderXtab(); });
+function famKeys(){ return Object.keys(F.series).filter(k=>F.series[k].cat===xtFamily); }
+function renderXtab(){ const body=$('#xtbody'); const keys=famKeys(); if(!keys.length){ body.innerHTML='<div class="empty">no series in this family for this run</div>'; return; }
+  if(xtMode==='overlay'){ body.innerHTML='<canvas id="xtc" style="height:300px;background:#080b12;border-radius:8px"></canvas>'; const cv=$('#xtc'); const sel=keys.map((k,i)=>({key:k,...F.series[k],color:colorOf('xt'+i,i)})); const savedR=range; drawChart(cv,sel,{}); body.insertAdjacentHTML('beforeend','<div class="legend">'+sel.map(s=>`<span class="lg"><span class="dot" style="background:${s.color}"></span>${s.label.replace(/^.*— /,'')}</span>`).join('')+'</div>'); return; }
+  if(xtMode==='stack'){ body.innerHTML='<canvas id="xtc" style="height:300px;background:#080b12;border-radius:8px"></canvas><div class="legend" id="xtl"></div>'; drawStacked($('#xtc'),keys); return; }
+  // small multiples — shared y-scale within the family
+  let lo=Infinity,hi=-Infinity; for(const k of keys)for(const v of F.series[k].data){ if(v<lo)lo=v; if(v>hi)hi=v; } if(lo===hi){lo-=1;hi+=1;} if(lo>0)lo=0;
+  body.innerHTML='<div class="sm-grid">'+keys.map(k=>{ const s=F.series[k]; return `<div class="sm"><div class="t">${s.label.replace(/^.*— /,'')} <span>${fmt(s.data[s.data.length-1])} ${s.unit}</span></div><canvas data-k="${k}"></canvas></div>`; }).join('')+'</div>';
+  body.querySelectorAll('.sm canvas').forEach((cv,i)=>{ drawMini(cv, F.series[cv.dataset.k].data, colorOf('xt'+i,i), lo, hi); });
+}
+function drawMini(cv,data,col,lo,hi){ const dpr=Math.min(2,window.devicePixelRatio||1); const W=cv.clientWidth,H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr; const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H); const T=F.t; const x=i=>W*i/(T.length-1); const y=v=>2+(H-4)*(1-(v-lo)/(hi-lo)); g.strokeStyle='#1a2634'; g.beginPath(); g.moveTo(0,y(0)); g.lineTo(W,y(0)); g.stroke(); g.fillStyle=col+'22'; g.beginPath(); g.moveTo(0,y(Math.max(lo,0))); for(let i=0;i<data.length;i++)g.lineTo(x(i),y(data[i])); g.lineTo(W,y(Math.max(lo,0))); g.closePath(); g.fill(); g.strokeStyle=col; g.lineWidth=1.4; g.beginPath(); for(let i=0;i<data.length;i++){ i?g.lineTo(x(i),y(data[i])):g.moveTo(x(i),y(data[i])); } g.stroke(); }
+function drawStacked(cv,keys){ const dpr=Math.min(2,window.devicePixelRatio||1); const W=cv.clientWidth,H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr; const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H); const T=F.t; const padB=20,padL=6,padR=6; const x=i=>padL+(W-padL-padR)*i/(T.length-1); const y=f=>4+(H-4-padB)*(1-f); const tot=T.map((_,i)=>keys.reduce((a,k)=>a+Math.max(0,F.series[k].data[i]),0)); let acc=T.map(()=>0);
+  keys.forEach((k,ki)=>{ const col=colorOf('xt'+ki,ki); const d=F.series[k].data; g.fillStyle=col+'cc'; g.beginPath(); for(let i=0;i<T.length;i++){ const f=tot[i]?(acc[i]+Math.max(0,d[i]))/tot[i]:0; const px=x(i),py=y(f); i?g.lineTo(px,py):g.moveTo(px,py); } for(let i=T.length-1;i>=0;i--){ const f=tot[i]?acc[i]/tot[i]:0; g.lineTo(x(i),y(f)); } g.closePath(); g.fill(); for(let i=0;i<T.length;i++)acc[i]+=Math.max(0,d[i]); });
+  g.fillStyle='#8b98a9'; g.font='10px ui-sans-serif'; g.textAlign='center'; g.textBaseline='top'; for(let k=0;k<=5;k++){ const i=Math.round((T.length-1)*k/5); g.fillText(yrLbl(T[i])+'y',x(i),H-padB+4); }
+  $('#xtl').innerHTML=keys.map((k,ki)=>`<span class="lg"><span class="dot" style="background:${colorOf('xt'+ki,ki)}"></span>${F.series[k].label.replace(/^.*— /,'')}</span>`).join('');
+}
+$('#family');
+
+// ---- load ----------------------------------------------------------------------
+function renderAll(){ buildCatalog(); renderChart(); renderMacro(); renderFamilySelect(); renderXtab(); }
+window.addEventListener('resize',()=>{ if(F){ renderChart(); renderXtab(); } });
+
+async function load(){
+  const st=curState(); pushState(); syncLinks();
+  $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks…';
+  try{
+    const {json,cached,local}=await cachedFetch('/api/civ/run?'+qsOf(st));
+    DATA=json; window.__cached=cached; tickYears=DATA.meta.tickYears||2.5; if(DATA.config){$('#lastconfig').value=DATA.config; syncLinks();}
+    F=DATA.chronicle&&DATA.chronicle.fred;
+    if(!F||!F.t||!F.t.length){ $('#status').textContent='this run produced no FRED series'; return; }
+    range=null; hoverI=-1;
+    // default selection: pop + gdp if nothing chosen
+    SEL=SEL.filter(k=>F.series[k]); if(!SEL.length) SEL=['pop','gdp'].filter(k=>F.series[k]);
+    const mm=$('#xf').querySelector(`b[data-x="${transform}"]`); if(mm){ $('#xf').querySelectorAll('b').forEach(x=>x.classList.remove('on')); mm.classList.add('on'); }
+    $('#status').innerHTML=`<span class="score">★${DATA.score}</span> — ${DATA.descriptor} · <span style="color:var(--dim)">${Object.keys(F.series).length} series · ${F.t.length} points · ${(F.categories||[]).length} categories${cached?' · <b style="color:var(--good)">cached</b>':local?' · <b style="color:var(--acc)">computed locally</b>':''}</span>`;
+    renderAll();
+  }catch(e){ $('#status').textContent='error: '+e.message; }
+  finally{ $('#load').disabled=false; }
+}
+$('#load').onclick=load;
+applyURL(); syncLinks(); load();
+</script>
+</body>
+</html>
