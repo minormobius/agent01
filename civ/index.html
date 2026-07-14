@@ -112,7 +112,7 @@ async function runCiv() {
   const st = stateFromControls();
   writeURL(st); syncLinks();               // the address bar IS the permalink to this run
   setBusy(true, 'Running ' + st.ticks + ' ticks…');
-  try { const { json, cached } = await cachedFetch('/api/civ/run?' + qs(st)); renderRun(json, cached); }
+  try { const { json, cached, local } = await cachedFetch('/api/civ/run?' + qs(st)); renderRun(json, cached, local); }
   catch (e) { $('#status').textContent = 'error: ' + e.message; }
   finally { setBusy(false); }
 }
@@ -129,7 +129,7 @@ $('#sweepbtn').addEventListener('click', async () => {
 
 function setBusy(b, msg) { $('#run').disabled = b; $('#sweepbtn').disabled = b; $('#status').textContent = msg || ''; }
 
-function renderRun(d, cached) {
+function renderRun(d, cached, local) {
   const o = $('#out'); o.innerHTML = '';
   o.appendChild(el('div', 'desc')).innerHTML = escapeDesc(d.descriptor);
   if (d.flags.length) { const f = el('div', 'flags'); for (const x of d.flags) f.appendChild(el('span', null, x)); o.appendChild(f); }
@@ -151,7 +151,7 @@ function renderRun(d, cached) {
   add(f.homelands, 'homelands'); add(f.peakStates, 'peak states');
   o.appendChild(facts);
   $('#lastconfig').value = d.config; syncLinks(); // links now carry this exact run
-  o.appendChild(el('div', 'muted', `★${d.score} · hash ${d.hash} · ${cached ? 'cached (no rerun)' : d.ms + 'ms'} · this URL is the permalink · open in ▶ playground or on mappa via the header links`));
+  o.appendChild(el('div', 'muted', `★${d.score} · hash ${d.hash} · ${cached ? 'cached (no rerun)' : (local ? 'computed locally' : 'edge') + ' in ' + d.ms + 'ms'} · this URL is the permalink · open in ▶ playground or on mappa via the header links`));
 }
 
 function renderSweep(d) {

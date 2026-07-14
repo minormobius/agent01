@@ -26,6 +26,9 @@ jobs:
           node-version: '20'
       - name: Install wrangler
         run: npm install wrangler
+      - name: Build client-side compute bundle (civ/lib/civ-engine.js)
+        working-directory: .
+        run: npm install esbuild && node scripts/build-civ-engine.mjs
       - name: Deploy worker + assets
         run: npx wrangler deploy
         env:

@@ -250,6 +250,28 @@ appears in FRED automatically. Carries the run by the same URL params as the oth
 The worker (`../../civ/worker.js`) imports this engine unchanged. Note determinism is
 load-bearing: never introduce `Math.random` / `Date.now` into the core.
 
+**Compute: edge OR client (same code, same bits).** The request logic (`params → chronicle`)
+lives in one shared module, `api.js` (`doRun` / `doFrames` / `doSweep` + presets), imported by
+**both** the Cloudflare Worker (the API) **and** a browser bundle (`../../civ/lib/civ-engine.js`,
+built from `api.js` by `scripts/build-civ-engine.mjs`). Because the sim is deterministic pure JS
+(typed arrays + `Math`, zero platform deps), a run computed in the browser is **bit-identical** to
+one from the edge — same `chronicleHash` — so permalinks and cross-view liquidity stay valid
+regardless of where it ran. The views compute **client-side by default**: `civ-cache.js` runs the
+sim in a module **Web Worker** (off the main thread, no UI freeze), caches the result in
+`localStorage`, and only falls back to the `/api/civ/*` endpoint if Web Workers/modules are
+unavailable or the bundle fails. This means **no Cloudflare CPU limit** on the hot path (the 503
+that a 1500-tick run tripped is gone), the user's machine does the work, and the edge serves as a
+capped fallback (`limits.cpu_ms` raised in `wrangler.jsonc` for that role). Regenerate the bundle
+after any `mappa/civ/**` change — the deploy does it automatically (`deploy-civ.yml` runs the build
+before `wrangler deploy`); locally, `node scripts/build-civ-engine.mjs`.
+
+*Profile (1500-tick run):* ~35% demography (births/deaths/dispersal — sequential, bound by the
+ordered RNG draws that make it deterministic), ~13% institution assembly, ~8% belief passes, the
+rest fields/culture/capture. The dominant cost is sequential-by-determinism, so it is a poor GPU
+fit; the realized win was **moving it off the fixed edge budget onto the client**, not vectorizing
+it. A future path to raw speedup is region-parallel demography via re-keyed per-agent RNG (breaks
+bit-parity — a separate mode), or capping population growth (a design lever).
+
 **Cross-view liquidity.** A run's identity is `(world, config|preset, civSeed, ticks)`,
 carried in the page URL. The dashboard, the particle playground, and the mappa map all
 read/write those params, so the ★ you roll on one is the exact run you open on another —

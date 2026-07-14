@@ -339,14 +339,14 @@ async function load(){
   try{ history.replaceState(null,'','?'+qsOf(st)); }catch(e){} syncLinks(); // the URL is the permalink
   $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks + capturing frames…';
   try{
-    const {json,cached}=await cachedFetch('/api/civ/frames?'+q);
+    const {json,cached,local}=await cachedFetch('/api/civ/frames?'+q);
     DATA=json;
     // worlds without polygon geometry (data fixtures) can't do regions — fall back to particles
     if(!DATA.world_mesh.cells){ fillMode='particles'; $('#fillmodes').style.display='none'; } else $('#fillmodes').style.display='';
     if(DATA.config){ $('#lastconfig').value=DATA.config; syncLinks(); } // links carry this exact run
     BASE=1000; precomputeCells(); fit(); frame=0; pos=0; tween=0; sel=null; $('#inspect').style.display='none';
     $('#scrub').max=DATA.frames.length-1; $('#scrub').value=0;
-    $('#status').innerHTML=`★${DATA.score} — ${DATA.descriptor}${cached?' · <b style="color:var(--good)">cached</b>':''}`;
+    $('#status').innerHTML=`★${DATA.score} — ${DATA.descriptor}${cached?' · <b style="color:var(--good)">cached</b>':local?' · <b style="color:var(--good)">computed locally</b>':''}`;
     drawEventBar(); buildLegend(); setFrame(0);
   }catch(e){ $('#status').textContent='error: '+e.message; }
   finally{ $('#load').disabled=false; }

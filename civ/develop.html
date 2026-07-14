@@ -333,9 +333,9 @@ async function load(){
   const st=curState(); try{ history.replaceState(null,'','?'+qsOf(st)); }catch(e){} syncLinks();
   $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks…'; hlCulture=null;
   try{
-    const {json,cached}=await cachedFetch('/api/civ/run?'+qsOf(st));
+    const {json,cached,local}=await cachedFetch('/api/civ/run?'+qsOf(st));
     DATA=json; tickYears=DATA.meta.tickYears||2.5; if(DATA.config){$('#lastconfig').value=DATA.config; syncLinks();}
-    $('#status').innerHTML=`<span class="score">★${DATA.score}</span> — ${DATA.descriptor}${cached?' · <b style="color:var(--good)">cached</b>':''}`;
+    $('#status').innerHTML=`<span class="score">★${DATA.score}</span> — ${DATA.descriptor}${cached?' · <b style="color:var(--good)">cached</b>':local?' · <b style="color:var(--acc)">computed locally</b>':''}`;
     renderTables(); drawStream();
   }catch(e){ $('#status').textContent='error: '+e.message; }
   finally{ $('#load').disabled=false; }
