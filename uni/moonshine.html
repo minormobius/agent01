@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why Moonshine? — the Monster, the j-function, and what the groups do · uni</title>
+<meta name="description" content="A visual, pedagogical introduction to monstrous moonshine: why the j-function's coefficients are the Monster group's representation dimensions, what a modular function is (the Farey tiling of hyperbolic space), what the McKay–Thompson groups do (genus-zero → one master function), and why it matters.">
+<meta name="theme-color" content="#5b57e0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%F0%9F%8C%99%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .prose { max-width: 720px; margin: 0 auto; }
+  .prose p { font-size: 16px; color: var(--ink); margin: 14px 0; }
+  .prose p.lead { font-size: 18.5px; color: var(--muted); }
+  .step { margin: 46px auto; max-width: 860px; scroll-margin-top: 70px; }
+  .step .num { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 700; letter-spacing: .04em; }
+  .step h2 { font-family: var(--serif); font-size: clamp(23px,4vw,31px); margin: 2px 0 12px; letter-spacing: -.01em; }
+  .hero { max-width: 860px; margin: 34px auto 0; }
+  .hero h1 { font-family: var(--serif); font-weight: 700; font-size: clamp(30px,6vw,52px); margin: 0 0 10px; letter-spacing: -.025em; line-height: 1.05; }
+  .hero .sub { font-size: 19px; color: var(--muted); max-width: 40ch; }
+  .card2 { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; margin: 18px 0; }
+  .mono { font-family: var(--mono); }
+  em.k { font-style: normal; color: var(--accent); font-weight: 600; }
+  /* coincidence widget */
+  .coin { display: grid; grid-template-columns: 1fr; gap: 4px; }
+  .cbtn { display: grid; grid-template-columns: 116px 1fr; gap: 12px; align-items: center; text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; cursor: pointer; font-family: inherit; color: inherit; transition: .12s; }
+  .cbtn:hover, .cbtn.on { border-color: var(--accent); background: var(--accent-bg); }
+  .cbtn .coef { font-family: var(--mono); font-weight: 700; font-size: 17px; text-align: right; color: var(--accent); }
+  .cbtn .qn { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+  .decomp { font-family: var(--mono); font-size: 13.5px; color: var(--muted); min-height: 22px; padding: 8px 2px 2px; overflow-x: auto; white-space: nowrap; }
+  .decomp b { color: var(--ink); font-weight: 700; }
+  .decomp .irr { color: var(--accent); }
+  figure { margin: 16px 0; }
+  figure canvas { width: 100%; height: auto; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  figcaption { color: var(--faint); font-size: 13px; margin-top: 8px; text-align: center; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px){ .two{ grid-template-columns:1fr; } }
+  .world { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+  .world h3 { margin: 0 0 6px; font-family: var(--serif); font-size: 18px; }
+  .world p { font-size: 14px; color: var(--muted); margin: 6px 0; }
+  .picker { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .picker select { appearance: none; font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 7px 14px; cursor: pointer; }
+  .picker select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .sym { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent); }
+  .parsed { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .parsed .p { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--bg); }
+  .parsed .p b { color: var(--accent); }
+  .callout { background: var(--accent-bg); border: 1px solid var(--accent-soft); border-radius: 12px; padding: 14px 16px; margin: 16px 0; font-size: 15px; }
+  .callout code, .prose code { font-family: var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: .9em; }
+  .ssp { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+  .ssp span { font-family: var(--mono); font-weight: 700; font-size: 15px; padding: 6px 11px; border-radius: 10px; background: var(--accent-bg); border: 1px solid var(--accent-soft); color: var(--accent); }
+  .why { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 12px; margin: 14px 0; }
+  .why .w { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
+  .why .w h4 { margin: 0 0 4px; font-size: 15px; }
+  .why .w p { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .navlink { display:inline-flex; gap:6px; align-items:center; text-decoration:none; color:var(--accent); font-weight:600; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">uni<span class="dot">.</span><small>unicode browser</small></a>
+    <nav class="nav" style="margin-left:auto;display:flex;gap:16px">
+      <a href="/monster" style="font-size:14px;color:var(--muted);text-decoration:none">The 194 (table)</a>
+      <a href="https://mino.mobi" style="font-size:14px;color:var(--muted);text-decoration:none">↖ mino.mobi</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Why <span style="color:var(--accent)">moonshine</span>?</h1>
+    <p class="sub">Two unrelated worlds of mathematics turned out to share the same secret numbers. Here is what that means, and what it’s good for.</p>
+  </section>
+
+  <!-- 1. THE COINCIDENCE -->
+  <section class="step" id="s1">
+    <div class="num">01 · THE COINCIDENCE</div>
+    <h2>The same numbers, in two different universes</h2>
+    <div class="prose">
+      <p>In the 1800s, studying the shapes of doughnuts (elliptic curves), mathematicians met a function called <em class="k">j</em>. Written as a power series it begins with wild, seemingly arbitrary integers:</p>
+    </div>
+    <div class="card2">
+      <div class="decomp mono" style="font-size:15px;color:var(--ink);white-space:nowrap;overflow-x:auto">J(τ) = q⁻¹ + 196884·q + 21493760·q² + 864299970·q³ + 20245856256·q⁴ + …</div>
+    </div>
+    <div class="prose">
+      <p>In the 1970s, studying the <em class="k">Monster</em> — the largest “sporadic” symmetry group, with about 8×10⁵³ elements — mathematicians computed the smallest sizes in which it can be faithfully represented: <span class="mono">1, 196883, 21296876, 842609326, …</span></p>
+      <p><strong>John McKay noticed the first coefficient was no accident.</strong> Click a coefficient of <em class="k">j</em> — watch it fall apart into Monster representation-sizes, exactly.</p>
+    </div>
+    <div class="card2">
+      <div class="coin" id="coin"></div>
+      <div class="decomp" id="decomp">↑ pick a coefficient</div>
+    </div>
+    <div class="prose"><p>Numbers this large matching to the digit are not coincidence. Something must connect a function about doughnuts to the biggest sporadic symmetry in existence. That something is <em class="k">moonshine</em>.</p></div>
+  </section>
+
+  <!-- 2. WHAT A MODULAR FUNCTION IS -->
+  <section class="step" id="s2">
+    <div class="num">02 · WORLD A — SYMMETRY OF SHAPE</div>
+    <h2>What the <em class="k">j</em>-function really is</h2>
+    <div class="prose">
+      <p>The <em class="k">j</em>-function isn’t arbitrary — it is the most symmetric function possible on the hyperbolic plane. An infinite group of motions, <span class="mono">SL₂(ℤ)</span>, tiles that plane into infinitely many identical triangles, and <em class="k">j</em> is the one function that repeats perfectly across every tile. Below is that tiling (the Farey tessellation, drawn in the Poincaré disk): every arc is a “straight line” in hyperbolic geometry, and every region is a copy of every other.</p>
+    </div>
+    <figure>
+      <canvas id="farey" width="900" height="900"></canvas>
+      <figcaption>The modular group tiling hyperbolic space. A <strong>modular function</strong> is one that looks the same on every tile — <em>j</em> is the master example.</figcaption>
+    </figure>
+    <div class="callout">The value <span class="mono">744</span> in <span class="mono">j = J + 744</span> is just a constant shift; moonshine uses the shifted version <span class="mono">J = j − 744</span>, so it starts cleanly at <span class="mono">q⁻¹ + 0 + 196884q + …</span></div>
+  </section>
+
+  <!-- 3. THE MONSTER -->
+  <section class="step" id="s3">
+    <div class="num">03 · WORLD B — SYMMETRY ITSELF</div>
+    <h2>The Monster, and its 194 kinds of symmetry</h2>
+    <div class="two">
+      <div class="world">
+        <h3>The group</h3>
+        <p>The Monster 𝕄 is a finite group of pure symmetry — the largest of the 26 “sporadic” simple groups, the exceptional atoms left over when you classify all finite symmetry. It first appears acting on a <span class="mono">196883</span>-dimensional space (the Griess algebra).</p>
+      </div>
+      <div class="world">
+        <h3>Its symmetry types</h3>
+        <p>You can’t list its 8×10⁵³ elements, but up to change of basis there are exactly <strong>194 types</strong> — its conjugacy classes, named <span class="mono">1A, 2A, 2B, 3A, …</span> Each type is a distinct “kind” of symmetry the Monster contains. These 194 are the rows of <a class="navlink" href="/monster">the dictionary →</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. THE BRIDGE -->
+  <section class="step" id="s4">
+    <div class="num">04 · THE BRIDGE</div>
+    <h2>One object, seen through each symmetry</h2>
+    <div class="prose">
+      <p>The link is a single infinite object, the <em class="k">moonshine module</em> <span class="mono">V♮</span> — a tower of spaces <span class="mono">V₀, V₁, V₂, …</span> that the Monster acts on at every level. Two facts snap together:</p>
+      <p>① <strong>Count its levels.</strong> The number of dimensions at each level spells out exactly the coefficients of <em class="k">j</em>. So <em>j</em> is the Monster’s object, measured by size. That’s McKay’s coincidence, explained.</p>
+      <p>② <strong>Look through a symmetry.</strong> Pick any symmetry type <span class="mono">g</span>. Instead of counting each level, take its <em>trace under g</em> (how much g leaves fixed). This gives a new function <span class="mono">T_g</span> — the <em class="k">McKay–Thompson series</em> of that class. The identity gives back <em>j</em>; every other class gives its own function.</p>
+    </div>
+    <div class="callout"><strong>The Conway–Norton miracle (proved by Borcherds, 1998 Fields Medal):</strong> every one of these 194 functions <span class="mono">T_g</span> is again maximally symmetric — the master function of <em>its own</em> tiling of hyperbolic space. The Monster’s inner symmetries become symmetries of shape.</div>
+  </section>
+
+  <!-- 5. WHAT THE GROUPS DO -->
+  <section class="step" id="s5">
+    <div class="num">05 · WHAT THE GROUPS DO</div>
+    <h2>Genus zero, and why one function is enough</h2>
+    <div class="prose">
+      <p>Fold up a tiling’s tiles into a single shape (the quotient surface). It could be a sphere, a doughnut, a two-holed surface… The number of holes is the <em class="k">genus</em>. The astonishing part of moonshine: <strong>every one of the 194 tilings folds up into a sphere</strong> — genus <strong>zero</strong>. And on a sphere there is exactly <em>one</em> basic coordinate function that generates all the others. That single generator <em>is</em> the McKay–Thompson series. Genus zero is <em>why</em> each Monster symmetry gives one clean modular function instead of a mess.</p>
+      <p>The names in the dictionary (<span class="mono">2+</span>, <span class="mono">60+4,15,60</span>) are precisely the recipe for each tiling’s symmetry group: start from level <span class="mono">N</span>, then adjoin extra “<em class="k">Atkin–Lehner</em>” flips. Pick a class and see its recipe:</p>
+    </div>
+    <div class="card2">
+      <div class="picker">
+        <select id="clsSel" aria-label="Choose a conjugacy class"></select>
+        <span class="sym" id="symOut">—</span>
+      </div>
+      <figure style="margin:6px 0">
+        <canvas id="cube" width="900" height="420"></canvas>
+        <figcaption id="cubeCap">Each corner is an Atkin–Lehner flip available at this level; highlighted corners are the ones this group adjoins.</figcaption>
+      </figure>
+      <div class="parsed" id="parsed"></div>
+    </div>
+  </section>
+
+  <!-- 6. OGG -->
+  <section class="step" id="s6">
+    <div class="num">06 · THE FIRST CLUE</div>
+    <h2>Ogg’s primes — where someone first noticed</h2>
+    <div class="prose">
+      <p>Years before McKay, Andrew Ogg asked which primes <span class="mono">p</span> make the simplest tiling <span class="mono">p+</span> fold into a sphere. The answer is exactly 15 primes:</p>
+    </div>
+    <div class="ssp" id="sspList"></div>
+    <div class="prose">
+      <p>Ogg was at a talk where the size of the Monster was factored — and those <em>same 15 primes</em> were its prime divisors. He offered a bottle of Jack Daniel’s for an explanation. Moonshine is the explanation; the bottle, fittingly, is still unclaimed.</p>
+    </div>
+  </section>
+
+  <!-- 7. WHY IT MATTERS -->
+  <section class="step" id="s7">
+    <div class="num">07 · WHY IT MATTERS</div>
+    <h2>What moonshine bought us</h2>
+    <div class="why">
+      <div class="w"><h4>🧩 Coincidences are never coincidences</h4><p>196884 = 196883 + 1 forced a hidden structure into the open. It is the archetype of “deep numerical accidents reveal deep mathematics.”</p></div>
+      <div class="w"><h4>🎻 It’s physics</h4><p>V♮ is a conformal field theory — a string theory living on 24 dimensions folded by the Monster. Moonshine ties finite groups to modular forms to quantum gravity.</p></div>
+      <div class="w"><h4>🏅 A new algebra</h4><p>Borcherds’ proof invented generalized Kac–Moody algebras and won the 1998 Fields Medal — tools now used far beyond the Monster.</p></div>
+      <div class="w"><h4>🌒 A whole sky of moonshines</h4><p>Mathieu moonshine, umbral moonshine, connections to K3 surfaces — the Monster was just the first. The pattern keeps recurring.</p></div>
+    </div>
+    <div class="prose" style="margin-top:20px">
+      <p>Now the dictionary reads differently: each of <a class="navlink" href="/monster">the 194 rows →</a> is a Monster symmetry, the sphere it secretly is, and the single function that lives on it.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>A pedagogical companion to <a href="/monster">the 194-class dictionary</a>. Numbers verified; tilings and Atkin–Lehner structure computed live. Sources: Conway–Norton (1979); McKay (1978); Borcherds (1992); Le Bruyn, arXiv:1804.04127.</p>
+    <p><a href="/">uni</a> · <a href="https://mino.mobi">mino.mobi</a></p>
+  </footer>
+</main>
+
+<div class="toast" id="toast" style="position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:.18s;z-index:90">Copied</div>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+
+// ── 1. coincidence widget (verified decompositions) ──
+const IRR = [1, 196883, 21296876, 842609326, 18538750076];   // first Monster irrep dims
+const COEFFS = [
+  { q: 1, c: 196884, d: [[0,1],[1,1]] },
+  { q: 2, c: 21493760, d: [[0,1],[1,1],[2,1]] },
+  { q: 3, c: 864299970, d: [[0,2],[1,2],[2,1],[3,1]] },
+  { q: 4, c: 20245856256, d: [[0,3],[1,3],[2,1],[3,2],[4,1]] },
+];
+$('coin').innerHTML = COEFFS.map((x,i) =>
+  `<button class="cbtn" data-i="${i}"><span class="coef">${x.c.toLocaleString()}</span><span class="qn">coefficient of q${sup(x.q)} in j</span></button>`).join('');
+$('coin').querySelectorAll('.cbtn').forEach(b => b.addEventListener('click', () => {
+  $('coin').querySelectorAll('.cbtn').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  const x = COEFFS[+b.dataset.i];
+  const terms = x.d.map(([i,m]) => `${m>1?m+'·':''}<span class="irr">${IRR[i].toLocaleString()}</span>`).join(' + ');
+  $('decomp').innerHTML = `<b>${x.c.toLocaleString()}</b> = ${terms}`;
+}));
+$('coin').querySelector('.cbtn').click();
+function sup(n){ const m={'-':'⁻','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','0':'⁰'}; return String(n).split('').map(c=>m[c]||c).join(''); }
+
+// ── 2. Farey tessellation (modular tiling) in the Poincaré disk ──
+function drawFarey() {
+  const cv = $('farey'), ctx = cv.getContext('2d');
+  const S = cv.width, R = S/2 - 10, cx = S/2, cy = S/2;
+  ctx.clearRect(0,0,S,S);
+  const css = getComputedStyle(document.body);
+  const ink = css.getPropertyValue('--ink').trim() || '#111';
+  const acc = css.getPropertyValue('--accent').trim() || '#5b57e0';
+  const line = css.getPropertyValue('--line').trim() || '#ddd';
+  // boundary
+  ctx.strokeStyle = line; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke();
+  // primitive vectors (p,q), gcd=1, canonical sign, bounded
+  const N = 15, verts = [];
+  const gcd = (a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b];}return a;};
+  for (let q=0; q<=N; q++) for (let p=-N; p<=N; p++) {
+    if (p===0 && q===0) continue;
+    if (gcd(p,q)!==1) continue;
+    if (q===0 && p<0) continue;              // canonical: ∞ once
+    verts.push([p,q]);
+  }
+  // map fraction p/q -> unit-circle angle via Cayley (z-i)/(z+i)
+  const ang = ([p,q]) => {
+    if (q===0) return 0;                      // ∞ -> +1
+    const t = p/q;                            // real point
+    // w = (t - i)/(t + i); angle = atan2(Im, Re)
+    const re = (t*t - 1)/(t*t + 1), im = (-2*t)/(t*t + 1);
+    return Math.atan2(im, re);
+  };
+  const pt = a => [cx + R*Math.cos(a), cy + R*Math.sin(a)];
+  // geodesic between two boundary angles = circular arc orthogonal to the disk
+  function geodesic(a, b, depth) {
+    let d = Math.abs(a-b); if (d>Math.PI) d = 2*Math.PI - d;
+    const shade = Math.max(0.08, 0.85 - depth*0.11);
+    ctx.strokeStyle = depth<=1 ? acc : ink;
+    ctx.globalAlpha = depth<=1 ? 0.9 : shade;
+    ctx.lineWidth = depth<=1 ? 1.6 : 1;
+    const P = pt(a), Q = pt(b);
+    if (Math.abs(d - Math.PI) < 1e-3) { ctx.beginPath(); ctx.moveTo(P[0],P[1]); ctx.lineTo(Q[0],Q[1]); ctx.stroke(); ctx.globalAlpha=1; return; }
+    const mid=(a+b)/2, half=(a-b)/2;
+    const CX = cx + R*Math.cos(mid)/Math.cos(half), CY = cy + R*Math.sin(mid)/Math.cos(half);
+    const rr = R*Math.abs(Math.tan(half));
+    let s = Math.atan2(P[1]-CY, P[0]-CX), e = Math.atan2(Q[1]-CY, Q[0]-CX);
+    // draw the minor arc
+    let diff = e - s; while (diff <= -Math.PI) diff += 2*Math.PI; while (diff > Math.PI) diff -= 2*Math.PI;
+    ctx.beginPath(); ctx.arc(CX, CY, rr, s, s+diff, diff<0); ctx.stroke(); ctx.globalAlpha=1;
+  }
+  // draw every unimodular (Farey) edge
+  const det = (u,v) => u[0]*v[1] - u[1]*v[0];
+  for (let i=0;i<verts.length;i++) for (let j=i+1;j<verts.length;j++) {
+    if (Math.abs(det(verts[i],verts[j]))===1) {
+      const depth = Math.min(verts[i][1], verts[j][1]);   // shallower = bigger tile
+      geodesic(ang(verts[i]), ang(verts[j]), depth);
+    }
+  }
+}
+
+// ── 5. Atkin–Lehner cube per class ──
+function primeFactors(n){ const f={}; for(let p=2;p*p<=n;p++){ while(n%p===0){f[p]=(f[p]||0)+1;n/=p;} } if(n>1)f[n]=(f[n]||0)+1; return f; }
+function hallDivisors(n){ // exact divisors d || n (d and n/d coprime)
+  const f=primeFactors(n), primes=Object.keys(f).map(Number), out=[];
+  for(let mask=0; mask<(1<<primes.length); mask++){ let d=1; primes.forEach((p,i)=>{ if(mask&(1<<i)) d*=Math.pow(p,f[p]); }); out.push({d, mask, rank: bits(mask)}); }
+  return {primes, divs: out};
+}
+function bits(m){ let c=0; while(m){c+=m&1;m>>=1;} return c; }
+function parseSymbol(sym){
+  // e.g. "60+4,15,60", "2-", "3|3", "24|4+6", "1"
+  const m = sym.match(/^(\d+)(\|(\d+))?([+-])?(.*)$/);
+  const N = +m[1], h = m[3]?+m[3]:1, sign = m[4]||'', rest = m[5]||'';
+  let involutions = null; // null = ALL, [] = none, [..] = listed
+  if (sign === '+') involutions = rest.trim() ? rest.split(',').map(Number) : null;
+  else involutions = []; // '-' or none
+  return { N, h, sign, involutions };
+}
+function drawCube(sym){
+  const cv=$('cube'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  const css=getComputedStyle(document.body);
+  const ink=css.getPropertyValue('--ink').trim(), acc=css.getPropertyValue('--accent').trim();
+  const line=css.getPropertyValue('--line').trim(), faint=css.getPropertyValue('--faint').trim();
+  const abg=css.getPropertyValue('--accent-bg').trim(), panel=css.getPropertyValue('--panel').trim();
+  const {N, h, involutions} = parseSymbol(sym);
+  const {primes, divs} = hallDivisors(N);
+  const k = primes.length;
+  // included set: close the listed involutions under XOR (subgroup), or all, or none
+  const included = new Set();
+  const maskOf = d => { // mask of a Hall divisor value within primes
+    const f=primeFactors(d); let m=0; primes.forEach((p,i)=>{ if(f[p]) m|=(1<<i); }); return m; };
+  if (involutions === null) { divs.forEach(x=>included.add(x.mask)); }        // n+  → all
+  else if (involutions.length === 0) { included.add(0); }                     // n-  → identity only
+  else {
+    const gens = involutions.map(maskOf); const set=new Set([0]); let grew=true;
+    while(grew){ grew=false; for(const a of [...set]) for(const g of gens){ const x=a^g; if(!set.has(x)){set.add(x);grew=true;} } }
+    set.forEach(m=>included.add(m));
+  }
+  // layout by rank (columns) ; nodes in a column spread vertically
+  const cols = []; for(let r=0;r<=k;r++) cols[r]=divs.filter(d=>d.rank===r);
+  const padX=70, colW = (W-2*padX)/Math.max(1,k);
+  const posOf = {};
+  cols.forEach((nodes,r)=>{ const x=padX + r*colW; const gap=H/(nodes.length+1);
+    nodes.forEach((nd,i)=>{ posOf[nd.mask]=[x, gap*(i+1)]; }); });
+  // edges: masks differing by one prime
+  ctx.strokeStyle=line; ctx.lineWidth=1.4;
+  for(const a of divs) for(const b of divs){ if(a.mask<b.mask && bits(a.mask^b.mask)===1){
+    const inBoth = included.has(a.mask)&&included.has(b.mask);
+    ctx.strokeStyle = inBoth?acc:line; ctx.globalAlpha=inBoth?0.9:0.5;
+    const [x1,y1]=posOf[a.mask],[x2,y2]=posOf[b.mask]; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }}
+  ctx.globalAlpha=1;
+  // nodes
+  for(const nd of divs){ const [x,y]=posOf[nd.mask]; const on=included.has(nd.mask);
+    ctx.beginPath(); ctx.arc(x,y,on?22:17,0,7);
+    ctx.fillStyle= on?acc:panel; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle= on?acc:line; ctx.stroke();
+    ctx.fillStyle= on?'#fff':faint; ctx.font=`${on?'700 ':''}15px ui-monospace, monospace`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(nd.d===1?'1':String(nd.d), x, y);
+  }
+  // caption — count NON-trivial involutions (exclude the identity corner)
+  const adjoined = included.size - 1, totalFlips = divs.length - 1;
+  $('cubeCap').innerHTML = k===0
+    ? `Level ${N}: no Atkin–Lehner flips exist — this is the full modular group SL₂(ℤ), whose master function is <em>j</em> itself.`
+    : `Level <b>${N}</b> (primes ${primes.join(', ')}) offers <b>${totalFlips}</b> Atkin–Lehner flip${totalFlips>1?'s':''}; this group adjoins <b>${adjoined===0?'none':adjoined}</b>${adjoined===totalFlips?' (all — a “Fricke” group)':''}${h>1?`, plus a rescaling by ${h} (the “|${h}”)`:''}. Like all 194, the folded-up tiling is a <b>sphere</b> — genus zero.`;
+}
+
+// wire class picker from the dataset
+fetch('/data/monster.json').then(r=>r.json()).then(d=>{
+  $('sspList').innerHTML = d.supersingularPrimes.map(p=>`<span>${p}</span>`).join('');
+  const sel=$('clsSel');
+  sel.innerHTML = d.classes.map(c=>`<option value="${c.cls}|${c.group}">${c.cls} — ${c.group}</option>`).join('');
+  const pick = () => {
+    const [cls,grp] = sel.value.split('|');
+    $('symOut').textContent = grp;
+    const {N,h,involutions}=parseSymbol(grp);
+    const tags=[`class <b>${cls}</b>`, `level <b>${N}</b>`];
+    if(h>1) tags.push(`rescale <b>|${h}</b>`);
+    tags.push(involutions===null?'<b>all</b> Atkin–Lehner flips (Fricke)':involutions.length===0?'<b>no</b> flips':`flips <b>${involutions.join(', ')}</b>`);
+    tags.push('genus <b>0</b>');
+    $('parsed').innerHTML = tags.map(t=>`<span class="p">${t}</span>`).join('');
+    drawCube(grp);
+  };
+  sel.addEventListener('change', pick);
+  // start on something with a cube (60A → 60|2+ ... pick 30B "30+" for a full 3-cube)
+  const start=[...sel.options].find(o=>o.value.startsWith('30B|')) || sel.options[1];
+  sel.value=start.value; pick();
+});
+
+drawFarey();
+// redraw on theme flip / resize
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', ()=>{ drawFarey(); if($('clsSel').value) drawCube($('clsSel').value.split('|')[1]); });
+</script>
+</body>
+</html>
