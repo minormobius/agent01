@@ -4,6 +4,7 @@
 // pack/equip pipeline as the player, then scaled by deck depth so the ship gets meaner as you go.
 
 import { rollCharacter, deriveCombat } from '../stats.js';
+import { READING_ORDER } from '../planets.js';
 import { packForCharacter } from '../pack.js';
 import { autoEquip, defaultPlan } from '../bodyplan.js';
 // Creep SPRITES are, for now, restricted to two types: the humanoid rolled-crew scrapper, and the
@@ -72,8 +73,11 @@ export function creepFor(worldSeed, chunkId, room, deck = 0) {
   // a humanoid creep may be a PERSON MORPH: normal · robot (grey/red-eye) · wraith (pale-blue). Deterministic.
   const morph = plan === 'humanoid' ? [null, null, 'robot', 'wraith'][(fseed >>> 14) % 4] : null;
   const morphName = morph === 'robot' ? 'Sentinel-' + (fseed % 90 + 9) : morph === 'wraith' ? 'Wraith' : name;
+  // v104 unified language: the creep carries a PLANET (its register), deterministic from its seed — so the
+  // arena's element-over-element RPS is live against real foes (engine.js reads unit.planet).
+  const planet = READING_ORDER[(fseed >>> 6) % READING_ORDER.length];
   return {
-    id: 1, name: morph ? morphName : name, character, combat, weapon: eq.mainhand,
+    id: 1, name: morph ? morphName : name, character, combat, weapon: eq.mainhand, planet,
     // sprite: humanoid → {seed, role, morph} (index.html mints a crew sprite); beast → {plan, genome} (prebuilt)
     sprite: beast ? { seed: beast.genome.seed, plan, family: beast.family, genome: beast.genome } : { seed: 'foe' + fseed, role: vocation, morph },
     glyph, accent: '#cf3b3b', level, vocation, plan, morph, ...swarm,

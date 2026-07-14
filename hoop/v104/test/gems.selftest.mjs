@@ -1,6 +1,7 @@
 // gems.selftest — the Lapidary kernel: gacha pulls, crystallography→combat bonuses, socket caps,
 // epitaxial growth (3 same-lattice → 1 bigger). Pins the data port from cards/ stays well-formed.
-import { GEM_POOL, CRYSTAL_SYSTEMS, RARITY_TIER, TIER_RARITY, rollGem, gemBonus, sumBonus, socketCap, canGrow, growGems, gemGlyph, cssOf } from '../gems.js';
+import { GEM_POOL, CRYSTAL_SYSTEMS, RARITY_TIER, TIER_RARITY, rollGem, gemBonus, sumBonus, socketCap, canGrow, growGems, gemGlyph, cssOf, SYSTEM_PLANET, gemPlanet, gemRegister, BODY_STAT } from '../gems.js';
+import { PLANETS } from '../planets.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗', m); } };
@@ -50,6 +51,24 @@ ok(growLeg.ok && growLeg.gem.tier === 3, '3 rare trigonal → 1 legendary (syste
 const growCapped = growGems(three('tetragonal', 2));   // tetragonal tops out at rare
 ok(growCapped.ok && growCapped.gem.tier === 2, 'growth is capped at what a system offers (tetragonal stays rare)');
 ok(growGems(three('hexagonal', 0)).gem.color.length === 4, 'grown gem carries a blended colour');
+
+// 6. v104 unified language — every crystal system carries a planet register; the body-resonance channel
+{
+  ok(Object.keys(SYSTEM_PLANET).length === 7 && new Set(Object.values(SYSTEM_PLANET)).size === 7, 'the seven crystal systems map to the seven planets (a clean bijection — no dead register)');
+  ok(Object.keys(CRYSTAL_SYSTEMS).every((sys) => PLANETS[SYSTEM_PLANET[sys]]), 'every crystal system maps to a real planet');
+  const hex = { system: 'hexagonal', hardness: 7, luster: 'vitreous', rarity: 'rare', tier: 2, color: [0, 0, 0, 1] };
+  ok(gemPlanet(hex) === 'mars', 'a hexagonal (edged) gem is a Mars stone');
+  const reg = gemRegister(hex);
+  ok(reg.planet === 'mars' && reg.glyph === '♂' && reg.matchups.beats.length === 3, 'gemRegister carries the planet glyph + its combat matchup');
+  // body resonance: a socketed stone hardens the attribute the WIELDER's body leans on (plan: Mars gem → Chassis frame)
+  ok(BODY_STAT.flesh === 'hp' && BODY_STAT.chassis === 'def' && BODY_STAT.anima === 'flux', 'the body→stat map matches deriveCombat (flesh→hp, chassis→def, anima→flux)');
+  const base = gemBonus(hex), chassis = gemBonus(hex, 'chassis');
+  ok(chassis.def > base.def, "a Chassis wielder's socketed gem hardens frame (def) beyond the bare lattice bonus");
+  ok(gemBonus(hex, 'flesh').hp > base.hp && gemBonus(hex, 'anima').flux > base.flux, 'the resonance follows the wielder body (flesh→hp, anima→flux)');
+  ok(JSON.stringify(gemBonus(hex)) === JSON.stringify(base), 'gemBonus with no body is unchanged (back-compatible)');
+  const sb = sumBonus([hex, hex], 'chassis');
+  ok(sb.def === chassis.def * 2, 'sumBonus threads the body through to every socketed stone');
+}
 
 console.log(`gems.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

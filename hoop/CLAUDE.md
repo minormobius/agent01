@@ -537,13 +537,37 @@ despite the name. It stayed with hoop, not rind.)
     The plan lives at **`hoop.mino.mobi/plan`** (`v104/plan.html`, also `/v104/plan`): the interactive 3×7
     grid, per-cell body/flavor detail, the five verticals mapped, the rulership heptagram. Colours + per-cell
     flavor stay tunable; the shape is settled.
-    - **Vertical 1 — character creation** (`character.js`, migrated): the 13-vocation civic-tree picker is
-      collapsed to a single pick in the **3×7 identity grid** (3 faction rows × 7 planet columns). A cell sets
-      the FACTION (body → triad via `bodyLean`) + the PLANET (flavor), the vocation is **derived** from the
-      cell (`vocationFor` = the planet verb the faction owns, else the planet's primary — still dresses the
-      sprite + hints the starting kit), and the character is stamped with `{faction, planet, identity, body,
-      metal, planetColour}`. The sprite aura now carries the planet's colour. Less choice, one screen, 21
-      species. Forge/brew/gems/combat migrate next (`planetOf`/`identityOf`).
+    All five verticals now speak the alphabet (each pure + node-tested):
+    - **V1 — character creation** (`character.js`): the 13-vocation civic-tree picker is collapsed to a
+      single pick in the **3×7 identity grid** (3 faction rows × 7 planet columns). A cell sets the FACTION
+      (body → triad via `bodyLean`) + the PLANET (flavor); the vocation is **derived** from the cell
+      (`vocationFor` = the planet verb the faction owns, else the planet's primary — still dresses the sprite
+      + hints the kit); the character is stamped `{faction, planet, identity, body, metal, planetColour}` and
+      the sprite aura carries the planet's colour. One screen, 21 species.
+    - **V2 — crafting/forge** (`craft/smith.js` + `sprite/item/taxa.js`): `materialPlanet(id)` bridges every
+      material to a planet REGISTER — the classical metals funnel authoritatively through `planetOf`
+      (gold→sol · silver→luna · iron→mars), the rest by a documented table (all 22 covered, all 7 planets).
+      `craftItem` stamps `{planet, register, planetGlyph, planetColour}`; `spec.faction` records the school it
+      favours (`favoursOf` = the faction body). `itemRegister(item)` exposes a gear's planet + combat matchup.
+    - **V3 — alchemy/brew** (`alch/alchemy.js`): a reagent now carries BOTH the vendored correspondence name
+      AND the canonical `planetKey` (`planetOf('Sun')→'sol'` — that is what the Sun/Moon aliases were for),
+      plus its register `colour` and 7-way `matchups`. `prepare()` stamps the canonical `planetKey` on the
+      social effect so cross-vertical affinity keys on ONE identity. Vendored data untouched — bridge on top.
+    - **V4 — gems** (`gems.js`): `SYSTEM_PLANET` is a clean 7↔7 bijection (each crystal system → a planet);
+      `gemRegister(gem)` carries glyph/colour/matchups. `gemBonus(gem, body)` gains a body-resonance channel —
+      a socketed stone also feeds the attribute the wielder's body leans on (`BODY_STAT`: flesh→hp,
+      chassis→def, anima→flux — the plan's "a Mars gem hardens a Chassis frame"). No-body call is unchanged.
+    - **V5 — combat/arena** (`arena/engine.js` + `encounter.js`): "faction = school" was already live via
+      `factions.js` (kits/discounts/passives). Added the missing "planet = 7-way matchup": `elementMult` reads
+      `planets.js`'s balanced heptagram — the attacker whose planet rules the defender's hits ×1.25, yields
+      ×0.8, neutral ×1 when either side is planet-less (so the demo/harness/un-migrated content is unaffected).
+      Units carry `planet` (from `character.planet`); creeps get a deterministic planet from their seed.
+    **Known latent mismatch to resolve:** `arena/factions.js` labels its `domain` continuant→chassis /
+    rindwalker→flesh, the OPPOSITE of the confirmed `planets.js` derivation (continuant→flesh /
+    rindwalker→chassis; drift→anima agrees). `domain` is a label only (never read mechanically), but the
+    combat STYLES were tuned to the old mapping (continuant=brace/def, rindwalker=bleed/berserk). Aligning
+    them means either relabel (narrative-only) or swap the two styles (a real rebalance) — a design call, left
+    for the user, not silently flipped.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

@@ -11,7 +11,9 @@
 // they mean the same thing on a blade or a lamp — so they live separately, layered on top.
 //
 // Today's v1 KINDS (blade, vessel, charm…) reappear here as PHYLA, now grouped under their verb and
-// given sibling body-plans. Pure data + lookups; zero-dep; node-testable.
+// given sibling body-plans. Pure data + lookups; node-testable (its one dep, planets.js, is also pure).
+
+import { planetOf } from '../../planets.js';
 
 // ── KINGDOMS — the ten verbs of objects. glyph + accent (hoop palette) + a `does` gloss. ────────
 // `bias` nudges trait means for the whole kingdom (a strike-thing leans potent; an adorn-thing leans
@@ -124,6 +126,25 @@ export const MATERIALS = {
 export const MATERIAL_ORDER = Object.keys(MATERIALS);
 export const materialsByClass = (cls) => MATERIAL_ORDER.filter((m) => MATERIALS[m].class === cls);
 
+// ── MATERIAL → PLANET (the v104 unified-language bridge). What you forge WITH sets the item's REGISTER:
+// the classical planet→metal correspondence, extended. The true planetary metals funnel authoritatively
+// through planets.js's planetOf (gold→sol · silver→luna · iron→mars); the rest take a documented register
+// by feel, and anything unmapped falls back to its MATTER class. So a crafted item CARRIES a planet — its
+// glyph/colour/combat-matchup — the same alphabet a character, reagent, gem, or foe speaks. Tunable table,
+// settled shape.
+const CLASS_PLANET = { organic: 'venus', mineral: 'saturn', metal: 'mars', synthetic: 'mercury', exotic: 'sol' };
+const MATERIAL_PLANET_OVERRIDE = {
+  bronze: 'venus', steel: 'jupiter',                                  // metals planetOf doesn't itself alias
+  stone: 'saturn', clay: 'saturn', glass: 'mercury', crystal: 'mercury',
+  bone: 'saturn', wood: 'jupiter', leather: 'mars', cloth: 'venus', paper: 'luna',
+  ceramic: 'saturn', polymer: 'mercury', alloy: 'jupiter', composite: 'saturn',
+  aerogel: 'luna', nanoweave: 'mercury', photonic: 'sol', plasma: 'mars',
+};
+export function materialPlanet(id) {
+  if (!MATERIALS[id]) return null;
+  return planetOf(id) || MATERIAL_PLANET_OVERRIDE[id] || CLASS_PLANET[MATERIALS[id].class] || null;
+}
+
 // per-kingdom affinity for whole MATTER CLASSES — so when the tech gate opens the sci-fi end, a
 // blade still leans metal/synthetic and a charm leans exotic/mineral (no need to author per-leaf).
 export const MATTER_AFFINITY = {
@@ -173,6 +194,6 @@ export function eraSpecies(phylumId, idx, era) {
   const med = PHYLA[phylumId].species; return med[idx % med.length];
 }
 
-const TAXA = { KINGDOMS, KINGDOM_ORDER, PHYLA, PHYLUM_ORDER, phylaOf, MATTER, MATERIALS, MATERIAL_ORDER, materialsByClass, MATTER_AFFINITY, materialsAt, SF_SPECIES, eraSpecies };
+const TAXA = { KINGDOMS, KINGDOM_ORDER, PHYLA, PHYLUM_ORDER, phylaOf, MATTER, MATERIALS, MATERIAL_ORDER, materialsByClass, materialPlanet, MATTER_AFFINITY, materialsAt, SF_SPECIES, eraSpecies };
 if (typeof globalThis !== 'undefined') globalThis.TAXA = TAXA;
 export default TAXA;

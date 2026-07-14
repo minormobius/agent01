@@ -22,6 +22,11 @@
 // Pure, DOM-free, deterministic, node-tested (test/alch.selftest.mjs). No randomness.
 
 import { PLANETS, TEMPERAMENTS, CORRESPONDENCES } from './correspondences.js';
+// v104 unified language: funnel the vendored correspondence planet names (capitalised Sun/Moon/Jupiter)
+// onto the ONE canonical planet key (sol/luna/jupiter) every other vertical speaks — so a reagent's
+// planet is the SAME token a character, item, gem or foe carries (that is what planetOf's Sun/Moon
+// aliases were built for). Keeps the vendored data untouched; adds the bridge on top.
+import { planetOf, matchups, colourOf } from '../planets.js';
 
 // ── the four grammar tables (author against these keys) ───────────────────────────────────────────
 
@@ -117,14 +122,18 @@ export function reagentEffect(name) {
   const planet = p.planet && PLANET_EFFECT[p.planet];
   const metalName = p.planet && PLANETS[p.planet] && PLANETS[p.planet].metal;
   const metal = metalName && METAL_EFFECT[metalName];
+  const pKey = p.planet ? planetOf(p.planet) : null;                 // canonical key (Sun→sol, Venus→venus …)
   return {
     slug: p.slug, plant: p.plant, bot: p.bot,
-    planet: p.planet || null, qualities: p.qualities || null,
+    planet: p.planet || null, planetKey: pKey,                       // correspondence name + the ONE canonical token
+    qualities: p.qualities || null,
     degree: p.degree || null, potency: parseDegree(p.degree),
     glyph: temper ? temper.glyph : null, metal: metalName || null,
+    colour: pKey ? colourOf(pKey) : null,                           // the reagent's register colour (shared palette)
     combat: temper ? { key: temper.key, kind: temper.combatKind, status: temper.status || null, stat: temper.stat || null } : null,
     social: planet ? { stat: planet.social, anima: planet.anima } : null,
     lubricant: metal ? { chassis: metal.chassis, metal: metalName } : null,
+    matchups: pKey ? matchups(pKey) : null,                         // the reagent's 7-way combat matchup (shared RPS)
     live: !!(temper || planet),
   };
 }
@@ -204,7 +213,7 @@ export function prepare(reagentNames, prepKey = 'draught') {
   // SOCIAL — from the dominant planet, dips into an anima characteristic.
   if (domPlanet) {
     const eff = PLANET_EFFECT[domPlanet.k];
-    use.social = { stat: eff.social, anima: eff.anima, amount: +(potency * land * 0.5).toFixed(2), planet: domPlanet.k };
+    use.social = { stat: eff.social, anima: eff.anima, amount: +(potency * land * 0.5).toFixed(2), planet: domPlanet.k, planetKey: planetOf(domPlanet.k) };
     if (domPlanet.k === 'Jupiter') use.gift = { standing: Math.max(1, Math.round(potency * land)) };   // largesse → gifting bonus
   }
   // LUBRICANT — only when prepared as an oil (mechanical delivery); the metals of the reagents tune a joint.

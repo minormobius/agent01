@@ -5,6 +5,14 @@
 // which stat a socketed gem strengthens, hardness sets the magnitude, rarity scales it.
 //
 //   pull (gacha) → satchel → grow (epitaxial: 3 of a lattice → 1 bigger crystal) → socket into gear.
+//
+// v104 unified language: each of the seven crystal SYSTEMS carries one of the seven PLANETS, so a gem
+// speaks the same register a character/item/reagent/foe does — its glyph/colour/combat-matchup. And a
+// socketed stone feeds the attribute the WIELDER'S body leans on (plan.html: "a Mars gem hardens a
+// Chassis frame"): pass the body to gemBonus and the stone channels into flesh→hp / chassis→def /
+// anima→flux on top of its own lattice bonus.
+
+import { PLANETS, planetOf, matchups, colourOf } from './planets.js';
 
 export const CRYSTAL_SYSTEMS = {
   cubic:        { name: 'Cubic',        icon: '◆', stat: 'balanced',  blurb: 'most symmetric — balanced reinforcement' },
@@ -52,6 +60,19 @@ export const GEM_POOL = [
   ['Alexandrite', 'triclinic', { hardness: 8.5, luster: 'vitreous', rarity: 'legendary', color: [0.2, 0.5, 0.3, 0.4] }],
 ];
 
+// ── SYSTEM → PLANET (the v104 register bridge). A clean 7↔7 bijection: the lattice's combat character
+//    picks its planet (balanced cubic → the gilded Sun; defensive tetragonal → leaden Saturn; vital
+//    orthorhombic → verdant Venus; edged hexagonal → iron Mars; expansive trigonal → Jupiter; charged
+//    monoclinic → quicksilver Mercury; asymmetric triclinic → the changeable Moon). Tunable, settled shape. ──
+export const SYSTEM_PLANET = {
+  cubic: 'sol', tetragonal: 'saturn', orthorhombic: 'venus', hexagonal: 'mars',
+  trigonal: 'jupiter', monoclinic: 'mercury', triclinic: 'luna',
+};
+export const gemPlanet = (gem) => (gem && SYSTEM_PLANET[gem.system]) || 'sol';
+export const gemRegister = (gem) => { const pk = gemPlanet(gem), P = PLANETS[pk]; return P ? { planet: pk, register: P.adj, glyph: P.glyph, colour: P.colour, metal: P.metal, matchups: matchups(pk) } : null; };
+// the attribute each faction BODY leans on — the target a socketed stone hardens (flesh→hp / chassis→def / anima→flux).
+export const BODY_STAT = { flesh: 'hp', chassis: 'def', anima: 'flux' };
+
 export const RARITY_TIER = { common: 0, uncommon: 1, rare: 2, legendary: 3 };
 export const TIER_RARITY = ['common', 'uncommon', 'rare', 'legendary'];
 export const RARITY_COLOR = { common: '#8a9b92', uncommon: '#5aa845', rare: '#5aa9d8', legendary: '#f0c860' };
@@ -94,7 +115,10 @@ const SYSTEM_WEIGHTS = {
 const LUSTER_BOOST = { adamantine: 'atk', metallic: 'def', vitreous: 'flux', pearly: 'hp', silky: 'hp', waxy: 'hp', resinous: 'hp', earthy: 'hp' };
 const STAT_SCALE = { atk: 2, def: 2, hp: 6, flux: 3 };
 
-export function gemBonus(gem) {
+// gemBonus(gem[, body]) — the lattice bonus. Pass the WIELDER'S body ('flesh'|'chassis'|'anima') and the
+// stone also feeds the attribute that body leans on (the plan's "a Mars gem hardens a Chassis frame").
+// With no body it behaves exactly as before (back-compatible — every existing socket call is unchanged).
+export function gemBonus(gem, body) {
   if (!gem) return { atk: 0, def: 0, hp: 0, flux: 0 };
   const mag = (0.4 + (gem.hardness / 10) * 0.6) * (1 + (gem.tier || 0) * 0.5);   // hardness + rarity set the size
   const w = SYSTEM_WEIGHTS[gem.system] || SYSTEM_WEIGHTS.cubic;
@@ -107,9 +131,12 @@ export function gemBonus(gem) {
   // a gem always does *something* in its dominant stat
   const dom = Object.keys(w).reduce((a, b) => (w[b] > (w[a] || 0) ? b : a), 'atk');
   if (out[dom] < 1) out[dom] = 1;
+  // v104 body resonance: a socketed stone hardens the attribute your body already leans on.
+  const bstat = body && BODY_STAT[body];
+  if (bstat) out[bstat] += Math.max(1, Math.round(mag * STAT_SCALE[bstat] * 0.5));
   return out;
 }
-export const sumBonus = (gems) => (gems || []).reduce((acc, g) => { const b = gemBonus(g); for (const k in acc) acc[k] += b[k]; return acc; }, { atk: 0, def: 0, hp: 0, flux: 0 });
+export const sumBonus = (gems, body) => (gems || []).reduce((acc, g) => { const b = gemBonus(g, body); for (const k in acc) acc[k] += b[k]; return acc; }, { atk: 0, def: 0, hp: 0, flux: 0 });
 
 // how many gems an item can hold — better gear, more sockets (1..3). `worth` ∈ 0..1.
 export function socketCap(item) { const w = (item && typeof item.worth === 'number') ? item.worth : 0.3; return Math.max(1, Math.min(3, 1 + Math.floor(w * 2.6))); }

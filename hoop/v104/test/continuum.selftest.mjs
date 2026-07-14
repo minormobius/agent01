@@ -135,5 +135,23 @@ ok(UNIT_R > 0 && dist({ x: 0, y: 0 }, { x: 3, y: 4 }) === 5, 'continuum geometry
   ok(ev3.type === 'item' && ev3.use === 'salve' && u.hp > u.maxhp - 20, 'a salve tossed to an ally (self) heals');
 }
 
+// ── v104 unified language: PLANET RPS — element over element (faction still sets the school) ──
+{
+  const { elementMult, ELEMENT_FAVOURED, ELEMENT_YIELDED } = await import('../arena/engine.js');
+  const { advantage, PLANET_ORDER } = await import('../planets.js');
+  // saturn rules jupiter (the next in the Chaldean cycle); jupiter yields to saturn
+  ok(elementMult('saturn', 'jupiter') === ELEMENT_FAVOURED, 'attacker whose planet rules the defender hits harder (saturn ▸ jupiter)');
+  ok(elementMult('jupiter', 'saturn') === ELEMENT_YIELDED, 'attacker whose planet yields hits softer (jupiter ◃ saturn)');
+  ok(elementMult('mars', 'mars') === 1, 'a mirror matchup is neutral');
+  ok(elementMult(null, 'mars') === 1 && elementMult('mars', null) === 1, 'a planet-less unit fights at neutral (the demo/harness/un-migrated content is unaffected)');
+  // the multiplier is a faithful read of the balanced heptagram: over all 7×7, favoured and yielded balance
+  let fav = 0, yld = 0;
+  for (const a of PLANET_ORDER) for (const b of PLANET_ORDER) { const m = elementMult(a, b); if (m === ELEMENT_FAVOURED) fav++; else if (m === ELEMENT_YIELDED) yld++; }
+  ok(fav === 21 && yld === 21, 'across the heptagram every planet favours three and yields to three (21/21) — a fair RPS');
+  // a real battle where both sides carry planets is still deterministic (same seed → same result)
+  const battle = (seed) => { const S = createBattle({ player: { ...pcOf(11), planet: 'mars' }, foes: [{ ...creepFor(3, 1, 1, 1), id: 1, planet: 'luna' }], seed, W: 14, H: 10, det: true }); let g = 0; while (!S.winner && g++ < 3000) { const u = active(S); if (u.team === 'foe') runAiTurn(S); else { const adj = (S.units.filter((x) => x.alive && x.team === 'foe')).sort((a, b) => dist(u, a) - dist(u, b))[0]; if (adj && dist(u, adj) <= 1 && !u.acted) act(S, { type: 'attack', targetId: adj.id, skillId: 'strike' }); else endTurn(S); } } return { w: S.winner, t: S.turn }; };
+  ok(JSON.stringify(battle(5)) === JSON.stringify(battle(5)), 'a planet-carrying battle is deterministic (element RPS keeps the permalink contract)');
+}
+
 console.log(`\ncontinuum.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -115,5 +115,23 @@ ok(findReagent('adamantium') === null, 'an unknown name resolves to null (honest
   ok(!food.ok && /food/.test(food.reason), 'a brew with no live reagents is honestly not a preparation');
 }
 
+// ── v104 unified language: a reagent's planet speaks the ONE canonical token every vertical shares ──
+{
+  const { planetOf, matchups } = await import('../planets.js');
+  const rue = reagentEffect('rue');        // Sun herb
+  ok(rue.planet === 'Sun' && rue.planetKey === 'sol', 'a reagent carries both the correspondence name AND the canonical key (Sun → sol)');
+  ok(rue.matchups && rue.matchups.beats.length === 3 && rue.matchups.yields.length === 3, 'a reagent carries its 7-way combat matchup (the shared RPS)');
+  ok(rue.colour === (await import('../planets.js')).colourOf('sol'), "the reagent's register colour is the shared planet palette");
+  // every planet a herb can carry funnels to a real canonical key — the cross-vertical affinity token
+  const planetsUsed = [...new Set(CORRESPONDENCES.plants.map((p) => p.planet).filter(Boolean))];
+  ok(planetsUsed.every((pl) => matchups(pl).beats.length === 3), 'every herb planet funnels through planetOf into the shared heptagram');
+  // a prepared draught's social payload names the canonical planet so downstream affinity keys on one identity
+  const venusHerbs = CORRESPONDENCES.plants.filter((p) => p.planet === 'Venus').map((p) => p.slug).slice(0, 2);
+  if (venusHerbs.length) {
+    const brew = prepare(venusHerbs, 'draught');
+    ok(brew.mechanics.use.social && brew.mechanics.use.social.planetKey === 'venus', 'prepare() stamps the canonical planetKey on the social effect (Venus → venus)');
+  } else ok(true, '(no Venus herbs — skipped)');
+}
+
 console.log(`alch.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

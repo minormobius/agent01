@@ -21,6 +21,19 @@
 
 import { deriveCombat } from '../stats.js';
 import { FACTIONS, discountedCost } from './factions.js';
+import { advantage } from '../planets.js';
+
+// ── PLANET RPS (v104 unified language) — "element over element." A unit carries a PLANET (its character's
+// identity flavor); when the attacker's planet has the rulership edge over the defender's (planets.js's
+// balanced 7-way heptagram — every planet beats three, yields to three), the blow lands harder; when it
+// yields, softer. Neutral (×1) whenever either side has no planet — so planet-less units (the demo, the
+// test harness, un-migrated content) fight exactly as before. Faction still sets the SCHOOL (factions.js).
+export const ELEMENT_FAVOURED = 1.25;   // attacker's planet rules the defender's → +25%
+export const ELEMENT_YIELDED = 0.8;     // attacker's planet yields to the defender's → −20%
+export function elementMult(atkPlanet, defPlanet) {
+  const a = advantage(atkPlanet, defPlanet);
+  return a > 0 ? ELEMENT_FAVOURED : a < 0 ? ELEMENT_YIELDED : 1;
+}
 
 // ── CONTINUUM GEOMETRY ────────────────────────────────────────────────────────────────────────
 export const UNIT_R = 0.5;               // body radius; two units can't be closer than 2·UNIT_R
@@ -90,13 +103,14 @@ export function skillsFor(unit) {
 // a unit's actual flux cost for a skill (faction discount applied). Pure.
 export const costOf = (unit, skillId) => discountedCost(unit.faction, skillId, SKILLS[skillId]?.cost || 0);
 
-export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent, summoned = false, ai = null, kit = null, mods = null, body = 'solid', footprint = 1 }) {
+export function makeUnit({ id, name, team, faction, character, combat, x, y, sprite, glyph, accent, summoned = false, ai = null, kit = null, mods = null, body = 'solid', footprint = 1, planet = null }) {
   const cm0 = combat || deriveCombat(character || { attrs: {}, power: 10 });
   const st = (mods && mods.stat) || {};      // tech-tree stat deltas (tree.js buildLoadout)
   const cm = { hp: cm0.hp + (st.hp || 0), atk: cm0.atk + (st.atk || 0), def: cm0.def + (st.def || 0), speed: +(cm0.speed + (st.speed || 0)).toFixed(2), accuracy: cm0.accuracy, crit: cm0.crit, fluxPool: cm0.fluxPool + (st.flux || 0), apow: (cm0.apow ?? cm0.atk) + (st.apow || 0), power: cm0.power };
   const fac = FACTIONS[faction];
   return {
     id, name, team, faction: fac ? faction : null, character, sprite, summoned,
+    planet: planet || (character && character.planet) || null,   // v104: the unit's register — drives the element RPS
     ai, kit, mods,   // per-unit overrides: AI archetype + skill kit (summons) + tech-tree mods (passive deltas read via passiveOf)
     body, footprint,   // DISTRIBUTED BODY: body:'swarm' resists single-target hits + occupies a HP-scaled area (footprint)
     glyph: glyph || (fac ? fac.glyph : (team === 'player' ? '☻' : '☗')),
@@ -295,7 +309,8 @@ function resolveAttack(s, atk, tgt, skillId, isCounter = false) {
   let power = ((sk.magic ? atk.apow : atk.atk) + atkBuff) * (sk.mult || 1) * berserkMult(atk);   // magic scales off apow (anima)
   if (flank) power *= 1.25;                                          // pincered: the flank bonus
   const markBonus = tgt.status.mark?.turns > 0 ? (1 + (tgt.status.mark.amt || 0.25)) : 1;
-  let dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * (crit ? 2 : 1)));
+  const elem = elementMult(atk.planet, tgt.planet);                 // v104 element-over-element (×1 if either is planet-less)
+  let dmg = Math.max(1, Math.round((power - effectiveDef(tgt) * 0.5) * variance * markBonus * elem * (crit ? 2 : 1)));
   if (s.det) dmg = Math.max(1, Math.round(dmg * acc * (1 + critChance)));   // fold P(hit)+E(crit) into expected damage
   if (isSwarm(tgt)) dmg = Math.max(1, Math.round(dmg * SWARM_POINT_RESIST));   // a point blow catches only a few bees
   tgt.hp = Math.max(0, tgt.hp - dmg);
@@ -682,4 +697,5 @@ export default {
   dist, inRange, collides, canReach, moveToward, moveAway, UNIT_R,
   hasLoS, canTarget, scatterTerrain,
   skillsFor, costOf, moveRange, SKILLS, UNIVERSAL, STATUS, makeUnit,
+  elementMult, ELEMENT_FAVOURED, ELEMENT_YIELDED,
 };

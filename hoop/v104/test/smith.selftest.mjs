@@ -90,5 +90,23 @@ ok(sellCommodityPrice('metal') < buyCommodityPrice('metal'), 'the desk buys low 
   ok(earn(wallet, { trace: 3 }).trace === 3, 'earn adds to the wallet');
 }
 
+// 9. v104 unified language — a crafted item carries a PLANET register from its material (metals → item).
+{
+  const { itemRegister, favoursOf } = await import('../craft/smith.js');
+  const { materialPlanet, MATERIAL_ORDER } = await import('../sprite/item/taxa.js');
+  const { PLANETS } = await import('../planets.js');
+  // the classical planet→metal correspondence funnels authoritatively through planetOf
+  ok(materialPlanet('gold') === 'sol' && materialPlanet('silver') === 'luna' && materialPlanet('iron') === 'mars', 'classical metals → their planet (gold→sol · silver→luna · iron→mars)');
+  ok(MATERIAL_ORDER.every((m) => PLANETS[materialPlanet(m)]), 'every material maps to a real planet register');
+  ok(new Set(MATERIAL_ORDER.map(materialPlanet)).size === 7, 'the material bridge spans all seven planets (no dead register)');
+  // craftItem stamps the register so combat / the other verticals can read a piece of gear's flavor
+  const it = craftItem({ phylum: 'blade', material: 'iron', tech: 0.4, quality: 0.6, seed: 7, faction: 'rindwalker' });
+  ok(it.planet === 'mars' && it.register === 'Iron' && it.planetGlyph === '♂', 'an iron blade is forged in the Mars register (glyph ♂)');
+  ok(it.faction === 'rindwalker' && it.favours === 'chassis', 'the faction it was forged under sets the school it favours (rindwalker → chassis)');
+  const reg = itemRegister('gold');
+  ok(reg.planet === 'sol' && reg.matchups.beats.length === 3, 'itemRegister exposes the planet + its combat matchup (beats three)');
+  ok(favoursOf('continuant') === 'flesh' && favoursOf('drift') === 'anima', 'favoursOf returns each faction body school');
+}
+
 console.log(`smith.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

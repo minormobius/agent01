@@ -17,8 +17,9 @@
 //
 // MECHANISM ONLY — no authored item, recipe, or line here. Pure, DOM-free, deterministic, node-tested.
 
-import { MATERIALS, MATERIAL_ORDER, PHYLA, PHYLUM_ORDER, phylaOf, KINGDOMS, MATTER_AFFINITY } from '../sprite/item/taxa.js';
+import { MATERIALS, MATERIAL_ORDER, PHYLA, PHYLUM_ORDER, phylaOf, KINGDOMS, MATTER_AFFINITY, materialPlanet } from '../sprite/item/taxa.js';
 import { assemble, eraOf, TRAIT_ORDER } from '../sprite/item/genome.js';
+import { PLANETS, bodyOf, matchups } from '../planets.js';
 
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -112,10 +113,28 @@ export function buildCraftGenome(spec) {
   return { kingdom, phylum, species, material, genes };
 }
 
-// craftItem(spec) → the assembled item object (the pack/shop shape), tagged crafted.
+// ── itemRegister(item|materialId) → the v104 planet register a piece of gear carries (from its material).
+//    A crafted or looted item speaks the same alphabet as its wielder: its planet sets its combat matchup;
+//    faction sets the school. Faction chooses which attribute the register FAVOURS (the body it leans on). ──
+export function itemRegister(item) {
+  const materialId = typeof item === 'string' ? item : (item && item.material);
+  const pk = materialPlanet(materialId);
+  const P = pk && PLANETS[pk]; if (!P) return null;
+  return { planet: P.key, register: P.adj, glyph: P.glyph, colour: P.colour, metal: P.metal, temperament: P.temperament, matchups: matchups(P.key) };
+}
+// which triad attribute a faction's body leans on — the "faction = school" half of the forge (plan.html).
+export const favoursOf = (faction) => bodyOf(faction) || null;
+
+// craftItem(spec) → the assembled item object (the pack/shop shape), tagged crafted + stamped with its
+// planet register (so combat & the other verticals can read a crafted item's flavor). `spec.faction`
+// (optional) records the school it was forged under.
 export function craftItem(spec) {
   const genome = buildCraftGenome(spec);
-  return assemble(genome, { n: (spec.seed >>> 0) || 1, seed: (spec.seed >>> 0) || 1, crafted: true });
+  const item = assemble(genome, { n: (spec.seed >>> 0) || 1, seed: (spec.seed >>> 0) || 1, crafted: true });
+  const reg = itemRegister(genome.material);
+  if (reg) { item.planet = reg.planet; item.register = reg.register; item.planetGlyph = reg.glyph; item.planetColour = reg.colour; }
+  if (spec && spec.faction) { item.faction = spec.faction; item.favours = favoursOf(spec.faction); }
+  return item;
 }
 
 // ── craftCost(spec) → the commodity bill to forge it. Driven by SIZE (phylum mass × material weight),
@@ -171,4 +190,5 @@ export function earn(wallet, gain) { const w = { ...(wallet || {}) }; for (const
 export default {
   COMMODITIES, COMMODITY_IDS, commodityMeta, materialRecipe, ERAS, techCeilingForTier, erasUpTo, eraById,
   availableMaterials, buildCraftGenome, craftItem, craftCost, dismantle, RECLAIM_FRACTION, canAfford, shortfall, spend, earn,
+  itemRegister, favoursOf,
 };
