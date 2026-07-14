@@ -538,17 +538,22 @@ despite the name. It stayed with hoop, not rind.)
     grid, per-cell body/flavor detail, the five verticals mapped, the rulership heptagram. Colours + per-cell
     flavor stay tunable; the shape is settled.
     All five verticals now speak the alphabet (each pure + node-tested):
-    - **V1 — character creation** (`character.js`): you pick a **VERB × a PLANET** — deliberately **not** a
-      faction. Faction is the main-quest fork (chosen at Sevin's threshold, `flag.chosen_faction`), so baking
-      it into creation would pre-spend the fork. The **verb** (one of the 13 vocations, shown in three
-      body-columns flesh/chassis/anima) sets your BODY (its own triad lean's dominant domain) + kit + civic
-      role; the **planet** sets your flavor register (metal/colour/temperament/matchup). The character is
-      stamped `{vocation, planet, body, identity, metal, planetColour, glyph}` — **no `faction`**; the sprite
-      aura carries the planet colour, and the identity name reads `The <planet-adj> <vocation-tag>` (e.g. "The
-      Iron Wright", "The Verdant Tender"). Body × planet = the 21 flavors, reached through the verb. In the
-      arena, `playerFaction()` uses the chosen faction if set, else falls back to `TRIAD_FACTION[body]` (a
-      provisional combat school from your body) — so a chassis-bodied maker who later joins anima Drift is a
-      real, coherent cross-grain identity, not a contradiction.
+    - **V1 — character creation** (`character.js`): you pick **only a VERB**. **Not** a faction (that's the
+      main-quest fork at Sevin's threshold, `flag.chosen_faction`) and **not** a planet — planetary flavor is
+      not chosen, it's **grown** (see the alignment system below). The verb is one of **12 vocations** in an
+      authored **4/4/4** across the three body-columns (`dwell` struck as a starter filler; `govern`, the
+      Warden, filed under CHASSIS with a chassis-dominant creation blend so the body it shows is the body it
+      plays). The verb sets your BODY + kit + civic role; the character is stamped `{vocation, body}` — no
+      faction, no planet. In the arena, `playerFaction()` uses the chosen faction if set, else falls back to
+      `TRIAD_FACTION[body]` (a provisional combat school from your body).
+    - **Planetary alignment — GROWN, not chosen** (`alignment.js`, pure + node-tested; wired in `index.html`):
+      nearly everything carries a planet, and every interaction **tallies** toward it — forge a metal
+      (`materialPlanet`), brew a herb (`planetKey`), socket a gem (`gemPlanet`), best a foe (`.planet`). The
+      running tally is published as a **7-axis radar** on the character panel (`#who`), rides the save as an
+      `alignment` fact, and its **dominant planet becomes your combat register** (`buildPlayerUnit` sets
+      `unit.planet = dominant(alignment)`, so the element-over-element RPS turns on as you align; neutral
+      until then). `alignment.js` is mechanism only — `planetOfThing` resolves any object to its planet,
+      `tally`/`normalized`/`dominant`/`ranked`/`radarPoints` do the math; the game glue decides what counts.
     - **V2 — crafting/forge** (`craft/smith.js` + `sprite/item/taxa.js`): `materialPlanet(id)` bridges every
       material to a planet REGISTER — the classical metals funnel authoritatively through `planetOf`
       (gold→sol · silver→luna · iron→mars), the rest by a documented table (all 22 covered, all 7 planets).

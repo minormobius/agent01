@@ -614,6 +614,8 @@
     import { Inventory } from './inventory.js';
     import { startingPack, packForCharacter, itemFromGrant, addToPack } from './pack.js';
     import { CharacterCreator, loadCharacter } from './character.js';
+    import { coerce as coerceAlignment, tally as alTally, tallyAll as alTallyAll, total as alTotal, dominant as alDominant, ranked as alRanked, radarPoints as alRadar } from './alignment.js';   // PLANETARY ALIGNMENT — grown from every planet-aligned thing you touch, published as a radar
+    import { PLANETS as PLANET_DEFS } from './planets.js';   // planet glyph/colour for the alignment legend
     import { startHome } from './home.js';   // the entry portal: ship-bore backdrop + the DOOM "HOOP" wordmark
     import { deriveCombat, TRIAD, TRIAD_ORDER } from './stats.js';
     import { crewSprite, crewStats } from './crew.js';
@@ -3942,6 +3944,7 @@
       setPantry(pan);
       const item = prepToItem(pv);
       addToPack(pack.pack, item); pack.setPack(pack.pack); persistPack();
+      alignTallyAll(pv.reagents);                              // brewing aligns you toward each herb's planet
       benchSel = []; saveStory(); renderBench();
       notify(`⚗ brewed ${item.name} — ${describeEffect(pv)} → pack (i)`, { kind: 'pickup', ms: 3000 });
       if (discovered) notify(`✦ recipe discovered — ${match.vessel} of ${match.key}! it's now a one-tap at any bench`, { kind: 'life', ms: 3600 });
@@ -4100,6 +4103,7 @@
       setCommods(smithSpend(wallet, cost));
       setJSONFact('craft.forged', ((getJSONFact('craft.forged', 0) | 0) + 1));   // bump the individual-item seed
       addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack();
+      alignTally(it);                                          // forging a metal aligns you toward its planet
       saveStory(); renderSmithy();
       notify(`⚒ forged ${it.name} (${it.gradeLabel}) → pack (i) — equip at ⛨`, { kind: 'pickup', ms: 3200 });
       obDone('smith');   // onboarding: the first forge IS the smithy gimme
@@ -4571,6 +4575,7 @@
       if (socketCap(it) - ((it.gems || []).length) <= 0) return;
       const gems = getGems(), gem = gems[lapGemSel[0]]; if (!gem) return;
       it.gems = (it.gems || []).concat(gem); gems.splice(lapGemSel[0], 1); setGems(gems); persistPack(); lapGemSel = [];
+      alignTally(gem);                                         // socketing a stone aligns you toward its lattice's planet
       saveStory(); renderLapidary(); whereAmI(); flashBusy(`⬡ set ${gem.mineral} into ${it.name || 'gear'}`);
     }
     function doGrow() {
@@ -4761,7 +4766,7 @@
       const combat = deriveCombat(c, { weapon: eq.mainhand, armour: eq.body || eq.offhand });
       const gb = sumBonus([].concat(eq.mainhand && eq.mainhand.gems || [], eq.body && eq.body.gems || [], eq.offhand && eq.offhand.gems || []));
       combat.hp += gb.hp; combat.atk += gb.atk; combat.def += gb.def; combat.fluxPool += gb.flux;   // socketed-gem crystallography
-      const u = { id: 0, name: c.name, character: c, combat, faction: playerFaction(), sprite: { seed: c.sprite.seed, role: c.vocation }, glyph: '☻' };
+      const u = { id: 0, name: c.name, character: c, combat, faction: playerFaction(), planet: alDominant(playerAlignment) || null, sprite: { seed: c.sprite.seed, role: c.vocation }, glyph: '☻' };   // your combat register = your grown dominant alignment (element-over-element RPS); neutral until you've aligned
       // in the TRAINER gauntlet the hero fights with their tech-tree BUILD. The tree is ADDITIVE over the
       // universal kit (so a fresh run is never weaker than a baseline fighter — it just lacks the tree's
       // special verbs); owning nodes grants extra verbs (lance/blast/summon/gore…) + stat/passive mods.
@@ -4786,7 +4791,7 @@
       // THE SOLVER GATE: certify + tune the pack so it's provably winnable-but-not-trivial for THIS hero.
       let foes = pack; try { const cert = certifyPack(player, pack, { seed: bseed >>> 0 }); foes = cert.foes || pack; } catch (e) {}
       const state = createBattle({ player, foes, seed: bseed >>> 0, W: 14, H: 10 });
-      battleCtx = { ch, cp, id, deck };
+      battleCtx = { ch, cp, id, deck, foes };
       battleOpen = true; $('battle').classList.add('on');
       applyPrimedTo(state);
       if (!battleView) battleView = new BattleOverlay($('battle'), { spriteFor: battleSpriteFor });
@@ -4810,6 +4815,7 @@
         const sp = spoilsFor(seed, ch.id, cp.room, cx.deck);
         let it = null; try { it = rollItem(sp.itemSeed); } catch (e) {}
         if (it) { addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack(); }
+        alignTallyAll(cx.foes);                                // besting a foe aligns you toward its planet (the register you overcame)
         setCoins(getCoins() + sp.coins);
         saveStory(); draw(); whereAmI();
         flashBusy(`⚔ hazard cleared — +◈${sp.coins}${it ? ` · spoils: ${it.name}` : ''}`, 3600);
@@ -5753,6 +5759,34 @@
 
     // ── the player's character (saved from creation) drives the sprite, the kit, and the HUD ──
     let playerChar = loadCharacter(), playerGenome = null, pdir = 'S', pphase = 0;
+    // ── PLANETARY ALIGNMENT — not chosen at creation, GROWN in play. Every interaction with a planet-aligned
+    //    thing (forge a metal, brew a herb, socket a gem, best a foe) tallies toward its planet; the running
+    //    tally is published as a radar on the character panel, and its dominant planet is the register you
+    //    fight in (buildPlayerUnit). Rides the save as an `alignment` fact (cross-device). ──
+    let playerAlignment = coerceAlignment(getJSONFact('alignment', null));
+    function persistAlignment() { if (story.ready) story.store.setFact(story.playerId, 'alignment', JSON.stringify(playerAlignment)); }
+    function alignTally(thing, weight = 1) { const b = alTotal(playerAlignment); alTally(playerAlignment, thing, weight); if (alTotal(playerAlignment) !== b) { persistAlignment(); renderWho(); } }
+    function alignTallyAll(things, weight = 1) { const b = alTotal(playerAlignment); alTallyAll(playerAlignment, things, weight); if (alTotal(playerAlignment) !== b) { persistAlignment(); renderWho(); } }
+    function alignmentLegendHTML() {
+      if (alTotal(playerAlignment) <= 0) return '<span style="color:#6b7872">grows through play</span>';
+      return alRanked(playerAlignment).filter((r) => r.count > 0).slice(0, 4).map((r) => {
+        const P = PLANET_DEFS[r.planet] || {};
+        return `<div><span style="color:${P.colour}">${P.glyph || '·'}</span> ${esc(r.planet)} · ${Math.round(r.share * 100)}%</div>`;
+      }).join('');
+    }
+    function drawAlignmentRadar() {
+      const cv = document.getElementById('whoradar'); if (!cv) return;
+      const g = cv.getContext('2d'), W = cv.width, H = cv.height; g.clearRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2, r = Math.min(W, H) * 0.33, pts = alRadar(playerAlignment, cx, cy, r), n = pts.length;
+      for (let ring = 1; ring <= 3; ring++) { g.strokeStyle = 'rgba(127,216,208,0.13)'; g.lineWidth = 1; g.beginPath(); for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (i / n) * Math.PI * 2, x = cx + Math.cos(a) * r * ring / 3, y = cy + Math.sin(a) * r * ring / 3; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.closePath(); g.stroke(); }
+      g.font = '11px "JetBrains Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      for (const p of pts) { g.strokeStyle = 'rgba(127,216,208,0.10)'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(p.ax, p.ay); g.stroke(); g.fillStyle = p.colour; g.fillText(p.glyph, cx + (p.ax - cx) * 1.17, cy + (p.ay - cy) * 1.17); }
+      if (alTotal(playerAlignment) <= 0) { g.fillStyle = '#6b7872'; g.font = '9px "JetBrains Mono", monospace'; g.fillText('unaligned', cx, cy); return; }
+      g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.closePath();
+      const dom = alDominant(playerAlignment), domCol = (PLANET_DEFS[dom] || {}).colour || '#f4bf62';
+      g.fillStyle = domCol + '3a'; g.fill(); g.strokeStyle = domCol; g.lineWidth = 1.5; g.stroke();
+      for (const p of pts) { if (p.frac <= 0.001) continue; g.fillStyle = p.colour; g.beginPath(); g.arc(p.x, p.y, 2, 0, Math.PI * 2); g.fill(); }
+    }
     function adoptCharacter(c, persist = true) {
       playerChar = c;
       try { playerGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size }); } catch (e) { playerGenome = null; }
@@ -5771,6 +5805,7 @@
     // Then restore the durable pack the save carries (gear, socketed gems and all).
     function foldCharacterFromSave() {
       if (!story.ready) return;
+      playerAlignment = coerceAlignment(getJSONFact('alignment', null));   // the grown radar rides the save too
       const savedChar = story.store.getFact(story.playerId, 'character');
       if (savedChar) adoptCharacter(savedChar, false);
       else if (playerChar) { story.store.setFact(story.playerId, 'character', playerChar); saveStorySnapshot(); }
@@ -5780,7 +5815,11 @@
     function renderWho() {
       if (!playerChar) { $('who').innerHTML = ''; return; }
       const cm = deriveCombat(playerChar);
-      $('who').innerHTML = `<b>${esc(playerChar.name)}</b> · ${esc(playerChar.cast.label)} ${esc(playerChar.vocTag)}<br><span style="color:#6b7872">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def} ✣${cm.fluxPool}</span>`;
+      $('who').innerHTML = `<b>${esc(playerChar.name)}</b> · ${esc(playerChar.cast.label)} ${esc(playerChar.vocTag)}<br><span style="color:#6b7872">✚${cm.hp} ⚔${cm.atk} ⛨${cm.def} ✣${cm.fluxPool}</span>`
+        + `<div style="margin-top:7px;display:flex;gap:9px;align-items:center">`
+        + `<canvas id="whoradar" width="132" height="132" style="flex:0 0 auto"></canvas>`
+        + `<div style="font-size:9.5px;color:#8a94a0;line-height:1.55;min-width:0"><div style="color:#7fd8d0;letter-spacing:.6px;margin-bottom:2px">ALIGNMENT</div>${alignmentLegendHTML()}</div></div>`;
+      drawAlignmentRadar();
     }
 
     // ── MANUAL EQUIP — a per-slot override over the auto-best fit. equipChoice[slot] = uid (pinned) |

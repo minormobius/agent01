@@ -7,25 +7,31 @@
 // Pure view over stats.js (the spine) + v3/sprite-core.js (the sprite). No data of its own beyond the
 // working draft. Deterministic: the same seed + choices reproduce the same person.
 
-import { rollCharacter, rollTriad, rollCharacteristics, normTriad, deriveCombat, deriveAttrs, applyCharacteristics,
-         TRIAD, TRIAD_ORDER, ATTRS, ATTR_ORDER, VOCATIONS, VOCATION_ORDER, castOf } from './stats.js';
-import { PLANETS, READING_ORDER, matchups } from './planets.js';
+import { rollCharacter, rollCharacteristics, normTriad, deriveCombat, deriveAttrs, applyCharacteristics,
+         TRIAD, TRIAD_ORDER, ATTRS, ATTR_ORDER, VOCATIONS, castOf } from './stats.js';
 import { ROLES, frameRects, DIR_OF } from './v3/sprite-core.js';
 import { crewSprite } from './crew.js';
 
-// v104 unified language — creation picks a VERB × a PLANET (NOT a faction: faction is the main-quest fork
-// you choose at Sevin's threshold, so it must not be pre-spent here). The VERB is your vocation — it sets
-// your BODY (its own triad lean's dominant domain), your kit, your civic role. The PLANET is your flavor
-// register (metal/colour/temperament/combat-matchup). Body × planet = the 21 identity flavors, reached
-// through the verb. The verbs group under the three bodies exactly as planets.js derives the factions from
-// them, so the two layers stay consistent without committing an allegiance.
+// v104 — creation picks a VERB only. NOT a faction (that's Sevin's threshold fork) and NOT a planet:
+// planetary FLAVOR is not chosen, it's GROWN — nearly everything in the game carries a planet, and every
+// interaction tallies toward it, so your register emerges as a radar of alignment (see alignment.js). The
+// verb is your vocation — it sets your BODY (its column) + kit + civic role.
 const capital = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const bodyOfLean = (lean) => TRIAD_ORDER.slice().sort((a, b) => (lean[b] || 0) - (lean[a] || 0))[0];
-const bodyOfVocation = (v) => bodyOfLean((VOCATIONS[v] || {}).lean || {});
-const identityName = (v, p) => 'The ' + ((PLANETS[p] || {}).adj || '') + ' ' + capital((VOCATIONS[v] || {}).tag || v);
-// the 13 verbs bucketed under the body their lean lands in (flesh: dwell/grow/serve/heal/move; chassis:
-// make/mend/store; anima: trade/play/learn/worship/govern) — the picker's three columns.
-const VERBS_BY_BODY = (() => { const g = { flesh: [], chassis: [], anima: [] }; for (const v of VOCATION_ORDER) g[bodyOfVocation(v)].push(v); return g; })();
+// the creation verbs, bucketed under their body — an authored 4/4/4 (‘dwell’ struck as a starter filler;
+// ‘govern’, the Warden, filed under CHASSIS with the frame rather than anima).
+const VERB_BODY = {
+  grow: 'flesh', serve: 'flesh', heal: 'flesh', move: 'flesh',
+  make: 'chassis', mend: 'chassis', store: 'chassis', govern: 'chassis',
+  trade: 'anima', play: 'anima', learn: 'anima', worship: 'anima',
+};
+const CREATE_VERBS = Object.keys(VERB_BODY);
+const VERBS_BY_BODY = (() => { const g = { flesh: [], chassis: [], anima: [] }; for (const v of CREATE_VERBS) g[VERB_BODY[v]].push(v); return g; })();
+// govern reads anima-tilt in stats.js, but we file the Warden under CHASSIS here; give it a chassis-dominant
+// creation blend so the body it shows is the body it plays. Every other verb uses its native lean.
+const CREATE_LEAN = { govern: { flesh: 0.30, chassis: 0.45, anima: 0.25 } };
+const leanForVerb = (v) => CREATE_LEAN[v] || (VOCATIONS[v] || {}).lean || { flesh: 1 / 3, chassis: 1 / 3, anima: 1 / 3 };
+const bodyForVerb = (v) => VERB_BODY[v] || bodyOfLean(leanForVerb(v));
 
 const STORE_KEY = 'mega:v092:character';
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -46,8 +52,7 @@ export class CharacterCreator {
     this.seed = (seed >>> 0) || 1;
     this.spriteSeed = mix(this.seed, 1);
     this.vocation = null;                          // the VERB — your body/kit/role; null until rolled/picked
-    this.planet = null;                            // the FLAVOR register; null until rolled/picked
-    this.triad = null;                            // weights; null ⇒ the vocation's own lean (faction is NOT set here)
+    this.triad = null;                            // weights; null ⇒ the vocation's own lean (no faction, no planet here)
     this.chars = null;                            // characteristics
     this.charName = null;                          // PLAYER-OWNED name (string); null ⇒ use the rolled name
     this._build();
@@ -81,8 +86,6 @@ export class CharacterCreator {
           </div>
           <div class="chh">VOCATION <span style="color:#6b7872">· what you do aboard · sets your body</span></div>
           <div id="chvocs" style="margin-top:9px"></div>
-          <div class="chh" style="margin-top:14px">REGISTER <span style="color:#6b7872">· planetary flavor · one of seven</span></div>
-          <div id="chplanets" style="margin-top:9px"></div>
           <div id="chidgloss" style="font-size:10.5px;color:#9aa8a0;margin-top:9px;min-height:30px;line-height:1.45"></div>
           <div class="chh" style="margin-top:16px">BLEND <span style="color:#6b7872">· fine-tune the body</span></div>
           <div id="chtriad" style="margin-top:8px"></div>
@@ -110,12 +113,6 @@ export class CharacterCreator {
         #char .voc .vg{font-size:12px;color:var(--bc)}
         #char .voc:hover{border-color:var(--bc)}
         #char .voc.on{border-color:#f4bf62;background:#161d12;color:#fff;box-shadow:0 0 0 1px #f4bf62}
-        #char #chplanets{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-        #char .pcell{aspect-ratio:1;min-height:0;background:#0d1117;border:1px solid #1b2530;color:var(--pc);font-size:16px;border-radius:7px;cursor:pointer;position:relative;transition:transform .1s,border-color .1s}
-        #char .pcell::before{content:"";position:absolute;inset:0;border-radius:7px;background:var(--pc);opacity:.1}
-        #char .pcell:hover{border-color:var(--pc);transform:translateY(-1px)}
-        #char .pcell.on{border-color:#f4bf62;box-shadow:0 0 0 1px #f4bf62}
-        #char .pcell.on::before{opacity:.24}
         #char #chnameinput:focus{border-color:#7fd8d0}
         #char input[type=range]{width:100%;accent-color:#7fd8d0}
       </style>`;
@@ -139,7 +136,7 @@ export class CharacterCreator {
   }
 
   _buildIdentity() {
-    // VOCATION picker — the 13 verbs in three body columns (flesh · chassis · anima).
+    // VOCATION picker — the 12 verbs in three body columns (flesh · chassis · anima). No planet here.
     const vhost = this.root.querySelector('#chvocs');
     vhost.innerHTML = TRIAD_ORDER.map((body) => {
       const T = TRIAD[body];
@@ -151,16 +148,9 @@ export class CharacterCreator {
     }).join('');
     vhost.querySelectorAll('.voc').forEach((b) => b.addEventListener('click', () => {
       this.vocation = b.dataset.voc;
-      this.triad = normTriad({ ...(VOCATIONS[this.vocation].lean) });   // your verb sets the body (still tunable below)
+      this.triad = normTriad({ ...leanForVerb(this.vocation) });   // your verb sets the body (still tunable below)
       this._sync();
     }));
-    // REGISTER picker — the seven planets (flavor only; no body commitment).
-    const phost = this.root.querySelector('#chplanets');
-    phost.innerHTML = READING_ORDER.map((p) => {
-      const P = PLANETS[p];
-      return `<button class="pcell" data-p="${p}" title="${esc(P.adj)} · ${esc(P.metal)}" style="--pc:${P.colour}">${P.glyph}</button>`;
-    }).join('');
-    phost.querySelectorAll('.pcell').forEach((b) => b.addEventListener('click', () => { this.planet = b.dataset.p; this._sync(); }));
   }
 
   _buildTriad() {
@@ -184,32 +174,30 @@ export class CharacterCreator {
     this.seed = all ? ((this.seed * 1664525 + 1013904223) >>> 0 || 1) : this.seed;
     this.spriteSeed = mix(this.seed, 1);
     if (all || !this.vocation) {
-      this.vocation = VOCATION_ORDER[this.seed % VOCATION_ORDER.length];
-      this.planet = READING_ORDER[(this.seed >>> 4) % READING_ORDER.length];
-      this.triad = normTriad({ ...(VOCATIONS[this.vocation].lean) });
+      this.vocation = CREATE_VERBS[this.seed % CREATE_VERBS.length];
+      this.triad = normTriad({ ...leanForVerb(this.vocation) });
       this.chars = rollCharacteristics(this.seed, 2);
     }
     if (all) this.charName = null;                 // a fresh person → a fresh suggested name
     this._sync();
     if (this.charName == null && this._c) { this.charName = this._c.name; this._setNameInput(this._c.name); this._clearNameWarn(); }
   }
-  _rollName() { try { return rollCharacter((mix(this.seed, 31) ^ Date.now()) >>> 0, { vocation: this.vocation || 'dwell' }).name; } catch (e) { return ''; } }
+  _rollName() { try { return rollCharacter((mix(this.seed, 31) ^ Date.now()) >>> 0, { vocation: this.vocation || 'grow' }).name; } catch (e) { return ''; } }
   _setNameInput(v) { const i = this.root && this.root.querySelector('#chnameinput'); if (i && document.activeElement !== i) i.value = v == null ? '' : v; }
   _nameWarn(m) { const w = this.root && this.root.querySelector('#chnamewarn'); if (w) w.textContent = m || ''; }
   _clearNameWarn() { this._nameWarn(''); }
 
   // build the live character from the working draft
   _draft() {
-    const vocation = this.vocation || 'dwell', planet = this.planet || 'venus';
-    const triad = this.triad || normTriad({ ...(VOCATIONS[vocation].lean) });
+    const vocation = this.vocation || 'grow';
+    const triad = this.triad || normTriad({ ...leanForVerb(vocation) });
     const c = rollCharacter(this.seed, {
       vocation, triad, characteristics: this.chars || rollCharacteristics(this.seed, 2),
       sprite: { seed: `mega:char:${this.spriteSeed}`, role: vocation, arch: 'balanced', size: 17 },
     });
-    // stamp the unified-language tags: BODY from the verb, FLAVOR from the planet. Faction is NOT set here —
-    // it's the main-quest fork (chosen at Sevin's threshold), so a fresh character carries no allegiance yet.
-    const P = PLANETS[planet], body = bodyOfVocation(vocation);
-    if (P) { c.planet = planet; c.body = body; c.metal = P.metal; c.planetColour = P.colour; c.glyph = P.glyph; c.identity = identityName(vocation, planet); }
+    // stamp the BODY (from the verb). No faction (Sevin's threshold fork) and no planet — planetary
+    // alignment is GROWN through play (alignment.js) and read off a radar, not chosen here.
+    c.body = bodyForVerb(vocation);
     const nm = this.charName != null ? String(this.charName).trim() : '';   // the player's typed name wins over the rolled one
     if (nm) c.name = nm;
     return c;
@@ -217,14 +205,13 @@ export class CharacterCreator {
 
   _sync() {                                                 // full refresh (selection, sliders, readouts, sprite)
     const c = this._draft(); this._c = c;
-    // highlight the chosen verb + planet, then read the identity out of (body, planet)
+    // highlight the chosen verb, then read the identity out of the body
     this.root.querySelectorAll('.voc').forEach((b) => b.classList.toggle('on', b.dataset.voc === c.vocation));
-    this.root.querySelectorAll('.pcell').forEach((b) => b.classList.toggle('on', b.dataset.p === c.planet));
-    const P = PLANETS[c.planet], body = c.body;
-    if (P) this.root.querySelector('#chidgloss').innerHTML =
-      `<b style="color:${P.colour}">${P.glyph} ${esc(c.identity)}</b> — <b style="color:${TRIAD[body].accent}">${body.toUpperCase()}</b> body · <b>${esc(P.metal)}</b> flavor. `
+    const body = c.body, T = TRIAD[body];
+    this.root.querySelector('#chidgloss').innerHTML =
+      `<b style="color:${T.accent}">${T.glyph} ${capital(VOCATIONS[c.vocation].tag)}</b> · <b style="color:${T.accent}">${body.toUpperCase()}</b> body. `
       + `<span style="color:#6b7872">${esc(VOCATIONS[c.vocation].gloss)}. kit leans <b style="color:#f4bf62">${esc(c.kit)}</b>. `
-      + `<span style="color:#59606a">faction — your allegiance — is chosen later, at the threshold.</span></span>`;
+      + `<span style="color:#59606a">faction (allegiance) and planetary flavor are grown in play, not picked here.</span></span>`;
     // sliders to current triad
     TRIAD_ORDER.forEach((d) => { const s = this.root.querySelector(`[data-tri="${d}"]`); if (s) s.value = Math.round(c.triad[d] * 100); });
     this._syncReadout();
@@ -257,9 +244,9 @@ export class CharacterCreator {
   _drawSprite() {
     try {
       const c = this._c, dom = c.cast.dominant, accent = TRIAD[dom].accent;
-      // profession-coloured per the style guide; the technomagic aura carries the PLANET flavor (its colour)
+      // profession-coloured per the style guide; the technomagic aura carries the dominant domain's colour
       this._spriteGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size });
-      this._spriteAccent = c.planetColour || accent;
+      this._spriteAccent = accent;
     } catch (e) { this._spriteGenome = null; }
   }
 

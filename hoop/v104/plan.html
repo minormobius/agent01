@@ -227,7 +227,7 @@
   </section>
 
   <footer>
-    <strong style="color:var(--gold)">Confirmed &amp; in code — all five verticals wired.</strong> The model lives in <code>hoop/v104/planets.js</code> (node-tested): faction → body (continuant·FLESH / rindwalker·CHASSIS / drift·ANIMA, leans derived from each faction's verbs), and the seven planets as a free second axis — any faction × any planet, all 21 reachable. Every vertical now speaks it: <strong>creation</strong> picks a verb (→ body) × a planet (→ flavor), leaving faction to the threshold fork; <strong>forge</strong> stamps a metal's planet register (<code>materialPlanet</code>); <strong>brew</strong> carries a reagent's canonical <code>planetKey</code>; <strong>gems</strong> resonate with the wielder's body; <strong>combat</strong> reads the 7-way heptagram as an element-over-element damage multiplier (<code>elementMult</code>). Colours and per-cell flavor stay tunable; the structure is settled.
+    <strong style="color:var(--gold)">Confirmed &amp; in code — all five verticals wired.</strong> The model lives in <code>hoop/v104/planets.js</code> (node-tested): faction → body (continuant·FLESH / rindwalker·CHASSIS / drift·ANIMA, leans derived from each faction's verbs), and the seven planets as a free second axis — any faction × any planet, all 21 reachable. Every vertical now speaks it: <strong>creation</strong> picks a verb (→ body), leaving faction to the threshold fork and planetary flavor to be <em>grown</em> — a radar tallied from every planet-aligned thing you touch, whose dominant axis becomes your combat register; <strong>forge</strong> stamps a metal's planet register (<code>materialPlanet</code>); <strong>brew</strong> carries a reagent's canonical <code>planetKey</code>; <strong>gems</strong> resonate with the wielder's body; <strong>combat</strong> reads the 7-way heptagram as an element-over-element damage multiplier (<code>elementMult</code>). Colours and per-cell flavor stay tunable; the structure is settled.
   </footer>
 </div></div>
 
@@ -353,7 +353,8 @@
 
   // ── vertical cards ──
   var VERTS=[
-    { g:"❖", h:"Character creation", p:"Pick a vocation (a verb — it sets your body) and a planet (flavor). Faction is NOT chosen here — that's the threshold fork; your verb reaches the body, the planet the register.", fx:"pick <b>verb</b> + <b>planet</b> → identity" },
+    { g:"❖", h:"Character creation", p:"Pick a vocation — a verb, one of twelve in a 4/4/4 across the bodies. It sets your body/kit/role. No faction (that's the threshold fork) and no planet — flavor is grown, not chosen.", fx:"pick <b>verb</b> → body" },
+    { g:"◎", h:"Planetary alignment", p:"Your register is GROWN: every planet-aligned thing you touch (forge a metal, brew a herb, socket a gem, best a foe) tallies toward its planet. Published as a radar; the dominant planet is the register you fight in.", fx:"tally interactions → <b>alignment radar</b>" },
     { g:"⚒", h:"Crafting (Forge)", p:"Feed the anvil planetary metals. The item takes that planet's register; your faction sets which attributes it favours.", fx:"<b>metals</b> → item · faction = school" },
     { g:"⚗", h:"Alchemy (Brew)", p:"Combine planetary reagents. The effect lands in that planet's temperament — choler burns, phlegm cools, melancholy endures.", fx:"<b>reagents</b> → planetary effect" },
     { g:"◈", h:"Gems", p:"Set a planetary stone. It boosts the attribute your body already leans on — a Mars gem hardens a Chassis frame.", fx:"<b>gem</b> → boosts your body's stat" },
