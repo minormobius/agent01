@@ -41,6 +41,19 @@
       "note": "The emoji wiki. Thin assets Worker (worker `moji`, custom_domain moji.mino.mobi) — no build, no D1, no AI, no secrets. Home page is every Unicode emoji in one pastable, searchable table (click a glyph to copy); /e/<id> (id = hyphen-joined lowercase code points, e.g. /e/1f600) is a per-emoji page with code points, the Emoji version it debuted in, and platform-support timelines (Apple/Google/Microsoft/Samsung/WhatsApp/Twitter-X). Data is generated from Unicode UTS#51 emoji-test.txt by scripts/build-moji-data.mjs into moji/data/emoji.json (committed); platform first-ship dates are hand-authored in moji/data/platforms.json, keyed by Emoji version."
     },
     {
+      "surface": "uni",
+      "dir": "uni",
+      "endpoint": "uni.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/emoji-wiki-platform-support-v6ubju",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "uni/**"
+      ],
+      "note": "The Unicode browser (sibling to moji). Thin assets Worker (worker `uni`, custom_domain uni.mino.mobi) — no build, no D1/AI/secrets. Home is every Unicode block grouped by plane with sample glyphs + live search (name substring over a lazy-loaded index, or paste a char / type U+XXXX to jump). /b/<slug> renders a block as a pastable char grid with infinite scroll (handles the 40k-char CJK blocks); /c/<hex> is a per-character page with name, block, script, category, age, and every encoding (UTF-8/16/32, HTML entity, CSS/JS/Python escapes, URL). Data generated from the Unicode Character Database (uni/data/ucd/*.txt) by scripts/build-uni-data.mjs: ~40k explicitly-named chars stored per-block, ~119k CJK/Hangul/Tangut ideographs named ALGORITHMICALLY client-side (no per-char storage) via uni/lib/uni.js (node-tested by uni/lib/uni.selftest.mjs)."
+    },
+    {
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",

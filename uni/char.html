@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>uni — character</title>
+<meta name="description" content="A Unicode character: name, block, script, category, and every encoding — UTF-8/16/32, HTML entity, CSS/JS/Python escapes, URL.">
+<meta name="theme-color" content="#5b57e0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%E2%80%B9%E2%80%BA%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">uni<span class="dot">.</span><small>unicode browser</small></a>
+    <div class="search-wrap">
+      <svg class="search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" class="search" type="search" autocomplete="off" spellcheck="false" placeholder="Search all of Unicode…">
+    </div>
+    <a class="crumb" href="/">↖ all blocks</a>
+  </div>
+</header>
+
+<main class="detail" id="detail"><p style="color:var(--faint);padding:50px 0;text-align:center">Loading…</p></main>
+
+<div class="toast" id="toast"><span class="g" id="toastGlyph">✓</span><span id="toastMsg">Copied</span></div>
+
+<script type="module">
+import UNI from '/lib/uni.js';
+
+const DETAIL = document.getElementById('detail');
+const TOAST = document.getElementById('toast');
+
+function currentCp() {
+  const p = new URLSearchParams(location.search).get('cp');
+  const raw = p || (location.pathname.match(/\/c\/([^/?#]+)/) || [])[1] || '';
+  const s = decodeURIComponent(raw).replace(/^(u\+|0x)/i, '');
+  return /^[0-9a-fA-F]{1,6}$/.test(s) ? parseInt(s, 16) : NaN;
+}
+
+function lookup(intervals, cp) {
+  let lo = 0, hi = intervals.length - 1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; const iv = intervals[m];
+    if (cp < iv[0]) hi = m - 1; else if (cp > iv[1]) lo = m + 1; else return iv[2]; }
+  return null;
+}
+
+Promise.all([
+  fetch('/data/blocks.json').then(r => r.json()),
+  fetch('/data/ranges.json').then(r => r.json()),
+]).then(([blocks, ranges]) => {
+  const cp = currentCp();
+  if (isNaN(cp) || cp > 0x10FFFF) { notFound(); return; }
+  render(cp, blocks, ranges);
+}).catch(() => { DETAIL.innerHTML = '<p style="padding:50px 0;text-align:center;color:var(--faint)">Could not load Unicode data.</p>'; });
+
+async function render(cp, blocks, ranges) {
+  const bi = blocks.findIndex(b => cp >= b.start && cp <= b.end);
+  const block = bi >= 0 ? blocks[bi] : null;
+
+  // resolve name + category
+  let name = null, gc = 'Cn';
+  if (block) {
+    if (block.kind) { name = UNI.algorithmicName(cp, block.kind); gc = block.kind === 'pua' ? 'Co' : block.kind === 'surrogate' ? 'Cs' : 'Lo'; }
+    else {
+      const arr = await fetch('/data/blocks/' + block.slug + '.json').then(r => r.json()).catch(() => []);
+      const hit = arr.find(e => e[0] === cp);
+      if (hit) { name = hit[1]; gc = hit[2]; }
+    }
+  }
+  const assigned = name != null;
+  if (!name) name = '(unassigned code point)';
+
+  const script = lookup(ranges.scripts, cp);
+  const age = lookup(ranges.ages, cp);
+  const enc = UNI.encodings(cp);
+  const printable = assigned && UNI.isPrintable(gc);
+  const glyph = UNI.glyph(cp);
+
+  document.title = (printable && glyph ? glyph + ' ' : '') + name + ' — uni';
+  document.querySelector('meta[name=description]').setAttribute('content',
+    `${name} (${UNI.uPlus(cp)}) — ${UNI.categoryName(gc)}${script ? ', ' + script + ' script' : ''}. UTF-8 ${enc.utf8}, HTML ${enc.htmlHex}, and every other encoding.`);
+
+  const pills = [];
+  pills.push(`<span class="pill accent">${UNI.uPlus(cp)}</span>`);
+  pills.push(`<span class="pill">${UNI.categoryName(gc)} (${gc})</span>`);
+  if (script && script !== 'Unknown') pills.push(`<span class="pill">${script}</span>`);
+  if (age) pills.push(`<span class="pill">Unicode ${age}</span>`);
+  if (block) pills.push(`<a class="pill" href="/b/${block.slug}">${block.name}</a>`);
+  pills.push(`<a class="pill" href="/#p-${UNI.slugify(UNI.planeName(cp))}">${UNI.planeName(cp)}</a>`);
+
+  const rows = [
+    ['Code point', enc.uPlus], ['Decimal', enc.decimal],
+    ['UTF-8', enc.utf8], ['UTF-16', enc.utf16], ['UTF-32', enc.utf32],
+    ['HTML entity', enc.htmlDec + '  ' + enc.htmlHex],
+    ['CSS', enc.cssEscape], ['JS / JSON', enc.jsEscape], ['JS (ES6)', enc.jsEs6],
+    ['Python', enc.pyEscape], ['URL-encoded', enc.urlEncoded],
+  ];
+  const copyVals = { 'HTML entity': enc.htmlHex };
+
+  DETAIL.innerHTML = `
+    <a class="back" href="${block ? '/b/' + block.slug : '/'}">← ${block ? block.name : 'all blocks'}</a>
+    <div class="card">
+      <div class="detail-head">
+        <div class="hero-glyph${printable && glyph ? ' glyph' : ' np'}">${printable && glyph ? glyph : (assigned ? gc : UNI.uPlus(cp))}</div>
+        <div class="detail-meta">
+          <h1>${name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</h1>
+          <div class="pill-row">${pills.join('')}</div>
+          ${printable ? `<div class="copy-row">
+            <button class="btn primary" id="copyChar"><span class="g glyph">${glyph}</span> Copy character</button>
+            <button class="btn" id="copyU">Copy ${UNI.uPlus(cp)}</button>
+          </div>` : `<div class="copy-row"><button class="btn" id="copyU">Copy ${UNI.uPlus(cp)}</button></div>`}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">Encodings</h2>
+      <table class="enc"><tbody>
+        ${rows.map(([l, v]) => `<tr><td class="lbl">${l}</td><td class="val">${v.replace(/&/g, '&amp;').replace(/</g, '&lt;')}<button class="cpbtn" data-copy="${(copyVals[l] || v).replace(/"/g, '&quot;')}">copy</button></td></tr>`).join('')}
+      </tbody></table>
+    </div>
+
+    <div class="nav-row">
+      <a href="/c/${UNI.hex(cp - 1)}"><span class="btn">← ${UNI.uPlus(cp - 1)}</span></a>
+      <a href="/c/${UNI.hex(cp + 1)}"><span class="btn">${UNI.uPlus(cp + 1)} →</span></a>
+    </div>
+    <footer><p><a href="/">← all blocks</a> · <a href="https://moji.mino.mobi">moji</a> · <a href="https://mino.mobi">mino.mobi</a></p></footer>`;
+
+  if (printable) {
+    document.getElementById('copyChar').addEventListener('click', () => doCopy(glyph, glyph, 'Copied ' + UNI.uPlus(cp)));
+  }
+  document.getElementById('copyU').addEventListener('click', () => doCopy(UNI.uPlus(cp), glyph || '✓', 'Copied ' + UNI.uPlus(cp)));
+  DETAIL.querySelectorAll('.cpbtn').forEach(el => el.addEventListener('click', () => doCopy(el.dataset.copy, glyph || '✓', 'Copied')));
+}
+
+async function doCopy(text, gly, msg) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  document.getElementById('toastGlyph').textContent = gly;
+  document.getElementById('toastMsg').textContent = msg;
+  TOAST.classList.add('show'); clearTimeout(doCopy._t); doCopy._t = setTimeout(() => TOAST.classList.remove('show'), 1300);
+}
+
+function notFound() {
+  document.title = 'uni — not found';
+  DETAIL.innerHTML = `<a class="back" href="/">← all blocks</a>
+    <div class="card" style="text-align:center">
+      <div class="hero-glyph np" style="margin:0 auto 16px">?</div>
+      <h1 class="section-title">Not a code point</h1>
+      <p style="color:var(--muted)">Expected <code>/c/&lt;hex&gt;</code> up to <code>10FFFF</code> — e.g. <a href="/c/1F600" style="color:var(--accent)">/c/1F600</a>.</p>
+      <a class="btn primary" href="/">Browse all blocks</a>
+    </div>`;
+}
+
+document.getElementById('q').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const s = e.target.value.trim().replace(/^(u\+|0x)/i, '').replace(/\s/g, '');
+  if (/^[0-9a-f]{1,6}$/i.test(s)) location.href = '/c/' + s.toUpperCase();
+  else location.href = '/?q=' + encodeURIComponent(e.target.value.trim());
+});
+document.addEventListener('keydown', e => { if (e.key === '/' && document.activeElement.id !== 'q') { e.preventDefault(); document.getElementById('q').focus(); } });
+</script>
+</body>
+</html>
