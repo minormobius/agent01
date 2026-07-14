@@ -536,8 +536,14 @@ despite the name. It stayed with hoop, not rind.)
       planet is reachable (no home-cluster gating). Pure + node-tested (`test/planets.selftest.mjs`, 33 checks).
     The plan lives at **`hoop.mino.mobi/plan`** (`v104/plan.html`, also `/v104/plan`): the interactive 3×7
     grid, per-cell body/flavor detail, the five verticals mapped, the rulership heptagram. Colours + per-cell
-    flavor stay tunable; the shape is settled. Verticals migrate onto it next (creation reads the grid;
-    forge/brew/gems/combat call `planetOf`/`identityOf`).
+    flavor stay tunable; the shape is settled.
+    - **Vertical 1 — character creation** (`character.js`, migrated): the 13-vocation civic-tree picker is
+      collapsed to a single pick in the **3×7 identity grid** (3 faction rows × 7 planet columns). A cell sets
+      the FACTION (body → triad via `bodyLean`) + the PLANET (flavor), the vocation is **derived** from the
+      cell (`vocationFor` = the planet verb the faction owns, else the planet's primary — still dresses the
+      sprite + hints the starting kit), and the character is stamped with `{faction, planet, identity, body,
+      metal, planetColour}`. The sprite aura now carries the planet's colour. Less choice, one screen, 21
+      species. Forge/brew/gems/combat migrate next (`planetOf`/`identityOf`).
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

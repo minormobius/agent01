@@ -9,8 +9,17 @@
 
 import { rollCharacter, rollTriad, rollCharacteristics, normTriad, deriveCombat, deriveAttrs, applyCharacteristics,
          TRIAD, TRIAD_ORDER, ATTRS, ATTR_ORDER, VOCATIONS, VOCATION_ORDER, castOf } from './stats.js';
+import { FACTIONS, FACTION_ORDER, PLANETS, READING_ORDER, bodyLean, identityOf } from './planets.js';
 import { ROLES, frameRects, DIR_OF } from './v3/sprite-core.js';
 import { crewSprite } from './crew.js';
+
+// v104 unified language: class creation is a single pick in the 3×7 identity grid — a FACTION (body/triad)
+// and a PLANET (flavor). The vocation (which still dresses the sprite + hints the starting kit) is DERIVED
+// from the cell: the planet verb the faction also owns, else the planet's primary verb.
+const vocationFor = (faction, planet) => {
+  const fv = (FACTIONS[faction] || {}).verbs || [], pv = (PLANETS[planet] || {}).verbs || [];
+  return pv.find((v) => fv.includes(v)) || pv[0] || fv[0] || 'dwell';
+};
 
 const STORE_KEY = 'mega:v092:character';
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -30,8 +39,10 @@ export class CharacterCreator {
     // working draft
     this.seed = (seed >>> 0) || 1;
     this.spriteSeed = mix(this.seed, 1);
-    this.vocation = null;                          // null until rolled/picked
-    this.triad = null;                            // weights; null ⇒ derive from vocation
+    this.faction = null;                           // the BODY axis (triad); null until rolled/picked
+    this.planet = null;                            // the FLAVOR axis; null until rolled/picked
+    this.vocation = null;                          // DERIVED from (faction, planet) — dresses the sprite + hints the kit
+    this.triad = null;                            // weights; null ⇒ the faction's body lean
     this.chars = null;                            // characteristics
     this.charName = null;                          // PLAYER-OWNED name (string); null ⇒ use the rolled name
     this._build();
@@ -63,10 +74,10 @@ export class CharacterCreator {
             <button class="chbtn" id="chrerollSprite">⟳ body</button>
             <button class="chbtn" id="chrerollQuirks">⟳ quirks</button>
           </div>
-          <div class="chh">VOCATION <span style="color:#6b7872">· the civic tree</span></div>
-          <div id="chvocs" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px"></div>
-          <div id="chvocgloss" style="font-size:10.5px;color:#9aa8a0;margin-top:8px;min-height:28px;line-height:1.45"></div>
-          <div class="chh" style="margin-top:16px">BLEND <span style="color:#6b7872">· flesh · chassis · anima</span></div>
+          <div class="chh">IDENTITY <span style="color:#6b7872">· body × flavor · one of 21</span></div>
+          <div id="chgrid" style="margin-top:9px"></div>
+          <div id="chidgloss" style="font-size:10.5px;color:#9aa8a0;margin-top:9px;min-height:30px;line-height:1.45"></div>
+          <div class="chh" style="margin-top:16px">BLEND <span style="color:#6b7872">· fine-tune the body</span></div>
           <div id="chtriad" style="margin-top:8px"></div>
           <div class="chh" style="margin-top:16px">ATTRIBUTES</div>
           <div id="chattrs" style="margin-top:7px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px 12px"></div>
@@ -85,9 +96,15 @@ export class CharacterCreator {
         #char .chsprite{float:left;width:172px;height:172px;image-rendering:pixelated;background:radial-gradient(circle at 50% 42%,#0c1118,#06080c);border:1px solid #1b2530;border-radius:14px;margin:2px 20px 12px 0}
         #char .chrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
         @media (max-width:560px){ #char .chsprite{width:118px;height:118px;margin:2px 14px 10px 0} }
-        #char .voc{text-align:left;background:#0d1117;border:1px solid #1b2530;color:#cfd8d2;font:inherit;font-size:11px;padding:5px 7px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:6px}
-        #char .voc:hover{border-color:#7fd8d0}
-        #char .voc.on{border-color:#f4bf62;color:#fff;background:#161d12}
+        #char .idrow{display:grid;grid-template-columns:74px repeat(7,1fr);gap:4px;align-items:center;margin-bottom:4px}
+        #char .idlbl{font-size:10px;line-height:1.15;text-align:right;padding-right:5px}
+        #char .idlbl b{display:block;font-size:11.5px}
+        #char .idlbl small{color:#6b7872;letter-spacing:.08em}
+        #char .idcell{aspect-ratio:1;min-height:0;background:#0d1117;border:1px solid #1b2530;color:var(--pc);font-size:16px;border-radius:7px;cursor:pointer;position:relative;transition:transform .1s,border-color .1s}
+        #char .idcell::before{content:"";position:absolute;inset:0;border-radius:7px;background:var(--pc);opacity:.1}
+        #char .idcell:hover{border-color:var(--pc);transform:translateY(-1px)}
+        #char .idcell.on{border-color:#f4bf62;box-shadow:0 0 0 1px #f4bf62}
+        #char .idcell.on::before{opacity:.24}
         #char #chnameinput:focus{border-color:#7fd8d0}
         #char input[type=range]{width:100%;accent-color:#7fd8d0}
       </style>`;
@@ -104,21 +121,28 @@ export class CharacterCreator {
     const nameInput = root.querySelector('#chnameinput');
     nameInput.addEventListener('input', () => { this.charName = nameInput.value; this._clearNameWarn(); });
     nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this._embark(); } e.stopPropagation(); });
-    this._buildVocations();
+    this._buildIdentity();
     this._buildTriad();
     this._keyh = (e) => { if (!this.open) return; if (e.key === 'Escape' && !this.mustEmbark) { this.close(); e.preventDefault(); } };
     addEventListener('keydown', this._keyh);
   }
 
-  _buildVocations() {
-    const host = this.root.querySelector('#chvocs');
-    host.innerHTML = VOCATION_ORDER.map((v) => {
-      const R = ROLES[v] || { glyph: '·', color: '#888' };
-      return `<button class="voc" data-voc="${v}"><span style="color:${R.color};font-size:13px">${R.glyph}</span><span>${v}<span style="color:#6b7872"> · ${esc(VOCATIONS[v].tag)}</span></span></button>`;
-    }).join('');
-    host.querySelectorAll('[data-voc]').forEach((b) => b.addEventListener('click', () => {
-      this.vocation = b.dataset.voc;
-      this.triad = rollTriad(this.seed, this.vocation);     // picking a vocation re-leans the blend
+  _buildIdentity() {
+    const host = this.root.querySelector('#chgrid');
+    let html = '';
+    for (const f of FACTION_ORDER) {
+      const F = FACTIONS[f], acc = TRIAD[F.body].accent;
+      html += `<div class="idrow"><div class="idlbl" style="color:${acc}"><b>${esc(F.name)}</b><small>${F.body.toUpperCase()}</small></div>`;
+      for (const p of READING_ORDER) {
+        const P = PLANETS[p];
+        html += `<button class="idcell" data-f="${f}" data-p="${p}" title="The ${esc(P.adj)} ${esc(F.role)} · ${esc(P.metal)}" style="--pc:${P.colour}">${P.glyph}</button>`;
+      }
+      html += `</div>`;
+    }
+    host.innerHTML = html;
+    host.querySelectorAll('.idcell').forEach((b) => b.addEventListener('click', () => {
+      this.faction = b.dataset.f; this.planet = b.dataset.p;
+      this.triad = { ...bodyLean(this.faction) };            // picking a body sets the blend to its lean (still tunable)
       this._sync();
     }));
   }
@@ -143,7 +167,12 @@ export class CharacterCreator {
   _reroll(all) {
     this.seed = all ? ((this.seed * 1664525 + 1013904223) >>> 0 || 1) : this.seed;
     this.spriteSeed = mix(this.seed, 1);
-    if (all || !this.vocation) { const c = rollCharacter(this.seed, {}); this.vocation = c.vocation; this.triad = c.triad; this.chars = c.characteristics; }
+    if (all || !this.faction) {
+      this.faction = FACTION_ORDER[this.seed % FACTION_ORDER.length];
+      this.planet = READING_ORDER[(this.seed >>> 4) % READING_ORDER.length];
+      this.triad = { ...bodyLean(this.faction) };
+      this.chars = rollCharacteristics(this.seed, 2);
+    }
     if (all) this.charName = null;                 // a fresh person → a fresh suggested name
     this._sync();
     if (this.charName == null && this._c) { this.charName = this._c.name; this._setNameInput(this._c.name); this._clearNameWarn(); }
@@ -155,11 +184,16 @@ export class CharacterCreator {
 
   // build the live character from the working draft
   _draft() {
-    const triad = this.triad || rollTriad(this.seed, this.vocation || 'dwell');
+    const faction = this.faction || 'continuant', planet = this.planet || 'venus';
+    const vocation = vocationFor(faction, planet);
+    this.vocation = vocation;                                // keep in sync for _rollName / readouts
+    const triad = this.triad || bodyLean(faction);
     const c = rollCharacter(this.seed, {
-      vocation: this.vocation || 'dwell', triad, characteristics: this.chars || rollCharacteristics(this.seed, 2),
-      sprite: { seed: `mega:char:${this.spriteSeed}`, role: this.vocation || 'dwell', arch: 'balanced', size: 17 },
+      vocation, triad, characteristics: this.chars || rollCharacteristics(this.seed, 2),
+      sprite: { seed: `mega:char:${this.spriteSeed}`, role: vocation, arch: 'balanced', size: 17 },
     });
+    const id = identityOf(faction, planet);                  // stamp the unified-language tags onto the character
+    if (id) { c.faction = faction; c.planet = planet; c.identity = id.name; c.body = id.body; c.metal = id.metal; c.planetColour = id.colour; c.glyph = id.glyph; }
     const nm = this.charName != null ? String(this.charName).trim() : '';   // the player's typed name wins over the rolled one
     if (nm) c.name = nm;
     return c;
@@ -167,9 +201,12 @@ export class CharacterCreator {
 
   _sync() {                                                 // full refresh (selection, sliders, readouts, sprite)
     const c = this._draft(); this._c = c;
-    // vocation highlight + gloss
-    this.root.querySelectorAll('[data-voc]').forEach((b) => b.classList.toggle('on', b.dataset.voc === c.vocation));
-    this.root.querySelector('#chvocgloss').innerHTML = `<b style="color:#cfd8d2">${esc(c.vocTag)}</b> — ${esc(VOCATIONS[c.vocation].gloss)}. <span style="color:#6b7872">starting kit leans <b style="color:#f4bf62">${esc(c.kit)}</b>.</span>`;
+    // identity highlight + gloss (the selected cell in the 3×7 grid)
+    this.root.querySelectorAll('.idcell').forEach((b) => b.classList.toggle('on', b.dataset.f === c.faction && b.dataset.p === c.planet));
+    const id = identityOf(c.faction, c.planet);
+    if (id) this.root.querySelector('#chidgloss').innerHTML =
+      `<b style="color:${id.colour}">${id.glyph} ${esc(id.name)}</b> — <b style="color:${TRIAD[id.body].accent}">${id.body.toUpperCase()}</b> body · <b>${esc(id.metal)}</b> flavor. `
+      + `<span style="color:#6b7872">${esc(VOCATIONS[c.vocation].gloss)}. kit leans <b style="color:#f4bf62">${esc(c.kit)}</b>.</span>`;
     // sliders to current triad
     TRIAD_ORDER.forEach((d) => { const s = this.root.querySelector(`[data-tri="${d}"]`); if (s) s.value = Math.round(c.triad[d] * 100); });
     this._syncReadout();
@@ -202,9 +239,9 @@ export class CharacterCreator {
   _drawSprite() {
     try {
       const c = this._c, dom = c.cast.dominant, accent = TRIAD[dom].accent;
-      // profession-coloured per the style guide; the technomagic aura carries the dominant domain
+      // profession-coloured per the style guide; the technomagic aura carries the PLANET flavor (its colour)
       this._spriteGenome = crewSprite(c.sprite.seed, c.vocation, { arch: c.sprite.arch, size: c.sprite.size });
-      this._spriteAccent = accent;
+      this._spriteAccent = c.planetColour || accent;
     } catch (e) { this._spriteGenome = null; }
   }
 
