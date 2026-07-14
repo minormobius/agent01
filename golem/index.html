@@ -90,7 +90,12 @@
 
   <aside>
     <h2>Golem</h2>
-    <p class="sub">Build a body from smart bricks. Each cube runs the real trained <a href="https://github.com/rmorenoga/cube3D">cube3D</a> network and gossips with its neighbours until the swarm decides what it is. Then wake it — and it acts like what it thinks it is.</p>
+    <p class="sub">Build a body from smart bricks. Each cube runs a real trained <a href="https://github.com/rmorenoga/cube3D">cube3D</a>-architecture network and gossips with its neighbours until the swarm decides what it is. Then wake it — and it acts like what it thinks it is.</p>
+
+    <div class="seg" id="biomeSeg" style="display:none">
+      <button data-biome="workshop" class="on">🔧 Workshop</button>
+      <button data-biome="reef">🐟 Reef</button>
+    </div>
 
     <div class="seg" id="modeSeg">
       <button data-mode="build" class="on">Build</button>
@@ -107,7 +112,7 @@
 
     <div class="group">
       <h2>Start from</h2>
-      <p class="sub" style="margin-bottom:6px">a random real shape from the training set — then edit it</p>
+      <p class="sub" style="margin-bottom:6px" id="chipNote">a random real shape from the training set — then edit it</p>
       <div class="chips" id="classChips"></div>
     </div>
 
@@ -147,6 +152,9 @@
     <li><span class="pill">verb = the lead class</span> <b>Cars drive</b> (wandering, suspension bouncing on the clock). <b>Planes</b> taxi, climb, fly a banking circuit, land, repeat. <b>Boats</b> sail — water appears beneath them. <b>Chairs and tables waddle</b>, rocking on their legs in clock-step. <b>Guitars</b> go nowhere and pluck pentatonic notes on every clock beat. <b>Houses refuse</b>: one shiver, a settle of a few centimetres, chimney smoke. Identity ≠ mobility, and the house knows it.</li>
   </ul>
 
+  <h3>The reef biome</h3>
+  <p>The biome switch swaps the entire vocabulary: same engine, same 28-channel state, different 26k parameters. The <b>Reef</b> loads a model we trained ourselves (<a href="https://reef.mino.mobi/model/">model card: 95% held-out majority accuracy</a>) on procedurally grown sea creatures — a corpus curated by crowd swipes at <a href="https://reef.mino.mobi/">reef.mino.mobi</a>. The verbs go aquatic: <b>fish school</b> (each steers toward nearby fish — the school is emergent, no leader), the <b>eel undulates</b> with a genuine traveling wave — one shared Kuramoto clock plus a spatial phase lag along the body, which is exactly how biological swimming pattern generators work — <b>rays glide</b> banking, <b>jellyfish pulse</b> upward on the clock beat and sink between, <b>turtles paddle</b>, <b>anemones sway</b>, and <b>coral grows</b>: it uses the builder's own <code>place()</code> primitive to add a brick every few beats, the new cube joining blank and being recruited by gossip like any other. Swimmers own the vertical axis, so collisions become 3D — a fish passes over a turtle, but two fish at the same depth still bump.</p>
+
   <h3>Collisions</h3>
   <p>Creatures share the world physically: footprint circles, mass-weighted shoving (mass = brick count), with a rule that matters — <b>houses and guitars never budge</b>. A car glances off another car, but it bounces off a house entirely; airborne planes pass over everything. And a genuine crash — closing speed above a threshold, not a graze — <b>knocks the brick nearest the point of impact off both parties</b>. Crash damage feeds straight back into the gossip layer: lose the wrong bricks and a car's consensus wavers, its throttle drops, and a bad enough wreck splits it outright.</p>
 
@@ -163,24 +171,61 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { NCA, GRID, NC, NCELLS, decodeB64f32, decodeB64u8, splitWeights, unpackShape, mulberry32 } from './js/nca.js';
+import { NCA, GRID, NC, NCELLS, NEIGHBORS, decodeB64f32, decodeB64u8, splitWeights, unpackShape, mulberry32 } from './js/nca.js';
 import { components, bodyStats, latticeToWorld } from './js/body.js';
-import { Clock, createKin, applyVerb, resolveCollisions, VERB_NAMES, WORLD_RADIUS } from './js/gaits.js';
+import { Clock, createKin, applyVerb, applyVerbReef, resolveCollisions, VERB_NAMES, REEF_VERB_NAMES, REEF_STATIONARY, WORLD_RADIUS } from './js/gaits.js';
 import { Builder, cellOf, coordsOf, mirrorCell, encodeStructure, decodeStructure } from './js/builder.js';
 import { WEIGHTS_B64 } from './js/weights.js';
 import { SHAPES_B64, LABELS, CLASSES, NUM_SHAPES } from './js/shapes.js';
 
-// ---------- palette ----------
-const CLASS_COLORS = ['#6ab7ff', '#ffb454', '#ff6a7a', '#b08bff', '#ffe066', '#39d6c8', '#7ee787'];
-const UNDECIDED = new THREE.Color('#4a4a5c');
-const classCol = CLASS_COLORS.map((c) => new THREE.Color(c));
 const H = (GRID - 1) / 2;
-
-// ---------- model ----------
-const weights = splitWeights(decodeB64f32(WEIGHTS_B64));
+const UNDECIDED = new THREE.Color('#4a4a5c');
 const packed = decodeB64u8(SHAPES_B64);
 const byClass = CLASSES.map(() => []);
 LABELS.forEach((l, i) => byClass[l].push(i));
+
+// ---------- biomes ----------
+// Workshop: the original cube3D firmware weights + ShapeNet templates.
+// Reef: our trained marine model + the procedural species generator —
+// vendored from reef/ at deploy time (golem/js/vendor/, gitignored).
+const BIOMES = {
+  workshop: {
+    title: 'Workshop',
+    classes: CLASSES,
+    colors: ['#6ab7ff', '#ffb454', '#ff6a7a', '#b08bff', '#ffe066', '#39d6c8', '#7ee787'],
+    weights: splitWeights(decodeB64f32(WEIGHTS_B64)),
+    verbNames: VERB_NAMES,
+    apply: applyVerb,
+    stationary: [4, 5], // house, guitar
+    swims: false,
+    template: (k) => unpackShape(packed, byClass[k][Math.floor(Math.random() * byClass[k].length)]),
+    chipNote: 'a random real shape from the training set — then edit it',
+  },
+};
+try {
+  const [{ WEIGHTS_B64: RW }, sp] = await Promise.all([
+    import('./js/vendor/weights-reef.js'),
+    import('./js/vendor/species.js'),
+  ]);
+  BIOMES.reef = {
+    title: 'Reef',
+    classes: sp.SPECIES,
+    emoji: sp.SPECIES_EMOJI,
+    colors: ['#6ab7ff', '#7ee787', '#b08bff', '#ff9ad5', '#ffe066', '#ff6a7a', '#39d6c8'],
+    weights: splitWeights(decodeB64f32(RW)),
+    verbNames: REEF_VERB_NAMES,
+    apply: applyVerbReef,
+    stationary: REEF_STATIONARY, // coral, anemone
+    swims: true,
+    template: (k) => sp.generate(k, Math.floor(Math.random() * 800)),
+    chipNote: 'a procedurally grown specimen — the corpus the reef model was trained on',
+  };
+} catch (e) {
+  console.warn('reef biome assets not vendored — workshop only', e);
+}
+let biomeName = 'workshop';
+let B = BIOMES.workshop;
+let classCol = B.colors.map((c) => new THREE.Color(c));
 
 // ---------- three ----------
 const viewport = document.getElementById('viewport');
@@ -307,7 +352,7 @@ const creatures = []; // {id, nca, clock, kin, stats, garage, awake, seed}
 let selected = null;  // a roaming creature, or null
 
 function newCreature(structure, { garage = false, kin = null, seed = null } = {}) {
-  const nca = new NCA(weights);
+  const nca = new NCA(B.weights);
   nca.setStructure(structure);
   const s = seed ?? (nextId * 7919 + 13);
   const c = {
@@ -399,14 +444,22 @@ function composeInstances(t) {
   let n = 0;
   instMap.length = 0;
   const q = new THREE.Quaternion();
+  const isReef = biomeName === 'reef';
   for (const cr of creatures) {
     const { kin, stats } = cr;
     creatureQuat(cr, q);
     const baseY = kin.pos[1] + kin.bounce - kin.settle;
-    const waddler = stats.lead === 1 || stats.lead === 3;
+    const waddler = !isReef && (stats.lead === 1 || stats.lead === 3);
     const psi = cr.clock.order().psi;
     const legPulseP = Math.max(0, Math.sin(psi)) * kin.speed * 0.1;
     const legPulseN = Math.max(0, -Math.sin(psi)) * kin.speed * 0.1;
+    // reef theatrics, precomputed per creature
+    const swimmerWave = isReef && cr.awake && (stats.lead === 0 || stats.lead === 1); // fish, eel
+    const rayFlap = isReef && cr.awake && stats.lead === 2;
+    const jellyPulse = isReef && cr.awake && stats.lead === 3;
+    const anemoneSway = isReef && cr.awake && stats.lead === 6;
+    const waveAmp = stats.lead === 1 ? 0.38 : 0.18;
+    const f0 = stats.forward[0], f2 = stats.forward[2];
     for (const cell of cr.nca.live) {
       if (n >= MAX_INST) break;
       const w = latticeToWorld(cell);
@@ -420,6 +473,23 @@ function composeInstances(t) {
       if (waddler && cr.awake && w[1] < stats.minY + 1.5) {
         // alternate diagonal "legs" lift on the clock
         tmpV.y += ((Math.round(w[0]) + Math.round(w[2])) & 1) ? legPulseP : legPulseN;
+      }
+      if (swimmerWave) {
+        // the CPG trick: one shared clock + a spatial phase lag along the
+        // body axis = a traveling wave down the eel (subtler on fish)
+        const along = tmpV.x * f0 + tmpV.z * f2;
+        const lat = waveAmp * Math.sin(2 * psi + along * 1.1) * Math.min(1, kin.speed);
+        tmpV.x += -f2 * lat;
+        tmpV.z += f0 * lat;
+      } else if (rayFlap) {
+        const latDist = Math.abs(tmpV.x * -f2 + tmpV.z * f0);
+        tmpV.y += 0.22 * Math.sin(2 * psi) * (latDist / Math.max(1, stats.radius)) * Math.min(1, kin.speed + 0.3);
+      } else if (jellyPulse) {
+        tmpV.y += (w[1] - stats.minY) * 0.10 * Math.sin(psi);
+      } else if (anemoneSway) {
+        const hgt = w[1] - stats.minY;
+        tmpV.x += 0.16 * hgt * 0.25 * Math.sin(psi * 0.8 + hgt * 0.7);
+        tmpV.z += 0.16 * hgt * 0.25 * Math.cos(psi * 0.6 + hgt * 0.9);
       }
       if (kin.twitch > 0) {
         const h1 = Math.sin(cell * 12.9898 + Math.floor(t * 14) * 78.233) * 43758.5453;
@@ -527,33 +597,37 @@ function rebuildGarageFromBuilder() {
   refreshPanel();
 }
 
-// template chips
+// template chips + consensus bars — rebuilt on biome switch
 const chipsEl = $('classChips');
-CLASSES.forEach((name, k) => {
-  const b = document.createElement('button');
-  b.innerHTML = `<span class="dot" style="background:${CLASS_COLORS[k]}"></span>${name}`;
-  b.onclick = () => {
-    const list = byClass[k];
-    const shape = unpackShape(packed, list[Math.floor(Math.random() * list.length)]);
-    builder.load(shape);
-    deselect(); // panel returns to the build
-    rebuildGarageFromBuilder();
-  };
-  chipsEl.appendChild(b);
-});
-
-// consensus bars
 const barsEl = $('bars');
-const barFills = [], barPcts = [], barRows = [];
-CLASSES.forEach((name, k) => {
-  const row = document.createElement('div');
-  row.className = 'bar';
-  row.innerHTML = `<span class="name">${name}</span><span class="track"><span class="fill" style="background:${CLASS_COLORS[k]}"></span></span><span class="pct"></span>`;
-  barsEl.appendChild(row);
-  barRows.push(row);
-  barFills.push(row.querySelector('.fill'));
-  barPcts.push(row.querySelector('.pct'));
-});
+let barFills = [], barPcts = [], barRows = [];
+function buildPanelForBiome() {
+  chipsEl.innerHTML = '';
+  B.classes.forEach((name, k) => {
+    const b = document.createElement('button');
+    const em = B.emoji ? B.emoji[k] + ' ' : '';
+    b.innerHTML = `<span class="dot" style="background:${B.colors[k]}"></span>${em}${name}`;
+    b.onclick = () => {
+      builder.load(B.template(k));
+      deselect(); // panel returns to the build
+      rebuildGarageFromBuilder();
+    };
+    chipsEl.appendChild(b);
+  });
+  $('chipNote').textContent = B.chipNote;
+  barsEl.innerHTML = '';
+  barFills = []; barPcts = []; barRows = [];
+  B.classes.forEach((name, k) => {
+    const row = document.createElement('div');
+    row.className = 'bar';
+    row.innerHTML = `<span class="name">${name}</span><span class="track"><span class="fill" style="background:${B.colors[k]}"></span></span><span class="pct"></span>`;
+    barsEl.appendChild(row);
+    barRows.push(row);
+    barFills.push(row.querySelector('.fill'));
+    barPcts.push(row.querySelector('.pct'));
+  });
+}
+buildPanelForBiome();
 
 function refreshPanel() {
   const inspect = selected ?? garageCreature;
@@ -571,13 +645,13 @@ function refreshPanel() {
   } else if (st.consensus < 0.5) {
     $('status').innerHTML = `${who} (${n} bricks) is <b>undecided</b> — the swarm is still arguing.`;
   } else {
-    $('status').innerHTML = `${who} (${n} bricks) is ${(st.consensus * 100).toFixed(0)}% sure it's a <b>${CLASSES[st.lead]}</b> — a ${CLASSES[st.lead].toLowerCase()} <b>${VERB_NAMES[st.lead]}</b>.`;
+    $('status').innerHTML = `${who} (${n} bricks) is ${(st.consensus * 100).toFixed(0)}% sure it's a <b>${B.classes[st.lead]}</b> — a ${B.classes[st.lead].toLowerCase()} <b>${B.verbNames[st.lead]}</b>.`;
   }
   // Wake always reflects the build on the pad, whatever is selected
   const gs = garageCreature?.stats;
   const wakeable = !!garageCreature && garageCreature.nca.live.length >= 3 && gs.consensus >= 0.5;
   $('wake').disabled = !wakeable;
-  $('wake').textContent = wakeable ? `Wake the ${CLASSES[gs.lead]}` : 'Wake it';
+  $('wake').textContent = wakeable ? `Wake the ${B.classes[gs.lead]}` : 'Wake it';
   $('recall').disabled = !(selected && !garageCreatureHasCubes());
   $('despawn').disabled = !selected;
 }
@@ -597,11 +671,12 @@ $('wake').onclick = () => {
   cr.awake = true;
   cr.kin = createKin(cr.seed);
   cr.kin.yaw = Math.atan2(cr.stats.forward[2], cr.stats.forward[0]); // set off along its own long axis
-  // movers drive themselves off the pad; non-movers (house, guitar) get
-  // delivered to a spot just outside it — then refuse to move, as is their way
-  const stationary = cr.stats.lead === 4 || cr.stats.lead === 5;
+  // movers drive themselves off the pad; non-movers (house, guitar, coral,
+  // anemone) get delivered to a spot just outside it — then stay, as is their way
+  const stationary = B.stationary.includes(cr.stats.lead);
   const d = stationary ? GRID * 1.15 : 0;
   cr.kin.pos = [Math.cos(cr.kin.yaw) * d, 0, Math.sin(cr.kin.yaw) * d];
+  if (B.swims && !stationary) { cr.kin.alt = 2; cr.kin.pos[1] = 2; } // swimmers push off into the water
   garageCreature = null;
   selected = cr; // keep watching its mind while it goes
   initGarage();
@@ -632,13 +707,57 @@ $('despawn').onclick = () => {
   ring.visible = false;
   refreshPanel();
 };
+// ---------- biome switch ----------
+function applyBiomeSkin() {
+  if (biomeName === 'reef') {
+    scene.fog.color.set(0x06222e); scene.fog.near = 35; scene.fog.far = 78;
+    ground.material.color.set(0x123038);
+    key.color.set(0x9fd8ff); key.intensity = 1.2;
+    rim.color.set(0x1c6f8a); rim.intensity = 0.8;
+    viewport.style.background = 'radial-gradient(120% 90% at 50% 15%,#0c3140 0%,#04141c 70%)';
+  } else {
+    scene.fog.color.set(0x07070c); scene.fog.near = 55; scene.fog.far = 95;
+    ground.material.color.set(0x0d0d15);
+    key.color.set(0xffffff); key.intensity = 1.4;
+    rim.color.set(0x88aaff); rim.intensity = 0.5;
+    viewport.style.background = 'radial-gradient(120% 90% at 50% 15%,#13131f 0%,#07070c 70%)';
+  }
+}
+
+function setBiome(name) {
+  if (!BIOMES[name] || name === biomeName) return;
+  biomeName = name;
+  B = BIOMES[name];
+  classCol = B.colors.map((c) => new THREE.Color(c));
+  // fresh world: every creature belongs to one vocabulary
+  creatures.length = 0;
+  debris.length = 0;
+  smoke.length = 0;
+  selected = null;
+  ring.visible = false;
+  applyBiomeSkin();
+  buildPanelForBiome();
+  document.querySelectorAll('#biomeSeg button').forEach((x) =>
+    x.classList.toggle('on', x.dataset.biome === name));
+  initGarage();
+  builder.load(B.template(name === 'reef' ? 0 : 2)); // starter: a fish / a car
+  rebuildGarageFromBuilder();
+  updateHud();
+}
+if (BIOMES.reef) {
+  $('biomeSeg').style.display = 'flex';
+  document.querySelectorAll('#biomeSeg button').forEach((b) => {
+    b.onclick = () => setBiome(b.dataset.biome);
+  });
+}
+
 $('share').onclick = async () => {
-  const url = `${location.origin}${location.pathname}#b=${encodeStructure(builder.structure)}`;
+  const url = `${location.origin}${location.pathname}#b=${encodeStructure(builder.structure)}&m=${biomeName}`;
   try {
     await navigator.clipboard.writeText(url);
     $('share').textContent = 'Copied!';
   } catch {
-    location.hash = `b=${encodeStructure(builder.structure)}`;
+    location.hash = `b=${encodeStructure(builder.structure)}&m=${biomeName}`;
     $('share').textContent = 'Link is in the URL bar';
   }
   setTimeout(() => { $('share').textContent = 'Copy link to this build'; }, 1600);
@@ -785,8 +904,44 @@ function frame(now) {
     cr.clock.step(dt);
     if (cr.awake) {
       const { r, psi } = cr.clock.order();
-      applyVerb(cr.kin, { lead: cr.stats.lead, consensus: cr.stats.consensus, entropy: cr.stats.entropy, r, psi }, dt);
+      const S = { lead: cr.stats.lead, consensus: cr.stats.consensus, entropy: cr.stats.entropy, r, psi };
+      // fish school: steer gently toward the centroid of nearby fish
+      if (biomeName === 'reef' && cr.stats.lead === 0) {
+        let cx = 0, cz = 0, nf = 0;
+        for (const o of creatures) {
+          if (o === cr || !o.awake || o.stats.lead !== 0) continue;
+          const d = Math.hypot(o.kin.pos[0] - cr.kin.pos[0], o.kin.pos[2] - cr.kin.pos[2]);
+          if (d < 20) { cx += o.kin.pos[0]; cz += o.kin.pos[2]; nf++; }
+        }
+        if (nf) {
+          const want = Math.atan2(cz / nf - cr.kin.pos[2], cx / nf - cr.kin.pos[0]);
+          let diff = want - cr.kin.yaw;
+          while (diff > Math.PI) diff -= 2 * Math.PI;
+          while (diff < -Math.PI) diff += 2 * Math.PI;
+          S.cohesion = Math.max(-0.5, Math.min(0.5, diff)) * 0.8;
+        }
+      }
+      B.apply(cr.kin, S, dt);
       if (cr.kin.flags.pluck) pluck(cr.kin.flags.pluck);
+      // coral builds itself: one new brick per growth beat, upward-biased
+      if (cr.kin.flags.grow && cr.nca.live.length < 380) {
+        const candidates = [];
+        for (const cell of cr.nca.live) {
+          const up = NEIGHBORS[cell * 7 + 6]; // lattice a2+1 = world up
+          if (up >= 0 && !cr.nca.structure[up]) candidates.push(up);
+          if (Math.random() < 0.25) {
+            for (const d of [1, 2, 3, 4]) {
+              const nb = NEIGHBORS[cell * 7 + d];
+              if (nb >= 0 && !cr.nca.structure[nb]) candidates.push(nb);
+            }
+          }
+        }
+        if (candidates.length) {
+          cr.nca.place(candidates[Math.floor(Math.random() * candidates.length)]);
+          cr.clock.rebuild(cr.nca.live);
+          cr.stats = bodyStats(cr.nca);
+        }
+      }
       if (cr.kin.flags.water && waterI < waters.length) {
         const w = waters[waterI++];
         w.position.x = cr.kin.pos[0]; w.position.z = cr.kin.pos[2];
@@ -813,8 +968,10 @@ function frame(now) {
         kin: c.kin,
         radius: c.stats.radius + 0.5,
         mass: c.nca.live.length,
-        mobile: !(c.stats.lead === 4 || c.stats.lead === 5), // houses & guitars don't budge
+        mobile: !B.stationary.includes(c.stats.lead), // houses, guitars, corals, anemones don't budge
         airborne: c.kin.flags.airborne,
+        y: c.kin.pos[1] + c.stats.height / 2,
+        h: c.stats.height,
         cr: c,
       }));
     for (const im of resolveCollisions(bodies)) {
@@ -888,12 +1045,20 @@ function updateHud() {
 
 // ---------- boot ----------
 const hash = new URLSearchParams(location.hash.slice(1));
+if (hash.get('m') === 'reef' && BIOMES.reef) {
+  biomeName = 'reef';
+  B = BIOMES.reef;
+  classCol = B.colors.map((c) => new THREE.Color(c));
+  applyBiomeSkin();
+  buildPanelForBiome();
+  document.querySelectorAll('#biomeSeg button').forEach((x) =>
+    x.classList.toggle('on', x.dataset.biome === 'reef'));
+}
 const fromLink = hash.get('b') ? decodeStructure(hash.get('b')) : null;
 initGarage(fromLink);
 if (!fromLink) {
-  // seed the pad with a starter so the first visit isn't a void: a small car
-  const shape = unpackShape(packed, byClass[2][Math.floor(Math.random() * byClass[2].length)]);
-  builder.load(shape);
+  // seed the pad with a starter so the first visit isn't a void
+  builder.load(B.template(biomeName === 'reef' ? 0 : 2)); // a fish / a car
   rebuildGarageFromBuilder();
 }
 refreshPanel();

@@ -93,11 +93,13 @@ export function bodyStats(nca) {
   if (vx < 0) { vx = -vx; vz = -vz; } // canonical sign
 
   const contact = [];
-  let radius = 1;
+  let radius = 1, maxY = -Infinity;
   for (let i = 0; i < n; i++) {
     if (pos[i * 3 + 1] < minY + 0.5) contact.push(live[i]);
+    if (pos[i * 3 + 1] > maxY) maxY = pos[i * 3 + 1];
     const rr = Math.hypot(pos[i * 3] - cx, pos[i * 3 + 2] - cz);
     if (rr > radius) radius = rr;
   }
-  return { votes, lead, consensus, entropy, centroid: [cx, cy, cz], forward: [vx, 0, vz], minY, contact, radius };
+  const height = maxY - minY + 1;
+  return { votes, lead, consensus, entropy, centroid: [cx, cy, cz], forward: [vx, 0, vz], minY, maxY, height, contact, radius };
 }

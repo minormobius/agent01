@@ -27,3 +27,4 @@ data/yum-compounds.json
 # j/ (ImageJ in the browser) — Rust build artifacts; pkg/ is rebuilt in CI
 j/wasm/target/
 j/pkg/
+golem/js/vendor/

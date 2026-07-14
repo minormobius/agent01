@@ -217,18 +217,111 @@ export function applyVerb(kin, S, dt) {
   return kin;
 }
 
+// ------------------------------------------------------------- reef verbs
+// Marine vocabulary (reef biome): 0 Fish · 1 Eel · 2 Ray · 3 Jellyfish ·
+// 4 Turtle · 5 Coral · 6 Anemone. Swimmers own the vertical axis; coral and
+// anemone are rooted. Same decentralized gating: throttle = consensus × sync.
+export const REEF_VERB_NAMES = ['schools', 'undulates', 'glides', 'pulses', 'paddles', 'grows', 'sways'];
+export const REEF_STATIONARY = [5, 6]; // coral, anemone
+
+const SWIM_CEIL = 9, SWIM_FLOOR = 0.6;
+
+// S may carry `cohesion` (radians of steering toward nearby same-class fish,
+// computed by the caller from world state — fish school, one doesn't).
+export function applyVerbReef(kin, S, dt) {
+  kin.tAwake += dt;
+  kin.tVerb += dt;
+  const wakeRamp = clamp(kin.tAwake / 1.5, 0, 1);
+  const throttle = clamp((S.consensus - 0.45) / 0.45, 0, 1) * S.r * wakeRamp;
+  kin.flags.water = false; kin.flags.smoke = false; kin.flags.pluck = 0;
+  kin.flags.airborne = false; kin.flags.grow = false;
+  let speed = 0, yawRate = 0, vy = 0;
+  kin.bounce = 0; kin.pitch = 0; kin.roll = 0; kin.shimmer = 0;
+  kin.settle = Math.max(0, kin.settle - 0.1 * dt);
+
+  switch (S.lead) {
+    case 0: { // Fish — schools
+      speed = 4.6 * throttle;
+      yawRate = 0.8 * wander(kin, kin.tVerb) * throttle + (S.cohesion || 0);
+      const altT = 3.2 + 2.2 * Math.sin(kin.tVerb * 0.22 + kin.s1);
+      vy = clamp(altT - kin.alt, -1, 1) * 1.2 * throttle;
+      kin.pitch = -0.12 * clamp(vy, -1, 1);
+      kin.roll = 0.25 * clamp(yawRate, -1, 1);
+      break;
+    }
+    case 1: { // Eel — undulates (the traveling wave is per-cube, renderer-side)
+      speed = 2.3 * throttle;
+      yawRate = 0.5 * wander(kin, kin.tVerb) * throttle;
+      const altT = 1.2 + 0.8 * Math.sin(kin.tVerb * 0.15 + kin.s2);
+      vy = clamp(altT - kin.alt, -1, 1) * 0.8 * throttle;
+      break;
+    }
+    case 2: { // Ray — glides
+      speed = 3.4 * throttle;
+      yawRate = 0.45 * wander(kin, kin.tVerb) * throttle;
+      const altT = 2.6 + 1.8 * Math.sin(kin.tVerb * 0.17 + kin.s1);
+      vy = clamp(altT - kin.alt, -1, 1) * 0.9 * throttle;
+      kin.roll = 0.5 * clamp(yawRate, -0.6, 0.6);
+      kin.pitch = -0.08 * clamp(vy, -1, 1);
+      break;
+    }
+    case 3: { // Jellyfish — pulses: a bell-beat impulse up, then sink
+      speed = 0.5 * throttle;
+      yawRate = 0.2 * wander(kin, kin.tVerb);
+      const beat = Math.max(0, Math.sin(S.psi)) ** 2;
+      vy = (2.4 * beat - 0.9) * throttle;
+      break;
+    }
+    case 4: { // Turtle — paddles
+      speed = 1.7 * throttle;
+      yawRate = 0.4 * wander(kin, kin.tVerb) * throttle;
+      const altT = 1.6 + 1.2 * Math.sin(kin.tVerb * 0.12 + kin.s2);
+      vy = clamp(altT - kin.alt, -1, 1) * 0.5 * throttle;
+      kin.bounce = 0.06 * Math.sin(S.psi) * throttle;
+      break;
+    }
+    case 5: { // Coral — stays rooted and GROWS (caller performs the place())
+      kin.alt = Math.max(0, kin.alt - 4 * dt);
+      kin.growAcc = (kin.growAcc || 0) + dt * throttle;
+      if (kin.growAcc > 4) { kin.growAcc = 0; kin.flags.grow = true; }
+      break;
+    }
+    case 6: default: { // Anemone — stays rooted, sways (renderer-side)
+      kin.alt = Math.max(0, kin.alt - 4 * dt);
+      kin.shimmer = 0.01; // marks "sway" for the renderer
+      break;
+    }
+  }
+
+  if (S.lead <= 4) {
+    kin.alt = clamp(kin.alt + vy * dt, SWIM_FLOOR, SWIM_CEIL);
+    yawRate += boundarySteer(kin) * (speed > 0.05 ? 1.2 : 0);
+  }
+  kin.yaw += yawRate * dt;
+  kin.pos[0] += Math.cos(kin.yaw) * speed * dt;
+  kin.pos[2] += Math.sin(kin.yaw) * speed * dt;
+  kin.pos[1] = kin.alt;
+  kin.speed = speed;
+  kin.lastPsi = S.psi;
+  kin.twitch = 0.10 * S.entropy * wakeRamp;
+  return kin;
+}
+
 // ---------------------------------------------------------------- collisions
-// Mass-weighted circle shoving on the ground plane. bodies: [{ kin, radius,
-// mass, mobile, airborne }]. Mutates kin.pos/yaw of mobile bodies so nobody
-// overlaps; immobile bodies (houses, guitars) never budge — you bounce off a
-// house. Returns hard impacts (closing speed above threshold) so the caller
-// can turn a real crash into damage: [{ i, j, x, z, closing }].
+// Mass-weighted circle shoving. bodies: [{ kin, radius, mass, mobile,
+// airborne, y?, h? }]. Mutates kin.pos/yaw of mobile bodies so nobody
+// overlaps; immobile bodies (houses, guitars, corals) never budge — you
+// bounce off a house. Bodies at different depths pass each other when their
+// vertical extents (y ± h/2) don't overlap — fish swim over turtles. Returns
+// hard impacts (closing speed above threshold) so the caller can turn a real
+// crash into damage: [{ i, j, x, z, closing }].
 export function resolveCollisions(bodies, { closingThresh = 3.0, margin = 0.3 } = {}) {
   const impacts = [];
   for (let i = 0; i < bodies.length; i++) {
     for (let j = i + 1; j < bodies.length; j++) {
       const A = bodies[i], B = bodies[j];
       if (A.airborne || B.airborne) continue;
+      if (Math.abs((A.y || 0) - (B.y || 0)) > ((A.h ?? 8) + (B.h ?? 8)) / 2) continue;
       const dx = B.kin.pos[0] - A.kin.pos[0];
       const dz = B.kin.pos[2] - A.kin.pos[2];
       const d = Math.hypot(dx, dz);

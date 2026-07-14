@@ -14,7 +14,7 @@ import {
   NCA, GRID, NC, NCELLS, NEIGHBORS, decodeB64f32, decodeB64u8, splitWeights, unpackShape, mulberry32,
 } from './nca.js';
 import { components, bodyStats, latticeToWorld } from './body.js';
-import { Clock, createKin, applyVerb, resolveCollisions } from './gaits.js';
+import { Clock, createKin, applyVerb, applyVerbReef, resolveCollisions } from './gaits.js';
 import { Builder, cellOf, mirrorCell, encodeStructure, decodeStructure } from './builder.js';
 import { WEIGHTS_B64 } from './weights.js';
 import { SHAPES_B64, LABELS, CLASSES, NUM_SHAPES } from './shapes.js';
@@ -177,6 +177,61 @@ for (const g of golden) {
   // determinism
   const a = run(2, 4, 9).kin.pos, b = run(2, 4, 9).kin.pos;
   check('verbs deterministic by seed', a[0] === b[0] && a[2] === b[2]);
+}
+
+// ---------------------------------------------------------------- reef verbs
+{
+  const run = (lead, seconds = 8, seed = 5) => {
+    const kin = createKin(seed);
+    kin.yaw = 0; kin.alt = 2;
+    const S = { lead, consensus: 1, entropy: 0.05, r: 1, psi: 0 };
+    let minAlt = Infinity, maxAlt = 0, grows = 0;
+    for (let t = 0; t < seconds * 60; t++) {
+      S.psi = (t / 60) * 2 * Math.PI * 0.9;
+      applyVerbReef(kin, S, 1 / 60);
+      minAlt = Math.min(minAlt, kin.alt); maxAlt = Math.max(maxAlt, kin.alt);
+      if (kin.flags.grow) grows++;
+    }
+    return { kin, dist: Math.hypot(kin.pos[0], kin.pos[2]), minAlt, maxAlt, grows };
+  };
+  const fish = run(0);
+  check('fish swims', fish.dist > 10 && fish.minAlt >= 0.6 && fish.maxAlt <= 9,
+    `dist ${fish.dist.toFixed(1)} alt [${fish.minAlt.toFixed(1)}, ${fish.maxAlt.toFixed(1)}]`);
+  const jelly = run(3, 12);
+  check('jellyfish pulses vertically', jelly.maxAlt - jelly.minAlt > 0.8 && jelly.dist < 6,
+    `alt swing ${(jelly.maxAlt - jelly.minAlt).toFixed(1)}`);
+  const coral = run(5, 10);
+  check('coral stays rooted and asks to grow', coral.dist < 0.01 && coral.kin.alt === 0 && coral.grows >= 2,
+    `grows ${coral.grows}`);
+  const anemone = run(6);
+  check('anemone stays rooted', anemone.dist < 0.01 && anemone.kin.alt === 0);
+  const eel = run(1);
+  check('eel undulates along (slower than fish)', eel.dist > 3 && eel.dist < fish.dist);
+  // cohesion steers
+  const kinA = createKin(5); kinA.yaw = 0; kinA.alt = 2;
+  const S = { lead: 0, consensus: 1, entropy: 0, r: 1, psi: 0, cohesion: 0.5 };
+  const kinB = createKin(5); kinB.yaw = 0; kinB.alt = 2;
+  for (let t = 0; t < 120; t++) { applyVerbReef(kinA, S, 1 / 60); applyVerbReef(kinB, { ...S, cohesion: 0 }, 1 / 60); }
+  check('fish cohesion steers the school', kinA.kin === undefined && Math.abs(kinA.yaw - kinB.yaw) > 0.5,
+    `Δyaw ${(kinA.yaw - kinB.yaw).toFixed(2)}`);
+  // reef determinism
+  const a = run(0, 4, 9).kin.pos, b = run(0, 4, 9).kin.pos;
+  check('reef verbs deterministic', a[0] === b[0] && a[2] === b[2]);
+}
+
+// vertical separation: bodies at different depths pass, same depth collide
+{
+  const mk = (x, z, y, h) => {
+    const kin = createKin(1);
+    kin.pos = [x, y, z]; kin.yaw = 0; kin.speed = 0;
+    return { kin, radius: 3, mass: 100, mobile: true, airborne: false, y, h };
+  };
+  const fishHi = mk(0, 0, 6, 2), turtleLo = mk(1, 0, 1, 2);
+  resolveCollisions([fishHi, turtleLo]);
+  check('different depths pass each other', fishHi.kin.pos[0] === 0 && turtleLo.kin.pos[0] === 1);
+  const f1 = mk(0, 0, 3, 2), f2 = mk(1, 0, 3.5, 2);
+  resolveCollisions([f1, f2]);
+  check('same depth still collides', f1.kin.pos[0] !== 0 || f2.kin.pos[0] !== 1);
 }
 
 // ---------------------------------------------------------------- collisions

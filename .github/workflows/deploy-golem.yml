@@ -21,6 +21,15 @@ jobs:
       - name: Selftest (nca parity, body, gaits, builder)
         run: node golem/js/golem.selftest.mjs
 
+      - name: Vendor reef biome assets
+        # The reef biome imports the trained reef model and the species
+        # generator. Single source of truth is reef/ (games/auth.js pattern);
+        # golem/js/vendor/ is gitignored and assembled at deploy time.
+        run: |
+          mkdir -p golem/js/vendor
+          cp reef/model/weights-reef.js reef/js/species.js golem/js/vendor/
+          ls -la golem/js/vendor/
+
       - name: Deploy to Cloudflare
         working-directory: golem
         run: npx wrangler deploy
