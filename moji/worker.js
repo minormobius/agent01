@@ -15,9 +15,12 @@ export default {
     const url = new URL(request.url);
     const p = url.pathname;
 
-    // /e/<id> and /emoji → the detail page (client reads the id from the path)
-    if (/^\/e\/[^/]+\/?$/.test(p) || p === '/emoji' || p === '/emoji/') {
-      const res = await env.ASSETS.fetch(new Request(new URL('/emoji.html', url.origin), request));
+    // /e/<id> → the detail page (client reads the id from the path). Fetch the
+    // asset by its canonical extensionless path '/emoji' — the assets layer
+    // 307-redirects '/emoji.html' to '/emoji', so fetching the .html directly
+    // would pass that redirect through to the browser.
+    if (/^\/e\/[^/]+\/?$/.test(p)) {
+      const res = await env.ASSETS.fetch(new Request(new URL('/emoji', url.origin), request));
       return new Response(res.body, {
         status: res.status,
         headers: { ...Object.fromEntries(res.headers), 'content-type': 'text/html; charset=utf-8' },
