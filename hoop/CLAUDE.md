@@ -376,14 +376,17 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-v102-reauth-gc096v` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-v103-npc-reform-shk88h` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
-  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v102` is the
-  DEVELOPMENT surface** (v101, now a frozen prior, plus the v102 pass):
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v104` is the
+  DEVELOPMENT surface** (the FUNGIBLE-KEEPER pass — see its bullet below; the bare dev aliases `/over`,
+  `/garden/plot`, `/alch`, `/smith`, `/quests` now resolve to v104). **`v103` is a FROZEN test surface** —
+  the NPC-reform pass, playable end-to-end (kept live so hoopy can keep testing it); don't touch it. The v102
+  pass (the frozen prior) was:
   - **Auth resilience (the reauth-on-return fix).** Two bugs made app-switching demand a re-login:
     (1) `flushRepo`'s save-failure handler re-minted HOOP_SCOPE — a full OAuth redirect — on ANY
     error, and the `visibilitychange→hidden` flush fires exactly when you background the app, so
@@ -431,6 +434,154 @@ despite the name. It stayed with hoop, not rind.)
     standalone `/over` page; flocks render as bee particles with a threat ring on the centroid.
     Pure + node-tested (`v102/test/menace.selftest.mjs`, 18 checks — named `menace` because the
     arena already owns `swarm.selftest` for the distributed-body creep).
+  - **The v103 NPC-REFORM pass** (the current dev surface). Two changes:
+    - **The nave's civic web is UNIFIED** (`v103/story/genquest.js#profileFromNave`, the reciprocal of
+      tide/goss's `UNIFIED.md`). The engine, chunkroller, and the old `profileFromChunk` all read the nave
+      (commons + six wards) as **seven sealed societies** — "the nave scored as seven fragments." goss
+      measured the whole nave as ONE civ web healthier on every baked seed (a ward short a parish *imports*
+      from a neighbour). `profileFromNave` now reads the nave the same way — one society over EVERY loaded
+      nave chunk with the cross-ward commute edges — **revealed, not re-rolled** (a streaming ward only
+      appends, so the reading grows monotone as wards unseal; `UNIFIED.md §C2`). The surface's `profileHere`
+      uses it whenever the player stands in the nave (deck 0); `?civ=sealed` keeps the engine-truth per-chunk
+      read (parity with goss's `?mode=sealed`). Pure + node-tested (`v103/test/civic.selftest.mjs`, 12 checks).
+    - **Waypoints always target PEOPLE** (`v103/story/promote.js`). A person-objective (a main-quest keeper
+      or a side-thread's person of interest) that the world could neither locate nor seat from the pool used
+      to DEGRADE its marker to a room (`questMarker` fell through to a terminal / the rind / a role-matched
+      place) — the "waypoint chases a room" bug. `questMarker` now emits a `person` marker for a named-but-
+      absent ref, and when the pool can seat nobody the surface **emergency-promotes** a deterministic stand-in
+      (`emergencyNpc` — same name → same atproto-stable id, tier-legal, theme-tagged, clickable) so a resident
+      can be promoted into the role and the ◇ resolves to someone walkable (the "Elias Vance who is absent"
+      case).
+    - **Load-bearing keepers sit in — and relocate to — their OWN ward** (the Factor Solen bug: "a waypoint
+      pinned in a chamber while the journal said find Kaelen Voss"). A gate-setter keeper is a faction
+      principal, but `populateChambers` hash-scattered them across whatever chambers were painted, so a
+      Continuant keeper force-placed *before* its ward streamed landed in the commons (or a wrong ward) and
+      — recorded "placed" — never moved; the waypoint then pointed at the wrong chamber ("it has to do with
+      the opening of those chunks"). Now a keeper seats in its own ward when built (`keeperSeatChunks`, else
+      the scatter fallback), and a mobile keeper stranded outside its ward once the ward opens is **re-seated**
+      into it (`needsWardReseat` + `reseatKeeper`) — the keeper cousin of `relocateGuidesToWards`.
+      Pure + node-tested (`v103/test/promote.selftest.mjs`, 37 checks). **A keeper seats on its ZONE's deck
+      (the Elias Thorne / Corin Vale fixes):** `keeperTargetChunkIds(npc)` = the faction ward for a WARD keeper
+      (`zone ∈ {ward,wards}`, deck 0), else the built chambers of the keeper's zone-deck (`ZONE_DECK`:
+      upper_rind→1, lower_rind/signal→2). A rind keeper carries a nave-faction tag too (the rind is "tagged by
+      whose of the Seven's domain you're in"), so faction alone routed Elias Thorne to the nave; and the old
+      scatter dumped rind keepers on the PLAYER's deck, so Corin Vale landed in the nave when you sought him
+      from there ("waypoint points nowhere in the nave"). Now every keeper seats on its own deck (deferred if
+      that deck isn't built), `keeperReachable` gates `nextKeeper` on the deck being built, and a mis-decked
+      mobile keeper is re-seated onto its deck. **Rind guides relocate too:** `relocateGuidesToWards` now moves
+      the pinned tier-3 guide (Sevin) onto the upper-rind deck once it's sunk (`RIND_GUIDE_TIERS`), so "Seek
+      Sevin" leads UP the shaft instead of stranding her in the commons (Luna is a mobile keeper on deck 2).
+    - **`nextKeeper` follows the ward-unlock order** (the Factor Solen bug): an anchor's gates can span wards
+      that open sequentially (FQ: continuant→rindwalker→drift), so `nextKeeper` takes an optional
+      `reachable(keeper)` predicate; the surface's `keeperReachable` prefers a keeper whose faction ward is
+      built (ward keepers) / whose deck is open (rind keepers), so the ◇ never points into an unopened ward.
+    - **DEV `?wards=all`** (sticky; `?wards=off` clears) streams all six wards at once and force-places every
+      tier's keepers — for eyeballing whether keepers place. Does not set gates or witness factions.
+  - **Quest completability board** at `hoop.mino.mobi/v103/quests` (`v103/quests.html`, also `/quests`): reads
+    the live morphyx pool and renders every anchor tier's gates, the keeper that sets each, and the oracle
+    verdict (`story/solvable.js#proveProgression`) PLUS a **placement class** column (which deck/zone each
+    keeper is seated on) — so a gate that passes the content proof but would be mis-placed is visible. Node
+    equivalent: `node hoop/scripts/prove-solvable.mjs`. NB: the oracle proves the *content contract* (setter
+    exists, tier-legal, dialogue-reachable, zone-deck open); it does NOT prove the *surface's* placement is
+    deck-correct — that gap is what the Elias Thorne bug lived in, now closed in `populateChambers`.
+  - **Anchor briefings — the two setter-less gates get REAL setters** (`hoop/story/anchor-briefings.json` +
+    `scripts/seed-anchor-briefings.mjs` + `.github/workflows/seed-hoop-anchors.yml`). The oracle reported two
+    `gate_no_setter` errors on the live pool — `flag.rind.rindwalker_scale_a` (Sevin/t3) and
+    `flag.signal.chamber_key` (Luna/t4): no keeper set them, so they relied on the runtime waiver. Now the
+    ANCHOR sets its own ungated gate — a "briefing" choice spliced onto the anchor's greet node (Sevin opening
+    the rind's first scale; Luna handing down the chamber's cadence), the beat where the guide sends you off.
+    The seeder fetches each live anchor record, adds the briefing choice+node to its dialogue (idempotent,
+    non-destructive — preserves every other field), and `putRecord`s it back to morphyx. With both in place
+    `proveProgression` is PASS / 0 errors (verified in-memory against the live pool). Seeds in Actions (morphyx
+    app-password), not the sandbox; auto-fires on push to those paths.
+- **The v104 FUNGIBLE-KEEPER pass** (the current dev surface; v103 stays frozen for testing). A gate is no
+  longer bound to ONE exact keeper — it can be satisfied by ANY of several room bundles (hoopy's diversity
+  model: "ten room bundles per faction chunk, ≥3 fulfill the conditions"), unifying the main quest with the
+  side-thread `seekCandidates` model. Changes:
+  - **`anchors.js#gateSettersMulti`** — `{ gate: [every setter, …] }` (deduped, id-sorted). `gateSetters`
+    (first-only) stays for the oracle. **`nextKeeper`** now carries the full satisfier list (`nk.setters`) and
+    filters it by the `reachable` predicate (evaluated per-setter). **`solvable.js#requiredGateSetters`** — the
+    active tier's unmet gates each with their full setter-id list. All pure + node-tested (`test/fungible.selftest.mjs`).
+  - **Surface**: `renderQuest` points the ◇ at the **nearest PLACED satisfier** of the active gate (any unlocks
+    it, so the marker always leads to a reachable person — and duplicate-named keepers like the two "Kaelen
+    Voss" stop mattering). `populateChambers` guarantees ≥1 satisfier of each unmet gate is placed + findable
+    (fungible: skip the gate if any satisfier is already up), re-seating a stranded one — replacing the
+    force-place-one-hardcoded-keeper logic.
+  - **`/quests`** gains a **satisfiers** column (per-gate setter count: ≥3 green = the diversity target, 1–2
+    amber = thin, 0 red = no setter) so hoopy can verify his multi-setter draw. Forward-compatible: with today's
+    1-setter-per-gate content it behaves exactly as before (verified against the live pool — names the correct
+    Fulcrum Cell Kaelen); diversity lands automatically once hoopy authors ≥2 setters per gate.
+  - **v104 QoL pass** (playability polish from hoopy's notes): (1) **paging** — a toast fires the moment an
+    anchor's turn-in opens (`hoopy.paged.turnin.*`, once per anchor), so you don't have to open the journal to
+    learn your guide wants you back; (2) **brief-then-send** — for tier ≥ 2 the ◇ sends you to the anchor FIRST
+    to receive the charge (gated on `hoopy.met.anchor.*`, set in openAnchor/openKeeper; falls through if the
+    anchor isn't locatable), fixing "Solen feels redundant"; (3) **full rumors** in the journal (no more 200-char
+    truncation); (4) **legible nameplates** — `lightenHex` mixes a dark faction hue toward white (the Continuant
+    navy `#33408f` was near-invisible); (5) the **overworld ladder yields** to a keeper/anchor standing on it
+    (you can talk to Solen instead of always climbing); (6) **duplicate nameplates** append the room (the two
+    "Kaelen Voss" are now "Kaelen Voss · Fulcrum Cell" vs "· Rivet Chancel").
+  - **`v104/planets.js` — THE SEVEN, the unified design-language keystone** (the demo-tier consolidation of
+    character · skills · items · alchemy · crafting · combat into one alphabet). Two orthogonal axes name
+    everything, and a thing is a **(faction, planet)** pair — 3 × 7 = **21 identities** — replacing alchemy's
+    humour/metal/vessel, crafting's material-family, and gems' crystal-system:
+    - **FACTION → BODY** (the triad axis): continuant·FLESH · rindwalker·CHASSIS · drift·ANIMA. The body lean
+      is **derived** from each faction's own civic verbs' `stats.js` VOCATIONS, so it's grounded and lands the
+      right domain per faction with **no skew** (this is why the triad moved off the planets — deriving it on
+      the planets came out 5/7 ANIMA). `bodyOf`/`bodyLean`/`factionOfBody`.
+    - **PLANET → FLAVOR** (the register axis): the Seven, each with glyph · metal · colour · governed verbs ·
+      temperament · humour. `planetOf(tag)` funnels any vocabulary (name/Sun-Moon/metal/glyph/verb) → key;
+      `advantage()` is a balanced 7-way rulership RPS (Chaldean cycle); `matchups()` splits the six.
+    - **`identityOf(faction, planet)`** composes the species ("The Iron Wright" = rindwalker × mars) with its
+      body lean + flavor + combat matchups; `allIdentities()` = the 21. `blend`/free axis — any faction × any
+      planet is reachable (no home-cluster gating). Pure + node-tested (`test/planets.selftest.mjs`, 33 checks).
+    The plan lives at **`hoop.mino.mobi/plan`** (`v104/plan.html`, also `/v104/plan`): the interactive 3×7
+    grid, per-cell body/flavor detail, the five verticals mapped, the rulership heptagram. Colours + per-cell
+    flavor stay tunable; the shape is settled.
+    All five verticals now speak the alphabet (each pure + node-tested):
+    - **V1 — character creation** (`character.js`): you pick **only a VERB**. **Not** a faction (that's the
+      main-quest fork at Sevin's threshold, `flag.chosen_faction`) and **not** a planet — planetary flavor is
+      not chosen, it's **grown** (see the alignment system below). The verb is one of **12 vocations** in an
+      authored **4/4/4** across the three body-columns (`dwell` struck as a starter filler; `govern`, the
+      Warden, filed under CHASSIS with a chassis-dominant creation blend so the body it shows is the body it
+      plays). The verb sets your BODY + kit + civic role; the character is stamped `{vocation, body}` — no
+      faction, no planet. In the arena, `playerFaction()` uses the chosen faction if set, else falls back to
+      `TRIAD_FACTION[body]` (a provisional combat school from your body).
+    - **Planetary alignment — GROWN, not chosen** (`alignment.js`, pure + node-tested; wired in `index.html`):
+      nearly everything carries a planet, and every interaction **tallies** toward it — forge a metal
+      (`materialPlanet`), brew a herb (`planetKey`), socket a gem (`gemPlanet`), best a foe (`.planet`). The
+      running tally is published as a **7-axis radar** on the character panel (`#who`), rides the save as an
+      `alignment` fact, and its **dominant planet becomes your combat register** (`buildPlayerUnit` sets
+      `unit.planet = dominant(alignment)`, so the element-over-element RPS turns on as you align; neutral
+      until then). `alignment.js` is mechanism only — `planetOfThing` resolves any object to its planet,
+      `tally`/`normalized`/`dominant`/`ranked`/`radarPoints` do the math; the game glue decides what counts.
+    - **V2 — crafting/forge** (`craft/smith.js` + `sprite/item/taxa.js`): `materialPlanet(id)` bridges every
+      material to a planet REGISTER — the classical metals funnel authoritatively through `planetOf`
+      (gold→sol · silver→luna · iron→mars), the rest by a documented table (all 22 covered, all 7 planets).
+      `craftItem` stamps `{planet, register, planetGlyph, planetColour}`; `spec.faction` records the school it
+      favours (`favoursOf` = the faction body). `itemRegister(item)` exposes a gear's planet + combat matchup.
+    - **V3 — alchemy/brew** (`alch/alchemy.js`): a reagent now carries BOTH the vendored correspondence name
+      AND the canonical `planetKey` (`planetOf('Sun')→'sol'` — that is what the Sun/Moon aliases were for),
+      plus its register `colour` and 7-way `matchups`. `prepare()` stamps the canonical `planetKey` on the
+      social effect so cross-vertical affinity keys on ONE identity. Vendored data untouched — bridge on top.
+    - **V4 — gems** (`gems.js`): `SYSTEM_PLANET` is a clean 7↔7 bijection (each crystal system → a planet);
+      `gemRegister(gem)` carries glyph/colour/matchups. `gemBonus(gem, body)` gains a body-resonance channel —
+      a socketed stone also feeds the attribute the wielder's body leans on (`BODY_STAT`: flesh→hp,
+      chassis→def, anima→flux — the plan's "a Mars gem hardens a Chassis frame"). No-body call is unchanged.
+    - **V5 — combat/arena** (`arena/engine.js` + `encounter.js`): "faction = school" was already live via
+      `factions.js` (kits/discounts/passives). Added the missing "planet = 7-way matchup": `elementMult` reads
+      `planets.js`'s balanced heptagram — the attacker whose planet rules the defender's hits ×1.25, yields
+      ×0.8, neutral ×1 when either side is planet-less (so the demo/harness/un-migrated content is unaffected).
+      Units carry `planet` (from `character.planet`); creeps get a deterministic planet from their seed.
+    **Faction↔body coherence (resolved by style swap).** `arena/factions.js` + `arena/tree.js` used to pair
+    continuant→chassis / rindwalker→flesh — the OPPOSITE of the confirmed `planets.js` derivation. Fixed by
+    swapping the two combat STYLES (not just the labels) so each faction plays its body: **continuant→FLESH**
+    now runs RISK & RESILIENCE (gore/adrenal/berserk/regen, aggro AI, Hound summon, Berserker/Reaver trees);
+    **rindwalker→CHASSIS** now runs ATTRITION & CONTROL (brace/rivet/bulwark/mend/revive, turtle AI, Sentry
+    summon, Warden/Steward trees); **drift→ANIMA** unchanged. Glyphs/accents/leans/glosses moved with the
+    style; the swap only reassigns proven-tuned payloads, so per-style balance is unchanged. This actually
+    coheres with the civic narrative (continuant grows·heals = the living meat; rindwalker makes·mends·stores
+    = the frame). Pinned by a guard in `continuum.selftest` (`FACTIONS[k].domain === bodyOf(k)`) so it can't
+    silently drift again.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

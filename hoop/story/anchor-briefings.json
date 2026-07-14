@@ -1,0 +1,21 @@
+{
+  "_comment": "AUTHORED ANCHOR BRIEFINGS. Each load-bearing anchor's turn-in gates on a set of keeper flags; the live morphyx pool provides a keeper for all of them EXCEPT one per tier — flag.rind.rindwalker_scale_a (Sevin, t3) and flag.signal.chamber_key (Luna, t4), which the solvability oracle reports as gate_no_setter. Rather than lean on the runtime waiver, these two beats let the ANCHOR set that gate itself: the 'briefing' the anchor gives when they send you off — Sevin opening the rind's first scale, Luna handing down the chamber's cadence. seed-anchor-briefings.mjs splices each as a new choice on the anchor's greet node (idempotent) and publishes it to morphyx, so the campaign is PROVABLY progressable with real content. Keyed by the ungated gate flag.",
+  "flag.rind.rindwalker_scale_a": {
+    "anchor": "Sevin",
+    "tier": 3,
+    "room": "The Confluence of Gears",
+    "nodeId": "brief_scale_a",
+    "choiceText": "Before I go — teach me the first scale. How do the rindwalkers read the hull?",
+    "says": "Good. You ask the right question before the long walk. The rindwalkers do not read the hull as engineers do — they read it as scripture. Every weld is a verse; every stress-line a psalm of the load the skin carries as the world turns. Go to where the Mars deck meets the outer plate and lay your palm flat against the cold: you will feel the whole cylinder leaning into its own spin. That leaning is the first scale — the weight a rindwalker carries in the chest before they carry anything in the hands. Hold it now. Then go and find where the other two currents run.",
+    "goText": "(I will find the other currents)"
+  },
+  "flag.signal.chamber_key": {
+    "anchor": "Luna",
+    "tier": 4,
+    "room": "The Silver Vestibule",
+    "nodeId": "brief_chamber_key",
+    "choiceText": "Then give me the key. Where does the chamber's language begin?",
+    "says": "The key is not a shape you can carry in your hand — it is a cadence you must carry in your blood. Listen: the ship counts its own heartbeat in the silence between the pumps, a rhythm older than any crew aboard. The chamber will not open for a stranger who merely arrives; it answers only to those who already keep its time. Take this beat down into the dark with you — one, and the long rest, and one — and let the deep name the rest of its secrets in its own slow hour.",
+    "goText": "(I descend into the silence)"
+  }
+}
