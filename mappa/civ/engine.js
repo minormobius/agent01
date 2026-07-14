@@ -61,7 +61,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     demo: stream(seed, 'demography'), disp: stream(seed, 'dispersal'),
     enc: stream(seed, 'encounter'), innov: stream(seed, 'innovation'),
     split: stream(seed, 'culture-split'), org: stream(seed, 'institution'),
-    war: stream(seed, 'war'), rep: stream(seed, 'reputation'), seed: stream(seed, 'seeding'), misc: stream(seed, 'misc'),
+    war: stream(seed, 'war'), rep: stream(seed, 'reputation'), econ: stream(seed, 'economy'), seed: stream(seed, 'seeding'), misc: stream(seed, 'misc'),
   };
 
   const climate = makeClimate(cfg.climate, w);
@@ -135,6 +135,15 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const stateInst = new Map();   // culture id → its state inst id (stable identity)
   const greatPeople = [];        // named individuals who led an institution to eminence — history's names
   const greatSeen = new Set();
+  // evolvable institution RULESETS — new institutions inherit the ruleset of the most
+  // successful institution of their type (imitation) with drift; the economy selects them.
+  const bestRules = new Map();   // type → { rules, score } (the exemplar to imitate)
+  const clamp01 = (x, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, x));
+  function inheritRules(type) {
+    const ex = bestRules.get(type), t = ex ? ex.rules : { tax: 0.15, wage: 0.5, merit: 0.5, invest: 0.4 };
+    const d = () => (R.econ() - 0.5) * 0.12;
+    return { tax: clamp01(t.tax + d(), 0, 0.6), wage: clamp01(t.wage + d(), 0.1, 0.9), merit: clamp01(t.merit + d()), invest: clamp01(t.invest + d(), 0, 0.9) };
+  }
   const iKey = (type, seat, cu) => type + ':' + seat + ':' + cu;
   function instName(type, seat, cu) {
     const r = stream((seed ^ (seat * 2654435761) ^ (cu * 40503) ^ (type * 97)) >>> 0, 'inst-name');
@@ -148,7 +157,8 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   }
   function makeInst(type, seat, cu, parent, key) {
     const id = insts.length;
-    const it = { id, type, culture: cu, seat, parent: parent ?? -1, birthTick: tick, dissolvedTick: -1, name: instName(type, seat, cu), memberCount: 0, pool: 0, strength: 0, peakMembers: 0, lastSeen: tick, wealth: 0, captures: 0, leader: -1, leaderRep: 0, reputation: 0 };
+    const it = { id, type, culture: cu, seat, parent: parent ?? -1, birthTick: tick, dissolvedTick: -1, name: instName(type, seat, cu), memberCount: 0, pool: 0, strength: 0, peakMembers: 0, lastSeen: tick, wealth: 0, captures: 0, leader: -1, leaderRep: 0, reputation: 0,
+      rules: inheritRules(type), capital: 0, output: 0, revenue: 0, wagePerMember: 0 };
     insts.push(it); liveInsts.push(it); if (key != null) instAt.set(key, id);
     if (type === INST.FIRM || type === INST.STATE) pushEvent(tick, 'institutionFounded', { inst: id, kind: INST_NAME[type], name: it.name, culture: cu, seat });
     return it;
@@ -167,6 +177,12 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   // ---- stigmergy fields (the O(n) coordination substrate) ------------------------
   const memeField = new Float32Array(N * NCAP); // per-cell accumulated tech trace
   const activityField = new Float32Array(N);    // roads/markets/connectivity accumulator
+  // MICROECONOMY: the wares price is itself a stigmergic trace — everyone reads/writes it,
+  // it rises with local demand and falls with local supply, and smoothing to neighbours is
+  // market integration. Firms earn revenue = output × local price.
+  const warePrice = new Float32Array(N).fill(1);
+  const wareSupply = new Float32Array(N);       // wares produced per cell this tick
+  const priceTmp = new Float32Array(N);
 
   const A = makeAgents(4096);
   let live = new Int32Array(1024); let liveN = 0;
@@ -298,8 +314,14 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     };
   }
   function captureFrame() {
-    const cell = [], popc = [], cu = [], sub = [], tier = [], pol = [], present = new Set();
-    for (let c = 0; c < N; c++) { const d = cellDom[c]; if (d < 0 || cellPop[c] <= 0) continue; const C = cultures[d]; cell.push(c); popc.push(cellPop[c]); cu.push(d); sub.push(C.sub); tier.push(vecTier(C.tech)); pol.push(polity[c]); present.add(d); }
+    const cell = [], popc = [], cu = [], sub = [], tier = [], pol = [], wlth = [], prc = [], present = new Set();
+    for (let c = 0; c < N; c++) {
+      const d = cellDom[c]; if (d < 0 || cellPop[c] <= 0) continue; const C = cultures[d];
+      cell.push(c); popc.push(cellPop[c]); cu.push(d); sub.push(C.sub); tier.push(vecTier(C.tech)); pol.push(polity[c]);
+      let wsum = 0; const s = cellStart[c], e = cellStart[c + 1]; for (let t = s; t < e; t++) wsum += A.wealth[cellOrder[t]];
+      wlth.push(+(wsum / Math.max(1, e - s)).toFixed(2)); prc.push(+warePrice[c].toFixed(2));
+      present.add(d);
+    }
     const cid = [], csub = [], ctier = [], ctech = [], clang = [], csize = [];
     for (const id of present) { const C = cultures[id]; cid.push(id); csub.push(C.sub); ctier.push(vecTier(C.tech)); ctech.push(C.tech >>> 0); clang.push(C.lang); csize.push(cultMembers[id] || 0); }
     // the frame's NOTABLE PEOPLE — the highest-reputation living individuals, with their
@@ -311,7 +333,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     }
     const people = [];
     for (let a = nt - 1; a >= 0; a--) { const id = topId[a]; people.push({ cell: A.cell[id], name: personName(id), cu: A.culture[id], rep: +A.status[id].toFixed(2), cred: A.cred[id], age: Math.round((tick - A.birthTick[id]) * ty) }); }
-    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, people, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
+    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, wlth, prc, people, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
   }
 
   function step() {
@@ -351,7 +373,8 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         if (age > maxAgeT) dr += 0.5;
         if (collapsed) dr += 0.25;
         if (overCap) dr += 0.15; // runaway-population guard
-        dr *= (1.15 - 0.3 * A.health[id]);
+        dr *= (1.15 - 0.3 * A.health[id] - Math.min(0.35, A.wealth[id] * 0.08)); // wealth buys survival — the rich weather famine
+        if (dr < 0.002) dr = 0.002;
         if (R.demo() < dr) { kill(id); continue; }
         pushNL(id);
         if (A.sex[id] === 0 && age >= adultT && age <= fertileMaxT) { if (nf < fmales.length) fmales[nf++] = id; }
@@ -734,9 +757,17 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const isFrontier = (c, d) => { for (let k = w.nbrOff[c]; k < w.nbrOff[c + 1]; k++) { const j = w.nbrIdx[k]; const dj = cellDom[j]; if (dj >= 0 && dj !== d) return true; } return false; };
   const techBonus = tech => (has(tech, CAP.metallurgy) ? 0.35 : 0) + (has(tech, CAP.wheel) ? 0.2 : 0) + (has(tech, CAP.mechanisation) ? 0.7 : 0);
   const warCooldown = new Map(); // inst id → last-war tick (throttle events)
+  // the most-successful ruleset of each institution type becomes the exemplar new ones
+  // imitate; it decays slowly so a new champion's ruleset can take over across eras.
+  function recordExemplar(it, score) {
+    const ex = bestRules.get(it.type), cur = ex ? ex.score * 0.999 : 0;
+    if (score >= cur) bestRules.set(it.type, { rules: { tax: it.rules.tax, wage: it.rules.wage, merit: it.rules.merit, invest: it.rules.invest }, score });
+    else if (ex) ex.score = cur;
+  }
   function buildInstitutions() {
     // reset live-institution accumulators (O(live), not O(ever-created))
-    for (const it of liveInsts) { it.memberCount = 0; it.wealth = 0; it.strength = 0; it.leaderRep = 0; it.reputation = 0; }
+    for (const it of liveInsts) { it.memberCount = 0; it.wealth = 0; it.strength = 0; it.leaderRep = 0; it.reputation = 0; it.output = 0; }
+    wareSupply.fill(0);
     // one state per dynasty (culture that reached statehood)
     for (let i = 0; i < cultures.length; i++) { const cu = cultures[i]; if (!cu.extinct && cu.everState) ensureState(i); }
     // per significant settlement: the specialised actors its capabilities unlock, then
@@ -756,15 +787,24 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       // highest-reputation member becomes the institution's leader (its elite / great person).
       const s = cellStart[c], e = cellStart[c + 1];
       const hasMetal = has(cu.tech, CAP.metallurgy), hasWrite = has(cu.tech, CAP.writing), hasMason = has(cu.tech, CAP.masonry), hasMech = has(cu.tech, CAP.mechanisation);
+      // MERITOCRATIC RECRUITMENT: the good jobs (firm/guild) go to high-reputation,
+      // credentialed agents to the degree the institution's `merit` ruleset says so; a
+      // hereditary society (low merit) recruits at random. A meritocratic firm thus fields
+      // higher-reputation members → higher output → it grows → its ruleset gets imitated.
+      const merit = firm ? firm.rules.merit : guild ? guild.rules.merit : warband ? warband.rules.merit : 0.5;
       for (let t = s; t < e; t++) {
         const id = cellOrder[t]; if (!(A.flags[id] & ALIVE) || A.cell[id] !== c) continue;
-        const h = hash01(id); let org = stateId; // default: a subject of the state (or -1, household)
-        if (warband && h < 0.14) org = warband.id;
-        else if (firm && h < 0.55) org = firm.id;
-        else if (guild && h < 0.66) org = guild.id;
+        const eliteScore = clamp01(A.status[id] / 2.5 + popcount16(A.cred[id]) * 0.05);
+        const roll = (1 - merit) * hash01(id) + merit * (1 - eliteScore); // meritocratic → high standing gets a low roll → an elite role
+        let org = stateId; // default: a subject of the state (or -1, household)
+        if (firm && roll < 0.40) org = firm.id;
+        else if (guild && roll < 0.52) org = guild.id;
+        else if (warband && roll < 0.66) org = warband.id;
         A.org[id] = org;
         if (org >= 0) {
-          const it = insts[org]; it.memberCount++; it.wealth += A.wealth[id];
+          const it = insts[org];
+          A.wealth[id] = Math.min(4, A.wealth[id] + it.wagePerMember); // last tick's wages
+          it.memberCount++; it.wealth += A.wealth[id];
           const rep = A.status[id]; it.reputation += rep;
           if (rep > it.leaderRep) { it.leaderRep = rep; it.leader = id; }
           // issue credentials by role (rng-gated → earned over a tenure)
@@ -786,10 +826,30 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       it.pool = it.pool * 0.98 + it.wealth * 0.03;                    // treasury tracks sustained wealth
       it.reputation = it.memberCount > 0 ? it.reputation / it.memberCount : 0; // → mean standing (its "brand")
       const cu = cultures[it.culture];
-      if (it.type === INST.FIRM) { firmCount++; activityField[it.seat] += 0.4; }            // firms drive economic activity
-      else if (it.type === INST.GUILD) { guildCount++; activityField[it.seat] += 0.2; }       // guilds pool knowledge
+      if (it.type === INST.FIRM || it.type === INST.GUILD) {
+        // PRODUCTION → REVENUE → WAGES + PROFIT → CAPITAL (the growth loop). Output rises
+        // with member reputation (skill), accumulated capital, and mechanisation; revenue is
+        // output × the local wares price. Wages (a ruleset knob) pay members; retained profit
+        // (invest knob) becomes capital, which raises next tick's output.
+        const skill = it.type === INST.FIRM ? 1 : 0.5;
+        const mech = has(cu.tech, CAP.mechanisation) ? (has(cu.tech, CAP.steamPower) ? 3 : 1.8) : 1;
+        it.output = it.memberCount * 0.05 * skill * (0.5 + it.reputation) * (1 + Math.min(4, it.capital * 0.4)) * mech;
+        wareSupply[it.seat] += it.output;
+        it.revenue = it.output * warePrice[it.seat];
+        const wages = it.revenue * it.rules.wage;
+        it.wagePerMember = it.memberCount > 0 ? Math.min(0.35, wages / it.memberCount) : 0;
+        const profit = Math.max(0, it.revenue - wages);
+        it.capital = Math.max(0, it.capital * 0.97 + profit * it.rules.invest * 0.02);
+        it.pool = it.pool * 0.98 + profit * (1 - it.rules.invest) * 0.02;
+        if (it.type === INST.FIRM) { firmCount++; activityField[it.seat] += 0.4; } else { guildCount++; activityField[it.seat] += 0.2; }
+        recordExemplar(it, it.type === INST.FIRM ? it.capital * 8 + it.memberCount : it.memberCount);
+      }
       else if (it.type === INST.WARBAND) { warCount++; it.strength = it.memberCount * (1 + techBonus(cu.tech)) * (1 + Math.min(1.5, it.pool * 0.02)) * (1 + Math.min(0.7, it.leaderRep * 0.18)); } // a great captain multiplies the host
-      else stateCount++;
+      else { // STATE: tax member wealth into the treasury (a ruleset knob), fund stability
+        stateCount++;
+        it.pool = it.pool * 0.99 + it.wealth * it.rules.tax * 0.02;
+        recordExemplar(it, it.memberCount);
+      }
       // history's names: an eminent leader (very high reputation) is recorded once, with
       // their résumé, as a great person of their age.
       if (it.leader >= 0 && it.leaderRep > 2.4) {
@@ -815,6 +875,16 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       if ((it.type === INST.FIRM || it.type === INST.STATE) && it.peakMembers > 150) pushEvent(tick, 'institutionFell', { inst: it.id, kind: INST_NAME[it.type], name: it.name, peak: it.peakMembers });
     }
     if (dissolved) liveInsts = liveInsts.filter(it => it.dissolvedTick < 0);
+    // update the wares PRICE field: rises with demand (population), falls with supply
+    // (output this tick); then smooth to neighbours — market integration along the mesh.
+    for (let c = 0; c < N; c++) {
+      const p = cellPop[c];
+      if (p <= 0) { warePrice[c] = warePrice[c] * 0.98 + 0.02; continue; }
+      const target = Math.max(0.2, Math.min(6, (p * 0.02 + 0.4) / (wareSupply[c] + 0.4)));
+      warePrice[c] = warePrice[c] * 0.85 + 0.15 * target;
+    }
+    for (let c = 0; c < N; c++) { let s = warePrice[c], n = 1; for (let k = w.nbrOff[c]; k < w.nbrOff[c + 1]; k++) { s += warePrice[w.nbrIdx[k]]; n++; } priceTmp[c] = warePrice[c] * 0.8 + 0.2 * (s / n); }
+    warePrice.set(priceTmp);
     return { firms: firmCount, guilds: guildCount, warbands: warCount, statesEnt: stateCount, insts: insts.length };
   }
   function warOnce(wb) {
@@ -917,12 +987,19 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       .filter(it => it.type === INST.STATE ? it.peakMembers > 0 : it.type === INST.WARBAND ? it.captures >= 1 : it.peakMembers > 40)
       .sort((a, b) => notability(b) - notability(a))
       .slice(0, 140)
-      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader) : null, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
+      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
+    // the economy: wealth inequality (Gini), mean wealth, mean price, total output
+    let totW = 0, maxW = 0; const wl = new Float64Array(liveN);
+    for (let t = 0; t < liveN; t++) { const wv = A.wealth[live[t]]; wl[t] = wv; totW += wv; if (wv > maxW) maxW = wv; }
+    wl.sort(); let cum = 0, g = 0; for (let i = 0; i < liveN; i++) { cum += wl[i]; g += (i + 1) / liveN - (totW > 0 ? cum / totW : 0); }
+    const gini = liveN > 1 && totW > 0 ? +(2 * g / liveN).toFixed(3) : 0;
+    let mp = 0, np = 0, to = 0; for (let c = 0; c < N; c++) if (cellPop[c] > 0) { mp += warePrice[c]; np++; } for (const it of liveInsts) to += it.output;
+    const economy = { gini, meanWealth: +(liveN ? totW / liveN : 0).toFixed(3), maxWealth: +maxW.toFixed(2), meanPrice: +(np ? mp / np : 1).toFixed(2), totalOutput: Math.round(to), exemplars: Object.fromEntries([...bestRules].map(([t, e]) => [INST_NAME[t], e.rules])) };
     // history's great persons, most eminent first
     const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120);
     return {
       pop: liveN,
-      cultures: surviving, polities, resources, institutions,
+      cultures: surviving, polities, resources, institutions, economy,
       greatPeople: great, credNames: CRED,
       languages: languages.map(l => ({ id: l.id, parent: l.parent, birthTick: l.birthTick })),
       subDist, popByLandmass: Array.from(popByLand),

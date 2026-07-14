@@ -38,6 +38,12 @@
   .alive{ background:#16261c; color:var(--good); } .fell{ background:#2a1a1c; color:var(--bad); }
   .era0{color:#8b98a9}.era1{color:#9cc96f}.era2{color:#c9a86f}.era3{color:#d0a0d0}.era4{color:#e6a34a}.era5{color:#e6d24a}
   .cap{ display:inline-block; background:#16261c; color:var(--good); border-radius:5px; padding:1px 6px; font-size:11px; margin:1px 3px 1px 0; }
+  .facts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; }
+  .fact{ background:#0b0f16; border:1px solid var(--edge); border-radius:8px; padding:8px 10px; }
+  .fact b{ display:block; font-size:19px; } .fact span{ font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.4px; }
+  .exr{ display:inline-flex; align-items:center; gap:7px; background:#0b0f16; border:1px solid var(--edge); border-radius:8px; padding:5px 9px; margin:3px 6px 3px 0; font-size:12px; }
+  .exr .knob{ color:var(--dim); } .exr .knob b{ color:var(--ink); }
+  .rules{ font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
   .tt{ position:fixed; pointer-events:none; background:rgba(10,14,21,.95); border:1px solid var(--edge); border-radius:8px; padding:7px 9px; font-size:12px; display:none; z-index:10; max-width:220px; }
 </style>
 </head>
@@ -64,6 +70,13 @@
     <canvas id="stream" height="360"></canvas>
   </div>
 
+  <div class="card">
+    <h2>Economy</h2>
+    <p class="sub">Firms &amp; guilds produce wares, priced by supply &amp; demand; revenue pays wages (→ wealth) and builds capital (→ more output). Institution rulesets evolve — the <b>exemplars</b> are the most successful, imitated by new institutions with drift.</p>
+    <div class="facts" id="econstats"></div>
+    <div id="exemplars" style="margin-top:8px"></div>
+  </div>
+
   <div class="cols">
     <div class="card">
       <h2>Dynasties <span class="sub" id="dyncount"></span></h2>
@@ -88,7 +101,7 @@
       <div class="modes" id="ifilter"><b data-k="" class="on">all</b><b data-k="state">states</b><b data-k="firm">companies</b><b data-k="guild">guilds</b><b data-k="warband">warbands</b></div>
     </div>
     <div style="overflow:auto;max-height:380px"><table id="insttab"><thead><tr>
-      <th>kind</th><th>name</th><th>leader</th><th>culture</th><th class="num">members</th><th class="num">peak</th><th class="num">treasury</th><th class="num">strength</th><th class="num">conquests</th><th>status</th>
+      <th>kind</th><th>name</th><th>leader</th><th>culture</th><th class="num">members</th><th class="num">treasury</th><th class="num">capital</th><th class="num">strength</th><th class="num">conq.</th><th>ruleset (tax·wage·merit·invest)</th><th>status</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
 
@@ -213,7 +226,21 @@ function renderTables(){
     tr.innerHTML=`<td>${RES_ICON[r.kind]||''} ${r.kind}</td><td>${r.name}</td><td>${holder}</td>`;
     rt.appendChild(tr);
   }
-  renderInsts(); renderGreat();
+  renderInsts(); renderGreat(); renderEcon();
+}
+function renderEcon(){
+  const e=DATA.chronicle.final.economy; if(!e){ $('#econcard')&&($('#econcard').style.display='none'); return; }
+  const st=$('#econstats'); st.innerHTML='';
+  const add=(v,s)=>{ const c=document.createElement('div'); c.className='fact'; c.innerHTML=`<b>${v}</b><span>${s}</span>`; st.appendChild(c); };
+  add(e.gini.toFixed(3),'wealth inequality (Gini)'); add(e.meanWealth.toFixed(2),'mean wealth'); add(e.maxWealth.toFixed(1),'richest');
+  add(e.meanPrice.toFixed(2),'mean wares price'); add(e.totalOutput.toLocaleString(),'total output');
+  const ex=$('#exemplars'); ex.innerHTML='<span class="sub">evolved exemplar rulesets (imitated by new institutions): </span><br>';
+  const ICON={guild:'⚒️',firm:'🏭',warband:'⚔️',state:'🏛️'};
+  for(const [k,r] of Object.entries(e.exemplars||{})){
+    const el=document.createElement('span'); el.className='exr';
+    el.innerHTML=`${ICON[k]||''} <b>${k}</b> <span class="knob">tax <b>${(r.tax*100|0)}%</b></span><span class="knob">wage <b>${(r.wage*100|0)}%</b></span><span class="knob">merit <b>${(r.merit*100|0)}%</b></span><span class="knob">invest <b>${(r.invest*100|0)}%</b></span>`;
+    ex.appendChild(el);
+  }
 }
 const INST_ICON={state:'🏛️',firm:'🏭',guild:'⚒️',warband:'⚔️'};
 function renderInsts(){
@@ -223,11 +250,12 @@ function renderInsts(){
   $('#instcount').textContent='('+(f.institutions||[]).length+')';
   for(const o of rows){
     const tr=document.createElement('tr'); tr.className='dyn'; tr.dataset.id=o.culture;
+    const r=o.rules, rules=r?`<span class="rules">${(r.tax*100|0)}·${(r.wage*100|0)}·${(r.merit*100|0)}·${(r.invest*100|0)}</span>`:'—';
     tr.innerHTML=`<td>${INST_ICON[o.kind]||''} ${o.kind}</td><td>${o.name}</td><td>${o.leader?o.leader:'<span class="sub">—</span>'}</td>`
       +`<td><span class="sw" style="background:${cultureCol(o.culture)}"></span>#${o.culture}</td>`
-      +`<td class="num">${o.members.toLocaleString()}</td><td class="num">${o.peak.toLocaleString()}</td>`
-      +`<td class="num">${o.pool.toLocaleString()}</td><td class="num">${o.strength?o.strength.toLocaleString():'—'}</td>`
-      +`<td class="num">${o.captures||'—'}</td>`
+      +`<td class="num">${o.members.toLocaleString()}</td>`
+      +`<td class="num">${o.pool.toLocaleString()}</td><td class="num">${o.capital?o.capital.toLocaleString():'—'}</td><td class="num">${o.strength?o.strength.toLocaleString():'—'}</td>`
+      +`<td class="num">${o.captures||'—'}</td><td>${rules}</td>`
       +`<td>${o.alive?'<span class="pill alive">active</span>':'<span class="pill fell">fell '+yr(o.fell)+'</span>'}</td>`;
     tr.onclick=()=>{ hlCulture=hlCulture===o.culture?null:o.culture; refreshHL(); drawStream(); };
     it.appendChild(tr);

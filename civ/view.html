@@ -68,7 +68,7 @@
     <canvas id="cv"></canvas>
     <div id="legend">
       <div class="modes" id="modes">
-        <b data-m="culture" class="on">culture</b><b data-m="political">political</b><b data-m="sub">subsistence</b><b data-m="era">era</b><b data-m="density">density</b>
+        <b data-m="culture" class="on">culture</b><b data-m="political">political</b><b data-m="sub">subsistence</b><b data-m="era">era</b><b data-m="wealth">wealth</b><b data-m="market">market</b><b data-m="density">density</b>
       </div>
       <label class="k" style="margin-top:4px"><input type="checkbox" id="showres" checked style="vertical-align:-2px"> named resources</label>
       <label class="k"><input type="checkbox" id="showppl" checked style="vertical-align:-2px"> notable people</label>
@@ -126,6 +126,8 @@ function cellColor(f, k, alpha){
   if(mode==='political'){ const p=f.pol?f.pol[k]:0; return hsl(cultureHue(f.cu[k]), 30+p*26, 26+p*20, alpha); } // territory by culture, brightness = sovereignty (band→chiefdom→state)
   if(mode==='sub'){ const c=SUB_COL[f.sub[k]]||[0,0,60]; return hsl(c[0],c[1],c[2],alpha); }
   if(mode==='era'){ const t=f.tier[k]; return hsl(210-t*40, 55, 40+t*8, alpha); }
+  if(mode==='wealth'){ const wv=Math.min(1,(f.wlth?f.wlth[k]:0)/2.2); return hsl(140*wv, 62, 24+wv*46, alpha); } // dark→bright green = poor→rich
+  if(mode==='market'){ const p=Math.min(1,((f.prc?f.prc[k]:1)-0.3)/2.7); return hsl(50-p*50, 75, 34+p*22, alpha); }   // yellow(cheap)→red(dear)
   // density
   const d=Math.min(1, f.popc[k]/600); return hsl(20+ (1-d)*40, 80, 30+d*45, alpha);
 }
@@ -257,6 +259,8 @@ function buildLegend(){
   else if(mode==='era') h=ERA_NAME.map((s,i)=>`<div class="k"><span class="sw" style="background:${hsl(210-i*40,55,40+i*8)}"></span>${s}</div>`).join('');
   else if(mode==='culture') h='<div class="k" style="color:var(--dim)">hue = culture identity</div>';
   else if(mode==='political') h='<div class="k" style="color:var(--dim)">hue = culture · brightness = sovereignty</div><div class="k" style="color:var(--dim)">dim tribes → bright states</div>';
+  else if(mode==='wealth') h='<div class="k" style="color:var(--dim)">dark → bright green = poor → rich</div>';
+  else if(mode==='market') h='<div class="k" style="color:var(--dim)">yellow → red = cheap → dear wares</div>';
   else h='<div class="k" style="color:var(--dim)">warm = dense population</div>';
   el.innerHTML=h;
 }

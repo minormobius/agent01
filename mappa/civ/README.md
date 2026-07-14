@@ -171,6 +171,23 @@ the map, in the river, and in the tables.
   named **great persons** with résumés (develop view) and clickable **notable people** on the
   map (playground) — e.g. "Labigo of #2, ★3.39, age 73 — farmer/smith/scribe/mason/trader/
   master/elder". Deterministic, O(n) (bit-ops folded into existing passes).
+- **Microeconomy** — firms and guilds *produce wares*; a stigmergic **price field** rises
+  with local demand and falls with supply (smoothing to neighbours = market integration).
+  Revenue = output × price, split by an evolvable ruleset into **wages** (→ member wealth)
+  and **profit** → **capital** → higher output next tick — the growth loop, so an industrial
+  takeoff is an *economic* takeoff, not just a tech flag. Wealth buys survival (the rich
+  weather famine), so success feeds back into demography and inequality (a **Gini** falls out,
+  ~0.5). Deterministic, O(n).
+- **Meritocratic recruitment + evolvable institution rulesets (the org-level Darwinian loop)**
+  — role assignment is biased by reputation × credentials to the degree an institution's
+  `merit` ruleset says (a hereditary society recruits at random); a meritocratic firm fields
+  higher-reputation members → higher output → it grows → **its ruleset gets imitated**. Every
+  institution carries a ruleset `{tax, wage, merit, invest}` that new institutions inherit from
+  the most-successful exemplar of their type (imitation) with drift, and the economy *selects*
+  it. Institutional forms differentiate under selection — e.g. firms converge on high investment
+  + meritocracy, guilds on low tax. Surfaced in the development view (Economy card with Gini /
+  prices / output and the evolved exemplar rulesets; per-institution capital + ruleset columns)
+  and the playground (`wealth` and `market`-price colour modes).
 - **Religion / ideology** — deliberately *not yet* modelled; the design note is to add it as
   a second orthogonal meme-phylogeny (a `beliefId` diffusing through the same stigmergic
   field, decoupled from language) so its map cuts *across* the political and linguistic ones.
