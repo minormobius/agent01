@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cube · smart cellular bricks · tjs</title>
+<meta name="description" content="A browser port of cube3D — smart cellular bricks that classify the 3D shape they collectively form via a neural cellular automaton, running the exact trained network from the real ESP32 cube firmware. Smash pieces off and watch the survivors re-decide what they are.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#07070c; --panel:#101019; --panel2:#16161f; --line:#23232e; --ink:#e6e6f0;
+    --soft:#8a8aa0; --faint:#5f5f74; --accent:#39d6c8; --accent2:#ffb454; --gold:#ffce6b;
+    --serif:Georgia,"Iowan Old Style",Cambria,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  .crumb{font-size:13px;letter-spacing:.04em;color:var(--faint);padding:10px 18px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative;z-index:5}
+  .crumb a{color:var(--soft)} .crumb .here{color:var(--accent)} .crumb .spacer{flex:1}
+  .stage-row{display:flex;min-height:calc(100vh - 42px)}
+  @media(max-width:880px){.stage-row{flex-direction:column}}
+  #viewport{position:relative;flex:1;min-height:62vh;background:radial-gradient(120% 90% at 50% 15%,#13131f 0%,#07070c 70%);touch-action:none}
+  #viewport canvas{display:block}
+  .hud{position:absolute;top:12px;left:14px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 5px #000;line-height:1.7}
+  .hud b{color:var(--accent)}
+  .hint{position:absolute;bottom:12px;left:14px;right:14px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none;text-shadow:0 0 5px #000}
+  aside{width:330px;flex:0 0 330px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;max-height:calc(100vh - 42px);padding:18px 18px 40px}
+  @media(max-width:880px){aside{width:auto;flex:none;border-left:0;border-top:1px solid var(--line);max-height:none}}
+  aside h2{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 4px;font-weight:600}
+  aside .sub{font-size:12px;color:var(--faint);margin:0 0 14px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:8px 0 14px}
+  .seg button{flex:1;background:transparent;color:var(--soft);border:0;padding:8px 4px;font-size:12px;cursor:pointer;font-family:var(--sans)}
+  .seg button.on{background:var(--accent);color:#06121a;font-weight:600}
+  .seg button.smashon{background:#ff6a7a;color:#1a0608;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .chips button{font-size:12px;background:var(--panel2);color:var(--soft);border:1px solid var(--line);border-radius:7px;padding:6px 9px;cursor:pointer;font-family:var(--sans);display:flex;align-items:center;gap:6px}
+  .chips button:hover{color:var(--ink);border-color:var(--accent)}
+  .chips button.on{color:var(--ink);border-color:var(--accent)}
+  .chips .dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+  .ctl{margin:11px 0}
+  .ctl label{display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:3px}
+  .ctl label .v{color:var(--accent);font-family:var(--mono)}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+  .group{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+  .group.dmg h2{color:#ff6a7a}
+  .row{display:flex;gap:8px;margin-top:12px}
+  .row button{flex:1;font-family:var(--sans);font-size:13px;background:var(--accent);color:#06121a;border:0;padding:9px;border-radius:8px;cursor:pointer;font-weight:600}
+  .row button.ghost{background:transparent;color:var(--soft);border:1px solid var(--line);font-weight:500}
+  .row button.ghost:hover{color:var(--ink);border-color:var(--accent)}
+  .row button.danger{background:transparent;color:#ff8a96;border:1px solid #43222a;font-weight:500}
+  .row button.danger:hover{border-color:#ff6a7a;color:#ffb3ba}
+  /* consensus bars */
+  .bars{margin-top:6px}
+  .bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px}
+  .bar .name{width:52px;color:var(--soft);font-family:var(--mono);font-size:11px}
+  .bar .track{flex:1;height:10px;background:var(--panel2);border-radius:5px;overflow:hidden}
+  .bar .fill{height:100%;width:0%;border-radius:5px;transition:width .18s}
+  .bar .pct{width:40px;text-align:right;color:var(--faint);font-family:var(--mono);font-size:11px}
+  .bar.lead .name{color:var(--ink)} .bar.lead .pct{color:var(--accent)}
+  /* docs */
+  .docs{max-width:860px;margin:0 auto;padding:30px 22px 80px;border-top:1px solid var(--line)}
+  .docs h2{font-family:var(--serif);font-size:24px;margin:30px 0 8px;font-weight:600}
+  .docs h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:26px 0 6px}
+  .docs p{color:#c9c9d6;max-width:70ch}
+  .docs code{font-family:var(--mono);font-size:.86em;background:var(--panel2);padding:.12em .42em;border-radius:4px;color:#e9d9a8}
+  .docs .kicker{letter-spacing:.2em;text-transform:uppercase;font-size:11px;color:var(--accent2)}
+  .docs ul{color:#c9c9d6;max-width:70ch} .docs li{margin:5px 0}
+  .docs b{color:#f0f0f6}
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--gold);border:1px solid #3a2f12;background:#171307;border-radius:5px;padding:1px 7px;margin-right:4px}
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi/">mino.mobi</a> / <a href="/">tjs</a> / <span class="here">cube</span>
+  <span class="spacer"></span>
+  <a href="/swarm/">swarm</a> &nbsp;·&nbsp; <a href="/infill/">infill</a> &nbsp;·&nbsp; <a href="#how">how it works ↓</a>
+</nav>
+
+<div class="stage-row">
+  <div id="viewport">
+    <div class="hud" id="hud"></div>
+    <div class="hint" id="hint">drag = orbit · scroll/pinch = zoom · switch to <b>Smash</b> and tap cubes to break them off</div>
+  </div>
+
+  <aside>
+    <h2>Smart cellular bricks</h2>
+    <p class="sub">Every cube runs the real trained network from the <a href="https://github.com/rmorenoga/cube3D">cube3D</a> ESP32 firmware. No cube sees the whole shape — each gossips with its 6 face-neighbours until the swarm agrees what it collectively <i>is</i>.</p>
+
+    <div class="seg" id="modeSeg">
+      <button data-mode="orbit" class="on">Orbit camera</button>
+      <button data-mode="smash">Smash cubes</button>
+    </div>
+
+    <h2 style="margin-top:6px">Shape</h2>
+    <p class="sub" style="margin-bottom:6px">487 voxelised ShapeNet models, 15³ grid — the training set. Chips re-roll within a class.</p>
+    <div class="chips" id="classChips"></div>
+    <div class="row" style="margin-top:6px">
+      <button id="prevShape" class="ghost">← prev</button>
+      <button id="reroll" class="ghost">⟳ random</button>
+      <button id="nextShape" class="ghost">next →</button>
+    </div>
+
+    <div class="group">
+      <h2>Gossip</h2>
+      <div class="ctl"><label>steps / second <span class="v" id="vSpeed">12</span></label><input type="range" id="speed" min="1" max="60" step="1" value="12"></div>
+      <div class="ctl"><label>fire rate (async update prob.) <span class="v" id="vFire">0.50</span></label><input type="range" id="fire" min="0.05" max="1" step="0.05" value="0.5"></div>
+      <div class="row">
+        <button id="pause">Pause</button>
+        <button id="stepOnce" class="ghost">Step ×1</button>
+        <button id="resetBeliefs" class="ghost">Reset beliefs</button>
+      </div>
+    </div>
+
+    <div class="group dmg">
+      <h2>Damage</h2>
+      <div class="sub" style="margin-bottom:2px">The paper's party trick: break the artefact, the survivors re-classify. Tap cubes in Smash mode, or:</div>
+      <div class="row">
+        <button id="chop" class="danger">Chop a third off</button>
+        <button id="scatter" class="danger">Knock 15% loose</button>
+      </div>
+      <div class="row"><button id="restore" class="ghost">Restore shape</button></div>
+    </div>
+
+    <div class="group">
+      <h2>Consensus</h2>
+      <div class="sub" style="margin-bottom:4px">fraction of living cubes voting for each class</div>
+      <div class="bars" id="bars"></div>
+    </div>
+  </aside>
+</div>
+
+<section class="docs" id="how">
+  <div class="kicker">workbench notes</div>
+  <h2>A shape that knows what it is</h2>
+  <p><a href="https://github.com/rmorenoga/cube3D">cube3D</a> (Moreno&nbsp;et&nbsp;al.) is a research platform of physical <b>smart bricks</b> — ESP32-powered cubes you snap together into an artefact. The trick: the assembled artefact <i>classifies itself</i>. No camera, no server, no cube with a global view. Each cube runs an identical ~26k-parameter network, exchanges a small state vector with its face-neighbours, and after a few dozen rounds of gossip every cube independently concludes "we are a chair." Break the chair and the surviving cubes re-converge on whatever they still resemble — decentralized <b>damage recovery</b>.</p>
+  <p>This bench is a faithful browser port. The Python/TensorFlow repo needs Colab to even look at; here the same system runs in your pocket. The weights are not retrained or approximated — they're lifted verbatim from <code>neural_network.h</code>, the C header flashed onto the real cubes, and the 487 voxelised ShapeNet shapes are the repo's actual dataset (<code>ShapeData/xdata_7class.npy</code>).</p>
+  <p>This bench grew a sequel: <a href="https://golem.mino.mobi/"><b>golem.mino.mobi</b></a> — a Minecraft-like builder world where you assemble the swarm yourself, and once it decides what it is, it <i>acts</i> like it: cars drive, boats sail, houses refuse to move.</p>
+
+  <h3>The machine, per cube</h3>
+  <p>It's a <b>neural cellular automaton</b> (NCA). Each cube holds a 28-channel state: 1 <i>structure</i> bit (am I here?), 20 hidden channels — scratch space the gossip protocol invents for itself during training — and 7 <i>class-belief</i> channels, one per ShapeNet class (plane · chair · car · table · house · guitar · boat). One tick:</p>
+  <ul>
+    <li><span class="pill">perceive</span> concatenate what the 6 face-neighbours (and the cube itself) are broadcasting, through a 7-point stencil: <code>relu(Σ W_dir · state_dir + b)</code> → 84 features. A missing neighbour reads as zeros — silence.</li>
+    <li><span class="pill">decide</span> two dense layers, <code>84 → relu → 84 → 27</code>.</li>
+    <li><span class="pill">update</span> <i>residually</i>, squashed by <code>tanh</code>, and only with probability <code>fire&nbsp;rate</code> — cubes are asynchronous, like real hardware with unsynchronised clocks. Only the 27 non-structure channels move; a cube can't talk itself out of existing.</li>
+  </ul>
+  <p>A cube's <b>vote</b> is the argmax of its 7 belief channels; its colour here is that vote, saturating with softmax confidence (grey = undecided). The bars in the panel are the live vote histogram — watch a minority opinion collapse as consensus spreads through the lattice like a phase change.</p>
+
+  <h3>Damage recovery, honestly</h3>
+  <p>Chop a slab off a house and the survivors re-classify almost perfectly — that's the paper's headline result, and it reproduces here (it's asserted in this bench's selftest). But knock 15% of cubes out <i>at random</i> and accuracy genuinely degrades: a swiss-cheese chair is legitimately ambiguous to agents that can only see their neighbours. The bench doesn't hide that; degradation under scattered damage is the honest behaviour of the real system.</p>
+
+  <h3>Port notes — why no WASM</h3>
+  <p>The physical cube is a 240&nbsp;MHz microcontroller doing ~26k multiply-accumulates per tick; fifteen-cubed of worst case is ~10M MACs per swarm-tick, which plain JavaScript on <code>Float32Array</code>s does in a few milliseconds. Rust/WASM would be justified at maybe 50× this scale; here it would only add a build step to a workbench that deliberately has none. The engine (<code>nca.js</code>) is a pure, DOM-free module in the house style: struct-of-arrays state, synchronous <code>step(fireRate, rand)</code>, seedable mulberry32 — the same portable-kernel shape as <code>swarm3d.js</code>, ready for a compute-shader port if it ever earns one.</p>
+  <p>Rendering is one <code>THREE.InstancedMesh</code> — 3,375 potential cubes, one draw call, per-instance colour written from the belief channels each tick. Smashed cubes become ballistic debris on a second instanced mesh; they're pure theatre, but the theatre is the point of running this in a browser.</p>
+
+  <h3>Fidelity</h3>
+  <p>The port is checked against a NumPy reference implementation of the original TF graph: after 20 deterministic ticks the mean belief logits agree to <code>&lt;5×10⁻⁶</code>, and over the repo's dataset the per-cube classification accuracy is <b>99.8%</b> (90 stochastic ticks, fire rate 0.5) — matching the paper's training protocol. Run it yourself: <code>node tjs/cube/nca.selftest.mjs</code>. Direction-to-kernel mapping (which weight matrix is "north") was recovered from the firmware export cell in <code>BIGCUBE_V2.ipynb</code>, the same code that generated the flashed header.</p>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { NCA, GRID, NC, NCELLS, decodeB64f32, decodeB64u8, splitWeights, unpackShape } from './nca.js';
+import { WEIGHTS_B64 } from './weights.js';
+import { SHAPES_B64, LABELS, CLASSES, NUM_SHAPES } from './shapes.js';
+
+// ---------- palette ----------
+const CLASS_COLORS = ['#6ab7ff', '#ffb454', '#ff6a7a', '#b08bff', '#ffe066', '#39d6c8', '#7ee787'];
+const UNDECIDED = new THREE.Color('#3c3c4c');
+const classCol = CLASS_COLORS.map((c) => new THREE.Color(c));
+
+// ---------- model ----------
+const weights = splitWeights(decodeB64f32(WEIGHTS_B64));
+const packed = decodeB64u8(SHAPES_B64);
+const nca = new NCA(weights);
+
+const byClass = CLASSES.map(() => []);
+LABELS.forEach((l, i) => byClass[l].push(i));
+
+// ---------- three ----------
+const viewport = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+viewport.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
+camera.position.set(24, 18, 26);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.8;
+controls.addEventListener('start', () => { controls.autoRotate = false; });
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.4); key.position.set(18, 30, 14); scene.add(key);
+const rim = new THREE.DirectionalLight(0x88aaff, 0.5); rim.position.set(-20, -8, -18); scene.add(rim);
+
+const grid = new THREE.GridHelper(40, 20, 0x23232e, 0x16161f);
+grid.position.y = -GRID / 2 - 1.5;
+scene.add(grid);
+
+// Dataset axes -> world. binvox arrays are indexed [x][z][y] and ShapeNet is
+// y-up, so array axis 2 is world-up.
+const cellPos = (cell) => {
+  const a0 = Math.floor(cell / (GRID * GRID));
+  const a1 = Math.floor(cell / GRID) % GRID;
+  const a2 = cell % GRID;
+  return new THREE.Vector3(a0 - (GRID - 1) / 2, a2 - (GRID - 1) / 2, a1 - (GRID - 1) / 2);
+};
+
+const geo = new THREE.BoxGeometry(0.92, 0.92, 0.92);
+const mat = new THREE.MeshLambertMaterial();
+const mesh = new THREE.InstancedMesh(geo, mat, NCELLS);
+mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(NCELLS * 3), 3);
+mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+scene.add(mesh);
+
+// debris (smashed cubes tumbling off)
+const MAX_DEBRIS = 400;
+const debrisMesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.9 }), MAX_DEBRIS);
+debrisMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_DEBRIS * 3), 3);
+debrisMesh.count = 0;
+scene.add(debrisMesh);
+const debris = []; // {pos, vel, rot, rotVel, age, color}
+
+let instanceCells = []; // instance index -> cell
+const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), ONE = new THREE.Vector3(1, 1, 1);
+const col = new THREE.Color();
+
+function rebuildInstances() {
+  instanceCells = [...nca.live];
+  for (let i = 0; i < instanceCells.length; i++) {
+    tmpM.makeTranslation(cellPos(instanceCells[i]));
+    mesh.setMatrixAt(i, tmpM);
+  }
+  mesh.count = instanceCells.length;
+  mesh.instanceMatrix.needsUpdate = true;
+  recolor();
+}
+
+function recolor() {
+  for (let i = 0; i < instanceCells.length; i++) {
+    const cell = instanceCells[i];
+    const vote = nca.vote(cell);
+    const conf = nca.confidence(cell);
+    const t = Math.min(1, Math.max(0, (conf - 1 / NC) / (0.85 - 1 / NC)));
+    col.copy(UNDECIDED).lerp(classCol[vote], t);
+    mesh.setColorAt(i, col);
+  }
+  mesh.instanceColor.needsUpdate = true;
+}
+
+// ---------- UI state ----------
+let shapeIndex = 0;
+let playing = true;
+let fireRate = 0.5;
+let stepsPerSec = 12;
+let mode = 'orbit';
+
+const $ = (id) => document.getElementById(id);
+const hud = $('hud');
+
+function loadShape(i) {
+  shapeIndex = ((i % NUM_SHAPES) + NUM_SHAPES) % NUM_SHAPES;
+  nca.setStructure(unpackShape(packed, shapeIndex));
+  rebuildInstances();
+  updateBars();
+  updateChips();
+}
+
+// class chips
+const chipsEl = $('classChips');
+CLASSES.forEach((name, k) => {
+  const b = document.createElement('button');
+  b.innerHTML = `<span class="dot" style="background:${CLASS_COLORS[k]}"></span>${name}`;
+  b.onclick = () => {
+    const list = byClass[k];
+    loadShape(list[Math.floor(Math.random() * list.length)]);
+  };
+  b.dataset.cls = k;
+  chipsEl.appendChild(b);
+});
+function updateChips() {
+  [...chipsEl.children].forEach((b) => b.classList.toggle('on', +b.dataset.cls === LABELS[shapeIndex]));
+}
+
+// consensus bars
+const barsEl = $('bars');
+const barFills = [], barPcts = [], barRows = [];
+CLASSES.forEach((name, k) => {
+  const row = document.createElement('div');
+  row.className = 'bar';
+  row.innerHTML = `<span class="name">${name}</span><span class="track"><span class="fill" style="background:${CLASS_COLORS[k]}"></span></span><span class="pct"></span>`;
+  barsEl.appendChild(row);
+  barRows.push(row);
+  barFills.push(row.querySelector('.fill'));
+  barPcts.push(row.querySelector('.pct'));
+});
+function updateBars() {
+  const c = nca.consensus();
+  let lead = 0;
+  for (let k = 1; k < NC; k++) if (c[k] > c[lead]) lead = k;
+  for (let k = 0; k < NC; k++) {
+    barFills[k].style.width = `${(c[k] * 100).toFixed(1)}%`;
+    barPcts[k].textContent = `${(c[k] * 100).toFixed(0)}%`;
+    barRows[k].classList.toggle('lead', k === lead && c[lead] > 0);
+  }
+  const truth = CLASSES[LABELS[shapeIndex]];
+  hud.innerHTML = `shape #${shapeIndex} · truth: <b>${truth}</b> · cubes ${nca.live.length}<br>` +
+    `tick ${nca.steps} · swarm says: <b>${CLASSES[lead]}</b> ${(c[lead] * 100).toFixed(0)}%`;
+}
+
+// controls
+$('speed').oninput = (e) => { stepsPerSec = +e.target.value; $('vSpeed').textContent = stepsPerSec; };
+$('fire').oninput = (e) => { fireRate = +e.target.value; $('vFire').textContent = fireRate.toFixed(2); };
+$('pause').onclick = () => { playing = !playing; $('pause').textContent = playing ? 'Pause' : 'Play'; };
+$('stepOnce').onclick = () => { nca.step(fireRate); recolor(); updateBars(); };
+$('resetBeliefs').onclick = () => { nca.reset(); recolor(); updateBars(); };
+$('reroll').onclick = () => loadShape(byClass[LABELS[shapeIndex]][Math.floor(Math.random() * byClass[LABELS[shapeIndex]].length)]);
+$('prevShape').onclick = () => loadShape(shapeIndex - 1);
+$('nextShape').onclick = () => loadShape(shapeIndex + 1);
+$('restore').onclick = () => loadShape(shapeIndex);
+
+const modeSeg = $('modeSeg');
+modeSeg.querySelectorAll('button').forEach((b) => {
+  b.onclick = () => {
+    mode = b.dataset.mode;
+    modeSeg.querySelectorAll('button').forEach((x) => x.classList.remove('on', 'smashon'));
+    b.classList.add(mode === 'smash' ? 'smashon' : 'on');
+    controls.enableRotate = mode === 'orbit';
+    $('hint').innerHTML = mode === 'smash'
+      ? 'tap a cube to smash it — the survivors re-decide what they are'
+      : 'drag = orbit · scroll/pinch = zoom · switch to <b>Smash</b> and tap cubes to break them off';
+  };
+});
+
+function smash(cell) {
+  const p = cellPos(cell);
+  const vote = nca.vote(cell), conf = nca.confidence(cell);
+  if (!nca.damage(cell)) return;
+  const t = Math.min(1, Math.max(0, (conf - 1 / NC) / (0.85 - 1 / NC)));
+  debris.push({
+    pos: p, age: 0,
+    vel: p.clone().normalize().multiplyScalar(6 + Math.random() * 4).add(new THREE.Vector3(0, 5, 0)),
+    rot: new THREE.Euler(0, 0, 0),
+    rotVel: new THREE.Vector3((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8),
+    color: col.copy(UNDECIDED).lerp(classCol[vote], t).clone(),
+  });
+  if (debris.length > MAX_DEBRIS) debris.shift();
+  rebuildInstances();
+  updateBars();
+}
+
+$('chop').onclick = () => {
+  if (!nca.live.length) return;
+  const axis = Math.floor(Math.random() * 3);
+  const coord = (cell) => [Math.floor(cell / (GRID * GRID)), Math.floor(cell / GRID) % GRID, cell % GRID][axis];
+  let lo = GRID, hi = 0;
+  for (const c of nca.live) { const v = coord(c); if (v < lo) lo = v; if (v > hi) hi = v; }
+  const cut = hi - Math.max(1, Math.floor((hi - lo) / 3));
+  for (const c of [...nca.live]) if (coord(c) > cut) smash(c);
+};
+$('scatter').onclick = () => {
+  for (const c of [...nca.live]) if (Math.random() < 0.15) smash(c);
+};
+
+// raycast smash
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (mode !== 'smash') return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObject(mesh, false)[0];
+  if (hit && hit.instanceId !== undefined && hit.instanceId < instanceCells.length) {
+    smash(instanceCells[hit.instanceId]);
+  }
+});
+
+// ---------- loop ----------
+function resize() {
+  const w = viewport.clientWidth, h = viewport.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(viewport);
+resize();
+
+let acc = 0, last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+
+  if (playing && nca.live.length) {
+    acc += dt * stepsPerSec;
+    let n = Math.min(4, Math.floor(acc));
+    acc -= Math.floor(acc);
+    if (n > 0) {
+      while (n--) nca.step(fireRate);
+      recolor();
+      updateBars();
+    }
+  }
+
+  // debris physics
+  if (debris.length) {
+    let alive = 0;
+    for (const d of debris) {
+      d.age += dt;
+      if (d.age > 2.2) continue;
+      d.vel.y -= 22 * dt;
+      d.pos.addScaledVector(d.vel, dt);
+      d.rot.x += d.rotVel.x * dt; d.rot.y += d.rotVel.y * dt; d.rot.z += d.rotVel.z * dt;
+      tmpQ.setFromEuler(d.rot);
+      tmpM.compose(d.pos, tmpQ, ONE);
+      debrisMesh.setMatrixAt(alive, tmpM);
+      debrisMesh.setColorAt(alive, d.color);
+      alive++;
+    }
+    debrisMesh.count = alive;
+    debrisMesh.instanceMatrix.needsUpdate = true;
+    if (debrisMesh.instanceColor) debrisMesh.instanceColor.needsUpdate = true;
+    while (debris.length && debris[0].age > 2.2) debris.shift();
+  } else {
+    debrisMesh.count = 0;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// start on ?i=N if given, else a decently sized house — the most legible demo
+const qi = new URLSearchParams(location.search).get('i');
+let start;
+if (qi !== null && !Number.isNaN(+qi)) {
+  start = +qi;
+} else {
+  start = byClass[4][0];
+  let best = 0;
+  for (const i of byClass[4]) {
+    const s = unpackShape(packed, i);
+    let n = 0;
+    for (let j = 0; j < s.length; j++) n += s[j];
+    if (n > best) { best = n; start = i; }
+  }
+}
+loadShape(start);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

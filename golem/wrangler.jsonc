@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "golem",
+  "compatibility_date": "2026-03-21",
+  // golem.mino.mobi — build a swarm of cube3D smart bricks, watch it classify
+  // itself, wake it and it acts like what it thinks it is. Assets-only worker,
+  // no build step; deploy-golem.yml runs `wrangler deploy` from this dir.
+  "assets": {
+    "directory": "."
+  },
+  "routes": [
+    { "pattern": "golem.mino.mobi", "custom_domain": true }
+  ]
+}

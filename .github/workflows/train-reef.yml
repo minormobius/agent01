@@ -1,0 +1,74 @@
+name: Train reef NCA
+
+# Trains the reef species classifier (same architecture as the cube3D
+# firmware NCA) on the procedural corpus, filtered by crowd verdicts from
+# reef.mino.mobi. Commits reef/model/{weights-reef.js, golden-reef.json,
+# eval.json} back to the dispatching branch IF the held-out majority
+# accuracy clears the gate. Manual dispatch only — a run takes ~3-4h.
+
+on:
+  workflow_dispatch:
+    inputs:
+      updates:
+        description: 'training updates'
+        default: '2500'
+      gate:
+        description: 'min held-out majority accuracy to commit'
+        default: '0.90'
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Species generator selftest
+        run: node reef/js/species.selftest.mjs
+
+      - name: Generate corpus
+        run: node scripts/gen-reef-corpus.mjs reef_corpus.json 140
+
+      - name: Fetch crowd verdicts (best effort)
+        run: node scripts/fetch-reef-rejects.mjs reef_rejects.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install torch (CPU)
+        run: pip install --quiet numpy torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Train
+        run: |
+          python3 reef/train/train_reef.py \
+            --corpus reef_corpus.json \
+            --drop reef_rejects.json \
+            --updates ${{ github.event.inputs.updates }} \
+            --out reef_run
+
+      - name: Accuracy gate
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          e = json.load(open('reef_run/eval.json'))
+          gate = float('${{ github.event.inputs.gate }}')
+          print(f"held-out: cell {e['cell_acc']:.3f} majority {e['majority_acc']:.3f} (gate {gate})")
+          for row in e['confusion']:
+              print(row)
+          if e['majority_acc'] < gate:
+              print('BELOW GATE — not committing weights')
+              sys.exit(1)
+          EOF
+
+      - name: Commit model back
+        run: |
+          set -euo pipefail
+          mkdir -p reef/model
+          cp reef_run/weights-reef.js reef_run/golden-reef.json reef_run/eval.json reef/model/
+          git config user.name "reef-trainer"
+          git config user.email "actions@github.com"
+          git add reef/model
+          git commit -m "reef: trained model ($(python3 -c "import json; e=json.load(open('reef_run/eval.json')); print(f\"majority {e['majority_acc']:.3f}, cell {e['cell_acc']:.3f}, u{e['update']}\")"))" || exit 0
+          git pull --rebase origin ${{ github.ref_name }}
+          git push origin HEAD:${{ github.ref_name }}

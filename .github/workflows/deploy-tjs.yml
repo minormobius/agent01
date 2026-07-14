@@ -6,7 +6,7 @@ name: Deploy tjs (three.js workbenches)
 
 on:
   push:
-    branches: [main, 'claude/3d-bee-swarms-threejs-1yamtu']
+    branches: [main, 'claude/cube3d-browser-port-ufh9gy']
     paths:
       - 'tjs/**'
       - '.github/workflows/deploy-tjs.yml'
@@ -22,7 +22,7 @@ jobs:
         working-directory: tjs
         run: |
           rm -rf dist && mkdir -p dist
-          cp -r index.html docs.html gantry orb infill swarm beelix deck lib AGENTS.md samples dist/
+          cp -r index.html docs.html gantry orb infill swarm beelix cube deck lib AGENTS.md samples dist/
           rm -f dist/wrangler.jsonc dist/wrangler.toml
           ls -laR dist/ | head -60
 

@@ -1,0 +1,39 @@
+name: Deploy reef (species judging deck)
+
+# reef.mino.mobi — Tinder-style judging of procedural voxel sea creatures.
+# Votes gate the training corpus for the reef NCA (see train-reef.yml).
+# Worker + D1 (shared atpolls-db, migration 0032) + static assets, no build.
+
+on:
+  push:
+    branches: [main, 'claude/cube3d-browser-port-ufh9gy']
+    paths:
+      - 'reef/**'
+      - 'poll/apps/api/migrations/0032_reef.sql'
+      - '.github/workflows/deploy-reef.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Selftest (species generator + trained model parity)
+        run: |
+          node reef/js/species.selftest.mjs
+          node reef/js/model.selftest.mjs
+
+      - name: Apply D1 migration (idempotent)
+        working-directory: reef
+        run: npx wrangler d1 execute atpolls-db --remote --file=../poll/apps/api/migrations/0032_reef.sql || echo "migration already applied (or failed idempotently) — continuing"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy to Cloudflare
+        working-directory: reef
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
