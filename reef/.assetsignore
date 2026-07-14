@@ -1,0 +1,4 @@
+.wrangler
+wrangler.jsonc
+worker.js
+train/
