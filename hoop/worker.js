@@ -202,6 +202,10 @@ export default {
     if (url.pathname === '/v104/quests' || url.pathname === '/v104/quests/' || url.pathname === '/quests' || url.pathname === '/quests/') {
       return env.ASSETS.fetch(new Request(new URL('/v104/quests.html', url), request));
     }
+    // plan — THE SEVEN: the unified design-language plan (3 factions × 7 planets = 21 identities).
+    if (url.pathname === '/v104/plan' || url.pathname === '/v104/plan/' || url.pathname === '/plan' || url.pathname === '/plan/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/plan.html', url), request));
+    }
     // garden/plot — the high-detail GARDEN PLOT demo: the soil substrate (grain/moisture/cracks) + the
     // flora grown on it, each plant coloured by its Galenic temperament. The plants-first design toy.
     // (Bare dev aliases track the current development surface — now v103.)
