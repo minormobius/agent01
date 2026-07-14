@@ -208,10 +208,16 @@ appears in FRED automatically. Carries the run by the same URL params as the oth
   (`0.7·last-return + 0.3·prior`, tiny orthogonal noise), so the whole market **booms and
   busts** together (`marketBoom` events). Firms **raise capital two ways**: issuing equity
   in a bull market (only when equity is high and their `invest` ruleset is aggressive), or
-  **borrowing** — a firm short of retained profit for its target capital takes on **debt** at
-  the market **interest rate**, which clears from aggregate borrowing demand vs. savings
-  (`rate = 0.02 + 0.6·demand/savings`, capped). Overlevered firms whose output collapses
-  **default**, and a cluster of defaults (or a sharp index drop) is a **`financialCrisis`**.
+  **borrowing** — a firm short of retained profit for its target capital takes on **debt**.
+  The **interest rate is a genuine loanable-funds market**, clearing two *per-tick flows*:
+  **borrowing demand** (firms' external financing needs, made procyclical by sentiment — a boom
+  emboldens borrowing) against **savings supplied** (retained firm/guild profit + a slice of
+  state treasuries). Signed excess demand `(D−S)/(D+S)` sets a target around a ~5% neutral rate
+  (`0.05·e^{1.35·pressure}`) plus a stress premium per default, and the rate adjusts *stickily*
+  toward it — so a pre-industrial **savings glut** sits near ~1%, an industrial **investment boom**
+  drives it toward the mid-teens, and borrowing is itself **rate-elastic** (dear money is drawn
+  down less). Overlevered firms whose output collapses **default**, and a cluster of defaults (or a
+  sharp index drop) is a **`financialCrisis`**.
   All of it is on the `R.econ` stream and folded into the existing institution pass — O(live
   firms), fully deterministic. Surfaced in FRED (stock index, rate, debt/GDP, per-firm
   equities) and the development view's Economy card (`market` block).

@@ -921,21 +921,29 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
           it.prevOutput = it.output;
           it.raised = 0;
           if (it.equity > 130 && it.rules.invest > 0.35) { const raise = it.equity * 0.004 * it.rules.invest; it.capital += raise; it.raised = raise; } // issue shares in a bull market
-          const wantInvest = it.revenue * it.rules.invest, gap = wantInvest - profit * it.rules.invest;
-          if (gap > 0) { it.debt += gap * 0.05; market.borrowDemand += gap * 0.05; }
-          it.debt = Math.max(0, it.debt * (1 - 0.02) - profit * 0.02);       // service/repay from profit
-          it.pool -= it.debt * market.rate * 0.01;                            // interest
-          market.savings += Math.max(0, it.pool);
+          // LOANABLE-FUNDS DEMAND: the external financing a firm needs to hit its target
+          // investment beyond what retained profit covers — the self-financing gap. Appetite is
+          // procyclical (a boom emboldens borrowing); what's actually drawn is rate-elastic
+          // (dear money deters it). Decisions use last tick's cleared rate, so the market is a
+          // clean lagged clearing (no within-tick circularity).
+          const need = Math.max(0, it.rules.invest * (it.revenue - profit));  // financing gap (flow)
+          const appetite = need * (1 + Math.max(0, market.sentiment) * 3);    // procyclical
+          const take = appetite * clamp01(1 - market.rate * 1.8, 0.15, 1);    // rate-elastic draw
+          it.debt += take * 0.2; market.borrowDemand += appetite;            // book a modest slice; post full appetite to clearing
+          it.debt = Math.max(0, it.debt * (1 - 0.02) - profit * 0.02);        // service/repay from profit
+          it.pool -= it.debt * market.rate * 0.05;                            // interest cost (rate-sensitive)
+          market.savings += Math.max(0, profit * (1 - it.rules.invest) * 0.02); // savings supplied (flow)
           // default: crushed by debt with collapsing output → the firm fails (a crisis seed)
           if (it.debt > it.capital * 4 + 20 && it.output < prevOut * 0.7) { market.defaults++; it.lastSeen = tick - 999; }
-        } else { guildCount++; activityField[it.seat] += 0.2; market.savings += Math.max(0, it.pool); }
+        } else { guildCount++; activityField[it.seat] += 0.2; market.savings += Math.max(0, profit * (1 - it.rules.invest) * 0.02); }
         recordExemplar(it, it.type === INST.FIRM ? it.capital * 8 + it.memberCount : it.memberCount);
       }
       else if (it.type === INST.WARBAND) { warCount++; it.strength = it.memberCount * (1 + techBonus(cu.tech)) * (1 + Math.min(1.5, it.pool * 0.02)) * (1 + Math.min(0.7, it.leaderRep * 0.18)); } // a great captain multiplies the host
       else { // STATE: tax member wealth into the treasury (a ruleset knob), fund stability
         stateCount++;
-        it.pool = it.pool * 0.99 + it.wealth * it.rules.tax * 0.02;
-        market.savings += Math.max(0, it.pool);
+        const taxIn = it.wealth * it.rules.tax * 0.02;
+        it.pool = it.pool * 0.99 + taxIn;
+        market.savings += Math.max(0, taxIn) * 0.15;   // a slice of public funds lent into the credit market
         recordExemplar(it, it.memberCount);
       }
       // history's names: an eminent leader (very high reputation) is recorded once, with
@@ -949,7 +957,16 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       }
     }
     // ---- market clearing: interest rate, stock index, sentiment, debt, crises --------
-    market.rate = clamp01(0.02 + 0.6 * (market.borrowDemand / (market.savings + 1)), 0.01, 0.45);
+    // The loanable-funds market clears the rate from the balance of two per-tick FLOWS:
+    // borrowing demand (procyclical firm financing needs) vs. savings supplied (retained
+    // firm/guild profit + a slice of state treasuries). Signed excess demand sets a target
+    // around a ~5% neutral rate; a savings glut (S≫D) drives it toward zero, a credit-hungry
+    // boom (D≫S) toward the ceiling, and clustered defaults add a stress premium. The rate is
+    // sticky (mean-reverting adjustment), the way real policy/market rates move.
+    const D = market.borrowDemand, S = market.savings;
+    const pressure = (D - S) / (D + S + 1e-3);                          // ∈ (−1, 1)
+    const rateTarget = 0.05 * Math.exp(1.35 * pressure) + 0.04 * market.defaults;
+    market.rate = clamp01(market.rate * 0.82 + rateTarget * 0.18, 0.006, 0.5);
     let eqSum = 0, eqW = 0, tdebt = 0;
     for (const it of liveInsts) if (it.type === INST.FIRM) { const w0 = it.capital + 1; eqSum += it.equity * w0; eqW += w0; tdebt += it.debt; }
     market.prevIndex = market.index;
