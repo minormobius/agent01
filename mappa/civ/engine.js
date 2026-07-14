@@ -39,12 +39,15 @@ function makeAgents(cap) {
     sex: new Uint8Array(cap), flags: new Uint8Array(cap),
     wealth: new Float32Array(cap), health: new Float32Array(cap), status: new Float32Array(cap),
     cred: new Uint16Array(cap),   // credential bitset — the agent's résumé (skills/offices earned)
+    belief: new Uint16Array(cap), // which belief (religion/ideology) the agent holds; 0xffff = none
+    piety: new Float32Array(cap), // conviction strength [0,1] — drives transmission & decay
   };
+  A.belief.fill(0xffff);
   return A;
 }
 function growAgents(A) {
   const cap = A.cap * 2;
-  for (const k of ['birthTick', 'deathTick', 'cell', 'parentA', 'parentB', 'culture', 'org', 'sex', 'flags', 'wealth', 'health', 'status', 'cred']) {
+  for (const k of ['birthTick', 'deathTick', 'cell', 'parentA', 'parentB', 'culture', 'org', 'sex', 'flags', 'wealth', 'health', 'status', 'cred', 'belief', 'piety']) {
     const old = A[k], next = new old.constructor(cap); next.set(old); A[k] = next;
   }
   A.cap = cap;
@@ -61,7 +64,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     demo: stream(seed, 'demography'), disp: stream(seed, 'dispersal'),
     enc: stream(seed, 'encounter'), innov: stream(seed, 'innovation'),
     split: stream(seed, 'culture-split'), org: stream(seed, 'institution'),
-    war: stream(seed, 'war'), rep: stream(seed, 'reputation'), econ: stream(seed, 'economy'), seed: stream(seed, 'seeding'), misc: stream(seed, 'misc'),
+    war: stream(seed, 'war'), rep: stream(seed, 'reputation'), econ: stream(seed, 'economy'), meme: stream(seed, 'memetics'), seed: stream(seed, 'seeding'), misc: stream(seed, 'misc'),
   };
 
   const climate = makeClimate(cfg.climate, w);
@@ -136,6 +139,41 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const stateInst = new Map();   // culture id → its state inst id (stable identity)
   const greatPeople = [];        // named individuals who led an institution to eminence — history's names
   const greatSeen = new Set();
+
+  // ---- MEMETICS: belief systems (religion → philosophy → ideology) ----------------
+  // A belief is a SECOND heritable "program", orthogonal to culture & language: it diffuses
+  // through the population on its own phylogeny, so its map cuts ACROSS the political and the
+  // linguistic ones (a world religion spans cultures; a culture hosts rival sects). A belief's
+  // DOCTRINE is a vector whose axes couple to real mechanics — universalizing faiths convert
+  // across cultures, moralizing ones bind co-believers into resilient trust groups, martial
+  // ones sanctify conquest — so beliefs are SELECTED by how well they (and their carriers)
+  // spread. Late-era beliefs read as philosophies/ideologies (high `rational`), same machinery.
+  const DOX = ['universal', 'moral', 'hierarchy', 'ascetic', 'martial', 'rational'];
+  const DX = Object.fromEntries(DOX.map((n, i) => [n, i])); const NDOX = DOX.length; const BNONE = 0xffff;
+  const REGISTER = ['folk', 'temple', 'scripture', 'philosophy', 'ideology'];
+  const beliefs = [];                              // {id,parent,birthTick,founderCulture,doctrine,origin,extinct,name,register,peak}
+  const beliefMembers = [];                        // per-belief follower count (id-indexed)
+  const cellBelief = new Int32Array(N).fill(-1);   // dominant belief per cell (−1 none)
+  const cellBeliefN = new Int32Array(N);
+  let beliefScratch = new Int32Array(8);
+  const dget = (b, ax) => b.doctrine[DX[ax]];
+  // a stigmergic-style deterministic hash → [0,1); used for per-agent conversion so belief
+  // transmission never draws on a shared RNG stream (keeps demography/dispersal byte-identical).
+  const bchance = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  function beliefName(sd) {
+    const r = stream((seed ^ (sd * 2654435761) ^ 0x9e3779b9) >>> 0, 'belief-name');
+    const on = 'thmnvrbkldshpmzthph', vo = 'aeiouaei', pick = s => s[Math.floor(r() * s.length)];
+    let t = pick(on).toUpperCase() + pick(vo); for (let i = 0, n = 1 + Math.floor(r() * 2); i < n; i++) t += pick(on) + pick(vo);
+    return t;
+  }
+  function newBelief(proto, tick) {
+    const id = beliefs.length;
+    const b = { id, parent: proto.parent ?? -1, birthTick: tick, founderCulture: proto.founderCulture ?? -1,
+      doctrine: Float32Array.from(proto.doctrine), origin: proto.origin, extinct: false,
+      name: beliefName(((proto.origin & 0xffff) << 8) ^ (id * 131) ^ (tick & 0xff)), register: proto.register ?? 1, peak: 0 };
+    beliefs.push(b); return b;
+  }
+  const doxLabel = d => { let mx = 0, mi = 0; for (let a = 0; a < NDOX; a++) if (d[a] > mx) { mx = d[a]; mi = a; } return DOX[mi]; };
   // FINANCIAL MARKETS: firms have an equity price (moves on fundamentals + a shared market
   // sentiment → booms/busts), raise capital by issuing equity when valuations are high, and
   // borrow from a pool of loanable funds where an interest rate clears. Produces a stock
@@ -208,6 +246,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     A.parentA[i] = o.parentA; A.parentB[i] = o.parentB; A.culture[i] = o.culture; A.org[i] = -1;
     A.sex[i] = o.sex; A.flags[i] = ALIVE; A.wealth[i] = o.wealth; A.health[i] = o.health; A.status[i] = o.status;
     A.cred[i] = o.cred || 0;
+    A.belief[i] = o.belief == null ? 0xffff : o.belief; A.piety[i] = o.piety || 0;
     return i;
   }
   function kill(i) { A.flags[i] &= ~ALIVE; A.deathTick[i] = tick; deadPending.push(i); }
@@ -302,6 +341,96 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     }
   }
 
+  // ---- MEMETICS dynamics (once per tick): the four forces of belief evolution ------
+  const meme = cfg.meme || {};
+  const MEME = { innovation: meme.innovation ?? 0.007, missionaryBias: meme.missionaryBias ?? 1, schism: meme.schism ?? 0.02, schismMin: meme.schismMin ?? 350, pietyDecay: meme.pietyDecay ?? 0.01, minCityPop: meme.minCityPop ?? 70, minTier: meme.minTier ?? 1 };
+  // dominant belief per occupied cell (over believers only) + live follower tallies
+  function computeCellBeliefs() {
+    if (beliefScratch.length < beliefs.length) beliefScratch = new Int32Array(beliefs.length * 2);
+    for (let i = 0; i < beliefs.length; i++) beliefMembers[i] = 0;
+    cellBelief.fill(-1); cellBeliefN.fill(0);
+    for (let c = 0; c < N; c++) {
+      const s = cellStart[c], e = cellStart[c + 1]; if (e === s) continue;
+      let dom = -1, domN = 0;
+      for (let t = s; t < e; t++) { const b = A.belief[cellOrder[t]]; if (b === BNONE) continue; beliefMembers[b]++; const n = ++beliefScratch[b]; if (n > domN || (n === domN && b < dom)) { dom = b; domN = n; } }
+      for (let t = s; t < e; t++) { const b = A.belief[cellOrder[t]]; if (b !== BNONE) beliefScratch[b] = 0; }
+      cellBelief[c] = dom; cellBeliefN[c] = domN;
+    }
+    for (const B of beliefs) { const f = beliefMembers[B.id] || 0; if (!B.extinct && f === 0 && tick > B.birthTick + 3) { B.extinct = true; if (tick - B.birthTick > 30) pushEvent(tick, 'beliefExtinct', { belief: B.id, name: B.name }); } else if (f > B.peak) B.peak = f; }
+  }
+  // FOUNDING: a prophet in a significant settlement (era-gated) founds a faith. Doctrine is
+  // drawn from R.meme; late eras skew rational/scriptural (religion → philosophy → ideology).
+  function tryFoundBelief() {
+    for (let i = 0; i < cultures.length; i++) {
+      const cu = cultures[i]; if (cu.extinct) continue;
+      const cell = cultBestCell[i]; if (cell < 0) continue;
+      const pop = cellPop[cell], tier = vecTier(cu.tech);
+      if (tier < MEME.minTier || pop < MEME.minCityPop) continue;
+      // rarer if the city already holds a strong faith (reform vs. birth); scales with city size
+      const held = cellBelief[cell] >= 0 ? cellBeliefN[cell] / pop : 0;
+      const p = MEME.innovation * (tier >= 2 ? 1.4 : 0.8) * Math.min(2.2, pop / 110) * (1 - 0.6 * held);
+      if (R.meme() < p) {
+        const dox = new Float32Array(NDOX); for (let a = 0; a < NDOX; a++) dox[a] = R.meme();
+        dox[DX.rational] = Math.min(1, dox[DX.rational] * 0.5 + tier * 0.12);              // literacy → reason/scripture
+        dox[DX.universal] = Math.min(1, dox[DX.universal] * (0.7 + 0.15 * tier));           // empires breed universalizing creeds
+        const reg = tier >= 4 ? 4 : tier >= 3 ? 3 : tier >= 2 ? 2 : 1;
+        const B = newBelief({ doctrine: dox, founderCulture: i, origin: cell, register: reg }, tick);
+        // the founding city converts around a prophet (its highest-status resident names the age)
+        const s = cellStart[cell], e = cellStart[cell + 1]; let prophet = -1, pr = -1;
+        for (let t = s; t < e; t++) { const id = cellOrder[t]; A.belief[id] = B.id; A.piety[id] = 0.6 + 0.3 * dget(B, 'ascetic'); if (A.status[id] > pr) { pr = A.status[id]; prophet = id; } }
+        if (prophet >= 0) A.piety[prophet] = 1;
+        // only the significant foundings (scripture era+) mark the timeline; folk cults churn silently
+        if (reg >= 2) pushEvent(tick, 'beliefFounded', { belief: B.id, name: B.name, culture: i, cell, register: REGISTER[reg], doctrine: doxLabel(dox), prophet: prophet >= 0 ? personName(prophet) : null });
+      }
+    }
+  }
+  // TRANSMISSION: agents convert toward the locally-dominant faith, or a missionary neighbour's
+  // faith weighted by its `universal` axis. Uses a deterministic hash (no shared RNG draw) so
+  // demography stays byte-identical. Piety reinforces among co-believers and decays with the
+  // `rational` axis (secularization). Vertical inheritance happens at birth (child ← mother).
+  function transmitBeliefs() {
+    for (let c = 0; c < N; c++) {
+      const s = cellStart[c], e = cellStart[c + 1]; if (e === s) continue;
+      const pop = e - s;
+      let bestB = cellBelief[c], bestW = bestB >= 0 && beliefs[bestB] ? (0.5 + dget(beliefs[bestB], 'universal')) * cellBeliefN[c] : 0;
+      for (let k = w.nbrOff[c]; k < w.nbrOff[c + 1]; k++) { const nb = w.nbrIdx[k], bel = cellBelief[nb]; if (bel < 0) continue; const B = beliefs[bel]; if (!B || B.extinct) continue; const wgt = (0.3 + dget(B, 'universal') * MEME.missionaryBias) * cellBeliefN[nb]; if (wgt > bestW) { bestW = wgt; bestB = bel; } }
+      if (bestB < 0) continue; const B = beliefs[bestB]; if (!B || B.extinct) continue;
+      const univ = dget(B, 'universal'), decay = MEME.pietyDecay * (0.4 + dget(B, 'rational'));
+      const recep = cellDom[c] >= 0 ? cultures[cellDom[c]].norms[NORM_I.receptivity] : 0.5;
+      const homog = cellBeliefN[c] / pop;
+      for (let t = s; t < e; t++) {
+        const id = cellOrder[t], cur = A.belief[id];
+        if (cur === bestB) { A.piety[id] = Math.min(1, A.piety[id] + 0.03 * homog - decay); if (A.piety[id] < 0.04 && bchance(id, tick * 5 + 3) < 0.25 * dget(B, 'rational')) A.belief[id] = BNONE; continue; }
+        const own = A.piety[id];
+        const p = (0.03 + 0.16 * univ) * (1 - own) * (0.5 + 0.9 * recep);
+        if (bchance(id, tick * 5 + 1) < p) { A.belief[id] = bestB; A.piety[id] = 0.3 + 0.25 * dget(B, 'ascetic'); }
+      }
+    }
+  }
+  // SCHISM: a large, spread faith occasionally splits (reform / heresy / sect) — a daughter
+  // belief with drifted doctrine takes a geographic subset of the congregation. The tree grows.
+  function maybeSchism() {
+    for (const B of beliefs) {
+      if (B.extinct) continue; const fol = beliefMembers[B.id] || 0; if (fol < MEME.schismMin) continue;
+      if (R.meme() < MEME.schism) {
+        const dox = Float32Array.from(B.doctrine); for (let a = 0; a < NDOX; a++) dox[a] = clamp01(dox[a] + (R.meme() - 0.5) * 0.5);
+        const D = newBelief({ doctrine: dox, parent: B.id, founderCulture: B.founderCulture, origin: B.origin, register: B.register }, tick);
+        for (let c = 0; c < N; c++) { if (cellBelief[c] !== B.id) continue; if (bchance(c, tick * 7 + 1) < 0.45) { const s = cellStart[c], e = cellStart[c + 1]; for (let t = s; t < e; t++) { const id = cellOrder[t]; if (A.belief[id] === B.id) A.belief[id] = D.id; } } }
+        pushEvent(tick, 'schism', { parent: B.id, belief: D.id, name: D.name, from: B.name, culture: B.founderCulture, doctrine: doxLabel(dox) });
+      }
+    }
+  }
+  function beliefDynamics() {
+    computeCellBeliefs();
+    tryFoundBelief();
+    transmitBeliefs();
+    if ((tick & 15) === 0) maybeSchism();
+  }
+  // selection couplings (value-only — no extra RNG draws, so streams stay aligned):
+  const beliefBirthMul = c => { const b = cellBelief[c]; if (b < 0 || !beliefs[b]) return 1; return 1 + 0.10 * (dget(beliefs[b], 'moral') - 0.35); };        // pronatal moralizing faiths
+  const beliefDeathMul = c => { const b = cellBelief[c]; if (b < 0 || !beliefs[b]) return 1; const pop = cellPop[c]; const homog = pop ? cellBeliefN[c] / pop : 0; return 1 - 0.06 * dget(beliefs[b], 'moral') * homog; }; // in-group trust → resilience
+  const beliefMartialMul = seat => { const b = cellBelief[seat]; if (b < 0 || !beliefs[b]) return 1; return 1 + 0.35 * dget(beliefs[b], 'martial'); }; // holy war
+
   // ---- FRED: modular economic time-series capture --------------------------------
   // A lazily-built series registry — each series has metadata + a data array over the
   // sampled ticks. Adding a measure or a cross-tab here just makes a new series appear in
@@ -316,8 +445,8 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const F = chronicle.fred; F.t.push(tick);
     // agent-side buckets (one pass): population + wealth by subsistence / era / landmass
     const subPop = new Float64Array(NPKG), eraPop = new Float64Array(6), subW = new Float64Array(NPKG), landPop = new Float64Array(w.nLandmass || 1);
-    let totW = 0; fredWealthBuf.length = 0;
-    for (let t = 0; t < liveN; t++) { const id = live[t], cu = cultures[A.culture[id]], wv = A.wealth[id]; subPop[cu.sub]++; eraPop[vecTier(cu.tech)]++; subW[cu.sub] += wv; landPop[w.landmass[A.cell[id]]]++; totW += wv; fredWealthBuf.push(wv); }
+    let totW = 0, believers = 0, pietySum = 0; fredWealthBuf.length = 0;
+    for (let t = 0; t < liveN; t++) { const id = live[t], cu = cultures[A.culture[id]], wv = A.wealth[id]; subPop[cu.sub]++; eraPop[vecTier(cu.tech)]++; subW[cu.sub] += wv; landPop[w.landmass[A.cell[id]]]++; totW += wv; fredWealthBuf.push(wv); if (A.belief[id] !== BNONE) { believers++; pietySum += A.piety[id]; } }
     fredWealthBuf.sort((a, b) => a - b); let cum = 0, g = 0; const n = fredWealthBuf.length;
     for (let i = 0; i < n; i++) { cum += fredWealthBuf[i]; g += (i + 1) / n - (totW > 0 ? cum / totW : 0); }
     const gini = n > 1 && totW > 0 ? +(2 * g / n).toFixed(3) : 0;
@@ -342,6 +471,12 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     fredPush('states', 'States', 'Institutions', 'count', nS);
     fredPush('warbands', 'Warbands', 'Institutions', 'count', nW);
     fredPush('maxtier', 'Peak era', 'Development', 'tier', Math.max(...eraPop.map((v, i) => v > 0 ? i : 0)));
+    // belief / religion metrics
+    let liveFaiths = 0, topFaith = 0; for (let i = 0; i < beliefs.length; i++) { const f = beliefMembers[i] || 0; if (f > 0) liveFaiths++; if (f > topFaith) topFaith = f; }
+    fredPush('faiths', 'Living faiths', 'Belief', 'count', liveFaiths);
+    fredPush('believers', 'Believers (share)', 'Belief', '0..1', +(believers / Math.max(1, liveN)).toFixed(3));
+    fredPush('piety', 'Mean piety', 'Belief', '0..1', +(pietySum / Math.max(1, believers)).toFixed(3));
+    fredPush('topfaith', 'Largest faith (share)', 'Belief', '0..1', +(topFaith / Math.max(1, liveN)).toFixed(3));
     // cross-tabs (the facets)
     for (let p = 0; p < NPKG; p++) { fredPush('pop.sub.' + PKG[p].id, 'Pop — ' + PKG[p].id, 'Population × subsistence', 'people', subPop[p]); fredPush('wealth.sub.' + PKG[p].id, 'Wealth — ' + PKG[p].id, 'Wealth × subsistence', 'index', subPop[p] > 0 ? +(subW[p] / subPop[p]).toFixed(3) : 0); }
     for (let e = 0; e < 6; e++) fredPush('pop.era.' + ERAN[e], 'Pop — ' + ERAN[e], 'Population × era', 'people', eraPop[e]);
@@ -384,14 +519,17 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     };
   }
   function captureFrame() {
-    const cell = [], popc = [], cu = [], sub = [], tier = [], pol = [], wlth = [], prc = [], present = new Set();
+    const cell = [], popc = [], cu = [], sub = [], tier = [], pol = [], wlth = [], prc = [], bel = [], present = new Set(), belPresent = new Set();
     for (let c = 0; c < N; c++) {
       const d = cellDom[c]; if (d < 0 || cellPop[c] <= 0) continue; const C = cultures[d];
       cell.push(c); popc.push(cellPop[c]); cu.push(d); sub.push(C.sub); tier.push(vecTier(C.tech)); pol.push(polity[c]);
       let wsum = 0; const s = cellStart[c], e = cellStart[c + 1]; for (let t = s; t < e; t++) wsum += A.wealth[cellOrder[t]];
       wlth.push(+(wsum / Math.max(1, e - s)).toFixed(2)); prc.push(+warePrice[c].toFixed(2));
+      const b = cellBelief[c]; bel.push(b); if (b >= 0) belPresent.add(b);
       present.add(d);
     }
+    // the faiths present this frame (so the belief map can name + colour them)
+    const beliefDict = {}; for (const id of belPresent) { const B = beliefs[id]; if (B) beliefDict[id] = { name: B.name, lead: doxLabel(B.doctrine), reg: B.register }; }
     const cid = [], csub = [], ctier = [], ctech = [], clang = [], csize = [];
     for (const id of present) { const C = cultures[id]; cid.push(id); csub.push(C.sub); ctier.push(vecTier(C.tech)); ctech.push(C.tech >>> 0); clang.push(C.lang); csize.push(cultMembers[id] || 0); }
     // the frame's NOTABLE PEOPLE — the highest-reputation living individuals, with their
@@ -408,7 +546,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const edges = [...migAcc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 100);
     const mig = []; for (const [mk, ct] of edges) mig.push((mk / N) | 0, mk % N, ct); // from, to, count
     migAcc.clear();
-    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, wlth, prc, people, mig, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
+    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, wlth, prc, bel, beliefs: beliefDict, people, mig, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
   }
 
   function step() {
@@ -449,6 +587,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         if (collapsed) dr += 0.25;
         if (overCap) dr += 0.15; // runaway-population guard
         dr *= (1.15 - 0.3 * A.health[id] - Math.min(0.35, A.wealth[id] * 0.08)); // wealth buys survival — the rich weather famine
+        dr *= beliefDeathMul(c); // a moralizing faith's in-group trust makes its people more resilient
         if (dr < 0.002) dr = 0.002;
         if (R.demo() < dr) { kill(id); continue; }
         pushNL(id);
@@ -456,7 +595,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       }
 
       // pass 2: births (fertile females) + dispersal intents (young adults)
-      const birthRate = cfg.agent.b0 * Math.max(0, 1 - ratio * 0.92) * pass;
+      const birthRate = cfg.agent.b0 * Math.max(0, 1 - ratio * 0.92) * pass * beliefBirthMul(c); // a pronatal creed lifts fertility
       for (let t = s; t < e; t++) {
         const id = cellOrder[t]; if (!(A.flags[id] & ALIVE)) continue;
         const age = tick - A.birthTick[id];
@@ -488,7 +627,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
             birthTick: tick, cell: c, parentA: id, parentB: dad, culture: mCu,
             sex: R.demo() < 0.5 ? 0 : 1,
             wealth: 0.1, health: Math.min(1, 0.7 + 0.2 * A.health[id]), status: 0.1 + 0.3 * (A.status[id] + A.status[dad]) * 0.5,
-            cred: icred,
+            cred: icred, belief: A.belief[id], piety: A.piety[id] * 0.85, // vertical transmission: child raised in the mother's faith
           });
           pushNL(child);
         }
@@ -551,6 +690,9 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       subsistenceUpgrade(cu);
       if (doSplit) maybeSplit(cu);
     }
+
+    // ---- memetics: belief founding / transmission / schism ------------------------
+    beliefDynamics();
 
     // ---- institutions + stigmergy decay -------------------------------------------
     institutions();
@@ -947,7 +1089,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         } else { guildCount++; activityField[it.seat] += 0.2; market.savings += Math.max(0, profit * (1 - it.rules.invest) * 0.02); }
         recordExemplar(it, it.type === INST.FIRM ? it.capital * 8 + it.memberCount : it.memberCount);
       }
-      else if (it.type === INST.WARBAND) { warCount++; it.strength = it.memberCount * (1 + techBonus(cu.tech)) * (1 + Math.min(1.5, it.pool * 0.02)) * (1 + Math.min(0.7, it.leaderRep * 0.18)); } // a great captain multiplies the host
+      else if (it.type === INST.WARBAND) { warCount++; it.strength = it.memberCount * (1 + techBonus(cu.tech)) * (1 + Math.min(1.5, it.pool * 0.02)) * (1 + Math.min(0.7, it.leaderRep * 0.18)) * beliefMartialMul(it.seat); } // a great captain multiplies the host; a martial faith sanctifies it
       else { // STATE: tax member wealth into the treasury (a ruleset knob), fund stability
         stateCount++;
         const taxIn = it.wealth * it.rules.tax * 0.02;
@@ -1122,11 +1264,18 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     let mp = 0, np = 0, to = 0; for (let c = 0; c < N; c++) if (cellPop[c] > 0) { mp += warePrice[c]; np++; } for (const it of liveInsts) to += it.output;
     const economy = { gini, meanWealth: +(liveN ? totW / liveN : 0).toFixed(3), maxWealth: +maxW.toFixed(2), meanPrice: +(np ? mp / np : 1).toFixed(2), totalOutput: Math.round(to), exemplars: Object.fromEntries([...bestRules].map(([t, e]) => [INST_NAME[t], e.rules])),
       market: { stockIndex: +market.index.toFixed(1), interestRate: +market.rate.toFixed(3), totalDebt: +market.totalDebt.toFixed(1), debtToGdp: +(market.totalDebt / Math.max(1, to)).toFixed(3), sentiment: +market.sentiment.toFixed(4) } };
+    // the faiths alive at the end, with their reach across cultures & landmasses (a belief
+    // spanning many cultures is a world religion; one ≈ its culture is a folk faith).
+    const bFollow = new Float64Array(beliefs.length || 1);
+    const bCult = beliefs.map(() => new Set()), bLand = beliefs.map(() => new Set());
+    for (let t = 0; t < liveN; t++) { const id = live[t], b = A.belief[id]; if (b === BNONE) continue; bFollow[b]++; bCult[b].add(A.culture[id]); bLand[b].add(w.landmass[A.cell[id]]); }
+    const beliefsOut = beliefs.filter(B => bFollow[B.id] > 0).map(B => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
     // history's great persons, most eminent first
     const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120);
     return {
       pop: liveN,
       cultures: surviving, polities, resources, institutions, economy,
+      beliefs: beliefsOut, beliefAxes: DOX,
       greatPeople: great, credNames: CRED,
       languages: languages.map(l => ({ id: l.id, parent: l.parent, birthTick: l.birthTick })),
       subDist, popByLandmass: Array.from(popByLand),
@@ -1150,7 +1299,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         captureEvery = Math.max(1, opts.every || cfg.keyframeEvery);
         chronicle.frames = [];
         chronicle.world = worldSnapshot();
-        chronicle.dict = { caps: CAPS.slice(), packages: PKG.map(p => p.id), creds: CRED.slice() };
+        chronicle.dict = { caps: CAPS.slice(), packages: PKG.map(p => p.id), creds: CRED.slice(), beliefAxes: DOX.slice(), registers: REGISTER.slice() };
       }
       for (let k = 0; k < nTicks; k++) step();
       chronicle.meta.peakAgentSlots = A.n; // ≈ peak concurrent living (free-list recycled)

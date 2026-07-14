@@ -112,6 +112,14 @@
       <th>name</th><th>led</th><th>culture</th><th class="num">reputation</th><th class="num">era yr</th><th>résumé (credentials)</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
+
+  <div class="card">
+    <h2>Faiths <span class="sub" id="faithcount"></span></h2>
+    <p class="sub">Belief is a second heritable program — orthogonal to culture &amp; language, so it cuts <i>across</i> them. A prophet founds a faith in a city; it converts by contact (universalizing creeds spread fastest), passes mother→child, and <b>schisms</b> into sects. A faith spanning many cultures is a <b>world religion</b>; one ≈ its culture is folk. Late-era faiths read as philosophies / ideologies. Doctrine axes couple to the sim: <b>moral</b> → cohesion &amp; fertility, <b>martial</b> → holy war, <b>universal</b> → conversion reach.</p>
+    <div style="overflow:auto;max-height:420px"><table id="faithtab"><thead><tr>
+      <th>faith</th><th>register</th><th>doctrine (lead)</th><th>from</th><th class="num">followers</th><th class="num">cultures</th><th class="num">lands</th><th class="num">born</th><th>profile</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
 </main>
 <div class="tt" id="tt"></div>
 
@@ -189,7 +197,7 @@ function drawStream(){
     bands.push({id,t0,b0});
   }
   // event markers
-  const evCol={agriculture:'#5bd18b',industry:'#e6a34a',migrationPulse:'#5aa9e6',collapse:'#e5686b',polityRise:'#a98bd6',war:'#e5686b',institutionFounded:'#6fd0c0'};
+  const evCol={agriculture:'#5bd18b',industry:'#e6a34a',migrationPulse:'#5aa9e6',collapse:'#e5686b',polityRise:'#a98bd6',war:'#e5686b',institutionFounded:'#6fd0c0',beliefFounded:'#c77dff',schism:'#e07ec2'};
   const evLabel={agriculture:'agriculture',industry:'industry',collapse:'collapse'};
   ctx.font='10px sans-serif'; ctx.textAlign='center';
   const Tt=DATA.ticks||1;
@@ -227,7 +235,31 @@ function renderTables(){
     tr.innerHTML=`<td>${RES_ICON[r.kind]||''} ${r.kind}</td><td>${r.name}</td><td>${holder}</td>`;
     rt.appendChild(tr);
   }
-  renderInsts(); renderGreat(); renderEcon();
+  renderInsts(); renderGreat(); renderEcon(); renderFaiths();
+}
+const beliefHue=id=>(id*97.3+43)%360;
+const REG_ICON={folk:'🌿',temple:'⛩️',scripture:'📜',philosophy:'🏛️',ideology:'✊'};
+function renderFaiths(){
+  const f=DATA.chronicle.final, B=f.beliefs||[], axes=f.beliefAxes||[], yr=t=>Math.round(t*tickYears).toLocaleString();
+  const byId={}; for(const b of B) byId[b.id]=b;
+  const tb=$('#faithtab').querySelector('tbody'); tb.innerHTML=''; $('#faithcount').textContent='('+B.length+' surviving)';
+  for(const b of B){
+    const tr=document.createElement('tr');
+    const col=`hsl(${beliefHue(b.id)} 64% 62%)`;
+    const from=b.parent>=0&&byId[b.parent]?('↳ '+byId[b.parent].name):('#'+b.founderCulture);
+    // doctrine profile: a compact bar per axis
+    const prof=axes.map(a=>{ const v=b.doctrine[a]||0; return `<span title="${a} ${v.toFixed(2)}" style="display:inline-block;width:8px;height:${3+Math.round(v*13)}px;background:${col};opacity:${0.35+v*0.65};vertical-align:bottom;margin-right:1px"></span>`; }).join('');
+    const world=b.cultures>=3?' 🌍':'';
+    tr.innerHTML=`<td><span class="sw" style="background:${col}"></span><b>${b.name}</b>${world}</td>`
+      +`<td>${REG_ICON[b.register]||''} ${b.register}</td>`
+      +`<td><b style="color:${col}">${b.lead}</b></td>`
+      +`<td>${from}</td>`
+      +`<td class="num">${b.followers.toLocaleString()}</td><td class="num">${b.cultures}</td><td class="num">${b.landmasses}</td>`
+      +`<td class="num">${yr(b.birthTick)}</td>`
+      +`<td>${prof}</td>`;
+    tb.appendChild(tr);
+  }
+  if(!B.length) tb.innerHTML='<tr><td colspan="9" style="color:var(--dim)">no organized faith emerged (needs cities in the bronze era+)</td></tr>';
 }
 function renderEcon(){
   const e=DATA.chronicle.final.economy; if(!e){ $('#econcard')&&($('#econcard').style.display='none'); return; }

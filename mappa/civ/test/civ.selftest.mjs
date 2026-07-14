@@ -67,6 +67,11 @@ section('emergent arc + signals discrimination (M1–M9)');
   ok(sig.score > 30, 'a rich run scores well, ★' + sig.score);
   ok(!sig.flags.includes('instant-extinction'), 'healthy run not flagged extinct');
 
+  // memetics: belief systems emerge, diffuse across cultures (not ethnic), and schism
+  ok((ch.final.beliefs || []).length > 0, 'belief systems emerged, faiths=' + (ch.final.beliefs || []).length);
+  ok((ch.final.beliefs || []).some(b => b.cultures >= 2), 'a faith crossed culture lines (memetic, not ethnic)');
+  ok(ch.events.some(e => e.type === 'beliefFounded'), 'a prophet founded a faith (beliefFounded event)');
+
   // a degenerate run scores low and is flagged
   const bad = defaultConfig(); bad.seeding.founders = 4; bad.agent.b0 = 0.12;
   const sigBad = civSignals(createSim(w, bad, 1).run(800));

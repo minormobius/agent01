@@ -115,11 +115,14 @@ GET  /api/civ/health
 The **particle playback viewer** (`../../civ/view.html`) fetches `/api/civ/frames` and
 renders the population as a particle swarm on the map through the whole run — play
 forward/backward, scrub, zoom/pan, colour by culture / **political** (territory ×
-sovereignty) / subsistence / era / density, named-resource markers, event markers on the
-timeline, and click a particle to inspect its cell's "deal" (dominant culture, subsistence,
-era, population, sovereignty, resource, tech capabilities, language). Frames are compact
-per-cell snapshots (opt in via `run(ticks, { frames:true, every })`), so the whole playback
-is ~90 KB and fully deterministic.
+sovereignty) / **belief** (faith / ideology) / subsistence / era / wealth / market / density,
+**continent outlines** (solid landmasses + coastline), **migration flows** (travellers float
+from cell to cell during play), named-resource markers, event markers on the timeline, and
+click a particle to inspect its cell's "deal" (dominant culture, subsistence, era, population,
+sovereignty, **faith**, resource, tech capabilities, language). Frames are compact per-cell
+snapshots (opt in via `run(ticks, { frames:true, every })`), so the whole playback is ~200 KB
+and fully deterministic. Runs are cached client-side (`../../civ/lib/civ-cache.js`) so a run
+computed in one view loads instantly in every other.
 
 The **development view** (`../../civ/develop.html`) reads `/api/civ/run` and shows the
 fine-grained history: a lineage-sorted **streamgraph** ("river of peoples" — each band a
@@ -221,9 +224,25 @@ appears in FRED automatically. Carries the run by the same URL params as the oth
   All of it is on the `R.econ` stream and folded into the existing institution pass — O(live
   firms), fully deterministic. Surfaced in FRED (stock index, rate, debt/GDP, per-firm
   equities) and the development view's Economy card (`market` block).
-- **Religion / ideology** — deliberately *not yet* modelled; the design note is to add it as
-  a second orthogonal meme-phylogeny (a `beliefId` diffusing through the same stigmergic
-  field, decoupled from language) so its map cuts *across* the political and linguistic ones.
+- **Memetics — religion → philosophy → ideology (the belief phylogeny)** — belief is a
+  **second heritable program**, orthogonal to culture and language, so its map cuts *across*
+  the political and linguistic ones (a world religion spans cultures; one culture hosts rival
+  sects). Each agent carries `A.belief` + `A.piety`; each **belief** entity has a **doctrine
+  vector** whose six axes (`universal, moral, hierarchy, ascetic, martial, rational`) couple to
+  real mechanics, so beliefs are **selected by how well they spread**. The four forces mirror
+  the culture layer (own `R.meme` stream, O(n)): **founding** — a prophet in a bronze-era city
+  founds a faith (doctrine drawn from `R.meme`; late eras skew rational → philosophies/ideologies);
+  **transmission** — agents convert toward the locally-dominant or a missionary neighbour's faith
+  (weighted by the `universal` axis), inherit the mother's faith at birth, and lose it to
+  secularization (the `rational` axis raises piety decay) — conversion uses a deterministic hash,
+  never a shared RNG draw, so demography stays byte-identical; **schism** — a large, spread faith
+  splits into a sect with drifted doctrine, growing the belief tree; **selection couplings**
+  (value-only, no extra draws) — `moral` → in-group trust (lower death) + fertility, `martial` →
+  holy-war warband strength, `universal` → conversion reach. Emergent: **world religions**
+  (a faith across many cultures) vs. folk faiths, reformations, and the religion→ideology arc.
+  Surfaced as a third **belief map cut** (playground), a **Faiths table** with doctrine profiles
+  + phylogeny (development), FRED **Belief** series (living faiths, believer share, mean piety,
+  largest-faith share), and `beliefFounded`/`schism` events. Deterministic; selftest covers it.
 
 The worker (`../../civ/worker.js`) imports this engine unchanged. Note determinism is
 load-bearing: never introduce `Math.random` / `Date.now` into the core.
