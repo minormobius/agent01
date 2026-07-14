@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>moji — emoji</title>
+<meta name="description" content="Emoji details: code points, the Unicode Emoji version it debuted in, and platform-support timelines.">
+<meta name="theme-color" content="#b8862f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%98%80%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">moji<span class="dot">.</span><small>emoji wiki</small></a>
+    <div class="search-wrap">
+      <svg class="search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" class="search" type="search" autocomplete="off" spellcheck="false" placeholder="Search all emoji…">
+    </div>
+    <a class="crumb" href="/">↖ all emoji</a>
+  </div>
+</header>
+
+<main class="detail" id="detail">
+  <p style="color:var(--faint);padding:60px 0;text-align:center">Loading…</p>
+</main>
+
+<div class="toast" id="toast"><span class="g" id="toastGlyph">✓</span><span id="toastMsg">Copied</span></div>
+
+<script>
+const DETAIL = document.getElementById('detail');
+const TOAST = document.getElementById('toast');
+
+// id comes from ?id=<id> (worker rewrites /e/<id> → /emoji.html?id=<id>) or the path tail
+function currentId(){
+  const p = new URLSearchParams(location.search).get('id');
+  if (p) return p.toLowerCase();
+  const m = location.pathname.match(/\/e\/([^/?#]+)/);
+  return m ? decodeURIComponent(m[1]).toLowerCase() : null;
+}
+
+Promise.all([
+  fetch('/data/emoji.json').then(r=>r.json()),
+  fetch('/data/platforms.json').then(r=>r.json()),
+]).then(([data, plat]) => {
+  const id = currentId();
+  const em = data.emojis.find(e => e.id === id);
+  if (!em) { notFound(id); return; }
+  renderDetail(em, data, plat);
+}).catch(() => { DETAIL.innerHTML = '<p style="padding:60px 0;text-align:center;color:var(--faint)">Could not load emoji data.</p>'; });
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function notFound(id){
+  document.title = 'moji — not found';
+  DETAIL.innerHTML = `<a class="back" href="/">← all emoji</a>
+    <div class="card" style="text-align:center">
+      <div class="hero-glyph" style="margin:0 auto 16px">🫥</div>
+      <h1 class="section-title">No emoji here</h1>
+      <p class="section-note">Nothing is registered at <code class="cp">${esc(id||'')}</code>. It may be a component (skin-tone or hair modifier), which we don’t give a page.</p>
+      <a class="btn primary" href="/">Browse all emoji</a>
+    </div>`;
+}
+
+function renderDetail(em, data, plat){
+  const groupName = data.groups[em.g] ? data.groups[em.g].name : '';
+  const subName = (data.groups[em.g] && data.groups[em.g].subgroups[em.s]) ? data.groups[em.g].subgroups[em.s].name.replace(/-/g,' ') : '';
+  const ver = plat.versions[em.v];
+  const tier = ver ? plat.tiers[ver.tier] : null;
+
+  document.title = `${em.e} ${em.n} — moji`;
+  document.querySelector('meta[name=description]').setAttribute('content',
+    `${em.n} (${em.e}) — code points ${em.cp.join(' ')}, introduced in Emoji ${em.v}. Platform support timeline across Apple, Google, Microsoft, Samsung, WhatsApp and Twitter/X.`);
+
+  // ── platform support table ──
+  let platRows = '';
+  if (ver) {
+    platRows = plat.vendors.map(vd => {
+      const since = ver.support[vd.key] || '—';
+      const shipped = since && since !== 'not yet' && since !== '—';
+      return `<tr>
+        <td class="vendor">${esc(vd.name)}<div class="vnote">${esc(vd.note)}</div></td>
+        <td>${shipped ? `<span class="yes">✔ supported</span>` : `<span class="no">✘ not yet</span>`}</td>
+        <td class="since">${shipped ? esc(since) : '<span class="no">—</span>'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const platCard = ver ? `
+    <div class="card">
+      <h2 class="section-title">Platform support</h2>
+      <p class="section-note">First release on each platform to ship an <strong>Emoji ${esc(em.v)}</strong> design (${esc(ver.unicode)}).</p>
+      <div style="margin:2px 0 16px"><span class="tier-badge"><span class="d"></span>${esc(tier?tier.label:'')}</span> <span style="color:var(--muted);font-size:13.5px">${esc(tier?tier.blurb:'')}</span></div>
+      <table class="plat">
+        <thead><tr><th>Platform</th><th>Status</th><th>Since</th></tr></thead>
+        <tbody>${platRows}</tbody>
+      </table>
+      <p class="method">First-ship dates are approximate, compiled from Unicode UTS&nbsp;#51 release notes and Emojipedia’s platform changelogs. Point releases vary and each vendor draws the glyph differently. “Not yet” means no stable release has shipped this Emoji version as of this data build.</p>
+    </div>` : `
+    <div class="card">
+      <h2 class="section-title">Platform support</h2>
+      <p class="section-note">No version-to-platform mapping on file for Emoji ${esc(em.v)}.</p>
+    </div>`;
+
+  // ── related (siblings in the same subgroup) ──
+  let related = [];
+  const sub = data.groups[em.g] && data.groups[em.g].subgroups[em.s];
+  if (sub) related = sub.idx.map(i => data.emojis[i]).filter(x => x.id !== em.id).slice(0, 28);
+  const relCard = related.length ? `
+    <div class="card">
+      <h2 class="section-title">More ${esc(subName)}</h2>
+      <div class="related">${related.map(r => `<a class="em-btn glyph" href="/e/${r.id}" title="${esc(r.n)}" aria-label="${esc(r.n)}">${r.e}</a>`).join('')}</div>
+    </div>` : '';
+
+  DETAIL.innerHTML = `
+    <a class="back" href="/">← all emoji</a>
+    <div class="card">
+      <div class="detail-head">
+        <div class="hero-glyph glyph">${em.e}</div>
+        <div class="detail-meta">
+          <h1>${esc(em.n)}</h1>
+          <div class="pill-row">
+            <span class="pill gold">Emoji ${esc(em.v)}${ver?` · ${ver.year}`:''}</span>
+            <span class="pill">${esc(groupName)}</span>
+            <span class="pill">${esc(subName)}</span>
+          </div>
+          <div class="copy-row">
+            <button class="btn primary" id="copyGlyph"><span class="g glyph">${em.e}</span> Copy emoji</button>
+            <button class="btn" id="copyCp">Copy code points</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">Details</h2>
+      <dl class="dl">
+        <dt>Name</dt><dd style="text-transform:capitalize">${esc(em.n)}</dd>
+        <dt>Glyph</dt><dd class="glyph" style="font-size:20px">${em.e}</dd>
+        <dt>Code&nbsp;points</dt><dd>${em.cp.map(c=>`<code class="cp">${esc(c)}</code>`).join(' ')}</dd>
+        <dt>Category</dt><dd>${esc(groupName)} › ${esc(subName)}</dd>
+        <dt>Introduced</dt><dd>Emoji ${esc(em.v)}${ver?` — ${esc(ver.unicode)}`:''}</dd>
+      </dl>
+    </div>
+
+    ${platCard}
+    ${relCard}`;
+
+  document.getElementById('copyGlyph').addEventListener('click', () => doCopy(em.e, em, 'Copied ' + em.n));
+  document.getElementById('copyCp').addEventListener('click', () => doCopy(em.cp.join(' '), em, 'Copied code points'));
+
+  // wire related copy-on-click (⌘-click still opens)
+  DETAIL.querySelectorAll('.related .em-btn').forEach(el => {
+    el.addEventListener('click', ev => {
+      if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button === 1) return;
+      ev.preventDefault();
+      const r = related.find(x => '/e/'+x.id === el.getAttribute('href'));
+      doCopy(r.e, r, 'Copied ' + r.n);
+    });
+  });
+}
+
+async function doCopy(text, em, msg){
+  try { await navigator.clipboard.writeText(text); }
+  catch { const t=document.createElement('textarea'); t.value=text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  document.getElementById('toastGlyph').textContent = em.e;
+  document.getElementById('toastMsg').textContent = msg;
+  TOAST.classList.add('show');
+  clearTimeout(doCopy._t);
+  doCopy._t = setTimeout(()=>TOAST.classList.remove('show'), 1400);
+}
+
+// search box → home with query
+document.getElementById('q').addEventListener('keydown', e => {
+  if (e.key === 'Enter') location.href = '/?q=' + encodeURIComponent(e.target.value.trim());
+});
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement.id !== 'q') { e.preventDefault(); document.getElementById('q').focus(); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "_comment": "Platform support metadata for the moji wiki, keyed by the Emoji version an emoji was introduced in (the `v` field in emoji.json). Each version row records the FIRST OS/app release that shipped that Emoji version's designs, per Unicode UTS#51 release notes and Emojipedia's platform timelines. Point releases and individual glyphs vary between vendors; treat the values as the approximate 'available since' line, not a guarantee for every design. Hand-authored — update the newest rows as vendors ship.",
+  "methodology": "Each emoji is stamped with the Emoji specification version it debuted in. The table below maps that version to the first shipping release on each major platform. 'Universal' emoji (Emoji 5.0 and earlier, 2010–2017) render essentially everywhere; anything from Emoji 16.0+ (2024+) is new enough that older devices may show a placeholder ▯ (tofu).",
+  "vendors": [
+    { "key": "apple", "name": "Apple", "note": "iOS · iPadOS · macOS" },
+    { "key": "google", "name": "Google", "note": "Android · Noto Emoji · Gmail" },
+    { "key": "microsoft", "name": "Microsoft", "note": "Windows · Segoe UI Emoji" },
+    { "key": "samsung", "name": "Samsung", "note": "One UI · Galaxy" },
+    { "key": "whatsapp", "name": "WhatsApp", "note": "in-app emoji set" },
+    { "key": "twitter", "name": "Twitter / X", "note": "Twemoji (open source)" }
+  ],
+  "tiers": {
+    "universal": { "label": "Universal", "blurb": "In every emoji set for years — renders everywhere." },
+    "wide": { "label": "Wide", "blurb": "Shipped 2018–2020; supported on any reasonably current device." },
+    "recent": { "label": "Recent", "blurb": "Shipped 2021–2023; needs a recent OS to render." },
+    "new": { "label": "New", "blurb": "Shipped 2024 or later; older devices may show a placeholder box." },
+    "bleeding": { "label": "Bleeding edge", "blurb": "Just standardized — most platforms have not shipped it yet." }
+  },
+  "versions": {
+    "0.6": { "year": 2015, "unicode": "Unicode 6.0 (2010)", "tier": "universal", "support": { "apple": "iOS 6 (2012)", "google": "Android 4.4 (2013)", "microsoft": "Windows 8.1 (2013)", "samsung": "TouchWiz (2013)", "whatsapp": "2.12 (2015)", "twitter": "Twemoji 1.0 (2014)" } },
+    "0.7": { "year": 2015, "unicode": "Unicode 7.0 (2014)", "tier": "universal", "support": { "apple": "iOS 9.1 (2015)", "google": "Android 6.0 (2015)", "microsoft": "Windows 10 (2015)", "samsung": "One UI (2015)", "whatsapp": "2.12 (2015)", "twitter": "Twemoji 2.0 (2016)" } },
+    "1.0": { "year": 2015, "unicode": "Unicode 8.0 (2015)", "tier": "universal", "support": { "apple": "iOS 9.1 (2015)", "google": "Android 6.0.1 (2015)", "microsoft": "Windows 10 (2015)", "samsung": "One UI (2015)", "whatsapp": "2.12 (2015)", "twitter": "Twemoji 2.0 (2016)" } },
+    "2.0": { "year": 2015, "unicode": "Unicode 8.0 (2015)", "tier": "universal", "support": { "apple": "iOS 8.3 (2015)", "google": "Android 6.0.1 (2015)", "microsoft": "Windows 10 (2015)", "samsung": "One UI (2015)", "whatsapp": "2.12 (2015)", "twitter": "Twemoji 2.0 (2016)" } },
+    "3.0": { "year": 2016, "unicode": "Unicode 9.0 (2016)", "tier": "universal", "support": { "apple": "iOS 10.2 (2016)", "google": "Android 7.0 (2016)", "microsoft": "Windows 10 Creators (2017)", "samsung": "Galaxy S8 (2017)", "whatsapp": "2.17 (2017)", "twitter": "Twemoji 2.3 (2017)" } },
+    "4.0": { "year": 2016, "unicode": "Unicode 9.0 (2016)", "tier": "universal", "support": { "apple": "iOS 10.2 (2016)", "google": "Android 7.0 (2016)", "microsoft": "Windows 10 Creators (2017)", "samsung": "Galaxy S8 (2017)", "whatsapp": "2.17 (2017)", "twitter": "Twemoji 2.3 (2017)" } },
+    "5.0": { "year": 2017, "unicode": "Unicode 10.0 (2017)", "tier": "universal", "support": { "apple": "iOS 11.1 (2017)", "google": "Android 8.0 (2017)", "microsoft": "Windows 10 Fall Creators (2017)", "samsung": "Galaxy S9 (2018)", "whatsapp": "2.18 (2018)", "twitter": "Twemoji 2.4 (2017)" } },
+    "11.0": { "year": 2018, "unicode": "Unicode 11.0 (2018)", "tier": "wide", "support": { "apple": "iOS 12.1 (2018)", "google": "Android 9 (2018)", "microsoft": "Windows 10 May 2019", "samsung": "One UI 1.0 (2019)", "whatsapp": "2.19 (2019)", "twitter": "Twemoji 11.0 (2018)" } },
+    "12.0": { "year": 2019, "unicode": "Unicode 12.0 (2019)", "tier": "wide", "support": { "apple": "iOS 13.2 (2019)", "google": "Android 10 (2019)", "microsoft": "Windows 10 May 2020", "samsung": "One UI 2.0 (2019)", "whatsapp": "2.19 (2019)", "twitter": "Twemoji 12.0 (2019)" } },
+    "12.1": { "year": 2019, "unicode": "Unicode 12.1 (2019)", "tier": "wide", "support": { "apple": "iOS 13.2 (2019)", "google": "Android 10 (2019)", "microsoft": "Windows 10 May 2020", "samsung": "One UI 2.1 (2020)", "whatsapp": "2.20 (2020)", "twitter": "Twemoji 12.1 (2019)" } },
+    "13.0": { "year": 2020, "unicode": "Unicode 13.0 (2020)", "tier": "wide", "support": { "apple": "iOS 14.2 (2020)", "google": "Android 11 (2020)", "microsoft": "Windows 11 (2021)", "samsung": "One UI 2.5 (2020)", "whatsapp": "2.21 (2021)", "twitter": "Twemoji 13.0 (2020)" } },
+    "13.1": { "year": 2020, "unicode": "Unicode 13.0 (2020)", "tier": "wide", "support": { "apple": "iOS 14.5 (2021)", "google": "Android 12L (2022)", "microsoft": "Windows 11 (2021)", "samsung": "One UI 3.1 (2021)", "whatsapp": "2.21 (2021)", "twitter": "Twemoji 13.1 (2021)" } },
+    "14.0": { "year": 2021, "unicode": "Unicode 14.0 (2021)", "tier": "recent", "support": { "apple": "iOS 15.4 (2022)", "google": "Android 13 (2022)", "microsoft": "Windows 11 2022", "samsung": "One UI 4.1 (2022)", "whatsapp": "2.22 (2022)", "twitter": "Twemoji 14.0 (2021)" } },
+    "15.0": { "year": 2022, "unicode": "Unicode 15.0 (2022)", "tier": "recent", "support": { "apple": "iOS 16.4 (2023)", "google": "Android 14 (2023)", "microsoft": "Windows 11 2023", "samsung": "One UI 5.1 (2023)", "whatsapp": "2.23 (2023)", "twitter": "Twemoji 15.0 (2022)" } },
+    "15.1": { "year": 2023, "unicode": "Unicode 15.1 (2023)", "tier": "recent", "support": { "apple": "iOS 17.4 (2024)", "google": "Android 14 QPR (2024)", "microsoft": "Windows 11 2024", "samsung": "One UI 6.1 (2024)", "whatsapp": "2.24 (2024)", "twitter": "Twemoji 15.1 (2024, community)" } },
+    "16.0": { "year": 2024, "unicode": "Unicode 16.0 (2024)", "tier": "new", "support": { "apple": "iOS 18.4 (2025)", "google": "Android 16 (2025)", "microsoft": "not yet", "samsung": "One UI 7 (2025)", "whatsapp": "not yet", "twitter": "not yet" } },
+    "17.0": { "year": 2025, "unicode": "Unicode 17.0 (2025)", "tier": "bleeding", "support": { "apple": "not yet", "google": "not yet", "microsoft": "not yet", "samsung": "not yet", "whatsapp": "not yet", "twitter": "not yet" } }
+  }
+}
