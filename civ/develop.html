@@ -116,6 +116,7 @@
 <div class="tt" id="tt"></div>
 
 <script type="module">
+import { cachedFetch } from './lib/civ-cache.js';
 const $=s=>document.querySelector(s);
 const SUBS=['forager','pastoral','horticulture','plough','irrigation','maritime'];
 const SUB_COL=[[96,15,52],[44,42,60],[108,48,44],[46,62,56],[176,52,46],[205,60,52]];
@@ -300,9 +301,9 @@ async function load(){
   const st=curState(); try{ history.replaceState(null,'','?'+qsOf(st)); }catch(e){} syncLinks();
   $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks…'; hlCulture=null;
   try{
-    const r=await fetch('/api/civ/run?'+qsOf(st)); if(!r.ok) throw new Error('HTTP '+r.status+' '+((await r.json().catch(()=>({}))).detail||''));
-    DATA=await r.json(); tickYears=DATA.meta.tickYears||2.5; if(DATA.config){$('#lastconfig').value=DATA.config; syncLinks();}
-    $('#status').innerHTML=`<span class="score">★${DATA.score}</span> — ${DATA.descriptor}`;
+    const {json,cached}=await cachedFetch('/api/civ/run?'+qsOf(st));
+    DATA=json; tickYears=DATA.meta.tickYears||2.5; if(DATA.config){$('#lastconfig').value=DATA.config; syncLinks();}
+    $('#status').innerHTML=`<span class="score">★${DATA.score}</span> — ${DATA.descriptor}${cached?' · <b style="color:var(--good)">cached</b>':''}`;
     renderTables(); drawStream();
   }catch(e){ $('#status').textContent='error: '+e.message; }
   finally{ $('#load').disabled=false; }

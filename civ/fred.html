@@ -123,6 +123,7 @@
 <div class="tt" id="tt"></div>
 
 <script type="module">
+import { cachedFetch } from './lib/civ-cache.js';
 const $=s=>document.querySelector(s);
 let DATA=null, F=null, tickYears=2.5;
 let SEL=[];                    // selected series keys (overlay)
@@ -307,15 +308,15 @@ async function load(){
   const st=curState(); pushState(); syncLinks();
   $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks…';
   try{
-    const r=await fetch('/api/civ/run?'+qsOf(st)); if(!r.ok) throw new Error('HTTP '+r.status+' '+((await r.json().catch(()=>({}))).detail||''));
-    DATA=await r.json(); tickYears=DATA.meta.tickYears||2.5; if(DATA.config){$('#lastconfig').value=DATA.config; syncLinks();}
+    const {json,cached}=await cachedFetch('/api/civ/run?'+qsOf(st));
+    DATA=json; window.__cached=cached; tickYears=DATA.meta.tickYears||2.5; if(DATA.config){$('#lastconfig').value=DATA.config; syncLinks();}
     F=DATA.chronicle&&DATA.chronicle.fred;
     if(!F||!F.t||!F.t.length){ $('#status').textContent='this run produced no FRED series'; return; }
     range=null; hoverI=-1;
     // default selection: pop + gdp if nothing chosen
     SEL=SEL.filter(k=>F.series[k]); if(!SEL.length) SEL=['pop','gdp'].filter(k=>F.series[k]);
     const mm=$('#xf').querySelector(`b[data-x="${transform}"]`); if(mm){ $('#xf').querySelectorAll('b').forEach(x=>x.classList.remove('on')); mm.classList.add('on'); }
-    $('#status').innerHTML=`<span class="score">★${DATA.score}</span> — ${DATA.descriptor} · <span style="color:var(--dim)">${Object.keys(F.series).length} series · ${F.t.length} points · ${(F.categories||[]).length} categories</span>`;
+    $('#status').innerHTML=`<span class="score">★${DATA.score}</span> — ${DATA.descriptor} · <span style="color:var(--dim)">${Object.keys(F.series).length} series · ${F.t.length} points · ${(F.categories||[]).length} categories${cached?' · <b style="color:var(--good)">cached</b>':''}</span>`;
     renderAll();
   }catch(e){ $('#status').textContent='error: '+e.message; }
   finally{ $('#load').disabled=false; }

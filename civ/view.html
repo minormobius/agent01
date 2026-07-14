@@ -72,6 +72,7 @@
       </div>
       <label class="k" style="margin-top:4px"><input type="checkbox" id="showres" checked style="vertical-align:-2px"> named resources</label>
       <label class="k"><input type="checkbox" id="showppl" checked style="vertical-align:-2px"> notable people</label>
+      <label class="k"><input type="checkbox" id="showmig" checked style="vertical-align:-2px"> migration flows</label>
       <div id="legkeys"></div>
       <div class="k" style="color:var(--dim);margin-top:6px">scroll = zoom · drag = pan · click = inspect</div>
     </div>
@@ -95,6 +96,7 @@
 </div>
 
 <script type="module">
+import { cachedFetch } from './lib/civ-cache.js';
 const $ = s => document.querySelector(s);
 const cv = $('#cv'), ctx = cv.getContext('2d');
 // mappa biome palette (index-parallel to engine BIOMES): [h,s,l]
@@ -106,7 +108,7 @@ const ERA_NAME = ['forager','neolithic','bronze','classical','industrial','moder
 const hsl = (h,s,l,a=1)=>`hsl(${h} ${s}% ${l}% / ${a})`;
 const cultureHue = id => (id*137.508)%360;
 
-let DATA=null, view={z:1,x:0,y:0}, mode='culture', frame=0, playing=0, dir=1, sel=null, raf=0;
+let DATA=null, view={z:1,x:0,y:0}, mode='culture', frame=0, pos=0, tween=0, playing=0, dir=1, sel=null, raf=0;
 let BASE=1000, cellSX=null, cellSY=null;
 
 // ---- deterministic per-cell jitter (stable swarm within a frame) ----------------
@@ -138,10 +140,17 @@ function render(){
   const W=cv.width,H=cv.height; ctx.fillStyle='#070a10'; ctx.fillRect(0,0,W,H);
   if(!DATA){ return; }
   const w=DATA.world_mesh; updateCellScreens();
-  // backdrop: land cells as faint biome dots (ocean stays dark)
-  const r=Math.max(1.1, 1.6*view.z);
-  for(let i=0;i<w.N;i++){ if(w.water[i]!==0) continue; const x=cellSX[i],y=cellSY[i]; if(x<-4||x>W+4||y<-4||y>H+4) continue;
-    const b=BIOMES[w.biome[i]]||[0,0,20]; ctx.fillStyle=hsl(b[0],b[1]*0.6,b[2]*0.7,0.5); ctx.fillRect(x-r/2,y-r/2,r,r); }
+  // backdrop: solid landmasses (biome-tinted) over dark ocean, so continents read as shapes.
+  // cell size is scaled to merge neighbours into a continuous mass at any zoom.
+  const cellPx=Math.max(1.4, Math.sqrt(0.5/w.N)*BASE*view.z*1.5);
+  for(let i=0;i<w.N;i++){ if(w.water[i]!==0) continue; const x=cellSX[i],y=cellSY[i]; if(x<-cellPx||x>W+cellPx||y<-cellPx||y>H+cellPx) continue;
+    const b=BIOMES[w.biome[i]]||[0,0,20]; ctx.fillStyle=hsl(b[0],b[1]*0.5,b[2]*0.62,0.82); ctx.fillRect(x-cellPx/2,y-cellPx/2,cellPx,cellPx); }
+  // lakes/inland seas a touch lighter than ocean, for legibility
+  for(let i=0;i<w.N;i++){ if(w.water[i]!==2) continue; const x=cellSX[i],y=cellSY[i]; if(x<-cellPx||x>W+cellPx||y<-cellPx||y>H+cellPx) continue;
+    ctx.fillStyle=hsl(205,40,20,0.7); ctx.fillRect(x-cellPx/2,y-cellPx/2,cellPx,cellPx); }
+  // COASTLINE: continent outline — coast cells (land touching ocean) get a pale rim.
+  if(w.coast){ const cr=Math.max(1.2,cellPx*0.62); ctx.fillStyle='rgba(196,214,232,.5)';
+    for(const i of w.coast){ const x=cellSX[i],y=cellSY[i]; if(x<-cr||x>W+cr||y<-cr||y>H+cr) continue; ctx.fillRect(x-cr/2,y-cr/2,cr,cr); } }
   // particles: scatter per occupied cell ∝ population (globally scaled)
   const f=DATA.frames[frame]; if(!f) return;
   let totalPop=f.pop||1; const target=13000; const scale=Math.min(1, target/totalPop);
@@ -150,6 +159,23 @@ function render(){
     let n=Math.round(f.popc[k]*scale); if(n<1)n=1; if(n>140)n=140;
     ctx.fillStyle=cellColor(f,k,0.85);
     for(let j=0;j<n;j++){ const a=hash2(c,j)*6.283, rr=Math.sqrt(hash2(c,j+9973))*jr; const px=x+Math.cos(a)*rr, py=y+Math.sin(a)*rr; ctx.fillRect(px,py,1.4,1.4); }
+  }
+  // MIGRATION: travellers float from cell to cell along this transition's strongest flows.
+  // Edges belong to the destination frame (flows that produced it); we lerp along them by the
+  // sub-frame `tween`, so particles visibly leave one cell and arrive at another during play.
+  const nf=DATA.frames[frame+1];
+  if(nf&&nf.mig&&nf.mig.length&&$('#showmig').checked){ const m=nf.mig; const ease=tween<0.5?2*tween*tween:1-Math.pow(-2*tween+2,2)/2;
+    for(let e=0;e<m.length;e+=3){ const from=m[e],to=m[e+1],ct=m[e+2]; const x0=cellSX[from],y0=cellSY[from],x1=cellSX[to],y1=cellSY[to];
+      if((x0<-8&&x1<-8)||(x0>W+8&&x1>W+8)||(y0<-8&&y1<-8)||(y0>H+8&&y1>H+8)) continue;
+      const trav=Math.min(6,1+Math.round(Math.sqrt(ct))); const ki=f.cell.indexOf(from); const cuHue=cultureHue(ki>=0?f.cu[ki]:0);
+      for(let j=0;j<trav;j++){ const off=(hash2(from*131+to,j)-0.5)*0.16; const t=Math.max(0,Math.min(1,ease+off));
+        // slight perpendicular arc so parallel travellers fan out
+        const dx=x1-x0,dy=y1-y0, pnx=-dy,pny=dx, plen=Math.hypot(pnx,pny)||1; const bow=(hash2(from,to*7+j)-0.5)*10*Math.sin(t*Math.PI);
+        const px=x0+dx*t+pnx/plen*bow, py=y0+dy*t+pny/plen*bow;
+        const tx=x0+dx*(t-0.06), ty=y0+dy*(t-0.06);
+        ctx.strokeStyle=hsl(cuHue,70,70,0.5); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(px,py); ctx.stroke();
+        ctx.fillStyle=hsl(cuHue,85,72,0.95); ctx.fillRect(px-1,py-1,2.2,2.2); }
+    }
   }
   // named resource markers (static geology): a coloured diamond per node, labelled when zoomed
   if($('#showres').checked && w.resources){
@@ -242,14 +268,24 @@ addEventListener('mouseup',e=>{ if(drag && drag.moved<4){ const p=pickPerson(dra
 cv.addEventListener('wheel',e=>{ e.preventDefault(); const f=e.deltaY<0?1.15:1/1.15; const mx=e.offsetX,my=e.offsetY; view.x=mx-(mx-view.x)*f; view.y=my-(my-view.y)*f; view.z*=f; render(); },{passive:false});
 
 // ---- transport ------------------------------------------------------------------
-function setFrame(i){ if(!DATA)return; frame=Math.max(0,Math.min(DATA.frames.length-1,i)); $('#scrub').value=frame; if(sel!=null) inspectCell(sel); frameLabel(); render(); }
+function setFrame(i){ if(!DATA)return; frame=Math.max(0,Math.min(DATA.frames.length-1,i)); pos=frame; tween=0; $('#scrub').value=frame; if(sel!=null) inspectCell(sel); frameLabel(); render(); }
 $('#scrub').addEventListener('input',e=>{ playing=0; $('#play').textContent='▶'; setFrame(+e.target.value); });
 $('#stepf').onclick=()=>setFrame(frame+1); $('#stepb').onclick=()=>setFrame(frame-1);
 $('#play').onclick=()=>{ playing=playing?0:1; dir=1; $('#play').textContent=playing?'❚❚':'▶'; };
 $('#fwd').onclick=()=>{ playing=1; dir=1; $('#play').textContent='❚❚'; };
 $('#rev').onclick=()=>{ playing=1; dir=-1; $('#play').textContent='❚❚'; };
-let acc=0,last=0;
-function loop(ts){ raf=requestAnimationFrame(loop); if(!playing||!DATA){ last=ts; return; } const fps=+$('#speed').value; acc+=(ts-last)/1000*fps; last=ts; if(acc>=1){ acc=0; let n=frame+dir; if(n>=DATA.frames.length){ n=DATA.frames.length-1; playing=0; $('#play').textContent='▶'; } if(n<0){ n=0; playing=0; $('#play').textContent='▶'; } setFrame(n); } }
+let last=0;
+// continuous playback: advance a float position so migration travellers move smoothly between
+// frames. `frame` (integer) still drives the swarm/inspector/label; `tween` is the sub-frame.
+function loop(ts){ raf=requestAnimationFrame(loop); const dt=Math.min(0.1,(ts-last)/1000); last=ts; if(!playing||!DATA) return;
+  const fps=+$('#speed').value; pos+=dir*dt*fps;
+  const maxp=DATA.frames.length-1;
+  if(pos>=maxp){ pos=maxp; playing=0; $('#play').textContent='▶'; }
+  if(pos<=0){ pos=0; playing=0; $('#play').textContent='▶'; }
+  const nf=Math.floor(pos); tween=pos-nf;
+  if(nf!==frame){ frame=nf; $('#scrub').value=frame; frameLabel(); if(sel!=null) inspectCell(sel); }
+  render();
+}
 
 // ---- modes ----------------------------------------------------------------------
 $('#modes').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; mode=b.dataset.m; [...$('#modes').children].forEach(x=>x.classList.toggle('on',x===b)); buildLegend(); render(); });
@@ -264,7 +300,7 @@ function buildLegend(){
   else h='<div class="k" style="color:var(--dim)">warm = dense population</div>';
   el.innerHTML=h;
 }
-$('#showres').addEventListener('change',render); $('#showppl').addEventListener('change',render);
+$('#showres').addEventListener('change',render); $('#showppl').addEventListener('change',render); $('#showmig').addEventListener('change',render);
 
 // ---- shared URL state (liquidity with the dashboard + mappa) --------------------
 function curState(){ return { world:$('#world').value.trim()||'7', preset:$('#preset').value, civSeed:$('#civseed').value||'1', ticks:$('#ticks').value||'1000', config:$('#lastconfig').value||'' }; }
@@ -281,12 +317,12 @@ async function load(){
   try{ history.replaceState(null,'','?'+qsOf(st)); }catch(e){} syncLinks(); // the URL is the permalink
   $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks + capturing frames…';
   try{
-    const r=await fetch('/api/civ/frames?'+q); if(!r.ok){ throw new Error('HTTP '+r.status+' '+((await r.json().catch(()=>({}))).detail||'')); }
-    DATA=await r.json();
+    const {json,cached}=await cachedFetch('/api/civ/frames?'+q);
+    DATA=json;
     if(DATA.config){ $('#lastconfig').value=DATA.config; syncLinks(); } // links carry this exact run
-    BASE=1000; precomputeCells(); fit(); frame=0; sel=null; $('#inspect').style.display='none';
+    BASE=1000; precomputeCells(); fit(); frame=0; pos=0; tween=0; sel=null; $('#inspect').style.display='none';
     $('#scrub').max=DATA.frames.length-1; $('#scrub').value=0;
-    $('#status').innerHTML=`★${DATA.score} — ${DATA.descriptor}`;
+    $('#status').innerHTML=`★${DATA.score} — ${DATA.descriptor}${cached?' · <b style="color:var(--good)">cached</b>':''}`;
     drawEventBar(); buildLegend(); setFrame(0);
   }catch(e){ $('#status').textContent='error: '+e.message; }
   finally{ $('#load').disabled=false; }

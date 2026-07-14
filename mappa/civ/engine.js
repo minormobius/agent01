@@ -365,6 +365,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   // ---- the tick ------------------------------------------------------------------
   let tick = 0, totalTicks = 0, captureEvery = 0;
   const dispSrc = []; const dispTgt = []; // dispersers recorded during demography
+  const migAcc = new Map(); // (from*N+to) → count, accumulated between frame captures (frames mode only)
 
   // ---- particle-frame capture (for the browser playback viewer) ------------------
   // A compact per-cell snapshot per captured frame: occupied cells with their
@@ -374,8 +375,10 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   function worldSnapshot() {
     const lon = new Array(N), lat = new Array(N);
     for (let i = 0; i < N; i++) { const v = w.V[i]; lon[i] = +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(2); lat[i] = +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(2); }
+    // coastline: land cells that touch ocean — the viewer strokes these for continent outlines
+    const coast = []; if (w.coast) for (let i = 0; i < N; i++) if (w.coast[i]) coast.push(i);
     return {
-      N, lon, lat, water: Array.from(w.water), biome: Array.from(w.biome), landmass: Array.from(w.landmass),
+      N, lon, lat, water: Array.from(w.water), biome: Array.from(w.biome), landmass: Array.from(w.landmass), coast,
       // named resource nodes (static geology) — the map marks them, the sim contests them
       resources: (w.resourceNodes || []).map(nd => ({ cell: nd.cell, kind: nd.kind, name: nd.name })),
     };
@@ -400,7 +403,12 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     }
     const people = [];
     for (let a = nt - 1; a >= 0; a--) { const id = topId[a]; people.push({ cell: A.cell[id], name: personName(id), cu: A.culture[id], rep: +A.status[id].toFixed(2), cred: A.cred[id], age: Math.round((tick - A.birthTick[id]) * ty) }); }
-    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, wlth, prc, people, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
+    // migration flows accumulated since the last capture → the strongest edges, as flat
+    // [fromCell, toCell, count, …]. The viewer floats travellers along these between frames.
+    const edges = [...migAcc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 100);
+    const mig = []; for (const [mk, ct] of edges) mig.push((mk / N) | 0, mk % N, ct); // from, to, count
+    migAcc.clear();
+    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, wlth, prc, people, mig, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
   }
 
   function step() {
@@ -501,6 +509,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     for (let k = 0; k < dispSrc.length; k++) {
       const id = dispSrc[k], from = A.cell[id], to = dispTgt[k];
       A.cell[id] = to; dispersers++;
+      if (captureEvery && to !== from) { const mk = from * N + to; migAcc.set(mk, (migAcc.get(mk) || 0) + 1); } // record the flow (playback viewer animates it)
       activityField[to] += 0.03; activityField[from] += 0.01; // laid trail (grown roads)
       // EMBODIED DIFFUSION: a credentialed migrant carries their craft — deposit the
       // capabilities their credentials embody into the destination's meme field, so skilled
