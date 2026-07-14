@@ -1474,9 +1474,16 @@
       const facts = story.store.getFacts(story.playerId);
       if (unlockAllWards()) { ensureFactionWards('continuant'); ensureFactionWards('rindwalker'); ensureFactionWards('drift'); }   // DEV: build all six wards now
       else {
+        // Factor Solen's charge (tier 2, zone "wards") spans ALL THREE faction wards at once — its keepers
+        // live across them and must all be seatable + findable together. The old sequential reveal gated
+        // rindwalker/drift on fqWitnessFaction bumping fq.<faction> to 'witnessed', but that trigger is
+        // ORPHANED (defined, never called), so those wards never streamed and the SECOND Kaelen Voss (the
+        // Fulcrum Cell, sets flag.ward.rindwalker_known) could never be placed — an unfindable-keeper
+        // soft-lock. Open all three the moment you're on Solen's charge (the fqStatus path stays harmless).
         if (introSolved()) ensureFactionWards('continuant');                      // commons quest cleared
-        if (fqStatus(facts, 'continuant') === 'witnessed') ensureFactionWards('rindwalker');
-        if (fqStatus(facts, 'rindwalker') === 'witnessed') ensureFactionWards('drift');
+        const onWardsCharge = (story.store.getPlayerState(story.playerId).narrative_tier || 1) >= 2;
+        if (onWardsCharge || fqStatus(facts, 'continuant') === 'witnessed') ensureFactionWards('rindwalker');
+        if (onWardsCharge || fqStatus(facts, 'rindwalker') === 'witnessed') ensureFactionWards('drift');
       }
       maybePlaceOverLadder();   // idempotent — drop the passive overworld ladder once the Continuants ward exists
       relocateGuidesToWards();  // once a faction's lobe is built, move its guide-anchor from the commons into it
