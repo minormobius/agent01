@@ -28,6 +28,45 @@
       "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. Live wings: /puzz — seeded, certified-unique logic puzzles (binairo + nonogram), a real solver certifying uniqueness, fairness, and grading from deduction techniques; /knack — canvas minigames, one composable discrete-move engine -> six genres, each certified solvable by a BFS solver that finds optimal par; /flux — continuous-space physics puzzles (no grid): aim one launch through gravity wells/magnets/goo/bumpers, a solver sweeps the 2D launch space to map winning basins, grading by shot precision; /gyre — flux in 3D: the ball constrained to a torus surface (intrinsic-coordinate geodesic integration + tangent-projected forces, hand-rolled 3D canvas in the torus-pack style), winding numbers of the winning shot are part of the interest battery. flux JS engine is mirrored in fable/flux/engine-rs (Rust) and cross-checked in CI by build-flux-catalog.yml, which commits fable/flux/data/catalog.json. /morph — a generator of puzzle GENERATORS (one level up): samples a game GENOME (substrate/topology incl. torus/Möbius/Klein/hex × law × goal × aesthetic) and instantiates a concrete puzzle a single invariant BFS oracle certifies solvable; two knobs (new game = new genome, new puzzle = new instance). /drift — puzzles in MEANING-space (tier-4 substrate): the board is a committed kNN graph over 7k MiniLM word embeddings (built by scripts/build-drift-graph.mjs, cult-basis pattern; regenerate ONLY via manual build-drift-graph.yml — it re-rolls every permalink); Ladder = BFS-certified semantic crossings with measured par, Fold = margin-certified word families. /forge — the rung above morph: a FOUNDRY that mints new LAWS OF MOTION from a closed rule-DSL, fingerprints each by behaviour (state-space/branching/irreversibility/mutation/stride/drift), and admits only laws measurably novel vs the hand-written ones AND certifiable into playable puzzles by the one BFS oracle (novelty-search / MAP-Elites lineage). The generator-generator then runs on a law no one wrote. /deal — generated 2-player CARD GAMES certified by a TRIBUNAL of simulated opponents (the adversarial/hidden-info oracle family: seeded bot-vs-bot playouts prove terminates + rewards-skill + fair before shipping); the engine is a pure reducer (init/legalMoves/apply) so any game lifts into the games.mino.mobi DO rooms / hoop / ar transports for human-vs-human later — the certifying bot is also your opponent. Guest cabinet (NOT part of the seeded/certified thesis): /tetro — a human-authored React tetromino sandbox (a contributed Claude artifact; pre-transpiled to a global IIFE, React+Tailwind from CDN), listed under the worker health `guests[]`, not `wings[]`. Planned: /city (extends mappa), /character (sci-fi NPC systems)."
     },
     {
+      "surface": "moji",
+      "dir": "moji",
+      "endpoint": "moji.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/emoji-wiki-platform-support-v6ubju",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "moji/**"
+      ],
+      "note": "The emoji wiki. Thin assets Worker (worker `moji`, custom_domain moji.mino.mobi) — no build, no D1, no AI, no secrets. Home page is every Unicode emoji in one pastable, searchable table (click a glyph to copy); /e/<id> (id = hyphen-joined lowercase code points, e.g. /e/1f600) is a per-emoji page with code points, the Emoji version it debuted in, and platform-support timelines (Apple/Google/Microsoft/Samsung/WhatsApp/Twitter-X). Data is generated from Unicode UTS#51 emoji-test.txt by scripts/build-moji-data.mjs into moji/data/emoji.json (committed); platform first-ship dates are hand-authored in moji/data/platforms.json, keyed by Emoji version."
+    },
+    {
+      "surface": "uni",
+      "dir": "uni",
+      "endpoint": "uni.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/emoji-wiki-platform-support-v6ubju",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "uni/**"
+      ],
+      "note": "The Unicode browser (sibling to moji). Thin assets Worker (worker `uni`, custom_domain uni.mino.mobi) — no build, no D1/AI/secrets. Home is every Unicode block grouped by plane with sample glyphs + live search (name substring over a lazy-loaded index, or paste a char / type U+XXXX to jump). /b/<slug> renders a block as a pastable char grid with infinite scroll (handles the 40k-char CJK blocks); /c/<hex> is a per-character page with name, block, script, category, age, and every encoding (UTF-8/16/32, HTML entity, CSS/JS/Python escapes, URL). Data generated from the Unicode Character Database (uni/data/ucd/*.txt) by scripts/build-uni-data.mjs: ~40k explicitly-named chars stored per-block, ~119k CJK/Hangul/Tangut ideographs named ALGORITHMICALLY client-side (no per-char storage) via uni/lib/uni.js (node-tested by uni/lib/uni.selftest.mjs)."
+    },
+    {
+      "surface": "unit",
+      "dir": "unit",
+      "endpoint": "unit.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/emoji-wiki-platform-support-v6ubju",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "unit/**"
+      ],
+      "note": "The unit converter (reference wing, sibling to moji + uni). Thin assets Worker (worker `unit`, custom_domain unit.mino.mobi) - no build/D1/AI/secrets. Home: category dropdown then two iOS-style CYLINDER unit pickers (unit/lib/cylinder.js, scroll-snap drum) flanking a value input + swap, with a live FULL-SPECTRUM table converting the value into every unit at once (click a row to set it as the target). Deep-linkable at /<category>/<from>/<to>?v= (e.g. /length/meter/foot?v=1). /reference is the longform table page: every unit's exact factor to/from its base both ways, affine temperature formulas, non-linear fuel economy, and SI + IEC binary prefixes. ~15 categories; all conversions in the pure engine unit/lib/units.js (factor/offset, or toBase/fromBase fns for non-affine), node-tested by unit/lib/units.selftest.mjs. Currency deliberately excluded (needs live rates)."
+    },
+    {
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>uni — the Unicode browser · every character, searchable</title>
+<meta name="description" content="Browse all of Unicode: 159,000+ characters across 346 blocks. Search by name, code point, or paste a character; open any character for its name, block, script, category, and every encoding (UTF-8/16/32, HTML entity, CSS/JS/Python escapes, URL).">
+<meta property="og:title" content="uni — the Unicode browser">
+<meta property="og:description" content="Every Unicode character, searchable. Blocks, code points, and every encoding — no ads.">
+<meta name="theme-color" content="#5b57e0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%E2%80%B9%E2%80%BA%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">uni<span class="dot">.</span><small>unicode browser</small></a>
+    <div class="search-wrap">
+      <svg class="search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" class="search" type="search" autocomplete="off" spellcheck="false" placeholder="Search name, code point (U+1F600), or paste a character…">
+      <div id="sr" class="search-results"></div>
+    </div>
+    <a class="crumb" href="https://mino.mobi">↖ mino.mobi</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>All of Unicode.</h1>
+    <p><span class="stat" id="stat">…</span> across <span id="blockStat">346</span> blocks, <span id="verStat">Unicode</span>. Search by name or code point, or paste any character to jump to its page — every encoding, one click to copy.</p>
+  </section>
+
+  <nav class="chips" id="planeChips" aria-label="Jump to plane"></nav>
+  <div id="planes"></div>
+
+  <footer>
+    <p>Data: the <a href="https://www.unicode.org/ucd/">Unicode Character Database</a> (<span id="verFoot">—</span>). CJK, Hangul and Tangut ideograph names are generated algorithmically per UAX; everything else is from <code>UnicodeData.txt</code>. Glyphs render in your device’s fonts — missing glyphs show as a box (▯).</p>
+    <p><a href="https://moji.mino.mobi">moji</a> · <a href="https://mino.mobi">mino.mobi</a> · a minomobi reference</p>
+  </footer>
+</main>
+
+<div class="toast" id="toast"><span class="g" id="toastGlyph">✓</span><span id="toastMsg">Copied</span></div>
+
+<script type="module">
+import UNI from '/lib/uni.js';
+
+const PLANES_EL = document.getElementById('planes');
+const CHIPS = document.getElementById('planeChips');
+const Q = document.getElementById('q');
+const SR = document.getElementById('sr');
+const TOAST = document.getElementById('toast');
+
+let BLOCKS = null, INDEX = null;
+
+Promise.all([
+  fetch('/data/blocks.json').then(r => r.json()),
+  fetch('/data/meta.json').then(r => r.json()),
+]).then(([blocks, meta]) => {
+  BLOCKS = blocks;
+  document.getElementById('stat').textContent = meta.assignedCount.toLocaleString() + ' characters';
+  document.getElementById('blockStat').textContent = meta.blockCount;
+  document.getElementById('verStat').textContent = 'Unicode ' + meta.unicodeVersion;
+  document.getElementById('verFoot').textContent = 'v' + meta.unicodeVersion;
+  renderPlanes();
+});
+
+function renderPlanes() {
+  const byPlane = new Map();
+  BLOCKS.forEach((b, i) => { if (!byPlane.has(b.plane)) byPlane.set(b.plane, []); byPlane.get(b.plane).push(i); });
+  const planeOrder = [...byPlane.keys()].sort((a, b) => a - b);
+
+  const chipFrag = document.createDocumentFragment();
+  const frag = document.createDocumentFragment();
+  for (const p of planeOrder) {
+    const idxs = byPlane.get(p);
+    const pname = UNI.PLANES[p] || `Plane ${p}`;
+    const pslug = UNI.slugify(pname);
+    const chars = idxs.reduce((a, i) => a + BLOCKS[i].assigned, 0);
+
+    const chip = document.createElement('a');
+    chip.className = 'chip'; chip.href = '#p-' + pslug; chip.textContent = pname;
+    chipFrag.appendChild(chip);
+
+    const h = document.createElement('div');
+    h.className = 'plane-h'; h.id = 'p-' + pslug;
+    h.innerHTML = `<h2>${pname}</h2><span class="count">${idxs.length} blocks · ${chars.toLocaleString()}</span>`;
+    frag.appendChild(h);
+
+    const grid = document.createElement('div');
+    grid.className = 'block-grid';
+    let html = '';
+    for (const i of idxs) {
+      const b = BLOCKS[i];
+      const samples = (b.samples || []).map(cp => UNI.glyph(cp)).join('');
+      const kb = b.kind && b.kind !== 'surrogate' ? `<span class="kbadge">${b.kind === 'pua' ? 'private use' : b.kind}</span>` : '';
+      html += `<a class="block-card${b.assigned ? '' : ' empty'}" href="/b/${b.slug}">
+        <div class="bname">${b.name}${kb}</div>
+        <div class="brange">${UNI.uPlus(b.start)} – ${UNI.uPlus(b.end)}</div>
+        <div class="bsamples glyph">${samples}</div>
+        <div class="bcount">${b.assigned ? b.assigned.toLocaleString() + ' characters' : 'reserved'}</div>
+      </a>`;
+    }
+    grid.innerHTML = html;
+    frag.appendChild(grid);
+  }
+  CHIPS.appendChild(chipFrag);
+  PLANES_EL.appendChild(frag);
+
+  const q0 = new URLSearchParams(location.search).get('q');
+  if (q0) { Q.value = q0; Q.focus(); runSearch(); }
+}
+
+// ── search ──
+async function ensureIndex() {
+  if (INDEX) return INDEX;
+  SR.innerHTML = '<div class="sr-hint">Loading character index…</div>'; SR.classList.add('show');
+  INDEX = await fetch('/data/index.json').then(r => r.json());
+  return INDEX;
+}
+
+function parseCodepoint(raw) {
+  let s = raw.trim();
+  // paste a single character → its codepoint
+  const cps = [...s];
+  if (cps.length === 1 && s.codePointAt(0) > 0x20) return s.codePointAt(0);
+  s = s.replace(/^(u\+|0x|\\u|&#x)/i, '').replace(/[;\s]/g, '');
+  if (/^[0-9a-f]{1,6}$/i.test(s)) { const cp = parseInt(s, 16); if (cp <= 0x10FFFF) return cp; }
+  return null;
+}
+
+let sel = -1, rows = [];
+let raf = 0;
+Q.addEventListener('input', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(runSearch); });
+Q.addEventListener('focus', () => { if (Q.value.trim()) runSearch(); });
+
+async function runSearch() {
+  const raw = Q.value.trim();
+  if (!raw) { SR.classList.remove('show'); return; }
+  sel = -1; rows = [];
+  let html = '';
+
+  const cp = parseCodepoint(raw);
+  if (cp != null) {
+    rows.push({ cp });
+    html += `<a class="sr-item" data-cp="${cp}"><span class="sr-glyph glyph">${UNI.glyph(cp) || '▯'}</span><span class="sr-name">Go to ${UNI.uPlus(cp)}</span><span class="sr-cp">${UNI.uPlus(cp)}</span></a>`;
+  }
+
+  const idx = await ensureIndex();
+  const needle = raw.toUpperCase();
+  // collect matches with a relevance rank: exact < prefix < word-start < substring
+  const matches = [];
+  for (const [c, name] of idx) {
+    const at = name.indexOf(needle);
+    if (at === -1) continue;
+    const rank = name === needle ? 0 : at === 0 ? 1 : name[at - 1] === ' ' ? 2 : 3;
+    matches.push([rank, name.length, c, name]);
+  }
+  matches.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+  const capped = matches.length > 60;
+  for (const [, , c, name] of matches.slice(0, 60)) {
+    rows.push({ cp: c });
+    html += `<a class="sr-item" data-cp="${c}"><span class="sr-glyph glyph">${UNI.glyph(c) || '▯'}</span><span class="sr-name">${name}</span><span class="sr-cp">${UNI.uPlus(c)}</span></a>`;
+  }
+  if (!rows.length) html = '<div class="sr-hint">No character matches.</div>';
+  else if (capped) html += `<div class="sr-hint">Showing 60 of ${matches.length.toLocaleString()} — refine to narrow.</div>`;
+  SR.innerHTML = html;
+  SR.classList.add('show');
+  SR.querySelectorAll('.sr-item').forEach(el => {
+    el.addEventListener('click', e => { e.preventDefault(); location.href = '/c/' + UNI.hex(+el.dataset.cp); });
+  });
+}
+
+Q.addEventListener('keydown', e => {
+  const items = SR.querySelectorAll('.sr-item');
+  if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(sel + 1, items.length - 1); paintSel(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(sel - 1, 0); paintSel(items); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    const t = sel >= 0 ? items[sel] : items[0];
+    if (t) location.href = '/c/' + UNI.hex(+t.dataset.cp);
+  } else if (e.key === 'Escape') { SR.classList.remove('show'); Q.blur(); }
+});
+function paintSel(items) { items.forEach((el, i) => el.classList.toggle('sel', i === sel)); if (items[sel]) items[sel].scrollIntoView({ block: 'nearest' }); }
+
+document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) SR.classList.remove('show'); });
+document.addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== Q) { e.preventDefault(); Q.focus(); } });
+</script>
+</body>
+</html>
