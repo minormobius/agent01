@@ -711,6 +711,24 @@
       ]
     },
     {
+      "surface": "reef",
+      "dir": "reef",
+      "endpoint": "reef.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/cube3d-browser-port-ufh9gy",
+      "uses": [
+        "atpolls-db"
+      ],
+      "provides": null,
+      "status": "MANAGED \u2014 new surface via deploy-reef.yml (Worker `reef`). Species selftest gate + idempotent D1 migration before deploy.",
+      "op": "create",
+      "note": "reef.mino.mobi \u2014 Tinder-style crowd judging of procedurally generated voxel sea creatures (fish/eel/ray/jellyfish/turtle/coral/anemone; reef/js/species.js, seeded + connected + morphologically exaggerated at 15^3). Specimens are (species,seed) pairs regenerated client-side \u2014 D1 stores ONLY votes (reef_votes on shared atpolls-db, migration 0032, PK (specimen,voter), gen column versions the generator). API: /api/reef/{health,next,vote,stats,export}; /next mixes hot specimens (1-4 votes, so verdicts converge at 3+) with fresh random draws from an 800-seed/species universe; /export feeds the trainer. The votes gate the training corpus for the reef NCA \u2014 same architecture as the cube3D firmware network, trained by reef/train/train_reef.py (PyTorch-CPU reimplementation of the paper protocol: masked CE, random 56-88 step rollouts, kernel-mask reset, fire 0.5) via the manual train-reef.yml workflow (gen corpus -> fetch crowd rejects (yes-ratio<0.4 at >=3 votes dropped) -> train ~3h -> held-out majority-accuracy gate -> commits reef/model/{weights-reef.js,golden-reef.json,eval.json} back). Deck UI: single-card three.js voxel viewer (neutral pearl colouring to avoid bias), swipe/buttons/arrow keys, anonymous localStorage voter id, OG tags for sharing. Destined to power a reef biome in golem.",
+      "paths": [
+        "reef/**",
+        "poll/apps/api/migrations/0032_reef.sql"
+      ]
+    },
+    {
       "surface": "g",
       "dir": "clock",
       "endpoint": "g.mino.mobi",
