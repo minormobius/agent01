@@ -54,6 +54,19 @@
       "note": "The Unicode browser (sibling to moji). Thin assets Worker (worker `uni`, custom_domain uni.mino.mobi) — no build, no D1/AI/secrets. Home is every Unicode block grouped by plane with sample glyphs + live search (name substring over a lazy-loaded index, or paste a char / type U+XXXX to jump). /b/<slug> renders a block as a pastable char grid with infinite scroll (handles the 40k-char CJK blocks); /c/<hex> is a per-character page with name, block, script, category, age, and every encoding (UTF-8/16/32, HTML entity, CSS/JS/Python escapes, URL). Data generated from the Unicode Character Database (uni/data/ucd/*.txt) by scripts/build-uni-data.mjs: ~40k explicitly-named chars stored per-block, ~119k CJK/Hangul/Tangut ideographs named ALGORITHMICALLY client-side (no per-char storage) via uni/lib/uni.js (node-tested by uni/lib/uni.selftest.mjs)."
     },
     {
+      "surface": "unit",
+      "dir": "unit",
+      "endpoint": "unit.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/emoji-wiki-platform-support-v6ubju",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "unit/**"
+      ],
+      "note": "The unit converter (reference wing, sibling to moji + uni). Thin assets Worker (worker `unit`, custom_domain unit.mino.mobi) - no build/D1/AI/secrets. Home: category dropdown then two iOS-style CYLINDER unit pickers (unit/lib/cylinder.js, scroll-snap drum) flanking a value input + swap, with a live FULL-SPECTRUM table converting the value into every unit at once (click a row to set it as the target). Deep-linkable at /<category>/<from>/<to>?v= (e.g. /length/meter/foot?v=1). /reference is the longform table page: every unit's exact factor to/from its base both ways, affine temperature formulas, non-linear fuel economy, and SI + IEC binary prefixes. ~15 categories; all conversions in the pure engine unit/lib/units.js (factor/offset, or toBase/fromBase fns for non-affine), node-tested by unit/lib/units.selftest.mjs. Currency deliberately excluded (needs live rates)."
+    },
+    {
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",

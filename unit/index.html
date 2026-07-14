@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>unit — the unit converter · every conversion, no ads</title>
+<meta name="description" content="A fast, ad-free unit converter. Pick a category, spin the cylinder to choose units, and see your value in every unit at once — length, mass, temperature, volume, speed, pressure, energy, data, and more. Exact conversion factors, plus a longform reference.">
+<meta property="og:title" content="unit — the unit converter">
+<meta property="og:description" content="Every conversion, no ads. Spin to pick units; see the full spectrum at once.">
+<meta name="theme-color" content="#0e9f7e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%F0%9F%93%8F%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">unit<span class="dot">.</span><small>converter</small></a>
+    <nav class="nav">
+      <a href="/" class="active">Convert</a>
+      <a href="/reference">Reference</a>
+      <a href="https://mino.mobi">↖ mino.mobi</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="catbar">
+    <div class="select-wrap">
+      <select class="cat" id="cat" aria-label="Conversion category"></select>
+    </div>
+    <span class="basenote" id="basenote"></span>
+  </div>
+
+  <section class="converter">
+    <div class="conv-grid">
+      <div class="side">
+        <div class="label">From</div>
+        <div class="valbox">
+          <input id="val" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="1" aria-label="Value to convert">
+          <span class="usym" id="fromSym"></span>
+        </div>
+        <div id="fromCyl"></div>
+      </div>
+      <div class="swapcol"><button class="swap" id="swap" title="Swap units" aria-label="Swap from and to">⇅</button></div>
+      <div class="side">
+        <div class="label">To</div>
+        <div class="valbox out" id="outbox" title="Click to copy">
+          <span class="outval" id="out">—</span>
+          <span class="usym" id="toSym"></span>
+        </div>
+        <div id="toCyl"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="spectrum-h">
+    <h2>Full spectrum</h2>
+    <span class="eq" id="eq"></span>
+  </div>
+  <div class="spectrum" id="spectrum"></div>
+
+  <footer>
+    <p>Conversion factors are exact where a definition exists (e.g. 1 in = 2.54 cm exactly). Temperature is affine; fuel economy is non-linear. Currency is intentionally out of scope (it needs live rates). See the <a href="/reference">reference tables</a> for the full factor list.</p>
+    <p><a href="https://moji.mino.mobi">moji</a> · <a href="https://uni.mino.mobi">uni</a> · <a href="https://mino.mobi">mino.mobi</a></p>
+  </footer>
+</main>
+
+<div class="toast" id="toast">Copied</div>
+
+<script type="module">
+import U from '/lib/units.js';
+import { Cylinder } from '/lib/cylinder.js';
+
+const $ = id => document.getElementById(id);
+const catSel = $('cat'), valInput = $('val'), out = $('out');
+const fromSym = $('fromSym'), toSym = $('toSym'), spectrumEl = $('spectrum'), eqEl = $('eq');
+const TOAST = $('toast');
+
+let cat, fromCyl, toCyl;
+
+// populate category dropdown
+for (const c of U.CATEGORIES) {
+  const o = document.createElement('option');
+  o.value = c.id; o.textContent = `${c.icon}  ${c.name}`;
+  catSel.appendChild(o);
+}
+
+// ── parse initial state from the path /<cat>/<from>/<to>?v= ──
+function parseState() {
+  const parts = location.pathname.split('/').filter(Boolean);
+  let catId = 'length', fromId = 'meter', toId = 'foot';
+  if (parts.length >= 1 && U.category(parts[0])) {
+    catId = parts[0];
+    const c = U.category(catId);
+    fromId = c.units[0].id; toId = (c.units[1] || c.units[0]).id;
+    if (parts.length >= 3 && U.unit(catId, parts[1]) && U.unit(catId, parts[2])) { fromId = parts[1]; toId = parts[2]; }
+  }
+  const v = new URLSearchParams(location.search).get('v');
+  return { catId, fromId, toId, v: v != null ? v : '1' };
+}
+
+function build(catId, fromId, toId, v) {
+  cat = U.category(catId);
+  catSel.value = catId;
+  $('basenote').textContent = `base unit: ${cat.base}`;
+  valInput.value = v;
+
+  const items = cat.units.map(un => ({ label: un.name, sym: un.symbol }));
+  const fi = cat.units.findIndex(u => u.id === fromId);
+  const ti = cat.units.findIndex(u => u.id === toId);
+
+  if (!fromCyl) {
+    fromCyl = new Cylinder($('fromCyl'), items, { onChange: () => { compute(); syncURL(); } });
+    toCyl = new Cylinder($('toCyl'), items, { onChange: () => { compute(); syncURL(); } });
+  } else {
+    fromCyl.setItems(items, { silent: true });
+    toCyl.setItems(items, { silent: true });
+  }
+  fromCyl.setIndex(Math.max(0, fi), { silent: true, instant: true });
+  toCyl.setIndex(Math.max(0, ti), { silent: true, instant: true });
+  compute();
+}
+
+function curFrom() { return cat.units[fromCyl.index]; }
+function curTo() { return cat.units[toCyl.index]; }
+
+let lastResult = NaN;
+function compute() {
+  const f = curFrom(), t = curTo();
+  fromSym.textContent = f.symbol; toSym.textContent = t.symbol;
+  const v = parseFloat(valInput.value);
+  if (Number.isNaN(v)) { out.textContent = '—'; eqEl.innerHTML = ''; renderSpectrum(NaN, f); return; }
+  lastResult = U.convert(cat.id, f.id, t.id, v);
+  out.textContent = U.format(lastResult);
+  eqEl.innerHTML = `<b>${U.format(v)} ${f.symbol}</b> in every ${cat.name.toLowerCase()} unit`;
+  renderSpectrum(v, f);
+}
+
+function renderSpectrum(v, f) {
+  const spec = Number.isNaN(v) ? cat.units.map(un => ({ unit: un, value: NaN })) : U.spectrum(cat.id, f.id, v);
+  const toId = curTo().id;
+  spectrumEl.innerHTML = spec.map(({ unit, value }) =>
+    `<button class="srow${unit.id === toId ? ' on' : ''}" data-id="${unit.id}">
+      <span class="ssym">${unit.symbol}</span>
+      <span class="sname">${unit.name}</span>
+      <span class="sval">${U.format(value)}</span>
+    </button>`).join('');
+  spectrumEl.querySelectorAll('.srow').forEach(el => el.addEventListener('click', () => {
+    const i = cat.units.findIndex(u => u.id === el.dataset.id);
+    toCyl.setIndex(i);   // fires onChange → compute + syncURL
+  }));
+}
+
+function syncURL() {
+  const url = `/${cat.id}/${curFrom().id}/${curTo().id}?v=${encodeURIComponent(valInput.value)}`;
+  history.replaceState(null, '', url);
+}
+
+// events
+valInput.addEventListener('input', () => { compute(); syncURL(); });
+catSel.addEventListener('change', () => {
+  const c = U.category(catSel.value);
+  build(c.id, c.units[0].id, (c.units[1] || c.units[0]).id, '1');
+  syncURL();
+});
+$('swap').addEventListener('click', () => {
+  const fi = fromCyl.index, ti = toCyl.index;
+  fromCyl.setIndex(ti, { silent: true }); toCyl.setIndex(fi, { silent: true });
+  compute(); syncURL();
+});
+$('outbox').addEventListener('click', () => {
+  if (!Number.isFinite(lastResult)) return;
+  copy(U.formatFull(lastResult), `Copied ${U.format(lastResult)} ${curTo().symbol}`);
+});
+
+async function copy(text, msg) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  TOAST.textContent = msg; TOAST.classList.add('show');
+  clearTimeout(copy._t); copy._t = setTimeout(() => TOAST.classList.remove('show'), 1300);
+}
+
+const s = parseState();
+build(s.catId, s.fromId, s.toId, s.v);
+</script>
+</body>
+</html>

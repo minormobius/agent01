@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>unit — reference tables · exact conversion factors</title>
+<meta name="description" content="Longform unit reference: every unit's exact conversion factor to and from its base, two ways, for length, mass, temperature, volume, speed, pressure, energy, data and more — plus SI and binary (IEC) prefixes.">
+<meta name="theme-color" content="#0e9f7e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%F0%9F%93%8F%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">unit<span class="dot">.</span><small>converter</small></a>
+    <nav class="nav">
+      <a href="/">Convert</a>
+      <a href="/reference" class="active">Reference</a>
+      <a href="https://mino.mobi">↖ mino.mobi</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="ref-hero">
+    <h1>Reference tables</h1>
+    <p>Every unit’s exact factor to its category’s base unit, both directions. Factors are definitional where one exists. Tap a category to convert it live.</p>
+  </section>
+  <nav class="ref-toc" id="toc"></nav>
+  <div id="sections"></div>
+
+  <footer>
+    <p>Values shown at 8 significant figures; the converter carries full double precision. Currency is out of scope (needs live rates).</p>
+    <p><a href="/">← converter</a> · <a href="https://moji.mino.mobi">moji</a> · <a href="https://uni.mino.mobi">uni</a> · <a href="https://mino.mobi">mino.mobi</a></p>
+  </footer>
+</main>
+
+<script type="module">
+import U from '/lib/units.js';
+
+const toc = document.getElementById('toc');
+const sections = document.getElementById('sections');
+
+const baseUnitOf = (c) => c.units.find(u => u.factor === 1 && (u.offset || 0) === 0 && !u.toBase) || c.units[0];
+
+// category factor tables
+for (const c of U.CATEGORIES) {
+  const a = document.createElement('a');
+  a.href = '#' + c.id; a.textContent = `${c.icon} ${c.name}`;
+  toc.appendChild(a);
+
+  const base = baseUnitOf(c);
+  const isTemp = c.id === 'temperature';
+  const isFuel = c.id === 'fuel';
+
+  let head, rows;
+  if (isTemp) {
+    head = `<tr><th>Unit</th><th>Symbol</th><th>from °C</th><th>to °C</th></tr>`;
+    rows = c.units.map(u => `<tr>
+      <td>${u.name}</td><td class="num"><span class="u">${u.symbol}</span></td>
+      <td class="num">${tempFormula('celsius', u.id)}</td>
+      <td class="num">${tempFormula(u.id, 'celsius')}</td></tr>`).join('');
+  } else if (isFuel) {
+    head = `<tr><th>Unit</th><th>Symbol</th><th>from km/L</th><th>10 km/L =</th></tr>`;
+    rows = c.units.map(u => `<tr>
+      <td>${u.name}</td><td class="num"><span class="u">${u.symbol}</span></td>
+      <td class="num">${u.toBase ? 'reciprocal' : '× ' + U.format(1 / u.factor)}</td>
+      <td class="num">${U.format(U.convert(c.id, 'km-l', u.id, 10))} <span class="u">${u.symbol}</span></td></tr>`).join('');
+  } else {
+    head = `<tr><th>Unit</th><th>Symbol</th><th>1 ${u2(base)} = (${base.symbol})</th><th>1 ${base.symbol} = (this)</th></tr>`;
+    rows = c.units.map(u => `<tr>
+      <td>${u.name}</td><td class="num"><span class="u">${u.symbol}</span></td>
+      <td class="num">${U.format(U.convert(c.id, u.id, base.id, 1))} <span class="u">${base.symbol}</span></td>
+      <td class="num">${U.format(U.convert(c.id, base.id, u.id, 1))} <span class="u">${u.symbol}</span></td></tr>`).join('');
+  }
+
+  const sec = document.createElement('section');
+  sec.className = 'ref-sec'; sec.id = c.id;
+  sec.innerHTML = `
+    <h2>${c.icon} ${c.name} <a href="/${c.id}" style="font-size:13px;font-weight:400">convert →</a></h2>
+    <p class="sub">base unit: ${c.base}${isTemp ? ' — temperature is affine (offset), not a simple ratio' : ''}${isFuel ? ' — fuel economy is non-linear (L/100 km is reciprocal)' : ''}</p>
+    <div class="tbl-wrap"><table class="ref"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+  sections.appendChild(sec);
+}
+
+function u2(u) { return u.symbol; }
+function tempFormula(fromId, toId) {
+  // show the affine map as a readable formula using x for the input
+  const from = U.unit('temperature', fromId), to = U.unit('temperature', toId);
+  // convert x: base = x*from.factor + from.offset ; out = (base - to.offset)/to.factor
+  const m = from.factor / to.factor;
+  const b = (from.offset - to.offset) / to.factor;
+  const mm = m === 1 ? 'x' : `${U.format(m)}·x`;
+  const bb = Math.abs(b) < 1e-9 ? '' : (b > 0 ? ` + ${U.format(b)}` : ` − ${U.format(-b)}`);
+  return (fromId === toId) ? 'x' : mm + bb;
+}
+
+// SI + binary prefixes
+const SI = [
+  ['quetta','Q','1e30'],['ronna','R','1e27'],['yotta','Y','1e24'],['zetta','Z','1e21'],['exa','E','1e18'],
+  ['peta','P','1e15'],['tera','T','1e12'],['giga','G','1e9'],['mega','M','1e6'],['kilo','k','1e3'],
+  ['hecto','h','1e2'],['deca','da','1e1'],['deci','d','1e-1'],['centi','c','1e-2'],['milli','m','1e-3'],
+  ['micro','µ','1e-6'],['nano','n','1e-9'],['pico','p','1e-12'],['femto','f','1e-15'],['atto','a','1e-18'],
+  ['zepto','z','1e-21'],['yocto','y','1e-24'],['ronto','r','1e-27'],['quecto','q','1e-30'],
+];
+const IEC = [
+  ['kibi','Ki','2^10','1,024'],['mebi','Mi','2^20','1,048,576'],['gibi','Gi','2^30','1,073,741,824'],
+  ['tebi','Ti','2^40','1,099,511,627,776'],['pebi','Pi','2^50','1.1259 × 10^15'],
+  ['exbi','Ei','2^60','1.1529 × 10^18'],['zebi','Zi','2^70','1.1806 × 10^21'],['yobi','Yi','2^80','1.2089 × 10^24'],
+];
+const prefixA = document.createElement('a'); prefixA.href = '#prefixes'; prefixA.textContent = '🔢 Prefixes'; toc.appendChild(prefixA);
+const pf = document.createElement('section'); pf.className = 'ref-sec'; pf.id = 'prefixes';
+pf.innerHTML = `
+  <h2>🔢 Prefixes</h2>
+  <p class="sub">SI (decimal) metric prefixes and IEC binary prefixes.</p>
+  <div class="tbl-wrap"><table class="ref"><thead><tr><th>Prefix</th><th>Symbol</th><th>Factor</th><th>Value</th></tr></thead><tbody>
+  ${SI.map(([n,s,f]) => `<tr><td>${n}</td><td class="num"><span class="u">${s}</span></td><td class="num">10<sup>${f.replace('1e','').replace('-','−')}</sup></td><td class="num">${U.format(Number(f))}</td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="tbl-wrap" style="margin-top:12px"><table class="ref"><thead><tr><th>Binary prefix</th><th>Symbol</th><th>Power</th><th>Value</th></tr></thead><tbody>
+  ${IEC.map(([n,s,p,v]) => `<tr><td>${n}</td><td class="num"><span class="u">${s}</span></td><td class="num">${p}</td><td class="num">${v}</td></tr>`).join('')}
+  </tbody></table></div>`;
+sections.appendChild(pf);
+</script>
+</body>
+</html>
