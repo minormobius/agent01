@@ -192,6 +192,7 @@ export function loadCivWorld(world) {
     landmass, nLandmass: landmass.reduce((a, b) => Math.max(a, b), -1) + 1,
     seaOff, seaIdx, resource, resourceNodes, resBonusK,
     rivers: world.rivers || [], plates: world.plates || [],
+    cells: world.cells || null,   // spherical-Voronoi polygon (vertex unit-vectors) per cell — for map rendering
   };
 }
 

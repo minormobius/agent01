@@ -512,8 +512,12 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     for (let i = 0; i < N; i++) { const v = w.V[i]; lon[i] = +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(2); lat[i] = +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(2); }
     // coastline: land cells that touch ocean — the viewer strokes these for continent outlines
     const coast = []; if (w.coast) for (let i = 0; i < N; i++) if (w.coast[i]) coast.push(i);
+    // spherical-Voronoi cell POLYGONS (same tessellation mappa renders) — flat [lon,lat,…] per
+    // cell, so the civ map can fill the real cells (unified design language with mappa).
+    let cells = null;
+    if (w.cells) { cells = new Array(N); for (let i = 0; i < N; i++) { const poly = w.cells[i], flat = []; for (const v of poly) { flat.push(+(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(2), +(Math.asin(Math.max(-1, Math.min(1, v[2])) ) * 180 / Math.PI).toFixed(2)); } cells[i] = flat; } }
     return {
-      N, lon, lat, water: Array.from(w.water), biome: Array.from(w.biome), landmass: Array.from(w.landmass), coast,
+      N, lon, lat, water: Array.from(w.water), biome: Array.from(w.biome), landmass: Array.from(w.landmass), coast, cells,
       // named resource nodes (static geology) — the map marks them, the sim contests them
       resources: (w.resourceNodes || []).map(nd => ({ cell: nd.cell, kind: nd.kind, name: nd.name })),
     };

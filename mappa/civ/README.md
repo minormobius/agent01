@@ -115,14 +115,17 @@ GET  /api/civ/health
 The **particle playback viewer** (`../../civ/view.html`) fetches `/api/civ/frames` and
 renders the population as a particle swarm on the map through the whole run — play
 forward/backward, scrub, zoom/pan, colour by culture / **political** (territory ×
-sovereignty) / **belief** (faith / ideology) / subsistence / era / wealth / market / density,
-**continent outlines** (solid landmasses + coastline), **migration flows** (travellers float
-from cell to cell during play), named-resource markers, event markers on the timeline, and
-click a particle to inspect its cell's "deal" (dominant culture, subsistence, era, population,
-sovereignty, **faith**, resource, tech capabilities, language). Frames are compact per-cell
-snapshots (opt in via `run(ticks, { frames:true, every })`), so the whole playback is ~200 KB
-and fully deterministic. Runs are cached client-side (`../../civ/lib/civ-cache.js`) so a run
-computed in one view loads instantly in every other.
+sovereignty) / **belief** (faith / ideology) / subsistence / era / wealth / market / density.
+Two fill modes: **regions** (default) fills **mappa's actual spherical-Voronoi cells** — the
+same tessellation mappa renders, so the design language is unified and cities/resources/faiths
+sit in the real cells — and **particles** (a population-proportional swarm per cell). Plus
+**migration flows** (travellers float from cell to cell during play), named-resource markers,
+event markers on the timeline, and click a cell to inspect its "deal" (dominant culture,
+subsistence, era, population, sovereignty, **faith**, resource, tech capabilities, language).
+Frames are compact per-cell snapshots (opt in via `run(ticks, { frames:true, every })`); the
+world snapshot ships the Voronoi polygons (`world.cells`, ~80 KB once). Runs are cached
+client-side (`../../civ/lib/civ-cache.js`) so a run computed in one view loads instantly in
+every other.
 
 The **development view** (`../../civ/develop.html`) reads `/api/civ/run` and shows the
 fine-grained history: a lineage-sorted **streamgraph** ("river of peoples" — each band a
