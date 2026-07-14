@@ -295,6 +295,19 @@
       ]
     },
     {
+      "surface": "chat",
+      "dir": "chat",
+      "endpoint": "chat.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/conversation-practice-website-he3t8x",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "chat/**"
+      ],
+      "note": "Conversation-practice dojo. Robo trainer (AI partner + theory-grounded scoring rubric) at /robo/, theory + rubric-development docs at /docs/, landing at /. Worker + Workers AI (llama-3.3-70b), no D1, no secrets beyond shared Cloudflare creds. Multiplayer (DO rooms, lobby, peer-rated scoreboard) is roadmap."
+    },
+    {
       "surface": "duck",
       "dir": "duck",
       "endpoint": "duck.mino.mobi",

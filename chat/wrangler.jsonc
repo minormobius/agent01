@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chat",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "routes": [
+    { "pattern": "chat.mino.mobi", "custom_domain": true }
+  ]
+}

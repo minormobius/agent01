@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>Practice · chat</title>
+<meta name="description" content="Bite-sized conversation challenges. Practice against an AI partner, scored on a theory-grounded rubric." />
+<link rel="stylesheet" href="/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>" />
+<style>
+  /* ── PATH (lesson map) ─────────────────────────────────────── */
+  #path { padding-bottom: 40px; }
+  .unit { margin: 26px 0; }
+  .unit-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .unit-head .ic { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:22px;
+    background:var(--panel-2); border:1px solid var(--line); }
+  .unit-head h3 { margin:0; font-size:18px; }
+  .unit-head small { color:var(--ink-dim); }
+  .lessons { display:flex; flex-direction:column; gap:10px; }
+  .lesson {
+    display:flex; align-items:center; gap:14px; text-align:left; width:100%;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px;
+    color:var(--ink); cursor:pointer; transition:transform .08s ease, border-color .15s;
+  }
+  .lesson:hover { border-color:var(--accent); }
+  .lesson:active { transform:scale(.99); }
+  .lesson.locked { opacity:.5; cursor:not-allowed; }
+  .lesson .emoji { font-size:26px; width:34px; text-align:center; flex:none; }
+  .lesson .body { flex:1; min-width:0; }
+  .lesson .body b { display:block; }
+  .lesson .body small { color:var(--ink-soft); display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lesson .stars { font-size:14px; letter-spacing:1px; color:var(--accent-2); flex:none; }
+  .lesson .stars .off { color:var(--line); }
+  .lesson .lock { color:var(--ink-dim); font-size:18px; }
+
+  .free-cta { margin:8px 0 4px; }
+
+  /* ── SESSION (full-window chat) ────────────────────────────── */
+  #session { position:fixed; left:0; top:0; width:100%; z-index:60; display:none; flex-direction:column;
+    height:100dvh; /* JS overrides with visualViewport height when the keyboard is up */
+    background:radial-gradient(1000px 600px at 80% -10%, #1a2036 0%, var(--bg) 55%); }
+  #session.on { display:flex; }
+  .sess-head { display:flex; align-items:center; gap:10px; padding:10px 12px;
+    padding-top:calc(10px + env(safe-area-inset-top)); border-bottom:1px solid var(--line); background:rgba(15,18,32,.9); }
+  .sess-head .ic-btn { width:38px; height:38px; flex:none; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel); color:var(--ink); font-size:18px; cursor:pointer; display:grid; place-items:center; }
+  .sess-head .mid { flex:1; min-width:0; }
+  .sess-head .mid b { display:block; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sess-head .mid small { color:var(--ink-dim); font-size:12px; }
+  .sess-head .end { flex:none; padding:8px 14px; font-size:14px; }
+
+  .log { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px 12px; display:flex; flex-direction:column; gap:12px; }
+  .msg { max-width:85%; padding:10px 14px; border-radius:18px; line-height:1.45; font-size:16px; word-wrap:break-word; }
+  .msg.them { align-self:flex-start; background:var(--panel-2); border:1px solid var(--line); border-bottom-left-radius:5px; }
+  .msg.you  { align-self:flex-end; background:var(--accent); color:#06231d; border-bottom-right-radius:5px; }
+  .msg .who { font-size:10px; text-transform:uppercase; letter-spacing:1px; opacity:.6; margin-bottom:3px; }
+  .typing { align-self:flex-start; color:var(--ink-dim); font-style:italic; font-size:14px; padding:2px 6px; }
+
+  .composer { display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--line); background:rgba(15,18,32,.9); }
+  .composer textarea { flex:1; resize:none; background:var(--bg-soft); border:1px solid var(--line); color:var(--ink);
+    border-radius:14px; padding:11px 14px; font:inherit; font-size:16px; min-height:46px; max-height:120px; }
+  .composer textarea:focus { outline:none; border-color:var(--accent); }
+  .composer .send { flex:none; padding:0 18px; }
+  .toast { color:var(--bad); font-size:13px; padding:0 14px; min-height:0; }
+  .toast:not(:empty){ min-height:18px; padding-bottom:6px; }
+
+  /* summary bar (the collapsed rubric) */
+  .barwrap { padding-bottom: env(safe-area-inset-bottom); background:rgba(15,18,32,.95); border-top:1px solid var(--line); }
+  .summary-bar { display:flex; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; }
+  .summary-bar .tag { flex:none; font-size:12px; font-weight:700; padding:4px 9px; border-radius:999px;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--accent); }
+  .summary-bar .goal { flex:1; min-width:0; font-size:13px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .summary-bar .chev { flex:none; color:var(--ink-dim); font-size:12px; }
+
+  /* rubric sheet (expands from bar) */
+  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:70; transform:translateY(100%); transition:transform .28s ease;
+    background:var(--panel); border-top:1px solid var(--line); border-radius:18px 18px 0 0; padding:16px 16px calc(20px + env(safe-area-inset-bottom));
+    max-height:80vh; overflow-y:auto; box-shadow:0 -20px 50px rgba(0,0,0,.5); }
+  .sheet.on { transform:translateY(0); }
+  .sheet-backdrop { position:fixed; inset:0; z-index:65; background:rgba(0,0,0,.5); opacity:0; pointer-events:none; transition:opacity .28s; }
+  .sheet-backdrop.on { opacity:1; pointer-events:auto; }
+  .sheet .grip { width:40px; height:4px; border-radius:9px; background:var(--line); margin:0 auto 12px; }
+  .sheet h4 { margin:6px 0 2px; }
+  .r-axis { padding:10px 0; border-bottom:1px solid var(--line); }
+  .r-axis:last-child { border:0; }
+  .r-axis .rt { display:flex; justify-content:space-between; }
+  .r-axis b { color:var(--ink); }
+  .r-axis.focus b { color:var(--accent-2); }
+  .r-axis small { color:var(--ink-dim); }
+
+  /* ── RESULTS ───────────────────────────────────────────────── */
+  #results { position:fixed; inset:0; z-index:80; display:none; overflow-y:auto;
+    background:radial-gradient(1000px 600px at 80% -10%, #1a2036 0%, var(--bg) 55%); }
+  #results.on { display:block; }
+  .res-inner { max-width:560px; margin:0 auto; padding:24px 16px calc(30px + env(safe-area-inset-bottom)); }
+  .res-hero { text-align:center; padding:12px 0; }
+  .res-hero .starrow { font-size:40px; letter-spacing:6px; color:var(--accent-2); margin-bottom:8px; }
+  .res-hero .starrow .off { color:var(--line); }
+  .res-hero .verdict { font-size:24px; font-weight:800; }
+  .res-hero .verdict.pass { color:var(--good); }
+  .res-hero .verdict.fail { color:var(--ink-soft); }
+  .res-hero .num { font-size:16px; color:var(--ink-dim); margin-top:4px; }
+  .obj { border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin:14px 0; background:var(--panel); }
+  .obj .o-h { font-weight:700; display:flex; align-items:center; gap:8px; }
+  .obj.met .o-h { color:var(--good); } .obj.miss .o-h { color:var(--ink-soft); }
+  .obj small { color:var(--ink-soft); display:block; margin-top:4px; }
+  .res-axis { padding:11px 0; border-bottom:1px solid var(--line); }
+  .res-axis.focus { background:linear-gradient(90deg, rgba(244,184,96,.08), transparent); margin:0 -8px; padding:11px 8px; border-radius:8px; }
+  .res-axis .rt { display:flex; justify-content:space-between; font-size:14px; }
+  .res-axis .rt b { color:var(--ink); }
+  .res-axis .bar { height:7px; background:var(--panel-2); border-radius:99px; margin:6px 0; overflow:hidden; }
+  .res-axis .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); }
+  .res-axis .ev { color:var(--ink-soft); font-size:13px; }
+  .res-axis .tip { color:var(--accent); font-size:13px; margin-top:2px; }
+  .res-btns { display:flex; gap:10px; margin-top:22px; flex-wrap:wrap; }
+  .res-btns .btn { flex:1; justify-content:center; min-width:130px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="dot"></span> chat<span class="crumb">&nbsp;· mino.mobi</span></div>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/robo/" class="active">Practice</a>
+    <a href="/docs/">Theory</a>
+  </nav>
+</header>
+
+<!-- PATH -->
+<main class="wrap" id="path">
+  <div class="hero" style="padding:28px 0 8px">
+    <div class="eyebrow">Conversation path</div>
+    <h1 style="font-size:clamp(26px,6vw,38px)">Bite-sized challenges</h1>
+    <p class="lede" style="font-size:16px">Short drills, one skill each. Clear the objective and the focus score to complete a lesson and unlock the next.</p>
+  </div>
+  <div class="card free-cta">
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+      <div style="flex:1; min-width:180px">
+        <b>Free practice</b>
+        <div class="dim" style="font-size:13px">Any partner, any scenario. Scored on all five axes, no objective.</div>
+      </div>
+      <button class="btn ghost" id="freeBtn" style="padding:9px 16px">Open →</button>
+    </div>
+  </div>
+  <div id="units"></div>
+</main>
+
+<!-- SESSION -->
+<section id="session">
+  <div class="sess-head">
+    <button class="ic-btn" id="backBtn" aria-label="Back">←</button>
+    <div class="mid"><b id="sTitle"></b><small id="sSub"></small></div>
+    <button class="btn ghost end" id="endBtn">End &amp; score</button>
+  </div>
+  <div id="log" class="log"></div>
+  <div id="toast" class="toast"></div>
+  <div class="composer">
+    <textarea id="input" placeholder="Say something…" rows="1" enterkeyhint="send"></textarea>
+    <button class="btn primary send" id="sendBtn">Send</button>
+  </div>
+  <div class="barwrap">
+    <div class="summary-bar" id="summaryBar">
+      <span class="tag" id="barTag">🎯 Focus</span>
+      <span class="goal" id="barGoal"></span>
+      <span class="chev">rubric ▲</span>
+    </div>
+  </div>
+</section>
+
+<!-- rubric sheet -->
+<div class="sheet-backdrop" id="sheetBg"></div>
+<div class="sheet" id="sheet">
+  <div class="grip"></div>
+  <h4>How you’re scored</h4>
+  <p class="dim" style="font-size:13px; margin:.2em 0 8px">Five axes, 20 pts each. <a href="/docs/#rubric">The theory →</a></p>
+  <div id="sheetAxes"></div>
+</div>
+
+<!-- RESULTS -->
+<section id="results">
+  <div class="res-inner">
+    <div class="res-hero">
+      <div class="starrow" id="rStars"></div>
+      <div class="verdict" id="rVerdict"></div>
+      <div class="num"><span id="rTotal">0</span>/100 · <span id="rBand"></span></div>
+    </div>
+    <div class="obj hidden" id="rObj">
+      <div class="o-h"><span id="rObjIcon"></span> <span id="rObjTitle"></span></div>
+      <small id="rObjNote"></small>
+    </div>
+    <p class="muted" id="rSummary" style="text-align:center; margin:14px 0 18px"></p>
+    <div id="rAxes"></div>
+    <div class="res-btns">
+      <button class="btn primary" id="nextBtn">Next lesson →</button>
+      <button class="btn ghost" id="retryBtn">Retry</button>
+      <button class="btn ghost" id="pathBtn">Path</button>
+    </div>
+  </div>
+</section>
+
+<script type="module">
+import { RUBRIC, PERSONAS, SCENARIOS, UNITS, CHALLENGES, personaById, scenarioById } from '/lib/rubric.js';
+
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const axisByKey = Object.fromEntries(RUBRIC.axes.map(a => [a.key, a]));
+
+// ── progress (localStorage) ─────────────────────────────────────
+const PKEY = 'chat.progress.v1';
+const loadProg = () => { try { return JSON.parse(localStorage.getItem(PKEY)) || {}; } catch { return {}; } };
+const saveProg = (p) => { try { localStorage.setItem(PKEY, JSON.stringify(p)); } catch {} };
+let progress = loadProg();
+
+// linear unlock: a lesson is unlocked if it's the first, or the previous is completed (>=1 star)
+function isUnlocked(idx){
+  if (idx === 0) return true;
+  const prev = CHALLENGES[idx-1];
+  return (progress[prev.id]?.stars || 0) >= 1;
+}
+const renderStars = (n) => Array.from({length:3}, (_,i) =>
+  `<span class="${i<n?'':'off'}">★</span>`).join('');
+
+// ── path render ─────────────────────────────────────────────────
+function renderPath(){
+  progress = loadProg();
+  $('units').innerHTML = UNITS.map(u => {
+    const items = CHALLENGES.map((c,i)=>({c,i})).filter(x => x.c.unit === u.id);
+    const rows = items.map(({c,i}) => {
+      const unlocked = isUnlocked(i);
+      const stars = progress[c.id]?.stars || 0;
+      return `<button class="lesson ${unlocked?'':'locked'}" data-ch="${c.id}" ${unlocked?'':'disabled'}>
+        <span class="emoji">${c.emoji}</span>
+        <span class="body"><b>${c.title}</b><small>${c.brief}</small></span>
+        ${unlocked ? `<span class="stars">${renderStars(stars)}</span>` : `<span class="lock">🔒</span>`}
+      </button>`;
+    }).join('');
+    return `<div class="unit">
+      <div class="unit-head"><div class="ic" style="border-color:${u.color}">${u.icon}</div>
+        <div><h3>${u.title}</h3><small>${u.blurb}</small></div></div>
+      <div class="lessons">${rows}</div>
+    </div>`;
+  }).join('');
+}
+renderPath();
+
+$('units').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-ch]'); if (!b || b.disabled) return;
+  startChallenge(b.dataset.ch);
+});
+
+// ── session state ───────────────────────────────────────────────
+const state = { mode:'free', challengeId:null, persona:'host', scenario:'party', history:[], busy:false };
+
+function show(screen){
+  $('session').classList.toggle('on', screen==='session');
+  $('results').classList.toggle('on', screen==='results');
+  document.body.style.overflow = (screen==='path') ? '' : 'hidden';
+  if (screen==='path'){ $('session').classList.remove('on'); $('results').classList.remove('on'); document.body.style.overflow=''; renderPath(); }
+}
+
+function fillSheet(focusKey){
+  $('sheetAxes').innerHTML = RUBRIC.axes.map(a => `
+    <div class="r-axis ${a.key===focusKey?'focus':''}">
+      <div class="rt"><b>${a.label}${a.key===focusKey?' &nbsp;🎯':''}</b><span class="dim">/${a.max}</span></div>
+      <small>${a.one_liner}</small>
+    </div>`).join('');
+}
+
+function beginSession(){
+  $('log').innerHTML = '';
+  $('toast').textContent = '';
+  state.history = [];
+  show('session');
+  $('input').focus();
+  botReply(); // opener
+}
+
+function startChallenge(id){
+  const c = CHALLENGES.find(x => x.id === id); if (!c) return;
+  state.mode = 'challenge'; state.challengeId = id; state.persona = c.persona; state.scenario = c.scenario;
+  const p = personaById(c.persona), s = scenarioById(c.scenario);
+  $('sTitle').textContent = `${c.emoji} ${c.title}`;
+  $('sSub').textContent = `${p.name} · ${s.name}`;
+  $('barTag').textContent = `🎯 ${axisByKey[c.focus].label}`;
+  $('barGoal').textContent = c.goal;
+  fillSheet(c.focus);
+  beginSession();
+  // one-time coach tip as the first thing they see
+  setTimeout(() => flashTip(c.tip), 350);
+}
+
+function startFree(persona, scenario){
+  state.mode='free'; state.challengeId=null; state.persona=persona; state.scenario=scenario;
+  const p = personaById(persona), s = scenarioById(scenario);
+  $('sTitle').textContent = `${p.emoji} ${p.name}`;
+  $('sSub').textContent = `Free practice · ${s.name}`;
+  $('barTag').textContent = '💬 Free';
+  $('barGoal').textContent = 'Scored on all five axes — tap for the rubric';
+  fillSheet(null);
+  beginSession();
+}
+
+function flashTip(text){
+  const el = document.createElement('div');
+  el.className = 'msg them'; el.style.borderStyle='dashed'; el.style.opacity='.9';
+  el.innerHTML = `<div class="who">Coach</div>💡 ${escapeHtml(text)}`;
+  $('log').prepend(el);
+}
+
+// ── chat ────────────────────────────────────────────────────────
+const log = $('log'), input = $('input'), toast = $('toast');
+const personaName = () => personaById(state.persona).name;
+
+function addMsg(role, text){
+  const el = document.createElement('div');
+  el.className = `msg ${role}`;
+  el.innerHTML = `<div class="who">${role==='you'?'You':personaName()}</div>${escapeHtml(text)}`;
+  log.appendChild(el); log.scrollTop = log.scrollHeight;
+}
+
+$('sendBtn').addEventListener('click', send);
+input.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
+input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,120)+'px'; });
+
+async function send(){
+  const text = input.value.trim(); if (!text || state.busy) return;
+  input.value=''; input.style.height='auto';
+  addMsg('you', text);
+  state.history.push({ role:'user', content:text });
+  await botReply();
+}
+
+async function botReply(){
+  state.busy = true; toast.textContent='';
+  const t = document.createElement('div'); t.className='typing'; t.textContent=`${personaName()} is typing…`;
+  log.appendChild(t); log.scrollTop = log.scrollHeight;
+  try {
+    const r = await fetch('/api/chat/turn', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ persona:state.persona, scenario:state.scenario, history:state.history }) });
+    const d = await r.json(); t.remove();
+    if (d.reply){ addMsg('them', d.reply); state.history.push({ role:'assistant', content:d.reply }); }
+    else toast.textContent = d.error || 'The partner went quiet — try again.';
+  } catch { t.remove(); toast.textContent='Network hiccup — try again.'; }
+  finally { state.busy=false; }
+}
+
+// ── rubric sheet toggle ─────────────────────────────────────────
+const sheet=$('sheet'), sheetBg=$('sheetBg');
+const openSheet=()=>{ sheet.classList.add('on'); sheetBg.classList.add('on'); };
+const closeSheet=()=>{ sheet.classList.remove('on'); sheetBg.classList.remove('on'); };
+$('summaryBar').addEventListener('click', openSheet);
+sheetBg.addEventListener('click', closeSheet);
+
+// ── scoring ─────────────────────────────────────────────────────
+$('endBtn').addEventListener('click', scoreSession);
+$('backBtn').addEventListener('click', ()=>{ if (confirm('Leave this conversation? Your progress in it is lost.')) show('path'); });
+
+async function scoreSession(){
+  const myTurns = state.history.filter(m=>m.role==='user').length;
+  if (myTurns < 2){ toast.textContent='Say a bit more first — at least 2 of your turns.'; return; }
+  $('endBtn').disabled=true; $('endBtn').textContent='Scoring…';
+  try {
+    const body = state.mode==='challenge'
+      ? { challengeId: state.challengeId, transcript: state.history }
+      : { persona: state.persona, scenario: state.scenario, transcript: state.history };
+    const r = await fetch('/api/chat/score', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (d.error){ toast.textContent = d.error; return; }
+    renderResults(d);
+    show('results');
+  } catch { toast.textContent='Could not reach the judge — try again.'; }
+  finally { $('endBtn').disabled=false; $('endBtn').textContent='End & score'; }
+}
+
+let lastResult = null;
+function renderResults(d){
+  lastResult = d;
+  const isCh = state.mode==='challenge' && d.challenge;
+  const stars = isCh ? (d.stars||0) : 0;
+
+  $('rStars').innerHTML = isCh ? renderStars(stars) : '';
+  $('rStars').style.display = isCh ? '' : 'none';
+  if (isCh){
+    $('rVerdict').textContent = d.passed ? 'Lesson complete!' : 'Not quite — try again';
+    $('rVerdict').className = 'verdict ' + (d.passed?'pass':'fail');
+  } else {
+    $('rVerdict').textContent = d.band;
+    $('rVerdict').className = 'verdict pass';
+  }
+  $('rTotal').textContent = d.total; $('rBand').textContent = d.band;
+
+  // objective panel
+  const obj = $('rObj');
+  if (isCh){
+    obj.classList.remove('hidden');
+    obj.className = 'obj ' + (d.objective_met?'met':'miss');
+    $('rObjIcon').textContent = d.objective_met ? '✅' : '⭕';
+    $('rObjTitle').textContent = `Goal: ${d.challenge.goal}`;
+    const fs = d.challenge;
+    $('rObjNote').textContent = `${d.objective_note||''}  (${fs.focus_label}: ${fs.focus_score}/${fs.focus_max}, need ${fs.pass}+)`;
+  } else obj.classList.add('hidden');
+
+  $('rSummary').textContent = d.summary || '';
+  const focusKey = isCh ? d.challenge.focus : null;
+  $('rAxes').innerHTML = d.axes.map(a => `
+    <div class="res-axis ${a.key===focusKey?'focus':''}">
+      <div class="rt"><b>${a.label}${a.key===focusKey?' 🎯':''}</b><span class="dim">${a.score}/${a.max}</span></div>
+      <div class="bar"><i style="width:${a.score/a.max*100}%"></i></div>
+      <div class="ev">“${escapeHtml(a.evidence||'')}”</div>
+      <div class="tip">→ ${escapeHtml(a.tip||'')}</div>
+    </div>`).join('');
+
+  // persist challenge progress (keep best stars) + set up Next button
+  if (isCh){
+    const prev = progress[d.challenge.id]?.stars || 0;
+    progress[d.challenge.id] = { stars: Math.max(prev, stars), best: Math.max(progress[d.challenge.id]?.best||0, d.total) };
+    saveProg(progress);
+    const idx = CHALLENGES.findIndex(c=>c.id===d.challenge.id);
+    const next = CHALLENGES[idx+1];
+    $('nextBtn').style.display = (d.passed && next) ? '' : 'none';
+    $('nextBtn').onclick = () => { if(next) startChallenge(next.id); };
+    $('retryBtn').onclick = () => startChallenge(d.challenge.id);
+  } else {
+    $('nextBtn').style.display='none';
+    $('retryBtn').onclick = () => startFree(state.persona, state.scenario);
+  }
+}
+
+$('pathBtn').addEventListener('click', ()=>show('path'));
+
+// ── free practice picker (simple sheet) ─────────────────────────
+$('freeBtn').addEventListener('click', ()=>{
+  const pOpts = PERSONAS.map(p=>`<button class="opt" data-fp="${p.id}" style="display:block;width:100%;text-align:left;margin:6px 0;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:10px 12px;border-radius:10px;cursor:pointer"><b>${p.emoji} ${p.name}</b><br><small class="dim">${p.blurb}</small></button>`).join('');
+  const sOpts = SCENARIOS.map(s=>`<button class="opt" data-fs="${s.id}" style="display:inline-block;margin:4px 4px 0 0;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;border-radius:999px;cursor:pointer">${s.name}</button>`).join('');
+  $('sheetAxes').innerHTML = `<h4 style="margin-top:0">Pick a partner</h4>${pOpts}<h4>Scenario</h4>${sOpts}`;
+  let fp = PERSONAS[0].id, fs = SCENARIOS[0].id;
+  const markP=()=>$('sheet').querySelectorAll('[data-fp]').forEach(b=>b.style.borderColor=b.dataset.fp===fp?'var(--accent)':'var(--line)');
+  const markS=()=>$('sheet').querySelectorAll('[data-fs]').forEach(b=>b.style.background=b.dataset.fs===fs?'var(--panel-2)':'var(--panel)');
+  markP(); markS();
+  const go = document.createElement('button'); go.className='btn primary'; go.textContent='Start free practice →'; go.style.marginTop='14px'; go.style.width='100%';
+  $('sheetAxes').appendChild(go);
+  $('sheet').onclick = (e)=>{
+    const bp=e.target.closest('[data-fp]'); const bs=e.target.closest('[data-fs]');
+    if (bp){ fp=bp.dataset.fp; markP(); } if (bs){ fs=bs.dataset.fs; markS(); }
+  };
+  go.onclick = ()=>{ closeSheet(); $('sheet').onclick=null; startFree(fp, fs); };
+  openSheet();
+});
+
+// ── mobile keyboard: pin the full-window chat to the *visual* viewport so the
+// composer rides above the on-screen keyboard instead of hiding behind it.
+const vv = window.visualViewport;
+if (vv){
+  const fit = () => {
+    if (!$('session').classList.contains('on')) { $('session').style.height=''; return; }
+    $('session').style.height = vv.height + 'px';
+    $('session').style.transform = `translateY(${vv.offsetTop}px)`;
+    log.scrollTop = log.scrollHeight;
+  };
+  vv.addEventListener('resize', fit);
+  vv.addEventListener('scroll', fit);
+}
+</script>
+</body>
+</html>

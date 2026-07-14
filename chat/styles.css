@@ -1,0 +1,102 @@
+/* chat — shared visual language across landing / robo / docs */
+:root {
+  --bg: #0f1220;
+  --bg-soft: #171b2e;
+  --panel: #1d2237;
+  --panel-2: #232a44;
+  --ink: #e9ecf7;
+  --ink-soft: #a7afce;
+  --ink-dim: #737ba0;
+  --line: #2b3252;
+  --accent: #7dd3c0;      /* teal — "conversation" */
+  --accent-2: #f4b860;    /* warm gold — warmth axis */
+  --accent-3: #b39dff;    /* violet */
+  --good: #7dd3a0;
+  --bad: #f08a8a;
+  --radius: 14px;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --serif: "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: radial-gradient(1200px 700px at 80% -10%, #1a2036 0%, var(--bg) 55%);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { max-width: 940px; margin: 0 auto; padding: 0 20px; }
+.narrow { max-width: 720px; }
+
+/* top bar */
+.topbar {
+  display: flex; align-items: center; gap: 18px;
+  padding: 16px 20px; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(15,18,32,0.82); backdrop-filter: blur(10px);
+}
+.topbar .brand { font-weight: 700; letter-spacing: .3px; display: flex; align-items: center; gap: 9px; }
+.topbar .brand .dot { width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 14px var(--accent); }
+.topbar nav { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.topbar nav a {
+  color: var(--ink-soft); padding: 6px 12px; border-radius: 999px; font-size: 14px;
+}
+.topbar nav a:hover { color: var(--ink); background: var(--panel); text-decoration: none; }
+.topbar nav a.active { color: var(--bg); background: var(--accent); }
+.crumb { color: var(--ink-dim); font-size: 13px; }
+
+/* hero */
+.hero { padding: 64px 0 36px; }
+.hero h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.5px; }
+.hero h1 .g { color: var(--accent); }
+.hero p.lede { font-size: clamp(17px, 2.5vw, 21px); color: var(--ink-soft); max-width: 640px; margin: 0 0 28px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 20px; border-radius: 999px; font-weight: 600; font-size: 15px;
+  border: 1px solid transparent; cursor: pointer; transition: transform .08s ease;
+}
+.btn:hover { text-decoration: none; transform: translateY(-1px); }
+.btn.primary { background: var(--accent); color: #06231d; }
+.btn.ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+.btn.ghost:hover { background: var(--panel); }
+
+/* cards */
+.card {
+  background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 22px;
+}
+.grid { display: grid; gap: 16px; }
+.grid.two { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.grid.three { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+.eyebrow { text-transform: uppercase; letter-spacing: 2px; font-size: 12px; color: var(--accent); font-weight: 700; }
+.muted { color: var(--ink-soft); }
+.dim { color: var(--ink-dim); }
+
+.pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px;
+  background: var(--panel-2); color: var(--ink-soft); border: 1px solid var(--line); }
+
+hr.sep { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
+
+footer.foot { border-top: 1px solid var(--line); margin-top: 60px; padding: 28px 0; color: var(--ink-dim); font-size: 13px; }
+footer.foot a { color: var(--ink-soft); }
+
+/* difficulty dots */
+.diff { display: inline-flex; gap: 3px; vertical-align: middle; }
+.diff i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); display: inline-block; }
+.diff i.on { background: var(--accent-2); }
+
+@media (max-width: 620px) {
+  .hero { padding: 40px 0 24px; }
+  .topbar { gap: 10px; }
+}
