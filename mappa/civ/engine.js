@@ -111,6 +111,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   // Portable (carried on migration → skilled people seed crafts elsewhere) and heritable
   // (apprenticeship → skill lineages). A credential embodies a capability, so a credentialed
   // migrant deposits it into the destination's meme field (person-borne diffusion).
+  const ERAN = ['forager', 'neolithic', 'bronze', 'classical', 'industrial', 'modern'];
   const CRED = ['farmer', 'herder', 'sailor', 'smith', 'scribe', 'mason', 'engineer', 'trader', 'soldier', 'officer', 'master', 'elder', 'citizen'];
   const CREDI = Object.fromEntries(CRED.map((c, i) => [c, i]));
   const NCRED = CRED.length;
@@ -135,6 +136,11 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const stateInst = new Map();   // culture id → its state inst id (stable identity)
   const greatPeople = [];        // named individuals who led an institution to eminence — history's names
   const greatSeen = new Set();
+  // FINANCIAL MARKETS: firms have an equity price (moves on fundamentals + a shared market
+  // sentiment → booms/busts), raise capital by issuing equity when valuations are high, and
+  // borrow from a pool of loanable funds where an interest rate clears. Produces a stock
+  // index, interest rate, total debt, and per-firm price histories.
+  const market = { index: 100, prevIndex: 100, sentiment: 0, rate: 0.05, savings: 0, borrowDemand: 0, totalDebt: 0, defaults: 0, boomTick: -999, crashTick: -999 };
   // evolvable institution RULESETS — new institutions inherit the ruleset of the most
   // successful institution of their type (imitation) with drift; the economy selects them.
   const bestRules = new Map();   // type → { rules, score } (the exemplar to imitate)
@@ -158,7 +164,8 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   function makeInst(type, seat, cu, parent, key) {
     const id = insts.length;
     const it = { id, type, culture: cu, seat, parent: parent ?? -1, birthTick: tick, dissolvedTick: -1, name: instName(type, seat, cu), memberCount: 0, pool: 0, strength: 0, peakMembers: 0, lastSeen: tick, wealth: 0, captures: 0, leader: -1, leaderRep: 0, reputation: 0,
-      rules: inheritRules(type), capital: 0, output: 0, revenue: 0, wagePerMember: 0 };
+      rules: inheritRules(type), capital: 0, output: 0, revenue: 0, wagePerMember: 0,
+      equity: 100, debt: 0, prevOutput: 0, profit: 0, raised: 0 };
     insts.push(it); liveInsts.push(it); if (key != null) instAt.set(key, id);
     if (type === INST.FIRM || type === INST.STATE) pushEvent(tick, 'institutionFounded', { inst: id, kind: INST_NAME[type], name: it.name, culture: cu, seat });
     return it;
@@ -293,6 +300,66 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       for (let b = 0; b < NCAP; b++) if (tv & bit(b)) memeField[base + b] += w0;
       activityField[c] += Math.min(0.3, (e - s) * 0.0015);
     }
+  }
+
+  // ---- FRED: modular economic time-series capture --------------------------------
+  // A lazily-built series registry — each series has metadata + a data array over the
+  // sampled ticks. Adding a measure or a cross-tab here just makes a new series appear in
+  // FRED; the chart engine never needs to know what any of them are.
+  let fredEvery = 0; const fredWealthBuf = [];
+  function fredPush(key, label, cat, unit, val) {
+    let s = chronicle.fred.series[key];
+    if (!s) { s = chronicle.fred.series[key] = { label, cat, unit, data: new Array(Math.max(0, chronicle.fred.t.length - 1)).fill(0) }; }
+    s.data.push(val);
+  }
+  function fredStep() {
+    const F = chronicle.fred; F.t.push(tick);
+    // agent-side buckets (one pass): population + wealth by subsistence / era / landmass
+    const subPop = new Float64Array(NPKG), eraPop = new Float64Array(6), subW = new Float64Array(NPKG), landPop = new Float64Array(w.nLandmass || 1);
+    let totW = 0; fredWealthBuf.length = 0;
+    for (let t = 0; t < liveN; t++) { const id = live[t], cu = cultures[A.culture[id]], wv = A.wealth[id]; subPop[cu.sub]++; eraPop[vecTier(cu.tech)]++; subW[cu.sub] += wv; landPop[w.landmass[A.cell[id]]]++; totW += wv; fredWealthBuf.push(wv); }
+    fredWealthBuf.sort((a, b) => a - b); let cum = 0, g = 0; const n = fredWealthBuf.length;
+    for (let i = 0; i < n; i++) { cum += fredWealthBuf[i]; g += (i + 1) / n - (totW > 0 ? cum / totW : 0); }
+    const gini = n > 1 && totW > 0 ? +(2 * g / n).toFixed(3) : 0;
+    // institution-side buckets
+    let gdp = 0, capTot = 0, outFirm = 0, outGuild = 0, capFirm = 0, nF = 0, nS = 0, nG = 0, nW = 0;
+    for (const it of liveInsts) { if (it.type === INST.FIRM) { gdp += it.output; outFirm += it.output; capFirm += it.capital; capTot += it.capital; nF++; } else if (it.type === INST.GUILD) { gdp += it.output; outGuild += it.output; capTot += it.capital; nG++; } else if (it.type === INST.STATE) nS++; else nW++; }
+    let mp = 0, np = 0; for (let c = 0; c < N; c++) if (cellPop[c] > 0) { mp += warePrice[c]; np++; } const price = np ? +(mp / np).toFixed(3) : 1;
+    // macro
+    fredPush('pop', 'Population', 'Population', 'people', liveN);
+    fredPush('gdp', 'Output (GDP)', 'Output', 'wares', +gdp.toFixed(1));
+    fredPush('gdp_pc', 'Output per capita', 'Output', 'wares', +(gdp / Math.max(1, liveN)).toFixed(4));
+    fredPush('wealth', 'Mean wealth', 'Distribution', 'index', +(totW / Math.max(1, liveN)).toFixed(3));
+    fredPush('gini', 'Wealth inequality (Gini)', 'Distribution', '0..1', gini);
+    fredPush('price', 'Wares price level', 'Prices', 'index', price);
+    fredPush('rate', 'Interest rate', 'Money & markets', 'frac', +market.rate.toFixed(3));
+    fredPush('stocks', 'Stock index', 'Money & markets', 'index=100', +market.index.toFixed(1));
+    fredPush('debt', 'Total firm debt', 'Money & markets', 'wares', +market.totalDebt.toFixed(1));
+    fredPush('debtgdp', 'Debt / GDP', 'Money & markets', 'ratio', +(market.totalDebt / Math.max(1, gdp)).toFixed(3));
+    fredPush('capital', 'Total capital stock', 'Output', 'wares', +capTot.toFixed(1));
+    fredPush('firms', 'Firms', 'Institutions', 'count', nF);
+    fredPush('guilds', 'Guilds', 'Institutions', 'count', nG);
+    fredPush('states', 'States', 'Institutions', 'count', nS);
+    fredPush('warbands', 'Warbands', 'Institutions', 'count', nW);
+    fredPush('maxtier', 'Peak era', 'Development', 'tier', Math.max(...eraPop.map((v, i) => v > 0 ? i : 0)));
+    // cross-tabs (the facets)
+    for (let p = 0; p < NPKG; p++) { fredPush('pop.sub.' + PKG[p].id, 'Pop — ' + PKG[p].id, 'Population × subsistence', 'people', subPop[p]); fredPush('wealth.sub.' + PKG[p].id, 'Wealth — ' + PKG[p].id, 'Wealth × subsistence', 'index', subPop[p] > 0 ? +(subW[p] / subPop[p]).toFixed(3) : 0); }
+    for (let e = 0; e < 6; e++) fredPush('pop.era.' + ERAN[e], 'Pop — ' + ERAN[e], 'Population × era', 'people', eraPop[e]);
+    for (let l = 0; l < Math.min(6, w.nLandmass); l++) fredPush('pop.land.' + l, 'Pop — landmass ' + l, 'Population × landmass', 'people', landPop[l]);
+    fredPush('gdp.inst.firm', 'Output — firms', 'Output × institution', 'wares', +outFirm.toFixed(1));
+    fredPush('gdp.inst.guild', 'Output — guilds', 'Output × institution', 'wares', +outGuild.toFixed(1));
+    fredPush('capital.inst.firm', 'Capital — firms', 'Capital × institution', 'wares', +capFirm.toFixed(1));
+    // firm equities (individual "stocks"; trimmed to the notable ones at finalize)
+    for (const it of liveInsts) if (it.type === INST.FIRM && it.peakMembers > 50) fredPush('firm.' + it.id, it.name + ' — equity', 'Firm equities (stocks)', 'index=100', +it.equity.toFixed(1));
+  }
+  function fredFinalize() {
+    const F = chronicle.fred, L = F.t.length;
+    // pad every series to full length (dissolved firms → equity 0), trim firm equities to top
+    const firmKeys = [];
+    for (const k in F.series) { const s = F.series[k]; while (s.data.length < L) s.data.push(k.startsWith('firm.') ? 0 : (s.data.length ? s.data[s.data.length - 1] : 0)); if (k.startsWith('firm.')) firmKeys.push(k); }
+    firmKeys.sort((a, b) => Math.max(...F.series[b].data) - Math.max(...F.series[a].data));
+    for (let i = 20; i < firmKeys.length; i++) delete F.series[firmKeys[i]]; // keep the top 20 stocks
+    F.categories = [...new Set(Object.values(F.series).map(s => s.cat))];
   }
 
   // ---- the tick ------------------------------------------------------------------
@@ -495,6 +562,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     recordSeries(dispersers, admixture);
     if (tick % cfg.keyframeEvery === 0 || tick === totalTicks - 1) keyframe();
     if (captureEvery && (tick % captureEvery === 0 || tick === totalTicks - 1)) captureFrame();
+    if (fredEvery && (tick % fredEvery === 0 || tick === totalTicks - 1)) fredStep();
 
     // recycle this tick's dead slots (deferred so births above never aliased them)
     for (let k = 0; k < deadPending.length; k++) freeStack.push(deadPending[k]);
@@ -768,6 +836,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     // reset live-institution accumulators (O(live), not O(ever-created))
     for (const it of liveInsts) { it.memberCount = 0; it.wealth = 0; it.strength = 0; it.leaderRep = 0; it.reputation = 0; it.output = 0; }
     wareSupply.fill(0);
+    market.savings = 0; market.borrowDemand = 0; market.defaults = 0;
     // one state per dynasty (culture that reached statehood)
     for (let i = 0; i < cultures.length; i++) { const cu = cultures[i]; if (!cu.extinct && cu.everState) ensureState(i); }
     // per significant settlement: the specialised actors its capabilities unlock, then
@@ -838,16 +907,35 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         it.revenue = it.output * warePrice[it.seat];
         const wages = it.revenue * it.rules.wage;
         it.wagePerMember = it.memberCount > 0 ? Math.min(0.35, wages / it.memberCount) : 0;
-        const profit = Math.max(0, it.revenue - wages);
+        const profit = Math.max(0, it.revenue - wages); it.profit = profit;
         it.capital = Math.max(0, it.capital * 0.97 + profit * it.rules.invest * 0.02);
         it.pool = it.pool * 0.98 + profit * (1 - it.rules.invest) * 0.02;
-        if (it.type === INST.FIRM) { firmCount++; activityField[it.seat] += 0.4; } else { guildCount++; activityField[it.seat] += 0.2; }
+        if (it.type === INST.FIRM) {
+          firmCount++; activityField[it.seat] += 0.4;
+          // STOCK: equity moves with earnings/output growth and the market's shared sentiment
+          // (momentum → booms/busts). CAPITAL RAISING: a highly-valued firm issues equity to
+          // fund investment; a firm short of retained profit BORROWS at the market rate.
+          const prevOut = it.prevOutput;
+          const growth = clamp01((it.output - prevOut) / (prevOut + 1), -0.3, 0.3);
+          it.equity = Math.max(1, it.equity * (1 + 0.35 * growth + 0.5 * market.sentiment + (R.econ() - 0.5) * 0.02));
+          it.prevOutput = it.output;
+          it.raised = 0;
+          if (it.equity > 130 && it.rules.invest > 0.35) { const raise = it.equity * 0.004 * it.rules.invest; it.capital += raise; it.raised = raise; } // issue shares in a bull market
+          const wantInvest = it.revenue * it.rules.invest, gap = wantInvest - profit * it.rules.invest;
+          if (gap > 0) { it.debt += gap * 0.05; market.borrowDemand += gap * 0.05; }
+          it.debt = Math.max(0, it.debt * (1 - 0.02) - profit * 0.02);       // service/repay from profit
+          it.pool -= it.debt * market.rate * 0.01;                            // interest
+          market.savings += Math.max(0, it.pool);
+          // default: crushed by debt with collapsing output → the firm fails (a crisis seed)
+          if (it.debt > it.capital * 4 + 20 && it.output < prevOut * 0.7) { market.defaults++; it.lastSeen = tick - 999; }
+        } else { guildCount++; activityField[it.seat] += 0.2; market.savings += Math.max(0, it.pool); }
         recordExemplar(it, it.type === INST.FIRM ? it.capital * 8 + it.memberCount : it.memberCount);
       }
       else if (it.type === INST.WARBAND) { warCount++; it.strength = it.memberCount * (1 + techBonus(cu.tech)) * (1 + Math.min(1.5, it.pool * 0.02)) * (1 + Math.min(0.7, it.leaderRep * 0.18)); } // a great captain multiplies the host
       else { // STATE: tax member wealth into the treasury (a ruleset knob), fund stability
         stateCount++;
         it.pool = it.pool * 0.99 + it.wealth * it.rules.tax * 0.02;
+        market.savings += Math.max(0, it.pool);
         recordExemplar(it, it.memberCount);
       }
       // history's names: an eminent leader (very high reputation) is recorded once, with
@@ -860,6 +948,18 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         }
       }
     }
+    // ---- market clearing: interest rate, stock index, sentiment, debt, crises --------
+    market.rate = clamp01(0.02 + 0.6 * (market.borrowDemand / (market.savings + 1)), 0.01, 0.45);
+    let eqSum = 0, eqW = 0, tdebt = 0;
+    for (const it of liveInsts) if (it.type === INST.FIRM) { const w0 = it.capital + 1; eqSum += it.equity * w0; eqW += w0; tdebt += it.debt; }
+    market.prevIndex = market.index;
+    market.index = eqW > 0 ? eqSum / eqW : market.index;
+    market.totalDebt = tdebt;
+    const mom = market.prevIndex > 0 ? (market.index / market.prevIndex - 1) : 0;
+    market.sentiment = clamp01(0.7 * mom + 0.3 * market.sentiment + (R.econ() - 0.5) * 0.01, -0.12, 0.12); // momentum → boom/bust
+    if (mom > 0.06 && tick - market.boomTick > 60) { market.boomTick = tick; pushEvent(tick, 'marketBoom', { index: Math.round(market.index), rate: +market.rate.toFixed(3) }); }
+    if ((mom < -0.06 || market.defaults >= 2) && tick - market.crashTick > 60 && eqW > 4) { market.crashTick = tick; pushEvent(tick, 'financialCrisis', { index: Math.round(market.index), defaults: market.defaults, debt: Math.round(tdebt) }); }
+
     // WAR: each warband may strike an adjacent rival cell once per tick — preferring the
     // named resources. Organised conflict over territory & ore, resolved by strength.
     for (const it of liveInsts) if (it.type === INST.WARBAND && it.strength >= 20) warOnce(it);
@@ -994,7 +1094,8 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     wl.sort(); let cum = 0, g = 0; for (let i = 0; i < liveN; i++) { cum += wl[i]; g += (i + 1) / liveN - (totW > 0 ? cum / totW : 0); }
     const gini = liveN > 1 && totW > 0 ? +(2 * g / liveN).toFixed(3) : 0;
     let mp = 0, np = 0, to = 0; for (let c = 0; c < N; c++) if (cellPop[c] > 0) { mp += warePrice[c]; np++; } for (const it of liveInsts) to += it.output;
-    const economy = { gini, meanWealth: +(liveN ? totW / liveN : 0).toFixed(3), maxWealth: +maxW.toFixed(2), meanPrice: +(np ? mp / np : 1).toFixed(2), totalOutput: Math.round(to), exemplars: Object.fromEntries([...bestRules].map(([t, e]) => [INST_NAME[t], e.rules])) };
+    const economy = { gini, meanWealth: +(liveN ? totW / liveN : 0).toFixed(3), maxWealth: +maxW.toFixed(2), meanPrice: +(np ? mp / np : 1).toFixed(2), totalOutput: Math.round(to), exemplars: Object.fromEntries([...bestRules].map(([t, e]) => [INST_NAME[t], e.rules])),
+      market: { stockIndex: +market.index.toFixed(1), interestRate: +market.rate.toFixed(3), totalDebt: +market.totalDebt.toFixed(1), debtToGdp: +(market.totalDebt / Math.max(1, to)).toFixed(3), sentiment: +market.sentiment.toFixed(4) } };
     // history's great persons, most eminent first
     const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120);
     return {
@@ -1014,6 +1115,9 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     run(nTicks, opts = {}) {
       totalTicks = nTicks;
       chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, climate: (cfg.climate && cfg.climate.preset) || cfg.climate || 'stable' };
+      // FRED economic time-series: always captured, sampled to ~100 points across the run.
+      chronicle.fred = { t: [], tickYears: ty, series: {} };
+      fredEvery = Math.max(1, Math.floor(nTicks / 100));
       // optional particle-frame capture for the playback viewer (opts.frames enables it;
       // opts.every sets the interval, default = the keyframe interval).
       if (opts.frames) {
@@ -1029,6 +1133,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       chronicle.meta.agriOrigins = agriLandmass.size; chronicle.meta.agriAdopters = agriAdopters;
       chronicle.meta.industrialOrigins = indLandmass.size; chronicle.meta.industrialAdopters = indAdopters;
       chronicle.meta.landmasses = w.nLandmass;
+      fredFinalize();
       chronicle.final = finalSummary();
       return chronicle;
     },

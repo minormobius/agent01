@@ -129,6 +129,20 @@ rise / peak / fall), and a **named-resources table** (who holds each ore/gold/sa
 node). Culture colour is the same hue across every view, so a lineage is recognisable on
 the map, in the river, and in the tables.
 
+The **FRED view** (`../../civ/fred.html`) is the economic data browser — a St.-Louis-Fed-style
+time-series explorer over `chronicle.fred`. The engine captures a **modular series registry**
+(sampled to ~100 points across any run): headline macro (population, GDP, GDP/capita, Gini,
+price level, stock index, interest rate, debt/GDP, capital, institution counts) **plus every
+cross-tab we can muster** — population and wealth × subsistence, population × era, population
+× landmass, output and capital × institution type, and an individual **equity series per
+notable firm** (the "stocks"). The frontend is registry-driven: a **searchable, category-grouped
+catalog** with sparklines; a **multi-series overlay chart** with FRED transforms
+(**level / index=100 / % change / log**), automatic **dual axis** by unit, a **range brush**
++ drag-to-zoom, and hover readouts; a **macro dashboard**; and a **cross-tab explorer** that
+renders any measure×dimension family as **small multiples / overlay / stacked share**. Nothing
+in the chart engine knows what any series *is* — add a measure or a facet in `fredStep()` and it
+appears in FRED automatically. Carries the run by the same URL params as the other views.
+
 ### Political structure, history, resources (what's emergent vs. derived)
 
 - **Political map** — `cellDom` (dominant culture per cell) is the ethnolinguistic
@@ -188,6 +202,19 @@ the map, in the river, and in the tables.
   + meritocracy, guilds on low tax. Surfaced in the development view (Economy card with Gini /
   prices / output and the evolved exemplar rulesets; per-institution capital + ruleset columns)
   and the playground (`wealth` and `market`-price colour modes).
+- **Financial markets (capital, equity, debt)** — every firm carries an **equity price**
+  that moves on its fundamentals (earnings/output growth) *plus* a shared market
+  **sentiment**; the capital-weighted mean is the **stock index**. Sentiment is momentum
+  (`0.7·last-return + 0.3·prior`, tiny orthogonal noise), so the whole market **booms and
+  busts** together (`marketBoom` events). Firms **raise capital two ways**: issuing equity
+  in a bull market (only when equity is high and their `invest` ruleset is aggressive), or
+  **borrowing** — a firm short of retained profit for its target capital takes on **debt** at
+  the market **interest rate**, which clears from aggregate borrowing demand vs. savings
+  (`rate = 0.02 + 0.6·demand/savings`, capped). Overlevered firms whose output collapses
+  **default**, and a cluster of defaults (or a sharp index drop) is a **`financialCrisis`**.
+  All of it is on the `R.econ` stream and folded into the existing institution pass — O(live
+  firms), fully deterministic. Surfaced in FRED (stock index, rate, debt/GDP, per-firm
+  equities) and the development view's Economy card (`market` block).
 - **Religion / ideology** — deliberately *not yet* modelled; the design note is to add it as
   a second orthogonal meme-phylogeny (a `beliefId` diffusing through the same stigmergic
   field, decoupled from language) so its map cuts *across* the political and linguistic ones.

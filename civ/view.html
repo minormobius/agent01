@@ -50,7 +50,7 @@
 <div id="app">
   <header>
     <span class="brand"><span class="g">civ</span> particle playback</span>
-    <span class="crumb"><a id="todash" href="/" style="color:var(--acc)">← dashboard</a> · <a id="todev" href="/develop.html" style="color:var(--acc)">development</a> · <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener" style="color:var(--acc)">mappa ↗</a></span>
+    <span class="crumb"><a id="todash" href="/" style="color:var(--acc)">← dashboard</a> · <a id="todev" href="/develop.html" style="color:var(--acc)">development</a> · <a id="tofred" href="/fred.html" style="color:var(--acc)">FRED</a> · <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener" style="color:var(--acc)">mappa ↗</a></span>
     <select id="preset" title="preset">
       <option value="">default</option><option value="neolithic">neolithic</option>
       <option value="kurgan">kurgan</option><option value="bantu">bantu</option>
@@ -270,7 +270,7 @@ $('#showres').addEventListener('change',render); $('#showppl').addEventListener(
 function curState(){ return { world:$('#world').value.trim()||'7', preset:$('#preset').value, civSeed:$('#civseed').value||'1', ticks:$('#ticks').value||'1000', config:$('#lastconfig').value||'' }; }
 function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); return p.toString(); }
 function mappaHref(world){ const m=String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(world))); }
-function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/?'+q; $('#todev').href='/develop.html?'+q; $('#tomappa').href=mappaHref(st.world); }
+function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/?'+q; $('#todev').href='/develop.html?'+q; $('#tofred').href='/fred.html?'+q; $('#tomappa').href=mappaHref(st.world); }
 function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); }
 for(const id of ['#preset','#world','#civseed','#ticks']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
 
