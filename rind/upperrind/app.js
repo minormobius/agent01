@@ -199,7 +199,9 @@ function bakeChunkOf(b, chunkId) {
   for (const c of paint.comps) {
     drawDevice(bc, c.cx, c.cy, c.r, c.g, { lit: c.lit, accent: c.accent });
     bc.fillStyle = rgba(INK, 0.75); bc.font = '10px "JetBrains Mono", monospace'; bc.textAlign = 'center'; bc.textBaseline = 'middle';
-    bc.fillText(c.glyph || '', c.cx, c.cy - c.r - 8);
+    // the vendored econ 'move' room carries a ↕ glyph — reads as an elevator, which this map has none of
+    // (crossings are at-grade side-pocket antechambers). Show it as ⇄ (at-grade circulation) instead.
+    bc.fillText(c.glyph === '↕' ? '⇄' : (c.glyph || ''), c.cx, c.cy - c.r - 8);
   }
   b.bakes.set(chunkId, { cv: bake, x0, y0, w: bw, h: bh });
   b.cellPath.set(chunkId, rec.cells.map((c) => { const path = new Path2D(); c.poly.forEach((v, i) => i ? path.lineTo(v[0], v[1]) : path.moveTo(v[0], v[1])); path.closePath(); return path; }));
@@ -371,10 +373,12 @@ function render() {
   for (const d of cur.p.doors) {
     const v = cur.vis[d.node]; if (v <= 0.05) continue;
     const x = w.pos[2 * d.node], y = w.pos[2 * d.node + 1];
-    // the move-verb chamber marker — subtle: a faint threshold glyph, nothing more
-    ctx.globalAlpha = Math.min(0.55, v * 0.55);
-    ctx.fillStyle = rgba(INK, 0.8); ctx.font = '11px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('↕', x, y);
+    // A crossing is an AT-GRADE DOORWAY into a side-pocket antechamber — never an elevator. Draw a small
+    // portal ⊓ (a lintel on two posts), a threshold you step through sideways. (The only vertical move on
+    // the whole map is the ⇅ fulfillment nexus — the lift up to the nave.)
+    ctx.globalAlpha = Math.min(0.6, v * 0.6);
+    ctx.strokeStyle = rgba(INK, 0.85); ctx.lineWidth = 1.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(x - 3.5, y + 3.5); ctx.lineTo(x - 3.5, y - 2); ctx.lineTo(x + 3.5, y - 2); ctx.lineTo(x + 3.5, y + 3.5); ctx.stroke();
   }
   ctx.globalAlpha = 1;
   // residents
