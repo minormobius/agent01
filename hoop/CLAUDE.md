@@ -376,15 +376,16 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-v103-npc-reform-shk88h` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-v105-quests-nmi7a2` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
-  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v104` is the
-  DEVELOPMENT surface** (the FUNGIBLE-KEEPER pass — see its bullet below; the bare dev aliases `/over`,
-  `/garden/plot`, `/alch`, `/smith`, `/quests` now resolve to v104). **`v103` is a FROZEN test surface** —
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v105` is the
+  DEVELOPMENT surface** (the SEEDED-QUEST-SPINE pass — see its bullet below; the bare dev aliases `/over`,
+  `/garden/plot`, `/alch`, `/smith`, `/quests` now resolve to v105). **`v104` is the frozen prior**
+  (the FUNGIBLE-KEEPER pass). **`v103` is a FROZEN test surface** —
   the NPC-reform pass, playable end-to-end (kept live so hoopy can keep testing it); don't touch it. The v102
   pass (the frozen prior) was:
   - **Auth resilience (the reauth-on-return fix).** Two bugs made app-switching demand a re-login:
@@ -477,7 +478,8 @@ despite the name. It stayed with hoop, not rind.)
       built (ward keepers) / whose deck is open (rind keepers), so the ◇ never points into an unopened ward.
     - **DEV `?wards=all`** (sticky; `?wards=off` clears) streams all six wards at once and force-places every
       tier's keepers — for eyeballing whether keepers place. Does not set gates or witness factions.
-  - **Quest completability board** at `hoop.mino.mobi/v103/quests` (`v103/quests.html`, also `/quests`): reads
+  - **Quest completability board** at `hoop.mino.mobi/v103/quests` (`v103/quests.html`; the bare `/quests` now
+    tracks v105's seed roller): reads
     the live morphyx pool and renders every anchor tier's gates, the keeper that sets each, and the oracle
     verdict (`story/solvable.js#proveProgression`) PLUS a **placement class** column (which deck/zone each
     keeper is seated on) — so a gate that passes the content proof but would be mis-placed is visible. Node
@@ -582,6 +584,42 @@ despite the name. It stayed with hoop, not rind.)
     coheres with the civic narrative (continuant grows·heals = the living meat; rindwalker makes·mends·stores
     = the frame). Pinned by a guard in `continuum.selftest` (`FACTIONS[k].domain === bodyOf(k)`) so it can't
     silently drift again.
+- **The v105 SEEDED-QUEST-SPINE pass** (the current dev surface; v104 stays the frozen prior). Three changes:
+  - **All wards open after Olo** (`ensureUnlockedWards`): the six faction wards stream together the moment the
+    commons quest clears (introSolved), instead of one-per-witness. The old chain left Solen's tier-2 keepers
+    un-placeable (a keeper cast into the Rindwalker ward could not exist until that ward streamed — the
+    "unfindable Kaelen Voss" soft-lock). Witnessing ORDER is unchanged (fqCanWitness still walks continuant →
+    rindwalker → drift, and the Drift still opens the rind) — only the geometry opens at once, as intended.
+  - **SEEDED KEEPER CASTING** (`v105/story/weave.js`, pure + node-tested `test/weave.selftest.mjs`): the pool
+    carries ~168 room bundles but the campaign always ran through the same two dozen authored setters. Now
+    every anchor gate's keeper is CAST deterministically from the zone/faction-legal slice of the bundle pool,
+    keyed to the WORLD SEED — `weaveWorld(servePool(...), seed)` is the one entry (loadStory + reloadPool call
+    it): `castSpine` picks (hash-seeded, no double-booking, anchors + other gates' authored setters excluded),
+    `weaveCast` SPLICES a charge exchange onto the cast keeper's own dialogue (additive; namespaced
+    `q_charge_*` nodes) and strips just that gate's set_facts from the authored setter. Anchor-briefing gates
+    (Sevin's first scale, Luna's chamber key) are never re-cast. Same (pool, seed) → same cast forever
+    (atproto-stable); a republished pool re-weaves gracefully (the cast is derived, never stored). Every seed
+    is PROVEN progressable: `node hoop/scripts/prove-weave.mjs --sweep 500` runs `proveProgression` on the
+    woven live pool per seed (300/300 at ship time); `/quests` (see below) is the browser cousin.
+  - **THE TIER-2 MURDER MYSTERY** (`v105/story/mystery.js`, pure + node-tested `test/mystery.selftest.mjs`) —
+    tide/case merged with the room-bundle architecture, as Factor Solen's FINAL subquest. The case is built
+    ONLY from provably-placed keepers: case-giver = the first ward gate's cast keeper (the first keeper Solen
+    names); suspects = the other tier-1/2 cast keepers + padded extras (`mystery.requiredIds`, seated by
+    populateChambers like gate satisfiers); the VICTIM = an unused bundle RETIRED by the weave (dead, never
+    seated — `discoverNpc` also refuses retired records). Motive is read off bundle facts (same verb → RIVAL,
+    shared haunt → DEBT, same faction → SUCCESSION, else CREED), means are verb-typed items, alibis clear only
+    on independent (cross-faction) corroboration, and tide/case's SOLVABILITY ORACLE certifies the clue list's
+    deductive closure converges on exactly the culprit (watch retries + a grounded reluctant-eyewitness closer)
+    before the case ships. `weaveMystery` transforms the clues into DIALOGUE: the case opens on the case-giver
+    once their own charge is heard, each suspect carries their account (choices gated on `case.opened`, clue
+    facts `case.clue.*` feed the journal's ☠ case card), and the player closes it with a REAL ACCUSATION to
+    the case-giver — the right name sets `flag.ward.mystery_closed`, which the weave adds to Solen's
+    `load_bearing.gates` AND the turn-in choice's requires (a wrong name is rebuffed; `case.missed`).
+  - **`/quests` is now the SEED ROLLER** (`v105/quests.html`, bare alias): pick/step/randomize a world seed →
+    the full cast table per tier (cast keeper vs the authored "was", placement class, CASE badge), the case
+    dossier (victim, suspects + motives + spoiler-blurred culprit, the clue chain with holders), the oracle
+    verdict for the woven pool, and a "prove 100 seeds" in-browser sweep. `?seed=` here matches the game's
+    `?seed=` — the board IS the playtest permalink.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`

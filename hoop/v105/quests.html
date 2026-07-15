@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<base href="/v105/" />
+<title>hoop · quest spines per seed</title>
+<style>
+  :root { --gold:#f4bf62; --gold-soft:#e0c48a; --ink:#cfd8d2; --bg:#0c1116; --panel:#121a22; --line:#1b2530; --dim:#6b7872; --ok:#8fe07a; --warn:#f4bf62; --err:#e8746a; --case:#e0a86a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1100px; margin:0 auto; padding:20px 16px 80px; }
+  .crumb { color:var(--dim); font-size:12px; margin-bottom:10px; }
+  .crumb a { color:var(--gold-soft); text-decoration:none; }
+  h1 { font-size:20px; margin:0 0 4px; color:#fff7e6; }
+  .sub { color:var(--dim); font-size:12.5px; margin-bottom:16px; }
+  .sub a { color:var(--gold-soft); }
+  .verdict { display:inline-block; padding:5px 12px; border-radius:6px; font-weight:600; font-size:13px; }
+  .verdict.PASS { background:rgba(143,224,122,.14); color:var(--ok); }
+  .verdict.BLOCK { background:rgba(232,116,106,.14); color:var(--err); }
+  .counts { color:var(--dim); font-size:12.5px; margin:8px 0 14px; }
+  .seedbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin:0 0 18px; }
+  .seedbar label { color:var(--gold-soft); font-size:12px; }
+  .seedbar input { width:110px; background:#0c1218; color:#fff7e6; border:1px solid var(--line); border-radius:6px; padding:6px 9px; font:600 14px inherit; }
+  .seedbar button { background:#16202a; color:var(--gold-soft); border:1px solid var(--line); border-radius:6px; padding:6px 11px; font:600 12.5px inherit; cursor:pointer; }
+  .seedbar button:hover { border-color:var(--gold-soft); }
+  .seedbar .sweep { margin-left:auto; }
+  .sweepout { color:var(--dim); font-size:12px; }
+  .tier { border:1px solid var(--line); border-radius:9px; margin:0 0 16px; overflow:hidden; }
+  .tier-h { background:var(--panel); padding:11px 14px; display:flex; flex-wrap:wrap; gap:10px; align-items:baseline; border-bottom:1px solid var(--line); }
+  .tier-h .t { color:var(--gold); font-weight:600; }
+  .tier-h .z { color:var(--gold-soft); font-size:12px; }
+  .tier-h .d { color:var(--dim); font-size:11.5px; }
+  .tier-h .pill { margin-left:auto; font-size:11.5px; color:var(--dim); }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .scroll { overflow-x:auto; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; white-space:nowrap; }
+  th { color:var(--dim); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+  td.wrap-cell { white-space:normal; min-width:200px; }
+  .kname { color:var(--gold-soft); font-weight:600; }
+  .was { color:var(--dim); font-size:11px; }
+  .room { color:var(--ink); } .verb { color:var(--dim); }
+  .badge { display:inline-block; padding:2px 7px; border-radius:5px; font-size:11px; font-weight:600; }
+  .badge.ok { background:rgba(143,224,122,.13); color:var(--ok); }
+  .badge.warn { background:rgba(244,191,98,.14); color:var(--warn); }
+  .badge.err { background:rgba(232,116,106,.15); color:var(--err); }
+  .badge.case { background:rgba(224,168,106,.14); color:var(--case); }
+  .cls { display:inline-block; padding:2px 7px; border-radius:5px; font-size:11px; background:#16202a; color:var(--gold-soft); }
+  .cls.rind { color:#9ee6df; } .cls.commons { color:#e0c48a; } .cls.ward { color:#8fe07a; } .cls.signal { color:#c9a0ff; }
+  .issue { color:var(--err); font-size:11.5px; }
+  .issue.warn { color:var(--warn); }
+  .case-card { border:1px solid rgba(224,168,106,.4); border-radius:9px; margin:0 0 16px; overflow:hidden; }
+  .case-h { background:rgba(224,168,106,.08); padding:11px 14px; border-bottom:1px solid var(--line); }
+  .case-h .t { color:var(--case); font-weight:600; }
+  .case-body { padding:12px 14px; font-size:12.5px; }
+  .clue { border-left:2px solid var(--case); padding:2px 0 2px 10px; margin:0 0 8px; }
+  .clue .k { color:var(--case); font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; }
+  .clue .h { color:var(--gold-soft); font-size:11px; }
+  .spoiler { filter:blur(5px); cursor:pointer; transition:filter .15s; }
+  .spoiler.shown { filter:none; }
+  .foot { color:var(--dim); font-size:11.5px; margin-top:22px; border-top:1px solid var(--line); padding-top:14px; }
+  .load { color:var(--dim); padding:30px 0; }
+  code { background:#16202a; padding:1px 5px; border-radius:4px; color:var(--gold-soft); font-size:11.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">◍ hoop</a> · <a href="/v105/">the Tabard (v105)</a> · quest spines per seed</div>
+  <h1>Quest spines per seed</h1>
+  <div class="sub">v105 SEEDED CASTING: every anchor gate's keeper is <b>cast from the room-bundle pool per world seed</b> (<code>story/weave.js</code>) — roll the seed to read each world's spine, verify it looks good, and confirm the oracle (<code>story/solvable.js</code>) proves the WOVEN pool progressable. The tier-2 case (<code>story/mystery.js</code>) is cast from the same provably-placed keepers — victim, suspects, clue chain, certified deductive closure. <b>Play this exact spine:</b> <a id="playlink" href="/v105/?seed=7">/v105/?seed=7</a></div>
+  <div class="seedbar">
+    <label>world seed</label>
+    <input id="seed" type="number" min="0" step="1" value="7" />
+    <button id="prev">−1</button>
+    <button id="next">+1</button>
+    <button id="rand">⟲ random</button>
+    <button id="sweepBtn" class="sweep">prove 100 seeds</button>
+    <span class="sweepout" id="sweepout"></span>
+  </div>
+  <div id="head"></div>
+  <div id="body"><div class="load">Fetching the live story pool…</div></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script type="module">
+  import { servePool } from './story/import.js';
+  import { anchorChain, gateSettersMulti } from './story/anchors.js';
+  import { proveProgression, ZONE_TIER } from './story/solvable.js';
+  import { weaveWorld } from './story/weave.js';
+
+  const SERVICE_DID = 'did:plc:yivyyp54vddf7qf2lpsikhe4';   // morphyx — the same repo the game reads
+  const NSID = 'com.minomobi.hoop.story.content';
+  const FALLBACK_PDS = 'https://chalciporus.us-west.host.bsky.network';
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const $ = (id) => document.getElementById(id);
+
+  const ZONE_DECK = { commons: 0, ward: 0, wards: 0, nave: 0, upper_rind: 1, rind: 1, lower_rind: 2, signal: 2 };
+  function placeClass(zone) {
+    const z = String(zone || '').toLowerCase();
+    if (z === 'ward' || z === 'wards') return { key: 'ward', label: 'faction ward · deck 0' };
+    if (z === 'commons' || z === 'nave' || !z) return { key: 'commons', label: 'commons · deck 0' };
+    if (z === 'upper_rind' || z === 'rind') return { key: 'rind', label: 'upper rind · deck 1' };
+    if (z === 'lower_rind' || z === 'signal') return { key: 'signal', label: 'lower rind · deck 2' };
+    return { key: 'commons', label: z };
+  }
+
+  async function resolvePds() {
+    try { const d = await fetch('https://plc.directory/' + SERVICE_DID).then((r) => r.json());
+      const s = (d.service || []).find((x) => x.id === '#atproto_pds'); return (s && s.serviceEndpoint) || FALLBACK_PDS;
+    } catch (e) { return FALLBACK_PDS; }
+  }
+  async function loadPoolRaw() {
+    const pds = await resolvePds();
+    const raw = []; let cursor, pages = 0;
+    do {
+      const u = new URL(pds + '/xrpc/com.atproto.repo.listRecords');
+      u.searchParams.set('repo', SERVICE_DID); u.searchParams.set('collection', NSID); u.searchParams.set('limit', '100');
+      if (cursor) u.searchParams.set('cursor', cursor);
+      const j = await fetch(u).then((r) => r.json());
+      raw.push(...(j.records || []).map((r) => r.value)); cursor = j.cursor; pages++;
+    } while (cursor && pages < 40);
+    return raw;
+  }
+
+  let served = null;   // the served pool, loaded once; every seed re-weaves it in-memory
+
+  function caseClosure(m) {
+    if (!m) return null;
+    const alive = new Set(m.suspects.map((s) => s.id));
+    for (const c of m.clues) for (const id of c.eliminates) alive.delete(id);
+    return alive.size === 1 && alive.has(m.truth.culpritId);
+  }
+
+  function render(seed) {
+    const w = weaveWorld(served, seed);
+    const content = w.content;
+    const chain = anchorChain(content), multi = gateSettersMulti(content);
+    const byGate = (w.cast && w.cast.byGate) || {};
+    const rep = proveProgression(content, { forcePlaced: true });
+    const byGateIssues = new Map();
+    for (const iss of rep.issues) { if (!iss.gate) continue; const a = byGateIssues.get(iss.gate) || []; a.push(iss); byGateIssues.set(iss.gate, a); }
+
+    $('playlink').href = '/v105/?seed=' + seed; $('playlink').textContent = '/v105/?seed=' + seed;
+    const nErr = rep.errors.length, nWarn = rep.issues.filter((i) => i.level === 'warn').length;
+    $('head').innerHTML =
+      `<span class="verdict ${rep.verdict}">${rep.verdict === 'PASS' ? '✓ SEED ' + seed + ' — PROVABLY PROGRESSABLE' : '✗ SEED ' + seed + ' — BLOCKED'}</span>`
+      + `<div class="counts">${content.length} served records · ${chain.length} anchors · ${nErr} error${nErr === 1 ? '' : 's'} · ${nWarn} warning${nWarn === 1 ? '' : 's'}`
+      + (w.issues.length ? ` · <span style="color:var(--warn)">${w.issues.length} weave note${w.issues.length === 1 ? '' : 's'}</span>` : '')
+      + ` · pool = morphyx <code>${NSID}</code></div>`;
+
+    let html = '';
+    for (const a of chain) {
+      const deck = ZONE_DECK[String(a.zone).toLowerCase()] ?? 0;
+      const tierErr = a.gates.some((g) => (byGateIssues.get(g) || []).some((i) => i.level === 'error'));
+      html += `<div class="tier">`;
+      html += `<div class="tier-h"><span class="t">Tier ${a.tier} · ${esc(a.name)}</span> <span class="z">zone: ${esc(a.zone || '—')}</span> <span class="d">reached on deck ${deck} · opens at tier ${ZONE_TIER[a.zone] || 1}</span> <span class="pill">${a.gates.length} gate${a.gates.length === 1 ? '' : 's'}${tierErr ? ' · <span class="badge err">has a block</span>' : ''}</span></div>`;
+      html += `<div class="scroll"><table><thead><tr><th>gate</th><th>cast keeper (this seed)</th><th>room · verb</th><th>placement class</th><th>faction</th><th>was (authored)</th><th>status</th></tr></thead><tbody>`;
+      for (const g of a.gates) {
+        const e = byGate[g] || null;
+        const sat = (multi[g] || []);
+        const s0 = sat[0] || null;
+        const name = e ? e.keeperName : (s0 && s0.name);
+        const room = e ? e.room : (s0 && s0.room);
+        const verb = e ? e.verb : (s0 && s0.verb);
+        const zone = (e && e.zone) || (s0 && s0.zone) || '';
+        const fac = (e && e.faction) || (s0 && s0.navefac) || '—';
+        const cls = placeClass(zone);
+        const iss = byGateIssues.get(g) || [];
+        const err = iss.filter((i) => i.level === 'error'), warn = iss.filter((i) => i.level === 'warn');
+        const isCaseGate = w.mystery && g === w.mystery.gate;
+        const badge = err.length ? `<span class="badge err">ERROR</span>` : warn.length ? `<span class="badge warn">WARN</span>` : isCaseGate ? `<span class="badge case">CASE</span>` : `<span class="badge ok">OK</span>`;
+        const notes = iss.map((i) => `<div class="issue ${i.level}">${esc(i.code)}: ${esc(i.msg)}</div>`).join('');
+        const kind = e ? (e.briefing ? '<span class="was">[anchor briefing]</span> ' : (e.authoredPick ? '<span class="was">[authored pick]</span> ' : '')) : (isCaseGate ? '<span class="was">[the case-giver]</span> ' : '');
+        const was = e && !e.briefing && !e.authoredPick && e.authoredName ? esc(e.authoredName) : '—';
+        html += `<tr>`
+          + `<td><code>${esc(g.replace(/^flag\./, ''))}</code></td>`
+          + `<td class="wrap-cell">${kind}${name ? `<span class="kname">${esc(name)}</span>` : '<span class="badge err">no setter</span>'}</td>`
+          + `<td>${room ? `<span class="room">${esc(room)}</span>` : '—'}${verb ? ` <span class="verb">(${esc(verb)})</span>` : ''}</td>`
+          + `<td><span class="cls ${cls.key}">${esc(cls.label)}</span></td>`
+          + `<td>${esc(fac || '—')}</td>`
+          + `<td class="was">${was}</td>`
+          + `<td class="wrap-cell">${badge}${notes}</td>`
+          + `</tr>`;
+      }
+      html += `</tbody></table></div></div>`;
+    }
+
+    // ── THE CASE (tier 2's final subquest) ──
+    const m = w.mystery;
+    if (m) {
+      const closed = caseClosure(m);
+      html += `<div class="case-card"><div class="case-h"><span class="t">☠ The case — tier ${m.tier}'s final subquest</span> `
+        + `<span class="was">gate <code>${esc(m.gate.replace(/^flag\./, ''))}</code> · required by ${esc(m.anchorName)}'s turn-in</span> `
+        + (closed ? `<span class="badge ok">closure CERTIFIED${m.usedEyewitness ? ' (eyewitness closer)' : ''}</span>` : `<span class="badge err">closure FAILED</span>`)
+        + `</div><div class="case-body">`
+        + `<div style="margin-bottom:8px"><b style="color:var(--case)">${esc(m.victim.name)}</b> — keeper of ${esc(m.victim.room)} (${esc(m.victim.faction || 'no ward')}) — found at <b>${esc(m.sceneRoom)}</b>, ${esc(m.tickLabel)}. The victim's bundle is retired for this seed: the dead are never seated.</div>`
+        + `<div style="margin-bottom:10px">case-giver: <span class="kname">${esc(m.caseGiver.name)}</span> (${esc(m.caseGiver.room)}) — the first keeper ${esc(m.anchorName)} names; the case opens after their charge, and the accusation is made to them.</div>`;
+      html += `<div class="scroll"><table><thead><tr><th>suspect</th><th>room · verb</th><th>ward</th><th>motive</th><th>alibi at ${esc(m.tickLabel)}</th><th>truth</th></tr></thead><tbody>`;
+      for (const s of m.suspects) {
+        const isC = s.id === m.truth.culpritId;
+        html += `<tr><td><span class="kname">${esc(s.name)}</span></td>`
+          + `<td>${esc(s.room)}${s.verb ? ` <span class="verb">(${esc(s.verb)})</span>` : ''}</td>`
+          + `<td>${esc(s.faction || '—')}</td>`
+          + `<td class="wrap-cell"><b>${esc(s.motive.tag)}</b> <span class="verb">heat ${s.motive.heat}</span></td>`
+          + `<td class="wrap-cell">${esc(s.claim)}${s.atScene ? ' <span class="badge warn">at the scene</span>' : ''}${s.corroborated ? ' <span class="badge ok">corroborated</span>' : ''}</td>`
+          + `<td><span class="spoiler" onclick="this.classList.add('shown')">${isC ? '<span class="badge err">THE CULPRIT</span>' : '<span class="verb">innocent</span>'}</span></td></tr>`;
+      }
+      html += `</tbody></table></div>`;
+      const holders = new Map([[m.caseGiver.id, m.caseGiver.name], ...m.suspects.map((s) => [s.id, s.name])]);
+      html += `<div style="margin-top:12px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.4px">the clue chain (each transformed into dialogue on its holder)</div>`;
+      for (const c of m.clues) {
+        html += `<div class="clue" style="margin-top:7px"><span class="k">${esc(c.kind)}</span> · <span class="h">held by ${esc(holders.get(c.holderId) || c.holderId)}</span>`
+          + (c.eliminates.length ? ` · <span class="verb">clears ${c.eliminates.length}</span>` : '')
+          + `<div class="spoiler" onclick="this.classList.add('shown')" style="color:var(--ink);line-height:1.5">${esc(c.text)}</div></div>`;
+      }
+      html += `<div style="margin-top:8px" class="spoiler" onclick="this.classList.add('shown')"><b style="color:var(--case)">truth:</b> ${esc(m.truth.name)} — ${esc(m.truth.motive.tag)} — ${esc(m.truth.item)}</div>`;
+      html += `</div></div>`;
+    } else {
+      html += `<div class="case-card"><div class="case-h"><span class="t">☠ The case</span> <span class="badge warn">not cast for this seed</span></div><div class="case-body">${esc((w.issues.find((i) => i.code === 'no_mystery') || {}).msg || 'no ward anchor / pool too thin')}</div></div>`;
+    }
+    $('body').innerHTML = html;
+
+    const chainIssues = rep.issues.filter((i) => !i.gate);
+    $('foot').innerHTML =
+      (chainIssues.length ? `<b style="color:var(--gold-soft)">chain-level findings</b><br>` + chainIssues.map((i) => `<div class="issue ${i.level}">[t${i.tier}] ${esc(i.code)}: ${esc(i.msg)}</div>`).join('') + '<br>' : '')
+      + (w.issues.length ? `<b style="color:var(--gold-soft)">weave notes</b><br>` + w.issues.map((i) => `<div class="issue warn">${esc(i.code)}: ${esc(i.msg || '')}</div>`).join('') + '<br>' : '')
+      + `Read-only, live. Same (pool, seed) → the same spine on every machine — the seed IS the permalink (<code>?seed=</code> here and in the game). Blurred cells are spoilers — click to reveal. Node equivalents: <code>node hoop/scripts/prove-weave.mjs &lt;seed&gt;</code> (one spine, verbose) · <code>node hoop/scripts/prove-weave.mjs --sweep 500</code> (the proof over many seeds).`;
+  }
+
+  // ── seed controls + the sweep prover ──
+  const seedOf = () => Math.max(0, Math.floor(+$('seed').value || 0));
+  const setSeed = (s) => { $('seed').value = s; const u = new URL(location.href); u.searchParams.set('seed', s); history.replaceState(null, '', u); render(s); };
+  $('prev').onclick = () => setSeed(Math.max(0, seedOf() - 1));
+  $('next').onclick = () => setSeed(seedOf() + 1);
+  $('rand').onclick = () => setSeed(Math.floor(Math.random() * 100000));   // the picker may roll unseeded — each PICKED seed is deterministic
+  $('seed').onchange = () => setSeed(seedOf());
+  $('sweepBtn').onclick = () => {
+    const N = 100, t0 = performance.now();
+    let pass = 0, caseFail = 0; const bad = [];
+    for (let s = 1; s <= N; s++) {
+      const w = weaveWorld(served, s);
+      const okP = proveProgression(w.content, { forcePlaced: true }).solvable;
+      const okC = w.mystery ? caseClosure(w.mystery) : false;
+      if (okP && okC) pass++; else { bad.push(s); if (!okC) caseFail++; }
+    }
+    $('sweepout').textContent = `${pass}/${N} seeds pass (${caseFail} case failures)${bad.length ? ' — bad: ' + bad.slice(0, 8).join(',') : ''} · ${Math.round(performance.now() - t0)}ms`;
+    $('sweepout').style.color = pass === N ? 'var(--ok)' : 'var(--err)';
+  };
+
+  (async () => {
+    try {
+      const raw = await loadPoolRaw();
+      if (!raw.length) throw new Error('empty pool');
+      served = servePool(raw);
+      const u = new URLSearchParams(location.search);
+      const s = /^\d+$/.test(u.get('seed') || '') ? +u.get('seed') : 7;
+      $('seed').value = s;
+      render(s);
+    } catch (e) {
+      $('body').innerHTML = `<div class="load">Could not load the live pool (${esc(e && e.message || e)}). This page reads morphyx's public repo directly; if it is unreachable, run <code>node hoop/scripts/prove-weave.mjs</code> instead.</div>`;
+    }
+  })();
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-v103-npc-reform-shk88h']
+    branches: [main, 'claude/hoop-v105-quests-nmi7a2']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'
