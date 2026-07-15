@@ -44,7 +44,7 @@ const view = { cx: 0, cy: 0, scale: 1 };
 let zoom = 1.15, DROID = null;
 const SIGHT_HOPS = 20;   // restrictive — a room's worth of sight; the doors do the revealing
 
-const threadColor = (key) => key === 'RA' ? hex('#d9b24a') : key === 'RR' ? hex('#cf6b4a') : key === 'NX' ? hex('#cbd3e0') : key[0] === 'X' ? [222, 184, 116] : key === 'CW' ? TEAL : key === 'CP' ? [200, 150, 90] : key[0] === 'W' ? mix(hex(world.warps[+key.slice(1)].color), INK, 0.3) : hex(world.wefts[+key.slice(1)].color);
+const threadColor = (key) => key === 'RA' ? hex('#d9b24a') : key === 'RR' ? hex('#cf6b4a') : key === 'NX' ? hex('#cbd3e0') : key[0] === 'Z' ? (key[1] === 'A' ? mix(hex('#d9b24a'), [222, 184, 116], 0.5) : mix(hex('#cf6b4a'), [222, 184, 116], 0.5)) : key[0] === 'X' ? [222, 184, 116] : key === 'CW' ? TEAL : key === 'CP' ? [200, 150, 90] : key[0] === 'W' ? mix(hex(world.warps[+key.slice(1)].color), INK, 0.3) : hex(world.wefts[+key.slice(1)].color);
 // each commodity wears its PRODUCER's colour (metal = foundry orange, coolant = fluid blue …)
 const COMMODITY_COLOR = (() => {
   const m = { waste: '#8a8f98' };

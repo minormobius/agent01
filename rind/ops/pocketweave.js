@@ -40,7 +40,7 @@ import { createWorld, addChunk, buildWalk, extendWalk } from './v100/manager.js'
 import { mulberry32 } from './v100/voronoi.js';
 import { districtCentres, SEVEN, OFFICE_DEFAULTS } from './officeweave.js';
 import { ENGINES } from './engines.js';
-import { buildRingPocket, buildNexusPocket, ringReciprocal, isRingKey, RADIAL_ENGINES } from './ringpocket.js';
+import { buildRingPocket, buildNexusPocket, buildAntePocket, ringReciprocal, isRingKey, isRingRelated, anteKey, RADIAL_ENGINES } from './ringpocket.js';
 
 const TAU = Math.PI * 2;
 export const POCKET_DEFAULTS = {
@@ -334,8 +334,9 @@ function placeThreadDoors(world, pocket, g) {
     if (hub >= 0) {
       used.add(hub); anchor = hub;
       pocket.hubDoor = base + hub;
-      // RING MODE: the inner (hub) end opens onto the ASSEMBLY ring, not a commons hub.
-      const toKey = o.ringMode ? 'RA' : (pocket.kind === 'white' ? 'CW' : 'CP');
+      // RING MODE: the inner (hub) end crosses to the ASSEMBLY ring THROUGH its zero-grade antechamber
+      // (no ladder — same as a K-crossing's X interface), not a direct door to the ring.
+      const toKey = o.ringMode ? anteKey('RA', pocket.key) : (pocket.kind === 'white' ? 'CW' : 'CP');
       const d = { cell: hub, seg: 0, node: base + hub, toKey, station: null, label: o.ringMode ? 'the assembly ring' : 'the commons' };
       pocket.doors.push(d); pocket.doorAt.set(d.node, d);
     }
@@ -343,10 +344,10 @@ function placeThreadDoors(world, pocket, g) {
     const p0 = rec.ports.find((p) => p.inherited);
     anchor = p0 && p0.cell >= 0 ? p0.cell : nearestRoad(rec, spine[g.i0].x, spine[g.i0].y, used);
   }
-  // RING MODE: the outer (rim) end of the last segment opens onto the RECLAIM ring.
+  // RING MODE: the outer (rim) end crosses to the RECLAIM ring through its zero-grade antechamber.
   if (o.ringMode && g.si === pocket.segs.length - 1) {
     const rim = nearestRoad(rec, spine[M2].x, spine[M2].y, used);
-    if (rim >= 0) { used.add(rim); const d = { cell: rim, seg: g.si, node: base + rim, toKey: 'RR', station: null, label: 'the reclaim ring' }; pocket.doors.push(d); pocket.doorAt.set(d.node, d); }
+    if (rim >= 0) { used.add(rim); const d = { cell: rim, seg: g.si, node: base + rim, toKey: anteKey('RR', pocket.key), station: null, label: 'the reclaim ring' }; pocket.doors.push(d); pocket.doorAt.set(d.node, d); }
   }
   const reach = recReach(rec, anchor);
   const at = (u) => spine[Math.max(0, Math.min(M2, Math.round(u * M2)))];
@@ -376,7 +377,7 @@ function placeThreadDoors(world, pocket, g) {
 // the reciprocal door: where crossing at `door` from `fromKey` lands you in the target pocket.
 // LAZY: ensures exactly the target segment that holds the reciprocal door (one chunk, not a thread).
 export function reciprocalDoor(world, fromKey, door) {
-  if (world.ringMode && (isRingKey(fromKey) || isRingKey(door.toKey))) return ringReciprocal(world, fromKey, door);
+  if (world.ringMode && (isRingRelated(fromKey) || isRingRelated(door.toKey))) return ringReciprocal(world, fromKey, door);
   const target = world.pocket(door.toKey);
   if (door.toKey[0] === 'X') {   // step INTO the interface, at your own side
     target.ensureSeg(0);
@@ -410,11 +411,13 @@ export function buildPocketWorld(seed = 7, opts = {}) {
   world.pocket = (key) => {
     let p = world.pockets.get(key); if (p) return p;
     p = o.ringMode && (key === 'RA' || key === 'RR') ? buildRingPocket(world, key)
-      : o.ringMode && key === 'NX' ? buildNexusPocket(world) : buildPocket(world, key);
+      : o.ringMode && key === 'NX' ? buildNexusPocket(world)
+      : o.ringMode && key[0] === 'Z' ? buildAntePocket(world, key) : buildPocket(world, key);
     world.pockets.set(key, p); return p;
   };
   world.label = (key) => key === 'RA' ? 'the assembly ring' : key === 'RR' ? 'the reclaim ring' : key === 'NX' ? 'the fulfillment nexus'
-    : key[0] === 'X' ? 'the interface' : key === 'CW' ? 'the ops commons' : key === 'CP' ? 'the works floor' : key[0] === 'W' ? geo.warps[+key.slice(1)].id : geo.wefts[+key.slice(1)].id;
+    : key[0] === 'Z' ? `${key[1] === 'A' ? 'assembly' : 'reclaim'} × ${key.split(':')[1]} — antechamber` : key[0] === 'X' ? 'the interface'
+    : key === 'CW' ? 'the ops commons' : key === 'CP' ? 'the works floor' : key[0] === 'W' ? geo.warps[+key.slice(1)].id : geo.wefts[+key.slice(1)].id;
   return world;
 }
 

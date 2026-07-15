@@ -28,6 +28,13 @@ export const RADIAL_ENGINES = ['foundry', 'chemworks', 'mill', 'fab', 'weave', '
 // the 12 radial threads in ring order (interleaved white/engine around the circumference)
 export const RING_ORDER = (() => { const o = []; for (let i = 0; i < 6; i++) { o.push('W' + i); o.push('P' + i); } return o; })();
 export const isRingKey = (k) => k === 'RA' || k === 'RR' || k === 'NX';
+// an ANTECHAMBER key: 'ZA:W2' = the zero-grade chamber where the assembly ring crosses W2, 'ZR:P3' the
+// reclaim ring × P3. Every ring×thread crossing goes THROUGH one (the no-ladder rule — same as the weave's
+// X interfaces): ring ↔ antechamber ↔ thread, all at grade. Nothing crosses a floor directly.
+export const isAnte = (k) => typeof k === 'string' && k[0] === 'Z';
+export const isRingRelated = (k) => isRingKey(k) || isAnte(k);
+export const anteKey = (ringKey, threadKey) => 'Z' + ringKey[1] + ':' + threadKey;   // 'RA'→'ZA:…', 'RR'→'ZR:…'
+const anteParts = (k) => { const [rp, thread] = k.slice(1).split(':'); return { ring: 'R' + rp, thread }; };
 const slotOf = (k) => RING_ORDER.indexOf(k);
 const NEXUS_SLOT_A = 0.35 / 12 * TAU;   // the nexus door's angle on the assembly ring
 
@@ -84,8 +91,8 @@ function placeRingDoors(world, pocket, g) {
     const a = (t + 0.5) / 12 * TAU; if (pocket.segAt(a) !== g.si) continue;
     const px = pocket.cx + Math.cos(a) * pocket.rad, py = pocket.cy + Math.sin(a) * pocket.rad;
     const cell = nearestRoad(rec, px, py, used); if (cell < 0) continue; used.add(cell);
-    const toKey = RING_ORDER[t];
-    const d = { cell, seg: g.si, node: base + cell, toKey, other: toKey, station: null, label: toKey, ringSlot: t };
+    const th = RING_ORDER[t], toKey = anteKey(pocket.key, th);   // the ring opens onto the crossing ANTECHAMBER, not the thread
+    const d = { cell, seg: g.si, node: base + cell, toKey, other: th, station: null, label: th, ringSlot: t, over: t % 2 === 0 };
     pocket.doors.push(d); pocket.doorAt.set(d.node, d);
   }
   if (pocket.isAssembly && pocket.segAt(NEXUS_SLOT_A) === g.si) {   // assembly ring → the fulfillment nexus
@@ -116,20 +123,41 @@ export function buildNexusPocket(world) {
   return pocket;
 }
 
-// ── reciprocity for every crossing that involves a ring or the nexus ──
+// ── the crossing ANTECHAMBER ('ZA:W2' / 'ZR:P3') — a single zero-grade chamber both the ring and the
+// thread open onto and walk THROUGH. This is what keeps the crossing LADDER-FREE (at grade), exactly as
+// the weave's X interfaces do: ring → antechamber → thread, never a direct floor-to-floor door. ──
+export function buildAntePocket(world, key) {
+  const o = world.opts, seed = threadSeed(world.seed, key), { ring, thread } = anteParts(key);
+  const W = o.bridgeW, H = o.bridgeH;
+  const pocket = { key, kind: 'ante', ante: true, ring, thread, W, H, spine: null, arches: [], doors: [], doorAt: new Map(), hubDoor: -1, world: null, walk: null, segs: [{ si: 0, solved: false, chunkId: -1, rec: null }], solvedCount: 0, segOf: () => 0 };
+  pocket.ensureSeg = () => {
+    const g = pocket.segs[0]; if (g.solved) return g;
+    const rec = solveChunk({ seed, foamSeed: seed, v2: true, shape: 'hex', W, H, cellSize: o.cellSize, roomSize: 11, concourseWidth: 2 });
+    attach(pocket, g, rec);
+    const base = pocket.walk.base[g.chunkId], used = new Set();
+    const dR = nearestRoad(rec, W * 0.5, H * 0.22, used);   // one door to the RING, one to the THREAD — a walk-through
+    if (dR >= 0) { used.add(dR); const d = { cell: dR, seg: 0, node: base + dR, toKey: ring, other: ring, station: null, label: ring }; pocket.doors.push(d); pocket.doorAt.set(d.node, d); }
+    const dT = nearestRoad(rec, W * 0.5, H * 0.78, used);
+    if (dT >= 0) { used.add(dT); const d = { cell: dT, seg: 0, node: base + dT, toKey: thread, other: thread, station: null, label: thread }; pocket.doors.push(d); pocket.doorAt.set(d.node, d); }
+    return g;
+  };
+  pocket.ensureAll = () => pocket.ensureSeg(0);
+  return pocket;
+}
+
+// ── reciprocity for every crossing through a ring / antechamber / the nexus ──
 export function ringReciprocal(world, fromKey, door) {
   const to = door.toKey;
-  if (to === 'RA' || to === 'RR') {                    // thread → ring: land at the ring's door for this thread
-    const ring = world.pocket(to), slot = slotOf(fromKey), a = (slot + 0.5) / 12 * TAU;
-    ring.ensureSeg(slot >= 0 ? ring.segAt(a) : 0);
-    return ring.doors.find((d) => d.toKey === fromKey) || ring.doors[0] || null;
-  }
+  // the nexus bond (the lift — a direct bond, not a weave crossing)
   if (to === 'NX') { const nx = world.pocket('NX'); nx.ensureSeg(0); return nx.doors.find((d) => d.toKey === fromKey) || nx.doors[0] || null; }
   if (fromKey === 'NX') { const ring = world.pocket('RA'); ring.ensureSeg(ring.segAt(NEXUS_SLOT_A)); return ring.doors.find((d) => d.toKey === 'NX') || ring.doors[0] || null; }
-  if (fromKey === 'RA' || fromKey === 'RR') {          // ring → thread: land at the thread's inner (RA) or outer (RR) door
-    const th = world.pocket(to);
-    if (fromKey === 'RA') th.ensureSeg(0); else th.ensureSeg(th.segs.length - 1);
-    return th.doors.find((d) => d.toKey === fromKey) || th.doors[0] || null;
+  // stepping INTO an antechamber (from the thread OR the ring): land at the chamber's door back to you
+  if (isAnte(to)) { const ante = world.pocket(to); ante.ensureSeg(0); return ante.doors.find((d) => d.toKey === fromKey) || ante.doors[0] || null; }
+  // stepping OUT of an antechamber: `to` is the ring ('RA'/'RR') or the thread it bridges
+  if (isAnte(fromKey)) {
+    const { ring } = anteParts(fromKey), thread = fromKey.split(':')[1];
+    if (to === ring) { const rp = world.pocket(ring), slot = slotOf(thread), a = (slot + 0.5) / 12 * TAU; rp.ensureSeg(slot >= 0 ? rp.segAt(a) : 0); return rp.doors.find((d) => d.toKey === fromKey) || rp.doors[0] || null; }
+    const th = world.pocket(to); if (ring === 'RA') th.ensureSeg(0); else th.ensureSeg(th.segs.length - 1); return th.doors.find((d) => d.toKey === fromKey) || th.doors[0] || null;
   }
   return null;
 }
