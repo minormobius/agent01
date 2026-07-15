@@ -1,21 +1,14 @@
-// verbflow.js — THE FLAVOUR LAYER for upperrind. Two pure pieces, no canvas, node-testable:
+// verbflow.js — THE FLAVOUR PALETTE for upperrind. Pure, no canvas, node-testable.
 //
-//   1. THE DOMINANT-VERBS PALETTE. Every white thread carries a faction WARD whose `exclusive`
-//      verb is that thread's dominant verb (mend / worship / govern / grow / learn / play — the
-//      six read distinctly, one per white). Production threads have no ward verb; their dominant
-//      "verb" is the make of their own engine, so they wear the engine hue. This module owns the
-//      verb→colour map and the (world,key)→verb / →floor-hue resolvers.
+// THE DOMINANT-VERBS PALETTE. Every white thread carries a faction WARD whose `exclusive` verb is
+// that thread's dominant verb (mend / worship / govern / grow / learn / play — the six read
+// distinctly, one per white). Production threads have no ward verb; their dominant "verb" is the
+// make of their own engine, so they wear the engine hue. This module owns the verb→colour map and
+// the (world,key)→verb / →floor-hue resolvers.
 //
-//   2. THE WHORL FLOW-FIELD. The concourse has a real direction (the spine runs hub→rim, curving
-//      the way the analytic spiral does). We imply that FLOW in the floor tiling: each concourse
-//      cell carries a log-ish whorl (a short spiral eddy) oriented to the LOCAL flow tangent and
-//      curling with the thread's spin. Same field, curved by the spine ⇒ the floor reads as a
-//      current. `flowAt` gives the tangent at a point; `whorlPath` is the eddy geometry. Both are
-//      pure arrays of numbers so the drawing layer just strokes them, and the selftest can pin
-//      the math (monotone radius, tangent at the two ends, chirality sign).
-//
-// Pinned by verbflow.selftest.mjs. Imported by app.js (the only consumer). Nothing here touches
-// the pocket kernel — this is presentation over the exact same topology.
+// The concourse's FIELD (the flux lines and their flow) is a separate concern — see fluxfield.js.
+// Pinned by verbflow.selftest.mjs. Nothing here touches the pocket kernel — this is presentation
+// over the exact same topology.
 
 const TAU = Math.PI * 2;
 
@@ -59,35 +52,7 @@ export function floorHue(world, key, TEAL = [127, 216, 208]) {
   return [...TEAL];   // CW commons, X interfaces — the shared, unflavoured floor
 }
 
-// ── the flow field ──
-// the local flow TANGENT (as an angle) at a point on a thread pocket. The spine samples carry the
-// unit normal (nx,ny) from the kernel; the tangent that runs hub→rim is (ny,-nx). Nearest-sample
-// is enough for a floor field (cells are tiny next to the spine's curvature). Returns { theta, i }.
-export function flowAt(spine, x, y) {
-  if (!spine || !spine.length) return { theta: 0, i: -1 };
-  let bi = 0, bd = Infinity;
-  for (let i = 0; i < spine.length; i++) { const d = (spine[i].x - x) ** 2 + (spine[i].y - y) ** 2; if (d < bd) { bd = d; bi = i; } }
-  const s = spine[bi];
-  const tx = (s.ny ?? 0), ty = -(s.nx ?? 0);              // hub→rim tangent
-  return { theta: Math.atan2(ty, tx), i: bi };
-}
+// The FLOW/FLUX of the concourse (the field lines and their direction) lives in fluxfield.js — this
+// module owns only the flavour PALETTE and its resolvers.
 
-// a whorl — a bounded eddy that LEADS along `theta` then curls, so a field of them reads as a
-// current. Parametrised t∈[0,1]: radius grows r0·t (bounded, unlike a raw log spiral), the heading
-// starts AT theta (t=0 tangent = the flow) and accelerates its curl as chir·curl·t² — the "roll" of
-// an eddy. `chir` (±1) is the thread spin, so white and production whorls counter-rotate exactly as
-// the weave does. Returns a flat [x0,y0,x1,y1,…] polyline for a single stroke.
-export function whorlPath(cx, cy, r0, theta, chir = 1, opts = {}) {
-  const curl = opts.curl ?? 1.35, N = Math.max(6, opts.samples ?? 22);
-  const pts = new Array((N + 1) * 2);
-  for (let i = 0; i <= N; i++) {
-    const t = i / N;
-    const ang = theta + chir * curl * TAU * t * t;        // starts tangent to the flow, curls into the roll
-    const r = r0 * t;
-    pts[2 * i] = cx + Math.cos(ang) * r;
-    pts[2 * i + 1] = cy + Math.sin(ang) * r;
-  }
-  return pts;
-}
-
-if (typeof globalThis !== 'undefined') globalThis.RindVerbFlow = { VERB_COLORS, verbColor, dominantVerb, floorHue, flowAt, whorlPath, WARD_VERBS };
+if (typeof globalThis !== 'undefined') globalThis.RindVerbFlow = { VERB_COLORS, verbColor, dominantVerb, floorHue, WARD_VERBS };

@@ -167,7 +167,8 @@ node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any
 node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
 node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR (god-view): v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
 node rind/ops/test/pocket.selftest.mjs             # ★ THE POCKET DIMENSION: 48 stations, reciprocity, arc order, one-door, CHUNKED threads, the CP ◈ nexus, FACTION AXES (six nave biomes ↔ six whites, antipodal — no same-faction adjacency)
-node rind/upperrind/verbflow.selftest.mjs          # upperrind's FLAVOUR layer: the dominant-verbs palette + the whorl flow-field (same pocket topology, per-thread concourse colour + flow tiling)
+node rind/upperrind/verbflow.selftest.mjs          # upperrind's FLAVOUR palette: the dominant-verbs colours + (world,key)→verb/floor-hue resolvers
+node rind/upperrind/fluxfield.selftest.mjs         # upperrind's FLUX floor: the solenoid-with-shielded-chambers stream function + marching-squares flux lines (each floor a fingerprint of its own chamber layout)
 node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office, over SEVEN HEXAGONS; line-of-sight (walls hide, doors spill); crossing is a no-op walk
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)

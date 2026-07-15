@@ -1,13 +1,15 @@
 // upperrind/app.js — WALK THE POCKET DIMENSION, FLAVOURED PER THREAD. Same exact topology as
 // ops/pocket (pocketweave.js, the v101 skin, the v100 sightBall + walk graph) — the ONE thing this
-// endpoint changes is the CONCOURSE TILING, so the six white floors and the eight engine floors are
-// obviously distinct at a glance:
-//   • COLOUR — each concourse takes its thread's DOMINANT-VERB hue (whites: mend/worship/govern/
-//     grow/learn/play; engines: their own make-hue). The verbs palette lives in verbflow.js.
-//   • TILING — the flat obsidian ledger is replaced by a WHORL FLOW-FIELD: each concourse cell
-//     carries a small eddy that leads along the local flow (the spine tangent) and curls with the
-//     thread's spin, so the floor reads as a current running hub→rim (the concourse has a real
-//     direction; the tiling now shows it). Rooms, fixtures, fog, doors, streaming — all unchanged.
+// endpoint changes is the CONCOURSE FLOOR, so the six white floors and the eight engine floors are
+// obviously distinct at a glance. The floor is a MAGNETIC FIELD:
+//   • THE METAPHOR — each thread is a SOLENOID (a field along its axis, the spine hub→rim) whose
+//     CHAMBERS are SHIELDED (mu-metal inclusions that expel the field). The concourse is the bore;
+//     the flux bends around every chamber and threads the gaps; DOORS are apertures in a shield where
+//     the flux concentrates. The tiling is the flux lines (contours of a stream function, fluxfield.js)
+//     — so each floor's field is a fingerprint of that thread's OWN chamber layout.
+//   • COLOUR — each floor takes its thread's DOMINANT-VERB hue (whites: mend/worship/govern/grow/
+//     learn/play; engines: their own make-hue). The verbs palette lives in verbflow.js.
+//   Rooms, fixtures, fog, doors, streaming — all unchanged.
 //
 // STREAMING: a thread is 2–5 CHUNK SEGMENTS (pocketweave cuts the spine; one foamSeed per thread
 // keeps the voronoi continuous across seams). The page solves + bakes ONE segment at a time — the
@@ -23,7 +25,8 @@ import { drawWallLight } from '../ops/v101/v5/lights.js';
 import { pathFind, nearestNode, sightBall } from '../ops/v100/manager.js';
 import { buildGenome, frameRects, dirFromKey } from '../ops/sprites/core.js';
 import { buildPolyGenome, polyFrame, FAMILIES } from '../ops/sprites/poly.js';
-import { floorHue, flowAt, whorlPath, dominantVerb } from './verbflow.js';
+import { floorHue, dominantVerb } from './verbflow.js';
+import { computeFluxLines } from './fluxfield.js';
 
 const $ = (id) => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -94,35 +97,56 @@ function bakeChunkOf(b, chunkId) {
   bake.width = Math.ceil(bw * scale); bake.height = Math.ceil(bh * scale);
   const bc = bake.getContext('2d'); bc.scale(scale, scale); bc.translate(-x0, -y0);
   for (const c of paint.paintCells) { bc.fillStyle = c.color; bc.beginPath(); c.poly.forEach((v, i) => i ? bc.lineTo(v[0], v[1]) : bc.moveTo(v[0], v[1])); bc.closePath(); bc.fill(); }
-  // THE FLOW FLOOR — the flavour layer. Each concourse tile is lacquered in the thread's
-  // DOMINANT-VERB hue (a deep tinted obsidian, not neutral near-black), and over ~70% of them an
-  // EDDY is stroked: a small whorl that leaves its cell tangent to the LOCAL FLOW (the spine's
-  // hub→rim tangent) and curls with the thread's spin. Same field, curved by the spiralling spine ⇒
-  // the whole concourse reads as a directional current — the flavour that tells the floors apart.
-  // On the eight engine floors the ROOM tiles still take the engine's own hue (unchanged).
+  // THE FLUX FLOOR — the flavour layer, as a magnetic field. Each thread is a SOLENOID: a field runs
+  // along its axis (the spine, hub→rim), through the concourse (the bore). Every CHAMBER is SHIELDED
+  // (a mu-metal inclusion) that EXPELS the field, so the flux lines bend around it and crowd the gaps.
+  // The concourse tiling IS those flux lines — contours of the stream function (fluxfield.js), so the
+  // field is a fingerprint of THIS thread's own chamber layout ⇒ the fourteen floors read distinct.
+  // Colour is the DOMINANT-VERB hue (whites) / engine make-hue (production); DOORS are apertures in a
+  // shield, drawn as flux concentrations. On engine floors the shielded rooms also take the make-hue.
   const engineFloor = b.key[0] === 'P';
   const hue = floorHue(world, b.key, TEAL);          // verb colour (white) / engine hue / commons teal
-  const deepFloor = mix(hue, [4, 5, 10], 0.82);      // the tinted-obsidian base — the hue, sunk dark
-  const eddy = mix(hue, INK, 0.42);                  // the whorl stroke — the hue lifted toward ink
-  const spine = b.p.spine;
-  const chir = (world.geo.family.spin || 1) * (engineFloor || b.key === 'CP' ? -1 : 1);   // whites vs production counter-rotate
-  const cx0 = b.p.W / 2, cy0 = b.p.H / 2;
+  const deepFloor = mix(hue, [6, 8, 13], 0.60);      // the tinted floor — strong enough that the hue reads
+  const shieldTint = mix(hue, [5, 7, 12], 0.80);     // the shielded chamber floor — the hue, sunk (field-free)
+  const fluxCol = mix(hue, INK, 0.62);               // the flux line — the hue lifted toward ink
+  // paint concourse + shielded chambers (every thread's rooms carry a faint hue veil now — the shield)
   for (let i = 0; i < rec.cells.length; i++) {
     const c = rec.cells[i];
     const trace = () => { bc.beginPath(); c.poly.forEach((v, j) => j ? bc.lineTo(v[0], v[1]) : bc.moveTo(v[0], v[1])); bc.closePath(); };
-    if (rec.road[i]) {
-      trace(); bc.fillStyle = rgba(deepFloor, 0.72); bc.fill();
-      const h = (Math.imul(i + 1, 2654435761) >>> 0);
-      if ((h % 1000) < 720) {                        // a FIELD of eddies (deterministic per cell), not a grid
-        const theta = spine ? flowAt(spine, c.x, c.y).theta : Math.atan2(c.y - cy0, c.x - cx0) + Math.PI / 2;   // commons: swirl about the hub
-        const jn = ((h >> 10) & 255) / 255, r0 = 4.5 + jn * 4.5;
-        const wp = whorlPath(c.x, c.y, r0, theta + (jn - 0.5) * 0.55, chir, { samples: 14 });
-        bc.strokeStyle = rgba(eddy, 0.14 + jn * 0.13); bc.lineWidth = 0.8;
-        bc.beginPath(); for (let k = 0; k < wp.length; k += 2) k ? bc.lineTo(wp[k], wp[k + 1]) : bc.moveTo(wp[k], wp[k + 1]); bc.stroke();
-      }
-    } else if (engineFloor && rec.roomOf[i] >= 0) {
-      trace(); bc.fillStyle = rgba(hue, 0.13); bc.fill();
-    }
+    if (rec.road[i]) { trace(); bc.fillStyle = rgba(deepFloor, 0.78); bc.fill(); }
+    else if (rec.roomOf[i] >= 0) { trace(); bc.fillStyle = rgba(shieldTint, engineFloor ? 0.5 : 0.32); bc.fill(); }
+  }
+  // the shields: chamber centre + radius (from the spread of its own cells)
+  const rooms = [];
+  for (const r of rec.rooms) {
+    if (!r.cells || !r.cells.length) continue;
+    let a = 0; for (const ci of r.cells) a = Math.max(a, Math.hypot(rec.cells[ci].x - r.x, rec.cells[ci].y - r.y));
+    rooms.push({ x: r.x, y: r.y, r: Math.max(9, a * 0.92) });
+  }
+  const spine = b.p.spine;
+  let hub = null;
+  if (!spine) { let hx = 0, hy = 0, hn = 0; for (let i = 0; i < rec.cells.length; i++) if (rec.road[i]) { hx += rec.cells[i].x; hy += rec.cells[i].y; hn++; } hub = hn ? { x: hx / hn, y: hy / hn } : { x: b.p.W / 2, y: b.p.H / 2 }; }
+  const region = { x0: rec.region.x0, y0: rec.region.y0, x1: rec.region.x1, y1: rec.region.y1 };
+  const flux = computeFluxLines({ cells: rec.cells, road: rec.road, rooms, region, spine, hub }, { pitch: 8, lines: spine ? 12 : 15 });
+  // stroke each flux line (one path per level — brighter toward the centreline / core)
+  bc.lineCap = 'round'; bc.lineJoin = 'round';
+  for (const g of flux.levels) {
+    bc.strokeStyle = rgba(fluxCol, g.alpha); bc.lineWidth = 0.7 + g.alpha * 1.1;
+    bc.beginPath();
+    for (let s = 0; s < g.segs.length; s += 4) { bc.moveTo(g.segs[s], g.segs[s + 1]); bc.lineTo(g.segs[s + 2], g.segs[s + 3]); }
+    bc.stroke();
+  }
+  // DOORS ARE APERTURES in the shield — the one place flux passes. Draw a bright focus at each door
+  // cell in this chunk: a small radial burst + a glowing node, the field concentrating through the gap.
+  const dbase = b.p.walk.base[chunkId];
+  const apert = mix(hue, INK, 0.5);
+  for (const d of b.p.doors) {
+    if (d.node < dbase || d.node >= dbase + rec.cells.length) continue;
+    const c = rec.cells[d.cell]; if (!c) continue;
+    bc.strokeStyle = rgba(apert, 0.85); bc.lineWidth = 1.1;
+    for (let a = 0; a < 6; a++) { const ang = a / 6 * Math.PI * 2; bc.beginPath(); bc.moveTo(c.x + Math.cos(ang) * 3.5, c.y + Math.sin(ang) * 3.5); bc.lineTo(c.x + Math.cos(ang) * 8.5, c.y + Math.sin(ang) * 8.5); bc.stroke(); }
+    const gr = bc.createRadialGradient(c.x, c.y, 0, c.x, c.y, 9); gr.addColorStop(0, rgba(apert, 0.7)); gr.addColorStop(1, rgba(apert, 0));
+    bc.fillStyle = gr; bc.beginPath(); bc.arc(c.x, c.y, 9, 0, 7); bc.fill();
   }
   const scene = { paintCells: paint.paintCells, wallSpacing: paint.wallSpacing, roomSpacing: paint.roomSpacing };
   for (const F of paint.fixtures) drawWallFixture(bc, scene, F, { accent: F.accent, hue: F.hue, litAt: () => 0.9 });
@@ -375,7 +399,7 @@ function updateHUD() {
   $('now').innerHTML = room ? (room.nexus
     ? `<span class="role">◈ the nexus</span><div class="sub">the works floor's heart — player progression (coming online)</div>`
     : `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.people && room.people.length ? room.people.length + ' resident(s)' : 'a work room'}</div>`)
-    : `<span class="role">the concourse</span><div class="sub">${dv ? `the <b style="color:${rgba(floorHue(world, state.key, TEAL), 1)}">${dv}</b> current — whorls run hub → rim` : state.key[0] === 'P' || state.key === 'CP' ? 'the make-current underfoot — whorls in the engine\'s own hue' : 'stations ahead — each door is another thread'}</div>`;
+    : `<span class="role">the concourse</span><div class="sub">${dv ? `the <b style="color:${rgba(floorHue(world, state.key, TEAL), 1)}">${dv}</b> flux — field runs hub → rim, bending round the shielded chambers` : state.key[0] === 'P' || state.key === 'CP' ? 'the make-flux underfoot — field lines in the engine\'s own hue' : 'stations ahead — each door is an aperture to another thread'}</div>`;
   const seen = p.doors.filter((d) => cur.vis && d.node < cur.vis.length && cur.vis[d.node] > 0.2);
   $('doors').innerHTML = seen.length
     ? seen.map((d) => { const s = d.station, k = d.other || d.toKey; return `<div class="door" data-n="${d.node}"><span class="sw" style="background:${rgba(threadColor(k), 1)}"></span><span class="lab">${world.label(k)}</span><span class="rf">${s ? '⬡' + (s.district + 1) + (s.over ? ' · over' : ' · under') : 'hub'}</span></div>`; }).join('')
