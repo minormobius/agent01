@@ -27,9 +27,11 @@ const RR = W.pocket('RR'); RR.ensureAll();
 // ── each ring crosses all 12 threads THROUGH AN ANTECHAMBER (never a direct floor-to-floor door) ──
 for (const [name, ring] of [['assembly/RA', RA], ['reclaim/RR', RR]]) {
   const ante = ring.doors.filter((d) => isAnte(d.toKey));
-  ok(ante.length >= 12 && ante.every((d) => isAnte(d.toKey)), `${name}: every thread crossing goes through an antechamber (no ladder)`);
-  ok(new Set(ante.map((d) => d.other)).size === 12, `${name}: touches all 12 distinct threads (via antechambers)`);
-  ok(RING_ORDER.every((k) => ante.some((d) => d.other === k)), `${name}: reaches every W0..W5 and P0..P5`);
+  ok(ante.length === 6, `${name}: 6 BEEFY antechambers — one per adjacent pair, merged (not 12 thin ones)`);
+  ok(ante.every((d) => isAnte(d.toKey) && d.threads.length === 2), `${name}: each antechamber junctions the ring + TWO threads`);
+  const threads = ante.flatMap((d) => d.threads);
+  ok(new Set(threads).size === 12, `${name}: still touches all 12 threads (2 per beefy antechamber)`);
+  ok(RING_ORDER.every((k) => threads.includes(k)), `${name}: reaches every W0..W5 and P0..P5`);
   ok(!ring.doors.some((d) => /^[WP]\d$/.test(d.toKey)), `${name}: NO ring opens directly onto a thread — the no-ladder rule`);
 }
 ok(RA.doors.some((d) => d.toKey === 'NX'), 'the assembly ring is bonded to the fulfillment nexus');
@@ -60,26 +62,31 @@ for (const key of ['W0', 'P3']) {
   ok(!keys.includes('CW') && !keys.includes('CP'), `${key} no longer opens onto a commons`);
 }
 
-// ── THE ANTECHAMBER is a single zero-grade chamber both the ring and the thread walk through ──
+// ── THE BEEFY ANTECHAMBER — a single zero-grade chamber junctioning the ring + TWO threads ──
 {
-  const ante = W.pocket(anteKey('RA', 'W2')); ante.ensureAll();
+  const ante = W.pocket(anteKey('RA', 'W2')); ante.ensureAll();   // 'ZA:W2+P2'
   ok(ante.ante === true && ante.segs.length === 1, 'the antechamber is a single chamber (one segment)');
   ok(ante.spine === null, 'the antechamber has NO spine → no grade → a ZERO-GRADE crossing (no ladder)');
   const dk = ante.doors.map((d) => d.toKey);
-  ok(dk.includes('RA') && dk.includes('W2'), 'the antechamber opens onto BOTH the ring and the thread — a walk-through');
-  ok(ante.doors.length === 2, 'exactly two doors — ring in, thread out');
+  ok(dk.includes('RA') && dk.includes('W2') && dk.includes('P2'), 'the BEEFY antechamber junctions the ring + BOTH threads (W2 & P2)');
+  ok(ante.doors.length === 3, 'exactly three doors — the ring + its two threads (a Y junction)');
+  ok(ante.W > W.pocket('X0:0').W, 'the beefy antechamber is bigger than a plain 2-door interface');
 }
 
-// ── reciprocity round-trips THROUGH the antechamber (thread → antechamber → ring) ──
+// ── reciprocity round-trips THROUGH the beefy antechamber (thread → antechamber → ring, and thread↔thread) ──
 {
-  const w2 = W.pocket('W2'); w2.ensureAll();
+  const w2 = W.pocket('W2'); w2.ensureAll(); const p2 = W.pocket('P2'); p2.ensureAll();
   const thDoor = w2.doors.find((d) => d.toKey === anteKey('RA', 'W2'));
   const inAnte = reciprocalDoor(W, 'W2', thDoor);
-  ok(inAnte && inAnte.toKey === 'W2', 'W2 → antechamber lands at the chamber\'s door back to W2');
+  ok(inAnte && inAnte.toKey === 'W2', 'W2 → beefy antechamber lands at the door back to W2');
   const anteToRing = W.pocket(anteKey('RA', 'W2')).doors.find((d) => d.toKey === 'RA');
   const onRing = reciprocalDoor(W, anteKey('RA', 'W2'), anteToRing);
-  ok(onRing && onRing.toKey === anteKey('RA', 'W2'), 'antechamber → assembly ring lands at the ring\'s W2-crossing antechamber door');
-  // and the outer ring, from an engine
+  ok(onRing && onRing.toKey === anteKey('RA', 'W2'), 'antechamber → assembly ring lands at the ring\'s pair antechamber door');
+  // the beefy chamber also joins its two threads: W2 → antechamber → P2 (one chamber, three ways)
+  const anteToP2 = W.pocket(anteKey('RA', 'W2')).doors.find((d) => d.toKey === 'P2');
+  const onP2 = reciprocalDoor(W, anteKey('RA', 'W2'), anteToP2);
+  ok(onP2 && onP2.toKey === anteKey('RA', 'P2') && anteKey('RA', 'P2') === anteKey('RA', 'W2'), 'the beefy antechamber also joins its two threads — W2 ↔ P2 through one chamber');
+  // outer ring, from an engine
   const p1 = W.pocket('P1'); p1.ensureAll();
   const inAnteR = reciprocalDoor(W, 'P1', p1.doors.find((d) => d.toKey === anteKey('RR', 'P1')));
   ok(inAnteR && inAnteR.toKey === 'P1', 'P1 → reclaim antechamber lands at the chamber\'s door back to P1');

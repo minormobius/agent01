@@ -57,13 +57,19 @@ ok(W.antechambers.every((a) => a.z === 0), 'every proposed antechamber sits on t
   ok(kAnte.length === 36, 'one antechamber per K PAIR (36 = 6×6, deduped from spiral re-crossings)');
   ok(new Set(kAnte.map((a) => a.a + '×' + a.b)).size === 36, 'the 36 K antechambers are one per distinct white×engine pair');
 }
-ok(W.antechambers.filter((a) => a.kind === 'ring').length === 24, '24 ring-crossing antechambers (12 per ring)');
+{
+  const rAnte = W.antechambers.filter((a) => a.kind === 'ring');
+  ok(rAnte.length === 12, '12 BEEFY ring antechambers (6 per ring — adjacent crossings merged)');
+  ok(rAnte.every((a) => a.beefy && a.threads.length === 2), 'each ring antechamber junctions the ring + TWO threads');
+  ok(new Set(rAnte.flatMap((a) => a.threads)).size === 12, 'the 12 threads are covered, 2 per beefy chamber');
+}
 {
   // each antechamber lands ON its crossing point (x,y match a crossing / contact)
   const k = W.antechambers.find((a) => a.kind === 'K');
   ok(W.crossings.some((c) => Math.hypot(c.x - k.x, c.y - k.y) < 1e-9), 'a K antechamber sits exactly on its crossing');
   const rc = W.antechambers.find((a) => a.kind === 'ring');
-  ok(W.contacts.some((c) => Math.hypot(c.x - rc.x, c.y - rc.y) < 1e-9), 'a ring antechamber sits exactly on its ring contact');
+  const cs = W.contacts.filter((c) => c.ring === rc.a && rc.threads.includes(c.thread));
+  ok(cs.length === 2 && Math.abs((cs[0].x + cs[1].x) / 2 - rc.x) < 1e-9 && Math.abs((cs[0].y + cs[1].y) / 2 - rc.y) < 1e-9, 'a beefy ring antechamber sits at the midpoint of its two thread-crossings');
 }
 ok(W.nexus3d.x === 0 && W.nexus3d.y === 0 && W.nexus3d.z === 0, 'the fulfillment nexus is at the core on the midplane');
 

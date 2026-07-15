@@ -28,13 +28,18 @@ export const RADIAL_ENGINES = ['foundry', 'chemworks', 'mill', 'fab', 'weave', '
 // the 12 radial threads in ring order (interleaved white/engine around the circumference)
 export const RING_ORDER = (() => { const o = []; for (let i = 0; i < 6; i++) { o.push('W' + i); o.push('P' + i); } return o; })();
 export const isRingKey = (k) => k === 'RA' || k === 'RR' || k === 'NX';
-// an ANTECHAMBER key: 'ZA:W2' = the zero-grade chamber where the assembly ring crosses W2, 'ZR:P3' the
-// reclaim ring × P3. Every ring×thread crossing goes THROUGH one (the no-ladder rule — same as the weave's
-// X interfaces): ring ↔ antechamber ↔ thread, all at grade. Nothing crosses a floor directly.
+// a BEEFY ANTECHAMBER key: 'ZA:W0+P0' = the zero-grade chamber where the assembly ring crosses the
+// ADJACENT PAIR (W0,P0), 'ZR:W2+P2' the reclaim ring × (W2,P2). At low weave-tightness a ring crossing and
+// the neighbouring thread×thread crossing collapse together, so ONE beefier chamber junctions the ring +
+// TWO threads (3 doors) instead of three thin ones. Every crossing still goes THROUGH a chamber at grade
+// (the no-ladder rule) — nothing crosses a floor directly.
 export const isAnte = (k) => typeof k === 'string' && k[0] === 'Z';
 export const isRingRelated = (k) => isRingKey(k) || isAnte(k);
-export const anteKey = (ringKey, threadKey) => 'Z' + ringKey[1] + ':' + threadKey;   // 'RA'→'ZA:…', 'RR'→'ZR:…'
-const anteParts = (k) => { const [rp, thread] = k.slice(1).split(':'); return { ring: 'R' + rp, thread }; };
+// the 12 threads pair up by adjacency around the ring → 6 beefy antechambers per ring
+export const PAIRS = Array.from({ length: 6 }, (_, i) => [RING_ORDER[2 * i], RING_ORDER[2 * i + 1]]);
+const pairIndexOf = (threadKey) => Math.max(0, Math.floor(RING_ORDER.indexOf(threadKey) / 2));
+export const anteKey = (ringKey, threadKey) => { const p = PAIRS[pairIndexOf(threadKey)]; return 'Z' + ringKey[1] + ':' + p[0] + '+' + p[1]; };
+const anteParts = (k) => { const [rp, pair] = k.slice(1).split(':'); const threads = pair.split('+'); const pairIndex = pairIndexOf(threads[0]); return { ring: 'R' + rp, threads, pairIndex, angle: (2 * pairIndex + 1) / 12 * TAU }; };
 const slotOf = (k) => RING_ORDER.indexOf(k);
 const NEXUS_SLOT_A = 0.35 / 12 * TAU;   // the nexus door's angle on the assembly ring
 
@@ -87,12 +92,12 @@ export function buildRingPocket(world, key) {
 
 function placeRingDoors(world, pocket, g) {
   const rec = g.rec, base = pocket.walk.base[g.chunkId], used = new Set();
-  for (let t = 0; t < 12; t++) {
-    const a = (t + 0.5) / 12 * TAU; if (pocket.segAt(a) !== g.si) continue;
+  for (let i = 0; i < 6; i++) {   // ONE beefy antechamber per adjacent pair (6 per ring, not 12)
+    const a = (2 * i + 1) / 12 * TAU; if (pocket.segAt(a) !== g.si) continue;
     const px = pocket.cx + Math.cos(a) * pocket.rad, py = pocket.cy + Math.sin(a) * pocket.rad;
     const cell = nearestRoad(rec, px, py, used); if (cell < 0) continue; used.add(cell);
-    const th = RING_ORDER[t], toKey = anteKey(pocket.key, th);   // the ring opens onto the crossing ANTECHAMBER, not the thread
-    const d = { cell, seg: g.si, node: base + cell, toKey, other: th, station: null, label: th, ringSlot: t, over: t % 2 === 0 };
+    const toKey = 'Z' + pocket.key[1] + ':' + PAIRS[i][0] + '+' + PAIRS[i][1];   // the ring opens onto the pair's antechamber
+    const d = { cell, seg: g.si, node: base + cell, toKey, other: toKey, threads: PAIRS[i], station: null, label: PAIRS[i].join('·'), pairIndex: i, over: i % 2 === 0 };
     pocket.doors.push(d); pocket.doorAt.set(d.node, d);
   }
   if (pocket.isAssembly && pocket.segAt(NEXUS_SLOT_A) === g.si) {   // assembly ring → the fulfillment nexus
@@ -127,18 +132,19 @@ export function buildNexusPocket(world) {
 // thread open onto and walk THROUGH. This is what keeps the crossing LADDER-FREE (at grade), exactly as
 // the weave's X interfaces do: ring → antechamber → thread, never a direct floor-to-floor door. ──
 export function buildAntePocket(world, key) {
-  const o = world.opts, seed = threadSeed(world.seed, key), { ring, thread } = anteParts(key);
-  const W = o.bridgeW, H = o.bridgeH;
-  const pocket = { key, kind: 'ante', ante: true, ring, thread, W, H, spine: null, arches: [], doors: [], doorAt: new Map(), hubDoor: -1, world: null, walk: null, segs: [{ si: 0, solved: false, chunkId: -1, rec: null }], solvedCount: 0, segOf: () => 0 };
+  const o = world.opts, seed = threadSeed(world.seed, key), { ring, threads } = anteParts(key);
+  const W = Math.round(o.bridgeW * 1.5), H = Math.round(o.bridgeH * 1.35);   // BEEFIER — it junctions three ways
+  const pocket = { key, kind: 'ante', ante: true, ring, threads, W, H, spine: null, arches: [], doors: [], doorAt: new Map(), hubDoor: -1, world: null, walk: null, segs: [{ si: 0, solved: false, chunkId: -1, rec: null }], solvedCount: 0, segOf: () => 0 };
   pocket.ensureSeg = () => {
     const g = pocket.segs[0]; if (g.solved) return g;
-    const rec = solveChunk({ seed, foamSeed: seed, v2: true, shape: 'hex', W, H, cellSize: o.cellSize, roomSize: 11, concourseWidth: 2 });
+    const rec = solveChunk({ seed, foamSeed: seed, v2: true, shape: 'hex', W, H, cellSize: o.cellSize, roomSize: 12, concourseWidth: 2 });
     attach(pocket, g, rec);
     const base = pocket.walk.base[g.chunkId], used = new Set();
-    const dR = nearestRoad(rec, W * 0.5, H * 0.22, used);   // one door to the RING, one to the THREAD — a walk-through
-    if (dR >= 0) { used.add(dR); const d = { cell: dR, seg: 0, node: base + dR, toKey: ring, other: ring, station: null, label: ring }; pocket.doors.push(d); pocket.doorAt.set(d.node, d); }
-    const dT = nearestRoad(rec, W * 0.5, H * 0.78, used);
-    if (dT >= 0) { used.add(dT); const d = { cell: dT, seg: 0, node: base + dT, toKey: thread, other: thread, station: null, label: thread }; pocket.doors.push(d); pocket.doorAt.set(d.node, d); }
+    // THREE doors around the chamber — the ring at top, the two threads lower-left / lower-right (a Y junction)
+    const place = (fx, fy, toKey, label) => { const c = nearestRoad(rec, W * fx, H * fy, used); if (c < 0) return; used.add(c); const d = { cell: c, seg: 0, node: base + c, toKey, other: toKey, station: null, label: label || toKey }; pocket.doors.push(d); pocket.doorAt.set(d.node, d); };
+    place(0.5, 0.2, ring, ring);
+    place(0.24, 0.8, threads[0]);
+    place(0.76, 0.8, threads[1]);
     return g;
   };
   pocket.ensureAll = () => pocket.ensureSeg(0);
@@ -153,10 +159,10 @@ export function ringReciprocal(world, fromKey, door) {
   if (fromKey === 'NX') { const ring = world.pocket('RA'); ring.ensureSeg(ring.segAt(NEXUS_SLOT_A)); return ring.doors.find((d) => d.toKey === 'NX') || ring.doors[0] || null; }
   // stepping INTO an antechamber (from the thread OR the ring): land at the chamber's door back to you
   if (isAnte(to)) { const ante = world.pocket(to); ante.ensureSeg(0); return ante.doors.find((d) => d.toKey === fromKey) || ante.doors[0] || null; }
-  // stepping OUT of an antechamber: `to` is the ring ('RA'/'RR') or the thread it bridges
+  // stepping OUT of a beefy antechamber: `to` is the ring ('RA'/'RR') or one of its TWO threads
   if (isAnte(fromKey)) {
-    const { ring } = anteParts(fromKey), thread = fromKey.split(':')[1];
-    if (to === ring) { const rp = world.pocket(ring), slot = slotOf(thread), a = (slot + 0.5) / 12 * TAU; rp.ensureSeg(slot >= 0 ? rp.segAt(a) : 0); return rp.doors.find((d) => d.toKey === fromKey) || rp.doors[0] || null; }
+    const { ring, angle } = anteParts(fromKey);
+    if (to === ring) { const rp = world.pocket(ring); rp.ensureSeg(rp.segAt(angle)); return rp.doors.find((d) => d.toKey === fromKey) || rp.doors[0] || null; }
     const th = world.pocket(to); if (ring === 'RA') th.ensureSeg(0); else th.ensureSeg(th.segs.length - 1); return th.doors.find((d) => d.toKey === fromKey) || th.doors[0] || null;
   }
   return null;

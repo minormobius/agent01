@@ -172,9 +172,17 @@ export function buildRingWeave3D(opts = {}) {
   const kByPair = new Map();
   for (const c of w.crossings) { const key = c.white + '×' + c.prod; const cur = kByPair.get(key); if (!cur || c.rf < cur.rf) kByPair.set(key, c); }
   for (const c of kByPair.values()) antechambers.push({ kind: 'K', a: c.white, b: c.prod, x: c.x, y: c.y, z: 0, over: whiteOver(c.white, c.prod) ? c.white : c.prod });
-  for (const rk of ['inner', 'outer']) for (const c of w.contacts.filter((c) => c.ringKey === rk)) antechambers.push({ kind: 'ring', a: w.rings[rk].id, b: c.thread, x: c.x, y: c.y, z: 0, ringKey: rk });
-
-  return { ...w, amp: A, threads3d, rings3d, antechambers, nexus3d: { ...w.nexus, z: 0 }, counts3d: { antechambers: antechambers.length, kAnte: kByPair.size, ringAnte: 24 } };
+  // BEEFY ring antechambers: pair adjacent ring-crossings (by angle) into one 3-way junction (ring + 2 threads)
+  let ringAnte = 0;
+  for (const rk of ['inner', 'outer']) {
+    const cs = w.contacts.filter((c) => c.ringKey === rk).map((c) => ({ ...c, ang: (Math.atan2(c.y, c.x) + TAU) % TAU })).sort((a, b) => a.ang - b.ang);
+    for (let i = 0; i < cs.length; i += 2) {
+      const a = cs[i], b = cs[i + 1] || cs[i];
+      antechambers.push({ kind: 'ring', a: w.rings[rk].id, b: a.thread + (b !== a ? '+' + b.thread : ''), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: 0, ringKey: rk, beefy: b !== a, threads: b !== a ? [a.thread, b.thread] : [a.thread] });
+      ringAnte++;
+    }
+  }
+  return { ...w, amp: A, threads3d, rings3d, antechambers, nexus3d: { ...w.nexus, z: 0 }, counts3d: { antechambers: antechambers.length, kAnte: kByPair.size, ringAnte } };
 }
 
 if (typeof globalThis !== 'undefined') globalThis.RindRingWeave = { buildRingWeave, buildRingWeave3D, ABOVE, BELOW, RING_ENGINES, NEXUS };
