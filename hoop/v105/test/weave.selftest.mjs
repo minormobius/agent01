@@ -83,10 +83,13 @@ const wSetters = gateSetters(woven), wMulti = gateSettersMulti(woven);
   const chargeChoice = t0.choices.find((c) => /q_charge_/.test(c.id));
   ok(!!chargeChoice, 'engine: the charge choice renders on the start node');
   const t1 = choose(store, 'p', e.keeperId, chargeChoice.id);
+  // THE HAVEL-BUG RULE: the gate sets the moment the keeper ANSWERS (the ask choice) — a player who
+  // reads the answer and closes the panel without the goodbye has still fulfilled the quest.
+  ok(store.getFact('p', e.gate) === true, 'engine: the ASK itself sets the gate flag (no goodbye required)');
   const doneChoice = (t1.choices || []).find((c) => /q_charge_.*_done/.test(c.id));
   ok(!!doneChoice, 'engine: the charge node offers its close');
-  choose(store, 'p', e.keeperId, doneChoice.id);
-  ok(store.getFact('p', e.gate) === true, 'engine: taking the charge sets the gate flag');
+  const t2 = choose(store, 'p', e.keeperId, doneChoice.id);
+  ok(t2.ended === true, 'engine: the close ends the conversation cleanly');
 }
 
 // ── the sweep: the woven pool proves progressable for many seeds (mystery on) ──

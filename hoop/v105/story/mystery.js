@@ -323,25 +323,27 @@ export function weaveMystery(content, m) {
     const body = cgClues.find((c) => c.kind === 'body'), rumor = cgClues.find((c) => c.kind === 'rumor'), means = cgClues.find((c) => c.kind === 'means');
     const extra = held(m.caseGiver.id).filter((c) => !['body', 'rumor', 'means'].includes(c.kind));
     const extraText = extra.length ? ' ' + extra.map((c) => c.text).join(' ') : '';
+    // every clue fact sets on the choice that REVEALS it (entering the node that speaks it), never on a
+    // closing pleasantry — a player who reads and walks away has still heard it (the Havel-bug rule).
     let woven = spliceChoice(cg, {
-      choice: { id: 'q_case_open', goto: 'q_case_intro', text: 'Before I carry your word to Solen — the ward is speaking of a death.', requires: { facts: { [m.caseGiver.gate]: true } } },
+      choice: { id: 'q_case_open', goto: 'q_case_intro', text: '☠ Before I carry your word to Solen — the ward is speaking of a death.', requires: { facts: { [m.caseGiver.gate]: true } }, effects: { set_facts: { 'case.opened': true, ...(body ? { ['case.clue.' + body.id]: true } : {}) } } },
       nodes: {
         q_case_intro: {
           says: (body ? body.text : `${m.victim.name} is dead.`) + ' The Factor will not close the wards ledger while this stands open. Look around; the keepers know more than they volunteer.',
-          choices: [{ id: 'q_case_intro_who', goto: 'q_case_board', text: 'Who wanted this?', effects: { set_facts: { 'case.opened': true, ...(body ? { ['case.clue.' + body.id]: true } : {}) } } }],
+          choices: [{ id: 'q_case_intro_who', goto: 'q_case_board', text: 'Who wanted this?', effects: { set_facts: rumor ? { ['case.clue.' + rumor.id]: true } : {} } }],
         },
         q_case_board: {
           says: (rumor ? rumor.text : 'The benches disagree loudly.') + ' The board, as the ward draws it: ' + m.suspects.map((s) => `${s.name} (${s.room}) — ${s.motive.tag.toLowerCase()}`).join('; ') + '.',
-          choices: [{ id: 'q_case_board_how', goto: 'q_case_means', text: 'What killed them?', effects: { set_facts: rumor ? { ['case.clue.' + rumor.id]: true } : {} } }],
+          choices: [{ id: 'q_case_board_how', goto: 'q_case_means', text: 'What killed them?', effects: { set_facts: means ? { ['case.clue.' + means.id]: true, ...clueFacts(extra) } : clueFacts(extra) } }],
         },
         q_case_means: {
           says: (means ? means.text : 'The coroner keeps their finding close.') + extraText + ' When you can name the killer — and be sure — bring the name to me.',
-          choices: [{ id: 'q_case_means_go', text: 'I will ask around.', effects: { end: true, set_facts: means ? { ['case.clue.' + means.id]: true, ...clueFacts(extra) } : clueFacts(extra) } }],
+          choices: [{ id: 'q_case_means_go', text: 'I will ask around.', effects: { end: true } }],
         },
       },
     });
     woven = spliceChoice(woven, {
-      choice: { id: 'q_case_name', goto: 'q_case_accuse', text: 'I am ready to name the killer.', requires: { facts: { 'case.opened': true } } },
+      choice: { id: 'q_case_name', goto: 'q_case_accuse', text: '☠ I am ready to name the killer.', requires: { facts: { 'case.opened': true } } },
       nodes: {
         q_case_accuse: {
           says: 'Name them, then — and be sure. The ward does not ask twice kindly.',
@@ -372,19 +374,19 @@ export function weaveMystery(content, m) {
     const alibi = mine.find((x) => x.kind === 'alibi');
     const rest = mine.filter((x) => x !== alibi);
     const nid = 'q_case_w_' + i;
-    const facts = clueFacts(mine);
     const closing = rest.length
       ? [{ id: nid + '_more', goto: nid + '_more', text: 'What else did you see?' }]
-      : [{ id: nid + '_done', text: 'That is all I needed.', effects: { end: true, set_facts: facts } }];
+      : [{ id: nid + '_done', text: 'That is all I needed.', effects: { end: true } }];
     const nodes = {
       [nid]: { says: (alibi ? alibi.text : `${s.name} has nothing to add, and says so twice.`), choices: closing },
     };
     if (rest.length) nodes[nid + '_more'] = {
       says: rest.map((x) => x.text).join(' '),
-      choices: [{ id: nid + '_done', text: 'That is all I needed.', effects: { end: true, set_facts: facts } }],
+      choices: [{ id: nid + '_done', text: 'That is all I needed.', effects: { end: true } }],
     };
+    // their clue facts set on the ASK (hearing the account IS the canvass) — never on the goodbye.
     byId.set(s.id, spliceChoice(c, {
-      choice: { id: nid + '_ask', goto: nid, text: `Ask about the death of ${m.victim.name}.`, requires: { facts: { 'case.opened': true } } },
+      choice: { id: nid + '_ask', goto: nid, text: `☠ Ask about the death of ${m.victim.name}.`, requires: { facts: { 'case.opened': true } }, effects: { set_facts: clueFacts(mine) } },
       nodes,
     }));
   });

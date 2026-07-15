@@ -281,9 +281,12 @@ export function weaveCast(content, cast, worldSeed) {
     const keeper = byId.get(e.keeperId); if (!keeper) continue;
     const prose = chargeProse(e, worldSeed);
     const nid = 'q_charge_' + e.gate.replace(/[^a-z0-9]+/gi, '_');
+    // the gate sets on the ASK — the moment the keeper gives their answer, the piece is heard. It used
+    // to sit on the closing pleasantry, so a player who read the answer and hit Esc/⏎/close (the natural
+    // exit) never fired it and the waypoint stayed stuck (the Havel bug). The ✒ marks the quest choice.
     byId.set(e.keeperId, spliceChoice(keeper, {
-      choice: { id: nid + '_ask', goto: nid, text: prose.ask },
-      nodes: { [nid]: { says: prose.says, choices: [{ id: nid + '_done', text: prose.close, effects: { end: true, set_facts: { [e.gate]: true } } }] } },
+      choice: { id: nid + '_ask', goto: nid, text: '✒ ' + prose.ask, effects: { set_facts: { [e.gate]: true } } },
+      nodes: { [nid]: { says: prose.says, choices: [{ id: nid + '_done', text: prose.close, effects: { end: true } }] } },
     }));
     if (e.authoredId && e.authoredId !== e.keeperId) {
       const auth = byId.get(e.authoredId);

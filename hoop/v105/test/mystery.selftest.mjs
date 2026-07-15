@@ -60,12 +60,14 @@ ok(proveProgression(woven, { forcePlaced: true }).solvable, 'the WOVEN pool (cas
   store.setFact(P, m.caseGiver.gate, true);
   const t0 = talk(store, P, m.caseGiver.id);
   ok(t0.choices.some((c) => c.id === 'q_case_open'), 'the case opens once the charge is done');
-  // walk the three-beat briefing
+  // walk the three-beat briefing — every fact sets on the choice that REVEALS it (the Havel-bug rule),
+  // so opening the case already counts, and abandoning the panel mid-briefing loses nothing heard.
   let t = choose(store, P, m.caseGiver.id, 'q_case_open');
-  ok(store.getFact(P, 'case.opened') !== true, 'facts land on the CHOICES, not the open');
-  t = choose(store, P, m.caseGiver.id, t.choices[0].id);   // who wanted this? (sets case.opened + body clue)
-  ok(store.getFact(P, 'case.opened') === true, 'the briefing opens the case');
-  t = choose(store, P, m.caseGiver.id, t.choices[0].id);   // what killed them?
+  ok(store.getFact(P, 'case.opened') === true, 'opening the case counts immediately (fact on the ask)');
+  t = choose(store, P, m.caseGiver.id, t.choices[0].id);   // who wanted this? (reveals the board → rumor clue)
+  t = choose(store, P, m.caseGiver.id, t.choices[0].id);   // what killed them? (reveals the finding → means clue)
+  const progMid = mysteryProgress(m, store.getFacts(P));
+  ok(progMid.found >= 3, `the briefing's clues are heard by the reveal, before any goodbye (${progMid.found}/${progMid.total})`);
   t = choose(store, P, m.caseGiver.id, t.choices[0].id);   // I will ask around. (ends)
   const prog0 = mysteryProgress(m, store.getFacts(P));
   ok(prog0.opened && prog0.found >= 3, `the briefing hands over the first clues (${prog0.found}/${prog0.total})`);
@@ -76,8 +78,8 @@ ok(proveProgression(woven, { forcePlaced: true }).solvable, 'the WOVEN pool (cas
   const ask = ts.choices.find((c) => /q_case_w_\d+_ask/.test(c.id));
   ok(!!ask, 'a suspect offers their account once the case is open');
   let tw = choose(store, P, s0.id, ask.id);
+  ok(mysteryProgress(m, store.getFacts(P)).found > prog0.found, 'ASKING a suspect yields their clues at once (walking away loses nothing)');
   while ((tw.choices || []).length && !tw.ended) tw = choose(store, P, s0.id, tw.choices[0].id);
-  ok(mysteryProgress(m, store.getFacts(P)).found > prog0.found, 'canvassing a suspect yields their clues');
   // accuse wrong, then right
   let ta = choose(store, P, m.caseGiver.id, 'q_case_name');
   const wrongIdx = m.suspects.findIndex((s) => s.id !== m.truth.culpritId);

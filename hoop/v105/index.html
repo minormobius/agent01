@@ -5221,9 +5221,37 @@
         const npc = story.store.contentById(id); if (npc) flagKeeperResident(npc, d.ch, d.deck || 0);
       }
     }
+    // v105 ACTIONS FULFILL QUESTS (the stuck-on-Havel fix): MEETING a gate's keeper IS hearing them.
+    // The moment you open a satisfier of the ACTIVE tier's unmet gate(s), the gate sets — finding them was
+    // the quest (exploration is the forcing function); the spliced charge dialogue stays as the flavor of
+    // what they tell you (its own set_facts is now a harmless duplicate). Excluded: the MYSTERY gate (the
+    // case closes only on a real accusation) and anchor-briefing gates (the anchor's own choice is the beat).
+    function meetKeeperGates(contentId, whoName) {
+      try {
+        if (!story.ready || !story.anchors || !story.anchors.length || !contentId) return;
+        if (story.anchors.some((a) => a.id === contentId)) return;   // anchors brief — they never auto-set
+        const tier = story.store.getPlayerState(story.playerId).narrative_tier || 1;
+        const st = advanceState(story.anchors, story.store.getFacts(story.playerId), tier);
+        if (!st || st.allGatesSet) return;
+        let heard = false;
+        for (const g of st.unmetGates) {
+          if (story.mystery && g === story.mystery.gate) continue;
+          const raw = (story.gateSettersMulti || story.gateSetters || {})[g];
+          const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+          if (!list.some((x) => x && x.contentId === contentId)) continue;
+          story.store.setFact(story.playerId, g, true); heard = true;
+        }
+        if (heard) {
+          const after = advanceState(story.anchors, story.store.getFacts(story.playerId), tier);
+          const done = after ? after.gatesSet : 0, total = after ? after.gatesTotal : 0, a = after && after.anchor;
+          notify(`✒ ${whoName || 'the keeper'} gives you their piece — ${done}/${total} heard${after && after.allGatesSet && a ? ` — return to ${a.name}` : ''}`, { kind: 'quest', ms: 4600 });
+        }
+      } catch (e) {}
+    }
     function openKeeper(r) {
       if (!story.ready || !r.keeper) return;
       const s = story.store, key = 'keeper:' + r.keeper.content_id;
+      meetKeeperGates(r.keeper.content_id, r.keeper.name);   // hearing the keeper fulfills their gate (before talk renders, so gated case/turn-in choices appear immediately)
       if (!s.featureByKey(key)) s.addFeature({ key, type: 'npc', label: r.keeper.name, content_id: r.keeper.content_id });
       const intro = interact(s, story.playerId, key);
       maybeEncounter(intro);
@@ -5669,6 +5697,7 @@
     function openAnchor(a) {
       if (!story.ready) return;
       const s = story.store;
+      meetKeeperGates(a.content_id, a.name);   // a PINNED figure (side-thread promotion) can be a gate satisfier too — meeting them counts; true load-bearing anchors are excluded inside
       if (!s.featureByKey(a.key)) s.addFeature({ key: a.key, type: 'npc', label: a.name, content_id: a.content_id });
       const intro = interact(s, story.playerId, a.key);
       maybeEncounter(intro);   // first meeting → its description fills the screen
