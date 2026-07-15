@@ -44,7 +44,7 @@ const view = { cx: 0, cy: 0, scale: 1 };
 let zoom = 1.15, DROID = null;
 const SIGHT_HOPS = 20;   // restrictive — a room's worth of sight; the doors do the revealing
 
-const threadColor = (key) => key[0] === 'X' ? [222, 184, 116] : key === 'CW' ? TEAL : key === 'CP' ? [200, 150, 90] : key[0] === 'W' ? mix(hex(world.warps[+key.slice(1)].color), INK, 0.3) : hex(world.wefts[+key.slice(1)].color);
+const threadColor = (key) => key === 'RA' ? hex('#d9b24a') : key === 'RR' ? hex('#cf6b4a') : key === 'NX' ? hex('#cbd3e0') : key[0] === 'X' ? [222, 184, 116] : key === 'CW' ? TEAL : key === 'CP' ? [200, 150, 90] : key[0] === 'W' ? mix(hex(world.warps[+key.slice(1)].color), INK, 0.3) : hex(world.wefts[+key.slice(1)].color);
 // each commodity wears its PRODUCER's colour (metal = foundry orange, coolant = fluid blue …)
 const COMMODITY_COLOR = (() => {
   const m = { waste: '#8a8f98' };
@@ -439,16 +439,19 @@ function updateHUD() {
   const warp = state.key[0] === 'W' && state.key !== 'CW' ? world.warps[+state.key.slice(1)] : null;
   const dv = dominantVerb(world, state.key);
   const eng = state.key[0] === 'P' ? world.wefts[+state.key.slice(1)] : null;
-  $('okind').textContent = state.key[0] === 'X' ? 'the INTERFACE — one chamber, shared by both threads'
+  $('okind').textContent = state.key === 'RR' ? 'the RECLAIM ring — the outer loop · the decomposer · touches all 12 threads'
+    : state.key === 'RA' ? 'the ASSEMBLY ring — the inner loop · the converger · touches all 12 · bonded to the nexus'
+    : state.key === 'NX' ? 'the FULFILLMENT nexus — the core · product rides the lift up'
+    : state.key[0] === 'X' ? 'the INTERFACE — one chamber, shared by both threads'
     : state.key === 'CW' ? 'the commons — six white threads attach here' : state.key === 'CP' ? 'the works floor — eight engines attach here'
-    : warp && warp.ward ? `${warp.factionLabel} · ward of ${warp.ward.exclusive} (${warp.ward.level}) — the twin thread lies dead opposite` : state.key[0] === 'W' ? 'white-collar ops · a pocket floor (walk it hub → rim)'
+    : warp && warp.ward ? `${warp.factionLabel} · ward of ${warp.ward.exclusive} (${warp.ward.level}) — the twin thread lies dead opposite` : state.key[0] === 'W' ? 'white-collar ops · a pocket floor (inner=assembly ring, outer=reclaim ring)'
     : eng ? `production · a ${eng.family} hall · ${(eng.intake || []).join(' + ')} → ${(eng.output || []).join(' + ')}` : 'production · an engine floor (droids haul the chain)';
   $('now').innerHTML = room ? (room.nexus
     ? `<span class="role">◈ the nexus</span><div class="sub">the works floor's heart — player progression (coming online)</div>`
     : room.machine
       ? `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.machine.core ? 'the keystone machine' : 'a machine bay'} · production line ${room.machine.line + 1}</div>`
       : `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.people && room.people.length ? room.people.length + ' resident(s)' : 'a work room'}</div>`)
-    : `<span class="role">the concourse</span><div class="sub">${dv ? `the <b style="color:${rgba(floorHue(world, state.key, TEAL), 1)}">${dv}</b> flux — field runs hub → rim, bending round the shielded chambers` : eng ? `${eng.label} · the process flows the conveyors bay → bay; flux bends round the machines` : state.key === 'CP' ? 'the works floor — the eight engines attach here' : 'stations ahead — each door is an aperture to another thread'}</div>`;
+    : `<span class="role">the concourse</span><div class="sub">${state.key === 'RA' || state.key === 'RR' ? `a <b style="color:${rgba(floorHue(world, state.key, TEAL), 1)}">ring loop</b> — walk it round and you return; 12 doors, one per thread${state.key === 'RA' ? ', plus the nexus' : ''}` : state.key === 'NX' ? 'the lift core — the assembly ring is one door out' : dv ? `the <b style="color:${rgba(floorHue(world, state.key, TEAL), 1)}">${dv}</b> flux — field runs hub → rim, bending round the shielded chambers` : eng ? `${eng.label} · the process flows the conveyors bay → bay; flux bends round the machines` : 'stations ahead — each door is an aperture to another thread'}</div>`;
   const seen = p.doors.filter((d) => cur.vis && d.node < cur.vis.length && cur.vis[d.node] > 0.2);
   $('doors').innerHTML = seen.length
     ? seen.map((d) => { const s = d.station, k = d.other || d.toKey; return `<div class="door" data-n="${d.node}"><span class="sw" style="background:${rgba(threadColor(k), 1)}"></span><span class="lab">${world.label(k)}</span><span class="rf">${s ? '⬡' + (s.district + 1) + (s.over ? ' · over' : ' · under') : 'hub'}</span></div>`; }).join('')
@@ -481,12 +484,22 @@ function mmBake() {
   const S = mmScale();
   c2.strokeStyle = 'rgba(127,216,208,0.3)'; c2.lineWidth = 1;
   c2.beginPath(); c2.arc(MMS / 2, MMS / 2, world.lines.flatR * world.geo.R * S, 0, 7); c2.stroke();
-  for (let i = 0; i < 6; i++) mmLine(c2, 'W', i, S, rgba(threadColor('W' + i), 0.38), 1);
-  for (let j = 0; j < 8; j++) mmLine(c2, 'P', j, S, rgba(threadColor('P' + j), 0.38), 1);
+  for (let i = 0; i < world.geo.NW; i++) mmLine(c2, 'W', i, S, rgba(threadColor('W' + i), 0.38), 1);
+  for (let j = 0; j < world.geo.NF; j++) mmLine(c2, 'P', j, S, rgba(threadColor('P' + j), 0.38), 1);
+  if (world.ringMode) {   // the two ring loops + the nexus at the core
+    for (const [k, rf] of [['RR', RING_RF.RR], ['RA', RING_RF.RA]]) { c2.strokeStyle = rgba(threadColor(k), 0.55); c2.lineWidth = k === 'RR' ? 2 : 1.8; c2.beginPath(); c2.arc(MMS / 2, MMS / 2, rf * world.geo.R * S, 0, 7); c2.stroke(); }
+    c2.fillStyle = rgba(threadColor('NX'), 0.9); c2.beginPath(); c2.arc(MMS / 2, MMS / 2, 3, 0, 7); c2.fill();
+  }
 }
+const RING_RF = { RA: 0.30, RR: 0.95 };
 function mmPos() {   // the player's ANALYTIC [x,y]
   const k = state.key;
-  if (k === 'CW' || k === 'CP') return [0, 0];
+  if (k === 'CW' || k === 'CP' || k === 'NX') return [0, 0];
+  if (k === 'RA' || k === 'RR') {   // your angle around the ring → the analytic ring circle
+    const w = cur.p.walk, px = w.pos[2 * state.node], py = w.pos[2 * state.node + 1];
+    const ang = Math.atan2(py - cur.p.cy, px - cur.p.cx), rad = RING_RF[k] * world.geo.R;
+    return [Math.cos(ang) * rad, Math.sin(ang) * rad];
+  }
   if (k[0] === 'X') {
     const [w0, f0] = k.slice(1).split(':').map(Number);
     const st = world.stations.find((s) => s.w === w0 && s.f === f0);
@@ -514,6 +527,7 @@ function drawMinimap() {
     mmLine(mctx, 'W', wi, S, rgba(threadColor(k), 0.95), 2);
   }
   else if (k[0] === 'P' && k !== 'CP') mmLine(mctx, 'P', +k.slice(1), S, rgba(threadColor(k), 0.95), 2);
+  else if (k === 'RA' || k === 'RR') { mctx.strokeStyle = rgba(threadColor(k), 0.95); mctx.lineWidth = 2.4; mctx.beginPath(); mctx.arc(MMS / 2, MMS / 2, RING_RF[k] * world.geo.R * S, 0, 7); mctx.stroke(); }
   else if (k[0] === 'X') {
     const [w0, f0] = k.slice(1).split(':').map(Number);
     mmLine(mctx, 'W', w0, S, rgba(threadColor('W' + w0), 0.85), 1.6);
@@ -613,9 +627,11 @@ function loop() {
 // ── boot ──
 const params = new URLSearchParams(location.search);
 const seed = (params.get('seed') | 0) >>> 0 || 7;
-const at = /^(CW|CP|W[0-5]|P[0-7])$/.test(params.get('at') || '') ? params.get('at') : 'CW';
+// RING TOPOLOGY: 6 ops above × 6 engines below, joined by two ring loops (RA assembly · RR reclaim) and
+// the fulfillment nexus (NX) at the core — the econ ring hypothesis, walked. Land on the assembly ring.
+const at = /^(RA|RR|NX|W[0-5]|P[0-5])$/.test(params.get('at') || '') ? params.get('at') : 'RA';
 await new Promise((r) => setTimeout(r, 30));
-world = buildPocketWorld(seed);
+world = buildPocketWorld(seed, { ringMode: true });
 cur = ensure(at); state.key = at;
 ensureSegB(cur, 0);
 state.node = nearestNode(cur.p.walk, cur.p.W / 2, cur.p.H / 2);

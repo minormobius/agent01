@@ -39,6 +39,8 @@ import { solveChunk } from './v100/chunkgen.js';
 import { createWorld, addChunk, buildWalk, extendWalk } from './v100/manager.js';
 import { mulberry32 } from './v100/voronoi.js';
 import { districtCentres, SEVEN, OFFICE_DEFAULTS } from './officeweave.js';
+import { ENGINES } from './engines.js';
+import { buildRingPocket, buildNexusPocket, ringReciprocal, isRingKey, RADIAL_ENGINES } from './ringpocket.js';
 
 const TAU = Math.PI * 2;
 export const POCKET_DEFAULTS = {
@@ -50,6 +52,10 @@ export const POCKET_DEFAULTS = {
   bridgeW: 330, bridgeH: 280, wobble: 0.55,   // the interface chambers + the spine's directional noise
   segArc: 800,                         // target nave-units of band per CHUNK segment (2–5 segments per thread)
   gradeScale: 2.2,                     // SEVERE grade: the analytic over/under z, amplified — more of the band slides
+  // RING MODE (opt-in; default off ⇒ ops/pocket unchanged): the ring topology — 6 above · 6 below · two
+  // ring loops (RA=assembly inner, RR=reclaim outer) + the fulfillment nexus (NX). See ringpocket.js.
+  // NB: `ringMode` (this flag) is distinct from `rings` above, which is the hex-chunk count for buildGeometry.
+  ringMode: false, ringRadA: 470, ringRadR: 860, ringSegA: 6, ringSegR: 8,
 };
 const PROD_MIX = [['make', 26], ['store', 12], ['mend', 9], ['move', 7], ['dwell', 9], ['trade', 5], ['grow', 5], ['serve', 3], ['learn', 2]];
 
@@ -328,12 +334,19 @@ function placeThreadDoors(world, pocket, g) {
     if (hub >= 0) {
       used.add(hub); anchor = hub;
       pocket.hubDoor = base + hub;
-      const d = { cell: hub, seg: 0, node: base + hub, toKey: pocket.kind === 'white' ? 'CW' : 'CP', station: null, label: 'the commons' };
+      // RING MODE: the inner (hub) end opens onto the ASSEMBLY ring, not a commons hub.
+      const toKey = o.ringMode ? 'RA' : (pocket.kind === 'white' ? 'CW' : 'CP');
+      const d = { cell: hub, seg: 0, node: base + hub, toKey, station: null, label: o.ringMode ? 'the assembly ring' : 'the commons' };
       pocket.doors.push(d); pocket.doorAt.set(d.node, d);
     }
   } else {
     const p0 = rec.ports.find((p) => p.inherited);
     anchor = p0 && p0.cell >= 0 ? p0.cell : nearestRoad(rec, spine[g.i0].x, spine[g.i0].y, used);
+  }
+  // RING MODE: the outer (rim) end of the last segment opens onto the RECLAIM ring.
+  if (o.ringMode && g.si === pocket.segs.length - 1) {
+    const rim = nearestRoad(rec, spine[M2].x, spine[M2].y, used);
+    if (rim >= 0) { used.add(rim); const d = { cell: rim, seg: g.si, node: base + rim, toKey: 'RR', station: null, label: 'the reclaim ring' }; pocket.doors.push(d); pocket.doorAt.set(d.node, d); }
   }
   const reach = recReach(rec, anchor);
   const at = (u) => spine[Math.max(0, Math.min(M2, Math.round(u * M2)))];
@@ -363,6 +376,7 @@ function placeThreadDoors(world, pocket, g) {
 // the reciprocal door: where crossing at `door` from `fromKey` lands you in the target pocket.
 // LAZY: ensures exactly the target segment that holds the reciprocal door (one chunk, not a thread).
 export function reciprocalDoor(world, fromKey, door) {
+  if (world.ringMode && (isRingKey(fromKey) || isRingKey(door.toKey))) return ringReciprocal(world, fromKey, door);
   const target = world.pocket(door.toKey);
   if (door.toKey[0] === 'X') {   // step INTO the interface, at your own side
     target.ensureSeg(0);
@@ -381,18 +395,26 @@ export function reciprocalDoor(world, fromKey, door) {
 
 export function buildPocketWorld(seed = 7, opts = {}) {
   const o = { ...POCKET_DEFAULTS, ...opts };
+  if (o.ringMode) o.NF = 6;   // ring mode: 6 radial engines below (the two hubs become rings)
   const geo = buildGeometry(seed, { rings: o.rings, spacing: o.spacing, layers: o.layers, NW: o.NW, NF: o.NF, turnScale: o.turnScale, hexScale: o.hexScale });
   const lines = weaveLines(geo, { flatR: o.flatR });
+  if (o.ringMode) geo.wefts = RADIAL_ENGINES.map((id, f) => ({ id, f, kind: 'prod', ...ENGINES[id] }));   // the 6 radial engines (drop assembly & reclaim → rings)
   const world = {
-    seed, opts: o, geo, lines,
+    seed, opts: o, geo, lines, ringMode: !!o.ringMode,
     warps: geo.warps, wefts: geo.wefts,
     stations: solveStations(geo, lines),
     arcW: arcLUT(geo.R, geo.family.turnsW, lines.flatR),
     arcP: arcLUT(geo.R, geo.family.turnsP, lines.flatR),
     pockets: new Map(),
   };
-  world.pocket = (key) => { let p = world.pockets.get(key); if (!p) { p = buildPocket(world, key); world.pockets.set(key, p); } return p; };
-  world.label = (key) => key[0] === 'X' ? 'the interface' : key === 'CW' ? 'the ops commons' : key === 'CP' ? 'the works floor' : key[0] === 'W' ? geo.warps[+key.slice(1)].id : geo.wefts[+key.slice(1)].id;
+  world.pocket = (key) => {
+    let p = world.pockets.get(key); if (p) return p;
+    p = o.ringMode && (key === 'RA' || key === 'RR') ? buildRingPocket(world, key)
+      : o.ringMode && key === 'NX' ? buildNexusPocket(world) : buildPocket(world, key);
+    world.pockets.set(key, p); return p;
+  };
+  world.label = (key) => key === 'RA' ? 'the assembly ring' : key === 'RR' ? 'the reclaim ring' : key === 'NX' ? 'the fulfillment nexus'
+    : key[0] === 'X' ? 'the interface' : key === 'CW' ? 'the ops commons' : key === 'CP' ? 'the works floor' : key[0] === 'W' ? geo.warps[+key.slice(1)].id : geo.wefts[+key.slice(1)].id;
   return world;
 }
 

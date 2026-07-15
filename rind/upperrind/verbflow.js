@@ -45,6 +45,9 @@ export function dominantVerb(world, key) {
 //   • engine → its own engine hue (production, colour-coded by which engine makes)
 //   • CP works commons → gold (the nexus register)   • CW ops commons / X interface → teal
 export function floorHue(world, key, TEAL = [127, 216, 208]) {
+  if (key === 'RA') return vhex('#d9b24a');   // the assembly ring (inner) — gold
+  if (key === 'RR') return vhex('#cf6b4a');   // the reclaim ring (outer)
+  if (key === 'NX') return vhex('#cbd3e0');   // the fulfillment nexus (core)
   const v = dominantVerb(world, key);
   if (v) return vhex(verbColor(v));
   if (key && key[0] === 'P') { const e = world.wefts[+key.slice(1)]; return e && e.color ? vhex(e.color) : [...TEAL]; }
