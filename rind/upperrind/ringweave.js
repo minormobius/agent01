@@ -98,4 +98,80 @@ export function buildRingWeave(opts = {}) {
   };
 }
 
-if (typeof globalThis !== 'undefined') globalThis.RindRingWeave = { buildRingWeave, ABOVE, BELOW, RING_ENGINES, NEXUS };
+// ── 3D: the ANALYTIC SOLVE with OVER/UNDER PARITY (spin it around) ──
+// A weave is a weave because the threads go OVER and UNDER as they cross. We lift the 2D solve into z:
+// every crossing is a control point at ±amp (over/under), and the height between is SMOOTHSTEP — which has
+// zero derivative at each control ⇒ a ZERO-GRADE FLAT sits at every crossing. That flat is exactly where
+// the ANTECHAMBER belongs (the neutral z=0 plane where the two floors meet at grade — no ladder). We emit:
+//   • threads3d — each thread's (x,y,z) polyline, weaving over engines it's "over" (i+j even) and under
+//     the rest, and complementary to whichever ring it meets.
+//   • rings3d — each ring's (x,y,z) loop, alternating over/under around its circumference (a real weave),
+//     with a zero-grade flat at each of its 12 thread-crossings.
+//   • antechambers — a proposed chamber at EVERY crossing (36 K + 24 ring), sitting on the z=0 midplane.
+const smooth = (a, b, t) => { const ts = t * t * (3 - 2 * t); return a + (b - a) * ts; };
+function zProfile(controls) {   // controls sorted by rf; zero-grade (flat) at each control
+  return (rf) => {
+    if (rf <= controls[0].rf) return controls[0].z;
+    for (let i = 0; i < controls.length - 1; i++) { const a = controls[i], b = controls[i + 1]; if (rf <= b.rf) return smooth(a.z, b.z, (rf - a.rf) / (b.rf - a.rf || 1)); }
+    return controls[controls.length - 1].z;
+  };
+}
+function zProfileWrap(cs, period) {   // angular version (the ring loops back on itself)
+  if (!cs.length) return () => 0;
+  const ext = cs.map((c) => ({ ...c })); ext.push({ ang: cs[0].ang + period, z: cs[0].z }); const base = cs[0].ang;
+  return (ang) => {
+    const a = ((ang - base) % period + period) % period + base;
+    for (let i = 0; i < ext.length - 1; i++) if (a >= ext[i].ang && a <= ext[i + 1].ang) return smooth(ext[i].z, ext[i + 1].z, (a - ext[i].ang) / (ext[i + 1].ang - ext[i].ang || 1));
+    return cs[0].z;
+  };
+}
+
+export function buildRingWeave3D(opts = {}) {
+  const o = { amp: 0.15, samples: 160, ...opts };
+  const w = buildRingWeave(opts), A = o.amp;
+  const aIdx = Object.fromEntries(ABOVE.map((t, i) => [t.id, i])), bIdx = Object.fromEntries(BELOW.map((t, i) => [t.id, i]));
+  const whiteOver = (wid, pid) => ((aIdx[wid] + bIdx[pid]) % 2) === 0;   // plain-weave parity
+
+  // per-thread crossing control points {rf, z}
+  const ctrl = new Map(); const push = (id, rf, z) => { let a = ctrl.get(id); if (!a) ctrl.set(id, a = []); a.push({ rf, z }); };
+  for (const c of w.crossings) { const wo = whiteOver(c.white, c.prod); push(c.white, c.rf, wo ? A : -A); push(c.prod, c.rf, wo ? -A : A); }
+
+  // ring parity: alternate over/under around the circumference (a real weave), from the angular order
+  const ringParity = {};   // ringKey → Map(threadId → over?)
+  for (const rk of ['inner', 'outer']) {
+    const cs = w.contacts.filter((c) => c.ringKey === rk).map((c) => ({ ...c, ang: (Math.atan2(c.y, c.x) + TAU) % TAU })).sort((a, b) => a.ang - b.ang);
+    const m = new Map(); cs.forEach((c, i) => m.set(c.thread, (i % 2) === 0)); ringParity[rk] = m;
+    // each ring crossing is also a control point on the THREAD (thread is complementary to the ring there)
+    for (const c of cs) push(c.thread, c.rf, m.get(c.thread) ? -A : A);
+  }
+
+  const threads3d = w.threads.map((th) => {
+    const cs = (ctrl.get(th.id) || []).slice().sort((a, b) => a.rf - b.rf);
+    const controls = [{ rf: 0, z: cs.length ? cs[0].z : 0 }, ...cs, { rf: 1, z: cs.length ? cs[cs.length - 1].z : 0 }];
+    const zf = zProfile(controls);
+    const line3 = th.line.map((p, s) => [p[0], p[1], zf(s / (th.line.length - 1))]);
+    return { ...th, line3, controls, zf };
+  });
+
+  const rings3d = {};
+  for (const rk of ['inner', 'outer']) {
+    const ring = w.rings[rk], m = ringParity[rk];
+    const cs = w.contacts.filter((c) => c.ringKey === rk).map((c) => ({ ang: (Math.atan2(c.y, c.x) + TAU) % TAU, z: m.get(c.thread) ? A : -A, thread: c.thread })).sort((a, b) => a.ang - b.ang);
+    const zf = zProfileWrap(cs, TAU), M = 200, line3 = [];
+    for (let s = 0; s <= M; s++) { const ang = s / M * TAU; line3.push([Math.cos(ang) * ring.r, Math.sin(ang) * ring.r, zf(ang)]); }
+    rings3d[rk] = { ...ring, line3, crossings: cs, zf };
+  }
+
+  // PROPOSED ANTECHAMBER LOCATIONS — on the zero-grade midplane (z=0). One per K PAIR (the primary /
+  // innermost crossing, matching the pocket's one-station-per-pair model, not every spiral re-crossing) +
+  // one per ring×thread crossing.
+  const antechambers = [];
+  const kByPair = new Map();
+  for (const c of w.crossings) { const key = c.white + '×' + c.prod; const cur = kByPair.get(key); if (!cur || c.rf < cur.rf) kByPair.set(key, c); }
+  for (const c of kByPair.values()) antechambers.push({ kind: 'K', a: c.white, b: c.prod, x: c.x, y: c.y, z: 0, over: whiteOver(c.white, c.prod) ? c.white : c.prod });
+  for (const rk of ['inner', 'outer']) for (const c of w.contacts.filter((c) => c.ringKey === rk)) antechambers.push({ kind: 'ring', a: w.rings[rk].id, b: c.thread, x: c.x, y: c.y, z: 0, ringKey: rk });
+
+  return { ...w, amp: A, threads3d, rings3d, antechambers, nexus3d: { ...w.nexus, z: 0 }, counts3d: { antechambers: antechambers.length, kAnte: kByPair.size, ringAnte: 24 } };
+}
+
+if (typeof globalThis !== 'undefined') globalThis.RindRingWeave = { buildRingWeave, buildRingWeave3D, ABOVE, BELOW, RING_ENGINES, NEXUS };
