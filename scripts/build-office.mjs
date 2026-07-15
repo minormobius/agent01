@@ -13,7 +13,7 @@
 //   node scripts/build-office.mjs            # dry run (prints summary)
 //   node scripts/build-office.mjs --write    # write office/surfaces.json
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -64,6 +64,112 @@ const nodes = P.map((p) => {
     parent: p.p || null,
   };
 });
+
+// --- Filesystem discovery: give every surface its OWN sub-pages --------------
+// The curated PROJECTS array is the spine (categories + the hand-picked wings),
+// but a surface like `rind` has a dozen real endpoints on disk (cylinder,
+// foamview, walk, ops/…) that were never enumerated there. So for each node
+// whose URL resolves to a directory in this repo, we scan it for browsable
+// sub-pages (subdirs with an index.html, plus top-level *.html) and graft them
+// on — recursively — so you can keep zooming into a surface's actual structure.
+// Deterministic (entries sorted); reads the working tree, no network.
+const registry = (() => {
+  try { return JSON.parse(readFileSync(join(ROOT, 'deploy-registry.json'), 'utf8')); }
+  catch { return { surfaces: [] }; }
+})();
+
+// host (e.g. "rind.mino.mobi") → repo dir (e.g. "rind"); mino.mobi → "" (root)
+const hostDir = new Map([['mino.mobi', ''], ['minomobi.com', ''], ['www.mino.mobi', '']]);
+for (const s of registry.surfaces || []) {
+  const dir = s.dir === '.' ? '' : (s.dir || '');
+  for (const raw of String(s.endpoint || '').split(/[,/]/)) {
+    const host = raw.replace(/\(.*?\)/g, '').replace(/^https?:\/\//, '').trim().split('/')[0];
+    if (host.includes('.') && !hostDir.has(host)) hostDir.set(host, dir);
+  }
+}
+
+// dirs that are build output / deps / assets, never a page the visitor browses
+const SKIP_DIRS = new Set([
+  'node_modules', 'dist', 'build', 'out', 'public', 'coverage', 'src', 'lib',
+  'vendor', 'packages', 'deps', 'migrations', 'target', 'bin', 'obj', 'assets',
+  'asset', 'img', 'imgs', 'images', 'icons', 'fonts', 'wasm', 'pkg', 'solver',
+  'test', 'tests', '__tests__', 'spec', 'e2e', 'cache', 'tmp', 'engine-rs',
+  '__pycache__', 'sql', 'schema',
+]);
+const SKIP_FILE = /(^|[-_.])(selftest|test|spec)\.html?$/i;
+const MAX_FS_DEPTH = 3;      // levels below a surface
+const MAX_KIDS = 28;         // per node, to keep any one wall legible
+
+// url → repo dir (or null if unresolvable / a file / a hash route)
+function resolveDir(url) {
+  if (!url || url.includes('#')) return null;
+  const u = url.replace(/^https?:\/\//, '');
+  const slash = u.indexOf('/');
+  const host = slash < 0 ? u : u.slice(0, slash);
+  let path = slash < 0 ? '' : u.slice(slash + 1);
+  path = path.replace(/[?].*$/, '').replace(/\/+$/, '');
+  if (!hostDir.has(host)) return null;
+  if (/\.html?$/i.test(path)) return null;            // already a file endpoint
+  const dir = [hostDir.get(host), path].filter(Boolean).join('/');
+  if (!dir) return null;                              // never scan the repo root
+  const abs = join(ROOT, dir);
+  return (existsSync(abs) && statSync(abs).isDirectory()) ? dir : null;
+}
+
+function scanDir(dir) {
+  let entries;
+  try { entries = readdirSync(join(ROOT, dir), { withFileTypes: true }); }
+  catch { return []; }
+  const out = [];
+  for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (e.name.startsWith('.')) continue;
+    if (e.isDirectory()) {
+      if (SKIP_DIRS.has(e.name.toLowerCase())) continue;
+      if (existsSync(join(ROOT, dir, e.name, 'index.html'))) out.push({ seg: e.name, dir: true });
+    } else if (/\.html?$/i.test(e.name) && e.name.toLowerCase() !== 'index.html' && !SKIP_FILE.test(e.name)) {
+      out.push({ seg: e.name, dir: false });
+    }
+  }
+  return out;
+}
+
+const byUrl = new Set(nodes.map((n) => n.url && n.url.replace(/^https?:\/\//, '').replace(/\/+$/, '')));
+let discovered = 0;
+function graft(node, dir, depth) {
+  if (depth > MAX_FS_DEPTH) return;
+  const kids = scanDir(dir);
+  let added = 0;
+  for (const k of kids) {
+    if (added >= MAX_KIDS) break;
+    const childDir = `${dir}/${k.seg}`;
+    const base = node.url.replace(/\/+$/, '');
+    const url = k.dir ? `${base}/${k.seg}/` : `${base}/${k.seg}`;
+    const key = url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    if (byUrl.has(key)) {                              // already curated — recurse under it if a dir
+      if (k.dir) { const ex = nodes.find((n) => n.url && n.url.replace(/^https?:\/\//, '').replace(/\/+$/, '') === key); if (ex) graft(ex, childDir, depth + 1); }
+      continue;
+    }
+    byUrl.add(key);
+    const child = {
+      id: `${node.id}/${k.seg}`,
+      name: k.seg.replace(/\.html?$/i, ''),
+      url,
+      cat: node.cat,
+      commits: 0,
+      age: node.age,
+      parent: node.id,
+      discovered: true,
+    };
+    nodes.push(child);
+    added++; discovered++;
+    if (k.dir) graft(child, childDir, depth + 1);
+  }
+}
+// snapshot the curated list first — graft() mutates `nodes`
+for (const node of [...nodes]) {
+  const dir = resolveDir(node.url);
+  if (dir) graft(node, dir, 1);
+}
 
 // Order categories by a curated priority, then by first appearance.
 const CAT_ORDER = [

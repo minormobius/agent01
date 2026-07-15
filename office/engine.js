@@ -84,9 +84,11 @@
     const byName = new Map();
     for (const n of byId.values()) if (!byName.has(n.name)) byName.set(n.name, n);
 
+    // `parent` is a node id (filesystem-discovered nodes: "rind/ops") or, for the
+    // curated PROJECTS entries, a bare name that doubles as the parent's id.
     const tops = [];
     for (const n of byId.values()) {
-      const p = n.parent && byName.get(n.parent);
+      const p = n.parent && (byId.get(n.parent) || byName.get(n.parent));
       if (p && p !== n) { n.cat = p.cat; p.children.push(n); }
       else tops.push(n);
     }

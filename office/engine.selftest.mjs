@@ -79,6 +79,11 @@ console.log("buildTree over office/surfaces.json");
     ok(same, "rite's wings inherit rite's category");
   }
 
+  // filesystem-discovered depth: rind → ops → a dozen endpoints (parent-by-id)
+  const ops = findByName(root, "ops");
+  ok(!!ops && ops.children.length >= 10, `rind/ops discovered ${ops ? ops.children.length : 0} endpoints (≥10)`);
+  if (ops) ok(ops.parentNode && ops.parentNode.name === "rind", "ops nests under rind");
+
   // pathTo climbs back to root
   const deep = deepest(root);
   const path = pathTo(deep);

@@ -56,21 +56,32 @@ function deskGeom(R) {
 }
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const covers = (R) => R.x <= 0.5 && R.y <= 0.5 && R.x + R.w >= W - 0.5 && R.y + R.h >= H - 0.5;
-// dive fires a touch before a poster fully covers, so falling-through feels crisp
-const coversDive = (R) => {
-  const t = Math.min(W, H) * 0.05;
-  return R.x <= t && R.y <= t && R.x + R.w >= W - t && R.y + R.h >= H - t;
-};
 const onScreen = (R) => R.x < W && R.y < H && R.x + R.w > 0 && R.y + R.h > 0;
+// A dive only fires once a poster fully covers the viewport *plus* a small margin.
+// The margin is load-bearing: diving sets the child room = the poster rect, so the
+// poster must be strictly larger than the viewport or the new room wouldn't cover
+// it and would instantly pop back out (a dive/pop oscillation).
+const coversDive = (R) => {
+  const m = Math.min(W, H) * 0.02;
+  return R.x <= -m && R.y <= -m && R.x + R.w >= W + m && R.y + R.h >= H + m;
+};
+
+// keep the focus room covering the viewport — pan is clamped to the room's bounds
+// (you move *within* a room, you never drag it off the screen).
+function clampPan() {
+  const R = roomRect();
+  ox = R.w >= W ? clamp(ox, W - R.w, 0) : (W - R.w) / 2;
+  oy = R.h >= H ? clamp(oy, H - R.h, 0) : (H - R.h) / 2;
+}
 
 // ── rebasing: keep `focus` = the innermost room that fills the screen ─────────
-function rebase() {
-  // dive IN while some child poster covers the viewport
+// allowDive=false (pan) only ever pops out / clamps; allowDive=true (zoom) also
+// falls into a child poster once it covers the viewport.
+function rebase(allowDive) {
   for (let guard = 0; guard < 24; guard++) {
     const R = roomRect();
-    let dived = false;
-    if (focus.children.length) {
+    if (allowDive && focus.children.length) {
+      let dived = false;
       for (let i = 0; i < focus.children.length; i++) {
         const pr = posterRect(focus, R, i);
         if (coversDive(pr)) {
@@ -82,11 +93,12 @@ function rebase() {
           break;
         }
       }
+      if (dived) continue;
     }
-    if (dived) continue;
-    // pop OUT while the focus room no longer fills the viewport
+    // pop OUT only when the room has shrunk BELOW the viewport (i.e. you zoomed
+    // out) — never merely because it's panned to an edge (clampPan prevents that).
     const R2 = roomRect();
-    if (!covers(R2) && focus.parentNode) {
+    if ((R2.w < W - 0.5 || R2.h < H - 0.5) && focus.parentNode) {
       const p = focus.parentNode;
       const pf = wallOf(p)[focus.childIndex];
       const z2 = z / pf.w;
@@ -98,23 +110,11 @@ function rebase() {
     }
     break;
   }
-  // at the root, don't let the lobby shrink into a speck or drift off
-  if (!focus.parentNode) {
-    z = Math.min(z, 40);
-    if (z < 0.62) z = 0.62;
-    const R = roomRect();
-    if (R.w < W) ox = (W - R.w) / 2;
-    if (R.h < H) oy = (H - R.h) / 2;
-  }
-  // an endpoint has no posters to fall into — clamp the zoom and centre its
-  // office on the viewport so you land on its wall screen (not blank wall, and
-  // not off-screen — an off-centre leaf room would fail `covers` and cascade a
-  // pop-out back to the root).
-  if (!focus.children.length && z > 1.5) {
-    z = 1.5;
-    ox = (W - W * z) / 2;
-    oy = (H - H * z) / 2;
-  }
+  // zoom limits: the lobby can't shrink to a speck; an endpoint can't zoom past
+  // its wall screen into blank wall.
+  if (!focus.parentNode) z = clamp(z, 0.62, 40);
+  else if (!focus.children.length) z = Math.min(z, 1.6);
+  clampPan();
 }
 
 // ── drawing ───────────────────────────────────────────────────────────────────
@@ -481,6 +481,7 @@ function hitTest(x, y) {
 
 // ── zoom / pan / dive ─────────────────────────────────────────────────────────
 function zoomAt(cx, cy, factor) {
+  cancelAnim();
   // Zooming IN: the anchor must sit *inside* a poster, or the wall's empty gaps
   // would swallow the zoom (no poster ever grows to cover the viewport, so no
   // dive). If the cursor is over a poster, dive into exactly that one; if it's
@@ -511,29 +512,31 @@ function zoomAt(cx, cy, factor) {
   ox = cx - (cx - ox) * (nz / z);
   oy = cy - (cy - oy) * (nz / z);
   z = nz;
-  rebase();
+  rebase(factor > 1);   // only a zoom-IN can dive
   requestRender();
 }
 
-function diveTo(node, rect) {
-  // tween the camera so `rect` (the poster) grows to fill the viewport; rebase
-  // will hand focus to `node` mid-flight.
-  const start = { z, ox, oy, t: performance.now() };
-  // target transform where this poster covers the screen (a touch beyond)
+// Click-dive: fly the clicked poster to fill the viewport, then land on that
+// child at rest. The tween runs in the CURRENT focus frame with rebasing off, so
+// the target never shifts mid-flight; on completion we commit focus = child,
+// centred (z=1) — the poster ≈ fills the viewport there, so the swap is seamless.
+function diveTo(node) {
   const u = wallOf(focus)[node.childIndex];
-  const tz = (1 / u.w) * 1.04;              // poster grows to just cover the viewport
-  const tox = W / 2 - (u.x + u.w / 2) * W * tz;   // …centred on the viewport
+  const tz = (1 / u.w) * 1.06;
+  const tox = W / 2 - (u.x + u.w / 2) * W * tz;
   const toy = H / 2 - (u.y + u.h / 2) * H * tz;
-  runAnim(start, { z: tz, ox: tox, oy: toy }, 480);
+  runAnim({ z, ox, oy }, { z: tz, ox: tox, oy: toy }, 460,
+    () => { focus = node; z = 1; ox = 0; oy = 0; });
 }
+// Fly to an ancestor (breadcrumb / step-out): render from the ancestor, expressing
+// the current view in its frame, then ease out to rest. Non-ancestor targets
+// (a legend jump across wings) just cut over.
 function goTo(node) {
-  // tween to show `node` at rest (fills screen). Express current view in node's
-  // frame, then ease to identity.
+  cancelAnim();
   const cur = viewInFrame(node);
-  if (!cur) { focus = node; z = 1; ox = 0; oy = 0; rebase(); requestRender(); return; }
+  if (!cur) { focus = node; z = 1; ox = 0; oy = 0; rebase(false); requestRender(); return; }
   focus = node;
-  z = cur.z; ox = cur.ox; oy = cur.oy;
-  runAnim({ z, ox, oy, t: performance.now() }, { z: 1, ox: 0, oy: 0 }, 520);
+  runAnim({ z: cur.z, ox: cur.ox, oy: cur.oy }, { z: 1, ox: 0, oy: 0 }, 500, null);
 }
 // express the current on-screen view in terms of ancestor `anc`'s unit box
 function viewInFrame(anc) {
@@ -549,19 +552,24 @@ function viewInFrame(anc) {
   }
   return null;
 }
-function runAnim(from, to, dur) {
-  anim = { from, to, dur, start: performance.now() };
+let animId = 0;
+function cancelAnim() { animId++; anim = null; }
+function runAnim(from, to, dur, commit) {
+  cancelAnim();
+  const id = animId;
+  anim = true;
+  const start = performance.now();
   const tick = (now) => {
-    if (!anim) return;
-    let k = (now - anim.start) / anim.dur;
+    if (id !== animId) return;                 // superseded by newer input
+    let k = (now - start) / dur;
     if (k >= 1) k = 1;
     const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; // easeInOutQuad
-    z = anim.from.z + (anim.to.z - anim.from.z) * e;
-    ox = anim.from.ox + (anim.to.ox - anim.from.ox) * e;
-    oy = anim.from.oy + (anim.to.oy - anim.from.oy) * e;
-    rebase();
+    z = from.z + (to.z - from.z) * e;
+    ox = from.ox + (to.ox - from.ox) * e;
+    oy = from.oy + (to.oy - from.oy) * e;
     render();
-    if (k < 1) requestAnimationFrame(tick); else anim = null;
+    if (k < 1) { requestAnimationFrame(tick); }
+    else { anim = null; if (commit) commit(); rebase(false); render(); }
   };
   requestAnimationFrame(tick);
 }
@@ -615,6 +623,7 @@ function setup() {
   let dragging = false, moved = false, lx = 0, ly = 0;
   cvs.addEventListener("pointerdown", (e) => {
     dragging = true; moved = false; lx = e.clientX; ly = e.clientY;
+    cancelAnim();
     cvs.setPointerCapture(e.pointerId);
   });
   cvs.addEventListener("pointermove", (e) => {
@@ -622,7 +631,7 @@ function setup() {
       const dx = e.clientX - lx, dy = e.clientY - ly;
       if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
       ox += dx; oy += dy; lx = e.clientX; ly = e.clientY;
-      rebase(); requestRender();
+      clampPan(); requestRender();   // pan within the room; never dive or pop
     } else {
       const h = hitTest(e.clientX, e.clientY);
       const changed = (h && (!hover || hover.node !== h.node || hover.kind !== h.kind)) || (!h && hover);
@@ -640,7 +649,7 @@ function setup() {
     if (!h) return;
     if (h.kind === "monitor") { openURL(h.node); return; }
     // poster
-    if (h.node.children.length) diveTo(h.node, h.rect);
+    if (h.node.children.length) diveTo(h.node);
     else openURL(h.node);
   });
   cvs.addEventListener("pointercancel", endDrag);
