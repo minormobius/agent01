@@ -167,9 +167,10 @@
         const iss = byGateIssues.get(g) || [];
         const err = iss.filter((i) => i.level === 'error'), warn = iss.filter((i) => i.level === 'warn');
         const isCaseGate = w.mystery && g === w.mystery.gate;
-        const badge = err.length ? `<span class="badge err">ERROR</span>` : warn.length ? `<span class="badge warn">WARN</span>` : isCaseGate ? `<span class="badge case">CASE</span>` : `<span class="badge ok">OK</span>`;
+        const isMythGate = w.mythograph && g === w.mythograph.gate;
+        const badge = err.length ? `<span class="badge err">ERROR</span>` : warn.length ? `<span class="badge warn">WARN</span>` : isCaseGate ? `<span class="badge case">CASE</span>` : isMythGate ? `<span class="badge case">MYTHOGRAPH</span>` : `<span class="badge ok">OK</span>`;
         const notes = iss.map((i) => `<div class="issue ${i.level}">${esc(i.code)}: ${esc(i.msg)}</div>`).join('');
-        const kind = e ? (e.briefing ? '<span class="was">[anchor briefing]</span> ' : (e.authoredPick ? '<span class="was">[authored pick]</span> ' : '')) : (isCaseGate ? '<span class="was">[the case-giver]</span> ' : '');
+        const kind = e ? (e.briefing ? '<span class="was">[anchor briefing]</span> ' : (e.authoredPick ? '<span class="was">[authored pick]</span> ' : '')) : (isCaseGate ? '<span class="was">[the case-giver]</span> ' : (isMythGate ? '<span class="was">[send → terminal ▤ → report]</span> ' : ''));
         const was = e && !e.briefing && !e.authoredPick && e.authoredName ? esc(e.authoredName) : '—';
         html += `<tr>`
           + `<td><code>${esc(g.replace(/^flag\./, ''))}</code></td>`

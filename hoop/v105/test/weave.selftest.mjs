@@ -92,9 +92,40 @@ const wSetters = gateSetters(woven), wMulti = gateSettersMulti(woven);
   ok(t2.ended === true, 'engine: the close ends the conversation cleanly');
 }
 
+// ── THE OLO FINALE (the mythograph quest): send → terminal → report → turn-in ──
+{
+  const { weaveWorld: ww } = await import('../story/weave.js');
+  const w = ww(served, 7);
+  const q = w.mythograph;
+  ok(!!q, 'weaveWorld casts the mythograph finale');
+  const chain2 = anchorChain(w.content);
+  const olo = chain2.find((x) => x.tier === 1);
+  ok(olo.gates[olo.gates.length - 1] === q.gate, 'the tier-1 anchor gains the mythograph gate LAST (the finale)');
+  const lineup = anchorChain(served).find((x) => x.tier === 1).gates;
+  ok(q.keeperGate === lineup[lineup.length - 1], 'the SENDER is the final person in the lineup');
+  ok(gateSetters(w.content)[q.gate].contentId === q.keeperId, 'the report makes the final keeper the gate’s setter');
+  ok(proveProgression(w.content, { forcePlaced: true }).solvable, 'the oracle accepts the runtime read fact (worldExternal boundary)');
+  // playthrough: meet (gate auto-sets via the surface; simulate) → send → read → report
+  const store = new MemoryStore(w.content, { features: [] });
+  ok(!talk(store, 'p', q.keeperId).choices.some((c) => c.id === 'q_myth_send'), 'the send hides until the keeper’s own charge is heard');
+  store.setFact('p', q.keeperGate, true);                                       // the surface sets this on meeting
+  const t0 = talk(store, 'p', q.keeperId);
+  ok(t0.choices.some((c) => c.id === 'q_myth_send'), 'the send surfaces after the charge');
+  ok(!t0.choices.some((c) => c.id === 'q_myth_report'), 'the report hides until the terminal is read');
+  const ts = choose(store, 'p', q.keeperId, 'q_myth_send');
+  ok(store.getFact('p', q.sentFact) === true, 'taking the send marks you SENT (arms the terminal read — a prologue read can’t skip the walk)');
+  choose(store, 'p', q.keeperId, ts.choices[0].id);                             // "I will find a terminal." (ends)
+  store.setFact('p', q.readFact, true);                                         // openTerminal sets this in the game, only after the send
+  const t1 = talk(store, 'p', q.keeperId);
+  const rep = t1.choices.find((c) => c.id === 'q_myth_report');
+  ok(!!rep, 'the report surfaces once the mythograph is read');
+  choose(store, 'p', q.keeperId, rep.id);
+  ok(store.getFact('p', q.gate) === true, 'the report ASK sets the mythograph gate (the Havel rule)');
+}
+
 // ── the sweep: the woven pool proves progressable for many seeds (mystery on) ──
 {
-  let pass = 0, castDiffers = 0, mysteries = 0;
+  let pass = 0, castDiffers = 0, mysteries = 0, mythographs = 0;
   const base = JSON.stringify(castSpine(served, 1).plan.map((e) => e.keeperId));
   const SWEEP = 150;
   for (let s = 1; s <= SWEEP; s++) {
@@ -104,10 +135,12 @@ const wSetters = gateSetters(woven), wMulti = gateSettersMulti(woven);
     else if (pass === s - 1) for (const err of rep.errors.slice(0, 3)) console.error('   seed', s, err.code, err.msg);
     if (JSON.stringify(w.cast.plan.map((e) => e.keeperId)) !== base) castDiffers++;
     if (w.mystery) mysteries++;
+    if (w.mythograph) mythographs++;
   }
-  ok(pass === SWEEP, `sweep: ${pass}/${SWEEP} seeds prove PROVABLY PROGRESSABLE woven (mystery included)`);
+  ok(pass === SWEEP, `sweep: ${pass}/${SWEEP} seeds prove PROVABLY PROGRESSABLE woven (mystery + mythograph included)`);
   ok(castDiffers > SWEEP * 0.9, `sweep: the cast varies across seeds (${castDiffers}/${SWEEP} differ from seed 1)`);
   ok(mysteries === SWEEP, `sweep: every seed casts a mystery (${mysteries}/${SWEEP})`);
+  ok(mythographs === SWEEP, `sweep: every seed casts the mythograph finale (${mythographs}/${SWEEP})`);
 }
 
 // ── weaveWorld never throws on garbage ──

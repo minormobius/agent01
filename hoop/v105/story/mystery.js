@@ -30,7 +30,7 @@
 // pool re-casts cleanly (the abstraction contract weave.js documents).
 
 import { anchorChain } from './anchors.js';
-import { hash32, pickVariant, spliceChoice, FACTION_LABEL } from './weave.js';
+import { hash32, pickVariant, spliceChoice, anchorWithGate, FACTION_LABEL } from './weave.js';
 
 export const MYSTERY_GATE = 'flag.ward.mystery_closed';
 export const TICK_LABEL = ['the dawn watch', 'the morning watch', 'midday', 'the afternoon watch', 'the evening watch', 'the night watch'];
@@ -286,32 +286,9 @@ export function weaveMystery(content, m) {
   if (!m) return content;
   const byId = new Map((content || []).map((c) => [c.id, c]));
 
-  // 1 — the anchor: gates + turn-in requires (immutably cloned).
+  // 1 — the anchor: gates + turn-in requires (weave.js anchorWithGate — shared with the mythograph).
   const anchor = byId.get(m.anchorId);
-  if (anchor) {
-    const cc = { ...anchor, content: { ...anchor.content } };
-    const lb = cc.content.load_bearing || {};
-    cc.content.load_bearing = { ...lb, gates: [...(lb.gates || []).filter((g) => g !== m.gate), m.gate] };
-    const d = cc.content.dialogue || (cc.content.npc && cc.content.npc.dialogue);
-    if (d && d.nodes) {
-      const nodes = { ...d.nodes };
-      for (const [nid, n] of Object.entries(nodes)) {
-        if (!(n.choices || []).some((ch) => ch.effects && ch.effects.set_facts && Object.keys(ch.effects.set_facts).some((k) => /^flag\.deck\..*\.cleared$/.test(k)))) continue;
-        nodes[nid] = {
-          ...n,
-          choices: n.choices.map((ch) => {
-            const isTurnin = ch.effects && ch.effects.set_facts && Object.keys(ch.effects.set_facts).some((k) => /^flag\.deck\..*\.cleared$/.test(k));
-            if (!isTurnin) return ch;
-            const req = ch.requires || {};
-            return { ...ch, requires: { ...req, facts: { ...(req.facts || {}), [m.gate]: true } } };
-          }),
-        };
-      }
-      if (cc.content.dialogue) cc.content.dialogue = { ...d, nodes };
-      else cc.content.npc = { ...cc.content.npc, dialogue: { ...d, nodes } };
-    }
-    byId.set(m.anchorId, cc);
-  }
+  if (anchor) byId.set(m.anchorId, anchorWithGate(anchor, m.gate));
 
   const held = (id) => m.clues.filter((c) => c.holderId === id);
   const clueFacts = (list) => Object.fromEntries(list.map((c) => ['case.clue.' + c.id, true]));
@@ -400,17 +377,32 @@ export function weaveMystery(content, m) {
 }
 
 // clue-collection progress for the journal: which clue facts are set vs the case's full list.
+// `heard` carries the full clue objects in case order — the journal ACCUMULATES their text.
 export function mysteryProgress(m, facts) {
   if (!m) return null;
   const f = facts || {};
-  const found = m.clues.filter((c) => f['case.clue.' + c.id] === true);
+  const heard = m.clues.filter((c) => f['case.clue.' + c.id] === true);
   return {
     opened: f['case.opened'] === true,
     solved: f['case.solved'] === true || f[m.gate] === true,
     missed: f['case.missed'] === true,
-    found: found.length, total: m.clues.length,
+    found: heard.length, total: m.clues.length,
+    heard,
     remaining: m.clues.filter((c) => f['case.clue.' + c.id] !== true),
   };
 }
 
-export default { MYSTERY_GATE, TICK_LABEL, buildMystery, weaveMystery, mysteryProgress };
+// WHO the case waypoint should chase, in priority order: the case not yet opened → the case-giver
+// (hear the case); clues outstanding → the holders of unheard clues, in clue order (the ◇ leads the
+// canvass); everything heard → the case-giver again (make the accusation). Ids only — the surface
+// picks the nearest PLACED one, exactly like gate satisfiers.
+export function clueTargets(m, facts) {
+  if (!m) return [];
+  const f = facts || {};
+  if (f['case.opened'] !== true) return [m.caseGiver.id];
+  const remaining = m.clues.filter((c) => f['case.clue.' + c.id] !== true);
+  const ids = [...new Set(remaining.map((c) => c.holderId))];
+  return ids.length ? ids : [m.caseGiver.id];
+}
+
+export default { MYSTERY_GATE, TICK_LABEL, buildMystery, weaveMystery, mysteryProgress, clueTargets };

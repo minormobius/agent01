@@ -291,6 +291,8 @@ export const WORLD_FACTS = [
   'flag.curve_noticed', 'fact.curve_noticed', 'flag.lower_rind_entered', 'fact.lower_rind_entered',
   'flag.entered_lower_rind', 'flag.signal_resonance', 'flag.found_saturn_marking',  // the journey (storyboard/descent)
   'flag.rind_survey_completed', 'flag.met_signal_chamber',
+  'flag.read_terminal', 'flag.heard_luna',   // set by openTerminal (the Tabard reading room)
+  'fact.mythograph.read',                     // the mythograph finale's read leg — set by openTerminal only AFTER the keeper's send (weave.js)
 ];
 export const WORLD_ITEMS = ['translation_apparatus', 'translation_matrix_calibration_key'];
 // Faction rep is granted by the GAME (the faction-quest campaign adjusts rep), never by a pool
@@ -315,7 +317,9 @@ function deriveExternalBoundary(content) {
   const produced = new Set(), pool = new Set(), reqF = new Set(), reqI = new Set();
   for (const c of content) {
     for (const f of (c.produces && c.produces.sets) || []) produced.add(f);
-    const nodes = (c.content && c.content.dialogue && c.content.dialogue.nodes) || {};
+    // both dialogue shapes produce: content.dialogue (served npcs) AND content.npc.dialogue (raw bundles)
+    const nodes = (c.content && ((c.content.dialogue && c.content.dialogue.nodes)
+      || (c.content.npc && c.content.npc.dialogue && c.content.npc.dialogue.nodes))) || {};
     for (const n of Object.values(nodes)) for (const ch of (n.choices || [])) for (const k of Object.keys((ch.effects && ch.effects.set_facts) || {})) produced.add(k);
     if (c.type === 'item') { pool.add(((c.content || {}).name || '').toLowerCase()); for (const t of c.tags || []) pool.add(String(t).toLowerCase()); }
     for (const k of Object.keys((c.requires && c.requires.facts) || {})) reqF.add(k);

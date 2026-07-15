@@ -56,6 +56,7 @@ function proveSeed(seed, verbose = false) {
   if (verbose) {
     console.log(`\n══ seed ${seed} — ${rep.verdict} (${rep.errors.length} errors, ${w.issues.length} weave issues)`);
     for (const e of w.cast.plan) console.log(`  t${e.tier} ${e.gate.padEnd(36)} → ${e.briefing ? '[anchor briefing] ' : ''}${e.keeperName}${e.room ? ' · ' + e.room : ''}${e.authoredPick ? ' (authored pick)' : ''}`);
+    if (w.mythograph) console.log(`  t${w.mythograph.tier} ${w.mythograph.gate.padEnd(36)} → [send → terminal ▤ → report] ${w.mythograph.keeperName}${w.mythograph.room ? ' · ' + w.mythograph.room : ''}`);
     for (const i of w.issues) console.log('  ⚠', i.code, i.msg || '');
     if (w.mystery) {
       const m = w.mystery;

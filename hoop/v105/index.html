@@ -606,7 +606,7 @@
     import { poolFilter } from './story/filter.js';   // spine-only view of the pool for the gate
     import { importWorldExport, servePool } from './story/import.js';   // v096: hoopy's world_export → content_items (first-class) diff; servePool = the live-repo serving rules (drop retired, explode room_bundle, map wanderer)
     import { weaveWorld } from './story/weave.js';                      // v105: THE SEEDED QUEST SPINE — cast gate keepers from the room-bundle pool per world seed + the tier-2 mystery (story/mystery.js), woven into the served pool
-    import { mysteryProgress, MYSTERY_GATE } from './story/mystery.js'; // v105: the case's journal readout
+    import { mysteryProgress, clueTargets, MYSTERY_GATE } from './story/mystery.js'; // v105: the case's journal readout + the clue-chase waypoint targets
     import { FQ, FQ_ORDER, fqProgress, fqStatus, fqActive, fqOpensRind, fqSignatureExclusive, fqCanWitness } from './story/factionquest.js';   // v100: the NAVE CAMPAIGN — meet the three factions in order; the Drift opens the rind
     import { CHOICE_FACTIONS, WITNESS_TARGET, FACTION_INFO, witnessCount, allWitnessed, chosenFaction, witnessProgress, isChoiceFaction } from './story/factionchoice.js';   // v100: the UPPER-RIND THRESHOLD — witness each faction ×3, then choose; the choice colors the lower-rind descent
     import { CHAMBER_LORE_TARGET, chamberLore, signalLocated, chapterComplete, finalChoice, lunaContact, FINAL_CHOICES, weighJourney, concludeEnding } from './story/conclusion.js';   // v100: THE CHAPTER CLOSE — locate the Signal Chamber, Luna's contact, the final decision, an ending fitted to the path
@@ -1969,8 +1969,8 @@
         // anchor gate from the room-bundle pool (charge spliced onto their own dialogue; the authored
         // setter hands the flag off), then cast + weave the tier-2 murder mystery. Deterministic per
         // (pool, seed); fully guarded — any defect degrades to the authored pool (weaveWorld never throws).
-        try { const w = weaveWorld(content, seed); content = w.content; story.cast = w.cast; story.mystery = w.mystery; story.weaveIssues = w.issues; }
-        catch (e) { story.cast = null; story.mystery = null; }
+        try { const w = weaveWorld(content, seed); content = w.content; story.cast = w.cast; story.mystery = w.mystery; story.mythograph = w.mythograph; story.weaveIssues = w.issues; }
+        catch (e) { story.cast = null; story.mystery = null; story.mythograph = null; }
         story.store = new MemoryStore(content, { features: [] });
         const saved = localGet(); if (saved) { try { story.store.restore(JSON.parse(saved)); } catch (e) {} }
         // the storyboard is DERIVED from his plot_beats (the climb "out and down" is his story). The
@@ -2137,25 +2137,52 @@
               if (d < bd) { bd = d; target = s; loc = l; }
             }
             if (nk && !target) target = nk;   // none placed yet → name the first satisfier
-            storyWp = questWpToward(loc);
-            storyWpTarget = target ? { cid: target.contentId } : null;   // follow the nearest satisfier live
-            // v105: the tier's FINAL subquest is the case — when the open gate is the mystery's, the step is
-            // the investigation (canvass the keepers, then bring the name), not another "seek the keeper".
+            // v105: the tier's FINAL subquest is the case — when the open gate is the mystery's, the ◇ leads
+            // the INVESTIGATION: the case-giver until the case opens, then the nearest keeper still holding
+            // unheard clues, then the case-giver again for the accusation (mystery.js clueTargets).
             const isCase = story.mystery && nk && nk.flag === story.mystery.gate;
             const casePr = isCase ? mysteryProgress(story.mystery, facts) : null;
+            if (isCase) {
+              const names = new Map([[story.mystery.caseGiver.id, story.mystery.caseGiver], ...story.mystery.suspects.map((s) => [s.id, s])]);
+              let ct = null, cloc = null, cbd = Infinity;
+              for (const id of clueTargets(story.mystery, facts)) {
+                const l = locateNpc(id); if (!l || !Number.isFinite(l.x)) continue;
+                const d = ((l.deck || 0) === playerDeck() ? 0 : 1e12) + (l.x - px()) ** 2 + (l.y - py()) ** 2;
+                if (d < cbd) { cbd = d; ct = names.get(id) || { id, name: 'a keeper' }; cloc = l; }
+              }
+              if (ct) { target = { contentId: ct.id, name: ct.name, room: ct.room, verb: ct.verb }; loc = cloc; }
+            }
+            // v105: the OLO FINALE — the mythograph gate has two legs: read (◇ → the nearest learn terminal ▤)
+            // then report (◇ → the final keeper, which the satisfier targeting above already does).
+            const isMyth = story.mythograph && nk && nk.flag === story.mythograph.gate;
+            const mythSent = isMyth && facts[story.mythograph.sentFact] === true;
+            const mythRead = isMyth && facts[story.mythograph.readFact] === true;
+            if (isMyth && mythSent && !mythRead) { const t = resolveMarker({ terminal: true }); if (t) { loc = { x: t.x, y: t.y, deck: playerDeck() }; target = null; } }
+            storyWp = questWpToward(loc);
+            storyWpTarget = target ? { cid: target.contentId } : null;   // follow the nearest satisfier/clue-holder live
             questGuidance = {
-              objective: `<span class="lbl">⚑ The ${esc(zoneWord(a.zone))} · ${esc(a.name)}’s charge</span> <span class="o">— ${isCase ? 'close the case' : 'find the keepers of the ' + esc(zoneWord(a.zone))}</span>`
+              objective: `<span class="lbl">⚑ The ${esc(zoneWord(a.zone))} · ${esc(a.name)}’s charge</span> <span class="o">— ${isCase ? 'close the case' : isMyth ? 'read the mythograph' : 'find the keepers of the ' + esc(zoneWord(a.zone))}</span>`
                 + `<span class="qbar"><span style="width:${Math.round(100 * st.gatesSet / Math.max(1, st.gatesTotal))}%"></span></span> <span class="mk">${st.gatesSet}/${st.gatesTotal}</span>`,
               stepText: isCase
                 ? (casePr && casePr.opened
-                  ? `The death of ${story.mystery.victim.name}: ${casePr.found}/${casePr.total} clues heard. When you are sure, bring the killer's name to ${story.mystery.caseGiver.name}.`
+                  ? (casePr.remaining.length && target
+                    ? `The death of ${story.mystery.victim.name}: ${casePr.found}/${casePr.total} clues heard. ${target.name}${target.room ? ' (' + target.room + ')' : ''} still holds a piece — the ◇ leads there.`
+                    : `The death of ${story.mystery.victim.name}: every clue heard (${casePr.found}/${casePr.total}). When you are sure, bring the killer's name to ${story.mystery.caseGiver.name}.`)
                   : `${story.mystery.caseGiver.name} keeps word of a death in the wards — hear the case before ${a.name} will close the ledger.`)
+                : isMyth
+                ? (mythRead
+                  ? `You have read the mythograph. Return to ${story.mythograph.keeperName}${story.mythograph.room ? ' — keeper of ' + story.mythograph.room : ''} and tell them what it said.`
+                  : mythSent
+                  ? `${story.mythograph.keeperName} sends you deeper: find a learn terminal (▤) and READ the mythograph posted there. The ◇ marks the nearest reading room.`
+                  : `${story.mythograph.keeperName} keeps one thing more for ${a.name}'s ledger — go and hear it.`)
                 : (target ? `Seek ${target.name}${target.room ? ' — keeper of ' + target.room : ''}${target.verb ? ' (' + target.verb + ')' : ''}. What they tell you, ${a.name} needs to hear.`
                            : `Walk the ${zoneWord(a.zone)} and speak with its keepers — each one brings ${a.name} another piece.`),
-              whereWord: (loc && (loc.deck || 0) === playerDeck()) ? (target.room || target.name) : `the ${zoneWord(a.zone)}`,
+              whereWord: (loc && (loc.deck || 0) === playerDeck()) ? ((isMyth && mythSent && !mythRead) ? 'the reading room (▤)' : (target && (target.room || target.name)) || `the ${zoneWord(a.zone)}`) : `the ${zoneWord(a.zone)}`,
               hasWp: !!storyWp,
               howText: isCase
-                ? `Ask the suspects about the death (their accounts are clues), open the journal (J) for the board, and make the accusation to ${story.mystery.caseGiver.name}.`
+                ? `Ask the suspects about the death (their accounts are clues — the journal (✒) keeps every one you've heard), and make the accusation to ${story.mystery.caseGiver.name}.`
+                : isMyth
+                ? `Click the glowing ▤ console to read. Then bring word back — first to ${story.mythograph.keeperName}, then to ${a.name}.`
                 : `These are people, not consoles. Explore the ${zoneWord(a.zone)}, find the keepers (◇), and CLICK to speak. When you have heard them all, return to ${a.name}.`,
             };
           } else {
@@ -2377,7 +2404,7 @@
       if (!content || !content.length) return;
       // v105: a republished pool RE-WEAVES for this world's seed (same seed → the same cast wherever the
       // republished bundles allow; a changed pool re-casts gracefully — the cast is derived, never stored).
-      try { const w = weaveWorld(content, seed); content = w.content; story.cast = w.cast; story.mystery = w.mystery; story.weaveIssues = w.issues; } catch (e) {}
+      try { const w = weaveWorld(content, seed); content = w.content; story.cast = w.cast; story.mystery = w.mystery; story.mythograph = w.mythograph; story.weaveIssues = w.issues; } catch (e) {}
       const snap = story.store.snapshot();                                   // captured AFTER the digest (keeps evictions)
       story.store = new MemoryStore(content, { features: [...story.store.features.values()] }).restore(snap);
       try { story.sb = deriveStoryboard(content) || story.sb; } catch (e) {}
@@ -2979,11 +3006,18 @@
       const remainingBy = new Map();
       for (const c of pr.remaining) { const nm = names.get(c.holderId) || 'someone'; remainingBy.set(nm, (remainingBy.get(nm) || 0) + 1); }
       const who = [...remainingBy.entries()].map(([nm, k]) => `${esc(nm)}${k > 1 ? ' ×' + k : ''}`).join(' · ');
+      // THE CASEBOOK: every clue heard so far, accumulated verbatim — the journal IS the detective's notes.
+      const CLUE_GLYPH = { body: '☠', rumor: '☷', means: '⚱', alibi: '❝', sighting: '👁', trace: '⌘' };
+      const heardRows = (pr.heard || []).map((c) =>
+        `<div style="margin:6px 0 0;border-left:2px solid #6a5136;padding-left:9px">`
+        + `<div style="color:#e0c48a;font-size:11px">${CLUE_GLYPH[c.kind] || '·'} ${esc(c.title)} <span style="color:#6b7872">— ${esc(names.get(c.holderId) || 'someone')}</span></div>`
+        + `<div style="color:#b9c4be;font-size:11.5px;line-height:1.5">${esc(c.text)}</div></div>`).join('');
       return `<div style="color:#e0a86a;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">☠ the case</div>`
         + `<div style="color:#f4bf62;font-size:13.5px">The death of ${esc(m.victim.name)}</div>`
         + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin:3px 0">Found at ${esc(m.sceneRoom)}, ${esc(m.tickLabel)}. ${esc(m.caseGiver.name)} holds the board — bring the killer's name to them, and be sure.</div>`
         + `<div style="margin-top:4px;height:5px;background:#10161d;border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:${Math.round(100 * pr.found / Math.max(1, pr.total))}%;background:#e0a86a"></span></div>`
-        + `<div style="color:#6b7872;font-size:10.5px;margin-top:2px">${pr.found}/${pr.total} clues heard${who ? ` · still holding pieces: ${who}` : ' · every voice heard — name the killer'}${pr.missed ? ' · <span style="color:#e8746a">a wrong name has already cost you</span>' : ''}</div>`;
+        + `<div style="color:#6b7872;font-size:10.5px;margin-top:2px">${pr.found}/${pr.total} clues heard${who ? ` · still holding pieces: ${who} (the ◇ leads to them)` : ' · every voice heard — name the killer'}${pr.missed ? ' · <span style="color:#e8746a">a wrong name has already cost you</span>' : ''}</div>`
+        + heardRows;
     }
 
     function residentAt(wx, wy) { let best = null, bd = (SKIN.playerW * 2.6) ** 2; for (const a of nearResidents) { const d = (a.x - wx) ** 2 + (a.y - wy) ** 2; if (d < bd) { bd = d; best = a; } } return best; }
@@ -3274,6 +3308,13 @@
       interact(s, story.playerId, key);                              // crystallize lo-terminal (pinned) → XP + placement
       s.setFact(story.playerId, 'flag.read_terminal', true);
       s.setFact(story.playerId, 'flag.heard_luna', true);
+      // v105 the Olo finale: a terminal read counts as READING THE MYTHOGRAPH only once the final keeper
+      // has SENT you (so the prologue's terminal read can't pre-complete the leg) — then page you back.
+      if (story.mythograph && s.getFact(story.playerId, story.mythograph.sentFact) === true
+          && s.getFact(story.playerId, story.mythograph.readFact) !== true) {
+        s.setFact(story.playerId, story.mythograph.readFact, true);
+        notify('▤ the mythograph is read — bring word back to ' + story.mythograph.keeperName, { kind: 'quest', ms: 4800 });
+      }
       // seeing your own name in the stencil = you now carry the notation (the reason Sevin believes)
       if (!s.listInventoryRows(story.playerId).some((r) => r.content_item_id === 'it-stenciltrace')) take(s, story.playerId, 'it-stenciltrace');
       checkQuests();              // theme-based: lo-terminal (tabard/mythograph/luna) may corroborate a thread
@@ -5144,43 +5185,45 @@
     function flagKeeperResident(npc, chunkId, deck) {
       if (!npc || !residents.length) return null;
       const verb = npc.verb || null;
-      // PRIMARY: an un-embiggened resident with ≥1 route stop IN the chamber; route = those in-chamber nodes.
-      const cands = [];
-      for (const r of residents) {
-        if (r.keeper || _embiggened.has(r.id)) continue;
-        if (residentDeck(r) !== (deck || 0)) continue;
-        const stops = routeStops(r);
-        const inIdx = stops.map((s, i) => (s.ch === chunkId ? i : -1)).filter((i) => i >= 0);
-        if (!inIdx.length) continue;
-        const verbHit = verb && inIdx.some((i) => stops[i].role === verb);
-        cands.push({ r, route: inIdx.map((i) => r.route[i]).filter((n) => n != null && n >= 0), verbHit });
-      }
-      let chosen = null;
-      if (cands.length) {
-        const pref = cands.filter((c) => c.verbHit); const use = pref.length ? pref : cands;   // verb-matched first
-        use.sort((a, b) => (a.r.id < b.r.id ? -1 : 1));
-        chosen = use[hashId(npc.id) % use.length];
-      } else {
-        // FALLBACK for a LOW-VITALITY biome (no resident is homed/working in the chamber): relocate any free
-        // resident on this deck and reassign its route to the CHAMBER's OWN buildings, so even a thin faction
-        // ward still gets a LIVING keeper instead of an empty, keeper-less room.
-        const rooms = (society && society.rooms || []).filter((o) => o.ch === chunkId && o.doorG != null && o.doorG >= 0).map((o) => o.doorG);
-        const free = residents.filter((r) => !r.keeper && !_embiggened.has(r.id) && residentDeck(r) === (deck || 0));
-        if (rooms.length && free.length) { free.sort((a, b) => (a.id < b.id ? -1 : 1)); chosen = { r: free[hashId(npc.id) % free.length], route: rooms.slice(0, 3) }; }
-      }
-      if (!chosen) return null;
-      const r = chosen.r;
+      // v105 THE KEPT ROOM: a keeper doesn't commute. They keep ONE room — the bundle is published as a
+      // room with flavor text, so the keeper must BE there when the chamber speaks (maybeChamberLore) and
+      // stay there to be chatted with. The old scoping still walked them between up to three buildings
+      // scattered across the whole chunk (the "waltzing between civic web locations"). Pick the kept room
+      // deterministically: a doored room matching the bundle's VERB when the chamber has one (the keeper
+      // works their own trade), else any doored room, hash-scattered by npc id so co-seated keepers
+      // spread across the chamber's rooms.
+      const roomsIn = (society && society.rooms || []).filter((o) => o.ch === chunkId && o.doorG != null && o.doorG >= 0);
+      if (!roomsIn.length) return null;
+      const verbRooms = verb ? roomsIn.filter((o) => o.role === verb) : [];
+      const roomPool = verbRooms.length ? verbRooms : roomsIn;
+      const kept = roomPool[hashId(npc.id) % roomPool.length];
+      // the resident who becomes them: prefer an un-embiggened soul whose own round already touches the
+      // chamber (a living affiliate — their life plausibly runs through this room), else any free resident
+      // on this deck (the low-vitality fallback, so a thin ward still gets a living keeper).
+      const free = residents.filter((r) => !r.keeper && !_embiggened.has(r.id) && residentDeck(r) === (deck || 0));
+      if (!free.length) return null;
+      const affil = free.filter((r) => routeStops(r).some((s) => s.ch === chunkId));
+      const pool = (affil.length ? affil : free).sort((a, b) => (a.id < b.id ? -1 : 1));
+      const r = pool[hashId(npc.id) % pool.length];
       const faction = factionOf(npc.tags), fc = FACTION_INFO[faction] && FACTION_INFO[faction].color;
       if (fc) { try { r.genome = { ...r.genome, ramps: { ...r.genome.ramps, cloth: ramp(rngFor('hoop-npc:' + npc.id + '::factioncloth'), hexHue(fc), 52, 10) } }; } catch (e) {} }
       r.keeper = { content_id: npc.id, name: (npc.content || {}).name || npc.id, color: fc || '#d0c07f', loreId: npc.lore || null };
-      // SCOPE THE WALK TO THE CHAMBER: one stop → it stays put and dwells; two+ → it ambles between its
-      // in-chamber buildings. Never a hallway, so even when culled off-screen it freezes inside its room.
-      const newRoute = chosen.route.filter((n) => n != null && n >= 0);
-      if (newRoute.length) {
-        r.route = newRoute; r.leg = 0; r.pts = null; r.dwellLeft = 1500 + rngFor('hoop-npc:' + npc.id + '::dwell')() * 4000;
-        const n0 = newRoute[0]; if (walk && walk.pos && n0 < (walk.N || 0)) { r.bx = r.x = walk.pos[2 * n0]; r.by = r.y = walk.pos[2 * n0 + 1]; }
+      // THE PUTTER: the route is 2–3 of the kept room's OWN interior cells (never a fixture tile, never
+      // another building), so the keeper drifts between spots INSIDE their room — puttering — and dwells
+      // long at each (dwellBias). One usable cell → they stand their post; no cells → the door.
+      const blk = walk && walk.blocked;
+      const cells = (kept.cellsG || []).filter((g) => g != null && g >= 0 && g < (walk ? walk.N : 0) && !(blk && blk.has(g)));
+      const putter = [];
+      for (let k = 0; putter.length < Math.min(3, cells.length) && k < cells.length * 2; k++) {
+        const g = cells[hashId(npc.id + ':putter:' + k) % cells.length];
+        if (!putter.includes(g)) putter.push(g);
       }
-      r.dwellBias = 5;   // really dwell: ~5× the normal stop dwell, at its in-chamber spot(s)
+      if (!putter.length && kept.doorG != null && kept.doorG >= 0) putter.push(kept.doorG);
+      if (putter.length) {
+        r.route = putter; r.leg = 0; r.pts = null; r.dwellLeft = 1500 + rngFor('hoop-npc:' + npc.id + '::dwell')() * 4000;
+        const n0 = putter[0]; if (walk && walk.pos && n0 < (walk.N || 0)) { r.bx = r.x = walk.pos[2 * n0]; r.by = r.y = walk.pos[2 * n0 + 1]; }
+      }
+      r.dwellBias = 5;   // really dwell: ~5× the normal stop dwell, at its in-room spot(s)
       _embiggened.add(r.id);
       return r;
     }
@@ -5235,7 +5278,8 @@
         if (!st || st.allGatesSet) return;
         let heard = false;
         for (const g of st.unmetGates) {
-          if (story.mystery && g === story.mystery.gate) continue;
+          if (story.mystery && g === story.mystery.gate) continue;            // the case closes only on the accusation
+          if (story.mythograph && g === story.mythograph.gate) continue;      // the mythograph closes only on the report (the terminal walk IS the quest)
           const raw = (story.gateSettersMulti || story.gateSetters || {})[g];
           const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
           if (!list.some((x) => x && x.contentId === contentId)) continue;

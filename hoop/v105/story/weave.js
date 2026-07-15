@@ -149,6 +149,34 @@ export function spliceChoice(c, { choice, nodes, atNode }) {
   for (const [nid, n] of Object.entries(nodes || {})) d.nodes[nid] = n;
   return cc;
 }
+// add a gate to a LOAD-BEARING anchor: load_bearing.gates gains it (LAST — a final subquest) and the
+// turn-in choice (the one setting flag.deck.*.cleared) gains it in requires.facts. Immutable clone.
+// Shared by the mystery and the mythograph weaves.
+export function anchorWithGate(anchor, gate) {
+  const cc = { ...anchor, content: { ...anchor.content } };
+  const lb = cc.content.load_bearing || {};
+  cc.content.load_bearing = { ...lb, gates: [...(lb.gates || []).filter((g) => g !== gate), gate] };
+  const d = cc.content.dialogue || (cc.content.npc && cc.content.npc.dialogue);
+  if (d && d.nodes) {
+    const nodes = { ...d.nodes };
+    for (const [nid, n] of Object.entries(nodes)) {
+      if (!(n.choices || []).some((ch) => ch.effects && ch.effects.set_facts && Object.keys(ch.effects.set_facts).some((k) => /^flag\.deck\..*\.cleared$/.test(k)))) continue;
+      nodes[nid] = {
+        ...n,
+        choices: n.choices.map((ch) => {
+          const isTurnin = ch.effects && ch.effects.set_facts && Object.keys(ch.effects.set_facts).some((k) => /^flag\.deck\..*\.cleared$/.test(k));
+          if (!isTurnin) return ch;
+          const req = ch.requires || {};
+          return { ...ch, requires: { ...req, facts: { ...(req.facts || {}), [gate]: true } } };
+        }),
+      };
+    }
+    if (cc.content.dialogue) cc.content.dialogue = { ...d, nodes };
+    else cc.content.npc = { ...cc.content.npc, dialogue: { ...d, nodes } };
+  }
+  return cc;
+}
+
 // strip ONE set_facts key from every choice of an item's dialogue (the authored setter hand-off).
 export function stripGateFromDialogue(c, gate) {
   const cc = cloneDialogue(c);
@@ -296,15 +324,84 @@ export function weaveCast(content, cast, worldSeed) {
   return (content || []).map((c) => byId.get(c.id) || c);
 }
 
+// ── THE MYTHOGRAPH QUEST (the Olo finale) ────────────────────────────────────────────────────────────
+// The FINAL keeper of the tier-1 anchor's lineup sends the player to a LEARN TERMINAL to read the
+// mythograph (the Tabard reading-room console; the game sets `flag.read_terminal` when any is read —
+// a runtime fact the oracle treats as world-external), then hears the report — the report ASK sets
+// flag.commons.mythograph_reported, which the anchor's turn-in now requires. Meeting the keeper never
+// auto-sets this gate (the surface excludes it, like the mystery's): the terminal walk IS the quest.
+export const MYTHOGRAPH_GATE = 'flag.commons.mythograph_reported';
+// the SEND is a pool-produced fact (the keeper's own choice sets it); the READ is runtime — the surface
+// sets it on the first terminal read AFTER the send, so a prologue terminal read can't skip the walk.
+export const MYTHOGRAPH_SENT_FACT = 'fact.mythograph.sent';
+export const MYTHOGRAPH_READ_FACT = 'fact.mythograph.read';
+const MYTH_SEND = [
+  'The three faces are only the skin. The reading rooms keep the ship’s memory of itself — find a learn terminal (▤) and read the mythograph posted there. Then come back and tell me what it made of you.',
+  'You have heard the faces; now hear the record. A learn terminal (▤) keeps the mythograph — the tale the ship tells about the one who wakes. Read it. Then bring me what it says.',
+  'One thing more, before {anchor} closes the ledger. Find a learn terminal (▤) and read the mythograph. The Commons wears its skin; the terminals keep its dreams. Come tell me what you find.',
+];
+const MYTH_REPORT_ASK = [
+  '✒ I read the mythograph. My name is in it — stencilled over another’s.',
+  '✒ The terminal showed me the mythograph. It seems to know me.',
+  '✒ I have read the mythograph, as you asked.',
+];
+const MYTH_REPORT_SAYS = [
+  'So it does know you. A tale posted before its telling, and your name in the stencil — carry that to {anchor} exactly as you found it. It is the last piece the ledger wants.',
+  'Then you have seen what the reading rooms will not say aloud: the story was here before you were. {anchor} will want that from your own mouth. Go.',
+  'Good. Do not decide yet what it means — only carry it. {anchor} keeps the ledger; this belongs in it.',
+];
+export function buildMythograph(content, cast, worldSeed) {
+  const chain = anchorChain(content);
+  const anchor = chain.find((a) => a.tier === 1);
+  if (!anchor || !anchor.gates.length) return null;
+  const entries = anchor.gates.map((g) => cast.byGate[g]).filter((e) => e && e.keeperId && !e.briefing);
+  const fin = entries[entries.length - 1];                       // the FINAL person in the lineup
+  if (!fin) return null;
+  return {
+    gate: MYTHOGRAPH_GATE, sentFact: MYTHOGRAPH_SENT_FACT, readFact: MYTHOGRAPH_READ_FACT,
+    anchorId: anchor.id, anchorName: anchor.name, tier: anchor.tier,
+    keeperId: fin.keeperId, keeperName: fin.keeperName, room: fin.room, keeperGate: fin.gate,
+  };
+}
+export function weaveMythograph(content, q, worldSeed) {
+  if (!q) return content;
+  const byId = new Map((content || []).map((c) => [c.id, c]));
+  const anchor = byId.get(q.anchorId);
+  if (anchor) byId.set(q.anchorId, anchorWithGate(anchor, q.gate));
+  const keeper = byId.get(q.keeperId);
+  if (keeper) {
+    const fill = (s) => String(s).replace(/\{anchor\}/g, q.anchorName || 'your guide');
+    let woven = spliceChoice(keeper, {
+      // the SEND: surfaces once their own charge is heard (auto-set on meeting), so the finale reads
+      // as "one thing more" from the last keeper — not a parallel errand. Taking it marks you SENT
+      // (the Havel rule: the fact lands on the ask), which arms the terminal read.
+      choice: { id: 'q_myth_send', goto: 'q_myth_send', text: '✒ Is there more the Commons keeps?', requires: { facts: { [q.keeperGate]: true } }, effects: { set_facts: { [q.sentFact]: true } } },
+      nodes: { q_myth_send: { says: fill(pickVariant(MYTH_SEND, worldSeed, 'myth_send')), choices: [{ id: 'q_myth_go', text: 'I will find a terminal.', effects: { end: true } }] } },
+    });
+    woven = spliceChoice(woven, {
+      // the REPORT: gated on the runtime read fact; the ASK sets the gate (the Havel-bug rule).
+      choice: { id: 'q_myth_report', goto: 'q_myth_report', text: pickVariant(MYTH_REPORT_ASK, worldSeed, 'myth_ask'), requires: { facts: { [q.readFact]: true } }, effects: { set_facts: { [q.gate]: true } } },
+      nodes: { q_myth_report: { says: fill(pickVariant(MYTH_REPORT_SAYS, worldSeed, 'myth_says')), choices: [{ id: 'q_myth_done', text: 'To the ledger, then.', effects: { end: true } }] } },
+    });
+    byId.set(q.keeperId, woven);
+  }
+  return (content || []).map((c) => byId.get(c.id) || c);
+}
+
 // ── THE ENTRY: served pool + world seed → the woven world ────────────────────────────────────────────
 // opts.mystery=false skips the tier-2 case (the board's cast-only view; the game leaves it on).
 // Never throws — any defect degrades to the authored pool (the issues array says why).
 export function weaveWorld(content, worldSeed, opts = {}) {
-  const out = { content, cast: null, mystery: null, issues: [] };
+  const out = { content, cast: null, mystery: null, mythograph: null, issues: [] };
   try {
     const cast = castSpine(content, worldSeed);
     out.cast = cast; out.issues.push(...cast.issues);
     out.content = weaveCast(content, cast, worldSeed);
+    if (opts.mythograph !== false) {
+      const q = buildMythograph(out.content, cast, worldSeed);
+      if (q) { out.content = weaveMythograph(out.content, q, worldSeed); out.mythograph = q; }
+      else out.issues.push({ code: 'no_mythograph', msg: 'the tier-1 finale could not be cast (no commons anchor / no cast keeper) — the campaign runs without it' });
+    }
     if (opts.mystery !== false) {
       const m = buildMystery(out.content, cast, worldSeed);
       if (m) { out.content = weaveMystery(out.content, m); out.mystery = m; }
@@ -312,9 +409,9 @@ export function weaveWorld(content, worldSeed, opts = {}) {
     }
   } catch (e) {
     out.issues.push({ code: 'weave_failed', msg: String(e && e.message || e) });
-    out.content = content; out.cast = out.cast || { plan: [], byGate: {}, issues: [] }; out.mystery = null;
+    out.content = content; out.cast = out.cast || { plan: [], byGate: {}, issues: [] }; out.mystery = null; out.mythograph = null;
   }
   return out;
 }
 
-export default { hash32, pickVariant, parseGateFlag, castCandidates, castSpine, chargeProse, spliceChoice, stripGateFromDialogue, weaveCast, weaveWorld, FACTIONS, FACTION_LABEL };
+export default { hash32, pickVariant, parseGateFlag, castCandidates, castSpine, chargeProse, spliceChoice, stripGateFromDialogue, anchorWithGate, buildMythograph, weaveMythograph, weaveCast, weaveWorld, FACTIONS, FACTION_LABEL, MYTHOGRAPH_GATE, MYTHOGRAPH_READ_FACT };

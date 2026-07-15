@@ -615,6 +615,21 @@ despite the name. It stayed with hoop, not rind.)
     facts `case.clue.*` feed the journal's ☠ case card), and the player closes it with a REAL ACCUSATION to
     the case-giver — the right name sets `flag.ward.mystery_closed`, which the weave adds to Solen's
     `load_bearing.gates` AND the turn-in choice's requires (a wrong name is rebuffed; `case.missed`).
+  - **Actions fulfill quests + the clue chase (the stuck-on-Havel rule).** Every woven fact sets on the
+    choice that REVEALS it, never a closing pleasantry; MEETING a gate's keeper sets their gate outright
+    (`meetKeeperGates` in openKeeper/openAnchor — excluded: the mystery gate, the mythograph gate, true
+    anchors). The case's ◇ leads the INVESTIGATION (`mystery.js clueTargets`: case-giver → unheard-clue
+    holders → case-giver for the accusation) and the journal's ☠ card ACCUMULATES every heard clue verbatim.
+  - **Keepers keep ONE room** (`flagKeeperResident`): a keeper no longer commutes between civic-web stops —
+    they're seated in a kept room (verb-matched in their chamber when possible) with a 2–3-cell interior
+    PUTTER route + long dwells, so the chamber's flavor text (maybeChamberLore) fires with the keeper
+    standing right there.
+  - **The OLO FINALE — the mythograph quest** (`weave.js buildMythograph/weaveMythograph`): the final keeper
+    of Olo's lineup SENDS you (sets `fact.mythograph.sent`) to a learn terminal (▤); the first terminal read
+    AFTER the send sets `fact.mythograph.read` (openTerminal — a prologue read can't skip the walk); the
+    REPORT back to that keeper sets `flag.commons.mythograph_reported`, which Olo's turn-in now requires
+    (anchorWithGate, shared with the mystery). The oracle treats required-but-never-produced facts as the
+    runtime boundary (`solvable.js` unions `worldExternal`), so the woven pool still proves per-seed.
   - **`/quests` is now the SEED ROLLER** (`v105/quests.html`, bare alias): pick/step/randomize a world seed →
     the full cast table per tier (cast keeper vs the authored "was", placement class, CASE badge), the case
     dossier (victim, suspects + motives + spoiler-blurred culprit, the clue chain with holders), the oracle

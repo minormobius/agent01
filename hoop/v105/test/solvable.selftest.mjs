@@ -89,9 +89,18 @@ const conclusion = { id: 'pb-end', type: 'plot_beat', status: 'active', tags: ['
   ok(codes(proveProgression(content), 'error').includes('setter_unservable'), 'a retired setter is caught (setter_unservable)');
 }
 {
+  // v105 RUNTIME-BOUNDARY NUANCE: "unearnable" now means gated on a flag the pool PRODUCES but only at a
+  // LATER tier — a fact NOTHING produces is the runtime boundary (worldExternal) and is assumed game-set
+  // (the mythograph's terminal read). So the tier-1 setter here waits on a tier-2 gate flag: still an error.
   const content = [anchor('a1', 'Olo', 1, 'commons', ['flag.commons.x'], 'commons'),
-    keeper('k1', 'Kip', 'commons', 'flag.commons.x', { requires: { facts: { 'flag.never.set': true } } }), conclusion];
-  ok(codes(proveProgression(content), 'error').includes('setter_gated'), 'a setter gated on an unearnable flag is caught (setter_gated)');
+    anchor('a2', 'Solen', 2, 'wards', ['flag.ward.later'], 'wards'),
+    keeper('k1', 'Kip', 'commons', 'flag.commons.x', { requires: { facts: { 'flag.ward.later': true } } }),
+    keeper('k2', 'Lorn', 'wards', 'flag.ward.later', { narTier: 2 }), conclusion];
+  ok(codes(proveProgression(content, { forcePlaced: true }), 'error').includes('setter_gated'), 'a setter gated on a later-tier flag is caught (setter_gated)');
+  // and the boundary itself: a fact nothing in the pool produces is assumed RUNTIME-SET, not a block.
+  const content2 = [anchor('a1', 'Olo', 1, 'commons', ['flag.commons.x'], 'commons'),
+    keeper('k1', 'Kip', 'commons', 'flag.commons.x', { requires: { facts: { 'flag.game.sets.this': true } } }), conclusion];
+  ok(proveProgression(content2).solvable, 'a setter gated on a runtime (never-produced) fact passes — the worldExternal boundary');
 }
 {
   // a tier-1 gate whose keeper sits in the upper rind (deck opens at tier 3) can't be reached

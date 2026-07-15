@@ -7,7 +7,7 @@ import { servePool } from '../story/import.js';
 import { anchorChain, gateSetters, advanceState } from '../story/anchors.js';
 import { proveProgression } from '../story/solvable.js';
 import { castSpine, weaveCast, weaveWorld } from '../story/weave.js';
-import { buildMystery, weaveMystery, mysteryProgress, MYSTERY_GATE } from '../story/mystery.js';
+import { buildMystery, weaveMystery, mysteryProgress, clueTargets, MYSTERY_GATE } from '../story/mystery.js';
 import { MemoryStore, talk, choose } from '../story/engine.js';
 
 let n = 0, bad = 0;
@@ -57,6 +57,8 @@ ok(proveProgression(woven, { forcePlaced: true }).solvable, 'the WOVEN pool (cas
   const P = 'p';
   // the case is sealed until the case-giver's own charge is heard
   ok(!talk(store, P, m.caseGiver.id).choices.some((c) => c.id === 'q_case_open'), 'the case is hidden before the charge');
+  // the ◇'s clue chase (clueTargets): case-giver → unheard-clue holders → case-giver (the accusation)
+  ok(JSON.stringify(clueTargets(m, store.getFacts(P))) === JSON.stringify([m.caseGiver.id]), 'clue chase: the case-giver first (hear the case)');
   store.setFact(P, m.caseGiver.gate, true);
   const t0 = talk(store, P, m.caseGiver.id);
   ok(t0.choices.some((c) => c.id === 'q_case_open'), 'the case opens once the charge is done');
@@ -71,6 +73,16 @@ ok(proveProgression(woven, { forcePlaced: true }).solvable, 'the WOVEN pool (cas
   t = choose(store, P, m.caseGiver.id, t.choices[0].id);   // I will ask around. (ends)
   const prog0 = mysteryProgress(m, store.getFacts(P));
   ok(prog0.opened && prog0.found >= 3, `the briefing hands over the first clues (${prog0.found}/${prog0.total})`);
+  ok(prog0.heard.length === prog0.found && prog0.heard.every((c) => c.text && c.title), 'the journal accumulates the heard clues verbatim');
+  { // mid-case, the ◇ chases the holders of UNHEARD clues — never someone with nothing left to say
+    const mid = clueTargets(m, store.getFacts(P));
+    const remainingHolders = new Set(mysteryProgress(m, store.getFacts(P)).remaining.map((c) => c.holderId));
+    ok(mid.length > 0 && mid.every((id) => remainingHolders.has(id)), 'clue chase: mid-case targets are exactly the unheard-clue holders');
+  }
+  { // all clues heard → the chase returns to the case-giver for the accusation
+    const all = {}; for (const c of m.clues) all['case.clue.' + c.id] = true;
+    ok(JSON.stringify(clueTargets(m, { 'case.opened': true, ...all })) === JSON.stringify([m.caseGiver.id]), 'clue chase: every clue heard → back to the case-giver to accuse');
+  }
   // canvass a suspect who actually holds a clue (one eliminated pre-canvass may have nothing to add)
   const holderIds = new Set(m.clues.map((c) => c.holderId));
   const s0 = m.suspects.find((s) => holderIds.has(s.id));

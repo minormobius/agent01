@@ -34,6 +34,7 @@
 // hoop/scripts/prove-solvable.mjs.
 
 import { anchorChain, gateSetters, advanceState } from './anchors.js';
+import { worldExternal } from './import.js';
 
 const ERROR = 'error', WARN = 'warn';
 
@@ -97,9 +98,18 @@ export function proveProgression(content, opts = {}) {
     if (a.tier !== i + 1) issues.push(issue(ERROR, 'chain_gap', i + 1, `expected an anchor at tier ${i + 1}, found '${a.name}' at tier ${a.tier} — the ladder has a missing rung`, { contentId: a.id }));
   });
 
-  // flags obtainable strictly BEFORE working tier T: every earlier anchor's gates + cleared + choice flags.
+  // THE RUNTIME BOUNDARY (v105, the mythograph rule): facts the pool REQUIRES but nothing in it
+  // PRODUCES are set by the GAME (flag.read_terminal, the journey flags — import.js worldExternal's
+  // derived boundary + the static manifest). The oracle treats them as earnable at any tier, the same
+  // allowance gates.js gives them — otherwise a keeper whose choice waits on a terminal read would
+  // read as setter_gated/unreachable when the game provably sets that fact.
+  let external;
+  try { external = new Set(worldExternal(content).facts || []); } catch (e) { external = new Set(); }
+
+  // flags obtainable strictly BEFORE working tier T: every earlier anchor's gates + cleared + choice
+  // flags — plus the runtime boundary above.
   const obtainableBefore = (tier) => {
-    const have = new Set();
+    const have = new Set(external);
     for (const a of chain) {
       if (a.tier >= tier) continue;
       for (const g of a.gates) have.add(g);
