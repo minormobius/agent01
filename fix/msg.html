@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fix — message reference</title>
+<meta name="description" content="FIX message reference: message type code, name, category, and the full field layout with required fields, components, and repeating groups.">
+<meta name="theme-color" content="#0d9488">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='78'%3E%F0%9F%94%A7%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">fix<span class="dot">.</span><small>FIX message parser</small></a>
+    <span class="spacer"></span>
+    <select id="ver" class="verselect" title="FIX dictionary version"></select>
+    <a class="crumb" href="https://mino.mobi">↖ mino.mobi</a>
+  </div>
+</header>
+
+<main class="detail">
+  <a class="back" href="/">← back to the parser</a>
+  <div id="body"></div>
+</main>
+
+<script type="module">
+const VER = document.getElementById('ver');
+const BODY = document.getElementById('body');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const m = location.pathname.match(/\/m\/([^/?#]+)/);
+const code = m ? decodeURIComponent(m[1]) : null;
+const params = new URLSearchParams(location.search);
+
+let INDEX = null, current = null, dict = null, layouts = null;
+
+async function loadDict(slug) {
+  const [d, l] = await Promise.all([
+    fetch('/data/' + slug + '.json').then((r) => r.json()),
+    fetch('/data/' + slug + '.layouts.json').then((r) => r.json()),
+  ]);
+  return { d, l };
+}
+
+async function init() {
+  INDEX = await fetch('/data/index.json').then((r) => r.json());
+  VER.innerHTML = INDEX.versions.map((v) => `<option value="${v.slug}">${esc(v.label)}</option>`).join('');
+  current = (params.get('v') && INDEX.versions.some((v) => v.slug === params.get('v')) && params.get('v'))
+    || localStorage.getItem('fix.ver') || INDEX.default;
+  if (!INDEX.versions.some((v) => v.slug === current)) current = INDEX.default;
+  VER.value = current;
+  VER.addEventListener('change', async () => { current = VER.value; localStorage.setItem('fix.ver', current); ({ d: dict, l: layouts } = await loadDict(current)); render(); });
+  ({ d: dict, l: layouts } = await loadDict(current));
+  render();
+}
+
+// Resolve a member list into rows, expanding component refs and nesting groups.
+function rows(members, depth, seen, out) {
+  for (const el of members) {
+    if (el.comp) {
+      const def = layouts.components[el.comp];
+      if (def && !seen.has(el.comp)) { const n = new Set(seen); n.add(el.comp); rows(def, depth, n, out); }
+      continue;
+    }
+    if (el.group != null) {
+      const fd = dict.fields[el.group];
+      out.push(`<tr class="grp-row"><td class="lt-tag" style="padding-left:${10 + depth * 18}px">${el.group}</td><td class="lt-name"><a href="/f/${el.group}?v=${current}">${fd ? esc(fd.name) : 'tag ' + el.group}</a> — repeating group${el.req ? '<span class="req">required</span>' : ''}</td></tr>`);
+      rows(el.members, depth + 1, seen, out);
+      continue;
+    }
+    const fd = dict.fields[el.tag];
+    out.push(`<tr><td class="lt-tag" style="padding-left:${10 + depth * 18}px">${el.tag}</td><td class="lt-name"><a href="/f/${el.tag}?v=${current}">${fd ? esc(fd.name) : 'tag ' + el.tag}</a>${fd && fd.enums ? ' <small style="color:var(--faint)">enum</small>' : ''}${el.req ? '<span class="req">*</span>' : ''}</td></tr>`);
+  }
+}
+
+function render() {
+  if (code == null) { BODY.innerHTML = `<div class="card">No message type in the URL. Go <a href="/">back</a>.</div>`; return; }
+  const msg = dict.messages[code];
+  const layout = layouts.messages[code];
+  document.title = msg ? `fix — ${msg.name} (35=${code})` : `fix — MsgType ${code}`;
+  if (!msg) {
+    BODY.innerHTML = `<div class="card"><div class="detail-head"><div class="tagbox">${esc(code)}</div>
+      <div class="detail-meta"><h1>MsgType ${esc(code)}</h1><div class="pill-row"><span class="pill">unknown in ${esc(dict.label)}</span></div></div></div>
+      <p style="color:var(--muted);margin:16px 0 0">No message with MsgType <code>${esc(code)}</code> in ${esc(dict.label)}. Try another version.</p></div>`;
+    return;
+  }
+  const pills = [
+    `<span class="pill accent">35=${esc(code)}</span>`,
+    `<span class="pill">${esc(msg.cat)}</span>`,
+    `<span class="pill">${esc(dict.label)}</span>`,
+  ];
+  const out = [];
+  if (layout) rows(layout, 0, new Set(), out);
+  const req = out.length ? '' : `<p style="color:var(--muted)">No body fields (session/admin message with header + trailer only).</p>`;
+  BODY.innerHTML = `<div class="card"><div class="detail-head"><div class="tagbox">${esc(code)}</div>
+    <div class="detail-meta"><h1>${esc(msg.name)}</h1><div class="pill-row">${pills.join('')}</div></div></div></div>
+    <div class="card"><h2 class="section-title">Field layout <small style="color:var(--faint);font-weight:400">(<span class="req">*</span> required · components expanded)</small></h2>
+    ${req || `<table class="layout-t"><tbody>${out.join('')}</tbody></table>`}
+    <p style="color:var(--faint);font-size:12.5px;margin:14px 0 0">Every FIX message is framed by the standard header (starting <a href="/f/8?v=${current}">8 BeginString</a>) and trailer (<a href="/f/10?v=${current}">10 CheckSum</a>); the layout above is the message body.</p></div>`;
+}
+
+init();
+</script>
+</body>
+</html>
