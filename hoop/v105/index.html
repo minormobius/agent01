@@ -607,6 +607,7 @@
     import { importWorldExport, servePool } from './story/import.js';   // v096: hoopy's world_export → content_items (first-class) diff; servePool = the live-repo serving rules (drop retired, explode room_bundle, map wanderer)
     import { weaveWorld } from './story/weave.js';                      // v105: THE SEEDED QUEST SPINE — cast gate keepers from the room-bundle pool per world seed + the tier-2 mystery (story/mystery.js), woven into the served pool
     import { mysteryProgress, clueTargets, MYSTERY_GATE } from './story/mystery.js'; // v105: the case's journal readout + the clue-chase waypoint targets
+    import { errandFor, errandProgress, errandTaskLine } from './story/errand.js';     // v105: CHAMBER ERRANDS — every keeper can fire off their kept chamber's verb-fixture quest
     import { FQ, FQ_ORDER, fqProgress, fqStatus, fqActive, fqOpensRind, fqSignatureExclusive, fqCanWitness } from './story/factionquest.js';   // v100: the NAVE CAMPAIGN — meet the three factions in order; the Drift opens the rind
     import { CHOICE_FACTIONS, WITNESS_TARGET, FACTION_INFO, witnessCount, allWitnessed, chosenFaction, witnessProgress, isChoiceFaction } from './story/factionchoice.js';   // v100: the UPPER-RIND THRESHOLD — witness each faction ×3, then choose; the choice colors the lower-rind descent
     import { CHAMBER_LORE_TARGET, chamberLore, signalLocated, chapterComplete, finalChoice, lunaContact, FINAL_CHOICES, weighJourney, concludeEnding } from './story/conclusion.js';   // v100: THE CHAPTER CLOSE — locate the Signal Chamber, Luna's contact, the final decision, an ending fitted to the path
@@ -1388,6 +1389,7 @@
       setStam(STAMINA_MAX);
       setJSONFact('combat.home', { x: pp.x, y: pp.y });   // remember this bed — you wake here if you fall in battle
       const d = getDay() + 1; setDay(d);   // sleep is the garden's clock: a night passes, your crops grow
+      bumpAct('rest');   // errands: the mending rest (heal/dwell keepers ask for it)
       saveStory(); whereAmI();
       notify(`✚ rested — a night passes (day ${d}). Your gardens grow.`, { kind: 'life', ms: 2800 });
     }
@@ -2960,6 +2962,9 @@
       // the clue tally, who still has something to say, and where to make the accusation.
       const mc = mysteryCardHTML(facts);
       if (mc) body += `<div style="margin:0 0 16px;padding-bottom:13px;border-bottom:1px solid #1b2530">${mc}</div>`;
+      // v105 CHAMBER ERRANDS: the keepers' verb-fixture tasks — open ones with live progress, then the tally.
+      const ec = errandCardHTML(facts);
+      if (ec) body += `<div style="margin:0 0 16px;padding-bottom:13px;border-bottom:1px solid #1b2530">${ec}</div>`;
       if (open.length || done.length) body += `<div style="color:#7fd8d0;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:9px">side threads</div>`;
       if (!open.length && !done.length) body += guide ? '<div style="color:#6b7872;font-size:12px">No side threads yet. Talk to the people of the deck — someone will mention something worth chasing.</div>' : 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.';
       const trackedId = story.store.getFact(story.playerId, 'sq.track');
@@ -3002,6 +3007,23 @@
       journalOpen = true;   // set AFTER showPage (which clears it) so a live renderQuest refresh keeps the journal
     }
     const toggleJournal = () => { if (journalOpen) hideEncounter(); else renderJournal(); };
+    // v105 — the chamber-errand card: every OPEN errand with its giver, task, and live progress; done tally.
+    function errandCardHTML(facts) {
+      if (!errandsEnabled() || !story.ready) return '';
+      const book = errandBook(); const ids = Object.keys(book); if (!ids.length) return '';
+      const open = ids.filter((id) => !book[id].done), done = ids.length - open.length;
+      if (!open.length && !done) return '';
+      let h = `<div style="color:#e0c48a;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">✒ chamber errands${done ? ` · ${done} done` : ''}</div>`;
+      for (const id of open) {
+        const e = book[id], giver = story.store.contentById(id);
+        const pr = errandProgress(e, facts);
+        h += `<div style="margin:0 0 9px;border-left:2px solid ${pr && pr.ready ? '#8fe07a' : '#b48a6a'};padding-left:10px">`
+          + `<div style="color:#e0c48a;font-size:12.5px">${esc(errandTaskLine(e))} <span style="color:#6b7872;font-size:11px">· for ${esc((giver && giver.content && giver.content.name) || 'a keeper')} · +◈${e.reward}</span></div>`
+          + `<div style="color:${pr && pr.ready ? '#8fe07a' : '#6b7872'};font-size:11px">${pr && pr.ready ? '✓ done — report back to them' : `${pr ? pr.count : 0}/${e.need}`}</div></div>`;
+      }
+      if (!open.length) h += `<div style="color:#6b7872;font-size:11.5px">No errands open — the keepers always have another small thing.</div>`;
+      return h;
+    }
     // v105 — the mystery's journal card. Rendered only while the case is live: opened (the case-giver's
     // briefing taken) and not yet closed. Names, never spoils: the clue TALLY + who holds what remains.
     function mysteryCardHTML(facts) {
@@ -3187,7 +3209,7 @@
               ? `<div class="ch" style="margin-top:6px">` + _preps.map(({ it, i }) => `<button data-giveprep="${i}" style="border-color:#6a5a9a;color:#c6b0f0" title="${esc(it.lore || '')}">⚘ ${esc(it.name)}</button>`).join('') + `<button data-gift="0">cancel</button></div>`
               : `<button data-gift="1" style="margin-top:8px;padding:5px 12px;border:1px solid #6a5a9a;background:rgba(120,100,170,.1);color:#c6b0f0;border-radius:7px;font:inherit;font-size:12px;cursor:pointer">⚘ gift a draught</button>`)
           : '';
-        const right = _roomLine + meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>` + giftRow;   // room name (keeper metadata) sits above the description, every visit
+        const right = _roomLine + meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>` + errandRowHTML(npcId) + giftRow;   // room name (keeper metadata), then the chamber errand row, then the gift row
         // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
         // an ambient crowd one-liner (no_tree crowd OR a wanderer's one-node `ambient` tree) → a light compact popup.
         if ((!t.no_tree && !t.ambient) || (t.choices && t.choices.length)) {
@@ -3236,6 +3258,13 @@
       }
       const gf = e.target.closest('[data-gift]');
       if (gf && story.active) { story.active.giftOpen = gf.dataset.gift === '1'; renderStory(); return; }
+      const er = e.target.closest('[data-errand]');
+      if (er && story.active && story.active.npcId) {
+        const ci = story.store.contentById(story.active.npcId), def = errandFor(ci);
+        if (er.dataset.errand === 'accept' && def) acceptErrand(story.active.npcId, def);
+        else if (er.dataset.errand === 'turnin') turnInErrand(story.active.npcId);
+        renderStory(); return;
+      }
       const gp = e.target.closest('[data-giveprep]');
       if (gp && story.active && story.active.npcId) { giftPrepToNpc(story.active.npcId, +gp.dataset.giveprep); return; }
       const eat = e.target.closest('[data-eat]');
@@ -3245,7 +3274,7 @@
       const buy = e.target.closest('[data-buy]');
       if (buy && story.active && story.active.trainer && trainerRun) { if (buyNode(trainerRun, buy.dataset.buy)) renderStory(); return; }
       const dep = e.target.closest('[data-deposit]'), wd = e.target.closest('[data-withdraw]');
-      if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack(); setChests(chestDeposit(getChests(), chestGid, it)); saveStory(); renderChest(); } return; }
+      if (dep && chestGid) { const i = +dep.dataset.deposit, it = pack.pack[i]; if (it) { pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack(); setChests(chestDeposit(getChests(), chestGid, it)); bumpAct('chest'); saveStory(); renderChest(); } return; }
       if (wd && chestGid) { const i = +wd.dataset.withdraw, r = chestWithdraw(getChests(), chestGid, i); if (r.item) { setChests(r.store); addToPack(pack.pack, r.item); pack.setPack(pack.pack); persistPack(); saveStory(); renderChest(); } return; }
       if (ch && story.active && story.active.npcId) {
         story.active.firstScreen = false;   // past the opening screen — drop the meet note / informed beat
@@ -3316,6 +3345,7 @@
       interact(s, story.playerId, key);                              // crystallize lo-terminal (pinned) → XP + placement
       s.setFact(story.playerId, 'flag.read_terminal', true);
       s.setFact(story.playerId, 'flag.heard_luna', true);
+      bumpAct('terminal');   // errands: a reading counts
       // v105 the Olo finale: a terminal read counts as READING THE MYTHOGRAPH only once the final keeper
       // has SENT you (so the prologue's terminal read can't pre-complete the leg) — then page you back.
       if (story.mythograph && s.getFact(story.playerId, story.mythograph.sentFact) === true
@@ -3736,6 +3766,7 @@
       if (act === 'next') {   // claiming a win banks the reward and advances to a fresh puzzle
         if (arcadeGame.won && !arcadeGame.autoSolved) {   // a watched (engine) solve banks nothing — you have to solve it yourself
           setCoins(getCoins() + parReward(arcadeGame));   // efficiency pays — over-par solves bank less
+          bumpAct('arcadewin');   // errands: a claimed, self-solved win counts
           if (!morph) setClearedFor(arcadeGame.lawIndex, arcadeGame.q + 1);   // forge tracks a per-law frontier; the morph proto is a session sampler
           saveStory(); whereAmI();
         }
@@ -3900,7 +3931,7 @@
         sd[gardenSelSeed]--; setSeeds(sd);
         setBed(gardenKey, plantAt(curBed, b.x, b.y, gardenSelSeed, day2));
         saveStory(); renderGarden();
-        obDone('garden');   // onboarding: the first planted seed IS the garden gimme
+        obDone('garden'); bumpAct('plant');   // onboarding: the first planted seed IS the garden gimme; errands count every one
       });
     }
     $('garden').addEventListener('click', (e) => {
@@ -4043,7 +4074,7 @@
       benchSel = []; saveStory(); renderBench();
       notify(`⚗ brewed ${item.name} — ${describeEffect(pv)} → pack (i)`, { kind: 'pickup', ms: 3000 });
       if (discovered) notify(`✦ recipe discovered — ${match.vessel} of ${match.key}! it's now a one-tap at any bench`, { kind: 'life', ms: 3600 });
-      obDone('alchemy');   // onboarding: the first brew IS the bench gimme
+      obDone('alchemy'); bumpAct('brew');   // onboarding: the first brew IS the bench gimme; errands count every one
     }
 
     // ── USING PREPARATIONS — the consume verb, self, in & out of combat. A preparation carries
@@ -4201,7 +4232,7 @@
       alignTally(it);                                          // forging a metal aligns you toward its planet
       saveStory(); renderSmithy();
       notify(`⚒ forged ${it.name} (${it.gradeLabel}) → pack (i) — equip at ⛨`, { kind: 'pickup', ms: 3200 });
-      obDone('smith');   // onboarding: the first forge IS the smithy gimme
+      obDone('smith'); bumpAct('forge');   // onboarding: the first forge IS the smithy gimme; errands count every one
     }
     function doDismantle(i) {
       const it = pack.pack[i]; if (!isGear(it)) return;
@@ -4435,12 +4466,12 @@
     function doBuyCommodity(id) {
       const bp = buyCommodityPrice(id), coins = getCoins(); if (coins < bp) return;
       setCoins(coins - bp); setCommods(smithEarn(getCommods(), { [id]: 1 }));
-      saveStory(); renderTrade(); whereAmI();
+      bumpAct('trade'); saveStory(); renderTrade(); whereAmI();
     }
     function doSellCommodity(id) {
       const wallet = getCommods(); if (!(wallet[id] > 0)) return;
       setCommods(smithSpend(wallet, { [id]: 1 })); setCoins(getCoins() + sellCommodityPrice(id));
-      saveStory(); renderTrade(); whereAmI();
+      bumpAct('trade'); saveStory(); renderTrade(); whereAmI();
     }
     function doFillCommission(ci, itemIdx) {
       const epoch = getDay(), list = commissionsFor(tradeKey, epoch), c = list.find((x) => x.i === ci); if (!c) return;
@@ -4481,7 +4512,7 @@
       const e = apothecaryStock().find((x) => x.slot === slot); if (!e) return;
       const coins = getCoins(); if (coins < e.price) { flashBusy(`◍ not enough coins (◈${e.price})`); return; }
       setCoins(coins - e.price); addToPack(pack.pack, { ...e.item }); pack.setPack(pack.pack); persistPack();
-      saveStory(); renderTrade(); whereAmI(); flashPickup(e.item);
+      bumpAct('trade'); saveStory(); renderTrade(); whereAmI(); flashPickup(e.item);
     }
     // ── WARES — the shop. Buy seeded gear (drops into your pack → equip at ⛨) + sell loot for coins.
     //    Shelf is deterministic per desk + restocks on the garden day (sleeping). ──
@@ -4515,12 +4546,12 @@
       const coins = getCoins(); if (coins < e.price) { flashBusy(`◍ not enough coins (◈${e.price})`); return; }
       setCoins(coins - e.price); addToPack(pack.pack, e.item); pack.setPack(pack.pack); persistPack();
       sold.add(slot); setJSONFact('shop.sold.' + tradeKey, { epoch, sold: [...sold] });
-      saveStory(); renderTrade(); whereAmI(); flashPickup(e.item);
+      bumpAct('trade'); saveStory(); renderTrade(); whereAmI(); flashPickup(e.item);
     }
     function doSell(i) {
       const it = pack.pack[i]; if (!it) return; const sp = sellPrice(it);
       pack.pack.splice(i, 1); pack.setPack(pack.pack); persistPack(); setCoins(getCoins() + sp);
-      saveStory(); renderTrade(); whereAmI(); flashBusy(`◈ +${sp} · sold ${it.name || 'item'}`);
+      bumpAct('trade'); saveStory(); renderTrade(); whereAmI(); flashBusy(`◈ +${sp} · sold ${it.name || 'item'}`);
     }
     function packsSectionHTML() {
       const b = tradeBiome;
@@ -4663,7 +4694,7 @@
       const coins = getCoins(); if (coins < GEM_PULL_COST) { flashBusy(`◍ not enough coins (◈${GEM_PULL_COST})`); return; }
       const pulls = getLapPulls(), gem = rollGem(seed, lapidaryKey, pulls);
       setCoins(coins - GEM_PULL_COST); setLapPulls(pulls + 1); const g = getGems(); g.push(gem); setGems(g);
-      lapReveal = gem; saveStory(); renderLapidary(); whereAmI();
+      lapReveal = gem; bumpAct('lapidary'); saveStory(); renderLapidary(); whereAmI();
     }
     function doSocket() {
       const it = lapItemSel >= 0 ? pack.pack[lapItemSel] : null; if (!it || lapGemSel.length !== 1) return;
@@ -4671,13 +4702,13 @@
       const gems = getGems(), gem = gems[lapGemSel[0]]; if (!gem) return;
       it.gems = (it.gems || []).concat(gem); gems.splice(lapGemSel[0], 1); setGems(gems); persistPack(); lapGemSel = [];
       alignTally(gem);                                         // socketing a stone aligns you toward its lattice's planet
-      saveStory(); renderLapidary(); whereAmI(); flashBusy(`⬡ set ${gem.mineral} into ${it.name || 'gear'}`);
+      bumpAct('lapidary'); saveStory(); renderLapidary(); whereAmI(); flashBusy(`⬡ set ${gem.mineral} into ${it.name || 'gear'}`);
     }
     function doGrow() {
       if (lapGemSel.length !== 3) return; const gems = getGems(), picks = lapGemSel.map((i) => gems[i]);
       const res = growGems(picks); if (!res.ok) { flashBusy('◍ ' + res.reason); return; }
       const uids = new Set(picks.map((g) => g.uid)); const remain = gems.filter((g) => !uids.has(g.uid)); remain.push(res.gem);
-      setGems(remain); lapGemSel = []; lapReveal = res.gem; saveStory(); renderLapidary(); whereAmI(); flashBusy(`△ grew a ${res.grewTo} ${res.gem.mineral}`, 3200);
+      setGems(remain); lapGemSel = []; lapReveal = res.gem; bumpAct('lapidary'); saveStory(); renderLapidary(); whereAmI(); flashBusy(`△ grew a ${res.grewTo} ${res.gem.mineral}`, 3200);
     }
     // ── REFORGE (the MEND verb worked on the item's own genome): temper a stat, reforge the piece, or
     //    upgrade its tech era — each paid in the ship's commodities (the same wallet the smithy spends). ──
@@ -4983,7 +5014,7 @@
         if (it) { addToPack(pack.pack, it); pack.setPack(pack.pack); persistPack(); }   // loot ALWAYS persists
         setCoins(getCoins() + sp.coins);
         flashBusy(`⚔ stage ${ctx.stage + 1} cleared — +${r.points}⬡ point${r.points === 1 ? '' : 's'} · +◈${sp.coins}${it ? ` · ${it.name}` : ''}`, 3200);
-        obDone('trainer');   // onboarding: the first cleared stage IS the gauntlet gimme
+        obDone('trainer'); bumpAct('trainer');   // onboarding: the first cleared stage IS the gauntlet gimme; errands count every one
       } else {
         flashBusy('⚔ you fall — the run ends. The loot you banked is yours to keep.', 3200);
       }
@@ -5085,6 +5116,7 @@
       setCoins(coins - f.cost);
       const s = applyFood({ stamina: getStam(), nourish: getNourish(), health: getHealth() }, f);
       const st = story.store; st.setFact(story.playerId, 'sim.stamina', s.stamina); st.setFact(story.playerId, 'sim.nourish', s.nourish); st.setFact(story.playerId, 'sim.health', s.health);
+      bumpAct('eat');   // errands: a meal at the counter counts
       saveStory(); whereAmI(); renderCafePanel($('story'));
       notify(`◍ ate ${f.name} — +${f.nourish} food, +${f.restoreStamina} stam`, { kind: 'life', ms: 2600 });
     }
@@ -5276,6 +5308,69 @@
         const npc = story.store.contentById(id); if (npc) flagKeeperResident(npc, d.ch, d.deck || 0);
       }
     }
+    // ── CHAMBER ERRANDS (v105): every keeper can fire off their kept chamber's VERB quest — the task IS
+    //    the verb's fixture (story/errand.js). Runtime, not content: the offer renders as a task row in the
+    //    conversation (the giftRow pattern), the fixtures count the acts (bumpAct at each action site), and
+    //    the player reports back to the giver for the coin. One errand per keeper per world; `?errands=off`
+    //    kills the system; a bundle carrying content.errand=false never offers (hoopy's per-NPC switch). ──
+    const errandsEnabled = () => { try { return new URLSearchParams(location.search).get('errands') !== 'off'; } catch (e) { return true; } };
+    function bumpAct(kind) { try { if (story.ready) story.store.incrFact(story.playerId, 'act.' + kind, 1); } catch (e) {} }
+    const errandBook = () => getJSONFact('cq.book', {});
+    const setErrandBook = (b) => setJSONFact('cq.book', b);
+    // accept the giver's errand: snapshot the counter baseline; a DELIVERY also binds its target — the
+    // nearest OTHER placed keeper (deterministic tie-break by id), so the parcel points somewhere real.
+    function acceptErrand(npcId, def) {
+      const book = errandBook(); if (book[npcId]) return;
+      const entry = { kind: def.kind, need: def.need, reward: def.reward, base: +(story.store.getFact(story.playerId, 'act.' + def.kind) || 0) };
+      if (def.kind === 'deliver') {
+        const disc = getJSONFact('npc.discovered', {});
+        const cands = Object.keys(disc).filter((id) => id !== npcId)
+          .map((id) => ({ id, ci: story.store.contentById(id), loc: locateNpc(id) }))
+          .filter((c) => c.ci && c.ci.type === 'npc' && !(c.ci.content && c.ci.content.ambient) && c.loc && Number.isFinite(c.loc.x))
+          .sort((a, b) => (((a.loc.x - px()) ** 2 + (a.loc.y - py()) ** 2) - ((b.loc.x - px()) ** 2 + (b.loc.y - py()) ** 2)) || (a.id < b.id ? -1 : 1));
+        const t = cands[0]; if (!t) { notify('◍ no one to carry to yet — meet more of the ship first', { kind: 'warn', ms: 3200 }); return; }
+        entry.target = t.id; entry.targetName = (t.ci.content || {}).name || t.id;
+      }
+      book[npcId] = entry; setErrandBook(book);
+      notify(`✒ errand taken — ${errandTaskLine(entry)}`, { kind: 'quest', ms: 4200 });
+      saveStorySnapshot(); if (journalOpen) renderJournal();
+    }
+    function turnInErrand(npcId) {
+      const book = errandBook(); const entry = book[npcId]; if (!entry || entry.done) return;
+      const pr = errandProgress(entry, story.store.getFacts(story.playerId)); if (!pr || !pr.ready) return;
+      entry.done = true; setErrandBook(book);
+      setCoins(getCoins() + (entry.reward || 8));
+      notify(`◈ errand done — +◈${entry.reward || 8}`, { kind: 'coin', ms: 3600 });
+      saveStory(); if (journalOpen) renderJournal();
+    }
+    // the parcel lands when you OPEN the delivery target (person-as-fixture — the move verb's errand).
+    function checkDeliveries(contentId) {
+      try {
+        const book = errandBook(); let hit = false;
+        for (const [gid, e] of Object.entries(book)) {
+          if (e.kind !== 'deliver' || e.done || e.ready || e.target !== contentId) continue;
+          e.ready = true; hit = true;
+          const giver = story.store.contentById(gid);
+          notify(`✒ parcel delivered — return to ${(giver && giver.content && giver.content.name) || 'the sender'} for your coin`, { kind: 'quest', ms: 4600 });
+        }
+        if (hit) { setErrandBook(book); saveStorySnapshot(); }
+      } catch (e) {}
+    }
+    // the conversation task row: offer → progress → turn-in (rendered under the keeper's dialogue).
+    function errandRowHTML(npcId) {
+      if (!errandsEnabled() || !story.ready || !npcId) return '';
+      const ci = story.store.contentById(npcId); const def = errandFor(ci); if (!def) return '';
+      const entry = errandBook()[npcId];
+      if (entry && entry.done) return `<div style="margin-top:8px;color:#6b7872;font-size:11.5px">✒ their errand is done — the room remembers.</div>`;
+      if (!entry) {
+        const line = def.kind === 'deliver' ? 'carry a sealed parcel to another keeper' : errandTaskLine(def);
+        return `<div style="margin-top:8px;color:#9aa8a0;font-size:12px;font-style:italic">“${esc(def.offer)}”</div>`
+          + `<button data-errand="accept" style="margin-top:6px;padding:6px 14px;border:1px solid #b48a6a;background:rgba(180,138,106,.12);color:#e0c48a;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer">✒ take the errand — ${esc(line)} (+◈${def.reward})</button>`;
+      }
+      const pr = errandProgress(entry, story.store.getFacts(story.playerId));
+      if (pr && pr.ready) return `<button data-errand="turnin" style="margin-top:8px;padding:6px 14px;border:1px solid #8fe07a;background:rgba(143,224,122,.12);color:#8fe07a;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer">✒ report the errand done — +◈${entry.reward}</button>`;
+      return `<div style="margin-top:8px;color:#e0c48a;font-size:11.5px">✒ ${esc(errandTaskLine(entry))} — ${pr ? pr.count : 0}/${entry.need}</div>`;
+    }
     // v105 ACTIONS FULFILL QUESTS (the stuck-on-Havel fix): MEETING a gate's keeper IS hearing them.
     // The moment you open a satisfier of the ACTIVE tier's unmet gate(s), the gate sets — finding them was
     // the quest (exploration is the forcing function); the spliced charge dialogue stays as the flavor of
@@ -5308,6 +5403,7 @@
       if (!story.ready || !r.keeper) return;
       const s = story.store, key = 'keeper:' + r.keeper.content_id;
       meetKeeperGates(r.keeper.content_id, r.keeper.name);   // hearing the keeper fulfills their gate (before talk renders, so gated case/turn-in choices appear immediately)
+      checkDeliveries(r.keeper.content_id);                  // a courier errand lands when you reach its addressee
       if (!s.featureByKey(key)) s.addFeature({ key, type: 'npc', label: r.keeper.name, content_id: r.keeper.content_id });
       const intro = interact(s, story.playerId, key);
       maybeEncounter(intro);
@@ -5767,6 +5863,7 @@
       if (!story.ready) return;
       const s = story.store;
       meetKeeperGates(a.content_id, a.name);   // a PINNED figure (side-thread promotion) can be a gate satisfier too — meeting them counts; true load-bearing anchors are excluded inside
+      checkDeliveries(a.content_id);           // a courier errand lands when you reach its addressee
       if (!s.featureByKey(a.key)) s.addFeature({ key: a.key, type: 'npc', label: a.name, content_id: a.content_id });
       const intro = interact(s, story.playerId, a.key);
       maybeEncounter(intro);   // first meeting → its description fills the screen
@@ -5838,11 +5935,11 @@
       const trn = trainerAt(wx, wy);
       if (trn) { walkThenInteract(trn.x, trn.y, () => openTrainer()); return; }
       const orc = oracleAt(wx, wy);
-      if (orc) { walkThenInteract(orc.cp.cx, orc.cp.cy, () => openOracle(fixtureCtx())); return; }
+      if (orc) { walkThenInteract(orc.cp.cx, orc.cp.cy, () => { bumpAct('oracle'); openOracle(fixtureCtx()); }); return; }
       const geo = geomancyAt(wx, wy);
-      if (geo) { walkThenInteract(geo.x, geo.y, () => openGeomancy(fixtureCtx())); return; }
+      if (geo) { walkThenInteract(geo.x, geo.y, () => { bumpAct('oracle'); openGeomancy(fixtureCtx()); }); return; }
       const ink = inkblotAt(wx, wy);
-      if (ink) { walkThenInteract(ink.cp.cx, ink.cp.cy, () => openInkblot(fixtureCtx())); return; }
+      if (ink) { walkThenInteract(ink.cp.cx, ink.cp.cy, () => { bumpAct('inkblot'); openInkblot(fixtureCtx()); }); return; }
       const caf = cafeAt(wx, wy);
       if (caf) { walkThenInteract(caf.cp.cx, caf.cp.cy, () => openCafe(caf.cp, caf.ch)); return; }
       const grd = gardenAt(wx, wy);

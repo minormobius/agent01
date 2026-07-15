@@ -630,6 +630,17 @@ despite the name. It stayed with hoop, not rind.)
     REPORT back to that keeper sets `flag.commons.mythograph_reported`, which Olo's turn-in now requires
     (anchorWithGate, shared with the mystery). The oracle treats required-but-never-produced facts as the
     runtime boundary (`solvable.js` unions `worldExternal`), so the woven pool still proves per-seed.
+  - **CHAMBER ERRANDS — the quests and the fixtures, enmeshed** (`v105/story/errand.js`, node-tested).
+    Every keeper can fire off ONE errand keyed to their kept chamber's VERB; the task IS that verb's
+    fixture: grow→plant ❀ · serve→eat ☕ · play→arcade win ◉ / gauntlet stage ⚔ · make→forge ⚒ / brew ⚗ ·
+    mend→lapidary ⬡ · trade→exchange ⇄ · learn→terminal ▤ · worship→oracle ☴ · govern→seal-stand ❦ ·
+    dwell→rest ✚ / chest ▣. The three fixture-less verbs stretch to real acts: heal→the mending REST,
+    store→the hold-CHEST deposit, move→a DELIVERY (person-as-fixture: carry a parcel to another placed
+    keeper). Runtime, not content: the offer renders as a task row in the keeper's conversation (the
+    giftRow pattern), `act.<kind>` counters bump at every fixture action site, progress counts against
+    the accept-time baseline, and the player reports back to the giver for the coin. One errand per
+    keeper per world; journal carries a ✒ errands card; `?errands=off` kills the system; a bundle with
+    `content.errand: false` never offers (hoopy's per-NPC switch); anchors/wanderers/retired never offer.
   - **`/quests` is now the SEED ROLLER** (`v105/quests.html`, bare alias): pick/step/randomize a world seed →
     the full cast table per tier (cast keeper vs the authored "was", placement class, CASE badge), the case
     dossier (victim, suspects + motives + spoiler-blurred culprit, the clue chain with holders), the oracle
