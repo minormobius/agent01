@@ -6,8 +6,15 @@ import { buildRingWeave, ABOVE, BELOW } from './ringweave.js';
 const $ = (id) => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0, scale = 1;
-const W = buildRingWeave();
+let turns = 0.7, W = buildRingWeave({ turns });   // `turns` = weave tightness (low ⇒ crossings spread out)
 const state = { hoverThread: null, hoverRing: null, flow: true, labels: true, cross: true, frame: 0 };
+// weave TIGHTNESS slider — rebuild at a new turn count; report K(6,6) completeness (too loose breaks it)
+if ($('tight')) $('tight').addEventListener('input', (e) => {
+  turns = +e.target.value; W = buildRingWeave({ turns });
+  state.hoverThread = state.hoverRing = null;
+  $('tval').textContent = turns.toFixed(2);
+  const pairs = W.counts.pairsCovered, kr = $('kread'); kr.textContent = `K ${pairs}/36`; kr.style.color = pairs < 36 ? '#d9534f' : '#5fbf86';
+});
 
 const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgba = (h, a) => { const c = hex(h); return `rgba(${c[0]},${c[1]},${c[2]},${a})`; };

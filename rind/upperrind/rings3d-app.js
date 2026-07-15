@@ -6,8 +6,18 @@ import { buildRingWeave3D, ABOVE, BELOW } from './ringweave.js';
 const $ = (id) => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
 let DPR = 1, CW = 0, CH = 0;
-const W = buildRingWeave3D();
+let turns = 0.7, W = buildRingWeave3D({ turns });
 const state = { yaw: 0.6, pitch: 0.95, zoom: 1, spin: true, ante: true, rings: true, threads: true, plane: true, labels: false, drag: null };
+
+// weave TIGHTNESS — rebuild the analytic solve at a new turn count; report K(6,6) completeness so the
+// slider can't silently break the weave (too loose ⇒ some pairs stop crossing).
+function rebuild() {
+  W = buildRingWeave3D({ turns });
+  const pairs = new Set(W.antechambers.filter((a) => a.kind === 'K').map((a) => a.a + '×' + a.b)).size;
+  $('anteCount').textContent = W.antechambers.length;
+  $('tval').textContent = turns.toFixed(2);
+  const kr = $('kread'); kr.textContent = `K ${pairs}/36`; kr.style.color = pairs < 36 ? '#d9534f' : '#5fbf86';
+}
 
 const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgba = (h, a) => { const c = typeof h === 'string' ? hex(h) : h; return `rgba(${c[0]},${c[1]},${c[2]},${a})`; };
@@ -80,10 +90,12 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); state.zoom = Math.max(
 const tog = (id, key) => $(id).addEventListener('click', () => { state[key] = !state[key]; $(id).classList.toggle('on', state[key]); });
 tog('bspin', 'spin'); tog('bante', 'ante'); tog('brings', 'rings'); tog('bthreads', 'threads'); tog('bplane', 'plane'); tog('blabels', 'labels');
 
+$('tight').addEventListener('input', (e) => { turns = +e.target.value; rebuild(); });
+
 // legend
 const legend = (el, list) => { el.innerHTML = list.map((t) => `<div class="leg"><span class="sw" style="background:${t.color}"></span>${t.label}</div>`).join(''); };
 legend($('legAbove'), ABOVE); legend($('legBelow'), BELOW);
-$('anteCount').textContent = W.antechambers.length;
+rebuild();
 
 resize();
 render();

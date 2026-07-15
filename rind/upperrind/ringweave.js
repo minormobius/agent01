@@ -42,7 +42,10 @@ export const RING_ENGINES = {
 };
 export const NEXUS = { id: 'fulfillment', label: 'Fulfillment nexus', color: '#cbd3e0' };
 
-export const RINGWEAVE_DEFAULTS = { N: 6, turns: 1.2, r0: 0.13, innerRf: 0.27, outerRf: 0.95, spin: 1, samples: 120, belowPhase: 0.5 };
+// `turns` is the WEAVE-TIGHTNESS knob: high ⇒ the spiral wraps more ⇒ crossings crammed near the core;
+// low ⇒ loose ⇒ crossings spread out to the rim. Floor ≈ 0.5 — below it some white×engine pairs stop
+// crossing and K(6,6) breaks (the view reports pairsCovered so the slider can't silently break it).
+export const RINGWEAVE_DEFAULTS = { N: 6, turns: 0.7, r0: 0.13, innerRf: 0.27, outerRf: 0.95, spin: 1, samples: 120, belowPhase: 0.5 };
 
 export function buildRingWeave(opts = {}) {
   const o = { ...RINGWEAVE_DEFAULTS, ...opts };
