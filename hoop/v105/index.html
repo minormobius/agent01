@@ -768,7 +768,12 @@
       if (!walk || player < 0) { nearResidents = residents; return; }
       const pd = playerDeck(), R = (chunkSpan * 1.4) ** 2, cx = px(), cy = py();
       nearResidents = residents.filter((a) => { const hk = a.homeKey; if (!hk) return false;
-        if (_promotedKeys.has(hkStr(hk))) return false;   // this little guy was promoted into a named NPC — drawn as an anchor instead
+        // v105 (the invisible Eldon Vance fix): the promoted-home suppression must NEVER hide a KEEPER.
+        // _promotedKeys is keyed by HOME, and a home houses several residents — promoting one of them for
+        // a pinned NPC used to suppress every housemate too, so a keeper embiggened onto a housemate kept
+        // walking in `residents` (locateNpc pointed the ◇ at them) while being culled from the render/click
+        // set: a waypoint at the corner of an empty room. A keeper always renders.
+        if (!a.keeper && _promotedKeys.has(hkStr(hk))) return false;   // this little guy was promoted into a named NPC — drawn as an anchor instead
         if (((world.chunks[hk.ch] || {}).deck || 0) !== pd) return false;
         // a PRINCIPAL keeper dwells at its LORE room (work/third), which may be far from its home — cull it by
         // its CURRENT position, not its home, or it would vanish when you're standing right beside it.
@@ -1914,6 +1919,9 @@
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
       ensureDeckSupply(); discoverQuestNpcs(); populateChambers(); ensureWitnessSupply(); relocateGuidesToWards(); waiveDeadGates(); tickGimmes();   // keep the deck clearable + surface quest NPCs + spread keepers across every chamber, THEN top up any faction the keepers under-represent for the upper-rind threshold (witness supply runs LAST so it only fills genuine gaps, not a clump before the keepers land), relocate rind guides onto their deck the moment it's built, then waive any gate the pool provably cannot satisfy + pace the onboarding gimmes. All guarded + throttled.
+      // v105: re-resolve the ◇ on a slow tick — a keeper the passes above just healed/re-seated must reclaim
+      // the waypoint from its stale snapshot (the empty-corner ◇). Throttled: whereAmI runs at up to 4 Hz.
+      if (!whereAmI._qT || performance.now() - whereAmI._qT > 1200) { whereAmI._qT = performance.now(); renderQuest(); }
       maybeChamberLore(walk.nodeChunk[player]);   // fire the CURRENT chamber's lore — covers the chamber you spawned in (followCam's chunk-change hook missed it: story wasn't ready yet on first entry)
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
       if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
@@ -5200,10 +5208,14 @@
       // the resident who becomes them: prefer an un-embiggened soul whose own round already touches the
       // chamber (a living affiliate — their life plausibly runs through this room), else any free resident
       // on this deck (the low-vitality fallback, so a thin ward still gets a living keeper).
+      // hosts whose HOME already hosted a pinned promotion are last resort — they render fine as keepers
+      // (cullResidents exempts keepers), but a clean host avoids re-using a body the player may have seen
+      // promoted elsewhere.
       const free = residents.filter((r) => !r.keeper && !_embiggened.has(r.id) && residentDeck(r) === (deck || 0));
       if (!free.length) return null;
-      const affil = free.filter((r) => routeStops(r).some((s) => s.ch === chunkId));
-      const pool = (affil.length ? affil : free).sort((a, b) => (a.id < b.id ? -1 : 1));
+      const clean = free.filter((r) => !_promotedKeys.has(hkStr(r.homeKey)));
+      const affil = (clean.length ? clean : free).filter((r) => routeStops(r).some((s) => s.ch === chunkId));
+      const pool = (affil.length ? affil : (clean.length ? clean : free)).sort((a, b) => (a.id < b.id ? -1 : 1));
       const r = pool[hashId(npc.id) % pool.length];
       const faction = factionOf(npc.tags), fc = FACTION_INFO[faction] && FACTION_INFO[faction].color;
       if (fc) { try { r.genome = { ...r.genome, ramps: { ...r.genome.ramps, cloth: ramp(rngFor('hoop-npc:' + npc.id + '::factioncloth'), hexHue(fc), 52, 10) } }; } catch (e) {} }
@@ -5403,6 +5415,19 @@
             if (!cands.length) continue;   // this satisfier's deck/ward not built — try the next satisfier
             const off = hashId(npc.id) % cands.length;   // scatter within the zone — exploration stays the forcing function
             for (let i = 0; i < cands.length; i++) { const ch = cands[(off + i) % cands.length]; if (embiggenKeeper(npc, ch.id, ch.deck || 0)) { haveByChunk.set(ch.id, (haveByChunk.get(ch.id) || 0) + 1); return; } }
+          }
+          // pass 3 (v105, defense in depth): nobody could be EMBIGGENED — the deck's free crowd is spent, or
+          // the chamber is roomless. A load-bearing person must still EXIST, so PIN the first buildable
+          // satisfier at a room of their target chunk (verb-matched when possible): a pinned figure renders
+          // via placeAnchors and opens via openAnchor, so the quest/case stays walkable no matter what.
+          for (const rid of setterIds) {
+            const npc = story.store.contentById(rid); if (!npc || (npc.content && npc.content.ambient) || live[rid]) continue;
+            const ids = keeperTargetChunkIds(npc); if (!ids.length) continue;
+            const ch = world.chunks.find((c) => c.id === ids[hashId(npc.id) % ids.length]); if (!ch || !ch.poly) continue;
+            const rooms = (society && society.rooms || []).filter((o) => o.ch === ch.id);
+            const room = rooms.find((o) => npc.verb && o.role === npc.verb) || rooms[0];
+            const at = room ? { x: room.x, y: room.y } : polyCentroid(ch.poly);
+            if (discoverNpc(npc, at.x, at.y, ch.deck || 0)) { haveByChunk.set(ch.id, (haveByChunk.get(ch.id) || 0) + 1); return; }
           }
         };
         for (const req of gateReqs) seatGate(req.setterIds);
