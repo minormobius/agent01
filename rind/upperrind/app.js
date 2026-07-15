@@ -27,6 +27,7 @@ import { buildGenome, frameRects, dirFromKey } from '../ops/sprites/core.js';
 import { buildPolyGenome, polyFrame, FAMILIES } from '../ops/sprites/poly.js';
 import { floorHue, dominantVerb } from './verbflow.js';
 import { computeFluxLines } from './fluxfield.js';
+import { machineLayout } from './machinehall.js';
 
 const $ = (id) => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -85,10 +86,34 @@ function findRecip(tp, d) {
   return tp.doors.find((x) => x.toKey === state.key) || null;
 }
 
+// recast a production chunk's rooms into machine bays (mutates rec.rooms' role/glyph/colour so the skin
+// and the HUD read machines) and return the layout for the conveyor pass. Null for non-production floors.
+function machineRecast(b, rec) {
+  if (b.key[0] !== 'P') return null;
+  const eng = world.wefts[+b.key.slice(1)];
+  if (!eng || !eng.steps || !eng.steps.length) return null;
+  const spine = b.p.spine;
+  const uOf = (x, y) => { if (!spine) return x; let bi = 0, bd = Infinity; for (let i = 0; i < spine.length; i++) { const d = (spine[i].x - x) ** 2 + (spine[i].y - y) ** 2; if (d < bd) { bd = d; bi = i; } } return bi; };
+  const rms = [];
+  for (let ri = 0; ri < rec.rooms.length; ri++) { const r = rec.rooms[ri]; if (r.nexus || !r.cells || !r.cells.length) continue; rms.push({ idx: ri, u: uOf(r.x, r.y) }); }
+  const mlay = machineLayout(eng, rms);
+  const coreCol = '#' + hex(eng.color).map((c) => Math.min(255, c + 34).toString(16).padStart(2, '0')).join('');
+  for (const bay of mlay.bays) {
+    const r = rec.rooms[bay.idx];
+    r.role = bay.name; r.glyph = bay.glyph; r.machine = bay;   // the HUD prints "glyph name"; the skin uses glyph
+    if (bay.core) r.color = coreCol;                            // the keystone machine reads brighter
+  }
+  return mlay;
+}
+
 // ── bake one chunk with the FULL v101 skin: retile, fixtures, sconces, deco components ──
 function bakeChunkOf(b, chunkId) {
   if (b.bakes.has(chunkId)) return;
   const rec = b.p.world.chunks[chunkId];
+  // PRODUCTION FLOORS ARE MACHINE HALLS, not people-rooms. Recast this engine's rooms into machine BAYS
+  // (engines.js steps, in flow order along the strip) BEFORE the skin paints, so the fixtures + glyphs
+  // read machines; the conveyor runs get drawn after the flux. The pocket topology is untouched.
+  const mlay = machineRecast(b, rec);
   const paint = paintChunk(rec, {});
   const m = 44, x0 = rec.region.x0 - m, y0 = rec.region.y0 - m;
   const bw = rec.region.x1 - rec.region.x0 + 2 * m, bh = rec.region.y1 - rec.region.y0 + 2 * m;
@@ -135,6 +160,26 @@ function bakeChunkOf(b, chunkId) {
     bc.beginPath();
     for (let s = 0; s < g.segs.length; s += 4) { bc.moveTo(g.segs[s], g.segs[s + 1]); bc.lineTo(g.segs[s + 2], g.segs[s + 3]); }
     bc.stroke();
+  }
+  // THE CONVEYORS — the engine's flow graph, over the machine bays. Each flow edge is a directed run in
+  // the engine's own hue from one bay to the next; a back-edge (recycle→reactor, return→pump) is a dashed
+  // RETURN leg. This is what makes the eight floors read as eight processes (star radiates, cycle loops,
+  // path runs straight, fan branches). Drawn over the flux, under the fixtures.
+  if (mlay && mlay.conveyors.length) {
+    const conv = mix(hue, INK, 0.55), retn = mix(hue, [6, 8, 13], 0.35);
+    for (const cvy of mlay.conveyors) {
+      const A = rec.rooms[cvy.fromIdx], B = rec.rooms[cvy.toIdx]; if (!A || !B) continue;
+      const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+      bc.setLineDash(cvy.back ? [5, 5] : []);
+      bc.strokeStyle = rgba(cvy.back ? retn : conv, cvy.back ? 0.5 : 0.7); bc.lineWidth = cvy.back ? 1.1 : 2.2;
+      bc.beginPath(); bc.moveTo(A.x, A.y); bc.lineTo(B.x, B.y); bc.stroke();
+      if (!cvy.back) {   // an arrowhead a little short of the destination bay
+        const hx = B.x - ux * 6, hy = B.y - uy * 6;
+        bc.fillStyle = rgba(conv, 0.85); bc.beginPath();
+        bc.moveTo(hx + ux * 6, hy + uy * 6); bc.lineTo(hx - uy * 4, hy + ux * 4); bc.lineTo(hx + uy * 4, hy - ux * 4); bc.closePath(); bc.fill();
+      }
+    }
+    bc.setLineDash([]);
   }
   // DOORS ARE APERTURES in the shield — the one place flux passes. Draw a bright focus at each door
   // cell in this chunk: a small radial burst + a glowing node, the field concentrating through the gap.
@@ -393,13 +438,17 @@ function updateHUD() {
   $('oname').textContent = world.label(state.key); $('oname').style.color = rgba(floorHue(world, state.key, TEAL), 1);
   const warp = state.key[0] === 'W' && state.key !== 'CW' ? world.warps[+state.key.slice(1)] : null;
   const dv = dominantVerb(world, state.key);
+  const eng = state.key[0] === 'P' ? world.wefts[+state.key.slice(1)] : null;
   $('okind').textContent = state.key[0] === 'X' ? 'the INTERFACE — one chamber, shared by both threads'
     : state.key === 'CW' ? 'the commons — six white threads attach here' : state.key === 'CP' ? 'the works floor — eight engines attach here'
-    : warp && warp.ward ? `${warp.factionLabel} · ward of ${warp.ward.exclusive} (${warp.ward.level}) — the twin thread lies dead opposite` : state.key[0] === 'W' ? 'white-collar ops · a pocket floor (walk it hub → rim)' : 'production · an engine floor (droids haul the chain)';
+    : warp && warp.ward ? `${warp.factionLabel} · ward of ${warp.ward.exclusive} (${warp.ward.level}) — the twin thread lies dead opposite` : state.key[0] === 'W' ? 'white-collar ops · a pocket floor (walk it hub → rim)'
+    : eng ? `production · a ${eng.family} hall · ${(eng.intake || []).join(' + ')} → ${(eng.output || []).join(' + ')}` : 'production · an engine floor (droids haul the chain)';
   $('now').innerHTML = room ? (room.nexus
     ? `<span class="role">◈ the nexus</span><div class="sub">the works floor's heart — player progression (coming online)</div>`
-    : `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.people && room.people.length ? room.people.length + ' resident(s)' : 'a work room'}</div>`)
-    : `<span class="role">the concourse</span><div class="sub">${dv ? `the <b style="color:${rgba(floorHue(world, state.key, TEAL), 1)}">${dv}</b> flux — field runs hub → rim, bending round the shielded chambers` : state.key[0] === 'P' || state.key === 'CP' ? 'the make-flux underfoot — field lines in the engine\'s own hue' : 'stations ahead — each door is an aperture to another thread'}</div>`;
+    : room.machine
+      ? `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.machine.core ? 'the keystone machine' : 'a machine bay'} · production line ${room.machine.line + 1}</div>`
+      : `<span class="role">${room.glyph} ${room.role}</span><div class="sub">${room.people && room.people.length ? room.people.length + ' resident(s)' : 'a work room'}</div>`)
+    : `<span class="role">the concourse</span><div class="sub">${dv ? `the <b style="color:${rgba(floorHue(world, state.key, TEAL), 1)}">${dv}</b> flux — field runs hub → rim, bending round the shielded chambers` : eng ? `${eng.label} · the process flows the conveyors bay → bay; flux bends round the machines` : state.key === 'CP' ? 'the works floor — the eight engines attach here' : 'stations ahead — each door is an aperture to another thread'}</div>`;
   const seen = p.doors.filter((d) => cur.vis && d.node < cur.vis.length && cur.vis[d.node] > 0.2);
   $('doors').innerHTML = seen.length
     ? seen.map((d) => { const s = d.station, k = d.other || d.toKey; return `<div class="door" data-n="${d.node}"><span class="sw" style="background:${rgba(threadColor(k), 1)}"></span><span class="lab">${world.label(k)}</span><span class="rf">${s ? '⬡' + (s.district + 1) + (s.over ? ' · over' : ' · under') : 'hub'}</span></div>`; }).join('')
