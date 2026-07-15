@@ -167,6 +167,7 @@ node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any
 node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
 node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR (god-view): v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
 node rind/ops/test/pocket.selftest.mjs             # ★ THE POCKET DIMENSION: 48 stations, reciprocity, arc order, one-door, CHUNKED threads, the CP ◈ nexus, FACTION AXES (six nave biomes ↔ six whites, antipodal — no same-faction adjacency)
+node rind/upperrind/verbflow.selftest.mjs          # upperrind's FLAVOUR layer: the dominant-verbs palette + the whorl flow-field (same pocket topology, per-thread concourse colour + flow tiling)
 node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office, over SEVEN HEXAGONS; line-of-sight (walls hide, doors spill); crossing is a no-op walk
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
@@ -180,7 +181,7 @@ The pages themselves are exercised by eye (open them).
 
 ## Deploy
 
-- **Site:** push `rind/**` on `main` or `claude/rind-deploy-weaving-map-8b5gje` (the current
+- **Site:** push `rind/**` on `main` or `claude/upperrind-thread-styling-p7dhwu` (the current
   owning branch — see `deploy-registry.json`) → `deploy-rind.yml` runs `wrangler deploy`. The
   sandbox **cannot** deploy; push and let the Action run. Verify the log binds
   `rind.mino.mobi (custom domain)` (the golden rule).
@@ -188,7 +189,7 @@ The pages themselves are exercised by eye (open them).
   rebuilds `solver/pkg/**`, commits it, and dispatches `deploy-rind.yml`. Don't hand-edit
   `solver/pkg/` — it's generated.
 - Ownership lives in `deploy-registry.json` (surface `rind`, branch
-  `claude/rind-deploy-weaving-map-8b5gje`). Change the branch there, then run
+  `claude/upperrind-thread-styling-p7dhwu`). Change the branch there, then run
   `node scripts/gen-deploy-triggers.mjs --write` + `node scripts/lint-deploy-registry.mjs`.
 
 ## Invariants — do not break
