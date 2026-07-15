@@ -51,6 +51,14 @@ for (const [name, ring] of [['assembly', RA], ['reclaim', RR]]) {
   ok(seen.size === wk.N, `${name}: the ring concourse is one connected loop`);
 }
 
+// ── the rings WEAVE over/under: the spine z goes both ways, with ZERO-GRADE flats at the antechambers ──
+for (const [name, ring] of [['assembly', RA], ['reclaim', RR]]) {
+  const zs = ring.spine.map((s) => s.z);
+  ok(zs.some((z) => z > 1) && zs.some((z) => z < -1), `${name}: the ring weaves OVER and UNDER (z goes both ways)`);
+  let allFlat = true; for (let k = 0; k < 6; k++) { const i = Math.round((2 * k + 1) / 12 * ring.M); if (Math.abs(ring.spine[i].z) > 3) allFlat = false; }
+  ok(allFlat, `${name}: each antechamber sits at a ZERO-GRADE flat (z≈0 — no ladder, at grade)`);
+}
+
 // ── the 12 threads: each crosses to the rings THROUGH its antechambers, never directly (no ladder) ──
 for (const key of ['W0', 'P3']) {
   const th = W.pocket(key); th.ensureAll();

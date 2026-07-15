@@ -630,8 +630,9 @@ const seed = (params.get('seed') | 0) >>> 0 || 7;
 // RING TOPOLOGY: 6 ops above × 6 engines below, joined by two ring loops (RA assembly · RR reclaim) and
 // the fulfillment nexus (NX) at the core — the econ ring hypothesis, walked. Land on the assembly ring.
 const at = /^(RA|RR|NX|W[0-5]|P[0-5])$/.test(params.get('at') || '') ? params.get('at') : 'RA';
+let turnScale = 0.35;   // WEAVE TIGHTNESS (walked map): low ⇒ loose ⇒ K-crossings spread off the core
 await new Promise((r) => setTimeout(r, 30));
-world = buildPocketWorld(seed, { ringMode: true });
+world = buildPocketWorld(seed, { ringMode: true, turnScale });
 cur = ensure(at); state.key = at;
 ensureSegB(cur, 0);
 state.node = nearestNode(cur.p.walk, cur.p.W / 2, cur.p.H / 2);
@@ -648,5 +649,27 @@ updateHUD();
   }).join('');
 }
 $('load').style.display = 'none';
+
+// ── WEAVE TIGHTNESS: re-lay the whole ring world at a new turnScale (looser ⇒ K-crossings spread off the
+// core), then respawn on the assembly ring. Rebuilds geometry, so it drops the pocket caches + the minimap
+// bake. Fires on release ('change'), not every drag, since it re-solves the analytic weave. ──
+function relayWorld(ts) {
+  turnScale = ts;
+  pockets.clear();                                  // drop the bundle cache (new world, new pockets)
+  world = buildPocketWorld(seed, { ringMode: true, turnScale });
+  state.walk = null; state.pending = null; state.fade = 0;
+  cur = ensure('RA'); state.key = 'RA';
+  ensureSegB(cur, 0);
+  state.node = nearestNode(cur.p.walk, cur.p.W / 2, cur.p.H / 2);
+  cur.vis && cur.vis.fill(0); refreshSight();
+  view.cx = cur.p.walk.pos[2 * state.node]; view.cy = cur.p.walk.pos[2 * state.node + 1];
+  mmBase = null;                                    // the analytic weave changed → rebake the minimap
+  updateHUD();
+}
+if ($('tight')) {
+  $('tight').addEventListener('input', (e) => { $('tval').textContent = (+e.target.value).toFixed(2); });
+  $('tight').addEventListener('change', (e) => { $('trelay').textContent = 're-laying…'; relayWorld(+e.target.value); $('trelay').textContent = 're-lays the floors'; });
+}
+
 globalThis.__pocket = { state, view, get cur() { return cur; }, get world() { return world; } };   // headless-test handle
 loop();

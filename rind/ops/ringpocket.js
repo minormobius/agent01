@@ -57,8 +57,15 @@ export function buildRingPocket(world, key) {
   const o = world.opts, isA = key === 'RA', seed = threadSeed(world.seed, key);
   const rad = isA ? o.ringRadA : o.ringRadR, halfW = o.H / 2, pad = halfW + 60;
   const cx = rad + pad, cy = rad + pad, M = 96, nseg = isA ? o.ringSegA : o.ringSegR;
+  // THE RING WEAVES OVER/UNDER: 12 control points around the loop — the 6 ANTECHAMBERS (odd twelfths) are
+  // ZERO-GRADE FLATS at z=0 (the crossing is at grade — no ladder), and between them the ring humps OVER
+  // (+amp) then dips UNDER (−amp), alternating. Smoothstep ⇒ zero derivative (flat) at every control.
+  const zamp = o.ringZ ?? 90, CTRL = [];
+  for (let j = 0; j < 12; j++) CTRL.push({ a: j / 12 * TAU, z: j % 2 === 1 ? 0 : ((j / 2) % 2 === 0 ? zamp : -zamp) });
+  CTRL.push({ a: TAU, z: CTRL[0].z });
+  const zAt = (a) => { a = ((a % TAU) + TAU) % TAU; for (let k = 0; k < CTRL.length - 1; k++) if (a >= CTRL[k].a && a <= CTRL[k + 1].a) { const t = (a - CTRL[k].a) / (CTRL[k + 1].a - CTRL[k].a); return CTRL[k].z + (CTRL[k + 1].z - CTRL[k].z) * (t * t * (3 - 2 * t)); } return 0; };
   const spine = [];
-  for (let i = 0; i <= M; i++) { const a = i / M * TAU; spine.push({ x: cx + Math.cos(a) * rad, y: cy + Math.sin(a) * rad, a, z: 0, rf: isA ? o.ringRadA / o.ringRadR : 1, nx: Math.cos(a), ny: Math.sin(a) }); }
+  for (let i = 0; i <= M; i++) { const a = i / M * TAU; spine.push({ x: cx + Math.cos(a) * rad, y: cy + Math.sin(a) * rad, a, z: zAt(a), rf: isA ? o.ringRadA / o.ringRadR : 1, nx: Math.cos(a), ny: Math.sin(a) }); }
   const bankOut = spine.map((p) => ({ x: p.x + p.nx * halfW, y: p.y + p.ny * halfW }));
   const bankIn = spine.map((p) => ({ x: p.x - p.nx * halfW, y: p.y - p.ny * halfW }));
   const cuts = []; for (let k = 0; k <= nseg; k++) cuts.push(Math.round(M * k / nseg));

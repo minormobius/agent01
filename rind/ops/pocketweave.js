@@ -56,6 +56,7 @@ export const POCKET_DEFAULTS = {
   // ring loops (RA=assembly inner, RR=reclaim outer) + the fulfillment nexus (NX). See ringpocket.js.
   // NB: `ringMode` (this flag) is distinct from `rings` above, which is the hex-chunk count for buildGeometry.
   ringMode: false, ringRadA: 470, ringRadR: 860, ringSegA: 6, ringSegR: 8,
+  ringZ: 90,   // ring OVER/UNDER amplitude (nave-units): the ring weaves over/under the threads, zero-grade flats at each antechamber
 };
 const PROD_MIX = [['make', 26], ['store', 12], ['mend', 9], ['move', 7], ['dwell', 9], ['trade', 5], ['grow', 5], ['serve', 3], ['learn', 2]];
 
