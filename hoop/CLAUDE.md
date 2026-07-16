@@ -376,15 +376,16 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-v105-quests-nmi7a2` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-v106-upper-rind-p0t5xn` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
-  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v105` is the
-  DEVELOPMENT surface** (the SEEDED-QUEST-SPINE pass — see its bullet below; the bare dev aliases `/over`,
-  `/garden/plot`, `/alch`, `/smith`, `/quests` now resolve to v105). **`v104` is the frozen prior**
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v106` is the
+  DEVELOPMENT surface** (the UPPER-RIND EVERYTHING-FACTORY pass — see its bullet below; the bare dev
+  aliases `/over`, `/garden/plot`, `/alch`, `/smith`, `/quests` now resolve to v106). **`v105` is the
+  frozen prior** (the SEEDED-QUEST-SPINE pass). **`v104` is an older frozen prior**
   (the FUNGIBLE-KEEPER pass). **`v103` is a FROZEN test surface** —
   the NPC-reform pass, playable end-to-end (kept live so hoopy can keep testing it); don't touch it. The v102
   pass (the frozen prior) was:
@@ -646,6 +647,50 @@ despite the name. It stayed with hoop, not rind.)
     dossier (victim, suspects + motives + spoiler-blurred culprit, the clue chain with holders), the oracle
     verdict for the woven pool, and a "prove 100 seeds" in-browser sweep. `?seed=` here matches the game's
     `?seed=` — the board IS the playtest permalink.
+- **The v106 UPPER-RIND EVERYTHING-FACTORY pass** (the current dev surface; v105 stays the frozen prior).
+  **Deck 1 is no longer four nave-like chunks — it is the ring-weave POCKET DIMENSION** (rind/upperrind
+  brought into the game): SIX white-collar ops threads (W0–W5, two per nave faction, antipodal) × EIGHT
+  production threads — six radial engine halls (foundry·chemworks·mill·fab·weave·fluid) plus the TWO RING
+  LOOPS that intersect everything (RA assembly at the core · RR reclaim at the rim). Every crossing is a
+  zero-grade chamber (the no-ladder rule): thread×thread through an X interface, ring×threads through a
+  beefy Y-junction antechamber (ZA:/ZR:). Two nexuses close the deck stack: **NX** (top-floor fulfillment
+  nexus, bonded to RA — the lift up to the nave, `shafts[0].bottom`) and **ND** (bottom-floor dispatch
+  nexus, bonded to RR — the shaft down to the lower rind, `shafts[1].top`; new in v106, waste falls
+  outward and so do you). Pieces:
+  - **`v106/rindweave/pocketdeck.js`** — the game-native port of rind/ops `pocketweave.js`+`ringpocket.js`
+    (ring mode hard-wired), driving the game's own engine (`v099/v8/chunkgen.js`). MANAGER-FREE: the
+    surface owns one world+walk; pocketdeck solves ~88 chunk recs in ABSOLUTE deck coordinates, each
+    pocket at its own far-apart SLOT (islands — no accidental port stitching; hexes solve over
+    world-positioned polys, never local coords), tagged `{deck:1, rind:true, weave:{key,si,kind}}`.
+    Doors are TELEPORT PAIRS (the shaft mechanic sideways), paired by `pid = sorted([key,toKey])` —
+    110 pairs, all resolving (pinned). Same prepare/solveNext contract as `rind/rind.js` so
+    `world._rind` keeps its `{idx, order, recs[0]=hub}` shape (recs[0] is NX).
+    `v106/rindweave/weavecore.js` is the prism-free trim of rind/ops/weave3d.js (analytic spirals +
+    crossings only) + FACTIONS + districtCentres; `engines.js` is verbatim. Tests:
+    `v106/test/pocketdeck.selftest.mjs` (130 checks: roster, no orphan doors, ring loops CLOSE, gilded
+    nexus rooms, islands, determinism).
+  - **`v106/rindweave/weavenav.js` — the ◇ router.** Pure Dijkstra over the ANALYTIC door graph (~224
+    doors — routes resolve before pockets stream), cost = crossings·1e6 + walk distance, so crossings
+    minimize first, distance breaks ties. Pinned findings: W_i↔P_i (ring-pair partners) meet in their ONE
+    shared antechamber (2 crossings); white→white is always 4 crossings, pivoting on a ring OR an
+    interface–hall–interface shortcut (same count — distance decides); the nave is reachable ONLY through
+    NX (…→RA→NX→lift) and the lower rind ONLY through ND (…→RR→ND→shaft); no pocket pair needs >6
+    crossings. `weaveWaypoint` aims the ◇ at the next door IN THE PLAYER'S OWN POCKET (inside
+    drawWaypoint's 3000-unit clamp); `routeBreadcrumb` feeds the journal. Tests:
+    `v106/test/weavenav.selftest.mjs` (341 checks over 240 routes).
+  - **Surface wiring** (`v106/index.html`): `maybeBuildRind` lays NX as the shaft foot then
+    `streamWeaveDeck` streams the other ~87 pockets paced (stitchAdd, NOT restitch — O(one chunk), keeps
+    teleport node bases stable); `registerWeaveDoors` rebuilds the pair list as both sides solve;
+    `weaveDoorAt`+click = walk-to-then-cross (shaft semantics); doors draw as gold ⊓ portals with
+    destination labels; `questWpToward` is weave-aware (same-deck-cross-pocket → next door of the route,
+    off-deck → the right nexus; `weaveWpInfo` renders "via …" under the ◇ and the full breadcrumb in the
+    journal); `maybeBuildLowerRind` sinks the down-shaft in ND (not the old hub), offsets moved
+    (RIND_OFFSET 24000, LOWER_RIND_OFFSET 60000 — the slot grid needs the clearance). **The weave rule:
+    npcs live ONLY in the white threads** — `keeperTargetChunkIds` filters deck 1 to W-pockets (faction
+    keepers prefer their faction's own two antipodal threads), `populateChambers`' round-robin skips
+    production pockets (a dead seat would drain the pool), and `rebuildSocietySoon` filters residents so
+    the halls/rings/antechambers run unmanned. Guides relocate to NX (the first painted deck-1 chunk —
+    the arrival lobby) and promote into the nearest white-thread resident.
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
