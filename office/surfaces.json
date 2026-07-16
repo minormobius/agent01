@@ -1265,11 +1265,29 @@
    "parent": null
   },
   {
+   "id": "fix",
+   "name": "fix",
+   "url": "https://fix.mino.mobi",
+   "cat": "tools",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "chat",
    "name": "chat",
    "url": "https://chat.mino.mobi",
    "cat": "tools",
    "commits": 3,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "office",
+   "name": "office",
+   "url": "https://mino.mobi/office/",
+   "cat": "tools",
+   "commits": 1,
    "age": "hot",
    "parent": null
   },
@@ -3150,6 +3168,126 @@
    "discovered": true
   },
   {
+   "id": "hoop/v105",
+   "name": "v105",
+   "url": "https://hoop.mino.mobi/v105/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/alch",
+   "name": "alch",
+   "url": "https://hoop.mino.mobi/v105/alch/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/architecture.html",
+   "name": "architecture",
+   "url": "https://hoop.mino.mobi/v105/architecture.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/arena",
+   "name": "arena",
+   "url": "https://hoop.mino.mobi/v105/arena/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/craft",
+   "name": "craft",
+   "url": "https://hoop.mino.mobi/v105/craft/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/feed.html",
+   "name": "feed",
+   "url": "https://hoop.mino.mobi/v105/feed.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/over",
+   "name": "over",
+   "url": "https://hoop.mino.mobi/v105/over/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/over/demo.html",
+   "name": "demo",
+   "url": "https://hoop.mino.mobi/v105/over/demo.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105/over",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/plan.html",
+   "name": "plan",
+   "url": "https://hoop.mino.mobi/v105/plan.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/quests.html",
+   "name": "quests",
+   "url": "https://hoop.mino.mobi/v105/quests.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/records.html",
+   "name": "records",
+   "url": "https://hoop.mino.mobi/v105/records.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v105/storyboard",
+   "name": "storyboard",
+   "url": "https://hoop.mino.mobi/v105/storyboard/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v105",
+   "discovered": true
+  },
+  {
    "id": "hoop/v2",
    "name": "v2",
    "url": "https://hoop.mino.mobi/v2/",
@@ -3870,6 +4008,46 @@
    "discovered": true
   },
   {
+   "id": "rind/upperrind",
+   "name": "upperrind",
+   "url": "https://rind.mino.mobi/upperrind/",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "rind",
+   "discovered": true
+  },
+  {
+   "id": "rind/upperrind/econ.html",
+   "name": "econ",
+   "url": "https://rind.mino.mobi/upperrind/econ.html",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "rind/upperrind",
+   "discovered": true
+  },
+  {
+   "id": "rind/upperrind/rings.html",
+   "name": "rings",
+   "url": "https://rind.mino.mobi/upperrind/rings.html",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "rind/upperrind",
+   "discovered": true
+  },
+  {
+   "id": "rind/upperrind/rings3d.html",
+   "name": "rings3d",
+   "url": "https://rind.mino.mobi/upperrind/rings3d.html",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "rind/upperrind",
+   "discovered": true
+  },
+  {
    "id": "rind/walk.html",
    "name": "walk",
    "url": "https://rind.mino.mobi/walk.html",
@@ -4017,6 +4195,26 @@
    "commits": 0,
    "age": "hot",
    "parent": "unit",
+   "discovered": true
+  },
+  {
+   "id": "fix/field.html",
+   "name": "field",
+   "url": "https://fix.mino.mobi/field.html",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "fix",
+   "discovered": true
+  },
+  {
+   "id": "fix/msg.html",
+   "name": "msg",
+   "url": "https://fix.mino.mobi/msg.html",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "fix",
    "discovered": true
   },
   {
