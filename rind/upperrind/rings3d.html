@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04050a">
+<title>upperrind · the ring weave in 3D — over/under, antechambers on the crossings</title>
+<style>
+  :root { --ink:#dfe7e2; --dim:#6b7872; --teal:#7fd8d0; --gold:#f4bf62; --bg:#04050a; --panel:#0b1016; --line:#141c24; --reclaim:#cf6b4a; --assembly:#d9b24a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.5 "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+  a { color: var(--teal); text-decoration: none; } a:hover { color: var(--gold); }
+  .wrap { display: grid; grid-template-columns: 1fr 320px; height: 100%; }
+  @media (max-width: 880px) { .wrap { grid-template-columns: 1fr; } .rail { display: none; } }
+  #stage { position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  .hud { position: absolute; pointer-events: none; user-select: none; z-index: 3; }
+  #top { top: 8px; left: 12px; font-size: 12px; color: var(--dim); }
+  #top a { pointer-events: auto; } #top b { color: var(--gold); }
+  #hint { bottom: 8px; left: 12px; color: var(--dim); font-size: 11px; }
+  #hint b { color: var(--teal); }
+  .controls { position: absolute; left: 12px; top: 30px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 4; max-width: 60%; }
+  .controls button { pointer-events: auto; background: #0d1117; color: var(--ink); border: 1px solid var(--line); border-radius: 0; clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); padding: 5px 11px; font: inherit; font-size: 11px; cursor: pointer; }
+  .controls button.on { border-color: var(--gold); color: var(--gold); }
+  .rail { border-left: 1px solid var(--line); background: var(--panel); padding: 14px 16px; overflow: auto; }
+  .rail h1 { font-size: 15px; margin: 0 0 2px; }
+  .rail .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); }
+  .rail h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--teal); margin: 16px 0 6px; }
+  .rail p { color: #8aa39a; font-size: 11.5px; line-height: 1.55; }
+  .rail b.gold { color: var(--gold); } .rail b.as { color: var(--assembly); } .rail b.re { color: var(--reclaim); }
+  .leg { display: flex; align-items: center; gap: 7px; font-size: 11px; padding: 1px 0; }
+  .leg .sw { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+  .leg .sq { width: 9px; height: 9px; flex: 0 0 auto; border: 1px solid; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div class="controls">
+      <button id="bspin" class="on">↻ spin</button>
+      <button id="bante" class="on">▫ antechambers</button>
+      <button id="brings" class="on">rings</button>
+      <button id="bthreads" class="on">threads</button>
+      <button id="bplane" class="on">midplane</button>
+      <button id="blabels">labels</button>
+    </div>
+    <div class="hud" id="top"><a href="./">← upperrind</a> · <a href="./rings.html">◎ 2D</a> · <b>the ring weave in 3D — drag to spin · over/under · antechambers on the crossings</b></div>
+    <div class="hud" id="hint"><b>drag</b> to orbit · <b>scroll</b> to zoom · the flat <b>squares</b> on the mid-plane are the proposed antechambers — one per crossing, at zero grade</div>
+  </div>
+  <aside class="rail">
+    <h1>the ring weave · 3D</h1>
+    <div class="kind">analytic solve · over/under</div>
+    <h2>weave tightness</h2>
+    <div style="margin:4px 0 2px"><input type="range" id="tight" min="0.5" max="1.8" step="0.02" value="0.7" style="width:100%;accent-color:var(--teal)"></div>
+    <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim)"><span>loose · spread out</span><span>tight · near core</span></div>
+    <div style="font-size:11.5px;margin:4px 0 0;color:#9fb0ab">turns <b id="tval" style="color:var(--gold)">0.70</b> · <span id="kread">K 36/36</span></div>
+    <h2>what you're looking at</h2>
+    <p>The <a href="./rings.html">ring topology</a> lifted into z. A weave is a weave because threads go <b>over and under</b> as they cross — so every crossing is a control point at ±amp, and the height between is a <b>smoothstep</b> ⇒ a <b class="gold">zero-grade flat</b> sits <i>at</i> every crossing.</p>
+    <p>• 6 white ops × 6 engines, counter-woven (<b>K 6,6</b>), each thread weaving over/under.<br>
+       • <b class="as">assembly</b> (inner) &amp; <b class="re">reclaim</b> (outer) rings, each <b>weaving over/under</b> around its loop, oppositely to the other.</p>
+    <h2>the antechambers</h2>
+    <p>That zero-grade flat is exactly where an <b class="gold">antechamber</b> belongs — the neutral <b>z = 0 mid-plane</b> where the two floors meet at grade (<b>no ladder</b>). <span id="anteCount">—</span> proposed — <b>36</b> white×engine (one per pair) + <b>12 beefy</b> ring chambers: at low tightness a ring crossing and its neighbour merge, so one chamber junctions <b>the ring + two threads</b>. They're the flat squares.</p>
+    <div class="leg"><span class="sq" style="border-color:#c8b884"></span> K crossing (white × engine)</div>
+    <div class="leg"><span class="sq" style="border-color:var(--assembly)"></span> assembly-ring crossing</div>
+    <div class="leg"><span class="sq" style="border-color:var(--reclaim)"></span> reclaim-ring crossing</div>
+    <h2>above — the six ops</h2>
+    <div id="legAbove"></div>
+    <h2>below — the six engines</h2>
+    <div id="legBelow"></div>
+  </aside>
+</div>
+<script type="module" src="./rings3d-app.js"></script>
+</body>
+</html>

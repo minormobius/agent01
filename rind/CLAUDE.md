@@ -167,6 +167,13 @@ node rind/ops/test/onedoor.selftest.mjs            # ★ the ONE-DOOR proof: any
 node rind/ops/test/tessweave.selftest.mjs          # ★ the TESSELLATION solve: 14 threads tile; whites→3 warp families, engines→K-doors
 node rind/ops/test/floor.selftest.mjs              # ★ the DEMO FLOOR (god-view): v100 foam districts tile a honeycomb, one connected walk graph, 6 nexus corners
 node rind/ops/test/pocket.selftest.mjs             # ★ THE POCKET DIMENSION: 48 stations, reciprocity, arc order, one-door, CHUNKED threads, the CP ◈ nexus, FACTION AXES (six nave biomes ↔ six whites, antipodal — no same-faction adjacency)
+node rind/upperrind/verbflow.selftest.mjs          # upperrind's FLAVOUR palette: the dominant-verbs colours + (world,key)→verb/floor-hue resolvers
+node rind/upperrind/fluxfield.selftest.mjs         # upperrind's FLUX floor: the solenoid-with-shielded-chambers stream function + marching-squares flux lines (each floor a fingerprint of its own chamber layout)
+node rind/upperrind/machinehall.selftest.mjs       # upperrind's PRODUCTION floors as MACHINE HALLS: the engine's steps→bays (flow order) + conveyor runs; the family topology (star/cycle/path/fan…) survives as the conveyor graph
+node rind/upperrind/econ.selftest.mjs              # ★ THE WORKS — the production SOLVER (upperrind/econ.html): stoichiometry the map lacks, a demand→run-rate back-propagation (flows solved not supposed), TWO populations (logistics bots + the six white-collar ops) that gate throughput, material closure (the water leak), keystone press-perturbation, vitality tier. Hoop/econ+forge lineage. Quantifies assembly/reclaim as ring hubs.
+node rind/upperrind/ringweave.selftest.mjs         # the RING WEAVE prototype SCHEMATIC (upperrind/rings.html): the solver's ring hypothesis drawn — 6 ops above × 6 engines below (K 6,6), reclaim=outer ring + assembly=inner ring (each touches all 12), bonded to the fulfillment nexus at the core; raws flow rim→core→up, wear back out
+node rind/upperrind/ringweave3d.selftest.mjs       # the 3D ANALYTIC SOLVE (upperrind/rings3d.html, spinnable): the ring weave lifted into z with real OVER/UNDER parity (smoothstep control points ⇒ a ZERO-GRADE FLAT at every crossing); the two rings weave over/under around their loops; the 60 proposed ANTECHAMBERS (36 K-pairs + 24 ring) sit on the z=0 mid-plane — where the floors meet at grade (no ladder)
+node rind/upperrind/ringpocket.selftest.mjs        # ★ the RING TOPOLOGY WALKED (pocketweave `ringMode`, kernel ops/ringpocket.js): the schematic brought into the pocket dimension — RA/RR are annular ring pockets that CLOSE INTO A LOOP (the last arc's seam stitches back to the first), crossing all 12 threads THROUGH ZERO-GRADE ANTECHAMBERS (the NO-LADDER rule; never a direct floor-to-floor door). BEEFY antechambers: adjacent crossings merge, so each ring has 6 chambers keyed 'ZA:W0+P0' that junction the ring + TWO threads (3 doors, a Y) — still touches all 12. The rings WEAVE over/under (spine z, zero-grade flats at each antechamber). Nexus (NX) bonded to RA. Default off ⇒ ops/pocket unchanged. app.js walks it AND exposes a WEAVE-TIGHTNESS slider (re-lays the world at a new turnScale — looser spreads the K-crossings off the core).
 node rind/ops/test/office.selftest.mjs             # ★ YOUR THREAD = an office, over SEVEN HEXAGONS; line-of-sight (walls hide, doors spill); crossing is a no-op walk
 node rind/ops/test/weave.selftest.mjs              # the ops weave: K(6,8) realised+proven (not the gyroid's fiat)
 node rind/ops/test/weavefloor.selftest.mjs         # the ops weave as ONE fabric across two floors (primary view)
@@ -180,7 +187,7 @@ The pages themselves are exercised by eye (open them).
 
 ## Deploy
 
-- **Site:** push `rind/**` on `main` or `claude/rind-deploy-weaving-map-8b5gje` (the current
+- **Site:** push `rind/**` on `main` or `claude/upperrind-thread-styling-p7dhwu` (the current
   owning branch — see `deploy-registry.json`) → `deploy-rind.yml` runs `wrangler deploy`. The
   sandbox **cannot** deploy; push and let the Action run. Verify the log binds
   `rind.mino.mobi (custom domain)` (the golden rule).
@@ -188,7 +195,7 @@ The pages themselves are exercised by eye (open them).
   rebuilds `solver/pkg/**`, commits it, and dispatches `deploy-rind.yml`. Don't hand-edit
   `solver/pkg/` — it's generated.
 - Ownership lives in `deploy-registry.json` (surface `rind`, branch
-  `claude/rind-deploy-weaving-map-8b5gje`). Change the branch there, then run
+  `claude/upperrind-thread-styling-p7dhwu`). Change the branch there, then run
   `node scripts/gen-deploy-triggers.mjs --write` + `node scripts/lint-deploy-registry.mjs`.
 
 ## Invariants — do not break

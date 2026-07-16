@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04050a">
+<title>upperrind · the works — production solver</title>
+<style>
+  :root { --ink:#dfe7e2; --dim:#6b7872; --teal:#7fd8d0; --gold:#f4bf62; --bg:#04050a; --panel:#0b1016; --line:#182029; --good:#5fbf86; --warn:#e0954e; --bad:#d9534f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.5 "JetBrains Mono", ui-monospace, monospace; }
+  a { color: var(--teal); text-decoration: none; } a:hover { color: var(--gold); }
+  .wrap { display: grid; grid-template-columns: 300px 1fr; gap: 0; min-height: 100vh; }
+  @media (max-width: 820px) { .wrap { grid-template-columns: 1fr; } }
+  .rail { border-right: 1px solid var(--line); background: var(--panel); padding: 14px 16px; }
+  .rail .crumb { color: var(--dim); font-size: 11.5px; }
+  .rail h1 { font-size: 16px; margin: 8px 0 2px; }
+  .rail .lede { color: var(--dim); font-size: 11.5px; margin: 0 0 14px; }
+  .ctl { margin: 12px 0; }
+  .ctl label { display: flex; justify-content: space-between; font-size: 11.5px; color: #bcd; margin-bottom: 3px; }
+  .ctl label b { color: var(--gold); font-variant-numeric: tabular-nums; }
+  .ctl .sub { color: var(--dim); font-size: 10px; }
+  input[type=range] { width: 100%; accent-color: var(--teal); height: 18px; }
+  .grp { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 8px; }
+  .grp h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--teal); margin: 0 0 6px; }
+  main { padding: 16px 20px 40px; overflow: auto; }
+  .hero { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: #070b0f; }
+  .hero .tier { font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+  .hero .score { font-size: 13px; color: var(--dim); }
+  .hero .out { margin-left: auto; text-align: right; font-size: 12px; color: var(--dim); }
+  .hero .out b { color: var(--ink); font-size: 20px; font-variant-numeric: tabular-nums; }
+  .key { margin: 10px 0 0; font-size: 12px; color: var(--dim); }
+  .key b { color: var(--warn); }
+  h3 { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 22px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  .row { display: grid; grid-template-columns: 118px 1fr 92px; align-items: center; gap: 10px; margin: 4px 0; font-size: 12px; }
+  .row .nm { color: #c2cadb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .nm .g { color: var(--dim); }
+  .bar { height: 12px; background: #0e151c; border-radius: 3px; overflow: hidden; position: relative; }
+  .bar > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+  .bar .cap { position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--gold); opacity: .7; }
+  .row .val { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 11px; }
+  .row .val b { color: var(--ink); }
+  .note { color: var(--dim); font-size: 11px; margin: 8px 0 0; }
+  .rings { border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; margin-top: 10px; background: #070b0f; }
+  .rings .hd { color: var(--gold); font-size: 12px; margin-bottom: 6px; }
+  .rings p { margin: 4px 0; color: #9fb0ab; font-size: 11.5px; }
+  .chip { display: inline-block; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-size: 10.5px; color: var(--teal); margin: 0 2px; }
+  .flows { columns: 2; column-gap: 18px; font-size: 11px; color: var(--dim); }
+  .flows div { break-inside: avoid; }
+  .flows b { color: #c2cadb; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="rail">
+    <div class="crumb"><a href="./">← upperrind</a> · <a href="../ops/">ops</a></div>
+    <h1>the works — production solver</h1>
+    <p class="lede">The upperrind map <i>supposes</i> the flows; this <b style="color:var(--teal)">solves</b> them. A product setpoint is back-propagated to every engine's run-rate; two populations — <b>logistics bots</b> and the <b>six white-collar ops</b> — gate the throughput. Drag and watch the oracle.</p>
+    <div class="grp"><h2>demand</h2>
+      <div class="ctl"><label>product setpoint <b id="v-demand">40</b></label><input type="range" id="demand" min="5" max="120" value="40" step="1"><div class="sub">products / step the plant is asked to hold</div></div>
+    </div>
+    <div class="grp"><h2>logistics</h2>
+      <div class="ctl"><label>logistics bots <b id="v-bots">120</b></label><input type="range" id="bots" min="2" max="260" value="120" step="1"><div class="sub">the droids that haul every commodity along every edge</div></div>
+    </div>
+    <div class="grp"><h2>white-collar ops (the six)</h2>
+      <div id="whites"></div>
+    </div>
+  </aside>
+  <main>
+    <div class="hero">
+      <div><div class="tier" id="tier">—</div><div class="score" id="score"></div></div>
+      <div class="out">throughput<br><b id="out">—</b> <span id="outsub"></span></div>
+    </div>
+    <div class="key" id="key"></div>
+
+    <h3>engines — run-rate vs bay capacity</h3>
+    <div id="engines"></div>
+    <p class="note" id="enginenote"></p>
+
+    <h3>the six ops — lever efficiency (staffed ÷ required)</h3>
+    <div id="levers"></div>
+
+    <h3>material closure — reclaim recovery vs raw demand (the loop's leak)</h3>
+    <div id="closure"></div>
+
+    <h3>hub degree — how many other threads each engine touches</h3>
+    <div id="hubs"></div>
+    <div class="rings" id="rings"></div>
+
+    <h3>solved flows — supply-chain edges (units / step)</h3>
+    <div class="flows" id="flows"></div>
+  </main>
+</div>
+<script type="module" src="./econ-app.js"></script>
+</body>
+</html>
