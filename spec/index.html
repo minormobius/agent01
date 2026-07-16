@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>spec — minomobi site-wide technical sheet</title>
+<meta name="description" content="The technical spec sheet for every minomobi surface: what it is, what it can do, how it deploys, and whether it is live right now.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="minomobi /spec — the site-wide spec sheet">
+<meta property="og:description" content="66 deploy surfaces, ~236 catalogued pages, one document: descriptions, features, stack, deploy wiring, and live status for everything.">
+<meta property="og:url" content="https://mino.mobi/spec/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --link: #8b0000; --accent: #8b0000;
+  --accent-faint: rgba(139,0,0,0.06); --tag-bg: rgba(139,0,0,0.08); --tag-text: #8b0000;
+  --card: #fff; --ok: #2a7a2a; --bad: #b02020; --warn: #a06020; --dim: #999;
+  --mono: 'SF Mono','Cascadia Code','Fira Code',Menlo,monospace;
+  --serif: 'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --link: #c45; --accent: #c45;
+    --accent-faint: rgba(204,68,85,0.08); --tag-bg: rgba(204,68,85,0.12); --tag-text: #e67;
+    --card: #161616; --ok: #55b070; --bad: #e05555; --warn: #d49050; --dim: #666;
+  }
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:var(--serif); line-height:1.55; }
+.wrap { max-width: 1060px; margin: 0 auto; padding: 2rem 1.2rem 5rem; }
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+header .crumb { font-family: var(--mono); font-size: .8rem; }
+h1 { font-size: 1.9rem; margin: .4rem 0 .2rem; }
+.sub { color: var(--muted); max-width: 62ch; }
+.stamp { font-family: var(--mono); font-size: .72rem; color: var(--muted); margin-top: .5rem; }
+h2 { font-size: 1.25rem; margin: 2.6rem 0 .6rem; border-bottom: 1px solid var(--rule); padding-bottom: .25rem; }
+h3 { font-size: 1.05rem; }
+.counts { display:flex; flex-wrap:wrap; gap:1.4rem; margin-top:1rem; }
+.counts div { font-family:var(--mono); font-size:.78rem; color:var(--muted); }
+.counts b { display:block; font-size:1.5rem; color:var(--text); font-family:var(--serif); }
+/* capability matrix */
+.caps { display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; }
+@media (max-width:760px){ .caps{ grid-template-columns:1fr; } }
+.caps h4 { font-family:var(--mono); font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin:.9rem 0 .25rem; }
+.caps ul { list-style:none; }
+.caps li { font-size:.88rem; padding:.22rem 0 .22rem 1rem; position:relative; }
+.caps .can li::before { content:'+'; position:absolute; left:0; color:var(--ok); font-family:var(--mono); }
+.caps .cant li::before { content:'–'; position:absolute; left:0; color:var(--bad); font-family:var(--mono); }
+/* status board + index table */
+.board { font-family:var(--mono); font-size:.78rem; margin:.6rem 0 1rem; }
+.board button { font-family:var(--mono); font-size:.75rem; background:var(--accent-faint); color:var(--tag-text);
+  border:1px solid var(--rule); border-radius:4px; padding:.25rem .7rem; cursor:pointer; }
+table.idx { width:100%; border-collapse:collapse; font-size:.82rem; }
+table.idx th { font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em;
+  text-align:left; color:var(--muted); padding:.3rem .5rem; border-bottom:1px solid var(--rule); }
+table.idx td { padding:.3rem .5rem; border-bottom:1px solid var(--rule); vertical-align:top; }
+table.idx tr.fam td { font-family:var(--mono); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--tag-text); background:var(--accent-faint); }
+.dot { display:inline-block; width:.6rem; height:.6rem; border-radius:50%; background:var(--dim); vertical-align:baseline; }
+.dot.ok{ background:var(--ok);} .dot.bad{ background:var(--bad);} .dot.warn{ background:var(--warn);}
+.chip { display:inline-block; font-family:var(--mono); font-size:.63rem; background:var(--tag-bg); color:var(--tag-text);
+  border-radius:3px; padding:0 .35rem; margin:0 .18rem .12rem 0; white-space:nowrap; }
+.chip.dim { background:transparent; border:1px solid var(--rule); color:var(--muted); }
+code { font-family:var(--mono); font-size:.86em; }
+/* sheets */
+.famblurb { color:var(--muted); font-size:.9rem; max-width:70ch; margin-bottom:1rem; }
+.sheet { background:var(--card); border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:0 0 1.1rem; }
+.sheet .head { display:flex; flex-wrap:wrap; align-items:baseline; gap:.6rem; }
+.sheet .eps { font-family:var(--mono); font-size:.76rem; }
+.sheet .desc { margin:.5rem 0; font-size:.92rem; max-width:75ch; }
+.sheet .note { color:var(--muted); font-size:.82rem; max-width:80ch; }
+.sheet details { margin:.4rem 0; font-size:.82rem; }
+.sheet summary { cursor:pointer; font-family:var(--mono); font-size:.72rem; color:var(--tag-text); }
+.tech { display:grid; grid-template-columns:max-content 1fr; gap:.15rem .9rem; font-size:.8rem; margin-top:.6rem; }
+.tech dt { font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding-top:.15rem; }
+.tech dd { overflow-wrap:anywhere; }
+.feats { margin:.5rem 0 0; }
+.feats li { font-size:.85rem; padding:.15rem 0; list-style:none; }
+.feats li a { font-family:var(--mono); font-size:.78rem; }
+.feats li span { color:var(--muted); }
+#filter { font-family:var(--mono); font-size:.8rem; width:100%; max-width:26rem; padding:.35rem .6rem;
+  border:1px solid var(--rule); border-radius:5px; background:var(--card); color:var(--text); margin:.6rem 0 0; }
+.findings { border:1px solid var(--rule); border-left:3px solid var(--warn); border-radius:6px;
+  padding:.7rem 1rem; margin:1rem 0; font-size:.85rem; }
+.findings b { font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--warn); }
+footer { margin-top:3rem; color:var(--muted); font-size:.78rem; font-family:var(--mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="crumb"><a href="https://mino.mobi">← mino.mobi</a> / spec</div>
+  <h1>The site-wide spec sheet</h1>
+  <p class="sub">Every minomobi surface in one document: what it is, what it does, how it deploys,
+    what it depends on, and whether it answers right now. Machine layer generated from
+    <code>deploy-registry.json</code> + the landing catalogue; status re-probed live from your browser.</p>
+  <div class="stamp" id="stamp"></div>
+  <div class="counts" id="counts"></div>
+</header>
+
+<h2 id="capabilities">What the platform can and can’t do</h2>
+<div class="caps" id="caps"></div>
+
+<h2 id="status">Live status</h2>
+<div class="board" id="board"></div>
+<div class="findings" id="findings" hidden></div>
+
+<h2 id="index">Index — all surfaces</h2>
+<input id="filter" type="search" placeholder="filter surfaces, features, descriptions…">
+<div id="idx"></div>
+
+<div id="sheets"></div>
+
+<h2 id="unmanaged">Unmanaged & reference workers</h2>
+<div id="unmanaged-body" class="famblurb"></div>
+
+<footer id="foot"></footer>
+</div>
+<script src="data.js"></script>
+<script src="curated.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
