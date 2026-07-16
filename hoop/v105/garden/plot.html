@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<base href="/v105/garden/" />
+<title>Garden Plot — the substrate under the microscope</title>
+<style>
+  :root { --bg:#0b0906; --ink:#e8e0d0; --dim:#9a8f7a; --gold:#f4bf62; --line:#241d14; --panel:#12100a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; line-height:1.5; }
+  .wrap { max-width:1000px; margin:0 auto; padding:20px 16px 60px; }
+  .crumb { font-size:12px; color:var(--dim); margin-bottom:10px; } .crumb a { color:#b48a6a; }
+  h1 { font-size:20px; color:var(--gold); margin:0 0 2px; } .lead { color:var(--dim); font-size:13px; margin:0 0 14px; }
+  #plot { width:100%; height:520px; display:block; border:1px solid var(--line); border-radius:10px; background:#0b0906; cursor:crosshair; touch-action:none; }
+  .row { display:flex; flex-wrap:wrap; gap:16px; margin:12px 0; align-items:center; }
+  .ctl { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:12px; }
+  .ctl label { color:var(--dim); display:block; margin-bottom:4px; } .ctl input[type=range]{ width:150px; vertical-align:middle; } .ctl b { color:var(--gold); }
+  button { background:#241f15; color:var(--gold); border:1px solid #6a5a3a; font:inherit; font-size:12px; padding:7px 13px; border-radius:6px; cursor:pointer; } button:hover{ border-color:var(--gold); color:#fff; }
+  .plants { font-size:11.5px; color:var(--dim); margin-top:8px; }
+  .chip { display:inline-block; border:1px solid var(--line); border-radius:14px; padding:2px 9px; margin:0 4px 4px 0; cursor:pointer; } .chip.on { border-color:var(--gold); color:var(--gold); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">◍ hoop</a> · <a href="/docs">world docs</a> · garden plot</div>
+  <h1>Garden Plot</h1>
+  <p class="lead">The substrate under the microscope — soil grain, moisture and desiccation cracks (the sand engine) with the flora grown on it, roots in the earth below, each plant coloured by its Galenic temperament. Every plant is a pure function of a seed, so an NPC's garden reproduces exactly. Click a plant chip to swap it; drag the sliders to work the soil.</p>
+  <canvas id="plot"></canvas>
+  <div class="row">
+    <div class="ctl"><label>sand ↔ clay <b id="lc">balanced</b></label><input id="clay" type="range" min="0" max="100" value="30" /></div>
+    <div class="ctl"><label>moisture <b id="lw">damp</b></label><input id="wet" type="range" min="0" max="100" value="30" /></div>
+    <div class="ctl"><label>growth <b id="lg">ripe</b></label><input id="stage" type="range" min="5" max="100" value="90" /></div>
+    <div class="ctl"><label>&nbsp;</label><button id="reseed">↻ reseed the bed</button></div>
+    <div class="ctl"><label>&nbsp;</label><button id="random">🎲 random garden</button></div>
+  </div>
+  <div class="plants" id="picker"></div>
+</div>
+
+<script type="module">
+import { buildPlotFlora } from './flora.js';
+import { renderPlot } from './plot-render.js';
+import { soilProps } from '../worship/lib/soil.js';
+import { ORGANISMS } from '../over/ecology.js';
+
+// a demo cast spanning the growth-forms + the four temperaments (real organisms from the ecology)
+const byName = (n) => ORGANISMS.find((o) => o.common === n) || { name: n };
+const CAST = ['Sage','Rue','Mint','Betony','Fennel','Radish','Parsnip','Bottle gourd','Apple','Cherry','Barley','Fly agaric']
+  .map(byName).map((o) => ({ name: o.common || o.name, sciName: o.sciName, qualities: o.qualities, planet: o.planet, crop: o.crop, edible: o.edible, kind: o.kind, reagentClass: o.reagentClass }));
+let chosen = [0,5,8,11,2,7];   // sage(shrub) · radish(rosette) · apple(tree) · fly agaric(fungus) · mint(clump) · gourd(vine) — every form distinct
+let seed = 7;
+
+const cv = document.getElementById('plot'), ctx = cv.getContext('2d');
+function size() { const dpr = Math.min(2, devicePixelRatio||1); const w = cv.clientWidth, h = cv.clientHeight; cv.width = w*dpr; cv.height = h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); return { w, h }; }
+function draw() {
+  const { w, h } = size();
+  const clay = +clayEl.value/100, wet = +wetEl.value/100, st = +stageEl.value/100;
+  const sand = 1 - clay*0.8, silt = 0.3;                       // sand↔clay slider (silt fixed)
+  const props = soilProps(sand, silt, clay, wet);
+  const descs = chosen.map((i) => CAST[i]);
+  const stages = descs.map((_, k) => Math.max(0.08, Math.min(1, st + (k%2?-0.15:0.1))));   // a little variety across the bed
+  const plot = buildPlotFlora(descs, { stages, seed, cols: 3 });
+  renderPlot(ctx, w, h, plot, { soil: props, seed });
+  lc.textContent = clay>0.5?'clay':clay<0.2?'sandy':'balanced'; lw.textContent = wet>0.6?'wet':wet<0.2?'dry':'damp'; lg.textContent = st<0.2?'sprout':st<0.6?'growing':st>=0.95?'ripe':'flowering';
+}
+const clayEl=document.getElementById('clay'), wetEl=document.getElementById('wet'), stageEl=document.getElementById('stage');
+const lc=document.getElementById('lc'), lw=document.getElementById('lw'), lg=document.getElementById('lg');
+[clayEl,wetEl,stageEl].forEach((e)=>e.addEventListener('input',draw));
+document.getElementById('reseed').addEventListener('click',()=>{ seed=(seed*1103515245+12345)>>>0; draw(); });
+// 🎲 random garden — reroll the whole bed (plants, stages, soil, seed) to eyeball the generator
+document.getElementById('random').addEventListener('click',()=>{
+  seed=(seed*1103515245+12345)>>>0;
+  const rng=(()=>{let a=seed;return()=>{a=(a*1103515245+12345)>>>0;return a/4294967296;};})();
+  const pool=[...CAST.keys()]; chosen=[]; while(chosen.length<6&&pool.length){ chosen.push(pool.splice(Math.floor(rng()*pool.length),1)[0]); }
+  clayEl.value=Math.floor(rng()*100); wetEl.value=Math.floor(rng()*100); stageEl.value=20+Math.floor(rng()*80);
+  renderPicker(); draw();
+});
+addEventListener('resize',draw);
+
+// the plant picker — click to toggle which of the cast fill the bed's 6 slots
+const picker = document.getElementById('picker');
+function renderPicker() {
+  picker.innerHTML = 'bed: ' + CAST.map((c,i)=>`<span class="chip ${chosen.includes(i)?'on':''}" data-i="${i}">${c.name}</span>`).join('');
+  picker.querySelectorAll('.chip').forEach((el)=>el.addEventListener('click',()=>{
+    const i=+el.dataset.i; if(chosen.includes(i)) chosen=chosen.filter((x)=>x!==i); else if(chosen.length<6) chosen=[...chosen,i]; else chosen=[...chosen.slice(1),i];
+    renderPicker(); draw();
+  }));
+}
+renderPicker(); draw();
+</script>
+</body>
+</html>
