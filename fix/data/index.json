@@ -1,0 +1,32 @@
+{
+  "versions": [
+    {
+      "slug": "fix42",
+      "version": "FIX.4.2",
+      "label": "FIX 4.2",
+      "fixt": false,
+      "fieldCount": 405,
+      "msgCount": 46,
+      "sort": 4200
+    },
+    {
+      "slug": "fix44",
+      "version": "FIX.4.4",
+      "label": "FIX 4.4",
+      "fixt": false,
+      "fieldCount": 912,
+      "msgCount": 93,
+      "sort": 4400
+    },
+    {
+      "slug": "fix50sp2",
+      "version": "FIXT.1.1",
+      "label": "FIX 5.0 SP2",
+      "fixt": false,
+      "fieldCount": 6028,
+      "msgCount": 164,
+      "sort": 5002
+    }
+  ],
+  "default": "fix44"
+}

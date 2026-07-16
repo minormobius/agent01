@@ -67,6 +67,19 @@
       "note": "The unit converter (reference wing, sibling to moji + uni). Thin assets Worker (worker `unit`, custom_domain unit.mino.mobi) - no build/D1/AI/secrets. Home: category dropdown then two iOS-style CYLINDER unit pickers (unit/lib/cylinder.js, scroll-snap drum) flanking a value input + swap, with a live FULL-SPECTRUM table converting the value into every unit at once (click a row to set it as the target). Deep-linkable at /<category>/<from>/<to>?v= (e.g. /length/meter/foot?v=1). /reference is the longform table page: every unit's exact factor to/from its base both ways, affine temperature formulas, non-linear fuel economy, and SI + IEC binary prefixes. ~15 categories; all conversions in the pure engine unit/lib/units.js (factor/offset, or toBase/fromBase fns for non-affine), node-tested by unit/lib/units.selftest.mjs. Currency deliberately excluded (needs live rates)."
     },
     {
+      "surface": "fix",
+      "dir": "fix",
+      "endpoint": "fix.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/fix-message-parser-yndbht",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "fix/**"
+      ],
+      "note": "The FIX (Financial Information eXchange) message parser (reference wing, sibling to moji/uni/unit). Thin assets Worker (worker `fix`, custom_domain fix.mino.mobi) — no build/D1/AI/secrets. Home is a paste box: drop a raw FIX message (SOH, or |/^/;/newline delimiters — auto-detected) and it renders every tag decoded to field name + type, every coded value to its enum meaning, repeating groups reconstructed as a nested tree, header/body/trailer banded, and BodyLength (9) + CheckSum (10) validated against the raw bytes. The dictionary auto-selects from BeginString (tag 8). /f/<tag> is a per-field reference (name, type, full enum table, group membership); /m/<code> is a per-message reference (name, category, resolved field layout with components expanded + groups nested). Three dictionaries — FIX 4.2, 4.4, and 5.0 SP2 (the FIXT.1.1 session layer merged in) — generated from the canonical QuickFIX spec XMLs (pinned in fix/data/spec/) by scripts/build-fix-data.mjs into fix/data/<ver>.json (+ .layouts.json). The parse engine fix/lib/fix.js is shared verbatim by the page and the node selftest fix/lib/fix.selftest.mjs (run it before touching the engine). All client-side — nothing is uploaded."
+    },
+    {
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",

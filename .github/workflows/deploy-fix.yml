@@ -1,0 +1,38 @@
+name: Deploy fix (FIX message parser)
+
+on:
+  push:
+    branches: [main, 'claude/fix-message-parser-yndbht']
+    paths:
+      - 'fix/**'
+      - '.github/workflows/deploy-fix.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify the parser is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://fix.mino.mobi/ | grep -qi 'FIX message parser'; then
+              echo "✓ fix is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ fix didn't respond within 20s — edge propagation may be slow, continuing."
