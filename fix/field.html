@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fix — field reference</title>
+<meta name="description" content="FIX field reference: tag number, field name, data type, and the full enumerated value table.">
+<meta name="theme-color" content="#0d9488">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='78'%3E%F0%9F%94%A7%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">fix<span class="dot">.</span><small>FIX message parser</small></a>
+    <span class="spacer"></span>
+    <select id="ver" class="verselect" title="FIX dictionary version"></select>
+    <a class="crumb" href="https://mino.mobi">↖ mino.mobi</a>
+  </div>
+</header>
+
+<main class="detail">
+  <a class="back" href="/">← back to the parser</a>
+  <div id="body"></div>
+</main>
+
+<script type="module">
+const VER = document.getElementById('ver');
+const BODY = document.getElementById('body');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// tag from the path: /f/54  (worker rewrites /f/<tag> → this page)
+const m = location.pathname.match(/\/f\/(\d+)/);
+const tag = m ? +m[1] : null;
+const params = new URLSearchParams(location.search);
+
+let INDEX = null, current = null, dict = null;
+
+async function loadDict(slug) { return fetch('/data/' + slug + '.json').then((r) => r.json()); }
+
+async function init() {
+  INDEX = await fetch('/data/index.json').then((r) => r.json());
+  VER.innerHTML = INDEX.versions.map((v) => `<option value="${v.slug}">${esc(v.label)}</option>`).join('');
+  current = (params.get('v') && INDEX.versions.some((v) => v.slug === params.get('v')) && params.get('v'))
+    || localStorage.getItem('fix.ver') || INDEX.default;
+  if (!INDEX.versions.some((v) => v.slug === current)) current = INDEX.default;
+  VER.value = current;
+  VER.addEventListener('change', async () => { current = VER.value; localStorage.setItem('fix.ver', current); dict = await loadDict(current); render(); });
+  dict = await loadDict(current);
+  render();
+}
+
+function render() {
+  if (tag == null) { BODY.innerHTML = `<div class="card">No field tag in the URL. Go <a href="/">back to the parser</a>.</div>`; return; }
+  const def = dict.fields[tag];
+  document.title = def ? `fix — tag ${tag} ${def.name}` : `fix — tag ${tag}`;
+  if (!def) {
+    // Maybe it exists in another version — point the reader there.
+    const alt = [];
+    BODY.innerHTML = `<div class="card"><div class="detail-head"><div class="tagbox">${tag}</div>
+      <div class="detail-meta"><h1>Tag ${tag}</h1><div class="pill-row"><span class="pill">not defined in ${esc(dict.label)}</span></div></div></div>
+      <p style="color:var(--muted);margin:16px 0 0">This tag isn't in the ${esc(dict.label)} dictionary. Try another version from the selector above.</p></div>`;
+    return;
+  }
+  const isGroup = !!dict.groups[tag];
+  const section = (dict.header || []).includes(tag) ? 'header' : (dict.trailer || []).includes(tag) ? 'trailer' : 'body';
+  const pills = [
+    `<span class="pill accent">tag ${tag}</span>`,
+    `<span class="pill">${esc(def.type)}</span>`,
+    `<span class="pill">${section}</span>`,
+  ];
+  if (isGroup) pills.push(`<span class="pill">repeating group</span>`);
+
+  let enumHTML = '';
+  if (def.enums) {
+    const rows = Object.entries(def.enums).map(([v, d]) => `<tr><td class="ev">${esc(v)}</td><td class="ed">${esc(d.replace(/_/g, ' '))}</td></tr>`).join('');
+    enumHTML = `<div class="card"><h2 class="section-title">Values <small style="color:var(--faint);font-weight:400">(${Object.keys(def.enums).length})</small></h2>
+      <table class="enum-t"><tbody>${rows}</tbody></table></div>`;
+  }
+  let groupHTML = '';
+  if (isGroup) {
+    const g = dict.groups[tag];
+    const delim = dict.fields[g.delim];
+    const members = g.members.map((t) => {
+      const fd = dict.fields[t];
+      return `<a class="pill" href="/f/${t}?v=${current}">${t} ${fd ? esc(fd.name) : ''}</a>`;
+    }).join(' ');
+    groupHTML = `<div class="card"><h2 class="section-title">Repeating group</h2>
+      <p style="color:var(--muted);margin:0 0 12px">Each entry begins with <a href="/f/${g.delim}?v=${current}" style="color:var(--accent)">${g.delim} ${delim ? esc(delim.name) : ''}</a> (the delimiter). Member fields:</p>
+      <div class="pill-row">${members}</div></div>`;
+  }
+
+  BODY.innerHTML = `<div class="card"><div class="detail-head"><div class="tagbox">${tag}</div>
+    <div class="detail-meta"><h1>${esc(def.name)}</h1><div class="pill-row">${pills.join('')}</div></div></div></div>
+    ${enumHTML}${groupHTML}`;
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>the office — mino.mobi</title>
+<meta name="description" content="A fractal directory of mino.mobi: an office of offices. Every surface is a desk whose wall is papered with posters of smaller offices — scroll to zoom in forever, click a monitor to open the live site." />
+<link rel="canonical" href="https://mino.mobi/office/" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='16' fill='%23161310'/%3E%3Crect x='20' y='20' width='60' height='60' rx='6' fill='none' stroke='%23e8c979' stroke-width='6'/%3E%3Crect x='36' y='36' width='28' height='28' rx='3' fill='none' stroke='%235aa9ff' stroke-width='5'/%3E%3Crect x='45' y='45' width='10' height='10' fill='%233ec7a8'/%3E%3C/svg%3E" />
+<meta property="og:title" content="the office — a fractal directory of mino.mobi" />
+<meta property="og:description" content="An office of offices: every page is a desk whose wall is papered with posters of its sub-pages. Scroll to fall through the walls; click a monitor to open the site." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://mino.mobi/office/" />
+<style>
+  :root { --bg:#08070a; --ink:#efe9df; --dim:#9a9488; --line:rgba(255,255,255,.1); }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; overflow:hidden;
+    -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+  #stage { position:fixed; inset:0; width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
+
+  /* top bar: breadcrumb */
+  #bar { position:fixed; top:0; left:0; right:0; z-index:5; display:flex; align-items:center; gap:10px;
+    padding:10px 12px; background:linear-gradient(#08070aee,#08070a00); pointer-events:none; flex-wrap:wrap; }
+  #crumb { display:flex; align-items:center; gap:2px; flex-wrap:wrap; pointer-events:auto; }
+  .crumb-item { background:none; border:0; color:var(--dim); font:inherit; font-size:13px; cursor:pointer;
+    padding:3px 7px; border-radius:6px; }
+  .crumb-item:hover { color:var(--ink); background:rgba(255,255,255,.06); }
+  .crumb-item.cur { color:var(--ac,#e8c979); font-weight:700; }
+  .crumb-sep { color:#4a463d; font-size:12px; }
+
+  /* current-room title (top-right) */
+  #here { position:fixed; top:10px; right:12px; z-index:5; text-align:right; line-height:1.25;
+    border-right:3px solid var(--ac,#e8c979); padding:2px 10px 2px 0; max-width:52vw; }
+  #here b { font-size:15px; }
+  #here span { display:block; color:var(--dim); font-size:11px; letter-spacing:.02em; }
+
+  /* left legend / wings */
+  #legend { position:fixed; left:12px; top:56px; z-index:5; display:flex; flex-direction:column; gap:3px;
+    background:rgba(14,13,16,.66); backdrop-filter:blur(6px); border:1px solid var(--line);
+    border-radius:10px; padding:8px; min-width:118px; }
+  .lg-title { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); padding:2px 4px 5px; }
+  .lg-item { display:flex; align-items:center; gap:7px; background:none; border:0; color:var(--ink);
+    font:inherit; font-size:12px; cursor:pointer; padding:4px 6px; border-radius:6px; text-align:left; }
+  .lg-item:hover { background:rgba(255,255,255,.07); }
+  .lg-item i { width:9px; height:9px; border-radius:2px; flex:none; }
+  .lg-item u { margin-left:auto; color:var(--dim); text-decoration:none; font-size:10px; }
+
+  /* bottom-right controls */
+  #ctrls { position:fixed; right:12px; bottom:12px; z-index:5; display:flex; gap:6px; }
+  #ctrls button { width:38px; height:38px; border-radius:9px; border:1px solid var(--line);
+    background:rgba(18,17,20,.72); color:var(--ink); font:inherit; font-size:17px; cursor:pointer;
+    backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; }
+  #ctrls button:hover { background:rgba(40,38,44,.9); }
+
+  /* hint chip (bottom-left) */
+  #hint { position:fixed; left:12px; bottom:12px; z-index:5; max-width:min(340px,80vw);
+    background:rgba(14,13,16,.72); border:1px solid var(--line); border-radius:10px; padding:9px 12px;
+    font-size:12px; color:var(--dim); cursor:pointer; backdrop-filter:blur(6px); }
+  #hint b { color:var(--ink); }
+  #hint .more { display:none; margin-top:7px; line-height:1.55; }
+  #hint.open .more { display:block; }
+  #hint kbd { background:#221f27; border:1px solid var(--line); border-radius:4px; padding:0 5px; color:var(--ink); font-size:11px; }
+
+  /* tooltip */
+  #tip { position:fixed; z-index:6; display:none; pointer-events:none; max-width:280px;
+    background:rgba(12,11,14,.95); border:1px solid var(--ac,#555); border-left:3px solid var(--ac,#e8c979);
+    border-radius:8px; padding:7px 10px; box-shadow:0 8px 30px rgba(0,0,0,.5); }
+  #tip b { display:block; font-size:14px; color:var(--ink); }
+  #tip span { display:block; font-size:11px; color:var(--dim); margin-top:1px; }
+  #tip code { display:block; font-size:10px; color:var(--ac,#e8c979); margin-top:4px; opacity:.85; word-break:break-all; }
+
+  /* loading */
+  body.loading #load { display:flex; }
+  #load { display:none; position:fixed; inset:0; z-index:9; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; color:var(--dim); font-size:13px; background:var(--bg); }
+  #load .sp { width:26px; height:26px; border:2px solid var(--line); border-top-color:#e8c979;
+    border-radius:50%; animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (max-width:560px){ #legend{display:none;} #here{max-width:60vw;} }
+</style>
+</head>
+<body class="loading">
+  <canvas id="stage"></canvas>
+
+  <div id="bar"><nav id="crumb"></nav></div>
+  <div id="here"></div>
+  <div id="legend"></div>
+
+  <div id="ctrls">
+    <button id="home" title="lobby (H)">⌂</button>
+    <button id="up" title="step out (Esc)">↑</button>
+    <button id="zout" title="zoom out (−)">−</button>
+    <button id="zin" title="zoom in (+)">+</button>
+  </div>
+
+  <div id="hint">
+    <b>Scroll to fall into a poster.</b> Each is another office. <u style="text-decoration:underline;cursor:pointer">how it works</u>
+    <div class="more">
+      Every desk is a page of <b>mino.mobi</b>; the wall behind it is papered with posters of its
+      sub-pages, each a smaller office with its own wall — all the way down.<br>
+      • <b>Scroll / pinch</b> to zoom straight through the walls.<br>
+      • <b>Click a poster</b> to step into that office.<br>
+      • <b>Click the glowing monitor</b> (or double-click anything) to open the live site.<br>
+      • <b>Breadcrumb</b> or <kbd>Esc</kbd> to step back out; <kbd>H</kbd> for the lobby.
+    </div>
+  </div>
+
+  <div id="tip"></div>
+  <div id="load"><div class="sp"></div>building the offices…</div>
+
+  <script type="module" src="./office.js"></script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04050a">
+<title>rind · upperrind — the flavoured pocket</title>
+<style>
+  :root { --ink:#dfe7e2; --dim:#6b7872; --teal:#7fd8d0; --gold:#f4bf62; --bg:#04050a; --panel:#0b1016; --line:#141c24; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.5 "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+  a { color: var(--teal); text-decoration: none; } a:hover { color: var(--gold); }
+  .wrap { display: grid; grid-template-columns: 1fr 300px; height: 100%; }
+  @media (max-width: 860px) { .wrap { grid-template-columns: 1fr; } .rail { display: none; } }
+  #stage { position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  .hud { position: absolute; pointer-events: none; user-select: none; z-index: 3; }
+  #top { top: 8px; left: 12px; font-size: 12px; color: var(--dim); }
+  #top a { pointer-events: auto; } #top b { color: var(--gold); }
+  #hint { bottom: 8px; left: 12px; color: var(--dim); font-size: 11px; }
+  #hint b { color: var(--teal); }
+  .controls { position: absolute; left: 12px; top: 30px; display: flex; gap: 6px; z-index: 4; }
+  .controls button { pointer-events: auto; background: #0d1117; color: var(--ink); border: 1px solid var(--line); border-radius: 0; clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); padding: 5px 11px; font: inherit; font-size: 11px; cursor: pointer; }
+  .controls button.on { border-color: var(--gold); color: var(--gold); }
+  .rail { border-left: 1px solid var(--line); background: var(--panel); padding: 14px; overflow: auto; }
+  .rail h1 { font-size: 15px; margin: 0 0 2px; }
+  .rail .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); }
+  .rail h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--teal); margin: 16px 0 6px; }
+  .rail .now { font-size: 13px; color: var(--ink); margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: #070b0f; }
+  .rail .now .role { color: var(--gold); font-weight: 600; }
+  .rail .now .sub { color: var(--dim); font-size: 11px; }
+  .door { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .door:hover, .door.here { background: #0f1620; } .door.here { outline: 1px solid var(--gold); }
+  .door .sw { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+  .door .lab { flex: 1; color: #c2cadb; } .door.here .lab { color: var(--gold); }
+  .door .rf { color: var(--dim); font-size: 10px; }
+  .rail p { color: #8aa39a; font-size: 11.5px; line-height: 1.5; }
+  .verbs { display: flex; flex-wrap: wrap; gap: 5px 9px; margin: 6px 0 2px; }
+  .verbs .v { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #9fb0ab; }
+  .verbs .v .sw { width: 10px; height: 10px; border-radius: 3px; }
+  .trail { color: var(--dim); font-size: 11px; margin-top: 8px; word-break: break-word; }
+  .trail b { color: var(--teal); }
+  #load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 20; color: var(--teal); }
+  #mm { position: absolute; inset: auto; right: 10px; bottom: 10px; width: 170px; height: 170px; border: 1px solid var(--line); border-radius: 9px; background: rgba(7,11,15,0.84); z-index: 3; pointer-events: none; }
+  #mmcap { position: absolute; right: 14px; bottom: 184px; z-index: 3; color: var(--dim); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <canvas id="mm"></canvas>
+    <div id="mmcap">the weave · you</div>
+    <div class="hud" id="top"><a href="../ops/">← ops</a> · <a href="./econ.html">⚖ solver</a> · <a href="./rings.html">◎ 2D</a> · <a href="./rings3d.html">⬡ 3D</a> · <b>upperrind — the ring topology, walked (6 above · 6 below · two ring loops)</b></div>
+    <div class="hud" id="hint">move: <b>WASD</b> / <b>click what you can see</b> · scroll to zoom · each floor is a <b>solenoid</b> in its verb's hue — walk an aperture and you're on that thread</div>
+    <div id="load">energising the flux…</div>
+  </div>
+  <aside class="rail">
+    <h1 id="oname">—</h1>
+    <div class="kind" id="okind"></div>
+    <div class="now" id="now"></div>
+    <h2>weave tightness</h2>
+    <div style="margin:2px 0"><input type="range" id="tight" min="0.2" max="0.85" step="0.01" value="0.35" style="width:100%;accent-color:var(--teal)"></div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--dim)"><span>loose · spread</span><span>tight · near core</span></div>
+    <div style="font-size:11px;margin:2px 0 0;color:var(--dim)">turnScale <b id="tval" style="color:var(--gold)">0.35</b> · <span id="trelay">re-lays the floors</span></div>
+    <h2>the ring topology, walked</h2>
+    <p style="margin:0 0 6px">The <a href="./rings.html">ring schematic</a>, brought into the pocket. <b>6 white ops above × 6 engines below</b> (K 6,6), joined by two <b>ring loops</b>: <b style="color:var(--assembly,#d9b24a)">assembly</b> — the <b>inner</b> loop at the core, bonded to the <b>fulfillment nexus</b>; <b style="color:var(--reclaim,#cf6b4a)">reclaim</b> — the <b>outer</b> loop at the rim. Each ring <b>touches all 12</b> threads, and each is a <b>true loop — walk it round and you return</b> (the last arc stitches to the first). A thread runs assembly-ring → K-crossings → reclaim-ring, hub → rim. Every ring crossing is a <b>zero-grade antechamber</b> — <b>no ladders</b>. Adjacent crossings merge into <b>beefy chambers</b> that junction the <b>ring + two threads</b> (a Y — 6 per ring). And the rings themselves now <b>weave</b> — over then under between antechambers (zero-grade flats at each), so they're part of the weave, not flat. Drag <b>weave tightness</b> to re-lay the floors looser or tighter.</p>
+    <h2>the floor is a field</h2>
+    <p style="margin:0 0 6px">Each white thread is a <b style="color:var(--gold)">solenoid</b> — a flux field along its axis, bending round the <b>shielded</b> chambers, in the thread's <b style="color:var(--teal)">dominant-verb</b> hue. The six engine floors are <b>machine halls</b> — the engine's bays wired by directed <b>conveyors</b>. The rings + nexus wear their own hues. <b>Doors are apertures</b>; walk one and you're on that floor.</p>
+    <div class="verbs" id="legend"></div>
+    <h2>doors — in sight</h2>
+    <div id="doors"></div>
+  </aside>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

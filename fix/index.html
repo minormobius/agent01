@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fix — the FIX message parser · decode any FIX message</title>
+<meta name="description" content="Paste a raw FIX message and read it: every tag decoded to its field name and type, every value decoded to its enum meaning, repeating groups nested, BodyLength and CheckSum validated. FIX 4.2, 4.4 and 5.0 SP2. No upload, all in your browser.">
+<meta property="og:title" content="fix — the FIX message parser">
+<meta property="og:description" content="Paste a FIX message, read it decoded — tags, enums, repeating groups, checksum. Nothing leaves your browser.">
+<meta name="theme-color" content="#0d9488">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='78'%3E%F0%9F%94%A7%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">fix<span class="dot">.</span><small>FIX message parser</small></a>
+    <span class="spacer"></span>
+    <select id="ver" class="verselect" title="FIX dictionary version"></select>
+    <a class="crumb" href="https://mino.mobi">↖ mino.mobi</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Read any FIX message.</h1>
+    <p>Paste a raw FIX message below. Every tag is decoded to its field name and type, every coded value to its meaning, repeating groups are nested, and <span class="stat">BodyLength</span> + <span class="stat">CheckSum</span> are checked against the bytes. Nothing is uploaded — it all runs here.</p>
+  </section>
+
+  <section class="editor">
+    <textarea id="in" class="input" spellcheck="false" autocapitalize="off" autocomplete="off"
+      placeholder="8=FIX.4.4|9=…|35=D|49=…|56=…|…|10=…&#10;&#10;Delimiters can be the real SOH byte, or | ^ ; or newlines — auto-detected."></textarea>
+    <div class="toolbar">
+      <button id="sample" class="btn">Load a sample</button>
+      <button id="clear" class="btn ghost">Clear</button>
+      <span id="delnote" class="tb-note"></span>
+    </div>
+  </section>
+
+  <div id="out"></div>
+</main>
+
+<div class="toast" id="toast">Copied</div>
+
+<script type="module">
+import { parseFix, pickVersion } from '/lib/fix.js';
+
+const IN = document.getElementById('in');
+const OUT = document.getElementById('out');
+const VER = document.getElementById('ver');
+const DELNOTE = document.getElementById('delnote');
+const TOAST = document.getElementById('toast');
+
+const SAMPLE = '8=FIX.4.4|9=191|35=D|49=BUYSIDE|56=SELLSIDE|34=2|52=20240115-12:30:00.000|11=ORD10001|453=2|448=trader1|447=D|452=11|448=fundABC|447=D|452=13|55=AAPL|54=1|60=20240115-12:30:00.000|38=100|40=2|44=185.50|59=0|10=161|';
+
+let INDEX = null;         // { versions:[…], default }
+let DICTS = {};           // slug -> main dictionary (lazy)
+let current = null;       // current slug
+let userPinned = false;   // did the user pick a version manually?
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function toast(msg) { TOAST.textContent = msg; TOAST.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => TOAST.classList.remove('show'), 1300); }
+
+async function loadDict(slug) {
+  if (DICTS[slug]) return DICTS[slug];
+  const d = await fetch('/data/' + slug + '.json').then((r) => r.json());
+  DICTS[slug] = d;
+  return d;
+}
+
+async function init() {
+  INDEX = await fetch('/data/index.json').then((r) => r.json());
+  VER.innerHTML = INDEX.versions.map((v) => `<option value="${v.slug}">${esc(v.label)}</option>`).join('');
+  const params = new URLSearchParams(location.search);
+  current = (params.get('v') && INDEX.versions.some((v) => v.slug === params.get('v')) && params.get('v'))
+    || localStorage.getItem('fix.ver')
+    || INDEX.default;
+  if (!INDEX.versions.some((v) => v.slug === current)) current = INDEX.default;
+  VER.value = current;
+  await loadDict(current);
+
+  VER.addEventListener('change', async () => {
+    current = VER.value; userPinned = true;
+    localStorage.setItem('fix.ver', current);
+    await loadDict(current);
+    render();
+  });
+  IN.addEventListener('input', () => { userPinned = false; debounced(); });
+  document.getElementById('sample').addEventListener('click', () => { IN.value = SAMPLE; userPinned = false; render(); });
+  document.getElementById('clear').addEventListener('click', () => { IN.value = ''; render(); IN.focus(); });
+
+  // Seed from ?msg= or the sample so the page is never empty on first look.
+  const seed = params.get('msg');
+  IN.value = seed || SAMPLE;
+  render();
+}
+
+let _t;
+function debounced() { clearTimeout(_t); _t = setTimeout(render, 130); }
+
+async function render() {
+  const raw = IN.value.trim();
+  if (!raw) { OUT.innerHTML = emptyState(); DELNOTE.textContent = ''; return; }
+
+  // Auto-select the dictionary from BeginString (tag 8) unless the user pinned one.
+  if (!userPinned) {
+    const m = /(?:^|[\x01|^;\n])8=([^\x01|^;\n]+)/.exec(raw);
+    if (m) {
+      const slug = pickVersion(m[1].trim(), INDEX.versions);
+      if (slug && slug !== current) { current = slug; VER.value = slug; localStorage.setItem('fix.ver', slug); await loadDict(slug); }
+    }
+  }
+  const dict = await loadDict(current);
+  const res = parseFix(raw, dict);
+  DELNOTE.innerHTML = res.fieldCount ? `delimiter: <b>${esc(res.delimiter.label)}</b> · ${res.fieldCount} fields · ${esc(dict.label)}` : '';
+  OUT.innerHTML = summaryHTML(res) + warningsHTML(res) + tableHTML(res, dict);
+  wireCopies();
+}
+
+function emptyState() {
+  return `<div class="result"><div class="empty-state">Paste a FIX message above, or <code>Load a sample</code>. Try one like <code>8=FIX.4.4␁9=…␁35=D␁…␁10=…</code>.</div></div>`;
+}
+
+function badge(v, label) {
+  if (!v || !v.present) return `<div class="chip-s"><span class="k">${label}</span><span class="v"><small>—</small></span></div>`;
+  const cls = v.ok ? 'badge-ok' : 'badge-bad';
+  const mark = v.ok ? '✓' : '✕';
+  const detail = v.ok ? `${v.stated}` : `${v.stated} <small>≠ ${v.computed}</small>`;
+  return `<div class="chip-s ${cls}"><span class="k">${label}</span><span class="v">${mark} ${detail}</span></div>`;
+}
+
+function summaryHTML(res) {
+  const mt = res.msgType;
+  const mtVal = mt
+    ? (mt.name
+        ? `<a href="/m/${encodeURIComponent(mt.code)}?v=${current}">${esc(mt.name)}</a> <small>${esc(mt.code)}</small>${mt.cat ? `<span class="cat">${esc(mt.cat)}</span>` : ''}`
+        : `<small>${esc(mt.code)} (unknown)</small>`)
+    : '<small>—</small>';
+  return `<div class="summary">
+    <div class="chip-s"><span class="k">BeginString</span><span class="v">${res.beginString ? esc(res.beginString) : '<small>—</small>'}</span></div>
+    <div class="chip-s msg"><span class="k">MsgType</span><span class="v">${mtVal}</span></div>
+    <div class="chip-s"><span class="k">Fields</span><span class="v">${res.fieldCount}</span></div>
+    ${badge(res.bodyLength, 'BodyLength')}
+    ${badge(res.checksum, 'CheckSum')}
+  </div>`;
+}
+
+function warningsHTML(res) {
+  if (!res.warnings.length) return '';
+  return `<div class="warnings"><h3>${res.warnings.length} note${res.warnings.length > 1 ? 's' : ''}</h3><ul>${res.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul></div>`;
+}
+
+function fieldRow(f, depth, entryBadge) {
+  const cls = 'frow depth' + Math.min(depth, 3);
+  if (f.malformed) {
+    return `<tr class="${cls}"><td class="t-tag">${entryBadge || ''}—</td><td class="t-name unknown">malformed</td><td class="t-val" data-copy="${esc(f.raw)}">${esc(f.raw)}</td><td class="t-dec"></td></tr>`;
+  }
+  const nameCls = f.known ? 't-name' : 't-name unknown';
+  const nameInner = f.known
+    ? `<a href="/f/${f.tag}?v=${current}">${esc(f.name)}</a><span class="type">${esc(f.type || '')}</span>`
+    : `unknown tag`;
+  let dec = '';
+  if (f.tag === 35 && f.enumDesc == null) dec = ''; // handled in summary; leave value plain
+  if (f.enumDesc != null) dec = `<span class="t-dec">${esc(f.enumDesc)}</span>`;
+  return `<tr class="${cls}"><td class="t-tag">${entryBadge || ''}${f.tag}</td><td class="${nameCls}">${nameInner}</td><td class="t-val" data-copy="${esc(f.value)}">${esc(f.value)}</td><td>${dec}</td></tr>`;
+}
+
+function renderNodes(nodes, depth, rows) {
+  for (const n of nodes) {
+    if (n.kind === 'field') { rows.push(fieldRow(n.field, depth)); continue; }
+    // group
+    const g = n.field;
+    const nm = g.known ? esc(g.name) : `tag ${g.tag}`;
+    rows.push(`<tr class="grp-head depth${Math.min(depth, 3)}"><td class="t-tag">${g.tag}</td><td class="t-name"><a href="/f/${g.tag}?v=${current}">${nm}</a><span class="type">NUMINGROUP · ${n.entries.length}/${n.stated}</span></td><td class="t-val">${esc(g.value)}</td><td></td></tr>`);
+    n.entries.forEach((entry, ix) => {
+      entry.forEach((child, ci) => {
+        if (child.kind === 'field') {
+          const eb = ci === 0 ? `<span class="entry-badge">#${ix + 1}</span> ` : '';
+          rows.push(fieldRow(child.field, depth + 1, eb));
+        } else {
+          renderNodes([child], depth + 1, rows);
+        }
+      });
+    });
+  }
+}
+
+function tableHTML(res, dict) {
+  if (!res.fieldCount && !res.fields.length) return emptyState();
+  // Walk top-level nodes, inserting section bands (header/body/trailer) as the
+  // classification changes. Group nodes and their contents count as body.
+  const rows = [];
+  let section = null;
+  const bandLabel = { header: 'Header', body: 'Body', trailer: 'Trailer' };
+  const nodeSection = (n) => (n.kind === 'field' ? n.field.section : (n.field.section || 'body'));
+  for (const n of res.tree) {
+    const s = nodeSection(n);
+    if (s !== section) { section = s; rows.push(`<tr class="band ${section}"><td colspan="4">${bandLabel[section] || section}</td></tr>`); }
+    renderNodes([n], 0, rows);
+  }
+  return `<div class="result"><table class="ftable">
+    <thead><tr><th>Tag</th><th>Field</th><th>Value</th><th>Decoded</th></tr></thead>
+    <tbody>${rows.join('')}</tbody></table></div>`;
+}
+
+function wireCopies() {
+  OUT.querySelectorAll('.t-val[data-copy]').forEach((el) => {
+    el.style.cursor = 'copy';
+    el.addEventListener('click', () => {
+      navigator.clipboard?.writeText(el.getAttribute('data-copy')).then(() => toast('Copied value'));
+    });
+  });
+}
+
+init();
+</script>
+</body>
+</html>

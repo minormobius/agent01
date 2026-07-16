@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04050a">
+<title>upperrind · the ring weave — 6 above · 6 below · two rings</title>
+<style>
+  :root { --ink:#dfe7e2; --dim:#6b7872; --teal:#7fd8d0; --gold:#f4bf62; --bg:#04050a; --panel:#0b1016; --line:#141c24; --reclaim:#cf6b4a; --assembly:#d9b24a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.5 "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+  a { color: var(--teal); text-decoration: none; } a:hover { color: var(--gold); }
+  .wrap { display: grid; grid-template-columns: 1fr 320px; height: 100%; }
+  @media (max-width: 880px) { .wrap { grid-template-columns: 1fr; } .rail { display: none; } }
+  #stage { position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  .hud { position: absolute; pointer-events: none; user-select: none; z-index: 3; }
+  #top { top: 8px; left: 12px; font-size: 12px; color: var(--dim); }
+  #top a { pointer-events: auto; } #top b { color: var(--gold); }
+  #hint { bottom: 8px; left: 12px; color: var(--dim); font-size: 11px; }
+  #hint b { color: var(--teal); }
+  .controls { position: absolute; left: 12px; top: 30px; display: flex; gap: 6px; z-index: 4; }
+  .controls button { pointer-events: auto; background: #0d1117; color: var(--ink); border: 1px solid var(--line); border-radius: 0; clip-path: polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); padding: 5px 11px; font: inherit; font-size: 11px; cursor: pointer; }
+  .controls button.on { border-color: var(--gold); color: var(--gold); }
+  .rail { border-left: 1px solid var(--line); background: var(--panel); padding: 14px 16px; overflow: auto; }
+  .rail h1 { font-size: 15px; margin: 0 0 2px; }
+  .rail .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); }
+  .rail h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--teal); margin: 16px 0 6px; }
+  .rail p { color: #8aa39a; font-size: 11.5px; line-height: 1.55; }
+  .now { font-size: 12.5px; color: var(--ink); margin: 8px 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; background: #070b0f; min-height: 42px; }
+  .now .t { font-weight: 600; } .now .s { color: var(--dim); font-size: 11px; }
+  .leg { display: flex; align-items: center; gap: 7px; font-size: 11.5px; padding: 2px 0; cursor: pointer; }
+  .leg:hover { color: var(--gold); }
+  .leg .sw { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+  .leg .g { color: var(--dim); margin-left: auto; font-size: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div class="controls">
+      <button id="bflow" class="on">↻ flow</button>
+      <button id="blabels" class="on">labels</button>
+      <button id="bcross" class="on">crossings</button>
+    </div>
+    <div class="hud" id="top"><a href="./">← upperrind</a> · <a href="./rings3d.html">⬡ 3D</a> · <a href="./econ.html">⚖ solver</a> · <b>the ring weave — a prototype (6 above · 6 below · two rings)</b></div>
+    <div class="hud" id="hint">hover a <b>thread</b> or a <b>ring</b> to trace its contacts · the rings each touch all <b>12</b> threads</div>
+  </div>
+  <aside class="rail">
+    <h1>the ring weave</h1>
+    <div class="kind">prototype · analytic schematic</div>
+    <div class="now" id="now"><span class="t">the whole weave</span><div class="s">hover to inspect a thread or ring</div></div>
+    <h2>weave tightness</h2>
+    <div style="margin:4px 0 2px"><input type="range" id="tight" min="0.5" max="1.8" step="0.02" value="0.7" style="width:100%;accent-color:var(--teal)"></div>
+    <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim)"><span>loose · spread out</span><span>tight · near core</span></div>
+    <div style="font-size:11.5px;margin:4px 0 0;color:#9fb0ab">turns <b id="tval" style="color:var(--gold)">0.70</b> · <span id="kread">K 36/36</span></div>
+    <h2>what changed</h2>
+    <p>The <a href="./econ.html">solver</a> showed <b style="color:var(--assembly)">assembly</b> &amp; <b style="color:var(--reclaim)">reclaim</b> aren't arms — they're <b>hubs every thread meets</b>. So they become <b>rings</b>:</p>
+    <p>• <b style="color:var(--reclaim)">Reclaim</b> — the <b>outer ring</b> at the rim, the decomposer. All 12 threads reach it; <b>raws are born here and flow inward</b>.<br>
+       • <b style="color:var(--assembly)">Assembly</b> — the <b>inner ring</b> at the core, the converger, bonded to the <b>fulfillment nexus</b>. All 12 pass it; <b>product is finished and rides the lift up</b>.<br>
+       • The 12 radial threads: <b>6 white ops above</b> × <b>6 engines below</b> (foundry · chemworks · mill · fab · weave · fluid), counter-woven ⇒ <b>K(6,6)</b>.</p>
+    <h2>the radial metabolism</h2>
+    <p>Outer(reclaim) → raws → refine inward → inner(assembly) → product → nexus(up); wear flows back out. The two rings bookend the radius.</p>
+    <h2>above — the six ops</h2>
+    <div id="legAbove"></div>
+    <h2>below — the six engines</h2>
+    <div id="legBelow"></div>
+  </aside>
+</div>
+<script type="module" src="./rings-app.js"></script>
+</body>
+</html>
