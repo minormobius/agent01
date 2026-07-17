@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/fractal-office-landing-t6hcs6']
+    branches: [main, 'claude/fractal-office-landing-t6hcs6', 'claude/audit-time-deploy-ag144t']
     paths:
       - 'index.html'
       - 'styles.css'
