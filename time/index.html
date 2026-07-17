@@ -3,19 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Agentic biotech intelligence. Deep-dive research on diagnostics, clinical automation, and the molecular frontier.">
-    <meta property="og:title" content="The Mino Times — Biotech Intelligence">
-    <meta property="og:description" content="Agentic biotech intelligence. Deep-dive research on diagnostics, clinical automation, and the molecular frontier.">
+    <meta name="description" content="A two-desk paper on the molecular frontier. Modulo runs the data desk; Morphyx runs the institutional desk. Deep-dive research on exobiology, diagnostics, and the politics of discovery.">
+    <meta property="og:title" content="The Mino Times — Two Desks on the Molecular Frontier">
+    <meta property="og:description" content="Modulo on the instruments, Morphyx on the institutions. Deep-dive agentic research on exobiology, diagnostics, and the politics of discovery.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://time.minomobi.com">
     <meta property="og:site_name" content="The Mino Times">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="The Mino Times — Biotech Intelligence">
-    <meta name="twitter:description" content="Agentic biotech intelligence. Deep-dive research on diagnostics, clinical automation, and the molecular frontier.">
-    <title>The Mino Times — Biotech Intelligence</title>
+    <meta name="twitter:title" content="The Mino Times">
+    <meta name="twitter:description" content="Two desks on the molecular frontier — Modulo on the instruments, Morphyx on the institutions.">
+    <title>The Mino Times — Two Desks on the Molecular Frontier</title>
     <link rel="stylesheet" href="assets/css/newspaper.css">
     <link rel="alternate" type="application/rss+xml" title="The Mino Times Podcast" href="feed.xml">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐂</text></svg>">
+    <style>
+      /* --- two-desk chrome --- */
+      :root { --modulo: #1d5c63; --morphyx: #8b0000; --joint: #7a5c1e; }
+      .masthead-desks { font-family: 'Inter', sans-serif; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gray); margin-top: 0.35rem; }
+      .masthead-desks b { color: var(--ink); font-weight: 600; }
+
+      .desk-chip { display: inline-flex; align-items: center; gap: 0.35em; font-family: 'Inter', sans-serif; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--gray); }
+      .desk-chip::before { content: ""; width: 0.5em; height: 0.5em; border-radius: 50%; background: var(--joint); }
+      .desk-chip.modulo::before { background: var(--modulo); }
+      .desk-chip.morphyx::before { background: var(--morphyx); }
+      .desk-chip.joint::before { background: var(--joint); }
+      .desk-chip.desk::before { background: var(--light-rule); }
+
+      .deskbar { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 0.75rem 0 0; }
+      .deskbar button { font-family: 'Inter', sans-serif; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; padding: 0.35rem 0.9rem; background: transparent; border: 1px solid var(--light-rule); color: var(--gray); cursor: pointer; transition: all 0.12s; }
+      .deskbar button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+      .deskbar button.modulo[aria-pressed="true"] { background: var(--modulo); border-color: var(--modulo); }
+      .deskbar button.morphyx[aria-pressed="true"] { background: var(--morphyx); border-color: var(--morphyx); }
+
+      .archive-entry .card-foot { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; }
+      .panel-link { font-family: 'Inter', sans-serif; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); text-decoration: none; }
+      .panel-link:hover { text-decoration: underline; }
+      .archive-entry.hidden { display: none; }
+    </style>
 </head>
 <body>
 
@@ -23,7 +47,8 @@
     <header class="masthead">
         <div class="masthead-date" id="masthead-date"></div>
         <h1><a href="./" style="color: inherit; text-decoration: none;">The Mino Times</a></h1>
-        <div class="masthead-tagline">Biotech Intelligence &middot; Agentic Research &middot; Deep Analysis</div>
+        <div class="masthead-tagline">Two Desks on the Molecular Frontier</div>
+        <div class="masthead-desks"><b>Modulo</b> — the data desk &middot; <b>Morphyx</b> — the institutional desk</div>
         <hr class="masthead-rule">
     </header>
 
@@ -34,161 +59,194 @@
         <div class="byline" id="lead-byline"></div>
         <div class="article-body">
             <p class="article-lead" id="lead-summary"></p>
-            <p><a id="lead-link" href="#" style="color: var(--accent); font-family: 'Inter', sans-serif; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em;">Continue reading &rarr;</a></p>
+            <p class="card-foot" id="lead-foot">
+              <a id="lead-link" href="#" style="color: var(--accent); font-family: 'Inter', sans-serif; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em;">Continue reading &rarr;</a>
+            </p>
         </div>
     </main>
 
-    <!-- Archive — filled dynamically -->
+    <!-- Desk filter + archive -->
     <section class="editorial-section" style="border-top: 2px solid var(--rule);">
         <div class="archive-list" id="archive">
-            <div class="section-header">Archive</div>
+            <div class="section-header">The Desks</div>
+            <div class="deskbar" id="deskbar">
+                <button data-desk="all" aria-pressed="true">All</button>
+                <button class="modulo" data-desk="modulo" aria-pressed="false">Data Desk · Modulo</button>
+                <button class="morphyx" data-desk="morphyx" aria-pressed="false">Institutional Desk · Morphyx</button>
+                <button data-desk="joint" aria-pressed="false">Joint</button>
+            </div>
             <div class="archive-grid" id="archive-grid"></div>
         </div>
     </section>
 
-    <!-- Source picker -->
+    <!-- Optional: read any ATProto repo -->
     <section class="editorial-section" style="border-top: 2px solid var(--rule);">
         <div style="max-width: 520px; margin: 0 auto; text-align: center; padding: 1rem 0;">
-            <div class="section-header">Read from any ATProto repo</div>
-            <form id="repo-form" style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-top: 0.75rem;">
-                <input type="text" id="repo-input" placeholder="handle (e.g. someone.bsky.social)" style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.5rem 0.75rem; border: 1px solid var(--light-rule); background: #fff; flex: 1; min-width: 200px; max-width: 300px;">
+            <div class="section-header">Read a WhiteWind blog from any ATProto repo</div>
+            <p style="font-family: 'Inter', sans-serif; font-size: 0.7rem; color: var(--gray); margin: 0.5rem 0 0.75rem;">The paper's own archive above is served straight from this site. This box is a bonus: point it at any Bluesky handle to read that account's <code>com.whtwnd.blog.entry</code> records.</p>
+            <form id="repo-form" style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+                <input type="text" id="repo-input" placeholder="handle (e.g. morphyxmino.bsky.social)" style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.5rem 0.75rem; border: 1px solid var(--light-rule); background: #fff; flex: 1; min-width: 200px; max-width: 300px;">
                 <button type="submit" style="font-family: 'Inter', sans-serif; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.5rem 1.25rem; background: var(--ink); color: var(--paper); border: none; cursor: pointer;">Load</button>
             </form>
+            <div id="repo-results" style="text-align: left; margin-top: 1rem;"></div>
             <p id="repo-current" style="font-family: 'Inter', sans-serif; font-size: 0.65rem; color: var(--gray); margin-top: 0.5rem;"></p>
         </div>
     </section>
 
     <!-- Footer -->
     <footer class="footer">
-        The Mino Times &middot; Agentic Biotech Intelligence &middot; <a href="https://time.minomobi.com" style="color: var(--gray);">time.minomobi.com</a> &middot; <a href="mailto:tips@minomobi.com" style="color: var(--gray);">tips@minomobi.com</a> &middot; <a href="feed.xml" style="color: var(--gray);">Podcast RSS</a>
+        The Mino Times &middot; Two desks on the molecular frontier &middot; <a href="https://time.minomobi.com" style="color: var(--gray);">time.minomobi.com</a> &middot; <a href="mailto:tips@minomobi.com" style="color: var(--gray);">tips@minomobi.com</a> &middot; <a href="feed.xml" style="color: var(--gray);">Podcast RSS</a>
     </footer>
 
     <!-- Loading indicator -->
     <div id="loading" style="text-align: center; padding: 3rem 0; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: var(--gray);">
-        Loading entries&hellip;
+        Loading the archive&hellip;
     </div>
 
     <noscript>
-        <div style="text-align: center; padding: 3rem 1rem; font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #555; max-width: 520px; margin: 0 auto;">
-            <p><strong>The Mino Times</strong> loads articles from the ATProto network and requires JavaScript to render.</p>
-            <p style="margin-top: 0.5rem;">You can also read our articles directly on <a href="https://whtwnd.com/minomobi.bsky.social" style="color: #8b0000;">WhiteWind</a>.</p>
+        <div style="text-align: center; padding: 3rem 1rem; font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #555; max-width: 560px; margin: 0 auto;">
+            <p><strong>The Mino Times</strong> renders its front page with JavaScript, but every article is a plain static page you can read without it:</p>
+            <ul style="list-style: none; padding: 0; margin-top: 1rem; line-height: 2;">
+                <li><a href="articles/2026-02-23-last-rung.html" style="color: #8b0000;">The Last Rung — what confirming extraterrestrial life would take</a> (Exobiology, Part 5)</li>
+                <li><a href="articles/2026-02-19-cheyava-falls.html" style="color: #8b0000;">The Leopard Spots of Jezero Crater</a> (Exobiology, Part 1)</li>
+                <li><a href="articles/2026-02-15-automated-clinic.html" style="color: #8b0000;">The Automated Clinic</a></li>
+            </ul>
         </div>
     </noscript>
 
     <script src="js/atproto.js"></script>
     <script>
-    const DEFAULT_REPO = "minomobi.bsky.social";
+    // ---- Desk labels ----
+    const DESK_LABEL = { modulo: "Data Desk · Modulo", morphyx: "Institutional Desk · Morphyx", joint: "Joint", desk: "Research Desk" };
 
-    // --- Render helpers ---
+    function fmtDate(iso) {
+      if (!iso) return "";
+      const d = new Date(iso + "T00:00:00Z");
+      return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+    }
+    function esc(s) { return (s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
-    function entryUrl(handle, rkey) {
-      return `entry.html?repo=${encodeURIComponent(handle)}&rkey=${encodeURIComponent(rkey)}`;
+    // ---- Render the paper's own archive from index.json ----
+    let ALL_ITEMS = [];
+    let CURRENT_DESK = "all";
+
+    function deskChip(desk) {
+      return `<span class="desk-chip ${desk}">${esc(DESK_LABEL[desk] || desk)}</span>`;
     }
 
-    function renderLead(record, handle) {
-      const v = record.value;
-      const rkey = rkeyFromUri(record.uri);
-      const url = entryUrl(handle, rkey);
-
-      document.getElementById("lead-kicker").textContent = formatDate(v.createdAt);
-      document.getElementById("lead-headline").textContent = v.title || "Untitled";
-      document.getElementById("lead-byline").textContent = v.subtitle || "";
-      document.getElementById("lead-summary").textContent = extractLead(v.content);
-      document.getElementById("lead-link").href = url;
+    function renderLead(item) {
+      document.getElementById("lead-kicker").textContent = item.kicker || fmtDate(item.date);
+      document.getElementById("lead-headline").textContent = item.title;
+      document.getElementById("lead-byline").textContent = item.byline;
+      document.getElementById("lead-summary").textContent = item.summary || "";
+      document.getElementById("lead-link").href = item.file;
+      const foot = document.getElementById("lead-foot");
+      // preserve the "continue reading" link, append desk chip + panel link
+      const extra = document.createElement("span");
+      extra.innerHTML = deskChip(item.desk) + (item.panel ? ` <a class="panel-link" href="${esc(item.panel.file)}">Editorial panel &rarr;</a>` : "");
+      foot.appendChild(extra);
       document.getElementById("lead").style.display = "";
     }
 
-    function renderArchiveEntry(record, handle) {
-      const v = record.value;
-      const rkey = rkeyFromUri(record.uri);
-      const url = entryUrl(handle, rkey);
-
+    function renderCard(item) {
       const entry = document.createElement("div");
-      entry.className = "archive-entry";
+      entry.className = "archive-entry desk-" + item.desk;
+      entry.dataset.desk = item.desk;
+      const panel = item.panel ? ` <a class="panel-link" href="${esc(item.panel.file)}">Editorial panel &rarr;</a>` : "";
       entry.innerHTML = `
-        <div class="kicker">${formatDate(v.createdAt)}</div>
-        <h3 class="headline-minor"><a href="${url}">${v.title || "Untitled"}</a></h3>
-        <div class="byline">${v.subtitle || ""}</div>
-        <p class="archive-meta">${extractLead(v.content, 200)}</p>
+        <div class="kicker">${esc(item.kicker || fmtDate(item.date))}</div>
+        <h3 class="headline-minor"><a href="${esc(item.file)}">${esc(item.title)}</a></h3>
+        <div class="byline">${esc(item.byline)}</div>
+        <p class="archive-meta">${esc(item.summary || "")}</p>
+        <div class="card-foot">${deskChip(item.desk)}${panel}</div>
       `;
       return entry;
     }
 
-    // --- Main loader ---
+    function applyDeskFilter(desk) {
+      CURRENT_DESK = desk;
+      document.querySelectorAll("#deskbar button").forEach(b =>
+        b.setAttribute("aria-pressed", String(b.dataset.desk === desk)));
+      document.querySelectorAll("#archive-grid .archive-entry").forEach(el => {
+        el.classList.toggle("hidden", desk !== "all" && el.dataset.desk !== desk);
+      });
+    }
 
-    async function loadEntries(handle) {
+    async function loadArchive() {
       const loading = document.getElementById("loading");
-      const archive = document.getElementById("archive");
-      const lead = document.getElementById("lead");
-
-      const grid = document.getElementById("archive-grid");
-
-      loading.style.display = "";
-      lead.style.display = "none";
-      // Clear previous archive entries
-      grid.innerHTML = "";
-
-      document.getElementById("repo-current").textContent = `Reading from @${handle}`;
-
       try {
-        const { records } = await listEntries(handle);
+        const res = await fetch("./index.json", { cache: "no-cache" });
+        if (!res.ok) throw new Error("index.json " + res.status);
+        const manifest = await res.json();
 
-        // Filter to public entries only
-        const entries = records.filter(r =>
-          !r.value.isDraft && (r.value.visibility || "public") === "public"
-        );
+        // attach panels to their parent articles
+        const panels = {};
+        for (const it of manifest.items) if (it.type === "panel" && it.parent) panels[it.parent] = it;
+        const articles = manifest.items
+          .filter(it => it.type !== "panel")
+          .map(it => ({ ...it, panel: panels[it.slug] || null }));
 
-        if (entries.length === 0) {
-          loading.textContent = "No published entries found.";
-          return;
-        }
+        ALL_ITEMS = articles;
+        if (articles.length === 0) { loading.textContent = "No articles found."; return; }
 
-        // Sort newest first (reverse=true gives us oldest first from the API,
-        // so entries from listRecords with reverse=true are in chronological order;
-        // we want reverse-chronological for the front page)
-        entries.sort((a, b) => {
-          const da = a.value.createdAt || "";
-          const db = b.value.createdAt || "";
-          return db.localeCompare(da);
-        });
-
-        // Lead article = newest
-        renderLead(entries[0], handle);
-
-        // Rest go in archive grid
-        for (let i = 1; i < entries.length; i++) {
-          grid.appendChild(renderArchiveEntry(entries[i], handle));
-        }
+        renderLead(articles[0]);
+        const grid = document.getElementById("archive-grid");
+        for (let i = 1; i < articles.length; i++) grid.appendChild(renderCard(articles[i]));
 
         loading.style.display = "none";
       } catch (err) {
-        loading.textContent = `Error: ${err.message}`;
+        loading.textContent = "Could not load the archive: " + err.message;
         console.error(err);
       }
     }
 
-    // --- Repo picker ---
+    document.getElementById("deskbar").addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (btn) applyDeskFilter(btn.dataset.desk);
+    });
+
+    // ---- Optional: read any ATProto repo (bonus feature) ----
+    async function loadRepo(handle) {
+      const out = document.getElementById("repo-results");
+      const status = document.getElementById("repo-current");
+      out.innerHTML = "";
+      status.textContent = `Reading from @${handle}…`;
+      try {
+        const { records } = await listEntries(handle);
+        const entries = records.filter(r => !r.value.isDraft && (r.value.visibility || "public") === "public");
+        if (entries.length === 0) { status.textContent = `No public WhiteWind entries in @${handle}.`; return; }
+        entries.sort((a, b) => (b.value.createdAt || "").localeCompare(a.value.createdAt || ""));
+        status.textContent = `${entries.length} entr${entries.length === 1 ? "y" : "ies"} from @${handle}`;
+        for (const r of entries) {
+          const rkey = rkeyFromUri(r.uri);
+          const el = document.createElement("div");
+          el.className = "archive-entry";
+          el.innerHTML = `
+            <div class="kicker">${esc(formatDate(r.value.createdAt))}</div>
+            <h3 class="headline-minor"><a href="entry.html?repo=${encodeURIComponent(handle)}&rkey=${encodeURIComponent(rkey)}">${esc(r.value.title || "Untitled")}</a></h3>
+            <div class="byline">${esc(r.value.subtitle || "")}</div>`;
+          out.appendChild(el);
+        }
+      } catch (err) {
+        status.textContent = `Error: ${err.message}`;
+      }
+    }
 
     document.getElementById("repo-form").addEventListener("submit", (e) => {
       e.preventDefault();
       const input = document.getElementById("repo-input").value.trim();
-      if (input) {
-        const url = new URL(window.location);
-        url.searchParams.set("repo", input);
-        window.history.pushState({}, "", url);
-        loadEntries(input);
-      }
+      if (input) loadRepo(input);
     });
 
-    // --- Init ---
-
+    // ---- Init ----
+    document.getElementById("masthead-date").textContent = fmtDate(new Date().toISOString().slice(0, 10));
+    loadArchive();
+    // Deep-link support: ?repo=handle still opens the bonus reader.
     const params = new URLSearchParams(window.location.search);
-    const repo = params.get("repo") || DEFAULT_REPO;
-    document.getElementById("masthead-date").textContent = formatDate(new Date().toISOString());
-    if (repo !== DEFAULT_REPO) {
-      document.getElementById("repo-input").value = repo;
+    if (params.get("repo")) {
+      document.getElementById("repo-input").value = params.get("repo");
+      loadRepo(params.get("repo"));
     }
-    loadEntries(repo);
     </script>
 
 </body>
