@@ -57,8 +57,9 @@ No backend. The user's PDS is the backend. Cloudflare serves static files.
 | `sync --stats` | Quick stats without full ingest |
 | `sql <query>` | SQL over synced records |
 | `history` | Command history |
-| `container` | Launch container shell (bash + claude-code) |
-| `set-key <key>` | Save Anthropic API key for container |
+| `kimi` | Container booted straight into the Kimi agent (Claude Code harness, Moonshot endpoint; key held by the worker) |
+| `container [--model=<profile>]` | Launch container shell (bash + agents); `--model` boots an agent profile |
+| `set-key <key>` | Save Anthropic API key (only needed for the native `claude` profile) |
 
 ## CAR Parser (`crates/car-parser/`)
 
@@ -155,16 +156,26 @@ Browser (xterm.js)                    Cloudflare Edge
 - **bash** — real shell with full job control
 - **git** — clone, commit, push
 - **node 22** — npm, full Node.js runtime
-- **claude-code** — `@anthropic-ai/claude-code` CLI
-- **python3** — for PDS scripts (publish, sync)
+- **claude-code** — `@anthropic-ai/claude-code` CLI (the agent harness)
+- **`agent <profile>`** — launches claude-code against a model profile from the
+  worker-injected `AGENT_PROFILES` JSON (`{base, model, key}` per profile).
+  `agent kimi3` exports `ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_MODEL`
+  for Moonshot's Anthropic-compatible endpoint and execs `claude` — same
+  harness, open model. Any Anthropic-compatible endpoint = one more profile.
+- **python3 + uv** — for PDS scripts (publish, sync)
+- **`work <slug>`** — bashrc helper: create/resume the `kimi/<slug>` feature
+  branch in the agent01 clone (pushes fire GitHub Actions; no deploy glob
+  matches `kimi/*`, so promotion to prod stays human)
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| `container` | Launch container shell |
-| `container --api-key=KEY` | Launch with explicit API key |
-| `set-key <key>` | Save Anthropic API key (localStorage) |
+| `kimi` | Container booted straight into `agent kimi3` (the chat window) |
+| `container` | Launch container shell (plain bash) |
+| `container --model=kimi3` | Launch booted into an agent profile |
+| `container --api-key=KEY` | Launch with explicit Anthropic key (native claude) |
+| `set-key <key>` | Save Anthropic API key (localStorage; native claude only) |
 
 ### Deploy
 

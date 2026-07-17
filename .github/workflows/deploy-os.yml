@@ -1,14 +1,14 @@
 name: Deploy os (terminal frontend)
 
-# os.mino.mobi — React + Vite + xterm.js terminal UI. Worker `pds-os` serves the
-# Vite build (./dist). This is the FRONTEND ONLY. The backend container worker
-# (os/api, os-mino-api) deploys separately and manually via deploy-os-api.yml —
-# it is intentionally NOT wired here because it builds/runs paid Cloudflare
-# Containers. See the "os" registry entry.
+# os.mino.mobi — React + Vite + xterm.js terminal UI. Worker `os` serves the
+# Vite build (./dist) and owns the custom domain. This is the FRONTEND ONLY. The
+# backend container worker (os/api, os-mino-api) deploys separately and manually
+# via deploy-os-api.yml — it is intentionally NOT wired here because it
+# builds/runs paid Cloudflare Containers. Go-live steps: os/RUNBOOK.md.
 
 on:
   push:
-    branches: [main, 'claude/os-deploy-surface-5hrw5w']
+    branches: [main, 'claude/kimi3-container-deploy-24wux0']
     paths:
       - 'os/**'
       - '!os/api/**'
@@ -34,8 +34,13 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Repo VARIABLE (not secret) — set to wss://os-api.minomobi.com once the
+          # os-api container backend is live (see os/RUNBOOK.md). Empty → the
+          # container/kimi commands stay cleanly gated off in the frontend.
+          VITE_CONTAINER_API_URL: ${{ vars.OS_CONTAINER_API_URL }}
 
-      - name: Deploy frontend worker (pds-os)
+      - name: Deploy frontend worker (os)
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

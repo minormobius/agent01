@@ -9,11 +9,12 @@ name: Deploy os-api (container) [MANUAL]
 # (Actions tab -> this workflow -> Run workflow) ONLY after the prerequisites
 # below are satisfied.
 #
-# PREREQUISITES (one-time, in the Cloudflare dashboard / via wrangler):
-#   1. Cloudflare Containers must be ENABLED on the account (beta; has cost).
+# PREREQUISITES (one-time — the full annotated checklist is os/RUNBOOK.md):
+#   1. Cloudflare Containers must be ENABLED on the account (paid).
 #   2. R2 bucket `os-workspace` must exist (binding WORKSPACE).
 #   3. Runtime secrets set on the worker:
 #        npx wrangler secret put CAP_SIGNING_KEY -c os/api/wrangler.toml   # openssl rand -hex 32
+#        npx wrangler secret put MOONSHOT_API_KEY -c os/api/wrangler.toml  # kimi3 agent profile
 #      And ONLY if running single-tenant with INJECT_SHARED_CREDS=true:
 #        npx wrangler secret put GITHUB_TOKEN -c os/api/wrangler.toml
 #      (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID for in-container wrangler are
@@ -21,10 +22,14 @@ name: Deploy os-api (container) [MANUAL]
 #   4. REQUIRED: set ALLOWED_DIDS to your DID (in [vars] in wrangler.toml, or via
 #      `wrangler secret put ALLOWED_DIDS`). The /ws endpoint is FAIL-CLOSED — with
 #      no allowlist it refuses every connection, so the shared GITHUB_TOKEN /
-#      CLOUDFLARE_API_TOKEN in the shell can't be reached by anyone. Do NOT deploy
-#      this with ALLOWED_DIDS empty and then add a second user without first
-#      scoping those tokens down (see the SECURITY note in wrangler.toml).
-#   5. Attach the custom domain os-api.minomobi.com after the first deploy.
+#      CLOUDFLARE_API_TOKEN / MOONSHOT_API_KEY in the shell can't be reached by
+#      anyone. Do NOT deploy this with ALLOWED_DIDS empty and then add a second
+#      user without first scoping those tokens down (see wrangler.toml).
+#   5. os-api.minomobi.com is a custom_domain route in wrangler.toml — wrangler
+#      provisions it on deploy. GOLDEN RULE: verify the deploy log binds
+#      `os-api.minomobi.com (custom domain)`.
+#   6. After a green deploy, set repo VARIABLE OS_CONTAINER_API_URL =
+#      wss://os-api.minomobi.com and re-run deploy-os.yml to unlock `kimi`.
 #
 # wrangler builds the image from os/api/container/Dockerfile (the ubuntu-latest
 # runner provides Docker) and pushes it to Cloudflare's container registry.

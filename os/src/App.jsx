@@ -56,7 +56,9 @@ export default function App() {
     setSession(null);
   }, []);
 
-  const handleConnectContainer = useCallback((apiKey) => {
+  // opts: { apiKey?, boot? } — boot names an agent profile (e.g. 'kimi3') the
+  // container should launch straight into instead of a bare bash prompt.
+  const handleConnectContainer = useCallback((opts = {}) => {
     if (!session) return;
 
     // Session ID = user DID (one container per user)
@@ -66,7 +68,8 @@ export default function App() {
       cols: 80,
       rows: 24,
       session: sessionId,
-      apiKey,
+      apiKey: opts.apiKey,
+      boot: opts.boot,
       // PDS access token — the worker verifies this and checks the derived DID
       // against its allowlist before granting a shell.
       auth: session.accessJwt,

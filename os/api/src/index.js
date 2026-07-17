@@ -84,6 +84,22 @@ export class ContainerShell extends Container {
       SYNC_URL: this.env.SYNC_URL || '',
       CAP_TOKEN: this._capToken || '',
       WORKSPACE_ID: this._workspaceId || '',
+      // AGENT_PROFILES — model registry for the in-container `agent <profile>`
+      // launcher. Claude Code CLI is the harness for every profile; a profile
+      // is just an Anthropic-compatible endpoint + model id + key. kimi3 =
+      // Moonshot; any other open model (direct or via a LiteLLM-style gateway
+      // that speaks /v1/messages) is one more entry here. Keys ride along ONLY
+      // because this deployment is single-tenant (see INJECT_SHARED_CREDS).
+      AGENT_PROFILES: JSON.stringify({
+        kimi3: {
+          base: this.env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic',
+          model: this.env.KIMI_MODEL || '',
+          key: this.env.MOONSHOT_API_KEY || '',
+        },
+        // claude — native Anthropic; key comes per-connection from the browser
+        // (?apiKey → ANTHROPIC_API_KEY in the spawned shell), not from here.
+        claude: { base: '', model: '', key: '' },
+      }),
     };
     if (this.env.INJECT_SHARED_CREDS === 'true') {
       vars.GITHUB_TOKEN = this.env.GITHUB_TOKEN || '';
@@ -315,6 +331,16 @@ async function handleWebSocket(request, env, url) {
   const containerUrl = new URL(request.url);
   containerUrl.pathname = '/';
   containerUrl.search = `?cols=${cols}&rows=${rows}&session=${encodeURIComponent(sessionId)}`;
+  // Per-connection Anthropic key (browser-held, for the native `claude` profile).
+  const apiKey = url.searchParams.get('apiKey');
+  if (apiKey) containerUrl.search += `&apiKey=${encodeURIComponent(apiKey)}`;
+  // Boot profile — auto-launch `agent <profile>` instead of a bare bash prompt
+  // (this is how the frontend's `kimi` command lands you straight in the chat).
+  // Strictly validated: it becomes part of a shell command in the container.
+  const boot = url.searchParams.get('boot');
+  if (boot && /^[a-z0-9][a-z0-9-]{0,31}$/.test(boot)) {
+    containerUrl.search += `&boot=${boot}`;
+  }
 
   return container.fetch(
     new Request(containerUrl, {

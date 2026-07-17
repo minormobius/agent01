@@ -8,6 +8,7 @@ where it's going. This is the map; the two deep-dives below are the territory.
 | **`CAPABILITIES.md`** (this) | Vision, capability matrix, architecture-at-a-glance, deployment state, roadmap. Start here. |
 | **`DESIGN.md`** | Feature/how-it-works reference — every shell command, the CAR parser, DuckDB integration, container internals. |
 | **`api/SECURITY.md`** | Trust model — why no secret is safe in the container, the capability-token primitive, the per-tenant credential plan. |
+| **`RUNBOOK.md`** | Go-live checklist for the container backend + the Kimi agent platform (owner steps, adding more open models, troubleshooting). |
 
 ---
 
@@ -82,9 +83,11 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 ### Container shell (plane 2+3)
 | Capability | Status | Notes |
 |---|---|---|
-| Real bash PTY over WebSocket | 🚧 | Code complete (`api/`, PTY server in `container/`). Backend deploy is dispatch-only — see below. |
+| Real bash PTY over WebSocket | 🚧 | Code complete (`api/`, PTY server in `container/`). Backend deploy is dispatch-only — go-live steps in `RUNBOOK.md`. |
+| **Open-model agent profiles (`agent <profile>`, `kimi`)** | 🚧 | Claude Code CLI is the harness for ANY Anthropic-compatible endpoint. Worker injects `AGENT_PROFILES` ({base, model, key}); `agent kimi3` = Kimi via Moonshot, `kimi` in the browser boots straight into it (`?boot=` param). One profile per open model — no new harness code. |
 | Per-DID persistent workspace | 🚧 | R2 tarball restore on start + 2-min autosave; survives 10-min idle sleep. |
 | Toolchain: git · node 22 · python3 · **uv** · claude-code | 🚧 | `container/Dockerfile`. uv added for fast Python installs (HTTPS, egress-safe). |
+| agent01 clone + `kimi/*` feature branches | 🚧 | `startup.sh` clones the repo; `work <slug>` starts `kimi/<slug>` off `origin/main`. Pushes (via the injected fine-grained PAT) fire GitHub Actions, but no deploy glob matches `kimi/*` — humans promote work. |
 | GitHub MCP server | 🚧 | Installed in image; usable once backend is live + a git credential path exists (roadmap §4). |
 
 ### Control plane / security primitives
@@ -102,8 +105,8 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 
 | Surface | Resource | Domain | Workflow | State |
 |---|---|---|---|---|
-| **Frontend** | Pages worker `os` | `os.mino.mobi` | `deploy-os.yml` (paths `os/**` **excl.** `os/api/**`) | ✅ **Live.** Fully functional standalone — login + all PDS-shell/analytics/AI commands work with no backend. |
-| **Container backend** | Worker `os-mino-api` + Container + DO + R2 | `os-api.minomobi.com` | `deploy-os-api.yml` | 🚧 **Dispatch-only, not yet live.** Pending: enable CF Containers, set `CAP_SIGNING_KEY`, create R2 `os-workspace`, attach domain. |
+| **Frontend** | Pages worker `os` | `os.mino.mobi` | `deploy-os.yml` (paths `os/**` **excl.** `os/api/**`) | ✅ **Live.** Fully functional standalone — login + all PDS-shell/analytics/AI commands work with no backend. `kimi`/`container` unlock when the `OS_CONTAINER_API_URL` repo variable is set. |
+| **Container backend** | Worker `os-mino-api` + Container + DO + R2 | `os-api.minomobi.com` (custom_domain route in wrangler.toml) | `deploy-os-api.yml` | 🚧 **Dispatch-only, unshelfing.** Owner steps in `RUNBOOK.md`: enable CF Containers, R2 `os-workspace`, secrets (`CAP_SIGNING_KEY`, `MOONSHOT_API_KEY`, `GITHUB_TOKEN`), `ALLOWED_DIDS`, dispatch deploy, set repo var. |
 | OCR (sibling crate) | Worker `ocr` | `ocr.mino.mobi` | `deploy-ocr.yml` | ✅ Live. `crates/codescan-ocr` → `ocr/wasm/`. Separate product, shares the repo. |
 
 The `container` command is **gated off in the frontend** until `VITE_CONTAINER_API_URL`
@@ -142,10 +145,12 @@ Phased plan:
 
 1. ✅ `/ws` identity gate.
 2. ✅ Capability token + `/sync` DID-scoping + `INJECT_SHARED_CREDS` gate.
-3. **Ship the backend** — enable CF Containers, set `CAP_SIGNING_KEY`, create
-   `os-workspace` R2, attach `os-api.minomobi.com`, set `ALLOWED_DIDS` to the
-   trusted set, build the frontend with `VITE_CONTAINER_API_URL`. *(This is the
-   gate between "frontend demo" and "the container actually works.")*
+3. **Ship the backend** — the full owner checklist now lives in **`RUNBOOK.md`**
+   (enable CF Containers, R2, secrets incl. `MOONSHOT_API_KEY`, `ALLOWED_DIDS`,
+   dispatch `deploy-os-api.yml`, set the `OS_CONTAINER_API_URL` repo variable).
+   *(This is the gate between "frontend demo" and "the agent platform works.")*
+   First tenant model: **Kimi3** via Claude Code + Moonshot's Anthropic-compatible
+   endpoint; `AGENT_PROFILES` generalizes to any open model.
 4. **PDS-MCP server + `/pds/*` proxy** — the differentiated feature; safe even
    single-tenant. Agent reads/writes the user's own PDS, token never in the shell.
 5. **GitHub App + `/git/*` broker** — per-repo ~1h installation tokens over HTTPS,

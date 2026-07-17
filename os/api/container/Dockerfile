@@ -29,6 +29,11 @@ COPY package.json /home/coder/package.json
 COPY server.js /home/coder/server.js
 COPY startup.sh /home/coder/startup.sh
 
+# Agent launcher — runs Claude Code against any AGENT_PROFILES model profile
+# (kimi3 = Moonshot Anthropic-compatible endpoint; see agent.sh)
+COPY agent.sh /usr/local/bin/agent
+RUN chmod +x /usr/local/bin/agent
+
 # Install server deps
 RUN npm install --production
 

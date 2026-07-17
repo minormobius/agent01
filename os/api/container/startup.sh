@@ -10,10 +10,12 @@ CLAUDE_DIR=$HOME/.claude
 # On wake, pull the last saved tarball from R2 via the Worker's sync endpoint.
 # First run (404) is fine — we start fresh.
 
-if [ -n "$SYNC_URL" ] && [ -n "$SYNC_TOKEN" ] && [ -n "$WORKSPACE_ID" ]; then
+# (Auth is the per-instance CAP_TOKEN minted by the worker — the old shared
+#  SYNC_TOKEN is gone; server.js saves with the same token.)
+if [ -n "$SYNC_URL" ] && [ -n "$CAP_TOKEN" ] && [ -n "$WORKSPACE_ID" ]; then
   echo "[startup] restoring workspace: $WORKSPACE_ID"
   HTTP_CODE=$(curl -sf -w '%{http_code}' \
-    -H "Authorization: Bearer $SYNC_TOKEN" \
+    -H "Authorization: Bearer $CAP_TOKEN" \
     "$SYNC_URL/sync/$WORKSPACE_ID" \
     -o /tmp/workspace.tar.gz 2>/dev/null) || HTTP_CODE="000"
 
@@ -89,9 +91,23 @@ if [ ! -f "$HOME/.bashrc" ] || ! grep -q 'os.mino' "$HOME/.bashrc" 2>/dev/null; 
 export PS1='\[\033[36m\]os.mino\[\033[0m\]:\[\033[33m\]\w\[\033[0m\]\$ '
 alias ll='ls -la'
 alias c='claude'
+alias k='agent kimi3'
+
+# work <slug> — start (or resume) an agent feature branch in the agent01 clone.
+# Convention: kimi/* branches. Pushes from here fire GitHub Actions (PAT push),
+# but no deploy workflow matches kimi/* globs — a human promotes work by
+# merging or adding the branch to a deploy trigger. That's the safety line.
+work() {
+  local slug="${1:?usage: work <slug>}"
+  cd ~/workspace/agent01 || return 1
+  git fetch origin main --quiet || true
+  git checkout "kimi/$slug" 2>/dev/null || git checkout -b "kimi/$slug" origin/main
+}
 
 echo -e "\033[2m  workspace auto-saves to R2 every 2 min\033[0m"
-echo -e "\033[2m  run 'claude' to start Claude Code\033[0m"
+echo -e "\033[2m  agent kimi3   — chat/code with Kimi (Claude Code harness)\033[0m"
+echo -e "\033[2m  work <slug>   — new kimi/<slug> feature branch in agent01\033[0m"
+echo -e "\033[2m  claude        — native Claude Code (needs set-key)\033[0m"
 echo ""
 BASHRC
 fi

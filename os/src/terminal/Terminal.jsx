@@ -173,7 +173,7 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
       if (status === 'connected' && modeRef.current === 'container-connecting') {
         modeRef.current = 'container';
         term.writeln(`\r\n${fmt.green('connected')} ${fmt.dim('to container shell')}`);
-        term.writeln(`${fmt.dim('bash + git + claude-code available')}`);
+        term.writeln(`${fmt.dim('bash + git + agents (agent kimi3 / claude) available')}`);
         term.writeln(`${fmt.dim('Type')} ${fmt.cyan('exit')} ${fmt.dim('or Ctrl+D to return to PDS shell')}\r\n`);
         // Send initial resize
         transport.resize(term.cols, term.rows);
@@ -212,7 +212,11 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
     shellRef.current = shell;
     term.writeln(`\r\n${fmt.green('authenticated')} as ${fmt.bold(sess.handle)} ${fmt.dim(`(${sess.did})`)}`);
     term.writeln(`${fmt.dim('PDS:')} ${sess.pdsUrl}`);
-    term.writeln(`${fmt.dim('Type')} ${fmt.cyan('help')} ${fmt.dim('for commands')}\r\n`);
+    if (onConnectContainer) {
+      term.writeln(`${fmt.dim('Type')} ${fmt.cyan('kimi')} ${fmt.dim('to chat with the coding agent,')} ${fmt.cyan('help')} ${fmt.dim('for commands')}\r\n`);
+    } else {
+      term.writeln(`${fmt.dim('Type')} ${fmt.cyan('help')} ${fmt.dim('for commands')}\r\n`);
+    }
     writePrompt(term, shell);
   }
 

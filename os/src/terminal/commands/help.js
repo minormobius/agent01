@@ -32,9 +32,11 @@ const COMMANDS = [
   ['clear', 'Clear terminal'],
   ['logout', 'End session'],
   ['', ''],
-  ['container', 'Launch container shell (bash + claude-code) — needs os-api backend'],
-  ['container --api-key=KEY', 'Launch with explicit API key'],
-  ['set-key <key>', 'Save Anthropic API key'],
+  ['kimi', 'Chat/code with the Kimi agent in your container (no key needed)'],
+  ['container', 'Container shell: bash + git + agents — needs os-api backend'],
+  ['container --model=kimi3', 'Container booted straight into an agent profile'],
+  ['container --api-key=KEY', 'Launch with explicit Anthropic key (native claude)'],
+  ['set-key <key>', 'Save Anthropic API key (only for native claude)'],
 ];
 
 const PIPES = [

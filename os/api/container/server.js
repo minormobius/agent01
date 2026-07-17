@@ -111,7 +111,21 @@ wss.on('connection', (ws, req) => {
     HOME: '/home/coder',
   };
 
-  const shell = pty.spawn('bash', ['--login'], {
+  // Per-connection Anthropic key (native `claude` profile) — forwarded by the
+  // worker from the browser. Worker-held profile keys arrive via AGENT_PROFILES.
+  const apiKey = params.get('apiKey');
+  if (apiKey) env.ANTHROPIC_API_KEY = apiKey;
+
+  // Boot profile: land straight in `agent <profile>` (the chat), fall back to
+  // bash when the agent exits. Re-validated here — it is spliced into a shell
+  // command. Unknown/invalid profile → plain bash.
+  const boot = params.get('boot');
+  const bootOk = boot && /^[a-z0-9][a-z0-9-]{0,31}$/.test(boot);
+  const shellArgs = bootOk
+    ? ['--login', '-c', `agent ${boot}; exec bash --login`]
+    : ['--login'];
+
+  const shell = pty.spawn('bash', shellArgs, {
     name: 'xterm-256color',
     cols,
     rows,
@@ -119,7 +133,7 @@ wss.on('connection', (ws, req) => {
     env,
   });
 
-  console.log(`[pty] spawned bash (pid=${shell.pid}, ${cols}x${rows})`);
+  console.log(`[pty] spawned bash (pid=${shell.pid}, ${cols}x${rows}${bootOk ? `, boot=${boot}` : ''})`);
 
   // PTY → WebSocket
   shell.onData((data) => {

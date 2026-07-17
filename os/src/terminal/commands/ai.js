@@ -144,5 +144,5 @@ async function launchContainer(flags, ctx) {
   terminal.writeln(fmt.dim('launching container agent...'));
   terminal.writeln(fmt.dim('(cold start may take 2-3s)'));
 
-  shell.onConnectContainer(apiKey);
+  shell.onConnectContainer({ apiKey });
 }
