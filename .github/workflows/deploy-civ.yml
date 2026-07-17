@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/mappa-civ-agent-sim-hghwlt'
+      - 'claude/civ-deploy-unification-vt35ju'
     paths:
       - 'civ/**'
       - 'mappa/civ/**'

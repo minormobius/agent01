@@ -233,7 +233,7 @@
       "dir": "civ",
       "endpoint": "civ.mino.mobi",
       "type": "backend",
-      "branch": "claude/mappa-civ-agent-sim-hghwlt",
+      "branch": "claude/civ-deploy-unification-vt35ju",
       "uses": [],
       "provides": null,
       "paths": [
@@ -242,7 +242,7 @@
         "mappa/engine.js",
         "mappa/lib/world-share.js"
       ],
-      "note": "Coevolutionary agent-based civilization simulation on a mappa world (worker civ, custom_domain civ.mino.mobi). Headless-first engine in mappa/civ/; CORS-open no-key API /api/civ/run + /api/civ/sweep. Bundles mappa/engine.js. No secrets, no D1."
+      "note": "Coevolutionary agent-based civilization simulation on a mappa world (worker civ, custom_domain civ.mino.mobi). `/` is the WORLD-ENGINE HUB — landing page over the whole suite (civ dashboard at /dash/, playback/development/FRED subpages, and cross-links to mappa, polis, rite/names, rite/org); unification strategy in civ/STRATEGY.md. Headless-first engine in mappa/civ/; CORS-open no-key API /api/civ/run + /api/civ/sweep. Bundles mappa/engine.js. No secrets, no D1."
     },
     {
       "surface": "biome",

@@ -73,7 +73,7 @@
 <body>
 <header>
   <span class="brand"><span class="g">civ</span> FRED</span>
-  <span class="crumb"><a id="todash" href="/">← dashboard</a> · <a id="toview" href="/view.html">▶ playground</a> · <a id="todev" href="/develop.html">⌗ development</a> · <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">mappa ↗</a></span>
+  <span class="crumb"><a id="todash" href="/dash/">← dashboard</a> · <a id="toview" href="/view.html">▶ playground</a> · <a id="todev" href="/develop.html">⌗ development</a> · <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">mappa ↗</a></span>
   <select id="preset" title="preset"><option value="">default</option><option value="neolithic">neolithic</option><option value="kurgan">kurgan</option><option value="bantu">bantu</option><option value="austronesian">austronesian</option><option value="americas">americas</option></select>
   <label class="crumb">world <input id="world" type="text" value="7"></label>
   <label class="crumb">seed <input id="civseed" type="number" value="1"></label>
@@ -140,7 +140,7 @@ const yrLbl=t=>{ const y=yr(t); return Math.abs(y)>=1000?(y/1000).toFixed(y%1000
 function curState(){ return {world:$('#world').value.trim()||'7',preset:$('#preset').value,civSeed:$('#civseed').value||'1',ticks:$('#ticks').value||'1000',config:$('#lastconfig').value||''}; }
 function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); return p.toString(); }
 function mappaHref(w){ const m=String(w).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(w))); }
-function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/?'+q; $('#toview').href='/view.html?'+q; $('#todev').href='/develop.html?'+q; $('#tomappa').href=mappaHref(st.world); }
+function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/dash/?'+q; $('#toview').href='/view.html?'+q; $('#todev').href='/develop.html?'+q; $('#tomappa').href=mappaHref(st.world); }
 function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); if(p.get('series'))SEL=p.get('series').split(',').filter(Boolean); if(p.get('xf'))transform=p.get('xf'); }
 for(const id of ['#preset','#world','#civseed','#ticks']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
 function pushState(){ try{ const st=curState(); const p=new URLSearchParams(qsOf(st)); if(SEL.length)p.set('series',SEL.join(',')); if(transform!=='level')p.set('xf',transform); history.replaceState(null,'','?'+p.toString()); }catch(e){} }

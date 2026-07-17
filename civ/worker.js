@@ -33,6 +33,12 @@ export default {
     } catch (e) {
       return json({ error: 'sim failed', detail: String(e && e.message || e) }, 400);
     }
+    // Legacy permalinks: the dashboard used to live at `/`, so shared run URLs look like
+    // /?world=7&preset=kurgan… — `/` is now the suite hub, the dashboard is /dash/.
+    // Redirect any root request carrying run params so old permalinks keep resolving.
+    if (p === '/' && ['world', 'config', 'preset'].some((k) => url.searchParams.has(k))) {
+      return Response.redirect(url.origin + '/dash/' + url.search, 301);
+    }
     // everything else → static assets (landing page)
     return env.ASSETS.fetch(request);
   },
