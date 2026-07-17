@@ -74,6 +74,33 @@ ok(through && through.hops[1] === 'NX' && through.hops[through.hops.length - 2] 
   ok(same && same.direct === true, 'same-pocket waypoint aims straight at the target');
 }
 
+// ── 5b. AIM HYSTERESIS: a near-tied preferred door is KEPT; a genuinely worse one is dropped ──
+{
+  // find a white→white pair where two first doors tie on crossings (ring pivot vs interface shortcut)
+  let held = 0, dropped = 0, ties = 0;
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) {
+    if (i === j) continue;
+    const p0 = st.pockets.get('W' + i).spine[36];
+    const t0 = st.pockets.get('W' + j).spine[36];
+    const free = weaveWaypoint(nav, { key: 'W' + i, x: p0.x, y: p0.y }, { key: 'W' + j, x: t0.x, y: t0.y });
+    // every alternative first door of the source pocket at the same crossing count is a tie candidate
+    for (const d of nav.byPocket.get('W' + i).map((k) => nav.doors[k])) {
+      if (d.toKey === free.toKey) continue;
+      const withPref = weaveWaypoint(nav, { key: 'W' + i, x: p0.x, y: p0.y }, { key: 'W' + j, x: t0.x, y: t0.y }, { prefer: d.toKey });
+      if (withPref && withPref.toKey === d.toKey) { held++; ok(withPref.crossings === free.crossings, `hysteresis never holds a door at a WORSE crossing count (W${i}→W${j} via ${d.toKey})`); }
+      else dropped++;
+      ties++;
+    }
+  }
+  ok(held > 0, `hysteresis holds near-tied preferred doors (${held}/${ties} preferences held)`);
+  ok(dropped > 0, `hysteresis drops genuinely worse preferred doors (${dropped}/${ties} dropped)`);
+  // and a preference for a door that does not exist in the pocket is ignored (falls back to the best)
+  const p0 = st.pockets.get('W0').spine[36], t0 = st.pockets.get('W3').spine[36];
+  const bogus = weaveWaypoint(nav, { key: 'W0', x: p0.x, y: p0.y }, { key: 'W3', x: t0.x, y: t0.y }, { prefer: 'ND' });
+  const free = weaveWaypoint(nav, { key: 'W0', x: p0.x, y: p0.y }, { key: 'W3', x: t0.x, y: t0.y });
+  ok(bogus && bogus.toKey === free.toKey, 'a preference for a nonexistent door falls back to the best route');
+}
+
 // ── 6. solved doors refine the aim: after solving, doorWorldPos returns the placed cell ──
 {
   // solve just the first chunks until W0 seg0 exists

@@ -856,10 +856,22 @@
     // v106 THE WEAVE DECK: pocket-dimension state. weaveDoors = the resolved teleport-pair doors
     // ({ a: {x,y,node,key}, b: {x,y,node,key}, label }), rebuilt as pockets stream in; weaveNav = the
     // analytic ◇ router (built once with the deck); weaveWpInfo = the current route readout (HUD text).
-    let weaveDoors = [], weaveNav = null, weaveWpInfo = null;
+    let weaveDoors = [], weaveNav = null, weaveWpInfo = null, _weaveAim = null;   // _weaveAim = the ◇'s door hysteresis cache {pKey, tKey, toKey}
     // which pocket a walk node sits in ('W3' / 'P1' / 'RA' / 'ZA:…' / 'NX' / …), or null off the weave
     const weaveKeyOfNode = (n) => { if (n == null || n < 0 || !walk) return null; const ch = world.chunks[walk.nodeChunk[n]]; return ch && ch.weave ? ch.weave.key : null; };
-    const weaveKeyAt = (x, y) => { const ci = chunkAt(x, y, 1); const ch = ci >= 0 ? world.chunks[ci] : null; return ch && ch.weave ? ch.weave.key : null; };
+    const weaveKeyAt = (x, y) => {
+      const ci = chunkAt(x, y, 1); const ch = ci >= 0 ? world.chunks[ci] : null;
+      if (ch && ch.weave) return ch.weave.key;
+      // slot fallback: a target in a pocket that hasn't streamed yet has no chunk bbox to hit — resolve
+      // it by nearest SLOT instead (each pocket's island territory), so the ◇ can still route toward it.
+      const st = world && world._rind;
+      if (st && st.slots) {
+        let best = null, bd = (st.opts.slot * 0.55) ** 2;
+        for (const [k, s] of st.slots) { const d = (s.x - x) ** 2 + (s.y - y) ** 2; if (d < bd) { bd = d; best = k; } }
+        return best;
+      }
+      return null;
+    };
     // rebuild the teleport-pair list from every SOLVED pocket door whose rec is live in the world.
     // Node ids are stable (stitchAdd appends without moving bases), but recomputing is cheap (≤ ~220 doors).
     function registerWeaveDoors() {
@@ -1991,14 +2003,18 @@
       // ANOTHER deck (a guide up in the Nave while you're down in the rind) would point kilometres sideways.
       // Redirect it to the shaft on THIS deck that heads toward the target — up if the target is far away
       // (above), the down-shaft otherwise — so "go there" reads as "take the stairs".
-      if (Math.hypot(wp.x - px(), wp.y - py()) > 3000) { const s = shaftUpHere() || shaftDownHere(); if (s) wp = { x: s.x, y: s.y }; else return; }
+      // v106: a WEAVE-ROUTED wp (wp.weave) is already the next door in the player's own pocket — never
+      // clamp it to a shaft (the shaft is NX-side; a reclaim-bound route would be sent the wrong way).
+      if (!wp.weave && Math.hypot(wp.x - px(), wp.y - py()) > 3000) { const s = shaftUpHere() || shaftDownHere(); if (s) wp = { x: s.x, y: s.y }; else return; }
       const sx = SX(wp.x), sy = SY(wp.y), MARGIN = 46;
       if (onScreen(sx, sy, W, H, MARGIN)) {
         drawWaypointMarker(sx, sy);
-        // v106: when the ◇ is a weave door (a hop on the route, not the target), say where it leads
-        if (playerDeck() === 1 && weaveWpInfo && weaveWpInfo.label) {
+        // v106: when the ◇ is a weave door (a hop on the route, not the target), say where it leads.
+        // The route info rides the wp OBJECT itself (wp.weave) — never a global that a different
+        // caller may have refreshed for a different target (the manual-waypoint mismatch).
+        if (wp.weave && wp.weave.label) {
           ctx.fillStyle = 'rgba(244,191,98,0.95)'; ctx.font = '10px "JetBrains Mono",monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-          ctx.fillText('via ' + weaveWpInfo.label + (weaveWpInfo.crossings > 1 ? ` · ${weaveWpInfo.crossings} crossings` : ''), sx, sy + 16);
+          ctx.fillText('via ' + wp.weave.label + (wp.weave.crossings > 1 ? ` · ${wp.weave.crossings} crossings` : ''), sx, sy + 16);
         }
         return;
       }   // in view → the marker
@@ -2199,20 +2215,26 @@
         if (pKey) {
           const tKey = td === 1 ? weaveKeyAt(loc.x, loc.y) : (td === 0 ? 'NAVE' : 'LOWER');
           if (tKey && tKey !== pKey) {
+            // AIM HYSTERESIS: near-tied routes flip the winning first door as the player walks; keep
+            // the previous door while it stays same-crossings and near-shortest (weavenav's prefer).
+            const cacheHit = _weaveAim && _weaveAim.pKey === pKey && _weaveAim.tKey === tKey;
             const wp = weaveWaypoint(weaveNav, { key: pKey, x: px(), y: py() },
-              td === 1 ? { key: tKey, x: loc.x, y: loc.y } : { key: tKey, x: 0, y: 0 });
+              td === 1 ? { key: tKey, x: loc.x, y: loc.y } : { key: tKey, x: 0, y: 0 },
+              { prefer: cacheHit ? _weaveAim.toKey : null });
             if (wp) {
+              _weaveAim = { pKey, tKey, toKey: wp.toKey };
               weaveWpInfo = { label: wp.label, hops: wp.hops, crossings: wp.crossings };
+              const weave = weaveWpInfo;
               // the two vertical endpoints resolve to the real shaft markers
-              if (wp.toKey === 'NAVE') { const s = shaftUpHere(); if (s) return { x: s.x, y: s.y }; }
-              if (wp.toKey === 'LOWER') { const s = shaftDownHere(); if (s) return { x: s.x, y: s.y }; }
-              return { x: wp.x, y: wp.y };
+              if (wp.toKey === 'NAVE') { const s = shaftUpHere(); if (s) return { x: s.x, y: s.y, weave }; }
+              if (wp.toKey === 'LOWER') { const s = shaftDownHere(); if (s) return { x: s.x, y: s.y, weave }; }
+              return { x: wp.x, y: wp.y, weave };
             }
           }
-          weaveWpInfo = null;
+          _weaveAim = null; weaveWpInfo = null;
           if (td === pd) return { x: loc.x, y: loc.y };   // same pocket → straight aim
         }
-      } else weaveWpInfo = null;
+      } else { _weaveAim = null; weaveWpInfo = null; }
       if (td === pd) return { x: loc.x, y: loc.y };
       // Head toward the TARGET's deck. The decks are a linear stack (0 nave → 1 upper rind → 2 lower rind), so
       // a target BELOW you takes the DOWN shaft, ABOVE takes the UP shaft. shaftHere() alone preferred UP —
@@ -5476,7 +5498,34 @@
     //    the player reports back to the giver for the coin. One errand per keeper per world; `?errands=off`
     //    kills the system; a bundle carrying content.errand=false never offers (hoopy's per-NPC switch). ──
     const errandsEnabled = () => { try { return new URLSearchParams(location.search).get('errands') !== 'off'; } catch (e) { return true; } };
-    function bumpAct(kind) { try { if (story.ready) story.store.incrFact(story.playerId, 'act.' + kind, 1); } catch (e) {} }
+    // v106: EVERY counted act feeds the quest layer — the shift book re-checks (a repair act can
+    // complete a fix shift the moment the hammer falls, not on the next pocket change), and an open
+    // journal re-renders so errand/shift progress lines move in real time under the player's hands.
+    function bumpAct(kind) {
+      try {
+        if (!story.ready) return;
+        story.store.incrFact(story.playerId, 'act.' + kind, 1);
+        noteShiftActs(kind);
+        if (journalOpen) renderJournal();
+      } catch (e) {}
+    }
+    // did this act just complete a shift's repair? (fires the report-back prompt immediately)
+    function noteShiftActs(kind) {
+      try {
+        const book = shiftBook(); let hit = false;
+        const facts = story.store.getFacts(story.playerId);
+        for (const [gid, entry] of Object.entries(book)) {
+          if (entry.done || !entry.act || entry.act.kind !== kind || entry._readyToldAt) continue;
+          const pr = shiftProgress(entry, facts);
+          if (pr && pr.ready) {
+            entry._readyToldAt = Date.now(); hit = true;
+            const g = story.store.contentById(gid);
+            notify(`⚙ repair done — report to ${(g && g.content && g.content.name) || 'the keeper'} for ◈${entry.wage}`, { kind: 'quest', ms: 4600 });
+          }
+        }
+        if (hit) { setShiftBook(book); saveStorySnapshot(); }
+      } catch (e) {}
+    }
     const errandBook = () => getJSONFact('cq.book', {});
     const setErrandBook = (b) => setJSONFact('cq.book', b);
     // accept the giver's errand: snapshot the counter baseline; a DELIVERY also binds its target — the
@@ -5644,11 +5693,15 @@
         const entry = shiftBook()[id]; if (!entry || entry.done) return null;
         const pr = shiftProgress(entry, story.store.getFacts(story.playerId)); if (!pr) return null;
         if (pr.ready) { const loc = locateNpc(id); return loc && Number.isFinite(loc.x) ? loc : null; }
-        if (!pr.nextKey) return null;   // repair pending — the act happens at a fixture, no pocket target
-        const p = world._rind.pockets.get(pr.nextKey); if (!p) return null;
+        // repair pending: keep the ◇ ON THE FAULT SITE (the last step's pocket) — the act counts anywhere,
+        // but the fiction repairs the machine there, and dropping to null would silently hand the marker
+        // back to the main quest while the journal still says "repair it".
+        const targetKey = pr.nextKey || (entry.act && !pr.actReady ? entry.steps[entry.steps.length - 1].key : null);
+        if (!targetKey) return null;
+        const p = world._rind.pockets.get(targetKey); if (!p) return null;
         const g = (p.segs || []).find((s) => s.rec && s.rec.deck === 1);
         if (g) { const rg = g.rec.region; return { x: (rg.x0 + rg.x1) / 2, y: (rg.y0 + rg.y1) / 2, deck: 1 }; }
-        const slot = world._rind.slots.get(pr.nextKey);
+        const slot = world._rind.slots.get(targetKey);
         return slot ? { x: slot.x, y: slot.y, deck: 1 } : null;
       } catch (e) { return null; }
     }

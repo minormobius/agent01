@@ -103,6 +103,18 @@ ok(exploreTierForXp(0) === 1 && exploreTierForXp(30) === 2 && exploreTierForXp(2
   ok(served.filter((c) => c.type === 'npc').length === 2, 'servePool yields the bundle npc + the wanderer npc');
   ok(served.find((c) => c.type === 'plot_beat').content.conclusion, 'servePool passes plot_beat through verbatim (conclusion preserved)');
   ok(servePool(served).length === served.length, 'servePool is idempotent on an already-served pool');
+
+  // v106 THE ONE-SIDE-THREAD FIX: an id-less record (the live pool's rumors) must leave servePool with a
+  // STABLE derived id — before this, every id-less record keyed the store's Map at `undefined` and the 93
+  // rumors collapsed into a single side thread. Unique per record, deterministic, order-independent.
+  const rum1 = { type: 'rumor', status: 'active', revelation_tier: 1, narrative_tier: 1, power_tier: 1, content: { name: 'The Laminar Covenant', description: 'they say…' } };
+  const rum2 = { type: 'rumor', status: 'active', revelation_tier: 1, narrative_tier: 1, power_tier: 1, content: { name: 'The Hollow Gauge', description: 'they also say…' } };
+  const s2 = servePool([rum1, rum2]);
+  ok(s2.every((c) => c.id), 'id-less records leave servePool with a derived id');
+  ok(new Set(s2.map((c) => c.id)).size === s2.length, 'derived ids are unique per record');
+  const s2b = servePool([rum2, rum1]);   // order-independent: same records → same ids either way round
+  ok(new Set(s2.map((c) => c.id + '')).size === new Set([...s2, ...s2b].map((c) => c.id + '')).size, 'derived ids are order-independent');
+  ok(servePool(s2).map((c) => c.id).join(',') === s2.map((c) => c.id).join(','), 'derived ids survive a re-serve (idempotent)');
 }
 
 console.log(`\nstory.selftest: ${pass} passed, ${fail} failed`);

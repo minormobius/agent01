@@ -137,11 +137,33 @@ export function routeWeave(nav, from, to) {
   return { hops, doors: doorSeq, crossings: doorSeq.length, dist: bestCost - doorSeq.length * CROSS };
 }
 
+// a route CONSTRAINED to leave the player's pocket through a given first door (for hysteresis):
+// walk to that door, cross, then route freely from the reciprocal side. Null if no such door.
+function routeVia(nav, from, to, firstToKey) {
+  const { st, doors, byPocket, byPair } = nav;
+  const cand = (byPocket.get(from.key) || []).map((i) => doors[i]).find((d) => d.toKey === firstToKey);
+  if (!cand) return null;
+  const pid = [cand.key, cand.toKey].sort().join('|');
+  const recip = (byPair.get(pid) || []).map((i) => doors[i]).find((d) => d.key === cand.toKey);
+  if (!recip) return null;
+  const walkIn = podDist(st, from.key, from.param, cand.param);
+  if (recip.key === to.key) return { crossings: 1, dist: walkIn + podDist(st, to.key, recip.param, to.param), hops: [from.key, to.key], first: cand };
+  const rest = routeWeave(nav, { key: recip.key, param: recip.param }, to);
+  if (!rest) return null;
+  return { crossings: 1 + rest.crossings, dist: walkIn + rest.dist, hops: [from.key, ...rest.hops], first: cand };
+}
+
 // ── the surface hook: "aim the ◇" ────────────────────────────────────────────────────────────
 // Given player (key,x,y) and target (key,x,y | 'NAVE' | 'LOWER'), return the NEXT waypoint: the
 // first crossing door's WORLD position in the player's current pocket (or the target itself when
 // already in the same pocket), plus the route breadcrumb for the journal.
-export function weaveWaypoint(nav, player, target) {
+//
+// HYSTERESIS (opts.prefer = the toKey of the door the ◇ pointed at last time): near-tied routes
+// (white→white is often 4 crossings BOTH via the ring and via an engine hall, distance deciding)
+// would otherwise flip the marker mid-corridor as the player's position slides the tie. If the
+// preferred door still yields a route with THE SAME crossing count and ≤25%+200u extra walk, keep
+// pointing at it — the ◇ only re-aims when the old door is genuinely worse, not merely tied.
+export function weaveWaypoint(nav, player, target, opts = {}) {
   const { st, doors } = nav;
   const from = { key: player.key, param: navLocate(st, player.key, player.x, player.y) };
   const to = target.key === 'NAVE' || target.key === 'LOWER'
@@ -150,10 +172,14 @@ export function weaveWaypoint(nav, player, target) {
   if (from.key === to.key) return { x: target.x, y: target.y, label: null, hops: [from.key], crossings: 0, direct: true };
   const r = routeWeave(nav, from, to);
   if (!r || !r.doors.length) return null;
-  const first = doors[r.doors[0]];
+  let first = doors[r.doors[0]], hops = r.hops, crossings = r.crossings;
+  if (opts.prefer && first.toKey !== opts.prefer) {
+    const via = routeVia(nav, from, to, opts.prefer);
+    if (via && via.crossings === r.crossings && via.dist <= r.dist * 1.25 + 200) { first = via.first; hops = via.hops; crossings = via.crossings; }
+  }
   const pos = doorWorldPos(st, first);
   if (!pos) return null;
-  return { x: pos.x, y: pos.y, label: doorLabel(st, first), hops: r.hops, crossings: r.crossings, direct: false, toKey: first.toKey };
+  return { x: pos.x, y: pos.y, label: doorLabel(st, first), hops, crossings, direct: false, toKey: first.toKey };
 }
 
 // a door's world position — the SOLVED door cell when the segment is in, else the analytic spot

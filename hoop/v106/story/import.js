@@ -274,7 +274,14 @@ export function servePool(items, opts = {}) {
   for (const ci of dedupeRawIds(live)) {
     if (ci.type === 'room_bundle') { out.push(...expandRoomBundle(ci, opts)); continue; }
     if (ci.type === 'wanderer') { out.push(...expandWanderer(ci, opts)); continue; }
-    out.push(ci);
+    // v106 (the ONE-SIDE-THREAD bug): a record with NO explicit id and a UNIQUE base slug used to flow
+    // through with id: undefined — and MemoryStore keys content by id, so every id-less record (the live
+    // pool's 93 rumors, among others) collapsed onto the ONE Map slot `undefined`: the game surfaced a
+    // single side thread and the quest bank lost the rest. Materialize the derived id here, exactly as
+    // this file's contract promises ("a STABLE unique id per record") — explicit ids stay authoritative,
+    // colliding bases already got their fingerprint suffix in dedupeRawIds, and the mapping is pure +
+    // order-independent (slug of the record's own name, else its own content fingerprint).
+    out.push(ci.id ? ci : { ...ci, id: baseIdOf(ci) || ('x-' + shortHash(recFingerprint(ci))) });
   }
   return out;
 }

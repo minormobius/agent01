@@ -712,6 +712,35 @@ despite the name. It stayed with hoop, not rind.)
     load-bearing / retired never offer. Tests: `v106/test/shift.selftest.mjs` (1105 checks — a 30-seed ×
     6-thread × 3-keeper sweep, 540 shifts all proven, 192 distinct; wage monotone in crossings; the
     progress machine incl. ordered-arrival and act-baseline rules; the guards).
+  - **The WAYPOINT-STABILITY audit** (the ◇ through a shift's whole lifecycle). Four fixes: (1) the route
+    readout rides the wp OBJECT (`wp.weave`), not only a global — a MANUAL waypoint can no longer pair with
+    a stale route label from another target; (2) **aim hysteresis** — near-tied routes (white→white is often
+    4 crossings BOTH via the ring and via an engine hall, distance deciding) used to flip the ◇ mid-corridor
+    as the player's position slid the tie; `weaveWaypoint(…, {prefer})` keeps the previous first door while
+    it stays same-crossings and ≤25%+200u extra walk (`_weaveAim` cache in questWpToward, keyed per
+    pocket→target, pinned in weavenav.selftest §5b); (3) `weaveKeyAt` gains a SLOT fallback so a target in a
+    not-yet-streamed pocket still resolves (before: bbox miss → straight-line aim → the 3000u clamp sent the
+    ◇ to the SHAFT, the wrong way entirely; the clamp now also skips any weave-routed wp); (4) a tracked FIX
+    shift in its repair-pending phase keeps the ◇ ON THE FAULT SITE instead of silently handing the marker
+    back to the main quest.
+  - **Acts feed the journal** — `bumpAct` now drives the quest layer: every counted act re-checks the shift
+    book (`noteShiftActs` — a repair act completes a fix shift the moment the hammer falls, with the
+    report-back toast, not on the next pocket change) and re-renders an open journal, so errand + shift
+    progress lines move under the player's hands.
+  - **THE ONE-SIDE-THREAD BUG (found + fixed in `story/import.js#servePool`)**: an id-less record with a
+    UNIQUE base slug flowed through serving with `id: undefined` — and MemoryStore keys content by id, so
+    the live pool's **93 rumors collapsed onto the ONE Map slot `undefined`**: the game surfaced a single
+    side thread and silently dropped the rest. servePool now materializes the derived id (explicit ids stay
+    authoritative; colliding bases keep their fingerprint suffix; pure, order-independent — pinned in
+    story.selftest). Verified against the live pool: 757 served records, all ids unique, 93 side threads,
+    progression oracle still PASS. NB: pre-fix saves that opened "the" side thread hold `sq.on.undefined` —
+    orphaned, harmless.
+  - **`/quests` carries the whole quest surface now**: below the spine + case, a **⚙ production-shifts
+    board** (every tier-3 cast keeper × every white thread it can seat in — runtime seating hash-scatters a
+    faction keeper into one of its faction's two antipodal threads, so BOTH candidates are generated and
+    oracle-proven per seed; wage/crossings/steps shown) and a **⌖ side-threads table** (the full rumor bank
+    for the seed: themes, meet-count, reward, hook). The "prove 100 seeds" sweep now also proves every
+    seed's shift board (reports case + shift failures separately).
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
