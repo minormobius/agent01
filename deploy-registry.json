@@ -102,7 +102,6 @@
         "noise",
         "flows",
         "phylo",
-        "time",
         "wiki",
         "mappa",
         "polis",
@@ -692,6 +691,22 @@
       ],
       "status": "MANAGED — FIXED: config name corrected mino-zoom -> zoom so `wrangler deploy` updates the WORKER that owns zoom.mino.mobi (was deploying a separate stray Worker `mino-zoom` on workers.dev; the live `zoom` Worker languished ~2mo). custom_domain route now declared in config. CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
       "note": "Vite/React build -> ./dist, Worker `zoom` with custom_domain zoom.mino.mobi (canvas/math/g/torus pattern). NB: zoom is a Worker, not a Pages project (verified: no Pages project named zoom)."
+    },
+    {
+      "surface": "time",
+      "dir": "time",
+      "endpoint": "time.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/audit-time-deploy-ag144t",
+      "uses": [],
+      "provides": null,
+      "op": "encapsulation",
+      "paths": [
+        "time/**",
+        "scripts/build-time-index.mjs"
+      ],
+      "status": "MANAGED — new surface via deploy-time.yml (Worker `time`, custom_domain time.mino.mobi). Carved out of the root bundle; assets-only static, deploy step regenerates index.json. Sources stay in time/; also mirrored at mino.mobi/time until fully removed from root.",
+      "note": "The Mino Times — a two-desk paper (Modulo = data desk, Morphyx = institutional desk). Repo-native front page renders from time/index.json (built from time/articles/*.html by scripts/build-time-index.mjs), so no Bluesky-account suspension can blank it. Running series: The LDT Reckoning. Legacy time.minomobi.com is dead; canonical is now time.mino.mobi."
     },
     {
       "surface": "math",

@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/fractal-office-landing-t6hcs6', 'claude/audit-time-deploy-ag144t']
+    branches: [main, 'claude/fractal-office-landing-t6hcs6']
     paths:
       - 'index.html'
       - 'styles.css'
@@ -54,7 +54,6 @@ on:
       - 'noise/**'
       - 'flows/**'
       - 'phylo/**'
-      - 'time/**'
       - 'wiki/**'
       # orrery: theme-first surface-map prototype served at mino.mobi/orrery/
       # (reviewable alongside the live homepage; promote into index.html once approved)
