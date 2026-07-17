@@ -150,6 +150,20 @@ function renderRun(d, cached, local) {
   add(f.agriOrigins, 'agri origins'); add(f.industrialOrigins, 'industrial origins');
   add(f.homelands, 'homelands'); add(f.peakStates, 'peak states');
   o.appendChild(facts);
+  // FOUNDINGS (Phase III): every state's seat is a city polis can grow — same world,
+  // same cell, seeded by the suite-wide siteSeed string. Links carry this exact run.
+  const fo = (d.chronicle && d.chronicle.final && d.chronicle.final.foundings) || [];
+  if (fo.length) {
+    const st = stateFromControls(), q = qs(st);
+    const box = el('div');
+    box.appendChild(el('div', 'muted', 'Foundings — grow a state seat into a city on polis:')).style.marginTop = '14px';
+    fo.slice(0, 6).forEach((f, i) => {
+      const row = el('div', 'elite');
+      row.innerHTML = `⚑ <b>${esc(f.city)}</b> <span class="muted">— seat of the ${esc(f.cultureName)}, year ${f.year}${f.alive ? '' : ' (fell)'}</span> · <a href="https://mino.mobi/polis/?civ=1&${q}&site=${i}" target="_blank" rel="noopener">grow in polis ↗</a>`;
+      box.appendChild(row);
+    });
+    o.appendChild(box);
+  }
   $('#lastconfig').value = d.config; syncLinks(); // links now carry this exact run
   o.appendChild(el('div', 'muted', `★${d.score} · hash ${d.hash} · ${cached ? 'cached (no rerun)' : (local ? 'computed locally' : 'edge') + ' in ' + d.ms + 'ms'} · this URL is the permalink · open in ▶ playground or on mappa via the header links`));
 }
@@ -180,7 +194,8 @@ function drawSeries(cv, s) {
   ctx.fillText('population', 8, 14); ctx.fillStyle = '#5bd18b'; ctx.fillText('cultures', 82, 14); ctx.fillStyle = '#d9a441'; ctx.fillText('era', 148, 14);
 }
 
-function escapeDesc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/★(\d+)/, '<span class="score">★$1</span>'); }
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+function escapeDesc(s) { return esc(s).replace(/★(\d+)/, '<span class="score">★$1</span>'); }
 
 // ---- init: apply a shared link's params, keep cross-links live, auto-run if arriving
 // on a permalink (so the ★ someone shared is exactly what loads here) ----------------

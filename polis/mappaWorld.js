@@ -38,6 +38,23 @@ export function rollMappaWorld(seed, { N = 7000 } = {}) {
 // auto-select the city-richest region: the land cell whose neighbourhood (BFS to
 // `depth`) sums the most goodness becomes the centre; the region is a fixed angular
 // window around it (kept off the poles so the projection stays well-conditioned).
+// A region centred on an explicit lon/lat (RADIANS) — the civ → polis handoff
+// (Phase III of civ/STRATEGY.md). Civ foundings carry a state seat's coordinates;
+// this grows the city where history put it instead of where auto-select would.
+// Same return shape as selectRegion, centre snapped to the nearest land cell.
+export function regionAtLL(w, lonRad, latRad, { halfX = 28, halfY = 20 } = {}) {
+  let ci = -1, bd = Infinity;
+  const cl = Math.cos(latRad);
+  for (let i = 0; i < w.N; i++) {
+    if (w.water[i]) continue;
+    const dlo = Math.atan2(Math.sin(w.lon[i] - lonRad), Math.cos(w.lon[i] - lonRad));
+    const d = dlo * dlo * cl * cl + (w.lat[i] - latRad) ** 2;
+    if (d < bd) { bd = d; ci = i; }
+  }
+  if (ci < 0) ci = 0;
+  return { lon0: w.lon[ci], lat0: w.lat[ci], S, halfX, halfY, x0: -halfX, y0: -halfY, x1: halfX, y1: halfY, score: 0, center: ci };
+}
+
 export function selectRegion(w, { depth = 8, halfX = 28, halfY = 20 } = {}) {
   // score a candidate centre by goodness over a ~window-sized BFS neighbourhood,
   // tracking land fraction so we can reject ocean-dominated windows. Only the top-scoring

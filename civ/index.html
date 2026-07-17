@@ -84,10 +84,10 @@
         <a href="/develop.html">📈 development</a>
         <a href="/fred.html">📊 FRED</a>
       </div>
-      <p class="muted" style="margin-top:8px">CORS-open, no-key API: <code>/api/civ/run</code> · <code>/api/civ/frames</code> · <code>/api/civ/sweep</code> · <code>/api/civ/health</code></p>
+      <p class="muted" style="margin-top:8px">CORS-open, no-key API: <code>/api/civ/run</code> · <code>/api/civ/frames</code> · <code>/api/civ/sweep</code> · <code>/api/civ/sites</code> · <code>/api/civ/health</code></p>
     </div>
   </div>
-  <div class="seam">a civ chronicle names homelands, dynasties and states — the founding conditions a city sim needs. That handoff is <b>phase III</b> of the roadmap below.</div>
+  <div class="seam">a civ chronicle names homelands, dynasties and states — the founding conditions a city sim needs. That handoff is live: <code>/api/civ/sites</code> emits every state seat as a founding, and each one links straight into polis (<b>phase III, shipped</b>).</div>
 
   <h2><span class="n">III</span> The city</h2>
   <div class="rung">
@@ -102,7 +102,7 @@
       <div class="links"><a href="https://mino.mobi/polis/">polis</a> <a href="https://mino.mobi/polis/hinterland.html">hinterland</a> <a href="https://mino.mobi/polis/docs/">theory</a></div>
     </div>
   </div>
-  <div class="seam">a city is made of institutions and people with names — the bottom rungs. org's <b>siteSeed(worldSeed, city, cell)</b> bridge already exists for exactly this; nothing consumes it yet.</div>
+  <div class="seam">a city is made of institutions and people with names — the bottom rungs. org's <b>siteSeed(worldSeed, city, cell)</b> bridge now has its first consumer: a civ founding's siteSeed string seeds the polis city, so civ, polis and a future sited org all agree on it.</div>
 
   <h2><span class="n">IV</span> The people &amp; institutions</h2>
   <div class="rung">
@@ -127,15 +127,15 @@
       <div class="links"><a href="https://rite.mino.mobi/org/">org</a> <span class="muted"><code>rite.mino.mobi/api/org?seed=…</code></span></div>
     </div>
   </div>
-  <div class="seam">civ currently names its prophets, faiths and guilds with bare syllable soup — swapping in the names engine (culture-pack per civ culture) is <b>phase II</b>, the cheapest unification with the most visible payoff.</div>
+  <div class="seam">civ now speaks with this voice (<b>phase II, shipped</b>): every civ culture draws a culture-pack blend, and its prophets, dynasts, faiths, guilds and cities are named from its books — <i>Thremund the Younger of the Dylfjord State; Vylfstrand, seat of the Byhoingugn</i>. Run hashes are untouched (names were never hashed).</div>
 
   <h2>The unification roadmap</h2>
   <div class="strategy">
     <p class="d" style="color:var(--dim)">The suite grew as separate tendrils; the full plan for pulling them into one stack is in <a href="/STRATEGY.md">STRATEGY.md</a>. The short version:</p>
     <ol>
       <li><b>I — one address.</b> This hub; the dashboard moved to <a href="/dash/">/dash/</a> (old run permalinks redirect); every layer keeps its seed-is-the-URL contract.</li>
-      <li><b>II — one naming voice.</b> civ's people, beliefs and institutions get their names from the rite/names engine, keyed by culture — versioned into the config so existing chronicle hashes stay valid.</li>
-      <li><b>III — the civ → polis handoff.</b> Found polis cities from civ chronicles: a state's seat at tick <i>t</i> on world <i>w</i> becomes a polis founding, so city history inherits civilization history.</li>
+      <li><b>II — one naming voice</b> <i>(shipped)</i>. civ's cultures, people, beliefs, institutions and cities are named by the rite/names engine, one culture-pack blend per civ culture; <code>names:'legacy'</code> in the config replays the old strings. Chronicle hashes are unchanged — names were never part of the hash.</li>
+      <li><b>III — the civ → polis handoff</b> <i>(shipped)</i>. <code>/api/civ/sites</code> emits every state's rise as a founding (seat lon/lat, tick, toponym, siteSeed); polis grows the city on the same world at the same cell, seeded by the siteSeed string. The dashboard links each founding straight into polis.</li>
       <li><b>IV — institutions with insides.</b> civ's guilds, temples and states become org-engine organisations via <code>siteSeed</code>; notable people in chronicles become full org persons (and valid hoop NPCs).</li>
       <li><b>V — outward.</b> Frozen chronicles as ATProto records, the fable <code>/city</code> wing, and hoop as the walkable end of the same stack.</li>
     </ol>

@@ -6,7 +6,7 @@
 // (civ/lib/civ-engine.js), so a run computed client-side is bit-identical to one from the edge.
 // The worker just does HTTP: parse, dispatch, serialize, and fall through to static assets.
 
-import { CAP, PRESETS, doRun, doFrames, doSweep } from '../mappa/civ/api.js';
+import { CAP, PRESETS, doRun, doFrames, doSweep, doSites } from '../mappa/civ/api.js';
 
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type' };
 function json(obj, status = 200, cache = false) {
@@ -24,6 +24,7 @@ export default {
     try {
       if (p === '/api/civ/health') return json({ ok: true, site: 'civ', caps: CAP, presets: Object.keys(PRESETS) });
       if (p === '/api/civ/run') return json(doRun(url.searchParams), 200, true);
+      if (p === '/api/civ/sites') return json(doSites(url.searchParams), 200, true);
       if (p === '/api/civ/frames') return json(doFrames(url.searchParams), 200, true);
       if (p === '/api/civ/sweep') {
         let body = null;

@@ -63,44 +63,53 @@ people are already designed to be valid hoop NPCs), the planned **fable `/city`*
 - The seed-is-the-URL contract is frozen suite-wide: any change that would alter what an
   existing permalink regenerates is a **config-epoch** change (see §4).
 
-### Phase II — one naming voice *(cheapest, most visible)*
+### Phase II — one naming voice *(SHIPPED)*
 
-Give civ's world the rite/names engine:
+Civ's world speaks rite/names. As built:
 
-- Import `rite/names/engine.js` into `mappa/civ/engine.js` (it is dep-free and already
-  runs in worker/browser/node — the same three targets civ builds for). Add
-  `rite/names/engine.js` to `deploy-civ.yml` paths **and** to `scripts/build-civ-engine.mjs`
-  so the browser bundle stays bit-identical to the edge.
-- Map each civ culture to a deterministic culture-pack blend:
-  `cultureNameStyle = pick(CULTURES, hash(civSeed, cultureId))` — foragers might draw
-  `steppe+brythonic`, a maritime culture `polynesian+hellenic`, etc. Then:
-  - **cultures get names** (currently numeric ids) — every UI page gets more legible;
-  - `personName` → `generateSet(..., kind:'given'|'full')` with epithets for prophets
-    and dynasts;
-  - `beliefName` / `instName` keep their English wrappers ("the X Guild") but draw X
-    from the culture's wardrobe.
-- **Hash discipline:** names flow into chronicles, so this changes run hashes. Gate it
-  behind a config field (`names: 'rite'`), then flip the default in one deliberate
-  epoch bump (§4). Old permalinks carrying explicit configs stay valid forever.
-- Later, deeper cut: unify mappa's toponym generator with rite/names by adding the
-  plate-language families as culture packs (a `place` kind already exists). Low priority;
-  the registers (landforms vs. people) tolerate divergence.
+- `mappa/civ/names.js` wraps `rite/names/engine.js` (dep-free, runs in the same three
+  targets civ builds for). `deploy-civ.yml` paths and the committed browser bundle
+  (`scripts/build-civ-engine.mjs`) both track it — edge and client stay bit-identical.
+- Each civ culture draws a deterministic culture-pack blend at first use (one pack,
+  40% a blend of two) and lazy per-(culture, kind) namebooks: **cultures have names**
+  (`final.cultures[].name`, `final.polities[].name`), people are `full`-kind
+  (epithets included — *Thremund the Younger*, *Vyevmund of Serruborg*), beliefs read
+  like founders' names, institutions keep their English wrappers around culture-book
+  roots (*the Dylfjord State*), and state seats get toponyms (*Vylfstrand*).
+- **The hash discipline turned out even cleaner than planned**: `chronicleHash`
+  serialises events/series/final *without* name strings, so the swap is hash-invariant
+  — verified against the pre-change engine (same params, same `67eee302`). The
+  `names: 'rite' | 'legacy'` config field exists anyway; `'legacy'` reproduces the old
+  syllable strings bit-exactly (selftested) for byte-stable payload replays.
+- Still open (deliberately): unify mappa's own toponym generator (`mappa/lib/names.js`)
+  with rite/names culture packs. Low priority; landform vs. people registers tolerate
+  divergence.
 
-### Phase III — the civ → polis handoff *(makes polis real)*
+### Phase III — the civ → polis handoff *(SHIPPED — first slice)*
 
-Cities should inherit history, not just terrain:
+Cities inherit history, not just terrain. As built:
 
-- Civ chronicles already track homelands, states, and seats. Expose a **foundings**
-  contract — either a field on `/api/civ/run` or `GET /api/civ/sites?world&config&civSeed&ticks`
-  → `[{tick, cell, cultureId, stateId, era}]`.
-- polis grows `fromCivRun(...)` beside its current auto-select: region, founding date,
-  culture, and initial institutions come from the chronicle. The polis city seed is
-  `siteSeed(worldSeed, cityName, cellIndex)` — **adopt org's bridge as the suite-wide
-  convention** (it exists precisely for this).
-- polis stays on the root surface until it has an API; when it does, the natural
-  compute home is the **civ worker** (it already bundles the mappa engine, has the
-  120 s CPU ceiling, and the registry paths to match) — mount `/api/polis/*` there
-  rather than minting a fourth worker. Keep `mino.mobi/polis/` as the frontend URL.
+- **`GET /api/civ/sites?world&preset|config&civSeed&ticks`** (same run, same cache
+  keys, same hash as `/run`) returns the foundings contract: every culture that
+  reached statehood → `{culture, cultureName, city, cell, lon, lat, tick, year, tier,
+  peakPop, alive, siteSeed}`. `siteSeed` is org's convention, `${world}:${city}:${cell}`
+  — **adopted as the suite-wide city identity**. Foundings also ride along on
+  `/api/civ/run` as `chronicle.final.foundings`.
+- **Resolution honesty**: mappa terrain is *not* mesh-resolution-stable (same seed at
+  N=900 vs N=7000 gives different coastlines — civ seats land in the N=7000 ocean).
+  The contract therefore carries `n`, the requested mesh N; regenerating at that N
+  reproduces the identical mesh, cell ids and all. This is a suite-wide rule now:
+  **a lon/lat is only meaningful alongside the N it was found at.**
+- polis consumes it: `?civ=1&world=&preset=|config=&civSeed=&ticks=&site=i` on
+  `mino.mobi/polis/` fetches the foundings, rolls the mappa world at the contract's
+  `n`, centres the region on the seat via `regionAtLL()` (new in `mappaWorld.js`),
+  and seeds mesh + chronicle from `xmur3(siteSeed)`. A banner names the city and
+  links back to the civ run; the dashboard links each founding into polis.
+- Still open: deeper inheritance (founding-date offsets into polis's climate arc,
+  culture → initial institutions), and the eventual `/api/polis/*` mounted in the civ
+  worker once polis has server-side needs. Note polis rides the **root** surface —
+  its half of the handoff deploys when this branch's `polis/**` changes reach `main`
+  (or the root owner branch).
 
 ### Phase IV — institutions with insides
 
@@ -161,11 +170,12 @@ Cities should inherit history, not just terrain:
 
 | Phase | Size | Risk | Unlocks |
 |---|---|---|---|
-| I — hub + deploy takeover | done | none | everything below has an address |
-| II — names into civ | small (1 session) | hash epoch | legible cultures everywhere |
-| III — civ → polis foundings | medium | contract design | polis becomes real |
+| I — hub + deploy takeover | **done** | none | everything below has an address |
+| II — names into civ | **done** (hash-invariant, legacy mode kept) | none in the end | legible cultures everywhere |
+| III — civ → polis foundings | **done** (first slice; polis half ships with the root surface) | resolved (`n` in contract) | polis inherits history |
 | IV — org institutions + people | medium | none (additive) | drill-down, hoop NPCs |
 | V — canon, daily world, fable/city | ongoing | none | content flywheel |
 
-Order matters: II before IV (institutions want named cultures), III before IV's polis
-half (staffed firms want founded cities). V items are independent and can interleave.
+II and III shipped together: the siteSeed string minted in III uses the city names
+minted in II. Next up is IV — civ institutions becoming org-engine organisations
+(the seat toponym + siteSeed already give every institution a stable org address).

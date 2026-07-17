@@ -10,6 +10,7 @@ on:
       - 'mappa/civ/**'
       - 'mappa/engine.js'
       - 'mappa/lib/world-share.js'
+      - 'rite/names/engine.js'
       - '.github/workflows/deploy-civ.yml'
   workflow_dispatch:
 

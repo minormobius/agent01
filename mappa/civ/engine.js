@@ -17,6 +17,7 @@ import {
 import { loadCivWorld, cellK, RES_METAL, RES_WEALTH, RESOURCES } from './world.js';
 import { normalizeConfig, NORM_I } from './config.js';
 import { makeClimate } from './climate.js';
+import { makeNamer } from './names.js';
 
 const ALIVE = 1;
 const AGRI_PKGS = new Set([PKG_ID.horticulture, PKG_ID.plough, PKG_ID.irrigation]);
@@ -68,6 +69,9 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   };
 
   const climate = makeClimate(cfg.climate, w);
+  // the naming voice (Phase II): rite/names culture-pack books by default, 'legacy'
+  // reproduces the pre-Phase-II syllable strings. Names never enter chronicleHash.
+  const namer = makeNamer(seed, cfg.names);
 
   // age thresholds in ticks (from real-year lifecycle / tickYears)
   const ty = cfg.agent.tickYears;
@@ -125,13 +129,9 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const CRED_CAP = new Int8Array(NCRED).fill(-1);
   CRED_CAP[CREDI.smith] = CAP.metallurgy; CRED_CAP[CREDI.scribe] = CAP.writing; CRED_CAP[CREDI.mason] = CAP.masonry;
   CRED_CAP[CREDI.sailor] = CAP.sail; CRED_CAP[CREDI.engineer] = CAP.mechanisation; CRED_CAP[CREDI.trader] = CAP.wheel;
-  // a name for a notable individual (deterministic per agent id) — history gets names
-  function personName(id) {
-    const r = stream((seed ^ (id * 2246822519)) >>> 0, 'person');
-    const on = 'ktrmnvbslpgdhwz', vo = 'aeiouaei', pick = s => s[Math.floor(r() * s.length)];
-    let t = pick(on).toUpperCase() + pick(vo); for (let i = 0, n = 1 + Math.floor(r() * 2); i < n; i++) t += pick(on) + pick(vo);
-    return t;
-  }
+  // a name for a notable individual (deterministic per agent id) — history gets names,
+  // spoken in the bearer's culture-pack voice (names.js)
+  function personName(id, cu) { return namer.person(id, cu); }
   const insts = [];              // ALL institution entities ever created (id-indexed, for lookup)
   let liveInsts = [];            // just the currently-live ones (per-tick work is O(live), not O(ever))
   const orgs = insts;            // exposed alias
@@ -160,17 +160,12 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   // a stigmergic-style deterministic hash → [0,1); used for per-agent conversion so belief
   // transmission never draws on a shared RNG stream (keeps demography/dispersal byte-identical).
   const bchance = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-  function beliefName(sd) {
-    const r = stream((seed ^ (sd * 2654435761) ^ 0x9e3779b9) >>> 0, 'belief-name');
-    const on = 'thmnvrbkldshpmzthph', vo = 'aeiouaei', pick = s => s[Math.floor(r() * s.length)];
-    let t = pick(on).toUpperCase() + pick(vo); for (let i = 0, n = 1 + Math.floor(r() * 2); i < n; i++) t += pick(on) + pick(vo);
-    return t;
-  }
+  function beliefName(sd, cu) { return namer.belief(sd, cu); }
   function newBelief(proto, tick) {
     const id = beliefs.length;
     const b = { id, parent: proto.parent ?? -1, birthTick: tick, founderCulture: proto.founderCulture ?? -1,
       doctrine: Float32Array.from(proto.doctrine), origin: proto.origin, extinct: false,
-      name: beliefName(((proto.origin & 0xffff) << 8) ^ (id * 131) ^ (tick & 0xff)), register: proto.register ?? 1, peak: 0 };
+      name: beliefName(((proto.origin & 0xffff) << 8) ^ (id * 131) ^ (tick & 0xff), proto.founderCulture), register: proto.register ?? 1, peak: 0 };
     beliefs.push(b); return b;
   }
   const doxLabel = d => { let mx = 0, mi = 0; for (let a = 0; a < NDOX; a++) if (d[a] > mx) { mx = d[a]; mi = a; } return DOX[mi]; };
@@ -190,9 +185,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   }
   const iKey = (type, seat, cu) => type + ':' + seat + ':' + cu;
   function instName(type, seat, cu) {
-    const r = stream((seed ^ (seat * 2654435761) ^ (cu * 40503) ^ (type * 97)) >>> 0, 'inst-name');
-    const on = 'ktrmnvbslpgdh', vo = 'aeiouoa', pick = s => s[Math.floor(r() * s.length)];
-    let t = pick(on).toUpperCase() + pick(vo); for (let i = 0, n = 1 + Math.floor(r() * 2); i < n; i++) t += pick(on) + pick(vo);
+    const t = namer.instRoot(type, seat, cu);
     if (type === INST.STATE) return 'the ' + t + ' State';
     if (type === INST.FIRM) { const rc = w.resource && w.resource[seat]; const rn = rc ? RESOURCES[rc] : ''; return (rn ? rn[0].toUpperCase() + rn.slice(1) + ' ' : '') + t + ' Company'; }
     if (type === INST.GUILD) return 'the ' + t + ' Guild';
@@ -380,7 +373,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         for (let t = s; t < e; t++) { const id = cellOrder[t]; A.belief[id] = B.id; A.piety[id] = 0.6 + 0.3 * dget(B, 'ascetic'); if (A.status[id] > pr) { pr = A.status[id]; prophet = id; } }
         if (prophet >= 0) A.piety[prophet] = 1;
         // only the significant foundings (scripture era+) mark the timeline; folk cults churn silently
-        if (reg >= 2) pushEvent(tick, 'beliefFounded', { belief: B.id, name: B.name, culture: i, cell, register: REGISTER[reg], doctrine: doxLabel(dox), prophet: prophet >= 0 ? personName(prophet) : null });
+        if (reg >= 2) pushEvent(tick, 'beliefFounded', { belief: B.id, name: B.name, culture: i, cell, register: REGISTER[reg], doctrine: doxLabel(dox), prophet: prophet >= 0 ? personName(prophet, i) : null });
       }
     }
   }
@@ -544,7 +537,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       if (r > topRep[0]) { let b = 0; while (b < K - 1 && topRep[b + 1] < r) { topId[b] = topId[b + 1]; topRep[b] = topRep[b + 1]; b++; } topId[b] = id; topRep[b] = r; }
     }
     const people = [];
-    for (let a = nt - 1; a >= 0; a--) { const id = topId[a]; people.push({ cell: A.cell[id], name: personName(id), cu: A.culture[id], rep: +A.status[id].toFixed(2), cred: A.cred[id], age: Math.round((tick - A.birthTick[id]) * ty) }); }
+    for (let a = nt - 1; a >= 0; a--) { const id = topId[a]; people.push({ cell: A.cell[id], name: personName(id, A.culture[id]), cu: A.culture[id], rep: +A.status[id].toFixed(2), cred: A.cred[id], age: Math.round((tick - A.birthTick[id]) * ty) }); }
     // migration flows accumulated since the last capture → the strongest edges, as flat
     // [fromCell, toCell, count, …]. The viewer floats travellers along these between frames.
     const edges = [...migAcc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 100);
@@ -1107,7 +1100,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         const gk = it.leader + '@' + A.birthTick[it.leader];
         if (!greatSeen.has(gk) && (A.flags[it.leader] & ALIVE)) {
           greatSeen.add(gk);
-          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader), culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
+          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
         }
       }
     }
@@ -1234,7 +1227,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const subDist = new Array(NPKG).fill(0);
     for (let i = 0; i < cultures.length; i++) {
       const cu = cultures[i], n = cultMembers[i] || 0; if (cu.extinct || n === 0) continue;
-      surviving.push({ id: i, size: n, sub: cu.sub, tier: vecTier(cu.tech), tech: cu.tech >>> 0, lang: cu.lang, landmass: cu.landmass, origin: cu.origin });
+      surviving.push({ id: i, name: namer.culture(i), size: n, sub: cu.sub, tier: vecTier(cu.tech), tech: cu.tech >>> 0, lang: cu.lang, landmass: cu.landmass, origin: cu.origin });
       subDist[cu.sub] += n;
     }
     for (let t = 0; t < liveN; t++) popByLand[w.landmass[A.cell[live[t]]]] += 1;
@@ -1243,12 +1236,26 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const polities = [];
     for (let i = 0; i < cultures.length; i++) {
       const cu = cultures[i]; if (!cu.everState) continue;
-      polities.push({ id: i, lang: cu.lang, parent: cu.parentCulture, landmass: cu.landmass,
+      polities.push({ id: i, name: namer.culture(i), lang: cu.lang, parent: cu.parentCulture, landmass: cu.landmass,
         rose: cu.firstStateTick, peakPop: cu.peakPop, peakTick: cu.peakTick, peakTerritory: cu.peakTerritory,
         peakTier: cu.peakTier, fell: cu.fellTick, alive: !cu.extinct && (cultMembers[i] || 0) > 0,
         size: cultMembers[i] || 0, sub: cu.sub, seat: cultBestCell[i] ?? cu.origin });
     }
     polities.sort((a, b) => b.peakPop - a.peakPop);
+    // FOUNDINGS (Phase III of civ/STRATEGY.md): the civ → polis handoff contract. Every
+    // culture that reached statehood is a city-founding — its seat cell, first-state tick,
+    // and a toponym in the founder's tongue. lon/lat (degrees) is the shared coordinate
+    // language: polis re-tiles the mappa world with its own mesh, so cell ids don't travel.
+    const foundings = polities.map(p => {
+      const seat = p.seat >= 0 ? p.seat : cultures[p.id].origin; // fell empty → homeland origin
+      const v = w.V[seat];
+      return {
+        culture: p.id, cultureName: p.name, city: namer.place(seat, p.id), cell: seat,
+        lon: +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(3),
+        lat: +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(3),
+        tick: p.rose, year: Math.round(p.rose * ty), tier: p.peakTier, peakPop: p.peakPop, alive: p.alive,
+      };
+    });
     // named resources + who currently holds each
     const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k] }));
     // the NOTABLE composite actors across the whole run — companies, guilds, armies,
@@ -1259,7 +1266,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       .filter(it => it.type === INST.STATE ? it.peakMembers > 0 : it.type === INST.WARBAND ? it.captures >= 1 : it.peakMembers > 40)
       .sort((a, b) => notability(b) - notability(a))
       .slice(0, 140)
-      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
+      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader, it.culture) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
     // the economy: wealth inequality (Gini), mean wealth, mean price, total output
     let totW = 0, maxW = 0; const wl = new Float64Array(liveN);
     for (let t = 0; t < liveN; t++) { const wv = A.wealth[live[t]]; wl[t] = wv; totW += wv; if (wv > maxW) maxW = wv; }
@@ -1278,7 +1285,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120);
     return {
       pop: liveN,
-      cultures: surviving, polities, resources, institutions, economy,
+      cultures: surviving, polities, foundings, resources, institutions, economy,
       beliefs: beliefsOut, beliefAxes: DOX,
       greatPeople: great, credNames: CRED,
       languages: languages.map(l => ({ id: l.id, parent: l.parent, birthTick: l.birthTick })),

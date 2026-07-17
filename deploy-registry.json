@@ -240,9 +240,10 @@
         "civ/**",
         "mappa/civ/**",
         "mappa/engine.js",
-        "mappa/lib/world-share.js"
+        "mappa/lib/world-share.js",
+        "rite/names/engine.js"
       ],
-      "note": "Coevolutionary agent-based civilization simulation on a mappa world (worker civ, custom_domain civ.mino.mobi). `/` is the WORLD-ENGINE HUB — landing page over the whole suite (civ dashboard at /dash/, playback/development/FRED subpages, and cross-links to mappa, polis, rite/names, rite/org); unification strategy in civ/STRATEGY.md. Headless-first engine in mappa/civ/; CORS-open no-key API /api/civ/run + /api/civ/sweep. Bundles mappa/engine.js. No secrets, no D1."
+      "note": "Coevolutionary agent-based civilization simulation on a mappa world (worker civ, custom_domain civ.mino.mobi). `/` is the WORLD-ENGINE HUB — landing page over the whole suite (civ dashboard at /dash/, playback/development/FRED subpages, and cross-links to mappa, polis, rite/names, rite/org); unification strategy in civ/STRATEGY.md. Headless-first engine in mappa/civ/; CORS-open no-key API /api/civ/run + /api/civ/sweep + /api/civ/sites (the civ→polis foundings handoff). Names spoken by rite/names culture packs (mappa/civ/names.js — hence rite/names/engine.js in paths). Bundles mappa/engine.js. No secrets, no D1."
     },
     {
       "surface": "biome",

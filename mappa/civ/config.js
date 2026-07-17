@@ -43,6 +43,9 @@ export function defaultConfig() {
       nucleus: null,
     },
     climate: { preset: 'stable' }, // 'stable' | 'kurgan' | 'beringia' | '4.2ka' | {schedule:[...]}
+    names: 'rite',              // naming voice: 'rite' (culture-pack namebooks, Phase II) |
+                                // 'legacy' (pre-Phase-II syllable strings). Presentation only —
+                                // chronicleHash never includes name strings, so this is hash-safe.
     popScale: 650,              // K scaling (people per mean cell) → homeland pops 10²–10⁴
     industrialMinPop: 5000,     // a culture must be this large (a real civilization, not one
                                 // lucky megacity) before it can innovate the industrial tier
@@ -59,6 +62,7 @@ export function normalizeConfig(cfg) {
     culture: { ...d.culture, ...(cfg.culture || {}) },
     seeding: { ...d.seeding, ...(cfg.seeding || {}) },
     climate: cfg.climate || d.climate,
+    names: cfg.names === 'legacy' ? 'legacy' : d.names,
     popScale: cfg.popScale ?? d.popScale,
     industrialMinPop: cfg.industrialMinPop ?? d.industrialMinPop,
     keyframeEvery: cfg.keyframeEvery ?? d.keyframeEvery,
@@ -95,6 +99,7 @@ export function encodeCivConfig(cfg) {
     s: { f: c.seeding.founders, nc: c.seeding.nucleusCount, nu: c.seeding.nucleus },
     cl: c.climate, ps: c.popScale, im: c.industrialMinPop, kf: c.keyframeEvery,
   };
+  if (c.names !== 'rite') o.nm = c.names; // only non-default travels (old tokens stay decodable)
   return b64uEnc(JSON.stringify(o));
 }
 export function decodeCivConfig(token) {
@@ -113,7 +118,7 @@ export function decodeCivConfig(token) {
       splitThreshold: o.c.sp, innovationBase: fromFx(o.c.ib),
     },
     seeding: { founders: o.s.f, nucleusCount: o.s.nc, nucleus: o.s.nu },
-    climate: o.cl, popScale: o.ps, industrialMinPop: o.im, keyframeEvery: o.kf,
+    climate: o.cl, names: o.nm, popScale: o.ps, industrialMinPop: o.im, keyframeEvery: o.kf,
   });
 }
 

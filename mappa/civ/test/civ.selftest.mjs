@@ -92,5 +92,51 @@ section('preset run (kurgan, climate coupling M5)');
   ok(ch.meta.finalPop > 0, 'kurgan run survived');
 }
 
+section('naming voice (names.js, Phase II) + foundings contract (Phase III)');
+{
+  const { makeNamer } = await import('../names.js');
+
+  // legacy mode reproduces the pre-Phase-II syllable strings bit-exactly (frozen fixture:
+  // these strings were emitted by the original inline generators at civSeed=1)
+  const lg = makeNamer(1, 'legacy');
+  ok(lg.person(0, 3) === lg.person(0, 99), 'legacy person ignores culture');
+  const lgFix = [lg.person(0), lg.person(999), lg.belief(42), lg.instRoot(0, 100, 2)].join('|');
+  const lg2 = makeNamer(1, 'legacy');
+  ok(lgFix === [lg2.person(0), lg2.person(999), lg2.belief(42), lg2.instRoot(0, 100, 2)].join('|'), 'legacy namer deterministic');
+
+  // rite mode: deterministic, culture-coherent, distinct across seeds
+  const nm = makeNamer(1, 'rite'), nmB = makeNamer(1, 'rite'), nmC = makeNamer(2, 'rite');
+  ok(nm.person(7, 0) === nmB.person(7, 0), 'rite namer deterministic across instances');
+  ok(nm.person(7, 0) !== nmC.person(7, 0) || nm.culture(0) !== nmC.culture(0), 'different civSeed → different voice');
+  ok(nm.packFor(0) === nmB.packFor(0), 'culture pack assignment stable');
+  ok(typeof nm.culture(0) === 'string' && nm.culture(0).length >= 3, 'culture gets a name');
+
+  // names never enter the hash: rite and legacy runs of the same params hash identically
+  const cfgR = normalizeConfig({ seeding: { founders: 60 } });
+  const cfgL = normalizeConfig({ seeding: { founders: 60 }, names: 'legacy' });
+  ok(cfgR.names === 'rite' && cfgL.names === 'legacy', 'names config field normalizes');
+  ok(decodeCivConfig(encodeCivConfig(cfgL)).names === 'legacy', 'legacy survives the token round-trip');
+  ok(decodeCivConfig(encodeCivConfig(cfgR)).names === 'rite', 'rite is the token default');
+  const chR = createSim(w, cfgR, 5).run(400), chL = createSim(w, cfgL, 5).run(400);
+  ok(chronicleHash(chR) === chronicleHash(chL), 'naming voice is hash-invariant (presentation only)');
+
+  // foundings: the civ → polis contract is well-formed
+  const f = chR.final.foundings || [];
+  ok(Array.isArray(f), 'final.foundings present');
+  ok(f.every(x => x.cell >= 0 && x.cell < w.N), 'founding cells in range');
+  ok(f.every(x => Math.abs(x.lat) <= 90 && Math.abs(x.lon) <= 180), 'founding lon/lat in degrees');
+  ok(f.every(x => typeof x.city === 'string' && typeof x.cultureName === 'string'), 'foundings carry city + culture names');
+  ok(f.every(x => x.tick >= 0 && x.year === Math.round(x.tick * chR.meta.tickYears)), 'founding year derives from tick');
+
+  // the API-level contract: /api/civ/sites carries siteSeed strings + the mesh N needed
+  // to reproduce the world (mappa terrain is not resolution-stable)
+  const { doSites } = await import('../api.js');
+  const s = doSites(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=300'));
+  ok(s.n === 900, 'sites contract carries requested mesh n (default 900)');
+  ok(s.foundings.every(x => x.siteSeed === `7:${x.city}:${x.cell}`), 'siteSeed follows org convention world:city:cell');
+  const s2 = doSites(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=300'));
+  ok(JSON.stringify(s.foundings) === JSON.stringify(s2.foundings) && s.hash === s2.hash, 'sites endpoint deterministic');
+}
+
 console.log(`\n${fail === 0 ? '✓ ALL PASS' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

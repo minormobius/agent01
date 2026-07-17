@@ -61,6 +61,33 @@ export function doRun(params, cap = CAP) {
   };
 }
 
+// FOUNDINGS (Phase III of civ/STRATEGY.md): the compact civ → polis handoff. Same run as
+// /api/civ/run (same cache key space, same hash), but returns only the city-founding
+// contract: every culture that reached statehood, with seat lon/lat (degrees), founding
+// tick/year, a toponym in the founder's tongue, and the suite-wide `siteSeed` string
+// (org's convention: `${worldSeed}:${cityName}:${cellIndex}` — rite hashes strings, so
+// this one string reproducibly seeds a polis city AND an org sited at it).
+export function doSites(params, cap = CAP) {
+  const world = resolveWorld(params, cap);
+  const cfg = resolveConfig(params);
+  const civSeed = (Math.round(num(params.get('civSeed') ?? params.get('civseed'), 1)) >>> 0) || 1;
+  const ticks = clamp(Math.round(num(params.get('ticks'), 800)), 1, cap.runTicks);
+  const t0 = now();
+  const ch = createSim(world, cfg, civSeed).run(ticks);
+  const worldStr = params.get('world') ?? '1';
+  const foundings = (ch.final.foundings || []).map(f => ({ ...f, siteSeed: `${worldStr}:${f.city}:${f.cell}` }));
+  return {
+    api: 'mappa.civ/v1', world: worldStr, config: encodeCivConfig(cfg), civSeed, ticks,
+    // n = the REQUESTED mesh resolution this run saw (generateWorld's N option; actual
+    // cell count comes out slightly higher). Mappa terrain is NOT resolution-stable
+    // (same seed, different N → different coastlines), so a consumer siting anything at
+    // a founding's lon/lat MUST call generateWorld(seed, { N: n }) with this same value —
+    // that reproduces the identical mesh, cell ids and all.
+    n: clamp(Math.round(num(params.get('n'), 900)), 500, cap.runN),
+    hash: chronicleHash(ch), tickYears: ch.meta.tickYears, foundings, ms: Math.round(now() - t0),
+  };
+}
+
 // particle-playback data: world mesh + per-frame per-cell snapshots + events.
 export function doFrames(params, cap = CAP) {
   const world = resolveWorld(params, cap);

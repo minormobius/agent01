@@ -73,7 +73,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 <div id="overlay">generating world…</div>
 
 <script type="module">
-import { rollMappaWorld, selectRegion, makeSampler } from './mappaWorld.js';
+import { rollMappaWorld, selectRegion, regionAtLL, makeSampler } from './mappaWorld.js';
 import { buildMesh, cellState, moistAt } from './mesh.js';
 import { runChronicle } from './chronicle.js';
 import { tierOf } from './economy.js';
@@ -269,13 +269,13 @@ document.getElementById('close').addEventListener('click', () => panel(-1));
 document.getElementById('play').addEventListener('click', function () { playing = !playing; this.textContent = playing ? '❚❚' : '▶'; if (playing) loop(); });
 function loop() { if (!playing) return; tick = (tick + 1) % C.ticks; timeIn.value = tick; sel >= 0 ? panel(sel) : draw(); raf = setTimeout(() => requestAnimationFrame(loop), 90); }
 
-function roll(seed) {
+function roll(seed, o = {}) {
   clearTimeout(raf); playing = false; document.getElementById('play').textContent = '▶';
   overlay.classList.remove('hide'); overlay.textContent = 'generating world…';
   setTimeout(() => {
     try {
-      const world = rollMappaWorld(seed >>> 0);
-      const region = selectRegion(world);
+      const world = rollMappaWorld((o.worldSeed ?? seed) >>> 0, o.worldN ? { N: o.worldN } : {});
+      const region = o.region ? o.region(world) : selectRegion(world);
       const sampler = makeSampler(world, region);
       const mesh = buildMesh(seed >>> 0, region, sampler);
       C = runChronicle(seed >>> 0, mesh, { ticks: 160, world });   // world → volcanic winters erupt from its real volcanoes
@@ -302,7 +302,42 @@ document.getElementById('layers').addEventListener('click', (e) => {
 });
 document.getElementById('go').addEventListener('click', () => roll(+seedIn.value || 1));
 document.getElementById('rnd').addEventListener('click', () => { const s = (Math.random() * 1e9) >>> 0; seedIn.value = s; roll(s); });  // pick WHICH deterministic world to view
-roll(+seedIn.value);
+
+// ---- the civ → polis handoff (Phase III of civ/STRATEGY.md) ---------------------
+// Arriving from a civ run (?civ=1&world=&preset=|config=&civSeed=&ticks=&site=), fetch
+// that run's foundings from the CORS-open civ API and grow the chosen city where history
+// founded it: the mappa world is the civ run's world, the region is centred on the state
+// seat, and the polis seed derives from the suite-wide siteSeed string (org's convention,
+// `${world}:${city}:${cell}`) — so civ, polis and a future sited org all agree on the city.
+const xmur3 = s => { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); } h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return (h ^ (h >>> 16)) >>> 0; };
+async function bootFromCiv() {
+  const p = new URLSearchParams(location.search);
+  if (!p.get('civ')) return false;
+  const wm = String(p.get('world') || '').match(/^(?:seed:)?(\d+)$/);
+  if (!wm) return false;                                    // token worlds: not yet — fall back
+  const q = new URLSearchParams({ world: wm[1], civSeed: p.get('civSeed') || '1', ticks: p.get('ticks') || '800' });
+  if (p.get('preset')) q.set('preset', p.get('preset')); else if (p.get('config')) q.set('config', p.get('config'));
+  overlay.classList.remove('hide'); overlay.textContent = 'fetching civ foundings…';
+  const r = await fetch('https://civ.mino.mobi/api/civ/sites?' + q);
+  if (!r.ok) throw new Error('civ API ' + r.status);
+  const d = await r.json();
+  const f = d.foundings[Math.max(0, Math.min(d.foundings.length - 1, +(p.get('site') || 0)))];
+  if (!f) return false;                                     // no state ever rose in this run
+  const citySeed = xmur3(f.siteSeed);
+  seedIn.value = citySeed;
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:9;background:rgba(10,14,20,.85);border:1px solid #2a3a4e;border-radius:8px;padding:6px 12px;font-size:12px;color:#cdd6e0;max-width:70vw';
+  b.innerHTML = '⚑ <b>' + f.city + '</b> — seat of the ' + f.cultureName + ', founded year ' + f.year +
+    ' · <a style="color:#5aa9e6" href="https://civ.mino.mobi/dash/?' + q + '">the civ run ↗</a>' +
+    (d.foundings.length > 1 ? ' · site ' + (d.foundings.indexOf(f)) + '/' + (d.foundings.length - 1) : '');
+  document.body.appendChild(b);
+  // regenerate the world at the SAME mesh resolution the civ run saw — mappa terrain is
+  // not resolution-stable, so d.n is the only N at which the founding's coast exists
+  roll(citySeed, { worldSeed: +wm[1], worldN: d.n, region: w => regionAtLL(w, f.lon * Math.PI / 180, f.lat * Math.PI / 180) });
+  return true;
+}
+bootFromCiv().then(ok => { if (!ok) roll(+seedIn.value); })
+  .catch(err => { console.error('civ handoff failed, falling back:', err); roll(+seedIn.value); });
 </script>
 </body>
 </html>
