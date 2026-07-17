@@ -14,7 +14,9 @@ import { decodeCivConfig, normalizeConfig, encodeCivConfig } from './config.js';
 
 // Bounds. The Worker passes these (edge CPU is finite); the browser can pass a larger cap since
 // it runs on the user's machine with no edge limit.
-export const CAP = { runTicks: 1500, runN: 1200, sweepBudget: 40, sweepTicks: 700, frameTicks: 1500, maxFrames: 60 };
+// maxFrames 300: a 1500-tick run captures every 5 ticks (~3.5 MB JSON, and the client
+// computes frames locally by default, so dense capture doesn't lean on the edge).
+export const CAP = { runTicks: 1500, runN: 1200, sweepBudget: 40, sweepTicks: 700, frameTicks: 1500, maxFrames: 300 };
 
 // inlined presets (mirror mappa/civ/configs/*.json) so ?preset= resolves without a file read.
 export const PRESETS = {

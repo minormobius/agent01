@@ -111,18 +111,34 @@ Cities inherit history, not just terrain. As built:
   its half of the handoff deploys when this branch's `polis/**` changes reach `main`
   (or the root owner branch).
 
-### Phase IV — institutions with insides
+### Phase IV — institutions with insides *(SHIPPED — first slice)*
 
-- Civ institutions become org-engine organisations: State → `feudal`/`corp` by era,
-  Guild/Company → `corp`, Host → `military`, faiths → `ecclesiastic`/`monastic`.
-  An institution's org seed derives from `siteSeed` + institution id, so drilling into
-  a 9th-millennium temple hierarchy is a permanent address.
-- Notable people in chronicles become full `person.js` people (craft/drive/wit,
-  vocation, quirks) — which by construction makes them valid **hoop NPCs**.
-- org's performance oracle feeds back: institution efficiency (leadership, span
-  overload, depth tax) modulates civ institution success and polis firm productivity.
-  Same seed, different org shape → different history. That's the coevolutionary loop
-  closing across three sites.
+As built:
+
+- **Org addresses, not embedded simulation.** `mappa/civ/org.js` maps institution kind →
+  org vertical/shape (state→feudal/tall, firm→corp/pyramid, guild→corp/flat,
+  warband→military/cellular; faiths by register: folk→monastic, temple/scripture→
+  ecclesiastic, philosophy/ideology→academic). Every institution in the payload carries
+  `{seatName, org:{vertical,shape}, namePack}`; the org seed is composed by consumers as
+  **`${world}:${seatName}:${seat}:${kind}${id}`** (the siteSeed convention extended one
+  level down). The development page renders an "org ↗" link per institution — a
+  9th-millennium temple hierarchy is a permanent address, generated on demand by the
+  org engine, never stored.
+- **One voice, two engines**: the link carries `?names=<pack>` (the civ culture's
+  culture-pack blend), and the org page + its infinite-lens expansion honor it — so
+  *the Dylfjord State*'s org chart is peopled in the same phonotactic voice civ named
+  it with.
+- **Great people are full org persons**: `civPerson(civSeed, agentId, kind)` →
+  `person.js` `makePerson` at the apex (triad, cast, vocation `govern`, quirks,
+  output/leadership) — deterministic from (civSeed, agent id) alone, so the same
+  person whatever they led, and by construction a valid **hoop NPC**. Shown on the
+  development page's great-people table (cast · vocation, full detail in the tooltip).
+- All additive and hash-invariant (selftested).
+- **Still open (the deep half)**: org's performance oracle feeding *back* — institution
+  efficiency (leadership, span overload, depth tax) modulating civ institution success
+  and polis firm productivity, so same seed + different org shape → different history.
+  That's the coevolutionary loop closing across three sites, and it's real engine work,
+  not addressing.
 
 ### Phase V — outward
 
@@ -173,9 +189,12 @@ Cities inherit history, not just terrain. As built:
 | I — hub + deploy takeover | **done** | none | everything below has an address |
 | II — names into civ | **done** (hash-invariant, legacy mode kept) | none in the end | legible cultures everywhere |
 | III — civ → polis foundings | **done** (first slice; polis half ships with the root surface) | resolved (`n` in contract) | polis inherits history |
-| IV — org institutions + people | medium | none (additive) | drill-down, hoop NPCs |
+| IV — org institutions + people | **done** (addresses + persons; perf feedback open) | none (additive) | drill-down, hoop NPCs |
 | V — canon, daily world, fable/city | ongoing | none | content flywheel |
 
-II and III shipped together: the siteSeed string minted in III uses the city names
-minted in II. Next up is IV — civ institutions becoming org-engine organisations
-(the seat toponym + siteSeed already give every institution a stable org address).
+II–IV shipped in sequence: III's siteSeed uses II's city names, IV's org seeds extend
+III's convention one level down, and IV's org charts speak II's culture packs. What
+remains of IV is the feedback half (org performance → civ/polis economies); V items
+are independent and can interleave. Also shipped alongside: particle playback captures
+up to 300 frames (every ~5 ticks on a 1500-tick run, view.html detail selector) with
+sub-1 fps playback speeds.

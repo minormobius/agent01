@@ -18,6 +18,7 @@ import { loadCivWorld, cellK, RES_METAL, RES_WEALTH, RESOURCES } from './world.j
 import { normalizeConfig, NORM_I } from './config.js';
 import { makeClimate } from './climate.js';
 import { makeNamer } from './names.js';
+import { INST_ORG, BELIEF_ORG, civPerson } from './org.js';
 
 const ALIVE = 1;
 const AGRI_PKGS = new Set([PKG_ID.horticulture, PKG_ID.plough, PKG_ID.irrigation]);
@@ -1100,7 +1101,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         const gk = it.leader + '@' + A.birthTick[it.leader];
         if (!greatSeen.has(gk) && (A.flags[it.leader] & ALIVE)) {
           greatSeen.add(gk);
-          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
+          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), pid: it.leader, culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
         }
       }
     }
@@ -1266,7 +1267,10 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       .filter(it => it.type === INST.STATE ? it.peakMembers > 0 : it.type === INST.WARBAND ? it.captures >= 1 : it.peakMembers > 40)
       .sort((a, b) => notability(b) - notability(a))
       .slice(0, 140)
-      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader, it.culture) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
+      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat,
+        // Phase IV: the org address parts. Consumers compose the seed as
+        // `${world}:${seatName}:${seat}:${kind}${id}` and open it at rite.mino.mobi/org/.
+        seatName: namer.place(it.seat, it.culture), org: INST_ORG[INST_NAME[it.type]], namePack: namer.packFor(it.culture), members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader, it.culture) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
     // the economy: wealth inequality (Gini), mean wealth, mean price, total output
     let totW = 0, maxW = 0; const wl = new Float64Array(liveN);
     for (let t = 0; t < liveN; t++) { const wv = A.wealth[live[t]]; wl[t] = wv; totW += wv; if (wv > maxW) maxW = wv; }
@@ -1280,9 +1284,11 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const bFollow = new Float64Array(beliefs.length || 1);
     const bCult = beliefs.map(() => new Set()), bLand = beliefs.map(() => new Set());
     for (let t = 0; t < liveN; t++) { const id = live[t], b = A.belief[id]; if (b === BNONE) continue; bFollow[b]++; bCult[b].add(A.culture[id]); bLand[b].add(w.landmass[A.cell[id]]); }
-    const beliefsOut = beliefs.filter(B => bFollow[B.id] > 0).map(B => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
-    // history's great persons, most eminent first
-    const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120);
+    const beliefsOut = beliefs.filter(B => bFollow[B.id] > 0).map(B => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], org: BELIEF_ORG[REGISTER[B.register]], followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
+    // history's great persons, most eminent first — each a full rite/org person
+    // (Phase IV: triad, cast, vocation, quirks; deterministic from (civSeed, agent id))
+    const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120)
+      .map(g => ({ ...g, person: civPerson(seed, g.pid, g.role) }));
     return {
       pop: liveN,
       cultures: surviving, polities, foundings, resources, institutions, economy,

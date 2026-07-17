@@ -11,6 +11,7 @@ on:
       - 'mappa/engine.js'
       - 'mappa/lib/world-share.js'
       - 'rite/names/engine.js'
+      - 'rite/org/person.js'
       - '.github/workflows/deploy-civ.yml'
   workflow_dispatch:
 

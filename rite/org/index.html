@@ -297,6 +297,9 @@ if (cat.verticals[q.get('vertical')]) $('vertical').value = q.get('vertical');
 if (cat.shapes[q.get('shape')]) $('shape').value = q.get('shape');
 if (q.get('depth')) $('depth').value = Math.max(1, Math.min(12, +q.get('depth') || 4));
 $('seed').value = q.get('seed') || randomSeed();
+// optional ?names= — name the people from a specific names-engine culture (pack or
+// "a+b" blend). Used by civ.mino.mobi so an institution's org speaks its culture's voice.
+const namesOverride = /^[a-z]+(\+[a-z]+)?$/.test(q.get('names') || '') ? q.get('names') : null;
 
 function randomSeed() { return Math.random().toString(36).slice(2, 10); }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
@@ -309,7 +312,7 @@ function expandInPlace(node) {
   if (node.reports && node.reports.length) return true;
   try {
     const p = params();
-    const r = expandOrgNode({ seed: p.seed, vertical: p.vertical, shape: p.shape, id: node.id });
+    const r = expandOrgNode({ seed: p.seed, vertical: p.vertical, shape: p.shape, id: node.id, ...(p.names ? { names: p.names } : {}) });
     node.reports = r.node.reports;
     return true;
   } catch (e) { return false; }
@@ -370,18 +373,21 @@ $('colorby').onchange = () => { diagram.setColorMode($('colorby').value); $('cle
 $('fit').onclick = () => { diagram.fit(); diagram.draw(); };
 
 function params() {
-  return {
+  const p = {
     seed: $('seed').value.trim() || 'acme',
     vertical: $('vertical').value,
     shape: $('shape').value,
     depth: Math.max(1, Math.min(12, +$('depth').value || 4)),
   };
+  if (namesOverride) p.names = namesOverride;
+  return p;
 }
 
 function run() {
   const p = params();
-  current = generateOrg(p);
-  history.replaceState(null, '', `?seed=${encodeURIComponent(p.seed)}&vertical=${p.vertical}&shape=${p.shape}&depth=${p.depth}`);
+  try { current = generateOrg(p); }
+  catch (e) { if (!p.names) throw e; delete p.names; current = generateOrg(p); } // unknown ?names= culture → default voice
+  history.replaceState(null, '', `?seed=${encodeURIComponent(p.seed)}&vertical=${p.vertical}&shape=${p.shape}&depth=${p.depth}` + (p.names ? `&names=${encodeURIComponent(p.names)}` : ''));
 
   $('blurb').textContent = `${cat.verticals[p.vertical].blurb}  ·  ${cat.shapes[p.shape].blurb}`;
   $('oname').textContent = current.orgName;

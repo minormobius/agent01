@@ -89,7 +89,8 @@
       <button id="fwd" title="play forward">▶▶</button>
       <input id="scrub" class="grow" type="range" min="0" max="0" value="0">
       <span class="tlabel" id="tlabel">—</span>
-      <select id="speed" title="speed"><option>2</option><option selected>6</option><option>12</option><option>20</option></select>
+      <select id="speed" title="playback speed (frames/sec)"><option>0.5</option><option>1</option><option>2</option><option selected>6</option><option>12</option><option>20</option></select>
+      <select id="frames" title="temporal detail — how many frames the run is captured into (fine = every ~5 ticks on a 1500-tick run)"><option value="48">coarse</option><option value="120">medium</option><option value="300" selected>fine</option></select>
     </div>
     <div id="track"><div id="evbar"></div></div>
     <div id="status2" class="desc" style="margin-top:6px;color:var(--dim)"></div>
@@ -329,13 +330,13 @@ function curState(){ return { world:$('#world').value.trim()||'7', preset:$('#pr
 function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); return p.toString(); }
 function mappaHref(world){ const m=String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(world))); }
 function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/dash/?'+q; $('#todev').href='/develop.html?'+q; $('#tofred').href='/fred.html?'+q; $('#tomappa').href=mappaHref(st.world); }
-function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); }
+function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); if(p.get('frames')&&[...$('#frames').options].some(o=>o.value===p.get('frames')))$('#frames').value=p.get('frames'); }
 for(const id of ['#preset','#world','#civseed','#ticks']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
 
 // ---- load -----------------------------------------------------------------------
 async function load(){
   const st=curState();
-  const q=new URLSearchParams(qsOf(st)); q.set('maxFrames','48'); q.delete('preset'); if(st.preset)q.set('preset',st.preset);
+  const q=new URLSearchParams(qsOf(st)); q.set('maxFrames',$('#frames').value||'300'); q.delete('preset'); if(st.preset)q.set('preset',st.preset);
   try{ history.replaceState(null,'','?'+qsOf(st)); }catch(e){} syncLinks(); // the URL is the permalink
   $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks + capturing frames…';
   try{
@@ -352,6 +353,7 @@ async function load(){
   finally{ $('#load').disabled=false; }
 }
 $('#load').onclick=load;
+$('#frames').addEventListener('change',load); // temporal detail change → recapture
 addEventListener('resize',()=>{ resize(); if(DATA){ updateCellScreens(); render(); } });
 applyURL(); syncLinks();
 resize(); buildLegend(); requestAnimationFrame(loop); load();

@@ -2186,6 +2186,236 @@ function legacyNamer(seed) {
   };
 }
 
+// rite/org/person.js
+function xmur32(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = h << 13 | h >>> 19;
+  }
+  return function() {
+    h = Math.imul(h ^ h >>> 16, 2246822507);
+    h = Math.imul(h ^ h >>> 13, 3266489909);
+    return (h ^= h >>> 16) >>> 0;
+  };
+}
+function mulberry323(a) {
+  return function() {
+    a |= 0;
+    a = a + 1831565813 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function streamFrom(seedStr) {
+  return mulberry323(xmur32(String(seedStr))());
+}
+var clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+var ri = (x) => Math.round(x);
+var DOMAIN_ORDER = ["craft", "drive", "wit"];
+var FLOOR = 0.12;
+var ATTRS = {
+  skill: { domain: "craft", label: "Skill", gloss: "raw competence at the actual work" },
+  rigor: { domain: "craft", label: "Rigor", gloss: "quality, reliability, follow-through" },
+  experience: { domain: "craft", label: "Experience", gloss: "accumulated know-how (tracks tenure)" },
+  energy: { domain: "drive", label: "Energy", gloss: "throughput \u2014 how much they get done" },
+  ambition: { domain: "drive", label: "Ambition", gloss: "the want to climb" },
+  grit: { domain: "drive", label: "Grit", gloss: "resilience under load" },
+  judgment: { domain: "wit", label: "Judgment", gloss: "decision quality \u2014 matters most up top" },
+  rapport: { domain: "wit", label: "Rapport", gloss: "coordination, influence, reading a room" },
+  integrity: { domain: "wit", label: "Integrity", gloss: "acts for the org, not just themselves" }
+};
+var ATTR_ORDER = Object.keys(ATTRS);
+var CASTS = {
+  "craft.craft": { label: "Master", gloss: "all hands \u2014 the deepest specialist in the room" },
+  "craft.drive": { label: "Grinder", gloss: "skilled and tireless \u2014 out-works everyone" },
+  "craft.wit": { label: "Architect", gloss: "skill wedded to judgment \u2014 designs the system" },
+  "drive.drive": { label: "Firebrand", gloss: "pure fire \u2014 burns bright, sometimes out" },
+  "drive.craft": { label: "Workhorse", gloss: "driven and capable \u2014 the load-bearing wall" },
+  "drive.wit": { label: "Operator", gloss: "ambition steered by cunning \u2014 the climber" },
+  "wit.wit": { label: "Schemer", gloss: "all mind \u2014 three moves ahead, thin on delivery" },
+  "wit.craft": { label: "Sage", gloss: "judgment rooted in real craft \u2014 trusted counsel" },
+  "wit.drive": { label: "Politician", gloss: "reads the room and wants the corner office" }
+};
+var VOCATION_TAGS = {
+  dwell: "Tenant",
+  grow: "Tender",
+  make: "Wright",
+  mend: "Mender",
+  trade: "Factor",
+  serve: "Steward",
+  play: "Player",
+  heal: "Chirurgeon",
+  learn: "Adept",
+  worship: "Celebrant",
+  govern: "Warden",
+  move: "Runner",
+  store: "Keeper"
+};
+var DEPT_VOCATION = {
+  // corp / startup
+  Engineering: "make",
+  Finance: "trade",
+  Sales: "trade",
+  Marketing: "play",
+  Product: "make",
+  Operations: "store",
+  People: "serve",
+  Legal: "govern",
+  Data: "learn",
+  Security: "govern",
+  Growth: "trade",
+  Community: "serve",
+  // academic colleges
+  "Arts & Sciences": "learn",
+  Medicine: "heal",
+  Law: "govern",
+  Business: "trade",
+  Humanities: "learn",
+  // monastic offices
+  "the Cellary": "store",
+  "the Almonry": "serve",
+  "the Sacristy": "worship",
+  "the Infirmary": "heal",
+  "the Scriptorium": "learn",
+  "the Novitiate": "learn",
+  "the Choir": "worship",
+  // military arms
+  Infantry: "move",
+  Armor: "move",
+  Artillery: "make",
+  Logistics: "store",
+  Intelligence: "learn",
+  Signals: "learn",
+  Engineers: "make",
+  Medical: "heal"
+};
+var VERTICAL_VOCATION = {
+  corp: "govern",
+  startup: "make",
+  military: "move",
+  feudal: "govern",
+  crime: "trade",
+  monastic: "worship",
+  academic: "learn",
+  ecclesiastic: "worship"
+};
+function vocationFor(node, ctx) {
+  if (node.rankIdx === 0) return "govern";
+  if (node.dept && DEPT_VOCATION[node.dept]) return DEPT_VOCATION[node.dept];
+  return VERTICAL_VOCATION[ctx.vertical] || "serve";
+}
+var QUIRKS = [
+  { label: "detail-obsessed", mods: { rigor: 12, energy: -6 }, gloss: "nothing ships with a typo; nothing ships fast" },
+  { label: "empire-builder", mods: { ambition: 14, integrity: -10 }, gloss: "headcount is the metric that matters" },
+  { label: "team player", mods: { rapport: 12, ambition: -8 }, gloss: "lifts the room, never themselves" },
+  { label: "burned out", mods: { energy: -14, grit: -8 }, gloss: "running on fumes and habit" },
+  { label: "rising star", mods: { skill: 10, ambition: 10 }, gloss: "everyone can see it coming" },
+  { label: "quietly coasting", mods: { energy: -10, ambition: -10 }, gloss: "vested, comfortable, invisible" },
+  { label: "brilliant jerk", mods: { skill: 14, rapport: -14 }, gloss: "indispensable and insufferable" },
+  { label: "safe pair of hands", mods: { rigor: 10, ambition: -6 }, gloss: "give it to them and stop worrying" },
+  { label: "political animal", mods: { rapport: 12, integrity: -12 }, gloss: "always in the right meeting" },
+  { label: "true believer", mods: { integrity: 14, grit: 6 }, gloss: "in it for the mission, not the money" },
+  { label: "lone wolf", mods: { skill: 8, rapport: -10 }, gloss: "does great work in a room by themselves" },
+  { label: "natural mentor", mods: { rapport: 10, judgment: 6 }, gloss: "grows the people around them" },
+  { label: "flight-ready", mods: { ambition: 12, integrity: -6 }, gloss: "CV is always up to date" },
+  { label: "institution", mods: { experience: 12, energy: -6 }, gloss: "been here longer than the logo" }
+];
+function makePerson(node, ctx) {
+  const rng = streamFrom(`${ctx.seed}|${ctx.vertical}|person|${node.id}`);
+  const ranks = ctx.rankCount;
+  const t = ranks > 1 ? node.rankIdx / (ranks - 1) : 0;
+  const power = clamp(6 + (1 - t) * 8 + (rng() - 0.5) * 3, 4, 15);
+  const vocation = vocationFor(node, ctx);
+  const lean = {
+    craft: 0.22 + 0.55 * t,
+    drive: 0.34 + (rng() - 0.5) * 0.1,
+    wit: 0.55 - 0.38 * t
+  };
+  const triad = normTriad({
+    craft: clamp(lean.craft + (rng() - 0.5) * 0.4, 0, 1),
+    drive: clamp(lean.drive + (rng() - 0.5) * 0.4, 0, 1),
+    wit: clamp(lean.wit + (rng() - 0.5) * 0.4, 0, 1)
+  });
+  const age = ri(clamp(30 + (1 - t) * 20 + (rng() - 0.5) * 14, 22, 68));
+  const tenure = ri(clamp(1 + (1 - t) * 12 + (rng() - 0.5) * 6, 0, age - 21));
+  const attrs = {};
+  for (const k of ATTR_ORDER) {
+    const w = triad[ATTRS[k].domain];
+    const jitter = 0.86 + rng() * 0.28;
+    attrs[k] = ri(clamp(46 * (0.4 + 1.2 * w) * (power / 10) * jitter, 3, 100));
+  }
+  attrs.experience = ri(clamp(16 + tenure * 4.6 + attrs.skill * 0.12 + (rng() - 0.5) * 10, 3, 100));
+  const traits = [];
+  const nq = rng() < 0.35 ? 0 : rng() < 0.85 ? 1 : 2;
+  const pool = QUIRKS.slice();
+  for (let i = 0; i < nq && pool.length; i++) {
+    const q2 = pool.splice(Math.floor(rng() * pool.length), 1)[0];
+    traits.push({ label: q2.label, gloss: q2.gloss });
+    for (const [k, d] of Object.entries(q2.mods)) attrs[k] = ri(clamp(attrs[k] + d, 3, 100));
+  }
+  const cast = castOf(triad);
+  const output = ri(clamp(0.5 * attrs.skill + 0.22 * attrs.rigor + 0.28 * attrs.energy, 1, 100));
+  const leadership = +(0.62 + (0.5 * attrs.judgment + 0.5 * attrs.rapport) / 100 * 0.9).toFixed(3);
+  return {
+    age,
+    tenure,
+    vocation,
+    vocationTag: VOCATION_TAGS[vocation],
+    triad: { craft: +triad.craft.toFixed(3), drive: +triad.drive.toFixed(3), wit: +triad.wit.toFixed(3) },
+    power: +power.toFixed(1),
+    cast: cast.label,
+    castGloss: cast.gloss,
+    attrs,
+    traits,
+    output,
+    leadership
+  };
+}
+function normTriad(w) {
+  const raw = {};
+  let s = 0;
+  for (const d of DOMAIN_ORDER) {
+    raw[d] = Math.max(0, w[d] || 0);
+    s += raw[d];
+  }
+  const out = {};
+  for (const d of DOMAIN_ORDER) {
+    const share = s > 0 ? raw[d] / s : 1 / 3;
+    out[d] = FLOOR + (1 - 3 * FLOOR) * share;
+  }
+  return out;
+}
+function castOf(triad) {
+  const o = DOMAIN_ORDER.slice().sort((a, b) => triad[b] - triad[a]);
+  const spread = triad[o[0]] - triad[o[1]];
+  const key = spread > 0.3 ? `${o[0]}.${o[0]}` : `${o[0]}.${o[1]}`;
+  return { key, dominant: o[0], second: o[1], ...CASTS[key] || CASTS[`${o[0]}.${o[0]}`] };
+}
+
+// mappa/civ/org.js
+var INST_ORG = {
+  state: { vertical: "feudal", shape: "tall" },
+  firm: { vertical: "corp", shape: "pyramid" },
+  guild: { vertical: "corp", shape: "flat" },
+  warband: { vertical: "military", shape: "cellular" }
+};
+var BELIEF_ORG = {
+  folk: { vertical: "monastic", shape: "cellular" },
+  temple: { vertical: "ecclesiastic", shape: "tall" },
+  scripture: { vertical: "ecclesiastic", shape: "tall" },
+  philosophy: { vertical: "academic", shape: "flat" },
+  ideology: { vertical: "academic", shape: "wide" }
+};
+function civPerson(civSeed, agentId, kind) {
+  const vertical = (INST_ORG[kind] || INST_ORG.state).vertical;
+  return makePerson(
+    { id: "civ" + agentId, rankIdx: 0 },
+    { seed: "civ:" + civSeed + ":p" + agentId, vertical, rankCount: 6 }
+  );
+}
+
 // mappa/civ/engine.js
 var ALIVE = 1;
 var AGRI_PKGS = /* @__PURE__ */ new Set([PKG_ID.horticulture, PKG_ID.plough, PKG_ID.irrigation]);
@@ -3668,7 +3898,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
         const gk = it.leader + "@" + A.birthTick[it.leader];
         if (!greatSeen.has(gk) && A.flags[it.leader] & ALIVE) {
           greatSeen.add(gk);
-          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
+          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), pid: it.leader, culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
         }
       }
     }
@@ -3872,7 +4102,32 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     });
     const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k] }));
     const notability = (it) => it.type === INST.STATE ? it.peakMembers * 3 : it.type === INST.WARBAND ? it.captures * 40 + it.peakMembers : it.peakMembers;
-    const institutions2 = insts.filter((it) => it.type === INST.STATE ? it.peakMembers > 0 : it.type === INST.WARBAND ? it.captures >= 1 : it.peakMembers > 40).sort((a, b) => notability(b) - notability(a)).slice(0, 140).map((it) => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader, it.culture) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
+    const institutions2 = insts.filter((it) => it.type === INST.STATE ? it.peakMembers > 0 : it.type === INST.WARBAND ? it.captures >= 1 : it.peakMembers > 40).sort((a, b) => notability(b) - notability(a)).slice(0, 140).map((it) => ({
+      id: it.id,
+      kind: INST_NAME[it.type],
+      name: it.name,
+      culture: it.culture,
+      parent: it.parent,
+      seat: it.seat,
+      // Phase IV: the org address parts. Consumers compose the seed as
+      // `${world}:${seatName}:${seat}:${kind}${id}` and open it at rite.mino.mobi/org/.
+      seatName: namer.place(it.seat, it.culture),
+      org: INST_ORG[INST_NAME[it.type]],
+      namePack: namer.packFor(it.culture),
+      members: it.memberCount,
+      peak: it.peakMembers,
+      pool: Math.round(it.pool),
+      strength: Math.round(it.strength),
+      captures: it.captures,
+      reputation: +it.reputation.toFixed(2),
+      leader: it.leader >= 0 ? personName(it.leader, it.culture) : null,
+      capital: +it.capital.toFixed(1),
+      output: +it.output.toFixed(1),
+      rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) },
+      founded: it.birthTick,
+      fell: it.dissolvedTick,
+      alive: it.dissolvedTick < 0
+    }));
     let totW = 0, maxW = 0;
     const wl = new Float64Array(liveN);
     for (let t = 0; t < liveN; t++) {
@@ -3912,8 +4167,8 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       bCult[b].add(A.culture[id]);
       bLand[b].add(w.landmass[A.cell[id]]);
     }
-    const beliefsOut = beliefs.filter((B) => bFollow[B.id] > 0).map((B) => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
-    const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120);
+    const beliefsOut = beliefs.filter((B) => bFollow[B.id] > 0).map((B) => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], org: BELIEF_ORG[REGISTER[B.register]], followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
+    const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120).map((g2) => ({ ...g2, person: civPerson(seed, g2.pid, g2.role) }));
     return {
       pop: liveN,
       cultures: surviving,
@@ -4150,7 +4405,7 @@ function argmax(a) {
 }
 
 // mappa/civ/qd.js
-var clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+var clamp2 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 var RANGES = {
   "agent.b0": [0.25, 0.6],
   "agent.d0": [0.015, 0.05],
@@ -4220,14 +4475,14 @@ function mutateConfig(parent, rng) {
     const p = keys[Math.floor(rng() * keys.length)], [lo, hi] = RANGES[p];
     const cur = getPath(c, p), span = hi - lo;
     let v = cur + (rng() - 0.5) * span * 0.4;
-    v = clamp(v, lo, hi);
+    v = clamp2(v, lo, hi);
     if (p === "culture.splitThreshold" || p === "popScale") v = Math.round(v);
     else v = +v.toFixed(4);
     setPath(c, p, v);
   }
-  if (rng() < 0.3) c.seeding.nucleusCount = clamp(c.seeding.nucleusCount + (rng() < 0.5 ? -1 : 1), 1, 4);
+  if (rng() < 0.3) c.seeding.nucleusCount = clamp2(c.seeding.nucleusCount + (rng() < 0.5 ? -1 : 1), 1, 4);
   if (rng() < 0.25) c.climate = { preset: CLIMATES[Math.floor(rng() * CLIMATES.length)] };
-  if (rng() < 0.2) c.culture.normWeights = c.culture.normWeights.map((x) => clamp(x + (rng() - 0.5) * 0.3, 0, 1));
+  if (rng() < 0.2) c.culture.normWeights = c.culture.normWeights.map((x) => clamp2(x + (rng() - 0.5) * 0.3, 0, 1));
   c.seeding.founders = c.seeding.nucleusCount * (40 + Math.floor(rng() * 60));
   return c;
 }
@@ -4388,7 +4643,7 @@ function worldOpts(genome, n) {
 }
 
 // mappa/civ/api.js
-var CAP2 = { runTicks: 1500, runN: 1200, sweepBudget: 40, sweepTicks: 700, frameTicks: 1500, maxFrames: 60 };
+var CAP2 = { runTicks: 1500, runN: 1200, sweepBudget: 40, sweepTicks: 700, frameTicks: 1500, maxFrames: 300 };
 var PRESETS = {
   neolithic: { agent: { b0: 0.42, dispersalGain: 1.7, subWeight: 1.5 }, culture: { subsistence: 0, seedTech: ["fire"], normWeights: [0.6, 0.45, 0.55, 0.5, 0.35, 0.4, 0.55, 0.6], innovationBase: 6e-3 }, seeding: { nucleusCount: 2, founders: 120 }, climate: { preset: "stable" }, popScale: 650 },
   kurgan: { agent: { b0: 0.4, dispersalGain: 2.4, corridorWeight: 1.2, densityWeight: 1 }, culture: { subsistence: 0, seedTech: ["fire", "herding"], normWeights: [0.5, 0.35, 0.5, 0.85, 0.72, 0.5, 0.5, 0.4], innovationBase: 5e-3 }, seeding: { nucleusCount: 1, founders: 70 }, climate: { preset: "kurgan" }, popScale: 620 },
@@ -4396,7 +4651,7 @@ var PRESETS = {
   austronesian: { agent: { b0: 0.44, dispersalGain: 2, corridorWeight: 1.4 }, culture: { subsistence: 0, seedTech: ["fire", "sail"], normWeights: [0.6, 0.5, 0.55, 0.9, 0.35, 0.45, 0.55, 0.6], innovationBase: 6e-3 }, seeding: { nucleusCount: 1, founders: 60 }, climate: { preset: "stable" }, popScale: 650 },
   americas: { agent: { b0: 0.45, dispersalGain: 2.6, corridorWeight: 1.1, densityWeight: 1.4 }, culture: { subsistence: 0, seedTech: ["fire"], normWeights: [0.6, 0.45, 0.55, 0.85, 0.35, 0.35, 0.5, 0.55], innovationBase: 45e-4 }, seeding: { nucleusCount: 1, founders: 60 }, climate: { preset: "beringia" }, popScale: 600 }
 };
-var clamp2 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+var clamp3 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 var num = (v, d) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : d;
@@ -4414,14 +4669,14 @@ function resolveConfig(params) {
 }
 function resolveWorld(params, cap2) {
   const world = params.get("world") ?? "1";
-  const n = clamp2(Math.round(num(params.get("n"), 900)), 500, cap2.runN);
+  const n = clamp3(Math.round(num(params.get("n"), 900)), 500, cap2.runN);
   return loadWorldSpec(world, { n });
 }
 function doRun(params, cap2 = CAP2) {
   const world = resolveWorld(params, cap2);
   const cfg = resolveConfig(params);
   const civSeed = Math.round(num(params.get("civSeed") ?? params.get("civseed"), 1)) >>> 0 || 1;
-  const ticks = clamp2(Math.round(num(params.get("ticks"), 800)), 1, cap2.runTicks);
+  const ticks = clamp3(Math.round(num(params.get("ticks"), 800)), 1, cap2.runTicks);
   const t0 = now();
   const ch = createSim(world, cfg, civSeed).run(ticks);
   const sig = civSignals(ch);
@@ -4448,7 +4703,7 @@ function doSites(params, cap2 = CAP2) {
   const world = resolveWorld(params, cap2);
   const cfg = resolveConfig(params);
   const civSeed = Math.round(num(params.get("civSeed") ?? params.get("civseed"), 1)) >>> 0 || 1;
-  const ticks = clamp2(Math.round(num(params.get("ticks"), 800)), 1, cap2.runTicks);
+  const ticks = clamp3(Math.round(num(params.get("ticks"), 800)), 1, cap2.runTicks);
   const t0 = now();
   const ch = createSim(world, cfg, civSeed).run(ticks);
   const worldStr = params.get("world") ?? "1";
@@ -4464,7 +4719,7 @@ function doSites(params, cap2 = CAP2) {
     // (same seed, different N → different coastlines), so a consumer siting anything at
     // a founding's lon/lat MUST call generateWorld(seed, { N: n }) with this same value —
     // that reproduces the identical mesh, cell ids and all.
-    n: clamp2(Math.round(num(params.get("n"), 900)), 500, cap2.runN),
+    n: clamp3(Math.round(num(params.get("n"), 900)), 500, cap2.runN),
     hash: chronicleHash(ch),
     tickYears: ch.meta.tickYears,
     foundings,
@@ -4475,8 +4730,8 @@ function doFrames(params, cap2 = CAP2) {
   const world = resolveWorld(params, cap2);
   const cfg = resolveConfig(params);
   const civSeed = Math.round(num(params.get("civSeed") ?? params.get("civseed"), 1)) >>> 0 || 1;
-  const ticks = clamp2(Math.round(num(params.get("ticks"), 1e3)), 1, cap2.frameTicks);
-  const maxFrames = clamp2(Math.round(num(params.get("maxFrames"), 48)), 8, cap2.maxFrames);
+  const ticks = clamp3(Math.round(num(params.get("ticks"), 1e3)), 1, cap2.frameTicks);
+  const maxFrames = clamp3(Math.round(num(params.get("maxFrames"), 48)), 8, cap2.maxFrames);
   const every = Math.max(1, Math.ceil(ticks / maxFrames));
   const t0 = now();
   const ch = createSim(world, cfg, civSeed).run(ticks, { frames: true, every });
@@ -4502,11 +4757,11 @@ function doFrames(params, cap2 = CAP2) {
 function doSweep(params, body, cap2 = CAP2) {
   const src = body || {};
   const worldArg = src.world ?? params.get("world") ?? "1";
-  const n = clamp2(Math.round(num(src.n ?? params.get("n"), 800)), 500, cap2.runN);
+  const n = clamp3(Math.round(num(src.n ?? params.get("n"), 800)), 500, cap2.runN);
   const world = loadWorldSpec(worldArg, { n });
   const method = String(src.method || params.get("method") || "qd");
-  const budget = clamp2(Math.round(num(src.budget ?? params.get("budget"), 20)), 1, cap2.sweepBudget);
-  const ticks = clamp2(Math.round(num(src.ticks ?? params.get("ticks"), 500)), 1, cap2.sweepTicks);
+  const budget = clamp3(Math.round(num(src.budget ?? params.get("budget"), 20)), 1, cap2.sweepBudget);
+  const ticks = clamp3(Math.round(num(src.ticks ?? params.get("ticks"), 500)), 1, cap2.sweepTicks);
   const civSeed = Math.round(num(src.civSeed ?? params.get("civSeed"), 1)) >>> 0 || 1;
   const res = sweep(world, { method, budget, ticks, civSeed });
   return { api: "mappa.civ/v1", world: String(worldArg), ...res };

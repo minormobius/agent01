@@ -138,5 +138,24 @@ section('naming voice (names.js, Phase II) + foundings contract (Phase III)');
   ok(JSON.stringify(s.foundings) === JSON.stringify(s2.foundings) && s.hash === s2.hash, 'sites endpoint deterministic');
 }
 
+section('org addresses + persons (org.js, Phase IV)');
+{
+  const { civPerson, INST_ORG, BELIEF_ORG } = await import('../org.js');
+  const cfg = normalizeConfig({ seeding: { founders: 60 } });
+  const ch = createSim(w, cfg, 5).run(400);
+  const insts = ch.final.institutions || [], greats = ch.final.greatPeople || [], faiths = ch.final.beliefs || [];
+  ok(insts.every(o => o.org && o.org.vertical && o.org.shape && typeof o.seatName === 'string'), 'institutions carry org address parts (vertical/shape/seatName)');
+  ok(insts.every(o => o.org === INST_ORG[o.kind]), 'institution vertical/shape follows the kind map');
+  ok(faiths.every(b => b.org === BELIEF_ORG[b.register]), 'faith vertical/shape follows the register map');
+  ok(greats.length === 0 || greats.every(g => g.person && g.person.vocation && g.person.cast && g.person.triad), 'great people are full org persons');
+  ok(greats.length === 0 || greats.every(g => g.person.vocation === 'govern'), 'apex people govern (they led)');
+  // person identity is (civSeed, agent id) — same person on every machine
+  const p1 = civPerson(5, 12345, 'state'), p2 = civPerson(5, 12345, 'state'), p3 = civPerson(6, 12345, 'state');
+  ok(JSON.stringify(p1) === JSON.stringify(p2), 'civPerson deterministic');
+  ok(JSON.stringify(p1) !== JSON.stringify(p3), 'different civSeed → different person');
+  // hash invariance again: Phase IV fields are additive presentation
+  ok(chronicleHash(ch) === chronicleHash(createSim(w, cfg, 5).run(400)), 'org enrichment leaves the hash untouched');
+}
+
 console.log(`\n${fail === 0 ? '✓ ALL PASS' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

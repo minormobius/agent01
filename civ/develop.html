@@ -101,7 +101,7 @@
       <div class="modes" id="ifilter"><b data-k="" class="on">all</b><b data-k="state">states</b><b data-k="firm">companies</b><b data-k="guild">guilds</b><b data-k="warband">warbands</b></div>
     </div>
     <div style="overflow:auto;max-height:380px"><table id="insttab"><thead><tr>
-      <th>kind</th><th>name</th><th>leader</th><th>culture</th><th class="num">members</th><th class="num">treasury</th><th class="num">capital</th><th class="num">strength</th><th class="num">conq.</th><th>ruleset (tax·wage·merit·invest)</th><th>status</th>
+      <th>kind</th><th>name</th><th>leader</th><th>culture</th><th class="num">members</th><th class="num">treasury</th><th class="num">capital</th><th class="num">strength</th><th class="num">conq.</th><th>ruleset (tax·wage·merit·invest)</th><th>status</th><th>org chart</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
 
@@ -109,7 +109,7 @@
     <h2>Great persons <span class="sub" id="gpcount"></span></h2>
     <p class="sub">Named individuals who led an institution to eminence — reputation is earned (credentials + office + standing) and runs in families (apprenticeship + sexual selection). Each carries a résumé.</p>
     <div style="overflow:auto;max-height:360px"><table id="gptab"><thead><tr>
-      <th>name</th><th>led</th><th>culture</th><th class="num">reputation</th><th class="num">era yr</th><th>résumé (credentials)</th>
+      <th>name</th><th>led</th><th>culture</th><th class="num">reputation</th><th class="num">era yr</th><th>résumé (credentials)</th><th>person</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
 
@@ -290,7 +290,8 @@ function renderInsts(){
       +`<td class="num">${o.members.toLocaleString()}</td>`
       +`<td class="num">${o.pool.toLocaleString()}</td><td class="num">${o.capital?o.capital.toLocaleString():'—'}</td><td class="num">${o.strength?o.strength.toLocaleString():'—'}</td>`
       +`<td class="num">${o.captures||'—'}</td><td>${rules}</td>`
-      +`<td>${o.alive?'<span class="pill alive">active</span>':'<span class="pill fell">fell '+yr(o.fell)+'</span>'}</td>`;
+      +`<td>${o.alive?'<span class="pill alive">active</span>':'<span class="pill fell">fell '+yr(o.fell)+'</span>'}</td>`
+      +`<td>${orgLink(o)}</td>`;
     tr.onclick=()=>{ hlCulture=hlCulture===o.culture?null:o.culture; refreshHL(); drawStream(); };
     it.appendChild(tr);
   }
@@ -298,6 +299,24 @@ function renderInsts(){
 let instFilter='';
 $('#ifilter').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; instFilter=b.dataset.k; [...$('#ifilter').children].forEach(x=>x.classList.toggle('on',x===b)); renderInsts(); });
 const ROLE_ICON={state:'🏛️',firm:'🏭',guild:'⚒️',warband:'⚔️'};
+// Phase IV: an institution's ORG ADDRESS — seed `${world}:${seatName}:${seat}:${kind}${id}`
+// + the engine-declared vertical/shape opens the full hierarchy at rite.mino.mobi/org/.
+// Phase IV: a great person's rite/org person — temperament cast + civic vocation,
+// full triad/quirks/attributes in the hover title.
+function personCell(p){
+  if(!p) return '<span class="sub">—</span>';
+  const t=p.triad, quirks=(p.traits||[]).map(x=>x.label).join(', ');
+  const title=`${p.castGloss||''} · craft ${t.craft} / drive ${t.drive} / wit ${t.wit} · output ${p.output} · leadership ×${p.leadership}${quirks?' · '+quirks:''}`;
+  return `<span title="${title.replace(/"/g,'&quot;')}">${p.cast} · <b>${p.vocation}</b></span>`;
+}
+function orgLink(o){
+  if(!o.org||!o.seatName) return '<span class="sub">—</span>';
+  const world=($('#world').value||'7').trim();
+  const seed=`${world}:${o.seatName}:${o.seat}:${o.kind}${o.id}`;
+  const q=new URLSearchParams({ seed, vertical:o.org.vertical, shape:o.org.shape });
+  if(o.namePack) q.set('names',o.namePack); // the org's people speak this culture's voice
+  return `<a href="https://rite.mino.mobi/org/?${q}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="open ${seed} as a full org chart">org ↗</a>`;
+}
 function renderGreat(){
   const f=DATA.chronicle.final, CR=f.credNames||[], yr=t=>Math.round(t*tickYears).toLocaleString();
   const gt=$('#gptab').querySelector('tbody'); gt.innerHTML=''; $('#gpcount').textContent='('+(f.greatPeople||[]).length+')';
@@ -307,7 +326,8 @@ function renderGreat(){
     tr.innerHTML=`<td><b>${g.name}</b></td><td>${ROLE_ICON[g.role]||''} ${g.role} · ${g.inst}</td>`
       +`<td><span class="sw" style="background:${cultureCol(g.culture)}"></span>#${g.culture}</td>`
       +`<td class="num">${g.rep.toFixed(2)}</td><td class="num">${yr(g.tick)}</td>`
-      +`<td>${creds.length?creds.map(c=>`<span class="cap">${c}</span>`).join(''):'<span class="sub">—</span>'}</td>`;
+      +`<td>${creds.length?creds.map(c=>`<span class="cap">${c}</span>`).join(''):'<span class="sub">—</span>'}</td>`
+      +`<td>${personCell(g.person)}</td>`;
     tr.onclick=()=>{ hlCulture=hlCulture===g.culture?null:g.culture; refreshHL(); drawStream(); };
     gt.appendChild(tr);
   }

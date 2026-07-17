@@ -136,7 +136,7 @@
       <li><b>I — one address.</b> This hub; the dashboard moved to <a href="/dash/">/dash/</a> (old run permalinks redirect); every layer keeps its seed-is-the-URL contract.</li>
       <li><b>II — one naming voice</b> <i>(shipped)</i>. civ's cultures, people, beliefs, institutions and cities are named by the rite/names engine, one culture-pack blend per civ culture; <code>names:'legacy'</code> in the config replays the old strings. Chronicle hashes are unchanged — names were never part of the hash.</li>
       <li><b>III — the civ → polis handoff</b> <i>(shipped)</i>. <code>/api/civ/sites</code> emits every state's rise as a founding (seat lon/lat, tick, toponym, siteSeed); polis grows the city on the same world at the same cell, seeded by the siteSeed string. The dashboard links each founding straight into polis.</li>
-      <li><b>IV — institutions with insides.</b> civ's guilds, temples and states become org-engine organisations via <code>siteSeed</code>; notable people in chronicles become full org persons (and valid hoop NPCs).</li>
+      <li><b>IV — institutions with insides</b> <i>(shipped — first slice)</i>. Every civ institution and faith carries an org address (vertical, shape, seed <code>world:seat:cell:kind+id</code>) — one click on the development page opens it as a full org chart at rite.mino.mobi/org/, its people named in the institution's own culture voice. Every great person is a full org person (triad, temperament, civic vocation — a valid hoop NPC). Open: org performance feeding back into civ/polis economies.</li>
       <li><b>V — outward.</b> Frozen chronicles as ATProto records, the fable <code>/city</code> wing, and hoop as the walkable end of the same stack.</li>
     </ol>
   </div>
