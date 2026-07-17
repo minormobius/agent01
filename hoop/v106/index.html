@@ -610,6 +610,7 @@
     import { weaveWorld } from './story/weave.js';                      // v105: THE SEEDED QUEST SPINE — cast gate keepers from the room-bundle pool per world seed + the tier-2 mystery (story/mystery.js), woven into the served pool
     import { mysteryProgress, clueTargets, MYSTERY_GATE } from './story/mystery.js'; // v105: the case's journal readout + the clue-chase waypoint targets
     import { errandFor, errandProgress, errandTaskLine } from './story/errand.js';     // v105: CHAMBER ERRANDS — every keeper can fire off their kept chamber's verb-fixture quest
+    import { shiftFor, proveShift, shiftProgress, shiftArrive, repairLine } from './story/shift.js';   // v106: PRODUCTION SHIFTS — the upper-rind keepers' generated factory quests (haul/fix/audit by white-collar role, oracle-proven, router-priced wages)
     import { FQ, FQ_ORDER, fqProgress, fqStatus, fqActive, fqOpensRind, fqSignatureExclusive, fqCanWitness } from './story/factionquest.js';   // v100: the NAVE CAMPAIGN — meet the three factions in order; the Drift opens the rind
     import { CHOICE_FACTIONS, WITNESS_TARGET, FACTION_INFO, witnessCount, allWitnessed, chosenFaction, witnessProgress, isChoiceFaction } from './story/factionchoice.js';   // v100: the UPPER-RIND THRESHOLD — witness each faction ×3, then choose; the choice colors the lower-rind descent
     import { CHAMBER_LORE_TARGET, chamberLore, signalLocated, chapterComplete, finalChoice, lunaContact, FINAL_CHOICES, weighJourney, concludeEnding } from './story/conclusion.js';   // v100: THE CHAPTER CLOSE — locate the Signal Chamber, Luna's contact, the final decision, an ending fitted to the path
@@ -2029,7 +2030,7 @@
     function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${residents.length} souls · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${(chunkSpan * VFOV) | 0}u tall · <span style="color:${gpuActive ? '#8fe07a' : '#e0a86a'}">${gpuActive ? 'gpu' : 'raster'}${_drawMs ? ' ' + _drawMs.toFixed(1) + 'ms' : ''}${_fps ? ' ' + (_fps | 0) + 'fps' : ''}${_maxDt > 20 ? ' · max ' + _maxDt.toFixed(0) + 'ms' : ''}${_socMs > 1 ? ' · soc ' + _socMs.toFixed(0) + 'ms' : ''}${_stitchMs > 1 ? ' · stitch ' + _stitchMs.toFixed(0) + 'ms' : ''}</span>`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
-      ensureDeckSupply(); discoverQuestNpcs(); populateChambers(); ensureWitnessSupply(); relocateGuidesToWards(); waiveDeadGates(); tickGimmes();   // keep the deck clearable + surface quest NPCs + spread keepers across every chamber, THEN top up any faction the keepers under-represent for the upper-rind threshold (witness supply runs LAST so it only fills genuine gaps, not a clump before the keepers land), relocate rind guides onto their deck the moment it's built, then waive any gate the pool provably cannot satisfy + pace the onboarding gimmes. All guarded + throttled.
+      ensureDeckSupply(); discoverQuestNpcs(); populateChambers(); ensureWitnessSupply(); relocateGuidesToWards(); waiveDeadGates(); tickGimmes(); checkShiftArrivals();   // keep the deck clearable + surface quest NPCs + spread keepers across every chamber, THEN top up any faction the keepers under-represent for the upper-rind threshold (witness supply runs LAST so it only fills genuine gaps, not a clump before the keepers land), relocate rind guides onto their deck the moment it's built, then waive any gate the pool provably cannot satisfy + pace the onboarding gimmes. All guarded + throttled.
       // v105: re-resolve the ◇ on a slow tick — a keeper the passes above just healed/re-seated must reclaim
       // the waypoint from its stale snapshot (the empty-corner ◇). Throttled: whereAmI runs at up to 4 Hz.
       if (!whereAmI._qT || performance.now() - whereAmI._qT > 1200) { whereAmI._qT = performance.now(); renderQuest(); }
@@ -2231,6 +2232,9 @@
       // same-deck-cross-pocket (the weave route's next door), and off-deck (the right nexus/shaft).
       const tr = trackedSeek();
       if (tr) { const loc = locateNpc(tr.cid); if (loc && Number.isFinite(loc.x)) return questWpToward(loc); }
+      // v106: a TRACKED SHIFT is the player's explicit choice too — its next pocket wins over the story ◇
+      const shLoc = trackedShiftLoc();
+      if (shLoc) return questWpToward(shLoc);
       if (storyWpTarget && storyWpTarget.cid) {
         const loc = locateNpc(storyWpTarget.cid);
         if (loc && Number.isFinite(loc.x)) return questWpToward(loc);
@@ -3105,6 +3109,10 @@
       // v105 CHAMBER ERRANDS: the keepers' verb-fixture tasks — open ones with live progress, then the tally.
       const ec = errandCardHTML(facts);
       if (ec) body += `<div style="margin:0 0 16px;padding-bottom:13px;border-bottom:1px solid #1b2530">${ec}</div>`;
+      // v106 PRODUCTION SHIFTS: the factory quests from the upper-rind keepers — steps, repair state,
+      // wage, and a ◇ track that routes the weave to the next pocket.
+      const sc = shiftCardHTML(facts);
+      if (sc) body += `<div style="margin:0 0 16px;padding-bottom:13px;border-bottom:1px solid #1b2530">${sc}</div>`;
       if (open.length || done.length) body += `<div style="color:#7fd8d0;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:9px">side threads</div>`;
       if (!open.length && !done.length) body += guide ? '<div style="color:#6b7872;font-size:12px">No side threads yet. Talk to the people of the deck — someone will mention something worth chasing.</div>' : 'No threads yet. Talk to the people of the deck — someone will mention something worth chasing.';
       const trackedId = story.store.getFact(story.playerId, 'sq.track');
@@ -3142,6 +3150,14 @@
         const cur = story.store.getFact(story.playerId, 'sq.track');
         story.store.setFact(story.playerId, 'sq.track', cur === id ? null : id);
         _sqSeek = null; _sqSeekT = 0;   // re-resolve the seek target immediately
+        saveStorySnapshot(); renderJournal();
+      };
+      // v106: the shift ◇ track toggle — pins the waypoint on the tracked shift's next pocket (weave-routed)
+      for (const el of ed.querySelectorAll('[data-shtrack]')) el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.dataset.shtrack;
+        const cur = story.store.getFact(story.playerId, 'shift.track');
+        story.store.setFact(story.playerId, 'shift.track', cur === id ? null : id);
         saveStorySnapshot(); renderJournal();
       };
       journalOpen = true;   // set AFTER showPage (which clears it) so a live renderQuest refresh keeps the journal
@@ -3349,7 +3365,7 @@
               ? `<div class="ch" style="margin-top:6px">` + _preps.map(({ it, i }) => `<button data-giveprep="${i}" style="border-color:#6a5a9a;color:#c6b0f0" title="${esc(it.lore || '')}">⚘ ${esc(it.name)}</button>`).join('') + `<button data-gift="0">cancel</button></div>`
               : `<button data-gift="1" style="margin-top:8px;padding:5px 12px;border:1px solid #6a5a9a;background:rgba(120,100,170,.1);color:#c6b0f0;border-radius:7px;font:inherit;font-size:12px;cursor:pointer">⚘ gift a draught</button>`)
           : '';
-        const right = _roomLine + meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>` + errandRowHTML(npcId) + giftRow;   // room name (keeper metadata), then the chamber errand row, then the gift row
+        const right = _roomLine + meet + inform + `<p class="says">${esc(says)}</p><div class="ch">${choices}</div>` + errandRowHTML(npcId) + shiftRowHTML(npcId) + giftRow;   // room name (keeper metadata), then the chamber errand row, then the v106 production-shift row, then the gift row
         // a principal (authored tree) OR anyone offering a real choice → the full two-pane conversation screen;
         // an ambient crowd one-liner (no_tree crowd OR a wanderer's one-node `ambient` tree) → a light compact popup.
         if ((!t.no_tree && !t.ambient) || (t.choices && t.choices.length)) {
@@ -3398,6 +3414,12 @@
       }
       const gf = e.target.closest('[data-gift]');
       if (gf && story.active) { story.active.giftOpen = gf.dataset.gift === '1'; renderStory(); return; }
+      const sh = e.target.closest('[data-shift]');
+      if (sh && story.active && story.active.npcId) {
+        if (sh.dataset.shift === 'accept') acceptShift(story.active.npcId);
+        else if (sh.dataset.shift === 'turnin') turnInShift(story.active.npcId);
+        renderStory(); return;
+      }
       const er = e.target.closest('[data-errand]');
       if (er && story.active && story.active.npcId) {
         const ci = story.store.contentById(story.active.npcId), def = errandFor(ci);
@@ -5510,6 +5532,125 @@
       const pr = errandProgress(entry, story.store.getFacts(story.playerId));
       if (pr && pr.ready) return `<button data-errand="turnin" style="margin-top:8px;padding:6px 14px;border:1px solid #8fe07a;background:rgba(143,224,122,.12);color:#8fe07a;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer">✒ report the errand done — +◈${entry.reward}</button>`;
       return `<div style="margin-top:8px;color:#e0c48a;font-size:11.5px">✒ ${esc(errandTaskLine(entry))} — ${pr ? pr.count : 0}/${entry.need}</div>`;
+    }
+    // ── v106 PRODUCTION SHIFTS (story/shift.js): the everything factory's generated side quests,
+    //    offered by the keepers Sevin's weave seats into the white threads. The keeper's THREAD's
+    //    white-collar role picks the generator (dispatch/gate→haul · perfusion/telemetry→fix ·
+    //    schedule/inventory→audit); the quest is deterministic from (world seed, keeper, thread) and
+    //    oracle-proven at generation (proveShift — the offer row never shows an uncompletable shift).
+    //    Progress: pocket ARRIVALS mark steps (checkShiftArrivals, on pocket change), a fix's repair
+    //    counts the errand act counters from the fault-reached baseline, and the wage — priced by the
+    //    router, pay ∝ crossings — comes from reporting back to the giver. `?shifts=off` kills it. ──
+    const shiftsEnabled = () => { try { return new URLSearchParams(location.search).get('shifts') !== 'off'; } catch (e) { return true; } };
+    const shiftBook = () => getJSONFact('shift.book', {});
+    const setShiftBook = (b) => setJSONFact('shift.book', b);
+    // the white thread a keeper is SEATED in ('W3'), or null (not on the weave / not placed)
+    function keeperThreadKey(npcId) {
+      try {
+        const disc = getJSONFact('npc.discovered', {})[npcId];
+        let ch = disc && disc.ch != null && disc.ch >= 0 ? world.chunks[disc.ch] : null;
+        if (!ch) { const loc = locateNpc(npcId); if (loc && (loc.deck || 0) === 1 && Number.isFinite(loc.x)) { const ci = chunkAt(loc.x, loc.y, 1); ch = ci >= 0 ? world.chunks[ci] : null; } }
+        return ch && (ch.deck || 0) === 1 && ch.weave && ch.weave.key[0] === 'W' ? ch.weave.key : null;
+      } catch (e) { return null; }
+    }
+    // the deterministic shift this keeper offers (null off the weave / no deck yet / opted out)
+    function shiftDefFor(npcId) {
+      if (!shiftsEnabled() || !story.ready || !world || !world._rind || !weaveNav) return null;
+      const tk = keeperThreadKey(npcId); if (!tk) return null;
+      const ci = story.store.contentById(npcId); if (!ci) return null;
+      return shiftFor(world._rind, weaveNav, ci, tk);
+    }
+    function acceptShift(npcId) {
+      const def = shiftDefFor(npcId); if (!def) return;
+      const book = shiftBook(); if (book[npcId]) return;
+      book[npcId] = { kind: def.kind, title: def.title, wage: def.wage, ordered: def.ordered, act: def.act || null, actBase: null, ring: def.ring || null, steps: def.steps.map((s) => ({ key: s.key, label: s.label, done: false })) };
+      setShiftBook(book);
+      notify(`⚙ shift taken — ${def.title}`, { kind: 'quest', ms: 4400 });
+      saveStorySnapshot(); if (journalOpen) renderJournal();
+    }
+    function turnInShift(npcId) {
+      const book = shiftBook(); const entry = book[npcId]; if (!entry || entry.done) return;
+      const pr = shiftProgress(entry, story.store.getFacts(story.playerId)); if (!pr || !pr.ready) return;
+      entry.done = true; setShiftBook(book);
+      setCoins(getCoins() + (entry.wage || 6));
+      if (story.store.getFact(story.playerId, 'shift.track') === npcId) story.store.setFact(story.playerId, 'shift.track', null);
+      notify(`◈ shift paid — +◈${entry.wage || 6} (the crossings priced it)`, { kind: 'coin', ms: 3800 });
+      saveStory(); if (journalOpen) renderJournal();
+    }
+    // pocket ARRIVALS advance shifts — called on every pocket change (whereAmI tracks the key)
+    let _lastPocketKey = null;
+    function checkShiftArrivals() {
+      try {
+        if (!story.ready || playerDeck() !== 1) { _lastPocketKey = null; return; }
+        const key = weaveKeyOfNode(player);
+        if (!key || key === _lastPocketKey) return;
+        _lastPocketKey = key;
+        const book = shiftBook(); let hit = false;
+        const facts = story.store.getFacts(story.playerId);
+        for (const [gid, entry] of Object.entries(book)) {
+          if (entry.done) continue;
+          const res = shiftArrive(entry, key, facts);
+          if (!res) continue;
+          hit = true;
+          const pr = shiftProgress(entry, facts);
+          if (res.reachedSite && entry.act) notify(`⚙ fault reached — ${repairLine(entry.act.kind)}`, { kind: 'quest', ms: 4600 });
+          else if (pr && pr.ready) { const g = story.store.contentById(gid); notify(`⚙ shift complete — report to ${(g && g.content && g.content.name) || 'the keeper'} for ◈${entry.wage}`, { kind: 'quest', ms: 4600 }); }
+          else notify(`⚙ ${res.step.label} — done`, { kind: 'quest', ms: 3200 });
+        }
+        if (hit) { setShiftBook(book); saveStorySnapshot(); if (journalOpen) renderJournal(); }
+      } catch (e) {}
+    }
+    // the conversation row: offer → progress → turn-in (rendered under the keeper's dialogue)
+    function shiftRowHTML(npcId) {
+      if (!shiftsEnabled() || !story.ready || !npcId) return '';
+      const entry = shiftBook()[npcId];
+      if (entry && entry.done) return `<div style="margin-top:8px;color:#6b7872;font-size:11.5px">⚙ their shift is worked — the floor remembers.</div>`;
+      if (!entry) {
+        const def = shiftDefFor(npcId); if (!def) return '';
+        return `<div style="margin-top:8px;color:#9aa8a0;font-size:12px;font-style:italic">“${esc(def.offer)}”</div>`
+          + `<button data-shift="accept" style="margin-top:6px;padding:6px 14px;border:1px solid #7fa8d8;background:rgba(127,168,216,.12);color:#a8c8e8;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer">⚙ take the shift — ${esc(def.title)} (+◈${def.wage} · ${def.crossings} crossings)</button>`;
+      }
+      const pr = shiftProgress(entry, story.store.getFacts(story.playerId));
+      if (pr && pr.ready) return `<button data-shift="turnin" style="margin-top:8px;padding:6px 14px;border:1px solid #8fe07a;background:rgba(143,224,122,.12);color:#8fe07a;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer">⚙ report the shift worked — +◈${entry.wage}</button>`;
+      const line = pr && pr.nextLabel ? pr.nextLabel : 'walk the weave';
+      return `<div style="margin-top:8px;color:#a8c8e8;font-size:11.5px">⚙ ${esc(entry.title)} — ${pr ? pr.doneSteps : 0}/${entry.steps.length}${entry.act ? ' + repair' : ''} · next: ${esc(line)}</div>`;
+    }
+    // the journal card: every open shift, its next step, and a ◇ track toggle (routes the weave)
+    function shiftCardHTML(facts) {
+      if (!shiftsEnabled() || !story.ready) return '';
+      const book = shiftBook(); const ids = Object.keys(book); if (!ids.length) return '';
+      const open = ids.filter((id) => !book[id].done), done = ids.length - open.length;
+      const trackedId = story.store.getFact(story.playerId, 'shift.track');
+      let h = `<div style="color:#a8c8e8;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">⚙ production shifts${done ? ` · ${done} worked` : ''}</div>`;
+      for (const id of open) {
+        const entry = book[id], giver = story.store.contentById(id);
+        const pr = shiftProgress(entry, facts);
+        const tracked = trackedId === id;
+        const next = pr && pr.ready ? `report to ${esc((giver && giver.content && giver.content.name) || 'the keeper')}` : (pr && pr.nextLabel ? esc(pr.nextLabel) : '');
+        h += `<div style="margin:0 0 11px;border-left:2px solid ${tracked ? '#7fd8d0' : '#7fa8d8'};padding-left:10px">`
+          + `<div style="color:#a8c8e8;font-size:12.5px">${esc(entry.title)} <span style="color:#6b7872;font-size:11px">· for ${esc((giver && giver.content && giver.content.name) || 'a keeper')} · +◈${entry.wage}</span></div>`
+          + `<div style="color:#8fa39a;font-size:11.5px">${pr ? pr.doneSteps : 0}/${entry.steps.length} steps${entry.act ? (pr && pr.actReady ? ' · repaired' : ' · repair pending') : ''}${next ? ` · ▸ ${next}` : ''} <span class="act" data-shtrack="${esc(id)}" style="cursor:pointer;color:${tracked ? '#7fd8d0' : '#6b7872'}">${tracked ? '◇ tracking — tap to stop' : '◇ track'}</span></div>`
+          + `</div>`;
+      }
+      if (!open.length) h += `<div style="color:#6b7872;font-size:11.5px">No shifts open — the weave's keepers always have work on the board.</div>`;
+      return h;
+    }
+    // the tracked shift's live target: the next undone step's pocket (anchor point inside a solved
+    // chunk so weaveKeyAt resolves it), else the giver for the report-back. Feeds liveWp.
+    function trackedShiftLoc() {
+      try {
+        if (!story.ready || !world || !world._rind) return null;
+        const id = story.store.getFact(story.playerId, 'shift.track'); if (!id) return null;
+        const entry = shiftBook()[id]; if (!entry || entry.done) return null;
+        const pr = shiftProgress(entry, story.store.getFacts(story.playerId)); if (!pr) return null;
+        if (pr.ready) { const loc = locateNpc(id); return loc && Number.isFinite(loc.x) ? loc : null; }
+        if (!pr.nextKey) return null;   // repair pending — the act happens at a fixture, no pocket target
+        const p = world._rind.pockets.get(pr.nextKey); if (!p) return null;
+        const g = (p.segs || []).find((s) => s.rec && s.rec.deck === 1);
+        if (g) { const rg = g.rec.region; return { x: (rg.x0 + rg.x1) / 2, y: (rg.y0 + rg.y1) / 2, deck: 1 }; }
+        const slot = world._rind.slots.get(pr.nextKey);
+        return slot ? { x: slot.x, y: slot.y, deck: 1 } : null;
+      } catch (e) { return null; }
     }
     // v105 ACTIONS FULFILL QUESTS (the stuck-on-Havel fix): MEETING a gate's keeper IS hearing them.
     // The moment you open a satisfier of the ACTIVE tier's unmet gate(s), the gate sets — finding them was

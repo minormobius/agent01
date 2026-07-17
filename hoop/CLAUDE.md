@@ -691,6 +691,27 @@ despite the name. It stayed with hoop, not rind.)
     production pockets (a dead seat would drain the pool), and `rebuildSocietySoon` filters residents so
     the halls/rings/antechambers run unmanned. Guides relocate to NX (the first painted deck-1 chunk —
     the arrival lobby) and promote into the nearest white-thread resident.
+  - **PRODUCTION SHIFTS — the factory's side quests, from Sevin's keepers** (`v106/story/shift.js`, pure +
+    node-tested; design memo `v106/rindweave/PRODUCTION.md`). Every keeper the weave seats into a white
+    thread offers ONE generated shift; the thread's white-collar ROLE picks the generator —
+    **dispatch·gate → HAUL** (carry a commodity along a real `engines.js supplyChain` edge, source hall →
+    consumer; **the wage is priced by the router: pay ∝ crossings**), **perfusion·telemetry → FIX** (a
+    seeded fault in the production half; cross-check TWO other white threads' lenses — no single lens
+    localizes — reach the fault, then perform the repair ACT via the errand act counters: halls ⚒ forge ·
+    rings ⬡ lapidary · antechambers ⚗ brew, counted from the fault-reached baseline),
+    **schedule·inventory → AUDIT** (walk a ring loop: three of its six antechambers, any order). A shift is
+    deterministic from (world seed, keeper id, thread) — the same weave.js cast that deals Sevin's keepers
+    deals the shift board, so a new seed re-deals both. **Solvability oracle** (`proveShift`): steps exist,
+    every leg routes on the analytic weave, hauls ride real produce/consume pairs, lenses distinct + not
+    the giver's own, audits stay on-ring, wage finite; **selection** salt-steps the hash until the oracle
+    passes (the castSpine retry) — an offered shift is provable by construction. Surface: offer row in the
+    keeper's conversation (the errand giftRow pattern, `data-shift`), book = `shift.book` JSON fact, pocket
+    ARRIVALS advance steps (`checkShiftArrivals` on pocket change), journal card ⚙ with per-shift **◇
+    track** (`shift.track` → `trackedShiftLoc` → `liveWp`, weave-routed), report back to the giver for the
+    coin. `?shifts=off` kills the system; `content.shift: false` is the per-bundle opt-out; ambient /
+    load-bearing / retired never offer. Tests: `v106/test/shift.selftest.mjs` (1105 checks — a 30-seed ×
+    6-thread × 3-keeper sweep, 540 shifts all proven, 192 distinct; wage monotone in crossings; the
+    progress machine incl. ordered-arrival and act-baseline rules; the guards).
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
