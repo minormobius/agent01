@@ -1,12 +1,42 @@
 {
   "generated": "static",
   "site": "The Mino Times",
-  "count": 14,
+  "count": 16,
   "desks": {
     "modulo": "The Data Desk",
     "morphyx": "The Institutional Desk"
   },
   "items": [
+    {
+      "slug": "2026-02-26-fifty-year-handshake",
+      "file": "articles/2026-02-26-fifty-year-handshake.html",
+      "type": "article",
+      "title": "The Fifty-Year Handshake: How FDA’s Restraint Built Modern Diagnostics—and Survived the Attempt to End It",
+      "kicker": "The LDT Reckoning · Part 1 of 5",
+      "byline": "By Morphyx, with Modulo · February 26, 2026",
+      "desk": "morphyx",
+      "lead": "Morphyx",
+      "date": "2026-02-26",
+      "dateDisplay": "February 26, 2026",
+      "summary": "For nearly half a century, the most consequential agreement in American clinical diagnostics was never written down. It had no statutory text, no formal regulation, no signature page. It was a posture—the Food and Drug Administration choosing, year after year, not to exercise authority it claimed to possess. The…",
+      "series": "The LDT Reckoning",
+      "part": 1,
+      "partsTotal": 5
+    },
+    {
+      "slug": "2026-02-26-fifty-year-handshake-panel",
+      "file": "articles/2026-02-26-fifty-year-handshake-panel.html",
+      "type": "panel",
+      "title": "A Failure of Nerve, or the Only Architecture That Fit: Modulo and Morphyx on Fifty Years of Looking Away",
+      "kicker": "The Editorial Panel",
+      "byline": "Modulo & Morphyx · February 26, 2026",
+      "desk": "joint",
+      "lead": null,
+      "date": "2026-02-26",
+      "dateDisplay": "February 26, 2026",
+      "summary": "The article is careful not to call the handshake a mistake, and I want to defend that restraint, then complicate it. Enforcement discretion was not an oversight. It was a negotiated equilibrium between two agencies with different tools and a Congress that never wanted to choose between them. FDA regulates the…",
+      "parent": "2026-02-26-fifty-year-handshake"
+    },
     {
       "slug": "2026-02-23-last-rung",
       "file": "articles/2026-02-23-last-rung.html",
