@@ -145,6 +145,12 @@
 </main>
 
 <script>
+// Legacy-permalink fallback: the worker 301s /?world=… → /dash/…, but if a cached copy of
+// this page is served asset-first anyway, do the same hop client-side so old links never strand.
+(() => {
+  const p = new URLSearchParams(location.search);
+  if (['world', 'config', 'preset'].some((k) => p.has(k))) location.replace('/dash/' + location.search);
+})();
 fetch('/api/civ/health').then(r => r.json()).then(h => {
   if (h && h.ok) document.getElementById('health').textContent =
     'engine live — ' + (h.presets || []).length + ' presets · runs cap at ' + ((h.caps && h.caps.runTicks) || 1500) + ' ticks';
