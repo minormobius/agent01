@@ -55,5 +55,14 @@ check(C.capabilities.can.length >= 3 && C.capabilities.cant.length >= 2, 'capabi
 // 6. probe snapshot (if present) covers every public host
 if (D.probe) for (const h of allHosts) check(h in D.probe.results, `host missing from probe snapshot: ${h}`);
 
+// 7. redaction: the spec is internet-facing — work-facing referents must not
+// appear anywhere in either layer (see the redaction block in
+// scripts/build-spec.mjs; the term is spelled indirectly here because this
+// file is itself served under /spec/)
+const REDACTED = new RegExp(['asc', 'ential'].join(''), 'i');
+for (const [name, src] of [['data.js', JSON.stringify(D)], ['curated.js', JSON.stringify(C)]]) {
+  check(!REDACTED.test(src), `redacted work-facing term found in ${name}`);
+}
+
 if (fails) { console.error(`spec selftest: ${fails} failure(s)`); process.exit(1); }
 console.log(`spec selftest: OK — ${D.surfaces.length} surfaces, ${D.surfaces.reduce((n, s) => n + s.features.length, 0)} features, ${allHosts.size} hosts, ${famIds.size} families`);

@@ -118,7 +118,7 @@ window.SPEC_CURATED = {
       { head: 'Deploy machinery', items: [
         'Registry-driven deploys: deploy-registry.json maps 66 surfaces → one workflow → one owning branch each; three scripts keep triggers, linting, and the landing table in sync.',
         'Any surface deployable on demand via workflow_dispatch (GitHub UI or MCP tools).',
-        'Shared Cloudflare API token already has Routes:Edit on the second zone (ascential.work) — multi-zone custom domains work (ocr, cable).',
+        'Multi-zone custom domains work — the shared Cloudflare API token can bind routes beyond the primary zone where needed.',
       ]},
     ],
     cant: [

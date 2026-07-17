@@ -30,6 +30,34 @@ const write = process.argv.includes('--write');
 // ---------------------------------------------------------------- registry --
 const reg = JSON.parse(readFileSync(join(ROOT, 'deploy-registry.json'), 'utf8'));
 
+// ------------------------------------------------------------- redaction ----
+// The spec page is INTERNET-FACING and covers the minomobi properties only.
+// The repo also carries work-facing referents (the ascential.work zone) that
+// must never appear in the published spec. Enforced here, at generation time,
+// so a regeneration can't reintroduce them:
+//   - only mino.mobi / minomobi.com hosts survive into hosts[], probe targets,
+//     endpoint strings, and wrangler domain lists;
+//   - any sentence mentioning a redacted term is dropped from note/status text.
+const REDACT = /ascential/i;
+const PUBLIC_HOST = /(^|\.)(mino\.mobi|minomobi\.com)$/i;
+const publicHosts = (hosts) => hosts.filter((h) => PUBLIC_HOST.test(h) && !REDACT.test(h));
+function scrubText(text) {
+  if (!text) return text;
+  if (!REDACT.test(text)) return text;
+  // drop the sentence/segment containing the term (split on '. ' and ';')
+  const cleaned = text
+    .split(/(?<=\.)\s+|;\s+/)
+    .filter((seg) => !REDACT.test(seg))
+    .join(' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return cleaned || null;
+}
+function scrubEndpoint(ep) {
+  if (!ep || !REDACT.test(ep)) return ep;
+  return ep.split(',').map((s) => s.trim()).filter((s) => !REDACT.test(s)).join(', ');
+}
+
 // ------------------------------------------------------- landing taxonomy P --
 const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
 const marker = html.indexOf('var P = [');
@@ -192,21 +220,22 @@ function probeHosts(s) {
 const surfaces = reg.surfaces.map((s) => {
   const slot = bySurface.get(s.surface);
   const wr = readWrangler(s.dir === '.' ? '.' : (s.dir || ''));
+  if (wr?.domains) wr.domains = publicHosts(wr.domains);
   const pending = /pending/i.test(s.endpoint || '') || /\(domain pending\)/i.test(s.status || '');
   return {
     surface: s.surface,
     dir: s.dir,
     dirs: s.dirs ?? null,
-    endpoint: s.endpoint,
-    hosts: probeHosts(s),
+    endpoint: scrubEndpoint(s.endpoint),
+    hosts: publicHosts(probeHosts(s)),
     pending,
     type: s.type,
     branch: s.branch,
     uses: s.uses ?? [],
     provides: s.provides ?? null,
     serves: s.serves ?? null,
-    status: s.status ?? null,
-    note: s.note ?? null,
+    status: scrubText(s.status ?? null),
+    note: scrubText(s.note ?? null),
     paths: s.paths ?? [],
     workflow: existsSync(join(ROOT, '.github', 'workflows', `deploy-${s.surface}.yml`))
       ? `deploy-${s.surface}.yml` : null,
@@ -265,6 +294,13 @@ const data = {
   unmanaged: reg.unmanaged,
   orphanNodes,
 };
+
+// hard gate: the published spec must contain zero redacted terms, whatever
+// field they might have crept in through (features, unmanaged, notes, …)
+{
+  const leak = JSON.stringify(data).match(/[^",{}[\]]*ascential[^",{}[\]]*/i);
+  if (leak) throw new Error(`redaction gate: work-facing term leaked into spec data: "${leak[0]}"`);
+}
 
 const totalFeatures = surfaces.reduce((n, s) => n + s.features.length, 0);
 console.log(`spec: ${surfaces.length} surfaces, ${totalFeatures} feature nodes, ${orphanNodes.length} orphan nodes`);
