@@ -6,7 +6,7 @@
 <title>hoop — an intellectual history</title>
 <meta name="description" content="How a collaborative drawing canvas became a deterministic, ATProto-backed O'Neill-cylinder game: the timeline, the four-wing decomposition, and a full accounting of every buried endpoint deep in the repo.">
 <meta property="og:title" content="hoop — an intellectual history">
-<meta property="og:description" content="The path from a blank canvas to an infinite O'Neill-cylinder game — and a census of the 82 pages, most of them buried, that mark the way.">
+<meta property="og:description" content="The path from a blank canvas to an infinite O'Neill-cylinder game — and a census of the ~180 pages, most of them buried, that mark the way.">
 <style>
   :root{
     --bg:#0d0f14; --bg2:#12151d; --panel:#161a24; --panel2:#1b2030;
@@ -151,14 +151,14 @@
 <header class="hero"><div class="wrap">
   <p class="kicker">A self-archaeology · the O'Neill cylinder package</p>
   <h1>hoop<span class="sub">how a shared drawing canvas became an infinite, deterministic O'Neill-cylinder game — and the trail of buried endpoints it left behind.</span></h1>
-  <p class="lede">Twenty-one days. One hundred and three commits to <span class="path">hoop/</span> alone, and as many again across the wings it spun off. Somewhere in there the plot got away from its author. This page reconstructs the path: the timeline, the conceptual splits, and a full census of every page deep in the repo — most of them never linked from anywhere.</p>
+  <p class="lede">Five weeks. Four hundred and forty commits to <span class="path">hoop/</span> alone, and as many again across the wings it spun off. Somewhere in there the plot got away from its author. This page reconstructs the path: the timeline, the conceptual splits, and a full census of every page deep in the repo — most of them never linked from anywhere. The first arc (Jun 8–28) built the cylinder; the second (Jun 29 – Jul 15) built the game inside it — and the wings started feeding back.</p>
   <div class="stats">
-    <span class="stat"><b>2026-06-08</b> → <b>06-28</b> · 21 days</span>
-    <span class="stat"><b>103</b> commits to hoop/</span>
-    <span class="stat"><b>82</b> pages built</span>
-    <span class="stat"><b>~9</b> linked from anywhere</span>
+    <span class="stat"><b>2026-06-08</b> → <b>07-15</b> · 38 days</span>
+    <span class="stat"><b>440</b> commits to hoop/</span>
+    <span class="stat"><b>~180</b> pages built</span>
+    <span class="stat"><b>~10</b> linked from anywhere</span>
     <span class="stat"><b>4</b> physics wings + 1 satellite</span>
-    <span class="stat"><b>1</b> cylinder</span>
+    <span class="stat"><b>21</b> served versions · <b>1</b> cylinder</span>
   </div>
 </div></header>
 
@@ -188,8 +188,8 @@
 </section>
 
 <section id="timeline">
-  <h2><span class="num">II</span>The timeline — five epochs in three weeks</h2>
-  <p class="section-dek">From a blank canvas to a three-floor cylinder with story, economy, production and combat — June 8 to 28.</p>
+  <h2><span class="num">II</span>The timeline — seven epochs in five weeks</h2>
+  <p class="section-dek">From a blank canvas to a three-floor cylinder with story, economy, production and combat (June 8–28) — then a second arc that made it a game (June 29 – July 15).</p>
   <div class="tl">
 
     <div class="epoch">
@@ -227,13 +227,27 @@
       <div class="vtags"><span class="vtag">rind/brawl combat</span><span class="vtag">forge ship-bore view</span><span class="vtag">PR #54, #55 → main</span></div>
     </div>
 
+    <div class="epoch">
+      <div class="when">Epoch 6 · Jun 29 – Jul 8 · the systems game & the civic wing</div>
+      <h3>The snapshot stabilises; the society gets measured</h3>
+      <p><strong>v100</strong> freezes as the stable, end-to-end playable snapshot (the Chapter One close fixed, the combat trainer). Then the systems arc: <strong>v101</strong> ships the item economy — the Smithy kernel (<em>make</em>), reforge/temper at the Lapidary (<em>mend</em>), a materials market + commissions (<em>trade</em>) — and closes the alchemy loop (quaff/doff). <strong>v102</strong> gives the overworld a living menace (boids bee swarms, underfoot spiders), an onboarding engine, and side threads that seek <em>people</em>, not rooms. Meanwhile tide takes a second job as the civic wing: <span class="path">/goss</span> unifies the econ society's seven webs into one measured web (Jul 3), and <span class="path">/case</span> starts generating solvability-certified murder mysteries off it (Jul 4).</p>
+      <div class="vtags"><span class="vtag"><b>v100</b> the trainer</span><span class="vtag"><b>v101</b> the item economy</span><span class="vtag"><b>v102</b> the living overworld</span><span class="vtag">tide/goss + tide/case</span></div>
+    </div>
+
+    <div class="epoch">
+      <div class="when">Epoch 7 · Jul 9–15 · the quest reform & the feedback loop</div>
+      <h3>The quests become provable; the wings feed back</h3>
+      <p>Three passes on one problem: can every world-roll be finished? <strong>v103</strong> reforms the NPCs (keepers seat on their zone's deck, authored anchor briefings, waypoints that follow the ward-unlock order). <strong>v104</strong> lands <em>fungible keepers</em> — a gate satisfiable by ANY of several room bundles — plus <span class="path">planets.js</span>, THE SEVEN, the unified design language keystone (creation picks a verb; planetary alignment is <em>grown</em> and published as a radar; <span class="path">/plan</span> becomes a real page). <strong>v105</strong> casts the whole quest spine from a 168-room-bundle pool per world seed, opens all wards after Olo's turn-in, and closes Factor Solen's tier on the procedural murder mystery — <span class="path">tide/case</span> run inside the game. The first time a wing's model came home as story content. In parallel, rind's <span class="path">/upperrind</span> thread builds solved machine halls and the 3D ring weave (Jul 15).</p>
+      <div class="vtags"><span class="vtag"><b>v103</b> NPC reform</span><span class="vtag"><b>v104</b> THE SEVEN</span><span class="vtag"><b>v105</b> seeded quest spines</span><span class="vtag">rind/upperrind</span></div>
+    </div>
+
   </div>
   <div class="note">Merge cadence: the v098 work shipped via <strong>PR #54</strong> (2026-06-25); the <span class="path">forge</span> + <span class="path">rind/brawl</span> work consolidated to <code>main</code> via <strong>PR #55</strong> (2026-06-29). hoop's own deploy (<span class="path">deploy-hoop.yml</span>) and the structural wing's (<span class="path">deploy-rind.yml</span>) both run green on each merge.</div>
 </section>
 
 <section id="lineage">
   <h2><span class="num">III</span>The version lineage</h2>
-  <p class="section-dek">Fifteen playable iterations, each a fossil of one decision. They are all still served — see the census.</p>
+  <p class="section-dek">Twenty-one playable iterations, each a fossil of one decision. They are all still served — see the census.</p>
   <div class="lineage" id="lineage-grid"></div>
 </section>
 
@@ -246,7 +260,7 @@
 
 <section id="census">
   <h2><span class="num">V</span>The secret endpoints deep in the repo</h2>
-  <p class="section-dek">82 pages were built. The homepage links about nine of them. The rest is a maker's workbench left running in public — design tools, abandoned experiments, the entire browsable history, and a few things that are genuinely strange.</p>
+  <p class="section-dek">Roughly 180 pages were built across the package. The homepage links about ten of them. The rest is a maker's workbench left running in public — design tools, abandoned experiments, the entire browsable history, and a few things that are genuinely strange.</p>
   <div class="censusbar">
     <span class="lbl">filter:</span>
     <button class="fbtn on" data-f="all">all</button>
@@ -262,7 +276,7 @@
   <p class="countline" id="census-count"></p>
   <div class="note"><strong>How to read "status".</strong>
     <span class="badge b-nav">nav</span> linked from the hoop homepage ·
-    <span class="badge b-route">route</span> a clean URL the worker special-cases (<span class="path">/nave /forge /rind /chunkroller /v096–/v099</span>) but no page links to ·
+    <span class="badge b-route">route</span> a clean URL the worker special-cases (<span class="path">/nave /forge /rind /chunkroller /quests /plan /smith /cookbook /v096–/v105</span>) but no page links to ·
     <span class="badge b-buried">buried</span> reachable only if you already know the path ·
     <span class="badge b-sib">sib</span> a separate sibling surface on its own domain (rind, mega/sprite).</div>
 </section>
@@ -289,7 +303,7 @@
 
 <section id="after">
   <h2><span class="num">VIII</span>Afterword — how the plot got away</h2>
-  <p>Read forward, the path looks inevitable: canvas → engine → society → story → economy → cylinder. Read as it was lived — 103 commits in three weeks, branching into rind, tide, biome, iris and mega, each spawning its own design memos and dead ends — it is easy to see how the through-line vanished. The plot didn't disappear; it <em>distributed</em>. It is in <span class="path">CLAUDE.md</span> files across six directories, in fifteen version folders nobody deletes, in a divination engine with no front door.</p>
+  <p>Read forward, the path looks inevitable: canvas → engine → society → story → economy → cylinder → <em>game</em>. Read as it was lived — 440 commits in five weeks, branching into rind, tide, biome, iris and mega, each spawning its own design memos and dead ends — it is easy to see how the through-line vanished. The plot didn't disappear; it <em>distributed</em>. It is in <span class="path">CLAUDE.md</span> files across six directories, in twenty-one version folders nobody deletes, in a divination engine that has crossed six versions and still has no front door. And the distribution has started to reverse: tide's civic web became tide's murder-mystery kernel became v105's tier-2 case. The wings the project scattered into are handing their models back.</p>
   <p>The single thread, if there is one: <strong>determinism made everything composable.</strong> Because the world is a pure function of a seed, a place can be a forum, a forum can be an ATProto record, a record can be a save, a save can be a story, a story can be priced, a price can be a closed economy, and a closed economy is — definitionally — an O'Neill cylinder. Each step is the previous one taken one altitude higher. That is the whole history. The rest is endpoints.</p>
   <div class="endmark">❧</div>
 </section>
