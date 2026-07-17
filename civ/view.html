@@ -231,7 +231,9 @@ function frameLabel(){
   $('#tlabel').textContent=`t ${f.t} · ~${yr.toLocaleString()} yr · frame ${frame+1}/${DATA.frames.length} · pop ${f.pop.toLocaleString()}`;
   // nearby events feed
   const near=DATA.events.filter(e=>Math.abs(e.t-f.t)<=(DATA.frames[1]?DATA.frames[1].t-DATA.frames[0].t:40));
-  $('#status2').textContent = near.length ? ('near: '+near.slice(0,4).map(e=>e.type+(e.cap?(':'+e.cap):e.package?(':'+e.package):'')).join(' · ')) : '';
+  // quiet ticks keep a line of text so the layout never reflows when events blink out
+  const QUIET=['history grinds forward','the years pass unrecorded','seasons turn; nothing of note','the chroniclers are silent','fields are sown, fields are reaped','an uneventful age','the world holds its breath'];
+  $('#status2').textContent = near.length ? ('near: '+near.slice(0,4).map(e=>e.type+(e.cap?(':'+e.cap):e.package?(':'+e.package):'')).join(' · ')) : QUIET[f.t%QUIET.length];
 }
 
 // ---- inspector ------------------------------------------------------------------
