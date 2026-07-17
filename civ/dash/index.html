@@ -71,6 +71,10 @@
       </div>
       <label for="ticks">Ticks — <span id="ticksv">900</span> (≈ <span id="years">2250</span> yr)</label>
       <input id="ticks" type="range" min="200" max="1500" step="100" value="900">
+      <label for="meshn" style="margin-top:8px">Mesh resolution</label>
+      <select id="meshn" title="cells the world is simulated on — finer geography, more homelands, slower runs. Above 1200 the edge won't serve it; the run computes in your browser (⌂)">
+        <option value="900" selected>900 cells — standard</option><option value="1200">1200 — max edge</option><option value="1600">1600 ⌂ browser, slow</option><option value="2400">2400 ⌂ browser, very slow</option>
+      </select>
       <input type="hidden" id="lastconfig">
       <button id="run">Run civilization →</button>
       <button id="sweepbtn" class="ghost">Quality-diversity sweep</button>
@@ -92,12 +96,12 @@ const el = (t, c, x) => { const e = document.createElement(t); if (c) e.classNam
 // ---- shared URL state (liquidity across dashboard / playground / mappa) ----------
 // A run's identity is (world, config|preset, civSeed, ticks) — carry it in the URL so
 // the ★ you rolled here is the exact run you open on the playground or the world on mappa.
-function stateFromControls() { return { world: $('#world').value.trim() || '7', preset: $('#preset').value, civSeed: ($('#civseed').value || '1'), ticks: $('#ticks').value, config: $('#lastconfig').value || '' }; }
-function qs(st) { const p = new URLSearchParams(); p.set('world', st.world); if (st.preset) p.set('preset', st.preset); else if (st.config) p.set('config', st.config); p.set('civSeed', st.civSeed); p.set('ticks', st.ticks); return p.toString(); }
+function stateFromControls() { return { world: $('#world').value.trim() || '7', preset: $('#preset').value, civSeed: ($('#civseed').value || '1'), ticks: $('#ticks').value, n: $('#meshn').value, config: $('#lastconfig').value || '' }; }
+function qs(st) { const p = new URLSearchParams(); p.set('world', st.world); if (st.preset) p.set('preset', st.preset); else if (st.config) p.set('config', st.config); p.set('civSeed', st.civSeed); p.set('ticks', st.ticks); if (st.n && st.n !== '900') p.set('n', st.n); return p.toString(); }
 function writeURL(st) { try { history.replaceState(null, '', '?' + qs(st)); } catch (e) {} }
 function mappaHref(world) { const m = String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/' + (m ? ('?seed=' + m[1]) : ('?w=' + encodeURIComponent(world))); }
 function syncLinks() { const st = stateFromControls(), q = qs(st); $('#toview').href = '/view.html?' + q; $('#todev').href = '/develop.html?' + q; $('#tofred').href = '/fred.html?' + q; $('#tomappa').href = mappaHref(st.world); }
-function applyURL() { const p = new URLSearchParams(location.search); if (p.get('world')) $('#world').value = p.get('world'); if (p.has('preset')) $('#preset').value = p.get('preset'); if (p.get('config')) $('#lastconfig').value = p.get('config'); if (p.get('civSeed')) $('#civseed').value = p.get('civSeed'); if (p.get('ticks')) { $('#ticks').value = p.get('ticks'); $('#ticksv').textContent = p.get('ticks'); $('#years').textContent = Math.round(p.get('ticks') * 2.5); } return p; }
+function applyURL() { const p = new URLSearchParams(location.search); if (p.get('world')) $('#world').value = p.get('world'); if (p.has('preset')) $('#preset').value = p.get('preset'); if (p.get('config')) $('#lastconfig').value = p.get('config'); if (p.get('civSeed')) $('#civseed').value = p.get('civSeed'); if (p.get('ticks')) { $('#ticks').value = p.get('ticks'); $('#ticksv').textContent = p.get('ticks'); $('#years').textContent = Math.round(p.get('ticks') * 2.5); } if (p.get('n') && [...$('#meshn').options].some(o => o.value === p.get('n'))) $('#meshn').value = p.get('n'); return p; }
 
 $('#ticks').addEventListener('input', () => { $('#ticksv').textContent = $('#ticks').value; $('#years').textContent = Math.round($('#ticks').value * 2.5); syncLinks(); });
 for (const id of ['#preset', '#world', '#civseed']) $(id).addEventListener('change', () => { if (id === '#preset') $('#lastconfig').value = ''; syncLinks(); });

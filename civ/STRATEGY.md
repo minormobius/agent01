@@ -195,6 +195,31 @@ As built:
 II–IV shipped in sequence: III's siteSeed uses II's city names, IV's org seeds extend
 III's convention one level down, and IV's org charts speak II's culture packs. What
 remains of IV is the feedback half (org performance → civ/polis economies); V items
-are independent and can interleave. Also shipped alongside: particle playback captures
-up to 300 frames (every ~5 ticks on a 1500-tick run, view.html detail selector) with
-sub-1 fps playback speeds.
+are independent and can interleave.
+
+### Shipped alongside (pre-V infrastructure)
+
+- **The timeline** — `GET /api/civ/timeline?mode=greatman|forces|both` + `/timeline.html`.
+  One chronicle, two historiographies: *great man* (named actors — prophets, dynasts,
+  warlords, the eminent with their org-person temperaments) and *forces* (phase
+  transitions, climate, credit cycles, meme selection). This is where beliefs and
+  cultures surface as content: entries carry machine-readable `refs` with culture
+  names, belief doctrine vectors, and the evolved exemplar **rulesets** — the numbers
+  selection actually wrote. The refs spine is deliberate Phase-V groundwork (a
+  borges-style reteller or fable wing can build on it directly).
+- **Climate made visible** (the polis aspiration) — a `climate.pulse` +
+  `climate.affected` series in FRED (hash-safe: fred is never hashed), a per-frame
+  `clim` scalar feeding a forcing ribbon under the playback transport, and timeline
+  entries for onset/peak/release phrased per preset (kurgan drying, beringia thaw,
+  4.2ka drought-and-recovery) in both historiographies.
+- **Mesh resolution** (the mappa move) — every page has a mesh selector; `n` rides the
+  shared URL state. Up to the edge cap (1200) the API serves it; above (1600/2400) the
+  edge **rejects rather than clamps** (a clamped n would silently generate a different
+  world) and the run computes in the browser via the bundled engine (`BROWSER_CAP`,
+  n ≤ 2600). Known limit: a fine-mesh run can't hand off to polis through the edge API
+  (polis has no local civ engine), so `?civ=1&n>1200` falls back to polis's default boot.
+- **Hash pin in CI** — the selftest asserts the canonical permalink
+  (`world=7&preset=kurgan&civSeed=1&ticks=400` → `67eee302`) so any future
+  hash-breaking change fails the suite unless declared as an epoch.
+- Particle playback captures up to 300 frames (every ~5 ticks at 1500 ticks) with
+  sub-1 fps speeds.

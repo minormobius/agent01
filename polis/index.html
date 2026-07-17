@@ -316,6 +316,7 @@ async function bootFromCiv() {
   const wm = String(p.get('world') || '').match(/^(?:seed:)?(\d+)$/);
   if (!wm) return false;                                    // token worlds: not yet — fall back
   const q = new URLSearchParams({ world: wm[1], civSeed: p.get('civSeed') || '1', ticks: p.get('ticks') || '800' });
+  if (p.get('n')) q.set('n', p.get('n')); // fine-mesh runs: the contract n must match the run
   if (p.get('preset')) q.set('preset', p.get('preset')); else if (p.get('config')) q.set('config', p.get('config'));
   overlay.classList.remove('hide'); overlay.textContent = 'fetching civ foundings…';
   const r = await fetch('https://civ.mino.mobi/api/civ/sites?' + q);

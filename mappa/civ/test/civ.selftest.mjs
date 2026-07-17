@@ -157,5 +157,65 @@ section('org addresses + persons (org.js, Phase IV)');
   ok(chronicleHash(ch) === chronicleHash(createSim(w, cfg, 5).run(400)), 'org enrichment leaves the hash untouched');
 }
 
+section('historical timeline (timeline.js) — two historiographies');
+{
+  const { buildTimeline } = await import('../timeline.js');
+  const cfg = normalizeConfig({ seeding: { founders: 60 } });
+  const ch = createSim(w, cfg, 5).run(500);
+  const gm = buildTimeline(ch, 'greatman'), fo = buildTimeline(ch, 'forces');
+  ok(gm.entries.length > 3 && fo.entries.length > 3, `both modes produce entries (greatman ${gm.entries.length}, forces ${fo.entries.length})`);
+  ok(gm.entries.every((e, i) => i === 0 || e.t >= gm.entries[i - 1].t), 'greatman chronological');
+  ok(fo.entries.every((e, i) => i === 0 || e.t >= fo.entries[i - 1].t), 'forces chronological');
+  ok(gm.entries.every(e => typeof e.title === 'string' && typeof e.body === 'string' && e.year === Math.round(e.t * ch.meta.tickYears)), 'entries well-formed');
+  ok(gm.entries[0].kind === 'founding' && gm.entries[gm.entries.length - 1].kind === 'closing', 'greatman opens with founding, closes with the state of the world');
+  ok(!fo.entries.some(e => e.kind === 'eminence'), 'forces mode names no great men');
+  ok(!gm.entries.some(e => ['migration', 'admixture', 'demography', 'rulesets'].includes(e.kind)), 'greatman mode carries no structural-force entries');
+  // the content of the ruleset: forces mode exposes doctrine vectors + evolved rulesets
+  const closing = fo.entries[fo.entries.length - 1];
+  ok(Array.isArray(closing.refs.cultures) && closing.refs.cultures.every(c => c.name), 'closing entry exposes named cultures');
+  ok((closing.refs.beliefs || []).every(b => b.doctrine), 'closing entry exposes belief doctrine vectors');
+  const rs = fo.entries.find(e => e.kind === 'rulesets');
+  ok(!rs || (rs.refs.exemplars && Object.values(rs.refs.exemplars).every(r => 'tax' in r && 'merit' in r)), 'rulesets entry (when present) exposes the evolved exemplar numbers');
+  // deterministic
+  const gm2 = buildTimeline(createSim(w, cfg, 5).run(500), 'greatman');
+  ok(JSON.stringify(gm) === JSON.stringify(gm2), 'timeline deterministic');
+  // API level
+  const { doTimeline } = await import('../api.js');
+  const tr = doTimeline(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=300&mode=both'));
+  ok(tr.timeline.greatman && tr.timeline.forces, 'doTimeline mode=both returns both historiographies');
+  const tg = doTimeline(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=300&mode=greatman'));
+  ok(tg.timeline.greatman && !tg.timeline.forces, 'single-mode request returns only that mode');
+}
+
+section('climate visibility + mesh resolution');
+{
+  const { doRun, doTimeline, CAP } = await import('../api.js');
+  // hash pin: the canonical permalink must regenerate byte-stably across all Phase II–V
+  // work (names, foundings, org, timeline, climate series are hash-invariant by design)
+  const pin = doRun(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
+  ok(pin.hash === '67eee302', `permalink hash pinned: world=7 kurgan civSeed=1 ticks=400 → 67eee302 (got ${pin.hash})`);
+  // climate series (fred — hash-safe) + per-frame scalar
+  const cp = pin.chronicle.fred.series['climate.pulse'];
+  ok(cp && cp.data.length > 0 && Math.max(...cp.data) >= 0.4, 'kurgan run records a climate.pulse series that actually pulses');
+  ok(pin.chronicle.fred.series['climate.affected'], 'climate.affected series present');
+  const stable = createSim(w, normalizeConfig({ seeding: { founders: 60 } }), 5).run(400);
+  const scp = stable.fred.series['climate.pulse'];
+  ok(scp && scp.data.every(v => v === 0), 'stable-climate run records an all-zero pulse series');
+  // frames carry the climate scalar
+  const fr = createSim(w, normalizeConfig({ climate: { preset: 'kurgan' } }), 5).run(300, { frames: true, every: 30 });
+  ok(fr.frames.every(f => typeof f.clim === 'number'), 'frames carry per-frame clim scalar');
+  ok(fr.frames.some(f => f.clim > 0), 'kurgan frames show non-zero forcing');
+  // timeline surfaces the climate arc, in both historiographies, only when it happened
+  const tk = doTimeline(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400&mode=both'));
+  ok(tk.timeline.forces.entries.some(e => e.kind === 'climate'), 'forces timeline carries climate entries for kurgan');
+  ok(tk.timeline.greatman.entries.some(e => e.kind === 'climate'), 'greatman timeline carries climate entries for kurgan');
+  const { buildTimeline } = await import('../timeline.js');
+  ok(!buildTimeline(stable, 'forces').entries.some(e => e.kind === 'climate'), 'stable run timeline has no climate entries');
+  // mesh resolution: the edge cap clamps, a browser cap unlocks finer meshes
+  const hi = doRun(new URLSearchParams('world=7&civSeed=1&ticks=50&n=1600'), { ...CAP, runN: 2600 });
+  const lo = doRun(new URLSearchParams('world=7&civSeed=1&ticks=50&n=1600'));
+  ok(hi.chronicle.meta.N > lo.chronicle.meta.N, `browser cap yields a finer mesh (N ${hi.chronicle.meta.N} vs edge-clamped ${lo.chronicle.meta.N})`);
+}
+
 console.log(`\n${fail === 0 ? '✓ ALL PASS' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

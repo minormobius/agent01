@@ -475,6 +475,12 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     for (let p = 0; p < NPKG; p++) { fredPush('pop.sub.' + PKG[p].id, 'Pop — ' + PKG[p].id, 'Population × subsistence', 'people', subPop[p]); fredPush('wealth.sub.' + PKG[p].id, 'Wealth — ' + PKG[p].id, 'Wealth × subsistence', 'index', subPop[p] > 0 ? +(subW[p] / subPop[p]).toFixed(3) : 0); }
     for (let e = 0; e < 6; e++) fredPush('pop.era.' + ERAN[e], 'Pop — ' + ERAN[e], 'Population × era', 'people', eraPop[e]);
     for (let l = 0; l < Math.min(6, w.nLandmass); l++) fredPush('pop.land.' + l, 'Pop — landmass ' + l, 'Population × landmass', 'people', landPop[l]);
+    // climate forcing (hash-safe: fred is never part of chronicleHash) — the schedule's
+    // current strength plus how much of the land it is actually touching
+    fredPush('climate.pulse', 'Climate forcing strength', 'Climate', 'index 0–1', +climate.lastPulse.toFixed(3));
+    { let aff = 0, landN = 0;
+      for (let c = 0; c < N; c++) { if (!w.land[c]) continue; landN++; if (climate.Kmod[c] !== 1 || climate.passability[c] !== 1) aff++; }
+      fredPush('climate.affected', 'Land under climate stress', 'Climate', '% of land cells', +(landN ? 100 * aff / landN : 0).toFixed(1)); }
     fredPush('gdp.inst.firm', 'Output — firms', 'Output × institution', 'wares', +outFirm.toFixed(1));
     fredPush('gdp.inst.guild', 'Output — guilds', 'Output × institution', 'wares', +outGuild.toFixed(1));
     fredPush('capital.inst.firm', 'Capital — firms', 'Capital × institution', 'wares', +capFirm.toFixed(1));
@@ -544,7 +550,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const edges = [...migAcc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 100);
     const mig = []; for (const [mk, ct] of edges) mig.push((mk / N) | 0, mk % N, ct); // from, to, count
     migAcc.clear();
-    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, wlth, prc, bel, beliefs: beliefDict, people, mig, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
+    chronicle.frames.push({ t: tick, pop: liveN, clim: +climate.lastPulse.toFixed(3), cell, popc, cu, sub, tier, pol, wlth, prc, bel, beliefs: beliefDict, people, mig, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
   }
 
   function step() {
@@ -1291,6 +1297,9 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       .map(g => ({ ...g, person: civPerson(seed, g.pid, g.role) }));
     return {
       pop: liveN,
+      // every culture ever, id-indexed — events reference cultures by id, so consumers
+      // (the timeline, external tooling) can name even the extinct ones
+      cultureNames: cultures.map((c, i) => namer.culture(i)),
       cultures: surviving, polities, foundings, resources, institutions, economy,
       beliefs: beliefsOut, beliefAxes: DOX,
       greatPeople: great, credNames: CRED,

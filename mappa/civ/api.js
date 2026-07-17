@@ -7,6 +7,7 @@
 // run the sim locally (no Worker CPU limit, no 503) while every permalink/hash stays valid.
 
 import { createSim } from './engine.js';
+import { buildTimeline } from './timeline.js';
 import { civSignals } from './signals.js';
 import { sweep } from './qd.js';
 import { loadWorldSpec, chronicleHash } from './chronicle.js';
@@ -87,6 +88,30 @@ export function doSites(params, cap = CAP) {
     // that reproduces the identical mesh, cell ids and all.
     n: clamp(Math.round(num(params.get('n'), 900)), 500, cap.runN),
     hash: chronicleHash(ch), tickYears: ch.meta.tickYears, foundings, ms: Math.round(now() - t0),
+  };
+}
+
+// THE TIMELINE: one chronicle, two historiographies. ?mode=greatman | forces | both
+// (default both). 'greatman' tells the run through named actors (prophets, leaders,
+// warlords, the eminent — with their org-person temperaments); 'forces' tells the same
+// run as structural sweep (phase transitions, climate pulses, credit cycles, meme
+// selection) and exposes what evolution actually selected: belief doctrine vectors and
+// the evolved institution rulesets. Same run, same cache keys, same hash as /run.
+export function doTimeline(params, cap = CAP) {
+  const world = resolveWorld(params, cap);
+  const cfg = resolveConfig(params);
+  const civSeed = (Math.round(num(params.get('civSeed') ?? params.get('civseed'), 1)) >>> 0) || 1;
+  const ticks = clamp(Math.round(num(params.get('ticks'), 800)), 1, cap.runTicks);
+  const modeReq = String(params.get('mode') || 'both');
+  const t0 = now();
+  const ch = createSim(world, cfg, civSeed).run(ticks);
+  const timeline = {};
+  if (modeReq === 'greatman' || modeReq === 'both') timeline.greatman = buildTimeline(ch, 'greatman');
+  if (modeReq === 'forces' || modeReq === 'both') timeline.forces = buildTimeline(ch, 'forces');
+  if (!Object.keys(timeline).length) timeline.forces = buildTimeline(ch, 'forces'); // unknown mode → forces
+  return {
+    api: 'mappa.civ/v1', world: params.get('world') ?? '1', config: encodeCivConfig(cfg), civSeed, ticks,
+    hash: chronicleHash(ch), tickYears: ch.meta.tickYears, mode: modeReq, timeline, ms: Math.round(now() - t0),
   };
 }
 

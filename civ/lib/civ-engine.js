@@ -3087,6 +3087,16 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     }
     for (let e = 0; e < 6; e++) fredPush("pop.era." + ERAN[e], "Pop \u2014 " + ERAN[e], "Population \xD7 era", "people", eraPop[e]);
     for (let l = 0; l < Math.min(6, w.nLandmass); l++) fredPush("pop.land." + l, "Pop \u2014 landmass " + l, "Population \xD7 landmass", "people", landPop[l]);
+    fredPush("climate.pulse", "Climate forcing strength", "Climate", "index 0\u20131", +climate.lastPulse.toFixed(3));
+    {
+      let aff = 0, landN = 0;
+      for (let c = 0; c < N; c++) {
+        if (!w.land[c]) continue;
+        landN++;
+        if (climate.Kmod[c] !== 1 || climate.passability[c] !== 1) aff++;
+      }
+      fredPush("climate.affected", "Land under climate stress", "Climate", "% of land cells", +(landN ? 100 * aff / landN : 0).toFixed(1));
+    }
     fredPush("gdp.inst.firm", "Output \u2014 firms", "Output \xD7 institution", "wares", +outFirm.toFixed(1));
     fredPush("gdp.inst.guild", "Output \u2014 guilds", "Output \xD7 institution", "wares", +outGuild.toFixed(1));
     fredPush("capital.inst.firm", "Capital \u2014 firms", "Capital \xD7 institution", "wares", +capFirm.toFixed(1));
@@ -3223,7 +3233,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     const mig = [];
     for (const [mk, ct] of edges) mig.push(mk / N | 0, mk % N, ct);
     migAcc.clear();
-    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub: sub2, tier, pol, wlth, prc, bel, beliefs: beliefDict, people, mig, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
+    chronicle.frames.push({ t: tick, pop: liveN, clim: +climate.lastPulse.toFixed(3), cell, popc, cu, sub: sub2, tier, pol, wlth, prc, bel, beliefs: beliefDict, people, mig, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
   }
   function step() {
     climate.step(tick, totalTicks);
@@ -4171,6 +4181,9 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120).map((g2) => ({ ...g2, person: civPerson(seed, g2.pid, g2.role) }));
     return {
       pop: liveN,
+      // every culture ever, id-indexed — events reference cultures by id, so consumers
+      // (the timeline, external tooling) can name even the extinct ones
+      cultureNames: cultures.map((c, i) => namer.culture(i)),
       cultures: surviving,
       polities,
       foundings,
@@ -4234,6 +4247,312 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       return liveN;
     }, cultMembers, cellDom, cellPop, memeField, activityField, polity }
   };
+}
+
+// mappa/civ/timeline.js
+var WEIGHT = {
+  founding: 100,
+  closing: 100,
+  agriculture: 95,
+  industry: 95,
+  rulesets: 90,
+  climate: 85,
+  polityRise: 80,
+  polityFall: 78,
+  collapse: 74,
+  belief: 70,
+  eminence: 66,
+  war: 62,
+  demography: 60,
+  schism: 58,
+  stateFormation: 50,
+  crisis: 48,
+  institution: 45,
+  conversion: 44,
+  boom: 40,
+  resource: 38,
+  split: 36,
+  extinction: 34,
+  migration: 26,
+  admixture: 22,
+  tech: 20
+};
+var MAX_ENTRIES = 160;
+function buildTimeline(ch, mode) {
+  const f = ch.final || {};
+  const ty = ch.meta && ch.meta.tickYears || 2.5;
+  const yr = (t) => Math.round(t * ty);
+  const cuName = (i) => i != null && i >= 0 && f.cultureNames && f.cultureNames[i] || "a forgotten people";
+  const instById = new Map((f.institutions || []).map((o) => [o.id, o]));
+  const beliefById = new Map((f.beliefs || []).map((b) => [b.id, b]));
+  const stateOf = (cu) => (f.institutions || []).find((o) => o.kind === "state" && o.culture === cu);
+  const entries = [];
+  const add2 = (t, kind, title, body, refs) => entries.push({ t, year: yr(t), kind, title, body, refs: refs || {} });
+  const great = mode === "greatman";
+  for (const e of ch.events || []) {
+    const cn = cuName(e.culture);
+    switch (e.type) {
+      case "founding":
+        add2(
+          e.t,
+          "founding",
+          great ? `the first families of the ${cn}` : `a founder population takes root`,
+          great ? `${e.pop} souls of the ${cn} settle their homeland on landmass ${e.landmass}.` : `${e.pop} foragers, one habitable nucleus, landmass ${e.landmass}: initial conditions, not intentions, set what follows.`,
+          { culture: e.culture, cultureName: cn, cell: e.cell }
+        );
+        break;
+      case "agriculture":
+        add2(
+          e.t,
+          "agriculture",
+          great ? `the ${cn} take up the plough` : `the agricultural transition`,
+          great ? `the ${cn} bind themselves to the soil \u2014 the ${e.package} package \u2014 and their children multiply.` : `on landmass ${e.landmass}, subsistence crosses the ${e.package} threshold: surplus, storage, sedentism \u2014 a phase transition no one chose.`,
+          { culture: e.culture, cultureName: cn, package: e.package, landmass: e.landmass }
+        );
+        break;
+      case "industry":
+        add2(
+          e.t,
+          "industry",
+          great ? `the ${cn} light the forges` : `the industrial phase transition`,
+          great ? `the ${cn} harness machine and coal; their reach outruns every rival's.` : `on landmass ${e.landmass}, capital begins compounding: energy per head decouples from land per head.`,
+          { culture: e.culture, cultureName: cn, landmass: e.landmass }
+        );
+        break;
+      case "beliefFounded": {
+        const b = beliefById.get(e.belief);
+        const dox = b ? Object.entries(b.doctrine || {}).sort((x, y2) => y2[1] - x[1]).slice(0, 2).map(([k, v]) => `${k} ${v}`).join(", ") : e.doctrine;
+        add2(
+          e.t,
+          "belief",
+          great ? `${e.prophet ? e.prophet + " proclaims " : "the founding of "}${e.name}` : `a ${e.doctrine} creed emerges`,
+          great ? `${e.prophet ? `the prophet ${e.prophet} of the ${cn}` : `among the ${cn}, a voice`} proclaims ${e.name} \u2014 a ${e.doctrine}-led ${e.register} faith.` : `among the ${cn}, ${e.name} takes hold \u2014 register: ${e.register}; doctrine: ${dox}. Beliefs are selected by how well they spread, not by who speaks them.`,
+          { belief: e.belief, beliefName: e.name, culture: e.culture, cultureName: cn, register: e.register, doctrine: b ? b.doctrine : void 0 }
+        );
+        break;
+      }
+      case "schism":
+        add2(
+          e.t,
+          "schism",
+          great ? `${e.name} breaks from ${e.from}` : `doctrinal divergence`,
+          great ? `dissenters carry ${e.name} out of ${e.from} \u2014 the quarrel is ${e.doctrine}.` : `${e.from} forks: as a creed spreads it mutates, and ${e.name} finds carriers the parent could not. The axis of divergence is ${e.doctrine}.`,
+          { belief: e.belief, beliefName: e.name, parentName: e.from, doctrineAxis: e.doctrine }
+        );
+        break;
+      case "polityRise": {
+        const st = stateOf(e.culture);
+        add2(
+          e.t,
+          "polityRise",
+          great ? `${st && st.leader ? st.leader + " raises " : "the rise of "}${st ? st.name : "the " + cn + " state"}` : `statehood crystallizes among the ${cn}`,
+          great ? `${st && st.leader ? `${st.leader} binds the ${cn} under one rule \u2014 ${st.name}.` : `the ${cn} bind themselves under one rule.`}` : `density, surplus and defensibility cross the sovereignty threshold; the ${cn} acquire a tax ledger and a border.`,
+          { culture: e.culture, cultureName: cn, inst: st ? st.id : void 0, seat: e.seat }
+        );
+        break;
+      }
+      case "polityFall":
+        add2(
+          e.t,
+          "polityFall",
+          great ? `the fall of the ${cn}` : `imperial contraction`,
+          great ? `the ${cn} state collapses from its peak of ${e.peak.toLocaleString()} \u2014 heirs squander what founders won.` : `the ${cn} polity contracts below a quarter of peak (${e.peak.toLocaleString()}): overextension, not villainy.`,
+          { culture: e.culture, cultureName: cn, peak: e.peak }
+        );
+        break;
+      case "war":
+        add2(
+          e.t,
+          "war",
+          great ? `${e.attacker} takes the field` : `frontier violence`,
+          great ? `${e.attacker} falls upon the ${cuName(e.defenderCulture)}${e.resource ? ` for the ${e.resource}` : ""}; the outcome is ${e.outcome}.` : `pressure${e.resource ? ` on ${e.resource}` : ""} breaks into war on the ${cuName(e.attackerCulture)}\u2013${cuName(e.defenderCulture)} frontier.`,
+          { attackerCulture: e.attackerCulture, defenderCulture: e.defenderCulture, warband: e.attacker, resource: e.resource }
+        );
+        break;
+      case "resourceCaptured":
+        add2(
+          e.t,
+          "resource",
+          great ? `${e.name} changes hands` : `geography's rents reassigned`,
+          great ? `${e.to >= 0 ? "the " + cuName(e.to) : "no one"} now holds ${e.name} (${e.kind}).` : `control of ${e.name} (${e.kind}) passes${e.to >= 0 ? ` to the ${cuName(e.to)}` : ""} \u2014 whoever holds the node collects its rent.`,
+          { resource: e.name, kind: e.kind, from: e.from, to: e.to }
+        );
+        break;
+      case "stateFormation":
+        if (!great) add2(e.t, "stateFormation", `the state system widens`, `${e.states} sovereignties now coexist \u2014 competition between polities becomes its own selective force.`, { states: e.states });
+        break;
+      case "collapse":
+        add2(
+          e.t,
+          "collapse",
+          great ? `an age of ruin` : `systemic collapse`,
+          great ? `thrones topple: of ${e.from} sovereignties, only ${e.to} still stand.` : `the state system contracts ${e.from}\u2192${e.to}: cascading failure, interdependence turned liability.`,
+          { from: e.from, to: e.to }
+        );
+        break;
+      case "financialCrisis":
+        add2(
+          e.t,
+          "crisis",
+          great ? `the great default` : `the credit cycle breaks`,
+          great ? `fortunes evaporate \u2014 the index falls to ${e.index}, ${e.defaults} houses default.` : `leverage unwinds: index ${e.index}, ${e.defaults} defaults, debt ${e.debt}. The boom carried its bust inside it.`,
+          { index: e.index, defaults: e.defaults, debt: e.debt }
+        );
+        break;
+      case "marketBoom":
+        if (!great) add2(e.t, "boom", `speculative expansion`, `sentiment compounds on itself: the index reaches ${e.index} at ${(e.rate * 100).toFixed(1)}% interest.`, { index: e.index, rate: e.rate });
+        break;
+      case "cultureSplit":
+        if (!great) add2(e.t, "split", `a lineage forks`, `distance and drift mint the ${cuName(e.child)} out of the ${cuName(e.parent)} \u2014 ${e.cells} cells now answer to a new tongue.`, { parent: e.parent, child: e.child, parentName: cuName(e.parent), childName: cuName(e.child) });
+        break;
+      case "extinction":
+        add2(
+          e.t,
+          "extinction",
+          great ? `the last of the ${cn}` : `a lineage ends`,
+          great ? `the last of the ${cn} dies, and a whole way of naming the world goes silent.` : `the ${cn} lineage terminates \u2014 most cultures end; survivorship is the anomaly that writes the record.`,
+          { culture: e.culture, cultureName: cn }
+        );
+        break;
+      case "migrationPulse":
+        if (!great) add2(e.t, "migration", `a migration pulse`, `climate stress (${e.climate}) pushes ${e.dispersers.toLocaleString()} onto the roads out of ${e.pop.toLocaleString()}.`, { dispersers: e.dispersers, climate: e.climate });
+        break;
+      case "admixtureSpike":
+        if (!great) add2(e.t, "admixture", `contact zones churn`, `${e.count.toLocaleString()} admixture events: frontiers are where cultures trade genes, wares and gods.`, { count: e.count });
+        break;
+      case "techUnlock":
+        if (great) add2(e.t, "tech", `the ${cn} master ${e.cap}`, `the ${e.how === "diffusion" ? `craft of ${e.cap} reaches the ${cn} along the roads` : `${cn} work out ${e.cap} for themselves`} (${e.tier}).`, { culture: e.culture, cultureName: cn, cap: e.cap, tier: e.tier, how: e.how });
+        else add2(e.t, "tech", `the ${e.cap} frontier advances`, `${e.cap} (${e.tier}) ${e.how === "diffusion" ? "diffuses along contact networks" : "is independently invented"} \u2014 ideas move faster than peoples.`, { cap: e.cap, tier: e.tier, how: e.how });
+        break;
+      case "institutionFounded": {
+        if (great) {
+          const o = instById.get(e.inst);
+          add2(e.t, "institution", `the founding of ${e.name}`, `${o && o.leader ? o.leader + " charters " : ""}${e.name} among the ${cn}.`, { inst: e.inst, instName: e.name, kind: e.kind, culture: e.culture, cultureName: cn });
+        }
+        break;
+      }
+      case "institutionFell":
+        add2(
+          e.t,
+          "institution",
+          great ? `the fall of ${e.name}` : `an institution dissolves`,
+          great ? `${e.name} is dissolved, ${e.peak.toLocaleString()} strong at its height.` : `${e.name} (peak ${e.peak.toLocaleString()}) loses the selection game: its ruleset stopped paying.`,
+          { inst: e.inst, instName: e.name, peak: e.peak }
+        );
+        break;
+      case "beliefExtinct":
+        if (!great) add2(e.t, "belief", `a creed goes silent`, `${e.name} loses its last carrier \u2014 memes die of demography as often as of doctrine.`, { belief: e.belief, beliefName: e.name });
+        break;
+    }
+  }
+  {
+    const cp = ch.fred && ch.fred.series && ch.fred.series["climate.pulse"];
+    const ca = ch.fred && ch.fred.series && ch.fred.series["climate.affected"];
+    if (cp && cp.data && cp.data.some((v) => v > 0)) {
+      const d = cp.data, ct = ch.fred.t || [];
+      const preset = ch.meta && ch.meta.climate || "shift";
+      const TEXT = {
+        kurgan: {
+          onset: ["the rains begin to fail", great ? "the elders swear the weather of their childhood is gone; forest thins toward grass." : "mid-latitude drying sets in: forest gives way to steppe, and mobility outbids rootedness."],
+          peak: ["the steppe stands open", great ? "herdsmen ride where their grandfathers cleared trees \u2014 the open grass is a road for whoever can move." : "the drying at full strength: pastoral viability nearly doubles while plough yields wither \u2014 the corridor rewrites who prospers."],
+          release: null
+        },
+        beringia: {
+          onset: ["the ice begins to retreat", great ? "hunters return from the north telling of bare ground where the wall of ice stood." : "high-latitude warming: frozen cells thaw, passability climbs."],
+          peak: ["the corridor stands open", great ? "whole bands walk north into country no one has ever named." : "where ice was, a corridor \u2014 range expansion is now a matter of demography, not possibility."],
+          release: null
+        },
+        "4.2ka": {
+          onset: ["the great aridification begins", great ? "the rivers run thin; the canal-keepers pray, then argue, then leave." : "aridification grips the river lands: irrigation viability collapses toward a quarter."],
+          peak: ["the drought at its worst", great ? "granaries stand empty along dead canals; the river peoples scatter." : "the forcing peaks: the cells that fed the most people now eject them."],
+          release: ["the rains return", great ? "the rivers rise again, and the children of the scattered come back to silted fields." : "partial recovery: viability returns, but the ejected populations have already rewritten the map."]
+        }
+      }[preset] || {
+        onset: ["the climate turns", great ? "the old weather ends." : "a climate forcing sets in."],
+        peak: ["the shift at full strength", great ? "the world is not what it was." : "the forcing peaks."],
+        release: ["the climate eases", great ? "the skies relent." : "the forcing releases."]
+      };
+      const aff = (i) => ca && ca.data && ca.data[i] != null ? ` ${ca.data[i]}% of the land is under stress.` : "";
+      let onset = -1, peakI = -1, mx = 0;
+      for (let i = 0; i < d.length; i++) {
+        if (onset < 0 && d[i] >= 0.35) onset = i;
+        if (d[i] > mx) {
+          mx = d[i];
+          peakI = i;
+        }
+      }
+      if (onset >= 0) add2(ct[onset] || 0, "climate", TEXT.onset[0], TEXT.onset[1] + aff(onset), { preset, strength: d[onset] });
+      if (mx >= 0.5 && peakI > onset) add2(ct[peakI] || 0, "climate", TEXT.peak[0], TEXT.peak[1] + aff(peakI), { preset, strength: mx });
+      if (TEXT.release) {
+        let rel = -1;
+        for (let i = peakI + 1; i < d.length; i++) if (d[i] <= 0.25) {
+          rel = i;
+          break;
+        }
+        if (rel > 0) add2(ct[rel] || 0, "climate", TEXT.release[0], TEXT.release[1] + aff(rel), { preset, strength: d[rel] });
+      }
+    }
+  }
+  if (great) {
+    for (const g of (f.greatPeople || []).slice(0, 24)) {
+      const quirks = (g.person && g.person.traits || []).map((q2) => q2.label).join(", ");
+      add2(
+        g.tick,
+        "eminence",
+        `${g.name} at the height of power`,
+        `${g.name} of the ${cuName(g.culture)} \u2014 ${g.person ? `${g.person.cast}, called to ${g.person.vocation}${quirks ? `; ${quirks}` : ""}` : "remembered"} \u2014 leads ${g.inst} to eminence (reputation ${g.rep}).`,
+        { culture: g.culture, cultureName: cuName(g.culture), inst: g.inst, person: g.person, name: g.name }
+      );
+    }
+  }
+  if (!great) {
+    const s = ch.series || {};
+    const pop = s.pop || [], tks = s.tick || [], conv = s.convert || [];
+    let found = 0;
+    for (let i = 2; i < pop.length - 2 && found < 3; i++) {
+      if (pop[i] > pop[i - 1] && pop[i] >= pop[i + 1]) {
+        let j = i, lo = pop[i];
+        while (j < Math.min(pop.length - 1, i + 40) && pop[j + 1] <= pop[j]) {
+          j++;
+          lo = pop[j];
+        }
+        if (lo < pop[i] * 0.82 && pop[i] > 500) {
+          add2(tks[i], "demography", `demographic contraction`, `population falls ${pop[i].toLocaleString()} \u2192 ${lo.toLocaleString()} \u2014 carrying capacity, not conquest, writes the biggest numbers.`, { from: pop[i], to: lo });
+          found++;
+          i = j;
+        }
+      }
+    }
+    const spikes = conv.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 2).filter(([v]) => v > 20);
+    for (const [v, i] of spikes.sort((a, b) => a[1] - b[1]))
+      add2(tks[i], "conversion", `a wave of conversion`, `${v.toLocaleString()} souls change creed in a single span \u2014 belief moves through populations like weather.`, { converts: v });
+    const ex = f.economy && f.economy.exemplars;
+    if (ex && Object.keys(ex).length) {
+      const lastT = tks[tks.length - 1] || 0;
+      const lines = Object.entries(ex).map(([k, r]) => `${k}: tax ${r.tax.toFixed(2)}, wage ${r.wage.toFixed(2)}, merit ${r.merit.toFixed(2)}, invest ${r.invest.toFixed(2)}`).join(" \xB7 ");
+      add2(lastT, "rulesets", `what evolution selected`, `the surviving exemplar rulesets \u2014 imitated by every new institution \u2014 converged on: ${lines}. No one designed these numbers; the economy did.`, { exemplars: ex });
+    }
+  }
+  {
+    const lastT = ch.series && ch.series.tick && ch.series.tick[ch.series.tick.length - 1] || 0;
+    const cults = (f.cultures || []).slice(0, 5).map((c) => c.name).join(", ");
+    const faiths = (f.beliefs || []).slice(0, 3).map((b) => `${b.name} (${b.lead}, ${Math.round(b.followers).toLocaleString()} souls)`).join(" \xB7 ");
+    add2(
+      lastT,
+      "closing",
+      great ? `the world as the chroniclers leave it` : `the state of the system`,
+      `${(f.pop || 0).toLocaleString()} people; leading cultures: ${cults || "none"}${faiths ? `; living faiths: ${faiths}` : ""}${f.economy ? `; wealth gini ${f.economy.gini}` : ""}.`,
+      { cultures: (f.cultures || []).slice(0, 8).map((c) => ({ id: c.id, name: c.name, size: c.size, tier: c.tier })), beliefs: (f.beliefs || []).slice(0, 6).map((b) => ({ id: b.id, name: b.name, lead: b.lead, followers: Math.round(b.followers), doctrine: b.doctrine })) }
+    );
+  }
+  entries.sort((a, b) => a.t - b.t || (WEIGHT[a.kind] || 50) - (WEIGHT[b.kind] || 50));
+  if (entries.length > MAX_ENTRIES) {
+    const keep = entries.slice().sort((a, b) => (WEIGHT[b.kind] || 50) - (WEIGHT[a.kind] || 50)).slice(0, MAX_ENTRIES);
+    const set = new Set(keep);
+    const trimmed = entries.filter((e) => set.has(e));
+    return { mode, count: trimmed.length, trimmedFrom: entries.length, entries: trimmed };
+  }
+  return { mode, count: entries.length, entries };
 }
 
 // mappa/civ/signals.js
@@ -4726,6 +5045,31 @@ function doSites(params, cap2 = CAP2) {
     ms: Math.round(now() - t0)
   };
 }
+function doTimeline(params, cap2 = CAP2) {
+  const world = resolveWorld(params, cap2);
+  const cfg = resolveConfig(params);
+  const civSeed = Math.round(num(params.get("civSeed") ?? params.get("civseed"), 1)) >>> 0 || 1;
+  const ticks = clamp3(Math.round(num(params.get("ticks"), 800)), 1, cap2.runTicks);
+  const modeReq = String(params.get("mode") || "both");
+  const t0 = now();
+  const ch = createSim(world, cfg, civSeed).run(ticks);
+  const timeline = {};
+  if (modeReq === "greatman" || modeReq === "both") timeline.greatman = buildTimeline(ch, "greatman");
+  if (modeReq === "forces" || modeReq === "both") timeline.forces = buildTimeline(ch, "forces");
+  if (!Object.keys(timeline).length) timeline.forces = buildTimeline(ch, "forces");
+  return {
+    api: "mappa.civ/v1",
+    world: params.get("world") ?? "1",
+    config: encodeCivConfig(cfg),
+    civSeed,
+    ticks,
+    hash: chronicleHash(ch),
+    tickYears: ch.meta.tickYears,
+    mode: modeReq,
+    timeline,
+    ms: Math.round(now() - t0)
+  };
+}
 function doFrames(params, cap2 = CAP2) {
   const world = resolveWorld(params, cap2);
   const cfg = resolveConfig(params);
@@ -4774,5 +5118,6 @@ export {
   doRun,
   doSites,
   doSweep,
+  doTimeline,
   loadWorldSpec
 };
