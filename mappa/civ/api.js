@@ -92,7 +92,12 @@ export function doSites(params, cap = CAP) {
     // that reproduces the identical mesh, cell ids and all.
     n: clamp(Math.round(num(params.get('n'), 900)), 500, cap.runN),
     hash: chronicleHash(ch), tickYears: ch.meta.tickYears, foundings, cities,
-    landmasses: ch.final.landmasses, ms: Math.round(now() - t0),
+    landmasses: ch.final.landmasses,
+    // the global-view boundary conditions a city-scale client (polis) consumes:
+    // the run's climate forcing curve, so local history is DRIVEN by the world's
+    // weather rather than rolling its own
+    climate: (() => { const cp = ch.fred && ch.fred.series && ch.fred.series['climate.pulse']; return cp ? { t: ch.fred.t, pulse: cp.data } : null; })(),
+    ms: Math.round(now() - t0),
   };
 }
 

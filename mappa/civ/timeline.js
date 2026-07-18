@@ -26,7 +26,7 @@
 const WEIGHT = {
   founding: 100, closing: 100, agriculture: 95, industry: 95, rulesets: 90,
   climate: 85, polityRise: 80, techFirst: 80, polityFall: 78, collapse: 74,
-  techIndep: 70, belief: 70, majorOrg: 68, eminence: 66, city: 64, war: 62,
+  sack: 72, fall: 70, techIndep: 70, belief: 70, majorOrg: 68, eminence: 66, city: 64, war: 62, siege: 56,
   demography: 60, techSpread: 60, schism: 58, stateFormation: 50, crisis: 48,
   institution: 45, conversion: 44, boom: 40, resource: 38, split: 36, extinction: 34,
   migration: 26, admixture: 22, tech: 20,
@@ -39,6 +39,7 @@ export function buildTimeline(ch, mode) {
   const yr = t => Math.round(t * ty);
   const cuName = i => (i != null && i >= 0 && f.cultureNames && f.cultureNames[i]) || 'a forgotten people';
   const instById = new Map((f.institutions || []).map(o => [o.id, o]));
+  const cityById = new Map((f.cities || []).map(c => [c.id, c]));
   const beliefById = new Map((f.beliefs || []).map(b => [b.id, b]));
   const stateOf = cu => (f.institutions || []).find(o => o.kind === 'state' && o.culture === cu);
   // continent metadata: every located entry carries `lm` (landmass id) for filtering,
@@ -209,6 +210,33 @@ export function buildTimeline(ch, mode) {
       case 'beliefExtinct':
         if (!great) add(e.t, 'belief', `a creed goes silent`, `${e.name} loses its last carrier — memes die of demography as often as of doctrine.`, { belief: e.belief, beliefName: e.name });
         break;
+      case 'citySacked': {
+        const ct2 = cityById.get(e.city); const nm = ct2 ? ct2.name : 'a city';
+        add(e.t, 'sack',
+          great ? `the sack of ${nm}` : `urban wealth attracts predation`,
+          great ? `${e.attacker} of the ${cuName(e.attackerCulture)} breaches ${nm}; the ${cn} bury their dead.`
+                : `${nm} is sacked${ct2 && ct2.walls ? ' despite its walls' : ''} — concentration of wealth is concentration of target.`,
+          { city: e.city, cityName: nm, cell: e.cell, attacker: e.attacker, attackerCulture: e.attackerCulture, culture: e.culture }, lmOf(e.cell));
+        break;
+      }
+      case 'citySiege': {
+        const ct2 = cityById.get(e.city); const nm = ct2 ? ct2.name : 'a city';
+        add(e.t, 'siege',
+          great ? `${e.attacker} breaks against the walls of ${nm}` : `the walls hold`,
+          great ? `the host of the ${cuName(e.attackerCulture)} withdraws from ${nm} — stone outlasts fury.`
+                : `an assault that would have carried an open town fails at ${nm} — fortification shifts the offense–defense balance.`,
+          { city: e.city, cityName: nm, cell: e.cell, attacker: e.attacker, attackerCulture: e.attackerCulture }, lmOf(e.cell));
+        break;
+      }
+      case 'cityFall': {
+        const ct2 = cityById.get(e.city); const nm = ct2 ? ct2.name : 'a city';
+        add(e.t, 'fall',
+          great ? `the desolation of ${nm}` : `urban collapse`,
+          great ? `grass grows in the streets of ${nm}, that held ${(e.n || 0).toLocaleString()} souls.`
+                : `${nm} empties below the urban threshold from a peak of ${(e.n || 0).toLocaleString()} — cities are flows, not stocks.`,
+          { city: e.city, cityName: nm, cell: e.cell, culture: e.culture, peak: e.n }, lmOf(e.cell));
+        break;
+      }
     }
   }
 
@@ -230,7 +258,7 @@ export function buildTimeline(ch, mode) {
       great ? `the founding of ${ct.name}` : `a settlement crosses the urban threshold`,
       great ? `the ${ct.cultureName} raise ${ct.name} ${site} on ${lmName(ct.landmass)}; it grows to ${ct.peak.toLocaleString()} souls.`
             : `${ct.name}, ${site} on ${lmName(ct.landmass)}: ${ct.river ? 'river transport and wet soil' : ct.coast ? 'sea lanes' : ct.resource ? `the ${ct.resource} rent` : 'fertile ground'} concentrates ${ct.peak.toLocaleString()} people at one cell — geography, not decree, sites the city.`,
-      { city: ct.name, cell: ct.cell, culture: ct.culture, cultureName: ct.cultureName, river: ct.river, coast: ct.coast, resource: ct.resource, peak: ct.peak }, ct.landmass);
+      { city: ct.name, cityId: ct.id, cell: ct.cell, culture: ct.culture, cultureName: ct.cultureName, river: ct.river, coast: ct.coast, resource: ct.resource, peak: ct.peak, walls: ct.walls, sacked: ct.sacked, institutions: ct.institutions }, ct.landmass);
   }
 
   // ---- climate arc (both modes, phrased per historiography) ---------------------

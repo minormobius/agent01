@@ -278,7 +278,7 @@ function roll(seed, o = {}) {
       const region = o.region ? o.region(world) : selectRegion(world);
       const sampler = makeSampler(world, region);
       const mesh = buildMesh(seed >>> 0, region, sampler);
-      C = runChronicle(seed >>> 0, mesh, { ticks: 160, world });   // world → volcanic winters erupt from its real volcanoes
+      C = runChronicle(seed >>> 0, mesh, { ticks: 160, world, ...(o.worldShocks ? { worldShocks: o.worldShocks } : {}) });   // world → volcanic winters erupt from its real volcanoes; civ → sacks + droughts arrive from the world beyond
       timeIn.max = C.ticks - 1; tick = Math.round((C.ticks - 1) * 0.84); timeIn.value = tick; sel = -1; // open on a developed era; scrub left for the ice age
       document.getElementById('panel').classList.remove('show');
       setLegend();
@@ -330,16 +330,30 @@ async function bootFromCiv() {
   const cityName = f.city || f.name;
   const citySeed = xmur3(f.siteSeed);
   seedIn.value = citySeed;
+  // BOUNDARY CONDITIONS from the world beyond: the civ run's history arrives as
+  // shocks — every recorded sacking of this city, and every global climate-forcing
+  // peak (drought), mapped onto this chronicle's timeline by run fraction.
+  const worldShocks = [];
+  for (const st of (f.sackTicks || [])) worldShocks.push({ frac: st / d.ticks, kind: 'sack' });
+  if (d.climate && d.climate.pulse) {
+    let inPeak = false;
+    d.climate.pulse.forEach((v, i) => {
+      if (!inPeak && v >= 0.5) { inPeak = true; worldShocks.push({ frac: (d.climate.t[i] || 0) / d.ticks, kind: 'drought', mag: v }); }
+      if (v < 0.35) inPeak = false;
+    });
+  }
   const b = document.createElement('div');
   b.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:9;background:rgba(10,14,20,.85);border:1px solid #2a3a4e;border-radius:8px;padding:6px 12px;font-size:12px;color:#cdd6e0;max-width:70vw';
   b.innerHTML = '⚑ <b>' + cityName + '</b> — ' + (f.city ? 'seat of the ' : '') + f.cultureName + ', founded year ' + f.year +
     (f.river ? ' · on the river' : '') + (f.coast ? ' · on the coast' : '') +
+    (f.walls ? ' · walled' : '') + (f.sacked ? ' · sacked ×' + f.sacked : '') +
+    (worldShocks.length ? ' · ' + worldShocks.length + ' shocks from the world beyond' : '') +
     ' · <a style="color:#5aa9e6" href="https://civ.mino.mobi/dash/?' + q + '">the civ run ↗</a>' +
     (pool.length > 1 ? ' · ' + (pool.indexOf(f)) + '/' + (pool.length - 1) : '');
   document.body.appendChild(b);
   // regenerate the world at the SAME mesh resolution the civ run saw — mappa terrain is
   // not resolution-stable, so d.n is the only N at which the founding's coast exists
-  roll(citySeed, { worldSeed: +wm[1], worldN: d.n, region: w => regionAtLL(w, f.lon * Math.PI / 180, f.lat * Math.PI / 180) });
+  roll(citySeed, { worldSeed: +wm[1], worldN: d.n, worldShocks, region: w => regionAtLL(w, f.lon * Math.PI / 180, f.lat * Math.PI / 180) });
   return true;
 }
 bootFromCiv().then(ok => { if (!ok) roll(+seedIn.value); })

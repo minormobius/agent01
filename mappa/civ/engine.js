@@ -299,16 +299,40 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const cellDomPop = new Int32Array(N);
   const cultMembers = [];                 // per-culture member count (index=culture id)
   const cultTerritory = [];               // per-culture list of owned (dominant) cells
-  // settlements: a cell is a CITY once its population has ever crossed CITY_MIN
-  // (scaled to popScale so custom configs keep sane city counts)
+  // ---- CITIES AS ACTORS (engine epoch 2) -----------------------------------------
+  // A cell whose population crosses CITY_MIN becomes a city ENTITY — a container of
+  // the institutions seated there plus the population itself — with real dynamics:
+  // agglomeration (urban gravity raises effective K), walls (masonry cultures fortify,
+  // shifting the offense–defense balance in warOnce), sieges and sackings (events),
+  // and falls. This is the declared epoch-2 hash break: cityRise/citySacked/cityFall
+  // events enter the chronicle and the dynamics genuinely diverge from epoch 1.
   const CITY_MIN = Math.max(90, Math.round(popScale * 0.23));
-  const cityTick = new Int32Array(N).fill(-1), cityPeak = new Int32Array(N), cityCu = new Int32Array(N).fill(-1);
+  const cityList = [];                          // {id, cell, cu, foundTick, walls, peak, sacked, sackTicks, fellTick}
+  const cityAt = new Int32Array(N).fill(-1);    // cell → city id (-1 none)
+  const cityK = new Float32Array(N).fill(1);    // agglomeration multiplier on effective K
+  function cityStep() {
+    for (const ct of cityList) {
+      const p = cellPop[ct.cell];
+      // walls: the holding culture knows masonry and the city has stood 30 ticks
+      if (ct.walls < 0 && tick - ct.foundTick >= 30) {
+        const cu = cellDom[ct.cell] >= 0 ? cellDom[ct.cell] : ct.cu;
+        if (has(cultures[cu].tech, CAP.masonry)) ct.walls = tick;
+      }
+      // agglomeration: market density + division of labour raise carrying capacity
+      cityK[ct.cell] = 1 + Math.min(0.25, 0.08 * Math.log10(1 + ct.peak / CITY_MIN));
+      // fall: a real city collapsing far below the urban threshold
+      if (ct.fellTick < 0 && ct.peak >= CITY_MIN * 1.5 && p < CITY_MIN * 0.4) {
+        ct.fellTick = tick;
+        pushEvent(tick, 'cityFall', { city: ct.id, cell: ct.cell, culture: ct.cu, n: ct.peak });
+      }
+    }
+  }
   let cultBestPop = new Int32Array(64), cultBestCell = new Int32Array(64); // largest city per culture
   const fmales = new Int32Array(4096);    // reusable fertile-male scratch per cell
   let cultScratch = new Int32Array(64);   // reusable per-cell culture-count tally (no GC)
 
   function kEff(cell, pkg) {
-    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg];
+    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg] * cityK[cell];
   }
 
   function bucket() {
@@ -336,12 +360,20 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       const tv = cultures[dom].tech, base = c * NCAP, w0 = Math.min(0.5, (e - s) * 0.003);
       for (let b = 0; b < NCAP; b++) if (tv & bit(b)) memeField[base + b] += w0;
       activityField[c] += Math.min(0.3, (e - s) * 0.0015);
-      // CITY tracking (observation only — no dynamics, no events, hash-safe): a cell
-      // whose population first crosses CITY_MIN is a settlement founding; remember when,
-      // by whom, and its peak. Rivers/coasts drive this indirectly — dispersal's
-      // corridorWeight and resource K-bonuses concentrate people exactly there.
+      // CITY crossing: first time over CITY_MIN mints the city entity (epoch 2 —
+      // rivers/coasts drive this via dispersal corridorWeight + resource K-bonuses)
       const cp = e - s;
-      if (cp >= CITY_MIN) { if (cityTick[c] < 0) { cityTick[c] = tick; cityCu[c] = dom; } if (cp > cityPeak[c]) cityPeak[c] = cp; }
+      if (cp >= CITY_MIN) {
+        let ci = cityAt[c];
+        if (ci < 0) {
+          ci = cityList.length; cityAt[c] = ci;
+          cityList.push({ id: ci, cell: c, cu: dom, foundTick: tick, walls: -1, peak: cp, sacked: 0, sackTicks: [], fellTick: -1 });
+          pushEvent(tick, 'cityRise', { city: ci, cell: c, culture: dom, n: cp });
+        }
+        const ct = cityList[ci];
+        if (cp > ct.peak) ct.peak = cp;
+        if (ct.fellTick >= 0) ct.fellTick = -1; // revival: people came back
+      }
     }
   }
 
@@ -567,6 +599,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     climate.step(tick, totalTicks);
     bucket();
     computeCellCultures();
+    cityStep();
 
     // recompute culture territory (partition by dominant cell) + reset member tallies
     for (let i = 0; i < cultures.length; i++) { cultMembers[i] = 0; cultTerritory[i] = null; }
@@ -990,6 +1023,8 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const isFrontier = (c, d) => { for (let k = w.nbrOff[c]; k < w.nbrOff[c + 1]; k++) { const j = w.nbrIdx[k]; const dj = cellDom[j]; if (dj >= 0 && dj !== d) return true; } return false; };
   const techBonus = tech => (has(tech, CAP.metallurgy) ? 0.35 : 0) + (has(tech, CAP.wheel) ? 0.2 : 0) + (has(tech, CAP.mechanisation) ? 0.7 : 0);
   const warCooldown = new Map(); // inst id → last-war tick (throttle events)
+  const siegeCooldown = new Map(); // city id → last-siege tick (throttle events)
+  const sackCooldown = new Map();  // city id → last-sack EVENT tick (counter stays exact)
   // the most-successful ruleset of each institution type becomes the exemplar new ones
   // imitate; it decays slowly so a new champion's ruleset can take over across eras.
   function recordExemplar(it, score) {
@@ -1183,16 +1218,38 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const e = cellDom[best];
     const defWb = instAt.get(iKey(INST.WARBAND, best, e));
     const defStr = defWb != null && insts[defWb].dissolvedTick < 0 ? insts[defWb].strength : cellPop[best] * 0.45 * (1 + techBonus(cultures[e].tech));
-    if (wb.strength > defStr * (0.85 + 0.4 * R.war())) {
-      // conquest: annex the cell by converting/displacing a few of its residents to d
+    // walls shift the offense–defense balance (epoch 2): a fortified city multiplies
+    // effective defense. One roll decides both the outcome and the counterfactual
+    // ("would have fallen unwalled") that makes a failed assault a SIEGE.
+    const defCity = cityAt[best] >= 0 ? cityList[cityAt[best]] : null;
+    const wallMul = defCity && defCity.walls >= 0 ? 1.8 : 1;
+    const roll = 0.85 + 0.4 * R.war();
+    if (wb.strength > defStr * wallMul * roll) {
+      // conquest: annex the cell by converting/displacing residents — sacking a city
+      // is bloodier than taking a hamlet
       const s = cellStart[best], en = cellStart[best + 1]; let hit = 0;
-      for (let t = s; t < en && hit < 5; t++) { const rid = cellOrder[t]; if ((A.flags[rid] & ALIVE) && A.cell[rid] === best && A.culture[rid] === e) { if (R.war() < 0.5) A.culture[rid] = d; else kill(rid); hit++; } }
+      const hitMax = defCity ? 12 : 5;
+      for (let t = s; t < en && hit < hitMax; t++) { const rid = cellOrder[t]; if ((A.flags[rid] & ALIVE) && A.cell[rid] === best && A.culture[rid] === e) { if (R.war() < 0.5) A.culture[rid] = d; else kill(rid); hit++; } }
       wb.captures++; wb.pool *= 0.7; // spoils spent
+      if (defCity) {
+        defCity.sacked++; if (defCity.sackTicks.length < 12) defCity.sackTicks.push(tick);
+        // annals, not a kill-feed: a frontier city changing hands repeatedly logs once per era
+        if (tick - (sackCooldown.get(defCity.id) || -999) > 40) {
+          sackCooldown.set(defCity.id, tick);
+          pushEvent(tick, 'citySacked', { city: defCity.id, cell: best, culture: e, attacker: wb.name, attackerCulture: d, n: cellPop[best] });
+        }
+      }
       // record as history only the meaningful conquests — a named resource seized, or a
       // sampled land-grab — spaced per warband, so the log is annals not a kill-feed.
       if (hit && tick - (warCooldown.get(wb.id) || -999) > 80 && (bestRes || R.war() < 0.04)) {
         warCooldown.set(wb.id, tick);
         pushEvent(tick, 'war', { attacker: wb.name, attackerCulture: d, defenderCulture: e, cell: best, resource: bestRes ? RESOURCES[bestRes] : null, outcome: 'conquest' });
+      }
+    } else if (defCity && wallMul > 1 && wb.strength > defStr * roll) {
+      // the walls held: this assault would have carried an unwalled town
+      if (tick - (siegeCooldown.get(defCity.id) || -999) > 60) {
+        siegeCooldown.set(defCity.id, tick);
+        pushEvent(tick, 'citySiege', { city: defCity.id, cell: best, culture: e, attacker: wb.name, attackerCulture: d });
       }
     }
   }
@@ -1275,23 +1332,32 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     });
     // named resources + who currently holds each
     const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k], landmass: w.landmass[nd.cell] }));
-    // CITIES: every cell whose population ever crossed CITY_MIN, with the geography
-    // that made it (river / coast / resource) — the mappa data that drives settlement.
-    const cities = [];
-    for (let c = 0; c < N; c++) {
-      if (cityTick[c] < 0) continue;
-      const cu = cityCu[c] >= 0 ? cityCu[c] : 0;
-      const v = w.V[c];
-      cities.push({
-        cell: c, name: namer.place(c, cu), culture: cu, cultureName: namer.culture(cu),
-        tick: cityTick[c], year: Math.round(cityTick[c] * ty), pop: cellPop[c], peak: cityPeak[c],
-        landmass: w.landmass[c], river: !!(w.river && w.river[c]), coast: !!(w.coast && w.coast[c]),
-        resource: (w.resource && w.resource[c]) ? RESOURCES[w.resource[c]] : null,
+    // CITIES (epoch 2 — actors): entities with their history (walls, sieges survived
+    // as sackTicks, falls) and their CONTENTS: the institutions seated there. A city
+    // is an org OF orgs — the container is the city entity; the members are the
+    // guilds/firms/warbands/states at its cell (each with its own Phase-IV org
+    // address) plus the population itself.
+    const cityInsts = new Map(); // city id → [inst ids]
+    for (const it of insts) {
+      if (it.peakMembers <= 20) continue;
+      const ci = cityAt[it.seat]; if (ci < 0) continue;
+      let arr = cityInsts.get(ci); if (!arr) cityInsts.set(ci, arr = []);
+      if (arr.length < 12) arr.push(it.id);
+    }
+    const cities = cityList.map(ct => {
+      const v = w.V[ct.cell];
+      return {
+        id: ct.id, cell: ct.cell, name: namer.place(ct.cell, ct.cu), culture: ct.cu, cultureName: namer.culture(ct.cu),
+        tick: ct.foundTick, year: Math.round(ct.foundTick * ty), pop: cellPop[ct.cell], peak: ct.peak,
+        walls: ct.walls >= 0, walledTick: ct.walls, sacked: ct.sacked, sackTicks: ct.sackTicks,
+        fell: ct.fellTick, alive: ct.fellTick < 0 && cellPop[ct.cell] >= Math.round(CITY_MIN * 0.5),
+        institutions: cityInsts.get(ct.id) || [],
+        landmass: w.landmass[ct.cell], river: !!(w.river && w.river[ct.cell]), coast: !!(w.coast && w.coast[ct.cell]),
+        resource: (w.resource && w.resource[ct.cell]) ? RESOURCES[w.resource[ct.cell]] : null,
         lon: +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(3),
         lat: +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(3),
-        alive: cellPop[c] >= Math.round(CITY_MIN * 0.5),
-      });
-    }
+      };
+    });
     cities.sort((a, b) => b.peak - a.peak);
     // continents, named — the filter axis every located object shares
     const landmasses = Array.from({ length: w.nLandmass }, (_, i) => ({ id: i, name: namer.landmassName(i), pop: popByLand[i], cities: cities.filter(ct => ct.landmass === i).length }));
@@ -1345,7 +1411,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     get tick() { return tick; }, get population() { return liveN; },
     run(nTicks, opts = {}) {
       totalTicks = nTicks;
-      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, climate: (cfg.climate && cfg.climate.preset) || cfg.climate || 'stable' };
+      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, epoch: 2, climate: (cfg.climate && cfg.climate.preset) || cfg.climate || 'stable' };
       // geo lookup for consumers (timeline continent filtering): cell → landmass.
       // Deliberately OUTSIDE chronicleHash (events serialize e.landmass, so events must
       // never gain the field retroactively — consumers map cells through this instead).

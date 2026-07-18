@@ -140,6 +140,72 @@ As built:
   That's the coevolutionary loop closing across three sites, and it's real engine work,
   not addressing.
 
+### Phase VI — the city epoch *(SHIPPED — epoch 2)*
+
+**Cities as actors.** The declared hash break (epoch 1 pinned `67eee302`; epoch 2 pins
+`3c9a4a61`; `meta.epoch = 2`). What a city IS, architecturally: **an org of orgs** —
+the city entity is the *container*; its members are the institutions seated at its
+cell (guilds, firms, warbands, the state — each already carrying a Phase-IV org
+address into rite/org) plus the population itself, plus the notable agents who lead
+those institutions. `final.cities[].institutions` is the rollup. A future "city
+council" org chart (the apexes of the member institutions as one hierarchy) is the
+natural next rung and needs no new engine state.
+
+The dynamics that make it an epoch, not an overlay:
+
+- **Agglomeration**: a city's peak scale multiplies effective carrying capacity at its
+  cell (`cityK`, up to +25%) — urban gravity; cities feed their own growth.
+- **Walls**: a city whose holding culture knows masonry fortifies after 30 ticks;
+  walls multiply effective defense ×1.8 in war resolution.
+- **Sieges**: one combat roll decides both outcome and counterfactual — an assault
+  that would have carried an unwalled town but breaks on walls is a `citySiege`
+  event ("stone outlasts fury").
+- **Sackings**: taking a city is bloodier (more killed/converted) and recorded —
+  `sacked` counter + `sackTicks` (exact history, event log throttled to annals).
+- **Falls and revivals**: `cityFall` when a real city empties; re-crossing the
+  threshold revives it.
+
+All of it surfaces: city events in the playback event bar, sack/siege/fall entries in
+both timeline historiographies, and the full shock history in `/api/civ/sites`.
+
+**The polis inversion (client of the world beyond).** polis no longer authors its own
+catastrophes when a civ run is upstream: `/api/civ/sites` now carries the run's
+global climate curve, and each city its `sackTicks`. The polis boot maps both into
+`worldShocks` (`{frac, kind: 'sack'|'drought', mag}`) consumed by
+`runChronicle(..., { worldShocks })` — a sacking recorded in civ history lands on the
+biggest polis town at the same fraction of the timeline; a global forcing peak
+arrives as drought. polis's own deep-time volcanic backbone remains (it comes from
+the mappa *world*, which is also global-view); what moved is authorship of
+*historical* events. Remaining polis work: retire its internal tech clock in favour
+of the founder culture's tier trajectory, and surface the shock provenance in its
+event ribbon.
+
+### Phase VII — street level (the recursive descent, NOT yet built)
+
+The target: render a city down to streets. The rational structure is the one the
+suite already uses twice — **recursive Voronoi refinement with seeds derived from
+the address string**:
+
+1. **Region → city cell** (exists): polis retiles a mappa region into a finer mesh
+   (`mesh.js`), the pattern to recurse.
+2. **City → districts**: Voronoi over the city's local mesh patch, seeded
+   `siteSeed + ':d' + i`; district *kinds* assigned from what the city actually
+   contains — its `institutions` rollup (a guild quarter because there IS a guild,
+   a temple precinct because a faith seats there, docks because `coast`, walls as
+   the boundary polygon when `walls`).
+3. **District → blocks → lots**: one more Voronoi level each; streets are the DUAL
+   of the block tessellation (cell edges = street segments), plazas at high-degree
+   vertices, the artery field (polis's Physarum flux) promoted to main streets.
+4. **Lots → interiors**: hoop's fixture-growth (mega `/sprite/fixture`, hoop v3
+   voronoi chambers) is the existing interior generator; org people (Phase IV) are
+   the occupants — every address `world:city:cell:d2:b5:lot3` is a permanent seed.
+
+Everything deterministic, everything an extension of the siteSeed string — an
+address IS a seed at every scale. Costing: each level is O(cells at that level),
+generated lazily on zoom (borges-style: the page number space is unbounded, only
+what you look at exists). This phase belongs to polis's renderer, not the civ
+engine — the civ payload already carries everything level 2 needs.
+
 ### Phase V — outward
 
 - **Frozen canon.** Star-worthy runs (QD sweep elites) freeze as ATProto records —
@@ -239,8 +305,8 @@ are independent and can interleave.
   world) and the run computes in the browser via the bundled engine (`BROWSER_CAP`,
   n ≤ 2600). Known limit: a fine-mesh run can't hand off to polis through the edge API
   (polis has no local civ engine), so `?civ=1&n>1200` falls back to polis's default boot.
-- **Hash pin in CI** — the selftest asserts the canonical permalink
-  (`world=7&preset=kurgan&civSeed=1&ticks=400` → `67eee302`) so any future
-  hash-breaking change fails the suite unless declared as an epoch.
+- **Hash pin in CI** — the selftest asserts the canonical permalink hash so any
+  hash-breaking change fails the suite unless declared as an epoch. Epoch history:
+  epoch 1 → `67eee302`; epoch 2 (cities as actors, Phase VI) → `3c9a4a61`.
 - Particle playback captures up to 300 frames (every ~5 ticks at 1500 ticks) with
   sub-1 fps speeds.

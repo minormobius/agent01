@@ -190,10 +190,12 @@ section('historical timeline (timeline.js) — two historiographies');
 section('climate visibility + mesh resolution');
 {
   const { doRun, doTimeline, CAP } = await import('../api.js');
-  // hash pin: the canonical permalink must regenerate byte-stably across all Phase II–V
-  // work (names, foundings, org, timeline, climate series are hash-invariant by design)
+  // hash pin — EPOCH 2 (cities as actors). Epoch 1 pinned 67eee302; the city epoch
+  // (agglomeration K, walls in war resolution, city events) is a DECLARED break —
+  // this is the only place the pin may ever change, and only with an epoch bump.
   const pin = doRun(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
-  ok(pin.hash === '67eee302', `permalink hash pinned: world=7 kurgan civSeed=1 ticks=400 → 67eee302 (got ${pin.hash})`);
+  ok(pin.hash === '3c9a4a61', `epoch-2 hash pinned: world=7 kurgan civSeed=1 ticks=400 → 3c9a4a61 (got ${pin.hash})`);
+  ok(pin.chronicle.meta.epoch === 2, 'chronicle declares epoch 2');
   // climate series (fred — hash-safe) + per-frame scalar
   const cp = pin.chronicle.fred.series['climate.pulse'];
   ok(cp && cp.data.length > 0 && Math.max(...cp.data) >= 0.4, 'kurgan run records a climate.pulse series that actually pulses');
@@ -255,6 +257,30 @@ section('continents, cities, tech history, major orgs');
   // sites: cities join the polis handoff with siteSeeds
   const s = doSites(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
   ok(Array.isArray(s.cities) && s.cities.every(c => c.siteSeed === `7:${c.name}:${c.cell}`), 'sites cities carry siteSeed strings');
+}
+
+section('epoch 2 — cities as actors');
+{
+  const { doRun, doSites } = await import('../api.js');
+  const r = doRun(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=600'));
+  const cities = r.chronicle.final.cities, ev = r.chronicle.events;
+  ok(cities.some(c => c.walls), 'masonry cultures fortify their cities');
+  ok(cities.every(c => Array.isArray(c.institutions) && Array.isArray(c.sackTicks) && c.sackTicks.length <= 12), 'cities carry institutions + bounded sackTicks');
+  ok(cities.every(c => c.sacked >= c.sackTicks.length || c.sackTicks.length === 12), 'sack counter >= recorded ticks');
+  ok(ev.some(e => e.type === 'cityRise'), 'cityRise events in the chronicle');
+  const sieges = ev.filter(e => e.type === 'citySiege');
+  ok(sieges.every(e => { const c = cities.find(x => x.id === e.city); return c && c.walls; }), 'sieges only happen at walled cities');
+  const sackEvents = ev.filter(e => e.type === 'citySacked').length;
+  const totalSacks = cities.reduce((a, c) => a + c.sacked, 0);
+  ok(sackEvents <= totalSacks, `sack events throttled to annals (${sackEvents} events, ${totalSacks} sacks)`);
+  // the world-beyond contract for polis: sites carries climate + per-city sack history
+  const s = doSites(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=600'));
+  ok(s.climate && s.climate.t.length === s.climate.pulse.length && s.climate.t.length > 0, 'sites carries the global climate curve');
+  ok(s.cities.every(c => 'walls' in c && 'sacked' in c && Array.isArray(c.sackTicks)), 'sites cities carry the shock history polis consumes');
+  // timeline speaks the epoch
+  const { doTimeline } = await import('../api.js');
+  const g = doTimeline(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=600&mode=greatman')).timeline.greatman.entries;
+  ok(g.some(e => e.kind === 'sack' || e.kind === 'siege' || e.kind === 'fall'), 'sacks/sieges/falls reach the timeline');
 }
 
 console.log(`\n${fail === 0 ? '✓ ALL PASS' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);

@@ -49,6 +49,27 @@ function applyClimateShock(k, sh, towns, events) {
   events.push({ tick: k, type: sh.kind, cell: focus.cell, note });
 }
 
+// A shock delivered from the WORLD BEYOND — the civ run this city lives inside
+// (Phase III/VI of civ/STRATEGY.md: polis is a client of global events, not their
+// author). 'sack': a host from the wider world falls on the biggest town. 'drought':
+// a global-climate forcing peak (civ's climate.pulse) pressing on the whole region.
+function applyWorldShock(k, sh, towns, events) {
+  const alive = towns.filter((t) => t.alive && t.pop > 0);
+  if (!alive.length) return;
+  if (sh.kind === 'sack') {
+    const big = alive.slice().sort((a, b) => b.pop - a.pop)[0];
+    const diversify = Math.min(1, big.trade * 0.4 + Math.min(1, big.pop / 4e4));
+    big.pop *= 0.45 + 0.25 * diversify;
+    for (const t of alive) if (t !== big) t.pop *= 0.96;      // the hinterland shelters refugees, loses trade
+    events.push({ tick: k, type: 'sack', cell: big.cell, note: 'sacked — a host from the world beyond' });
+  } else { // 'drought' — broad, milder, resilience helps less (weather ignores walls)
+    const sev = Math.min(0.3, 0.10 + (sh.mag || 0.5) * 0.18);
+    for (const t of alive) t.pop *= 1 - sev * (1 - 0.4 * Math.min(1, t.trade * 0.4));
+    const focus = alive.slice().sort((a, b) => b.pop - a.pop)[0];
+    events.push({ tick: k, type: 'drought', cell: focus.cell, note: 'drought — the world’s climate turns' });
+  }
+}
+
 // mesh-aware hinterland surplus: fertility summed over cells within `hops` of a cell
 function surplusAround(mesh, cellId, env, hops = 5) {
   const seen = new Set([cellId]); let frontier = [cellId], sum = 0;
@@ -127,7 +148,9 @@ function candidates(mesh, count) {
 // engine → tech gate for founding (when the era can support it)
 const TECH_GATE = { gateway: 0, staple: 0.02, fortress: 0, 'break-of-bulk': 0.05, market: 0.12 };
 
-export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, world = null, climate = null } = {}) {
+// worldShocks: [{frac, kind:'sack'|'drought', mag}] — events delivered from the civ
+// run this city lives inside (frac = position in the run, 0..1, mapped onto ticks).
+export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, world = null, climate = null, worldShocks = null } = {}) {
   // the CAUSAL climate: a deglaciation backbone with volcanic/solar oscillations,
   // driven by this planet's own tilt + volcanoes. Passed a world → eruptions are
   // sourced from its real volcanoes; without one, a deterministic default still runs.
@@ -219,6 +242,7 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, wo
     // 3 — the shocks (mutate pops; logistic recovery resumes next tick)
     applyEvents(k, e);
     for (const sh of climateShocks) if (sh.tick === k) applyClimateShock(k, sh, towns, events);
+    if (worldShocks) for (const sh of worldShocks) if (Math.round(sh.frac * (ticks - 1)) === k) applyWorldShock(k, sh, towns, events);
     // 4 — record
     for (const t of towns) if (t.alive) { t.history[k] = Math.max(0, Math.round(t.pop)); t.flourishHist[k] = Math.round(t.flourishVal || flourish(t)); }
     // 5 — arteries grow on the live town field

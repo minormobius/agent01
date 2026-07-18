@@ -2805,12 +2805,28 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
   const cultMembers = [];
   const cultTerritory = [];
   const CITY_MIN = Math.max(90, Math.round(popScale * 0.23));
-  const cityTick = new Int32Array(N).fill(-1), cityPeak = new Int32Array(N), cityCu = new Int32Array(N).fill(-1);
+  const cityList = [];
+  const cityAt = new Int32Array(N).fill(-1);
+  const cityK = new Float32Array(N).fill(1);
+  function cityStep() {
+    for (const ct of cityList) {
+      const p = cellPop[ct.cell];
+      if (ct.walls < 0 && tick - ct.foundTick >= 30) {
+        const cu = cellDom[ct.cell] >= 0 ? cellDom[ct.cell] : ct.cu;
+        if (has(cultures[cu].tech, CAP.masonry)) ct.walls = tick;
+      }
+      cityK[ct.cell] = 1 + Math.min(0.25, 0.08 * Math.log10(1 + ct.peak / CITY_MIN));
+      if (ct.fellTick < 0 && ct.peak >= CITY_MIN * 1.5 && p < CITY_MIN * 0.4) {
+        ct.fellTick = tick;
+        pushEvent(tick, "cityFall", { city: ct.id, cell: ct.cell, culture: ct.cu, n: ct.peak });
+      }
+    }
+  }
   let cultBestPop = new Int32Array(64), cultBestCell = new Int32Array(64);
   const fmales = new Int32Array(4096);
   let cultScratch = new Int32Array(64);
   function kEff(cell, pkg) {
-    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg];
+    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg] * cityK[cell];
   }
   function bucket() {
     cellPop.fill(0);
@@ -2852,11 +2868,16 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       activityField[c] += Math.min(0.3, (e - s) * 15e-4);
       const cp = e - s;
       if (cp >= CITY_MIN) {
-        if (cityTick[c] < 0) {
-          cityTick[c] = tick;
-          cityCu[c] = dom;
+        let ci = cityAt[c];
+        if (ci < 0) {
+          ci = cityList.length;
+          cityAt[c] = ci;
+          cityList.push({ id: ci, cell: c, cu: dom, foundTick: tick, walls: -1, peak: cp, sacked: 0, sackTicks: [], fellTick: -1 });
+          pushEvent(tick, "cityRise", { city: ci, cell: c, culture: dom, n: cp });
         }
-        if (cp > cityPeak[c]) cityPeak[c] = cp;
+        const ct = cityList[ci];
+        if (cp > ct.peak) ct.peak = cp;
+        if (ct.fellTick >= 0) ct.fellTick = -1;
       }
     }
   }
@@ -3256,6 +3277,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     climate.step(tick, totalTicks);
     bucket();
     computeCellCultures();
+    cityStep();
     for (let i = 0; i < cultures.length; i++) {
       cultMembers[i] = 0;
       cultTerritory[i] = null;
@@ -3775,6 +3797,8 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
   };
   const techBonus = (tech) => (has(tech, CAP.metallurgy) ? 0.35 : 0) + (has(tech, CAP.wheel) ? 0.2 : 0) + (has(tech, CAP.mechanisation) ? 0.7 : 0);
   const warCooldown = /* @__PURE__ */ new Map();
+  const siegeCooldown = /* @__PURE__ */ new Map();
+  const sackCooldown = /* @__PURE__ */ new Map();
   function recordExemplar(it, score) {
     const ex = bestRules.get(it.type), cur = ex ? ex.score * 0.999 : 0;
     if (score >= cur) bestRules.set(it.type, { rules: { tax: it.rules.tax, wage: it.rules.wage, merit: it.rules.merit, invest: it.rules.invest }, score });
@@ -4005,10 +4029,14 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     const e = cellDom[best];
     const defWb = instAt.get(iKey(INST.WARBAND, best, e));
     const defStr = defWb != null && insts[defWb].dissolvedTick < 0 ? insts[defWb].strength : cellPop[best] * 0.45 * (1 + techBonus(cultures[e].tech));
-    if (wb.strength > defStr * (0.85 + 0.4 * R.war())) {
+    const defCity = cityAt[best] >= 0 ? cityList[cityAt[best]] : null;
+    const wallMul = defCity && defCity.walls >= 0 ? 1.8 : 1;
+    const roll = 0.85 + 0.4 * R.war();
+    if (wb.strength > defStr * wallMul * roll) {
       const s = cellStart[best], en = cellStart[best + 1];
       let hit = 0;
-      for (let t = s; t < en && hit < 5; t++) {
+      const hitMax = defCity ? 12 : 5;
+      for (let t = s; t < en && hit < hitMax; t++) {
         const rid = cellOrder[t];
         if (A.flags[rid] & ALIVE && A.cell[rid] === best && A.culture[rid] === e) {
           if (R.war() < 0.5) A.culture[rid] = d;
@@ -4018,9 +4046,22 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       }
       wb.captures++;
       wb.pool *= 0.7;
+      if (defCity) {
+        defCity.sacked++;
+        if (defCity.sackTicks.length < 12) defCity.sackTicks.push(tick);
+        if (tick - (sackCooldown.get(defCity.id) || -999) > 40) {
+          sackCooldown.set(defCity.id, tick);
+          pushEvent(tick, "citySacked", { city: defCity.id, cell: best, culture: e, attacker: wb.name, attackerCulture: d, n: cellPop[best] });
+        }
+      }
       if (hit && tick - (warCooldown.get(wb.id) || -999) > 80 && (bestRes || R.war() < 0.04)) {
         warCooldown.set(wb.id, tick);
         pushEvent(tick, "war", { attacker: wb.name, attackerCulture: d, defenderCulture: e, cell: best, resource: bestRes ? RESOURCES[bestRes] : null, outcome: "conquest" });
+      }
+    } else if (defCity && wallMul > 1 && wb.strength > defStr * roll) {
+      if (tick - (siegeCooldown.get(defCity.id) || -999) > 60) {
+        siegeCooldown.set(defCity.id, tick);
+        pushEvent(tick, "citySiege", { city: defCity.id, cell: best, culture: e, attacker: wb.name, attackerCulture: d });
       }
     }
   }
@@ -4129,29 +4170,42 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       };
     });
     const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k], landmass: w.landmass[nd.cell] }));
-    const cities = [];
-    for (let c = 0; c < N; c++) {
-      if (cityTick[c] < 0) continue;
-      const cu = cityCu[c] >= 0 ? cityCu[c] : 0;
-      const v = w.V[c];
-      cities.push({
-        cell: c,
-        name: namer.place(c, cu),
-        culture: cu,
-        cultureName: namer.culture(cu),
-        tick: cityTick[c],
-        year: Math.round(cityTick[c] * ty),
-        pop: cellPop[c],
-        peak: cityPeak[c],
-        landmass: w.landmass[c],
-        river: !!(w.river && w.river[c]),
-        coast: !!(w.coast && w.coast[c]),
-        resource: w.resource && w.resource[c] ? RESOURCES[w.resource[c]] : null,
-        lon: +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(3),
-        lat: +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(3),
-        alive: cellPop[c] >= Math.round(CITY_MIN * 0.5)
-      });
+    const cityInsts = /* @__PURE__ */ new Map();
+    for (const it of insts) {
+      if (it.peakMembers <= 20) continue;
+      const ci = cityAt[it.seat];
+      if (ci < 0) continue;
+      let arr = cityInsts.get(ci);
+      if (!arr) cityInsts.set(ci, arr = []);
+      if (arr.length < 12) arr.push(it.id);
     }
+    const cities = cityList.map((ct) => {
+      const v = w.V[ct.cell];
+      return {
+        id: ct.id,
+        cell: ct.cell,
+        name: namer.place(ct.cell, ct.cu),
+        culture: ct.cu,
+        cultureName: namer.culture(ct.cu),
+        tick: ct.foundTick,
+        year: Math.round(ct.foundTick * ty),
+        pop: cellPop[ct.cell],
+        peak: ct.peak,
+        walls: ct.walls >= 0,
+        walledTick: ct.walls,
+        sacked: ct.sacked,
+        sackTicks: ct.sackTicks,
+        fell: ct.fellTick,
+        alive: ct.fellTick < 0 && cellPop[ct.cell] >= Math.round(CITY_MIN * 0.5),
+        institutions: cityInsts.get(ct.id) || [],
+        landmass: w.landmass[ct.cell],
+        river: !!(w.river && w.river[ct.cell]),
+        coast: !!(w.coast && w.coast[ct.cell]),
+        resource: w.resource && w.resource[ct.cell] ? RESOURCES[w.resource[ct.cell]] : null,
+        lon: +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(3),
+        lat: +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(3)
+      };
+    });
     cities.sort((a, b) => b.peak - a.peak);
     const landmasses = Array.from({ length: w.nLandmass }, (_, i) => ({ id: i, name: namer.landmassName(i), pop: popByLand[i], cities: cities.filter((ct) => ct.landmass === i).length }));
     const notability = (it) => it.type === INST.STATE ? it.peakMembers * 3 : it.type === INST.WARBAND ? it.captures * 40 + it.peakMembers : it.peakMembers;
@@ -4263,7 +4317,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     },
     run(nTicks, opts = {}) {
       totalTicks = nTicks;
-      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, climate: cfg.climate && cfg.climate.preset || cfg.climate || "stable" };
+      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, epoch: 2, climate: cfg.climate && cfg.climate.preset || cfg.climate || "stable" };
       chronicle.geo = { cellLandmass: Array.from(w.landmass) };
       chronicle.fred = { t: [], tickYears: ty, series: {} };
       fredEvery = Math.max(1, Math.floor(nTicks / 100));
@@ -4308,12 +4362,15 @@ var WEIGHT = {
   techFirst: 80,
   polityFall: 78,
   collapse: 74,
+  sack: 72,
+  fall: 70,
   techIndep: 70,
   belief: 70,
   majorOrg: 68,
   eminence: 66,
   city: 64,
   war: 62,
+  siege: 56,
   demography: 60,
   techSpread: 60,
   schism: 58,
@@ -4336,6 +4393,7 @@ function buildTimeline(ch, mode) {
   const yr = (t) => Math.round(t * ty);
   const cuName = (i) => i != null && i >= 0 && f.cultureNames && f.cultureNames[i] || "a forgotten people";
   const instById = new Map((f.institutions || []).map((o) => [o.id, o]));
+  const cityById = new Map((f.cities || []).map((c) => [c.id, c]));
   const beliefById = new Map((f.beliefs || []).map((b) => [b.id, b]));
   const stateOf = (cu) => (f.institutions || []).find((o) => o.kind === "state" && o.culture === cu);
   const geo = ch.geo && ch.geo.cellLandmass || null;
@@ -4543,6 +4601,45 @@ function buildTimeline(ch, mode) {
       case "beliefExtinct":
         if (!great) add2(e.t, "belief", `a creed goes silent`, `${e.name} loses its last carrier \u2014 memes die of demography as often as of doctrine.`, { belief: e.belief, beliefName: e.name });
         break;
+      case "citySacked": {
+        const ct2 = cityById.get(e.city);
+        const nm = ct2 ? ct2.name : "a city";
+        add2(
+          e.t,
+          "sack",
+          great ? `the sack of ${nm}` : `urban wealth attracts predation`,
+          great ? `${e.attacker} of the ${cuName(e.attackerCulture)} breaches ${nm}; the ${cn} bury their dead.` : `${nm} is sacked${ct2 && ct2.walls ? " despite its walls" : ""} \u2014 concentration of wealth is concentration of target.`,
+          { city: e.city, cityName: nm, cell: e.cell, attacker: e.attacker, attackerCulture: e.attackerCulture, culture: e.culture },
+          lmOf(e.cell)
+        );
+        break;
+      }
+      case "citySiege": {
+        const ct2 = cityById.get(e.city);
+        const nm = ct2 ? ct2.name : "a city";
+        add2(
+          e.t,
+          "siege",
+          great ? `${e.attacker} breaks against the walls of ${nm}` : `the walls hold`,
+          great ? `the host of the ${cuName(e.attackerCulture)} withdraws from ${nm} \u2014 stone outlasts fury.` : `an assault that would have carried an open town fails at ${nm} \u2014 fortification shifts the offense\u2013defense balance.`,
+          { city: e.city, cityName: nm, cell: e.cell, attacker: e.attacker, attackerCulture: e.attackerCulture },
+          lmOf(e.cell)
+        );
+        break;
+      }
+      case "cityFall": {
+        const ct2 = cityById.get(e.city);
+        const nm = ct2 ? ct2.name : "a city";
+        add2(
+          e.t,
+          "fall",
+          great ? `the desolation of ${nm}` : `urban collapse`,
+          great ? `grass grows in the streets of ${nm}, that held ${(e.n || 0).toLocaleString()} souls.` : `${nm} empties below the urban threshold from a peak of ${(e.n || 0).toLocaleString()} \u2014 cities are flows, not stocks.`,
+          { city: e.city, cityName: nm, cell: e.cell, culture: e.culture, peak: e.n },
+          lmOf(e.cell)
+        );
+        break;
+      }
     }
   }
   for (const o of (f.institutions || []).filter((o2) => o2.peak >= 250).slice(0, 15)) {
@@ -4562,7 +4659,7 @@ function buildTimeline(ch, mode) {
       "city",
       great ? `the founding of ${ct.name}` : `a settlement crosses the urban threshold`,
       great ? `the ${ct.cultureName} raise ${ct.name} ${site} on ${lmName(ct.landmass)}; it grows to ${ct.peak.toLocaleString()} souls.` : `${ct.name}, ${site} on ${lmName(ct.landmass)}: ${ct.river ? "river transport and wet soil" : ct.coast ? "sea lanes" : ct.resource ? `the ${ct.resource} rent` : "fertile ground"} concentrates ${ct.peak.toLocaleString()} people at one cell \u2014 geography, not decree, sites the city.`,
-      { city: ct.name, cell: ct.cell, culture: ct.culture, cultureName: ct.cultureName, river: ct.river, coast: ct.coast, resource: ct.resource, peak: ct.peak },
+      { city: ct.name, cityId: ct.id, cell: ct.cell, culture: ct.culture, cultureName: ct.cultureName, river: ct.river, coast: ct.coast, resource: ct.resource, peak: ct.peak, walls: ct.walls, sacked: ct.sacked, institutions: ct.institutions },
       ct.landmass
     );
   }
@@ -5169,6 +5266,13 @@ function doSites(params, cap2 = CAP2) {
     foundings,
     cities,
     landmasses: ch.final.landmasses,
+    // the global-view boundary conditions a city-scale client (polis) consumes:
+    // the run's climate forcing curve, so local history is DRIVEN by the world's
+    // weather rather than rolling its own
+    climate: (() => {
+      const cp = ch.fred && ch.fred.series && ch.fred.series["climate.pulse"];
+      return cp ? { t: ch.fred.t, pulse: cp.data } : null;
+    })(),
     ms: Math.round(now() - t0)
   };
 }

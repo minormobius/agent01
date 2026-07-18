@@ -226,7 +226,7 @@ function star(ctx,cx,cy,ro,ri){ ctx.beginPath(); for(let i=0;i<10;i++){ const a=
 // ---- timeline / events ----------------------------------------------------------
 function drawEventBar(){
   const bar=$('#evbar'); bar.innerHTML=''; if(!DATA) return;
-  const T=DATA.ticks||1; const col={agriculture:'#5bd18b',industry:'#d9a441',migrationPulse:'#5aa9e6',cultureSplit:'#a98bd6',collapse:'#e5686b',stateFormation:'#6fd0c0',techUnlock:'#c7b16a',beliefFounded:'#c77dff',schism:'#e07ec2',financialCrisis:'#e5686b',marketBoom:'#5bd18b'};
+  const T=DATA.ticks||1; const col={agriculture:'#5bd18b',industry:'#d9a441',migrationPulse:'#5aa9e6',cultureSplit:'#a98bd6',collapse:'#e5686b',stateFormation:'#6fd0c0',techUnlock:'#c7b16a',beliefFounded:'#c77dff',schism:'#e07ec2',financialCrisis:'#e5686b',marketBoom:'#5bd18b',cityRise:'#6fd0c0',citySacked:'#e5686b',citySiege:'#c7b16a',cityFall:'#77808f'};
   for(const e of DATA.events){ const i=document.createElement('i'); i.style.left=(100*e.t/T)+'%'; i.style.background=col[e.type]||'#556'; i.title=`t${e.t} ${e.type}`+(e.cap?(' '+e.cap):'')+(e.package?(' '+e.package):''); bar.appendChild(i); }
 }
 // the polis-aspired climate ribbon: the forcing curve across the whole run, as a
