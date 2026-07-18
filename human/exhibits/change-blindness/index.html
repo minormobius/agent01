@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Change Blindness Gallery — Human Machinery</title>
+<meta name="description" content="Two scenes flicker and alternate. One thing changes each round. Find it — if you can. Original hand-drawn stimuli, live crowd stats.">
+<meta property="og:title" content="Change Blindness Gallery — Human Machinery">
+<meta property="og:description" content="A whole detail vanishes from the scene in front of you. You will swear nothing moved.">
+<meta property="og:image" content="https://human.mino.mobi/og/change-blindness.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .scene-box { width: 100%; max-width: 620px; margin: 0 auto; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  .scene-box svg { display: block; width: 100%; height: auto; }
+  .scene-box.pointing { cursor: crosshair; outline: 2px solid var(--cyan); }
+  .mask-frame { background: #6b7280; width: 100%; aspect-ratio: 5 / 3; }
+  .ctl-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .flick-count { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); letter-spacing: 0.2em; }
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a><span class="sep">/</span>
+  <a href="/">human machinery</a><span class="sep">/</span>
+  <span class="here">change blindness gallery</span>
+</nav>
+
+<div class="wrap">
+  <p class="kicker">Exhibit 02 · Wing of Perception</p>
+  <h1>Change Blindness Gallery</h1>
+  <p class="lede">A whole detail vanishes from the scene in front of you. You will swear nothing moved.</p>
+  <p><span class="badge well-replicated">well-replicated</span> <span class="dim small">since 1997 · both scenes drawn for this museum — no borrowed stimuli</span></p>
+
+  <div class="case">
+    <div class="stage" id="stage">
+      <p class="prompt-line" id="round-line">Round 1 of 2 — the scene flickers. One thing keeps changing.</p>
+      <div class="scene-box" id="scene-box"></div>
+      <p class="flick-count" id="flicks">FLICKERS: 0</p>
+      <div class="ctl-row">
+        <button class="btn primary" id="spot">I spot a change</button>
+        <button class="btn" id="giveup">I give up — show me</button>
+      </div>
+      <p class="dim small" id="hint">Watch as long as you like. When you think you know <em>what</em> changes, stop and point at it.</p>
+    </div>
+  </div>
+
+  <div id="reveal"></div>
+
+  <div class="plaque" id="plaque" hidden>
+    <h2>The museum plaque</h2>
+    <p>Your visual field feels like a rich, continuous photograph. It isn't. At
+    any instant, detail exists only where attention is parked; everything else
+    is a confident summary. When a change is hidden inside a flicker (which
+    wipes out the motion signal that would normally shout "over here!"), you
+    must search the scene item by item — and people routinely stare for dozens
+    of alternations, certain nothing is happening, while a whole object blinks
+    in and out of existence.</p>
+    <p>Rensink, O'Regan and Clark demonstrated the flicker paradigm in 1997;
+    Simons and Levin carried it into the street in 1998, where roughly half of
+    pedestrians failed to notice that the stranger asking them for directions
+    had been <em>swapped for a different person</em> when two workers carried a
+    door between them. The lesson isn't that your eyes are bad — it's that
+    "seeing" was never the camera work you assumed it was.</p>
+    <div id="cites"></div>
+  </div>
+
+  <div id="wormhole"></div>
+</div>
+
+<div id="footer-slot"></div>
+
+<script src="/lib/exhibits.js"></script>
+<script src="/lib/exhibit.js"></script>
+<script>
+(function () {
+  const SLUG = 'change-blindness';
+
+  // ---- Original stimuli, drawn for this museum. Each scene is an SVG with
+  // every named element carrying data-spot; the CHANGED element exists in two
+  // variants (data-v="a" / data-v="b") toggled by the flicker loop. ----
+
+  const SCENES = [
+    {
+      id: 'street',
+      label: 'Harbor Street',
+      answer: 'bicycle',
+      answerLabel: 'the bicycle (it vanishes entirely)',
+      svg: `
+      <svg viewBox="0 0 600 360" role="img" aria-label="A dusk street corner with buildings, a lamp, a tree and a bicycle">
+        <rect x="0" y="0" width="600" height="360" fill="#26344d" data-spot="sky"/>
+        <circle cx="512" cy="56" r="26" fill="#e8e4d8" opacity="0.9" data-spot="moon"/>
+        <g data-spot="cloud"><ellipse cx="150" cy="60" rx="52" ry="14" fill="#3a4a68"/><ellipse cx="186" cy="52" rx="34" ry="12" fill="#3a4a68"/></g>
+        <rect x="0" y="270" width="600" height="90" fill="#1a2233" data-spot="road"/>
+        <rect x="0" y="262" width="600" height="10" fill="#39455f"/>
+        <g data-spot="building-left">
+          <rect x="30" y="110" width="150" height="160" fill="#43536e"/>
+          <rect x="52" y="132" width="26" height="34" fill="#ffd489"/><rect x="96" y="132" width="26" height="34" fill="#2c3a55"/>
+          <rect x="52" y="186" width="26" height="34" fill="#2c3a55"/><rect x="96" y="186" width="26" height="34" fill="#ffd489"/>
+          <rect x="140" y="216" width="28" height="54" fill="#2c3a55"/>
+        </g>
+        <g data-spot="building-mid">
+          <rect x="205" y="70" width="170" height="200" fill="#4d5d7c"/>
+          <rect x="222" y="92" width="30" height="40" fill="#ffd489"/><rect x="268" y="92" width="30" height="40" fill="#33415e"/><rect x="314" y="92" width="30" height="40" fill="#ffd489"/>
+          <rect x="222" y="152" width="30" height="40" fill="#33415e"/><rect x="268" y="152" width="30" height="40" fill="#ffd489"/><rect x="314" y="152" width="30" height="40" fill="#33415e"/>
+          <rect x="258" y="216" width="44" height="54" fill="#2c3a55"/>
+        </g>
+        <g data-spot="awning">
+          <path d="M205 206 h170 l-14 -22 h-142 z" fill="#b8452f"/>
+          <path d="M233 206 l-10 -22 h20 l10 22 z" fill="#e8e4d8"/><path d="M275 206 l-6 -22 h20 l6 22 z" fill="#e8e4d8"/><path d="M317 206 l-2 -22 h20 l2 22 z" fill="#e8e4d8"/>
+        </g>
+        <g data-spot="lamp">
+          <rect x="446" y="150" width="8" height="120" fill="#141a28"/>
+          <circle cx="450" cy="142" r="12" fill="#ffb000"/>
+          <circle cx="450" cy="142" r="24" fill="#ffb000" opacity="0.18"/>
+        </g>
+        <g data-spot="tree">
+          <rect x="534" y="196" width="12" height="74" fill="#3d2f23"/>
+          <circle cx="540" cy="168" r="42" fill="#2e5339"/><circle cx="516" cy="188" r="26" fill="#356344"/><circle cx="564" cy="188" r="26" fill="#356344"/>
+        </g>
+        <g data-spot="bicycle" data-v="a">
+          <circle cx="404" cy="272" r="16" fill="none" stroke="#d8d2c0" stroke-width="4"/>
+          <circle cx="356" cy="272" r="16" fill="none" stroke="#d8d2c0" stroke-width="4"/>
+          <path d="M356 272 L376 240 L404 272 M376 240 L398 240 M376 240 L370 230 M398 240 L404 230" fill="none" stroke="#ff5c47" stroke-width="4" stroke-linecap="round"/>
+        </g>
+        <g data-spot="bicycle" data-v="b" hidden></g>
+        <g data-spot="sign"><rect x="30" y="296" width="70" height="30" fill="#39455f"/><text x="65" y="316" fill="#9a9484" font-size="13" font-family="monospace" text-anchor="middle">HARBOR</text></g>
+      </svg>`,
+    },
+    {
+      id: 'desk',
+      label: 'The Desk',
+      answer: 'mug',
+      answerLabel: 'the mug (it walks from the left of the keyboard to the right of the monitor)',
+      svg: `
+      <svg viewBox="0 0 600 360" role="img" aria-label="A desk with a monitor, keyboard, lamp, plant, books, clock and a mug">
+        <rect x="0" y="0" width="600" height="360" fill="#33302a" data-spot="wall"/>
+        <rect x="0" y="250" width="600" height="110" fill="#4a3b2c" data-spot="desk"/>
+        <rect x="0" y="250" width="600" height="8" fill="#5d4b38"/>
+        <g data-spot="clock"><circle cx="300" cy="58" r="30" fill="#e8e4d8"/><circle cx="300" cy="58" r="26" fill="#f4efe2" stroke="#33302a" stroke-width="2"/><path d="M300 58 L300 40 M300 58 L312 64" stroke="#33302a" stroke-width="3" stroke-linecap="round"/></g>
+        <g data-spot="monitor">
+          <rect x="220" y="96" width="160" height="104" rx="6" fill="#141a28"/>
+          <rect x="230" y="106" width="140" height="84" rx="3" fill="#57d0ff" opacity="0.85"/>
+          <rect x="288" y="200" width="24" height="24" fill="#141a28"/><rect x="262" y="224" width="76" height="8" fill="#141a28"/>
+        </g>
+        <g data-spot="keyboard"><rect x="236" y="258" width="128" height="22" rx="4" fill="#c9c2ae"/><rect x="242" y="263" width="116" height="4" fill="#a89f8a"/><rect x="242" y="270" width="116" height="4" fill="#a89f8a"/></g>
+        <g data-spot="lamp">
+          <rect x="92" y="176" width="10" height="82" fill="#22201b"/>
+          <path d="M97 176 L136 148 L146 162 L110 186 Z" fill="#22201b"/>
+          <circle cx="142" cy="164" r="10" fill="#ffb000"/><circle cx="142" cy="164" r="22" fill="#ffb000" opacity="0.18"/>
+        </g>
+        <g data-spot="plant">
+          <path d="M470 258 h44 l-6 -34 h-32 z" fill="#8a4a2f"/>
+          <path d="M492 224 C480 200 468 196 458 190 M492 224 C492 198 502 190 510 182 M492 224 C500 204 514 202 522 198" stroke="#356344" stroke-width="6" fill="none" stroke-linecap="round"/>
+        </g>
+        <g data-spot="books">
+          <rect x="410" y="238" width="52" height="10" fill="#b8452f"/><rect x="414" y="226" width="46" height="10" fill="#43536e"/><rect x="418" y="214" width="40" height="10" fill="#c9a227"/>
+        </g>
+        <g data-spot="pencil"><rect x="168" y="266" width="46" height="6" fill="#c9a227" transform="rotate(-8 168 266)"/><path d="M214 260 l10 2 -8 6 z" fill="#e8e4d8"/></g>
+        <g data-spot="papers"><rect x="150" y="286" width="70" height="34" fill="#e8e4d8" transform="rotate(3 150 286)"/><rect x="158" y="294" width="52" height="3" fill="#9a9484" transform="rotate(3 158 294)"/><rect x="158" y="302" width="44" height="3" fill="#9a9484" transform="rotate(3 158 302)"/></g>
+        <g data-spot="mug" data-v="a">
+          <rect x="176" y="228" width="26" height="26" rx="4" fill="#ff5c47"/>
+          <path d="M202 232 h10 a8 8 0 0 1 0 16 h-10" fill="none" stroke="#ff5c47" stroke-width="4"/>
+        </g>
+        <g data-spot="mug" data-v="b" hidden>
+          <rect x="398" y="228" width="26" height="26" rx="4" fill="#ff5c47"/>
+          <path d="M424 232 h10 a8 8 0 0 1 0 16 h-10" fill="none" stroke="#ff5c47" stroke-width="4"/>
+        </g>
+      </svg>`,
+    },
+  ];
+
+  const stage = document.getElementById('stage');
+  const sceneBox = document.getElementById('scene-box');
+  const flicksEl = document.getElementById('flicks');
+  const spotBtn = document.getElementById('spot');
+  const giveupBtn = document.getElementById('giveup');
+  const roundLine = document.getElementById('round-line');
+  const hint = document.getElementById('hint');
+
+  const FLICK_ON = 700, FLICK_OFF = 160;
+  const state = { round: 0, flickers: 0, phase: 'a', timer: null, pointing: false, stopped: false, results: [] };
+
+  function variants(scene, v) {
+    sceneBox.querySelectorAll('[data-v]').forEach((g) => {
+      if (g.dataset.spot === scene.answer) g.hidden = g.dataset.v !== v;
+    });
+  }
+
+  function flick(scene) {
+    if (state.stopped) return;
+    state.phase = state.phase === 'a' ? 'b' : 'a';
+    if (state.phase === 'b') { state.flickers++; flicksEl.textContent = `FLICKERS: ${state.flickers}`; }
+    variants(scene, state.phase);
+    state.timer = setTimeout(() => {
+      if (state.stopped) return;
+      sceneBox.innerHTML = '<div class="mask-frame"></div>';
+      state.timer = setTimeout(() => {
+        if (state.stopped) return;
+        sceneBox.innerHTML = scene.svg;
+        flick(scene);
+      }, FLICK_OFF);
+    }, FLICK_ON);
+  }
+
+  function startRound() {
+    const scene = SCENES[state.round];
+    state.flickers = 0;
+    state.pointing = false;
+    state.stopped = false;
+    spotBtn.disabled = false;
+    giveupBtn.disabled = false;
+    flicksEl.textContent = 'FLICKERS: 0';
+    roundLine.textContent = `Round ${state.round + 1} of ${SCENES.length} — “${scene.label}” flickers. One thing keeps changing.`;
+    sceneBox.classList.remove('pointing');
+    sceneBox.innerHTML = scene.svg;
+    flick(scene);
+  }
+
+  const flickerBin = (n) => (n <= 4 ? '1-4' : n <= 8 ? '5-8' : n <= 15 ? '9-15' : '16+');
+
+  function stopFlicker(scene) {
+    state.stopped = true;
+    clearTimeout(state.timer);
+    sceneBox.innerHTML = scene.svg;
+    variants(scene, 'a');
+  }
+
+  spotBtn.addEventListener('click', () => {
+    const scene = SCENES[state.round];
+    stopFlicker(scene);
+    state.pointing = true;
+    sceneBox.classList.add('pointing');
+    hint.innerHTML = '<b>Now point:</b> click the thing that changed. One honest guess.';
+  });
+
+  sceneBox.addEventListener('click', (e) => {
+    if (!state.pointing) return;
+    const scene = SCENES[state.round];
+    const spot = (e.target.closest('[data-spot]') || {}).dataset?.spot || 'nothing';
+    state.pointing = false;
+    sceneBox.classList.remove('pointing');
+    const hit = spot === scene.answer;
+    Human.track(SLUG, `${scene.id}|first:${hit ? 'hit' : 'miss'}`);
+    Human.track(SLUG, `${scene.id}|flickers:${flickerBin(state.flickers)}`);
+    if (hit) {
+      state.results.push({ scene, found: true, flickers: state.flickers });
+      nextOrReveal(`Yes — ${scene.answerLabel}. You found it in ${state.flickers} flickers.`);
+    } else {
+      hint.innerHTML = `Not the ${spot}. The flicker resumes — keep watching.`;
+      state.stopped = false;
+      flick(scene);
+    }
+  });
+
+  giveupBtn.addEventListener('click', () => {
+    const scene = SCENES[state.round];
+    stopFlicker(scene);
+    Human.track(SLUG, `${scene.id}|gaveup`);
+    state.results.push({ scene, found: false, flickers: state.flickers });
+    // flash the two variants so the change announces itself, ending on 'a'
+    let flashes = 0;
+    const fl = setInterval(() => {
+      variants(scene, flashes % 2 ? 'a' : 'b');
+      if (++flashes >= 6) { clearInterval(fl); variants(scene, 'a'); }
+    }, 380);
+    nextOrReveal(`It was ${scene.answerLabel}. (Flashing now.)`);
+  });
+
+  function nextOrReveal(msg) {
+    hint.textContent = msg;
+    state.round++;
+    spotBtn.disabled = true;
+    giveupBtn.disabled = true;
+    if (state.round >= SCENES.length) {
+      spotBtn.hidden = true;
+      giveupBtn.hidden = true;
+      Human.track(SLUG, 'done');
+      setTimeout(reveal, 1600);
+    } else {
+      setTimeout(startRound, 2000);
+    }
+  }
+
+  async function reveal() {
+    const sum = await Human.summary(SLUG);
+    const b = (sum && sum.buckets) || {};
+    const players = b['done'] || 0;
+
+    const yours = state.results.map((r) =>
+      `<p class="dim">“${r.scene.label}”: ${r.found
+        ? `found in <b>${r.flickers}</b> flickers`
+        : `gave up after <b>${r.flickers}</b> flickers`} — the change was ${r.scene.answerLabel}.</p>`
+    ).join('');
+
+    function sceneBars(id) {
+      const order = ['1-4', '5-8', '9-15', '16+'];
+      const total = order.reduce((s, bin) => s + (b[`${id}|flickers:${bin}`] || 0), 0);
+      const gave = b[`${id}|gaveup`] || 0;
+      const all = total + gave;
+      if (!all) return '<p class="dim small">No crowd data yet — you are among the first.</p>';
+      return order.map((bin) =>
+        Human.bar(`found in ${bin} flickers`, b[`${id}|flickers:${bin}`] || 0, all, {})
+      ).join('') + Human.bar('gave up', gave, all, { you: true });
+    }
+
+    document.getElementById('reveal').innerHTML = `
+      <div class="reveal">
+        <p class="you">HOW LONG WERE YOU BLIND?</p>
+        ${yours}
+        <h3>The crowd so far (${Human.fmt(players)} players)</h3>
+        <h3 class="dim">Harbor Street</h3>
+        ${sceneBars('street')}
+        <h3 class="dim">The Desk</h3>
+        ${sceneBars('desk')}
+        <p class="dim small">Dozens of flickers with the change in plain sight is normal — in the lab, some
+        observers never find it at all. Attention, not eyesight, is the bottleneck.</p>
+      </div>`;
+    document.getElementById('plaque').hidden = false;
+    stage.style.display = 'none';
+    document.getElementById('reveal').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  const me = Human.exhibit(SLUG);
+  document.getElementById('cites').innerHTML = Human.citeHTML(me.citations);
+  document.getElementById('wormhole').innerHTML = Human.wormholeHTML(SLUG);
+  document.getElementById('footer-slot').innerHTML = Human.footerHTML();
+
+  startRound();
+})();
+</script>
+</body>
+</html>

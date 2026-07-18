@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Stats — Human Machinery</title>
+<meta name="description" content="The living replication dataset of Human Machinery: anonymous aggregate counters from every exhibit, updated with every play.">
+<meta property="og:title" content="Live Stats — Human Machinery">
+<meta property="og:description" content="Every play feeds the counters. This is the arcade's living dataset.">
+<meta property="og:image" content="https://human.mino.mobi/og/default.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .stat-num { font-family: var(--mono); font-size: clamp(36px, 7vw, 56px); color: var(--amber); }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin: 22px 0; }
+  .stat-cell { text-align: center; padding: 18px 10px; }
+  .stat-cell .lbl { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; color: var(--ink-dim); text-transform: uppercase; }
+  .bucket-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  .bucket-table td { border-bottom: 1px dashed var(--line); padding: 5px 4px; color: var(--ink-dim); }
+  .bucket-table td:last-child { text-align: right; color: var(--ink); }
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a><span class="sep">/</span>
+  <a href="/">human machinery</a><span class="sep">/</span>
+  <span class="here">live stats</span>
+</nav>
+
+<div class="wrap">
+  <p class="kicker">The living dataset</p>
+  <h1>Live Stats</h1>
+  <p class="lede">Every play feeds the counters. This page reads them directly.</p>
+
+  <div class="case">
+    <div class="stat-grid" id="totals"></div>
+    <p class="dim small">Method honesty: these are anonymous, self-selected web
+    visitors, not a lab sample. Buckets are pre-binned in your browser before
+    anything is sent; there are no ids, no cookies, and a determined spammer
+    could nudge a counter. Treat the numbers as the arcade's folklore about
+    itself — the citations on each exhibit are the science.</p>
+  </div>
+
+  <div id="per-exhibit"></div>
+</div>
+
+<div id="footer-slot"></div>
+
+<script src="/lib/exhibits.js"></script>
+<script src="/lib/exhibit.js"></script>
+<script>
+(function () {
+  Human.all().then((stats) => {
+    const exhibits = (stats && stats.exhibits) || {};
+    const done = (slug) => (exhibits[slug] && exhibits[slug].buckets['done']) || 0;
+    const total = window.HUMAN_EXHIBITS.reduce((s, e) => s + done(e.slug), 0);
+    const events = Object.values(exhibits).reduce((s, e) => s + (e.total || 0), 0);
+
+    document.getElementById('totals').innerHTML = `
+      <div class="stat-cell panel"><div class="stat-num">${Human.fmt(total)}</div><div class="lbl">players</div></div>
+      <div class="stat-cell panel"><div class="stat-num">${Human.fmt(events)}</div><div class="lbl">events counted</div></div>
+      <div class="stat-cell panel"><div class="stat-num">${window.HUMAN_EXHIBITS.length}</div><div class="lbl">exhibits</div></div>`;
+
+    document.getElementById('per-exhibit').innerHTML = window.HUMAN_EXHIBITS.map((e) => {
+      const data = exhibits[e.slug];
+      const buckets = (data && data.buckets) || {};
+      const rows = Object.keys(buckets).sort((a, b) => buckets[b] - buckets[a]).slice(0, 12)
+        .map((k) => `<tr><td>${k}</td><td>${Human.fmt(buckets[k])}</td></tr>`).join('');
+      return `
+        <h2><a href="/exhibits/${e.slug}/" style="color:var(--amber)">${e.title}</a></h2>
+        <p class="dim">${Human.fmt(done(e.slug))} players ${Human.badgeHTML(e.badge)}</p>
+        ${rows ? `<table class="bucket-table">${rows}</table>` : '<p class="dim small">No plays yet — be the first.</p>'}`;
+    }).join('');
+  });
+  document.getElementById('footer-slot').innerHTML = Human.footerHTML();
+})();
+</script>
+</body>
+</html>

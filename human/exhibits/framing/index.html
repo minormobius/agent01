@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Framing Clinic — Human Machinery</title>
+<meta name="description" content="Same disease, same numbers, same you — one changed word flips your decision. The Asian disease problem, live.">
+<meta property="og:title" content="Framing Clinic — Human Machinery">
+<meta property="og:description" content="600 lives, two programmes, one choice. The math never changes — the wording does.">
+<meta property="og:image" content="https://human.mino.mobi/og/framing.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .scenario { text-align: left; max-width: 60ch; font-size: 18px; }
+  .scenario .prog {
+    display: block;
+    width: 100%;
+    text-align: left;
+    margin: 10px 0;
+    padding: 16px 18px;
+    font-family: var(--serif);
+    font-size: 16px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .scenario .prog b { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a><span class="sep">/</span>
+  <a href="/">human machinery</a><span class="sep">/</span>
+  <span class="here">framing clinic</span>
+</nav>
+
+<div class="wrap">
+  <p class="kicker">Exhibit 04 · Wing of Judgment</p>
+  <h1>Framing Clinic</h1>
+  <p class="lede">Same disease. Same numbers. Same you. One changed word flips your decision.</p>
+  <p><span class="badge well-replicated">well-replicated</span> <span class="dim small">since 1981 · robust in meta-analyses, smaller than the original</span></p>
+
+  <div class="case">
+    <div class="stage" id="stage">
+      <p class="prompt-line">The triage desk — choose a programme</p>
+      <div class="scenario" id="scenario"></div>
+    </div>
+  </div>
+
+  <div id="reveal"></div>
+
+  <div class="plaque" id="plaque" hidden>
+    <h2>The museum plaque</h2>
+    <p>Read the two programmes again: in this exhibit's other window, visitors
+    saw the <em>same</em> outbreak with the <em>same</em> expected outcomes —
+    200 of 600 living is 400 of 600 dying. Logically the two versions are one
+    decision. Psychologically they are opposites. When outcomes are framed as
+    lives <b>saved</b>, most people lock in the sure gain. When framed as lives
+    <b>lost</b>, most people gamble to avoid the sure loss. Losses loom larger
+    than gains, so the frame — not the arithmetic — picks the policy.</p>
+    <p>Tversky and Kahneman reported the effect in 1981: 72% chose the sure
+    thing in the gain frame, but 78% chose the gamble in the loss frame.
+    Meta-analyses since (Kühberger 1998 and later) find the effect is real and
+    robust, though typically smaller than the original headline numbers — which
+    is why this plaque carries numbers and nuance together.</p>
+    <div id="cites"></div>
+  </div>
+
+  <div id="wormhole"></div>
+</div>
+
+<div id="footer-slot"></div>
+
+<script src="/lib/exhibits.js"></script>
+<script src="/lib/exhibit.js"></script>
+<script>
+(function () {
+  const SLUG = 'framing';
+  // Random frame assignment — you see ONE version. The other frame exists
+  // only in the reveal, which is where the trap becomes visible.
+  const frame = Math.random() < 0.5 ? 'gain' : 'loss';
+
+  const TEXT = {
+    gain: {
+      setup: `Imagine that the country is preparing for an outbreak of an unusual
+        disease, expected to kill <b>600 people</b>. Two programmes are proposed.
+        Assume the estimates are exact.`,
+      a: `<b>Programme A</b> — 200 people will be saved.`,
+      b: `<b>Programme B</b> — a one-third probability that 600 people will be saved,
+          and a two-thirds probability that no one will be saved.`,
+      sure: 'a',
+    },
+    loss: {
+      setup: `Imagine that the country is preparing for an outbreak of an unusual
+        disease, expected to kill <b>600 people</b>. Two programmes are proposed.
+        Assume the estimates are exact.`,
+      a: `<b>Programme C</b> — 400 people will die.`,
+      b: `<b>Programme D</b> — a one-third probability that nobody will die,
+          and a two-thirds probability that 600 people will die.`,
+      sure: 'a',
+    },
+  };
+
+  const t = TEXT[frame];
+  document.getElementById('scenario').innerHTML = `
+    <p>${t.setup}</p>
+    <button class="btn prog" data-choice="sure">${t.a}</button>
+    <button class="btn prog" data-choice="risky">${t.b}</button>`;
+
+  document.getElementById('scenario').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-choice]');
+    if (!btn) return;
+    document.querySelectorAll('.prog').forEach((b) => (b.disabled = true));
+    const choice = btn.dataset.choice; // 'sure' = A/C, 'risky' = B/D
+    Human.track(SLUG, `frame:${frame}|choice:${choice}`);
+    Human.track(SLUG, 'done');
+
+    const sum = await Human.summary(SLUG);
+    const b = (sum && sum.buckets) || {};
+    const players = b['done'] || 0;
+    const gSure = b['frame:gain|choice:sure'] || 0, gRisk = b['frame:gain|choice:risky'] || 0;
+    const lSure = b['frame:loss|choice:sure'] || 0, lRisk = b['frame:loss|choice:risky'] || 0;
+
+    const yourLetter = frame === 'gain' ? (choice === 'sure' ? 'A' : 'B') : (choice === 'sure' ? 'C' : 'D');
+    const identical = { A: 'C', B: 'D', C: 'A', D: 'B' }[yourLetter];
+
+    document.getElementById('reveal').innerHTML = `
+      <div class="reveal">
+        <p class="you">YOU CHOSE PROGRAMME ${yourLetter} IN THE "${frame === 'gain' ? 'LIVES SAVED' : 'PEOPLE DIE'}" FRAME</p>
+        <p class="crowd">Programme ${yourLetter} is <b>mathematically identical</b> to Programme ${identical} —
+        the version shown to the other half of visitors. 200 saved <em>is</em> 400 dying.</p>
+        <h3>The crowd so far (${Human.fmt(players)} players)</h3>
+        ${Human.bar('"lives saved" frame — chose the gamble', gRisk, gSure + gRisk, {})}
+        ${Human.bar('"people die" frame — chose the gamble', lRisk, lSure + lRisk, { you: true })}
+        <p class="dim">The gamble is the same gamble in both rows. In the 1981 original, the risky option drew
+        28% in the gain frame and <b>78%</b> in the loss frame. Meta-analyses find a real but usually
+        smaller flip.</p>
+      </div>`;
+    document.getElementById('plaque').hidden = false;
+    document.getElementById('stage').style.display = 'none';
+    document.getElementById('reveal').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  const me = Human.exhibit(SLUG);
+  document.getElementById('cites').innerHTML = Human.citeHTML(me.citations);
+  document.getElementById('wormhole').innerHTML = Human.wormholeHTML(SLUG);
+  document.getElementById('footer-slot').innerHTML = Human.footerHTML();
+})();
+</script>
+</body>
+</html>

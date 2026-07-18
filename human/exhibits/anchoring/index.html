@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anchoring Auction — Human Machinery</title>
+<meta name="description" content="A spinning wheel you know is random lands on a number — and quietly moves your estimate of how many UN states are in Africa. Play, then see the crowd's anchors.">
+<meta property="og:title" content="Anchoring Auction — Human Machinery">
+<meta property="og:description" content="The wheel is random. Your estimate won't be. Watch an anchor get set in real time.">
+<meta property="og:image" content="https://human.mino.mobi/og/anchoring.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .wheel {
+    font-family: var(--mono);
+    font-size: clamp(60px, 14vw, 110px);
+    font-weight: 700;
+    color: var(--amber);
+    text-shadow: 0 0 30px rgba(255, 176, 0, 0.4);
+    min-height: 1.2em;
+    user-select: none;
+  }
+  .slider-row { width: 100%; max-width: 460px; }
+  input[type="range"] { width: 100%; accent-color: var(--amber); height: 34px; }
+  .est-readout { font-family: var(--mono); font-size: 34px; color: var(--cyan); }
+  .yn-row { display: flex; gap: 12px; }
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a><span class="sep">/</span>
+  <a href="/">human machinery</a><span class="sep">/</span>
+  <span class="here">anchoring auction</span>
+</nav>
+
+<div class="wrap">
+  <p class="kicker">Exhibit 03 · Wing of Judgment</p>
+  <h1>Anchoring Auction</h1>
+  <p class="lede">A spinning wheel you <em>know</em> is random is about to move your estimate. Watch it happen.</p>
+  <p><span class="badge well-replicated">well-replicated</span> <span class="dim small">since 1974 · replicated across 36 labs in Many Labs 1</span></p>
+
+  <div class="case">
+    <div class="stage" id="stage">
+      <!-- step 1: the wheel -->
+      <div id="step-wheel">
+        <p class="prompt-line">Step 1 — spin the wheel of fortune</p>
+        <div class="wheel" id="wheel">?</div>
+        <button class="btn primary" id="spin">Spin</button>
+        <p class="dim small">The wheel is honest randomness. It has no memory and no opinion.<br>Remember that in a minute.</p>
+      </div>
+
+      <!-- step 2: comparative -->
+      <div id="step-compare" hidden>
+        <p class="prompt-line">Step 2 — a quick question</p>
+        <p style="font-size:20px;max-width:34ch">What percentage of the United Nations' member states are in <b>Africa</b>?<br><br>Is it <b>higher or lower than <span id="anchor-echo" style="color:var(--amber)"></span>%</b>?</p>
+        <div class="yn-row">
+          <button class="btn" data-cmp="higher">Higher</button>
+          <button class="btn" data-cmp="lower">Lower</button>
+        </div>
+      </div>
+
+      <!-- step 3: estimate -->
+      <div id="step-estimate" hidden>
+        <p class="prompt-line">Step 3 — your actual estimate</p>
+        <div class="est-readout"><span id="est">50</span>%</div>
+        <div class="slider-row">
+          <input type="range" id="slider" min="0" max="100" value="50">
+        </div>
+        <button class="btn primary" id="commit">That's my estimate</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="reveal"></div>
+
+  <div class="plaque" id="plaque" hidden>
+    <h2>The museum plaque</h2>
+    <p>When people estimate an unknown quantity, they start from whatever number
+    is lying around — even a number they just watched a roulette wheel produce —
+    and adjust from there. The adjustment is never enough. In Tversky and
+    Kahneman's original 1974 demonstration, a wheel rigged to land on 10 or 65
+    preceded this exact question about African states in the UN: the group that
+    saw <b>10</b> gave a median answer of <b>25%</b>; the group that saw <b>65</b>
+    gave <b>45%</b>. A meaningless number, witnessed for three seconds, moved
+    estimates by twenty points.</p>
+    <p>Anchoring has since been replicated across dozens of labs (including the
+    36-lab Many Labs project), with judges, doctors, and real-estate agents all
+    proving as movable as undergraduates. Knowing about it helps less than you'd
+    hope. (The true answer, as of the mid-2020s: 54 of 193 member states —
+    about <b>28%</b>.)</p>
+    <div id="cites"></div>
+  </div>
+
+  <div id="wormhole"></div>
+</div>
+
+<div id="footer-slot"></div>
+
+<script src="/lib/exhibits.js"></script>
+<script src="/lib/exhibit.js"></script>
+<script>
+(function () {
+  const SLUG = 'anchoring';
+  // The rigged wheel: fair-looking spin, pre-assigned landing. (In the 1974
+  // original the wheel was rigged to 10 or 65; we keep the two arms.)
+  const arm = Math.random() < 0.5 ? 'low' : 'high';
+  const anchor = arm === 'low' ? 10 : 65;
+
+  const wheelEl = document.getElementById('wheel');
+  const spinBtn = document.getElementById('spin');
+  const stepWheel = document.getElementById('step-wheel');
+  const stepCompare = document.getElementById('step-compare');
+  const stepEstimate = document.getElementById('step-estimate');
+  const slider = document.getElementById('slider');
+  const estEl = document.getElementById('est');
+
+  spinBtn.addEventListener('click', () => {
+    spinBtn.disabled = true;
+    let ticks = 0;
+    const total = 26 + Math.floor(Math.random() * 8);
+    const iv = setInterval(() => {
+      ticks++;
+      wheelEl.textContent = Math.floor(Math.random() * 100);
+      if (ticks >= total) {
+        clearInterval(iv);
+        wheelEl.textContent = anchor;
+        setTimeout(() => {
+          stepWheel.hidden = true;
+          document.getElementById('anchor-echo').textContent = anchor;
+          stepCompare.hidden = false;
+        }, 900);
+      }
+    }, 60 + ticks * 6); // decelerating ticker
+  });
+
+  slider.addEventListener('input', () => { estEl.textContent = slider.value; });
+
+  stepCompare.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-cmp]');
+    if (!btn) return;
+    Human.track(SLUG, `arm:${arm}|cmp:${btn.dataset.cmp}`);
+    stepCompare.hidden = true;
+    stepEstimate.hidden = false;
+  });
+
+  document.getElementById('commit').addEventListener('click', async () => {
+    const est = parseInt(slider.value, 10);
+    const lo = Math.min(90, Math.floor(est / 10) * 10);
+    const bin = `${lo}-${lo + 10}`;
+    Human.track(SLUG, `arm:${arm}`);
+    Human.track(SLUG, `est:${arm}:${bin}`);
+    Human.track(SLUG, 'done');
+
+    const sum = await Human.summary(SLUG);
+    const b = (sum && sum.buckets) || {};
+    const players = b['done'] || 0;
+
+    function armMedian(a) {
+      const bins = [];
+      for (const k of Object.keys(b)) {
+        if (k.startsWith(`est:${a}:`)) bins.push([parseInt(k.split(':')[2], 10), b[k]]);
+      }
+      bins.sort((x, y) => x[0] - y[0]);
+      const total = bins.reduce((s, r) => s + r[1], 0);
+      if (!total) return null;
+      let acc = 0;
+      for (const [edge, n] of bins) { acc += n; if (acc >= total / 2) return edge + 5; }
+      return bins[bins.length - 1][0] + 5;
+    }
+    const medLow = armMedian('low'), medHigh = armMedian('high');
+    const nLow = b['arm:low'] || 0, nHigh = b['arm:high'] || 0;
+
+    document.getElementById('reveal').innerHTML = `
+      <div class="reveal">
+        <p class="you">YOUR WHEEL SAID ${anchor}. YOU SAID ${est}%.</p>
+        <p class="crowd">Your wheel-arm (<b>${arm === 'low' ? 'saw 10' : 'saw 65'}</b>) brackets you with
+        ${Human.fmt(arm === 'low' ? nLow : nHigh)} other visitors.</p>
+        <h3>The crowd so far (${Human.fmt(players)} players)</h3>
+        ${medLow != null ? Human.bar(`saw the wheel land on 10 — median estimate`, medLow, 100, { right: medLow + '%', noCount: true, ghost: true }) : ''}
+        ${medHigh != null ? Human.bar(`saw the wheel land on 65 — median estimate`, medHigh, 100, { right: medHigh + '%', noCount: true }) : ''}
+        ${medLow != null && medHigh != null
+          ? `<p class="dim">Live gap between the two wheel-arms: <b>${Math.abs(medHigh - medLow)} points</b>, n = ${Human.fmt(nLow + nHigh)}.
+             In the 1974 original the gap was 20 points (25% vs 45%). The true answer is ≈ <b>28%</b> (54 of 193 states).</p>`
+          : `<p class="dim">Original 1974 medians: 25% after seeing 10, 45% after seeing 65. True answer ≈ <b>28%</b>.</p>`}
+      </div>`;
+    document.getElementById('plaque').hidden = false;
+    document.getElementById('stage').style.display = 'none';
+    document.getElementById('reveal').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  const me = Human.exhibit(SLUG);
+  document.getElementById('cites').innerHTML = Human.citeHTML(me.citations);
+  document.getElementById('wormhole').innerHTML = Human.wormholeHTML(SLUG);
+  document.getElementById('footer-slot').innerHTML = Human.footerHTML();
+})();
+</script>
+</body>
+</html>
