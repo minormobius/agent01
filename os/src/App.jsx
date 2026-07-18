@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Terminal from './terminal/Terminal.jsx';
+import ChatView from './ChatView.jsx';
 import LoginOverlay from './LoginOverlay.jsx';
 import { createSession, resolveIdentity, describeDid, saveSession, clearSession, restoreSession } from './auth/oauth.js';
 import { AuthClient } from '../../packages/oauth-client/auth.js';
@@ -54,6 +55,9 @@ export default function App() {
   const [restoring, setRestoring] = useState(true);
   const [containerStatus, setContainerStatus] = useState('disconnected');
   const [bootLog, setBootLog] = useState([]);
+  // Default surface is the CHAT with the agent; the terminal (full PDS shell +
+  // PTY container) is the power mode, one tap away.
+  const [view, setView] = useState('chat');
   const transportRef = useRef(null);
 
   // Session bootstrap. Every step logs into bootLog, which the login overlay
@@ -144,29 +148,29 @@ export default function App() {
     setSession(null);
   }, [session]);
 
+  // Credential for os-api (/ws PTY and /chat agent). Returns null after
+  // kicking off an OAuth bounce when a cookie-only SSO session has no local
+  // token (the .mino.mobi cookie can't reach os-api.minomobi.com — different
+  // registrable domain — so this origin needs its own bearer once).
+  const getContainerAuth = useCallback(() => {
+    if (!session) return null;
+    if (session.authMode === 'oauth') {
+      const token = auth.getToken();
+      if (!token) {
+        auth.login(session.handle, { returnTo: window.location.href }).catch(() => {});
+        return null;
+      }
+      return { auth: token, authMode: 'oauth' };
+    }
+    return { auth: session.accessJwt, authMode: 'pds' };
+  }, [session]);
+
   // opts: { apiKey?, boot? } — boot names an agent profile (e.g. 'kimi3') the
   // container should launch straight into instead of a bare bash prompt.
   const handleConnectContainer = useCallback((opts = {}) => {
     if (!session) return;
-
-    let authParam, authMode;
-    if (session.authMode === 'oauth') {
-      // os-api verifies this bearer against auth.mino.mobi/api/me (the
-      // scores-worker pattern). Cookie-only SSO has no local token, and the
-      // .mino.mobi cookie can't reach os-api.minomobi.com (different
-      // registrable domain) — so link this origin once via an OAuth bounce.
-      const token = auth.getToken();
-      if (!token) {
-        auth.login(session.handle, { returnTo: window.location.href }).catch(() => {});
-        return;
-      }
-      authParam = token;
-      authMode = 'oauth';
-    } else {
-      // App-password: the PDS accessJwt, verified by os-api against the PDS.
-      authParam = session.accessJwt;
-      authMode = 'pds';
-    }
+    const authInfo = getContainerAuth();
+    if (!authInfo) return;
 
     transportRef.current?.connect({
       cols: 80,
@@ -174,13 +178,26 @@ export default function App() {
       session: session.did,
       apiKey: opts.apiKey,
       boot: opts.boot,
-      auth: authParam,
-      authMode,
+      ...authInfo,
     });
-  }, [session]);
+  }, [session, getContainerAuth]);
 
   if (restoring) return null;
 
+  // Signed in + chat view (the default): the main page IS the agent chat.
+  if (session && view === 'chat') {
+    return (
+      <ChatView
+        session={session}
+        getContainerAuth={getContainerAuth}
+        profile="kimi3"
+        onOpenTerminal={() => setView('terminal')}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  // Terminal view (power mode) or the login state (terminal behind overlay).
   return (
     <>
       <Terminal
@@ -191,6 +208,19 @@ export default function App() {
         onConnectContainer={handleConnectContainer}
         containerStatus={containerStatus}
       />
+      {session && (
+        <button
+          onClick={() => setView('chat')}
+          style={{
+            position: 'fixed', top: 8, left: 12, zIndex: 10,
+            background: '#161616', border: '1px solid #2a2a2a', borderRadius: 6,
+            color: '#7fd7e0', fontSize: 11, padding: '4px 10px', cursor: 'pointer',
+            fontFamily: 'monospace',
+          }}
+        >
+          ← chat
+        </button>
+      )}
       {!session && (
         <LoginOverlay
           onOAuthLogin={handleOAuthLogin}

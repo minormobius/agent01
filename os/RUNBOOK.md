@@ -75,11 +75,15 @@ Also check `KIMI_MODEL` in `os/api/wrangler.toml` — it's a placeholder
 (`kimi-k3`); set it to the current id from Moonshot's docs. Mainland accounts:
 switch `KIMI_BASE_URL` to `https://api.moonshot.cn/anthropic`.
 
-**Smoke test**: os.mino.mobi → login (handle + app password) → `kimi`.
-Expect: cold start ~2-3s → the Claude Code TUI running Kimi. Inside:
-`work hello-kimi` → make a change → commit/push → the push shows up on GitHub
-and Actions run. (No frontend rebuild needed — availability is a runtime
-`/health` probe, and the production URL is the baked-in default.)
+**Smoke test**: os.mino.mobi → sign in (OAuth overlay) → you land in the
+**chat view** (the default surface): type a message and the agent answers from
+inside your container (first message cold-starts it — up to ~30s, the header
+says so). Ask it to `work hello-kimi`, make a change, commit and push — the
+push shows up on GitHub and Actions run. The `>_ terminal` button opens the
+power surface (full PDS shell; `kimi` there gives the raw Claude Code TUI over
+a PTY). Chat transport: os-api `/chat` → container headless run
+(`agent kimi3 -p --output-format stream-json --resume <sid>`,
+--dangerously-skip-permissions — single-tenant container, scoped PAT).
 
 ## What syncs from where (secret/config map)
 

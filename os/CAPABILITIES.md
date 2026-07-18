@@ -84,7 +84,8 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 ### Container shell (plane 2+3)
 | Capability | Status | Notes |
 |---|---|---|
-| Real bash PTY over WebSocket | 🚧 | Code complete (`api/`, PTY server in `container/`). Backend deploy is dispatch-only — go-live steps in `RUNBOOK.md`. |
+| **Agent CHAT (default surface)** | ✅ | `ChatView.jsx` ⇄ os-api `/chat` ⇄ container headless run: `agent <profile> -p --output-format stream-json --resume <sid>`. Native composer, bubbles, tool chips, stop button; conversation persists via the session-id file + workspace sync. Auth preflight (plain GET `/chat`) returns the exact denial reason before any socket opens. |
+| Real bash PTY over WebSocket (power mode) | ✅ | Terminal view, one tap from chat. PTY server in `container/`. |
 | **Open-model agent profiles (`agent <profile>`, `kimi`)** | 🚧 | Claude Code CLI is the harness for ANY Anthropic-compatible endpoint. Worker injects `AGENT_PROFILES` ({base, model, key}); `agent kimi3` = Kimi via Moonshot, `kimi` in the browser boots straight into it (`?boot=` param). One profile per open model — no new harness code. |
 | Per-DID persistent workspace | 🚧 | Chunked tarball in the ContainerShell DO's SQLite storage (no R2 — unavailable on this plan): restore on start + 2-min autosave; survives 10-min idle sleep; 64MB cap. |
 | Toolchain: git · node 22 · python3 · **uv** · claude-code | 🚧 | `container/Dockerfile`. uv added for fast Python installs (HTTPS, egress-safe). |

@@ -217,9 +217,14 @@ export default {
       return handleSync(request, env, url);
     }
 
-    // WebSocket endpoint: /ws?session=<did>&cols=80&rows=24
-    if (url.pathname === '/ws') {
-      return handleWebSocket(request, env, url);
+    // WebSocket endpoints:
+    //   /ws   — PTY shell (terminal mode)
+    //   /chat — headless agent chat (claude -p stream-json in the container)
+    // A plain (non-upgrade) GET to either acts as an AUTH PREFLIGHT: it runs
+    // the same authorization and returns the verdict as JSON, so the frontend
+    // can print WHY a connection would fail instead of a silent WS close.
+    if (url.pathname === '/ws' || url.pathname === '/chat') {
+      return handleWebSocket(request, env, url, url.pathname);
     }
 
     return new Response('os.mino — container shell API', {
@@ -371,13 +376,8 @@ async function resolvePds(did) {
 
 // ─── WebSocket handler ─────────────────────────────────────────────
 
-async function handleWebSocket(request, env, url) {
-  const upgradeHeader = request.headers.get('Upgrade');
-  if (upgradeHeader?.toLowerCase() !== 'websocket') {
-    return new Response('Expected WebSocket', { status: 426 });
-  }
-
-  // Verify identity BEFORE touching a container. The verified did becomes the
+async function handleWebSocket(request, env, url, targetPath = '/ws') {
+  // Verify identity BEFORE anything else. The verified did becomes the
   // workspace key — we ignore any unauthenticated client-claimed value.
   const auth = await authorizeDid(
     env,
@@ -386,29 +386,43 @@ async function handleWebSocket(request, env, url) {
     url.searchParams.get('authMode')
   );
   if (!auth.ok) {
-    return new Response(auth.msg, { status: auth.status });
+    return new Response(JSON.stringify({ ok: false, error: auth.msg }), {
+      status: auth.status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(request.headers.get('Origin') || '*') },
+    });
   }
   const sessionId = auth.did;
+
+  // Non-upgrade request = auth preflight. Report the verdict without waking
+  // the container, so the frontend can diagnose before opening the socket.
+  const upgradeHeader = request.headers.get('Upgrade');
+  if (upgradeHeader?.toLowerCase() !== 'websocket') {
+    return new Response(JSON.stringify({ ok: true, did: sessionId }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(request.headers.get('Origin') || '*') },
+    });
+  }
 
   // Route to per-user container instance
   const containerId = env.CONTAINER_SHELL.idFromName(sessionId);
   const container = env.CONTAINER_SHELL.get(containerId);
 
-  // Forward WebSocket upgrade to container's PTY server
+  // Forward the WebSocket upgrade to the container server. /ws → PTY at '/',
+  // /chat → the headless-agent chat endpoint at '/chat'.
   const cols = url.searchParams.get('cols') || '80';
   const rows = url.searchParams.get('rows') || '24';
   const containerUrl = new URL(request.url);
-  containerUrl.pathname = '/';
+  containerUrl.pathname = targetPath === '/chat' ? '/chat' : '/';
   containerUrl.search = `?cols=${cols}&rows=${rows}&session=${encodeURIComponent(sessionId)}`;
   // Per-connection Anthropic key (browser-held, for the native `claude` profile).
   const apiKey = url.searchParams.get('apiKey');
   if (apiKey) containerUrl.search += `&apiKey=${encodeURIComponent(apiKey)}`;
-  // Boot profile — auto-launch `agent <profile>` instead of a bare bash prompt
-  // (this is how the frontend's `kimi` command lands you straight in the chat).
-  // Strictly validated: it becomes part of a shell command in the container.
-  const boot = url.searchParams.get('boot');
+  // Agent profile — for /ws it auto-launches `agent <profile>` in the PTY; for
+  // /chat it selects which profile the headless run uses. Strictly validated:
+  // it becomes part of a shell command in the container.
+  const boot = url.searchParams.get('boot') || url.searchParams.get('profile');
   if (boot && /^[a-z0-9][a-z0-9-]{0,31}$/.test(boot)) {
-    containerUrl.search += `&boot=${boot}`;
+    containerUrl.search += targetPath === '/chat' ? `&profile=${boot}` : `&boot=${boot}`;
   }
 
   return container.fetch(

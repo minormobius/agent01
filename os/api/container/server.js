@@ -4,7 +4,8 @@
 
 import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import pty from 'node-pty';
 
 const PORT = 8080;
@@ -94,11 +95,112 @@ const server = createServer((req, res) => {
   res.end();
 });
 
+// ─── Headless agent chat (/chat) ──────────────────────────────────
+// Drives Claude Code in non-interactive mode (`claude -p --output-format
+// stream-json`) through the `agent <profile>` launcher — same harness and
+// model profiles as the PTY, but structured NDJSON events instead of a TUI,
+// so the browser can render a real chat. One run at a time per connection.
+// Conversation continuity: the session_id from the stream's init event is
+// persisted per-profile and resumed with --resume (survives container sleeps
+// via the workspace sync, which includes ~/.claude).
+
+const CHAT_CWD_CANDIDATES = ['/home/coder/workspace/agent01', '/home/coder/workspace'];
+const chatSessionFile = (profile) => `/home/coder/.claude/os-chat-session-${profile}`;
+
+function handleChatConnection(ws, req) {
+  const params = new URL(req.url, 'http://localhost').searchParams;
+  const rawProfile = params.get('profile') || 'kimi3';
+  const profile = /^[a-z0-9][a-z0-9-]{0,31}$/.test(rawProfile) ? rawProfile : 'kimi3';
+  let child = null;
+
+  const send = (obj) => {
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj));
+  };
+
+  send({ type: 'ready', profile });
+
+  ws.on('message', (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw); } catch { return; }
+
+    if (msg.type === 'ping') { send({ type: 'pong' }); return; }
+    if (msg.type === 'interrupt') { child?.kill('SIGINT'); return; }
+    if (msg.type !== 'user' || typeof msg.text !== 'string' || !msg.text.trim()) return;
+    if (child) { send({ type: 'error', error: 'a run is already in progress' }); return; }
+
+    const cwd = CHAT_CWD_CANDIDATES.find((d) => existsSync(d)) || '/home/coder';
+
+    // Resume the persisted conversation if one exists; else start fresh.
+    let resume = '';
+    try {
+      const sid = readFileSync(chatSessionFile(profile), 'utf8').trim();
+      if (/^[a-zA-Z0-9-]{8,64}$/.test(sid)) resume = ` --resume ${sid}`;
+    } catch { /* first conversation */ }
+
+    // --dangerously-skip-permissions: the container is single-tenant, owned by
+    // the same person driving the chat, and the blast radius is the container
+    // itself + what the scoped PAT allows. The prompt rides stdin (no shell
+    // quoting of user text).
+    const cmd = `cd ${cwd} && agent ${profile} -p --output-format stream-json --verbose --dangerously-skip-permissions${resume}`;
+    child = spawn('bash', ['-lc', cmd], {
+      env: { ...process.env, HOME: '/home/coder' },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    send({ type: 'start' });
+    child.stdin.write(msg.text);
+    child.stdin.end();
+
+    let buf = '';
+    child.stdout.on('data', (d) => {
+      buf += d.toString();
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line) continue;
+        // Persist the session id from the init event for --resume next turn.
+        if (line.includes('"session_id"')) {
+          try {
+            const evt = JSON.parse(line);
+            if (evt.session_id) writeFileSync(chatSessionFile(profile), evt.session_id);
+          } catch { /* not fatal */ }
+        }
+        send({ type: 'event', line });
+      }
+    });
+    child.stderr.on('data', (d) => {
+      send({ type: 'stderr', text: d.toString().slice(0, 4000) });
+    });
+    child.on('exit', (code) => {
+      if (buf.trim()) send({ type: 'event', line: buf.trim() });
+      send({ type: 'done', code });
+      child = null;
+    });
+    child.on('error', (err) => {
+      send({ type: 'error', error: err.message });
+      child = null;
+    });
+  });
+
+  ws.on('close', () => { child?.kill(); });
+  ws.on('error', () => { child?.kill(); });
+}
+
 // ─── WebSocket server ─────────────────────────────────────────────
 
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws, req) => {
+  // Path routing: /chat → headless agent chat; anything else → PTY shell.
+  const path = new URL(req.url, 'http://localhost').pathname;
+  if (path === '/chat') {
+    console.log('[chat] client connected');
+    handleChatConnection(ws, req);
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+    return;
+  }
+
   const params = new URL(req.url, 'http://localhost').searchParams;
   const cols = parseInt(params.get('cols')) || 80;
   const rows = parseInt(params.get('rows')) || 24;

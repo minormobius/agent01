@@ -171,20 +171,29 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
     transport.onStatus = (status) => {
       const term = termRef.current;
       if (!term) return;
-      if (status === 'connected' && modeRef.current === 'container-connecting') {
+      if (status === 'connecting') {
+        // Entering container mode. This transition was MISSING before — the
+        // terminal never left 'shell' mode, so a successful connect rendered
+        // nothing and input never reached the PTY.
+        modeRef.current = 'container-connecting';
+        term.writeln(`\r\n${fmt.dim('[opening websocket to os-api…]')}`);
+      } else if (status === 'connected' && modeRef.current === 'container-connecting') {
         modeRef.current = 'container';
         term.writeln(`\r\n${fmt.green('connected')} ${fmt.dim('to container shell')}`);
         term.writeln(`${fmt.dim('bash + git + agents (agent kimi3 / claude) available')}`);
         term.writeln(`${fmt.dim('Type')} ${fmt.cyan('exit')} ${fmt.dim('or Ctrl+D to return to PDS shell')}\r\n`);
         // Send initial resize
         transport.resize(term.cols, term.rows);
-      } else if (status === 'disconnected' && modeRef.current === 'container') {
+      } else if (status === 'disconnected' && (modeRef.current === 'container' || modeRef.current === 'container-connecting')) {
+        const wasConnected = modeRef.current === 'container';
         modeRef.current = 'shell';
-        term.writeln(`\r\n${fmt.yellow('[container disconnected]')}`);
+        term.writeln(`\r\n${fmt.yellow(wasConnected ? '[container disconnected]' : '[websocket closed before connecting]')}`);
         if (shellRef.current) {
           writePrompt(term, shellRef.current);
         }
       } else if (status === 'reconnecting') {
+        // Re-arm the connecting state so the eventual 'connected' is handled.
+        modeRef.current = 'container-connecting';
         term.writeln(`\r\n${fmt.dim('[reconnecting...]')}`);
       } else if (status === 'failed') {
         modeRef.current = 'shell';
