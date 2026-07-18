@@ -227,6 +227,39 @@ export default {
       return handleWebSocket(request, env, url, url.pathname);
     }
 
+    // Boot diagnostic (authed): exercises the FULL container start by proxying
+    // a request through the DO to the container's /health, and returns exactly
+    // what happened — status, timing, or the thrown error. This is how a
+    // "socket closed, no feedback" gets a cause.
+    if (url.pathname === '/debug/boot') {
+      const auth = await authorizeDid(
+        env,
+        url.searchParams.get('session'),
+        url.searchParams.get('auth'),
+        url.searchParams.get('authMode')
+      );
+      const respond = (obj, status = 200) => new Response(JSON.stringify(obj), {
+        status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+      if (!auth.ok) return respond({ ok: false, error: auth.msg }, auth.status);
+      const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(auth.did));
+      const t0 = Date.now();
+      try {
+        const res = await stub.fetch(new Request(
+          `https://do/health?session=${encodeURIComponent(auth.did)}`
+        ));
+        const body = (await res.text()).slice(0, 500);
+        return respond({ ok: res.ok, containerStatus: res.status, ms: Date.now() - t0, body });
+      } catch (err) {
+        return respond({
+          ok: false,
+          ms: Date.now() - t0,
+          error: `container boot failed: ${err?.message || String(err)}`,
+        }, 500);
+      }
+    }
+
     return new Response('os.mino — container shell API', {
       status: 200,
       headers: corsHeaders(origin),

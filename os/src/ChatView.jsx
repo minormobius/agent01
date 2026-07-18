@@ -5,7 +5,7 @@
 // power surface.
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChatSocket, chatPreflight } from './lib/chat-socket.js';
+import { ChatSocket, chatPreflight, debugBoot } from './lib/chat-socket.js';
 
 const MONO = '"Berkeley Mono", "JetBrains Mono", "Fira Code", monospace';
 
@@ -159,14 +159,27 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         return;
       }
       setStatusDetail('starting container (cold start can take ~30s)…');
+      let everConnected = false;
       const sock = new ChatSocket({
         onMessage: handleFrame,
         onStatus: (s, info) => {
-          if (s === 'connected') { setStatus('connected'); setStatusDetail(''); }
+          if (s === 'connected') { everConnected = true; setStatus('connected'); setStatusDetail(''); }
           else if (s === 'closed') {
             setStatus('closed');
             setRunning(false);
             setStatusDetail(`socket closed (${info?.code ?? '?'})`);
+            // Died before ever connecting → run the boot diagnostic and name
+            // the cause instead of leaving a silent reconnect button.
+            if (!everConnected) {
+              push({ role: 'info', text: 'socket closed before connecting — probing container boot…' });
+              debugBoot({ session: session.did, ...authInfo }).then((d) => {
+                if (d.ok) {
+                  push({ role: 'info', text: `container boots fine (${d.ms}ms, health ${d.containerStatus}) — websocket leg is the problem; try reconnect` });
+                } else {
+                  push({ role: 'error', text: `container boot: ${d.error || JSON.stringify(d)}` });
+                }
+              });
+            }
           }
         },
       });

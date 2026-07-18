@@ -27,6 +27,24 @@ export async function chatPreflight({ session, auth, authMode }, timeoutMs = 800
   }
 }
 
+// Exercise the full container boot through the DO and return the verdict —
+// called when a socket dies before ever connecting, to name the cause.
+export async function debugBoot({ session, auth, authMode }, timeoutMs = 45000) {
+  const params = new URLSearchParams({ session });
+  if (auth) params.set('auth', auth);
+  if (authMode) params.set('authMode', authMode);
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${httpBase()}/debug/boot?${params}`, { signal: ctrl.signal });
+    return await res.json();
+  } catch (err) {
+    return { ok: false, error: `debug/boot unreachable (${err.name === 'AbortError' ? 'timeout' : err.message})` };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export class ChatSocket {
   constructor({ onMessage, onStatus }) {
     this.onMessage = onMessage;   // (obj) — parsed frames from the container

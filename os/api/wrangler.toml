@@ -60,6 +60,10 @@ image = "./container/Dockerfile"
 # Owner-only deployment: one container per DID, so 3 = the owner + headroom.
 # Raise deliberately if ALLOWED_DIDS ever grows (and see the tenancy rules).
 max_instances = 3
+# The default "dev" instance is 256 MiB memory — enough for the PTY server,
+# nowhere near enough to RUN Claude Code (the agent). Standard buys real
+# memory/disk; it bills only while the container is awake (10-min idle sleep).
+instance_type = "standard"
 
 # Durable Object bindings
 [[durable_objects.bindings]]
