@@ -27,6 +27,8 @@ name: Deploy os-api (container backend)
 # idle sleep, and the fail-closed ALLOWED_DIDS gate bounds who can wake one.
 #
 # HUMAN PREREQS the workflow cannot do (one-time — full list in os/RUNBOOK.md):
+#   - Enable R2 on the account (dashboard; CF error 10042 from the bucket step
+#     until then — confirmed by run #1).
 #   - Enable Cloudflare Containers on the account (plan-level, dashboard).
 #   - Mint the Moonshot API key + the fine-grained PAT, add as GH secrets above.
 #   - Set the OS_ALLOWED_DIDS repo variable to your DID.
@@ -73,6 +75,9 @@ jobs:
             echo "✓ created R2 bucket os-workspace"
           elif echo "$RESP" | jq -r '.errors[]?.message' | grep -qi 'already exists'; then
             echo "✓ R2 bucket os-workspace already exists"
+          elif echo "$RESP" | jq -e '.errors[]? | select(.code==10042)' >/dev/null; then
+            echo "::error::R2 is not enabled on the Cloudflare account — enable it in the dashboard (one-time), then re-run. See os/RUNBOOK.md step 1."
+            exit 1
           else
             echo "❌ R2 bucket create failed:"; echo "$RESP" | jq .; exit 1
           fi

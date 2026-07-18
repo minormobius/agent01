@@ -30,9 +30,14 @@ Code; the model is a profile.
 
 These are the only things the workflow cannot do itself:
 
-1. **Enable Cloudflare Containers** on the account (dashboard → Workers &
-   Pages → Containers; requires the paid Workers plan). Until this is on, the
-   `wrangler deploy` step fails — that red run is the signal.
+1. **Enable R2 and Cloudflare Containers** on the account (both are one-time
+   dashboard toggles):
+   - **R2** (dashboard → R2 → enable; may ask for a payment method, free tier
+     covers this). Until it's on, the bucket step fails with CF error `10042`
+     — confirmed by the first live run.
+   - **Containers** (dashboard → Workers & Pages; requires the paid Workers
+     plan). Until it's on, the `wrangler deploy` step fails.
+   Each red run tells you exactly which toggle is still off.
 2. **Mint two credentials and add them as GitHub Actions SECRETS**
    (repo Settings → Secrets and variables → Actions → Secrets):
    - `MOONSHOT_API_KEY` — from platform.moonshot.ai → API keys.
@@ -113,6 +118,7 @@ No image rebuild logic, no frontend change, no new harness code.
 | Symptom | Likely cause |
 |---|---|
 | `kimi` says "backend not reachable" | deploy-os-api.yml hasn't run green — check its latest run |
+| R2 bucket step fails (CF code `10042`) | R2 not enabled on the account (human step 1) |
 | deploy step fails at `wrangler deploy` | Cloudflare Containers not enabled on the account (human step 1) |
 | Health-check step times out | Custom-domain cert still provisioning (re-run), or the deploy log doesn't bind `os-api.minomobi.com (custom domain)` — golden rule |
 | WS closes with 503 | `ALLOWED_DIDS` unset — GH variable `OS_ALLOWED_DIDS` missing (workflow warned) |
