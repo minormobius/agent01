@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Terminal from './terminal/Terminal.jsx';
 import LoginOverlay from './LoginOverlay.jsx';
-import { createSession, resolveIdentity, saveSession, clearSession, restoreSession } from './auth/oauth.js';
+import { createSession, resolveIdentity, describeDid, saveSession, clearSession, restoreSession } from './auth/oauth.js';
 import { AuthClient } from '../../packages/oauth-client/auth.js';
 import { WSTransport } from './lib/ws-transport.js';
 // Backend availability is probed at RUNTIME by the kimi/container commands
@@ -16,11 +16,32 @@ const auth = new AuthClient();
 // Build the os session object for an OAuth user. Same shape the shell expects,
 // with authMode/authClient so XRPCClient routes writes through the auth
 // worker's /pds/* proxy (reads stay public XRPC straight to the PDS).
+// Robust to the auth worker returning a DID in the handle field (observed in
+// prod): resolve from whichever identifier we actually have.
 async function oauthSession(user) {
-  const identity = await resolveIdentity(user.handle); // handle → did + pdsUrl
+  const raw = (user.handle || '').trim();
+  const did = user.did || (raw.startsWith('did:') ? raw : null);
+
+  if (raw && !raw.startsWith('did:')) {
+    // Normal case: a real handle.
+    const identity = await resolveIdentity(raw); // handle → did + pdsUrl
+    return {
+      did: did || identity.did,
+      handle: raw,
+      pdsUrl: identity.pdsUrl,
+      accessJwt: null,
+      authMode: 'oauth',
+      authClient: auth,
+    };
+  }
+
+  if (!did) throw new Error('auth session has neither handle nor DID');
+  // Handle field held a DID (or was empty): resolve the DID document directly
+  // and recover the true handle from alsoKnownAs.
+  const identity = await describeDid(did);
   return {
-    did: user.did || identity.did,
-    handle: user.handle,
+    did,
+    handle: identity.handle || did,
     pdsUrl: identity.pdsUrl,
     accessJwt: null,
     authMode: 'oauth',

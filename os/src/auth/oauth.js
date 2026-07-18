@@ -19,24 +19,41 @@ export async function resolveIdentity(handle) {
   return { did, handle, pdsUrl };
 }
 
-async function resolvePDS(did) {
+async function fetchDidDoc(did) {
   if (did.startsWith('did:plc:')) {
     const res = await fetch(`${PLC_DIRECTORY}/${did}`);
     if (!res.ok) throw new Error(`Could not resolve DID: ${did}`);
-    const doc = await res.json();
-    const service = doc.service?.find(s => s.id === '#atproto_pds');
-    if (!service) throw new Error('No PDS service in DID document');
-    return service.serviceEndpoint;
+    return res.json();
   } else if (did.startsWith('did:web:')) {
     const domain = did.replace('did:web:', '');
     const res = await fetch(`https://${domain}/.well-known/did.json`);
     if (!res.ok) throw new Error(`Could not resolve did:web: ${did}`);
-    const doc = await res.json();
-    const service = doc.service?.find(s => s.id === '#atproto_pds');
-    if (!service) throw new Error('No PDS service in DID document');
-    return service.serviceEndpoint;
+    return res.json();
   }
   throw new Error(`Unsupported DID method: ${did}`);
+}
+
+async function resolvePDS(did) {
+  const doc = await fetchDidDoc(did);
+  const service = doc.service?.find(s => s.id === '#atproto_pds');
+  if (!service) throw new Error('No PDS service in DID document');
+  return service.serviceEndpoint;
+}
+
+// DID → { did, handle, pdsUrl }. The reverse of resolveIdentity — used when an
+// upstream identity source hands us a DID where a handle belongs (the shared
+// auth worker's session can carry the DID in its handle field). The true
+// handle is recovered from the DID document's alsoKnownAs (at://handle).
+export async function describeDid(did) {
+  const doc = await fetchDidDoc(did);
+  const service = doc.service?.find(s => s.id === '#atproto_pds');
+  if (!service) throw new Error('No PDS service in DID document');
+  const aka = (doc.alsoKnownAs || []).find(a => typeof a === 'string' && a.startsWith('at://'));
+  return {
+    did,
+    handle: aka ? aka.slice('at://'.length) : null,
+    pdsUrl: service.serviceEndpoint,
+  };
 }
 
 export async function createSession(pdsUrl, identifier, password) {
