@@ -65,6 +65,15 @@ section('civ-client mode (the world above drives everything)');
   ok(tot(C) !== tot(noEnv), 'envelope nudging alters regional growth');
   const C2 = runChronicle(11, mesh, { ticks: 160, world, civ });
   ok(JSON.stringify(C.events) === JSON.stringify(C2.events) && tot(C) === tot(C2), 'civ mode deterministic');
+  // ENERGETICS fine grain: towns carry an energy endowment read off the habitat,
+  // rail delivers fossil, and the civ food-security boundary scales the food shed
+  ok(C.towns.every(t => t.energy && 'water' in t.energy && 'wood' in t.energy), 'towns carry an energy endowment');
+  ok(C.towns.filter(t => t.railed).every(t => t.energy.fossil === 1), 'rail-connected towns run on fossil fuel');
+  ok(C.towns.some(t => Number(t.energy.water) > 0.2), 'some towns sit on falling water');
+  const civSec = { ...civ, energy: { foodSecurity: Array.from({ length: 50 }, () => 0.4), t: [] } }; // a hungry world
+  const Chungry = runChronicle(11, mesh, { ticks: 160, world, civ: civSec });
+  const Cfed = runChronicle(11, mesh, { ticks: 160, world, civ: { ...civ, energy: { foodSecurity: Array.from({ length: 50 }, () => 2.0), t: [] } } });
+  ok(tot(Chungry) < tot(Cfed), `global food security scales the region (hungry ${tot(Chungry)} < fed ${tot(Cfed)})`);
 }
 
 console.log(`\n${fail === 0 ? '✓ ALL PASS' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);

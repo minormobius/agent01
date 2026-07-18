@@ -525,6 +525,34 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       while (ps.length < chronicle.fred.t.length - 1) ps.push(0);
       ps.push(cellPop[ct.cell]);
     }
+    // ENERGETICS (hash-safe, fred only): the gross budgets. Food capacity is what the
+    // land under current climate + agglomeration could actually feed (Σ effective K
+    // over populated cells); the industrial energy mix is muscle (human + draft),
+    // fuelwood (forest biomes under population), watermills (river/lake cells whose
+    // culture has wheel+masonry), and fossil (industrial-tier populations) — all in
+    // person-power equivalents (ppe). A mesoscale client refines these per-town.
+    {
+      const FOREST = { 5: 1, 8: 1, 9: 1, 12: 0.8, 13: 0.9, 11: 0.3 };
+      let foodCap = 0, wood = 0, waterP = 0, fossil = 0;
+      for (let c = 0; c < N; c++) {
+        const p = cellPop[c]; if (!p) continue;
+        const d = cellDom[c]; if (d < 0) continue;
+        const cu = cultures[d];
+        foodCap += kEff(c, cu.sub);
+        wood += p * (FOREST[w.biome[c]] || 0) * 0.6;
+        if ((w.river[c] || w.lakeAdj[c]) && has(cu.tech, CAP.wheel) && has(cu.tech, CAP.masonry)) waterP += p * 0.5;
+        if (vecTier(cu.tech) >= 4) fossil += p * 2.5;
+      }
+      const muscle = liveN * (1 + 0.6 * (liveN ? subPop[PKG_ID.pastoral] / liveN : 0));
+      fredPush('energy.food.capacity', 'Food capacity (people the land can feed)', 'Energetics', 'people', Math.round(foodCap));
+      fredPush('energy.food.security', 'Food security (capacity / population)', 'Energetics', 'ratio', +(liveN ? foodCap / liveN : 0).toFixed(3));
+      fredPush('energy.ind.muscle', 'Energy — muscle (human + draft)', 'Energetics', 'ppe', Math.round(muscle));
+      fredPush('energy.ind.wood', 'Energy — fuelwood', 'Energetics', 'ppe', Math.round(wood));
+      fredPush('energy.ind.water', 'Energy — watermills', 'Energetics', 'ppe', Math.round(waterP));
+      fredPush('energy.ind.fossil', 'Energy — fossil', 'Energetics', 'ppe', Math.round(fossil));
+      fredPush('energy.ind.total', 'Energy — total base', 'Energetics', 'ppe', Math.round(muscle + wood + waterP + fossil));
+      fredPush('energy.ind.perCapita', 'Energy per capita', 'Energetics', 'ppe/person', +(liveN ? (muscle + wood + waterP + fossil) / liveN : 0).toFixed(3));
+    }
     // climate forcing (hash-safe: fred is never part of chronicleHash) — the schedule's
     // current strength plus how much of the land it is actually touching
     fredPush('climate.pulse', 'Climate forcing strength', 'Climate', 'index 0–1', +climate.lastPulse.toFixed(3));
@@ -1370,6 +1398,27 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     cities.sort((a, b) => b.peak - a.peak);
     // continents, named — the filter axis every located object shares
     const landmasses = Array.from({ length: w.nLandmass }, (_, i) => ({ id: i, name: namer.landmassName(i), pop: popByLand[i], cities: cities.filter(ct => ct.landmass === i).length }));
+    // ENERGETICS end-state, per continent — the gross budgets a mesoscale client
+    // refines (same accounting as the fred series; ppe = person-power equivalents)
+    const FORESTE = { 5: 1, 8: 1, 9: 1, 12: 0.8, 13: 0.9, 11: 0.3 };
+    const energyLand = Array.from({ length: w.nLandmass }, () => ({ pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0 }));
+    for (let c = 0; c < N; c++) {
+      const p = cellPop[c]; if (!p) continue;
+      const d = cellDom[c]; if (d < 0) continue;
+      const cu = cultures[d], L = energyLand[w.landmass[c]];
+      L.pop += p; L.muscle += p;
+      L.foodCapacity += kEff(c, cu.sub);
+      L.wood += p * (FORESTE[w.biome[c]] || 0) * 0.6;
+      if ((w.river[c] || w.lakeAdj[c]) && has(cu.tech, CAP.wheel) && has(cu.tech, CAP.masonry)) L.water += p * 0.5;
+      if (vecTier(cu.tech) >= 4) L.fossil += p * 2.5;
+    }
+    const eW = { pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0 };
+    for (const L of energyLand) for (const k of Object.keys(eW)) { L[k] = Math.round(L[k]); eW[k] += L[k]; }
+    const energy = {
+      unit: 'ppe (person-power equivalents); foodCapacity in people-fed',
+      world: { ...eW, foodSecurity: +(eW.pop ? eW.foodCapacity / eW.pop : 0).toFixed(3) },
+      landmasses: energyLand.map((L, i) => ({ landmass: i, name: landmasses[i].name, ...L, foodSecurity: +(L.pop ? L.foodCapacity / L.pop : 0).toFixed(3) })),
+    };
     // the NOTABLE composite actors across the whole run — companies, guilds, armies,
     // states — alive or since-dissolved (warbands are transient, so a fought-and-fell host
     // is history too). Ranked by significance; each carries its alive/fell status.
@@ -1405,7 +1454,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       // every culture ever, id-indexed — events reference cultures by id, so consumers
       // (the timeline, external tooling) can name even the extinct ones
       cultureNames: cultures.map((c, i) => namer.culture(i)),
-      cultures: surviving, polities, foundings, cities, landmasses, resources, institutions, economy,
+      cultures: surviving, polities, foundings, cities, landmasses, energy, resources, institutions, economy,
       beliefs: beliefsOut, beliefAxes: DOX,
       greatPeople: great, credNames: CRED,
       languages: languages.map(l => ({ id: l.id, parent: l.parent, birthTick: l.birthTick })),

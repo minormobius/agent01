@@ -268,6 +268,16 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, wo
     const mx = Math.max(1, ...civ.envelope);
     envNorm = (f) => civ.envelope[Math.min(civ.envelope.length - 1, Math.max(0, Math.round(f * (civ.envelope.length - 1))))] / mx;
   }
+  // ENERGETICS boundary condition (civ mode): the world's gross food security scales
+  // what the regional land yields — a bad global food balance presses on everyone.
+  let foodSecAt = null;
+  if (civ && civ.energy && civ.energy.foodSecurity && civ.energy.foodSecurity.length) {
+    const S = civ.energy.foodSecurity;
+    foodSecAt = (f) => {
+      const v = S[Math.min(S.length - 1, Math.max(0, Math.round(f * (S.length - 1))))] || 0;
+      return Math.max(0.6, Math.min(1.15, 0.55 + 0.45 * v));
+    };
+  }
 
   const mkShell = (s, foundedGate) => ({
     cell: s.id, x: mesh.cells[s.id].wx, y: mesh.cells[s.id].wy, gx: mesh.cells[s.id].gx,
@@ -275,6 +285,9 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, wo
     history: new Array(ticks).fill(0), flourishHist: new Array(ticks).fill(0),
     base: 0, trade: 0, trade0: 0, K0: 0, surplus: 0, wave: foundedGate || 0,
     commodity: commodityOf(mesh, mesh.cells[s.id]), drowned: -1,
+    // the town's INDUSTRIAL ENERGY endowment, read off its habitat: falling water
+    // (river flow), fuelwood (moisture), muscle always; fossil arrives with rail
+    energy: { muscle: 1, water: +Math.min(1.5, mesh.cells[s.id].river ? mesh.cells[s.id].flow / 30 : 0).toFixed(2), wood: +Math.min(1, mesh.cells[s.id].moist * 1.2).toFixed(2), fossil: 0 },
   });
   // wave 0: the day's-walk lattice (walk-era spacing; no sea-trade emphasis yet)
   const towns = candidates(mesh, count, { spacing: TRANSPORT[0].spacing }).map((s) => mkShell(s, 0));
@@ -330,7 +343,7 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, wo
         const path = best && railPath(mesh, best.cell, t.cell);
         if (path) { rails.push({ a: best.cell, b: t.cell, path, tick: k }); connected.push(t); }
       }
-      for (const t of connected) if (!t.railed) { t.railed = true; t.trade0 = (t.trade0 || t.trade); t.trade = t.trade0 + 0.5; }
+      for (const t of connected) if (!t.railed) { t.railed = true; t.trade0 = (t.trade0 || t.trade); t.trade = t.trade0 + 0.5; t.energy.fossil = 1; }
       // junction towns at rail midpoints, era spacing
       const mids = rails.map((rl) => rl.path[Math.floor(rl.path.length / 2)]);
       const midSet = new Set(mids);
@@ -372,7 +385,7 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, wo
       if (e.ice < ICE_FOUND && habitable(c, e) && e.tech >= (TECH_GATE[t.engine] || 0) && (t.engine !== 'market' || e.tempShift > -0.05)) {
         t.surplus = surplusAround(mesh, t.cell, e);
         const bt = baseAndTrade(mesh, c, t.engine, t.surplus);
-        t.base = bt.base; t.trade = bt.trade; t.trade0 = bt.trade; t.K0 = t.surplus * KPP * 0.5; t.pop = 6; t.alive = true; t.founded = k;
+        t.base = bt.base; t.trade = bt.trade; t.trade0 = bt.trade; t.K0 = t.surplus * KPP * 0.5 * (foodSecAt ? foodSecAt(e.f) : 1); t.pop = 6; t.alive = true; t.founded = k;
         if (t.wave === 0) aliveCount++;
       }
     }
@@ -386,11 +399,16 @@ export function runChronicle(seed, mesh, { ticks = 160, count = 15, r = 0.18, wo
         if (t.pop < 8) { t.pop = 0; t.alive = false; }
       }
     }
-    // 2 — growth (envelope-nudged in civ mode: the region breathes with the macro city)
-    const rEff = envNorm ? r * (0.55 + 0.9 * envNorm(e.f)) : r;
+    // 2 — growth (envelope-nudged in civ mode: the region breathes with the macro
+    // city; food security acts Malthusian-side too — scarcity slows growth even
+    // below the carrying ceiling, not just at it)
+    const rEff = (envNorm ? r * (0.55 + 0.9 * envNorm(e.f)) : r) * (foodSecAt ? foodSecAt(e.f) : 1);
     for (const t of towns) if (t.alive && t.drowned < 0) {
-      if (k % 12 === 0) { t.surplus = surplusAround(mesh, t.cell, e); t.K0 = t.surplus * KPP * 0.5; }
-      growStep(t, { r: rEff, tech: e.tech });
+      if (k % 12 === 0) { t.surplus = surplusAround(mesh, t.cell, e); t.K0 = t.surplus * KPP * 0.5 * (foodSecAt ? foodSecAt(e.f) : 1); }
+      // industrial-era growth runs on ENERGY: towns with falling water or fossil fuel
+      // industrialize harder than muscle-and-wood towns (the mill-town advantage)
+      const eMul = e.tech > 0.75 ? (0.85 + 0.35 * Math.min(1, (Number(t.energy.water) + t.energy.fossil) * 0.7)) : 1;
+      growStep(t, { r: rEff * eMul, tech: e.tech });
     }
     // 2b — commodity complementarity: rail + sea links between towns exporting
     // DIFFERENT goods lift both (comparative advantage), refreshed periodically

@@ -119,6 +119,17 @@ export function doSites(params, cap = CAP) {
     // the run's climate forcing curve, so local history is DRIVEN by the world's
     // weather rather than rolling its own
     climate: (() => { const cp = ch.fred && ch.fred.series && ch.fred.series['climate.pulse']; return cp ? { t: ch.fred.t, pulse: cp.data } : null; })(),
+    // ENERGETICS boundary conditions: gross food security + fossil share over the run,
+    // and the end-state per-continent budget — the mesoscale refines these per-town
+    energy: (() => {
+      const F = ch.fred && ch.fred.series; if (!F || !F['energy.food.security']) return null;
+      return {
+        t: ch.fred.t,
+        foodSecurity: F['energy.food.security'].data,
+        fossilShare: F['energy.ind.total'].data.map((v, i) => v ? +((F['energy.ind.fossil'].data[i] || 0) / v).toFixed(3) : 0),
+        landmasses: ch.final.energy.landmasses,
+      };
+    })(),
     ms: Math.round(now() - t0),
   };
 }

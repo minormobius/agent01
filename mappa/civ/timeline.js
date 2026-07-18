@@ -25,7 +25,7 @@
 // least significant kinds are trimmed first (never the arc-defining ones).
 const WEIGHT = {
   founding: 100, closing: 100, agriculture: 95, industry: 95, rulesets: 90,
-  climate: 85, polityRise: 80, techFirst: 80, polityFall: 78, collapse: 74,
+  climate: 85, energy: 82, polityRise: 80, techFirst: 80, polityFall: 78, collapse: 74,
   sack: 72, fall: 70, techIndep: 70, belief: 70, majorOrg: 68, eminence: 66, city: 64, war: 62, siege: 56,
   demography: 60, techSpread: 60, schism: 58, stateFormation: 50, crisis: 48,
   institution: 45, conversion: 44, boom: 40, resource: 38, split: 36, extinction: 34,
@@ -308,6 +308,21 @@ export function buildTimeline(ch, mode) {
       add(g.tick, 'eminence', `${g.name} at the height of power`,
         `${g.name} of the ${cuName(g.culture)} — ${g.person ? `${g.person.cast}, called to ${g.person.vocation}${quirks ? `; ${quirks}` : ''}` : 'remembered'} — leads ${g.inst} to eminence (reputation ${g.rep}).`,
         { culture: g.culture, cultureName: cuName(g.culture), inst: g.inst, person: g.person, name: g.name });
+    }
+  }
+
+  // ---- the energy transitions (forces only): the ceilings that bound history -----
+  if (!great && ch.fred && ch.fred.series) {
+    const F = ch.fred.series, tF = ch.fred.t || [];
+    const wtr = F['energy.ind.water'], fos = F['energy.ind.fossil'], mus = F['energy.ind.muscle'], wd = F['energy.ind.wood'];
+    if (wtr && wtr.data) {
+      const i = wtr.data.findIndex(v => v > 0);
+      if (i > 0) add(tF[i], 'energy', 'the mills turn', `falling water joins muscle and wood — ${wtr.data[i].toLocaleString()} ppe of watermill capacity comes online. The first energy source that never tires.`, { water: wtr.data[i] });
+    }
+    if (fos && mus && wd) {
+      const i = fos.data.findIndex((v, k) => v > 0 && v > mus.data[k] + wd.data[k] + (wtr ? wtr.data[k] : 0));
+      if (i > 0) add(tF[i], 'energy', 'the fossil transition', `buried sunlight overtakes every organic source combined — the energy ceiling that bounded all previous history lifts.`, { fossil: fos.data[i], organic: mus.data[i] + wd.data[i] + (wtr ? wtr.data[i] : 0) });
+      else { const j = fos.data.findIndex(v => v > 0); if (j > 0) add(tF[j], 'energy', 'the first fossil fires', `an industrial culture begins burning buried sunlight — ${fos.data[j].toLocaleString()} ppe and compounding.`, { fossil: fos.data[j] }); }
     }
   }
 

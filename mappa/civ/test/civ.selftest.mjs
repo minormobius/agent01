@@ -259,6 +259,33 @@ section('continents, cities, tech history, major orgs');
   ok(Array.isArray(s.cities) && s.cities.every(c => c.siteSeed === `7:${c.name}:${c.cell}`), 'sites cities carry siteSeed strings');
 }
 
+section('energetics — food + industrial energy, gross');
+{
+  const { doRun, doSites, doTimeline } = await import('../api.js');
+  const r = doRun(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
+  ok(r.hash === '3c9a4a61', 'energetics is hash-invariant (fred + final only — epoch-2 pin holds)');
+  const F = r.chronicle.fred.series;
+  for (const k of ['energy.food.capacity', 'energy.food.security', 'energy.ind.muscle', 'energy.ind.wood', 'energy.ind.water', 'energy.ind.fossil', 'energy.ind.total', 'energy.ind.perCapita'])
+    ok(F[k] && F[k].data.length > 0, `series ${k} present`);
+  const sec = F['energy.food.security'].data.filter(v => v > 0);
+  ok(sec.length > 0 && sec.every(v => v > 0.3 && v < 50), 'food security in a sane band');
+  const tot = F['energy.ind.total'].data, mus = F['energy.ind.muscle'].data;
+  ok(tot.every((v, i) => v >= mus[i]), 'total energy ≥ muscle (mix is additive)');
+  // end-state per-continent budget sums to the world
+  const E = r.chronicle.final.energy;
+  ok(E && E.world && Array.isArray(E.landmasses), 'final.energy present');
+  for (const k of ['pop', 'foodCapacity', 'muscle', 'wood', 'water', 'fossil'])
+    ok(E.landmasses.reduce((a, L) => a + L[k], 0) === E.world[k], `landmass ${k} sums to world`);
+  // sites carries the boundary conditions
+  const s = doSites(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
+  ok(s.energy && s.energy.foodSecurity.length === s.energy.t.length && Array.isArray(s.energy.landmasses), 'sites carries the energetics boundary conditions');
+  ok(s.energy.fossilShare.every(v => v >= 0 && v <= 1), 'fossil share is a share');
+  // the forces timeline speaks energy when the mills turn
+  const tl = doTimeline(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=1000&mode=forces')).timeline.forces.entries;
+  const hasWater = doRun(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=1000')).chronicle.fred.series['energy.ind.water'].data.some(v => v > 0);
+  ok(!hasWater || tl.some(e => e.kind === 'energy'), 'energy transition entries appear once watermills exist');
+}
+
 section('epoch 2 — cities as actors');
 {
   const { doRun, doSites } = await import('../api.js');

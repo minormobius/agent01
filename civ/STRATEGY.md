@@ -258,10 +258,33 @@ one, nested again for the site.
   modes, drowning invariant, era schedule from founderTech, rails/sea routes/
   commodities, envelope effect).
 
+**The energetics layer (SHIPPED — the conservation accounting):**
+
+- **Civ (gross, hash-invariant — fred + final only, pin unmoved)**: per-tick FRED
+  series under an `Energetics` category — food capacity (Σ effective K over
+  populated cells: what the land under current climate + agglomeration could feed),
+  food security (capacity/pop), and the industrial energy mix in person-power
+  equivalents: muscle (human + draft, pastoral-boosted), fuelwood (forest biomes
+  under population), watermills (river/lake cells whose culture holds wheel +
+  masonry), fossil (industrial-tier populations). End-state **per-continent budget**
+  in `final.energy` (sums verified to world totals). The forces timeline gains
+  energy-transition entries: "the mills turn" and "the fossil transition" (buried
+  sunlight overtakes every organic source combined).
+- **Boundary conditions down** (`/api/civ/sites` → `energy`): the food-security and
+  fossil-share curves + the per-continent table.
+- **Hinterland (fine)**: every town carries an energy endowment read off its habitat
+  (falling water from river flow, fuelwood from moisture, muscle always; fossil
+  arrives with rail); industrial-era growth runs on energy (mill/coal towns
+  industrialize harder — the mill-town advantage); the civ food-security curve
+  scales both the food shed (K) and growth itself (Malthusian side — scarcity slows
+  growth below the ceiling, selftested: a hungry world grows a smaller region).
+  Town panel shows the energy mix and food shed vs need.
+
 **Still open at the hinterland level**: rank-size calibration (nudge the town-size
 distribution toward Zipf), commodity flows as actual quantities (not just a
-complementarity bonus), and reading civ WARS (not just this city's sacks) as
-regional insecurity that suppresses unwalled-town growth.
+complementarity bonus), reading civ WARS (not just this city's sacks) as regional
+insecurity, and — energetics follow-on — a coal *geography* (mappa doesn't yet mint
+fossil basins; fossil is population-abstract until it does).
 
 ### Phase V — outward
 
