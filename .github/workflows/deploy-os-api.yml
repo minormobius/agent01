@@ -55,7 +55,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # wrangler >= 4.9x requires Node 22 (run #4 failed on Node 20)
+          node-version: '22'
 
       - name: Install dependencies
         run: npm install
