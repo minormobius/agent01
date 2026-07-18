@@ -73,6 +73,8 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
   const socketRef = useRef(null);
   const scrollRef = useRef(null);
   const connectingRef = useRef(false);
+  const pendingRef = useRef(null);   // message typed while disconnected
+  const handleFrameRef = useRef(null); // for history replay recursion
 
   const push = useCallback((m) => {
     setMessages((list) => [...list, { id: nextId++, ...m }]);
@@ -97,6 +99,29 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     switch (msg.type) {
       case 'ready':
         push({ role: 'info', text: `container ready · profile ${msg.profile}` });
+        // The server keeps runs alive across disconnects — reattaching tells
+        // us whether the agent is STILL WORKING right now.
+        setRunning(!!msg.busy);
+        if (msg.busy) push({ role: 'info', text: 'agent is still working — reattached to the live run' });
+        // Flush a message typed while disconnected (after history replays).
+        setTimeout(() => {
+          const pending = pendingRef.current;
+          if (pending && socketRef.current?.connected) {
+            pendingRef.current = null;
+            push({ role: 'user', text: pending });
+            setRunning(true);
+            socketRef.current.sendUser(pending);
+          }
+        }, 150);
+        break;
+      case 'history':
+        // Authoritative story-so-far from the server (survives reloads and
+        // container sleeps). Replace local state and replay.
+        setMessages([]);
+        for (const f of msg.frames || []) handleFrameRef.current(f);
+        break;
+      case 'user-msg':
+        push({ role: 'user', text: msg.text });
         break;
       case 'start':
         setRunning(true);
@@ -155,6 +180,7 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         break;
     }
   }, [push, appendAssistant]);
+  handleFrameRef.current = handleFrame;
 
   const connect = useCallback(async () => {
     if (connectingRef.current || socketRef.current?.connected) return;
@@ -197,6 +223,10 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         onMessage: handleFrame,
         onStatus: (s, info) => {
           if (s === 'connected') { everConnected = true; setStatus('connected'); setStatusDetail(''); }
+          else if (s === 'reconnecting') {
+            setStatus('connecting');
+            setStatusDetail(`reconnecting (${info?.attempt ?? ''})…`);
+          }
           else if (s === 'closed') {
             setStatus('closed');
             setRunning(false);
@@ -229,10 +259,32 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Coming back to the app (rotate, unlock, tab switch) with a dead socket →
+  // rejoin automatically; the server-side run and history are waiting.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (socketRef.current && !socketRef.current.connected) {
+        socketRef.current.reconnectNow();
+      } else if (!socketRef.current) {
+        connect();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [connect]);
+
   const submit = useCallback(() => {
     const text = draft.trim();
     if (!text || running) return;
-    if (!socketRef.current?.connected) { connect(); return; }
+    if (!socketRef.current?.connected) {
+      // Don't swallow the message: queue it, rejoin, flush on ready.
+      pendingRef.current = text;
+      setDraft('');
+      push({ role: 'info', text: 'not connected — message queued, reconnecting…' });
+      if (socketRef.current) socketRef.current.reconnectNow(); else connect();
+      return;
+    }
     push({ role: 'user', text });
     setDraft('');
     setRunning(true);

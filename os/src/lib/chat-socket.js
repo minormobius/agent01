@@ -63,26 +63,45 @@ export async function debugRestart({ session, auth, authMode }, timeoutMs = 2000
   }
 }
 
+const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000];
+
 export class ChatSocket {
   constructor({ onMessage, onStatus }) {
     this.onMessage = onMessage;   // (obj) — parsed frames from the container
-    this.onStatus = onStatus;     // ('connecting'|'connected'|'closed')
+    this.onStatus = onStatus;     // ('connecting'|'connected'|'reconnecting'|'closed')
     this.ws = null;
     this.intentionalClose = false;
     this.pingInterval = null;
+    this.reconnectAttempt = 0;
+    this._connectParams = null;
   }
 
-  connect({ session, auth, authMode, profile }) {
+  connect(params) {
+    this._connectParams = params;
+    this.reconnectAttempt = 0;
+    this._open();
+  }
+
+  // Manual retry after auto-reconnect gave up (or from a visibility rejoin).
+  reconnectNow() {
+    if (!this._connectParams) return;
+    this.reconnectAttempt = 0;
+    this._open();
+  }
+
+  _open() {
+    const { session, auth, authMode, profile } = this._connectParams;
     this.intentionalClose = false;
     const params = new URLSearchParams({ session });
     if (auth) params.set('auth', auth);
     if (authMode) params.set('authMode', authMode);
     if (profile) params.set('profile', profile);
 
-    this.onStatus?.('connecting');
+    this.onStatus?.(this.reconnectAttempt ? 'reconnecting' : 'connecting');
     this.ws = new WebSocket(`${CONTAINER_API_URL}/chat?${params}`);
 
     this.ws.onopen = () => {
+      this.reconnectAttempt = 0;
       this.onStatus?.('connected');
       this._startPing();
     };
@@ -93,7 +112,19 @@ export class ChatSocket {
     };
     this.ws.onclose = (event) => {
       this._stopPing();
-      this.onStatus?.('closed', { code: event.code, reason: event.reason });
+      if (this.intentionalClose) {
+        this.onStatus?.('closed', { code: event.code, reason: event.reason, final: true });
+        return;
+      }
+      // Auto-reconnect with backoff — mobile sockets die on rotate/lock and
+      // the server keeps runs alive, so rejoining is always the right move.
+      if (this.reconnectAttempt < RECONNECT_DELAYS_MS.length) {
+        const delay = RECONNECT_DELAYS_MS[this.reconnectAttempt++];
+        this.onStatus?.('reconnecting', { attempt: this.reconnectAttempt });
+        setTimeout(() => { if (!this.intentionalClose) this._open(); }, delay);
+      } else {
+        this.onStatus?.('closed', { code: event.code, reason: event.reason, final: true });
+      }
     };
     this.ws.onerror = () => { /* onclose follows */ };
   }
