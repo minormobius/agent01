@@ -75,6 +75,7 @@ export class ContainerShell extends Container {
     // This ensures envVars has the ID even after container sleep/wake.
     ctx.blockConcurrencyWhile(async () => {
       this._workspaceId = await ctx.storage.get('workspaceId');
+      this.envVars = this._buildEnvVars();
     });
   }
 
@@ -121,13 +122,21 @@ export class ContainerShell extends Container {
   }
 
   // Environment variables injected into the container.
+  //
+  // NOT a getter: @cloudflare/containers ≥0.3 declares `envVars = {}` as a
+  // base-class FIELD, whose own instance property SHADOWS any subclass
+  // prototype getter — the getter is simply never consulted and the container
+  // starts with NO env (bit us live: empty AGENT_PROFILES, dead CAP_TOKEN
+  // sync). This method's result is ASSIGNED to this.envVars in the
+  // constructor and refreshed in fetch() before every container start.
+  //
   // SECURITY: the only credential here is CAP_TOKEN — a per-instance, did-scoped,
   // short-lived capability token. GITHUB_TOKEN / CLOUDFLARE_API_TOKEN are SHARED
   // account credentials and are single-tenant-only; they are gated behind
   // INJECT_SHARED_CREDS and must stay off in any multi-tenant config (the
   // allowlist would otherwise be the only thing standing between a second user
   // and your whole GitHub/Cloudflare account). See SECURITY.md.
-  get envVars() {
+  _buildEnvVars() {
     const vars = {
       NODE_ENV: 'production',
       SYNC_URL: this.env.SYNC_URL || '',
@@ -192,6 +201,9 @@ export class ContainerShell extends Container {
     if (this._workspaceId && this.env.CAP_SIGNING_KEY) {
       this._capToken = await mintCap(this.env.CAP_SIGNING_KEY, this._workspaceId);
     }
+    // Re-assign (data property, not getter — see _buildEnvVars) so the next
+    // container start picks up the fresh CAP_TOKEN and workspace id.
+    this.envVars = this._buildEnvVars();
     return super.fetch(request);
   }
 
