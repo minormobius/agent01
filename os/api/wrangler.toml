@@ -1,7 +1,9 @@
 name = "os-mino-api"
 main = "src/index.js"
 compatibility_date = "2026-02-20"
-compatibility_flags = ["nodejs_compat", "containers"]
+# NOTE: containers is NOT a compatibility flag (run #5: API error 10021) — the
+# [[containers]] block below is what enables it.
+compatibility_flags = ["nodejs_compat"]
 
 # GOLDEN RULE: this worker must own the live domain via a custom_domain route,
 # or a green deploy lands on a stray workers.dev and the endpoint never changes.
