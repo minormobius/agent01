@@ -32,23 +32,63 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [restoring, setRestoring] = useState(true);
   const [containerStatus, setContainerStatus] = useState('disconnected');
+  const [bootLog, setBootLog] = useState([]);
   const transportRef = useRef(null);
 
-  // Session bootstrap, in priority order:
-  //   1. Saved app-password session (power mode — arbitrary-collection writes).
-  //   2. Shared OAuth session: local token, OAuth-redirect callback param, or
-  //      the .mino.mobi SSO cookie — all handled inside auth.init().
-  useEffect(() => {
-    (async () => {
-      try {
-        const saved = await restoreSession().catch(() => null);
+  // Session bootstrap. Every step logs into bootLog, which the login overlay
+  // renders — a silent bounce back to the login screen was undebuggable.
+  // Priority order:
+  //   1. A fresh OAuth callback (?__auth_session) — must be consumed FIRST, or
+  //      a stale app-password session in localStorage shadows the login the
+  //      user just completed.
+  //   2. Saved app-password session (power mode).
+  //   3. Shared OAuth session: stored token or the .mino.mobi SSO cookie.
+  const bootstrap = useCallback(async () => {
+    const notes = [];
+    setRestoring(true);
+    try {
+      const hasCallback = new URL(window.location.href).searchParams.has('__auth_session');
+      let user = null;
+
+      if (hasCallback) {
+        notes.push('oauth callback: token received');
+        user = await auth.init();
+        notes.push(user?.handle
+          ? `oauth: session valid — @${user.handle}`
+          : 'oauth: auth worker rejected the callback token');
+      }
+
+      if (!user) {
+        const saved = await restoreSession().catch((e) => {
+          notes.push(`app-password restore failed: ${e.message}`);
+          return null;
+        });
         if (saved) { setSession(saved); return; }
-        const user = await auth.init();
-        if (user?.handle) setSession(await oauthSession(user));
-      } catch { /* fall through to the login overlay */ }
-      finally { setRestoring(false); }
-    })();
+        if (!hasCallback) {
+          user = await auth.init();
+          notes.push(user?.handle
+            ? `sso: existing session — @${user.handle}`
+            : 'sso: no existing session');
+        }
+      }
+
+      if (user?.handle) {
+        try {
+          setSession(await oauthSession(user));
+          return;
+        } catch (e) {
+          notes.push(`identity resolution failed: ${e.message}`);
+        }
+      }
+    } catch (e) {
+      notes.push(`boot error: ${e.message}`);
+    } finally {
+      setBootLog(notes);
+      setRestoring(false);
+    }
   }, []);
+
+  useEffect(() => { bootstrap(); }, [bootstrap]);
 
   // Create transport once.
   useEffect(() => {
@@ -134,6 +174,8 @@ export default function App() {
         <LoginOverlay
           onOAuthLogin={handleOAuthLogin}
           onAppPasswordLogin={handleLogin}
+          onRecheck={bootstrap}
+          diagnostics={bootLog}
         />
       )}
     </>

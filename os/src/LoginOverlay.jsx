@@ -55,7 +55,7 @@ const S = {
   foot: { color: '#555', fontSize: 11, marginTop: 14, textAlign: 'center' },
 };
 
-export default function LoginOverlay({ onOAuthLogin, onAppPasswordLogin }) {
+export default function LoginOverlay({ onOAuthLogin, onAppPasswordLogin, onRecheck, diagnostics = [] }) {
   const [handle, setHandle] = useState('');
   const [actors, setActors] = useState([]);
   const [open, setOpen] = useState(false);
@@ -200,6 +200,24 @@ export default function LoginOverlay({ onOAuthLogin, onAppPasswordLogin }) {
         )}
 
         {error && <div style={S.err}>{error}</div>}
+
+        {/* Rescue path for context-splits (e.g. iOS PWA finishing OAuth in a
+            separate browser tab): the .mino.mobi SSO cookie may already be
+            set — re-probe it without a full reload. */}
+        {onRecheck && (
+          <button style={S.btn(false)} disabled={busy} onClick={onRecheck}>
+            already signed in? check again
+          </button>
+        )}
+
+        {diagnostics.length > 0 && (
+          <div style={{ marginTop: 12, padding: '8px 10px', background: '#0a0a0a', border: '1px solid #222', borderRadius: 6 }}>
+            {diagnostics.map((d, i) => (
+              <div key={i} style={{ color: '#666', fontSize: 10.5, lineHeight: 1.6 }}>· {d}</div>
+            ))}
+          </div>
+        )}
+
         <div style={S.foot}>
           OAuth signs in via auth.mino.mobi (SSO across mino.mobi).<br />
           App password unlocks writes to arbitrary collections.
