@@ -288,6 +288,64 @@ export default {
       });
     }
 
+    // Assist mode (authed): DIRECT worker → Moonshot chat, no container, no
+    // repo context, no cold start — strategy talk for pennies. The browser
+    // sends {messages:[{role,content}]}; we attach the key server-side and
+    // stream the Anthropic-messages SSE straight back.
+    if (url.pathname === '/assist' && request.method === 'POST') {
+      const auth = await authorizeDid(
+        env,
+        url.searchParams.get('session'),
+        url.searchParams.get('auth'),
+        url.searchParams.get('authMode')
+      );
+      if (!auth.ok) {
+        return new Response(JSON.stringify({ ok: false, error: auth.msg }), {
+          status: auth.status,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        });
+      }
+      if (!env.MOONSHOT_API_KEY) {
+        return new Response(JSON.stringify({ ok: false, error: 'MOONSHOT_API_KEY not configured' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        });
+      }
+      let body;
+      try { body = await request.json(); } catch {
+        return new Response('bad json', { status: 400, headers: corsHeaders(origin) });
+      }
+      const messages = (Array.isArray(body?.messages) ? body.messages : [])
+        .filter((m) => (m?.role === 'user' || m?.role === 'assistant') && typeof m?.content === 'string')
+        .slice(-40);
+      if (!messages.length) {
+        return new Response('no messages', { status: 400, headers: corsHeaders(origin) });
+      }
+      const base = (env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic').replace(/\/$/, '');
+      const upstream = await fetch(`${base}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': env.MOONSHOT_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: env.KIMI_MODEL || 'kimi-k3',
+          max_tokens: 4096,
+          system: 'You are Kimi, chatting in "assist mode" of os.mino.mobi — a quick strategy sidekick for the minomobi web properties. Be sharp and concise. When the plan firms up, the user can hand this conversation to your repo-agent mode (full Claude Code harness with the agent01 monorepo) via the "→ repo" button.',
+          messages,
+          stream: true,
+        }),
+      });
+      return new Response(upstream.body, {
+        status: upstream.status,
+        headers: {
+          'Content-Type': upstream.headers.get('Content-Type') || 'text/event-stream',
+          ...corsHeaders(origin),
+        },
+      });
+    }
+
     // Boot diagnostic (authed): exercises the FULL container start by proxying
     // a request through the DO to the container's /health, and returns exactly
     // what happened — status, timing, or the thrown error. This is how a

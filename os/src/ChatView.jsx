@@ -5,7 +5,15 @@
 // power surface.
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChatSocket, chatPreflight, debugBoot, debugRestart } from './lib/chat-socket.js';
+import { ChatSocket, chatPreflight, debugBoot, debugRestart, assistStream } from './lib/chat-socket.js';
+
+const ASSIST_STORE_KEY = 'os:assist-thread';
+const ASSIST_MAX_MSGS = 200;
+const HANDOFF_LAST_N = 12;
+
+function loadAssistThread() {
+  try { return JSON.parse(localStorage.getItem(ASSIST_STORE_KEY)) || []; } catch { return []; }
+}
 
 const MONO = '"Berkeley Mono", "JetBrains Mono", "Fira Code", monospace';
 
@@ -70,6 +78,14 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
   const [statusDetail, setStatusDetail] = useState('');
   const [running, setRunning] = useState(false);
   const [draft, setDraft] = useState('');
+  // Two modes. 'assist' (default): direct worker→Kimi chat — no container, no
+  // repo context, instant and cheap; the place to strategize. 'repo': the full
+  // Claude Code harness in your container. The → repo handoff carries the
+  // strategy thread's tail across.
+  const [mode, setMode] = useState('assist');
+  const [assistMsgs, setAssistMsgs] = useState(loadAssistThread);
+  const [assistRunning, setAssistRunning] = useState(false);
+  const assistAbortRef = useRef(null);
   const socketRef = useRef(null);
   const scrollRef = useRef(null);
   const connectingRef = useRef(false);
@@ -253,17 +269,24 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     }
   }, [session, getContainerAuth, profile, handleFrame, push]);
 
+  // The container connects only when repo mode is entered — assist mode
+  // never boots (or bills) a container.
   useEffect(() => {
-    connect();
-    return () => socketRef.current?.disconnect();
+    if (mode === 'repo') connect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mode]);
+  useEffect(() => () => socketRef.current?.disconnect(), []);
+
+  // Persist the assist thread across reloads (device-local for now).
+  useEffect(() => {
+    try { localStorage.setItem(ASSIST_STORE_KEY, JSON.stringify(assistMsgs.slice(-ASSIST_MAX_MSGS))); } catch { /* full */ }
+  }, [assistMsgs]);
 
   // Coming back to the app (rotate, unlock, tab switch) with a dead socket →
   // rejoin automatically; the server-side run and history are waiting.
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState !== 'visible') return;
+      if (document.visibilityState !== 'visible' || mode !== 'repo') return;
       if (socketRef.current && !socketRef.current.connected) {
         socketRef.current.reconnectNow();
       } else if (!socketRef.current) {
@@ -272,7 +295,58 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [connect]);
+  }, [connect, mode]);
+
+  // Assist mode: direct streaming chat, no container.
+  const submitAssist = useCallback(async () => {
+    const text = draft.trim();
+    if (!text || assistRunning) return;
+    setDraft('');
+    const base = [...assistMsgs, { id: nextId++, role: 'user', text }];
+    setAssistMsgs(base);
+    setAssistRunning(true);
+    const aiId = nextId++;
+    setAssistMsgs((l) => [...l, { id: aiId, role: 'assistant', text: '' }]);
+    const ctrl = new AbortController();
+    assistAbortRef.current = ctrl;
+    try {
+      const authInfo = getContainerAuth();
+      if (!authInfo) throw new Error('linking device via OAuth…');
+      await assistStream(
+        { session: session.did, ...authInfo },
+        base.filter((m) => m.role === 'user' || m.role === 'assistant')
+          .map((m) => ({ role: m.role, content: m.text })),
+        (delta) => {
+          setAssistMsgs((l) => l.map((m) => (m.id === aiId ? { ...m, text: m.text + delta } : m)));
+        },
+        ctrl.signal
+      );
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        setAssistMsgs((l) => [...l, { id: nextId++, role: 'error', text: err.message }]);
+      }
+    } finally {
+      setAssistRunning(false);
+      assistAbortRef.current = null;
+    }
+  }, [draft, assistRunning, assistMsgs, session, getContainerAuth]);
+
+  // Handoff: distill the strategy thread's tail into the repo agent's first
+  // message — left in the composer so YOU pull the expensive trigger.
+  const handoff = useCallback(() => {
+    const tail = assistMsgs
+      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text.trim())
+      .slice(-HANDOFF_LAST_N);
+    const transcript = tail
+      .map((m) => `${m.role === 'user' ? 'me' : 'kimi'}: ${m.text}`)
+      .join('\n\n');
+    setDraft(
+      tail.length
+        ? `Context from our strategy chat:\n\n${transcript}\n\n---\nWith that context, please: `
+        : ''
+    );
+    setMode('repo');
+  }, [assistMsgs]);
 
   const submit = useCallback(() => {
     const text = draft.trim();
@@ -293,9 +367,28 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
 
   const stop = useCallback(() => socketRef.current?.interrupt(), []);
 
-  const dotColor = status === 'connected' ? '#98c379'
+  const isAssist = mode === 'assist';
+  const list = isAssist ? assistMsgs : messages;
+  const busy = isAssist ? assistRunning : running;
+  const dotColor = isAssist
+    ? (assistRunning ? '#e5c07b' : '#98c379')
+    : status === 'connected' ? '#98c379'
     : status === 'connecting' ? '#e5c07b'
     : '#e06c75';
+
+  const doSubmit = isAssist ? submitAssist : submit;
+  const doStop = isAssist
+    ? () => assistAbortRef.current?.abort()
+    : stop;
+
+  const modeBtn = (m, label) => (
+    <button
+      style={{ ...S.hbtn, ...(mode === m ? { borderColor: '#2e6a73', color: '#7fd7e0' } : {}) }}
+      onClick={() => setMode(m)}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div style={S.root}>
@@ -303,32 +396,46 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         <div style={S.dot(dotColor)} />
         <div style={S.title}>kimi</div>
         <div style={S.sub}>
-          @{session.handle} · {profile}
-          {statusDetail ? ` · ${statusDetail}` : ''}
+          {isAssist
+            ? `@${session.handle} · assist (direct, cheap)`
+            : `@${session.handle} · ${profile}${statusDetail ? ` · ${statusDetail}` : ''}`}
         </div>
-        {(status === 'closed' || status === 'denied') && (
+        {modeBtn('assist', 'assist')}
+        {modeBtn('repo', 'repo')}
+        {isAssist && assistMsgs.length > 0 && (
+          <button style={S.hbtn} onClick={handoff}>→ repo</button>
+        )}
+        {isAssist && assistMsgs.length > 0 && (
+          <button style={S.hbtn} onClick={() => setAssistMsgs([])}>clear</button>
+        )}
+        {!isAssist && (status === 'closed' || status === 'denied') && (
           <button style={S.hbtn} onClick={connect}>reconnect</button>
         )}
-        <button style={S.hbtn} onClick={onOpenTerminal}>&gt;_ terminal</button>
+        <button style={S.hbtn} onClick={onOpenTerminal}>&gt;_</button>
         <button style={S.hbtn} onClick={onLogout}>logout</button>
       </div>
 
       <div ref={scrollRef} style={S.scroll}>
-        {messages.length === 0 && (
+        {list.length === 0 && (
           <div style={S.info}>
-            chat with the {profile} coding agent — it has a clone of agent01,<br />
-            git, and a push that runs GitHub Actions. `work &lt;slug&gt;` branches are its lane.
+            {isAssist ? (
+              <>strategy chat with Kimi — direct API, no container, pennies per message.<br />
+                when the plan is ready, <b>→ repo</b> hands this thread to the coding agent.</>
+            ) : (
+              <>the {profile} coding agent — a clone of agent01, git, and pushes that run
+                GitHub Actions.<br />`work &lt;slug&gt;` branches are its lane.</>
+            )}
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {messages.map((m) => {
+          {list.map((m) => {
             if (m.role === 'user') return <div key={m.id} style={S.userMsg}>{m.text}</div>;
             if (m.role === 'assistant') return <div key={m.id} style={S.aiMsg}>{m.text}</div>;
             if (m.role === 'tool') return <div key={m.id} style={S.tool}>{m.text}</div>;
             if (m.role === 'error') return <div key={m.id} style={S.err}>{m.text}</div>;
             return <div key={m.id} style={S.info}>{m.text}</div>;
           })}
-          {running && <div style={S.info}>⋯ working</div>}
+          {busy && <div style={S.info}>⋯ {isAssist ? 'thinking' : 'working'}</div>}
         </div>
       </div>
 
@@ -340,16 +447,18 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) {
               e.preventDefault();
-              submit();
+              doSubmit();
             }
           }}
-          placeholder={status === 'connected' ? `message ${profile}…` : 'connecting…'}
+          placeholder={isAssist
+            ? 'strategize with kimi…'
+            : status === 'connected' ? `message the ${profile} agent…` : 'connecting…'}
           rows={1}
         />
-        {running ? (
-          <button style={S.send(true)} onClick={stop}>stop</button>
+        {busy ? (
+          <button style={S.send(true)} onClick={doStop}>stop</button>
         ) : (
-          <button style={S.send(false)} onClick={submit}>send</button>
+          <button style={S.send(false)} onClick={doSubmit}>send</button>
         )}
       </div>
     </div>

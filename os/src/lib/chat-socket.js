@@ -63,6 +63,48 @@ export async function debugRestart({ session, auth, authMode }, timeoutMs = 2000
   }
 }
 
+// Assist mode: direct worker→Moonshot chat (no container). POSTs the thread,
+// parses the Anthropic-messages SSE stream, invokes onText per text delta.
+export async function assistStream({ session, auth, authMode }, messages, onText, signal) {
+  const params = new URLSearchParams({ session });
+  if (auth) params.set('auth', auth);
+  if (authMode) params.set('authMode', authMode);
+  const res = await fetch(`${httpBase()}/assist?${params}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages }),
+    signal,
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`assist ${res.status}: ${t.slice(0, 300)}`);
+  }
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i).trim();
+      buf = buf.slice(i + 1);
+      if (!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if (data === '[DONE]') return;
+      try {
+        const evt = JSON.parse(data);
+        if (evt.type === 'content_block_delta' && evt.delta?.text) onText(evt.delta.text);
+        if (evt.type === 'error') throw new Error(evt.error?.message || 'stream error');
+      } catch (e) {
+        if (e instanceof SyntaxError) continue; // partial/foreign line
+        throw e;
+      }
+    }
+  }
+}
+
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000];
 
 export class ChatSocket {
