@@ -280,7 +280,14 @@ regional insecurity that suppresses unwalled-town growth.
 
 - **civ surface** (this branch): `civ/**`, `mappa/civ/**`, `mappa/engine.js`,
   `mappa/lib/world-share.js`. Phase II adds `rite/names/engine.js` to these paths.
-- **mappa + polis stay on the root surface** near-term. Splitting them would break
+- **polis moved to its own surface** (`polis.mino.mobi`, worker `polis`, owned by this
+  branch — the deployment investigation's outcome: riding the root surface meant
+  *none* of the cascade work ever deployed, since the root is owned by another
+  branch). The deploy stages `mappa/engine.js` + `mappa/climate-forcing.js` under
+  `/mappa/` so the pages' runtime ES imports resolve on the new origin. The OLD
+  `mino.mobi/polis/` keeps serving the pre-cascade site until the root branch
+  catches up (its registry entry no longer watches `polis/**`).
+- **mappa stays on the root surface** near-term. Splitting it would break
   established `mino.mobi/mappa/`+`/polis/` URLs for zero user benefit. Revisit only when
   polis gets an API (Phase III) — and then move *compute* into the civ worker, not the URLs.
 - **names/org stay on the rite surface.** They are engines with public APIs; civ consumes
@@ -311,7 +318,7 @@ regional insecurity that suppresses unwalled-town growth.
 |---|---|---|---|
 | I — hub + deploy takeover | **done** | none | everything below has an address |
 | II — names into civ | **done** (hash-invariant, legacy mode kept) | none in the end | legible cultures everywhere |
-| III — civ → polis foundings | **done** (first slice; polis half ships with the root surface) | resolved (`n` in contract) | polis inherits history |
+| III — civ → polis foundings | **done** (both halves live — polis now has its own surface) | resolved (`n` in contract) | polis inherits history |
 | IV — org institutions + people | **done** (addresses + persons; perf feedback open) | none (additive) | drill-down, hoop NPCs |
 | V — canon, daily world, fable/city | ongoing | none | content flywheel |
 

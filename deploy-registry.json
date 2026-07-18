@@ -105,7 +105,6 @@
         "time",
         "wiki",
         "mappa",
-        "polis",
         "hoop-history",
         "office"
       ],
@@ -116,7 +115,6 @@
         "scripts/generate-search-catalog.mjs",
         "functions/**",
         "mappa/**",
-        "polis/**",
         "hoop-history/**",
         "office/**",
         "scripts/build-office.mjs"
@@ -227,6 +225,21 @@
       "paths": [
         "bisk/**"
       ]
+    },
+    {
+      "surface": "polis",
+      "dir": "polis",
+      "endpoint": "polis.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/civ-deploy-unification-vt35ju",
+      "uses": ["civ"],
+      "provides": null,
+      "paths": [
+        "polis/**",
+        "mappa/engine.js",
+        "mappa/climate-forcing.js"
+      ],
+      "note": "The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite. `/` is the cascade charter (civ über-macro → hinterland mesoscale → city micro); `/hinterland/` the region sim (full civ client: environment/tech/transport eras/envelope from /api/civ/sites, railroads at mechanisation, drowning rule); `/continent.html` the whole-continent closed system; `/docs/` the theory. Assets-only worker; the deploy stages mappa/engine.js + climate-forcing.js under /mappa/ so the pages' runtime ES imports resolve on this origin. The OLD mino.mobi/polis/ (root surface) serves the pre-cascade site until the root branch catches up. Node selftest: polis/test/hinterland.selftest.mjs."
     },
     {
       "surface": "civ",

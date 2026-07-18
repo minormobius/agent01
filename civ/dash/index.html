@@ -163,7 +163,7 @@ function renderRun(d, cached, local) {
     box.appendChild(el('div', 'muted', 'Foundings — grow a state seat into a city on polis:')).style.marginTop = '14px';
     fo.slice(0, 6).forEach((f, i) => {
       const row = el('div', 'elite');
-      row.innerHTML = `⚑ <b>${esc(f.city)}</b> <span class="muted">— seat of the ${esc(f.cultureName)}, year ${f.year}${f.alive ? '' : ' (fell)'}</span> · <a href="https://mino.mobi/polis/hinterland/?civ=1&${q}&site=${i}" target="_blank" rel="noopener">grow the hinterland ↗</a>`;
+      row.innerHTML = `⚑ <b>${esc(f.city)}</b> <span class="muted">— seat of the ${esc(f.cultureName)}, year ${f.year}${f.alive ? '' : ' (fell)'}</span> · <a href="https://polis.mino.mobi/hinterland/?civ=1&${q}&site=${i}" target="_blank" rel="noopener">grow the hinterland ↗</a>`;
       box.appendChild(row);
     });
     o.appendChild(box);
