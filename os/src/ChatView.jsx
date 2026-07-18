@@ -1,49 +1,80 @@
-// ChatView — the default post-login surface: a chat with the coding agent
-// (Claude Code harness → the selected model profile, kimi3 by default) running
-// in your per-DID container. Native composer input (mobile-friendly), message
-// bubbles, tool calls as dim chips. The terminal remains one tap away as the
-// power surface.
+// ChatView — the default post-login surface. Two modes:
+//   assist: direct worker→Kimi chat (no container, cheap, instant) — the
+//           strategy space. Threads persist PRIVATELY in the per-DID Durable
+//           Object (not PDS records — the PDS is the open web).
+//   repo:   the full Claude Code harness in your container (amber accent so
+//           you always know which wallet is open).
+// The → repo handoff carries the strategy thread's tail into the agent.
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChatSocket, chatPreflight, debugBoot, debugRestart, assistStream } from './lib/chat-socket.js';
+import { ChatSocket, chatPreflight, debugBoot, debugRestart, assistStream, threadsApi } from './lib/chat-socket.js';
+import { renderMarkdown } from './lib/mini-md.jsx';
 
 const ASSIST_STORE_KEY = 'os:assist-thread';
+const ASSIST_SYSTEM_KEY = 'os:assist-system';
+const ASSIST_PREFS_KEY = 'os:assist-prefs';
+const ASSIST_TID_KEY = 'os:assist-thread-id';
 const ASSIST_MAX_MSGS = 200;
 const HANDOFF_LAST_N = 12;
 
-function loadAssistThread() {
-  try { return JSON.parse(localStorage.getItem(ASSIST_STORE_KEY)) || []; } catch { return []; }
-}
+const DEFAULT_SYSTEM = 'You are Kimi in the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to your repo-agent mode (a full Claude Code harness inside the agent01 monorepo) with the → repo button.';
 
 const MONO = '"Berkeley Mono", "JetBrains Mono", "Fira Code", monospace';
+const ACCENTS = {
+  assist: { main: '#56b6c2', userBg: '#1a3b40', userBorder: '#24565e', userText: '#cfeef2', btnBg: '#1a3b40', btnBorder: '#2e6a73', btnText: '#7fd7e0' },
+  repo: { main: '#e5c07b', userBg: '#3a301a', userBorder: '#6e5c2e', userText: '#f0e3c0', btnBg: '#3a301a', btnBorder: '#6e5c2e', btnText: '#e5c07b' },
+};
 
 const S = {
   root: {
     position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
     background: '#0a0a0a', color: '#c0c0c0', fontFamily: MONO,
   },
-  header: {
-    display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
-    borderBottom: '1px solid #1e1e1e', flexShrink: 0,
-  },
-  title: { color: '#56b6c2', fontWeight: 700, fontSize: 14 },
-  sub: { color: '#606060', fontSize: 11, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  header: (a) => ({
+    display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px',
+    borderBottom: `1px solid ${a.userBorder}`, flexShrink: 0, flexWrap: 'wrap',
+  }),
+  title: (a) => ({ color: a.main, fontWeight: 700, fontSize: 14 }),
+  sub: { color: '#606060', fontSize: 11, flex: 1, minWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   dot: (c) => ({ width: 8, height: 8, borderRadius: '50%', background: c, flexShrink: 0 }),
-  hbtn: {
-    background: '#161616', border: '1px solid #2a2a2a', borderRadius: 6,
-    color: '#909090', fontSize: 11, padding: '6px 10px', cursor: 'pointer', fontFamily: MONO,
+  hbtn: (active, a) => ({
+    background: active ? a.btnBg : '#161616',
+    border: `1px solid ${active ? a.btnBorder : '#2a2a2a'}`,
+    borderRadius: 6, color: active ? a.btnText : '#909090',
+    fontSize: 11, padding: '6px 9px', cursor: 'pointer', fontFamily: MONO,
+  }),
+  panel: {
+    borderBottom: '1px solid #1e1e1e', padding: '10px 12px', background: '#0f0f0f',
+    fontSize: 12, flexShrink: 0, maxHeight: '40vh', overflowY: 'auto',
+  },
+  panelLabel: { color: '#808080', fontSize: 11, margin: '8px 0 4px' },
+  panelInput: {
+    width: '100%', boxSizing: 'border-box', background: '#141414',
+    border: '1px solid #2a2a2a', borderRadius: 6, color: '#c8c8c8',
+    fontSize: 12, padding: '8px 10px', fontFamily: MONO, outline: 'none', resize: 'vertical',
+  },
+  threadRow: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 6px',
+    borderBottom: '1px solid #191919', cursor: 'pointer',
   },
   scroll: { flex: 1, overflowY: 'auto', padding: '12px 12px 4px', WebkitOverflowScrolling: 'touch' },
-  userMsg: {
+  userMsg: (a) => ({
     alignSelf: 'flex-end', maxWidth: '85%', margin: '6px 0 6px auto',
-    background: '#1a3b40', border: '1px solid #24565e', borderRadius: '10px 10px 2px 10px',
-    padding: '8px 11px', fontSize: 13.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#cfeef2',
-  },
+    background: a.userBg, border: `1px solid ${a.userBorder}`, borderRadius: '10px 10px 2px 10px',
+    padding: '8px 11px', fontSize: 13.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: a.userText,
+  }),
   aiMsg: {
     maxWidth: '92%', margin: '6px 0',
     background: '#141414', border: '1px solid #222', borderRadius: '10px 10px 10px 2px',
-    padding: '9px 12px', fontSize: 13.5, lineHeight: 1.5,
-    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+    padding: '9px 12px', fontSize: 13.5, lineHeight: 1.55, wordBreak: 'break-word',
+  },
+  thinking: {
+    color: '#6f6f8a', fontSize: 12, fontStyle: 'italic', whiteSpace: 'pre-wrap',
+    borderLeft: '2px solid #33334a', paddingLeft: 8, margin: '2px 0 8px',
+  },
+  refusal: {
+    maxWidth: '92%', margin: '6px 0', padding: '8px 12px', fontSize: 12.5,
+    border: '1px dashed #7a3b3b', borderRadius: 8, color: '#d99',
   },
   tool: {
     margin: '4px 0', color: '#6a7', fontSize: 11.5,
@@ -51,26 +82,41 @@ const S = {
   },
   info: { margin: '6px 0', color: '#555', fontSize: 11, textAlign: 'center' },
   err: { margin: '6px 0', color: '#e06c75', fontSize: 12, whiteSpace: 'pre-wrap' },
-  composerWrap: {
-    display: 'flex', gap: 8, padding: '10px 12px',
-    borderTop: '1px solid #1e1e1e', flexShrink: 0, alignItems: 'flex-end',
-    background: '#0d0d0d',
+  composerHandle: {
+    display: 'flex', justifyContent: 'center', padding: 0, background: '#0d0d0d',
+    borderTop: '1px solid #1e1e1e', flexShrink: 0,
   },
-  input: {
-    flex: 1, minHeight: 40, maxHeight: 120, resize: 'none', boxSizing: 'border-box',
+  handleBtn: {
+    background: 'transparent', border: 'none', color: '#555', fontSize: 11,
+    padding: '3px 30px', cursor: 'pointer', fontFamily: MONO,
+  },
+  composerWrap: {
+    display: 'flex', gap: 8, padding: '8px 12px 10px',
+    flexShrink: 0, alignItems: 'flex-end', background: '#0d0d0d',
+  },
+  input: (tall) => ({
+    flex: 1, minHeight: tall ? '34vh' : 40, maxHeight: tall ? '45vh' : 120,
+    height: tall ? '34vh' : undefined, resize: 'none', boxSizing: 'border-box',
     background: '#141414', border: '1px solid #2a2a2a', borderRadius: 8,
     color: '#e0e0e0', fontSize: 15, padding: '10px 12px', fontFamily: MONO, outline: 'none',
-  },
-  send: (running) => ({
+  }),
+  send: (running, a) => ({
     height: 40, padding: '0 16px', borderRadius: 8, fontFamily: MONO, fontSize: 13,
     cursor: 'pointer', flexShrink: 0,
-    background: running ? '#402020' : '#1a3b40',
-    border: running ? '1px solid #6e2e2e' : '1px solid #2e6a73',
-    color: running ? '#e09090' : '#7fd7e0',
+    background: running ? '#402020' : a.btnBg,
+    border: running ? '1px solid #6e2e2e' : `1px solid ${a.btnBorder}`,
+    color: running ? '#e09090' : a.btnText,
   }),
 };
 
 let nextId = 1;
+
+function loadJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
+}
+function newThreadId() {
+  return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 export default function ChatView({ session, getContainerAuth, profile = 'kimi3', onOpenTerminal, onLogout }) {
   const [messages, setMessages] = useState([]);
@@ -78,19 +124,24 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
   const [statusDetail, setStatusDetail] = useState('');
   const [running, setRunning] = useState(false);
   const [draft, setDraft] = useState('');
-  // Two modes. 'assist' (default): direct worker→Kimi chat — no container, no
-  // repo context, instant and cheap; the place to strategize. 'repo': the full
-  // Claude Code harness in your container. The → repo handoff carries the
-  // strategy thread's tail across.
   const [mode, setMode] = useState('assist');
-  const [assistMsgs, setAssistMsgs] = useState(loadAssistThread);
+  const [assistMsgs, setAssistMsgs] = useState(() => loadJson(ASSIST_STORE_KEY, []));
   const [assistRunning, setAssistRunning] = useState(false);
+  const [composerTall, setComposerTall] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showThreads, setShowThreads] = useState(false);
+  const [threads, setThreads] = useState(null); // null = not loaded
+  const [threadId, setThreadId] = useState(() => localStorage.getItem(ASSIST_TID_KEY) || newThreadId());
+  const [systemPrompt, setSystemPrompt] = useState(() => localStorage.getItem(ASSIST_SYSTEM_KEY) || DEFAULT_SYSTEM);
+  const [prefs, setPrefs] = useState(() => loadJson(ASSIST_PREFS_KEY, { thinking: false, web: false }));
   const assistAbortRef = useRef(null);
   const socketRef = useRef(null);
   const scrollRef = useRef(null);
   const connectingRef = useRef(false);
-  const pendingRef = useRef(null);   // message typed while disconnected
-  const handleFrameRef = useRef(null); // for history replay recursion
+  const pendingRef = useRef(null);
+  const handleFrameRef = useRef(null);
+  const stickRef = useRef(true); // stay glued to bottom only while user IS at bottom
+  const saveTimerRef = useRef(null);
 
   const push = useCallback((m) => {
     setMessages((list) => [...list, { id: nextId++, ...m }]);
@@ -105,21 +156,56 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     });
   }, []);
 
-  // Autoscroll on new content
+  // ── Scrolling: autoscroll ONLY when the user is already at the bottom, so
+  // reviewing something above never teleports (the old bug). Mode switches
+  // land at the bottom of the target thread.
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, running]);
+    if (el && stickRef.current) el.scrollTop = el.scrollHeight;
+  }, [messages, assistMsgs, running, assistRunning]);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) { el.scrollTop = el.scrollHeight; stickRef.current = true; }
+  }, [mode]);
 
+  // ── Persistence: localStorage mirror (instant) + debounced save into the
+  // per-DID DO thread store (private, cross-device).
+  useEffect(() => {
+    try { localStorage.setItem(ASSIST_STORE_KEY, JSON.stringify(assistMsgs.slice(-ASSIST_MAX_MSGS))); } catch { /* full */ }
+    if (!assistMsgs.length) return;
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      const authInfo = getContainerAuth();
+      if (!authInfo) return;
+      const firstUser = assistMsgs.find((m) => m.role === 'user');
+      threadsApi.save(
+        { session: session.did, ...authInfo },
+        { id: threadId, title: (firstUser?.text || 'untitled').slice(0, 60), msgs: assistMsgs.slice(-ASSIST_MAX_MSGS) }
+      ).catch(() => { /* offline is fine — localStorage has it */ });
+    }, 2500);
+    return () => clearTimeout(saveTimerRef.current);
+  }, [assistMsgs, threadId, session, getContainerAuth]);
+  useEffect(() => {
+    try { localStorage.setItem(ASSIST_TID_KEY, threadId); } catch { /* no-op */ }
+  }, [threadId]);
+  useEffect(() => {
+    try { localStorage.setItem(ASSIST_SYSTEM_KEY, systemPrompt); } catch { /* no-op */ }
+  }, [systemPrompt]);
+  useEffect(() => {
+    try { localStorage.setItem(ASSIST_PREFS_KEY, JSON.stringify(prefs)); } catch { /* no-op */ }
+  }, [prefs]);
+
+  // ── Repo-mode frames ──
   const handleFrame = useCallback((msg) => {
     switch (msg.type) {
       case 'ready':
         push({ role: 'info', text: `container ready · profile ${msg.profile}` });
-        // The server keeps runs alive across disconnects — reattaching tells
-        // us whether the agent is STILL WORKING right now.
         setRunning(!!msg.busy);
         if (msg.busy) push({ role: 'info', text: 'agent is still working — reattached to the live run' });
-        // Flush a message typed while disconnected (after history replays).
         setTimeout(() => {
           const pending = pendingRef.current;
           if (pending && socketRef.current?.connected) {
@@ -131,10 +217,9 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         }, 150);
         break;
       case 'history':
-        // Authoritative story-so-far from the server (survives reloads and
-        // container sleeps). Replace local state and replay.
         setMessages([]);
         for (const f of msg.frames || []) handleFrameRef.current(f);
+        push({ role: 'info', text: `restored ${msg.frames?.length ?? 0} events from the container journal` });
         break;
       case 'user-msg':
         push({ role: 'user', text: msg.text });
@@ -145,14 +230,13 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
           const d = msg.diag;
           if (d.missing) push({ role: 'error', text: 'profile missing from AGENT_PROFILES in the container env — redeploy os-api' });
           else if (d.parseError) push({ role: 'error', text: 'AGENT_PROFILES env is not valid JSON in the container' });
-          else if (!d.hasKey) push({ role: 'error', text: `profile has NO API KEY in the container env — MOONSHOT_API_KEY isn't reaching AGENT_PROFILES (check worker secrets / redeploy)` });
+          else if (!d.hasKey) push({ role: 'error', text: 'profile has NO API KEY in the container env — check worker secrets / redeploy' });
           else push({ role: 'info', text: `run: ${d.model} @ ${d.base}` });
         }
         break;
       case 'event': {
         let evt;
         try { evt = JSON.parse(msg.line); } catch {
-          // Non-JSON stdout (login-shell chatter, CLI errors) — show, don't drop.
           push({ role: 'info', text: msg.line.slice(0, 300) });
           return;
         }
@@ -177,7 +261,6 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         break;
       }
       case 'stderr':
-        // Claude Code chatters on stderr in --verbose; only surface real fails.
         if (/error|fail|denied|invalid/i.test(msg.text)) {
           push({ role: 'error', text: msg.text.slice(0, 600) });
         }
@@ -213,13 +296,8 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         push({ role: 'error', text: `access check failed: ${pre.error}` });
         return;
       }
-      // Pre-boot the container over HTTP before opening the socket — a cold
-      // start (image pull ~30-40s) used to kill the first WebSocket attempt.
       setStatusDetail('starting container (first boot after a deploy can take ~2 min)…');
       let boot = await debugBoot({ session: session.did, ...authInfo });
-      // /health 404 = an instance still running a PRE-fix image (rollouts
-      // don't replace a container that never idles). Self-heal: restart it
-      // onto the current image and boot again.
       if (boot.containerStatus === 404) {
         push({ role: 'info', text: 'container is on a stale image — restarting it onto the current one…' });
         setStatusDetail('restarting container…');
@@ -247,8 +325,6 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
             setStatus('closed');
             setRunning(false);
             setStatusDetail(`socket closed (${info?.code ?? '?'})`);
-            // Died before ever connecting → run the boot diagnostic and name
-            // the cause instead of leaving a silent reconnect button.
             if (!everConnected) {
               push({ role: 'info', text: 'socket closed before connecting — probing container boot…' });
               debugBoot({ session: session.did, ...authInfo }).then((d) => {
@@ -269,21 +345,13 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     }
   }, [session, getContainerAuth, profile, handleFrame, push]);
 
-  // The container connects only when repo mode is entered — assist mode
-  // never boots (or bills) a container.
+  // Container connects only when repo mode is entered.
   useEffect(() => {
     if (mode === 'repo') connect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
   useEffect(() => () => socketRef.current?.disconnect(), []);
 
-  // Persist the assist thread across reloads (device-local for now).
-  useEffect(() => {
-    try { localStorage.setItem(ASSIST_STORE_KEY, JSON.stringify(assistMsgs.slice(-ASSIST_MAX_MSGS))); } catch { /* full */ }
-  }, [assistMsgs]);
-
-  // Coming back to the app (rotate, unlock, tab switch) with a dead socket →
-  // rejoin automatically; the server-side run and history are waiting.
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== 'visible' || mode !== 'repo') return;
@@ -297,7 +365,7 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [connect, mode]);
 
-  // Assist mode: direct streaming chat, no container.
+  // ── Assist mode ──
   const submitAssist = useCallback(async () => {
     const text = draft.trim();
     if (!text || assistRunning) return;
@@ -306,33 +374,83 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     setAssistMsgs(base);
     setAssistRunning(true);
     const aiId = nextId++;
-    setAssistMsgs((l) => [...l, { id: aiId, role: 'assistant', text: '' }]);
+    setAssistMsgs((l) => [...l, { id: aiId, role: 'assistant', text: '', thinking: '' }]);
+    const patchAi = (fn) => setAssistMsgs((l) => l.map((m) => (m.id === aiId ? fn(m) : m)));
     const ctrl = new AbortController();
     assistAbortRef.current = ctrl;
+    let gotText = false;
     try {
       const authInfo = getContainerAuth();
       if (!authInfo) throw new Error('linking device via OAuth…');
       await assistStream(
         { session: session.did, ...authInfo },
-        base.filter((m) => m.role === 'user' || m.role === 'assistant')
-          .map((m) => ({ role: m.role, content: m.text })),
-        (delta) => {
-          setAssistMsgs((l) => l.map((m) => (m.id === aiId ? { ...m, text: m.text + delta } : m)));
+        {
+          messages: base.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text)
+            .map((m) => ({ role: m.role, content: m.text })),
+          system: systemPrompt,
+          thinking: !!prefs.thinking,
+          webSearch: !!prefs.web,
+        },
+        (evt) => {
+          if (evt.type === 'text') { gotText = true; patchAi((m) => ({ ...m, text: m.text + evt.text })); }
+          else if (evt.type === 'thinking') patchAi((m) => ({ ...m, thinking: (m.thinking || '') + evt.text }));
+          else if (evt.type === 'tool') setAssistMsgs((l) => [...l, { id: nextId++, role: 'tool', text: `▸ ${evt.name} ${evt.detail || ''}` }]);
+          else if (evt.type === 'stop') {
+            if (evt.reason === 'refusal') setAssistMsgs((l) => [...l, { id: nextId++, role: 'refusal', text: 'kimi declined this request' }]);
+            else if (evt.reason === 'max_tokens') setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: 'response hit the length cap — say "continue" for the rest' }]);
+          }
         },
         ctrl.signal
       );
     } catch (err) {
-      if (err.name !== 'AbortError') {
+      if (err.name === 'AbortError') {
+        // Backgrounding the app aborts in-flight fetches on mobile — keep the
+        // partial and say so instead of erroring.
+        if (gotText) setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: 'stream interrupted (app switched away?) — reply may be incomplete; say "continue" to resume' }]);
+      } else if (gotText) {
+        setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: `stream interrupted (${err.message.slice(0, 120)}) — reply may be incomplete; say "continue" to resume` }]);
+      } else {
         setAssistMsgs((l) => [...l, { id: nextId++, role: 'error', text: err.message }]);
       }
     } finally {
       setAssistRunning(false);
       assistAbortRef.current = null;
     }
-  }, [draft, assistRunning, assistMsgs, session, getContainerAuth]);
+  }, [draft, assistRunning, assistMsgs, session, getContainerAuth, systemPrompt, prefs]);
 
-  // Handoff: distill the strategy thread's tail into the repo agent's first
-  // message — left in the composer so YOU pull the expensive trigger.
+  // ── Threads (private, DO-backed) ──
+  const refreshThreads = useCallback(async () => {
+    const authInfo = getContainerAuth();
+    if (!authInfo) return;
+    try { setThreads(await threadsApi.list({ session: session.did, ...authInfo })); }
+    catch (e) { setThreads([]); }
+  }, [session, getContainerAuth]);
+
+  const openThread = useCallback(async (id) => {
+    const authInfo = getContainerAuth();
+    if (!authInfo) return;
+    const t = await threadsApi.get({ session: session.did, ...authInfo }, id);
+    if (t?.msgs) {
+      setAssistMsgs(t.msgs);
+      setThreadId(id);
+      setShowThreads(false);
+    }
+  }, [session, getContainerAuth]);
+
+  const startNewThread = useCallback(() => {
+    setAssistMsgs([]);
+    setThreadId(newThreadId());
+    setShowThreads(false);
+  }, []);
+
+  const deleteThread = useCallback(async (id) => {
+    const authInfo = getContainerAuth();
+    if (!authInfo) return;
+    await threadsApi.remove({ session: session.did, ...authInfo }, id);
+    if (id === threadId) { setAssistMsgs([]); setThreadId(newThreadId()); }
+    refreshThreads();
+  }, [session, getContainerAuth, threadId, refreshThreads]);
+
   const handoff = useCallback(() => {
     const tail = assistMsgs
       .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text.trim())
@@ -348,11 +466,11 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     setMode('repo');
   }, [assistMsgs]);
 
+  // ── Repo submit ──
   const submit = useCallback(() => {
     const text = draft.trim();
     if (!text || running) return;
     if (!socketRef.current?.connected) {
-      // Don't swallow the message: queue it, rejoin, flush on ready.
       pendingRef.current = text;
       setDraft('');
       push({ role: 'info', text: 'not connected — message queued, reconnecting…' });
@@ -367,7 +485,9 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
 
   const stop = useCallback(() => socketRef.current?.interrupt(), []);
 
+  // ── Render ──
   const isAssist = mode === 'assist';
+  const A = ACCENTS[isAssist ? 'assist' : 'repo'];
   const list = isAssist ? assistMsgs : messages;
   const busy = isAssist ? assistRunning : running;
   const dotColor = isAssist
@@ -377,45 +497,98 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     : '#e06c75';
 
   const doSubmit = isAssist ? submitAssist : submit;
-  const doStop = isAssist
-    ? () => assistAbortRef.current?.abort()
-    : stop;
+  const doStop = isAssist ? () => assistAbortRef.current?.abort() : stop;
 
-  const modeBtn = (m, label) => (
-    <button
-      style={{ ...S.hbtn, ...(mode === m ? { borderColor: '#2e6a73', color: '#7fd7e0' } : {}) }}
-      onClick={() => setMode(m)}
-    >
-      {label}
-    </button>
-  );
+  const renderEntry = (m) => {
+    if (m.role === 'user') return <div key={m.id} style={S.userMsg(A)}>{m.text}</div>;
+    if (m.role === 'assistant') {
+      return (
+        <div key={m.id} style={S.aiMsg}>
+          {m.thinking && prefs.thinking && <div style={S.thinking}>{m.thinking}</div>}
+          {renderMarkdown(m.text, `m${m.id}`)}
+        </div>
+      );
+    }
+    if (m.role === 'refusal') return <div key={m.id} style={S.refusal}>⛔ {m.text}</div>;
+    if (m.role === 'tool') return <div key={m.id} style={S.tool}>{m.text}</div>;
+    if (m.role === 'error') return <div key={m.id} style={S.err}>{m.text}</div>;
+    return <div key={m.id} style={S.info}>{m.text}</div>;
+  };
 
   return (
     <div style={S.root}>
-      <div style={S.header}>
+      <div style={S.header(A)}>
         <div style={S.dot(dotColor)} />
-        <div style={S.title}>kimi</div>
+        <div style={S.title(A)}>kimi</div>
         <div style={S.sub}>
           {isAssist
-            ? `@${session.handle} · assist (direct, cheap)`
+            ? `@${session.handle} · assist`
             : `@${session.handle} · ${profile}${statusDetail ? ` · ${statusDetail}` : ''}`}
         </div>
-        {modeBtn('assist', 'assist')}
-        {modeBtn('repo', 'repo')}
+        <button style={S.hbtn(isAssist, A)} onClick={() => setMode('assist')}>assist</button>
+        <button style={S.hbtn(!isAssist, A)} onClick={() => setMode('repo')}>repo</button>
         {isAssist && assistMsgs.length > 0 && (
-          <button style={S.hbtn} onClick={handoff}>→ repo</button>
+          <button style={S.hbtn(false, A)} onClick={handoff}>→ repo</button>
         )}
-        {isAssist && assistMsgs.length > 0 && (
-          <button style={S.hbtn} onClick={() => setAssistMsgs([])}>clear</button>
+        {isAssist && (
+          <button style={S.hbtn(showThreads, A)} onClick={() => { setShowThreads(!showThreads); setShowSettings(false); if (!showThreads) refreshThreads(); }}>☰</button>
+        )}
+        {isAssist && (
+          <button style={S.hbtn(showSettings, A)} onClick={() => { setShowSettings(!showSettings); setShowThreads(false); }}>⚙</button>
         )}
         {!isAssist && (status === 'closed' || status === 'denied') && (
-          <button style={S.hbtn} onClick={connect}>reconnect</button>
+          <button style={S.hbtn(false, A)} onClick={connect}>reconnect</button>
         )}
-        <button style={S.hbtn} onClick={onOpenTerminal}>&gt;_</button>
-        <button style={S.hbtn} onClick={onLogout}>logout</button>
+        <button style={S.hbtn(false, A)} onClick={onOpenTerminal}>&gt;_</button>
+        <button style={S.hbtn(false, A)} onClick={onLogout}>logout</button>
       </div>
 
-      <div ref={scrollRef} style={S.scroll}>
+      {isAssist && showSettings && (
+        <div style={S.panel}>
+          <div style={S.panelLabel}>system prompt (yours to edit — sent with every assist message)</div>
+          <textarea
+            style={{ ...S.panelInput, minHeight: 90 }}
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+          />
+          <div style={{ display: 'flex', gap: 14, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ color: '#909090', fontSize: 12, cursor: 'pointer' }}>
+              <input type="checkbox" checked={!!prefs.thinking} onChange={(e) => setPrefs({ ...prefs, thinking: e.target.checked })} /> show thinking
+            </label>
+            <label style={{ color: '#909090', fontSize: 12, cursor: 'pointer' }}>
+              <input type="checkbox" checked={!!prefs.web} onChange={(e) => setPrefs({ ...prefs, web: e.target.checked })} /> web search (experimental)
+            </label>
+            <button style={S.hbtn(false, A)} onClick={() => setSystemPrompt(DEFAULT_SYSTEM)}>reset prompt</button>
+          </div>
+        </div>
+      )}
+
+      {isAssist && showThreads && (
+        <div style={S.panel}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ ...S.panelLabel, flex: 1, margin: 0 }}>threads (private — stored in your Durable Object)</div>
+            <button style={S.hbtn(false, A)} onClick={startNewThread}>+ new</button>
+          </div>
+          {threads === null && <div style={S.info}>loading…</div>}
+          {threads?.length === 0 && <div style={S.info}>no saved threads yet — they save automatically as you chat</div>}
+          {threads?.map((t) => (
+            <div key={t.id} style={S.threadRow} onClick={() => openThread(t.id)}>
+              <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.id === threadId ? A.btnText : '#b0b0b0' }}>
+                {t.title}
+              </div>
+              <div style={{ color: '#555', fontSize: 10.5, flexShrink: 0 }}>
+                {t.count} msgs · {new Date(t.updatedAt).toLocaleDateString()}
+              </div>
+              <button
+                style={{ ...S.hbtn(false, A), padding: '2px 7px' }}
+                onClick={(e) => { e.stopPropagation(); deleteThread(t.id); }}
+              >×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div ref={scrollRef} style={S.scroll} onScroll={onScroll}>
         {list.length === 0 && (
           <div style={S.info}>
             {isAssist ? (
@@ -428,20 +601,19 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {list.map((m) => {
-            if (m.role === 'user') return <div key={m.id} style={S.userMsg}>{m.text}</div>;
-            if (m.role === 'assistant') return <div key={m.id} style={S.aiMsg}>{m.text}</div>;
-            if (m.role === 'tool') return <div key={m.id} style={S.tool}>{m.text}</div>;
-            if (m.role === 'error') return <div key={m.id} style={S.err}>{m.text}</div>;
-            return <div key={m.id} style={S.info}>{m.text}</div>;
-          })}
+          {list.map(renderEntry)}
           {busy && <div style={S.info}>⋯ {isAssist ? 'thinking' : 'working'}</div>}
         </div>
       </div>
 
+      <div style={S.composerHandle}>
+        <button style={S.handleBtn} onClick={() => setComposerTall(!composerTall)}>
+          {composerTall ? '▼ compact input' : '▲ big input'}
+        </button>
+      </div>
       <div style={S.composerWrap}>
         <textarea
-          style={S.input}
+          style={S.input(composerTall)}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -456,9 +628,9 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
           rows={1}
         />
         {busy ? (
-          <button style={S.send(true)} onClick={doStop}>stop</button>
+          <button style={S.send(true, A)} onClick={doStop}>stop</button>
         ) : (
-          <button style={S.send(false)} onClick={doSubmit}>send</button>
+          <button style={S.send(false, A)} onClick={doSubmit}>send</button>
         )}
       </div>
     </div>

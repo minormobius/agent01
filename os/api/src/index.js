@@ -176,6 +176,49 @@ export class ContainerShell extends Container {
     if (url.pathname === '/_sync') {
       return this.handleWorkspaceSync(request);
     }
+    // Thread store (worker-internal, post-auth): assist threads live PRIVATELY
+    // in this DO's SQLite storage — deliberately NOT PDS records, which would
+    // be on the open web. Keys: th:<id> = {title, msgs, updatedAt}; the index
+    // is derived by listing the prefix.
+    if (url.pathname.startsWith('/_threads/')) {
+      const storage = this.ctx.storage;
+      const op = url.pathname.slice('/_threads/'.length);
+      const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
+        status, headers: { 'Content-Type': 'application/json' },
+      });
+      if (op === 'list') {
+        const map = await storage.list({ prefix: 'th:' });
+        const items = [...map.entries()].map(([k, v]) => ({
+          id: k.slice(3), title: v.title || '(untitled)', updatedAt: v.updatedAt || 0, count: (v.msgs || []).length,
+        })).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 100)
+          .map(({ msgs, ...meta }) => meta);
+        return json({ threads: items });
+      }
+      if (op === 'get') {
+        const id = url.searchParams.get('id') || '';
+        const t = await storage.get(`th:${id}`);
+        return t ? json({ id, ...t }) : json({ error: 'not found' }, 404);
+      }
+      if (op === 'save' && request.method === 'POST') {
+        let b;
+        try { b = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+        const id = String(b.id || '').slice(0, 40);
+        if (!/^[a-zA-Z0-9_-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
+        const msgs = (Array.isArray(b.msgs) ? b.msgs : []).slice(-300);
+        // Guard the 2MB DO value cap.
+        const value = { title: String(b.title || '').slice(0, 120), msgs, updatedAt: Date.now() };
+        if (JSON.stringify(value).length > 1_500_000) return json({ error: 'thread too large' }, 413);
+        await storage.put(`th:${id}`, value);
+        return json({ ok: true });
+      }
+      if (op === 'delete' && request.method === 'POST') {
+        let b;
+        try { b = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+        await storage.delete(`th:${String(b.id || '').slice(0, 40)}`);
+        return json({ ok: true });
+      }
+      return json({ error: 'unknown op' }, 404);
+    }
     // Restart (worker-internal, post-auth): stop the running container so the
     // next request boots it FRESH — which also picks up a newly deployed
     // image. stop() is a graceful SIGTERM (the PTY server saves the workspace
@@ -288,6 +331,36 @@ export default {
       });
     }
 
+    // Private thread store (authed): forwards to the per-DID DO's storage.
+    // Never starts the container — thread ops are pure storage.
+    if (url.pathname.startsWith('/threads/')) {
+      const auth = await authorizeDid(
+        env,
+        url.searchParams.get('session'),
+        url.searchParams.get('auth'),
+        url.searchParams.get('authMode')
+      );
+      if (!auth.ok) {
+        return new Response(JSON.stringify({ ok: false, error: auth.msg }), {
+          status: auth.status,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        });
+      }
+      const op = url.pathname.slice('/threads/'.length);
+      const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(auth.did));
+      const fwd = new URL(`https://do/_threads/${op}`);
+      const id = url.searchParams.get('id');
+      if (id) fwd.searchParams.set('id', id);
+      const res = await stub.fetch(new Request(fwd, {
+        method: request.method,
+        body: request.method === 'POST' ? request.body : undefined,
+      }));
+      return new Response(res.body, {
+        status: res.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+
     // Assist mode (authed): DIRECT worker → Moonshot chat, no container, no
     // repo context, no cold start — strategy talk for pennies. The browser
     // sends {messages:[{role,content}]}; we attach the key server-side and
@@ -322,6 +395,12 @@ export default {
         return new Response('no messages', { status: 400, headers: corsHeaders(origin) });
       }
       const base = (env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic').replace(/\/$/, '');
+      // System prompt is CLIENT-CONTROLLED (visible + editable in the UI) with
+      // a server-side default; thinking and web search are opt-in toggles
+      // passed through in Anthropic-messages form.
+      const system = (typeof body.system === 'string' && body.system.trim())
+        ? body.system.slice(0, 4000)
+        : 'You are Kimi in the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to your repo-agent mode (a full Claude Code harness inside the agent01 monorepo) with the → repo button.';
       const upstream = await fetch(`${base}/v1/messages`, {
         method: 'POST',
         headers: {
@@ -331,10 +410,12 @@ export default {
         },
         body: JSON.stringify({
           model: env.KIMI_MODEL || 'kimi-k3',
-          max_tokens: 4096,
-          system: 'You are Kimi, chatting in "assist mode" of os.mino.mobi — a quick strategy sidekick for the minomobi web properties. Be sharp and concise. When the plan firms up, the user can hand this conversation to your repo-agent mode (full Claude Code harness with the agent01 monorepo) via the "→ repo" button.',
+          max_tokens: 8192,
+          system,
           messages,
           stream: true,
+          ...(body.thinking ? { thinking: { type: 'enabled', budget_tokens: 4096 } } : {}),
+          ...(body.webSearch ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }] } : {}),
         }),
       });
       return new Response(upstream.body, {

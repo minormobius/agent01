@@ -63,16 +63,19 @@ export async function debugRestart({ session, auth, authMode }, timeoutMs = 2000
   }
 }
 
-// Assist mode: direct worker→Moonshot chat (no container). POSTs the thread,
-// parses the Anthropic-messages SSE stream, invokes onText per text delta.
-export async function assistStream({ session, auth, authMode }, messages, onText, signal) {
+// Assist mode: direct worker→Moonshot chat (no container). POSTs the thread
+// plus options ({system, thinking, webSearch}), parses the Anthropic-messages
+// SSE stream, and invokes onEvent with typed events:
+//   {type:'text', text} · {type:'thinking', text} · {type:'tool', name, detail}
+//   {type:'stop', reason}  (reason 'refusal'/'max_tokens' deserve UI texture)
+export async function assistStream({ session, auth, authMode }, payload, onEvent, signal) {
   const params = new URLSearchParams({ session });
   if (auth) params.set('auth', auth);
   if (authMode) params.set('authMode', authMode);
   const res = await fetch(`${httpBase()}/assist?${params}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify(payload),
     signal,
   });
   if (!res.ok) {
@@ -82,6 +85,27 @@ export async function assistStream({ session, auth, authMode }, messages, onText
   const reader = res.body.getReader();
   const dec = new TextDecoder();
   let buf = '';
+  const handle = (evt) => {
+    if (evt.type === 'content_block_delta') {
+      if (evt.delta?.type === 'thinking_delta' && evt.delta.thinking) {
+        onEvent({ type: 'thinking', text: evt.delta.thinking });
+      } else if (evt.delta?.text) {
+        onEvent({ type: 'text', text: evt.delta.text });
+      }
+    } else if (evt.type === 'content_block_start') {
+      const b = evt.content_block;
+      if (b?.type === 'server_tool_use') {
+        onEvent({ type: 'tool', name: b.name || 'tool', detail: JSON.stringify(b.input || {}).slice(0, 120) });
+      } else if (b?.type === 'web_search_tool_result') {
+        const n = Array.isArray(b.content) ? b.content.length : '';
+        onEvent({ type: 'tool', name: 'web results', detail: String(n) });
+      }
+    } else if (evt.type === 'message_delta' && evt.delta?.stop_reason) {
+      onEvent({ type: 'stop', reason: evt.delta.stop_reason });
+    } else if (evt.type === 'error') {
+      throw new Error(evt.error?.message || 'stream error');
+    }
+  };
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -93,17 +117,49 @@ export async function assistStream({ session, auth, authMode }, messages, onText
       if (!line.startsWith('data:')) continue;
       const data = line.slice(5).trim();
       if (data === '[DONE]') return;
-      try {
-        const evt = JSON.parse(data);
-        if (evt.type === 'content_block_delta' && evt.delta?.text) onText(evt.delta.text);
-        if (evt.type === 'error') throw new Error(evt.error?.message || 'stream error');
-      } catch (e) {
-        if (e instanceof SyntaxError) continue; // partial/foreign line
-        throw e;
-      }
+      let evt;
+      try { evt = JSON.parse(data); } catch { continue; }
+      handle(evt);
     }
   }
 }
+
+// Private assist-thread store — per-DID Durable Object storage via the worker
+// (deliberately NOT PDS records: the PDS is the open web; the DO is private).
+export const threadsApi = {
+  _params({ session, auth, authMode }) {
+    const p = new URLSearchParams({ session });
+    if (auth) p.set('auth', auth);
+    if (authMode) p.set('authMode', authMode);
+    return p;
+  },
+  async list(authInfo) {
+    const res = await fetch(`${httpBase()}/threads/list?${this._params(authInfo)}`);
+    if (!res.ok) throw new Error(`threads list ${res.status}`);
+    return (await res.json()).threads || [];
+  },
+  async get(authInfo, id) {
+    const p = this._params(authInfo); p.set('id', id);
+    const res = await fetch(`${httpBase()}/threads/get?${p}`);
+    if (!res.ok) return null;
+    return res.json();
+  },
+  async save(authInfo, { id, title, msgs }) {
+    const res = await fetch(`${httpBase()}/threads/save?${this._params(authInfo)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, title, msgs }),
+    });
+    if (!res.ok) throw new Error(`threads save ${res.status}`);
+  },
+  async remove(authInfo, id) {
+    await fetch(`${httpBase()}/threads/delete?${this._params(authInfo)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+  },
+};
 
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000];
 
