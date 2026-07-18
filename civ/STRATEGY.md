@@ -226,10 +226,42 @@ one, nested again for the site.
   fixture-growth generates interiors; org persons occupy them. Every address
   extends the siteSeed — `world:city:cell:d2:b5:lot3` — generated lazily on zoom.
 
-**Still open at the hinterland level**: nudge-to-envelope isn't wired yet (towns run
-free; the envelope ships but isn't consumed), and the hinterland's internal tech
-clock should follow the founder culture's tier trajectory rather than its own
-logistic.
+**The hinterland reform (SHIPPED — the mesoscale as a full client):**
+
+- **`runChronicle(..., { civ })`** — the complete client contract:
+  `{ ticks, tickYears, preset, pulse, founderTech, envelope }`. With it present, the
+  internal deglaciation arc and logistic tech clock are RETIRED: the environment is
+  the civ run's window (sea at modern level, temperature/humidity following the
+  global forcing curve, signed by the preset), and the tech clock interpolates the
+  founder culture's **actual capability unlocks** (`founderTech`, a new
+  `/api/civ/sites` field: cap → unlock tick, lineage-walked through cultureSplit
+  ancestry so daughter cultures inherit correctly).
+- **Settlement spacing subordinate to transport tech, aged appropriately**: the
+  walk-era day's-walk lattice founds first (spacing 3.2); each transport era the
+  founders actually reached opens a founding WAVE at its own spacing — wheel
+  (market towns, 4.5), sail (ports + sea routes, 6.0), mechanisation (rail
+  junctions, 8.0). Old lattices persist under new overlays — the map ages like a
+  real settlement system.
+- **Railroads generate in the industrial hinterland**: at the mechanisation unlock,
+  a slope-penalized network connects the top towns (drawn along surveyed
+  alignments), junction towns found at midpoints, rail-connected towns gain trade.
+  No mechanisation in the founder's history → no rails, ever (selftested).
+- **Commodities**: every town exports what its habitat offers (ore/clay/fish/
+  grain/timber/wool); rail + sea links between towns with *different* commodities
+  lift both (comparative advantage).
+- **The drowning rule**: a town whose cell goes under the current sea level dies
+  there — no phantom cities on the shelf (the old bug; now a tested invariant:
+  no town holds population underwater at any tick).
+- **Envelope nudging wired**: regional growth rate breathes with the macro city's
+  normalized popSeries — client, not clamp.
+- **Selftest**: `polis/test/hinterland.selftest.mjs` (20 checks: determinism both
+  modes, drowning invariant, era schedule from founderTech, rails/sea routes/
+  commodities, envelope effect).
+
+**Still open at the hinterland level**: rank-size calibration (nudge the town-size
+distribution toward Zipf), commodity flows as actual quantities (not just a
+complementarity bonus), and reading civ WARS (not just this city's sacks) as
+regional insecurity that suppresses unwalled-town growth.
 
 ### Phase V — outward
 

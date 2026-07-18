@@ -174,6 +174,22 @@ function draw() {
     }
   }
 
+  // SEA ROUTES (age of sail) — dashed lanes between coastal towns
+  if (C.seaRoutes) for (const sr of C.seaRoutes) {
+    if (tick < sr.tick) continue;
+    const a = m.cells[sr.a], b = m.cells[sr.b];
+    cx.beginPath(); cx.setLineDash([5, 6]); cx.moveTo(wpx(a.wx), hpx(a.wy)); cx.lineTo(wpx(b.wx), hpx(b.wy));
+    cx.strokeStyle = 'rgba(120,180,216,0.45)'; cx.lineWidth = 1.2; cx.stroke(); cx.setLineDash([]);
+  }
+  // RAILROADS (industrial era) — the network, drawn along its surveyed alignments
+  if (C.rails) for (const rl of C.rails) {
+    if (tick < rl.tick) continue;
+    cx.beginPath();
+    rl.path.forEach((cid, i) => { const c = m.cells[cid]; if (i === 0) cx.moveTo(wpx(c.wx), hpx(c.wy)); else cx.lineTo(wpx(c.wx), hpx(c.wy)); });
+    cx.strokeStyle = 'rgba(30,30,34,0.85)'; cx.lineWidth = 2.4; cx.stroke();
+    cx.strokeStyle = 'rgba(220,220,225,0.7)'; cx.lineWidth = 0.8; cx.setLineDash([3, 5]); cx.stroke(); cx.setLineDash([]);
+  }
+
   // tech waves — expanding rings from their origin for a few ticks after firing
   for (const w of C.waves) {
     const age = tick - w.tick; if (age < 0 || age > 18) continue;
@@ -188,6 +204,12 @@ function draw() {
     cx.beginPath(); cx.arc(px, py, rad, 0, 7); cx.fillStyle = ENGINE_COLOR[t.engine] || '#ccc'; cx.globalAlpha = 0.95; cx.fill(); cx.globalAlpha = 1;
     cx.lineWidth = 1.4; cx.strokeStyle = `rgba(255,244,210,${0.25 + fl * 0.7})`; cx.stroke();
     if (n === sel) { cx.beginPath(); cx.arc(px, py, rad + 3, 0, 7); cx.strokeStyle = '#f0d28a'; cx.lineWidth = 1.5; cx.stroke(); }
+  });
+  // DROWNED towns — a fading ghost ring where the sea took a settlement
+  C.towns.forEach((t) => {
+    if (t.drowned == null || t.drowned < 0 || tick < t.drowned) return;
+    const px = wpx(t.x), py = hpx(t.y);
+    cx.beginPath(); cx.arc(px, py, 4, 0, 7); cx.strokeStyle = 'rgba(120,170,210,0.55)'; cx.lineWidth = 1.2; cx.setLineDash([2, 3]); cx.stroke(); cx.setLineDash([]);
   });
 
   // event pulses on stricken towns/cells (for a few ticks after the shock)
@@ -244,7 +266,11 @@ function panel(n) {
   const t = C.towns[n], pop = t.history[tick] || 0;
   document.getElementById('pName').textContent = `${tierOf(pop)} — town ${n + 1}`;
   document.getElementById('pEng').textContent = `${t.engine} · founded ${t.founded >= 0 ? (C.env[t.founded].year < 0 ? -C.env[t.founded].year + ' BCE' : C.env[t.founded].year + ' CE') : '—'}`;
-  const rows = [['population', pop.toLocaleString()], ['engine', t.engine], ['basic draw', Math.round(t.base).toLocaleString()], ['hinterland surplus', t.surplus.toFixed(1)], ['flourishing', t.flourishHist[tick] || 0]];
+  const era = C.transport ? ['walk', 'wheel', 'sail', 'rail'][C.transport[tick] || 0] : null;
+  const rows = [['population', pop.toLocaleString()], ['engine', t.engine], ['commodity', t.commodity || '—'],
+    ['basic draw', Math.round(t.base).toLocaleString()], ['hinterland surplus', t.surplus.toFixed(1)], ['flourishing', t.flourishHist[tick] || 0],
+    ...(era ? [['transport era', era + (t.railed ? ' · rail-connected' : '')]] : []),
+    ...(t.drowned != null && t.drowned >= 0 && tick >= t.drowned ? [['fate', 'taken by the sea']] : [])];
   document.getElementById('pTab').innerHTML = rows.map(([k, v]) => `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`).join('');
   const sc = document.getElementById('spark'), g = sc.getContext('2d'), w = sc.width = sc.clientWidth, h = sc.height = 40;
   g.clearRect(0, 0, w, h); const Hh = t.history, mx = Math.max(...Hh, 1);
@@ -279,7 +305,7 @@ function roll(seed, o = {}) {
       const region = o.region ? o.region(world) : selectRegion(world);
       const sampler = makeSampler(world, region);
       const mesh = buildMesh(seed >>> 0, region, sampler);
-      C = runChronicle(seed >>> 0, mesh, { ticks: 160, world, ...(o.worldShocks ? { worldShocks: o.worldShocks } : {}) });   // world → volcanic winters erupt from its real volcanoes; civ → sacks + droughts arrive from the world beyond
+      C = runChronicle(seed >>> 0, mesh, { ticks: 160, world, ...(o.worldShocks ? { worldShocks: o.worldShocks } : {}), ...(o.civ ? { civ: o.civ } : {}) });   // civ present → environment, tech clock, transport eras + envelope all come from the run above
       timeIn.max = C.ticks - 1; tick = Math.round((C.ticks - 1) * 0.84); timeIn.value = tick; sel = -1; // open on a developed era; scrub left for the ice age
       document.getElementById('panel').classList.remove('show');
       setLegend();
@@ -354,7 +380,14 @@ async function bootFromCiv() {
   document.body.appendChild(b);
   // regenerate the world at the SAME mesh resolution the civ run saw — mappa terrain is
   // not resolution-stable, so d.n is the only N at which the founding's coast exists
-  roll(citySeed, { worldSeed: +wm[1], worldN: d.n, worldShocks, region: w => regionAtLL(w, f.lon * Math.PI / 180, f.lat * Math.PI / 180) });
+  // the FULL client contract: environment + tech clock + transport eras + envelope
+  // all descend from the civ run (see chronicle.js `civ` option)
+  const civObj = {
+    ticks: d.ticks, tickYears: d.tickYears, preset: p.get('preset') || null,
+    pulse: d.climate || null, founderTech: f.founderTech || {},
+    envelope: f.popSeries || null, envelopeT: d.climate ? d.climate.t : null,
+  };
+  roll(citySeed, { worldSeed: +wm[1], worldN: d.n, worldShocks, civ: civObj, region: w => regionAtLL(w, f.lon * Math.PI / 180, f.lat * Math.PI / 180) });
   return true;
 }
 bootFromCiv().then(ok => { if (!ok) roll(+seedIn.value); })

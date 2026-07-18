@@ -5255,7 +5255,29 @@ function doSites(params, cap2 = CAP2) {
   const ch = createSim(world, cfg, civSeed).run(ticks);
   const worldStr = params.get("world") ?? "1";
   const foundings = (ch.final.foundings || []).map((f) => ({ ...f, siteSeed: `${worldStr}:${f.city}:${f.cell}` }));
-  const cities = (ch.final.cities || []).slice(0, 60).map((c) => ({ ...c, siteSeed: `${worldStr}:${c.name}:${c.cell}` }));
+  const techByCulture = /* @__PURE__ */ new Map(), parentOf = /* @__PURE__ */ new Map();
+  for (const e of ch.events || []) {
+    if (e.type === "cultureSplit") {
+      parentOf.set(e.child, e.parent);
+      continue;
+    }
+    if (e.type !== "techUnlock") continue;
+    let m = techByCulture.get(e.culture);
+    if (!m) techByCulture.set(e.culture, m = {});
+    if (m[e.cap] == null) m[e.cap] = e.t;
+  }
+  const seedCaps = cfg.culture.seedTech || [];
+  const founderTechOf = (cu) => {
+    const m = {};
+    for (let c = cu, hops = 0; c != null && hops < 64; c = parentOf.get(c), hops++) {
+      const t = techByCulture.get(c);
+      if (!t) continue;
+      for (const cap3 in t) if (m[cap3] == null || t[cap3] < m[cap3]) m[cap3] = t[cap3];
+    }
+    for (const c of seedCaps) if (m[c] == null) m[c] = 0;
+    return m;
+  };
+  const cities = (ch.final.cities || []).slice(0, 60).map((c) => ({ ...c, siteSeed: `${worldStr}:${c.name}:${c.cell}`, founderTech: founderTechOf(c.culture) }));
   return {
     api: "mappa.civ/v1",
     world: worldStr,

@@ -277,6 +277,11 @@ section('epoch 2 — cities as actors');
   const s = doSites(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=600'));
   ok(s.climate && s.climate.t.length === s.climate.pulse.length && s.climate.t.length > 0, 'sites carries the global climate curve');
   ok(s.cities.every(c => 'walls' in c && 'sacked' in c && Array.isArray(c.sackTicks)), 'sites cities carry the shock history polis consumes');
+  // founderTech: the founder culture's capability→unlock-tick map (lineage-walked),
+  // so the hinterland derives its transport eras from actual civ history
+  ok(s.cities.every(c => c.founderTech && typeof c.founderTech === 'object'), 'cities carry founderTech');
+  ok(s.cities.every(c => Object.values(c.founderTech).every(t2 => Number.isInteger(t2) && t2 >= 0)), 'founderTech ticks are unlock times');
+  ok(s.cities.some(c => 'fire' in c.founderTech || 'herding' in c.founderTech), 'seed caps present at tick 0');
   // the demographic envelope: per-city population series, fred-aligned, zeros pre-founding
   ok(s.cities.every(c => Array.isArray(c.popSeries) && c.popSeries.length === s.climate.t.length), 'popSeries aligned to the fred/climate time axis');
   ok(s.cities.every(c => { const k = Math.max(0, c.popSeries.findIndex(v => v > 0)); return c.popSeries.slice(0, k).every(v => v === 0); }), 'popSeries zero before founding');
