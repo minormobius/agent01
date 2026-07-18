@@ -322,15 +322,20 @@ async function bootFromCiv() {
   const r = await fetch('https://civ.mino.mobi/api/civ/sites?' + q);
   if (!r.ok) throw new Error('civ API ' + r.status);
   const d = await r.json();
-  const f = d.foundings[Math.max(0, Math.min(d.foundings.length - 1, +(p.get('site') || 0)))];
-  if (!f) return false;                                     // no state ever rose in this run
+  // ?site=i → grow a state seat (foundings); ?city=i → grow ANY emergent settlement
+  // (cities — cells whose population crossed the urban threshold, river/coast-sited)
+  const pool = p.get('city') != null ? (d.cities || []) : d.foundings;
+  const f = pool[Math.max(0, Math.min(pool.length - 1, +((p.get('city') ?? p.get('site')) || 0)))];
+  if (!f) return false;                                     // nothing urban ever rose in this run
+  const cityName = f.city || f.name;
   const citySeed = xmur3(f.siteSeed);
   seedIn.value = citySeed;
   const b = document.createElement('div');
   b.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:9;background:rgba(10,14,20,.85);border:1px solid #2a3a4e;border-radius:8px;padding:6px 12px;font-size:12px;color:#cdd6e0;max-width:70vw';
-  b.innerHTML = '⚑ <b>' + f.city + '</b> — seat of the ' + f.cultureName + ', founded year ' + f.year +
+  b.innerHTML = '⚑ <b>' + cityName + '</b> — ' + (f.city ? 'seat of the ' : '') + f.cultureName + ', founded year ' + f.year +
+    (f.river ? ' · on the river' : '') + (f.coast ? ' · on the coast' : '') +
     ' · <a style="color:#5aa9e6" href="https://civ.mino.mobi/dash/?' + q + '">the civ run ↗</a>' +
-    (d.foundings.length > 1 ? ' · site ' + (d.foundings.indexOf(f)) + '/' + (d.foundings.length - 1) : '');
+    (pool.length > 1 ? ' · ' + (pool.indexOf(f)) + '/' + (pool.length - 1) : '');
   document.body.appendChild(b);
   // regenerate the world at the SAME mesh resolution the civ run saw — mappa terrain is
   // not resolution-stable, so d.n is the only N at which the founding's coast exists

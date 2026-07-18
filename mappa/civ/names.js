@@ -76,6 +76,12 @@ function riteNamer(seed) {
     culture: cu => book(cu, 'family')[0],
     // a toponym for a cell in a culture's tongue (state seats → founded cities)
     place: (cell, cu) => pick(book(cuOr0(cu), 'place'), mix(cell, 11)),
+    // a continent name — its own pack per landmass (continents pre-date cultures)
+    landmassName: lm => {
+      const r = stream((seed ^ mix(lm, 13)) >>> 0, 'landmass-name');
+      const pack = PACKS[Math.floor(r() * PACKS.length)];
+      return generateSet({ seed: 'civ:' + seed + ':lm' + lm, culture: pack, setting: 'classical', kind: 'place', count: 4 }).names[0];
+    },
     packFor,
   };
 }
@@ -101,6 +107,7 @@ function legacyNamer(seed) {
     // exist in both modes — only the strings differ)
     culture: cu => syll(stream((seed ^ (cu * 374761393) ^ 0x85ebca6b) >>> 0, 'culture-name'), 'ktrmnvbslpgdh', 'aeioua'),
     place: (cell, _cu) => syll(stream((seed ^ (cell * 668265263) ^ 0xc2b2ae35) >>> 0, 'place-name'), 'ktrmnvbslpgdh', 'aeioua'),
+    landmassName: lm => syll(stream((seed ^ (lm * 374761393) ^ 0x27d4eb2f) >>> 0, 'landmass-name'), 'ktrmnvbslpgdh', 'aeioua'),
     packFor: () => null,
   };
 }

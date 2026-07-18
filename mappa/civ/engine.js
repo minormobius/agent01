@@ -299,6 +299,10 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const cellDomPop = new Int32Array(N);
   const cultMembers = [];                 // per-culture member count (index=culture id)
   const cultTerritory = [];               // per-culture list of owned (dominant) cells
+  // settlements: a cell is a CITY once its population has ever crossed CITY_MIN
+  // (scaled to popScale so custom configs keep sane city counts)
+  const CITY_MIN = Math.max(90, Math.round(popScale * 0.23));
+  const cityTick = new Int32Array(N).fill(-1), cityPeak = new Int32Array(N), cityCu = new Int32Array(N).fill(-1);
   let cultBestPop = new Int32Array(64), cultBestCell = new Int32Array(64); // largest city per culture
   const fmales = new Int32Array(4096);    // reusable fertile-male scratch per cell
   let cultScratch = new Int32Array(64);   // reusable per-cell culture-count tally (no GC)
@@ -332,6 +336,12 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       const tv = cultures[dom].tech, base = c * NCAP, w0 = Math.min(0.5, (e - s) * 0.003);
       for (let b = 0; b < NCAP; b++) if (tv & bit(b)) memeField[base + b] += w0;
       activityField[c] += Math.min(0.3, (e - s) * 0.0015);
+      // CITY tracking (observation only — no dynamics, no events, hash-safe): a cell
+      // whose population first crosses CITY_MIN is a settlement founding; remember when,
+      // by whom, and its peak. Rivers/coasts drive this indirectly — dispersal's
+      // corridorWeight and resource K-bonuses concentrate people exactly there.
+      const cp = e - s;
+      if (cp >= CITY_MIN) { if (cityTick[c] < 0) { cityTick[c] = tick; cityCu[c] = dom; } if (cp > cityPeak[c]) cityPeak[c] = cp; }
     }
   }
 
@@ -1107,7 +1117,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         const gk = it.leader + '@' + A.birthTick[it.leader];
         if (!greatSeen.has(gk) && (A.flags[it.leader] & ALIVE)) {
           greatSeen.add(gk);
-          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), pid: it.leader, culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
+          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), pid: it.leader, culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, landmass: w.landmass[it.seat], tick });
         }
       }
     }
@@ -1260,11 +1270,31 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         culture: p.id, cultureName: p.name, city: namer.place(seat, p.id), cell: seat,
         lon: +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(3),
         lat: +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(3),
-        tick: p.rose, year: Math.round(p.rose * ty), tier: p.peakTier, peakPop: p.peakPop, alive: p.alive,
+        tick: p.rose, year: Math.round(p.rose * ty), tier: p.peakTier, peakPop: p.peakPop, alive: p.alive, landmass: w.landmass[seat],
       };
     });
     // named resources + who currently holds each
-    const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k] }));
+    const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k], landmass: w.landmass[nd.cell] }));
+    // CITIES: every cell whose population ever crossed CITY_MIN, with the geography
+    // that made it (river / coast / resource) — the mappa data that drives settlement.
+    const cities = [];
+    for (let c = 0; c < N; c++) {
+      if (cityTick[c] < 0) continue;
+      const cu = cityCu[c] >= 0 ? cityCu[c] : 0;
+      const v = w.V[c];
+      cities.push({
+        cell: c, name: namer.place(c, cu), culture: cu, cultureName: namer.culture(cu),
+        tick: cityTick[c], year: Math.round(cityTick[c] * ty), pop: cellPop[c], peak: cityPeak[c],
+        landmass: w.landmass[c], river: !!(w.river && w.river[c]), coast: !!(w.coast && w.coast[c]),
+        resource: (w.resource && w.resource[c]) ? RESOURCES[w.resource[c]] : null,
+        lon: +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(3),
+        lat: +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(3),
+        alive: cellPop[c] >= Math.round(CITY_MIN * 0.5),
+      });
+    }
+    cities.sort((a, b) => b.peak - a.peak);
+    // continents, named — the filter axis every located object shares
+    const landmasses = Array.from({ length: w.nLandmass }, (_, i) => ({ id: i, name: namer.landmassName(i), pop: popByLand[i], cities: cities.filter(ct => ct.landmass === i).length }));
     // the NOTABLE composite actors across the whole run — companies, guilds, armies,
     // states — alive or since-dissolved (warbands are transient, so a fought-and-fell host
     // is history too). Ranked by significance; each carries its alive/fell status.
@@ -1276,7 +1306,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat,
         // Phase IV: the org address parts. Consumers compose the seed as
         // `${world}:${seatName}:${seat}:${kind}${id}` and open it at rite.mino.mobi/org/.
-        seatName: namer.place(it.seat, it.culture), org: INST_ORG[INST_NAME[it.type]], namePack: namer.packFor(it.culture), members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader, it.culture) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
+        seatName: namer.place(it.seat, it.culture), org: INST_ORG[INST_NAME[it.type]], namePack: namer.packFor(it.culture), landmass: w.landmass[it.seat], members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader, it.culture) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
     // the economy: wealth inequality (Gini), mean wealth, mean price, total output
     let totW = 0, maxW = 0; const wl = new Float64Array(liveN);
     for (let t = 0; t < liveN; t++) { const wv = A.wealth[live[t]]; wl[t] = wv; totW += wv; if (wv > maxW) maxW = wv; }
@@ -1290,7 +1320,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const bFollow = new Float64Array(beliefs.length || 1);
     const bCult = beliefs.map(() => new Set()), bLand = beliefs.map(() => new Set());
     for (let t = 0; t < liveN; t++) { const id = live[t], b = A.belief[id]; if (b === BNONE) continue; bFollow[b]++; bCult[b].add(A.culture[id]); bLand[b].add(w.landmass[A.cell[id]]); }
-    const beliefsOut = beliefs.filter(B => bFollow[B.id] > 0).map(B => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], org: BELIEF_ORG[REGISTER[B.register]], followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
+    const beliefsOut = beliefs.filter(B => bFollow[B.id] > 0).map(B => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], org: BELIEF_ORG[REGISTER[B.register]], landmass: (B.origin >= 0 && B.origin < N) ? w.landmass[B.origin] : -1, followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
     // history's great persons, most eminent first — each a full rite/org person
     // (Phase IV: triad, cast, vocation, quirks; deterministic from (civSeed, agent id))
     const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120)
@@ -1300,7 +1330,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       // every culture ever, id-indexed — events reference cultures by id, so consumers
       // (the timeline, external tooling) can name even the extinct ones
       cultureNames: cultures.map((c, i) => namer.culture(i)),
-      cultures: surviving, polities, foundings, resources, institutions, economy,
+      cultures: surviving, polities, foundings, cities, landmasses, resources, institutions, economy,
       beliefs: beliefsOut, beliefAxes: DOX,
       greatPeople: great, credNames: CRED,
       languages: languages.map(l => ({ id: l.id, parent: l.parent, birthTick: l.birthTick })),
@@ -1316,6 +1346,10 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     run(nTicks, opts = {}) {
       totalTicks = nTicks;
       chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, climate: (cfg.climate && cfg.climate.preset) || cfg.climate || 'stable' };
+      // geo lookup for consumers (timeline continent filtering): cell → landmass.
+      // Deliberately OUTSIDE chronicleHash (events serialize e.landmass, so events must
+      // never gain the field retroactively — consumers map cells through this instead).
+      chronicle.geo = { cellLandmass: Array.from(w.landmass) };
       // FRED economic time-series: always captured, sampled to ~100 points across the run.
       chronicle.fred = { t: [], tickYears: ty, series: {} };
       fredEvery = Math.max(1, Math.floor(nTicks / 100));

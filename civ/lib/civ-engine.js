@@ -2160,6 +2160,12 @@ function riteNamer(seed) {
     culture: (cu) => book(cu, "family")[0],
     // a toponym for a cell in a culture's tongue (state seats → founded cities)
     place: (cell, cu) => pick2(book(cuOr0(cu), "place"), mix(cell, 11)),
+    // a continent name — its own pack per landmass (continents pre-date cultures)
+    landmassName: (lm) => {
+      const r = stream((seed ^ mix(lm, 13)) >>> 0, "landmass-name");
+      const pack = PACKS[Math.floor(r() * PACKS.length)];
+      return generateSet({ seed: "civ:" + seed + ":lm" + lm, culture: pack, setting: "classical", kind: "place", count: 4 }).names[0];
+    },
     packFor
   };
 }
@@ -2182,6 +2188,7 @@ function legacyNamer(seed) {
     // exist in both modes — only the strings differ)
     culture: (cu) => syll(stream((seed ^ cu * 374761393 ^ 2246822507) >>> 0, "culture-name"), "ktrmnvbslpgdh", "aeioua"),
     place: (cell, _cu) => syll(stream((seed ^ cell * 668265263 ^ 3266489909) >>> 0, "place-name"), "ktrmnvbslpgdh", "aeioua"),
+    landmassName: (lm) => syll(stream((seed ^ lm * 374761393 ^ 668265263) >>> 0, "landmass-name"), "ktrmnvbslpgdh", "aeioua"),
     packFor: () => null
   };
 }
@@ -2797,6 +2804,8 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
   const cellDomPop = new Int32Array(N);
   const cultMembers = [];
   const cultTerritory = [];
+  const CITY_MIN = Math.max(90, Math.round(popScale * 0.23));
+  const cityTick = new Int32Array(N).fill(-1), cityPeak = new Int32Array(N), cityCu = new Int32Array(N).fill(-1);
   let cultBestPop = new Int32Array(64), cultBestCell = new Int32Array(64);
   const fmales = new Int32Array(4096);
   let cultScratch = new Int32Array(64);
@@ -2841,6 +2850,14 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       const tv = cultures[dom].tech, base = c * NCAP, w0 = Math.min(0.5, (e - s) * 3e-3);
       for (let b = 0; b < NCAP; b++) if (tv & bit(b)) memeField[base + b] += w0;
       activityField[c] += Math.min(0.3, (e - s) * 15e-4);
+      const cp = e - s;
+      if (cp >= CITY_MIN) {
+        if (cityTick[c] < 0) {
+          cityTick[c] = tick;
+          cityCu[c] = dom;
+        }
+        if (cp > cityPeak[c]) cityPeak[c] = cp;
+      }
     }
   }
   const meme = cfg.meme || {};
@@ -3908,7 +3925,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
         const gk = it.leader + "@" + A.birthTick[it.leader];
         if (!greatSeen.has(gk) && A.flags[it.leader] & ALIVE) {
           greatSeen.add(gk);
-          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), pid: it.leader, culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
+          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), pid: it.leader, culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, landmass: w.landmass[it.seat], tick });
         }
       }
     }
@@ -4107,10 +4124,36 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
         year: Math.round(p.rose * ty),
         tier: p.peakTier,
         peakPop: p.peakPop,
-        alive: p.alive
+        alive: p.alive,
+        landmass: w.landmass[seat]
       };
     });
-    const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k] }));
+    const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k], landmass: w.landmass[nd.cell] }));
+    const cities = [];
+    for (let c = 0; c < N; c++) {
+      if (cityTick[c] < 0) continue;
+      const cu = cityCu[c] >= 0 ? cityCu[c] : 0;
+      const v = w.V[c];
+      cities.push({
+        cell: c,
+        name: namer.place(c, cu),
+        culture: cu,
+        cultureName: namer.culture(cu),
+        tick: cityTick[c],
+        year: Math.round(cityTick[c] * ty),
+        pop: cellPop[c],
+        peak: cityPeak[c],
+        landmass: w.landmass[c],
+        river: !!(w.river && w.river[c]),
+        coast: !!(w.coast && w.coast[c]),
+        resource: w.resource && w.resource[c] ? RESOURCES[w.resource[c]] : null,
+        lon: +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(3),
+        lat: +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(3),
+        alive: cellPop[c] >= Math.round(CITY_MIN * 0.5)
+      });
+    }
+    cities.sort((a, b) => b.peak - a.peak);
+    const landmasses = Array.from({ length: w.nLandmass }, (_, i) => ({ id: i, name: namer.landmassName(i), pop: popByLand[i], cities: cities.filter((ct) => ct.landmass === i).length }));
     const notability = (it) => it.type === INST.STATE ? it.peakMembers * 3 : it.type === INST.WARBAND ? it.captures * 40 + it.peakMembers : it.peakMembers;
     const institutions2 = insts.filter((it) => it.type === INST.STATE ? it.peakMembers > 0 : it.type === INST.WARBAND ? it.captures >= 1 : it.peakMembers > 40).sort((a, b) => notability(b) - notability(a)).slice(0, 140).map((it) => ({
       id: it.id,
@@ -4124,6 +4167,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       seatName: namer.place(it.seat, it.culture),
       org: INST_ORG[INST_NAME[it.type]],
       namePack: namer.packFor(it.culture),
+      landmass: w.landmass[it.seat],
       members: it.memberCount,
       peak: it.peakMembers,
       pool: Math.round(it.pool),
@@ -4177,7 +4221,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       bCult[b].add(A.culture[id]);
       bLand[b].add(w.landmass[A.cell[id]]);
     }
-    const beliefsOut = beliefs.filter((B) => bFollow[B.id] > 0).map((B) => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], org: BELIEF_ORG[REGISTER[B.register]], followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
+    const beliefsOut = beliefs.filter((B) => bFollow[B.id] > 0).map((B) => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], org: BELIEF_ORG[REGISTER[B.register]], landmass: B.origin >= 0 && B.origin < N ? w.landmass[B.origin] : -1, followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
     const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120).map((g2) => ({ ...g2, person: civPerson(seed, g2.pid, g2.role) }));
     return {
       pop: liveN,
@@ -4187,6 +4231,8 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       cultures: surviving,
       polities,
       foundings,
+      cities,
+      landmasses,
       resources,
       institutions: institutions2,
       economy,
@@ -4218,6 +4264,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     run(nTicks, opts = {}) {
       totalTicks = nTicks;
       chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, climate: cfg.climate && cfg.climate.preset || cfg.climate || "stable" };
+      chronicle.geo = { cellLandmass: Array.from(w.landmass) };
       chronicle.fred = { t: [], tickYears: ty, series: {} };
       fredEvery = Math.max(1, Math.floor(nTicks / 100));
       if (opts.frames) {
@@ -4258,12 +4305,17 @@ var WEIGHT = {
   rulesets: 90,
   climate: 85,
   polityRise: 80,
+  techFirst: 80,
   polityFall: 78,
   collapse: 74,
+  techIndep: 70,
   belief: 70,
+  majorOrg: 68,
   eminence: 66,
+  city: 64,
   war: 62,
   demography: 60,
+  techSpread: 60,
   schism: 58,
   stateFormation: 50,
   crisis: 48,
@@ -4286,9 +4338,54 @@ function buildTimeline(ch, mode) {
   const instById = new Map((f.institutions || []).map((o) => [o.id, o]));
   const beliefById = new Map((f.beliefs || []).map((b) => [b.id, b]));
   const stateOf = (cu) => (f.institutions || []).find((o) => o.kind === "state" && o.culture === cu);
+  const geo = ch.geo && ch.geo.cellLandmass || null;
+  const lmOf = (cell) => geo && cell != null && cell >= 0 && cell < geo.length ? geo[cell] : null;
+  const lmName = (i) => {
+    const L = (f.landmasses || [])[i];
+    return L ? L.name : i == null || i < 0 ? "unknown shores" : "landmass " + i;
+  };
   const entries = [];
-  const add2 = (t, kind, title, body, refs) => entries.push({ t, year: yr(t), kind, title, body, refs: refs || {} });
+  const add2 = (t, kind, title, body, refs, lm) => entries.push({ t, year: yr(t), kind, title, body, lm: lm ?? null, refs: refs || {} });
   const great = mode === "greatman";
+  if (mode === "tech") {
+    const seen = /* @__PURE__ */ new Map();
+    for (const e of ch.events || []) {
+      const cn = cuName(e.culture);
+      if (e.type === "agriculture")
+        add2(e.t, "agriculture", `the agricultural transition on ${lmName(e.landmass)}`, `the ${cn} cross the ${e.package} threshold \u2014 the surplus every later technology is built on.`, { culture: e.culture, cultureName: cn, package: e.package }, e.landmass);
+      else if (e.type === "industry")
+        add2(e.t, "industry", `the industrial transition on ${lmName(e.landmass)}`, `the ${cn} put energy to work at scale \u2014 capability compounds from here.`, { culture: e.culture, cultureName: cn }, e.landmass);
+      else if (e.type === "techUnlock") {
+        let st = seen.get(e.cap);
+        if (!st) {
+          st = { holders: 0, inventions: 0 };
+          seen.set(e.cap, st);
+        }
+        st.holders++;
+        const invented = e.how !== "diffusion";
+        if (invented) st.inventions++;
+        if (st.holders === 1)
+          add2(e.t, "techFirst", `${e.cap} \u2014 first worked out`, `the ${cn} work out ${e.cap} (${e.tier}) on ${lmName(e.landmass)} \u2014 no one taught them.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, how: e.how }, e.landmass);
+        else if (invented)
+          add2(e.t, "techIndep", `${e.cap} \u2014 invented again`, `the ${cn} arrive at ${e.cap} independently on ${lmName(e.landmass)} \u2014 convergent problems find convergent answers.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, inventions: st.inventions }, e.landmass);
+        else if (st.holders === 3)
+          add2(e.t, "techSpread", `${e.cap} spreads`, `a third people (the ${cn}) now holds ${e.cap} \u2014 knowledge moves along contact networks faster than any army.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
+        else if (st.holders === 8)
+          add2(e.t, "techSpread", `${e.cap} is common knowledge`, `eight peoples hold ${e.cap} \u2014 it stops being an advantage and becomes the floor.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
+      }
+    }
+    const lastT = ch.series && ch.series.tick && ch.series.tick[ch.series.tick.length - 1] || 0;
+    const m = ch.meta || {};
+    const tops = (f.cultures || []).slice(0, 5).map((c) => `${c.name} (tier ${c.tier})`).join(", ");
+    add2(
+      lastT,
+      "closing",
+      `the state of the art`,
+      `${m.agriOrigins || 0} independent agricultural origin${m.agriOrigins === 1 ? "" : "s"}, ${m.industrialOrigins || 0} industrial; leading cultures: ${tops || "none"}.`,
+      { agriOrigins: m.agriOrigins, industrialOrigins: m.industrialOrigins, cultures: (f.cultures || []).slice(0, 8).map((c) => ({ id: c.id, name: c.name, tier: c.tier, sub: c.sub })) }
+    );
+    return finish(entries, mode);
+  }
   for (const e of ch.events || []) {
     const cn = cuName(e.culture);
     switch (e.type) {
@@ -4297,8 +4394,9 @@ function buildTimeline(ch, mode) {
           e.t,
           "founding",
           great ? `the first families of the ${cn}` : `a founder population takes root`,
-          great ? `${e.pop} souls of the ${cn} settle their homeland on landmass ${e.landmass}.` : `${e.pop} foragers, one habitable nucleus, landmass ${e.landmass}: initial conditions, not intentions, set what follows.`,
-          { culture: e.culture, cultureName: cn, cell: e.cell }
+          great ? `${e.pop} souls of the ${cn} settle their homeland on ${lmName(e.landmass)}.` : `${e.pop} foragers, one habitable nucleus, on ${lmName(e.landmass)}: initial conditions, not intentions, set what follows.`,
+          { culture: e.culture, cultureName: cn, cell: e.cell },
+          e.landmass
         );
         break;
       case "agriculture":
@@ -4306,8 +4404,9 @@ function buildTimeline(ch, mode) {
           e.t,
           "agriculture",
           great ? `the ${cn} take up the plough` : `the agricultural transition`,
-          great ? `the ${cn} bind themselves to the soil \u2014 the ${e.package} package \u2014 and their children multiply.` : `on landmass ${e.landmass}, subsistence crosses the ${e.package} threshold: surplus, storage, sedentism \u2014 a phase transition no one chose.`,
-          { culture: e.culture, cultureName: cn, package: e.package, landmass: e.landmass }
+          great ? `the ${cn} bind themselves to the soil \u2014 the ${e.package} package \u2014 and their children multiply.` : `on ${lmName(e.landmass)}, subsistence crosses the ${e.package} threshold: surplus, storage, sedentism \u2014 a phase transition no one chose.`,
+          { culture: e.culture, cultureName: cn, package: e.package },
+          e.landmass
         );
         break;
       case "industry":
@@ -4315,8 +4414,9 @@ function buildTimeline(ch, mode) {
           e.t,
           "industry",
           great ? `the ${cn} light the forges` : `the industrial phase transition`,
-          great ? `the ${cn} harness machine and coal; their reach outruns every rival's.` : `on landmass ${e.landmass}, capital begins compounding: energy per head decouples from land per head.`,
-          { culture: e.culture, cultureName: cn, landmass: e.landmass }
+          great ? `the ${cn} harness machine and coal; their reach outruns every rival's.` : `on ${lmName(e.landmass)}, capital begins compounding: energy per head decouples from land per head.`,
+          { culture: e.culture, cultureName: cn },
+          e.landmass
         );
         break;
       case "beliefFounded": {
@@ -4327,7 +4427,8 @@ function buildTimeline(ch, mode) {
           "belief",
           great ? `${e.prophet ? e.prophet + " proclaims " : "the founding of "}${e.name}` : `a ${e.doctrine} creed emerges`,
           great ? `${e.prophet ? `the prophet ${e.prophet} of the ${cn}` : `among the ${cn}, a voice`} proclaims ${e.name} \u2014 a ${e.doctrine}-led ${e.register} faith.` : `among the ${cn}, ${e.name} takes hold \u2014 register: ${e.register}; doctrine: ${dox}. Beliefs are selected by how well they spread, not by who speaks them.`,
-          { belief: e.belief, beliefName: e.name, culture: e.culture, cultureName: cn, register: e.register, doctrine: b ? b.doctrine : void 0 }
+          { belief: e.belief, beliefName: e.name, culture: e.culture, cultureName: cn, register: e.register, doctrine: b ? b.doctrine : void 0 },
+          lmOf(e.cell)
         );
         break;
       }
@@ -4337,7 +4438,8 @@ function buildTimeline(ch, mode) {
           "schism",
           great ? `${e.name} breaks from ${e.from}` : `doctrinal divergence`,
           great ? `dissenters carry ${e.name} out of ${e.from} \u2014 the quarrel is ${e.doctrine}.` : `${e.from} forks: as a creed spreads it mutates, and ${e.name} finds carriers the parent could not. The axis of divergence is ${e.doctrine}.`,
-          { belief: e.belief, beliefName: e.name, parentName: e.from, doctrineAxis: e.doctrine }
+          { belief: e.belief, beliefName: e.name, parentName: e.from, doctrineAxis: e.doctrine },
+          (beliefById.get(e.belief) || {}).landmass
         );
         break;
       case "polityRise": {
@@ -4347,7 +4449,8 @@ function buildTimeline(ch, mode) {
           "polityRise",
           great ? `${st && st.leader ? st.leader + " raises " : "the rise of "}${st ? st.name : "the " + cn + " state"}` : `statehood crystallizes among the ${cn}`,
           great ? `${st && st.leader ? `${st.leader} binds the ${cn} under one rule \u2014 ${st.name}.` : `the ${cn} bind themselves under one rule.`}` : `density, surplus and defensibility cross the sovereignty threshold; the ${cn} acquire a tax ledger and a border.`,
-          { culture: e.culture, cultureName: cn, inst: st ? st.id : void 0, seat: e.seat }
+          { culture: e.culture, cultureName: cn, inst: st ? st.id : void 0, seat: e.seat },
+          lmOf(e.seat)
         );
         break;
       }
@@ -4357,7 +4460,8 @@ function buildTimeline(ch, mode) {
           "polityFall",
           great ? `the fall of the ${cn}` : `imperial contraction`,
           great ? `the ${cn} state collapses from its peak of ${e.peak.toLocaleString()} \u2014 heirs squander what founders won.` : `the ${cn} polity contracts below a quarter of peak (${e.peak.toLocaleString()}): overextension, not villainy.`,
-          { culture: e.culture, cultureName: cn, peak: e.peak }
+          { culture: e.culture, cultureName: cn, peak: e.peak },
+          ((f.polities || []).find((p) => p.id === e.culture) || {}).landmass
         );
         break;
       case "war":
@@ -4366,7 +4470,8 @@ function buildTimeline(ch, mode) {
           "war",
           great ? `${e.attacker} takes the field` : `frontier violence`,
           great ? `${e.attacker} falls upon the ${cuName(e.defenderCulture)}${e.resource ? ` for the ${e.resource}` : ""}; the outcome is ${e.outcome}.` : `pressure${e.resource ? ` on ${e.resource}` : ""} breaks into war on the ${cuName(e.attackerCulture)}\u2013${cuName(e.defenderCulture)} frontier.`,
-          { attackerCulture: e.attackerCulture, defenderCulture: e.defenderCulture, warband: e.attacker, resource: e.resource }
+          { attackerCulture: e.attackerCulture, defenderCulture: e.defenderCulture, warband: e.attacker, resource: e.resource },
+          lmOf(e.cell)
         );
         break;
       case "resourceCaptured":
@@ -4375,7 +4480,8 @@ function buildTimeline(ch, mode) {
           "resource",
           great ? `${e.name} changes hands` : `geography's rents reassigned`,
           great ? `${e.to >= 0 ? "the " + cuName(e.to) : "no one"} now holds ${e.name} (${e.kind}).` : `control of ${e.name} (${e.kind}) passes${e.to >= 0 ? ` to the ${cuName(e.to)}` : ""} \u2014 whoever holds the node collects its rent.`,
-          { resource: e.name, kind: e.kind, from: e.from, to: e.to }
+          { resource: e.name, kind: e.kind, from: e.from, to: e.to },
+          ((f.resources || [])[e.node] || {}).landmass
         );
         break;
       case "stateFormation":
@@ -4421,29 +4527,44 @@ function buildTimeline(ch, mode) {
         if (!great) add2(e.t, "admixture", `contact zones churn`, `${e.count.toLocaleString()} admixture events: frontiers are where cultures trade genes, wares and gods.`, { count: e.count });
         break;
       case "techUnlock":
-        if (great) add2(e.t, "tech", `the ${cn} master ${e.cap}`, `the ${e.how === "diffusion" ? `craft of ${e.cap} reaches the ${cn} along the roads` : `${cn} work out ${e.cap} for themselves`} (${e.tier}).`, { culture: e.culture, cultureName: cn, cap: e.cap, tier: e.tier, how: e.how });
-        else add2(e.t, "tech", `the ${e.cap} frontier advances`, `${e.cap} (${e.tier}) ${e.how === "diffusion" ? "diffuses along contact networks" : "is independently invented"} \u2014 ideas move faster than peoples.`, { cap: e.cap, tier: e.tier, how: e.how });
+        if (great) add2(e.t, "tech", `the ${cn} master ${e.cap}`, `the ${e.how === "diffusion" ? `craft of ${e.cap} reaches the ${cn} along the roads` : `${cn} work out ${e.cap} for themselves`} (${e.tier}).`, { culture: e.culture, cultureName: cn, cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
+        else add2(e.t, "tech", `the ${e.cap} frontier advances`, `${e.cap} (${e.tier}) ${e.how === "diffusion" ? "diffuses along contact networks" : "is independently invented"} \u2014 ideas move faster than peoples.`, { cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
         break;
-      case "institutionFounded": {
-        if (great) {
-          const o = instById.get(e.inst);
-          add2(e.t, "institution", `the founding of ${e.name}`, `${o && o.leader ? o.leader + " charters " : ""}${e.name} among the ${cn}.`, { inst: e.inst, instName: e.name, kind: e.kind, culture: e.culture, cultureName: cn });
-        }
-        break;
-      }
       case "institutionFell":
         add2(
           e.t,
           "institution",
           great ? `the fall of ${e.name}` : `an institution dissolves`,
           great ? `${e.name} is dissolved, ${e.peak.toLocaleString()} strong at its height.` : `${e.name} (peak ${e.peak.toLocaleString()}) loses the selection game: its ruleset stopped paying.`,
-          { inst: e.inst, instName: e.name, peak: e.peak }
+          { inst: e.inst, instName: e.name, peak: e.peak },
+          (instById.get(e.inst) || {}).landmass
         );
         break;
       case "beliefExtinct":
         if (!great) add2(e.t, "belief", `a creed goes silent`, `${e.name} loses its last carrier \u2014 memes die of demography as often as of doctrine.`, { belief: e.belief, beliefName: e.name });
         break;
     }
+  }
+  for (const o of (f.institutions || []).filter((o2) => o2.peak >= 250).slice(0, 15)) {
+    add2(
+      o.founded,
+      "majorOrg",
+      great ? `the charter of ${o.name}` : `an organization at scale`,
+      great ? `${o.leader ? o.leader + " builds " : ""}${o.name} at ${o.seatName} on ${lmName(o.landmass)} \u2014 at its height ${o.peak.toLocaleString()} strong${o.alive ? "" : `; it falls in year ${yr(o.fell)}`}.` : `${o.name} (${o.kind}) crosses the scale threshold at ${o.seatName} \u2014 peak ${o.peak.toLocaleString()} members. Hierarchy amortizes coordination; what actually competes is its ruleset (tax ${o.rules.tax}, wage ${o.rules.wage}, merit ${o.rules.merit}, invest ${o.rules.invest}).`,
+      { inst: o.id, instName: o.name, kind: o.kind, culture: o.culture, seat: o.seat, seatName: o.seatName, org: o.org, namePack: o.namePack, peak: o.peak, rules: o.rules },
+      o.landmass
+    );
+  }
+  for (const ct of (f.cities || []).slice(0, 12)) {
+    const site = ct.river && ct.coast ? "where the river meets the sea" : ct.river ? "on the river" : ct.coast ? "on the coast" : ct.resource ? `by the ${ct.resource}` : "on fertile ground";
+    add2(
+      ct.tick,
+      "city",
+      great ? `the founding of ${ct.name}` : `a settlement crosses the urban threshold`,
+      great ? `the ${ct.cultureName} raise ${ct.name} ${site} on ${lmName(ct.landmass)}; it grows to ${ct.peak.toLocaleString()} souls.` : `${ct.name}, ${site} on ${lmName(ct.landmass)}: ${ct.river ? "river transport and wet soil" : ct.coast ? "sea lanes" : ct.resource ? `the ${ct.resource} rent` : "fertile ground"} concentrates ${ct.peak.toLocaleString()} people at one cell \u2014 geography, not decree, sites the city.`,
+      { city: ct.name, cell: ct.cell, culture: ct.culture, cultureName: ct.cultureName, river: ct.river, coast: ct.coast, resource: ct.resource, peak: ct.peak },
+      ct.landmass
+    );
   }
   {
     const cp = ch.fred && ch.fred.series && ch.fred.series["climate.pulse"];
@@ -4545,6 +4666,9 @@ function buildTimeline(ch, mode) {
       { cultures: (f.cultures || []).slice(0, 8).map((c) => ({ id: c.id, name: c.name, size: c.size, tier: c.tier })), beliefs: (f.beliefs || []).slice(0, 6).map((b) => ({ id: b.id, name: b.name, lead: b.lead, followers: Math.round(b.followers), doctrine: b.doctrine })) }
     );
   }
+  return finish(entries, mode);
+}
+function finish(entries, mode) {
   entries.sort((a, b) => a.t - b.t || (WEIGHT[a.kind] || 50) - (WEIGHT[b.kind] || 50));
   if (entries.length > MAX_ENTRIES) {
     const keep = entries.slice().sort((a, b) => (WEIGHT[b.kind] || 50) - (WEIGHT[a.kind] || 50)).slice(0, MAX_ENTRIES);
@@ -5027,6 +5151,7 @@ function doSites(params, cap2 = CAP2) {
   const ch = createSim(world, cfg, civSeed).run(ticks);
   const worldStr = params.get("world") ?? "1";
   const foundings = (ch.final.foundings || []).map((f) => ({ ...f, siteSeed: `${worldStr}:${f.city}:${f.cell}` }));
+  const cities = (ch.final.cities || []).slice(0, 60).map((c) => ({ ...c, siteSeed: `${worldStr}:${c.name}:${c.cell}` }));
   return {
     api: "mappa.civ/v1",
     world: worldStr,
@@ -5042,6 +5167,8 @@ function doSites(params, cap2 = CAP2) {
     hash: chronicleHash(ch),
     tickYears: ch.meta.tickYears,
     foundings,
+    cities,
+    landmasses: ch.final.landmasses,
     ms: Math.round(now() - t0)
   };
 }
@@ -5054,9 +5181,19 @@ function doTimeline(params, cap2 = CAP2) {
   const t0 = now();
   const ch = createSim(world, cfg, civSeed).run(ticks);
   const timeline = {};
-  if (modeReq === "greatman" || modeReq === "both") timeline.greatman = buildTimeline(ch, "greatman");
-  if (modeReq === "forces" || modeReq === "both") timeline.forces = buildTimeline(ch, "forces");
+  if (modeReq === "greatman" || modeReq === "both" || modeReq === "all") timeline.greatman = buildTimeline(ch, "greatman");
+  if (modeReq === "forces" || modeReq === "both" || modeReq === "all") timeline.forces = buildTimeline(ch, "forces");
+  if (modeReq === "tech" || modeReq === "all") timeline.tech = buildTimeline(ch, "tech");
   if (!Object.keys(timeline).length) timeline.forces = buildTimeline(ch, "forces");
+  const lmSel = params.get("landmass");
+  if (lmSel != null && lmSel !== "") {
+    const L = Math.round(num(lmSel, -1));
+    for (const k of Object.keys(timeline)) {
+      const tl = timeline[k];
+      tl.entries = tl.entries.filter((e) => e.lm == null || e.lm === L);
+      tl.count = tl.entries.length;
+    }
+  }
   return {
     api: "mappa.civ/v1",
     world: params.get("world") ?? "1",
@@ -5066,6 +5203,7 @@ function doTimeline(params, cap2 = CAP2) {
     hash: chronicleHash(ch),
     tickYears: ch.meta.tickYears,
     mode: modeReq,
+    landmasses: ch.final.landmasses,
     timeline,
     ms: Math.round(now() - t0)
   };

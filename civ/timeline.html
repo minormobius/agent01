@@ -52,6 +52,8 @@
   <div class="modebar">
     <b data-m="greatman" class="on">⚔ great man of history</b>
     <b data-m="forces">⛰ sweep of historical forces</b>
+    <b data-m="tech">⚙ history of technology</b>
+    <select id="lmsel" title="filter to one continent (world-scale entries always shown)" style="background:#0b0f16;color:var(--ink);border:1px solid var(--edge);border-radius:7px;padding:4px 8px;font:inherit;font-size:12px"><option value="">all continents</option></select>
     <span class="note" id="note"></span>
   </div>
   <div class="tl" id="tl"></div>
@@ -68,22 +70,33 @@ const KC={ founding:'#d9a441', closing:'#d9a441', agriculture:'#5bd18b', industr
   war:'#e5686b', eminence:'#d9a441', institution:'#8fa8c7', stateFormation:'#6fd0c0',
   crisis:'#e5686b', boom:'#5bd18b', resource:'#c7b16a', split:'#a98bd6', extinction:'#77808f',
   migration:'#5aa9e6', admixture:'#5aa9e6', tech:'#c7b16a', demography:'#5aa9e6',
-  conversion:'#c77dff', rulesets:'#5bd18b', climate:'#7fb8d8' };
+  conversion:'#c77dff', rulesets:'#5bd18b', climate:'#7fb8d8',
+  techFirst:'#c7b16a', techIndep:'#d9a441', techSpread:'#8fa8c7', majorOrg:'#8fa8c7', city:'#6fd0c0' };
 
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
 function render(){
   const box=$('#tl'); box.innerHTML=''; if(!DATA) return;
   const tl=DATA.timeline[mode]; if(!tl) return;
-  $('#note').textContent = tl.count+' entries'+(tl.trimmedFrom?(' (of '+tl.trimmedFrom+', most significant kept)'):'');
-  for(const e of tl.entries){
+  const lmv=$('#lmsel').value;
+  const rows=lmv===''?tl.entries:tl.entries.filter(e=>e.lm==null||e.lm===+lmv); // world-scale entries stay
+  $('#note').textContent = rows.length+(lmv===''?'':' of '+tl.count)+' entries'+(tl.trimmedFrom?(' (of '+tl.trimmedFrom+', most significant kept)'):'');
+  for(const e of rows){
     const d=document.createElement('div'); d.className='entry'; d.style.setProperty('--kc',KC[e.kind]||'#889');
+    let extra='';
+    if(e.refs&&e.refs.org&&e.refs.seatName!=null){ // Phase IV org address → open the hierarchy, in its culture's voice
+      const seed=`${DATA.world}:${e.refs.seatName}:${e.refs.seat}:${e.refs.kind}${e.refs.inst}`;
+      const q2=new URLSearchParams({seed,vertical:e.refs.org.vertical,shape:e.refs.org.shape});
+      if(e.refs.namePack)q2.set('names',e.refs.namePack);
+      extra=` <a href="https://rite.mino.mobi/org/?${q2}" target="_blank" rel="noopener">org ↗</a>`;
+    }
     d.innerHTML=`<span class="yr">yr ${e.year.toLocaleString()}</span>`
       +`<span class="kind">${esc(e.kind)}</span><span class="title">${esc(e.title)}</span>`
-      +`<div class="body">${esc(e.body)}</div>`;
+      +`<div class="body">${esc(e.body)}${extra}</div>`;
     box.appendChild(d);
   }
 }
+$('#lmsel').addEventListener('change',()=>{ try{ const p=new URLSearchParams(location.search); if($('#lmsel').value==='')p.delete('lm'); else p.set('lm',$('#lmsel').value); history.replaceState(null,'','?'+p); }catch(_){} render(); });
 
 document.querySelector('.modebar').addEventListener('click',e=>{
   const b=e.target.closest('b[data-m]'); if(!b) return; mode=b.dataset.m;
@@ -97,11 +110,11 @@ function curState(){ return {world:$('#world').value.trim()||'7',preset:$('#pres
 function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); if(st.n&&st.n!=='900')p.set('n',st.n); return p.toString(); }
 function mappaHref(w){ const m=String(w).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(w))); }
 function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/dash/?'+q; $('#toview').href='/view.html?'+q; $('#todev').href='/develop.html?'+q; $('#tofred').href='/fred.html?'+q; $('#tomappa').href=mappaHref(st.world); }
-function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); if(p.get('n')&&[...$('#meshn').options].some(o=>o.value===p.get('n')))$('#meshn').value=p.get('n'); if(p.get('mode')==='forces'||p.get('mode')==='greatman'){ mode=p.get('mode'); document.querySelectorAll('.modebar b[data-m]').forEach(x=>x.classList.toggle('on',x.dataset.m===mode)); } }
+function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); if(p.get('n')&&[...$('#meshn').options].some(o=>o.value===p.get('n')))$('#meshn').value=p.get('n'); if(['forces','greatman','tech'].includes(p.get('mode'))){ mode=p.get('mode'); document.querySelectorAll('.modebar b[data-m]').forEach(x=>x.classList.toggle('on',x.dataset.m===mode)); } }
 for(const id of ['#preset','#world','#civseed','#ticks','#meshn']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
 
 async function load(){
-  const st=curState(); const q=new URLSearchParams(qsOf(st)); q.set('mode','both');
+  const st=curState(); const q=new URLSearchParams(qsOf(st)); q.set('mode','all');
   try{ const p=new URLSearchParams(qsOf(st)); p.set('mode',mode); history.replaceState(null,'','?'+p); }catch(_){}
   syncLinks();
   $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks + writing the chronicle…';
@@ -109,6 +122,12 @@ async function load(){
     const {json,cached,local}=await cachedFetch('/api/civ/timeline?'+q);
     DATA=json;
     if(DATA.config){ $('#lastconfig').value=DATA.config; syncLinks(); }
+    // continent filter options (named landmasses, biggest first; empty ones omitted)
+    const sel=$('#lmsel'), keep=sel.value; sel.innerHTML='<option value="">all continents</option>';
+    for(const L of (DATA.landmasses||[]).filter(l=>l.pop>0).sort((a,b)=>b.pop-a.pop)){
+      const o=document.createElement('option'); o.value=L.id; o.textContent=`${L.name} — ${L.pop.toLocaleString()} pop, ${L.cities} cities`; sel.appendChild(o);
+    }
+    const pl=new URLSearchParams(location.search); if(pl.get('lm')&&[...sel.options].some(o=>o.value===pl.get('lm')))sel.value=pl.get('lm'); else if([...sel.options].some(o=>o.value===keep))sel.value=keep;
     $('#status').innerHTML='run '+esc(DATA.hash)+' · '+DATA.ticks+' ticks · ~'+Math.round(DATA.ticks*DATA.tickYears).toLocaleString()+' years'+(cached?' · <b style="color:var(--good)">cached</b>':local?' · <b style="color:var(--good)">computed locally</b>':'');
     render();
   }catch(e){ $('#status').textContent='error: '+e.message; }

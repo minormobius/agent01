@@ -199,14 +199,35 @@ are independent and can interleave.
 
 ### Shipped alongside (pre-V infrastructure)
 
-- **The timeline** — `GET /api/civ/timeline?mode=greatman|forces|both` + `/timeline.html`.
-  One chronicle, two historiographies: *great man* (named actors — prophets, dynasts,
-  warlords, the eminent with their org-person temperaments) and *forces* (phase
-  transitions, climate, credit cycles, meme selection). This is where beliefs and
-  cultures surface as content: entries carry machine-readable `refs` with culture
-  names, belief doctrine vectors, and the evolved exemplar **rulesets** — the numbers
-  selection actually wrote. The refs spine is deliberate Phase-V groundwork (a
-  borges-style reteller or fable wing can build on it directly).
+- **The timeline** — `GET /api/civ/timeline?mode=greatman|forces|tech|both|all` +
+  `/timeline.html`. One chronicle, three lenses: *great man* (named actors — prophets,
+  dynasts, warlords, the eminent with their org-person temperaments), *forces* (phase
+  transitions, climate, credit cycles, meme selection), and *tech* (first inventions,
+  independent reinventions, diffusion milestones — knowledge outrunning armies). This
+  is where beliefs and cultures surface as content: entries carry machine-readable
+  `refs` with culture names, belief doctrine vectors, and the evolved exemplar
+  **rulesets** — the numbers selection actually wrote. The refs spine is deliberate
+  Phase-V groundwork (a borges-style reteller or fable wing can build on it directly).
+- **Continents as a first-class axis** — every located object (institutions, beliefs,
+  foundings, cities, great people, timeline entries) carries `landmass`; continents
+  are *named* (`final.landmasses`) and the timeline filters by them
+  (`?landmass=<id>`, world-scale entries retained). The cell→landmass lookup rides
+  `chronicle.geo`, deliberately outside chronicleHash — events serialize `e.landmass`,
+  so events must never gain the field retroactively.
+- **Cities** — settlement is now explicit: any cell whose population crosses
+  `CITY_MIN` (popScale-scaled) is recorded as a city — founding tick, founder culture,
+  toponym in the founder's tongue, peak, and the mappa geography that sited it
+  (river / coast / resource flags; empirically ~70% of cities sit on rivers or
+  coasts, driven by dispersal's corridor weights and resource K-bonuses — the mappa
+  river data was already load-bearing, now it's visible). Cities join the timeline
+  (both narrative lenses) and `/api/civ/sites` (`cities[]`, same siteSeed convention;
+  polis grows any of them via `?civ=1&city=k`). Observation-only: no dynamics, no
+  events, hash-invariant. Open question, deliberately deferred: cities as *actors*
+  (markets, walls, sieges) — that's an engine epoch, not an overlay.
+- **Major organizations** — institutions with peak ≥ 250 get their own timeline
+  entries in both narrative lenses, carrying the full Phase-IV org address; the
+  timeline page renders an "org ↗" link that opens the hierarchy in the institution's
+  own culture voice.
 - **Climate made visible** (the polis aspiration) — a `climate.pulse` +
   `climate.affected` series in FRED (hash-safe: fred is never hashed), a per-frame
   `clim` scalar feeding a forcing ribbon under the playback transport, and timeline

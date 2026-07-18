@@ -217,5 +217,45 @@ section('climate visibility + mesh resolution');
   ok(hi.chronicle.meta.N > lo.chronicle.meta.N, `browser cap yields a finer mesh (N ${hi.chronicle.meta.N} vs edge-clamped ${lo.chronicle.meta.N})`);
 }
 
+section('continents, cities, tech history, major orgs');
+{
+  const { doRun, doTimeline, doSites } = await import('../api.js');
+  const r = doRun(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
+  const fin = r.chronicle.final;
+  // named continents, id-indexed, with pop + city counts
+  ok(Array.isArray(fin.landmasses) && fin.landmasses.length === r.chronicle.meta.landmasses, 'landmasses inventory covers every landmass');
+  ok(fin.landmasses.every(l => typeof l.name === 'string' && l.name.length >= 3), 'continents are named');
+  // cities: emergent settlements with the geography that sited them
+  ok(Array.isArray(fin.cities) && fin.cities.length > 0, `cities emerged (${fin.cities.length})`);
+  ok(fin.cities.every(c => c.name && c.cultureName && c.tick >= 0 && c.landmass >= 0 && typeof c.river === 'boolean'), 'cities well-formed');
+  ok(fin.cities.every((c, i) => i === 0 || fin.cities[i - 1].peak >= c.peak), 'cities sorted by peak');
+  const wet = fin.cities.filter(c => c.river || c.coast).length;
+  ok(wet >= fin.cities.length * 0.4, `mappa rivers/coasts drive settlement: ${wet}/${fin.cities.length} cities on water`);
+  // continent metadata on every located object
+  ok((fin.institutions || []).every(o => o.landmass >= 0), 'institutions carry landmass');
+  ok((fin.beliefs || []).every(b => b.landmass >= -1), 'beliefs carry landmass');
+  ok((fin.foundings || []).every(x => x.landmass >= 0), 'foundings carry landmass');
+  ok(Array.isArray(r.chronicle.geo && r.chronicle.geo.cellLandmass), 'chronicle.geo cell→landmass lookup present');
+  // tech history mode
+  const t = doTimeline(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400&mode=tech'));
+  const te = t.timeline.tech.entries;
+  ok(te.some(e => e.kind === 'techFirst'), 'tech mode records first inventions');
+  ok(te[te.length - 1].kind === 'closing', 'tech mode closes with the state of the art');
+  ok(te.every((e, i) => i === 0 || e.t >= te[i - 1].t), 'tech mode chronological');
+  // landmass filter keeps world-scale entries, drops other continents
+  const home = fin.landmasses.reduce((a, b) => (b.pop > a.pop ? b : a));
+  const tf = doTimeline(new URLSearchParams(`world=7&preset=kurgan&civSeed=1&ticks=400&mode=forces&landmass=${home.id}`));
+  ok(tf.timeline.forces.entries.every(e => e.lm == null || e.lm === home.id), 'landmass filter holds');
+  ok(tf.landmasses && tf.landmasses.length > 0, 'timeline response carries the landmass inventory');
+  // major orgs + cities appear in the narrative modes, with org address refs
+  const g = doTimeline(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400&mode=greatman')).timeline.greatman.entries;
+  ok(g.some(e => e.kind === 'city'), 'city foundings in the timeline');
+  const mo = g.filter(e => e.kind === 'majorOrg');
+  ok(mo.length === 0 || mo.every(e => e.refs.org && e.refs.seatName && e.refs.inst != null), 'majorOrg entries carry the org address');
+  // sites: cities join the polis handoff with siteSeeds
+  const s = doSites(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
+  ok(Array.isArray(s.cities) && s.cities.every(c => c.siteSeed === `7:${c.name}:${c.cell}`), 'sites cities carry siteSeed strings');
+}
+
 console.log(`\n${fail === 0 ? '✓ ALL PASS' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

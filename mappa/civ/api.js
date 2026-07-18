@@ -79,6 +79,10 @@ export function doSites(params, cap = CAP) {
   const ch = createSim(world, cfg, civSeed).run(ticks);
   const worldStr = params.get('world') ?? '1';
   const foundings = (ch.final.foundings || []).map(f => ({ ...f, siteSeed: `${worldStr}:${f.city}:${f.cell}` }));
+  // every emergent settlement (population crossed the urban threshold), same siteSeed
+  // convention — polis can grow ANY city, not just state seats. Rivers/coasts/resources
+  // are the mappa geography that sited each one.
+  const cities = (ch.final.cities || []).slice(0, 60).map(c => ({ ...c, siteSeed: `${worldStr}:${c.name}:${c.cell}` }));
   return {
     api: 'mappa.civ/v1', world: worldStr, config: encodeCivConfig(cfg), civSeed, ticks,
     // n = the REQUESTED mesh resolution this run saw (generateWorld's N option; actual
@@ -87,7 +91,8 @@ export function doSites(params, cap = CAP) {
     // a founding's lon/lat MUST call generateWorld(seed, { N: n }) with this same value —
     // that reproduces the identical mesh, cell ids and all.
     n: clamp(Math.round(num(params.get('n'), 900)), 500, cap.runN),
-    hash: chronicleHash(ch), tickYears: ch.meta.tickYears, foundings, ms: Math.round(now() - t0),
+    hash: chronicleHash(ch), tickYears: ch.meta.tickYears, foundings, cities,
+    landmasses: ch.final.landmasses, ms: Math.round(now() - t0),
   };
 }
 
@@ -106,12 +111,25 @@ export function doTimeline(params, cap = CAP) {
   const t0 = now();
   const ch = createSim(world, cfg, civSeed).run(ticks);
   const timeline = {};
-  if (modeReq === 'greatman' || modeReq === 'both') timeline.greatman = buildTimeline(ch, 'greatman');
-  if (modeReq === 'forces' || modeReq === 'both') timeline.forces = buildTimeline(ch, 'forces');
+  if (modeReq === 'greatman' || modeReq === 'both' || modeReq === 'all') timeline.greatman = buildTimeline(ch, 'greatman');
+  if (modeReq === 'forces' || modeReq === 'both' || modeReq === 'all') timeline.forces = buildTimeline(ch, 'forces');
+  if (modeReq === 'tech' || modeReq === 'all') timeline.tech = buildTimeline(ch, 'tech');
   if (!Object.keys(timeline).length) timeline.forces = buildTimeline(ch, 'forces'); // unknown mode → forces
+  // ?landmass=<id>: continent filter — keep that continent's entries plus the
+  // world-scale ones (lm == null: collapses, credit cycles, closings…)
+  const lmSel = params.get('landmass');
+  if (lmSel != null && lmSel !== '') {
+    const L = Math.round(num(lmSel, -1));
+    for (const k of Object.keys(timeline)) {
+      const tl = timeline[k];
+      tl.entries = tl.entries.filter(e => e.lm == null || e.lm === L);
+      tl.count = tl.entries.length;
+    }
+  }
   return {
     api: 'mappa.civ/v1', world: params.get('world') ?? '1', config: encodeCivConfig(cfg), civSeed, ticks,
-    hash: chronicleHash(ch), tickYears: ch.meta.tickYears, mode: modeReq, timeline, ms: Math.round(now() - t0),
+    hash: chronicleHash(ch), tickYears: ch.meta.tickYears, mode: modeReq,
+    landmasses: ch.final.landmasses, timeline, ms: Math.round(now() - t0),
   };
 }
 
