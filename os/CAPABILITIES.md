@@ -59,7 +59,8 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 ### Identity & auth
 | Capability | Where | Status | Notes |
 |---|---|---|---|
-| ATProto app-password login | browser → PDS | ✅ | `auth/oauth.js`: handle→DID→PDS, `createSession`. Phase-2 OAuth (PKCE+DPoP) is stubbed. |
+| **ATProto OAuth via shared worker (default)** | browser → auth.mino.mobi | ✅ | `LoginOverlay.jsx` + `packages/oauth-client/auth.js`. HTML overlay with Bluesky handle typeahead; `.mino.mobi` SSO cookie = zero-typing login if signed in on any mino.mobi site. Reads are public XRPC; writes route through the worker's `/pds/*` proxy, bounded by the granted scope. |
+| ATProto app-password login (power mode) | browser → PDS | ✅ | Overlay fallback ("use app password instead"). `auth/oauth.js`: handle→DID→PDS, `createSession`. The only mode that writes ARBITRARY collections. |
 | Google OAuth (for Gemini) | browser | ✅ | `auth/google.js`: popup, implicit grant, scope `generative-language`. Powers the `ai` command with no API key. |
 | Anthropic key for container | browser localStorage | ✅ | `set-key` / `container --api-key=`. Used by Claude Code in the shell. |
 | Container access allowlist | worker | ✅ | `ALLOWED_DIDS`, **fail-closed**. Identity is *verified* (DID→canonical PDS→`getSession`), never trusted from the client. |

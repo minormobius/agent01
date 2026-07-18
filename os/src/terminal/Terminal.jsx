@@ -26,7 +26,9 @@ function getBanner() {
   return isMobile() ? BANNER_COMPACT : BANNER_FULL;
 }
 
-const LOGIN_PROMPT = `\x1b[33mlogin\x1b[0m \x1b[2m(handle + app password)\x1b[0m
+// Login happens in the HTML overlay (LoginOverlay.jsx — OAuth + typeahead;
+// native inputs beat xterm typing on mobile). The terminal just waits.
+const LOGIN_PROMPT = `\x1b[2msign in above — OAuth via Bluesky, or app password\x1b[0m
 
 `;
 
@@ -125,7 +127,6 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
         startShell(term, session);
       } else {
         term.write(LOGIN_PROMPT);
-        term.write('handle: ');
       }
 
       // Input handling
@@ -201,11 +202,9 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
       onLogout: () => {
         shellRef.current = null;
         modeRef.current = 'login';
-        loginStateRef.current = { step: 'handle', handle: '' };
         term.writeln('');
         term.write(LOGIN_PROMPT);
-        term.write('handle: ');
-        onLogout();
+        onLogout(); // App clears the session → the login overlay reappears
       },
       onConnectContainer,
     });
@@ -251,12 +250,13 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
     const term = termRef.current;
     const shell = shellRef.current;
 
+    // Login mode: the HTML overlay owns input — ignore terminal keystrokes.
+    if (modeRef.current === 'login') return;
+
     // Enter
     if (ch === '\r') {
       term.writeln('');
-      if (modeRef.current === 'login') {
-        handleLoginInput(inputRef.current);
-      } else if (shell) {
+      if (shell) {
         const input = inputRef.current;
         inputRef.current = '';
         cursorPosRef.current = 0;
@@ -350,6 +350,8 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
 
     // Container mode: arrow keys and special keys go through onData, not here
     if (modeRef.current === 'container') return;
+    // Login mode: the HTML overlay owns input
+    if (modeRef.current === 'login') return;
 
     // Arrow up — history
     if (ev.key === 'ArrowUp' && modeRef.current === 'shell' && shell && !shell.running) {

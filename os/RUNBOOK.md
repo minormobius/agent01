@@ -50,10 +50,20 @@ do itself:
 
 **Identity is committed config**: `ALLOWED_DIDS` in `os/api/wrangler.toml` is
 the **morphyx service account** (`morphyxmino.bsky.social`,
-`did:plc:yivyyp54vddf7qf2lpsikhe4`). Log into os.mino.mobi with that handle +
-an app password (the same one the `BLUESKY_MORPHYX_APP_PASSWORD` Actions secret
-holds, or mint a fresh one in its Bluesky settings). os login is app-password
-today; ATProto OAuth is the stubbed phase-2.
+`did:plc:yivyyp54vddf7qf2lpsikhe4`).
+
+**Login is an HTML overlay** (no xterm typing — mobile paste, password
+managers, and typeahead all work): handle field with Bluesky typeahead →
+**Continue with Bluesky** runs OAuth through the shared `auth.mino.mobi`
+worker (`packages/oauth-client/auth.js`; the `.mino.mobi` SSO cookie means a
+session from any mino.mobi site is picked up with zero typing). First-ever
+OAuth login shows Bluesky's consent screen once. The overlay's app-password
+fallback remains the **power mode** — OAuth sessions read everything but can
+only *write* collections inside the granted scope (writes route through the
+auth worker's `/pds/*` proxy); arbitrary-collection writes need app-password.
+The `kimi` container verifies OAuth sessions server-side via
+`auth.mino.mobi/api/me` (scores-worker pattern); a cookie-only SSO session
+triggers one OAuth bounce on first `kimi` to mint this origin its own token.
 
 Then **push anything touching `os/api/**`** (or dispatch *Deploy os-api* from
 the Actions tab). The workflow: deploys (custom-domain route binds

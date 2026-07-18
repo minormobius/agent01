@@ -7,10 +7,21 @@ export class XRPCClient {
     this.accessJwt = session.accessJwt;
     this.refreshJwt = session.refreshJwt;
     this.did = session.did;
+    // OAuth mode (shared auth.mino.mobi session): the browser holds no PDS
+    // token. Reads go UNAUTHENTICATED straight to the PDS (repo/sync queries
+    // are public); writes route through the auth worker's DPoP-bound /pds/*
+    // proxy via the shared AuthClient. Bounded by the granted OAuth scope —
+    // arbitrary-collection writes outside it need an app-password session.
+    this.authMode = session.authMode || 'pds';
+    this.authClient = session.authClient || null;
     this.onSessionRefresh = null;
   }
 
   async call(nsid, params = {}, { method = 'GET', body = null } = {}) {
+    if (this.authMode === 'oauth' && method !== 'GET') {
+      return this._oauthProcedure(nsid, body);
+    }
+
     const url = new URL(`/xrpc/${nsid}`, this.pdsUrl);
     if (method === 'GET' && params) {
       for (const [k, v] of Object.entries(params)) {
@@ -18,7 +29,8 @@ export class XRPCClient {
       }
     }
 
-    const headers = { 'Authorization': `Bearer ${this.accessJwt}` };
+    const headers = {};
+    if (this.accessJwt) headers['Authorization'] = `Bearer ${this.accessJwt}`;
     const opts = { method, headers };
 
     if (body !== null && method !== 'GET') {
@@ -73,6 +85,40 @@ export class XRPCClient {
     this.accessJwt = data.accessJwt;
     this.refreshJwt = data.refreshJwt;
     if (this.onSessionRefresh) this.onSessionRefresh(data);
+  }
+
+  // OAuth write path: map the small set of repo procedures the shell uses onto
+  // the shared AuthClient's /pds/* proxy. Responses are shaped like the PDS's
+  // own, so callers don't care which path served them.
+  async _oauthProcedure(nsid, body) {
+    const pds = this.authClient?.pds;
+    if (!pds) throw new XRPCError(nsid, 401, { error: 'NoSession', message: 'OAuth session missing' });
+    try {
+      switch (nsid) {
+        case 'com.atproto.repo.createRecord':
+          return await pds.createRecord(body.collection, body.record);
+        case 'com.atproto.repo.putRecord':
+          return await pds.putRecord(body.collection, body.rkey, body.record);
+        case 'com.atproto.repo.deleteRecord':
+          return await pds.deleteRecord(body.collection, body.rkey);
+        case 'com.atproto.repo.uploadBlob': {
+          const blob = await pds.uploadBlob(body, 'application/octet-stream');
+          return { blob };
+        }
+        default:
+          throw new XRPCError(nsid, 403, {
+            error: 'AppPasswordRequired',
+            message: 'this procedure needs an app-password session (logout, then "use app password instead")',
+          });
+      }
+    } catch (err) {
+      if (err instanceof XRPCError) throw err;
+      // Scope misses surface here (the proxy refuses writes outside the grant).
+      throw new XRPCError(nsid, 403, {
+        error: 'ProxyWriteFailed',
+        message: `${err.message} — writes outside the OAuth scope need an app-password session`,
+      });
+    }
   }
 }
 

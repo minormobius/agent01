@@ -281,7 +281,14 @@ async function handleSync(request, env, url) {
 // PDS, and can't redirect us to a lying server, so the gate holds.
 //
 // Fail closed: if ALLOWED_DIDS is unset, refuse every connection.
-async function authorizeDid(env, claimedDid, accessJwt) {
+//
+// Two auth modes, both ending in "the VERIFIED did must be on the allowlist":
+//   authMode 'pds' (default) — auth is the user's PDS accessJwt, verified by
+//     resolving the claimed DID to its canonical PDS and calling getSession.
+//   authMode 'oauth' — auth is an opaque shared-auth bearer; verified by
+//     forwarding it to auth.mino.mobi/api/me (the scores-worker pattern),
+//     which returns the session's {did, handle}.
+async function authorizeDid(env, claimedDid, accessJwt, authMode) {
   const allow = (env.ALLOWED_DIDS || '')
     .split(',')
     .map((s) => s.trim())
@@ -294,6 +301,24 @@ async function authorizeDid(env, claimedDid, accessJwt) {
   }
   if (!allow.includes(claimedDid)) {
     return { ok: false, status: 403, msg: 'Not authorized' };
+  }
+
+  if (authMode === 'oauth') {
+    const base = (env.AUTH_URL || 'https://auth.mino.mobi').replace(/\/$/, '');
+    let verifiedDid;
+    try {
+      const res = await fetch(`${base}/api/me`, {
+        headers: { Authorization: `Bearer ${accessJwt}` },
+      });
+      if (!res.ok) return { ok: false, status: 401, msg: 'Invalid session' };
+      verifiedDid = (await res.json())?.did;
+    } catch {
+      return { ok: false, status: 401, msg: 'Auth verification failed' };
+    }
+    if (!verifiedDid || verifiedDid !== claimedDid || !allow.includes(verifiedDid)) {
+      return { ok: false, status: 403, msg: 'Not authorized' };
+    }
+    return { ok: true, did: verifiedDid };
   }
 
   let pdsUrl;
@@ -357,7 +382,8 @@ async function handleWebSocket(request, env, url) {
   const auth = await authorizeDid(
     env,
     url.searchParams.get('session'),
-    url.searchParams.get('auth')
+    url.searchParams.get('auth'),
+    url.searchParams.get('authMode')
   );
   if (!auth.ok) {
     return new Response(auth.msg, { status: auth.status });

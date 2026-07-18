@@ -13,6 +13,9 @@ routes = [
 
 [vars]
 SYNC_URL = "https://os-api.minomobi.com"
+# Shared auth worker — verifies OAuth bearer sessions for /ws (authMode=oauth),
+# same identity-delegation pattern as workers/scores.
+AUTH_URL = "https://auth.mino.mobi"
 
 # ─── Agent model profiles ────────────────────────────────────────────
 # The container runs Claude Code CLI as the agent harness for ANY model that
