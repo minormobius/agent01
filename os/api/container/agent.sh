@@ -69,10 +69,15 @@ if [ -n "$BASE" ]; then
   # Make sure a browser-provided Anthropic key never shadows the profile key.
   unset ANTHROPIC_API_KEY
   if [ -n "$MODEL" ]; then
+    # Route EVERY model tier Claude Code can ask for to the profile model —
+    # third-party endpoints don't serve Anthropic's model ids. This is the
+    # set Moonshot's official Claude Code guide prescribes for kimi-k3.
     export ANTHROPIC_MODEL="$MODEL"
-    # Background/fast tasks route to the same model — third-party endpoints
-    # rarely serve Anthropic's small-model ids.
     export ANTHROPIC_SMALL_FAST_MODEL="$MODEL"
+    export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODEL"
+    export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODEL"
+    export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODEL"
+    export CLAUDE_CODE_SUBAGENT_MODEL="$MODEL"
   fi
 else
   # Native Anthropic — needs the per-connection ANTHROPIC_API_KEY (set-key).
