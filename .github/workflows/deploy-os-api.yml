@@ -3,7 +3,7 @@ name: Deploy os-api (container backend)
 # os-api — Cloudflare Containers worker (os-mino-api) behind os-api.minomobi.com:
 # the per-DID PTY container backend for os.mino.mobi's `kimi` agent platform
 # (bash + git + Claude Code as the harness for open models via AGENT_PROFILES,
-# R2-synced workspace, fail-closed ALLOWED_DIDS identity gate).
+# DO-storage-synced workspace, fail-closed ALLOWED_DIDS identity gate).
 #
 # SELF-PROVISIONING (create-mmo-db.yml pattern) — every run is idempotent:
 #   1. `wrangler deploy` — builds the Docker image on the runner; the
@@ -61,7 +61,7 @@ jobs:
         run: npm install
 
       - name: Deploy container worker (os-mino-api)
-        run: npx wrangler deploy
+        run: npx wrangler deploy -c wrangler.toml
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -80,25 +80,25 @@ jobs:
 
           # CAP_SIGNING_KEY: generate once, never rotate automatically
           # (rotation invalidates live capability tokens mid-session).
-          EXISTING=$(npx wrangler secret list 2>/dev/null || echo '[]')
+          EXISTING=$(npx wrangler secret list -c wrangler.toml 2>/dev/null || echo '[]')
           if echo "$EXISTING" | grep -q '"CAP_SIGNING_KEY"'; then
             echo "✓ CAP_SIGNING_KEY already set"
           else
-            openssl rand -hex 32 | npx wrangler secret put CAP_SIGNING_KEY
+            openssl rand -hex 32 | npx wrangler secret put CAP_SIGNING_KEY -c wrangler.toml
             echo "✓ CAP_SIGNING_KEY generated + set"
           fi
 
           # The rest sync from GitHub every run (GitHub is the source of truth,
           # so updating a GH secret/var propagates on the next deploy).
           if [ -n "${MOONSHOT_API_KEY:-}" ]; then
-            printf '%s' "$MOONSHOT_API_KEY" | npx wrangler secret put MOONSHOT_API_KEY
+            printf '%s' "$MOONSHOT_API_KEY" | npx wrangler secret put MOONSHOT_API_KEY -c wrangler.toml
             echo "✓ MOONSHOT_API_KEY synced"
           else
             echo "::warning::GH secret MOONSHOT_API_KEY unset — the kimi3 profile has no key (agent kimi3 will refuse)"
           fi
 
           if [ -n "${OS_AGENT_GITHUB_TOKEN:-}" ]; then
-            printf '%s' "$OS_AGENT_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN
+            printf '%s' "$OS_AGENT_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN -c wrangler.toml
             echo "✓ GITHUB_TOKEN synced (from OS_AGENT_GITHUB_TOKEN)"
           else
             echo "::warning::GH secret OS_AGENT_GITHUB_TOKEN unset — the container agent cannot push to GitHub"
