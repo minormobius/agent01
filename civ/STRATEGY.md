@@ -180,31 +180,56 @@ the mappa *world*, which is also global-view); what moved is authorship of
 of the founder culture's tier trajectory, and surface the shock provenance in its
 event ribbon.
 
-### Phase VII — street level (the recursive descent, NOT yet built)
+### Phase VII — the city cascade (civ → hinterland → city)
 
-The target: render a city down to streets. The rational structure is the one the
-suite already uses twice — **recursive Voronoi refinement with seeds derived from
-the address string**:
+**The reframe (structural, decided):** what polis had built was never the city — it
+was the **hinterland**: a regional multi-town sim. So the surface is restructured:
+`/polis/hinterland/` is the former region sim (moved verbatim, civ-client boot and
+all), `/polis/continent.html` the former continent view, and `/polis/` itself is now
+the charter for the **city proper** — which runs as a *cascade of three histories*,
+each level a client of the one above. Every city's history requires running civ AND
+the hinterland before the town — and that's fine: the civ run is content-addressed
+(cached forever), the hinterland runs in milliseconds. This is dynamical
+**downscaling**, the climate-model discipline: a regional model nested in a global
+one, nested again for the site.
 
-1. **Region → city cell** (exists): polis retiles a mappa region into a finer mesh
-   (`mesh.js`), the pattern to recurse.
-2. **City → districts**: Voronoi over the city's local mesh patch, seeded
-   `siteSeed + ':d' + i`; district *kinds* assigned from what the city actually
-   contains — its `institutions` rollup (a guild quarter because there IS a guild,
-   a temple precinct because a faith seats there, docks because `coast`, walls as
-   the boundary polygon when `walls`).
-3. **District → blocks → lots**: one more Voronoi level each; streets are the DUAL
-   of the block tessellation (cell edges = street segments), plazas at high-degree
-   vertices, the artery field (polis's Physarum flux) promoted to main streets.
-4. **Lots → interiors**: hoop's fixture-growth (mega `/sprite/fixture`, hoop v3
-   voronoi chambers) is the existing interior generator; org people (Phase IV) are
-   the occupants — every address `world:city:cell:d2:b5:lot3` is a permanent seed.
+**The two facts the cascade rests on** (verified in code):
 
-Everything deterministic, everything an extension of the siteSeed string — an
-address IS a seed at every scale. Costing: each level is O(cells at that level),
-generated lazily on zoom (borges-style: the page number space is unbounded, only
-what you look at exists). This phase belongs to polis's renderer, not the civ
-engine — the civ payload already carries everything level 2 needs.
+1. **Mappa has no sub-cell truth.** A civ cell at n=900 is ~a week's walk across.
+   `polis/mesh.js` already *mints* the finer geography deterministically: IDW-smoothed
+   real fields + rivers **re-derived by flow accumulation on the finer graph** +
+   coasts recomputed per-era sea level. Resolution on coasts/mountains/rivers/biome
+   edges is *born* at the hinterland level, conditioned on the coarse tile — so map
+   creation genuinely starts at the hinterland view. (Upgrade path when zooming
+   further: conditional fractal detail — midpoint displacement constrained to the
+   coarse field — same principle, one level down.)
+2. **"A town every day's walk" cannot come from civ** — the macro's atom is bigger
+   than the pattern. It must be (and already is) minted at the mesoscale:
+   `foundTowns` places towns by site-vs-situation score under a minimum-`spacing`
+   constraint — central-place theory as a generator. Civ's role is to *constrain* it,
+   not author it.
+
+**The contracts (what flows down):**
+
+- **civ → hinterland**: founding + founder culture + `sackTicks` + global climate
+  curve (all shipped, Phase VI) + the **demographic envelope** — `final.cities[]`
+  now carries `popSeries` (fred-cadence per-city population, zeros before founding),
+  so the hinterland's towns can be nudged to sum toward the macro city's curve
+  (soft conservation, downscaling-style — nudge, don't clamp).
+- **hinterland → city**: which town is THE city, its neighbor towns + artery field
+  (trade directions become gate/road orientations), its local terrain patch.
+- **city (Phase VII proper, to build)**: districts/blocks/streets by recursive
+  Voronoi descent, habitat-determined — the river bend fixes the port, the
+  defensible rise the citadel, epoch-2 `walls` the boundary polygon, district kinds
+  from the city's `institutions` rollup (a city is an org of orgs). Streets are the
+  dual of the block tessellation; arteries promote to main streets; hoop's
+  fixture-growth generates interiors; org persons occupy them. Every address
+  extends the siteSeed — `world:city:cell:d2:b5:lot3` — generated lazily on zoom.
+
+**Still open at the hinterland level**: nudge-to-envelope isn't wired yet (towns run
+free; the envelope ships but isn't consumed), and the hinterland's internal tech
+clock should follow the founder culture's tier trajectory rather than its own
+logistic.
 
 ### Phase V — outward
 

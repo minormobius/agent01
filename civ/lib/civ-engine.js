@@ -3125,6 +3125,11 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     }
     for (let e = 0; e < 6; e++) fredPush("pop.era." + ERAN[e], "Pop \u2014 " + ERAN[e], "Population \xD7 era", "people", eraPop[e]);
     for (let l = 0; l < Math.min(6, w.nLandmass); l++) fredPush("pop.land." + l, "Pop \u2014 landmass " + l, "Population \xD7 landmass", "people", landPop[l]);
+    for (const ct of cityList) {
+      const ps = ct.popSeries || (ct.popSeries = []);
+      while (ps.length < chronicle.fred.t.length - 1) ps.push(0);
+      ps.push(cellPop[ct.cell]);
+    }
     fredPush("climate.pulse", "Climate forcing strength", "Climate", "index 0\u20131", +climate.lastPulse.toFixed(3));
     {
       let aff = 0, landN = 0;
@@ -4197,6 +4202,8 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
         sackTicks: ct.sackTicks,
         fell: ct.fellTick,
         alive: ct.fellTick < 0 && cellPop[ct.cell] >= Math.round(CITY_MIN * 0.5),
+        popSeries: ct.popSeries || [],
+        // fred-cadence demographic envelope (see fredStep)
         institutions: cityInsts.get(ct.id) || [],
         landmass: w.landmass[ct.cell],
         river: !!(w.river && w.river[ct.cell]),

@@ -1,363 +1,66 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0c0a07">
-<title>polis · a city-economics sim</title>
-<meta name="description" content="polis — roll a mappa world, auto-select a city-rich region, retile it as a detailed Voronoi mosaic, and watch a city economy grow from the ice age to the future: townships nucleate, inter-town arteries form through the tiling, cities become centres of gravity, tech waves ripple. Theory in /docs/.">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>polis — the city cascade</title>
+<meta name="description" content="polis is the city proper. A city's history runs as a cascade: the uber-macro of civ (10,000 years on the whole planet), the mesoscale of the hinterland (a day's-walk lattice of towns), and only then the city itself — streets determined by habitat.">
 <style>
-:root{--gold:#a9802f;--gold2:#c79a48;--parch:#e8dcc0;--mut:#9c8a6c;--line:#2c2316;--card:#140f08}
-*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
-body{background:#070a0c;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
-#stage{position:fixed;inset:0;display:grid;place-items:center;background:#05080a}
-#map{image-rendering:auto;max-width:100vw;max-height:100vh;cursor:crosshair;touch-action:none;box-shadow:0 0 60px #000a}
-header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:10px;padding:10px 14px;pointer-events:none;background:linear-gradient(#070a0cdd,#070a0c00);flex-wrap:wrap}
-header a{pointer-events:auto;color:var(--gold);text-decoration:none;font-weight:700;letter-spacing:.05em}
-header .d{color:#b7a988;font-weight:400}
-header .t{pointer-events:auto;color:#b7a988;font-size:12.5px}
-.ctl{pointer-events:auto;display:flex;align-items:center;gap:6px;background:#140f08c8;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin-left:auto}
-#seed{width:96px;background:#0d0a05;border:1px solid #3a2e1c;color:var(--parch);border-radius:5px;padding:3px 6px;font:12px ui-monospace,monospace;outline:none}
-.btn{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
-.btn:hover{border-color:var(--gold)}.btn.on{border-color:var(--gold);color:var(--gold)}
-.seg{pointer-events:auto;display:inline-flex;gap:2px;background:#140f08c8;border:1px solid var(--line);border-radius:8px;padding:2px}
-.seg button{background:none;border:0;color:#b7a988;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11.5px}
-.seg button.on{background:#2a2114;color:var(--gold)}
-footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 14px;pointer-events:none;background:linear-gradient(#070a0c00,#070a0cee)}
-.scrub{pointer-events:auto;display:flex;align-items:center;gap:9px;flex:1;max-width:560px}
-.scrub input[type=range]{flex:1;accent-color:var(--gold)}
-.era{font:12px ui-monospace,monospace;color:var(--parch);min-width:200px}
-.era .y{color:var(--gold2)}.era .s{color:#8c7a5c}
-.legend{pointer-events:auto;display:flex;gap:9px;flex-wrap:wrap;margin-left:auto;font-size:11px;color:#9c8a6c}
-.legend span{display:inline-flex;align-items:center;gap:4px}.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
-#panel{position:fixed;top:50px;right:12px;z-index:7;width:240px;background:#120d07f5;border:1px solid var(--line);border-radius:10px;padding:13px 15px;display:none}
-#panel.show{display:block}
-#panel h3{font:600 15px/1.2 ui-serif,Georgia,serif;color:var(--gold)}
-#panel .eng{font:11px ui-monospace,monospace;color:#b7a988;margin:1px 0 9px}
-#panel table{width:100%;border-collapse:collapse;font-size:12px}
-#panel td{padding:2px 0;color:#d7c8a8}#panel td.k{color:#9c8a6c}#panel td.v{text-align:right;font-variant-numeric:tabular-nums;color:var(--parch)}
-#panel .close{position:absolute;top:9px;right:11px;cursor:pointer;color:#9c8a6c;background:none;border:0;font-size:15px}
-#spark{display:block;width:100%;height:40px;margin-top:9px}
-#overlay{position:fixed;inset:0;z-index:9;display:grid;place-items:center;background:#070a0cf2;color:var(--gold2);font:13px ui-monospace,monospace;letter-spacing:.06em;text-align:center;padding:20px}
-#overlay.hide{display:none}
-.note{position:fixed;left:12px;bottom:52px;z-index:6;max-width:330px;font-size:11px;color:#8c7a5c;pointer-events:none}
-.note a{color:var(--gold2);pointer-events:auto}
-@media (max-width:680px){.legend{display:none}.note{display:none}#panel{top:auto;bottom:96px;left:8px;right:8px;width:auto}}
+  :root{ --bg:#0d1117; --panel:#131a24; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; --good:#5bd18b; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  a{ color:var(--acc); }
+  main{ max-width:880px; margin:0 auto; padding:30px 22px 80px; }
+  .crumb{ font-size:13px; color:var(--dim); margin-bottom:8px; }
+  h1{ margin:0 0 6px; font-size:26px; } h1 .g{ color:var(--gold); }
+  .sub{ color:var(--dim); max-width:760px; }
+  h2{ font-size:14px; text-transform:uppercase; letter-spacing:1.1px; color:var(--dim); margin:32px 0 10px; }
+  .lvl{ background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:14px 18px; margin:10px 0; display:grid; grid-template-columns:130px 1fr; gap:16px; }
+  @media(max-width:640px){ .lvl{ grid-template-columns:1fr; } }
+  .lvl .name{ font-weight:800; font-size:17px; } .lvl .name a{ color:var(--ink); text-decoration:none; } .lvl .name a:hover{ color:var(--gold); }
+  .lvl .scale{ font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+  .lvl p{ margin:0 0 6px; } .lvl p.d{ color:var(--dim); font-size:13.5px; }
+  .badge{ display:inline-block; font-size:11px; border-radius:6px; padding:1px 7px; margin-top:6px; }
+  .live{ background:#16261c; color:var(--good); } .wip{ background:#332a16; color:var(--gold); }
+  .seam{ border-left:2px solid var(--edge); margin-left:62px; padding:3px 0 3px 16px; font-size:13px; color:var(--dim); }
+  @media(max-width:640px){ .seam{ margin-left:14px; } }
+  .seam b{ color:var(--gold); font-weight:600; }
 </style>
 </head>
 <body>
-<div id="stage"><canvas id="map"></canvas></div>
-<header>
-  <a href="https://mino.mobi/">mino.mobi</a>
-  <a href="./docs/" class="d" style="font-weight:400;text-decoration:none">docs ↗</a>
-  <a href="./hinterland.html" class="d" style="font-weight:400;text-decoration:none" title="the hinterlands sim: a whole continent as a closed system">hinterlands ↗</a>
-  <span class="t">polis — a world, a region, a city economy through time</span>
-  <span class="seg" id="layers" title="recolour the map by climate layer">
-    <button data-m="terrain" class="on">terrain</button><button data-m="wetness" title="era wetness: arid → wet (the pluvial / aridification)">wetness</button><button data-m="rivers" title="era river discharge; dry channels show as dry valleys">rivers</button><button data-m="temp" title="era temperature: glacial cold → interglacial warm">temp</button><button data-m="use" title="hinterland land use around each town">land&nbsp;use</button>
-  </span>
-  <span class="ctl"><input id="seed" value="20260618" inputmode="numeric"><button class="btn" id="go">roll</button><button class="btn" id="rnd">↻ new world</button></span>
-</header>
-<div id="panel">
-  <button class="close" id="close">×</button>
-  <h3 id="pName">—</h3>
-  <div class="eng" id="pEng"></div>
-  <table id="pTab"></table>
-  <canvas id="spark"></canvas>
-</div>
-<footer>
-  <div class="scrub"><button class="btn" id="play">▶</button>
-    <input type="range" id="time" min="0" max="159" value="0"><span class="era" id="era"></span></div>
-  <div class="legend" id="legend"></div>
-</footer>
-<div class="note">Roll a mappa world → auto-pick a city-rich region → retile it as a Voronoi mosaic → run the economy from the ice age to the future. Arteries grow between towns; cities become centres of gravity; tech waves ripple. Same seed → same history. Click a town. <a href="./docs/">Theory →</a></div>
-<div id="overlay">generating world…</div>
+<main>
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="https://civ.mino.mobi/">the world engine suite</a> · polis</div>
+  <h1><span class="g">polis</span> — the city cascade</h1>
+  <p class="sub">Polis is the <b>city proper</b>. A city cannot be simulated alone: its history is a client of everything above it. So a city here runs as a <b>cascade of three histories</b>, each one boundary conditions for the next, each one refining the same deterministic world — because mappa carries no truth below its cells, every level <i>mints</i> its finer geography (coasts, rivers, biome edges recomputed at higher resolution), conditioned on the level above and seeded by the address.</p>
 
-<script type="module">
-import { rollMappaWorld, selectRegion, regionAtLL, makeSampler } from './mappaWorld.js';
-import { buildMesh, cellState, moistAt } from './mesh.js';
-import { runChronicle } from './chronicle.js';
-import { tierOf } from './economy.js';
+  <h2>The cascade</h2>
+  <div class="lvl">
+    <div><div class="name"><a href="https://civ.mino.mobi/">civ ↗</a></div><div class="scale">the über-macro · 10,000 yr · planet</div><span class="badge live">live</span></div>
+    <div>
+      <p>Cultures, states, faiths, wars — and <b>cities as actors</b>: where population concentrates, walls rise, sieges break, sackings land. The event stream a city inherits: its founding, its founder culture, its <code>sackTicks</code>, the global climate curve, and its <b>demographic envelope</b> (a per-city population series).</p>
+      <p class="d">A civ cell is ~a week's walk across — the macro knows <i>that</i> a city exists and <i>what happened to it</i>, never its street plan.</p>
+    </div>
+  </div>
+  <div class="seam">boundary conditions down: founding + culture + shocks + climate + the population envelope, via <code>/api/civ/sites</code>.</div>
+  <div class="lvl">
+    <div><div class="name"><a href="./hinterland/">hinterland ↗</a></div><div class="scale">the mesoscale · one region · a day's walk</div><span class="badge live">live (the former polis sim)</span></div>
+    <div>
+      <p>The civ cell's neighborhood retiled as a finer Voronoi mosaic carrying <b>real terrain</b> — rivers re-derived by flow accumulation, coasts breathing with sea level. Here the <b>"town every day's walk"</b> lattice is generated (minimum-spacing founding over site-vs-situation scores): the macro cannot see it, so the mesoscale mints it — constrained by civ's envelope and struck by civ's shocks (sacks, droughts) at their recorded moments.</p>
+      <p class="d">Arrive from a civ run: <code>?civ=1&amp;world=…&amp;city=k</code>. Sister view: <a href="./continent.html">a whole continent as a closed system</a>.</p>
+    </div>
+  </div>
+  <div class="seam">boundary conditions down: which town is <b>the</b> city, its neighbors and trade arteries, its local terrain patch.</div>
+  <div class="lvl">
+    <div><div class="name">the city</div><div class="scale">the micro · streets · habitat-determined</div><span class="badge wip">being built here</span></div>
+    <div>
+      <p>The city proper: districts, blocks, streets — <b>so strongly determined by habitat</b> that the plan falls out of the terrain: the river bend fixes the port, the defensible rise fixes the citadel, walls trace the epoch-2 fortification, district kinds come from what the civ city actually contains (its institutions rollup — a city is an org of orgs). Recursive Voronoi descent, every address a seed: <code>world:city:cell:d2:b5:lot3</code>.</p>
+      <p class="d">Only what you look at exists — levels generate lazily on zoom, borges-style. The full design: <a href="https://civ.mino.mobi/STRATEGY.md">STRATEGY.md, Phase VII</a>.</p>
+    </div>
+  </div>
 
-const ENGINE_COLOR = { gateway:'#6fa8c8', market:'#9fb265', 'break-of-bulk':'#d9b25a', staple:'#c8703e', fortress:'#b08ec0' };
-const PX = 15;                                   // internal pixels per world unit
-const cv = document.getElementById('map'), cx = cv.getContext('2d');
-const seedIn = document.getElementById('seed'), timeIn = document.getElementById('time'), eraEl = document.getElementById('era'), overlay = document.getElementById('overlay');
-let C = null;            // chronicle
-let label = null, W = 0, H = 0, x0 = 0, y0 = 0;  // raster state
-let terrainCache = new Map();
-let tick = 0, playing = false, sel = -1, raf = 0, mode = 'terrain';
-
-const wpx = (wx) => (wx - x0) * PX, hpx = (wy) => (wy - y0) * PX;
-
-function buildLabels() {
-  const m = C.mesh, R = m.region; x0 = R.x0; y0 = R.y0;
-  W = Math.round((R.x1 - R.x0) * PX); H = Math.round((R.y1 - R.y0) * PX);
-  cv.width = W; cv.height = H;
-  // bucket grid for nearest-seed
-  const bw = m.cols, bh = m.rows, buckets = Array.from({ length: bw * bh }, () => []);
-  const RW = R.x1 - R.x0, RH = R.y1 - R.y0;
-  const bidx = (wx, wy) => { let bx = Math.floor((wx - x0) / RW * bw), by = Math.floor((wy - y0) / RH * bh); bx = Math.max(0, Math.min(bw - 1, bx)); by = Math.max(0, Math.min(bh - 1, by)); return by * bw + bx; };
-  m.cells.forEach((c) => buckets[bidx(c.wx, c.wy)].push(c.id));
-  label = new Int32Array(W * H);
-  for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
-    const wx = x0 + (px + 0.5) / PX, wy = y0 + (py + 0.5) / PX;
-    let bx = Math.floor((wx - x0) / RW * bw), by = Math.floor((wy - y0) / RH * bh); bx = Math.max(0, Math.min(bw - 1, bx)); by = Math.max(0, Math.min(bh - 1, by));
-    let best = 0, bd = Infinity;
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = bx + dx, ny = by + dy; if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue; for (const id of buckets[ny * bw + nx]) { const c = m.cells[id], d = (c.wx - wx) ** 2 + (c.wy - wy) ** 2; if (d < bd) { bd = d; best = id; } } }
-    label[py * W + px] = best;
-  }
-  terrainCache = new Map();
-}
-
-// HINTERLAND EXPLOITATION — which land each town works, by von Thünen rings around it,
-// modulated by biome + resource: intensive garden → cropland → pasture → managed forest,
-// ore cells → mines, everything out of reach stays wild.
-const USE_COLOR = { intensive: [196, 190, 80], crop: [206, 170, 86], pasture: [156, 176, 120], forest: [70, 100, 58], mine: [150, 92, 58] };
-function useColor(c, tick, env) {
-  if (c.elev < (env.seaLevel || 0)) return null;
-  let best = null, bd = Infinity;
-  for (const t of C.towns) { const pop = t.history[tick]; if (pop <= 0) continue; const d = Math.hypot(c.wx - t.x, c.wy - t.y), reach = 2.6 + Math.sqrt(pop) / 52; if (d < reach && d < bd) { bd = d; best = { d, reach }; } }
-  if (!best) return null;                                   // wild
-  if (c.res === 'ore') return USE_COLOR.mine;
-  const fr = best.d / best.reach;
-  if (fr < 0.26) return USE_COLOR.intensive;
-  if (fr < 0.56) return moistAt(c, env) < 0.3 ? USE_COLOR.pasture : USE_COLOR.crop;   // arid era near land → grazing not crops
-  if (fr < 0.82) return USE_COLOR.pasture;
-  return USE_COLOR.forest;
-}
-
-// per-layer cell colour. terrain/use as before; wetness/temp/rivers surface the climate
-// fields directly so the causal story is legible on the map.
-const dimRGB = (rgb) => [rgb[0] * 0.45 + 24, rgb[1] * 0.45 + 24, rgb[2] * 0.45 + 20];
-const lerpRGB = (a, b, t) => [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
-const wetRGB = (M) => lerpRGB([176, 146, 86], [58, 138, 104], Math.max(0, Math.min(1, M)));                 // arid tan → wet green
-const tempRGB = (T) => lerpRGB([74, 120, 205], [214, 86, 66], Math.max(0, Math.min(1, (T + 15) / 45)));      // cold blue → warm red
-const riverRGB = (rw) => { const k = Math.min(1, 0.35 + rw * 0.12); return [Math.round(30 + 24 * (1 - k)), Math.round(96 * k + 40 * (1 - k)), Math.round(150 * k + 60 * (1 - k))]; };
-function cellColor(c, mode, tick, env) {
-  const st = cellState(c, env);
-  if (st.water) return st.rgb;
-  if (mode === 'wetness') return wetRGB(moistAt(c, env));
-  if (mode === 'temp') return tempRGB(c.temp + (env.tempShift || 0));
-  if (mode === 'rivers') { const rw = env.riverW ? env.riverW[c.id] : (c.river ? 2 : 0); if (rw > 0) return riverRGB(rw); if (c.river) return [120, 96, 60]; return dimRGB(st.rgb); }
-  if (mode === 'use') { const u = useColor(c, tick, env); return u || dimRGB(st.rgb); }
-  return st.rgb;                                                                                             // terrain
-}
-
-function frameImage(mode, tick, env) {
-  const perTick = mode === 'use' || mode === 'rivers';
-  const key = mode + '|' + (perTick ? tick : `${Math.round(env.seaLevel * 200)}_${Math.round(env.tempShift)}_${Math.round((env.humidity || 1) * 20)}`);
-  if (!perTick && terrainCache.has(key)) return terrainCache.get(key);
-  const m = C.mesh, img = cx.createImageData(W, H), data = img.data;
-  const colors = m.cells.map((c) => cellColor(c, mode, tick, env));
-  for (let p = 0; p < W * H; p++) { const rgb = colors[label[p]], o = p * 4; data[o] = rgb[0]; data[o + 1] = rgb[1]; data[o + 2] = rgb[2]; data[o + 3] = 255; }
-  for (let py = 0; py < H; py++) for (let px = 0; px < W - 1; px++) { if (label[py * W + px] !== label[py * W + px + 1]) { const o = (py * W + px) * 4; data[o] *= 0.7; data[o + 1] *= 0.7; data[o + 2] *= 0.7; } }
-  const off = document.createElement('canvas'); off.width = W; off.height = H; off.getContext('2d').putImageData(img, 0, 0);
-  if (!perTick) terrainCache.set(key, off); return off;
-}
-
-function draw() {
-  if (!C) return;
-  const e = C.env[tick];
-  cx.clearRect(0, 0, W, H);
-  cx.drawImage(frameImage(mode, tick, e), 0, 0);
-
-  // arteries — three strength bands, weak first so strong arterials draw on top
-  const E = C.E, ea = C.edges.ea, eb = C.edges.eb, base = tick * E, m = C.mesh;
-  cx.lineCap = 'round';
-  for (const [lo, hi] of [[30, 90], [90, 170], [170, 256]]) {
-    for (let i = 0; i < E; i++) {
-      const s = C.artStrength[base + i]; if (s < lo || s >= hi) continue;
-      const a = ea[i], b = eb[i];
-      cx.beginPath(); cx.moveTo(wpx(m.cells[a].wx), hpx(m.cells[a].wy)); cx.lineTo(wpx(m.cells[b].wx), hpx(m.cells[b].wy));
-      cx.strokeStyle = `rgba(232,200,140,${0.12 + s / 255 * 0.6})`; cx.lineWidth = 0.6 + s / 255 * 4.5; cx.stroke();
-    }
-  }
-
-  // tech waves — expanding rings from their origin for a few ticks after firing
-  for (const w of C.waves) {
-    const age = tick - w.tick; if (age < 0 || age > 18) continue;
-    const rad = age * PX * 1.7, alpha = (1 - age / 18) * 0.5;
-    cx.beginPath(); cx.arc(wpx(w.x), hpx(w.y), rad, 0, 7); cx.strokeStyle = `rgba(220,180,90,${alpha})`; cx.lineWidth = 2; cx.stroke();
-  }
-
-  // towns — centres of gravity
-  C.towns.forEach((t, n) => {
-    const pop = t.history[tick]; if (pop <= 0) return;
-    const px = wpx(t.x), py = hpx(t.y), rad = Math.max(2, Math.sqrt(pop) / 30), fl = (t.flourishHist[tick] || 0) / 100;
-    cx.beginPath(); cx.arc(px, py, rad, 0, 7); cx.fillStyle = ENGINE_COLOR[t.engine] || '#ccc'; cx.globalAlpha = 0.95; cx.fill(); cx.globalAlpha = 1;
-    cx.lineWidth = 1.4; cx.strokeStyle = `rgba(255,244,210,${0.25 + fl * 0.7})`; cx.stroke();
-    if (n === sel) { cx.beginPath(); cx.arc(px, py, rad + 3, 0, 7); cx.strokeStyle = '#f0d28a'; cx.lineWidth = 1.5; cx.stroke(); }
-  });
-
-  // event pulses on stricken towns/cells (for a few ticks after the shock)
-  for (const ev of C.events) {
-    const age = tick - ev.tick; if (age < 0 || age > 4 || ev.cell == null) continue;
-    const cell = m.cells[ev.cell], px = wpx(cell.wx), py = hpx(cell.wy);
-    cx.globalAlpha = (1 - age / 4) * 0.75; cx.strokeStyle = EVENT_COLOR[ev.type] || '#fff'; cx.lineWidth = 2.5;
-    cx.beginPath(); cx.arc(px, py, 8 + age * 8, 0, 7); cx.stroke(); cx.globalAlpha = 1;
-  }
-  // active-event caption
-  const cur = C.events.filter((ev) => ev.tick <= tick && tick - ev.tick <= 4).sort((a, b) => b.tick - a.tick)[0];
-  if (cur) { cx.font = '600 13px ui-monospace,monospace'; cx.textAlign = 'center'; cx.fillStyle = EVENT_COLOR[cur.type] || '#fff'; cx.fillText(EVENT_LABEL(cur), W / 2, 26); cx.textAlign = 'left'; }
-
-  // CLIMATE RIBBON — the causal drivers across the whole run, aligned to the map:
-  // ice retreat (pale fill), temperature (warm line), wetness (green line), with event
-  // ticks (volcanic/solar/plague/conquest) and the playhead. Click anywhere to jump.
-  const BM = 34, BW = W - 2 * BM, RY1 = H - 12, RY0 = H - 40, RH = RY1 - RY0;
-  const xAt = (k) => BM + k / (C.ticks - 1) * BW;
-  const yAt = (v, lo, hi) => RY1 - Math.max(0, Math.min(1, (v - lo) / (hi - lo))) * RH;
-  cx.beginPath(); cx.moveTo(BM, RY1);                                                   // ice volume fill
-  for (let k = 0; k < C.ticks; k++) cx.lineTo(xAt(k), RY1 - (C.env[k].ice || 0) * RH);
-  cx.lineTo(W - BM, RY1); cx.closePath(); cx.fillStyle = 'rgba(150,180,205,0.16)'; cx.fill();
-  cx.beginPath(); for (let k = 0; k < C.ticks; k++) { const X = xAt(k), Y = yAt(C.env[k].tempShift, -8, 3); k ? cx.lineTo(X, Y) : cx.moveTo(X, Y); } // temperature
-  cx.strokeStyle = 'rgba(224,150,90,0.9)'; cx.lineWidth = 1.4; cx.stroke();
-  cx.beginPath(); for (let k = 0; k < C.ticks; k++) { const X = xAt(k), Y = yAt(C.env[k].humidity || 1, 0.5, 1.5); k ? cx.lineTo(X, Y) : cx.moveTo(X, Y); } // wetness
-  cx.strokeStyle = 'rgba(120,190,120,0.9)'; cx.lineWidth = 1.4; cx.stroke();
-  for (const w of C.waves) { const x = xAt(w.tick); cx.fillStyle = 'rgba(220,180,90,0.5)'; cx.fillRect(x - 1, RY1 - 3, 2, 3); }
-  for (const ev of C.events) { const x = xAt(ev.tick); cx.strokeStyle = EVENT_COLOR[ev.type] || '#fff'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(x, RY0); cx.lineTo(x, RY1); cx.stroke(); }
-  const curx = xAt(tick); cx.strokeStyle = '#fff'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(curx, RY0 - 2); cx.lineTo(curx, RY1 + 2); cx.stroke();
-
-  const eraName = yearEra(e.year), wet = (e.humidity || 1) > 1.22 ? ' · pluvial' : (e.humidity || 1) < 0.82 ? ' · arid' : '';
-  eraEl.innerHTML = `<span class="y">${e.year < 0 ? -e.year + ' BCE' : e.year + ' CE'}</span> · ${eraName} <span class="s">· ${e.regime || '—'}${wet} · ${e.tempShift >= 0 ? '+' : ''}${e.tempShift.toFixed(1)}°C · tech ${e.tech.toFixed(2)}</span>`;
-}
-const EVENT_COLOR = { plague: '#7fae74', conquest: '#d05a3a', crisis: '#e0c060', 'super-eruption': '#ff7a3c', eruption: '#d98a4a', 'grand-minimum': '#7fb0d8' };
-function EVENT_LABEL(ev) {
-  if (ev.type === 'plague') return '☠ plague';
-  if (ev.type === 'conquest') return '⚔ ' + ev.note;
-  if (ev.type === 'crisis') return '$ financial crisis';
-  if (ev.type === 'super-eruption') return '🌋 ' + ev.note;
-  if (ev.type === 'eruption') return '🌋 ' + ev.note;
-  if (ev.type === 'grand-minimum') return '❄ ' + ev.note;
-  return ev.note || ev.type;
-}
-
-function yearEra(y) {
-  if (y < -9000) return 'Ice Age'; if (y < -3000) return 'Neolithic'; if (y < -800) return 'Bronze Age';
-  if (y < 500) return 'Classical'; if (y < 1400) return 'Medieval'; if (y < 1700) return 'Renaissance';
-  if (y < 1900) return 'Industrial'; if (y < 2030) return 'Modern'; return 'Future';
-}
-
-function panel(n) {
-  sel = n; const p = document.getElementById('panel');
-  if (n < 0) { p.classList.remove('show'); draw(); return; }
-  const t = C.towns[n], pop = t.history[tick] || 0;
-  document.getElementById('pName').textContent = `${tierOf(pop)} — town ${n + 1}`;
-  document.getElementById('pEng').textContent = `${t.engine} · founded ${t.founded >= 0 ? (C.env[t.founded].year < 0 ? -C.env[t.founded].year + ' BCE' : C.env[t.founded].year + ' CE') : '—'}`;
-  const rows = [['population', pop.toLocaleString()], ['engine', t.engine], ['basic draw', Math.round(t.base).toLocaleString()], ['hinterland surplus', t.surplus.toFixed(1)], ['flourishing', t.flourishHist[tick] || 0]];
-  document.getElementById('pTab').innerHTML = rows.map(([k, v]) => `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`).join('');
-  const sc = document.getElementById('spark'), g = sc.getContext('2d'), w = sc.width = sc.clientWidth, h = sc.height = 40;
-  g.clearRect(0, 0, w, h); const Hh = t.history, mx = Math.max(...Hh, 1);
-  g.beginPath(); Hh.forEach((v, k) => { const X = k / (Hh.length - 1) * w, Y = h - 2 - (v / mx) * (h - 4); k ? g.lineTo(X, Y) : g.moveTo(X, Y); });
-  g.strokeStyle = '#c79a48'; g.lineWidth = 1.4; g.stroke();
-  const tx = tick / (Hh.length - 1) * w; g.strokeStyle = '#5a4a28'; g.beginPath(); g.moveTo(tx, 0); g.lineTo(tx, h); g.stroke();
-  p.classList.add('show'); draw();
-}
-
-cv.addEventListener('click', (ev) => {
-  if (!C) return; const rect = cv.getBoundingClientRect(), sx = W / rect.width, sy = H / rect.height;
-  const mx = (ev.clientX - rect.left) * sx, my = (ev.clientY - rect.top) * sy;
-  if (my >= H - 44) {                                   // clicked the climate ribbon → jump
-    const BM = 34, BW = W - 2 * BM; tick = Math.max(0, Math.min(C.ticks - 1, Math.round((mx - BM) / BW * (C.ticks - 1))));
-    timeIn.value = tick; sel >= 0 ? panel(sel) : draw(); return;
-  }
-  let best = -1, bd = 26 * 26;
-  C.towns.forEach((t, n) => { if ((t.history[tick] || 0) <= 0) return; const d = (wpx(t.x) - mx) ** 2 + (hpx(t.y) - my) ** 2; if (d < bd) { bd = d; best = n; } });
-  panel(best);
-});
-timeIn.addEventListener('input', () => { tick = +timeIn.value; sel >= 0 ? panel(sel) : draw(); });
-document.getElementById('close').addEventListener('click', () => panel(-1));
-document.getElementById('play').addEventListener('click', function () { playing = !playing; this.textContent = playing ? '❚❚' : '▶'; if (playing) loop(); });
-function loop() { if (!playing) return; tick = (tick + 1) % C.ticks; timeIn.value = tick; sel >= 0 ? panel(sel) : draw(); raf = setTimeout(() => requestAnimationFrame(loop), 90); }
-
-function roll(seed, o = {}) {
-  clearTimeout(raf); playing = false; document.getElementById('play').textContent = '▶';
-  overlay.classList.remove('hide'); overlay.textContent = 'generating world…';
-  setTimeout(() => {
-    try {
-      const world = rollMappaWorld((o.worldSeed ?? seed) >>> 0, o.worldN ? { N: o.worldN } : {});
-      const region = o.region ? o.region(world) : selectRegion(world);
-      const sampler = makeSampler(world, region);
-      const mesh = buildMesh(seed >>> 0, region, sampler);
-      C = runChronicle(seed >>> 0, mesh, { ticks: 160, world, ...(o.worldShocks ? { worldShocks: o.worldShocks } : {}) });   // world → volcanic winters erupt from its real volcanoes; civ → sacks + droughts arrive from the world beyond
-      timeIn.max = C.ticks - 1; tick = Math.round((C.ticks - 1) * 0.84); timeIn.value = tick; sel = -1; // open on a developed era; scrub left for the ice age
-      document.getElementById('panel').classList.remove('show');
-      setLegend();
-      buildLabels(); draw(); overlay.classList.add('hide');
-    } catch (err) { overlay.textContent = 'generation error: ' + (err && err.message ? err.message : err); console.error(err); }
-  }, 40);
-}
-function setLegend() {
-  const leg = document.getElementById('legend');
-  const grad = (stops) => stops.map(([c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('');
-  if (mode === 'use') leg.innerHTML = grad([['#c4be50', 'intensive'], ['#cea656', 'cropland'], ['#9cb078', 'pasture'], ['#46643a', 'forest'], ['#965c3a', 'mine'], ['#3a3a32', 'wild']]);
-  else if (mode === 'wetness') leg.innerHTML = grad([['rgb(176,146,86)', 'arid'], ['rgb(117,142,95)', 'semi'], ['rgb(58,138,104)', 'wet']]);
-  else if (mode === 'temp') leg.innerHTML = grad([['rgb(74,120,205)', 'cold'], ['rgb(144,103,135)', 'mild'], ['rgb(214,86,66)', 'warm']]);
-  else if (mode === 'rivers') leg.innerHTML = grad([['rgb(54,120,150)', 'river'], ['rgb(120,96,60)', 'dry valley'], ['#3a3a32', 'land']]);
-  else leg.innerHTML = Object.entries(ENGINE_COLOR).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join('');
-}
-document.getElementById('layers').addEventListener('click', (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  mode = b.dataset.m; for (const x of b.parentNode.children) x.classList.toggle('on', x === b);
-  setLegend(); draw();
-});
-document.getElementById('go').addEventListener('click', () => roll(+seedIn.value || 1));
-document.getElementById('rnd').addEventListener('click', () => { const s = (Math.random() * 1e9) >>> 0; seedIn.value = s; roll(s); });  // pick WHICH deterministic world to view
-
-// ---- the civ → polis handoff (Phase III of civ/STRATEGY.md) ---------------------
-// Arriving from a civ run (?civ=1&world=&preset=|config=&civSeed=&ticks=&site=), fetch
-// that run's foundings from the CORS-open civ API and grow the chosen city where history
-// founded it: the mappa world is the civ run's world, the region is centred on the state
-// seat, and the polis seed derives from the suite-wide siteSeed string (org's convention,
-// `${world}:${city}:${cell}`) — so civ, polis and a future sited org all agree on the city.
-const xmur3 = s => { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); } h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return (h ^ (h >>> 16)) >>> 0; };
-async function bootFromCiv() {
-  const p = new URLSearchParams(location.search);
-  if (!p.get('civ')) return false;
-  const wm = String(p.get('world') || '').match(/^(?:seed:)?(\d+)$/);
-  if (!wm) return false;                                    // token worlds: not yet — fall back
-  const q = new URLSearchParams({ world: wm[1], civSeed: p.get('civSeed') || '1', ticks: p.get('ticks') || '800' });
-  if (p.get('n')) q.set('n', p.get('n')); // fine-mesh runs: the contract n must match the run
-  if (p.get('preset')) q.set('preset', p.get('preset')); else if (p.get('config')) q.set('config', p.get('config'));
-  overlay.classList.remove('hide'); overlay.textContent = 'fetching civ foundings…';
-  const r = await fetch('https://civ.mino.mobi/api/civ/sites?' + q);
-  if (!r.ok) throw new Error('civ API ' + r.status);
-  const d = await r.json();
-  // ?site=i → grow a state seat (foundings); ?city=i → grow ANY emergent settlement
-  // (cities — cells whose population crossed the urban threshold, river/coast-sited)
-  const pool = p.get('city') != null ? (d.cities || []) : d.foundings;
-  const f = pool[Math.max(0, Math.min(pool.length - 1, +((p.get('city') ?? p.get('site')) || 0)))];
-  if (!f) return false;                                     // nothing urban ever rose in this run
-  const cityName = f.city || f.name;
-  const citySeed = xmur3(f.siteSeed);
-  seedIn.value = citySeed;
-  // BOUNDARY CONDITIONS from the world beyond: the civ run's history arrives as
-  // shocks — every recorded sacking of this city, and every global climate-forcing
-  // peak (drought), mapped onto this chronicle's timeline by run fraction.
-  const worldShocks = [];
-  for (const st of (f.sackTicks || [])) worldShocks.push({ frac: st / d.ticks, kind: 'sack' });
-  if (d.climate && d.climate.pulse) {
-    let inPeak = false;
-    d.climate.pulse.forEach((v, i) => {
-      if (!inPeak && v >= 0.5) { inPeak = true; worldShocks.push({ frac: (d.climate.t[i] || 0) / d.ticks, kind: 'drought', mag: v }); }
-      if (v < 0.35) inPeak = false;
-    });
-  }
-  const b = document.createElement('div');
-  b.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:9;background:rgba(10,14,20,.85);border:1px solid #2a3a4e;border-radius:8px;padding:6px 12px;font-size:12px;color:#cdd6e0;max-width:70vw';
-  b.innerHTML = '⚑ <b>' + cityName + '</b> — ' + (f.city ? 'seat of the ' : '') + f.cultureName + ', founded year ' + f.year +
-    (f.river ? ' · on the river' : '') + (f.coast ? ' · on the coast' : '') +
-    (f.walls ? ' · walled' : '') + (f.sacked ? ' · sacked ×' + f.sacked : '') +
-    (worldShocks.length ? ' · ' + worldShocks.length + ' shocks from the world beyond' : '') +
-    ' · <a style="color:#5aa9e6" href="https://civ.mino.mobi/dash/?' + q + '">the civ run ↗</a>' +
-    (pool.length > 1 ? ' · ' + (pool.indexOf(f)) + '/' + (pool.length - 1) : '');
-  document.body.appendChild(b);
-  // regenerate the world at the SAME mesh resolution the civ run saw — mappa terrain is
-  // not resolution-stable, so d.n is the only N at which the founding's coast exists
-  roll(citySeed, { worldSeed: +wm[1], worldN: d.n, worldShocks, region: w => regionAtLL(w, f.lon * Math.PI / 180, f.lat * Math.PI / 180) });
-  return true;
-}
-bootFromCiv().then(ok => { if (!ok) roll(+seedIn.value); })
-  .catch(err => { console.error('civ handoff failed, falling back:', err); roll(+seedIn.value); });
-</script>
+  <h2>Why run three histories?</h2>
+  <p class="sub">Because that's how downscaling works — a regional model nested in a global one, nested again for the site. Same discipline here: each level's aggregates must track the level above (the hinterland's towns sum toward the civ city's envelope; the city's wards sum toward its town), while each level adds structure the level above cannot represent. The upper runs are cheap and content-addressed: the civ run caches forever, the hinterland runs in milliseconds — the cascade for one city costs barely more than the city itself.</p>
+  <p class="sub" style="margin-top:10px"><a href="./docs/">The original polis theory →</a> · <a href="https://civ.mino.mobi/timeline.html">the timeline of any world →</a></p>
+</main>
 </body>
 </html>

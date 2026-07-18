@@ -517,6 +517,14 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     for (let p = 0; p < NPKG; p++) { fredPush('pop.sub.' + PKG[p].id, 'Pop — ' + PKG[p].id, 'Population × subsistence', 'people', subPop[p]); fredPush('wealth.sub.' + PKG[p].id, 'Wealth — ' + PKG[p].id, 'Wealth × subsistence', 'index', subPop[p] > 0 ? +(subW[p] / subPop[p]).toFixed(3) : 0); }
     for (let e = 0; e < 6; e++) fredPush('pop.era.' + ERAN[e], 'Pop — ' + ERAN[e], 'Population × era', 'people', eraPop[e]);
     for (let l = 0; l < Math.min(6, w.nLandmass); l++) fredPush('pop.land.' + l, 'Pop — landmass ' + l, 'Population × landmass', 'people', landPop[l]);
+    // per-city population series (hash-safe, fred cadence) — the DEMOGRAPHIC ENVELOPE
+    // a hinterland-scale client downsamples against: its towns' total should track this.
+    // Aligned to fred.t; zeros before a city's founding.
+    for (const ct of cityList) {
+      const ps = ct.popSeries || (ct.popSeries = []);
+      while (ps.length < chronicle.fred.t.length - 1) ps.push(0);
+      ps.push(cellPop[ct.cell]);
+    }
     // climate forcing (hash-safe: fred is never part of chronicleHash) — the schedule's
     // current strength plus how much of the land it is actually touching
     fredPush('climate.pulse', 'Climate forcing strength', 'Climate', 'index 0–1', +climate.lastPulse.toFixed(3));
@@ -1351,6 +1359,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         tick: ct.foundTick, year: Math.round(ct.foundTick * ty), pop: cellPop[ct.cell], peak: ct.peak,
         walls: ct.walls >= 0, walledTick: ct.walls, sacked: ct.sacked, sackTicks: ct.sackTicks,
         fell: ct.fellTick, alive: ct.fellTick < 0 && cellPop[ct.cell] >= Math.round(CITY_MIN * 0.5),
+        popSeries: ct.popSeries || [], // fred-cadence demographic envelope (see fredStep)
         institutions: cityInsts.get(ct.id) || [],
         landmass: w.landmass[ct.cell], river: !!(w.river && w.river[ct.cell]), coast: !!(w.coast && w.coast[ct.cell]),
         resource: (w.resource && w.resource[ct.cell]) ? RESOURCES[w.resource[ct.cell]] : null,

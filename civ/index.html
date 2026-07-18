@@ -92,17 +92,17 @@
   </div>
   <div class="seam">a civ chronicle names homelands, dynasties and states — the founding conditions a city sim needs. That handoff is live: <code>/api/civ/sites</code> emits every state seat as a founding, and each one links straight into polis (<b>phase III, shipped</b>).</div>
 
-  <h2><span class="n">III</span> The city</h2>
+  <h2><span class="n">III</span> The hinterland &amp; the city</h2>
   <div class="rung">
     <div>
       <div class="name"><a href="https://mino.mobi/polis/">polis ↗</a></div>
-      <div class="scale">10 km · a settlement</div>
-      <span class="badge wip">expansion — in progress</span>
+      <div class="scale">a day's walk → a street</div>
+      <span class="badge wip">the city cascade</span>
     </div>
     <div>
-      <p>City-economics on the mappa cell graph: mappa answers <i>where</i> a city sits; polis grows nucleus → town → city → metropolis from a seed, with the economy as a forcing on one graph-Laplacian field.</p>
-      <p class="d">Currently theory-heavy with a working vertical slice (site scoring, founding engine, Physarum trade arteries, whole-history chronicle). It already imports the real mappa engine — the missing seam is upward, into civ.</p>
-      <div class="links"><a href="https://mino.mobi/polis/">polis</a> <a href="https://mino.mobi/polis/hinterland.html">hinterland</a> <a href="https://mino.mobi/polis/docs/">theory</a></div>
+      <p>Polis is the <b>city proper</b>, run as a cascade of three histories: civ (the über-macro), the <a href="https://mino.mobi/polis/hinterland/">hinterland</a> (the mesoscale — a civ cell's neighborhood retiled with real terrain, where the <i>"town every day's walk"</i> lattice is minted under civ's demographic envelope and struck by civ's recorded shocks), and only then the city itself — streets determined by habitat, districts typed by the civ city's actual institutions.</p>
+      <p class="d">Mappa carries no truth below its cells, so each level re-derives its finer geography (rivers by flow accumulation, coasts by era sea level) deterministically from the level above.</p>
+      <div class="links"><a href="https://mino.mobi/polis/">the cascade</a> <a href="https://mino.mobi/polis/hinterland/">hinterland</a> <a href="https://mino.mobi/polis/continent.html">continent</a> <a href="https://mino.mobi/polis/docs/">theory</a></div>
     </div>
   </div>
   <div class="seam">a city is made of institutions and people with names — the bottom rungs. org's <b>siteSeed(worldSeed, city, cell)</b> bridge now has its first consumer: a civ founding's siteSeed string seeds the polis city, so civ, polis and a future sited org all agree on it.</div>
