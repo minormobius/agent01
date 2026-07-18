@@ -100,10 +100,21 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         break;
       case 'start':
         setRunning(true);
+        if (msg.diag) {
+          const d = msg.diag;
+          if (d.missing) push({ role: 'error', text: 'profile missing from AGENT_PROFILES in the container env — redeploy os-api' });
+          else if (d.parseError) push({ role: 'error', text: 'AGENT_PROFILES env is not valid JSON in the container' });
+          else if (!d.hasKey) push({ role: 'error', text: `profile has NO API KEY in the container env — MOONSHOT_API_KEY isn't reaching AGENT_PROFILES (check worker secrets / redeploy)` });
+          else push({ role: 'info', text: `run: ${d.model} @ ${d.base}` });
+        }
         break;
       case 'event': {
         let evt;
-        try { evt = JSON.parse(msg.line); } catch { return; }
+        try { evt = JSON.parse(msg.line); } catch {
+          // Non-JSON stdout (login-shell chatter, CLI errors) — show, don't drop.
+          push({ role: 'info', text: msg.line.slice(0, 300) });
+          return;
+        }
         if (evt.type === 'system' && evt.subtype === 'init') {
           push({ role: 'info', text: `session ${evt.session_id?.slice(0, 8) ?? ''} · ${evt.model ?? ''}` });
         } else if (evt.type === 'assistant') {
@@ -136,7 +147,9 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         break;
       case 'done':
         setRunning(false);
-        if (msg.code) push({ role: 'info', text: `agent exited (code ${msg.code})` });
+        if (msg.code) {
+          push({ role: 'error', text: `agent exited (code ${msg.code})${msg.stderr ? `\n${msg.stderr}` : ''}` });
+        }
         break;
       default:
         break;
@@ -158,7 +171,17 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
         push({ role: 'error', text: `access check failed: ${pre.error}` });
         return;
       }
-      setStatusDetail('starting container (cold start can take ~30s)…');
+      // Pre-boot the container over HTTP before opening the socket — a cold
+      // start (image pull ~30-40s) used to kill the first WebSocket attempt.
+      setStatusDetail('starting container (cold start can take ~40s)…');
+      const boot = await debugBoot({ session: session.did, ...authInfo });
+      if (!boot.ok || (boot.containerStatus && boot.containerStatus >= 400)) {
+        setStatus('denied');
+        setStatusDetail('container failed to boot');
+        push({ role: 'error', text: `container boot: ${boot.error || JSON.stringify(boot)}` });
+        return;
+      }
+      setStatusDetail('container up — opening socket…');
       let everConnected = false;
       const sock = new ChatSocket({
         onMessage: handleFrame,

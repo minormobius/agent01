@@ -86,7 +86,10 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 // ─── HTTP server ──────────────────────────────────────────────────
 
 const server = createServer((req, res) => {
-  if (req.url === '/health') {
+  // Compare the PATH, not the raw URL — the worker's boot probe appends a
+  // query string, which made a healthy container answer 404.
+  const reqPath = new URL(req.url, 'http://localhost').pathname;
+  if (reqPath === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
     return;
@@ -106,6 +109,18 @@ const server = createServer((req, res) => {
 
 const CHAT_CWD_CANDIDATES = ['/home/coder/workspace/agent01', '/home/coder/workspace'];
 const chatSessionFile = (profile) => `/home/coder/.claude/os-chat-session-${profile}`;
+
+// Self-report the selected profile's state (never the key itself) so a
+// misconfigured container names its own problem in the chat.
+function profileDiag(name) {
+  try {
+    const prof = JSON.parse(process.env.AGENT_PROFILES || '{}')[name];
+    if (!prof) return { missing: true };
+    return { model: prof.model || '(default)', base: prof.base || 'anthropic', hasKey: !!prof.key };
+  } catch {
+    return { parseError: true };
+  }
+}
 
 function handleChatConnection(ws, req) {
   const params = new URL(req.url, 'http://localhost').searchParams;
@@ -146,11 +161,12 @@ function handleChatConnection(ws, req) {
       env: { ...process.env, HOME: '/home/coder' },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    send({ type: 'start' });
+    send({ type: 'start', diag: profileDiag(profile) });
     child.stdin.write(msg.text);
     child.stdin.end();
 
     let buf = '';
+    let stderrBuf = '';
     child.stdout.on('data', (d) => {
       buf += d.toString();
       let i;
@@ -169,11 +185,14 @@ function handleChatConnection(ws, req) {
       }
     });
     child.stderr.on('data', (d) => {
+      // Accumulate for the exit report — a failed run's stderr is the
+      // diagnosis and must never be lost to client-side filtering.
+      stderrBuf = (stderrBuf + d.toString()).slice(-8000);
       send({ type: 'stderr', text: d.toString().slice(0, 4000) });
     });
     child.on('exit', (code) => {
       if (buf.trim()) send({ type: 'event', line: buf.trim() });
-      send({ type: 'done', code });
+      send({ type: 'done', code, stderr: code ? stderrBuf.slice(-4000) : undefined });
       child = null;
     });
     child.on('error', (err) => {
