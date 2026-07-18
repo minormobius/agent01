@@ -105,14 +105,16 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 
 | Surface | Resource | Domain | Workflow | State |
 |---|---|---|---|---|
-| **Frontend** | Pages worker `os` | `os.mino.mobi` | `deploy-os.yml` (paths `os/**` **excl.** `os/api/**`) | ✅ **Live.** Fully functional standalone — login + all PDS-shell/analytics/AI commands work with no backend. `kimi`/`container` unlock when the `OS_CONTAINER_API_URL` repo variable is set. |
-| **Container backend** | Worker `os-mino-api` + Container + DO + R2 | `os-api.minomobi.com` (custom_domain route in wrangler.toml) | `deploy-os-api.yml` | 🚧 **Dispatch-only, unshelfing.** Owner steps in `RUNBOOK.md`: enable CF Containers, R2 `os-workspace`, secrets (`CAP_SIGNING_KEY`, `MOONSHOT_API_KEY`, `GITHUB_TOKEN`), `ALLOWED_DIDS`, dispatch deploy, set repo var. |
+| **Frontend** | Pages worker `os` | `os.mino.mobi` | `deploy-os.yml` (paths `os/**` **excl.** `os/api/**`) | ✅ **Live.** Fully functional standalone — login + all PDS-shell/analytics/AI commands work with no backend. `kimi`/`container` probe the backend's `/health` at runtime and unlock the moment it's live — no rebuild. |
+| **Container backend** | Worker `os-mino-api` + Container + DO + R2 | `os-api.minomobi.com` (custom_domain route in wrangler.toml) | `deploy-os-api.yml` — **self-provisioning**, auto on push to `os/api/**` | 🚧 **Unshelfing.** The workflow ensures the R2 bucket, deploys, generates `CAP_SIGNING_KEY`, syncs `MOONSHOT_API_KEY`/`GITHUB_TOKEN`/`ALLOWED_DIDS` from GitHub, and health-checks the domain. Remaining human steps (once, `RUNBOOK.md`): enable CF Containers + add the GH secrets/variable. |
 | OCR (sibling crate) | Worker `ocr` | `ocr.mino.mobi` | `deploy-ocr.yml` | ✅ Live. `crates/codescan-ocr` → `ocr/wasm/`. Separate product, shares the repo. |
 
-The `container` command is **gated off in the frontend** until `VITE_CONTAINER_API_URL`
-is set at build time — so it reports "not configured" instead of dangling a dead
-WebSocket while the backend is unshipped. Frontend and backend deploy
-independently (the frontend workflow excludes `os/api/**`).
+The `kimi`/`container` commands gate themselves at **runtime**: they probe the
+backend's `/health` (4s timeout) and report "backend not reachable" instead of
+dangling a dead WebSocket while the backend is unshipped. The production URL is
+the baked-in default (`VITE_CONTAINER_API_URL` overrides it for staging/dev).
+Frontend and backend deploy independently (the frontend workflow excludes
+`os/api/**`; the backend workflow is registered as its own `os-api` surface).
 
 **Housekeeping:** an orphan `pds-os` worker should be deleted (golden-rule
 hygiene — `os` owns `os.mino.mobi`).
@@ -145,12 +147,14 @@ Phased plan:
 
 1. ✅ `/ws` identity gate.
 2. ✅ Capability token + `/sync` DID-scoping + `INJECT_SHARED_CREDS` gate.
-3. **Ship the backend** — the full owner checklist now lives in **`RUNBOOK.md`**
-   (enable CF Containers, R2, secrets incl. `MOONSHOT_API_KEY`, `ALLOWED_DIDS`,
-   dispatch `deploy-os-api.yml`, set the `OS_CONTAINER_API_URL` repo variable).
-   *(This is the gate between "frontend demo" and "the agent platform works.")*
-   First tenant model: **Kimi3** via Claude Code + Moonshot's Anthropic-compatible
-   endpoint; `AGENT_PROFILES` generalizes to any open model.
+3. **Ship the backend** — `deploy-os-api.yml` is now **self-provisioning**
+   (R2 bucket, deploy, key generation, secret sync, health check — all on push).
+   The remaining human steps are in **`RUNBOOK.md`**: enable CF Containers on
+   the account + add `MOONSHOT_API_KEY` / `OS_AGENT_GITHUB_TOKEN` GH secrets and
+   the `OS_ALLOWED_DIDS` GH variable. *(This is the gate between "frontend demo"
+   and "the agent platform works.")* First tenant model: **Kimi3** via Claude
+   Code + Moonshot's Anthropic-compatible endpoint; `AGENT_PROFILES` generalizes
+   to any open model.
 4. **PDS-MCP server + `/pds/*` proxy** — the differentiated feature; safe even
    single-tenant. Agent reads/writes the user's own PDS, token never in the shell.
 5. **GitHub App + `/git/*` broker** — per-repo ~1h installation tokens over HTTPS,

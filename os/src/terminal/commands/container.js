@@ -5,12 +5,20 @@
 //   --api-key / set-key     → only needed for the NATIVE claude profile; the
 //                             kimi3 key lives on the worker, not in the browser.
 
+import { checkContainerHealth } from '../../lib/container-config.js';
+
 export default async function container(args, flags, ctx) {
   const { terminal, fmt, shell } = ctx;
 
   if (!shell.onConnectContainer) {
     terminal.writeln(fmt.red('container shell not available'));
-    terminal.writeln(fmt.dim('(API endpoint not configured — see os/RUNBOOK.md)'));
+    return;
+  }
+
+  terminal.writeln(fmt.dim('checking backend...'));
+  if (!(await checkContainerHealth())) {
+    terminal.writeln(fmt.red('os-api backend not reachable'));
+    terminal.writeln(fmt.dim('(deploy-os-api.yml has not run green yet — see os/RUNBOOK.md)'));
     return;
   }
 

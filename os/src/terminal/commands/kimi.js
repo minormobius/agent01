@@ -4,12 +4,20 @@
 // gated by the worker's ALLOWED_DIDS identity check.
 // Usage: kimi [--model=<profile>]   (profile defaults to kimi3)
 
+import { checkContainerHealth } from '../../lib/container-config.js';
+
 export default async function kimi(args, flags, ctx) {
   const { terminal, fmt, shell } = ctx;
 
   if (!shell.onConnectContainer) {
     terminal.writeln(fmt.red('container shell not available'));
-    terminal.writeln(fmt.dim('(API endpoint not configured — see os/RUNBOOK.md)'));
+    return;
+  }
+
+  terminal.writeln(fmt.dim('checking backend...'));
+  if (!(await checkContainerHealth())) {
+    terminal.writeln(fmt.red('os-api backend not reachable'));
+    terminal.writeln(fmt.dim('(deploy-os-api.yml has not run green yet — see os/RUNBOOK.md)'));
     return;
   }
 

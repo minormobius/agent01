@@ -35,9 +35,9 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Repo VARIABLE (not secret) — set to wss://os-api.minomobi.com once the
-          # os-api container backend is live (see os/RUNBOOK.md). Empty → the
-          # container/kimi commands stay cleanly gated off in the frontend.
+          # OPTIONAL override of the container backend URL (default is baked in:
+          # wss://os-api.minomobi.com; availability is probed at runtime via
+          # /health, so no variable is needed for normal operation).
           VITE_CONTAINER_API_URL: ${{ vars.OS_CONTAINER_API_URL }}
 
       - name: Deploy frontend worker (os)

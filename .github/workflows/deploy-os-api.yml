@@ -1,41 +1,45 @@
-name: Deploy os-api (container) [MANUAL]
+name: Deploy os-api (container backend)
 
-# os-api — Cloudflare Containers worker (os-mino-api). Runs a Docker container
-# (node + git/python + Claude Code CLI + GitHub MCP, a PTY shell synced to R2)
-# behind a Durable Object (ContainerShell). Intended domain: os-api.minomobi.com.
+# os-api — Cloudflare Containers worker (os-mino-api) behind os-api.minomobi.com:
+# the per-DID PTY container backend for os.mino.mobi's `kimi` agent platform
+# (bash + git + Claude Code as the harness for open models via AGENT_PROFILES,
+# R2-synced workspace, fail-closed ALLOWED_DIDS identity gate).
 #
-# DISPATCH-ONLY ON PURPOSE. This never auto-fires on push — deploying it builds a
-# Docker image and provisions up to 10 paid container instances. Run it by hand
-# (Actions tab -> this workflow -> Run workflow) ONLY after the prerequisites
-# below are satisfied.
+# SELF-PROVISIONING (create-mmo-db.yml pattern) — every run is idempotent:
+#   1. ensure the R2 bucket `os-workspace` exists (Cloudflare API)
+#   2. `wrangler deploy` — builds the Docker image on the runner; the
+#      custom_domain route in wrangler.toml binds os-api.minomobi.com
+#      (GOLDEN RULE: verify the log binds `os-api.minomobi.com (custom domain)`)
+#   3. sync worker runtime secrets from GitHub:
+#        CAP_SIGNING_KEY   auto-generated ONCE on the runner, kept thereafter
+#        MOONSHOT_API_KEY  <- GH secret  MOONSHOT_API_KEY       (kimi3 profile)
+#        GITHUB_TOKEN      <- GH secret  OS_AGENT_GITHUB_TOKEN  (fine-grained
+#                             PAT scoped to minormobius/agent01 — its pushes DO
+#                             trigger Actions, unlike the Actions-internal token)
+#        ALLOWED_DIDS      <- GH VARIABLE OS_ALLOWED_DIDS       (owner DID(s);
+#                             public info, hence a variable not a secret)
+#   4. health-check https://os-api.minomobi.com/health (retries while the
+#      custom-domain cert provisions)
 #
-# PREREQUISITES (one-time — the full annotated checklist is os/RUNBOOK.md):
-#   1. Cloudflare Containers must be ENABLED on the account (paid).
-#   2. R2 bucket `os-workspace` must exist (binding WORKSPACE).
-#   3. Runtime secrets set on the worker:
-#        npx wrangler secret put CAP_SIGNING_KEY -c os/api/wrangler.toml   # openssl rand -hex 32
-#        npx wrangler secret put MOONSHOT_API_KEY -c os/api/wrangler.toml  # kimi3 agent profile
-#      And ONLY if running single-tenant with INJECT_SHARED_CREDS=true:
-#        npx wrangler secret put GITHUB_TOKEN -c os/api/wrangler.toml
-#      (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID for in-container wrangler are
-#       also referenced by the container — see os/api/wrangler.toml.)
-#   4. REQUIRED: set ALLOWED_DIDS to your DID (in [vars] in wrangler.toml, or via
-#      `wrangler secret put ALLOWED_DIDS`). The /ws endpoint is FAIL-CLOSED — with
-#      no allowlist it refuses every connection, so the shared GITHUB_TOKEN /
-#      CLOUDFLARE_API_TOKEN / MOONSHOT_API_KEY in the shell can't be reached by
-#      anyone. Do NOT deploy this with ALLOWED_DIDS empty and then add a second
-#      user without first scoping those tokens down (see wrangler.toml).
-#   5. os-api.minomobi.com is a custom_domain route in wrangler.toml — wrangler
-#      provisions it on deploy. GOLDEN RULE: verify the deploy log binds
-#      `os-api.minomobi.com (custom domain)`.
-#   6. After a green deploy, set repo VARIABLE OS_CONTAINER_API_URL =
-#      wss://os-api.minomobi.com and re-run deploy-os.yml to unlock `kimi`.
+# Auto-fires on push touching os/api/** — DELIBERATE now the platform is live
+# (was dispatch-only while shelved). It builds a Docker image and runs paid
+# containers; the cost levers are max_instances=3 in wrangler.toml + 10-min
+# idle sleep, and the fail-closed ALLOWED_DIDS gate bounds who can wake one.
 #
-# wrangler builds the image from os/api/container/Dockerfile (the ubuntu-latest
-# runner provides Docker) and pushes it to Cloudflare's container registry.
+# HUMAN PREREQS the workflow cannot do (one-time — full list in os/RUNBOOK.md):
+#   - Enable Cloudflare Containers on the account (plan-level, dashboard).
+#   - Mint the Moonshot API key + the fine-grained PAT, add as GH secrets above.
+#   - Set the OS_ALLOWED_DIDS repo variable to your DID.
+# Runs before those exist stay green-ish but warn loudly and leave the gate
+# closed (no ALLOWED_DIDS -> /ws refuses everyone).
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main, 'claude/kimi3-container-deploy-24wux0']
+    paths:
+      - 'os/api/**'
+      - '.github/workflows/deploy-os-api.yml'
 
 jobs:
   deploy:
@@ -51,8 +55,94 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Ensure R2 bucket os-workspace
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCT" ]; then
+            echo "❌ CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets missing"; exit 1
+          fi
+          RESP=$(curl -sS -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCT/r2/buckets" \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"name":"os-workspace"}')
+          if [ "$(echo "$RESP" | jq -r '.success')" = "true" ]; then
+            echo "✓ created R2 bucket os-workspace"
+          elif echo "$RESP" | jq -r '.errors[]?.message' | grep -qi 'already exists'; then
+            echo "✓ R2 bucket os-workspace already exists"
+          else
+            echo "❌ R2 bucket create failed:"; echo "$RESP" | jq .; exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm install
+
       - name: Deploy container worker (os-mino-api)
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Secrets go AFTER the first deploy (wrangler can't put secrets on a
+      # worker that doesn't exist yet); they apply to the live worker
+      # immediately, and the container only starts on first WS connect.
+      - name: Sync worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          OS_AGENT_GITHUB_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
+          OS_ALLOWED_DIDS: ${{ vars.OS_ALLOWED_DIDS }}
+        run: |
+          set -euo pipefail
+
+          # CAP_SIGNING_KEY: generate once, never rotate automatically
+          # (rotation invalidates live capability tokens mid-session).
+          EXISTING=$(npx wrangler secret list 2>/dev/null || echo '[]')
+          if echo "$EXISTING" | grep -q '"CAP_SIGNING_KEY"'; then
+            echo "✓ CAP_SIGNING_KEY already set"
+          else
+            openssl rand -hex 32 | npx wrangler secret put CAP_SIGNING_KEY
+            echo "✓ CAP_SIGNING_KEY generated + set"
+          fi
+
+          # The rest sync from GitHub every run (GitHub is the source of truth,
+          # so updating a GH secret/var propagates on the next deploy).
+          if [ -n "${MOONSHOT_API_KEY:-}" ]; then
+            printf '%s' "$MOONSHOT_API_KEY" | npx wrangler secret put MOONSHOT_API_KEY
+            echo "✓ MOONSHOT_API_KEY synced"
+          else
+            echo "::warning::GH secret MOONSHOT_API_KEY unset — the kimi3 profile has no key (agent kimi3 will refuse)"
+          fi
+
+          if [ -n "${OS_AGENT_GITHUB_TOKEN:-}" ]; then
+            printf '%s' "$OS_AGENT_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN
+            echo "✓ GITHUB_TOKEN synced (from OS_AGENT_GITHUB_TOKEN)"
+          else
+            echo "::warning::GH secret OS_AGENT_GITHUB_TOKEN unset — the container agent cannot push to GitHub"
+          fi
+
+          if [ -n "${OS_ALLOWED_DIDS:-}" ]; then
+            printf '%s' "$OS_ALLOWED_DIDS" | npx wrangler secret put ALLOWED_DIDS
+            echo "✓ ALLOWED_DIDS synced"
+          else
+            echo "::warning::GH variable OS_ALLOWED_DIDS unset — /ws stays FAIL-CLOSED (nobody can open a shell)"
+          fi
+
+      - name: Health check (domain bound + worker live)
+        run: |
+          set -uo pipefail
+          for i in $(seq 1 18); do
+            BODY=$(curl -fsS --max-time 10 https://os-api.minomobi.com/health 2>/dev/null) || BODY=""
+            if echo "$BODY" | grep -q '"ok"'; then
+              echo "✓ os-api.minomobi.com healthy: $BODY"
+              exit 0
+            fi
+            echo "waiting for os-api.minomobi.com ($i/18)…"
+            sleep 10
+          done
+          echo "::error::os-api.minomobi.com never became healthy — check the deploy log binds 'os-api.minomobi.com (custom domain)' (golden rule) and that Cloudflare Containers is enabled on the account"
+          exit 1
