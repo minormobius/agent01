@@ -167,6 +167,20 @@ export class ContainerShell extends Container {
     if (url.pathname === '/_sync') {
       return this.handleWorkspaceSync(request);
     }
+    // Restart (worker-internal, post-auth): stop the running container so the
+    // next request boots it FRESH — which also picks up a newly deployed
+    // image. stop() is a graceful SIGTERM (the PTY server saves the workspace
+    // on it); destroy() is the SIGKILL fallback.
+    if (url.pathname === '/_restart') {
+      try {
+        await this.stop();
+      } catch {
+        try { await this.destroy(); } catch { /* already down */ }
+      }
+      return new Response(JSON.stringify({ ok: true, restarted: true }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     const session = url.searchParams.get('session');
     if (session && !this._workspaceId) {
       this._workspaceId = session;
@@ -225,6 +239,30 @@ export default {
     // can print WHY a connection would fail instead of a silent WS close.
     if (url.pathname === '/ws' || url.pathname === '/chat') {
       return handleWebSocket(request, env, url, url.pathname);
+    }
+
+    // Restart (authed): stop the user's container so the next request boots
+    // fresh on the CURRENT image. The fix for "instance still running a stale
+    // image" (rollouts don't replace an instance that never goes idle).
+    if (url.pathname === '/debug/restart') {
+      const auth = await authorizeDid(
+        env,
+        url.searchParams.get('session'),
+        url.searchParams.get('auth'),
+        url.searchParams.get('authMode')
+      );
+      if (!auth.ok) {
+        return new Response(JSON.stringify({ ok: false, error: auth.msg }), {
+          status: auth.status,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        });
+      }
+      const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(auth.did));
+      const res = await stub.fetch(new Request('https://do/_restart'));
+      return new Response(await res.text(), {
+        status: res.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
     }
 
     // Boot diagnostic (authed): exercises the FULL container start by proxying

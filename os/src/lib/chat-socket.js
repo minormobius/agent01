@@ -45,6 +45,24 @@ export async function debugBoot({ session, auth, authMode }, timeoutMs = 45000) 
   }
 }
 
+// Gracefully stop the container so the next boot runs the CURRENT image —
+// the cure for an instance that never idles long enough to pick up a deploy.
+export async function debugRestart({ session, auth, authMode }, timeoutMs = 20000) {
+  const params = new URLSearchParams({ session });
+  if (auth) params.set('auth', auth);
+  if (authMode) params.set('authMode', authMode);
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${httpBase()}/debug/restart?${params}`, { signal: ctrl.signal });
+    return await res.json();
+  } catch (err) {
+    return { ok: false, error: `restart failed (${err.name === 'AbortError' ? 'timeout' : err.message})` };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export class ChatSocket {
   constructor({ onMessage, onStatus }) {
     this.onMessage = onMessage;   // (obj) — parsed frames from the container

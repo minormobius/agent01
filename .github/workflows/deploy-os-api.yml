@@ -62,7 +62,10 @@ jobs:
         run: npm install
 
       - name: Deploy container worker (os-mino-api)
-        run: npx wrangler deploy -c wrangler.toml
+        # immediate rollout: replace RUNNING instances with the new image now —
+        # a container an active user keeps awake otherwise stays on the old
+        # image until it idles out (bit us live: stale /health 404s).
+        run: npx wrangler deploy -c wrangler.toml --containers-rollout=immediate
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

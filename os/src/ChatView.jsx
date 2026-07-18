@@ -5,7 +5,7 @@
 // power surface.
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChatSocket, chatPreflight, debugBoot } from './lib/chat-socket.js';
+import { ChatSocket, chatPreflight, debugBoot, debugRestart } from './lib/chat-socket.js';
 
 const MONO = '"Berkeley Mono", "JetBrains Mono", "Fira Code", monospace';
 
@@ -174,7 +174,17 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
       // Pre-boot the container over HTTP before opening the socket — a cold
       // start (image pull ~30-40s) used to kill the first WebSocket attempt.
       setStatusDetail('starting container (cold start can take ~40s)…');
-      const boot = await debugBoot({ session: session.did, ...authInfo });
+      let boot = await debugBoot({ session: session.did, ...authInfo });
+      // /health 404 = an instance still running a PRE-fix image (rollouts
+      // don't replace a container that never idles). Self-heal: restart it
+      // onto the current image and boot again.
+      if (boot.containerStatus === 404) {
+        push({ role: 'info', text: 'container is on a stale image — restarting it onto the current one…' });
+        setStatusDetail('restarting container…');
+        await debugRestart({ session: session.did, ...authInfo });
+        setStatusDetail('booting fresh container (~40s)…');
+        boot = await debugBoot({ session: session.did, ...authInfo });
+      }
       if (!boot.ok || (boot.containerStatus && boot.containerStatus >= 400)) {
         setStatus('denied');
         setStatusDetail('container failed to boot');
