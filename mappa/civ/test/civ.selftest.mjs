@@ -190,12 +190,13 @@ section('historical timeline (timeline.js) — two historiographies');
 section('climate visibility + mesh resolution');
 {
   const { doRun, doTimeline, CAP } = await import('../api.js');
-  // hash pin — EPOCH 2 (cities as actors). Epoch 1 pinned 67eee302; the city epoch
-  // (agglomeration K, walls in war resolution, city events) is a DECLARED break —
+  // hash pin — EPOCH 3 (agtech ratchet + fresh-water balance + fossil geography).
+  // Epoch 1 pinned 67eee302, epoch 2 (cities as actors) pinned 3c9a4a61; epoch 3
+  // (foodTechMul on kEff, water multiplier, coal/oil resources) is a DECLARED break —
   // this is the only place the pin may ever change, and only with an epoch bump.
   const pin = doRun(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
-  ok(pin.hash === '3c9a4a61', `epoch-2 hash pinned: world=7 kurgan civSeed=1 ticks=400 → 3c9a4a61 (got ${pin.hash})`);
-  ok(pin.chronicle.meta.epoch === 2, 'chronicle declares epoch 2');
+  ok(pin.hash === '71a71f2f', `epoch-3 hash pinned: world=7 kurgan civSeed=1 ticks=400 → 71a71f2f (got ${pin.hash})`);
+  ok(pin.chronicle.meta.epoch === 3, 'chronicle declares epoch 3');
   // climate series (fred — hash-safe) + per-frame scalar
   const cp = pin.chronicle.fred.series['climate.pulse'];
   ok(cp && cp.data.length > 0 && Math.max(...cp.data) >= 0.4, 'kurgan run records a climate.pulse series that actually pulses');
@@ -263,7 +264,7 @@ section('energetics — food + industrial energy, gross');
 {
   const { doRun, doSites, doTimeline } = await import('../api.js');
   const r = doRun(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
-  ok(r.hash === '3c9a4a61', 'energetics is hash-invariant (fred + final only — epoch-2 pin holds)');
+  ok(r.hash === '71a71f2f', 'energetics is hash-invariant (fred + final only — epoch-3 pin holds)');
   const F = r.chronicle.fred.series;
   for (const k of ['energy.food.capacity', 'energy.food.security', 'energy.ind.muscle', 'energy.ind.wood', 'energy.ind.water', 'energy.ind.fossil', 'energy.ind.total', 'energy.ind.perCapita'])
     ok(F[k] && F[k].data.length > 0, `series ${k} present`);
@@ -316,6 +317,38 @@ section('epoch 2 — cities as actors');
   const { doTimeline } = await import('../api.js');
   const g = doTimeline(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=600&mode=greatman')).timeline.greatman.entries;
   ok(g.some(e => e.kind === 'sack' || e.kind === 'siege' || e.kind === 'fall'), 'sacks/sieges/falls reach the timeline');
+}
+
+section('epoch 3 — agtech ratchet, fresh water, fossil geography');
+{
+  const { doRun, doTimeline } = await import('../api.js');
+  const { foodTechMul, CAPS, TIER } = await import('../caps.js');
+  const { RESOURCES } = await import('../world.js');
+  // the agtech ladder exists and sits on the DAG (cards/js/pools/tech-pool.js lineage)
+  for (const c of ['granary', 'cropRotation', 'terracing', 'seedDrill', 'fertilizer', 'greenRev', 'wells', 'aqueduct'])
+    ok(CAP[c] != null, `cap ${c} on the ladder`);
+  ok(TIER[CAP.greenRev] === 5 && TIER[CAP.granary] === 2, 'agtech spans the tier ladder');
+  // foodTechMul: monotone in caps, terracing pays only on slopes, full stack ≈ what Malthus missed
+  const v = names => names.reduce((m, n) => m | bit(CAP[n]), 0) >>> 0;
+  ok(foodTechMul(0, false) === 1, 'no agtech ⇒ no multiplier');
+  ok(foodTechMul(v(['granary']), false) < foodTechMul(v(['granary', 'cropRotation']), false), 'multiplier monotone in caps');
+  ok(foodTechMul(v(['terracing']), false) === 1 && foodTechMul(v(['terracing']), true) > 1, 'terracing pays only on slopes');
+  const full = foodTechMul(v(['granary', 'cropRotation', 'terracing', 'seedDrill', 'fertilizer', 'greenRev']), true);
+  ok(full > 2.2 && full < 4, `full agtech stack ≈ ${full.toFixed(2)}× the raw land ceiling`);
+  // fossil geography: coal + oil are mappa resources now (ported from viewer.js minerals)
+  ok(RESOURCES.includes('coal') && RESOURCES.includes('oil'), 'coal + oil in the resource catalog');
+  let fossilCells = 0;
+  for (let i = 0; i < w.N; i++) { const rk = RESOURCES[w.resource[i]]; if (rk === 'coal' || rk === 'oil') fossilCells++; }
+  ok(fossilCells > 0, `world 7 has fossil deposits (${fossilCells} cells)`);
+  // fresh water balance: series present in the pinned run, stress bounded, constraint ≤ 1
+  const r = doRun(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400'));
+  const F = r.chronicle.fred.series;
+  ok(F['water.stressedShare'] && F['water.stressedShare'].data.every(x => x >= 0 && x <= 100), 'water.stressedShare is a bounded %');
+  ok(F['water.constraint'] && F['water.constraint'].data.every(x => x > 0 && x <= 1), 'water.constraint is a ≤1 multiplier');
+  ok(r.chronicle.final.energy.landmasses.every(L => L.waterStressed >= 0 && L.waterStressed <= L.pop), 'per-continent waterStressed ≤ pop');
+  // the tech timeline speaks prose, not camelCase identifiers
+  const te = doTimeline(new URLSearchParams('world=7&preset=kurgan&civSeed=1&ticks=400&mode=tech')).timeline.tech.entries;
+  ok(te.filter(e => /^tech/.test(e.kind)).every(e => !/[a-z][A-Z]/.test(e.title)), 'tech titles are prettified (no camelCase)');
 }
 
 console.log(`\n${fail === 0 ? '✓ ALL PASS' : '✗ FAILURES'} — ${pass} passed, ${fail} failed`);

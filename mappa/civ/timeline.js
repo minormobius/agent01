@@ -53,6 +53,20 @@ export function buildTimeline(ch, mode) {
 
   const great = mode === 'greatman';
 
+  // cap ids are camelCase code identifiers; prose gets real names. `refs.cap`
+  // keeps the raw id for machine consumers.
+  const CAP_PROSE = {
+    steamPower: 'steam power', cropRotation: 'crop rotation', seedDrill: 'the seed drill',
+    fertilizer: 'mineral fertilizer', greenRev: 'the green revolution', granary: 'the granary',
+    terracing: 'terracing', wells: 'wells and qanats', aqueduct: 'the aqueduct',
+    mechanisation: 'mechanisation', horticulture: 'horticulture', metallurgy: 'metallurgy',
+    irrigation: 'irrigation', mathematics: 'mathematics', electricity: 'electricity',
+    printing: 'the printing press', masonry: 'masonry', pottery: 'pottery',
+    herding: 'herding', plough: 'the plough', writing: 'writing', wheel: 'the wheel',
+    sail: 'the sail', fire: 'fire',
+  };
+  const capName = c => CAP_PROSE[c] || c;
+
   // ---- 'tech' — the history of technology as its own lens -----------------------
   if (mode === 'tech') {
     const seen = new Map(); // cap → { holders, inventions }
@@ -68,14 +82,15 @@ export function buildTimeline(ch, mode) {
         st.holders++;
         const invented = e.how !== 'diffusion';
         if (invented) st.inventions++;
+        const cp = capName(e.cap);
         if (st.holders === 1)
-          add(e.t, 'techFirst', `${e.cap} — first worked out`, `the ${cn} work out ${e.cap} (${e.tier}) on ${lmName(e.landmass)} — no one taught them.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, how: e.how }, e.landmass);
+          add(e.t, 'techFirst', `${cp} — first worked out`, `the ${cn} work out ${cp} (${e.tier}) on ${lmName(e.landmass)} — no one taught them.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, how: e.how }, e.landmass);
         else if (invented)
-          add(e.t, 'techIndep', `${e.cap} — invented again`, `the ${cn} arrive at ${e.cap} independently on ${lmName(e.landmass)} — convergent problems find convergent answers.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, inventions: st.inventions }, e.landmass);
+          add(e.t, 'techIndep', `${cp} — invented again`, `the ${cn} arrive at ${cp} independently on ${lmName(e.landmass)} — convergent problems find convergent answers.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, inventions: st.inventions }, e.landmass);
         else if (st.holders === 3)
-          add(e.t, 'techSpread', `${e.cap} spreads`, `a third people (the ${cn}) now holds ${e.cap} — knowledge moves along contact networks faster than any army.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
+          add(e.t, 'techSpread', `${cp} spreads`, `a third people (the ${cn}) now holds ${cp} — knowledge moves along contact networks faster than any army.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
         else if (st.holders === 8)
-          add(e.t, 'techSpread', `${e.cap} is common knowledge`, `eight peoples hold ${e.cap} — it stops being an advantage and becomes the floor.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
+          add(e.t, 'techSpread', `${cp} is common knowledge`, `eight peoples hold ${cp} — it stops being an advantage and becomes the floor.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
       }
     }
     const lastT = (ch.series && ch.series.tick && ch.series.tick[ch.series.tick.length - 1]) || 0;
@@ -197,8 +212,8 @@ export function buildTimeline(ch, mode) {
         if (!great) add(e.t, 'admixture', `contact zones churn`, `${e.count.toLocaleString()} admixture events: frontiers are where cultures trade genes, wares and gods.`, { count: e.count });
         break;
       case 'techUnlock':
-        if (great) add(e.t, 'tech', `the ${cn} master ${e.cap}`, `the ${e.how === 'diffusion' ? `craft of ${e.cap} reaches the ${cn} along the roads` : `${cn} work out ${e.cap} for themselves`} (${e.tier}).`, { culture: e.culture, cultureName: cn, cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
-        else add(e.t, 'tech', `the ${e.cap} frontier advances`, `${e.cap} (${e.tier}) ${e.how === 'diffusion' ? 'diffuses along contact networks' : 'is independently invented'} — ideas move faster than peoples.`, { cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
+        if (great) add(e.t, 'tech', `the ${cn} master ${capName(e.cap)}`, `the ${e.how === 'diffusion' ? `craft of ${capName(e.cap)} reaches the ${cn} along the roads` : `${cn} work out ${capName(e.cap)} for themselves`} (${e.tier}).`, { culture: e.culture, cultureName: cn, cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
+        else add(e.t, 'tech', `the ${capName(e.cap)} frontier advances`, `${capName(e.cap)} (${e.tier}) ${e.how === 'diffusion' ? 'diffuses along contact networks' : 'is independently invented'} — ideas move faster than peoples.`, { cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
         break;
       case 'institutionFell':
         add(e.t, 'institution',
@@ -323,6 +338,13 @@ export function buildTimeline(ch, mode) {
       const i = fos.data.findIndex((v, k) => v > 0 && v > mus.data[k] + wd.data[k] + (wtr ? wtr.data[k] : 0));
       if (i > 0) add(tF[i], 'energy', 'the fossil transition', `buried sunlight overtakes every organic source combined — the energy ceiling that bounded all previous history lifts.`, { fossil: fos.data[i], organic: mus.data[i] + wd.data[i] + (wtr ? wtr.data[i] : 0) });
       else { const j = fos.data.findIndex(v => v > 0); if (j > 0) add(tF[j], 'energy', 'the first fossil fires', `an industrial culture begins burning buried sunlight — ${fos.data[j].toLocaleString()} ppe and compounding.`, { fossil: fos.data[j] }); }
+    }
+    // fresh water becomes a binding constraint: the first sustained crossing of 10%
+    // of population living under water stress (thirst outrunning supply)
+    const ws = F['water.stressedShare'];
+    if (ws && ws.data) {
+      const i = ws.data.findIndex((v, k) => v >= 10 && ws.data[k + 1] >= 10);
+      if (i > 0) add(tF[i], 'energy', 'the wells run low', `${ws.data[i]}% of humanity now lives where thirst outruns the rivers and the rain — water, not land, sets the ceiling. Wells and aqueducts become instruments of power.`, { stressedShare: ws.data[i] });
     }
   }
 

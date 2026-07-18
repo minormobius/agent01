@@ -12,7 +12,7 @@
 import { stream, irnd, softmaxPick } from './prng.js';
 import {
   NCAP, CAP, CAPS, bit, has, candidates, PREREQ, TIER, vecTier, popcount,
-  PKG, NPKG, PKG_ID, subMult, pkgUnlocked,
+  PKG, NPKG, PKG_ID, subMult, pkgUnlocked, foodTechMul,
 } from './caps.js';
 import { loadCivWorld, cellK, RES_METAL, RES_WEALTH, RESOURCES } from './world.js';
 import { normalizeConfig, NORM_I } from './config.js';
@@ -310,6 +310,13 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const cityList = [];                          // {id, cell, cu, foundTick, walls, peak, sacked, sackTicks, fellTick}
   const cityAt = new Int32Array(N).fill(-1);    // cell → city id (-1 none)
   const cityK = new Float32Array(N).fill(1);    // agglomeration multiplier on effective K
+  // AGTECH + FRESH WATER (epoch 3): per-cell multipliers from the dominant culture —
+  // farming tech raises effective K (the anti-Malthus ratchet), water balance
+  // throttles it (supply: rain + river + lake, + wells floor, + aqueducts in cities;
+  // demand: population × package thirst).
+  const foodMul = new Float32Array(N).fill(1);
+  const waterMul = new Float32Array(N).fill(1);
+  const THIRST = [0.3, 0.5, 0.8, 1.0, 1.6, 0.6]; // per PKG index (irrigation drinks deepest)
   function cityStep() {
     for (const ct of cityList) {
       const p = cellPop[ct.cell];
@@ -332,7 +339,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   let cultScratch = new Int32Array(64);   // reusable per-cell culture-count tally (no GC)
 
   function kEff(cell, pkg) {
-    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg] * cityK[cell];
+    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg] * cityK[cell] * foodMul[cell];
   }
 
   function bucket() {
@@ -348,7 +355,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   // per-cell allocation), and the per-cell stigmergy deposit folded in (O(cells), not
   // O(agents)): the dominant culture imprints its tech into the cell's meme field.
   function computeCellCultures() {
-    cellDom.fill(-1); cellDomPop.fill(0);
+    cellDom.fill(-1); cellDomPop.fill(0); foodMul.fill(1); waterMul.fill(1);
     if (cultScratch.length < cultures.length) cultScratch = new Int32Array(cultures.length * 2);
     for (let c = 0; c < N; c++) {
       const s = cellStart[c], e = cellStart[c + 1]; if (e === s) continue;
@@ -374,6 +381,15 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         if (cp > ct.peak) ct.peak = cp;
         if (ct.fellTick >= 0) ct.fellTick = -1; // revival: people came back
       }
+      // epoch-3 per-cell multipliers (dominant culture's tech is the cell's practice)
+      const tvD = cultures[dom].tech;
+      let wsup = w.moisture[c] * 0.75 + (w.river[c] ? 0.55 : 0) + (w.lakeAdj[c] ? 0.35 : 0);
+      if (has(tvD, CAP.wells)) wsup = Math.max(wsup, 0.3);
+      if (has(tvD, CAP.aqueduct) && cityAt[c] >= 0) wsup += 0.35;
+      const wcap = wsup * popScale * 1.5, wdem = cp * THIRST[cultures[dom].sub];
+      const wMul = wdem > wcap ? Math.max(0.55, Math.pow(wcap / Math.max(1, wdem), 0.6)) : 1;
+      waterMul[c] = wMul;
+      foodMul[c] = foodTechMul(tvD, w.elev[c] > 0.3) * wMul;
     }
   }
 
@@ -541,7 +557,21 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         foodCap += kEff(c, cu.sub);
         wood += p * (FOREST[w.biome[c]] || 0) * 0.6;
         if ((w.river[c] || w.lakeAdj[c]) && has(cu.tech, CAP.wheel) && has(cu.tech, CAP.masonry)) waterP += p * 0.5;
-        if (vecTier(cu.tech) >= 4) fossil += p * 2.5;
+      }
+      // fossil is GEOGRAPHIC (epoch 3): produced at coal/oil cells worked by
+      // industrial-tier cultures; a culture HOLDING a fossil node runs a grid for
+      // the rest of its industrial population; without access, only imports trickle.
+      const fossilCu = new Set();
+      for (let k2 = 0; k2 < (w.resourceNodes || []).length; k2++) {
+        const nd = w.resourceNodes[k2];
+        if ((nd.kind === 'coal' || nd.kind === 'oil') && resourceControl[k2] >= 0) fossilCu.add(resourceControl[k2]);
+      }
+      fossil = 0;
+      for (let c = 0; c < N; c++) {
+        const p = cellPop[c]; if (!p) continue;
+        const d = cellDom[c]; if (d < 0 || vecTier(cultures[d].tech) < 4) continue;
+        const rk = w.resource ? RESOURCES[w.resource[c]] : null;
+        fossil += p * ((rk === 'coal' || rk === 'oil') ? 6 : fossilCu.has(d) ? 2.2 : 0.4);
       }
       const muscle = liveN * (1 + 0.6 * (liveN ? subPop[PKG_ID.pastoral] / liveN : 0));
       fredPush('energy.food.capacity', 'Food capacity (people the land can feed)', 'Energetics', 'people', Math.round(foodCap));
@@ -552,6 +582,11 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       fredPush('energy.ind.fossil', 'Energy — fossil', 'Energetics', 'ppe', Math.round(fossil));
       fredPush('energy.ind.total', 'Energy — total base', 'Energetics', 'ppe', Math.round(muscle + wood + waterP + fossil));
       fredPush('energy.ind.perCapita', 'Energy per capita', 'Energetics', 'ppe/person', +(liveN ? (muscle + wood + waterP + fossil) / liveN : 0).toFixed(3));
+      // FRESH WATER BALANCE: how hard the water constraint is actually binding
+      let stressedPop = 0, wSum = 0, wPop = 0;
+      for (let c = 0; c < N; c++) { const p = cellPop[c]; if (!p) continue; wPop += p; wSum += waterMul[c] * p; if (waterMul[c] < 0.999) stressedPop += p; }
+      fredPush('water.stressedShare', 'Population under water stress', 'Fresh water', '% of population', +(wPop ? 100 * stressedPop / wPop : 0).toFixed(1));
+      fredPush('water.constraint', 'Water constraint on K (pop-weighted)', 'Fresh water', 'multiplier', +(wPop ? wSum / wPop : 1).toFixed(3));
     }
     // climate forcing (hash-safe: fred is never part of chronicleHash) — the schedule's
     // current strength plus how much of the land it is actually touching
@@ -1401,7 +1436,12 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     // ENERGETICS end-state, per continent — the gross budgets a mesoscale client
     // refines (same accounting as the fred series; ppe = person-power equivalents)
     const FORESTE = { 5: 1, 8: 1, 9: 1, 12: 0.8, 13: 0.9, 11: 0.3 };
-    const energyLand = Array.from({ length: w.nLandmass }, () => ({ pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0 }));
+    const energyLand = Array.from({ length: w.nLandmass }, () => ({ pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0, waterStressed: 0 }));
+    const fossilCuF = new Set();
+    for (let k2 = 0; k2 < (w.resourceNodes || []).length; k2++) {
+      const nd = w.resourceNodes[k2];
+      if ((nd.kind === 'coal' || nd.kind === 'oil') && resourceControl[k2] >= 0) fossilCuF.add(resourceControl[k2]);
+    }
     for (let c = 0; c < N; c++) {
       const p = cellPop[c]; if (!p) continue;
       const d = cellDom[c]; if (d < 0) continue;
@@ -1410,9 +1450,13 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       L.foodCapacity += kEff(c, cu.sub);
       L.wood += p * (FORESTE[w.biome[c]] || 0) * 0.6;
       if ((w.river[c] || w.lakeAdj[c]) && has(cu.tech, CAP.wheel) && has(cu.tech, CAP.masonry)) L.water += p * 0.5;
-      if (vecTier(cu.tech) >= 4) L.fossil += p * 2.5;
+      if (waterMul[c] < 0.999) L.waterStressed += p;
+      if (vecTier(cu.tech) >= 4) {
+        const rk = w.resource ? RESOURCES[w.resource[c]] : null;
+        L.fossil += p * ((rk === 'coal' || rk === 'oil') ? 6 : fossilCuF.has(d) ? 2.2 : 0.4);
+      }
     }
-    const eW = { pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0 };
+    const eW = { pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0, waterStressed: 0 };
     for (const L of energyLand) for (const k of Object.keys(eW)) { L[k] = Math.round(L[k]); eW[k] += L[k]; }
     const energy = {
       unit: 'ppe (person-power equivalents); foodCapacity in people-fed',
@@ -1469,7 +1513,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     get tick() { return tick; }, get population() { return liveN; },
     run(nTicks, opts = {}) {
       totalTicks = nTicks;
-      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, epoch: 2, climate: (cfg.climate && cfg.climate.preset) || cfg.climate || 'stable' };
+      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, epoch: 3, climate: (cfg.climate && cfg.climate.preset) || cfg.climate || 'stable' };
       // geo lookup for consumers (timeline continent filtering): cell → landmass.
       // Deliberately OUTSIDE chronicleHash (events serialize e.landmass, so events must
       // never gain the field retroactively — consumers map cells through this instead).

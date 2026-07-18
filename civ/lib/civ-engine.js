@@ -792,8 +792,28 @@ var CAPS = [
   // 13 — energy (needs mechanisation + masonry) → industry
   "electricity",
   // 14 — modernity (needs steamPower + mathematics)
-  "printing"
+  "printing",
   // 15 — mass knowledge diffusion (needs writing + masonry)
+  // ---- the AGTECH RATCHET (epoch 3) — what Malthus missed: technology raising
+  // farming efficiency, so food capacity outruns the land's raw ceiling. Lineage
+  // vendored from cards/js/pools/tech-pool.js (agriculture domain):
+  "granary",
+  // 16 — storage smooths bad years (cards: Granary ← Neolithic Rev.)
+  "cropRotation",
+  // 17 — fallow cycles (cards: Crop rotation ← Heavy plough)
+  "terracing",
+  // 18 — hillsides bloom (masonry applied to slopes)
+  "seedDrill",
+  // 19 — row sowing (cards: Seed drill ← Iron + Crop rotation)
+  "fertilizer",
+  // 20 — mineral nutrients (cards: Superphosphate / Haber process)
+  "greenRev",
+  // 21 — the full package (cards: Green Revolution)
+  // ---- FRESH WATER works — the balance's supply side:
+  "wells",
+  // 22 — groundwater where rain fails (qanats)
+  "aqueduct"
+  // 23 — move water to the people (cards: Aqueduct)
 ];
 var CAP = Object.fromEntries(CAPS.map((c, i) => [c, i]));
 var NCAP = CAPS.length;
@@ -817,14 +837,22 @@ PREREQ[CAP.mechanisation] = P("metallurgy", "wheel", "mathematics");
 PREREQ[CAP.steamPower] = P("mechanisation", "masonry");
 PREREQ[CAP.electricity] = P("steamPower", "mathematics");
 PREREQ[CAP.printing] = P("writing", "masonry");
+PREREQ[CAP.granary] = P("pottery", "horticulture");
+PREREQ[CAP.cropRotation] = P("plough");
+PREREQ[CAP.terracing] = P("masonry", "horticulture");
+PREREQ[CAP.seedDrill] = P("cropRotation", "wheel");
+PREREQ[CAP.fertilizer] = P("steamPower");
+PREREQ[CAP.greenRev] = P("fertilizer", "mechanisation");
+PREREQ[CAP.wells] = P("pottery");
+PREREQ[CAP.aqueduct] = P("masonry", "mathematics");
 var TIER = new Uint8Array(NCAP);
 var setTier = (t, ...ns) => ns.forEach((n) => TIER[CAP[n]] = t);
 setTier(0, "fire");
 setTier(1, "pottery", "herding", "horticulture", "sail");
-setTier(2, "metallurgy", "writing", "masonry", "plough", "irrigation", "wheel");
-setTier(3, "mathematics", "printing");
-setTier(4, "mechanisation", "steamPower");
-setTier(5, "electricity");
+setTier(2, "metallurgy", "writing", "masonry", "plough", "irrigation", "wheel", "granary", "wells");
+setTier(3, "mathematics", "printing", "cropRotation", "terracing", "aqueduct");
+setTier(4, "mechanisation", "steamPower", "seedDrill", "fertilizer");
+setTier(5, "electricity", "greenRev");
 var MAX_TIER = 5;
 function vecTier(vec) {
   let t = 0;
@@ -859,9 +887,19 @@ function pkgUnlocked(vec, pkg) {
   const c = PKG[pkg].cap;
   return c < 0 || has(vec, c);
 }
+function foodTechMul(vec, hilly) {
+  let m = 1;
+  if (has(vec, CAP.granary)) m *= 1.06;
+  if (has(vec, CAP.cropRotation)) m *= 1.12;
+  if (has(vec, CAP.terracing) && hilly) m *= 1.25;
+  if (has(vec, CAP.seedDrill)) m *= 1.15;
+  if (has(vec, CAP.fertilizer)) m *= 1.3;
+  if (has(vec, CAP.greenRev)) m *= 1.45;
+  return m;
+}
 
 // mappa/civ/world.js
-var RESOURCES = ["none", "copper", "iron", "tin", "gold", "gems", "salt", "delta"];
+var RESOURCES = ["none", "copper", "iron", "tin", "gold", "gems", "salt", "delta", "coal", "oil"];
 var RES = Object.fromEntries(RESOURCES.map((r, i) => [r, i]));
 var RES_METAL = /* @__PURE__ */ new Set([RES.copper, RES.iron, RES.tin]);
 var RES_WEALTH = /* @__PURE__ */ new Set([RES.gold, RES.gems, RES.salt]);
@@ -1118,7 +1156,7 @@ function loadCivWorld(world) {
   };
 }
 function computeResources(w) {
-  const { N, land, coast, lakeAdj, river, elev, moisture, biome, nbrOff, nbrIdx, volc, plate, seed } = w;
+  const { N, land, coast, lakeAdj, river, elev, moisture, biome, nbrOff, nbrIdx, volc, plate, seed, temperature } = w;
   const resource = new Uint8Array(N), resBonusK = new Float32Array(N).fill(1);
   if (!volc || !plate) return { resource, resourceNodes: [], resBonusK };
   const bdist = new Int32Array(N).fill(-1);
@@ -1159,9 +1197,11 @@ function computeResources(w) {
     else if (river[i] && cr > 0.5) r = RES.gold;
     else if (M < 0.16 && (lakeAdj[i] || e < 0.12)) r = RES.salt;
     else if (cr > 0.85 && e > 0.35) r = RES.gems;
+    else if (e > 0 && e < 0.35 && (temperature ? temperature[i] : 15) > 12 && M > 0.55) r = RES.coal;
+    else if (e > 0 && e < 0.18 && M < 0.5) r = RES.oil;
     resource[i] = r;
   }
-  const CAP_PER = { copper: 4, iron: 4, tin: 3, gold: 4, gems: 2, salt: 3, delta: 4 };
+  const CAP_PER = { copper: 4, iron: 4, tin: 3, gold: 4, gems: 2, salt: 3, delta: 4, coal: 4, oil: 3 };
   const nodes = [];
   for (let t = 1; t < RESOURCES.length; t++) {
     const cand = [];
@@ -1179,7 +1219,7 @@ function computeResources(w) {
       }
       if (!ok) continue;
       nodes.push({ cell: i, type: t, kind: RESOURCES[t], name: toponym(seed * 131 + i) });
-      resBonusK[i] = t === RES.delta ? 1.6 : 1.25;
+      resBonusK[i] = t === RES.delta ? 1.6 : t === RES.coal || t === RES.oil ? 1.15 : 1.25;
       if (++placed >= (CAP_PER[RESOURCES[t]] || 3)) break;
     }
   }
@@ -1190,6 +1230,8 @@ function scoreRes(t, i, w, craton) {
   if (t === RES.copper || t === RES.iron) return v;
   if (t === RES.tin || t === RES.gems) return craton(i) + w.elev[i];
   if (t === RES.gold || t === RES.salt) return craton(i);
+  if (t === RES.coal) return w.moisture[i] + (w.temperature ? Math.min(1, w.temperature[i] / 30) : 0.5);
+  if (t === RES.oil) return 1 - w.elev[i];
   return (w.river[i] ? 1 : 0) + (w.coast[i] ? 1 : 0);
 }
 function subViabilityCell(i, out, b, T, M, e, s, riv, cst, lakeAdj) {
@@ -2808,6 +2850,9 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
   const cityList = [];
   const cityAt = new Int32Array(N).fill(-1);
   const cityK = new Float32Array(N).fill(1);
+  const foodMul = new Float32Array(N).fill(1);
+  const waterMul = new Float32Array(N).fill(1);
+  const THIRST = [0.3, 0.5, 0.8, 1, 1.6, 0.6];
   function cityStep() {
     for (const ct of cityList) {
       const p = cellPop[ct.cell];
@@ -2826,7 +2871,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
   const fmales = new Int32Array(4096);
   let cultScratch = new Int32Array(64);
   function kEff(cell, pkg) {
-    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg] * cityK[cell];
+    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg] * cityK[cell] * foodMul[cell];
   }
   function bucket() {
     cellPop.fill(0);
@@ -2847,6 +2892,8 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
   function computeCellCultures() {
     cellDom.fill(-1);
     cellDomPop.fill(0);
+    foodMul.fill(1);
+    waterMul.fill(1);
     if (cultScratch.length < cultures.length) cultScratch = new Int32Array(cultures.length * 2);
     for (let c = 0; c < N; c++) {
       const s = cellStart[c], e = cellStart[c + 1];
@@ -2879,6 +2926,14 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
         if (cp > ct.peak) ct.peak = cp;
         if (ct.fellTick >= 0) ct.fellTick = -1;
       }
+      const tvD = cultures[dom].tech;
+      let wsup = w.moisture[c] * 0.75 + (w.river[c] ? 0.55 : 0) + (w.lakeAdj[c] ? 0.35 : 0);
+      if (has(tvD, CAP.wells)) wsup = Math.max(wsup, 0.3);
+      if (has(tvD, CAP.aqueduct) && cityAt[c] >= 0) wsup += 0.35;
+      const wcap = wsup * popScale * 1.5, wdem = cp * THIRST[cultures[dom].sub];
+      const wMul = wdem > wcap ? Math.max(0.55, Math.pow(wcap / Math.max(1, wdem), 0.6)) : 1;
+      waterMul[c] = wMul;
+      foodMul[c] = foodTechMul(tvD, w.elev[c] > 0.3) * wMul;
     }
   }
   const meme = cfg.meme || {};
@@ -3142,7 +3197,20 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
         foodCap += kEff(c, cu.sub);
         wood += p * (FOREST[w.biome[c]] || 0) * 0.6;
         if ((w.river[c] || w.lakeAdj[c]) && has(cu.tech, CAP.wheel) && has(cu.tech, CAP.masonry)) waterP += p * 0.5;
-        if (vecTier(cu.tech) >= 4) fossil += p * 2.5;
+      }
+      const fossilCu = /* @__PURE__ */ new Set();
+      for (let k2 = 0; k2 < (w.resourceNodes || []).length; k2++) {
+        const nd = w.resourceNodes[k2];
+        if ((nd.kind === "coal" || nd.kind === "oil") && resourceControl[k2] >= 0) fossilCu.add(resourceControl[k2]);
+      }
+      fossil = 0;
+      for (let c = 0; c < N; c++) {
+        const p = cellPop[c];
+        if (!p) continue;
+        const d = cellDom[c];
+        if (d < 0 || vecTier(cultures[d].tech) < 4) continue;
+        const rk = w.resource ? RESOURCES[w.resource[c]] : null;
+        fossil += p * (rk === "coal" || rk === "oil" ? 6 : fossilCu.has(d) ? 2.2 : 0.4);
       }
       const muscle = liveN * (1 + 0.6 * (liveN ? subPop[PKG_ID.pastoral] / liveN : 0));
       fredPush("energy.food.capacity", "Food capacity (people the land can feed)", "Energetics", "people", Math.round(foodCap));
@@ -3153,6 +3221,16 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       fredPush("energy.ind.fossil", "Energy \u2014 fossil", "Energetics", "ppe", Math.round(fossil));
       fredPush("energy.ind.total", "Energy \u2014 total base", "Energetics", "ppe", Math.round(muscle + wood + waterP + fossil));
       fredPush("energy.ind.perCapita", "Energy per capita", "Energetics", "ppe/person", +(liveN ? (muscle + wood + waterP + fossil) / liveN : 0).toFixed(3));
+      let stressedPop = 0, wSum = 0, wPop = 0;
+      for (let c = 0; c < N; c++) {
+        const p = cellPop[c];
+        if (!p) continue;
+        wPop += p;
+        wSum += waterMul[c] * p;
+        if (waterMul[c] < 0.999) stressedPop += p;
+      }
+      fredPush("water.stressedShare", "Population under water stress", "Fresh water", "% of population", +(wPop ? 100 * stressedPop / wPop : 0).toFixed(1));
+      fredPush("water.constraint", "Water constraint on K (pop-weighted)", "Fresh water", "multiplier", +(wPop ? wSum / wPop : 1).toFixed(3));
     }
     fredPush("climate.pulse", "Climate forcing strength", "Climate", "index 0\u20131", +climate.lastPulse.toFixed(3));
     {
@@ -4240,7 +4318,12 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     cities.sort((a, b) => b.peak - a.peak);
     const landmasses = Array.from({ length: w.nLandmass }, (_, i) => ({ id: i, name: namer.landmassName(i), pop: popByLand[i], cities: cities.filter((ct) => ct.landmass === i).length }));
     const FORESTE = { 5: 1, 8: 1, 9: 1, 12: 0.8, 13: 0.9, 11: 0.3 };
-    const energyLand = Array.from({ length: w.nLandmass }, () => ({ pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0 }));
+    const energyLand = Array.from({ length: w.nLandmass }, () => ({ pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0, waterStressed: 0 }));
+    const fossilCuF = /* @__PURE__ */ new Set();
+    for (let k2 = 0; k2 < (w.resourceNodes || []).length; k2++) {
+      const nd = w.resourceNodes[k2];
+      if ((nd.kind === "coal" || nd.kind === "oil") && resourceControl[k2] >= 0) fossilCuF.add(resourceControl[k2]);
+    }
     for (let c = 0; c < N; c++) {
       const p = cellPop[c];
       if (!p) continue;
@@ -4252,9 +4335,13 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
       L.foodCapacity += kEff(c, cu.sub);
       L.wood += p * (FORESTE[w.biome[c]] || 0) * 0.6;
       if ((w.river[c] || w.lakeAdj[c]) && has(cu.tech, CAP.wheel) && has(cu.tech, CAP.masonry)) L.water += p * 0.5;
-      if (vecTier(cu.tech) >= 4) L.fossil += p * 2.5;
+      if (waterMul[c] < 0.999) L.waterStressed += p;
+      if (vecTier(cu.tech) >= 4) {
+        const rk = w.resource ? RESOURCES[w.resource[c]] : null;
+        L.fossil += p * (rk === "coal" || rk === "oil" ? 6 : fossilCuF.has(d) ? 2.2 : 0.4);
+      }
     }
-    const eW = { pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0 };
+    const eW = { pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0, waterStressed: 0 };
     for (const L of energyLand) for (const k of Object.keys(eW)) {
       L[k] = Math.round(L[k]);
       eW[k] += L[k];
@@ -4374,7 +4461,7 @@ function createSim(worldInput, cfgInput, civSeed = 1) {
     },
     run(nTicks, opts = {}) {
       totalTicks = nTicks;
-      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, epoch: 2, climate: cfg.climate && cfg.climate.preset || cfg.climate || "stable" };
+      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, epoch: 3, climate: cfg.climate && cfg.climate.preset || cfg.climate || "stable" };
       chronicle.geo = { cellLandmass: Array.from(w.landmass) };
       chronicle.fred = { t: [], tickYears: ty, series: {} };
       fredEvery = Math.max(1, Math.floor(nTicks / 100));
@@ -4463,6 +4550,33 @@ function buildTimeline(ch, mode) {
   const entries = [];
   const add2 = (t, kind, title, body, refs, lm) => entries.push({ t, year: yr(t), kind, title, body, lm: lm ?? null, refs: refs || {} });
   const great = mode === "greatman";
+  const CAP_PROSE = {
+    steamPower: "steam power",
+    cropRotation: "crop rotation",
+    seedDrill: "the seed drill",
+    fertilizer: "mineral fertilizer",
+    greenRev: "the green revolution",
+    granary: "the granary",
+    terracing: "terracing",
+    wells: "wells and qanats",
+    aqueduct: "the aqueduct",
+    mechanisation: "mechanisation",
+    horticulture: "horticulture",
+    metallurgy: "metallurgy",
+    irrigation: "irrigation",
+    mathematics: "mathematics",
+    electricity: "electricity",
+    printing: "the printing press",
+    masonry: "masonry",
+    pottery: "pottery",
+    herding: "herding",
+    plough: "the plough",
+    writing: "writing",
+    wheel: "the wheel",
+    sail: "the sail",
+    fire: "fire"
+  };
+  const capName = (c) => CAP_PROSE[c] || c;
   if (mode === "tech") {
     const seen = /* @__PURE__ */ new Map();
     for (const e of ch.events || []) {
@@ -4480,14 +4594,15 @@ function buildTimeline(ch, mode) {
         st.holders++;
         const invented = e.how !== "diffusion";
         if (invented) st.inventions++;
+        const cp = capName(e.cap);
         if (st.holders === 1)
-          add2(e.t, "techFirst", `${e.cap} \u2014 first worked out`, `the ${cn} work out ${e.cap} (${e.tier}) on ${lmName(e.landmass)} \u2014 no one taught them.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, how: e.how }, e.landmass);
+          add2(e.t, "techFirst", `${cp} \u2014 first worked out`, `the ${cn} work out ${cp} (${e.tier}) on ${lmName(e.landmass)} \u2014 no one taught them.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, how: e.how }, e.landmass);
         else if (invented)
-          add2(e.t, "techIndep", `${e.cap} \u2014 invented again`, `the ${cn} arrive at ${e.cap} independently on ${lmName(e.landmass)} \u2014 convergent problems find convergent answers.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, inventions: st.inventions }, e.landmass);
+          add2(e.t, "techIndep", `${cp} \u2014 invented again`, `the ${cn} arrive at ${cp} independently on ${lmName(e.landmass)} \u2014 convergent problems find convergent answers.`, { cap: e.cap, tier: e.tier, culture: e.culture, cultureName: cn, inventions: st.inventions }, e.landmass);
         else if (st.holders === 3)
-          add2(e.t, "techSpread", `${e.cap} spreads`, `a third people (the ${cn}) now holds ${e.cap} \u2014 knowledge moves along contact networks faster than any army.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
+          add2(e.t, "techSpread", `${cp} spreads`, `a third people (the ${cn}) now holds ${cp} \u2014 knowledge moves along contact networks faster than any army.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
         else if (st.holders === 8)
-          add2(e.t, "techSpread", `${e.cap} is common knowledge`, `eight peoples hold ${e.cap} \u2014 it stops being an advantage and becomes the floor.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
+          add2(e.t, "techSpread", `${cp} is common knowledge`, `eight peoples hold ${cp} \u2014 it stops being an advantage and becomes the floor.`, { cap: e.cap, tier: e.tier, holders: st.holders }, e.landmass);
       }
     }
     const lastT = ch.series && ch.series.tick && ch.series.tick[ch.series.tick.length - 1] || 0;
@@ -4643,8 +4758,8 @@ function buildTimeline(ch, mode) {
         if (!great) add2(e.t, "admixture", `contact zones churn`, `${e.count.toLocaleString()} admixture events: frontiers are where cultures trade genes, wares and gods.`, { count: e.count });
         break;
       case "techUnlock":
-        if (great) add2(e.t, "tech", `the ${cn} master ${e.cap}`, `the ${e.how === "diffusion" ? `craft of ${e.cap} reaches the ${cn} along the roads` : `${cn} work out ${e.cap} for themselves`} (${e.tier}).`, { culture: e.culture, cultureName: cn, cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
-        else add2(e.t, "tech", `the ${e.cap} frontier advances`, `${e.cap} (${e.tier}) ${e.how === "diffusion" ? "diffuses along contact networks" : "is independently invented"} \u2014 ideas move faster than peoples.`, { cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
+        if (great) add2(e.t, "tech", `the ${cn} master ${capName(e.cap)}`, `the ${e.how === "diffusion" ? `craft of ${capName(e.cap)} reaches the ${cn} along the roads` : `${cn} work out ${capName(e.cap)} for themselves`} (${e.tier}).`, { culture: e.culture, cultureName: cn, cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
+        else add2(e.t, "tech", `the ${capName(e.cap)} frontier advances`, `${capName(e.cap)} (${e.tier}) ${e.how === "diffusion" ? "diffuses along contact networks" : "is independently invented"} \u2014 ideas move faster than peoples.`, { cap: e.cap, tier: e.tier, how: e.how }, e.landmass);
         break;
       case "institutionFell":
         add2(
@@ -4795,6 +4910,11 @@ function buildTimeline(ch, mode) {
         const j = fos.data.findIndex((v) => v > 0);
         if (j > 0) add2(tF[j], "energy", "the first fossil fires", `an industrial culture begins burning buried sunlight \u2014 ${fos.data[j].toLocaleString()} ppe and compounding.`, { fossil: fos.data[j] });
       }
+    }
+    const ws = F["water.stressedShare"];
+    if (ws && ws.data) {
+      const i = ws.data.findIndex((v, k) => v >= 10 && ws.data[k + 1] >= 10);
+      if (i > 0) add2(tF[i], "energy", "the wells run low", `${ws.data[i]}% of humanity now lives where thirst outruns the rivers and the rain \u2014 water, not land, sets the ceiling. Wells and aqueducts become instruments of power.`, { stressedShare: ws.data[i] });
     }
   }
   if (!great) {

@@ -180,6 +180,37 @@ the mappa *world*, which is also global-view); what moved is authorship of
 of the founder culture's tier trajectory, and surface the shock provenance in its
 event ribbon.
 
+### Phase VI½ — the metabolic epoch *(SHIPPED — epoch 3)*
+
+**Agtech ratchet + fresh-water balance + fossil geography.** The declared hash break
+(epoch 3 pins `71a71f2f`; `meta.epoch = 3`). Three coupled mechanics, all mattering
+to K rather than decorating it:
+
+- **The agtech ratchet** — what Malthus missed. Eight new capabilities on the DAG,
+  agricultural lineage vendored from `cards/js/pools/tech-pool.js`: `granary`,
+  `cropRotation`, `terracing` (pays only on slopes), `seedDrill`, `fertilizer`,
+  `greenRev`, plus the water works `wells` and `aqueduct`. `foodTechMul(vec, hilly)`
+  in caps.js compounds them (~2.4× at full stack) and multiplies effective carrying
+  capacity per cell — food capacity outruns the land's raw ceiling exactly the way
+  history's did.
+- **The fresh-water balance.** Per-cell demand scales with population density and the
+  subsistence package's thirst (`THIRST` per package — irrigation drinks hardest);
+  supply comes from mappa's moisture, rivers and lake adjacency; `wells` floor the
+  supply where rain fails, `aqueduct` lifts it at cities. Where demand outruns supply,
+  a water multiplier (floor 0.55) caps K until the works catch up. FRED ledgers:
+  `water.stressedShare`, `water.constraint`; per-continent `waterStressed` in
+  `final.energy`.
+- **Fossil geography.** Coal and oil are now mappa resources (placement rules ported
+  from mappa's own `viewer.js` mineral catalog — the user was right that mappa always
+  had fossil activity; the civ world adapter had simply never carried it). Fossil
+  energy output depends on actually holding the deposits: tier-4+ population at a
+  coal/oil cell yields 6 ppe/head, cultures controlling a deposit elsewhere 2.2,
+  everyone else scraps at 0.4. The energy transition is now a *place* on the map.
+
+The timeline speaks it: cap ids render as prose ("the green revolution", not
+`greenRev`), and the forces lens gains "the wells run low" when sustained water
+stress first crosses 10% of humanity.
+
 ### Phase VII — the city cascade (civ → hinterland → city)
 
 **The reframe (structural, decided):** what polis had built was never the city — it
@@ -394,6 +425,7 @@ are independent and can interleave.
   (polis has no local civ engine), so `?civ=1&n>1200` falls back to polis's default boot.
 - **Hash pin in CI** — the selftest asserts the canonical permalink hash so any
   hash-breaking change fails the suite unless declared as an epoch. Epoch history:
-  epoch 1 → `67eee302`; epoch 2 (cities as actors, Phase VI) → `3c9a4a61`.
+  epoch 1 → `67eee302`; epoch 2 (cities as actors, Phase VI) → `3c9a4a61`;
+  epoch 3 (agtech + water + fossil geography, Phase VI½) → `71a71f2f`.
 - Particle playback captures up to 300 frames (every ~5 ticks at 1500 ticks) with
   sub-1 fps speeds.
