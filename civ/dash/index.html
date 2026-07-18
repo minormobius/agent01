@@ -48,10 +48,10 @@
 </head>
 <body>
 <header>
-  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="https://mino.mobi/mappa/">mappa</a> · <a href="/">civ</a> · dashboard</div>
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="https://mappa.mino.mobi/">mappa</a> · <a href="/">civ</a> · dashboard</div>
   <h1><span class="g">civ</span> — civilization evolution</h1>
-  <p class="sub">A deterministic, coevolutionary agent-based civilization simulation on a generated <a href="https://mino.mobi/mappa/">mappa</a> world. Individuals turn over by birth and death; lineages, cultures and institutions carry identity across ten millennia. Nothing about eras is scripted — <b>agriculture and industry are emergent phase transitions</b>. Headless-first: everything here is one call to the CORS-open, no-key API.</p>
-  <p class="sub" style="margin-top:10px"><a id="toview" href="/view.html" style="font-weight:700">▶ Particle playback →</a> &nbsp;·&nbsp; <a id="todev" href="/develop.html" style="font-weight:700">📈 Development →</a> &nbsp;·&nbsp; <a id="tofred" href="/fred.html" style="font-weight:700">📊 FRED →</a> &nbsp;·&nbsp; <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">the world on mappa ↗</a> &nbsp;— the same run carries across all of them by its link (world + config + seed + ticks). Watch the population move across the map, trace the rise and fall of dynasties, browse the whole economy, or inspect the planet it runs on.</p>
+  <p class="sub">A deterministic, coevolutionary agent-based civilization simulation on a generated <a href="https://mappa.mino.mobi/">mappa</a> world. Individuals turn over by birth and death; lineages, cultures and institutions carry identity across ten millennia. Nothing about eras is scripted — <b>agriculture and industry are emergent phase transitions</b>. Headless-first: everything here is one call to the CORS-open, no-key API.</p>
+  <p class="sub" style="margin-top:10px"><a id="toview" href="/view.html" style="font-weight:700">▶ Particle playback →</a> &nbsp;·&nbsp; <a id="todev" href="/develop.html" style="font-weight:700">📈 Development →</a> &nbsp;·&nbsp; <a id="tofred" href="/fred.html" style="font-weight:700">📊 FRED →</a> &nbsp;·&nbsp; <a id="tomappa" href="https://mappa.mino.mobi/" target="_blank" rel="noopener">the world on mappa ↗</a> &nbsp;— the same run carries across all of them by its link (world + config + seed + ticks). Watch the population move across the map, trace the rise and fall of dynasties, browse the whole economy, or inspect the planet it runs on.</p>
 </header>
 <main>
   <div class="wrap">
@@ -99,7 +99,7 @@ const el = (t, c, x) => { const e = document.createElement(t); if (c) e.classNam
 function stateFromControls() { return { world: $('#world').value.trim() || '7', preset: $('#preset').value, civSeed: ($('#civseed').value || '1'), ticks: $('#ticks').value, n: $('#meshn').value, config: $('#lastconfig').value || '' }; }
 function qs(st) { const p = new URLSearchParams(); p.set('world', st.world); if (st.preset) p.set('preset', st.preset); else if (st.config) p.set('config', st.config); p.set('civSeed', st.civSeed); p.set('ticks', st.ticks); if (st.n && st.n !== '900') p.set('n', st.n); return p.toString(); }
 function writeURL(st) { try { history.replaceState(null, '', '?' + qs(st)); } catch (e) {} }
-function mappaHref(world) { const m = String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/' + (m ? ('?seed=' + m[1]) : ('?w=' + encodeURIComponent(world))); }
+function mappaHref(world) { const m = String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mappa.mino.mobi/' + (m ? ('?seed=' + m[1]) : ('?w=' + encodeURIComponent(world))); }
 function syncLinks() { const st = stateFromControls(), q = qs(st); $('#toview').href = '/view.html?' + q; $('#todev').href = '/develop.html?' + q; $('#tofred').href = '/fred.html?' + q; $('#tomappa').href = mappaHref(st.world); }
 function applyURL() { const p = new URLSearchParams(location.search); if (p.get('world')) $('#world').value = p.get('world'); if (p.has('preset')) $('#preset').value = p.get('preset'); if (p.get('config')) $('#lastconfig').value = p.get('config'); if (p.get('civSeed')) $('#civseed').value = p.get('civSeed'); if (p.get('ticks')) { $('#ticks').value = p.get('ticks'); $('#ticksv').textContent = p.get('ticks'); $('#years').textContent = Math.round(p.get('ticks') * 2.5); } if (p.get('n') && [...$('#meshn').options].some(o => o.value === p.get('n'))) $('#meshn').value = p.get('n'); return p; }
 

@@ -29,3 +29,4 @@ j/wasm/target/
 j/pkg/
 golem/js/vendor/
 .polis-stage/
+.mappa-stage/

@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mappa",
+  "compatibility_date": "2026-02-20",
+  // Assets-only worker. The deploy workflow assembles ../.mappa-stage: mappa/ (minus
+  // this config, test/, engine-rs/ sources, and civ/ — the civ engine ships on the
+  // civ surface) plus the two runtime ES-module imports viewer.js pulls from outside
+  // the directory (packages/atproto/pds.js, packages/oauth-client/auth.js) staged
+  // under /packages/ so `../../packages/…` resolves on this origin. Never deploy
+  // from mappa/ directly — the stage is the asset root.
+  "assets": {
+    "directory": "../.mappa-stage"
+  },
+  "routes": [
+    { "pattern": "mappa.mino.mobi", "custom_domain": true }
+  ]
+}

@@ -104,7 +104,6 @@
         "phylo",
         "time",
         "wiki",
-        "mappa",
         "hoop-history",
         "office"
       ],
@@ -114,7 +113,6 @@
         "styles.css",
         "scripts/generate-search-catalog.mjs",
         "functions/**",
-        "mappa/**",
         "hoop-history/**",
         "office/**",
         "scripts/build-office.mjs"
@@ -225,6 +223,21 @@
       "paths": [
         "bisk/**"
       ]
+    },
+    {
+      "surface": "mappa",
+      "dir": "mappa",
+      "endpoint": "mappa.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/civ-deploy-unification-vt35ju",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "mappa/**",
+        "packages/atproto/pds.js",
+        "packages/oauth-client/auth.js"
+      ],
+      "note": "The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis). Assets-only worker; the deploy stages packages/atproto/pds.js + packages/oauth-client/auth.js under /packages/ (viewer→world-share runtime imports) and excludes mappa/civ (ships on the civ surface) + engine-rs sources (pkg/ wasm is served). The OLD mino.mobi/mappa/ (root surface) serves until the root branch catches up. Note: mappa/civ/** and mappa/engine.js are deliberately co-watched with the civ surface — both deploys need them."
     },
     {
       "surface": "polis",
