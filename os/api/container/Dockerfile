@@ -1,6 +1,6 @@
 FROM node:22-slim
 
-# System deps: git, bash, python3, build tools for node-pty, curl for R2 sync
+# System deps: git, bash, python3, build tools for node-pty, curl for workspace sync
 RUN apt-get update && apt-get install -y \
     git \
     bash \

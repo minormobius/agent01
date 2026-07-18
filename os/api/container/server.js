@@ -1,6 +1,6 @@
 // PTY WebSocket server — runs inside the Cloudflare Container
 // Spawns bash with real PTY, streams I/O over WebSocket.
-// Auto-saves workspace to R2 every 2 minutes + on SIGTERM.
+// Auto-saves workspace every 2 minutes + on SIGTERM (worker /sync → DO storage).
 
 import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
@@ -18,7 +18,7 @@ const CAP_TOKEN = process.env.CAP_TOKEN || '';
 const WORKSPACE_ID = process.env.WORKSPACE_ID || '';
 const SYNC_ENABLED = !!(SYNC_URL && CAP_TOKEN && WORKSPACE_ID);
 
-// ─── Workspace auto-save to R2 ───────────────────────────────────
+// ─── Workspace auto-save (worker /sync → DO storage) ────────────
 
 let saving = false;
 

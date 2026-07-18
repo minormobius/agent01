@@ -1,5 +1,5 @@
-// os-mino-api — Worker + Container for persistent Claude Code environment
-// R2-backed workspace, auto-save, MCP servers, Claude subscription auth
+// os-mino-api — Worker + Container for the persistent agent environment
+// DO-storage-backed workspace, auto-save, agent profiles (kimi3 etc.)
 
 import { Container } from '@cloudflare/containers';
 
@@ -54,7 +54,14 @@ async function verifyCap(secret, token) {
 // ─── Container class ───────────────────────────────────────────────
 // Docker container: bash + Claude Code + MCP servers + persistent workspace.
 // One container per user (keyed by DID). Sleeps after 10 min, wakes on reconnect.
-// Workspace survives sleep via R2 sync (startup restore + 2-min auto-save).
+// Workspace survives sleep via DO-storage sync (startup restore + 2-min auto-save).
+
+// Workspace persistence lives in THIS Durable Object's SQLite storage —
+// chunked, because a single storage value caps at 2MB. (This replaced the R2
+// tarball: R2 needs a separate account entitlement, while SQLite-backed DO
+// storage is already required for ContainerShell to exist at all.)
+const WS_CHUNK_BYTES = 1_000_000; // 1MB chunks, well under the 2MB value cap
+const WS_MAX_BYTES = 64 * 1024 * 1024; // whole-tarball cap (DO has 128MB memory)
 
 export class ContainerShell extends Container {
   defaultPort = 8080;
@@ -69,6 +76,48 @@ export class ContainerShell extends Container {
     ctx.blockConcurrencyWhile(async () => {
       this._workspaceId = await ctx.storage.get('workspaceId');
     });
+  }
+
+  // Chunked workspace tarball in DO storage. Routed here by the worker's
+  // /sync handler AFTER capability-token verification (the worker already
+  // asserted cap.did === this DO's name, so no re-auth needed at this layer).
+  async handleWorkspaceSync(request) {
+    const storage = this.ctx.storage;
+
+    if (request.method === 'GET') {
+      const meta = await storage.get('ws:meta');
+      if (!meta) return new Response(null, { status: 404 });
+      const out = new Uint8Array(meta.size);
+      let off = 0;
+      for (let i = 0; i < meta.chunks; i++) {
+        const chunk = await storage.get(`ws:chunk:${i}`);
+        if (!chunk) return new Response('corrupt workspace (missing chunk)', { status: 500 });
+        out.set(new Uint8Array(chunk), off);
+        off += chunk.byteLength;
+      }
+      return new Response(out, { headers: { 'Content-Type': 'application/gzip' } });
+    }
+
+    if (request.method === 'PUT') {
+      const buf = new Uint8Array(await request.arrayBuffer());
+      if (buf.byteLength > WS_MAX_BYTES) {
+        return new Response(`workspace too large (${buf.byteLength} > ${WS_MAX_BYTES})`, { status: 413 });
+      }
+      const chunks = Math.ceil(buf.byteLength / WS_CHUNK_BYTES) || 1;
+      const prev = await storage.get('ws:meta');
+      for (let i = 0; i < chunks; i++) {
+        const slice = buf.slice(i * WS_CHUNK_BYTES, (i + 1) * WS_CHUNK_BYTES);
+        await storage.put(`ws:chunk:${i}`, slice.buffer);
+      }
+      await storage.put('ws:meta', { size: buf.byteLength, chunks, savedAt: Date.now() });
+      // Drop stale tail chunks from a previously larger save.
+      if (prev && prev.chunks > chunks) {
+        for (let i = chunks; i < prev.chunks; i++) await storage.delete(`ws:chunk:${i}`);
+      }
+      return new Response('ok', { status: 200 });
+    }
+
+    return new Response('Method not allowed', { status: 405 });
   }
 
   // Environment variables injected into the container.
@@ -110,9 +159,14 @@ export class ContainerShell extends Container {
   }
 
   // Intercept fetch to capture session ID before container starts.
-  // The session ID (user's DID) becomes the workspace ID for R2 sync.
+  // The session ID (user's DID) becomes the workspace ID for sync.
   async fetch(request) {
     const url = new URL(request.url);
+    // Workspace sync (worker-internal, post-auth) — must NOT fall through to
+    // super.fetch, which would try to start/route to the container.
+    if (url.pathname === '/_sync') {
+      return this.handleWorkspaceSync(request);
+    }
     const session = url.searchParams.get('session');
     if (session && !this._workspaceId) {
       this._workspaceId = session;
@@ -158,7 +212,7 @@ export default {
     }
 
     // Workspace sync: GET/PUT /sync/:workspaceId
-    // Called by the container to persist workspace to R2.
+    // Called by the container to persist the workspace (chunked, in the DO).
     if (url.pathname.startsWith('/sync/')) {
       return handleSync(request, env, url);
     }
@@ -175,8 +229,9 @@ export default {
   },
 };
 
-// ─── Sync handler (R2 workspace persistence) ──────────────────────
-// Container calls these endpoints to save/restore workspace tarballs.
+// ─── Sync handler (workspace persistence in the per-DID DO) ───────
+// Container calls these endpoints to save/restore workspace tarballs. Storage
+// is the ContainerShell DO's own SQLite storage (chunked) — no R2 needed.
 
 async function handleSync(request, env, url) {
   // Auth: per-instance capability token (HMAC-signed {did, exp}).
@@ -192,32 +247,20 @@ async function handleSync(request, env, url) {
     return new Response('Missing workspace ID', { status: 400 });
   }
 
-  // A container may only read/write ITS OWN workspace. This closes the previous
-  // cross-tenant leak where any container holding the shared SYNC_TOKEN could
-  // read/write every user's R2 tarball.
+  // A container may only read/write ITS OWN workspace (id must match the DID
+  // inside the verified capability token).
   if (workspaceId !== cap.did) {
     return new Response('Forbidden', { status: 403 });
   }
 
-  // Sanitize for R2 key (DIDs have colons)
-  const r2Key = `workspaces/${workspaceId.replace(/[^a-zA-Z0-9._-]/g, '_')}.tar.gz`;
-
-  // GET: download workspace tarball from R2
-  if (request.method === 'GET') {
-    const obj = await env.WORKSPACE.get(r2Key);
-    if (!obj) return new Response(null, { status: 404 });
-    return new Response(obj.body, {
-      headers: { 'Content-Type': 'application/gzip' },
-    });
-  }
-
-  // PUT: upload workspace tarball to R2
-  if (request.method === 'PUT') {
-    await env.WORKSPACE.put(r2Key, request.body);
-    return new Response('ok', { status: 200 });
-  }
-
-  return new Response('Method not allowed', { status: 405 });
+  // Route to the same per-DID DO the shell runs in — its storage IS the
+  // workspace store. Auth happened above; /_sync is worker-internal.
+  const id = env.CONTAINER_SHELL.idFromName(cap.did);
+  const stub = env.CONTAINER_SHELL.get(id);
+  return stub.fetch(new Request('https://do/_sync', {
+    method: request.method,
+    body: request.body,
+  }));
 }
 
 // ─── Identity gate ─────────────────────────────────────────────────

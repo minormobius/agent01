@@ -25,13 +25,12 @@ SYNC_URL = "https://os-api.minomobi.com"
 # api.moonshot.cn/anthropic). Key: `wrangler secret put MOONSHOT_API_KEY`.
 KIMI_BASE_URL = "https://api.moonshot.ai/anthropic"
 KIMI_MODEL = "kimi-k3"
-# ALLOWED_DIDS — comma-separated allowlist of DIDs permitted to open a
-# container shell — is NOT set here. It is a worker SECRET synced from the
-# GitHub repo VARIABLE `OS_ALLOWED_DIDS` by deploy-os-api.yml on every run.
-# (It must not appear in [vars]: a [vars] entry would clobber the synced secret
-# back to "" on each deploy.) FAIL-CLOSED: while unset, /ws refuses every
-# connection. The shell is handed shared credentials, so only DIDs you fully
-# trust belong on the list — for this deployment, exactly the owner's.
+# Comma-separated allowlist of DIDs permitted to open a container shell.
+# FAIL-CLOSED: empty → /ws refuses every connection. The shell is handed shared
+# credentials, so only DIDs the owner fully trusts belong here. DIDs are public
+# info, so committing is fine. Current: the morphyx service account
+# (morphyxmino.bsky.social) — log into os.mino.mobi with it (app password).
+ALLOWED_DIDS = "did:plc:yivyyp54vddf7qf2lpsikhe4"
 
 # TENANCY SWITCH. When "true", the SHARED account credentials GITHUB_TOKEN +
 # CLOUDFLARE_API_TOKEN are injected into the shell (convenient for single-tenant
@@ -45,10 +44,9 @@ KIMI_MODEL = "kimi-k3"
 # See SECURITY.md for the multi-tenant model (per-user broker-held creds).
 INJECT_SHARED_CREDS = "true"
 
-# R2 bucket for persistent workspace storage
-[[r2_buckets]]
-binding = "WORKSPACE"
-bucket_name = "os-workspace"
+# Workspace persistence: NO R2. Tarballs live (chunked) in the ContainerShell
+# Durable Object's own SQLite storage — already required for the container to
+# exist, and available on the base $5 Workers plan with no extra entitlement.
 
 # Container definition — Docker image for PTY shell + Claude Code
 [[containers]]

@@ -26,36 +26,40 @@ Moonshot's Anthropic-compatible endpoint** (`ANTHROPIC_BASE_URL` +
 GitHub Actions fire on push. No custom harness anywhere — the harness is Claude
 Code; the model is a profile.
 
-## Go-live: the 3 human steps (everything else is automated)
+## Go-live: the 2 human steps (everything else is automated)
 
-These are the only things the workflow cannot do itself:
+**No R2.** Run #1 proved R2 needs its own account enablement (CF error `10042`,
+not available on this plan), so workspace persistence moved into the
+ContainerShell Durable Object's SQLite storage — already required for the
+container to exist, no extra entitlement. The only things the workflow cannot
+do itself:
 
-1. **Enable R2 and Cloudflare Containers** on the account (both are one-time
-   dashboard toggles):
-   - **R2** (dashboard → R2 → enable; may ask for a payment method, free tier
-     covers this). Until it's on, the bucket step fails with CF error `10042`
-     — confirmed by the first live run.
-   - **Containers** (dashboard → Workers & Pages; requires the paid Workers
-     plan). Until it's on, the `wrangler deploy` step fails.
-   Each red run tells you exactly which toggle is still off.
-2. **Mint two credentials and add them as GitHub Actions SECRETS**
-   (repo Settings → Secrets and variables → Actions → Secrets):
-   - `MOONSHOT_API_KEY` — from platform.moonshot.ai → API keys.
+1. **Enable Cloudflare Containers** on the account (dashboard → Workers &
+   Pages; included with the $5 Workers paid plan — if it's not visible in the
+   sidebar, look under Workers & Pages → your worker → Settings, or the
+   account's Billing → subscriptions; availability varies by account age).
+   The `wrangler deploy` step is the definitive probe — its error names the
+   gap if the entitlement is missing.
+2. **Add GitHub Actions SECRETS** (repo Settings → Secrets and variables →
+   Actions → Secrets):
+   - `MOONSHOT_API_KEY` — ✅ already added.
    - `OS_AGENT_GITHUB_TOKEN` — fine-grained PAT limited to
      `minormobius/agent01`, Contents read/write + Workflows read/write. Its
      pushes DO trigger Actions (unlike the Actions-internal `GITHUB_TOKEN`),
      which is exactly what we want.
-3. **Set the GitHub Actions VARIABLE `OS_ALLOWED_DIDS`** to your DID (same
-   Settings page → Variables; DIDs are public, hence a variable). Find yours
-   with `whoami` in the os shell, or:
-   `curl "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=<you>"`
+
+**Identity is committed config**: `ALLOWED_DIDS` in `os/api/wrangler.toml` is
+the **morphyx service account** (`morphyxmino.bsky.social`,
+`did:plc:yivyyp54vddf7qf2lpsikhe4`). Log into os.mino.mobi with that handle +
+an app password (the same one the `BLUESKY_MORPHYX_APP_PASSWORD` Actions secret
+holds, or mint a fresh one in its Bluesky settings). os login is app-password
+today; ATProto OAuth is the stubbed phase-2.
 
 Then **push anything touching `os/api/**`** (or dispatch *Deploy os-api* from
-the Actions tab). The workflow: ensures the `os-workspace` R2 bucket → deploys
-(custom-domain route binds `os-api.minomobi.com`; golden rule verified by the
-health-check step) → generates `CAP_SIGNING_KEY` once → syncs
-`MOONSHOT_API_KEY` / `GITHUB_TOKEN` / `ALLOWED_DIDS` from GitHub → polls
-`/health` until green.
+the Actions tab). The workflow: deploys (custom-domain route binds
+`os-api.minomobi.com`; golden rule verified by the health-check step) →
+generates `CAP_SIGNING_KEY` once → syncs `MOONSHOT_API_KEY` / `GITHUB_TOKEN`
+from GitHub → polls `/health` until green.
 
 Also check `KIMI_MODEL` in `os/api/wrangler.toml` — it's a placeholder
 (`kimi-k3`); set it to the current id from Moonshot's docs. Mainland accounts:
@@ -74,9 +78,8 @@ and Actions run. (No frontend rebuild needed — availability is a runtime
 | `CAP_SIGNING_KEY` | generated on the runner (`openssl rand -hex 32`) | first run only — never auto-rotated (would kill live capability tokens) |
 | `MOONSHOT_API_KEY` | GH secret `MOONSHOT_API_KEY` | every run (GitHub is source of truth — rotate there) |
 | `GITHUB_TOKEN` (worker) | GH secret `OS_AGENT_GITHUB_TOKEN` | every run |
-| `ALLOWED_DIDS` | GH **variable** `OS_ALLOWED_DIDS` | every run. NOT in `[vars]` — a committed var would clobber the secret each deploy |
-| `KIMI_BASE_URL`, `KIMI_MODEL`, `INJECT_SHARED_CREDS` | committed `[vars]` in `wrangler.toml` | every deploy |
-| R2 bucket `os-workspace` | created via CF API by the workflow | idempotent, every run |
+| `ALLOWED_DIDS`, `KIMI_BASE_URL`, `KIMI_MODEL`, `INJECT_SHARED_CREDS` | committed `[vars]` in `wrangler.toml` | every deploy |
+| Workspace store | ContainerShell DO SQLite storage (chunked tarballs, 64MB cap) | nothing to provision |
 | `os-api.minomobi.com` | `custom_domain` route in `wrangler.toml` | every deploy (golden rule) |
 
 ## Day-2 notes
@@ -86,8 +89,9 @@ and Actions run. (No frontend rebuild needed — availability is a runtime
   agent **cannot ship to prod** — a human promotes work by merging or adding the
   branch to a `deploy-*.yml` trigger (registry rules apply). That's the safety
   line; keep it.
-- **Persistence**: workspace + `~/.claude` tarball to R2 every 2 min and on
-  container sleep (10 min idle). Cold start restores it.
+- **Persistence**: workspace + `~/.claude` tarball into the per-DID DO's
+  SQLite storage every 2 min and on container sleep (10 min idle). Cold start
+  restores it. Capped at 64MB compressed (node_modules etc. excluded).
 - **Cost**: `max_instances = 3`; one container per DID, so effectively one
   running instance (yours) that sleeps when idle. Model tokens bill to your
   Moonshot account.
@@ -118,12 +122,11 @@ No image rebuild logic, no frontend change, no new harness code.
 | Symptom | Likely cause |
 |---|---|
 | `kimi` says "backend not reachable" | deploy-os-api.yml hasn't run green — check its latest run |
-| R2 bucket step fails (CF code `10042`) | R2 not enabled on the account (human step 1) |
-| deploy step fails at `wrangler deploy` | Cloudflare Containers not enabled on the account (human step 1) |
+| deploy step fails at `wrangler deploy` | Cloudflare Containers not available on the account (human step 1) — the error message is the diagnosis |
 | Health-check step times out | Custom-domain cert still provisioning (re-run), or the deploy log doesn't bind `os-api.minomobi.com (custom domain)` — golden rule |
-| WS closes with 503 | `ALLOWED_DIDS` unset — GH variable `OS_ALLOWED_DIDS` missing (workflow warned) |
-| WS closes with 403 | Logged-in DID not on `ALLOWED_DIDS` |
+| WS closes with 503 | `ALLOWED_DIDS` empty in wrangler.toml [vars] |
+| WS closes with 403 | Logged-in DID not on `ALLOWED_DIDS` — log in as morphyx |
 | `agent kimi3` → "no key configured" | GH secret `MOONSHOT_API_KEY` missing (workflow warned) |
 | Agent starts, model errors | `KIMI_MODEL` id wrong/stale — check Moonshot docs |
 | Agent can't `git push` | GH secret `OS_AGENT_GITHUB_TOKEN` missing/expired |
-| Workspace empty after wake | R2 bucket step failed, or `CAP_SIGNING_KEY` missing (sync disabled) |
+| Workspace empty after wake | `CAP_SIGNING_KEY` missing (sync disabled), or tarball exceeded the 64MB cap (413 in container logs) |

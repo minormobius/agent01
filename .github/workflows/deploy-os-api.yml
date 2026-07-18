@@ -6,20 +6,23 @@ name: Deploy os-api (container backend)
 # R2-synced workspace, fail-closed ALLOWED_DIDS identity gate).
 #
 # SELF-PROVISIONING (create-mmo-db.yml pattern) — every run is idempotent:
-#   1. ensure the R2 bucket `os-workspace` exists (Cloudflare API)
-#   2. `wrangler deploy` — builds the Docker image on the runner; the
+#   1. `wrangler deploy` — builds the Docker image on the runner; the
 #      custom_domain route in wrangler.toml binds os-api.minomobi.com
 #      (GOLDEN RULE: verify the log binds `os-api.minomobi.com (custom domain)`)
-#   3. sync worker runtime secrets from GitHub:
+#   2. sync worker runtime secrets from GitHub:
 #        CAP_SIGNING_KEY   auto-generated ONCE on the runner, kept thereafter
 #        MOONSHOT_API_KEY  <- GH secret  MOONSHOT_API_KEY       (kimi3 profile)
 #        GITHUB_TOKEN      <- GH secret  OS_AGENT_GITHUB_TOKEN  (fine-grained
 #                             PAT scoped to minormobius/agent01 — its pushes DO
 #                             trigger Actions, unlike the Actions-internal token)
-#        ALLOWED_DIDS      <- GH VARIABLE OS_ALLOWED_DIDS       (owner DID(s);
-#                             public info, hence a variable not a secret)
-#   4. health-check https://os-api.minomobi.com/health (retries while the
+#   3. health-check https://os-api.minomobi.com/health (retries while the
 #      custom-domain cert provisions)
+#
+# NO R2 (learned from run #1: R2 needs its own account enablement, CF error
+# 10042, unavailable on this plan). Workspace persistence lives in the
+# ContainerShell Durable Object's SQLite storage instead — chunked tarballs,
+# zero extra entitlements. ALLOWED_DIDS is committed [vars] config in
+# wrangler.toml (the morphyx service DID) — no sync needed.
 #
 # Auto-fires on push touching os/api/** — DELIBERATE now the platform is live
 # (was dispatch-only while shelved). It builds a Docker image and runs paid
@@ -27,13 +30,10 @@ name: Deploy os-api (container backend)
 # idle sleep, and the fail-closed ALLOWED_DIDS gate bounds who can wake one.
 #
 # HUMAN PREREQS the workflow cannot do (one-time — full list in os/RUNBOOK.md):
-#   - Enable R2 on the account (dashboard; CF error 10042 from the bucket step
-#     until then — confirmed by run #1).
-#   - Enable Cloudflare Containers on the account (plan-level, dashboard).
+#   - Enable Cloudflare Containers on the account (needs Workers paid plan;
+#     the wrangler deploy step is the probe — its error names the gap).
 #   - Mint the Moonshot API key + the fine-grained PAT, add as GH secrets above.
-#   - Set the OS_ALLOWED_DIDS repo variable to your DID.
-# Runs before those exist stay green-ish but warn loudly and leave the gate
-# closed (no ALLOWED_DIDS -> /ws refuses everyone).
+# Runs before those exist warn loudly; the identity gate stays fail-closed.
 
 on:
   workflow_dispatch:
@@ -57,31 +57,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Ensure R2 bucket os-workspace
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          set -euo pipefail
-          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCT" ]; then
-            echo "❌ CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets missing"; exit 1
-          fi
-          RESP=$(curl -sS -X POST \
-            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCT/r2/buckets" \
-            -H "Authorization: Bearer $CF_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data '{"name":"os-workspace"}')
-          if [ "$(echo "$RESP" | jq -r '.success')" = "true" ]; then
-            echo "✓ created R2 bucket os-workspace"
-          elif echo "$RESP" | jq -r '.errors[]?.message' | grep -qi 'already exists'; then
-            echo "✓ R2 bucket os-workspace already exists"
-          elif echo "$RESP" | jq -e '.errors[]? | select(.code==10042)' >/dev/null; then
-            echo "::error::R2 is not enabled on the Cloudflare account — enable it in the dashboard (one-time), then re-run. See os/RUNBOOK.md step 1."
-            exit 1
-          else
-            echo "❌ R2 bucket create failed:"; echo "$RESP" | jq .; exit 1
-          fi
-
       - name: Install dependencies
         run: npm install
 
@@ -100,7 +75,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
           OS_AGENT_GITHUB_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
-          OS_ALLOWED_DIDS: ${{ vars.OS_ALLOWED_DIDS }}
         run: |
           set -euo pipefail
 
@@ -129,13 +103,8 @@ jobs:
           else
             echo "::warning::GH secret OS_AGENT_GITHUB_TOKEN unset — the container agent cannot push to GitHub"
           fi
-
-          if [ -n "${OS_ALLOWED_DIDS:-}" ]; then
-            printf '%s' "$OS_ALLOWED_DIDS" | npx wrangler secret put ALLOWED_DIDS
-            echo "✓ ALLOWED_DIDS synced"
-          else
-            echo "::warning::GH variable OS_ALLOWED_DIDS unset — /ws stays FAIL-CLOSED (nobody can open a shell)"
-          fi
+          # ALLOWED_DIDS is committed [vars] config in wrangler.toml (morphyx
+          # service DID) — nothing to sync.
 
       - name: Health check (domain bound + worker live)
         run: |

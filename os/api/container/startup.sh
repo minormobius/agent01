@@ -1,13 +1,13 @@
 #!/bin/bash
-# Container startup: restore workspace from R2, configure Claude Code + MCP, start PTY server.
+# Container startup: restore workspace (worker /sync → DO storage), configure Claude Code + MCP, start PTY server.
 set -e
 
 HOME=/home/coder
 WORKSPACE=$HOME/workspace
 CLAUDE_DIR=$HOME/.claude
 
-# ─── Restore workspace from R2 ─────────────────────────────────────
-# On wake, pull the last saved tarball from R2 via the Worker's sync endpoint.
+# ─── Restore workspace (worker /sync → DO storage) ────────────────
+# On wake, pull the last saved tarball via the Worker sync endpoint.
 # First run (404) is fine — we start fresh.
 
 # (Auth is the per-instance CAP_TOKEN minted by the worker — the old shared
@@ -45,7 +45,7 @@ if [ -n "$GITHUB_TOKEN" ]; then
 fi
 
 # ─── Claude Code settings + MCP servers ─────────────────────────────
-# Only created on first run. User can customize after — changes persist via R2.
+# Only created on first run. User can customize after — changes persist via sync.
 
 mkdir -p "$CLAUDE_DIR"
 
@@ -104,7 +104,7 @@ work() {
   git checkout "kimi/$slug" 2>/dev/null || git checkout -b "kimi/$slug" origin/main
 }
 
-echo -e "\033[2m  workspace auto-saves to R2 every 2 min\033[0m"
+echo -e "\033[2m  workspace auto-saves every 2 min (DO storage)\033[0m"
 echo -e "\033[2m  agent kimi3   — chat/code with Kimi (Claude Code harness)\033[0m"
 echo -e "\033[2m  work <slug>   — new kimi/<slug> feature branch in agent01\033[0m"
 echo -e "\033[2m  claude        — native Claude Code (needs set-key)\033[0m"
