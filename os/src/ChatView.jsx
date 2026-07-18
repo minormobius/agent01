@@ -173,7 +173,7 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
       }
       // Pre-boot the container over HTTP before opening the socket — a cold
       // start (image pull ~30-40s) used to kill the first WebSocket attempt.
-      setStatusDetail('starting container (cold start can take ~40s)…');
+      setStatusDetail('starting container (first boot after a deploy can take ~2 min)…');
       let boot = await debugBoot({ session: session.did, ...authInfo });
       // /health 404 = an instance still running a PRE-fix image (rollouts
       // don't replace a container that never idles). Self-heal: restart it

@@ -204,6 +204,17 @@ export class ContainerShell extends Container {
     // Re-assign (data property, not getter — see _buildEnvVars) so the next
     // container start picks up the fresh CAP_TOKEN and workspace id.
     this.envVars = this._buildEnvVars();
+    // Pre-start with a GENEROUS port timeout. The library default is 20s, but
+    // the first boot after an image deploy has to pull the image (~40s) — so
+    // every post-deploy first boot used to die with "not listening on TCP".
+    try {
+      await this.startAndWaitForPorts(8080, {
+        portReadyTimeoutMS: 150_000,
+        instanceGetTimeoutMS: 20_000,
+      });
+    } catch (err) {
+      return new Response(`container start failed: ${err?.message || err}`, { status: 503 });
+    }
     return super.fetch(request);
   }
 

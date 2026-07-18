@@ -29,7 +29,7 @@ export async function chatPreflight({ session, auth, authMode }, timeoutMs = 800
 
 // Exercise the full container boot through the DO and return the verdict —
 // called when a socket dies before ever connecting, to name the cause.
-export async function debugBoot({ session, auth, authMode }, timeoutMs = 45000) {
+export async function debugBoot({ session, auth, authMode }, timeoutMs = 170000) {
   const params = new URLSearchParams({ session });
   if (auth) params.set('auth', auth);
   if (authMode) params.set('authMode', authMode);
