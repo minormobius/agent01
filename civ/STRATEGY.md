@@ -320,9 +320,64 @@ one, nested again for the site.
 
 **Still open at the hinterland level**: rank-size calibration (nudge the town-size
 distribution toward Zipf), commodity flows as actual quantities (not just a
-complementarity bonus), reading civ WARS (not just this city's sacks) as regional
-insecurity, and — energetics follow-on — a coal *geography* (mappa doesn't yet mint
-fossil basins; fossil is population-abstract until it does).
+complementarity bonus), and reading civ WARS (not just this city's sacks) as
+regional insecurity. (The coal-geography gap noted here previously closed in
+epoch 3: coal/oil are mappa resources now and fossil output is deposit-dependent.)
+
+**The settlement field (SHIPPED — the city proper's first layer, `polis/field.js`
++ `/city/`):**
+
+The original THEORY.md §0 program — "the economy decides where current is
+injected; the city's form is the field-solve" — finally cashed in as a running
+engine. One founded site → a 64×64 block-scale Voronoi frame (3 km, jittered,
+micro-relief minted from the siteSeed under the level above's flags) → the three
+forcing regimes run as a LIFE CYCLE over one lane graph:
+
+1. **Nucleus (Physarum star)** — engine-specific nucleus siting (harbour head /
+   ford / citadel hill / adit / market cross) + founding spokes routed least-cost
+   from the area gates to the one place that matters.
+2. **Coverage (hypoxia)** — growth tracks the population envelope (people-per-block
+   density, dropping at mechanisation — the streetcar spread); tissue farther than
+   2 lane-hops from a lane sprouts a capillary toward it (foam.js `seize()`,
+   compacted). Selftested invariant: every built block ends within 5 hops.
+3. **Demand (flux)** — past the diversification threshold, district anchors
+   (market / seat / port / mill) + gates form an O-D set; least-cost flux
+   accumulates per edge and lane tiers are the superlevel set (arterial /
+   connector / lane). The machine age re-solves the flux (bridges cheapen).
+
+Boundary conditions arrive from civ, downward only: the demographic envelope
+(popSeries, URBAN_SCALE-rendered), founder-tech era ticks (wheel → bridge costs,
+mechanisation → density + re-flux), `walledTick` (walls ring the built extent on
+the civ tick, leaving a fringe belt the town later spills — an event), and every
+`sackTick` (a wedge of the fabric burns and rebuilds — visible scars). Selftest:
+`polis/test/field.selftest.mjs` (22 checks: determinism, the three regimes,
+envelope tracking, terrain discipline, walls/sacks/spill, coverage invariant,
+engine-distinct nuclei).
+
+**The polis-theory ledger** (what the original charter's ideas became):
+
+| Original idea | Status |
+|---|---|
+| Site vs situation scoring, forced spawns, stratified founding | **integrated** (hinterland `candidates()`) |
+| Founding engines (gateway/break-of-bulk/staple/fortress/market) | **integrated** (hinterland towns + field nuclei) |
+| Base multiplier, logistic-to-K, agglomeration, flourish, conquest | **integrated** (economy.js, reused by chronicle) |
+| Physarum arteries (inter-town) | **integrated** (chronicle roads) |
+| Three-regime intra-city program (§0) | **integrated** (field.js — this slice) |
+| S-curve tech clock | **cast aside** — replaced by civ founderTech (real history) |
+| Polis-authored climate/deglaciation | **cast aside** — demoted to civ client |
+| Toy substrate.js | **cast aside** — real mappa slices (kept for proto selftest) |
+| Cards 500-node DAG + per-tech effects map | **cast aside** — civ's 24-cap DAG is the tech clock |
+| Conzen burgage plots, fringe-belt morphology | **partially** — fringe belt in field.js; plots not yet |
+| von Thünen rings, bid-rent kernels (Burgess/Hoyt/nuclei) | **not yet** — needs the district layer |
+| Financial layer (ρ, NPV-gated lumps, land cycle, crisis) | **not yet** — a future epoch |
+| Import-replacement dynamic (Jacobs) | **not yet** — economy.js multiplier is static |
+| hoop/econ vitality oracle as livability floor | **not yet** |
+| Bettencourt scaling readouts, Christaller K-nesting | **not yet** (spacing implements the spirit) |
+| Coercion/Tilly axis | **stub** (`t.coercion` set, unused) |
+
+**Next descents at the city level**: the district layer (bid-rent sorting around
+the anchors — the von Thünen/Alonso material above), blocks→plots (Conzen), and
+reading the civ city's `institutions` rollup into district kinds.
 
 ### Phase V — outward
 
