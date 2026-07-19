@@ -55,7 +55,7 @@
   <span class="sw" style="background:#d9a441"></span>commercial
   <span class="sw" style="background:#5a6673"></span>industrial
   · lanes by tier · <span style="color:#e5686b">burn</span> · <span style="color:#9aa7b8">wall</span>
-  <br><span style="opacity:.8">fine grain = high product (the map refines where the economy concentrates)</span>
+  <br><span style="opacity:.8">one continuous voronoi — cells divide by mitosis where product runs high</span>
 </div>
 <div id="time"><button id="playBtn">▶</button><input id="tSl" type="range" min="0" max="1" value="0" step="1"><span id="tLab" class="crumb"></span></div>
 <div id="ribbon"><span class="t"></span><span class="msg">the field lies quiet — history grinds forward</span></div>
@@ -178,9 +178,9 @@ function draw() {
   const t = tNow;
   ctx2.fillStyle = '#0d1117'; ctx2.fillRect(0, 0, cv.width, cv.height);
   const X = (x) => vx + x * scale, Y = (y) => vy + y * scale;
-  const S0 = (F.meta.frame / F.meta.B) * scale;                     // level-0 cell px
+  const S0 = (F.meta.frame / F.meta.BASE) * scale;                     // level-0 cell px
   let urban = 0, farms = 0;
-  for (const lf of F.leaves) {
+  for (const lf of F.sites) {
     if (lf.dead) continue;
     const p = F.polys[lf.id];
     if (!p || p.length < 3) continue;
@@ -203,7 +203,7 @@ function draw() {
   // lanes by tier
   for (const l of F.lanes) {
     if (l.at > t) continue;
-    const A = F.leaves[l.a], Bf = F.leaves[l.b];
+    const A = F.sites[l.a], Bf = F.sites[l.b];
     ctx2.strokeStyle = l.tier === 3 ? '#e8b755' : l.tier === 2 ? '#b3893f' : 'rgba(217,164,65,.5)';
     ctx2.lineWidth = l.tier === 3 ? Math.max(2.5, S0 * 0.2) : l.tier === 2 ? Math.max(1.6, S0 * 0.12) : Math.max(0.8, S0 * 0.06);
     ctx2.beginPath(); ctx2.moveTo(X(A.x), Y(A.y)); ctx2.lineTo(X(Bf.x), Y(Bf.y)); ctx2.stroke();
@@ -211,15 +211,15 @@ function draw() {
   // wall
   if (F.wall && t >= F.wall.at) {
     ctx2.fillStyle = '#9aa7b8';
-    for (const i of F.wall.ring) { const g = F.leaves[i]; if (!g.dead) ctx2.fillRect(X(g.x) - S0 * 0.16, Y(g.y) - S0 * 0.16, S0 * 0.32, S0 * 0.32); }
+    for (const i of F.wall.ring) { const g = F.sites[i]; if (!g.dead) ctx2.fillRect(X(g.x) - S0 * 0.16, Y(g.y) - S0 * 0.16, S0 * 0.32, S0 * 0.32); }
   }
   // anchors + nucleus
   if (F.anchors) for (const a of F.anchors) {
-    const g = F.leaves[a.cell];
+    const g = F.sites[a.cell];
     ctx2.fillStyle = '#e6edf3'; ctx2.font = `${Math.max(10, S0 * 0.9)}px ui-sans-serif`;
     ctx2.fillText({ market: '⊹', seat: '♜', port: '⚓', mill: '⚙' }[a.kind] || '•', X(g.x) - S0 * 0.3, Y(g.y) + S0 * 0.3);
   }
-  const nc = F.leaves[F.nucleus];
+  const nc = F.sites[F.nucleus];
   ctx2.fillStyle = '#d9a441'; ctx2.font = `${Math.max(12, S0)}px ui-sans-serif`;
   ctx2.fillText('★', X(nc.x) - S0 * 0.4, Y(nc.y) + S0 * 0.35);
 
@@ -228,7 +228,7 @@ function draw() {
   hud.innerHTML = `<div class="big">${popNow.toLocaleString()} <span class="k" style="font-size:12px">people</span></div>
     <div><span class="k">engine</span> ${F.meta.engine}</div>
     <div><span class="k">urban</span> ${urban} · <span class="k">farms</span> ${farms} · <span class="k">lanes</span> ${F.lanes.filter(l => l.at <= t).length}</div>
-    <div><span class="k">refinements</span> ${F.meta.splits} · <span class="k">fields built over</span> ${F.meta.displaced}</div>
+    <div><span class="k">divisions</span> ${F.meta.mitoses} · <span class="k">fields built over</span> ${F.meta.displaced}</div>
     <div><span class="k">regimes</span> star ${F.anchors ? '→ coverage → flux' : '→ coverage'}</div>
     ${F.wall && t >= F.wall.at ? '<div><span class="k">walls</span> since t=' + F.wall.at + '</div>' : ''}`;
   tLab.textContent = `t ${t} / ${T - 1}`;

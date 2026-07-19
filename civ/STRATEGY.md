@@ -375,15 +375,23 @@ engine-distinct nuclei).
 | Bettencourt scaling readouts, Christaller K-nesting | **not yet** (spacing implements the spirit) |
 | Coercion/Tilly axis | **stub** (`t.coercion` set, unused) |
 
-**Field v2 (SHIPPED — true Voronoi + adaptive resolution + the land market):**
+**Field v3 (SHIPPED — one continuous Voronoi, grown by mitosis):**
 
-- **True Voronoi, recursive.** Cells are real polygons (half-plane clipped against
-  neighbours) on a quadtree of jittered sites. A cell whose PRODUCT (winning land
-  rent) crosses `SPLIT_RENT` subdivides into four capacity-conserving children —
-  **resolution scales with local product**: the core refines to ~19 m grain while
-  the periphery stays at ~75 m. Splits re-sample micro-relief at higher frequency
-  (conditional refinement) and re-anchor lanes deterministically. Water/rivers
-  never split.
+- **One point set, one diagram.** v2's quadtree was a cheat (static base lattice,
+  visible grain boundary, hand-picked ceiling — the user caught all three). v3:
+  the city is a single global Voronoi over a live site set. Every tick EVERY cell
+  holds the power of **mitosis** — product (rent × area) over threshold → the site
+  divides into 3–4 children and **the entire mesh re-tessellates** (per-cell
+  half-plane clipping with expanding bucket-ring candidate search, globally
+  consistent). No levels, no seams: Σ cell areas = frame area is a selftested
+  invariant. Division **self-limits** (child area ≈ ⅓ ⇒ product falls back), so
+  the core/edge grain gradient (~50 m vs ~86 m, 13 generations deep) is an
+  OUTCOME of the land market, not a setting. Emergent bonus: division fronts
+  migrate into coarse land by capturing neighbour territory on re-tessellation.
+  All compute (growth, lanes, perfusion, market) runs on the live mesh;
+  capacity and farm-feed are area-based (people/km²), so division conserves
+  totals. Water/river sites never divide. Hypoxia sprouting is metric
+  (distance, not hops — hop counts mean nothing across mixed grain).
 - **Bid-rent land use** (Ricardo → von Thünen → Alonso): every land cell takes the
   use that bids most — commerce steepest on centrality, residence on lane access,
   industry on the mill/port anchors, agriculture on fertility with weak decay.

@@ -115,10 +115,10 @@ const C = [
  lin:'Braudel’s three durations made into an API contract. The no-upward-causation rule is ours — real history probably violates it.',
  src:'polis/chronicle.js · mappa/civ/api.js (doSites)'},
 {id:'M6', layer:'method', stance:'invented',
- stmt:'Detail exists where the economy is: resolution scales with local product.',
- mech:'The settlement field runs on a quadtree Voronoi mesh; a cell whose land rent crosses a threshold subdivides into four (capacity-conserving), so the core refines into fine grain while the periphery stays coarse. Rent is the refinement signal.',
- lin:'Adaptive mesh refinement from computational physics, with the economy as the error estimator; borges-lazy generation (only what you look at — or pay for — exists).',
- src:'polis/field.js (marketPass → splitLeaf)'},
+ stmt:'Detail exists where the economy is: every cell holds the power of mitosis, and the resolution emerges.',
+ mech:'The settlement field is ONE continuous Voronoi over a live point set. Each tick, any cell whose product (rent × area) exceeds the division threshold splits into 3–4 children and the ENTIRE mesh re-tessellates — no levels, no grain boundaries (Σ cell areas = frame area, selftested). Division self-limits: a child carries ~⅓ the area, so its product falls back unless rent keeps climbing — fine grain downtown and coarse pasture at the edge are outcomes, not settings.',
+ lin:'Adaptive mesh refinement from computational physics with the economy as the error estimator — done as biology (mitosis) rather than data structure (quadtree). Division fronts even migrate into coarse land by capturing neighbour territory in the re-tessellation.',
+ src:'polis/field.js (mitosis → tessellate)'},
 
 // ---------------- PLANET ----------------
 {id:'P1', layer:'planet', stance:'contested',
