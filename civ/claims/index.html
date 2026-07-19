@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>the claims — what the world engine believes</title>
+<meta name="description" content="Every atomic assumption about human development embedded in the mappa→civ→polis→org stack, catalogued: the claim, the mechanic that implements it, the scholarly lineage it rhymes with, and an honest label on how sure we are.">
+<style>
+  :root{ --bg:#0d1117; --panel:#131a24; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; --good:#5bd18b; --bad:#e5686b; --pur:#b48ee0; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  a{ color:var(--acc); }
+  header{ padding:26px 22px 6px; max-width:980px; margin:0 auto; }
+  h1{ margin:0; font-size:26px; letter-spacing:.3px; }
+  h1 .g{ color:var(--gold); }
+  .crumb{ font-size:13px; color:var(--dim); margin-bottom:8px; }
+  main{ max-width:980px; margin:0 auto; padding:8px 22px 60px; }
+  .manifesto{ background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:18px 20px; margin:16px 0 8px; }
+  .manifesto p{ margin:0 0 10px; }
+  .manifesto p:last-child{ margin-bottom:0; }
+  .manifesto b{ color:var(--gold); }
+  .manifesto .dim{ color:var(--dim); font-size:14px; }
+  code{ background:#0b0f16; border:1px solid var(--edge); border-radius:5px; padding:1px 6px; font-size:12.5px; }
+  h2{ font-size:15px; text-transform:uppercase; letter-spacing:1.2px; color:var(--dim); margin:34px 0 10px; }
+  h2 .n{ color:var(--gold); margin-right:8px; }
+  h2 .cnt{ color:var(--dim); font-weight:400; font-size:12px; letter-spacing:0; text-transform:none; margin-left:8px; }
+  .bar{ position:sticky; top:0; z-index:5; background:linear-gradient(var(--bg) 82%, transparent); padding:12px 0 10px; margin-top:10px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{ font-size:12.5px; padding:3px 11px; border-radius:999px; border:1px solid var(--edge); background:var(--panel); color:var(--dim); cursor:pointer; user-select:none; letter-spacing:.2px; }
+  .chip:hover{ border-color:var(--dim); }
+  .chip.on{ color:var(--ink); border-color:var(--gold); background:#1b2230; }
+  .chip .k{ opacity:.6; margin-left:5px; font-size:11px; }
+  .chips + .chips{ margin-top:6px; }
+  #tally{ font-size:12.5px; color:var(--dim); margin-top:7px; }
+  .claim{ background:var(--panel); border:1px solid var(--edge); border-radius:10px; padding:13px 16px; margin:8px 0; }
+  .claim .top{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .claim .id{ font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--gold); }
+  .claim .stmt{ font-weight:700; font-size:15.5px; }
+  .badge{ font-size:10.5px; border-radius:5px; padding:1px 7px; letter-spacing:.5px; text-transform:uppercase; white-space:nowrap; }
+  .badge.consensus{ background:#16261c; color:var(--good); }
+  .badge.contested{ background:#332020; color:var(--bad); }
+  .badge.stylized{ background:#332a16; color:var(--gold); }
+  .badge.invented{ background:#241d33; color:var(--pur); }
+  .claim .mech{ margin:7px 0 0; font-size:13.5px; color:var(--ink); }
+  .claim .mech .lbl, .claim .lin .lbl{ color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.7px; margin-right:7px; }
+  .claim .lin{ margin:5px 0 0; font-size:13px; color:var(--dim); }
+  .claim .src{ margin-top:6px; font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:var(--dim); opacity:.8; }
+  .foot{ border-left:2px solid var(--edge); margin:28px 0 0; padding:6px 0 6px 18px; font-size:13px; color:var(--dim); }
+  .foot b{ color:var(--gold); font-weight:600; }
+  .hide{ display:none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="crumb"><a href="/">civ.mino.mobi</a> · claims</div>
+  <h1><span class="g">the claims</span> — what the world engine believes</h1>
+</header>
+<main>
+
+<div class="manifesto">
+  <p>Every generative system is a theory that has been made to run. The <a href="/">suite</a> — <a href="https://mappa.mino.mobi/">mappa</a>'s planets, civ's ten millennia, <a href="https://polis.mino.mobi/">polis</a>'s hinterlands, <a href="https://rite.mino.mobi/org/">org</a>'s hierarchies — cannot simulate human development without <b>asserting things about human development</b>. Most simulations bury those assertions in constants nobody reads. This page digs them all up.</p>
+  <p>Each claim below is atomic: one assertion, the <b>mechanic</b> that implements it (the actual formula and constants, with the file it lives in), the <b>lineage</b> of real scholarship it rhymes with, and an honest label. <span class="badge consensus">consensus</span> means the scholarship broadly agrees and we implemented it. <span class="badge contested">contested</span> means the field is genuinely split and the engine picked a side. <span class="badge stylized">stylized</span> means a real regularity was compressed into one number that should not be quoted back as fact. <span class="badge invented">invented</span> means the claim is ours — a wager, a tractability move, or an aesthetic choice wearing a mechanic.</p>
+  <p class="dim">Three disciplines keep this catalogue honest. <b>Claims are versioned</b>: any change to a load-bearing claim changes what every permalink regenerates, so it must be declared as an engine epoch (epoch 1 → <code>67eee302</code>, epoch 2 cities-as-actors → <code>3c9a4a61</code>, epoch 3 agtech/water/fossil → <code>71a71f2f</code>) — the pinned hash in CI is the claims ledger's checksum. <b>Names are never causes</b>: everything presentational is excluded from the hash, so a claim either moves the numbers or it isn't a claim. And <b>nothing here is scripted</b>: the engine has no era switch, no event queue, no destiny — every claim is a local rule whose consequences we discover by running it, same as you.</p>
+</div>
+
+<div class="bar">
+  <div class="chips" id="layerChips"></div>
+  <div class="chips" id="stanceChips"></div>
+  <div id="tally"></div>
+</div>
+
+<div id="cat"></div>
+
+<div class="foot">
+  <b>To contest a claim</b>: every mechanic cites its file — read the code, run the selftest (<code>node mappa/civ/test/civ.selftest.mjs</code>), change the constant, and watch what history it makes. If your version is better, it ships as an epoch. That is the entire epistemology of this project: the claims are falsifiable in the only sense a generative system allows — <i>run both, compare the worlds</i>.
+</div>
+
+<script>
+const LAYERS = [
+  ['method',      'Method — the meta-claims'],
+  ['planet',      'Planet — geography before history'],
+  ['demography',  'Demography & metabolism'],
+  ['technology',  'Technology'],
+  ['belief',      'Belief'],
+  ['states',      'States, war & economies'],
+  ['cities',      'Cities'],
+  ['hinterland',  'Hinterland — the mesoscale'],
+  ['institutions','Institutions & persons'],
+];
+const C = [
+// ---------------- METHOD ----------------
+{id:'M1', layer:'method', stance:'invented',
+ stmt:'History is computable: a civilization’s whole history is a pure function of (world, ruleset, seed).',
+ mech:'One integer seed → one bit-identical chronicle on any machine, forever; the permalink IS the world. No wall clock, no unseeded randomness anywhere in the generator.',
+ lin:'Laplace’s demon as engineering spec; cliodynamics (Turchin) as aspiration. A metaphysical wager, not a finding.',
+ src:'mappa/civ/engine.js · chronicle.js (xmur3+mulberry32)'},
+{id:'M2', layer:'method', stance:'contested',
+ stmt:'There are no stages of history — “eras” are emergent phase transitions, not a script.',
+ mech:'Behaviour branches only on capabilities held (techVector bitset), never on an era label. “Bronze age” is a retrospective description of a run, not a state the engine enters.',
+ lin:'Against unilineal evolutionism (Morgan, stadial Marx); with Boserup and cultural-evolution gradualism. Archaeology mostly agrees now; popular history doesn’t.',
+ src:'mappa/civ/caps.js'},
+{id:'M3', layer:'method', stance:'invented',
+ stmt:'Great-man history and structural-forces history are both true — they are lenses over one substrate, not rivals.',
+ mech:'buildTimeline(chronicle, mode) renders the identical event stream as named deeds (greatman) or nameless pressures (forces); neither lens adds information, both select it.',
+ lin:'Carlyle vs. Tolstoy’s second epilogue; Braudel’s longue durée. The engine’s answer to the oldest fight in historiography: it’s a rendering option.',
+ src:'mappa/civ/timeline.js'},
+{id:'M4', layer:'method', stance:'invented',
+ stmt:'Names are never causes.',
+ mech:'Everything presentational — names, timelines, frames, FRED series — is excluded from the chronicle hash. A claim either moves the numbers or it is not a claim.',
+ lin:'Nominalism as build discipline. Also the practical converse of Sapir-Whorf: here, language provably cannot alter the world.',
+ src:'mappa/civ/chronicle.js (chronicleHash)'},
+{id:'M5', layer:'method', stance:'invented',
+ stmt:'One history must be tellable at three scales, and causation flows only downward.',
+ mech:'civ (global) → hinterland (mesoscale) → city (micro): each level is a client of the one above — demographic envelope, climate pulse, founder tech, recorded shocks arrive as boundary conditions; nothing flows back up.',
+ lin:'Braudel’s three durations made into an API contract. The no-upward-causation rule is ours — real history probably violates it.',
+ src:'polis/chronicle.js · mappa/civ/api.js (doSites)'},
+
+// ---------------- PLANET ----------------
+{id:'P1', layer:'planet', stance:'contested',
+ stmt:'Geography writes the first draft: carrying capacity is set by biome, moisture and terrain before any human choice.',
+ mech:'Per-cell K derives from Whittaker biome + moisture + elevation via the subsistence-viability table; every later multiplier (tech, cities, climate) modifies this floor.',
+ lin:'Environmental possibilism; Diamond’s Guns, Germs & Steel is the strong form. Critics (Blaut, institutionalists) say we overweight it — they may be right.',
+ src:'mappa/civ/world.js (subViab, cellK)'},
+{id:'P2', layer:'planet', stance:'consensus',
+ stmt:'Rivers and coasts site cities.',
+ mech:'Settlement scoring privileges river cells, lake adjacency, deltas and coasts; CI asserts ≥40% of emergent cities sit on water in the pinned run.',
+ lin:'Every gazetteer ever compiled; port-and-portage urban geography (Cronon’s Nature’s Metropolis).',
+ src:'mappa/civ/world.js · test/civ.selftest.mjs'},
+{id:'P3', layer:'planet', stance:'consensus',
+ stmt:'Minerals are places, not ambience — and the map of buried carbon is written before history starts.',
+ mech:'Copper, tin, iron, gold, salt placed by geology; coal seams in warm wet lowlands (elev<0.35, T>12°, moisture>0.55 — Carboniferous logic), oil in low basins. Deposits are nodes you hold or don’t.',
+ lin:'Economic geology; the resource-endowment strand of why-England debates (Wrigley, Allen).',
+ src:'mappa/civ/world.js (RESOURCES, placement ported from mappa/viewer.js)'},
+{id:'P4', layer:'planet', stance:'consensus',
+ stmt:'Climate change is exogenous forcing with endogenous consequences.',
+ mech:'Scheduled pulses modify per-cell K and passability (climate.Kmod, passability); the kurgan preset’s steppe drying reliably ejects dispersers who reorganize everyone downstream. The pulse is scripted; everything it causes is not.',
+ lin:'Steppe hypothesis (Gimbutas, Anthony’s The Horse the Wheel and Language); volcanic-downturn history (Büntgen’s 536 AD).',
+ src:'mappa/civ/climate-forcing · engine.js'},
+
+// ---------------- DEMOGRAPHY ----------------
+{id:'D1', layer:'demography', stance:'consensus',
+ stmt:'Population presses on the ceiling: as pop/K → 1, mortality rises and fertility falls.',
+ mech:'Death rate d0 + 0.06·(ratio−1)^1.4 past the ceiling; birth rate b0·max(0, 1−0.92·ratio). Famine is not an event — it is this curve doing its work.',
+ lin:'Malthus (1798), as amended: binding in the pre-modern world, escaped later — see D2, which is the escape hatch.',
+ src:'mappa/civ/engine.js'},
+{id:'D2', layer:'demography', stance:'consensus',
+ stmt:'Technology raises the ceiling — what Malthus missed is that farming efficiency compounds.',
+ mech:'foodTechMul: granary ×1.06 · crop rotation ×1.12 · terracing ×1.25 (slopes only) · seed drill ×1.15 · fertilizer ×1.30 · green revolution ×1.45 ≈ 2.4× the raw land ceiling at full stack, multiplying effective K per cell.',
+ lin:'Boserup’s inversion (population pressure induces intensification); the actual Green Revolution (Borlaug). Lineage vendored from the cards tech pool.',
+ src:'mappa/civ/caps.js (foodTechMul) · cards/js/pools/tech-pool.js'},
+{id:'D3', layer:'demography', stance:'stylized',
+ stmt:'Subsistence is a density ladder, and each rung is a number.',
+ mech:'People per unit land: forager 0.18 → pastoral 0.38 → horticulture 0.95 → plough 1.70 → irrigation 2.60 (maritime 0.80). Selection between packages, not decree, moves populations up the ladder.',
+ lin:'Ethnographic density estimates (Binford, the Ethnographic Atlas); ratios are real, the specific values are ours.',
+ src:'mappa/civ/caps.js (PKG)'},
+{id:'D4', layer:'demography', stance:'consensus',
+ stmt:'Wealth buys survival.',
+ mech:'Individual death rate scaled by ×(1.15 − 0.3·health − min(0.35, 0.08·wealth)) — the rich weather the famine that kills their neighbors.',
+ lin:'The mortality gradient, robust in every dataset since parish records (Antonovsky’s review; Deaton).',
+ src:'mappa/civ/engine.js'},
+{id:'D5', layer:'demography', stance:'consensus',
+ stmt:'Fresh water is a separate budget from food, and it binds.',
+ mech:'Demand = pop × package thirst [forager 0.3, pastoral 0.5, horticulture 0.8, plough 1.0, irrigation 1.6, maritime 0.6]; supply = 0.75·moisture + 0.55·river + 0.35·lake; wells floor supply where rain fails, aqueducts add 0.35 at cities. Scarcity caps K by (supply/demand)^0.6, floor 0.55.',
+ lin:'Water-stress hydrology; Wittfogel’s hydraulic thesis supplies the irrigation-drinks-deepest intuition (his despotism corollary is NOT implemented — see S2).',
+ src:'mappa/civ/engine.js (THIRST, waterMul) — epoch 3'},
+{id:'D6', layer:'demography', stance:'consensus',
+ stmt:'Energy is the master variable of industry: muscle → fuelwood → watermills → fossil, and the fossil transition lifts a ceiling that bounded everything before it.',
+ mech:'Energy ledger in person-power equivalents (ppe); the forces timeline marks the tick fossil output first exceeds all organic sources combined — in the reference run, the single largest discontinuity in the series.',
+ lin:'Wrigley’s organic economy → mineral economy; Smil’s energy transitions.',
+ src:'mappa/civ/engine.js (fredStep energy) · timeline.js'},
+{id:'D7', layer:'demography', stance:'contested',
+ stmt:'The fossil takeoff is geographic: you industrialize where the coal is, or you pay for the distance.',
+ mech:'Tier-4+ population on a coal/oil cell yields 6 ppe/head; a culture holding a deposit anywhere, 2.2; no access, 0.4 scraps. Same tech, different geology, different curve.',
+ lin:'Allen’s coal-proximity account of the British industrial revolution; Pomeranz’s Great Divergence. Contested by institution-first accounts (Mokyr) — the engine sides with the geologists.',
+ src:'mappa/civ/engine.js · world.js — epoch 3'},
+{id:'D8', layer:'demography', stance:'stylized',
+ stmt:'A human life has a shape: adult at 15, fertile to 45, dead by 72.',
+ mech:'Lifecycle thresholds in real years, converted to ticks; dispersal (migration) is a young-adult behaviour confined to the adult→fertile window.',
+ lin:'Paleodemography and model life tables, flattened to three constants.',
+ src:'mappa/civ/engine.js (adultT, fertileMaxT, maxAgeT)'},
+
+// ---------------- TECHNOLOGY ----------------
+{id:'T1', layer:'technology', stance:'consensus',
+ stmt:'Technology is a DAG of prerequisites, not a ladder of ages.',
+ mech:'24 capabilities, each unlockable only when its prerequisite bits are held (steam needs mechanisation+masonry; the seed drill needs crop rotation+the wheel). No capability is ever granted by era.',
+ lin:'Combinatorial-evolution accounts of technology (Arthur, Basalla); every tech tree in game design, done honestly.',
+ src:'mappa/civ/caps.js (PREREQ)'},
+{id:'T2', layer:'technology', stance:'consensus',
+ stmt:'Innovation scales with population and connectivity — the collective brain.',
+ mech:'Invention probability ∝ min(2.2, pop/110), boosted ×1.4 past tier 2, damped by how many neighbors already hold the capability; isolated small cultures stagnate mechanically.',
+ lin:'Henrich’s collective brain; Kremer’s population-growth model; the Tasmania case as the null.',
+ src:'mappa/civ/engine.js (MEME.innovation)'},
+{id:'T3', layer:'technology', stance:'consensus',
+ stmt:'Later ideas are harder to find.',
+ mech:'Tier difficulty [1, 0.6, 0.28, 0.12, 0.05, 0.02] — a tier-5 capability is ~50× harder to originate than a tier-1, so late history needs the large connected populations early history cannot supply.',
+ lin:'Bloom et al., “Are Ideas Getting Harder to Find?” — read backwards into deep time.',
+ src:'mappa/civ/engine.js (TIER_DIFFICULTY)'},
+{id:'T4', layer:'technology', stance:'consensus',
+ stmt:'Most technology arrives by diffusion, not invention.',
+ mech:'Contact trace × receptivity × 0.15 per tick: any culture in sustained contact with holders eventually acquires the capability; in practice most techUnlock events in a run are diffusion events.',
+ lin:'Diffusionism’s sober core (Rogers); the archaeology of the wheel, the alphabet, gunpowder.',
+ src:'mappa/civ/engine.js'},
+{id:'T5', layer:'technology', stance:'consensus',
+ stmt:'Independent reinvention is real and expected.',
+ mech:'The tech timeline distinguishes “first worked out”, “invented again” (convergent, no contact path), and “spreads” — all three occur in reference runs.',
+ lin:'Multiple discovery (Ogburn & Thomas, Merton); agriculture’s ~11 independent origins.',
+ src:'mappa/civ/timeline.js (techIndep)'},
+{id:'T6', layer:'technology', stance:'consensus',
+ stmt:'Industry needs cities: no steam engine has ever been invented in a village.',
+ mech:'Capabilities above the industrial threshold require the culture to run an urbanized society (≥5000 in institutions) before the invention roll is even allowed.',
+ lin:'Agglomeration and knowledge spillovers (Marshall, Jacobs); the urban bias of every industrial takeoff on record.',
+ src:'mappa/civ/engine.js (industrialMinPop)'},
+
+// ---------------- BELIEF ----------------
+{id:'B1', layer:'belief', stance:'contested',
+ stmt:'Religions are memes under selection: doctrines are trait vectors, and survival is differential.',
+ mech:'Each faith is a 6-axis doctrine [universal, moral, hierarchy, ascetic, martial, rational]; faiths spread, schism, mutate and go extinct by the population dynamics of their holders — no doctrine is authored.',
+ lin:'Cultural evolution of religion (Dennett, Boyer, Atran). Contested by everyone who thinks belief content can’t be projected to six floats — fair.',
+ src:'mappa/civ/engine.js (DOX)'},
+{id:'B2', layer:'belief', stance:'contested',
+ stmt:'Moralizing gods build big groups.',
+ mech:'High-moral faiths: +10% birth rate (pronatalism) and −6% death rate scaled by local co-believer homogeneity (in-group trust → resilience). Big-group advantages, mechanically.',
+ lin:'Norenzayan’s Big Gods; the Seshat wars over whether moralizing gods precede or follow social complexity are live — the engine implements the pro side.',
+ src:'mappa/civ/engine.js (beliefBirthMul, beliefDeathMul)'},
+{id:'B3', layer:'belief', stance:'consensus',
+ stmt:'Universalizing creeds outconvert ethnic ones.',
+ mech:'Conversion pressure weights a faith’s local mass by (0.3 + universal·missionaryBias): a faith anyone may join beats one you must be born into, wherever populations mix.',
+ lin:'The entire history of world religions vs. ethnic religions; Stark’s Rise of Christianity.',
+ src:'mappa/civ/engine.js'},
+{id:'B4', layer:'belief', stance:'contested',
+ stmt:'Rationalism secularizes its own faith.',
+ mech:'Piety decays ∝ (0.4 + rational doctrine); below piety 0.04, apostasy rolls scale with the same axis — a faith’s own rationalism is its exit door.',
+ lin:'Weber’s disenchantment. The secularization thesis has taken real empirical damage (Stark again, Berger’s recantation) — this one is a deliberate side-pick.',
+ src:'mappa/civ/engine.js'},
+{id:'B5', layer:'belief', stance:'stylized',
+ stmt:'Martial faiths fight better.',
+ mech:'War strength ×(1 + 0.35·martial doctrine) for the attacker’s seat faith — holy war as a combat multiplier.',
+ lin:'Ibn Khaldun’s asabiyyah with a creed attached; morale literature. One number carrying a large literature.',
+ src:'mappa/civ/engine.js (beliefMartialMul)'},
+{id:'B6', layer:'belief', stance:'consensus',
+ stmt:'Faiths schism when they grow.',
+ mech:'Past 350 believers, 2%/tick schism risk; the daughter faith’s doctrine mutates ±0.25 per axis and ~45% of congregations defect cell-wise.',
+ lin:'Sect–church cycling (Niebuhr, Stark & Bainbridge); the empirical fissility of every large tradition.',
+ src:'mappa/civ/engine.js (MEME.schism)'},
+{id:'B7', layer:'belief', stance:'consensus',
+ stmt:'Children inherit their mother’s faith.',
+ mech:'Vertical transmission at birth: the child takes the mother’s belief at 85% of her piety; horizontal conversion must overcome this default.',
+ lin:'Cavalli-Sforza & Feldman’s cultural transmission; every religious-demography survey.',
+ src:'mappa/civ/engine.js'},
+
+// ---------------- STATES / WAR / ECONOMY ----------------
+{id:'S1', layer:'states', stance:'contested',
+ stmt:'Surplus precedes the state: no agriculture, no kingdom.',
+ mech:'The institution ladder (band → chiefdom → state) gates on subsistence package and population density; foragers never generate states no matter how long a run goes.',
+ lin:'Childe’s orthodoxy. Scott’s Against the Grain argues the arrow partly reverses (states made grain legible, grain didn’t make states) — the engine keeps the older arrow.',
+ src:'mappa/civ/engine.js (polity ladder)'},
+{id:'S2', layer:'states', stance:'consensus',
+ stmt:'Institutions are evolved, not designed.',
+ mech:'Every institution carries a ruleset vector [tax≤0.6, wage 0.1–0.9, merit, invest≤0.9] that mutates on founding and is selected by institutional survival — the tax rates that persist are the ones whose institutions did.',
+ lin:'North’s institutions; cultural group selection (Richerson & Boyd, Turchin). The timeline’s “rulesets” entries expose the surviving genomes.',
+ src:'mappa/civ/engine.js (norms)'},
+{id:'S3', layer:'states', stance:'contested',
+ stmt:'War is the selector for scale: conflict advantage compounds tech, creed and walls, and conquest converts.',
+ mech:'warOnce resolves on tech tier + martial faith + fortification; the losing side’s survivors convert at max(0, 0.5 + 0.6·advantage)·(0.4 + receptivity) — defeat is demographic and cultural at once.',
+ lin:'Carneiro’s circumscription; Turchin’s Ultrasociety (war forged large-scale cooperation). Pinker’s critics would note we make war productive — that IS the Turchin claim.',
+ src:'mappa/civ/engine.js (warOnce, wConvert)'},
+{id:'S4', layer:'states', stance:'consensus',
+ stmt:'Dynasties cycle: polities rise, peak, and fall — and the fall is a threshold, not a decay.',
+ mech:'A culture that reached statehood is declared fallen when its population drops below 25% of its own peak; the timeline renders rise/peak/fall as a lifecycle with named dynasts under the greatman lens.',
+ lin:'Ibn Khaldun’s cycles; Turchin & Nefedov’s Secular Cycles.',
+ src:'mappa/civ/engine.js (polityFall)'},
+{id:'S5', layer:'states', stance:'consensus',
+ stmt:'Credit cycles are endogenous: booms and crashes need no external shock.',
+ mech:'A market state (index, sentiment, rate, debt, defaults) evolves from firm borrowing and equity dynamics; equity moves with 0.35·growth + 0.5·shared sentiment — the sentiment term alone suffices to generate boom/crash ticks.',
+ lin:'Minsky’s financial instability hypothesis; Kindleberger. Debt/GDP is a first-class FRED series.',
+ src:'mappa/civ/engine.js (market)'},
+{id:'S6', layer:'states', stance:'consensus',
+ stmt:'Inequality is emergent and must be measured, not scripted.',
+ mech:'No inequality parameter exists; Gini is computed from the wealth distribution that accumulation, inheritance and famine produce, and reported as a series.',
+ lin:'Scheidel’s Great Leveler (violence compresses wealth — visible in post-war Gini dips in runs); Piketty as instrumentation.',
+ src:'mappa/civ/engine.js (fredStep gini)'},
+
+// ---------------- CITIES ----------------
+{id:'C1', layer:'cities', stance:'invented',
+ stmt:'A city is an actor: an org of orgs with its own lifecycle, not a dot on a map.',
+ mech:'A cell crossing CITY_MIN becomes an entity containing the institutions seated there; it founds, peaks, fortifies, stands sieges, gets sacked, falls, revives — and each of those is an event other actors respond to.',
+ lin:'Weber’s city as corporate actor; ours in the strong form. Epoch 2’s defining claim.',
+ src:'mappa/civ/engine.js (cityList) — epoch 2'},
+{id:'C2', layer:'cities', stance:'consensus',
+ stmt:'Agglomeration pays: density itself raises the ceiling.',
+ mech:'cityK = 1 + min(0.25, 0.08·log10(1 + peak/CITY_MIN)) — market density and division of labour lift effective K up to +25%, so cities feed their own growth.',
+ lin:'Marshall’s externalities; Jacobs; modern urban scaling (Bettencourt’s superlinearity, clipped to a modest number).',
+ src:'mappa/civ/engine.js — epoch 2'},
+{id:'C3', layer:'cities', stance:'consensus',
+ stmt:'Walls shift the offense–defense balance, and the difference is a counterfactual.',
+ mech:'Masonry culture + 30 ticks standing → walls; ×1.8 effective defense. One combat roll decides both the outcome and what would have happened unwalled — an assault that carries the open town but breaks on stone is recorded as a siege.',
+ lin:'Offense–defense theory (Jervis); the archaeology of fortification as the oldest public investment.',
+ src:'mappa/civ/engine.js (warOnce walls) — epoch 2'},
+{id:'C4', layer:'cities', stance:'invented',
+ stmt:'The annals are not the count: history records fewer sackings than happened.',
+ mech:'Every sack increments the counter; the event log throttles to one recorded sack per city per 40 ticks. The chronicle keeps exact numbers AND a realistic source density — deliberately unlike each other.',
+ lin:'Source criticism made mechanical — the gap between Annales-style seriality and what chroniclers bothered to write down.',
+ src:'mappa/civ/engine.js (sackCooldown)'},
+{id:'C5', layer:'cities', stance:'consensus',
+ stmt:'The sea keeps what it takes: drowned settlements do not come back.',
+ mech:'In the hinterland, a town whose cell goes underwater decays at ×0.3/tick with founding suppressed — dead for good, while land-ruined towns can revive.',
+ lin:'Doggerland, Dunwich, Port Royal; there is no archaeology of the resettled seabed.',
+ src:'polis/chronicle.js (drowning rule)'},
+
+// ---------------- HINTERLAND ----------------
+{id:'H1', layer:'hinterland', stance:'consensus',
+ stmt:'Settlement spacing is transport technology crystallized: a town every day’s walk.',
+ mech:'Founding lattice spacing by era: walk 3.2 → wheel 4.5 → sail 6.0 → rail 8.0 (mesh units); each new transport era opens a founding wave at its own spacing (ports under sail, junctions under rail).',
+ lin:'Christaller’s central place theory; von Thünen; the day’s-walk regularity in every pre-modern settlement survey.',
+ src:'polis/chronicle.js (TRANSPORT)'},
+{id:'H2', layer:'hinterland', stance:'consensus',
+ stmt:'The map is a palimpsest: towns keep the spacing of the era that founded them.',
+ mech:'A town’s founding era is frozen at birth; later eras interleave new settlements at wider spacing rather than moving old ones — the walk-era lattice persists under the rail network.',
+ lin:'Urban-morphology path dependence; why European villages sit 5 km apart under a 21st-century economy.',
+ src:'polis/chronicle.js (eraWave)'},
+{id:'H3', layer:'hinterland', stance:'consensus',
+ stmt:'Railroads follow gradients and arrive with industry.',
+ mech:'Rail paths are slope-penalized greedy routes between towns that industrial-era demand justifies; they generate only in hinterlands whose founder culture actually reached mechanisation.',
+ lin:'Railway economics 101 (ruling gradients); Fogel’s counterfactual as the reason to model them at all.',
+ src:'polis/chronicle.js (railPath)'},
+{id:'H4', layer:'hinterland', stance:'invented',
+ stmt:'No region booms against a collapsing civilization.',
+ mech:'Regional growth = r × (0.55 + 0.9·civ demographic envelope) × food security from above — the hinterland’s ceiling AND its rate are clients of civ’s curve. Purely downward causation (see M5).',
+ lin:'The strong form of the cascade contract; real regions occasionally do counter-cycle (that’s the claim’s known falsity, accepted for coherence).',
+ src:'polis/chronicle.js (rEff, foodSecAt)'},
+{id:'H5', layer:'hinterland', stance:'consensus',
+ stmt:'Mill towns win the early industrial era: energy endowment becomes a growth multiplier the moment tech can use it.',
+ mech:'Once founder tech passes 0.75, town growth ×(0.85 + 0.35·min(1, (water + fossil endowment)·0.7)) — falling water and coal seams pick the winners for a century.',
+ lin:'New England mill towns, the Pennines; Allen again at regional scale.',
+ src:'polis/chronicle.js (eMul)'},
+
+// ---------------- INSTITUTIONS & PERSONS ----------------
+{id:'O1', layer:'institutions', stance:'consensus',
+ stmt:'Hierarchy is expensive but necessary: every layer skims, every overloaded span leaks.',
+ mech:'Rollup per node: × leadership modifier (0.86 poor → 1.08 great) × span penalty (floor 0.55 past comfortable load) × depth tax 0.985/layer. A healthy org delivers ~60–85% of gross talent; the rest is the price of coordination.',
+ lin:'Graicunas’ span-of-control arithmetic; Williamson’s hierarchy costs; the M-form literature.',
+ src:'rite/org/engine.js (rollup)'},
+{id:'O2', layer:'institutions', stance:'contested',
+ stmt:'Structure beats talent: the same people in a different shape score differently.',
+ mech:'generateOrg holds the person roster fixed while shape (pyramid/tall/flat/wide/matrix/cellular/fractal) varies; flat and wide shapes overload managers into Failing tiers with identical humans.',
+ lin:'Contingency theory (Burns & Stalker); contested by the talent-density school — the engine votes structure, loudly.',
+ src:'rite/org/engine.js · person.js'},
+{id:'O3', layer:'institutions', stance:'consensus',
+ stmt:'Morale flows downhill and people leave bad bosses.',
+ mech:'morale = 52 + 45·(managerQuality − 1) − 30·overload …; flight risk = 0.42·(100−morale) + 0.34·unmet ambition + … — attrition concentrates under weak overloaded managers.',
+ lin:'Half a century of organizational-psych survey data, Gallup’s “people quit managers” compressed to two linear forms.',
+ src:'rite/org/engine.js (nodePerf)'},
+{id:'O4', layer:'institutions', stance:'invented',
+ stmt:'A person is a triad: craft, drive and wit, expressed into everything else.',
+ mech:'Three latent stats generate nine attributes, a temperament cast, quirks, output and leadership; the same triad shape prices athletes (hoop), managers (org) and civ’s great people — one anthropology across the suite.',
+ lin:'Rhymes with trait psychology (conscientiousness ≈ drive) but is not it; chosen for cross-site coherence, not validity.',
+ src:'rite/org/person.js · hoop stats.js'},
+{id:'O5', layer:'institutions', stance:'invented',
+ stmt:'A name is cultural data: one seed of phonotactics makes a people legible in a word.',
+ mech:'Culture packs are phonotactic wardrobes; a charter subsamples and Zipf-boosts favorite sounds so 300 names cohere; civ cultures draw a pack blend, so a dynasty, its gods and its cities sound related — and none of it touches the hash (M4).',
+ lin:'Sound symbolism and loanword phonology, taken as license rather than law.',
+ src:'rite/names/engine.js · mappa/civ/names.js'},
+];
+
+// ---- render -------------------------------------------------------------------
+const $ = s => document.querySelector(s);
+const layerOn = new Set(LAYERS.map(l => l[0]));
+const stances = ['consensus','contested','stylized','invented'];
+const stanceOn = new Set(stances);
+
+function chip(label, key, set, extra) {
+  const el = document.createElement('span');
+  el.className = 'chip on'; el.innerHTML = label + (extra ? ` <span class="k">${extra}</span>` : '');
+  el.onclick = () => {
+    if (set.has(key) && set.size === 1) { // re-click a lone chip → select all
+      (set === layerOn ? LAYERS.map(l => l[0]) : stances).forEach(k => set.add(k));
+    } else if (set.has(key) && set.size === (set === layerOn ? LAYERS.length : stances.length)) {
+      set.clear(); set.add(key); // click from all-on → solo
+    } else if (set.has(key)) set.delete(key);
+    else set.add(key);
+    sync();
+  };
+  el.dataset.key = key; el.dataset.set = set === layerOn ? 'layer' : 'stance';
+  return el;
+}
+const lc = $('#layerChips'), sc = $('#stanceChips');
+for (const [k, label] of LAYERS) lc.appendChild(chip(label.split(' — ')[0], k, layerOn, C.filter(c => c.layer === k).length));
+for (const s of stances) sc.appendChild(chip(s, s, stanceOn, C.filter(c => c.stance === s).length));
+
+const cat = $('#cat');
+let sec = 0;
+for (const [k, label] of LAYERS) {
+  sec++;
+  const h = document.createElement('h2');
+  h.dataset.layer = k;
+  h.innerHTML = `<span class="n">${['I','II','III','IV','V','VI','VII','VIII','IX'][sec-1]}</span> ${label} <span class="cnt"></span>`;
+  cat.appendChild(h);
+  for (const c of C.filter(c => c.layer === k)) {
+    const d = document.createElement('div');
+    d.className = 'claim'; d.dataset.layer = c.layer; d.dataset.stance = c.stance;
+    d.innerHTML = `<div class="top"><span class="id">${c.id}</span><span class="stmt">${c.stmt}</span><span class="badge ${c.stance}">${c.stance}</span></div>
+      <p class="mech"><span class="lbl">mechanic</span>${c.mech}</p>
+      <p class="lin"><span class="lbl">lineage</span>${c.lin}</p>
+      <div class="src">${c.src}</div>`;
+    cat.appendChild(d);
+  }
+}
+function sync() {
+  document.querySelectorAll('.chip').forEach(el => {
+    const set = el.dataset.set === 'layer' ? layerOn : stanceOn;
+    el.classList.toggle('on', set.has(el.dataset.key));
+  });
+  let shown = 0;
+  document.querySelectorAll('.claim').forEach(el => {
+    const on = layerOn.has(el.dataset.layer) && stanceOn.has(el.dataset.stance);
+    el.classList.toggle('hide', !on); if (on) shown++;
+  });
+  document.querySelectorAll('h2[data-layer]').forEach(h => {
+    const n = [...document.querySelectorAll(`.claim[data-layer="${h.dataset.layer}"]:not(.hide)`)].length;
+    h.classList.toggle('hide', n === 0);
+    h.querySelector('.cnt').textContent = `${n}`;
+  });
+  $('#tally').textContent = `${shown} of ${C.length} claims shown · click a chip to toggle; click a lone chip to reset`;
+}
+sync();
+</script>
+</main>
+</body>
+</html>

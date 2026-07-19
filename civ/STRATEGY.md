@@ -21,6 +21,13 @@ people are already designed to be valid hoop NPCs), the planned **fable `/city`*
 (registry note says "extends mappa" — it should extend *polis*), and the mino.mobi atlas
 (a projection of the site catalogue onto a mappa world).
 
+**The claims catalogue** (`civ/claims/`, live at `civ.mino.mobi/claims/`) documents the
+suite's anthropology: every atomic assumption about human development embedded in any
+layer, each with its implementing mechanic (constants + file), its scholarly lineage, and
+an epistemic label (consensus / contested / stylized / invented). When an epoch changes a
+load-bearing constant, update the matching claim card — the page cites real numbers from
+the code and goes stale silently if skipped.
+
 ### What already aligns (the suite's real contracts)
 
 1. **Determinism.** Every engine is a pure function of a seed — same xmur3/mulberry32
