@@ -128,6 +128,58 @@
   footer p { margin-bottom: 8px; max-width: 68ch; }
   kbd { border: 1px solid var(--line); padding: 0 4px; font-size: 11px; color: var(--dim); }
 
+  /* ---- the poster card: typography pass over the painting slot ---- */
+  .postercard { margin-top: 30px; display: grid; grid-template-columns: minmax(240px, 340px) 1fr; gap: 20px; align-items: start; }
+  .poster {
+    position: relative; aspect-ratio: 27 / 40; border: 1px solid var(--line);
+    background:
+      radial-gradient(1px 1px at 18% 12%, #ffffff30 50%, transparent 51%),
+      radial-gradient(1px 1px at 62% 22%, #ffffff28 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 82% 8%,  #ffffff38 50%, transparent 51%),
+      radial-gradient(1px 1px at 38% 32%, #ffffff1e 50%, transparent 51%),
+      radial-gradient(1px 1px at 8% 44%,  #ffffff22 50%, transparent 51%),
+      linear-gradient(180deg, #101426 0%, #1a1230 55%, #2a1020 100%);
+    overflow: hidden; box-shadow: 0 10px 40px #00000088;
+  }
+  .poster img.painting { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .painting-pending {
+    position: absolute; left: 12%; right: 12%; top: 30%; text-align: center;
+    color: #8a8272; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; line-height: 2;
+  }
+  .painting-pending b { display: block; color: #5a544a; }
+  .ptype { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 7% 6% 5%; pointer-events: none; }
+  .ptag { text-align: center; font-style: italic; color: var(--amber); font-size: clamp(9px, 1.6vw, 12px); text-shadow: 0 1px 3px #000; }
+  .ptitle-wrap { text-align: center; }
+  .ptitle { font-weight: 800; font-size: clamp(20px, 4vw, 30px); line-height: 1.05; text-shadow: 0 2px 6px #000; }
+  .ptitle[data-era="atomic50s"]  { font-family: Georgia, serif; font-style: italic; color: #e9f0dd; text-shadow: 0 0 14px #7fae4d88, 0 2px 0 #2c3a1e; }
+  .ptitle[data-era="spaceage60s"] { font-family: 'Trebuchet MS', Verdana, sans-serif; letter-spacing: .12em; text-transform: uppercase; font-size: clamp(15px, 3vw, 22px); color: #f0b46a; text-shadow: 2px 2px 0 #59331a; }
+  .ptitle[data-era="dystopia70s"] { font-family: Georgia, serif; color: #d8b98a; text-shadow: 0 0 18px #7a5a2077, 0 2px 4px #000; }
+  .ptitle[data-era="vhs80s"] {
+    font-family: 'Arial Black', sans-serif; font-style: italic;
+    background: linear-gradient(180deg, #fdfdfd 0%, #b8c4d4 34%, #5b6b86 50%, #dfe8f4 54%, #8fa0bd 78%, #e8eef8 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #dfe8f4;
+    filter: drop-shadow(0 2px 0 #1a2030) drop-shadow(0 0 10px #5b7bd555);
+  }
+  .ptitle[data-era="dtv90s"] { font-family: var(--mono); color: #7ff0e8; text-shadow: 0 0 10px #19e8d8aa, 0 0 30px #c83cf088; }
+  .ptitle[data-era="mock00s"] { font-family: 'Arial Black', Impact, sans-serif; text-transform: uppercase; color: #f2f2f2; text-shadow: 3px 3px 0 #a01212; transform: skew(-4deg); }
+  .ptitle[data-era="stream10s"] { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 300; letter-spacing: .26em; text-transform: uppercase; font-size: clamp(13px, 2.6vw, 20px); color: #cfd2d8; }
+  .pbill { text-align: center; color: #cfd2d8; }
+  .pbill .studio { font-size: clamp(7px, 1.2vw, 9px); letter-spacing: .2em; text-transform: uppercase; color: #b9b2a2; }
+  .pbill .stars { margin-top: 4px; font-size: clamp(8px, 1.4vw, 11px); letter-spacing: .12em; text-transform: uppercase; color: #e8e0cf; }
+  .pbill .block { margin-top: 5px; font-size: clamp(5px, 0.9vw, 7px); letter-spacing: .04em; line-height: 1.7; color: #a49d8d; text-transform: uppercase; transform: scaleY(1.15); }
+  .pbill .marks { margin-top: 5px; display: flex; justify-content: center; gap: 8px; align-items: center; font-size: clamp(6px, 1vw, 8px); letter-spacing: .12em; color: #b9b2a2; }
+  .pbill .rating { border: 1px solid #b9b2a2; padding: 1px 5px; color: #e8e0cf; }
+  .pnotes h3 { font-size: 11px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; font-weight: 600; margin-bottom: 10px; }
+  .pnotes .note { font-size: 12.5px; color: var(--dim); margin-bottom: 10px; }
+  .pnotes details { border: 1px solid var(--line); background: var(--card); }
+  .pnotes summary { cursor: pointer; padding: 10px 12px; font-size: 10px; letter-spacing: .25em; color: var(--dim); text-transform: uppercase; }
+  .pnotes pre { padding: 0 12px 12px; font-size: 11px; line-height: 1.55; color: var(--dim); white-space: pre-wrap; }
+
+  @media (max-width: 720px) {
+    .postercard { grid-template-columns: 1fr; }
+    .poster { max-width: 340px; margin: 0 auto; }
+  }
+
   @media (max-width: 560px) {
     .row { grid-template-columns: 1fr; gap: 0; }
     .row .k { padding-top: 4px; }
@@ -153,6 +205,33 @@
   <div class="tagline" id="tagline"></div>
   <p class="logline" id="logline"></p>
   <p class="comps">the pitch meeting: <b id="comps"></b></p>
+
+  <div class="postercard">
+    <div class="poster" id="poster">
+      <img class="painting" id="painting" alt="" style="display:none">
+      <div class="painting-pending" id="pending"><b>Painting pending</b>the projection prompt is assembled ·<br>renders run in Actions</div>
+      <div class="ptype">
+        <div class="ptag" id="ptag"></div>
+        <div class="ptitle-wrap"><div class="ptitle" id="ptitle" data-era=""></div></div>
+        <div class="pbill">
+          <div class="studio" id="pstudio"></div>
+          <div class="stars" id="pstars"></div>
+          <div class="block" id="pblock"></div>
+          <div class="marks"><span id="peramark"></span><span class="rating" id="prating"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="pnotes">
+      <h3>THE PROJECTION — phase 3, in progress</h3>
+      <div class="note" id="pbrief"></div>
+      <div class="note" id="pflaws"></div>
+      <div class="note" id="pprojfail"></div>
+      <details>
+        <summary>The assembled prompt (versioned template, genome-traced slots)</summary>
+        <pre id="pprompt"></pre>
+      </details>
+    </div>
+  </div>
 
   <div class="phasespace">
     <h3>Position in the phase space</h3>
@@ -184,11 +263,12 @@
 
   <footer>
     <p><b>FIPO</b> — an archive of pitches for bad science-fiction films that were never made. Bad cinema is not noise: it is a small, structured region of movie-space — the space of pitches somebody thought would sell. Every seed addresses one specimen, deterministically, forever. <kbd>←</kbd> <kbd>→</kbd> walk the archive; <kbd>r</kbd> jumps.</p>
-    <p>This is phase one of three: the <b>genome</b> (here), then the <b>judge</b> (what makes one specimen intriguingly bad and another merely dull), then the <b>projection</b> (the poster a producer would have made of it). The genome leads because the title is derived, never authored — and because the failure modes must cohere before they can be scored.</p>
+    <p>This is the archive in three movements: the <b>genome</b> (above — every field of the pitch, derived), the <b>projection</b> (the one-sheet a producer would have made of it: the painting prompt assembled from genome-traced slots, the type pass composited deterministically — renders run in Actions), and the <b>judge</b> (pairwise, genome-in-context: coherence and sincerity, keeping the model in the second-tier region where incompetence is trained, never winked at).</p>
   </footer>
 </div>
 
 <script src="engine.js"></script>
+<script src="../poster/project.js"></script>
 <script>
 (function () {
   'use strict';
@@ -300,6 +380,37 @@
 
     $('rawjson').textContent = JSON.stringify(g, null, 2);
     drawPlot(g);
+
+    /* ---- the projection: typography pass + prompt assembly ---- */
+    var p = FIPO_POSTER.project(g);
+    var ty = p.typography;
+    $('ptag').textContent = '“' + ty.tagline + '”';
+    var pt = $('ptitle');
+    pt.textContent = ty.title;
+    pt.setAttribute('data-era', ty.era);
+    $('pstudio').textContent = ty.studio + ' presents';
+    $('pstars').textContent = ty.starring + ' · ' + ty.coStar + (ty.andIntroducing ? ' · and introducing ' + ty.andIntroducing : '');
+    $('pblock').textContent =
+      'a ' + ty.director + ' film · ' + g.dramatis.star.label + ' as ' + g.dramatis.hero.replace(/^(a|an|the) /, '') +
+      ' · music by ' + ty.coStar.split(' ')[0] + ' ' + ty.producer.split(' ').pop() +
+      ' · screenplay by ' + ty.director + ' · produced by ' + ty.producer +
+      ' · directed by ' + ty.director;
+    $('peramark').textContent = ty.eraMark;
+    $('prating').textContent = ty.rating;
+
+    var img = $('painting'), pend = $('pending');
+    pend.style.display = '';
+    img.style.display = 'none';
+    img.onerror = function () { img.style.display = 'none'; pend.style.display = ''; };
+    img.onload = function () { img.style.display = ''; pend.style.display = 'none'; };
+    img.src = '../poster/img/' + seed + '.png';
+
+    $('pbrief').innerHTML = '<b style="color:#e8a33d">' + esc(p.brief.fidelityLabel) + '.</b> The artist was told: ' + esc(p.brief.text) + '.';
+    $('pflaws').textContent = 'Sampled incompetence (configurations, never adjectives): ' + p.flaws.map(function (f) { return f.text; }).join('; ') + '.';
+    $('pprojfail').innerHTML = p.projectionFailures.length
+      ? p.projectionFailures.map(function (f) { return '<span style="color:#e8a33d">' + esc(f.label) + '</span> — ' + esc(f.reason); }).join('<br>')
+      : 'The projection survives intact — this one is the pitch’s own problem.';
+    $('pprompt').textContent = 'PROMPT_VERSION ' + p.promptVersion + '\n\n' + p.prompt;
   }
 
   function currentSeed() {

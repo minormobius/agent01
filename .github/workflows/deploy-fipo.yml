@@ -20,8 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Selftest (pitch-genome engine)
-        run: node fipo/pitch/engine.selftest.mjs
+      - name: Selftests (pitch genome + poster projection)
+        run: |
+          node fipo/pitch/engine.selftest.mjs
+          node fipo/poster/project.selftest.mjs
 
       - name: Deploy to Cloudflare
         working-directory: fipo
