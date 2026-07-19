@@ -460,6 +460,21 @@
       ]
     },
     {
+      "surface": "fipo",
+      "dir": "fipo",
+      "endpoint": "fipo.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/fipo-pitch-genome-Qm7Xp2",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — new surface via deploy-fipo.yml (Worker `fipo`, custom_domain fipo.mino.mobi). Assets-only static worker; engine selftest gates the deploy.",
+      "op": "create",
+      "note": "The bad sci-fi pitch archive. Phase 1 at /pitch — the pitch-GENOME engine (fipo/pitch/engine.js): a deterministic seeded sampler (xmur3+mulberry32, a seed is a permalink) over the phase space of earnest failure. The genome is dependency-ordered: soul axes (earnestness/competence/ambition/sincerity/budget, bimodal sincerity) → era (7 period-locked eras, each with its own anxieties/milieus/title grammar/tagline register) → milieu (12 studio ecosystems: AIP B-unit, Cannon, Italian knockoff cartel, Turkish remake workshop, Asylum, auteur-with-inheritance…) → CAUSAL ORDER (what came first: title/poster/ripoff/star/toy/vision/footage/gimmick — historically load-bearing) → derivation (ripoff target + transcription distance + what got lost) → novum (era-weighted gimmick bank) → dramatis (hero + star vehicle, miscasting derived) → geometry of stakes (stakes rank × venue rank; the gap IS the scale-misjudgment failure mode) → THE COMMITMENT (one forced bizarre specific choice; blandness is not optional) → derived title (17 era-locked patterns over gimmick nouns, never authored), tagline, logline, 'X meets Y' comps line. Every specimen is annotated by 13 rule-based failure-mode detectors (scale-misjudgment, miscasting, earnestness-overflow, failed/cynical transcription, auteur-overreach, budget-hallucination, trope-collision, footage-seam, spoiler, overexplanation, toy-mandate, sequel-desperation) with deadpan reasons — the judge-embryo. The page renders the full genome dossier + an earnestness×competence phase-space plot (sincerity=colour, ambition=size, the interesting corner shaded). Pure static, no build/D1/AI/secrets. Node-tested: fipo/pitch/engine.selftest.mjs (15 checks: determinism, completeness, phase-space coverage, coherence invariants). Phases 2-3 (the judge, the poster projection) planned.",
+      "paths": [
+        "fipo/**"
+      ]
+    },
+    {
       "surface": "fluoddity",
       "dir": "fluoddity",
       "endpoint": "fluoddity.mino.mobi",

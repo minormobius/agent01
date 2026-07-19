@@ -1499,6 +1499,15 @@
    "parent": null
   },
   {
+   "id": "fipo",
+   "name": "fipo",
+   "url": "https://fipo.mino.mobi",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "ai-edu",
    "name": "ai-edu",
    "url": "https://ai.mino.mobi",
@@ -4315,6 +4324,16 @@
    "commits": 0,
    "age": "hot",
    "parent": "borges",
+   "discovered": true
+  },
+  {
+   "id": "fipo/pitch",
+   "name": "pitch",
+   "url": "https://fipo.mino.mobi/pitch/",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "fipo",
    "discovered": true
   },
   {

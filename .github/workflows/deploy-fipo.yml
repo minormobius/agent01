@@ -1,0 +1,42 @@
+name: Deploy fipo (bad sci-fi pitch archive)
+
+# fipo.mino.mobi — the phase space of bad science-fiction cinema, sampled.
+# Phase 1 lives at /pitch: a deterministic pitch-genome engine (seeded
+# xmur3+mulberry32 sampler; a seed is a permalink) + the genome-readout page.
+# Assets-only worker, no build step, no secrets beyond shared Cloudflare creds.
+# The engine selftest gates the deploy.
+
+on:
+  push:
+    branches: [main, 'claude/fipo-pitch-genome-Qm7Xp2']
+    paths:
+      - 'fipo/**'
+      - '.github/workflows/deploy-fipo.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Selftest (pitch-genome engine)
+        run: node fipo/pitch/engine.selftest.mjs
+
+      - name: Deploy to Cloudflare
+        working-directory: fipo
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify fipo is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS "https://fipo.mino.mobi/pitch/?s=1729" | grep -qi 'SPECIMEN'; then
+              echo "✓ fipo is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ fipo didn't respond within 20s — edge propagation may be slow, continuing."
