@@ -50,10 +50,12 @@
 <canvas id="cv"></canvas>
 <div id="hud"></div>
 <div id="legend">
-  <span class="sw" style="background:#caa16a"></span>early
-  <span class="sw" style="background:#a1543f"></span>middle
-  <span class="sw" style="background:#5a6673"></span>late
-  <span class="sw" style="background:#d9a441"></span>lane · <span style="color:#e5686b">burn</span> · <span style="color:#9aa7b8">wall</span>
+  <span class="sw" style="background:#5f7d3f"></span>farm
+  <span class="sw" style="background:#caa16a"></span>residential
+  <span class="sw" style="background:#d9a441"></span>commercial
+  <span class="sw" style="background:#5a6673"></span>industrial
+  · lanes by tier · <span style="color:#e5686b">burn</span> · <span style="color:#9aa7b8">wall</span>
+  <br><span style="opacity:.8">fine grain = high product (the map refines where the economy concentrates)</span>
 </div>
 <div id="time"><button id="playBtn">▶</button><input id="tSl" type="range" min="0" max="1" value="0" step="1"><span id="tLab" class="crumb"></span></div>
 <div id="ribbon"><span class="t"></span><span class="msg">the field lies quiet — history grinds forward</span></div>
@@ -93,10 +95,13 @@ function standaloneCtx(seed) {
 }
 
 function grow(siteSeed, c) {
-  F = growCity(siteSeed, c);
-  T = F.meta.ticks; tNow = T - 1;
-  tSl.max = T - 1; tSl.value = tNow;
-  fit(); draw();
+  ribbon.textContent = 'growing the field — three regimes, one land market…';
+  setTimeout(() => {                 // let the message paint before the sync solve
+    F = growCity(siteSeed, c);
+    T = F.meta.ticks; tNow = T - 1;
+    tSl.max = T - 1; tSl.value = tNow;
+    fit(); draw();
+  }, 30);
 }
 
 // ---- civ boot: the city proper as the third rung of the cascade -----------------
@@ -157,61 +162,73 @@ function fit() {
   const fr = F.meta.frame, s = Math.min(cv.width, cv.height) * 0.86 / fr;
   scale = s; vx = cv.width / 2; vy = cv.height / 2;
 }
-const lerpC = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
-const css = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
-function builtColor(at, t) {
-  const age = t > 0 ? at / Math.max(1, t) : 0;      // 0 oldest → 1 newest at current time
-  const early = [202, 161, 106], mid = [161, 84, 63], late = [90, 102, 115];
-  return css(age < 0.5 ? lerpC(early, mid, age * 2) : lerpC(mid, late, (age - 0.5) * 2));
+const USE_COL = ['', '#5f7d3f', '#caa16a', '#d9a441', '#5a6673'];   // wild(terrain) farm res com ind
+function shade(hex, k) {                                            // darken by k (0..1)
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) * k) | 0, g = (((n >> 8) & 255) * k) | 0, b = ((n & 255) * k) | 0;
+  return `rgb(${r},${g},${b})`;
+}
+function poly(p, X, Y) {
+  ctx2.beginPath(); ctx2.moveTo(X(p[0][0]), Y(p[0][1]));
+  for (let k = 1; k < p.length; k++) ctx2.lineTo(X(p[k][0]), Y(p[k][1]));
+  ctx2.closePath();
 }
 function draw() {
   if (!F) return;
-  const t = tNow, G = F.meta.G, cw = F.meta.frame / G;
+  const t = tNow;
   ctx2.fillStyle = '#0d1117'; ctx2.fillRect(0, 0, cv.width, cv.height);
-  const X = (x) => vx + x * scale, Y = (y) => vy + y * scale, S = cw * scale;
-  // terrain
-  for (let i = 0; i < G * G; i++) {
+  const X = (x) => vx + x * scale, Y = (y) => vy + y * scale;
+  const S0 = (F.meta.frame / F.meta.B) * scale;                     // level-0 cell px
+  let urban = 0, farms = 0;
+  for (const lf of F.leaves) {
+    if (lf.dead) continue;
+    const p = F.polys[lf.id];
+    if (!p || p.length < 3) continue;
     let col;
-    if (F.water[i]) col = '#16304a';
-    else if (F.river[i]) col = '#1e4a6e';
-    else { const e = Math.max(0, Math.min(0.5, F.elev[i])); const g = 34 + e * 90; col = `rgb(${g * 0.72 | 0},${g * 0.82 | 0},${g * 0.6 | 0})`; }
+    const active = lf.useAt >= 0 && lf.useAt <= t;
+    const builtNow = lf.builtAt >= 0 && lf.builtAt <= t;
+    if (lf.water) col = '#16304a';
+    else if (lf.river) col = '#1e4a6e';
+    else if (builtNow) {
+      urban++;
+      const u = active ? lf.use : 2;
+      col = (lf.burnedAt >= 0 && t >= lf.burnedAt && t < lf.burnedAt + 26) ? '#7e2f2f'
+          : shade(USE_COL[u] || '#caa16a', 0.75 + 0.25 * (lf.builtAt / Math.max(1, t)));
+    } else if (active && lf.use === 1) { farms++; col = USE_COL[1]; }
+    else { const e = Math.max(0, Math.min(0.5, lf.elev)); const g = 34 + e * 90; col = `rgb(${g * 0.72 | 0},${g * 0.82 | 0},${g * 0.6 | 0})`; }
     ctx2.fillStyle = col;
-    ctx2.fillRect(X(F.px[i]) - S * 0.52, Y(F.py[i]) - S * 0.52, S * 1.04, S * 1.04);
-  }
-  // built blocks (age-coloured), burn scars
-  for (let i = 0; i < G * G; i++) {
-    const at = F.builtAt[i];
-    if (at < 0 || at > t) continue;
-    const b = F.burnedAt[i];
-    ctx2.fillStyle = (b >= 0 && t >= b && t < b + 26) ? '#7e2f2f' : builtColor(at, t);
-    ctx2.fillRect(X(F.px[i]) - S * 0.42, Y(F.py[i]) - S * 0.42, S * 0.84, S * 0.84);
+    poly(p, X, Y); ctx2.fill();
+    ctx2.strokeStyle = 'rgba(13,17,23,.55)'; ctx2.lineWidth = 0.6; ctx2.stroke();
   }
   // lanes by tier
   for (const l of F.lanes) {
     if (l.at > t) continue;
-    ctx2.strokeStyle = l.tier === 3 ? '#d9a441' : l.tier === 2 ? '#b3893f' : 'rgba(217,164,65,.45)';
-    ctx2.lineWidth = l.tier === 3 ? Math.max(2.5, S * 0.22) : l.tier === 2 ? Math.max(1.6, S * 0.13) : Math.max(0.8, S * 0.07);
-    ctx2.beginPath(); ctx2.moveTo(X(F.px[l.a]), Y(F.py[l.a])); ctx2.lineTo(X(F.px[l.b]), Y(F.py[l.b])); ctx2.stroke();
+    const A = F.leaves[l.a], Bf = F.leaves[l.b];
+    ctx2.strokeStyle = l.tier === 3 ? '#e8b755' : l.tier === 2 ? '#b3893f' : 'rgba(217,164,65,.5)';
+    ctx2.lineWidth = l.tier === 3 ? Math.max(2.5, S0 * 0.2) : l.tier === 2 ? Math.max(1.6, S0 * 0.12) : Math.max(0.8, S0 * 0.06);
+    ctx2.beginPath(); ctx2.moveTo(X(A.x), Y(A.y)); ctx2.lineTo(X(Bf.x), Y(Bf.y)); ctx2.stroke();
   }
   // wall
   if (F.wall && t >= F.wall.at) {
     ctx2.fillStyle = '#9aa7b8';
-    for (const i of F.wall.ring) ctx2.fillRect(X(F.px[i]) - S * 0.2, Y(F.py[i]) - S * 0.2, S * 0.4, S * 0.4);
+    for (const i of F.wall.ring) { const g = F.leaves[i]; if (!g.dead) ctx2.fillRect(X(g.x) - S0 * 0.16, Y(g.y) - S0 * 0.16, S0 * 0.32, S0 * 0.32); }
   }
   // anchors + nucleus
   if (F.anchors) for (const a of F.anchors) {
-    ctx2.fillStyle = '#e6edf3'; ctx2.font = `${Math.max(10, S * 0.9)}px ui-sans-serif`;
-    ctx2.fillText({ market: '⊹', seat: '♜', port: '⚓', mill: '⚙' }[a.kind] || '•', X(F.px[a.cell]) - S * 0.3, Y(F.py[a.cell]) + S * 0.3);
+    const g = F.leaves[a.cell];
+    ctx2.fillStyle = '#e6edf3'; ctx2.font = `${Math.max(10, S0 * 0.9)}px ui-sans-serif`;
+    ctx2.fillText({ market: '⊹', seat: '♜', port: '⚓', mill: '⚙' }[a.kind] || '•', X(g.x) - S0 * 0.3, Y(g.y) + S0 * 0.3);
   }
-  ctx2.fillStyle = '#d9a441'; ctx2.font = `${Math.max(12, S)}px ui-sans-serif`;
-  ctx2.fillText('★', X(F.px[F.nucleus]) - S * 0.4, Y(F.py[F.nucleus]) + S * 0.35);
+  const nc = F.leaves[F.nucleus];
+  ctx2.fillStyle = '#d9a441'; ctx2.font = `${Math.max(12, S0)}px ui-sans-serif`;
+  ctx2.fillText('★', X(nc.x) - S0 * 0.4, Y(nc.y) + S0 * 0.35);
 
   // HUD + ribbon
-  let builtNow = 0; for (let i = 0; i < G * G; i++) if (F.builtAt[i] >= 0 && F.builtAt[i] <= t) builtNow++;
   const popNow = Math.round(F.pop[Math.min(t, F.pop.length - 1)]);
   hud.innerHTML = `<div class="big">${popNow.toLocaleString()} <span class="k" style="font-size:12px">people</span></div>
     <div><span class="k">engine</span> ${F.meta.engine}</div>
-    <div><span class="k">blocks</span> ${builtNow} · <span class="k">lanes</span> ${F.lanes.filter(l => l.at <= t).length}</div>
+    <div><span class="k">urban</span> ${urban} · <span class="k">farms</span> ${farms} · <span class="k">lanes</span> ${F.lanes.filter(l => l.at <= t).length}</div>
+    <div><span class="k">refinements</span> ${F.meta.splits} · <span class="k">fields built over</span> ${F.meta.displaced}</div>
     <div><span class="k">regimes</span> star ${F.anchors ? '→ coverage → flux' : '→ coverage'}</div>
     ${F.wall && t >= F.wall.at ? '<div><span class="k">walls</span> since t=' + F.wall.at + '</div>' : ''}`;
   tLab.textContent = `t ${t} / ${T - 1}`;

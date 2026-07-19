@@ -368,16 +368,37 @@ engine-distinct nuclei).
 | Toy substrate.js | **cast aside** — real mappa slices (kept for proto selftest) |
 | Cards 500-node DAG + per-tech effects map | **cast aside** — civ's 24-cap DAG is the tech clock |
 | Conzen burgage plots, fringe-belt morphology | **partially** — fringe belt in field.js; plots not yet |
-| von Thünen rings, bid-rent kernels (Burgess/Hoyt/nuclei) | **not yet** — needs the district layer |
+| von Thünen rings, bid-rent (Alonso) | **integrated** (field.js v2 land market — see below) |
 | Financial layer (ρ, NPV-gated lumps, land cycle, crisis) | **not yet** — a future epoch |
 | Import-replacement dynamic (Jacobs) | **not yet** — economy.js multiplier is static |
 | hoop/econ vitality oracle as livability floor | **not yet** |
 | Bettencourt scaling readouts, Christaller K-nesting | **not yet** (spacing implements the spirit) |
 | Coercion/Tilly axis | **stub** (`t.coercion` set, unused) |
 
-**Next descents at the city level**: the district layer (bid-rent sorting around
-the anchors — the von Thünen/Alonso material above), blocks→plots (Conzen), and
-reading the civ city's `institutions` rollup into district kinds.
+**Field v2 (SHIPPED — true Voronoi + adaptive resolution + the land market):**
+
+- **True Voronoi, recursive.** Cells are real polygons (half-plane clipped against
+  neighbours) on a quadtree of jittered sites. A cell whose PRODUCT (winning land
+  rent) crosses `SPLIT_RENT` subdivides into four capacity-conserving children —
+  **resolution scales with local product**: the core refines to ~19 m grain while
+  the periphery stays at ~75 m. Splits re-sample micro-relief at higher frequency
+  (conditional refinement) and re-anchor lanes deterministically. Water/rivers
+  never split.
+- **Bid-rent land use** (Ricardo → von Thünen → Alonso): every land cell takes the
+  use that bids most — commerce steepest on centrality, residence on lane access,
+  industry on the mill/port anchors, agriculture on fertility with weak decay.
+  **Farms rise sized by demand** (`pop/FARM_FEED`, area-correct across levels) and
+  are **displaced outward** as the city's bids overtake them; growth into a farmed
+  cell is a `displace` event. The **development shadow** (Sinclair 1967) withholds
+  urban-outbid land from farming at 1.7× the urban radius — the near fringe
+  empties before the city arrives. Selftested: von Thünen ring ordering
+  (commerce < residential < farm mean radius), no farms in the deep core,
+  displacement fires, refinement concentrates at the core (37 checks).
+
+**Next descents at the city level**: a per-tick use-history channel (the scrub
+currently shows final uses at their adoption ticks, not full transitions),
+blocks→plots (Conzen burgage), reading the civ city's `institutions` rollup into
+district kinds, and a third quadtree level once plots exist.
 
 ### Phase V — outward
 

@@ -114,6 +114,11 @@ const C = [
  mech:'civ (global) → hinterland (mesoscale) → city (micro): each level is a client of the one above — demographic envelope, climate pulse, founder tech, recorded shocks arrive as boundary conditions; nothing flows back up.',
  lin:'Braudel’s three durations made into an API contract. The no-upward-causation rule is ours — real history probably violates it.',
  src:'polis/chronicle.js · mappa/civ/api.js (doSites)'},
+{id:'M6', layer:'method', stance:'invented',
+ stmt:'Detail exists where the economy is: resolution scales with local product.',
+ mech:'The settlement field runs on a quadtree Voronoi mesh; a cell whose land rent crosses a threshold subdivides into four (capacity-conserving), so the core refines into fine grain while the periphery stays coarse. Rent is the refinement signal.',
+ lin:'Adaptive mesh refinement from computational physics, with the economy as the error estimator; borges-lazy generation (only what you look at — or pay for — exists).',
+ src:'polis/field.js (marketPass → splitLeaf)'},
 
 // ---------------- PLANET ----------------
 {id:'P1', layer:'planet', stance:'contested',
@@ -306,6 +311,11 @@ const C = [
  mech:'In the hinterland, a town whose cell goes underwater decays at ×0.3/tick with founding suppressed — dead for good, while land-ruined towns can revive.',
  lin:'Doggerland, Dunwich, Port Royal; there is no archaeology of the resettled seabed.',
  src:'polis/chronicle.js (drowning rule)'},
+{id:'C6', layer:'cities', stance:'consensus',
+ stmt:'Land goes to whatever can pay the most for access — and the farms that feed the city are the first thing it destroys.',
+ mech:'Bid-rent per cell: commerce bids steepest on centrality, residence on lane access, industry on the mill/port, agriculture on fertility with weak distance decay. Farms rise sized by actual demand (pop/260 per cell); urban growth into a farmed cell is a displacement event; inside the development shadow (1.7× urban radius) any urban-outbid cell is withheld from farming before the city even arrives.',
+ lin:'Ricardo’s rent → von Thünen (1826) → Alonso (1964); the shadow is Sinclair (1967) — anticipated conversion empties the near fringe first.',
+ src:'polis/field.js (bids, marketPass)'},
 
 // ---------------- HINTERLAND ----------------
 {id:'H1', layer:'hinterland', stance:'consensus',
