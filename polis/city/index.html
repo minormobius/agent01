@@ -2,38 +2,50 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>polis · the settlement field</title>
-<meta name="description" content="The city proper, first layer: one founded site grows its street fabric through three field regimes — nucleus spokes, coverage capillaries, arterial flux — as a client of civ history.">
+<meta name="description" content="The city proper: one continuous Voronoi grown by mitosis — scrub history and watch the mesh itself refine where the product concentrates. Tap any tile to inspect it.">
 <style>
   :root{ --bg:#0d1117; --panel:#131a24; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; }
   *{ box-sizing:border-box; } html,body{ height:100%; }
-  body{ margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 ui-sans-serif,system-ui,sans-serif; overflow:hidden; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 ui-sans-serif,system-ui,sans-serif;
+        overflow:hidden; overscroll-behavior:none; touch-action:none; -webkit-user-select:none; user-select:none; }
   a{ color:var(--acc); }
   #bar{ position:fixed; top:0; left:0; right:0; z-index:6; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-        padding:8px 12px; background:linear-gradient(rgba(13,17,23,.94), rgba(13,17,23,.72)); border-bottom:1px solid var(--edge); }
+        padding:8px 12px; padding-top:calc(8px + env(safe-area-inset-top)); background:linear-gradient(rgba(13,17,23,.94), rgba(13,17,23,.72)); border-bottom:1px solid var(--edge); }
   #bar b{ color:var(--gold); }
   #bar .crumb{ color:var(--dim); font-size:12px; }
   #bar input[type=number]{ width:88px; background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:6px; padding:3px 7px; }
   #bar select{ background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:6px; padding:3px 7px; }
   #bar button{ background:#1b2230; color:var(--ink); border:1px solid var(--edge); border-radius:6px; padding:3px 12px; cursor:pointer; }
   #bar button:hover{ border-color:var(--gold); }
-  canvas{ position:fixed; inset:0; }
+  canvas{ position:fixed; inset:0; touch-action:none; }
   #hud{ position:fixed; right:10px; top:52px; z-index:5; background:rgba(19,26,36,.92); border:1px solid var(--edge); border-radius:10px;
         padding:10px 14px; font-size:12.5px; max-width:250px; }
   #hud .k{ color:var(--dim); }
   #hud .big{ font-size:17px; font-weight:700; }
-  #time{ position:fixed; left:12px; right:280px; bottom:44px; z-index:5; display:flex; gap:10px; align-items:center; }
-  #time input[type=range]{ flex:1; }
+  #time{ position:fixed; left:12px; right:12px; bottom:calc(44px + env(safe-area-inset-bottom)); z-index:5; display:flex; gap:10px; align-items:center; }
+  #time input[type=range]{ flex:1; touch-action:pan-x; }
   #time button{ background:#1b2230; color:var(--ink); border:1px solid var(--edge); border-radius:6px; padding:2px 12px; cursor:pointer; }
-  #ribbon{ position:fixed; left:0; right:0; bottom:0; z-index:5; padding:7px 14px; min-height:32px; font-size:13px;
-           background:rgba(13,17,23,.94); border-top:1px solid var(--edge); color:var(--ink); }
+  #ribbon{ position:fixed; left:0; right:0; bottom:0; z-index:5; padding:7px 14px; padding-bottom:calc(7px + env(safe-area-inset-bottom));
+           min-height:32px; font-size:13px; background:rgba(13,17,23,.94); border-top:1px solid var(--edge); color:var(--ink); }
   #ribbon .t{ color:var(--gold); font-family:ui-monospace,monospace; margin-right:10px; }
-  #boot{ position:fixed; left:10px; bottom:44px; z-index:5; background:rgba(10,14,20,.88); border:1px solid var(--edge);
+  #boot{ position:fixed; left:10px; bottom:calc(78px + env(safe-area-inset-bottom)); z-index:5; background:rgba(10,14,20,.88); border:1px solid var(--edge);
          border-radius:8px; padding:6px 12px; font-size:12px; color:#cdd6e0; max-width:64vw; }
-  #legend{ position:fixed; right:10px; bottom:80px; z-index:5; font-size:11px; color:var(--dim);
-           background:rgba(19,26,36,.85); border:1px solid var(--edge); border-radius:8px; padding:6px 10px; }
+  #legend{ position:fixed; right:10px; bottom:calc(78px + env(safe-area-inset-bottom)); z-index:4; font-size:11px; color:var(--dim);
+           background:rgba(19,26,36,.85); border:1px solid var(--edge); border-radius:8px; padding:6px 10px; max-width:46vw; }
   .sw{ display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:4px; }
+  /* the inspector: side card on wide screens, bottom sheet on phones */
+  #inspect{ position:fixed; z-index:7; background:rgba(16,22,31,.97); border:1px solid var(--edge); border-radius:12px;
+            padding:12px 14px; font-size:12.5px; display:none; box-shadow:0 6px 24px rgba(0,0,0,.5); }
+  @media(min-width:701px){ #inspect{ right:10px; top:52px; width:264px; max-height:70vh; overflow:auto; } #hud{ top:52px; right:284px; } }
+  @media(max-width:700px){ #inspect{ left:0; right:0; bottom:0; border-radius:14px 14px 0 0; max-height:46vh; overflow:auto;
+                            padding-bottom:calc(12px + env(safe-area-inset-bottom)); } #hud{ display:none; } #legend{ display:none; } }
+  #inspect h3{ margin:0 0 6px; font-size:14px; color:var(--gold); display:flex; justify-content:space-between; }
+  #inspect .x{ cursor:pointer; color:var(--dim); font-size:16px; padding:0 4px; }
+  #inspect .row{ margin:3px 0; }
+  #inspect .k{ color:var(--dim); display:inline-block; min-width:86px; }
+  #inspect .uh{ font-family:ui-monospace,monospace; font-size:11px; color:var(--dim); }
 </style>
 </head>
 <body>
@@ -54,32 +66,53 @@
   <span class="sw" style="background:#caa16a"></span>residential
   <span class="sw" style="background:#d9a441"></span>commercial
   <span class="sw" style="background:#5a6673"></span>industrial
-  · lanes by tier · <span style="color:#e5686b">burn</span> · <span style="color:#9aa7b8">wall</span>
-  <br><span style="opacity:.8">one continuous voronoi — cells divide by mitosis where product runs high</span>
+  · <span style="color:#e5686b">burn</span> · <span style="color:#9aa7b8">wall</span>
+  <br><span style="opacity:.8">tap a tile to inspect · pinch to zoom · the mesh divides as you scrub</span>
 </div>
+<div id="inspect"><h3><span id="insTitle"></span><span class="x" id="insClose">✕</span></h3><div id="insBody"></div></div>
 <div id="time"><button id="playBtn">▶</button><input id="tSl" type="range" min="0" max="1" value="0" step="1"><span id="tLab" class="crumb"></span></div>
 <div id="ribbon"><span class="t"></span><span class="msg">the field lies quiet — history grinds forward</span></div>
 <div id="boot" style="display:none"></div>
 
 <script type="module">
-import { growCity, defaultEnvelope } from '../field.js';
+import { growCity, defaultEnvelope, computeVoronoi, USE_NAME } from '../field.js';
 
 const cv = document.getElementById('cv'), ctx2 = cv.getContext('2d');
 const hud = document.getElementById('hud'), ribbon = document.querySelector('#ribbon .msg'), ribT = document.querySelector('#ribbon .t');
 const tSl = document.getElementById('tSl'), tLab = document.getElementById('tLab'), playBtn = document.getElementById('playBtn');
 const seedIn = document.getElementById('seedIn'), engSel = document.getElementById('engSel');
+const insEl = document.getElementById('inspect'), insTitle = document.getElementById('insTitle'), insBody = document.getElementById('insBody');
 
-let F = null, T = 1, tNow = 0, playing = false;
+let F = null, T = 1, tNow = 0, playing = false, selected = -1;
 let vx = 0, vy = 0, scale = 1;
 
 function resize() { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; draw(); }
 addEventListener('resize', resize);
 
+// ---- time-indexed mesh: re-tessellate the alive-set of any tick -----------------
+// The mesh only changes on division ticks (meta.meshTicks), so tessellations are
+// cached per epoch. Scrub to tick 1 and the field is the loose homogeneous start;
+// scrub to the end and the core has divided into fine grain — the resolution story
+// plays back exactly as it happened.
+let meshCache = new Map();
+const aliveAt = (s, t) => s.bornAt <= t && (s.diedAt < 0 || s.diedAt > t);
+function epochOf(t) {
+  const mt = F.meta.meshTicks; let e = 0;
+  for (let i = 0; i < mt.length && mt[i] <= t; i++) e = i + 1;
+  return e;
+}
+function meshAt(t) {
+  const e = epochOf(t);
+  if (!meshCache.has(e)) meshCache.set(e, computeVoronoi(F.sites, F.sites.filter(s => aliveAt(s, t)), F.meta.frame));
+  return meshCache.get(e);
+}
+const useAt = (s, t) => { let u = 0; for (const [ht, hu] of s.hist) { if (ht > t) break; u = hu; } return u; };
+const rentAt = (s, t) => { let r = 0; for (const [ht, hr] of s.rentHist) { if (ht > t) break; r = hr; } return r; };
+
 // ---- grow -----------------------------------------------------------------------
 const xmur3 = s => { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); } h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return (h ^ (h >>> 16)) >>> 0; };
 
 function standaloneCtx(seed) {
-  // deterministic standalone demo: geography flags + engine cycle from the seed
   const h = xmur3('city:' + seed);
   const coastal = (h & 3) !== 0, river = ((h >> 2) & 3) !== 0 || !coastal;
   const engines = ['gateway', 'break-of-bulk', 'market', 'fortress', 'staple'];
@@ -95,16 +128,18 @@ function standaloneCtx(seed) {
 }
 
 function grow(siteSeed, c) {
-  ribbon.textContent = 'growing the field — three regimes, one land market…';
-  setTimeout(() => {                 // let the message paint before the sync solve
+  ribbon.textContent = 'growing the field — three regimes, one land market, mitosis…';
+  setTimeout(() => {
     F = growCity(siteSeed, c);
-    T = F.meta.ticks; tNow = T - 1;
-    tSl.max = T - 1; tSl.value = tNow;
+    T = F.meta.ticks; tNow = 0; selected = -1; insEl.style.display = 'none';
+    meshCache = new Map();
+    tSl.max = T - 1; tSl.value = 0;
     fit(); draw();
+    playing = true; playBtn.textContent = '❚❚'; tick();   // history plays from the start
   }, 30);
 }
 
-// ---- civ boot: the city proper as the third rung of the cascade -----------------
+// ---- civ boot -------------------------------------------------------------------
 async function bootFromCiv() {
   const p = new URLSearchParams(location.search);
   if (!p.get('civ')) return false;
@@ -121,20 +156,15 @@ async function bootFromCiv() {
   const f = pool[Math.max(0, Math.min(pool.length - 1, +((p.get('city') ?? p.get('site')) || 0)))];
   if (!f) return false;
   const name = f.city || f.name;
-  // BOUNDARY CONDITIONS, downward only: the envelope, the era ticks, the walls tick
-  // and the sack ticks all come from the civ run; nothing is invented here.
-  // civ pops are abstract agents — URBAN_SCALE renders them as plausible townsfolk
-  // (presentation only; the shape of the curve is the contract).
   const URBAN_SCALE = 25;
-  const civT = d.ticks, axis = d.climate ? d.climate.t : null;
+  const civT = d.ticks;
   const src = (f.popSeries || []).map(v => v * URBAN_SCALE);
   const T0 = 240, env = [];
   for (let k = 0; k < T0; k++) {
     const u = k / (T0 - 1) * (src.length - 1), i0 = Math.floor(u), fr = u - i0;
     env.push(Math.max(6, Math.round((src[i0] || 0) * (1 - fr) + (src[Math.min(src.length - 1, i0 + 1)] || 0) * fr)));
   }
-  const toLocal = (civTick) => civTick == null || civTick < 0 ? -1 :
-    Math.round((axis ? civTick / civT : civTick / civT) * (T0 - 1));
+  const toLocal = (civTick) => civTick == null || civTick < 0 ? -1 : Math.round(civTick / civT * (T0 - 1));
   const ft = f.founderTech || {};
   const cx = {
     engine: engSel.value || (f.coast ? 'gateway' : f.river ? 'break-of-bulk' : 'market'),
@@ -162,75 +192,81 @@ function fit() {
   const fr = F.meta.frame, s = Math.min(cv.width, cv.height) * 0.86 / fr;
   scale = s; vx = cv.width / 2; vy = cv.height / 2;
 }
-const USE_COL = ['', '#5f7d3f', '#caa16a', '#d9a441', '#5a6673'];   // wild(terrain) farm res com ind
-function shade(hex, k) {                                            // darken by k (0..1)
+const USE_COL = ['', '#5f7d3f', '#caa16a', '#d9a441', '#5a6673'];
+function shade(hex, k) {
   const n = parseInt(hex.slice(1), 16);
-  const r = ((n >> 16) * k) | 0, g = (((n >> 8) & 255) * k) | 0, b = ((n & 255) * k) | 0;
-  return `rgb(${r},${g},${b})`;
-}
-function poly(p, X, Y) {
-  ctx2.beginPath(); ctx2.moveTo(X(p[0][0]), Y(p[0][1]));
-  for (let k = 1; k < p.length; k++) ctx2.lineTo(X(p[k][0]), Y(p[k][1]));
-  ctx2.closePath();
+  return `rgb(${((n >> 16) * k) | 0},${(((n >> 8) & 255) * k) | 0},${((n & 255) * k) | 0})`;
 }
 function draw() {
   if (!F) return;
   const t = tNow;
+  const mesh = meshAt(t);
   ctx2.fillStyle = '#0d1117'; ctx2.fillRect(0, 0, cv.width, cv.height);
   const X = (x) => vx + x * scale, Y = (y) => vy + y * scale;
-  const S0 = (F.meta.frame / F.meta.BASE) * scale;                     // level-0 cell px
-  let urban = 0, farms = 0;
-  for (const lf of F.sites) {
-    if (lf.dead) continue;
-    const p = F.polys[lf.id];
+  const S0 = (F.meta.frame / F.meta.BASE) * scale;
+  let urban = 0, farms = 0, alive = 0;
+  for (const s of F.sites) {
+    if (!aliveAt(s, t)) continue;
+    alive++;
+    const p = mesh.polys[s.id];
     if (!p || p.length < 3) continue;
     let col;
-    const active = lf.useAt >= 0 && lf.useAt <= t;
-    const builtNow = lf.builtAt >= 0 && lf.builtAt <= t;
-    if (lf.water) col = '#16304a';
-    else if (lf.river) col = '#1e4a6e';
+    const u = useAt(s, t);
+    const builtNow = s.builtAt >= 0 && s.builtAt <= t;
+    if (s.water) col = '#16304a';
+    else if (s.river) col = '#1e4a6e';
     else if (builtNow) {
       urban++;
-      const u = active ? lf.use : 2;
-      col = (lf.burnedAt >= 0 && t >= lf.burnedAt && t < lf.burnedAt + 26) ? '#7e2f2f'
-          : shade(USE_COL[u] || '#caa16a', 0.75 + 0.25 * (lf.builtAt / Math.max(1, t)));
-    } else if (active && lf.use === 1) { farms++; col = USE_COL[1]; }
-    else { const e = Math.max(0, Math.min(0.5, lf.elev)); const g = 34 + e * 90; col = `rgb(${g * 0.72 | 0},${g * 0.82 | 0},${g * 0.6 | 0})`; }
+      col = (s.burnedAt >= 0 && t >= s.burnedAt && t < s.burnedAt + 26) ? '#7e2f2f'
+          : shade(USE_COL[u >= 2 ? u : 2] || '#caa16a', 0.75 + 0.25 * (s.builtAt / Math.max(1, t)));
+    } else if (u === 1) { farms++; col = USE_COL[1]; }
+    else { const e = Math.max(0, Math.min(0.5, s.elev)); const g = 34 + e * 90; col = `rgb(${g * 0.72 | 0},${g * 0.82 | 0},${g * 0.6 | 0})`; }
     ctx2.fillStyle = col;
-    poly(p, X, Y); ctx2.fill();
+    ctx2.beginPath(); ctx2.moveTo(X(p[0][0]), Y(p[0][1]));
+    for (let k = 1; k < p.length; k++) ctx2.lineTo(X(p[k][0]), Y(p[k][1]));
+    ctx2.closePath(); ctx2.fill();
     ctx2.strokeStyle = 'rgba(13,17,23,.55)'; ctx2.lineWidth = 0.6; ctx2.stroke();
   }
-  // lanes by tier
+  // lanes: alive segments only (endpoints alive, laid, not yet retired by division)
   for (const l of F.lanes) {
-    if (l.at > t) continue;
-    const A = F.sites[l.a], Bf = F.sites[l.b];
+    if (l.at > t || (l.removedAt >= 0 && l.removedAt <= t)) continue;
+    const A = F.sites[l.a], B = F.sites[l.b];
+    if (!aliveAt(A, t) || !aliveAt(B, t)) continue;
     ctx2.strokeStyle = l.tier === 3 ? '#e8b755' : l.tier === 2 ? '#b3893f' : 'rgba(217,164,65,.5)';
     ctx2.lineWidth = l.tier === 3 ? Math.max(2.5, S0 * 0.2) : l.tier === 2 ? Math.max(1.6, S0 * 0.12) : Math.max(0.8, S0 * 0.06);
-    ctx2.beginPath(); ctx2.moveTo(X(A.x), Y(A.y)); ctx2.lineTo(X(Bf.x), Y(Bf.y)); ctx2.stroke();
+    ctx2.beginPath(); ctx2.moveTo(X(A.x), Y(A.y)); ctx2.lineTo(X(B.x), Y(B.y)); ctx2.stroke();
   }
-  // wall
   if (F.wall && t >= F.wall.at) {
     ctx2.fillStyle = '#9aa7b8';
-    for (const i of F.wall.ring) { const g = F.sites[i]; if (!g.dead) ctx2.fillRect(X(g.x) - S0 * 0.16, Y(g.y) - S0 * 0.16, S0 * 0.32, S0 * 0.32); }
+    for (const i of F.wall.ring) { const g = F.sites[i]; if (aliveAt(g, t)) ctx2.fillRect(X(g.x) - S0 * 0.16, Y(g.y) - S0 * 0.16, S0 * 0.32, S0 * 0.32); }
   }
-  // anchors + nucleus
   if (F.anchors) for (const a of F.anchors) {
     const g = F.sites[a.cell];
+    if (!aliveAt(g, t)) continue;
     ctx2.fillStyle = '#e6edf3'; ctx2.font = `${Math.max(10, S0 * 0.9)}px ui-sans-serif`;
     ctx2.fillText({ market: '⊹', seat: '♜', port: '⚓', mill: '⚙' }[a.kind] || '•', X(g.x) - S0 * 0.3, Y(g.y) + S0 * 0.3);
   }
   const nc = F.sites[F.nucleus];
-  ctx2.fillStyle = '#d9a441'; ctx2.font = `${Math.max(12, S0)}px ui-sans-serif`;
-  ctx2.fillText('★', X(nc.x) - S0 * 0.4, Y(nc.y) + S0 * 0.35);
-
-  // HUD + ribbon
+  if (aliveAt(nc, t)) {
+    ctx2.fillStyle = '#d9a441'; ctx2.font = `${Math.max(12, S0)}px ui-sans-serif`;
+    ctx2.fillText('★', X(nc.x) - S0 * 0.4, Y(nc.y) + S0 * 0.35);
+  }
+  // selection outline
+  if (selected >= 0) {
+    const s = F.sites[selected];
+    const p = aliveAt(s, t) ? mesh.polys[s.id] : null;
+    if (p && p.length >= 3) {
+      ctx2.strokeStyle = '#5aa9e6'; ctx2.lineWidth = 2.2;
+      ctx2.beginPath(); ctx2.moveTo(X(p[0][0]), Y(p[0][1]));
+      for (let k = 1; k < p.length; k++) ctx2.lineTo(X(p[k][0]), Y(p[k][1]));
+      ctx2.closePath(); ctx2.stroke();
+    }
+  }
   const popNow = Math.round(F.pop[Math.min(t, F.pop.length - 1)]);
   hud.innerHTML = `<div class="big">${popNow.toLocaleString()} <span class="k" style="font-size:12px">people</span></div>
     <div><span class="k">engine</span> ${F.meta.engine}</div>
-    <div><span class="k">urban</span> ${urban} · <span class="k">farms</span> ${farms} · <span class="k">lanes</span> ${F.lanes.filter(l => l.at <= t).length}</div>
-    <div><span class="k">divisions</span> ${F.meta.mitoses} · <span class="k">fields built over</span> ${F.meta.displaced}</div>
-    <div><span class="k">regimes</span> star ${F.anchors ? '→ coverage → flux' : '→ coverage'}</div>
-    ${F.wall && t >= F.wall.at ? '<div><span class="k">walls</span> since t=' + F.wall.at + '</div>' : ''}`;
+    <div><span class="k">tiles</span> ${alive} · <span class="k">urban</span> ${urban} · <span class="k">farms</span> ${farms}</div>
+    <div><span class="k">divisions so far</span> ${F.meta.meshTicks.filter(mt => mt <= t).length ? F.sites.filter(s => s.diedAt >= 0 && s.diedAt <= t).length : 0}</div>`;
   tLab.textContent = `t ${t} / ${T - 1}`;
   let last = null;
   for (const e of F.events) if (e.t <= t) last = e;
@@ -238,20 +274,108 @@ function draw() {
   ribbon.textContent = last ? last.note : 'the field lies quiet — history grinds forward';
 }
 
-// ---- interaction ----------------------------------------------------------------
-tSl.oninput = () => { tNow = +tSl.value; draw(); };
+// ---- inspection -----------------------------------------------------------------
+function inspect(id) {
+  selected = id;
+  const s = F.sites[id], t = tNow;
+  const mesh = meshAt(t);
+  const areaM2 = (mesh.areas[s.id] || 0) * 1e6;
+  const u = useAt(s, t);
+  const fert = s.moist * Math.max(0, 1 - Math.max(0, s.elev) * 2);
+  const lineage = [];
+  let pcur = s;
+  while (pcur.parent >= 0 && lineage.length < 8) { pcur = F.sites[pcur.parent]; lineage.push('#' + pcur.id); }
+  const histStr = s.hist.map(([ht, hu]) => `t${ht}→${USE_NAME[hu]}`).join(' · ');
+  const rentNow = rentAt(s, t);
+  insTitle.textContent = `tile #${s.id} · gen ${s.gen}`;
+  insBody.innerHTML = `
+    <div class="row"><span class="k">status</span>${s.water ? 'sea' : s.river ? 'river' : (s.builtAt >= 0 && s.builtAt <= t) ? 'urban — ' + USE_NAME[Math.max(2, u)] : USE_NAME[u]}</div>
+    <div class="row"><span class="k">area</span>${areaM2 < 12000 ? Math.round(areaM2).toLocaleString() + ' m²' : (areaM2 / 1e4).toFixed(1) + ' ha'} · ~${Math.round(Math.sqrt(areaM2))} m across</div>
+    <div class="row"><span class="k">rent</span>${rentNow.toFixed(2)} · <span class="k" style="min-width:0">product</span>${(rentNow * (mesh.areas[s.id] || 0)).toFixed(4)}</div>
+    <div class="row"><span class="k">terrain</span>elev ${s.elev.toFixed(2)} · moist ${s.moist.toFixed(2)} · fertility ${fert.toFixed(2)}</div>
+    <div class="row"><span class="k">born</span>t ${s.bornAt}${s.gen > 0 ? ' by division' : ' (founding lattice)'}${s.diedAt >= 0 ? ` · <span style="color:#e5686b">divides at t ${s.diedAt}</span>` : ''}</div>
+    ${s.builtAt >= 0 ? `<div class="row"><span class="k">built</span>t ${s.builtAt}${s.burnedAt >= 0 ? ` · burned t ${s.burnedAt}` : ''}</div>` : ''}
+    ${lineage.length ? `<div class="row"><span class="k">lineage</span>${lineage.join(' ← ')}</div>` : ''}
+    <div class="row"><span class="k">neighbours</span>${(mesh.nbrs[s.id] || []).length}</div>
+    <div class="row uh">${histStr}</div>`;
+  insEl.style.display = 'block';
+  draw();
+}
+document.getElementById('insClose').onclick = () => { insEl.style.display = 'none'; selected = -1; draw(); };
+
+// ---- interaction: pan / pinch / tap ---------------------------------------------
+const pointers = new Map();
+let pinchD0 = 0, pinchS0 = 1, tapInfo = null;
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) tapInfo = { x: e.clientX, y: e.clientY, t: performance.now(), vx, vy };
+  else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinchD0 = Math.hypot(a.x - b.x, a.y - b.y); pinchS0 = scale; tapInfo = null;
+  }
+});
+cv.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) {
+    vx += (e.clientX - prev.x) * devicePixelRatio;
+    vy += (e.clientY - prev.y) * devicePixelRatio;
+    draw();
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinchD0 > 0) {
+      const k = d / pinchD0;
+      const cx = (a.x + b.x) / 2 * devicePixelRatio, cy = (a.y + b.y) / 2 * devicePixelRatio;
+      const ns = pinchS0 * k;
+      vx = cx - (cx - vx) * (ns / scale); vy = cy - (cy - vy) * (ns / scale);
+      scale = ns;
+      draw();
+    }
+  }
+});
+const endPointer = e => {
+  pointers.delete(e.pointerId);
+  if (tapInfo && pointers.size === 0) {
+    const moved = Math.hypot(e.clientX - tapInfo.x, e.clientY - tapInfo.y);
+    const dt = performance.now() - tapInfo.t;
+    if (moved < 8 && dt < 500 && F) {
+      // Voronoi = nearest site: the tapped tile is the nearest alive site
+      const wx = (e.clientX * devicePixelRatio - vx) / scale, wy = (e.clientY * devicePixelRatio - vy) / scale;
+      let best = -1, bv = Infinity;
+      for (const s of F.sites) {
+        if (!aliveAt(s, tNow)) continue;
+        const d = (s.x - wx) ** 2 + (s.y - wy) ** 2;
+        if (d < bv) { bv = d; best = s.id; }
+      }
+      if (best >= 0) inspect(best);
+    }
+    tapInfo = null;
+  }
+};
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const k = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  const cx = e.clientX * devicePixelRatio, cy = e.clientY * devicePixelRatio;
+  vx = cx - (cx - vx) * k; vy = cy - (cy - vy) * k; scale *= k;
+  draw();
+}, { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+
+tSl.oninput = () => { tNow = +tSl.value; if (selected >= 0) inspect(selected); else draw(); };
 playBtn.onclick = () => { playing = !playing; playBtn.textContent = playing ? '❚❚' : '▶'; if (playing) tick(); };
 function tick() {
   if (!playing) return;
-  tNow = (tNow + 1) % T; tSl.value = tNow; draw();
-  setTimeout(() => requestAnimationFrame(tick), 90);
+  tNow = tNow + 1;
+  if (tNow >= T) { tNow = T - 1; playing = false; playBtn.textContent = '▶'; draw(); return; }
+  tSl.value = tNow; draw();
+  setTimeout(() => requestAnimationFrame(tick), 80);
 }
-let drag = null;
-cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, vx, vy }; });
-addEventListener('pointermove', e => { if (!drag) return; vx = drag.vx + (e.clientX - drag.x) * devicePixelRatio; vy = drag.vy + (e.clientY - drag.y) * devicePixelRatio; draw(); });
-addEventListener('pointerup', () => drag = null);
-cv.addEventListener('wheel', e => { e.preventDefault(); const k = e.deltaY < 0 ? 1.12 : 1 / 1.12; scale *= k; draw(); }, { passive: false });
-
 document.getElementById('rollBtn').onclick = () => { const s = +seedIn.value || 1; grow('city:' + s, standaloneCtx(s)); };
 
 resize();

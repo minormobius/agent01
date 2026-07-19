@@ -2,7 +2,7 @@
 // Voronoi grown by mitosis). No network, no UI:
 //   node polis/test/field.selftest.mjs
 
-import { growCity, defaultEnvelope, fieldDigest, USE } from '../field.js';
+import { growCity, defaultEnvelope, fieldDigest, computeVoronoi, USE } from '../field.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m); } };
@@ -76,6 +76,54 @@ section('mitosis — every cell holds the power, the resolution emerges');
   ok(over < lv.length * 0.02, `mitosis ran to quiescence (${over} cells still far above threshold)`);
   // compute lives on the fine mesh: cells BORN by division later get built/assigned
   ok(lv.some(s => s.gen > 0 && s.builtAt > s.bornAt), 'children born by division are later built on (compute on the live mesh)');
+}
+
+section('the mesh is time-indexed — history scrubs from loose to fine');
+{
+  const aliveAt = (t) => F.sites.filter(s => s.bornAt <= t && (s.diedAt < 0 || s.diedAt > t));
+  // tick 0: the homogeneous loose field, exactly the founding lattice
+  ok(aliveAt(0).length === F.meta.BASE * F.meta.BASE, `tick 0 is the homogeneous field (${aliveAt(0).length} = ${F.meta.BASE}²)`);
+  ok(aliveAt(0).every(s => s.gen === 0), 'tick 0 has no divided cells');
+  // the alive-set only ever grows (division replaces 1 with 3–4)
+  const mid = Math.floor(F.meta.ticks / 2), end = F.meta.ticks - 1;
+  ok(aliveAt(0).length < aliveAt(mid).length && aliveAt(mid).length < aliveAt(end).length,
+     `resolution grows through history (${aliveAt(0).length} → ${aliveAt(mid).length} → ${aliveAt(end).length})`);
+  ok(Array.isArray(F.meta.meshTicks) && F.meta.meshTicks.length > 0
+     && F.meta.meshTicks.every((v, i) => i === 0 || v > F.meta.meshTicks[i - 1]),
+     `mesh epochs recorded, strictly increasing (${F.meta.meshTicks.length} epochs)`);
+  // THE replay guarantee: the tessellation of ANY tick's alive-set is seamless too
+  const frameArea = F.meta.frame * F.meta.frame;
+  for (const t of [0, mid, end]) {
+    const v = computeVoronoi(F.sites, aliveAt(t), F.meta.frame);
+    const sum = aliveAt(t).reduce((a, s) => a + (v.areas[s.id] || 0), 0);
+    ok(Math.abs(sum - frameArea) / frameArea < 0.002, `tick ${t} mesh tiles the frame exactly (err ${(100 * Math.abs(sum - frameArea) / frameArea).toFixed(3)}%)`);
+  }
+  // lineage: every divided-born site knows its parent, and the parent died making it
+  const kids = F.sites.filter(s => s.gen > 0);
+  ok(kids.every(s => s.parent >= 0 && F.sites[s.parent].gen === s.gen - 1 && F.sites[s.parent].diedAt === s.bornAt),
+     'division lineage is exact (parent gen−1, died at child birth)');
+  // use history: transitions recorded in order, first entry at birth
+  ok(F.sites.every(s => s.hist.length >= 1 && s.hist[0][0] === s.bornAt
+     && s.hist.every(([ht], i) => i === 0 || ht >= s.hist[i - 1][0])), 'use history well-ordered from birth');
+  ok(F.sites.some(s => s.hist.length >= 3), 'some tiles changed use more than once (the market re-sorts)');
+  // retired lane segments carry their lifetime
+  const retired = F.lanes.filter(l => l.removedAt >= 0);
+  ok(retired.every(l => l.removedAt > l.at), 'retired lanes lived before they died');
+}
+
+section('neighbour coupling — rent spills across tile boundaries');
+{
+  // a wild tile bordering the town is worth more than an identical-fertility tile
+  // far away: the spillover term, the mechanism that makes division contagious
+  const t = F.meta.ticks - 1;
+  const lv = live(F);
+  const builtSet = new Set(lv.filter(s => s.builtAt >= 0).map(s => s.id));
+  const rents = lv.filter(s => !s.water && !s.river && s.builtAt < 0 && s.rentHist.length);
+  const nearTown = rents.filter(s => distNuc(F, s) < 0.8);
+  const farOut = rents.filter(s => distNuc(F, s) > 1.2);
+  const mean = (xs) => xs.reduce((a, s) => a + s.rentHist[s.rentHist.length - 1][1], 0) / Math.max(1, xs.length);
+  ok(nearTown.length > 3 && farOut.length > 3 && mean(nearTown) > mean(farOut) * 1.15,
+     `rent decays outward through the coupled field (${mean(nearTown).toFixed(2)} near vs ${mean(farOut).toFixed(2)} far)`);
 }
 
 section('bid-rent land market — farms rise, then the land grows too dear');

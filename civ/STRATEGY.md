@@ -403,10 +403,32 @@ engine-distinct nuclei).
   (commerce < residential < farm mean radius), no farms in the deep core,
   displacement fires, refinement concentrates at the core (37 checks).
 
-**Next descents at the city level**: a per-tick use-history channel (the scrub
-currently shows final uses at their adoption ticks, not full transitions),
-blocks→plots (Conzen burgage), reading the civ city's `institutions` rollup into
-district kinds, and a third quadtree level once plots exist.
+**Field v3.1 (SHIPPED — the mesh is time-indexed; mobile + inspection):**
+
+- **History replays the mesh itself.** Every site carries `bornAt`/`diedAt` (+
+  `parent` lineage), the engine records the division ticks (`meta.meshTicks` —
+  mesh epochs), and `computeVoronoi` is exported pure — so the viewer
+  re-tessellates the alive-set of ANY tick (cached per epoch, ~65 ms worst).
+  Scrub to t=0 and the field is the homogeneous loose lattice (676 cells, gen 0
+  only — selftested); scrub forward and divisions land where and when they
+  happened (676 → 1453 → 1768 in the reference run). Use and rent are historied
+  per tile (`hist`, `rentHist`), retired lane segments carry `removedAt` — the
+  whole field renders as it was, not as it ends.
+- **Neighbour coupling (the tile-interaction layer before agents).** Rent
+  spillover: a tile's rent is lifted by 0.22× its neighbours' last-pass mean —
+  externalities cross cell boundaries, so high-product cores raise their fringe
+  and division propagates contagiously (selftested: near-town wild land out-rents
+  identical far land).
+- **Mobile canvas + inspection.** Pinch-zoom about the pinch midpoint, pointer
+  pan, tap-to-inspect (Voronoi = nearest-site, so hit-testing is exact),
+  `touch-action:none` + viewport lock + safe-area insets; the inspector is a
+  side card on desktop and a bottom sheet on phones, showing per-tile metadata:
+  status, area, rent + product, terrain, birth/division lineage, use history.
+
+**Next descents at the city level**: blocks→plots (Conzen burgage — division
+below ~30 m becomes parcelling), reading the civ city's `institutions` rollup
+into district kinds, and then the agent level (the tile-interaction substrate
+is now in place).
 
 ### Phase V — outward
 

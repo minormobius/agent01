@@ -60,6 +60,88 @@ const MAX_SITES = 4600;          // safety guard, far above emergent counts
 export const USE = { WILD: 0, FARM: 1, RES: 2, COM: 3, IND: 4 };
 export const USE_NAME = ['wild', 'farm', 'residential', 'commercial', 'industrial'];
 
+// ---- the tessellation, pure -----------------------------------------------------
+// One global Voronoi over `live` (a subset of `sites`). Per site: clip the frame
+// rect by the half-plane against each candidate neighbour, candidates gathered from
+// a bucket grid in expanding rings until no farther site could cut the polygon.
+// A candidate whose half-plane survives in the boundary IS a Voronoi neighbour —
+// adjacency and geometry from the same clip, globally consistent, no seams by
+// construction. Exported so the viewer can re-tessellate the alive-set of ANY tick:
+// the mesh is time-indexed, and history scrubbing shows the diagram as it was.
+export function computeVoronoi(sites, live, frame) {
+  const half = frame / 2;
+  const n = live.length;
+  const gridN = Math.max(8, Math.ceil(Math.sqrt(n)));
+  const bw = frame / gridN;
+  const buckets = Array.from({ length: gridN * gridN }, () => []);
+  for (const s of live) {
+    const bx = Math.max(0, Math.min(gridN - 1, Math.floor((s.x + half) / bw)));
+    const by = Math.max(0, Math.min(gridN - 1, Math.floor((s.y + half) / bw)));
+    buckets[by * gridN + bx].push(s.id);
+  }
+  const polys = {}, areas = {}, nbrs = sites.map(() => null);
+  for (const s of live) {
+    let poly = [[-half, -half], [half, -half], [half, half], [-half, half]];
+    const contrib = new Set();
+    const bx0 = Math.max(0, Math.min(gridN - 1, Math.floor((s.x + half) / bw)));
+    const by0 = Math.max(0, Math.min(gridN - 1, Math.floor((s.y + half) / bw)));
+    const tryClip = (o) => {
+      const mx = (s.x + o.x) / 2, my = (s.y + o.y) / 2;
+      const nx = o.x - s.x, ny = o.y - s.y;
+      const inside = (p) => (p[0] - mx) * nx + (p[1] - my) * ny <= 1e-12;
+      let cut = false;
+      const out = [];
+      for (let k = 0; k < poly.length; k++) {
+        const a = poly[k], b = poly[(k + 1) % poly.length];
+        const ia = inside(a), ib = inside(b);
+        if (ia) out.push(a);
+        if (ia !== ib) {
+          cut = true;
+          const da = (a[0] - mx) * nx + (a[1] - my) * ny, db = (b[0] - mx) * nx + (b[1] - my) * ny;
+          const t = da / (da - db);
+          out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+        } else if (!ia) cut = true;
+      }
+      if (cut && out.length >= 3) { poly = out; contrib.add(o.id); }
+    };
+    const cand = [];
+    for (let ring = 0; ring < gridN; ring++) {
+      cand.length = 0;
+      if (ring === 0) { for (const id of buckets[by0 * gridN + bx0]) if (id !== s.id) cand.push(id); }
+      else {
+        for (let d = -ring; d <= ring; d++) {
+          for (const [bx, by] of [[bx0 + d, by0 - ring], [bx0 + d, by0 + ring], [bx0 - ring, by0 + d], [bx0 + ring, by0 + d]]) {
+            if (bx < 0 || by < 0 || bx >= gridN || by >= gridN) continue;
+            for (const id of buckets[by * gridN + bx]) cand.push(id);
+          }
+        }
+      }
+      cand.sort((a, b) => {
+        const da = (sites[a].x - s.x) ** 2 + (sites[a].y - s.y) ** 2;
+        const db = (sites[b].x - s.x) ** 2 + (sites[b].y - s.y) ** 2;
+        return da - db || a - b;
+      });
+      for (const id of cand) tryClip(sites[id]);
+      let rMax = 0;
+      for (const p of poly) rMax = Math.max(rMax, Math.hypot(p[0] - s.x, p[1] - s.y));
+      if (ring * bw > 2 * rMax + bw) break;
+    }
+    let A = 0;
+    for (let k = 0; k < poly.length; k++) {
+      const a = poly[k], b = poly[(k + 1) % poly.length];
+      A += a[0] * b[1] - b[0] * a[1];
+    }
+    areas[s.id] = Math.abs(A) / 2;
+    polys[s.id] = poly.map(p => [+p[0].toFixed(5), +p[1].toFixed(5)]);
+    nbrs[s.id] = [...contrib].sort((a, b) => a - b);
+  }
+  for (const s of live) for (const j of nbrs[s.id]) {
+    if (nbrs[j] && !nbrs[j].includes(s.id)) nbrs[j].push(s.id);
+  }
+  for (const s of live) if (nbrs[s.id]) nbrs[s.id].sort((a, b) => a - b);
+  return { polys, areas, nbrs };
+}
+
 export function growCity(siteSeed, ctx = {}) {
   const seed = xmur3(String(siteSeed))();
   const FRAME = ctx.frame || 3.0, half = FRAME / 2;
@@ -94,10 +176,13 @@ export function growCity(siteSeed, ctx = {}) {
     const tr = terrainAt(x, y, gen);
     const s = { id: sites.length, x, y, gen, elev: tr.elev, moist: tr.moist,
                 water: tr.elev <= 0 ? 1 : 0, river: 0, builtAt: -1, burnedAt: -1,
-                use: USE.WILD, useAt: -1, rent: 0, bornAt, dead: false };
+                use: USE.WILD, useAt: -1, rent: 0, bornAt, diedAt: -1, parent: -1,
+                hist: [[bornAt, USE.WILD]], rentHist: [], dead: false };
     sites.push(s);
     return s;
   }
+  // every use change is history — the viewer replays the field as it was
+  const setUse = (s, u, t) => { if (s.use !== u) { s.use = u; s.useAt = t; s.hist.push([t, u]); } };
   for (let gy = 0; gy < BASE; gy++) for (let gx = 0; gx < BASE; gx++) {
     const cw = FRAME / BASE;
     const jx = (hash2(gx, gy, seed) - 0.5) * 0.8, jy = (hash2(gx, gy, seed ^ 0x77) - 0.5) * 0.8;
@@ -105,89 +190,10 @@ export function growCity(siteSeed, ctx = {}) {
   }
 
   // -- the tessellation: one global Voronoi, recomputed WHOLE -----------------------
-  // Per live site: clip the frame rect by the half-plane against each candidate
-  // neighbour (gathered from a bucket grid in expanding rings until no farther
-  // site could cut the polygon). A candidate whose half-plane survives in the
-  // boundary IS a Voronoi neighbour — adjacency and geometry from the same clip,
-  // globally consistent, no grain boundaries by construction.
   let polys = {}, areas = {}, nbrs = [];
   function tessellate() {
-    const live = sites.filter(s => !s.dead);
-    const n = live.length;
-    const gridN = Math.max(8, Math.ceil(Math.sqrt(n)));
-    const bw = FRAME / gridN;
-    const buckets = Array.from({ length: gridN * gridN }, () => []);
-    const bIx = (x, y) => {
-      const bx = Math.max(0, Math.min(gridN - 1, Math.floor((x + half) / bw)));
-      const by = Math.max(0, Math.min(gridN - 1, Math.floor((y + half) / bw)));
-      return by * gridN + bx;
-    };
-    for (const s of live) buckets[bIx(s.x, s.y)].push(s.id);
-    polys = {}; areas = {}; nbrs = sites.map(() => null);
-    for (const s of live) {
-      let poly = [[-half, -half], [half, -half], [half, half], [-half, half]];
-      const contrib = new Set();
-      const bx0 = Math.max(0, Math.min(gridN - 1, Math.floor((s.x + half) / bw)));
-      const by0 = Math.max(0, Math.min(gridN - 1, Math.floor((s.y + half) / bw)));
-      const tryClip = (o) => {
-        const mx = (s.x + o.x) / 2, my = (s.y + o.y) / 2;
-        const nx = o.x - s.x, ny = o.y - s.y;
-        const inside = (p) => (p[0] - mx) * nx + (p[1] - my) * ny <= 1e-12;
-        let cut = false;
-        const out = [];
-        for (let k = 0; k < poly.length; k++) {
-          const a = poly[k], b = poly[(k + 1) % poly.length];
-          const ia = inside(a), ib = inside(b);
-          if (ia) out.push(a);
-          if (ia !== ib) {
-            cut = true;
-            const da = (a[0] - mx) * nx + (a[1] - my) * ny, db = (b[0] - mx) * nx + (b[1] - my) * ny;
-            const t = da / (da - db);
-            out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
-          } else if (!ia) cut = true;
-        }
-        if (cut && out.length >= 3) { poly = out; contrib.add(o.id); }
-      };
-      // expanding bucket rings; stop once the ring cannot reach the polygon
-      const cand = [];
-      for (let ring = 0; ring < gridN; ring++) {
-        cand.length = 0;
-        if (ring === 0) { for (const id of buckets[by0 * gridN + bx0]) if (id !== s.id) cand.push(id); }
-        else {
-          for (let d = -ring; d <= ring; d++) {
-            for (const [bx, by] of [[bx0 + d, by0 - ring], [bx0 + d, by0 + ring], [bx0 - ring, by0 + d], [bx0 + ring, by0 + d]]) {
-              if (bx < 0 || by < 0 || bx >= gridN || by >= gridN) continue;
-              for (const id of buckets[by * gridN + bx]) cand.push(id);
-            }
-          }
-        }
-        cand.sort((a, b) => {
-          const da = (sites[a].x - s.x) ** 2 + (sites[a].y - s.y) ** 2;
-          const db = (sites[b].x - s.x) ** 2 + (sites[b].y - s.y) ** 2;
-          return da - db || a - b;
-        });
-        for (const id of cand) tryClip(sites[id]);
-        // farthest polygon vertex: any site beyond 2×that distance cannot cut
-        let rMax = 0;
-        for (const p of poly) rMax = Math.max(rMax, Math.hypot(p[0] - s.x, p[1] - s.y));
-        const ringDist = ring * bw;                      // min distance to the NEXT ring
-        if (ringDist > 2 * rMax + bw) break;
-      }
-      // shoelace area + neighbour set (only contributors that still bound the poly)
-      let A = 0;
-      for (let k = 0; k < poly.length; k++) {
-        const a = poly[k], b = poly[(k + 1) % poly.length];
-        A += a[0] * b[1] - b[0] * a[1];
-      }
-      areas[s.id] = Math.abs(A) / 2;
-      polys[s.id] = poly.map(p => [+p[0].toFixed(5), +p[1].toFixed(5)]);
-      nbrs[s.id] = [...contrib].sort((a, b) => a - b);
-    }
-    // symmetrize adjacency (clipping is not perfectly reciprocal at tolerance)
-    for (const s of live) for (const j of nbrs[s.id]) {
-      if (nbrs[j] && !nbrs[j].includes(s.id)) nbrs[j].push(s.id);
-    }
-    for (const s of live) if (nbrs[s.id]) nbrs[s.id].sort((a, b) => a - b);
+    const v = computeVoronoi(sites, sites.filter(s => !s.dead), FRAME);
+    polys = v.polys; areas = v.areas; nbrs = v.nbrs;
   }
   tessellate();
   const nb = (id) => nbrs[id] || [];
@@ -246,6 +252,7 @@ export function growCity(siteSeed, ctx = {}) {
 
   // -- lanes -----------------------------------------------------------------------
   const laneSet = new Map();                   // "a:b" -> {at, tier}
+  const laneLog = [];                          // retired segments: {a,b,at,tier,removedAt}
   const laneCell = new Set();
   const lkey = (a, b) => a < b ? a + ':' + b : b + ':' + a;
   function edgeCost(a, b, t) {
@@ -300,7 +307,7 @@ export function growCity(siteSeed, ctx = {}) {
   const gates = [];
   for (const b of gates0) { const g = edgeSiteAt(b); if (!sites[g].water) gates.push(g); }
   for (const g of gates) layLanes(route(g, nucleus, 0), 0);
-  sites[nucleus].builtAt = 0; sites[nucleus].use = USE.COM; sites[nucleus].useAt = 0;
+  sites[nucleus].builtAt = 0; setUse(sites[nucleus], USE.COM, 0);
   laneCell.add(nucleus);
   perfuse();
   ev(0, 'founded', `the ${engine} nucleus is staked; ${gates.length} routes thread in from the world`);
@@ -308,6 +315,7 @@ export function growCity(siteSeed, ctx = {}) {
   // -- the land market -------------------------------------------------------------
   let anchors = null, market = nucleus;
   let firstFarm = -1, displaced = 0, firstDisp = -1, mitoses = 0, sproutCount = 0;
+  const meshTicks = [];                        // ticks the point set changed (mesh epochs)
   let spilled = false, wall = null, firstMitosis = -1;
 
   function bids(s, t, dm) {
@@ -327,19 +335,27 @@ export function growCity(siteSeed, ctx = {}) {
 
   function marketPass(t) {
     const mx = sites[market].x, my = sites[market].y;
+    // NEIGHBOUR COUPLING: agglomeration spillover. A tile's rent is lifted by what
+    // its neighbours were worth last pass — externalities cross cell boundaries, so
+    // division fronts propagate contagiously tile-to-tile (the fractal engine).
+    const prevRent = sites.map(s => s.rent);
     let radSum = 0, radN = 0;
     for (const s of sites) {
       if (s.dead || s.water || s.river) { if (!s.dead) s.rent = 0; continue; }
       const dm = Math.hypot(s.x - mx, s.y - my);
       const bid = bids(s, t, dm);
+      let spill = 0, spillN = 0;
+      for (const j of nb(s.id)) { if (!sites[j].dead && !sites[j].water) { spill += prevRent[j]; spillN++; } }
+      spill = spillN ? 0.22 * (spill / spillN) : 0;
       if (s.builtAt >= 0) {
         radSum += dm; radN++;
         let u = USE.RES, bv = bid[USE.RES];
         if (bid[USE.COM] > bv) { u = USE.COM; bv = bid[USE.COM]; }
         if (bid[USE.IND] > bv) { u = USE.IND; bv = bid[USE.IND]; }
-        if (s.use !== u) { s.use = u; s.useAt = t; }
-        s.rent = bv;
-      } else s.rent = Math.max(...bid);
+        setUse(s, u, t);
+        s.rent = bv + spill;
+      } else s.rent = Math.max(...bid) + spill * 0.5;
+      s.rentHist.push([t, +s.rent.toFixed(3)]);
     }
     const urbanRad = radN ? radSum / radN : 0.1;
     // the foodweb under the development shadow (Sinclair)
@@ -361,8 +377,8 @@ export function growCity(siteSeed, ctx = {}) {
     }
     for (const s of sites) {
       if (s.dead) continue;
-      if (wantFarm.has(s.id)) { if (s.use !== USE.FARM) { s.use = USE.FARM; s.useAt = t; if (firstFarm < 0) { firstFarm = t; ev(t, 'farms', 'fields rise around the town — the foodweb takes the best land the market has not yet claimed'); } } }
-      else if (s.use === USE.FARM && s.builtAt < 0) { s.use = USE.WILD; s.useAt = t; }
+      if (wantFarm.has(s.id)) { if (s.use !== USE.FARM) { setUse(s, USE.FARM, t); if (firstFarm < 0) { firstFarm = t; ev(t, 'farms', 'fields rise around the town — the foodweb takes the best land the market has not yet claimed'); } } }
+      else if (s.use === USE.FARM && s.builtAt < 0) setUse(s, USE.WILD, t);
     }
   }
 
@@ -389,6 +405,7 @@ export function growCity(siteSeed, ctx = {}) {
         const ang = rot + c * TAU / k;
         const ch = mkSite(s.x + Math.cos(ang) * r, s.y + Math.sin(ang) * r, s.gen + 1, t);
         ch.builtAt = s.builtAt; ch.burnedAt = s.burnedAt; ch.use = s.use; ch.useAt = s.useAt; ch.rent = s.rent;
+        ch.parent = s.id; ch.hist = [[t, s.use]]; ch.rentHist = [[t, +s.rent.toFixed(3)]];
         ch.water = 0; ch.river = 0;
         if (ch.elev <= 0) ch.elev = 0.02;      // division cannot mint sea inside the town
         kids.push(ch);
@@ -403,7 +420,14 @@ export function growCity(siteSeed, ctx = {}) {
         for (const ch of kids) { const d = Math.hypot(ch.x - sites[far].x, ch.y - sites[far].y); if (d < bv) { bv = d; best = ch; } }
         moves.push([key, lkey(best.id, far), val]);
       }
-      for (const [oldK, newK, val] of moves) { laneSet.delete(oldK); if (!laneSet.has(newK)) laneSet.set(newK, val); }
+      for (const [oldK, newK, val] of moves) {
+        // the old segment retires into the log so history renders it until t
+        // (zero-lifetime segments — born and retired the same tick — are noise)
+        const [oa, ob] = oldK.split(':').map(Number);
+        if (val.at < t) laneLog.push({ a: oa, b: ob, at: val.at, tier: val.tier, removedAt: t });
+        laneSet.delete(oldK);
+        if (!laneSet.has(newK)) laneSet.set(newK, { at: t, tier: val.tier });
+      }
       if (laneCell.has(s.id)) { laneCell.delete(s.id); for (const ch of kids) laneCell.add(ch.id); }
       if (nucleus === s.id) nucleus = kids[0].id;
       if (market === s.id) market = kids[0].id;
@@ -412,6 +436,7 @@ export function growCity(siteSeed, ctx = {}) {
       mitoses++;
     }
     if (firstMitosis < 0) { firstMitosis = t; ev(t, 'mitosis', 'the first cell divides — where the product runs high the map itself grows finer'); }
+    meshTicks.push(t);                          // a new mesh epoch for the history scrub
     tessellate();                               // THE WHOLE MESH, every division tick
     perfuse();
     return true;
@@ -505,12 +530,12 @@ export function growCity(siteSeed, ctx = {}) {
         displaced++;
         if (firstDisp < 0) { firstDisp = t; ev(t, 'displace', 'the land grows too dear to farm — the first fields are built over, and the foodweb shifts outward'); }
       }
-      best.builtAt = t; best.use = USE.RES; best.useAt = t;
+      best.builtAt = t; setUse(best, USE.RES, t);
       capacity += capOf(best, t);
       // hypoxia by METRIC distance — hop counts mean nothing across mixed grain
       let src = -1, sv = Infinity;
       for (const id of laneCell) { const g = sites[id]; if (g.dead) continue; const d = Math.hypot(g.x - best.x, g.y - best.y); if (d < sv) { sv = d; src = id; } }
-      if (src >= 0 && sv > 0.15) { layLanes(route(src, best.id, t), t); sproutCount++; perfuse(); }
+      if (src >= 0 && sv > 0.12) { layLanes(route(src, best.id, t), t); sproutCount++; perfuse(); }
     }
     if (t % 24 === 0) perfuse();
   }
@@ -524,7 +549,8 @@ export function growCity(siteSeed, ctx = {}) {
 
   // -- output ----------------------------------------------------------------------
   const lanes = [];
-  for (const [key, v] of laneSet) { const [a, b] = key.split(':').map(Number); if (!sites[a].dead && !sites[b].dead) lanes.push({ a, b, at: v.at, tier: v.tier }); }
+  for (const [key, v] of laneSet) { const [a, b] = key.split(':').map(Number); if (!sites[a].dead && !sites[b].dead) lanes.push({ a, b, at: v.at, tier: v.tier, removedAt: -1 }); }
+  for (const l of laneLog) lanes.push(l);      // retired segments render for their lifetime
   lanes.sort((x, y) => x.at - y.at || x.a - y.a || x.b - y.b);
   let builtCount = 0, farmCount = 0, liveCount = 0;
   for (const s of sites) if (!s.dead) { liveCount++; if (s.builtAt >= 0) builtCount++; if (s.use === USE.FARM) farmCount++; }
@@ -532,7 +558,7 @@ export function growCity(siteSeed, ctx = {}) {
   return {
     meta: { siteSeed, seed, BASE, frame: FRAME, ticks: T, engine, coastal, hasRiver, wallsAt, eras,
             builtCount, farmCount, displaced, mitoses, sprouts: sproutCount, lanes: lanes.length,
-            sites: liveCount },
+            sites: liveCount, meshTicks },
     sites, polys, areas, nucleus, gates, wall, anchors, lanes, events, pop,
   };
 }
