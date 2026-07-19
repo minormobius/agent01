@@ -63,65 +63,47 @@ export async function debugRestart({ session, auth, authMode }, timeoutMs = 2000
   }
 }
 
-// Assist mode: direct worker→Moonshot chat (no container). POSTs the thread
-// plus options ({system, thinking, webSearch}), parses the Anthropic-messages
-// SSE stream, and invokes onEvent with typed events:
-//   {type:'text', text} · {type:'thinking', text} · {type:'tool', name, detail}
-//   {type:'stop', reason}  (reason 'refusal'/'max_tokens' deserve UI texture)
-export async function assistStream({ session, auth, authMode }, payload, onEvent, signal) {
-  const params = new URLSearchParams({ session });
-  if (auth) params.set('auth', auth);
-  if (authMode) params.set('authMode', authMode);
-  const res = await fetch(`${httpBase()}/assist?${params}`, {
+// Assist mode — DO-side generation, poll-based. The Moonshot call runs inside
+// the per-DID Durable Object regardless of what the client does; the client
+// polls for the accumulating snapshot {status, text, thinking, tools[],
+// stopReason, error}. Closing the phone mid-turn loses NOTHING — the first
+// poll after waking returns the finished reply, and finished turns persist
+// server-side so even a killed tab finds its answer later.
+function assistParams({ session, auth, authMode }) {
+  const p = new URLSearchParams({ session });
+  if (auth) p.set('auth', auth);
+  if (authMode) p.set('authMode', authMode);
+  return p;
+}
+
+export async function assistStart(authInfo, payload) {
+  const res = await fetch(`${httpBase()}/assist/start?${assistParams(authInfo)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-    signal,
   });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.turnId) throw new Error(body.error || `assist start ${res.status}`);
+  return body.turnId;
+}
+
+export async function assistPoll(authInfo, turnId) {
+  const p = assistParams(authInfo);
+  p.set('turn', turnId);
+  const res = await fetch(`${httpBase()}/assist/poll?${p}`);
   if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    throw new Error(`assist ${res.status}: ${t.slice(0, 300)}`);
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.error || `poll ${res.status}`);
+    err.status = res.status;
+    throw err;
   }
-  const reader = res.body.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
-  const handle = (evt) => {
-    if (evt.type === 'content_block_delta') {
-      if (evt.delta?.type === 'thinking_delta' && evt.delta.thinking) {
-        onEvent({ type: 'thinking', text: evt.delta.thinking });
-      } else if (evt.delta?.text) {
-        onEvent({ type: 'text', text: evt.delta.text });
-      }
-    } else if (evt.type === 'content_block_start') {
-      const b = evt.content_block;
-      if (b?.type === 'server_tool_use') {
-        onEvent({ type: 'tool', name: b.name || 'tool', detail: JSON.stringify(b.input || {}).slice(0, 120) });
-      } else if (b?.type === 'web_search_tool_result') {
-        const n = Array.isArray(b.content) ? b.content.length : '';
-        onEvent({ type: 'tool', name: 'web results', detail: String(n) });
-      }
-    } else if (evt.type === 'message_delta' && evt.delta?.stop_reason) {
-      onEvent({ type: 'stop', reason: evt.delta.stop_reason });
-    } else if (evt.type === 'error') {
-      throw new Error(evt.error?.message || 'stream error');
-    }
-  };
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    let i;
-    while ((i = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, i).trim();
-      buf = buf.slice(i + 1);
-      if (!line.startsWith('data:')) continue;
-      const data = line.slice(5).trim();
-      if (data === '[DONE]') return;
-      let evt;
-      try { evt = JSON.parse(data); } catch { continue; }
-      handle(evt);
-    }
-  }
+  return res.json();
+}
+
+export function assistInterrupt(authInfo, turnId) {
+  const p = assistParams(authInfo);
+  p.set('turn', turnId);
+  return fetch(`${httpBase()}/assist/interrupt?${p}`, { method: 'POST' }).catch(() => {});
 }
 
 // Private assist-thread store — per-DID Durable Object storage via the worker

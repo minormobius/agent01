@@ -7,13 +7,14 @@
 // The → repo handoff carries the strategy thread's tail into the agent.
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ChatSocket, chatPreflight, debugBoot, debugRestart, assistStream, threadsApi } from './lib/chat-socket.js';
+import { ChatSocket, chatPreflight, debugBoot, debugRestart, assistStart, assistPoll, assistInterrupt, threadsApi } from './lib/chat-socket.js';
 import { renderMarkdown } from './lib/mini-md.jsx';
 
 const ASSIST_STORE_KEY = 'os:assist-thread';
 const ASSIST_SYSTEM_KEY = 'os:assist-system';
 const ASSIST_PREFS_KEY = 'os:assist-prefs';
 const ASSIST_TID_KEY = 'os:assist-thread-id';
+const ACTIVE_TURN_KEY = 'os:assist-active-turn';
 const ASSIST_MAX_MSGS = 200;
 const HANDOFF_LAST_N = 12;
 
@@ -134,7 +135,7 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
   const [threadId, setThreadId] = useState(() => localStorage.getItem(ASSIST_TID_KEY) || newThreadId());
   const [systemPrompt, setSystemPrompt] = useState(() => localStorage.getItem(ASSIST_SYSTEM_KEY) || DEFAULT_SYSTEM);
   const [prefs, setPrefs] = useState(() => loadJson(ASSIST_PREFS_KEY, { thinking: false, web: false }));
-  const assistAbortRef = useRef(null);
+  const assistTurnRef = useRef(null); // { turnId, authInfo } while a turn is in flight
   const socketRef = useRef(null);
   const scrollRef = useRef(null);
   const connectingRef = useRef(false);
@@ -365,7 +366,41 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [connect, mode]);
 
-  // ── Assist mode ──
+  // ── Assist mode — poll-based. The turn RUNS SERVER-SIDE in the DO, so
+  // closing the phone loses nothing: polls simply pause while backgrounded
+  // and the first poll after waking returns everything accumulated.
+  const pollTurn = useCallback(async (turnId, aiId, authInfo) => {
+    let toolsShown = 0;
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 750));
+      let snap;
+      try {
+        snap = await assistPoll({ session: session.did, ...authInfo }, turnId);
+      } catch (e) {
+        if (e.status === 404) throw new Error('turn lost (worker restarted mid-turn) — resend your message');
+        continue; // transient network blip / backgrounded fetch — just retry
+      }
+      setAssistMsgs((l) => l.map((m) => (m.id === aiId ? { ...m, text: snap.text || '', thinking: snap.thinking || '' } : m)));
+      if (snap.tools?.length > toolsShown) {
+        const fresh = snap.tools.slice(toolsShown);
+        toolsShown = snap.tools.length;
+        setAssistMsgs((l) => [...l, ...fresh.map((t) => ({ id: nextId++, role: 'tool', text: t }))]);
+      }
+      if (snap.status !== 'running') {
+        if (snap.status === 'error') {
+          setAssistMsgs((l) => [...l, { id: nextId++, role: 'error', text: snap.error || 'turn failed' }]);
+        } else if (snap.stopReason === 'refusal') {
+          setAssistMsgs((l) => [...l, { id: nextId++, role: 'refusal', text: 'kimi declined this request' }]);
+        } else if (snap.stopReason === 'max_tokens') {
+          setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: 'response hit the length cap — say "continue" for the rest' }]);
+        } else if (snap.stopReason === 'interrupted') {
+          setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: 'stopped' }]);
+        }
+        return;
+      }
+    }
+  }, [session]);
+
   const submitAssist = useCallback(async () => {
     const text = draft.trim();
     if (!text || assistRunning) return;
@@ -375,48 +410,65 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     setAssistRunning(true);
     const aiId = nextId++;
     setAssistMsgs((l) => [...l, { id: aiId, role: 'assistant', text: '', thinking: '' }]);
-    const patchAi = (fn) => setAssistMsgs((l) => l.map((m) => (m.id === aiId ? fn(m) : m)));
-    const ctrl = new AbortController();
-    assistAbortRef.current = ctrl;
-    let gotText = false;
     try {
       const authInfo = getContainerAuth();
       if (!authInfo) throw new Error('linking device via OAuth…');
-      await assistStream(
-        { session: session.did, ...authInfo },
-        {
-          messages: base.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text)
-            .map((m) => ({ role: m.role, content: m.text })),
-          system: systemPrompt,
-          thinking: !!prefs.thinking,
-          webSearch: !!prefs.web,
-        },
-        (evt) => {
-          if (evt.type === 'text') { gotText = true; patchAi((m) => ({ ...m, text: m.text + evt.text })); }
-          else if (evt.type === 'thinking') patchAi((m) => ({ ...m, thinking: (m.thinking || '') + evt.text }));
-          else if (evt.type === 'tool') setAssistMsgs((l) => [...l, { id: nextId++, role: 'tool', text: `▸ ${evt.name} ${evt.detail || ''}` }]);
-          else if (evt.type === 'stop') {
-            if (evt.reason === 'refusal') setAssistMsgs((l) => [...l, { id: nextId++, role: 'refusal', text: 'kimi declined this request' }]);
-            else if (evt.reason === 'max_tokens') setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: 'response hit the length cap — say "continue" for the rest' }]);
-          }
-        },
-        ctrl.signal
-      );
+      const turnId = await assistStart({ session: session.did, ...authInfo }, {
+        messages: base.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text)
+          .map((m) => ({ role: m.role, content: m.text })),
+        system: systemPrompt,
+        thinking: !!prefs.thinking,
+        webSearch: !!prefs.web,
+      });
+      assistTurnRef.current = { turnId, authInfo };
+      try { localStorage.setItem(ACTIVE_TURN_KEY, JSON.stringify({ turnId, threadId })); } catch { /* no-op */ }
+      await pollTurn(turnId, aiId, authInfo);
     } catch (err) {
-      if (err.name === 'AbortError') {
-        // Backgrounding the app aborts in-flight fetches on mobile — keep the
-        // partial and say so instead of erroring.
-        if (gotText) setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: 'stream interrupted (app switched away?) — reply may be incomplete; say "continue" to resume' }]);
-      } else if (gotText) {
-        setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: `stream interrupted (${err.message.slice(0, 120)}) — reply may be incomplete; say "continue" to resume` }]);
-      } else {
-        setAssistMsgs((l) => [...l, { id: nextId++, role: 'error', text: err.message }]);
-      }
+      setAssistMsgs((l) => [...l, { id: nextId++, role: 'error', text: err.message }]);
     } finally {
       setAssistRunning(false);
-      assistAbortRef.current = null;
+      assistTurnRef.current = null;
+      try { localStorage.removeItem(ACTIVE_TURN_KEY); } catch { /* no-op */ }
     }
-  }, [draft, assistRunning, assistMsgs, session, getContainerAuth, systemPrompt, prefs]);
+  }, [draft, assistRunning, assistMsgs, session, getContainerAuth, systemPrompt, prefs, threadId, pollTurn]);
+
+  // Resume-on-mount: if a turn was in flight when the tab died, pick it up —
+  // still running → reattach live; finished while away → graft the reply in.
+  useEffect(() => {
+    const marker = loadJson(ACTIVE_TURN_KEY, null);
+    if (!marker?.turnId || marker.threadId !== threadId) return;
+    const authInfo = getContainerAuth();
+    if (!authInfo) return;
+    (async () => {
+      try {
+        const snap = await assistPoll({ session: session.did, ...authInfo }, marker.turnId);
+        const last = assistMsgs[assistMsgs.length - 1];
+        let aiId;
+        if (last?.role === 'assistant') {
+          aiId = last.id;
+          setAssistMsgs((l) => l.map((m) => (m.id === aiId ? { ...m, text: snap.text || '', thinking: snap.thinking || '' } : m)));
+        } else {
+          aiId = nextId++;
+          setAssistMsgs((l) => [...l, { id: aiId, role: 'assistant', text: snap.text || '', thinking: snap.thinking || '' }]);
+        }
+        if (snap.status === 'running') {
+          setAssistMsgs((l) => [...l, { id: nextId++, role: 'info', text: 'reattached to the in-flight reply' }]);
+          setAssistRunning(true);
+          assistTurnRef.current = { turnId: marker.turnId, authInfo };
+          try { await pollTurn(marker.turnId, aiId, authInfo); } finally {
+            setAssistRunning(false);
+            assistTurnRef.current = null;
+            try { localStorage.removeItem(ACTIVE_TURN_KEY); } catch { /* no-op */ }
+          }
+        } else {
+          try { localStorage.removeItem(ACTIVE_TURN_KEY); } catch { /* no-op */ }
+        }
+      } catch {
+        try { localStorage.removeItem(ACTIVE_TURN_KEY); } catch { /* no-op */ }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Threads (private, DO-backed) ──
   const refreshThreads = useCallback(async () => {
@@ -497,7 +549,12 @@ export default function ChatView({ session, getContainerAuth, profile = 'kimi3',
     : '#e06c75';
 
   const doSubmit = isAssist ? submitAssist : submit;
-  const doStop = isAssist ? () => assistAbortRef.current?.abort() : stop;
+  const doStop = isAssist
+    ? () => {
+        const t = assistTurnRef.current;
+        if (t) assistInterrupt({ session: session.did, ...t.authInfo }, t.turnId);
+      }
+    : stop;
 
   const renderEntry = (m) => {
     if (m.role === 'user') return <div key={m.id} style={S.userMsg(A)}>{m.text}</div>;

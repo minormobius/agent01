@@ -79,6 +79,138 @@ export class ContainerShell extends Container {
     });
   }
 
+  // ─── Assist turn engine (server-side generation) ─────────────────
+  // A turn = one Moonshot call, run to completion inside this DO regardless
+  // of the client's fate. State: { status, text, thinking, tools[], stopReason,
+  // error, startedAt }. Live turns in memory; finished turns persisted
+  // (last 5 kept) so a client reopened hours later still finds its reply.
+
+  async handleAssistOp(request, url) {
+    this._assistTurns = this._assistTurns || new Map();
+    const op = url.pathname.slice('/_assist/'.length);
+    const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
+      status, headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (op === 'start' && request.method === 'POST') {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+      const turnId = `turn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const turn = {
+        id: turnId, status: 'running', text: '', thinking: '',
+        tools: [], stopReason: null, error: null, startedAt: Date.now(),
+      };
+      const ctrl = new AbortController();
+      this._assistTurns.set(turnId, { turn, abort: ctrl });
+      // Detached from the request lifecycle — waitUntil keeps the DO alive
+      // until the upstream stream finishes.
+      this.ctx.waitUntil(this._runAssistTurn(turn, body, ctrl.signal));
+      return json({ turnId });
+    }
+
+    if (op === 'poll') {
+      const id = url.searchParams.get('turn') || '';
+      let entry = this._assistTurns.get(id);
+      let turn = entry?.turn;
+      if (!turn) turn = await this.ctx.storage.get(`turn:${id}`);
+      if (!turn) return json({ error: 'unknown turn' }, 404);
+      const { status, text, thinking, tools, stopReason, error } = turn;
+      return json({ status, text, thinking, tools, stopReason, error });
+    }
+
+    if (op === 'interrupt' && request.method === 'POST') {
+      const id = url.searchParams.get('turn') || '';
+      this._assistTurns.get(id)?.abort?.abort();
+      return json({ ok: true });
+    }
+
+    return json({ error: 'unknown op' }, 404);
+  }
+
+  async _runAssistTurn(turn, body, signal) {
+    try {
+      const base = (this.env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic').replace(/\/$/, '');
+      const upstream = await fetch(`${base}/v1/messages`, {
+        method: 'POST',
+        signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.env.MOONSHOT_API_KEY || '',
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: this.env.KIMI_MODEL || 'kimi-k3',
+          max_tokens: 8192,
+          system: body.system,
+          messages: body.messages,
+          stream: true,
+          ...(body.thinking ? { thinking: { type: 'enabled', budget_tokens: 4096 } } : {}),
+          ...(body.webSearch ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }] } : {}),
+        }),
+      });
+      if (!upstream.ok) {
+        turn.status = 'error';
+        turn.error = `upstream ${upstream.status}: ${(await upstream.text().catch(() => '')).slice(0, 300)}`;
+      } else {
+        const reader = upstream.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let i;
+          while ((i = buf.indexOf('\n')) >= 0) {
+            const line = buf.slice(0, i).trim();
+            buf = buf.slice(i + 1);
+            if (!line.startsWith('data:')) continue;
+            const data = line.slice(5).trim();
+            if (data === '[DONE]') continue;
+            let evt;
+            try { evt = JSON.parse(data); } catch { continue; }
+            if (evt.type === 'content_block_delta') {
+              if (evt.delta?.type === 'thinking_delta' && evt.delta.thinking) turn.thinking += evt.delta.thinking;
+              else if (evt.delta?.text) turn.text += evt.delta.text;
+            } else if (evt.type === 'content_block_start') {
+              const b = evt.content_block;
+              if (b?.type === 'server_tool_use') {
+                turn.tools.push(`▸ ${b.name || 'tool'} ${JSON.stringify(b.input || {}).slice(0, 120)}`);
+              } else if (b?.type === 'web_search_tool_result') {
+                turn.tools.push(`▸ web results (${Array.isArray(b.content) ? b.content.length : '?'})`);
+              }
+            } else if (evt.type === 'message_delta' && evt.delta?.stop_reason) {
+              turn.stopReason = evt.delta.stop_reason;
+            } else if (evt.type === 'error') {
+              turn.status = 'error';
+              turn.error = evt.error?.message || 'stream error';
+            }
+          }
+        }
+        if (turn.status === 'running') turn.status = 'done';
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') {
+        turn.status = 'done';
+        turn.stopReason = turn.stopReason || 'interrupted';
+      } else {
+        turn.status = 'error';
+        turn.error = err?.message || String(err);
+      }
+    } finally {
+      try {
+        const { id, status, text, thinking, tools, stopReason, error, startedAt } = turn;
+        await this.ctx.storage.put(`turn:${id}`, { id, status, text, thinking, tools, stopReason, error, startedAt });
+        // Keep only the newest 5 finished turns.
+        const map = await this.ctx.storage.list({ prefix: 'turn:' });
+        const stale = [...map.entries()]
+          .sort((a, b) => (b[1].startedAt || 0) - (a[1].startedAt || 0))
+          .slice(5);
+        for (const [k] of stale) await this.ctx.storage.delete(k);
+      } catch { /* persistence is best-effort */ }
+      this._assistTurns?.delete(turn.id);
+    }
+  }
+
   // Chunked workspace tarball in DO storage. Routed here by the worker's
   // /sync handler AFTER capability-token verification (the worker already
   // asserted cap.did === this DO's name, so no re-auth needed at this layer).
@@ -175,6 +307,14 @@ export class ContainerShell extends Container {
     // super.fetch, which would try to start/route to the container.
     if (url.pathname === '/_sync') {
       return this.handleWorkspaceSync(request);
+    }
+    // Assist turns (worker-internal, post-auth). THE POINT: the Moonshot call
+    // runs HERE in the DO, detached from the browser — closing the phone
+    // mid-generation no longer kills the turn. The client polls for the
+    // accumulated snapshot; finished turns persist so even a dead client
+    // finds its reply later.
+    if (url.pathname.startsWith('/_assist/')) {
+      return this.handleAssistOp(request, url);
     }
     // Thread store (worker-internal, post-auth): assist threads live PRIVATELY
     // in this DO's SQLite storage — deliberately NOT PDS records, which would
@@ -361,70 +501,60 @@ export default {
       });
     }
 
-    // Assist mode (authed): DIRECT worker → Moonshot chat, no container, no
-    // repo context, no cold start — strategy talk for pennies. The browser
-    // sends {messages:[{role,content}]}; we attach the key server-side and
-    // stream the Anthropic-messages SSE straight back.
-    if (url.pathname === '/assist' && request.method === 'POST') {
+    // Assist mode (authed): the Moonshot call runs INSIDE the per-DID DO,
+    // detached from the browser — closing the phone mid-generation no longer
+    // loses the turn. Client flow: POST /assist/start → {turnId}, then GET
+    // /assist/poll?turn=… for the accumulating snapshot (survives any client
+    // death; finished turns persist), POST /assist/interrupt to stop.
+    if (url.pathname.startsWith('/assist/')) {
       const auth = await authorizeDid(
         env,
         url.searchParams.get('session'),
         url.searchParams.get('auth'),
         url.searchParams.get('authMode')
       );
+      const jsonHeaders = { 'Content-Type': 'application/json', ...corsHeaders(origin) };
       if (!auth.ok) {
-        return new Response(JSON.stringify({ ok: false, error: auth.msg }), {
-          status: auth.status,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-        });
+        return new Response(JSON.stringify({ ok: false, error: auth.msg }), { status: auth.status, headers: jsonHeaders });
       }
-      if (!env.MOONSHOT_API_KEY) {
-        return new Response(JSON.stringify({ ok: false, error: 'MOONSHOT_API_KEY not configured' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-        });
+      const op = url.pathname.slice('/assist/'.length);
+      const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(auth.did));
+
+      if (op === 'start' && request.method === 'POST') {
+        if (!env.MOONSHOT_API_KEY) {
+          return new Response(JSON.stringify({ ok: false, error: 'MOONSHOT_API_KEY not configured' }), { status: 503, headers: jsonHeaders });
+        }
+        let body;
+        try { body = await request.json(); } catch {
+          return new Response(JSON.stringify({ error: 'bad json' }), { status: 400, headers: jsonHeaders });
+        }
+        const messages = (Array.isArray(body?.messages) ? body.messages : [])
+          .filter((m) => (m?.role === 'user' || m?.role === 'assistant') && typeof m?.content === 'string')
+          .slice(-40);
+        if (!messages.length) {
+          return new Response(JSON.stringify({ error: 'no messages' }), { status: 400, headers: jsonHeaders });
+        }
+        // System prompt is CLIENT-CONTROLLED (visible + editable in the UI)
+        // with a server-side default.
+        const system = (typeof body.system === 'string' && body.system.trim())
+          ? body.system.slice(0, 4000)
+          : 'You are Kimi in the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to your repo-agent mode (a full Claude Code harness inside the agent01 monorepo) with the → repo button.';
+        const res = await stub.fetch(new Request('https://do/_assist/start', {
+          method: 'POST',
+          body: JSON.stringify({ messages, system, thinking: !!body.thinking, webSearch: !!body.webSearch }),
+        }));
+        return new Response(res.body, { status: res.status, headers: jsonHeaders });
       }
-      let body;
-      try { body = await request.json(); } catch {
-        return new Response('bad json', { status: 400, headers: corsHeaders(origin) });
+
+      if (op === 'poll' || op === 'interrupt') {
+        const fwd = new URL(`https://do/_assist/${op}`);
+        const turn = url.searchParams.get('turn');
+        if (turn) fwd.searchParams.set('turn', turn);
+        const res = await stub.fetch(new Request(fwd, { method: request.method }));
+        return new Response(res.body, { status: res.status, headers: jsonHeaders });
       }
-      const messages = (Array.isArray(body?.messages) ? body.messages : [])
-        .filter((m) => (m?.role === 'user' || m?.role === 'assistant') && typeof m?.content === 'string')
-        .slice(-40);
-      if (!messages.length) {
-        return new Response('no messages', { status: 400, headers: corsHeaders(origin) });
-      }
-      const base = (env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic').replace(/\/$/, '');
-      // System prompt is CLIENT-CONTROLLED (visible + editable in the UI) with
-      // a server-side default; thinking and web search are opt-in toggles
-      // passed through in Anthropic-messages form.
-      const system = (typeof body.system === 'string' && body.system.trim())
-        ? body.system.slice(0, 4000)
-        : 'You are Kimi in the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to your repo-agent mode (a full Claude Code harness inside the agent01 monorepo) with the → repo button.';
-      const upstream = await fetch(`${base}/v1/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': env.MOONSHOT_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: env.KIMI_MODEL || 'kimi-k3',
-          max_tokens: 8192,
-          system,
-          messages,
-          stream: true,
-          ...(body.thinking ? { thinking: { type: 'enabled', budget_tokens: 4096 } } : {}),
-          ...(body.webSearch ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }] } : {}),
-        }),
-      });
-      return new Response(upstream.body, {
-        status: upstream.status,
-        headers: {
-          'Content-Type': upstream.headers.get('Content-Type') || 'text/event-stream',
-          ...corsHeaders(origin),
-        },
-      });
+
+      return new Response(JSON.stringify({ error: 'unknown op' }), { status: 404, headers: jsonHeaders });
     }
 
     // Boot diagnostic (authed): exercises the FULL container start by proxying
