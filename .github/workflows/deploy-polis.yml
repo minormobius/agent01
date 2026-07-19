@@ -7,6 +7,7 @@ on:
       - 'polis/**'
       - 'mappa/engine.js'
       - 'mappa/climate-forcing.js'
+      - 'rite/names/engine.js'
       - '.github/workflows/deploy-polis.yml'
   workflow_dispatch:
 
@@ -19,12 +20,14 @@ jobs:
         with:
           node-version: '20'
       - name: Assemble the asset stage
-        # polis pages import ../mappa/engine.js + ../mappa/climate-forcing.js at
-        # runtime; stage them under /mappa/ so the imports resolve on this origin.
+        # polis pages import ../mappa/engine.js + ../mappa/climate-forcing.js and
+        # field.js imports ../rite/names/engine.js at runtime; stage each under the
+        # matching path so the bare relative imports resolve on this origin.
         run: |
-          rm -rf .polis-stage && mkdir -p .polis-stage/mappa
+          rm -rf .polis-stage && mkdir -p .polis-stage/mappa .polis-stage/rite/names
           rsync -a --exclude 'wrangler.jsonc' --exclude 'test/' polis/ .polis-stage/
           cp mappa/engine.js mappa/climate-forcing.js .polis-stage/mappa/
+          cp rite/names/engine.js .polis-stage/rite/names/
           echo "staged: $(find .polis-stage -type f | wc -l) files"
       - name: Install wrangler
         run: npm install wrangler

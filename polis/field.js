@@ -25,6 +25,7 @@
 // Deterministic: (siteSeed, ctx) → identical field anywhere. Node + browser.
 
 import { mulberry32, hash2 } from './prng.js';
+import { generateSet } from '../rite/names/engine.js';
 
 const TAU = Math.PI * 2;
 
@@ -56,6 +57,8 @@ const ECON_EVERY = 12;           // ticks between land-market passes
 const SPLIT_PRODUCT = 0.011;     // km²·rent — the mitosis threshold (product, not size)
 const SPLITS_PER_TICK = 48;      // bounded divisions per tick (highest product first)
 const MAX_SITES = 4600;          // safety guard, far above emergent counts
+const AGENT_SCALE = 25;          // one agent stands for ~25 people (the envelope ratio)
+const AGENT_CAP = 900;           // representation bound (perf guard, not a story limit)
 
 export const USE = { WILD: 0, FARM: 1, RES: 2, COM: 3, IND: 4 };
 export const USE_NAME = ['wild', 'farm', 'residential', 'commercial', 'industrial'];
@@ -318,6 +321,103 @@ export function growCity(siteSeed, ctx = {}) {
   const meshTicks = [];                        // ticks the point set changed (mesh epochs)
   let spilled = false, wall = null, firstMitosis = -1;
 
+  // -- AGENTS + ORGS: the people the envelope stands for ---------------------------
+  // One agent ≈ AGENT_SCALE people. Agents hold a home tile (chosen by rent +
+  // commute — the Alonso trade-off made discrete), may work for an org, arrive by
+  // birth or through a GATE (immigration), and reconsider their homes as the
+  // market moves (intracity movement, historied). Occupancy feeds BACK into the
+  // land market: crowded tiles bid higher, empty quarters cool — so mitosis is
+  // now driven partly by actual people, not rent formula alone.
+  const agents = [];   // {id, bornT, origin, gate, home, homeHist, work, notable, name}
+  const orgs = [];     // {id, kind, label, seat, foundedT, founder, vertical, shape, workers}
+  const occNow = new Map();                    // tile id → resident agents now
+  const pack = ctx.namePack || ['norse', 'hellenic', 'romance', 'slavic', 'brythonic', 'desertic', 'steppe', 'frankish'][seed % 8];
+  let folk = null, folkIdx = 0;                // notable-name pool, minted lazily
+  const nextName = () => {
+    if (!folk) { try { folk = generateSet({ seed: String(siteSeed) + ':folk', culture: pack, setting: 'classical', kind: 'full', count: 96 }).names; } catch { folk = []; } }
+    return folk.length ? folk[folkIdx++ % folk.length] : 'a notable citizen';
+  };
+  const capacityOf = (id, t) => Math.max(1, Math.floor((areas[id] || 0) * (t >= eras.mechAt ? URBAN_PER_KM2_MECH : URBAN_PER_KM2) / AGENT_SCALE));
+  const occOf = (id) => occNow.get(id) || 0;
+  const moveOcc = (from, to) => { if (from >= 0) occNow.set(from, Math.max(0, occOf(from) - 1)); if (to >= 0) occNow.set(to, occOf(to) + 1); };
+  let firstImm = -1;
+
+  function chooseHome(t, workSeat, currentHome) {
+    let best = -1, bv = -Infinity;
+    for (const s of sites) {
+      if (s.dead || s.builtAt < 0 || s.builtAt > t || s.water || s.river) continue;
+      const cap = capacityOf(s.id, t), o = occOf(s.id);
+      if (o >= cap * 1.2 && s.id !== currentHome) continue;
+      const dw = workSeat >= 0 ? Math.hypot(s.x - sites[workSeat].x, s.y - sites[workSeat].y) : 0;
+      const dn = Math.hypot(s.x - sites[nucleus].x, s.y - sites[nucleus].y);
+      let v = -s.rent - 2.0 * dw - 0.25 * dn - 0.4 * (o / cap)
+            + (useAtTick(s) === USE.RES ? 0.3 : 0)
+            + hash2(s.id, t * 7 + 1, seed ^ 0x99) * 0.2;
+      if (s.id === currentHome) v += 0.5;      // moving costs something (stickiness)
+      if (v > bv) { bv = v; best = s.id; }
+    }
+    return best;
+  }
+  const useAtTick = (s) => s.use;              // current use (the loop is at "now")
+
+  function spawnAgent(t) {
+    const id = agents.length;
+    const origin = id < 4 ? 'founder' : hash2(id, t, seed ^ 0xa7) < 0.5 ? 'immigrant' : 'growth';
+    const gate = origin === 'immigrant' && gates.length ? gates[(id * 7 + t) % gates.length] : -1;
+    // work: the org with the fewest hands (if any exist yet)
+    let work = -1;
+    if (orgs.length) { let mn = Infinity; for (const o of orgs) if (o.workers < mn) { mn = o.workers; work = o.id; } }
+    const home = chooseHome(t, work >= 0 ? orgs[work].seat : -1, -1);
+    if (home < 0) return false;
+    const notable = id % 16 === 0;
+    const a = { id, bornT: t, origin, gate, home, homeHist: [[t, home]], work,
+                notable, name: notable ? nextName() : null };
+    agents.push(a); moveOcc(-1, home);
+    if (work >= 0) orgs[work].workers++;
+    if (origin === 'immigrant' && firstImm < 0) { firstImm = t; ev(t, 'immigrant', 'strangers come through the gates — the city begins to draw people from the world beyond'); }
+    return true;
+  }
+
+  function agentStep(t) {
+    const target = Math.min(AGENT_CAP, Math.round(pop[t] / AGENT_SCALE));
+    let guard = 0;
+    while (agents.length < target && guard++ < 40) { if (!spawnAgent(t)) break; }
+    // intracity movement: on market ticks a slice of the city reconsiders its rent
+    if (t % ECON_EVERY === 1 && t > 1) {
+      for (const a of agents) {
+        if (hash2(a.id, t, seed ^ 0xb3) >= 0.12) continue;
+        const to = chooseHome(t, a.work >= 0 ? orgs[a.work].seat : -1, a.home);
+        if (to >= 0 && to !== a.home) { moveOcc(a.home, to); a.home = to; a.homeHist.push([t, to]); }
+      }
+    }
+  }
+
+  const ORG_SPEC = {                            // kind → display + rite/org address shape
+    court:   { label: 'the court',          vertical: 'feudal',   shape: 'tall' },
+    guild:   { label: 'the traders guild',  vertical: 'corp',     shape: 'flat' },
+    harbor:  { label: 'the harbor company', vertical: 'corp',     shape: 'pyramid' },
+    mill:    { label: 'the mill',           vertical: 'corp',     shape: 'pyramid' },
+    works:   { label: 'the ironworks',      vertical: 'corp',     shape: 'tall' },
+  };
+  function foundOrg(kind, seat, t) {
+    if (seat < 0 || sites[seat].dead) return;
+    const spec = ORG_SPEC[kind];
+    const id = orgs.length;
+    // the founder is a named notable, housed near the seat
+    const home = chooseHome(t, seat, -1);
+    const aid = agents.length;
+    const founder = { id: aid, bornT: t, origin: 'immigrant', gate: gates[0] ?? -1, home: home >= 0 ? home : seat,
+                      homeHist: [[t, home >= 0 ? home : seat]], work: id, notable: true, name: nextName() };
+    agents.push(founder); moveOcc(-1, founder.home);
+    orgs.push({ id, kind, label: spec.label, seat, foundedT: t, founder: aid,
+                vertical: spec.vertical, shape: spec.shape, workers: 1 });
+    // idle hands take the new work
+    let hired = 0;
+    for (const a of agents) { if (a.work < 0 && hired < 8) { a.work = id; hired++; } }
+    orgs[id].workers += hired;
+    ev(t, 'org', `${founder.name} founds ${spec.label} — ${hired + 1} hands take its work`);
+  }
+
   function bids(s, t, dm) {
     const hop = laneHop[s.id] < 0 ? 9 : laneHop[s.id];
     const P = Math.min(2.2, pop[t] / 6000);
@@ -347,13 +447,17 @@ export function growCity(siteSeed, ctx = {}) {
       let spill = 0, spillN = 0;
       for (const j of nb(s.id)) { if (!sites[j].dead && !sites[j].water) { spill += prevRent[j]; spillN++; } }
       spill = spillN ? 0.22 * (spill / spillN) : 0;
+      // OCCUPANCY FEEDBACK: crowding bids rent up (the people, not just the formula,
+      // now drive land value — and therefore mitosis). A tile at capacity adds ~40%.
+      const cap = capacityOf(s.id, t), crowd = cap ? Math.min(1.5, occOf(s.id) / cap) : 0;
+      const occTerm = 0.4 * crowd;
       if (s.builtAt >= 0) {
         radSum += dm; radN++;
         let u = USE.RES, bv = bid[USE.RES];
         if (bid[USE.COM] > bv) { u = USE.COM; bv = bid[USE.COM]; }
         if (bid[USE.IND] > bv) { u = USE.IND; bv = bid[USE.IND]; }
         setUse(s, u, t);
-        s.rent = bv + spill;
+        s.rent = bv + spill + occTerm;
       } else s.rent = Math.max(...bid) + spill * 0.5;
       s.rentHist.push([t, +s.rent.toFixed(3)]);
     }
@@ -433,6 +537,17 @@ export function growCity(siteSeed, ctx = {}) {
       if (market === s.id) market = kids[0].id;
       if (anchors) for (const a of anchors) if (a.cell === s.id) a.cell = kids[0].id;
       if (wall) wall.ring = wall.ring.map(id => id === s.id ? kids[0].id : id);
+      // residents of a divided tile land in its children (round-robin, historied)
+      if (occOf(s.id) > 0) {
+        let k2 = 0;
+        for (const a of agents) {
+          if (a.home !== s.id) continue;
+          const ch = kids[k2++ % kids.length];
+          moveOcc(a.home, ch.id); a.home = ch.id; a.homeHist.push([t, ch.id]);
+        }
+        occNow.delete(s.id);
+      }
+      for (const o of orgs) if (o.seat === s.id) o.seat = kids[0].id;
       mitoses++;
     }
     if (firstMitosis < 0) { firstMitosis = t; ev(t, 'mitosis', 'the first cell divides — where the product runs high the map itself grows finer'); }
@@ -502,13 +617,30 @@ export function growCity(siteSeed, ctx = {}) {
       }
       ev(t, 'sack', `the city is sacked — a quarter burns (${burned} cells); the survivors rebuild on the ashes`);
     }
+    // the founding institution: as soon as the nucleus is built, the engine's own
+    // org stands up (a court/guild/harbor/mill), housing its founder and first hands
+    if (orgs.length === 0 && sites[nucleus].builtAt >= 0) {
+      const k = engine === 'gateway' ? 'harbor' : engine === 'fortress' ? 'court' : engine === 'staple' ? 'works' : engine === 'break-of-bulk' ? 'guild' : 'guild';
+      foundOrg(k, nucleus, t);
+    }
     if (!anchors && (pop[t] >= DIVERSIFY_POP || t >= eras.mechAt)) {
       anchors = placeAnchors(t);
       market = anchors[0].cell;
       fluxPass(anchors, t);
+      // each new quarter gets its institution — the district-scale orgs
+      for (const a of anchors) {
+        if (a.kind === 'market' || orgs.some(o => o.seat === a.cell)) continue;
+        foundOrg(a.kind === 'seat' ? 'court' : a.kind === 'port' ? 'harbor' : a.kind === 'mill' ? 'mill' : 'guild', a.cell, t);
+      }
       ev(t, 'diversify', `the base diversifies — ${anchors.map(a => a.kind).join(', ')} anchor distinct quarters; industry begins to bid for land`);
     }
-    if (anchors && t === eras.mechAt) { fluxPass(anchors, t); ev(t, 'mech', 'the machine age: bridges cheapen, blocks spread out, the flux re-solves'); }
+    if (anchors && t === eras.mechAt) {
+      fluxPass(anchors, t);
+      // the machine age raises the ironworks near the mill if a river is here
+      const millA = anchors.find(a => a.kind === 'mill');
+      if (millA && !orgs.some(o => o.kind === 'works')) foundOrg('works', millA.cell, t);
+      ev(t, 'mech', 'the machine age: bridges cheapen, blocks spread out, the flux re-solves');
+    }
 
     // urban expansion toward the envelope (area-based capacity on the live mesh)
     let guard = 0;
@@ -537,6 +669,7 @@ export function growCity(siteSeed, ctx = {}) {
       for (const id of laneCell) { const g = sites[id]; if (g.dead) continue; const d = Math.hypot(g.x - best.x, g.y - best.y); if (d < sv) { sv = d; src = id; } }
       if (src >= 0 && sv > 0.12) { layLanes(route(src, best.id, t), t); sproutCount++; perfuse(); }
     }
+    agentStep(t);                               // people arrive, settle, and move
     if (t % 24 === 0) perfuse();
   }
   function wallOutside(s) {
@@ -554,12 +687,24 @@ export function growCity(siteSeed, ctx = {}) {
   lanes.sort((x, y) => x.at - y.at || x.a - y.a || x.b - y.b);
   let builtCount = 0, farmCount = 0, liveCount = 0;
   for (const s of sites) if (!s.dead) { liveCount++; if (s.builtAt >= 0) builtCount++; if (s.use === USE.FARM) farmCount++; }
-  ev(T - 1, 'now', `${Math.round(pop[T - 1]).toLocaleString()} people · ${builtCount} urban cells · ${farmCount} farms · ${displaced} fields built over · ${mitoses} divisions`);
+  const notables = agents.filter(a => a.notable).length;
+  const immigrants = agents.filter(a => a.origin === 'immigrant').length;
+  ev(T - 1, 'now', `${Math.round(pop[T - 1]).toLocaleString()} people · ${agents.length} agents (${notables} notable, ${immigrants} come from away) · ${orgs.length} institutions · ${builtCount} urban cells`);
+  // orgs carry a rite/org address (world:seat:cell — the suite-wide siteSeed shape)
+  const worldStr = String(siteSeed).split(':')[0] || '7';
+  const orgsOut = orgs.map(o => ({
+    id: o.id, kind: o.kind, label: o.label, seat: o.seat, foundedT: o.foundedT,
+    founder: o.founder, founderName: agents[o.founder] ? agents[o.founder].name : null,
+    workers: o.workers, vertical: o.vertical, shape: o.shape,
+    orgSeed: `${worldStr}:${meta_place(siteSeed)}:${o.seat}:${o.kind}${o.id}`, namePack: pack,
+  }));
+  function meta_place(ss) { const parts = String(ss).split(':'); return parts[1] || 'polis'; }
   return {
     meta: { siteSeed, seed, BASE, frame: FRAME, ticks: T, engine, coastal, hasRiver, wallsAt, eras,
             builtCount, farmCount, displaced, mitoses, sprouts: sproutCount, lanes: lanes.length,
-            sites: liveCount, meshTicks },
+            sites: liveCount, meshTicks, agents: agents.length, notables, immigrants, orgs: orgs.length, namePack: pack },
     sites, polys, areas, nucleus, gates, wall, anchors, lanes, events, pop,
+    agents, orgs: orgsOut,
   };
 }
 
@@ -573,7 +718,9 @@ export function fieldDigest(f) {
   let h = 2166136261 >>> 0;
   const mix = (n) => { h ^= n >>> 0; h = Math.imul(h, 16777619) >>> 0; };
   mix(f.meta.builtCount); mix(f.meta.lanes); mix(f.nucleus); mix(f.meta.mitoses); mix(f.meta.displaced);
+  mix(f.meta.agents); mix(f.meta.orgs); mix(f.meta.immigrants);
   for (const s of f.sites) { if (s.dead) continue; mix(Math.round((s.x + 10) * 1e4)); mix(Math.round((s.y + 10) * 1e4)); mix(s.use); if (s.builtAt >= 0) mix(s.builtAt); }
   for (const l of f.lanes) { mix(l.a); mix(l.b); mix(l.at); mix(l.tier); }
+  for (const a of f.agents) { mix(a.home < 0 ? 0 : a.home); mix(a.bornT); mix(a.work < 0 ? 999 : a.work); }
   return ('0000000' + h.toString(16)).slice(-8);
 }

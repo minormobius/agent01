@@ -316,6 +316,16 @@ const C = [
  mech:'Bid-rent per cell: commerce bids steepest on centrality, residence on lane access, industry on the mill/port, agriculture on fertility with weak distance decay. Farms rise sized by actual demand (pop/260 per cell); urban growth into a farmed cell is a displacement event; inside the development shadow (1.7× urban radius) any urban-outbid cell is withheld from farming before the city even arrives.',
  lin:'Ricardo’s rent → von Thünen (1826) → Alonso (1964); the shadow is Sinclair (1967) — anticipated conversion empties the near fringe first.',
  src:'polis/field.js (bids, marketPass)'},
+{id:'C7', layer:'cities', stance:'consensus',
+ stmt:'A household chooses where to live by trading rent against the journey to work — and crowding bids the rent back up.',
+ mech:'Each agent (≈25 people) picks the home tile maximizing −rent − 2·commute − occupancy penalty, with move-stickiness; on market ticks a slice re-chooses (intracity mobility). Occupancy feeds back: a tile at capacity adds ~40% to its rent, so real people — not just the distance formula — drive land value and therefore mitosis.',
+ lin:'Alonso’s (1964) household location equilibrium (the residential half of bid-rent); the occupancy→rent loop is the congestion externality that makes agent-based land markets self-organize.',
+ src:'polis/field.js (chooseHome, occupancy feedback)'},
+{id:'C8', layer:'cities', stance:'stylized',
+ stmt:'Cities grow by drawing strangers, not just by breeding — and institutions concentrate the newcomers.',
+ mech:'Agents arrive by birth, by internal growth, or as immigrants through a gate (the routes from the world beyond); each is drawn to the institution shortest of hands. Orgs (court/guild/harbor/mill/works) rise at the engine nucleus and each district anchor, led by a named notable, and carry a rite/org address (world:place:cell:kind) so the same institution opens as a full hierarchy elsewhere in the suite.',
+ lin:'Urban natural-decrease history (pre-modern cities shrank without in-migration — the "urban graveyard" — de Vries); Weber’s city as corporate actor made of institutions.',
+ src:'polis/field.js (spawnAgent, foundOrg)'},
 
 // ---------------- HINTERLAND ----------------
 {id:'H1', layer:'hinterland', stance:'consensus',

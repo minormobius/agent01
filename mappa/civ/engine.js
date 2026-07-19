@@ -1419,6 +1419,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       const v = w.V[ct.cell];
       return {
         id: ct.id, cell: ct.cell, name: namer.place(ct.cell, ct.cu), culture: ct.cu, cultureName: namer.culture(ct.cu),
+        namePack: namer.packFor ? namer.packFor(ct.cu) : null, // the culture's naming voice, for downstream notables
         tick: ct.foundTick, year: Math.round(ct.foundTick * ty), pop: cellPop[ct.cell], peak: ct.peak,
         walls: ct.walls >= 0, walledTick: ct.walls, sacked: ct.sacked, sackTicks: ct.sackTicks,
         fell: ct.fellTick, alive: ct.fellTick < 0 && cellPop[ct.cell] >= Math.round(CITY_MIN * 0.5),

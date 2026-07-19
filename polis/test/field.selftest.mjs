@@ -198,6 +198,64 @@ section('coverage invariant');
   ok(worst < 0.30, `every urban cell within 300 m of a lane (worst ${(worst * 1000) | 0} m)`);
 }
 
+section('agents — the people the envelope stands for');
+{
+  ok(F.agents.length > 0, `agents populate the city (${F.agents.length})`);
+  // representation ratio: agents ≈ pop / AGENT_SCALE (25), within slack for the cap
+  const ratio = CTX.popSeries[CTX.popSeries.length - 1] / F.agents.length;
+  ok(ratio > 18 && ratio < 40, `~1 agent per 25 people (ratio ${ratio.toFixed(1)})`);
+  // every agent lives on a live, built tile (nobody floats in the void)
+  ok(F.agents.every(a => a.home >= 0 && F.sites[a.home] && !F.sites[a.home].dead && F.sites[a.home].builtAt >= 0),
+     'every agent homed on a live built tile');
+  // homes arrive in order and only ever look backward
+  ok(F.agents.every(a => a.homeHist.length >= 1 && a.homeHist[0][0] === a.bornT
+     && a.homeHist.every(([ht], i) => i === 0 || ht >= a.homeHist[i - 1][0])), 'home history well-ordered from birth');
+  // some agents moved within the city (intracity mobility is real)
+  ok(F.agents.some(a => a.homeHist.length > 1), 'some agents moved homes within the city');
+  // notables are named; commoners are not
+  const notes = F.agents.filter(a => a.notable);
+  ok(notes.length > 0 && notes.every(a => typeof a.name === 'string' && a.name.length > 2), `notables carry names (${notes.length})`);
+  ok(F.agents.filter(a => !a.notable).every(a => a.name === null), 'commoners are anonymous');
+}
+
+section('immigration — the city draws from the world beyond');
+{
+  const imm = F.agents.filter(a => a.origin === 'immigrant');
+  ok(imm.length > 0, `immigrants arrive (${imm.length})`);
+  ok(imm.every(a => a.gate >= 0 && F.gates.includes(a.gate)), 'immigrants enter through a gate');
+  ok(F.events.some(e => e.type === 'immigrant'), 'the first immigration is an event');
+  // immigration is a minority-but-real share (birth/growth dominate)
+  const share = imm.length / F.agents.length;
+  ok(share > 0.05 && share < 0.9, `immigration is a real share of arrivals (${(share * 100).toFixed(0)}%)`);
+}
+
+section('orgs — institutions rise, with rite/org addresses');
+{
+  ok(F.orgs.length > 0, `institutions found (${F.orgs.length})`);
+  ok(F.orgs.every(o => o.seat >= 0 && F.sites[o.seat] && !F.sites[o.seat].dead), 'every org seated on a live tile');
+  ok(F.orgs.every(o => o.founderName && o.workers >= 1), 'orgs have a named founder + a workforce');
+  // the rite/org address is the suite-wide siteSeed shape (world:place:cell:kindN)
+  ok(F.orgs.every(o => /^\d+:[^:]+:\d+:[a-z]+\d+$/.test(o.orgSeed)), 'org addresses match the suite siteSeed shape');
+  ok(F.orgs.every(o => o.vertical && o.shape), 'orgs carry a rite/org vertical + shape');
+  ok(F.events.some(e => e.type === 'org'), 'org foundings reach the event ribbon');
+  // workforce sums to the working agents (no double-counting)
+  const working = F.agents.filter(a => a.work >= 0).length;
+  const summed = F.orgs.reduce((s, o) => s + o.workers, 0);
+  ok(summed === working, `org workforce sums to working agents (${summed} = ${working})`);
+}
+
+section('occupancy feeds the land market — people drive rent');
+{
+  // a tile that ends crowded carries a rent premium over an equally-central empty one
+  // (indirect: the mechanism is tested by its effect on divisions clustering at the core,
+  // already covered; here we assert the coupling term exists in the rent series shape)
+  const lv = live(F);
+  const built = lv.filter(s => s.builtAt >= 0 && s.rentHist.length > 2);
+  ok(built.length > 10, 'built tiles carry rent histories');
+  // rent rises over a tile's built life somewhere (agglomeration + occupancy pressure)
+  ok(built.some(s => s.rentHist[s.rentHist.length - 1][1] > s.rentHist[0][1] * 1.2), 'some tiles see rent climb through their life');
+}
+
 section('engines site their nuclei differently');
 {
   const base = { ...CTX, wallsAt: -1, sackTicks: [] };

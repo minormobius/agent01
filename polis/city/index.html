@@ -66,8 +66,8 @@
   <span class="sw" style="background:#caa16a"></span>residential
   <span class="sw" style="background:#d9a441"></span>commercial
   <span class="sw" style="background:#5a6673"></span>industrial
-  · <span style="color:#e5686b">burn</span> · <span style="color:#9aa7b8">wall</span>
-  <br><span style="opacity:.8">tap a tile to inspect · pinch to zoom · the mesh divides as you scrub</span>
+  · <span style="color:#f2d488">● notable</span> · <span style="color:#e8b755">◆ org</span>
+  <br><span style="opacity:.8">tap a tile, a notable, or an institution to inspect · pinch to zoom · scrub to watch it grow</span>
 </div>
 <div id="inspect"><h3><span id="insTitle"></span><span class="x" id="insClose">✕</span></h3><div id="insBody"></div></div>
 <div id="time"><button id="playBtn">▶</button><input id="tSl" type="range" min="0" max="1" value="0" step="1"><span id="tLab" class="crumb"></span></div>
@@ -83,10 +83,30 @@ const tSl = document.getElementById('tSl'), tLab = document.getElementById('tLab
 const seedIn = document.getElementById('seedIn'), engSel = document.getElementById('engSel');
 const insEl = document.getElementById('inspect'), insTitle = document.getElementById('insTitle'), insBody = document.getElementById('insBody');
 
-let F = null, T = 1, tNow = 0, playing = false, selected = -1;
+let F = null, T = 1, tNow = 0, playing = false, selected = -1, selAgent = -1, selOrg = -1;
 let vx = 0, vy = 0, scale = 1;
+const TAU = Math.PI * 2;
+// deterministic jitter so an agent sits at a stable spot inside its home tile
+function agJit(a, axis) {
+  const h = ((a.id * 2654435761) ^ (axis * 40503)) >>> 0;
+  return ((h % 1000) / 1000 - 0.5) * 0.028;
+}
 
-function resize() { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; draw(); }
+// canvas bitmap is device-pixel sized; the CSS box must be explicitly set to the
+// viewport, or the element overflows and every pointer coordinate is off by DPR
+// (the "tap → bottom-left highlights" bug). All hit-testing goes through toCanvas,
+// which maps a pointer event to BITMAP coordinates via the element's own rect —
+// correct regardless of DPR, scroll, or CSS size.
+function resize() {
+  const w = innerWidth, h = innerHeight, dpr = devicePixelRatio || 1;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  draw();
+}
+function toCanvas(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) };
+}
 addEventListener('resize', resize);
 
 // ---- time-indexed mesh: re-tessellate the alive-set of any tick -----------------
@@ -251,6 +271,39 @@ function draw() {
     ctx2.fillStyle = '#d9a441'; ctx2.font = `${Math.max(12, S0)}px ui-sans-serif`;
     ctx2.fillText('★', X(nc.x) - S0 * 0.4, Y(nc.y) + S0 * 0.35);
   }
+  // ---- AGENTS: a dot per agent, jittered inside its home tile -------------------
+  // commoners are faint; notables ride larger and gold; immigrants show a small
+  // inbound tick from their gate for a few ticks after arrival (the flow of people)
+  const dotR = Math.max(0.8, Math.min(3, scale * 0.012));
+  let shownAg = 0;
+  for (const a of F.agents) {
+    if (a.bornT > t || a.home < 0) continue;
+    const s = F.sites[a.home]; if (!s || !aliveAt(s, t)) continue;
+    const ax = s.x + agJit(a, 0), ay = s.y + agJit(a, 1);
+    const px = X(ax), py = Y(ay);
+    // immigration flow: a fading line from the gate to the home for ~10 ticks
+    if (a.origin === 'immigrant' && a.gate >= 0 && t - a.bornT < 10 && aliveAt(F.sites[a.gate], t)) {
+      const g = F.sites[a.gate], k = 1 - (t - a.bornT) / 10;
+      ctx2.strokeStyle = `rgba(90,169,230,${0.35 * k})`; ctx2.lineWidth = 1;
+      ctx2.beginPath(); ctx2.moveTo(X(g.x), Y(g.y)); ctx2.lineTo(px, py); ctx2.stroke();
+    }
+    if (a.notable) {
+      ctx2.fillStyle = a.id === selAgent ? '#7fd0ff' : '#f2d488';
+      ctx2.beginPath(); ctx2.arc(px, py, dotR * 2.1, 0, TAU); ctx2.fill();
+    } else {
+      ctx2.fillStyle = a.origin === 'immigrant' ? 'rgba(122,180,235,.7)' : 'rgba(220,225,235,.5)';
+      ctx2.fillRect(px - dotR, py - dotR, dotR * 2, dotR * 2);
+    }
+    shownAg++;
+  }
+  // ---- ORGS: a labelled marker at each institution seat ------------------------
+  for (const o of F.orgs) {
+    if (o.foundedT > t) continue;
+    const s = F.sites[o.seat]; if (!s || !aliveAt(s, t)) continue;
+    ctx2.fillStyle = o.id === selOrg ? '#7fd0ff' : '#e8b755';
+    ctx2.font = `${Math.max(11, S0 * 1.0)}px ui-sans-serif`;
+    ctx2.fillText({ court: '♜', guild: '⚖', harbor: '⚓', mill: '⚙', works: '⛭' }[o.kind] || '◆', X(s.x) - S0 * 0.32, Y(s.y) + S0 * 0.32);
+  }
   // selection outline
   if (selected >= 0) {
     const s = F.sites[selected];
@@ -263,10 +316,13 @@ function draw() {
     }
   }
   const popNow = Math.round(F.pop[Math.min(t, F.pop.length - 1)]);
+  let agN = 0, immN = 0, orgN = 0;
+  for (const a of F.agents) if (a.bornT <= t && a.home >= 0) { agN++; if (a.origin === 'immigrant') immN++; }
+  for (const o of F.orgs) if (o.foundedT <= t) orgN++;
   hud.innerHTML = `<div class="big">${popNow.toLocaleString()} <span class="k" style="font-size:12px">people</span></div>
     <div><span class="k">engine</span> ${F.meta.engine}</div>
     <div><span class="k">tiles</span> ${alive} · <span class="k">urban</span> ${urban} · <span class="k">farms</span> ${farms}</div>
-    <div><span class="k">divisions so far</span> ${F.meta.meshTicks.filter(mt => mt <= t).length ? F.sites.filter(s => s.diedAt >= 0 && s.diedAt <= t).length : 0}</div>`;
+    <div><span class="k">agents</span> ${agN} · <span class="k">from away</span> ${immN} · <span class="k">orgs</span> ${orgN}</div>`;
   tLab.textContent = `t ${t} / ${T - 1}`;
   let last = null;
   for (const e of F.events) if (e.t <= t) last = e;
@@ -276,8 +332,14 @@ function draw() {
 
 // ---- inspection -----------------------------------------------------------------
 function inspect(id) {
-  selected = id;
-  const s = F.sites[id], t = tNow;
+  selected = id; selAgent = -1; selOrg = -1;
+  // the org and the notables at this tile, so a tile inspection surfaces its people
+  const t = tNow;
+  const orgHere = F.orgs.filter(o => o.foundedT <= t && o.seat === id);
+  const folkHere = F.agents.filter(a => a.bornT <= t && a.home === id);
+  const notablesHere = folkHere.filter(a => a.notable);
+  window._tileExtra = { orgHere, folkHere, notablesHere };
+  const s = F.sites[id];
   const mesh = meshAt(t);
   const areaM2 = (mesh.areas[s.id] || 0) * 1e6;
   const u = useAt(s, t);
@@ -297,19 +359,59 @@ function inspect(id) {
     ${s.builtAt >= 0 ? `<div class="row"><span class="k">built</span>t ${s.builtAt}${s.burnedAt >= 0 ? ` · burned t ${s.burnedAt}` : ''}</div>` : ''}
     ${lineage.length ? `<div class="row"><span class="k">lineage</span>${lineage.join(' ← ')}</div>` : ''}
     <div class="row"><span class="k">neighbours</span>${(mesh.nbrs[s.id] || []).length}</div>
+    <div class="row"><span class="k">residents</span>~${(window._tileExtra.folkHere.length * 25).toLocaleString()} (${window._tileExtra.folkHere.length} agents)${window._tileExtra.notablesHere.length ? ' · ' + window._tileExtra.notablesHere.length + ' notable' : ''}</div>
+    ${window._tileExtra.orgHere.map(o => `<div class="row"><span class="k">institution</span><a href="#" onclick="event.preventDefault();window._insOrg(${o.id})">${o.label}</a> · ${o.workers} hands</div>`).join('')}
+    ${window._tileExtra.notablesHere.slice(0, 4).map(a => `<div class="row uh"><a href="#" onclick="event.preventDefault();window._insAgent(${a.id})">${a.name}</a> · ${a.origin}</div>`).join('')}
     <div class="row uh">${histStr}</div>`;
   insEl.style.display = 'block';
   draw();
 }
-document.getElementById('insClose').onclick = () => { insEl.style.display = 'none'; selected = -1; draw(); };
 
-// ---- interaction: pan / pinch / tap ---------------------------------------------
+function inspectAgent(id) {
+  selAgent = id; selected = -1; selOrg = -1;
+  const a = F.agents[id], t = tNow;
+  const home = a.home >= 0 ? F.sites[a.home] : null;
+  const org = a.work >= 0 ? F.orgs[a.work] : null;
+  const moves = a.homeHist.filter(([ht]) => ht <= t);
+  insTitle.textContent = a.name || `citizen #${a.id}`;
+  insBody.innerHTML = `
+    <div class="row"><span class="k">who</span>${a.notable ? 'a notable of the city' : 'one of ~25 townsfolk this dot stands for'}</div>
+    <div class="row"><span class="k">arrived</span>t ${a.bornT} · ${a.origin === 'immigrant' ? 'came through the gate from away' : a.origin === 'founder' ? 'here from the founding' : 'born in the city'}</div>
+    ${org ? `<div class="row"><span class="k">works for</span><a href="#" onclick="event.preventDefault();window._insOrg(${org.id})">${org.label}</a></div>` : '<div class="row"><span class="k">works</span>unaffiliated</div>'}
+    <div class="row"><span class="k">home tile</span>${home ? '#' + a.home + ' · ' + USE_NAME[Math.max(2, home.use)] : '—'}</div>
+    <div class="row"><span class="k">moves</span>${moves.length - 1} time${moves.length - 1 === 1 ? '' : 's'} within the city</div>
+    <div class="row uh">${moves.map(([ht, hid]) => `t${ht}→#${hid}`).join(' · ')}</div>`;
+  insEl.style.display = 'block';
+  draw();
+}
+
+function inspectOrg(id) {
+  selOrg = id; selected = -1; selAgent = -1;
+  const o = F.orgs[id], t = tNow;
+  const founder = o.founder >= 0 ? F.agents[o.founder] : null;
+  const q = new URLSearchParams({ seed: o.orgSeed, vertical: o.vertical, shape: o.shape, names: o.namePack });
+  insTitle.textContent = o.label;
+  insBody.innerHTML = `
+    <div class="row"><span class="k">kind</span>${o.kind} · ${o.vertical} / ${o.shape}</div>
+    <div class="row"><span class="k">founded</span>t ${o.foundedT}${founder ? ' by <a href="#" onclick="event.preventDefault();window._insAgent(' + o.founder + ')">' + founder.name + '</a>' : ''}</div>
+    <div class="row"><span class="k">workforce</span>${o.workers} agents (~${(o.workers * 25).toLocaleString()} people)</div>
+    <div class="row"><span class="k">seat</span>tile #${o.seat}</div>
+    <div class="row" style="margin-top:8px"><a href="https://rite.mino.mobi/org/?${q}" target="_blank" rel="noopener">open the full org chart ↗</a></div>
+    <div class="row uh">its people speak the ${o.namePack} voice · address ${o.orgSeed}</div>`;
+  insEl.style.display = 'block';
+  draw();
+}
+window._insAgent = inspectAgent; window._insOrg = inspectOrg;
+document.getElementById('insClose').onclick = () => { insEl.style.display = 'none'; selected = -1; selAgent = -1; selOrg = -1; draw(); };
+
+// ---- interaction: pan / pinch / tap (all coords in BITMAP space via toCanvas) ---
 const pointers = new Map();
 let pinchD0 = 0, pinchS0 = 1, tapInfo = null;
 cv.addEventListener('pointerdown', e => {
   cv.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pointers.size === 1) tapInfo = { x: e.clientX, y: e.clientY, t: performance.now(), vx, vy };
+  const c = toCanvas(e);
+  pointers.set(e.pointerId, c);
+  if (pointers.size === 1) tapInfo = { x: c.x, y: c.y, t: performance.now() };
   else if (pointers.size === 2) {
     const [a, b] = [...pointers.values()];
     pinchD0 = Math.hypot(a.x - b.x, a.y - b.y); pinchS0 = scale; tapInfo = null;
@@ -318,56 +420,77 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   if (!pointers.has(e.pointerId)) return;
   const prev = pointers.get(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  const c = toCanvas(e);
+  pointers.set(e.pointerId, c);
   if (pointers.size === 1) {
-    vx += (e.clientX - prev.x) * devicePixelRatio;
-    vy += (e.clientY - prev.y) * devicePixelRatio;
+    vx += c.x - prev.x; vy += c.y - prev.y;
+    if (tapInfo && Math.hypot(c.x - tapInfo.x, c.y - tapInfo.y) > 10) tapInfo = null;   // it's a drag
     draw();
   } else if (pointers.size === 2) {
     const [a, b] = [...pointers.values()];
     const d = Math.hypot(a.x - b.x, a.y - b.y);
     if (pinchD0 > 0) {
       const k = d / pinchD0;
-      const cx = (a.x + b.x) / 2 * devicePixelRatio, cy = (a.y + b.y) / 2 * devicePixelRatio;
-      const ns = pinchS0 * k;
+      const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, ns = pinchS0 * k;
       vx = cx - (cx - vx) * (ns / scale); vy = cy - (cy - vy) * (ns / scale);
-      scale = ns;
-      draw();
+      scale = ns; draw();
     }
   }
 });
 const endPointer = e => {
+  const wasTap = tapInfo && pointers.size === 1;
   pointers.delete(e.pointerId);
-  if (tapInfo && pointers.size === 0) {
-    const moved = Math.hypot(e.clientX - tapInfo.x, e.clientY - tapInfo.y);
-    const dt = performance.now() - tapInfo.t;
-    if (moved < 8 && dt < 500 && F) {
-      // Voronoi = nearest site: the tapped tile is the nearest alive site
-      const wx = (e.clientX * devicePixelRatio - vx) / scale, wy = (e.clientY * devicePixelRatio - vy) / scale;
-      let best = -1, bv = Infinity;
-      for (const s of F.sites) {
-        if (!aliveAt(s, tNow)) continue;
+  if (wasTap && pointers.size === 0 && F) {
+    const c = toCanvas(e);
+    const moved = Math.hypot(c.x - tapInfo.x, c.y - tapInfo.y);
+    if (moved < 12 && performance.now() - tapInfo.t < 600) {
+      const wx = (c.x - vx) / scale, wy = (c.y - vy) / scale;
+      // priority: org marker > notable dot > tile (fine targets first)
+      const hitR = 16 / scale, hr2 = hitR * hitR;
+      let org = -1, ov = hr2;
+      for (const o of F.orgs) {
+        if (o.foundedT > tNow) continue;
+        const s = F.sites[o.seat]; if (!s || !aliveAt(s, tNow)) continue;
         const d = (s.x - wx) ** 2 + (s.y - wy) ** 2;
-        if (d < bv) { bv = d; best = s.id; }
+        if (d < ov) { ov = d; org = o.id; }
       }
-      if (best >= 0) inspect(best);
+      let ag = -1, av = hr2;
+      for (const a of F.agents) {
+        if (a.bornT > tNow || a.home < 0 || !a.notable) continue;
+        const s = F.sites[a.home]; if (!s || !aliveAt(s, tNow)) continue;
+        const jx = s.x + agJit(a, 0), jy = s.y + agJit(a, 1);
+        const d = (jx - wx) ** 2 + (jy - wy) ** 2;
+        if (d < av) { av = d; ag = a.id; }
+      }
+      if (org >= 0 && ov <= av) inspectOrg(org);
+      else if (ag >= 0) inspectAgent(ag);
+      else {
+        let best = -1, bv = Infinity;
+        for (const s of F.sites) { if (!aliveAt(s, tNow)) continue; const d = (s.x - wx) ** 2 + (s.y - wy) ** 2; if (d < bv) { bv = d; best = s.id; } }
+        if (best >= 0) inspect(best);
+      }
     }
-    tapInfo = null;
   }
+  tapInfo = null;
 };
 cv.addEventListener('pointerup', endPointer);
 cv.addEventListener('pointercancel', endPointer);
 cv.addEventListener('wheel', e => {
   e.preventDefault();
-  const k = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-  const cx = e.clientX * devicePixelRatio, cy = e.clientY * devicePixelRatio;
-  vx = cx - (cx - vx) * k; vy = cy - (cy - vy) * k; scale *= k;
+  const c = toCanvas(e), k = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  vx = c.x - (c.x - vx) * k; vy = c.y - (c.y - vy) * k; scale *= k;
   draw();
 }, { passive: false });
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('dblclick', e => e.preventDefault());
 
-tSl.oninput = () => { tNow = +tSl.value; if (selected >= 0) inspect(selected); else draw(); };
+tSl.oninput = () => {
+  tNow = +tSl.value;
+  if (selAgent >= 0 && F.agents[selAgent].bornT <= tNow) inspectAgent(selAgent);
+  else if (selOrg >= 0 && F.orgs[selOrg].foundedT <= tNow) inspectOrg(selOrg);
+  else if (selected >= 0) inspect(selected);
+  else draw();
+};
 playBtn.onclick = () => { playing = !playing; playBtn.textContent = playing ? '❚❚' : '▶'; if (playing) tick(); };
 function tick() {
   if (!playing) return;

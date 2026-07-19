@@ -425,10 +425,41 @@ engine-distinct nuclei).
   side card on desktop and a bottom sheet on phones, showing per-tile metadata:
   status, area, rent + product, terrain, birth/division lineage, use history.
 
+**Field v4 (SHIPPED — agents, orgs, immigration on the map):**
+
+- **Agents are the people the envelope stands for.** ~1 agent per 25 residents
+  (the envelope ratio), homed on live built tiles by an Alonso choice
+  (−rent − 2·commute − crowding, with move-stickiness). They arrive by birth,
+  internal growth, or **immigration through a gate** (the routes from the world
+  beyond — a fading inbound line renders for ~10 ticks); on market ticks a slice
+  **re-chooses homes** (intracity mobility, historied). When a tile divides its
+  residents land in the children. Notables (1 in 16) are **named by rite/names**
+  in the civ culture's own voice; commoners stay anonymous dots.
+- **Occupancy feeds the land market.** A tile at capacity adds ~40% to its rent —
+  so real people, not just the distance formula, drive land value and therefore
+  mitosis. The tile-interaction layer (spillover + occupancy) is now the two-way
+  coupling the agent level needed.
+- **Orgs on the map.** The engine's own institution (court/guild/harbor/mill/works)
+  stands up at the nucleus, and each district anchor gets its own on diversify;
+  the machine age raises the ironworks. Each is led by a **named founder**, hires
+  idle hands, and carries a **rite/org address** (`world:place:cell:kind` — the
+  suite siteSeed shape) so tapping it opens the full hierarchy at rite.mino.mobi/org.
+  `final.cities[].namePack` now ships the culture's naming voice (hash-safe) so
+  city notables speak it.
+- **The viewer**: agent dots (notables gold + larger, immigrants blue), org
+  markers, immigration flows; tap a tile / notable / institution to inspect —
+  tile inspection surfaces its residents + institution, agent inspection shows
+  origin + workplace + move history, org inspection links to rite/org. **Canvas
+  tap bug fixed**: the bitmap was device-pixel sized but the CSS box was never
+  set, so on DPR>1 the element overflowed and every coordinate was off by the DPR
+  factor (the "tap → bottom-left" bug); all hit-testing now goes through
+  `toCanvas` (event → bitmap coords via the element's own rect).
+
 **Next descents at the city level**: blocks→plots (Conzen burgage — division
-below ~30 m becomes parcelling), reading the civ city's `institutions` rollup
-into district kinds, and then the agent level (the tile-interaction substrate
-is now in place).
+below ~30 m becomes parcelling); reading the civ city's actual `institutions`
+rollup into the org set (currently orgs are engine-derived, not civ-sourced);
+agent economics (wages, the base multiplier realised as agent employment, so
+the org performance oracle feeds back into who can afford which tile).
 
 ### Phase V — outward
 
