@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GEB · shadowbox — three orthogonal shadows · tjs</title>
-<meta name="description" content="A Gödel, Escher, Bach trip-let generator: type three strings and carve the solid whose three orthogonal shadows spell them — the intersection of three text-extrusion prisms, voxelised and lit in three.js.">
+<meta name="description" content="A Gödel, Escher, Bach trip-let generator: type three strings, rotate each in its own plane, and carve the solid whose three orthogonal shadows spell them — the intersection of three text-extrusion prisms, voxelised, lit inside a froxel volumetric box in three.js.">
 <script type="importmap">
 {
   "imports": {
@@ -32,19 +32,25 @@
   .crumb a:hover{color:var(--accent)}
 
   #panel{
-    position:fixed;top:44px;left:14px;z-index:6;width:288px;max-width:calc(100vw - 28px);
+    position:fixed;top:44px;left:14px;z-index:6;width:300px;max-width:calc(100vw - 28px);
+    max-height:calc(100vh - 60px);overflow:auto;
     background:var(--panel);border:1px solid var(--line);border-radius:14px;
     backdrop-filter:blur(9px);padding:14px 14px 12px;box-shadow:0 18px 50px #0009}
   #panel h1{font-size:16px;margin:0 0 2px;font-weight:700;letter-spacing:.01em}
   #panel .sub{font-size:11.5px;color:var(--soft);margin:0 0 12px}
   .row{display:flex;align-items:center;gap:8px;margin:9px 0}
-  .row label.tag{display:flex;align-items:center;gap:6px;width:26px;flex:0 0 auto;font-weight:700;font-size:12px}
+  .row label.tag{display:flex;align-items:center;gap:6px;width:24px;flex:0 0 auto;font-weight:700;font-size:12px}
   .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
   .dx{background:var(--cx)} .dy{background:var(--cy)} .dz{background:var(--cz)}
   input[type=text]{
     flex:1 1 auto;min-width:0;background:#05050a;border:1px solid var(--line);color:var(--ink);
     border-radius:8px;padding:7px 9px;font:13px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.02em}
   input[type=text]:focus{outline:none;border-color:var(--accent)}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:3px;background:#26263a;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:none;border-radius:50%;background:var(--accent);cursor:pointer}
+  .rot{flex:0 0 62px}
+  .rlab{flex:0 0 30px;font-size:10.5px;color:var(--soft);text-align:right;font-variant-numeric:tabular-nums}
   .ctl{display:flex;flex-wrap:wrap;gap:6px;margin:11px 0 2px}
   .ctl button, .presets button{
     background:#12121c;border:1px solid var(--line);color:var(--ink);border-radius:8px;
@@ -52,6 +58,10 @@
   .ctl button:hover,.presets button:hover{border-color:var(--accent);color:var(--accent)}
   .presets{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 4px}
   .presets button{font-size:11px;padding:5px 8px;color:var(--soft)}
+  .slab{display:flex;align-items:center;gap:9px;margin:10px 0 2px;font-size:11.5px;color:var(--soft)}
+  .slab span:first-child{flex:0 0 62px}
+  .slab input[type=range]{flex:1 1 auto}
+  .slab .val{flex:0 0 30px;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
   .opts{display:flex;flex-wrap:wrap;gap:10px 14px;margin:11px 0 2px;font-size:12px;color:var(--soft)}
   .opts label{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
   .opts input{accent-color:var(--accent)}
@@ -68,7 +78,7 @@
   .collapse{position:absolute;top:12px;right:12px;color:var(--soft);cursor:pointer;font-size:15px;line-height:1;background:none;border:none}
   .collapse:hover{color:var(--accent)}
   #panel.min .body{display:none}
-  #panel.min{width:auto}
+  #panel.min{width:auto;overflow:visible}
   #panel.min h1{margin:0}
   footer{position:fixed;bottom:10px;right:14px;z-index:5;font-size:11px;color:var(--soft)}
   footer a{color:var(--soft)}
@@ -85,11 +95,11 @@
   <button class="collapse" id="collapse" title="collapse">–</button>
   <h1>GEB shadowbox</h1>
   <div class="body">
-    <p class="sub">One solid, three orthogonal shadows. Type a line per axis; the trip-let is carved so each face reads.</p>
+    <p class="sub">One solid, three orthogonal shadows. Type a line per axis, rotate each in its own plane, and the trip-let is carved so every face reads.</p>
 
-    <div class="row"><label class="tag"><span class="dot dx"></span>X</label><input id="tx" type="text" value="G" maxlength="24" spellcheck="false"></div>
-    <div class="row"><label class="tag"><span class="dot dy"></span>Y</label><input id="ty" type="text" value="E" maxlength="24" spellcheck="false"></div>
-    <div class="row"><label class="tag"><span class="dot dz"></span>Z</label><input id="tz" type="text" value="B" maxlength="24" spellcheck="false"></div>
+    <div class="row"><label class="tag"><span class="dot dx"></span>X</label><input id="tx" type="text" value="G" maxlength="24" spellcheck="false"><input id="rx" class="rot" type="range" min="0" max="345" step="15" value="0"><span class="rlab" id="rxl">0°</span></div>
+    <div class="row"><label class="tag"><span class="dot dy"></span>Y</label><input id="ty" type="text" value="E" maxlength="24" spellcheck="false"><input id="ry" class="rot" type="range" min="0" max="345" step="15" value="0"><span class="rlab" id="ryl">0°</span></div>
+    <div class="row"><label class="tag"><span class="dot dz"></span>Z</label><input id="tz" type="text" value="B" maxlength="24" spellcheck="false"><input id="rz" class="rot" type="range" min="0" max="345" step="15" value="0"><span class="rlab" id="rzl">0°</span></div>
 
     <div class="presets">
       <button data-p="G|E|B">G · E · B</button>
@@ -97,6 +107,9 @@
       <button data-p="MU|▲|◯">MU · ▲ · ◯</button>
       <button data-p="I|❤|NY">I ❤ NY</button>
     </div>
+
+    <div class="slab"><span>object size</span><input id="osize" type="range" min="0.30" max="0.92" step="0.02" value="0.55"><span class="val" id="osizel">55%</span></div>
+    <div class="slab"><span>haze</span><input id="haze" type="range" min="0" max="1.4" step="0.05" value="0.5"><span class="val" id="hazel">0.50</span></div>
 
     <div class="res">
       <span>resolution</span>
@@ -110,6 +123,7 @@
     </div>
 
     <div class="opts">
+      <label><input type="checkbox" id="oVol" checked> volumetric</label>
       <label><input type="checkbox" id="oShadow" checked> shadows</label>
       <label><input type="checkbox" id="oPrism"> prisms</label>
       <label><input type="checkbox" id="oWire"> wireframe</label>
@@ -130,13 +144,19 @@
       <p>The cover of Hofstadter's <i>Gödel, Escher, Bach</i> shows two wooden
       "trip-lets": blocks carved so their shadows spell <b>G</b>, <b>E</b>, <b>B</b>
       from three perpendicular directions.</p>
-      <p>Here the solid is built the honest way — the <b>intersection of three
-      prisms</b>, each your text extruded straight through the cube along one axis.
-      A voxel is kept only where all three silhouettes agree, so the shadow it
-      throws down each axis is exactly (at most) the line you typed. Turn on
-      <b>prisms</b> to see the three extrusions before they're intersected.</p>
+      <p>The solid is built the honest way — the <b>intersection of three
+      prisms</b>, each your text extruded straight through the object along one
+      axis. A voxel is kept only where all three silhouettes agree, so the shadow
+      it throws down each axis is exactly (at most) the line you typed. The real
+      trip-lets needed the letters <b>turned relative to each other</b> to line
+      up — that's the per-axis rotation slider.</p>
+      <p>The box is lit from inside: three axis lights graze the walls and a
+      <b>froxel volumetric</b> — the occupancy grid uploaded as a 3D texture and
+      raymarched — fills it with haze the solid carves shadow-shafts through.
+      Turn on <b>prisms</b> to see the three extrusions before they're
+      intersected; drag <b>object size</b> to shrink the trip-let inside the box.</p>
       <p>Long or thin strings can lose pixels where the three can't all agree —
-      that's the trip-let problem itself. Bolder / shorter reads best.</p>
+      that's the trip-let problem itself. Bolder / shorter / rotated reads best.</p>
     </details>
   </div>
 </div>
@@ -148,7 +168,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const FONT = '"Arial Black", Impact, "Helvetica Neue", Arial, sans-serif';
-const H = 1;                       // box half-extent (cube spans [-1,1]^3)
+const HBOX = 1.30;                 // the shadowbox half-extent (walls / frame / lights)
+let   HOBJ = 0.55 * HBOX;          // the object half-extent (< HBOX so the box is bigger)
 const AXCOL = { x:0xff6b6b, y:0x7bd88f, z:0x6ba8ff };
 
 /* ---------- three.js scaffold ---------- */
@@ -160,72 +181,157 @@ viewport.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 100);
-const ISO = new THREE.Vector3(2.9, 2.35, 3.25);
+const ISO = new THREE.Vector3(3.5, 2.8, 3.9);
 camera.position.copy(ISO);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.minDistance = 1.6;
-controls.maxDistance = 12;
+controls.minDistance = 1.8;
+controls.maxDistance = 14;
+controls.autoRotateSpeed = 1.5;
 controls.target.set(0,0,0);
 
-/* lights: one per axis (so all three faces of the solid are lit) + fill + ambient */
-scene.add(new THREE.AmbientLight(0xffffff, 0.34));
-const hemi = new THREE.HemisphereLight(0x9fb8ff, 0x20160f, 0.35); scene.add(hemi);
+/* ---------- lighting: light the box interior, not just the object ---------- */
+scene.add(new THREE.AmbientLight(0xffffff, 0.30));
+scene.add(new THREE.HemisphereLight(0x9fb8ff, 0x241a12, 0.45));
+// one light per axis, from +axis toward the -axis wall — grazes each wall so it reads as lit
 function axisLight(x,y,z,i){ const l=new THREE.DirectionalLight(0xffffff,i); l.position.set(x,y,z); scene.add(l); return l; }
-axisLight( 3, 0, 0, 0.55);
-axisLight( 0, 3, 0, 0.55);
-axisLight( 0, 0, 3, 0.55);
-axisLight( 4, 5, 6, 0.5);
+axisLight( 4, 0.6, 0.6, 0.62);
+axisLight( 0.6, 4, 0.6, 0.62);
+axisLight( 0.6, 0.6, 4, 0.62);
+axisLight(-3,-4,-2, 0.28);
 
 /* box edges (the shadowbox frame) */
 {
-  const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(2*H,2*H,2*H));
-  const frame = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color:0x2c2c3a }));
+  const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(2*HBOX,2*HBOX,2*HBOX));
+  const frame = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color:0x353548 }));
   scene.add(frame);
 }
 
-/* backing panels on the three far walls (x=-H, y=-H, z=-H) */
-function backing(nx,ny,nz){
-  const g = new THREE.PlaneGeometry(2*H, 2*H);
-  const m = new THREE.MeshBasicMaterial({ color:0x101019, transparent:true, opacity:0.82, side:THREE.DoubleSide });
+/* lit backing walls on the three far faces (x=-H, y=-H, z=-H) */
+function backing(nx,ny,nz, tint){
+  const g = new THREE.PlaneGeometry(2*HBOX, 2*HBOX);
+  const m = new THREE.MeshStandardMaterial({
+    color:0x1b1b26, emissive:new THREE.Color(tint).multiplyScalar(0.06),
+    roughness:0.95, metalness:0.0, side:THREE.DoubleSide });
   const p = new THREE.Mesh(g, m);
-  const off = 0.012;
-  if(nx){ p.rotation.y = Math.PI/2; p.position.set(-H-off,0,0); }
-  if(ny){ p.rotation.x = Math.PI/2; p.position.set(0,-H-off,0); }
-  if(nz){ p.position.set(0,0,-H-off); }
+  const off = 0.02;
+  if(nx){ p.rotation.y = Math.PI/2; p.position.set(-HBOX-off,0,0); }
+  if(ny){ p.rotation.x = Math.PI/2; p.position.set(0,-HBOX-off,0); }
+  if(nz){ p.position.set(0,0,-HBOX-off); }
   scene.add(p);
 }
-backing(1,0,0); backing(0,1,0); backing(0,0,1);
+backing(1,0,0, AXCOL.x); backing(0,1,0, AXCOL.y); backing(0,0,1, AXCOL.z);
 
-/* dynamic content lives in a group we rebuild on demand */
+/* dynamic content (solid + prisms + shadows) rebuilt on demand */
 let solidMesh=null, prismMeshes=[], shadowMeshes=[];
 const dynGroup = new THREE.Group(); scene.add(dynGroup);
 
-/* ---------- text → mask ---------- */
-// Returns Uint8Array[N*N] indexed [u + N*v], v pointing "up" (world +),
-// u pointing "right". Text is fit to width, vertically centred.
-function rasterize(text, N){
+/* ---------- froxel volumetric box (raymarch of the occupancy 3D texture) ---------- */
+const volUniforms = {
+  uOcc:    { value:null },
+  uHobj:   { value:HOBJ },
+  uHbox:   { value:HBOX },
+  uDensity:{ value:0.5 },
+  uSteps:  { value: (innerWidth < 640 ? 26 : 40) },
+  uFog:    { value:new THREE.Color(0xffe6c2) },
+};
+const volMat = new THREE.RawShaderMaterial({
+  glslVersion: THREE.GLSL3,
+  transparent:true, depthWrite:false, depthTest:false,
+  blending: THREE.AdditiveBlending, side: THREE.BackSide,
+  uniforms: volUniforms,
+  vertexShader: `
+    in vec3 position;
+    uniform mat4 modelViewMatrix, projectionMatrix;
+    out vec3 vWorld;                          // mesh sits at origin -> local == world
+    void main(){ vWorld = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+  `,
+  fragmentShader: `
+    precision highp float;
+    precision highp sampler3D;
+    uniform sampler3D uOcc;
+    uniform vec3  cameraPosition;
+    uniform float uHobj, uHbox, uDensity;
+    uniform int   uSteps;
+    uniform vec3  uFog;
+    in vec3 vWorld;
+    out vec4 outColor;
+
+    float occAt(vec3 p){
+      vec3 tc = (p + uHobj) / (2.0 * uHobj);   // object space -> [0,1]
+      if(any(lessThan(tc, vec3(0.0))) || any(greaterThan(tc, vec3(1.0)))) return 0.0;
+      return texture(uOcc, tc).r;
+    }
+    void main(){
+      vec3 ro = cameraPosition;
+      vec3 rd = normalize(vWorld - ro);
+      vec3 bmin = vec3(-uHbox), bmax = vec3(uHbox);
+      vec3 t0 = (bmin - ro) / rd, t1 = (bmax - ro) / rd;
+      vec3 ts = min(t0,t1), tb = max(t0,t1);
+      float tN = max(max(ts.x,ts.y), ts.z);
+      float tF = min(min(tb.x,tb.y), tb.z);
+      tN = max(tN, 0.0);
+      if(tF <= tN){ outColor = vec4(0.0); return; }
+
+      int steps = uSteps;
+      float dt = (tF - tN) / float(steps);
+      float t = tN + dt * 0.5;
+      vec3 acc = vec3(0.0);
+      float trans = 1.0;
+      for(int i=0;i<256;i++){
+        if(i >= steps) break;
+        vec3 p = ro + rd * t;
+        if(occAt(p) > 0.5){ trans = 0.0; break; }   // solid occludes haze behind -> shadow shaft
+        // uniform in-scatter (kept off the walls so the crisp shadows stay legible),
+        // faded near the far faces so haze doesn't veil the shadow squares
+        vec3 d = (p + uHbox) / (2.0 * uHbox);        // 0..1 in the box
+        float edge = smoothstep(0.0, 0.14, min(min(d.x,d.y), d.z));
+        acc += trans * uFog * (0.85 * edge) * uDensity * dt;
+        trans *= exp(-uDensity * dt * 0.22);
+        t += dt;
+      }
+      outColor = vec4(acc, 1.0);                       // additive: rgb only
+    }
+  `,
+});
+const volMesh = new THREE.Mesh(new THREE.BoxGeometry(2*HBOX, 2*HBOX, 2*HBOX), volMat);
+volMesh.renderOrder = 20;
+volMesh.frustumCulled = false;
+scene.add(volMesh);
+let occTex = null;
+
+/* ---------- text → mask (rotated in-plane) ---------- */
+// Uint8Array[N*N] indexed [u + N*v], v up, u right. Fit-to-box for the given angle.
+function rasterize(text, N, angDeg){
+  const mask = new Uint8Array(N*N);
+  if(!text || !text.trim()) return mask;
   const S = 640;
   const c = document.createElement('canvas'); c.width=S; c.height=S;
   const g = c.getContext('2d');
   g.fillStyle='#000'; g.fillRect(0,0,S,S);
-  if(!text || !text.trim()){ return new Uint8Array(N*N); }
-  g.fillStyle='#fff'; g.textBaseline='middle'; g.textAlign='center';
-  const maxW = S*0.90, maxH = S*0.80;
-  let fs = maxH;
+  const ang = angDeg * Math.PI/180;
+  g.textBaseline='middle'; g.textAlign='center';
+
+  let fs = Math.floor(S*0.8);
   g.font = `900 ${fs}px ${FONT}`;
-  let w = g.measureText(text).width;
-  if(w > maxW){ fs = Math.max(6, Math.floor(fs * maxW / w)); }
+  let m = g.measureText(text);
+  const w = m.width;
+  const h = (m.actualBoundingBoxAscent || fs*0.72) + (m.actualBoundingBoxDescent || fs*0.20);
+  const ca = Math.abs(Math.cos(ang)), sa = Math.abs(Math.sin(ang));
+  const bw = w*ca + h*sa, bh = w*sa + h*ca;           // rotated bounding box
+  const maxW = S*0.86, maxH = S*0.86;
+  const scale = Math.min(maxW/bw, maxH/bh, 1);
+  fs = Math.max(6, Math.floor(fs*scale));
+
   g.font = `900 ${fs}px ${FONT}`;
-  g.fillText(text, S/2, S/2 + fs*0.02);
+  g.fillStyle='#fff';
+  g.save(); g.translate(S/2, S/2); g.rotate(ang); g.fillText(text, 0, 0); g.restore();
 
   const data = g.getImageData(0,0,S,S).data;
-  const mask = new Uint8Array(N*N);
   const block = S / N;
   for(let v=0; v<N; v++){
-    // world v up  ->  canvas rows from the bottom
     const y0 = Math.floor((N-1-v)*block), y1 = Math.max(y0+1, Math.floor((N-v)*block));
     for(let u=0; u<N; u++){
       const x0 = Math.floor(u*block), x1 = Math.max(x0+1, Math.floor((u+1)*block));
@@ -241,7 +347,7 @@ function rasterize(text, N){
 }
 
 /* ---------- surface mesher (only faces between solid & empty) ---------- */
-function surfaceGeometry(occ, N){
+function surfaceGeometry(occ, N, H){
   const d = 2*H/N;
   const pos=[], nor=[];
   const idx=(i,j,k)=> i + N*(j + N*k);
@@ -267,28 +373,25 @@ function surfaceGeometry(occ, N){
   return geo;
 }
 
-/* ---------- shadow squares (instanced), placed in world coords ---------- */
-const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
+/* ---------- shadow squares (instanced), placed on the far walls in world coords ---------- */
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(1,1,1);
 function shadowMesh(proj, N, wall){
-  // count inked cells
   let n=0; for(let t=0;t<proj.length;t++) if(proj[t]) n++;
-  const d = 2*H/N;
+  const d = 2*HOBJ/N;
   const geo = new THREE.PlaneGeometry(d*0.98, d*0.98);
-  const mat = new THREE.MeshBasicMaterial({ color:0x05050a, side:THREE.DoubleSide });
+  const mat = new THREE.MeshBasicMaterial({ color:0x04040a, side:THREE.DoubleSide });
   const inst = new THREE.InstancedMesh(geo, mat, Math.max(1,n));
-  const center = t => -H + (t+0.5)*d;
-  const eps = 0.006;
-  // orientation of the plane's +Z normal onto each wall
+  const center = t => -HOBJ + (t+0.5)*d;   // object transverse coord
+  const eps = 0.008;
   if(wall==='x') _q.setFromEuler(new THREE.Euler(0, Math.PI/2, 0));
   else if(wall==='y') _q.setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0));
   else _q.identity();
-  _s.set(1,1,1);
   let c=0;
   for(let v=0; v<N; v++) for(let u=0; u<N; u++){
     if(!proj[u + N*v]) continue;
-    if(wall==='x')      _p.set(-H+eps, center(u), center(v)); // u=+Y, v=+Z
-    else if(wall==='y') _p.set(center(v), -H+eps, center(u)); // u=+Z, v=+X
-    else                _p.set(center(u), center(v), -H+eps); // u=+X, v=+Y
+    if(wall==='x')      _p.set(-HBOX+eps, center(u), center(v)); // u=+Y, v=+Z
+    else if(wall==='y') _p.set(center(v), -HBOX+eps, center(u)); // u=+Z, v=+X
+    else                _p.set(center(u), center(v), -HBOX+eps); // u=+X, v=+Y
     _m.compose(_p,_q,_s);
     inst.setMatrixAt(c++, _m);
   }
@@ -304,68 +407,82 @@ function build(){
   building = true;
 
   const N = +document.getElementById('res').value;
-  const MX = rasterize(document.getElementById('tx').value, N); // reads on X wall  (u=+Y, v=+Z)
-  const MY = rasterize(document.getElementById('ty').value, N); // reads on Y wall  (u=+Z, v=+X)
-  const MZ = rasterize(document.getElementById('tz').value, N); // reads on Z wall  (u=+X, v=+Y)
+  const ax = +document.getElementById('rx').value, ay = +document.getElementById('ry').value, az = +document.getElementById('rz').value;
+  const MX = rasterize(document.getElementById('tx').value, N, ax); // reads on X wall (u=+Y, v=+Z)
+  const MY = rasterize(document.getElementById('ty').value, N, ay); // reads on Y wall (u=+Z, v=+X)
+  const MZ = rasterize(document.getElementById('tz').value, N, az); // reads on Z wall (u=+X, v=+Y)
 
-  const occ  = new Uint8Array(N*N*N);
+  const occ = new Uint8Array(N*N*N);
+  const tex = new Uint8Array(N*N*N);                 // 0/255 for the 3D texture
   const pX = new Uint8Array(N*N), pY = new Uint8Array(N*N), pZ = new Uint8Array(N*N);
   let count = 0;
   for(let k=0;k<N;k++) for(let j=0;j<N;j++){
-    const mx = MX[j + N*k];                 // MX indexed (u=j=y, v=k=z)
-    if(!mx) continue;
+    if(!MX[j + N*k]) continue;                        // MX indexed (u=y, v=z)
     for(let i=0;i<N;i++){
-      if(!MY[k + N*i]) continue;            // MY indexed (u=k=z, v=i=x)
-      if(!MZ[i + N*j]) continue;            // MZ indexed (u=i=x, v=j=y)
-      occ[i + N*(j + N*k)] = 1; count++;
-      pX[j + N*k] = 1;                       // shadow on x wall over (u=y, v=z)
-      pY[k + N*i] = 1;                       // shadow on y wall over (u=z, v=x)
-      pZ[i + N*j] = 1;                       // shadow on z wall over (u=x, v=y)
+      if(!MY[k + N*i]) continue;                      // MY indexed (u=z, v=x)
+      if(!MZ[i + N*j]) continue;                      // MZ indexed (u=x, v=y)
+      const id = i + N*(j + N*k);
+      occ[id] = 1; tex[id] = 255; count++;
+      pX[j + N*k] = 1; pY[k + N*i] = 1; pZ[i + N*j] = 1;
     }
   }
 
-  // dispose old
+  // dispose old dynamic content
   dynGroup.clear();
   const dispose = o => { if(o){ o.geometry&&o.geometry.dispose(); o.material&&o.material.dispose(); } };
   dispose(solidMesh); prismMeshes.forEach(dispose); shadowMeshes.forEach(dispose);
   solidMesh=null; prismMeshes=[]; shadowMeshes=[];
 
   // solid trip-let
-  const wire = document.getElementById('oWire').checked;
-  const geo = surfaceGeometry(occ, N);
+  const geo = surfaceGeometry(occ, N, HOBJ);
   const mat = new THREE.MeshStandardMaterial({
-    color:0xe8e4d8, metalness:0.15, roughness:0.55,
-    wireframe:wire, flatShading:true, side:THREE.DoubleSide });
+    color:0xe9e4d6, metalness:0.18, roughness:0.5,
+    wireframe: document.getElementById('oWire').checked, flatShading:true, side:THREE.DoubleSide });
   solidMesh = new THREE.Mesh(geo, mat);
   dynGroup.add(solidMesh);
 
-  // prisms (each text extruded fully along its axis) — broadcast occupancy
+  // prisms (each text extruded fully along its axis, before intersection)
   if(document.getElementById('oPrism').checked){
     const mk = (broadcast, col) => {
       const o = new Uint8Array(N*N*N);
       for(let k=0;k<N;k++) for(let j=0;j<N;j++) for(let i=0;i<N;i++)
         if(broadcast(i,j,k)) o[i+N*(j+N*k)]=1;
-      const m = new THREE.Mesh(surfaceGeometry(o,N),
+      const m = new THREE.Mesh(surfaceGeometry(o,N,HOBJ),
         new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.12,
           side:THREE.DoubleSide, depthWrite:false }));
       dynGroup.add(m); prismMeshes.push(m);
     };
-    mk((i,j,k)=>MX[j+N*k], AXCOL.x); // extrude along X
-    mk((i,j,k)=>MY[k+N*i], AXCOL.y); // extrude along Y
-    mk((i,j,k)=>MZ[i+N*j], AXCOL.z); // extrude along Z
+    mk((i,j,k)=>MX[j+N*k], AXCOL.x);
+    mk((i,j,k)=>MY[k+N*i], AXCOL.y);
+    mk((i,j,k)=>MZ[i+N*j], AXCOL.z);
   }
 
-  // shadows
+  // crisp shadows on the walls
   if(document.getElementById('oShadow').checked){
-    const sx = shadowMesh(pX, N, 'x'); const sy = shadowMesh(pY, N, 'y'); const sz = shadowMesh(pZ, N, 'z');
+    const sx = shadowMesh(pX, N, 'x'), sy = shadowMesh(pY, N, 'y'), sz = shadowMesh(pZ, N, 'z');
     dynGroup.add(sx, sy, sz); shadowMeshes.push(sx, sy, sz);
   }
+
+  // upload occupancy as the froxel 3D texture
+  try {
+    if(occTex) occTex.dispose();
+    occTex = new THREE.Data3DTexture(tex, N, N, N);
+    occTex.format = THREE.RedFormat;
+    occTex.type = THREE.UnsignedByteType;
+    occTex.minFilter = THREE.LinearFilter;
+    occTex.magFilter = THREE.LinearFilter;
+    occTex.wrapS = occTex.wrapT = occTex.wrapR = THREE.ClampToEdgeWrapping;
+    occTex.unpackAlignment = 1;
+    occTex.needsUpdate = true;
+    volUniforms.uOcc.value = occTex;
+    volUniforms.uHobj.value = HOBJ;
+  } catch(e){ /* volumetric is optional; page still works */ }
 
   // status
   const ink = m => { let n=0; for(let t=0;t<m.length;t++) n+=m[t]; return n; };
   const st = document.getElementById('status');
   if(count === 0){
-    st.innerHTML = `<span class="warn">No solid — the three lines share no common column.</span> Try shorter or bolder text, or a higher resolution.`;
+    st.innerHTML = `<span class="warn">No solid — the three lines share no common column.</span> Try shorter / bolder text, rotate a line, or raise resolution.`;
   } else {
     const cov = (p,m)=>{ const im=ink(m); return im? Math.round(100*ink(p)/im) : 100; };
     st.innerHTML = `<b>${count.toLocaleString()}</b> voxels · shadow fidelity `+
@@ -381,22 +498,39 @@ function build(){
 /* ---------- camera views ---------- */
 function setView(which){
   controls.autoRotate = false;
-  const D = 3.4;
+  const spin = document.getElementById('oSpin'); if(spin) spin.checked = false;
+  const D = 3.7;
   if(which==='x'){ camera.position.set(D,0,0); camera.up.set(0,0,1); }      // u=+Y, v=+Z
   else if(which==='y'){ camera.position.set(0,D,0); camera.up.set(1,0,0); } // u=+Z, v=+X
   else if(which==='z'){ camera.position.set(0,0,D); camera.up.set(0,1,0); } // u=+X, v=+Y
   else { camera.position.copy(ISO); camera.up.set(0,1,0); }
   controls.target.set(0,0,0);
   controls.update();
-  if(which!=='iso' && document.getElementById('oSpin')){ document.getElementById('oSpin').checked=false; }
 }
 
 /* ---------- UI wiring ---------- */
 let debounce=null;
-const rebuild = () => { clearTimeout(debounce); debounce=setTimeout(build, 180); };
+const rebuild = () => { clearTimeout(debounce); debounce=setTimeout(build, 170); };
 ['tx','ty','tz'].forEach(id=> document.getElementById(id).addEventListener('input', rebuild));
+[['rx','rxl'],['ry','ryl'],['rz','rzl']].forEach(([id,lab])=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input', ()=>{ document.getElementById(lab).textContent = el.value+'°'; rebuild(); });
+});
 document.getElementById('res').addEventListener('change', build);
 ['oShadow','oPrism','oWire'].forEach(id=> document.getElementById(id).addEventListener('change', build));
+
+const osize = document.getElementById('osize');
+osize.addEventListener('input', ()=>{
+  HOBJ = (+osize.value) * HBOX;
+  document.getElementById('osizel').textContent = Math.round(osize.value*100)+'%';
+  build();
+});
+const haze = document.getElementById('haze');
+haze.addEventListener('input', ()=>{
+  volUniforms.uDensity.value = +haze.value;
+  document.getElementById('hazel').textContent = (+haze.value).toFixed(2);
+});
+document.getElementById('oVol').addEventListener('change', e=>{ volMesh.visible = e.target.checked; });
 document.getElementById('oSpin').addEventListener('change', e=>{ controls.autoRotate = e.target.checked; });
 
 document.querySelectorAll('.presets button').forEach(b=> b.addEventListener('click', ()=>{
@@ -418,7 +552,6 @@ function resize(){
   camera.aspect = w/h; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
-controls.autoRotateSpeed = 1.6;
 
 function tick(){
   requestAnimationFrame(tick);
