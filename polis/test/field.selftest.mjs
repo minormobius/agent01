@@ -198,24 +198,45 @@ section('coverage invariant');
   ok(worst < 0.30, `every urban cell within 300 m of a lane (worst ${(worst * 1000) | 0} m)`);
 }
 
-section('agents — the people the envelope stands for');
+section('agents — individuals, one per person');
 {
   ok(F.agents.length > 0, `agents populate the city (${F.agents.length})`);
-  // representation ratio: agents ≈ pop / AGENT_SCALE (25), within slack for the cap
-  const ratio = CTX.popSeries[CTX.popSeries.length - 1] / F.agents.length;
-  ok(ratio > 18 && ratio < 40, `~1 agent per 25 people (ratio ${ratio.toFixed(1)})`);
-  // every agent lives on a live, built tile (nobody floats in the void)
+  // ONE AGENT = ONE PERSON: agent count ≈ the envelope population (or the cap)
+  const finalPop = CTX.popSeries[CTX.popSeries.length - 1];
+  const ratio = finalPop / F.agents.length;
+  ok(ratio > 0.9 && ratio < 1.15, `individuals, ~1:1 with population (ratio ${ratio.toFixed(2)})`);
   ok(F.agents.every(a => a.home >= 0 && F.sites[a.home] && !F.sites[a.home].dead && F.sites[a.home].builtAt >= 0),
      'every agent homed on a live built tile');
-  // homes arrive in order and only ever look backward
   ok(F.agents.every(a => a.homeHist.length >= 1 && a.homeHist[0][0] === a.bornT
      && a.homeHist.every(([ht], i) => i === 0 || ht >= a.homeHist[i - 1][0])), 'home history well-ordered from birth');
-  // some agents moved within the city (intracity mobility is real)
   ok(F.agents.some(a => a.homeHist.length > 1), 'some agents moved homes within the city');
-  // notables are named; commoners are not
+  // notables are named + rare (special); commoners are anonymous
   const notes = F.agents.filter(a => a.notable);
   ok(notes.length > 0 && notes.every(a => typeof a.name === 'string' && a.name.length > 2), `notables carry names (${notes.length})`);
+  ok(notes.length < F.agents.length * 0.02, `notables stay rare (${notes.length} of ${F.agents.length})`);
   ok(F.agents.filter(a => !a.notable).every(a => a.name === null), 'commoners are anonymous');
+}
+
+section('occupations — the district specialization');
+{
+  // every agent has an occupation + class; classes span the palette
+  ok(F.agents.every(a => a.occ && a.cls), 'every agent has an occupation + class');
+  const classes = new Set(F.agents.map(a => a.cls));
+  ok(classes.size >= 4, `occupation classes span the city (${[...classes].join(',')})`);
+  // districts specialize: each org's workforce is dominated by trades that fit it —
+  // the harbour is maritime, the works is craft/labour
+  const harbor = F.orgs.find(o => o.kind === 'harbor');
+  if (harbor) {
+    const top = harbor.occMix[0][0];
+    ok(['docker', 'sailor', 'fishwife', 'merchant', 'cooper'].includes(top), `the harbour reads maritime (top trade: ${top})`);
+  }
+  const works = F.orgs.find(o => o.kind === 'works');
+  if (works) {
+    const top = works.occMix[0][0];
+    ok(['smith', 'founder', 'collier', 'hauler', 'fitter'].includes(top), `the works reads industrial (top trade: ${top})`);
+  }
+  // occMix sums to the org's workforce
+  ok(F.orgs.every(o => o.occMix.reduce((s, [, n]) => s + n, 0) === o.workers), 'occupation mix sums to the workforce');
 }
 
 section('immigration — the city draws from the world beyond');

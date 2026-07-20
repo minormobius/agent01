@@ -455,11 +455,32 @@ engine-distinct nuclei).
   factor (the "tap → bottom-left" bug); all hit-testing now goes through
   `toCanvas` (event → bitmap coords via the element's own rect).
 
+**Field v4.1 (SHIPPED — true individuals, occupations, the city breathes):**
+
+- **One agent = one person.** AGENT_SCALE dropped 25→1: the map now shows
+  individuals (up to a 50k budget; above it each agent represents pop/cap), ~15k
+  for a demo city, deterministic. A home→residents index keeps 50k tractable
+  (mitosis migration is O(residents), home-choice is a bounded BFS candidate set,
+  not an O(sites) scan), so the 17× agent increase cost almost nothing (~4.7s).
+- **Occupations — the spatial division of labour.** Each agent takes a trade from
+  its workplace's vocabulary (harbour → docker/sailor/cooper/merchant; works →
+  smith/founder/collier; court → clerk/steward/guard), tagged with a class
+  (labour/craft/trade/admin/sea) that colours the map — so districts *read* as
+  clots of one trade. Per-org occupation mix is tabulated and surfaced in
+  inspection.
+- **The city breathes.** A render-time daily cycle (`dayPhase`) commutes each
+  agent between home and workplace — the tidal flow that was missing. Runs on a
+  continuous rAF loop over an **offscreen-cached base layer** (terrain + lanes
+  re-render only on tick/view change; agents animate on top), so 50k dots stay
+  smooth. HUD rebuilds only on tick change, not per frame.
+- Notables made rare (org founders + ~0.25% sprinkle) so named people stay
+  special among the individual crowd.
+
 **Next descents at the city level**: blocks→plots (Conzen burgage — division
 below ~30 m becomes parcelling); reading the civ city's actual `institutions`
 rollup into the org set (currently orgs are engine-derived, not civ-sourced);
-agent economics (wages, the base multiplier realised as agent employment, so
-the org performance oracle feeds back into who can afford which tile).
+agent economics (wages from the org performance oracle feeding back into who can
+afford which tile — closing the loop between rite/org and the land market).
 
 ### Phase V — outward
 

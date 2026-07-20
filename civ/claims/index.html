@@ -323,9 +323,14 @@ const C = [
  src:'polis/field.js (chooseHome, occupancy feedback)'},
 {id:'C8', layer:'cities', stance:'stylized',
  stmt:'Cities grow by drawing strangers, not just by breeding — and institutions concentrate the newcomers.',
- mech:'Agents arrive by birth, by internal growth, or as immigrants through a gate (the routes from the world beyond); each is drawn to the institution shortest of hands. Orgs (court/guild/harbor/mill/works) rise at the engine nucleus and each district anchor, led by a named notable, and carry a rite/org address (world:place:cell:kind) so the same institution opens as a full hierarchy elsewhere in the suite.',
+ mech:'Every resident is an INDIVIDUAL agent (1:1 with population, up to a 50k budget), not a rollup. They arrive by birth, by internal growth, or as immigrants through a gate (the routes from the world beyond); each is drawn to the institution shortest of hands. Orgs (court/guild/harbor/mill/works) rise at the engine nucleus and each district anchor, led by a named notable, and carry a rite/org address (world:place:cell:kind) so the same institution opens as a full hierarchy elsewhere in the suite.',
  lin:'Urban natural-decrease history (pre-modern cities shrank without in-migration — the "urban graveyard" — de Vries); Weber’s city as corporate actor made of institutions.',
  src:'polis/field.js (spawnAgent, foundOrg)'},
+{id:'C9', layer:'cities', stance:'consensus',
+ stmt:'The division of labour is spatial: districts specialize by trade, and the trade comes from the institution that anchors it.',
+ mech:'Each agent takes an occupation from its workplace’s trade vocabulary — the harbour makes dockers, sailors, coopers and merchants; the works makes smiths, founders and colliers; the court makes clerks, stewards and guards. Occupation class colours the map, so a district reads as a clot of one trade; the per-org occupation mix is tabulated.',
+ lin:'Adam Smith’s division of labour; Durkheim’s organic solidarity; the trade-quarter geography of every pre-modern city (the shambles, the potteries, the goldsmiths’ row).',
+ src:'polis/field.js (OCC, assignOcc)'},
 
 // ---------------- HINTERLAND ----------------
 {id:'H1', layer:'hinterland', stance:'consensus',
