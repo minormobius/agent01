@@ -239,6 +239,40 @@ section('occupations — the district specialization');
   ok(F.orgs.every(o => o.occMix.reduce((s, [, n]) => s + n, 0) === o.workers), 'occupation mix sums to the workforce');
 }
 
+section('the secondary economy — the base multiplier spins up local services');
+{
+  const anchors = F.orgs.filter(o => o.tier === 'anchor'), locals = F.orgs.filter(o => o.tier === 'local');
+  ok(anchors.length >= 2, `anchor institutions (the export base) exist (${anchors.length})`);
+  ok(locals.length > anchors.length * 5, `the secondary economy dwarfs the anchors (${locals.length} establishments vs ${anchors.length} institutions)`);
+  ok(F.events.some(e => e.type === 'shop'), 'the base multiplier turning is an event');
+  // the essential basket is present (supply closure) in a mature town
+  const trades = new Set(locals.map(o => o.trade));
+  ok(['bakery', 'tavern', 'smithy', 'market'].every(b => trades.has(b)), `the essentials are all present (${[...trades].length} trade types)`);
+  // Christaller: common goods outnumber rare goods (bakeries ≫ goldsmiths)
+  const count = (k) => locals.filter(o => o.trade === k).length;
+  ok(count('bakery') > count('goldsmith'), `common goods outnumber luxury goods (${count('bakery')} bakeries vs ${count('goldsmith')} goldsmiths)`);
+  // employment split follows the base multiplier: most people work non-basic
+  let basic = 0, nonbasic = 0;
+  for (const a of F.agents) if (a.work >= 0) { (F.orgs[a.work].tier === 'anchor' ? (basic++) : (nonbasic++)); }
+  ok(nonbasic > basic, `most people work the local economy, not the export base (${nonbasic} vs ${basic})`);
+  ok(F.meta.vitality.multiplier > 1.5 && F.meta.vitality.multiplier < 4, `the base multiplier M is in a sane band (${F.meta.vitality.multiplier})`);
+  // establishments carry rite/org addresses + third-places exist
+  ok(locals.every(o => /^\d+:[^:]+:\d+:[a-z]+\d+$/.test(o.orgSeed)), 'establishments carry suite org addresses');
+  ok(locals.some(o => o.third), 'third-places (taverns/markets/temples) exist');
+}
+
+section('city vitality — is it a good place to live? (hoop/econ)');
+{
+  const v = F.meta.vitality;
+  ok(v && typeof v.score === 'number' && v.score >= 0 && v.score <= 100, `vitality is a 0–100 score (${v.score})`);
+  ok(['Thriving', 'Healthy', 'Stable', 'Fragile', 'Failing'].includes(v.tier), `vitality tier from the hoop/econ ladder (${v.tier})`);
+  ok(v.closure >= 0 && v.closure <= 1 && v.employed >= 0 && v.employed <= 1, 'supply closure + employment are fractions');
+  // a mature port city should score well; a tiny hamlet should not
+  ok(v.score >= 55, `the mature city is at least Stable (${v.score})`);
+  const hamlet = growCity('7:Vylfstrand:412', { ...CTX, popSeries: defaultEnvelope(240, 500), wallsAt: -1 });
+  ok(hamlet.meta.vitality.score < v.score, `a hamlet scores below the city (${hamlet.meta.vitality.score} < ${v.score})`);
+}
+
 section('immigration — the city draws from the world beyond');
 {
   const imm = F.agents.filter(a => a.origin === 'immigrant');
@@ -250,16 +284,17 @@ section('immigration — the city draws from the world beyond');
   ok(share > 0.05 && share < 0.9, `immigration is a real share of arrivals (${(share * 100).toFixed(0)}%)`);
 }
 
-section('orgs — institutions rise, with rite/org addresses');
+section('anchor institutions — the export base, with rite/org addresses');
 {
-  ok(F.orgs.length > 0, `institutions found (${F.orgs.length})`);
+  const anchors = F.orgs.filter(o => o.tier === 'anchor');
+  ok(anchors.length > 0, `anchor institutions found (${anchors.length})`);
   ok(F.orgs.every(o => o.seat >= 0 && F.sites[o.seat] && !F.sites[o.seat].dead), 'every org seated on a live tile');
-  ok(F.orgs.every(o => o.founderName && o.workers >= 1), 'orgs have a named founder + a workforce');
+  ok(anchors.every(o => o.founderName && o.workers >= 1), 'anchors have a named founder + a workforce');
   // the rite/org address is the suite-wide siteSeed shape (world:place:cell:kindN)
   ok(F.orgs.every(o => /^\d+:[^:]+:\d+:[a-z]+\d+$/.test(o.orgSeed)), 'org addresses match the suite siteSeed shape');
   ok(F.orgs.every(o => o.vertical && o.shape), 'orgs carry a rite/org vertical + shape');
-  ok(F.events.some(e => e.type === 'org'), 'org foundings reach the event ribbon');
-  // workforce sums to the working agents (no double-counting)
+  ok(F.events.some(e => e.type === 'org'), 'anchor foundings reach the event ribbon');
+  // workforce sums to the working agents (no double-counting), across BOTH tiers
   const working = F.agents.filter(a => a.work >= 0).length;
   const summed = F.orgs.reduce((s, o) => s + o.workers, 0);
   ok(summed === working, `org workforce sums to working agents (${summed} = ${working})`);

@@ -476,11 +476,41 @@ engine-distinct nuclei).
 - Notables made rare (org founders + ~0.25% sprinkle) so named people stay
   special among the individual crowd.
 
+**Field v5 (SHIPPED — the secondary economy + city vitality):**
+
+- **Two employment sectors, per the base multiplier.** v4's flaw: every agent
+  worked for one of ~4 anchor orgs (it said all 15k people were dockers). Now the
+  economic-base model is real: **anchor institutions** are the BASIC (export)
+  sector — the founding engine's big games in town; **establishments** are the
+  NON-BASIC (local-serving) sector — the bakers, taverns, smiths, markets that
+  the base multiplier `M = 1/(1−s)` spins up because export workers spend wages
+  locally. Non-basic share s rises 0.40→0.72 with size/tech; employment splits
+  `(1−s)` basic + `s` non-basic, so in a mature town ~⅔ work the local economy
+  (M ≈ 3). It rightly **lags** the export engine (nucleus first, services follow).
+  A 16k demo town: 4 institutions + **88 establishments**; a civ metro: 2 + 147.
+- **Christaller thresholds.** 14 local trades each with a threshold (min pop before
+  the first opens) and cadence (one per N residents): bakeries per 700 proliferate
+  and spread to serve neighbourhoods, a goldsmith per 16k / bank per 26k are rare
+  and central; new shops site where demand is least served (farthest from the
+  nearest same trade). Finance (`bank`) and the printer appear late/with the
+  machine age.
+- **City vitality (hoop/econ).** A 0–100 score + tier (Thriving/Healthy/Stable/
+  Fragile/Failing — borrowed verbatim from hoop/econ's oracle) over supply closure
+  (essentials present?), employment, third-places per head (Oldenburg), trade
+  diversity (Jacobs), and a base multiplier near its healthy band. Surfaced live
+  in the HUD; a port city thrives, a hamlet is fragile (selftested).
+- **The viewer**: establishments render as small marks studding the districts
+  (third-places glow), anchors keep the big glyphs; tap either to inspect (an
+  establishment opens as a small org, an anchor as the full hierarchy); the HUD
+  shows `N institutions + M establishments · vitality Thriving 96`.
+
 **Next descents at the city level**: blocks→plots (Conzen burgage — division
 below ~30 m becomes parcelling); reading the civ city's actual `institutions`
-rollup into the org set (currently orgs are engine-derived, not civ-sourced);
-agent economics (wages from the org performance oracle feeding back into who can
-afford which tile — closing the loop between rite/org and the land market).
+rollup into the anchor set (currently anchors are engine-derived, not
+civ-sourced); agent wages from the establishment/org performance so income
+(not just occupation) decides who affords which tile — closing the loop between
+the economy and the land market; and finance as a real lever (the `bank`
+establishment is a placeholder for the cost-of-capital layer in THEORY.md).
 
 ### Phase V — outward
 

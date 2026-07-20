@@ -340,6 +340,7 @@ export function growCity(siteSeed, ctx = {}) {
   };
   // occupations by institution — the district's specialization made legible.
   // cls (occupation class) drives the map colour: labour / craft / trade / admin / sea.
+  // ANCHOR institutions are the BASIC (export) sector — the big games in town.
   const OCC = {
     harbor: [['docker', 'sea'], ['sailor', 'sea'], ['fishwife', 'sea'], ['merchant', 'trade'], ['cooper', 'craft']],
     guild:  [['trader', 'trade'], ['clerk', 'admin'], ['carter', 'labour'], ['broker', 'trade'], ['weigher', 'admin']],
@@ -348,8 +349,33 @@ export function growCity(siteSeed, ctx = {}) {
     works:  [['smith', 'craft'], ['founder', 'craft'], ['collier', 'labour'], ['hauler', 'labour'], ['fitter', 'craft']],
   };
   const OCC_FREE = [['labourer', 'labour'], ['hawker', 'trade'], ['carter', 'labour'], ['mason', 'craft']];
+  // THE SECONDARY ECONOMY — the NON-BASIC (city-serving) sector the base multiplier
+  // M = 1/(1−s) spins up: the bakers, taverns, smiths, markets that exist because the
+  // export workers spend their wages locally. Christaller thresholds: `threshold` =
+  // the city population before the first one opens; `per` = one more per this many
+  // residents (higher-order goods are rarer); `size` = a headcount weight; `third`
+  // marks a third-place (Oldenburg's social infrastructure — taverns, markets, temples).
+  const LOCAL_TRADES = [
+    { key: 'bakery',    occ: 'baker',     cls: 'craft',  threshold: 60,   per: 700,   size: 5 },
+    { key: 'tavern',    occ: 'taverner',  cls: 'trade',  threshold: 100,  per: 1100,  size: 7, third: true },
+    { key: 'smithy',    occ: 'smith',     cls: 'craft',  threshold: 140,  per: 1400,  size: 5 },
+    { key: 'butcher',   occ: 'butcher',   cls: 'craft',  threshold: 180,  per: 1600,  size: 4 },
+    { key: 'market',    occ: 'monger',    cls: 'trade',  threshold: 220,  per: 2200,  size: 10, third: true },
+    { key: 'weaver',    occ: 'weaver',    cls: 'craft',  threshold: 300,  per: 2000,  size: 6 },
+    { key: 'chandler',  occ: 'chandler',  cls: 'craft',  threshold: 420,  per: 2800,  size: 4 },
+    { key: 'temple',    occ: 'priest',    cls: 'admin',  threshold: 500,  per: 4200,  size: 8, third: true },
+    { key: 'mason',     occ: 'mason',     cls: 'labour', threshold: 700,  per: 3200,  size: 6 },
+    { key: 'apothecary',occ: 'apothecary',cls: 'admin',  threshold: 1400, per: 7500,  size: 4 },
+    { key: 'school',    occ: 'teacher',   cls: 'admin',  threshold: 2400, per: 11000, size: 5, third: true },
+    { key: 'goldsmith', occ: 'goldsmith', cls: 'craft',  threshold: 3500, per: 16000, size: 4 },
+    { key: 'bank',      occ: 'banker',    cls: 'trade',  threshold: 6000, per: 26000, size: 6 },
+    { key: 'printer',   occ: 'printer',   cls: 'craft',  threshold: 4000, per: 20000, size: 5, mech: true },
+  ];
+  const TRADE_BY_KEY = Object.fromEntries(LOCAL_TRADES.map(tr => [tr.key, tr]));
+  const BASKET = ['bakery', 'tavern', 'smithy', 'butcher', 'market', 'temple'];   // the essentials (supply closure)
   function assignOcc(a) {
-    const list = a.work >= 0 ? OCC[orgs[a.work].kind] || OCC_FREE : OCC_FREE;
+    const o = a.work >= 0 ? orgs[a.work] : null;
+    const list = o ? o.occPool : OCC_FREE;
     const [occ, cls] = list[hash2(a.id, 11, seed ^ 0xcc) * list.length | 0];
     a.occ = occ; a.cls = cls;
   }
@@ -396,16 +422,37 @@ export function growCity(siteSeed, ctx = {}) {
     return best;
   }
 
+  // EMPLOYMENT via the economic-base model. s = the non-basic (local-serving) share,
+  // which rises with size and tech (economy.js): a bigger, more advanced town serves
+  // more of itself. Basic employment (anchors) = (1−s)·pop; non-basic (establishments)
+  // = s·pop. We hand each org a headcount TARGET from its weight, and hire the org
+  // furthest below target — so the secondary economy fills out as the town grows,
+  // and (rightly) LAGS the export engine: the base comes first, services follow.
+  function localShare(t) {
+    const techFrac = t >= eras.mechAt ? 1 : t >= eras.wheelAt ? 0.5 : 0.2;
+    return Math.min(0.72, 0.40 + 0.26 * Math.min(1, pop[t] / 12000) + 0.10 * techFrac);
+  }
+  function retarget(t) {
+    const P = pop[t], s = localShare(t);
+    const anchors = orgs.filter(o => o.tier === 'anchor'), locals = orgs.filter(o => o.tier === 'local');
+    const aw = anchors.reduce((x, o) => x + o.weight, 0) || 1;
+    const lw = locals.reduce((x, o) => x + o.size, 0) || 1;
+    for (const o of anchors) o.target = Math.round((1 - s) * P * o.weight / aw);
+    for (const o of locals) o.target = Math.max(2, Math.round(s * P * o.size / lw));
+  }
+  function pickWork() {
+    let best = -1, gap = 0;
+    for (const o of orgs) { const g = (o.target || 0) - o.workers; if (g > gap) { gap = g; best = o.id; } }
+    return best;
+  }
+
   function spawnAgent(t) {
     const id = agents.length;
     const origin = id < 4 ? 'founder' : hash2(id, t, seed ^ 0xa7) < 0.45 ? 'immigrant' : 'growth';
     const gate = origin === 'immigrant' && gates.length ? gates[(id * 7 + t) % gates.length] : -1;
-    // work: the org shortest of hands relative to a soft target share
-    let work = -1;
-    if (orgs.length) { let mn = Infinity; for (const o of orgs) if (o.workers < mn) { mn = o.workers; work = o.id; } }
+    const work = pickWork();
     const home = chooseHome(t, work >= 0 ? orgs[work].seat : -1, -1);
     if (home < 0) return false;
-    // notables: org founders (elsewhere) + a rare sprinkle, so named people stay special
     const notable = hash2(id, 5, seed ^ 0xf1) < 0.0025;
     const a = { id, bornT: t, origin, gate, home, homeHist: [[t, home]], work, occ: '', cls: 'labour',
                 notable, name: notable ? nextName() : null };
@@ -417,10 +464,11 @@ export function growCity(siteSeed, ctx = {}) {
   }
 
   function agentStep(t) {
+    retarget(t);
+    establishmentStep(t);                       // the secondary economy opens shops
     const target = Math.min(AGENT_CAP, Math.round(pop[t] / AGENT_SCALE));
     let guard = 0;
     while (agents.length < target && guard++ < 4000) { if (!spawnAgent(t)) break; }
-    // intracity movement: on market ticks a slice of the city reconsiders its rent
     if (t % ECON_EVERY === 1 && t > 1) {
       for (const a of agents) {
         if (hash2(a.id, t, seed ^ 0xb3) >= 0.05) continue;
@@ -430,12 +478,58 @@ export function growCity(siteSeed, ctx = {}) {
     }
   }
 
-  const ORG_SPEC = {                            // kind → display + rite/org address shape
-    court:   { label: 'the court',          vertical: 'feudal',   shape: 'tall' },
-    guild:   { label: 'the traders guild',  vertical: 'corp',     shape: 'flat' },
-    harbor:  { label: 'the harbor company', vertical: 'corp',     shape: 'pyramid' },
-    mill:    { label: 'the mill',           vertical: 'corp',     shape: 'pyramid' },
-    works:   { label: 'the ironworks',      vertical: 'corp',     shape: 'tall' },
+  // -- the secondary economy: local-serving establishments, Christaller-sited -------
+  const estCount = {};                          // trade key → how many exist
+  let firstShop = -1;
+  function siteEstablishment(tr, t) {
+    // serve the underserved: pick a built residential/commercial tile far from the
+    // nearest same-trade shop, biased central for higher-order goods (bigger range).
+    const centralPull = tr.threshold > 1500 ? 0.9 : tr.threshold > 500 ? 0.4 : 0.1;
+    const same = orgs.filter(o => o.tier === 'local' && o.trade === tr.key);
+    let best = -1, bv = -Infinity;
+    // sample built tiles (bounded scan for perf on 50k) — every 3rd built site
+    let seen = 0;
+    for (const s of sites) {
+      if (s.dead || s.builtAt < 0 || s.builtAt > t || s.water || s.river) continue;
+      if ((seen++ & 3) && same.length) continue;   // thin the scan once shops exist
+      let dSame = Infinity;
+      for (const o of same) dSame = Math.min(dSame, Math.hypot(s.x - sites[o.seat].x, s.y - sites[o.seat].y));
+      const dn = Math.hypot(s.x - sites[nucleus].x, s.y - sites[nucleus].y);
+      const v = Math.min(1.5, dSame) * 1.4 - centralPull * dn + occOf(s.id) * 0.02
+              + (s.use === USE.COM ? 0.25 : 0) + hash2(s.id, t * 3 + 7, seed ^ 0xd1) * 0.2;
+      if (v > bv) { bv = v; best = s.id; }
+    }
+    return best;
+  }
+  function foundEstablishment(tr, t) {
+    const seat = siteEstablishment(tr, t);
+    if (seat < 0) return;
+    const id = orgs.length;
+    orgs.push({ id, tier: 'local', kind: tr.key, trade: tr.key, label: `a ${tr.key}`, occ: tr.occ,
+                seat, foundedT: t, founder: -1, size: tr.size, third: !!tr.third, workers: 0, target: 0,
+                occPool: [[tr.occ, tr.cls]], vertical: 'corp', shape: tr.size > 6 ? 'pyramid' : 'flat' });
+    estCount[tr.key] = (estCount[tr.key] || 0) + 1;
+    if (firstShop < 0) { firstShop = t; ev(t, 'shop', 'the base multiplier turns — bakers, taverns and smiths open to serve the town’s own wages'); }
+    else if (tr.key === 'bank') ev(t, 'shop', 'a counting-house opens — the town’s surplus finds a keeper');
+    else if (tr.key === 'temple' && estCount.temple === 1) ev(t, 'shop', 'the first temple is raised — the town gets a heart');
+  }
+  function establishmentStep(t) {
+    const P = pop[t];
+    for (const tr of LOCAL_TRADES) {
+      if (P < tr.threshold) continue;
+      if (tr.mech && t < eras.mechAt) continue;
+      const want = Math.max(1, Math.floor(P / tr.per));
+      let have = estCount[tr.key] || 0, guard = 0;
+      while (have < want && guard++ < 20) { foundEstablishment(tr, t); have++; }
+    }
+  }
+
+  const ORG_SPEC = {                            // anchor kind → display + rite/org shape + export weight
+    court:   { label: 'the court',          vertical: 'feudal',   shape: 'tall',    weight: 2.2 },
+    guild:   { label: 'the traders guild',  vertical: 'corp',     shape: 'flat',    weight: 2.0 },
+    harbor:  { label: 'the harbor company', vertical: 'corp',     shape: 'pyramid', weight: 2.6 },
+    mill:    { label: 'the mill',           vertical: 'corp',     shape: 'pyramid', weight: 1.4 },
+    works:   { label: 'the ironworks',      vertical: 'corp',     shape: 'tall',    weight: 2.2 },
   };
   function foundOrg(kind, seat, t) {
     if (seat < 0 || sites[seat].dead) return;
@@ -447,8 +541,9 @@ export function growCity(siteSeed, ctx = {}) {
                       homeHist: [[t, home >= 0 ? home : seat]], work: id, occ: 'master', cls: 'admin',
                       notable: true, name: nextName() };
     agents.push(founder); moveOcc(-1, founder.home, founder.id);
-    orgs.push({ id, kind, label: spec.label, seat, foundedT: t, founder: aid,
-                vertical: spec.vertical, shape: spec.shape, workers: 1 });
+    orgs.push({ id, tier: 'anchor', kind, label: spec.label, seat, foundedT: t, founder: aid,
+                vertical: spec.vertical, shape: spec.shape, weight: spec.weight, workers: 1, target: 0,
+                occPool: OCC[kind] || OCC_FREE });
     // idle hands take the new work and its trades
     let hired = 0;
     for (const a of agents) { if (a.work < 0 && hired < 30) { a.work = id; assignOcc(a); hired++; } }
@@ -728,7 +823,30 @@ export function growCity(siteSeed, ctx = {}) {
   for (const s of sites) if (!s.dead) { liveCount++; if (s.builtAt >= 0) builtCount++; if (s.use === USE.FARM) farmCount++; }
   const notables = agents.filter(a => a.notable).length;
   const immigrants = agents.filter(a => a.origin === 'immigrant').length;
-  ev(T - 1, 'now', `${Math.round(pop[T - 1]).toLocaleString()} people · ${agents.length} agents (${notables} notable, ${immigrants} come from away) · ${orgs.length} institutions · ${builtCount} urban cells`);
+  const anchorN = orgs.filter(o => o.tier === 'anchor').length, localN = orgs.filter(o => o.tier === 'local').length;
+  // -- CITY VITALITY (hoop/econ): is this a good place to live? ---------------------
+  // Seven-ish signals rolled into 0–100 + a tier (names borrowed from hoop/econ's
+  // vitality oracle): supply CLOSURE (are the essentials present?), EMPLOYMENT,
+  // THIRD-places per head (Oldenburg's social infrastructure), DIVERSITY (Jacobs),
+  // and BALANCE (a base multiplier near its healthy band, not all-export/all-service).
+  function cityVitality() {
+    const P = Math.max(1, pop[T - 1]);
+    const present = new Set(orgs.filter(o => o.tier === 'local').map(o => o.trade));
+    const closure = BASKET.filter(b => present.has(b)).length / BASKET.length;
+    const employed = agents.length ? agents.filter(a => a.work >= 0).length / agents.length : 0;
+    const third = orgs.filter(o => o.tier === 'local' && o.third).length;
+    const thirdPer = Math.min(1, third / Math.max(1, P / 2500));
+    const diversity = present.size / LOCAL_TRADES.length;
+    const localEmp = agents.filter(a => a.work >= 0 && orgs[a.work].tier === 'local').length;
+    const s = agents.length ? localEmp / agents.length : 0;      // realised non-basic share
+    const balance = 1 - Math.min(1, Math.abs(s - 0.6) / 0.6);    // healthy ≈ 0.6
+    const score = Math.round(100 * (0.28 * closure + 0.24 * employed + 0.18 * thirdPer + 0.16 * diversity + 0.14 * balance));
+    const tier = score >= 75 ? 'Thriving' : score >= 60 ? 'Healthy' : score >= 45 ? 'Stable' : score >= 30 ? 'Fragile' : 'Failing';
+    return { score, tier, closure: +closure.toFixed(2), employed: +employed.toFixed(2), thirdPlaces: third,
+             diversity: present.size, nonBasicShare: +s.toFixed(2), multiplier: +(1 / Math.max(0.05, 1 - s)).toFixed(2) };
+  }
+  const vitality = cityVitality();
+  ev(T - 1, 'now', `${Math.round(pop[T - 1]).toLocaleString()} people · ${agents.length} souls · ${anchorN} institutions + ${localN} establishments · vitality ${vitality.tier} (${vitality.score})`);
   // per-org occupation mix — the district's specialization, tabulated
   const orgOcc = orgs.map(() => ({}));
   for (const a of agents) if (a.work >= 0) { const m = orgOcc[a.work]; m[a.occ] = (m[a.occ] || 0) + 1; }
@@ -736,16 +854,17 @@ export function growCity(siteSeed, ctx = {}) {
   const worldStr = String(siteSeed).split(':')[0] || '7';
   const meta_place = (ss) => { const parts = String(ss).split(':'); return parts[1] || 'polis'; };
   const orgsOut = orgs.map(o => ({
-    id: o.id, kind: o.kind, label: o.label, seat: o.seat, foundedT: o.foundedT,
-    founder: o.founder, founderName: agents[o.founder] ? agents[o.founder].name : null,
-    workers: o.workers, vertical: o.vertical, shape: o.shape,
+    id: o.id, tier: o.tier, kind: o.kind, trade: o.trade || null, label: o.label, seat: o.seat, foundedT: o.foundedT,
+    founder: o.founder, founderName: o.founder >= 0 && agents[o.founder] ? agents[o.founder].name : null,
+    workers: o.workers, third: !!o.third, vertical: o.vertical, shape: o.shape,
     occMix: Object.entries(orgOcc[o.id]).sort((a, b) => b[1] - a[1]),
     orgSeed: `${worldStr}:${meta_place(siteSeed)}:${o.seat}:${o.kind}${o.id}`, namePack: pack,
   }));
   return {
     meta: { siteSeed, seed, BASE, frame: FRAME, ticks: T, engine, coastal, hasRiver, wallsAt, eras,
             builtCount, farmCount, displaced, mitoses, sprouts: sproutCount, lanes: lanes.length,
-            sites: liveCount, meshTicks, agents: agents.length, notables, immigrants, orgs: orgs.length, namePack: pack },
+            sites: liveCount, meshTicks, agents: agents.length, notables, immigrants,
+            orgs: orgs.length, anchors: anchorN, establishments: localN, vitality, namePack: pack },
     sites, polys, areas, nucleus, gates, wall, anchors, lanes, events, pop,
     agents, orgs: orgsOut,
   };

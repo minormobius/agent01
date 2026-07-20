@@ -68,8 +68,8 @@
   <span class="sw" style="background:#e8c44a"></span>trade
   <span class="sw" style="background:#6aa8e0"></span>admin
   <span class="sw" style="background:#48c4d0"></span>sea
-  · <span style="color:#f4d98f">● notable</span> · <span style="color:#f0e6c8">◆ org</span>
-  <br><span style="opacity:.8">the city breathes — souls commute to work by day, home by night. tap anyone to inspect.</span>
+  · <span style="color:#f4d98f">● notable</span> · <span style="color:#f0e6c8">◆ institution</span> · <span style="color:#f0dc96">○ establishment</span>
+  <br><span style="opacity:.8">institutions are the export base; the small marks are the secondary economy (bakers, taverns, smiths…). tap anything.</span>
 </div>
 <div id="inspect"><h3><span id="insTitle"></span><span class="x" id="insClose">✕</span></h3><div id="insBody"></div></div>
 <div id="time"><button id="playBtn">▶</button><input id="tSl" type="range" min="0" max="1" value="0" step="1"><span id="tLab" class="crumb"></span></div>
@@ -324,9 +324,19 @@ function draw() {
     ctx2.beginPath(); ctx2.arc(px, py, Math.max(2, dotR * 2.4), 0, TAU); ctx2.fill();
     ctx2.strokeStyle = 'rgba(20,24,32,.8)'; ctx2.lineWidth = 0.7; ctx2.stroke();
   }
-  // ---- ORGS: a labelled marker at each institution seat ------------------------
+  // ---- ESTABLISHMENTS: the secondary economy, small marks studding the districts
+  // third-places (taverns/markets/temples — the social heart) glow a touch brighter
   for (const o of F.orgs) {
-    if (o.foundedT > t) continue;
+    if (o.tier !== 'local' || o.foundedT > t) continue;
+    const s = F.sites[o.seat]; if (!s || !aliveAt(s, t)) continue;
+    const r = Math.max(1.4, S0 * 0.16);
+    ctx2.fillStyle = o.id === selOrg ? '#7fd0ff' : o.third ? 'rgba(240,220,150,.9)' : 'rgba(205,190,150,.62)';
+    ctx2.beginPath(); ctx2.arc(X(s.x), Y(s.y), r, 0, TAU); ctx2.fill();
+    if (o.third) { ctx2.strokeStyle = 'rgba(20,24,32,.6)'; ctx2.lineWidth = 0.7; ctx2.stroke(); }
+  }
+  // ---- ANCHOR INSTITUTIONS: the export base, big glyphs ------------------------
+  for (const o of F.orgs) {
+    if (o.tier !== 'anchor' || o.foundedT > t) continue;
     const s = F.sites[o.seat]; if (!s || !aliveAt(s, t)) continue;
     ctx2.fillStyle = o.id === selOrg ? '#7fd0ff' : '#f0e6c8';
     ctx2.strokeStyle = 'rgba(20,24,32,.9)'; ctx2.lineWidth = 3;
@@ -355,17 +365,33 @@ function draw() {
 
 // HUD + ribbon: rebuilt only when the tick changes (not every animation frame)
 let lastHudTick = -1;
+const BASKET = ['bakery', 'tavern', 'smithy', 'butcher', 'market', 'temple'];
+const TIER_COL = { Thriving: '#5bd18b', Healthy: '#8fd17f', Stable: '#d9c341', Fragile: '#e0a24a', Failing: '#e5686b' };
+// a cheap live economy readout at tick t (the full oracle runs once, at final)
+function liveEcon(t) {
+  let anchors = 0, est = 0, third = 0; const present = new Set();
+  for (const o of F.orgs) { if (o.foundedT > t) continue; if (o.tier === 'anchor') anchors++; else { est++; present.add(o.trade); if (o.third) third++; } }
+  const closure = BASKET.filter(b => present.has(b)).length / BASKET.length;
+  const P = Math.max(1, F.pop[Math.min(t, F.pop.length - 1)]);
+  const thirdPer = Math.min(1, third / Math.max(1, P / 2500));
+  const diversity = present.size / 14;
+  const score = Math.round(100 * (0.40 * closure + 0.28 * thirdPer + 0.32 * diversity));
+  const tier = score >= 75 ? 'Thriving' : score >= 60 ? 'Healthy' : score >= 45 ? 'Stable' : score >= 30 ? 'Fragile' : 'Failing';
+  return { anchors, est, score, tier };
+}
 function updateHud() {
   if (!F || tNow === lastHudTick) return;
   lastHudTick = tNow;
   const t = tNow, popNow = Math.round(F.pop[Math.min(t, F.pop.length - 1)]);
-  let agN = 0, immN = 0, orgN = 0;
+  let agN = 0, immN = 0;
   for (const a of F.agents) if (a.bornT <= t && a.home >= 0) { agN++; if (a.origin === 'immigrant') immN++; }
-  for (const o of F.orgs) if (o.foundedT <= t) orgN++;
+  const ec = liveEcon(t);
   hud.innerHTML = `<div class="big">${popNow.toLocaleString()} <span class="k" style="font-size:12px">people</span></div>
     <div><span class="k">engine</span> ${F.meta.engine}</div>
     <div><span class="k">tiles</span> ${counts.alive} · <span class="k">urban</span> ${counts.urban} · <span class="k">farms</span> ${counts.farms}</div>
-    <div><span class="k">souls</span> ${agN.toLocaleString()} · <span class="k">from away</span> ${immN.toLocaleString()} · <span class="k">orgs</span> ${orgN}</div>`;
+    <div><span class="k">souls</span> ${agN.toLocaleString()} · <span class="k">from away</span> ${immN.toLocaleString()}</div>
+    <div><span class="k">economy</span> ${ec.anchors} institutions + ${ec.est} establishments</div>
+    <div><span class="k">vitality</span> <b style="color:${TIER_COL[ec.tier]}">${ec.tier}</b> ${ec.score}</div>`;
   tLab.textContent = `t ${t} / ${T - 1}`;
   let last = null;
   for (const e of F.events) if (e.t <= t) last = e;
@@ -445,14 +471,16 @@ function inspectOrg(id) {
   const founder = o.founder >= 0 ? F.agents[o.founder] : null;
   const q = new URLSearchParams({ seed: o.orgSeed, vertical: o.vertical, shape: o.shape, names: o.namePack });
   const mix = (o.occMix || []).slice(0, 5).map(([occ, n]) => `${occ} <b>${n.toLocaleString()}</b>`).join(' · ');
-  insTitle.textContent = o.label;
+  const isAnchor = o.tier === 'anchor';
+  insTitle.textContent = isAnchor ? o.label : `${o.label}${o.third ? ' · a gathering place' : ''}`;
   insBody.innerHTML = `
+    <div class="row"><span class="k">what</span>${isAnchor ? 'an anchor institution — part of the <b>export base</b>' : 'a local establishment — the <b>secondary economy</b>' + (o.third ? ', a third-place' : '')}</div>
     <div class="row"><span class="k">kind</span>${o.kind} · ${o.vertical} / ${o.shape}</div>
-    <div class="row"><span class="k">founded</span>t ${o.foundedT}${founder ? ' by <a href="#" onclick="event.preventDefault();window._insAgent(' + o.founder + ')">' + founder.name + '</a>' : ''}</div>
+    <div class="row"><span class="k">founded</span>t ${o.foundedT}${founder ? ' by <a href="#" onclick="event.preventDefault();window._insAgent(' + o.founder + ')">' + founder.name + '</a>' : isAnchor ? '' : ' (the base multiplier turned)'}</div>
     <div class="row"><span class="k">workforce</span>${o.workers.toLocaleString()} people</div>
     <div class="row"><span class="k">its trades</span>${mix || '—'}</div>
     <div class="row"><span class="k">seat</span>tile #${o.seat}</div>
-    <div class="row" style="margin-top:8px"><a href="https://rite.mino.mobi/org/?${q}" target="_blank" rel="noopener">open the full org chart ↗</a></div>
+    <div class="row" style="margin-top:8px"><a href="https://rite.mino.mobi/org/?${q}" target="_blank" rel="noopener">open ${isAnchor ? 'the full org chart' : 'this shop as an org'} ↗</a></div>
     <div class="row uh">its people speak the ${o.namePack} voice · address ${o.orgSeed}</div>`;
   insEl.style.display = 'block';
   draw();
@@ -501,14 +529,16 @@ const endPointer = e => {
     const moved = Math.hypot(c.x - tapInfo.x, c.y - tapInfo.y);
     if (moved < 12 && performance.now() - tapInfo.t < 600) {
       const wx = (c.x - vx) / scale, wy = (c.y - vy) / scale;
-      // priority: org marker > notable dot > tile (fine targets first)
+      // priority: anchor glyph > establishment > notable dot > tile (big targets first)
       const hitR = 16 / scale, hr2 = hitR * hitR;
+      const estR2 = (9 / scale) ** 2;
       let org = -1, ov = hr2;
       for (const o of F.orgs) {
         if (o.foundedT > tNow) continue;
         const s = F.sites[o.seat]; if (!s || !aliveAt(s, tNow)) continue;
         const d = (s.x - wx) ** 2 + (s.y - wy) ** 2;
-        if (d < ov) { ov = d; org = o.id; }
+        const lim = o.tier === 'anchor' ? ov : estR2;
+        if (d < lim && (org < 0 || d < ov)) { ov = d; org = o.id; }
       }
       let ag = -1, av = hr2;
       for (const a of F.agents) {
