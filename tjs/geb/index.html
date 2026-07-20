@@ -67,6 +67,12 @@
   .opts input{accent-color:var(--accent)}
   .res{display:flex;align-items:center;gap:8px;margin:10px 0 2px;font-size:12px;color:var(--soft)}
   .res select{background:#12121c;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:5px 7px;font-size:12px}
+  .planes{display:flex;align-items:center;gap:10px;margin:10px 0 2px;font-size:11.5px;color:var(--soft)}
+  .planes span{flex:0 0 62px}
+  input[type=color]{width:30px;height:22px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer}
+  input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+  input[type=color]::-webkit-color-swatch{border:none;border-radius:4px}
+  input[type=color]::-moz-color-swatch{border:none;border-radius:4px}
   #status{margin-top:11px;font-size:11.5px;color:var(--soft);border-top:1px solid var(--line);padding-top:9px;min-height:15px}
   #status b{color:var(--ink);font-weight:600}
   #status .warn{color:var(--cx)}
@@ -97,9 +103,9 @@
   <div class="body">
     <p class="sub">One solid, three orthogonal shadows. Type a line per axis, rotate each in its own plane, and the trip-let is carved so every face reads.</p>
 
-    <div class="row"><label class="tag"><span class="dot dx"></span>X</label><input id="tx" type="text" value="G" maxlength="24" spellcheck="false"><input id="rx" class="rot" type="range" min="0" max="345" step="15" value="0"><span class="rlab" id="rxl">0°</span></div>
-    <div class="row"><label class="tag"><span class="dot dy"></span>Y</label><input id="ty" type="text" value="E" maxlength="24" spellcheck="false"><input id="ry" class="rot" type="range" min="0" max="345" step="15" value="0"><span class="rlab" id="ryl">0°</span></div>
-    <div class="row"><label class="tag"><span class="dot dz"></span>Z</label><input id="tz" type="text" value="B" maxlength="24" spellcheck="false"><input id="rz" class="rot" type="range" min="0" max="345" step="15" value="0"><span class="rlab" id="rzl">0°</span></div>
+    <div class="row"><label class="tag"><span class="dot dx" id="dotx"></span>X</label><input id="tx" type="text" value="G" maxlength="24" spellcheck="false"><input id="rx" class="rot" type="range" min="0" max="345" step="15" value="0"><span class="rlab" id="rxl">0°</span></div>
+    <div class="row"><label class="tag"><span class="dot dy" id="doty"></span>Y</label><input id="ty" type="text" value="E" maxlength="24" spellcheck="false"><input id="ry" class="rot" type="range" min="0" max="345" step="15" value="0"><span class="rlab" id="ryl">0°</span></div>
+    <div class="row"><label class="tag"><span class="dot dz" id="dotz"></span>Z</label><input id="tz" type="text" value="B" maxlength="24" spellcheck="false"><input id="rz" class="rot" type="range" min="0" max="345" step="15" value="0"><span class="rlab" id="rzl">0°</span></div>
 
     <div class="presets">
       <button data-p="G|E|B">G · E · B</button>
@@ -110,6 +116,11 @@
 
     <div class="slab"><span>object size</span><input id="osize" type="range" min="0.30" max="0.92" step="0.02" value="0.55"><span class="val" id="osizel">55%</span></div>
     <div class="slab"><span>haze</span><input id="haze" type="range" min="0" max="1.4" step="0.05" value="0.5"><span class="val" id="hazel">0.50</span></div>
+    <div class="planes"><span>plane colour</span>
+      <input id="cx" type="color" value="#ff6b6b" title="X plane">
+      <input id="cy" type="color" value="#7bd88f" title="Y plane">
+      <input id="cz" type="color" value="#6ba8ff" title="Z plane">
+    </div>
 
     <div class="res">
       <span>resolution</span>
@@ -170,7 +181,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const FONT = '"Arial Black", Impact, "Helvetica Neue", Arial, sans-serif';
 const HBOX = 1.30;                 // the shadowbox half-extent (walls / frame / lights)
 let   HOBJ = 0.55 * HBOX;          // the object half-extent (< HBOX so the box is bigger)
-const AXCOL = { x:0xff6b6b, y:0x7bd88f, z:0x6ba8ff };
+const BASEWALL = new THREE.Color(0x181820);
+const axisColor = { x:new THREE.Color(0xff6b6b), y:new THREE.Color(0x7bd88f), z:new THREE.Color(0x6ba8ff) };
 
 /* ---------- three.js scaffold ---------- */
 const viewport = document.getElementById('viewport');
@@ -188,7 +200,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 1.8;
-controls.maxDistance = 14;
+controls.maxDistance = 32;
 controls.autoRotateSpeed = 1.5;
 controls.target.set(0,0,0);
 
@@ -209,20 +221,25 @@ axisLight(-3,-4,-2, 0.28);
   scene.add(frame);
 }
 
-/* lit backing walls on the three far faces (x=-H, y=-H, z=-H) */
-function backing(nx,ny,nz, tint){
+/* lit backing walls on the three far faces (x=-H, y=-H, z=-H) — colour is user-pickable */
+const wallMat = {};
+function backing(axis, nx,ny,nz){
   const g = new THREE.PlaneGeometry(2*HBOX, 2*HBOX);
-  const m = new THREE.MeshStandardMaterial({
-    color:0x1b1b26, emissive:new THREE.Color(tint).multiplyScalar(0.06),
-    roughness:0.95, metalness:0.0, side:THREE.DoubleSide });
+  const m = new THREE.MeshStandardMaterial({ color:BASEWALL.clone(), roughness:0.95, metalness:0.0, side:THREE.DoubleSide });
   const p = new THREE.Mesh(g, m);
   const off = 0.02;
   if(nx){ p.rotation.y = Math.PI/2; p.position.set(-HBOX-off,0,0); }
   if(ny){ p.rotation.x = Math.PI/2; p.position.set(0,-HBOX-off,0); }
   if(nz){ p.position.set(0,0,-HBOX-off); }
-  scene.add(p);
+  wallMat[axis] = m; scene.add(p);
 }
-backing(1,0,0, AXCOL.x); backing(0,1,0, AXCOL.y); backing(0,0,1, AXCOL.z);
+backing('x',1,0,0); backing('y',0,1,0); backing('z',0,0,1);
+function applyAxisColor(axis){
+  const c = axisColor[axis], m = wallMat[axis];
+  m.color.copy(BASEWALL).lerp(c, 0.22);        // tint the plane toward its colour
+  m.emissive.copy(c).multiplyScalar(0.10);      // faint self-lit glow so it reads even at grazing
+}
+['x','y','z'].forEach(applyAxisColor);
 
 /* dynamic content (solid + prisms + shadows) rebuilt on demand */
 let solidMesh=null, prismMeshes=[], shadowMeshes=[];
@@ -277,7 +294,9 @@ const volMat = new THREE.RawShaderMaterial({
 
       int steps = uSteps;
       float dt = (tF - tN) / float(steps);
-      float t = tN + dt * 0.5;
+      // per-pixel jitter of the first sample breaks up slice-banding (striations)
+      float jitter = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+      float t = tN + dt * jitter;
       vec3 acc = vec3(0.0);
       float trans = 1.0;
       for(int i=0;i<256;i++){
@@ -379,7 +398,8 @@ function shadowMesh(proj, N, wall){
   let n=0; for(let t=0;t<proj.length;t++) if(proj[t]) n++;
   const d = 2*HOBJ/N;
   const geo = new THREE.PlaneGeometry(d*0.98, d*0.98);
-  const mat = new THREE.MeshBasicMaterial({ color:0x04040a, side:THREE.DoubleSide });
+  const shCol = axisColor[wall].clone().multiplyScalar(0.16);   // dark tint of the plane colour
+  const mat = new THREE.MeshBasicMaterial({ color:shCol, side:THREE.DoubleSide });
   const inst = new THREE.InstancedMesh(geo, mat, Math.max(1,n));
   const center = t => -HOBJ + (t+0.5)*d;   // object transverse coord
   const eps = 0.008;
@@ -452,9 +472,9 @@ function build(){
           side:THREE.DoubleSide, depthWrite:false }));
       dynGroup.add(m); prismMeshes.push(m);
     };
-    mk((i,j,k)=>MX[j+N*k], AXCOL.x);
-    mk((i,j,k)=>MY[k+N*i], AXCOL.y);
-    mk((i,j,k)=>MZ[i+N*j], AXCOL.z);
+    mk((i,j,k)=>MX[j+N*k], axisColor.x);
+    mk((i,j,k)=>MY[k+N*i], axisColor.y);
+    mk((i,j,k)=>MZ[i+N*j], axisColor.z);
   }
 
   // crisp shadows on the walls
@@ -495,15 +515,27 @@ function build(){
   if(pending){ pending=false; requestAnimationFrame(build); }
 }
 
-/* ---------- camera views ---------- */
+/* ---------- camera views (aspect-aware so the box never clips) ---------- */
+const isoDir = ISO.clone().normalize();
+// distance at which the box's bounding sphere fits BOTH the vertical and
+// horizontal fov — the horizontal one is the binding constraint on tall windows.
+function fitDistance(margin){
+  margin = margin || 1.16;
+  const r = HBOX * Math.sqrt(3) * margin;
+  const vf = camera.fov * Math.PI/180;
+  const hf = 2 * Math.atan(Math.tan(vf/2) * camera.aspect);
+  return Math.max(r / Math.sin(vf/2), r / Math.sin(hf/2));
+}
 function setView(which){
   controls.autoRotate = false;
   const spin = document.getElementById('oSpin'); if(spin) spin.checked = false;
-  const D = 3.7;
-  if(which==='x'){ camera.position.set(D,0,0); camera.up.set(0,0,1); }      // u=+Y, v=+Z
-  else if(which==='y'){ camera.position.set(0,D,0); camera.up.set(1,0,0); } // u=+Z, v=+X
-  else if(which==='z'){ camera.position.set(0,0,D); camera.up.set(0,1,0); } // u=+X, v=+Y
-  else { camera.position.copy(ISO); camera.up.set(0,1,0); }
+  const D = fitDistance();
+  let dir;
+  if(which==='x'){ dir = new THREE.Vector3(1,0,0); camera.up.set(0,0,1); }      // u=+Y, v=+Z
+  else if(which==='y'){ dir = new THREE.Vector3(0,1,0); camera.up.set(1,0,0); } // u=+Z, v=+X
+  else if(which==='z'){ dir = new THREE.Vector3(0,0,1); camera.up.set(0,1,0); } // u=+X, v=+Y
+  else { dir = isoDir.clone(); camera.up.set(0,1,0); }
+  camera.position.copy(dir.multiplyScalar(D));
   controls.target.set(0,0,0);
   controls.update();
 }
@@ -540,6 +572,17 @@ document.querySelectorAll('.presets button').forEach(b=> b.addEventListener('cli
 }));
 document.querySelectorAll('.ctl button').forEach(b=> b.addEventListener('click', ()=> setView(b.dataset.view)));
 
+// plane colour pickers — live wall tint + refreshed shadow/prism colour
+[['cx','x','dotx'],['cy','y','doty'],['cz','z','dotz']].forEach(([id,axis,dotId])=>{
+  const el = document.getElementById(id);
+  el.addEventListener('input', ()=>{
+    axisColor[axis].set(el.value);
+    applyAxisColor(axis);
+    document.getElementById(dotId).style.background = el.value;
+    rebuild();
+  });
+});
+
 document.getElementById('collapse').addEventListener('click', ()=>{
   const p=document.getElementById('panel'); p.classList.toggle('min');
   document.getElementById('collapse').textContent = p.classList.contains('min') ? '+' : '–';
@@ -550,6 +593,13 @@ function resize(){
   const w = viewport.clientWidth, h = viewport.clientHeight;
   renderer.setSize(w,h,false);
   camera.aspect = w/h; camera.updateProjectionMatrix();
+  // if the window narrowed enough to clip the box, push the camera out to refit
+  const need = fitDistance(1.06);
+  if(camera.position.distanceTo(controls.target) < need){
+    const dir = camera.position.clone().sub(controls.target).normalize();
+    camera.position.copy(controls.target).add(dir.multiplyScalar(need));
+    controls.update();
+  }
 }
 addEventListener('resize', resize);
 
@@ -559,6 +609,7 @@ function tick(){
   renderer.render(scene, camera);
 }
 resize();
+setView('iso');    // frame the box for the current aspect
 build();
 tick();
 </script>
