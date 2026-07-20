@@ -123,6 +123,14 @@
     </div>
 
     <div class="res">
+      <span>material</span>
+      <select id="mode">
+        <option value="solid" selected>trip-let (solid)</option>
+        <option value="dichroic">dichroic (directional)</option>
+      </select>
+    </div>
+
+    <div class="res">
       <span>resolution</span>
       <select id="res">
         <option value="48">48³ · fast</option>
@@ -136,6 +144,7 @@
     <div class="opts">
       <label><input type="checkbox" id="oVol" checked> volumetric</label>
       <label><input type="checkbox" id="oShadow" checked> shadows</label>
+      <label><input type="checkbox" id="oUnder"> underline</label>
       <label><input type="checkbox" id="oPrism"> prisms</label>
       <label><input type="checkbox" id="oWire"> wireframe</label>
       <label><input type="checkbox" id="oSpin"> spin</label>
@@ -167,7 +176,13 @@
       Turn on <b>prisms</b> to see the three extrusions before they're
       intersected; drag <b>object size</b> to shrink the trip-let inside the box.</p>
       <p>Long or thin strings can lose pixels where the three can't all agree —
-      that's the trip-let problem itself. Bolder / shorter / rotated reads best.</p>
+      that's the trip-let problem itself. Bolder / shorter / rotated reads best,
+      and <b>underline</b> adds a rule that reconnects a word's separate strokes.</p>
+      <p>Or switch the material to <b>dichroic</b>: instead of one opaque solid,
+      three directional prisms that go opaque only when you look along their axis
+      and clear off it — so each face casts its <i>whole</i> line with no
+      intersection loss. It's the "opaque one way, transparent the other" trick;
+      snap to a View to read each plane dead-on.</p>
     </details>
   </div>
 </div>
@@ -323,7 +338,7 @@ let occTex = null;
 
 /* ---------- text → mask (rotated in-plane) ---------- */
 // Uint8Array[N*N] indexed [u + N*v], v up, u right. Fit-to-box for the given angle.
-function rasterize(text, N, angDeg){
+function rasterize(text, N, angDeg, underline){
   const mask = new Uint8Array(N*N);
   if(!text || !text.trim()) return mask;
   const S = 640;
@@ -337,7 +352,9 @@ function rasterize(text, N, angDeg){
   g.font = `900 ${fs}px ${FONT}`;
   let m = g.measureText(text);
   const w = m.width;
-  const h = (m.actualBoundingBoxAscent || fs*0.72) + (m.actualBoundingBoxDescent || fs*0.20);
+  const asc = m.actualBoundingBoxAscent || fs*0.72;
+  const desc = m.actualBoundingBoxDescent || fs*0.20;
+  const h = asc + (underline ? Math.max(desc, fs*0.58) : desc);  // reserve room for the rule
   const ca = Math.abs(Math.cos(ang)), sa = Math.abs(Math.sin(ang));
   const bw = w*ca + h*sa, bh = w*sa + h*ca;           // rotated bounding box
   const maxW = S*0.86, maxH = S*0.86;
@@ -346,7 +363,13 @@ function rasterize(text, N, angDeg){
 
   g.font = `900 ${fs}px ${FONT}`;
   g.fillStyle='#fff';
-  g.save(); g.translate(S/2, S/2); g.rotate(ang); g.fillText(text, 0, 0); g.restore();
+  g.save(); g.translate(S/2, S/2); g.rotate(ang);
+  g.fillText(text, 0, 0);
+  if(underline){                                        // a rule under the word reconnects its strokes
+    const fw = g.measureText(text).width * 1.04;
+    g.fillRect(-fw/2, fs*0.44, fw, Math.max(3, fs*0.11));
+  }
+  g.restore();
 
   const data = g.getImageData(0,0,S,S).data;
   const block = S / N;
@@ -420,6 +443,32 @@ function shadowMesh(proj, N, wall){
   return inst;
 }
 
+/* ---------- dichroic (directional) material ----------
+   The trip-let intersection must be opaque everywhere, so its shadows are only
+   a subset of each line. A directional material sidesteps that: it's opaque
+   only when viewed ALONG its axis and fades to clear off-axis, so three of them
+   (one per prism) each cast their FULL silhouette with no mutual loss. */
+function dichroicMat(axisVec, color){
+  return new THREE.ShaderMaterial({
+    transparent:true, depthWrite:false, side:THREE.DoubleSide,
+    uniforms:{ uAxis:{ value:axisVec }, uColor:{ value:new THREE.Color(color) }, uSharp:{ value:1.7 } },
+    vertexShader:`
+      varying vec3 vWorld;
+      void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vWorld = wp.xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader:`
+      uniform vec3 uAxis; uniform vec3 uColor; uniform float uSharp;
+      varying vec3 vWorld;
+      void main(){
+        vec3 vd = normalize(cameraPosition - vWorld);
+        float a = abs(dot(vd, normalize(uAxis)));        // 1 looking along the axis, 0 across it
+        a = pow(smoothstep(0.12, 0.90, a), uSharp);
+        if(a < 0.02) discard;
+        gl_FragColor = vec4(uColor, a * 0.94);
+      }`,
+  });
+}
+
 /* ---------- build everything from the three strings ---------- */
 let building = false, pending = false;
 function build(){
@@ -427,10 +476,12 @@ function build(){
   building = true;
 
   const N = +document.getElementById('res').value;
+  const ul = document.getElementById('oUnder').checked;
+  const dichroic = document.getElementById('mode').value === 'dichroic';
   const ax = +document.getElementById('rx').value, ay = +document.getElementById('ry').value, az = +document.getElementById('rz').value;
-  const MX = rasterize(document.getElementById('tx').value, N, ax); // reads on X wall (u=+Y, v=+Z)
-  const MY = rasterize(document.getElementById('ty').value, N, ay); // reads on Y wall (u=+Z, v=+X)
-  const MZ = rasterize(document.getElementById('tz').value, N, az); // reads on Z wall (u=+X, v=+Y)
+  const MX = rasterize(document.getElementById('tx').value, N, ax, ul); // reads on X wall (u=+Y, v=+Z)
+  const MY = rasterize(document.getElementById('ty').value, N, ay, ul); // reads on Y wall (u=+Z, v=+X)
+  const MZ = rasterize(document.getElementById('tz').value, N, az, ul); // reads on Z wall (u=+X, v=+Y)
 
   const occ = new Uint8Array(N*N*N);
   const tex = new Uint8Array(N*N*N);                 // 0/255 for the 3D texture
@@ -446,6 +497,14 @@ function build(){
       pX[j + N*k] = 1; pY[k + N*i] = 1; pZ[i + N*j] = 1;
     }
   }
+  // in dichroic mode the volumetric occluder is the UNION of the three prisms
+  // (the geometry that's actually drawn), not the intersection
+  if(dichroic){
+    for(let k=0;k<N;k++) for(let j=0;j<N;j++){
+      const mx = MX[j + N*k];
+      for(let i=0;i<N;i++) tex[i + N*(j + N*k)] = (mx || MY[k + N*i] || MZ[i + N*j]) ? 255 : 0;
+    }
+  }
 
   // dispose old dynamic content
   dynGroup.clear();
@@ -453,33 +512,51 @@ function build(){
   dispose(solidMesh); prismMeshes.forEach(dispose); shadowMeshes.forEach(dispose);
   solidMesh=null; prismMeshes=[]; shadowMeshes=[];
 
-  // solid trip-let
-  const geo = surfaceGeometry(occ, N, HOBJ);
-  const mat = new THREE.MeshStandardMaterial({
-    color:0xe9e4d6, metalness:0.18, roughness:0.5,
-    wireframe: document.getElementById('oWire').checked, flatShading:true, side:THREE.DoubleSide });
-  solidMesh = new THREE.Mesh(geo, mat);
-  dynGroup.add(solidMesh);
+  // a full-axis extrusion of one mask, as a surface geometry
+  const broadcastGeo = (fn) => {
+    const o = new Uint8Array(N*N*N);
+    for(let k=0;k<N;k++) for(let j=0;j<N;j++) for(let i=0;i<N;i++)
+      if(fn(i,j,k)) o[i + N*(j + N*k)] = 1;
+    return surfaceGeometry(o, N, HOBJ);
+  };
 
-  // prisms (each text extruded fully along its axis, before intersection)
-  if(document.getElementById('oPrism').checked){
-    const mk = (broadcast, col) => {
-      const o = new Uint8Array(N*N*N);
-      for(let k=0;k<N;k++) for(let j=0;j<N;j++) for(let i=0;i<N;i++)
-        if(broadcast(i,j,k)) o[i+N*(j+N*k)]=1;
-      const m = new THREE.Mesh(surfaceGeometry(o,N,HOBJ),
-        new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.12,
-          side:THREE.DoubleSide, depthWrite:false }));
+  if(!dichroic){
+    // physical trip-let: the intersection solid
+    const mat = new THREE.MeshStandardMaterial({
+      color:0xe9e4d6, metalness:0.18, roughness:0.5,
+      wireframe: document.getElementById('oWire').checked, flatShading:true, side:THREE.DoubleSide });
+    solidMesh = new THREE.Mesh(surfaceGeometry(occ, N, HOBJ), mat);
+    dynGroup.add(solidMesh);
+
+    // optional translucent view of the three prisms before intersection
+    if(document.getElementById('oPrism').checked){
+      const mk = (fn, col) => {
+        const m = new THREE.Mesh(broadcastGeo(fn),
+          new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.12, side:THREE.DoubleSide, depthWrite:false }));
+        dynGroup.add(m); prismMeshes.push(m);
+      };
+      mk((i,j,k)=>MX[j+N*k], axisColor.x);
+      mk((i,j,k)=>MY[k+N*i], axisColor.y);
+      mk((i,j,k)=>MZ[i+N*j], axisColor.z);
+    }
+  } else {
+    // dichroic: three directional prisms, each opaque only along its own axis,
+    // so every shadow is the FULL silhouette (no intersection loss)
+    const mk = (fn, axisVec, col) => {
+      const m = new THREE.Mesh(broadcastGeo(fn), dichroicMat(axisVec, col));
+      m.renderOrder = 5;
       dynGroup.add(m); prismMeshes.push(m);
     };
-    mk((i,j,k)=>MX[j+N*k], axisColor.x);
-    mk((i,j,k)=>MY[k+N*i], axisColor.y);
-    mk((i,j,k)=>MZ[i+N*j], axisColor.z);
+    mk((i,j,k)=>MX[j+N*k], new THREE.Vector3(1,0,0), axisColor.x);
+    mk((i,j,k)=>MY[k+N*i], new THREE.Vector3(0,1,0), axisColor.y);
+    mk((i,j,k)=>MZ[i+N*j], new THREE.Vector3(0,0,1), axisColor.z);
   }
 
-  // crisp shadows on the walls
+  // crisp shadows: intersection projection in solid mode, full silhouette in dichroic
   if(document.getElementById('oShadow').checked){
-    const sx = shadowMesh(pX, N, 'x'), sy = shadowMesh(pY, N, 'y'), sz = shadowMesh(pZ, N, 'z');
+    const sx = shadowMesh(dichroic?MX:pX, N, 'x'),
+          sy = shadowMesh(dichroic?MY:pY, N, 'y'),
+          sz = shadowMesh(dichroic?MZ:pZ, N, 'z');
     dynGroup.add(sx, sy, sz); shadowMeshes.push(sx, sy, sz);
   }
 
@@ -501,8 +578,13 @@ function build(){
   // status
   const ink = m => { let n=0; for(let t=0;t<m.length;t++) n+=m[t]; return n; };
   const st = document.getElementById('status');
-  if(count === 0){
-    st.innerHTML = `<span class="warn">No solid — the three lines share no common column.</span> Try shorter / bolder text, rotate a line, or raise resolution.`;
+  if(dichroic){
+    st.innerHTML = `<b>directional</b> · each shadow is exact — `+
+      `<span style="color:var(--cx)">100%</span> / `+
+      `<span style="color:var(--cy)">100%</span> / `+
+      `<span style="color:var(--cz)">100%</span>. Snap to a View to read that plane.`;
+  } else if(count === 0){
+    st.innerHTML = `<span class="warn">No solid — the three lines share no common column.</span> Try underline, shorter / bolder text, rotate a line, or the dichroic material.`;
   } else {
     const cov = (p,m)=>{ const im=ink(m); return im? Math.round(100*ink(p)/im) : 100; };
     st.innerHTML = `<b>${count.toLocaleString()}</b> voxels · shadow fidelity `+
@@ -549,7 +631,8 @@ const rebuild = () => { clearTimeout(debounce); debounce=setTimeout(build, 170);
   el.addEventListener('input', ()=>{ document.getElementById(lab).textContent = el.value+'°'; rebuild(); });
 });
 document.getElementById('res').addEventListener('change', build);
-['oShadow','oPrism','oWire'].forEach(id=> document.getElementById(id).addEventListener('change', build));
+document.getElementById('mode').addEventListener('change', build);
+['oShadow','oPrism','oWire','oUnder'].forEach(id=> document.getElementById(id).addEventListener('change', build));
 
 const osize = document.getElementById('osize');
 osize.addEventListener('input', ()=>{
