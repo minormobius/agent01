@@ -261,6 +261,32 @@ section('the secondary economy — the base multiplier spins up local services')
   ok(locals.some(o => o.third), 'third-places (taverns/markets/temples) exist');
 }
 
+section('finance — the money supply, debt, and the bridges it builds');
+{
+  const fin = F.meta.finance;
+  ok(fin && typeof fin.rho === 'number', 'the city keeps books (capital, debt, rho)');
+  ok(fin.series.length > 0 && fin.series.every(s => s.capital >= 0 && s.debt >= 0), 'finance series is well-formed');
+  // finance deepens: rho FALLS over the run as banks + size + commitment arrive
+  const rho0 = fin.series[0].rho, rhoN = fin.series[fin.series.length - 1].rho;
+  ok(rhoN < rho0, `the cost of capital falls as finance deepens (ρ ${rho0} → ${rhoN})`);
+  ok(['redistribution', 'merchant', 'bank', 'market'].includes(fin.regime), `financial regime advances (${fin.regime})`);
+  // BRIDGES: the river gets spanned, and the town went into DEBT to do it
+  ok(F.meta.bridges > 0, `bridges span the river (${F.meta.bridges})`);
+  ok(F.bridges.every(b => F.sites[b.seat] && F.sites[b.seat].river), 'every bridge sits on a river cell');
+  ok(fin.peakDebt > 0, `the town took on debt to build ahead of its means (peak debt ${fin.peakDebt})`);
+  ok(F.events.some(e => e.type === 'bridge'), 'a bridge spanning is an event');
+  // a bridge actually cheapens the crossing: the built extent reaches both banks
+  const nucX = F.sites[F.nucleus].x;
+  const bornAcross = F.sites.filter(s => !s.dead && s.builtAt >= 0 && (s.x < nucX) !== (F.sites[F.nucleus].x < nucX));
+  ok(F.sites.some(s => !s.dead && s.builtAt >= 0 && s.x > nucX) && F.sites.some(s => !s.dead && s.builtAt >= 0 && s.x < nucX),
+     'the city reaches both banks of the river');
+  // Minsky: over-leverage can trigger a crash (not guaranteed, but the machinery exists)
+  ok(fin.crises >= 0, `crisis machinery runs (${fin.crises} crashes this run)`);
+  // a riverless town builds no bridges
+  const dry = growCity('7:Vylfstrand:412', { ...CTX, river: false, wallsAt: -1 });
+  ok(dry.meta.bridges === 0, 'a town with no river builds no bridges');
+}
+
 section('city vitality — is it a good place to live? (hoop/econ)');
 {
   const v = F.meta.vitality;

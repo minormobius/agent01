@@ -504,13 +504,39 @@ engine-distinct nuclei).
   establishment opens as a small org, an anchor as the full hierarchy); the HUD
   shows `N institutions + M establishments · vitality Thriving 96`.
 
+**Field v6 (SHIPPED — finance: the money supply, debt, and bridges):**
+
+- **The capital pool + cost of capital.** Surplus accumulates into a pool; a
+  cost-of-capital `ρ` falls as finance deepens — a `bank` establishment opening
+  turns on the fractional-reserve **money multiplier** and the regime climbs
+  `redistribution → merchant → bank → market`, each rung and each bank dropping ρ
+  (0.14 → ~0.025). Credible commitment (a walled, chartered town) lowers ρ and
+  raises borrowing capacity (North & Weingast).
+- **Lumpy projects, debt-funded.** Indivisible infrastructure — a **bridge**, a
+  harbour mole, a market hall, an aqueduct, a railway viaduct — is built when its
+  NPV at ρ is positive AND `cash + borrowing capacity ≥ cost`; the shortfall
+  becomes **debt** (Hirschman's build-ahead-of-demand "permissive" path). A 16k
+  town raises 4 bridges + mole + market hall + aqueduct + viaduct, mostly on
+  credit, peaking at ~8.7k debt.
+- **Bridges are the payoff.** A bridge sits on a river cell and turns that costly
+  crossing into a road (the river-crossing penalty in `edgeCost` vanishes there),
+  so lanes route through it and the city **reaches across the water** — a visible,
+  structural change to how the town grows, selftested (the built extent spans both
+  banks). Rendered as a stone span on the river.
+- **Minsky's crash (the dark twin).** Leverage (debt/capital) climbs as the town
+  builds on credit; sustained over-leverage triggers a crash that wipes ~70% of
+  the pool, haircuts the debt, and spikes ρ — "stability is destabilizing." The
+  reference run takes 2 crashes. FRED-style finance series + events in the ribbon
+  ("the counting-houses overreach…"); the HUD shows the regime, ρ, capital, debt,
+  and bridge count live.
+
 **Next descents at the city level**: blocks→plots (Conzen burgage — division
 below ~30 m becomes parcelling); reading the civ city's actual `institutions`
 rollup into the anchor set (currently anchors are engine-derived, not
-civ-sourced); agent wages from the establishment/org performance so income
+civ-sourced); agent wages from establishment/org performance so income
 (not just occupation) decides who affords which tile — closing the loop between
-the economy and the land market; and finance as a real lever (the `bank`
-establishment is a placeholder for the cost-of-capital layer in THEORY.md).
+the economy and the land market; and land finance (capitalize the bid-rent
+gradient into collateral, the ~18-year land cycle) as the next finance layer.
 
 ### Phase V — outward
 

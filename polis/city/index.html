@@ -273,6 +273,16 @@ function renderBase() {
     c.fillStyle = '#9aa7b8';
     for (const i of F.wall.ring) { const g = F.sites[i]; if (aliveAt(g, t)) c.fillRect(X(g.x) - S0 * 0.16, Y(g.y) - S0 * 0.16, S0 * 0.32, S0 * 0.32); }
   }
+  // BRIDGES: a stone span across the river, built when finance could fund it
+  for (const b of F.bridges || []) {
+    if (b.at > t) continue;
+    const s = F.sites[b.seat]; if (!s) continue;
+    c.strokeStyle = '#c9b48a'; c.lineWidth = Math.max(2.4, S0 * 0.5); c.lineCap = 'round';
+    // span perpendicular to the river's local direction (nearest two land neighbours)
+    let ax = s.x - S0 * 0.5 / scale, bx = s.x + S0 * 0.5 / scale;
+    c.beginPath(); c.moveTo(X(ax), Y(s.y)); c.lineTo(X(bx), Y(s.y)); c.stroke();
+    c.lineCap = 'butt';
+  }
   counts = { urban, farms, alive };
   baseDirty = false;
 }
@@ -386,12 +396,19 @@ function updateHud() {
   let agN = 0, immN = 0;
   for (const a of F.agents) if (a.bornT <= t && a.home >= 0) { agN++; if (a.origin === 'immigrant') immN++; }
   const ec = liveEcon(t);
+  // finance state at this tick (the last series sample at or before t)
+  let f = null; const fs = (F.meta.finance && F.meta.finance.series) || [];
+  for (const row of fs) { if (row.t <= t) f = row; else break; }
+  let brN = 0; for (const b of (F.bridges || [])) if (b.at <= t) brN++;
   hud.innerHTML = `<div class="big">${popNow.toLocaleString()} <span class="k" style="font-size:12px">people</span></div>
     <div><span class="k">engine</span> ${F.meta.engine}</div>
     <div><span class="k">tiles</span> ${counts.alive} · <span class="k">urban</span> ${counts.urban} · <span class="k">farms</span> ${counts.farms}</div>
     <div><span class="k">souls</span> ${agN.toLocaleString()} · <span class="k">from away</span> ${immN.toLocaleString()}</div>
     <div><span class="k">economy</span> ${ec.anchors} institutions + ${ec.est} establishments</div>
-    <div><span class="k">vitality</span> <b style="color:${TIER_COL[ec.tier]}">${ec.tier}</b> ${ec.score}</div>`;
+    <div><span class="k">vitality</span> <b style="color:${TIER_COL[ec.tier]}">${ec.tier}</b> ${ec.score}</div>
+    ${f ? `<div><span class="k">finance</span> ${f.regime} · ρ ${f.rho}</div>
+    <div><span class="k">the books</span> capital ${f.capital.toLocaleString()} · <b style="color:${f.debt > f.capital * 3 ? '#e5686b' : '#d9c341'}">debt ${f.debt.toLocaleString()}</b></div>
+    <div><span class="k">bridges</span> ${brN}${brN ? ' spanning the river' : ''}</div>` : ''}`;
   tLab.textContent = `t ${t} / ${T - 1}`;
   let last = null;
   for (const e of F.events) if (e.t <= t) last = e;

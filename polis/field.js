@@ -258,6 +258,7 @@ export function growCity(siteSeed, ctx = {}) {
   const laneSet = new Map();                   // "a:b" -> {at, tier}
   const laneLog = [];                          // retired segments: {a,b,at,tier,removedAt}
   const laneCell = new Set();
+  const bridged = new Set();                    // river site ids that carry a BRIDGE
   const lkey = (a, b) => a < b ? a + ':' + b : b + ':' + a;
   function edgeCost(a, b, t) {
     const A = sites[a], Bs = sites[b];
@@ -265,7 +266,10 @@ export function growCity(siteSeed, ctx = {}) {
     const len = Math.hypot(A.x - Bs.x, A.y - Bs.y);
     const slope = Math.abs(A.elev - Bs.elev) / Math.max(0.01, len);
     let c = len * (1 + 3.5 * slope);
-    if (A.river !== Bs.river || (A.river && Bs.river)) c *= t >= eras.mechAt ? 1.6 : t >= eras.wheelAt ? 4 : 7;
+    // a bridge turns a river crossing into a road: no penalty through a bridged cell
+    const bridgeHere = (A.river && bridged.has(A.id)) || (Bs.river && bridged.has(Bs.id));
+    if (!bridgeHere && (A.river !== Bs.river || (A.river && Bs.river)))
+      c *= t >= eras.mechAt ? 1.6 : t >= eras.wheelAt ? 4 : 7;
     return c;
   }
   function route(src, dst, t) {
@@ -522,6 +526,121 @@ export function growCity(siteSeed, ctx = {}) {
       let have = estCount[tr.key] || 0, guard = 0;
       while (have < want && guard++ < 20) { foundEstablishment(tr, t); have++; }
     }
+  }
+
+  // -- FINANCE: the money supply, debt, and the lumpy projects it funds -------------
+  // The parallel system that moves claims on the future. Surplus flows into a CAPITAL
+  // POOL; once banking appears the fractional-reserve MONEY MULTIPLIER deepens it;
+  // the COST OF CAPITAL ρ falls as finance deepens (Levine/Goldsmith). Indivisible
+  // infrastructure — a bridge, a mole, a market hall — gets built when its NPV at ρ
+  // is positive AND financing is available (cash + borrowing capacity). A town builds
+  // AHEAD of demand by going into DEBT (Hirschman's permissive path); over-leverage
+  // invites a Minsky crash that wipes the pool. Bridges are the visible payoff: each
+  // turns a costly river crossing into a road, and the city reaches across the water.
+  const fin = { capital: 0, debt: 0, rho: 0.14, regime: 'redistribution', moneyMult: 1,
+                leverage: 0, stress: 0, crisisTick: -999, series: [], built: [] };
+  const bridges = [];                           // {seat, at, funded}
+  const REGIME_LVL = { redistribution: 0, merchant: 1, bank: 2, market: 3 };
+  function productivity(t) { return 1 + 0.6 * (t >= eras.mechAt ? 1 : t >= eras.wheelAt ? 0.5 : 0.15) + 0.4 * Math.min(1, pop[t] / 12000); }
+
+  // candidate lumpy projects available at tick t (cost scales so they land at the
+  // right city size; benefit is the discounted value the town assigns them)
+  function projectQueue(t) {
+    const P = pop[t], q = [];
+    const riverDemand = hasRiver && P > 400;
+    if (riverDemand && bridges.length < Math.min(4, 1 + Math.floor(P / 5000))) {
+      const n = bridges.length;
+      q.push({ key: 'bridge', label: n === 0 ? 'the first bridge' : `a ${['second', 'third', 'fourth', 'fifth'][n] || 'new'} bridge`,
+               cost: 480 + 220 * n + (t >= eras.mechAt ? 300 : 0), benefit: (900 + 260 * n) * productivity(t), build: buildBridge });
+    }
+    if (coastal && !fin.built.includes('mole') && P > 1200)
+      q.push({ key: 'mole', label: 'a harbour mole', cost: 1400, benefit: 2400 * productivity(t), build: () => markBuilt('mole', t) });
+    if (anchors && !fin.built.includes('market_hall') && P > 2200)
+      q.push({ key: 'market_hall', label: 'a market hall', cost: 1600, benefit: 2600 * productivity(t), build: () => markBuilt('market_hall', t) });
+    if (!fin.built.includes('aqueduct') && P > 3500)
+      q.push({ key: 'aqueduct', label: 'an aqueduct', cost: 2600, benefit: 3600 * productivity(t), build: () => markBuilt('aqueduct', t) });
+    if (t >= eras.mechAt && !fin.built.includes('viaduct') && P > 6000)
+      q.push({ key: 'viaduct', label: 'a railway viaduct', cost: 4200, benefit: 6400 * productivity(t), build: (tt) => { const ok = buildBridge(tt); if (ok !== false) fin.built.push('viaduct'); return ok; } });
+    return q;
+  }
+  function markBuilt(key, t) { fin.built.push(key); ev(t, 'works', `${projLabel(key)} is raised — the town spends its way to a larger ceiling`); }
+  function projLabel(k) { return { mole: 'a harbour mole', market_hall: 'a market hall', aqueduct: 'an aqueduct' }[k] || k; }
+
+  function pickBridgeSite(t) {
+    // the river crossing the town most wants: a river cell with built land on BOTH
+    // banks, nearest the market — and not already bridged
+    const mx = sites[market].x, my = sites[market].y;
+    let best = -1, bv = Infinity;
+    for (const s of sites) {
+      if (s.dead || !s.river || bridged.has(s.id)) continue;
+      let bankA = false, bankB = false;
+      for (const j of nb(s.id)) { const g = sites[j]; if (g.dead || g.water || g.river) continue; if (g.builtAt >= 0) { if (g.x < s.x) bankA = true; else bankB = true; } }
+      if (!(bankA && bankB)) continue;
+      const d = Math.hypot(s.x - mx, s.y - my);
+      if (d < bv) { bv = d; best = s.id; }
+    }
+    if (best < 0) { // no two-bank crossing yet: bridge nearest the market anyway
+      for (const s of sites) { if (s.dead || !s.river || bridged.has(s.id)) continue; const d = Math.hypot(s.x - mx, s.y - my); if (d < bv) { bv = d; best = s.id; } }
+    }
+    return best;
+  }
+  function buildBridge(t) {
+    const site = pickBridgeSite(t);
+    if (site < 0) return false;
+    bridged.add(site);
+    bridges.push({ seat: site, at: t });
+    // stitch the crossing into the network: lanes now route cheaply through it
+    let a = -1, b = -1;
+    for (const j of nb(site)) { const g = sites[j]; if (g.dead || g.water || g.river) continue; if (g.x < sites[site].x && a < 0) a = j; else if (g.x >= sites[site].x && b < 0) b = j; }
+    if (a >= 0) layLanes(route(a, site, t), t);
+    if (b >= 0) layLanes(route(site, b, t), t);
+    perfuse();
+    return true;
+  }
+
+  function financeStep(t) {
+    const P = pop[t];
+    // surplus flows into the pool (savings rate on output)
+    const surplus = P * 0.02 * productivity(t);
+    fin.capital += surplus * 0.5;
+    // finance deepens: banks + size + credible commitment lower ρ, raise the regime
+    const banks = orgs.filter(o => o.trade === 'bank' && o.foundedT <= t).length;
+    fin.regime = banks > 0 ? (P > 8000 ? 'market' : 'bank') : (P > 1500 ? 'merchant' : 'redistribution');
+    const rl = REGIME_LVL[fin.regime];
+    fin.moneyMult = banks > 0 ? 1 / (1 - 0.55) : 1;                 // fractional reserve
+    fin.rho = Math.max(0.025, Math.min(0.2, 0.15 - 0.03 * rl - 0.02 * Math.min(3, banks) - 0.02 * Math.min(1, P / 10000) - (wall ? 0.01 : 0)));
+    // borrowing capacity = tax base × credible commitment × money multiplier − debt
+    const commitment = 0.30 + 0.18 * rl + (wall ? 0.12 : 0);
+    const borrowCap = Math.max(0, P * 0.55 * commitment * fin.moneyMult - fin.debt);
+    // consider the lumpy projects, dearest-benefit first
+    for (const proj of projectQueue(t).sort((a, b) => (b.benefit - b.cost) - (a.benefit - a.cost))) {
+      const npv = proj.benefit - proj.cost * (1 + fin.rho * 6);    // NPV at the cost of capital
+      if (npv <= 0) continue;
+      let funded = null;
+      if (fin.capital >= proj.cost) { fin.capital -= proj.cost; funded = 'cash'; }
+      else if (fin.capital + borrowCap >= proj.cost) { const borrow = proj.cost - fin.capital; fin.capital = 0; fin.debt += borrow; funded = 'debt'; }
+      if (!funded) continue;
+      const ok2 = proj.build(t);                                    // build() does its own bookkeeping
+      if (ok2 === false) { if (funded === 'debt') fin.debt -= proj.cost; else fin.capital += proj.cost; continue; }
+      if (proj.key === 'bridge' || proj.key === 'viaduct')
+        ev(t, 'bridge', `${proj.label} spans the river${funded === 'debt' ? ` — paid for on credit (debt now ${Math.round(fin.debt)})` : ''}; the town reaches across the water`);
+      else if (funded === 'debt') ev(t, 'debt', `the town borrows to raise ${proj.label} — building ahead of its means`);
+      break;                                                        // one project per tick (lumpy)
+    }
+    // debt service: interest first from surplus; unpaid interest compounds (Minsky's climb)
+    const interest = fin.debt * fin.rho;
+    const pay = Math.min(interest, surplus * 0.35);
+    fin.debt = Math.max(0, fin.debt + interest - pay - Math.max(0, surplus * 0.35 - interest) * 0.4);   // amortize when flush
+    // Minsky: leverage builds → a crash wipes the pool and spikes ρ
+    fin.leverage = fin.debt / Math.max(1, fin.capital + P * 0.5);
+    if (fin.leverage > 0.85) fin.stress++; else fin.stress = Math.max(0, fin.stress - 1);
+    if (fin.stress >= 3 && t - fin.crisisTick > 50 && hash2(t, 9, seed ^ 0xba) < 0.5) {
+      fin.crisisTick = t; fin.stress = 0;
+      const wipe = fin.capital * 0.7 + fin.debt * 0.15;
+      fin.capital *= 0.3; fin.debt *= 0.85; fin.rho = Math.min(0.22, fin.rho + 0.05);
+      ev(t, 'crisis', `the counting-houses overreach — a crash wipes ${Math.round(wipe)} from the pool (stability was destabilizing)`);
+    }
+    fin.series.push({ t, capital: Math.round(fin.capital), debt: Math.round(fin.debt), rho: +fin.rho.toFixed(3), regime: fin.regime, bridges: bridges.length });
   }
 
   const ORG_SPEC = {                            // anchor kind → display + rite/org shape + export weight
@@ -804,6 +923,7 @@ export function growCity(siteSeed, ctx = {}) {
       if (src >= 0 && sv > 0.12) { layLanes(route(src, best.id, t), t); sproutCount++; perfuse(); }
     }
     agentStep(t);                               // people arrive, settle, and move
+    if (t % ECON_EVERY === 1 || t === 1) financeStep(t);   // the money supply + lumpy projects
     if (t % 24 === 0) perfuse();
   }
   function wallOutside(s) {
@@ -860,13 +980,21 @@ export function growCity(siteSeed, ctx = {}) {
     occMix: Object.entries(orgOcc[o.id]).sort((a, b) => b[1] - a[1]),
     orgSeed: `${worldStr}:${meta_place(siteSeed)}:${o.seat}:${o.kind}${o.id}`, namePack: pack,
   }));
+  const financeOut = {
+    capital: Math.round(fin.capital), debt: Math.round(fin.debt), rho: +fin.rho.toFixed(3),
+    regime: fin.regime, peakDebt: Math.round(Math.max(0, ...fin.series.map(s => s.debt))),
+    crises: fin.series.length ? events.filter(e => e.type === 'crisis').length : 0,
+    works: fin.built.filter(k => !k.startsWith('span')), series: fin.series,
+  };
+  const bridgesOut = bridges.map(b => ({ seat: b.seat, at: b.at }));
   return {
     meta: { siteSeed, seed, BASE, frame: FRAME, ticks: T, engine, coastal, hasRiver, wallsAt, eras,
             builtCount, farmCount, displaced, mitoses, sprouts: sproutCount, lanes: lanes.length,
             sites: liveCount, meshTicks, agents: agents.length, notables, immigrants,
-            orgs: orgs.length, anchors: anchorN, establishments: localN, vitality, namePack: pack },
+            orgs: orgs.length, anchors: anchorN, establishments: localN, vitality,
+            bridges: bridges.length, finance: financeOut, namePack: pack },
     sites, polys, areas, nucleus, gates, wall, anchors, lanes, events, pop,
-    agents, orgs: orgsOut,
+    agents, orgs: orgsOut, bridges: bridgesOut,
   };
 }
 
@@ -881,6 +1009,7 @@ export function fieldDigest(f) {
   const mix = (n) => { h ^= n >>> 0; h = Math.imul(h, 16777619) >>> 0; };
   mix(f.meta.builtCount); mix(f.meta.lanes); mix(f.nucleus); mix(f.meta.mitoses); mix(f.meta.displaced);
   mix(f.meta.agents); mix(f.meta.orgs); mix(f.meta.immigrants);
+  mix(f.meta.bridges); mix(f.meta.finance.peakDebt); for (const b of f.bridges) mix(b.seat);
   for (const s of f.sites) { if (s.dead) continue; mix(Math.round((s.x + 10) * 1e4)); mix(Math.round((s.y + 10) * 1e4)); mix(s.use); if (s.builtAt >= 0) mix(s.builtAt); }
   for (const l of f.lanes) { mix(l.a); mix(l.b); mix(l.at); mix(l.tier); }
   for (const a of f.agents) { mix(a.home < 0 ? 0 : a.home); mix(a.bornT); mix(a.work < 0 ? 999 : a.work); mix(a.cls.charCodeAt(0)); }

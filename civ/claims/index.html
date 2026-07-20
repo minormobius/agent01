@@ -346,6 +346,16 @@ const C = [
  mech:'A vitality oracle (0–100 + a Thriving/Healthy/Stable/Fragile/Failing tier) folds supply closure (are the essentials present?), employment, third-places per head (Oldenburg’s social infrastructure — taverns, markets, temples), trade diversity (Jacobs), and a base multiplier near its healthy band. A port city thrives; a hamlet is fragile.',
  lin:'hoop/econ’s civic-vitality model ("the real output is regard"); Jane Jacobs on diversity; Ray Oldenburg’s third places; the tier ladder is borrowed verbatim from hoop/econ.',
  src:'polis/field.js (cityVitality)'},
+{id:'C13', layer:'cities', stance:'consensus',
+ stmt:'Finance is how the indivisible things get built: a town borrows against its future to raise a bridge before it can pay cash.',
+ mech:'A capital pool accumulates surplus; a cost-of-capital ρ falls as finance deepens (a bank opens → fractional-reserve money multiplier, ρ drops, the regime climbs redistribution→merchant→bank→market). An indivisible project — a bridge, a mole, a market hall, an aqueduct — is built when its NPV at ρ is positive AND cash + borrowing capacity cover the lump; the shortfall becomes DEBT. A bridge then turns a costly river crossing into a road, and the city reaches across the water.',
+ lin:'Levine’s five functions + financial deepening (Goldsmith); the money multiplier 1/(1−reserve) as the twin of the base multiplier; Hirschman’s SOC-ahead-of-demand ("permissive") path; North & Weingast on credible commitment lowering ρ.',
+ src:'polis/field.js (financeStep, buildBridge)'},
+{id:'C14', layer:'cities', stance:'contested',
+ stmt:'Stability is destabilizing: a prosperous town leverages up until it crashes.',
+ mech:'Leverage (debt / capital) climbs as the town builds on credit; past a threshold, sustained stress triggers a Minsky crash that wipes ~70% of the pool, haircuts the debt, and spikes ρ — stalling projects until the books heal. The richest, most financially-intense cities are the most crash-prone.',
+ lin:'Minsky’s financial-instability hypothesis (hedge→speculative→Ponzi, "stability is destabilizing"); Kindleberger’s manias-panics-crashes. Contested (the "too much finance" turn is itself debated) — a deliberate side-pick, the dark twin of C13.',
+ src:'polis/field.js (financeStep — the Minsky block)'},
 
 // ---------------- HINTERLAND ----------------
 {id:'H1', layer:'hinterland', stance:'consensus',
