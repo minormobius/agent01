@@ -1,0 +1,16 @@
+[package]
+name = "kite-solver"
+version = "0.1.0"
+edition = "2021"
+description = "Vortex-lattice aerodynamics for a bowed Revolution-style kite sail (cut cells, forces at wind speed)."
+
+# Pure std, zero dependencies, so `cargo test` runs natively offline in the sandbox.
+# The browser glue (serde + wasm-bindgen) lives in the sibling kite-solver-wasm
+# crate, which depends on this one and is built to wasm in CI.
+
+[lib]
+crate-type = ["rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true

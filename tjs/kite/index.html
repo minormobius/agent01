@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Kite CFD · tjs · mino.mobi</title>
+  <meta name="description" content="A vortex-lattice aerodynamics solver over a bowed Revolution kite, compiled from Rust to WebAssembly. Set the wind speed, cut cells out of the sail, and watch the forces redistribute.">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    :root {
+      --ink:#0d0d12; --soft:#8a8aa0; --line:#23232e; --accent:#39d6c8; --bg:#0b0b10;
+      --good:#7ee787; --warn:#f0b849; --bad:#ff6b6b; --panel:#12121b;
+    }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body { margin:0; height:100%; overflow:hidden; }
+    body { font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+           color:#e6e6f0; background:var(--bg); -webkit-font-smoothing:antialiased; }
+    #scene { position:fixed; inset:0; touch-action:none; }
+    a { color:var(--accent); text-decoration:none; }
+
+    .crumb { position:fixed; top:12px; left:14px; z-index:5; font-size:12px; letter-spacing:.04em;
+             text-transform:uppercase; color:var(--soft); }
+    .crumb a { color:var(--soft); }
+
+    /* readout HUD */
+    #hud { position:fixed; top:40px; left:14px; z-index:5; width:min(300px, 46vw);
+           background:rgba(12,12,20,.72); backdrop-filter:blur(9px);
+           border:1px solid var(--line); border-radius:12px; padding:12px 13px; }
+    #hud h1 { font-size:15px; margin:0 0 2px; font-weight:700; letter-spacing:.01em; }
+    #hud .sub { font-size:11px; color:var(--soft); margin:0 0 10px; }
+    #pill { float:right; font-size:10px; padding:2px 7px; border-radius:9px; border:1px solid var(--line);
+            color:var(--soft); font-weight:600; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; }
+    .stat { min-width:0; }
+    .stat .k { font-size:10px; color:var(--soft); text-transform:uppercase; letter-spacing:.04em; }
+    .stat .v { font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.15; }
+    .stat .v small { font-size:10px; color:var(--soft); font-weight:500; }
+    .big { grid-column:1 / -1; border-top:1px solid var(--line); padding-top:8px; margin-top:2px; }
+    .big .v { font-size:22px; color:var(--accent); }
+
+    /* control dock */
+    #dock { position:fixed; right:14px; bottom:14px; z-index:5; width:min(310px, 88vw);
+            background:rgba(12,12,20,.82); backdrop-filter:blur(9px);
+            border:1px solid var(--line); border-radius:12px; padding:12px 13px; }
+    #dock.min .body { display:none; }
+    #dock .head { display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
+    #dock .head b { font-size:13px; }
+    #dock .head span { font-size:11px; color:var(--soft); }
+    .row { margin:11px 0 0; }
+    .row label { display:flex; justify-content:space-between; font-size:11px; color:var(--soft);
+                 text-transform:uppercase; letter-spacing:.03em; margin-bottom:3px; }
+    .row label .rv { color:#e6e6f0; font-variant-numeric:tabular-nums; }
+    input[type=range] { -webkit-appearance:none; width:100%; height:4px; border-radius:3px;
+                        background:var(--line); outline:none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px;
+                        border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid #0b0b10; }
+    input[type=range]::-moz-range-thumb { width:16px; height:16px; border-radius:50%;
+                        background:var(--accent); cursor:pointer; border:2px solid #0b0b10; }
+    .btns { display:flex; gap:7px; flex-wrap:wrap; margin-top:12px; }
+    button { font:inherit; font-size:12px; color:#e6e6f0; background:#1a1a26; border:1px solid var(--line);
+             border-radius:8px; padding:7px 10px; cursor:pointer; flex:1 1 auto; }
+    button:hover { border-color:var(--accent); }
+    button.on { background:var(--accent); color:#08110f; border-color:var(--accent); font-weight:700; }
+    .hint { font-size:11px; color:var(--soft); margin-top:9px; line-height:1.4; }
+    .legend { display:flex; align-items:center; gap:6px; margin-top:9px; font-size:10px; color:var(--soft); }
+    .legend .bar { flex:1; height:7px; border-radius:4px;
+      background:linear-gradient(90deg,#2b3a67,#39d6c8,#f0e14a,#ff6b6b); }
+    @media (max-width:640px){
+      #hud { width:min(230px, 62vw); top:36px; padding:10px; }
+      #hud .grid .stat .v { font-size:15px; }
+      #hud .big .v { font-size:19px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div class="crumb"><a href="../">tjs</a> / kite</div>
+
+  <div id="hud">
+    <span id="pill">solver…</span>
+    <h1>Revolution kite · CFD</h1>
+    <p class="sub">vortex-lattice · Rust→wasm</p>
+    <div class="grid">
+      <div class="stat"><div class="k">Line pull</div><div class="v" id="s-pull">—</div></div>
+      <div class="stat"><div class="k">Lift ↑</div><div class="v" id="s-lift">—</div></div>
+      <div class="stat"><div class="k">Side ⟷</div><div class="v" id="s-side">—</div></div>
+      <div class="stat"><div class="k">L / D</div><div class="v" id="s-ld">—</div></div>
+      <div class="stat"><div class="k">C<sub>L</sub></div><div class="v" id="s-cl">—</div></div>
+      <div class="stat"><div class="k">Live sail</div><div class="v" id="s-area">—</div></div>
+      <div class="stat big"><div class="k">Total force</div><div class="v" id="s-mag">—</div></div>
+    </div>
+  </div>
+
+  <div id="dock">
+    <div class="head" id="dockhead"><b>Wind &amp; sail</b><span id="docktoggle">▾</span></div>
+    <div class="body">
+      <div class="row">
+        <label>Wind speed <span class="rv"><span id="v-wind">8.0</span> m/s</span></label>
+        <input type="range" id="r-wind" min="0" max="20" step="0.5" value="8">
+      </div>
+      <div class="row">
+        <label>Angle of attack <span class="rv"><span id="v-aoa">10</span>°</span></label>
+        <input type="range" id="r-aoa" min="0" max="24" step="1" value="10">
+      </div>
+      <div class="row">
+        <label>Bow <span class="rv"><span id="v-bow">0.22</span></span></label>
+        <input type="range" id="r-bow" min="0" max="0.9" step="0.02" value="0.22">
+      </div>
+      <div class="row">
+        <label>Sail resolution <span class="rv"><span id="v-res">28 × 6</span></span></label>
+        <input type="range" id="r-res" min="0" max="3" step="1" value="0">
+      </div>
+      <div class="legend"><span>low load</span><span class="bar"></span><span>high</span></div>
+      <div class="btns">
+        <button id="b-arrows" class="on">Force arrows</button>
+        <button id="b-mirror">Mirror&nbsp;cut</button>
+        <button id="b-reset">Reset cuts</button>
+      </div>
+      <div class="hint" id="hint">Tap a sail cell to cut it out. Drag to orbit. Cut cells fall dark; the surviving cells re-carry the load and the centre of pressure (the ✚) shifts.</div>
+    </div>
+  </div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { revDefault, buildPanels, solveVLM } from './kite-vlm.js';
+
+// ── optional wasm accelerator (Rust vortex-lattice). The page is fully functional
+//    with the JS fallback; wasm just takes over the crunch when solver/pkg/ is live. ──
+let WASM = null;
+(async () => {
+  try {
+    const m = await import('./solver/pkg/kite_solver.js');
+    await m.default();
+    m.solver_info();
+    WASM = m;
+    setPill('rust wasm ✓', 'var(--good)');
+  } catch (e) {
+    setPill('js solver', 'var(--soft)');
+  }
+  recompute();
+})();
+function setPill(t, c) { const e = document.getElementById('pill'); e.textContent = t; e.style.color = c; }
+
+function solve(cfg) {
+  if (WASM) {
+    try { return JSON.parse(WASM.solve_json(JSON.stringify(cfg))); }
+    catch (e) { /* fall through to JS */ }
+  }
+  return solveVLM(cfg);
+}
+
+// ── state ────────────────────────────────────────────────────────────────────────
+const cfg = revDefault();
+cfg.bow = 0.22; // gentle Revolution-kite bow at first paint (slider default matches)
+const RES = [[28, 6], [36, 8], [44, 10], [20, 4]]; // slider 0..3 (last = coarse/fast)
+let arrowsOn = true, mirrorOn = false;
+
+// solver axes (x=downwind, y=span/right, z=up) → three axes (x=right, y=up, z=depth)
+const toThree = (v) => new THREE.Vector3(v[1], v[2], v[0]);
+
+// ── three.js boilerplate ───────────────────────────────────────────────────────
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0b10);
+scene.fog = new THREE.Fog(0x0b0b10, 8, 22);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 100);
+camera.position.set(1.4, 1.5, 4.2);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0.35, 0);
+controls.minDistance = 1.5;
+controls.maxDistance = 12;
+
+scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x141420, 0.9));
+const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(3, 5, 4); scene.add(key);
+const rim = new THREE.DirectionalLight(0x66d9ff, 0.5); rim.position.set(-4, 1, -3); scene.add(rim);
+
+// wind field: faint streak arrows blowing +X (three +Z)
+const windGroup = new THREE.Group(); scene.add(windGroup);
+(function buildWind() {
+  const mat = new THREE.LineBasicMaterial({ color: 0x2a6b78, transparent: true, opacity: 0.5 });
+  for (let a = 0; a < 26; a++) {
+    const x = (Math.random() - 0.5) * 3.2, y = (Math.random() - 0.2) * 2.2;
+    const g = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x, y, -2.6), new THREE.Vector3(x, y, -1.9)]);
+    windGroup.add(new THREE.Line(g, mat));
+  }
+})();
+
+// ground shadow-catcher-ish reference
+const grid = new THREE.GridHelper(14, 28, 0x1c2230, 0x151a24);
+grid.position.y = -1.15; scene.add(grid);
+
+// ── sail mesh + arrows (rebuilt on geometry change) ────────────────────────────
+let sailMesh = null, arrows = null, panels = [], faceToPanel = [];
+const copMarker = makeCross(); scene.add(copMarker);
+const totalArrow = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(), 1, 0x39d6c8, 0.18, 0.1);
+totalArrow.line.material.linewidth = 2; scene.add(totalArrow);
+
+function makeCross() {
+  const g = new THREE.Group();
+  const m = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (const r of [[0.14,0.02,0.02],[0.02,0.14,0.02],[0.02,0.02,0.14]]) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(...r), m); g.add(b);
+  }
+  return g;
+}
+
+// unit arrow geometry pointing +Y (shaft + head), for the InstancedMesh force field
+function unitArrowGeo() {
+  const shaft = new THREE.CylinderGeometry(0.018, 0.018, 0.7, 6); shaft.translate(0, 0.35, 0);
+  const head = new THREE.ConeGeometry(0.05, 0.3, 8); head.translate(0, 0.85, 0);
+  return mergeGeometries([shaft, head]);
+}
+const ARROW_GEO = unitArrowGeo();
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0,1,0),
+      _dir = new THREE.Vector3(), _pos = new THREE.Vector3(), _scl = new THREE.Vector3(), _col = new THREE.Color();
+
+function rebuildGeometry() {
+  if (sailMesh) { scene.remove(sailMesh); sailMesh.geometry.dispose(); sailMesh.material.dispose(); }
+  if (arrows) { scene.remove(arrows); arrows.geometry.dispose(); arrows.material.dispose(); }
+  panels = buildPanels(cfg);
+
+  // one BufferGeometry, two triangles per panel, vertex colors; faceIndex→panel map
+  const np = panels.length;
+  const pos = new Float32Array(np * 6 * 3);
+  const col = new Float32Array(np * 6 * 3);
+  const nrm = new Float32Array(np * 6 * 3);
+  faceToPanel = new Array(np * 2);
+  for (let k = 0; k < np; k++) {
+    const c = panels[k].corners.map(toThree);
+    const n = toThree(panels[k].normal);
+    // tri A: 0,1,2  tri B: 0,2,3
+    const tri = [c[0],c[1],c[2], c[0],c[2],c[3]];
+    for (let t = 0; t < 6; t++) {
+      const o = (k*6 + t) * 3;
+      pos[o] = tri[t].x; pos[o+1] = tri[t].y; pos[o+2] = tri[t].z;
+      nrm[o] = n.x; nrm[o+1] = n.y; nrm[o+2] = n.z;
+    }
+    faceToPanel[k*2] = k; faceToPanel[k*2+1] = k;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true, side: THREE.DoubleSide, roughness: 0.55, metalness: 0.05,
+    flatShading: true });
+  sailMesh = new THREE.Mesh(geo, mat); scene.add(sailMesh);
+
+  arrows = new THREE.InstancedMesh(ARROW_GEO, new THREE.MeshBasicMaterial({ vertexColors: false }), np);
+  arrows.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(np*3), 3);
+  scene.add(arrows);
+}
+
+// load → colour ramp (blue → teal → yellow → red)
+const STOPS = [[0.17,0.23,0.4],[0.22,0.84,0.78],[0.94,0.88,0.29],[1.0,0.42,0.42]];
+function ramp(t) {
+  t = Math.max(0, Math.min(1, t));
+  const x = t * (STOPS.length - 1); const i = Math.floor(x); const f = x - i;
+  const a = STOPS[i], b = STOPS[Math.min(i+1, STOPS.length-1)];
+  return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f];
+}
+
+function recompute() {
+  if (!sailMesh) return;
+  const sol = solve(cfg);
+
+  // per-panel load = |force| / area; normalise by the max live load
+  let maxLoad = 1e-9;
+  for (const p of sol.panels) if (!p.cut) {
+    const l = Math.hypot(p.force[0],p.force[1],p.force[2]) / Math.max(p.area,1e-6);
+    if (l > maxLoad) maxLoad = l;
+  }
+
+  const col = sailMesh.geometry.getAttribute('color');
+  const np = panels.length;
+  arrows.count = np;
+  let shown = 0;
+  for (let k = 0; k < np; k++) {
+    const p = sol.panels[k];
+    let r, g, b;
+    if (p.cut) { r = 0.09; g = 0.09; b = 0.12; }
+    else {
+      const load = Math.hypot(p.force[0],p.force[1],p.force[2]) / Math.max(p.area,1e-6);
+      [r, g, b] = ramp(load / maxLoad);
+    }
+    for (let t = 0; t < 6; t++) { const o = (k*6+t)*3; col.array[o]=r; col.array[o+1]=g; col.array[o+2]=b; }
+
+    // arrow instance
+    if (!p.cut && arrowsOn) {
+      const fmag = Math.hypot(p.force[0],p.force[1],p.force[2]);
+      const len = 0.02 + 1.3 * (fmag / (maxLoad * Math.max(avgArea(),1e-6)));
+      _dir.copy(toThree(p.force)).normalize();
+      _pos.copy(toThree(p.center));
+      _q.setFromUnitVectors(_up, _dir.lengthSq() > 0 ? _dir : _up);
+      _scl.set(Math.min(len,1.4), Math.min(len,1.4), Math.min(len,1.4));
+      _m4.compose(_pos, _q, _scl);
+      const [cr,cg,cb] = ramp(fmag / (maxLoad*Math.max(avgArea(),1e-6)));
+      _col.setRGB(cr,cg,cb);
+    } else {
+      _m4.makeScale(0,0,0);
+      _col.setRGB(0,0,0);
+    }
+    arrows.setMatrixAt(k, _m4);
+    arrows.setColorAt(k, _col);
+    if (!p.cut && arrowsOn) shown++;
+  }
+  col.needsUpdate = true;
+  arrows.instanceMatrix.needsUpdate = true;
+  if (arrows.instanceColor) arrows.instanceColor.needsUpdate = true;
+  arrows.visible = arrowsOn && shown > 0;
+
+  // CoP marker + total force arrow
+  const cop = toThree(sol.centerOfPressure);
+  copMarker.position.copy(cop);
+  copMarker.visible = sol.magnitude > 1e-6;
+  if (sol.magnitude > 1e-6) {
+    _dir.copy(toThree(sol.force)).normalize();
+    totalArrow.position.copy(cop);
+    totalArrow.setDirection(_dir);
+    totalArrow.setLength(Math.min(0.4 + sol.magnitude*0.02, 2.2), 0.16, 0.09);
+    totalArrow.visible = true;
+  } else totalArrow.visible = false;
+
+  writeHud(sol);
+}
+function avgArea() { return cfg.span * cfg.chord / (cfg.nspan * cfg.nchord); }
+
+function writeHud(s) {
+  const f1 = (x) => (Math.abs(x) < 100 ? x.toFixed(1) : x.toFixed(0));
+  document.getElementById('s-pull').innerHTML = f1(s.drag) + ' <small>N</small>';
+  document.getElementById('s-lift').innerHTML = f1(s.lift) + ' <small>N</small>';
+  document.getElementById('s-side').innerHTML = f1(s.side) + ' <small>N</small>';
+  document.getElementById('s-ld').textContent = (s.drag>0.01? s.lOverD.toFixed(1):'—');
+  document.getElementById('s-cl').textContent = s.cl.toFixed(2);
+  document.getElementById('s-area').innerHTML = (s.liveArea).toFixed(2) + ' <small>m²</small>';
+  document.getElementById('s-mag').innerHTML = f1(s.magnitude) + ' <small>N · ' + s.nCut + ' cut</small>';
+}
+
+// ── interaction: tap a panel to cut ────────────────────────────────────────────
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let downXY = null, downT = 0;
+canvas.addEventListener('pointerdown', (e) => { downXY = [e.clientX, e.clientY]; downT = performance.now(); });
+canvas.addEventListener('pointerup', (e) => {
+  if (!downXY) return;
+  const moved = Math.hypot(e.clientX-downXY[0], e.clientY-downXY[1]);
+  const dt = performance.now() - downT;
+  downXY = null;
+  if (moved > 8 || dt > 500) return; // it was an orbit drag, not a tap
+  pick(e.clientX, e.clientY);
+});
+function pick(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  ndc.x = ((cx - r.left) / r.width) * 2 - 1;
+  ndc.y = -((cy - r.top) / r.height) * 2 + 1;
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObject(sailMesh, false);
+  if (!hit.length) return;
+  const pk = faceToPanel[hit[0].faceIndex];
+  toggleCut(pk);
+}
+function ensureCut() { if (!cfg.cut || cfg.cut.length !== cfg.nspan*cfg.nchord) cfg.cut = new Array(cfg.nspan*cfg.nchord).fill(false); }
+function toggleCut(k) {
+  ensureCut();
+  const p = panels[k]; const idx = p.i * cfg.nspan + p.j;
+  const nv = !cfg.cut[idx];
+  cfg.cut[idx] = nv;
+  if (mirrorOn) { const jm = cfg.nspan - 1 - p.j; cfg.cut[p.i*cfg.nspan + jm] = nv; }
+  recompute();
+}
+
+// ── controls wiring ─────────────────────────────────────────────────────────────
+const bind = (id, vid, fmt, set) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    document.getElementById(vid).textContent = fmt(v);
+    set(v);
+  });
+};
+bind('r-wind', 'v-wind', (v)=>v.toFixed(1), (v)=>{ cfg.wind = v; recompute(); });
+bind('r-aoa', 'v-aoa', (v)=>v.toFixed(0), (v)=>{ cfg.aoa = v*Math.PI/180; rebuildGeometry(); recompute(); });
+bind('r-bow', 'v-bow', (v)=>v.toFixed(2), (v)=>{ cfg.bow = v; rebuildGeometry(); recompute(); });
+document.getElementById('r-res').addEventListener('input', (e) => {
+  const [ns, nc] = RES[parseInt(e.target.value)];
+  cfg.nspan = ns; cfg.nchord = nc; cfg.cut = [];
+  document.getElementById('v-res').textContent = ns + ' × ' + nc;
+  rebuildGeometry(); recompute();
+});
+document.getElementById('b-arrows').addEventListener('click', (e) => {
+  arrowsOn = !arrowsOn; e.target.classList.toggle('on', arrowsOn); recompute();
+});
+document.getElementById('b-mirror').addEventListener('click', (e) => {
+  mirrorOn = !mirrorOn; e.target.classList.toggle('on', mirrorOn);
+});
+document.getElementById('b-reset').addEventListener('click', () => { cfg.cut = []; recompute(); });
+document.getElementById('dockhead').addEventListener('click', () => {
+  const d = document.getElementById('dock'); d.classList.toggle('min');
+  document.getElementById('docktoggle').textContent = d.classList.contains('min') ? '▴' : '▾';
+});
+
+// ── resize + render loop ─────────────────────────────────────────────────────────
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+rebuildGeometry();
+recompute();
+(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+</script>
+</body>
+</html>
