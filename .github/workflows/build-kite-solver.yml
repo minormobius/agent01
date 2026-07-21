@@ -1,0 +1,80 @@
+name: Build kite solver (wasm)
+
+# Compiles tjs/kite/solver/kite-solver-wasm to WASM with wasm-pack and commits the
+# result to tjs/kite/solver/pkg/. The kite tool (tjs/kite/index.html) loads it as an
+# OPTIONAL accelerator with a JS fallback (tjs/kite/kite-vlm.js implements the same
+# vortex-lattice method), so the page works whether or not this has run. Committing
+# solver/pkg/** lands under tjs/**, which deploy-tjs serves; a GITHUB_TOKEN push
+# doesn't trigger other workflows, so we dispatch deploy-tjs explicitly. The trigger
+# is scoped to the Rust SOURCE (not pkg/), so there's no loop.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/cfd-rust-kite-solver-opjsj5'
+    paths:
+      - 'tjs/kite/solver/kite-solver/**'
+      - 'tjs/kite/solver/kite-solver-wasm/**'
+      - '.github/workflows/build-kite-solver.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run native solver tests (the math, offline)
+        working-directory: tjs/kite/solver/kite-solver
+        run: cargo test --release
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            tjs/kite/solver/kite-solver-wasm/target
+          key: cargo-kite-${{ runner.os }}-${{ hashFiles('tjs/kite/solver/**/Cargo.toml', 'tjs/kite/solver/**/src/**') }}
+          restore-keys: cargo-kite-${{ runner.os }}-
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build Rust/WASM solver
+        working-directory: tjs/kite/solver/kite-solver-wasm
+        run: wasm-pack build --release --target web --out-dir ../pkg --out-name kite_solver
+
+      - name: Cross-check JS fallback against the fresh wasm
+        working-directory: tjs/kite
+        run: node kite-vlm.selftest.mjs
+
+      - name: Commit pkg/
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -f tjs/kite/solver/pkg/.gitignore tjs/kite/solver/pkg/package.json tjs/kite/solver/pkg/README.md
+          git add -f tjs/kite/solver/pkg
+          git commit -m "build: kite solver wasm" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes don't trigger other workflows, so kick deploy-tjs
+      # explicitly to publish the freshly-built pkg/.
+      - name: Deploy (dispatch deploy-tjs)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-tjs.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"
