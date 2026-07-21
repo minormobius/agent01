@@ -190,7 +190,7 @@
           <div class="row"><label>Agility <span class="rv" id="rv-b2a"></span></label><input type="range" id="b2a" min="4.5" max="9.5" step="0.1" value="9.0"></div>
           <div class="row"><label>Evasiveness <span class="rv" id="rv-b2e"></span></label><input type="range" id="b2e" min="0.3" max="1.6" step="0.05" value="1.3"></div>
         </div>
-        <div class="btns"><button class="act on" id="btn-run" style="flex:2">▶ Run match</button></div>
+        <div class="btns"><button class="act" id="btn-find" style="flex:2">🎲 Find match</button><button class="act on" id="btn-run" style="flex:2">▶ Run match</button></div>
         <div id="tag-res" style="display:none">
           <div class="seg" id="roundtabs"><button data-r="0" class="on">Round 1</button><button data-r="1">Round 2</button></div>
           <div class="resbars">
@@ -255,7 +255,16 @@ function solve(cfg) {
 let cfg = presetConfig('duel');
 let sim = null, frame = 0, playing = true, playSpeed = 1.0;
 let view = 'orbit';          // orbit | head | fisheye | compound
-let headWho = 0;             // 0=A, 1=B
+let headTarget = 'A';        // 'A' | 'B' | 'IT' (IT = the current pursuer, tag mode)
+// resolve the eye target to a flyer index (0/1) at frame i — 'IT' hops with the tag
+function eyeIndex(i) {
+  if (headTarget === 'IT' && gameMode === 'tag' && sim && sim.it) return sim.it[i];
+  return headTarget === 'B' ? 1 : 0;
+}
+function eyeLabel() {
+  if (gameMode === 'tag') return headTarget === 'IT' ? 'IT' : headTarget === 'B' ? 'Brain ②' : 'Brain ①';
+  return headTarget === 'B' ? 'male B' : 'male A';
+}
 let ribbonsOn = true;
 let activePreset = 'duel';
 let opt = { field: 250 * Math.PI / 180, facet: 34, blur: 55 };
@@ -359,28 +368,40 @@ const ARENA_R = 7.0, ARENA_CY = 3.2;
 }
 
 // ── dragonfly mesh factory ───────────────────────────────────────────────────────
+// Built along local +Z = nose. orientMesh() maps +Z onto the velocity, so the bug points
+// where it's headed. The FRONT (head, eyes, nose cone) is the bright end and the abdomen
+// tapers away behind — so the heading reads at a glance.
 function makeDragonfly(bodyColor, wingTint) {
   const g = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.35, metalness: 0.25, emissive: bodyColor, emissiveIntensity: 0.35 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x140f1f, roughness: 0.5, emissive: bodyColor, emissiveIntensity: 0.1 });
-  const abd = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.012, 0.42, 8), bodyMat);
-  abd.rotation.x = Math.PI / 2; abd.position.z = -0.24; g.add(abd);
-  const thx = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), bodyMat); thx.scale.set(1, 0.9, 1.3); g.add(thx);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), darkMat); head.position.z = 0.1; g.add(head);
+  const hi = new THREE.Color(bodyColor).lerp(new THREE.Color(0xffffff), 0.55); // hot front tint
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.35, metalness: 0.25, emissive: bodyColor, emissiveIntensity: 0.4 });
+  const headMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.25, metalness: 0.3, emissive: hi, emissiveIntensity: 1.7 });
+  // long tapered abdomen trailing behind (−Z)
+  const abd = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.006, 0.66, 8), bodyMat);
+  abd.rotation.x = Math.PI / 2; abd.position.z = -0.36; g.add(abd);
+  // thorax
+  const thx = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), bodyMat); thx.scale.set(1, 0.92, 1.25); g.add(thx);
+  // bright head at the front
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.058, 14, 12), headMat); head.position.z = 0.12; g.add(head);
+  // big glowing compound eyes
   for (const sx of [-1, 1]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.033, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 0.2, metalness: 0.6, emissive: wingTint, emissiveIntensity: 0.25 }));
-    eye.position.set(sx * 0.035, 0.012, 0.12); g.add(eye);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 0.15, metalness: 0.7, emissive: hi, emissiveIntensity: 0.9 }));
+    eye.position.set(sx * 0.042, 0.014, 0.15); g.add(eye);
   }
-  const wingMat = new THREE.MeshStandardMaterial({ color: wingTint, transparent: true, opacity: 0.32,
-    roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide, emissive: wingTint, emissiveIntensity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false });
-  const wings = []; const wingGeo = new THREE.CircleGeometry(0.19, 16); wingGeo.scale(1, 0.42, 1);
+  // forward nose cone — an unmistakable heading pointer (tip at +Z)
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.14, 12), headMat);
+  nose.rotation.x = Math.PI / 2; nose.position.z = 0.24; g.add(nose);
+  // 4 wings, a touch smaller & subtler so the body axis shows
+  const wingMat = new THREE.MeshStandardMaterial({ color: wingTint, transparent: true, opacity: 0.26,
+    roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide, emissive: wingTint, emissiveIntensity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false });
+  const wings = []; const wingGeo = new THREE.CircleGeometry(0.17, 16); wingGeo.scale(1, 0.4, 1);
   for (const zoff of [0.02, -0.06]) for (const sx of [-1, 1]) {
     const pivot = new THREE.Group(); pivot.position.set(0, 0.02, zoff);
-    const w = new THREE.Mesh(wingGeo, wingMat); w.position.x = sx * 0.19; w.rotation.y = sx > 0 ? 0 : Math.PI;
+    const w = new THREE.Mesh(wingGeo, wingMat); w.position.x = sx * 0.17; w.rotation.y = sx > 0 ? 0 : Math.PI;
     pivot.add(w); g.add(pivot); wings.push({ pivot, sx, phase: zoff < 0 ? Math.PI * 0.5 : 0 });
   }
-  g.userData.wings = wings; return g;
+  g.userData.wings = wings; g.scale.setScalar(1.15); return g;
 }
 const flyA = makeDragonfly(0x39d6c8, 0x9ff0e8);
 const flyB = makeDragonfly(0xff6ad5, 0xffc0ec);
@@ -673,7 +694,8 @@ eyeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), eyeMat));
 
 const _eb = new THREE.Matrix4(), _e3 = new THREE.Matrix3();
 function renderEye(i) {
-  const me = headWho === 0 ? sim.a : sim.b, self = headWho === 0 ? flyA : flyB;
+  const ei = eyeIndex(i);
+  const me = ei === 0 ? sim.a : sim.b, self = ei === 0 ? flyA : flyB;
   const [px, py, pz] = pos(me, i), [vx, vy, vz] = vel(me, i);
   const [f, r, u] = basisFromVel(vx, vy, vz);
   self.visible = false;                                       // don't fill the view with your own body
@@ -698,6 +720,7 @@ function renderEye(i) {
 const ret = document.getElementById('reticle'), rx = ret.getContext('2d');
 const _rw = new THREE.Vector3(), _ndc = new THREE.Vector3();
 function drawHeadReticle(i) {
+  const ei = eyeIndex(i);
   const W = ret.width, H = ret.height; rx.clearRect(0, 0, W, H);
   const cx = W / 2, cy = H / 2;
   const vfov = headCam.fov * Math.PI / 180;
@@ -709,7 +732,7 @@ function drawHeadReticle(i) {
   rx.strokeStyle = 'rgba(255,255,255,.28)'; rx.lineWidth = 1;
   rx.beginPath(); rx.moveTo(0, cy); rx.lineTo(W, cy); rx.stroke();
   rx.beginPath(); rx.moveTo(cx - 12, cy); rx.lineTo(cx + 12, cy); rx.moveTo(cx, cy - 12); rx.lineTo(cx, cy + 12); rx.stroke();
-  const foe = headWho === 0 ? sim.b : sim.a; const [fx, fy, fz] = pos(foe, i); _rw.set(fx, fy, fz);
+  const foe = ei === 0 ? sim.b : sim.a; const [fx, fy, fz] = pos(foe, i); _rw.set(fx, fy, fz);
   _ndc.copy(_rw).project(headCam);
   if (_ndc.z < 1) {
     const sx = (_ndc.x * 0.5 + 0.5) * W, sy = (-_ndc.y * 0.5 + 0.5) * H;
@@ -718,14 +741,15 @@ function drawHeadReticle(i) {
     rx.fillStyle = rx.strokeStyle; rx.font = '600 12px -apple-system,sans-serif'; rx.fillText('RIVAL', sx + s / 2 + 6, sy - s / 2);
   }
   rx.fillStyle = 'rgba(255,255,255,.6)'; rx.font = '600 12px -apple-system,sans-serif';
-  rx.fillText('HEAD-CAM ▸ ' + (headWho === 0 ? 'male A' : 'male B'), 16, H - 16);
+  rx.fillText('HEAD-CAM ▸ ' + eyeLabel(), 16, H - 16);
 }
 const _dr = new THREE.Vector3();
 function drawEyeReticle(i, r, u, f) {
+  const ei = eyeIndex(i);
   const W = ret.width, H = ret.height; rx.clearRect(0, 0, W, H);
   const aspect = W / H, disk = Math.min(W, H) / 2;
   // project rival through the same stereographic map
-  const foe = headWho === 0 ? sim.b : sim.a, me = headWho === 0 ? sim.a : sim.b;
+  const foe = ei === 0 ? sim.b : sim.a, me = ei === 0 ? sim.a : sim.b;
   const [fx, fy, fz] = pos(foe, i), [mx, my, mz] = pos(me, i);
   _dr.set(fx - mx, fy - my, fz - mz).normalize();
   const ez = _dr.dot(f), ex = _dr.dot(r), ey = _dr.dot(u);   // eye-space dir
@@ -739,12 +763,12 @@ function drawEyeReticle(i, r, u, f) {
     rx.fillStyle = 'rgba(126,231,135,1)'; rx.font = '600 12px -apple-system,sans-serif'; rx.fillText('RIVAL', sx + 20, sy);
   }
   rx.fillStyle = 'rgba(255,255,255,.6)'; rx.font = '600 12px -apple-system,sans-serif';
-  rx.fillText((view === 'compound' ? 'COMPOUND EYE ▸ ' : 'FISHEYE (conformal) ▸ ') + (headWho === 0 ? 'male A' : 'male B'), 16, H - 16);
+  rx.fillText((view === 'compound' ? 'COMPOUND EYE ▸ ' : 'FISHEYE (conformal) ▸ ') + eyeLabel(), 16, H - 16);
 }
 
 // ── camera follow ────────────────────────────────────────────────────────────────
 function placeHeadCam(i) {
-  const me = headWho === 0 ? sim.a : sim.b;
+  const me = eyeIndex(i) === 0 ? sim.a : sim.b;
   const [px, py, pz] = pos(me, i), [vx, vy, vz] = vel(me, i);
   const [f, r, u] = basisFromVel(vx, vy, vz);
   headCam.position.set(px, py, pz).addScaledVector(f, 0.12).addScaledVector(u, 0.03);
@@ -847,7 +871,15 @@ function setView(v) {
 [...viewsEl.children].forEach((b) => (b.onclick = () => setView(b.dataset.v)));
 
 const btnEye = document.getElementById('btn-eye');
-btnEye.onclick = () => { headWho = 1 - headWho; btnEye.textContent = 'Eye ▸ ' + (headWho === 0 ? 'A' : 'B'); };
+function updateEyeBtn() {
+  const map = { A: '①', B: '②', IT: 'IT' };
+  btnEye.textContent = 'Eye ▸ ' + (gameMode === 'tag' ? map[headTarget] : (headTarget === 'B' ? 'B' : 'A'));
+}
+btnEye.onclick = () => {
+  const list = gameMode === 'tag' ? ['A', 'B', 'IT'] : ['A', 'B'];
+  let idx = list.indexOf(headTarget); if (idx < 0) idx = 0;
+  headTarget = list[(idx + 1) % list.length]; updateEyeBtn();
+};
 document.getElementById('btn-ribbon').onclick = (e) => { ribbonsOn = !ribbonsOn; e.target.classList.toggle('on', ribbonsOn); };
 
 const btnPlay = document.getElementById('btn-play'), scrub = document.getElementById('scrub');
@@ -869,6 +901,34 @@ for (const [sl, rv, fmt] of tagSliders) {
 document.getElementById('btn-run').onclick = () => runMatch();
 [...document.getElementById('roundtabs').children].forEach((b) => (b.onclick = () => viewRound(+b.dataset.r)));
 
+// roll two brains that are meaningfully DIFFERENT yet well-matched (close IT-time, lively).
+function rollFindMatch() {
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const nrm = (p) => [(p.s - 3.4) / 1.4, (p.a - 4.5) / 5.0, (p.e - 0.3) / 1.3];
+  const dist = (p, q) => { const A = nrm(p), B = nrm(q); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]); };
+  let best = null;
+  for (let k = 0; k < 100; k++) {
+    const p1 = { s: rnd(3.5, 4.7), a: rnd(4.6, 9.4), e: rnd(0.35, 1.55) };
+    const p2 = { s: rnd(3.5, 4.7), a: rnd(4.6, 9.4), e: rnd(0.35, 1.55) };
+    const dd = dist(p1, p2);
+    if (dd < 0.5) continue;                                 // hard constraint: genuinely different brains
+    const bA = brainFrom(p1.s, p1.a, p1.e), bB = brainFrom(p2.s, p2.a, p2.e);
+    const r1 = solveTag(tagConfig(bA, bB, true)), r2 = solveTag(tagConfig(bB, bA, true));
+    const it1 = r1.itTimeA + r2.itTimeB, it2 = r1.itTimeB + r2.itTimeA;
+    const tags = r1.tags.length + r2.tags.length;
+    // minimise the IT-time gap (well-matched) and require a lively match, not a stalemate
+    const score = Math.abs(it1 - it2) + (tags < 4 ? (4 - tags) * 4 : 0);
+    if (!best || score < best.score) best = { score, p1, p2 };
+  }
+  if (!best) best = { p1: { s: 4.3, a: 5.2, e: 0.6 }, p2: { s: 3.95, a: 9.0, e: 1.3 } };
+  const snap = (v, st) => Math.round(v / st) * st;
+  const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
+  set('b1s', snap(best.p1.s, 0.05)); set('b1a', snap(best.p1.a, 0.1)); set('b1e', snap(best.p1.e, 0.05));
+  set('b2s', snap(best.p2.s, 0.05)); set('b2a', snap(best.p2.a, 0.1)); set('b2e', snap(best.p2.e, 0.05));
+  runMatch();
+}
+document.getElementById('btn-find').onclick = rollFindMatch;
+
 function setMode(m) {
   gameMode = m;
   [...document.getElementById('modeseg').children].forEach((c) => c.classList.toggle('on', c.dataset.m === m));
@@ -879,7 +939,8 @@ function setMode(m) {
     ? 'Tag — range between flyers · who is IT (① / ②)'
     : 'Kinematics — speed · rival elevation-in-eye · role balance';
   if (m === 'tag') { if (!match) runMatch(); else viewRound(match.viewing); }
-  else { itRing.visible = false; resolve(); playing = true; document.getElementById('btn-play').textContent = '⏸'; }
+  else { if (headTarget === 'IT') headTarget = 'A'; itRing.visible = false; resolve(); playing = true; document.getElementById('btn-play').textContent = '⏸'; }
+  updateEyeBtn();
 }
 [...document.getElementById('modeseg').children].forEach((b) => (b.onclick = () => setMode(b.dataset.m)));
 
