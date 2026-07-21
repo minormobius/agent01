@@ -26,6 +26,18 @@ export const CAPS = [
   'steamPower',    // 13 — energy (needs mechanisation + masonry) → industry
   'electricity',   // 14 — modernity (needs steamPower + mathematics)
   'printing',      // 15 — mass knowledge diffusion (needs writing + masonry)
+  // ---- the AGTECH RATCHET (epoch 3) — what Malthus missed: technology raising
+  // farming efficiency, so food capacity outruns the land's raw ceiling. Lineage
+  // vendored from cards/js/pools/tech-pool.js (agriculture domain):
+  'granary',       // 16 — storage smooths bad years (cards: Granary ← Neolithic Rev.)
+  'cropRotation',  // 17 — fallow cycles (cards: Crop rotation ← Heavy plough)
+  'terracing',     // 18 — hillsides bloom (masonry applied to slopes)
+  'seedDrill',     // 19 — row sowing (cards: Seed drill ← Iron + Crop rotation)
+  'fertilizer',    // 20 — mineral nutrients (cards: Superphosphate / Haber process)
+  'greenRev',      // 21 — the full package (cards: Green Revolution)
+  // ---- FRESH WATER works — the balance's supply side:
+  'wells',         // 22 — groundwater where rain fails (qanats)
+  'aqueduct',      // 23 — move water to the people (cards: Aqueduct)
 ];
 export const CAP = Object.fromEntries(CAPS.map((c, i) => [c, i]));
 export const NCAP = CAPS.length;
@@ -51,6 +63,14 @@ PREREQ[CAP.mechanisation] = P('metallurgy', 'wheel', 'mathematics');
 PREREQ[CAP.steamPower]    = P('mechanisation', 'masonry');
 PREREQ[CAP.electricity]   = P('steamPower', 'mathematics');
 PREREQ[CAP.printing]      = P('writing', 'masonry');
+PREREQ[CAP.granary]       = P('pottery', 'horticulture');
+PREREQ[CAP.cropRotation]  = P('plough');
+PREREQ[CAP.terracing]     = P('masonry', 'horticulture');
+PREREQ[CAP.seedDrill]     = P('cropRotation', 'wheel');
+PREREQ[CAP.fertilizer]    = P('steamPower');
+PREREQ[CAP.greenRev]      = P('fertilizer', 'mechanisation');
+PREREQ[CAP.wells]         = P('pottery');
+PREREQ[CAP.aqueduct]      = P('masonry', 'mathematics');
 
 // tier per capability (0 palaeo … 5 modern) — feeds the era-progression signal and
 // the "late then accelerating" innovation cost (higher tier ⇒ needs more pop+trace).
@@ -58,10 +78,10 @@ export const TIER = new Uint8Array(NCAP);
 const setTier = (t, ...ns) => ns.forEach(n => TIER[CAP[n]] = t);
 setTier(0, 'fire');
 setTier(1, 'pottery', 'herding', 'horticulture', 'sail');
-setTier(2, 'metallurgy', 'writing', 'masonry', 'plough', 'irrigation', 'wheel');
-setTier(3, 'mathematics', 'printing');
-setTier(4, 'mechanisation', 'steamPower');
-setTier(5, 'electricity');
+setTier(2, 'metallurgy', 'writing', 'masonry', 'plough', 'irrigation', 'wheel', 'granary', 'wells');
+setTier(3, 'mathematics', 'printing', 'cropRotation', 'terracing', 'aqueduct');
+setTier(4, 'mechanisation', 'steamPower', 'seedDrill', 'fertilizer');
+setTier(5, 'electricity', 'greenRev');
 export const MAX_TIER = 5;
 
 // highest tier any bit in a vector reaches (the culture's "era").
@@ -99,6 +119,21 @@ export const subMult = pkg => PKG[pkg].sub;
 export function pkgUnlocked(vec, pkg) {
   const c = PKG[pkg].cap;
   return c < 0 || has(vec, c);
+}
+
+// ---- the agtech food multiplier (the anti-Malthus ratchet) ----------------------
+// Multiplies effective carrying capacity for a culture holding the caps; terracing
+// only pays on slopes (the caller passes `hilly`). Compounding by design: a
+// green-revolution culture feeds ~2.4× what its land alone would.
+export function foodTechMul(vec, hilly) {
+  let m = 1;
+  if (has(vec, CAP.granary)) m *= 1.06;
+  if (has(vec, CAP.cropRotation)) m *= 1.12;
+  if (has(vec, CAP.terracing) && hilly) m *= 1.25;
+  if (has(vec, CAP.seedDrill)) m *= 1.15;
+  if (has(vec, CAP.fertilizer)) m *= 1.30;
+  if (has(vec, CAP.greenRev)) m *= 1.45;
+  return m;
 }
 
 // ---- institution types (programmable aggregates) -------------------------------

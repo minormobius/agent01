@@ -3,190 +3,164 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>civ — civilization evolution on a mappa world</title>
+<title>civ — the world engine suite</title>
+<meta name="description" content="One deterministic stack from planet to person: mappa generates the world, civ runs ten millennia of history on it, polis grows the cities, names and org mint the people and institutions.">
 <style>
   :root{ --bg:#0d1117; --panel:#131a24; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; --good:#5bd18b; --bad:#e5686b; }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
   a{ color:var(--acc); }
-  header{ padding:26px 22px 10px; max-width:1080px; margin:0 auto; }
+  header{ padding:26px 22px 6px; max-width:1080px; margin:0 auto; }
   h1{ margin:0; font-size:26px; letter-spacing:.3px; }
   h1 .g{ color:var(--gold); }
-  .sub{ color:var(--dim); margin:6px 0 0; max-width:760px; }
+  .sub{ color:var(--dim); margin:6px 0 0; max-width:820px; }
   .crumb{ font-size:13px; color:var(--dim); margin-bottom:8px; }
   main{ max-width:1080px; margin:0 auto; padding:8px 22px 60px; }
-  .wrap{ display:grid; grid-template-columns:290px 1fr; gap:18px; align-items:start; }
-  @media(max-width:820px){ .wrap{ grid-template-columns:1fr; } }
-  .panel{ background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:16px; }
-  label{ display:block; font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:var(--dim); margin:12px 0 4px; }
-  select,input{ width:100%; background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:8px; padding:8px 10px; font:inherit; }
-  .row{ display:flex; gap:8px; }
-  .row>*{ flex:1; }
-  button{ margin-top:16px; width:100%; background:var(--gold); color:#1a1206; border:0; border-radius:9px; padding:11px; font-weight:700; font-size:15px; cursor:pointer; }
-  button.ghost{ background:transparent; color:var(--acc); border:1px solid var(--edge); font-weight:600; }
-  button:disabled{ opacity:.5; cursor:wait; }
-  .desc{ font-size:19px; line-height:1.4; margin:2px 0 14px; }
-  .score{ color:var(--gold); font-weight:800; }
-  .flags span{ display:inline-block; background:#3a1e20; color:var(--bad); border-radius:6px; padding:2px 8px; font-size:12px; margin:2px 4px 2px 0; }
-  .hl span{ display:inline-block; background:#16261c; color:var(--good); border-radius:6px; padding:2px 8px; font-size:12px; margin:2px 4px 2px 0; }
-  .bars{ margin:14px 0; }
-  .bar{ display:grid; grid-template-columns:110px 1fr 42px; align-items:center; gap:8px; margin:5px 0; font-size:13px; }
-  .bar .t{ color:var(--dim); }
-  .track{ background:#0b0f16; border-radius:5px; height:9px; overflow:hidden; }
-  .fill{ height:100%; background:linear-gradient(90deg,var(--acc),var(--gold)); }
-  canvas{ width:100%; height:170px; background:#0b0f16; border:1px solid var(--edge); border-radius:9px; display:block; margin-top:6px; }
-  .facts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin-top:14px; }
-  .fact{ background:#0b0f16; border:1px solid var(--edge); border-radius:8px; padding:8px 10px; }
-  .fact b{ display:block; font-size:19px; color:var(--ink); }
-  .fact span{ font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; }
-  .elite{ border-top:1px solid var(--edge); padding:8px 0; font-size:14px; }
-  .elite .s{ color:var(--gold); font-weight:700; }
+  h2{ font-size:15px; text-transform:uppercase; letter-spacing:1.2px; color:var(--dim); margin:34px 0 12px; }
+  h2 .n{ color:var(--gold); margin-right:8px; }
+  .rung{ background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:16px 18px; margin:10px 0; display:grid; grid-template-columns:150px 1fr; gap:16px; align-items:start; }
+  @media(max-width:700px){ .rung{ grid-template-columns:1fr; } }
+  .rung .name{ font-size:20px; font-weight:800; }
+  .rung .name a{ color:var(--ink); text-decoration:none; }
+  .rung .name a:hover{ color:var(--gold); }
+  .rung .scale{ font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--dim); margin-top:2px; }
+  .badge{ display:inline-block; font-size:11px; border-radius:6px; padding:1px 7px; margin-top:6px; letter-spacing:.4px; }
+  .badge.live{ background:#16261c; color:var(--good); }
+  .badge.ref{ background:#1a2433; color:var(--acc); }
+  .badge.wip{ background:#332a16; color:var(--gold); }
+  .rung p{ margin:0 0 8px; color:var(--ink); }
+  .rung p.d{ color:var(--dim); font-size:14px; }
+  .links{ font-size:14px; }
+  .links a{ margin-right:14px; white-space:nowrap; }
   code{ background:#0b0f16; border:1px solid var(--edge); border-radius:5px; padding:1px 6px; font-size:13px; }
   .muted{ color:var(--dim); font-size:13px; }
-  .status{ min-height:20px; color:var(--dim); font-size:13px; margin-top:8px; }
+  .seam{ border-left:2px solid var(--edge); margin:0 0 0 74px; padding:4px 0 4px 18px; font-size:13px; color:var(--dim); }
+  @media(max-width:700px){ .seam{ margin-left:18px; } }
+  .seam b{ color:var(--gold); font-weight:600; }
+  .strategy{ background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:16px 18px; }
+  .strategy ol{ margin:8px 0 0; padding-left:22px; }
+  .strategy li{ margin:7px 0; }
+  .strategy li b{ color:var(--gold); }
+  #health{ min-height:18px; }
 </style>
 </head>
 <body>
 <header>
-  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="https://mino.mobi/mappa/">mappa</a> · civ</div>
-  <h1><span class="g">civ</span> — civilization evolution</h1>
-  <p class="sub">A deterministic, coevolutionary agent-based civilization simulation on a generated <a href="https://mino.mobi/mappa/">mappa</a> world. Individuals turn over by birth and death; lineages, cultures and institutions carry identity across ten millennia. Nothing about eras is scripted — <b>agriculture and industry are emergent phase transitions</b>. Headless-first: everything here is one call to the CORS-open, no-key API.</p>
-  <p class="sub" style="margin-top:10px"><a id="toview" href="/view.html" style="font-weight:700">▶ Particle playback →</a> &nbsp;·&nbsp; <a id="todev" href="/develop.html" style="font-weight:700">📈 Development →</a> &nbsp;·&nbsp; <a id="tofred" href="/fred.html" style="font-weight:700">📊 FRED →</a> &nbsp;·&nbsp; <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">the world on mappa ↗</a> &nbsp;— the same run carries across all of them by its link (world + config + seed + ticks). Watch the population move across the map, trace the rise and fall of dynasties, browse the whole economy, or inspect the planet it runs on.</p>
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · civ</div>
+  <h1><span class="g">civ</span> — the world engine suite</h1>
+  <p class="sub">One deterministic stack from planet to person, spread across four sites and unified here. <a href="https://mappa.mino.mobi/">mappa</a> generates the world; <b>civ</b> runs ten millennia of emergent history on it; <a href="https://polis.mino.mobi/">polis</a> grows the cities; <a href="https://rite.mino.mobi/names/">names</a> and <a href="https://rite.mino.mobi/org/">org</a> mint the people, cultures and institutions that populate all of it. Every layer is a pure function of a seed — a URL is a world, a run, a city, a company.</p>
+  <p class="sub muted" id="health"></p>
 </header>
 <main>
-  <div class="wrap">
-    <div class="panel" id="controls">
-      <label for="preset">Preset</label>
-      <select id="preset">
-        <option value="">— default (neolithic-ish) —</option>
-        <option value="neolithic">neolithic — demic farming wave</option>
-        <option value="kurgan">kurgan — pastoral replacement sweep</option>
-        <option value="bantu">bantu — horticultural expansion</option>
-        <option value="austronesian">austronesian — maritime island-hop</option>
-        <option value="americas">americas — forager thaw-corridor sweep</option>
-      </select>
-      <div class="row">
-        <div><label for="world">World (seed)</label><input id="world" value="7"></div>
-        <div><label for="civseed">civ seed</label><input id="civseed" value="1"></div>
-      </div>
-      <label for="ticks">Ticks — <span id="ticksv">900</span> (≈ <span id="years">2250</span> yr)</label>
-      <input id="ticks" type="range" min="200" max="1500" step="100" value="900">
-      <input type="hidden" id="lastconfig">
-      <button id="run">Run civilization →</button>
-      <button id="sweepbtn" class="ghost">Quality-diversity sweep</button>
-      <div class="status" id="status"></div>
-      <p class="muted" style="margin-top:14px">API: <code>/api/civ/run</code>, <code>/api/civ/sweep</code>. A run is a pure function of <code>(world, config, civSeed, ticks)</code> — the same call regenerates the same chronicle, and edge-caches forever.</p>
-    </div>
 
-    <div class="panel" id="out">
-      <div class="muted">Pick a preset and run a civilization. The sim emits a chronicle (keyframes + events) and an interestingness score; degenerate runs (instant extinction, single-hegemon monoculture, stuck-foraging) score low and are flagged.</div>
+  <h2><span class="n">I</span> The planet</h2>
+  <div class="rung">
+    <div>
+      <div class="name"><a href="https://mappa.mino.mobi/">mappa ↗</a></div>
+      <div class="scale">10&#8199;000 km · geology</div>
+      <span class="badge ref">reference layer</span>
+    </div>
+    <div>
+      <p>A dependency-free procedural planet: tectonic plates → elevation → climate → Whittaker biomes → rivers. The same integer seed yields the same world in node, browser, or Worker — everything downstream imports <code>mappa/engine.js</code> rather than forking it.</p>
+      <p class="d">Deep-time climate forcing, an interestingness battery scoring each world, and <code>?w=</code> permalinks that <i>are</i> the world config.</p>
+      <div class="links"><a href="https://mappa.mino.mobi/">the atlas</a> <a href="https://mappa.mino.mobi/docs/">docs</a></div>
     </div>
   </div>
+  <div class="seam">civ runs directly on a mappa world — the <b>world seed</b> you pick below is a mappa seed, and every run cross-links to the planet it happened on.</div>
+
+  <h2><span class="n">II</span> The history — this site</h2>
+  <div class="rung">
+    <div>
+      <div class="name"><a href="/dash/">civ</a></div>
+      <div class="scale">10&#8199;000 yr · civilizations</div>
+      <span class="badge live">live · API</span>
+    </div>
+    <div>
+      <p>A coevolutionary agent-based civilization simulation. Individuals turn over by birth and death; lineages, cultures and institutions carry identity across ten millennia. Nothing about eras is scripted — <b>agriculture and industry are emergent phase transitions</b>.</p>
+      <p class="d">One run is a pure function of <code>(world, config, civSeed, ticks)</code>: the same URL regenerates the same chronicle, bit-identical at the edge and in your browser, and edge-caches forever.</p>
+      <div class="links">
+        <a href="/dash/" style="font-weight:700">⚑ dashboard</a>
+        <a href="/view.html">▶ particle playback</a>
+        <a href="/develop.html">📈 development</a>
+        <a href="/fred.html">📊 FRED</a>
+        <a href="/timeline.html">⧗ timeline</a>
+        <a href="/claims/">⚖ the claims</a>
+      </div>
+      <p class="d" style="margin-top:8px">The <a href="/timeline.html">timeline</a> tells any run in three lenses: <b>great man of history</b> (prophets proclaim, leaders raise states, the eminent are remembered with temperament and vocation), <b>sweep of historical forces</b> (phase transitions, climate pulses, credit cycles, meme selection — with belief doctrine vectors and the evolved institution rulesets), or the <b>history of technology</b> (first inventions, independent reinventions, diffusion milestones). Filter any lens to one <b>named continent</b>. Cities are <b>actors</b> (engine epoch 2): settlements emerge wherever mappa's rivers, coasts and resources concentrate people, agglomerate (urban gravity raises carrying capacity), build walls once their culture knows masonry, stand sieges, get sacked, fall and revive — each an org-of-orgs containing the institutions seated there. Their shock history flows into polis as boundary conditions: the world beyond drives the city, not the reverse. Major organizations link straight to their org chart. Climate is visible everywhere it acts: a forcing ribbon under the playback, a FRED series, and timeline onset / peak / release entries.</p>
+      <p class="d">Every page takes a <b>mesh resolution</b> (900-cell standard up to 2400 fine): above the edge cap the run computes in your browser — same engine, bit-identical — just finer coastlines, more homelands, slower.</p>
+      <p class="d" style="margin-top:8px"><b>The tech tree</b> (engine epoch 3) is a 24-capability prerequisite DAG — no scripted eras, behaviour branches only on capabilities held. Its agricultural spine is vendored from the <a href="https://mino.mobi/cards/">cards</a> tech pool: <code>granary → crop rotation → seed drill → fertilizer → green revolution</code>, plus <code>terracing</code> (pays only on slopes) and the water works <code>wells</code> and <code>aqueduct</code>. Each is a real mechanic, not a badge: the <b>agtech ratchet</b> multiplies effective carrying capacity (a green-revolution culture feeds ~2.4× what its land alone would — the ratchet Malthus missed), while the <b>fresh-water balance</b> pushes back — per-cell thirst scales with density, supply comes from mappa's rain, rivers and lakes, and where demand outruns supply a water multiplier caps K until wells or aqueducts lift it. Both ledgers run in <a href="/fred.html">FRED</a> (<code>energy.*</code>, <code>water.*</code>), and industrial energy is now <b>geographically sourced</b>: coal and oil are mappa resources, and fossil output depends on actually holding the deposits.</p>
+      <p class="muted" style="margin-top:8px">CORS-open, no-key API: <code>/api/civ/run</code> · <code>/api/civ/frames</code> · <code>/api/civ/sweep</code> · <code>/api/civ/sites</code> · <code>/api/civ/timeline?mode=greatman|forces</code> · <code>/api/civ/health</code></p>
+    </div>
+  </div>
+  <div class="seam">a civ chronicle names homelands, dynasties and states — the founding conditions a city sim needs. That handoff is live: <code>/api/civ/sites</code> emits every state seat as a founding, and each one links straight into polis (<b>phase III, shipped</b>).</div>
+
+  <h2><span class="n">III</span> The hinterland &amp; the city</h2>
+  <div class="rung">
+    <div>
+      <div class="name"><a href="https://polis.mino.mobi/">polis ↗</a></div>
+      <div class="scale">a day's walk → a street</div>
+      <span class="badge wip">the city cascade</span>
+    </div>
+    <div>
+      <p>Polis is the <b>city proper</b>, run as a cascade of three histories: civ (the über-macro), the <a href="https://polis.mino.mobi/hinterland/">hinterland</a> (the mesoscale — a civ cell's neighborhood retiled with real terrain, where the <i>"town every day's walk"</i> lattice is minted under civ's demographic envelope and struck by civ's recorded shocks), and only then the city itself — streets determined by habitat, districts typed by the civ city's actual institutions.</p>
+      <p class="d">Mappa carries no truth below its cells, so each level re-derives its finer geography (rivers by flow accumulation, coasts by era sea level) deterministically from the level above.</p>
+      <div class="links"><a href="https://polis.mino.mobi/">the cascade</a> <a href="https://polis.mino.mobi/hinterland/">hinterland</a> <a href="https://polis.mino.mobi/continent.html">continent</a> <a href="https://polis.mino.mobi/docs/">theory</a></div>
+    </div>
+  </div>
+  <div class="seam">a city is made of institutions and people with names — the bottom rungs. org's <b>siteSeed(worldSeed, city, cell)</b> bridge now has its first consumer: a civ founding's siteSeed string seeds the polis city, so civ, polis and a future sited org all agree on it.</div>
+
+  <h2><span class="n">IV</span> The people &amp; institutions</h2>
+  <div class="rung">
+    <div>
+      <div class="name"><a href="https://rite.mino.mobi/names/">names ↗</a></div>
+      <div class="scale">1 person · a word</div>
+      <span class="badge live">live · API</span>
+    </div>
+    <div>
+      <p>One seed → one coherent set of names that read as a single invented culture: 12 blendable phonotactic culture packs × 5 setting registers × 5 kinds, uniqueness enforced hard. A URL is a namebook.</p>
+      <div class="links"><a href="https://rite.mino.mobi/names/">names</a> <span class="muted"><code>rite.mino.mobi/api/names?seed=…</code></span></div>
+    </div>
+  </div>
+  <div class="rung">
+    <div>
+      <div class="name"><a href="https://rite.mino.mobi/org/">org ↗</a></div>
+      <div class="scale">1 institution · a hierarchy</div>
+      <span class="badge live">live · API</span>
+    </div>
+    <div>
+      <p>One seed → one whole organisation: 8 verticals × 7 shapes, every box a deterministic <i>person</i> (craft/drive/wit triad, temperament, vocation), the whole tree rolled into a performance oracle — same people, different shape, different score. Expands infinitely downward.</p>
+      <div class="links"><a href="https://rite.mino.mobi/org/">org</a> <span class="muted"><code>rite.mino.mobi/api/org?seed=…</code></span></div>
+    </div>
+  </div>
+  <div class="seam">civ now speaks with this voice (<b>phase II, shipped</b>): every civ culture draws a culture-pack blend, and its prophets, dynasts, faiths, guilds and cities are named from its books — <i>Thremund the Younger of the Dylfjord State; Vylfstrand, seat of the Byhoingugn</i>. Run hashes are untouched (names were never hashed).</div>
+
+  <h2>The unification roadmap</h2>
+  <div class="strategy">
+    <p class="d" style="color:var(--dim)">The suite grew as separate tendrils; the full plan for pulling them into one stack is in <a href="/STRATEGY.md">STRATEGY.md</a>. The short version:</p>
+    <ol>
+      <li><b>I — one address.</b> This hub; the dashboard moved to <a href="/dash/">/dash/</a> (old run permalinks redirect); every layer keeps its seed-is-the-URL contract.</li>
+      <li><b>II — one naming voice</b> <i>(shipped)</i>. civ's cultures, people, beliefs, institutions and cities are named by the rite/names engine, one culture-pack blend per civ culture; <code>names:'legacy'</code> in the config replays the old strings. Chronicle hashes are unchanged — names were never part of the hash.</li>
+      <li><b>III — the civ → polis handoff</b> <i>(shipped)</i>. <code>/api/civ/sites</code> emits every state's rise as a founding (seat lon/lat, tick, toponym, siteSeed); polis grows the city on the same world at the same cell, seeded by the siteSeed string. The dashboard links each founding straight into polis.</li>
+      <li><b>IV — institutions with insides</b> <i>(shipped — first slice)</i>. Every civ institution and faith carries an org address (vertical, shape, seed <code>world:seat:cell:kind+id</code>) — one click on the development page opens it as a full org chart at rite.mino.mobi/org/, its people named in the institution's own culture voice. Every great person is a full org person (triad, temperament, civic vocation — a valid hoop NPC). Open: org performance feeding back into civ/polis economies.</li>
+      <li><b>V — outward.</b> Frozen chronicles as ATProto records, the fable <code>/city</code> wing, and hoop as the walkable end of the same stack.</li>
+    </ol>
+    <p class="d" style="margin-top:10px;color:var(--dim)">And because a generative system is a theory made to run: every atomic assumption about human development embedded anywhere in the suite — with its mechanic, its scholarly lineage, and an honest label on how sure we are — is catalogued at <a href="/claims/">the claims</a>.</p>
+  </div>
+
+  <p class="muted" style="margin-top:26px">Everything here is deterministic and permalink-stable: if you can link it, you can regenerate it, forever. · <a href="https://mino.mobi/">mino.mobi</a></p>
 </main>
 
-<script type="module">
-import { cachedFetch } from './lib/civ-cache.js';
-const $ = s => document.querySelector(s);
-const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
-
-// ---- shared URL state (liquidity across dashboard / playground / mappa) ----------
-// A run's identity is (world, config|preset, civSeed, ticks) — carry it in the URL so
-// the ★ you rolled here is the exact run you open on the playground or the world on mappa.
-function stateFromControls() { return { world: $('#world').value.trim() || '7', preset: $('#preset').value, civSeed: ($('#civseed').value || '1'), ticks: $('#ticks').value, config: $('#lastconfig').value || '' }; }
-function qs(st) { const p = new URLSearchParams(); p.set('world', st.world); if (st.preset) p.set('preset', st.preset); else if (st.config) p.set('config', st.config); p.set('civSeed', st.civSeed); p.set('ticks', st.ticks); return p.toString(); }
-function writeURL(st) { try { history.replaceState(null, '', '?' + qs(st)); } catch (e) {} }
-function mappaHref(world) { const m = String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/' + (m ? ('?seed=' + m[1]) : ('?w=' + encodeURIComponent(world))); }
-function syncLinks() { const st = stateFromControls(), q = qs(st); $('#toview').href = '/view.html?' + q; $('#todev').href = '/develop.html?' + q; $('#tofred').href = '/fred.html?' + q; $('#tomappa').href = mappaHref(st.world); }
-function applyURL() { const p = new URLSearchParams(location.search); if (p.get('world')) $('#world').value = p.get('world'); if (p.has('preset')) $('#preset').value = p.get('preset'); if (p.get('config')) $('#lastconfig').value = p.get('config'); if (p.get('civSeed')) $('#civseed').value = p.get('civSeed'); if (p.get('ticks')) { $('#ticks').value = p.get('ticks'); $('#ticksv').textContent = p.get('ticks'); $('#years').textContent = Math.round(p.get('ticks') * 2.5); } return p; }
-
-$('#ticks').addEventListener('input', () => { $('#ticksv').textContent = $('#ticks').value; $('#years').textContent = Math.round($('#ticks').value * 2.5); syncLinks(); });
-for (const id of ['#preset', '#world', '#civseed']) $(id).addEventListener('change', () => { if (id === '#preset') $('#lastconfig').value = ''; syncLinks(); });
-
-async function api(path) {
-  const r = await fetch(path);
-  if (!r.ok) { let d = ''; try { d = (await r.json()).detail || ''; } catch {} throw new Error('HTTP ' + r.status + ' ' + d); }
-  return r.json();
-}
-
-async function runCiv() {
-  const st = stateFromControls();
-  writeURL(st); syncLinks();               // the address bar IS the permalink to this run
-  setBusy(true, 'Running ' + st.ticks + ' ticks…');
-  try { const { json, cached, local } = await cachedFetch('/api/civ/run?' + qs(st)); renderRun(json, cached, local); }
-  catch (e) { $('#status').textContent = 'error: ' + e.message; }
-  finally { setBusy(false); }
-}
-$('#run').addEventListener('click', runCiv);
-
-$('#sweepbtn').addEventListener('click', async () => {
-  const world = $('#world').value.trim() || '1';
-  const q = new URLSearchParams({ world, method: 'qd', budget: '18', ticks: '500' });
-  setBusy(true, 'Sweeping config space (this takes ~20–40s)…');
-  try { renderSweep(await api('/api/civ/sweep?' + q)); }
-  catch (e) { $('#status').textContent = 'error: ' + e.message; }
-  finally { setBusy(false); }
-});
-
-function setBusy(b, msg) { $('#run').disabled = b; $('#sweepbtn').disabled = b; $('#status').textContent = msg || ''; }
-
-function renderRun(d, cached, local) {
-  const o = $('#out'); o.innerHTML = '';
-  o.appendChild(el('div', 'desc')).innerHTML = escapeDesc(d.descriptor);
-  if (d.flags.length) { const f = el('div', 'flags'); for (const x of d.flags) f.appendChild(el('span', null, x)); o.appendChild(f); }
-  if (d.highlights.length) { const h = el('div', 'hl'); for (const x of d.highlights) h.appendChild(el('span', null, x)); o.appendChild(h); }
-  const bars = el('div', 'bars');
-  for (const [k, v] of Object.entries(d.signals)) {
-    const b = el('div', 'bar'); b.appendChild(el('div', 't', k));
-    const tr = el('div', 'track'); const fi = el('div', 'fill'); fi.style.width = Math.round(v * 100) + '%'; tr.appendChild(fi);
-    b.appendChild(tr); b.appendChild(el('div', null, v.toFixed(2))); bars.appendChild(b);
-  }
-  o.appendChild(bars);
-  const cv = el('canvas'); cv.width = 720; cv.height = 170; o.appendChild(cv);
-  drawSeries(cv, d.chronicle.series);
-  const f = d.facts, facts = el('div', 'facts');
-  const add = (v, s) => { const c = el('div', 'fact'); c.appendChild(el('b', null, v)); c.appendChild(el('span', null, s)); facts.appendChild(c); };
-  add(f.finalPop.toLocaleString(), 'final population'); add(f.cultures, 'cultures'); add(f.languages, 'languages');
-  add(['forager', 'neolithic', 'bronze', 'classical', 'industrial', 'modern'][f.maxTier], 'peak era');
-  add(f.agriOrigins, 'agri origins'); add(f.industrialOrigins, 'industrial origins');
-  add(f.homelands, 'homelands'); add(f.peakStates, 'peak states');
-  o.appendChild(facts);
-  $('#lastconfig').value = d.config; syncLinks(); // links now carry this exact run
-  o.appendChild(el('div', 'muted', `★${d.score} · hash ${d.hash} · ${cached ? 'cached (no rerun)' : (local ? 'computed locally' : 'edge') + ' in ' + d.ms + 'ms'} · this URL is the permalink · open in ▶ playground or on mappa via the header links`));
-}
-
-function renderSweep(d) {
-  const o = $('#out'); o.innerHTML = '';
-  o.appendChild(el('div', 'desc')).innerHTML = `Quality-diversity archive — <b>${d.meta.cells}</b> qualitatively distinct civilizations from ${d.meta.evals} runs (best ★${d.meta.best}).`;
-  o.appendChild(el('div', 'muted', 'axes: ' + d.meta.axes.map(a => a.label).join(' × ') + '. Each is the best-scoring run in its behavior cell — a shelf of distinct histories, not one optimum.'));
-  for (const e of d.archive.slice(0, 14)) {
-    const row = el('div', 'elite');
-    row.innerHTML = `<span class="s">★${e.score}</span> <span class="muted">[${e.coords.join(',')}]</span> ${escapeDesc(e.descriptor)}`;
-    o.appendChild(row);
-  }
-}
-
-function drawSeries(cv, s) {
-  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, pad = 6, T = s.tick.length;
-  ctx.clearRect(0, 0, W, H);
-  const plot = (arr, color, norm) => {
-    const mx = norm || Math.max(1, ...arr); ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
-    for (let i = 0; i < T; i++) { const x = pad + (W - 2 * pad) * i / (T - 1), y = H - pad - (H - 2 * pad) * (arr[i] / mx); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-    ctx.stroke();
-  };
-  plot(s.pop, '#5aa9e6');                 // population
-  plot(s.cultures, '#5bd18b');            // culture count
-  plot(s.maxTier, '#d9a441', 5);          // era (0..5)
-  ctx.fillStyle = '#8b98a9'; ctx.font = '11px sans-serif';
-  ctx.fillText('population', 8, 14); ctx.fillStyle = '#5bd18b'; ctx.fillText('cultures', 82, 14); ctx.fillStyle = '#d9a441'; ctx.fillText('era', 148, 14);
-}
-
-function escapeDesc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/★(\d+)/, '<span class="score">★$1</span>'); }
-
-// ---- init: apply a shared link's params, keep cross-links live, auto-run if arriving
-// on a permalink (so the ★ someone shared is exactly what loads here) ----------------
-const _params = applyURL();
-syncLinks();
-if (_params.get('world') || _params.get('config')) runCiv();
+<script>
+// Legacy-permalink fallback: the worker 301s /?world=… → /dash/…, but if a cached copy of
+// this page is served asset-first anyway, do the same hop client-side so old links never strand.
+(() => {
+  const p = new URLSearchParams(location.search);
+  if (['world', 'config', 'preset'].some((k) => p.has(k))) location.replace('/dash/' + location.search);
+})();
+fetch('/api/civ/health').then(r => r.json()).then(h => {
+  if (h && h.ok) document.getElementById('health').textContent =
+    'engine live — ' + (h.presets || []).length + ' presets · runs cap at ' + ((h.caps && h.caps.runTicks) || 1500) + ' ticks';
+}).catch(() => {});
 </script>
 </body>
 </html>

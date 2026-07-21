@@ -1,0 +1,652 @@
+# The World Engine Suite — unification & expansion strategy
+
+**civ.mino.mobi is the hub.** This document is the plan for pulling five tendrils —
+`mappa/`, `civ/` (engine in `mappa/civ/`), `polis/`, `rite/names/`, `rite/org/` — into one
+deterministic stack from planet to person, and for where the suite goes next.
+
+---
+
+## 1. Where things stand
+
+| Layer | Scale | Lives at | Served from | State |
+|---|---|---|---|---|
+| **mappa** | planet | `mappa/` | `mino.mobi/mappa/` (rides the **root** surface) | Mature reference. Pure `engine.js` (seed → tectonics → climate → biomes → rivers), Rust mirror in `engine-rs/`, `?w=` permalinks + `com.minomobi.mappa.world` ATProto records, its own toponymy in `lib/names.js`. |
+| **civ** | 10 000 years | engine `mappa/civ/`, surface `civ/` | `civ.mino.mobi` (own worker, **this branch owns the deploy**) | Mature. Headless-first coevolutionary sim; CORS-open no-key API (`/api/civ/run|frames|sweep`); browser bundle bit-identical to the edge; content-addressed chronicles; QD sweep; node CLI. Four good sub-pages (dashboard, particle playback, development, FRED). |
+| **polis** | a city | `polis/` | `mino.mobi/polis/` (rides root) | Half-baked expansion, deliberately: deep theory (THEORY.md, docs charter) + a working vertical slice (site scoring, founding engine, Physarum arteries, chronicle). Imports the **real** `mappa/engine.js`; ports hoop's solvers. |
+| **names** | a word | `rite/names/` | `rite.mino.mobi/names/` + `/api/names` (rite surface) | Mature engine. 12 blendable culture packs × 5 settings × 5 kinds; dep-free ES module; node selftest; public API. |
+| **org** | an institution | `rite/org/` | `rite.mino.mobi/org/` + `/api/org` (rite surface) | Mature engine. 8 verticals × 7 shapes; deterministic *people* (`person.js`, hoop-compatible vocations); performance oracle; infinite drill-down; public API. |
+
+Adjacent but out of scope as build targets: **hoop** (the walkable end of the stack — org
+people are already designed to be valid hoop NPCs), the planned **fable `/city`** wing
+(registry note says "extends mappa" — it should extend *polis*), and the mino.mobi atlas
+(a projection of the site catalogue onto a mappa world).
+
+**The claims catalogue** (`civ/claims/`, live at `civ.mino.mobi/claims/`) documents the
+suite's anthropology: every atomic assumption about human development embedded in any
+layer, each with its implementing mechanic (constants + file), its scholarly lineage, and
+an epistemic label (consensus / contested / stylized / invented). When an epoch changes a
+load-bearing constant, update the matching claim card — the page cites real numbers from
+the code and goes stale silently if skipped.
+
+### What already aligns (the suite's real contracts)
+
+1. **Determinism.** Every engine is a pure function of a seed — same xmur3/mulberry32
+   idiom throughout, bit-exact across node/browser/Worker. mappa seeds raw integers;
+   rite hashes strings first; `siteSeed()` in `rite/org/engine.js` already documents the
+   bridge between the two conventions.
+2. **The URL is the artifact.** mappa `?w=` tokens, civ `(world, config, civSeed, ticks)`
+   permalinks, names/org seed permalinks. Nothing needs a database to be reproduced.
+3. **Pure-compute, CORS-open, no-key APIs** (civ, names, org) that edge-cache forever.
+4. **Engines are imported, never forked.** polis imports `mappa/engine.js` live; the civ
+   worker bundles it at build (`scripts/build-civ-engine.mjs`); org imports names.
+
+### The fault lines (what's actually split)
+
+1. **Three naming voices.** mappa has plate-language toponyms (`mappa/lib/names.js`);
+   civ names prophets/faiths/guilds with bare CV syllable soup (`personName`,
+   `beliefName`, `instName` in `mappa/civ/engine.js`); rite/names has the real
+   culture-flavored engine. Civ cultures themselves are *numeric ids* with no names at all.
+2. **The org bridge is one-way.** `siteSeed(worldSeed, cityName, cellIndex)` exists and is
+   selftested on the rite side — nothing in mappa/civ/polis consumes it.
+3. **polis has no history input.** It founds cities from raw terrain (site-vs-situation
+   scoring), not from a civ chronicle. Civilization history and city history are disjoint.
+4. **Deploy ownership was scattered.** civ had its own surface on a stale branch;
+   mappa and polis ride the root landing surface (a sim change redeploys the landing);
+   names/org ride the rite surface. Phase I below fixes the civ side; the rest is
+   deliberate for now (see §3).
+
+---
+
+## 2. The phases
+
+### Phase I — one address *(this commit)*
+
+- `civ.mino.mobi/` becomes the **suite hub** (planet → history → city → people ladder,
+  with the seams between layers stated explicitly). The dashboard moved to `/dash/`;
+  the worker 301-redirects legacy root permalinks (`/?world=…`) so every shared run
+  URL still resolves.
+- Deploy takeover: `deploy-registry.json` civ surface → `claude/civ-deploy-unification-vt35ju`,
+  triggers regenerated, lint green. The registry remains the source of truth.
+- The seed-is-the-URL contract is frozen suite-wide: any change that would alter what an
+  existing permalink regenerates is a **config-epoch** change (see §4).
+
+### Phase II — one naming voice *(SHIPPED)*
+
+Civ's world speaks rite/names. As built:
+
+- `mappa/civ/names.js` wraps `rite/names/engine.js` (dep-free, runs in the same three
+  targets civ builds for). `deploy-civ.yml` paths and the committed browser bundle
+  (`scripts/build-civ-engine.mjs`) both track it — edge and client stay bit-identical.
+- Each civ culture draws a deterministic culture-pack blend at first use (one pack,
+  40% a blend of two) and lazy per-(culture, kind) namebooks: **cultures have names**
+  (`final.cultures[].name`, `final.polities[].name`), people are `full`-kind
+  (epithets included — *Thremund the Younger*, *Vyevmund of Serruborg*), beliefs read
+  like founders' names, institutions keep their English wrappers around culture-book
+  roots (*the Dylfjord State*), and state seats get toponyms (*Vylfstrand*).
+- **The hash discipline turned out even cleaner than planned**: `chronicleHash`
+  serialises events/series/final *without* name strings, so the swap is hash-invariant
+  — verified against the pre-change engine (same params, same `67eee302`). The
+  `names: 'rite' | 'legacy'` config field exists anyway; `'legacy'` reproduces the old
+  syllable strings bit-exactly (selftested) for byte-stable payload replays.
+- Still open (deliberately): unify mappa's own toponym generator (`mappa/lib/names.js`)
+  with rite/names culture packs. Low priority; landform vs. people registers tolerate
+  divergence.
+
+### Phase III — the civ → polis handoff *(SHIPPED — first slice)*
+
+Cities inherit history, not just terrain. As built:
+
+- **`GET /api/civ/sites?world&preset|config&civSeed&ticks`** (same run, same cache
+  keys, same hash as `/run`) returns the foundings contract: every culture that
+  reached statehood → `{culture, cultureName, city, cell, lon, lat, tick, year, tier,
+  peakPop, alive, siteSeed}`. `siteSeed` is org's convention, `${world}:${city}:${cell}`
+  — **adopted as the suite-wide city identity**. Foundings also ride along on
+  `/api/civ/run` as `chronicle.final.foundings`.
+- **Resolution honesty**: mappa terrain is *not* mesh-resolution-stable (same seed at
+  N=900 vs N=7000 gives different coastlines — civ seats land in the N=7000 ocean).
+  The contract therefore carries `n`, the requested mesh N; regenerating at that N
+  reproduces the identical mesh, cell ids and all. This is a suite-wide rule now:
+  **a lon/lat is only meaningful alongside the N it was found at.**
+- polis consumes it: `?civ=1&world=&preset=|config=&civSeed=&ticks=&site=i` on
+  `mino.mobi/polis/` fetches the foundings, rolls the mappa world at the contract's
+  `n`, centres the region on the seat via `regionAtLL()` (new in `mappaWorld.js`),
+  and seeds mesh + chronicle from `xmur3(siteSeed)`. A banner names the city and
+  links back to the civ run; the dashboard links each founding into polis.
+- Still open: deeper inheritance (founding-date offsets into polis's climate arc,
+  culture → initial institutions), and the eventual `/api/polis/*` mounted in the civ
+  worker once polis has server-side needs. Note polis rides the **root** surface —
+  its half of the handoff deploys when this branch's `polis/**` changes reach `main`
+  (or the root owner branch).
+
+### Phase IV — institutions with insides *(SHIPPED — first slice)*
+
+As built:
+
+- **Org addresses, not embedded simulation.** `mappa/civ/org.js` maps institution kind →
+  org vertical/shape (state→feudal/tall, firm→corp/pyramid, guild→corp/flat,
+  warband→military/cellular; faiths by register: folk→monastic, temple/scripture→
+  ecclesiastic, philosophy/ideology→academic). Every institution in the payload carries
+  `{seatName, org:{vertical,shape}, namePack}`; the org seed is composed by consumers as
+  **`${world}:${seatName}:${seat}:${kind}${id}`** (the siteSeed convention extended one
+  level down). The development page renders an "org ↗" link per institution — a
+  9th-millennium temple hierarchy is a permanent address, generated on demand by the
+  org engine, never stored.
+- **One voice, two engines**: the link carries `?names=<pack>` (the civ culture's
+  culture-pack blend), and the org page + its infinite-lens expansion honor it — so
+  *the Dylfjord State*'s org chart is peopled in the same phonotactic voice civ named
+  it with.
+- **Great people are full org persons**: `civPerson(civSeed, agentId, kind)` →
+  `person.js` `makePerson` at the apex (triad, cast, vocation `govern`, quirks,
+  output/leadership) — deterministic from (civSeed, agent id) alone, so the same
+  person whatever they led, and by construction a valid **hoop NPC**. Shown on the
+  development page's great-people table (cast · vocation, full detail in the tooltip).
+- All additive and hash-invariant (selftested).
+- **Still open (the deep half)**: org's performance oracle feeding *back* — institution
+  efficiency (leadership, span overload, depth tax) modulating civ institution success
+  and polis firm productivity, so same seed + different org shape → different history.
+  That's the coevolutionary loop closing across three sites, and it's real engine work,
+  not addressing.
+
+### Phase VI — the city epoch *(SHIPPED — epoch 2)*
+
+**Cities as actors.** The declared hash break (epoch 1 pinned `67eee302`; epoch 2 pins
+`3c9a4a61`; `meta.epoch = 2`). What a city IS, architecturally: **an org of orgs** —
+the city entity is the *container*; its members are the institutions seated at its
+cell (guilds, firms, warbands, the state — each already carrying a Phase-IV org
+address into rite/org) plus the population itself, plus the notable agents who lead
+those institutions. `final.cities[].institutions` is the rollup. A future "city
+council" org chart (the apexes of the member institutions as one hierarchy) is the
+natural next rung and needs no new engine state.
+
+The dynamics that make it an epoch, not an overlay:
+
+- **Agglomeration**: a city's peak scale multiplies effective carrying capacity at its
+  cell (`cityK`, up to +25%) — urban gravity; cities feed their own growth.
+- **Walls**: a city whose holding culture knows masonry fortifies after 30 ticks;
+  walls multiply effective defense ×1.8 in war resolution.
+- **Sieges**: one combat roll decides both outcome and counterfactual — an assault
+  that would have carried an unwalled town but breaks on walls is a `citySiege`
+  event ("stone outlasts fury").
+- **Sackings**: taking a city is bloodier (more killed/converted) and recorded —
+  `sacked` counter + `sackTicks` (exact history, event log throttled to annals).
+- **Falls and revivals**: `cityFall` when a real city empties; re-crossing the
+  threshold revives it.
+
+All of it surfaces: city events in the playback event bar, sack/siege/fall entries in
+both timeline historiographies, and the full shock history in `/api/civ/sites`.
+
+**The polis inversion (client of the world beyond).** polis no longer authors its own
+catastrophes when a civ run is upstream: `/api/civ/sites` now carries the run's
+global climate curve, and each city its `sackTicks`. The polis boot maps both into
+`worldShocks` (`{frac, kind: 'sack'|'drought', mag}`) consumed by
+`runChronicle(..., { worldShocks })` — a sacking recorded in civ history lands on the
+biggest polis town at the same fraction of the timeline; a global forcing peak
+arrives as drought. polis's own deep-time volcanic backbone remains (it comes from
+the mappa *world*, which is also global-view); what moved is authorship of
+*historical* events. Remaining polis work: retire its internal tech clock in favour
+of the founder culture's tier trajectory, and surface the shock provenance in its
+event ribbon.
+
+### Phase VI½ — the metabolic epoch *(SHIPPED — epoch 3)*
+
+**Agtech ratchet + fresh-water balance + fossil geography.** The declared hash break
+(epoch 3 pins `71a71f2f`; `meta.epoch = 3`). Three coupled mechanics, all mattering
+to K rather than decorating it:
+
+- **The agtech ratchet** — what Malthus missed. Eight new capabilities on the DAG,
+  agricultural lineage vendored from `cards/js/pools/tech-pool.js`: `granary`,
+  `cropRotation`, `terracing` (pays only on slopes), `seedDrill`, `fertilizer`,
+  `greenRev`, plus the water works `wells` and `aqueduct`. `foodTechMul(vec, hilly)`
+  in caps.js compounds them (~2.4× at full stack) and multiplies effective carrying
+  capacity per cell — food capacity outruns the land's raw ceiling exactly the way
+  history's did.
+- **The fresh-water balance.** Per-cell demand scales with population density and the
+  subsistence package's thirst (`THIRST` per package — irrigation drinks hardest);
+  supply comes from mappa's moisture, rivers and lake adjacency; `wells` floor the
+  supply where rain fails, `aqueduct` lifts it at cities. Where demand outruns supply,
+  a water multiplier (floor 0.55) caps K until the works catch up. FRED ledgers:
+  `water.stressedShare`, `water.constraint`; per-continent `waterStressed` in
+  `final.energy`.
+- **Fossil geography.** Coal and oil are now mappa resources (placement rules ported
+  from mappa's own `viewer.js` mineral catalog — the user was right that mappa always
+  had fossil activity; the civ world adapter had simply never carried it). Fossil
+  energy output depends on actually holding the deposits: tier-4+ population at a
+  coal/oil cell yields 6 ppe/head, cultures controlling a deposit elsewhere 2.2,
+  everyone else scraps at 0.4. The energy transition is now a *place* on the map.
+
+The timeline speaks it: cap ids render as prose ("the green revolution", not
+`greenRev`), and the forces lens gains "the wells run low" when sustained water
+stress first crosses 10% of humanity.
+
+### Phase VII — the city cascade (civ → hinterland → city)
+
+**The reframe (structural, decided):** what polis had built was never the city — it
+was the **hinterland**: a regional multi-town sim. So the surface is restructured:
+`/polis/hinterland/` is the former region sim (moved verbatim, civ-client boot and
+all), `/polis/continent.html` the former continent view, and `/polis/` itself is now
+the charter for the **city proper** — which runs as a *cascade of three histories*,
+each level a client of the one above. Every city's history requires running civ AND
+the hinterland before the town — and that's fine: the civ run is content-addressed
+(cached forever), the hinterland runs in milliseconds. This is dynamical
+**downscaling**, the climate-model discipline: a regional model nested in a global
+one, nested again for the site.
+
+**The two facts the cascade rests on** (verified in code):
+
+1. **Mappa has no sub-cell truth.** A civ cell at n=900 is ~a week's walk across.
+   `polis/mesh.js` already *mints* the finer geography deterministically: IDW-smoothed
+   real fields + rivers **re-derived by flow accumulation on the finer graph** +
+   coasts recomputed per-era sea level. Resolution on coasts/mountains/rivers/biome
+   edges is *born* at the hinterland level, conditioned on the coarse tile — so map
+   creation genuinely starts at the hinterland view. (Upgrade path when zooming
+   further: conditional fractal detail — midpoint displacement constrained to the
+   coarse field — same principle, one level down.)
+2. **"A town every day's walk" cannot come from civ** — the macro's atom is bigger
+   than the pattern. It must be (and already is) minted at the mesoscale:
+   `foundTowns` places towns by site-vs-situation score under a minimum-`spacing`
+   constraint — central-place theory as a generator. Civ's role is to *constrain* it,
+   not author it.
+
+**The contracts (what flows down):**
+
+- **civ → hinterland**: founding + founder culture + `sackTicks` + global climate
+  curve (all shipped, Phase VI) + the **demographic envelope** — `final.cities[]`
+  now carries `popSeries` (fred-cadence per-city population, zeros before founding),
+  so the hinterland's towns can be nudged to sum toward the macro city's curve
+  (soft conservation, downscaling-style — nudge, don't clamp).
+- **hinterland → city**: which town is THE city, its neighbor towns + artery field
+  (trade directions become gate/road orientations), its local terrain patch.
+- **city (Phase VII proper, to build)**: districts/blocks/streets by recursive
+  Voronoi descent, habitat-determined — the river bend fixes the port, the
+  defensible rise the citadel, epoch-2 `walls` the boundary polygon, district kinds
+  from the city's `institutions` rollup (a city is an org of orgs). Streets are the
+  dual of the block tessellation; arteries promote to main streets; hoop's
+  fixture-growth generates interiors; org persons occupy them. Every address
+  extends the siteSeed — `world:city:cell:d2:b5:lot3` — generated lazily on zoom.
+
+**The hinterland reform (SHIPPED — the mesoscale as a full client):**
+
+- **`runChronicle(..., { civ })`** — the complete client contract:
+  `{ ticks, tickYears, preset, pulse, founderTech, envelope }`. With it present, the
+  internal deglaciation arc and logistic tech clock are RETIRED: the environment is
+  the civ run's window (sea at modern level, temperature/humidity following the
+  global forcing curve, signed by the preset), and the tech clock interpolates the
+  founder culture's **actual capability unlocks** (`founderTech`, a new
+  `/api/civ/sites` field: cap → unlock tick, lineage-walked through cultureSplit
+  ancestry so daughter cultures inherit correctly).
+- **Settlement spacing subordinate to transport tech, aged appropriately**: the
+  walk-era day's-walk lattice founds first (spacing 3.2); each transport era the
+  founders actually reached opens a founding WAVE at its own spacing — wheel
+  (market towns, 4.5), sail (ports + sea routes, 6.0), mechanisation (rail
+  junctions, 8.0). Old lattices persist under new overlays — the map ages like a
+  real settlement system.
+- **Railroads generate in the industrial hinterland**: at the mechanisation unlock,
+  a slope-penalized network connects the top towns (drawn along surveyed
+  alignments), junction towns found at midpoints, rail-connected towns gain trade.
+  No mechanisation in the founder's history → no rails, ever (selftested).
+- **Commodities**: every town exports what its habitat offers (ore/clay/fish/
+  grain/timber/wool); rail + sea links between towns with *different* commodities
+  lift both (comparative advantage).
+- **The drowning rule**: a town whose cell goes under the current sea level dies
+  there — no phantom cities on the shelf (the old bug; now a tested invariant:
+  no town holds population underwater at any tick).
+- **Envelope nudging wired**: regional growth rate breathes with the macro city's
+  normalized popSeries — client, not clamp.
+- **Selftest**: `polis/test/hinterland.selftest.mjs` (20 checks: determinism both
+  modes, drowning invariant, era schedule from founderTech, rails/sea routes/
+  commodities, envelope effect).
+
+**The energetics layer (SHIPPED — the conservation accounting):**
+
+- **Civ (gross, hash-invariant — fred + final only, pin unmoved)**: per-tick FRED
+  series under an `Energetics` category — food capacity (Σ effective K over
+  populated cells: what the land under current climate + agglomeration could feed),
+  food security (capacity/pop), and the industrial energy mix in person-power
+  equivalents: muscle (human + draft, pastoral-boosted), fuelwood (forest biomes
+  under population), watermills (river/lake cells whose culture holds wheel +
+  masonry), fossil (industrial-tier populations). End-state **per-continent budget**
+  in `final.energy` (sums verified to world totals). The forces timeline gains
+  energy-transition entries: "the mills turn" and "the fossil transition" (buried
+  sunlight overtakes every organic source combined).
+- **Boundary conditions down** (`/api/civ/sites` → `energy`): the food-security and
+  fossil-share curves + the per-continent table.
+- **Hinterland (fine)**: every town carries an energy endowment read off its habitat
+  (falling water from river flow, fuelwood from moisture, muscle always; fossil
+  arrives with rail); industrial-era growth runs on energy (mill/coal towns
+  industrialize harder — the mill-town advantage); the civ food-security curve
+  scales both the food shed (K) and growth itself (Malthusian side — scarcity slows
+  growth below the ceiling, selftested: a hungry world grows a smaller region).
+  Town panel shows the energy mix and food shed vs need.
+
+**Still open at the hinterland level**: rank-size calibration (nudge the town-size
+distribution toward Zipf), commodity flows as actual quantities (not just a
+complementarity bonus), and reading civ WARS (not just this city's sacks) as
+regional insecurity. (The coal-geography gap noted here previously closed in
+epoch 3: coal/oil are mappa resources now and fossil output is deposit-dependent.)
+
+**The settlement field (SHIPPED — the city proper's first layer, `polis/field.js`
++ `/city/`):**
+
+The original THEORY.md §0 program — "the economy decides where current is
+injected; the city's form is the field-solve" — finally cashed in as a running
+engine. One founded site → a 64×64 block-scale Voronoi frame (3 km, jittered,
+micro-relief minted from the siteSeed under the level above's flags) → the three
+forcing regimes run as a LIFE CYCLE over one lane graph:
+
+1. **Nucleus (Physarum star)** — engine-specific nucleus siting (harbour head /
+   ford / citadel hill / adit / market cross) + founding spokes routed least-cost
+   from the area gates to the one place that matters.
+2. **Coverage (hypoxia)** — growth tracks the population envelope (people-per-block
+   density, dropping at mechanisation — the streetcar spread); tissue farther than
+   2 lane-hops from a lane sprouts a capillary toward it (foam.js `seize()`,
+   compacted). Selftested invariant: every built block ends within 5 hops.
+3. **Demand (flux)** — past the diversification threshold, district anchors
+   (market / seat / port / mill) + gates form an O-D set; least-cost flux
+   accumulates per edge and lane tiers are the superlevel set (arterial /
+   connector / lane). The machine age re-solves the flux (bridges cheapen).
+
+Boundary conditions arrive from civ, downward only: the demographic envelope
+(popSeries, URBAN_SCALE-rendered), founder-tech era ticks (wheel → bridge costs,
+mechanisation → density + re-flux), `walledTick` (walls ring the built extent on
+the civ tick, leaving a fringe belt the town later spills — an event), and every
+`sackTick` (a wedge of the fabric burns and rebuilds — visible scars). Selftest:
+`polis/test/field.selftest.mjs` (22 checks: determinism, the three regimes,
+envelope tracking, terrain discipline, walls/sacks/spill, coverage invariant,
+engine-distinct nuclei).
+
+**The polis-theory ledger** (what the original charter's ideas became):
+
+| Original idea | Status |
+|---|---|
+| Site vs situation scoring, forced spawns, stratified founding | **integrated** (hinterland `candidates()`) |
+| Founding engines (gateway/break-of-bulk/staple/fortress/market) | **integrated** (hinterland towns + field nuclei) |
+| Base multiplier, logistic-to-K, agglomeration, flourish, conquest | **integrated** (economy.js, reused by chronicle) |
+| Physarum arteries (inter-town) | **integrated** (chronicle roads) |
+| Three-regime intra-city program (§0) | **integrated** (field.js — this slice) |
+| S-curve tech clock | **cast aside** — replaced by civ founderTech (real history) |
+| Polis-authored climate/deglaciation | **cast aside** — demoted to civ client |
+| Toy substrate.js | **cast aside** — real mappa slices (kept for proto selftest) |
+| Cards 500-node DAG + per-tech effects map | **cast aside** — civ's 24-cap DAG is the tech clock |
+| Conzen burgage plots, fringe-belt morphology | **partially** — fringe belt in field.js; plots not yet |
+| von Thünen rings, bid-rent (Alonso) | **integrated** (field.js v2 land market — see below) |
+| Financial layer (ρ, NPV-gated lumps, land cycle, crisis) | **not yet** — a future epoch |
+| Import-replacement dynamic (Jacobs) | **not yet** — economy.js multiplier is static |
+| hoop/econ vitality oracle as livability floor | **not yet** |
+| Bettencourt scaling readouts, Christaller K-nesting | **not yet** (spacing implements the spirit) |
+| Coercion/Tilly axis | **stub** (`t.coercion` set, unused) |
+
+**Field v3 (SHIPPED — one continuous Voronoi, grown by mitosis):**
+
+- **One point set, one diagram.** v2's quadtree was a cheat (static base lattice,
+  visible grain boundary, hand-picked ceiling — the user caught all three). v3:
+  the city is a single global Voronoi over a live site set. Every tick EVERY cell
+  holds the power of **mitosis** — product (rent × area) over threshold → the site
+  divides into 3–4 children and **the entire mesh re-tessellates** (per-cell
+  half-plane clipping with expanding bucket-ring candidate search, globally
+  consistent). No levels, no seams: Σ cell areas = frame area is a selftested
+  invariant. Division **self-limits** (child area ≈ ⅓ ⇒ product falls back), so
+  the core/edge grain gradient (~50 m vs ~86 m, 13 generations deep) is an
+  OUTCOME of the land market, not a setting. Emergent bonus: division fronts
+  migrate into coarse land by capturing neighbour territory on re-tessellation.
+  All compute (growth, lanes, perfusion, market) runs on the live mesh;
+  capacity and farm-feed are area-based (people/km²), so division conserves
+  totals. Water/river sites never divide. Hypoxia sprouting is metric
+  (distance, not hops — hop counts mean nothing across mixed grain).
+- **Bid-rent land use** (Ricardo → von Thünen → Alonso): every land cell takes the
+  use that bids most — commerce steepest on centrality, residence on lane access,
+  industry on the mill/port anchors, agriculture on fertility with weak decay.
+  **Farms rise sized by demand** (`pop/FARM_FEED`, area-correct across levels) and
+  are **displaced outward** as the city's bids overtake them; growth into a farmed
+  cell is a `displace` event. The **development shadow** (Sinclair 1967) withholds
+  urban-outbid land from farming at 1.7× the urban radius — the near fringe
+  empties before the city arrives. Selftested: von Thünen ring ordering
+  (commerce < residential < farm mean radius), no farms in the deep core,
+  displacement fires, refinement concentrates at the core (37 checks).
+
+**Field v3.1 (SHIPPED — the mesh is time-indexed; mobile + inspection):**
+
+- **History replays the mesh itself.** Every site carries `bornAt`/`diedAt` (+
+  `parent` lineage), the engine records the division ticks (`meta.meshTicks` —
+  mesh epochs), and `computeVoronoi` is exported pure — so the viewer
+  re-tessellates the alive-set of ANY tick (cached per epoch, ~65 ms worst).
+  Scrub to t=0 and the field is the homogeneous loose lattice (676 cells, gen 0
+  only — selftested); scrub forward and divisions land where and when they
+  happened (676 → 1453 → 1768 in the reference run). Use and rent are historied
+  per tile (`hist`, `rentHist`), retired lane segments carry `removedAt` — the
+  whole field renders as it was, not as it ends.
+- **Neighbour coupling (the tile-interaction layer before agents).** Rent
+  spillover: a tile's rent is lifted by 0.22× its neighbours' last-pass mean —
+  externalities cross cell boundaries, so high-product cores raise their fringe
+  and division propagates contagiously (selftested: near-town wild land out-rents
+  identical far land).
+- **Mobile canvas + inspection.** Pinch-zoom about the pinch midpoint, pointer
+  pan, tap-to-inspect (Voronoi = nearest-site, so hit-testing is exact),
+  `touch-action:none` + viewport lock + safe-area insets; the inspector is a
+  side card on desktop and a bottom sheet on phones, showing per-tile metadata:
+  status, area, rent + product, terrain, birth/division lineage, use history.
+
+**Field v4 (SHIPPED — agents, orgs, immigration on the map):**
+
+- **Agents are the people the envelope stands for.** ~1 agent per 25 residents
+  (the envelope ratio), homed on live built tiles by an Alonso choice
+  (−rent − 2·commute − crowding, with move-stickiness). They arrive by birth,
+  internal growth, or **immigration through a gate** (the routes from the world
+  beyond — a fading inbound line renders for ~10 ticks); on market ticks a slice
+  **re-chooses homes** (intracity mobility, historied). When a tile divides its
+  residents land in the children. Notables (1 in 16) are **named by rite/names**
+  in the civ culture's own voice; commoners stay anonymous dots.
+- **Occupancy feeds the land market.** A tile at capacity adds ~40% to its rent —
+  so real people, not just the distance formula, drive land value and therefore
+  mitosis. The tile-interaction layer (spillover + occupancy) is now the two-way
+  coupling the agent level needed.
+- **Orgs on the map.** The engine's own institution (court/guild/harbor/mill/works)
+  stands up at the nucleus, and each district anchor gets its own on diversify;
+  the machine age raises the ironworks. Each is led by a **named founder**, hires
+  idle hands, and carries a **rite/org address** (`world:place:cell:kind` — the
+  suite siteSeed shape) so tapping it opens the full hierarchy at rite.mino.mobi/org.
+  `final.cities[].namePack` now ships the culture's naming voice (hash-safe) so
+  city notables speak it.
+- **The viewer**: agent dots (notables gold + larger, immigrants blue), org
+  markers, immigration flows; tap a tile / notable / institution to inspect —
+  tile inspection surfaces its residents + institution, agent inspection shows
+  origin + workplace + move history, org inspection links to rite/org. **Canvas
+  tap bug fixed**: the bitmap was device-pixel sized but the CSS box was never
+  set, so on DPR>1 the element overflowed and every coordinate was off by the DPR
+  factor (the "tap → bottom-left" bug); all hit-testing now goes through
+  `toCanvas` (event → bitmap coords via the element's own rect).
+
+**Field v4.1 (SHIPPED — true individuals, occupations, the city breathes):**
+
+- **One agent = one person.** AGENT_SCALE dropped 25→1: the map now shows
+  individuals (up to a 50k budget; above it each agent represents pop/cap), ~15k
+  for a demo city, deterministic. A home→residents index keeps 50k tractable
+  (mitosis migration is O(residents), home-choice is a bounded BFS candidate set,
+  not an O(sites) scan), so the 17× agent increase cost almost nothing (~4.7s).
+- **Occupations — the spatial division of labour.** Each agent takes a trade from
+  its workplace's vocabulary (harbour → docker/sailor/cooper/merchant; works →
+  smith/founder/collier; court → clerk/steward/guard), tagged with a class
+  (labour/craft/trade/admin/sea) that colours the map — so districts *read* as
+  clots of one trade. Per-org occupation mix is tabulated and surfaced in
+  inspection.
+- **The city breathes.** A render-time daily cycle (`dayPhase`) commutes each
+  agent between home and workplace — the tidal flow that was missing. Runs on a
+  continuous rAF loop over an **offscreen-cached base layer** (terrain + lanes
+  re-render only on tick/view change; agents animate on top), so 50k dots stay
+  smooth. HUD rebuilds only on tick change, not per frame.
+- Notables made rare (org founders + ~0.25% sprinkle) so named people stay
+  special among the individual crowd.
+
+**Field v5 (SHIPPED — the secondary economy + city vitality):**
+
+- **Two employment sectors, per the base multiplier.** v4's flaw: every agent
+  worked for one of ~4 anchor orgs (it said all 15k people were dockers). Now the
+  economic-base model is real: **anchor institutions** are the BASIC (export)
+  sector — the founding engine's big games in town; **establishments** are the
+  NON-BASIC (local-serving) sector — the bakers, taverns, smiths, markets that
+  the base multiplier `M = 1/(1−s)` spins up because export workers spend wages
+  locally. Non-basic share s rises 0.40→0.72 with size/tech; employment splits
+  `(1−s)` basic + `s` non-basic, so in a mature town ~⅔ work the local economy
+  (M ≈ 3). It rightly **lags** the export engine (nucleus first, services follow).
+  A 16k demo town: 4 institutions + **88 establishments**; a civ metro: 2 + 147.
+- **Christaller thresholds.** 14 local trades each with a threshold (min pop before
+  the first opens) and cadence (one per N residents): bakeries per 700 proliferate
+  and spread to serve neighbourhoods, a goldsmith per 16k / bank per 26k are rare
+  and central; new shops site where demand is least served (farthest from the
+  nearest same trade). Finance (`bank`) and the printer appear late/with the
+  machine age.
+- **City vitality (hoop/econ).** A 0–100 score + tier (Thriving/Healthy/Stable/
+  Fragile/Failing — borrowed verbatim from hoop/econ's oracle) over supply closure
+  (essentials present?), employment, third-places per head (Oldenburg), trade
+  diversity (Jacobs), and a base multiplier near its healthy band. Surfaced live
+  in the HUD; a port city thrives, a hamlet is fragile (selftested).
+- **The viewer**: establishments render as small marks studding the districts
+  (third-places glow), anchors keep the big glyphs; tap either to inspect (an
+  establishment opens as a small org, an anchor as the full hierarchy); the HUD
+  shows `N institutions + M establishments · vitality Thriving 96`.
+
+**Field v6 (SHIPPED — finance: the money supply, debt, and bridges):**
+
+- **The capital pool + cost of capital.** Surplus accumulates into a pool; a
+  cost-of-capital `ρ` falls as finance deepens — a `bank` establishment opening
+  turns on the fractional-reserve **money multiplier** and the regime climbs
+  `redistribution → merchant → bank → market`, each rung and each bank dropping ρ
+  (0.14 → ~0.025). Credible commitment (a walled, chartered town) lowers ρ and
+  raises borrowing capacity (North & Weingast).
+- **Lumpy projects, debt-funded.** Indivisible infrastructure — a **bridge**, a
+  harbour mole, a market hall, an aqueduct, a railway viaduct — is built when its
+  NPV at ρ is positive AND `cash + borrowing capacity ≥ cost`; the shortfall
+  becomes **debt** (Hirschman's build-ahead-of-demand "permissive" path). A 16k
+  town raises 4 bridges + mole + market hall + aqueduct + viaduct, mostly on
+  credit, peaking at ~8.7k debt.
+- **Bridges are the payoff.** A bridge sits on a river cell and turns that costly
+  crossing into a road (the river-crossing penalty in `edgeCost` vanishes there),
+  so lanes route through it and the city **reaches across the water** — a visible,
+  structural change to how the town grows, selftested (the built extent spans both
+  banks). Rendered as a stone span on the river.
+- **Minsky's crash (the dark twin).** Leverage (debt/capital) climbs as the town
+  builds on credit; sustained over-leverage triggers a crash that wipes ~70% of
+  the pool, haircuts the debt, and spikes ρ — "stability is destabilizing." The
+  reference run takes 2 crashes. FRED-style finance series + events in the ribbon
+  ("the counting-houses overreach…"); the HUD shows the regime, ρ, capital, debt,
+  and bridge count live.
+
+**Next descents at the city level**: blocks→plots (Conzen burgage — division
+below ~30 m becomes parcelling); reading the civ city's actual `institutions`
+rollup into the anchor set (currently anchors are engine-derived, not
+civ-sourced); agent wages from establishment/org performance so income
+(not just occupation) decides who affords which tile — closing the loop between
+the economy and the land market; and land finance (capitalize the bid-rent
+gradient into collateral, the ~18-year land cycle) as the next finance layer.
+
+### Phase V — outward
+
+- **Frozen canon.** Star-worthy runs (QD sweep elites) freeze as ATProto records —
+  the lexicon (`com.minomobi.mappa.civ`) and the borges first-write-wins pattern both
+  exist. A gallery of canonical histories, each a permalink + a record.
+- **A daily world.** bisk-pattern cron: mint one interesting world → civ run → founded
+  city chain per day, "today in the multiverse."
+- **fable `/city`** builds on polis (not fresh), consuming the same handoff contract.
+- **hoop** is the far end: a hoop society sited by `siteSeed` into a civ-run world means
+  you can *walk around* in year 9 400 of a history you can also read as FRED charts.
+
+---
+
+## 3. Deploy posture (what deploys what, and why it stays that way)
+
+- **civ surface** (this branch): `civ/**`, `mappa/civ/**`, `mappa/engine.js`,
+  `mappa/lib/world-share.js`. Phase II adds `rite/names/engine.js` to these paths.
+- **polis moved to its own surface** (`polis.mino.mobi`, worker `polis`, owned by this
+  branch — the deployment investigation's outcome: riding the root surface meant
+  *none* of the cascade work ever deployed, since the root is owned by another
+  branch). The deploy stages `mappa/engine.js` + `mappa/climate-forcing.js` under
+  `/mappa/` so the pages' runtime ES imports resolve on the new origin. The OLD
+  `mino.mobi/polis/` keeps serving the pre-cascade site until the root branch
+  catches up (its registry entry no longer watches `polis/**`).
+- **mappa stays on the root surface** near-term. Splitting it would break
+  established `mino.mobi/mappa/`+`/polis/` URLs for zero user benefit. Revisit only when
+  polis gets an API (Phase III) — and then move *compute* into the civ worker, not the URLs.
+- **names/org stay on the rite surface.** They are engines with public APIs; civ consumes
+  the engine *by import at build time*, so a rite deploy never changes a civ permalink —
+  only a civ redeploy (with its paths watching `rite/names/engine.js`) can.
+- One rule inherited from the repo: the registry is the source of truth; edit it, then
+  `gen-deploy-triggers --write` + `lint-deploy-registry` + `gen-surface-map --write`.
+
+## 4. Engineering guardrails
+
+- **Config epochs.** Any change that alters what an existing permalink regenerates
+  (Phase II names, engine physics tweaks) ships as an explicit config field first,
+  default-flipped in a single announced commit. Chronicle hashes make violations
+  detectable: keep a fixture file of `(params → hash)` pairs and check it in the deploy
+  workflow — a hash drift that isn't a declared epoch fails the deploy.
+- **Import, never fork.** The suite's one structural law. polis already models it
+  (its hoop solver ports are marked "re-sync from source, never diverge" — acceptable
+  only because hoop is outside the suite).
+- **Selftests before engines.** names, org, and mappa/civ all have node selftests; any
+  new seam (foundings contract, siteSeed consumers) gets one. They run in CI free —
+  they're plain node scripts.
+- **Determinism red lines.** No `Date.now()`, no unseeded `Math.random()` in any engine
+  path (borges rule). The nav-level "random seed" roll is the only allowed exception.
+
+## 5. Sequencing & effort
+
+| Phase | Size | Risk | Unlocks |
+|---|---|---|---|
+| I — hub + deploy takeover | **done** | none | everything below has an address |
+| II — names into civ | **done** (hash-invariant, legacy mode kept) | none in the end | legible cultures everywhere |
+| III — civ → polis foundings | **done** (both halves live — polis now has its own surface) | resolved (`n` in contract) | polis inherits history |
+| IV — org institutions + people | **done** (addresses + persons; perf feedback open) | none (additive) | drill-down, hoop NPCs |
+| V — canon, daily world, fable/city | ongoing | none | content flywheel |
+
+II–IV shipped in sequence: III's siteSeed uses II's city names, IV's org seeds extend
+III's convention one level down, and IV's org charts speak II's culture packs. What
+remains of IV is the feedback half (org performance → civ/polis economies); V items
+are independent and can interleave.
+
+### Shipped alongside (pre-V infrastructure)
+
+- **The timeline** — `GET /api/civ/timeline?mode=greatman|forces|tech|both|all` +
+  `/timeline.html`. One chronicle, three lenses: *great man* (named actors — prophets,
+  dynasts, warlords, the eminent with their org-person temperaments), *forces* (phase
+  transitions, climate, credit cycles, meme selection), and *tech* (first inventions,
+  independent reinventions, diffusion milestones — knowledge outrunning armies). This
+  is where beliefs and cultures surface as content: entries carry machine-readable
+  `refs` with culture names, belief doctrine vectors, and the evolved exemplar
+  **rulesets** — the numbers selection actually wrote. The refs spine is deliberate
+  Phase-V groundwork (a borges-style reteller or fable wing can build on it directly).
+- **Continents as a first-class axis** — every located object (institutions, beliefs,
+  foundings, cities, great people, timeline entries) carries `landmass`; continents
+  are *named* (`final.landmasses`) and the timeline filters by them
+  (`?landmass=<id>`, world-scale entries retained). The cell→landmass lookup rides
+  `chronicle.geo`, deliberately outside chronicleHash — events serialize `e.landmass`,
+  so events must never gain the field retroactively.
+- **Cities** — settlement is now explicit: any cell whose population crosses
+  `CITY_MIN` (popScale-scaled) is recorded as a city — founding tick, founder culture,
+  toponym in the founder's tongue, peak, and the mappa geography that sited it
+  (river / coast / resource flags; empirically ~70% of cities sit on rivers or
+  coasts, driven by dispersal's corridor weights and resource K-bonuses — the mappa
+  river data was already load-bearing, now it's visible). Cities join the timeline
+  (both narrative lenses) and `/api/civ/sites` (`cities[]`, same siteSeed convention;
+  polis grows any of them via `?civ=1&city=k`). Observation-only: no dynamics, no
+  events, hash-invariant. Open question, deliberately deferred: cities as *actors*
+  (markets, walls, sieges) — that's an engine epoch, not an overlay.
+- **Major organizations** — institutions with peak ≥ 250 get their own timeline
+  entries in both narrative lenses, carrying the full Phase-IV org address; the
+  timeline page renders an "org ↗" link that opens the hierarchy in the institution's
+  own culture voice.
+- **Climate made visible** (the polis aspiration) — a `climate.pulse` +
+  `climate.affected` series in FRED (hash-safe: fred is never hashed), a per-frame
+  `clim` scalar feeding a forcing ribbon under the playback transport, and timeline
+  entries for onset/peak/release phrased per preset (kurgan drying, beringia thaw,
+  4.2ka drought-and-recovery) in both historiographies.
+- **Mesh resolution** (the mappa move) — every page has a mesh selector; `n` rides the
+  shared URL state. Up to the edge cap (1200) the API serves it; above (1600/2400) the
+  edge **rejects rather than clamps** (a clamped n would silently generate a different
+  world) and the run computes in the browser via the bundled engine (`BROWSER_CAP`,
+  n ≤ 2600). Known limit: a fine-mesh run can't hand off to polis through the edge API
+  (polis has no local civ engine), so `?civ=1&n>1200` falls back to polis's default boot.
+- **Hash pin in CI** — the selftest asserts the canonical permalink hash so any
+  hash-breaking change fails the suite unless declared as an epoch. Epoch history:
+  epoch 1 → `67eee302`; epoch 2 (cities as actors, Phase VI) → `3c9a4a61`;
+  epoch 3 (agtech + water + fossil geography, Phase VI½) → `71a71f2f`.
+- Particle playback captures up to 300 frames (every ~5 ticks at 1500 ticks) with
+  sub-1 fps speeds.

@@ -12,11 +12,13 @@
 import { stream, irnd, softmaxPick } from './prng.js';
 import {
   NCAP, CAP, CAPS, bit, has, candidates, PREREQ, TIER, vecTier, popcount,
-  PKG, NPKG, PKG_ID, subMult, pkgUnlocked,
+  PKG, NPKG, PKG_ID, subMult, pkgUnlocked, foodTechMul,
 } from './caps.js';
 import { loadCivWorld, cellK, RES_METAL, RES_WEALTH, RESOURCES } from './world.js';
 import { normalizeConfig, NORM_I } from './config.js';
 import { makeClimate } from './climate.js';
+import { makeNamer } from './names.js';
+import { INST_ORG, BELIEF_ORG, civPerson } from './org.js';
 
 const ALIVE = 1;
 const AGRI_PKGS = new Set([PKG_ID.horticulture, PKG_ID.plough, PKG_ID.irrigation]);
@@ -68,6 +70,9 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   };
 
   const climate = makeClimate(cfg.climate, w);
+  // the naming voice (Phase II): rite/names culture-pack books by default, 'legacy'
+  // reproduces the pre-Phase-II syllable strings. Names never enter chronicleHash.
+  const namer = makeNamer(seed, cfg.names);
 
   // age thresholds in ticks (from real-year lifecycle / tickYears)
   const ty = cfg.agent.tickYears;
@@ -125,13 +130,9 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const CRED_CAP = new Int8Array(NCRED).fill(-1);
   CRED_CAP[CREDI.smith] = CAP.metallurgy; CRED_CAP[CREDI.scribe] = CAP.writing; CRED_CAP[CREDI.mason] = CAP.masonry;
   CRED_CAP[CREDI.sailor] = CAP.sail; CRED_CAP[CREDI.engineer] = CAP.mechanisation; CRED_CAP[CREDI.trader] = CAP.wheel;
-  // a name for a notable individual (deterministic per agent id) — history gets names
-  function personName(id) {
-    const r = stream((seed ^ (id * 2246822519)) >>> 0, 'person');
-    const on = 'ktrmnvbslpgdhwz', vo = 'aeiouaei', pick = s => s[Math.floor(r() * s.length)];
-    let t = pick(on).toUpperCase() + pick(vo); for (let i = 0, n = 1 + Math.floor(r() * 2); i < n; i++) t += pick(on) + pick(vo);
-    return t;
-  }
+  // a name for a notable individual (deterministic per agent id) — history gets names,
+  // spoken in the bearer's culture-pack voice (names.js)
+  function personName(id, cu) { return namer.person(id, cu); }
   const insts = [];              // ALL institution entities ever created (id-indexed, for lookup)
   let liveInsts = [];            // just the currently-live ones (per-tick work is O(live), not O(ever))
   const orgs = insts;            // exposed alias
@@ -160,17 +161,12 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   // a stigmergic-style deterministic hash → [0,1); used for per-agent conversion so belief
   // transmission never draws on a shared RNG stream (keeps demography/dispersal byte-identical).
   const bchance = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-  function beliefName(sd) {
-    const r = stream((seed ^ (sd * 2654435761) ^ 0x9e3779b9) >>> 0, 'belief-name');
-    const on = 'thmnvrbkldshpmzthph', vo = 'aeiouaei', pick = s => s[Math.floor(r() * s.length)];
-    let t = pick(on).toUpperCase() + pick(vo); for (let i = 0, n = 1 + Math.floor(r() * 2); i < n; i++) t += pick(on) + pick(vo);
-    return t;
-  }
+  function beliefName(sd, cu) { return namer.belief(sd, cu); }
   function newBelief(proto, tick) {
     const id = beliefs.length;
     const b = { id, parent: proto.parent ?? -1, birthTick: tick, founderCulture: proto.founderCulture ?? -1,
       doctrine: Float32Array.from(proto.doctrine), origin: proto.origin, extinct: false,
-      name: beliefName(((proto.origin & 0xffff) << 8) ^ (id * 131) ^ (tick & 0xff)), register: proto.register ?? 1, peak: 0 };
+      name: beliefName(((proto.origin & 0xffff) << 8) ^ (id * 131) ^ (tick & 0xff), proto.founderCulture), register: proto.register ?? 1, peak: 0 };
     beliefs.push(b); return b;
   }
   const doxLabel = d => { let mx = 0, mi = 0; for (let a = 0; a < NDOX; a++) if (d[a] > mx) { mx = d[a]; mi = a; } return DOX[mi]; };
@@ -190,9 +186,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   }
   const iKey = (type, seat, cu) => type + ':' + seat + ':' + cu;
   function instName(type, seat, cu) {
-    const r = stream((seed ^ (seat * 2654435761) ^ (cu * 40503) ^ (type * 97)) >>> 0, 'inst-name');
-    const on = 'ktrmnvbslpgdh', vo = 'aeiouoa', pick = s => s[Math.floor(r() * s.length)];
-    let t = pick(on).toUpperCase() + pick(vo); for (let i = 0, n = 1 + Math.floor(r() * 2); i < n; i++) t += pick(on) + pick(vo);
+    const t = namer.instRoot(type, seat, cu);
     if (type === INST.STATE) return 'the ' + t + ' State';
     if (type === INST.FIRM) { const rc = w.resource && w.resource[seat]; const rn = rc ? RESOURCES[rc] : ''; return (rn ? rn[0].toUpperCase() + rn.slice(1) + ' ' : '') + t + ' Company'; }
     if (type === INST.GUILD) return 'the ' + t + ' Guild';
@@ -305,12 +299,47 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const cellDomPop = new Int32Array(N);
   const cultMembers = [];                 // per-culture member count (index=culture id)
   const cultTerritory = [];               // per-culture list of owned (dominant) cells
+  // ---- CITIES AS ACTORS (engine epoch 2) -----------------------------------------
+  // A cell whose population crosses CITY_MIN becomes a city ENTITY — a container of
+  // the institutions seated there plus the population itself — with real dynamics:
+  // agglomeration (urban gravity raises effective K), walls (masonry cultures fortify,
+  // shifting the offense–defense balance in warOnce), sieges and sackings (events),
+  // and falls. This is the declared epoch-2 hash break: cityRise/citySacked/cityFall
+  // events enter the chronicle and the dynamics genuinely diverge from epoch 1.
+  const CITY_MIN = Math.max(90, Math.round(popScale * 0.23));
+  const cityList = [];                          // {id, cell, cu, foundTick, walls, peak, sacked, sackTicks, fellTick}
+  const cityAt = new Int32Array(N).fill(-1);    // cell → city id (-1 none)
+  const cityK = new Float32Array(N).fill(1);    // agglomeration multiplier on effective K
+  // AGTECH + FRESH WATER (epoch 3): per-cell multipliers from the dominant culture —
+  // farming tech raises effective K (the anti-Malthus ratchet), water balance
+  // throttles it (supply: rain + river + lake, + wells floor, + aqueducts in cities;
+  // demand: population × package thirst).
+  const foodMul = new Float32Array(N).fill(1);
+  const waterMul = new Float32Array(N).fill(1);
+  const THIRST = [0.3, 0.5, 0.8, 1.0, 1.6, 0.6]; // per PKG index (irrigation drinks deepest)
+  function cityStep() {
+    for (const ct of cityList) {
+      const p = cellPop[ct.cell];
+      // walls: the holding culture knows masonry and the city has stood 30 ticks
+      if (ct.walls < 0 && tick - ct.foundTick >= 30) {
+        const cu = cellDom[ct.cell] >= 0 ? cellDom[ct.cell] : ct.cu;
+        if (has(cultures[cu].tech, CAP.masonry)) ct.walls = tick;
+      }
+      // agglomeration: market density + division of labour raise carrying capacity
+      cityK[ct.cell] = 1 + Math.min(0.25, 0.08 * Math.log10(1 + ct.peak / CITY_MIN));
+      // fall: a real city collapsing far below the urban threshold
+      if (ct.fellTick < 0 && ct.peak >= CITY_MIN * 1.5 && p < CITY_MIN * 0.4) {
+        ct.fellTick = tick;
+        pushEvent(tick, 'cityFall', { city: ct.id, cell: ct.cell, culture: ct.cu, n: ct.peak });
+      }
+    }
+  }
   let cultBestPop = new Int32Array(64), cultBestCell = new Int32Array(64); // largest city per culture
   const fmales = new Int32Array(4096);    // reusable fertile-male scratch per cell
   let cultScratch = new Int32Array(64);   // reusable per-cell culture-count tally (no GC)
 
   function kEff(cell, pkg) {
-    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg];
+    return cellK(w, cell, pkg, popScale) * climate.Kmod[cell] * climate.subMod[cell * NPKG + pkg] * cityK[cell] * foodMul[cell];
   }
 
   function bucket() {
@@ -326,7 +355,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   // per-cell allocation), and the per-cell stigmergy deposit folded in (O(cells), not
   // O(agents)): the dominant culture imprints its tech into the cell's meme field.
   function computeCellCultures() {
-    cellDom.fill(-1); cellDomPop.fill(0);
+    cellDom.fill(-1); cellDomPop.fill(0); foodMul.fill(1); waterMul.fill(1);
     if (cultScratch.length < cultures.length) cultScratch = new Int32Array(cultures.length * 2);
     for (let c = 0; c < N; c++) {
       const s = cellStart[c], e = cellStart[c + 1]; if (e === s) continue;
@@ -338,6 +367,29 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       const tv = cultures[dom].tech, base = c * NCAP, w0 = Math.min(0.5, (e - s) * 0.003);
       for (let b = 0; b < NCAP; b++) if (tv & bit(b)) memeField[base + b] += w0;
       activityField[c] += Math.min(0.3, (e - s) * 0.0015);
+      // CITY crossing: first time over CITY_MIN mints the city entity (epoch 2 —
+      // rivers/coasts drive this via dispersal corridorWeight + resource K-bonuses)
+      const cp = e - s;
+      if (cp >= CITY_MIN) {
+        let ci = cityAt[c];
+        if (ci < 0) {
+          ci = cityList.length; cityAt[c] = ci;
+          cityList.push({ id: ci, cell: c, cu: dom, foundTick: tick, walls: -1, peak: cp, sacked: 0, sackTicks: [], fellTick: -1 });
+          pushEvent(tick, 'cityRise', { city: ci, cell: c, culture: dom, n: cp });
+        }
+        const ct = cityList[ci];
+        if (cp > ct.peak) ct.peak = cp;
+        if (ct.fellTick >= 0) ct.fellTick = -1; // revival: people came back
+      }
+      // epoch-3 per-cell multipliers (dominant culture's tech is the cell's practice)
+      const tvD = cultures[dom].tech;
+      let wsup = w.moisture[c] * 0.75 + (w.river[c] ? 0.55 : 0) + (w.lakeAdj[c] ? 0.35 : 0);
+      if (has(tvD, CAP.wells)) wsup = Math.max(wsup, 0.3);
+      if (has(tvD, CAP.aqueduct) && cityAt[c] >= 0) wsup += 0.35;
+      const wcap = wsup * popScale * 1.5, wdem = cp * THIRST[cultures[dom].sub];
+      const wMul = wdem > wcap ? Math.max(0.55, Math.pow(wcap / Math.max(1, wdem), 0.6)) : 1;
+      waterMul[c] = wMul;
+      foodMul[c] = foodTechMul(tvD, w.elev[c] > 0.3) * wMul;
     }
   }
 
@@ -380,7 +432,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         for (let t = s; t < e; t++) { const id = cellOrder[t]; A.belief[id] = B.id; A.piety[id] = 0.6 + 0.3 * dget(B, 'ascetic'); if (A.status[id] > pr) { pr = A.status[id]; prophet = id; } }
         if (prophet >= 0) A.piety[prophet] = 1;
         // only the significant foundings (scripture era+) mark the timeline; folk cults churn silently
-        if (reg >= 2) pushEvent(tick, 'beliefFounded', { belief: B.id, name: B.name, culture: i, cell, register: REGISTER[reg], doctrine: doxLabel(dox), prophet: prophet >= 0 ? personName(prophet) : null });
+        if (reg >= 2) pushEvent(tick, 'beliefFounded', { belief: B.id, name: B.name, culture: i, cell, register: REGISTER[reg], doctrine: doxLabel(dox), prophet: prophet >= 0 ? personName(prophet, i) : null });
       }
     }
   }
@@ -481,6 +533,67 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     for (let p = 0; p < NPKG; p++) { fredPush('pop.sub.' + PKG[p].id, 'Pop — ' + PKG[p].id, 'Population × subsistence', 'people', subPop[p]); fredPush('wealth.sub.' + PKG[p].id, 'Wealth — ' + PKG[p].id, 'Wealth × subsistence', 'index', subPop[p] > 0 ? +(subW[p] / subPop[p]).toFixed(3) : 0); }
     for (let e = 0; e < 6; e++) fredPush('pop.era.' + ERAN[e], 'Pop — ' + ERAN[e], 'Population × era', 'people', eraPop[e]);
     for (let l = 0; l < Math.min(6, w.nLandmass); l++) fredPush('pop.land.' + l, 'Pop — landmass ' + l, 'Population × landmass', 'people', landPop[l]);
+    // per-city population series (hash-safe, fred cadence) — the DEMOGRAPHIC ENVELOPE
+    // a hinterland-scale client downsamples against: its towns' total should track this.
+    // Aligned to fred.t; zeros before a city's founding.
+    for (const ct of cityList) {
+      const ps = ct.popSeries || (ct.popSeries = []);
+      while (ps.length < chronicle.fred.t.length - 1) ps.push(0);
+      ps.push(cellPop[ct.cell]);
+    }
+    // ENERGETICS (hash-safe, fred only): the gross budgets. Food capacity is what the
+    // land under current climate + agglomeration could actually feed (Σ effective K
+    // over populated cells); the industrial energy mix is muscle (human + draft),
+    // fuelwood (forest biomes under population), watermills (river/lake cells whose
+    // culture has wheel+masonry), and fossil (industrial-tier populations) — all in
+    // person-power equivalents (ppe). A mesoscale client refines these per-town.
+    {
+      const FOREST = { 5: 1, 8: 1, 9: 1, 12: 0.8, 13: 0.9, 11: 0.3 };
+      let foodCap = 0, wood = 0, waterP = 0, fossil = 0;
+      for (let c = 0; c < N; c++) {
+        const p = cellPop[c]; if (!p) continue;
+        const d = cellDom[c]; if (d < 0) continue;
+        const cu = cultures[d];
+        foodCap += kEff(c, cu.sub);
+        wood += p * (FOREST[w.biome[c]] || 0) * 0.6;
+        if ((w.river[c] || w.lakeAdj[c]) && has(cu.tech, CAP.wheel) && has(cu.tech, CAP.masonry)) waterP += p * 0.5;
+      }
+      // fossil is GEOGRAPHIC (epoch 3): produced at coal/oil cells worked by
+      // industrial-tier cultures; a culture HOLDING a fossil node runs a grid for
+      // the rest of its industrial population; without access, only imports trickle.
+      const fossilCu = new Set();
+      for (let k2 = 0; k2 < (w.resourceNodes || []).length; k2++) {
+        const nd = w.resourceNodes[k2];
+        if ((nd.kind === 'coal' || nd.kind === 'oil') && resourceControl[k2] >= 0) fossilCu.add(resourceControl[k2]);
+      }
+      fossil = 0;
+      for (let c = 0; c < N; c++) {
+        const p = cellPop[c]; if (!p) continue;
+        const d = cellDom[c]; if (d < 0 || vecTier(cultures[d].tech) < 4) continue;
+        const rk = w.resource ? RESOURCES[w.resource[c]] : null;
+        fossil += p * ((rk === 'coal' || rk === 'oil') ? 6 : fossilCu.has(d) ? 2.2 : 0.4);
+      }
+      const muscle = liveN * (1 + 0.6 * (liveN ? subPop[PKG_ID.pastoral] / liveN : 0));
+      fredPush('energy.food.capacity', 'Food capacity (people the land can feed)', 'Energetics', 'people', Math.round(foodCap));
+      fredPush('energy.food.security', 'Food security (capacity / population)', 'Energetics', 'ratio', +(liveN ? foodCap / liveN : 0).toFixed(3));
+      fredPush('energy.ind.muscle', 'Energy — muscle (human + draft)', 'Energetics', 'ppe', Math.round(muscle));
+      fredPush('energy.ind.wood', 'Energy — fuelwood', 'Energetics', 'ppe', Math.round(wood));
+      fredPush('energy.ind.water', 'Energy — watermills', 'Energetics', 'ppe', Math.round(waterP));
+      fredPush('energy.ind.fossil', 'Energy — fossil', 'Energetics', 'ppe', Math.round(fossil));
+      fredPush('energy.ind.total', 'Energy — total base', 'Energetics', 'ppe', Math.round(muscle + wood + waterP + fossil));
+      fredPush('energy.ind.perCapita', 'Energy per capita', 'Energetics', 'ppe/person', +(liveN ? (muscle + wood + waterP + fossil) / liveN : 0).toFixed(3));
+      // FRESH WATER BALANCE: how hard the water constraint is actually binding
+      let stressedPop = 0, wSum = 0, wPop = 0;
+      for (let c = 0; c < N; c++) { const p = cellPop[c]; if (!p) continue; wPop += p; wSum += waterMul[c] * p; if (waterMul[c] < 0.999) stressedPop += p; }
+      fredPush('water.stressedShare', 'Population under water stress', 'Fresh water', '% of population', +(wPop ? 100 * stressedPop / wPop : 0).toFixed(1));
+      fredPush('water.constraint', 'Water constraint on K (pop-weighted)', 'Fresh water', 'multiplier', +(wPop ? wSum / wPop : 1).toFixed(3));
+    }
+    // climate forcing (hash-safe: fred is never part of chronicleHash) — the schedule's
+    // current strength plus how much of the land it is actually touching
+    fredPush('climate.pulse', 'Climate forcing strength', 'Climate', 'index 0–1', +climate.lastPulse.toFixed(3));
+    { let aff = 0, landN = 0;
+      for (let c = 0; c < N; c++) { if (!w.land[c]) continue; landN++; if (climate.Kmod[c] !== 1 || climate.passability[c] !== 1) aff++; }
+      fredPush('climate.affected', 'Land under climate stress', 'Climate', '% of land cells', +(landN ? 100 * aff / landN : 0).toFixed(1)); }
     fredPush('gdp.inst.firm', 'Output — firms', 'Output × institution', 'wares', +outFirm.toFixed(1));
     fredPush('gdp.inst.guild', 'Output — guilds', 'Output × institution', 'wares', +outGuild.toFixed(1));
     fredPush('capital.inst.firm', 'Capital — firms', 'Capital × institution', 'wares', +capFirm.toFixed(1));
@@ -544,19 +657,20 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       if (r > topRep[0]) { let b = 0; while (b < K - 1 && topRep[b + 1] < r) { topId[b] = topId[b + 1]; topRep[b] = topRep[b + 1]; b++; } topId[b] = id; topRep[b] = r; }
     }
     const people = [];
-    for (let a = nt - 1; a >= 0; a--) { const id = topId[a]; people.push({ cell: A.cell[id], name: personName(id), cu: A.culture[id], rep: +A.status[id].toFixed(2), cred: A.cred[id], age: Math.round((tick - A.birthTick[id]) * ty) }); }
+    for (let a = nt - 1; a >= 0; a--) { const id = topId[a]; people.push({ cell: A.cell[id], name: personName(id, A.culture[id]), cu: A.culture[id], rep: +A.status[id].toFixed(2), cred: A.cred[id], age: Math.round((tick - A.birthTick[id]) * ty) }); }
     // migration flows accumulated since the last capture → the strongest edges, as flat
     // [fromCell, toCell, count, …]. The viewer floats travellers along these between frames.
     const edges = [...migAcc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 100);
     const mig = []; for (const [mk, ct] of edges) mig.push((mk / N) | 0, mk % N, ct); // from, to, count
     migAcc.clear();
-    chronicle.frames.push({ t: tick, pop: liveN, cell, popc, cu, sub, tier, pol, wlth, prc, bel, beliefs: beliefDict, people, mig, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
+    chronicle.frames.push({ t: tick, pop: liveN, clim: +climate.lastPulse.toFixed(3), cell, popc, cu, sub, tier, pol, wlth, prc, bel, beliefs: beliefDict, people, mig, cultures: { id: cid, sub: csub, tier: ctier, tech: ctech, lang: clang, size: csize } });
   }
 
   function step() {
     climate.step(tick, totalTicks);
     bucket();
     computeCellCultures();
+    cityStep();
 
     // recompute culture territory (partition by dominant cell) + reset member tallies
     for (let i = 0; i < cultures.length; i++) { cultMembers[i] = 0; cultTerritory[i] = null; }
@@ -980,6 +1094,8 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
   const isFrontier = (c, d) => { for (let k = w.nbrOff[c]; k < w.nbrOff[c + 1]; k++) { const j = w.nbrIdx[k]; const dj = cellDom[j]; if (dj >= 0 && dj !== d) return true; } return false; };
   const techBonus = tech => (has(tech, CAP.metallurgy) ? 0.35 : 0) + (has(tech, CAP.wheel) ? 0.2 : 0) + (has(tech, CAP.mechanisation) ? 0.7 : 0);
   const warCooldown = new Map(); // inst id → last-war tick (throttle events)
+  const siegeCooldown = new Map(); // city id → last-siege tick (throttle events)
+  const sackCooldown = new Map();  // city id → last-sack EVENT tick (counter stays exact)
   // the most-successful ruleset of each institution type becomes the exemplar new ones
   // imitate; it decays slowly so a new champion's ruleset can take over across eras.
   function recordExemplar(it, score) {
@@ -1107,7 +1223,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
         const gk = it.leader + '@' + A.birthTick[it.leader];
         if (!greatSeen.has(gk) && (A.flags[it.leader] & ALIVE)) {
           greatSeen.add(gk);
-          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader), culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, tick });
+          if (greatPeople.length < 400) greatPeople.push({ name: personName(it.leader, it.culture), pid: it.leader, culture: it.culture, rep: +it.leaderRep.toFixed(2), cred: A.cred[it.leader], role: INST_NAME[it.type], inst: it.name, landmass: w.landmass[it.seat], tick });
         }
       }
     }
@@ -1173,16 +1289,38 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const e = cellDom[best];
     const defWb = instAt.get(iKey(INST.WARBAND, best, e));
     const defStr = defWb != null && insts[defWb].dissolvedTick < 0 ? insts[defWb].strength : cellPop[best] * 0.45 * (1 + techBonus(cultures[e].tech));
-    if (wb.strength > defStr * (0.85 + 0.4 * R.war())) {
-      // conquest: annex the cell by converting/displacing a few of its residents to d
+    // walls shift the offense–defense balance (epoch 2): a fortified city multiplies
+    // effective defense. One roll decides both the outcome and the counterfactual
+    // ("would have fallen unwalled") that makes a failed assault a SIEGE.
+    const defCity = cityAt[best] >= 0 ? cityList[cityAt[best]] : null;
+    const wallMul = defCity && defCity.walls >= 0 ? 1.8 : 1;
+    const roll = 0.85 + 0.4 * R.war();
+    if (wb.strength > defStr * wallMul * roll) {
+      // conquest: annex the cell by converting/displacing residents — sacking a city
+      // is bloodier than taking a hamlet
       const s = cellStart[best], en = cellStart[best + 1]; let hit = 0;
-      for (let t = s; t < en && hit < 5; t++) { const rid = cellOrder[t]; if ((A.flags[rid] & ALIVE) && A.cell[rid] === best && A.culture[rid] === e) { if (R.war() < 0.5) A.culture[rid] = d; else kill(rid); hit++; } }
+      const hitMax = defCity ? 12 : 5;
+      for (let t = s; t < en && hit < hitMax; t++) { const rid = cellOrder[t]; if ((A.flags[rid] & ALIVE) && A.cell[rid] === best && A.culture[rid] === e) { if (R.war() < 0.5) A.culture[rid] = d; else kill(rid); hit++; } }
       wb.captures++; wb.pool *= 0.7; // spoils spent
+      if (defCity) {
+        defCity.sacked++; if (defCity.sackTicks.length < 12) defCity.sackTicks.push(tick);
+        // annals, not a kill-feed: a frontier city changing hands repeatedly logs once per era
+        if (tick - (sackCooldown.get(defCity.id) || -999) > 40) {
+          sackCooldown.set(defCity.id, tick);
+          pushEvent(tick, 'citySacked', { city: defCity.id, cell: best, culture: e, attacker: wb.name, attackerCulture: d, n: cellPop[best] });
+        }
+      }
       // record as history only the meaningful conquests — a named resource seized, or a
       // sampled land-grab — spaced per warband, so the log is annals not a kill-feed.
       if (hit && tick - (warCooldown.get(wb.id) || -999) > 80 && (bestRes || R.war() < 0.04)) {
         warCooldown.set(wb.id, tick);
         pushEvent(tick, 'war', { attacker: wb.name, attackerCulture: d, defenderCulture: e, cell: best, resource: bestRes ? RESOURCES[bestRes] : null, outcome: 'conquest' });
+      }
+    } else if (defCity && wallMul > 1 && wb.strength > defStr * roll) {
+      // the walls held: this assault would have carried an unwalled town
+      if (tick - (siegeCooldown.get(defCity.id) || -999) > 60) {
+        siegeCooldown.set(defCity.id, tick);
+        pushEvent(tick, 'citySiege', { city: defCity.id, cell: best, culture: e, attacker: wb.name, attackerCulture: d });
       }
     }
   }
@@ -1234,7 +1372,7 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const subDist = new Array(NPKG).fill(0);
     for (let i = 0; i < cultures.length; i++) {
       const cu = cultures[i], n = cultMembers[i] || 0; if (cu.extinct || n === 0) continue;
-      surviving.push({ id: i, size: n, sub: cu.sub, tier: vecTier(cu.tech), tech: cu.tech >>> 0, lang: cu.lang, landmass: cu.landmass, origin: cu.origin });
+      surviving.push({ id: i, name: namer.culture(i), size: n, sub: cu.sub, tier: vecTier(cu.tech), tech: cu.tech >>> 0, lang: cu.lang, landmass: cu.landmass, origin: cu.origin });
       subDist[cu.sub] += n;
     }
     for (let t = 0; t < liveN; t++) popByLand[w.landmass[A.cell[live[t]]]] += 1;
@@ -1243,14 +1381,89 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const polities = [];
     for (let i = 0; i < cultures.length; i++) {
       const cu = cultures[i]; if (!cu.everState) continue;
-      polities.push({ id: i, lang: cu.lang, parent: cu.parentCulture, landmass: cu.landmass,
+      polities.push({ id: i, name: namer.culture(i), lang: cu.lang, parent: cu.parentCulture, landmass: cu.landmass,
         rose: cu.firstStateTick, peakPop: cu.peakPop, peakTick: cu.peakTick, peakTerritory: cu.peakTerritory,
         peakTier: cu.peakTier, fell: cu.fellTick, alive: !cu.extinct && (cultMembers[i] || 0) > 0,
         size: cultMembers[i] || 0, sub: cu.sub, seat: cultBestCell[i] ?? cu.origin });
     }
     polities.sort((a, b) => b.peakPop - a.peakPop);
+    // FOUNDINGS (Phase III of civ/STRATEGY.md): the civ → polis handoff contract. Every
+    // culture that reached statehood is a city-founding — its seat cell, first-state tick,
+    // and a toponym in the founder's tongue. lon/lat (degrees) is the shared coordinate
+    // language: polis re-tiles the mappa world with its own mesh, so cell ids don't travel.
+    const foundings = polities.map(p => {
+      const seat = p.seat >= 0 ? p.seat : cultures[p.id].origin; // fell empty → homeland origin
+      const v = w.V[seat];
+      return {
+        culture: p.id, cultureName: p.name, city: namer.place(seat, p.id), cell: seat,
+        lon: +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(3),
+        lat: +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(3),
+        tick: p.rose, year: Math.round(p.rose * ty), tier: p.peakTier, peakPop: p.peakPop, alive: p.alive, landmass: w.landmass[seat],
+      };
+    });
     // named resources + who currently holds each
-    const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k] }));
+    const resources = (w.resourceNodes || []).map((nd, k) => ({ cell: nd.cell, kind: nd.kind, name: nd.name, holder: resourceControl[k], landmass: w.landmass[nd.cell] }));
+    // CITIES (epoch 2 — actors): entities with their history (walls, sieges survived
+    // as sackTicks, falls) and their CONTENTS: the institutions seated there. A city
+    // is an org OF orgs — the container is the city entity; the members are the
+    // guilds/firms/warbands/states at its cell (each with its own Phase-IV org
+    // address) plus the population itself.
+    const cityInsts = new Map(); // city id → [inst ids]
+    for (const it of insts) {
+      if (it.peakMembers <= 20) continue;
+      const ci = cityAt[it.seat]; if (ci < 0) continue;
+      let arr = cityInsts.get(ci); if (!arr) cityInsts.set(ci, arr = []);
+      if (arr.length < 12) arr.push(it.id);
+    }
+    const cities = cityList.map(ct => {
+      const v = w.V[ct.cell];
+      return {
+        id: ct.id, cell: ct.cell, name: namer.place(ct.cell, ct.cu), culture: ct.cu, cultureName: namer.culture(ct.cu),
+        namePack: namer.packFor ? namer.packFor(ct.cu) : null, // the culture's naming voice, for downstream notables
+        tick: ct.foundTick, year: Math.round(ct.foundTick * ty), pop: cellPop[ct.cell], peak: ct.peak,
+        walls: ct.walls >= 0, walledTick: ct.walls, sacked: ct.sacked, sackTicks: ct.sackTicks,
+        fell: ct.fellTick, alive: ct.fellTick < 0 && cellPop[ct.cell] >= Math.round(CITY_MIN * 0.5),
+        popSeries: ct.popSeries || [], // fred-cadence demographic envelope (see fredStep)
+        institutions: cityInsts.get(ct.id) || [],
+        landmass: w.landmass[ct.cell], river: !!(w.river && w.river[ct.cell]), coast: !!(w.coast && w.coast[ct.cell]),
+        resource: (w.resource && w.resource[ct.cell]) ? RESOURCES[w.resource[ct.cell]] : null,
+        lon: +(Math.atan2(v[1], v[0]) * 180 / Math.PI).toFixed(3),
+        lat: +(Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI).toFixed(3),
+      };
+    });
+    cities.sort((a, b) => b.peak - a.peak);
+    // continents, named — the filter axis every located object shares
+    const landmasses = Array.from({ length: w.nLandmass }, (_, i) => ({ id: i, name: namer.landmassName(i), pop: popByLand[i], cities: cities.filter(ct => ct.landmass === i).length }));
+    // ENERGETICS end-state, per continent — the gross budgets a mesoscale client
+    // refines (same accounting as the fred series; ppe = person-power equivalents)
+    const FORESTE = { 5: 1, 8: 1, 9: 1, 12: 0.8, 13: 0.9, 11: 0.3 };
+    const energyLand = Array.from({ length: w.nLandmass }, () => ({ pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0, waterStressed: 0 }));
+    const fossilCuF = new Set();
+    for (let k2 = 0; k2 < (w.resourceNodes || []).length; k2++) {
+      const nd = w.resourceNodes[k2];
+      if ((nd.kind === 'coal' || nd.kind === 'oil') && resourceControl[k2] >= 0) fossilCuF.add(resourceControl[k2]);
+    }
+    for (let c = 0; c < N; c++) {
+      const p = cellPop[c]; if (!p) continue;
+      const d = cellDom[c]; if (d < 0) continue;
+      const cu = cultures[d], L = energyLand[w.landmass[c]];
+      L.pop += p; L.muscle += p;
+      L.foodCapacity += kEff(c, cu.sub);
+      L.wood += p * (FORESTE[w.biome[c]] || 0) * 0.6;
+      if ((w.river[c] || w.lakeAdj[c]) && has(cu.tech, CAP.wheel) && has(cu.tech, CAP.masonry)) L.water += p * 0.5;
+      if (waterMul[c] < 0.999) L.waterStressed += p;
+      if (vecTier(cu.tech) >= 4) {
+        const rk = w.resource ? RESOURCES[w.resource[c]] : null;
+        L.fossil += p * ((rk === 'coal' || rk === 'oil') ? 6 : fossilCuF.has(d) ? 2.2 : 0.4);
+      }
+    }
+    const eW = { pop: 0, foodCapacity: 0, muscle: 0, wood: 0, water: 0, fossil: 0, waterStressed: 0 };
+    for (const L of energyLand) for (const k of Object.keys(eW)) { L[k] = Math.round(L[k]); eW[k] += L[k]; }
+    const energy = {
+      unit: 'ppe (person-power equivalents); foodCapacity in people-fed',
+      world: { ...eW, foodSecurity: +(eW.pop ? eW.foodCapacity / eW.pop : 0).toFixed(3) },
+      landmasses: energyLand.map((L, i) => ({ landmass: i, name: landmasses[i].name, ...L, foodSecurity: +(L.pop ? L.foodCapacity / L.pop : 0).toFixed(3) })),
+    };
     // the NOTABLE composite actors across the whole run — companies, guilds, armies,
     // states — alive or since-dissolved (warbands are transient, so a fought-and-fell host
     // is history too). Ranked by significance; each carries its alive/fell status.
@@ -1259,7 +1472,10 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
       .filter(it => it.type === INST.STATE ? it.peakMembers > 0 : it.type === INST.WARBAND ? it.captures >= 1 : it.peakMembers > 40)
       .sort((a, b) => notability(b) - notability(a))
       .slice(0, 140)
-      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat, members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
+      .map(it => ({ id: it.id, kind: INST_NAME[it.type], name: it.name, culture: it.culture, parent: it.parent, seat: it.seat,
+        // Phase IV: the org address parts. Consumers compose the seed as
+        // `${world}:${seatName}:${seat}:${kind}${id}` and open it at rite.mino.mobi/org/.
+        seatName: namer.place(it.seat, it.culture), org: INST_ORG[INST_NAME[it.type]], namePack: namer.packFor(it.culture), landmass: w.landmass[it.seat], members: it.memberCount, peak: it.peakMembers, pool: Math.round(it.pool), strength: Math.round(it.strength), captures: it.captures, reputation: +it.reputation.toFixed(2), leader: it.leader >= 0 ? personName(it.leader, it.culture) : null, capital: +it.capital.toFixed(1), output: +it.output.toFixed(1), rules: { tax: +it.rules.tax.toFixed(2), wage: +it.rules.wage.toFixed(2), merit: +it.rules.merit.toFixed(2), invest: +it.rules.invest.toFixed(2) }, founded: it.birthTick, fell: it.dissolvedTick, alive: it.dissolvedTick < 0 }));
     // the economy: wealth inequality (Gini), mean wealth, mean price, total output
     let totW = 0, maxW = 0; const wl = new Float64Array(liveN);
     for (let t = 0; t < liveN; t++) { const wv = A.wealth[live[t]]; wl[t] = wv; totW += wv; if (wv > maxW) maxW = wv; }
@@ -1273,12 +1489,17 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     const bFollow = new Float64Array(beliefs.length || 1);
     const bCult = beliefs.map(() => new Set()), bLand = beliefs.map(() => new Set());
     for (let t = 0; t < liveN; t++) { const id = live[t], b = A.belief[id]; if (b === BNONE) continue; bFollow[b]++; bCult[b].add(A.culture[id]); bLand[b].add(w.landmass[A.cell[id]]); }
-    const beliefsOut = beliefs.filter(B => bFollow[B.id] > 0).map(B => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
-    // history's great persons, most eminent first
-    const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120);
+    const beliefsOut = beliefs.filter(B => bFollow[B.id] > 0).map(B => ({ id: B.id, name: B.name, parent: B.parent, founderCulture: B.founderCulture, birthTick: B.birthTick, register: REGISTER[B.register], org: BELIEF_ORG[REGISTER[B.register]], landmass: (B.origin >= 0 && B.origin < N) ? w.landmass[B.origin] : -1, followers: bFollow[B.id], cultures: bCult[B.id].size, landmasses: bLand[B.id].size, peak: B.peak, lead: doxLabel(B.doctrine), doctrine: Object.fromEntries(DOX.map((n, i) => [n, +B.doctrine[i].toFixed(2)])) })).sort((a, b) => b.followers - a.followers).slice(0, 60);
+    // history's great persons, most eminent first — each a full rite/org person
+    // (Phase IV: triad, cast, vocation, quirks; deterministic from (civSeed, agent id))
+    const great = greatPeople.slice().sort((a, b) => b.rep - a.rep).slice(0, 120)
+      .map(g => ({ ...g, person: civPerson(seed, g.pid, g.role) }));
     return {
       pop: liveN,
-      cultures: surviving, polities, resources, institutions, economy,
+      // every culture ever, id-indexed — events reference cultures by id, so consumers
+      // (the timeline, external tooling) can name even the extinct ones
+      cultureNames: cultures.map((c, i) => namer.culture(i)),
+      cultures: surviving, polities, foundings, cities, landmasses, energy, resources, institutions, economy,
       beliefs: beliefsOut, beliefAxes: DOX,
       greatPeople: great, credNames: CRED,
       languages: languages.map(l => ({ id: l.id, parent: l.parent, birthTick: l.birthTick })),
@@ -1293,7 +1514,11 @@ export function createSim(worldInput, cfgInput, civSeed = 1) {
     get tick() { return tick; }, get population() { return liveN; },
     run(nTicks, opts = {}) {
       totalTicks = nTicks;
-      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, climate: (cfg.climate && cfg.climate.preset) || cfg.climate || 'stable' };
+      chronicle.meta = { civSeed: seed, ticks: nTicks, N, tickYears: ty, epoch: 3, climate: (cfg.climate && cfg.climate.preset) || cfg.climate || 'stable' };
+      // geo lookup for consumers (timeline continent filtering): cell → landmass.
+      // Deliberately OUTSIDE chronicleHash (events serialize e.landmass, so events must
+      // never gain the field retroactively — consumers map cells through this instead).
+      chronicle.geo = { cellLandmass: Array.from(w.landmass) };
       // FRED economic time-series: always captured, sampled to ~100 points across the run.
       chronicle.fred = { t: [], tickYears: ty, series: {} };
       fredEvery = Math.max(1, Math.floor(nTicks / 100));

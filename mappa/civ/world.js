@@ -17,7 +17,10 @@ import { NPKG, PKG_ID, subMult, pkgUnlocked } from './caps.js';
 // the ore, gems deep in the stable craton, salt in arid basins, and fertile deltas at
 // big river mouths. These become NAMED nodes that concentrate carrying capacity and
 // accelerate the tech they feed — objects worth settling on and (later) fighting over.
-export const RESOURCES = ['none', 'copper', 'iron', 'tin', 'gold', 'gems', 'salt', 'delta'];
+export const RESOURCES = ['none', 'copper', 'iron', 'tin', 'gold', 'gems', 'salt', 'delta', 'coal', 'oil'];
+// fossil fuels — ported from mappa/viewer.js computeMinerals (coal: paleo-swamp warm
+// wet lowlands; oil: low former-marine basins). The energy geography, siteable at last.
+export const RES_FOSSIL_IDS = [8, 9];
 export const RES = Object.fromEntries(RESOURCES.map((r, i) => [r, i]));
 export const RES_METAL = new Set([RES.copper, RES.iron, RES.tin]);   // → metallurgy / industry
 export const RES_WEALTH = new Set([RES.gold, RES.gems, RES.salt]);    // → trade / connectivity
@@ -200,7 +203,7 @@ export function loadCivWorld(world) {
 // mappa/viewer.js computeMinerals: plate-boundary distance separates arc (volcanic) from
 // craton (interior); volcanism marks the ore arcs; rivers carry placers.
 function computeResources(w) {
-  const { N, land, coast, lakeAdj, river, elev, moisture, biome, nbrOff, nbrIdx, volc, plate, seed } = w;
+  const { N, land, coast, lakeAdj, river, elev, moisture, biome, nbrOff, nbrIdx, volc, plate, seed, temperature } = w;
   const resource = new Uint8Array(N), resBonusK = new Float32Array(N).fill(1);
   if (!volc || !plate) return { resource, resourceNodes: [], resBonusK }; // data-fixture path: no geology → no minerals
   // hop-distance from a plate boundary over land → craton interior is far
@@ -221,10 +224,12 @@ function computeResources(w) {
     else if (river[i] && cr > 0.5) r = RES.gold;                    // cratonic river placer → gold
     else if (M < 0.16 && (lakeAdj[i] || e < 0.12)) r = RES.salt;    // arid basin → salt
     else if (cr > 0.85 && e > 0.35) r = RES.gems;                  // deep craton highland → gems
+    else if (e > 0 && e < 0.35 && (temperature ? temperature[i] : 15) > 12 && M > 0.55) r = RES.coal; // paleo-swamp → coal (viewer rule)
+    else if (e > 0 && e < 0.18 && M < 0.5) r = RES.oil;             // low former-marine basin → oil & gas
     resource[i] = r;
   }
   // pick prominent, spatially-separated NAMED nodes per type (like viewer's labelling)
-  const CAP_PER = { copper: 4, iron: 4, tin: 3, gold: 4, gems: 2, salt: 3, delta: 4 };
+  const CAP_PER = { copper: 4, iron: 4, tin: 3, gold: 4, gems: 2, salt: 3, delta: 4, coal: 4, oil: 3 };
   const nodes = [];
   for (let t = 1; t < RESOURCES.length; t++) {
     const cand = [];
@@ -237,7 +242,7 @@ function computeResources(w) {
       for (const nd of nodes) { const d = w.V[i][0] * w.V[nd.cell][0] + w.V[i][1] * w.V[nd.cell][1] + w.V[i][2] * w.V[nd.cell][2]; if (d > 0.985) { ok = false; break; } }
       if (!ok) continue;
       nodes.push({ cell: i, type: t, kind: RESOURCES[t], name: toponym(seed * 131 + i) });
-      resBonusK[i] = t === RES.delta ? 1.6 : 1.25; // resource sites hold denser populations
+      resBonusK[i] = t === RES.delta ? 1.6 : (t === RES.coal || t === RES.oil) ? 1.15 : 1.25; // resource sites hold denser populations
       if (++placed >= (CAP_PER[RESOURCES[t]] || 3)) break;
     }
   }
@@ -248,6 +253,8 @@ function scoreRes(t, i, w, craton) {
   if (t === RES.copper || t === RES.iron) return v;
   if (t === RES.tin || t === RES.gems) return craton(i) + w.elev[i];
   if (t === RES.gold || t === RES.salt) return craton(i);
+  if (t === RES.coal) return w.moisture[i] + (w.temperature ? Math.min(1, w.temperature[i] / 30) : 0.5);
+  if (t === RES.oil) return 1 - w.elev[i];
   return (w.river[i] ? 1 : 0) + (w.coast[i] ? 1 : 0);
 }
 

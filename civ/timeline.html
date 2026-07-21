@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>civ — timeline</title>
+<style>
+  :root{ --bg:#0a0e15; --panel:#121924; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; --good:#5bd18b; --bad:#e5686b; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:14px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  a{ color:var(--acc); }
+  header{ display:flex; align-items:center; gap:12px; padding:9px 16px; border-bottom:1px solid var(--edge); flex-wrap:wrap; }
+  header .brand{ font-weight:800; } header .brand .g{ color:var(--gold); }
+  header .crumb{ color:var(--dim); font-size:12px; }
+  header select,header input{ background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:7px; padding:5px 8px; font:inherit; }
+  header input[type=text]{ width:60px; } header input[type=number]{ width:72px; }
+  button{ background:var(--gold); color:#1a1206; border:0; border-radius:7px; padding:6px 12px; font-weight:700; cursor:pointer; }
+  button:disabled{ opacity:.5; cursor:wait; }
+  .status{ color:var(--dim); font-size:13px; min-height:20px; padding:6px 16px 0; }
+  .status .score{ color:var(--gold); font-weight:800; }
+  main{ max-width:900px; margin:0 auto; padding:10px 16px 80px; }
+  .modebar{ display:flex; gap:6px; margin:12px 0 4px; flex-wrap:wrap; align-items:center; }
+  .modebar b{ cursor:pointer; padding:5px 14px; border:1px solid var(--edge); border-radius:8px; color:var(--dim); font-weight:700; font-size:13px; user-select:none; }
+  .modebar b.on{ color:var(--gold); border-color:var(--gold); }
+  .modebar .note{ color:var(--dim); font-size:12px; margin-left:auto; }
+  .tl{ border-left:2px solid var(--edge); margin-left:64px; padding:8px 0 8px 0; }
+  .entry{ position:relative; padding:7px 0 7px 20px; }
+  .entry::before{ content:''; position:absolute; left:-6px; top:15px; width:10px; height:10px; border-radius:50%; background:var(--kc,#556); }
+  .entry .yr{ position:absolute; left:-72px; top:8px; width:56px; text-align:right; color:var(--dim); font-size:12px; font-variant-numeric:tabular-nums; }
+  .entry .kind{ display:inline-block; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; border-radius:5px; padding:0 6px; margin-right:7px; background:#0b0f16; border:1px solid var(--edge); color:var(--kc,#889); }
+  .entry .title{ font-weight:700; }
+  .entry .body{ color:var(--dim); font-size:13px; margin-top:1px; max-width:720px; }
+  .entry .body b{ color:var(--ink); }
+  @media(max-width:640px){ .tl{ margin-left:8px; } .entry .yr{ position:static; display:block; width:auto; text-align:left; margin-bottom:1px; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand"><span class="g">civ</span> timeline</span>
+  <span class="crumb"><a id="todash" href="/dash/">← dashboard</a> · <a id="toview" href="/view.html">▶ playground</a> · <a id="todev" href="/develop.html">⌗ development</a> · <a id="tofred" href="/fred.html">📊 FRED</a> · <a id="tomappa" href="https://mappa.mino.mobi/" target="_blank" rel="noopener">mappa ↗</a></span>
+  <select id="preset" title="preset"><option value="">default</option><option value="neolithic">neolithic</option><option value="kurgan" selected>kurgan</option><option value="bantu">bantu</option><option value="austronesian">austronesian</option><option value="americas">americas</option></select>
+  <label class="crumb">world <input id="world" type="text" value="7"></label>
+  <label class="crumb">seed <input id="civseed" type="number" value="1"></label>
+  <label class="crumb">ticks <input id="ticks" type="number" value="1000" step="100" min="200" max="1500"></label>
+    <select id="meshn" title="mesh resolution — cells the world is simulated on. Above 1200 the edge won't serve it; the run computes in your browser (⌂), slower but finer"><option value="900" selected>mesh 900</option><option value="1200">mesh 1200</option><option value="1600">mesh 1600 ⌂</option><option value="2400">mesh 2400 ⌂</option></select>
+  <input type="hidden" id="lastconfig">
+  <button id="load">Load run</button>
+</header>
+<div class="status" id="status">Loading a run…</div>
+
+<main>
+  <div class="modebar">
+    <b data-m="greatman" class="on">⚔ great man of history</b>
+    <b data-m="forces">⛰ sweep of historical forces</b>
+    <b data-m="tech">⚙ history of technology</b>
+    <select id="lmsel" title="filter to one continent (world-scale entries always shown)" style="background:#0b0f16;color:var(--ink);border:1px solid var(--edge);border-radius:7px;padding:4px 8px;font:inherit;font-size:12px"><option value="">all continents</option></select>
+    <span class="note" id="note"></span>
+  </div>
+  <div class="tl" id="tl"></div>
+</main>
+
+<script type="module">
+import { cachedFetch } from '/lib/civ-cache.js';
+const $=s=>document.querySelector(s);
+let DATA=null, mode='greatman';
+
+// kind → dot/chip colour (same family as the playground's event bar)
+const KC={ founding:'#d9a441', closing:'#d9a441', agriculture:'#5bd18b', industry:'#d9a441',
+  belief:'#c77dff', schism:'#e07ec2', polityRise:'#6fd0c0', polityFall:'#e5686b', collapse:'#e5686b',
+  war:'#e5686b', eminence:'#d9a441', institution:'#8fa8c7', stateFormation:'#6fd0c0',
+  crisis:'#e5686b', boom:'#5bd18b', resource:'#c7b16a', split:'#a98bd6', extinction:'#77808f',
+  migration:'#5aa9e6', admixture:'#5aa9e6', tech:'#c7b16a', demography:'#5aa9e6',
+  conversion:'#c77dff', rulesets:'#5bd18b', climate:'#7fb8d8',
+  techFirst:'#c7b16a', techIndep:'#d9a441', techSpread:'#8fa8c7', majorOrg:'#8fa8c7', city:'#6fd0c0',
+  sack:'#e5686b', siege:'#c7b16a', fall:'#77808f' };
+
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function render(){
+  const box=$('#tl'); box.innerHTML=''; if(!DATA) return;
+  const tl=DATA.timeline[mode]; if(!tl) return;
+  const lmv=$('#lmsel').value;
+  const rows=lmv===''?tl.entries:tl.entries.filter(e=>e.lm==null||e.lm===+lmv); // world-scale entries stay
+  $('#note').textContent = rows.length+(lmv===''?'':' of '+tl.count)+' entries'+(tl.trimmedFrom?(' (of '+tl.trimmedFrom+', most significant kept)'):'');
+  for(const e of rows){
+    const d=document.createElement('div'); d.className='entry'; d.style.setProperty('--kc',KC[e.kind]||'#889');
+    let extra='';
+    if(e.refs&&e.refs.org&&e.refs.seatName!=null){ // Phase IV org address → open the hierarchy, in its culture's voice
+      const seed=`${DATA.world}:${e.refs.seatName}:${e.refs.seat}:${e.refs.kind}${e.refs.inst}`;
+      const q2=new URLSearchParams({seed,vertical:e.refs.org.vertical,shape:e.refs.org.shape});
+      if(e.refs.namePack)q2.set('names',e.refs.namePack);
+      extra=` <a href="https://rite.mino.mobi/org/?${q2}" target="_blank" rel="noopener">org ↗</a>`;
+    }
+    d.innerHTML=`<span class="yr">yr ${e.year.toLocaleString()}</span>`
+      +`<span class="kind">${esc(e.kind)}</span><span class="title">${esc(e.title)}</span>`
+      +`<div class="body">${esc(e.body)}${extra}</div>`;
+    box.appendChild(d);
+  }
+}
+$('#lmsel').addEventListener('change',()=>{ try{ const p=new URLSearchParams(location.search); if($('#lmsel').value==='')p.delete('lm'); else p.set('lm',$('#lmsel').value); history.replaceState(null,'','?'+p); }catch(_){} render(); });
+
+document.querySelector('.modebar').addEventListener('click',e=>{
+  const b=e.target.closest('b[data-m]'); if(!b) return; mode=b.dataset.m;
+  document.querySelectorAll('.modebar b[data-m]').forEach(x=>x.classList.toggle('on',x===b));
+  try{ const p=new URLSearchParams(location.search); p.set('mode',mode); history.replaceState(null,'','?'+p); }catch(_){}
+  render();
+});
+
+// ---- URL liquidity (shared across views) ---------------------------------------
+function curState(){ return {world:$('#world').value.trim()||'7',preset:$('#preset').value,civSeed:$('#civseed').value||'1',ticks:$('#ticks').value||'1000', n:$('#meshn').value,config:$('#lastconfig').value||''}; }
+function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); if(st.n&&st.n!=='900')p.set('n',st.n); return p.toString(); }
+function mappaHref(w){ const m=String(w).match(/^(?:seed:)?(\d+)$/); return 'https://mappa.mino.mobi/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(w))); }
+function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/dash/?'+q; $('#toview').href='/view.html?'+q; $('#todev').href='/develop.html?'+q; $('#tofred').href='/fred.html?'+q; $('#tomappa').href=mappaHref(st.world); }
+function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); if(p.get('n')&&[...$('#meshn').options].some(o=>o.value===p.get('n')))$('#meshn').value=p.get('n'); if(['forces','greatman','tech'].includes(p.get('mode'))){ mode=p.get('mode'); document.querySelectorAll('.modebar b[data-m]').forEach(x=>x.classList.toggle('on',x.dataset.m===mode)); } }
+for(const id of ['#preset','#world','#civseed','#ticks','#meshn']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
+
+async function load(){
+  const st=curState(); const q=new URLSearchParams(qsOf(st)); q.set('mode','all');
+  try{ const p=new URLSearchParams(qsOf(st)); p.set('mode',mode); history.replaceState(null,'','?'+p); }catch(_){}
+  syncLinks();
+  $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks + writing the chronicle…';
+  try{
+    const {json,cached,local}=await cachedFetch('/api/civ/timeline?'+q);
+    DATA=json;
+    if(DATA.config){ $('#lastconfig').value=DATA.config; syncLinks(); }
+    // continent filter options (named landmasses, biggest first; empty ones omitted)
+    const sel=$('#lmsel'), keep=sel.value; sel.innerHTML='<option value="">all continents</option>';
+    for(const L of (DATA.landmasses||[]).filter(l=>l.pop>0).sort((a,b)=>b.pop-a.pop)){
+      const o=document.createElement('option'); o.value=L.id; o.textContent=`${L.name} — ${L.pop.toLocaleString()} pop, ${L.cities} cities`; sel.appendChild(o);
+    }
+    const pl=new URLSearchParams(location.search); if(pl.get('lm')&&[...sel.options].some(o=>o.value===pl.get('lm')))sel.value=pl.get('lm'); else if([...sel.options].some(o=>o.value===keep))sel.value=keep;
+    $('#status').innerHTML='run '+esc(DATA.hash)+' · '+DATA.ticks+' ticks · ~'+Math.round(DATA.ticks*DATA.tickYears).toLocaleString()+' years'+(cached?' · <b style="color:var(--good)">cached</b>':local?' · <b style="color:var(--good)">computed locally</b>':'');
+    render();
+  }catch(e){ $('#status').textContent='error: '+e.message; }
+  finally{ $('#load').disabled=false; }
+}
+$('#load').onclick=load;
+applyURL(); syncLinks(); load();
+</script>
+</body>
+</html>

@@ -40,6 +40,7 @@
   #scrub{ flex:1; }
   .tlabel{ font-variant-numeric:tabular-nums; color:var(--dim); min-width:150px; font-size:12px; }
   #track{ position:relative; height:14px; margin-top:6px; }
+  #climbar{ height:5px; border-radius:2px; margin-top:6px; background:#0b0f16; }
   #evbar{ position:absolute; inset:0; }
   #evbar i{ position:absolute; top:2px; width:2px; height:10px; border-radius:1px; }
   #status{ color:var(--dim); font-size:12px; }
@@ -50,7 +51,7 @@
 <div id="app">
   <header>
     <span class="brand"><span class="g">civ</span> particle playback</span>
-    <span class="crumb"><a id="todash" href="/" style="color:var(--acc)">← dashboard</a> · <a id="todev" href="/develop.html" style="color:var(--acc)">development</a> · <a id="tofred" href="/fred.html" style="color:var(--acc)">FRED</a> · <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener" style="color:var(--acc)">mappa ↗</a></span>
+    <span class="crumb"><a id="todash" href="/dash/" style="color:var(--acc)">← dashboard</a> · <a id="todev" href="/develop.html" style="color:var(--acc)">development</a> · <a id="tofred" href="/fred.html" style="color:var(--acc)">FRED</a> · <a id="totl" href="/timeline.html" style="color:var(--acc)">⧗ timeline</a> · <a id="tomappa" href="https://mappa.mino.mobi/" target="_blank" rel="noopener" style="color:var(--acc)">mappa ↗</a></span>
     <select id="preset" title="preset">
       <option value="">default</option><option value="neolithic">neolithic</option>
       <option value="kurgan">kurgan</option><option value="bantu">bantu</option>
@@ -59,6 +60,7 @@
     <label class="crumb">world <input id="world" type="text" value="7"></label>
     <label class="crumb">seed <input id="civseed" type="number" value="1"></label>
     <label class="crumb">ticks <input id="ticks" type="number" value="1000" step="100" min="200" max="1500"></label>
+    <select id="meshn" title="mesh resolution — cells the world is simulated on. Above 1200 the edge won't serve it; the run computes in your browser (⌂), slower but finer"><option value="900" selected>mesh 900</option><option value="1200">mesh 1200</option><option value="1600">mesh 1600 ⌂</option><option value="2400">mesh 2400 ⌂</option></select>
     <button id="load">Load run</button>
     <input type="hidden" id="lastconfig">
     <span id="status" class="grow"></span>
@@ -89,8 +91,10 @@
       <button id="fwd" title="play forward">▶▶</button>
       <input id="scrub" class="grow" type="range" min="0" max="0" value="0">
       <span class="tlabel" id="tlabel">—</span>
-      <select id="speed" title="speed"><option>2</option><option selected>6</option><option>12</option><option>20</option></select>
+      <select id="speed" title="playback speed (frames/sec)"><option>0.5</option><option>1</option><option>2</option><option selected>6</option><option>12</option><option>20</option></select>
+      <select id="frames" title="temporal detail — how many frames the run is captured into (fine = every ~5 ticks on a 1500-tick run)"><option value="48">coarse</option><option value="120">medium</option><option value="300" selected>fine</option></select>
     </div>
+    <div id="climbar" title="climate forcing across the run — steel = calm, amber = a climate event at full strength"></div>
     <div id="track"><div id="evbar"></div></div>
     <div id="status2" class="desc" style="margin-top:6px;color:var(--dim)"></div>
   </footer>
@@ -222,15 +226,27 @@ function star(ctx,cx,cy,ro,ri){ ctx.beginPath(); for(let i=0;i<10;i++){ const a=
 // ---- timeline / events ----------------------------------------------------------
 function drawEventBar(){
   const bar=$('#evbar'); bar.innerHTML=''; if(!DATA) return;
-  const T=DATA.ticks||1; const col={agriculture:'#5bd18b',industry:'#d9a441',migrationPulse:'#5aa9e6',cultureSplit:'#a98bd6',collapse:'#e5686b',stateFormation:'#6fd0c0',techUnlock:'#c7b16a',beliefFounded:'#c77dff',schism:'#e07ec2',financialCrisis:'#e5686b',marketBoom:'#5bd18b'};
+  const T=DATA.ticks||1; const col={agriculture:'#5bd18b',industry:'#d9a441',migrationPulse:'#5aa9e6',cultureSplit:'#a98bd6',collapse:'#e5686b',stateFormation:'#6fd0c0',techUnlock:'#c7b16a',beliefFounded:'#c77dff',schism:'#e07ec2',financialCrisis:'#e5686b',marketBoom:'#5bd18b',cityRise:'#6fd0c0',citySacked:'#e5686b',citySiege:'#c7b16a',cityFall:'#77808f'};
   for(const e of DATA.events){ const i=document.createElement('i'); i.style.left=(100*e.t/T)+'%'; i.style.background=col[e.type]||'#556'; i.title=`t${e.t} ${e.type}`+(e.cap?(' '+e.cap):'')+(e.package?(' '+e.package):''); bar.appendChild(i); }
+}
+// the polis-aspired climate ribbon: the forcing curve across the whole run, as a
+// gradient strip under the transport (frames carry a per-frame `clim` scalar)
+function drawClimateBar(){
+  const el=$('#climbar'); if(!DATA||!DATA.frames.length||!DATA.frames.some(f=>(f.clim||0)>0)){ el.style.display='none'; return; }
+  el.style.display='';
+  const n=DATA.frames.length, stops=[];
+  for(let i=0;i<n;i++){ const s=DATA.frames[i].clim||0;
+    stops.push(`hsl(${Math.round(210-170*s)} ${Math.round(28+52*s)}% ${Math.round(16+26*s)}%) ${(100*i/Math.max(1,n-1)).toFixed(2)}%`); }
+  el.style.background=`linear-gradient(90deg, ${stops.join(',')})`;
 }
 function frameLabel(){
   const f=DATA.frames[frame]; const yr=Math.round(f.t*(DATA.tickYears||2.5));
-  $('#tlabel').textContent=`t ${f.t} · ~${yr.toLocaleString()} yr · frame ${frame+1}/${DATA.frames.length} · pop ${f.pop.toLocaleString()}`;
+  $('#tlabel').textContent=`t ${f.t} · ~${yr.toLocaleString()} yr · frame ${frame+1}/${DATA.frames.length} · pop ${f.pop.toLocaleString()}`+((f.clim||0)>0.05?` · climate ${(f.clim*100)|0}%`:'');
   // nearby events feed
   const near=DATA.events.filter(e=>Math.abs(e.t-f.t)<=(DATA.frames[1]?DATA.frames[1].t-DATA.frames[0].t:40));
-  $('#status2').textContent = near.length ? ('near: '+near.slice(0,4).map(e=>e.type+(e.cap?(':'+e.cap):e.package?(':'+e.package):'')).join(' · ')) : '';
+  // quiet ticks keep a line of text so the layout never reflows when events blink out
+  const QUIET=['history grinds forward','the years pass unrecorded','seasons turn; nothing of note','the chroniclers are silent','fields are sown, fields are reaped','an uneventful age','the world holds its breath'];
+  $('#status2').textContent = near.length ? ('near: '+near.slice(0,4).map(e=>e.type+(e.cap?(':'+e.cap):e.package?(':'+e.package):'')).join(' · ')) : QUIET[f.t%QUIET.length];
 }
 
 // ---- inspector ------------------------------------------------------------------
@@ -325,17 +341,17 @@ $('#showres').addEventListener('change',render); $('#showppl').addEventListener(
 $('#fillmodes').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; fillMode=b.dataset.f; [...$('#fillmodes').children].forEach(x=>x.classList.toggle('on',x===b)); render(); });
 
 // ---- shared URL state (liquidity with the dashboard + mappa) --------------------
-function curState(){ return { world:$('#world').value.trim()||'7', preset:$('#preset').value, civSeed:$('#civseed').value||'1', ticks:$('#ticks').value||'1000', config:$('#lastconfig').value||'' }; }
-function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); return p.toString(); }
-function mappaHref(world){ const m=String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(world))); }
-function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/?'+q; $('#todev').href='/develop.html?'+q; $('#tofred').href='/fred.html?'+q; $('#tomappa').href=mappaHref(st.world); }
-function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); }
-for(const id of ['#preset','#world','#civseed','#ticks']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
+function curState(){ return { world:$('#world').value.trim()||'7', preset:$('#preset').value, civSeed:$('#civseed').value||'1', ticks:$('#ticks').value||'1000', n:$('#meshn').value, config:$('#lastconfig').value||'' }; }
+function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); if(st.n&&st.n!=='900')p.set('n',st.n); return p.toString(); }
+function mappaHref(world){ const m=String(world).match(/^(?:seed:)?(\d+)$/); return 'https://mappa.mino.mobi/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(world))); }
+function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/dash/?'+q; $('#todev').href='/develop.html?'+q; $('#tofred').href='/fred.html?'+q; $('#totl').href='/timeline.html?'+q; $('#tomappa').href=mappaHref(st.world); }
+function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); if(p.get('n')&&[...$('#meshn').options].some(o=>o.value===p.get('n')))$('#meshn').value=p.get('n'); if(p.get('frames')&&[...$('#frames').options].some(o=>o.value===p.get('frames')))$('#frames').value=p.get('frames'); }
+for(const id of ['#preset','#world','#civseed','#ticks','#meshn']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
 
 // ---- load -----------------------------------------------------------------------
 async function load(){
   const st=curState();
-  const q=new URLSearchParams(qsOf(st)); q.set('maxFrames','48'); q.delete('preset'); if(st.preset)q.set('preset',st.preset);
+  const q=new URLSearchParams(qsOf(st)); q.set('maxFrames',$('#frames').value||'300'); q.delete('preset'); if(st.preset)q.set('preset',st.preset);
   try{ history.replaceState(null,'','?'+qsOf(st)); }catch(e){} syncLinks(); // the URL is the permalink
   $('#load').disabled=true; $('#status').textContent='running '+st.ticks+' ticks + capturing frames…';
   try{
@@ -347,11 +363,12 @@ async function load(){
     BASE=1000; precomputeCells(); fit(); frame=0; pos=0; tween=0; sel=null; $('#inspect').style.display='none';
     $('#scrub').max=DATA.frames.length-1; $('#scrub').value=0;
     $('#status').innerHTML=`★${DATA.score} — ${DATA.descriptor}${cached?' · <b style="color:var(--good)">cached</b>':local?' · <b style="color:var(--good)">computed locally</b>':''}`;
-    drawEventBar(); buildLegend(); setFrame(0);
+    drawEventBar(); drawClimateBar(); buildLegend(); setFrame(0);
   }catch(e){ $('#status').textContent='error: '+e.message; }
   finally{ $('#load').disabled=false; }
 }
 $('#load').onclick=load;
+$('#frames').addEventListener('change',load); // temporal detail change → recapture
 addEventListener('resize',()=>{ resize(); if(DATA){ updateCellScreens(); render(); } });
 applyURL(); syncLinks();
 resize(); buildLegend(); requestAnimationFrame(loop); load();
