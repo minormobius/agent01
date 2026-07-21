@@ -7,6 +7,11 @@
 export function simulate_json(req: string): string;
 
 /**
+ * Play one tag round. Input: `TagReqDto` JSON. Output: `TagDto` JSON.
+ */
+export function simulate_tag_json(req: string): string;
+
+/**
  * Build/version banner so the page can confirm the wasm actually loaded.
  */
 export function solver_info(): string;
@@ -16,6 +21,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly simulate_json: (a: number, b: number, c: number) => void;
+    readonly simulate_tag_json: (a: number, b: number, c: number) => void;
     readonly solver_info: (a: number) => void;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number) => number;
