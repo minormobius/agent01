@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fipo",
+  "compatibility_date": "2026-07-19",
+  // fipo.mino.mobi — the bad sci-fi pitch archive. Phase 1 is /pitch: the
+  // pitch-genome engine (deterministic seeded sampler over the phase space of
+  // earnest failure). Assets-only worker, no build, no D1/AI/secrets;
+  // deploy-fipo.yml runs the engine selftest then `wrangler deploy` from here.
+  "assets": {
+    "directory": "."
+  },
+  "routes": [
+    { "pattern": "fipo.mino.mobi", "custom_domain": true }
+  ]
+}

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIPO /pitch — the pitch-genome archive</title>
+<meta name="description" content="A deterministic archive of pitches for bad science-fiction films that were never made. Every seed is a specimen; every specimen a point in the phase space of earnest failure.">
+<meta property="og:title" content="FIPO /pitch">
+<meta property="og:description" content="The genome of a bad sci-fi pitch, made explicit. One seed, one specimen.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📼</text></svg>">
+<style>
+  :root {
+    --ink: #e8e0cf;
+    --dim: #8a8272;
+    --faint: #5a544a;
+    --amber: #e8a33d;
+    --amber-soft: #b97f2e;
+    --cold: #6f88a8;
+    --bg: #0d0c0a;
+    --card: #14130f;
+    --line: #2a2721;
+    --mono: 'SF Mono', 'Cascadia Code', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
+  body {
+    background:
+      radial-gradient(1px 1px at 12% 22%, #ffffff22 50%, transparent 51%),
+      radial-gradient(1px 1px at 68% 8%,  #ffffff1c 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 84% 42%, #ffffff26 50%, transparent 51%),
+      radial-gradient(1px 1px at 34% 66%, #ffffff14 50%, transparent 51%),
+      radial-gradient(1px 1px at 52% 88%, #ffffff1a 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 92% 78%, #ffffff20 50%, transparent 51%),
+      radial-gradient(1px 1px at 6% 84%,  #ffffff18 50%, transparent 51%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 15px;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  a { color: var(--amber); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 18px 16px 80px; }
+
+  /* ---- crumb + controls ---- */
+  .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between; padding: 8px 0 16px; border-bottom: 1px solid var(--line); }
+  .crumb { font-size: 12px; letter-spacing: .12em; color: var(--dim); text-transform: uppercase; }
+  .crumb b { color: var(--ink); font-weight: 600; }
+  .controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .btn {
+    background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    font-family: var(--mono); font-size: 12px; padding: 5px 11px; cursor: pointer;
+    letter-spacing: .06em;
+  }
+  .btn:hover { border-color: var(--amber-soft); color: var(--amber); }
+  .btn.primary { border-color: var(--amber-soft); color: var(--amber); }
+  .seedin {
+    width: 96px; background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    font-family: var(--mono); font-size: 12px; padding: 5px 8px;
+  }
+  .seedin:focus { outline: 1px solid var(--amber-soft); }
+
+  /* ---- specimen head ---- */
+  .serial { margin-top: 26px; font-size: 11px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; }
+  .serial .chip { border: 1px solid var(--line); padding: 2px 8px; margin-left: 8px; color: var(--amber); }
+  .title { margin-top: 14px; font-size: clamp(34px, 7vw, 58px); line-height: 1.04; font-weight: 800; }
+  .tagline { margin-top: 12px; font-style: italic; color: var(--amber); font-size: clamp(14px, 2.6vw, 18px); }
+  .logline { margin-top: 18px; color: var(--ink); max-width: 62ch; }
+  .comps { margin-top: 10px; color: var(--dim); font-size: 13px; }
+  .comps b { color: var(--ink); font-weight: 600; }
+
+  /* era-locked title typography — the decade is visible at a glance */
+  .title[data-era="atomic50s"]  { font-family: Georgia, 'Times New Roman', serif; font-style: italic; letter-spacing: .01em; color: #e9f0dd; text-shadow: 0 0 22px #7fae4d55, 0 2px 0 #2c3a1e; }
+  .title[data-era="spaceage60s"] { font-family: 'Trebuchet MS', Verdana, sans-serif; letter-spacing: .14em; text-transform: uppercase; font-size: clamp(26px, 5.4vw, 44px); color: #f0b46a; text-shadow: 3px 3px 0 #59331a; }
+  .title[data-era="dystopia70s"] { font-family: Georgia, serif; letter-spacing: .02em; color: #d8b98a; text-shadow: 0 0 30px #7a5a2055; font-weight: 700; }
+  .title[data-era="vhs80s"] {
+    font-family: 'Arial Black', 'Helvetica Neue', sans-serif; font-style: italic; letter-spacing: .01em;
+    background: linear-gradient(180deg, #fdfdfd 0%, #b8c4d4 34%, #5b6b86 50%, #dfe8f4 54%, #8fa0bd 78%, #e8eef8 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #dfe8f4;
+    filter: drop-shadow(0 3px 0 #1a2030) drop-shadow(0 0 18px #5b7bd533);
+  }
+  .title[data-era="dtv90s"] { font-family: var(--mono); letter-spacing: .04em; color: #7ff0e8; text-shadow: 0 0 12px #19e8d8aa, 0 0 42px #c83cf055; }
+  .title[data-era="mock00s"] { font-family: 'Arial Black', Impact, sans-serif; text-transform: uppercase; letter-spacing: .02em; color: #f2f2f2; text-shadow: 0 0 2px #000, 4px 4px 0 #a01212; transform: skew(-4deg); }
+  .title[data-era="stream10s"] { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 300; letter-spacing: .3em; text-transform: uppercase; font-size: clamp(22px, 4.6vw, 38px); color: #cfd2d8; }
+
+  /* ---- phase space plot ---- */
+  .phasespace { margin-top: 30px; border: 1px solid var(--line); background: var(--card); padding: 14px 16px 8px; }
+  .phasespace h3, .dossier h3 { font-size: 11px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; font-weight: 600; }
+  .phasespace svg { display: block; width: 100%; height: auto; margin-top: 6px; }
+  .ps-note { font-size: 11px; color: var(--faint); padding: 4px 0 8px; }
+
+  /* ---- dossier ---- */
+  .dossier { margin-top: 26px; border: 1px solid var(--line); background: var(--card); }
+  .dossier > header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+  .dossier > header .region { font-size: 12px; color: var(--amber); }
+  .sect { border-bottom: 1px solid var(--line); padding: 12px 16px; }
+  .sect:last-child { border-bottom: 0; }
+  .sect h4 { font-size: 10px; letter-spacing: .28em; color: var(--faint); text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
+  .row { display: grid; grid-template-columns: 150px 1fr; gap: 4px 14px; padding: 3px 0; }
+  .row .k { color: var(--faint); font-size: 12px; padding-top: 1px; }
+  .row .v { color: var(--ink); }
+  .row .v .gloss { color: var(--dim); font-size: 12.5px; }
+  .commit { color: var(--amber); }
+  .commit::before { content: '⚠ '; color: var(--amber-soft); }
+
+  /* axes bars */
+  .axis { display: grid; grid-template-columns: 110px 1fr 44px; gap: 10px; align-items: center; padding: 3px 0; font-size: 12px; }
+  .axis .name { color: var(--faint); letter-spacing: .1em; text-transform: uppercase; font-size: 10.5px; }
+  .axis .bar { height: 9px; background: #1e1c17; border: 1px solid var(--line); position: relative; }
+  .axis .fill { position: absolute; inset: 0; width: 0; background: linear-gradient(90deg, var(--amber-soft), var(--amber)); }
+  .axis.low .fill { background: linear-gradient(90deg, #4a5a72, var(--cold)); }
+  .axis .num { color: var(--dim); text-align: right; }
+
+  /* failure modes */
+  .fail { padding: 7px 0; border-top: 1px dashed var(--line); }
+  .fail:first-of-type { border-top: 0; }
+  .fail .fl { color: var(--amber); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+  .fail .fr { color: var(--dim); margin-top: 2px; }
+  .clean { color: var(--dim); font-style: italic; }
+
+  details.raw { margin-top: 26px; border: 1px solid var(--line); background: var(--card); }
+  details.raw summary { cursor: pointer; padding: 12px 16px; font-size: 11px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; }
+  details.raw pre { padding: 0 16px 16px; font-size: 11.5px; line-height: 1.5; color: var(--dim); overflow-x: auto; }
+
+  footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; }
+  footer p { margin-bottom: 8px; max-width: 68ch; }
+  kbd { border: 1px solid var(--line); padding: 0 4px; font-size: 11px; color: var(--dim); }
+
+  /* ---- the poster card: typography pass over the painting slot ---- */
+  .postercard { margin-top: 30px; display: grid; grid-template-columns: minmax(240px, 340px) 1fr; gap: 20px; align-items: start; }
+  .poster {
+    position: relative; aspect-ratio: 27 / 40; border: 1px solid var(--line);
+    background:
+      radial-gradient(1px 1px at 18% 12%, #ffffff30 50%, transparent 51%),
+      radial-gradient(1px 1px at 62% 22%, #ffffff28 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 82% 8%,  #ffffff38 50%, transparent 51%),
+      radial-gradient(1px 1px at 38% 32%, #ffffff1e 50%, transparent 51%),
+      radial-gradient(1px 1px at 8% 44%,  #ffffff22 50%, transparent 51%),
+      linear-gradient(180deg, #101426 0%, #1a1230 55%, #2a1020 100%);
+    overflow: hidden; box-shadow: 0 10px 40px #00000088;
+  }
+  .poster img.painting { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .painting-pending {
+    position: absolute; left: 12%; right: 12%; top: 30%; text-align: center;
+    color: #8a8272; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; line-height: 2;
+  }
+  .painting-pending b { display: block; color: #5a544a; }
+  .ptype { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 7% 6% 5%; pointer-events: none; }
+  .ptag { text-align: center; font-style: italic; color: var(--amber); font-size: clamp(9px, 1.6vw, 12px); text-shadow: 0 1px 3px #000; }
+  .ptitle-wrap { text-align: center; }
+  .ptitle { font-weight: 800; font-size: clamp(20px, 4vw, 30px); line-height: 1.05; text-shadow: 0 2px 6px #000; }
+  .ptitle[data-era="atomic50s"]  { font-family: Georgia, serif; font-style: italic; color: #e9f0dd; text-shadow: 0 0 14px #7fae4d88, 0 2px 0 #2c3a1e; }
+  .ptitle[data-era="spaceage60s"] { font-family: 'Trebuchet MS', Verdana, sans-serif; letter-spacing: .12em; text-transform: uppercase; font-size: clamp(15px, 3vw, 22px); color: #f0b46a; text-shadow: 2px 2px 0 #59331a; }
+  .ptitle[data-era="dystopia70s"] { font-family: Georgia, serif; color: #d8b98a; text-shadow: 0 0 18px #7a5a2077, 0 2px 4px #000; }
+  .ptitle[data-era="vhs80s"] {
+    font-family: 'Arial Black', sans-serif; font-style: italic;
+    background: linear-gradient(180deg, #fdfdfd 0%, #b8c4d4 34%, #5b6b86 50%, #dfe8f4 54%, #8fa0bd 78%, #e8eef8 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #dfe8f4;
+    filter: drop-shadow(0 2px 0 #1a2030) drop-shadow(0 0 10px #5b7bd555);
+  }
+  .ptitle[data-era="dtv90s"] { font-family: var(--mono); color: #7ff0e8; text-shadow: 0 0 10px #19e8d8aa, 0 0 30px #c83cf088; }
+  .ptitle[data-era="mock00s"] { font-family: 'Arial Black', Impact, sans-serif; text-transform: uppercase; color: #f2f2f2; text-shadow: 3px 3px 0 #a01212; transform: skew(-4deg); }
+  .ptitle[data-era="stream10s"] { font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 300; letter-spacing: .26em; text-transform: uppercase; font-size: clamp(13px, 2.6vw, 20px); color: #cfd2d8; }
+  .pbill { text-align: center; color: #cfd2d8; }
+  .pbill .studio { font-size: clamp(7px, 1.2vw, 9px); letter-spacing: .2em; text-transform: uppercase; color: #b9b2a2; }
+  .pbill .stars { margin-top: 4px; font-size: clamp(8px, 1.4vw, 11px); letter-spacing: .12em; text-transform: uppercase; color: #e8e0cf; }
+  .pbill .block { margin-top: 5px; font-size: clamp(5px, 0.9vw, 7px); letter-spacing: .04em; line-height: 1.7; color: #a49d8d; text-transform: uppercase; transform: scaleY(1.15); }
+  .pbill .marks { margin-top: 5px; display: flex; justify-content: center; gap: 8px; align-items: center; font-size: clamp(6px, 1vw, 8px); letter-spacing: .12em; color: #b9b2a2; }
+  .pbill .rating { border: 1px solid #b9b2a2; padding: 1px 5px; color: #e8e0cf; }
+  .pnotes h3 { font-size: 11px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; font-weight: 600; margin-bottom: 10px; }
+  .pnotes .note { font-size: 12.5px; color: var(--dim); margin-bottom: 10px; }
+  .pnotes details { border: 1px solid var(--line); background: var(--card); }
+  .pnotes summary { cursor: pointer; padding: 10px 12px; font-size: 10px; letter-spacing: .25em; color: var(--dim); text-transform: uppercase; }
+  .pnotes pre { padding: 0 12px 12px; font-size: 11px; line-height: 1.55; color: var(--dim); white-space: pre-wrap; }
+
+  @media (max-width: 720px) {
+    .postercard { grid-template-columns: 1fr; }
+    .poster { max-width: 340px; margin: 0 auto; }
+  }
+
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 1fr; gap: 0; }
+    .row .k { padding-top: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">fipo</a> / <b>pitch</b></div>
+    <div class="controls">
+      <button class="btn" id="prev" title="previous specimen [←]">◂ prev</button>
+      <button class="btn primary" id="rand" title="random specimen [r]">⚂ random</button>
+      <button class="btn" id="next" title="next specimen [→]">next ▸</button>
+      <input class="seedin" id="seed" inputmode="numeric" placeholder="seed №">
+      <button class="btn" id="go">go</button>
+      <button class="btn" id="link" title="copy permalink">⧉ link</button>
+    </div>
+  </div>
+
+  <div class="serial">SPECIMEN <span id="serial"></span> · PITCH GENOME <span class="chip" id="erachip"></span></div>
+  <h1 class="title" id="title" data-era=""></h1>
+  <div class="tagline" id="tagline"></div>
+  <p class="logline" id="logline"></p>
+  <p class="comps">the pitch meeting: <b id="comps"></b></p>
+
+  <div class="postercard">
+    <div class="poster" id="poster">
+      <img class="painting" id="painting" alt="" style="display:none">
+      <div class="painting-pending" id="pending"><b>Painting pending</b>the projection prompt is assembled ·<br>renders run in Actions</div>
+      <div class="ptype">
+        <div class="ptag" id="ptag"></div>
+        <div class="ptitle-wrap"><div class="ptitle" id="ptitle" data-era=""></div></div>
+        <div class="pbill">
+          <div class="studio" id="pstudio"></div>
+          <div class="stars" id="pstars"></div>
+          <div class="block" id="pblock"></div>
+          <div class="marks"><span id="peramark"></span><span class="rating" id="prating"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="pnotes">
+      <h3>THE PROJECTION — phase 3, in progress</h3>
+      <div class="note" id="pbrief"></div>
+      <div class="note" id="pflaws"></div>
+      <div class="note" id="pprojfail"></div>
+      <details>
+        <summary>The assembled prompt (versioned template, genome-traced slots)</summary>
+        <pre id="pprompt"></pre>
+      </details>
+    </div>
+  </div>
+
+  <div class="phasespace">
+    <h3>Position in the phase space</h3>
+    <svg id="plot" viewBox="0 0 640 300" role="img" aria-label="Phase-space plot: earnestness versus competence"></svg>
+    <div class="ps-note">x: earnestness → · y: competence → · dot size: ambition · amber: sincere · blue: cynical · the shaded corner is where the archive lives. Faint dots: this session’s trail.</div>
+  </div>
+
+  <div class="dossier">
+    <header>
+      <h3>THE GENOME — full readout</h3>
+      <span class="region" id="region"></span>
+    </header>
+
+    <div class="sect"><h4>01 · Production context</h4><div id="s-production"></div></div>
+    <div class="sect"><h4>02 · Causal order — what came first</h4><div id="s-causal"></div></div>
+    <div class="sect"><h4>03 · Derivation — what they’re ripping off</h4><div id="s-derivation"></div></div>
+    <div class="sect"><h4>04 · The novum — the gimmick</h4><div id="s-novum"></div></div>
+    <div class="sect"><h4>05 · Dramatis — who’s in it</h4><div id="s-dramatis"></div></div>
+    <div class="sect"><h4>06 · Geometry of stakes</h4><div id="s-geometry"></div></div>
+    <div class="sect"><h4>07 · The commitment</h4><div id="s-commitment"></div></div>
+    <div class="sect"><h4>08 · The soul — continuous coordinates</h4><div id="s-soul"></div></div>
+    <div class="sect"><h4>09 · Failure modes flagged</h4><div id="s-failures"></div></div>
+  </div>
+
+  <details class="raw">
+    <summary>Raw genome (JSON)</summary>
+    <pre id="rawjson"></pre>
+  </details>
+
+  <footer>
+    <p><b>FIPO</b> — an archive of pitches for bad science-fiction films that were never made. Bad cinema is not noise: it is a small, structured region of movie-space — the space of pitches somebody thought would sell. Every seed addresses one specimen, deterministically, forever. <kbd>←</kbd> <kbd>→</kbd> walk the archive; <kbd>r</kbd> jumps.</p>
+    <p>This is the archive in three movements: the <b>genome</b> (above — every field of the pitch, derived), the <b>projection</b> (the one-sheet a producer would have made of it: the painting prompt assembled from genome-traced slots, the type pass composited deterministically — renders run in Actions), and the <b>judge</b> (pairwise, genome-in-context: coherence and sincerity, keeping the model in the second-tier region where incompetence is trained, never winked at).</p>
+  </footer>
+</div>
+
+<script src="engine.js"></script>
+<script src="../poster/project.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  };
+  var trail = []; // session history for the phase-space plot
+
+  function row(k, v, gloss) {
+    return '<div class="row"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) +
+      (gloss ? ' <span class="gloss">— ' + esc(gloss) + '</span>' : '') + '</div></div>';
+  }
+  function axis(name, v, lowIsGood) {
+    var pct = Math.round(v * 100);
+    return '<div class="axis' + (lowIsGood ? ' low' : '') + '"><div class="name">' + esc(name) + '</div>' +
+      '<div class="bar"><div class="fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="num">' + pct + '</div></div>';
+  }
+
+  function drawPlot(g) {
+    var W = 640, H = 300, P = 34;
+    var x = function (v) { return P + v * (W - P - 14); };
+    var y = function (v) { return H - P - v * (H - P - 14); };
+    var s = '';
+    // the interesting corner: high earnestness, low competence
+    s += '<rect x="' + x(0.55) + '" y="' + y(0.45) + '" width="' + (x(1) - x(0.55)) + '" height="' + (y(0) - y(0.45)) + '" fill="#e8a33d" opacity="0.07"></rect>';
+    s += '<text x="' + (x(1) - 6) + '" y="' + (y(0.45) + 14) + '" fill="#e8a33d" opacity="0.55" font-size="10" text-anchor="end" font-family="inherit">the interesting corner</text>';
+    // axes
+    s += '<line x1="' + P + '" y1="' + (H - P) + '" x2="' + (W - 14) + '" y2="' + (H - P) + '" stroke="#2a2721"></line>';
+    s += '<line x1="' + P + '" y1="' + (H - P) + '" x2="' + P + '" y2="' + 14 + '" stroke="#2a2721"></line>';
+    s += '<text x="' + (W - 16) + '" y="' + (H - P + 18) + '" fill="#5a544a" font-size="10" text-anchor="end">earnestness →</text>';
+    s += '<text x="' + (P + 4) + '" y="' + 20 + '" fill="#5a544a" font-size="10">↑ competence</text>';
+    // trail
+    for (var i = 0; i < trail.length; i++) {
+      var t = trail[i];
+      s += '<circle cx="' + x(t.soul.earnestness) + '" cy="' + y(t.soul.competence) + '" r="' + (2 + t.soul.ambition * 3) +
+        '" fill="' + (t.soul.sincerity > 0.45 ? '#e8a33d' : '#6f88a8') + '" opacity="0.16"></circle>';
+    }
+    // current specimen
+    s += '<circle cx="' + x(g.soul.earnestness) + '" cy="' + y(g.soul.competence) + '" r="' + (4 + g.soul.ambition * 5) +
+      '" fill="' + (g.soul.sincerity > 0.45 ? '#e8a33d' : '#6f88a8') + '" opacity="0.9"></circle>';
+    s += '<circle cx="' + x(g.soul.earnestness) + '" cy="' + y(g.soul.competence) + '" r="' + (8 + g.soul.ambition * 5) +
+      '" fill="none" stroke="' + (g.soul.sincerity > 0.45 ? '#e8a33d' : '#6f88a8') + '" stroke-opacity="0.35"></circle>';
+    $('plot').innerHTML = s;
+  }
+
+  function render(seed) {
+    var g = FIPO.generate(seed);
+    trail.push(g);
+    if (trail.length > 60) trail.shift();
+
+    $('serial').textContent = '№ ' + seed;
+    $('erachip').textContent = g.production.era.span;
+    var t = $('title');
+    t.textContent = g.title.text;
+    t.setAttribute('data-era', g.production.era.id);
+    document.title = 'FIPO /pitch №' + seed + ' — ' + g.title.text;
+    $('tagline').textContent = '“' + g.tagline + '”';
+    $('logline').textContent = g.logline;
+    $('comps').textContent = g.comps.line;
+    $('region').textContent = g.region.name + ' — ' + g.region.desc;
+
+    $('s-production').innerHTML =
+      row('era', g.production.era.label + ' (' + g.production.era.span + ')', 'anxieties: ' + g.production.era.anxiety) +
+      row('milieu', g.production.milieu.label, g.production.milieu.blurb) +
+      row('budget', g.production.budget.label, g.production.budget.blurb) +
+      row('sales window', g.production.window);
+
+    $('s-causal').innerHTML = row('first mover', g.causal.label, g.causal.blurb);
+
+    $('s-derivation').innerHTML = g.derivation
+      ? row('target', g.derivation.target.n, g.derivation.visionary ? 'a target no court would recognize' : '') +
+        row('distance', g.derivation.distance.label, g.derivation.distance.blurb) +
+        row('lost in transcription', g.derivation.loss)
+      : row('target', 'none — pure vision', 'nothing to transcribe; the auteur answers only to the void');
+
+    $('s-novum').innerHTML =
+      row('category', g.novum.cat) +
+      row('premise', g.novum.premise);
+
+    $('s-dramatis').innerHTML =
+      row('hero', g.dramatis.hero) +
+      row('star vehicle', g.dramatis.star.label, g.dramatis.miscast ? 'miscast: the contract predates the character' : 'within range') +
+      (g.dramatis.sidekick ? row('sidekick', g.dramatis.sidekick) : '');
+
+    $('s-geometry').innerHTML =
+      row('stakes', g.geometry.stakes.label) +
+      row('actual venue', g.geometry.venue.label) +
+      row('scale gap', g.geometry.gap >= 4 ? g.geometry.gap + ' — the venue cannot see the stakes from where it stands' : String(g.geometry.gap));
+
+    $('s-commitment').innerHTML = g.commitment.map(function (c) {
+      return '<div class="commit">' + esc(c.text) + '</div>';
+    }).join('');
+
+    $('s-soul').innerHTML =
+      axis('earnestness', g.soul.earnestness) +
+      axis('competence', g.soul.competence, true) +
+      axis('ambition', g.soul.ambition) +
+      axis('sincerity', g.soul.sincerity) +
+      axis('budget', g.soul.budget) +
+      row('region', g.region.name, g.region.desc);
+
+    $('s-failures').innerHTML = g.failures.length
+      ? g.failures.map(function (f) {
+          return '<div class="fail"><div class="fl">' + esc(f.label) + '</div><div class="fr">' + esc(f.reason) + '</div></div>';
+        }).join('')
+      : '<div class="clean">none flagged — suspiciously viable. investigate further.</div>';
+
+    $('rawjson').textContent = JSON.stringify(g, null, 2);
+    drawPlot(g);
+
+    /* ---- the projection: typography pass + prompt assembly ---- */
+    var p = FIPO_POSTER.project(g);
+    var ty = p.typography;
+    $('ptag').textContent = '“' + ty.tagline + '”';
+    var pt = $('ptitle');
+    pt.textContent = ty.title;
+    pt.setAttribute('data-era', ty.era);
+    $('pstudio').textContent = ty.studio + ' presents';
+    $('pstars').textContent = ty.starring + ' · ' + ty.coStar + (ty.andIntroducing ? ' · and introducing ' + ty.andIntroducing : '');
+    $('pblock').textContent =
+      'a ' + ty.director + ' film · ' + g.dramatis.star.label + ' as ' + g.dramatis.hero.replace(/^(a|an|the) /, '') +
+      ' · music by ' + ty.coStar.split(' ')[0] + ' ' + ty.producer.split(' ').pop() +
+      ' · screenplay by ' + ty.director + ' · produced by ' + ty.producer +
+      ' · directed by ' + ty.director;
+    $('peramark').textContent = ty.eraMark;
+    $('prating').textContent = ty.rating;
+
+    var img = $('painting'), pend = $('pending');
+    pend.style.display = '';
+    img.style.display = 'none';
+    img.onerror = function () { img.style.display = 'none'; pend.style.display = ''; };
+    img.onload = function () { img.style.display = ''; pend.style.display = 'none'; };
+    img.src = '../poster/img/' + seed + '.png';
+
+    $('pbrief').innerHTML = '<b style="color:#e8a33d">' + esc(p.brief.fidelityLabel) + '.</b> The artist was told: ' + esc(p.brief.text) + '.';
+    $('pflaws').textContent = 'Sampled incompetence (configurations, never adjectives): ' + p.flaws.map(function (f) { return f.text; }).join('; ') + '.';
+    $('pprojfail').innerHTML = p.projectionFailures.length
+      ? p.projectionFailures.map(function (f) { return '<span style="color:#e8a33d">' + esc(f.label) + '</span> — ' + esc(f.reason); }).join('<br>')
+      : 'The projection survives intact — this one is the pitch’s own problem.';
+    $('pprompt').textContent = 'PROMPT_VERSION ' + p.promptVersion + '\n\n' + p.prompt;
+  }
+
+  function currentSeed() {
+    var m = location.search.match(/[?&]s=(-?\d+)/) || location.hash.match(/s=(-?\d+)/);
+    if (m) return parseInt(m[1], 10);
+    return Math.floor(Math.random() * 2147483647); // nav's random picker — the only unseeded roll allowed
+  }
+  var seed = currentSeed();
+
+  function go(n) {
+    seed = ((n % 2147483647) + 2147483647) % 2147483647;
+    history.replaceState(null, '', '?s=' + seed);
+    $('seed').value = '';
+    render(seed);
+  }
+
+  $('prev').onclick = function () { go(seed - 1); };
+  $('next').onclick = function () { go(seed + 1); };
+  $('rand').onclick = function () { go(Math.floor(Math.random() * 2147483647)); };
+  $('go').onclick = function () {
+    var v = parseInt($('seed').value, 10);
+    if (!isNaN(v)) go(v);
+  };
+  $('seed').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('go').click(); });
+  $('link').onclick = function () {
+    var url = location.origin + location.pathname + '?s=' + seed;
+    (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
+      .then(function () { $('link').textContent = '✓ copied'; setTimeout(function () { $('link').textContent = '⧉ link'; }, 1200); })
+      .catch(function () { prompt('permalink:', url); });
+  };
+  document.addEventListener('keydown', function (e) {
+    if (e.target === $('seed')) return;
+    if (e.key === 'ArrowLeft') go(seed - 1);
+    if (e.key === 'ArrowRight') go(seed + 1);
+    if (e.key === 'r') $('rand').click();
+  });
+
+  render(seed);
+})();
+</script>
+</body>
+</html>

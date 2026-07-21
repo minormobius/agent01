@@ -1,0 +1,178 @@
+{
+  "seed": 94,
+  "promptVersion": 2,
+  "model": "pollinations-flux (sandbox test render)",
+  "quality": "n/a",
+  "note": "rendered from the sandbox via the public pollinations endpoint to test second-tier prompt behavior; production renders use render-fipo-posters.yml (gpt-image-1). Prompt shown is v2; the test render used v1 (pre-glyph-guardrail).",
+  "genome": {
+    "schema": 1,
+    "seed": 94,
+    "soul": {
+      "believer": true,
+      "earnestness": 0.5571263663703576,
+      "sincerity": 0.8227461986243725,
+      "competence": 0.07906327482508468,
+      "ambition": 0.42910423144930976,
+      "budget": 0.5851528787845746
+    },
+    "causal": {
+      "id": "footage-first",
+      "label": "the footage came first",
+      "blurb": "an import, an abandoned production, a nature documentary — wrapped in new material and a new plot"
+    },
+    "region": {
+      "id": "humble",
+      "name": "the humble oddity",
+      "desc": "believes completely, reaches modestly"
+    },
+    "derivation": {
+      "target": {
+        "n": "Ghostbusters",
+        "y": 1984
+      },
+      "distance": {
+        "d": 2,
+        "label": "recognizably descended",
+        "blurb": "the lineage is visible to anyone who has seen a movie"
+      },
+      "loss": "the budget"
+    },
+    "novum": {
+      "cat": "robot",
+      "premise": "a household robot learns love from daytime television and applies it incorrectly",
+      "short": "the robot learned love from television",
+      "noun": "Love Bot",
+      "nounPl": "Love Bots"
+    },
+    "dramatis": {
+      "hero": "a mall Santa with a secret",
+      "star": {
+        "label": "a supermodel between campaigns",
+        "miscast": true
+      },
+      "miscast": true,
+      "sidekick": null
+    },
+    "threat": {
+      "label": "the plants",
+      "noun": "the Plants"
+    },
+    "geometry": {
+      "stakes": {
+        "rank": 6,
+        "label": "the galaxy"
+      },
+      "venue": {
+        "rank": 1,
+        "label": "a shopping mall"
+      },
+      "gap": 5
+    },
+    "commitment": [
+      {
+        "text": "All computers are walls of blinking lights and reel-to-reel tape, even the pocket ones."
+      }
+    ],
+    "production": {
+      "era": {
+        "id": "vhs80s",
+        "span": "1980–1989",
+        "label": "the Cannon / VHS-box decade",
+        "anxiety": "nukes again, but really: Star Wars money"
+      },
+      "milieu": {
+        "id": "filipino",
+        "label": "a Filipino co-production",
+        "blurb": "Manila stands in for everywhere; the stunt team is fearless and uninsured"
+      },
+      "budget": {
+        "id": "pretend",
+        "label": "pretend-blockbuster",
+        "blurb": "the trailer cost more than the picture"
+      },
+      "window": "the Cannes presale market"
+    },
+    "comps": {
+      "wild": "A Charlie Brown Christmas",
+      "line": "Ghostbusters meets A Charlie Brown Christmas — in a shopping mall."
+    },
+    "title": {
+      "text": "Love Bot: The Homecoming",
+      "pattern": "colonSubtitle"
+    },
+    "tagline": "They took his world. Now he’s taking it back.",
+    "logline": "A mall Santa with a secret must outlast the plants when a household robot learns love from daytime television and applies it incorrectly — or the galaxy goes quiet.",
+    "failures": [
+      {
+        "id": "scale-misjudgment",
+        "label": "scale misjudgment",
+        "reason": "The fate of the galaxy will be decided in a shopping mall."
+      },
+      {
+        "id": "miscasting",
+        "label": "miscasting",
+        "reason": "A supermodel between campaigns as a mall Santa with a secret: the casting call is the special effect."
+      },
+      {
+        "id": "failed-transcription",
+        "label": "failed transcription",
+        "reason": "It has seen Ghostbusters, and remembers it fondly, incorrectly. What got lost: the budget."
+      },
+      {
+        "id": "trope-collision",
+        "label": "trope collision",
+        "reason": "Ghostbusters meets A Charlie Brown Christmas — in a shopping mall. The collision is the content."
+      },
+      {
+        "id": "footage-seam",
+        "label": "footage seam",
+        "reason": "Two films are visible at all times, like a double exposure."
+      }
+    ]
+  },
+  "projection": {
+    "schema": 1,
+    "promptVersion": 2,
+    "seed": 94,
+    "brief": {
+      "fidelity": "faithful",
+      "fidelityLabel": "a faithful brief",
+      "text": "a household robot holding a television close, heart-shaped camera eyes in a shopping mall concourse, with writhing vegetation"
+    },
+    "composition": {
+      "id": "carry",
+      "text": "Composition: the hero carrying the unconscious heroine, explosions and writhing vegetation behind them",
+      "prop": "a chrome blaster"
+    },
+    "medium": {
+      "year": 1986,
+      "country": "Filipino",
+      "text": "A 1986 Filipino science fiction film poster, photochemical one-sheet, airbrushed gouache on board, rich saturated color, painted lens flare"
+    },
+    "flaws": [
+      {
+        "id": "helicopter-scale",
+        "text": "the monster’s size relative to the helicopter beside it is ambiguous"
+      }
+    ],
+    "projectionFailures": [],
+    "prompt": "A 1986 Filipino science fiction film poster, photochemical one-sheet, airbrushed gouache on board, rich saturated color, painted lens flare.\nComposition: the hero carrying the unconscious heroine, explosions and writhing vegetation behind them.\nSubject: a household robot holding a television close, heart-shaped camera eyes in a shopping mall concourse, with writhing vegetation.\nPainted details: the monster’s size relative to the helicopter beside it is ambiguous.\nRich saturated color. The top and bottom fifths of the painting stay simple, dark, and uncluttered — space reserved for lettering. No text, no lettering, no logo, no signature, no glyphs, no letterforms of any kind.\nPainted entirely by hand in the period style; not a photograph, not a digital montage.",
+    "typography": {
+      "title": "Love Bot: The Homecoming",
+      "era": "vhs80s",
+      "tagline": "They took his world. Now he’s taking it back.",
+      "starring": "Dee Dee Braxton",
+      "coStar": "Dee Dee Del Rio",
+      "andIntroducing": null,
+      "director": "Hal Krieger",
+      "producer": "Big Jim McAllister",
+      "studio": "Manila International Films",
+      "eraMark": "IN DOLBY STEREO",
+      "rating": "PG-13"
+    },
+    "judge": null
+  },
+  "renderedAt": "2026-07-19",
+  "renderedPrompt": "A 1986 Filipino science fiction film poster, photochemical one-sheet, airbrushed gouache on board, rich saturated color, painted lens flare.\nComposition: the hero carrying the unconscious heroine, explosions and writhing vegetation behind them.\nSubject: a household robot holding a television close, heart-shaped camera eyes in a shopping mall concourse, with writhing vegetation.\nPainted details: the monster’s size relative to the helicopter beside it is ambiguous.\nRich saturated color, space reserved at the top and bottom for lettering. No text, no lettering, no logo.\nPainted entirely by hand in the period style; not a photograph, not a digital montage.",
+  "renderedPromptVersion": 1
+}

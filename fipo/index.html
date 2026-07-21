@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIPO — the bad sci-fi pitch archive</title>
+<meta name="description" content="An engine for the phase space of bad science-fiction cinema: the genome of the pitch first, then the judge, then the poster.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📼</text></svg>">
+<style>
+  :root {
+    --ink: #e8e0cf; --dim: #8a8272; --faint: #5a544a;
+    --amber: #e8a33d; --amber-soft: #b97f2e;
+    --bg: #0d0c0a; --card: #14130f; --line: #2a2721;
+    --mono: 'SF Mono', 'Cascadia Code', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1px 1px at 22% 18%, #ffffff22 50%, transparent 51%),
+      radial-gradient(1px 1px at 74% 12%, #ffffff1c 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 88% 52%, #ffffff26 50%, transparent 51%),
+      radial-gradient(1px 1px at 40% 74%, #ffffff14 50%, transparent 51%),
+      radial-gradient(1px 1px at 8% 88%,  #ffffff18 50%, transparent 51%),
+      var(--bg);
+    color: var(--ink); font-family: var(--mono); font-size: 15px; line-height: 1.6; min-height: 100vh;
+  }
+  a { color: var(--amber); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 20px 18px 90px; }
+  .crumb { font-size: 12px; letter-spacing: .12em; color: var(--dim); text-transform: uppercase; padding: 8px 0 40px; }
+  .crumb b { color: var(--ink); }
+  h1 {
+    font-family: 'Arial Black', 'Helvetica Neue', sans-serif; font-style: italic;
+    font-size: clamp(44px, 10vw, 84px); line-height: .95; letter-spacing: .01em;
+    background: linear-gradient(180deg, #fdfdfd 0%, #b8c4d4 34%, #5b6b86 50%, #dfe8f4 54%, #8fa0bd 78%, #e8eef8 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #dfe8f4;
+    filter: drop-shadow(0 3px 0 #1a2030) drop-shadow(0 0 24px #5b7bd533);
+  }
+  .sub { margin-top: 14px; color: var(--amber); font-style: italic; font-size: clamp(14px, 2.8vw, 18px); }
+  .manifesto { margin-top: 34px; color: var(--ink); }
+  .manifesto p { margin-bottom: 14px; max-width: 62ch; }
+  .manifesto .dim { color: var(--dim); }
+  .phases { margin-top: 36px; border: 1px solid var(--line); background: var(--card); }
+  .phase { display: grid; grid-template-columns: 88px 1fr auto; gap: 6px 16px; padding: 14px 16px; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .phase:last-child { border-bottom: 0; }
+  .phase .n { color: var(--faint); font-size: 11px; letter-spacing: .25em; }
+  .phase .d { color: var(--dim); font-size: 13px; margin-top: 2px; }
+  .phase .st { font-size: 11px; letter-spacing: .15em; }
+  .phase .st.live { color: var(--amber); }
+  .phase .st.next { color: var(--faint); }
+  .phase .what { font-size: 16px; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <b>fipo</b></div>
+
+  <h1>FIPO</h1>
+  <div class="sub">An archive of pitches for bad science-fiction films that were never made — but should have been.</div>
+
+  <div class="manifesto">
+    <p>Bad cinema is not noise. It is a small, structured region of movie-space: <b>the space of pitches somebody thought would sell</b>, filtered through a producer’s greed and a decade’s anxieties. Zardoz, Starcrash, Turkish Star Wars — you can always reconstruct what they were <i>trying</i> to be. That legibility is the whole game.</p>
+    <p class="dim">The genome comes first, because the title is derived — from the gimmick, the hero, the causal order of production — never authored. AIP tested titles before commissioning pictures; Cannon sold posters at Cannes before scripts existed. The badness differs by birth order, and the birth order is in the genome.</p>
+  </div>
+
+  <div class="phases">
+    <a class="phase" href="/pitch/">
+      <span class="n">PHASE 01</span>
+      <span><span class="what">/pitch — the genome</span><div class="d">One seed, one specimen: production context, causal order, derivation, novum, dramatis, the geometry of stakes, the commitment, the soul, and the failure modes flagged with reasons. Deterministic; a seed is a permalink.</div></span>
+      <span class="st live">● LIVE</span>
+    </a>
+    <div class="phase">
+      <span class="n">PHASE 02</span>
+      <span><span class="what">the judge</span><div class="d">What makes one specimen intriguingly bad and another merely dull. Pairwise, not scalar; genome-in-context (coherence + sincerity). Badness is a vector.</div></span>
+      <span class="st next">○ PLANNED</span>
+    </div>
+    <div class="phase">
+      <span class="n">PHASE 03</span>
+      <span><span class="what">the projection</span><div class="d">The one-sheet a producer would have made: a versioned prompt template whose every slot traces to the genome, flaws sampled as configurations (never adjectives), the brief’s fidelity sampled (faithful / genre-confused / spoils-the-twist / a different movie), and a fully deterministic typography pass. Paintings render in Actions; the card is on /pitch.</div></span>
+      <span class="st live">◐ ENGINE LIVE</span>
+    </div>
+  </div>
+
+  <footer>
+    <p>FIPO · a <a href="https://mino.mobi">mino.mobi</a> instrument · the archive is endless; the corner of it that matters is sincere.</p>
+  </footer>
+</div>
+</body>
+</html>

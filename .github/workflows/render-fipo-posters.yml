@@ -1,0 +1,62 @@
+name: Render fipo poster paintings
+
+# Renders poster paintings for FIPO specimens via the OpenAI Images API and
+# commits them to fipo/poster/img/<seed>.png (+ prompt logs to
+# fipo/poster/prompts/<seed>.json). Dispatch-only on purpose: each painting
+# costs money, and the archive grows deliberately, seed by seed.
+# The push to fipo/poster/img/** then deploys the site via deploy-fipo.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: 'Seeds to render ("1,42,1729" or "range:0-19"). Existing PNGs are skipped unless force is set.'
+        required: true
+        default: 'range:0-4'
+      quality:
+        description: 'gpt-image-1 quality'
+        required: false
+        default: 'medium'
+        type: choice
+        options: [low, medium, high]
+      force:
+        description: 'Re-render seeds that already have paintings'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Selftests (genome + projection)
+        run: |
+          node fipo/pitch/engine.selftest.mjs
+          node fipo/poster/project.selftest.mjs
+
+      - name: Render paintings
+        run: |
+          node scripts/render-fipo-poster.mjs \
+            --seeds "${{ inputs.seeds }}" \
+            --quality "${{ inputs.quality }}" \
+            ${{ inputs.force && '--force' || '' }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Commit paintings + prompt logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fipo/poster/img fipo/poster/prompts
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+          else
+            git commit -m "fipo: poster paintings (${{ inputs.seeds }})"
+            git pull --rebase
+            git push
+          fi

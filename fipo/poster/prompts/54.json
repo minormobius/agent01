@@ -1,0 +1,182 @@
+{
+  "seed": 54,
+  "promptVersion": 2,
+  "model": "pollinations-flux (sandbox test render)",
+  "quality": "n/a",
+  "note": "rendered from the sandbox via the public pollinations endpoint to test second-tier prompt behavior; production renders use render-fipo-posters.yml (gpt-image-1). Prompt shown is v2; the test render used v1 (pre-glyph-guardrail).",
+  "genome": {
+    "schema": 1,
+    "seed": 54,
+    "soul": {
+      "believer": true,
+      "earnestness": 0.7325218520592899,
+      "sincerity": 0.8765977296046912,
+      "competence": 0.4056567805402639,
+      "ambition": 0.7226489161024802,
+      "budget": 0.26012463151244447
+    },
+    "causal": {
+      "id": "title-first",
+      "label": "the title came first",
+      "blurb": "exhibitor-tested before a frame existed; the picture was commissioned to deserve it"
+    },
+    "region": {
+      "id": "corner",
+      "name": "the interesting corner",
+      "desc": "sincere overreach — the Zardoz quadrant"
+    },
+    "derivation": {
+      "target": {
+        "n": "The Wizard of Oz",
+        "y": 1939
+      },
+      "distance": {
+        "d": 2,
+        "label": "recognizably descended",
+        "blurb": "the lineage is visible to anyone who has seen a movie"
+      },
+      "loss": "whatever made it work"
+    },
+    "novum": {
+      "cat": "postapoc",
+      "premise": "water is the only currency left, and the ice must be pirated",
+      "short": "water is money and the ice must be stolen",
+      "noun": "Ice Pirate",
+      "nounPl": "Ice Pirates"
+    },
+    "dramatis": {
+      "hero": "a park ranger",
+      "star": {
+        "label": "the entire cast of a cancelled sitcom",
+        "miscast": true
+      },
+      "miscast": true,
+      "sidekick": "a hologram of the dead mentor, buffering"
+    },
+    "threat": {
+      "label": "an alien empire that finds Earth unimpressive",
+      "noun": "the Empire"
+    },
+    "geometry": {
+      "stakes": {
+        "rank": 6,
+        "label": "the galaxy"
+      },
+      "venue": {
+        "rank": 0,
+        "label": "a single soundstage"
+      },
+      "gap": 6
+    },
+    "commitment": [
+      {
+        "text": "The hero’s weapon is a lamp. It is always a lamp."
+      }
+    ],
+    "production": {
+      "era": {
+        "id": "vhs80s",
+        "span": "1980–1989",
+        "label": "the Cannon / VHS-box decade",
+        "anxiety": "nukes again, but really: Star Wars money"
+      },
+      "milieu": {
+        "id": "corman",
+        "label": "a Corman-style New World shop",
+        "blurb": "fast, cheap, and weirdly proud of it; everybody here will be famous later or never"
+      },
+      "budget": {
+        "id": "exploitation",
+        "label": "exploitation-standard",
+        "blurb": "enough for the monster, once, from behind"
+      },
+      "window": "a grindhouse matinee"
+    },
+    "comps": {
+      "wild": "Spartacus",
+      "line": "The Wizard of Oz meets Spartacus — in a single soundstage."
+    },
+    "title": {
+      "text": "I Was a Two-Headed Ice Pirate",
+      "pattern": "iWasA"
+    },
+    "tagline": "Where single soundstage meets the void.",
+    "logline": "A park ranger must expose an alien empire that finds Earth unimpressive when water is the only currency left, and the ice must be pirated — or the galaxy learns the price.",
+    "failures": [
+      {
+        "id": "scale-misjudgment",
+        "label": "scale misjudgment",
+        "reason": "The fate of the galaxy will be decided in a single soundstage."
+      },
+      {
+        "id": "miscasting",
+        "label": "miscasting",
+        "reason": "The entire cast of a cancelled sitcom as a park ranger: the casting call is the special effect."
+      },
+      {
+        "id": "failed-transcription",
+        "label": "failed transcription",
+        "reason": "It has seen The Wizard of Oz, and remembers it fondly, incorrectly. What got lost: whatever made it work."
+      },
+      {
+        "id": "budget-hallucination",
+        "label": "budget hallucination",
+        "reason": "The poster will promise the galaxy; the budget reaches a single soundstage."
+      },
+      {
+        "id": "trope-collision",
+        "label": "trope collision",
+        "reason": "The Wizard of Oz meets Spartacus — in a single soundstage. The collision is the content."
+      }
+    ]
+  },
+  "projection": {
+    "schema": 1,
+    "promptVersion": 2,
+    "seed": 54,
+    "brief": {
+      "fidelity": "faithful",
+      "fidelityLabel": "a faithful brief",
+      "text": "pirates boarding an ice freighter under the aurora on a sparse theatrical set, with a fleet of silver disc-ships"
+    },
+    "composition": {
+      "id": "pyramid",
+      "text": "Composition: an ensemble pyramid: the star largest at the apex, the villain opposite, the supporting cast descending in size",
+      "prop": "a lamp"
+    },
+    "medium": {
+      "year": 1985,
+      "country": "American",
+      "text": "A 1985 American science fiction film poster, photochemical one-sheet, airbrushed gouache on board, rich saturated color, painted lens flare"
+    },
+    "flaws": [
+      {
+        "id": "small-hands",
+        "text": "the heroine’s hands are slightly too small"
+      },
+      {
+        "id": "too-many-teeth",
+        "text": "the monster has two rows of teeth too many, painted with great care"
+      }
+    ],
+    "projectionFailures": [],
+    "prompt": "A 1985 American science fiction film poster, photochemical one-sheet, airbrushed gouache on board, rich saturated color, painted lens flare.\nComposition: an ensemble pyramid: the star largest at the apex, the villain opposite, the supporting cast descending in size.\nSubject: pirates boarding an ice freighter under the aurora on a sparse theatrical set, with a fleet of silver disc-ships.\nPainted details: the heroine’s hands are slightly too small; the monster has two rows of teeth too many, painted with great care.\nRich saturated color. The top and bottom fifths of the painting stay simple, dark, and uncluttered — space reserved for lettering. No text, no lettering, no logo, no signature, no glyphs, no letterforms of any kind.\nPainted entirely by hand in the period style; not a photograph, not a digital montage.",
+    "typography": {
+      "title": "I Was a Two-Headed Ice Pirate",
+      "era": "vhs80s",
+      "tagline": "Where single soundstage meets the void.",
+      "starring": "Tanya Del Rio",
+      "coStar": "Blaze Braxton",
+      "andIntroducing": null,
+      "director": "Hal Krieger",
+      "producer": "Leonard Voss",
+      "studio": "New Globe Pictures",
+      "eraMark": "IN DOLBY STEREO",
+      "rating": "PG-13"
+    },
+    "judge": null
+  },
+  "renderedAt": "2026-07-19",
+  "renderedPrompt": "A 1985 American science fiction film poster, photochemical one-sheet, airbrushed gouache on board, rich saturated color, painted lens flare.\nComposition: an ensemble pyramid: the star largest at the apex, the villain opposite, the supporting cast descending in size.\nSubject: pirates boarding an ice freighter under the aurora on a sparse theatrical set, with a fleet of silver disc-ships.\nPainted details: the heroine’s hands are slightly too small; the monster has two rows of teeth too many, painted with great care.\nRich saturated color, space reserved at the top and bottom for lettering. No text, no lettering, no logo.\nPainted entirely by hand in the period style; not a photograph, not a digital montage.",
+  "renderedPromptVersion": 1
+}
