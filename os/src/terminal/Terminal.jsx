@@ -26,7 +26,9 @@ function getBanner() {
   return isMobile() ? BANNER_COMPACT : BANNER_FULL;
 }
 
-const LOGIN_PROMPT = `\x1b[33mlogin\x1b[0m \x1b[2m(handle + app password)\x1b[0m
+// Login happens in the HTML overlay (LoginOverlay.jsx — OAuth + typeahead;
+// native inputs beat xterm typing on mobile). The terminal just waits.
+const LOGIN_PROMPT = `\x1b[2msign in above — OAuth via Bluesky, or app password\x1b[0m
 
 `;
 
@@ -125,7 +127,6 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
         startShell(term, session);
       } else {
         term.write(LOGIN_PROMPT);
-        term.write('handle: ');
       }
 
       // Input handling
@@ -170,20 +171,29 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
     transport.onStatus = (status) => {
       const term = termRef.current;
       if (!term) return;
-      if (status === 'connected' && modeRef.current === 'container-connecting') {
+      if (status === 'connecting') {
+        // Entering container mode. This transition was MISSING before — the
+        // terminal never left 'shell' mode, so a successful connect rendered
+        // nothing and input never reached the PTY.
+        modeRef.current = 'container-connecting';
+        term.writeln(`\r\n${fmt.dim('[opening websocket to os-api…]')}`);
+      } else if (status === 'connected' && modeRef.current === 'container-connecting') {
         modeRef.current = 'container';
         term.writeln(`\r\n${fmt.green('connected')} ${fmt.dim('to container shell')}`);
-        term.writeln(`${fmt.dim('bash + git + claude-code available')}`);
+        term.writeln(`${fmt.dim('bash + git + agents (agent kimi3 / claude) available')}`);
         term.writeln(`${fmt.dim('Type')} ${fmt.cyan('exit')} ${fmt.dim('or Ctrl+D to return to PDS shell')}\r\n`);
         // Send initial resize
         transport.resize(term.cols, term.rows);
-      } else if (status === 'disconnected' && modeRef.current === 'container') {
+      } else if (status === 'disconnected' && (modeRef.current === 'container' || modeRef.current === 'container-connecting')) {
+        const wasConnected = modeRef.current === 'container';
         modeRef.current = 'shell';
-        term.writeln(`\r\n${fmt.yellow('[container disconnected]')}`);
+        term.writeln(`\r\n${fmt.yellow(wasConnected ? '[container disconnected]' : '[websocket closed before connecting]')}`);
         if (shellRef.current) {
           writePrompt(term, shellRef.current);
         }
       } else if (status === 'reconnecting') {
+        // Re-arm the connecting state so the eventual 'connected' is handled.
+        modeRef.current = 'container-connecting';
         term.writeln(`\r\n${fmt.dim('[reconnecting...]')}`);
       } else if (status === 'failed') {
         modeRef.current = 'shell';
@@ -201,18 +211,20 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
       onLogout: () => {
         shellRef.current = null;
         modeRef.current = 'login';
-        loginStateRef.current = { step: 'handle', handle: '' };
         term.writeln('');
         term.write(LOGIN_PROMPT);
-        term.write('handle: ');
-        onLogout();
+        onLogout(); // App clears the session → the login overlay reappears
       },
       onConnectContainer,
     });
     shellRef.current = shell;
     term.writeln(`\r\n${fmt.green('authenticated')} as ${fmt.bold(sess.handle)} ${fmt.dim(`(${sess.did})`)}`);
     term.writeln(`${fmt.dim('PDS:')} ${sess.pdsUrl}`);
-    term.writeln(`${fmt.dim('Type')} ${fmt.cyan('help')} ${fmt.dim('for commands')}\r\n`);
+    if (onConnectContainer) {
+      term.writeln(`${fmt.dim('Type')} ${fmt.cyan('kimi')} ${fmt.dim('to chat with the coding agent,')} ${fmt.cyan('help')} ${fmt.dim('for commands')}\r\n`);
+    } else {
+      term.writeln(`${fmt.dim('Type')} ${fmt.cyan('help')} ${fmt.dim('for commands')}\r\n`);
+    }
     writePrompt(term, shell);
   }
 
@@ -247,12 +259,13 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
     const term = termRef.current;
     const shell = shellRef.current;
 
+    // Login mode: the HTML overlay owns input — ignore terminal keystrokes.
+    if (modeRef.current === 'login') return;
+
     // Enter
     if (ch === '\r') {
       term.writeln('');
-      if (modeRef.current === 'login') {
-        handleLoginInput(inputRef.current);
-      } else if (shell) {
+      if (shell) {
         const input = inputRef.current;
         inputRef.current = '';
         cursorPosRef.current = 0;
@@ -346,6 +359,8 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
 
     // Container mode: arrow keys and special keys go through onData, not here
     if (modeRef.current === 'container') return;
+    // Login mode: the HTML overlay owns input
+    if (modeRef.current === 'login') return;
 
     // Arrow up — history
     if (ev.key === 'ArrowUp' && modeRef.current === 'shell' && shell && !shell.running) {

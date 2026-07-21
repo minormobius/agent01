@@ -56,7 +56,14 @@ workspace sync; the PDS and git proxies below reuse it unchanged.
 ### The remaining shared-secret footgun
 
 `GITHUB_TOKEN` and `CLOUDFLARE_API_TOKEN` are **shared account credentials**.
-They are now gated behind `INJECT_SHARED_CREDS`:
+They are now gated behind `INJECT_SHARED_CREDS`.
+
+`MOONSHOT_API_KEY` (and any future model-profile key in `AGENT_PROFILES`) is in
+the same class: it reaches the shell via the container env, so anyone with a
+shell can read it and spend against the owner's Moonshot account. Acceptable
+under exactly the same rule as below — single-tenant only. In a multi-tenant
+future, model keys move behind a worker proxy (an Anthropic-compatible
+`/model/*` endpoint authorized by `CAP_TOKEN`) just like the git/PDS brokers.
 
 - `INJECT_SHARED_CREDS=true` → injected into the shell. **Single-tenant only.**
   Convenient for personal use (you trust yourself with your own tokens). Safe

@@ -1043,14 +1043,31 @@
       "dir": "os",
       "endpoint": "os.mino.mobi",
       "type": "frontend",
-      "branch": "claude/os-deploy-surface-5hrw5w",
-      "uses": [],
+      "branch": "claude/kimi3-container-deploy-24wux0",
+      "uses": [
+        "os-api.minomobi.com"
+      ],
       "provides": null,
-      "status": "MANAGED (frontend) — standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). The `container` command is gated OFF unless VITE_CONTAINER_API_URL is set, because os-api (Cloudflare Containers backend) is not deployed; the command reports 'not configured' instead of dangling a dead WebSocket. Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker. (os/api container worker unaffected — still manual via deploy-os-api.yml.)",
-      "note": "React + Vite + xterm.js terminal UI. Fully functional standalone against the user's own PDS; the optional os-api Cloudflare Containers backend (bash + claude-code over WebSocket) is enabled at build time via VITE_CONTAINER_API_URL once os-api is live. Workflow paths exclude os/api/** so frontend deploys do not fire on backend changes.",
+      "status": "MANAGED (frontend) — standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). The `kimi`/`container` commands probe the os-api backend at RUNTIME (/health, 4s timeout) and report exactly what's missing instead of dangling a dead WebSocket — no build-time gating variable needed (VITE_CONTAINER_API_URL remains an optional override). Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker.",
+      "note": "React + Vite + xterm.js terminal UI over the user's PDS, plus the AGENT PLATFORM: `kimi` boots the Cloudflare Containers backend (os/api, owner-DID-gated) straight into an open-model coding agent — Claude Code CLI pointed at an Anthropic-compatible endpoint via worker-injected AGENT_PROFILES (kimi3 = Moonshot; any open model = one more profile). The agent clones agent01, works on kimi/* branches, pushes, and GitHub Actions run. Workflow paths exclude os/api/** so frontend deploys do not fire on backend changes.",
       "paths": [
         "os/**",
         "!os/api/**"
+      ]
+    },
+    {
+      "surface": "os-api",
+      "dir": "os/api",
+      "endpoint": "os-api.minomobi.com",
+      "type": "backend",
+      "branch": "claude/kimi3-container-deploy-24wux0",
+      "uses": [],
+      "provides": "os-api.minomobi.com",
+      "status": "MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com — golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY <- GH secret; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 — learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets — see os/RUNBOOK.md.",
+      "note": "The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container (bash + git + Claude Code as the harness for open models via AGENT_PROFILES — kimi3 = Moonshot's Anthropic-compatible endpoint), PTY over WebSocket, DO-storage-synced workspace, fail-closed ALLOWED_DIDS identity gate (owner-only; INJECT_SHARED_CREDS=true is safe ONLY while the allowlist is exactly the owner). Runs paid containers — cost bounded by max_instances=3 + 10-min idle sleep.",
+      "paths": [
+        "os/api/**",
+        ".github/workflows/deploy-os-api.yml"
       ]
     },
     {
@@ -1088,9 +1105,7 @@
   "unmanaged": {
     "$comment": "Have a wrangler config but NO deploy workflow. `sites` here are all currently BUNDLED into the root Pages project (served at mino.mobi/<name>/) — their own-subdomain workers are not attached. Each needs a CARVE-OUT (own worker deploy + domain attach + drop from root bundle), not just a workflow. `in_progress` + `reference_workers` as before.",
     "sites": [],
-    "in_progress": [
-      "os/api (Cloudflare Containers worker os-mino-api; deploy-os-api.yml is READY but dispatch-only; pending: enable CF Containers, set SYNC_TOKEN+GITHUB_TOKEN secrets, create R2 bucket os-workspace, attach os-api.minomobi.com)"
-    ],
+    "in_progress": [],
     "reference_workers": [
       "workers/bsky-bot",
       "workers/cards-mint",

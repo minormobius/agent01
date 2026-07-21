@@ -15,11 +15,13 @@ export class WSTransport {
     this.pingInterval = null;
   }
 
-  connect({ cols, rows, session, apiKey, auth }) {
+  connect({ cols, rows, session, apiKey, auth, boot, authMode }) {
     this.intentionalClose = false;
     this.session = session;
     this.apiKey = apiKey;
     this.auth = auth;
+    this.boot = boot;
+    this.authMode = authMode;
     this.cols = cols;
     this.rows = rows;
 
@@ -29,9 +31,14 @@ export class WSTransport {
       rows: String(rows),
     });
     if (apiKey) params.set('apiKey', apiKey);
-    // PDS accessJwt — the worker verifies this against the user's PDS and
-    // checks the resulting did against its allowlist before opening a shell.
+    // Boot profile — the container lands straight in `agent <profile>` (e.g.
+    // kimi3) instead of a bare bash prompt.
+    if (boot) params.set('boot', boot);
+    // Credential the worker verifies before opening a shell: a PDS accessJwt
+    // (authMode 'pds') or a shared-auth bearer validated via auth.mino.mobi
+    // (authMode 'oauth'). Either way the derived DID must be allowlisted.
     if (auth) params.set('auth', auth);
+    if (authMode) params.set('authMode', authMode);
 
     const wsUrl = `${this.baseUrl}/ws?${params}`;
     this.onStatus?.('connecting');
@@ -122,6 +129,8 @@ export class WSTransport {
           session: this.session,
           apiKey: this.apiKey,
           auth: this.auth,
+          boot: this.boot,
+          authMode: this.authMode,
         });
       }
     }, delay);
