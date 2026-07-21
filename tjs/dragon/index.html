@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Dragonfly combat · tjs · mino.mobi</title>
-  <meta name="description" content="A browser replica of the dragonfly aerial-combat guidance law (Fabian, Yarger, Chen & Lin, J. R. Soc. Interface 2026), integrated by a Rust→wasm solver. Watch two males duel — and ride a GoPro strapped to a dragonfly's head as it holds its rival high and dead-ahead.">
+  <meta name="description" content="A browser replica of the dragonfly aerial-combat guidance law (Fabian, Yarger, Chen & Lin, J. R. Soc. Interface 2026), integrated by a Rust→wasm solver. Watch two males duel in a neon arena — ride a conformal fisheye or the segmented compound-eye POV of a dragonfly's head as it runs down its rival.">
   <script type="importmap">
   {
     "imports": {
@@ -15,21 +15,21 @@
   </script>
   <style>
     :root {
-      --soft:#8a8aa0; --line:#23232e; --accent:#39d6c8; --warm:#ff9d4d; --bg:#0b0b10;
-      --good:#7ee787; --warn:#f0b849; --bad:#ff6b6b; --panel:rgba(12,12,20,.72);
+      --soft:#9a90c0; --line:#2a2340; --accent:#39d6c8; --warm:#ff6ad5; --bg:#0a0713;
+      --good:#7ee787; --warn:#f0b849; --bad:#ff6b6b; --panel:rgba(16,10,32,.74);
     }
     * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html,body { margin:0; height:100%; overflow:hidden; }
     body { font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-           color:#e6e6f0; background:var(--bg); -webkit-font-smoothing:antialiased; }
+           color:#eef; background:var(--bg); -webkit-font-smoothing:antialiased; }
     #scene { position:fixed; inset:0; touch-action:none; display:block; }
     #reticle { position:fixed; inset:0; pointer-events:none; z-index:3; display:none; }
-    body.headcam #reticle { display:block; }
+    body.pov #reticle { display:block; }
     a { color:var(--accent); text-decoration:none; }
 
     .crumb { position:fixed; top:12px; left:14px; z-index:6; font-size:12px; letter-spacing:.04em;
-             text-transform:uppercase; color:#cfe; text-shadow:0 1px 3px rgba(0,0,0,.6); }
-    .crumb a { color:#cfe; }
+             text-transform:uppercase; color:#d9c8ff; text-shadow:0 1px 3px rgba(0,0,0,.6); }
+    .crumb a { color:#d9c8ff; }
 
     #hud { position:fixed; top:40px; left:14px; z-index:5; width:min(288px,45vw);
            background:var(--panel); backdrop-filter:blur(9px);
@@ -48,55 +48,55 @@
     .big { grid-column:1 / -1; border-top:1px solid var(--line); padding-top:7px; margin-top:2px; }
     .rolerow { grid-column:1/-1; display:flex; align-items:center; gap:8px; margin-top:6px; font-size:11px; }
     .rolebar { flex:1; height:8px; border-radius:5px; position:relative; overflow:hidden;
-               background:linear-gradient(90deg, var(--warm), #33343f 48%, #33343f 52%, var(--accent)); }
+               background:linear-gradient(90deg, var(--warm), #2a2340 48%, #2a2340 52%, var(--accent)); }
     .rolebar i { position:absolute; top:-2px; width:3px; height:12px; background:#fff; border-radius:2px;
                  box-shadow:0 0 5px #000; transform:translateX(-50%); }
 
-    /* graphs */
     #graphs { position:fixed; left:14px; bottom:14px; z-index:5; width:min(320px,90vw);
               background:var(--panel); backdrop-filter:blur(9px); border:1px solid var(--line);
               border-radius:12px; padding:10px 11px 8px; }
     #graphs .glabel { font-size:10px; color:var(--soft); text-transform:uppercase; letter-spacing:.04em; margin:0 0 4px; }
     #gcanvas { width:100%; height:168px; display:block; }
 
-    /* control dock */
     #dock { position:fixed; right:14px; top:40px; z-index:5; width:min(300px,88vw);
-            background:rgba(12,12,20,.82); backdrop-filter:blur(9px);
+            background:rgba(16,10,32,.85); backdrop-filter:blur(9px);
             border:1px solid var(--line); border-radius:12px; padding:12px 13px;
             max-height:calc(100vh - 130px); overflow:auto; }
     #dock.min .body { display:none; }
     #dock .head { display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
     #dock .head b { font-size:13px; } #dock .head span { font-size:11px; color:var(--soft); }
     .seg { display:flex; gap:5px; margin-top:10px; flex-wrap:wrap; }
-    .seg button { flex:1 1 auto; font:inherit; font-size:11px; color:#e6e6f0; background:#1a1a26;
+    .seg button { flex:1 1 auto; font:inherit; font-size:11px; color:#eef; background:#1c1430;
       border:1px solid var(--line); border-radius:7px; padding:6px 6px; cursor:pointer; }
     .seg button.on { background:var(--accent); color:#08110f; border-color:var(--accent); font-weight:700; }
     .blurb { font-size:11px; color:var(--soft); margin:8px 0 2px; min-height:28px; line-height:1.35; }
     .row { margin:10px 0 0; }
     .row label { display:flex; justify-content:space-between; font-size:11px; color:var(--soft);
                  text-transform:uppercase; letter-spacing:.03em; margin-bottom:3px; }
-    .row label .rv { color:#e6e6f0; font-variant-numeric:tabular-nums; }
+    .row label .rv { color:#eef; font-variant-numeric:tabular-nums; }
     input[type=range] { -webkit-appearance:none; width:100%; height:4px; border-radius:3px; background:var(--line); outline:none; margin:0; }
     input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
-                        background:var(--accent); cursor:pointer; border:2px solid #0b0b10; }
-    input[type=range]::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid #0b0b10; }
-    .btns { display:flex; gap:7px; flex-wrap:wrap; margin-top:12px; }
-    button.act { font:inherit; font-size:12px; color:#e6e6f0; background:#1a1a26; border:1px solid var(--line);
+                        background:var(--accent); cursor:pointer; border:2px solid #0a0713; }
+    input[type=range]::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid #0a0713; }
+    .grp { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+    .grp .gt { font-size:10px; color:var(--soft); text-transform:uppercase; letter-spacing:.05em; }
+    #optics { display:none; } body.pov #optics { display:block; }
+    .btns { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+    button.act { font:inherit; font-size:12px; color:#eef; background:#1c1430; border:1px solid var(--line);
              border-radius:8px; padding:7px 10px; cursor:pointer; flex:1 1 auto; }
     button.act:hover { border-color:var(--accent); }
     button.act.on { background:var(--accent); color:#08110f; border-color:var(--accent); font-weight:700; }
     .hint { font-size:11px; color:var(--soft); margin-top:10px; line-height:1.4; }
 
-    /* transport */
     #transport { position:fixed; left:50%; transform:translateX(-50%); bottom:14px; z-index:6;
       display:flex; align-items:center; gap:10px; background:var(--panel); backdrop-filter:blur(9px);
       border:1px solid var(--line); border-radius:30px; padding:7px 14px; width:min(360px,70vw); }
-    #transport button { background:none; border:none; color:#e6e6f0; font-size:17px; cursor:pointer; padding:2px 4px; }
+    #transport button { background:none; border:none; color:#eef; font-size:17px; cursor:pointer; padding:2px 4px; }
     #scrub { flex:1; }
     #tlabel { font-size:11px; color:var(--soft); font-variant-numeric:tabular-nums; min-width:38px; text-align:right; }
 
     #uitoggle { position:fixed; top:11px; right:12px; z-index:8; width:40px; height:40px; border-radius:50%;
-      background:rgba(12,12,20,.78); backdrop-filter:blur(9px); border:1px solid var(--line); color:#e6e6f0;
+      background:rgba(16,10,32,.8); backdrop-filter:blur(9px); border:1px solid var(--line); color:#eef;
       font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
     #uitoggle:hover { border-color:var(--accent); }
     body.ui-hidden #hud, body.ui-hidden #dock, body.ui-hidden #graphs, body.ui-hidden #transport { display:none; }
@@ -107,7 +107,6 @@
       #dock { top:auto; bottom:70px; right:9px; left:9px; width:auto; max-height:46vh; }
       #graphs { display:none; }
       #transport { bottom:12px; width:min(320px,86vw); }
-      body.show-graphs #graphs { display:block; left:9px; right:9px; bottom:130px; width:auto; }
     }
   </style>
 </head>
@@ -148,15 +147,26 @@
       <div class="row"><label>Stand-off range <span class="rv" id="rv-stand"></span></label><input type="range" id="sl-stand" min="0.8" max="3" step="0.1"></div>
       <div class="row"><label>Speed asymmetry <span class="rv" id="rv-asym"></span></label><input type="range" id="sl-asym" min="0" max="0.3" step="0.01"></div>
 
-      <div class="btns">
-        <button class="act on" id="btn-cam-orbit">Orbit</button>
-        <button class="act" id="btn-cam-head">Head-cam ▸ A</button>
+      <div class="grp">
+        <div class="gt">View</div>
+        <div class="seg" id="views">
+          <button data-v="orbit" class="on">Orbit</button>
+          <button data-v="head">Head</button>
+          <button data-v="fisheye">Fisheye</button>
+          <button data-v="compound">Compound</button>
+        </div>
+        <div class="btns">
+          <button class="act" id="btn-eye">Eye ▸ A</button>
+          <button class="act on" id="btn-ribbon">Rails</button>
+        </div>
+        <div id="optics">
+          <div class="row"><label>Visual field <span class="rv" id="rv-field"></span></label><input type="range" id="sl-field" min="120" max="330" step="5" value="250"></div>
+          <div class="row"><label>Ommatidia (facet size) <span class="rv" id="rv-facet"></span></label><input type="range" id="sl-facet" min="14" max="70" step="1" value="34"></div>
+          <div class="row"><label>Optical blur (focus on rival) <span class="rv" id="rv-blur"></span></label><input type="range" id="sl-blur" min="0" max="100" step="1" value="55"></div>
+        </div>
       </div>
-      <div class="btns">
-        <button class="act on" id="btn-ribbon">Trails</button>
-        <button class="act" id="btn-graphs" style="display:none">Graphs</button>
-      </div>
-      <p class="hint" id="hint">Both males run the <b>same</b> rule — steer to hold the rival dead-ahead &amp; slightly <b>high</b>, easing off the throttle when close. The loops, spirals and chaser⇄evader swaps all fall out of that. Ride the <b>head-cam</b> to see the rival pinned above the horizon line.</p>
+
+      <p class="hint" id="hint">Both males run the <b>same</b> rule — hold the rival dead-ahead &amp; slightly <b>high</b>, easing off the throttle when close. Ride <b>Fisheye</b> (conformal) or the segmented <b>Compound</b> eye to feel the dragonfly's world; the neon orb is hue-mapped by <b>azimuth</b> so you can read your own spin, and the rival stays in focus while the arena blurs by distance.</p>
     </div>
   </div>
 
@@ -171,140 +181,180 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { simulate, presetConfig, PRESETS } from './dragon-sim.js';
 
-// ── optional wasm accelerator (Rust). The page is fully functional with the JS mirror;
-//    the wasm takes over the integration when solver/pkg/ is live and doubles as a check. ──
+// ── optional wasm accelerator (Rust). JS mirror is the fallback. ──
 let WASM = null;
 (async () => {
   try {
     const m = await import('./solver/pkg/dragon_solver.js');
-    await m.default();
-    m.solver_info();
-    WASM = m;
+    await m.default(); m.solver_info(); WASM = m;
     setPill('rust wasm ✓', 'var(--good)');
-  } catch (e) {
-    setPill('js solver', 'var(--soft)');
-  }
+  } catch (e) { setPill('js solver', 'var(--soft)'); }
   resolve();
 })();
 function setPill(t, c) { const e = document.getElementById('pill'); e.textContent = t; e.style.color = c; }
-
-// Uniform solve: returns { t, a:{pos,vel,speed,turnRate,range,azimuth,elevation}, b, role },
-// arrays indexable the same way whether they come from wasm JSON or the JS Float64Arrays.
 function solve(cfg) {
-  if (WASM) {
-    try { return JSON.parse(WASM.simulate_json(JSON.stringify(cfg))); }
-    catch (e) { /* fall through to JS */ }
-  }
+  if (WASM) { try { return JSON.parse(WASM.simulate_json(JSON.stringify(cfg))); } catch (e) {} }
   return simulate(cfg);
 }
 
 // ── state ──────────────────────────────────────────────────────────────────────
 let cfg = presetConfig('duel');
-let sim = null;              // current trajectory
-let frame = 0, playing = true, playSpeed = 1.0;
-let camMode = 'orbit';       // 'orbit' | 'head'
-let headWho = 0;             // 0 = A, 1 = B
+let sim = null, frame = 0, playing = true, playSpeed = 1.0;
+let view = 'orbit';          // orbit | head | fisheye | compound
+let headWho = 0;             // 0=A, 1=B
 let ribbonsOn = true;
 let activePreset = 'duel';
+let opt = { field: 250 * Math.PI / 180, facet: 34, blur: 55 };
 
-// ── three.js boilerplate ─────────────────────────────────────────────────────────
+// ── renderer / scene ─────────────────────────────────────────────────────────────
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xbfe3ee, 12, 46);
+scene.fog = new THREE.FogExp2(0x120a24, 0.028);
 
-const orbitCam = new THREE.PerspectiveCamera(52, 1, 0.05, 200);
-orbitCam.position.set(5.5, 4.2, 6.5);
+const orbitCam = new THREE.PerspectiveCamera(52, 1, 0.05, 260);
+orbitCam.position.set(6.5, 4.6, 7.5);
 const controls = new OrbitControls(orbitCam, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
-controls.minDistance = 2.5; controls.maxDistance = 30; controls.maxPolarAngle = Math.PI * 0.52;
-controls.target.set(0, 2.0, 0);
+controls.minDistance = 2.5; controls.maxDistance = 34; controls.maxPolarAngle = Math.PI * 0.54;
+controls.target.set(0, 2.2, 0);
 controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE };
 
-const headCam = new THREE.PerspectiveCamera(118, 1, 0.02, 200); // very wide — dragonflies see almost all around
+// rectilinear head-cam (the "GoPro")
+const headCam = new THREE.PerspectiveCamera(112, 1, 0.02, 260);
 
-// ── sky (gradient dome) ──────────────────────────────────────────────────────────
+// ── vaporwave sky ────────────────────────────────────────────────────────────────
 {
-  const uni = { top: { value: new THREE.Color(0x4a9fd8) }, bot: { value: new THREE.Color(0xd7ecf2) }, off: { value: 2.5 } };
-  const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(120, 24, 16),
-    new THREE.ShaderMaterial({
-      side: THREE.BackSide, uniforms: uni,
-      vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
-      fragmentShader: `varying vec3 vP; uniform vec3 top; uniform vec3 bot; uniform float off;
-        void main(){ float h = normalize(vP).y; float t = clamp((h+off*0.02)/1.0,0.0,1.0); gl_FragColor = vec4(mix(bot,top,pow(t,0.7)),1.0);} `,
-    })
-  );
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(130, 32, 20), new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: { top:{value:new THREE.Color(0x1a0b3a)}, mid:{value:new THREE.Color(0x7a1f6b)}, hor:{value:new THREE.Color(0x1fd6d0)} },
+    vertexShader:`varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
+    fragmentShader:`varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 hor;
+      void main(){ float h=normalize(vP).y; float t=clamp(h,0.0,1.0); float b=clamp(-h*3.0,0.0,1.0);
+        vec3 c = mix(mix(hor,mid,smoothstep(0.0,0.32,t)), top, smoothstep(0.28,1.0,t));
+        c = mix(c, vec3(0.02,0.01,0.05), b);   // ground haze darkens below horizon
+        // sun glow band near horizon
+        c += vec3(0.9,0.25,0.55) * exp(-abs(h)*10.0) * 0.5;
+        gl_FragColor=vec4(c,1.0);} `,
+  }));
   scene.add(sky);
 }
-scene.add(new THREE.HemisphereLight(0xcfeaf5, 0x4a6a55, 1.05));
-const sun = new THREE.DirectionalLight(0xfff3e0, 1.35); sun.position.set(6, 12, 4); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xff7ad5, 0x160a2a, 0.9));
+const key = new THREE.DirectionalLight(0x7fe6ff, 0.9); key.position.set(6, 10, 4); scene.add(key);
+const rim = new THREE.DirectionalLight(0xff5ac8, 0.7); rim.position.set(-7, 3, -6); scene.add(rim);
 
-// ── ground: a meadow/water plane + territory perch ───────────────────────────────
+// ── vaporwave floor (neon grid) ──────────────────────────────────────────────────
 {
-  const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(90, 48),
-    new THREE.MeshStandardMaterial({ color: 0x3f7a54, roughness: 0.95, metalness: 0 })
-  );
-  ground.rotation.x = -Math.PI / 2; scene.add(ground);
-  const grid = new THREE.GridHelper(60, 60, 0x2c5a3c, 0x356545);
-  grid.material.transparent = true; grid.material.opacity = 0.28; scene.add(grid);
-  // the contested perch (a reed) at the territory centre
-  const reed = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 1.4, 6),
-    new THREE.MeshStandardMaterial({ color: 0x8a7b3a, roughness: 1 }));
-  reed.position.y = 0.7; scene.add(reed);
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(120, 64), new THREE.ShaderMaterial({
+    transparent: true,
+    uniforms: { colA:{value:new THREE.Color(0xff2fb0)}, colB:{value:new THREE.Color(0x18e0d8)} },
+    vertexShader:`varying vec2 vX; void main(){ vec4 w=modelMatrix*vec4(position,1.0); vX=w.xz; gl_Position=projectionMatrix*viewMatrix*w;} `,
+    fragmentShader:`varying vec2 vX; uniform vec3 colA; uniform vec3 colB;
+      float grid(vec2 p, float s){ vec2 g=abs(fract(p/s-0.5)-0.5)/fwidth(p/s); float l=min(g.x,g.y); return 1.0-min(l,1.0);}
+      void main(){ float r=length(vX); float fade=smoothstep(60.0,6.0,r);
+        float g1=grid(vX,1.0), g2=grid(vX,5.0);
+        vec3 c = colA*g1*0.5 + colB*g2*0.9;
+        float a=(g1*0.5+g2*0.9)*fade; gl_FragColor=vec4(c, a*0.9);} `,
+  }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = 0.001; scene.add(floor);
+  const base = new THREE.Mesh(new THREE.CircleGeometry(120, 64), new THREE.MeshBasicMaterial({ color: 0x0b0518 }));
+  base.rotation.x = -Math.PI / 2; scene.add(base);
+  // contested perch
+  const reed = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.035, 1.5, 6),
+    new THREE.MeshStandardMaterial({ color: 0x20122f, emissive: 0xff4ad0, emissiveIntensity: 0.5, roughness: 0.6 }));
+  reed.position.y = 0.75; scene.add(reed);
+}
+
+// ── C60-ish neon orb: platonic solids on a geodesic sphere, hue = azimuth ─────────
+// A dense geodesic dome of glowing dodeca/icosahedra enclosing the fight. Each node's
+// hue is its azimuth, so the whole orb is an azimuthal colour reference — in the eye
+// POVs the sweep of hue past you reads out your own heading/spin.
+const ARENA_R = 7.0, ARENA_CY = 3.2;
+{
+  const ico = new THREE.IcosahedronGeometry(ARENA_R, 2);   // ~162 vertices
+  const pos = ico.attributes.position; const seen = new Map(); const nodes = [];
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const kkey = [x, y, z].map((v) => v.toFixed(2)).join(',');
+    if (seen.has(kkey)) continue; seen.set(kkey, 1); nodes.push([x, y, z]);
+  }
+  const dGeo = new THREE.DodecahedronGeometry(0.24);
+  const iGeo = new THREE.IcosahedronGeometry(0.26);
+  const haloGeo = new THREE.SphereGeometry(0.4, 6, 6);
+  nodes.forEach(([x, y, z], idx) => {
+    if (y + ARENA_CY < -0.2) return;                        // skip the underground cap
+    const az = Math.atan2(z, x); const hue = (az / (2 * Math.PI)) + 0.5;
+    const col = new THREE.Color().setHSL(hue, 1.0, 0.62);
+    const mat = new THREE.MeshStandardMaterial({ color: col.clone().multiplyScalar(0.12), emissive: col, emissiveIntensity: 1.7, roughness: 0.35, metalness: 0.2 });
+    const m = new THREE.Mesh(idx % 2 ? iGeo : dGeo, mat);
+    m.position.set(x, y + ARENA_CY, z); m.rotation.set(idx * 1.3, idx * 0.7, 0); scene.add(m);
+    const halo = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
+    halo.position.copy(m.position); scene.add(halo);
+  });
+  const cage = new THREE.LineSegments(new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(ARENA_R, 2)),
+    new THREE.LineBasicMaterial({ color: 0x8a4ad0, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false }));
+  cage.position.y = ARENA_CY; scene.add(cage);
+  // a few coloured point lights riding the orb so the combatants catch neon
+  for (const [ax, ay, az2, c] of [[6, 6, 0, 0x39d6c8], [-5, 5, 4, 0xff6ad5], [0, 7, -6, 0xffe14a]]) {
+    const pl = new THREE.PointLight(c, 22, 30, 2); pl.position.set(ax, ay + ARENA_CY, az2); scene.add(pl);
+  }
 }
 
 // ── dragonfly mesh factory ───────────────────────────────────────────────────────
 function makeDragonfly(bodyColor, wingTint) {
   const g = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.4, metalness: 0.2, emissive: bodyColor, emissiveIntensity: 0.12 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a1c24, roughness: 0.5 });
-  // abdomen (long tail) along +Z
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.35, metalness: 0.25, emissive: bodyColor, emissiveIntensity: 0.35 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x140f1f, roughness: 0.5, emissive: bodyColor, emissiveIntensity: 0.1 });
   const abd = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.012, 0.42, 8), bodyMat);
   abd.rotation.x = Math.PI / 2; abd.position.z = -0.24; g.add(abd);
-  // thorax
-  const thx = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), bodyMat);
-  thx.scale.set(1, 0.9, 1.3); g.add(thx);
-  // head + big compound eyes
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), darkMat);
-  head.position.z = 0.1; g.add(head);
+  const thx = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), bodyMat); thx.scale.set(1, 0.9, 1.3); g.add(thx);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), darkMat); head.position.z = 0.1; g.add(head);
   for (const sx of [-1, 1]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0x11161c, roughness: 0.2, metalness: 0.5, emissive: 0x0a0f14 }));
-    eye.position.set(sx * 0.035, 0.01, 0.12); g.add(eye);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.033, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 0.2, metalness: 0.6, emissive: wingTint, emissiveIntensity: 0.25 }));
+    eye.position.set(sx * 0.035, 0.012, 0.12); g.add(eye);
   }
-  // 4 wings (thin ellipses), pivoting at the thorax
-  const wingMat = new THREE.MeshStandardMaterial({ color: wingTint, transparent: true, opacity: 0.34,
-    roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide, emissive: wingTint, emissiveIntensity: 0.05 });
-  const wings = [];
-  const wingGeo = new THREE.CircleGeometry(0.19, 16);
-  wingGeo.scale(1, 0.42, 1);
-  for (const zoff of [0.02, -0.06]) {
-    for (const sx of [-1, 1]) {
-      const pivot = new THREE.Group(); pivot.position.set(0, 0.02, zoff);
-      const w = new THREE.Mesh(wingGeo, wingMat);
-      w.position.x = sx * 0.19; w.rotation.y = sx > 0 ? 0 : Math.PI;
-      pivot.add(w); g.add(pivot);
-      wings.push({ pivot, sx, phase: zoff < 0 ? Math.PI * 0.5 : 0 });
-    }
+  const wingMat = new THREE.MeshStandardMaterial({ color: wingTint, transparent: true, opacity: 0.32,
+    roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide, emissive: wingTint, emissiveIntensity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false });
+  const wings = []; const wingGeo = new THREE.CircleGeometry(0.19, 16); wingGeo.scale(1, 0.42, 1);
+  for (const zoff of [0.02, -0.06]) for (const sx of [-1, 1]) {
+    const pivot = new THREE.Group(); pivot.position.set(0, 0.02, zoff);
+    const w = new THREE.Mesh(wingGeo, wingMat); w.position.x = sx * 0.19; w.rotation.y = sx > 0 ? 0 : Math.PI;
+    pivot.add(w); g.add(pivot); wings.push({ pivot, sx, phase: zoff < 0 ? Math.PI * 0.5 : 0 });
   }
-  g.userData.wings = wings;
-  return g;
+  g.userData.wings = wings; return g;
 }
 const flyA = makeDragonfly(0x39d6c8, 0x9ff0e8);
-const flyB = makeDragonfly(0xff9d4d, 0xffd6a8);
+const flyB = makeDragonfly(0xff6ad5, 0xffc0ec);
 scene.add(flyA); scene.add(flyB);
 
-// ── trajectory ribbons ───────────────────────────────────────────────────────────
-function makeRibbon(color) {
+// ── Tron light-rails (banking neon fins that fade with age) ───────────────────────
+const RAIL_FADE = 190;   // frames the rail stays lit
+function makeRail(color) {
+  const maxN = 1600, verts = maxN * 2;
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 4000), 3));
-  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8 }));
-  line.frustumCulled = false; scene.add(line); return line;
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts * 3), 3));
+  geo.setAttribute('aT', new THREE.BufferAttribute(new Float32Array(verts), 1)); // frame index per vertex
+  const idx = new Uint32Array((maxN - 1) * 6);
+  for (let i = 0; i < maxN - 1; i++) {
+    const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3, o = i * 6;
+    idx[o] = a; idx[o + 1] = b; idx[o + 2] = c; idx[o + 3] = b; idx[o + 4] = d; idx[o + 5] = c;
+  }
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uNow: { value: 0 }, uFade: { value: RAIL_FADE }, uColor: { value: new THREE.Color(color) } },
+    vertexShader: `attribute float aT; uniform float uNow; uniform float uFade; varying float vA;
+      void main(){ vA = clamp(1.0 - (uNow - aT)/uFade, 0.0, 1.0); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
+    fragmentShader: `uniform vec3 uColor; varying float vA;
+      void main(){ if(vA<=0.001) discard; float a=vA*vA; gl_FragColor=vec4(uColor*(0.35+1.1*a), a);} `,
+  });
+  const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; scene.add(mesh);
+  return { mesh, geo, mat, maxN };
 }
-const ribA = makeRibbon(0x39d6c8), ribB = makeRibbon(0xff9d4d);
+const railA = makeRail(0x39d6c8), railB = makeRail(0xff6ad5);
+const RAIL_H = 0.14; // fin half-height (offset along body-up, so rolls tilt the fin)
 
 // ── orientation helpers ──────────────────────────────────────────────────────────
 const WUP = new THREE.Vector3(0, 1, 0);
@@ -315,131 +365,229 @@ function basisFromVel(vx, vy, vz) {
   _r.normalize(); _u.crossVectors(_r, _f).normalize();
   return [_f, _r, _u];
 }
-// orient a mesh built along +Z so local +Z aligns with forward
 function orientMesh(mesh, px, py, pz, vx, vy, vz) {
-  const [f, r, u] = basisFromVel(vx, vy, vz);
-  _m.makeBasis(r, u, f); mesh.quaternion.setFromRotationMatrix(_m);
-  mesh.position.set(px, py, pz);
+  const [f, r, u] = basisFromVel(vx, vy, vz); _m.makeBasis(r, u, f);
+  mesh.quaternion.setFromRotationMatrix(_m); mesh.position.set(px, py, pz);
 }
 
 // ── data plumbing ────────────────────────────────────────────────────────────────
-const at = (arr, i) => arr[i];               // works for Float64Array & plain array
+const at = (arr, i) => arr[i];
 function pos(g, i) { return [g.pos[3 * i], g.pos[3 * i + 1], g.pos[3 * i + 2]]; }
 function vel(g, i) { return [g.vel[3 * i], g.vel[3 * i + 1], g.vel[3 * i + 2]]; }
+
+function buildRail(rail, g) {
+  const p = rail.geo.attributes.position.array, T = rail.geo.attributes.aT.array;
+  const n = Math.min(cfg.steps, rail.maxN);
+  for (let i = 0; i < n; i++) {
+    const [px, py, pz] = pos(g, i), [vx, vy, vz] = vel(g, i);
+    const [, , u] = basisFromVel(vx, vy, vz);
+    const a = i * 2, b = i * 2 + 1;
+    p[a * 3] = px + u.x * RAIL_H; p[a * 3 + 1] = py + u.y * RAIL_H; p[a * 3 + 2] = pz + u.z * RAIL_H;
+    p[b * 3] = px - u.x * RAIL_H; p[b * 3 + 1] = py - u.y * RAIL_H; p[b * 3 + 2] = pz - u.z * RAIL_H;
+    T[a] = i; T[b] = i;
+  }
+  rail.geo.attributes.position.needsUpdate = true; rail.geo.attributes.aT.needsUpdate = true;
+}
 
 function resolve() {
   sim = solve(cfg);
   frame = Math.min(frame, cfg.steps - 1);
   document.getElementById('scrub').max = cfg.steps - 1;
-  // fill ribbon buffers fully; draw range follows playback
-  fillRibbon(ribA, sim.a); fillRibbon(ribB, sim.b);
+  buildRail(railA, sim.a); buildRail(railB, sim.b);
   drawGraphsBase();
 }
-function fillRibbon(line, g) {
-  const p = line.geometry.attributes.position.array;
-  const n = Math.min(cfg.steps, p.length / 3);
-  for (let i = 0; i < n; i++) { p[3 * i] = g.pos[3 * i]; p[3 * i + 1] = g.pos[3 * i + 1]; p[3 * i + 2] = g.pos[3 * i + 2]; }
-  line.geometry.attributes.position.needsUpdate = true;
-}
-
-// which flyer is the chaser at frame i (role>0 => A)
 const chaserIsA = (i) => at(sim.role, i) >= 0;
 
 // ── HUD ──────────────────────────────────────────────────────────────────────────
 function updateHUD(i) {
   const spa = at(sim.a.speed, i), spb = at(sim.b.speed, i), rng = at(sim.a.range, i), role = at(sim.role, i);
-  const A = chaserIsA(i);
-  const chas = A ? sim.a : sim.b;
+  const A = chaserIsA(i), chas = A ? sim.a : sim.b;
   document.getElementById('s-spa').innerHTML = spa.toFixed(2) + '<small> m/s</small>';
   document.getElementById('s-spb').innerHTML = spb.toFixed(2) + '<small> m/s</small>';
   document.getElementById('s-rng').innerHTML = rng.toFixed(2) + '<small> m</small>';
   document.getElementById('s-turn').innerHTML = (at(chas.turnRate, i) * 180 / Math.PI).toFixed(0) + '<small> °/s</small>';
   const az = at(chas.azimuth, i) * 180 / Math.PI, el = at(chas.elevation, i) * 180 / Math.PI;
   document.getElementById('s-eye').innerHTML = `${az >= 0 ? '+' : ''}${az.toFixed(0)}° <small>az</small> &nbsp; ${el >= 0 ? '+' : ''}${el.toFixed(0)}° <small>el</small>`;
-  document.getElementById('s-role').innerHTML = A
-    ? '<span class="dotA"></span><b>A</b> chasing'
-    : '<span class="dotB"></span><b>B</b> chasing';
+  document.getElementById('s-role').innerHTML = A ? '<span class="dotA"></span><b>A</b> chasing' : '<span class="dotB"></span><b>B</b> chasing';
   document.getElementById('rolepin').style.left = (50 + 50 * Math.max(-1, Math.min(1, role))).toFixed(1) + '%';
   document.getElementById('tlabel').textContent = (i * cfg.dt).toFixed(1) + 's';
 }
 
-// ── graphs (speed, rival elevation-in-eye w/ set-point, role balance) ────────────
+// ── graphs ───────────────────────────────────────────────────────────────────────
 const gc = document.getElementById('gcanvas'), gx = gc.getContext('2d');
 let gBase = null;
 function drawGraphsBase() {
-  const W = gc.width, H = gc.height, n = cfg.steps;
+  const W = gc.width, H = gc.height, n = cfg.steps, h = H / 3;
   gx.clearRect(0, 0, W, H);
-  const pane = (y0, h, title) => { gx.fillStyle = 'rgba(255,255,255,.05)'; gx.fillRect(0, y0, W, h);
-    gx.fillStyle = '#8a8aa0'; gx.font = '20px -apple-system,sans-serif'; gx.fillText(title, 8, y0 + 22); };
-  const h = H / 3;
-  pane(0, h, 'speed  A / B  (m/s)');
-  pane(h, h, 'rival elevation in chaser eye  (° — dashed = set-point)');
-  pane(2 * h, h, 'role balance  (A chases ▲ / B chases ▼)');
+  const pane = (y0, title) => { gx.fillStyle = 'rgba(255,255,255,.05)'; gx.fillRect(0, y0, W, h);
+    gx.fillStyle = '#9a90c0'; gx.font = '20px -apple-system,sans-serif'; gx.fillText(title, 8, y0 + 22); };
+  pane(0, 'speed  A / B  (m/s)'); pane(h, 'rival elevation in chaser eye  (° — dashed = set-point)'); pane(2 * h, 'role balance  (A ▲ / B ▼)');
   const xt = (i) => (i / (n - 1)) * W;
-  // speed
-  const smax = cfg.speedMax, smin = 0;
   const plot = (arr, y0, hh, lo, hi, color) => { gx.strokeStyle = color; gx.lineWidth = 2; gx.beginPath();
     for (let i = 0; i < n; i++) { const v = (at(arr, i) - lo) / (hi - lo); const y = y0 + hh - v * hh; i ? gx.lineTo(xt(i), y) : gx.moveTo(xt(i), y); } gx.stroke(); };
-  plot(sim.a.speed, 4, h - 8, smin, smax, '#39d6c8');
-  plot(sim.b.speed, 4, h - 8, smin, smax, '#ff9d4d');
-  // elevation of the *current chaser's* view of rival + set-point line
+  plot(sim.a.speed, 4, h - 8, 0, cfg.speedMax, '#39d6c8'); plot(sim.b.speed, 4, h - 8, 0, cfg.speedMax, '#ff6ad5');
   const elLo = -40, elHi = 40;
   gx.strokeStyle = 'rgba(126,231,135,.8)'; gx.setLineDash([6, 5]); gx.lineWidth = 1.5; gx.beginPath();
   { const set = cfg.elevSet * 180 / Math.PI; const v = (set - elLo) / (elHi - elLo); const y = h + (h - 8) - v * (h - 8) + 4; gx.moveTo(0, y); gx.lineTo(W, y); gx.stroke(); }
-  gx.setLineDash([]);
-  gx.strokeStyle = '#e6e6f0'; gx.lineWidth = 2; gx.beginPath();
+  gx.setLineDash([]); gx.strokeStyle = '#eef'; gx.lineWidth = 2; gx.beginPath();
   for (let i = 0; i < n; i++) { const chas = chaserIsA(i) ? sim.a : sim.b; const e = at(chas.elevation, i) * 180 / Math.PI;
     const v = (Math.max(elLo, Math.min(elHi, e)) - elLo) / (elHi - elLo); const y = h + (h - 8) - v * (h - 8) + 4; i ? gx.lineTo(xt(i), y) : gx.moveTo(xt(i), y); } gx.stroke();
-  // role balance
   const midY = 2 * h + h / 2;
   gx.strokeStyle = 'rgba(255,255,255,.18)'; gx.lineWidth = 1; gx.beginPath(); gx.moveTo(0, midY); gx.lineTo(W, midY); gx.stroke();
   gx.lineWidth = 2; gx.beginPath();
   for (let i = 0; i < n; i++) { const rr = at(sim.role, i); const y = midY - rr * (h / 2 - 6);
-    gx.strokeStyle = rr >= 0 ? '#39d6c8' : '#ff9d4d'; if (i === 0) { gx.moveTo(xt(i), y); } else { gx.lineTo(xt(i), y); } }
-  gx.stroke();
+    gx.strokeStyle = rr >= 0 ? '#39d6c8' : '#ff6ad5'; if (i === 0) gx.moveTo(xt(i), y); else gx.lineTo(xt(i), y); } gx.stroke();
   gBase = gx.getImageData(0, 0, W, H);
 }
 function drawGraphsPlayhead(i) {
-  if (!gBase) return;
-  gx.putImageData(gBase, 0, 0);
+  if (!gBase) return; gx.putImageData(gBase, 0, 0);
   const x = (i / (cfg.steps - 1)) * gc.width;
   gx.strokeStyle = 'rgba(255,255,255,.85)'; gx.lineWidth = 1.5; gx.beginPath(); gx.moveTo(x, 0); gx.lineTo(x, gc.height); gx.stroke();
 }
 
-// ── reticle overlay (head-cam) ───────────────────────────────────────────────────
+// ── eye cameras: cube capture + reprojection (fisheye / compound) ─────────────────
+const CUBE = 320;
+const colorRT = new THREE.WebGLCubeRenderTarget(CUBE, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+const depthRT = new THREE.WebGLCubeRenderTarget(CUBE, { generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+const CUBE_NEAR = 0.02, CUBE_FAR = 90;
+const cubeColor = new THREE.CubeCamera(CUBE_NEAR, CUBE_FAR, colorRT);
+const cubeDepth = new THREE.CubeCamera(CUBE_NEAR, CUBE_FAR, depthRT);
+scene.add(cubeColor); scene.add(cubeDepth);
+const depthMat = new THREE.ShaderMaterial({
+  glslVersion: THREE.GLSL3, uniforms: { uFar: { value: CUBE_FAR } },
+  vertexShader: `out float vD; void main(){ vec4 mv=modelViewMatrix*vec4(position,1.0); vD=-mv.z; gl_Position=projectionMatrix*mv;} `,
+  fragmentShader: `in float vD; uniform float uFar; out vec4 o; void main(){ float d=clamp(vD/uFar,0.0,1.0); o=vec4(d,d,d,1.0);} `,
+});
+
+const eyeScene = new THREE.Scene();
+const eyeQuadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const eyeMat = new THREE.ShaderMaterial({
+  glslVersion: THREE.GLSL3,
+  uniforms: {
+    uColor: { value: colorRT.texture }, uDepth: { value: depthRT.texture },
+    uEyeToWorld: { value: new THREE.Matrix3() },
+    uField: { value: opt.field }, uMode: { value: 0 }, uFacet: { value: 0.04 },
+    uFar: { value: CUBE_FAR }, uFocus: { value: 2.0 }, uBlur: { value: 0.5 },
+    uAspect: { value: 1 }, uMaxLod: { value: Math.log2(CUBE) - 1 },
+  },
+  vertexShader: `out vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);} `,
+  fragmentShader: `
+    precision highp float;
+    in vec2 vUv; out vec4 outColor;
+    uniform samplerCube uColor; uniform samplerCube uDepth;
+    uniform mat3 uEyeToWorld; uniform float uField; uniform int uMode; uniform float uFacet;
+    uniform float uFar; uniform float uFocus; uniform float uBlur; uniform float uAspect; uniform float uMaxLod;
+    const float SQ3 = 1.7320508;
+    // flat-top hex round
+    vec2 hexRound(vec2 p, float s){
+      float q = (2.0/3.0*p.x)/s;
+      float r = (-1.0/3.0*p.x + SQ3/3.0*p.y)/s;
+      float x=q, z=r, y=-x-z;
+      float rx=floor(x+0.5), ry=floor(y+0.5), rz=floor(z+0.5);
+      float dx=abs(rx-x), dy=abs(ry-y), dz=abs(rz-z);
+      if(dx>dy && dx>dz) rx=-ry-rz; else if(dy>dz) ry=-rx-rz; else rz=-rx-ry;
+      return vec2( s*1.5*rx, s*SQ3*(rz + rx/2.0) );
+    }
+    void main(){
+      vec2 p = vUv*2.0 - 1.0;
+      if(uAspect>1.0) p.x *= uAspect; else p.y /= uAspect;   // circular disk
+      float facetShade = 1.0, lodBoost = 0.0;
+      if(uMode==1){
+        vec2 c = hexRound(p, uFacet);
+        float dc = length(p - c);
+        float inr = uFacet*0.866;
+        facetShade = smoothstep(inr*1.02, inr*0.72, dc);      // dark gaps between ommatidia
+        facetShade *= 0.85 + 0.15*(1.0 - clamp(dc/inr,0.0,1.0)); // faint lens sheen
+        p = c;                                                // sample at facet centre
+        lodBoost = 1.4;                                       // each facet integrates a cone
+      }
+      float rho = length(p);
+      if(rho > 1.0){ outColor = vec4(0.02,0.01,0.05,1.0); return; }  // beyond the eye's field
+      float theta = 2.0*atan(rho*tan(uField*0.5));           // stereographic (conformal) inverse
+      float phi = atan(p.y, p.x);
+      vec3 eyeDir = vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta));
+      vec3 dir = normalize(uEyeToWorld * eyeDir);
+      // optical blur: depth-of-field focused on the rival
+      float d = texture(uDepth, dir).r * uFar;
+      float coc = clamp(abs(d - uFocus) * uBlur, 0.0, uMaxLod);
+      float lod = min(coc + lodBoost, uMaxLod);
+      vec3 col = textureLod(uColor, dir, lod).rgb;
+      col *= facetShade;
+      col *= smoothstep(1.0, 0.86, rho);                     // soft eye vignette
+      outColor = vec4(col, 1.0);
+    }`,
+});
+eyeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), eyeMat));
+
+const _eb = new THREE.Matrix4(), _e3 = new THREE.Matrix3();
+function renderEye(i) {
+  const me = headWho === 0 ? sim.a : sim.b, self = headWho === 0 ? flyA : flyB;
+  const [px, py, pz] = pos(me, i), [vx, vy, vz] = vel(me, i);
+  const [f, r, u] = basisFromVel(vx, vy, vz);
+  self.visible = false;                                       // don't fill the view with your own body
+  cubeColor.position.set(px, py, pz); cubeColor.updateMatrixWorld(true); cubeColor.update(renderer, scene);
+  scene.overrideMaterial = depthMat;
+  cubeDepth.position.set(px, py, pz); cubeDepth.updateMatrixWorld(true); cubeDepth.update(renderer, scene);
+  scene.overrideMaterial = null;
+  self.visible = true;
+  _eb.makeBasis(r, u, f); _e3.setFromMatrix4(_eb);
+  eyeMat.uniforms.uEyeToWorld.value.copy(_e3);
+  eyeMat.uniforms.uMode.value = view === 'compound' ? 1 : 0;
+  eyeMat.uniforms.uField.value = opt.field;
+  eyeMat.uniforms.uFacet.value = 1 / opt.facet;
+  eyeMat.uniforms.uFocus.value = at(me.range, i);             // fixate the rival
+  eyeMat.uniforms.uBlur.value = (opt.blur / 100) * 1.4;
+  eyeMat.uniforms.uAspect.value = innerWidth / innerHeight;
+  renderer.render(eyeScene, eyeQuadCam);
+  drawEyeReticle(i, r, u, f);
+}
+
+// ── reticle overlay ────────────────────────────────────────────────────────────────
 const ret = document.getElementById('reticle'), rx = ret.getContext('2d');
-const _rivalW = new THREE.Vector3(), _ndc = new THREE.Vector3();
-function drawReticle(i) {
+const _rw = new THREE.Vector3(), _ndc = new THREE.Vector3();
+function drawHeadReticle(i) {
   const W = ret.width, H = ret.height; rx.clearRect(0, 0, W, H);
   const cx = W / 2, cy = H / 2;
-  const chas = headWho === 0 ? sim.a : sim.b;
-  // set-point line: where this flyer WANTS the rival (elevSet above forward)
   const vfov = headCam.fov * Math.PI / 180;
   const setY = cy - (Math.tan(cfg.elevSet) / Math.tan(vfov / 2)) * (H / 2);
   rx.strokeStyle = 'rgba(126,231,135,.9)'; rx.lineWidth = 2; rx.setLineDash([10, 7]);
   rx.beginPath(); rx.moveTo(W * 0.18, setY); rx.lineTo(W * 0.82, setY); rx.stroke(); rx.setLineDash([]);
   rx.fillStyle = 'rgba(126,231,135,.95)'; rx.font = '600 13px -apple-system,sans-serif';
-  rx.fillText('hold rival here  ·  +' + (cfg.elevSet * 180 / Math.PI).toFixed(0) + '°', W * 0.18, setY - 8);
-  // horizon + centre crosshair (forward)
+  rx.fillText('hold rival here · +' + (cfg.elevSet * 180 / Math.PI).toFixed(0) + '°', W * 0.18, setY - 8);
   rx.strokeStyle = 'rgba(255,255,255,.28)'; rx.lineWidth = 1;
   rx.beginPath(); rx.moveTo(0, cy); rx.lineTo(W, cy); rx.stroke();
   rx.beginPath(); rx.moveTo(cx - 12, cy); rx.lineTo(cx + 12, cy); rx.moveTo(cx, cy - 12); rx.lineTo(cx, cy + 12); rx.stroke();
-  // lock box on the actual rival (project its world position through the head cam)
-  const foe = headWho === 0 ? sim.b : sim.a;
-  const [fx, fy, fz] = pos(foe, i); _rivalW.set(fx, fy, fz);
-  _ndc.copy(_rivalW).project(headCam);
+  const foe = headWho === 0 ? sim.b : sim.a; const [fx, fy, fz] = pos(foe, i); _rw.set(fx, fy, fz);
+  _ndc.copy(_rw).project(headCam);
   if (_ndc.z < 1) {
     const sx = (_ndc.x * 0.5 + 0.5) * W, sy = (-_ndc.y * 0.5 + 0.5) * H;
-    const onSet = Math.abs(sy - setY) < H * 0.05;
-    rx.strokeStyle = onSet ? 'rgba(126,231,135,1)' : 'rgba(255,157,77,1)'; rx.lineWidth = 2.5;
+    rx.strokeStyle = Math.abs(sy - setY) < H * 0.05 ? 'rgba(126,231,135,1)' : 'rgba(255,106,213,1)'; rx.lineWidth = 2.5;
     const s = 26; rx.strokeRect(sx - s / 2, sy - s / 2, s, s);
-    rx.beginPath(); rx.moveTo(sx, sy - s); rx.lineTo(sx, sy - s / 2); rx.moveTo(sx, sy + s / 2); rx.lineTo(sx, sy + s); rx.stroke();
-    rx.fillStyle = rx.strokeStyle; rx.font = '600 12px -apple-system,sans-serif';
-    rx.fillText('RIVAL', sx + s / 2 + 6, sy - s / 2);
+    rx.fillStyle = rx.strokeStyle; rx.font = '600 12px -apple-system,sans-serif'; rx.fillText('RIVAL', sx + s / 2 + 6, sy - s / 2);
   }
-  // label
   rx.fillStyle = 'rgba(255,255,255,.6)'; rx.font = '600 12px -apple-system,sans-serif';
   rx.fillText('HEAD-CAM ▸ ' + (headWho === 0 ? 'male A' : 'male B'), 16, H - 16);
+}
+const _dr = new THREE.Vector3();
+function drawEyeReticle(i, r, u, f) {
+  const W = ret.width, H = ret.height; rx.clearRect(0, 0, W, H);
+  const aspect = W / H, disk = Math.min(W, H) / 2;
+  // project rival through the same stereographic map
+  const foe = headWho === 0 ? sim.b : sim.a, me = headWho === 0 ? sim.a : sim.b;
+  const [fx, fy, fz] = pos(foe, i), [mx, my, mz] = pos(me, i);
+  _dr.set(fx - mx, fy - my, fz - mz).normalize();
+  const ez = _dr.dot(f), ex = _dr.dot(r), ey = _dr.dot(u);   // eye-space dir
+  const theta = Math.acos(Math.max(-1, Math.min(1, ez))), phi = Math.atan2(ey, ex);
+  const rho = Math.tan(theta / 2) / Math.tan(opt.field / 2);
+  if (rho <= 1) {
+    let dx = rho * Math.cos(phi), dy = rho * Math.sin(phi);
+    if (aspect > 1) dx /= aspect; else dy *= aspect;
+    const sx = W / 2 + dx * disk * (aspect > 1 ? aspect : 1), sy = H / 2 - dy * disk;
+    rx.strokeStyle = 'rgba(126,231,135,1)'; rx.lineWidth = 2.5; rx.beginPath(); rx.arc(sx, sy, 16, 0, Math.PI * 2); rx.stroke();
+    rx.fillStyle = 'rgba(126,231,135,1)'; rx.font = '600 12px -apple-system,sans-serif'; rx.fillText('RIVAL', sx + 20, sy);
+  }
+  rx.fillStyle = 'rgba(255,255,255,.6)'; rx.font = '600 12px -apple-system,sans-serif';
+  rx.fillText((view === 'compound' ? 'COMPOUND EYE ▸ ' : 'FISHEYE (conformal) ▸ ') + (headWho === 0 ? 'male A' : 'male B'), 16, H - 16);
 }
 
 // ── camera follow ────────────────────────────────────────────────────────────────
@@ -448,65 +596,55 @@ function placeHeadCam(i) {
   const [px, py, pz] = pos(me, i), [vx, vy, vz] = vel(me, i);
   const [f, r, u] = basisFromVel(vx, vy, vz);
   headCam.position.set(px, py, pz).addScaledVector(f, 0.12).addScaledVector(u, 0.03);
-  // camera looks along forward: its -Z = f  →  makeBasis(r, u, -f)
   _m.makeBasis(r, u, f.clone().negate()); headCam.quaternion.setFromRotationMatrix(_m);
 }
 
 // ── main loop ────────────────────────────────────────────────────────────────────
-let last = 0, wingClock = 0;
+let lastTs = 0, wingClock = 0;
 function tick(ts) {
   requestAnimationFrame(tick);
-  const dtms = last ? (ts - last) : 16; last = ts; wingClock += dtms / 1000;
+  const dtms = lastTs ? (ts - lastTs) : 16; lastTs = ts; wingClock += dtms / 1000;
   if (!sim) return;
-
-  if (playing) {
-    frame += (dtms / 1000) * playSpeed / cfg.dt;
-    if (frame >= cfg.steps - 1) frame = 0; // loop the bout
-    document.getElementById('scrub').value = Math.floor(frame);
-  }
+  if (playing) { frame += (dtms / 1000) * playSpeed / cfg.dt; if (frame >= cfg.steps - 1) frame = 0; document.getElementById('scrub').value = Math.floor(frame); }
   const i = Math.max(0, Math.min(cfg.steps - 1, Math.floor(frame)));
 
-  // place flyers + wing flap
   { const [px, py, pz] = pos(sim.a, i), [vx, vy, vz] = vel(sim.a, i); orientMesh(flyA, px, py, pz, vx, vy, vz); }
   { const [px, py, pz] = pos(sim.b, i), [vx, vy, vz] = vel(sim.b, i); orientMesh(flyB, px, py, pz, vx, vy, vz); }
-  for (const g of [flyA, flyB]) for (const w of g.userData.wings)
-    w.pivot.rotation.z = w.sx * (0.35 + 0.5 * Math.sin(wingClock * 38 + w.phase));
+  for (const g of [flyA, flyB]) for (const w of g.userData.wings) w.pivot.rotation.z = w.sx * (0.35 + 0.5 * Math.sin(wingClock * 38 + w.phase));
 
-  // ribbons up to current frame
-  const drawN = ribbonsOn ? i + 1 : 0;
-  ribA.geometry.setDrawRange(0, drawN); ribB.geometry.setDrawRange(0, drawN);
-  ribA.visible = ribB.visible = ribbonsOn;
+  // rails: fade with age around the current frame
+  for (const rail of [railA, railB]) {
+    rail.mat.uniforms.uNow.value = i;
+    const lo = Math.max(0, i - RAIL_FADE), count = Math.max(0, (i - lo)) * 6;
+    rail.geo.setDrawRange(lo * 6, ribbonsOn ? count : 0);
+    rail.mesh.visible = ribbonsOn;
+  }
 
-  // camera
-  let cam;
-  if (camMode === 'head') { placeHeadCam(i); cam = headCam; drawReticle(i); }
-  else { controls.update(); cam = orbitCam; }
+  if (view === 'fisheye' || view === 'compound') { renderEye(i); }
+  else if (view === 'head') { placeHeadCam(i); drawHeadReticle(i); renderer.render(scene, headCam); }
+  else { controls.update(); renderer.render(scene, orbitCam); }
 
   updateHUD(i); drawGraphsPlayhead(i);
-  renderer.render(scene, cam);
 }
 requestAnimationFrame(tick);
 
 // ── resize ───────────────────────────────────────────────────────────────────────
-// Reticle canvas is sized in CSS px (no dpr transform) so 2D coords match project() output.
 function resizeReticle() { ret.width = innerWidth; ret.height = innerHeight; }
-addEventListener('resize', () => { onResize(); });
 function onResize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false);
   for (const c of [orbitCam, headCam]) { c.aspect = w / h; c.updateProjectionMatrix(); }
   resizeReticle();
 }
-onResize();
+addEventListener('resize', onResize); onResize();
 
 // ── controls ─────────────────────────────────────────────────────────────────────
-// presets
 const presetsEl = document.getElementById('presets');
-for (const [key, p] of Object.entries(PRESETS)) {
-  const b = document.createElement('button'); b.textContent = p.label; b.dataset.k = key;
-  if (key === activePreset) b.classList.add('on');
-  b.onclick = () => { activePreset = key; cfg = presetConfig(key); frame = 0; syncSliders(); resolve();
-    [...presetsEl.children].forEach((c) => c.classList.toggle('on', c.dataset.k === key));
+for (const [key2, p] of Object.entries(PRESETS)) {
+  const b = document.createElement('button'); b.textContent = p.label; b.dataset.k = key2;
+  if (key2 === activePreset) b.classList.add('on');
+  b.onclick = () => { activePreset = key2; cfg = presetConfig(key2); frame = 0; syncSliders(); resolve();
+    [...presetsEl.children].forEach((c) => c.classList.toggle('on', c.dataset.k === key2));
     document.getElementById('blurb').textContent = p.blurb; };
   presetsEl.appendChild(b);
 }
@@ -519,47 +657,47 @@ const sliders = [
   ['sl-stand', 'rv-stand', (v) => (cfg.standoff = v), () => cfg.standoff.toFixed(1) + ' m', () => cfg.standoff],
   ['sl-asym', 'rv-asym', (v) => (cfg.asym = v), () => (cfg.asym * 100).toFixed(0) + '%', () => cfg.asym],
 ];
-function syncSliders() {
-  for (const [sl, rv, , fmt, get] of sliders) {
-    document.getElementById(sl).value = get(); document.getElementById(rv).textContent = fmt();
-  }
-}
-for (const [sl, rv, set, fmt] of sliders) {
-  const el = document.getElementById(sl);
-  el.addEventListener('input', () => { set(parseFloat(el.value)); document.getElementById(rv).textContent = fmt(); resolve(); });
-}
+function syncSliders() { for (const [sl, rv, , fmt, get] of sliders) { document.getElementById(sl).value = get(); document.getElementById(rv).textContent = fmt(); } }
+for (const [sl, rv, set, fmt] of sliders) { const el = document.getElementById(sl);
+  el.addEventListener('input', () => { set(parseFloat(el.value)); document.getElementById(rv).textContent = fmt(); resolve(); }); }
 syncSliders();
 
-// camera buttons
-const bOrbit = document.getElementById('btn-cam-orbit'), bHead = document.getElementById('btn-cam-head');
-bOrbit.onclick = () => { camMode = 'orbit'; document.body.classList.remove('headcam'); bOrbit.classList.add('on'); bHead.classList.remove('on'); };
-bHead.onclick = () => {
-  if (camMode === 'head') { headWho = 1 - headWho; }         // toggle A/B on repeat click
-  camMode = 'head'; document.body.classList.add('headcam');
-  bHead.textContent = 'Head-cam ▸ ' + (headWho === 0 ? 'A' : 'B');
-  bHead.classList.add('on'); bOrbit.classList.remove('on');
-};
+// optics sliders (no re-solve needed — pure view params)
+const optics = [
+  ['sl-field', 'rv-field', (v) => (opt.field = v * Math.PI / 180), () => (opt.field * 180 / Math.PI).toFixed(0) + '°'],
+  ['sl-facet', 'rv-facet', (v) => (opt.facet = v), () => opt.facet + ' /r'],
+  ['sl-blur', 'rv-blur', (v) => (opt.blur = v), () => opt.blur + '%'],
+];
+for (const [sl, rv, set, fmt] of optics) { const el = document.getElementById(sl);
+  set(parseFloat(el.value)); document.getElementById(rv).textContent = fmt();
+  el.addEventListener('input', () => { set(parseFloat(el.value)); document.getElementById(rv).textContent = fmt(); }); }
 
+// view segmented
+const viewsEl = document.getElementById('views');
+function setView(v) {
+  view = v;
+  [...viewsEl.children].forEach((c) => c.classList.toggle('on', c.dataset.v === v));
+  document.body.classList.toggle('pov', v !== 'orbit');
+  if (v === 'orbit') rx.clearRect(0, 0, ret.width, ret.height);
+}
+[...viewsEl.children].forEach((b) => (b.onclick = () => setView(b.dataset.v)));
+
+const btnEye = document.getElementById('btn-eye');
+btnEye.onclick = () => { headWho = 1 - headWho; btnEye.textContent = 'Eye ▸ ' + (headWho === 0 ? 'A' : 'B'); };
 document.getElementById('btn-ribbon').onclick = (e) => { ribbonsOn = !ribbonsOn; e.target.classList.toggle('on', ribbonsOn); };
 
-// transport
 const btnPlay = document.getElementById('btn-play'), scrub = document.getElementById('scrub');
 btnPlay.onclick = () => { playing = !playing; btnPlay.textContent = playing ? '⏸' : '▶'; };
 scrub.addEventListener('input', () => { frame = parseInt(scrub.value); playing = false; btnPlay.textContent = '▶'; });
-
-// dock minimise + master UI hide
 document.getElementById('dockhead').onclick = () => document.getElementById('dock').classList.toggle('min');
 document.getElementById('uitoggle').onclick = () => document.body.classList.toggle('ui-hidden');
 
-// keyboard: space play/pause, h head-cam, o orbit, t trails
 addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); btnPlay.click(); }
-  else if (e.key === 'h') bHead.click();
-  else if (e.key === 'o') bOrbit.click();
-  else if (e.key === 't') document.getElementById('btn-ribbon').click();
+  else if (e.key === 'o') setView('orbit'); else if (e.key === 'h') setView('head');
+  else if (e.key === 'f') setView('fisheye'); else if (e.key === 'c') setView('compound');
+  else if (e.key === 'e') btnEye.click(); else if (e.key === 't') document.getElementById('btn-ribbon').click();
 });
-
-// first solve happens once the wasm probe settles (resolve() called from the async IIFE)
 </script>
 </body>
 </html>
