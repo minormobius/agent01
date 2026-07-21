@@ -264,7 +264,7 @@
       "type": "backend",
       "branch": "claude/civ-deploy-unification-vt35ju",
       "uses": [],
-      "provides": null,
+      "provides": "civ",
       "paths": [
         "civ/**",
         "mappa/civ/**",

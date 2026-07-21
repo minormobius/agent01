@@ -6,7 +6,7 @@ name: Deploy tjs (three.js workbenches)
 
 on:
   push:
-    branches: [main, 'claude/cube3d-browser-port-ufh9gy', 'claude/geb-shadowbox-threejs-d2zjv0', 'claude/cfd-rust-kite-solver-opjsj5']
+    branches: [main, 'claude/cfd-rust-kite-solver-opjsj5']
     paths:
       - 'tjs/**'
       - '.github/workflows/deploy-tjs.yml'
