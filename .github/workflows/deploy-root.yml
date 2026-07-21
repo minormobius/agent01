@@ -57,7 +57,6 @@ on:
       - 'noise/**'
       - 'flows/**'
       - 'phylo/**'
-      - 'time/**'
       - 'wiki/**'
       # orrery: theme-first surface-map prototype served at mino.mobi/orrery/
       # (reviewable alongside the live homepage; promote into index.html once approved)

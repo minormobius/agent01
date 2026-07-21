@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" font-family="'Georgia', 'Times New Roman', serif">
+  <style>
+    .heading { font-size: 14px; font-weight: 700; fill: #1a1a1a; letter-spacing: 0.5px; }
+    .subtitle { font-size: 10px; fill: #666; font-family: 'Helvetica Neue', Arial, sans-serif; }
+    .track-title { font-size: 12px; font-weight: 700; fill: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; }
+    .box-label { font-size: 10px; font-weight: 600; fill: #1a1a1a; font-family: 'Helvetica Neue', Arial, sans-serif; }
+    .box-text { font-size: 9px; fill: #444; font-family: 'Helvetica Neue', Arial, sans-serif; }
+    .arrow-label { font-size: 9px; fill: #666; font-family: 'Helvetica Neue', Arial, sans-serif; font-style: italic; }
+    .note { font-size: 9.5px; fill: #8b0000; font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 600; }
+  </style>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" class="heading">TWO TRACKS, ONE GAP</text>
+  <text x="450" y="46" text-anchor="middle" class="subtitle">How FDA-cleared IVDs and laboratory-developed tests traveled parallel regulatory paths for fifty years</text>
+
+  <!-- === TRACK A: FDA Premarket Review (top) === -->
+  <rect x="30" y="70" width="840" height="160" rx="6" fill="#f8f4f0" stroke="#8b0000" stroke-width="1.5"/>
+  <rect x="30" y="70" width="840" height="28" rx="6" fill="#8b0000"/>
+  <rect x="30" y="84" width="840" height="14" fill="#8b0000"/>
+  <text x="450" y="89" text-anchor="middle" class="track-title">TRACK A: FDA-CLEARED IN VITRO DIAGNOSTICS</text>
+
+  <!-- Step boxes for Track A -->
+  <!-- Manufacturer -->
+  <rect x="55" y="115" width="120" height="55" rx="4" fill="#fff" stroke="#8b0000" stroke-width="1"/>
+  <text x="115" y="133" text-anchor="middle" class="box-label">Manufacturer</text>
+  <text x="115" y="147" text-anchor="middle" class="box-text">Designs &amp; validates</text>
+  <text x="115" y="159" text-anchor="middle" class="box-text">the test</text>
+
+  <!-- Arrow -->
+  <line x1="180" y1="142" x2="210" y2="142" stroke="#8b0000" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <!-- Premarket submission -->
+  <rect x="215" y="115" width="130" height="55" rx="4" fill="#fff" stroke="#8b0000" stroke-width="1"/>
+  <text x="280" y="130" text-anchor="middle" class="box-label">Premarket Review</text>
+  <text x="280" y="144" text-anchor="middle" class="box-text">510(k), PMA, or De Novo</text>
+  <text x="280" y="156" text-anchor="middle" class="box-text">Analytical + clinical data</text>
+
+  <!-- Arrow -->
+  <line x1="350" y1="142" x2="380" y2="142" stroke="#8b0000" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <!-- FDA clearance -->
+  <rect x="385" y="115" width="120" height="55" rx="4" fill="#8b0000" stroke="#8b0000" stroke-width="1"/>
+  <text x="445" y="133" text-anchor="middle" class="track-title" font-size="10px">FDA CLEARANCE</text>
+  <text x="445" y="148" text-anchor="middle" style="font-size: 9px; fill: #eee; font-family: 'Helvetica Neue', Arial, sans-serif;">Legally marketed</text>
+  <text x="445" y="160" text-anchor="middle" style="font-size: 9px; fill: #eee; font-family: 'Helvetica Neue', Arial, sans-serif;">as IVD</text>
+
+  <!-- Arrow -->
+  <line x1="510" y1="142" x2="540" y2="142" stroke="#8b0000" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <!-- Postmarket -->
+  <rect x="545" y="115" width="130" height="55" rx="4" fill="#fff" stroke="#8b0000" stroke-width="1"/>
+  <text x="610" y="133" text-anchor="middle" class="box-label">Postmarket Controls</text>
+  <text x="610" y="147" text-anchor="middle" class="box-text">MDRs, recalls, QSR,</text>
+  <text x="610" y="159" text-anchor="middle" class="box-text">labeling requirements</text>
+
+  <!-- Arrow -->
+  <line x1="680" y1="142" x2="710" y2="142" stroke="#8b0000" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <!-- Clinical use -->
+  <rect x="715" y="115" width="130" height="55" rx="4" fill="#fff" stroke="#8b0000" stroke-width="1"/>
+  <text x="780" y="133" text-anchor="middle" class="box-label">Clinical Use</text>
+  <text x="780" y="147" text-anchor="middle" class="box-text">Any CLIA-certified lab</text>
+  <text x="780" y="159" text-anchor="middle" class="box-text">can run the test</text>
+
+  <!-- Track A annotation -->
+  <text x="115" y="195" text-anchor="middle" class="box-text">Avg. 510(k): ~5 months, ~$31K</text>
+  <text x="115" y="207" text-anchor="middle" class="box-text">Avg. PMA: ~1 year, ~$300K+</text>
+
+  <!-- === TRACK B: LDT / CLIA Path (bottom) === -->
+  <rect x="30" y="260" width="840" height="160" rx="6" fill="#f0f4f8" stroke="#2c5f8a" stroke-width="1.5"/>
+  <rect x="30" y="260" width="840" height="28" rx="6" fill="#2c5f8a"/>
+  <rect x="30" y="274" width="840" height="14" fill="#2c5f8a"/>
+  <text x="450" y="279" text-anchor="middle" class="track-title">TRACK B: LABORATORY-DEVELOPED TESTS (ENFORCEMENT DISCRETION)</text>
+
+  <!-- Step boxes for Track B -->
+  <!-- Laboratory -->
+  <rect x="55" y="305" width="120" height="55" rx="4" fill="#fff" stroke="#2c5f8a" stroke-width="1"/>
+  <text x="115" y="323" text-anchor="middle" class="box-label">Laboratory</text>
+  <text x="115" y="337" text-anchor="middle" class="box-text">Designs, validates,</text>
+  <text x="115" y="349" text-anchor="middle" class="box-text">&amp; performs in-house</text>
+
+  <!-- Arrow -->
+  <line x1="180" y1="332" x2="210" y2="332" stroke="#2c5f8a" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+
+  <!-- CLIA certification -->
+  <rect x="215" y="305" width="130" height="55" rx="4" fill="#fff" stroke="#2c5f8a" stroke-width="1"/>
+  <text x="280" y="320" text-anchor="middle" class="box-label">CLIA Certification</text>
+  <text x="280" y="334" text-anchor="middle" class="box-text">Lab quality standards</text>
+  <text x="280" y="346" text-anchor="middle" class="box-text">Personnel, QC, proficiency</text>
+
+  <!-- Arrow (skips FDA) -->
+  <line x1="350" y1="332" x2="540" y2="332" stroke="#2c5f8a" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+
+  <!-- The skip annotation -->
+  <rect x="385" y="310" width="120" height="44" rx="4" fill="none" stroke="#b8860b" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="445" y="328" text-anchor="middle" class="arrow-label">No FDA premarket</text>
+  <text x="445" y="342" text-anchor="middle" class="arrow-label">review required</text>
+
+  <!-- Clinical use -->
+  <rect x="545" y="305" width="130" height="55" rx="4" fill="#fff" stroke="#2c5f8a" stroke-width="1"/>
+  <text x="610" y="320" text-anchor="middle" class="box-label">Clinical Use</text>
+  <text x="610" y="334" text-anchor="middle" class="box-text">Same lab only</text>
+  <text x="610" y="346" text-anchor="middle" class="box-text">(not distributed)</text>
+
+  <!-- No postmarket -->
+  <rect x="715" y="305" width="130" height="55" rx="4" fill="none" stroke="#b8860b" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="780" y="323" text-anchor="middle" class="box-label" style="fill: #b8860b;">No MDRs</text>
+  <text x="780" y="337" text-anchor="middle" class="box-text">No adverse event</text>
+  <text x="780" y="349" text-anchor="middle" class="box-text">reporting required</text>
+
+  <!-- Track B annotation -->
+  <text x="115" y="385" text-anchor="middle" class="box-text">Estimated ~250,000 LDTs on U.S. market</text>
+  <text x="115" y="397" text-anchor="middle" class="box-text">$0 FDA fees. No premarket timeline.</text>
+
+  <!-- Convergence annotation -->
+  <rect x="170" y="440" width="560" height="40" rx="5" fill="#fff8f0" stroke="#8b0000" stroke-width="1.5"/>
+  <text x="450" y="458" text-anchor="middle" class="note">MAY 2024 FINAL RULE: Track B enters four-year phaseout toward Track A requirements</text>
+  <text x="450" y="472" text-anchor="middle" class="box-text">All LDTs to be regulated as devices &#x2014; enforcement discretion ends</text>
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrow-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#8b0000"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#2c5f8a"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="498" text-anchor="middle" class="subtitle">The Mino Times &#xb7; minomobi.com</text>
+</svg>
