@@ -1,0 +1,13 @@
+[package]
+name = "dragon-solver"
+version = "0.1.0"
+edition = "2021"
+description = "Coupled visual-bearing pursuit integrator for two duelling dragonflies (Trithemis aurora aerial combat model)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

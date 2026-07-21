@@ -1,0 +1,3 @@
+# Rust build artifacts — the compiled wasm lives in pkg/ (committed), built in CI.
+target/
+Cargo.lock
