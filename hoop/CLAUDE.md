@@ -376,15 +376,16 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-v105-quests-nmi7a2` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-v106-upper-rind-p0t5xn` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
-  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v105` is the
-  DEVELOPMENT surface** (the SEEDED-QUEST-SPINE pass — see its bullet below; the bare dev aliases `/over`,
-  `/garden/plot`, `/alch`, `/smith`, `/quests` now resolve to v105). **`v104` is the frozen prior**
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v106` is the
+  DEVELOPMENT surface** (the UPPER-RIND EVERYTHING-FACTORY pass — see its bullet below; the bare dev
+  aliases `/over`, `/garden/plot`, `/alch`, `/smith`, `/quests` now resolve to v106). **`v105` is the
+  frozen prior** (the SEEDED-QUEST-SPINE pass). **`v104` is an older frozen prior**
   (the FUNGIBLE-KEEPER pass). **`v103` is a FROZEN test surface** —
   the NPC-reform pass, playable end-to-end (kept live so hoopy can keep testing it); don't touch it. The v102
   pass (the frozen prior) was:
@@ -646,6 +647,100 @@ despite the name. It stayed with hoop, not rind.)
     dossier (victim, suspects + motives + spoiler-blurred culprit, the clue chain with holders), the oracle
     verdict for the woven pool, and a "prove 100 seeds" in-browser sweep. `?seed=` here matches the game's
     `?seed=` — the board IS the playtest permalink.
+- **The v106 UPPER-RIND EVERYTHING-FACTORY pass** (the current dev surface; v105 stays the frozen prior).
+  **Deck 1 is no longer four nave-like chunks — it is the ring-weave POCKET DIMENSION** (rind/upperrind
+  brought into the game): SIX white-collar ops threads (W0–W5, two per nave faction, antipodal) × EIGHT
+  production threads — six radial engine halls (foundry·chemworks·mill·fab·weave·fluid) plus the TWO RING
+  LOOPS that intersect everything (RA assembly at the core · RR reclaim at the rim). Every crossing is a
+  zero-grade chamber (the no-ladder rule): thread×thread through an X interface, ring×threads through a
+  beefy Y-junction antechamber (ZA:/ZR:). Two nexuses close the deck stack: **NX** (top-floor fulfillment
+  nexus, bonded to RA — the lift up to the nave, `shafts[0].bottom`) and **ND** (bottom-floor dispatch
+  nexus, bonded to RR — the shaft down to the lower rind, `shafts[1].top`; new in v106, waste falls
+  outward and so do you). Pieces:
+  - **`v106/rindweave/pocketdeck.js`** — the game-native port of rind/ops `pocketweave.js`+`ringpocket.js`
+    (ring mode hard-wired), driving the game's own engine (`v099/v8/chunkgen.js`). MANAGER-FREE: the
+    surface owns one world+walk; pocketdeck solves ~88 chunk recs in ABSOLUTE deck coordinates, each
+    pocket at its own far-apart SLOT (islands — no accidental port stitching; hexes solve over
+    world-positioned polys, never local coords), tagged `{deck:1, rind:true, weave:{key,si,kind}}`.
+    Doors are TELEPORT PAIRS (the shaft mechanic sideways), paired by `pid = sorted([key,toKey])` —
+    110 pairs, all resolving (pinned). Same prepare/solveNext contract as `rind/rind.js` so
+    `world._rind` keeps its `{idx, order, recs[0]=hub}` shape (recs[0] is NX).
+    `v106/rindweave/weavecore.js` is the prism-free trim of rind/ops/weave3d.js (analytic spirals +
+    crossings only) + FACTIONS + districtCentres; `engines.js` is verbatim. Tests:
+    `v106/test/pocketdeck.selftest.mjs` (130 checks: roster, no orphan doors, ring loops CLOSE, gilded
+    nexus rooms, islands, determinism).
+  - **`v106/rindweave/weavenav.js` — the ◇ router.** Pure Dijkstra over the ANALYTIC door graph (~224
+    doors — routes resolve before pockets stream), cost = crossings·1e6 + walk distance, so crossings
+    minimize first, distance breaks ties. Pinned findings: W_i↔P_i (ring-pair partners) meet in their ONE
+    shared antechamber (2 crossings); white→white is always 4 crossings, pivoting on a ring OR an
+    interface–hall–interface shortcut (same count — distance decides); the nave is reachable ONLY through
+    NX (…→RA→NX→lift) and the lower rind ONLY through ND (…→RR→ND→shaft); no pocket pair needs >6
+    crossings. `weaveWaypoint` aims the ◇ at the next door IN THE PLAYER'S OWN POCKET (inside
+    drawWaypoint's 3000-unit clamp); `routeBreadcrumb` feeds the journal. Tests:
+    `v106/test/weavenav.selftest.mjs` (341 checks over 240 routes).
+  - **Surface wiring** (`v106/index.html`): `maybeBuildRind` lays NX as the shaft foot then
+    `streamWeaveDeck` streams the other ~87 pockets paced (stitchAdd, NOT restitch — O(one chunk), keeps
+    teleport node bases stable); `registerWeaveDoors` rebuilds the pair list as both sides solve;
+    `weaveDoorAt`+click = walk-to-then-cross (shaft semantics); doors draw as gold ⊓ portals with
+    destination labels; `questWpToward` is weave-aware (same-deck-cross-pocket → next door of the route,
+    off-deck → the right nexus; `weaveWpInfo` renders "via …" under the ◇ and the full breadcrumb in the
+    journal); `maybeBuildLowerRind` sinks the down-shaft in ND (not the old hub), offsets moved
+    (RIND_OFFSET 24000, LOWER_RIND_OFFSET 60000 — the slot grid needs the clearance). **The weave rule:
+    npcs live ONLY in the white threads** — `keeperTargetChunkIds` filters deck 1 to W-pockets (faction
+    keepers prefer their faction's own two antipodal threads), `populateChambers`' round-robin skips
+    production pockets (a dead seat would drain the pool), and `rebuildSocietySoon` filters residents so
+    the halls/rings/antechambers run unmanned. Guides relocate to NX (the first painted deck-1 chunk —
+    the arrival lobby) and promote into the nearest white-thread resident.
+  - **PRODUCTION SHIFTS — the factory's side quests, from Sevin's keepers** (`v106/story/shift.js`, pure +
+    node-tested; design memo `v106/rindweave/PRODUCTION.md`). Every keeper the weave seats into a white
+    thread offers ONE generated shift; the thread's white-collar ROLE picks the generator —
+    **dispatch·gate → HAUL** (carry a commodity along a real `engines.js supplyChain` edge, source hall →
+    consumer; **the wage is priced by the router: pay ∝ crossings**), **perfusion·telemetry → FIX** (a
+    seeded fault in the production half; cross-check TWO other white threads' lenses — no single lens
+    localizes — reach the fault, then perform the repair ACT via the errand act counters: halls ⚒ forge ·
+    rings ⬡ lapidary · antechambers ⚗ brew, counted from the fault-reached baseline),
+    **schedule·inventory → AUDIT** (walk a ring loop: three of its six antechambers, any order). A shift is
+    deterministic from (world seed, keeper id, thread) — the same weave.js cast that deals Sevin's keepers
+    deals the shift board, so a new seed re-deals both. **Solvability oracle** (`proveShift`): steps exist,
+    every leg routes on the analytic weave, hauls ride real produce/consume pairs, lenses distinct + not
+    the giver's own, audits stay on-ring, wage finite; **selection** salt-steps the hash until the oracle
+    passes (the castSpine retry) — an offered shift is provable by construction. Surface: offer row in the
+    keeper's conversation (the errand giftRow pattern, `data-shift`), book = `shift.book` JSON fact, pocket
+    ARRIVALS advance steps (`checkShiftArrivals` on pocket change), journal card ⚙ with per-shift **◇
+    track** (`shift.track` → `trackedShiftLoc` → `liveWp`, weave-routed), report back to the giver for the
+    coin. `?shifts=off` kills the system; `content.shift: false` is the per-bundle opt-out; ambient /
+    load-bearing / retired never offer. Tests: `v106/test/shift.selftest.mjs` (1105 checks — a 30-seed ×
+    6-thread × 3-keeper sweep, 540 shifts all proven, 192 distinct; wage monotone in crossings; the
+    progress machine incl. ordered-arrival and act-baseline rules; the guards).
+  - **The WAYPOINT-STABILITY audit** (the ◇ through a shift's whole lifecycle). Four fixes: (1) the route
+    readout rides the wp OBJECT (`wp.weave`), not only a global — a MANUAL waypoint can no longer pair with
+    a stale route label from another target; (2) **aim hysteresis** — near-tied routes (white→white is often
+    4 crossings BOTH via the ring and via an engine hall, distance deciding) used to flip the ◇ mid-corridor
+    as the player's position slid the tie; `weaveWaypoint(…, {prefer})` keeps the previous first door while
+    it stays same-crossings and ≤25%+200u extra walk (`_weaveAim` cache in questWpToward, keyed per
+    pocket→target, pinned in weavenav.selftest §5b); (3) `weaveKeyAt` gains a SLOT fallback so a target in a
+    not-yet-streamed pocket still resolves (before: bbox miss → straight-line aim → the 3000u clamp sent the
+    ◇ to the SHAFT, the wrong way entirely; the clamp now also skips any weave-routed wp); (4) a tracked FIX
+    shift in its repair-pending phase keeps the ◇ ON THE FAULT SITE instead of silently handing the marker
+    back to the main quest.
+  - **Acts feed the journal** — `bumpAct` now drives the quest layer: every counted act re-checks the shift
+    book (`noteShiftActs` — a repair act completes a fix shift the moment the hammer falls, with the
+    report-back toast, not on the next pocket change) and re-renders an open journal, so errand + shift
+    progress lines move under the player's hands.
+  - **THE ONE-SIDE-THREAD BUG (found + fixed in `story/import.js#servePool`)**: an id-less record with a
+    UNIQUE base slug flowed through serving with `id: undefined` — and MemoryStore keys content by id, so
+    the live pool's **93 rumors collapsed onto the ONE Map slot `undefined`**: the game surfaced a single
+    side thread and silently dropped the rest. servePool now materializes the derived id (explicit ids stay
+    authoritative; colliding bases keep their fingerprint suffix; pure, order-independent — pinned in
+    story.selftest). Verified against the live pool: 757 served records, all ids unique, 93 side threads,
+    progression oracle still PASS. NB: pre-fix saves that opened "the" side thread hold `sq.on.undefined` —
+    orphaned, harmless.
+  - **`/quests` carries the whole quest surface now**: below the spine + case, a **⚙ production-shifts
+    board** (every tier-3 cast keeper × every white thread it can seat in — runtime seating hash-scatters a
+    faction keeper into one of its faction's two antipodal threads, so BOTH candidates are generated and
+    oracle-proven per seed; wage/crossings/steps shown) and a **⌖ side-threads table** (the full rumor bank
+    for the seed: themes, meet-count, reward, hook). The "prove 100 seeds" sweep now also proves every
+    seed's shift board (reports case + shift failures separately).
   v098/v099 are frozen priors. Each
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
