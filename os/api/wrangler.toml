@@ -1,37 +1,69 @@
 name = "os-mino-api"
 main = "src/index.js"
 compatibility_date = "2026-02-20"
-compatibility_flags = ["nodejs_compat", "containers"]
+# NOTE: containers is NOT a compatibility flag (run #5: API error 10021) — the
+# [[containers]] block below is what enables it.
+compatibility_flags = ["nodejs_compat"]
+
+# GOLDEN RULE: this worker must own the live domain via a custom_domain route,
+# or a green deploy lands on a stray workers.dev and the endpoint never changes.
+routes = [
+  { pattern = "os-api.minomobi.com", custom_domain = true }
+]
 
 [vars]
 SYNC_URL = "https://os-api.minomobi.com"
+# Shared auth worker — verifies OAuth bearer sessions for /ws (authMode=oauth),
+# same identity-delegation pattern as workers/scores.
+AUTH_URL = "https://auth.mino.mobi"
+
+# ─── Agent model profiles ────────────────────────────────────────────
+# The container runs Claude Code CLI as the agent harness for ANY model that
+# speaks the Anthropic Messages API. The worker injects an AGENT_PROFILES JSON
+# (see envVars in src/index.js) mapping profile name → {base, model, key}; the
+# in-container `agent <profile>` launcher exports ANTHROPIC_BASE_URL /
+# ANTHROPIC_AUTH_TOKEN / ANTHROPIC_MODEL and execs `claude`. Adding another open
+# model = another *_BASE_URL/*_MODEL var + key secret + one line in envVars.
+#
+# kimi3 — Moonshot's Anthropic-compatible endpoint. Check the current model id
+# at platform.moonshot.ai and update KIMI_MODEL (mainland endpoint is
+# api.moonshot.cn/anthropic). Key: `wrangler secret put MOONSHOT_API_KEY`.
+KIMI_BASE_URL = "https://api.moonshot.ai/anthropic"
+KIMI_MODEL = "kimi-k3"
 # Comma-separated allowlist of DIDs permitted to open a container shell.
-# FAIL-CLOSED: if this is empty, the /ws endpoint refuses every connection.
-# The shell is handed shared GITHUB_TOKEN / CLOUDFLARE_API_TOKEN, so only put
-# DIDs you fully trust here. For a personal tool this is just your own DID, e.g.
-#   ALLOWED_DIDS = "did:plc:xxxxxxxxxxxxxxxxxxxxxxxx"
-# (A DID is public, not a secret, so it's fine to commit. Can also be set via
-#  `wrangler secret put ALLOWED_DIDS` if you prefer to keep it out of git.)
-ALLOWED_DIDS = ""
+# FAIL-CLOSED: empty → /ws refuses every connection. The shell is handed shared
+# credentials, so only DIDs the owner fully trusts belong here. DIDs are public
+# info, so committing is fine. Current: the morphyx service account
+# (morphyxmino.bsky.social) — log into os.mino.mobi with it (app password).
+ALLOWED_DIDS = "did:plc:yivyyp54vddf7qf2lpsikhe4"
 
 # TENANCY SWITCH. When "true", the SHARED account credentials GITHUB_TOKEN +
 # CLOUDFLARE_API_TOKEN are injected into the shell (convenient for single-tenant
 # / personal use — you trust yourself with your own tokens). MUST be "false" for
 # any config where a DID other than yours is on ALLOWED_DIDS — otherwise that
-# user gets your whole GitHub + Cloudflare account. Default: off (fail-safe).
+# user gets your whole GitHub + Cloudflare account.
+# Set to "true" HERE because this deployment is OWNER-ONLY BY DESIGN: with
+# ALLOWED_DIDS empty the /ws gate is fail-closed (nobody connects), and the
+# runbook (os/RUNBOOK.md) puts exactly ONE did — the owner's — on the list.
+# HARD RULE: flip this back to "false" before ever adding a second DID.
 # See SECURITY.md for the multi-tenant model (per-user broker-held creds).
-INJECT_SHARED_CREDS = "false"
+INJECT_SHARED_CREDS = "true"
 
-# R2 bucket for persistent workspace storage
-[[r2_buckets]]
-binding = "WORKSPACE"
-bucket_name = "os-workspace"
+# Workspace persistence: NO R2. Tarballs live (chunked) in the ContainerShell
+# Durable Object's own SQLite storage — already required for the container to
+# exist, and available on the base $5 Workers plan with no extra entitlement.
 
 # Container definition — Docker image for PTY shell + Claude Code
 [[containers]]
 class_name = "ContainerShell"
 image = "./container/Dockerfile"
-max_instances = 10
+# Owner-only deployment: one container per DID, so 3 = the owner + headroom.
+# Raise deliberately if ALLOWED_DIDS ever grows (and see the tenancy rules).
+max_instances = 3
+# The default "dev" instance is 256 MiB memory — enough for the PTY server,
+# nowhere near enough to RUN Claude Code (the agent). Standard buys real
+# memory/disk; it bills only while the container is awake (10-min idle sleep).
+instance_type = "standard"
 
 # Durable Object bindings
 [[durable_objects.bindings]]
@@ -46,6 +78,9 @@ new_sqlite_classes = ["ContainerShell"]
 #   CAP_SIGNING_KEY       — HMAC key the worker uses to sign per-instance
 #                           capability tokens. NEVER enters the container.
 #                           Generate once: `openssl rand -hex 32`.
+#   MOONSHOT_API_KEY      — Moonshot platform key for the kimi3 profile. Injected
+#                           into the container via AGENT_PROFILES — single-tenant
+#                           only, same rule as the shared creds below.
 #   GITHUB_TOKEN          — only used when INJECT_SHARED_CREDS=true (single-tenant)
 #   CLOUDFLARE_API_TOKEN  — only used when INJECT_SHARED_CREDS=true (single-tenant)
 #   CLOUDFLARE_ACCOUNT_ID — only used when INJECT_SHARED_CREDS=true (single-tenant)

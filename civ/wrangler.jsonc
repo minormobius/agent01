@@ -11,7 +11,12 @@
   "limits": { "cpu_ms": 120000 },
   "assets": {
     "directory": ".",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // `/` matches a static asset (index.html), which by default is served BEFORE the worker —
+    // but the worker must see root requests to 301 legacy dashboard permalinks (/?world=…)
+    // to /dash/. Only the root route pays the worker hop; every other asset stays on the
+    // asset-first fast path.
+    "run_worker_first": ["/"]
   },
   "routes": [
     { "pattern": "civ.mino.mobi", "custom_domain": true }

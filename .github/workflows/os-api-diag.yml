@@ -1,0 +1,40 @@
+name: os-api diagnostics [MANUAL]
+
+# Read-only eyes on the Cloudflare Containers deployment for os-api — instance
+# states, image builds, worker deployments. Dispatch when the container
+# misbehaves; the run log is the diagnosis. Never deploys anything.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: os/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install wrangler
+        run: npm install
+
+      - name: Containers state
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -uo pipefail
+          echo "=== containers list ==="
+          npx wrangler containers list 2>&1 || true
+          echo
+          echo "=== container images ==="
+          npx wrangler containers images list 2>&1 || true
+          echo
+          echo "=== worker deployments (os-mino-api) ==="
+          npx wrangler deployments list -c wrangler.toml 2>&1 | head -40 || true
+          echo
+          echo "=== live health ==="
+          curl -sS --max-time 10 https://os-api.minomobi.com/health || true

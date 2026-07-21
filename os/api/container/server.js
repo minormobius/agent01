@@ -1,10 +1,11 @@
 // PTY WebSocket server — runs inside the Cloudflare Container
 // Spawns bash with real PTY, streams I/O over WebSocket.
-// Auto-saves workspace to R2 every 2 minutes + on SIGTERM.
+// Auto-saves workspace every 2 minutes + on SIGTERM (worker /sync → DO storage).
 
 import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
+import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import pty from 'node-pty';
 
 const PORT = 8080;
@@ -18,12 +19,23 @@ const CAP_TOKEN = process.env.CAP_TOKEN || '';
 const WORKSPACE_ID = process.env.WORKSPACE_ID || '';
 const SYNC_ENABLED = !!(SYNC_URL && CAP_TOKEN && WORKSPACE_ID);
 
-// ─── Workspace auto-save to R2 ───────────────────────────────────
+// ─── Workspace auto-save (worker /sync → DO storage) ────────────
 
 let saving = false;
 
+// Last moment anything meaningful happened (client attached, message sent,
+// agent running). The autosave PUT goes through the Durable Object, which
+// RESETS its idle timer — so saving unconditionally would keep the container
+// awake (and billing) forever. Skip saves once we've been idle a while and
+// let the 10-min sleep actually happen; the final save before going quiet
+// already captured the state.
+let lastActivity = Date.now();
+export function touchActivity() { lastActivity = Date.now(); }
+const IDLE_SAVE_CUTOFF_MS = 7 * 60 * 1000;
+
 async function saveWorkspace() {
   if (saving || !SYNC_ENABLED) return;
+  if (Date.now() - lastActivity > IDLE_SAVE_CUTOFF_MS) return; // let the DO sleep
   saving = true;
 
   try {
@@ -85,7 +97,10 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 // ─── HTTP server ──────────────────────────────────────────────────
 
 const server = createServer((req, res) => {
-  if (req.url === '/health') {
+  // Compare the PATH, not the raw URL — the worker's boot probe appends a
+  // query string, which made a healthy container answer 404.
+  const reqPath = new URL(req.url, 'http://localhost').pathname;
+  if (reqPath === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
     return;
@@ -94,11 +109,180 @@ const server = createServer((req, res) => {
   res.end();
 });
 
+// ─── Headless agent chat (/chat) ──────────────────────────────────
+// Drives Claude Code in non-interactive mode (`claude -p --output-format
+// stream-json`) through the `agent <profile>` launcher — same harness and
+// model profiles as the PTY, but structured NDJSON events instead of a TUI,
+// so the browser can render a real chat. One run at a time per connection.
+// Conversation continuity: the session_id from the stream's init event is
+// persisted per-profile and resumed with --resume (survives container sleeps
+// via the workspace sync, which includes ~/.claude).
+
+const CHAT_CWD_CANDIDATES = ['/home/coder/workspace/agent01', '/home/coder/workspace'];
+const chatSessionFile = (profile) => `/home/coder/.claude/os-chat-session-${profile}`;
+
+// Self-report the selected profile's state (never the key itself) so a
+// misconfigured container names its own problem in the chat.
+function profileDiag(name) {
+  try {
+    const prof = JSON.parse(process.env.AGENT_PROFILES || '{}')[name];
+    if (!prof) return { missing: true };
+    return { model: prof.model || '(default)', base: prof.base || 'anthropic', hasKey: !!prof.key };
+  } catch {
+    return { parseError: true };
+  }
+}
+
+// RUNS ARE DECOUPLED FROM CONNECTIONS. Mobile sockets die constantly (screen
+// rotate, phone lock) — the agent must NOT die with them, and a reattaching
+// client must get the story so far. Per-profile state lives at module scope:
+// clients attach/detach freely; every frame is buffered in memory AND appended
+// to a rolling on-disk log (survives container sleeps via workspace sync).
+
+const CHAT_LOG_MAX = 400;
+const chatStates = new Map(); // profile -> { child, buffer, clients, hydrated }
+const chatLogFile = (p) => `/home/coder/.claude/os-chat-log-${p}.ndjson`;
+
+function chatState(profile) {
+  let s = chatStates.get(profile);
+  if (!s) {
+    s = { child: null, buffer: [], clients: new Set(), hydrated: false };
+    chatStates.set(profile, s);
+  }
+  if (!s.hydrated) {
+    s.hydrated = true;
+    try {
+      const lines = readFileSync(chatLogFile(profile), 'utf8').trim().split('\n');
+      for (const line of lines.slice(-CHAT_LOG_MAX)) {
+        try { s.buffer.push(JSON.parse(line)); } catch { /* skip bad line */ }
+      }
+      // Rewrite trimmed so the log can't grow unbounded across sleeps.
+      writeFileSync(chatLogFile(profile), s.buffer.map((f) => JSON.stringify(f)).join('\n') + '\n');
+    } catch { /* no log yet */ }
+  }
+  return s;
+}
+
+// Record a frame: buffer + disk + broadcast to attached clients (optionally
+// excluding the originator, which already rendered its own action locally).
+function chatRecord(profile, state, frame, excludeWs = null) {
+  state.buffer.push(frame);
+  if (state.buffer.length > CHAT_LOG_MAX) state.buffer.shift();
+  try { appendFileSync(chatLogFile(profile), JSON.stringify(frame) + '\n'); } catch { /* disk */ }
+  for (const c of state.clients) {
+    if (c !== excludeWs && c.readyState === c.OPEN) c.send(JSON.stringify(frame));
+  }
+  touchActivity();
+}
+
+function startChatRun(profile, state, text, originWs) {
+  const cwd = CHAT_CWD_CANDIDATES.find((d) => existsSync(d)) || '/home/coder';
+
+  // Resume the persisted conversation if one exists; else start fresh.
+  let resume = '';
+  try {
+    const sid = readFileSync(chatSessionFile(profile), 'utf8').trim();
+    if (/^[a-zA-Z0-9-]{8,64}$/.test(sid)) resume = ` --resume ${sid}`;
+  } catch { /* first conversation */ }
+
+  // --dangerously-skip-permissions: the container is single-tenant, owned by
+  // the same person driving the chat, and the blast radius is the container
+  // itself + what the scoped PAT allows. The prompt rides stdin (no shell
+  // quoting of user text).
+  const cmd = `cd ${cwd} && agent ${profile} -p --output-format stream-json --verbose --dangerously-skip-permissions${resume}`;
+  const child = spawn('bash', ['-lc', cmd], {
+    env: { ...process.env, HOME: '/home/coder' },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  state.child = child;
+  chatRecord(profile, state, { type: 'user-msg', text }, originWs);
+  chatRecord(profile, state, { type: 'start', diag: profileDiag(profile) });
+  child.stdin.write(text);
+  child.stdin.end();
+
+  let buf = '';
+  let stderrBuf = '';
+  child.stdout.on('data', (d) => {
+    buf += d.toString();
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i).trim();
+      buf = buf.slice(i + 1);
+      if (!line) continue;
+      // Persist the session id from the init event for --resume next turn.
+      if (line.includes('"session_id"')) {
+        try {
+          const evt = JSON.parse(line);
+          if (evt.session_id) writeFileSync(chatSessionFile(profile), evt.session_id);
+        } catch { /* not fatal */ }
+      }
+      chatRecord(profile, state, { type: 'event', line });
+    }
+  });
+  child.stderr.on('data', (d) => {
+    // Accumulate for the exit report — a failed run's stderr is the
+    // diagnosis and must never be lost to client-side filtering.
+    stderrBuf = (stderrBuf + d.toString()).slice(-8000);
+  });
+  child.on('exit', (code) => {
+    if (buf.trim()) chatRecord(profile, state, { type: 'event', line: buf.trim() });
+    chatRecord(profile, state, { type: 'done', code, stderr: code ? stderrBuf.slice(-4000) : undefined });
+    state.child = null;
+  });
+  child.on('error', (err) => {
+    chatRecord(profile, state, { type: 'error', error: err.message });
+    state.child = null;
+  });
+}
+
+function handleChatConnection(ws, req) {
+  const params = new URL(req.url, 'http://localhost').searchParams;
+  const rawProfile = params.get('profile') || 'kimi3';
+  const profile = /^[a-z0-9][a-z0-9-]{0,31}$/.test(rawProfile) ? rawProfile : 'kimi3';
+  const state = chatState(profile);
+  state.clients.add(ws);
+  touchActivity();
+
+  const send = (obj) => {
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj));
+  };
+
+  // Attach: current status (is a run still going?) + the story so far.
+  send({ type: 'ready', profile, busy: !!state.child });
+  if (state.buffer.length) send({ type: 'history', frames: state.buffer });
+
+  ws.on('message', (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw); } catch { return; }
+    touchActivity();
+
+    if (msg.type === 'ping') { send({ type: 'pong' }); return; }
+    if (msg.type === 'interrupt') { state.child?.kill('SIGINT'); return; }
+    if (msg.type !== 'user' || typeof msg.text !== 'string' || !msg.text.trim()) return;
+    if (state.child) { send({ type: 'error', error: 'a run is already in progress' }); return; }
+    startChatRun(profile, state, msg.text, ws);
+  });
+
+  // Detach WITHOUT killing the run — the whole point.
+  ws.on('close', () => { state.clients.delete(ws); });
+  ws.on('error', () => { state.clients.delete(ws); });
+}
+
 // ─── WebSocket server ─────────────────────────────────────────────
 
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws, req) => {
+  // Path routing: /chat → headless agent chat; anything else → PTY shell.
+  const path = new URL(req.url, 'http://localhost').pathname;
+  if (path === '/chat') {
+    console.log('[chat] client connected');
+    handleChatConnection(ws, req);
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+    return;
+  }
+
   const params = new URL(req.url, 'http://localhost').searchParams;
   const cols = parseInt(params.get('cols')) || 80;
   const rows = parseInt(params.get('rows')) || 24;
@@ -111,7 +295,21 @@ wss.on('connection', (ws, req) => {
     HOME: '/home/coder',
   };
 
-  const shell = pty.spawn('bash', ['--login'], {
+  // Per-connection Anthropic key (native `claude` profile) — forwarded by the
+  // worker from the browser. Worker-held profile keys arrive via AGENT_PROFILES.
+  const apiKey = params.get('apiKey');
+  if (apiKey) env.ANTHROPIC_API_KEY = apiKey;
+
+  // Boot profile: land straight in `agent <profile>` (the chat), fall back to
+  // bash when the agent exits. Re-validated here — it is spliced into a shell
+  // command. Unknown/invalid profile → plain bash.
+  const boot = params.get('boot');
+  const bootOk = boot && /^[a-z0-9][a-z0-9-]{0,31}$/.test(boot);
+  const shellArgs = bootOk
+    ? ['--login', '-c', `agent ${boot}; exec bash --login`]
+    : ['--login'];
+
+  const shell = pty.spawn('bash', shellArgs, {
     name: 'xterm-256color',
     cols,
     rows,
@@ -119,7 +317,7 @@ wss.on('connection', (ws, req) => {
     env,
   });
 
-  console.log(`[pty] spawned bash (pid=${shell.pid}, ${cols}x${rows})`);
+  console.log(`[pty] spawned bash (pid=${shell.pid}, ${cols}x${rows}${bootOk ? `, boot=${boot}` : ''})`);
 
   // PTY → WebSocket
   shell.onData((data) => {

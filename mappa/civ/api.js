@@ -7,6 +7,7 @@
 // run the sim locally (no Worker CPU limit, no 503) while every permalink/hash stays valid.
 
 import { createSim } from './engine.js';
+import { buildTimeline } from './timeline.js';
 import { civSignals } from './signals.js';
 import { sweep } from './qd.js';
 import { loadWorldSpec, chronicleHash } from './chronicle.js';
@@ -14,7 +15,9 @@ import { decodeCivConfig, normalizeConfig, encodeCivConfig } from './config.js';
 
 // Bounds. The Worker passes these (edge CPU is finite); the browser can pass a larger cap since
 // it runs on the user's machine with no edge limit.
-export const CAP = { runTicks: 1500, runN: 1200, sweepBudget: 40, sweepTicks: 700, frameTicks: 1500, maxFrames: 60 };
+// maxFrames 300: a 1500-tick run captures every 5 ticks (~3.5 MB JSON, and the client
+// computes frames locally by default, so dense capture doesn't lean on the edge).
+export const CAP = { runTicks: 1500, runN: 1200, sweepBudget: 40, sweepTicks: 700, frameTicks: 1500, maxFrames: 300 };
 
 // inlined presets (mirror mappa/civ/configs/*.json) so ?preset= resolves without a file read.
 export const PRESETS = {
@@ -58,6 +61,113 @@ export function doRun(params, cap = CAP) {
     highlights: sig.highlights, signals: sig.signals, facts: sig.facts, meta: ch.meta,
     ms: Math.round(now() - t0),
     chronicle: wantChronicle ? ch : undefined,
+  };
+}
+
+// FOUNDINGS (Phase III of civ/STRATEGY.md): the compact civ → polis handoff. Same run as
+// /api/civ/run (same cache key space, same hash), but returns only the city-founding
+// contract: every culture that reached statehood, with seat lon/lat (degrees), founding
+// tick/year, a toponym in the founder's tongue, and the suite-wide `siteSeed` string
+// (org's convention: `${worldSeed}:${cityName}:${cellIndex}` — rite hashes strings, so
+// this one string reproducibly seeds a polis city AND an org sited at it).
+export function doSites(params, cap = CAP) {
+  const world = resolveWorld(params, cap);
+  const cfg = resolveConfig(params);
+  const civSeed = (Math.round(num(params.get('civSeed') ?? params.get('civseed'), 1)) >>> 0) || 1;
+  const ticks = clamp(Math.round(num(params.get('ticks'), 800)), 1, cap.runTicks);
+  const t0 = now();
+  const ch = createSim(world, cfg, civSeed).run(ticks);
+  const worldStr = params.get('world') ?? '1';
+  const foundings = (ch.final.foundings || []).map(f => ({ ...f, siteSeed: `${worldStr}:${f.city}:${f.cell}` }));
+  // every emergent settlement (population crossed the urban threshold), same siteSeed
+  // convention — polis can grow ANY city, not just state seats. Rivers/coasts/resources
+  // are the mappa geography that sited each one.
+  // founderTech: the founder culture's capability→unlock-tick map (seed caps at 0),
+  // so a hinterland client can derive its TRANSPORT ERAS (wheel/sail/mechanisation…)
+  // from the culture's actual history instead of an internal logistic clock.
+  const techByCulture = new Map(), parentOf = new Map();
+  for (const e of (ch.events || [])) {
+    if (e.type === 'cultureSplit') { parentOf.set(e.child, e.parent); continue; }
+    if (e.type !== 'techUnlock') continue;
+    let m = techByCulture.get(e.culture); if (!m) techByCulture.set(e.culture, m = {});
+    if (m[e.cap] == null) m[e.cap] = e.t;
+  }
+  const seedCaps = cfg.culture.seedTech || [];
+  // daughter cultures inherit the parent's tech bitmask at split, so walk the lineage
+  // and take the EARLIEST unlock tick along it (a cap known at split was known from birth)
+  const founderTechOf = cu => {
+    const m = {};
+    for (let c = cu, hops = 0; c != null && hops < 64; c = parentOf.get(c), hops++) {
+      const t = techByCulture.get(c); if (!t) continue;
+      for (const cap in t) if (m[cap] == null || t[cap] < m[cap]) m[cap] = t[cap];
+    }
+    for (const c of seedCaps) if (m[c] == null) m[c] = 0;
+    return m;
+  };
+  const cities = (ch.final.cities || []).slice(0, 60).map(c => ({ ...c, siteSeed: `${worldStr}:${c.name}:${c.cell}`, founderTech: founderTechOf(c.culture) }));
+  return {
+    api: 'mappa.civ/v1', world: worldStr, config: encodeCivConfig(cfg), civSeed, ticks,
+    // n = the REQUESTED mesh resolution this run saw (generateWorld's N option; actual
+    // cell count comes out slightly higher). Mappa terrain is NOT resolution-stable
+    // (same seed, different N → different coastlines), so a consumer siting anything at
+    // a founding's lon/lat MUST call generateWorld(seed, { N: n }) with this same value —
+    // that reproduces the identical mesh, cell ids and all.
+    n: clamp(Math.round(num(params.get('n'), 900)), 500, cap.runN),
+    hash: chronicleHash(ch), tickYears: ch.meta.tickYears, foundings, cities,
+    landmasses: ch.final.landmasses,
+    // the global-view boundary conditions a city-scale client (polis) consumes:
+    // the run's climate forcing curve, so local history is DRIVEN by the world's
+    // weather rather than rolling its own
+    climate: (() => { const cp = ch.fred && ch.fred.series && ch.fred.series['climate.pulse']; return cp ? { t: ch.fred.t, pulse: cp.data } : null; })(),
+    // ENERGETICS boundary conditions: gross food security + fossil share over the run,
+    // and the end-state per-continent budget — the mesoscale refines these per-town
+    energy: (() => {
+      const F = ch.fred && ch.fred.series; if (!F || !F['energy.food.security']) return null;
+      return {
+        t: ch.fred.t,
+        foodSecurity: F['energy.food.security'].data,
+        fossilShare: F['energy.ind.total'].data.map((v, i) => v ? +((F['energy.ind.fossil'].data[i] || 0) / v).toFixed(3) : 0),
+        landmasses: ch.final.energy.landmasses,
+      };
+    })(),
+    ms: Math.round(now() - t0),
+  };
+}
+
+// THE TIMELINE: one chronicle, two historiographies. ?mode=greatman | forces | both
+// (default both). 'greatman' tells the run through named actors (prophets, leaders,
+// warlords, the eminent — with their org-person temperaments); 'forces' tells the same
+// run as structural sweep (phase transitions, climate pulses, credit cycles, meme
+// selection) and exposes what evolution actually selected: belief doctrine vectors and
+// the evolved institution rulesets. Same run, same cache keys, same hash as /run.
+export function doTimeline(params, cap = CAP) {
+  const world = resolveWorld(params, cap);
+  const cfg = resolveConfig(params);
+  const civSeed = (Math.round(num(params.get('civSeed') ?? params.get('civseed'), 1)) >>> 0) || 1;
+  const ticks = clamp(Math.round(num(params.get('ticks'), 800)), 1, cap.runTicks);
+  const modeReq = String(params.get('mode') || 'both');
+  const t0 = now();
+  const ch = createSim(world, cfg, civSeed).run(ticks);
+  const timeline = {};
+  if (modeReq === 'greatman' || modeReq === 'both' || modeReq === 'all') timeline.greatman = buildTimeline(ch, 'greatman');
+  if (modeReq === 'forces' || modeReq === 'both' || modeReq === 'all') timeline.forces = buildTimeline(ch, 'forces');
+  if (modeReq === 'tech' || modeReq === 'all') timeline.tech = buildTimeline(ch, 'tech');
+  if (!Object.keys(timeline).length) timeline.forces = buildTimeline(ch, 'forces'); // unknown mode → forces
+  // ?landmass=<id>: continent filter — keep that continent's entries plus the
+  // world-scale ones (lm == null: collapses, credit cycles, closings…)
+  const lmSel = params.get('landmass');
+  if (lmSel != null && lmSel !== '') {
+    const L = Math.round(num(lmSel, -1));
+    for (const k of Object.keys(timeline)) {
+      const tl = timeline[k];
+      tl.entries = tl.entries.filter(e => e.lm == null || e.lm === L);
+      tl.count = tl.entries.length;
+    }
+  }
+  return {
+    api: 'mappa.civ/v1', world: params.get('world') ?? '1', config: encodeCivConfig(cfg), civSeed, ticks,
+    hash: chronicleHash(ch), tickYears: ch.meta.tickYears, mode: modeReq,
+    landmasses: ch.final.landmasses, timeline, ms: Math.round(now() - t0),
   };
 }
 

@@ -6,7 +6,7 @@ name: Deploy tjs (three.js workbenches)
 
 on:
   push:
-    branches: [main, 'claude/cube3d-browser-port-ufh9gy']
+    branches: [main, 'claude/cfd-rust-kite-solver-opjsj5']
     paths:
       - 'tjs/**'
       - '.github/workflows/deploy-tjs.yml'
@@ -22,8 +22,12 @@ jobs:
         working-directory: tjs
         run: |
           rm -rf dist && mkdir -p dist
-          cp -r index.html docs.html gantry orb infill swarm beelix cube deck lib AGENTS.md samples dist/
+          cp -r index.html docs.html gantry orb infill swarm beelix cube deck geb kite lib AGENTS.md samples dist/
           rm -f dist/wrangler.jsonc dist/wrangler.toml
+          # kite: ship only the built wasm (solver/pkg) + kite-vlm.js; drop the Rust
+          # sources and the node selftest from the static bundle.
+          rm -rf dist/kite/solver/kite-solver dist/kite/solver/kite-solver-wasm dist/kite/solver/.gitignore
+          rm -f dist/kite/kite-vlm.selftest.mjs
           ls -laR dist/ | head -60
 
       - name: Deploy to Cloudflare

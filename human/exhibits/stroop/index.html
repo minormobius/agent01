@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stroop Sprint — Human Machinery</title>
+<meta name="description" content="The word says RED. The ink says blue. Name the ink, not the word — and watch your brain fight itself. 12 trials, then your interference cost.">
+<meta property="og:title" content="Stroop Sprint — Human Machinery">
+<meta property="og:description" content="The word says RED. The ink says blue. Your brain is about to fight itself in public.">
+<meta property="og:image" content="https://human.mino.mobi/og/stroop.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .stroop-word {
+    font-family: var(--mono);
+    font-size: clamp(44px, 10vw, 84px);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    user-select: none;
+    min-height: 1.2em;
+  }
+  .ink-buttons { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 12px; width: 100%; max-width: 420px; }
+  .ink-btn { display: flex; align-items: center; gap: 10px; justify-content: center; }
+  .swatch { width: 16px; height: 16px; border-radius: 3px; display: inline-block; }
+  .trial-hud { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); letter-spacing: 0.2em; }
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a><span class="sep">/</span>
+  <a href="/">human machinery</a><span class="sep">/</span>
+  <span class="here">stroop sprint</span>
+</nav>
+
+<div class="wrap">
+  <p class="kicker">Exhibit 01 · Wing of Perception</p>
+  <h1>Stroop Sprint</h1>
+  <p class="lede">The word says RED. The ink says blue. Your brain is about to fight itself in public.</p>
+  <p><span class="badge well-replicated">well-replicated</span> <span class="dim small">since 1935 · one of the most reproduced effects in psychology</span></p>
+
+  <div class="case">
+    <div class="stage" id="stage">
+      <p class="prompt-line">Name the ink colour — ignore the word</p>
+      <div class="stroop-word" id="word">READY?</div>
+      <div class="ink-buttons" id="buttons" hidden></div>
+      <p class="trial-hud" id="hud"></p>
+      <button class="btn primary" id="start">Insert coin</button>
+    </div>
+  </div>
+
+  <div id="reveal"></div>
+
+  <div class="plaque" id="plaque" hidden>
+    <h2>The museum plaque</h2>
+    <p>Reading is automatic — after years of practice you cannot look at a word
+    <em>without</em> reading it. When the word and the ink colour disagree, two
+    processes race for the same mouth. The practiced one (reading) is faster but
+    wrong; the deliberate one (colour-naming) must be pushed through by
+    attention. The delay and the errors are the cost of that fight, and they
+    show up in nearly everyone, nearly every time — John Ridley Stroop first
+    measured it in 1935, and the effect has replicated across thousands of
+    studies, languages, and laboratories since.</p>
+    <p>You cannot train it away in an afternoon. You can only watch it happen —
+    which is what you just did.</p>
+    <div id="cites"></div>
+  </div>
+
+  <div id="wormhole"></div>
+</div>
+
+<div id="footer-slot"></div>
+
+<script src="/lib/exhibits.js"></script>
+<script src="/lib/exhibit.js"></script>
+<script>
+(function () {
+  const SLUG = 'stroop';
+  const COLORS = [
+    { name: 'RED',   hex: '#ff5c47' },
+    { name: 'BLUE',  hex: '#57d0ff' },
+    { name: 'GREEN', hex: '#4ade80' },
+    { name: 'AMBER', hex: '#ffb000' },
+  ];
+  const TRIALS = 12;
+
+  const stage = document.getElementById('stage');
+  const wordEl = document.getElementById('word');
+  const btnBox = document.getElementById('buttons');
+  const hud = document.getElementById('hud');
+  const startBtn = document.getElementById('start');
+
+  // Build a deck: half congruent (word matches ink), half not, shuffled.
+  function buildDeck() {
+    const deck = [];
+    for (let i = 0; i < TRIALS / 2; i++) {
+      const c = COLORS[i % COLORS.length];
+      deck.push({ word: c.name, ink: c.name, congruent: true });
+    }
+    let guard = 0;
+    while (deck.length < TRIALS && guard++ < 500) {
+      const w = COLORS[Math.floor(Math.random() * COLORS.length)];
+      const i = COLORS[Math.floor(Math.random() * COLORS.length)];
+      if (w.name !== i.name) deck.push({ word: w.name, ink: i.name, congruent: false });
+    }
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  }
+
+  const deck = buildDeck();
+  const results = [];
+  let trial = -1, shownAt = 0, accepting = false;
+
+  COLORS.forEach((c, idx) => {
+    const b = document.createElement('button');
+    b.className = 'btn ink-btn';
+    b.innerHTML = `<span class="swatch" style="background:${c.hex}"></span>${c.name}`;
+    b.addEventListener('click', () => answer(c.name));
+    btnBox.appendChild(b);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!accepting) return;
+    const k = e.key.toUpperCase();
+    const hit = COLORS.find((c) => c.name[0] === k);
+    if (hit) answer(hit.name);
+  });
+
+  function nextTrial() {
+    trial++;
+    if (trial >= deck.length) return finish();
+    const t = deck[trial];
+    wordEl.textContent = t.word;
+    wordEl.style.color = COLORS.find((c) => c.name === t.ink).hex;
+    hud.textContent = `TRIAL ${trial + 1} / ${TRIALS}`;
+    shownAt = performance.now();
+    accepting = true;
+  }
+
+  function answer(colorName) {
+    if (!accepting) return;
+    accepting = false;
+    const rt = performance.now() - shownAt;
+    const t = deck[trial];
+    const correct = colorName === t.ink;
+    results.push({ congruent: t.congruent, rt, correct });
+    Human.track(SLUG, `trial:${t.congruent ? 'con' : 'inc'}:${correct ? 'ok' : 'err'}`);
+    wordEl.textContent = correct ? '·' : '✕';
+    wordEl.style.color = correct ? 'var(--ink-dim)' : 'var(--red)';
+    setTimeout(nextTrial, correct ? 220 : 420);
+  }
+
+  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
+  const round50 = (x) => Math.max(-250, Math.min(850, Math.round(x / 50) * 50));
+
+  function binnedMedian(buckets, prefix) {
+    const bins = [];
+    for (const k of Object.keys(buckets || {})) {
+      if (k.startsWith(prefix)) bins.push([parseInt(k.slice(prefix.length), 10), buckets[k]]);
+    }
+    bins.sort((a, b) => a[0] - b[0]);
+    const total = bins.reduce((s, b) => s + b[1], 0);
+    if (!total) return null;
+    let acc = 0;
+    for (const [mid, n] of bins) { acc += n; if (acc >= total / 2) return mid; }
+    return bins[bins.length - 1][0];
+  }
+
+  async function finish() {
+    Human.track(SLUG, 'done');
+    const con = results.filter((r) => r.congruent && r.correct).map((r) => r.rt);
+    const inc = results.filter((r) => !r.congruent && r.correct).map((r) => r.rt);
+    const conRT = mean(con), incRT = mean(inc);
+    const cost = incRT - conRT;
+    const acc = results.filter((r) => r.correct).length / results.length;
+    if (!Number.isNaN(cost)) Human.track(SLUG, `cost:${round50(cost)}`);
+
+    const sum = await Human.summary(SLUG);
+    const b = (sum && sum.buckets) || {};
+    const players = b['done'] || 0;
+    const conOk = b['trial:con:ok'] || 0, conErr = b['trial:con:err'] || 0;
+    const incOk = b['trial:inc:ok'] || 0, incErr = b['trial:inc:err'] || 0;
+    const crowdAccCon = Human.pct(conOk, conOk + conErr);
+    const crowdAccInc = Human.pct(incOk, incOk + incErr);
+    const medCost = binnedMedian(b, 'cost:');
+
+    const youSlow = Number.isNaN(cost) ? null : cost > 20;
+    document.getElementById('reveal').innerHTML = `
+      <div class="reveal">
+        <p class="you">GAME OVER — HERE'S WHAT YOUR BRAIN DID</p>
+        <p class="crowd">${Number.isNaN(cost)
+          ? 'Not enough clean trials to score — refresh and try again.'
+          : `Matching trials: <b>${Math.round(conRT)} ms</b>. Mismatched trials: <b>${Math.round(incRT)} ms</b>.
+             Your interference cost: <b>${cost >= 0 ? '+' : ''}${Math.round(cost)} ms</b>, at <b>${Math.round(acc * 100)}%</b> accuracy.`}</p>
+        ${Number.isNaN(cost) ? '' : `<p class="dim">${youSlow
+          ? 'You slowed down exactly where the experiment says you would — on the mismatches. So does nearly everyone.'
+          : 'Unusually flat! Either you were very careful, very practiced — or you read the instructions twice like a professional.'}</p>`}
+        <h3>The crowd so far (${Human.fmt(players)} players)</h3>
+        ${Human.bar('accuracy · word matches ink', conOk, conOk + conErr, { right: crowdAccCon + '%' })}
+        ${Human.bar('accuracy · word lies about ink', incOk, incOk + incErr, { right: crowdAccInc + '%', you: true })}
+        ${medCost != null ? `<p class="dim small">Median visitor interference cost: <b>~${medCost} ms</b> (binned, n = ${Human.fmt(players)}). Stroop's 1935 subjects showed the same pattern; so has basically everyone since.</p>` : ''}
+      </div>`;
+    document.getElementById('plaque').hidden = false;
+    stage.style.display = 'none';
+    document.getElementById('reveal').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  startBtn.addEventListener('click', () => {
+    startBtn.remove();
+    btnBox.hidden = false;
+    nextTrial();
+  });
+
+  // Static furniture
+  const me = Human.exhibit(SLUG);
+  document.getElementById('cites').innerHTML = Human.citeHTML(me.citations);
+  document.getElementById('wormhole').innerHTML = Human.wormholeHTML(SLUG);
+  document.getElementById('footer-slot').innerHTML = Human.footerHTML();
+})();
+</script>
+</body>
+</html>

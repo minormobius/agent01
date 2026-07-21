@@ -1,6 +1,6 @@
 FROM node:22-slim
 
-# System deps: git, bash, python3, build tools for node-pty, curl for R2 sync
+# System deps: git, bash, python3, build tools for node-pty, curl for workspace sync
 RUN apt-get update && apt-get install -y \
     git \
     bash \
@@ -28,6 +28,11 @@ WORKDIR /home/coder
 COPY package.json /home/coder/package.json
 COPY server.js /home/coder/server.js
 COPY startup.sh /home/coder/startup.sh
+
+# Agent launcher — runs Claude Code against any AGENT_PROFILES model profile
+# (kimi3 = Moonshot Anthropic-compatible endpoint; see agent.sh)
+COPY agent.sh /usr/local/bin/agent
+RUN chmod +x /usr/local/bin/agent
 
 # Install server deps
 RUN npm install --production

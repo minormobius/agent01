@@ -1,0 +1,36 @@
+name: Deploy time (The Mino Times)
+
+# time.mino.mobi — The Mino Times, a two-desk paper (Modulo = data desk,
+# Morphyx = institutional desk). Pure static; the only build step is
+# regenerating the article manifest (index.json) from time/articles/*.html.
+# Carved out of the root bundle (deploy-root.yml) so it deploys independently
+# at its own subdomain. Worker `time`, custom_domain time.mino.mobi.
+
+on:
+  push:
+    branches: [main, 'claude/audit-time-deploy-ag144t']
+    paths:
+      - 'time/**'
+      - 'scripts/build-time-index.mjs'
+      - '.github/workflows/deploy-time.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Rebuild article manifest (index.json)
+        run: node scripts/build-time-index.mjs
+
+      - name: Deploy to Cloudflare
+        working-directory: time
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

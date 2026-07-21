@@ -1,5 +1,5 @@
-// os-mino-api — Worker + Container for persistent Claude Code environment
-// R2-backed workspace, auto-save, MCP servers, Claude subscription auth
+// os-mino-api — Worker + Container for the persistent agent environment
+// DO-storage-backed workspace, auto-save, agent profiles (kimi3 etc.)
 
 import { Container } from '@cloudflare/containers';
 
@@ -54,7 +54,14 @@ async function verifyCap(secret, token) {
 // ─── Container class ───────────────────────────────────────────────
 // Docker container: bash + Claude Code + MCP servers + persistent workspace.
 // One container per user (keyed by DID). Sleeps after 10 min, wakes on reconnect.
-// Workspace survives sleep via R2 sync (startup restore + 2-min auto-save).
+// Workspace survives sleep via DO-storage sync (startup restore + 2-min auto-save).
+
+// Workspace persistence lives in THIS Durable Object's SQLite storage —
+// chunked, because a single storage value caps at 2MB. (This replaced the R2
+// tarball: R2 needs a separate account entitlement, while SQLite-backed DO
+// storage is already required for ContainerShell to exist at all.)
+const WS_CHUNK_BYTES = 1_000_000; // 1MB chunks, well under the 2MB value cap
+const WS_MAX_BYTES = 64 * 1024 * 1024; // whole-tarball cap (DO has 128MB memory)
 
 export class ContainerShell extends Container {
   defaultPort = 8080;
@@ -68,22 +75,221 @@ export class ContainerShell extends Container {
     // This ensures envVars has the ID even after container sleep/wake.
     ctx.blockConcurrencyWhile(async () => {
       this._workspaceId = await ctx.storage.get('workspaceId');
+      this.envVars = this._buildEnvVars();
     });
   }
 
+  // ─── Assist turn engine (server-side generation) ─────────────────
+  // A turn = one Moonshot call, run to completion inside this DO regardless
+  // of the client's fate. State: { status, text, thinking, tools[], stopReason,
+  // error, startedAt }. Live turns in memory; finished turns persisted
+  // (last 5 kept) so a client reopened hours later still finds its reply.
+
+  async handleAssistOp(request, url) {
+    this._assistTurns = this._assistTurns || new Map();
+    const op = url.pathname.slice('/_assist/'.length);
+    const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
+      status, headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (op === 'start' && request.method === 'POST') {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+      const turnId = `turn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const turn = {
+        id: turnId, status: 'running', text: '', thinking: '',
+        tools: [], stopReason: null, error: null, startedAt: Date.now(),
+      };
+      const ctrl = new AbortController();
+      this._assistTurns.set(turnId, { turn, abort: ctrl });
+      // Detached from the request lifecycle — waitUntil keeps the DO alive
+      // until the upstream stream finishes.
+      this.ctx.waitUntil(this._runAssistTurn(turn, body, ctrl.signal));
+      return json({ turnId });
+    }
+
+    if (op === 'poll') {
+      const id = url.searchParams.get('turn') || '';
+      let entry = this._assistTurns.get(id);
+      let turn = entry?.turn;
+      if (!turn) turn = await this.ctx.storage.get(`turn:${id}`);
+      if (!turn) return json({ error: 'unknown turn' }, 404);
+      const { status, text, thinking, tools, stopReason, error } = turn;
+      return json({ status, text, thinking, tools, stopReason, error });
+    }
+
+    if (op === 'interrupt' && request.method === 'POST') {
+      const id = url.searchParams.get('turn') || '';
+      this._assistTurns.get(id)?.abort?.abort();
+      return json({ ok: true });
+    }
+
+    return json({ error: 'unknown op' }, 404);
+  }
+
+  async _runAssistTurn(turn, body, signal) {
+    try {
+      const base = (this.env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic').replace(/\/$/, '');
+      const upstream = await fetch(`${base}/v1/messages`, {
+        method: 'POST',
+        signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.env.MOONSHOT_API_KEY || '',
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: this.env.KIMI_MODEL || 'kimi-k3',
+          max_tokens: 8192,
+          system: body.system,
+          messages: body.messages,
+          stream: true,
+          ...(body.thinking ? { thinking: { type: 'enabled', budget_tokens: 4096 } } : {}),
+          ...(body.webSearch ? { tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }] } : {}),
+        }),
+      });
+      if (!upstream.ok) {
+        turn.status = 'error';
+        turn.error = `upstream ${upstream.status}: ${(await upstream.text().catch(() => '')).slice(0, 300)}`;
+      } else {
+        const reader = upstream.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let i;
+          while ((i = buf.indexOf('\n')) >= 0) {
+            const line = buf.slice(0, i).trim();
+            buf = buf.slice(i + 1);
+            if (!line.startsWith('data:')) continue;
+            const data = line.slice(5).trim();
+            if (data === '[DONE]') continue;
+            let evt;
+            try { evt = JSON.parse(data); } catch { continue; }
+            if (evt.type === 'content_block_delta') {
+              if (evt.delta?.type === 'thinking_delta' && evt.delta.thinking) turn.thinking += evt.delta.thinking;
+              else if (evt.delta?.text) turn.text += evt.delta.text;
+            } else if (evt.type === 'content_block_start') {
+              const b = evt.content_block;
+              if (b?.type === 'server_tool_use') {
+                turn.tools.push(`▸ ${b.name || 'tool'} ${JSON.stringify(b.input || {}).slice(0, 120)}`);
+              } else if (b?.type === 'web_search_tool_result') {
+                turn.tools.push(`▸ web results (${Array.isArray(b.content) ? b.content.length : '?'})`);
+              }
+            } else if (evt.type === 'message_delta' && evt.delta?.stop_reason) {
+              turn.stopReason = evt.delta.stop_reason;
+            } else if (evt.type === 'error') {
+              turn.status = 'error';
+              turn.error = evt.error?.message || 'stream error';
+            }
+          }
+        }
+        if (turn.status === 'running') turn.status = 'done';
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') {
+        turn.status = 'done';
+        turn.stopReason = turn.stopReason || 'interrupted';
+      } else {
+        turn.status = 'error';
+        turn.error = err?.message || String(err);
+      }
+    } finally {
+      try {
+        const { id, status, text, thinking, tools, stopReason, error, startedAt } = turn;
+        await this.ctx.storage.put(`turn:${id}`, { id, status, text, thinking, tools, stopReason, error, startedAt });
+        // Keep only the newest 5 finished turns.
+        const map = await this.ctx.storage.list({ prefix: 'turn:' });
+        const stale = [...map.entries()]
+          .sort((a, b) => (b[1].startedAt || 0) - (a[1].startedAt || 0))
+          .slice(5);
+        for (const [k] of stale) await this.ctx.storage.delete(k);
+      } catch { /* persistence is best-effort */ }
+      this._assistTurns?.delete(turn.id);
+    }
+  }
+
+  // Chunked workspace tarball in DO storage. Routed here by the worker's
+  // /sync handler AFTER capability-token verification (the worker already
+  // asserted cap.did === this DO's name, so no re-auth needed at this layer).
+  async handleWorkspaceSync(request) {
+    const storage = this.ctx.storage;
+
+    if (request.method === 'GET') {
+      const meta = await storage.get('ws:meta');
+      if (!meta) return new Response(null, { status: 404 });
+      const out = new Uint8Array(meta.size);
+      let off = 0;
+      for (let i = 0; i < meta.chunks; i++) {
+        const chunk = await storage.get(`ws:chunk:${i}`);
+        if (!chunk) return new Response('corrupt workspace (missing chunk)', { status: 500 });
+        out.set(new Uint8Array(chunk), off);
+        off += chunk.byteLength;
+      }
+      return new Response(out, { headers: { 'Content-Type': 'application/gzip' } });
+    }
+
+    if (request.method === 'PUT') {
+      const buf = new Uint8Array(await request.arrayBuffer());
+      if (buf.byteLength > WS_MAX_BYTES) {
+        return new Response(`workspace too large (${buf.byteLength} > ${WS_MAX_BYTES})`, { status: 413 });
+      }
+      const chunks = Math.ceil(buf.byteLength / WS_CHUNK_BYTES) || 1;
+      const prev = await storage.get('ws:meta');
+      for (let i = 0; i < chunks; i++) {
+        const slice = buf.slice(i * WS_CHUNK_BYTES, (i + 1) * WS_CHUNK_BYTES);
+        await storage.put(`ws:chunk:${i}`, slice.buffer);
+      }
+      await storage.put('ws:meta', { size: buf.byteLength, chunks, savedAt: Date.now() });
+      // Drop stale tail chunks from a previously larger save.
+      if (prev && prev.chunks > chunks) {
+        for (let i = chunks; i < prev.chunks; i++) await storage.delete(`ws:chunk:${i}`);
+      }
+      return new Response('ok', { status: 200 });
+    }
+
+    return new Response('Method not allowed', { status: 405 });
+  }
+
   // Environment variables injected into the container.
+  //
+  // NOT a getter: @cloudflare/containers ≥0.3 declares `envVars = {}` as a
+  // base-class FIELD, whose own instance property SHADOWS any subclass
+  // prototype getter — the getter is simply never consulted and the container
+  // starts with NO env (bit us live: empty AGENT_PROFILES, dead CAP_TOKEN
+  // sync). This method's result is ASSIGNED to this.envVars in the
+  // constructor and refreshed in fetch() before every container start.
+  //
   // SECURITY: the only credential here is CAP_TOKEN — a per-instance, did-scoped,
   // short-lived capability token. GITHUB_TOKEN / CLOUDFLARE_API_TOKEN are SHARED
   // account credentials and are single-tenant-only; they are gated behind
   // INJECT_SHARED_CREDS and must stay off in any multi-tenant config (the
   // allowlist would otherwise be the only thing standing between a second user
   // and your whole GitHub/Cloudflare account). See SECURITY.md.
-  get envVars() {
+  _buildEnvVars() {
     const vars = {
       NODE_ENV: 'production',
       SYNC_URL: this.env.SYNC_URL || '',
       CAP_TOKEN: this._capToken || '',
       WORKSPACE_ID: this._workspaceId || '',
+      // AGENT_PROFILES — model registry for the in-container `agent <profile>`
+      // launcher. Claude Code CLI is the harness for every profile; a profile
+      // is just an Anthropic-compatible endpoint + model id + key. kimi3 =
+      // Moonshot; any other open model (direct or via a LiteLLM-style gateway
+      // that speaks /v1/messages) is one more entry here. Keys ride along ONLY
+      // because this deployment is single-tenant (see INJECT_SHARED_CREDS).
+      AGENT_PROFILES: JSON.stringify({
+        kimi3: {
+          base: this.env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic',
+          model: this.env.KIMI_MODEL || '',
+          key: this.env.MOONSHOT_API_KEY || '',
+        },
+        // claude — native Anthropic; key comes per-connection from the browser
+        // (?apiKey → ANTHROPIC_API_KEY in the spawned shell), not from here.
+        claude: { base: '', model: '', key: '' },
+      }),
     };
     if (this.env.INJECT_SHARED_CREDS === 'true') {
       vars.GITHUB_TOKEN = this.env.GITHUB_TOKEN || '';
@@ -94,9 +300,79 @@ export class ContainerShell extends Container {
   }
 
   // Intercept fetch to capture session ID before container starts.
-  // The session ID (user's DID) becomes the workspace ID for R2 sync.
+  // The session ID (user's DID) becomes the workspace ID for sync.
   async fetch(request) {
     const url = new URL(request.url);
+    // Workspace sync (worker-internal, post-auth) — must NOT fall through to
+    // super.fetch, which would try to start/route to the container.
+    if (url.pathname === '/_sync') {
+      return this.handleWorkspaceSync(request);
+    }
+    // Assist turns (worker-internal, post-auth). THE POINT: the Moonshot call
+    // runs HERE in the DO, detached from the browser — closing the phone
+    // mid-generation no longer kills the turn. The client polls for the
+    // accumulated snapshot; finished turns persist so even a dead client
+    // finds its reply later.
+    if (url.pathname.startsWith('/_assist/')) {
+      return this.handleAssistOp(request, url);
+    }
+    // Thread store (worker-internal, post-auth): assist threads live PRIVATELY
+    // in this DO's SQLite storage — deliberately NOT PDS records, which would
+    // be on the open web. Keys: th:<id> = {title, msgs, updatedAt}; the index
+    // is derived by listing the prefix.
+    if (url.pathname.startsWith('/_threads/')) {
+      const storage = this.ctx.storage;
+      const op = url.pathname.slice('/_threads/'.length);
+      const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
+        status, headers: { 'Content-Type': 'application/json' },
+      });
+      if (op === 'list') {
+        const map = await storage.list({ prefix: 'th:' });
+        const items = [...map.entries()].map(([k, v]) => ({
+          id: k.slice(3), title: v.title || '(untitled)', updatedAt: v.updatedAt || 0, count: (v.msgs || []).length,
+        })).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 100)
+          .map(({ msgs, ...meta }) => meta);
+        return json({ threads: items });
+      }
+      if (op === 'get') {
+        const id = url.searchParams.get('id') || '';
+        const t = await storage.get(`th:${id}`);
+        return t ? json({ id, ...t }) : json({ error: 'not found' }, 404);
+      }
+      if (op === 'save' && request.method === 'POST') {
+        let b;
+        try { b = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+        const id = String(b.id || '').slice(0, 40);
+        if (!/^[a-zA-Z0-9_-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
+        const msgs = (Array.isArray(b.msgs) ? b.msgs : []).slice(-300);
+        // Guard the 2MB DO value cap.
+        const value = { title: String(b.title || '').slice(0, 120), msgs, updatedAt: Date.now() };
+        if (JSON.stringify(value).length > 1_500_000) return json({ error: 'thread too large' }, 413);
+        await storage.put(`th:${id}`, value);
+        return json({ ok: true });
+      }
+      if (op === 'delete' && request.method === 'POST') {
+        let b;
+        try { b = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+        await storage.delete(`th:${String(b.id || '').slice(0, 40)}`);
+        return json({ ok: true });
+      }
+      return json({ error: 'unknown op' }, 404);
+    }
+    // Restart (worker-internal, post-auth): stop the running container so the
+    // next request boots it FRESH — which also picks up a newly deployed
+    // image. stop() is a graceful SIGTERM (the PTY server saves the workspace
+    // on it); destroy() is the SIGKILL fallback.
+    if (url.pathname === '/_restart') {
+      try {
+        await this.stop();
+      } catch {
+        try { await this.destroy(); } catch { /* already down */ }
+      }
+      return new Response(JSON.stringify({ ok: true, restarted: true }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     const session = url.searchParams.get('session');
     if (session && !this._workspaceId) {
       this._workspaceId = session;
@@ -107,6 +383,20 @@ export class ContainerShell extends Container {
     // the container, so the shell can't forge a token for another DID.
     if (this._workspaceId && this.env.CAP_SIGNING_KEY) {
       this._capToken = await mintCap(this.env.CAP_SIGNING_KEY, this._workspaceId);
+    }
+    // Re-assign (data property, not getter — see _buildEnvVars) so the next
+    // container start picks up the fresh CAP_TOKEN and workspace id.
+    this.envVars = this._buildEnvVars();
+    // Pre-start with a GENEROUS port timeout. The library default is 20s, but
+    // the first boot after an image deploy has to pull the image (~40s) — so
+    // every post-deploy first boot used to die with "not listening on TCP".
+    try {
+      await this.startAndWaitForPorts(8080, {
+        portReadyTimeoutMS: 150_000,
+        instanceGetTimeoutMS: 20_000,
+      });
+    } catch (err) {
+      return new Response(`container start failed: ${err?.message || err}`, { status: 503 });
     }
     return super.fetch(request);
   }
@@ -142,14 +432,162 @@ export default {
     }
 
     // Workspace sync: GET/PUT /sync/:workspaceId
-    // Called by the container to persist workspace to R2.
+    // Called by the container to persist the workspace (chunked, in the DO).
     if (url.pathname.startsWith('/sync/')) {
       return handleSync(request, env, url);
     }
 
-    // WebSocket endpoint: /ws?session=<did>&cols=80&rows=24
-    if (url.pathname === '/ws') {
-      return handleWebSocket(request, env, url);
+    // WebSocket endpoints:
+    //   /ws   — PTY shell (terminal mode)
+    //   /chat — headless agent chat (claude -p stream-json in the container)
+    // A plain (non-upgrade) GET to either acts as an AUTH PREFLIGHT: it runs
+    // the same authorization and returns the verdict as JSON, so the frontend
+    // can print WHY a connection would fail instead of a silent WS close.
+    if (url.pathname === '/ws' || url.pathname === '/chat') {
+      return handleWebSocket(request, env, url, url.pathname);
+    }
+
+    // Restart (authed): stop the user's container so the next request boots
+    // fresh on the CURRENT image. The fix for "instance still running a stale
+    // image" (rollouts don't replace an instance that never goes idle).
+    if (url.pathname === '/debug/restart') {
+      const auth = await authorizeDid(
+        env,
+        url.searchParams.get('session'),
+        url.searchParams.get('auth'),
+        url.searchParams.get('authMode')
+      );
+      if (!auth.ok) {
+        return new Response(JSON.stringify({ ok: false, error: auth.msg }), {
+          status: auth.status,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        });
+      }
+      const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(auth.did));
+      const res = await stub.fetch(new Request('https://do/_restart'));
+      return new Response(await res.text(), {
+        status: res.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+
+    // Private thread store (authed): forwards to the per-DID DO's storage.
+    // Never starts the container — thread ops are pure storage.
+    if (url.pathname.startsWith('/threads/')) {
+      const auth = await authorizeDid(
+        env,
+        url.searchParams.get('session'),
+        url.searchParams.get('auth'),
+        url.searchParams.get('authMode')
+      );
+      if (!auth.ok) {
+        return new Response(JSON.stringify({ ok: false, error: auth.msg }), {
+          status: auth.status,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+        });
+      }
+      const op = url.pathname.slice('/threads/'.length);
+      const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(auth.did));
+      const fwd = new URL(`https://do/_threads/${op}`);
+      const id = url.searchParams.get('id');
+      if (id) fwd.searchParams.set('id', id);
+      const res = await stub.fetch(new Request(fwd, {
+        method: request.method,
+        body: request.method === 'POST' ? request.body : undefined,
+      }));
+      return new Response(res.body, {
+        status: res.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+
+    // Assist mode (authed): the Moonshot call runs INSIDE the per-DID DO,
+    // detached from the browser — closing the phone mid-generation no longer
+    // loses the turn. Client flow: POST /assist/start → {turnId}, then GET
+    // /assist/poll?turn=… for the accumulating snapshot (survives any client
+    // death; finished turns persist), POST /assist/interrupt to stop.
+    if (url.pathname.startsWith('/assist/')) {
+      const auth = await authorizeDid(
+        env,
+        url.searchParams.get('session'),
+        url.searchParams.get('auth'),
+        url.searchParams.get('authMode')
+      );
+      const jsonHeaders = { 'Content-Type': 'application/json', ...corsHeaders(origin) };
+      if (!auth.ok) {
+        return new Response(JSON.stringify({ ok: false, error: auth.msg }), { status: auth.status, headers: jsonHeaders });
+      }
+      const op = url.pathname.slice('/assist/'.length);
+      const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(auth.did));
+
+      if (op === 'start' && request.method === 'POST') {
+        if (!env.MOONSHOT_API_KEY) {
+          return new Response(JSON.stringify({ ok: false, error: 'MOONSHOT_API_KEY not configured' }), { status: 503, headers: jsonHeaders });
+        }
+        let body;
+        try { body = await request.json(); } catch {
+          return new Response(JSON.stringify({ error: 'bad json' }), { status: 400, headers: jsonHeaders });
+        }
+        const messages = (Array.isArray(body?.messages) ? body.messages : [])
+          .filter((m) => (m?.role === 'user' || m?.role === 'assistant') && typeof m?.content === 'string')
+          .slice(-40);
+        if (!messages.length) {
+          return new Response(JSON.stringify({ error: 'no messages' }), { status: 400, headers: jsonHeaders });
+        }
+        // System prompt is CLIENT-CONTROLLED (visible + editable in the UI)
+        // with a server-side default.
+        const system = (typeof body.system === 'string' && body.system.trim())
+          ? body.system.slice(0, 4000)
+          : 'You are Kimi in the assist mode of os.mino.mobi — a quick, direct thinking partner. minomobi is a personal, non-commercial playground of experimental web toys (ATProto apps, visualizations, generative sites) built for curiosity and craft. Be concrete and candid; disagree when warranted. When a plan firms up, the user can hand this conversation to your repo-agent mode (a full Claude Code harness inside the agent01 monorepo) with the → repo button.';
+        const res = await stub.fetch(new Request('https://do/_assist/start', {
+          method: 'POST',
+          body: JSON.stringify({ messages, system, thinking: !!body.thinking, webSearch: !!body.webSearch }),
+        }));
+        return new Response(res.body, { status: res.status, headers: jsonHeaders });
+      }
+
+      if (op === 'poll' || op === 'interrupt') {
+        const fwd = new URL(`https://do/_assist/${op}`);
+        const turn = url.searchParams.get('turn');
+        if (turn) fwd.searchParams.set('turn', turn);
+        const res = await stub.fetch(new Request(fwd, { method: request.method }));
+        return new Response(res.body, { status: res.status, headers: jsonHeaders });
+      }
+
+      return new Response(JSON.stringify({ error: 'unknown op' }), { status: 404, headers: jsonHeaders });
+    }
+
+    // Boot diagnostic (authed): exercises the FULL container start by proxying
+    // a request through the DO to the container's /health, and returns exactly
+    // what happened — status, timing, or the thrown error. This is how a
+    // "socket closed, no feedback" gets a cause.
+    if (url.pathname === '/debug/boot') {
+      const auth = await authorizeDid(
+        env,
+        url.searchParams.get('session'),
+        url.searchParams.get('auth'),
+        url.searchParams.get('authMode')
+      );
+      const respond = (obj, status = 200) => new Response(JSON.stringify(obj), {
+        status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+      if (!auth.ok) return respond({ ok: false, error: auth.msg }, auth.status);
+      const stub = env.CONTAINER_SHELL.get(env.CONTAINER_SHELL.idFromName(auth.did));
+      const t0 = Date.now();
+      try {
+        const res = await stub.fetch(new Request(
+          `https://do/health?session=${encodeURIComponent(auth.did)}`
+        ));
+        const body = (await res.text()).slice(0, 500);
+        return respond({ ok: res.ok, containerStatus: res.status, ms: Date.now() - t0, body });
+      } catch (err) {
+        return respond({
+          ok: false,
+          ms: Date.now() - t0,
+          error: `container boot failed: ${err?.message || String(err)}`,
+        }, 500);
+      }
     }
 
     return new Response('os.mino — container shell API', {
@@ -159,8 +597,9 @@ export default {
   },
 };
 
-// ─── Sync handler (R2 workspace persistence) ──────────────────────
-// Container calls these endpoints to save/restore workspace tarballs.
+// ─── Sync handler (workspace persistence in the per-DID DO) ───────
+// Container calls these endpoints to save/restore workspace tarballs. Storage
+// is the ContainerShell DO's own SQLite storage (chunked) — no R2 needed.
 
 async function handleSync(request, env, url) {
   // Auth: per-instance capability token (HMAC-signed {did, exp}).
@@ -176,32 +615,20 @@ async function handleSync(request, env, url) {
     return new Response('Missing workspace ID', { status: 400 });
   }
 
-  // A container may only read/write ITS OWN workspace. This closes the previous
-  // cross-tenant leak where any container holding the shared SYNC_TOKEN could
-  // read/write every user's R2 tarball.
+  // A container may only read/write ITS OWN workspace (id must match the DID
+  // inside the verified capability token).
   if (workspaceId !== cap.did) {
     return new Response('Forbidden', { status: 403 });
   }
 
-  // Sanitize for R2 key (DIDs have colons)
-  const r2Key = `workspaces/${workspaceId.replace(/[^a-zA-Z0-9._-]/g, '_')}.tar.gz`;
-
-  // GET: download workspace tarball from R2
-  if (request.method === 'GET') {
-    const obj = await env.WORKSPACE.get(r2Key);
-    if (!obj) return new Response(null, { status: 404 });
-    return new Response(obj.body, {
-      headers: { 'Content-Type': 'application/gzip' },
-    });
-  }
-
-  // PUT: upload workspace tarball to R2
-  if (request.method === 'PUT') {
-    await env.WORKSPACE.put(r2Key, request.body);
-    return new Response('ok', { status: 200 });
-  }
-
-  return new Response('Method not allowed', { status: 405 });
+  // Route to the same per-DID DO the shell runs in — its storage IS the
+  // workspace store. Auth happened above; /_sync is worker-internal.
+  const id = env.CONTAINER_SHELL.idFromName(cap.did);
+  const stub = env.CONTAINER_SHELL.get(id);
+  return stub.fetch(new Request('https://do/_sync', {
+    method: request.method,
+    body: request.body,
+  }));
 }
 
 // ─── Identity gate ─────────────────────────────────────────────────
@@ -222,7 +649,14 @@ async function handleSync(request, env, url) {
 // PDS, and can't redirect us to a lying server, so the gate holds.
 //
 // Fail closed: if ALLOWED_DIDS is unset, refuse every connection.
-async function authorizeDid(env, claimedDid, accessJwt) {
+//
+// Two auth modes, both ending in "the VERIFIED did must be on the allowlist":
+//   authMode 'pds' (default) — auth is the user's PDS accessJwt, verified by
+//     resolving the claimed DID to its canonical PDS and calling getSession.
+//   authMode 'oauth' — auth is an opaque shared-auth bearer; verified by
+//     forwarding it to auth.mino.mobi/api/me (the scores-worker pattern),
+//     which returns the session's {did, handle}.
+async function authorizeDid(env, claimedDid, accessJwt, authMode) {
   const allow = (env.ALLOWED_DIDS || '')
     .split(',')
     .map((s) => s.trim())
@@ -235,6 +669,24 @@ async function authorizeDid(env, claimedDid, accessJwt) {
   }
   if (!allow.includes(claimedDid)) {
     return { ok: false, status: 403, msg: 'Not authorized' };
+  }
+
+  if (authMode === 'oauth') {
+    const base = (env.AUTH_URL || 'https://auth.mino.mobi').replace(/\/$/, '');
+    let verifiedDid;
+    try {
+      const res = await fetch(`${base}/api/me`, {
+        headers: { Authorization: `Bearer ${accessJwt}` },
+      });
+      if (!res.ok) return { ok: false, status: 401, msg: 'Invalid session' };
+      verifiedDid = (await res.json())?.did;
+    } catch {
+      return { ok: false, status: 401, msg: 'Auth verification failed' };
+    }
+    if (!verifiedDid || verifiedDid !== claimedDid || !allow.includes(verifiedDid)) {
+      return { ok: false, status: 403, msg: 'Not authorized' };
+    }
+    return { ok: true, did: verifiedDid };
   }
 
   let pdsUrl;
@@ -287,34 +739,54 @@ async function resolvePds(did) {
 
 // ─── WebSocket handler ─────────────────────────────────────────────
 
-async function handleWebSocket(request, env, url) {
-  const upgradeHeader = request.headers.get('Upgrade');
-  if (upgradeHeader?.toLowerCase() !== 'websocket') {
-    return new Response('Expected WebSocket', { status: 426 });
-  }
-
-  // Verify identity BEFORE touching a container. The verified did becomes the
+async function handleWebSocket(request, env, url, targetPath = '/ws') {
+  // Verify identity BEFORE anything else. The verified did becomes the
   // workspace key — we ignore any unauthenticated client-claimed value.
   const auth = await authorizeDid(
     env,
     url.searchParams.get('session'),
-    url.searchParams.get('auth')
+    url.searchParams.get('auth'),
+    url.searchParams.get('authMode')
   );
   if (!auth.ok) {
-    return new Response(auth.msg, { status: auth.status });
+    return new Response(JSON.stringify({ ok: false, error: auth.msg }), {
+      status: auth.status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(request.headers.get('Origin') || '*') },
+    });
   }
   const sessionId = auth.did;
+
+  // Non-upgrade request = auth preflight. Report the verdict without waking
+  // the container, so the frontend can diagnose before opening the socket.
+  const upgradeHeader = request.headers.get('Upgrade');
+  if (upgradeHeader?.toLowerCase() !== 'websocket') {
+    return new Response(JSON.stringify({ ok: true, did: sessionId }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(request.headers.get('Origin') || '*') },
+    });
+  }
 
   // Route to per-user container instance
   const containerId = env.CONTAINER_SHELL.idFromName(sessionId);
   const container = env.CONTAINER_SHELL.get(containerId);
 
-  // Forward WebSocket upgrade to container's PTY server
+  // Forward the WebSocket upgrade to the container server. /ws → PTY at '/',
+  // /chat → the headless-agent chat endpoint at '/chat'.
   const cols = url.searchParams.get('cols') || '80';
   const rows = url.searchParams.get('rows') || '24';
   const containerUrl = new URL(request.url);
-  containerUrl.pathname = '/';
+  containerUrl.pathname = targetPath === '/chat' ? '/chat' : '/';
   containerUrl.search = `?cols=${cols}&rows=${rows}&session=${encodeURIComponent(sessionId)}`;
+  // Per-connection Anthropic key (browser-held, for the native `claude` profile).
+  const apiKey = url.searchParams.get('apiKey');
+  if (apiKey) containerUrl.search += `&apiKey=${encodeURIComponent(apiKey)}`;
+  // Agent profile — for /ws it auto-launches `agent <profile>` in the PTY; for
+  // /chat it selects which profile the headless run uses. Strictly validated:
+  // it becomes part of a shell command in the container.
+  const boot = url.searchParams.get('boot') || url.searchParams.get('profile');
+  if (boot && /^[a-z0-9][a-z0-9-]{0,31}$/.test(boot)) {
+    containerUrl.search += targetPath === '/chat' ? `&profile=${boot}` : `&boot=${boot}`;
+  }
 
   return container.fetch(
     new Request(containerUrl, {

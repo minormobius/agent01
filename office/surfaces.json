@@ -1292,6 +1292,15 @@
    "parent": null
   },
   {
+   "id": "spec",
+   "name": "spec",
+   "url": "https://mino.mobi/spec/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "read",
    "name": "read",
    "url": "https://mino.mobi/read/",
@@ -1495,6 +1504,15 @@
    "url": "https://borges.mino.mobi",
    "cat": "tools",
    "commits": 27,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "fipo",
+   "name": "fipo",
+   "url": "https://fipo.mino.mobi",
+   "cat": "tools",
+   "commits": 1,
    "age": "hot",
    "parent": null
   },
@@ -4315,6 +4333,16 @@
    "commits": 0,
    "age": "hot",
    "parent": "borges",
+   "discovered": true
+  },
+  {
+   "id": "fipo/pitch",
+   "name": "pitch",
+   "url": "https://fipo.mino.mobi/pitch/",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "fipo",
    "discovered": true
   },
   {

@@ -8,6 +8,7 @@ where it's going. This is the map; the two deep-dives below are the territory.
 | **`CAPABILITIES.md`** (this) | Vision, capability matrix, architecture-at-a-glance, deployment state, roadmap. Start here. |
 | **`DESIGN.md`** | Feature/how-it-works reference — every shell command, the CAR parser, DuckDB integration, container internals. |
 | **`api/SECURITY.md`** | Trust model — why no secret is safe in the container, the capability-token primitive, the per-tenant credential plan. |
+| **`RUNBOOK.md`** | Go-live checklist for the container backend + the Kimi agent platform (owner steps, adding more open models, troubleshooting). |
 
 ---
 
@@ -58,7 +59,8 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 ### Identity & auth
 | Capability | Where | Status | Notes |
 |---|---|---|---|
-| ATProto app-password login | browser → PDS | ✅ | `auth/oauth.js`: handle→DID→PDS, `createSession`. Phase-2 OAuth (PKCE+DPoP) is stubbed. |
+| **ATProto OAuth via shared worker (default)** | browser → auth.mino.mobi | ✅ | `LoginOverlay.jsx` + `packages/oauth-client/auth.js`. HTML overlay with Bluesky handle typeahead; `.mino.mobi` SSO cookie = zero-typing login if signed in on any mino.mobi site. Reads are public XRPC; writes route through the worker's `/pds/*` proxy, bounded by the granted scope. |
+| ATProto app-password login (power mode) | browser → PDS | ✅ | Overlay fallback ("use app password instead"). `auth/oauth.js`: handle→DID→PDS, `createSession`. The only mode that writes ARBITRARY collections. |
 | Google OAuth (for Gemini) | browser | ✅ | `auth/google.js`: popup, implicit grant, scope `generative-language`. Powers the `ai` command with no API key. |
 | Anthropic key for container | browser localStorage | ✅ | `set-key` / `container --api-key=`. Used by Claude Code in the shell. |
 | Container access allowlist | worker | ✅ | `ALLOWED_DIDS`, **fail-closed**. Identity is *verified* (DID→canonical PDS→`getSession`), never trusted from the client. |
@@ -82,9 +84,12 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 ### Container shell (plane 2+3)
 | Capability | Status | Notes |
 |---|---|---|
-| Real bash PTY over WebSocket | 🚧 | Code complete (`api/`, PTY server in `container/`). Backend deploy is dispatch-only — see below. |
-| Per-DID persistent workspace | 🚧 | R2 tarball restore on start + 2-min autosave; survives 10-min idle sleep. |
+| **Agent CHAT (default surface)** | ✅ | `ChatView.jsx` ⇄ os-api `/chat` ⇄ container headless run: `agent <profile> -p --output-format stream-json --resume <sid>`. Native composer, bubbles, tool chips, stop button; conversation persists via the session-id file + workspace sync. Auth preflight (plain GET `/chat`) returns the exact denial reason before any socket opens. |
+| Real bash PTY over WebSocket (power mode) | ✅ | Terminal view, one tap from chat. PTY server in `container/`. |
+| **Open-model agent profiles (`agent <profile>`, `kimi`)** | 🚧 | Claude Code CLI is the harness for ANY Anthropic-compatible endpoint. Worker injects `AGENT_PROFILES` ({base, model, key}); `agent kimi3` = Kimi via Moonshot, `kimi` in the browser boots straight into it (`?boot=` param). One profile per open model — no new harness code. |
+| Per-DID persistent workspace | 🚧 | Chunked tarball in the ContainerShell DO's SQLite storage (no R2 — unavailable on this plan): restore on start + 2-min autosave; survives 10-min idle sleep; 64MB cap. |
 | Toolchain: git · node 22 · python3 · **uv** · claude-code | 🚧 | `container/Dockerfile`. uv added for fast Python installs (HTTPS, egress-safe). |
+| agent01 clone + `kimi/*` feature branches | 🚧 | `startup.sh` clones the repo; `work <slug>` starts `kimi/<slug>` off `origin/main`. Pushes (via the injected fine-grained PAT) fire GitHub Actions, but no deploy glob matches `kimi/*` — humans promote work. |
 | GitHub MCP server | 🚧 | Installed in image; usable once backend is live + a git credential path exists (roadmap §4). |
 
 ### Control plane / security primitives
@@ -102,14 +107,16 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 
 | Surface | Resource | Domain | Workflow | State |
 |---|---|---|---|---|
-| **Frontend** | Pages worker `os` | `os.mino.mobi` | `deploy-os.yml` (paths `os/**` **excl.** `os/api/**`) | ✅ **Live.** Fully functional standalone — login + all PDS-shell/analytics/AI commands work with no backend. |
-| **Container backend** | Worker `os-mino-api` + Container + DO + R2 | `os-api.minomobi.com` | `deploy-os-api.yml` | 🚧 **Dispatch-only, not yet live.** Pending: enable CF Containers, set `CAP_SIGNING_KEY`, create R2 `os-workspace`, attach domain. |
+| **Frontend** | Pages worker `os` | `os.mino.mobi` | `deploy-os.yml` (paths `os/**` **excl.** `os/api/**`) | ✅ **Live.** Fully functional standalone — login + all PDS-shell/analytics/AI commands work with no backend. `kimi`/`container` probe the backend's `/health` at runtime and unlock the moment it's live — no rebuild. |
+| **Container backend** | Worker `os-mino-api` + Container + DO (SQLite storage = workspace store) | `os-api.minomobi.com` (custom_domain route in wrangler.toml) | `deploy-os-api.yml` — **self-provisioning**, auto on push to `os/api/**` | 🚧 **Unshelfing.** The workflow deploys, generates `CAP_SIGNING_KEY`, syncs `MOONSHOT_API_KEY`/`GITHUB_TOKEN` from GitHub, and health-checks the domain. No R2. Remaining human steps (once, `RUNBOOK.md`): enable CF Containers + add the PAT secret. |
 | OCR (sibling crate) | Worker `ocr` | `ocr.mino.mobi` | `deploy-ocr.yml` | ✅ Live. `crates/codescan-ocr` → `ocr/wasm/`. Separate product, shares the repo. |
 
-The `container` command is **gated off in the frontend** until `VITE_CONTAINER_API_URL`
-is set at build time — so it reports "not configured" instead of dangling a dead
-WebSocket while the backend is unshipped. Frontend and backend deploy
-independently (the frontend workflow excludes `os/api/**`).
+The `kimi`/`container` commands gate themselves at **runtime**: they probe the
+backend's `/health` (4s timeout) and report "backend not reachable" instead of
+dangling a dead WebSocket while the backend is unshipped. The production URL is
+the baked-in default (`VITE_CONTAINER_API_URL` overrides it for staging/dev).
+Frontend and backend deploy independently (the frontend workflow excludes
+`os/api/**`; the backend workflow is registered as its own `os-api` surface).
 
 **Housekeeping:** an orphan `pds-os` worker should be deleted (golden-rule
 hygiene — `os` owns `os.mino.mobi`).
@@ -142,10 +149,14 @@ Phased plan:
 
 1. ✅ `/ws` identity gate.
 2. ✅ Capability token + `/sync` DID-scoping + `INJECT_SHARED_CREDS` gate.
-3. **Ship the backend** — enable CF Containers, set `CAP_SIGNING_KEY`, create
-   `os-workspace` R2, attach `os-api.minomobi.com`, set `ALLOWED_DIDS` to the
-   trusted set, build the frontend with `VITE_CONTAINER_API_URL`. *(This is the
-   gate between "frontend demo" and "the container actually works.")*
+3. **Ship the backend** — `deploy-os-api.yml` is now **self-provisioning**
+   (R2 bucket, deploy, key generation, secret sync, health check — all on push).
+   The remaining human steps are in **`RUNBOOK.md`**: enable CF Containers on
+   the account + add `MOONSHOT_API_KEY` / `OS_AGENT_GITHUB_TOKEN` GH secrets and
+   the `OS_ALLOWED_DIDS` GH variable. *(This is the gate between "frontend demo"
+   and "the agent platform works.")* First tenant model: **Kimi3** via Claude
+   Code + Moonshot's Anthropic-compatible endpoint; `AGENT_PROFILES` generalizes
+   to any open model.
 4. **PDS-MCP server + `/pds/*` proxy** — the differentiated feature; safe even
    single-tenant. Agent reads/writes the user's own PDS, token never in the shell.
 5. **GitHub App + `/git/*` broker** — per-repo ~1h installation tokens over HTTPS,

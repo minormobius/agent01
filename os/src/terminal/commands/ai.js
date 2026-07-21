@@ -126,7 +126,13 @@ async function launchContainer(flags, ctx) {
 
   if (!shell.onConnectContainer) {
     terminal.writeln(fmt.red('container shell not available'));
-    terminal.writeln(fmt.dim('(API endpoint not configured)'));
+    return;
+  }
+
+  const { checkContainerHealth } = await import('../../lib/container-config.js');
+  if (!(await checkContainerHealth())) {
+    terminal.writeln(fmt.red('os-api backend not reachable'));
+    terminal.writeln(fmt.dim('(deploy-os-api.yml has not run green yet — see os/RUNBOOK.md)'));
     return;
   }
 
@@ -144,5 +150,5 @@ async function launchContainer(flags, ctx) {
   terminal.writeln(fmt.dim('launching container agent...'));
   terminal.writeln(fmt.dim('(cold start may take 2-3s)'));
 
-  shell.onConnectContainer(apiKey);
+  shell.onConnectContainer({ apiKey });
 }

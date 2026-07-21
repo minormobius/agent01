@@ -1,0 +1,298 @@
+/* HUMAN MACHINERY — the museum-arcade design system.
+   Two voices: the arcade cabinet (monospace, letterspaced, phosphor amber)
+   and the museum plaque (serif, warm paper). Dark gallery walls, lit cases. */
+
+:root {
+  --bg: #0c0e11;
+  --panel: #14181f;
+  --panel-2: #1a1f28;
+  --line: #2a3140;
+  --ink: #ece5d3;
+  --ink-dim: #9a9484;
+  --amber: #ffb000;
+  --amber-soft: rgba(255, 176, 0, 0.14);
+  --cyan: #57d0ff;
+  --cyan-soft: rgba(87, 208, 255, 0.12);
+  --green: #4ade80;
+  --red: #ff6b57;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Courier New", monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+
+* { box-sizing: border-box; }
+
+html { color-scheme: dark; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 500px at 50% -10%, rgba(255, 176, 0, 0.05), transparent 60%),
+    var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---- chrome ---- */
+
+.crumb {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  padding: 14px 20px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  background: rgba(12, 14, 17, 0.9);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(6px);
+}
+.crumb a { color: var(--ink-dim); text-decoration: none; }
+.crumb a:hover { color: var(--amber); }
+.crumb .sep { color: var(--line); }
+.crumb .here { color: var(--amber); }
+
+.wrap { max-width: 900px; margin: 0 auto; padding: 28px 20px 80px; }
+
+/* ---- arcade type ---- */
+
+h1, h2, h3, .cab {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+h1 { font-size: clamp(26px, 5vw, 40px); line-height: 1.15; margin: 0 0 10px; }
+h2 { font-size: 15px; margin: 34px 0 12px; color: var(--amber); }
+h3 { font-size: 13px; margin: 22px 0 8px; }
+
+.kicker {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin: 0 0 14px;
+}
+.kicker::before { content: "◆ "; }
+
+.lede { font-size: 19px; color: var(--ink); max-width: 62ch; }
+.dim { color: var(--ink-dim); }
+.small { font-size: 13px; }
+
+/* ---- buttons ---- */
+
+.btn {
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  padding: 13px 22px;
+  cursor: pointer;
+  transition: transform 0.05s, border-color 0.15s, background 0.15s;
+}
+.btn:hover { border-color: var(--amber); background: #202634; }
+.btn:active { transform: translateY(2px); border-bottom-width: 1px; }
+.btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.btn.primary { background: var(--amber); color: #191204; border-color: #b57e00; }
+.btn.primary:hover { background: #ffc033; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* ---- panels / cards ---- */
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 22px;
+}
+
+.case { /* a lit museum case */
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--amber);
+  border-radius: 10px;
+  padding: 26px;
+  margin: 22px 0;
+}
+
+.rule {
+  border: 0;
+  border-top: 1px dashed var(--line);
+  margin: 34px 0;
+  position: relative;
+}
+.rule::after {
+  content: "· · ·";
+  font-family: var(--mono);
+  color: var(--ink-dim);
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg);
+  padding: 0 12px;
+  letter-spacing: 6px;
+}
+
+/* ---- badges ---- */
+
+.badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 3px 9px;
+  border: 1px solid;
+  vertical-align: middle;
+}
+.badge.well-replicated { color: var(--green); border-color: var(--green); background: rgba(74, 222, 128, 0.08); }
+.badge.contested { color: var(--amber); border-color: var(--amber); background: var(--amber-soft); }
+.badge.failed-replication { color: var(--red); border-color: var(--red); background: rgba(255, 107, 87, 0.08); }
+
+/* ---- the reveal (fail moment) ---- */
+
+.reveal {
+  background: var(--cyan-soft);
+  border: 1px solid rgba(87, 208, 255, 0.35);
+  border-radius: 10px;
+  padding: 22px;
+  margin: 22px 0;
+}
+.reveal .you {
+  font-family: var(--mono);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--cyan);
+  margin: 0 0 6px;
+}
+.reveal .crowd { font-size: 18px; }
+
+.bar-row { margin: 10px 0; font-family: var(--mono); font-size: 13px; }
+.bar-row .bar-label { display: flex; justify-content: space-between; color: var(--ink-dim); margin-bottom: 4px; }
+.bar-row .bar-label b { color: var(--ink); font-weight: 700; }
+.bar-track { background: #0a0c0f; border: 1px solid var(--line); border-radius: 4px; height: 18px; overflow: hidden; }
+.bar-fill {
+  height: 100%;
+  background: repeating-linear-gradient(45deg, var(--amber), var(--amber) 6px, #d19000 6px, #d19000 12px);
+  min-width: 2px;
+  transition: width 0.6s ease-out;
+}
+.bar-fill.you { background: repeating-linear-gradient(45deg, var(--cyan), var(--cyan) 6px, #2fa8d8 6px, #2fa8d8 12px); }
+.bar-fill.ghost { background: var(--line); }
+
+/* ---- museum plaque (mechanism) ---- */
+
+.plaque {
+  border-left: 3px solid var(--amber);
+  padding: 4px 0 4px 20px;
+  margin: 26px 0;
+}
+.plaque p { max-width: 68ch; }
+
+/* ---- citations ---- */
+
+.cites { font-size: 14px; color: var(--ink-dim); margin: 18px 0; }
+.cites li { margin: 8px 0; }
+.cites .doi { font-family: var(--mono); font-size: 12px; }
+
+/* ---- wormhole ---- */
+
+.wormhole { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+.wormhole a {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.wormhole a:hover { border-color: var(--amber); transform: translateY(-2px); }
+.wormhole .wt { font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); }
+.wormhole .wh { font-size: 13px; color: var(--ink-dim); margin-top: 4px; line-height: 1.4; }
+
+/* ---- exhibit cards (lobby) ---- */
+
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 16px; margin: 18px 0; }
+.exhibit-card {
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--amber);
+  border-radius: 10px;
+  padding: 18px;
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.exhibit-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--amber);
+  box-shadow: 0 8px 30px rgba(255, 176, 0, 0.08);
+  text-decoration: none;
+}
+.exhibit-card .et { font-family: var(--mono); font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 8px; }
+.exhibit-card .eh { font-size: 14px; color: var(--ink-dim); line-height: 1.45; flex: 1; }
+.exhibit-card .em { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; gap: 8px; }
+.exhibit-card .plays { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); letter-spacing: 0.06em; }
+.exhibit-card.contested-case { border-top-color: var(--red); }
+
+.wing-head { display: flex; align-items: baseline; gap: 12px; margin: 40px 0 6px; }
+.wing-head h2 { margin: 0; }
+.wing-head .wn { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); letter-spacing: 0.2em; }
+
+/* ---- exhibit stage ---- */
+
+.stage {
+  background: #0a0c0f;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 26px;
+  margin: 20px 0;
+  text-align: center;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+}
+
+.prompt-line { font-family: var(--mono); font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-dim); }
+
+footer {
+  border-top: 1px solid var(--line);
+  margin-top: 60px;
+  padding: 26px 20px 40px;
+  font-size: 13px;
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+footer a { color: var(--ink-dim); text-decoration: underline; }
+footer a:hover { color: var(--amber); }
+
+@media (max-width: 560px) {
+  .case, .stage { padding: 18px; }
+  body { font-size: 16px; }
+}

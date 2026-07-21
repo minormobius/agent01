@@ -1,0 +1,1017 @@
+// field.js — THE SETTLEMENT FIELD v3: one continuous Voronoi, grown by MITOSIS.
+//
+// v2 cheated three ways (the user caught all three): compute stayed on a frozen
+// base lattice; refinement lived in a quadtree bolted onto it, so the grain
+// boundary showed; and the resolution ceiling was picked, not earned. v3 is the
+// honest construction:
+//
+//   ONE POINT SET, ONE DIAGRAM. The city is a single global Voronoi tessellation
+//   over a live set of sites. Every tick, EVERY cell holds the power of MITOSIS:
+//   if its PRODUCT — rent × area, the actual output of the location — exceeds the
+//   division threshold, the site divides into three or four children and dies, and
+//   THE ENTIRE MESH IS RE-TESSELLATED. There is no base lattice, no levels, no
+//   grain boundary: children are ordinary sites in the one diagram, their cells
+//   seamlessly bounded by whoever their neighbours now are. Division self-limits —
+//   a child's area is a third of its parent's, so its product falls back below
+//   threshold unless rent keeps climbing — so the fine grain of the core and the
+//   coarse pasture of the edge EMERGE from the land market instead of being
+//   chosen. All simulation (growth, lanes, perfusion, the market) runs on the
+//   current mesh, at whatever resolution mitosis has minted where.
+//
+// Everything else carries over from v2: the three transport regimes (nucleus
+// spokes → coverage capillaries → arterial flux), the bid-rent land market
+// (Ricardo → von Thünen → Alonso) with demand-sized farms and the Sinclair
+// development shadow, walls/sacks/spill as boundary conditions from civ.
+// Deterministic: (siteSeed, ctx) → identical field anywhere. Node + browser.
+
+import { mulberry32, hash2 } from './prng.js';
+import { generateSet } from '../rite/names/engine.js';
+
+const TAU = Math.PI * 2;
+
+function xmur3(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  return () => { h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return (h ^= h >>> 16) >>> 0; };
+}
+function vnoise(x, y, s) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash2(xi, yi, s), b = hash2(xi + 1, yi, s), c = hash2(xi, yi + 1, s), d = hash2(xi + 1, yi + 1, s);
+  return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
+}
+function fbm(x, y, s, oct = 5) {
+  let amp = 1, f = 1, sum = 0, norm = 0;
+  for (let o = 0; o < oct; o++) { sum += amp * vnoise(x * f, y * f, s + o * 197); norm += amp; amp *= 0.5; f *= 2; }
+  return sum / norm;
+}
+
+// ---- tuning ---------------------------------------------------------------------
+const BASE = 26;                 // initial loose lattice BASE×BASE (~115 m cells)
+const URBAN_PER_KM2 = 24000;     // pre-mechanisation urban density (people/km²)
+const URBAN_PER_KM2_MECH = 14000;// the machine age spreads out
+const FEED_PER_KM2 = 2600;       // people one km² of farmland feeds
+const REACH = 1;                 // coverage: lane hop-distance urban tissue tolerates
+const DIVERSIFY_POP = 3800;      // regime 3 + industry bids open
+const ECON_EVERY = 12;           // ticks between land-market passes
+const SPLIT_PRODUCT = 0.011;     // km²·rent — the mitosis threshold (product, not size)
+const SPLITS_PER_TICK = 48;      // bounded divisions per tick (highest product first)
+const MAX_SITES = 4600;          // safety guard, far above emergent counts
+const AGENT_SCALE = 1;           // ONE AGENT = ONE PERSON. individuals, not a rollup.
+const AGENT_CAP = 50000;         // budget bound; above it each agent represents pop/CAP
+const HOME_CAND = 40;            // bounded home-choice candidate set (keeps 50k tractable)
+
+export const USE = { WILD: 0, FARM: 1, RES: 2, COM: 3, IND: 4 };
+export const USE_NAME = ['wild', 'farm', 'residential', 'commercial', 'industrial'];
+
+// ---- the tessellation, pure -----------------------------------------------------
+// One global Voronoi over `live` (a subset of `sites`). Per site: clip the frame
+// rect by the half-plane against each candidate neighbour, candidates gathered from
+// a bucket grid in expanding rings until no farther site could cut the polygon.
+// A candidate whose half-plane survives in the boundary IS a Voronoi neighbour —
+// adjacency and geometry from the same clip, globally consistent, no seams by
+// construction. Exported so the viewer can re-tessellate the alive-set of ANY tick:
+// the mesh is time-indexed, and history scrubbing shows the diagram as it was.
+export function computeVoronoi(sites, live, frame) {
+  const half = frame / 2;
+  const n = live.length;
+  const gridN = Math.max(8, Math.ceil(Math.sqrt(n)));
+  const bw = frame / gridN;
+  const buckets = Array.from({ length: gridN * gridN }, () => []);
+  for (const s of live) {
+    const bx = Math.max(0, Math.min(gridN - 1, Math.floor((s.x + half) / bw)));
+    const by = Math.max(0, Math.min(gridN - 1, Math.floor((s.y + half) / bw)));
+    buckets[by * gridN + bx].push(s.id);
+  }
+  const polys = {}, areas = {}, nbrs = sites.map(() => null);
+  for (const s of live) {
+    let poly = [[-half, -half], [half, -half], [half, half], [-half, half]];
+    const contrib = new Set();
+    const bx0 = Math.max(0, Math.min(gridN - 1, Math.floor((s.x + half) / bw)));
+    const by0 = Math.max(0, Math.min(gridN - 1, Math.floor((s.y + half) / bw)));
+    const tryClip = (o) => {
+      const mx = (s.x + o.x) / 2, my = (s.y + o.y) / 2;
+      const nx = o.x - s.x, ny = o.y - s.y;
+      const inside = (p) => (p[0] - mx) * nx + (p[1] - my) * ny <= 1e-12;
+      let cut = false;
+      const out = [];
+      for (let k = 0; k < poly.length; k++) {
+        const a = poly[k], b = poly[(k + 1) % poly.length];
+        const ia = inside(a), ib = inside(b);
+        if (ia) out.push(a);
+        if (ia !== ib) {
+          cut = true;
+          const da = (a[0] - mx) * nx + (a[1] - my) * ny, db = (b[0] - mx) * nx + (b[1] - my) * ny;
+          const t = da / (da - db);
+          out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+        } else if (!ia) cut = true;
+      }
+      if (cut && out.length >= 3) { poly = out; contrib.add(o.id); }
+    };
+    const cand = [];
+    for (let ring = 0; ring < gridN; ring++) {
+      cand.length = 0;
+      if (ring === 0) { for (const id of buckets[by0 * gridN + bx0]) if (id !== s.id) cand.push(id); }
+      else {
+        for (let d = -ring; d <= ring; d++) {
+          for (const [bx, by] of [[bx0 + d, by0 - ring], [bx0 + d, by0 + ring], [bx0 - ring, by0 + d], [bx0 + ring, by0 + d]]) {
+            if (bx < 0 || by < 0 || bx >= gridN || by >= gridN) continue;
+            for (const id of buckets[by * gridN + bx]) cand.push(id);
+          }
+        }
+      }
+      cand.sort((a, b) => {
+        const da = (sites[a].x - s.x) ** 2 + (sites[a].y - s.y) ** 2;
+        const db = (sites[b].x - s.x) ** 2 + (sites[b].y - s.y) ** 2;
+        return da - db || a - b;
+      });
+      for (const id of cand) tryClip(sites[id]);
+      let rMax = 0;
+      for (const p of poly) rMax = Math.max(rMax, Math.hypot(p[0] - s.x, p[1] - s.y));
+      if (ring * bw > 2 * rMax + bw) break;
+    }
+    let A = 0;
+    for (let k = 0; k < poly.length; k++) {
+      const a = poly[k], b = poly[(k + 1) % poly.length];
+      A += a[0] * b[1] - b[0] * a[1];
+    }
+    areas[s.id] = Math.abs(A) / 2;
+    polys[s.id] = poly.map(p => [+p[0].toFixed(5), +p[1].toFixed(5)]);
+    nbrs[s.id] = [...contrib].sort((a, b) => a - b);
+  }
+  for (const s of live) for (const j of nbrs[s.id]) {
+    if (nbrs[j] && !nbrs[j].includes(s.id)) nbrs[j].push(s.id);
+  }
+  for (const s of live) if (nbrs[s.id]) nbrs[s.id].sort((a, b) => a - b);
+  return { polys, areas, nbrs };
+}
+
+export function growCity(siteSeed, ctx = {}) {
+  const seed = xmur3(String(siteSeed))();
+  const FRAME = ctx.frame || 3.0, half = FRAME / 2;
+  const coastal = !!ctx.coastal, coastDir = ctx.coastDir ?? 0;
+  const hasRiver = ctx.river !== false, riverDir = ctx.riverDir ?? Math.PI * 0.3;
+  const engine = ctx.engine || 'market';
+  const pop = ctx.popSeries && ctx.popSeries.length ? ctx.popSeries : defaultEnvelope(240);
+  const T = pop.length;
+  const wallsAt = ctx.wallsAt ?? -1;
+  const sackTicks = ctx.sackTicks || [];
+  const eras = { wheelAt: 0, mechAt: Math.round(T * 0.8), ...(ctx.eras || {}) };
+  const gates0 = ctx.gates || [0.3, Math.PI * 0.55, Math.PI * 1.05, Math.PI * 1.6];
+
+  // -- sites: the one live point set ----------------------------------------------
+  // site: {id, x, y, gen, elev, moist, water, river, builtAt, burnedAt, use, useAt,
+  //        rent, bornAt, dead}
+  const sites = [];
+  const terrainAt = (x, y, gen) => {
+    const base = ctx.sampler ? ctx.sampler(x, y) : { elev: 0.12 + 0.1 * fbm(x * 0.5 + 9, y * 0.5 + 9, seed ^ 0xa1), moist: 0.55 };
+    // deeper generations sample deeper octaves — conditional refinement by position
+    let e = Math.max(0.01, base.elev) * 0.6 + (fbm(x * 2.2 + 31, y * 2.2 + 31, seed ^ 0x3c, 4 + Math.min(3, gen)) - 0.5) * 0.16;
+    if (coastal) {
+      const proj = x * Math.cos(coastDir) + y * Math.sin(coastDir);
+      const t = (proj - half * 0.35) / (half * 0.3);
+      if (t > 0) e -= Math.min(1, t) * (0.30 + Math.max(0, base.elev) * 0.6);
+    }
+    return { elev: e, moist: Math.min(1, Math.max(0, base.moist ?? 0.5)) };
+  };
+  function mkSite(x, y, gen, bornAt) {
+    x = Math.max(-half + 1e-4, Math.min(half - 1e-4, x));
+    y = Math.max(-half + 1e-4, Math.min(half - 1e-4, y));
+    const tr = terrainAt(x, y, gen);
+    const s = { id: sites.length, x, y, gen, elev: tr.elev, moist: tr.moist,
+                water: tr.elev <= 0 ? 1 : 0, river: 0, builtAt: -1, burnedAt: -1,
+                use: USE.WILD, useAt: -1, rent: 0, bornAt, diedAt: -1, parent: -1,
+                hist: [[bornAt, USE.WILD]], rentHist: [], dead: false };
+    sites.push(s);
+    return s;
+  }
+  // every use change is history — the viewer replays the field as it was
+  const setUse = (s, u, t) => { if (s.use !== u) { s.use = u; s.useAt = t; s.hist.push([t, u]); } };
+  for (let gy = 0; gy < BASE; gy++) for (let gx = 0; gx < BASE; gx++) {
+    const cw = FRAME / BASE;
+    const jx = (hash2(gx, gy, seed) - 0.5) * 0.8, jy = (hash2(gx, gy, seed ^ 0x77) - 0.5) * 0.8;
+    mkSite((gx + 0.5 + jx) * cw - half, (gy + 0.5 + jy) * cw - half, 0, 0);
+  }
+
+  // -- the tessellation: one global Voronoi, recomputed WHOLE -----------------------
+  let polys = {}, areas = {}, nbrs = [];
+  function tessellate() {
+    const v = computeVoronoi(sites, sites.filter(s => !s.dead), FRAME);
+    polys = v.polys; areas = v.areas; nbrs = v.nbrs;
+  }
+  tessellate();
+  const nb = (id) => nbrs[id] || [];
+
+  // -- the river: carve on the initial mesh; river/water sites never divide --------
+  if (hasRiver) {
+    const enter = edgeSiteAt(riverDir + Math.PI), exit = edgeSiteAt(riverDir);
+    let cur = enter, guard = 0;
+    while (cur !== exit && guard++ < sites.length) {
+      const s = sites[cur];
+      s.river = 1; s.elev = Math.min(s.elev, 0.02 + guard * 0.0001);
+      let best = -1, bv = Infinity;
+      for (const j of nb(cur)) {
+        const g = sites[j];
+        if (g.river) continue;
+        const towards = Math.hypot(g.x - sites[exit].x, g.y - sites[exit].y);
+        const v = towards * 1.6 + Math.max(0, g.elev) * 3 + hash2(j, guard, seed ^ 0x5e) * 0.25;
+        if (v < bv) { bv = v; best = j; }
+      }
+      if (best < 0) break;
+      cur = best;
+      if (sites[cur].water) break;
+    }
+  }
+  function edgeSiteAt(bearing) {
+    const tx = Math.cos(bearing), ty = Math.sin(bearing);
+    let best = 0, bv = -Infinity;
+    for (const s of sites) {
+      if (s.dead) continue;
+      const edge = Math.max(Math.abs(s.x), Math.abs(s.y)) > half - FRAME / BASE * 1.6;
+      if (!edge) continue;
+      const d = s.x * tx + s.y * ty;
+      if (d > bv) { bv = d; best = s.id; }
+    }
+    return best;
+  }
+
+  // -- the nucleus -----------------------------------------------------------------
+  const prominence = (id) => { let s = 0, n = 0; for (const j of nb(id)) { s += sites[j].elev; n++; } return n ? Math.max(0, sites[id].elev - s / n) : 0; };
+  const central = (s) => 1 - Math.hypot(s.x, s.y) / half;
+  const fertility = (s) => s.moist * Math.max(0, 1 - Math.max(0, s.elev) * 2);
+  let nucleus = -1; { let nv = -Infinity;
+    for (const s of sites) {
+      if (s.dead || s.water || s.river) continue;
+      let coastNb = 0, riverNb = 0;
+      for (const j of nb(s.id)) { if (sites[j].water) coastNb = 1; if (sites[j].river) riverNb = 1; }
+      let v = central(s) * 0.8 - Math.max(0, s.elev) * 1.5;
+      if (engine === 'gateway') v += 3 * coastNb + 1.2 * riverNb;
+      else if (engine === 'break-of-bulk') v += 3 * riverNb - prominence(s.id) * 4;
+      else if (engine === 'fortress') v += prominence(s.id) * 22;
+      else if (engine === 'staple') v += Math.max(0, s.elev) * 3 + fbm(s.x * 3, s.y * 3, seed ^ 0x11) * 2;
+      else v += s.moist * 1.4 + 0.6 * riverNb;
+      if (v > nv) { nv = v; nucleus = s.id; }
+    }
+  }
+
+  // -- lanes -----------------------------------------------------------------------
+  const laneSet = new Map();                   // "a:b" -> {at, tier}
+  const laneLog = [];                          // retired segments: {a,b,at,tier,removedAt}
+  const laneCell = new Set();
+  const bridged = new Set();                    // river site ids that carry a BRIDGE
+  const lkey = (a, b) => a < b ? a + ':' + b : b + ':' + a;
+  function edgeCost(a, b, t) {
+    const A = sites[a], Bs = sites[b];
+    if (A.water || Bs.water) return Infinity;
+    const len = Math.hypot(A.x - Bs.x, A.y - Bs.y);
+    const slope = Math.abs(A.elev - Bs.elev) / Math.max(0.01, len);
+    let c = len * (1 + 3.5 * slope);
+    // a bridge turns a river crossing into a road: no penalty through a bridged cell
+    const bridgeHere = (A.river && bridged.has(A.id)) || (Bs.river && bridged.has(Bs.id));
+    if (!bridgeHere && (A.river !== Bs.river || (A.river && Bs.river)))
+      c *= t >= eras.mechAt ? 1.6 : t >= eras.wheelAt ? 4 : 7;
+    return c;
+  }
+  function route(src, dst, t) {
+    const NL = sites.length;
+    const dist = new Float64Array(NL).fill(Infinity), prev = new Int32Array(NL).fill(-1), done = new Uint8Array(NL);
+    dist[src] = 0;
+    for (; ;) {
+      let u = -1, uv = Infinity;
+      for (let i = 0; i < NL; i++) if (!done[i] && dist[i] < uv && !sites[i].dead) { uv = dist[i]; u = i; }
+      if (u < 0 || u === dst) break;
+      done[u] = 1;
+      for (const v of nb(u)) {
+        const c = edgeCost(u, v, t); if (!isFinite(c)) continue;
+        const nd = dist[u] + (laneSet.has(lkey(u, v)) ? c * 0.35 : c);
+        if (nd < dist[v]) { dist[v] = nd; prev[v] = u; }
+      }
+    }
+    if (prev[dst] < 0 && src !== dst) return null;
+    const path = []; let u = dst;
+    while (u >= 0) { path.push(u); u = prev[u]; }
+    return path.reverse();
+  }
+  function layLanes(path, t) {
+    if (!path) return;
+    for (let k = 1; k < path.length; k++) {
+      const key = lkey(path[k - 1], path[k]);
+      if (!laneSet.has(key)) laneSet.set(key, { at: t, tier: 1 });
+      laneCell.add(path[k - 1]); laneCell.add(path[k]);
+    }
+  }
+  let laneHop = new Int32Array(0);
+  function perfuse() {
+    laneHop = new Int32Array(sites.length).fill(-1);
+    const q = [];
+    for (const id of laneCell) if (!sites[id].dead) { laneHop[id] = 0; q.push(id); }
+    for (let h = 0; h < q.length; h++) for (const v of nb(q[h])) if (laneHop[v] < 0 && !sites[v].water) { laneHop[v] = laneHop[q[h]] + 1; q.push(v); }
+  }
+
+  const events = [];
+  const ev = (t, type, note) => events.push({ t, type, note });
+
+  // -- regime 1: spokes ------------------------------------------------------------
+  const gates = [];
+  for (const b of gates0) { const g = edgeSiteAt(b); if (!sites[g].water) gates.push(g); }
+  for (const g of gates) layLanes(route(g, nucleus, 0), 0);
+  sites[nucleus].builtAt = 0; setUse(sites[nucleus], USE.COM, 0);
+  laneCell.add(nucleus);
+  perfuse();
+  ev(0, 'founded', `the ${engine} nucleus is staked; ${gates.length} routes thread in from the world`);
+
+  // -- the land market -------------------------------------------------------------
+  let anchors = null, market = nucleus;
+  let firstFarm = -1, displaced = 0, firstDisp = -1, mitoses = 0, sproutCount = 0;
+  const meshTicks = [];                        // ticks the point set changed (mesh epochs)
+  let spilled = false, wall = null, firstMitosis = -1;
+
+  // -- AGENTS + ORGS: individuals on the map --------------------------------------
+  // ONE AGENT = ONE PERSON. Each holds a HOME tile (Alonso choice: rent vs commute
+  // vs crowding), a WORK tile (an org seat), and an OCCUPATION that comes from what
+  // its district does — so the harbour fills with dockers and sailors, the works
+  // with smiths, the court with clerks and guards. People arrive by birth, growth,
+  // or IMMIGRATION through a gate, and move within the city as the market shifts.
+  // Occupancy feeds back into rent, so real people drive land value and mitosis.
+  const agents = [];   // {id, bornT, origin, gate, home, homeHist, work, occ, cls, notable, name}
+  const orgs = [];     // {id, kind, label, seat, foundedT, founder, vertical, shape, workers, occMix}
+  const residents = new Map();                 // tile id → Set of resident agent ids
+  const pack = ctx.namePack || ['norse', 'hellenic', 'romance', 'slavic', 'brythonic', 'desertic', 'steppe', 'frankish'][seed % 8];
+  let folk = null, folkIdx = 0;                // notable-name pool, minted lazily
+  const nextName = () => {
+    if (!folk) { try { folk = generateSet({ seed: String(siteSeed) + ':folk', culture: pack, setting: 'classical', kind: 'full', count: 200 }).names; } catch { folk = []; } }
+    return folk.length ? folk[folkIdx++ % folk.length] : 'a notable citizen';
+  };
+  // occupations by institution — the district's specialization made legible.
+  // cls (occupation class) drives the map colour: labour / craft / trade / admin / sea.
+  // ANCHOR institutions are the BASIC (export) sector — the big games in town.
+  const OCC = {
+    harbor: [['docker', 'sea'], ['sailor', 'sea'], ['fishwife', 'sea'], ['merchant', 'trade'], ['cooper', 'craft']],
+    guild:  [['trader', 'trade'], ['clerk', 'admin'], ['carter', 'labour'], ['broker', 'trade'], ['weigher', 'admin']],
+    court:  [['clerk', 'admin'], ['guard', 'admin'], ['steward', 'admin'], ['servant', 'labour'], ['scribe', 'admin']],
+    mill:   [['miller', 'craft'], ['weaver', 'craft'], ['dyer', 'craft'], ['carter', 'labour']],
+    works:  [['smith', 'craft'], ['founder', 'craft'], ['collier', 'labour'], ['hauler', 'labour'], ['fitter', 'craft']],
+  };
+  const OCC_FREE = [['labourer', 'labour'], ['hawker', 'trade'], ['carter', 'labour'], ['mason', 'craft']];
+  // THE SECONDARY ECONOMY — the NON-BASIC (city-serving) sector the base multiplier
+  // M = 1/(1−s) spins up: the bakers, taverns, smiths, markets that exist because the
+  // export workers spend their wages locally. Christaller thresholds: `threshold` =
+  // the city population before the first one opens; `per` = one more per this many
+  // residents (higher-order goods are rarer); `size` = a headcount weight; `third`
+  // marks a third-place (Oldenburg's social infrastructure — taverns, markets, temples).
+  const LOCAL_TRADES = [
+    { key: 'bakery',    occ: 'baker',     cls: 'craft',  threshold: 60,   per: 700,   size: 5 },
+    { key: 'tavern',    occ: 'taverner',  cls: 'trade',  threshold: 100,  per: 1100,  size: 7, third: true },
+    { key: 'smithy',    occ: 'smith',     cls: 'craft',  threshold: 140,  per: 1400,  size: 5 },
+    { key: 'butcher',   occ: 'butcher',   cls: 'craft',  threshold: 180,  per: 1600,  size: 4 },
+    { key: 'market',    occ: 'monger',    cls: 'trade',  threshold: 220,  per: 2200,  size: 10, third: true },
+    { key: 'weaver',    occ: 'weaver',    cls: 'craft',  threshold: 300,  per: 2000,  size: 6 },
+    { key: 'chandler',  occ: 'chandler',  cls: 'craft',  threshold: 420,  per: 2800,  size: 4 },
+    { key: 'temple',    occ: 'priest',    cls: 'admin',  threshold: 500,  per: 4200,  size: 8, third: true },
+    { key: 'mason',     occ: 'mason',     cls: 'labour', threshold: 700,  per: 3200,  size: 6 },
+    { key: 'apothecary',occ: 'apothecary',cls: 'admin',  threshold: 1400, per: 7500,  size: 4 },
+    { key: 'school',    occ: 'teacher',   cls: 'admin',  threshold: 2400, per: 11000, size: 5, third: true },
+    { key: 'goldsmith', occ: 'goldsmith', cls: 'craft',  threshold: 3500, per: 16000, size: 4 },
+    { key: 'bank',      occ: 'banker',    cls: 'trade',  threshold: 6000, per: 26000, size: 6 },
+    { key: 'printer',   occ: 'printer',   cls: 'craft',  threshold: 4000, per: 20000, size: 5, mech: true },
+  ];
+  const TRADE_BY_KEY = Object.fromEntries(LOCAL_TRADES.map(tr => [tr.key, tr]));
+  const BASKET = ['bakery', 'tavern', 'smithy', 'butcher', 'market', 'temple'];   // the essentials (supply closure)
+  function assignOcc(a) {
+    const o = a.work >= 0 ? orgs[a.work] : null;
+    const list = o ? o.occPool : OCC_FREE;
+    const [occ, cls] = list[hash2(a.id, 11, seed ^ 0xcc) * list.length | 0];
+    a.occ = occ; a.cls = cls;
+  }
+
+  const capacityOf = (id, t) => Math.max(1, Math.floor((areas[id] || 0) * (t >= eras.mechAt ? URBAN_PER_KM2_MECH : URBAN_PER_KM2) / AGENT_SCALE));
+  const occOf = (id) => { const r = residents.get(id); return r ? r.size : 0; };
+  const moveOcc = (from, to, aid) => {
+    if (from >= 0) { const r = residents.get(from); if (r) r.delete(aid); }
+    if (to >= 0) { let r = residents.get(to); if (!r) residents.set(to, r = new Set()); r.add(aid); }
+  };
+  let firstImm = -1;
+
+  // BFS out from a start tile through mesh neighbours, collecting built,
+  // under-capacity candidate homes (bounded by HOME_CAND) — so home-choice is
+  // O(HOME_CAND), not O(sites), and 50k people stay tractable.
+  function candidateHomes(start, currentHome, t) {
+    const out = [], seen = new Set();
+    const q = [start >= 0 && !sites[start].dead ? start : nucleus];
+    seen.add(q[0]);
+    for (let h = 0; h < q.length && out.length < HOME_CAND; h++) {
+      const s = sites[q[h]];
+      if (s && !s.dead && s.builtAt >= 0 && s.builtAt <= t && !s.water && !s.river) {
+        if (occOf(s.id) < capacityOf(s.id, t) * 1.2 || s.id === currentHome) out.push(s.id);
+      }
+      for (const j of nb(q[h])) if (!seen.has(j)) { seen.add(j); q.push(j); }
+    }
+    if (currentHome >= 0 && !out.includes(currentHome) && !sites[currentHome].dead) out.push(currentHome);
+    return out;
+  }
+  function chooseHome(t, workSeat, currentHome) {
+    const cands = candidateHomes(workSeat >= 0 ? workSeat : currentHome, currentHome, t);
+    let best = -1, bv = -Infinity;
+    for (const id of cands) {
+      const s = sites[id];
+      const cap = capacityOf(id, t), o = occOf(id);
+      const dw = workSeat >= 0 ? Math.hypot(s.x - sites[workSeat].x, s.y - sites[workSeat].y) : 0;
+      const dn = Math.hypot(s.x - sites[nucleus].x, s.y - sites[nucleus].y);
+      let v = -s.rent - 2.0 * dw - 0.25 * dn - 0.4 * (o / cap)
+            + (s.use === USE.RES ? 0.3 : 0)
+            + hash2(id, t * 7 + 1, seed ^ 0x99) * 0.2;
+      if (id === currentHome) v += 0.5;        // stickiness
+      if (v > bv) { bv = v; best = id; }
+    }
+    return best;
+  }
+
+  // EMPLOYMENT via the economic-base model. s = the non-basic (local-serving) share,
+  // which rises with size and tech (economy.js): a bigger, more advanced town serves
+  // more of itself. Basic employment (anchors) = (1−s)·pop; non-basic (establishments)
+  // = s·pop. We hand each org a headcount TARGET from its weight, and hire the org
+  // furthest below target — so the secondary economy fills out as the town grows,
+  // and (rightly) LAGS the export engine: the base comes first, services follow.
+  function localShare(t) {
+    const techFrac = t >= eras.mechAt ? 1 : t >= eras.wheelAt ? 0.5 : 0.2;
+    return Math.min(0.72, 0.40 + 0.26 * Math.min(1, pop[t] / 12000) + 0.10 * techFrac);
+  }
+  function retarget(t) {
+    const P = pop[t], s = localShare(t);
+    const anchors = orgs.filter(o => o.tier === 'anchor'), locals = orgs.filter(o => o.tier === 'local');
+    const aw = anchors.reduce((x, o) => x + o.weight, 0) || 1;
+    const lw = locals.reduce((x, o) => x + o.size, 0) || 1;
+    for (const o of anchors) o.target = Math.round((1 - s) * P * o.weight / aw);
+    for (const o of locals) o.target = Math.max(2, Math.round(s * P * o.size / lw));
+  }
+  function pickWork() {
+    let best = -1, gap = 0;
+    for (const o of orgs) { const g = (o.target || 0) - o.workers; if (g > gap) { gap = g; best = o.id; } }
+    return best;
+  }
+
+  function spawnAgent(t) {
+    const id = agents.length;
+    const origin = id < 4 ? 'founder' : hash2(id, t, seed ^ 0xa7) < 0.45 ? 'immigrant' : 'growth';
+    const gate = origin === 'immigrant' && gates.length ? gates[(id * 7 + t) % gates.length] : -1;
+    const work = pickWork();
+    const home = chooseHome(t, work >= 0 ? orgs[work].seat : -1, -1);
+    if (home < 0) return false;
+    const notable = hash2(id, 5, seed ^ 0xf1) < 0.0025;
+    const a = { id, bornT: t, origin, gate, home, homeHist: [[t, home]], work, occ: '', cls: 'labour',
+                notable, name: notable ? nextName() : null };
+    assignOcc(a);
+    agents.push(a); moveOcc(-1, home, a.id);
+    if (work >= 0) orgs[work].workers++;
+    if (origin === 'immigrant' && firstImm < 0) { firstImm = t; ev(t, 'immigrant', 'strangers come through the gates — the city begins to draw people from the world beyond'); }
+    return true;
+  }
+
+  function agentStep(t) {
+    retarget(t);
+    establishmentStep(t);                       // the secondary economy opens shops
+    const target = Math.min(AGENT_CAP, Math.round(pop[t] / AGENT_SCALE));
+    let guard = 0;
+    while (agents.length < target && guard++ < 4000) { if (!spawnAgent(t)) break; }
+    if (t % ECON_EVERY === 1 && t > 1) {
+      for (const a of agents) {
+        if (hash2(a.id, t, seed ^ 0xb3) >= 0.05) continue;
+        const to = chooseHome(t, a.work >= 0 ? orgs[a.work].seat : -1, a.home);
+        if (to >= 0 && to !== a.home) { moveOcc(a.home, to, a.id); a.home = to; a.homeHist.push([t, to]); }
+      }
+    }
+  }
+
+  // -- the secondary economy: local-serving establishments, Christaller-sited -------
+  const estCount = {};                          // trade key → how many exist
+  let firstShop = -1;
+  function siteEstablishment(tr, t) {
+    // serve the underserved: pick a built residential/commercial tile far from the
+    // nearest same-trade shop, biased central for higher-order goods (bigger range).
+    const centralPull = tr.threshold > 1500 ? 0.9 : tr.threshold > 500 ? 0.4 : 0.1;
+    const same = orgs.filter(o => o.tier === 'local' && o.trade === tr.key);
+    let best = -1, bv = -Infinity;
+    // sample built tiles (bounded scan for perf on 50k) — every 3rd built site
+    let seen = 0;
+    for (const s of sites) {
+      if (s.dead || s.builtAt < 0 || s.builtAt > t || s.water || s.river) continue;
+      if ((seen++ & 3) && same.length) continue;   // thin the scan once shops exist
+      let dSame = Infinity;
+      for (const o of same) dSame = Math.min(dSame, Math.hypot(s.x - sites[o.seat].x, s.y - sites[o.seat].y));
+      const dn = Math.hypot(s.x - sites[nucleus].x, s.y - sites[nucleus].y);
+      const v = Math.min(1.5, dSame) * 1.4 - centralPull * dn + occOf(s.id) * 0.02
+              + (s.use === USE.COM ? 0.25 : 0) + hash2(s.id, t * 3 + 7, seed ^ 0xd1) * 0.2;
+      if (v > bv) { bv = v; best = s.id; }
+    }
+    return best;
+  }
+  function foundEstablishment(tr, t) {
+    const seat = siteEstablishment(tr, t);
+    if (seat < 0) return;
+    const id = orgs.length;
+    orgs.push({ id, tier: 'local', kind: tr.key, trade: tr.key, label: `a ${tr.key}`, occ: tr.occ,
+                seat, foundedT: t, founder: -1, size: tr.size, third: !!tr.third, workers: 0, target: 0,
+                occPool: [[tr.occ, tr.cls]], vertical: 'corp', shape: tr.size > 6 ? 'pyramid' : 'flat' });
+    estCount[tr.key] = (estCount[tr.key] || 0) + 1;
+    if (firstShop < 0) { firstShop = t; ev(t, 'shop', 'the base multiplier turns — bakers, taverns and smiths open to serve the town’s own wages'); }
+    else if (tr.key === 'bank') ev(t, 'shop', 'a counting-house opens — the town’s surplus finds a keeper');
+    else if (tr.key === 'temple' && estCount.temple === 1) ev(t, 'shop', 'the first temple is raised — the town gets a heart');
+  }
+  function establishmentStep(t) {
+    const P = pop[t];
+    for (const tr of LOCAL_TRADES) {
+      if (P < tr.threshold) continue;
+      if (tr.mech && t < eras.mechAt) continue;
+      const want = Math.max(1, Math.floor(P / tr.per));
+      let have = estCount[tr.key] || 0, guard = 0;
+      while (have < want && guard++ < 20) { foundEstablishment(tr, t); have++; }
+    }
+  }
+
+  // -- FINANCE: the money supply, debt, and the lumpy projects it funds -------------
+  // The parallel system that moves claims on the future. Surplus flows into a CAPITAL
+  // POOL; once banking appears the fractional-reserve MONEY MULTIPLIER deepens it;
+  // the COST OF CAPITAL ρ falls as finance deepens (Levine/Goldsmith). Indivisible
+  // infrastructure — a bridge, a mole, a market hall — gets built when its NPV at ρ
+  // is positive AND financing is available (cash + borrowing capacity). A town builds
+  // AHEAD of demand by going into DEBT (Hirschman's permissive path); over-leverage
+  // invites a Minsky crash that wipes the pool. Bridges are the visible payoff: each
+  // turns a costly river crossing into a road, and the city reaches across the water.
+  const fin = { capital: 0, debt: 0, rho: 0.14, regime: 'redistribution', moneyMult: 1,
+                leverage: 0, stress: 0, crisisTick: -999, series: [], built: [] };
+  const bridges = [];                           // {seat, at, funded}
+  const REGIME_LVL = { redistribution: 0, merchant: 1, bank: 2, market: 3 };
+  function productivity(t) { return 1 + 0.6 * (t >= eras.mechAt ? 1 : t >= eras.wheelAt ? 0.5 : 0.15) + 0.4 * Math.min(1, pop[t] / 12000); }
+
+  // candidate lumpy projects available at tick t (cost scales so they land at the
+  // right city size; benefit is the discounted value the town assigns them)
+  function projectQueue(t) {
+    const P = pop[t], q = [];
+    const riverDemand = hasRiver && P > 400;
+    if (riverDemand && bridges.length < Math.min(4, 1 + Math.floor(P / 5000))) {
+      const n = bridges.length;
+      q.push({ key: 'bridge', label: n === 0 ? 'the first bridge' : `a ${['second', 'third', 'fourth', 'fifth'][n] || 'new'} bridge`,
+               cost: 480 + 220 * n + (t >= eras.mechAt ? 300 : 0), benefit: (900 + 260 * n) * productivity(t), build: buildBridge });
+    }
+    if (coastal && !fin.built.includes('mole') && P > 1200)
+      q.push({ key: 'mole', label: 'a harbour mole', cost: 1400, benefit: 2400 * productivity(t), build: () => markBuilt('mole', t) });
+    if (anchors && !fin.built.includes('market_hall') && P > 2200)
+      q.push({ key: 'market_hall', label: 'a market hall', cost: 1600, benefit: 2600 * productivity(t), build: () => markBuilt('market_hall', t) });
+    if (!fin.built.includes('aqueduct') && P > 3500)
+      q.push({ key: 'aqueduct', label: 'an aqueduct', cost: 2600, benefit: 3600 * productivity(t), build: () => markBuilt('aqueduct', t) });
+    if (t >= eras.mechAt && !fin.built.includes('viaduct') && P > 6000)
+      q.push({ key: 'viaduct', label: 'a railway viaduct', cost: 4200, benefit: 6400 * productivity(t), build: (tt) => { const ok = buildBridge(tt); if (ok !== false) fin.built.push('viaduct'); return ok; } });
+    return q;
+  }
+  function markBuilt(key, t) { fin.built.push(key); ev(t, 'works', `${projLabel(key)} is raised — the town spends its way to a larger ceiling`); }
+  function projLabel(k) { return { mole: 'a harbour mole', market_hall: 'a market hall', aqueduct: 'an aqueduct' }[k] || k; }
+
+  function pickBridgeSite(t) {
+    // the river crossing the town most wants: a river cell with built land on BOTH
+    // banks, nearest the market — and not already bridged
+    const mx = sites[market].x, my = sites[market].y;
+    let best = -1, bv = Infinity;
+    for (const s of sites) {
+      if (s.dead || !s.river || bridged.has(s.id)) continue;
+      let bankA = false, bankB = false;
+      for (const j of nb(s.id)) { const g = sites[j]; if (g.dead || g.water || g.river) continue; if (g.builtAt >= 0) { if (g.x < s.x) bankA = true; else bankB = true; } }
+      if (!(bankA && bankB)) continue;
+      const d = Math.hypot(s.x - mx, s.y - my);
+      if (d < bv) { bv = d; best = s.id; }
+    }
+    if (best < 0) { // no two-bank crossing yet: bridge nearest the market anyway
+      for (const s of sites) { if (s.dead || !s.river || bridged.has(s.id)) continue; const d = Math.hypot(s.x - mx, s.y - my); if (d < bv) { bv = d; best = s.id; } }
+    }
+    return best;
+  }
+  function buildBridge(t) {
+    const site = pickBridgeSite(t);
+    if (site < 0) return false;
+    bridged.add(site);
+    bridges.push({ seat: site, at: t });
+    // stitch the crossing into the network: lanes now route cheaply through it
+    let a = -1, b = -1;
+    for (const j of nb(site)) { const g = sites[j]; if (g.dead || g.water || g.river) continue; if (g.x < sites[site].x && a < 0) a = j; else if (g.x >= sites[site].x && b < 0) b = j; }
+    if (a >= 0) layLanes(route(a, site, t), t);
+    if (b >= 0) layLanes(route(site, b, t), t);
+    perfuse();
+    return true;
+  }
+
+  function financeStep(t) {
+    const P = pop[t];
+    // surplus flows into the pool (savings rate on output)
+    const surplus = P * 0.02 * productivity(t);
+    fin.capital += surplus * 0.5;
+    // finance deepens: banks + size + credible commitment lower ρ, raise the regime
+    const banks = orgs.filter(o => o.trade === 'bank' && o.foundedT <= t).length;
+    fin.regime = banks > 0 ? (P > 8000 ? 'market' : 'bank') : (P > 1500 ? 'merchant' : 'redistribution');
+    const rl = REGIME_LVL[fin.regime];
+    fin.moneyMult = banks > 0 ? 1 / (1 - 0.55) : 1;                 // fractional reserve
+    fin.rho = Math.max(0.025, Math.min(0.2, 0.15 - 0.03 * rl - 0.02 * Math.min(3, banks) - 0.02 * Math.min(1, P / 10000) - (wall ? 0.01 : 0)));
+    // borrowing capacity = tax base × credible commitment × money multiplier − debt
+    const commitment = 0.30 + 0.18 * rl + (wall ? 0.12 : 0);
+    const borrowCap = Math.max(0, P * 0.55 * commitment * fin.moneyMult - fin.debt);
+    // consider the lumpy projects, dearest-benefit first
+    for (const proj of projectQueue(t).sort((a, b) => (b.benefit - b.cost) - (a.benefit - a.cost))) {
+      const npv = proj.benefit - proj.cost * (1 + fin.rho * 6);    // NPV at the cost of capital
+      if (npv <= 0) continue;
+      let funded = null;
+      if (fin.capital >= proj.cost) { fin.capital -= proj.cost; funded = 'cash'; }
+      else if (fin.capital + borrowCap >= proj.cost) { const borrow = proj.cost - fin.capital; fin.capital = 0; fin.debt += borrow; funded = 'debt'; }
+      if (!funded) continue;
+      const ok2 = proj.build(t);                                    // build() does its own bookkeeping
+      if (ok2 === false) { if (funded === 'debt') fin.debt -= proj.cost; else fin.capital += proj.cost; continue; }
+      if (proj.key === 'bridge' || proj.key === 'viaduct')
+        ev(t, 'bridge', `${proj.label} spans the river${funded === 'debt' ? ` — paid for on credit (debt now ${Math.round(fin.debt)})` : ''}; the town reaches across the water`);
+      else if (funded === 'debt') ev(t, 'debt', `the town borrows to raise ${proj.label} — building ahead of its means`);
+      break;                                                        // one project per tick (lumpy)
+    }
+    // debt service: interest first from surplus; unpaid interest compounds (Minsky's climb)
+    const interest = fin.debt * fin.rho;
+    const pay = Math.min(interest, surplus * 0.35);
+    fin.debt = Math.max(0, fin.debt + interest - pay - Math.max(0, surplus * 0.35 - interest) * 0.4);   // amortize when flush
+    // Minsky: leverage builds → a crash wipes the pool and spikes ρ
+    fin.leverage = fin.debt / Math.max(1, fin.capital + P * 0.5);
+    if (fin.leverage > 0.85) fin.stress++; else fin.stress = Math.max(0, fin.stress - 1);
+    if (fin.stress >= 3 && t - fin.crisisTick > 50 && hash2(t, 9, seed ^ 0xba) < 0.5) {
+      fin.crisisTick = t; fin.stress = 0;
+      const wipe = fin.capital * 0.7 + fin.debt * 0.15;
+      fin.capital *= 0.3; fin.debt *= 0.85; fin.rho = Math.min(0.22, fin.rho + 0.05);
+      ev(t, 'crisis', `the counting-houses overreach — a crash wipes ${Math.round(wipe)} from the pool (stability was destabilizing)`);
+    }
+    fin.series.push({ t, capital: Math.round(fin.capital), debt: Math.round(fin.debt), rho: +fin.rho.toFixed(3), regime: fin.regime, bridges: bridges.length });
+  }
+
+  const ORG_SPEC = {                            // anchor kind → display + rite/org shape + export weight
+    court:   { label: 'the court',          vertical: 'feudal',   shape: 'tall',    weight: 2.2 },
+    guild:   { label: 'the traders guild',  vertical: 'corp',     shape: 'flat',    weight: 2.0 },
+    harbor:  { label: 'the harbor company', vertical: 'corp',     shape: 'pyramid', weight: 2.6 },
+    mill:    { label: 'the mill',           vertical: 'corp',     shape: 'pyramid', weight: 1.4 },
+    works:   { label: 'the ironworks',      vertical: 'corp',     shape: 'tall',    weight: 2.2 },
+  };
+  function foundOrg(kind, seat, t) {
+    if (seat < 0 || sites[seat].dead) return;
+    const spec = ORG_SPEC[kind];
+    const id = orgs.length;
+    const home = chooseHome(t, seat, -1);
+    const aid = agents.length;
+    const founder = { id: aid, bornT: t, origin: 'immigrant', gate: gates[0] ?? -1, home: home >= 0 ? home : seat,
+                      homeHist: [[t, home >= 0 ? home : seat]], work: id, occ: 'master', cls: 'admin',
+                      notable: true, name: nextName() };
+    agents.push(founder); moveOcc(-1, founder.home, founder.id);
+    orgs.push({ id, tier: 'anchor', kind, label: spec.label, seat, foundedT: t, founder: aid,
+                vertical: spec.vertical, shape: spec.shape, weight: spec.weight, workers: 1, target: 0,
+                occPool: OCC[kind] || OCC_FREE });
+    // idle hands take the new work and its trades
+    let hired = 0;
+    for (const a of agents) { if (a.work < 0 && hired < 30) { a.work = id; assignOcc(a); hired++; } }
+    orgs[id].workers += hired;
+    ev(t, 'org', `${founder.name} founds ${spec.label} — ${hired + 1} hands take its work`);
+  }
+
+  function bids(s, t, dm) {
+    const hop = laneHop[s.id] < 0 ? 9 : laneHop[s.id];
+    const P = Math.min(2.2, pop[t] / 6000);
+    const farm = (0.28 + 0.9 * fertility(s)) * (1 - 0.10 * dm);
+    const res = P * (1.15 - 0.14 * hop) * (1 - 0.26 * dm);
+    const com = P * 2.0 * Math.max(0, 1 - dm / 0.5) * (1 - 0.10 * hop);
+    let ind = 0;
+    if (anchors) {
+      let da = Infinity;
+      for (const a of anchors) if (a.kind === 'mill' || a.kind === 'port') da = Math.min(da, Math.hypot(s.x - sites[a.cell].x, s.y - sites[a.cell].y));
+      ind = P * 1.35 * Math.max(0, 1 - da / 0.9) * (1 - 0.08 * hop);
+    }
+    return [0.22, farm, res, com, ind];
+  }
+
+  function marketPass(t) {
+    const mx = sites[market].x, my = sites[market].y;
+    // NEIGHBOUR COUPLING: agglomeration spillover. A tile's rent is lifted by what
+    // its neighbours were worth last pass — externalities cross cell boundaries, so
+    // division fronts propagate contagiously tile-to-tile (the fractal engine).
+    const prevRent = sites.map(s => s.rent);
+    let radSum = 0, radN = 0;
+    for (const s of sites) {
+      if (s.dead || s.water || s.river) { if (!s.dead) s.rent = 0; continue; }
+      const dm = Math.hypot(s.x - mx, s.y - my);
+      const bid = bids(s, t, dm);
+      let spill = 0, spillN = 0;
+      for (const j of nb(s.id)) { if (!sites[j].dead && !sites[j].water) { spill += prevRent[j]; spillN++; } }
+      spill = spillN ? 0.22 * (spill / spillN) : 0;
+      // OCCUPANCY FEEDBACK: crowding bids rent up (the people, not just the formula,
+      // now drive land value — and therefore mitosis). A tile at capacity adds ~40%.
+      const cap = capacityOf(s.id, t), crowd = cap ? Math.min(1.5, occOf(s.id) / cap) : 0;
+      const occTerm = 0.4 * crowd;
+      if (s.builtAt >= 0) {
+        radSum += dm; radN++;
+        let u = USE.RES, bv = bid[USE.RES];
+        if (bid[USE.COM] > bv) { u = USE.COM; bv = bid[USE.COM]; }
+        if (bid[USE.IND] > bv) { u = USE.IND; bv = bid[USE.IND]; }
+        setUse(s, u, t);
+        s.rent = bv + spill + occTerm;
+      } else s.rent = Math.max(...bid) + spill * 0.5;
+      s.rentHist.push([t, +s.rent.toFixed(3)]);
+    }
+    const urbanRad = radN ? radSum / radN : 0.1;
+    // the foodweb under the development shadow (Sinclair)
+    const shadow = urbanRad * 1.7 + 0.12;
+    const farmable = [];
+    for (const s of sites) {
+      if (s.dead || s.water || s.river || s.builtAt >= 0) continue;
+      const dm = Math.hypot(s.x - mx, s.y - my);
+      const b = bids(s, t, dm);
+      if (dm < shadow && (b[USE.RES] > b[USE.FARM] || b[USE.COM] > b[USE.FARM])) continue;
+      farmable.push([b[USE.FARM], s]);
+    }
+    farmable.sort((p, q) => q[0] - p[0] || p[1].id - q[1].id);
+    const wantFarm = new Set();
+    let fedKm2 = 0;
+    for (const [, s] of farmable) {
+      if (fedKm2 * FEED_PER_KM2 >= pop[t]) break;
+      wantFarm.add(s.id); fedKm2 += areas[s.id] || 0;
+    }
+    for (const s of sites) {
+      if (s.dead) continue;
+      if (wantFarm.has(s.id)) { if (s.use !== USE.FARM) { setUse(s, USE.FARM, t); if (firstFarm < 0) { firstFarm = t; ev(t, 'farms', 'fields rise around the town — the foodweb takes the best land the market has not yet claimed'); } } }
+      else if (s.use === USE.FARM && s.builtAt < 0) setUse(s, USE.WILD, t);
+    }
+  }
+
+  // -- MITOSIS: every tick, every cell may divide ----------------------------------
+  // product = rent × area. Division replaces the site with 3–4 children placed
+  // inside its cell; the WHOLE mesh then re-tessellates, so children are ordinary
+  // sites in the one diagram and no seam exists. Self-limiting: children carry
+  // ~⅓ the area, so product drops below threshold unless rent keeps rising.
+  function mitosis(t) {
+    const cand = sites.filter(s => !s.dead && !s.water && !s.river
+      && (s.builtAt >= 0 || s.use === USE.FARM)
+      && s.rent * (areas[s.id] || 0) >= SPLIT_PRODUCT)
+      .sort((a, b) => b.rent * areas[b.id] - a.rent * areas[a.id] || a.id - b.id)
+      .slice(0, SPLITS_PER_TICK);
+    const liveCount = sites.filter(s => !s.dead).length;
+    if (!cand.length || liveCount + cand.length * 4 > MAX_SITES) return false;
+    for (const s of cand) {
+      const k = 3 + (hash2(s.id, t, seed ^ 0x4d) < 0.5 ? 0 : 1);   // three or four
+      const r = Math.sqrt((areas[s.id] || 0) / Math.PI) * 0.52;
+      const rot = hash2(s.id, t, seed ^ 0x8a) * TAU;
+      s.dead = true; s.diedAt = t;
+      const kids = [];
+      for (let c = 0; c < k; c++) {
+        const ang = rot + c * TAU / k;
+        const ch = mkSite(s.x + Math.cos(ang) * r, s.y + Math.sin(ang) * r, s.gen + 1, t);
+        ch.builtAt = s.builtAt; ch.burnedAt = s.burnedAt; ch.use = s.use; ch.useAt = s.useAt; ch.rent = s.rent;
+        ch.parent = s.id; ch.hist = [[t, s.use]]; ch.rentHist = [[t, +s.rent.toFixed(3)]];
+        ch.water = 0; ch.river = 0;
+        if (ch.elev <= 0) ch.elev = 0.02;      // division cannot mint sea inside the town
+        kids.push(ch);
+      }
+      // lanes re-anchor to the child nearest the far end
+      const moves = [];
+      for (const [key, val] of laneSet) {
+        const [a, b] = key.split(':').map(Number);
+        if (a !== s.id && b !== s.id) continue;
+        const far = a === s.id ? b : a;
+        let best = kids[0], bv = Infinity;
+        for (const ch of kids) { const d = Math.hypot(ch.x - sites[far].x, ch.y - sites[far].y); if (d < bv) { bv = d; best = ch; } }
+        moves.push([key, lkey(best.id, far), val]);
+      }
+      for (const [oldK, newK, val] of moves) {
+        // the old segment retires into the log so history renders it until t
+        // (zero-lifetime segments — born and retired the same tick — are noise)
+        const [oa, ob] = oldK.split(':').map(Number);
+        if (val.at < t) laneLog.push({ a: oa, b: ob, at: val.at, tier: val.tier, removedAt: t });
+        laneSet.delete(oldK);
+        if (!laneSet.has(newK)) laneSet.set(newK, { at: t, tier: val.tier });
+      }
+      if (laneCell.has(s.id)) { laneCell.delete(s.id); for (const ch of kids) laneCell.add(ch.id); }
+      if (nucleus === s.id) nucleus = kids[0].id;
+      if (market === s.id) market = kids[0].id;
+      if (anchors) for (const a of anchors) if (a.cell === s.id) a.cell = kids[0].id;
+      if (wall) wall.ring = wall.ring.map(id => id === s.id ? kids[0].id : id);
+      // residents of a divided tile land in its children (round-robin, historied) —
+      // via the home→residents index, so this is O(residents), not O(all agents)
+      const res = residents.get(s.id);
+      if (res && res.size) {
+        let k2 = 0;
+        for (const aid of [...res]) {
+          const ch = kids[k2++ % kids.length];
+          moveOcc(s.id, ch.id, aid); agents[aid].home = ch.id; agents[aid].homeHist.push([t, ch.id]);
+        }
+        residents.delete(s.id);
+      }
+      for (const o of orgs) if (o.seat === s.id) o.seat = kids[0].id;
+      mitoses++;
+    }
+    if (firstMitosis < 0) { firstMitosis = t; ev(t, 'mitosis', 'the first cell divides — where the product runs high the map itself grows finer'); }
+    meshTicks.push(t);                          // a new mesh epoch for the history scrub
+    tessellate();                               // THE WHOLE MESH, every division tick
+    perfuse();
+    return true;
+  }
+
+  // -- regime 3 --------------------------------------------------------------------
+  function placeAnchors(t) {
+    const out = [{ kind: 'market', cell: nucleus }];
+    let seat = -1, sv = -Infinity;
+    for (const s of sites) if (!s.dead && s.builtAt >= 0) { const v = prominence(s.id) * 10 + central(s); if (v > sv) { sv = v; seat = s.id; } }
+    if (seat >= 0) out.push({ kind: 'seat', cell: seat });
+    if (coastal) { let port = -1, pv = -Infinity;
+      for (const s of sites) { if (s.dead || s.water) continue; let cn = 0; for (const j of nb(s.id)) if (sites[j].water) cn = 1; if (!cn) continue; const v = central(s) + (s.builtAt >= 0 ? 1 : 0); if (v > pv) { pv = v; port = s.id; } }
+      if (port >= 0) out.push({ kind: 'port', cell: port }); }
+    if (hasRiver) { let mill = -1, mv = -Infinity;
+      for (const s of sites) { if (s.dead || !s.river) continue; let sl = 0; for (const j of nb(s.id)) sl += Math.abs(s.elev - sites[j].elev); const v = sl * (0.35 + central(s)); if (v > mv) { mv = v; mill = s.id; } }
+      if (mill >= 0) { let bank = -1, bv = Infinity; for (const j of nb(mill)) { const g = sites[j]; if (!g.water && !g.river) { const d = Math.hypot(g.x, g.y); if (d < bv) { bv = d; bank = j; } } } if (bank >= 0) out.push({ kind: 'mill', cell: bank }); } }
+    return out;
+  }
+  function fluxPass(anch, t) {
+    const flux = new Map();
+    const nodes = [...anch.map(a => a.cell), ...gates];
+    for (let a = 0; a < nodes.length; a++) for (let b = a + 1; b < nodes.length; b++) {
+      const path = route(nodes[a], nodes[b], t);
+      if (!path) continue;
+      layLanes(path, t);
+      for (let k = 1; k < path.length; k++) { const key = lkey(path[k - 1], path[k]); flux.set(key, (flux.get(key) || 0) + 1); }
+    }
+    const vals = [...flux.values()].sort((x, y) => x - y);
+    const q = (f) => vals.length ? vals[Math.min(vals.length - 1, Math.floor(vals.length * f))] : Infinity;
+    const hi = q(0.75), mid = q(0.4);
+    for (const [key, f] of flux) { const l = laneSet.get(key); if (l) l.tier = f >= hi ? 3 : f >= mid ? 2 : Math.max(1, l.tier); }
+    perfuse();
+  }
+
+  // -- the growth loop: all compute on the CURRENT mesh ----------------------------
+  const sackSet = new Set(sackTicks.map(t => Math.max(1, Math.min(T - 1, t))));
+  let capacity = 0;
+  const capOf = (s, t) => (t >= eras.mechAt ? URBAN_PER_KM2_MECH : URBAN_PER_KM2) * (areas[s.id] || 0);
+  capacity = capOf(sites[nucleus], 0);
+
+  for (let t = 1; t < T; t++) {
+    if (t % ECON_EVERY === 1 || t === 1) marketPass(t);
+    mitosis(t);                                 // every tick, every cell
+
+    if (wallsAt >= 0 && !wall && t >= wallsAt) {
+      const ring = [];
+      for (const s of sites) {
+        if (s.dead || s.builtAt < 0) continue;
+        for (const j of nb(s.id)) if (sites[j].builtAt < 0 && !sites[j].water) { ring.push(s.id); break; }
+      }
+      if (ring.length > 8) { wall = { at: t, ring, popAt: pop[t] }; ev(t, 'walls', `stone rings the town — ${ring.length} wall cells enclose ${Math.round(pop[t]).toLocaleString()} people`); }
+    }
+    if (sackSet.has(t)) {
+      const bearing = hash2(t, 3, seed ^ 0x2f) * TAU;
+      let burned = 0;
+      const nx = sites[nucleus].x, ny = sites[nucleus].y;
+      for (const s of sites) {
+        if (s.dead || s.builtAt < 0 || s.id === nucleus) continue;
+        const ang = Math.atan2(s.y - ny, s.x - nx);
+        let d = ang - bearing; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU;
+        if (Math.abs(d) < 0.55) { s.burnedAt = t; burned++; }
+      }
+      ev(t, 'sack', `the city is sacked — a quarter burns (${burned} cells); the survivors rebuild on the ashes`);
+    }
+    // the founding institution: as soon as the nucleus is built, the engine's own
+    // org stands up (a court/guild/harbor/mill), housing its founder and first hands
+    if (orgs.length === 0 && sites[nucleus].builtAt >= 0) {
+      const k = engine === 'gateway' ? 'harbor' : engine === 'fortress' ? 'court' : engine === 'staple' ? 'works' : engine === 'break-of-bulk' ? 'guild' : 'guild';
+      foundOrg(k, nucleus, t);
+    }
+    if (!anchors && (pop[t] >= DIVERSIFY_POP || t >= eras.mechAt)) {
+      anchors = placeAnchors(t);
+      market = anchors[0].cell;
+      fluxPass(anchors, t);
+      // each new quarter gets its institution — the district-scale orgs
+      for (const a of anchors) {
+        if (a.kind === 'market' || orgs.some(o => o.seat === a.cell)) continue;
+        foundOrg(a.kind === 'seat' ? 'court' : a.kind === 'port' ? 'harbor' : a.kind === 'mill' ? 'mill' : 'guild', a.cell, t);
+      }
+      ev(t, 'diversify', `the base diversifies — ${anchors.map(a => a.kind).join(', ')} anchor distinct quarters; industry begins to bid for land`);
+    }
+    if (anchors && t === eras.mechAt) {
+      fluxPass(anchors, t);
+      // the machine age raises the ironworks near the mill if a river is here
+      const millA = anchors.find(a => a.kind === 'mill');
+      if (millA && !orgs.some(o => o.kind === 'works')) foundOrg('works', millA.cell, t);
+      ev(t, 'mech', 'the machine age: bridges cheapen, blocks spread out, the flux re-solves');
+    }
+
+    // urban expansion toward the envelope (area-based capacity on the live mesh)
+    let guard = 0;
+    while (capacity < pop[t] && guard++ < 500) {
+      let best = null, bv = -Infinity;
+      for (const s of sites) {
+        if (s.dead || s.builtAt >= 0 || s.water || s.river) continue;
+        let adjBuilt = 0; for (const j of nb(s.id)) if (sites[j].builtAt >= 0) adjBuilt++;
+        if (!adjBuilt) continue;
+        const hop = laneHop[s.id] < 0 ? 9 : laneHop[s.id];
+        let v = adjBuilt * 0.3 + s.rent * 0.9 - hop * 0.7 - Math.max(0, s.elev) * 2.5
+              + central(s) * 0.4 + hash2(s.id, t, seed ^ 0x66) * 0.25;
+        if (wall && pop[t] < wall.popAt * 1.4 && wallOutside(s)) v -= 2.2;
+        if (v > bv) { bv = v; best = s; }
+      }
+      if (!best) break;
+      if (wall && wallOutside(best) && !spilled && pop[t] >= wall.popAt * 1.4) { spilled = true; ev(t, 'spill', 'the town spills its walls — extramural quarters take root past the fringe belt'); }
+      if (best.use === USE.FARM) {
+        displaced++;
+        if (firstDisp < 0) { firstDisp = t; ev(t, 'displace', 'the land grows too dear to farm — the first fields are built over, and the foodweb shifts outward'); }
+      }
+      best.builtAt = t; setUse(best, USE.RES, t);
+      capacity += capOf(best, t);
+      // hypoxia by METRIC distance — hop counts mean nothing across mixed grain
+      let src = -1, sv = Infinity;
+      for (const id of laneCell) { const g = sites[id]; if (g.dead) continue; const d = Math.hypot(g.x - best.x, g.y - best.y); if (d < sv) { sv = d; src = id; } }
+      if (src >= 0 && sv > 0.12) { layLanes(route(src, best.id, t), t); sproutCount++; perfuse(); }
+    }
+    agentStep(t);                               // people arrive, settle, and move
+    if (t % ECON_EVERY === 1 || t === 1) financeStep(t);   // the money supply + lumpy projects
+    if (t % 24 === 0) perfuse();
+  }
+  function wallOutside(s) {
+    if (!wall) return false;
+    const nx = sites[nucleus].x, ny = sites[nucleus].y;
+    const d = Math.hypot(s.x - nx, s.y - ny);
+    let rs = 0, n = 0; for (const r of wall.ring) { const g = sites[r]; if (!g.dead) { rs += Math.hypot(g.x - nx, g.y - ny); n++; } }
+    return n ? d > (rs / n) * 1.02 : false;
+  }
+
+  // -- output ----------------------------------------------------------------------
+  const lanes = [];
+  for (const [key, v] of laneSet) { const [a, b] = key.split(':').map(Number); if (!sites[a].dead && !sites[b].dead) lanes.push({ a, b, at: v.at, tier: v.tier, removedAt: -1 }); }
+  for (const l of laneLog) lanes.push(l);      // retired segments render for their lifetime
+  lanes.sort((x, y) => x.at - y.at || x.a - y.a || x.b - y.b);
+  let builtCount = 0, farmCount = 0, liveCount = 0;
+  for (const s of sites) if (!s.dead) { liveCount++; if (s.builtAt >= 0) builtCount++; if (s.use === USE.FARM) farmCount++; }
+  const notables = agents.filter(a => a.notable).length;
+  const immigrants = agents.filter(a => a.origin === 'immigrant').length;
+  const anchorN = orgs.filter(o => o.tier === 'anchor').length, localN = orgs.filter(o => o.tier === 'local').length;
+  // -- CITY VITALITY (hoop/econ): is this a good place to live? ---------------------
+  // Seven-ish signals rolled into 0–100 + a tier (names borrowed from hoop/econ's
+  // vitality oracle): supply CLOSURE (are the essentials present?), EMPLOYMENT,
+  // THIRD-places per head (Oldenburg's social infrastructure), DIVERSITY (Jacobs),
+  // and BALANCE (a base multiplier near its healthy band, not all-export/all-service).
+  function cityVitality() {
+    const P = Math.max(1, pop[T - 1]);
+    const present = new Set(orgs.filter(o => o.tier === 'local').map(o => o.trade));
+    const closure = BASKET.filter(b => present.has(b)).length / BASKET.length;
+    const employed = agents.length ? agents.filter(a => a.work >= 0).length / agents.length : 0;
+    const third = orgs.filter(o => o.tier === 'local' && o.third).length;
+    const thirdPer = Math.min(1, third / Math.max(1, P / 2500));
+    const diversity = present.size / LOCAL_TRADES.length;
+    const localEmp = agents.filter(a => a.work >= 0 && orgs[a.work].tier === 'local').length;
+    const s = agents.length ? localEmp / agents.length : 0;      // realised non-basic share
+    const balance = 1 - Math.min(1, Math.abs(s - 0.6) / 0.6);    // healthy ≈ 0.6
+    const score = Math.round(100 * (0.28 * closure + 0.24 * employed + 0.18 * thirdPer + 0.16 * diversity + 0.14 * balance));
+    const tier = score >= 75 ? 'Thriving' : score >= 60 ? 'Healthy' : score >= 45 ? 'Stable' : score >= 30 ? 'Fragile' : 'Failing';
+    return { score, tier, closure: +closure.toFixed(2), employed: +employed.toFixed(2), thirdPlaces: third,
+             diversity: present.size, nonBasicShare: +s.toFixed(2), multiplier: +(1 / Math.max(0.05, 1 - s)).toFixed(2) };
+  }
+  const vitality = cityVitality();
+  ev(T - 1, 'now', `${Math.round(pop[T - 1]).toLocaleString()} people · ${agents.length} souls · ${anchorN} institutions + ${localN} establishments · vitality ${vitality.tier} (${vitality.score})`);
+  // per-org occupation mix — the district's specialization, tabulated
+  const orgOcc = orgs.map(() => ({}));
+  for (const a of agents) if (a.work >= 0) { const m = orgOcc[a.work]; m[a.occ] = (m[a.occ] || 0) + 1; }
+  // orgs carry a rite/org address (world:seat:cell — the suite-wide siteSeed shape)
+  const worldStr = String(siteSeed).split(':')[0] || '7';
+  const meta_place = (ss) => { const parts = String(ss).split(':'); return parts[1] || 'polis'; };
+  const orgsOut = orgs.map(o => ({
+    id: o.id, tier: o.tier, kind: o.kind, trade: o.trade || null, label: o.label, seat: o.seat, foundedT: o.foundedT,
+    founder: o.founder, founderName: o.founder >= 0 && agents[o.founder] ? agents[o.founder].name : null,
+    workers: o.workers, third: !!o.third, vertical: o.vertical, shape: o.shape,
+    occMix: Object.entries(orgOcc[o.id]).sort((a, b) => b[1] - a[1]),
+    orgSeed: `${worldStr}:${meta_place(siteSeed)}:${o.seat}:${o.kind}${o.id}`, namePack: pack,
+  }));
+  const financeOut = {
+    capital: Math.round(fin.capital), debt: Math.round(fin.debt), rho: +fin.rho.toFixed(3),
+    regime: fin.regime, peakDebt: Math.round(Math.max(0, ...fin.series.map(s => s.debt))),
+    crises: fin.series.length ? events.filter(e => e.type === 'crisis').length : 0,
+    works: fin.built.filter(k => !k.startsWith('span')), series: fin.series,
+  };
+  const bridgesOut = bridges.map(b => ({ seat: b.seat, at: b.at }));
+  return {
+    meta: { siteSeed, seed, BASE, frame: FRAME, ticks: T, engine, coastal, hasRiver, wallsAt, eras,
+            builtCount, farmCount, displaced, mitoses, sprouts: sproutCount, lanes: lanes.length,
+            sites: liveCount, meshTicks, agents: agents.length, notables, immigrants,
+            orgs: orgs.length, anchors: anchorN, establishments: localN, vitality,
+            bridges: bridges.length, finance: financeOut, namePack: pack },
+    sites, polys, areas, nucleus, gates, wall, anchors, lanes, events, pop,
+    agents, orgs: orgsOut, bridges: bridgesOut,
+  };
+}
+
+export function defaultEnvelope(T, peak = 14000) {
+  const out = [];
+  for (let k = 0; k < T; k++) out.push(Math.max(6, Math.round(peak * Math.exp(-4.2 * Math.exp(-5.5 * k / T)))));
+  return out;
+}
+
+export function fieldDigest(f) {
+  let h = 2166136261 >>> 0;
+  const mix = (n) => { h ^= n >>> 0; h = Math.imul(h, 16777619) >>> 0; };
+  mix(f.meta.builtCount); mix(f.meta.lanes); mix(f.nucleus); mix(f.meta.mitoses); mix(f.meta.displaced);
+  mix(f.meta.agents); mix(f.meta.orgs); mix(f.meta.immigrants);
+  mix(f.meta.bridges); mix(f.meta.finance.peakDebt); for (const b of f.bridges) mix(b.seat);
+  for (const s of f.sites) { if (s.dead) continue; mix(Math.round((s.x + 10) * 1e4)); mix(Math.round((s.y + 10) * 1e4)); mix(s.use); if (s.builtAt >= 0) mix(s.builtAt); }
+  for (const l of f.lanes) { mix(l.a); mix(l.b); mix(l.at); mix(l.tier); }
+  for (const a of f.agents) { mix(a.home < 0 ? 0 : a.home); mix(a.bornT); mix(a.work < 0 ? 999 : a.work); mix(a.cls.charCodeAt(0)); }
+  return ('0000000' + h.toString(16)).slice(-8);
+}

@@ -39,6 +39,7 @@ const ALLOWED_ORIGINS = [
   'https://answers.mino.mobi',
   'https://org.mino.mobi',
   'https://cluster.mino.mobi',
+  'https://os.mino.mobi',
   'https://games.mino.mobi',
   'https://io.mino.mobi',
   'https://hoop.mino.mobi',

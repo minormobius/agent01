@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Human Machinery — an arcade of user error</title>
+<meta name="description" content="An explorable museum of cognitive biases. Every exhibit is a 60-second game rigged by your own brain: play, fail, learn, verify. Live crowd stats and replication badges on every claim.">
+<meta property="og:title" content="Human Machinery — an arcade of user error">
+<meta property="og:description" content="Every game in this arcade is rigged — by your own brain. Sixty seconds per exhibit. Receipts included.">
+<meta property="og:image" content="https://human.mino.mobi/og/default.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .hero { text-align: center; padding: 54px 0 26px; }
+  .hero h1 { font-size: clamp(34px, 8vw, 64px); }
+  .hero .lede { margin: 0 auto; }
+  .coin {
+    display: inline-block;
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.3em;
+    color: var(--amber); border: 1px dashed var(--amber); border-radius: 999px;
+    padding: 8px 20px; margin-top: 26px; text-transform: uppercase;
+  }
+  .live-counter { font-family: var(--mono); font-size: 13px; color: var(--cyan); letter-spacing: 0.1em; margin-top: 18px; }
+  .manifesto { max-width: 68ch; margin: 30px auto 0; text-align: left; }
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a><span class="sep">/</span>
+  <span class="here">human machinery</span>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="kicker">A museum of user error</p>
+    <h1>Human Machinery</h1>
+    <p class="lede">Every game in this arcade is rigged — by your own brain.
+    Sixty seconds per exhibit. You will fail like everyone else, find out why,
+    and check the receipts.</p>
+    <p class="live-counter" id="live">— players so far</p>
+    <p class="manifesto dim">The rules of the house: every exhibit is one idea,
+    playable in a minute. Every claim carries a <b>replication badge</b> —
+    well-replicated, contested, or failed-replication — with primary sources.
+    Every response feeds <b>anonymous aggregate counters</b>, so each exhibit
+    shows the live split of everyone who played before you. Even the science
+    that didn't survive replication gets wall space. Wonder, with citations.</p>
+    <span class="coin">Insert coin — free forever</span>
+  </header>
+
+  <div id="wings"></div>
+</div>
+
+<div id="footer-slot"></div>
+
+<script src="/lib/exhibits.js"></script>
+<script src="/lib/exhibit.js"></script>
+<script>
+(function () {
+  const wingsEl = document.getElementById('wings');
+
+  function render(stats) {
+    const done = (slug) => (stats && stats.exhibits && stats.exhibits[slug] && stats.exhibits[slug].buckets['done']) || 0;
+    let total = 0;
+    for (const e of window.HUMAN_EXHIBITS) total += done(e.slug);
+    document.getElementById('live').textContent = total
+      ? `${Human.fmt(total)} players so far — and counting`
+      : 'the counters are live — be one of the first players';
+
+    wingsEl.innerHTML = window.HUMAN_WINGS.map((w) => {
+      const cards = window.HUMAN_EXHIBITS.filter((e) => e.wing === w.id).map((e) => `
+        <a class="exhibit-card ${w.id === 'contested' ? 'contested-case' : ''}" href="/exhibits/${e.slug}/">
+          <p class="et">${e.title}</p>
+          <p class="eh">${e.hook}</p>
+          <div class="em">
+            ${Human.badgeHTML(e.badge)}
+            <span class="plays">${done(e.slug) ? Human.fmt(done(e.slug)) + ' plays' : 'unplayed'}</span>
+          </div>
+        </a>`).join('');
+      return `
+        <div class="wing-head"><h2>${w.label}</h2><span class="wn">${w.blurb}</span></div>
+        <div class="gallery">${cards}</div>`;
+    }).join('');
+  }
+
+  Human.all().then(render);
+  document.getElementById('footer-slot').innerHTML = Human.footerHTML();
+})();
+</script>
+</body>
+</html>

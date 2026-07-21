@@ -1,0 +1,49 @@
+name: Deploy Polis
+
+on:
+  push:
+    branches: [main, 'claude/civ-deploy-unification-vt35ju']
+    paths:
+      - 'polis/**'
+      - 'mappa/engine.js'
+      - 'mappa/climate-forcing.js'
+      - 'rite/names/engine.js'
+      - '.github/workflows/deploy-polis.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Assemble the asset stage
+        # polis pages import ../mappa/engine.js + ../mappa/climate-forcing.js and
+        # field.js imports ../rite/names/engine.js at runtime; stage each under the
+        # matching path so the bare relative imports resolve on this origin.
+        run: |
+          rm -rf .polis-stage && mkdir -p .polis-stage/mappa .polis-stage/rite/names
+          rsync -a --exclude 'wrangler.jsonc' --exclude 'test/' polis/ .polis-stage/
+          cp mappa/engine.js mappa/climate-forcing.js .polis-stage/mappa/
+          cp rite/names/engine.js .polis-stage/rite/names/
+          echo "staged: $(find .polis-stage -type f | wc -l) files"
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        working-directory: polis
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsSL https://polis.mino.mobi/ | grep -q 'city cascade'; then
+              echo "✓ polis is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ polis didn't respond within 25s — edge propagation may be slow, continuing."

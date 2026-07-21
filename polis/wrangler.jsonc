@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "polis",
+  "compatibility_date": "2026-02-20",
+  // Assets-only worker. The deploy workflow assembles ../.polis-stage: everything in
+  // polis/ plus the two out-of-tree ES-module imports the pages resolve at runtime
+  // (mappa/engine.js, mappa/climate-forcing.js) staged under /mappa/ so the pages'
+  // relative `../mappa/…` imports resolve on this origin exactly as they did under
+  // the root site. Never deploy from polis/ directly — the stage is the asset root.
+  "assets": {
+    "directory": "../.polis-stage"
+  },
+  "routes": [
+    { "pattern": "polis.mino.mobi", "custom_domain": true }
+  ]
+}

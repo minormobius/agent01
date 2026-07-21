@@ -1,0 +1,49 @@
+name: Deploy Mappa
+
+on:
+  push:
+    branches: [main, 'claude/civ-deploy-unification-vt35ju']
+    paths:
+      - 'mappa/**'
+      - '!mappa/civ/**'
+      - 'packages/atproto/pds.js'
+      - 'packages/oauth-client/auth.js'
+      - '.github/workflows/deploy-mappa.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Assemble the asset stage
+        # viewer.js → lib/world-share.js imports ../../packages/… at runtime; stage
+        # those two dep-free modules under /packages/ so they resolve on this origin.
+        # mappa/civ ships on the civ surface; engine-rs sources aren't served (pkg/ is).
+        run: |
+          rm -rf .mappa-stage && mkdir -p .mappa-stage/packages/atproto .mappa-stage/packages/oauth-client
+          rsync -a --exclude 'wrangler.jsonc' --exclude 'test/' --exclude 'engine-rs/' --exclude 'civ/' mappa/ .mappa-stage/
+          cp packages/atproto/pds.js .mappa-stage/packages/atproto/
+          cp packages/oauth-client/auth.js .mappa-stage/packages/oauth-client/
+          echo "staged: $(find .mappa-stage -type f | wc -l) files"
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        working-directory: mappa
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsSL https://mappa.mino.mobi/ | grep -qi 'mappa'; then
+              echo "✓ mappa is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ mappa didn't respond within 25s — edge propagation may be slow, continuing."

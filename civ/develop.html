@@ -50,11 +50,12 @@
 <body>
 <header>
   <span class="brand"><span class="g">civ</span> development</span>
-  <span class="crumb"><a id="todash" href="/">← dashboard</a> · <a id="toview" href="/view.html">▶ playground</a> · <a id="tofred" href="/fred.html">FRED</a> · <a id="tomappa" href="https://mino.mobi/mappa/" target="_blank" rel="noopener">mappa ↗</a></span>
+  <span class="crumb"><a id="todash" href="/dash/">← dashboard</a> · <a id="toview" href="/view.html">▶ playground</a> · <a id="tofred" href="/fred.html">FRED</a> · <a id="totl" href="/timeline.html">⧗ timeline</a> · <a id="tomappa" href="https://mappa.mino.mobi/" target="_blank" rel="noopener">mappa ↗</a></span>
   <select id="preset" title="preset"><option value="">default</option><option value="neolithic">neolithic</option><option value="kurgan">kurgan</option><option value="bantu">bantu</option><option value="austronesian">austronesian</option><option value="americas">americas</option></select>
   <label class="crumb">world <input id="world" type="text" value="7"></label>
   <label class="crumb">seed <input id="civseed" type="number" value="1"></label>
   <label class="crumb">ticks <input id="ticks" type="number" value="1000" step="100" min="200" max="1500"></label>
+    <select id="meshn" title="mesh resolution — cells the world is simulated on. Above 1200 the edge won't serve it; the run computes in your browser (⌂), slower but finer"><option value="900" selected>mesh 900</option><option value="1200">mesh 1200</option><option value="1600">mesh 1600 ⌂</option><option value="2400">mesh 2400 ⌂</option></select>
   <input type="hidden" id="lastconfig">
   <button id="load">Load run</button>
 </header>
@@ -101,7 +102,7 @@
       <div class="modes" id="ifilter"><b data-k="" class="on">all</b><b data-k="state">states</b><b data-k="firm">companies</b><b data-k="guild">guilds</b><b data-k="warband">warbands</b></div>
     </div>
     <div style="overflow:auto;max-height:380px"><table id="insttab"><thead><tr>
-      <th>kind</th><th>name</th><th>leader</th><th>culture</th><th class="num">members</th><th class="num">treasury</th><th class="num">capital</th><th class="num">strength</th><th class="num">conq.</th><th>ruleset (tax·wage·merit·invest)</th><th>status</th>
+      <th>kind</th><th>name</th><th>leader</th><th>culture</th><th class="num">members</th><th class="num">treasury</th><th class="num">capital</th><th class="num">strength</th><th class="num">conq.</th><th>ruleset (tax·wage·merit·invest)</th><th>status</th><th>org chart</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
 
@@ -109,7 +110,7 @@
     <h2>Great persons <span class="sub" id="gpcount"></span></h2>
     <p class="sub">Named individuals who led an institution to eminence — reputation is earned (credentials + office + standing) and runs in families (apprenticeship + sexual selection). Each carries a résumé.</p>
     <div style="overflow:auto;max-height:360px"><table id="gptab"><thead><tr>
-      <th>name</th><th>led</th><th>culture</th><th class="num">reputation</th><th class="num">era yr</th><th>résumé (credentials)</th>
+      <th>name</th><th>led</th><th>culture</th><th class="num">reputation</th><th class="num">era yr</th><th>résumé (credentials)</th><th>person</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
 
@@ -136,12 +137,12 @@ const cultureCol=(id,a=1)=>hsl(cultureHue(id),60,56,a);
 let DATA=null, mode='culture', scale='pop', tickYears=2.5, hlCulture=null, bands=null, SG=null;
 
 // ---- shared URL liquidity -------------------------------------------------------
-function curState(){ return {world:$('#world').value.trim()||'7',preset:$('#preset').value,civSeed:$('#civseed').value||'1',ticks:$('#ticks').value||'1000',config:$('#lastconfig').value||''}; }
-function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); return p.toString(); }
-function mappaHref(w){ const m=String(w).match(/^(?:seed:)?(\d+)$/); return 'https://mino.mobi/mappa/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(w))); }
-function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/?'+q; $('#toview').href='/view.html?'+q; $('#tofred').href='/fred.html?'+q; $('#tomappa').href=mappaHref(st.world); }
-function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); }
-for(const id of ['#preset','#world','#civseed','#ticks']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
+function curState(){ return {world:$('#world').value.trim()||'7',preset:$('#preset').value,civSeed:$('#civseed').value||'1',ticks:$('#ticks').value||'1000', n:$('#meshn').value,config:$('#lastconfig').value||''}; }
+function qsOf(st){ const p=new URLSearchParams(); p.set('world',st.world); if(st.preset)p.set('preset',st.preset); else if(st.config)p.set('config',st.config); p.set('civSeed',st.civSeed); p.set('ticks',st.ticks); if(st.n&&st.n!=='900')p.set('n',st.n); return p.toString(); }
+function mappaHref(w){ const m=String(w).match(/^(?:seed:)?(\d+)$/); return 'https://mappa.mino.mobi/'+(m?('?seed='+m[1]):('?w='+encodeURIComponent(w))); }
+function syncLinks(){ const st=curState(),q=qsOf(st); $('#todash').href='/dash/?'+q; $('#toview').href='/view.html?'+q; $('#tofred').href='/fred.html?'+q; $('#totl').href='/timeline.html?'+q; $('#tomappa').href=mappaHref(st.world); }
+function applyURL(){ const p=new URLSearchParams(location.search); if(p.get('world'))$('#world').value=p.get('world'); if(p.has('preset'))$('#preset').value=p.get('preset'); if(p.get('config'))$('#lastconfig').value=p.get('config'); if(p.get('civSeed'))$('#civseed').value=p.get('civSeed'); if(p.get('ticks'))$('#ticks').value=Math.min(1500,+p.get('ticks')); if(p.get('n')&&[...$('#meshn').options].some(o=>o.value===p.get('n')))$('#meshn').value=p.get('n'); }
+for(const id of ['#preset','#world','#civseed','#ticks','#meshn']) $(id).addEventListener('change',()=>{ if(id==='#preset')$('#lastconfig').value=''; syncLinks(); });
 
 // ---- streamgraph ("river of peoples") -------------------------------------------
 // lineage-sorted, centered stacking; band thickness = population; colour = identity.
@@ -290,7 +291,8 @@ function renderInsts(){
       +`<td class="num">${o.members.toLocaleString()}</td>`
       +`<td class="num">${o.pool.toLocaleString()}</td><td class="num">${o.capital?o.capital.toLocaleString():'—'}</td><td class="num">${o.strength?o.strength.toLocaleString():'—'}</td>`
       +`<td class="num">${o.captures||'—'}</td><td>${rules}</td>`
-      +`<td>${o.alive?'<span class="pill alive">active</span>':'<span class="pill fell">fell '+yr(o.fell)+'</span>'}</td>`;
+      +`<td>${o.alive?'<span class="pill alive">active</span>':'<span class="pill fell">fell '+yr(o.fell)+'</span>'}</td>`
+      +`<td>${orgLink(o)}</td>`;
     tr.onclick=()=>{ hlCulture=hlCulture===o.culture?null:o.culture; refreshHL(); drawStream(); };
     it.appendChild(tr);
   }
@@ -298,6 +300,24 @@ function renderInsts(){
 let instFilter='';
 $('#ifilter').addEventListener('click',e=>{ const b=e.target.closest('b'); if(!b)return; instFilter=b.dataset.k; [...$('#ifilter').children].forEach(x=>x.classList.toggle('on',x===b)); renderInsts(); });
 const ROLE_ICON={state:'🏛️',firm:'🏭',guild:'⚒️',warband:'⚔️'};
+// Phase IV: an institution's ORG ADDRESS — seed `${world}:${seatName}:${seat}:${kind}${id}`
+// + the engine-declared vertical/shape opens the full hierarchy at rite.mino.mobi/org/.
+// Phase IV: a great person's rite/org person — temperament cast + civic vocation,
+// full triad/quirks/attributes in the hover title.
+function personCell(p){
+  if(!p) return '<span class="sub">—</span>';
+  const t=p.triad, quirks=(p.traits||[]).map(x=>x.label).join(', ');
+  const title=`${p.castGloss||''} · craft ${t.craft} / drive ${t.drive} / wit ${t.wit} · output ${p.output} · leadership ×${p.leadership}${quirks?' · '+quirks:''}`;
+  return `<span title="${title.replace(/"/g,'&quot;')}">${p.cast} · <b>${p.vocation}</b></span>`;
+}
+function orgLink(o){
+  if(!o.org||!o.seatName) return '<span class="sub">—</span>';
+  const world=($('#world').value||'7').trim();
+  const seed=`${world}:${o.seatName}:${o.seat}:${o.kind}${o.id}`;
+  const q=new URLSearchParams({ seed, vertical:o.org.vertical, shape:o.org.shape });
+  if(o.namePack) q.set('names',o.namePack); // the org's people speak this culture's voice
+  return `<a href="https://rite.mino.mobi/org/?${q}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="open ${seed} as a full org chart">org ↗</a>`;
+}
 function renderGreat(){
   const f=DATA.chronicle.final, CR=f.credNames||[], yr=t=>Math.round(t*tickYears).toLocaleString();
   const gt=$('#gptab').querySelector('tbody'); gt.innerHTML=''; $('#gpcount').textContent='('+(f.greatPeople||[]).length+')';
@@ -307,7 +327,8 @@ function renderGreat(){
     tr.innerHTML=`<td><b>${g.name}</b></td><td>${ROLE_ICON[g.role]||''} ${g.role} · ${g.inst}</td>`
       +`<td><span class="sw" style="background:${cultureCol(g.culture)}"></span>#${g.culture}</td>`
       +`<td class="num">${g.rep.toFixed(2)}</td><td class="num">${yr(g.tick)}</td>`
-      +`<td>${creds.length?creds.map(c=>`<span class="cap">${c}</span>`).join(''):'<span class="sub">—</span>'}</td>`;
+      +`<td>${creds.length?creds.map(c=>`<span class="cap">${c}</span>`).join(''):'<span class="sub">—</span>'}</td>`
+      +`<td>${personCell(g.person)}</td>`;
     tr.onclick=()=>{ hlCulture=hlCulture===g.culture?null:g.culture; refreshHL(); drawStream(); };
     gt.appendChild(tr);
   }

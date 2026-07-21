@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>polis · the settlement field</title>
+<meta name="description" content="The city proper: one continuous Voronoi grown by mitosis — scrub history and watch the mesh itself refine where the product concentrates. Tap any tile to inspect it.">
+<style>
+  :root{ --bg:#0d1117; --panel:#131a24; --edge:#233041; --ink:#e6edf3; --dim:#8b98a9; --gold:#d9a441; --acc:#5aa9e6; }
+  *{ box-sizing:border-box; } html,body{ height:100%; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 ui-sans-serif,system-ui,sans-serif;
+        overflow:hidden; overscroll-behavior:none; touch-action:none; -webkit-user-select:none; user-select:none; }
+  a{ color:var(--acc); }
+  #bar{ position:fixed; top:0; left:0; right:0; z-index:6; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+        padding:8px 12px; padding-top:calc(8px + env(safe-area-inset-top)); background:linear-gradient(rgba(13,17,23,.94), rgba(13,17,23,.72)); border-bottom:1px solid var(--edge); }
+  #bar b{ color:var(--gold); }
+  #bar .crumb{ color:var(--dim); font-size:12px; }
+  #bar input[type=number]{ width:88px; background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:6px; padding:3px 7px; }
+  #bar select{ background:#0b0f16; color:var(--ink); border:1px solid var(--edge); border-radius:6px; padding:3px 7px; }
+  #bar button{ background:#1b2230; color:var(--ink); border:1px solid var(--edge); border-radius:6px; padding:3px 12px; cursor:pointer; }
+  #bar button:hover{ border-color:var(--gold); }
+  canvas{ position:fixed; inset:0; touch-action:none; }
+  #hud{ position:fixed; right:10px; top:52px; z-index:5; background:rgba(19,26,36,.92); border:1px solid var(--edge); border-radius:10px;
+        padding:10px 14px; font-size:12.5px; max-width:250px; }
+  #hud .k{ color:var(--dim); }
+  #hud .big{ font-size:17px; font-weight:700; }
+  #time{ position:fixed; left:12px; right:12px; bottom:calc(44px + env(safe-area-inset-bottom)); z-index:5; display:flex; gap:10px; align-items:center; }
+  #time input[type=range]{ flex:1; touch-action:pan-x; }
+  #time button{ background:#1b2230; color:var(--ink); border:1px solid var(--edge); border-radius:6px; padding:2px 12px; cursor:pointer; }
+  #ribbon{ position:fixed; left:0; right:0; bottom:0; z-index:5; padding:7px 14px; padding-bottom:calc(7px + env(safe-area-inset-bottom));
+           min-height:32px; font-size:13px; background:rgba(13,17,23,.94); border-top:1px solid var(--edge); color:var(--ink); }
+  #ribbon .t{ color:var(--gold); font-family:ui-monospace,monospace; margin-right:10px; }
+  #boot{ position:fixed; left:10px; bottom:calc(78px + env(safe-area-inset-bottom)); z-index:5; background:rgba(10,14,20,.88); border:1px solid var(--edge);
+         border-radius:8px; padding:6px 12px; font-size:12px; color:#cdd6e0; max-width:64vw; }
+  #legend{ position:fixed; right:10px; bottom:calc(78px + env(safe-area-inset-bottom)); z-index:4; font-size:11px; color:var(--dim);
+           background:rgba(19,26,36,.85); border:1px solid var(--edge); border-radius:8px; padding:6px 10px; max-width:46vw; }
+  .sw{ display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:4px; }
+  /* the inspector: side card on wide screens, bottom sheet on phones */
+  #inspect{ position:fixed; z-index:7; background:rgba(16,22,31,.97); border:1px solid var(--edge); border-radius:12px;
+            padding:12px 14px; font-size:12.5px; display:none; box-shadow:0 6px 24px rgba(0,0,0,.5); }
+  @media(min-width:701px){ #inspect{ right:10px; top:52px; width:264px; max-height:70vh; overflow:auto; } #hud{ top:52px; right:284px; } }
+  @media(max-width:700px){ #inspect{ left:0; right:0; bottom:0; border-radius:14px 14px 0 0; max-height:46vh; overflow:auto;
+                            padding-bottom:calc(12px + env(safe-area-inset-bottom)); } #hud{ display:none; } #legend{ display:none; } }
+  #inspect h3{ margin:0 0 6px; font-size:14px; color:var(--gold); display:flex; justify-content:space-between; }
+  #inspect .x{ cursor:pointer; color:var(--dim); font-size:16px; padding:0 4px; }
+  #inspect .row{ margin:3px 0; }
+  #inspect .k{ color:var(--dim); display:inline-block; min-width:86px; }
+  #inspect .uh{ font-family:ui-monospace,monospace; font-size:11px; color:var(--dim); }
+</style>
+</head>
+<body>
+<div id="bar">
+  <span class="crumb"><a href="/">polis</a> · city</span>
+  <b>the settlement field</b>
+  <label class="crumb">seed <input id="seedIn" type="number" value="20260719"></label>
+  <label class="crumb">engine <select id="engSel">
+    <option value="">auto</option><option>gateway</option><option>break-of-bulk</option>
+    <option>market</option><option>fortress</option><option>staple</option></select></label>
+  <button id="rollBtn">grow</button>
+  <span class="crumb"><a href="/hinterland/">hinterland</a> · <a href="https://civ.mino.mobi/">civ ↗</a></span>
+</div>
+<canvas id="cv"></canvas>
+<div id="hud"></div>
+<div id="legend">
+  <b style="color:#8b98a9">the people, by trade:</b><br>
+  <span class="sw" style="background:#b9976a"></span>labour
+  <span class="sw" style="background:#e08a3c"></span>craft
+  <span class="sw" style="background:#e8c44a"></span>trade
+  <span class="sw" style="background:#6aa8e0"></span>admin
+  <span class="sw" style="background:#48c4d0"></span>sea
+  · <span style="color:#f4d98f">● notable</span> · <span style="color:#f0e6c8">◆ institution</span> · <span style="color:#f0dc96">○ establishment</span>
+  <br><span style="opacity:.8">institutions are the export base; the small marks are the secondary economy (bakers, taverns, smiths…). tap anything.</span>
+</div>
+<div id="inspect"><h3><span id="insTitle"></span><span class="x" id="insClose">✕</span></h3><div id="insBody"></div></div>
+<div id="time"><button id="playBtn">▶</button><input id="tSl" type="range" min="0" max="1" value="0" step="1"><span id="tLab" class="crumb"></span></div>
+<div id="ribbon"><span class="t"></span><span class="msg">the field lies quiet — history grinds forward</span></div>
+<div id="boot" style="display:none"></div>
+
+<script type="module">
+import { growCity, defaultEnvelope, computeVoronoi, USE_NAME } from '../field.js';
+
+const cv = document.getElementById('cv'), ctx2 = cv.getContext('2d');
+const hud = document.getElementById('hud'), ribbon = document.querySelector('#ribbon .msg'), ribT = document.querySelector('#ribbon .t');
+const tSl = document.getElementById('tSl'), tLab = document.getElementById('tLab'), playBtn = document.getElementById('playBtn');
+const seedIn = document.getElementById('seedIn'), engSel = document.getElementById('engSel');
+const insEl = document.getElementById('inspect'), insTitle = document.getElementById('insTitle'), insBody = document.getElementById('insBody');
+
+let F = null, T = 1, tNow = 0, playing = false, selected = -1, selAgent = -1, selOrg = -1;
+let vx = 0, vy = 0, scale = 1;
+const TAU = Math.PI * 2;
+// the base layer (terrain + lanes + walls) is cached offscreen and only re-rendered
+// when the tick or the view changes; agents animate on top every frame, so 50k
+// individuals stay smooth and the city can breathe (the daily commute) continuously.
+const baseCv = document.createElement('canvas'); const baseCtx = baseCv.getContext('2d');
+let baseDirty = true, dayPhase = 0;
+const setDirty = () => { baseDirty = true; };
+// occupation-class palette — the colour that makes districts read at a glance
+const CLS_COL = { labour: '#b9976a', craft: '#e08a3c', trade: '#e8c44a', admin: '#6aa8e0', sea: '#48c4d0' };
+// deterministic per-agent jitter (stable spot in the home tile) + commute phase offset
+function agJit(a, axis) {
+  const h = ((a.id * 2654435761) ^ (axis * 40503)) >>> 0;
+  return ((h % 1000) / 1000 - 0.5) * 0.028;
+}
+const agPhase = (a) => ((a.id * 2246822519) >>> 0) % 1000 / 1000;
+
+// canvas bitmap is device-pixel sized; the CSS box must be explicitly set to the
+// viewport, or the element overflows and every pointer coordinate is off by DPR
+// (the "tap → bottom-left highlights" bug). All hit-testing goes through toCanvas,
+// which maps a pointer event to BITMAP coordinates via the element's own rect —
+// correct regardless of DPR, scroll, or CSS size.
+function resize() {
+  const w = innerWidth, h = innerHeight, dpr = devicePixelRatio || 1;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  baseCv.width = cv.width; baseCv.height = cv.height;
+  setDirty(); draw();
+}
+function toCanvas(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) };
+}
+addEventListener('resize', resize);
+
+// ---- time-indexed mesh: re-tessellate the alive-set of any tick -----------------
+// The mesh only changes on division ticks (meta.meshTicks), so tessellations are
+// cached per epoch. Scrub to tick 1 and the field is the loose homogeneous start;
+// scrub to the end and the core has divided into fine grain — the resolution story
+// plays back exactly as it happened.
+let meshCache = new Map();
+const aliveAt = (s, t) => s.bornAt <= t && (s.diedAt < 0 || s.diedAt > t);
+function epochOf(t) {
+  const mt = F.meta.meshTicks; let e = 0;
+  for (let i = 0; i < mt.length && mt[i] <= t; i++) e = i + 1;
+  return e;
+}
+function meshAt(t) {
+  const e = epochOf(t);
+  if (!meshCache.has(e)) meshCache.set(e, computeVoronoi(F.sites, F.sites.filter(s => aliveAt(s, t)), F.meta.frame));
+  return meshCache.get(e);
+}
+const useAt = (s, t) => { let u = 0; for (const [ht, hu] of s.hist) { if (ht > t) break; u = hu; } return u; };
+const rentAt = (s, t) => { let r = 0; for (const [ht, hr] of s.rentHist) { if (ht > t) break; r = hr; } return r; };
+
+// ---- grow -----------------------------------------------------------------------
+const xmur3 = s => { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); } h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return (h ^ (h >>> 16)) >>> 0; };
+
+function standaloneCtx(seed) {
+  const h = xmur3('city:' + seed);
+  const coastal = (h & 3) !== 0, river = ((h >> 2) & 3) !== 0 || !coastal;
+  const engines = ['gateway', 'break-of-bulk', 'market', 'fortress', 'staple'];
+  const engine = engSel.value || (coastal ? 'gateway' : engines[(h >> 4) % engines.length]);
+  const T0 = 240;
+  return {
+    engine, coastal, coastDir: ((h >> 6) % 628) / 100, river, riverDir: ((h >> 9) % 628) / 100,
+    popSeries: defaultEnvelope(T0, 9000 + (h % 12000)),
+    wallsAt: (h >> 5) % 3 === 0 ? -1 : 55 + (h % 40),
+    sackTicks: (h >> 7) % 2 ? [Math.round(T0 * 0.45) + (h % 30)] : [],
+    eras: { wheelAt: 30 + (h % 20), mechAt: Math.round(T0 * (0.72 + ((h >> 3) % 20) / 100)) },
+  };
+}
+
+function grow(siteSeed, c) {
+  ribbon.textContent = 'growing the field — three regimes, one land market, mitosis…';
+  setTimeout(() => {
+    F = growCity(siteSeed, c);
+    T = F.meta.ticks; tNow = 0; selected = -1; selAgent = -1; selOrg = -1; lastHudTick = -1;
+    insEl.style.display = 'none';
+    meshCache = new Map();
+    tSl.max = T - 1; tSl.value = 0;
+    fit();   // sets dirty; animate() renders
+    playing = true; playBtn.textContent = '❚❚'; tick();   // history plays from the start
+  }, 30);
+}
+
+// ---- civ boot -------------------------------------------------------------------
+async function bootFromCiv() {
+  const p = new URLSearchParams(location.search);
+  if (!p.get('civ')) return false;
+  const wm = String(p.get('world') || '').match(/^(?:seed:)?(\d+)$/);
+  if (!wm) return false;
+  const q = new URLSearchParams({ world: wm[1], civSeed: p.get('civSeed') || '1', ticks: p.get('ticks') || '1500' });
+  if (p.get('n')) q.set('n', p.get('n'));
+  if (p.get('preset')) q.set('preset', p.get('preset')); else if (p.get('config')) q.set('config', p.get('config'));
+  ribbon.textContent = 'fetching civ history…';
+  const r = await fetch('https://civ.mino.mobi/api/civ/sites?' + q);
+  if (!r.ok) throw new Error('civ API ' + r.status);
+  const d = await r.json();
+  const pool = p.get('site') != null ? d.foundings : (d.cities || []);
+  const f = pool[Math.max(0, Math.min(pool.length - 1, +((p.get('city') ?? p.get('site')) || 0)))];
+  if (!f) return false;
+  const name = f.city || f.name;
+  const URBAN_SCALE = 25;
+  const civT = d.ticks;
+  const src = (f.popSeries || []).map(v => v * URBAN_SCALE);
+  const T0 = 240, env = [];
+  for (let k = 0; k < T0; k++) {
+    const u = k / (T0 - 1) * (src.length - 1), i0 = Math.floor(u), fr = u - i0;
+    env.push(Math.max(6, Math.round((src[i0] || 0) * (1 - fr) + (src[Math.min(src.length - 1, i0 + 1)] || 0) * fr)));
+  }
+  const toLocal = (civTick) => civTick == null || civTick < 0 ? -1 : Math.round(civTick / civT * (T0 - 1));
+  const ft = f.founderTech || {};
+  const cx = {
+    engine: engSel.value || (f.coast ? 'gateway' : f.river ? 'break-of-bulk' : 'market'),
+    coastal: !!f.coast, coastDir: (xmur3(f.siteSeed) % 628) / 100,
+    river: !!f.river, riverDir: ((xmur3(f.siteSeed) >> 5) % 628) / 100,
+    popSeries: env,
+    wallsAt: f.walls ? toLocal(f.walledTick >= 0 ? f.walledTick : civT * 0.25) : -1,
+    sackTicks: (f.sackTicks || []).map(toLocal).filter(t => t > 0),
+    eras: { wheelAt: ft.wheel != null ? toLocal(ft.wheel) : 40, mechAt: ft.mechanisation != null ? toLocal(ft.mechanisation) : T0 + 10 },
+  };
+  const boot = document.getElementById('boot');
+  boot.style.display = 'block';
+  boot.innerHTML = '⚑ <b>' + name + '</b> — ' + (f.cultureName || 'a forgotten people') +
+    (f.river ? ' · on the river' : '') + (f.coast ? ' · on the coast' : '') +
+    (f.sacked ? ' · sacked ×' + f.sacked : '') +
+    ' · <a href="/hinterland/?civ=1&' + q + '&city=' + (p.get('city') || 0) + '">the hinterland</a>' +
+    ' · <a href="https://civ.mino.mobi/dash/?' + q + '">the civ run ↗</a>';
+  seedIn.value = xmur3(f.siteSeed);
+  grow(f.siteSeed, cx);
+  return true;
+}
+
+// ---- draw -----------------------------------------------------------------------
+function fit() {
+  const fr = F.meta.frame, s = Math.min(cv.width, cv.height) * 0.86 / fr;
+  scale = s; vx = cv.width / 2; vy = cv.height / 2; setDirty();
+}
+const USE_COL = ['', '#5f7d3f', '#caa16a', '#d9a441', '#5a6673'];
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgb(${((n >> 16) * k) | 0},${(((n >> 8) & 255) * k) | 0},${((n & 255) * k) | 0})`;
+}
+const X = (x) => vx + x * scale, Y = (y) => vy + y * scale;
+let counts = { urban: 0, farms: 0, alive: 0 };
+
+// the base layer: terrain + lanes + walls + anchors — cached until tick/view change
+function renderBase() {
+  const t = tNow, mesh = meshAt(t), c = baseCtx;
+  c.fillStyle = '#0d1117'; c.fillRect(0, 0, baseCv.width, baseCv.height);
+  const S0 = (F.meta.frame / F.meta.BASE) * scale;
+  let urban = 0, farms = 0, alive = 0;
+  for (const s of F.sites) {
+    if (!aliveAt(s, t)) continue;
+    alive++;
+    const p = mesh.polys[s.id];
+    if (!p || p.length < 3) continue;
+    let col;
+    const u = useAt(s, t);
+    const builtNow = s.builtAt >= 0 && s.builtAt <= t;
+    if (s.water) col = '#16304a';
+    else if (s.river) col = '#1e4a6e';
+    else if (builtNow) {
+      urban++;
+      col = (s.burnedAt >= 0 && t >= s.burnedAt && t < s.burnedAt + 26) ? '#7e2f2f'
+          : shade(USE_COL[u >= 2 ? u : 2] || '#caa16a', 0.72 + 0.28 * (s.builtAt / Math.max(1, t)));
+    } else if (u === 1) { farms++; col = USE_COL[1]; }
+    else { const e = Math.max(0, Math.min(0.5, s.elev)); const g = 34 + e * 90; col = `rgb(${g * 0.72 | 0},${g * 0.82 | 0},${g * 0.6 | 0})`; }
+    c.fillStyle = col;
+    c.beginPath(); c.moveTo(X(p[0][0]), Y(p[0][1]));
+    for (let k = 1; k < p.length; k++) c.lineTo(X(p[k][0]), Y(p[k][1]));
+    c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(13,17,23,.5)'; c.lineWidth = 0.6; c.stroke();
+  }
+  for (const l of F.lanes) {
+    if (l.at > t || (l.removedAt >= 0 && l.removedAt <= t)) continue;
+    const A = F.sites[l.a], B = F.sites[l.b];
+    if (!aliveAt(A, t) || !aliveAt(B, t)) continue;
+    c.strokeStyle = l.tier === 3 ? '#e8b755' : l.tier === 2 ? '#b3893f' : 'rgba(217,164,65,.5)';
+    c.lineWidth = l.tier === 3 ? Math.max(2.5, S0 * 0.2) : l.tier === 2 ? Math.max(1.6, S0 * 0.12) : Math.max(0.8, S0 * 0.06);
+    c.beginPath(); c.moveTo(X(A.x), Y(A.y)); c.lineTo(X(B.x), Y(B.y)); c.stroke();
+  }
+  if (F.wall && t >= F.wall.at) {
+    c.fillStyle = '#9aa7b8';
+    for (const i of F.wall.ring) { const g = F.sites[i]; if (aliveAt(g, t)) c.fillRect(X(g.x) - S0 * 0.16, Y(g.y) - S0 * 0.16, S0 * 0.32, S0 * 0.32); }
+  }
+  // BRIDGES: a stone span across the river, built when finance could fund it
+  for (const b of F.bridges || []) {
+    if (b.at > t) continue;
+    const s = F.sites[b.seat]; if (!s) continue;
+    c.strokeStyle = '#c9b48a'; c.lineWidth = Math.max(2.4, S0 * 0.5); c.lineCap = 'round';
+    // span perpendicular to the river's local direction (nearest two land neighbours)
+    let ax = s.x - S0 * 0.5 / scale, bx = s.x + S0 * 0.5 / scale;
+    c.beginPath(); c.moveTo(X(ax), Y(s.y)); c.lineTo(X(bx), Y(s.y)); c.stroke();
+    c.lineCap = 'butt';
+  }
+  counts = { urban, farms, alive };
+  baseDirty = false;
+}
+
+// the whole frame: blit the cached base, then the LIVING layer (agents commuting +
+// orgs + selection) on top, every animation frame
+function draw() {
+  if (!F) return;
+  const t = tNow, mesh = meshAt(t);
+  if (baseDirty) renderBase();
+  ctx2.clearRect(0, 0, cv.width, cv.height);
+  ctx2.drawImage(baseCv, 0, 0);
+  const S0 = (F.meta.frame / F.meta.BASE) * scale;
+
+  // ---- AGENTS: individuals, coloured by occupation, commuting home↔work ---------
+  // the daily tide: agents flow toward their workplace at midday and home at night.
+  // Batched by class so 50k dots are ~5 fills, not 50k. Commoners are points;
+  // notables ride larger and gold.
+  const dotR = Math.max(0.6, Math.min(2.6, scale * 0.010));
+  const byCls = { labour: [], craft: [], trade: [], admin: [], sea: [] };
+  let notablesToDraw = [];
+  for (const a of F.agents) {
+    if (a.bornT > t || a.home < 0) continue;
+    const hs = F.sites[a.home]; if (!hs || !aliveAt(hs, t)) continue;
+    let ax = hs.x + agJit(a, 0), ay = hs.y + agJit(a, 1);
+    // commute: interpolate toward the workplace on the daily cycle
+    if (a.work >= 0) {
+      const ws = F.sites[F.orgs[a.work].seat];
+      if (ws && aliveAt(ws, t)) {
+        const ph = (dayPhase + agPhase(a)) % 1;
+        const atWork = 0.5 - 0.5 * Math.cos(ph * TAU);   // 0 home → 1 work → 0 home
+        ax += (ws.x - hs.x) * 0.82 * atWork; ay += (ws.y - hs.y) * 0.82 * atWork;
+      }
+    }
+    const px = X(ax), py = Y(ay);
+    if (px < -4 || py < -4 || px > cv.width + 4 || py > cv.height + 4) continue;
+    if (a.notable) notablesToDraw.push([a, px, py]);
+    else (byCls[a.cls] || byCls.labour).push(px, py);
+  }
+  for (const cls in byCls) {
+    const arr = byCls[cls]; if (!arr.length) continue;
+    ctx2.fillStyle = CLS_COL[cls] || '#cdd6e0';
+    ctx2.globalAlpha = 0.72; ctx2.beginPath();
+    for (let i = 0; i < arr.length; i += 2) ctx2.rect(arr[i] - dotR, arr[i + 1] - dotR, dotR * 2, dotR * 2);
+    ctx2.fill(); ctx2.globalAlpha = 1;
+  }
+  for (const [a, px, py] of notablesToDraw) {
+    ctx2.fillStyle = a.id === selAgent ? '#7fd0ff' : '#f4d98f';
+    ctx2.beginPath(); ctx2.arc(px, py, Math.max(2, dotR * 2.4), 0, TAU); ctx2.fill();
+    ctx2.strokeStyle = 'rgba(20,24,32,.8)'; ctx2.lineWidth = 0.7; ctx2.stroke();
+  }
+  // ---- ESTABLISHMENTS: the secondary economy, small marks studding the districts
+  // third-places (taverns/markets/temples — the social heart) glow a touch brighter
+  for (const o of F.orgs) {
+    if (o.tier !== 'local' || o.foundedT > t) continue;
+    const s = F.sites[o.seat]; if (!s || !aliveAt(s, t)) continue;
+    const r = Math.max(1.4, S0 * 0.16);
+    ctx2.fillStyle = o.id === selOrg ? '#7fd0ff' : o.third ? 'rgba(240,220,150,.9)' : 'rgba(205,190,150,.62)';
+    ctx2.beginPath(); ctx2.arc(X(s.x), Y(s.y), r, 0, TAU); ctx2.fill();
+    if (o.third) { ctx2.strokeStyle = 'rgba(20,24,32,.6)'; ctx2.lineWidth = 0.7; ctx2.stroke(); }
+  }
+  // ---- ANCHOR INSTITUTIONS: the export base, big glyphs ------------------------
+  for (const o of F.orgs) {
+    if (o.tier !== 'anchor' || o.foundedT > t) continue;
+    const s = F.sites[o.seat]; if (!s || !aliveAt(s, t)) continue;
+    ctx2.fillStyle = o.id === selOrg ? '#7fd0ff' : '#f0e6c8';
+    ctx2.strokeStyle = 'rgba(20,24,32,.9)'; ctx2.lineWidth = 3;
+    ctx2.font = `${Math.max(13, S0 * 1.05)}px ui-sans-serif`;
+    const gl = { court: '♜', guild: '⚖', harbor: '⚓', mill: '⚙', works: '⛭' }[o.kind] || '◆';
+    ctx2.strokeText(gl, X(s.x) - S0 * 0.34, Y(s.y) + S0 * 0.34);
+    ctx2.fillText(gl, X(s.x) - S0 * 0.34, Y(s.y) + S0 * 0.34);
+  }
+  const nc = F.sites[F.nucleus];
+  if (aliveAt(nc, t)) {
+    ctx2.fillStyle = '#d9a441'; ctx2.font = `${Math.max(12, S0)}px ui-sans-serif`;
+    ctx2.fillText('★', X(nc.x) - S0 * 0.4, Y(nc.y) + S0 * 0.35);
+  }
+  // selection outline
+  if (selected >= 0) {
+    const s = F.sites[selected];
+    const p = aliveAt(s, t) ? mesh.polys[s.id] : null;
+    if (p && p.length >= 3) {
+      ctx2.strokeStyle = '#5aa9e6'; ctx2.lineWidth = 2.2;
+      ctx2.beginPath(); ctx2.moveTo(X(p[0][0]), Y(p[0][1]));
+      for (let k = 1; k < p.length; k++) ctx2.lineTo(X(p[k][0]), Y(p[k][1]));
+      ctx2.closePath(); ctx2.stroke();
+    }
+  }
+}
+
+// HUD + ribbon: rebuilt only when the tick changes (not every animation frame)
+let lastHudTick = -1;
+const BASKET = ['bakery', 'tavern', 'smithy', 'butcher', 'market', 'temple'];
+const TIER_COL = { Thriving: '#5bd18b', Healthy: '#8fd17f', Stable: '#d9c341', Fragile: '#e0a24a', Failing: '#e5686b' };
+// a cheap live economy readout at tick t (the full oracle runs once, at final)
+function liveEcon(t) {
+  let anchors = 0, est = 0, third = 0; const present = new Set();
+  for (const o of F.orgs) { if (o.foundedT > t) continue; if (o.tier === 'anchor') anchors++; else { est++; present.add(o.trade); if (o.third) third++; } }
+  const closure = BASKET.filter(b => present.has(b)).length / BASKET.length;
+  const P = Math.max(1, F.pop[Math.min(t, F.pop.length - 1)]);
+  const thirdPer = Math.min(1, third / Math.max(1, P / 2500));
+  const diversity = present.size / 14;
+  const score = Math.round(100 * (0.40 * closure + 0.28 * thirdPer + 0.32 * diversity));
+  const tier = score >= 75 ? 'Thriving' : score >= 60 ? 'Healthy' : score >= 45 ? 'Stable' : score >= 30 ? 'Fragile' : 'Failing';
+  return { anchors, est, score, tier };
+}
+function updateHud() {
+  if (!F || tNow === lastHudTick) return;
+  lastHudTick = tNow;
+  const t = tNow, popNow = Math.round(F.pop[Math.min(t, F.pop.length - 1)]);
+  let agN = 0, immN = 0;
+  for (const a of F.agents) if (a.bornT <= t && a.home >= 0) { agN++; if (a.origin === 'immigrant') immN++; }
+  const ec = liveEcon(t);
+  // finance state at this tick (the last series sample at or before t)
+  let f = null; const fs = (F.meta.finance && F.meta.finance.series) || [];
+  for (const row of fs) { if (row.t <= t) f = row; else break; }
+  let brN = 0; for (const b of (F.bridges || [])) if (b.at <= t) brN++;
+  hud.innerHTML = `<div class="big">${popNow.toLocaleString()} <span class="k" style="font-size:12px">people</span></div>
+    <div><span class="k">engine</span> ${F.meta.engine}</div>
+    <div><span class="k">tiles</span> ${counts.alive} · <span class="k">urban</span> ${counts.urban} · <span class="k">farms</span> ${counts.farms}</div>
+    <div><span class="k">souls</span> ${agN.toLocaleString()} · <span class="k">from away</span> ${immN.toLocaleString()}</div>
+    <div><span class="k">economy</span> ${ec.anchors} institutions + ${ec.est} establishments</div>
+    <div><span class="k">vitality</span> <b style="color:${TIER_COL[ec.tier]}">${ec.tier}</b> ${ec.score}</div>
+    ${f ? `<div><span class="k">finance</span> ${f.regime} · ρ ${f.rho}</div>
+    <div><span class="k">the books</span> capital ${f.capital.toLocaleString()} · <b style="color:${f.debt > f.capital * 3 ? '#e5686b' : '#d9c341'}">debt ${f.debt.toLocaleString()}</b></div>
+    <div><span class="k">bridges</span> ${brN}${brN ? ' spanning the river' : ''}</div>` : ''}`;
+  tLab.textContent = `t ${t} / ${T - 1}`;
+  let last = null;
+  for (const e of F.events) if (e.t <= t) last = e;
+  ribT.textContent = last ? 't ' + last.t : '';
+  ribbon.textContent = last ? last.note : 'the field lies quiet — history grinds forward';
+}
+
+// continuous animation: the city breathes (the daily commute) whether or not
+// history is playing. dayPhase advances ~1 day / 3s; agents ride it.
+function animate() {
+  if (F) { dayPhase = (dayPhase + 0.006) % 1; draw(); updateHud(); }
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+// ---- inspection -----------------------------------------------------------------
+function inspect(id) {
+  selected = id; selAgent = -1; selOrg = -1;
+  // the org and the notables at this tile, so a tile inspection surfaces its people
+  const t = tNow;
+  const orgHere = F.orgs.filter(o => o.foundedT <= t && o.seat === id);
+  const folkHere = F.agents.filter(a => a.bornT <= t && a.home === id);
+  const notablesHere = folkHere.filter(a => a.notable);
+  const occMix = {}; for (const a of folkHere) occMix[a.occ] = (occMix[a.occ] || 0) + 1;
+  const topOcc = Object.entries(occMix).sort((x, y) => y[1] - x[1]).slice(0, 3);
+  window._tileExtra = { orgHere, folkHere, notablesHere, topOcc };
+  const s = F.sites[id];
+  const mesh = meshAt(t);
+  const areaM2 = (mesh.areas[s.id] || 0) * 1e6;
+  const u = useAt(s, t);
+  const fert = s.moist * Math.max(0, 1 - Math.max(0, s.elev) * 2);
+  const lineage = [];
+  let pcur = s;
+  while (pcur.parent >= 0 && lineage.length < 8) { pcur = F.sites[pcur.parent]; lineage.push('#' + pcur.id); }
+  const histStr = s.hist.map(([ht, hu]) => `t${ht}→${USE_NAME[hu]}`).join(' · ');
+  const rentNow = rentAt(s, t);
+  insTitle.textContent = `tile #${s.id} · gen ${s.gen}`;
+  insBody.innerHTML = `
+    <div class="row"><span class="k">status</span>${s.water ? 'sea' : s.river ? 'river' : (s.builtAt >= 0 && s.builtAt <= t) ? 'urban — ' + USE_NAME[Math.max(2, u)] : USE_NAME[u]}</div>
+    <div class="row"><span class="k">area</span>${areaM2 < 12000 ? Math.round(areaM2).toLocaleString() + ' m²' : (areaM2 / 1e4).toFixed(1) + ' ha'} · ~${Math.round(Math.sqrt(areaM2))} m across</div>
+    <div class="row"><span class="k">rent</span>${rentNow.toFixed(2)} · <span class="k" style="min-width:0">product</span>${(rentNow * (mesh.areas[s.id] || 0)).toFixed(4)}</div>
+    <div class="row"><span class="k">terrain</span>elev ${s.elev.toFixed(2)} · moist ${s.moist.toFixed(2)} · fertility ${fert.toFixed(2)}</div>
+    <div class="row"><span class="k">born</span>t ${s.bornAt}${s.gen > 0 ? ' by division' : ' (founding lattice)'}${s.diedAt >= 0 ? ` · <span style="color:#e5686b">divides at t ${s.diedAt}</span>` : ''}</div>
+    ${s.builtAt >= 0 ? `<div class="row"><span class="k">built</span>t ${s.builtAt}${s.burnedAt >= 0 ? ` · burned t ${s.burnedAt}` : ''}</div>` : ''}
+    ${lineage.length ? `<div class="row"><span class="k">lineage</span>${lineage.join(' ← ')}</div>` : ''}
+    <div class="row"><span class="k">neighbours</span>${(mesh.nbrs[s.id] || []).length}</div>
+    <div class="row"><span class="k">residents</span>${window._tileExtra.folkHere.length.toLocaleString()} people${window._tileExtra.notablesHere.length ? ' · ' + window._tileExtra.notablesHere.length + ' notable' : ''}</div>
+    ${window._tileExtra.topOcc.length ? `<div class="row"><span class="k">who lives here</span>${window._tileExtra.topOcc.map(([o, n]) => o + ' ' + n).join(' · ')}</div>` : ''}
+    ${window._tileExtra.orgHere.map(o => `<div class="row"><span class="k">institution</span><a href="#" onclick="event.preventDefault();window._insOrg(${o.id})">${o.label}</a> · ${o.workers} hands</div>`).join('')}
+    ${window._tileExtra.notablesHere.slice(0, 4).map(a => `<div class="row uh"><a href="#" onclick="event.preventDefault();window._insAgent(${a.id})">${a.name}</a> · ${a.origin}</div>`).join('')}
+    <div class="row uh">${histStr}</div>`;
+  insEl.style.display = 'block';
+  draw();
+}
+
+function inspectAgent(id) {
+  selAgent = id; selected = -1; selOrg = -1;
+  const a = F.agents[id], t = tNow;
+  const home = a.home >= 0 ? F.sites[a.home] : null;
+  const org = a.work >= 0 ? F.orgs[a.work] : null;
+  const moves = a.homeHist.filter(([ht]) => ht <= t);
+  insTitle.textContent = a.name || `a ${a.occ}`;
+  insBody.innerHTML = `
+    <div class="row"><span class="k">trade</span><span style="color:${CLS_COL[a.cls] || '#cdd6e0'}">${a.occ}</span> · ${a.cls}${a.notable ? ' · a notable of the city' : ''}</div>
+    <div class="row"><span class="k">arrived</span>t ${a.bornT} · ${a.origin === 'immigrant' ? 'came through the gate from away' : a.origin === 'founder' ? 'here from the founding' : 'born in the city'}</div>
+    ${org ? `<div class="row"><span class="k">works for</span><a href="#" onclick="event.preventDefault();window._insOrg(${org.id})">${org.label}</a></div>` : '<div class="row"><span class="k">works</span>unaffiliated</div>'}
+    <div class="row"><span class="k">home tile</span>${home ? '#' + a.home + ' · ' + USE_NAME[Math.max(2, home.use)] : '—'}</div>
+    <div class="row"><span class="k">moves</span>${moves.length - 1} time${moves.length - 1 === 1 ? '' : 's'} within the city</div>
+    <div class="row uh">${moves.map(([ht, hid]) => `t${ht}→#${hid}`).join(' · ')}</div>`;
+  insEl.style.display = 'block';
+  draw();
+}
+
+function inspectOrg(id) {
+  selOrg = id; selected = -1; selAgent = -1;
+  const o = F.orgs[id], t = tNow;
+  const founder = o.founder >= 0 ? F.agents[o.founder] : null;
+  const q = new URLSearchParams({ seed: o.orgSeed, vertical: o.vertical, shape: o.shape, names: o.namePack });
+  const mix = (o.occMix || []).slice(0, 5).map(([occ, n]) => `${occ} <b>${n.toLocaleString()}</b>`).join(' · ');
+  const isAnchor = o.tier === 'anchor';
+  insTitle.textContent = isAnchor ? o.label : `${o.label}${o.third ? ' · a gathering place' : ''}`;
+  insBody.innerHTML = `
+    <div class="row"><span class="k">what</span>${isAnchor ? 'an anchor institution — part of the <b>export base</b>' : 'a local establishment — the <b>secondary economy</b>' + (o.third ? ', a third-place' : '')}</div>
+    <div class="row"><span class="k">kind</span>${o.kind} · ${o.vertical} / ${o.shape}</div>
+    <div class="row"><span class="k">founded</span>t ${o.foundedT}${founder ? ' by <a href="#" onclick="event.preventDefault();window._insAgent(' + o.founder + ')">' + founder.name + '</a>' : isAnchor ? '' : ' (the base multiplier turned)'}</div>
+    <div class="row"><span class="k">workforce</span>${o.workers.toLocaleString()} people</div>
+    <div class="row"><span class="k">its trades</span>${mix || '—'}</div>
+    <div class="row"><span class="k">seat</span>tile #${o.seat}</div>
+    <div class="row" style="margin-top:8px"><a href="https://rite.mino.mobi/org/?${q}" target="_blank" rel="noopener">open ${isAnchor ? 'the full org chart' : 'this shop as an org'} ↗</a></div>
+    <div class="row uh">its people speak the ${o.namePack} voice · address ${o.orgSeed}</div>`;
+  insEl.style.display = 'block';
+  draw();
+}
+window._insAgent = inspectAgent; window._insOrg = inspectOrg;
+document.getElementById('insClose').onclick = () => { insEl.style.display = 'none'; selected = -1; selAgent = -1; selOrg = -1; draw(); };
+
+// ---- interaction: pan / pinch / tap (all coords in BITMAP space via toCanvas) ---
+const pointers = new Map();
+let pinchD0 = 0, pinchS0 = 1, tapInfo = null;
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId);
+  const c = toCanvas(e);
+  pointers.set(e.pointerId, c);
+  if (pointers.size === 1) tapInfo = { x: c.x, y: c.y, t: performance.now() };
+  else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinchD0 = Math.hypot(a.x - b.x, a.y - b.y); pinchS0 = scale; tapInfo = null;
+  }
+});
+cv.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  const c = toCanvas(e);
+  pointers.set(e.pointerId, c);
+  if (pointers.size === 1) {
+    vx += c.x - prev.x; vy += c.y - prev.y;
+    if (tapInfo && Math.hypot(c.x - tapInfo.x, c.y - tapInfo.y) > 10) tapInfo = null;   // it's a drag
+    setDirty();
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinchD0 > 0) {
+      const k = d / pinchD0;
+      const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, ns = pinchS0 * k;
+      vx = cx - (cx - vx) * (ns / scale); vy = cy - (cy - vy) * (ns / scale);
+      scale = ns; setDirty();
+    }
+  }
+});
+const endPointer = e => {
+  const wasTap = tapInfo && pointers.size === 1;
+  pointers.delete(e.pointerId);
+  if (wasTap && pointers.size === 0 && F) {
+    const c = toCanvas(e);
+    const moved = Math.hypot(c.x - tapInfo.x, c.y - tapInfo.y);
+    if (moved < 12 && performance.now() - tapInfo.t < 600) {
+      const wx = (c.x - vx) / scale, wy = (c.y - vy) / scale;
+      // priority: anchor glyph > establishment > notable dot > tile (big targets first)
+      const hitR = 16 / scale, hr2 = hitR * hitR;
+      const estR2 = (9 / scale) ** 2;
+      let org = -1, ov = hr2;
+      for (const o of F.orgs) {
+        if (o.foundedT > tNow) continue;
+        const s = F.sites[o.seat]; if (!s || !aliveAt(s, tNow)) continue;
+        const d = (s.x - wx) ** 2 + (s.y - wy) ** 2;
+        const lim = o.tier === 'anchor' ? ov : estR2;
+        if (d < lim && (org < 0 || d < ov)) { ov = d; org = o.id; }
+      }
+      let ag = -1, av = hr2;
+      for (const a of F.agents) {
+        if (a.bornT > tNow || a.home < 0 || !a.notable) continue;
+        const s = F.sites[a.home]; if (!s || !aliveAt(s, tNow)) continue;
+        const jx = s.x + agJit(a, 0), jy = s.y + agJit(a, 1);
+        const d = (jx - wx) ** 2 + (jy - wy) ** 2;
+        if (d < av) { av = d; ag = a.id; }
+      }
+      if (org >= 0 && ov <= av) inspectOrg(org);
+      else if (ag >= 0) inspectAgent(ag);
+      else {
+        let best = -1, bv = Infinity;
+        for (const s of F.sites) { if (!aliveAt(s, tNow)) continue; const d = (s.x - wx) ** 2 + (s.y - wy) ** 2; if (d < bv) { bv = d; best = s.id; } }
+        if (best >= 0) inspect(best);
+      }
+    }
+  }
+  tapInfo = null;
+};
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const c = toCanvas(e), k = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  vx = c.x - (c.x - vx) * k; vy = c.y - (c.y - vy) * k; scale *= k;
+  setDirty();
+}, { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+
+tSl.oninput = () => {
+  tNow = +tSl.value;
+  if (selAgent >= 0 && F.agents[selAgent].bornT <= tNow) inspectAgent(selAgent);
+  else if (selOrg >= 0 && F.orgs[selOrg].foundedT <= tNow) inspectOrg(selOrg);
+  else if (selected >= 0) inspect(selected);
+  else setDirty();
+};
+playBtn.onclick = () => { playing = !playing; playBtn.textContent = playing ? '❚❚' : '▶'; if (playing) tick(); };
+function tick() {
+  if (!playing) return;
+  tNow = tNow + 1;
+  if (tNow >= T) { tNow = T - 1; playing = false; playBtn.textContent = '▶'; setDirty(); return; }
+  tSl.value = tNow; setDirty();
+  setTimeout(() => requestAnimationFrame(tick), 80);
+}
+document.getElementById('rollBtn').onclick = () => { const s = +seedIn.value || 1; grow('city:' + s, standaloneCtx(s)); };
+
+resize();
+bootFromCiv().then(ok => { if (!ok) { const s = +seedIn.value; grow('city:' + s, standaloneCtx(s)); } })
+  .catch(err => { console.error('civ handoff failed, standalone:', err); const s = +seedIn.value; grow('city:' + s, standaloneCtx(s)); });
+</script>
+</body>
+</html>

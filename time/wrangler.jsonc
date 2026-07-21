@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "time",
+  "compatibility_date": "2026-03-21",
+  // time.mino.mobi — The Mino Times, a two-desk paper (Modulo = data desk,
+  // Morphyx = institutional desk). Pure static assets, no build step; the
+  // front page renders from index.json (built by scripts/build-time-index.mjs).
+  // deploy-time.yml regenerates that manifest, then runs `wrangler deploy`
+  // from this dir. Carved out of the root bundle so it owns its own subdomain.
+  "assets": {
+    "directory": "."
+  },
+  "routes": [
+    { "pattern": "time.mino.mobi", "custom_domain": true }
+  ]
+}

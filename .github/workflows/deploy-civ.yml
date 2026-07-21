@@ -4,12 +4,14 @@ on:
   push:
     branches:
       - main
-      - 'claude/mappa-civ-agent-sim-hghwlt'
+      - 'claude/civ-deploy-unification-vt35ju'
     paths:
       - 'civ/**'
       - 'mappa/civ/**'
       - 'mappa/engine.js'
       - 'mappa/lib/world-share.js'
+      - 'rite/names/engine.js'
+      - 'rite/org/person.js'
       - '.github/workflows/deploy-civ.yml'
   workflow_dispatch:
 

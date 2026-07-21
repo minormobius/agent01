@@ -1560,6 +1560,14 @@ footer a:hover {
 <ul class="projects">
   <li>
     <div class="name-row">
+      <a href="https://mino.mobi/spec/">spec</a>
+      <span class="tag">registry</span>
+      <span class="tag">status</span>
+    </div>
+    <div class="desc">The site-wide technical spec sheet. Every surface&rsquo;s features, stack, deploy wiring, and live status &mdash; generated from the deploy registry, probed from your browser.</div>
+  </li>
+  <li>
+    <div class="name-row">
       <a href="https://mino.mobi/labglass/">labglass</a>
       <span class="tag">duckdb</span>
       <span class="tag">pyodide</span>
@@ -1747,6 +1755,14 @@ footer a:hover {
 <div class="section-label">games</div>
 
 <ul class="projects">
+  <li>
+    <div class="name-row">
+      <a href="https://human.mino.mobi">human</a>
+      <span class="tag">d1</span>
+      <span class="tag">edutainment</span>
+    </div>
+    <div class="desc">Human Machinery &mdash; an arcade of user error. Six playable cognitive-bias exhibits (Stroop, change blindness, anchoring, framing, sunk cost, plus a contested wing for failed replications), live anonymous crowd stats, replication badges and primary sources on every claim.</div>
+  </li>
   <li>
     <div class="name-row">
       <a href="https://torus.mino.mobi/pac/">pac</a>
@@ -1960,6 +1976,11 @@ footer a:hover {
 
 <ul class="claude-index">
   <li>
+    <code>human-machinery</code>
+    <span class="claude-ships">shipped <a href="https://human.mino.mobi">human</a></span>
+    <span class="claude-blurb">The bias arcade: six playable exhibits, live aggregate stats on shared atpolls-db (migration 0033), pixel-font OG cards baked in CI.</span>
+  </li>
+  <li>
     <code>bluesky-thread-analysis</code>
     <span class="claude-ships">shipped <a href="https://mino.mobi/weft/">weft</a></span>
     <span class="claude-blurb">Tidy-tree canvas thread viewer for Bluesky conversations.</span>
@@ -2054,7 +2075,7 @@ footer a:hover {
       <tr><td class="surf"><code>auth</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><code class="ep">mino-auth-db</code></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td></tr>
       <tr><td class="surf"><code>autopilot</code></td><td class="kind">backend</td><td class="eps"><code class="ep">auto</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>b</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://b.mino.mobi">b.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
-      <tr><td class="surf"><code>bakery</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://bakery.mino.mobi">bakery.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>bakery</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://bake.mino.mobi">bake.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>biome</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://biome.mino.mobi">biome.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>bisk</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://bisk.mino.mobi">bisk.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>borges</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://borges.mino.mobi">borges.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
@@ -2064,37 +2085,42 @@ footer a:hover {
       <tr><td class="surf"><code>cards</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://cards.mino.mobi">cards.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>cat</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://cat.mino.mobi">cat.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>chat</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://chat.mino.mobi">chat.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
-      <tr><td class="surf"><code>civ</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://civ.mino.mobi">civ.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>civ</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://civ.mino.mobi">civ.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><code class="ep">civ</code></td></tr>
       <tr><td class="surf"><code>crm</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://crm.mino.mobi">crm.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>cron</code></td><td class="kind">backend</td><td class="eps"><code class="ep">minomobi-cron</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>duck</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://duck.mino.mobi">duck.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
-      <tr><td class="surf"><code>duffel-proxy</code></td><td class="kind">backend</td><td class="eps"><code class="ep">duffel-proxy</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>duffel-proxy</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://air.mino.mobi">air.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>empathy</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://empath.mino.mobi">empath.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>fable</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://fable.mino.mobi">fable.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>feed</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://feed.mino.mobi">feed.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><a class="ep" href="https://feed.mino.mobi">feed.mino.mobi</a></td></tr>
       <tr><td class="surf"><code>finance</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://fin.mino.mobi">fin.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>fipo</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://fipo.mino.mobi">fipo.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>fix</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://fix.mino.mobi">fix.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>fluoddity</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://fluoddity.mino.mobi">fluoddity.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
-      <tr><td class="surf"><code>fred-proxy</code></td><td class="kind">backend</td><td class="eps"><code class="ep">fred-proxy</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>fred-proxy</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://fred.mino.mobi">fred.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>g</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://g.mino.mobi">g.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>games</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://games.mino.mobi">games.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>golem</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://golem.mino.mobi">golem.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>hoop</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://hoop.mino.mobi">hoop.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>human</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://human.mino.mobi">human.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>io</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://io.mino.mobi">io.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code>, <a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>iris</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://iris.mino.mobi">iris.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>j</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://j.mino.mobi">j.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>labglass</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://glass.mino.mobi">glass.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>mappa</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://mappa.mino.mobi">mappa.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>math</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://math.mino.mobi">math.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>mega</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://mega.mino.mobi">mega.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>moji</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://moji.mino.mobi">moji.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>ocr</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://ocr.mino.mobi">ocr.mino.mobi</a>, <a class="ep" href="https://ocr.ascential.work">ocr.ascential.work</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>org</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://org.mino.mobi">org.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
-      <tr><td class="surf"><code>os</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://os.mino.mobi">os.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>os</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://os.mino.mobi">os.mino.mobi</a></td><td class="eps"><a class="ep" href="https://os-api.minomobi.com">os-api.minomobi.com</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>os-api</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://os-api.minomobi.com">os-api.minomobi.com</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><a class="ep" href="https://os-api.minomobi.com">os-api.minomobi.com</a></td></tr>
       <tr><td class="surf"><code>photo</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://photo.mino.mobi">photo.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>phylofiction</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://phylofiction.mino.mobi">phylofiction.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>pm</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://pm.mino.mobi">pm.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>pod</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://pod.mino.mobi">pod.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>pokemon</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://poke.mino.mobi">poke.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>polis</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://polis.mino.mobi">polis.mino.mobi</a></td><td class="eps"><code class="ep">civ</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>poll</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://poll.mino.mobi">poll.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><code class="ep">atpolls-db</code></td></tr>
       <tr><td class="surf"><code>read</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://read.mino.mobi">read.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>reef</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://reef.mino.mobi">reef.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
@@ -2104,6 +2130,7 @@ footer a:hover {
       <tr><td class="surf"><code>scores</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://scores.mino.mobi">scores.mino.mobi</a></td><td class="eps"><code class="ep">mino-scores-db</code>, <a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><a class="ep" href="https://scores.mino.mobi">scores.mino.mobi</a></td></tr>
       <tr><td class="surf"><code>splice</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://splice.mino.mobi">splice.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>tide</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://tide.mino.mobi">tide.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>time</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://time.mino.mobi">time.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>tjs</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://tjs.mino.mobi">tjs.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>torus</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://torus.mino.mobi">torus.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
       <tr><td class="surf"><code>uni</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://uni.mino.mobi">uni.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
@@ -2117,7 +2144,7 @@ footer a:hover {
   </div>
   <p class="sm-foot">
     <!-- SURFACE-MAP-UNMANAGED:BEGIN (generated) -->
-    <b>Unmanaged</b> (wrangler config, no deploy surface yet): —. In progress: <code>os/api (Cloudflare Containers worker os-mino-api; deploy-os-api.yml is READY but dispatch-only; pending: enable CF Containers, set SYNC_TOKEN+GITHUB_TOKEN secrets, create R2 bucket os-workspace, attach os-api.minomobi.com)</code>. Each needs a workflow + registry entry, or a retire decision.
+    <b>Unmanaged</b> (wrangler config, no deploy surface yet): —. Each needs a workflow + registry entry, or a retire decision.
     <!-- SURFACE-MAP-UNMANAGED:END -->
   </p>
 </section>
@@ -2282,6 +2309,7 @@ footer a:hover {
     { n:'fix',      u:'https://fix.mino.mobi',                   c:'tools',   k:2,  a:'hot', t:'2026-07-15', b:'2026-07-15' },
     { n:'chat',     u:'https://chat.mino.mobi',                  c:'tools',   k:3,  a:'hot', t:'2026-07-14', b:'2026-07-09' },
     { n:'office',   u:'https://mino.mobi/office/',               c:'tools',   k:1,  a:'hot', t:'2026-07-15', b:'2026-07-15' },
+    { n:'spec',     u:'https://mino.mobi/spec/',                 c:'tools',   k:1,  a:'hot', t:'2026-07-16', b:'2026-07-16' },
     { n:'read',     u:'https://mino.mobi/read/',                 c:'tools',   k:37, a:'hot', t:'2026-06-03', b:'2026-03-14' },
     { n:'flow',     u:'https://mino.mobi/read/flow/',            c:'tools',   k:1,  a:'warm', t:'2026-05-29', b:'2026-04-05', p:'read' },
     { n:'post01',   u:'https://mino.mobi/read/post01/',          c:'tools',   k:13, a:'hot', t:'2026-05-29', b:'2026-04-27',  p:'read' },
@@ -2305,6 +2333,7 @@ footer a:hover {
     { n:'sweat',    u:'https://mino.mobi/sweat/',                c:'tools',   k:4,  a:'cold', t:'2026-05-29', b:'2026-02-22' },
     { n:'j',        u:'https://j.mino.mobi',                     c:'tools',   k:2,  a:'warm', t:'2026-06-02', b:'2026-06-02' },
     { n:'borges',   u:'https://borges.mino.mobi',                c:'tools',   k:27, a:'hot', t:'2026-06-02', b:'2026-06-01' },
+    { n:'fipo',     u:'https://fipo.mino.mobi',                  c:'tools',   k:1,  a:'hot', t:'2026-07-19', b:'2026-07-19' },
     { n:'ai-edu',   u:'https://ai.mino.mobi',                    c:'tools',   k:26, a:'hot', t:'2026-05-30', b:'2026-05-25' },
     // games
     { n:'g',     u:'https://g.mino.mobi/',               c:'games',   k:119,a:'hot', t:'2026-06-02', b:'2026-03-22' },
