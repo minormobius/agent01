@@ -1292,6 +1292,15 @@
    "parent": null
   },
   {
+   "id": "spec",
+   "name": "spec",
+   "url": "https://mino.mobi/spec/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "read",
    "name": "read",
    "url": "https://mino.mobi/read/",
