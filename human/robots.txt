@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://human.mino.mobi/sitemap.xml

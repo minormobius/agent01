@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "human",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-21",
+  // human.mino.mobi — HUMAN MACHINERY, the bias arcade: every game is rigged
+  // by your own brain. Static exhibits + an anonymous aggregate-stats API.
+  // Shares atpolls-db (migration 0033_human_stats.sql) like rite/airchat/reef.
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atpolls-db",
+      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
+    }
+  ],
+  "routes": [
+    { "pattern": "human.mino.mobi", "custom_domain": true }
+  ]
+}

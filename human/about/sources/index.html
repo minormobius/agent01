@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sources & Badges — Human Machinery</title>
+<meta name="description" content="How Human Machinery cites, what the replication badges mean, and the rules of the house: original stimuli, primary sources, honest failure.">
+<meta property="og:title" content="Sources & Badges — Human Machinery">
+<meta property="og:description" content="Wonder without credulity: the citation policy and badge taxonomy of the bias arcade.">
+<meta property="og:image" content="https://human.mino.mobi/og/default.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a><span class="sep">/</span>
+  <a href="/">human machinery</a><span class="sep">/</span>
+  <span class="here">sources &amp; badges</span>
+</nav>
+
+<div class="wrap">
+  <p class="kicker">The rules of the house</p>
+  <h1>Sources &amp; Badges</h1>
+  <p class="lede">The pitch of this museum: reality, properly cited, is more
+  astonishing than anything made up. These are the rules that keep us honest.</p>
+
+  <h2>The citation policy</h2>
+  <div class="plaque">
+    <p><b>Primary sources or it didn't happen.</b> Every exhibit cites the
+    original paper (with a DOI link) plus at least one replication, review, or
+    meta-analysis. Where the modern record disagrees with the famous version,
+    the plaque says so — see the Framing Clinic's "robust but smaller" note or
+    the Sunk Cost Simulator's contested badge.</p>
+    <p><b>Original stimuli only.</b> The scenes in the Change Blindness Gallery
+    were drawn for this museum; the Stroop word set is our own; the scenarios
+    are retold in our words from the published methods. We don't reproduce
+    licensed test batteries or copyrighted stimulus films.</p>
+    <p><b>Honest failure.</b> Effects that failed to replicate are not hidden —
+    they get their own wing. "We were wrong" is a finding.</p>
+  </div>
+
+  <h2>The badge taxonomy</h2>
+  <div class="case">
+    <p><span class="badge well-replicated">well-replicated</span></p>
+    <p>The effect has survived direct replications, ideally multi-lab ones
+    (e.g. Many Labs), and/or consistent meta-analyses. This is as close to
+    bedrock as psychology gets. (Stroop, change blindness, anchoring, framing.)</p>
+    <p><span class="badge contested">contested</span></p>
+    <p>The classic effect exists in the literature, but rigorous modern work
+    finds it weaker, rarer, or dependent on conditions — or there's serious
+    debate about whether it's a bias at all. The plaque shows both sides.
+    (Sunk cost.)</p>
+    <p><span class="badge failed-replication">failed-replication</span></p>
+    <p>Large, pre-registered replications found the headline effect missing or
+    negligible. Kept on display in the Contested Wing as specimens of how the
+    field corrects itself. (Social priming, ego depletion, power posing.)</p>
+  </div>
+
+  <h2>What your plays become</h2>
+  <div class="plaque">
+    <p>Every exhibit sends a handful of <b>anonymous aggregate events</b> ("one
+    more visitor chose Programme A in the loss frame") to counters on this
+    site. Values like reaction times and estimates are <b>binned in your
+    browser before anything is sent</b>; there are no accounts, ids, cookies,
+    or fingerprints. The aggregates power the "the crowd so far" reveals and
+    the <a href="/stats/">live stats board</a> — a folk replication dataset,
+    clearly labelled as such.</p>
+    <p>Eventually these citation lists may carry bookshop affiliate links (the
+    references paying the rent, on-brand for a museum). If that day comes, it
+    will be disclosed right here in one plain sentence.</p>
+  </div>
+
+  <p class="dim">Human Machinery is a <a href="https://mino.mobi">minomobi</a>
+  property. The whole site is static except the counters; it works with
+  JavaScript disabled everywhere except inside the games themselves.</p>
+</div>
+
+<div id="footer-slot"></div>
+
+<script src="/lib/exhibits.js"></script>
+<script src="/lib/exhibit.js"></script>
+<script>
+  document.getElementById('footer-slot').innerHTML = Human.footerHTML();
+</script>
+</body>
+</html>

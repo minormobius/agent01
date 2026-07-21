@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunk Cost Simulator — Human Machinery</title>
+<meta name="description" content="You paid for two ski trips. They're the same weekend. One is worse. Your wallet will choose for you — two classic sunk-cost scenarios with live crowd splits.">
+<meta property="og:title" content="Sunk Cost Simulator — Human Machinery">
+<meta property="og:description" content="Money you can't get back is about to make a decision for you.">
+<meta property="og:image" content="https://human.mino.mobi/og/sunk-cost.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .scenario { text-align: left; max-width: 62ch; font-size: 18px; }
+  .scenario .prog {
+    display: block; width: 100%; text-align: left; margin: 10px 0;
+    padding: 16px 18px; font-family: var(--serif); font-size: 16px;
+    text-transform: none; letter-spacing: 0;
+  }
+  .scenario .prog b { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; }
+  .beat { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); letter-spacing: 0.2em; }
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a><span class="sep">/</span>
+  <a href="/">human machinery</a><span class="sep">/</span>
+  <span class="here">sunk cost simulator</span>
+</nav>
+
+<div class="wrap">
+  <p class="kicker">Exhibit 05 · Wing of Judgment</p>
+  <h1>Sunk Cost Simulator</h1>
+  <p class="lede">You paid for two ski trips. They're the same weekend. One is worse. Your wallet will choose for you.</p>
+  <p><span class="badge contested">contested</span> <span class="dim small">the classic effect — though a 2021 review finds it weaker and rarer than folklore says</span></p>
+
+  <div class="case">
+    <div class="stage" id="stage">
+      <p class="beat" id="beat">SCENARIO 1 / 2</p>
+      <div class="scenario" id="scenario"></div>
+    </div>
+  </div>
+
+  <div id="reveal"></div>
+
+  <div class="plaque" id="plaque" hidden>
+    <h2>The museum plaque</h2>
+    <p>Money already spent is gone no matter what you do next — a rational
+    decision weighs only future costs against future pleasures. But payments
+    leave a psychological residue, and people behave as if a choice could
+    retroactively justify the expense. Arkes and Blumer named this the
+    <em>sunk cost effect</em> in 1985: offered the two ski trips you just
+    weighed, <b>61% of their subjects chose the more expensive, less enjoyable
+    trip</b> — throwing a good weekend after bad money. The theater-ticket
+    variant comes from Kahneman and Tversky's work on mental accounts: losing
+    a $20 ticket discourages repurchase far more than losing an equivalent
+    $20 bill, though the wallet is out exactly the same $20.</p>
+    <p>Why the <b>contested</b> badge? Because honesty is this museum's whole
+    brand. A 2021 review by Ronayne, Sgroi and Tuckwell found that across many
+    published studies the effect is often much smaller than the classic demos —
+    and frequently absent. Perhaps the effect is fragile, perhaps the scenarios
+    are, perhaps honoring sunk costs is sometimes sensible (reputation,
+    commitment, incomplete information). The exhibit keeps the classic numbers
+    on the plaque and the doubt right next to them.</p>
+    <div id="cites"></div>
+  </div>
+
+  <div id="wormhole"></div>
+</div>
+
+<div id="footer-slot"></div>
+
+<script src="/lib/exhibits.js"></script>
+<script src="/lib/exhibit.js"></script>
+<script>
+(function () {
+  const SLUG = 'sunk-cost';
+
+  const SCENARIOS = [
+    {
+      id: 'ski',
+      setup: `Assume you have spent <b>$100</b> on a ticket for a weekend ski trip to
+        Michigan. A few weeks later you spend <b>$50</b> on a ticket for a weekend ski
+        trip to Wisconsin — and you expect to enjoy the <b>Wisconsin</b> trip more.
+        Then you notice the two trips are the <b>same weekend</b>. Both tickets are
+        non-refundable, and neither can be sold. Which trip do you go on?`,
+      options: [
+        { id: 'michigan', label: '<b>Michigan</b> — the $100 trip (you expect to enjoy it less)' },
+        { id: 'wisconsin', label: '<b>Wisconsin</b> — the $50 trip (you expect to enjoy it more)' },
+      ],
+      original: 'In Arkes & Blumer’s 1985 original, 61% chose Michigan — the pricier, less fun trip. (33% chose Wisconsin; the rest couldn’t decide.)',
+    },
+    {
+      id: 'ticket',
+      setup: `You arrive at the theater to see a play you’ve wanted to see for months.
+        At the box office you discover you have <b>lost the $20 ticket</b> you bought
+        last week. A seat is still available. Do you pay <b>$20</b> for another ticket?`,
+      options: [
+        { id: 'buy', label: '<b>Buy another ticket</b> — the play is the play' },
+        { id: 'leave', label: '<b>Go home</b> — the evening already cost $20' },
+      ],
+      original: 'In Kahneman & Tversky’s version, only 46% said they’d buy a replacement ticket — but when the loss was a $20 bill instead of a ticket, 88% would still buy. Same $20, different mental account.',
+    },
+  ];
+
+  const beatEl = document.getElementById('beat');
+  const scenarioEl = document.getElementById('scenario');
+  let step = 0;
+  const answers = [];
+
+  function renderScenario() {
+    const s = SCENARIOS[step];
+    beatEl.textContent = `SCENARIO ${step + 1} / ${SCENARIOS.length}`;
+    scenarioEl.innerHTML = `
+      <p>${s.setup}</p>
+      ${s.options.map((o) => `<button class="btn prog" data-id="${o.id}">${o.label}</button>`).join('')}`;
+  }
+
+  scenarioEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-id]');
+    if (!btn) return;
+    const s = SCENARIOS[step];
+    Human.track(SLUG, `${s.id}:choice:${btn.dataset.id}`);
+    answers.push({ scenario: s, choice: btn.dataset.id });
+    step++;
+    if (step < SCENARIOS.length) { renderScenario(); return; }
+    Human.track(SLUG, 'done');
+    reveal();
+  });
+
+  async function reveal() {
+    const sum = await Human.summary(SLUG);
+    const b = (sum && sum.buckets) || {};
+    const players = b['done'] || 0;
+
+    const skiM = b['ski:choice:michigan'] || 0, skiW = b['ski:choice:wisconsin'] || 0;
+    const tBuy = b['ticket:choice:buy'] || 0, tLeave = b['ticket:choice:leave'] || 0;
+
+    const youSki = answers[0].choice === 'michigan' ? 'Michigan' : 'Wisconsin';
+    const youTicket = answers[1].choice === 'buy' ? 'bought another ticket' : 'went home';
+
+    document.getElementById('reveal').innerHTML = `
+      <div class="reveal">
+        <p class="you">YOU CHOSE ${youSki.toUpperCase()}, THEN ${youTicket.toUpperCase()}</p>
+        <p class="crowd">${answers[0].choice === 'michigan'
+          ? 'You honored the $100. Most of the original 1985 subjects did too.'
+          : 'You treated the $100 as gone — the economist’s answer, and the minority’s in 1985.'}</p>
+        <h3>The crowd so far (${Human.fmt(players)} players)</h3>
+        <h3 class="dim">The two ski trips</h3>
+        ${Human.bar('Michigan — $100, less fun', skiM, skiM + skiW, {})}
+        ${Human.bar('Wisconsin — $50, more fun', skiW, skiM + skiW, { you: true })}
+        <p class="dim small">${SCENARIOS[0].original}</p>
+        <h3 class="dim">The lost ticket</h3>
+        ${Human.bar('buy another $20 ticket', tBuy, tBuy + tLeave, {})}
+        ${Human.bar('go home', tLeave, tBuy + tLeave, { you: true })}
+        <p class="dim small">${SCENARIOS[1].original}</p>
+      </div>`;
+    document.getElementById('plaque').hidden = false;
+    document.getElementById('stage').style.display = 'none';
+    document.getElementById('reveal').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  const me = Human.exhibit(SLUG);
+  document.getElementById('cites').innerHTML = Human.citeHTML(me.citations);
+  document.getElementById('wormhole').innerHTML = Human.wormholeHTML(SLUG);
+  document.getElementById('footer-slot').innerHTML = Human.footerHTML();
+
+  renderScenario();
+})();
+</script>
+</body>
+</html>

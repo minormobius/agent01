@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Contested Wing — Human Machinery</title>
+<meta name="description" content="Social priming, ego depletion, power posing: three famous effects that failed to replicate. A museum of beautiful failures — and whether you'd have been fooled.">
+<meta property="og:title" content="The Contested Wing — Human Machinery">
+<meta property="og:description" content="Three famous effects that didn't survive replication. The museum keeps them on display — that's the point.">
+<meta property="og:image" content="https://human.mino.mobi/og/contested.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .failure { border-top-color: var(--red); }
+  .failure h3 { color: var(--red); }
+  .poll-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 14px 0; }
+  .poll-done { font-family: var(--mono); font-size: 13px; color: var(--cyan); }
+  .claim { font-style: italic; color: var(--ink); }
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a><span class="sep">/</span>
+  <a href="/">human machinery</a><span class="sep">/</span>
+  <span class="here">the contested wing</span>
+</nav>
+
+<div class="wrap">
+  <p class="kicker">Exhibit 06 · The Contested Wing</p>
+  <h1>The Contested Wing</h1>
+  <p class="lede">Three famous effects that failed to replicate. The museum keeps them on display — that's the point.</p>
+  <p><span class="badge failed-replication">failed-replication</span> <span class="dim small">curated 2012–2016 · honesty as content</span></p>
+
+  <div class="case">
+    <p>Every other exhibit in this arcade shows you a bias and dares you to
+    doubt yourself. This wing shows the field doubting itself. Between 2011 and
+    2016, psychology's "replication crisis" took down a string of textbook
+    results: when independent labs re-ran them with larger samples and
+    pre-registered methods, the effects shrank or vanished. These three were
+    famous enough to make TED talks and airport bookshelves. They are displayed
+    here, respectfully, as specimens of how smart people — including scientists
+    — get fooled by the same machinery you just watched fail you.</p>
+  </div>
+
+  <div class="case failure" id="case-priming">
+    <h3>Ⅰ · Social Priming (1996)</h3>
+    <p class="claim">"Unscramble sentences containing words like <em>elderly</em>,
+    <em>wrinkle</em>, and <em>Florida</em>, and you'll walk out of the lab more
+    slowly — your body quietly enacting the stereotype."</p>
+    <p>Bargh, Chen and Burrows' 1996 study became the flagship of social
+    priming: tiny verbal nudges, big behavioral tides. In 2012, Doyen and
+    colleagues re-ran the elderly-walking experiment with automated timing —
+    and found the slowness appeared only when the experimenters <em>knew</em>
+    who'd been primed. The mind being nudged, they argued, was the measurer's.
+    Large-scale replication projects since have mostly failed to rescue the
+    genre.</p>
+    <div class="poll-row" data-poll="priming">
+      <span class="dim">Honestly — would you have believed the original?</span>
+      <button class="btn" data-v="yes">I'd have believed it</button>
+      <button class="btn" data-v="no">Too cute to be true</button>
+    </div>
+    <div class="poll-done" id="done-priming"></div>
+  </div>
+
+  <div class="case failure" id="case-depletion">
+    <h3>Ⅱ · Ego Depletion (1998)</h3>
+    <p class="claim">"Willpower is a muscle: resist the cookies in experiment one,
+    and you'll quit the puzzles sooner in experiment two. Self-control runs on a
+    depletable fuel."</p>
+    <p>Baumeister's ego depletion spawned over 600 studies and a bestseller
+    (<em>Willpower</em>). In 2016, a pre-registered replication across 23 labs
+    and 2,141 participants — coordinated by Hagger and colleagues, with the
+    original team's input on protocol — found an effect statistically
+    indistinguishable from zero. Later meta-analyses of the broader literature
+    kept finding publication-bias-shaped holes where the fuel gauge should be.</p>
+    <div class="poll-row" data-poll="depletion">
+      <span class="dim">Would you have believed it?</span>
+      <button class="btn" data-v="yes">I'd have believed it</button>
+      <button class="btn" data-v="no">Too cute to be true</button>
+    </div>
+    <div class="poll-done" id="done-depletion"></div>
+  </div>
+
+  <div class="case failure" id="case-posing">
+    <h3>Ⅲ · Power Posing (2010)</h3>
+    <p class="claim">"Stand like Wonder Woman for two minutes before the job
+    interview: expansive postures raise testosterone, lower cortisol, and make
+    you bolder."</p>
+    <p>Carney, Cuddy and Yap's power-posing result rode one of the most-watched
+    TED talks ever to global fame. In 2015, Ranehill and colleagues ran the
+    protocol in a sample five times larger: posture changed how powerful people
+    <em>said they felt</em>, but hormones and risk-taking didn't move. (Cuddy's
+    defenders note the "felt power" piece survives; the endocrine machinery that
+    made it a sensation does not.)</p>
+    <div class="poll-row" data-poll="posing">
+      <span class="dim">Would you have believed it?</span>
+      <button class="btn" data-v="yes">I'd have believed it</button>
+      <button class="btn" data-v="no">Too cute to be true</button>
+    </div>
+    <div class="poll-done" id="done-posing"></div>
+  </div>
+
+  <div id="reveal"></div>
+
+  <div class="plaque">
+    <h2>Why keep failed science in a museum?</h2>
+    <p>Because the failure is the exhibit. Each of these effects was published
+    in a top journal, cited hundreds of times, taught to students, and sold to
+    the public — and each dissolved when the methods got stricter. The machinery
+    that fooled you in the other wings (fluency, story-telling, wanting the
+    world to be nudgeable) fools peer review too. The correction isn't despair;
+    it's the badge system this museum runs on: every claim here carries its
+    replication status, and "we were wrong" gets wall space like anything else.</p>
+    <div id="cites"></div>
+  </div>
+
+  <div id="wormhole"></div>
+</div>
+
+<div id="footer-slot"></div>
+
+<script src="/lib/exhibits.js"></script>
+<script src="/lib/exhibit.js"></script>
+<script>
+(function () {
+  const SLUG = 'contested';
+  const votes = {};
+  let sum = null;
+
+  async function paintPoll(poll) {
+    if (!sum) sum = await Human.summary(SLUG);
+    const b = (sum && sum.buckets) || {};
+    const yes = b[`believe:${poll}:yes`] || 0, no = b[`believe:${poll}:no`] || 0;
+    const el = document.getElementById(`done-${poll}`);
+    if (!el) return;
+    if (!yes && !no) { el.textContent = 'No votes yet — yours is the first.'; return; }
+    el.innerHTML = `of ${Human.fmt(yes + no)} visitors: <b>${Human.pct(yes, yes + no)}%</b> would have believed it, <b>${Human.pct(no, yes + no)}%</b> say too cute to be true.`;
+  }
+
+  document.querySelectorAll('.poll-row').forEach((row) => {
+    row.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-v]');
+      if (!btn || votes[row.dataset.poll]) return;
+      votes[row.dataset.poll] = btn.dataset.v;
+      Human.track(SLUG, `believe:${row.dataset.poll}:${btn.dataset.v}`);
+      row.querySelectorAll('.btn').forEach((b) => (b.disabled = true));
+      if (btn.dataset.v === 'yes') btn.style.borderColor = 'var(--amber)';
+      sum = null;
+      await paintPoll(row.dataset.poll);
+      if (Object.keys(votes).length === 3) finish();
+    });
+    paintPoll(row.dataset.poll);
+  });
+
+  function finish() {
+    Human.track(SLUG, 'done');
+    const said = Object.values(votes).filter((v) => v === 'yes').length;
+    document.getElementById('reveal').innerHTML = `
+      <div class="reveal">
+        <p class="you">YOU'D HAVE BELIEVED ${said} OF 3</p>
+        <p class="crowd">${said >= 2
+          ? 'So did most of the field — for years. That is exactly why this wing exists.'
+          : 'Healthy skepticism! Though note: skepticism is cheapest in hindsight, after someone else runs the 23-lab replication.'}</p>
+      </div>`;
+    document.getElementById('reveal').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  const me = Human.exhibit(SLUG);
+  document.getElementById('cites').innerHTML = Human.citeHTML(me.citations);
+  document.getElementById('wormhole').innerHTML = Human.wormholeHTML(SLUG);
+  document.getElementById('footer-slot').innerHTML = Human.footerHTML();
+})();
+</script>
+</body>
+</html>
