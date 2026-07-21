@@ -81,6 +81,24 @@
     .grp { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
     .grp .gt { font-size:10px; color:var(--soft); text-transform:uppercase; letter-spacing:.05em; }
     #optics { display:none; } body.pov #optics { display:block; }
+    /* tag mode */
+    body.tagmode #hud .grid { display:none; }
+    #taghud { display:none; } body.tagmode #taghud { display:block; }
+    .tagit { font-size:13px; margin-bottom:8px; } .tagit b { font-size:15px; }
+    #tag-flash { color:#ff5ac8; font-weight:800; margin-left:6px; opacity:0; }
+    .tb, .rb { display:flex; align-items:center; gap:7px; margin:5px 0; font-size:12px; font-variant-numeric:tabular-nums; }
+    .track { flex:1; height:9px; border-radius:5px; background:#1c1430; overflow:hidden; }
+    .track i { display:block; height:100%; width:0%; border-radius:5px; transition:width .12s linear; }
+    .tb:nth-child(2) .track i, .rb:first-of-type .track i { background:var(--accent); }
+    .tb:nth-child(3) .track i, .rb:last-of-type .track i { background:var(--warm); }
+    #bar1, #res1 { background:var(--accent); } #bar2, #res2 { background:var(--warm); }
+    .tagmeta { font-size:10px; color:var(--soft); margin-top:6px; text-transform:uppercase; letter-spacing:.03em; }
+    .brain { border:1px solid var(--line); border-radius:9px; padding:7px 9px; margin-top:9px; }
+    .brain .bt { font-size:12px; font-weight:700; margin-bottom:2px; }
+    .bwin { float:right; font-size:10px; color:var(--good); font-weight:700; }
+    .resbars { margin-top:9px; }
+    .winner { margin-top:9px; text-align:center; font-size:14px; font-weight:800; padding:7px; border-radius:8px;
+              background:#1c1430; border:1px solid var(--line); }
     .btns { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
     button.act { font:inherit; font-size:12px; color:#eef; background:#1c1430; border:1px solid var(--line);
              border-radius:8px; padding:7px 10px; cursor:pointer; flex:1 1 auto; }
@@ -128,24 +146,60 @@
       <div class="stat big"><div class="k">Rival in chaser's eye — azimuth / elevation</div><div class="v" id="s-eye">—</div></div>
       <div class="rolerow"><span id="s-role" style="min-width:74px">—</span><div class="rolebar"><i id="rolepin" style="left:50%"></i></div></div>
     </div>
+    <div id="taghud">
+      <div class="tagit">IT <b id="tag-it">—</b> <span id="tag-flash"></span></div>
+      <div class="tb"><span class="dotA"></span><div class="track"><i id="bar1"></i></div><b id="t1">0.0s</b></div>
+      <div class="tb"><span class="dotB"></span><div class="track"><i id="bar2"></i></div><b id="t2">0.0s</b></div>
+      <div class="tagmeta"><span id="tag-round">Round 1 / 2</span> · <span id="tag-clock">0.0s</span> · <span id="tag-count">0 tags</span></div>
+    </div>
   </div>
 
   <div id="graphs">
-    <p class="glabel">Kinematics — speed · rival elevation-in-eye · role balance</p>
+    <p class="glabel" id="glabel">Kinematics — speed · rival elevation-in-eye · role balance</p>
     <canvas id="gcanvas" width="600" height="336"></canvas>
   </div>
 
   <div id="dock">
     <div class="head" id="dockhead"><b>Bout &amp; guidance</b><span id="docktoggle">▾</span></div>
     <div class="body">
-      <div class="seg" id="presets"></div>
-      <p class="blurb" id="blurb"></p>
+      <div class="seg" id="modeseg">
+        <button data-m="sandbox" class="on">Sandbox</button>
+        <button data-m="tag">Tag match</button>
+      </div>
 
-      <div class="row"><label>Elevation set-point <span class="rv" id="rv-elev"></span></label><input type="range" id="sl-elev" min="0" max="35" step="1"></div>
-      <div class="row"><label>Turn-rate cap <span class="rv" id="rv-turn"></span></label><input type="range" id="sl-turn" min="2" max="12" step="0.2"></div>
-      <div class="row"><label>Preferred speed <span class="rv" id="rv-pref"></span></label><input type="range" id="sl-pref" min="2" max="5" step="0.1"></div>
-      <div class="row"><label>Stand-off range <span class="rv" id="rv-stand"></span></label><input type="range" id="sl-stand" min="0.8" max="3" step="0.1"></div>
-      <div class="row"><label>Speed asymmetry <span class="rv" id="rv-asym"></span></label><input type="range" id="sl-asym" min="0" max="0.3" step="0.01"></div>
+      <div id="sandbox-ctl">
+        <div class="seg" id="presets"></div>
+        <p class="blurb" id="blurb"></p>
+
+        <div class="row"><label>Elevation set-point <span class="rv" id="rv-elev"></span></label><input type="range" id="sl-elev" min="0" max="35" step="1"></div>
+        <div class="row"><label>Turn-rate cap <span class="rv" id="rv-turn"></span></label><input type="range" id="sl-turn" min="2" max="12" step="0.2"></div>
+        <div class="row"><label>Preferred speed <span class="rv" id="rv-pref"></span></label><input type="range" id="sl-pref" min="2" max="5" step="0.1"></div>
+        <div class="row"><label>Stand-off range <span class="rv" id="rv-stand"></span></label><input type="range" id="sl-stand" min="0.8" max="3" step="0.1"></div>
+        <div class="row"><label>Speed asymmetry <span class="rv" id="rv-asym"></span></label><input type="range" id="sl-asym" min="0" max="0.3" step="0.01"></div>
+      </div>
+
+      <div id="tag-ctl" style="display:none">
+        <p class="blurb">Two brains play <b>tag</b> in the arena. IT chases; the other evades &amp; jukes. Get close enough and roles <b>swap</b>. Two rounds (starting-IT swapped for fairness) — the <b>winner spends less time as IT</b>. At equal speed, agility wins; a speed edge tilts it.</p>
+        <div class="brain" id="brain1"><div class="bt"><span class="dotA"></span>Brain ① <span class="bwin" id="win1"></span></div>
+          <div class="row"><label>Speed <span class="rv" id="rv-b1s"></span></label><input type="range" id="b1s" min="3.4" max="4.8" step="0.05" value="4.3"></div>
+          <div class="row"><label>Agility <span class="rv" id="rv-b1a"></span></label><input type="range" id="b1a" min="4.5" max="9.5" step="0.1" value="5.2"></div>
+          <div class="row"><label>Evasiveness <span class="rv" id="rv-b1e"></span></label><input type="range" id="b1e" min="0.3" max="1.6" step="0.05" value="0.6"></div>
+        </div>
+        <div class="brain" id="brain2"><div class="bt"><span class="dotB"></span>Brain ② <span class="bwin" id="win2"></span></div>
+          <div class="row"><label>Speed <span class="rv" id="rv-b2s"></span></label><input type="range" id="b2s" min="3.4" max="4.8" step="0.05" value="3.95"></div>
+          <div class="row"><label>Agility <span class="rv" id="rv-b2a"></span></label><input type="range" id="b2a" min="4.5" max="9.5" step="0.1" value="9.0"></div>
+          <div class="row"><label>Evasiveness <span class="rv" id="rv-b2e"></span></label><input type="range" id="b2e" min="0.3" max="1.6" step="0.05" value="1.3"></div>
+        </div>
+        <div class="btns"><button class="act on" id="btn-run" style="flex:2">▶ Run match</button></div>
+        <div id="tag-res" style="display:none">
+          <div class="seg" id="roundtabs"><button data-r="0" class="on">Round 1</button><button data-r="1">Round 2</button></div>
+          <div class="resbars">
+            <div class="rb"><span class="dotA"></span>①<div class="track"><i id="res1"></i></div><b id="rt1">0.0s</b></div>
+            <div class="rb"><span class="dotB"></span>②<div class="track"><i id="res2"></i></div><b id="rt2">0.0s</b></div>
+          </div>
+          <div class="winner" id="winner">—</div>
+        </div>
+      </div>
 
       <div class="grp">
         <div class="gt">View</div>
@@ -179,7 +233,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { simulate, presetConfig, PRESETS } from './dragon-sim.js';
+import { simulate, presetConfig, PRESETS, simulateTag, defaultBrain, tagConfig } from './dragon-sim.js';
 
 // ── optional wasm accelerator (Rust). JS mirror is the fallback. ──
 let WASM = null;
@@ -205,6 +259,9 @@ let headWho = 0;             // 0=A, 1=B
 let ribbonsOn = true;
 let activePreset = 'duel';
 let opt = { field: 250 * Math.PI / 180, facet: 34, blur: 55 };
+let gameMode = 'sandbox';     // 'sandbox' | 'tag'
+let match = null;             // { rounds:[r1,r2], tags, tagRange, viewing }
+let simSteps = 1440, simDt = 1 / 120;
 
 // ── renderer / scene ─────────────────────────────────────────────────────────────
 const canvas = document.getElementById('scene');
@@ -329,6 +386,11 @@ const flyA = makeDragonfly(0x39d6c8, 0x9ff0e8);
 const flyB = makeDragonfly(0xff6ad5, 0xffc0ec);
 scene.add(flyA); scene.add(flyB);
 
+// "IT" marker for tag mode — a pulsing ring that rides the current pursuer
+const itRing = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.03, 8, 28),
+  new THREE.MeshBasicMaterial({ color: 0xff2020, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+itRing.visible = false; scene.add(itRing);
+
 // ── Tron light-rails (banking neon fins that fade with age) ───────────────────────
 const RAIL_FADE = 190;   // frames the rail stays lit
 function makeRail(color) {
@@ -391,12 +453,102 @@ function buildRail(rail, g) {
 
 function resolve() {
   sim = solve(cfg);
-  frame = Math.min(frame, cfg.steps - 1);
-  document.getElementById('scrub').max = cfg.steps - 1;
+  simSteps = cfg.steps; simDt = cfg.dt;
+  frame = Math.min(frame, simSteps - 1);
+  document.getElementById('scrub').max = simSteps - 1;
   buildRail(railA, sim.a); buildRail(railB, sim.b);
   drawGraphsBase();
 }
 const chaserIsA = (i) => at(sim.role, i) >= 0;
+
+// ── tag ──────────────────────────────────────────────────────────────────────────
+function solveTag(cfgT) {
+  if (WASM && WASM.simulate_tag_json) { try { return JSON.parse(WASM.simulate_tag_json(JSON.stringify(cfgT))); } catch (e) {} }
+  return simulateTag(cfgT);
+}
+function brainFrom(sPref, agility, evasion) {
+  return { ...defaultBrain(), speedPref: sPref, speedMax: sPref + 1.4, turnMax: agility, juke: evasion };
+}
+function readBrain(pre) {
+  return brainFrom(parseFloat(document.getElementById(pre + 's').value),
+                   parseFloat(document.getElementById(pre + 'a').value),
+                   parseFloat(document.getElementById(pre + 'e').value));
+}
+function viewRound(k) {
+  match.viewing = k;
+  sim = match.rounds[k]; simSteps = sim.a.speed.length; simDt = 1 / 120;
+  frame = 0; document.getElementById('scrub').max = simSteps - 1;
+  buildRail(railA, sim.a); buildRail(railB, sim.b);
+  drawTagGraphsBase();
+  [...document.getElementById('roundtabs').children].forEach((c) => c.classList.toggle('on', +c.dataset.r === k));
+  playing = true; document.getElementById('btn-play').textContent = '⏸';
+}
+function runMatch() {
+  const bA = readBrain('b1'), bB = readBrain('b2');
+  const r1 = solveTag(tagConfig(bA, bB, true));   // Brain ① starts IT
+  const r2 = solveTag(tagConfig(bB, bA, true));   // Brain ② starts IT (swap start for fairness)
+  // r2 was solved with brains swapped into A/B slots, so flip its arrays back to ①=A view:
+  const r2f = { a: r2.b, b: r2.a, it: Uint8Array.from(r2.it, (v) => v ^ 1), tags: r2.tags,
+    itTimeA: r2.itTimeB, itTimeB: r2.itTimeA, t: r2.t };
+  match = { rounds: [r1, r2f], viewing: 0, tagRange: tagConfig(bA, bB, true).tagRange };
+  const it1 = r1.itTimeA + r2f.itTimeA, it2 = r1.itTimeB + r2f.itTimeB;
+  match.it1 = it1; match.it2 = it2;
+  // results UI
+  document.getElementById('tag-res').style.display = 'block';
+  const winner = it1 < it2 - 0.3 ? 1 : it2 < it1 - 0.3 ? 2 : 0;
+  document.getElementById('winner').innerHTML = winner === 0 ? 'Dead heat'
+    : `Brain ${winner === 1 ? '①' : '②'} wins — less time as IT`;
+  document.getElementById('winner').style.color = winner === 1 ? 'var(--accent)' : winner === 2 ? 'var(--warm)' : '#eef';
+  document.getElementById('win1').textContent = winner === 1 ? '✦ winner' : '';
+  document.getElementById('win2').textContent = winner === 2 ? '✦ winner' : '';
+  const mx = Math.max(it1, it2, 1);
+  document.getElementById('res1').style.width = (100 * it1 / mx) + '%';
+  document.getElementById('res2').style.width = (100 * it2 / mx) + '%';
+  document.getElementById('rt1').textContent = it1.toFixed(1) + 's';
+  document.getElementById('rt2').textContent = it2.toFixed(1) + 's';
+  viewRound(0);
+}
+
+function updateTagHUD(i) {
+  const aIt = sim.it[i] === 0;
+  document.getElementById('tag-it').innerHTML = aIt ? '<span class="dotA"></span>Brain ①' : '<span class="dotB"></span>Brain ②';
+  // pursuit time accrued so far this round
+  let ta = 0, tb = 0; for (let k = 0; k <= i; k++) (sim.it[k] === 0 ? ta += simDt : tb += simDt);
+  const mx = Math.max(ta, tb, 0.001);
+  document.getElementById('bar1').style.width = (100 * ta / mx) + '%';
+  document.getElementById('bar2').style.width = (100 * tb / mx) + '%';
+  document.getElementById('t1').textContent = ta.toFixed(1) + 's';
+  document.getElementById('t2').textContent = tb.toFixed(1) + 's';
+  document.getElementById('tag-round').textContent = 'Round ' + (match.viewing + 1) + ' / 2';
+  document.getElementById('tag-clock').textContent = (i * simDt).toFixed(1) + 's';
+  const nTags = sim.tags.filter((f) => f <= i).length;
+  document.getElementById('tag-count').textContent = nTags + ' tag' + (nTags === 1 ? '' : 's');
+  document.getElementById('tlabel').textContent = (i * simDt).toFixed(1) + 's';
+  const flash = sim.tags.some((f) => i >= f && i < f + 12);
+  document.getElementById('tag-flash').textContent = flash ? 'TAG!' : '';
+  document.getElementById('tag-flash').style.opacity = flash ? 1 : 0;
+}
+function drawTagGraphsBase() {
+  const W = gc.width, H = gc.height, n = simSteps, h = H / 2;
+  gx.clearRect(0, 0, W, H);
+  gx.fillStyle = 'rgba(255,255,255,.05)'; gx.fillRect(0, 0, W, h); gx.fillRect(0, h, W, h);
+  gx.fillStyle = '#9a90c0'; gx.font = '20px -apple-system,sans-serif';
+  gx.fillText('range between flyers  (m — dashed = tag range)', 8, 22);
+  gx.fillText('who is IT   (① teal / ② magenta)', 8, h + 22);
+  const xt = (i) => (i / (n - 1)) * W;
+  // range
+  let rmax = 0.1; for (let i = 0; i < n; i++) rmax = Math.max(rmax, sim.a.range[i]);
+  gx.strokeStyle = 'rgba(240,184,73,.9)'; gx.setLineDash([6, 5]); gx.lineWidth = 1.5;
+  { const y = (h - 8) - (match.tagRange / rmax) * (h - 8) + 4; gx.beginPath(); gx.moveTo(0, y); gx.lineTo(W, y); gx.stroke(); }
+  gx.setLineDash([]); gx.strokeStyle = '#eef'; gx.lineWidth = 2; gx.beginPath();
+  for (let i = 0; i < n; i++) { const y = (h - 8) - (sim.a.range[i] / rmax) * (h - 8) + 4; i ? gx.lineTo(xt(i), y) : gx.moveTo(xt(i), y); } gx.stroke();
+  // IT band
+  for (let i = 0; i < n; i++) { gx.fillStyle = sim.it[i] === 0 ? '#39d6c8' : '#ff6ad5'; gx.fillRect(xt(i), h + 8, Math.ceil(W / n) + 1, h - 16); }
+  // tag marks
+  gx.strokeStyle = '#fff'; gx.lineWidth = 1;
+  for (const f of sim.tags) { gx.beginPath(); gx.moveTo(xt(f), h); gx.lineTo(xt(f), H); gx.stroke(); }
+  gBase = gx.getImageData(0, 0, W, H);
+}
 
 // ── HUD ──────────────────────────────────────────────────────────────────────────
 function updateHUD(i) {
@@ -605,12 +757,23 @@ function tick(ts) {
   requestAnimationFrame(tick);
   const dtms = lastTs ? (ts - lastTs) : 16; lastTs = ts; wingClock += dtms / 1000;
   if (!sim) return;
-  if (playing) { frame += (dtms / 1000) * playSpeed / cfg.dt; if (frame >= cfg.steps - 1) frame = 0; document.getElementById('scrub').value = Math.floor(frame); }
-  const i = Math.max(0, Math.min(cfg.steps - 1, Math.floor(frame)));
+  if (playing) { frame += (dtms / 1000) * playSpeed / simDt; if (frame >= simSteps - 1) frame = 0; document.getElementById('scrub').value = Math.floor(frame); }
+  const i = Math.max(0, Math.min(simSteps - 1, Math.floor(frame)));
 
   { const [px, py, pz] = pos(sim.a, i), [vx, vy, vz] = vel(sim.a, i); orientMesh(flyA, px, py, pz, vx, vy, vz); }
   { const [px, py, pz] = pos(sim.b, i), [vx, vy, vz] = vel(sim.b, i); orientMesh(flyB, px, py, pz, vx, vy, vz); }
   for (const g of [flyA, flyB]) for (const w of g.userData.wings) w.pivot.rotation.z = w.sx * (0.35 + 0.5 * Math.sin(wingClock * 38 + w.phase));
+
+  // IT marker (tag mode): ride the pursuer, pulse, pop on a tag
+  if (gameMode === 'tag' && sim.it) {
+    const itMesh = sim.it[i] === 0 ? flyA : flyB;
+    const near = sim.tags.some((f) => i >= f && i < f + 12);
+    const pulse = 1 + 0.12 * Math.sin(wingClock * 9) + (near ? 0.5 : 0);
+    itRing.position.copy(itMesh.position); itRing.scale.setScalar(pulse);
+    itRing.quaternion.copy(orbitCam.quaternion);   // face the viewer
+    itRing.material.opacity = near ? 1 : 0.85;
+    itRing.visible = (view === 'orbit' || view === 'head');
+  } else itRing.visible = false;
 
   // rails: fade with age around the current frame
   for (const rail of [railA, railB]) {
@@ -624,7 +787,8 @@ function tick(ts) {
   else if (view === 'head') { placeHeadCam(i); drawHeadReticle(i); renderer.render(scene, headCam); }
   else { controls.update(); renderer.render(scene, orbitCam); }
 
-  updateHUD(i); drawGraphsPlayhead(i);
+  if (gameMode === 'tag' && sim.it) { updateTagHUD(i); drawGraphsPlayhead(i); }
+  else { updateHUD(i); drawGraphsPlayhead(i); }
 }
 requestAnimationFrame(tick);
 
@@ -691,6 +855,33 @@ btnPlay.onclick = () => { playing = !playing; btnPlay.textContent = playing ? '�
 scrub.addEventListener('input', () => { frame = parseInt(scrub.value); playing = false; btnPlay.textContent = '▶'; });
 document.getElementById('dockhead').onclick = () => document.getElementById('dock').classList.toggle('min');
 document.getElementById('uitoggle').onclick = () => document.body.classList.toggle('ui-hidden');
+
+// ── tag controls ──────────────────────────────────────────────────────────────────
+const tagSliders = [
+  ['b1s', 'rv-b1s', (v) => v.toFixed(2) + ' m/s'], ['b1a', 'rv-b1a', (v) => v.toFixed(1) + ' rad/s'], ['b1e', 'rv-b1e', (v) => v.toFixed(2)],
+  ['b2s', 'rv-b2s', (v) => v.toFixed(2) + ' m/s'], ['b2a', 'rv-b2a', (v) => v.toFixed(1) + ' rad/s'], ['b2e', 'rv-b2e', (v) => v.toFixed(2)],
+];
+for (const [sl, rv, fmt] of tagSliders) {
+  const el = document.getElementById(sl);
+  const upd = () => (document.getElementById(rv).textContent = fmt(parseFloat(el.value)));
+  upd(); el.addEventListener('input', upd);
+}
+document.getElementById('btn-run').onclick = () => runMatch();
+[...document.getElementById('roundtabs').children].forEach((b) => (b.onclick = () => viewRound(+b.dataset.r)));
+
+function setMode(m) {
+  gameMode = m;
+  [...document.getElementById('modeseg').children].forEach((c) => c.classList.toggle('on', c.dataset.m === m));
+  document.getElementById('sandbox-ctl').style.display = m === 'sandbox' ? 'block' : 'none';
+  document.getElementById('tag-ctl').style.display = m === 'tag' ? 'block' : 'none';
+  document.body.classList.toggle('tagmode', m === 'tag');
+  document.getElementById('glabel').textContent = m === 'tag'
+    ? 'Tag — range between flyers · who is IT (① / ②)'
+    : 'Kinematics — speed · rival elevation-in-eye · role balance';
+  if (m === 'tag') { if (!match) runMatch(); else viewRound(match.viewing); }
+  else { itRing.visible = false; resolve(); playing = true; document.getElementById('btn-play').textContent = '⏸'; }
+}
+[...document.getElementById('modeseg').children].forEach((b) => (b.onclick = () => setMode(b.dataset.m)));
 
 addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); btnPlay.click(); }

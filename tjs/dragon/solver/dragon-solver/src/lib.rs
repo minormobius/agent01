@@ -369,10 +369,190 @@ pub fn simulate(cfg: &Config) -> SimOut {
     SimOut { t, a: sa, b: sb, role }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════════
+// TAG — two flyers with distinct "brains" play tag. One is IT (pursuer, chases to the
+// frontal set-point); the other evades (flees + jukes). When IT closes inside `tag_range`
+// the roles SWAP (after a cooldown). A round is a fixed clock; the bounded arena corners
+// the evader so catches happen. Mirror of the JS `simulateTag`.
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+/// A flyer's "brain": the parameters that make two competitors behave differently.
+#[derive(Clone, Copy, Debug)]
+pub struct Brain {
+    pub speed_pref: f64,
+    pub speed_max: f64,
+    pub speed_min: f64,
+    pub turn_gain: f64,
+    pub turn_max: f64,
+    pub pitch_limit: f64,
+    pub accel_gain: f64,
+    pub accel_max: f64,
+    pub elev_set: f64,
+    pub juke: f64,
+    pub juke_freq: f64,
+}
+
+/// A default brain; layer overrides for the two competitors.
+pub fn default_brain() -> Brain {
+    Brain {
+        speed_pref: 4.0,
+        speed_max: 5.5,
+        speed_min: 1.8,
+        turn_gain: 9.0,
+        turn_max: 6.5,
+        pitch_limit: 55.0_f64.to_radians(),
+        accel_gain: 6.0,
+        accel_max: 20.0,
+        elev_set: 0.14,
+        juke: 0.9,
+        juke_freq: 5.0,
+    }
+}
+
+/// One tag round.
+#[derive(Clone, Copy, Debug)]
+pub struct TagConfig {
+    pub dt: f64,
+    pub steps: usize,
+    pub brain_a: Brain,
+    pub brain_b: Brain,
+    pub a_is_it: bool,
+    pub tag_range: f64,
+    pub cooldown: f64,
+    pub arena_r: f64,
+    pub alt_base: f64,
+    pub alt_halfband: f64,
+    pub band_gain: f64,
+    pub a: Agent,
+    pub b: Agent,
+}
+
+/// Result of one tag round.
+pub struct TagOut {
+    pub t: Vec<f64>,
+    pub a: Vec<Sample>,
+    pub b: Vec<Sample>,
+    /// 0 => A is IT (pursuer), 1 => B is IT, per frame.
+    pub it: Vec<u8>,
+    /// Frame indices where a tag (role swap) happened.
+    pub tags: Vec<usize>,
+    pub it_time_a: f64,
+    pub it_time_b: f64,
+}
+
+/// Soft arena containment: bias a desired-forward back toward the centre near the wall.
+fn contain(p: V3, fdes: V3, arena_r: f64) -> V3 {
+    let r = (p.x * p.x + p.z * p.z).sqrt();
+    if r < arena_r * 0.8 {
+        return fdes;
+    }
+    let inward = V3::new(-p.x, 0.0, -p.z).norm();
+    let w = clamp((r - arena_r * 0.8) / (arena_r * 0.35), 0.0, 1.0);
+    fdes.scale(1.0 - w).add(inward.scale(w)).norm()
+}
+
+/// Advance one flyer one tag-step. `pursuer` = is this flyer IT.
+fn step_tag(me: Agent, foe: Agent, brain: &Brain, pursuer: bool, t: f64, phase: f64, cfg: &TagConfig) -> (Agent, Sample) {
+    let to_foe = foe.pos.sub(me.pos);
+    let range = to_foe.len();
+    let d = to_foe.norm();
+    let speed0 = me.vel.len();
+    let fwd = if speed0 > 1e-6 { me.vel.norm() } else { d };
+    let (right, up) = body_frame(fwd);
+    let (az, el) = look_angles(d, fwd, right, up);
+
+    let mut f_des;
+    if pursuer {
+        f_des = desired_forward(d, brain.elev_set);
+    } else {
+        f_des = d.scale(-1.0);
+        let mut side = WORLD_UP.cross(d);
+        if side.len() < 1e-6 {
+            side = right;
+        }
+        side = side.norm();
+        f_des = f_des.add(side.scale(brain.juke * (t * brain.juke_freq + phase).sin())).norm();
+    }
+    let alt_err = clamp((me.pos.y - cfg.alt_base) / cfg.alt_halfband, -1.0, 1.0);
+    f_des = f_des.sub(WORLD_UP.scale(alt_err * cfg.band_gain)).norm();
+    f_des = contain(me.pos, f_des, cfg.arena_r);
+    f_des = pitch_limit(f_des, brain.pitch_limit);
+
+    let ang = fwd.dot(f_des).clamp(-1.0, 1.0).acos();
+    let cmd = (brain.turn_gain * ang).min(brain.turn_max);
+    let step_ang = (cmd * cfg.dt).min(ang);
+    let new_fwd = if ang < 1e-9 {
+        fwd
+    } else {
+        pitch_limit(rot(fwd, fwd.cross(f_des).norm(), step_ang), brain.pitch_limit)
+    };
+    let turn_rate = step_ang / cfg.dt;
+
+    let target = if pursuer { brain.speed_pref } else { brain.speed_pref * 0.94 };
+    let dv_cap = brain.accel_max * cfg.dt;
+    let dv = clamp(brain.accel_gain * (target - speed0) * cfg.dt, -dv_cap, dv_cap);
+    let new_speed = clamp(speed0 + dv, brain.speed_min, brain.speed_max);
+
+    let new_vel = new_fwd.scale(new_speed);
+    let new_pos = me.pos.add(new_vel.scale(cfg.dt));
+    (
+        Agent { pos: new_pos, vel: new_vel },
+        Sample { pos: me.pos, vel: me.vel, speed: speed0, turn_rate, range, azimuth: az, elevation: el },
+    )
+}
+
+/// Play one tag round.
+pub fn simulate_tag(cfg: &TagConfig) -> TagOut {
+    let n = cfg.steps;
+    let mut a = cfg.a;
+    let mut b = cfg.b;
+    let mut a_it = cfg.a_is_it;
+    let cool = (cfg.cooldown / cfg.dt).round() as i64;
+    let mut last_tag: i64 = -cool - 1;
+    let mut out = TagOut {
+        t: Vec::with_capacity(n), a: Vec::with_capacity(n), b: Vec::with_capacity(n),
+        it: Vec::with_capacity(n), tags: Vec::new(), it_time_a: 0.0, it_time_b: 0.0,
+    };
+    for i in 0..n {
+        let t = i as f64 * cfg.dt;
+        let (na, sa) = step_tag(a, b, &cfg.brain_a, a_it, t, 0.0, cfg);
+        let (nb, sb) = step_tag(b, a, &cfg.brain_b, !a_it, t, std::f64::consts::PI, cfg);
+        out.t.push(t);
+        out.it.push(if a_it { 0 } else { 1 });
+        if a_it {
+            out.it_time_a += cfg.dt;
+        } else {
+            out.it_time_b += cfg.dt;
+        }
+        let range = a.pos.sub(b.pos).len();
+        if range < cfg.tag_range && (i as i64 - last_tag) > cool {
+            a_it = !a_it;
+            last_tag = i as i64;
+            out.tags.push(i);
+        }
+        out.a.push(sa);
+        out.b.push(sb);
+        a = na;
+        b = nb;
+    }
+    out
+}
+
 // ────────────────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tag_cfg(brain_a: Brain, brain_b: Brain, a_is_it: bool) -> TagConfig {
+        TagConfig {
+            dt: 1.0 / 120.0, steps: 2160,
+            brain_a, brain_b, a_is_it,
+            tag_range: 0.45, cooldown: 0.6,
+            arena_r: 6.6, alt_base: 2.4, alt_halfband: 1.5, band_gain: 0.9,
+            a: Agent { pos: V3::new(-2.4, 2.4, 0.0), vel: V3::new(3.0, 0.0, 0.6) },
+            b: Agent { pos: V3::new(2.4, 2.4, 0.0), vel: V3::new(-3.0, 0.0, -0.6) },
+        }
+    }
 
     fn approx(a: f64, b: f64, tol: f64) -> bool {
         (a - b).abs() <= tol
@@ -501,5 +681,61 @@ mod tests {
             }
         }
         assert!(flips >= 1, "expected at least one role reversal, got {flips}");
+    }
+
+    // ── tag ──────────────────────────────────────────────────────────────────────
+    #[test]
+    fn tag_time_accounts_for_the_whole_round() {
+        let cfg = tag_cfg(default_brain(), default_brain(), true);
+        let out = simulate_tag(&cfg);
+        let total = cfg.steps as f64 * cfg.dt;
+        assert!((out.it_time_a + out.it_time_b - total).abs() < 1e-6, "IT time must cover the round");
+    }
+
+    #[test]
+    fn tag_swaps_roles_and_it_flag_tracks_it() {
+        // asymmetric, catchable brains → several tags, and every tag flips the IT flag.
+        let a = Brain { turn_max: 9.0, juke: 1.3, ..default_brain() };
+        let b = Brain { turn_max: 5.0, juke: 0.4, ..default_brain() };
+        let out = simulate_tag(&tag_cfg(a, b, true));
+        assert!(!out.tags.is_empty(), "asymmetric brains should produce tags");
+        for &f in &out.tags {
+            if f + 1 < out.it.len() {
+                assert_ne!(out.it[f], out.it[f + 1], "IT flag must flip right after a tag frame");
+            }
+        }
+    }
+
+    #[test]
+    fn tag_is_deterministic() {
+        let a = simulate_tag(&tag_cfg(default_brain(), default_brain(), true));
+        let b = simulate_tag(&tag_cfg(default_brain(), default_brain(), true));
+        assert_eq!(a.it_time_a, b.it_time_a);
+        assert_eq!(a.tags, b.tags);
+        for i in 0..a.a.len() {
+            assert_eq!(a.a[i].pos, b.a[i].pos);
+        }
+    }
+
+    #[test]
+    fn tag_stays_in_the_arena_and_finite() {
+        let cfg = tag_cfg(default_brain(), Brain { speed_pref: 4.5, ..default_brain() }, false);
+        let out = simulate_tag(&cfg);
+        for s in out.a.iter().chain(out.b.iter()) {
+            for c in [s.pos.x, s.pos.y, s.pos.z, s.speed] {
+                assert!(c.is_finite(), "non-finite tag sample");
+            }
+            let r = (s.pos.x * s.pos.x + s.pos.z * s.pos.z).sqrt();
+            assert!(r < cfg.arena_r * 1.3, "flyer left the arena (r={r})");
+        }
+    }
+
+    #[test]
+    fn tag_cooldown_prevents_instant_re_tag() {
+        let out = simulate_tag(&tag_cfg(default_brain(), default_brain(), true));
+        let cool = (0.6_f64 / (1.0 / 120.0)).round() as usize;
+        for w in out.tags.windows(2) {
+            assert!(w[1] - w[0] > cool, "two tags closer than the cooldown ({} apart)", w[1] - w[0]);
+        }
     }
 }

@@ -3,7 +3,7 @@
 // Deterministic, no network. The deploy/build workflow runs this as a gate.
 
 import { readFileSync } from 'node:fs';
-import { simulate, defaultConfig, presetConfig } from './dragon-sim.js';
+import { simulate, defaultConfig, presetConfig, simulateTag, defaultBrain, tagConfig } from './dragon-sim.js';
 
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) { pass++; } else { fail++; console.error('  ✗ ' + msg); } };
@@ -86,6 +86,44 @@ for (const name of ['duel', 'tailchase', 'spiral', 'mismatch']) {
   ok(good, `preset "${name}" produces a finite trajectory`);
 }
 
+// ── tag: role accounting, swaps, determinism, arena bounds ──────────────────────
+{
+  const out = simulateTag(tagConfig(defaultBrain(), defaultBrain(), true));
+  const total = (out.a.speed.length) * (1 / 120);
+  ok(Math.abs(out.itTimeA + out.itTimeB - total) < 1e-6, 'IT time covers the whole round');
+
+  // asymmetric brains ⇒ tags happen, and each tag flips the IT flag on the next frame
+  const nimble = { ...defaultBrain(), turnMax: 9, juke: 1.3 };
+  const stiff = { ...defaultBrain(), turnMax: 5, juke: 0.4 };
+  const g = simulateTag(tagConfig(nimble, stiff, true));
+  ok(g.tags.length > 0, 'asymmetric brains produce tags');
+  ok(g.tags.every((f) => f + 1 >= g.it.length || g.it[f] !== g.it[f + 1]), 'IT flips right after each tag');
+
+  // cooldown respected
+  const cool = Math.round(0.6 * 120);
+  ok(g.tags.every((f, k) => k === 0 || f - g.tags[k - 1] > cool), 'no two tags closer than the cooldown');
+
+  // determinism
+  const h = simulateTag(tagConfig(defaultBrain(), defaultBrain(), true));
+  let same = true; for (let i = 0; i < out.a.pos.length; i++) if (out.a.pos[i] !== h.a.pos[i]) same = false;
+  ok(same && out.itTimeA === h.itTimeA, 'tag round is deterministic');
+
+  // arena containment (horizontal radius bounded) + finite
+  let inArena = true, finite = true, cfg0 = tagConfig(defaultBrain(), defaultBrain(), true);
+  for (const gg of [out.a, out.b]) for (let i = 0; i < gg.speed.length; i++) {
+    const x = gg.pos[3 * i], z = gg.pos[3 * i + 2];
+    if (!Number.isFinite(x) || !Number.isFinite(gg.pos[3 * i + 1])) finite = false;
+    if (Math.hypot(x, z) > cfg0.arenaR * 1.3) inArena = false;
+  }
+  ok(finite, 'tag samples finite');
+  ok(inArena, 'tag stays inside the arena');
+
+  // the fair two-round match sums pursuit time per brain
+  const r1 = simulateTag(tagConfig(nimble, stiff, true));
+  const r2 = simulateTag(tagConfig(nimble, stiff, false));
+  ok(r1.itTimeA + r2.itTimeA > 0 && r1.itTimeB + r2.itTimeB > 0, 'both brains spend some time as IT across the match');
+}
+
 // ── cross-check the JS mirror against the committed Rust/wasm solver ─────────────
 try {
   const P = new URL('./solver/pkg/', import.meta.url);
@@ -93,6 +131,23 @@ try {
   const bytes = readFileSync(new URL('dragon_solver_bg.wasm', P));
   await mod.default({ module_or_path: bytes });
   ok(/dragon-solver-wasm/.test(mod.solver_info()), 'wasm reports its banner');
+
+  // tag cross-check on a short, tag-free window (start far apart) so the discrete
+  // role-swap branch can't make the two implementations diverge at a threshold.
+  // Guarded: an older committed pkg without simulate_tag_json just skips this.
+  if (typeof mod.simulate_tag_json === 'function') {
+    const tc = { ...tagConfig(defaultBrain(), defaultBrain(), true), steps: 180 };
+    const js = simulateTag(tc);
+    const rs = JSON.parse(mod.simulate_tag_json(JSON.stringify(tc)));
+    ok(js.tags.length === 0 && rs.tags.length === 0, 'cross-check window is tag-free');
+    let maxPos = 0;
+    for (let i = 0; i < tc.steps; i++) for (let c = 0; c < 3; c++) {
+      maxPos = Math.max(maxPos, Math.abs(js.a.pos[3 * i + c] - rs.a.pos[3 * i + c]));
+      maxPos = Math.max(maxPos, Math.abs(js.b.pos[3 * i + c] - rs.b.pos[3 * i + c]));
+    }
+    ok(maxPos < 1e-6, `wasm/JS tag positions agree (max Δ ${maxPos.toExponential(1)})`);
+    ok(Math.abs(js.itTimeA - rs.itTimeA) < 1e-9, 'wasm/JS IT-time agree');
+  }
 
   // Short horizons only: the coupled dogfight is chaotic, so tiny FP differences in the
   // platform transcendentals amplify over long runs. Over ~1 s they stay at rounding level.

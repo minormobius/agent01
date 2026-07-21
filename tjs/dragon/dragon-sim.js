@@ -243,3 +243,113 @@ export function presetConfig(name) {
   const p = PRESETS[name] || PRESETS.duel;
   return { ...defaultConfig(), ...p.cfg };
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// TAG — two flyers with distinct "brains" play tag inside the arena. One is IT (pursuer,
+// chases to the frontal set-point); the other evades (steers away + jukes). When IT
+// closes inside tagRange the roles SWAP (after a short cooldown so they can't insta-re-
+// tag). A round is a fixed clock. The bounded arena corners the evader so catches happen.
+// Mirror of the Rust `simulate_tag`.
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+/** Soft arena containment: bias a desired-forward back toward the centre near the wall. */
+function contain(p, fdes, arenaR) {
+  const r = Math.hypot(p.x, p.z);
+  if (r < arenaR * 0.8) return fdes;
+  const inward = norm(V(-p.x, 0, -p.z));
+  const w = clamp((r - arenaR * 0.8) / (arenaR * 0.35), 0, 1);
+  return norm(add(scale(fdes, 1 - w), scale(inward, w)));
+}
+
+/** Advance one flyer one tag-step. `pursuer` = is this flyer IT. Returns {pos,vel,sample}. */
+function stepTag(me, foe, brain, pursuer, t, phase, cfg) {
+  const toFoe = sub(foe.pos, me.pos);
+  const range = vlen(toFoe);
+  const d = norm(toFoe);
+  const speed0 = vlen(me.vel);
+  const fwd = speed0 > 1e-6 ? norm(me.vel) : d;
+  const [right, up] = bodyFrame(fwd);
+  const [az, el] = lookAngles(d, fwd, right, up);
+
+  let fDes;
+  if (pursuer) {
+    fDes = desiredForward(d, brain.elevSet);                 // aim at the quarry, slightly high
+  } else {
+    fDes = scale(d, -1);                                     // flee: point away
+    let side = cross(WORLD_UP, d); if (vlen(side) < 1e-6) side = right; side = norm(side);
+    fDes = norm(add(fDes, scale(side, brain.juke * Math.sin(t * brain.jukeFreq + phase)))); // weave
+  }
+  const altErr = clamp((me.pos.y - cfg.altBase) / cfg.altHalfband, -1, 1);
+  fDes = norm(sub(fDes, scale(WORLD_UP, altErr * cfg.bandGain)));
+  fDes = contain(me.pos, fDes, cfg.arenaR);
+  fDes = pitchLimit(fDes, brain.pitchLimit);
+
+  const ang = Math.acos(clamp(dot(fwd, fDes), -1, 1));
+  const cmd = Math.min(brain.turnGain * ang, brain.turnMax);
+  const stepAng = Math.min(cmd * cfg.dt, ang);
+  const newFwd = ang < 1e-9 ? fwd : pitchLimit(rot(fwd, norm(cross(fwd, fDes)), stepAng), brain.pitchLimit);
+  const turnRate = stepAng / cfg.dt;
+
+  // both fly hard; the pursuer presses a touch harder to make catches possible
+  const target = pursuer ? brain.speedPref : brain.speedPref * 0.94;
+  const dvCap = brain.accelMax * cfg.dt;
+  const dv = clamp(brain.accelGain * (target - speed0) * cfg.dt, -dvCap, dvCap);
+  const newSpeed = clamp(speed0 + dv, brain.speedMin, brain.speedMax);
+
+  const newVel = scale(newFwd, newSpeed);
+  const newPos = add(me.pos, scale(newVel, cfg.dt));
+  return { pos: newPos, vel: newVel, sample: { pos: me.pos, vel: me.vel, speed: speed0, turnRate, range, azimuth: az, elevation: el } };
+}
+
+/** Play one tag round. Returns trajectories, the per-frame IT flag, tag frames, and the
+ *  time each brain spent as IT (pursuing). */
+export function simulateTag(cfg) {
+  const n = cfg.steps;
+  let a = { pos: V(...cfg.aPos), vel: V(...cfg.aVel) };
+  let b = { pos: V(...cfg.bPos), vel: V(...cfg.bVel) };
+  let aIt = !!cfg.aIsIt;
+  const cool = Math.round(cfg.cooldown / cfg.dt);
+  let lastTag = -cool - 1;
+
+  const mk = () => ({ pos: new Float64Array(3 * n), vel: new Float64Array(3 * n), speed: new Float64Array(n),
+    turnRate: new Float64Array(n), range: new Float64Array(n), azimuth: new Float64Array(n), elevation: new Float64Array(n) });
+  const out = { t: new Float64Array(n), a: mk(), b: mk(), it: new Uint8Array(n), tags: [], itTimeA: 0, itTimeB: 0 };
+  const wr = (dst, i, s) => { dst.pos[3*i]=s.pos.x; dst.pos[3*i+1]=s.pos.y; dst.pos[3*i+2]=s.pos.z;
+    dst.vel[3*i]=s.vel.x; dst.vel[3*i+1]=s.vel.y; dst.vel[3*i+2]=s.vel.z; dst.speed[i]=s.speed; dst.turnRate[i]=s.turnRate;
+    dst.range[i]=s.range; dst.azimuth[i]=s.azimuth; dst.elevation[i]=s.elevation; };
+
+  for (let i = 0; i < n; i++) {
+    const t = i * cfg.dt;
+    const na = stepTag(a, b, cfg.brainA, aIt, t, 0.0, cfg);
+    const nb = stepTag(b, a, cfg.brainB, !aIt, t, Math.PI, cfg);
+    out.t[i] = t; out.it[i] = aIt ? 0 : 1;
+    if (aIt) out.itTimeA += cfg.dt; else out.itTimeB += cfg.dt;
+    const range = vlen(sub(a.pos, b.pos));
+    if (range < cfg.tagRange && (i - lastTag) > cool) { aIt = !aIt; lastTag = i; out.tags.push(i); }
+    wr(out.a, i, na.sample); wr(out.b, i, nb.sample);
+    a = { pos: na.pos, vel: na.vel }; b = { pos: nb.pos, vel: nb.vel };
+  }
+  return out;
+}
+
+/** A default brain; layer overrides for the two competitors. */
+export function defaultBrain() {
+  return {
+    speedPref: 4.0, speedMax: 5.5, speedMin: 1.8,
+    turnGain: 9.0, turnMax: 6.5, pitchLimit: (55 * Math.PI) / 180,
+    accelGain: 6.0, accelMax: 20.0, elevSet: 0.14,
+    juke: 0.9, jukeFreq: 5.0,
+  };
+}
+
+/** A full tag-round config for two brains; `aIsIt` sets who starts as pursuer. */
+export function tagConfig(brainA, brainB, aIsIt) {
+  return {
+    dt: 1 / 120, steps: 2160,               // 18 s round
+    brainA, brainB, aIsIt: !!aIsIt,
+    tagRange: 0.45, cooldown: 0.6,
+    arenaR: 6.6, altBase: 2.4, altHalfband: 1.5, bandGain: 0.9,
+    aPos: [-2.4, 2.4, 0], aVel: [3.0, 0, 0.6],
+    bPos: [2.4, 2.4, 0], bVel: [-3.0, 0, -0.6],
+  };
+}
