@@ -72,16 +72,33 @@
     .legend { display:flex; align-items:center; gap:6px; margin-top:9px; font-size:10px; color:var(--soft); }
     .legend .bar { flex:1; height:7px; border-radius:4px;
       background:linear-gradient(90deg,#2b3a67,#39d6c8,#f0e14a,#ff6b6b); }
+
+    /* master hide toggle — always reachable, top-right */
+    #uitoggle { position:fixed; top:11px; right:12px; z-index:8; width:40px; height:40px;
+      border-radius:50%; background:rgba(12,12,20,.78); backdrop-filter:blur(9px);
+      border:1px solid var(--line); color:#e6e6f0; font-size:16px; line-height:1;
+      display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+    #uitoggle:hover { border-color:var(--accent); }
+    #uitoggle:active { transform:scale(.93); }
+    body.ui-hidden #hud, body.ui-hidden #dock { display:none; }
+    body.ui-hidden #uitoggle { background:rgba(57,214,200,.16); border-color:var(--accent); color:var(--accent); }
+
     @media (max-width:640px){
-      #hud { width:min(230px, 62vw); top:36px; padding:10px; }
+      #hud { width:min(220px, 58vw); top:58px; left:10px; padding:9px 10px; border-radius:11px; }
+      #hud .sub { margin-bottom:8px; }
+      #hud .grid { gap:5px 9px; }
       #hud .grid .stat .v { font-size:15px; }
-      #hud .big .v { font-size:19px; }
+      #hud .big .v { font-size:18px; }
+      /* dock becomes a full-width bottom sheet */
+      #dock { left:10px; right:10px; bottom:10px; width:auto; }
+      #dock .head b { font-size:14px; }
     }
   </style>
 </head>
 <body>
   <canvas id="scene"></canvas>
   <div class="crumb"><a href="../">tjs</a> / kite</div>
+  <button id="uitoggle" aria-label="Hide panels" title="Hide panels">✕</button>
 
   <div id="hud">
     <span id="pill">solver…</span>
@@ -180,9 +197,35 @@ camera.position.set(1.4, 1.5, 4.2);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.target.set(0, 0.35, 0);
-controls.minDistance = 1.5;
+controls.enablePan = false;      // rotation always pivots on the kite — never drifts off-screen
+controls.minDistance = 1.2;
 controls.maxDistance = 12;
+controls.rotateSpeed = 0.9;
+// one finger orbits, two fingers pinch-zoom (no pan)
+controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE };
+
+// Keep the kite centred in the frame: pivot on its centroid and, on first paint /
+// orientation change, back the camera off far enough that the whole sail fits the
+// current aspect (portrait needs more room). Preserves the user's orbit angle.
+let framedOnce = false, lastPortrait = null;
+function frameCamera(fitDistance) {
+  if (!sailMesh) return;
+  sailMesh.geometry.computeBoundingSphere();
+  const bs = sailMesh.geometry.boundingSphere;
+  controls.target.copy(bs.center);
+  if (fitDistance) {
+    const fov = (camera.fov * Math.PI) / 180;
+    const hfov = 2 * Math.atan(Math.tan(fov / 2) * camera.aspect);
+    const r = bs.radius * (camera.aspect < 1 ? 1.4 : 1.18);
+    const dist = Math.max(r / Math.sin(fov / 2), r / Math.sin(hfov / 2));
+    const dir = framedOnce
+      ? camera.position.clone().sub(bs.center).normalize()
+      : new THREE.Vector3(0.33, 0.36, 0.87).normalize();
+    camera.position.copy(bs.center).addScaledVector(dir, dist);
+  }
+  controls.update();
+  framedOnce = true;
+}
 
 scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x141420, 0.9));
 const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(3, 5, 4); scene.add(key);
@@ -264,6 +307,8 @@ function rebuildGeometry() {
   arrows = new THREE.InstancedMesh(ARROW_GEO, new THREE.MeshBasicMaterial({ vertexColors: false }), np);
   arrows.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(np*3), 3);
   scene.add(arrows);
+
+  frameCamera(!framedOnce); // fit on first build; afterwards just recentre the pivot
 }
 
 // load → colour ramp (blue → teal → yellow → red)
@@ -409,16 +454,40 @@ document.getElementById('b-mirror').addEventListener('click', (e) => {
   mirrorOn = !mirrorOn; e.target.classList.toggle('on', mirrorOn);
 });
 document.getElementById('b-reset').addEventListener('click', () => { cfg.cut = []; recompute(); });
+function setDockMin(min) {
+  document.getElementById('dock').classList.toggle('min', min);
+  document.getElementById('docktoggle').textContent = min ? '▴' : '▾';
+}
 document.getElementById('dockhead').addEventListener('click', () => {
-  const d = document.getElementById('dock'); d.classList.toggle('min');
-  document.getElementById('docktoggle').textContent = d.classList.contains('min') ? '▴' : '▾';
+  setDockMin(!document.getElementById('dock').classList.contains('min'));
 });
+
+// master toggle — hide/show every overlay so the kite has the whole screen
+const uitoggle = document.getElementById('uitoggle');
+function setUIHidden(hide) {
+  document.body.classList.toggle('ui-hidden', hide);
+  uitoggle.textContent = hide ? '☰' : '✕';
+  uitoggle.title = hide ? 'Show panels' : 'Hide panels';
+  uitoggle.setAttribute('aria-label', uitoggle.title);
+}
+uitoggle.addEventListener('click', () =>
+  setUIHidden(!document.body.classList.contains('ui-hidden')));
+
+// on a phone, start with the control sheet collapsed so the sail is unobstructed
+if (matchMedia('(max-width:640px)').matches) setDockMin(true);
 
 // ── resize + render loop ─────────────────────────────────────────────────────────
 function resize() {
   const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h, false);
+  renderer.setSize(w, h); // updateStyle:true — CSS-constrain the canvas to the
+  // viewport; at devicePixelRatio>1 the drawing buffer is larger (crisp) but the
+  // element still fills the screen. (Omitting this let the canvas overflow 2× on
+  // mobile, pushing the kite's centre to the bottom-right corner.)
   camera.aspect = w / h; camera.updateProjectionMatrix();
+  const portrait = h >= w;
+  // Re-fit only when the orientation flips — not on the constant tiny resizes a
+  // mobile address bar fires, which would keep stealing the user's zoom.
+  if (portrait !== lastPortrait) { lastPortrait = portrait; frameCamera(true); }
 }
 addEventListener('resize', resize); resize();
 
