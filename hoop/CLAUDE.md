@@ -376,16 +376,17 @@ despite the name. It stayed with hoop, not rind.)
 
 ## Deploy
 
-- Push `hoop/**` on `main` or `claude/hoop-v106-upper-rind-p0t5xn` (the current owning branch —
+- Push `hoop/**` on `main` or `claude/hoop-v107-quest-fixes-z2v3el` (the current owning branch —
   see `deploy-registry.json`) → `deploy-hoop.yml` runs `wrangler deploy` (worker + assets + the
   HoopRoom DO migration). The sandbox cannot deploy; push and let the Action run. Verify the log
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
-  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v106` is the
-  DEVELOPMENT surface** (the UPPER-RIND EVERYTHING-FACTORY pass — see its bullet below; the bare dev
-  aliases `/over`, `/garden/plot`, `/alch`, `/smith`, `/quests` now resolve to v106). **`v105` is the
-  frozen prior** (the SEEDED-QUEST-SPINE pass). **`v104` is an older frozen prior**
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v107` is the
+  DEVELOPMENT surface** (the QUEST-FIXES pass — see its bullet below; the bare dev aliases `/over`,
+  `/garden/plot`, `/alch`, `/smith`, `/quests`, `/plan` now resolve to v107). **`v106` is the frozen
+  prior** (the UPPER-RIND EVERYTHING-FACTORY pass). **`v105` is an older frozen prior** (the
+  SEEDED-QUEST-SPINE pass). **`v104` is an older frozen prior**
   (the FUNGIBLE-KEEPER pass). **`v103` is a FROZEN test surface** —
   the NPC-reform pass, playable end-to-end (kept live so hoopy can keep testing it); don't touch it. The v102
   pass (the frozen prior) was:
@@ -745,6 +746,42 @@ despite the name. It stayed with hoop, not rind.)
   surface namespaces its own localStorage (`hoop:vNNN:story` / `:lastseed`) so dev saves never
   collide with the stable surface. To spin a new surface: `cp -r vNN vMM`, rewrite `/vNN/`→`/vMM/`
   and `hoop:vNN:`→`hoop:vMM:` in the copy, add the clean-URL rewrites in `worker.js`.
+- **The v107 QUEST-FIXES pass** (the current dev surface; v106 stays the frozen prior). Six playtest
+  fixes from hoopy's notes, no new systems:
+  - **Anchors get dedicated, keeper-free nave rooms** (`index.html flagKeeperResident`). A pinned
+    anchor (a guide like Sevin) and a needed keeper could hash into ONE small room; `anchorAt` wins the
+    click (bigger radius, checked first) so the co-seated keeper was unreachable ("I can only chat with
+    Sevin"). Keeper seating now reserves each same-deck anchor's room (nearest-cell membership) and
+    picks the kept room from what's left (falling back to the full pool only in a room-starved ward).
+  - **Fixture side-quests (chamber errands) get a two-phase ◇** (`index.html trackedErrandLoc` +
+    `cq.track`, wired into `liveWp`, auto-tracked on `acceptErrand`). Errands ("plant a seed in a
+    grow-bed ❀") had NO map marker at all. Now the ◇ leads to the NEAREST FIXTURE of the errand's type
+    (`ERRAND_KIND_ROLE` → `nearestRoleChamber`; a delivery points at its target person), then BACK to
+    the giving keeper once done — the errand cousin of the shift track (journal ◇-track toggle too).
+  - **The tier-2 murder surfaces only on the LAST keeper** (`story/mystery.js buildMystery`). The
+    case-giver was `entries[0]` (the FIRST Factor Solen keeper), so meeting the first keeper opened the
+    investigation; it's now `entries[entries.length-1]` — the case opens only at the end of Solen's tier
+    (the former first keeper becomes an ordinary suspect). `test/mystery.selftest.mjs` updated.
+  - **The upper rind builds behind a descent LOADING SCREEN, not at unlock** (`index.html`
+    `maybeBuildRind` / `streamWeaveDeck` / `descendIntoWeave`). Streaming ~87 `solveChunk` pockets fired
+    the instant tier 3 was reached (off the RAF poll, mid-nave) — the "ground to a halt" stall. Now
+    `maybeBuildRind` lays ONLY NX (the shaft foot); the rest streams the first time the player DESCENDS
+    the shaft, behind a mandatory full-cover `showPage` loading page, at full speed (`fast` mode: no
+    hidden-canvas paints, thinned door re-scans). `weaveStreamed`/`weaveStreaming` guard it (reset in
+    `newWorld`; dev `devDescend` kicks the stream itself). The stream loop is try/wrapped so it can never
+    leave the loading page stuck.
+  - **Factory (production-shift) guidance** (`index.html shiftRowHTML`/`acceptShift` +
+    `rindweave/pocketdeck.js weaveLabel` + `story/shift.js genFix`). Taking a shift now auto-tracks the ◇
+    (players never found the journal track toggle), the offer leads with a plain objective (`shiftObjective`
+    — "carry the load … then return to {keeper} for ◈{wage}"), the antechamber labels drop the raw pair-key
+    jargon ("assembly-ring antechamber W0+P0" → "the assembly-ring junction of the … thread and the … hall"),
+    and the FIX lens steps read as diagnosis ("read the … thread to triangulate the fault").
+  - **The upper-rind guide seats in a WHITE THREAD, not on the NX nexus fixture**
+    (`index.html relocateGuidesToWards`). `rindDeckChamberXY(1)` returned the first painted deck-1 chunk =
+    NX (the lift/fulfillment nexus — a fixture with no crowd), so "Seek Sevin" sent the ◇ to a fixture with
+    no npc. The deck-1 rind guide now relocates into a white thread (the only deck-1 pockets with residents)
+    and binds the nearest living resident there. (This waits for the descent stream, which is when white
+    threads exist.)
 - **World docs at `/docs`** (`hoop/docs/index.html`): the world-side documentation — the whole
   scope of the world (decks, story spine, minigames, food economy), every workflow that feeds it,
   the v101 audit findings, and the roadmap (overworld; garden/cafe/kitchen overhaul). Keep it

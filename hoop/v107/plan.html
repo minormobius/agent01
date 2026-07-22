@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="hoop's unified design language: 3 factions × 7 planets = 21 character identities across creation, alchemy, crafting, and combat." />
+<title>The Seven — hoop design language</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Ctext%20y='25'%20font-size='24'%3E%E2%99%84%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+<style>
+  :root {
+    --void:#0c0e17; --panel:#141828; --panel2:#1b2036; --ink:#e9e4d6; --soft:#c3bfae;
+    --dim:#878ba6; --line:#282e46; --line2:#39406090; --gold:#e6bb52; --gold-deep:#a9812a;
+    --flesh:#e0645a; --chassis:#5ec9c0; --anima:#b79fe0;
+    --sol:#e5b53a; --luna:#c6cede; --mercury:#59c7cf; --venus:#5bb96a; --mars:#d05646; --jupiter:#8891d6; --saturn:#8a8ea0;
+    --shadow:0 18px 50px -22px #000c;
+    --serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --void:#efe7d4; --panel:#e8dfc7; --panel2:#e0d6ba; --ink:#26221a; --soft:#4b4536;
+      --dim:#6f6754; --line:#d6c9a6; --line2:#cabd98; --gold:#9a7420; --gold-deep:#7c5c14;
+      --flesh:#b83f36; --chassis:#1f8a82; --anima:#6b53a8; --venus:#3f8f4d; --saturn:#63677a;
+      --shadow:0 16px 40px -24px #6b5a2e66;
+    }
+  }
+  :root[data-theme="dark"] {
+    --void:#0c0e17; --panel:#141828; --panel2:#1b2036; --ink:#e9e4d6; --soft:#c3bfae; --dim:#878ba6;
+    --line:#282e46; --line2:#39406090; --gold:#e6bb52; --gold-deep:#a9812a;
+    --flesh:#e0645a; --chassis:#5ec9c0; --anima:#b79fe0; --venus:#5bb96a; --saturn:#8a8ea0; --shadow:0 18px 50px -22px #000c;
+  }
+  :root[data-theme="light"] {
+    --void:#efe7d4; --panel:#e8dfc7; --panel2:#e0d6ba; --ink:#26221a; --soft:#4b4536; --dim:#6f6754;
+    --line:#d6c9a6; --line2:#cabd98; --gold:#9a7420; --gold-deep:#7c5c14;
+    --flesh:#b83f36; --chassis:#1f8a82; --anima:#6b53a8; --venus:#3f8f4d; --saturn:#63677a; --shadow:0 16px 40px -24px #6b5a2e66;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; }
+  .page {
+    background:
+      radial-gradient(1200px 600px at 78% -8%, color-mix(in srgb, var(--gold) 8%, transparent), transparent 60%),
+      radial-gradient(900px 700px at 0% 100%, color-mix(in srgb, var(--anima) 7%, transparent), transparent 55%),
+      var(--void);
+    color:var(--ink); font-family:var(--sans); line-height:1.55;
+    min-height:100vh; padding:0 20px 90px;
+  }
+  .wrap { max-width:1140px; margin:0 auto; }
+  .rule { color:var(--dim); }
+
+  /* ── header ── */
+  header { padding:46px 0 26px; border-bottom:1px solid var(--line); display:grid; gap:16px; }
+  .eyebrow { font-size:11.5px; letter-spacing:.28em; text-transform:uppercase; color:var(--gold); font-weight:600; }
+  h1 { font-family:var(--serif); font-weight:600; letter-spacing:-.01em; text-wrap:balance;
+    font-size:clamp(34px,6vw,60px); line-height:1.02; margin:0; }
+  h1 .glyphs { color:var(--gold); font-weight:400; -webkit-text-stroke:0; }
+  .thesis { font-family:var(--serif); font-size:clamp(17px,2.2vw,22px); color:var(--soft); max-width:46ch; margin:0; font-style:italic; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+  .crumbs { font-size:12.5px; color:var(--dim); }
+  .crumbs b { color:var(--soft); font-weight:600; }
+  .toggle { font:inherit; font-size:12px; color:var(--soft); background:var(--panel); border:1px solid var(--line);
+    padding:7px 13px; border-radius:999px; cursor:pointer; display:inline-flex; gap:7px; align-items:center; }
+  .toggle:hover { border-color:var(--gold); color:var(--gold); }
+  .toggle:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+
+  h2 { font-family:var(--serif); font-weight:600; font-size:clamp(21px,3vw,27px); margin:0 0 4px; letter-spacing:-.01em; }
+  .sec { margin-top:52px; }
+  .sec > .lede { color:var(--soft); max-width:64ch; margin:0 0 22px; font-size:15px; }
+  .kicker { font-size:11.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--dim); font-weight:600; margin-bottom:10px; }
+
+  /* ── two axes ── */
+  .axes { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:720px){ .axes{ grid-template-columns:1fr; } }
+  .axis { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px 20px 18px; box-shadow:var(--shadow); }
+  .axis h3 { font-family:var(--serif); font-size:19px; margin:0 0 3px; }
+  .axis .sub { color:var(--dim); font-size:12.5px; margin:0 0 14px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { border:1px solid var(--line2); border-radius:999px; padding:5px 11px; font-size:12.5px; display:inline-flex; align-items:center; gap:7px; }
+  .chip .g { font-size:15px; line-height:1; }
+  .chip b { font-weight:600; }
+  .chip small { color:var(--dim); }
+
+  /* ── the matrix ── */
+  .matrix-wrap { overflow-x:auto; padding-bottom:6px; }
+  table.matrix { border-collapse:separate; border-spacing:7px; min-width:820px; margin:0 auto; }
+  table.matrix th, table.matrix td { padding:0; }
+  .corner { text-align:left; vertical-align:bottom; padding:0 8px 8px 2px !important; }
+  .corner .k { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); }
+  .colh { width:118px; text-align:center; vertical-align:bottom; padding-bottom:6px !important; }
+  .colh .pg { font-size:27px; line-height:1; display:block; }
+  .colh .pn { font-family:var(--serif); font-size:14px; font-weight:600; display:block; margin-top:2px; }
+  .colh .pm { font-size:10.5px; color:var(--dim); text-transform:lowercase; letter-spacing:.02em; }
+  .rowh { text-align:left; vertical-align:middle; padding-right:6px !important; white-space:nowrap; }
+  .rowh .fn { font-family:var(--serif); font-size:16px; font-weight:600; display:block; }
+  .rowh .fd { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; font-weight:700; }
+  .rowh .fg { font-size:11px; color:var(--dim); }
+
+  .cell { width:118px; height:74px; border-radius:11px; cursor:pointer; position:relative;
+    border:1px solid var(--line2); background:var(--panel);
+    display:flex; flex-direction:column; justify-content:center; padding:9px 10px; gap:2px;
+    transition:transform .13s ease, box-shadow .13s ease, border-color .13s ease; text-align:left; }
+  .cell::before { content:""; position:absolute; inset:0; border-radius:11px; opacity:.13; background:var(--pc); pointer-events:none; }
+  .cell::after { content:""; position:absolute; left:0; top:10px; bottom:10px; width:3px; border-radius:3px; background:var(--fc); }
+  .cell .adj { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--pc); font-weight:700; position:relative; }
+  .cell .role { font-family:var(--serif); font-size:15px; font-weight:600; position:relative; line-height:1.05; }
+  .cell:hover { transform:translateY(-2px); border-color:var(--pc); box-shadow:0 10px 26px -14px #000a; }
+  .cell:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+  .cell[aria-pressed="true"] { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold), 0 12px 30px -14px #000b; }
+  .cell[aria-pressed="true"]::before { opacity:.2; }
+
+  /* ── detail plate ── */
+  .plate { margin-top:22px; background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+    display:grid; grid-template-columns:1.15fr 1fr 1fr; overflow:hidden; min-height:180px; }
+  @media (max-width:820px){ .plate{ grid-template-columns:1fr; } }
+  .plate .hd { padding:22px 22px 20px; border-right:1px solid var(--line); position:relative; }
+  .plate .hd::before { content:""; position:absolute; inset:0; opacity:.1; background:var(--pc); pointer-events:none; }
+  .plate .biggly { font-size:44px; line-height:1; position:relative; color:var(--pc); }
+  .plate .name { font-family:var(--serif); font-size:26px; font-weight:600; margin:12px 0 4px; position:relative; line-height:1.05; }
+  .plate .coord { font-size:12px; color:var(--dim); position:relative; }
+  .plate .coord b { color:var(--soft); }
+  .plate .col { padding:20px 22px; border-right:1px solid var(--line); }
+  .plate .col:last-child { border-right:0; }
+  .plate .col h4 { margin:0 0 3px; font-size:11px; letter-spacing:.18em; text-transform:uppercase; }
+  .plate .col .h4sub { font-size:12px; color:var(--dim); margin:0 0 12px; }
+  .plate dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:13px; align-items:baseline; }
+  .plate dt { color:var(--dim); }
+  .plate dd { margin:0; color:var(--ink); }
+  .bars { display:grid; gap:7px; margin-top:2px; }
+  .bar { display:grid; grid-template-columns:66px 1fr 36px; align-items:center; gap:9px; font-size:12px; }
+  .bar .lbl { color:var(--soft); }
+  .bar .track { height:7px; border-radius:5px; background:var(--line); overflow:hidden; }
+  .bar .fill { height:100%; border-radius:5px; }
+  .bar .num { text-align:right; color:var(--dim); font-variant-numeric:tabular-nums; font-family:var(--mono); font-size:11px; }
+  .tag { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; border:1px solid var(--line2); border-radius:999px; padding:3px 9px; margin:2px 4px 0 0; }
+
+  /* ── verticals ── */
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:14px; }
+  .vcard { background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:17px 17px 15px; }
+  .vcard .vh { display:flex; align-items:baseline; gap:8px; margin-bottom:7px; }
+  .vcard .vh .g { font-size:18px; color:var(--gold); }
+  .vcard h3 { font-family:var(--serif); font-size:17px; margin:0; font-weight:600; }
+  .vcard p { margin:0; font-size:13px; color:var(--soft); }
+  .vcard .fx { margin-top:11px; font-size:12px; color:var(--ink); font-family:var(--mono); background:var(--panel2);
+    border:1px solid var(--line2); border-radius:8px; padding:8px 10px; }
+  .vcard .fx b { color:var(--gold); font-weight:600; }
+
+  /* ── combat + skew ── */
+  .split { display:grid; grid-template-columns:340px 1fr; gap:22px; align-items:center; }
+  @media (max-width:760px){ .split{ grid-template-columns:1fr; } }
+  #hept { width:100%; max-width:340px; height:340px; display:block; margin:0 auto; }
+  .skew { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:12px; padding:18px 20px; }
+  .skew h3 { font-family:var(--serif); margin:0 0 6px; font-size:18px; }
+  .skew p { margin:0 0 10px; font-size:14px; color:var(--soft); }
+  .skew .oldrow { display:flex; flex-wrap:wrap; gap:6px; }
+  .skew .op { font-size:12px; border:1px solid var(--line2); border-radius:7px; padding:4px 8px; font-family:var(--mono); }
+  .skew .op b { color:var(--anima); }
+
+  footer { margin-top:56px; padding-top:22px; border-top:1px solid var(--line); color:var(--dim); font-size:13px; max-width:70ch; }
+  footer code { background:var(--panel2); border:1px solid var(--line2); border-radius:5px; padding:1px 6px; color:var(--soft); font-size:12px; }
+  a.src { color:var(--gold); text-decoration:none; border-bottom:1px solid var(--line2); }
+  @media (prefers-reduced-motion: reduce){ * { transition:none !important; } }
+</style>
+
+<div class="page"><div class="wrap">
+  <header>
+    <div class="topbar">
+      <div class="crumbs"><b>hoop</b> · v105 design language · a plan to evaluate</div>
+      <button class="toggle" id="themeBtn" aria-label="Toggle light and dark theme">◐ theme</button>
+    </div>
+    <div class="eyebrow">The unified alphabet</div>
+    <h1>One language for body &amp; craft:<br><span class="glyphs">☉ ☽ ☿ ♀ ♂ ♃ ♄</span></h1>
+    <p class="thesis">Every character, reagent, ingot, gem, skill and foe speaks two words — a <em>faction</em> (the body it wears) and a <em>planet</em> (the flavor it carries). Three bodies, seven flavors, twenty-one identities.</p>
+  </header>
+
+  <section class="sec">
+    <div class="kicker">Two axes, read together</div>
+    <h2>The faction is the body. The planet is the flavor.</h2>
+    <p class="lede">The old strawman hung the FLESH·CHASSIS·ANIMA triad on the <em>planets</em> — and five of seven came out ANIMA-heavy, because most civic verbs lean soul-ward. Moving the triad onto the three <em>factions</em> makes it a clean split, and frees the seven planets to be a second, orthogonal axis: the register a thing is cast in.</p>
+    <div class="axes">
+      <div class="axis">
+        <h3>Faction → Body</h3>
+        <p class="sub">Your stat spine and your craft/combat school. One of three.</p>
+        <div class="chips" id="facChips"></div>
+      </div>
+      <div class="axis">
+        <h3>Planet → Flavor</h3>
+        <p class="sub">Your metal, colour, element, and combat matchup. One of seven.</p>
+        <div class="chips" id="planChips"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="kicker">3 × 7 = 21</div>
+    <h2>The identity grid</h2>
+    <p class="lede">Character creation is a single pick in this matrix — one cell, one species. Pick a row for how you're built, a column for what you're made of. Select a cell to inspect the identity.</p>
+    <div class="matrix-wrap">
+      <table class="matrix" id="matrix"><tbody></tbody></table>
+    </div>
+    <div class="plate" id="plate"></div>
+  </section>
+
+  <section class="sec">
+    <div class="kicker">One grammar, five screens</div>
+    <h2>How every vertical speaks it</h2>
+    <p class="lede">Each make-verb becomes the same demo-tier workflow: planetary inputs → a planetary output, with your faction setting the school. Less choice, one palette, one set of glyphs.</p>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="sec">
+    <div class="kicker">Combat</div>
+    <h2>The rulership wheel</h2>
+    <div class="split">
+      <canvas id="hept" width="340" height="340" aria-label="A seven-pointed diagram of which planet has the advantage over which"></canvas>
+      <div>
+        <p class="lede" style="margin-top:0">Two layers, both already balanced. The <b>planet</b> sets a seven-way rock-paper-scissors — in the Chaldean cycle each planet has the edge over the three that follow and yields to the three before (every planet beats exactly three). The <b>faction body</b> sets the school beneath it: FLESH endures and mends, CHASSIS strikes and soaks, ANIMA spends flux. Element × school — the same two words.</p>
+        <div class="skew">
+          <h3>What we're moving off</h3>
+          <p>The strawman's derived leans, when the triad rode the planets — the skew that prompted this:</p>
+          <div class="oldrow" id="oldrow"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <strong style="color:var(--gold)">Confirmed &amp; in code — all five verticals wired.</strong> The model lives in <code>hoop/v107/planets.js</code> (node-tested): faction → body (continuant·FLESH / rindwalker·CHASSIS / drift·ANIMA, leans derived from each faction's verbs), and the seven planets as a free second axis — any faction × any planet, all 21 reachable. Every vertical now speaks it: <strong>creation</strong> picks a verb (→ body), leaving faction to the threshold fork and planetary flavor to be <em>grown</em> — a radar tallied from every planet-aligned thing you touch, whose dominant axis becomes your combat register; <strong>forge</strong> stamps a metal's planet register (<code>materialPlanet</code>); <strong>brew</strong> carries a reagent's canonical <code>planetKey</code>; <strong>gems</strong> resonate with the wielder's body; <strong>combat</strong> reads the 7-way heptagram as an element-over-element damage multiplier (<code>elementMult</code>). Colours and per-cell flavor stay tunable; the structure is settled.
+  </footer>
+</div></div>
+
+<script>
+(function(){
+  "use strict";
+  var root = document.documentElement;
+  // ── data (mirrors hoop/v107/planets.js + stats.js) ──
+  var FACTIONS = [
+    { key:"continuant", name:"Continuant", domain:"flesh", role:"Tender", accent:"var(--flesh)",
+      attrs:["Vitality","Regen","Nerve"], gloss:"Life-support as civic duty — the stewards.",
+      school:"endure · heal · husband", craft:"medicine · food · green-work" },
+    { key:"rindwalker", name:"Rindwalker", domain:"chassis", role:"Wright", accent:"var(--chassis)",
+      attrs:["Frame","Servo","Core"], gloss:"The ship's skin; mending is prayer.",
+      school:"strike · soak · make", craft:"armour · tools · fixtures" },
+    { key:"drift", name:"Drift", domain:"anima", role:"Adept", accent:"var(--anima)",
+      attrs:["Will","Cogit","Flux"], gloss:"The Braid of traders and readers of code.",
+      school:"channel · read · spend flux", craft:"charms · signals · technomagic" }
+  ];
+  var DOMAIN = { flesh:{label:"FLESH", accent:"var(--flesh)", gloss:"wetware — the meat that wants to live"},
+                 chassis:{label:"CHASSIS", accent:"var(--chassis)", gloss:"hardware — the frame that bears load"},
+                 anima:{label:"ANIMA", accent:"var(--anima)", gloss:"software-soul — the ghost that wills"} };
+  // classical Sun→Saturn order for reading; Chaldean order drives the RPS.
+  var PLANETS = [
+    { key:"sol",     name:"Sol",     glyph:"☉", metal:"gold",        adj:"Gilded",    colour:"var(--sol)",     temper:"hot & dry",    humour:"choler",     verbs:"worship · make" },
+    { key:"luna",    name:"Luna",    glyph:"☽", metal:"silver",      adj:"Argent",    colour:"var(--luna)",    temper:"cold & moist", humour:"phlegm",     verbs:"learn · store" },
+    { key:"mercury", name:"Mercury", glyph:"☿", metal:"quicksilver", adj:"Mercurial", colour:"var(--mercury)", temper:"variable",     humour:"—",          verbs:"move · trade · learn" },
+    { key:"venus",   name:"Venus",   glyph:"♀", metal:"copper",      adj:"Verdant",   colour:"var(--venus)",   temper:"hot & moist",  humour:"blood",      verbs:"grow · heal" },
+    { key:"mars",    name:"Mars",    glyph:"♂", metal:"iron",        adj:"Iron",      colour:"var(--mars)",    temper:"hot & dry",    humour:"choler",     verbs:"make · mend" },
+    { key:"jupiter", name:"Jupiter", glyph:"♃", metal:"tin",         adj:"Stannic",   colour:"var(--jupiter)", temper:"hot & moist",  humour:"blood",      verbs:"govern · play" },
+    { key:"saturn",  name:"Saturn",  glyph:"♄", metal:"lead",        adj:"Leaden",    colour:"var(--saturn)",  temper:"cold & dry",   humour:"melancholy", verbs:"worship · store" }
+  ];
+  var CHALDEAN = ["saturn","jupiter","mars","sol","venus","mercury","luna"];
+  function advantage(a,b){ var ia=CHALDEAN.indexOf(a), ib=CHALDEAN.indexOf(b); if(ia<0||ib<0||ia===ib) return 0; var d=((ib-ia)%7+7)%7; return d<=3?1:-1; }
+  var byKey = {}; PLANETS.forEach(function(p){ byKey[p.key]=p; });
+  var facByKey = {}; FACTIONS.forEach(function(f){ facByKey[f.key]=f; });
+
+  // ── axis chips ──
+  var fc = document.getElementById("facChips");
+  FACTIONS.forEach(function(f){
+    var d = DOMAIN[f.domain];
+    fc.insertAdjacentHTML("beforeend",
+      '<span class="chip" style="border-color:color-mix(in srgb,'+f.accent+' 55%,var(--line2))">'+
+      '<b>'+f.name+'</b> <small style="color:'+f.accent+';font-weight:700;letter-spacing:.12em">'+d.label+'</small></span>');
+  });
+  var pcw = document.getElementById("planChips");
+  PLANETS.forEach(function(p){
+    pcw.insertAdjacentHTML("beforeend",
+      '<span class="chip"><span class="g" style="color:'+p.colour+'">'+p.glyph+'</span><b>'+p.name+'</b> <small>'+p.metal+'</small></span>');
+  });
+
+  // ── matrix ──
+  var tb = document.querySelector("#matrix tbody");
+  var head = '<tr><th class="corner"><div class="k">body ↓ · flavor →</div></th>';
+  PLANETS.forEach(function(p){
+    head += '<th class="colh"><span class="pg" style="color:'+p.colour+'">'+p.glyph+'</span>'+
+            '<span class="pn">'+p.name+'</span><span class="pm">'+p.metal+'</span></th>';
+  });
+  head += '</tr>';
+  tb.insertAdjacentHTML("beforeend", head);
+  FACTIONS.forEach(function(f){
+    var d = DOMAIN[f.domain];
+    var row = '<tr><th class="rowh"><span class="fn">'+f.name+'</span>'+
+      '<span class="fd" style="color:'+f.accent+'">'+d.label+'</span> <span class="fg">'+f.role+'</span></th>';
+    PLANETS.forEach(function(p){
+      row += '<td><button class="cell" role="button" aria-pressed="false" data-f="'+f.key+'" data-p="'+p.key+'" '+
+        'style="--pc:'+p.colour+';--fc:'+f.accent+'">'+
+        '<span class="adj">'+p.adj+'</span><span class="role">'+f.role+'</span></button></td>';
+    });
+    row += '</tr>';
+    tb.insertAdjacentHTML("beforeend", row);
+  });
+
+  // ── detail plate ──
+  var plate = document.getElementById("plate");
+  function pct(x){ return Math.round(x*100); }
+  // faction body → the triad share, DERIVED in planets.js from each faction's civic verbs (not invented).
+  var LEANS = { continuant:{flesh:.53,chassis:.18,anima:.30}, rindwalker:{flesh:.20,chassis:.48,anima:.33}, drift:{flesh:.33,chassis:.23,anima:.45} };
+  function leanFor(f){ return LEANS[f.key]; }
+  function render(fk,pk){
+    var f=facByKey[fk], p=byKey[pk], d=DOMAIN[f.domain], lean=leanFor(f);
+    // combat matchups for this planet
+    var beats=[], yields=[];
+    PLANETS.forEach(function(o){ if(o.key===pk) return; var r=advantage(pk,o.key); if(r>0) beats.push(o); else yields.push(o); });
+    var barHtml=["flesh","chassis","anima"].map(function(k){
+      var accent = DOMAIN[k].accent;
+      return '<div class="bar"><span class="lbl" style="color:'+(k===f.domain?accent:"var(--dim)")+'">'+DOMAIN[k].label+'</span>'+
+        '<span class="track"><span class="fill" style="width:'+pct(lean[k])+'%;background:'+accent+'"></span></span>'+
+        '<span class="num">'+pct(lean[k])+'%</span></div>';
+    }).join("");
+    plate.innerHTML =
+      '<div class="hd" style="--pc:'+p.colour+'"><div class="biggly">'+p.glyph+'</div>'+
+        '<div class="name">The '+p.adj+' '+f.role+'</div>'+
+        '<div class="coord"><b>'+f.name+'</b> body · <b>'+p.name+'</b> flavor</div></div>'+
+      '<div class="col"><h4 style="color:'+f.accent+'">The body — '+d.label+'</h4>'+
+        '<p class="h4sub">'+d.gloss+'</p>'+
+        '<div class="bars">'+barHtml+'</div>'+
+        '<div style="margin-top:13px"><dl>'+
+          '<dt>attributes</dt><dd>'+f.attrs.join(" · ")+'</dd>'+
+          '<dt>combat school</dt><dd>'+f.school+'</dd>'+
+          '<dt>craft school</dt><dd>'+f.craft+'</dd>'+
+        '</dl></div></div>'+
+      '<div class="col"><h4 style="color:'+p.colour+'">The flavor — '+p.name+' '+p.glyph+'</h4>'+
+        '<p class="h4sub">'+p.metal+' · '+p.temper+(p.humour!=="—"?' · '+p.humour:'')+'</p>'+
+        '<dl>'+
+          '<dt>governs</dt><dd>'+p.verbs+'</dd>'+
+          '<dt>material</dt><dd>'+p.metal+' (crafting) · '+p.name+' reagents (brewing)</dd>'+
+        '</dl>'+
+        '<div style="margin-top:12px"><div class="kicker" style="margin-bottom:6px">combat matchup</div>'+
+          beats.map(function(o){return '<span class="tag" style="border-color:color-mix(in srgb,'+o.colour+' 45%,var(--line2))"><span style="color:'+o.colour+'">'+o.glyph+'</span> favoured</span>';}).join("")+
+        '</div></div>';
+  }
+  var current=null;
+  document.getElementById("matrix").addEventListener("click", function(e){
+    var b=e.target.closest(".cell"); if(!b) return;
+    if(current) current.setAttribute("aria-pressed","false");
+    b.setAttribute("aria-pressed","true"); current=b;
+    render(b.dataset.f, b.dataset.p);
+    plate.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"nearest"});
+  });
+  // open on a vivid default: the Iron Wright (rindwalker × mars)
+  (function(){ var d=document.querySelector('.cell[data-f="rindwalker"][data-p="mars"]'); d.setAttribute("aria-pressed","true"); current=d; render("rindwalker","mars"); })();
+
+  // ── vertical cards ──
+  var VERTS=[
+    { g:"❖", h:"Character creation", p:"Pick a vocation — a verb, one of twelve in a 4/4/4 across the bodies. It sets your body/kit/role. No faction (that's the threshold fork) and no planet — flavor is grown, not chosen.", fx:"pick <b>verb</b> → body" },
+    { g:"◎", h:"Planetary alignment", p:"Your register is GROWN: every planet-aligned thing you touch (forge a metal, brew a herb, socket a gem, best a foe) tallies toward its planet. Published as a radar; the dominant planet is the register you fight in.", fx:"tally interactions → <b>alignment radar</b>" },
+    { g:"⚒", h:"Crafting (Forge)", p:"Feed the anvil planetary metals. The item takes that planet's register; your faction sets which attributes it favours.", fx:"<b>metals</b> → item · faction = school" },
+    { g:"⚗", h:"Alchemy (Brew)", p:"Combine planetary reagents. The effect lands in that planet's temperament — choler burns, phlegm cools, melancholy endures.", fx:"<b>reagents</b> → planetary effect" },
+    { g:"◈", h:"Gems", p:"Set a planetary stone. It boosts the attribute your body already leans on — a Mars gem hardens a Chassis frame.", fx:"<b>gem</b> → boosts your body's stat" },
+    { g:"⚔", h:"Combat", p:"Your planet sets the seven-way matchup; your faction sets the school of moves. Element over element, body under it.", fx:"<b>planet</b> RPS × <b>faction</b> school" }
+  ];
+  var cw=document.getElementById("cards");
+  VERTS.forEach(function(v){
+    cw.insertAdjacentHTML("beforeend",
+      '<div class="vcard"><div class="vh"><span class="g">'+v.g+'</span><h3>'+v.h+'</h3></div>'+
+      '<p>'+v.p+'</p><div class="fx">'+v.fx+'</div></div>');
+  });
+
+  // ── old skew row ──
+  var OLD=[["Saturn",40],["Jupiter",45],["Mars","chassis"],["Sol",45],["Venus","flesh"],["Mercury",43],["Luna",45]];
+  var orow=document.getElementById("oldrow");
+  OLD.forEach(function(o){
+    var v=o[1], anima = typeof v==="number";
+    orow.insertAdjacentHTML("beforeend",
+      '<span class="op">'+o[0]+' → '+(anima?'<b>ANIMA '+v+'%</b>':(v.toUpperCase()))+'</span>');
+  });
+
+  // ── heptagram ──
+  var cv=document.getElementById("hept"), ctx=cv.getContext("2d");
+  function css(v){ return getComputedStyle(root).getPropertyValue(v).trim(); }
+  function drawHept(){
+    var dpr=Math.min(2,window.devicePixelRatio||1), S=340;
+    cv.width=S*dpr; cv.height=S*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,S,S);
+    var cx=S/2, cy=S/2, R=122;
+    var pts=CHALDEAN.map(function(k,i){ var a=-Math.PI/2 + i*2*Math.PI/7; return {k:k, x:cx+Math.cos(a)*R, y:cy+Math.sin(a)*R}; });
+    // edges: each planet → the three it beats (fainter the further round the cycle)
+    var goldCol=css("--gold");
+    ctx.lineWidth=1.1; ctx.strokeStyle=goldCol;
+    pts.forEach(function(pt,i){
+      for(var step=1; step<=3; step++){
+        var j=(i+step)%7, q=pts[j];
+        ctx.globalAlpha = step===1?0.5:(step===2?0.26:0.13);
+        ctx.beginPath(); ctx.moveTo(pt.x,pt.y); ctx.lineTo(q.x,q.y); ctx.stroke();
+      }
+    });
+    ctx.globalAlpha=1;
+    // nodes
+    pts.forEach(function(pt){
+      var p=byKey[pt.k], col=css(p.colour.replace("var(","").replace(")",""));
+      ctx.beginPath(); ctx.arc(pt.x,pt.y,17,0,7); ctx.fillStyle=css("--panel"); ctx.fill();
+      ctx.lineWidth=2; ctx.strokeStyle=col; ctx.stroke();
+      ctx.fillStyle=col; ctx.font='16px Georgia, "Times New Roman", serif'; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(p.glyph, pt.x, pt.y+1);
+    });
+    ctx.fillStyle=css("--dim"); ctx.font='10px ui-monospace, monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("each beats the next three  ↻", cx, cy);
+  }
+  drawHept();
+  window.addEventListener("resize", drawHept);
+
+  // ── theme toggle ──
+  document.getElementById("themeBtn").addEventListener("click", function(){
+    var cur = root.getAttribute("data-theme");
+    var next = cur ? (cur==="dark"?"light":"dark") : (matchMedia("(prefers-color-scheme: dark)").matches?"light":"dark");
+    root.setAttribute("data-theme", next);
+    drawHept();
+  });
+})();
+</script>
+
+</body>
+</html>
