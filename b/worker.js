@@ -6,7 +6,7 @@
 import { evaluate } from './feedgen/pipeline.js';
 import * as gc from './lib/gc.js';
 import { circle as squaresCircle } from './squares/circle.js';
-import { scan as uniqueScan, search as uniqueSearch, novelty as uniqueNovelty } from './unique/unique.js';
+import { scan as uniqueScan, search as uniqueSearch, novelty as uniqueNovelty, meme as uniqueMeme } from './unique/unique.js';
 
 const FEED_HOST = 'b.mino.mobi';
 const SERVICE_DID = `did:web:${FEED_HOST}`;
@@ -191,6 +191,11 @@ export default {
     // /coin's gate — does a draft carry a phrase never posted on Bluesky?
     if (path === '/api/unique/novelty' && request.method === 'POST') {
       try { return json(await uniqueNovelty(request, env, await serviceToken(env))); }
+      catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
+    }
+    // /meme — personal memes (repeated phrases only they say) + co-memeticists.
+    if (path === '/api/unique/meme' && request.method === 'POST') {
+      try { return uniqueMeme(request, env, await serviceToken(env)); }
       catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
     }
 

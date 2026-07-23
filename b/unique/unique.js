@@ -123,6 +123,12 @@ export async function scan(params, env) {
   // line breaks). Default false: only contiguous phrases, no punctuation/newline
   // straddlers — the filter people asked for.
   const cross = truthy(params.get('crossPunct'));
+  // kind=meme flips the pre-filter: keep phrases the author REPEATS (count ≥ min)
+  // instead of hapaxes (count === 1). These are the personal-meme candidates —
+  // phrases they say a lot, to be verified against the network (nobody else says
+  // them ⇒ personal meme; a few others do ⇒ co-memeticists).
+  const meme = (params.get('kind') || 'hapax').toLowerCase() === 'meme';
+  const minUses = Math.max(2, parseInt(params.get('min') || '2', 10) || 2);
 
   const did = await resolveActor(handleRaw);
   const pds = await resolvePds(did);
@@ -150,35 +156,46 @@ export async function scan(params, env) {
   const cands = [];
   const collect = (map, n) => {
     for (const [g, cnt] of map) {
-      if (cnt !== 1) continue;                 // the free pre-filter
+      // hapax: kept iff used exactly once. meme: kept iff repeated ≥ minUses.
+      if (meme ? cnt < minUses : cnt !== 1) continue;
       const sc = score(g.split(' '));
       if (sc < 0) continue;                    // all-stopword gram
-      cands.push({ g, n, s: sc });
+      cands.push({ g, n, s: sc, c: cnt });
     }
   };
   if (want2) collect(c2, 2);
   if (want3) collect(c3, 3);
-  cands.sort((a, b) => b.s - a.s);
+  // hapax: most-distinctive first. meme: distinctiveness DOMINATES, boosted by
+  // repetition (log-damped so a common phrase's huge count can't outrank a
+  // distinctive one). This spends the search budget on likely personal memes
+  // instead of on "i think" / "want to", which the classifier just drops as common.
+  const memeRank = (x) => x.s + Math.min(Math.log2(x.c), 5);
+  cands.sort((a, b) => (meme ? (memeRank(b) - memeRank(a)) : (b.s - a.s)));
 
   return {
     did, pds, posts, pages,
+    kind: meme ? 'meme' : 'hapax',
+    minUses: meme ? minUses : 1,
     boundaries: !cross,                        // true => grams don't span punctuation/newlines
     scannedAll: !cursor,                       // false => hit the page cap
     bigramTypes: c2.size, trigramTypes: c3.size,
     onceBigrams: want2 ? [...c2.values()].filter((v) => v === 1).length : 0,
     onceTrigrams: want3 ? [...c3.values()].filter((v) => v === 1).length : 0,
+    repeatedBigrams: want2 ? [...c2.values()].filter((v) => v >= minUses).length : 0,
+    repeatedTrigrams: want3 ? [...c3.values()].filter((v) => v >= minUses).length : 0,
     total: cands.length,
-    candidates: cands.slice(0, SCAN_CAP).map(({ g, n }) => ({ g, n })),
+    // meme candidates carry the author's repeat count c; hapax candidates don't.
+    candidates: cands.slice(0, SCAN_CAP).map(({ g, n, c }) => (meme ? { g, n, c } : { g, n })),
   };
 }
 
 // ── shared: run one exact-phrase search, keep only posts that truly contain it ──
 // Returns { hits: [...] } on success, or { rate: true } / { error: true } so the
 // caller can distinguish "verified zero" from "couldn't check".
-async function searchHits(g, token) {
+async function searchHits(g, token, limit = SEARCH_LIMIT) {
   const u = new URL(`${token ? APP : PUB}/app.bsky.feed.searchPosts`);
   u.searchParams.set('q', `"${g}"`);           // quoted => exact-phrase intent
-  u.searchParams.set('limit', String(SEARCH_LIMIT));
+  u.searchParams.set('limit', String(limit));
   let d;
   try { d = await jget(u.toString(), token ? { Authorization: `Bearer ${token}` } : null); }
   catch (e) {
@@ -197,7 +214,7 @@ async function searchHits(g, token) {
     if (!text || !pad(text).includes(needle)) continue;
     if (seen.has(p.uri)) continue;
     seen.add(p.uri);
-    hits.push({ uri: p.uri, did: p.author && p.author.did, handle: p.author && p.author.handle, text: String(text).slice(0, 240) });
+    hits.push({ uri: p.uri, did: p.author && p.author.did, handle: p.author && p.author.handle, avatar: p.author && p.author.avatar, text: String(text).slice(0, 240) });
   }
   return { hits };
 }
@@ -316,4 +333,88 @@ export async function novelty(request, env, token) {
     ok: novel.length > 0,
     inconclusive,
   };
+}
+
+// ── meme: personal memes + co-memeticists ──────────────────────────────────────
+// The inverse of the hapax finder. scan(kind=meme) hands us the phrases an author
+// REPEATS; here we ask the network who else says them:
+//   • personal  — the author repeats it, nobody else on Bluesky posts it. A private
+//                 catchphrase — the strongest signal of idiolect.
+//   • shared    — a small set of others (≤ MEME_OTHER_CAP) also post it: the
+//                 co-memeticists, the in-group who share the meme.
+//   • common    — many others / a saturated result window ⇒ ordinary language, dropped.
+//   • none      — search didn't surface it at all (inconclusive).
+const MEME_SEARCH_LIMIT = 40;   // wider window so the author's own posts don't crowd out others
+const MEME_OTHER_CAP = 8;       // > this many distinct other authors ⇒ common phrase, not a meme
+const MEME_SEARCH_MAX = 150;    // cap phrases verified per /meme request
+
+async function searchMemePhrase(g, wantDid, token) {
+  const n = g.split(' ').length;
+  const r = await searchHits(g, token, MEME_SEARCH_LIMIT);
+  if (r.rate) return { g, n, status: 'rate' };
+  if (r.error) return { g, n, status: 'error' };
+  const hits = r.hits;
+  if (hits.length === 0) return { g, n, status: 'none' };   // not indexed — inconclusive
+  const others = [];
+  const seenAuthor = new Set();
+  let mine = 0, mineSample = null;
+  for (const h of hits) {
+    if (h.did === wantDid) { mine++; if (!mineSample) mineSample = { uri: h.uri, text: h.text }; continue; }
+    if (!h.did || seenAuthor.has(h.did)) continue;           // one sample per other author
+    seenAuthor.add(h.did);
+    others.push({ did: h.did, handle: h.handle, avatar: h.avatar, uri: h.uri, text: h.text });
+  }
+  const saturated = hits.length >= MEME_SEARCH_LIMIT;        // window full ⇒ likely widespread
+  if (others.length === 0) return { g, n, status: 'personal', mine, post: mineSample };   // only the author says it
+  if (others.length > MEME_OTHER_CAP || saturated) return { g, n, status: 'common', others: others.length };
+  return { g, n, status: 'shared', mine, others };
+}
+
+// Streamed NDJSON, same shape/plumbing as search(): one verdict per line. The
+// browser accumulates personal memes and rolls the `shared` verdicts' `others`
+// into a co-memeticist leaderboard.
+export function meme(request, env, token) {
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const enc = new TextEncoder();
+
+  (async () => {
+    let body;
+    try { body = await request.json(); } catch { body = {}; }
+    const list = Array.isArray(body.candidates) ? body.candidates : [];
+    const wantDid = typeof body.did === 'string' ? body.did : null;
+    const cands = list
+      .map((x) => (typeof x === 'string' ? { g: x } : (x && typeof x.g === 'string' ? { g: x.g, c: x.c } : null)))
+      .filter((x) => x && x.g.trim())
+      .slice(0, MEME_SEARCH_MAX);
+
+    const write = (obj) => writer.write(enc.encode(JSON.stringify(obj) + '\n'));
+
+    let idx = 0;
+    async function worker() {
+      while (idx < cands.length) {
+        const { g, c } = cands[idx++];
+        let res;
+        try { res = await searchMemePhrase(g, wantDid, token); }
+        catch (e) { res = { g, n: g.split(' ').length, status: 'error' }; }
+        if (c != null) res.c = c;                             // echo the author's repeat count
+        await write(res);
+      }
+    }
+    try {
+      await Promise.all(Array.from({ length: Math.min(SEARCH_CONC, cands.length || 1) }, worker));
+      await write({ done: true, checked: cands.length });
+    } catch (e) {
+      try { await write({ done: true, error: String((e && e.message) || e) }); } catch {}
+    }
+    try { await writer.close(); } catch {}
+  })();
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
 }
