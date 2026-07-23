@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>conjectures — an index of open mathematical conjectures</title>
+<meta name="description" content="A searchable, sortable index of open mathematical conjectures — the kind you disprove by finding a single counterexample. Each entry links to a context page: the statement, its logical form, what a counterexample would look like, current evidence, and where to read more.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="page">
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>conjectures</h1>
+  <p class="subtitle">an index of open mathematical problems · counterexample wanted</p>
+  <p class="crossref">
+    sibling: <a href="../geometry/">geometry</a> · pages here cross-link the pack:
+    <a href="../erdos/">erdős</a> · <a href="../runner/">runner</a> ·
+    <a href="../hadwiger/">hadwiger</a> · <a href="../heilbronn/">heilbronn</a> ·
+    <a href="../viazovska/">viazovska</a>
+  </p>
+</header>
+
+<p class="lede">
+  Every entry below is <strong>open</strong> — nobody knows whether it is true or false — and
+  almost all of them share a shape: they assert that <em>something holds for all</em> objects of
+  some kind. That makes them fragile in a specific, beautiful way. You don't need a hundred-page
+  proof to settle one. You need <strong>a single counterexample</strong>: one even number that
+  isn't a sum of two primes, one graph that can't be reconstructed from its pieces, one starting
+  value that sends the Collatz map to infinity. Find it and the conjecture falls.
+</p>
+<p>
+  This page is the index. Search it, filter by field, sort by when the problem was posed. Click any
+  row for a context page: the precise statement, its logical form, exactly what a disproving object
+  would be, the best partial results, and pointers to read further.
+</p>
+
+<div class="controls">
+  <div class="search-row">
+    <input id="search" type="search" placeholder="search names, statements, tags…" autocomplete="off" spellcheck="false">
+    <span class="count" id="count"></span>
+  </div>
+  <div class="chips" id="chips"></div>
+</div>
+
+<div class="table-wrap">
+<table class="idx" id="idx-table">
+<thead>
+<tr>
+  <th data-sort="name" data-type="str">conjecture<span class="sort-mark"></span></th>
+  <th data-sort="fieldLabel" data-type="str" class="hide-sm">field<span class="sort-mark"></span></th>
+  <th data-sort="posedYear" data-type="num">posed<span class="sort-mark"></span></th>
+  <th data-sort="statusRank" data-type="num" class="hide-sm">status<span class="sort-mark"></span></th>
+</tr>
+</thead>
+<tbody id="idx-body"></tbody>
+</table>
+</div>
+
+<h2>How to read the disproof column</h2>
+<p style="font-size:0.9rem">
+  On each context page a <strong>counterexample</strong> tag means a single explicit object refutes
+  the conjecture — the classic hunt. <strong>counterexample (deep)</strong> means a counter-object
+  exists in principle but exhibiting or certifying it is itself hard (a Riemann zero off the line, a
+  Navier–Stokes solution that blows up). <strong>existence</strong> marks the mirror-image problems —
+  they claim something <em>exists</em>, so the counterexample would be a proof that it never does.
+  We keep those because they're the natural companions to the hunt, but they don't yield to a lucky
+  search the same way.
+</p>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="../geometry/">geometry</a>
+  <a href="../erdos/">erdős</a>
+  <a href="../runner/">runner</a>
+  <a href="../hadwiger/">hadwiger</a>
+  <a href="../heilbronn/">heilbronn</a>
+  <a href="../viazovska/">viazovska</a>
+</footer>
+
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Hub — decorate, render, search, filter, sort
+// ─────────────────────────────────────────────────────────────────────
+const RAW = (window.CONJECTURES || []).slice();
+
+// Decorate each row with derived, sortable fields.
+const ROWS = RAW.map(c => {
+  const meta = CONJ.fieldMeta(c.field);
+  const sKey = CONJ.statusKey(c.status);
+  return {
+    ...c,
+    _fieldKey: meta.key,
+    fieldLabel: meta.label,
+    _color: `var(${meta.css})`,
+    _statusKey: sKey,
+    statusRank: sKey === 'partial' ? 2 : sKey === 'mostly' ? 1 : 0,
+    _hay: [c.name, c.statement, c.field, c.subfield, (c.tags || []).join(' '), c.posedBy]
+      .join(' ').toLowerCase(),
+  };
+});
+
+// Build field filter chips (by label, ordered by count desc).
+const byLabel = new Map();
+for (const r of ROWS) {
+  const e = byLabel.get(r.fieldLabel) || { label: r.fieldLabel, color: r._color, n: 0 };
+  e.n++; byLabel.set(r.fieldLabel, e);
+}
+const FIELDS = [...byLabel.values()].sort((a, b) => b.n - a.n || a.label.localeCompare(b.label));
+
+const chipsEl = document.getElementById('chips');
+const activeFields = new Set();
+function renderChips() {
+  chipsEl.innerHTML = '';
+  const all = document.createElement('span');
+  all.className = 'chip' + (activeFields.size === 0 ? ' active' : '');
+  all.textContent = `all · ${ROWS.length}`;
+  all.onclick = () => { activeFields.clear(); renderChips(); apply(); };
+  chipsEl.appendChild(all);
+  for (const f of FIELDS) {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (activeFields.has(f.label) ? ' active' : '');
+    chip.innerHTML = `<span class="cdot" style="background:${f.color}"></span>${CONJ.esc(f.label)} · ${f.n}`;
+    chip.onclick = () => {
+      if (activeFields.has(f.label)) activeFields.delete(f.label);
+      else activeFields.add(f.label);
+      renderChips(); apply();
+    };
+    chipsEl.appendChild(chip);
+  }
+}
+
+const body = document.getElementById('idx-body');
+const countEl = document.getElementById('count');
+
+function render(rows) {
+  body.innerHTML = '';
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty">No conjectures match. Clear the search or a filter.</td></tr>';
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    tr.className = 'row';
+    const href = `c.html?id=${encodeURIComponent(r.id)}`;
+    tr.addEventListener('click', (e) => { if (e.target.tagName !== 'A') location.href = href; });
+    tr.innerHTML = `
+      <td class="name-cell">
+        <span class="swatch" style="background:${r._color}"></span>
+        <a href="${href}">${CONJ.esc(r.name)}</a>
+        <span class="stmt">${CONJ.esc(r.statement)}</span>
+      </td>
+      <td class="field-cell hide-sm">
+        <span class="cdot" style="background:${r._color}"></span>${CONJ.esc(r.fieldLabel)}
+      </td>
+      <td class="year-cell">${r.posedYear ? CONJ.esc(r.posedYear) : '—'}</td>
+      <td class="status-cell status-${r._statusKey} hide-sm">
+        <span class="status-dot"></span>${CONJ.esc(CONJ.statusLabel(r.status))}
+      </td>`;
+    frag.appendChild(tr);
+  }
+  body.appendChild(frag);
+}
+
+// Sort + filter + search pipeline
+let sortKey = 'name', sortAsc = true;
+function apply() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const terms = q ? q.split(/\s+/) : [];
+  let rows = ROWS.filter(r => {
+    if (activeFields.size && !activeFields.has(r.fieldLabel)) return false;
+    return terms.every(t => r._hay.includes(t));
+  });
+  rows.sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    let cmp;
+    if (typeof av === 'number' || typeof bv === 'number') cmp = (av || 0) - (bv || 0);
+    else cmp = String(av).localeCompare(String(bv));
+    if (cmp === 0) cmp = String(a.name).localeCompare(String(b.name));
+    return sortAsc ? cmp : -cmp;
+  });
+  render(rows);
+  countEl.textContent = `${rows.length} of ${ROWS.length}`;
+}
+
+document.querySelectorAll('#idx-table th').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (sortKey === key) sortAsc = !sortAsc;
+    else { sortKey = key; sortAsc = th.dataset.type !== 'num'; }
+    document.querySelectorAll('#idx-table th').forEach(h => {
+      h.classList.remove('sort-active');
+      h.querySelector('.sort-mark').textContent = '';
+    });
+    th.classList.add('sort-active');
+    th.querySelector('.sort-mark').textContent = sortAsc ? '▲' : '▼';
+    apply();
+  });
+});
+document.getElementById('search').addEventListener('input', apply);
+
+renderChips();
+apply();
+</script>
+
+</body>
+</html>

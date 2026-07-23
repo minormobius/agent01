@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>conjecture — mino.mobi</title>
+<meta name="description" content="An open mathematical conjecture: its statement, logical form, what a counterexample would look like, current evidence, and background reading.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="page">
+  <a class="crumb" href="index.html">← conjectures index</a>
+  <div id="detail"></div>
+</header>
+
+<footer>
+  <a href="index.html">index</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="../geometry/">geometry</a>
+</footer>
+
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Detail — render one conjecture from ?id=
+// ─────────────────────────────────────────────────────────────────────
+const LIST = (window.CONJECTURES || []).slice()
+  .sort((a, b) => String(a.field).localeCompare(String(b.field)) || String(a.name).localeCompare(String(b.name)));
+const params = new URLSearchParams(location.search);
+const id = params.get('id');
+const idx = LIST.findIndex(c => c.id === id);
+const el = document.getElementById('detail');
+
+const DISPROOF_LABEL = {
+  'counterexample':      'counterexample',
+  'counterexample-hard': 'counterexample (deep)',
+  'existence':           'existence claim',
+  'other':               'other',
+};
+const DISPROOF_BLURB = {
+  'counterexample':      'A single explicit object refutes it — this is a classic counterexample hunt.',
+  'counterexample-hard': 'A counter-object would refute it, but exhibiting or certifying one is itself deep.',
+  'existence':           'It asserts something exists; a counterexample here means proving it never does.',
+  'other':               'Refutation would take an unusual form — see the note.',
+};
+
+if (idx < 0) {
+  el.innerHTML = `<h1>Not found</h1><p>No conjecture with id <code>${CONJ.esc(id || '')}</code>. Back to the <a href="index.html">index</a>.</p>`;
+} else {
+  const c = LIST[idx];
+  const meta = CONJ.fieldMeta(c.field);
+  const color = `var(${meta.css})`;
+  const sKey = CONJ.statusKey(c.status);
+  document.title = `${c.name} — conjectures — mino.mobi`;
+  const md = document.querySelector('meta[name="description"]');
+  if (md) md.setAttribute('content', `${c.name}: ${c.statement}`);
+
+  const prev = LIST[(idx - 1 + LIST.length) % LIST.length];
+  const next = LIST[(idx + 1) % LIST.length];
+  const related = LIST.filter(x => x !== c && CONJ.fieldMeta(x.field).key === meta.key).slice(0, 8);
+
+  const linksHtml = (c.links || []).map(l =>
+    `<li><a href="${CONJ.esc(l.url)}" target="_blank" rel="noopener">${CONJ.esc(l.label)} ↗</a></li>`).join('');
+
+  const dtag = DISPROOF_LABEL[c.disproof] || 'counterexample';
+
+  el.innerHTML = `
+    <div class="detail-field"><span class="cdot" style="background:${color}"></span>${CONJ.esc(meta.label)}${c.subfield ? ' · ' + CONJ.esc(c.subfield) : ''}</div>
+    <h1>${CONJ.esc(c.name)}</h1>
+    <div class="detail-meta">
+      ${c.posedBy || c.posedYear ? `<span>posed ${CONJ.esc(c.posedBy || '')}${c.posedBy && c.posedYear ? ', ' : ''}${c.posedYear ? CONJ.esc(c.posedYear) : ''}</span>` : ''}
+      <span class="status-${sKey}"><span class="status-dot"></span>${CONJ.esc(CONJ.statusLabel(c.status))}</span>
+      <span>disproof: ${CONJ.esc(dtag)}</span>
+      ${c.prize ? `<span>◆ ${CONJ.esc(c.prize)}</span>` : ''}
+    </div>
+
+    <div class="panel statement">
+      <h3>The conjecture</h3>
+      <p style="margin:0">${CONJ.esc(c.statement)}</p>
+      ${c.form ? `<div class="form">${CONJ.esc(c.form)}</div>` : ''}
+    </div>
+
+    <div class="panel disprove">
+      <h3>What would disprove it</h3>
+      <p style="margin:0 0 0.5rem">${CONJ.esc(c.counterexample)}</p>
+      <p style="margin:0;font-size:0.85rem;color:var(--muted)">${CONJ.esc(DISPROOF_BLURB[c.disproof] || DISPROOF_BLURB.counterexample)}</p>
+    </div>
+
+    ${c.note ? `<h2>Background</h2><p>${CONJ.esc(c.note)}</p>` : ''}
+
+    ${c.evidence ? `<div class="kv"><span class="k">where it stands</span><p style="margin:0.2rem 0 0">${CONJ.esc(c.evidence)}</p></div>` : ''}
+
+    ${(c.tags && c.tags.length) ? `<div class="kv" style="margin-top:1rem">${c.tags.map(t => `<span class="tag">${CONJ.esc(t)}</span>`).join('')}</div>` : ''}
+
+    ${linksHtml ? `<h2>Read further</h2><ul class="links-list">${linksHtml}</ul>` : ''}
+
+    ${related.length ? `<h2>More in ${CONJ.esc(meta.label)}</h2><ul class="links-list">${
+      related.map(r => `<li><a href="c.html?id=${encodeURIComponent(r.id)}">${CONJ.esc(r.name)}</a></li>`).join('')
+    }</ul>` : ''}
+
+    <div class="prevnext">
+      <a href="c.html?id=${encodeURIComponent(prev.id)}"><span class="nn">← prev</span><br>${CONJ.esc(prev.name)}</a>
+      <a href="c.html?id=${encodeURIComponent(next.id)}" style="text-align:right"><span class="nn">next →</span><br>${CONJ.esc(next.name)}</a>
+    </div>
+  `;
+}
+</script>
+
+</body>
+</html>
