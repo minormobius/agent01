@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Academic Wormhole Roulette</title>
+<meta name="description" content="Spin the wheel and fall down a rabbit hole: one seed conjures an entire niche academic micro-field — its foundational open-access paper, total granted funding, low-impact journals, and the incestuous web of labs and feuding theories. Deterministic satire, endless fields.">
+<meta property="og:title" content="Academic Wormhole Roulette">
+<meta property="og:description" content="Spin into a niche academic micro-field: its foundational paper, funding, low-impact journals, and the incestuous web of labs and theories.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi">← mino.mobi</a></div>
+
+  <header class="site">
+    <h1>Academic Wormhole Roulette</h1>
+    <div class="sub">spin · fall down a niche · repeat</div>
+  </header>
+
+  <section class="roulette">
+    <div class="reel" id="reel"><div class="cell" id="reelCell">the study of everything small</div></div>
+    <button class="spin-btn" id="spin">Spin the wheel</button>
+    <div class="hint">Every spin lands on a permanent field — the URL is its address.</div>
+  </section>
+
+  <nav class="nav">
+    <button id="prev" title="Previous field">‹ prev</button>
+    <button id="rand">🎲 random</button>
+    <button id="next" title="Next field">next ›</button>
+    <input class="seed-in" id="seedIn" inputmode="text" placeholder="seed" aria-label="seed">
+    <button id="go">go</button>
+    <button id="share">🔗 copy link</button>
+    <span class="copied hidden" id="copied">copied</span>
+  </nav>
+
+  <main id="dossier"></main>
+
+  <footer class="disc">
+    Everything here is <strong>generated fiction</strong> — a deterministic satire of how micro-disciplines look.
+    No real field, paper, DOI, person, journal, grant, or lab is described. Do not cite any of it.
+    Same seed → same field, for ever. Part of <a href="https://mino.mobi" style="color:var(--accent)">mino.mobi</a>.
+  </footer>
+</div>
+
+<script src="/engine.js"></script>
+<script src="/graph.js"></script>
+<script>
+(function () {
+  "use strict";
+  var W = window.WORMHOLE, GR = window.WORMHOLE_GRAPH;
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); };
+  var graphCtl = null;
+
+  // ---- seed parsing ----
+  function seedFromUrl() {
+    var m = location.pathname.match(/^\/f\/([^/]+)\/?$/);
+    if (m) return decodeURIComponent(m[1]);
+    var q = new URLSearchParams(location.search).get("seed");
+    return q || null;
+  }
+  function setUrl(seed) {
+    var path = "/f/" + encodeURIComponent(seed);
+    if (location.pathname + location.search !== path) history.pushState({ seed: seed }, "", path);
+  }
+  // the ONE allowed unseeded roll: which deterministic field to open
+  function randomSeed() { return String(Math.floor(Math.random() * 9e8) + 1); }
+
+  // ---- render ----
+  function fmt(n) { return n.toLocaleString("en-US"); }
+
+  function renderFunding(f) {
+    var max = Math.max.apply(null, f.byFunder.map(function (x) { return x.amount; }));
+    var bars = f.byFunder.map(function (x) {
+      var pct = Math.round((x.amount / max) * 100);
+      return '<div class="funder">' +
+        '<div class="top"><span>' + esc(x.funder) + '</span><span class="amt">' + esc(W.money(x.amount)) + ' · ' + x.grants + ' grant' + (x.grants === 1 ? "" : "s") + '</span></div>' +
+        '<div class="bar"><span style="width:' + pct + '%"></span></div>' +
+        '<div class="grant">' + esc(x.topGrant) + '</div>' +
+        '</div>';
+    }).join("");
+
+    // sparkline
+    var t = f.trend;
+    var maxV = Math.max.apply(null, t.map(function (p) { return p.amount; })) || 1;
+    var w = 100, h = 30;
+    var pts = t.map(function (p, i) {
+      var x = t.length > 1 ? (i / (t.length - 1)) * w : 0;
+      var y = h - (p.amount / maxV) * (h - 3) - 1.5;
+      return x.toFixed(1) + "," + y.toFixed(1);
+    });
+    var area = "0," + h + " " + pts.join(" ") + " " + w + "," + h;
+    var spark = '<div class="spark"><svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<polygon points="' + area + '" fill="rgba(184,134,11,.16)"/>' +
+      '<polyline points="' + pts.join(" ") + '" fill="none" stroke="var(--gold)" stroke-width="1.2" vector-effect="non-scaling-stroke"/>' +
+      '</svg><div class="note">Granted funding by year, ' + t[0].year + '–' + t[t.length - 1].year + '</div></div>';
+
+    return '<div class="card">' +
+      '<h2>Total granted funding</h2>' +
+      '<div class="fund-total"><span class="lbl">field-wide, since founding</span>' + esc(W.money(f.total)) + '</div>' +
+      spark + bars +
+      '<div class="note">' + esc(f.note) + '</div></div>';
+  }
+
+  function renderPaper(p) {
+    var authors = p.authors.map(function (a) {
+      return '<span>' + esc(a.name) + ' <span class="affil">(' + esc(a.affil) + ')</span></span>';
+    }).join("; ");
+    return '<div class="card">' +
+      '<h2>The foundational paper <span class="chip oa" style="margin-left:6px">◆ open access</span></h2>' +
+      '<div class="paper-title">' + esc(p.title) + '</div>' +
+      '<div class="paper-authors">' + authors + '</div>' +
+      '<div class="cite"><em>' + esc(p.journal) + '</em>, ' + p.year + ', vol. ' + p.volume + ' (' + p.issue + '), pp. ' + esc(p.pages) + '.<br>' +
+      'DOI: ' + esc(p.doi) + ' &nbsp;·&nbsp; cited ' + fmt(p.citations) + ' times</div>' +
+      '<div class="abstract"><strong>Abstract.</strong> ' + esc(p.abstract) + '</div></div>';
+  }
+
+  function renderJournals(js) {
+    var rows = js.map(function (j) {
+      return '<tr><td>' + esc(j.name) + (j.oa ? ' <span class="tag-oa">OA</span>' : '') + '</td>' +
+        '<td class="if">' + j.impact.toFixed(2) + '</td>' +
+        '<td class="pub">' + esc(j.publisher) + '</td>' +
+        '<td class="pub">' + j.founded + '</td>' +
+        '<td class="pub">' + j.perYear + '/yr</td></tr>';
+    }).join("");
+    return '<div class="card"><h2>Low-impact journals</h2>' +
+      '<table class="journals"><thead><tr><th>Title</th><th>IF</th><th>Published by</th><th>Since</th><th>Output</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>';
+  }
+
+  function renderWeb(web, seed) {
+    var theories = web.theories.map(function (t) {
+      return '<div class="web-item"><span class="nm" style="border-bottom:2px solid ' + GR.campColor(t.camp) + '">' + esc(t.name) + '</span>' +
+        ' <span class="dt">(' + esc(t.camp) + ', ' + t.coined + ')</span><br><span class="dt">holds ' + esc(t.claim) + '</span></div>';
+    }).join("");
+    var labs = web.labs.map(function (l) {
+      return '<div class="web-item"><span class="nm">' + esc(l.name) + '</span><br>' +
+        '<span class="dt">PI ' + esc(l.pi) + ' · ' + l.members + ' member' + (l.members === 1 ? "" : "s") + ' · est. ' + l.founded + '</span></div>';
+    }).join("");
+    return '<div class="card"><h2>The incestuous web</h2>' +
+      '<div class="graph-wrap"><canvas id="graph"></canvas></div>' +
+      '<div class="legend">' +
+      '<span class="k"><span class="dot"></span> lab (size = headcount)</span>' +
+      '<span class="k"><span class="dia"></span> theory / school</span>' +
+      '<span class="k">— espouses</span>' +
+      '<span class="k" style="color:var(--refute)">- - rivalry / refutes</span>' +
+      '<span class="k">drag nodes · scroll to zoom · hover for the gossip</span>' +
+      '</div>' +
+      '<div class="web-cols"><div><h3>Theories &amp; schools</h3>' + theories + '</div>' +
+      '<div><h3>Labs</h3>' + labs + '</div></div></div>';
+  }
+
+  function renderTrivia(tr) {
+    return '<div class="card"><h2>Field trivia</h2><ul class="trivia">' +
+      tr.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join("") + '</ul></div>';
+  }
+
+  function renderField(fld) {
+    return '<div class="card">' +
+      '<div class="field-name">' + esc(fld.name) + '</div>' +
+      '<div class="chips">' +
+      '<span class="chip">↳ ' + esc(fld.discipline) + '</span>' +
+      '<span class="chip status">' + esc(fld.status) + '</span>' +
+      '<span class="chip">founded ' + fld.founded + '</span>' +
+      '<span class="chip">peak ' + fld.peakYear + '</span>' +
+      '</div>' +
+      '<div class="studies">The study of ' + esc(fld.studies.charAt(0).toLowerCase() + fld.studies.slice(1)) + '.</div>' +
+      '<div class="status-note">' + esc(fld.statusNote) + '</div>' +
+      '<div class="meta-line">' + esc(fld.sizeLabel) + '</div></div>';
+  }
+
+  var current = null;
+  function render(seed, push) {
+    if (graphCtl) { graphCtl.stop(); graphCtl = null; }
+    var d = W.generate(seed);
+    current = d;
+    $("dossier").innerHTML =
+      renderField(d.field) + renderPaper(d.paper) + renderFunding(d.funding) +
+      renderJournals(d.journals) + renderWeb(d.web, seed) + renderTrivia(d.trivia);
+    $("seedIn").value = seed;
+    $("reelCell").textContent = d.field.name;
+    if (push !== false) setUrl(seed);
+    document.title = d.field.name + " — Academic Wormhole Roulette";
+    // spin up the graph after layout settles
+    var cv = $("graph");
+    if (cv) graphCtl = GR.render(cv, d.web, { seed: seed });
+  }
+
+  // ---- roulette spin ----
+  var spinning = false;
+  function spin() {
+    if (spinning) return;
+    spinning = true;
+    var btn = $("spin"); btn.disabled = true;
+    var target = randomSeed();
+    var cell = $("reelCell");
+    var ticks = 22, i = 0;
+    (function tick() {
+      // decoy names, decelerating
+      cell.textContent = W.fieldName(String(Math.floor(Math.random() * 9e8)));
+      i++;
+      if (i < ticks) {
+        var delay = 45 + Math.pow(i / ticks, 3) * 240;
+        setTimeout(tick, delay);
+      } else {
+        render(target, true);
+        window.scrollTo({ top: $("dossier").offsetTop - 60, behavior: "smooth" });
+        spinning = false; btn.disabled = false;
+      }
+    })();
+  }
+
+  // ---- nav ----
+  $("spin").addEventListener("click", spin);
+  $("rand").addEventListener("click", spin);
+  function step(delta) {
+    var cur = $("seedIn").value.trim();
+    var n = parseInt(cur, 10);
+    if (isNaN(n)) { spin(); return; }
+    var next = Math.max(1, n + delta);
+    render(String(next), true);
+  }
+  $("next").addEventListener("click", function () { step(1); });
+  $("prev").addEventListener("click", function () { step(-1); });
+  $("go").addEventListener("click", function () {
+    var v = $("seedIn").value.trim(); if (v) render(v, true);
+  });
+  $("seedIn").addEventListener("keydown", function (e) { if (e.key === "Enter") { var v = e.target.value.trim(); if (v) render(v, true); } });
+  $("share").addEventListener("click", function () {
+    var url = location.origin + "/f/" + encodeURIComponent(current ? current.seed : "1");
+    var done = function () { var c = $("copied"); c.classList.remove("hidden"); setTimeout(function () { c.classList.add("hidden"); }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, done);
+    else { prompt("Copy this link:", url); }
+  });
+  window.addEventListener("popstate", function () {
+    var s = seedFromUrl(); if (s) render(s, false);
+  });
+
+  // ---- boot ----
+  var initial = seedFromUrl();
+  if (initial) render(initial, false);
+  else { var s = randomSeed(); render(s, true); }
+})();
+</script>
+</body>
+</html>

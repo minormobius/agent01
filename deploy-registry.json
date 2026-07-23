@@ -1143,6 +1143,19 @@
         "human/**",
         "poll/apps/api/migrations/0033_human_stats.sql"
       ]
+    },
+    {
+      "surface": "wormhole",
+      "dir": "wormhole",
+      "endpoint": "wormhole.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/academic-wormhole-roulette-lpuqfq",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "wormhole/**"
+      ],
+      "note": "Academic Wormhole Roulette. Thin assets Worker (worker `wormhole`, custom_domain wormhole.mino.mobi) — no build, no D1, no AI, no secrets. Spin the wheel and fall down a niche: one seed → one entire fictional micro-field rendered as a dossier — the foundational open-access paper (title/authors/journal/DOI/abstract), total granted funding broken down by funder + a yearly trend sparkline, the roster of low-impact journals, and a force-directed graph of the incestuous web of labs, PIs, and feuding theories. Deterministic satire in the borges/names/org lineage (xmur3 + mulberry32): same seed → same field for ever, so /f/<seed> is a permanent permalink; the roulette's only random roll is which deterministic field to open. Everything is generated fiction — no real field, paper, person, or grant. Engine (wormhole/engine.js) shared verbatim by worker, page, and node selftest (wormhole/engine.selftest.mjs — run before touching the engine; the deploy workflow runs it as a gate). Graph renderer in wormhole/graph.js. Public API, CORS open, pure compute: GET /api/field?seed=, GET /api/roulette, GET /api/health."
     }
   ],
   "unmanaged": {
