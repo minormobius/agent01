@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paper — Academic Wormhole Roulette</title>
+<meta name="description" content="A full procedurally-generated journal article — abstract, sections, equations, a results table, and a reference list whose every citation opens another coherent fake paper. Generated fiction. Part of the Academic Wormhole Roulette.">
+<meta property="og:title" content="A paper from the Academic Wormhole Roulette">
+<meta property="og:description" content="A full procedurally-generated journal article whose references all open other coherent fake papers.">
+<link rel="stylesheet" href="/paper.css">
+</head>
+<body>
+<div class="toolbar">
+  <span class="brand"><a href="/" title="Academic Wormhole Roulette">⌇ wormhole</a></span>
+  <a id="field" href="/">↩ the field</a>
+  <span class="grow"></span>
+  <button id="tunnel" title="Open a random paper">↯ tunnel</button>
+  <button id="share">🔗 link</button>
+  <span class="copied" id="copied" hidden>copied</span>
+  <button id="pdf" title="Save as PDF via your browser's print dialog">⤓ PDF</button>
+  <span class="warn">generated fiction — cite nothing</span>
+</div>
+
+<article class="sheet" id="sheet" aria-live="polite"></article>
+
+<script src="/engine.js"></script>
+<script src="/paper.js"></script>
+<script>
+(function () {
+  "use strict";
+  var P = window.WORMHOLE_PAPER;
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+
+  function idFromUrl() {
+    var m = location.pathname.match(/^\/p\/([^/]+)\/?$/);
+    if (m) return decodeURIComponent(m[1]);
+    return new URLSearchParams(location.search).get("id") || "1.f";
+  }
+
+  function affiliations(authors) {
+    // dedupe affils, number them, superscript on authors
+    var order = [], map = {};
+    authors.forEach(function (a) { if (!(a.affil in map)) { map[a.affil] = order.length + 1; order.push(a.affil); } });
+    var names = authors.map(function (a) {
+      return esc(a.name) + '<sup>' + map[a.affil] + '</sup>';
+    }).join(", ");
+    var affils = order.map(function (af, i) { return '<span><sup>' + (i + 1) + '</sup> ' + esc(af) + '</span>'; }).join("");
+    return { names: names, affils: affils };
+  }
+
+  function renderBody(p) {
+    var secs = p.sections.map(function (s, i) {
+      var inner = s.paras.map(function (par, j) {
+        var html = '<p class="' + (j === 0 ? "first" : "") + '">' + par.html + "</p>";
+        if (par.eq) {
+          html += '<div class="eq">' + par.eq.html + '<span class="eqno">(' + par.eq.num + ')</span></div>';
+        }
+        return html;
+      }).join("");
+      var block = '<h2><span class="secno">' + (i + 1) + "</span>" + esc(s.title) + "</h2>" + inner;
+      if (s.table) {
+        var t = s.table;
+        var head = "<tr>" + t.cols.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
+        var rows = t.rows.map(function (row) {
+          return "<tr>" + row.map(function (c) { return "<td>" + esc(c) + "</td>"; }).join("") + "</tr>";
+        }).join("");
+        block += '<div class="table-fig"><div class="cap"><b>Table 1.</b> ' + esc(t.caption) + '</div>' +
+          '<table class="booktabs"><thead>' + head + "</thead><tbody>" + rows + "</tbody></table></div>";
+      }
+      return block;
+    }).join("");
+    return inner_wrap(secs);
+    function inner_wrap(x) { return x; }
+  }
+
+  function renderRefs(p) {
+    var items = p.references.map(function (r) {
+      return '<div class="refitem" id="ref-' + r.num + '"><span class="rn">[' + r.num + ']</span> ' +
+        esc(r.authors) + " (" + r.year + "). " +
+        '<a class="paperlink" href="/p/' + encodeURIComponent(r.id) + '">' + esc(r.title) + "</a>. " +
+        "<i>" + esc(r.journal) + "</i>, " + r.volume + (r.issue ? "(" + r.issue + ")" : "") + ", pp. " + esc(r.pages) + ". " +
+        '<span class="doi">doi:' + esc(r.doi) + "</span>" +
+        (r.sameField ? "" : ' <span class="xf" title="a citation reaching into another field">interdisc.</span>') +
+        "</div>";
+    }).join("");
+    return '<div class="p-refs"><h2>References</h2>' + items + "</div>";
+  }
+
+  function render(id, push) {
+    var p = P.generate(id);
+    var h = p.header;
+    var au = affiliations(h.authors);
+    var html =
+      '<div class="p-venue">' + esc(h.journal) + " · vol. " + h.volume + " (" + h.issue + ") · " + h.year + "</div>" +
+      '<h1 class="p-title">' + esc(h.title) + "</h1>" +
+      '<div class="p-authors">' + au.names + "</div>" +
+      '<div class="p-affils">' + au.affils + "</div>" +
+      '<div class="p-meta">pp. ' + esc(h.pages) + " · doi:" + esc(h.doi) + " · cited " + h.citations + " times · open access</div>" +
+      '<hr class="p-rule">' +
+      '<div class="p-abstract"><span class="lbl">Abstract</span><p>' + esc(p.abstract) + "</p></div>" +
+      '<div class="p-keywords"><b>Keywords:</b> ' + keywords(p) + "</div>" +
+      '<div class="p-body">' + renderBody(p) + "</div>" +
+      '<div class="p-acks"><h2>Acknowledgements</h2>' + p.acknowledgements + "</div>" +
+      renderRefs(p) +
+      '<div class="p-foot">Generated fiction from the Academic Wormhole Roulette — no real paper, person, DOI, or grant is described. ' +
+      "Paper id <code>" + esc(p.id) + "</code>. Field: " + esc(p.field.name) + ". Same id → same paper, for ever.</div>";
+
+    $("sheet").innerHTML = html;
+    $("field").setAttribute("href", "/f/" + encodeURIComponent(p.fieldSeed));
+    $("field").textContent = "↩ " + p.field.name;
+    document.title = h.title + " — Wormhole";
+    if (push !== false) {
+      var path = "/p/" + encodeURIComponent(id);
+      if (location.pathname !== path) history.pushState({ id: id }, "", path);
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function keywords(p) {
+    // pull a few field terms for a keywords line
+    var t = (window.WORMHOLE.generate(p.fieldSeed).subject.terms || []).slice(0, 4);
+    return t.map(esc).join("; ");
+  }
+
+  function randomFieldSeed() { return String(Math.floor(Math.random() * 9e8) + 1); }
+
+  // intercept reference clicks → tunnel in place (no reload)
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("a.paperlink");
+    if (a && a.getAttribute("href").indexOf("/p/") === 0) {
+      e.preventDefault();
+      var id = decodeURIComponent(a.getAttribute("href").slice(3));
+      render(id, true);
+    }
+  });
+  window.addEventListener("popstate", function () { render(idFromUrl(), false); });
+
+  $("pdf").addEventListener("click", function () { window.print(); });
+  $("tunnel").addEventListener("click", function () { render(randomFieldSeed() + ".f", true); });
+  $("share").addEventListener("click", function () {
+    var url = location.origin + location.pathname;
+    var done = function () { var c = $("copied"); c.hidden = false; setTimeout(function () { c.hidden = true; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, done);
+    else prompt("Copy this link:", url);
+  });
+
+  render(idFromUrl(), false);
+})();
+</script>
+</body>
+</html>

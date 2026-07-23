@@ -11,7 +11,9 @@
 // from breaking relative URLs.
 
 import "./engine.js";
+import "./paper.js";
 const W = globalThis.WORMHOLE;
+const PAPER = globalThis.WORMHOLE_PAPER;
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -51,10 +53,23 @@ export default {
       const seed = randomSeed();
       return json({ ...W.generate(seed), _disclaimer: "Generated fiction. Not a real field, paper, or grant." });
     }
+    if (p === "/api/paper") {
+      const id = url.searchParams.get("id") || "1.f";
+      return json(PAPER.generate(id));
+    }
 
     // ---- pretty permalink: /f/<seed> → index.html ----
     if (/^\/f\/[^/]+\/?$/.test(p)) {
       const res = await env.ASSETS.fetch(new Request(new URL("/", url.origin), request));
+      return new Response(res.body, {
+        status: res.status,
+        headers: { ...Object.fromEntries(res.headers), "content-type": "text/html; charset=utf-8" },
+      });
+    }
+
+    // ---- pretty permalink: /p/<id> → paper.html (id may contain a dot) ----
+    if (/^\/p\/[^/]+\/?$/.test(p)) {
+      const res = await env.ASSETS.fetch(new Request(new URL("/paper", url.origin), request));
       return new Response(res.body, {
         status: res.status,
         headers: { ...Object.fromEntries(res.headers), "content-type": "text/html; charset=utf-8" },

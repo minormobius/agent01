@@ -21,6 +21,8 @@ jobs:
           node-version: '20'
       - name: Engine selftest (determinism + structure)
         run: node engine.selftest.mjs
+      - name: Paper-engine selftest (determinism + reference coherence)
+        run: node paper.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
       - name: Deploy worker + assets

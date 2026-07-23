@@ -477,6 +477,7 @@
 
     return {
       seed: seed,
+      subject: subj,               // exposed so the paper engine can share the field's vocabulary
       field: {
         name: name,
         discipline: subj.parent,
@@ -501,4 +502,13 @@
   W.MODIFIERS = MODIFIERS;
   W.money = money;
   W._Rand = Rand;
+  // shared with the paper engine (wormhole/paper.js) so full articles read in
+  // the same voice / vocabulary as the field dossier:
+  W.METHODS = METHODS;
+  W.PLACES = PLACES;
+  W.PROSE_ADJ = PROSE_ADJ;
+  W.personName = personName;
+  W.university = university;
+  W.cap = cap;
+  W.article = article;
 })();

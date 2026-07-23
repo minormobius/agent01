@@ -1,0 +1,139 @@
+/* wormhole — the paper subpage. Makes generated HTML read as a two-column,
+   Computer-Modern-ish journal PDF, and prints (Save as PDF) to real pages. */
+
+:root {
+  --viewer: #54595d;      /* PDF-viewer gray, so the white sheet reads as a PDF */
+  --sheet: #ffffff;
+  --ink: #111;
+  --ink-soft: #444;
+  --rule: #111;
+  --link: #7a2c1a;
+  --serif: "Latin Modern Roman", "Computer Modern", "TeX Gyre Termes", "Times New Roman", Times, serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--viewer);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------- toolbar (never printed) ---------- */
+.toolbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  background: #3c4043; color: #eee; padding: 8px 12px;
+  font-family: var(--sans); font-size: 13px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.35);
+}
+.toolbar .grow { flex: 1 1 auto; }
+.toolbar a, .toolbar button {
+  font-family: var(--sans); font-size: 13px; cursor: pointer;
+  background: #52565b; color: #f3f3f3; border: 1px solid #6a6f75; border-radius: 7px;
+  padding: 6px 12px; text-decoration: none;
+}
+.toolbar a:hover, .toolbar button:hover { background: #61666c; }
+.toolbar .brand { font-weight: 700; letter-spacing: .02em; color: #fff; }
+.toolbar .brand a { background: none; border: none; padding: 0; color: #fff; text-decoration: none; }
+.toolbar .warn { color: #f2c14e; font-size: 12px; }
+.toolbar .copied { color: #8ad08a; font-size: 12px; }
+
+/* ---------- the sheet ---------- */
+.sheet {
+  background: var(--sheet);
+  max-width: 780px;
+  margin: 24px auto 60px;
+  padding: 62px 66px 72px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  line-height: 1.34;
+  font-size: 15px;
+}
+
+/* header (spans full width) */
+.p-venue { font-family: var(--sans); font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); text-align: center; margin-bottom: 14px; }
+.p-title { text-align: center; font-size: 23px; font-weight: 700; line-height: 1.24; margin: 0 auto 12px; max-width: 90%; }
+.p-authors { text-align: center; font-size: 15px; margin: 4px 0 2px; }
+.p-affils { text-align: center; font-size: 11.5px; font-style: italic; color: var(--ink-soft); margin: 2px 0 4px; }
+.p-affils span { display: inline-block; margin: 0 6px; }
+.p-meta { text-align: center; font-family: var(--sans); font-size: 10.5px; color: var(--ink-soft); margin: 6px 0 2px; }
+
+.p-rule { border: none; border-top: 1.4px solid var(--rule); margin: 16px 0 4px; }
+
+/* abstract (full width, indented) */
+.p-abstract { margin: 8px 34px 6px; font-size: 13px; line-height: 1.4; }
+.p-abstract .lbl { font-variant: small-caps; font-weight: 700; letter-spacing: .04em; display: block; text-align: center; margin-bottom: 4px; }
+.p-abstract p { margin: 0; text-align: justify; }
+.p-keywords { margin: 6px 34px 2px; font-size: 12px; }
+.p-keywords b { font-variant: small-caps; }
+
+/* two-column body */
+.p-body {
+  column-count: 2; column-gap: 26px;
+  margin-top: 18px;
+  text-align: justify;
+  -webkit-hyphens: auto; hyphens: auto;
+  font-size: 13px; line-height: 1.42;
+}
+.p-body h2 {
+  font-size: 13.5px; font-weight: 700; margin: 12px 0 4px;
+  break-after: avoid;
+}
+.p-body h2 .secno { margin-right: 7px; }
+.p-body p { margin: 0 0 2px; text-indent: 1.1em; }
+.p-body p.first { text-indent: 0; }
+.p-body p b { font-weight: 700; }
+
+/* in-text citations */
+a.cite { color: var(--ink); text-decoration: none; }
+a.cite:hover { color: var(--link); }
+
+/* equations */
+.eq { position: relative; text-align: center; margin: 9px 0; font-size: 13.5px; break-inside: avoid; }
+.eq .eqno { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--ink-soft); }
+.frac { display: inline-block; vertical-align: middle; text-align: center; margin: 0 .15em; }
+.frac .num { display: block; padding: 0 .3em; border-bottom: 1px solid var(--ink); line-height: 1.1; }
+.frac .den { display: block; padding: 0 .3em; line-height: 1.1; }
+
+/* table (spans both columns, booktabs style) */
+.table-fig { column-span: all; break-inside: avoid; margin: 12px auto; max-width: 92%; }
+.table-fig .cap { font-size: 11.5px; text-align: center; margin-bottom: 5px; }
+.table-fig .cap b { font-variant: small-caps; }
+table.booktabs { width: 100%; border-collapse: collapse; font-size: 11.5px; margin: 0 auto; }
+table.booktabs th, table.booktabs td { padding: 3px 8px; text-align: center; }
+table.booktabs th:first-child, table.booktabs td:first-child { text-align: left; }
+table.booktabs thead th { border-top: 1.4px solid var(--ink); border-bottom: 0.8px solid var(--ink); font-weight: 700; }
+table.booktabs tbody tr:last-child td { border-bottom: 1.4px solid var(--ink); }
+
+/* acknowledgements + references */
+.p-acks { font-size: 12px; margin-top: 10px; }
+.p-acks h2 { font-size: 12.5px; font-weight: 700; margin: 10px 0 3px; }
+.p-refs h2 { font-size: 13px; font-weight: 700; margin: 14px 0 6px; column-span: all; }
+.p-refs { column-count: 2; column-gap: 26px; font-size: 11px; line-height: 1.34; }
+.refitem { margin: 0 0 5px; padding-left: 1.4em; text-indent: -1.4em; break-inside: avoid; }
+.refitem .rn { color: var(--ink-soft); }
+.refitem a.paperlink { color: var(--link); text-decoration: none; }
+.refitem a.paperlink:hover { text-decoration: underline; }
+.refitem .doi { color: var(--ink-soft); }
+.refitem .xf { font-family: var(--sans); font-size: 9px; color: #a06a2c; border: 1px solid #d6b88a; border-radius: 3px; padding: 0 3px; }
+
+.p-foot { font-family: var(--sans); font-size: 10px; color: var(--ink-soft); border-top: 1px solid #ccc; margin-top: 22px; padding-top: 8px; }
+
+/* ---------- responsive: collapse columns on phones ---------- */
+@media (max-width: 640px) {
+  .sheet { padding: 30px 22px 40px; margin: 10px 8px 40px; font-size: 15px; }
+  .p-body, .p-refs { column-count: 1; }
+  .p-abstract, .p-keywords { margin-left: 6px; margin-right: 6px; }
+  .p-title { font-size: 20px; max-width: 100%; }
+}
+
+/* ---------- print: real PDF pages ---------- */
+@media print {
+  .toolbar { display: none !important; }
+  body { background: #fff; }
+  .sheet { box-shadow: none; margin: 0 auto; max-width: 100%; padding: 0; }
+  a.cite, a.paperlink { color: #000 !important; text-decoration: none !important; }
+  @page { size: letter; margin: 20mm 16mm; }
+}

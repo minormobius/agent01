@@ -114,7 +114,8 @@
       '<div class="paper-authors">' + authors + '</div>' +
       '<div class="cite"><em>' + esc(p.journal) + '</em>, ' + p.year + ', vol. ' + p.volume + ' (' + p.issue + '), pp. ' + esc(p.pages) + '.<br>' +
       'DOI: ' + esc(p.doi) + ' &nbsp;·&nbsp; cited ' + fmt(p.citations) + ' times</div>' +
-      '<div class="abstract"><strong>Abstract.</strong> ' + esc(p.abstract) + '</div></div>';
+      '<div class="abstract"><strong>Abstract.</strong> ' + esc(p.abstract) + '</div>' +
+      '<a class="read-full" href="/p/' + encodeURIComponent(current ? current.seed : "1") + '.f">Read the full article →</a></div>';
   }
 
   function renderJournals(js) {
