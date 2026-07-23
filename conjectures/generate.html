@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>the conjecture machine — procedurally generated open problems</title>
+<meta name="description" content="A Borgesian machine: a seed spins up a synthetic open problem, and a solvability oracle estimates how long it would resist a proof — reading the statement's structure with the same difficulty rubric the curated index uses. Deterministic; a URL is a permalink. The output is fiction.">
+<link rel="stylesheet" href="styles.css">
+<style>
+/* generator-specific: the oracle's factor breakdown */
+.machine-controls { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin: 1.2rem 0 0.4rem; }
+#seed {
+  flex: 1 1 200px; font-family: var(--mono); font-size: 0.9rem;
+  padding: 0.55rem 0.7rem; border: 1px solid var(--rule); border-radius: 5px;
+  background: var(--card); color: var(--fg);
+}
+#seed:focus { outline: none; border-color: var(--accent); }
+.btn {
+  font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.03em;
+  padding: 0.55rem 0.9rem; border: 1px solid var(--accent); border-radius: 5px;
+  background: var(--accent-faint); color: var(--fg); cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: var(--accent-tint); }
+.btn.primary { background: var(--accent); color: var(--bg); }
+.permalink { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin: 0.2rem 0 0; word-break: break-all; }
+.permalink a { color: var(--accent); text-decoration: none; }
+.gallery { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.7rem 0 0; }
+.gallery .chip { cursor: pointer; }
+
+.gen-card { margin-top: 1.6rem; }
+.gen-name { font-size: 1.7rem; font-weight: 600; margin: 0.2rem 0 0; letter-spacing: -0.01em; }
+.synthetic-flag {
+  display: inline-block; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--st-disproved, #b5641e); border: 1px solid currentColor;
+  border-radius: 3px; padding: 0.05rem 0.4rem; margin-left: 0.5rem; vertical-align: middle; opacity: 0.8;
+}
+
+/* oracle factor breakdown */
+.oracle h2 { margin-top: 1.6rem; }
+.factors { margin: 0.6rem 0 0; }
+.factor {
+  display: grid; grid-template-columns: 3.1rem 1fr; gap: 0.6rem 0.7rem;
+  align-items: baseline; padding: 0.45rem 0; border-bottom: 1px dashed var(--rule);
+}
+.fdelta {
+  font-family: var(--mono); font-weight: 700; font-size: 0.86rem; text-align: right;
+  padding: 0.05rem 0.35rem; border-radius: 3px;
+}
+.flabel { font-family: var(--mono); font-size: 0.82rem; font-weight: 600; }
+.fnote { grid-column: 2; font-size: 0.85rem; color: var(--muted); margin-top: 0.1rem; }
+.factor.total { border-bottom: none; border-top: 2px solid var(--rule); margin-top: 0.2rem; padding-top: 0.6rem; }
+.factor.total .flabel { font-size: 0.9rem; }
+.factor.base .fdelta { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <a class="crumb" href="index.html">← conjectures index</a>
+  <h1>the conjecture machine</h1>
+  <p class="subtitle">procedurally generated open problems · with a solvability oracle</p>
+</header>
+
+<p class="lede">
+  Feed it a seed; it hands back a conjecture — a plausible-sounding open problem assembled from a
+  grammar of objects, quantifiers, and claims. Then the <strong>solvability oracle</strong> reads the
+  statement's <em>shape</em> — its domain, its quantifier structure, how a counterexample would look —
+  and estimates the odds it would still be unproven in 2126, using the same difficulty rubric the
+  <a href="index.html">real index</a> applies to the 193 genuine conjectures. It shows its work.
+</p>
+<p style="font-size:0.85rem;color:var(--muted)">
+  This is a Borges machine, so it is <strong>deterministic</strong>: a seed always yields the same
+  conjecture, and the URL is a permalink. It is also, emphatically, <strong>fiction</strong> — most
+  generated statements are false, trivial, or ill-posed (that is the joke: a Library of Babel of
+  conjectures). The oracle judges the form, not the truth; it cannot prove anything. Names are
+  invented, and any resemblance to real mathematicians is coincidental.
+</p>
+
+<div class="machine-controls">
+  <input id="seed" type="text" placeholder="type a seed…" autocomplete="off" spellcheck="false">
+  <button class="btn primary" id="go">conjure</button>
+  <button class="btn" id="rand">🎲 random</button>
+</div>
+<p class="permalink" id="permalink"></p>
+<div class="gallery" id="gallery"></div>
+
+<div class="gen-card" id="card"></div>
+
+<footer>
+  <a href="index.html">index</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="../geometry/">geometry</a>
+  <a href="https://borges.mino.mobi/">borges</a>
+</footer>
+
+<script src="engine.js"></script>
+<script src="common.js"></script>
+<script>
+const GALLERY_SEEDS = ['babel', 'the-pale-orbit', '1917', 'fermat-redux', 'quiet-sieve', 'n-plus-one'];
+const DEFAULT_SEED = 'the-book-of-sand';
+
+const card = document.getElementById('card');
+const seedInput = document.getElementById('seed');
+const permalink = document.getElementById('permalink');
+
+function deltaStyle(d) {
+  // positive delta = harder = red-ish; negative = easier = teal-ish; zero = muted
+  if (d > 0) return `background:hsl(6,70%,50%);color:#fff`;
+  if (d < 0) return `background:hsl(168,60%,42%);color:#fff`;
+  return `background:var(--accent-tint);color:var(--muted)`;
+}
+const sign = d => (d > 0 ? '+' + d : d < 0 ? String(d) : '0');
+
+function render(seed) {
+  const c = CONJGEN.generateConjecture(seed);
+  const meta = CONJ.fieldMeta(c.field);
+  const color = CONJ.fieldColor(c.field);
+  const hc = CONJ.hardnessColor(c.hardness);
+  const s = c.solvability;
+
+  const factorsHtml = s.factors.map(f => `
+    <div class="factor${f.label === 'baseline' ? ' base' : ''}">
+      <span class="fdelta" style="${deltaStyle(f.delta)}">${f.label === 'baseline' ? s.base : sign(f.delta)}</span>
+      <span class="flabel">${CONJ.esc(f.label)}</span>
+      <span class="fnote">${CONJ.esc(f.note)}</span>
+    </div>`).join('');
+
+  card.innerHTML = `
+    <div class="detail-field"><span class="cdot" style="background:${color}"></span>${CONJ.esc(meta.label)} · ${CONJ.esc(c.domain)}<span class="synthetic-flag">synthetic</span></div>
+    <div class="gen-name">${CONJ.esc(c.name)}</div>
+
+    <div class="panel statement">
+      <h3>The (generated) conjecture</h3>
+      <p style="margin:0">${CONJ.esc(c.statement)}</p>
+      <div class="form">${CONJ.esc(c.form)}</div>
+    </div>
+
+    <div class="panel disprove">
+      <h3>What would disprove it</h3>
+      <p style="margin:0">${CONJ.esc(c.counterexample)}</p>
+    </div>
+
+    <div class="oracle">
+      <h2>Solvability oracle</h2>
+      <div class="hardness-panel">
+        <div class="hardness-big" style="color:${hc}">${c.hardness}<small>P(open ’2126)</small></div>
+        <div class="hardness-body">
+          <div class="hardness-label">verdict · <span style="color:${hc}">${CONJ.esc(s.tier)}</span></div>
+          <div class="hardness-track"><span class="hard-fill" style="width:${c.hardness}%;background:${hc}"></span></div>
+          <p class="hardness-note">${CONJ.esc(s.note)}</p>
+        </div>
+      </div>
+      <p style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);margin:0 0 0.2rem">how the oracle got there — a baseline plus structural adjustments:</p>
+      <div class="factors">
+        ${factorsHtml}
+        <div class="factor total">
+          <span class="fdelta" style="background:${hc};color:#fff">${c.hardness}</span>
+          <span class="flabel">final score${s.clamped ? ' (clamped to 5–97)' : ''}</span>
+        </div>
+      </div>
+      ${(c.tags && c.tags.length) ? `<div style="margin-top:1rem">${c.tags.map(t => `<span class="tag">${CONJ.esc(t)}</span>`).join('')}</div>` : ''}
+    </div>
+
+    <p style="font-size:0.82rem;color:var(--muted);margin-top:1.6rem">
+      Want the real thing? Every genuine open problem in the <a href="index.html">index</a> carries a
+      hand-calibrated version of this same score.
+    </p>`;
+
+  const url = location.pathname + '?seed=' + encodeURIComponent(seed);
+  permalink.innerHTML = `permalink: <a href="${url}">${location.host}${url}</a>`;
+  document.title = `${c.name} — the conjecture machine`;
+}
+
+function go(seed, push) {
+  seed = (seed == null ? seedInput.value : seed).trim();
+  if (!seed) seed = DEFAULT_SEED;
+  seedInput.value = seed;
+  render(seed);
+  if (push) history.pushState({ seed }, '', location.pathname + '?seed=' + encodeURIComponent(seed));
+}
+
+// gallery chips (deterministic samples)
+const gal = document.getElementById('gallery');
+for (const gs of GALLERY_SEEDS) {
+  const c = CONJGEN.generateConjecture(gs);
+  const chip = document.createElement('span');
+  chip.className = 'chip';
+  chip.innerHTML = `<span class="cdot" style="background:${CONJ.hardnessColor(c.hardness)}"></span>${CONJ.esc(gs)}`;
+  chip.title = c.name;
+  chip.onclick = () => go(gs, true);
+  gal.appendChild(chip);
+}
+
+document.getElementById('go').onclick = () => go(null, true);
+document.getElementById('rand').onclick = () => go(Math.random().toString(36).slice(2, 9), true); // the one allowed unseeded roll — just picks which deterministic page
+seedInput.addEventListener('keydown', e => { if (e.key === 'Enter') go(null, true); });
+window.addEventListener('popstate', () => {
+  const s = new URLSearchParams(location.search).get('seed');
+  go(s || DEFAULT_SEED, false);
+});
+
+// initial
+go(new URLSearchParams(location.search).get('seed') || DEFAULT_SEED, false);
+</script>
+
+</body>
+</html>
