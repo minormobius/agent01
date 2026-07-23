@@ -1,15 +1,18 @@
 // wormhole analysis selftest — run before touching analysis.js:
 //   node wormhole/analysis.selftest.mjs
 //
-// Exercises the method × analytics design space: each design is deterministic,
-// produces a valid figure set (real SVG, no NaN) with readouts, a well-formed
-// table and reported block, and the reported numbers are internally consistent
-// with the design's own computation.
+// The paper story engine: each paper is a sequence of genome techniques over one
+// shared datastream, ending in a synthesis. Checks determinism, that every
+// datastream surfaces, that Results is a multi-technique story (subsections +
+// several figures), that a synthesis figure exists, that reported fields the
+// narrative needs are present, and that no @-tokens leak or reference a missing
+// figure role.
 
 import "./engine.js";
 import "./stats.js";
 import "./charts.js";
 import "./dataset.js";
+import "./genome.js";
 import "./analysis.js";
 const W = globalThis.WORMHOLE;
 const A = globalThis.WORMHOLE_ANALYSIS;
@@ -17,53 +20,48 @@ const A = globalThis.WORMHOLE_ANALYSIS;
 let failures = 0;
 function ok(cond, msg) { if (!cond) { failures++; console.error("  ✗ " + msg); } }
 
-// find a seed that yields each design so every branch is exercised
-const byDesign = {};
-for (let i = 1; i <= 200 && Object.keys(byDesign).length < 4; i++) {
-  const d = A.run(i + ".f");
-  if (!byDesign[d.design]) byDesign[d.design] = i + ".f";
-}
-for (const d of ["regression", "comparative", "spectral", "ordination"]) ok(byDesign[d], `found a seed for design '${d}'`);
+// every datastream surfaces across seeds
+const seen = {};
+for (let i = 1; i <= 120 && Object.keys(seen).length < 4; i++) { const d = A.run(i + ".f").design; if (!seen[d]) seen[d] = i + ".f"; }
+for (const d of ["multivariate", "temporal", "grouped", "cohort"]) ok(seen[d], `datastream '${d}' surfaces`);
 
-// determinism
-for (const id of Object.values(byDesign)) {
+for (const id of Object.values(seen)) {
   ok(JSON.stringify(A.run(id)) === JSON.stringify(A.run(id)), `analysis ${id} deterministic`);
 }
 
+function figRoles(flow) { return flow.filter(it => it.t === "fig").map(it => it.role); }
 function checkAnalysis(id) {
   const a = A.run(id);
-  ok(typeof a.design === "string", `${a.design}: has design id`);
-  ok(a.frame && a.frame.indexName && a.frame.focal.index, `${a.design}: frame present`);
-  // reported block: every field the shared narrative depends on
-  for (const k of ["N", "r", "p", "varExplained", "y0", "y1", "kappa"]) ok(a.reported[k] !== undefined, `${a.design}: reported.${k} present`);
-  ok(a.reported.N > 0, `${a.design}: N positive`);
-  ok(a.reported.varExplained >= 0 && a.reported.varExplained <= 100, `${a.design}: varExplained in [0,100]`);
+  const d = a.design;
+  ok(a.frame && a.frame.indexName && a.frame.focal.index, `${d}: frame`);
+  for (const k of ["N", "r", "p", "varExplained", "y0", "y1", "kappa", "techniques"]) ok(a.reported[k] !== undefined, `${d}: reported.${k}`);
+  ok(a.reported.varExplained >= 0 && a.reported.varExplained <= 100, `${d}: varExplained in [0,100]`);
+  // Results is a story: >= 2 technique subsections and >= 2 figures
+  const heads = a.resultsFlow.filter(it => it.t === "h3");
+  ok(heads.length >= 2, `${d}: Results has >= 2 technique subsections (${heads.length})`);
+  const rf = figRoles(a.resultsFlow);
+  ok(rf.length >= 2, `${d}: Results has >= 2 figures`);
+  ok(a.reported.techniques.length >= 2, `${d}: uses >= 2 techniques`);
+  // a synthesis figure in the discussion flow
+  const synFigs = figRoles(a.discussionFlow || []);
+  ok(synFigs.length >= 1, `${d}: has a synthesis figure`);
   // table
-  ok(a.table.cols.length >= 3 && a.table.rows.length >= 1, `${a.design}: table shape`);
-  ok(a.table.rows.every(row => row.length === a.table.cols.length), `${a.design}: table rows match cols`);
-  // figures
-  ok(a.figs.length >= 3, `${a.design}: >= 3 figures`);
-  ok(a.figs.every(f => f.svg.indexOf("<svg") === 0 && f.svg.indexOf("NaN") < 0), `${a.design}: figures are clean SVG`);
-  ok(a.figs.every(f => f.role && (f.section === "Results" || f.section === "Discussion")), `${a.design}: figures have role + section`);
-  ok(a.figs.every(f => typeof f.readout === "string" && f.readout.length > 20), `${a.design}: figures carry readouts`);
-  ok(a.figs.some(f => f.section === "Results") && a.figs.some(f => f.section === "Discussion"), `${a.design}: figures span Results + Discussion`);
-  // methods + text
-  ok(a.methodsFlow.some(it => it.t === "eq"), `${a.design}: methods include an equation`);
-  ok(/@fig:|@tab@/.test(a.resultsLead + a.figs.map(f => f.caption + f.readout).join("")) || true, `${a.design}: (token check informational)`);
-  // every @fig: token references a role that exists
-  const roles = new Set(a.figs.map(f => f.role));
-  const text = [a.resultsLead, a.dataStatement].concat(a.figs.map(f => f.caption + " " + f.readout)).concat(a.methodsFlow.map(m => m.html)).join(" ");
-  const toks = (text.match(/@fig:(\w+)@/g) || []).map(t => t.slice(5, -1));
-  ok(toks.every(role => roles.has(role)), `${a.design}: all @fig: tokens resolve to a figure`);
+  ok(a.table.cols.length >= 2 && a.table.rows.length >= 1 && a.table.rows.every(row => row.length === a.table.cols.length), `${d}: table well-formed`);
+  // all figures are clean SVG with captions + roles unique
+  const all = a.resultsFlow.concat(a.discussionFlow || []).filter(it => it.t === "fig");
+  ok(all.every(f => f.svg.indexOf("<svg") === 0 && f.svg.indexOf("NaN") < 0), `${d}: figures clean SVG`);
+  ok(all.every(f => typeof f.caption === "string" && f.caption.length > 12), `${d}: figures captioned`);
+  const roles = all.map(f => f.role);
+  ok(new Set(roles).size === roles.length, `${d}: figure roles unique`);
+  // every @fig: token in any text references a figure that exists
+  const text = a.resultsFlow.concat(a.discussionFlow || [], a.methodsFlow).map(it => it.html || "").join(" ") + a.dataStatement;
+  const toks = (text.match(/@fig:([\w:]+)@/g) || []).map(t => t.slice(5, -1));
+  const roleSet = new Set(roles);
+  ok(toks.every(role => roleSet.has(role)), `${d}: all @fig: tokens resolve`);
 }
-for (const id of Object.values(byDesign)) checkAnalysis(id);
-
-// group-count variety: comparative should sometimes exceed 3 groups
-{
-  let over3 = false, comparativeSeen = 0;
-  for (let i = 1; i <= 200; i++) { const a = A.run(i + ".f"); if (a.design === "comparative") { comparativeSeen++; if (a.frame.nGroups > 3) over3 = true; } }
-  ok(comparativeSeen === 0 || over3, "comparative design sometimes uses > 3 groups");
-}
+for (const id of Object.values(seen)) checkAnalysis(id);
+// spread across many seeds to catch a broken story combination
+for (let i = 1; i <= 40; i++) checkAnalysis(i + ".f");
 
 if (failures === 0) {
   console.log("✓ wormhole analysis selftest passed");

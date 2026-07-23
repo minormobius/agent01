@@ -27,6 +27,7 @@
 <script src="/stats.js"></script>
 <script src="/charts.js"></script>
 <script src="/dataset.js"></script>
+<script src="/genome.js"></script>
 <script src="/analysis.js"></script>
 <script src="/paper.js"></script>
 <script>
@@ -64,6 +65,7 @@
       var seenP = false;
       var inner = s.flow.map(function (it) {
         if (it.t === "p") { var cls = (!seenP || it.first) ? "first" : ""; seenP = true; return '<p class="' + cls + '">' + it.html + "</p>"; }
+        if (it.t === "h3") { seenP = false; return '<h3 class="subhead">' + esc(it.text) + "</h3>"; }
         if (it.t === "eq") return '<div class="eq">' + it.html + '<span class="eqno">(' + it.num + ')</span></div>';
         if (it.t === "table") return renderTable(it);
         if (it.t === "fig") return '<figure class="fig' + (it.wide ? " wide" : "") + '">' + it.svg +

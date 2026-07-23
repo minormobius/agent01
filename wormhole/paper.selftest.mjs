@@ -12,6 +12,7 @@ import "./engine.js";
 import "./stats.js";
 import "./charts.js";
 import "./dataset.js";
+import "./genome.js";
 import "./analysis.js";
 import "./paper.js";
 const W = globalThis.WORMHOLE;
@@ -70,7 +71,7 @@ function checkPaper(p) {
   const tables = flow.filter(it => it.t === "table");
   ok(tables.length === 1, "has exactly one results table");
   const tbl = tables[0];
-  ok(tbl.cols.length >= 3 && tbl.rows.length >= 1 && tbl.rows.every(row => row.length === tbl.cols.length), "table rows match columns");
+  ok(tbl.cols.length >= 2 && tbl.rows.length >= 1 && tbl.rows.every(row => row.length === tbl.cols.length), "table rows match columns");
   ok(typeof p.acknowledgements === "string" && p.acknowledgements.length > 20, "has acknowledgements");
   // figures: at least 3, each a real SVG, numbered in reading order; text between them
   const figs = flow.filter(it => it.t === "fig");
@@ -86,11 +87,17 @@ function checkPaper(p) {
 }
 for (const id of ["1.f", "42.f", "42.r9", "7000.r2", "3.r1", "5.f", "13.f", "21.f", "34.f"]) checkPaper(P.generate(id));
 
-// every design surfaces across seeds, and each produces a valid paper
+// every datastream surfaces across seeds, and each produces a valid paper
 {
   const seen = {};
-  for (let i = 1; i <= 60; i++) { const d = P.generate(i + ".f").design; seen[d] = (seen[d] || 0) + 1; }
-  for (const d of ["regression", "comparative", "spectral", "ordination"]) ok(seen[d] > 0, `design '${d}' appears across seeds`);
+  for (let i = 1; i <= 80; i++) { const d = P.generate(i + ".f").design; seen[d] = (seen[d] || 0) + 1; }
+  for (const d of ["multivariate", "temporal", "grouped", "cohort"]) ok(seen[d] > 0, `datastream '${d}' appears across seeds`);
+}
+// papers are multi-technique stories with subsection headers
+{
+  const p = P.generate("1.f");
+  const heads = p.sections.flatMap(s => s.flow).filter(it => it.t === "h3");
+  ok(heads.length >= 2, "paper Results has technique subsections (h3)");
 }
 
 // cross-field references really do reach other fields sometimes

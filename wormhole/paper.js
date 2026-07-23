@@ -200,7 +200,7 @@
   function makeResolver(figNum, place) {
     return function (html) {
       return String(html)
-        .replace(/@fig:(\w+)@/g, function (m, role) { return figNum[role] ? "Fig.&nbsp;" + figNum[role] : "the figure"; })
+        .replace(/@fig:([\w:]+)@/g, function (m, role) { return figNum[role] ? "Fig.&nbsp;" + figNum[role] : "the figure"; })
         .replace(/@tab@/g, "Table&nbsp;1")
         .replace(/@place@/g, esc(place));
     };
@@ -250,36 +250,34 @@
         ". Recent methodological advances" + cite(refs, r, 2) + " make this position tractable for the first time.")
     ]});
 
-    // 3. Data and methods (design-specific)
-    var methodsFlow = [Par(resolve(An.dataStatement), true)];
-    An.methodsFlow.forEach(function (item) {
-      if (item.t === "eq") methodsFlow.push({ t: "eq", num: ++eqNo, html: resolve(item.html) });
-      else methodsFlow.push(Par(resolve(item.html)));
-    });
+    // map an analysis flow (p / h3 / fig / table / eq) into a rendered section flow
+    function mapFlow(items) {
+      return items.map(function (it) {
+        if (it.t === "p") return { t: "p", html: resolve(it.html), first: it.first };
+        if (it.t === "h3") return { t: "h3", text: it.text };
+        if (it.t === "table") return { t: "table", caption: it.caption, cols: it.cols, rows: it.rows };
+        if (it.t === "fig") return { t: "fig", num: figNum[it.role], svg: it.svg, caption: resolve(it.caption), wide: it.wide };
+        if (it.t === "eq") return { t: "eq", num: ++eqNo, html: resolve(it.html) };
+        return it;
+      });
+    }
+
+    // 3. Data and methods (the datastream + the sequence of techniques)
+    var methodsFlow = [Par(resolve(An.dataStatement), true)].concat(mapFlow(An.methodsFlow));
     methodsFlow.push(Par("Estimates were obtained by " + esc(method) + "; all analysis was carried out in " +
       esc(r.pick(["R 4.x", "Python", "a bespoke pipeline", "Stata", "Julia"])) + ", and code is available on request."));
     sections.push({ title: "Data and methods", flow: methodsFlow });
 
-    // 4. Results — lead, table, then each figure followed by its readout
-    var resultsFlow = [Par(resolve(An.resultsLead), true), { t: "table", caption: An.table.caption, cols: An.table.cols, rows: An.table.rows }];
-    An.figs.filter(function (f) { return f.section === "Results"; }).forEach(function (f) {
-      resultsFlow.push({ t: "fig", num: figNum[f.role], svg: f.svg, caption: resolve(f.caption), wide: f.wide });
-      resultsFlow.push(Par(resolve(f.readout)));
-    });
-    sections.push({ title: "Results", flow: resultsFlow });
+    // 4. Results — the analytical story: one subsection per technique, figures + readouts interleaved
+    sections.push({ title: "Results", flow: mapFlow(An.resultsFlow) });
 
-    // 5. Discussion — interpretation, the model figure + readout, limitations
-    var discFlow = [Par("These results place the " + esc(indexName) + " on a firmer footing and, we suggest, " +
-      esc(r.pick(["settle", "reframe", "reopen"])) + " a debate that has run since the field's founding: the measured factors account for " +
-      rep.varExplained + "% of the variation in the " + esc(indexName) + ", so " + esc(term) +
-      " is neither an artefact nor beyond measure.", true)];
-    An.figs.filter(function (f) { return f.section === "Discussion"; }).forEach(function (f) {
-      discFlow.push({ t: "fig", num: figNum[f.role], svg: f.svg, caption: resolve(f.caption), wide: f.wide });
-      discFlow.push(Par(resolve(f.readout)));
-    });
+    // 5. Discussion — interpretation, then the synthesis subsection, then limitations
+    var discFlow = [Par("These analyses converge on the " + esc(indexName) + ": the measured factors account for " +
+      rep.varExplained + "% of the variation, so " + esc(term) + " is neither an artefact nor beyond measure.", true)];
+    discFlow = discFlow.concat(mapFlow(An.discussionFlow || []));
     discFlow.push(Par("<b>Limitations.</b> Our data are drawn from a single setting, which may be atypical; the " + esc(indexName) +
-      " rests on coding choices that a larger, pre-registered sample could sharpen; and " + esc(An.design) +
-      " analysis assumes " + esc(r.pick(["independence of cases", "stationarity", "approximate normality", "a well-specified model"])) +
+      " rests on choices a larger, pre-registered sample could sharpen; and " + esc(An.designLabel) +
+      " assumes " + esc(r.pick(["independence of cases", "stationarity", "approximate normality", "a well-specified model"])) +
       ", which " + esc(g) + " may violate in ways we have not modelled."));
     sections.push({ title: "Discussion", flow: discFlow });
 
@@ -312,10 +310,9 @@
     var An = ANALYSIS.run(pid.id, field);
     var refs = buildReferences(r, field, pid.id);
 
-    // number figures in reading order: Results figures first, then Discussion
-    var ordered = An.figs.filter(function (f) { return f.section === "Results"; })
-      .concat(An.figs.filter(function (f) { return f.section === "Discussion"; }));
-    var figNum = {}; ordered.forEach(function (f, i) { figNum[f.role] = i + 1; });
+    // number figures in reading order: through the Results story, then the synthesis
+    var figNum = {}, fn = 0;
+    (An.resultsFlow || []).concat(An.discussionFlow || []).forEach(function (it) { if (it.t === "fig") figNum[it.role] = ++fn; });
 
     var sections = buildSkeleton(r, field, hdr, refs, An, figNum, place);
     var acks = makeAcks(r, field);

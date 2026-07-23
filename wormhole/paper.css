@@ -82,6 +82,7 @@ body {
   break-after: avoid;
 }
 .p-body h2 .secno { margin-right: 7px; }
+.p-body h3.subhead { font-size: 12px; font-weight: 700; font-style: italic; margin: 9px 0 3px; break-after: avoid; color: #1a1a1a; }
 .p-body p { margin: 0 0 2px; text-indent: 1.1em; }
 .p-body p.first { text-indent: 0; }
 .p-body p b { font-weight: 700; }

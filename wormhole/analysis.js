@@ -1,333 +1,386 @@
-// wormhole — WORMHOLE_ANALYSIS, the method × analytics design space.
+// wormhole — WORMHOLE_ANALYSIS, the paper story engine (unified onto the genome).
 //
-// The enrichment layer. Rather than one fixed template (index-vs-covariate), a
-// paper samples a STUDY DESIGN, and the design determines the data's shape, the
-// number of groups, the figures, and the methods:
+// A paper is no longer one technique — it is a LONGER ANALYTICAL STORY over a
+// single generated DATASTREAM: a sequence of genome techniques, each answering a
+// different question about the SAME fabricated data, ending in a SYNTHESIS figure
+// that relates their findings. Because every technique operates on the shared
+// stream, the cross-references in the synthesis are real (the clusters really do
+// stratify the association; PC1 really does track the outcome).
 //
-//   regression   — an index vs a continuous covariate across k subsets
-//                  (scatter+fit · distribution · correlation heatmap · forest/waterfall)
-//   comparative  — one measure contrasted across k groups by ANOVA (k can be 2–6)
-//                  (violin/box/ridgeline · Cohen's-d heatmap · contrast forest)
-//   spectral     — an annual series analysed by discrete Fourier transform
-//                  (time series · periodogram · residual histogram)
-//   ordination   — p measured variables reduced by PCA
-//                  (scree · biplot · loadings heatmap)
+// Datastreams and the techniques that apply to them:
+//   multivariate — distribution · dependence · reduction(PCA) · clustering(k-means)
+//                  · hierarchy · difference(ANOVA) · association(OLS) · classification(logit)
+//   temporal     — distribution · trend(spectral/DFT) · association
+//   grouped      — distribution · difference(ANOVA) · association
+//   cohort       — distribution · survival(Kaplan–Meier) · association
+// Across streams the paper set draws on all twelve genome techniques; technique
+// labels/answer types come from WORMHOLE_GENOME so the two stay unified.
 //
-// Every figure is a real plot of a fabricated-but-coherent dataset, and every
-// reported number is COMPUTED FROM that data (WORMHOLE_STATS) — the same
-// guarantee as before, now across four analytical worlds. Each figure carries a
-// READOUT: a short interpretive sentence (also computed) that paper.js places
-// after the figure, so text and figures interleave.
-//
-// Text uses tokens the paper resolves: @fig:ROLE@ → "Fig. N", @tab@ → "Table 1".
-// Deterministic from the paper id. Depends on engine.js, stats.js, charts.js,
-// and dataset.js (the regression design).
+// Output is consumed by paper.js: {design, frame, reported, dataStatement,
+// methodsFlow, table, resultsFlow (h3/p/fig/table), discussionFlow (the synthesis)}.
+// Text uses @fig:ROLE@ / @tab@ / @place@ tokens the paper resolves. Deterministic.
 
 (function () {
   "use strict";
   var NS = (typeof window !== "undefined") ? window : globalThis;
-  var W = NS.WORMHOLE, ST = NS.WORMHOLE_STATS, CH = NS.WORMHOLE_CHARTS, DATA = NS.WORMHOLE_DATA;
-  if (!W || !ST || !CH || !DATA) throw new Error("analysis.js requires engine.js + stats.js + charts.js + dataset.js");
+  var W = NS.WORMHOLE, ST = NS.WORMHOLE_STATS, CH = NS.WORMHOLE_CHARTS, GENOME = NS.WORMHOLE_GENOME;
+  if (!W || !ST || !CH || !GENOME) throw new Error("analysis.js requires engine.js + stats.js + charts.js + genome.js");
   var A = NS.WORMHOLE_ANALYSIS = NS.WORMHOLE_ANALYSIS || {};
 
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
   function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]; }); }
   function shortLabel(t) { var w = cap(t.split(" ")[0]); return w.length > 11 ? w.slice(0, 10) + "." : w; }
-  function dec2(x) { return (Math.round(x * 100) / 100).toFixed(2); }
-  function dot(x) { return dec2(x).replace(/^0\./, ".").replace(/^-0\./, "-."); }
+  function d2(x) { return (Math.round(x * 100) / 100).toFixed(2); }
+  function dot(x) { return d2(x).replace(/^0\./, ".").replace(/^-0\./, "-."); }
   function fmtP(p) { return p < 0.001 ? "< .001" : p < 0.01 ? "< .01" : p < 0.05 ? "< .05" : "= ." + String(Math.round(p * 100)).padStart(2, "0"); }
-  function pctVar(x) { return Math.round(x * 100); }
+  function pv(x) { return Math.round(x * 100); }
+  function affine(a, span, base) { var lo = ST.min(a), hi = ST.max(a), rg = (hi - lo) || 1; return a.map(function (x) { return (x - lo) / rg * span + base; }); }
+  function col(rows, j) { return rows.map(function (r) { return r[j]; }); }
 
-  var GROUP_KINDS = ["site", "cohort", "register", "provenance", "workshop", "period", "dialect", "locale", "assemblage"];
-  var GROUP_NAMES = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "North", "South", "Coastal", "Inland", "Early", "Late", "Urban", "Rural"];
+  // technique metadata from the genome (keeps papers + /lab unified)
+  var TM = {}; GENOME.TECHNIQUES.forEach(function (t) { TM[t.id] = t; });
+  function label(id) { return TM[id] ? TM[id].label : id; }
 
-  function makeGauss(r) { return function () { var u1 = Math.max(1e-9, r.f()), u2 = r.f(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); }; }
-  function affine(a, span, base) { var lo = ST.min(a), hi = ST.max(a), rng = (hi - lo) || 1; return a.map(function (x) { return (x - lo) / rng * span + base; }); }
+  function fig(role, svg, caption, readout, wide) { return { role: role, svg: svg, caption: caption, readout: readout, wide: !!wide }; }
 
-  // ===================================================================
-  // regression design (delegates to dataset.js, then builds figures here)
-  // ===================================================================
-  function designRegression(paperId, field, r) {
-    var d = DATA.build(paperId, field), idx = d.indexName, cov = d.focal.cov, riv = d.focal.rival, rep = d.reported;
-
-    var figs = [];
-    figs.push({ role: "scatter", section: "Results", wide: false,
-      svg: CH.scatterFit({ points: d.points, groups: d.subsets, xlabel: cap(cov), ylabel: idx, annot: "r = " + rep.r, aria: idx + " vs " + cov }),
-      caption: "The " + esc(idx) + " increases with " + esc(cov) + " (OLS fit; <i>r</i> = " + rep.r + ", " + rep.ci + "; <i>p</i> " + rep.p + "). Each point is one case (<i>n</i> = " + d.N + "); the shaded band is the 95% mean-response interval; colour marks subset.",
-      readout: "The fit accounts for " + pctVar(parseFloat(rep.r2.replace(/^\./, "0."))) + "% of the variance and its interval excludes a null slope, so the association is unlikely to be an artefact of scale." });
-
-    var distType = r.pick(["violin", "ridgeline", "box"]);
-    var means = d.bySubset.map(function (b) { return ST.mean(b.values); });
-    var hi = means.indexOf(ST.max(means)), lo = means.indexOf(ST.min(means));
-    figs.push({ role: "dist", section: "Results", wide: false,
-      svg: distType === "violin" ? CH.violin({ groups: d.bySubset, ylabel: idx }) : distType === "ridgeline" ? CH.ridgeline({ groups: d.bySubset, xlabel: idx }) : CH.box({ groups: d.bySubset, ylabel: idx }),
-      caption: "Distribution of the " + esc(idx) + " by subset (" + distType + "; " + d.N + " cases).",
-      readout: "The " + esc(d.subsets[hi]) + " subset sits highest (mean " + dec2(means[hi]) + ") and " + esc(d.subsets[lo]) + " lowest (" + dec2(means[lo]) + "); dispersion is comparable, so the subsets shift level rather than scale." });
-
-    var off = 0, big = 0; for (var i = 0; i < d.corr.matrix.length; i++) for (var j = i + 1; j < d.corr.matrix.length; j++) { off++; if (Math.abs(d.corr.matrix[i][j]) >= 0.5) big++; }
-    figs.push({ role: "heat", section: "Results", wide: true,
-      svg: CH.heatmap({ matrix: d.corr.matrix, labels: d.corr.labels, diverging: true, domain: [-1, 1], cblabel: "r" }),
-      caption: "Pairwise correlations (Pearson <i>r</i>) among the field's principal measures. The " + esc(idx) + " loads with " + esc(cov) + " and is nearly orthogonal to " + esc(riv) + ".",
-      readout: "Only " + big + " of " + off + " off-diagonal pairs exceed |<i>r</i>| = .5; the measures are otherwise near-independent, which is why a two-factor model out-performs any single predictor." });
-
-    var modelType = r.pick(["forest", "waterfall", "forest"]);
-    figs.push({ role: "model", section: "Discussion", wide: false,
-      svg: modelType === "forest" ? CH.forest({ rows: d.forestRows, xlabel: "standardized effect on the " + idx + " (SD)", ref: 0 }) : CH.waterfall({ items: d.waterfallItems, ylabel: "% of variance" }),
-      caption: modelType === "forest"
-        ? "Standardized effects on the " + esc(idx) + " (squares = OLS estimates, bars = 95% CI; dashed line = no effect). " + cap(cov) + " dominates; " + esc(riv) + " adds a smaller, non-zero increment."
-        : "Variance in the " + esc(idx) + " attributed to each factor; " + (100 - rep.varExplained) + "% remains unexplained.",
-      readout: modelType === "forest"
-        ? "Only " + cap(cov) + "'s interval clears zero by a wide margin; the subset terms shift the intercept but leave the slope intact."
-        : cap(cov) + " carries most of the explained variance, and the residual bar makes the field's irreducible noise explicit." });
-
-    return {
-      design: "regression", designLabel: "a regression design",
-      frame: { indexName: idx, focal: d.focal, groupsLabel: "subset", nGroups: 3 },
-      reported: rep,
-      dataStatement: "<b>Corpus.</b> We assembled " + d.N + " instances of " + esc(field.subject.n) + " collected in @place@ between " + rep.y0 + " and " + rep.y1 + ", each coded for " + esc(d.focal.index) + ", " + esc(riv) + ", and " + esc(cov) + " by two annotators (inter-rater agreement κ = " + rep.kappa + ").",
-      methodsFlow: [
-        { t: "p", html: "<b>The " + esc(idx) + ".</b> We define the " + esc(idx) + " for a case <i>i</i> as a weighted aggregate of its " + esc(d.focal.index) + " components, then regress it on " + esc(cov) + ":" },
-        { t: "eq", html: '<i>I</i><sub>' + esc(field.subject.n.charAt(0)) + '</sub> = <span class="frac"><span class="num">1</span><span class="den">N</span></span> &sum;<sub><i>j</i></sub> <i>w<sub>j</sub></i> <i>t<sub>ij</sub></i>,&nbsp;&nbsp; <i>y<sub>i</sub></i> = &beta;<sub>0</sub> + &beta;<sub>1</sub> <i>I</i><sub>' + esc(field.subject.n.charAt(0)) + '</sub> + &epsilon;<sub>i</sub>' }
-      ],
-      table: { caption: "Descriptive statistics of the " + idx + " by subset.", cols: rep.table.cols, rows: rep.table.rows },
-      resultsLead: "@tab@ summarises the " + esc(idx) + " across the three subsets (@fig:dist@). The index ranged from " + rep.lo + " to " + rep.hi + " (mean " + rep.mean + ", SD " + rep.sd + "). As predicted, " + esc(d.focal.index) + " was strongly associated with " + esc(cov) + " (@fig:scatter@; &beta;<sub>1</sub> = " + rep.beta + ", " + rep.ci + "; <i>r</i> = " + rep.r + ", <i>p</i> " + rep.p + ", <i>R</i><sup>2</sup> = " + rep.r2 + ").",
-      figs: figs
-    };
-  }
-
-  // ===================================================================
-  // comparative design — one measure across k groups, ANOVA
-  // ===================================================================
-  function designComparative(paperId, field, r) {
-    var gauss = makeGauss(r), terms = r.shuffle(field.subject.terms);
-    var tIndex = terms[0], tRival = terms[1], tCov = terms[2];
-    var idx = cap(tIndex.split(" ")[0]) + "-index";
-    var k = r.int(3, 6), kind = r.pick(GROUP_KINDS);
-    var groupNames = r.sample(GROUP_NAMES, k);
-    var latent = groupNames.map(function () { return (r.f() - 0.5) * 3.2; });
-    var nPer = r.int(28, 70);
-    var raw = [], groups = [];
-    for (var gi = 0; gi < k; gi++) {
-      var vals = [];
-      for (var i = 0; i < nPer; i++) { var v = latent[gi] + gauss() * (0.8 + r.f() * 0.5); vals.push(v); raw.push(v); }
-      groups.push(vals);
-    }
-    // friendly display scaling (shared affine so groups stay comparable)
-    var lo = ST.min(raw), hi = ST.max(raw), rng = (hi - lo) || 1, span = 4 + r.f() * 3, base = 0.3;
-    var disp = groups.map(function (vals) { return vals.map(function (v) { return (v - lo) / rng * span + base; }); });
-    var bySubset = groupNames.map(function (nm, i) { return { label: nm, values: disp[i] }; });
-    var pooled = [].concat.apply([], disp);
-
-    var an = ST.anova(disp);
-    var Fp = 2 * (1 - ST.normalCdf(Math.sqrt(Math.max(0, an.F)))); // rough
-    // ΔAIC: group model vs null
-    var dummies = [];
-    disp.forEach(function (vals, g) { vals.forEach(function () { var row = []; for (var q = 1; q < k; q++) row.push(g === q ? 1 : 0); dummies.push(row); }); });
-    var aicGroup = ST.ols(dummies, pooled).aic, aicNull = ST.ols(pooled.map(function () { return [0]; }), pooled).aic;
-    var means = disp.map(function (v) { return ST.mean(v); });
-    var poolSD = ST.sd(pooled) || 1;
-
-    // Cohen's d matrix (k×k)
-    var dmat = disp.map(function (a2, i) { return disp.map(function (b2, j) { return i === j ? 0 : (ST.mean(a2) - ST.mean(b2)) / poolSD; }); });
-    var dmax = 0; dmat.forEach(function (row) { row.forEach(function (v) { dmax = Math.max(dmax, Math.abs(v)); }); });
-    var glab = groupNames.map(function (n) { return n.length > 8 ? n.slice(0, 8) : n; });
-
-    var hiG = means.indexOf(ST.max(means)), loG = means.indexOf(ST.min(means));
-    var distType = r.pick(["violin", "box", "ridgeline"]);
-    var figs = [];
-    figs.push({ role: "dist", section: "Results", wide: k >= 5,
-      svg: distType === "violin" ? CH.violin({ groups: bySubset, ylabel: idx }) : distType === "box" ? CH.box({ groups: bySubset, ylabel: idx }) : CH.ridgeline({ groups: bySubset, xlabel: idx }),
-      caption: "The " + esc(idx) + " across " + k + " " + kind + "s (" + distType + "; " + nPer + " cases each). Groups are ordered as sampled.",
-      readout: esc(groupNames[hiG]) + " carries the highest " + esc(idx) + " (mean " + dec2(means[hiG]) + ") and " + esc(groupNames[loG]) + " the lowest (" + dec2(means[loG]) + ") — a gap of " + dec2((means[hiG] - means[loG]) / poolSD) + " pooled SD." });
-    figs.push({ role: "heat", section: "Results", wide: true,
-      svg: CH.heatmap({ matrix: dmat, rowLabels: glab, colLabels: glab, diverging: true, domain: [-Math.max(1, dmax), Math.max(1, dmax)], cblabel: "d" }),
-      caption: "Pairwise standardized mean differences (Cohen's <i>d</i>) between " + kind + "s. Warm cells: the row " + kind + " scores higher than the column.",
-      readout: "The largest contrast reaches <i>d</i> = " + dec2(dmax) + "; adjacent " + kind + "s differ little, consistent with a smooth latent gradient rather than sharp discontinuities." });
-    var contrasts = groupNames.map(function (nm, i) { var g = disp[i]; var d = (ST.mean(g) - an.grandMean) / poolSD; var se = ST.sd(g) / Math.sqrt(g.length) / poolSD; return { label: nm, est: d, lo: d - 1.96 * se, hi: d + 1.96 * se }; });
-    figs.push({ role: "model", section: "Discussion", wide: false,
-      svg: CH.forest({ rows: contrasts, xlabel: "deviation from grand mean (SD)", ref: 0 }),
-      caption: "Each " + kind + "'s deviation from the grand mean (squares = estimates, bars = 95% CI; dashed line = grand mean).",
-      readout: "The " + kind + "s whose intervals clear the grand-mean line drive the ANOVA effect; the rest are statistically indistinguishable from the centre." });
-
-    var eta = an.eta2;
-    var rep = {
-      N: nPer * k, r: dot(Math.sqrt(eta)), p: fmtP(Fp), beta: dec2((means[hiG] - means[loG]) / poolSD), ci: "η² = " + dot(eta),
-      r2: dot(eta), aic: (Math.round((aicNull - aicGroup) * 10) / 10).toFixed(1), varExplained: pctVar(eta),
-      mean: dec2(ST.mean(pooled)), sd: dec2(poolSD), lo: dec2(ST.min(pooled)), hi: dec2(ST.max(pooled)),
-      kappa: dec2(0.62 + r.f() * 0.34), y0: r.int(field.field.founded, 2013), y1: 0,
-      table: { cols: [cap(kind), "N", "Mean", "SD", "Range"], rows: bySubset.map(function (b) { return [b.label, String(b.values.length), dec2(ST.mean(b.values)), dec2(ST.sd(b.values)), dec2(ST.min(b.values)) + "–" + dec2(ST.max(b.values))]; }) }
-    };
-    rep.y1 = rep.y0 + r.int(2, 9);
-
-    return {
-      design: "comparative", designLabel: "a comparative (ANOVA) design",
-      frame: { indexName: idx, focal: { index: tIndex, rival: tRival, cov: tCov }, groupsLabel: kind, nGroups: k },
-      reported: rep,
-      dataStatement: "<b>Sample.</b> We measured the " + esc(idx) + " on " + rep.N + " instances of " + esc(field.subject.n) + " drawn from " + k + " " + kind + "s (" + nPer + " each), collected in @place@ between " + rep.y0 + " and " + rep.y1 + " (inter-rater agreement κ = " + rep.kappa + ").",
-      methodsFlow: [
-        { t: "p", html: "<b>Comparison.</b> We contrasted the " + esc(idx) + " across the " + k + " " + kind + "s by one-way analysis of variance, modelling each observation as a " + kind + " mean plus residual:" },
-        { t: "eq", html: '<i>y<sub>ig</sub></i> = &mu; + &alpha;<sub><i>g</i></sub> + &epsilon;<sub><i>ig</i></sub>,&nbsp;&nbsp; &sum;<sub><i>g</i></sub> <i>n<sub>g</sub></i> &alpha;<sub><i>g</i></sub> = 0' }
-      ],
-      table: { caption: "The " + idx + " by " + kind + ".", cols: rep.table.cols, rows: rep.table.rows },
-      resultsLead: "The " + k + " " + kind + "s differed markedly in the " + esc(idx) + " (one-way ANOVA, <i>F</i>(" + an.dfb + ", " + an.dfw + ") = " + dec2(an.F) + ", η² = " + dot(eta) + ", <i>p</i> " + fmtP(Fp) + "; @tab@, @fig:dist@). Between-" + kind + " differences account for " + pctVar(eta) + "% of the total variance.",
-      figs: figs
-    };
-  }
-
-  // ===================================================================
-  // spectral design — annual series analysed by DFT
-  // ===================================================================
-  function designSpectral(paperId, field, r) {
-    var gauss = makeGauss(r), terms = r.shuffle(field.subject.terms);
-    var tIndex = terms[0], tRival = terms[1], tCov = terms[2];
-    var idx = cap(tIndex.split(" ")[0]) + "-index";
-    var T = r.int(72, 140), y0 = r.int(1780, 1900);
-    var period = r.pick([3.3, 4, 5.2, 7, 11, 12, 22, 30]);
-    var amp = 1 + r.f() * 1.5, trend = (r.f() - 0.4) * 0.02, noise = 0.5 + r.f() * 0.7, phase = r.f() * 6.28;
-    var raw = [], fitted = [];
-    for (var t = 0; t < T; t++) {
-      var cyc = amp * Math.sin(2 * Math.PI * t / period + phase);
-      raw.push(3 + trend * t + cyc + noise * gauss());
-      fitted.push(cyc);
-    }
-    var disp = affine(raw, 6 + r.f() * 4, 1);
-    var series = disp.map(function (v, i) { return { x: y0 + i, y: v }; });
-    var pg = ST.periodogram(disp);
-    var mi = 0; pg.power.forEach(function (p, i) { if (p > pg.power[mi]) mi = i; });
-    var peakPeriod = pg.period[mi];
-    var totPow = pg.power.reduce(function (a, b) { return a + b; }, 0) || 1;
-    var peakShare = pg.power[mi] / totPow;
-    var rSeriesFit = ST.correlation(ST.detrend(disp), fitted);
-    var resid = ST.detrend(disp).map(function (v, i) { return v - fitted[i] * (ST.sd(ST.detrend(disp)) / (ST.sd(fitted) || 1)); });
-
-    // top-3 spectral peaks for the table
-    var order = pg.power.map(function (_, i) { return i; }).sort(function (a, b) { return pg.power[b] - pg.power[a]; }).slice(0, 3);
-    var tableRows = order.map(function (i, rank) { return ["#" + (rank + 1), dec2(pg.period[i]) + " yr", dec2(pg.freq[i]), pctVar(pg.power[i] / totPow) + "%"]; });
-
-    var figs = [];
-    figs.push({ role: "series", section: "Results", wide: true,
-      svg: CH.line({ series: [{ name: idx, points: series }], xlabel: "year", ylabel: idx, markers: false }),
-      caption: "The " + esc(idx) + " as an annual series, " + y0 + "–" + (y0 + T - 1) + " (" + T + " observations).",
-      readout: "By eye the series carries a slow " + (trend > 0 ? "upward" : "downward") + " drift with a regular oscillation riding on top; the drift is removed before spectral analysis." });
-    figs.push({ role: "spectrum", section: "Results", wide: false,
-      svg: CH.spectrum({ freq: pg.freq, power: pg.power, period: pg.period }),
-      caption: "Power spectrum (periodogram) of the detrended series. Spectral power peaks at a period of " + dec2(peakPeriod) + " years.",
-      readout: "The dominant " + dec2(peakPeriod) + "-year cycle carries " + pctVar(peakShare) + "% of the detrended power; secondary peaks are within the noise floor." });
-    figs.push({ role: "model", section: "Discussion", wide: false,
-      svg: CH.histogram({ values: resid, xlabel: "residual (after removing the dominant cycle)", ylabel: "count", colorIndex: 2 }),
-      caption: "Residuals once the " + dec2(peakPeriod) + "-year component is removed, with a kernel-density overlay.",
-      readout: "The residuals are roughly symmetric and unimodal, so a single sinusoid plus trend captures the systematic structure and the remainder is plausibly noise." });
-
-    var rep = {
-      N: T, r: dot(Math.abs(rSeriesFit)), p: "< .001", beta: dec2(amp), ci: "amplitude " + dec2(amp),
-      r2: dot(peakShare), aic: dec2(20 + peakShare * 60), varExplained: pctVar(peakShare),
-      mean: dec2(ST.mean(disp)), sd: dec2(ST.sd(disp)), lo: dec2(ST.min(disp)), hi: dec2(ST.max(disp)),
-      kappa: dec2(0.7 + r.f() * 0.25), y0: y0, y1: y0 + T - 1,
-      table: { cols: ["Rank", "Period", "Frequency", "% power"], rows: tableRows }
-    };
-
-    return {
-      design: "spectral", designLabel: "a spectral (time-series) design",
-      frame: { indexName: idx, focal: { index: tIndex, rival: tRival, cov: tCov }, groupsLabel: "year", nGroups: 1 },
-      reported: rep,
-      dataStatement: "<b>Series.</b> We compiled the annual " + esc(idx) + " for " + esc(field.subject.n) + " over " + T + " consecutive years (" + y0 + "–" + (y0 + T - 1) + "), treating the record as a uniformly-sampled discrete signal.",
-      methodsFlow: [
-        { t: "p", html: "<b>Spectral analysis.</b> After removing a linear trend, we estimated the power spectrum of the " + esc(idx) + " by discrete Fourier transform, reading off the dominant period from the periodogram:" },
-        { t: "eq", html: '<i>P</i>(<i>f</i>) = <span class="frac"><span class="num">2</span><span class="den">N</span></span> &#124;&sum;<sub><i>t</i></sub> <i>y<sub>t</sub></i> <i>e</i><sup>&minus;2&pi;<i>i f t</i></sup>&#124;<sup>2</sup>' }
-      ],
-      table: { caption: "The three strongest spectral components of the " + idx + ".", cols: rep.table.cols, rows: rep.table.rows },
-      resultsLead: "The " + esc(idx) + " series is dominated by a " + dec2(peakPeriod) + "-year cycle (@fig:series@, @fig:spectrum@; @tab@). Spectral power peaks sharply at that period, which alone accounts for " + pctVar(peakShare) + "% of the detrended variance (<i>r</i> = " + dot(Math.abs(rSeriesFit)) + " between the series and the fitted sinusoid).",
-      figs: figs
-    };
-  }
-
-  // ===================================================================
-  // ordination design — p variables reduced by PCA
-  // ===================================================================
-  function designOrdination(paperId, field, r) {
-    var gauss = makeGauss(r), terms = r.shuffle(field.subject.terms);
-    var tIndex = terms[0], tRival = terms[1], tCov = terms[2];
-    var idx = cap(tIndex.split(" ")[0]) + "-index";
-    var p = r.int(4, Math.min(6, field.subject.terms.length + 1));
-    var varLabels = field.subject.terms.slice(0, p).map(shortLabel);
-    while (varLabels.length < p) varLabels.push("Trait" + (varLabels.length + 1));
-    var k = r.int(2, 4), N = r.int(90, 260);
-    var groupNames = r.sample(GROUP_NAMES, k);
-    // two latent factors + group offsets → structured cloud
+  // ============================================================
+  // DATASTREAM: multivariate survey (the workhorse — supports 8 techniques)
+  // ============================================================
+  function streamMultivariate(r, field) {
+    var subj = field.subject, g = r.gauss || function () { return 0; };
+    var gauss = function () { var u1 = Math.max(1e-9, r.f()), u2 = r.f(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    var terms = r.sample(subj.terms, Math.min(5, subj.terms.length));
+    var p = terms.length, N = r.int(150, 320), K = r.int(2, 4);
     var loadA = [], loadB = []; for (var j = 0; j < p; j++) { loadA.push(gauss()); loadB.push(gauss()); }
-    var gOff = groupNames.map(function () { return [(r.f() - 0.5) * 3, (r.f() - 0.5) * 3]; });
-    var rows = [], gidx = [];
-    for (var i = 0; i < N; i++) {
-      var g = r.int(0, k - 1), fa = gOff[g][0] + gauss(), fb = gOff[g][1] + gauss();
-      var row = []; for (var j2 = 0; j2 < p; j2++) row.push(loadA[j2] * fa + loadB[j2] * fb + 0.6 * gauss());
-      rows.push(row); gidx.push(g);
-    }
-    var P = ST.pca(rows);
-    var ex = P.explained, cum = 0;
-    var scores = P.scores.map(function (s, i) { return { x: s[0], y: s[1], g: gidx[i] }; });
-    var loadings = varLabels.map(function (lab, j) { return { x: P.loadings[0][j], y: P.loadings[1][j], label: lab }; });
-    // top variables on PC1
-    var pc1abs = varLabels.map(function (lab, j) { return { lab: lab, w: Math.abs(P.loadings[0][j]) }; }).sort(function (a, b) { return b.w - a.w; });
-    var topVars = pc1abs.slice(0, 2).map(function (x) { return x.lab; });
-    // loadings heatmap: variables × top components
-    var nc = Math.min(4, p);
-    var lmat = varLabels.map(function (_, j) { var row = []; for (var c = 0; c < nc; c++) row.push(P.loadings[c][j]); return row; });
-    var compLabels = []; for (var c = 0; c < nc; c++) compLabels.push("PC" + (c + 1));
-
-    var pc12 = pctVar(ex[0] + ex[1]);
-    var figs = [];
-    figs.push({ role: "scree", section: "Results", wide: false,
-      svg: CH.scree({ explained: ex.slice(0, Math.min(6, p)) }),
-      caption: "Scree plot: variance explained by each principal component of the " + p + " measured attributes.",
-      readout: "The first two components capture " + pc12 + "% of the variance and the scree bends sharply after PC2, so a two-dimensional summary is defensible." });
-    figs.push({ role: "biplot", section: "Results", wide: true,
-      svg: CH.biplot({ scores: scores, loadings: loadings, groups: groupNames, xlabel: "PC1 (" + pctVar(ex[0]) + "%)", ylabel: "PC2 (" + pctVar(ex[1]) + "%)" }),
-      caption: "PCA biplot: case scores on the first two components (colour = " + (k > 1 ? "cluster" : "case") + "), with variable loadings as vectors.",
-      readout: "Cases separate chiefly along PC1, which loads on " + esc(topVars.join(" and ")) + "; the " + k + " clusters occupy distinct regions of the plane." });
-    figs.push({ role: "model", section: "Discussion", wide: false,
-      svg: CH.heatmap({ matrix: lmat, rowLabels: varLabels, colLabels: compLabels, diverging: true, domain: [-1, 1], cblabel: "loading", cell: 26, labelW: 84, labelT: 40 }),
-      caption: "Component loadings: how each measured attribute projects onto the leading principal components.",
-      readout: esc(topVars[0]) + " and " + esc(topVars[1]) + " define PC1, while the remaining attributes load mostly on PC2 — the two axes are close to a simple structure." });
-
-    var rep = {
-      N: N, r: dot(Math.abs(P.loadings[0][0])), p: "< .001", beta: dec2(P.loadings[0][pc1abs.length ? varLabels.indexOf(pc1abs[0].lab) : 0]), ci: "PC1 loading",
-      r2: dot(ex[0]), aic: dec2(ex[0] * 100), varExplained: pc12,
-      mean: dec2(ST.mean(rows.map(function (row) { return row[0]; }))), sd: dec2(ST.sd(rows.map(function (row) { return row[0]; }))),
-      lo: dec2(ST.min(scores.map(function (s) { return s.x; }))), hi: dec2(ST.max(scores.map(function (s) { return s.x; }))),
-      kappa: dec2(0.66 + r.f() * 0.3), y0: r.int(field.field.founded, 2013), y1: 0,
-      table: { cols: ["Component", "Eigenvalue", "% variance", "Cumulative"], rows: ex.slice(0, Math.min(5, p)).map(function (v, i) { cum += v; return ["PC" + (i + 1), dec2(P.values[i]), pctVar(v) + "%", pctVar(cum) + "%"]; }) }
-    };
-    rep.y1 = rep.y0 + r.int(2, 9);
-
+    var gOff = []; for (var c = 0; c < K; c++) gOff.push([(r.f() - 0.5) * 3.2, (r.f() - 0.5) * 3.2]);
+    var raw = [], gid = [];
+    for (var i = 0; i < N; i++) { var gg = r.int(0, K - 1), fa = gOff[gg][0] + gauss(), fb = gOff[gg][1] + gauss(); var row = []; for (j = 0; j < p; j++) row.push(loadA[j] * fa + loadB[j] * fb + 0.6 * gauss()); raw.push(row); gid.push(gg); }
+    // display-scale each column independently
+    var rows = raw.map(function (r0) { return r0.slice(); });
+    for (j = 0; j < p; j++) { var scaled = affine(col(raw, j), 6 + r.f() * 3, 0.5 + r.f()); for (i = 0; i < N; i++) rows[i][j] = scaled[i]; }
+    var vars = terms.map(shortLabel);
+    var outcomeIdx = 0, outcome = col(rows, outcomeIdx), outcomeName = cap(terms[0].split(" ")[0]) + "-index";
+    // covariate = the variable most correlated with the outcome
+    var covIdx = 1; for (j = 1; j < p; j++) if (Math.abs(ST.correlation(col(rows, j), outcome)) > Math.abs(ST.correlation(col(rows, covIdx), outcome))) covIdx = j;
+    var med = ST.median(outcome), binary = outcome.map(function (v) { return v > med ? 1 : 0; });
+    var P = ST.pca(rows), scores2 = P.scores.map(function (s) { return [s[0], s[1]]; });
+    var km = ST.kmeans(scores2, K, r.f);
     return {
-      design: "ordination", designLabel: "an ordination (PCA) design",
-      frame: { indexName: idx, focal: { index: tIndex, rival: tRival, cov: tCov }, groupsLabel: "cluster", nGroups: k },
-      reported: rep,
-      dataStatement: "<b>Attributes.</b> We measured " + p + " attributes of " + esc(field.subject.n) + " on " + N + " cases collected in @place@ (" + rep.y0 + "–" + rep.y1 + "), then standardized each attribute before ordination.",
-      methodsFlow: [
-        { t: "p", html: "<b>Ordination.</b> We reduced the " + p + " standardized attributes to principal components (eigendecomposition of the correlation matrix <b>R</b>), retaining components by the scree criterion:" },
-        { t: "eq", html: '<b>R</b> <i>v<sub>c</sub></i> = &lambda;<sub><i>c</i></sub> <i>v<sub>c</sub></i>,&nbsp;&nbsp; explained&nbsp;=&nbsp;&lambda;<sub><i>c</i></sub> / &sum;<sub><i>c</i></sub> &lambda;<sub><i>c</i></sub>' }
-      ],
-      table: { caption: "Principal components of the " + p + " measured attributes.", cols: rep.table.cols, rows: rep.table.rows },
-      resultsLead: "The first two principal components captured " + pc12 + "% of the variance in the " + p + " measured attributes (@fig:scree@; @tab@). In the biplot (@fig:biplot@), cases separate along PC1 — which loads on " + esc(topVars.join(" and ")) + " — and the " + k + " clusters occupy distinct regions.",
-      figs: figs
+      kind: "multivariate", field: field, N: N, p: p, K: K, vars: vars, rows: rows,
+      outcome: outcome, outcomeName: outcomeName, indexName: outcomeName,
+      covIdx: covIdx, covName: terms[covIdx], binary: binary,
+      pca: P, scores2: scores2, clusters: km.assign, kmCent: km.centroids,
+      terms: terms,
+      table: { caption: "Descriptive statistics of the " + outcomeName + "'s " + p + " constituent measures.", cols: ["Measure", "Mean", "SD", "Range"], rows: vars.map(function (v, jj) { var cc = col(rows, jj); return [v, d2(ST.mean(cc)), d2(ST.sd(cc)), d2(ST.min(cc)) + "–" + d2(ST.max(cc))]; }) }
     };
   }
+  function clusterLabels(K) { var o = []; for (var i = 0; i < K; i++) o.push("cluster " + (i + 1)); return o; }
 
-  var DESIGNS = [
-    { fn: designRegression, w: 3 },
-    { fn: designComparative, w: 2 },
-    { fn: designSpectral, w: 2 },
-    { fn: designOrdination, w: 2 }
+  var MV = {
+    distribution: function (S, r) {
+      return { tid: "distribution", intro: "We begin descriptively. The " + esc(S.outcomeName) + " (@fig:distribution:hist@) is " + (r.chance(0.5) ? "unimodal and roughly symmetric" : "mildly right-skewed"), figures: [
+        fig("distribution:hist", CH.histogram({ values: S.outcome, xlabel: S.outcomeName }), "Distribution of the " + esc(S.outcomeName) + " across all " + S.N + " cases, with a kernel-density overlay.", "The bulk of cases fall in a single mode; the tails are light, so summary statistics are meaningful."),
+        fig("distribution:qq", CH.qq({ values: S.outcome }), "Normal Q–Q plot of the " + esc(S.outcomeName) + ".", "Points track the reference line through the body of the distribution — a normal approximation is serviceable.")
+      ], reported: { mean: d2(ST.mean(S.outcome)), sd: d2(ST.sd(S.outcome)) } };
+    },
+    dependence: function (S, r) {
+      var M = S.vars.map(function (_, a) { return S.vars.map(function (_2, b) { return ST.correlation(col(S.rows, a), col(S.rows, b)); }); });
+      var best = { v: 0, i: 0, j: 1 }; for (var a = 0; a < S.p; a++) for (var b = a + 1; b < S.p; b++) if (Math.abs(M[a][b]) > Math.abs(best.v)) best = { v: M[a][b], i: a, j: b };
+      return { tid: "corr", intro: "The " + S.p + " measures are inter-correlated (@fig:dependence:heat@), motivating a dimensional summary", figures: [
+        fig("dependence:heat", CH.heatmap({ matrix: M, labels: S.vars, diverging: true, domain: [-1, 1], cblabel: "r" }), "Pairwise Pearson correlations among the " + S.p + " measures.", "The strongest pair is " + esc(S.vars[best.i]) + "↔" + esc(S.vars[best.j]) + " (r = " + dot(best.v) + "); the redundancy among measures is what principal components exploit.", true)
+      ], reported: { "strongest |r|": dot(Math.abs(best.v)) } };
+    },
+    reduction: function (S, r) {
+      var scores = S.pca.scores.map(function (s, i) { return { x: s[0], y: s[1], g: S.clusters[i] }; });
+      var loadings = S.vars.map(function (lab, j) { return { x: S.pca.loadings[0][j], y: S.pca.loadings[1][j], label: lab }; });
+      var pc12 = pv(S.pca.explained[0] + S.pca.explained[1]);
+      return { tid: "pca", intro: "Principal component analysis compresses the " + S.p + " measures (@fig:reduction:scree@, @fig:reduction:biplot@)", figures: [
+        fig("reduction:scree", CH.scree({ explained: S.pca.explained.slice(0, Math.min(6, S.p)) }), "Scree plot of the principal components.", "The first two components carry " + pc12 + "% of the variance; the scree bends after PC2."),
+        fig("reduction:biplot", CH.biplot({ scores: scores, loadings: loadings, groups: clusterLabels(S.K), xlabel: "PC1 (" + pv(S.pca.explained[0]) + "%)", ylabel: "PC2 (" + pv(S.pca.explained[1]) + "%)" }), "Biplot of case scores on PC1–PC2 (colour = cluster, ahead of §clustering), with variable loadings.", "Cases spread mainly along PC1; the loading vectors show which measures pull in which direction.", true)
+      ], reported: { "PC1+PC2": pc12 + "%" } };
+    },
+    clustering: function (S, r) {
+      var pts = S.scores2.map(function (s, i) { return { x: s[0], y: s[1], g: S.clusters[i] }; });
+      var sizes = []; for (var c = 0; c < S.K; c++) sizes.push({ label: "cluster " + (c + 1), value: S.clusters.filter(function (x) { return x === c; }).length, g: c });
+      return { tid: "kmeans", intro: "k-means on the component scores resolves " + S.K + " groups (@fig:clustering:scatter@)", figures: [
+        fig("clustering:scatter", CH.clusterScatter({ points: pts, centroids: S.kmCent.map(function (c) { return { x: c[0], y: c[1] }; }), groups: clusterLabels(S.K), xlabel: "PC1", ylabel: "PC2" }), "k-means partition in principal-component space (× = centroids).", "The clusters are compact and largely separated along PC1, so the reduction and the partition tell one story."),
+        fig("clustering:sizes", CH.lollipop({ items: sizes, xlabel: "cluster size" }), "Sizes of the " + S.K + " discovered clusters.", "The partition is " + (Math.max.apply(null, sizes.map(function (s) { return s.value; })) > S.N * 0.6 ? "unbalanced — one cluster dominates" : "reasonably balanced") + ".")
+      ], reported: { k: S.K } };
+    },
+    hierarchy: function (S, r) {
+      var m = Math.min(16, S.N), idx = []; for (var i = 0; i < m; i++) idx.push(Math.floor(i * S.N / m));
+      var sub = idx.map(function (i) { return S.rows[i]; }), labels = idx.map(function (_, i) { return "c" + (i + 1); });
+      var hc = ST.hclust(sub);
+      var D = sub.map(function (a) { return sub.map(function (b) { return ST.euclid(a, b); }); });
+      var Dord = hc.order.map(function (i) { return hc.order.map(function (j) { return D[i][j]; }); });
+      return { tid: "hclust", intro: "An agglomerative tree over a case sample recovers nested structure (@fig:hierarchy:dendro@)", figures: [
+        fig("hierarchy:dendro", CH.dendrogram({ root: hc.root, order: hc.order, labels: labels, ylabel: "distance" }), "Average-linkage dendrogram over a " + m + "-case sample.", "The tree's low branches echo the k-means partition — the two clustering methods broadly agree."),
+        fig("hierarchy:heat", CH.heatmap({ matrix: Dord, rowLabels: hc.order.map(function (i) { return labels[i]; }), colLabels: hc.order.map(function (i) { return labels[i]; }), diverging: false, cblabel: "dist", cell: 18, labelW: 44, labelT: 40 }), "Distance matrix reordered by the dendrogram.", "Dark blocks on the diagonal are the tight groups the tree isolates.", true)
+      ], reported: { "tree height": d2(hc.height) } };
+    },
+    difference: function (S, r) {
+      var by = clusterLabels(S.K).map(function (lab, gi) { return { label: "C" + (gi + 1), values: S.outcome.filter(function (_, i) { return S.clusters[i] === gi; }) }; }).filter(function (b) { return b.values.length > 1; });
+      var an = ST.anova(by.map(function (b) { return b.values; }));
+      return { tid: "anova", intro: "The discovered clusters differ in the outcome (one-way ANOVA over the k-means groups; @fig:difference:violin@)", figures: [
+        fig("difference:violin", CH.violin({ groups: by, ylabel: S.outcomeName }), "The " + esc(S.outcomeName) + " by discovered cluster.", "Between-cluster differences account for " + pv(an.eta2) + "% of the variance in the " + esc(S.outcomeName) + " (η² = " + dot(an.eta2) + ") — the partition is not arbitrary with respect to the outcome.")
+      ], reported: { "η²": dot(an.eta2), F: d2(an.F) }, eta: an.eta2 };
+    },
+    association: function (S, r) {
+      var cov = col(S.rows, S.covIdx), pts = cov.map(function (x, i) { return { x: x, y: S.outcome[i], g: S.clusters[i] }; });
+      var rr = ST.correlation(cov, S.outcome), fit = ST.ols(cov.map(function (x) { return [x]; }), S.outcome);
+      return { tid: "ols", intro: "Within the same cases, the " + esc(S.outcomeName) + " tracks " + esc(S.covName) + " (@fig:association:scatter@)", figures: [
+        fig("association:scatter", CH.scatterFit({ points: pts, groups: clusterLabels(S.K), xlabel: cap(S.covName), ylabel: S.outcomeName, annot: "r = " + dot(rr) }), "OLS fit of the " + esc(S.outcomeName) + " on " + esc(S.covName) + ", coloured by cluster.", "The association is positive (r = " + dot(rr) + ", p " + fmtP(ST.corrP(rr, S.N)) + ") and holds within each cluster — it is not an artefact of the grouping.")
+      ], reported: { r: dot(rr), slope: d2(fit.beta[1]), p: fmtP(ST.corrP(rr, S.N)), r2: dot(fit.r2) }, rr: rr };
+    },
+    classification: function (S, r) {
+      var cov = col(S.rows, S.covIdx), lg = ST.logistic(cov.map(function (x) { return [x]; }), S.binary), rc = ST.roc(lg.probs, S.binary);
+      var curve = []; for (var t = 0; t <= 40; t++) { var xv = ST.min(cov) + (ST.max(cov) - ST.min(cov)) * t / 40; var z = (xv - lg.mean[0]) / lg.sd[0]; curve.push({ x: xv, p: 1 / (1 + Math.exp(-(lg.w[0] + lg.w[1] * z))) }); }
+      return { tid: "logistic", intro: "Treating a high-" + esc(S.outcomeName) + " flag as a label, " + esc(S.covName) + " predicts it (@fig:classification:logit@, @fig:classification:roc@)", figures: [
+        fig("classification:logit", CH.logisticCurve({ points: cov.map(function (x, i) { return { x: x, y: S.binary[i] }; }), curve: curve, xlabel: cap(S.covName) }), "Fitted logistic curve for the high-" + esc(S.outcomeName) + " label against " + esc(S.covName) + ".", "The fitted probability rises smoothly with " + esc(S.covName) + "."),
+        fig("classification:roc", CH.roc({ points: rc.points, auc: rc.auc }), "ROC curve for the classifier.", "Discrimination is " + (rc.auc > 0.8 ? "strong" : rc.auc > 0.65 ? "moderate" : "weak") + " (AUC = " + d2(rc.auc) + ").")
+      ], reported: { AUC: d2(rc.auc) } };
+    }
+  };
+  MV.stories = [
+    ["dependence", "reduction", "difference"], ["distribution", "reduction", "association"],
+    ["reduction", "clustering", "difference"], ["dependence", "clustering", "classification"],
+    ["distribution", "clustering", "association"], ["reduction", "clustering", "difference"],
+    ["dependence", "reduction", "classification"], ["distribution", "hierarchy", "difference"],
+    ["reduction", "clustering", "association"]
   ];
+  MV.synthesis = function (S, r) {
+    var pc1 = col(S.pca.scores, 0), pts = pc1.map(function (x, i) { return { x: x, y: S.outcome[i], g: S.clusters[i] }; });
+    var rr = ST.correlation(pc1, S.outcome);
+    var means = clusterLabels(S.K).map(function (_, gi) { return ST.mean(S.outcome.filter(function (_2, i) { return S.clusters[i] === gi; }) || [0]); });
+    var hi = means.indexOf(ST.max(means));
+    return { role: "synth", label: "Synthesis", finding: "Taken together, the three analyses cohere: the principal axis, the k-means partition, and the outcome are one structure, not three.",
+      figure: fig("synth", CH.scatterFit({ points: pts, groups: clusterLabels(S.K), xlabel: "PC1 (principal axis)", ylabel: S.outcomeName, annot: "r = " + dot(rr) }),
+        "Synthesis: the " + esc(S.outcomeName) + " against the principal component, coloured by the discovered cluster — the reduction, the clustering, and the outcome on one plane.",
+        "PC1 predicts the " + esc(S.outcomeName) + " (r = " + dot(rr) + "), and cluster " + (hi + 1) + " occupies the high-PC1, high-outcome corner: the axis that organises the measures is the same one along which the clusters separate and the outcome grows.") };
+  };
+
+  // ============================================================
+  // DATASTREAM: temporal record
+  // ============================================================
+  function streamTemporal(r, field) {
+    var subj = field.subject, terms = r.sample(subj.terms, 2);
+    var gauss = function () { var u1 = Math.max(1e-9, r.f()), u2 = r.f(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    var Tn = r.int(80, 130), y0 = r.int(1790, 1900), period = r.pick([4, 5, 7, 11, 12, 22]), amp = 1 + r.f() * 1.4, ph = r.f() * 6.28, trend = (r.f() - 0.4) * 0.02;
+    var raw = [], cyc = [], covRaw = [];
+    for (var t = 0; t < Tn; t++) { var cc = amp * Math.sin(2 * Math.PI * t / period + ph); cyc.push(cc); raw.push(3 + trend * t + cc + (0.5 + r.f() * 0.6) * gauss()); covRaw.push(cc * (0.7 + r.f() * 0.5) + gauss()); }
+    var series = affine(raw, 6, 1), cov = affine(covRaw, 8, 1);
+    var pg = ST.periodogram(series), mi = 0; pg.power.forEach(function (pw, i) { if (pw > pg.power[mi]) mi = i; });
+    var order = pg.power.map(function (_, i) { return i; }).sort(function (a, b) { return pg.power[b] - pg.power[a]; }).slice(0, 3);
+    var tot = pg.power.reduce(function (a, b) { return a + b; }, 0) || 1;
+    return {
+      kind: "temporal", field: field, N: Tn, y0: y0, series: series, cov: cov, cyc: cyc, pg: pg, mi: mi,
+      outcomeName: cap(terms[0].split(" ")[0]) + "-index", covName: terms[1], indexName: cap(terms[0].split(" ")[0]) + "-index", terms: terms,
+      peakShare: pg.power[mi] / tot, period: pg.period[mi],
+      table: { caption: "The three strongest spectral components of the " + cap(terms[0].split(" ")[0]) + "-index.", cols: ["Rank", "Period", "% power"], rows: order.map(function (i, k) { return ["#" + (k + 1), d2(pg.period[i]) + " yr", pv(pg.power[i] / tot) + "%"]; }) }
+    };
+  }
+  var TS = {
+    distribution: function (S, r) {
+      return { tid: "distribution", intro: "The series' marginal distribution (@fig:distribution:hist@) sets a baseline", figures: [
+        fig("distribution:hist", CH.histogram({ values: S.series, xlabel: S.outcomeName }), "Marginal distribution of the " + esc(S.outcomeName) + " over " + S.N + " years.", "The values are single-moded; the temporal structure is invisible at this marginal view — hence the spectral step.")
+      ], reported: { mean: d2(ST.mean(S.series)) } };
+    },
+    trend: function (S, r) {
+      var series = S.series.map(function (v, i) { return { x: S.y0 + i, y: v }; });
+      return { tid: "spectral", intro: "Spectral analysis exposes a dominant cycle (@fig:trend:line@, @fig:trend:spec@)", figures: [
+        fig("trend:line", CH.line({ series: [{ name: S.outcomeName, points: series }], xlabel: "year", ylabel: S.outcomeName }), "The " + esc(S.outcomeName) + " series, " + S.y0 + "–" + (S.y0 + S.N - 1) + ".", "A regular oscillation rides on a slow drift; the drift is removed before the transform.", true),
+        fig("trend:spec", CH.spectrum({ freq: S.pg.freq, power: S.pg.power, period: S.pg.period }), "Periodogram of the detrended series.", "Power peaks at " + d2(S.period) + " years, carrying " + pv(S.peakShare) + "% of the detrended variance.")
+      ], reported: { period: d2(S.period) + " yr", power: pv(S.peakShare) + "%" } };
+    },
+    association: function (S, r) {
+      var pts = S.cov.map(function (x, i) { return { x: x, y: S.series[i], g: 0 }; }), rr = ST.correlation(S.cov, S.series);
+      return { tid: "ols", intro: "The cycle co-moves with a contemporaneous covariate (@fig:association:scatter@)", figures: [
+        fig("association:scatter", CH.scatterFit({ points: pts, xlabel: cap(S.covName), ylabel: S.outcomeName, annot: "r = " + dot(rr) }), "The " + esc(S.outcomeName) + " against " + esc(S.covName) + ", same years.", "The two move together (r = " + dot(rr) + "), consistent with a shared periodic driver.")
+      ], reported: { r: dot(rr) }, rr: rr };
+    }
+  };
+  TS.stories = [["distribution", "trend"], ["trend", "association"], ["distribution", "trend", "association"]];
+  TS.synthesis = function (S, r) {
+    var series = S.series.map(function (v, i) { return { x: S.y0 + i, y: v }; });
+    var scale = (ST.sd(ST.detrend(S.series)) / (ST.sd(S.cyc) || 1)), fitLine = S.cyc.map(function (v, i) { return { x: S.y0 + i, y: ST.mean(S.series) + v * scale }; });
+    var rr = ST.correlation(ST.detrend(S.series), S.cyc);
+    return { role: "synth", label: "Synthesis", finding: "The recovered cycle, laid back over the raw series, accounts for its regular excursions.",
+      figure: fig("synth", CH.line({ series: [{ name: "observed", points: series }, { name: "fitted cycle", points: fitLine }], xlabel: "year", ylabel: S.outcomeName }, true),
+        "Synthesis: the observed series with the fitted " + d2(S.period) + "-year cycle overlaid.",
+        "The single sinusoid the periodogram identified reproduces the series' peaks and troughs (r = " + dot(rr) + " with the detrended data) — description, spectrum, and covariate are one signal.", true) };
+  };
+
+  // ============================================================
+  // DATASTREAM: grouped measurements
+  // ============================================================
+  function streamGrouped(r, field) {
+    var subj = field.subject, terms = r.sample(subj.terms, 2);
+    var gauss = function () { var u1 = Math.max(1e-9, r.f()), u2 = r.f(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    var K = r.int(3, 5), nPer = r.int(30, 60), names = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"].slice(0, K);
+    var lat = names.map(function () { return (r.f() - 0.5) * 3; }), slope = 0.5 + r.f();
+    var groups = [], covs = [], raw = [];
+    for (var gi = 0; gi < K; gi++) { var vv = [], cv = []; for (var i = 0; i < nPer; i++) { var cvi = gauss(); cv.push(cvi); var y = lat[gi] + slope * cvi + gauss() * 0.8; vv.push(y); raw.push(y); } groups.push(vv); covs.push(cv); }
+    var all = [].concat.apply([], groups), disp = affine(all, 5, 0.5), off = 0;
+    var by = names.map(function (nm, gi) { var vals = []; for (var i = 0; i < groups[gi].length; i++) vals.push(disp[off++]); return { label: nm, values: vals }; });
+    var covAll = affine([].concat.apply([], covs), 8, 1), o2 = 0, covBy = names.map(function (nm, gi) { var vv = []; for (var i = 0; i < groups[gi].length; i++) vv.push(covAll[o2++]); return vv; });
+    return {
+      kind: "grouped", field: field, N: nPer * K, K: K, names: names, by: by, covBy: covBy,
+      outcomeName: cap(terms[0].split(" ")[0]) + "-index", covName: terms[1], indexName: cap(terms[0].split(" ")[0]) + "-index", kind2: r.pick(["site", "cohort", "workshop", "provenance"]), terms: terms,
+      table: { caption: "The " + cap(terms[0].split(" ")[0]) + "-index by group.", cols: ["Group", "N", "Mean", "SD"], rows: by.map(function (b) { return [b.label, String(b.values.length), d2(ST.mean(b.values)), d2(ST.sd(b.values))]; }) }
+    };
+  }
+  var GR = {
+    distribution: function (S, r) {
+      var all = [].concat.apply([], S.by.map(function (b) { return b.values; }));
+      return { tid: "distribution", intro: "Pooling the groups, the outcome is unimodal (@fig:distribution:hist@)", figures: [
+        fig("distribution:hist", CH.histogram({ values: all, xlabel: S.outcomeName }), "Pooled distribution of the " + esc(S.outcomeName) + ".", "The pooled shape hides the group structure the next step exposes.")
+      ], reported: { mean: d2(ST.mean(all)) } };
+    },
+    difference: function (S, r) {
+      var an = ST.anova(S.by.map(function (b) { return b.values; })), pooled = ST.sd([].concat.apply([], S.by.map(function (b) { return b.values; }))) || 1;
+      var dm = S.by.map(function (a, i) { return S.by.map(function (b, j) { return i === j ? 0 : (ST.mean(a.values) - ST.mean(b.values)) / pooled; }); });
+      var dmax = 0; dm.forEach(function (row) { row.forEach(function (v) { dmax = Math.max(dmax, Math.abs(v)); }); });
+      return { tid: "anova", intro: "The " + S.K + " " + S.kind2 + "s differ (one-way ANOVA; @fig:difference:violin@, @fig:difference:heat@)", figures: [
+        fig("difference:violin", CH.violin({ groups: S.by, ylabel: S.outcomeName }), "The " + esc(S.outcomeName) + " across " + S.K + " " + S.kind2 + "s.", "Between-" + S.kind2 + " variance is " + pv(an.eta2) + "% of the total (η² = " + dot(an.eta2) + ")."),
+        fig("difference:heat", CH.heatmap({ matrix: dm, rowLabels: S.names, colLabels: S.names, diverging: true, domain: [-Math.max(1, dmax), Math.max(1, dmax)], cblabel: "d" }), "Pairwise Cohen's d between " + S.kind2 + "s.", "The sharpest contrast is d = " + d2(dmax) + ".", true)
+      ], reported: { "η²": dot(an.eta2), F: d2(an.F) }, eta: an.eta2 };
+    },
+    association: function (S, r) {
+      var xs = [].concat.apply([], S.covBy), ys = [].concat.apply([], S.by.map(function (b) { return b.values; })), gs = [];
+      S.by.forEach(function (b, gi) { b.values.forEach(function () { gs.push(gi); }); });
+      var pts = xs.map(function (x, i) { return { x: x, y: ys[i], g: gs[i] }; }), rr = ST.correlation(xs, ys);
+      return { tid: "ols", intro: "A within-group covariate also moves the outcome (@fig:association:scatter@)", figures: [
+        fig("association:scatter", CH.scatterFit({ points: pts, groups: S.names, xlabel: cap(S.covName), ylabel: S.outcomeName, annot: "r = " + dot(rr) }), "The " + esc(S.outcomeName) + " on " + esc(S.covName) + ", coloured by " + S.kind2 + ".", "The slope is positive (r = " + dot(rr) + ") and roughly parallel across " + S.kind2 + "s — group and covariate are additive.")
+      ], reported: { r: dot(rr) }, rr: rr };
+    }
+  };
+  GR.stories = [["distribution", "difference"], ["difference", "association"], ["distribution", "difference", "association"]];
+  GR.synthesis = function (S, r) {
+    var gm = ST.mean([].concat.apply([], S.by.map(function (b) { return b.values; }))), pooled = ST.sd([].concat.apply([], S.by.map(function (b) { return b.values; }))) || 1;
+    var rows = S.by.map(function (b) { var d = (ST.mean(b.values) - gm) / pooled, se = ST.sd(b.values) / Math.sqrt(b.values.length) / pooled; return { label: b.label, est: d, lo: d - 1.96 * se, hi: d + 1.96 * se }; });
+    return { role: "synth", label: "Synthesis", finding: "The group effects, gathered on one scale, show which groups actually drive the difference.",
+      figure: fig("synth", CH.forest({ rows: rows, xlabel: "deviation from grand mean (SD)", ref: 0 }),
+        "Synthesis: each group's standardized deviation from the grand mean (95% CI).",
+        "Only the " + S.kind2 + "s whose intervals clear the grand-mean line move the ANOVA; the covariate acts on top of these level shifts, not instead of them."), reported: {} };
+  };
+
+  // ============================================================
+  // DATASTREAM: cohort with durations
+  // ============================================================
+  function streamCohort(r, field) {
+    var subj = field.subject, terms = r.sample(subj.terms, 2), rate = 0.06 + r.f() * 0.1;
+    var times = [], events = [], cov = [], covRaw = [];
+    var N = r.int(90, 180);
+    for (var i = 0; i < N; i++) { var cr = (r.f() - 0.5) * 2; covRaw.push(cr); var lam = rate * Math.exp(0.4 * cr); var t = -Math.log(Math.max(1e-6, r.f())) / lam, cens = -Math.log(Math.max(1e-6, r.f())) / (rate * 0.6); if (t <= cens) { times.push(+t.toFixed(1)); events.push(1); } else { times.push(+cens.toFixed(1)); events.push(0); } }
+    cov = affine(covRaw, 8, 1);
+    var km = ST.kaplanMeier(times, events);
+    return {
+      kind: "cohort", field: field, N: N, times: times, events: events, cov: cov, km: km,
+      outcomeName: cap(terms[0].split(" ")[0]) + " time", covName: terms[1], indexName: cap(terms[0].split(" ")[0]) + "-index", terms: terms,
+      table: { caption: "Follow-up summary.", cols: ["Quantity", "Value"], rows: [["Cases", String(N)], ["Events", String(events.filter(function (e) { return e; }).length)], ["Censored", String(events.filter(function (e) { return !e; }).length)], ["Median survival", km.median != null ? d2(km.median) : "not reached"]] }
+    };
+  }
+  var CO = {
+    distribution: function (S, r) {
+      return { tid: "distribution", intro: "Observed durations are right-skewed (@fig:distribution:hist@)", figures: [
+        fig("distribution:hist", CH.histogram({ values: S.times, xlabel: "observed duration", colorIndex: 2 }), "Distribution of observed durations (events + censored).", "The long right tail is characteristic of waiting-time data and motivates a survival treatment rather than a mean.")
+      ], reported: { median: d2(ST.median(S.times)) } };
+    },
+    survival: function (S, r) {
+      return { tid: "survival", intro: "The Kaplan–Meier estimate tracks how survival falls (@fig:survival:km@)", figures: [
+        fig("survival:km", CH.kaplanMeier({ points: S.km.points, median: S.km.median, xlabel: "time", ylabel: "survival S(t)" }), "Kaplan–Meier survival curve with the median marked.", "Median survival is " + (S.km.median != null ? d2(S.km.median) : "not reached") + "; censoring is handled by the estimator, not dropped.")
+      ], reported: { "median survival": S.km.median != null ? d2(S.km.median) : "not reached" } };
+    },
+    association: function (S, r) {
+      var pts = S.cov.map(function (x, i) { return { x: x, y: S.times[i], g: S.events[i] }; }), rr = ST.correlation(S.cov, S.times);
+      return { tid: "ols", intro: "Duration co-varies with a baseline covariate (@fig:association:scatter@)", figures: [
+        fig("association:scatter", CH.scatterFit({ points: pts, groups: ["censored", "event"], xlabel: cap(S.covName), ylabel: "duration", annot: "r = " + dot(rr) }), "Observed duration against " + esc(S.covName) + " (colour = event vs censored).", "Higher " + esc(S.covName) + " goes with " + (rr < 0 ? "shorter" : "longer") + " durations (r = " + dot(rr) + ") — a hazard signal the survival curve aggregates.")
+      ], reported: { r: dot(rr) }, rr: rr };
+    }
+  };
+  CO.stories = [["distribution", "survival"], ["survival", "association"], ["distribution", "survival", "association"]];
+  CO.synthesis = function (S, r) {
+    var pts = S.cov.map(function (x, i) { return { x: x, y: S.times[i], g: S.events[i] }; }), rr = ST.correlation(S.cov, S.times);
+    return { role: "synth", label: "Synthesis", finding: "The covariate that shifts individual durations is the same one the survival curve integrates over.",
+      figure: fig("synth", CH.scatterFit({ points: pts, groups: ["censored", "event"], xlabel: cap(S.covName), ylabel: "duration" }),
+        "Synthesis: individual durations against " + esc(S.covName) + ", events and censored cases distinguished.",
+        "The individual-level gradient (r = " + dot(rr) + ") and the population-level Kaplan–Meier curve are two views of one hazard: cases with higher " + esc(S.covName) + " leave the risk set sooner."), reported: {} };
+  };
+
+  var STREAMS = {
+    multivariate: { w: 4, build: streamMultivariate, an: MV, designLabel: "a multivariate analysis" },
+    temporal: { w: 2, build: streamTemporal, an: TS, designLabel: "a time-series analysis" },
+    grouped: { w: 2, build: streamGrouped, an: GR, designLabel: "a comparative analysis" },
+    cohort: { w: 2, build: streamCohort, an: CO, designLabel: "a survival analysis" }
+  };
 
   function run(paperId, field) {
     field = field || W.generate(String(paperId).split(".")[0]);
     var r = W._Rand("analysis::" + paperId);
-    var choice = r.pickw(DESIGNS, function (d) { return d.w; });
-    return choice.fn(paperId, field, r);
+    r.gauss = function () { var u1 = Math.max(1e-9, r.f()), u2 = r.f(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    var keys = Object.keys(STREAMS);
+    var kind = r.pickw(keys, function (k) { return STREAMS[k].w; });
+    var def = STREAMS[kind], S = def.build(r, field), an = def.an;
+    var story = r.pick(an.stories);
+    var steps = story.map(function (key) { return an[key](S, r); });
+    var synth = an.synthesis(S, r);
+
+    // assemble the Results section as a story: lead → table → per-technique subsection → (synthesis lives in Discussion)
+    var resultsFlow = [];
+    var techNames = steps.map(function (s) { return label(s.tid); });
+    resultsFlow.push({ t: "p", html: "We analysed the same " + S.N + " observations through " + steps.length + " lenses — " + techNames.join(", ") + " — building from description to inference (@tab@).", first: true });
+    resultsFlow.push({ t: "table", caption: S.table.caption, cols: S.table.cols, rows: S.table.rows });
+    steps.forEach(function (st, si) {
+      resultsFlow.push({ t: "h3", text: (si + 1) + ". " + cap(label(st.tid)) });
+      resultsFlow.push({ t: "p", html: st.intro + "." });
+      st.figures.forEach(function (f) { resultsFlow.push({ t: "fig", role: f.role, svg: f.svg, caption: f.caption, wide: f.wide }); resultsFlow.push({ t: "p", html: f.readout }); });
+    });
+
+    var discussionFlow = [
+      { t: "h3", text: "Synthesis" },
+      { t: "p", html: synth.finding },
+      { t: "fig", role: synth.figure.role, svg: synth.figure.svg, caption: synth.figure.caption, wide: synth.figure.wide },
+      { t: "p", html: synth.figure.readout }
+    ];
+
+    // aggregate reported scalars for the shared narrative (prefer an inferential step)
+    var infer = steps.filter(function (s) { return s.rr !== undefined || s.eta !== undefined; }).pop() || steps[steps.length - 1];
+    var varEx = infer.eta !== undefined ? pv(infer.eta) : (S.pca ? pv(S.pca.explained[0] + S.pca.explained[1]) : (S.peakShare !== undefined ? pv(S.peakShare) : 40));
+    var rr = infer.rr !== undefined ? Math.abs(infer.rr) : (infer.eta !== undefined ? Math.sqrt(infer.eta) : 0.5);
+    var reported = {
+      N: S.N, r: dot(rr), p: (infer.reported && infer.reported.p) || "< .01", varExplained: varEx,
+      y0: r.int(field.field.founded, 2013), y1: 0, kappa: d2(0.62 + r.f() * 0.34),
+      techniques: steps.map(function (s) { return s.tid; })
+    };
+    reported.y1 = reported.y0 + r.int(2, 9);
+
+    var focal = { index: S.terms[0], rival: S.terms[Math.min(1, S.terms.length - 1)], cov: S.covName || S.terms[Math.min(1, S.terms.length - 1)] };
+    var eq = kind === "temporal"
+      ? { t: "eq", html: '<i>P</i>(<i>f</i>) = <span class="frac"><span class="num">2</span><span class="den">N</span></span> &#124;&sum;<sub><i>t</i></sub> <i>y<sub>t</sub></i> <i>e</i><sup>&minus;2&pi;<i>i f t</i></sup>&#124;<sup>2</sup>' }
+      : kind === "cohort"
+        ? { t: "eq", html: '<i>Ŝ</i>(<i>t</i>) = &prod;<sub><i>t<sub>i</sub></i> &le; <i>t</i></sub> (1 &minus; <i>d<sub>i</sub></i> / <i>n<sub>i</sub></i>)' }
+        : { t: "eq", html: '<b>R</b> <i>v<sub>c</sub></i> = &lambda;<sub><i>c</i></sub> <i>v<sub>c</sub></i>,&nbsp;&nbsp; <i>y<sub>i</sub></i> = &beta;<sub>0</sub> + &beta;<sub>1</sub> <i>x<sub>i</sub></i> + &epsilon;<sub>i</sub>' };
+
+    var dataStatement = kind === "multivariate" ? "<b>Attributes.</b> We measured " + S.p + " attributes of " + esc(field.subject.n) + " on " + S.N + " cases collected in @place@ (" + reported.y0 + "–" + reported.y1 + "), standardizing each before analysis."
+      : kind === "temporal" ? "<b>Series.</b> We compiled the annual " + esc(S.outcomeName) + " for " + esc(field.subject.n) + " over " + S.N + " years (" + S.y0 + "–" + (S.y0 + S.N - 1) + "), with a contemporaneous covariate."
+      : kind === "grouped" ? "<b>Sample.</b> We measured the " + esc(S.outcomeName) + " and a covariate on " + S.N + " instances of " + esc(field.subject.n) + " drawn from " + S.K + " " + S.kind2 + "s, in @place@ (" + reported.y0 + "–" + reported.y1 + ")."
+        : "<b>Cohort.</b> We followed " + S.N + " instances of " + esc(field.subject.n) + " to an event or censoring, recording a baseline covariate (@place@, " + reported.y0 + "–" + reported.y1 + ").";
+
+    return {
+      design: kind, designLabel: def.designLabel,
+      frame: { indexName: S.indexName, focal: focal, groupsLabel: S.kind2 || "group", nGroups: S.K || 1 },
+      reported: reported,
+      dataStatement: dataStatement,
+      methodsFlow: [
+        { t: "p", html: "We put one datastream through several techniques: " + steps.map(function (s) { return esc(label(s.tid)); }).join(", then ") + ". The core operations are" },
+        eq
+      ],
+      table: { caption: S.table.caption, cols: S.table.cols, rows: S.table.rows },
+      resultsFlow: resultsFlow,
+      discussionFlow: discussionFlow
+    };
   }
 
   A.run = run;
-  A.designs = DESIGNS.map(function (d) { return d.fn.name; });
+  A.streams = Object.keys(STREAMS);
 })();
