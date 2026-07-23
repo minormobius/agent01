@@ -121,6 +121,9 @@ footer a { color: var(--sky); text-decoration: none; }
   <input type="radio" name="mode" id="m-bi" value="bigram"><label for="m-bi">bigrams · 2 words</label>
   <input type="radio" name="mode" id="m-both" value="both"><label for="m-both">both</label>
 </div>
+<div class="modes" style="margin-top:-0.9rem">
+  <input type="checkbox" id="m-bound" checked><label for="m-bound" title="When on, phrases never span a sentence end, comma, quote, bracket or line break — only genuinely contiguous word pairs/triples count. Turn off to include phrases glued across punctuation.">contiguous phrases only · no punctuation / newline straddlers</label>
+</div>
 
 <div id="status"></div>
 <div class="bar" id="bar"><i></i></div>
@@ -175,6 +178,7 @@ async function run(ev) {
   const handle = $('handle').value.trim();
   if (!handle) return;
   const mode = document.querySelector('input[name=mode]:checked').value;
+  const crossPunct = !$('m-bound').checked;   // toggle off => allow cross-punctuation grams
 
   results.innerHTML = ''; $('empty').style.display = 'none';
   $('summary').style.display = 'none'; bar.classList.remove('on'); barI.style.width = '0';
@@ -186,7 +190,7 @@ async function run(ev) {
     setStatus('resolving + scanning the repo…');
     const scanRes = await fetch('/api/unique/scan', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ handle, mode }), signal,
+      body: JSON.stringify({ handle, mode, crossPunct }), signal,
     });
     const scan = await scanRes.json();
     if (!scanRes.ok || scan.error) throw new Error(scan.error || ('scan failed (' + scanRes.status + ')'));

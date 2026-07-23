@@ -68,6 +68,41 @@ function tokenize(text) {
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean);
 }
+// Boundary-aware tokenizer. Splits text into SEGMENTS at "hard breaks" — newlines
+// and sentence/clause punctuation (. ! ? ; : , … quotes brackets en/em-dash slash |).
+// Words either side of such a break aren't a real contiguous phrase, so we never
+// form an n-gram across one. Intra-word marks (hyphen, apostrophe) stay SOFT — they
+// split the token like tokenize() does but don't break the segment, so "well-known"
+// and "don't" behave identically to the flat tokenizer. Returns an array of token
+// arrays, one per segment.
+const HARD_BREAK = /[.!?;:,…"“”«»()[\]{}\n\r–—|/\\*~•·]/u;
+function tokenizeSegments(text) {
+  const clean = String(text || '')
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/@[\w.-]+/g, ' ')
+    .replace(/[#]/g, ' ');
+  const segs = [];
+  let cur = [], word = '';
+  const endWord = () => { if (word) { cur.push(word); word = ''; } };
+  const endSeg = () => { endWord(); if (cur.length) { segs.push(cur); cur = []; } };
+  for (const ch of clean) {
+    if (/[\p{L}\p{N}]/u.test(ch)) word += ch;
+    else { endWord(); if (HARD_BREAK.test(ch)) endSeg(); }
+  }
+  endSeg();
+  return segs;
+}
+// Emit the bigrams/trigrams of one post as {gram -> ++count} into c2/c3. When
+// `cross` is false (the default) grams never span a punctuation/newline break.
+function harvestGrams(text, c2, c3, want2, want3, cross) {
+  const segments = cross ? [tokenize(text)] : tokenizeSegments(text);
+  for (const seg of segments) {
+    if (want2) for (let i = 0; i + 1 < seg.length; i++) { const g = seg[i] + ' ' + seg[i + 1]; c2.set(g, (c2.get(g) || 0) + 1); }
+    if (want3) for (let i = 0; i + 2 < seg.length; i++) { const g = seg[i] + ' ' + seg[i + 1] + ' ' + seg[i + 2]; c3.set(g, (c3.get(g) || 0) + 1); }
+  }
+}
+const truthy = (v) => /^(1|true|yes|on)$/i.test(String(v || ''));
 // A gram's "interest" score: prefer content words and length, so when we cap the
 // search we spend it on the phrases most likely to be genuinely distinctive.
 function score(toks) {
@@ -84,6 +119,10 @@ export async function scan(params, env) {
   const handleRaw = params.get('handle');
   const modeRaw = (params.get('mode') || 'both').toLowerCase();
   const want2 = modeRaw !== 'trigram', want3 = modeRaw !== 'bigram';
+  // crossPunct=true restores the old flat behavior (n-grams may span sentence /
+  // line breaks). Default false: only contiguous phrases, no punctuation/newline
+  // straddlers — the filter people asked for.
+  const cross = truthy(params.get('crossPunct'));
 
   const did = await resolveActor(handleRaw);
   const pds = await resolvePds(did);
@@ -102,9 +141,7 @@ export async function scan(params, env) {
       const text = rec.value && rec.value.text;
       if (!text) continue;
       posts++;
-      const t = tokenize(text);
-      if (want2) for (let i = 0; i + 1 < t.length; i++) { const g = t[i] + ' ' + t[i + 1]; c2.set(g, (c2.get(g) || 0) + 1); }
-      if (want3) for (let i = 0; i + 2 < t.length; i++) { const g = t[i] + ' ' + t[i + 1] + ' ' + t[i + 2]; c3.set(g, (c3.get(g) || 0) + 1); }
+      harvestGrams(text, c2, c3, want2, want3, cross);
     }
     cursor = d.cursor;
     if (!cursor || recs.length === 0) break;
@@ -125,6 +162,7 @@ export async function scan(params, env) {
 
   return {
     did, pds, posts, pages,
+    boundaries: !cross,                        // true => grams don't span punctuation/newlines
     scannedAll: !cursor,                       // false => hit the page cap
     bigramTypes: c2.size, trigramTypes: c3.size,
     onceBigrams: want2 ? [...c2.values()].filter((v) => v === 1).length : 0,
@@ -134,18 +172,20 @@ export async function scan(params, env) {
   };
 }
 
-// ── search: verify a candidate against platform-wide full-text search ──────────
-async function searchPhrase(g, wantDid, token) {
+// ── shared: run one exact-phrase search, keep only posts that truly contain it ──
+// Returns { hits: [...] } on success, or { rate: true } / { error: true } so the
+// caller can distinguish "verified zero" from "couldn't check".
+async function searchHits(g, token) {
   const u = new URL(`${token ? APP : PUB}/app.bsky.feed.searchPosts`);
   u.searchParams.set('q', `"${g}"`);           // quoted => exact-phrase intent
   u.searchParams.set('limit', String(SEARCH_LIMIT));
   let d;
   try { d = await jget(u.toString(), token ? { Authorization: `Bearer ${token}` } : null); }
   catch (e) {
-    if (e.status === 429) return { g, n: g.split(' ').length, status: 'rate' };
+    if (e.status === 429) return { rate: true };
     // authed host hiccup — one retry unauthed (may still 403, handled as error)
-    if (token) { try { d = await jget(u.toString(), null); } catch { return { g, n: g.split(' ').length, status: 'error' }; } }
-    else return { g, n: g.split(' ').length, status: 'error' };
+    if (token) { try { d = await jget(u.toString(), null); } catch { return { error: true }; } }
+    else return { error: true };
   }
   // Search is fuzzy; keep only posts whose text actually contains the phrase.
   const pad = (t) => ' ' + tokenize(t).join(' ') + ' ';
@@ -159,7 +199,16 @@ async function searchPhrase(g, wantDid, token) {
     seen.add(p.uri);
     hits.push({ uri: p.uri, did: p.author && p.author.did, handle: p.author && p.author.handle, text: String(text).slice(0, 240) });
   }
+  return { hits };
+}
+
+// ── search: verify a candidate against platform-wide full-text search ──────────
+async function searchPhrase(g, wantDid, token) {
   const n = g.split(' ').length;
+  const r = await searchHits(g, token);
+  if (r.rate) return { g, n, status: 'rate' };
+  if (r.error) return { g, n, status: 'error' };
+  const hits = r.hits;
   if (hits.length === 0) return { g, n, status: 'none' };       // not indexed / inconclusive
   if (hits.length === 1) {
     const h = hits[0];
@@ -214,4 +263,57 @@ export function search(request, env, token) {
       'Access-Control-Allow-Origin': '*',
     },
   });
+}
+
+// ── novelty: does this draft contain a phrase NO ONE has ever posted? ───────────
+// The gate for /coin — the posting box that only unlocks when your text carries a
+// bigram or trigram that returns zero indexed posts platform-wide. Once you post
+// it, that phrase becomes a hapax (used exactly once, by you). Distinct from the
+// finder's "unique" (exactly one existing post): here "novel" means ZERO existing
+// posts, because you haven't posted yet.
+const NOVELTY_MAX = 60;   // cap grams searched per draft (posts are short anyway)
+
+export async function novelty(request, env, token) {
+  let body; try { body = await request.json(); } catch { body = {}; }
+  const text = String((body && body.text) || '');
+  if (!text.trim()) return { grams: [], searched: 0, novelCount: 0, ok: false, reason: 'empty' };
+
+  // Contiguous phrases only (boundary-aware) — a real phrase gate shouldn't credit
+  // words glued across a sentence break. Dedupe, drop all-stopword grams, rank by
+  // interest so the cap spends on the most distinctive phrases first.
+  const c2 = new Map(), c3 = new Map();
+  harvestGrams(text, c2, c3, true, true, false);
+  const seen = new Set(), cands = [];
+  for (const [map, n] of [[c2, 2], [c3, 3]]) {
+    for (const g of map.keys()) {
+      if (seen.has(g)) continue;
+      const sc = score(g.split(' '));
+      if (sc < 0) continue;                    // all-stopword gram
+      seen.add(g);
+      cands.push({ g, n, s: sc });
+    }
+  }
+  cands.sort((a, b) => b.s - a.s);
+  const batch = cands.slice(0, NOVELTY_MAX);
+
+  const results = new Array(batch.length);
+  let idx = 0, inconclusive = false;
+  async function worker() {
+    while (idx < batch.length) {
+      const i = idx++, { g, n } = batch[i];
+      let r; try { r = await searchHits(g, token); } catch { r = { error: true }; }
+      if (r.rate || r.error) { inconclusive = true; results[i] = { g, n, status: 'unknown' }; }
+      else results[i] = { g, n, hits: r.hits.length, novel: r.hits.length === 0 };
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(SEARCH_CONC, batch.length || 1) }, worker));
+
+  const grams = results.filter(Boolean);
+  const novel = grams.filter((x) => x.novel).map((x) => x.g);
+  return {
+    grams, searched: batch.length, total: cands.length,
+    novelCount: novel.length, novel,
+    ok: novel.length > 0,
+    inconclusive,
+  };
 }

@@ -2,7 +2,7 @@ name: Deploy b (Bluesky corner)
 
 on:
   push:
-    branches: [main, 'claude/bsky-unique-bigrams-trigrams-ve0fvz']
+    branches: [main, 'claude/bsky-unique-bigrams-trigrams-ve0fvz', 'claude/b-deploy-surface-improvements-ynf5ld']
     paths:
       - 'b/**'
       - '.github/workflows/deploy-b.yml'
@@ -17,6 +17,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # Stage the shared OAuth client lib under the assets dir so the /coin
+      # posting box can `import` it from b.mino.mobi/packages/oauth-client/auth.js
+      # (assets root is b/, so packages/ lives outside it — copy it in at deploy
+      # time rather than vendoring a divergent copy; mirrors the mappa pattern).
+      - name: Stage shared oauth-client lib
+        run: |
+          mkdir -p packages/oauth-client
+          cp ../packages/oauth-client/auth.js packages/oauth-client/auth.js
 
       - name: Deploy worker + assets
         run: npx wrangler deploy

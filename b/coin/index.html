@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>coin — post only what no one has ever posted</title>
+<meta name="description" content="A Bluesky posting box that only unlocks when your draft contains a phrase no one on the whole network has ever posted. Say something genuinely new, or you can't hit send. The moment you post, that phrase becomes yours alone — a hapax.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="coin — post only what no one has ever posted">
+<meta property="og:description" content="The posting box that only sends if your words are new to all of Bluesky.">
+<meta property="og:url" content="https://b.mino.mobi/coin/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12);
+  --gold: #b8860b; --good: #2e7d4f; --good-faint: rgba(46,125,79,0.08);
+  --bad: #c0392b;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --sky: #6ec1e4; --sky-faint: rgba(110, 193, 228, 0.10);
+    --gold: #d8b85a; --good: #6fd0a0; --good-faint: rgba(111,208,160,0.09);
+    --bad: #e57368;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+  max-width: 680px; margin: 0 auto; padding: 2.4rem 1.4rem 6rem;
+}
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.4rem;
+}
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .fly { color: var(--sky); }
+.tagline {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.5rem;
+}
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.2rem 0 0; border-radius: 2px; }
+.lede { font-size: 1.02rem; color: var(--muted); margin-top: 1.2rem; max-width: 62ch; }
+.lede b { color: var(--text); font-weight: 600; }
+.lede .term { font-style: italic; color: var(--gold); }
+
+/* auth bar */
+.authbar {
+  display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center;
+  margin: 2rem 0 1rem; font-family: var(--mono); font-size: 0.8rem;
+}
+.authbar input {
+  flex: 1 1 200px; min-width: 160px; font-family: var(--mono); font-size: 0.9rem;
+  padding: 0.6rem 0.8rem; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+}
+.authbar input:focus { outline: none; border-color: var(--sky); }
+.authbar .who { color: var(--muted); }
+.authbar .who b { color: var(--sky); font-weight: 600; }
+button {
+  font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em;
+  padding: 0.6rem 1.1rem; border: 1px solid var(--sky); border-radius: 6px;
+  background: var(--sky); color: #fff; cursor: pointer; transition: opacity .15s;
+}
+button:hover { opacity: 0.88; }
+button.ghost { background: transparent; color: var(--sky); }
+button:disabled { opacity: 0.35; cursor: default; }
+
+/* composer */
+.composer { margin: 1.4rem 0 0.4rem; position: relative; }
+textarea {
+  width: 100%; min-height: 130px; resize: vertical; font-family: var(--serif);
+  font-size: 1.2rem; line-height: 1.55; padding: 1rem 1.05rem;
+  border: 1px solid var(--rule); border-radius: 10px; background: var(--bg); color: var(--text);
+}
+textarea:focus { outline: none; border-color: var(--sky); }
+.count { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); text-align: right; margin-top: 0.3rem; }
+.count.over { color: var(--bad); }
+
+.verdict {
+  font-family: var(--mono); font-size: 0.82rem; margin: 1rem 0 0.4rem;
+  min-height: 1.5em; display: flex; align-items: center; gap: 0.5rem;
+}
+.verdict.ok { color: var(--good); }
+.verdict.no { color: var(--muted); }
+.verdict.err { color: var(--bad); }
+.verdict .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.verdict.checking .dot { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.2rem 0 0.4rem; }
+.chip {
+  font-family: var(--mono); font-size: 0.74rem; padding: 0.28rem 0.7rem; border-radius: 20px;
+  border: 1px solid var(--good); color: var(--good); background: var(--good-faint); white-space: nowrap;
+}
+.chip.n3 { border-style: double; }
+
+.actions { display: flex; gap: 0.7rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+#post { padding: 0.75rem 1.6rem; font-size: 0.9rem; }
+.hint { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+
+.result { margin-top: 1.4rem; padding: 0.9rem 1.05rem; border: 1px solid var(--good);
+  border-left: 3px solid var(--good); border-radius: 8px; background: var(--good-faint); display: none; }
+.result.on { display: block; }
+.result a { font-family: var(--mono); font-size: 0.8rem; color: var(--sky); text-decoration: none; }
+.result a:hover { text-decoration: underline; }
+
+footer { margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.72rem; color: var(--muted); line-height: 1.8; }
+footer a { color: var(--sky); text-decoration: none; }
+</style>
+</head>
+<body>
+<a class="crumb" href="/">← b · the bluesky corner</a>
+<h1><span class="fly">coin</span></h1>
+<div class="tagline">post only what no one has ever posted</div>
+<div class="sky-rule"></div>
+<p class="lede">
+  A posting box with one rule: <b>you can only send it if it's new</b>. As you type, every two- and
+  three-word phrase is checked against all of Bluesky. The <b>send</b> button stays locked until your
+  draft carries at least one phrase <b>no one has ever posted</b> — and the instant you post it, that
+  phrase is yours alone: a fresh <span class="term">hapax</span>. Sign in with Bluesky to send; the
+  novelty check itself needs no login.
+</p>
+
+<div class="authbar" id="authbar">
+  <!-- filled by JS: either a sign-in input or the signed-in identity -->
+</div>
+
+<div class="composer">
+  <textarea id="draft" placeholder="Say something no one has ever said…" maxlength="600" autocomplete="off"></textarea>
+  <div class="count" id="count">0 / 300</div>
+</div>
+
+<div class="verdict no" id="verdict"><span class="dot"></span><span id="verdict-txt">type something to check</span></div>
+<div class="chips" id="chips"></div>
+
+<div class="actions">
+  <button id="post" disabled>send it</button>
+  <span class="hint" id="hint"></span>
+</div>
+
+<div class="result" id="result"></div>
+
+<footer>
+  <b>How it works.</b> Your draft is split into contiguous two- and three-word phrases (never across a
+  sentence end or line break), and each is run through Bluesky's full-text search from the server. A phrase
+  is <b>novel</b> when zero indexed posts contain it. One novel phrase is enough to unlock <b>send</b>.
+  Sending writes a normal <code>app.bsky.feed.post</code> to your PDS via ATProto OAuth, scoped to
+  <b>publishing posts only</b> — nothing else. The search index lags and honours opt-outs, so "novel" is a
+  strong hint, not a proof. Read-only checks · sibling of the <a href="/unique/">unique</a> finder ·
+  part of <a href="/">b.mino.mobi</a>.
+</footer>
+
+<script type="module">
+import { AuthClient } from '/packages/oauth-client/auth.js';
+
+// Narrowest possible write scope: identity + create posts. The Bluesky consent
+// screen shows exactly this — "post on your behalf", nothing more.
+const COIN_SCOPE = 'atproto repo:app.bsky.feed.post';
+const LIMIT = 300;
+const DRAFT_KEY = 'coin_draft';
+
+const $ = (id) => document.getElementById(id);
+const draft = $('draft'), verdict = $('verdict'), vtxt = $('verdict-txt'),
+      chips = $('chips'), postBtn = $('post'), hint = $('hint'), result = $('result'),
+      authbar = $('authbar'), countEl = $('count');
+
+const auth = new AuthClient();
+let user = null;         // {did, handle, scope} | null
+let okToPost = false;    // draft carries ≥1 novel phrase
+let posting = false;
+let checkAbort = null;
+
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+function graphemeLen(s) { return [...String(s)].length; }
+
+// ── auth UI ───────────────────────────────────────────────────────────────────
+function renderAuth() {
+  if (user) {
+    authbar.innerHTML =
+      `<span class="who">signed in as <b>@${esc(user.handle || user.did)}</b></span>` +
+      `<button class="ghost" id="logout">log out</button>`;
+    $('logout').onclick = async () => { try { await auth.logout(); } catch {} };
+  } else {
+    authbar.innerHTML =
+      `<input type="text" id="handle" placeholder="you.bsky.social" autocomplete="off" spellcheck="false">` +
+      `<button id="signin">sign in with Bluesky</button>`;
+    $('signin').onclick = signIn;
+    $('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') signIn(); });
+  }
+  refreshPostBtn();
+}
+async function signIn() {
+  const h = ($('handle') && $('handle').value.trim().replace(/^@/, '')) || '';
+  if (!h) { $('handle') && $('handle').focus(); return; }
+  saveDraft();
+  try { await auth.login(h, { scope: COIN_SCOPE }); }  // redirects to Bluesky
+  catch (e) { setVerdict('err', 'sign-in failed: ' + (e.message || e)); }
+}
+
+// ── novelty check ───────────────────────────────────────────────────────────────
+function setVerdict(kind, txt) {
+  verdict.className = 'verdict ' + kind;
+  vtxt.textContent = txt;
+}
+let checkTimer = null;
+function scheduleCheck() {
+  const text = draft.value;
+  const len = graphemeLen(text);
+  countEl.textContent = `${len} / ${LIMIT}`;
+  countEl.classList.toggle('over', len > LIMIT);
+  saveDraft();
+  clearTimeout(checkTimer);
+  chips.innerHTML = '';
+  okToPost = false; refreshPostBtn();
+  if (!text.trim()) { setVerdict('no', 'type something to check'); return; }
+  setVerdict('checking no', 'checking against all of Bluesky…');
+  checkTimer = setTimeout(runCheck, 550);
+}
+async function runCheck() {
+  const text = draft.value;
+  if (!text.trim()) return;
+  if (checkAbort) checkAbort.abort();
+  checkAbort = new AbortController();
+  try {
+    const r = await fetch('/api/unique/novelty', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }), signal: checkAbort.signal,
+    });
+    const d = await r.json();
+    if (d.error) { setVerdict('err', d.error); return; }
+    okToPost = !!d.ok;
+    chips.innerHTML = (d.novel || []).slice(0, 12)
+      .map((g) => `<span class="chip ${g.split(' ').length === 3 ? 'n3' : ''}">${esc(g)}</span>`).join('');
+    if (d.ok) {
+      const n = d.novelCount;
+      setVerdict('ok', `${n} phrase${n === 1 ? '' : 's'} no one has ever posted — you're clear to send`);
+    } else if (d.inconclusive) {
+      setVerdict('no', 'couldn’t reach search for every phrase — try again in a moment');
+    } else {
+      setVerdict('no', 'nothing new yet — every phrase here already exists on Bluesky');
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') setVerdict('err', 'check failed: ' + (e.message || e));
+  } finally { refreshPostBtn(); }
+}
+
+// ── post ─────────────────────────────────────────────────────────────────────────
+function refreshPostBtn() {
+  const len = graphemeLen(draft.value);
+  const lenOk = len > 0 && len <= LIMIT;
+  postBtn.disabled = posting || !okToPost || !lenOk;
+  if (posting) { hint.textContent = 'posting…'; return; }
+  if (!lenOk && len > LIMIT) hint.textContent = `${len - LIMIT} over the ${LIMIT} limit`;
+  else if (!okToPost) hint.textContent = 'send unlocks when a phrase is new to Bluesky';
+  else if (!user) hint.textContent = 'sign in above, then send';
+  else hint.textContent = '';
+}
+
+// Build app.bsky.richtext link facets (byte offsets) so URLs stay clickable.
+function linkFacets(text) {
+  const enc = new TextEncoder();
+  const facets = [];
+  const re = /https?:\/\/[^\s]+/g; let m;
+  while ((m = re.exec(text))) {
+    let uri = m[0].replace(/[.,;:!?)\]}'"]+$/, '');
+    const start = enc.encode(text.slice(0, m.index)).length;
+    const end = start + enc.encode(uri).length;
+    facets.push({ index: { byteStart: start, byteEnd: end }, features: [{ $type: 'app.bsky.richtext.facet#link', uri }] });
+  }
+  return facets;
+}
+
+async function doPost() {
+  if (posting || !okToPost) return;
+  const text = draft.value.trim();
+  if (!text) return;
+  if (!user) { authbar.querySelector('#handle')?.focus(); setVerdict('no', 'sign in first — the box below'); return; }
+
+  posting = true; refreshPostBtn();
+  try {
+    // Ensure we hold post-write scope (a cookie-only SSO session may be identity-
+    // only or scoped for another site). ensureScope re-consents for the union and
+    // redirects back here; the draft is stashed so it survives the round-trip.
+    if (!auth.hasScope('app.bsky.feed.post')) {
+      saveDraft();
+      await auth.ensureScope(COIN_SCOPE);   // navigates away if a re-consent is needed
+      return;
+    }
+    const record = {
+      $type: 'app.bsky.feed.post',
+      text,
+      createdAt: new Date().toISOString(),
+      langs: ['en'],
+    };
+    const facets = linkFacets(text);
+    if (facets.length) record.facets = facets;
+
+    const res = await auth.pds.createRecord('app.bsky.feed.post', record);
+    const uri = res && res.uri;
+    const m = /^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/.exec(uri || '');
+    const url = m ? `https://bsky.app/profile/${m[1]}/post/${m[2]}` : null;
+    result.className = 'result on';
+    result.innerHTML = url
+      ? `posted ✓ &nbsp; <a href="${url}" target="_blank" rel="noopener">see it on Bluesky →</a>`
+      : 'posted ✓';
+    clearDraft();
+    draft.value = ''; scheduleCheck();
+  } catch (e) {
+    setVerdict('err', 'post failed: ' + (e.message || e));
+  } finally { posting = false; refreshPostBtn(); }
+}
+
+// ── draft persistence (survives the OAuth redirect) ─────────────────────────────
+function saveDraft() { try { localStorage.setItem(DRAFT_KEY, draft.value); } catch {} }
+function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
+function restoreDraft() { try { const d = localStorage.getItem(DRAFT_KEY); if (d) draft.value = d; } catch {} }
+
+// ── wire up ─────────────────────────────────────────────────────────────────────
+draft.addEventListener('input', scheduleCheck);
+postBtn.addEventListener('click', doPost);
+auth.onAuthChange((u) => { user = u; renderAuth(); });
+
+restoreDraft();
+renderAuth();
+scheduleCheck();
+auth.init().catch(() => {});   // picks up an OAuth callback or an SSO cookie session
+</script>
+</body>
+</html>
