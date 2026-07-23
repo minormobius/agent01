@@ -156,6 +156,7 @@ footer a { color: var(--sky); text-decoration: none; }
   part of <a href="/">b.mino.mobi</a>.
 </footer>
 
+<script src="/lib/handle-typeahead.js"></script>
 <script type="module">
 import { AuthClient } from '/packages/oauth-client/auth.js';
 
@@ -191,6 +192,9 @@ function renderAuth() {
       `<input type="text" id="handle" placeholder="you.bsky.social" autocomplete="off" spellcheck="false">` +
       `<button id="signin">sign in with Bluesky</button>`;
     $('signin').onclick = signIn;
+    // Typeahead first, so a highlighted suggestion's Enter is picked (and swallowed)
+    // rather than triggering sign-in on a half-typed handle.
+    if (window.attachHandleTypeahead) attachHandleTypeahead($('handle'));
     $('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') signIn(); });
   }
   refreshPostBtn();

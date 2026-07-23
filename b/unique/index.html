@@ -144,9 +144,11 @@ footer a { color: var(--sky); text-decoration: none; }
   Read-only public data · part of <a href="/">b.mino.mobi</a>.
 </footer>
 
+<script src="/lib/handle-typeahead.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const results = $('results'), statusEl = $('status'), bar = $('bar'), barI = bar.querySelector('i');
+if (window.attachHandleTypeahead) attachHandleTypeahead($('handle'));
 let abort = null;
 
 function setStatus(msg, isErr) { statusEl.innerHTML = isErr ? `<span class="err">${msg}</span>` : msg; }
