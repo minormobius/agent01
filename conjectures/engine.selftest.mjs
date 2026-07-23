@@ -2,6 +2,7 @@
      node conjectures/engine.selftest.mjs
    Checks determinism, score ranges, factor arithmetic, structural completeness,
    and pack coverage. Exits non-zero on any failure. */
+import './reality.js';
 import './engine.js';
 const G = globalThis.CONJGEN;
 

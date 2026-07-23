@@ -71,69 +71,99 @@
     return 'The ' + h.pick(ADJ) + ' ' + h.pick(NOUN) + ' ' + h.pick(['Conjecture', 'Conjecture', 'Problem', 'Hypothesis']);
   }
   const BIG = ['10^9', '10^12', '10^15', '2^64', '10^18', '10^40', '10^100'];
+  function largestDigit(n) { n = Math.abs(n); let m = 0; while (n) { m = Math.max(m, n % 10); n = Math.floor(n / 10); } return m; }
+  const M = () => root.CONJMATH; // reality.js — loaded before this file
 
   // ── domain packs: each build() returns a synthetic conjecture skeleton ─
-  // features drive the oracle: {domain, quant, disproof, elementary, checkable,
-  // undecidableFlavor, graft}
+  // features drive the oracle. Packs marked checkable:true carry an executable
+  // `check` spec that reality.js can actually run to refute/classify them.
   const PACKS = [
-    { key: 'iteration', field: 'Number theory', weight: 1.0, build(h) {
-      const even = h.pick(['n/2', 'n/2', '⌊n/2⌋']);
-      const k = h.pick([3, 5, 7]); const c = h.pick([1, 1, 5, 7]);
-      const odd = h.pick([`${k}n+${c}`, `${k}n+1`, 'n plus its largest digit', 'the digit-reversal of n, plus n']);
-      const targ = h.pick([{ t: 'reaches 1', f: '= 1' }, { t: 'reaches a fixed point', f: 'is fixed' }, { t: 'enters a bounded cycle', f: 'is eventually periodic' }]);
+    { key: 'iteration', field: 'Number theory', weight: 1.0, checkable: true, build(h) {
+      const cm = M();
+      const floor = h.chance(0.3);
+      const evenProse = floor ? '⌊n/2⌋' : 'n/2';
+      const mode = h.pick(['lin', 'lin', 'digit', 'rev']);
+      let oddProse, oddFn;
+      if (mode === 'lin') { const k = h.pick([3, 3, 5, 7]); const c = h.pick([1, 1, 5, 7, -1]); oddProse = `${k}n${c < 0 ? ' − ' + (-c) : ' + ' + c}`; oddFn = (n) => k * n + c; }
+      else if (mode === 'digit') { oddProse = 'n plus its largest digit'; oddFn = (n) => n + largestDigit(n); }
+      else { oddProse = 'the digit-reversal of n added to n'; oddFn = (n) => n + cm.reverseDigits(n); }
+      const step = (n) => (n % 2 === 0) ? (floor ? Math.floor(n / 2) : n / 2) : oddFn(n);
       return {
-        statement: `Iterating the map T(n) = ${even} when n is even and ${odd} when n is odd, from any positive integer, eventually ${targ.t}.`,
-        form: `∀ n ≥ 1, ∃ k ≥ 0 : Tᵏ(n) ${targ.f}`,
+        statement: `Iterating T(n) = ${evenProse} when n is even and ${oddProse} when n is odd, from any positive integer, eventually reaches 1.`,
+        form: `∀ n ≥ 1, ∃ k ≥ 0 : Tᵏ(n) = 1`,
         quantifier: 'forall', disproof: 'counterexample-hard', domain: 'iteration',
-        counterexample: 'A single starting value whose orbit escapes to infinity or falls into an unlisted cycle.',
+        counterexample: 'A single starting value whose orbit diverges or enters a cycle avoiding 1.',
         features: { domain: 'iteration', quant: 'forall', disproof: 'counterexample-hard', elementary: true, checkable: false, undecidableFlavor: true, graft: false },
         tags: ['iteration', 'dynamics', 'arithmetic'],
+        check: { kind: 'iteration', step, budget: 4000, stepCap: 3000, ceil: 1e12 },
       };
     } },
-    { key: 'primes', field: 'Number theory', weight: 1.0, build(h) {
-      const form = h.pick(['n² + 1', `n² + ${h.int(2, 9)}`, '2ⁿ − 1', 'n! + 1', `⌊${h.pick(['φ', 'α', 'θ'])}ⁿ⌋`,
-        'the concatenation of the first n primes', `n³ − ${h.int(1, 5)}`]);
-      const exists = h.chance(0.6);
-      if (exists) return {
-        statement: `There are infinitely many primes of the form ${form}.`,
-        form: `|{ n : ${form} is prime }| = ∞`,
+    { key: 'primes', field: 'Number theory', weight: 1.0, checkable: true, build(h) {
+      const cm = M();
+      const deg = h.pick([1, 2, 2, 3]);
+      let coeffs;
+      if (deg === 1) coeffs = [h.int(-5, 9), h.pick([1, 1, 2, 3, 6])];
+      else if (deg === 2) coeffs = [h.int(-4, 9), h.int(-3, 4), 1];
+      else coeffs = [h.int(-4, 7), h.int(-3, 3), h.int(-1, 2), 1];
+      const ps = cm.polyString(coeffs);
+      return {
+        statement: `There are infinitely many primes of the form ${ps}.`,
+        form: `|{ n ≥ 1 : ${ps} is prime }| = ∞`,
         quantifier: 'exists', disproof: 'existence', domain: 'primes',
-        counterexample: `A proof that only finitely many primes take the form ${form} (a largest one).`,
+        counterexample: `A proof that only finitely many n make ${ps} prime.`,
         features: { domain: 'primes', quant: 'exists', disproof: 'existence', elementary: true, checkable: false, undecidableFlavor: false, graft: false },
         tags: ['primes', 'existence'],
-      };
-      const N = h.pick(BIG); const k = h.pick([2, 2, 3]);
-      return {
-        statement: `Every even integer greater than ${N} is a sum of ${k} primes of the form ${form}.`,
-        form: `∀ even m > ${N}, ∃ primes p₁..p_${k} of that form : m = Σ pᵢ`,
-        quantifier: 'forall', disproof: 'counterexample', domain: 'primes',
-        counterexample: `A single even m > ${N} with no such representation.`,
-        features: { domain: 'primes', quant: 'forall', disproof: 'counterexample', elementary: true, checkable: false, undecidableFlavor: false, graft: false },
-        tags: ['primes', 'additive'],
+        check: { kind: 'prime-form', coeffs },
       };
     } },
-    { key: 'diophantine', field: 'Number theory', weight: 1.0, build(h) {
-      const fn = h.pick(['the digit sum s(n)', 'the number of divisors d(n)', 'σ(n)', 'φ(n)', 'the largest prime factor P(n)', 'the digit product']);
-      const style = h.int(0, 2);
-      if (style === 0) {
-        const pw = h.pick(['square', 'cube', 'perfect power']);
+    { key: 'diophantine', field: 'Number theory', weight: 1.0, checkable: true, build(h) {
+      const cm = M();
+      const F = h.pick(cm.FUNCS);
+      const tmpl = h.pick(['prop', 'prop', 'compare', 'coprime']);
+      const N = h.int(2, 40);
+      if (tmpl === 'prop') {
+        const prop = h.pick(cm.PROPS);
+        const negated = h.chance(0.6);
+        const col = cm.propCollapse(F.type, prop.key);
+        let collapse = null;
+        if (negated && col === 'never') collapse = { status: 'trivial-true', reason: `${F.prose} is always of a kind that cannot be ${prop.prose}, so the claim holds for a trivial reason.` };
+        if (negated && col === 'always') collapse = { status: 'trivial-false', reason: `${F.prose} is always ${prop.prose}, so the claim fails at once.` };
+        if (!negated && col === 'always') collapse = { status: 'trivial-true', reason: `${F.prose} is ${prop.prose} by its very structure.` };
+        if (!negated && col === 'never') collapse = { status: 'trivial-false', reason: `${F.prose} is never ${prop.prose}.` };
+        const predicate = negated ? (n) => !prop.test(F.fn(n)) : (n) => prop.test(F.fn(n));
         return {
-          statement: `No integer n greater than ${h.int(3, 40)} makes n! + ${h.int(1, 9)} a perfect ${pw}.`,
-          form: `∀ n > N : n! + c ≠ m^${pw === 'square' ? 2 : pw === 'cube' ? 3 : 'k'}`,
-          quantifier: 'forall', disproof: 'counterexample', domain: 'diophantine',
-          counterexample: `A single n making n! + c a perfect ${pw}.`,
-          features: { domain: 'diophantine', quant: 'forall', disproof: 'counterexample', elementary: true, checkable: false, undecidableFlavor: false, graft: false },
-          tags: ['diophantine', 'factorials'],
+          statement: `For every integer n > ${N}, ${F.prose} ${F.sym} is ${negated ? 'never ' : ''}${prop.prose}.`,
+          form: `∀ n > ${N} : ${F.sym} ${negated ? 'is not' : 'is'} ${prop.prose}`,
+          quantifier: 'forall', disproof: 'counterexample', domain: 'digits',
+          counterexample: `A single n > ${N} where ${F.sym} ${negated ? 'is' : 'is not'} ${prop.prose}.`,
+          features: { domain: 'digits', quant: 'forall', disproof: 'counterexample', elementary: true, checkable: true, undecidableFlavor: false, graft: false },
+          tags: ['arithmetic-functions'],
+          check: { kind: 'forall-int', from: N + 1, budget: 20000, predicate, collapse, describe: (n) => `${F.sym} = ${F.fn(n)}` },
         };
       }
-      const rel = h.pick(['is never a perfect square', 'is not a power of 2', 'exceeds √n', 'shares a factor with n+1', 'is squarefree']);
+      if (tmpl === 'compare') {
+        const G = h.pick(cm.FUNCS.filter((g) => g.sym !== F.sym));
+        const lt = h.chance(0.5);
+        const predicate = lt ? (n) => F.fn(n) < G.fn(n) : (n) => F.fn(n) > G.fn(n);
+        return {
+          statement: `For every integer n > ${N}, ${F.prose} ${F.sym} ${lt ? 'is less than' : 'exceeds'} ${G.prose} ${G.sym}.`,
+          form: `∀ n > ${N} : ${F.sym} ${lt ? '<' : '>'} ${G.sym}`,
+          quantifier: 'forall', disproof: 'counterexample', domain: 'digits',
+          counterexample: `A single n > ${N} with ${F.sym} ${lt ? '≥' : '≤'} ${G.sym}.`,
+          features: { domain: 'digits', quant: 'forall', disproof: 'counterexample', elementary: true, checkable: true, undecidableFlavor: false, graft: false },
+          tags: ['arithmetic-functions'],
+          check: { kind: 'forall-int', from: N + 1, budget: 20000, predicate, describe: (n) => `${F.sym} = ${F.fn(n)}, ${G.sym} = ${G.fn(n)}` },
+        };
+      }
+      const predicate = (n) => cm.gcd(F.fn(n), n + 1) === 1;
       return {
-        statement: `For every integer n beyond some bound, ${fn} ${rel}.`,
-        form: `∀ n ≫ 1 : ${fn} ${rel}`,
+        statement: `For every integer n > ${N}, ${F.prose} ${F.sym} is coprime to n+1.`,
+        form: `∀ n > ${N} : gcd(${F.sym}, n+1) = 1`,
         quantifier: 'forall', disproof: 'counterexample', domain: 'digits',
-        counterexample: `A single n (however large) violating the stated property.`,
-        features: { domain: 'digits', quant: 'forall', disproof: 'counterexample', elementary: true, checkable: false, undecidableFlavor: false, graft: h.chance(0.3) },
-        tags: ['arithmetic-functions', 'digits'],
+        counterexample: `A single n > ${N} with gcd(${F.sym}, n+1) > 1.`,
+        features: { domain: 'digits', quant: 'forall', disproof: 'counterexample', elementary: true, checkable: true, undecidableFlavor: false, graft: false },
+        tags: ['arithmetic-functions'],
+        check: { kind: 'forall-int', from: N + 1, budget: 20000, predicate, describe: (n) => `${F.sym} = ${F.fn(n)}, n+1 = ${n + 1}` },
       };
     } },
     { key: 'graph', field: h => h.chance(0.5) ? 'Graph theory' : 'Combinatorics', weight: 1.1, build(h) {
@@ -199,11 +229,12 @@
     } },
   ];
 
-  function weightedPick(h) {
-    const total = PACKS.reduce((s, p) => s + p.weight, 0);
+  function weightedPick(h, filter) {
+    const pool = filter ? PACKS.filter(filter) : PACKS;
+    const total = pool.reduce((s, p) => s + p.weight, 0);
     let r = h.rand() * total;
-    for (const p of PACKS) { if ((r -= p.weight) <= 0) return p; }
-    return PACKS[PACKS.length - 1];
+    for (const p of pool) { if ((r -= p.weight) <= 0) return p; }
+    return pool[pool.length - 1];
   }
 
   // ── the solvability oracle ────────────────────────────────────────────
@@ -268,9 +299,10 @@
   }
 
   // ── top-level: seed → whole synthetic conjecture ──────────────────────
-  function generateConjecture(seed) {
+  function generateConjecture(seed, opts) {
+    opts = opts || {};
     const h = makeHelpers(seed);
-    const pack = weightedPick(h);
+    const pack = weightedPick(h, opts.checkableOnly ? (p) => p.checkable : null);
     const built = pack.build(h);
     const field = built.field || (typeof pack.field === 'function' ? pack.field(h) : pack.field);
     const name = makeName(h);
@@ -280,6 +312,7 @@
       id: 'gen-' + String(seed),
       synthetic: true,
       pack: pack.key,
+      checkable: !!pack.checkable,
       field,
       domain: built.domain,
       name,
@@ -289,6 +322,7 @@
       disproof: built.disproof,
       counterexample: built.counterexample,
       tags: built.tags || [],
+      check: built.check || null,
       solvability: solv,
       hardness: solv.score,
       hardnessNote: solv.note,

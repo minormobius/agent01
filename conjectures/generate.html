@@ -4,53 +4,50 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>the conjecture machine — procedurally generated open problems</title>
-<meta name="description" content="A Borgesian machine: a seed spins up a synthetic open problem, and a solvability oracle estimates how long it would resist a proof — reading the statement's structure with the same difficulty rubric the curated index uses. Deterministic; a URL is a permalink. The output is fiction.">
+<meta name="description" content="A Borgesian machine that invents open problems from a seed — and a reality engine that actually runs each one, discarding the false and trivial (refuted by search, reducible forms, Dirichlet) so only genuinely unrefuted candidates survive. Deterministic; a URL is a permalink.">
 <link rel="stylesheet" href="styles.css">
 <style>
-/* generator-specific: the oracle's factor breakdown */
-.machine-controls { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin: 1.2rem 0 0.4rem; }
-#seed {
-  flex: 1 1 200px; font-family: var(--mono); font-size: 0.9rem;
-  padding: 0.55rem 0.7rem; border: 1px solid var(--rule); border-radius: 5px;
-  background: var(--card); color: var(--fg);
-}
+.machine-controls { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin: 1rem 0 0.4rem; }
+#seed { flex: 1 1 200px; font-family: var(--mono); font-size: 0.9rem; padding: 0.55rem 0.7rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--card); color: var(--fg); }
 #seed:focus { outline: none; border-color: var(--accent); }
-.btn {
-  font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.03em;
-  padding: 0.55rem 0.9rem; border: 1px solid var(--accent); border-radius: 5px;
-  background: var(--accent-faint); color: var(--fg); cursor: pointer; white-space: nowrap;
-}
+.btn { font-family: var(--mono); font-size: 0.8rem; padding: 0.55rem 0.9rem; border: 1px solid var(--accent); border-radius: 5px; background: var(--accent-faint); color: var(--fg); cursor: pointer; white-space: nowrap; }
 .btn:hover { background: var(--accent-tint); }
 .btn.primary { background: var(--accent); color: var(--bg); }
+.modes { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; margin-bottom: 0.4rem; }
+.modes button { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.04em; padding: 0.4rem 0.8rem; border: none; background: var(--card); color: var(--muted); cursor: pointer; }
+.modes button.on { background: var(--accent); color: var(--bg); font-weight: 600; }
 .permalink { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin: 0.2rem 0 0; word-break: break-all; }
 .permalink a { color: var(--accent); text-decoration: none; }
 .gallery { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.7rem 0 0; }
 .gallery .chip { cursor: pointer; }
-
-.gen-card { margin-top: 1.6rem; }
 .gen-name { font-size: 1.7rem; font-weight: 600; margin: 0.2rem 0 0; letter-spacing: -0.01em; }
-.synthetic-flag {
-  display: inline-block; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--st-disproved, #b5641e); border: 1px solid currentColor;
-  border-radius: 3px; padding: 0.05rem 0.4rem; margin-left: 0.5rem; vertical-align: middle; opacity: 0.8;
-}
-
+.synthetic-flag, .verdict-flag { display: inline-block; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; border: 1px solid currentColor; border-radius: 3px; padding: 0.05rem 0.4rem; margin-left: 0.5rem; vertical-align: middle; }
+/* reality verdict */
+.verdict { border-radius: 6px; padding: 0.9rem 1.1rem; margin: 1.1rem 0; border: 1px solid var(--rule); border-left-width: 4px; }
+.verdict h3 { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 0.4rem; }
+.verdict .vbadge { font-family: var(--mono); font-weight: 700; font-size: 1rem; }
+.verdict p { margin: 0.4rem 0 0; font-size: 0.92rem; }
+.v-candidate { border-left-color: var(--st-partial, #1a7a5e); }
+.v-empirical { border-left-color: var(--st-mostly, #b07a14); }
+.v-reject { border-left-color: var(--st-open, #7a6a3a); }
+/* screening log */
+.screenlog { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin: 0.4rem 0; }
+.tally { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0; }
+.tally span { padding: 0.15rem 0.5rem; border-radius: 3px; font-family: var(--mono); font-size: 0.72rem; background: var(--accent-tint); }
+details.rejects { margin-top: 0.6rem; }
+details.rejects summary { font-family: var(--mono); font-size: 0.76rem; color: var(--accent); cursor: pointer; }
+.reject-row { padding: 0.5rem 0; border-bottom: 1px dashed var(--rule); font-size: 0.85rem; }
+.reject-row .rst { font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.05rem 0.35rem; border-radius: 3px; margin-right: 0.4rem; }
+.rst-refuted { background: hsl(6,60%,88%); color: hsl(6,70%,30%); }
+.rst-trivial-false, .rst-trivial-true { background: var(--tag-bg); color: var(--tag-text); }
+@media (prefers-color-scheme: dark) { .rst-refuted { background: hsl(6,40%,26%); color: hsl(6,80%,80%); } }
 /* oracle factor breakdown */
 .oracle h2 { margin-top: 1.6rem; }
-.factors { margin: 0.6rem 0 0; }
-.factor {
-  display: grid; grid-template-columns: 3.1rem 1fr; gap: 0.6rem 0.7rem;
-  align-items: baseline; padding: 0.45rem 0; border-bottom: 1px dashed var(--rule);
-}
-.fdelta {
-  font-family: var(--mono); font-weight: 700; font-size: 0.86rem; text-align: right;
-  padding: 0.05rem 0.35rem; border-radius: 3px;
-}
-.flabel { font-family: var(--mono); font-size: 0.82rem; font-weight: 600; }
-.fnote { grid-column: 2; font-size: 0.85rem; color: var(--muted); margin-top: 0.1rem; }
-.factor.total { border-bottom: none; border-top: 2px solid var(--rule); margin-top: 0.2rem; padding-top: 0.6rem; }
-.factor.total .flabel { font-size: 0.9rem; }
-.factor.base .fdelta { color: var(--muted); }
+.factor { display: grid; grid-template-columns: 3.1rem 1fr; gap: 0.5rem 0.7rem; align-items: baseline; padding: 0.4rem 0; border-bottom: 1px dashed var(--rule); }
+.fdelta { font-family: var(--mono); font-weight: 700; font-size: 0.84rem; text-align: right; padding: 0.05rem 0.35rem; border-radius: 3px; }
+.flabel { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; }
+.fnote { grid-column: 2; font-size: 0.83rem; color: var(--muted); margin-top: 0.1rem; }
+.factor.total { border-bottom: none; border-top: 2px solid var(--rule); margin-top: 0.2rem; padding-top: 0.5rem; }
 </style>
 </head>
 <body>
@@ -58,24 +55,30 @@
 <header class="page">
   <a class="crumb" href="index.html">← conjectures index</a>
   <h1>the conjecture machine</h1>
-  <p class="subtitle">procedurally generated open problems · with a solvability oracle</p>
+  <p class="subtitle">procedurally generated open problems · with a reality engine</p>
 </header>
 
 <p class="lede">
-  Feed it a seed; it hands back a conjecture — a plausible-sounding open problem assembled from a
-  grammar of objects, quantifiers, and claims. Then the <strong>solvability oracle</strong> reads the
-  statement's <em>shape</em> — its domain, its quantifier structure, how a counterexample would look —
-  and estimates the odds it would still be unproven in 2126, using the same difficulty rubric the
-  <a href="index.html">real index</a> applies to the 193 genuine conjectures. It shows its work.
+  The machine invents a conjecture from a seed. But most invented statements are false or trivial —
+  so in <strong>real mode</strong> the machine doesn't just talk, it <strong>runs</strong>. Every
+  generated claim carries an executable checker: a ∀-statement gets brute-forced for a counterexample,
+  a "primes of the form f(n)" claim gets its polynomial tested for reducibility and fixed divisors,
+  an iteration map gets its orbits traced for divergence. The refuted and the trivial are
+  <strong>discarded</strong>; only the survivors — well-posed, non-trivial, unrefuted — are shown.
 </p>
 <p style="font-size:0.85rem;color:var(--muted)">
-  This is a Borges machine, so it is <strong>deterministic</strong>: a seed always yields the same
-  conjecture, and the URL is a permalink. It is also, emphatically, <strong>fiction</strong> — most
-  generated statements are false, trivial, or ill-posed (that is the joke: a Library of Babel of
-  conjectures). The oracle judges the form, not the truth; it cannot prove anything. Names are
-  invented, and any resemblance to real mathematicians is coincidental.
+  Still deterministic (a seed is a permalink) and still honest: a survivor is not <em>proven</em> open.
+  A <strong>rigorous</strong> survivor (a Bunyakovsky-admissible prime form) or a <strong>dynamical</strong>
+  one (a Collatz-class map) is genuinely open-flavoured; an <strong>empirical</strong> survivor merely
+  went unrefuted in the search — a computer can't tell "open" from "true for an easy reason". The
+  machine shows its work either way. <a href="index.html">Dream mode</a> keeps the original: any
+  invention, screened or not.
 </p>
 
+<div class="modes" id="modes">
+  <button data-mode="real" class="on">real mode · screened</button>
+  <button data-mode="dream">dream mode · anything</button>
+</div>
 <div class="machine-controls">
   <input id="seed" type="text" placeholder="type a seed…" autocomplete="off" spellcheck="false">
   <button class="btn primary" id="go">conjure</button>
@@ -84,7 +87,7 @@
 <p class="permalink" id="permalink"></p>
 <div class="gallery" id="gallery"></div>
 
-<div class="gen-card" id="card"></div>
+<div id="card" style="margin-top:1.6rem"></div>
 
 <footer>
   <a href="index.html">index</a>
@@ -93,55 +96,35 @@
   <a href="https://borges.mino.mobi/">borges</a>
 </footer>
 
+<script src="reality.js"></script>
 <script src="engine.js"></script>
 <script src="common.js"></script>
 <script>
 const GALLERY_SEEDS = ['babel', 'the-pale-orbit', '1917', 'fermat-redux', 'quiet-sieve', 'n-plus-one'];
 const DEFAULT_SEED = 'the-book-of-sand';
-
 const card = document.getElementById('card');
 const seedInput = document.getElementById('seed');
 const permalink = document.getElementById('permalink');
+let mode = 'real';
 
-function deltaStyle(d) {
-  // positive delta = harder = red-ish; negative = easier = teal-ish; zero = muted
-  if (d > 0) return `background:hsl(6,70%,50%);color:#fff`;
-  if (d < 0) return `background:hsl(168,60%,42%);color:#fff`;
-  return `background:var(--accent-tint);color:var(--muted)`;
-}
 const sign = d => (d > 0 ? '+' + d : d < 0 ? String(d) : '0');
-
-function render(seed) {
-  const c = CONJGEN.generateConjecture(seed);
-  const meta = CONJ.fieldMeta(c.field);
-  const color = CONJ.fieldColor(c.field);
-  const hc = CONJ.hardnessColor(c.hardness);
+function deltaStyle(d) {
+  if (d > 0) return 'background:hsl(6,70%,50%);color:#fff';
+  if (d < 0) return 'background:hsl(168,60%,42%);color:#fff';
+  return 'background:var(--accent-tint);color:var(--muted)';
+}
+function oracleHtml(c) {
   const s = c.solvability;
-
-  const factorsHtml = s.factors.map(f => `
-    <div class="factor${f.label === 'baseline' ? ' base' : ''}">
+  const rows = s.factors.map(f => `
+    <div class="factor">
       <span class="fdelta" style="${deltaStyle(f.delta)}">${f.label === 'baseline' ? s.base : sign(f.delta)}</span>
       <span class="flabel">${CONJ.esc(f.label)}</span>
       <span class="fnote">${CONJ.esc(f.note)}</span>
     </div>`).join('');
-
-  card.innerHTML = `
-    <div class="detail-field"><span class="cdot" style="background:${color}"></span>${CONJ.esc(meta.label)} · ${CONJ.esc(c.domain)}<span class="synthetic-flag">synthetic</span></div>
-    <div class="gen-name">${CONJ.esc(c.name)}</div>
-
-    <div class="panel statement">
-      <h3>The (generated) conjecture</h3>
-      <p style="margin:0">${CONJ.esc(c.statement)}</p>
-      <div class="form">${CONJ.esc(c.form)}</div>
-    </div>
-
-    <div class="panel disprove">
-      <h3>What would disprove it</h3>
-      <p style="margin:0">${CONJ.esc(c.counterexample)}</p>
-    </div>
-
+  const hc = CONJ.hardnessColor(c.hardness);
+  return `
     <div class="oracle">
-      <h2>Solvability oracle</h2>
+      <h2>Solvability oracle · if it were real, how long would it last?</h2>
       <div class="hardness-panel">
         <div class="hardness-big" style="color:${hc}">${c.hardness}<small>P(open ’2126)</small></div>
         <div class="hardness-body">
@@ -150,57 +133,127 @@ function render(seed) {
           <p class="hardness-note">${CONJ.esc(s.note)}</p>
         </div>
       </div>
-      <p style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);margin:0 0 0.2rem">how the oracle got there — a baseline plus structural adjustments:</p>
-      <div class="factors">
-        ${factorsHtml}
-        <div class="factor total">
-          <span class="fdelta" style="background:${hc};color:#fff">${c.hardness}</span>
-          <span class="flabel">final score${s.clamped ? ' (clamped to 5–97)' : ''}</span>
-        </div>
+      <div style="margin-top:0.6rem">${rows}
+        <div class="factor total"><span class="fdelta" style="background:${hc};color:#fff">${c.hardness}</span><span class="flabel">final score</span></div>
       </div>
-      ${(c.tags && c.tags.length) ? `<div style="margin-top:1rem">${c.tags.map(t => `<span class="tag">${CONJ.esc(t)}</span>`).join('')}</div>` : ''}
-    </div>
-
-    <p style="font-size:0.82rem;color:var(--muted);margin-top:1.6rem">
-      Want the real thing? Every genuine open problem in the <a href="index.html">index</a> carries a
-      hand-calibrated version of this same score.
-    </p>`;
-
-  const url = location.pathname + '?seed=' + encodeURIComponent(seed);
-  permalink.innerHTML = `permalink: <a href="${url}">${location.host}${url}</a>`;
-  document.title = `${c.name} — the conjecture machine`;
+    </div>`;
+}
+function conjectureHtml(c) {
+  const meta = CONJ.fieldMeta(c.field), color = CONJ.fieldColor(c.field);
+  return `
+    <div class="detail-field"><span class="cdot" style="background:${color}"></span>${CONJ.esc(meta.label)} · ${CONJ.esc(c.domain)}<span class="synthetic-flag">synthetic</span></div>
+    <div class="gen-name">${CONJ.esc(c.name)}</div>
+    <div class="panel statement"><h3>The (generated) conjecture</h3><p style="margin:0">${CONJ.esc(c.statement)}</p><div class="form">${CONJ.esc(c.form)}</div></div>
+    <div class="panel disprove"><h3>What would disprove it</h3><p style="margin:0">${CONJ.esc(c.counterexample)}</p></div>`;
 }
 
+// ── DREAM MODE — any generation, oracle only ──
+function renderDream(seed) {
+  const c = CONJGEN.generateConjecture(seed);
+  card.innerHTML = conjectureHtml(c) + oracleHtml(c)
+    + `<p style="font-size:0.82rem;color:var(--muted);margin-top:1.4rem">Dream mode shows whatever the grammar produces — often false or trivial. Switch to <a href="#" onclick="setMode('real');return false">real mode</a> to screen them.</p>`;
+  finish(seed, c.name);
+}
+
+// ── REAL MODE — screen a deterministic sequence, surface survivors ──
+function runReal(baseSeed) {
+  const scanned = []; let winner = null; const cap = 80;
+  for (let i = 0; i < cap; i++) {
+    const c = CONJGEN.generateConjecture(baseSeed + '·' + i, { checkableOnly: true });
+    const v = CONJMATH.screen(c);
+    scanned.push({ c, v });
+    if (v.status === 'candidate') {
+      if (!winner) winner = { c, v, i };
+      if (v.open) { winner = { c, v, i }; break; }
+    }
+  }
+  return { scanned, winner };
+}
+function renderReal(baseSeed) {
+  const { scanned, winner } = runReal(baseSeed);
+  const tally = {};
+  for (const { v } of scanned) tally[v.status] = (tally[v.status] || 0) + 1;
+  const tallyHtml = Object.entries(tally).map(([k, n]) => `<span>${n} ${k}</span>`).join('');
+
+  const rejectRows = scanned.filter(x => !(winner && x.c === winner.c)).map(({ c, v }) => `
+    <div class="reject-row"><span class="rst rst-${v.status}">${v.status}</span>${CONJ.esc(c.statement)}<br><span style="color:var(--muted);font-size:0.8rem">↳ ${CONJ.esc(v.reason)}</span></div>`).join('');
+
+  let head;
+  if (!winner) {
+    head = `<div class="verdict v-reject"><h3>reality engine</h3><span class="vbadge">nothing survived</span>
+      <p>Screened ${scanned.length} generations from this seed — all refuted or trivial. Roll again.</p></div>`;
+    card.innerHTML = head + realLog(scanned.length, tallyHtml, rejectRows);
+    finish(baseSeed, 'nothing survived');
+    return;
+  }
+  const { c, v } = winner;
+  const known = CONJMATH.knownMatch(c);
+  const strong = v.open;
+  const badgeCls = strong ? 'v-candidate' : 'v-empirical';
+  const badge = strong ? (v.strength === 'rigorous' ? 'OPEN CANDIDATE · rigorous' : 'OPEN CANDIDATE · dynamical') : 'UNREFUTED · empirical';
+  const knownHtml = known
+    ? `<p>↔ the machine reinvented a <strong>real</strong> open problem: <a href="c.html?id=${encodeURIComponent(known.id)}">${CONJ.esc(known.name)}</a>. It exists in the curated index.</p>`
+    : '';
+  const verdict = `
+    <div class="verdict ${badgeCls}"><h3>reality engine · verdict</h3>
+      <span class="vbadge">${badge}</span>
+      <p>${CONJ.esc(v.reason)}</p>
+      ${v.primeExamples && v.primeExamples.length ? `<p style="font-family:var(--mono);font-size:0.8rem">primes so far: ${v.primeExamples.slice(0, 4).map(CONJ.esc).join(', ')} …</p>` : ''}
+      ${knownHtml}
+      <p style="font-size:0.8rem;color:var(--muted)">Surfaced generation #${winner.i} from this seed. ${strong ? 'Genuinely open-flavoured.' : 'Survived the search, but may be provable — not a claim of openness.'}</p>
+    </div>`;
+
+  card.innerHTML = conjectureHtml(c) + verdict + realLog(scanned.length, tallyHtml, rejectRows) + oracleHtml(c);
+  finish(baseSeed, c.name);
+}
+function realLog(n, tallyHtml, rejectRows) {
+  return `
+    <div class="screenlog">the machine screened <strong>${n}</strong> generations from this seed and kept only survivors:</div>
+    <div class="tally">${tallyHtml}</div>
+    <details class="rejects"><summary>show every screened conjecture and why it was kept or killed →</summary>${rejectRows}</details>`;
+}
+
+function finish(seed, title) {
+  const q = mode === 'real' ? '?seed=' + encodeURIComponent(seed) : '?mode=dream&seed=' + encodeURIComponent(seed);
+  permalink.innerHTML = `permalink: <a href="${q}">${location.host}${location.pathname}${q}</a>`;
+  document.title = `${title} — the conjecture machine`;
+}
+
+function render(seed) { mode === 'real' ? renderReal(seed) : renderDream(seed); }
 function go(seed, push) {
-  seed = (seed == null ? seedInput.value : seed).trim();
-  if (!seed) seed = DEFAULT_SEED;
+  seed = (seed == null ? seedInput.value : seed).trim() || DEFAULT_SEED;
   seedInput.value = seed;
   render(seed);
-  if (push) history.pushState({ seed }, '', location.pathname + '?seed=' + encodeURIComponent(seed));
+  if (push) { const q = mode === 'real' ? '?seed=' : '?mode=dream&seed='; history.pushState({ seed, mode }, '', location.pathname + q + encodeURIComponent(seed)); }
 }
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  go(seedInput.value || DEFAULT_SEED, true);
+}
+window.setMode = setMode;
 
-// gallery chips (deterministic samples)
+// gallery
 const gal = document.getElementById('gallery');
 for (const gs of GALLERY_SEEDS) {
-  const c = CONJGEN.generateConjecture(gs);
   const chip = document.createElement('span');
-  chip.className = 'chip';
-  chip.innerHTML = `<span class="cdot" style="background:${CONJ.hardnessColor(c.hardness)}"></span>${CONJ.esc(gs)}`;
-  chip.title = c.name;
+  chip.className = 'chip'; chip.textContent = gs;
   chip.onclick = () => go(gs, true);
   gal.appendChild(chip);
 }
-
 document.getElementById('go').onclick = () => go(null, true);
-document.getElementById('rand').onclick = () => go(Math.random().toString(36).slice(2, 9), true); // the one allowed unseeded roll — just picks which deterministic page
+document.getElementById('rand').onclick = () => go(Math.random().toString(36).slice(2, 9), true);
 seedInput.addEventListener('keydown', e => { if (e.key === 'Enter') go(null, true); });
-window.addEventListener('popstate', () => {
-  const s = new URLSearchParams(location.search).get('seed');
-  go(s || DEFAULT_SEED, false);
-});
+document.querySelectorAll('#modes button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+window.addEventListener('popstate', () => init());
 
-// initial
-go(new URLSearchParams(location.search).get('seed') || DEFAULT_SEED, false);
+function init() {
+  const p = new URLSearchParams(location.search);
+  mode = p.get('mode') === 'dream' ? 'dream' : 'real';
+  document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  go(p.get('seed') || DEFAULT_SEED, false);
+}
+init();
 </script>
 
 </body>
