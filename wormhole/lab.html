@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Analysis Genome — Wormhole</title>
+<meta name="description" content="Spin the graph pack: a grammar of analysis where every chart falls out of a path through (data type × answer type → technique → charts). Twelve techniques and growing, each with live figures over fabricated data. Part of the Academic Wormhole Roulette.">
+<meta property="og:title" content="The Analysis Genome — spin the graph pack">
+<meta property="og:description" content="A grammar of analysis: data type × answer type → technique → charts. Live figures over fabricated data.">
+<style>
+:root{
+  --paper:#f5eeda; --card:#fbf6e9; --ink:#2c241a; --soft:#6b5e46; --rule:#d8c9a6; --hard:#c3b083;
+  --gold:#b8860b; --gold2:#c9a227; --accent:#7a5230; --ok:#4f9d69;
+  --serif:Georgia,"Iowan Old Style",serif; --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--serif);line-height:1.5;
+  background-image:radial-gradient(circle at 20% 8%,rgba(255,255,255,.35),transparent 60%),repeating-linear-gradient(0deg,rgba(120,90,40,.025) 0 1px,transparent 1px 26px);}
+.wrap{max-width:960px;margin:0 auto;padding:16px 16px 80px}
+.crumb{font-family:var(--sans);font-size:12px;letter-spacing:.04em}
+.crumb a{color:var(--accent);text-decoration:none}.crumb a:hover{text-decoration:underline}
+header.site{text-align:center;padding:12px 0 6px;border-bottom:2px solid var(--hard);margin-bottom:6px}
+header.site h1{font-size:clamp(24px,5.6vw,38px);margin:8px 0 2px;letter-spacing:-.01em}
+header.site .sub{font-family:var(--sans);color:var(--soft);font-size:12.5px;letter-spacing:.05em;text-transform:uppercase}
+.spinbar{text-align:center;padding:16px 8px 8px;border-bottom:1px dashed var(--rule);margin-bottom:16px}
+.reel{height:34px;font-size:clamp(17px,3.6vw,23px);font-weight:700;color:var(--accent);display:flex;align-items:center;justify-content:center}
+.spin{font-family:var(--sans);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;background:var(--gold);color:#241a06;border:none;border-radius:999px;padding:11px 26px;box-shadow:0 1px 2px rgba(60,45,20,.12),0 6px 22px rgba(60,45,20,.08);margin-top:8px}
+.spin:hover{background:var(--gold2)}.spin[disabled]{opacity:.6}
+.hint{font-family:var(--sans);font-size:12px;color:var(--soft);margin-top:6px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:12px;box-shadow:0 1px 2px rgba(60,45,20,.1),0 6px 22px rgba(60,45,20,.07);padding:16px 18px;margin-bottom:16px}
+/* the path chain */
+.path{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-family:var(--sans);font-size:12.5px;margin-bottom:6px}
+.path .arrow{color:var(--soft)}
+.chip{border:1px solid var(--hard);border-radius:999px;padding:3px 11px;background:var(--paper);white-space:nowrap}
+.chip.data{border-color:#6b8f9c;color:#3a5a63}
+.chip.ans{border-color:#b0863a;color:#7a5220}
+.chip.tech{border-color:var(--gold);color:var(--accent);font-weight:700}
+.chip.chart{border-color:var(--rule);color:var(--soft);font-size:11px}
+.tech-name{font-size:22px;font-weight:700;margin:8px 0 2px}
+.tech-blurb{font-size:15px;font-style:italic;color:var(--ink);margin:2px 0 8px}
+.datline{font-family:var(--sans);font-size:12.5px;color:var(--soft)}
+.reported{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.kv{font-family:var(--mono);font-size:11.5px;background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:2px 8px}
+.kv b{color:var(--accent)}
+.finding{font-size:15.5px;margin:8px 0 2px;border-left:3px solid var(--gold);padding-left:10px}
+.figs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.figbox{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:8px}
+.figbox svg{width:100%;height:auto;display:block}
+.figcap{font-family:var(--sans);font-size:10.5px;color:var(--soft);margin-top:5px;line-height:1.35}
+@media(max-width:640px){.figs{grid-template-columns:1fr}}
+/* genome matrix */
+.matrix-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.genome{border-collapse:collapse;font-family:var(--sans);font-size:11px;margin:2px 0}
+table.genome th,table.genome td{border:1px solid var(--rule);padding:0}
+table.genome th.corner{background:transparent;border:none}
+table.genome th.ans{background:var(--paper);color:var(--soft);font-weight:600;padding:5px 6px;text-align:center;vertical-align:bottom;min-width:34px}
+table.genome th.ans .g{font-size:14px;color:var(--accent)}
+table.genome th.dt{background:var(--paper);color:var(--ink);text-align:right;padding:4px 8px;white-space:nowrap;font-weight:600}
+table.genome th.dt .g{color:#3a5a63;margin-right:4px}
+table.genome td.cell{width:34px;height:30px;text-align:center;vertical-align:middle;background:#fffdf6}
+table.genome td.cell.has{cursor:pointer}
+.tdot{display:inline-block;width:15px;height:15px;border-radius:4px;background:var(--gold);border:1px solid var(--accent);margin:1px;cursor:pointer;vertical-align:middle}
+.tdot:hover{background:var(--gold2)}
+.tdot.on{outline:2px solid var(--accent);outline-offset:1px}
+/* reference legends */
+.legwrap{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:640px){.legwrap{grid-template-columns:1fr}}
+.leg h3{font-family:var(--sans);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin:0 0 8px;border-bottom:1px solid var(--rule);padding-bottom:6px}
+.leg .row{font-size:13px;margin:5px 0}
+.leg .g{display:inline-block;width:18px;color:var(--accent);font-weight:700}
+.leg .nm{font-weight:600}
+.leg .bl{color:var(--soft)}
+h2.sec{font-family:var(--sans);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:22px 0 8px}
+footer.disc{font-family:var(--sans);font-size:11.5px;color:var(--soft);text-align:center;border-top:1px solid var(--rule);padding-top:16px;margin-top:20px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:14px}
+.tools button,.tools a.btn{font-family:var(--sans);font-size:13px;cursor:pointer;background:var(--card);border:1px solid var(--hard);border-radius:8px;padding:7px 13px;color:var(--ink);text-decoration:none}
+.tools button:hover,.tools a.btn:hover{border-color:var(--gold)}
+.copied{font-family:var(--sans);font-size:12px;color:var(--ok);align-self:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">← wormhole</a></div>
+  <header class="site">
+    <h1>The Analysis Genome</h1>
+    <div class="sub">data type × answer type → technique → charts</div>
+  </header>
+
+  <section class="spinbar">
+    <div class="reel" id="reel">the grammar of the graph pack</div>
+    <button class="spin" id="spin">Spin the graph pack</button>
+    <div class="hint">Every chart falls out of a path through the genome. Spin lands on a technique; the matrix below is the whole pack.</div>
+  </section>
+
+  <div class="tools">
+    <button id="reroll" title="New synthetic dataset, same technique">🎲 new data</button>
+    <button id="share">🔗 copy link</button>
+    <span class="copied" id="copied" hidden>copied</span>
+  </div>
+
+  <main id="card"></main>
+
+  <h2 class="sec">The genome — every cell is a (data × answer) pairing</h2>
+  <div class="matrix-wrap"><div id="matrix"></div></div>
+
+  <h2 class="sec">The vocabulary</h2>
+  <div class="legwrap">
+    <div class="leg card"><h3>Data types</h3><div id="legData"></div></div>
+    <div class="leg card"><h3>Answer types</h3><div id="legAns"></div></div>
+  </div>
+
+  <footer class="disc">
+    All datasets here are <strong>fabricated</strong> and the statistics honestly computed over them — a live demo of the chart library, not real findings.
+    The genome is meant to grow: each new technique lights up new cells. Part of <a href="/" style="color:var(--accent)">the Academic Wormhole Roulette</a>.
+  </footer>
+</div>
+
+<script src="/stats.js"></script>
+<script src="/charts.js"></script>
+<script src="/genome.js"></script>
+<script>
+(function(){
+  "use strict";
+  var G=window.WORMHOLE_GENOME, $=function(id){return document.getElementById(id);};
+  var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c];});};
+  var cur={id:null, seed:"1"};
+
+  function parseHash(){
+    var h=location.hash.replace(/^#/,"");
+    if(!h) return null;
+    var m=h.match(/^([a-z]+)(?:-(\w+))?$/);
+    if(!m) return null;
+    return {id:m[1], seed:m[2]||"1"};
+  }
+
+  function render(id, seed, push){
+    var res=G.run(id, seed);
+    cur={id:res.id, seed:String(seed)};
+    var path='<div class="path">'+
+      res.dataLabels.map(function(d){return '<span class="chip data">'+esc(d)+'</span>';}).join('<span class="arrow">/</span>')+
+      '<span class="arrow">→</span>'+
+      res.answerLabels.map(function(a){return '<span class="chip ans">'+esc(a)+'</span>';}).join(' ')+
+      '<span class="arrow">→</span><span class="chip tech">'+esc(res.label)+'</span>'+
+      '<span class="arrow">→</span>'+res.charts.map(function(c){return '<span class="chip chart">'+esc(c)+'</span>';}).join(' ')+
+      '</div>';
+    var kv='<div class="reported">'+Object.keys(res.reported).map(function(k){return '<span class="kv"><b>'+esc(k)+'</b> '+esc(String(res.reported[k]))+'</span>';}).join('')+'</div>';
+    var figs='<div class="figs">'+res.figures.map(function(f){return '<div class="figbox">'+f.svg+'<div class="figcap">'+f.caption+'</div></div>';}).join('')+'</div>';
+    $("card").innerHTML='<div class="card">'+path+
+      '<div class="tech-name">'+esc(res.label)+'</div>'+
+      '<div class="tech-blurb">'+esc(res.blurb)+'</div>'+
+      '<div class="datline">Synthetic data: '+esc(res.dataStatement)+'</div>'+kv+
+      '<div class="finding">'+esc(res.finding)+'</div>'+figs+'</div>';
+    $("reel").textContent=res.label;
+    document.title=res.label+" — The Analysis Genome";
+    markMatrix(res.id);
+    if(push!==false){var hash="#"+res.id+"-"+seed; if(location.hash!==hash) history.pushState({id:res.id,seed:seed},"",hash);}
+  }
+
+  function markMatrix(id){
+    Array.prototype.forEach.call(document.querySelectorAll(".tdot"),function(d){ d.classList.toggle("on", d.getAttribute("data-id")===id); });
+  }
+
+  // build the (data × answer) matrix
+  function buildMatrix(){
+    var DT=G.DATA_TYPES, AT=G.ANSWER_TYPES, M=G.matrix();
+    var atKeys=Object.keys(AT);
+    var html='<table class="genome"><thead><tr><th class="corner"></th>'+
+      atKeys.map(function(a){return '<th class="ans" title="'+esc(AT[a].blurb)+'"><span class="g">'+AT[a].glyph+'</span><br>'+esc(AT[a].label)+'</th>';}).join('')+'</tr></thead><tbody>';
+    M.forEach(function(row){
+      var dt=DT[row.data];
+      html+='<tr><th class="dt" title="'+esc(dt.blurb)+'"><span class="g">'+dt.glyph+'</span>'+esc(dt.label)+'</th>';
+      row.cells.forEach(function(cell){
+        if(cell.techniques.length){
+          html+='<td class="cell has">'+cell.techniques.map(function(id){return '<span class="tdot" data-id="'+id+'" title="'+esc(id)+'"></span>';}).join('')+'</td>';
+        } else html+='<td class="cell"></td>';
+      });
+      html+='</tr>';
+    });
+    html+='</tbody></table>';
+    $("matrix").innerHTML=html;
+    Array.prototype.forEach.call(document.querySelectorAll(".tdot"),function(d){
+      d.addEventListener("click",function(){ render(d.getAttribute("data-id"), "1", true); window.scrollTo({top:0,behavior:"smooth"}); });
+    });
+  }
+
+  function buildLegends(){
+    var DT=G.DATA_TYPES, AT=G.ANSWER_TYPES;
+    $("legData").innerHTML=Object.keys(DT).map(function(k){return '<div class="row"><span class="g">'+DT[k].glyph+'</span><span class="nm">'+esc(DT[k].label)+'</span> — <span class="bl">'+esc(DT[k].blurb)+'</span></div>';}).join('');
+    $("legAns").innerHTML=Object.keys(AT).map(function(k){return '<div class="row"><span class="g">'+AT[k].glyph+'</span><span class="nm">'+esc(AT[k].label)+'</span> — <span class="bl">'+esc(AT[k].blurb)+'</span></div>';}).join('');
+  }
+
+  function randSeed(){ return String(Math.floor(Math.random()*9e8)+1); }
+  var spinning=false;
+  function spin(){
+    if(spinning) return; spinning=true;
+    var btn=$("spin"); btn.disabled=true;
+    var ids=G.ids(), target=ids[Math.floor(Math.random()*ids.length)], seed=randSeed();
+    var i=0, ticks=16;
+    (function tick(){
+      $("reel").textContent=G.TECHNIQUES[Math.floor(Math.random()*G.TECHNIQUES.length)].label;
+      if(++i<ticks){ setTimeout(tick, 45+Math.pow(i/ticks,3)*230); }
+      else { render(target, seed, true); window.scrollTo({top:$("card").offsetTop-40,behavior:"smooth"}); spinning=false; btn.disabled=false; }
+    })();
+  }
+
+  $("spin").addEventListener("click", spin);
+  $("reroll").addEventListener("click", function(){ if(cur.id) render(cur.id, randSeed(), true); });
+  $("share").addEventListener("click", function(){
+    var url=location.origin+"/lab/#"+cur.id+"-"+cur.seed;
+    var done=function(){var c=$("copied");c.hidden=false;setTimeout(function(){c.hidden=true;},1500);};
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done,done); else prompt("Copy this link:",url);
+  });
+  window.addEventListener("popstate", function(){ var h=parseHash(); if(h) render(h.id,h.seed,false); });
+
+  buildMatrix(); buildLegends();
+  var init=parseHash();
+  if(init) render(init.id, init.seed, false);
+  else render(G.ids()[Math.floor(Math.random()*G.ids().length)], randSeed(), true);
+})();
+</script>
+</body>
+</html>

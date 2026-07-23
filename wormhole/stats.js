@@ -272,5 +272,96 @@
   S.solve = solve; S.invert = invert; S.ols = ols;
   S.normalCdf = normalCdf; S.normalQuantile = normalQuantile; S.corrP = corrP;
   S.kde = kde; S.histogram = histogram; S.ecdf = ecdf;
+  function euclid(a, b) { var s = 0; for (var i = 0; i < a.length; i++) { var d = a[i] - b[i]; s += d * d; } return Math.sqrt(s); }
+
+  // k-means (Lloyd) with k-means++ init. `rand` is a 0..1 generator for determinism.
+  function kmeans(rows, k, rand, iters) {
+    iters = iters || 40; var n = rows.length, dim = rows[0].length, i, j, c;
+    var cent = [rows[Math.floor(rand() * n)].slice()];
+    while (cent.length < k) {
+      var d2 = rows.map(function (r) { var m = Infinity; cent.forEach(function (cc) { var e = euclid(r, cc); if (e < m) m = e; }); return m * m; });
+      var tot = d2.reduce(function (a, b) { return a + b; }, 0) || 1, t = rand() * tot, acc = 0, pick = 0;
+      for (i = 0; i < n; i++) { acc += d2[i]; if (acc >= t) { pick = i; break; } }
+      cent.push(rows[pick].slice());
+    }
+    var assign = new Array(n).fill(0);
+    for (var it = 0; it < iters; it++) {
+      var changed = false;
+      for (i = 0; i < n; i++) { var best = 0, bd = Infinity; for (c = 0; c < k; c++) { var e = euclid(rows[i], cent[c]); if (e < bd) { bd = e; best = c; } } if (assign[i] !== best) { assign[i] = best; changed = true; } }
+      var sum = [], cnt = []; for (c = 0; c < k; c++) { sum.push(new Array(dim).fill(0)); cnt.push(0); }
+      for (i = 0; i < n; i++) { cnt[assign[i]]++; for (j = 0; j < dim; j++) sum[assign[i]][j] += rows[i][j]; }
+      for (c = 0; c < k; c++) if (cnt[c]) for (j = 0; j < dim; j++) cent[c][j] = sum[c][j] / cnt[c];
+      if (!changed && it > 0) break;
+    }
+    var wss = 0; for (i = 0; i < n; i++) { var dd = euclid(rows[i], cent[assign[i]]); wss += dd * dd; }
+    return { assign: assign, centroids: cent, k: k, wss: wss };
+  }
+
+  // agglomerative hierarchical clustering (average linkage). Returns the merge
+  // tree root + a leaf order for a dendrogram. O(n^3); keep n small (≤ ~50).
+  function hclust(rows) {
+    var n = rows.length, i, j;
+    var D = []; for (i = 0; i < n; i++) { D.push([]); for (j = 0; j < n; j++) D[i][j] = euclid(rows[i], rows[j]); }
+    var clusters = []; for (i = 0; i < n; i++) clusters.push({ members: [i], leaf: i });
+    var nextH = 0;
+    function cd(a, b) { var s = 0, c = 0; a.members.forEach(function (x) { b.members.forEach(function (y) { s += D[x][y]; c++; }); }); return s / c; }
+    while (clusters.length > 1) {
+      var bi = 0, bj = 1, bd = Infinity;
+      for (i = 0; i < clusters.length; i++) for (j = i + 1; j < clusters.length; j++) { var d = cd(clusters[i], clusters[j]); if (d < bd) { bd = d; bi = i; bj = j; } }
+      var A = clusters[bi], B = clusters[bj];
+      var merged = { members: A.members.concat(B.members), left: A, right: B, height: bd };
+      nextH = Math.max(nextH, bd);
+      clusters = clusters.filter(function (_, ix) { return ix !== bi && ix !== bj; });
+      clusters.push(merged);
+    }
+    var root = clusters[0], order = [];
+    (function walk(node) { if (node.leaf !== undefined) { order.push(node.leaf); return; } walk(node.left); walk(node.right); })(root);
+    return { root: root, order: order, height: nextH };
+  }
+
+  // logistic regression by gradient descent (predictors standardized internally).
+  function logistic(rows, y, iters) {
+    var n = rows.length, p = rows[0].length, i, j;
+    var mn = [], sdv = []; for (j = 0; j < p; j++) { var col = rows.map(function (r) { return r[j]; }); mn.push(mean(col)); sdv.push(sd(col) || 1); }
+    var Z = rows.map(function (r) { return r.map(function (v, jj) { return (v - mn[jj]) / sdv[jj]; }); });
+    var w = new Array(p + 1).fill(0), lr = 0.3; iters = iters || 400;
+    for (var it = 0; it < iters; it++) {
+      var grad = new Array(p + 1).fill(0);
+      for (i = 0; i < n; i++) { var z = w[0]; for (j = 0; j < p; j++) z += w[j + 1] * Z[i][j]; var pr = 1 / (1 + Math.exp(-z)), e = pr - y[i]; grad[0] += e; for (j = 0; j < p; j++) grad[j + 1] += e * Z[i][j]; }
+      for (j = 0; j <= p; j++) w[j] -= lr * grad[j] / n;
+    }
+    var probs = Z.map(function (zr) { var s = w[0]; for (var jj = 0; jj < p; jj++) s += w[jj + 1] * zr[jj]; return 1 / (1 + Math.exp(-s)); });
+    return { w: w, probs: probs, mean: mn, sd: sdv, Z: Z };
+  }
+
+  // ROC curve + AUC from scores and binary labels.
+  function roc(scores, labels) {
+    var idx = scores.map(function (_, i) { return i; }).sort(function (a, b) { return scores[b] - scores[a]; });
+    var Pn = labels.reduce(function (a, b) { return a + b; }, 0), Nn = labels.length - Pn;
+    var tp = 0, fp = 0, pts = [{ fpr: 0, tpr: 0 }], auc = 0, pf = 0, pt = 0;
+    idx.forEach(function (i) {
+      if (labels[i] === 1) tp++; else fp++;
+      var tpr = tp / (Pn || 1), fpr = fp / (Nn || 1);
+      auc += (fpr - pf) * (tpr + pt) / 2; pts.push({ fpr: fpr, tpr: tpr }); pf = fpr; pt = tpr;
+    });
+    return { points: pts, auc: auc };
+  }
+
+  // Kaplan–Meier survival estimator. events: 1 = event, 0 = censored.
+  function kaplanMeier(times, events) {
+    var order = times.map(function (t, i) { return { t: t, e: events[i] }; }).sort(function (a, b) { return a.t - b.t; });
+    var atRisk = order.length, surv = 1, pts = [{ t: 0, s: 1 }], k = 0, median = null;
+    while (k < order.length) {
+      var t = order[k].t, d = 0, c = 0;
+      while (k < order.length && order[k].t === t) { if (order[k].e) d++; else c++; k++; }
+      if (d > 0) surv *= (atRisk - d) / atRisk;
+      pts.push({ t: t, s: surv });
+      if (median === null && surv <= 0.5) median = t;
+      atRisk -= (d + c);
+    }
+    return { points: pts, median: median };
+  }
+
   S.jacobiEig = jacobiEig; S.pca = pca; S.detrend = detrend; S.periodogram = periodogram; S.anova = anova;
+  S.euclid = euclid; S.kmeans = kmeans; S.hclust = hclust; S.logistic = logistic; S.roc = roc; S.kaplanMeier = kaplanMeier;
 })();

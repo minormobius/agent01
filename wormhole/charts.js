@@ -514,5 +514,123 @@
     return svg(w, h, body, o.aria || "PCA biplot");
   };
 
+  // ============================================================
+  // 15. cluster scatter (points coloured by cluster + centroid marks)
+  // ============================================================
+  C.clusterScatter = function (o) {
+    var w = o.width || 340, h = o.height || 236, pts = o.points;
+    var xs = pts.map(function (p) { return p.x; }), ys = pts.map(function (p) { return p.y; });
+    var A = axes({ width: w, height: h, xmin: ST.min(xs), xmax: ST.max(xs), ymin: ST.min(ys), ymax: ST.max(ys), xlabel: o.xlabel, ylabel: o.ylabel, grid: false });
+    var body = A.body;
+    pts.forEach(function (p) { body += '<circle cx="' + A.sx(p.x).toFixed(1) + '" cy="' + A.sy(p.y).toFixed(1) + '" r="2.6" fill="' + cat(p.g || 0) + '" fill-opacity="0.68" stroke="#fff" stroke-width="0.5"/>'; });
+    (o.centroids || []).forEach(function (c, i) {
+      var x = A.sx(c.x), y = A.sy(c.y), s = 5;
+      body += L(x - s, y - s, x + s, y + s, { stroke: "#fff", w: 3.4 }) + L(x - s, y + s, x + s, y - s, { stroke: "#fff", w: 3.4 });
+      body += L(x - s, y - s, x + s, y + s, { stroke: cat(i), w: 2 }) + L(x - s, y + s, x + s, y - s, { stroke: cat(i), w: 2 });
+    });
+    if (o.groups && o.groups.length > 1) body += legendSmart(o.groups.map(function (g, i) { return { label: g, color: cat(i) }; }), pts.map(function (p) { return { x: A.sx(p.x), y: A.sy(p.y) }; }), A.m, A.iw, A.ih);
+    return svg(w, h, body, o.aria || "cluster scatter");
+  };
+
+  // ============================================================
+  // 16. dendrogram (agglomerative merge tree)
+  // ============================================================
+  C.dendrogram = function (o) {
+    var w = o.width || 360, h = o.height || 244, root = o.root, order = o.order, labels = o.labels;
+    var m = { l: 34, r: 14, t: 14, b: labels ? 66 : 28 }, iw = w - m.l - m.r, ih = h - m.t - m.b;
+    var n = order.length, pos = {};
+    order.forEach(function (leaf, i) { pos[leaf] = m.l + iw * (i + 0.5) / n; });
+    var maxH = (root.height || 1) * 1.05, sy = scale(0, maxH, m.t + ih, m.t);
+    var body = "";
+    // y axis (distance)
+    var yt = ticksNice(0, maxH, 4);
+    yt.ticks.forEach(function (v) { if (v > maxH) return; var y = sy(v); body += L(m.l - 3, y, m.l, y, { stroke: SPINE, w: 1 }); body += T(m.l - 5, y + 3, fmt(v, yt.step), { anchor: "end", size: 8, fill: MUTE }); });
+    body += L(m.l, m.t, m.l, m.t + ih, { stroke: SPINE, w: 1 });
+    (function draw(node) {
+      if (node.leaf !== undefined) return { x: pos[node.leaf], y: m.t + ih };
+      var Lc = draw(node.left), Rc = draw(node.right), y = sy(node.height);
+      body += L(Lc.x, Lc.y, Lc.x, y, { stroke: cat(0), w: 1.2 });
+      body += L(Rc.x, Rc.y, Rc.x, y, { stroke: cat(0), w: 1.2 });
+      body += L(Lc.x, y, Rc.x, y, { stroke: cat(0), w: 1.2 });
+      return { x: (Lc.x + Rc.x) / 2, y: y };
+    })(root);
+    if (labels) order.forEach(function (leaf, i) { body += T(pos[leaf], m.t + ih + 12, labels[leaf], { rotate: -40, anchor: "end", size: 8, fill: INK }); });
+    body += '<text x="11" y="' + (m.t + ih / 2).toFixed(1) + '" font-family="' + FONT + '" font-size="10" fill="' + INK + '" text-anchor="middle" transform="rotate(-90 11 ' + (m.t + ih / 2).toFixed(1) + ')">' + esc(o.ylabel || "distance") + "</text>";
+    return svg(w, h, body, o.aria || "dendrogram");
+  };
+
+  // ============================================================
+  // 17. ROC curve
+  // ============================================================
+  C.roc = function (o) {
+    var w = o.width || 300, h = o.height || 240, pts = o.points;
+    var A = axes({ width: w, height: h, xmin: 0, xmax: 1, ymin: 0, ymax: 1, xlabel: o.xlabel || "false-positive rate", ylabel: o.ylabel || "true-positive rate" });
+    var body = A.body;
+    body += L(A.sx(0), A.sy(0), A.sx(1), A.sy(1), { stroke: MUTE, w: 1, dash: "3,3" });
+    var pl = pts.map(function (p) { return A.sx(p.fpr).toFixed(1) + "," + A.sy(p.tpr).toFixed(1); });
+    body += '<polygon points="' + A.sx(0).toFixed(1) + "," + A.sy(0).toFixed(1) + " " + pl.join(" ") + " " + A.sx(1).toFixed(1) + "," + A.sy(0).toFixed(1) + '" fill="' + cat(0) + '" fill-opacity="0.1"/>';
+    body += '<polyline points="' + pl.join(" ") + '" fill="none" stroke="' + cat(0) + '" stroke-width="1.7"/>';
+    if (o.auc != null) body += T(A.m.l + A.iw - 6, A.m.t + A.ih - 8, "AUC = " + o.auc.toFixed(2), { anchor: "end", size: 10, fill: INK, weight: 600 });
+    return svg(w, h, body, o.aria || "ROC curve");
+  };
+
+  // ============================================================
+  // 18. Kaplan–Meier survival curve (step)
+  // ============================================================
+  C.kaplanMeier = function (o) {
+    var w = o.width || 340, h = o.height || 236, pts = o.points, tmax = ST.max(pts.map(function (p) { return p.t; })) || 1;
+    var A = axes({ width: w, height: h, xmin: 0, xmax: tmax, ymin: 0, ymax: 1, xlabel: o.xlabel || "time", ylabel: o.ylabel || "survival S(t)" });
+    var body = A.body, seg = [];
+    pts.forEach(function (p, i) {
+      if (i === 0) { seg.push(A.sx(0).toFixed(1) + "," + A.sy(1).toFixed(1)); }
+      else { seg.push(A.sx(p.t).toFixed(1) + "," + A.sy(pts[i - 1].s).toFixed(1)); seg.push(A.sx(p.t).toFixed(1) + "," + A.sy(p.s).toFixed(1)); }
+    });
+    body += '<polyline points="' + seg.join(" ") + '" fill="none" stroke="' + cat(0) + '" stroke-width="1.7"/>';
+    if (o.median != null) {
+      body += L(A.sx(0), A.sy(0.5), A.sx(o.median), A.sy(0.5), { stroke: cat(1), w: 1, dash: "3,3" });
+      body += L(A.sx(o.median), A.sy(0.5), A.sx(o.median), A.sy(0), { stroke: cat(1), w: 1, dash: "3,3" });
+      body += T(A.sx(o.median) + 4, A.sy(0.5) - 4, "median " + o.median.toFixed(1), { size: 9, fill: cat(1), weight: 600 });
+    }
+    return svg(w, h, body, o.aria || "Kaplan-Meier survival curve");
+  };
+
+  // ============================================================
+  // 19. lollipop (ranking / one-value-per-category)
+  // ============================================================
+  C.lollipop = function (o) {
+    var items = o.items.slice(); if (o.sort !== false) items.sort(function (a, b) { return b.value - a.value; });
+    var w = o.width || 340, h = o.height || (28 + items.length * 18);
+    var m = { l: o.labelW || 104, r: 34, t: 12, b: 30 }, iw = w - m.l - m.r, ih = h - m.t - m.b;
+    var vmax = ST.max(items.map(function (i) { return i.value; })), vmin = Math.min(0, ST.min(items.map(function (i) { return i.value; })));
+    var xt = ticksNice(vmin, vmax, 5), sx = scale(xt.min, xt.max, m.l, m.l + iw);
+    var body = "";
+    xt.ticks.forEach(function (v) { var x = sx(v); body += L(x, m.t, x, m.t + ih, { stroke: GRID, w: 1 }); body += T(x, m.t + ih + 13, fmt(v, xt.step), { anchor: "middle", fill: MUTE }); });
+    body += L(sx(Math.max(xt.min, 0)), m.t, sx(Math.max(xt.min, 0)), m.t + ih, { stroke: SPINE, w: 1 });
+    items.forEach(function (it, i) {
+      var y = m.t + ih * (i + 0.5) / items.length, x0 = sx(Math.max(xt.min, 0)), x1 = sx(it.value);
+      body += L(x0, y, x1, y, { stroke: cat(it.g || 0), w: 1.6 });
+      body += '<circle cx="' + x1.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="3.2" fill="' + cat(it.g || 0) + '"/>';
+      body += T(m.l - 8, y + 3, it.label, { anchor: "end", size: 9, fill: INK });
+      body += T(x1 + (it.value >= 0 ? 6 : -6), y + 3, (typeof it.value === "number" ? (Math.abs(it.value) < 10 ? it.value.toFixed(2) : Math.round(it.value)) : it.value), { anchor: it.value >= 0 ? "start" : "end", size: 8, fill: MUTE });
+    });
+    if (o.xlabel) body += T(m.l + iw / 2, h - 4, o.xlabel, { anchor: "middle", size: 10.5, fill: INK });
+    return svg(w, h, body, o.aria || "lollipop chart");
+  };
+
+  // ============================================================
+  // 20. logistic curve (binary points + fitted sigmoid)
+  // ============================================================
+  C.logisticCurve = function (o) {
+    var w = o.width || 340, h = o.height || 232, pts = o.points, curve = o.curve;
+    var xs = pts.map(function (p) { return p.x; });
+    var A = axes({ width: w, height: h, xmin: ST.min(xs), xmax: ST.max(xs), ymin: 0, ymax: 1, xlabel: o.xlabel, ylabel: o.ylabel || "P(class = 1)" });
+    var body = A.body;
+    body += L(A.m.l, A.sy(0.5), A.m.l + A.iw, A.sy(0.5), { stroke: MUTE, w: 0.8, dash: "2,3" });
+    pts.forEach(function (p, i) { var jy = p.y === 1 ? 0.965 : 0.035; body += '<circle cx="' + A.sx(p.x).toFixed(1) + '" cy="' + (A.sy(jy) + ((i % 5) - 2) * 0.8).toFixed(1) + '" r="2" fill="' + cat(p.y ? 1 : 0) + '" fill-opacity="0.5"/>'; });
+    var cl = curve.map(function (p) { return A.sx(p.x).toFixed(1) + "," + A.sy(p.p).toFixed(1); });
+    body += '<polyline points="' + cl.join(" ") + '" fill="none" stroke="' + INK + '" stroke-width="1.7"/>';
+    return svg(w, h, body, o.aria || "logistic regression curve");
+  };
+
   C.CAT = CAT; C.seq = seq; C.div = div; C._axes = axes;
 })();

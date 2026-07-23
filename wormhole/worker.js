@@ -15,9 +15,11 @@ import "./stats.js";
 import "./charts.js";
 import "./dataset.js";
 import "./analysis.js";
+import "./genome.js";
 import "./paper.js";
 const W = globalThis.WORMHOLE;
 const PAPER = globalThis.WORMHOLE_PAPER;
+const GENOME = globalThis.WORMHOLE_GENOME;
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -60,6 +62,23 @@ export default {
     if (p === "/api/paper") {
       const id = url.searchParams.get("id") || "1.f";
       return json(PAPER.generate(id));
+    }
+    if (p === "/api/genome") {
+      return json({ dataTypes: GENOME.DATA_TYPES, answerTypes: GENOME.ANSWER_TYPES, techniques: GENOME.TECHNIQUES, matrix: GENOME.matrix() });
+    }
+    if (p === "/api/technique") {
+      const id = url.searchParams.get("id") || GENOME.ids()[0];
+      const seed = url.searchParams.get("seed") || "1";
+      return json(GENOME.run(id, seed));
+    }
+
+    // ---- the analysis-genome roulette at /lab ----
+    if (p === "/lab" || p === "/lab/") {
+      const res = await env.ASSETS.fetch(new Request(new URL("/lab", url.origin), request));
+      return new Response(res.body, {
+        status: res.status,
+        headers: { ...Object.fromEntries(res.headers), "content-type": "text/html; charset=utf-8" },
+      });
     }
 
     // ---- pretty permalink: /f/<seed> → index.html ----
