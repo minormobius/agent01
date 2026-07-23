@@ -8,6 +8,7 @@
 import "./stats.js";
 import "./charts.js";
 const C = globalThis.WORMHOLE_CHARTS;
+const ST = globalThis.WORMHOLE_STATS;
 
 let failures = 0;
 function ok(cond, msg) { if (!cond) { failures++; console.error("  ✗ " + msg); } }
@@ -36,6 +37,10 @@ const cases = {
   waterfall: () => C.waterfall({ items: [{ label: "A", value: 40 }, { label: "B", value: 15 }, { label: "Sub", value: 10 }, { label: "Unexpl.", value: 35, kind: "residual" }], ylabel: "%" }),
   forest: () => C.forest({ rows: [{ label: "Cov", est: 0.6, lo: 0.5, hi: 0.7 }, { label: "Riv", est: 0.1, lo: -0.02, hi: 0.22 }, { label: "S2", est: -0.3, lo: -0.45, hi: -0.15 }], xlabel: "effect", ref: 0 }),
   qq: () => C.qq({ values: groups[0].values }),
+  line: () => C.line({ series: [{ name: "a", points: series(50, i => ({ x: i, y: Math.sin(i / 5) + 2 })) }, { name: "b", points: series(50, i => ({ x: i, y: Math.cos(i / 5) + 2 })) }], xlabel: "t", ylabel: "y", markers: false }),
+  spectrum: () => { const s = series(120, t => Math.sin(2 * Math.PI * t / 12) + 0.3 * Math.sin(2 * Math.PI * t / 5) + 1); const pg = ST.periodogram(s); return C.spectrum({ freq: pg.freq, power: pg.power, period: pg.period }); },
+  scree: () => C.scree({ explained: [0.52, 0.24, 0.13, 0.07, 0.04] }),
+  biplot: () => { const rows = series(120, i => [Math.sin(i), Math.sin(i) * 0.9 + 0.1 * Math.cos(i), Math.cos(i * 2.1)]); const p = ST.pca(rows); return C.biplot({ scores: p.scores.map((s, i) => ({ x: s[0], y: s[1], g: i % 3 })), loadings: [0, 1, 2].map(j => ({ x: p.loadings[0][j], y: p.loadings[1][j], label: "V" + j })), groups: ["A", "B", "C"], xlabel: "PC1", ylabel: "PC2" }); },
 };
 
 for (const name of Object.keys(cases)) {

@@ -27,6 +27,7 @@
 <script src="/stats.js"></script>
 <script src="/charts.js"></script>
 <script src="/dataset.js"></script>
+<script src="/analysis.js"></script>
 <script src="/paper.js"></script>
 <script>
 (function () {
@@ -52,35 +53,25 @@
     return { names: names, affils: affils };
   }
 
+  function renderTable(t) {
+    var head = "<tr>" + t.cols.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
+    var rows = t.rows.map(function (row) { return "<tr>" + row.map(function (c) { return "<td>" + esc(c) + "</td>"; }).join("") + "</tr>"; }).join("");
+    return '<div class="table-fig"><div class="cap"><b>Table 1.</b> ' + esc(t.caption) + '</div>' +
+      '<table class="booktabs"><thead>' + head + "</thead><tbody>" + rows + "</tbody></table></div>";
+  }
   function renderBody(p) {
-    var secs = p.sections.map(function (s, i) {
-      var inner = s.paras.map(function (par, j) {
-        var html = '<p class="' + (j === 0 ? "first" : "") + '">' + par.html + "</p>";
-        if (par.eq) {
-          html += '<div class="eq">' + par.eq.html + '<span class="eqno">(' + par.eq.num + ')</span></div>';
-        }
-        return html;
+    return p.sections.map(function (s, i) {
+      var seenP = false;
+      var inner = s.flow.map(function (it) {
+        if (it.t === "p") { var cls = (!seenP || it.first) ? "first" : ""; seenP = true; return '<p class="' + cls + '">' + it.html + "</p>"; }
+        if (it.t === "eq") return '<div class="eq">' + it.html + '<span class="eqno">(' + it.num + ')</span></div>';
+        if (it.t === "table") return renderTable(it);
+        if (it.t === "fig") return '<figure class="fig' + (it.wide ? " wide" : "") + '">' + it.svg +
+          '<figcaption><b>Figure ' + it.num + ".</b> " + it.caption + "</figcaption></figure>";
+        return "";
       }).join("");
-      var block = '<h2><span class="secno">' + (i + 1) + "</span>" + esc(s.title) + "</h2>" + inner;
-      if (s.table) {
-        var t = s.table;
-        var head = "<tr>" + t.cols.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
-        var rows = t.rows.map(function (row) {
-          return "<tr>" + row.map(function (c) { return "<td>" + esc(c) + "</td>"; }).join("") + "</tr>";
-        }).join("");
-        block += '<div class="table-fig"><div class="cap"><b>Table 1.</b> ' + esc(t.caption) + '</div>' +
-          '<table class="booktabs"><thead>' + head + "</thead><tbody>" + rows + "</tbody></table></div>";
-      }
-      if (s.figures && s.figures.length) {
-        block += s.figures.map(function (f) {
-          return '<figure class="fig' + (f.wide ? " wide" : "") + '">' + f.svg +
-            '<figcaption><b>Figure ' + f.num + ".</b> " + f.caption + "</figcaption></figure>";
-        }).join("");
-      }
-      return block;
+      return '<h2><span class="secno">' + (i + 1) + "</span>" + esc(s.title) + "</h2>" + inner;
     }).join("");
-    return inner_wrap(secs);
-    function inner_wrap(x) { return x; }
   }
 
   function renderRefs(p) {

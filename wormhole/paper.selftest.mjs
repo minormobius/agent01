@@ -12,6 +12,7 @@ import "./engine.js";
 import "./stats.js";
 import "./charts.js";
 import "./dataset.js";
+import "./analysis.js";
 import "./paper.js";
 const W = globalThis.WORMHOLE;
 const P = globalThis.WORMHOLE_PAPER;
@@ -62,24 +63,35 @@ function checkPaper(p) {
   ok(/^10\.\d+\//.test(p.header.doi), "doi shape");
   ok(typeof p.abstract === "string" && p.abstract.length > 80, "abstract nontrivial");
   ok(Array.isArray(p.sections) && p.sections.length >= 5, "has >= 5 sections");
-  ok(p.sections.every(s => s.title && Array.isArray(s.paras) && s.paras.length >= 1), "sections well-formed");
+  ok(p.sections.every(s => s.title && Array.isArray(s.flow) && s.flow.length >= 1), "sections carry a flow");
+  const flow = p.sections.flatMap(s => s.flow);
   // at least one equation and exactly one table
-  const eqs = p.sections.flatMap(s => s.paras).filter(par => par.eq).length;
-  ok(eqs >= 1, "has >= 1 display equation");
-  const tables = p.sections.filter(s => s.table).length;
-  ok(tables === 1, "has exactly one results table");
-  const tbl = p.sections.find(s => s.table).table;
+  ok(flow.filter(it => it.t === "eq").length >= 1, "has >= 1 display equation");
+  const tables = flow.filter(it => it.t === "table");
+  ok(tables.length === 1, "has exactly one results table");
+  const tbl = tables[0];
   ok(tbl.cols.length >= 3 && tbl.rows.length >= 1 && tbl.rows.every(row => row.length === tbl.cols.length), "table rows match columns");
   ok(typeof p.acknowledgements === "string" && p.acknowledgements.length > 20, "has acknowledgements");
-  // figures: at least 3, each a real SVG with a caption, numbered in order
-  const figs = p.sections.flatMap(s => s.figures || []);
+  // figures: at least 3, each a real SVG, numbered in reading order; text between them
+  const figs = flow.filter(it => it.t === "fig");
   ok(figs.length >= 3, "has >= 3 figures");
   ok(figs.every(f => typeof f.svg === "string" && f.svg.indexOf("<svg") === 0), "each figure is an <svg>");
   ok(figs.every(f => f.svg.indexOf("NaN") < 0), "no NaN in figure SVGs");
   ok(figs.every(f => typeof f.caption === "string" && f.caption.length > 20), "each figure has a caption");
-  ok(figs.every((f, i) => f.num === i + 1), "figures numbered 1..n in order");
+  ok(figs.every((f, i) => f.num === i + 1), "figures numbered 1..n in reading order");
+  // a paragraph follows each figure inside its section (text between figures)
+  ok(p.sections.every(s => { const fi = s.flow.map((x, i) => x.t === "fig" ? i : -1).filter(i => i >= 0); return fi.every(i => s.flow[i + 1] && s.flow[i + 1].t === "p"); }), "each figure is followed by a paragraph");
+  // no unresolved tokens leaked into the text
+  ok(!flow.some(it => it.html && /@(fig:|tab@|place@)/.test(it.html)), "no unresolved @-tokens in prose");
 }
-for (const id of ["1.f", "42.f", "42.r9", "7000.r2", "3.r1"]) checkPaper(P.generate(id));
+for (const id of ["1.f", "42.f", "42.r9", "7000.r2", "3.r1", "5.f", "13.f", "21.f", "34.f"]) checkPaper(P.generate(id));
+
+// every design surfaces across seeds, and each produces a valid paper
+{
+  const seen = {};
+  for (let i = 1; i <= 60; i++) { const d = P.generate(i + ".f").design; seen[d] = (seen[d] || 0) + 1; }
+  for (const d of ["regression", "comparative", "spectral", "ordination"]) ok(seen[d] > 0, `design '${d}' appears across seeds`);
+}
 
 // cross-field references really do reach other fields sometimes
 let sawCrossField = false;

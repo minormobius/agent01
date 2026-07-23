@@ -62,7 +62,9 @@
   function fmt(v, step) {
     if (v === 0) return "0";
     var dec = step ? Math.max(0, -Math.floor(Math.log10(step) + 1e-9)) : 0;
-    if (Math.abs(v) >= 1000) return (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + "k";
+    // k-notation only for genuinely large magnitudes on a coarse scale — never
+    // for years or counts (a 1850 tick must read "1850", not "1.9k").
+    if (Math.abs(v) >= 10000 && step >= 1000) return (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + "k";
     return dec > 0 ? v.toFixed(Math.min(dec, 3)) : String(Math.round(v));
   }
   function scale(d0, d1, r0, r1) { var m = (r1 - r0) / ((d1 - d0) || 1); return function (v) { return r0 + (v - d0) * m; }; }
@@ -124,14 +126,32 @@
     return { body: b, sx: sx, sy: sy, m: m, iw: iw, ih: ih, xt: xt, yt: yt };
   }
 
+  function legendBox(items) {
+    return { lw: 15 + Math.max.apply(null, items.map(function (it) { return it.label.length; })) * 5.3 + 8, lh: items.length * 13 + 6 };
+  }
   function legend(items, x, y, o) {
-    o = o || {}; var b = "", dy = 0;
+    o = o || {}; var box = legendBox(items), b = "", dy = 0;
+    if (o.backing !== false) b += '<rect x="' + (x - 5).toFixed(1) + '" y="' + (y - 6).toFixed(1) + '" width="' + box.lw.toFixed(1) + '" height="' + box.lh + '" rx="3" fill="#ffffff" fill-opacity="0.74"/>';
     items.forEach(function (it) {
-      b += '<rect x="' + x + '" y="' + (y + dy - 6.5) + '" width="9" height="9" rx="1.5" fill="' + it.color + '"/>';
+      b += '<rect x="' + x.toFixed(1) + '" y="' + (y + dy - 6.5).toFixed(1) + '" width="9" height="9" rx="1.5" fill="' + it.color + '"/>';
       b += T(x + 13, y + dy + 1, it.label, { size: 9, fill: INK });
       dy += 13;
     });
     return b;
+  }
+  // place the legend in whichever corner holds the fewest data points
+  function legendSmart(items, ptsPx, m, iw, ih) {
+    var box = legendBox(items), pad = 7;
+    var cands = [
+      { x: m.l + pad, y: m.t + pad + 6 },
+      { x: m.l + iw - box.lw - pad + 5, y: m.t + pad + 6 },
+      { x: m.l + pad, y: m.t + ih - box.lh - pad + 6 },
+      { x: m.l + iw - box.lw - pad + 5, y: m.t + ih - box.lh - pad + 6 }
+    ];
+    function count(c) { var n = 0; ptsPx.forEach(function (p) { if (p.x >= c.x - 6 && p.x <= c.x + box.lw && p.y >= c.y - 10 && p.y <= c.y + box.lh) n++; }); return n; }
+    var best = cands[1], bestN = Infinity;
+    cands.forEach(function (c) { var n = count(c); if (n < bestN) { bestN = n; best = c; } });
+    return legend(items, best.x, best.y);
   }
 
   // ============================================================
@@ -166,8 +186,11 @@
     body += L(A.sx(x0), A.sy(b0 + b1 * x0), A.sx(x1), A.sy(b0 + b1 * x1), { stroke: INK, w: 1.6 });
     // annotation
     if (o.annot) body += T(A.m.l + 6, A.m.t + 11, o.annot, { size: 9.5, fill: INK, weight: 600 });
-    // legend
-    if (o.groups && o.groups.length > 1) body += legend(o.groups.map(function (g, i) { return { label: g, color: cat(i) }; }), A.m.l + A.iw - 92, A.m.t + 10);
+    // legend (placed away from the data)
+    if (o.groups && o.groups.length > 1) {
+      var ppx = pts.map(function (p) { return { x: A.sx(p.x), y: A.sy(p.y) }; });
+      body += legendSmart(o.groups.map(function (g, i) { return { label: g, color: cat(i) }; }), ppx, A.m, A.iw, A.ih);
+    }
     return svg(w, h, body, o.aria || "scatter plot with regression fit");
   };
 
@@ -236,7 +259,7 @@
     var sx = scale(xt.min, xt.max, m.l, m.l + iw);
     var body = "";
     xt.ticks.forEach(function (v) { var x = sx(v); body += L(x, m.t, x, m.t + ih, { stroke: GRID, w: 1 }); body += T(x, h - 20, fmt(v, xt.step), { anchor: "middle", fill: MUTE }); });
-    var rowH = ih / groups.length, overlap = rowH * 1.7, steps = 60;
+    var rowH = ih / groups.length, overlap = rowH * 1.5, steps = 60;
     for (var gi = groups.length - 1; gi >= 0; gi--) {
       var g = groups[gi], base = m.t + rowH * (gi + 1);
       var xs = [], i; for (i = 0; i <= steps; i++) xs.push(xt.min + (xt.max - xt.min) * i / steps);
@@ -244,8 +267,8 @@
       var pathTop = [], i2;
       for (i2 = 0; i2 <= steps; i2++) pathTop.push(sx(xs[i2]).toFixed(1) + "," + (base - (dens[i2] / dmax) * overlap).toFixed(1));
       var poly = sx(xt.min).toFixed(1) + "," + base.toFixed(1) + " " + pathTop.join(" ") + " " + sx(xt.max).toFixed(1) + "," + base.toFixed(1);
-      body += '<polygon points="' + poly + '" fill="' + cat(gi) + '" fill-opacity="0.62" stroke="#fff" stroke-width="0.8"/>';
-      body += L(m.l, base, m.l + iw, base, { stroke: "#fff", w: 0.5 });
+      // translucent fill so overlapping ridges read through, with a firm coloured edge
+      body += '<polygon points="' + poly + '" fill="' + cat(gi) + '" fill-opacity="0.4" stroke="' + cat(gi) + '" stroke-width="1.2" stroke-opacity="0.92"/>';
       body += T(m.l - 8, base - 2, g.label, { anchor: "end", size: 9.5, fill: INK });
     }
     if (o.xlabel) body += T(m.l + iw / 2, h - 4, o.xlabel, { anchor: "middle", size: 10.5, fill: INK });
@@ -340,11 +363,13 @@
     var w = o.width || 360, h = o.height || 236, items = o.items; // {label, value, kind?: 'total'}
     var run = 0, maxTop = 0;
     var geom = items.map(function (it) {
-      if (it.kind === "total") return { it: it, start: 0, end: it.value };
-      var start = run; run += it.value; if (run > maxTop) maxTop = run; return { it: it, start: start, end: run };
+      if (it.kind === "total") { if (it.value > maxTop) maxTop = it.value; return { it: it, start: 0, end: it.value }; }
+      var start = run; run += it.value; if (run > maxTop) maxTop = run; if (start > maxTop) maxTop = start;
+      return { it: it, start: start, end: run };
     });
-    maxTop = Math.max(maxTop, run) * 1.08;
-    var A = axes({ width: w, height: h, xmin: 0, xmax: 1, ymin: 0, ymax: maxTop, xcat: items.map(function (it) { return it.label; }), ylabel: o.ylabel, grid: true });
+    // headroom above the tallest bar so value labels never truncate off the top
+    var ymax = Math.max(maxTop, run, 1) * 1.16;
+    var A = axes({ width: w, height: h, xmin: 0, xmax: 1, ymin: 0, ymax: ymax, xcat: items.map(function (it) { return it.label; }), ylabel: o.ylabel, grid: true, margin: { l: 46, r: 14, t: 20, b: 36 } });
     var body = A.body, slot = A.iw / items.length, bw = slot * 0.6;
     var prevX = null, prevY = null;
     geom.forEach(function (gm, i) {
@@ -404,6 +429,89 @@
     body += L(A.sx(A.xt.min), A.sy(icpt + slope * A.xt.min), A.sx(A.xt.max), A.sy(icpt + slope * A.xt.max), { stroke: INK, w: 1.4, dash: "4,3" });
     for (i = 0; i < n; i++) body += '<circle cx="' + A.sx(theo[i]).toFixed(1) + '" cy="' + A.sy(vals[i]).toFixed(1) + '" r="2.3" fill="' + cat(0) + '" fill-opacity="0.8" stroke="#fff" stroke-width="0.5"/>';
     return svg(w, h, body, o.aria || "normal quantile-quantile plot");
+  };
+
+  // ============================================================
+  // 11. line / time series (multi-series, optional markers, smart legend)
+  // ============================================================
+  C.line = function (o) {
+    var w = o.width || 360, h = o.height || 226, series = o.series;
+    var allx = [], ally = [];
+    series.forEach(function (s) { s.points.forEach(function (p) { allx.push(p.x); ally.push(p.y); }); });
+    var A = axes({ width: w, height: h, xmin: ST.min(allx), xmax: ST.max(allx), ymin: ST.min(ally), ymax: ST.max(ally), xlabel: o.xlabel, ylabel: o.ylabel });
+    var body = A.body;
+    series.forEach(function (s, si) {
+      var pl = s.points.map(function (p) { return A.sx(p.x).toFixed(1) + "," + A.sy(p.y).toFixed(1); });
+      body += '<polyline points="' + pl.join(" ") + '" fill="none" stroke="' + cat(si) + '" stroke-width="1.6"/>';
+      if (o.markers) s.points.forEach(function (p) { body += '<circle cx="' + A.sx(p.x).toFixed(1) + '" cy="' + A.sy(p.y).toFixed(1) + '" r="1.9" fill="' + cat(si) + '" stroke="#fff" stroke-width="0.5"/>'; });
+    });
+    if (series.length > 1) {
+      var ppx = []; series.forEach(function (s) { s.points.forEach(function (p) { ppx.push({ x: A.sx(p.x), y: A.sy(p.y) }); }); });
+      body += legendSmart(series.map(function (s, i) { return { label: s.name, color: cat(i) }; }), ppx, A.m, A.iw, A.ih);
+    }
+    return svg(w, h, body, o.aria || "time series");
+  };
+
+  // ============================================================
+  // 12. spectrum / periodogram (power vs frequency, dominant peak marked)
+  // ============================================================
+  C.spectrum = function (o) {
+    var w = o.width || 360, h = o.height || 226, f = o.freq, pw = o.power;
+    var A = axes({ width: w, height: h, xmin: 0, xmax: ST.max(f), ymin: 0, ymax: ST.max(pw) * 1.1, xlabel: o.xlabel || "frequency (cycles per sample)", ylabel: o.ylabel || "spectral power" });
+    var body = A.body;
+    var line = f.map(function (fx, i) { return A.sx(fx).toFixed(1) + "," + A.sy(pw[i]).toFixed(1); });
+    body += '<polygon points="' + A.sx(0).toFixed(1) + "," + A.sy(0).toFixed(1) + " " + line.join(" ") + " " + A.sx(ST.max(f)).toFixed(1) + "," + A.sy(0).toFixed(1) + '" fill="' + cat(0) + '" fill-opacity="0.16"/>';
+    body += '<polyline points="' + line.join(" ") + '" fill="none" stroke="' + cat(0) + '" stroke-width="1.4"/>';
+    var mi = 0; pw.forEach(function (p, i) { if (p > pw[mi]) mi = i; });
+    body += L(A.sx(f[mi]), A.m.t, A.sx(f[mi]), A.m.t + A.ih, { stroke: cat(1), w: 1.2, dash: "3,3" });
+    var period = o.period ? o.period[mi] : (1 / f[mi]);
+    var peakX = A.sx(f[mi]), lblAnchor = (peakX > A.m.l + A.iw * 0.6) ? "end" : "start";
+    body += T(peakX + (lblAnchor === "end" ? -4 : 4), A.m.t + 11, "period ≈ " + period.toFixed(1), { size: 9, fill: cat(1), weight: 600, anchor: lblAnchor });
+    return svg(w, h, body, o.aria || "periodogram");
+  };
+
+  // ============================================================
+  // 13. scree plot (variance explained per principal component)
+  // ============================================================
+  C.scree = function (o) {
+    var w = o.width || 320, h = o.height || 222;
+    var ex = o.explained.map(function (v) { return v * 100; }), k = ex.length;
+    var A = axes({ width: w, height: h, xmin: 0, xmax: 1, ymin: 0, ymax: ST.max(ex) * 1.14, xcat: ex.map(function (_, i) { return "PC" + (i + 1); }), ylabel: o.ylabel || "% variance" });
+    var body = A.body, slot = A.iw / k, bw = Math.min(slot * 0.5, 26), tops = [];
+    ex.forEach(function (v, i) {
+      var cx = A.m.l + slot * (i + 0.5), y = A.sy(v), y0 = A.sy(0);
+      body += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0, y0 - y).toFixed(1) + '" rx="1" fill="' + cat(0) + '" fill-opacity="0.5"/>';
+      tops.push(cx.toFixed(1) + "," + y.toFixed(1));
+    });
+    body += '<polyline points="' + tops.join(" ") + '" fill="none" stroke="' + INK + '" stroke-width="1.3"/>';
+    ex.forEach(function (v, i) { var cx = A.m.l + slot * (i + 0.5); body += '<circle cx="' + cx.toFixed(1) + '" cy="' + A.sy(v).toFixed(1) + '" r="2.4" fill="' + INK + '"/>'; body += T(cx, A.sy(v) - 6, v.toFixed(0) + "%", { anchor: "middle", size: 8.5, fill: MUTE }); });
+    return svg(w, h, body, o.aria || "scree plot");
+  };
+
+  // ============================================================
+  // 14. PCA biplot (scores coloured by group + variable loading vectors)
+  // ============================================================
+  C.biplot = function (o) {
+    var w = o.width || 340, h = o.height || 300, scores = o.scores, loadings = o.loadings;
+    var xs = scores.map(function (p) { return p.x; }), ys = scores.map(function (p) { return p.y; });
+    var ext = Math.max(Math.abs(ST.min(xs)), Math.abs(ST.max(xs)), Math.abs(ST.min(ys)), Math.abs(ST.max(ys))) || 1;
+    var A = axes({ width: w, height: h, xmin: -ext, xmax: ext, ymin: -ext, ymax: ext, xlabel: o.xlabel, ylabel: o.ylabel, grid: false });
+    var body = A.body;
+    body += L(A.sx(0), A.m.t, A.sx(0), A.m.t + A.ih, { stroke: "#ccc", w: 0.8, dash: "2,3" });
+    body += L(A.m.l, A.sy(0), A.m.l + A.iw, A.sy(0), { stroke: "#ccc", w: 0.8, dash: "2,3" });
+    scores.forEach(function (p) { body += '<circle cx="' + A.sx(p.x).toFixed(1) + '" cy="' + A.sy(p.y).toFixed(1) + '" r="2.5" fill="' + cat(p.g || 0) + '" fill-opacity="0.72" stroke="#fff" stroke-width="0.5"/>'; });
+    var lext = Math.max.apply(null, loadings.map(function (l) { return Math.hypot(l.x, l.y); })) || 1, sc = ext * 0.82 / lext;
+    loadings.forEach(function (l) {
+      var x2 = A.sx(l.x * sc), y2 = A.sy(l.y * sc);
+      body += L(A.sx(0), A.sy(0), x2, y2, { stroke: INK, w: 1.2 });
+      body += '<circle cx="' + x2.toFixed(1) + '" cy="' + y2.toFixed(1) + '" r="1.6" fill="' + INK + '"/>';
+      body += T(x2 + (l.x >= 0 ? 3 : -3), y2 + (l.y >= 0 ? -3 : 9), l.label, { anchor: (l.x >= 0 ? "start" : "end"), size: 8, fill: INK, weight: 600 });
+    });
+    if (o.groups && o.groups.length > 1) {
+      var ppx = scores.map(function (p) { return { x: A.sx(p.x), y: A.sy(p.y) }; });
+      body += legendSmart(o.groups.map(function (g, i) { return { label: g, color: cat(i) }; }), ppx, A.m, A.iw, A.ih);
+    }
+    return svg(w, h, body, o.aria || "PCA biplot");
   };
 
   C.CAT = CAT; C.seq = seq; C.div = div; C._axes = axes;

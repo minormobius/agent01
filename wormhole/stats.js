@@ -198,9 +198,79 @@
     return s.map(function (v, i) { return { x: v, p: (i + 1) / s.length }; });
   }
 
+  // symmetric-matrix eigendecomposition via cyclic Jacobi rotations.
+  // Returns eigenvalues (descending) and matching eigenvectors (as columns).
+  function jacobiEig(Ain) {
+    var n = Ain.length, A = Ain.map(function (r) { return r.slice(); }), i, j, k;
+    var V = []; for (i = 0; i < n; i++) { V.push([]); for (j = 0; j < n; j++) V[i].push(i === j ? 1 : 0); }
+    for (var sweep = 0; sweep < 100; sweep++) {
+      var off = 0; for (i = 0; i < n; i++) for (j = i + 1; j < n; j++) off += A[i][j] * A[i][j];
+      if (off < 1e-16) break;
+      for (var p = 0; p < n; p++) for (var q = p + 1; q < n; q++) {
+        if (Math.abs(A[p][q]) < 1e-18) continue;
+        var phi = 0.5 * Math.atan2(2 * A[p][q], A[q][q] - A[p][p]);
+        var c = Math.cos(phi), s = Math.sin(phi), akp, akq;
+        for (k = 0; k < n; k++) { akp = A[k][p]; akq = A[k][q]; A[k][p] = c * akp - s * akq; A[k][q] = s * akp + c * akq; }
+        for (k = 0; k < n; k++) { akp = A[p][k]; akq = A[q][k]; A[p][k] = c * akp - s * akq; A[q][k] = s * akp + c * akq; }
+        for (k = 0; k < n; k++) { var vkp = V[k][p], vkq = V[k][q]; V[k][p] = c * vkp - s * vkq; V[k][q] = s * vkp + c * vkq; }
+      }
+    }
+    var vals = []; for (i = 0; i < n; i++) vals.push(A[i][i]);
+    var ord = vals.map(function (_, i2) { return i2; }).sort(function (a, b) { return vals[b] - vals[a]; });
+    return {
+      values: ord.map(function (i2) { return vals[i2]; }),
+      vectors: ord.map(function (i2) { return V.map(function (row) { return row[i2]; }); }) // vectors[c] = c-th eigenvector
+    };
+  }
+
+  // PCA on a case × variable matrix (standardized → PCA of the correlation matrix).
+  function pca(rows) {
+    var n = rows.length, p = rows[0].length, i, j, k;
+    var means = [], sds = [];
+    for (j = 0; j < p; j++) { var col = rows.map(function (r) { return r[j]; }); means.push(mean(col)); sds.push(sd(col) || 1); }
+    var Z = rows.map(function (r) { return r.map(function (v, jj) { return (v - means[jj]) / sds[jj]; }); });
+    var Cm = []; for (j = 0; j < p; j++) Cm.push(new Array(p).fill(0));
+    for (i = 0; i < n; i++) for (j = 0; j < p; j++) for (k = 0; k < p; k++) Cm[j][k] += Z[i][j] * Z[i][k] / (n - 1);
+    var e = jacobiEig(Cm);
+    var tot = e.values.reduce(function (a, v) { return a + Math.max(0, v); }, 0) || 1;
+    var explained = e.values.map(function (v) { return Math.max(0, v) / tot; });
+    var scores = Z.map(function (row) {
+      return e.vectors.map(function (vec) { var s = 0; for (var jj = 0; jj < p; jj++) s += row[jj] * vec[jj]; return s; });
+    });
+    var loadings = e.vectors.map(function (vec, ci) { var Lr = Math.sqrt(Math.max(0, e.values[ci])); return vec.map(function (x) { return x * Lr; }); });
+    return { values: e.values, vectors: e.vectors, explained: explained, scores: scores, loadings: loadings };
+  }
+
+  // remove a linear trend from a series (returns residuals)
+  function detrend(y) {
+    var f = ols(y.map(function (_, i) { return [i]; }), y);
+    return y.map(function (v, i) { return v - (f.beta[0] + f.beta[1] * i); });
+  }
+
+  // one-sided periodogram (naive DFT) of a detrended signal.
+  function periodogram(signal) {
+    var y = detrend(signal), n = y.length, m = Math.floor(n / 2), out = { freq: [], power: [], period: [] };
+    for (var kk = 1; kk <= m; kk++) {
+      var re = 0, im = 0;
+      for (var t = 0; t < n; t++) { var ang = 2 * Math.PI * kk * t / n; re += y[t] * Math.cos(ang); im += y[t] * Math.sin(ang); }
+      out.freq.push(kk / n); out.power.push((re * re + im * im) * 2 / n); out.period.push(n / kk);
+    }
+    return out;
+  }
+
+  // one-way ANOVA over an array of groups (arrays). η² is the effect size.
+  function anova(groups) {
+    var all = [].concat.apply([], groups), gm = mean(all), ssb = 0, ssw = 0;
+    groups.forEach(function (g) { var m = mean(g); ssb += g.length * (m - gm) * (m - gm); g.forEach(function (v) { ssw += (v - m) * (v - m); }); });
+    var sst = ssb + ssw, k = groups.length, N = all.length;
+    var F = (ssb / Math.max(1, k - 1)) / Math.max(1e-9, ssw / Math.max(1, N - k));
+    return { eta2: sst > 0 ? ssb / sst : 0, F: F, ssb: ssb, ssw: ssw, dfb: k - 1, dfw: N - k, grandMean: gm };
+  }
+
   S.sum = sum; S.mean = mean; S.variance = variance; S.sd = sd; S.min = min; S.max = max;
   S.quantile = quantile; S.median = median; S.correlation = correlation;
   S.solve = solve; S.invert = invert; S.ols = ols;
   S.normalCdf = normalCdf; S.normalQuantile = normalQuantile; S.corrP = corrP;
   S.kde = kde; S.histogram = histogram; S.ecdf = ecdf;
+  S.jacobiEig = jacobiEig; S.pca = pca; S.detrend = detrend; S.periodogram = periodogram; S.anova = anova;
 })();

@@ -25,7 +25,9 @@ jobs:
         run: node charts.selftest.mjs
       - name: Dataset selftest (reported stats computed from the data)
         run: node dataset.selftest.mjs
-      - name: Paper-engine selftest (determinism + reference coherence + figures)
+      - name: Analysis selftest (design space — regression/comparative/spectral/ordination)
+        run: node analysis.selftest.mjs
+      - name: Paper-engine selftest (determinism + reference coherence + figures + flow)
         run: node paper.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
